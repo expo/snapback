@@ -16,7 +16,7 @@ claim.
 - The original prompts are recovered from commit `67700dd43`, not from the
   subsequently edited reusable templates. The four files under `prompts/`
   change only the published Snapback spelling from 0.1.24 to 0.1.25 and the
-  absolute instrument root to the R2 root. Model, prompt-text effort
+  absolute instrument root to the non-overwriting R2 resume root. Model, prompt-text effort
   declaration, app scope, M1–M3 limit, fixtures, proof contract, safety limits,
   and Exact pin remain as recorded. Actual launch effort follows the executed
   harness record and the deviations table below.
@@ -49,15 +49,19 @@ claim.
 
 1. Resolve every blocking entry in `preflight.json` and rerun preflight. Do not
    waive a red by editing a cell after its authoring clock begins.
-2. Freeze the single machine, Node 24 path, CLI versions, Exact checkout,
-   instrument tree, package closure, and approved load ceiling in
+2. Freeze each allowed host identity, the exact Node 24 executable bytes, CLI
+   versions, Exact checkout, instrument tree, package closure, and host-scoped load ceiling in
    `harness-config.json`.
-3. Declare an exclusive host reservation for the requested run and cell, then
-   run `r2-cell-admission.mjs`. It verifies the exact command/instrument pin,
-   including the complete source and read-only materialized instrument trees,
-   committed prefix, prior process closure, unbound ports, harness version and
-   auth, and three one-minute load samples. It writes a self-hashed artifact
-   valid for 30 seconds. Materialize each lane from a fresh directory with the
+3. Materialize the registered resume instrument at its new immutable path,
+   then run `r2-cell-admission.mjs`. Admission atomically acquires the exclusive
+   host lock and verifies the exact Node/controller/driver bytes, ordered argv,
+   source and read-only materialized instrument trees, allowed host hardware,
+   complete committed-prefix replay, harness version/auth, and three one-minute
+   load samples followed by fresh prior-process and all-campaign-port probes.
+   It writes a self-hashed artifact valid for 30 seconds. The controller claims
+   and holds that same lock, repeats the live probes and byte checks immediately
+   before its first private write and driver import, and releases it only after
+   finalization. Materialize each lane from a fresh directory with the
    landed lane setup and its bounded start packet. Start its exact
    `controllerCommand` from
    `harness-config.json`; that command supplies the production native-CLI
@@ -66,8 +70,9 @@ claim.
    No session, implementation, store, or generated output may cross a cell
    boundary.
 4. Run cells in the registered order with `maxConcurrentCells: 1`. The next
-   cell cannot start until the prior process tree is closed and three
-   consecutive one-minute load samples are within the ceiling.
+   cell cannot start until the prior campaign tree is closed, every registered
+   campaign port is unbound, the exclusive lock is available, and three
+   consecutive one-minute load samples are within the host-scoped ceiling.
 5. At every attempted milestone retain the suite receipt, choreography
    segment summary, terminal boundary, first-green time, semantic actions,
    failure-to-recovery episodes, restarts/reseeds, assertion attempts/wait,
@@ -87,15 +92,35 @@ claim.
    attempt. Generate aggregate tables only from complete records; keep each
    qualitative essay as pre-metrics narrative evidence.
 
-The production command shape is frozen per cell, for example:
+Materialize the resume snapshot once after this commit lands and before any
+admission; the command refuses an existing destination and never touches the
+old `/Users/ccheever/bench-matrix-20260823-r2/instrument` archive:
+
+```sh
+node benchmarks/tools/materialize-instrument.mjs \
+  --out /Users/ccheever/bench-matrix-20260823-r2/instrument-resume-20260824
+```
+
+Create the next admission artifact without real waiting only in tests; the
+production command takes the registered three one-minute samples:
+
+```sh
+/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node \
+  benchmarks/tools/social-messenger/metering/r2-cell-admission.mjs \
+  --harness-config benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json \
+  --cell sol-clique-familiar --reserved-by <operator> \
+  --out benchmarks/runs/2026-08-23-r2-published-0125/admissions/sol-clique-familiar.json
+```
+
+The production controller command shape is frozen per cell:
 
 ```sh
 /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node \
   benchmarks/tools/social-messenger/metering/lane-controller.mjs \
   --harness-config benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json \
-  --cell sol-clique-explicit \
+  --cell sol-clique-familiar \
   --driver benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs \
-  --admission benchmarks/runs/2026-08-23-r2-published-0125/admissions/sol-clique-explicit.json
+  --admission benchmarks/runs/2026-08-23-r2-published-0125/admissions/sol-clique-familiar.json
 ```
 
 `validate-plan.mjs` resolves all twelve concrete commands and deterministic
@@ -106,19 +131,41 @@ admission before importing the driver, creating the private cell, writing a
 prompt, or launching a process. Existing private unrecorded evidence must be
 finalized; it can never be admitted as a rerun.
 
+For a retained single attempt whose native stream, terminal boundaries,
+metering manifest, and record base completed but whose controller failed in
+the final join/record step, use the no-launch finalizer. It does not import the
+production driver or call `prepare()`:
+
+```sh
+node benchmarks/tools/social-messenger/metering/r2-finalize-existing.mjs \
+  --harness-config benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json \
+  --cell <cell-id> --reserved-by <operator>
+```
+
+Inspect the validator-clean private `record.json` and
+`publication-manifest.json`; add `--publish` only when the committed slot is
+still pristine. Publication copies only the validation-required hash graph and
+writes the one-attempt `cell.json` last. The tool never invents missing counts,
+deletes retained evidence, or permits a second attempt.
+
 ## Load-isolation ruling
 
-The sole machine is this `MacBookPro18,4` (Darwin arm64, 10 logical CPUs,
-64 GiB). The approved ceiling is loadavg-1/loadavg-5/loadavg-15 each at or
-below 10.00, sampled once per minute. A cell is contaminated on the first
-sample above any ceiling; it continues for product evidence but becomes
-scorecard-ineligible. The machine must be otherwise reserved, and a new cell
-requires three consecutive all-green samples.
+Codex and Grok cells are allowed only on `Mac.lan`: a `Mac16,11` Mac mini with
+Apple M4 Pro, 12 physical/logical cores, and 24 GB. Claude cells retain the
+separate `MacBookPro18,4` M1 Max 10-core/64-GB identity. No serial number, UUID,
+or other sensitive machine identifier is recorded. Each host-scoped policy
+sets loadavg-1/loadavg-5/loadavg-15 at or below 10.00, sampled once per minute.
+A cell is contaminated on the first sample above any ceiling; it continues for
+product evidence but becomes scorecard-ineligible. Admission additionally
+requires the atomic host lock, three consecutive all-green samples, and fresh
+process/port closure.
 
 LLP 0186 deliberately reused the 0.1.24 contamination flags without inventing
 a threshold, while this R2 request requires an explicit ceiling. The
-orchestrator approved the numeric 10.00 ceiling and three-sample admission rule
-before cell 1.
+orchestrator approved the numeric 10.00 ceiling and three-sample rule before
+cell 1. Recovery/resume v4 binds continuation to the actual Mac16,11 host and
+exclusive admission lock; it does not retroactively restamp cell 1's
+historical host or admission evidence.
 
 ## Record layout
 
@@ -214,10 +261,10 @@ Re-hash and revalidate them independently with:
 ```sh
 node benchmarks/runs/2026-08-23-r2-published-0125/validate-dry-run-evidence.mjs \
   benchmarks/runs/2026-08-23-r2-published-0125/dry-run-evidence/success \
-  --source-binding benchmarks/runs/2026-08-23-r2-published-0125/recovery-resume.v3.json
+  --source-binding benchmarks/runs/2026-08-23-r2-published-0125/recovery-resume.v4.json
 node benchmarks/runs/2026-08-23-r2-published-0125/validate-dry-run-evidence.mjs \
   benchmarks/runs/2026-08-23-r2-published-0125/dry-run-evidence/failure \
-  --source-binding benchmarks/runs/2026-08-23-r2-published-0125/recovery-resume.v3.json
+  --source-binding benchmarks/runs/2026-08-23-r2-published-0125/recovery-resume.v4.json
 ```
 
 ## Start blockers
@@ -238,8 +285,8 @@ effort, load ceiling, and Codex 0.149.0 rulings are resolved and frozen above.
   baseline, and the 40/20/30 targets adjudicate at R3 against it. No estimated
   baselines are used.
 - **Host split (documented deviation):** cells run on two reserved hosts, each
-  under its own load ceiling and serial execution — codex and grok cells on
-  `charlies-mac-mini--durand` (M4 Pro, 12c/24GB, dedicated), Claude cells on
+  under its own load ceiling and serial execution — Codex and Grok cells on
+  `Mac.lan` (`Mac16,11` Mac mini, Apple M4 Pro, 12c/24GB), Claude cells on
   `charlies-macbook-pro-2` (M1 Max, 10c/64GB) admission-gated around fleet
   load. Host identity, load samples, and contamination flags are recorded per
   cell; the plan's "reserved machines or enforced load ceilings" language

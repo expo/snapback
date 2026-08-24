@@ -6,7 +6,7 @@ Coterie implementation.
 
 Build Clique as an Expo Router web app on Snapback using the DEFAULT EXPLICIT
 authoring profile. The authoritative instrument is
-/Users/ccheever/bench-matrix-20260823-r2/instrument/ (read-only). Read
+/Users/ccheever/bench-matrix-20260823-r2/instrument-resume-20260824/ (read-only). Read
 social-messenger.md and CONTRACT.md first, then the relevant fixture,
 assertion, UI-kit, and choreography files.
 

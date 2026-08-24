@@ -7,6 +7,7 @@ import {
   mkdir,
   readFile,
   readdir,
+  rename,
   stat,
   writeFile,
 } from "node:fs/promises";
@@ -129,7 +130,7 @@ function recordBase(
       model: config.cell.model,
       effort: config.cell.effort === "needs-ruling" ? null : config.cell.effort,
       environment: {
-        node: config.harnessConfig.machine.node.version,
+        node: config.allowedMachine.node.version,
         snapback: config.harnessConfig.pins.snapback0125.version,
         instrument: CURRENT_INSTRUMENT_PIN,
         ...(config.harness.versionFlag
@@ -421,6 +422,24 @@ async function launchHarness(state) {
   state.closed = new Promise((resolveClose) => {
     child.once("close", (code, signal) => resolveClose({ code, signal }));
   });
+  if (!Number.isInteger(child.pid)) {
+    const failure = await state.exit;
+    await state.closed;
+    throw new Error(`R2 native harness failed to spawn: ${failure.error ?? "missing child PID"}`);
+  }
+  const ownershipPath = join(state.root, "process-ownership.json");
+  try {
+    const ownership = JSON.parse(await readFile(ownershipPath, "utf8"));
+    ownership.nativeHarnessPid = child.pid;
+    ownership.updatedAt = new Date().toISOString();
+    const nextPath = `${ownershipPath}.next`;
+    await writeFile(nextPath, `${JSON.stringify(ownership, null, 2)}\n`, { flag: "wx" });
+    await rename(nextPath, ownershipPath);
+  } catch (error) {
+    child.kill("SIGTERM");
+    await state.closed;
+    throw new Error(`R2 driver cannot bind native process ownership: ${error.message}`);
+  }
   const stdout = createInterface({ input: child.stdout });
   stdout.on("line", (line) => {
     queueStreamWrite(state, () => appendFile(stdoutPath, `${line}\n`, "utf8"));

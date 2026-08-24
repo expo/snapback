@@ -7,7 +7,7 @@ names, or any prior Clique or Coterie implementation.
 Build Coterie, the Exact/Contract sibling of the Clique social messenger, as an
 Exact web application backed by Snapback using the DEFAULT EXPLICIT authoring
 profile. The authoritative instrument is
-/Users/ccheever/bench-matrix-20260823-r2/instrument/ (read-only). Read
+/Users/ccheever/bench-matrix-20260823-r2/instrument-resume-20260824/ (read-only). Read
 social-messenger.md and CONTRACT.md first, then the relevant fixture,
 assertion, and choreography files. Port the frozen presentation contract to
 Contract components — no React, React Native, or Expo in the client — while

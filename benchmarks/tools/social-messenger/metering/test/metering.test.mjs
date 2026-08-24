@@ -9,9 +9,10 @@ import {
   mkdtemp,
   readFile,
   rm,
+  stat,
   writeFile,
 } from "node:fs/promises";
-import { hostname, tmpdir } from "node:os";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -47,10 +48,19 @@ import {
 } from "../lane-controller.mjs";
 import {
   admissionIdentity,
+  configuredExecutionBinding,
   createAdmissionArtifact,
   inspectCommittedSeriality,
+  probeLaunchQuiet,
   verifyAdmissionArtifact,
 } from "../r2-cell-admission.mjs";
+import { finalizeExisting } from "../r2-finalize-existing.mjs";
+import {
+  acquireExclusiveHostLock,
+  claimExclusiveHostLock,
+  releaseExclusiveHostLock,
+} from "../r2-host-lock.mjs";
+import { materializeInstrumentSnapshot } from "../../../materialize-instrument.mjs";
 import {
   OBSERVABILITY_BLOCKS,
   OBSERVATION_VERSION,
@@ -552,6 +562,40 @@ test("retained R2 Codex ordering settles signal usage without stealing the next 
   });
   assert.equal(unversioned.boundaryValue, boundaryValue);
   assert.deepEqual(unversioned.compatibilityEvents, []);
+
+  for (const offsetMillis of [-999, 999]) {
+    const futureManifest = structuredClone(manifest);
+    futureManifest.driver.instrumentationCommandsObserved = false;
+    const futureObservations = observationEvents.filter((event) => ![209, 244].includes(event.sequence));
+    const nextMilestone = structuredClone(observationEvents.find((event) => event.sequence === 210));
+    nextMilestone.sequence = offsetMillis < 0 ? 9_001 : 9_002;
+    nextMilestone.actionId = `legitimate-next-milestone-progress-${offsetMillis}`;
+    nextMilestone.at = new Date(
+      Date.parse(result.usageSettlements[0].signalCompletedAt) + offsetMillis,
+    ).toISOString();
+    futureObservations.push(nextMilestone);
+    const future = applyR2DriverV1TerminalCompatibility({
+      manifest: futureManifest,
+      boundaryValue,
+      observationEvents: futureObservations,
+      clockCorrelation: manifest.clockCorrelation,
+      loadedSessions: [{
+        ...manifest.sessions[0],
+        records,
+        nativeCliVersion: "0.149.0",
+        resolvedSha256: manifest.sessions[0].sha256,
+      }],
+    });
+    assert.deepEqual(
+      future.compatibilityEvents[0].observationHandoffExclusions,
+      [],
+      "a filtered future stream must skip the recovered-cell handoff heuristic entirely",
+    );
+    assert.ok(
+      future.observationEvents.some((event) => event.actionId === nextMilestone.actionId),
+      `legitimate next-milestone progress at ${offsetMillis}ms must survive`,
+    );
+  }
 });
 
 test("closed Codex failure without a later native token_count is explicitly unavailable", () => {
@@ -716,15 +760,27 @@ test("meter binds suite-status bytes to receipts at record-write time", async (t
     runId: "r2-fixture",
     pins: { instrument: { instrumentPin: "social-messenger@0.3.3-m8" } },
     harnesses: { fixture: { binary: process.execPath } },
+    machines: { "fixture-host": { id: "fixture-host", node: { version: process.version } } },
     paths: { privateExecutionRoot: directory },
     execution: {
       milestones: ["M1", "M2"],
       loadIsolation: {
-        sampleEverySeconds: 60,
-        ceilingInclusive: { loadavg1: 10, loadavg5: 10, loadavg15: 10 },
+        policies: {
+          "fixture-policy": {
+            policyId: "fixture-policy",
+            allowedHostId: "fixture-host",
+            sampleEverySeconds: 60,
+            ceilingInclusive: { loadavg1: 10, loadavg5: 10, loadavg15: 10 },
+          },
+        },
       },
     },
-    cells: [{ id: "fixture-cell", harness: "fixture" }],
+    cells: [{
+      id: "fixture-cell",
+      harness: "fixture",
+      allowedHostId: "fixture-host",
+      loadCeilingId: "fixture-policy",
+    }],
   };
   await writeFile(r2HarnessPath, `${JSON.stringify(r2Harness)}\n`);
   const loadedControllerConfig = await loadLaneControllerConfig({
@@ -1582,23 +1638,17 @@ test("admission refuses an unrecorded private cell instead of permitting a rerun
   const temp = await mkdtemp(join(tmpdir(), "r2-admission-pristine-"));
   try {
     const committedRoot = join(temp, "run");
-    await Promise.all([
-      mkdir(join(committedRoot, "cells/cell-1"), { recursive: true }),
-      mkdir(join(committedRoot, "cells/cell-2"), { recursive: true }),
-    ]);
-    await writeFile(join(committedRoot, "cells/cell-1/cell.json"), JSON.stringify({
-      status: "recovered-finalized",
-      record: { path: "record.json" },
-      metering: { path: "metering.json" },
+    await mkdir(join(committedRoot, "cells/cell-2"), { recursive: true });
+    await writeFile(join(committedRoot, "cells/cell-2/cell.json"), JSON.stringify({
+      schemaVersion: "snapback.r2-cell-slot.v1",
+      cellId: "cell-2",
+      status: "not-started",
     }));
-    await writeFile(join(committedRoot, "cells/cell-1/record.json"), "{}\n");
-    await writeFile(join(committedRoot, "cells/cell-1/metering.json"), "{}\n");
-    await writeFile(join(committedRoot, "cells/cell-2/cell.json"), JSON.stringify({ status: "not-started" }));
     const harnessConfig = {
-      cellOrder: ["cell-1", "cell-2"],
+      cellOrder: ["cell-2"],
       paths: { committedRunRoot: "run", privateExecutionRoot: join(temp, "private") },
     };
-    assert.throws(() => inspectCommittedSeriality({
+    await assert.rejects(inspectCommittedSeriality({
       harnessConfig,
       cellId: "cell-2",
       repositoryRoot: temp,
@@ -1613,34 +1663,246 @@ test("admission refuses an unrecorded private cell instead of permitting a rerun
   }
 });
 
-test("per-cell admission succeeds with an injected three-minute clock and rejects stale spacing", async () => {
+async function makeFinalizedPrefixFixture() {
+  const temp = await mkdtemp(join(tmpdir(), "r2-finalized-prefix-"));
+  const cellId = "sol-clique-explicit";
+  const cellRoot = join(temp, "run", "cells", cellId);
+  await Promise.all([
+    cp(fileURLToPath(new URL(
+      `benchmarks/runs/2026-08-23-r2-published-0125/cells/${cellId}/`,
+      ROOT,
+    )), cellRoot, { recursive: true }),
+    cp(fileURLToPath(new URL("benchmarks/schema/", ROOT)), join(temp, "benchmarks", "schema"), {
+      recursive: true,
+    }),
+    mkdir(join(temp, "run", "cells", "next-cell"), { recursive: true }),
+  ]);
+  await writeFile(join(temp, "run", "cells", "next-cell", "cell.json"), `${JSON.stringify({
+    schemaVersion: "snapback.r2-cell-slot.v1",
+    cellId: "next-cell",
+    status: "not-started",
+  }, null, 2)}\n`);
+  const harnessConfig = {
+    cellOrder: [cellId, "next-cell"],
+    paths: { committedRunRoot: "run", privateExecutionRoot: join(temp, "private") },
+    execution: { milestones: ["M1", "M2", "M3"] },
+  };
+  const gitRead = (args) => {
+    if (args[0] === "rev-parse") return "fixture-head";
+    return readFileSync(join(temp, args[1].split(":").slice(1).join(":")));
+  };
+  return { temp, cellId, cellRoot, harnessConfig, gitRead };
+}
+
+test("admission validates every finalized prefix cell and rejects either kind of stray tail artifact", async (context) => {
+  await context.test("coordinated committed quantitative fabrication", async () => {
+    const fixture = await makeFinalizedPrefixFixture();
+    try {
+      const recordPath = join(fixture.cellRoot, "record.json");
+      const record = JSON.parse(await readFile(recordPath, "utf8"));
+      record.tokens.input += 1;
+      const recordBytes = `${JSON.stringify(record, null, 2)}\n`;
+      await writeFile(recordPath, recordBytes);
+      const slotPath = join(fixture.cellRoot, "cell.json");
+      const slot = JSON.parse(await readFile(slotPath, "utf8"));
+      slot.record.sha256 = sha256(recordBytes);
+      await writeFile(slotPath, `${JSON.stringify(slot, null, 2)}\n`);
+      await assert.rejects(inspectCommittedSeriality({
+        harnessConfig: fixture.harnessConfig,
+        cellId: "next-cell",
+        repositoryRoot: fixture.temp,
+        gitRead: fixture.gitRead,
+      }), /semantic replay|composition replay|native metering replay/u);
+    } finally {
+      await rm(fixture.temp, { recursive: true, force: true });
+    }
+  });
+
+  await context.test("second attempt", async () => {
+    const fixture = await makeFinalizedPrefixFixture();
+    try {
+      const slotPath = join(fixture.cellRoot, "cell.json");
+      const slot = JSON.parse(await readFile(slotPath, "utf8"));
+      slot.attemptCount = 2;
+      await writeFile(slotPath, `${JSON.stringify(slot, null, 2)}\n`);
+      await assert.rejects(inspectCommittedSeriality({
+        harnessConfig: fixture.harnessConfig,
+        cellId: "next-cell",
+        repositoryRoot: fixture.temp,
+        gitRead: fixture.gitRead,
+      }), /single-attempt/u);
+    } finally {
+      await rm(fixture.temp, { recursive: true, force: true });
+    }
+  });
+
+  await context.test("explicit rerun marker", async () => {
+    const fixture = await makeFinalizedPrefixFixture();
+    try {
+      const slotPath = join(fixture.cellRoot, "cell.json");
+      const slot = JSON.parse(await readFile(slotPath, "utf8"));
+      slot.campaignCellRerun = true;
+      await writeFile(slotPath, `${JSON.stringify(slot, null, 2)}\n`);
+      await assert.rejects(inspectCommittedSeriality({
+        harnessConfig: fixture.harnessConfig,
+        cellId: "next-cell",
+        repositoryRoot: fixture.temp,
+        gitRead: fixture.gitRead,
+      }), /single-attempt/u);
+    } finally {
+      await rm(fixture.temp, { recursive: true, force: true });
+    }
+  });
+
+  for (const artifact of ["record.json", "metering.json"]) {
+    await context.test(`stray tail ${artifact}`, async () => {
+      const fixture = await makeFinalizedPrefixFixture();
+      try {
+        await writeFile(join(fixture.temp, "run", "cells", "next-cell", artifact), "{}\n");
+        await assert.rejects(inspectCommittedSeriality({
+          harnessConfig: fixture.harnessConfig,
+          cellId: "next-cell",
+          repositoryRoot: fixture.temp,
+          gitRead: fixture.gitRead,
+        }), /later slot next-cell is not pristine/u);
+      } finally {
+        await rm(fixture.temp, { recursive: true, force: true });
+      }
+    });
+  }
+});
+
+test("launch quiet re-probe catches delayed campaign process and port appearance", async () => {
+  const harnessConfig = {
+    runId: "fixture-run",
+    paths: { privateExecutionRoot: "/tmp/r2-probe-fixture" },
+    cells: [
+      { id: "one", ports: [4100, 4101] },
+      { id: "two", ports: [4101, 4102] },
+    ],
+    cellOrder: ["one", "two"],
+  };
+  const seriality = { committedPrefix: ["one"] };
+  let processProbeCount = 0;
+  const delayedProcess = () => ({
+    recorded: { pids: [], isolatedProcessGroups: [] },
+    active: processProbeCount++ === 0 ? [] : [{ pid: 77, ppid: 1, pgid: 77, reasons: ["campaign-path"] }],
+  });
+  const portProbe = async () => true;
+  const first = await probeLaunchQuiet({ harnessConfig, seriality, processProbe: delayedProcess, portProbe });
+  assert.deepEqual(first.ports.values, [4100, 4101, 4102]);
+  await assert.rejects(
+    probeLaunchQuiet({ harnessConfig, seriality, processProbe: delayedProcess, portProbe }),
+    /campaign process evidence remains active/u,
+  );
+
+  let portPass = 0;
+  const quietProcess = () => ({ recorded: { pids: [], isolatedProcessGroups: [] }, active: [] });
+  const delayedPort = async (port) => {
+    portPass += 1;
+    return !(portPass > 3 && port === 4101);
+  };
+  await probeLaunchQuiet({ harnessConfig, seriality, processProbe: quietProcess, portProbe: delayedPort });
+  await assert.rejects(
+    probeLaunchQuiet({ harnessConfig, seriality, processProbe: quietProcess, portProbe: delayedPort }),
+    /registered ports are bound/u,
+  );
+});
+
+test("stale host-lock recovery is explicit and scoped without authorizing a rerun", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "r2-stale-lock-"));
+  try {
+    const harnessConfig = {
+      runId: "fixture-run",
+      paths: { privateExecutionRoot: join(temp, "private") },
+      execution: {
+        exclusiveHostLock: {
+          path: join(temp, "private", "locks", "host.lock"),
+        },
+      },
+    };
+    acquireExclusiveHostLock({
+      harnessConfig,
+      cellId: "cell-1",
+      purpose: "admission",
+      reservedBy: "crashed-owner",
+      nowMs: 0,
+      pid: 999_999,
+      awaitingControllerUntil: 1,
+    });
+    assert.throws(() => acquireExclusiveHostLock({
+      harnessConfig,
+      cellId: "cell-2",
+      purpose: "admission",
+      reservedBy: "unsafe-recovery",
+      nowMs: 10_000,
+      recoverStale: true,
+      processAlive: () => false,
+      mayRecoverOwner: () => false,
+    }), /cannot authorize this owner\/cell transition/u);
+    const recovered = acquireExclusiveHostLock({
+      harnessConfig,
+      cellId: "cell-2",
+      purpose: "admission",
+      reservedBy: "explicit-safe-recovery",
+      nowMs: 10_000,
+      recoverStale: true,
+      processAlive: () => false,
+      mayRecoverOwner: (owner) => owner.cellId === "cell-1",
+    });
+    releaseExclusiveHostLock({ lock: recovered, outcome: "stale-recovery-test", nowMs: 11_000 });
+  } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
+});
+
+test("per-cell admission binds exact execution, probes after sampling, and owns one exclusive lock", async () => {
   const temp = await mkdtemp(join(tmpdir(), "r2-admission-"));
   try {
+    const materializedRoot = join(temp, "instrument");
+    materializeInstrumentSnapshot({
+      sourceRoot: fileURLToPath(new URL("benchmarks/", ROOT)),
+      outPath: materializedRoot,
+    });
     const sourceConfig = JSON.parse(await readFile(
       new URL("benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", ROOT),
       "utf8",
     ));
     const cell = sourceConfig.cells[1];
+    const configPath = join(temp, "harness-config.json");
+    const admissionPath = join(temp, "admission.json");
     cell.admissionArtifact = "admission.json";
-    cell.controllerCommand = ["node", "fixture-controller", "--admission", join(temp, "admission.json")];
+    cell.controllerCommand = [
+      process.execPath,
+      sourceConfig.controller.entrypoint,
+      "--harness-config",
+      configPath,
+      "--cell",
+      cell.id,
+      "--driver",
+      sourceConfig.controller.driver,
+      "--admission",
+      admissionPath,
+    ];
+    sourceConfig.controller.commandTemplate = cell.controllerCommand.map((value) => (
+      value === cell.id ? "{cellId}" : value
+    ));
     sourceConfig.pins.instrument.manifestPath = "benchmarks/instrument.manifest.json";
-    sourceConfig.paths.instrumentRoot = fileURLToPath(new URL("benchmarks/", ROOT));
+    sourceConfig.paths.instrumentRoot = materializedRoot;
+    sourceConfig.paths.privateExecutionRoot = join(temp, "private");
+    sourceConfig.execution.exclusiveHostLock.path = join(temp, "private", "locks", "host.lock");
     const instrumentBytes = await readFile(new URL("benchmarks/instrument.manifest.json", ROOT));
     sourceConfig.pins.instrument.manifestSha256 = sha256(instrumentBytes).replace(/^sha256:/u, "");
-    const configPath = join(temp, "harness-config.json");
+    const execution = configuredExecutionBinding({ harnessConfig: sourceConfig, cell });
+    sourceConfig.pins.instrument.d06MeteringOverlay.laneControllerSha256 = execution.controller.sha256.replace(/^sha256:/u, "");
+    sourceConfig.pins.instrument.d06MeteringOverlay.productionDriverSha256 = execution.driver.sha256.replace(/^sha256:/u, "");
+    sourceConfig.machines[cell.allowedHostId].node = {
+      path: execution.node.path,
+      version: process.version,
+      sha256: execution.node.sha256,
+    };
     await writeFile(configPath, `${JSON.stringify(sourceConfig, null, 2)}\n`);
     let clock = Date.parse("2026-08-24T12:00:00.000Z");
-    const reservationPath = join(temp, "reservation.json");
-    await writeFile(reservationPath, `${JSON.stringify({
-      version: "snapback.r2-host-reservation.v1",
-      runId: sourceConfig.runId,
-      cellId: cell.id,
-      hostname: hostname(),
-      exclusive: true,
-      reservedBy: "metering-test",
-      reservedAt: new Date(clock).toISOString(),
-      expiresAt: new Date(clock + 600_000).toISOString(),
-    }, null, 2)}\n`);
     const seriality = {
       gitHead: "fixture-head",
       committedPrefix: [sourceConfig.cellOrder[0]],
@@ -1648,10 +1910,16 @@ test("per-cell admission succeeds with an injected three-minute clock and reject
       laterPristine: sourceConfig.cellOrder.slice(2),
       privateCellState: "absent",
     };
-    const admissionPath = join(temp, "admission.json");
+    let samplesObserved = 0;
+    let quietProbes = 0;
     const injected = {
       inspectSeriality: () => seriality,
-      activePriorProcesses: () => [],
+      assertCommittedConfig: () => {},
+      processProbe: () => {
+        quietProbes += 1;
+        assert.equal(samplesObserved, 3, "process probing must occur after all three load samples");
+        return { recorded: { pids: [], isolatedProcessGroups: [] }, active: [] };
+      },
       portIsUnbound: async () => true,
       harnessEvidence: (key, harness) => ({
         key,
@@ -1661,14 +1929,14 @@ test("per-cell admission succeeds with an injected three-minute clock and reject
         auth: { ok: true, argv: ["fixture-auth"] },
       }),
       now: () => clock,
-      loadavg: () => [1, 2, 3],
+      loadavg: () => { samplesObserved += 1; return [1, 2, 3]; },
       sleep: async (millis) => { clock += millis; },
     };
     let samplesBeforeInstrument = 0;
     await assert.rejects(createAdmissionArtifact({
       harnessConfigPath: configPath,
       cellId: cell.id,
-      reservationPath,
+      reservedBy: "metering-test",
       admissionPath,
       dependencies: {
         ...injected,
@@ -1680,17 +1948,112 @@ test("per-cell admission succeeds with an injected three-minute clock and reject
     const artifact = await createAdmissionArtifact({
       harnessConfigPath: configPath,
       cellId: cell.id,
-      reservationPath,
+      reservedBy: "metering-test",
       admissionPath,
       dependencies: injected,
     });
     assert.equal(artifact.loadIsolation.samples.length, 3);
+    assert.equal(quietProbes, 1);
     assert.equal(artifact.instrument.source.sha256, artifact.instrument.materialized.sha256);
     assert.equal(
       Date.parse(artifact.loadIsolation.samples[2].sampledAt)
         - Date.parse(artifact.loadIsolation.samples[0].sampledAt),
       120_000,
     );
+    const actualExecution = {
+      execPath: artifact.execution.node.path,
+      cwd: artifact.execution.cwd,
+      controllerPath: artifact.execution.controller.path,
+      driverPath: artifact.execution.driver.path,
+      argv: artifact.execution.argv,
+    };
+    for (const [label, mutate] of [
+      ["Node", (value) => { value.execPath = artifact.execution.controller.path; }],
+      ["controller", (value) => { value.controllerPath = artifact.execution.driver.path; }],
+      ["driver", (value) => { value.driverPath = artifact.execution.controller.path; }],
+      ["argv value", (value) => { value.argv = value.argv.with(4, "wrong-cell"); }],
+      ["argv order", (value) => { value.argv = [...value.argv.slice(0, 2).reverse(), ...value.argv.slice(2)]; }],
+    ]) {
+      const changed = structuredClone(actualExecution);
+      mutate(changed);
+      assert.throws(() => verifyAdmissionArtifact({
+        artifact,
+        harnessConfig: sourceConfig,
+        harnessConfigPath: configPath,
+        cellId: cell.id,
+        admissionPath,
+        nowMs: Date.parse(artifact.issuedAt),
+        campaignState: seriality,
+        actualExecution: changed,
+        observedHostIdentity: artifact.host.observed,
+      }), /R2_ADMISSION_COMMAND/u, label);
+    }
+    for (const [label, mutate] of [
+      ["Node bytes", (value) => { value.node.sha256 = `sha256:${"1".repeat(64)}`; }],
+      ["controller bytes", (value) => { value.controller.sha256 = `sha256:${"2".repeat(64)}`; }],
+      ["driver bytes", (value) => { value.driver.sha256 = `sha256:${"3".repeat(64)}`; }],
+    ]) {
+      const changed = structuredClone(artifact.execution);
+      mutate(changed);
+      assert.throws(() => verifyAdmissionArtifact({
+        artifact,
+        harnessConfig: sourceConfig,
+        harnessConfigPath: configPath,
+        cellId: cell.id,
+        admissionPath,
+        nowMs: Date.parse(artifact.issuedAt),
+        campaignState: seriality,
+        observedHostIdentity: artifact.host.observed,
+        executionBinding: () => changed,
+      }), /admitted Node\/controller\/argv\/driver bytes changed/u, label);
+    }
+    const materializedManifestPath = join(materializedRoot, "instrument.manifest.json");
+    const materializedManifestBytes = await readFile(materializedManifestPath);
+    await execFileAsync("chmod", ["u+w", materializedManifestPath]);
+    await writeFile(materializedManifestPath, Buffer.concat([materializedManifestBytes, Buffer.from("\n")]));
+    assert.throws(() => verifyAdmissionArtifact({
+      artifact,
+      harnessConfig: sourceConfig,
+      harnessConfigPath: configPath,
+      cellId: cell.id,
+      admissionPath,
+      nowMs: Date.parse(artifact.issuedAt),
+      campaignState: seriality,
+      observedHostIdentity: artifact.host.observed,
+    }), /R2_ADMISSION_INSTRUMENT/u);
+    await writeFile(materializedManifestPath, materializedManifestBytes);
+    await execFileAsync("chmod", ["a-w", materializedManifestPath]);
+    assert.throws(() => verifyAdmissionArtifact({
+      artifact,
+      harnessConfig: sourceConfig,
+      harnessConfigPath: configPath,
+      cellId: cell.id,
+      admissionPath,
+      nowMs: Date.parse(artifact.issuedAt),
+      campaignState: seriality,
+      observedHostIdentity: { ...artifact.host.observed, hardwareModel: "Mac16,99" },
+    }), /R2_ADMISSION_HOST/u);
+    await assert.rejects(createAdmissionArtifact({
+      harnessConfigPath: configPath,
+      cellId: cell.id,
+      reservedBy: "competing-admission",
+      admissionPath,
+      dependencies: injected,
+    }), /R2_ADMISSION_LOCK_HELD/u);
+    const claim = claimExclusiveHostLock({
+      lock: artifact.exclusiveHostLock,
+      harnessConfig: sourceConfig,
+      cellId: cell.id,
+      artifactSha256: artifact.identity.sha256,
+      execution: actualExecution,
+    });
+    assert.throws(() => claimExclusiveHostLock({
+      lock: artifact.exclusiveHostLock,
+      harnessConfig: sourceConfig,
+      cellId: cell.id,
+      artifactSha256: artifact.identity.sha256,
+      execution: actualExecution,
+    }), /already claimed/u);
     const stale = structuredClone(artifact);
     stale.loadIsolation.samples[1].sampledAt = new Date(
       Date.parse(stale.loadIsolation.samples[0].sampledAt) + 59_999,
@@ -1704,8 +2067,137 @@ test("per-cell admission succeeds with an injected three-minute clock and reject
       admissionPath,
       nowMs: Date.parse(stale.issuedAt),
       campaignState: seriality,
+      observedHostIdentity: artifact.host.observed,
     }), /once per minute/u);
+    releaseExclusiveHostLock({
+      lock: artifact.exclusiveHostLock,
+      claim,
+      outcome: "metering-test-complete",
+      nowMs: clock,
+    });
   } finally {
+    await execFileAsync("chmod", ["-R", "u+w", temp]).catch(() => {});
+    await rm(temp, { recursive: true, force: true });
+  }
+});
+
+test("finalize-existing deterministically rejoins and publishes a synthetic post-run join failure without a driver", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "r2-finalize-existing-"));
+  const cellId = "sol-clique-explicit";
+  const privateCell = join(temp, "private", "cells", cellId);
+  try {
+    await Promise.all([
+      cp(fileURLToPath(new URL(
+        `benchmarks/runs/2026-08-23-r2-published-0125/cells/${cellId}/`,
+        ROOT,
+      )), privateCell, { recursive: true }),
+      cp(fileURLToPath(new URL("benchmarks/schema/", ROOT)), join(temp, "benchmarks", "schema"), {
+        recursive: true,
+      }),
+      mkdir(join(temp, "committed", "cells", cellId), { recursive: true }),
+    ]);
+    const expectedRecord = await readFile(join(privateCell, "record.json"));
+    const expectedMetering = await readFile(join(privateCell, "metering.json"));
+    await Promise.all([
+      rm(join(privateCell, "record.json")),
+      rm(join(privateCell, "metering.json")),
+      rm(join(privateCell, "cell.json")),
+    ]);
+    await writeFile(join(privateCell, "attempt.json"), `${JSON.stringify({
+      version: "snapback.r2-private-cell-attempt.v1",
+      runId: "fixture-finalize-existing",
+      cellId,
+      attemptCount: 1,
+      campaignCellRerun: false,
+    }, null, 2)}\n`);
+    await writeFile(join(temp, "committed", "cells", cellId, "cell.json"), `${JSON.stringify({
+      schemaVersion: "snapback.r2-cell-slot.v1",
+      cellId,
+      status: "not-started",
+    }, null, 2)}\n`);
+    const harnessConfig = {
+      schemaVersion: "snapback.r2-harness-config.v1",
+      runId: "fixture-finalize-existing",
+      cellOrder: [cellId],
+      cells: [{ id: cellId, ports: [4880, 4880] }],
+      paths: {
+        committedRunRoot: "committed",
+        privateExecutionRoot: join(temp, "private"),
+      },
+      execution: {
+        milestones: ["M1", "M2", "M3"],
+        exclusiveHostLock: {
+          version: "snapback.r2-exclusive-host-lock.v1",
+          path: join(temp, "private", "locks", "host.lock"),
+        },
+      },
+    };
+    const configPath = join(temp, "harness-config.json");
+    await writeFile(configPath, `${JSON.stringify(harnessConfig, null, 2)}\n`);
+    await cp(
+      join(privateCell, "record-base.json"),
+      join(temp, "committed", "cells", cellId, "record-base.json"),
+    );
+    const result = await finalizeExisting({
+      harnessConfigPath: configPath,
+      cellId,
+      publish: true,
+      reservedBy: "synthetic-post-run-join-failure-test",
+      dependencies: {
+        repositoryRoot: temp,
+        inspectSeriality: async () => ({
+          gitHead: "fixture-head",
+          committedPrefix: [],
+          requestedIndex: 0,
+          laterPristine: [],
+          privateCellState: "retained-for-finalization",
+        }),
+        probeLaunchQuiet: async () => ({ ok: true }),
+      },
+    });
+    assert.equal(result.published, true);
+    assert.deepEqual(await readFile(join(privateCell, "metering.json")), expectedMetering);
+    assert.deepEqual(await readFile(join(privateCell, "record.json")), expectedRecord);
+    assert.deepEqual(
+      await readFile(join(temp, "committed", "cells", cellId, "record.json")),
+      expectedRecord,
+    );
+    const slot = JSON.parse(await readFile(
+      join(temp, "committed", "cells", cellId, "cell.json"),
+      "utf8",
+    ));
+    assert.equal(slot.status, "recorded-finalized");
+    assert.equal(slot.attemptCount, 1);
+    assert.equal(slot.campaignCellRerun, false);
+  } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
+});
+
+test("instrument materialization succeeds once, is immutable, and refuses overwrite", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "r2-instrument-materialize-"));
+  const outPath = join(temp, "instrument-resume");
+  try {
+    const result = materializeInstrumentSnapshot({
+      sourceRoot: fileURLToPath(new URL("benchmarks/", ROOT)),
+      outPath,
+    });
+    assert.equal(result.ok, true);
+    assert.equal(
+      result.manifestSha256,
+      sha256(await readFile(new URL("benchmarks/instrument.manifest.json", ROOT))).replace(/^sha256:/u, ""),
+    );
+    assert.equal((await stat(join(outPath, "instrument.manifest.json"))).mode & 0o222, 0);
+    const retainedManifest = await readFile(join(outPath, "instrument.manifest.json"));
+    assert.throws(() => materializeInstrumentSnapshot({
+      sourceRoot: fileURLToPath(new URL("benchmarks/", ROOT)),
+      outPath,
+    }), /refuses|REFUSAL|new path/u);
+    assert.deepEqual(await readFile(join(outPath, "instrument.manifest.json")), retainedManifest);
+  } finally {
+    if (await readFile(join(outPath, "instrument.manifest.json")).catch(() => null)) {
+      await execFileAsync("chmod", ["-R", "u+w", outPath]);
+    }
     await rm(temp, { recursive: true, force: true });
   }
 });

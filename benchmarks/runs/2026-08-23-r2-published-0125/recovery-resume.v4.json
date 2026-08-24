@@ -1,0 +1,113 @@
+{
+  "version": "snapback.r2-recovery-resume.v4",
+  "supersedes": "snapback.r2-recovery-resume.v3",
+  "scopedReviewBaseline": "07b0c5255b40447789d04dd22adee2b7ef123dcd",
+  "campaignCellRerun": false,
+  "privateAttemptDisposition": "retained-read-only-no-model-or-product-rerun",
+  "transition": "recovered-cell-1-v3-to-immutable-instrument-host-bound-locked-per-cell-admission",
+  "completedCell": "sol-clique-explicit",
+  "completedCellRecoveryVersion": "snapback.r2-recovery-resume.v3",
+  "completedAttemptCount": 1,
+  "recoveredCell": {
+    "record": {
+      "path": "cells/sol-clique-explicit/record.json",
+      "sha256": "sha256:c31661407b0f7fd3e45db9fdf345746d3a64ce31b2e23c75a7e39871da21ffec"
+    },
+    "metering": {
+      "path": "cells/sol-clique-explicit/metering.json",
+      "sha256": "sha256:4195c94e8f459c64646dfa23da7adade33e3f4c6357295bfef43bf4ce6ecc832"
+    },
+    "nativeStream": {
+      "path": "cells/sol-clique-explicit/events/codex-rollout.jsonl",
+      "sha256": "sha256:f9838d32f9f1357eb40ed7661d350cc9e341431ab0fcc3df0dc6e280e2035c0d"
+    },
+    "originalInstrument": {
+      "path": "cells/sol-clique-explicit/instrument.manifest.json",
+      "sha256": "sha256:8a13dcc55eca1dfe49a13d704575d2e2843ca059c34c964df86c7287dfb729ad"
+    },
+    "originalBoundaries": {
+      "path": "cells/sol-clique-explicit/terminal-boundaries.json",
+      "sha256": "sha256:1fcd53f32deec0c23087e2c06a7f194a7493395e92425ac6d98d3cbb6626ab36"
+    },
+    "historicalHostEvidenceDisposition": "retained byte-for-byte and not rewritten; it is historical evidence for cell 1, not authorization for a resumed cell"
+  },
+  "resumeInstrument": {
+    "path": "../../instrument.manifest.json",
+    "sha256": "sha256:7a576c4d3aa4aa734dcbbd9dc16681120fa9e7cb1efe05bcbe2789e2ab71f785",
+    "materializedRoot": "/Users/ccheever/bench-matrix-20260823-r2/instrument-resume-20260824",
+    "materializationCommand": "node benchmarks/tools/materialize-instrument.mjs --out /Users/ccheever/bench-matrix-20260823-r2/instrument-resume-20260824",
+    "transition": "new immutable non-overwriting snapshot; the old /instrument archive remains cell-1-only"
+  },
+  "resumeAllowedHostId": "mac-mini-durand",
+  "resumeAllowedHost": {
+    "hostname": "Mac.lan",
+    "machineName": "Mac mini",
+    "hardwareModel": "Mac16,11",
+    "chip": "Apple M4 Pro",
+    "physicalCpuCount": 12,
+    "logicalCpuCount": 12,
+    "memoryBytes": 25769803776
+  },
+  "nodeBinding": {
+    "path": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+    "version": "v24.18.0",
+    "sha256": "sha256:ee6fb0e015284d83a91e8ec5213f43a157f8a392b58555301682892ba928c04a"
+  },
+  "exclusiveHostLock": {
+    "version": "snapback.r2-exclusive-host-lock.v1",
+    "path": "/Users/ccheever/bench-matrix-20260823-r2/locks/2026-08-23-r2-published-0125.host.lock",
+    "staleRecovery": "explicit-only; an existing private cell is finalization-only and can never be relaunched"
+  },
+  "historicalDryRunValidator": {
+    "sourceCommit": "bbce397ca397dda82a65dbfc35c6f30ceba3330f",
+    "sourceTree": "0994a3a50930e60c8dd5805db9da29f088f05da7",
+    "sources": {
+      "base": {
+        "path": "benchmarks/schema/run-record.schema.json",
+        "sha256": "sha256:d8bd58dd94ec5726cd543fa72ea37dedf7a0226287ff5606fe295320a2651654"
+      },
+      "extension": {
+        "path": "benchmarks/schema/social-messenger/run-record-extension.schema.json",
+        "sha256": "sha256:1cf39ff49e9b34465a1086f4a4d37491289c6590aca657652285c39138542983"
+      },
+      "composed": {
+        "path": "benchmarks/schema/social-messenger/run-record.schema.json",
+        "sha256": "sha256:3403455e98fad656125ea2ab0993f780bdb112849fb127bd8bcfcbcf6f2b8a64"
+      },
+      "semantic": {
+        "path": "benchmarks/tools/social-messenger/record-validator.mjs",
+        "sha256": "sha256:fa1b179a617db743ec15d9d87017458e594cab070b798ccd72b5349ccf373238"
+      }
+    }
+  },
+  "nextCell": "sol-clique-familiar",
+  "nextControllerCommand": [
+    "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+    "benchmarks/tools/social-messenger/metering/lane-controller.mjs",
+    "--harness-config",
+    "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json",
+    "--cell",
+    "sol-clique-familiar",
+    "--driver",
+    "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs",
+    "--admission",
+    "benchmarks/runs/2026-08-23-r2-published-0125/admissions/sol-clique-familiar.json"
+  ],
+  "admissionTool": "benchmarks/tools/social-messenger/metering/r2-cell-admission.mjs",
+  "finalizeExistingTool": "benchmarks/tools/social-messenger/metering/r2-finalize-existing.mjs",
+  "loadAdmissionPolicyId": "mac16-11-m4-pro-12core-loadavg-10-approved-20260824",
+  "nextCellRule": "Exclusive host lock held; prior campaign process tree closed; every registered campaign port unbound; three consecutive passing samples.",
+  "initiallyPristineCells": [
+    "sol-clique-familiar",
+    "sol-coterie-explicit",
+    "sol-coterie-familiar",
+    "grok-clique-explicit",
+    "grok-clique-familiar",
+    "grok-coterie-explicit",
+    "grok-coterie-familiar",
+    "opus-clique-explicit",
+    "opus-clique-familiar",
+    "opus-coterie-explicit",
+    "opus-coterie-familiar"
+  ]
+}

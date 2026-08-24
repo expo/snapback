@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 import { createHash } from "node:crypto";
-import { lstat, readFile, realpath, stat, writeFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
+import { lstat, mkdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -10,8 +11,14 @@ import { loadMeteringManifest } from "./manifest.mjs";
 import { composeRunRecord } from "./record-composer.mjs";
 import {
   inspectCommittedSeriality,
+  loadPolicyForCell,
+  probeLaunchQuiet,
   verifyAdmissionArtifact,
 } from "./r2-cell-admission.mjs";
+import {
+  claimExclusiveHostLock,
+  releaseExclusiveHostLock,
+} from "./r2-host-lock.mjs";
 import {
   CURRENT_INSTRUMENT_PIN,
   LaneObservationHarness,
@@ -304,8 +311,8 @@ export async function loadLaneControllerConfig({ configPath: path, harnessConfig
     "harness paths.privateExecutionRoot",
   ));
   const cellRoot = join(privateRoot, "cells", cell.id);
-  const loadIsolation = harnessConfig.execution?.loadIsolation;
-  const sampleEverySeconds = loadIsolation?.sampleEverySeconds;
+  const loadIsolation = loadPolicyForCell(harnessConfig, cell);
+  const sampleEverySeconds = loadIsolation.sampleEverySeconds;
   if (typeof sampleEverySeconds !== "number" || sampleEverySeconds <= 0) {
     throw new TypeError("harness execution.loadIsolation.sampleEverySeconds must be positive");
   }
@@ -337,8 +344,47 @@ export async function loadLaneControllerConfig({ configPath: path, harnessConfig
       harnessConfig,
       harness,
       cell,
+      allowedMachine: harnessConfig.machines[cell.allowedHostId],
     },
   };
+}
+
+function processGroupId(pid) {
+  return Number(execFileSync("ps", ["-o", "pgid=", "-p", String(pid)], { encoding: "utf8" }).trim());
+}
+
+async function writeCampaignAttemptStart({ config, configDirectory, artifact, admissionPath }) {
+  await mkdir(configDirectory);
+  const groupId = processGroupId(process.pid);
+  const attempt = {
+    version: "snapback.r2-private-cell-attempt.v1",
+    runId: config.harnessConfig.runId,
+    cellId: config.cell.id,
+    attemptCount: 1,
+    campaignCellRerun: false,
+    admission: {
+      path: resolve(admissionPath),
+      sha256: artifact.identity.sha256,
+    },
+    exclusiveHostLockOwnerSha256: artifact.exclusiveHostLock.owner.sha256,
+    startedAt: new Date().toISOString(),
+  };
+  const ownership = {
+    version: "snapback.r2-process-ownership.v1",
+    runId: config.harnessConfig.runId,
+    cellId: config.cell.id,
+    controllerPid: process.pid,
+    controllerParentPid: process.ppid,
+    processGroupId: groupId,
+    processGroupIsolated: groupId === process.pid,
+    nativeHarnessPid: null,
+    childPids: [],
+    startedAt: attempt.startedAt,
+  };
+  await Promise.all([
+    writeFile(join(configDirectory, "attempt.json"), `${JSON.stringify(attempt, null, 2)}\n`, { flag: "wx" }),
+    writeFile(join(configDirectory, "process-ownership.json"), `${JSON.stringify(ownership, null, 2)}\n`, { flag: "wx" }),
+  ]);
 }
 
 async function main() {
@@ -352,122 +398,180 @@ async function main() {
   if (!Array.isArray(config.milestones) || config.milestones.length === 0) {
     throw new TypeError("lane controller config milestones must be non-empty");
   }
-  if (options.harnessConfigPath) {
-    if (!options.admissionPath) {
-      throw new Error("R2_ADMISSION_REQUIRED: direct campaign launch requires a fresh per-cell admission artifact");
-    }
-    const artifact = JSON.parse(await readFile(resolve(options.admissionPath), "utf8"));
-    const campaignState = inspectCommittedSeriality({
-      harnessConfig: config.harnessConfig,
-      cellId: config.cell.id,
-    });
-    verifyAdmissionArtifact({
-      artifact,
-      harnessConfig: config.harnessConfig,
-      harnessConfigPath: resolve(options.harnessConfigPath),
-      cellId: config.cell.id,
-      admissionPath: resolve(options.admissionPath),
-      campaignState,
-    });
-  } else if (options.admissionPath) {
-    throw new Error("--admission is only valid with --harness-config");
-  }
-  const driver = await import(pathToFileURL(resolve(options.driverPath)).href);
-  if (typeof driver.runMilestone !== "function") {
-    throw new TypeError("lane controller driver must export runMilestone");
-  }
-  const controller = new R2LaneController({
-    laneRunId: config.laneRunId,
-    instrumentPin: config.instrumentPin,
-    observationPath: configPath(configDirectory, config.observationPath, "observationPath"),
-    loadCeilings: config.loadCeilings,
-    loadIntervalMs: config.loadIntervalMs ?? 60_000,
-  });
-  await controller.initialize();
-  let cellError = null;
-  let finalizationError = null;
-  let patch = null;
-  let record = null;
+
+  let admissionGuard = null;
+  let result = null;
+  let runError = null;
   try {
-    if (typeof driver.prepare === "function") {
-      await driver.prepare({ config, configDirectory });
+    if (options.harnessConfigPath) {
+      if (!options.admissionPath) {
+        throw new Error("R2_ADMISSION_REQUIRED: direct campaign launch requires a fresh per-cell admission artifact");
+      }
+      const admissionPath = resolve(options.admissionPath);
+      const artifact = JSON.parse(await readFile(admissionPath, "utf8"));
+      const actualExecution = {
+        execPath: process.execPath,
+        cwd: process.cwd(),
+        controllerPath: fileURLToPath(import.meta.url),
+        driverPath: resolve(options.driverPath),
+        argv: process.argv.slice(1),
+      };
+      let campaignState = await inspectCommittedSeriality({
+        harnessConfig: config.harnessConfig,
+        cellId: config.cell.id,
+      });
+      verifyAdmissionArtifact({
+        artifact,
+        harnessConfig: config.harnessConfig,
+        harnessConfigPath: resolve(options.harnessConfigPath),
+        cellId: config.cell.id,
+        admissionPath,
+        campaignState,
+        actualExecution,
+      });
+      const claim = claimExclusiveHostLock({
+        lock: artifact.exclusiveHostLock,
+        harnessConfig: config.harnessConfig,
+        cellId: config.cell.id,
+        artifactSha256: artifact.identity.sha256,
+        execution: actualExecution,
+      });
+      admissionGuard = { artifact, claim };
+
+      // This is the launch-time TOCTOU boundary: after the load window and
+      // after the controller owns the atomic lock, re-probe process/port state,
+      // seriality, command bytes, and instrument bytes immediately before the
+      // first private cell write and production-driver import.
+      await probeLaunchQuiet({
+        harnessConfig: config.harnessConfig,
+        seriality: campaignState,
+      });
+      campaignState = await inspectCommittedSeriality({
+        harnessConfig: config.harnessConfig,
+        cellId: config.cell.id,
+      });
+      verifyAdmissionArtifact({
+        artifact,
+        harnessConfig: config.harnessConfig,
+        harnessConfigPath: resolve(options.harnessConfigPath),
+        cellId: config.cell.id,
+        admissionPath,
+        campaignState,
+        actualExecution,
+        requireControllerClaim: claim,
+      });
+      await writeCampaignAttemptStart({ config, configDirectory, artifact, admissionPath });
+    } else if (options.admissionPath) {
+      throw new Error("--admission is only valid with --harness-config");
     }
-    for (const milestone of config.milestones) {
-      const claimOptions = typeof driver.claimOptions === "function"
-        ? await driver.claimOptions({ milestone, config, configDirectory })
-        : {};
-      await controller.runMilestone(
-        milestone,
-        (controls) => driver.runMilestone({
-          milestone,
-          controls,
-          config,
-          configDirectory,
-        }),
-        claimOptions,
-      );
+
+    const driver = await import(pathToFileURL(resolve(options.driverPath)).href);
+    if (typeof driver.runMilestone !== "function") {
+      throw new TypeError("lane controller driver must export runMilestone");
     }
-  } catch (error) {
-    cellError = error;
-  } finally {
+    const controller = new R2LaneController({
+      laneRunId: config.laneRunId,
+      instrumentPin: config.instrumentPin,
+      observationPath: configPath(configDirectory, config.observationPath, "observationPath"),
+      loadCeilings: config.loadCeilings,
+      loadIntervalMs: config.loadIntervalMs ?? 60_000,
+    });
+    await controller.initialize();
+    let cellError = null;
+    let finalizationError = null;
+    let patch = null;
+    let record = null;
     try {
-      if (typeof driver.finalize === "function") {
-        await driver.finalize({
-          config,
-          configDirectory,
-          error: cellError,
-        });
+      if (typeof driver.prepare === "function") {
+        await driver.prepare({ config, configDirectory });
+      }
+      for (const milestone of config.milestones) {
+        const claimOptions = typeof driver.claimOptions === "function"
+          ? await driver.claimOptions({ milestone, config, configDirectory })
+          : {};
+        await controller.runMilestone(
+          milestone,
+          (controls) => driver.runMilestone({
+            milestone,
+            controls,
+            config,
+            configDirectory,
+          }),
+          claimOptions,
+        );
       }
     } catch (error) {
-      finalizationError = error;
+      cellError = error;
+    } finally {
+      try {
+        if (typeof driver.finalize === "function") {
+          await driver.finalize({ config, configDirectory, error: cellError });
+        }
+      } catch (error) {
+        finalizationError = error;
+      }
+      try {
+        const driverSources = typeof driver.observationSources === "function"
+          ? await driver.observationSources({ config, configDirectory })
+          : [];
+        patch = await controller.writeRecordPatch({
+          manifestPath: configPath(configDirectory, config.manifestPath, "manifestPath"),
+          outPath: configPath(configDirectory, config.recordPatchPath, "recordPatchPath"),
+          additionalObservationSources: [
+            ...(config.observationSources ?? []),
+            ...driverSources,
+          ].map((source) => ({
+            sourceId: source.sourceId,
+            path: configPath(configDirectory, source.path, "observation source path"),
+          })),
+        });
+        record = await controller.writeCompleteRecord({
+          patch,
+          recordBasePath: configPath(configDirectory, config.recordBasePath, "recordBasePath"),
+          recordPath: configPath(configDirectory, config.recordPath, "recordPath"),
+          expectedMilestones: config.milestones,
+          baseSchemaPath: config.baseSchemaPath,
+          extensionSchemaPath: config.extensionSchemaPath,
+          composedSchemaPath: config.composedSchemaPath,
+        });
+      } catch (error) {
+        finalizationError = finalizationError === null
+          ? error
+          : new AggregateError([finalizationError, error], "cell finalization failed");
+      }
     }
-    try {
-      const driverSources = typeof driver.observationSources === "function"
-        ? await driver.observationSources({ config, configDirectory })
-        : [];
-      patch = await controller.writeRecordPatch({
-        manifestPath: configPath(configDirectory, config.manifestPath, "manifestPath"),
-        outPath: configPath(configDirectory, config.recordPatchPath, "recordPatchPath"),
-        additionalObservationSources: [
-          ...(config.observationSources ?? []),
-          ...driverSources,
-        ].map((source) => ({
-          sourceId: source.sourceId,
-          path: configPath(configDirectory, source.path, "observation source path"),
-        })),
-      });
-      record = await controller.writeCompleteRecord({
-        patch,
-        recordBasePath: configPath(
-          configDirectory,
-          config.recordBasePath,
-          "recordBasePath",
-        ),
-        recordPath: configPath(configDirectory, config.recordPath, "recordPath"),
-        expectedMilestones: config.milestones,
-        baseSchemaPath: config.baseSchemaPath,
-        extensionSchemaPath: config.extensionSchemaPath,
-        composedSchemaPath: config.composedSchemaPath,
-      });
-    } catch (error) {
-      finalizationError = finalizationError === null
-        ? error
-        : new AggregateError([finalizationError, error], "cell finalization failed");
+    if (cellError !== null || finalizationError !== null) {
+      const errors = [cellError, finalizationError].filter((error) => error !== null);
+      throw errors.length === 1
+        ? errors[0]
+        : new AggregateError(errors, "cell execution and record finalization failed");
+    }
+    result = {
+      ok: true,
+      laneRunId: config.laneRunId,
+      milestones: patch.executionOrder,
+      record: config.recordPath,
+      scorecardEligible: record.socialMessenger.efficiencyScorecardEligibility.eligible,
+    };
+  } catch (error) {
+    runError = error;
+  } finally {
+    if (admissionGuard !== null) {
+      try {
+        releaseExclusiveHostLock({
+          lock: admissionGuard.artifact.exclusiveHostLock,
+          claim: admissionGuard.claim,
+          outcome: runError === null ? "record-finalized" : "controller-or-finalization-failed",
+        });
+      } catch (releaseError) {
+        runError = runError === null
+          ? releaseError
+          : new AggregateError([runError, releaseError], "controller failed and exclusive lock release failed");
+      }
     }
   }
-  if (cellError !== null || finalizationError !== null) {
-    const errors = [cellError, finalizationError].filter((error) => error !== null);
-    throw errors.length === 1
-      ? errors[0]
-      : new AggregateError(errors, "cell execution and record finalization failed");
-  }
-  process.stdout.write(`${JSON.stringify({
-    ok: true,
-    laneRunId: config.laneRunId,
-    milestones: patch.executionOrder,
-    record: config.recordPath,
-    scorecardEligible: record.socialMessenger.efficiencyScorecardEligibility.eligible,
-  })}\n`);
+  if (runError !== null) throw runError;
+  process.stdout.write(`${JSON.stringify(result)}\n`);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

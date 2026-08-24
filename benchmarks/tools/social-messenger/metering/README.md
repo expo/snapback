@@ -104,6 +104,14 @@ an arbitrary event. All remaining observations project only inside protocol
 windows. Other driver IDs, clock evidence, ambiguous native handoffs, and
 manifests remain unchanged or fail closed.
 
+Current drivers stamp `instrumentationCommandsObserved: false` after filtering
+their private signal commands at ingestion. Such streams skip the recovered
+cell-1 one-second candidate heuristic completely: a legitimate next-milestone
+process/progress observation remains product evidence even when its timestamp
+is within one second on either side of native signal completion. Only the
+exact registered cell-1 native and observation byte streams can use the
+compatibility exclusion.
+
 The joiner orders attempts by `terminalSequence`, snapshots usage at each
 separate available native settlement (or at `terminalAt` for drivers without
 that carrier), and differences consecutive prefixes.
@@ -187,6 +195,35 @@ thrown attempt—the controller hash-registers every producer stream, writes
 against the composed schema plus semantic validator. Unreached reduced-scope
 milestones are retained as `not-run`; a crash cannot erase the attempted
 failure.
+
+For R2 campaign cells, admission binds the actual Node executable bytes,
+controller and production-driver paths and bytes, exact ordered argv, harness
+config, immutable materialized instrument, non-sensitive allowed-host hardware
+identity, the complete committed prefix replay, and an atomic campaign-private
+exclusive host lock. Process and every campaign port are probed after the
+three load samples. The controller atomically claims that same lock and repeats
+the process, port, prefix, command, and byte checks immediately before its
+first private-cell write and driver import; it holds the lock through
+finalization. Explicit stale-lock recovery archives the old lock and still
+refuses any cell with existing private evidence.
+
+If a single campaign attempt completed its native stream and manifest but the
+controller failed during join or record write, finalize it without importing
+the production driver or invoking `prepare()`:
+
+```sh
+node benchmarks/tools/social-messenger/metering/r2-finalize-existing.mjs \
+  --harness-config benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json \
+  --cell <cell-id> --reserved-by <operator> [--publish]
+```
+
+The tool requires retained `attempt.json` to declare exactly one non-rerun
+attempt, derives counts only from the hash-bound native graph, validates the
+composed record, and writes a deterministic publication manifest. `--publish`
+copies only that validation-required graph into a pristine committed slot and
+writes `cell.json` last. Missing counts, divergent derived bytes, a non-pristine
+slot, or a second attempt fail closed; retained private evidence is never
+deleted.
 
 Choreography separately writes its own owner-scoped assertion attempts and
 measures only the intervals actually spent awaiting browser settlement. Suite

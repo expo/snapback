@@ -9,8 +9,8 @@
     },
     {
       "from": "/Users/ccheever/bench-matrix-20260817/instrument",
-      "to": "/Users/ccheever/bench-matrix-20260823-r2/instrument",
-      "reason": "versioned R2 instrument root"
+      "to": "/Users/ccheever/bench-matrix-20260823-r2/instrument-resume-20260824",
+      "reason": "versioned non-overwriting R2 resume instrument root"
     }
   ],
   "verification": "Each current file is byte-identical to its source after exactly the two allowed substitutions.",
@@ -19,25 +19,25 @@
       "path": "prompts/clique-explicit.md",
       "sourcePath": "benchmarks/runs/2026-08-17-model-profile-app-matrix/template-clique-explicit.md",
       "sourceSha256": "650e3ebe1e4221b0d047535ae462dbe4b0af1e7200f6f59596ababfd8f5bae44",
-      "r2Sha256": "ada8860c3885be8eeb1acdf90a34e88f222f68e33ba054c0e7807ed2f3079993"
+      "r2Sha256": "47dbbe4dbdb7c46817b76441cce4f14bba00275842be657656bb348137bb7329"
     },
     {
       "path": "prompts/clique-familiar.md",
       "sourcePath": "benchmarks/runs/2026-08-17-model-profile-app-matrix/template-clique-familiar.md",
       "sourceSha256": "68ed89c833e208d73310601d160a4d7c141ea0f03e5977fc7791d5232a055355",
-      "r2Sha256": "2af1e71bb57d5c76ac38dadd5c22be3ff216e43389772f1f28f371eb254b0dea"
+      "r2Sha256": "67416aac32301f3d087d31b5f36a5a10a00910fc8c0f7031f5cc2fdfea0c4517"
     },
     {
       "path": "prompts/coterie-explicit.md",
       "sourcePath": "benchmarks/runs/2026-08-17-model-profile-app-matrix/template-coterie-explicit.md",
       "sourceSha256": "3ec28d659400f67fda4b8c701631528b6c0425ac113314e8b6cb5dd24cd887be",
-      "r2Sha256": "124ce86f9fd13c65fdb718bdd2a3be8bef47ae554c141944e716e4343c8ecd8a"
+      "r2Sha256": "fa54d04e2045facacb1bafc1efed97d4ed1f96d7afe0209b39f63355130c7b45"
     },
     {
       "path": "prompts/coterie-familiar.md",
       "sourcePath": "benchmarks/runs/2026-08-17-model-profile-app-matrix/template-coterie-familiar.md",
       "sourceSha256": "56bda3654bdcd215beeb4e87213cfecfc8b52a70d698b43fb203d18dc25f4285",
-      "r2Sha256": "5e02055ccd78db79e9a4749bd7ad97c57f84a68396f985ed115a104114ea3e69"
+      "r2Sha256": "10414c5aba28e04f1922f02342013f22ee19b307092adb2b0c3fd8f34054b3b2"
     }
   ]
 }

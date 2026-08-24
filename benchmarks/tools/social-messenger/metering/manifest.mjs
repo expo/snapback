@@ -325,53 +325,58 @@ function applyR2DriverV1TerminalCompatibility({
       "observed R2 signal commands require an exact versioned native/observation handoff registration",
     );
   }
-  for (const [index, settlement] of recovery.usageSettlements.entries()) {
-    if (index === orderedMilestones.length - 1 || settlement.signalRecordOrdinal === null) continue;
-    const nextMilestone = orderedMilestones[index + 1];
-    const candidates = observationEvents.filter((event) => (
-      event.milestone === nextMilestone
-      && event.type === "semantic-action"
-      && event.actionClass === "process"
-      && event.disposition === "progress"
-      && Math.abs(Date.parse(event.at) - Date.parse(settlement.signalCompletedAt)) <= 1_000
-    ));
-    const expectedSignalObservations = instrumentationCommandsObserved ? 1 : 0;
-    if (candidates.length !== expectedSignalObservations) {
-      throw new Error(
-        `${settlement.milestone} native signal must map to ${expectedSignalObservations} next-milestone process observations; received ${candidates.length}`,
-      );
+  // Future driver streams filter signal commands at ingestion. Their first
+  // legitimate next-milestone process action can occur on either side of the
+  // native signal completion stamp, so a time-nearness heuristic has no safe
+  // candidate set to inspect. Only recovered cell 1 uses the exact immutable
+  // native/observation registration below.
+  if (instrumentationCommandsObserved) {
+    for (const [index, settlement] of recovery.usageSettlements.entries()) {
+      if (index === orderedMilestones.length - 1 || settlement.signalRecordOrdinal === null) continue;
+      const nextMilestone = orderedMilestones[index + 1];
+      const candidates = observationEvents.filter((event) => (
+        event.milestone === nextMilestone
+        && event.type === "semantic-action"
+        && event.actionClass === "process"
+        && event.disposition === "progress"
+        && Math.abs(Date.parse(event.at) - Date.parse(settlement.signalCompletedAt)) <= 1_000
+      ));
+      if (candidates.length !== 1) {
+        throw new Error(
+          `${settlement.milestone} native signal must map to its one exact registered next-milestone process observation; received ${candidates.length}`,
+        );
+      }
+      const event = candidates[0];
+      const registration = R2_RECOVERED_HANDOFF_REGISTRATION.exclusions[index];
+      if (
+        registration?.priorMilestone !== settlement.milestone
+        || registration.nextMilestone !== nextMilestone
+        || registration.nativeSignalItemId !== settlement.signalItemId
+        || registration.nativeSignalRecordOrdinal !== settlement.signalRecordOrdinal
+        || registration.observationSequence !== event.sequence
+        || event.evidenceSourceId !== R2_RECOVERED_HANDOFF_REGISTRATION.observationSourceId
+        || digest(JSON.stringify(event)) !== registration.observationEventSha256
+      ) {
+        throw new Error(
+          `${settlement.milestone} handoff observation does not equal its immutable versioned registration`,
+        );
+      }
+      observationHandoffExclusions.push({
+        observationSourceId: event.evidenceSourceId,
+        milestone: event.milestone,
+        sequence: event.sequence,
+        at: event.at,
+        type: event.type,
+        actionId: event.actionId,
+        actionClass: event.actionClass,
+        disposition: event.disposition,
+        priorMilestone: settlement.milestone,
+        nativeSignalItemId: settlement.signalItemId,
+        nativeSignalRecordOrdinal: settlement.signalRecordOrdinal,
+        registrationId: R2_RECOVERED_HANDOFF_REGISTRATION.ruleId,
+        reason: "native-r2-cell-signal-instrumentation-is-not-a-product-action",
+      });
     }
-    if (candidates.length === 0) continue;
-    const event = candidates[0];
-    const registration = R2_RECOVERED_HANDOFF_REGISTRATION.exclusions[index];
-    if (
-      registration?.priorMilestone !== settlement.milestone
-      || registration.nextMilestone !== nextMilestone
-      || registration.nativeSignalItemId !== settlement.signalItemId
-      || registration.nativeSignalRecordOrdinal !== settlement.signalRecordOrdinal
-      || registration.observationSequence !== event.sequence
-      || event.evidenceSourceId !== R2_RECOVERED_HANDOFF_REGISTRATION.observationSourceId
-      || digest(JSON.stringify(event)) !== registration.observationEventSha256
-    ) {
-      throw new Error(
-        `${settlement.milestone} handoff observation does not equal its immutable versioned registration`,
-      );
-    }
-    observationHandoffExclusions.push({
-      observationSourceId: event.evidenceSourceId,
-      milestone: event.milestone,
-      sequence: event.sequence,
-      at: event.at,
-      type: event.type,
-      actionId: event.actionId,
-      actionClass: event.actionClass,
-      disposition: event.disposition,
-      priorMilestone: settlement.milestone,
-      nativeSignalItemId: settlement.signalItemId,
-      nativeSignalRecordOrdinal: settlement.signalRecordOrdinal,
-      registrationId: R2_RECOVERED_HANDOFF_REGISTRATION.ruleId,
-      reason: "native-r2-cell-signal-instrumentation-is-not-a-product-action",
-    });
   }
   const excludedKeys = new Set(observationHandoffExclusions.map((event) => (
     `${event.observationSourceId}\0${event.milestone}\0${event.sequence}\0${event.at}`

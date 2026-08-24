@@ -1,6 +1,7 @@
 {
   "schemaVersion": "snapback.r2-cell-validation.v1",
   "recoveryVersion": "snapback.r2-recovery-resume.v3",
+  "continuationRecoveryVersion": "snapback.r2-recovery-resume.v4",
   "campaignCellRerun": false,
   "record": {
     "path": "record.json",
@@ -28,7 +29,13 @@
     "quantitativeMutationTestsValid": true,
     "fileChangeMutationTestsValid": true,
     "admissionMutationTestsValid": true,
-    "historicalValidatorObjectBindingValid": true
+    "historicalValidatorObjectBindingValid": true,
+    "exactExecutionBindingMutationTestsValid": true,
+    "liveProcessPortAndExclusiveLockTestsValid": true,
+    "completeFinalizedPrefixReplayTestsValid": true,
+    "futureFilteredStreamRegressionValid": true,
+    "finalizeExistingRecoveryTestValid": true,
+    "immutableMaterializationTestValid": true
   },
   "hashLinkedArtifacts": [
     {

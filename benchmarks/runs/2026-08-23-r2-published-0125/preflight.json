@@ -5,13 +5,13 @@
   "noBenchmarkCellStarted": false,
   "waveStartAllowed": false,
   "campaignState": {
-    "recoveryVersion": "snapback.r2-recovery-resume.v3",
+    "recoveryVersion": "snapback.r2-recovery-resume.v4",
     "completedCells": ["sol-clique-explicit"],
     "nextCell": "sol-clique-familiar",
     "laterCellsPristine": true,
     "continuationBlocked": true,
     "continuationMode": "fresh-hash-bound-per-cell-admission",
-    "continuationAuthority": "recovery-resume.v3.json",
+    "continuationAuthority": "recovery-resume.v4.json",
     "blockedUntilFreshAdmission": true
   },
   "checks": [
@@ -83,13 +83,13 @@
     {
       "id": "d0-6-metering-tests",
       "status": "pass",
-      "observed": "41/41 final scoped-review metering tests pass, including complete replay, token/charging/phase/eligibility, FileChange, and exact handoff mutations, retained native ordering, admission refusal/success, and historical Git-object binding; the earlier lane-setup/schema battery remains historical evidence."
+      "observed": "61/61 lane-setup plus metering tests pass, covering complete replay, exact execution binding negatives, live process/port re-probes, exclusive ownership, invalid-prefix and second-attempt refusals, filtered future streams, finalize-existing, and immutable materialization."
     },
     {
       "id": "versioned-instrument-materialization",
       "status": "fail",
-      "observed": "Recovered cell 1 remains bound to immutable instrument manifest 8a13dcc5; continuation binds resumeInstrument sha256:11be58d47fb65831c39b3d3df4c6b41b0058a6bef4593b94888af8880b01c804 through recovery-resume.v3.json and each per-cell admission.",
-      "detail": "The admission tool verifies the complete digest before creating a private cell. Historical dry-runs and cell 1 retain their original source snapshots."
+      "observed": "Recovered cell 1 remains bound to immutable instrument manifest 8a13dcc5. Continuation requires a new non-overwriting snapshot at /Users/ccheever/bench-matrix-20260823-r2/instrument-resume-20260824, materialized from resume manifest sha256:7a576c4d3aa4aa734dcbbd9dc16681120fa9e7cb1efe05bcbe2789e2ab71f785 by the registered refusal-on-overwrite tool.",
+      "detail": "Run the recovery-resume.v4 materializationCommand after this commit lands and before admission. The old /instrument archive and cell-1 snapshot remain untouched."
     },
     {
       "id": "d2-record-schema",
@@ -105,8 +105,8 @@
     {
       "id": "cell-1-recovered-finalized",
       "status": "pass",
-      "observed": "The sole sol-clique-explicit attempt is recovered from immutable native/controller evidence under snapback.r2-recovery-resume.v3; no model or product command was rerun.",
-      "detail": "record.json passes composed schema and semantic validation; sol-clique-familiar remains the exact next registered command and all eleven later slots remain pristine."
+      "observed": "The sole sol-clique-explicit attempt remains recovered under snapback.r2-recovery-resume.v3; recovery-resume.v4 explicitly carries it forward without rewriting historical host, instrument, native, terminal, metering, or record evidence. No model or product command was rerun.",
+      "detail": "record.json passes composed schema and semantic replay; sol-clique-familiar remains the exact next registered command and all eleven later slots remain pristine."
     },
     {
       "id": "suite-status-startup-refusal",
@@ -124,7 +124,7 @@
       "id": "production-controller-driver",
       "status": "pass",
       "observed": "All twelve cells carry an exact lane-controller --driver command; validate-plan resolves every command, CLI binary, cell, and 0.3.3-m8 pin.",
-      "detail": "The native driver launches Codex, Grok, or Claude according to the cell harness definition inside milestone observation windows."
+      "detail": "Admission and the controller bind the exact Node binary, controller, argv order, production driver, instrument, host identity, and exclusive lock before the production driver can be imported."
     },
     {
       "id": "dry-run-lifecycle",
@@ -146,14 +146,14 @@
     {
       "id": "load-ceiling",
       "status": "pass",
-      "observed": "Approved loadavg-1/loadavg-5/loadavg-15 ceiling is <=10.00 on the 10-logical-CPU host.",
-      "detail": "ORCHESTRATOR RULING: sample once per minute and require three consecutive passing samples before cell admission and before the next cell."
+      "observed": "Codex/Grok admission is scoped to Mac.lan, a Mac16,11 Mac mini with Apple M4 Pro, 12 physical/logical cores, and 24 GB; Claude retains its separately configured MacBookPro18,4 policy.",
+      "detail": "Each host-scoped ruling requires three once-per-minute passing loadavg samples, followed by fresh all-campaign process/port probes and the exclusive host lock."
     },
     {
       "id": "machine-reservation",
       "status": "fail",
-      "observed": "The selected host is not yet reserved; uptime reports 6 users.",
-      "detail": "Reserve the host and stop unrelated fleet work before taking admission samples."
+      "observed": "No admission-owned atomic lock has yet been acquired for sol-clique-familiar.",
+      "detail": "The admission CLI acquires the configured campaign-private lock atomically; the controller claims and holds it through finalization. A competing owner fails closed."
     },
     {
       "id": "host-load-admission-sample",

@@ -9,8 +9,11 @@ integration, Guide, Benchmarks, Testing, Performance, Rust build
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-20
 **Revised:** 2026-08-24 (R2 final scoped-review remediation separates protocol
-terminal wall from native usage settlement and makes continuation require a
-fresh hash-bound per-cell admission artifact without rerunning retained cells).
+terminal wall from native usage settlement; binds continuation to exact
+execution bytes, host identity, complete prefix replay, live quiet probes, and
+an atomic controller-held lock; moves future cells to a new immutable
+instrument root; and adds no-launch finalization for retained attempts without
+rerunning a model or product cell).
 2026-08-23 (R2 orchestrator rulings preserve Claude's actually
 executed 0.1.24 harness-default effort despite the frozen prompt text saying
 `xhigh`, approve the 1/5/15-minute load ceiling at 10.00 with three consecutive
@@ -869,20 +872,56 @@ admission. Codex CLI 0.149.0 is accepted as the same harness as the recorded
 
 **R2 recovery/admission clarification (2026-08-24).** A recovered committed
 cell prefix does not waive original admission. Before the controller creates a
-later private cell or launches its native harness, a fresh per-cell artifact
-must bind the requested run/cell/command and instrument, exclusive host
-reservation, prior process closure, unbound registered ports, harness version
-and authentication, serial committed prefix plus pristine tail, and the three
-once-per-minute all-green load samples above. The controller rechecks artifact
-identity, freshness, sample spacing, seriality, and pristine private state.
-Existing unrecorded private evidence must be finalized and cannot be rerun.
+later private cell or imports the native production driver, a fresh per-cell
+artifact must bind the actual executing Node path and bytes; controller path
+and bytes; exact argv values and order; registered driver path and bytes;
+harness config and current instrument bytes; the non-sensitive allowed-host
+hardware identity; harness version/authentication; and a complete committed
+prefix plus pristine tail. Every finalized prefix cell must be exactly one
+attempt and must replay its declared record, metering join, composed schema,
+semantic native evidence, and hash-linked graph from committed bytes. A stray
+record or metering artifact in the tail is not pristine.
+
+Admission acquires an atomic campaign-private host lock before the load window.
+After all three once-per-minute passing samples, it freshly checks campaign
+private-root/cell/process ownership and every port registered by any campaign
+cell; the probe timestamps are the actual check times, not issuance aliases.
+The controller atomically claims and holds that lock through finalization, and
+repeats process, port, prefix, execution-byte, config, host, and instrument
+checks immediately before its first private-cell write and driver import. A
+competing admission or controller fails. Stale recovery is explicit and
+archives the old reservation, but existing private cell evidence always makes
+the cell finalization-only and never authorizes a rerun.
+
+Codex and Grok continuation is allowed only on `Mac.lan`, a `Mac16,11` Mac mini
+with Apple M4 Pro, 12 physical/logical cores, and 24 GB. Claude retains its
+separate registered MacBook Pro policy. No serial number, UUID, or similarly
+sensitive host identifier is retained. Historical cell-1 host evidence is not
+silently rewritten: recovery-resume v4 carries the v3 cell forward explicitly,
+while future admission uses the current allowed-host identity. Likewise,
+cell 1 retains the old `/instrument` archive and its original instrument
+manifest; future prompts and admission use the refusal-on-overwrite immutable
+`/instrument-resume-20260824` snapshot materialized from the final committed
+manifest.
+
+If a single private attempt completed its native stream, boundaries, manifest,
+and record base but controller join/record finalization failed, the registered
+no-launch finalizer may deterministically rejoin and validate it without
+calling `prepare()`, importing a launching driver, or invoking a model/product
+cell. It refuses missing native counts, divergent derived files, and any second
+attempt. Its optional publisher copies only the validation-required evidence
+graph into a pristine committed slot and writes the exact one-attempt cell slot
+last; retained private evidence is never deleted.
 
 For Codex, the suite-and-choreography green timestamp remains the LLP 0201
 authoring terminal and wall boundary. A later native usage-settlement
 timestamp/ordinal is versioned provenance used only to select the token prefix.
 Native milestone-signal commands are instrumentation, not D0.6 product
-actions; any retained compatibility exclusion must bind the exact event and
-native signal identity.
+actions. The one-second handoff candidate rule exists only for recovered cell
+1's exact registered native/observation byte streams. A future driver stream
+that declares signal commands filtered skips that heuristic entirely, so a
+legitimate next-milestone process/progress event within one second is retained
+rather than guessed away.
 
 ### R3. Claim-eligible wave
 

@@ -4,9 +4,9 @@
   "status": "serial-per-cell-admission",
   "noBenchmarkCellStarted": false,
   "recoveryResume": {
-    "version": "snapback.r2-recovery-resume.v3",
-    "path": "recovery-resume.v3.json",
-    "sha256": "908e47b76aee4be2fca596301ac37cf64e4b7e9851f82a992a515dc4f5ac26bf",
+    "version": "snapback.r2-recovery-resume.v4",
+    "path": "recovery-resume.v4.json",
+    "sha256": "1ff7ce396a196ec59c6f5e1426c43d910b4b91a41da5266c86f35321a36b3bdf",
     "nextCell": "sol-clique-familiar"
   },
   "governing": [
@@ -21,25 +21,46 @@
   "paths": {
     "committedRunRoot": "benchmarks/runs/2026-08-23-r2-published-0125",
     "privateExecutionRoot": "/Users/ccheever/bench-matrix-20260823-r2",
-    "instrumentRoot": "/Users/ccheever/bench-matrix-20260823-r2/instrument",
+    "instrumentRoot": "/Users/ccheever/bench-matrix-20260823-r2/instrument-resume-20260824",
     "exactPinnedCheckout": "/Users/ccheever/bench-matrix-20260817/exact-pinned"
   },
-  "machine": {
-    "count": 1,
-    "hardwareModel": "MacBookPro18,4",
-    "os": "Darwin 25.6.0 arm64",
-    "physicalCpuCount": 10,
-    "logicalCpuCount": 10,
-    "memoryBytes": 68719476736,
-    "node": {
-      "path": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
-      "version": "v24.18.0"
+  "machines": {
+    "mac-mini-durand": {
+      "id": "mac-mini-durand",
+      "hostname": "Mac.lan",
+      "machineName": "Mac mini",
+      "hardwareModel": "Mac16,11",
+      "chip": "Apple M4 Pro",
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "physicalCpuCount": 12,
+      "logicalCpuCount": 12,
+      "memoryBytes": 25769803776,
+      "node": {
+        "path": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+        "version": "v24.18.0",
+        "sha256": "sha256:ee6fb0e015284d83a91e8ec5213f43a157f8a392b58555301682892ba928c04a"
+      }
     },
-    "bun": {
-      "path": "/Users/ccheever/.bun/bin/bun",
-      "version": "1.3.12"
-    },
-    "reservationRequired": true
+    "macbook-pro-2": {
+      "id": "macbook-pro-2",
+      "hostname": "charlies-macbook-pro-2",
+      "machineName": "MacBook Pro",
+      "hardwareModel": "MacBookPro18,4",
+      "chip": "Apple M1 Max",
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "physicalCpuCount": 10,
+      "logicalCpuCount": 10,
+      "memoryBytes": 68719476736,
+      "node": {
+        "path": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+        "version": "v24.18.0",
+        "sha256": "sha256:ee6fb0e015284d83a91e8ec5213f43a157f8a392b58555301682892ba928c04a"
+      }
+    }
   },
   "execution": {
     "serial": true,
@@ -48,21 +69,40 @@
     "reuseAcrossCells": [],
     "milestones": ["M1", "M2", "M3"],
     "perMilestoneWallSafetyLimitSeconds": 14400,
+    "exclusiveHostLock": {
+      "version": "snapback.r2-exclusive-host-lock.v1",
+      "path": "/Users/ccheever/bench-matrix-20260823-r2/locks/2026-08-23-r2-published-0125.host.lock",
+      "staleRecovery": "explicit-only; never authorizes a rerun of existing private evidence"
+    },
     "loadIsolation": {
-      "policyId": "host-10cpu-loadavg-10-approved",
-      "status": "approved",
-      "ruling": "ORCHESTRATOR RULING: loadavg-1/loadavg-5/loadavg-15 <= 10.00 is approved, with three consecutive one-minute passing samples before admission.",
-      "sampleEverySeconds": 60,
-      "metrics": ["loadavg1", "loadavg5", "loadavg15"],
-      "ceilingInclusive": {
-        "loadavg1": 10.0,
-        "loadavg5": 10.0,
-        "loadavg15": 10.0
-      },
-      "preStartConsecutivePassingSamples": 3,
-      "breachRule": "The first sample above any ceiling sets host-load-contamination for that cell.",
-      "onBreach": "Continue only for product findings; efficiencyScorecardEligible=false.",
-      "nextCellRule": "Prior process tree closed and three consecutive passing samples."
+      "policies": {
+        "mac16-11-m4-pro-12core-loadavg-10-approved-20260824": {
+          "policyId": "mac16-11-m4-pro-12core-loadavg-10-approved-20260824",
+          "allowedHostId": "mac-mini-durand",
+          "status": "approved",
+          "ruling": "ORCHESTRATOR RULING: applied to the actual Codex/Grok host, Mac.lan is a Mac16,11 Mac mini with Apple M4 Pro, 12 cores, and 24 GB; loadavg-1/loadavg-5/loadavg-15 <= 10.00 with three consecutive one-minute passing samples before admission.",
+          "sampleEverySeconds": 60,
+          "metrics": ["loadavg1", "loadavg5", "loadavg15"],
+          "ceilingInclusive": {"loadavg1": 10.0, "loadavg5": 10.0, "loadavg15": 10.0},
+          "preStartConsecutivePassingSamples": 3,
+          "breachRule": "The first sample above any ceiling sets host-load-contamination for that cell.",
+          "onBreach": "Continue only for product findings; efficiencyScorecardEligible=false.",
+          "nextCellRule": "Exclusive host lock held; prior campaign process tree closed; every registered campaign port unbound; three consecutive passing samples."
+        },
+        "macbookpro18-4-m1-max-10core-loadavg-10-approved": {
+          "policyId": "macbookpro18-4-m1-max-10core-loadavg-10-approved",
+          "allowedHostId": "macbook-pro-2",
+          "status": "approved",
+          "ruling": "ORCHESTRATOR RULING: Claude cells run only on the configured MacBookPro18,4 M1 Max host under the same three-sample inclusive 10.00 ceiling.",
+          "sampleEverySeconds": 60,
+          "metrics": ["loadavg1", "loadavg5", "loadavg15"],
+          "ceilingInclusive": {"loadavg1": 10.0, "loadavg5": 10.0, "loadavg15": 10.0},
+          "preStartConsecutivePassingSamples": 3,
+          "breachRule": "The first sample above any ceiling sets host-load-contamination for that cell.",
+          "onBreach": "Continue only for product findings; efficiencyScorecardEligible=false.",
+          "nextCellRule": "Exclusive host lock held; prior campaign process tree closed; every registered campaign port unbound; three consecutive passing samples."
+        }
+      }
     },
     "contaminationVocabulary": {
       "hostLoad": "host-load-contamination",
@@ -116,30 +156,34 @@
       "manifestPath": "benchmarks/instrument.manifest.json",
       "semanticSnapshotRevision": "e8048d8238b3abe1fe3d6553bd12f334affbf88f",
       "instrumentPin": "social-messenger@0.3.3-m8",
-    "manifestSha256": "11be58d47fb65831c39b3d3df4c6b41b0058a6bef4593b94888af8880b01c804",
+    "manifestSha256": "7a576c4d3aa4aa734dcbbd9dc16681120fa9e7cb1efe05bcbe2789e2ab71f785",
       "fixtureVersion": "0.2.0-m8",
       "schemaVersion": "0.3.0-m8",
       "uiVersion": "0.3.1-m8",
       "choreographyVersion": "0.3.3-m8",
       "d06MeteringOverlay": {
-      "revision": "final-scoped-review-remediation-after-0acfad7ae32357cf331b0f539c545f503163ce78",
-        "status": "landed",
+      "revision": "scoped-review-remediation-after-07b0c5255b40447789d04dd22adee2b7ef123dcd-no-campaign-cell-rerun",
+        "status": "locally-committed-no-campaign-cell-rerun",
         "recordSchema": "benchmarks/schema/social-messenger/run-record.schema.json",
         "recordSchemaSha256": "3403455e98fad656125ea2ab0993f780bdb112849fb127bd8bcfcbcf6f2b8a64",
       "extensionSchemaSha256": "5d8a6f41d1f02d7fe8df4ef761bb7cd921d2fa2c711e938c553c903689e14c4b",
       "recordValidatorSha256": "4986ba54b0bb7872840211b4a88530d8f2155b8a4ed41ff61d3b85e2252ee93b",
         "meterSha256": "d19aa6764c513af489e43b00ef15f8560d347dc84998254d1cceb4bf9e4d5a62",
         "laneSetupSha256": "b46ddce548b4415dfd791eb32c97eba581adb0d9794da557f314fd2b34c9e71f",
-      "laneControllerSha256": "b79e5114b1be5b958ce87bdeae154b034bb003d569a61b1bccfa988f27d5763b",
-      "productionDriverSha256": "24ee6ba8dcb6c4860b1a573b2e02a78023ff63bd5d255157649ef706f44d5f0b",
+      "laneControllerSha256": "3b57594f69c9c5835dee7d179ada144d7d19e1fa2868f9284fd366cd40aa46df",
+      "productionDriverSha256": "2b2660d2f773830af0d15e117938cd5a2f50337e88c18a37fb224505734a5db5",
         "signalSha256": "f2f835538bc92cd5ea2af0098e43ca0e97cf3934101c713f6c13ede55066a712",
-      "manifestLoaderSha256": "0e3ebad453fea3e56412a338b2175cb03f49fae673b6c9d1f73ac90375a43d24",
+      "manifestLoaderSha256": "c51e7909d2b3bb782a58da86a18dd2eb91bc295ceab0e27cf4a027a966ed6ad6",
       "joinerSha256": "152fd1a89e30d96ac2b4b4fcb2a246b2722da3cd68e51fde8cd4ee3fa3636f85",
         "observationsSha256": "3299998fd77ba1ded4c3de613803e55cbcce79aed377ce526511fa97b749a3b9",
         "codexAdapterSha256": "3afd75d48389dff2d8c307016638927e38bcf8c8600242113a613ca1fe509db8",
       "codexNativeEvidenceSha256": "d510466a1dbf897ce4091a4ccb59fc5d31dbd50be7652e5f63ec22a1306fc744",
       "recordComposerSha256": "66868a4513a682b411e219927752edc16b7ee0cb85bb01b11f0c5dea56a5b98e",
-      "admissionToolSha256": "2479b4b9a35e74c0e37b7ee45dcbae458a52bbb658e9256fda2e8af3ea2f46bc"
+      "admissionToolSha256": "84aa7d5ee907596a52fb83357377de3d2eb7ad1fbc06b0521b7ab55967ce7eea",
+      "finalizedCellValidatorSha256": "ed1d28912433b14d4018cfa6b661b8ae764fbd9b833ce02bf737fd05b59a277a",
+      "hostLockSha256": "d5f88ead039905e2409ddeb3c26604e550060d08ba4811793a41c07e4535f60d",
+      "finalizeExistingSha256": "bcd295e21ea32f9e6735ced1f88d7b93c69e05599e98d34ec2553d9db4e3702d",
+      "instrumentMaterializerSha256": "1ac7cd354d22e67c4b1eb19d96ac395a0ab62e0ecd3506bdf13844952c65306a"
       },
       "observabilityBump": {
         "issue": "issues/20260821-clique-instrument-observability-version-bump.md",
@@ -195,6 +239,8 @@
     "driver": "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs",
     "signal": "benchmarks/tools/social-messenger/metering/r2-cell-signal.mjs",
     "admission": "benchmarks/tools/social-messenger/metering/r2-cell-admission.mjs",
+    "finalizeExisting": "benchmarks/tools/social-messenger/metering/r2-finalize-existing.mjs",
+    "materializeInstrument": "benchmarks/tools/materialize-instrument.mjs",
     "commandTemplate": [
       "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
       "benchmarks/tools/social-messenger/metering/lane-controller.mjs",
@@ -304,7 +350,8 @@
       "promptFile": "prompts/clique-explicit.md",
       "ports": [42000, 42019],
       "pins": ["snapback0125", "instrument"],
-      "loadCeilingId": "host-10cpu-loadavg-10-approved",
+      "allowedHostId": "mac-mini-durand",
+      "loadCeilingId": "mac16-11-m4-pro-12core-loadavg-10-approved-20260824",
       "baseline": {"wallSeconds": 3720, "outputTokens": 120825},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "sol-clique-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/sol-clique-explicit.json"],
       "admissionArtifact": "admissions/sol-clique-explicit.json"
@@ -320,7 +367,8 @@
       "promptFile": "prompts/clique-familiar.md",
       "ports": [42020, 42039],
       "pins": ["snapback0125", "instrument"],
-      "loadCeilingId": "host-10cpu-loadavg-10-approved",
+      "allowedHostId": "mac-mini-durand",
+      "loadCeilingId": "mac16-11-m4-pro-12core-loadavg-10-approved-20260824",
       "baseline": {"wallSeconds": 4748, "outputTokens": 139934},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "sol-clique-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/sol-clique-familiar.json"],
       "admissionArtifact": "admissions/sol-clique-familiar.json"
@@ -336,7 +384,8 @@
       "promptFile": "prompts/coterie-explicit.md",
       "ports": [42040, 42059],
       "pins": ["snapback0125", "instrument", "exact0124Comparator"],
-      "loadCeilingId": "host-10cpu-loadavg-10-approved",
+      "allowedHostId": "mac-mini-durand",
+      "loadCeilingId": "mac16-11-m4-pro-12core-loadavg-10-approved-20260824",
       "baseline": {"wallSeconds": 5212, "outputTokens": 159445},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "sol-coterie-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/sol-coterie-explicit.json"],
       "admissionArtifact": "admissions/sol-coterie-explicit.json"
@@ -352,7 +401,8 @@
       "promptFile": "prompts/coterie-familiar.md",
       "ports": [42060, 42079],
       "pins": ["snapback0125", "instrument", "exact0124Comparator"],
-      "loadCeilingId": "host-10cpu-loadavg-10-approved",
+      "allowedHostId": "mac-mini-durand",
+      "loadCeilingId": "mac16-11-m4-pro-12core-loadavg-10-approved-20260824",
       "baseline": {"wallSeconds": 7631, "outputTokens": 152614},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "sol-coterie-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/sol-coterie-familiar.json"],
       "admissionArtifact": "admissions/sol-coterie-familiar.json"
@@ -368,7 +418,8 @@
       "promptFile": "prompts/clique-explicit.md",
       "ports": [42080, 42099],
       "pins": ["snapback0125", "instrument"],
-      "loadCeilingId": "host-10cpu-loadavg-10-approved",
+      "allowedHostId": "mac-mini-durand",
+      "loadCeilingId": "mac16-11-m4-pro-12core-loadavg-10-approved-20260824",
       "baseline": {"wallSeconds": 4336, "outputTokens": 141020},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "grok-clique-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/grok-clique-explicit.json"],
       "admissionArtifact": "admissions/grok-clique-explicit.json"
@@ -384,7 +435,8 @@
       "promptFile": "prompts/clique-familiar.md",
       "ports": [42100, 42119],
       "pins": ["snapback0125", "instrument"],
-      "loadCeilingId": "host-10cpu-loadavg-10-approved",
+      "allowedHostId": "mac-mini-durand",
+      "loadCeilingId": "mac16-11-m4-pro-12core-loadavg-10-approved-20260824",
       "baseline": {"wallSeconds": 19346, "outputTokens": 188471, "contamination": ["host-load-contamination"]},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "grok-clique-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/grok-clique-familiar.json"],
       "admissionArtifact": "admissions/grok-clique-familiar.json"
@@ -400,7 +452,8 @@
       "promptFile": "prompts/coterie-explicit.md",
       "ports": [42120, 42139],
       "pins": ["snapback0125", "instrument", "exact0124Comparator"],
-      "loadCeilingId": "host-10cpu-loadavg-10-approved",
+      "allowedHostId": "mac-mini-durand",
+      "loadCeilingId": "mac16-11-m4-pro-12core-loadavg-10-approved-20260824",
       "baseline": {"wallSeconds": 7664, "outputTokens": 263396},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "grok-coterie-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/grok-coterie-explicit.json"],
       "admissionArtifact": "admissions/grok-coterie-explicit.json"
@@ -416,7 +469,8 @@
       "promptFile": "prompts/coterie-familiar.md",
       "ports": [42140, 42159],
       "pins": ["snapback0125", "instrument", "exact0124Comparator"],
-      "loadCeilingId": "host-10cpu-loadavg-10-approved",
+      "allowedHostId": "mac-mini-durand",
+      "loadCeilingId": "mac16-11-m4-pro-12core-loadavg-10-approved-20260824",
       "baseline": {"wallSeconds": 7002, "outputTokens": 196650},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "grok-coterie-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/grok-coterie-familiar.json"],
       "admissionArtifact": "admissions/grok-coterie-familiar.json"
@@ -432,7 +486,8 @@
       "promptFile": "prompts/clique-explicit.md",
       "ports": [42160, 42179],
       "pins": ["snapback0125", "instrument"],
-      "loadCeilingId": "host-10cpu-loadavg-10-approved",
+      "allowedHostId": "macbook-pro-2",
+      "loadCeilingId": "macbookpro18-4-m1-max-10core-loadavg-10-approved",
       "baseline": {"wallSeconds": 27282, "outputTokens": 387583, "contamination": ["host-load-contamination", "api-interruption"]},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "opus-clique-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/opus-clique-explicit.json"],
       "admissionArtifact": "admissions/opus-clique-explicit.json"
@@ -448,7 +503,8 @@
       "promptFile": "prompts/clique-familiar.md",
       "ports": [42180, 42199],
       "pins": ["snapback0125", "instrument"],
-      "loadCeilingId": "host-10cpu-loadavg-10-approved",
+      "allowedHostId": "macbook-pro-2",
+      "loadCeilingId": "macbookpro18-4-m1-max-10core-loadavg-10-approved",
       "baseline": {"wallSeconds": 12367, "outputTokens": 430232},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "opus-clique-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/opus-clique-familiar.json"],
       "admissionArtifact": "admissions/opus-clique-familiar.json"
@@ -464,7 +520,8 @@
       "promptFile": "prompts/coterie-explicit.md",
       "ports": [42200, 42219],
       "pins": ["snapback0125", "instrument", "exact0124Comparator"],
-      "loadCeilingId": "host-10cpu-loadavg-10-approved",
+      "allowedHostId": "macbook-pro-2",
+      "loadCeilingId": "macbookpro18-4-m1-max-10core-loadavg-10-approved",
       "baseline": {"wallSeconds": 13504, "outputTokens": 365823},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "opus-coterie-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/opus-coterie-explicit.json"],
       "admissionArtifact": "admissions/opus-coterie-explicit.json"
@@ -480,7 +537,8 @@
       "promptFile": "prompts/coterie-familiar.md",
       "ports": [42220, 42239],
       "pins": ["snapback0125", "instrument", "exact0124Comparator"],
-      "loadCeilingId": "host-10cpu-loadavg-10-approved",
+      "allowedHostId": "macbook-pro-2",
+      "loadCeilingId": "macbookpro18-4-m1-max-10core-loadavg-10-approved",
       "baseline": {"wallSeconds": 8283, "outputTokens": 333058},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "opus-coterie-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/opus-coterie-familiar.json"],
       "admissionArtifact": "admissions/opus-coterie-familiar.json"

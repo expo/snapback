@@ -46,9 +46,14 @@ stdout, application/build output, dependencies, stores, credentials, caches,
 and private runtime state are not copied.
 
 `cell.json` now truthfully records one recovered/finalized attempt. The parent
-`recovery-resume.v3.json` transition preserves the original instrument and
-controller registrations, identifies `sol-clique-familiar` as the next exact
-cell, and moves continuation to fresh hash-bound per-cell admission. Its
+`recovery-resume.v3.json` remains the immutable cell-1 recovery declaration.
+The superseding continuation-only `recovery-resume.v4.json` does not rewrite
+that host, instrument, terminal, native, metering, or record evidence. It
+identifies `sol-clique-familiar` as the next exact cell; binds future admission
+to `Mac.lan`, exact execution bytes and argv, live all-campaign process/port
+checks, and the atomic host lock; and moves future cells to the distinct
+`instrument-resume-20260824` snapshot while preserving the old `/instrument`
+archive for this cell. Its
 historical dry-run validator binding names and verifies an immutable Git
 commit/tree, rather than comparing two mutable declarations. Historical
 BLOCKED reports remain immutable historical artifacts.
