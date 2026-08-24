@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import {
-  copyFileSync,
+  cpSync,
   existsSync,
   mkdtempSync,
   mkdirSync,
@@ -76,7 +76,7 @@ function materializeConsumerNodeModules(destination) {
           if (!existsSync(sourceFile)) continue;
           const destinationFile = join(destinationPackage, publishedFile);
           mkdirSync(resolve(destinationFile, '..'), { recursive: true });
-          copyFileSync(realpathSync(sourceFile), destinationFile);
+          cpSync(realpathSync(sourceFile), destinationFile, { recursive: true });
         }
       } else {
         symlinkSync(sourcePackage, destinationPackage, 'dir');
