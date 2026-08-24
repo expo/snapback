@@ -67,8 +67,11 @@ function normalizeFirstProductEdit(marker) {
   }
   const at = marker.at ?? marker.firstProductEditAt;
   timestampMillis(at, "first product edit marker.at");
-  if (!Number.isInteger(marker.orientationBytes) || marker.orientationBytes < 0) {
-    throw new TypeError("first product edit marker.orientationBytes must be a non-negative integer");
+  if (
+    marker.orientationBytes !== null
+    && (!Number.isInteger(marker.orientationBytes) || marker.orientationBytes < 0)
+  ) {
+    throw new TypeError("first product edit marker.orientationBytes must be null or a non-negative integer");
   }
   if (!Array.isArray(marker.selectedSkills)) {
     throw new TypeError("first product edit marker.selectedSkills must be an array");
@@ -160,6 +163,7 @@ export function joinUsageToMilestones({
   if (ordered.length === 0) throw new Error("at least one attempted milestone boundary is required");
   const observationEvents = observations?.events ?? [];
   const observationEvidence = observations?.evidence ?? [];
+  const observationWindowExceptions = observations?.windowExceptions ?? [];
   const attemptedMilestones = new Set(ordered.map((item) => item.milestone));
   const outsideAttempt = observationEvents.find(
     (event) => !attemptedMilestones.has(event.milestone),
@@ -180,7 +184,14 @@ export function joinUsageToMilestones({
         `${event.milestone} observation ${event.type} is after its terminal boundary`,
       );
     }
-    if (lower !== null && eventAt < lower - maxClockSkewMs) {
+    const retainedHandoffOverlap = observationWindowExceptions.some((exception) => (
+      exception.observationSourceId === event.evidenceSourceId
+      && exception.milestone === event.milestone
+      && exception.sequence === event.sequence
+      && exception.at === event.at
+      && exception.type === event.type
+    ));
+    if (lower !== null && eventAt < lower - maxClockSkewMs && !retainedHandoffOverlap) {
       throw new Error(
         `${event.milestone} observation ${event.type} predates its milestone window`,
       );
@@ -276,6 +287,9 @@ export function joinUsageToMilestones({
     efficiencyScorecardEligibility: scorecardEligibility({
       milestones,
       phaseUsageAvailable: turns !== null,
+      orientationEvidenceAvailable: firstEdit.at !== null
+        && firstEdit.orientationBytes !== null
+        && Object.values(firstEdit.orientationTokens).every(Number.isInteger),
     }),
     boundarySnapshots,
     firstProductEdit: firstEdit,

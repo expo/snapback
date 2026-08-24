@@ -31,6 +31,7 @@ import {
   readReceiptBoundaryFiles,
 } from "../boundaries.mjs";
 import { joinUsageToMilestones } from "../joiner.mjs";
+import { recoverCodexSignalSettlements } from "../codex-native-evidence.mjs";
 import { parseJsonLines } from "../jsonl.mjs";
 import {
   applyR2DriverV1TerminalCompatibility,
@@ -379,57 +380,167 @@ test("Codex preserves an absent optional reasoning counter as null", () => {
   assert.equal(channel.turns[0].usage.reasoning, null);
 });
 
-test("retained R2 driver v1 advances terminals only from later hash-bound observations", () => {
-  const originalClockCorrelation = {
-    method: "rfc3339-with-bounded-skew",
-    maxSkewMillis: 5_000,
-    evidence: "controller and native CLI use the same host clock; 5s covers receipt-to-final-sample handoff",
-  };
-  const boundaryValue = {
-    M1: {
-      status: "green",
-      firstGreenAt: "2026-08-24T09:54:04.184Z",
-      suitePassAt: "2026-08-24T09:54:04.184Z",
-      choreoPassAt: "2026-08-24T09:53:54.802Z",
-      terminalAt: "2026-08-24T09:54:04.184Z",
-      terminalSequence: 1,
-      terminalReason: "green",
-    },
-  };
+test("retained R2 Codex ordering settles signal usage without stealing the next milestone", async () => {
+  const cellRoot = new URL(
+    "benchmarks/runs/2026-08-23-r2-published-0125/cells/sol-clique-explicit/",
+    ROOT,
+  );
+  const manifestText = await readFile(new URL("metering-manifest.json", cellRoot), "utf8");
+  const manifest = JSON.parse(manifestText);
+  const boundaryValue = JSON.parse(await readFile(
+    new URL("terminal-boundaries.json", cellRoot),
+    "utf8",
+  ));
+  const rolloutText = await readFile(new URL("events/codex-rollout.jsonl", cellRoot), "utf8");
+  assert.equal(
+    sha256(rolloutText),
+    "sha256:f9838d32f9f1357eb40ed7661d350cc9e341431ab0fcc3df0dc6e280e2035c0d",
+    "the exact retained native fixture bytes must not change",
+  );
+  const records = parseJsonLines(rolloutText, "retained R2 Codex rollout");
+  for (const [ordinal, at, type] of [
+    [222, "2026-08-24T09:12:14.377Z", "item_completed"],
+    [1229, "2026-08-24T09:54:54.149Z", "item_completed"],
+    [1231, "2026-08-24T09:54:54.157Z", "token_count"],
+    [1413, "2026-08-24T10:02:30.901Z", "item_completed"],
+    [1415, "2026-08-24T10:02:30.911Z", "token_count"],
+    [1557, "2026-08-24T10:10:14.089Z", "item_completed"],
+    [1564, "2026-08-24T10:10:21.856Z", "token_count"],
+    [1565, "2026-08-24T10:10:21.954Z", "task_complete"],
+  ]) {
+    assert.equal(records[ordinal].ordinal, ordinal);
+    assert.equal(records[ordinal].timestamp, at);
+    assert.equal(records[ordinal].payload.type, type);
+  }
+  assert.equal(records[222].payload.item.type, "FileChange");
+  assert.deepEqual(
+    Object.keys(records[222].payload.item.changes).map((path) => path.split("/").at(-1)),
+    ["package.json"],
+  );
+  const observationEvents = [];
+  for (const source of manifest.observations) {
+    const events = parseObservationJsonLines(
+      await readFile(new URL(source.path, cellRoot), "utf8"),
+      source.path,
+    );
+    observationEvents.push(...events.map((event) => ({
+      ...event,
+      evidenceSourceId: source.sourceId,
+    })));
+  }
   const result = applyR2DriverV1TerminalCompatibility({
-    manifest: { driver: { id: "social-messenger-r2-native-cli-driver.v1" } },
+    manifest,
     boundaryValue,
-    observationEvents: [{
-      milestone: "M1",
-      at: "2026-08-24T09:54:53.931Z",
-      sequence: 1,
+    observationEvents,
+    clockCorrelation: manifest.clockCorrelation,
+    loadedSessions: [{
+      ...manifest.sessions[0],
+      records,
+      nativeCliVersion: "0.149.0",
+      resolvedSha256: manifest.sessions[0].sha256,
     }],
-    clockCorrelation: originalClockCorrelation,
   });
 
-  assert.equal(boundaryValue.M1.terminalAt, "2026-08-24T09:54:04.184Z");
-  assert.equal(result.boundaryValue.M1.firstGreenAt, "2026-08-24T09:54:04.184Z");
-  assert.equal(result.boundaryValue.M1.terminalAt, "2026-08-24T09:54:53.931Z");
+  assert.equal(
+    boundaryValue.milestones.M1.terminalAt,
+    "2026-08-24T09:54:04.184Z",
+    "the immutable original boundary remains unchanged",
+  );
+  assert.deepEqual(
+    Object.values(result.boundaryValue.milestones).map((boundary) => boundary.terminalAt),
+    [
+      "2026-08-24T09:54:54.157Z",
+      "2026-08-24T10:02:30.911Z",
+      "2026-08-24T10:10:21.856Z",
+    ],
+  );
   assert.equal(result.clockCorrelation.maxSkewMillis, 0);
-  assert.deepEqual(result.compatibilityEvents[0].terminalAdjustments, [{
-    milestone: "M1",
-    originalTerminalAt: "2026-08-24T09:54:04.184Z",
-    effectiveTerminalAt: "2026-08-24T09:54:53.931Z",
-  }]);
+  assert.deepEqual(
+    result.compatibilityEvents[0].terminalAdjustments.map((adjustment) => ({
+      milestone: adjustment.milestone,
+      signalRecordOrdinal: adjustment.signalRecordOrdinal,
+      usageRecordOrdinal: adjustment.usageRecordOrdinal,
+      effectiveTerminalAt: adjustment.effectiveTerminalAt,
+      settlementKind: adjustment.settlementKind,
+    })),
+    [
+      { milestone: "M1", signalRecordOrdinal: 1229, usageRecordOrdinal: 1231, effectiveTerminalAt: "2026-08-24T09:54:54.157Z", settlementKind: "signal-turn-token-count" },
+      { milestone: "M2", signalRecordOrdinal: 1413, usageRecordOrdinal: 1415, effectiveTerminalAt: "2026-08-24T10:02:30.911Z", settlementKind: "signal-turn-token-count" },
+      { milestone: "M3", signalRecordOrdinal: 1557, usageRecordOrdinal: 1564, effectiveTerminalAt: "2026-08-24T10:10:21.856Z", settlementKind: "final-native-token-count" },
+    ],
+  );
   assert.equal(result.compatibilityEvents[0].ruleId, R2_DRIVER_V1_TERMINAL_RULE);
+  assert.deepEqual(result.compatibilityEvents[0].excludedPostTerminalObservations, [{
+    observationSourceId: "2026-08-23-r2-published-0125/sol-clique-explicit-lane-controller",
+    milestone: "M3",
+    sequence: 268,
+    at: "2026-08-24T10:10:23.123Z",
+    type: "host-load-sample",
+    reason: "controller-finalization-sample-after-native-task-settlement",
+  }]);
+
+  const joined = joinUsageToMilestones({
+    channel: adaptCodexSessionTree([{
+      sourceId: "builder",
+      nativeSessionId: manifest.sessions[0].nativeSessionId,
+      records,
+    }]),
+    boundaries: result.boundaryValue,
+    firstProductEdit: null,
+    wallClockOrigin: manifest.driver.startedAt,
+  });
+  assert.deepEqual(joined.milestones.M1.authoring.tokens, counts(544_314, 103_534, 24_087_808, 0, 29_142));
+  assert.deepEqual(joined.milestones.M2.authoring.tokens, counts(50_096, 7_770, 5_335_296, 0, 2_314));
+  assert.deepEqual(joined.milestones.M3.authoring.tokens, counts(62_057, 13_299, 4_985_856, 0, 4_668));
+  assert.deepEqual(joined.totals, counts(656_467, 124_603, 34_408_960, 0, 36_124));
 
   const unversioned = applyR2DriverV1TerminalCompatibility({
     manifest: { driver: { id: "some-other-driver" } },
     boundaryValue,
-    observationEvents: [{
-      milestone: "M1",
-      at: "2026-08-24T09:54:53.931Z",
-      sequence: 1,
-    }],
-    clockCorrelation: originalClockCorrelation,
+    observationEvents,
+    clockCorrelation: manifest.clockCorrelation,
   });
   assert.equal(unversioned.boundaryValue, boundaryValue);
   assert.deepEqual(unversioned.compatibilityEvents, []);
+});
+
+test("closed Codex failure finalization uses the last settled native usage or fails closed", () => {
+  const records = [{
+    ordinal: 0,
+    timestamp: "2026-08-24T12:00:01.000Z",
+    type: "event_msg",
+    payload: {
+      type: "token_count",
+      info: { total_token_usage: { input_tokens: 10 } },
+    },
+  }];
+  const boundaryValue = {
+    M1: {
+      status: "aborted",
+      terminalAt: "2026-08-24T12:00:02.000Z",
+      terminalSequence: 1,
+    },
+  };
+  assert.throws(
+    () => recoverCodexSignalSettlements({ records, boundaryValue }),
+    /successful M1 signal|task_complete/u,
+  );
+  const recovered = recoverCodexSignalSettlements({
+    records,
+    boundaryValue,
+    streamClosedAt: "2026-08-24T12:00:03.000Z",
+  });
+  assert.deepEqual(recovered.terminalAdjustments[0], {
+    milestone: "M1",
+    originalTerminalAt: "2026-08-24T12:00:02.000Z",
+    signalItemId: null,
+    signalCompletedAt: "2026-08-24T12:00:03.000Z",
+    signalRecordOrdinal: null,
+    usageSettledAt: "2026-08-24T12:00:01.000Z",
+    usageRecordOrdinal: 0,
+    effectiveTerminalAt: "2026-08-24T12:00:01.000Z",
+    settlementKind: "closed-failure-native-token-count",
+  });
 });
 
 test("retained real Codex parent and subagent deltas checksum and aggregate independently", async () => {
@@ -1208,6 +1319,55 @@ function composedErrors(record, artifactRoot = null) {
     artifactRoot,
   });
 }
+
+test("current R2 compatibility provenance rejects deletion and fabrication", async () => {
+  const root = fileURLToPath(new URL(
+    "benchmarks/runs/2026-08-23-r2-published-0125/cells/sol-clique-explicit/",
+    ROOT,
+  ));
+  const record = JSON.parse(await readFile(join(root, "record.json"), "utf8"));
+  assert.deepEqual(composedErrors(record, root), []);
+
+  for (const mutate of [
+    (candidate) => { delete candidate.socialMessenger.meteringProvenance.adapter; },
+    (candidate) => { delete candidate.socialMessenger.meteringProvenance.driver.compatibilityEvents; },
+    (candidate) => { delete candidate.socialMessenger.meteringProvenance.sessions[0].nativeCliVersion; },
+  ]) {
+    const candidate = structuredClone(record);
+    mutate(candidate);
+    assert.notDeepEqual(composedErrors(candidate, root), [], "omitted current-R2 provenance must fail");
+  }
+
+  const fabricatedAdapter = structuredClone(record);
+  fabricatedAdapter.socialMessenger.meteringProvenance.adapter.compatibilityEvents = [];
+  assert.match(
+    composedErrors(fabricatedAdapter, root).join("\n"),
+    /adapter.*native adapter replay/u,
+  );
+
+  const fabricatedNativeVersion = structuredClone(record);
+  fabricatedNativeVersion.socialMessenger.meteringProvenance.sessions[0].nativeCliVersion = "0.150.0";
+  assert.match(
+    composedErrors(fabricatedNativeVersion, root).join("\n"),
+    /nativeCliVersion/u,
+  );
+
+  const fabricatedDriver = structuredClone(record);
+  fabricatedDriver.socialMessenger.meteringProvenance.driver.compatibilityEvents[0]
+    .terminalAdjustments[0].usageRecordOrdinal = 1230;
+  assert.match(
+    composedErrors(fabricatedDriver, root).join("\n"),
+    /driver.*native boundary replay/u,
+  );
+
+  const disguisedDriver = structuredClone(record);
+  disguisedDriver.socialMessenger.meteringProvenance.driver.id = "fixture-driver";
+  assert.notDeepEqual(
+    composedErrors(disguisedDriver, root),
+    [],
+    "a current R2 record cannot evade provenance replay by renaming its driver",
+  );
+});
 
 async function retainedArtifact(root, path) {
   return { path, sha256: sha256(await readFile(join(root, path))) };

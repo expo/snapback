@@ -238,8 +238,10 @@ private retained root and was not rerun. The versioned metering repair recovers
 its complete native token join, and the committed cell directory now contains
 `metering.json`, a schema- and semantic-validator-clean `record.json`, and the
 minimal hash-linked evidence graph needed to revalidate both. Its recovery note
-records the exact Codex 0.149.0 advisory-total compatibility event and the
-driver-v1 terminal correction derived from retained controller observations.
+records the exact Codex 0.149.0 advisory-total compatibility event, native
+signal-settled terminals, and the ordinal-222 first product edit. The recovered
+record is scorecard-ineligible because orientation bytes were not measured;
+no counter is inferred from the prompt.
 
 This is a deterministic finalization of cell 1, not campaign continuation or a
 profile conclusion. No later Codex/Grok cell and no Claude cell ran. The

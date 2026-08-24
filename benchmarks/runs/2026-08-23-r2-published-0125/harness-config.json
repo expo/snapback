@@ -1,8 +1,14 @@
 {
   "schemaVersion": "snapback.r2-harness-config.v1",
   "runId": "2026-08-23-r2-published-0125",
-  "status": "prepared-blocked",
-  "noBenchmarkCellStarted": true,
+  "status": "recovered-cell-1-blocked",
+  "noBenchmarkCellStarted": false,
+  "recoveryResume": {
+    "version": "snapback.r2-recovery-resume.v2",
+    "path": "recovery-resume.v2.json",
+    "sha256": "cda2ab9c138691bee3efa8e5f2aa5c768bd28189516b85a1917e455b68633a90",
+    "nextCell": "sol-clique-familiar"
+  },
   "governing": [
     "LLP 0295#r2-load-isolated-calibration-rerun",
     "LLP 0295#d06-efficiency-instrument-and-target-registration",
@@ -109,7 +115,7 @@
     "instrument": {
       "semanticSnapshotRevision": "e8048d8238b3abe1fe3d6553bd12f334affbf88f",
       "instrumentPin": "social-messenger@0.3.3-m8",
-      "manifestSha256": "8a13dcc55eca1dfe49a13d704575d2e2843ca059c34c964df86c7287dfb729ad",
+      "manifestSha256": "ed083eb715f6c043b78f7bd437102ab4a7b85ff9bf06880d61d269a0e71b60ae",
       "fixtureVersion": "0.2.0-m8",
       "schemaVersion": "0.3.0-m8",
       "uiVersion": "0.3.1-m8",
@@ -119,13 +125,18 @@
         "status": "landed",
         "recordSchema": "benchmarks/schema/social-messenger/run-record.schema.json",
         "recordSchemaSha256": "3403455e98fad656125ea2ab0993f780bdb112849fb127bd8bcfcbcf6f2b8a64",
-        "extensionSchemaSha256": "1cf39ff49e9b34465a1086f4a4d37491289c6590aca657652285c39138542983",
-        "recordValidatorSha256": "fa1b179a617db743ec15d9d87017458e594cab070b798ccd72b5349ccf373238",
+        "extensionSchemaSha256": "acb473ea27085cf8915e8962b5c0b5388a17eeea9e1b2f13322f5d04c36a5293",
+        "recordValidatorSha256": "af8e33cd0c316e70107f3906906a934cef4fa26de1c8a9c2cda300dbdddfdba5",
         "meterSha256": "d19aa6764c513af489e43b00ef15f8560d347dc84998254d1cceb4bf9e4d5a62",
         "laneSetupSha256": "b46ddce548b4415dfd791eb32c97eba581adb0d9794da557f314fd2b34c9e71f",
         "laneControllerSha256": "e5fac8225f912b675081977ade585d2adbbdb22508e3d5983d4975231132f6f2",
-        "productionDriverSha256": "5fa15c7ede74b030cf06b61176bbe8b9649ec09a8d85be264af21251021ff295",
-        "signalSha256": "f2f835538bc92cd5ea2af0098e43ca0e97cf3934101c713f6c13ede55066a712"
+        "productionDriverSha256": "bb167416eec678bb5ba797ce0892309fbbbbc730c7a90acb2fc7e8eab960a07a",
+        "signalSha256": "f2f835538bc92cd5ea2af0098e43ca0e97cf3934101c713f6c13ede55066a712",
+        "manifestLoaderSha256": "a8208b691094d7f098862860a9a4b738cac2429f0f26bfc0dff027cb3c40d92f",
+        "joinerSha256": "f371bd739d7efa0ba7e727a80abbad54fdc4b9c0679c05cfd2d753c2b84f6f76",
+        "observationsSha256": "3299998fd77ba1ded4c3de613803e55cbcce79aed377ce526511fa97b749a3b9",
+        "codexAdapterSha256": "3afd75d48389dff2d8c307016638927e38bcf8c8600242113a613ca1fe509db8",
+        "codexNativeEvidenceSha256": "6ceaa342c3951dee94c0cbda4393a54d1ecc7757c96e8860511f2793c2fb6229"
       },
       "observabilityBump": {
         "issue": "issues/20260821-clique-instrument-observability-version-bump.md",
@@ -174,7 +185,7 @@
       "terminal boundary and first-green proof"
     ],
     "requiredBeforeFirstEdit": ["orientation bytes", "selected skills", "native token prefix"],
-    "eligibilityRule": "Missing phase usage, host-load-contamination, or api-interruption makes only the efficiency scorecard ineligible."
+    "eligibilityRule": "Missing per-phase usage or orientation evidence, host-load-contamination, or api-interruption makes only the efficiency scorecard ineligible."
   },
   "controller": {
     "entrypoint": "benchmarks/tools/social-messenger/metering/lane-controller.mjs",

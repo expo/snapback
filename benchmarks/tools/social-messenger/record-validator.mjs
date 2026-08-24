@@ -3,6 +3,16 @@ import { lstatSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { dirname, isAbsolute, normalize, relative, resolve, sep } from "node:path";
 
 import { validateJsonSchema } from "../lib/json-schema.mjs";
+import { adaptClaudeSessionTree } from "./metering/adapters/claude-session.mjs";
+import { adaptCodexSessionTree } from "./metering/adapters/codex-session.mjs";
+import { adaptUnavailableFamily } from "./metering/adapters/unavailable.mjs";
+import {
+  inferCodexProductRoot,
+  recoverCodexFileChanges,
+} from "./metering/codex-native-evidence.mjs";
+import {
+  applyR2DriverV1TerminalCompatibility,
+} from "./metering/manifest.mjs";
 import {
   CURRENT_INSTRUMENT_PIN,
   OBSERVABILITY_BLOCKS,
@@ -89,6 +99,264 @@ function canonicalJson(value) {
 
 function sameJson(left, right) {
   return JSON.stringify(canonicalJson(left)) === JSON.stringify(canonicalJson(right));
+}
+
+function parseArtifactJson(errors, loaded, path) {
+  if (loaded === null) return null;
+  try {
+    return JSON.parse(loaded.text);
+  } catch (error) {
+    errors.push(`${path}: invalid JSON: ${error.message}`);
+    return null;
+  }
+}
+
+function codexCliVersion(errors, records, nativeSessionId, path) {
+  const metadata = records.filter((record) => record?.type === "session_meta");
+  const identities = new Set(metadata
+    .map((record) => record?.payload?.id)
+    .filter((value) => typeof value === "string"));
+  if (identities.size !== 1 || !identities.has(nativeSessionId)) {
+    errors.push(`${path}: native stream does not identify session ${nativeSessionId}`);
+  }
+  const versions = new Set(metadata
+    .map((record) => record?.payload?.cli_version)
+    .filter((value) => typeof value === "string" && value.length > 0));
+  if (versions.size > 1) errors.push(`${path}: native stream has conflicting cli_version values`);
+  return [...versions][0] ?? null;
+}
+
+// Current R2 provenance is a claim derived from the retained metering
+// manifest, native rollout, original boundaries, and observations. Merely
+// preserving a schema-shaped object is insufficient: every compatibility and
+// native-version field is recomputed here. Extension-v2 records for older
+// instrument pins retain their additive compatibility posture.
+function validateCurrentMeteringProvenance(errors, record, extension, artifactRoot) {
+  const path = "$/socialMessenger/meteringProvenance";
+  const provenance = extension.meteringProvenance;
+  if (!provenance || typeof provenance !== "object") {
+    errors.push(`${path}: current instrument requires metering provenance`);
+    return;
+  }
+  for (const field of ["manifest", "adapter", "observations"]) {
+    if (!Object.hasOwn(provenance, field)) {
+      errors.push(`${path}/${field}: current instrument requires this derived provenance field`);
+    }
+  }
+  if (!Array.isArray(provenance.driver?.compatibilityEvents)) {
+    errors.push(`${path}/driver/compatibilityEvents: current instrument requires an explicit array`);
+  }
+  const loadedManifest = resolveArtifact(errors, artifactRoot, provenance.manifest, `${path}/manifest`);
+  const manifest = parseArtifactJson(errors, loadedManifest, `${path}/manifest`);
+  if (manifest === null) return;
+  requireEqual(
+    errors,
+    `${path}/manifestSha256`,
+    provenance.manifestSha256,
+    provenance.manifest?.sha256,
+    "legacy manifest digest alias must equal the hash-bound manifest descriptor",
+  );
+  requireEqual(errors, `${path}/laneRunId`, provenance.laneRunId, manifest.laneRunId,
+    "laneRunId must derive from the metering manifest");
+  requireEqual(errors, `${path}/manifestVersion`, provenance.manifestVersion, manifest.manifestVersion,
+    "manifestVersion must derive from the metering manifest");
+  requireEqual(errors, `${path}/unavailableReason`, provenance.unavailableReason,
+    manifest.unavailableReason ?? null, "unavailable reason must derive from the metering manifest");
+
+  const loadedSessions = [];
+  for (const [index, descriptor] of (manifest.sessions ?? []).entries()) {
+    const sessionPath = `${path}/manifest/sessions/${index}`;
+    const loaded = resolveArtifact(errors, artifactRoot, descriptor, sessionPath);
+    if (loaded === null) continue;
+    let records;
+    try {
+      records = parseJsonLines(loaded.text, descriptor.path);
+    } catch (error) {
+      errors.push(`${sessionPath}: invalid native stream: ${error.message}`);
+      continue;
+    }
+    const nativeCliVersion = manifest.adapter === "codex"
+      ? codexCliVersion(errors, records, descriptor.nativeSessionId, sessionPath)
+      : null;
+    loadedSessions.push({
+      ...descriptor,
+      records,
+      nativeCliVersion,
+      resolvedSha256: descriptor.sha256,
+    });
+  }
+  const expectedSessions = loadedSessions.map((session) => ({
+    sourceId: session.sourceId,
+    parentSourceId: session.parentSourceId,
+    role: session.role,
+    nativeSessionId: session.nativeSessionId,
+    nativeAgentId: session.nativeAgentId ?? null,
+    nativeCliVersion: session.nativeCliVersion,
+    path: session.path,
+    sha256: session.resolvedSha256,
+  }));
+  if (!sameJson(provenance.sessions, expectedSessions)) {
+    errors.push(`${path}/sessions: current native identities, nativeCliVersion, and digests must be re-derived from the manifest and streams`);
+  }
+
+  let channel = null;
+  try {
+    if (manifest.adapter === "codex") channel = adaptCodexSessionTree(loadedSessions);
+    else if (manifest.adapter === "claude") channel = adaptClaudeSessionTree(loadedSessions);
+    else if (manifest.adapter === "unavailable") {
+      channel = adaptUnavailableFamily(manifest.capFamily, manifest.unavailableReason);
+    }
+  } catch (error) {
+    errors.push(`${path}/adapter: native adapter replay failed: ${error.message}`);
+  }
+  if (channel !== null) {
+    const expectedAdapter = {
+      id: channel.adapter,
+      version: channel.adapterVersion,
+      compatibilityEvents: channel.compatibilityEvents ?? [],
+    };
+    if (!sameJson(provenance.adapter, expectedAdapter)) {
+      errors.push(`${path}/adapter: identity and compatibilityEvents must equal native adapter replay`);
+    }
+  }
+
+  const observationEvents = [];
+  const expectedObservations = [];
+  for (const [index, descriptor] of (manifest.observations ?? []).entries()) {
+    const observationPath = `${path}/manifest/observations/${index}`;
+    const loaded = resolveArtifact(errors, artifactRoot, descriptor, observationPath);
+    if (loaded === null) continue;
+    let events;
+    try {
+      events = parseObservationJsonLines(loaded.text, descriptor.path);
+    } catch (error) {
+      errors.push(`${observationPath}: invalid observation stream: ${error.message}`);
+      continue;
+    }
+    observationEvents.push(...events.map((event) => ({
+      ...event,
+      evidenceSourceId: descriptor.sourceId,
+    })));
+    expectedObservations.push({
+      sourceId: descriptor.sourceId,
+      path: descriptor.path,
+      sha256: descriptor.sha256,
+    });
+  }
+  if (!sameJson(provenance.observations, expectedObservations)) {
+    errors.push(`${path}/observations: current observation provenance must equal the manifest's complete hash-bound source set`);
+  }
+
+  const boundaryLoaded = resolveArtifact(
+    errors,
+    artifactRoot,
+    manifest.boundaries,
+    `${path}/manifest/boundaries`,
+  );
+  const boundaryValue = parseArtifactJson(errors, boundaryLoaded, `${path}/manifest/boundaries`);
+  if (boundaryValue === null) return;
+  let recovery;
+  try {
+    recovery = applyR2DriverV1TerminalCompatibility({
+      manifest,
+      boundaryValue,
+      observationEvents,
+      clockCorrelation: manifest.clockCorrelation,
+      loadedSessions,
+    });
+  } catch (error) {
+    errors.push(`${path}/driver/compatibilityEvents: native terminal recovery failed: ${error.message}`);
+    return;
+  }
+  const expectedDriver = {
+    id: manifest.driver.id,
+    stampedAt: manifest.driver.stampedAt,
+    startedAt: manifest.driver.startedAt,
+    compatibilityEvents: recovery.compatibilityEvents,
+  };
+  if (!sameJson(provenance.driver, expectedDriver)) {
+    errors.push(`${path}/driver: identity and compatibilityEvents must equal native boundary replay`);
+  }
+  if (!sameJson(provenance.clockCorrelation, recovery.clockCorrelation)) {
+    errors.push(`${path}/clockCorrelation: effective clock claim must equal native boundary replay`);
+  }
+  if (!sameJson(provenance.boundaries, {
+    path: manifest.boundaries.path,
+    sha256: manifest.boundaries.sha256,
+  })) {
+    errors.push(`${path}/boundaries: descriptor must equal the metering manifest boundary artifact`);
+  }
+  const expectedReceipts = (manifest.receipts ?? []).map((receipt) => ({
+    sourceId: receipt.sourceId,
+    runId: receipt.runId,
+    milestone: receipt.milestone,
+    path: receipt.path,
+    sha256: receipt.sha256,
+  }));
+  if (!sameJson(provenance.receipts, expectedReceipts)) {
+    errors.push(`${path}/receipts: provenance must equal the manifest's receipt set`);
+  }
+  const recoveredBoundaries = recovery.boundaryValue?.milestones ?? recovery.boundaryValue;
+  for (const [milestone, boundary] of Object.entries(recoveredBoundaries ?? {})) {
+    requireEqual(
+      errors,
+      `$/socialMessenger/milestones/${milestone}/authoring/terminalAt`,
+      extension.milestones?.[milestone]?.authoring?.terminalAt,
+      boundary.terminalAt,
+      "terminal must equal the native-settled recovered boundary",
+    );
+  }
+
+  const expectedFirstDescriptor = manifest.firstProductEdit === null
+    ? null
+    : { path: manifest.firstProductEdit.path, sha256: manifest.firstProductEdit.sha256 };
+  if (!sameJson(provenance.firstProductEdit, expectedFirstDescriptor)) {
+    errors.push(`${path}/firstProductEdit: descriptor must equal the metering manifest marker`);
+  }
+  if (manifest.adapter === "codex" && manifest.firstProductEdit !== null) {
+    const markerLoaded = resolveArtifact(
+      errors,
+      artifactRoot,
+      manifest.firstProductEdit,
+      `${path}/manifest/firstProductEdit`,
+    );
+    const marker = parseArtifactJson(errors, markerLoaded, `${path}/manifest/firstProductEdit`);
+    const builder = loadedSessions.find((session) => session.role === "builder");
+    if (marker !== null && builder !== undefined) {
+      try {
+        const cellId = provenance.laneRunId.split("/").at(-1);
+        const productRoot = inferCodexProductRoot(builder.records, cellId);
+        const recovered = recoverCodexFileChanges({
+          records: builder.records,
+          boundaryValue: recovery.boundaryValue,
+          laneRunId: provenance.laneRunId,
+          productRoot,
+          sourceId: builder.sourceId,
+          nativeSessionId: builder.nativeSessionId,
+          nativeStreamSha256: builder.resolvedSha256,
+          selectedSkills: extension.orientation?.selectedSkills ?? [],
+        });
+        if (!sameJson(marker, recovered.firstProductEdit)) {
+          errors.push(`${path}/firstProductEdit: marker must equal the first native product FileChange and its hash-bound provenance`);
+        }
+        const expectedSnapshot = {
+          at: marker.at,
+          orientationBytes: marker.orientationBytes,
+          selectedSkills: marker.selectedSkills,
+        };
+        const actualSnapshot = {
+          at: extension.firstProductEdit?.at,
+          orientationBytes: extension.firstProductEdit?.orientationBytes,
+          selectedSkills: extension.firstProductEdit?.selectedSkills,
+        };
+        if (!sameJson(actualSnapshot, expectedSnapshot)) {
+          errors.push("$/socialMessenger/firstProductEdit: snapshot must equal the native-derived marker");
+        }
+      } catch (error) {
+        errors.push(`${path}/firstProductEdit: native FileChange recovery failed: ${error.message}`);
+      }
+    }
+  }
 }
 
 function tokenActual(counts) {
@@ -272,7 +540,10 @@ function loadObservationEvidence(errors, extension, artifactRoot) {
         errors.push(`${path}: observation laneRunId does not match metering provenance`);
       }
     }
-    events.push(...sourceEvents);
+    events.push(...sourceEvents.map((event) => ({
+      ...event,
+      evidenceSourceId: artifact.sourceId,
+    })));
     evidence.push({ path: artifact.path, sha256: artifact.sha256 });
   }
   events.sort((left, right) => (
@@ -300,6 +571,17 @@ function validateObservationBinding(errors, record, extension, artifactRoot, cur
   }
 
   const loaded = loadObservationEvidence(errors, extension, artifactRoot);
+  const exclusions = extension.meteringProvenance?.driver?.compatibilityEvents
+    ?.flatMap((event) => event.excludedPostTerminalObservations ?? []) ?? [];
+  const effectiveEvents = loaded.events.filter((event) => !exclusions.some((excluded) => (
+    excluded.observationSourceId === event.evidenceSourceId
+    && excluded.milestone === event.milestone
+    && excluded.sequence === event.sequence
+    && excluded.at === event.at
+    && excluded.type === event.type
+  )));
+  const handoffOverlaps = extension.meteringProvenance?.driver?.compatibilityEvents
+    ?.flatMap((event) => event.observationWindowOverlaps ?? []) ?? [];
   const observationSkewMillis = Number.isInteger(
     extension.meteringProvenance?.clockCorrelation?.maxSkewMillis,
   )
@@ -317,7 +599,7 @@ function validateObservationBinding(errors, record, extension, artifactRoot, cur
       upper: Date.parse(value.authoring.terminalAt),
     },
   ]));
-  for (const event of loaded.events) {
+  for (const event of effectiveEvents) {
     const window = observationWindow.get(event.milestone);
     if (!window) {
       errors.push(`$/socialMessenger/meteringProvenance/observations: ${event.type} names unattempted milestone ${event.milestone}`);
@@ -327,7 +609,18 @@ function validateObservationBinding(errors, record, extension, artifactRoot, cur
     if (at > window.upper + observationSkewMillis) {
       errors.push(`$/socialMessenger/meteringProvenance/observations: ${event.milestone} ${event.type} is after its terminal boundary`);
     }
-    if (window.lower !== null && at < window.lower - observationSkewMillis) {
+    const retainedHandoffOverlap = handoffOverlaps.some((overlap) => (
+      overlap.observationSourceId === event.evidenceSourceId
+      && overlap.milestone === event.milestone
+      && overlap.sequence === event.sequence
+      && overlap.at === event.at
+      && overlap.type === event.type
+    ));
+    if (
+      window.lower !== null
+      && at < window.lower - observationSkewMillis
+      && !retainedHandoffOverlap
+    ) {
       errors.push(`$/socialMessenger/meteringProvenance/observations: ${event.milestone} ${event.type} predates its milestone window`);
     }
   }
@@ -336,7 +629,7 @@ function validateObservationBinding(errors, record, extension, artifactRoot, cur
     let projected;
     try {
       projected = projectMilestoneObservability({
-        events: loaded.events,
+        events: effectiveEvents,
         evidence: loaded.evidence,
         milestone,
       });
@@ -370,6 +663,9 @@ function validateObservationBinding(errors, record, extension, artifactRoot, cur
     milestones: observedMilestones,
     phaseUsageAvailable: Number.isInteger(record.tokens?.input)
       && Number.isInteger(record.tokens?.output),
+    orientationEvidenceAvailable: extension.firstProductEdit?.at !== null
+      && Number.isInteger(extension.firstProductEdit?.orientationBytes)
+      && Object.values(extension.firstProductEdit?.orientationTokens ?? {}).every(Number.isInteger),
   });
   if (!sameJson(extension.efficiencyScorecardEligibility, expectedEligibility)) {
     errors.push(
@@ -741,6 +1037,17 @@ export function validateSocialMessengerRecordSemantics(record, { artifactRoot = 
     extension.firstProductEdit?.orientationTokens,
     "$/socialMessenger/firstProductEdit/orientationTokens",
   );
+  if (
+    currentInstrument
+    && (
+      extension.meteringProvenance?.driver?.id === "social-messenger-r2-native-cli-driver.v1"
+      || /^2026-08-23-r2-published-0125\//u.test(
+        extension.meteringProvenance?.laneRunId ?? "",
+      )
+    )
+  ) {
+    validateCurrentMeteringProvenance(errors, record, extension, artifactRoot);
+  }
   // @ref LLP 0201#d2--quantitative-instrument — current records either bind
   // typed observation streams or retain explicit non-claims; the validator
   // derives eligibility from the same events.

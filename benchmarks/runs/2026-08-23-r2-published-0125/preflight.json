@@ -2,8 +2,15 @@
   "schemaVersion": "snapback.r2-preflight.v1",
   "runId": "2026-08-23-r2-published-0125",
   "recordedAt": "2026-08-24T01:21:04Z",
-  "noBenchmarkCellStarted": true,
+  "noBenchmarkCellStarted": false,
   "waveStartAllowed": false,
+  "campaignState": {
+    "recoveryVersion": "snapback.r2-recovery-resume.v2",
+    "completedCells": ["sol-clique-explicit"],
+    "nextCell": "sol-clique-familiar",
+    "laterCellsPristine": true,
+    "continuationBlocked": true
+  },
   "checks": [
     {
       "id": "r1-web-gates",
@@ -73,13 +80,13 @@
     {
       "id": "d0-6-metering-tests",
       "status": "pass",
-      "observed": "20/20 metering tests and 10/10 lane-setup/schema tests passed; the complete tooling battery is 39/39."
+      "observed": "25/25 review-remediation metering tests pass, including exact retained native ordering and omitted/fabricated compatibility mutations; the earlier lane-setup/schema battery remains historical evidence."
     },
     {
       "id": "versioned-instrument-materialization",
       "status": "fail",
-      "observed": "The committed plan now pins social-messenger@0.3.3-m8; the prior private archive was 0.3.2-m8 and is no longer admissible.",
-      "detail": "Materialize this branch's digest-verified 0.3.3-m8 snapshot at the pinned private path before cell 1. The dry-run uses repository-local bytes and is not the campaign archive."
+      "observed": "Recovered cell 1 remains bound to immutable instrument manifest 8a13dcc5; continuation pins the versioned repaired snapshot c242c675.",
+      "detail": "Materialize the digest-verified recovery/resume snapshot at the pinned private path before admitting cell 2. Historical dry-runs and cell 1 retain their original source snapshots."
     },
     {
       "id": "d2-record-schema",
@@ -91,6 +98,12 @@
       "status": "pass",
       "observed": "0.3.3-m8 hash-links semantic actions, recovery episodes, lifecycle, assertion waits, host load, API interruptions, suite status, terminal boundaries, and the complete record.",
       "detail": "The lane controller now writes metering.json and validates complete record.json in its finally path."
+    },
+    {
+      "id": "cell-1-recovered-finalized",
+      "status": "pass",
+      "observed": "The sole sol-clique-explicit attempt is recovered from immutable native/controller evidence under snapback.r2-recovery-resume.v2; no model or product command was rerun.",
+      "detail": "record.json passes composed schema and semantic validation; sol-clique-familiar remains the exact next registered command and all eleven later slots remain pristine."
     },
     {
       "id": "suite-status-startup-refusal",

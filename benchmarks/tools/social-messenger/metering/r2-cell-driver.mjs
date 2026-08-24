@@ -15,6 +15,11 @@ import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { createInterface } from "node:readline";
 
+import {
+  recoverCodexFileChanges,
+  recoverCodexSignalSettlements,
+} from "./codex-native-evidence.mjs";
+import { parseJsonLines } from "./jsonl.mjs";
 import { CURRENT_INSTRUMENT_PIN } from "./observations.mjs";
 
 // @ref LLP 0295#r2-load-isolated-calibration-rerun — each preregistered cell
@@ -386,9 +391,6 @@ function handleNativeRecord(state, record) {
       });
       state.pendingEpisodes.delete(klass);
     }
-    if (state.firstProductEditAt === null && klass === "edit") {
-      state.firstProductEditAt = new Date().toISOString();
-    }
   });
 }
 
@@ -642,6 +644,8 @@ async function writeTerminalArtifacts(state, error) {
     else markers.push(failure);
   }
   if (markers.length === 0) throw new Error("R2 driver has no attempted milestone to record");
+  const session = await meteringSession(state);
+  const adapter = session?.adapter ?? "unavailable";
   const boundaries = {
     laneRunId: state.config.laneRunId,
     driverId: DRIVER_ID,
@@ -649,6 +653,7 @@ async function writeTerminalArtifacts(state, error) {
   };
   const receipts = [];
   let suiteStatusPath = null;
+  const driverFinalizedAt = new Date().toISOString();
   for (const [index, marker] of markers.entries()) {
     const receipt = await receiptDescriptor(state, marker);
     if (receipt) receipts.push(receipt);
@@ -656,9 +661,11 @@ async function writeTerminalArtifacts(state, error) {
     const firstGreenAt = marker.status === "green"
       ? (receipt?.summary?.recordedAt ?? marker.recordedAt)
       : null;
-    const terminalAt = terminalTimes.get(marker.milestone)
+    const terminalAt = index === markers.length - 1 && adapter !== "codex"
+      ? driverFinalizedAt
+      : terminalTimes.get(marker.milestone)
       ?? marker.recordedAt
-      ?? new Date().toISOString();
+      ?? driverFinalizedAt;
     if (firstGreenAt !== null && Date.parse(firstGreenAt) > Date.parse(terminalAt)) {
       throw new Error(`${marker.milestone} first-green evidence follows its controller terminal`);
     }
@@ -672,14 +679,56 @@ async function writeTerminalArtifacts(state, error) {
       terminalReason: marker.terminalReason,
     };
   }
-  await writeFile(join(state.root, "terminal-boundaries.json"), `${JSON.stringify(boundaries, null, 2)}\n`);
-  if (state.firstProductEditAt !== null) {
-    await writeFile(join(state.root, "first-product-edit.json"), `${JSON.stringify({
+  let firstProductEdit = null;
+  const persistedBoundaries = structuredClone(boundaries);
+  if (adapter === "codex") {
+    const builder = session.sessions.find((candidate) => candidate.role === "builder");
+    if (builder === undefined) throw new Error("Codex finalization lacks its builder session");
+    const rolloutPath = resolve(state.root, builder.path);
+    const records = parseJsonLines(await readFile(rolloutPath, "utf8"), builder.path);
+    const recovery = recoverCodexSignalSettlements({
+      records,
+      boundaryValue: boundaries,
+      streamClosedAt: markers.some((marker) => marker.status !== "green")
+        ? driverFinalizedAt
+        : null,
+    });
+    for (const adjustment of recovery.terminalAdjustments) {
+      boundaries.milestones[adjustment.milestone].terminalAt = adjustment.effectiveTerminalAt;
+    }
+    const recoveredFileChanges = recoverCodexFileChanges({
+      records,
+      boundaryValue: boundaries,
       laneRunId: state.config.laneRunId,
-      at: state.firstProductEditAt,
-      orientationBytes: Buffer.byteLength(state.renderedPrompt),
+      productRoot: state.root,
+      sourceId: builder.sourceId,
+      nativeSessionId: builder.nativeSessionId,
+      nativeStreamSha256: builder.sha256,
       selectedSkills: ["snapback-authoring"],
-    }, null, 2)}\n`);
+    });
+    firstProductEdit = recoveredFileChanges.firstProductEdit;
+    if (recoveredFileChanges.events.length > 0) {
+      const fileChangePath = join(state.root, "events", "codex-file-change-observations.jsonl");
+      await writeFile(
+        fileChangePath,
+        `${recoveredFileChanges.events.map((event) => JSON.stringify(event)).join("\n")}\n`,
+        "utf8",
+      );
+      state.observationSources.push({
+        sourceId: "codex-file-change-observations",
+        path: fileChangePath,
+      });
+    }
+  }
+  await writeFile(
+    join(state.root, "terminal-boundaries.json"),
+    `${JSON.stringify(persistedBoundaries, null, 2)}\n`,
+  );
+  if (firstProductEdit !== null) {
+    await writeFile(
+      join(state.root, "first-product-edit.json"),
+      `${JSON.stringify(firstProductEdit, null, 2)}\n`,
+    );
   }
   if (suiteStatusPath === null) {
     suiteStatusPath = "suite-status.json";
@@ -698,8 +747,6 @@ async function writeTerminalArtifacts(state, error) {
     }
   }
   await writeFile(join(state.root, suiteStatusPath), `${JSON.stringify(statuses, null, 2)}\n`);
-  const session = await meteringSession(state);
-  const adapter = session?.adapter ?? "unavailable";
   const manifest = {
     manifestVersion: "social-messenger-metering-manifest.v1",
     laneRunId: state.config.laneRunId,
@@ -713,14 +760,16 @@ async function writeTerminalArtifacts(state, error) {
     observations: [],
     suiteStatus: await retainedDescriptor(state.root, suiteStatusPath),
     boundaries: await retainedDescriptor(state.root, "terminal-boundaries.json"),
-    firstProductEdit: state.firstProductEditAt === null
+    firstProductEdit: firstProductEdit === null
       ? null
       : await retainedDescriptor(state.root, "first-product-edit.json"),
     driver: { id: DRIVER_ID, startedAt: state.startedAt, stampedAt: new Date().toISOString() },
     clockCorrelation: {
       method: "rfc3339-with-bounded-skew",
-      maxSkewMillis: 0,
-      evidence: "native CLI and controller stamps use the same host system clock; terminalAt is the controller's final retained observation, not a cross-host correlation",
+      maxSkewMillis: adapter === "codex" ? 5_000 : 0,
+      evidence: adapter === "codex"
+        ? "controller and native CLI use the same host clock; 5s covers receipt-to-final-sample handoff"
+        : "native CLI and controller stamps use the shared host system clock; closing terminalAt is stamped only after the native process and stream have closed",
     },
   };
   await writeFile(join(state.root, "metering-manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
@@ -778,7 +827,6 @@ export async function prepare({ config, configDirectory }) {
     pendingNativeTools: new Map(),
     seenNativeActions: new Set(),
     correctionLoops: [],
-    firstProductEditAt: null,
     suiteStatusPath: null,
     observationSources: [],
     terminalMarkers: [],

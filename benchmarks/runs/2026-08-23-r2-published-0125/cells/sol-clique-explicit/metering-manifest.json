@@ -70,6 +70,11 @@
       "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
     },
     {
+      "sourceId": "codex-file-change-observations",
+      "path": "events/codex-file-change-observations.jsonl",
+      "sha256": "sha256:c9a9ffc79bad7199a55dbe7f98338ac202bc03c17cd6dd1ed8887cff6ec684e9"
+    },
+    {
       "sourceId": "2026-08-23-r2-published-0125/sol-clique-explicit-lane-controller",
       "path": "events/lane-controller-observations.jsonl",
       "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
@@ -83,7 +88,10 @@
     "path": "terminal-boundaries.json",
     "sha256": "sha256:1fcd53f32deec0c23087e2c06a7f194a7493395e92425ac6d98d3cbb6626ab36"
   },
-  "firstProductEdit": null,
+  "firstProductEdit": {
+    "path": "first-product-edit.json",
+    "sha256": "sha256:a20a3d304d7c0e796bc7e5fa1a063cd1dc34c7270ee9a2b0803e3f6244725959"
+  },
   "driver": {
     "id": "social-messenger-r2-native-cli-driver.v1",
     "startedAt": "2026-08-24T09:05:53.827Z",

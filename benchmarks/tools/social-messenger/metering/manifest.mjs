@@ -15,6 +15,11 @@ import {
   normalizeBoundaryMap,
 } from "./boundaries.mjs";
 import { parseJsonLines, timestampMillis } from "./jsonl.mjs";
+import {
+  R2_CODEX_SETTLED_TERMINAL_RULE,
+  R2_CODEX_SHARED_HOST_CLOCK_EVIDENCE,
+  recoverCodexSignalSettlements,
+} from "./codex-native-evidence.mjs";
 import { parseObservationJsonLines } from "./observations.mjs";
 import { assertCapFamily } from "./sources.mjs";
 import { validateJsonSchema } from "../../lib/json-schema.mjs";
@@ -23,8 +28,7 @@ const MANIFEST_VERSION = "social-messenger-metering-manifest.v1";
 const SHA256 = /^sha256:[a-f0-9]{64}$/u;
 const MILESTONE = /^M[1-8]$/u;
 const CURRENT_CHOREOGRAPHY_VERSION = "0.3.3-m8";
-const R2_DRIVER_V1_TERMINAL_RULE =
-  "social-messenger-r2-native-cli-driver.v1-observation-terminal.v1";
+const R2_DRIVER_V1_TERMINAL_RULE = R2_CODEX_SETTLED_TERMINAL_RULE;
 const R2_DRIVER_V1_CLOCK_EVIDENCE =
   "controller and native CLI use the same host clock; 5s covers receipt-to-final-sample handoff";
 const RECEIPT_SCHEMA = JSON.parse(readFileSync(
@@ -217,7 +221,10 @@ async function loadObservations(manifestDirectory, observations, laneRunId) {
         throw new Error(`${label} event does not belong to laneRunId ${laneRunId}`);
       }
     }
-    events.push(...sourceEvents);
+    events.push(...sourceEvents.map((event) => ({
+      ...event,
+      evidenceSourceId: sourceId,
+    })));
     provenance.push({ sourceId, path: observation.path, sha256: artifact.sha256 });
   }
   events.sort((left, right) => (
@@ -227,71 +234,141 @@ async function loadObservations(manifestDirectory, observations, laneRunId) {
 }
 
 // @ref LLP 0201#d2--quantitative-instrument — a terminal must bound the
-// complete native usage prefix. The retained driver-v1 receipt timestamp was
-// first-green evidence, so recover its terminal only from hash-bound events.
+// complete native usage prefix. Retained driver-v1 boundaries are recovered
+// from the successful native signal execution and its settled token_count,
+// never from an unrelated controller observation.
 function applyR2DriverV1TerminalCompatibility({
   manifest,
   boundaryValue,
   observationEvents,
   clockCorrelation,
+  loadedSessions = [],
 }) {
-  if (
-    manifest.driver?.id !== "social-messenger-r2-native-cli-driver.v1"
-    || clockCorrelation.maxSkewMillis !== 5_000
-    || clockCorrelation.evidence !== R2_DRIVER_V1_CLOCK_EVIDENCE
-  ) {
+  if (manifest.driver?.id !== "social-messenger-r2-native-cli-driver.v1") {
     return {
       boundaryValue,
       clockCorrelation,
       compatibilityEvents: [],
+      observationEvents,
     };
+  }
+  if (manifest.adapter !== "codex") {
+    return {
+      boundaryValue,
+      clockCorrelation,
+      compatibilityEvents: [],
+      observationEvents,
+    };
+  }
+  if (
+    clockCorrelation.maxSkewMillis !== 5_000
+    || clockCorrelation.evidence !== R2_DRIVER_V1_CLOCK_EVIDENCE
+  ) {
+    throw new Error("Codex driver-v1 terminal recovery has unsupported clock evidence");
+  }
+  const builder = loadedSessions.find((session) => session.role === "builder");
+  if (builder === undefined) {
+    throw new Error("driver-v1 terminal recovery requires the hash-bound builder session");
   }
   const effective = structuredClone(boundaryValue);
   const boundaries = effective?.milestones ?? effective;
-  const latestByMilestone = new Map();
+  const recovery = recoverCodexSignalSettlements({
+    records: builder.records,
+    boundaryValue,
+    streamClosedAt: Object.values(boundaryValue?.milestones ?? boundaryValue)
+      .some((boundary) => boundary?.status !== "green")
+      ? manifest.driver.stampedAt
+      : null,
+  });
+  const latestObservationByMilestone = new Map();
   for (const event of observationEvents) {
-    const previous = latestByMilestone.get(event.milestone);
+    const previous = latestObservationByMilestone.get(event.milestone);
     if (previous === undefined || Date.parse(event.at) > Date.parse(previous)) {
-      latestByMilestone.set(event.milestone, event.at);
+      latestObservationByMilestone.set(event.milestone, event.at);
     }
   }
-  const terminalAdjustments = [];
-  for (const [milestone, boundary] of Object.entries(boundaries ?? {})) {
-    const effectiveTerminalAt = latestByMilestone.get(milestone);
-    if (
-      effectiveTerminalAt === undefined
-      || typeof boundary?.terminalAt !== "string"
-      || Date.parse(effectiveTerminalAt) <= Date.parse(boundary.terminalAt)
-    ) {
-      continue;
-    }
-    terminalAdjustments.push({
-      milestone,
-      originalTerminalAt: boundary.terminalAt,
-      effectiveTerminalAt,
-    });
-    boundary.terminalAt = effectiveTerminalAt;
-  }
-  if (terminalAdjustments.length === 0) {
-    return {
-      boundaryValue,
-      clockCorrelation,
-      compatibilityEvents: [],
-    };
+  const terminalAdjustments = recovery.terminalAdjustments.map((adjustment) => ({
+    ...adjustment,
+    supersededObservationTerminalAt:
+      latestObservationByMilestone.get(adjustment.milestone) ?? null,
+  }));
+  for (const adjustment of terminalAdjustments) {
+    boundaries[adjustment.milestone].terminalAt = adjustment.effectiveTerminalAt;
   }
   const effectiveClockCorrelation = {
     method: "rfc3339-with-bounded-skew",
     maxSkewMillis: 0,
-    evidence: "driver-v1 recovery derives terminalAt from the latest hash-bound observation on the shared host system clock; the original 5s value described handoff latency, not clock drift",
+    evidence: R2_CODEX_SHARED_HOST_CLOCK_EVIDENCE,
   };
+  const closingMilestone = terminalAdjustments.at(-1).milestone;
+  const excludedPostTerminalObservations = [];
+  const observationWindowOverlaps = [];
+  const effectiveObservations = [];
+  const orderedMilestones = terminalAdjustments.map((item) => item.milestone);
+  for (const event of observationEvents) {
+    const terminalAt = boundaries[event.milestone]?.terminalAt;
+    if (terminalAt === undefined || Date.parse(event.at) <= Date.parse(terminalAt)) {
+      effectiveObservations.push(event);
+      continue;
+    }
+    if (event.milestone !== closingMilestone || event.type !== "host-load-sample") {
+      throw new Error(
+        `${event.milestone} ${event.type} follows its native-settled terminal; recovery is ambiguous`,
+      );
+    }
+    if (Date.parse(event.at) > Date.parse(manifest.driver.stampedAt)) {
+      throw new Error("post-terminal host-load sample follows the driver finalization stamp");
+    }
+    excludedPostTerminalObservations.push({
+      observationSourceId: event.evidenceSourceId,
+      milestone: event.milestone,
+      sequence: event.sequence,
+      at: event.at,
+      type: event.type,
+      reason: "controller-finalization-sample-after-native-task-settlement",
+    });
+  }
+  for (const event of effectiveObservations) {
+    const index = orderedMilestones.indexOf(event.milestone);
+    if (index <= 0) continue;
+    const priorMilestone = orderedMilestones[index - 1];
+    const priorEffectiveAt = boundaries[priorMilestone].terminalAt;
+    if (Date.parse(event.at) >= Date.parse(priorEffectiveAt)) continue;
+    const priorOriginalAt = (boundaryValue?.milestones ?? boundaryValue)[priorMilestone].terminalAt;
+    if (Date.parse(event.at) < Date.parse(priorOriginalAt)) {
+      throw new Error(
+        `${event.milestone} ${event.type} predates both original and native-settled ${priorMilestone} handoffs`,
+      );
+    }
+    observationWindowOverlaps.push({
+      observationSourceId: event.evidenceSourceId,
+      milestone: event.milestone,
+      sequence: event.sequence,
+      at: event.at,
+      type: event.type,
+      priorMilestone,
+      reason: "controller-armed-next-milestone-after-original-handoff-before-native-usage-settled",
+    });
+  }
   return {
     boundaryValue: effective,
     clockCorrelation: effectiveClockCorrelation,
+    observationEvents: effectiveObservations,
     compatibilityEvents: [{
       ruleId: R2_DRIVER_V1_TERMINAL_RULE,
       originalClockCorrelation: clockCorrelation,
       effectiveClockCorrelation,
+      nativeSourceId: builder.sourceId,
+      nativeSessionId: builder.nativeSessionId,
+      nativeStreamSha256: builder.resolvedSha256,
+      taskCompleteAt: recovery.taskCompleteAt,
+      taskCompleteRecordOrdinal: recovery.taskCompleteRecordOrdinal,
+      ...(recovery.streamClosedAt === null
+        ? {}
+        : { streamClosedAt: recovery.streamClosedAt }),
       terminalAdjustments,
+      observationWindowOverlaps,
+      excludedPostTerminalObservations,
     }],
   };
 }
@@ -556,6 +633,7 @@ export async function loadMeteringManifest(manifestPath) {
     boundaryValue,
     observationEvents: observations.events,
     clockCorrelation,
+    loadedSessions,
   });
   const driverBoundaries = normalizeBoundaryMap(driverCompatibility.boundaryValue);
   const receiptResult = await loadReceipts(manifestDirectory, manifest.receipts);
@@ -613,8 +691,10 @@ export async function loadMeteringManifest(manifestPath) {
     boundaries,
     firstProductEdit,
     observations: {
-      events: observations.events,
+      events: driverCompatibility.observationEvents,
       evidence: observations.provenance.map(({ path, sha256 }) => ({ path, sha256 })),
+      windowExceptions: driverCompatibility.compatibilityEvents
+        .flatMap((event) => event.observationWindowOverlaps ?? []),
     },
     suiteStatusLinkage,
     maxClockSkewMs: driverCompatibility.clockCorrelation.maxSkewMillis,
@@ -622,6 +702,10 @@ export async function loadMeteringManifest(manifestPath) {
     provenance: {
       manifestVersion: MANIFEST_VERSION,
       laneRunId,
+      manifest: {
+        path: logicalRelative(manifestDirectory, manifestPath),
+        sha256: digest(manifestText),
+      },
       driver: {
         id: manifest.driver.id,
         stampedAt: manifest.driver.stampedAt,
@@ -665,4 +749,5 @@ export {
   applyR2DriverV1TerminalCompatibility,
   MANIFEST_VERSION,
   R2_DRIVER_V1_TERMINAL_RULE,
+  R2_DRIVER_V1_CLOCK_EVIDENCE,
 };

@@ -75,17 +75,17 @@
     "runRecordExtensionSchema": {
       "kind": "file",
       "path": "schema/social-messenger/run-record-extension.schema.json",
-      "sha256": "1cf39ff49e9b34465a1086f4a4d37491289c6590aca657652285c39138542983"
+      "sha256": "acb473ea27085cf8915e8962b5c0b5388a17eeea9e1b2f13322f5d04c36a5293"
     },
     "recordValidator": {
       "kind": "file",
       "path": "tools/social-messenger/record-validator.mjs",
-      "sha256": "fa1b179a617db743ec15d9d87017458e594cab070b798ccd72b5349ccf373238"
+      "sha256": "af8e33cd0c316e70107f3906906a934cef4fa26de1c8a9c2cda300dbdddfdba5"
     },
     "meteringRoot": {
       "kind": "directory",
       "path": "tools/social-messenger/metering",
-      "sha256": "df0969356ff508a52ac44cb338d284e97eb1cc4c2a8cfafcb9dc6bbc0d66eebd"
+      "sha256": "a1937a5c128099c3b2a130537d56e2eb815f222c1eeb8f5a01c29d2db53812c7"
     }
   }
 }

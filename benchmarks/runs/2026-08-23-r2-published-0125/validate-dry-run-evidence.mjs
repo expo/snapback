@@ -37,7 +37,10 @@ async function checkedFile(root, logicalPath) {
   return canonical;
 }
 
-export async function validateDryRunEvidence(evidenceRoot) {
+export async function validateDryRunEvidence(
+  evidenceRoot,
+  { historicalValidatorSources = null } = {},
+) {
   const root = resolve(evidenceRoot);
   const disposition = JSON.parse(await readFile(
     await checkedFile(root, "validation.json"),
@@ -69,11 +72,30 @@ export async function validateDryRunEvidence(evidenceRoot) {
     throw new Error("record digest disagrees with the validation disposition");
   }
 
-  for (const source of Object.values(disposition.validator.sources ?? {})) {
-    const bytes = await readFile(resolve(repositoryRoot, source.path));
-    if (sha256(bytes) !== source.sha256) {
-      throw new Error(`validator source drifted: ${source.path}`);
+  for (const [sourceId, source] of Object.entries(disposition.validator.sources ?? {})) {
+    if (historicalValidatorSources !== null) {
+      const expected = historicalValidatorSources[sourceId];
+      if (expected?.path !== source.path || expected?.sha256 !== source.sha256) {
+        throw new Error(`historical validator source transition disagrees: ${source.path}`);
+      }
+    } else {
+      const bytes = await readFile(resolve(repositoryRoot, source.path));
+      if (sha256(bytes) !== source.sha256) {
+        throw new Error(`validator source drifted: ${source.path}`);
+      }
     }
+  }
+  if (historicalValidatorSources !== null) {
+    return {
+      ok: true,
+      evidenceRoot: root,
+      artifacts: seen.size,
+      record: disposition.record,
+      status: disposition.status,
+      failureProbe: disposition.failureProbe,
+      validationErrors: disposition.validator.errors.length,
+      validationMode: "immutable-historical-validator-snapshot",
+    };
   }
   const [baseSchema, extensionSchema, composedSchema] = await Promise.all([
     "benchmarks/schema/run-record.schema.json",
@@ -96,6 +118,7 @@ export async function validateDryRunEvidence(evidenceRoot) {
     status: disposition.status,
     failureProbe: disposition.failureProbe,
     validationErrors: errors.length,
+    validationMode: "current-validator-replay",
   };
 }
 

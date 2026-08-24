@@ -26,16 +26,16 @@
       "status": "green",
       "authoring": {
         "tokens": {
-          "input": 542284,
-          "output": 103182,
-          "cacheRead": 23932416,
+          "input": 544314,
+          "output": 103534,
+          "cacheRead": 24087808,
           "cacheWrite": 0,
-          "reasoning": 29081
+          "reasoning": 29142
         },
         "firstGreenAt": "2026-08-24T09:54:04.184Z",
         "suitePassAt": "2026-08-24T09:54:04.184Z",
         "choreoPassAt": "2026-08-24T09:54:04.184Z",
-        "terminalAt": "2026-08-24T09:54:53.931Z",
+        "terminalAt": "2026-08-24T09:54:54.157Z",
         "terminalSequence": 1,
         "terminalReason": "green"
       },
@@ -67,16 +67,20 @@
             "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
           },
           {
+            "path": "events/codex-file-change-observations.jsonl",
+            "sha256": "sha256:c9a9ffc79bad7199a55dbe7f98338ac202bc03c17cd6dd1ed8887cff6ec684e9"
+          },
+          {
             "path": "events/lane-controller-observations.jsonl",
             "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
           }
         ],
-        "total": 131,
+        "total": 169,
         "byClass": {
           "guide-lookup": 15,
           "source-inspection": 49,
-          "edit": 0,
-          "generate": 3,
+          "edit": 29,
+          "generate": 12,
           "process": 32,
           "reseed": 1,
           "suite": 9,
@@ -84,7 +88,7 @@
           "retry": 17
         },
         "byDisposition": {
-          "progress": 101,
+          "progress": 139,
           "correction": 30
         },
         "byRetriedClass": {
@@ -125,6 +129,10 @@
           {
             "path": "receipts/m3-choreography.jsonl.observations.jsonl",
             "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
+          },
+          {
+            "path": "events/codex-file-change-observations.jsonl",
+            "sha256": "sha256:c9a9ffc79bad7199a55dbe7f98338ac202bc03c17cd6dd1ed8887cff6ec684e9"
           },
           {
             "path": "events/lane-controller-observations.jsonl",
@@ -183,6 +191,10 @@
             "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
           },
           {
+            "path": "events/codex-file-change-observations.jsonl",
+            "sha256": "sha256:c9a9ffc79bad7199a55dbe7f98338ac202bc03c17cd6dd1ed8887cff6ec684e9"
+          },
+          {
             "path": "events/lane-controller-observations.jsonl",
             "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
           }
@@ -220,6 +232,10 @@
               "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
             },
             {
+              "path": "events/codex-file-change-observations.jsonl",
+              "sha256": "sha256:c9a9ffc79bad7199a55dbe7f98338ac202bc03c17cd6dd1ed8887cff6ec684e9"
+            },
+            {
               "path": "events/lane-controller-observations.jsonl",
               "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
             }
@@ -253,6 +269,10 @@
             {
               "path": "receipts/m3-choreography.jsonl.observations.jsonl",
               "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
+            },
+            {
+              "path": "events/codex-file-change-observations.jsonl",
+              "sha256": "sha256:c9a9ffc79bad7199a55dbe7f98338ac202bc03c17cd6dd1ed8887cff6ec684e9"
             },
             {
               "path": "events/lane-controller-observations.jsonl",
@@ -289,6 +309,10 @@
           {
             "path": "receipts/m3-choreography.jsonl.observations.jsonl",
             "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
+          },
+          {
+            "path": "events/codex-file-change-observations.jsonl",
+            "sha256": "sha256:c9a9ffc79bad7199a55dbe7f98338ac202bc03c17cd6dd1ed8887cff6ec684e9"
           },
           {
             "path": "events/lane-controller-observations.jsonl",
@@ -329,6 +353,10 @@
             "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
           },
           {
+            "path": "events/codex-file-change-observations.jsonl",
+            "sha256": "sha256:c9a9ffc79bad7199a55dbe7f98338ac202bc03c17cd6dd1ed8887cff6ec684e9"
+          },
+          {
             "path": "events/lane-controller-observations.jsonl",
             "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
           }
@@ -341,16 +369,16 @@
       "status": "green",
       "authoring": {
         "tokens": {
-          "input": 50745,
-          "output": 7834,
-          "cacheRead": 5303552,
+          "input": 50096,
+          "output": 7770,
+          "cacheRead": 5335296,
           "cacheWrite": 0,
-          "reasoning": 2366
+          "reasoning": 2314
         },
         "firstGreenAt": "2026-08-24T10:01:49.197Z",
         "suitePassAt": "2026-08-24T10:01:49.197Z",
         "choreoPassAt": "2026-08-24T10:01:49.197Z",
-        "terminalAt": "2026-08-24T10:02:30.776Z",
+        "terminalAt": "2026-08-24T10:02:30.911Z",
         "terminalSequence": 2,
         "terminalReason": "green"
       },
@@ -382,15 +410,19 @@
             "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
           },
           {
+            "path": "events/codex-file-change-observations.jsonl",
+            "sha256": "sha256:c9a9ffc79bad7199a55dbe7f98338ac202bc03c17cd6dd1ed8887cff6ec684e9"
+          },
+          {
             "path": "events/lane-controller-observations.jsonl",
             "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
           }
         ],
-        "total": 18,
+        "total": 23,
         "byClass": {
           "guide-lookup": 0,
           "source-inspection": 5,
-          "edit": 0,
+          "edit": 5,
           "generate": 0,
           "process": 5,
           "reseed": 0,
@@ -399,7 +431,7 @@
           "retry": 3
         },
         "byDisposition": {
-          "progress": 12,
+          "progress": 17,
           "correction": 6
         },
         "byRetriedClass": {
@@ -440,6 +472,10 @@
           {
             "path": "receipts/m3-choreography.jsonl.observations.jsonl",
             "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
+          },
+          {
+            "path": "events/codex-file-change-observations.jsonl",
+            "sha256": "sha256:c9a9ffc79bad7199a55dbe7f98338ac202bc03c17cd6dd1ed8887cff6ec684e9"
           },
           {
             "path": "events/lane-controller-observations.jsonl",
@@ -498,6 +534,10 @@
             "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
           },
           {
+            "path": "events/codex-file-change-observations.jsonl",
+            "sha256": "sha256:c9a9ffc79bad7199a55dbe7f98338ac202bc03c17cd6dd1ed8887cff6ec684e9"
+          },
+          {
             "path": "events/lane-controller-observations.jsonl",
             "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
           }
@@ -535,6 +575,10 @@
               "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
             },
             {
+              "path": "events/codex-file-change-observations.jsonl",
+              "sha256": "sha256:c9a9ffc79bad7199a55dbe7f98338ac202bc03c17cd6dd1ed8887cff6ec684e9"
+            },
+            {
               "path": "events/lane-controller-observations.jsonl",
               "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
             }
@@ -568,6 +612,10 @@
             {
               "path": "receipts/m3-choreography.jsonl.observations.jsonl",
               "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
+            },
+            {
+              "path": "events/codex-file-change-observations.jsonl",
+              "sha256": "sha256:c9a9ffc79bad7199a55dbe7f98338ac202bc03c17cd6dd1ed8887cff6ec684e9"
             },
             {
               "path": "events/lane-controller-observations.jsonl",
@@ -604,6 +652,10 @@
           {
             "path": "receipts/m3-choreography.jsonl.observations.jsonl",
             "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
+          },
+          {
+            "path": "events/codex-file-change-observations.jsonl",
+            "sha256": "sha256:c9a9ffc79bad7199a55dbe7f98338ac202bc03c17cd6dd1ed8887cff6ec684e9"
           },
           {
             "path": "events/lane-controller-observations.jsonl",
@@ -644,6 +696,10 @@
             "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
           },
           {
+            "path": "events/codex-file-change-observations.jsonl",
+            "sha256": "sha256:c9a9ffc79bad7199a55dbe7f98338ac202bc03c17cd6dd1ed8887cff6ec684e9"
+          },
+          {
             "path": "events/lane-controller-observations.jsonl",
             "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
           }
@@ -656,16 +712,16 @@
       "status": "green",
       "authoring": {
         "tokens": {
-          "input": 63438,
-          "output": 13587,
-          "cacheRead": 5172992,
+          "input": 62057,
+          "output": 13299,
+          "cacheRead": 4985856,
           "cacheWrite": 0,
-          "reasoning": 4677
+          "reasoning": 4668
         },
         "firstGreenAt": "2026-08-24T10:05:46.005Z",
         "suitePassAt": "2026-08-24T10:05:46.005Z",
         "choreoPassAt": "2026-08-24T10:05:46.005Z",
-        "terminalAt": "2026-08-24T10:10:23.123Z",
+        "terminalAt": "2026-08-24T10:10:21.856Z",
         "terminalSequence": 3,
         "terminalReason": "green"
       },
@@ -697,15 +753,19 @@
             "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
           },
           {
+            "path": "events/codex-file-change-observations.jsonl",
+            "sha256": "sha256:c9a9ffc79bad7199a55dbe7f98338ac202bc03c17cd6dd1ed8887cff6ec684e9"
+          },
+          {
             "path": "events/lane-controller-observations.jsonl",
             "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
           }
         ],
-        "total": 16,
+        "total": 20,
         "byClass": {
           "guide-lookup": 0,
           "source-inspection": 2,
-          "edit": 0,
+          "edit": 4,
           "generate": 0,
           "process": 7,
           "reseed": 0,
@@ -714,7 +774,7 @@
           "retry": 1
         },
         "byDisposition": {
-          "progress": 14,
+          "progress": 18,
           "correction": 2
         },
         "byRetriedClass": {
@@ -755,6 +815,10 @@
           {
             "path": "receipts/m3-choreography.jsonl.observations.jsonl",
             "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
+          },
+          {
+            "path": "events/codex-file-change-observations.jsonl",
+            "sha256": "sha256:c9a9ffc79bad7199a55dbe7f98338ac202bc03c17cd6dd1ed8887cff6ec684e9"
           },
           {
             "path": "events/lane-controller-observations.jsonl",
@@ -813,6 +877,10 @@
             "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
           },
           {
+            "path": "events/codex-file-change-observations.jsonl",
+            "sha256": "sha256:c9a9ffc79bad7199a55dbe7f98338ac202bc03c17cd6dd1ed8887cff6ec684e9"
+          },
+          {
             "path": "events/lane-controller-observations.jsonl",
             "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
           }
@@ -850,6 +918,10 @@
               "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
             },
             {
+              "path": "events/codex-file-change-observations.jsonl",
+              "sha256": "sha256:c9a9ffc79bad7199a55dbe7f98338ac202bc03c17cd6dd1ed8887cff6ec684e9"
+            },
+            {
               "path": "events/lane-controller-observations.jsonl",
               "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
             }
@@ -883,6 +955,10 @@
             {
               "path": "receipts/m3-choreography.jsonl.observations.jsonl",
               "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
+            },
+            {
+              "path": "events/codex-file-change-observations.jsonl",
+              "sha256": "sha256:c9a9ffc79bad7199a55dbe7f98338ac202bc03c17cd6dd1ed8887cff6ec684e9"
             },
             {
               "path": "events/lane-controller-observations.jsonl",
@@ -921,13 +997,17 @@
             "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
           },
           {
+            "path": "events/codex-file-change-observations.jsonl",
+            "sha256": "sha256:c9a9ffc79bad7199a55dbe7f98338ac202bc03c17cd6dd1ed8887cff6ec684e9"
+          },
+          {
             "path": "events/lane-controller-observations.jsonl",
             "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
           }
         ],
         "startedAt": "2026-08-24T10:02:30.781Z",
-        "endedAt": "2026-08-24T10:10:23.123Z",
-        "sampleCount": 9,
+        "endedAt": "2026-08-24T10:09:30.800Z",
+        "sampleCount": 8,
         "contamination": false,
         "breaches": []
       },
@@ -959,6 +1039,10 @@
             "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
           },
           {
+            "path": "events/codex-file-change-observations.jsonl",
+            "sha256": "sha256:c9a9ffc79bad7199a55dbe7f98338ac202bc03c17cd6dd1ed8887cff6ec684e9"
+          },
+          {
             "path": "events/lane-controller-observations.jsonl",
             "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
           }
@@ -969,37 +1053,39 @@
     }
   },
   "efficiencyScorecardEligibility": {
-    "eligible": true,
-    "correctionActionTargetEligible": true,
-    "ineligibilityReasons": []
+    "eligible": false,
+    "correctionActionTargetEligible": false,
+    "ineligibilityReasons": [
+      "orientation-evidence-unavailable"
+    ]
   },
   "boundarySnapshots": {
     "M1": {
-      "at": "2026-08-24T09:54:53.931Z",
+      "at": "2026-08-24T09:54:54.157Z",
       "sequence": 1,
       "status": "green",
       "tokens": {
-        "input": 542284,
-        "output": 103182,
-        "cacheRead": 23932416,
+        "input": 544314,
+        "output": 103534,
+        "cacheRead": 24087808,
         "cacheWrite": 0,
-        "reasoning": 29081
+        "reasoning": 29142
       }
     },
     "M2": {
-      "at": "2026-08-24T10:02:30.776Z",
+      "at": "2026-08-24T10:02:30.911Z",
       "sequence": 2,
       "status": "green",
       "tokens": {
-        "input": 593029,
-        "output": 111016,
-        "cacheRead": 29235968,
+        "input": 594410,
+        "output": 111304,
+        "cacheRead": 29423104,
         "cacheWrite": 0,
-        "reasoning": 31447
+        "reasoning": 31456
       }
     },
     "M3": {
-      "at": "2026-08-24T10:10:23.123Z",
+      "at": "2026-08-24T10:10:21.856Z",
       "sequence": 3,
       "status": "green",
       "tokens": {
@@ -1012,27 +1098,33 @@
     }
   },
   "firstProductEdit": {
-    "at": null,
+    "at": "2026-08-24T09:12:14.377Z",
     "orientationBytes": null,
-    "selectedSkills": [],
+    "selectedSkills": [
+      "snapback-authoring"
+    ],
     "orientationTokens": {
-      "input": null,
-      "output": null,
-      "cacheRead": null,
-      "cacheWrite": null,
-      "reasoning": null
+      "input": 135726,
+      "output": 9326,
+      "cacheRead": 2243840,
+      "cacheWrite": 0,
+      "reasoning": 3090
     }
   },
   "meteringProvenance": {
     "manifestVersion": "social-messenger-metering-manifest.v1",
     "laneRunId": "2026-08-23-r2-published-0125/sol-clique-explicit",
+    "manifest": {
+      "path": "metering-manifest.json",
+      "sha256": "sha256:8075db9e8edcb7cc03970155e382231154f2534e97fc98c970d2f079ec894d3e"
+    },
     "driver": {
       "id": "social-messenger-r2-native-cli-driver.v1",
       "stampedAt": "2026-08-24T10:10:23.198Z",
       "startedAt": "2026-08-24T09:05:53.827Z",
       "compatibilityEvents": [
         {
-          "ruleId": "social-messenger-r2-native-cli-driver.v1-observation-terminal.v1",
+          "ruleId": "social-messenger-r2-native-cli-driver.v1-codex-signal-settlement.v2",
           "originalClockCorrelation": {
             "method": "rfc3339-with-bounded-skew",
             "maxSkewMillis": 5000,
@@ -1041,29 +1133,193 @@
           "effectiveClockCorrelation": {
             "method": "rfc3339-with-bounded-skew",
             "maxSkewMillis": 0,
-            "evidence": "driver-v1 recovery derives terminalAt from the latest hash-bound observation on the shared host system clock; the original 5s value described handoff latency, not clock drift"
+            "evidence": "controller and Codex native events use the shared host system clock; native execution order, not receipt latency, determines terminal usage settlement"
           },
+          "nativeSourceId": "builder",
+          "nativeSessionId": "01a03304-e4e2-71d0-892e-bf0440eac5b2",
+          "nativeStreamSha256": "sha256:f9838d32f9f1357eb40ed7661d350cc9e341431ab0fcc3df0dc6e280e2035c0d",
+          "taskCompleteAt": "2026-08-24T10:10:21.954Z",
+          "taskCompleteRecordOrdinal": 1565,
           "terminalAdjustments": [
             {
               "milestone": "M1",
               "originalTerminalAt": "2026-08-24T09:54:04.184Z",
-              "effectiveTerminalAt": "2026-08-24T09:54:53.931Z"
+              "signalItemId": "exec-99d072d0-74ea-481c-939e-ed8b90b63fb4",
+              "signalCompletedAt": "2026-08-24T09:54:54.149Z",
+              "signalRecordOrdinal": 1229,
+              "usageSettledAt": "2026-08-24T09:54:54.157Z",
+              "usageRecordOrdinal": 1231,
+              "effectiveTerminalAt": "2026-08-24T09:54:54.157Z",
+              "settlementKind": "signal-turn-token-count",
+              "supersededObservationTerminalAt": "2026-08-24T09:54:53.931Z"
             },
             {
               "milestone": "M2",
               "originalTerminalAt": "2026-08-24T10:01:49.197Z",
-              "effectiveTerminalAt": "2026-08-24T10:02:30.776Z"
+              "signalItemId": "exec-be790ed3-4d77-4fdd-b6e6-a908beba9560",
+              "signalCompletedAt": "2026-08-24T10:02:30.901Z",
+              "signalRecordOrdinal": 1413,
+              "usageSettledAt": "2026-08-24T10:02:30.911Z",
+              "usageRecordOrdinal": 1415,
+              "effectiveTerminalAt": "2026-08-24T10:02:30.911Z",
+              "settlementKind": "signal-turn-token-count",
+              "supersededObservationTerminalAt": "2026-08-24T10:02:30.776Z"
             },
             {
               "milestone": "M3",
               "originalTerminalAt": "2026-08-24T10:05:46.005Z",
-              "effectiveTerminalAt": "2026-08-24T10:10:23.123Z"
+              "signalItemId": "exec-e2dd2006-de9b-436d-93c9-fa857a845557",
+              "signalCompletedAt": "2026-08-24T10:10:14.089Z",
+              "signalRecordOrdinal": 1557,
+              "usageSettledAt": "2026-08-24T10:10:21.856Z",
+              "usageRecordOrdinal": 1564,
+              "effectiveTerminalAt": "2026-08-24T10:10:21.856Z",
+              "settlementKind": "final-native-token-count",
+              "supersededObservationTerminalAt": "2026-08-24T10:10:23.123Z"
+            }
+          ],
+          "observationWindowOverlaps": [
+            {
+              "observationSourceId": "2026-08-23-r2-published-0125/sol-clique-explicit-lane-controller",
+              "milestone": "M2",
+              "sequence": 203,
+              "at": "2026-08-24T09:54:53.931Z",
+              "type": "block-claim",
+              "priorMilestone": "M1",
+              "reason": "controller-armed-next-milestone-after-original-handoff-before-native-usage-settled"
+            },
+            {
+              "observationSourceId": "2026-08-23-r2-published-0125/sol-clique-explicit-lane-controller",
+              "milestone": "M2",
+              "sequence": 204,
+              "at": "2026-08-24T09:54:53.931Z",
+              "type": "block-claim",
+              "priorMilestone": "M1",
+              "reason": "controller-armed-next-milestone-after-original-handoff-before-native-usage-settled"
+            },
+            {
+              "observationSourceId": "2026-08-23-r2-published-0125/sol-clique-explicit-lane-controller",
+              "milestone": "M2",
+              "sequence": 205,
+              "at": "2026-08-24T09:54:53.931Z",
+              "type": "block-claim",
+              "priorMilestone": "M1",
+              "reason": "controller-armed-next-milestone-after-original-handoff-before-native-usage-settled"
+            },
+            {
+              "observationSourceId": "2026-08-23-r2-published-0125/sol-clique-explicit-lane-controller",
+              "milestone": "M2",
+              "sequence": 206,
+              "at": "2026-08-24T09:54:53.931Z",
+              "type": "block-claim",
+              "priorMilestone": "M1",
+              "reason": "controller-armed-next-milestone-after-original-handoff-before-native-usage-settled"
+            },
+            {
+              "observationSourceId": "2026-08-23-r2-published-0125/sol-clique-explicit-lane-controller",
+              "milestone": "M2",
+              "sequence": 207,
+              "at": "2026-08-24T09:54:53.931Z",
+              "type": "block-claim",
+              "priorMilestone": "M1",
+              "reason": "controller-armed-next-milestone-after-original-handoff-before-native-usage-settled"
+            },
+            {
+              "observationSourceId": "2026-08-23-r2-published-0125/sol-clique-explicit-lane-controller",
+              "milestone": "M2",
+              "sequence": 208,
+              "at": "2026-08-24T09:54:53.931Z",
+              "type": "host-load-sample",
+              "priorMilestone": "M1",
+              "reason": "controller-armed-next-milestone-after-original-handoff-before-native-usage-settled"
+            },
+            {
+              "observationSourceId": "2026-08-23-r2-published-0125/sol-clique-explicit-lane-controller",
+              "milestone": "M2",
+              "sequence": 209,
+              "at": "2026-08-24T09:54:54.152Z",
+              "type": "semantic-action",
+              "priorMilestone": "M1",
+              "reason": "controller-armed-next-milestone-after-original-handoff-before-native-usage-settled"
+            },
+            {
+              "observationSourceId": "2026-08-23-r2-published-0125/sol-clique-explicit-lane-controller",
+              "milestone": "M3",
+              "sequence": 238,
+              "at": "2026-08-24T10:02:30.777Z",
+              "type": "block-claim",
+              "priorMilestone": "M2",
+              "reason": "controller-armed-next-milestone-after-original-handoff-before-native-usage-settled"
+            },
+            {
+              "observationSourceId": "2026-08-23-r2-published-0125/sol-clique-explicit-lane-controller",
+              "milestone": "M3",
+              "sequence": 239,
+              "at": "2026-08-24T10:02:30.778Z",
+              "type": "block-claim",
+              "priorMilestone": "M2",
+              "reason": "controller-armed-next-milestone-after-original-handoff-before-native-usage-settled"
+            },
+            {
+              "observationSourceId": "2026-08-23-r2-published-0125/sol-clique-explicit-lane-controller",
+              "milestone": "M3",
+              "sequence": 240,
+              "at": "2026-08-24T10:02:30.779Z",
+              "type": "block-claim",
+              "priorMilestone": "M2",
+              "reason": "controller-armed-next-milestone-after-original-handoff-before-native-usage-settled"
+            },
+            {
+              "observationSourceId": "2026-08-23-r2-published-0125/sol-clique-explicit-lane-controller",
+              "milestone": "M3",
+              "sequence": 241,
+              "at": "2026-08-24T10:02:30.779Z",
+              "type": "block-claim",
+              "priorMilestone": "M2",
+              "reason": "controller-armed-next-milestone-after-original-handoff-before-native-usage-settled"
+            },
+            {
+              "observationSourceId": "2026-08-23-r2-published-0125/sol-clique-explicit-lane-controller",
+              "milestone": "M3",
+              "sequence": 242,
+              "at": "2026-08-24T10:02:30.780Z",
+              "type": "block-claim",
+              "priorMilestone": "M2",
+              "reason": "controller-armed-next-milestone-after-original-handoff-before-native-usage-settled"
+            },
+            {
+              "observationSourceId": "2026-08-23-r2-published-0125/sol-clique-explicit-lane-controller",
+              "milestone": "M3",
+              "sequence": 243,
+              "at": "2026-08-24T10:02:30.781Z",
+              "type": "host-load-sample",
+              "priorMilestone": "M2",
+              "reason": "controller-armed-next-milestone-after-original-handoff-before-native-usage-settled"
+            },
+            {
+              "observationSourceId": "2026-08-23-r2-published-0125/sol-clique-explicit-lane-controller",
+              "milestone": "M3",
+              "sequence": 244,
+              "at": "2026-08-24T10:02:30.906Z",
+              "type": "semantic-action",
+              "priorMilestone": "M2",
+              "reason": "controller-armed-next-milestone-after-original-handoff-before-native-usage-settled"
+            }
+          ],
+          "excludedPostTerminalObservations": [
+            {
+              "observationSourceId": "2026-08-23-r2-published-0125/sol-clique-explicit-lane-controller",
+              "milestone": "M3",
+              "sequence": 268,
+              "at": "2026-08-24T10:10:23.123Z",
+              "type": "host-load-sample",
+              "reason": "controller-finalization-sample-after-native-task-settlement"
             }
           ]
         }
       ]
     },
-    "manifestSha256": "sha256:52c4c6e2521993423773b1d4cc25d767afe46f6e75a919e8ce4968a2ec1a0c31",
+    "manifestSha256": "sha256:8075db9e8edcb7cc03970155e382231154f2534e97fc98c970d2f079ec894d3e",
     "unavailableReason": null,
     "adapter": {
       "id": "codex-rollout-jsonl",
@@ -1091,7 +1347,7 @@
     "clockCorrelation": {
       "method": "rfc3339-with-bounded-skew",
       "maxSkewMillis": 0,
-      "evidence": "driver-v1 recovery derives terminalAt from the latest hash-bound observation on the shared host system clock; the original 5s value described handoff latency, not clock drift"
+      "evidence": "controller and Codex native events use the shared host system clock; native execution order, not receipt latency, determines terminal usage settlement"
     },
     "sessions": [
       {
@@ -1160,6 +1416,11 @@
         "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
       },
       {
+        "sourceId": "codex-file-change-observations",
+        "path": "events/codex-file-change-observations.jsonl",
+        "sha256": "sha256:c9a9ffc79bad7199a55dbe7f98338ac202bc03c17cd6dd1ed8887cff6ec684e9"
+      },
+      {
         "sourceId": "2026-08-23-r2-published-0125/sol-clique-explicit-lane-controller",
         "path": "events/lane-controller-observations.jsonl",
         "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
@@ -1169,7 +1430,10 @@
       "path": "terminal-boundaries.json",
       "sha256": "sha256:1fcd53f32deec0c23087e2c06a7f194a7493395e92425ac6d98d3cbb6626ab36"
     },
-    "firstProductEdit": null
+    "firstProductEdit": {
+      "path": "first-product-edit.json",
+      "sha256": "sha256:a20a3d304d7c0e796bc7e5fa1a063cd1dc34c7270ee9a2b0803e3f6244725959"
+    }
   },
   "suiteStatusLinkage": {
     "input": {

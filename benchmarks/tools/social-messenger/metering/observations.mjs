@@ -667,9 +667,14 @@ export function projectMilestoneObservability({ events = [], evidence = [], mile
   return result;
 }
 
-export function scorecardEligibility({ milestones, phaseUsageAvailable }) {
+export function scorecardEligibility({
+  milestones,
+  phaseUsageAvailable,
+  orientationEvidenceAvailable = false,
+}) {
   const reasons = [];
   if (!phaseUsageAvailable) reasons.push("phase-usage-unavailable");
+  if (!orientationEvidenceAvailable) reasons.push("orientation-evidence-unavailable");
   for (const value of Object.values(milestones)) {
     if (value?.semanticActions?.claimed !== true) reasons.push("semantic-actions-non-claimed");
     if (value?.failureToRecoveryEpisodes?.claimed !== true) reasons.push("recovery-episodes-non-claimed");

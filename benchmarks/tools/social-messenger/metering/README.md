@@ -82,19 +82,26 @@ Each attempted entry carries:
 
 For a green attempt, the hash-bound segment summary stamps `suitePassAt`,
 `choreoPassAt`, and `firstGreenAt`. `terminalAt` may be later: the production
-driver stamps it from the controller's final retained observation after the
-terminal signal and usage handoff settle. This keeps first-green proof distinct
+driver stamps it from the native token-count settlement after the successful
+terminal signal. The closing milestone uses the final native token count before
+native task completion. This keeps first-green proof distinct
 from the terminal prefix used for complete charging. A first-green timestamp
 after the terminal is invalid.
 
 Retained `social-messenger-r2-native-cli-driver.v1` manifests from before this
 repair stamped the segment-summary time as `terminalAt` and labeled a fixed
 five-second handoff allowance as clock skew. The loader has a version-bounded
-recovery for exactly that driver/evidence pair: it advances each terminal to
-the latest hash-bound observation for that milestone, treats the shared host
-system clock as the effective zero-skew channel, and records every original and
-effective value under `meteringProvenance.driver.compatibilityEvents`. Other
-driver IDs, clock evidence, and manifests remain unchanged and fail closed.
+recovery for exactly that driver/evidence pair: it identifies the successful
+native `r2-cell-signal` completion and the corresponding settled native
+`token_count`, treats the shared host system clock as the effective zero-skew
+channel, and records the native ordinals and every original/effective value
+under `meteringProvenance.driver.compatibilityEvents`. It also records the
+small controller setup overlaps that armed the next milestone before the
+prior signal turn's usage settled, without moving any token turn across the
+boundary. A final host-load sample after native task settlement is retained
+but explicitly excluded from the authoring window. Other driver IDs, clock
+evidence, ambiguous native handoffs, and manifests remain unchanged or fail
+closed.
 
 The joiner orders attempts by `terminalSequence`, snapshots all usage completed
 at or before each `terminalAt`, and differences consecutive terminal prefixes.
@@ -106,9 +113,10 @@ inclusive.
 The sequence is the ordering authority. RFC 3339 timestamps correlate usage
 to driver boundaries under the manifest's skew evidence. When a turn lies
 inside a nonzero ambiguity window, the join fails closed instead of guessing.
-Drivers must record a measured nonzero skew bound for separately stamped
-clocks; zero is reserved for evidence that both processes read the same host
-system clock or that one process stamps both channels. The final terminal is
+Drivers must record a measured nonzero skew bound for uncorrelated or
+cross-host clocks. Zero is valid for separate processes only when hash-bound
+evidence establishes that both read the same host system clock and native
+execution order settles the join. The final terminal is
 stamped after in-flight/overshoot usage settles. A retained turn after it
 invalidates the join rather than disappearing from actuals.
 
@@ -118,14 +126,26 @@ The first-product-edit marker is also a hash-bound driver receipt:
 {
   "laneRunId": "lane-r01",
   "at": "2026-08-21T12:34:56.000Z",
-  "orientationBytes": 12103,
+  "orientationBytes": null,
   "selectedSkills": ["snapback-authoring"]
 }
 ```
 
-The driver measures bytes and selected skills directly. The joiner only takes
-the native usage prefix at `at`; it does not infer orientation from prose or
-shell commands.
+The driver records only measured bytes and observed selected skills. A native
+Codex `FileChange` completion provides the first-product-edit timestamp and
+hash-bound ordinal/item/path provenance; commandless file changes also project
+as `edit` or `generate` semantic actions. The joiner takes the native usage
+prefix at `at`; it does not infer orientation from prose or shell commands.
+Missing orientation bytes or per-phase usage makes the LLP 0295 efficiency
+scorecard ineligible rather than estimated.
+
+For current R2 driver records, `meteringProvenance.manifest`, `adapter`,
+`driver.compatibilityEvents`, `observations`, and every session's
+`nativeCliVersion` are mandatory. The semantic validator resolves the
+hash-bound manifest and replays the native adapter, terminal recovery,
+observation filtering, and first-edit derivation. Deleting or fabricating a
+compatibility claim therefore fails even if the edited JSON still has a valid
+shape. Older extension-v2 records retain their additive compatibility.
 
 ## D0.6 observation producers
 

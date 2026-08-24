@@ -104,6 +104,46 @@
     {
       "if": {
         "properties": {
+          "instrumentVersion": {
+            "const": "social-messenger@0.3.3-m8"
+          },
+          "meteringProvenance": {
+            "properties": {
+              "laneRunId": {
+                "pattern": "^2026-08-23-r2-published-0125/"
+              }
+            },
+            "required": ["laneRunId"]
+          }
+        },
+        "required": ["instrumentVersion", "meteringProvenance"]
+      },
+      "then": {
+        "properties": {
+          "meteringProvenance": {
+            "required": ["manifest", "adapter", "observations"],
+            "properties": {
+              "driver": {
+                "required": ["id", "compatibilityEvents"],
+                "properties": {
+                  "id": {
+                    "const": "social-messenger-r2-native-cli-driver.v1"
+                  }
+                }
+              },
+              "sessions": {
+                "items": {
+                  "required": ["nativeCliVersion"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
           "observabilityProtocol": {
             "const": "social-messenger-observation.v1"
           }
@@ -236,6 +276,7 @@
           "items": {
             "enum": [
               "phase-usage-unavailable",
+              "orientation-evidence-unavailable",
               "semantic-actions-non-claimed",
               "recovery-episodes-non-claimed",
               "restart-reseed-non-claimed",
@@ -614,6 +655,10 @@
           "type": "string",
           "minLength": 1
         },
+        "manifest": {
+          "$ref": "#/$defs/hashedArtifact",
+          "description": "Hash-bound metering manifest from which current-instrument provenance is re-derived. Older extension-v2 records may omit this additive descriptor."
+        },
         "driver": {
           "type": "object",
           "required": [
@@ -649,7 +694,10 @@
                 "additionalProperties": false,
                 "properties": {
                   "ruleId": {
-                    "const": "social-messenger-r2-native-cli-driver.v1-observation-terminal.v1"
+                    "enum": [
+                      "social-messenger-r2-native-cli-driver.v1-observation-terminal.v1",
+                      "social-messenger-r2-native-cli-driver.v1-codex-signal-settlement.v2"
+                    ]
                   },
                   "originalClockCorrelation": {
                     "$ref": "#/$defs/clockCorrelation"
@@ -676,10 +724,113 @@
                           "type": "string",
                           "format": "date-time"
                         },
+                        "supersededObservationTerminalAt": {
+                          "type": ["string", "null"],
+                          "format": "date-time"
+                        },
                         "effectiveTerminalAt": {
                           "type": "string",
                           "format": "date-time"
+                        },
+                        "signalItemId": {
+                          "type": ["string", "null"],
+                          "minLength": 1
+                        },
+                        "signalCompletedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "signalRecordOrdinal": {
+                          "type": ["integer", "null"],
+                          "minimum": 0
+                        },
+                        "usageSettledAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "usageRecordOrdinal": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "settlementKind": {
+                          "enum": [
+                            "signal-turn-token-count",
+                            "final-native-token-count",
+                            "closed-failure-native-token-count"
+                          ]
                         }
+                      }
+                    }
+                  },
+                  "nativeSourceId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "nativeSessionId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "nativeStreamSha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[a-f0-9]{64}$"
+                  },
+                  "taskCompleteAt": {
+                    "type": ["string", "null"],
+                    "format": "date-time"
+                  },
+                  "taskCompleteRecordOrdinal": {
+                    "type": ["integer", "null"],
+                    "minimum": 0
+                  },
+                  "streamClosedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "observationWindowOverlaps": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "observationSourceId",
+                        "milestone",
+                        "sequence",
+                        "at",
+                        "type",
+                        "priorMilestone",
+                        "reason"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "observationSourceId": { "type": "string", "minLength": 1 },
+                        "milestone": { "enum": ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8"] },
+                        "sequence": { "type": "integer", "minimum": 0 },
+                        "at": { "type": "string", "format": "date-time" },
+                        "type": { "type": "string", "minLength": 1 },
+                        "priorMilestone": { "enum": ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8"] },
+                        "reason": { "const": "controller-armed-next-milestone-after-original-handoff-before-native-usage-settled" }
+                      }
+                    }
+                  },
+                  "excludedPostTerminalObservations": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "observationSourceId",
+                        "milestone",
+                        "sequence",
+                        "at",
+                        "type",
+                        "reason"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "observationSourceId": { "type": "string", "minLength": 1 },
+                        "milestone": { "enum": ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8"] },
+                        "sequence": { "type": "integer", "minimum": 0 },
+                        "at": { "type": "string", "format": "date-time" },
+                        "type": { "const": "host-load-sample" },
+                        "reason": { "const": "controller-finalization-sample-after-native-task-settlement" }
                       }
                     }
                   }
@@ -806,7 +957,7 @@
             "maxSkewMillis": {
               "type": "integer",
               "minimum": 0,
-              "description": "Measured maximum cross-clock skew. Drivers must use a nonzero bound when usage and boundary stamps come from different processes; zero is valid only with evidence that one process and clock stamps both channels."
+              "description": "Measured maximum cross-clock skew. Zero is valid for separate processes only when hash-bound evidence establishes that both use the same host system clock and native execution order settles the join; cross-host or uncorrelated clocks require a justified nonzero bound."
             },
             "evidence": {
               "type": "string",

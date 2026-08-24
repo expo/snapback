@@ -1,0 +1,75 @@
+{
+  "version": "snapback.r2-recovery-resume.v2",
+  "candidateCommit": "72ce8f3467fbd01b644f92a79bf83655ce236133",
+  "campaignCellRerun": false,
+  "privateAttemptDisposition": "retained-read-only-no-model-or-product-rerun",
+  "completedCell": "sol-clique-explicit",
+  "completedAttemptCount": 1,
+  "recoveredCell": {
+    "record": {
+      "path": "cells/sol-clique-explicit/record.json",
+      "sha256": "sha256:d56f9477ff20e48306423cd4c697e1a481b686f3a81e5e06296becd149f5b64b"
+    },
+    "metering": {
+      "path": "cells/sol-clique-explicit/metering.json",
+      "sha256": "sha256:3958ad4167a37708f4c6d8cea7fd62d10585a76c63b052a3ab4e3f191bb08ca7"
+    },
+    "nativeStream": {
+      "path": "cells/sol-clique-explicit/events/codex-rollout.jsonl",
+      "sha256": "sha256:f9838d32f9f1357eb40ed7661d350cc9e341431ab0fcc3df0dc6e280e2035c0d"
+    },
+    "originalInstrument": {
+      "path": "cells/sol-clique-explicit/instrument.manifest.json",
+      "sha256": "sha256:8a13dcc55eca1dfe49a13d704575d2e2843ca059c34c964df86c7287dfb729ad"
+    }
+  },
+  "resumeInstrument": {
+    "path": "../../instrument.manifest.json",
+    "sha256": "sha256:ed083eb715f6c043b78f7bd437102ab4a7b85ff9bf06880d61d269a0e71b60ae",
+    "transition": "versioned-recovery-overlay; original cell-1 instrument remains immutable"
+  },
+  "historicalDryRunValidatorSources": {
+    "base": {
+      "path": "benchmarks/schema/run-record.schema.json",
+      "sha256": "sha256:d8bd58dd94ec5726cd543fa72ea37dedf7a0226287ff5606fe295320a2651654"
+    },
+    "extension": {
+      "path": "benchmarks/schema/social-messenger/run-record-extension.schema.json",
+      "sha256": "sha256:1cf39ff49e9b34465a1086f4a4d37491289c6590aca657652285c39138542983"
+    },
+    "composed": {
+      "path": "benchmarks/schema/social-messenger/run-record.schema.json",
+      "sha256": "sha256:3403455e98fad656125ea2ab0993f780bdb112849fb127bd8bcfcbcf6f2b8a64"
+    },
+    "semantic": {
+      "path": "benchmarks/tools/social-messenger/record-validator.mjs",
+      "sha256": "sha256:fa1b179a617db743ec15d9d87017458e594cab070b798ccd72b5349ccf373238"
+    }
+  },
+  "nextCell": "sol-clique-familiar",
+  "nextControllerCommand": [
+    "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+    "benchmarks/tools/social-messenger/metering/lane-controller.mjs",
+    "--harness-config",
+    "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json",
+    "--cell",
+    "sol-clique-familiar",
+    "--driver",
+    "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs"
+  ],
+  "loadAdmissionPolicyId": "host-10cpu-loadavg-10-approved",
+  "nextCellRule": "Prior process tree closed and three consecutive passing samples.",
+  "laterCellsRequiredPristine": [
+    "sol-clique-familiar",
+    "sol-coterie-explicit",
+    "sol-coterie-familiar",
+    "grok-clique-explicit",
+    "grok-clique-familiar",
+    "grok-coterie-explicit",
+    "grok-coterie-familiar",
+    "opus-clique-explicit",
+    "opus-clique-familiar",
+    "opus-coterie-explicit",
+    "opus-coterie-familiar"
+  ]
+}

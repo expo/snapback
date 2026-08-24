@@ -11,6 +11,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { resolveInstrumentArtifacts } from '../../tools/lane-setup.mjs';
 import { loadLaneControllerConfig } from '../../tools/social-messenger/metering/lane-controller.mjs';
+import { validateSocialMessengerRunRecord } from '../../tools/social-messenger/record-validator.mjs';
 import { validateDryRunEvidence } from './validate-dry-run-evidence.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
@@ -99,11 +100,31 @@ const config = readJson('harness-config.json');
 const preflight = readJson('preflight.json');
 const provenance = readJson('prompt-provenance.json');
 
-if (config.status !== 'prepared-blocked' || !config.noBenchmarkCellStarted) {
-  fail('configuration must remain prepared-blocked with no cell started');
+if (config.status !== 'recovered-cell-1-blocked' || config.noBenchmarkCellStarted !== false) {
+  fail('configuration must identify recovered/finalized cell 1 without claiming a pristine wave');
 }
-if (preflight.waveStartAllowed !== false || !preflight.noBenchmarkCellStarted) {
-  fail('preflight must refuse wave start and attest that no cell started');
+if (preflight.waveStartAllowed !== false || preflight.noBenchmarkCellStarted !== false) {
+  fail('preflight must refuse continuation while acknowledging recovered cell 1');
+}
+const recoveryDescriptor = config.recoveryResume;
+if (
+  recoveryDescriptor?.version !== 'snapback.r2-recovery-resume.v2'
+  || recoveryDescriptor.nextCell !== config.cellOrder?.[1]
+  || sha256(recoveryDescriptor.path) !== recoveryDescriptor.sha256
+) {
+  fail('configuration lacks the exact versioned recovery/resume transition');
+}
+const recovery = readJson(recoveryDescriptor.path);
+if (
+  recovery.version !== recoveryDescriptor.version
+  || recovery.completedCell !== config.cellOrder[0]
+  || recovery.nextCell !== config.cellOrder[1]
+  || recovery.campaignCellRerun !== false
+  || recovery.resumeInstrument.sha256 !== `sha256:${config.pins.instrument.manifestSha256}`
+  || sha256(recovery.resumeInstrument.path) !== config.pins.instrument.manifestSha256
+  || JSON.stringify(recovery.laterCellsRequiredPristine) !== JSON.stringify(config.cellOrder.slice(1))
+) {
+  fail('recovery transition does not bind recovered cell 1 to pristine cell 2');
 }
 const unresolvedRulings = preflight.checks.filter((check) => check.status === 'needs-ruling');
 if (unresolvedRulings.length > 0) {
@@ -185,6 +206,11 @@ const overlayHashes = {
   laneControllerSha256: 'benchmarks/tools/social-messenger/metering/lane-controller.mjs',
   productionDriverSha256: 'benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs',
   signalSha256: 'benchmarks/tools/social-messenger/metering/r2-cell-signal.mjs',
+  manifestLoaderSha256: 'benchmarks/tools/social-messenger/metering/manifest.mjs',
+  joinerSha256: 'benchmarks/tools/social-messenger/metering/joiner.mjs',
+  observationsSha256: 'benchmarks/tools/social-messenger/metering/observations.mjs',
+  codexAdapterSha256: 'benchmarks/tools/social-messenger/metering/adapters/codex-session.mjs',
+  codexNativeEvidenceSha256: 'benchmarks/tools/social-messenger/metering/codex-native-evidence.mjs',
 };
 for (const [field, path] of Object.entries(overlayHashes)) {
   if (config.pins.instrument.d06MeteringOverlay[field] !== repositorySha256(path)) {
@@ -211,7 +237,9 @@ for (const prompt of provenance.files) {
 }
 
 const dryRunEvidence = await Promise.all(['success', 'failure'].map((kind) => (
-  validateDryRunEvidence(join(root, 'dry-run-evidence', kind))
+  validateDryRunEvidence(join(root, 'dry-run-evidence', kind), {
+    historicalValidatorSources: recovery.historicalDryRunValidatorSources,
+  })
 )));
 if (
   dryRunEvidence[0].status !== 'green'
@@ -222,16 +250,41 @@ if (
   fail('retained success/failure dry-run evidence has the wrong dispositions');
 }
 
-for (const cell of config.cells) {
+const [baseRecordSchema, extensionRecordSchema, composedRecordSchema] = [
+  'benchmarks/schema/run-record.schema.json',
+  'benchmarks/schema/social-messenger/run-record-extension.schema.json',
+  'benchmarks/schema/social-messenger/run-record.schema.json',
+].map((path) => JSON.parse(readFileSync(join(repositoryRoot, path), 'utf8')));
+
+for (const [cellIndex, cell] of config.cells.entries()) {
   if (cell.loadCeilingId !== config.execution.loadIsolation.policyId) {
     fail(`cell ${cell.id} does not carry the registered load ceiling`);
   }
   const slot = readJson(`cells/${cell.id}/cell.json`);
-  if (slot.cellId !== cell.id || slot.status !== 'not-started') {
-    fail(`cell slot is not pristine: ${cell.id}`);
-  }
-  if (existsSync(join(root, 'cells', cell.id, 'record.json'))) {
-    fail(`cell ${cell.id} unexpectedly has a completed record`);
+  const recordPath = join(root, 'cells', cell.id, 'record.json');
+  if (slot.cellId !== cell.id) fail(`cell slot identity drifted: ${cell.id}`);
+  if (cellIndex === 0) {
+    if (
+      slot.status !== 'recovered-finalized'
+      || slot.attemptCount !== 1
+      || slot.campaignCellRerun !== false
+      || slot.recoveryVersion !== recovery.version
+      || !existsSync(recordPath)
+      || sha256(`cells/${cell.id}/${slot.record.path}`) !== slot.record.sha256.replace(/^sha256:/u, '')
+    ) {
+      fail(`cell 1 is not the exact recovered/finalized record: ${cell.id}`);
+    }
+    const record = JSON.parse(readFileSync(recordPath, 'utf8'));
+    const recordErrors = validateSocialMessengerRunRecord(composedRecordSchema, record, {
+      schemas: [baseRecordSchema, extensionRecordSchema],
+      artifactRoot: dirname(recordPath),
+    });
+    if (recordErrors.length > 0) {
+      fail(`recovered cell 1 record is invalid: ${recordErrors.join('; ')}`);
+    }
+  } else {
+    if (slot.status !== 'not-started') fail(`later cell slot is not pristine: ${cell.id}`);
+    if (existsSync(recordPath)) fail(`later cell ${cell.id} unexpectedly has a completed record`);
   }
   const expectedCommand = config.controller.commandTemplate.map((value) => (
     value === '{cellId}' ? cell.id : value
@@ -261,6 +314,15 @@ for (const cell of config.cells) {
   }
 }
 
+const nextCell = config.cells[1];
+if (
+  JSON.stringify(recovery.nextControllerCommand) !== JSON.stringify(nextCell.controllerCommand)
+  || recovery.loadAdmissionPolicyId !== config.execution.loadIsolation.policyId
+  || recovery.nextCellRule !== config.execution.loadIsolation.nextCellRule
+) {
+  fail('recovery transition changed the registered cell-2 command or admission rules');
+}
+
 process.stdout.write(`${JSON.stringify({
   ok: true,
   status: config.status,
@@ -273,5 +335,8 @@ process.stdout.write(`${JSON.stringify({
   resolvedRulings: 3,
   dryRunEvidence: dryRunEvidence.length,
   waveStartAllowed: preflight.waveStartAllowed,
-  noBenchmarkCellStarted: true,
+  noBenchmarkCellStarted: false,
+  recoveredCells: 1,
+  nextCell: recovery.nextCell,
+  nextControllerCommand: recovery.nextControllerCommand,
 })}\n`);
