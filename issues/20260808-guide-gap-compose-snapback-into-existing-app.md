@@ -61,3 +61,33 @@ path from clean React and Expo scaffolds against the **published** packages
 (codegen, typecheck, supervised dev, registered acceptance) after the next
 publication picks this up, then flip the capability GAP row and replace the
 sibling-scaffold workaround page.
+
+## Detection widened — 2026-08-24 (ticket still open for the published-path bar)
+
+Running `create-expo-app@4.0.0` on 2026-08-24 showed that **both** of its
+advertised templates were refused by the implementation above:
+
+- the pristine `blank-typescript` `tsconfig.json` has no `include` field, which
+  read as a deliberate typecheck boundary and refused at `typecheck-boundary`;
+- the default Router template puts routes under `src/app/`, not `app/`, which
+  refused as `SNAPBACK_INIT_ROOT_UNRECOGNIZED`; and
+- pristine `index.ts` carries the template's own explanatory comments between
+  the `App` import and `registerRootComponent(App)`, which broke pristine
+  matching.
+
+All three are fixed on `seth/knockoff-shared-development-auth`: an absent
+`include` is authored, both Router roots are detected with the selected root
+carried through every seam (including a depth-derived generated-descriptor
+specifier), a root carrying both candidates is a new typed `router-root
+ambiguity` collision, and pristine comparison drops comments while keeping
+string literals. Both fresh roots now adopt, rerun as `already-initialized`,
+and preserve their unrelated manifest, config, and `@/*` path aliases.
+
+That is the detection half. **This ticket stays open** for exactly the same
+reason as before: the evidence was collected against the working tree, not a
+publication. `guide/clients/react-expo.md` now says plainly that `snapback
+init` exists but that no published version adopts either current
+`create-expo-app` shape — a correction of the previous "not a hidden `snapback
+init` command" claim, without advertising a path that would still fail. The
+capability GAP row and the sibling-scaffold workaround stand until a
+publication carries the fix.

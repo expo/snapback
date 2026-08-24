@@ -134,7 +134,17 @@ test('manifest vocabulary, generated types, and JSDoc share one lifecycle projec
   const authRows = manifest.rows;
   assert.deepEqual(
     authRows.authBootstrapPolicy.fields.map(({ field }) => field),
-    ['format', 'appId', 'mode', 'custody', 'entryMechanisms', 'anonymousPublic', 'lifecycleProtocol'],
+    [
+      'format', 'appId', 'mode', 'custody', 'entryMechanisms', 'providers',
+      'anonymousPublic', 'lifecycleProtocol',
+    ],
+  );
+  // `providers` is the one optional policy field: an app that declares no
+  // provider keeps the descriptor bytes it already had.
+  assert.deepEqual(
+    authRows.authBootstrapPolicy.fields.filter(({ optional }) => optional === true)
+      .map(({ field }) => field),
+    ['providers'],
   );
   assert.equal(
     authRows.authBootstrapPolicy.fields.find(({ field }) => field === 'custody')
@@ -380,8 +390,9 @@ test('shipped codegen, declarations, hooks, platforms, and diagnostics conform t
   const expoRuntime = readFileSync(join(packageRoot, '..', 'snapback-expo', 'provider.mjs'), 'utf8');
   const generatedAppTypes = readFileSync(join(root, 'generated', 'app.d.ts'), 'utf8');
 
-  for (const { field } of rows.authBootstrapPolicy.fields) {
-    assert(generatedAppTypes.includes(`readonly ${field}:`), `generated policy types omit ${field}`);
+  for (const { field, optional } of rows.authBootstrapPolicy.fields) {
+    const spelling = optional === true ? `readonly ${field}?:` : `readonly ${field}:`;
+    assert(generatedAppTypes.includes(spelling), `generated policy types omit ${field}`);
   }
   for (const entry of rows.authEntryMechanisms.entries) {
     for (const operation of entry.operations) {

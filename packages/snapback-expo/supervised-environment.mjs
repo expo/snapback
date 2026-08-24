@@ -306,6 +306,11 @@ export function createSupervisedExpoEnvironment({
 } = {}) {
   const exchanges = new Map();
   const offlineFallbacks = new Map();
+  // @ref LLP 0151#shared-development-browser-adapter — the credential-free
+  // shared-auth projection is retained separately from the one-shot authority
+  // exchange, because the client reads it whenever it builds a provider
+  // Adapter, not only at the moment authority settles.
+  const sharedAuthProjections = new Map();
   let adopted = null;
   let devIdentityCapability = undefined;
   let devIdentityCapabilityPromise = null;
@@ -555,10 +560,21 @@ export function createSupervisedExpoEnvironment({
       }
       offlineFallbacks.delete(bindingKey(exchange.binding));
       retainExchange(bindingKey(exchange.binding), exchange, signal);
+      if (exchange.sharedAuth !== undefined) {
+        sharedAuthProjections.set(bindingKey(exchange.binding), exchange.sharedAuth);
+      }
       return Object.freeze({
         binding: exchange.binding,
         admission: supervisedAdmission(),
       });
+    },
+    /**
+     * The supervisor's shared development auth projection for one binding, or
+     * null when this supervisor published none. Credential-free by
+     * construction; a cached offline binding has no projection at all.
+     */
+    resolveSharedDevelopmentAuth({ binding }) {
+      return sharedAuthProjections.get(bindingKey(binding)) ?? null;
     },
     async resolveSupervisedAuthority({ binding, signal, refresh = false }) {
       const key = bindingKey(binding);

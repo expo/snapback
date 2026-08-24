@@ -68,6 +68,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'agent-setup.test.mjs',
       'application-auth-fixtures.test.mjs',
       'application-ready.test.mjs',
+      'auth-setup.test.mjs',
       'carrier-kit.test.mjs',
       'cli-help.test.mjs',
       'comparator-profile.test.mjs',
@@ -100,6 +101,8 @@ export const PACKAGE_TEST_INVENTORIES = [
       'reference-lookup.test.mjs',
       'scaffold-skill-budget.test.mjs',
       'sessions-dev-loop.test.mjs',
+      'shared-development-auth.test.mjs',
+      'shared-development-broker.test.mjs',
       'visibility-governance-dev-loop.test.mjs',
       'verify.test.mjs',
     ],
@@ -174,6 +177,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'outbox-store.test.mjs',
       'package.test.mjs',
       'password-auth.test.mjs',
+      'provider-entry.test.mjs',
       'push-registry.test.mjs',
       'registration-ledger.test.mjs',
       'reference-kind.test.mjs',
@@ -191,6 +195,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'rqs-store-v3.test.mjs',
       'rqs-store.test.mjs',
       'sender-proof.test.mjs',
+      'shared-development-auth.test.mjs',
       'sender-transport.test.mjs',
       'search.test.mjs',
       'store-policy.test.mjs',
@@ -304,6 +309,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'provider-auth-bootstrap.test.mjs',
       'provider-native-custody.test.mjs',
       'release-export-vocabulary.test.mjs',
+      'shared-browser-adapter.test.mjs',
       'supervised-environment.test.mjs',
       'supervised-offline-fallback.test.mjs',
     ],
@@ -587,7 +593,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 341,
+  expectedTotal = 347,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1094,6 +1100,11 @@ export function checkPackageTestInventories(options = {}) {
 // admission-posture matrix, atomic env writer, and explicit dev-session suites.
 // 338 -> 341 (2026-08-24, LLP 0301+0302 integration): the union of both
 // lanes' suites — posture/writer/dev-session and the declared-dev batteries.
+// 341 -> 347 (2026-08-24, LLP 0151): @expo/snapback-client gains the provider
+// entry resolver/dispatch proof and the shared development client-half proof;
+// @expo/snapback-cli gains the auth setup group proof, the shared development
+// broker-half proof, and the supervised broker HTTP proof; @expo/snapback-expo
+// gains the shared development browser Adapter proof.
 // LLP 0300 nine-row acceptance traceability (0301 §8 set-level table):
 // 1 cold bring-up -> templates/*/acceptance.mjs + declared-dev-episode.test.mjs;
 // 2 two principals -> declared-dev-episode.test.mjs; 3 forwards/tunnel/rebinding

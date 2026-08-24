@@ -85,3 +85,10 @@ demos/all-aboard/tests/egress-probe/generated/*
 
 # compile-fail fixture build artifacts (regenerated; never committed)
 tests/fixtures/*/target/
+
+# Agent scratch worktrees. Each holds its own .git; committing them would
+# record stray gitlinks.
+/.claude/worktrees/
+
+# Untracked sibling checkout, not a submodule.
+/vendor/valet/

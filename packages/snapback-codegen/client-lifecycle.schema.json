@@ -177,7 +177,7 @@
         "configured": { "type": "boolean" },
         "fields": {
           "type": "array",
-          "minItems": 7,
+          "minItems": 8,
           "items": {
             "type": "object",
             "additionalProperties": false,
@@ -186,6 +186,7 @@
               "field": { "type": "string", "minLength": 1 },
               "derivation": { "type": "string", "minLength": 1 },
               "semanticIdentityEffect": { "type": "string", "minLength": 1 },
+              "optional": { "const": true },
               "familiarDisposition": { "$ref": "#/$defs/familiarDisposition" },
               "value": true
             }

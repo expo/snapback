@@ -143,3 +143,164 @@ Convex's more mature hosted operations.
   - Google fixture produced a different principal.
   - Repeating Google login returned the same principal and profile.
   - The app received one-time exchange fields and no provider token.
+
+## Adaptive auth profile follow-up
+
+The Clerk comparison changed the demo from a mode flag into one provider-entry
+Module. App code now calls one controller. A pure resolver selects synthetic,
+shared browser, app-owned browser, or app-owned native before the attempt
+starts. Injected Adapter tests prove that a native failure never calls the
+shared Adapter.
+
+The local shared broker now exercises the actual completion shape instead of
+calling the fixture route directly. The app creates a redemption verifier. The
+broker binds its challenge to the app id and an exact return target, shows a
+Snapback Development Auth browser page, and redirects only a one-use code plus
+state. Redemption consumes the code and returns the ordinary Snapback exchange.
+Tests cover replay, a wrong verifier, an arbitrary return target, and the
+100-user limit.
+
+Native readiness needs provider configuration and a native-build probe. The
+Expo config installs receipt URL schemes and adds Google's native config plugin
+only when its iOS URL scheme exists. This caught a development-client problem:
+the Expo tools floating window can cover the system auth browser and intercept
+automated taps. The next development build disables that tools button through
+the `expo-dev-client` plugin.
+
+The shared broker still uses hermetic provider identities. That is honest but
+not the final product experience. Real zero-setup Apple and Google accounts
+still need Snapback-owned registrations and a public callback host behind this
+same protocol.
+
+The client resolver alone was insufficient as a deployment boundary because
+Expo public configuration is mutable client input. The local broker now repeats
+admission from server-only deployment configuration: development is allowed,
+preview additionally needs an owner-authorized unexpired window, and staging or
+production never instantiate shared auth.
+
+Verification for this slice:
+
+- TypeScript compiled with `npx tsc --noEmit`.
+- Resolver, timeout, shared-protocol, replay, verifier, user-cap, and broker
+  admission tests passed.
+- The social-auth acceptance path passed against an explicitly selected,
+  already-qualified Snapback binary. The current checkout could not rebuild its
+  default binary because the user's modified `vendor/ibex` no longer exposes
+  the expected `sfe-static-network` feature.
+- A clean iOS development-client build completed with the native Google module,
+  Apple capability, auth receipt schemes, and Expo tools overlay disabled.
+- On the iPhone 17 Pro simulator, both Apple and Google shared entries opened
+  Snapback Development Auth, returned through the one-use custom-scheme
+  callback, entered distinct Snapback principals, and signed out cleanly.
+
+## 2026-08-24 — promoting the demo's shared auth into first-party surface
+
+The Knockoff build proved the shape. This entry is about moving it out of the
+demo and into the packages, and about what that move taught.
+
+### What moved, and where the seams landed
+
+The demo had one broker file doing five jobs: transaction state, deployment
+admission, provider verification, session completion, and HTTP. Splitting it
+for first-party use forced each seam to be named:
+
+- `@expo/snapback-client/provider-entry` — the resolver and the dispatcher.
+  Pure, no I/O, no crypto.
+- `@expo/snapback-client/shared-development-auth` — the *client* half. This is
+  where the demo's design bit hardest: the demo's `shared-development-auth.mjs`
+  used `node:crypto`, which is fine in a demo server and impossible in a client
+  package that bundles for React Native. The split into a WebCrypto client half
+  and a `node:crypto` broker half was not a stylistic choice; the packaging
+  boundary made it mandatory. That is the kind of constraint a demo cannot
+  surface, because a demo has no packaging boundary.
+- `@expo/snapback-cli/shared-development-auth` + `shared-development-broker.mjs`
+  — the broker half and its HTTP surface.
+- `@expo/snapback-expo/shared-browser-adapter.mjs` — the Expo Adapter.
+
+### What was easy
+
+Promoting the *protocol* was almost mechanical. The demo's transaction store
+already had the right invariants — one-use codes, exact return allowlisting,
+client-held verifiers, an app-scoped subject — so the first-party version is
+the same state machine with better refusals. Every test I wrote for it passed
+on the first run, which is the tell that the design, not the code, was the
+asset.
+
+The resolver was the same story. `demos/knockoff/src/lib/auth-profile.ts` had
+already worked out the closed selection table; promoting it was renaming
+`KNOCKOFF_AUTH_*` codes to `SNAPBACK_AUTH_PROVIDER_*` and adding the
+`configGeneration`/`clientBuildReceipt` fields the RFC's schema names.
+
+### What was harder than expected
+
+**The return target.** The demo used a fixed custom scheme
+(`knockoff://auth/shared`), which needs an app-owned native build. A brand-new
+app has no such build. The obvious fixes were both wrong: letting the client
+send its own return URL destroys exact allowlisting, and asking the author to
+register one reintroduces the setup step the whole feature exists to remove.
+What worked was *deriving* the allowlist from a fact the supervisor already
+owns — the Metro port — which yields `exp://127.0.0.1:8081/--/auth/shared` for
+Expo Go plus the web origins. Exact allowlisting intact, nothing to configure,
+no native build. This took three attempts to see.
+
+**Where the broker lives.** The demo ran it as a second process in a second
+terminal, published through an env var. Mounting it on the supervisor's
+existing bootstrap listener — the origin the client already discovers — removed
+the terminal, the env var, and the origin configuration in one move. The
+projection then rides the ordinary exchange, which is already credential-free,
+so nothing new had to be secured.
+
+**`snapback auth enable` edits source.** This is the part I was most reluctant
+about, and the reluctance was misplaced. Since the declaration is the source of
+provider policy, anything *other* than a source edit would create a second
+place provider policy lives. The stale-safe compare-and-write plus a refusal to
+reserialize a hand-written `providers` block made it feel safe rather than
+magic. Refusing loudly is what makes an automated source edit acceptable.
+
+### Friction worth recording
+
+- **Three pre-existing reds surfaced only because I ran the suites.**
+  `application-auth-bootstrap.test.mjs` fails on a `resolveExport` crash for any
+  specifier-less `export { … }`; `authoring-validation.test.mjs` fails on a
+  stale Rust manifest fixture; `expo-dev-loop.test.mjs` defaulted its runtime
+  binary to `/Users/ccheever/...` and so had never run on this machine at all.
+  All three are filed. The third is the interesting one: a test that cannot run
+  anywhere but one laptop is indistinguishable from no test, and nothing
+  detected that.
+- **The `expo-chat` first-read packet is 230 bytes from its ceiling.** A
+  three-line posture bullet does not fit. Filed rather than papered over,
+  because deciding what to displace is not the landing agent's call.
+- **The symbol-registry client page needed its third budget raise in nine
+  days.** Two new client exports pushed it 5 KB over. The relief is recorded on
+  the open slicing ticket; the ticket is now overdue rather than anticipated.
+
+### Compared with Convex and Supabase
+
+Both give you social sign-in with fewer moving parts than what landed here —
+but both do it by holding the provider registration themselves, which is
+exactly the tether LLP 0151 refuses. The honest comparison is therefore not
+"Snapback is harder" but "Snapback is telling you the truth about what it has."
+Supabase's development experience is genuinely better on day one; its
+production graduation story for Apple's team-scoped subjects is not better, it
+is just quieter. What Snapback ships here is a development sign-in that works
+with zero setup and *says* it is a rehearsal identity, plus a resolver that
+refuses to let that identity reach production. I would rather explain that than
+discover the graduation problem later.
+
+The thing I would want as an app author is the piece that is still missing: a
+Snapback-owned registration and hosted callback so the development identity is
+a real one. Everything landed here is the protocol that would sit underneath it.
+
+### Verification for this slice
+
+- Provider resolver and dispatch: 16 tests.
+- Shared development client half: 7 tests; broker half: 11 tests; supervised
+  broker HTTP round trip: 9 tests.
+- Expo shared browser Adapter: 7 tests.
+- `snapback auth` setup group: 18 tests, including CLI routing and the
+  delegation boundary for native auth verbs.
+- App client provider entry: 8 new tests inside the existing 50-test suite,
+  covering the frozen-Adapter contract and the no-fallback rule.
+- Guide, inventory, and reference checks pass; `./ref-check` clean.
+- **Not verified here:** any real Apple or Google login, any app-owned native
+  build, and the published-package path. Those remain nonclaims.

@@ -12,7 +12,12 @@
   "bugs": {
     "url": "https://github.com/expo/snapback/issues"
   },
-  "keywords": ["snapback", "backend", "expo", "react-native"],
+  "keywords": [
+    "snapback",
+    "backend",
+    "expo",
+    "react-native"
+  ],
   "files": [
     "README.md",
     "app-binding.d.mts",
@@ -41,7 +46,9 @@
     "provider.mjs",
     "supervised-binding-cache.mjs",
     "supervised-environment.d.mts",
-    "supervised-environment.mjs"
+    "supervised-environment.mjs",
+    "shared-browser-adapter.mjs",
+    "shared-browser-adapter.d.mts"
   ],
   "imports": {
     "#app-state": {
@@ -80,7 +87,11 @@
       "types": "./supervised-environment.d.mts",
       "import": "./supervised-environment.mjs"
     },
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./shared-browser-adapter": {
+      "types": "./shared-browser-adapter.d.mts",
+      "import": "./shared-browser-adapter.mjs"
+    }
   },
   "dependencies": {
     "@expo/snapback-client": "workspace:*",
@@ -123,6 +134,6 @@
   "scripts": {
     "pretest": "node declared-dev-binding.test.mjs",
     "test:metro-first-render": "node metro-first-render.test.mjs",
-    "test": "node ../../scripts/ensure-workspace-hoist.mjs && node metro-first-render.test.mjs && node app-binding.test.mjs && node asset-source.test.mjs && node config-plugin.test.mjs && node expo-sqlite-carrier.test.mjs && node auth-partition-digest.test.mjs && node provider.test.mjs && node provider-native-custody.test.mjs && node provider-auth-bootstrap.test.mjs && node supervised-environment.test.mjs && node supervised-offline-fallback.test.mjs && node release-export-vocabulary.test.mjs && node activity-presence.test.mjs && node package.test.mjs && node package-closure.test.mjs && ../../node_modules/.bin/tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler types.fixture.ts"
+    "test": "node ../../scripts/ensure-workspace-hoist.mjs && node metro-first-render.test.mjs && node app-binding.test.mjs && node asset-source.test.mjs && node config-plugin.test.mjs && node expo-sqlite-carrier.test.mjs && node auth-partition-digest.test.mjs && node provider.test.mjs && node provider-native-custody.test.mjs && node provider-auth-bootstrap.test.mjs && node --test shared-browser-adapter.test.mjs && node supervised-environment.test.mjs && node supervised-offline-fallback.test.mjs && node release-export-vocabulary.test.mjs && node activity-presence.test.mjs && node package.test.mjs && node package-closure.test.mjs && ../../node_modules/.bin/tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler types.fixture.ts"
   }
 }

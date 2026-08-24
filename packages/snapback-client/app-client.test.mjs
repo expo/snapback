@@ -185,6 +185,7 @@ function makeApp({
   custody = 'volatile-explicit',
   anonymousPublic = 'refused',
   entryMechanisms = ['password-v1'],
+  providers = null,
 } = {}) {
   return Object.freeze({
     format: 'snapback.app.v1',
@@ -195,6 +196,7 @@ function makeApp({
       mode: 'sessions',
       custody,
       entryMechanisms: Object.freeze([...entryMechanisms]),
+      ...(providers === null ? {} : { providers: freezeRecursively(providers.map((entry) => ({ ...entry }))) }),
       anonymousPublic,
       lifecycleProtocol: 1,
     }),
@@ -2529,3 +2531,232 @@ test('aborting construction during custody synchronization closes its partial co
 });
 
 console.log('snapback-client application auth bootstrap tests: ok');
+
+const DECLARED_PROVIDERS = Object.freeze([
+  { provider: 'apple', kind: 'apple', credentials: 'auto' },
+  { provider: 'google', kind: 'oidc', preset: 'google', credentials: 'auto' },
+]);
+
+// @ref LLP 0151#default-development-provider-profiles — one stable call selects
+// exactly one Adapter, and the ordinary coordinator still owns custody.
+test('provider sign-in dispatches one resolved Adapter through the common completion path', async () => {
+  const server = installServer();
+  const app = makeApp({
+    entryMechanisms: ['external-session-explicit-v1'],
+    providers: DECLARED_PROVIDERS,
+  });
+  const adapterCalls = [];
+  const exchange = { challengeId: 'provider-challenge', code: 'provider-code' };
+  const appClient = await createSnapbackAppClient(optionsFor(app, makeBinding(app), {
+    authProviders: {
+      context: { deployment: 'development', platform: 'ios', sharedAvailable: true },
+      adapters: {
+        'snapback-shared-browser': (entry) => {
+          adapterCalls.push(entry.adapter);
+          return Promise.resolve({ exchange });
+        },
+        'app-owned-native': (entry) => {
+          adapterCalls.push(entry.adapter);
+          return Promise.resolve({ exchange });
+        },
+      },
+    },
+  }));
+  try {
+    const entry = appClient.auth.providerEntry('apple');
+    assert.equal(entry.adapter, 'snapback-shared-browser');
+    assert.equal(entry.identityRealm, 'rehearsal');
+    server.respond('/auth/exchange', ({ body }) => {
+      assert.deepEqual(body, exchange);
+      return Response.json(server.credential());
+    });
+    const result = await appClient.auth.signIn({ provider: 'apple' });
+    assert.equal(result.session.userId, USER);
+    assert.equal(Object.hasOwn(result, 'token'), false);
+    assert.equal(appClient.auth.currentPrincipal().status, 'authenticated');
+    assert.deepEqual(adapterCalls, ['snapback-shared-browser']);
+  } finally {
+    await appClient.dispose();
+    server.restore();
+  }
+});
+
+test('provider sign-in refuses an undeclared provider before any transport', async () => {
+  const server = installServer();
+  const app = makeApp({
+    entryMechanisms: ['external-session-explicit-v1'],
+    providers: [DECLARED_PROVIDERS[0]],
+  });
+  const appClient = await createSnapbackAppClient(optionsFor(app, makeBinding(app), {
+    authProviders: {
+      context: { deployment: 'development', platform: 'ios', sharedAvailable: true },
+      adapters: { 'snapback-shared-browser': () => Promise.reject(new Error('must not run')) },
+    },
+  }));
+  try {
+    const before = server.requests.length;
+    await assert.rejects(
+      appClient.auth.signIn({ provider: 'google' }),
+      (error) => error?.code === 'SNAPBACK_AUTH_PROVIDER_UNDECLARED',
+    );
+    assert.equal(server.requests.length, before);
+  } finally {
+    await appClient.dispose();
+    server.restore();
+  }
+});
+
+test('a client with no Adapters refuses provider sign-in instead of improvising', async () => {
+  const server = installServer();
+  const app = makeApp({
+    entryMechanisms: ['external-session-explicit-v1'],
+    providers: DECLARED_PROVIDERS,
+  });
+  const appClient = await createSnapbackAppClient(optionsFor(app));
+  try {
+    assert.equal(appClient.auth.providerEntry('apple'), null);
+    await assert.rejects(
+      appClient.auth.signIn({ provider: 'apple' }),
+      (error) => error?.code === 'SNAPBACK_AUTH_PROVIDER_ADAPTER_UNAVAILABLE',
+    );
+  } finally {
+    await appClient.dispose();
+    server.restore();
+  }
+});
+
+test('a native Adapter failure ends the attempt and never opens the shared Adapter', async () => {
+  const server = installServer();
+  const app = makeApp({
+    entryMechanisms: ['external-session-explicit-v1'],
+    providers: DECLARED_PROVIDERS,
+  });
+  const adapterCalls = [];
+  const appClient = await createSnapbackAppClient(optionsFor(app, makeBinding(app), {
+    authProviders: {
+      context: {
+        deployment: 'development',
+        platform: 'ios',
+        sharedAvailable: true,
+        appOwned: { configReady: true, configGeneration: 'cfg-1' },
+        nativeBuild: { ready: true, receipt: 'build-1' },
+      },
+      adapters: {
+        'app-owned-native': () => {
+          adapterCalls.push('app-owned-native');
+          const error = new Error('the provider returned invalid_client');
+          error.code = 'PROVIDER_INVALID_CLIENT';
+          return Promise.reject(error);
+        },
+        'snapback-shared-browser': () => {
+          adapterCalls.push('snapback-shared-browser');
+          return Promise.resolve({ exchange: { challengeId: 'c', code: 'k' } });
+        },
+      },
+    },
+  }));
+  try {
+    assert.equal(appClient.auth.providerEntry('apple').adapter, 'app-owned-native');
+    const before = server.requests.length;
+    // The Adapter's own failure *is* the result of the call: an anonymous entry
+    // surfaces it unwrapped, so the caller reads the provider's refusal.
+    await assert.rejects(
+      appClient.auth.signIn({ provider: 'apple' }),
+      (error) => error?.code === 'PROVIDER_INVALID_CLIENT',
+    );
+    assert.deepEqual(adapterCalls, ['app-owned-native']);
+    assert.equal(server.requests.length, before, 'no completion may be redeemed after a native failure');
+    assert.equal(appClient.auth.currentPrincipal().status, 'anonymous');
+  } finally {
+    await appClient.dispose();
+    server.restore();
+  }
+});
+
+test('an Adapter that returns no external completion refuses instead of minting custody', async () => {
+  const server = installServer();
+  const app = makeApp({
+    entryMechanisms: ['external-session-explicit-v1'],
+    providers: DECLARED_PROVIDERS,
+  });
+  const appClient = await createSnapbackAppClient(optionsFor(app, makeBinding(app), {
+    authProviders: {
+      context: { deployment: 'development', platform: 'ios', sharedAvailable: true },
+      adapters: { 'snapback-shared-browser': () => Promise.resolve({ profile: {} }) },
+    },
+  }));
+  try {
+    await assert.rejects(
+      appClient.auth.signIn({ provider: 'apple' }),
+      (error) => error?.code === 'SNAPBACK_AUTH_PROVIDER_COMPLETION_INVALID',
+    );
+    assert.equal(appClient.auth.currentPrincipal().status, 'anonymous');
+  } finally {
+    await appClient.dispose();
+    server.restore();
+  }
+});
+
+test('provider entry requires the external-session seam the completion path uses', async () => {
+  const server = installServer();
+  const app = makeApp({ entryMechanisms: ['password-v1'], providers: DECLARED_PROVIDERS });
+  const appClient = await createSnapbackAppClient(optionsFor(app, makeBinding(app), {
+    authProviders: {
+      context: { deployment: 'development', platform: 'ios', sharedAvailable: true },
+      adapters: { 'snapback-shared-browser': () => Promise.reject(new Error('must not run')) },
+    },
+  }));
+  try {
+    await assert.rejects(
+      appClient.auth.signIn({ provider: 'apple' }),
+      (error) => error?.code === 'SNAPBACK_AUTH_BOOTSTRAP_MECHANISM_UNAVAILABLE'
+        && error?.diagnostic?.details?.mechanism === 'external-session-explicit-v1',
+    );
+  } finally {
+    await appClient.dispose();
+    server.restore();
+  }
+});
+
+test('a shared-only deployment posture blocks the entry rather than resolving one', async () => {
+  const server = installServer();
+  const app = makeApp({
+    entryMechanisms: ['external-session-explicit-v1'],
+    providers: DECLARED_PROVIDERS,
+  });
+  const appClient = await createSnapbackAppClient(optionsFor(app, makeBinding(app), {
+    authProviders: {
+      context: { deployment: 'production', platform: 'ios', sharedAvailable: true },
+      adapters: { 'app-owned-native': () => Promise.reject(new Error('must not run')) },
+    },
+  }));
+  try {
+    const entry = appClient.auth.providerEntry('apple');
+    assert.equal(entry.readiness, 'blocked');
+    assert.equal(entry.diagnosticCode, 'SNAPBACK_AUTH_PROVIDER_APP_OWNED_REQUIRED');
+    await assert.rejects(
+      appClient.auth.signIn({ provider: 'apple' }),
+      (error) => error?.code === 'SNAPBACK_AUTH_PROVIDER_APP_OWNED_REQUIRED',
+    );
+  } finally {
+    await appClient.dispose();
+    server.restore();
+  }
+});
+
+test('supplying Adapters for an app that declares no provider refuses at construction', async () => {
+  const server = installServer();
+  try {
+    await assert.rejects(
+      createSnapbackAppClient(optionsFor(makeApp(), makeBinding(makeApp()), {
+        authProviders: {
+          context: { deployment: 'development', platform: 'ios' },
+          adapters: { 'snapback-shared-browser': () => Promise.resolve({}) },
+        },
+      })),
+      (error) => error?.code === 'SNAPBACK_AUTH_PROVIDER_UNDECLARED',
+    );
+  } finally {
+    server.restore();
+  }
+});

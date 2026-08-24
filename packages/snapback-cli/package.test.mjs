@@ -596,6 +596,33 @@ console.log(JSON.stringify({
     projectRoot: packagedProject,
     verify: true,
   }).reason, 'framework-drift');
+  // A fresh consumer's first proof, and every proof after a runtime upgrade,
+  // requalifies live instead of demanding a separate command.
+  const reacquired = packagedRuntimeReadiness({
+    runtimeBinary: packagedBinary,
+    projectRoot: packagedProject,
+    verify: true,
+    acquire: true,
+  });
+  assert.equal(reacquired.ok, true);
+  assert.equal(reacquired.acquired, 'framework-drift');
+  rmSync(join(packagedProject, '.snapback'), { recursive: true, force: true });
+  const firstRun = packagedRuntimeReadiness({
+    runtimeBinary: packagedBinary,
+    projectRoot: packagedProject,
+    verify: true,
+    acquire: true,
+  });
+  assert.equal(firstRun.ok, true);
+  assert.equal(firstRun.acquired, 'absent');
+  // Tampering stays loud: acquisition never rewrites a receipt a person must read.
+  writeFileSync(firstRun.receiptPath, '{"schemaVersion":"snapback.runtime-readiness.v1"}\n');
+  assert.equal(packagedRuntimeReadiness({
+    runtimeBinary: packagedBinary,
+    projectRoot: packagedProject,
+    verify: true,
+    acquire: true,
+  }).reason, 'malformed');
 
   const project = join(root, 'todo-contract');
   const scaffold = scaffoldApp(project);

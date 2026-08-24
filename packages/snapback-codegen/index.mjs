@@ -1608,6 +1608,19 @@ function deriveApplicationAuthBootstrapV1({
   });
   const tableAllowsAnonymous = Object.values(tables ?? {})
     .some((table) => visibilityAdmitsAnonymousPublic(table.visibility));
+  // @ref LLP 0151#default-development-provider-profiles — the declaration is
+  // the source of provider policy, so the bootstrap carries the declared
+  // providers and their credential policy and nothing else. No client id,
+  // callback secret, signing key, or resolved Adapter appears here: resolution
+  // is a deployment-time fact, not a generated one.
+  const declaredProviders = Object.values(authProgram?.providers ?? {})
+    .map((declaration) => ({
+      provider: declaration.provider,
+      kind: declaration.kind,
+      ...(declaration.kind === 'oidc' ? { preset: declaration.preset } : {}),
+      credentials: declaration.credentials,
+    }))
+    .sort((left, right) => (left.provider < right.provider ? -1 : left.provider > right.provider ? 1 : 0));
   return {
     format: APPLICATION_AUTH_BOOTSTRAP_FORMAT,
     appId,
@@ -1615,6 +1628,7 @@ function deriveApplicationAuthBootstrapV1({
     custody,
     entryMechanisms: APPLICATION_AUTH_BOOTSTRAP_ENTRY_MECHANISMS
       .filter((entry) => admittedEntries.has(entry)),
+    ...(declaredProviders.length === 0 ? {} : { providers: declaredProviders }),
     anonymousPublic: operationAllowsAnonymous || tableAllowsAnonymous ? 'allowed' : 'refused',
     lifecycleProtocol: 1,
   };
@@ -16767,12 +16781,26 @@ function renderAppTypes(
     }),
     '}',
     ...(applicationAuthBootstrap === undefined ? [] : [
+      // @ref LLP 0151#default-development-provider-profiles — the declared
+      // provider names become one generated union, so `auth.signIn` can only
+      // name a provider this app's declaration actually carries.
+      'export type ApplicationAuthProviderV1 =',
+      "  | Readonly<{ provider: 'apple'; kind: 'apple'; credentials: 'auto' | 'shared' | 'app-owned' }>",
+      "  | Readonly<{ provider: 'google'; kind: 'oidc'; preset: 'google'; credentials: 'auto' | 'shared' | 'app-owned' }>;",
+      `export type GeneratedAuthProviderName = ${
+        (applicationAuthBootstrap.providers ?? []).length === 0
+          ? 'never'
+          : (applicationAuthBootstrap.providers ?? [])
+            .map(({ provider }) => JSON.stringify(provider))
+            .join(' | ')
+      };`,
       'export interface ApplicationAuthBootstrapV1 {',
       "  readonly format: 'snapback.application-auth-bootstrap.v1';",
       '  readonly appId: string;',
       "  readonly mode: 'sessions';",
       "  readonly custody: 'durable-required' | 'volatile-explicit';",
       "  readonly entryMechanisms: readonly ('guest-v1' | 'password-v1' | 'email-code-v1' | 'external-session-explicit-v1')[];",
+      '  readonly providers?: readonly ApplicationAuthProviderV1[];',
       "  readonly anonymousPublic: 'allowed' | 'refused';",
       '  readonly lifecycleProtocol: 1;',
       '}',

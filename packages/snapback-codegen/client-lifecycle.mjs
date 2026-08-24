@@ -55,6 +55,14 @@ const applicationAuthSource = {
       semanticIdentityEffect: 'rotates-semanticId',
       familiarDisposition: { disposition: 1, route: 'shared auth extension' },
     },
+    providers: {
+      derivation: 'normalized-defineAuth:providers',
+      semanticIdentityEffect: 'rotates-semanticId',
+      // Absent, not empty, when the declaration names no provider: an app that
+      // declares nothing keeps the descriptor bytes it already had.
+      optional: true,
+      familiarDisposition: { disposition: 1, route: 'shared auth extension' },
+    },
     anonymousPublic: {
       derivation: 'normalized-functions:authRequirement+normalized-schema:table.visibility',
       semanticIdentityEffect: 'rotates-semanticId',
@@ -74,7 +82,7 @@ const applicationAuthSource = {
     custody: { disposition: 'bootstrap-source', bootstrapProjection: ['custody'] },
     externalSessionEntry: { disposition: 'bootstrap-source', bootstrapProjection: ['entryMechanisms'] },
     mechanisms: { disposition: 'bootstrap-and-mechanism-source', bootstrapProjection: ['entryMechanisms'] },
-    providers: { disposition: 'semantic-source-no-bootstrap-field', bootstrapProjection: [] },
+    providers: { disposition: 'bootstrap-source', bootstrapProjection: ['providers'] },
     assuranceRequirements: { disposition: 'semantic-source-no-bootstrap-field', bootstrapProjection: [] },
     recoveryPolicy: { disposition: 'recovery-lifecycle-source', bootstrapProjection: [] },
     guestPolicy: { disposition: 'guest-entry-policy-source', bootstrapProjection: ['entryMechanisms'] },
@@ -302,9 +310,17 @@ const applicationAuthSource = {
       { class: 'binding-capability-unavailable', state: 'error', remediations: ['selectCompatibleBinding'], codes: ['SNAPBACK_AUTH_BOOTSTRAP_CAPABILITY_UNAVAILABLE'] },
       { class: 'binding-owner-conflict', state: 'error', remediations: ['disposeAndReconstruct', 'useStoragePartition'], codes: ['SNAPBACK_AUTH_BOOTSTRAP_BINDING_CONFLICT'] },
       { class: 'rqs-store-identity-conflict', state: 'error', remediations: ['disposeAndReconstruct'], codes: ['SNAPBACK_AUTH_BOOTSTRAP_RQS_STORE_CONFLICT'] },
+      // An explicitly injected queue store cannot share authority-transition
+      // custody with volatile auth (LLP 0059 transition barrier). Nothing was
+      // constructed, so the only move is to construct different inputs.
+      { class: 'rqs-store-custody-incompatible', state: 'error', remediations: ['disposeAndReconstruct'], codes: ['SNAPBACK_AUTH_BOOTSTRAP_RQS_STORE_INCOMPATIBLE'] },
       { class: 'live-policy-rotation', state: 'error', remediations: ['disposeAndReconstruct'], codes: ['SNAPBACK_AUTH_BOOTSTRAP_POLICY_ROTATION'] },
       { class: 'stale-or-expired-binding', state: 'error', remediations: ['retryAuthBootstrap'], codes: ['SNAPBACK_AUTH_BOOTSTRAP_BINDING_STALE', 'SNAPBACK_APP_BINDING_EXPIRED'] },
       { class: 'hosted-binding-invalid', state: 'error', remediations: ['retryAuthBootstrap'], codes: ['SNAPBACK_APP_BINDING_TARGET_INVALID', 'SNAPBACK_APP_BINDING_INTEGRITY_INVALID'] },
+      // The selected custody platform could not compute the storage-partition
+      // digest: no admitted SHA-256 adapter and no WebCrypto, or the digest
+      // itself refused. Retrying is the only client-side move.
+      { class: 'custody-digest-unavailable', state: 'error', remediations: ['retryAuthBootstrap', 'selectSupportedPlatform'], codes: ['SNAPBACK_AUTH_BOOTSTRAP_DIGEST_MODULE_UNAVAILABLE', 'SNAPBACK_AUTH_BOOTSTRAP_DIGEST_FAILED'] },
       { class: 'completeness-unclassified', state: 'error', remediations: ['regenerateAppDescriptor'], codes: [AUTH_BOOTSTRAP_COMPLETENESS_UNCLASSIFIED_CODE] },
       { class: 'bootstrap-failure-fallback', state: 'error', remediations: ['retryAuthBootstrap'], codes: ['SNAPBACK_AUTH_BOOTSTRAP_FAILED'] },
       { class: 'custody-corrupt-or-unrecognized', state: 'blocked', remediations: ['retryAuthBootstrap'], codes: ['SNAPBACK_AUTH_CUSTODY_CORRUPT', 'SNAPBACK_AUTH_CUSTODY_AMBIGUOUS', 'SNAPBACK_AUTH_CUSTODY_REVISION_EXHAUSTED', 'SNAPBACK_AUTH_AUTHORITY_EPOCH_EXHAUSTED'] },

@@ -20,6 +20,10 @@ import {
   stampedDeclaredDevIdentity,
 } from './declared-dev-capability.mjs';
 import { SnapbackClient } from './index.mjs';
+import {
+  createProviderEntryDispatch,
+  resolveDeclaredProviderEntries,
+} from './provider-entry.mjs';
 import { isDefaultRqsStoreResolution } from './rqs-store-default.mjs';
 
 export { DEFAULT_AUTH_STORAGE_PARTITION } from './app-client-defaults.mjs';
@@ -52,6 +56,11 @@ const POLICY_MECHANISMS = [
   'email-code-v1',
   'external-session-explicit-v1',
 ];
+// @ref LLP 0151#default-development-provider-profiles — the generated policy
+// carries declared providers and their credential policy, and nothing else.
+const POLICY_PROVIDERS = ['apple', 'google'];
+const POLICY_PROVIDER_KINDS = ['apple', 'oidc'];
+const POLICY_CREDENTIAL_MODES = ['auto', 'shared', 'app-owned'];
 const HOSTED_DEVELOPMENT_ADMISSION = Symbol.for(
   '@expo/snapback-client/hosted-development-admission.v1',
 );
@@ -304,6 +313,21 @@ function validateAppPolicy(app) {
     );
   }
   const policy = app.authBootstrap;
+  const policyKeys = isRecord(policy) && Object.hasOwn(policy, 'providers')
+    ? [...POLICY_KEYS, 'providers']
+    : POLICY_KEYS;
+  const canonicalProviders = !Object.hasOwn(policy ?? {}, 'providers')
+    || (Array.isArray(policy.providers)
+      && policy.providers.length > 0
+      && policy.providers.every((entry, index) => isRecord(entry)
+        && POLICY_PROVIDERS.includes(entry.provider)
+        && POLICY_PROVIDER_KINDS.includes(entry.kind)
+        && POLICY_CREDENTIAL_MODES.includes(entry.credentials)
+        && (entry.kind !== 'oidc' || entry.preset === entry.provider)
+        && exactKeys(entry, entry.kind === 'oidc'
+          ? ['credentials', 'kind', 'preset', 'provider']
+          : ['credentials', 'kind', 'provider'])
+        && (index === 0 || policy.providers[index - 1].provider < entry.provider)));
   const canonicalMechanisms = Array.isArray(policy?.entryMechanisms)
     && policy.entryMechanisms.every((entry) => POLICY_MECHANISMS.includes(entry))
     && new Set(policy.entryMechanisms).size === policy.entryMechanisms.length
@@ -313,7 +337,8 @@ function validateAppPolicy(app) {
         < POLICY_MECHANISMS.indexOf(entry)
     ));
   if (
-    !exactKeys(policy, POLICY_KEYS)
+    !exactKeys(policy, policyKeys)
+    || !canonicalProviders
     || policy.format !== 'snapback.application-auth-bootstrap.v1'
     || policy.appId !== app.identity.app
     || policy.mode !== 'sessions'
@@ -335,6 +360,44 @@ function validateAppPolicy(app) {
     );
   }
   return policy;
+}
+
+// @ref LLP 0151#resolved-provider-entry — resolution happens once, here, from
+// facts the construction site already holds: the declaration, the deployment
+// profile, configuration readiness, and the installed build's receipt. The
+// result is frozen for the life of this owner, so no single attempt can change
+// which Adapter serves it.
+function validateAuthProviders(authProviders, policy) {
+  const declared = policy.providers ?? [];
+  if (authProviders === undefined || authProviders === null) return null;
+  if (!isRecord(authProviders)
+    || !isRecord(authProviders.context)
+    || !isRecord(authProviders.adapters)) {
+    throw new TypeError(
+      'createSnapbackAppClient `authProviders` must be { context, adapters }',
+    );
+  }
+  if (declared.length === 0) {
+    throw refusal(
+      'SNAPBACK_AUTH_PROVIDER_UNDECLARED',
+      'Provider Adapters were supplied, but the generated application auth policy declares no provider.',
+      { declared: [] },
+      [remediation(
+        'regenerateAppDescriptor',
+        'Run snapback auth enable for the providers this client carries, then regenerate.',
+        {},
+      )],
+    );
+  }
+  const entries = resolveDeclaredProviderEntries(
+    declared,
+    { ...authProviders.context, appId: policy.appId },
+    authProviders.nowMs,
+  );
+  return Object.freeze({
+    entries,
+    dispatch: createProviderEntryDispatch(entries, authProviders.adapters),
+  });
 }
 
 function validateBinding(binding, app, policy, now = Date.now, declaredDevInternal = false) {
@@ -626,11 +689,12 @@ function preflight(input) {
   if (Object.hasOwn(input, 'now')) expectedInputKeys.push('now');
   if (Object.hasOwn(input, 'signal')) expectedInputKeys.push('signal');
   if (Object.hasOwn(input, 'rqsStore')) expectedInputKeys.push('rqsStore');
+  if (Object.hasOwn(input, 'authProviders')) expectedInputKeys.push('authProviders');
   if (Object.hasOwn(input, 'onDiagnostic')) expectedInputKeys.push('onDiagnostic');
   if (!exactKeys(input, expectedInputKeys)) {
     throw refusal(
       'SNAPBACK_AUTH_BOOTSTRAP_INPUT_INVALID',
-      'createSnapbackAppClient accepts app, platform, one binding source, and optional storagePartition, now, signal, rqsStore, streamless, and onDiagnostic.',
+      'createSnapbackAppClient accepts app, platform, one binding source, and optional storagePartition, now, signal, rqsStore, streamless, authProviders, and onDiagnostic.',
       { actualKeys: Object.keys(input).sort() },
     );
   }
@@ -736,6 +800,7 @@ function preflight(input) {
     throw new TypeError('createSnapbackAppClient `streamless` must be boolean when provided');
   }
   validateBinding(binding, app, policy, now, declaredDevInternal);
+  const authProviders = validateAuthProviders(input.authProviders, policy);
   const platform = normalizePlatform(input.platform);
   const storagePartition = validateStoragePartition(
     input.storagePartition ?? DEFAULT_AUTH_STORAGE_PARTITION,
@@ -791,6 +856,7 @@ function preflight(input) {
     binding,
     platform,
     policy,
+    authProviders,
     storagePartition,
     storagePartitionExplicit: input.storagePartition != null,
     signal,
@@ -819,6 +885,9 @@ const policyIdentity = (policy) => JSON.stringify([
   policy.mode,
   policy.custody,
   policy.entryMechanisms,
+  // A provider declaration change rotates the policy identity, so a live owner
+  // observes it as a policy rotation instead of quietly serving the old set.
+  policy.providers ?? null,
   policy.anonymousPublic,
   policy.lifecycleProtocol,
 ]);
@@ -1187,6 +1256,7 @@ async function constructOwner(preflighted, bootstrapObservers, onOwner) {
     storagePartition: preflighted.storagePartition,
     rqsStoreIdentity: preflighted.rqsStoreIdentity,
     policy: preflighted.policy,
+    providerDispatch: preflighted.authProviders?.dispatch ?? null,
     policyIdentity: policyIdentity(preflighted.policy),
     generationIdentity: generationIdentity(preflighted),
     conflictIdentity: conflictIdentity(preflighted.binding),
@@ -1481,6 +1551,43 @@ function requireGuestMechanism(owner) {
   );
 }
 
+// @ref LLP 0151#default-development-provider-profiles — the declaration is the
+// source of provider policy, so a provider the generated policy does not name
+// is a refusal here rather than a runtime guess.
+function requireDeclaredProvider(owner, provider) {
+  const declared = (owner.policy.providers ?? []).map((entry) => entry.provider);
+  if (declared.includes(provider)) return;
+  throw refusal(
+    'SNAPBACK_AUTH_PROVIDER_UNDECLARED',
+    `The generated application auth policy does not declare the provider ${JSON.stringify(provider)}.`,
+    { provider, declared },
+    [remediation(
+      'regenerateAppDescriptor',
+      'Run snapback auth enable for this provider, then regenerate.',
+      { provider },
+    )],
+    { operation: 'auth-provider-sign-in', effectCommitted: false, effectMayHaveCommitted: false },
+  );
+}
+
+// The Adapter runs the provider flow and hands back one short-lived external
+// completion. Custody, authority replacement, and the signed-in state stay with
+// the ordinary coordinator, so provider entry adds no second signed-in state.
+function requireProviderAdapters(owner) {
+  if (owner.providerDispatch !== null) return owner.providerDispatch;
+  throw refusal(
+    'SNAPBACK_AUTH_PROVIDER_ADAPTER_UNAVAILABLE',
+    'This client was constructed without provider Adapters, so it cannot start a provider sign-in.',
+    {},
+    [remediation(
+      'disposeAndReconstruct',
+      'Pass authProviders when constructing the application client.',
+      {},
+    )],
+    { operation: 'auth-provider-sign-in', effectCommitted: false, effectMayHaveCommitted: false },
+  );
+}
+
 function requireExternalSessionEntry(owner) {
   if (owner.policy.entryMechanisms.includes('external-session-explicit-v1')) return;
   throw refusal(
@@ -1519,11 +1626,17 @@ async function enterWith(owner, operation, {
   requireGuest = false,
   requirePassword = false,
   requireExternal = false,
+  requireProvider = null,
 } = {}) {
   return serializeOwner(owner, async () => {
     if (requireGuest) requireGuestMechanism(owner);
     if (requirePassword) requirePasswordMechanism(owner);
     if (requireExternal) requireExternalSessionEntry(owner);
+    if (requireProvider !== null) {
+      requireDeclaredProvider(owner, requireProvider);
+      requireProviderAdapters(owner);
+      requireExternalSessionEntry(owner);
+    }
     const principal = owner.client.auth.currentPrincipal();
     if (['loading', 'refreshing', 'blocked'].includes(principal.status)) {
       throw unsettledEntryError(principal.status);
@@ -1639,6 +1752,37 @@ function createFacade(owner, subscriptions) {
       () => owner.client.auth.authPasswordSignIn(input),
       { requirePassword: true },
     ),
+    // @ref LLP 0151#default-development-provider-profiles — one stable call for
+    // every provider and every Adapter. The resolved Adapter is frozen before
+    // the attempt starts; its failure is the result of this call, never a
+    // reason to open a different Adapter (LLP 0151 §native failures never fall
+    // back).
+    signIn: (input) => enterWith(
+      owner,
+      async () => {
+        const provider = input?.provider;
+        const completion = await owner.providerDispatch.signIn(provider);
+        const exchange = completion?.exchange;
+        if (!isRecord(exchange)
+          || typeof exchange.challengeId !== 'string'
+          || typeof exchange.code !== 'string') {
+          throw refusal(
+            'SNAPBACK_AUTH_PROVIDER_COMPLETION_INVALID',
+            'The provider Adapter returned no short-lived external completion to redeem.',
+            { provider },
+            [],
+            {
+              operation: 'auth-provider-sign-in',
+              effectCommitted: false,
+              effectMayHaveCommitted: false,
+            },
+          );
+        }
+        return owner.client.auth.authExchange(exchange);
+      },
+      { requireProvider: input?.provider ?? null },
+    ),
+    providerEntry: (provider) => owner.providerDispatch?.entry(provider) ?? null,
     // @ref LLP 0151#the-oauth-completion-protocol — an app-owned provider
     // broker may hand the application one short-lived email-code exchange;
     // the ordinary coordinator still owns bearer custody and authority

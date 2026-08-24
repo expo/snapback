@@ -41,6 +41,11 @@ import {
 } from './process-teardown.mjs';
 import { createSupervisedBindingPublisher } from './expo-binding-refresh.mjs';
 import {
+  createSharedDevelopmentBroker,
+  sharedDevelopmentAuthProjection,
+  supervisedSharedAuthReturnTargets,
+} from './shared-development-broker.mjs';
+import {
   devPortPlanOwner,
   materializeDevPortPlan,
   resolveDevPortPlan,
@@ -1574,10 +1579,20 @@ async function waitForListenerInventory({
 
 export async function startBootstrapExchange(
   getPayload,
-  { onControl, onDevIdentityCheckout, port = 0 } = {},
+  { onControl, onDevIdentityCheckout, onSharedAuth, port = 0 } = {},
 ) {
   const sockets = new Set();
   const handleRequest = async (request, response) => {
+    // @ref LLP 0151#shared-development-browser-adapter — the shared development
+    // broker is mounted on the origin the client already discovers, so a new app
+    // needs no second terminal and no broker origin to configure. These routes
+    // are checked before the bootstrap CORS projection is applied, because the
+    // JSON routes are app-facing and the HTML route is same-origin by
+    // construction.
+    if (typeof onSharedAuth === 'function' && (request.url ?? '/').startsWith('/v1/shared/')) {
+      const url = new URL(request.url, 'http://supervisor.local');
+      if (await onSharedAuth(request, response, url)) return;
+    }
     const admittedOrigin = admittedBrowserExchangeOrigin(request.headers.origin);
     response.setHeader('cache-control', 'no-store, max-age=0');
     response.setHeader('pragma', 'no-cache');
@@ -1917,6 +1932,39 @@ async function startMetroWebFront({ port, upstreamOrigin, attestation }) {
   });
 }
 
+// @ref LLP 0151#resolved-provider-entry — the deployment posture the broker
+// admits against is supervisor-held. It is read from the supervisor's own
+// environment, never from the client bundle or public Expo configuration, and
+// `snapback dev` is a development supervisor unless its operator says otherwise.
+function expoSharedAuthDeploymentProfile(env) {
+  const declared = env?.SNAPBACK_DEV_AUTH_DEPLOYMENT_PROFILE;
+  if (typeof declared !== 'string' || declared.length === 0) return 'development';
+  const admitted = ['test', 'development', 'preview', 'staging', 'production'];
+  if (!admitted.includes(declared)) {
+    throw diagnosticError(
+      'SNAPBACK_CLI_ARGUMENT_INVALID',
+      `SNAPBACK_DEV_AUTH_DEPLOYMENT_PROFILE must be one of ${admitted.join(', ')}`,
+      { declared },
+    );
+  }
+  return declared;
+}
+
+// The mechanical `<ready-file>.impersonation` sibling, and only that path. A
+// descriptor naming anything else is a refusal rather than a file read.
+function readSupervisedImpersonationCapability(descriptor, readyFile) {
+  const advertised = descriptor?.impersonationCapabilityFile;
+  const expected = `${resolve(readyFile)}.impersonation`;
+  if (typeof advertised !== 'string' || resolve(advertised) !== expected) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_IMPERSONATION_CAPABILITY_UNAVAILABLE',
+      'the readiness descriptor names no mechanical impersonation capability sibling',
+      { advertised: advertised ?? null, expected },
+    );
+  }
+  return readFileSync(advertised, 'utf8').trim();
+}
+
 async function bindPlannedSupervisorListeners({
   plan,
   platform,
@@ -1924,6 +1972,7 @@ async function bindPlannedSupervisorListeners({
   getBootstrapPayload,
   onControl,
   onDevIdentityCheckout,
+  onSharedAuth,
   onReservation,
   afterOwnerBound,
 }) {
@@ -1946,6 +1995,7 @@ async function bindPlannedSupervisorListeners({
         return startBootstrapExchange(getBootstrapPayload, {
           onControl,
           onDevIdentityCheckout,
+          onSharedAuth,
           port,
         });
       }
@@ -2153,6 +2203,10 @@ export async function runExpoDev(options = {}) {
     statusCode: 503,
     body: { ok: false, code: 'SNAPBACK_EXPO_BOOTSTRAP_UNAVAILABLE' },
   });
+  // The supervised shared development auth broker, built once the backend
+  // origin and its admin/impersonation carriers are known.
+  let sharedAuthBroker = null;
+  let sharedAuthProjection = sharedDevelopmentAuthProjection(null, null);
   const close = () => {
     if (closePromise !== null) return closePromise;
     closePromise = (async () => {
@@ -2318,10 +2372,20 @@ export async function runExpoDev(options = {}) {
               correlationId,
               binding: exchangeBinding,
               authority,
+              // @ref LLP 0151#shared-development-browser-adapter — the broker
+              // origin and its one exact return target are credential-free, so
+              // they ride the ordinary exchange instead of an EXPO_PUBLIC_*
+              // variable the author would have to set and keep fresh.
+              sharedAuth: sharedAuthProjection,
             });
       },
       onDevIdentityCheckout: (presented) => checkoutRegistry?.redeem(presented) ?? null,
       onControl: (request) => handleBootstrapControl(request),
+      onSharedAuth: (request, response, url) => (
+        sharedAuthBroker === null
+          ? Promise.resolve(false)
+          : sharedAuthBroker.handle(request, response, url)
+      ),
     });
     if (closed) {
       try { await reservedListeners.close(); } catch { /* latched critical exit wins */ }
@@ -2449,6 +2513,28 @@ export async function runExpoDev(options = {}) {
     }
     let descriptor = JSON.parse(readFileSync(appDescriptorPath, 'utf8'));
     const readyDescriptor = readReadyDescriptor(dev.readyFile);
+    // @ref LLP 0151#shared-development-browser-adapter — the broker exists only
+    // when this app declares a provider, and only when server-held deployment
+    // state admits the shared profile. Its origin is the one the client already
+    // discovers, so no second terminal and no broker origin configuration.
+    if ((descriptor.authBootstrap?.providers ?? []).length > 0) {
+      sharedAuthBroker = createSharedDevelopmentBroker({
+        appId: descriptor.identity.app,
+        serverOrigin: dev.serverUrl.replace(/\/$/u, ''),
+        adminToken: managedAdminToken(readyDescriptor, database),
+        impersonationCapability: readSupervisedImpersonationCapability(readyDescriptor, dev.readyFile),
+        returnTargets: supervisedSharedAuthReturnTargets(metroPort),
+        deploymentProfile: expoSharedAuthDeploymentProfile(childEnv),
+      });
+      sharedAuthProjection = sharedDevelopmentAuthProjection(sharedAuthBroker, bootstrap.origin);
+      if (!sharedAuthBroker.available) {
+        emit({
+          ok: true,
+          state: 'shared-auth-unavailable',
+          sharedAuth: sharedAuthProjection,
+        });
+      }
+    }
     checkoutRegistry = createDevIdentityCheckoutRegistry({
       getReadyDescriptor: () => readReadyDescriptor(dev.readyFile),
     });

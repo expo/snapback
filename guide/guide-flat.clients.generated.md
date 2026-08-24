@@ -3585,6 +3585,30 @@ into the common application client and exposes `useSnapbackAuth()` plus
 for anonymous `ready`, signup and its one-time recovery projection, sign-in,
 restoration, sign-out, and user switch.
 
+### Sign in with Apple or Google
+
+`snapback auth enable apple google` writes the providers into the app's own auth
+declaration. After `snapback generate`, `snapback dev --expo` supervises a
+shared development broker on the same loopback origin the client already
+discovers, and `SnapbackExpoProvider` builds the matching Adapter automatically:
+there is no second terminal, no broker origin to configure, and no
+`EXPO_PUBLIC_*` variable to set. The app then calls
+`auth.signIn({ provider: 'apple' })` and nothing else changes when it later
+moves to its own credentials.
+
+The Adapter needs `expo-web-browser` and `expo-linking`, which this package does
+not depend on. An app that enables a provider installs them; one that never does
+acquires neither, and a missing module is a named refusal rather than a bundler
+error. Return targets are derived from the supervised client port, so Expo Go
+receives the callback with **no app-owned native build**.
+
+The identities are hermetic rehearsal identities issued by the local
+supervisor. They are not Apple or Google logins, they are app-scoped, and they
+cannot enter a staging or production deployment. See
+[Sign in with Apple or Google in development](../auth/native-apps.md#sign-in-with-apple-or-google-in-development)
+for the readiness rules, the frozen-Adapter contract, and what moving to
+app-owned credentials changes.
+
 Expo web has the shipped browser durable-custody evidence. Both native OS
 paths ship at the exact iOS/Android + `single-runtime` tuples on their
 separate Phase-2 receipts in the published 0.1.24 closure (first publish
@@ -3671,9 +3695,13 @@ cp -R ../snapback-backend-scaffold/snapback ./snapback
 npx snapback generate snapback --json
 ```
 
-This is the published workflow proved by the external G4 repository; the
-extra sibling ceremony is a known scaffold limitation rather than a hidden
-`snapback init` command.
+This is the published workflow proved by the external G4 repository. A
+`snapback init` command does exist and is published, but no published version
+adopts either shape `create-expo-app` ships today — the pristine
+`blank-typescript` `tsconfig.json` omits `include`, and the default Router
+template puts routes under `src/app/` — so the sibling ceremony remains the
+paved path until a publication carries the fix (LLP 0261, 2026-08-24
+amendment).
 
 A blank Expo TypeScript scaffold includes the whole tree. Snapback's generated
 directory also carries provider-neutral Contract source projections that are

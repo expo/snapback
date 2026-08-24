@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import assert from 'node:assert/strict';
-import { webcrypto } from 'node:crypto';
+import { createHash, randomBytes, webcrypto } from 'node:crypto';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -54,18 +54,47 @@ const bindingFor = (origin) => {
   });
 };
 
-async function brokerLogin(origin, provider) {
-  const response = await fetch(`${origin}/v1/fixture/login`, {
+async function jsonPost(origin, path, body) {
+  const response = await fetch(`${origin}${path}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ provider }),
+    body: JSON.stringify(body),
   });
-  const body = await response.json();
-  assert.equal(response.status, 200, JSON.stringify(body));
-  assert.equal(body.profile.provider, provider);
-  assert.equal(typeof body.exchange.challengeId, 'string');
-  assert.equal(typeof body.exchange.code, 'string');
-  return body;
+  const result = await response.json();
+  assert.equal(response.status, 200, JSON.stringify(result));
+  return result;
+}
+
+async function brokerLogin(origin, provider) {
+  const verifier = randomBytes(32).toString('base64url');
+  const codeChallenge = createHash('sha256').update(verifier).digest('base64url');
+  const started = await jsonPost(origin, '/v1/shared/start', {
+    appId: schema.appId,
+    provider,
+    returnTo: 'knockoff://auth/shared',
+    codeChallenge,
+  });
+  const page = await fetch(new URL(started.authorizationPath, origin));
+  assert.equal(page.status, 200);
+  assert.match(await page.text(), new RegExp(`Continue with ${provider === 'apple' ? 'Apple' : 'Google'}`, 'u'));
+  const authorized = await fetch(`${origin}/v1/shared/complete?transaction=${encodeURIComponent(started.transactionId)}`, {
+    redirect: 'manual',
+  });
+  assert.equal(authorized.status, 302);
+  const callback = new URL(authorized.headers.get('location'));
+  assert.equal(callback.searchParams.get('state'), started.state);
+  assert.deepEqual([...callback.searchParams.keys()].sort(), ['code', 'state']);
+  const result = await jsonPost(origin, '/v1/shared/redeem', {
+    appId: schema.appId,
+    code: callback.searchParams.get('code'),
+    verifier,
+  });
+  assert.equal(result.profile.provider, provider);
+  assert.equal(result.entry.adapter, 'snapback-shared-browser');
+  assert.equal(result.entry.identityRealm, 'rehearsal');
+  assert.equal(typeof result.exchange.challengeId, 'string');
+  assert.equal(typeof result.exchange.code, 'string');
+  return result;
 }
 
 async function enter(provider) {
@@ -100,6 +129,10 @@ try {
     appId: schema.appId,
     identitySecret: 'knockoff-social-auth-acceptance-secret-v1',
     allowFixtures: true,
+    allowSharedDevelopment: true,
+    deploymentProfile: 'development',
+    sharedReturnTargets: ['knockoff://auth/shared'],
+    sharedUserLimit: 100,
     appleClientId: '',
     googleClientId: '',
   });
@@ -143,9 +176,9 @@ try {
   assert.equal(refused.status, 404);
 
   console.log('knockoff social auth acceptance: PASS');
-  console.log('  Apple fixture -> Snapback custody -> principal-derived post');
-  console.log('  Google fixture -> distinct principal -> stable repeat login');
-  console.log('  provider tokens absent; app receives one-use exchange only');
+  console.log('  Apple shared browser profile -> Snapback custody -> principal-derived post');
+  console.log('  Google shared browser profile -> distinct principal -> stable repeat login');
+  console.log('  app-bound verifier + one-use callback; provider tokens absent');
 } finally {
   await appClient?.dispose();
   await listening?.close();
