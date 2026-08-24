@@ -181,8 +181,24 @@ console.log('[guide-check] ok — fixture page digest matches');
 }
 
 function installPathMigrationDriftFixtureChecker(repo) {
+  const plantedPath = 'scripts/path-migration-review-straggler.mjs';
+  writeFileSync(join(repo, plantedPath), "export const retiredPath = 'src/storage.rs';\n");
+  const realChecker = run(repo, process.execPath, [
+    'scripts/check-path-migration-stragglers.mjs',
+    '--epoch',
+    'phase-3',
+    '--path',
+    plantedPath,
+  ]);
+  assert.equal(realChecker.status, 1, realChecker.output);
+  assert.match(realChecker.output, /root-src-path/u);
+  rmSync(join(repo, plantedPath));
+
   // This suite exercises committed-revision selection and D-3 classification,
-  // while tests/path_migration_stragglers_v0.mjs owns the scanner semantics.
+  // while the now-canonical tests/path_migration_stragglers_v0.mjs suite owns
+  // the scanner's complete semantic matrix. The assertion above keeps this
+  // integration seam honest by proving the real checker rejects a controlled
+  // planted straggler before the narrow drift-runner stub replaces it.
   // Keep the integration baseline independent of unrelated corpus literals
   // that may legitimately make main's full scanner red. The fixture still
   // validates the frozen manifest authority and must run green in strict mode.
