@@ -5,8 +5,16 @@
 **Systems:** Benchmarks, Demos, Exact, Contract, Native clients, Provider adapters, Social messenger
 **Author:** Codex / Charlie Cheever
 **Date:** 2026-08-15
+**Revised:** 2026-08-24 (dated M6 message-envelope recommendation: choose a
+versioned `listMessages` cursor over a platform-wide live-window increase,
+with a 200-row live page, strict sequence keyset translation, downstream-page
+re-anchoring, v8 byte preservation, and claim-gated 10,000-message
+qualification; author confirmation is still required before implementation)
 **Revised:** 2026-08-16
-**Related:** LLP 0000, LLP 0005, LLP 0064, LLP 0137, LLP 0189, LLP 0201, `benchmarks/briefs/social-messenger.md`, `benchmarks/tools/social-messenger/CONTRACT.md`
+**Related:** LLP 0000, LLP 0005, LLP 0008, LLP 0064, LLP 0137, LLP 0189,
+LLP 0200, LLP 0201, LLP 0278, `benchmarks/briefs/social-messenger.md`,
+`benchmarks/tools/social-messenger/CONTRACT.md`,
+`issues/20260817-coterie-message-envelope-growth.md`
 
 ## Summary
 
@@ -210,6 +218,223 @@ refusing every unclaimed operation loudly. No route or `.contract` component
 may observe provider identity to make this decision. This preserves D8's seam
 while permitting milestone-partial adapters to render an honest usable subset
 of the common surface.
+
+## Dated recommendation for author ruling — M6 message-envelope growth (2026-08-24)
+
+**Recommendation: choose path 2, a versioned cursor-paginated Coterie
+surface.** This is a design recommendation, not an accepted declaration or
+capability change. Implementation remains gated on author/owner confirmation.
+Declaration v8 stays byte-for-byte frozen; no M6 or message-envelope claim
+changes merely because this section exists.
+
+### Why path 2 is the qualified direction
+
+The current tree makes a platform-ceiling increase materially broader than a
+Coterie change:
+
+- `crates/snapback-types/src/manifest/types.rs` (the current home of the
+  former `crates/snapback/src/manifest.rs` surface) sets both
+  `QUERY_MAX_LIMIT` and `QUERY_DEFAULT_LIMIT` to 1,024. Raising the maximum
+  therefore also changes the implicit default accepted by every application
+  query, not only an explicitly enlarged Coterie query.
+- The same file independently caps ordinary result arrays and `records`
+  bounds at 1,024; `packages/snapback-harness/ctx-bootstrap.js` separately
+  defaults query plans to 1,024 and rejects `.take(n)` above it. Path 1 is a
+  coordinated platform/runtime/codegen/harness contract change, not one
+  constant edit.
+- `listMessages` is an authored `defineJsLiveQuery` with an ordered, limited
+  `records` result. Such Ibex/ordered/limited results use the honest re-query
+  plus `live_replace` lane, not row-delta delivery (LLP 0008, DK-3). A larger
+  ceiling authorizes every affected subscription to re-evaluate, validate,
+  hydrate, and deliver a correspondingly larger replacement. The blast radius
+  is platform-wide even though the motivating history belongs to one demo.
+
+Path 2 leaves every platform ceiling unchanged and bounds each Coterie
+evaluation below the existing cap. It also follows code that already works:
+`listFeed@3` carries a nullable opaque declaration cursor, validates and
+translates it in each provider, applies a strict backend keyset predicate, and
+opens a normal live query for each requested cursor. Its memory-provider tests
+prove that an older cursor page remains live for mutations affecting rows on
+that page. Coterie messages have a stronger key than feed timestamps:
+`messages.sequence` is immutable and unique within a conversation, and the
+current backend already orders the composite `pageKey` by that sequence.
+
+This recommendation does not ignore pagination's consistency risk. A live
+head's boundary moves when a new message enters, so retaining downstream pages
+under their old cursors would create a gap; that is a different form of the
+stale archive rejected in Diary 0086. The live-chain rule below invalidates
+those pages immediately and re-arms them from the new predecessor cursor.
+Every displayed older page therefore has a current live subscription; no
+snapshot tail is retained or described as live. Independent page
+subscriptions still do not claim one atomic cross-page version (LLP 0278
+D0.5). Exactness means each page is authoritative for its arguments and the
+published chain contains only one fully linked cursor generation.
+
+Path 1 should be reconsidered only if the M6 qualification below proves that
+the bounded live-page design cannot meet correctness or the benchmark's
+degradation rules within the existing subscription envelope. Correctness
+complexity alone is not evidence for a platform-wide ceiling increase; the
+cursor-chain cases are finite and acceptance-testable.
+
+### Proposed v9 declaration and compatibility boundary
+
+Implementation creates a new sibling declaration (proposed path
+`demos/coterie/src/data/coterie.v9.provider.json`) and versioned generated
+artifacts. It does not edit or regenerate
+`demos/coterie/src/data/coterie.provider.json`, whose v8 source SHA-256 is
+`27895ba105b5aab7f632691d5e865683ae433ac1d5ecd7e589450079ff1fdf6e`
+and whose generated binding digest is `e0be7bf6f9f5bc27`. The active app/provider
+switch to v9 happens only after qualification; v8 remains a checked fixture
+and compatibility target.
+
+V9 keeps the descriptor name and id `listMessages` but changes its contract:
+
+- add nullable parameter `cursor: string`;
+- add nullable row field `nextCursor: string` (the same value on every row in
+  one page, matching the currently available `listFeed@3` list shape until a
+  future Exact typed page envelope is adopted);
+- add declared `MessageCursorInvalidError` / `message_cursor_invalid`;
+- bump the core query compatibility token and
+  `coterie.m3CompatibilityTokens.listMessages` from `4` to `5`;
+- bump `coterie.m3CompatibilityTokens.sendMessage` from `4` to `5`, because
+  v9 removes the 1,025th-write refusal. Removing that mutation admission
+  boundary without a token bump would silently change the frozen M3 behavior.
+
+V9 does not promise unbounded scale. It qualifies the benchmark's named
+10,000-message busy conversation. `sendMessage@5` stops using the 1,024-row
+query cap as a product-write ceiling, but the public Coterie claim remains
+10,000 until a later scoped qualification deliberately raises it. M7's later
+message-count migration remains separately owned; this design does not smuggle
+that backfilled field into M6 merely to enforce a new count ceiling.
+
+### Cursor, keyset, and page semantics
+
+The v9 page size is **200 messages**. This leaves wide room under the 1,024-row
+platform limit and makes the brief's required 10,000-message page-50 probe an
+actual terminal-page probe rather than an unreachable metric.
+
+The public cursor is an opaque base64url string over canonical JSON with this
+private v1 payload:
+
+```json
+{"v":1,"query":"listMessages","chatId":"<external chat id>","beforeSequence":1234}
+```
+
+Opaque means consumers store and return the string; it does not promise
+confidentiality. Decoding is strict and cause-free: at most 512 wire bytes,
+canonical unpadded base64url, exactly the four fields above, `v === 1`, the
+fixed query name, exact `chatId` equality with the call, and a non-negative
+safe-integer `beforeSequence`. Malformed, cross-chat, or wrong-version input
+returns `MessageCursorInvalidError`. Cursor position never grants authority;
+every page independently re-runs the normal session, conversation, membership,
+and removal-cutoff checks.
+
+Provider-to-backend translation is explicit:
+
+1. The provider decodes the declaration cursor and passes only the validated
+   `beforeSequence` to its backend. The backend never parses declaration bytes.
+2. Snapback adds/uses an index ordered by `(conversationId, sequence)` and
+   filters `conversationId == args.conversationId`, then
+   `sequence < effectiveBefore`, ordered by `sequence desc`.
+   `effectiveBefore` is the lesser of the cursor boundary and a removed
+   member's `removedSequence`; either missing value is treated as infinity.
+   This preserves the existing rule that a former member may see history only
+   before removal on every page.
+3. The live handler reads `.take(201)`, returns at most the first 200 hydrated
+   rows, and uses row 201 only as an exact overflow witness. If that witness
+   exists, the provider encodes the oldest returned row's immutable sequence
+   as the next cursor; otherwise every row carries `nextCursor: null`.
+4. The adapter continues exposing rows oldest-to-newest inside a page for the
+   chat UI. Cursor traversal is newest-page to older-page; consumers prepend
+   older pages and deduplicate by message id.
+
+Each call is one page and each subscription owns exactly one live backend
+query. The adapter must not walk further cursors inside that subscription, and
+must not retain disposed page rows as an allegedly live archive. Receipt,
+reaction, edit/tombstone, quote projection, profile projection, membership,
+and authorization changes that affect a subscribed old page re-evaluate and
+replace that page through the same live path as the head.
+
+For a combined scrolling view, page `i + 1` is valid only under the current
+`nextCursor` emitted by page `i`. If a predecessor cursor changes, the
+composition immediately removes all downstream pages from the published
+chain, disposes their subscriptions, and opens a new live chain from the new
+cursor. It publishes downstream rows again only after the chain is fully
+linked; latest boundary changes supersede in-flight older generations. A
+temporarily shorter valid prefix is honest. Publishing a mixed generation,
+retaining stale rows during re-anchoring, or filling the gap with a one-shot
+read is not.
+
+The 10,000-message history is 50 pages. Sequential API traversal needs one
+live subscription at a time. A UI may retain only pages it actively displays;
+if it chooses to retain all 50, each remains live and the total is within the
+platform's 64-per-connection hard ceiling, though above LLP 0278's provisional
+16-per-view warning and therefore requires an explicit budget diagnostic in
+the evidence. No design may conceal that subscription cost.
+
+### M6 implementation qualification and acceptance
+
+Before implementation may raise any Coterie claim beyond 1,024, the exact
+v9 implementation must prove all of the following against both the memory and
+Snapback providers where applicable:
+
+1. **Frozen/versioned surface:** v8's source SHA-256 and generated digest stay
+   unchanged; v9 generation is deterministic; the fail-closed provider digest
+   handshake passes only with matching v9 artifacts; claims report
+   `listMessages@5` and `sendMessage@5` and reject the v8/v9 cross-pair.
+2. **Boundary and cursor refusal:** 1,024 and 1,025 messages are both writable
+   on v9; malformed, oversized, non-canonical, wrong-version, and cross-chat
+   cursors fail as `MessageCursorInvalidError` before a backend subscription
+   opens; logout/revocation and non-membership still fail closed on every page.
+3. **History reachability:** replay the frozen scale corpus, recover all
+   10,000 busy-chat messages through 50 200-row pages with strict sequence
+   order, no duplicate or missing id, the exact terminal null cursor, and the
+   invariant manifest's exact message count. The custom-client API and grader
+   path use this same pagination, not a privileged export.
+4. **Deep-page cost:** using the brief's k=20-after-3-warm-ups, sequential,
+   30-second probe, page 50 p95 is at most 3x page 1 p95; no page times out,
+   errors, or grows memory without bound. Record subscription count,
+   re-evaluation count, replacement bytes, and peak memory so the result is
+   attributable rather than merely green.
+5. **Live head and old page:** with polling and manual refetch disabled, hold
+   the head and a page containing a message older than row 1,024. A second
+   client sends a message and the head updates; then advances receipts and
+   performs each M6-prerequisite old-message mutation that changes projection
+   (reaction and edit/tombstone where implemented). The already-armed old-page
+   subscription must deliver the exact updated projection.
+6. **Membership and authority:** remove a member while head and old pages are
+   armed; every page converges to the historical removal cutoff with no
+   post-removal row or quoted-data leak. Logout/revocation blanks or errors all
+   pages through the ordinary authority path. Rejoin behavior must match the
+   existing incarnation ruling, not a cursor-specific shortcut.
+7. **Moving-boundary composition:** force sends while at least three adjacent
+   pages are displayed. The test must observe downstream invalidation and live
+   re-subscription, prove that no mixed cursor generation is published, and
+   finish with a contiguous, duplicate-free chain. Disposing any page removes
+   its rows; no snapshot tail survives disposal.
+8. **Settlement and convergence at envelope:** the 50-member busy-group send
+   and receipt probe does not visibly stall, no subscription exceeds 200
+   returned rows or reads more than the 201-row boundary probe before
+   hydration, and concurrent-page use stays within the declared 16-warning /
+   64-hard subscription posture. Any red here blocks the v9 scale claim and
+   reopens path 1 for author review.
+9. **Claim gate:** bind the v9 declaration, both provider implementations,
+   generated artifacts, cursor/live acceptance, scale replay, and degradation
+   evidence into a scoped LLP 0189 qualification digest. Until that digest is
+   green and accepted, Coterie continues to advertise only the v8 1,024-message
+   envelope.
+
+### Explicit non-changes in this recommendation lane
+
+- No `QUERY_MAX_LIMIT`, `QUERY_DEFAULT_LIMIT`, harness `.take`, result-contract,
+  engine, or delivery ceiling changes.
+- No edits, regeneration, or compatibility reinterpretation of declaration
+  v8 or its generated artifacts.
+- No silent Coterie message-envelope or M6 capability claim.
+- No one-shot non-live history tail, retained stale archive, or adapter-owned
+  background page walk presented as live data.
+- No change to the separate 1,000-chat envelope, M7 message-count migration,
+  or a platform-wide pagination declaration in LLP 0278.
 
 ## Acceptance criteria
 
