@@ -106,6 +106,31 @@ that makes them meaningful rather than mere presence: `expires_at_ms == created_
 `revoked_at_ms IS NULL`, or a digest computed independently in the test. "The column is populated"
 is not an assertion about correctness.
 
+## Round 7: "intentionally equal by contract" must name the mutation it hides
+
+Round 5 introduced the fixture role audit — list every role pair, mark each distinct or
+intentionally equal. A lane produced one, a reviewer accepted it, and a second reviewer then broke
+it, because the audit's escape clause was doing no work.
+
+The audit declared *authority user vs session owner* "intentionally equal by the session contract".
+A second reviewer **compiled and ran** the mutation rather than reasoning about it, and found that
+deriving `session_id` from `user_id` — instead of from the authority's own session — stayed green.
+The equality the audit had waved through was exactly what hid it.
+
+> **"Intentionally equal by contract" is only acceptable if you can name the mutation that equality
+> would hide, and show it is caught elsewhere.** Otherwise the pair must be made distinct, or a case
+> added where they differ.
+
+### And: run the mutations, do not reason about them
+
+The two reviews of the same commit differed in method and in outcome. One reasoned about the
+mutations and accepted the audit; the other pointed `vendor/ibex` at an existing checkout so the
+crate would compile, applied each mutation, ran the tests, restored the tree, and reported which
+mutants actually died. It confirmed three and found a fourth that reasoning had missed.
+
+Where a lane or reviewer can compile, **executed mutation results outrank argued ones**. An argued
+mutation review is a hypothesis; a run one is evidence.
+
 ## The rule this yields
 
 > **For every assertion, ask where the expected value comes from.** If it comes from the same read
