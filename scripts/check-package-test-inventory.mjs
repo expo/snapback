@@ -99,6 +99,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'scaffold-skill-budget.test.mjs',
       'sessions-dev-loop.test.mjs',
       'shared-development-auth.test.mjs',
+      'shared-development-broker.test.mjs',
       'visibility-governance-dev-loop.test.mjs',
       'verify.test.mjs',
     ],
@@ -584,7 +585,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 339,
+  expectedTotal = 340,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1089,6 +1090,8 @@ export function checkPackageTestInventories(options = {}) {
 // entry resolver/dispatch proof and the shared development client-half proof;
 // @expo/snapback-cli gains the auth setup group proof and the shared
 // development broker-half proof.
+// 339 -> 340 (2026-08-24, LLP 0151): @expo/snapback-cli gains the supervised
+// shared development broker HTTP proof.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

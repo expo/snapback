@@ -39,3 +39,21 @@ fixture`.
 Next action: identify which side moved — the JS manifest projection or the
 embedded Rust fixture — and regenerate the stale one. Until then this file
 cannot gate anything downstream of it.
+
+## 3. `expo-dev-loop.test.mjs` defaulted to one developer's home directory
+
+`packages/snapback-cli/expo-dev-loop.test.mjs` defaulted `runtimeBinary` to
+`/Users/ccheever/projects/snapback-g0-land/target/debug/snapback`, so on every
+other machine it hard-failed at its first assertion and never ran. Fixed on
+`seth/knockoff-shared-development-auth` to default to this checkout's own
+`target/debug/snapback`.
+
+With the path fixed the file now reaches a second, independent pre-existing
+red at line 917: a negative web-carrier case expects `did not write structured
+readiness` and observes `Expo web carrier exited 1 before readiness`. This
+reproduces with the branch's `expo-dev.mjs` change reverted, so it is not the
+supervised shared-auth mount.
+
+Next action: decide whether the carrier's exit-before-readiness path should
+still report the structured-readiness diagnostic, or whether the assertion
+should name the exit path it now takes.

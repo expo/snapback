@@ -52,8 +52,11 @@ import {
 
 const packageRoot = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(packageRoot, '..', '..');
+// Default to this checkout's own bootstrapped binary. The previous default was
+// an absolute path into one developer's home directory, which made this test
+// unrunnable everywhere else.
 const runtimeBinary = process.env.SNAPBACK_RUNTIME_BINARY
-  ?? '/Users/ccheever/projects/snapback-g0-land/target/debug/snapback';
+  ?? join(repoRoot, 'target', 'debug', 'snapback');
 assert.ok(existsSync(runtimeBinary), `real Snapback runtime is missing: ${runtimeBinary}`);
 
 const sourceFixture = join(packageRoot, 'fixtures', 'comparator', 'app', 'snapback');
