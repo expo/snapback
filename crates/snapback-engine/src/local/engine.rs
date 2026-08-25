@@ -3372,6 +3372,8 @@ struct AssetStoreConfig {
     backend: SnapbackResult<crate::assets_store::AssetStoreBackend>,
     s3: Option<SnapbackResult<crate::assets_s3::AssetS3Config>>,
     s3_experimental: bool,
+    #[cfg(test)]
+    controlled: Option<std::sync::Arc<dyn crate::assets_store::AssetStore>>,
 }
 
 impl AssetStoreConfig {
@@ -3393,6 +3395,8 @@ impl AssetStoreConfig {
             s3: selected_s3.then(crate::assets_s3::AssetS3Config::from_env),
             s3_experimental: selected_s3
                 && std::env::var("SNAPBACK_ASSET_S3_EXPERIMENTAL").as_deref() == Ok("1"),
+            #[cfg(test)]
+            controlled: None,
         }
     }
 
@@ -3411,6 +3415,18 @@ impl AssetStoreConfig {
                 })
             }),
             s3_experimental: false,
+            #[cfg(test)]
+            controlled: None,
+        }
+    }
+
+    #[cfg(test)]
+    fn for_controlled(store: std::sync::Arc<dyn crate::assets_store::AssetStore>) -> Self {
+        Self {
+            backend: Ok(crate::assets_store::AssetStoreBackend::LocalFs),
+            s3: None,
+            s3_experimental: false,
+            controlled: Some(store),
         }
     }
 
@@ -7642,6 +7658,19 @@ impl LocalSnapback {
     pub fn memory() -> SnapbackResult<Self> {
         let asset_store_config = AssetStoreConfig::from_env();
         let snapback = Self::from_database(LocalDatabase::memory()?, None, asset_store_config)?;
+        snapback.record_process_start_lifecycle();
+        Ok(snapback)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn memory_with_controlled_asset_store(
+        store: std::sync::Arc<dyn crate::assets_store::AssetStore>,
+    ) -> SnapbackResult<Self> {
+        let snapback = Self::from_database(
+            LocalDatabase::memory()?,
+            None,
+            AssetStoreConfig::for_controlled(store),
+        )?;
         snapback.record_process_start_lifecycle();
         Ok(snapback)
     }
@@ -14220,6 +14249,10 @@ impl LocalSnapback {
     pub(crate) fn asset_store_obj(
         &self,
     ) -> SnapbackResult<std::sync::Arc<dyn crate::assets_store::AssetStore>> {
+        #[cfg(test)]
+        if let Some(store) = &self.asset_store_config.controlled {
+            return Ok(store.clone());
+        }
         match self.asset_store_config.backend()? {
             crate::assets_store::AssetStoreBackend::S3 => {
                 // @ref LLP 0158#the-runtime-plane--where-the-real-design-is —

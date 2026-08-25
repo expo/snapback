@@ -1,3 +1,5 @@
+#[cfg(test)]
+use crate::auth::admission::AdmissionController;
 use crate::auth::admission::{AdmissionLease, CancellationRegistration};
 #[cfg(test)]
 use crate::auth::invocation::ResolvedAppAuthority;
@@ -56,6 +58,13 @@ thread_local! {
     static RUNTIME_LOG_SINKS: RefCell<Vec<RuntimeLogSink>> = const { RefCell::new(Vec::new()) };
     #[cfg(test)]
     static TEST_HANDLER_CONSOLE_STDERR: RefCell<Vec<Vec<String>>> = const { RefCell::new(Vec::new()) };
+}
+
+#[cfg(test)]
+fn managed_test_admission() -> AdmissionLease {
+    AdmissionController::new(0, true)
+        .and_then(|controller| controller.admit_dev())
+        .expect("test admission controller accepts dev work")
 }
 
 struct RuntimeLogSinkGuard;
@@ -1635,7 +1644,7 @@ impl<'a> IbexHostContext<'a> {
         Self::new_action_with_projection(
             input,
             projection,
-            AdmissionLease::unmanaged(0, 0),
+            managed_test_admission(),
             run,
             host,
             grants,
@@ -7375,7 +7384,7 @@ fn run_service_principal_ibex_mutation_for_test(
         DbRead::Live(db),
         input,
         HandlerAuthProjection::from_authority(&authority, None)?,
-        AdmissionLease::unmanaged(0, 0),
+        managed_test_admission(),
         membership_writer_from_resolved_for_test_with_consent(&authority, true),
         true,
         true,
@@ -7446,18 +7455,17 @@ mod result_id_provenance_tests {
 #[cfg(test)]
 mod runtime_boundary_hardening_tests {
     use super::{
-        IBEX_EVAL_OUTPUT_MAX_BYTES, IbexHostContext, dispatch_host_call, parse_handler_output,
-        run_ibex_handler_with_context, with_captured_handler_console_stderr, with_host_call_trace,
-        with_runtime_log_telemetry_redactor,
+        IBEX_EVAL_OUTPUT_MAX_BYTES, IbexHostContext, dispatch_host_call, managed_test_admission,
+        parse_handler_output, run_ibex_handler_with_context, with_captured_handler_console_stderr,
+        with_host_call_trace, with_runtime_log_telemetry_redactor,
     };
-    use crate::auth::admission::AdmissionLease;
     use crate::auth::invocation::{HandlerAuthProjection, ResolvedAppAuthority};
     use crate::config::SecretRedactor;
     use crate::manifest::{
         FieldManifest, FieldType, HandlerInput, IbexModule, IdentityBindingTableManifestV1,
         SchemaManifest, TableManifest,
     };
-    use crate::storage::{DbRead, LocalDatabase, MembershipWriter};
+    use crate::storage::{DbRead, LocalDatabase};
     use serde_json::json;
     use sha2::{Digest as _, Sha256};
 
@@ -7467,7 +7475,7 @@ mod runtime_boundary_hardening_tests {
             DbRead::Live(db),
             input,
             HandlerAuthProjection::from_authority(&authority, None).unwrap(),
-            AdmissionLease::unmanaged(0, 0),
+            managed_test_admission(),
             super::membership_writer_from_resolved_for_test(&authority),
             false,
             true,
@@ -8132,12 +8140,12 @@ mod parse_handler_output_tests {
 #[cfg(test)]
 mod private_failure_carrier_tests {
     use super::{
-        HandlerErrorExposure, IbexHostContext, run_ibex_handler_with_context_until_with_exposure,
+        HandlerErrorExposure, IbexHostContext, managed_test_admission,
+        run_ibex_handler_with_context_until_with_exposure,
     };
-    use crate::auth::admission::AdmissionLease;
     use crate::auth::invocation::{HandlerAuthProjection, ResolvedAppAuthority};
     use crate::manifest::{HandlerInput, IbexModule};
-    use crate::storage::{DbRead, LocalDatabase, MembershipWriter};
+    use crate::storage::{DbRead, LocalDatabase};
     use serde_json::json;
 
     fn run_with_exposure(
@@ -8150,7 +8158,7 @@ mod private_failure_carrier_tests {
             DbRead::Live(&db),
             HandlerInput::default(),
             HandlerAuthProjection::from_authority(&authority, None).unwrap(),
-            AdmissionLease::unmanaged(0, 0),
+            managed_test_admission(),
             super::membership_writer_from_resolved_for_test(&authority),
             true,
             true,
@@ -8313,11 +8321,10 @@ mod private_failure_carrier_tests {
 
 #[cfg(test)]
 mod handler_result_bridge_tests {
-    use super::{IbexHostContext, run_ibex_handler_with_context};
-    use crate::auth::admission::AdmissionLease;
+    use super::{IbexHostContext, managed_test_admission, run_ibex_handler_with_context};
     use crate::auth::invocation::{HandlerAuthProjection, ResolvedAppAuthority};
     use crate::manifest::{HandlerInput, IbexModule};
-    use crate::storage::{DbRead, LocalDatabase, MembershipWriter};
+    use crate::storage::{DbRead, LocalDatabase};
 
     /// @ref LLP 0108#result-contract-vocabulary — the handler bridge preserves
     /// the complete post-JSON image; declared per-string/result ceilings are
@@ -8330,7 +8337,7 @@ mod handler_result_bridge_tests {
             DbRead::Live(&db),
             HandlerInput::default(),
             HandlerAuthProjection::from_authority(&authority, None).unwrap(),
-            AdmissionLease::unmanaged(0, 0),
+            managed_test_admission(),
             super::membership_writer_from_resolved_for_test(&authority),
             false,
             true,
@@ -8357,11 +8364,10 @@ mod handler_result_bridge_tests {
 #[cfg(test)]
 mod table_visibility_runtime_tests {
     use super::{
-        IbexHostContext, execute_ibex_mutation_prepared, read_dependency_key,
-        run_ibex_handler_with_context, run_ibex_query_with_reads_prepared, with_host_call_trace,
-        with_runtime_log_telemetry,
+        IbexHostContext, execute_ibex_mutation_prepared, managed_test_admission,
+        read_dependency_key, run_ibex_handler_with_context, run_ibex_query_with_reads_prepared,
+        with_host_call_trace, with_runtime_log_telemetry,
     };
-    use crate::auth::admission::AdmissionLease;
     use crate::auth::invocation::{
         HandlerAuthProjection, InvocationGate, InvocationSource, PreparedInvocation,
         ResolvedAppAuthority, WireAuthorityFields,
@@ -8373,9 +8379,7 @@ mod table_visibility_runtime_tests {
         MembershipManifest, MembershipScope, SchemaManifest, SeedData, SequenceDeclaration,
         SequenceScopeAccess, TableManifest, TableVisibilityArmV1, TableVisibilityV1,
     };
-    use crate::storage::{
-        BufferedWrite, CapturedReadKind, DbRead, LocalDatabase, MembershipWriter,
-    };
+    use crate::storage::{BufferedWrite, CapturedReadKind, DbRead, LocalDatabase};
     use crate::telemetry::{Telemetry, TelemetryConfig};
     use serde_json::{Map, Value, json};
     use std::collections::{BTreeMap, BTreeSet};
@@ -8772,7 +8776,7 @@ mod table_visibility_runtime_tests {
             DbRead::Live(db),
             input,
             HandlerAuthProjection::from_authority(&authority, None).unwrap(),
-            AdmissionLease::unmanaged(0, 0),
+            managed_test_admission(),
             super::membership_writer_from_resolved_for_test(&authority),
             writable,
             true,
@@ -10033,10 +10037,10 @@ globalThis.__snapbackHandlers = {
 #[cfg(test)]
 mod membership_bridge_tests {
     use super::{
-        HandlerErrorExposure, IbexHostContext, run_ibex_handler_with_context,
-        run_ibex_handler_with_context_until_with_exposure, with_host_call_trace,
+        HandlerErrorExposure, IbexHostContext, managed_test_admission,
+        run_ibex_handler_with_context, run_ibex_handler_with_context_until_with_exposure,
+        with_host_call_trace,
     };
-    use crate::auth::admission::AdmissionLease;
     use crate::auth::invocation::{HandlerAuthProjection, ResolvedAppAuthority};
     use crate::manifest::{
         AuthInput, FieldManifest, FieldType, HandlerInput, IbexModule, MembershipLastHolder,
@@ -10045,9 +10049,7 @@ mod membership_bridge_tests {
         SequenceExistingOwnerAccess, SequenceScopeAccess, StoredStructuredContractV1,
         TableManifest, TableVisibilityV1,
     };
-    use crate::storage::{
-        BufferedCommitPayload, ClientMutationIdentity, DbRead, LocalDatabase, MembershipWriter,
-    };
+    use crate::storage::{BufferedCommitPayload, ClientMutationIdentity, DbRead, LocalDatabase};
     use serde_json::{Map, Value, json};
     use std::collections::BTreeMap;
     use std::path::Path;
@@ -10286,7 +10288,7 @@ mod membership_bridge_tests {
             DbRead::Live(db),
             input,
             HandlerAuthProjection::from_authority(&authority, None).unwrap(),
-            AdmissionLease::unmanaged(0, 0),
+            managed_test_admission(),
             super::membership_writer_from_resolved_for_test(&authority),
             true,
             true,
@@ -10321,7 +10323,7 @@ mod membership_bridge_tests {
             DbRead::Live(db),
             input,
             HandlerAuthProjection::from_authority(&authority, None).unwrap(),
-            AdmissionLease::unmanaged(0, 0),
+            managed_test_admission(),
             super::membership_writer_from_resolved_for_test_with_consent(
                 &authority,
                 authority_creating_consent,
@@ -10797,7 +10799,7 @@ mod membership_bridge_tests {
             DbRead::Live(db),
             input,
             HandlerAuthProjection::from_authority(&authority, None).unwrap(),
-            AdmissionLease::unmanaged(0, 0),
+            managed_test_admission(),
             super::membership_writer_from_resolved_for_test(&authority),
             true,
             true,
@@ -11446,7 +11448,7 @@ globalThis.__snapbackHandlers = {
             DbRead::Live(&db),
             outsider_input,
             HandlerAuthProjection::from_authority(&outsider_authority, None).unwrap(),
-            AdmissionLease::unmanaged(0, 0),
+            managed_test_admission(),
             super::membership_writer_from_resolved_for_test(&outsider_authority),
             false,
             false,
@@ -11470,7 +11472,7 @@ globalThis.__snapbackHandlers = {
             DbRead::Live(&db),
             input,
             HandlerAuthProjection::from_authority(&authority, None).unwrap(),
-            AdmissionLease::unmanaged(0, 0),
+            managed_test_admission(),
             super::membership_writer_from_resolved_for_test(&authority),
             false,
             false,
@@ -12265,12 +12267,11 @@ globalThis.__snapbackHandlers = {
 
 #[cfg(test)]
 mod direct_human_projection_tests {
-    use super::{IbexHostContext, run_ibex_handler_with_context};
-    use crate::auth::admission::AdmissionLease;
+    use super::{IbexHostContext, managed_test_admission, run_ibex_handler_with_context};
     use crate::auth::identity_core::AuthClaimsProjection;
     use crate::auth::invocation::{HandlerAuthProjection, ResolvedAppAuthority};
     use crate::manifest::{HandlerInput, IbexModule};
-    use crate::storage::{DbRead, LocalDatabase, MembershipWriter};
+    use crate::storage::{DbRead, LocalDatabase};
     use serde_json::{Value, json};
 
     fn run(authority: ResolvedAppAuthority) -> Value {
@@ -12282,7 +12283,7 @@ mod direct_human_projection_tests {
             DbRead::Live(&db),
             HandlerInput::default(),
             projection,
-            AdmissionLease::unmanaged(0, 0),
+            managed_test_admission(),
             super::membership_writer_from_resolved_for_test(&authority),
             false,
             true,

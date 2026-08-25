@@ -852,12 +852,19 @@ mod tests {
         email: &str,
         now_ms: u64,
     ) -> CredentialIssue {
-        provider
-            .admit_email(email)
-            .await
-            .expect("mint admission")
-            .mint_session(database, now_ms)
-            .expect("mint session")
+        let admission = provider.admit_email(email).await.expect("mint admission");
+        let issuance = admission
+            .plan_mint_session(database, now_ms)
+            .expect("plan session mint");
+        let commit = admission.commit_planned_issuance(database, &issuance.commit_plan());
+        let AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
+            session,
+            committed_revocations,
+        }) = commit
+        else {
+            panic!("planned session mint must commit")
+        };
+        issuance.into_issue(session, committed_revocations)
     }
 
     fn direct_stream_facts(database: &mut LocalDatabase) -> (u64, i64) {
@@ -979,12 +986,14 @@ mod tests {
         )
         .await;
 
+        let maintenance = provider.exclusive_maintenance().await;
         assert!(
-            provider
-                .keyring
-                .rotate_if_due(rotation_at, provider.random.as_ref())
+            maintenance
+                .keyring()
+                .rotate_if_due(rotation_at, provider.agent_random_source())
                 .expect("rotate keyring")
         );
+        drop(maintenance);
         let issue = exchange(
             &provider,
             &mut database,
@@ -1211,16 +1220,22 @@ mod tests {
         )
         .await;
         let fills_before_collision = session_random.fills();
-        let collision = session_provider
+        let admission = session_provider
             .admit_email("person@example.com")
             .await
-            .expect("mint admission")
-            .mint_session(&mut session_database, now_ms + 1)
-            .expect_err("constant session ids exhaust retries");
-        assert_eq!(
-            collision.diagnostic().code,
-            "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE"
-        );
+            .expect("mint admission");
+        let mut collisions = 0;
+        for _ in 0..AUTH_MAX_COLLISION_ATTEMPTS {
+            let issuance = admission
+                .plan_mint_session(&session_database, now_ms + 1)
+                .expect("plan colliding session mint");
+            assert!(matches!(
+                admission.commit_planned_issuance(&mut session_database, &issuance.commit_plan(),),
+                AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CandidateCollision)
+            ));
+            collisions += 1;
+        }
+        assert_eq!(collisions, AUTH_MAX_COLLISION_ATTEMPTS);
         assert_eq!(session_random.fills() - fills_before_collision, 15);
         let sessions: i64 = session_database
             .auth_catalog_read()
@@ -1888,12 +1903,7 @@ mod tests {
         );
         assert_eq!(provider.readiness(), AuthProviderReadiness::Available);
 
-        let issue = provider
-            .admit_email("person@example.com")
-            .await
-            .expect("mint admission")
-            .mint_session(&mut database, start_ms)
-            .expect("mint session");
+        let issue = mint(&provider, &mut database, "person@example.com", start_ms).await;
         let token = issue_token(&issue);
         let challenge = provider
             .admit_email("gc@example.com")
@@ -2074,7 +2084,7 @@ mod tests {
         let dummy = admission
             .plan_family_alarm(&database, "malformed", start_ms)
             .expect("dummy plan");
-        assert!(!dummy.actionable);
+        assert!(dummy.revocation_plan().is_none());
         assert!(matches!(
             admission.commit_planned_family_alarm(&mut database, &dummy),
             AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Noop)
@@ -2104,7 +2114,7 @@ mod tests {
         let alarm = admission
             .plan_family_alarm(&database, &predecessor, alarm_at)
             .expect("actionable alarm plan");
-        assert!(alarm.actionable);
+        assert!(alarm.revocation_plan().is_some());
         assert!(matches!(
             admission.commit_planned_family_alarm(&mut database, &alarm),
             AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Revoked(
@@ -2156,7 +2166,10 @@ mod tests {
         let alarm = admission
             .plan_family_alarm(&database, "malformed", alarm_at)
             .expect("malformed alarm plan");
-        assert!(!alarm.actionable, "parse failure dominates digest lookup");
+        assert!(
+            alarm.revocation_plan().is_none(),
+            "parse failure dominates digest lookup"
+        );
         assert!(matches!(
             admission.commit_planned_family_alarm(&mut database, &alarm),
             AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Noop)
@@ -2178,14 +2191,11 @@ mod tests {
 
         let issuance = provider.admit_email("second@example.com").await.unwrap();
         let issuance_plan = issuance.plan_mint_session(&database, now_ms + 1).unwrap();
+        let projected_digest = issuance_plan.projected_insert().token_digest;
         let issuance_commit = issuance_plan.commit_plan();
         database
             .auth_catalog()
-            .insert_session_tombstone_for_test(
-                issuance_commit.projected.token_digest.as_bytes(),
-                &first_id,
-                now_ms,
-            )
+            .insert_session_tombstone_for_test(projected_digest.as_bytes(), &first_id, now_ms)
             .unwrap();
         assert!(matches!(
             issuance.commit_planned_issuance(&mut database, &issuance_commit),
@@ -2903,14 +2913,6 @@ mod tests {
         };
         let racing_session_id = racing_issue.response().session.id.clone();
         let racing_bearer = issue_token(&racing_issue);
-        assert!(
-            discovery
-                .revocations
-                .iter()
-                .all(|target| target.session_id() != racing_session_id),
-            "the pre-race discovery must reproduce the stale revocation snapshot"
-        );
-
         // Phase 2 is the production repair: acquire the identifier stripe and
         // re-plan while sign-in issuance is excluded. The raced-in session is
         // therefore part of this exact change transaction's revocation set.
@@ -3093,7 +3095,11 @@ mod tests {
             .await;
             assert!(matches!(finish, IssuanceFinish::CredentialInvalid));
         }
-        let rolled_at = locked_until + provider.password_security.failure_window_ms + 2;
+        let password_security =
+            crate::storage::auth_identity::PasswordSecurityProfile::for_provider(
+                provider.profile(),
+            );
+        let rolled_at = locked_until + password_security.failure_window_ms + 2;
         let (rolled, _) = password_signin_for_test(
             &provider,
             &mut database,
@@ -3197,8 +3203,12 @@ mod tests {
     async fn password_kdf_cap_and_sender_custody_refuse_with_typed_codes() {
         let now_ms = 6_000_000;
         let (provider, database, _) = password_provider_database_coordinator(now_ms);
+        let password_security =
+            crate::storage::auth_identity::PasswordSecurityProfile::for_provider(
+                provider.profile(),
+            );
         let permits = Arc::clone(&provider.password_kdf_permits)
-            .try_acquire_many_owned(provider.password_security.kdf_concurrency as u32)
+            .try_acquire_many_owned(password_security.kdf_concurrency as u32)
             .expect("hold entire password KDF capacity");
         let throttled = provider
             .hash_password_bounded(PasswordSecret::new("a-strong-password-123".to_owned()))
@@ -3402,7 +3412,7 @@ mod tests {
                 &squatter_user,
                 "other@example.com",
                 now_ms + 1,
-                provider.random.as_ref(),
+                provider.agent_random_source(),
             )
             .expect("other-identity session fixture");
         let actor = email_issue_for_test(
@@ -3588,7 +3598,11 @@ mod tests {
         let now_ms = 9_000_000;
         let (provider, mut database, _) = password_provider_database_coordinator(now_ms);
         let guest = database
-            .insert_typed_guest_session_for_test(now_ms + 60_000, now_ms, provider.random.as_ref())
+            .insert_typed_guest_session_for_test(
+                now_ms + 60_000,
+                now_ms,
+                provider.agent_random_source(),
+            )
             .expect("guest fixture");
         let coordinator = Arc::new(
             AuthCoordinator::from_local_session_database(
@@ -3709,7 +3723,7 @@ mod tests {
         let now_ms = 10_000_000;
         let (provider, mut database, _) = password_provider_database_coordinator(now_ms);
         let guest = database
-            .identity_guest_create(now_ms + 60_000, now_ms, provider.random.as_ref())
+            .identity_guest_create(now_ms + 60_000, now_ms, provider.agent_random_source())
             .expect("guest race fixture");
         let preparation = provider
             .prepare_guest_claim_password(

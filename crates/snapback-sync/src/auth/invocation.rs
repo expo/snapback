@@ -7,7 +7,7 @@
 
 // @ref LLP 0058#shared-invocation-authority — one closed gate separates wire authority, resolved authority, and the immutable handler projection.
 
-use crate::auth::admission::{AdmissionEffectGuard, AdmissionLease};
+use crate::auth::admission::{AdmissionController, AdmissionEffectGuard, AdmissionLease};
 use crate::auth::descriptor::{
     AUTHORITY_DESCRIPTOR_VERSION, canonical_uuid_v7, service_authority_instance_id,
     validate_descriptor_values,
@@ -3074,6 +3074,38 @@ impl PreparedInvocation {
 pub struct InvocationGate;
 
 impl InvocationGate {
+    #[cfg(any(test, feature = "test-support"))]
+    fn compatibility_admission(
+        active_mode: AuthMode,
+        transition_generation: u64,
+    ) -> SnapbackResult<AdmissionLease> {
+        let active_deployment = (active_mode == AuthMode::Sessions).then(|| {
+            let digest =
+                |prefix: &str, marker: char| format!("{prefix}{}", marker.to_string().repeat(64));
+            DeploymentIdentity {
+                schema_version: active_mode.artifact_version().to_owned(),
+                auth_mode: active_mode,
+                app_id: "invocation-compatibility-admission".to_owned(),
+                schema_hash: digest(SCHEMA_V1_PREFIX, '1'),
+                bundle_hash: digest(FUNCTION_V1_PREFIX, '2'),
+                inputs_hash: digest(INPUTS_V1_PREFIX, '3'),
+            }
+        });
+        let mode = AuthModeStateRecord {
+            format_version: AUTH_MODE_FORMAT_VERSION,
+            transition_generation,
+            active: active_mode,
+            desired: active_mode,
+            mode_state: AuthModeStatus::Settled,
+            app_data_availability: AppDataAvailability::Available,
+            sessions_ever_activated: active_mode == AuthMode::Sessions,
+            active_deployment,
+            requested_deployment: None,
+            quarantine: None,
+        };
+        AdmissionController::from_mode_state(&mode)?.admit_for_mode(active_mode)
+    }
+
     #[allow(clippy::too_many_arguments)]
     #[cfg(any(test, feature = "test-support"))]
     pub fn prepare_authority(
@@ -3081,7 +3113,7 @@ impl InvocationGate {
         active_mode: AuthMode,
         profile: ServerProfile,
         transition_generation: u64,
-        admission_epoch: u64,
+        _admission_epoch: u64,
         wire: &WireAuthorityFields,
         resolved: ResolvedAppAuthority,
     ) -> SnapbackResult<PreparedAuthority> {
@@ -3936,11 +3968,6 @@ pub fn descriptor_for_resolved_authority(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::auth::admission::AdmissionController;
-    use crate::auth::mode::{
-        AUTH_MODE_FORMAT_VERSION, AppDataAvailability, AuthModeStateRecord, AuthModeStatus,
-        DeploymentIdentity, FUNCTION_V1_PREFIX, INPUTS_V1_PREFIX, SCHEMA_V1_PREFIX,
-    };
     use crate::manifest::{FunctionRuntime, HandlerPlan, QueryPlan};
     use serde_json::json;
 

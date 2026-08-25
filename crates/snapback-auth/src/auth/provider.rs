@@ -587,7 +587,7 @@ impl ProviderRevocationPlan {
         }
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn for_test(
         session_id: String,
         expected_generation: u64,
@@ -672,7 +672,7 @@ impl ProviderTokenRotationPlan {
         CredentialIssue::new(CredentialResponse::new(token, refresh_after, session), None)
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn for_test(
         session_id: String,
         expected_generation: u64,
@@ -760,9 +760,6 @@ pub struct PasswordSetPreparation {
 
 pub struct PasswordChangePreparation {
     planning: crate::storage::auth_identity::PasswordChangePlanning,
-    #[cfg(any(test, feature = "test-support"))]
-    pub revocations: Vec<ProviderRevocationPlan>,
-    #[cfg(not(any(test, feature = "test-support")))]
     revocations: Vec<ProviderRevocationPlan>,
 }
 
@@ -943,9 +940,6 @@ pub struct ProviderFamilyAlarmPlan {
     presented_digest: TokenDigest,
     superseded_at_ms: u64,
     observed_at_ms: u64,
-    #[cfg(any(test, feature = "test-support"))]
-    pub actionable: bool,
-    #[cfg(not(any(test, feature = "test-support")))]
     actionable: bool,
     publish_not_before: Instant,
 }
@@ -1026,9 +1020,6 @@ pub struct ProviderSessionIssuanceCommitPlan {
     address: CanonicalAddress,
     now_ms: u64,
     identity: PlannedIdentityState,
-    #[cfg(any(test, feature = "test-support"))]
-    pub projected: ProjectedSessionInsert,
-    #[cfg(not(any(test, feature = "test-support")))]
     pub(crate) projected: ProjectedSessionInsert,
     revocations: Vec<ProviderRevocationPlan>,
     password: Option<crate::storage::auth_identity::PasswordIssuanceCommitPlan>,
@@ -1216,7 +1207,7 @@ impl ProviderSessionIssuancePlan {
         }
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn for_test(projected: ProjectedSessionInsert, bearer: SessionBearer) -> Self {
         let token_hash = bearer.token_hash();
         assert_eq!(
@@ -1469,14 +1460,8 @@ fn guest_entry_seed(key: &AuthKeyMaterial, key_digest: &[u8; 32]) -> [u8; 32] {
 pub struct AuthProvider {
     profile: AuthProviderProfile,
     budgets: ResolvedCompatibilityAuthBudgetPolicy,
-    #[cfg(any(test, feature = "test-support"))]
-    pub keyring: Arc<AuthKeyringStore>,
-    #[cfg(not(any(test, feature = "test-support")))]
     keyring: Arc<AuthKeyringStore>,
     mailbox: CaptureMailbox,
-    #[cfg(any(test, feature = "test-support"))]
-    pub random: Arc<dyn RandomSource>,
-    #[cfg(not(any(test, feature = "test-support")))]
     random: Arc<dyn RandomSource>,
     clock: Arc<dyn AuthClock>,
     /// Process-local non-decreasing epoch floor. Every `now_ms()` read is
@@ -1495,11 +1480,7 @@ pub struct AuthProvider {
     maintenance: Arc<AsyncRwLock<()>>,
     address_stripes: Vec<Arc<AsyncMutex<()>>>,
     address_hasher: RandomState,
-    #[allow(dead_code)] // Password route registration lands in the adjacent lane.
-    #[cfg(any(test, feature = "test-support"))]
-    pub password_security: crate::storage::auth_identity::PasswordSecurityProfile,
     #[allow(dead_code)]
-    #[cfg(not(any(test, feature = "test-support")))]
     password_security: crate::storage::auth_identity::PasswordSecurityProfile,
     #[allow(dead_code)]
     #[cfg(any(test, feature = "test-support"))]
@@ -4743,7 +4724,7 @@ impl AddressAdmission {
     /// Reusable host-operation core. Item 4 owns the AdminWrite and
     /// ImpersonationCapability gates; this method owns the identical durable
     /// provisioning, cap, and session issuance semantics used by exchange.
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn mint_session(
         &self,
         database: &mut LocalDatabase,

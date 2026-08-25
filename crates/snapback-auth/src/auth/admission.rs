@@ -1007,7 +1007,7 @@ impl AdmissionLease {
     /// Compatibility bridge for call sites the HTTP composition lane has not
     /// yet moved onto the app's controller. Such a lease carries the exact
     /// fields but deliberately cannot claim to participate in quiescence.
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn unmanaged(transition_generation: u64, admission_epoch: u64) -> Self {
         Self {
             token: Arc::new(LeaseToken {

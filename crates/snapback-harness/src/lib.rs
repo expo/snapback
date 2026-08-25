@@ -1,5 +1,6 @@
-//! Rank-7 integration harnesses that need explicit privileged test fixtures.
+//! Rank-7 integration harnesses for bounded scenario fixtures.
 //!
-//! This crate intentionally has no production dependencies. Its integration
-//! tests declare privileged external tools as visible dev-dependencies so the
-//! workspace graph gate can audit them directly.
+//! Harness APIs own the state they control and expose scenario operations,
+//! never mutable production owners or caller-authored authority objects.
+
+pub mod controlled_assets;

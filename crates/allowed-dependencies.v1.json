@@ -14,7 +14,7 @@
     { "name": "snapback-cli", "owner": "transport-adapters", "rank": 6, "allowedWorkspaceDependencies": ["snapback-activation", "snapback-auth", "snapback-engine", "snapback-kernel", "snapback-runtime", "snapback-server", "snapback-services", "snapback-sync", "snapback-types"] },
     { "name": "snapback", "owner": "embed-facade", "rank": 7, "allowedWorkspaceDependencies": ["snapback-activation", "snapback-auth", "snapback-cli", "snapback-engine", "snapback-kernel", "snapback-runtime", "snapback-server", "snapback-services", "snapback-sync", "snapback-types"] },
     { "name": "snapback-conformance", "owner": "proof-harness", "rank": 7, "allowedWorkspaceDependencies": ["snapback-auth", "snapback-engine", "snapback-kernel", "snapback-server", "snapback-types"] },
-    { "name": "snapback-harness", "owner": "proof-harness", "rank": 7, "allowedWorkspaceDependencies": ["snapback-auth", "snapback-cli", "snapback-engine", "snapback-kernel", "snapback-server"] },
+    { "name": "snapback-harness", "owner": "proof-harness", "rank": 7, "allowedWorkspaceDependencies": ["snapback-auth", "snapback-cli", "snapback-engine", "snapback-kernel", "snapback-server", "snapback-services"] },
     { "name": "snapback-tools", "owner": "dev-tools", "rank": 7, "allowedWorkspaceDependencies": ["snapback-activation", "snapback-auth", "snapback-cli", "snapback-engine", "snapback-kernel", "snapback-runtime", "snapback-server", "snapback-services", "snapback-sync", "snapback-types"] }
   ],
   "externalConfinement": [

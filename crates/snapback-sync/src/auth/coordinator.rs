@@ -2332,15 +2332,20 @@ fn session_expired(reason: RevocationReason) -> SnapbackError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::auth::crypto::{CryptoError, RandomSource};
+    use crate::auth::crypto::{CryptoError, OsRandom, RandomSource};
     use crate::auth::invocation::{InvocationGate, InvocationSource, WireAuthorityFields};
-    use crate::auth::provider::PlannedTokenSource;
+    use crate::auth::keyring::AuthKeyringStore;
+    use crate::auth::provider::{
+        AuthAdmission, AuthProvider, PasswordIssuanceCustody, PlannedLogout, PlannedRefresh,
+        ProviderGuestSessionPlan,
+    };
     use crate::auth::session_projection::{
-        AuthorizationStreamRecord, ProjectedSessionInsert, ProjectionIdentityRow,
-        ProjectionSessionRow, ProjectionSource, ProjectionUserRow,
+        AuthorizationStreamRecord, ProjectionIdentityRow, ProjectionSessionRow, ProjectionSource,
+        ProjectionUserRow,
     };
     use crate::contract_types::{
-        ApiManifest, AuthorizationStreamIncarnation, RevocationReason, ServerProfile,
+        ApiManifest, AuthProviderProfile, AuthorizationStreamIncarnation, RevocationReason,
+        ServerProfile,
     };
     use crate::manifest::{ArtifactGeneration, AuthMode, FunctionKind, SchemaManifest};
     use std::sync::Arc;
@@ -2373,13 +2378,16 @@ mod tests {
         substituted_user_id: String,
         substituted_session_id: String,
         monotonic_start: Instant,
+        provider: Arc<AuthProvider>,
+        admission: AuthAdmission,
+        planning_database: Mutex<crate::storage::LocalDatabase>,
     }
 
-    fn fixture() -> Fixture {
-        fixture_with_substituted_session(false)
+    async fn fixture() -> Fixture {
+        fixture_with_substituted_session(false).await
     }
 
-    fn fixture_with_substituted_session(include_substituted_session: bool) -> Fixture {
+    async fn fixture_with_substituted_session(include_substituted_session: bool) -> Fixture {
         let bearer = SessionBearer::generate(&FixedRandom(7)).unwrap();
         let bearer_text = bearer.expose_secret().to_owned();
         let token_hash = bearer.token_hash();
@@ -2477,14 +2485,17 @@ mod tests {
             substituted_user_id,
             substituted_session_id,
             monotonic_start,
+            provider,
+            admission,
+            planning_database: Mutex::new(planning_database),
         }
     }
 
-    fn fixture_from_database(
+    async fn fixture_from_database(
         include_substituted_session: bool,
         database: &mut crate::storage::LocalDatabase,
     ) -> Fixture {
-        let mut fixture = fixture_with_substituted_session(include_substituted_session);
+        let mut fixture = fixture_with_substituted_session(include_substituted_session).await;
         database
             .activate_current_auth_catalog()
             .expect("activate database-backed session fixture catalog");
@@ -2539,14 +2550,95 @@ mod tests {
         fixture
     }
 
-    fn plan(fixture: &Fixture, reason: RevocationReason) -> ProviderRevocationPlan {
-        ProviderRevocationPlan::for_test(
-            fixture.session_id.clone(),
-            1,
-            fixture.digest,
-            PlannedTokenSource::Current,
-            reason,
-        )
+    fn logout_plan(fixture: &Fixture) -> ProviderRevocationPlan {
+        let database = fixture.planning_database.lock().unwrap();
+        match fixture
+            .admission
+            .plan_logout(&database, &fixture.bearer, 200)
+            .expect("plan logout through the provider")
+        {
+            PlannedLogout::Revoke(plan) => plan,
+            _ => panic!("fixture bearer is a live current session"),
+        }
+    }
+
+    fn rotation_plan(fixture: &Fixture, now_ms: u64) -> ProviderTokenRotationPlan {
+        rotation_plan_for(fixture, &fixture.bearer, now_ms)
+    }
+
+    fn rotation_plan_for(
+        fixture: &Fixture,
+        bearer: &str,
+        now_ms: u64,
+    ) -> ProviderTokenRotationPlan {
+        let database = fixture.planning_database.lock().unwrap();
+        match fixture
+            .admission
+            .plan_refresh(&database, bearer, now_ms)
+            .expect("plan refresh through the provider")
+        {
+            PlannedRefresh::Rotate(plan) => plan,
+            _ => panic!("fixture bearer is a live current session"),
+        }
+    }
+
+    fn issuance_plan(fixture: &Fixture) -> ProviderSessionIssuancePlan {
+        let mut database = fixture.planning_database.lock().unwrap();
+        let planned = fixture
+            .provider
+            .plan_guest_session(
+                &mut database,
+                200,
+                10_000,
+                crate::auth::throttle::RollingWindowBudgetTerms {
+                    limit: 10,
+                    window_ms: 1_000,
+                },
+                "coordinator-issuance-plan",
+                "coordinator-test-app",
+                "coordinator-test-deployment",
+                &format!("sha256:{}", "a".repeat(64)),
+                PasswordIssuanceCustody::Bearer,
+            )
+            .expect("plan guest issuance through the provider");
+        let ProviderGuestSessionPlan::Planned(planned) = planned else {
+            panic!("fresh guest idempotency key yields an issuance plan");
+        };
+        planned.into_coordinated_parts().0
+    }
+
+    async fn family_alarm_fixture() -> (Fixture, ProviderRevocationPlan) {
+        let fixture = fixture().await;
+        let rotation = rotation_plan(&fixture, 250);
+        let commit_plan = rotation.commit_plan();
+        let carrier = fixture
+            .coordinator
+            .premark_rotation(rotation)
+            .await
+            .expect("premark provider-planned rotation");
+        let attempt = {
+            let mut database = fixture.planning_database.lock().unwrap();
+            fixture
+                .admission
+                .commit_planned_rotation(&mut database, &commit_plan)
+        };
+        assert!(matches!(
+            fixture
+                .coordinator
+                .finish_rotation(carrier, attempt)
+                .expect("finalize provider-planned rotation"),
+            RotationFinish::Committed { .. }
+        ));
+        let family = {
+            let database = fixture.planning_database.lock().unwrap();
+            fixture
+                .admission
+                .plan_family_alarm(&database, &fixture.bearer, 251)
+                .expect("plan family alarm from the durable predecessor")
+                .revocation_plan()
+                .expect("superseded bearer produces an actionable revocation")
+        };
+        (fixture, family)
     }
 
     fn committed(fixture: &Fixture) -> AuthTransactionAttempt<PlannedRevocationCommit> {
@@ -2640,9 +2732,9 @@ mod tests {
         Arc::new(tokio::sync::Mutex::new(()))
     }
 
-    #[test]
-    fn required_bearer_resolution_is_memory_only_and_retains_authority_instance() {
-        let fixture = fixture();
+    #[tokio::test]
+    async fn required_bearer_resolution_is_memory_only_and_retains_authority_instance() {
+        let fixture = fixture().await;
         let authority = fixture
             .coordinator
             .resolve_required_bearer(
@@ -2785,11 +2877,11 @@ mod tests {
         }
     }
 
-    #[test]
-    fn retained_effect_session_reconstruction_derives_the_stored_original_subject() {
+    #[tokio::test]
+    async fn retained_effect_session_reconstruction_derives_the_stored_original_subject() {
         let mut database = crate::storage::LocalDatabase::memory()
             .expect("pending-effect session derivation database");
-        let fixture = fixture_from_database(true, &mut database);
+        let fixture = fixture_from_database(true, &mut database).await;
         let mut manifest = SchemaManifest::default();
         manifest.api = Some(ApiManifest {
             enabled: true,
@@ -3034,10 +3126,10 @@ mod tests {
 
     #[tokio::test]
     async fn premark_carrier_holds_no_topology_or_leaf_guard() {
-        let fixture = fixture();
+        let fixture = fixture().await;
         let carrier = fixture
             .coordinator
-            .premark_revocation(plan(&fixture, RevocationReason::Logout))
+            .premark_revocation(logout_plan(&fixture))
             .await
             .unwrap();
         assert!(fixture.coordinator.topology.try_lock().is_ok());
@@ -3052,7 +3144,7 @@ mod tests {
 
     #[tokio::test]
     async fn session_premark_closes_continuous_reservations_then_drains() {
-        let fixture = fixture();
+        let fixture = fixture().await;
         let (_, publication) = fixture
             .coordinator
             .resolve_required_bearer(&fixture.bearer, 200, fixture.monotonic_start)
@@ -3063,7 +3155,7 @@ mod tests {
             .unwrap()
             .expect("initial retained session work");
         let coordinator = fixture.coordinator.clone();
-        let revocation = plan(&fixture, RevocationReason::Logout);
+        let revocation = logout_plan(&fixture);
         let mut pending =
             tokio::spawn(async move { coordinator.premark_revocation(revocation).await });
         wait_until_publication_closed(&publication, 200, fixture.monotonic_start).await;
@@ -3102,7 +3194,7 @@ mod tests {
 
     #[tokio::test]
     async fn cancelling_session_drain_exactly_rolls_back_its_pending_marker() {
-        let fixture = fixture();
+        let fixture = fixture().await;
         let (_, publication) = fixture
             .coordinator
             .resolve_required_bearer(&fixture.bearer, 200, fixture.monotonic_start)
@@ -3113,7 +3205,7 @@ mod tests {
             .unwrap()
             .expect("initial retained session work");
         let coordinator = fixture.coordinator.clone();
-        let revocation = plan(&fixture, RevocationReason::Logout);
+        let revocation = logout_plan(&fixture);
         let pending = tokio::spawn(async move { coordinator.premark_revocation(revocation).await });
         wait_until_publication_closed(&publication, 200, fixture.monotonic_start).await;
         pending.abort();
@@ -3131,7 +3223,7 @@ mod tests {
 
     #[tokio::test]
     async fn cancelling_stream_drain_reopens_the_exact_predecessor() {
-        let fixture = fixture();
+        let fixture = fixture().await;
         let publication = fixture.coordinator.prepare_anonymous_publication().unwrap();
         let permit = publication
             .try_reserve_work(200, fixture.monotonic_start)
@@ -3154,7 +3246,7 @@ mod tests {
 
     #[tokio::test]
     async fn cancelling_expiry_drain_removes_every_exact_due_marker() {
-        let fixture = fixture();
+        let fixture = fixture().await;
         let (_, publication) = fixture
             .coordinator
             .resolve_required_bearer(&fixture.bearer, 999, fixture.monotonic_start)
@@ -3186,7 +3278,7 @@ mod tests {
 
     #[tokio::test]
     async fn cancelled_revocation_waiter_leaves_owned_local_transaction_to_exact_rollback() {
-        let fixture = fixture();
+        let fixture = fixture().await;
         let (_, publication) = fixture
             .coordinator
             .resolve_required_bearer(&fixture.bearer, 200, fixture.monotonic_start)
@@ -3194,7 +3286,7 @@ mod tests {
             .into_parts();
         let carrier = fixture
             .coordinator
-            .premark_revocation(plan(&fixture, RevocationReason::Logout))
+            .premark_revocation(logout_plan(&fixture))
             .await
             .unwrap();
         let finish_coordinator = fixture.coordinator.clone();
@@ -3226,22 +3318,15 @@ mod tests {
 
     #[tokio::test]
     async fn cancelled_rotation_waiter_leaves_owned_local_transaction_to_exact_rollback() {
-        let fixture = fixture();
+        let fixture = fixture().await;
         let (_, publication) = fixture
             .coordinator
             .resolve_required_bearer(&fixture.bearer, 200, fixture.monotonic_start)
             .unwrap()
             .into_parts();
-        let successor_bearer = SessionBearer::generate(&FixedRandom(8)).unwrap();
         let carrier = fixture
             .coordinator
-            .premark_rotation(ProviderTokenRotationPlan::for_test(
-                fixture.session_id.clone(),
-                1,
-                fixture.digest,
-                successor_bearer,
-                250,
-            ))
+            .premark_rotation(rotation_plan(&fixture, 250))
             .await
             .unwrap();
         let finish_coordinator = fixture.coordinator.clone();
@@ -3276,23 +3361,10 @@ mod tests {
 
     #[tokio::test]
     async fn cancelled_issuance_waiter_leaves_owned_local_transaction_to_exact_rollback() {
-        let fixture = fixture();
-        let bearer = SessionBearer::generate(&FixedRandom(9)).unwrap();
-        let projected = ProjectedSessionInsert {
-            session_id: uuid_v7(20, 20),
-            user_id: uuid_v7(21, 21),
-            provider: "email-code".to_owned(),
-            authority_instance_id: uuid_v7(22, 22),
-            generation: 1,
-            token_digest: TokenDigest::from_token_hash(&bearer.token_hash()),
-            created_at_ms: 200,
-            expires_at_ms: 1_000,
-            absolute_expires_at_ms: 2_000,
-            rehearsal_provenance: None,
-        };
+        let fixture = fixture().await;
         let carrier = fixture
             .coordinator
-            .premark_issuance(ProviderSessionIssuancePlan::for_test(projected, bearer))
+            .premark_issuance(issuance_plan(&fixture))
             .await
             .unwrap();
         let finish_coordinator = fixture.coordinator.clone();
@@ -3336,7 +3408,7 @@ mod tests {
 
     #[tokio::test]
     async fn cancelled_stream_reset_waiter_leaves_owned_local_transaction_to_exact_rollback() {
-        let fixture = fixture();
+        let fixture = fixture().await;
         let publication = fixture.coordinator.prepare_anonymous_publication().unwrap();
         let predecessor = fixture
             .coordinator
@@ -3380,16 +3452,9 @@ mod tests {
 
     #[tokio::test]
     async fn rotation_ticket_binds_exact_predecessor_successor_and_timestamp() {
-        let fixture = fixture();
-        let successor_bearer = SessionBearer::generate(&FixedRandom(8)).unwrap();
-        let successor_digest = TokenDigest::from_token_hash(&successor_bearer.token_hash());
-        let plan = ProviderTokenRotationPlan::for_test(
-            fixture.session_id.clone(),
-            1,
-            fixture.digest,
-            successor_bearer,
-            250,
-        );
+        let fixture = fixture().await;
+        let plan = rotation_plan(&fixture, 250);
+        let successor_digest = plan.successor_digest();
         let carrier = fixture.coordinator.premark_rotation(plan).await.unwrap();
         {
             let topology = fixture.coordinator.topology.lock().unwrap();
@@ -3422,7 +3487,7 @@ mod tests {
 
     #[tokio::test]
     async fn committed_rotation_response_ignores_only_doomed_sibling_refresh_tickets() {
-        let fixture = fixture();
+        let fixture = fixture().await;
         let (_, ordinary_publication) = fixture
             .coordinator
             .resolve_required_bearer(&fixture.bearer, 200, fixture.monotonic_start)
@@ -3430,24 +3495,12 @@ mod tests {
             .into_parts();
         let winner = fixture
             .coordinator
-            .premark_rotation(ProviderTokenRotationPlan::for_test(
-                fixture.session_id.clone(),
-                1,
-                fixture.digest,
-                SessionBearer::generate(&FixedRandom(8)).unwrap(),
-                250,
-            ))
+            .premark_rotation(rotation_plan(&fixture, 250))
             .await
             .unwrap();
         let loser = fixture
             .coordinator
-            .premark_rotation(ProviderTokenRotationPlan::for_test(
-                fixture.session_id.clone(),
-                1,
-                fixture.digest,
-                SessionBearer::generate(&FixedRandom(9)).unwrap(),
-                250,
-            ))
+            .premark_rotation(rotation_plan(&fixture, 250))
             .await
             .unwrap();
 
@@ -3505,60 +3558,61 @@ mod tests {
         );
         fixture.coordinator.check_invariants().unwrap();
 
-        let successor_fixture = self::fixture();
-        let successor_one = SessionBearer::generate(&FixedRandom(11)).unwrap();
-        let successor_one_digest = TokenDigest::from_token_hash(&successor_one.token_hash());
+        let successor_fixture = self::fixture().await;
+        let successor_one_plan = rotation_plan(&successor_fixture, 250);
+        let successor_one_commit = successor_one_plan.commit_plan();
         let first_rotation = successor_fixture
             .coordinator
-            .premark_rotation(ProviderTokenRotationPlan::for_test(
-                successor_fixture.session_id.clone(),
-                1,
-                successor_fixture.digest,
-                successor_one,
-                250,
-            ))
+            .premark_rotation(successor_one_plan)
             .await
             .unwrap();
         let RotationFinish::Committed {
+            issue: successor_one_issue,
             outcome: successor_one_outcome,
-            ..
         } = successor_fixture
             .coordinator
-            .finish_rotation(
-                first_rotation,
-                AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed {
-                    session: committed_rotation_session(&successor_fixture),
-                }),
-            )
+            .finish_rotation(first_rotation, {
+                let mut database = successor_fixture.planning_database.lock().unwrap();
+                successor_fixture
+                    .admission
+                    .commit_planned_rotation(&mut database, &successor_one_commit)
+            })
             .unwrap()
         else {
             panic!("first same-generation successor commits");
         };
-        let successor_two = SessionBearer::generate(&FixedRandom(12)).unwrap();
-        let successor_two_text = successor_two.expose_secret().to_owned();
+        let successor_one_text = successor_one_issue
+            .response()
+            .token()
+            .expose_secret()
+            .to_owned();
+        let successor_two_plan = rotation_plan_for(&successor_fixture, &successor_one_text, 260);
+        let successor_two_commit = successor_two_plan.commit_plan();
         let second_rotation = successor_fixture
             .coordinator
-            .premark_rotation(ProviderTokenRotationPlan::for_test(
-                successor_fixture.session_id.clone(),
-                1,
-                successor_one_digest,
-                successor_two,
-                260,
-            ))
+            .premark_rotation(successor_two_plan)
             .await
             .unwrap();
-        assert!(matches!(
-            successor_fixture
-                .coordinator
-                .finish_rotation(
-                    second_rotation,
-                    AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed {
-                        session: committed_rotation_session(&successor_fixture),
-                    }),
-                )
-                .unwrap(),
-            RotationFinish::Committed { .. }
-        ));
+        let RotationFinish::Committed {
+            issue: successor_two_issue,
+            ..
+        } = successor_fixture
+            .coordinator
+            .finish_rotation(second_rotation, {
+                let mut database = successor_fixture.planning_database.lock().unwrap();
+                successor_fixture
+                    .admission
+                    .commit_planned_rotation(&mut database, &successor_two_commit)
+            })
+            .unwrap()
+        else {
+            panic!("second provider-planned successor commits");
+        };
+        let successor_two_text = successor_two_issue
+            .response()
+            .token()
+            .expose_secret()
+            .to_owned();
         let successor_two_authority = successor_fixture
             .coordinator
             .resolve_required_bearer(&successor_two_text, 270, successor_fixture.monotonic_start)
@@ -3581,16 +3635,10 @@ mod tests {
         );
         successor_fixture.coordinator.check_invariants().unwrap();
 
-        let deadline_fixture = self::fixture();
+        let deadline_fixture = self::fixture().await;
         let deadline_rotation = deadline_fixture
             .coordinator
-            .premark_rotation(ProviderTokenRotationPlan::for_test(
-                deadline_fixture.session_id.clone(),
-                1,
-                deadline_fixture.digest,
-                SessionBearer::generate(&FixedRandom(13)).unwrap(),
-                250,
-            ))
+            .premark_rotation(rotation_plan(&deadline_fixture, 250))
             .await
             .unwrap();
         let RotationFinish::Committed {
@@ -3638,21 +3686,15 @@ mod tests {
         );
         deadline_fixture.coordinator.check_invariants().unwrap();
 
-        let revocation_fixture = self::fixture();
+        let revocation_fixture = self::fixture().await;
         let winner = revocation_fixture
             .coordinator
-            .premark_rotation(ProviderTokenRotationPlan::for_test(
-                revocation_fixture.session_id.clone(),
-                1,
-                revocation_fixture.digest,
-                SessionBearer::generate(&FixedRandom(10)).unwrap(),
-                250,
-            ))
+            .premark_rotation(rotation_plan(&revocation_fixture, 250))
             .await
             .unwrap();
         let revocation = revocation_fixture
             .coordinator
-            .premark_revocation(plan(&revocation_fixture, RevocationReason::Logout))
+            .premark_revocation(logout_plan(&revocation_fixture))
             .await
             .unwrap();
         let RotationFinish::Committed { outcome, .. } = revocation_fixture
@@ -3695,15 +3737,15 @@ mod tests {
     #[tokio::test]
     async fn sibling_rollback_never_reopens_a_committed_revocation_in_either_order() {
         for second_wins in [false, true] {
-            let fixture = fixture();
+            let fixture = fixture().await;
             let a = fixture
                 .coordinator
-                .premark_revocation(plan(&fixture, RevocationReason::Logout))
+                .premark_revocation(logout_plan(&fixture))
                 .await
                 .unwrap();
             let b = fixture
                 .coordinator
-                .premark_revocation(plan(&fixture, RevocationReason::FamilyAlarm))
+                .premark_revocation(logout_plan(&fixture))
                 .await
                 .unwrap();
             let (winner, loser) = if second_wins { (b, a) } else { (a, b) };
@@ -3737,10 +3779,10 @@ mod tests {
 
     #[tokio::test]
     async fn committed_outcome_is_one_shot_and_response_class_bound() {
-        let logout_fixture = fixture();
+        let logout_fixture = fixture().await;
         let carrier = logout_fixture
             .coordinator
-            .premark_revocation(plan(&logout_fixture, RevocationReason::Logout))
+            .premark_revocation(logout_plan(&logout_fixture))
             .await
             .unwrap();
         let RevocationFinish::Committed { outcome, .. } = logout_fixture
@@ -3776,15 +3818,21 @@ mod tests {
             "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
         );
 
-        let family_fixture = fixture();
+        let (family_fixture, family_plan) = family_alarm_fixture().await;
         let carrier = family_fixture
             .coordinator
-            .premark_revocation(plan(&family_fixture, RevocationReason::FamilyAlarm))
+            .premark_revocation(family_plan.clone())
             .await
             .unwrap();
+        let committed_family_alarm = {
+            let mut database = family_fixture.planning_database.lock().unwrap();
+            family_fixture
+                .admission
+                .commit_planned_revocation(&mut database, &family_plan, 251)
+        };
         let RevocationFinish::Committed { outcome, .. } = family_fixture
             .coordinator
-            .finish_revocation(carrier, committed(&family_fixture))
+            .finish_revocation(carrier, committed_family_alarm)
             .unwrap()
         else {
             panic!("family-alarm revocation committed");
@@ -3806,10 +3854,10 @@ mod tests {
 
     #[tokio::test]
     async fn committed_outcome_does_not_survive_stream_incarnation_change() {
-        let fixture = fixture();
+        let fixture = fixture().await;
         let carrier = fixture
             .coordinator
-            .premark_revocation(plan(&fixture, RevocationReason::Logout))
+            .premark_revocation(logout_plan(&fixture))
             .await
             .unwrap();
         let RevocationFinish::Committed { outcome, .. } = fixture
@@ -3839,15 +3887,15 @@ mod tests {
 
     #[tokio::test]
     async fn already_terminal_loser_exact_unmarks_after_sibling_finalize() {
-        let fixture = fixture();
+        let fixture = fixture().await;
         let winner = fixture
             .coordinator
-            .premark_revocation(plan(&fixture, RevocationReason::Logout))
+            .premark_revocation(logout_plan(&fixture))
             .await
             .unwrap();
         let loser = fixture
             .coordinator
-            .premark_revocation(plan(&fixture, RevocationReason::FamilyAlarm))
+            .premark_revocation(logout_plan(&fixture))
             .await
             .unwrap();
         fixture
@@ -3876,10 +3924,10 @@ mod tests {
 
     #[tokio::test]
     async fn known_commit_finalize_failure_marks_session_uncertain_and_requires_rebuild() {
-        let fixture = fixture();
+        let fixture = fixture().await;
         let carrier = fixture
             .coordinator
-            .premark_revocation(plan(&fixture, RevocationReason::Logout))
+            .premark_revocation(logout_plan(&fixture))
             .await
             .unwrap();
         fixture.coordinator.inject_finalize_failure();
@@ -3912,10 +3960,10 @@ mod tests {
 
     #[tokio::test]
     async fn ambiguous_commit_never_exact_unmarks_and_requires_rebuild() {
-        let fixture = fixture();
+        let fixture = fixture().await;
         let carrier = fixture
             .coordinator
-            .premark_revocation(plan(&fixture, RevocationReason::Logout))
+            .premark_revocation(logout_plan(&fixture))
             .await
             .unwrap();
         let error = fixture
@@ -3941,7 +3989,7 @@ mod tests {
 
     #[tokio::test]
     async fn stream_reset_rollback_exactly_reopens_predecessor_publication() {
-        let fixture = fixture();
+        let fixture = fixture().await;
         let predecessor = fixture
             .coordinator
             .authorization_stream_incarnation()
@@ -3987,7 +4035,7 @@ mod tests {
 
     #[tokio::test]
     async fn committed_stream_reset_installs_exact_successor_and_fences_predecessor() {
-        let fixture = fixture();
+        let fixture = fixture().await;
         let predecessor = fixture
             .coordinator
             .authorization_stream_incarnation()
@@ -4030,7 +4078,7 @@ mod tests {
 
     #[tokio::test]
     async fn protected_erasure_admin_publication_refuses_predecessor_stream_after_reset() {
-        let fixture = fixture();
+        let fixture = fixture().await;
         let publication = fixture
             .coordinator
             .prepare_anonymous_publication()
@@ -4067,7 +4115,7 @@ mod tests {
 
     #[tokio::test]
     async fn uncertain_stream_reset_stays_globally_blocked() {
-        let fixture = fixture();
+        let fixture = fixture().await;
         let carrier = fixture.coordinator.premark_stream_reset().await.unwrap();
         let error = fixture
             .coordinator
@@ -4092,9 +4140,9 @@ mod tests {
         );
     }
 
-    #[test]
-    fn no_write_authenticated_use_replaces_stale_deadline_and_extends_memory_only() {
-        let fixture = fixture();
+    #[tokio::test]
+    async fn no_write_authenticated_use_replaces_stale_deadline_and_extends_memory_only() {
+        let fixture = fixture().await;
         let at_use = fixture.monotonic_start + Duration::from_millis(100);
         let extended = fixture
             .coordinator

@@ -10,15 +10,18 @@ build = "build.rs"
 name = "snapback_harness"
 path = "src/lib.rs"
 
+[dependencies]
+snapback-kernel = { path = "../snapback-kernel" }
+snapback-services = { path = "../snapback-services" }
+tempfile = "3.23"
+
 [dev-dependencies]
 rusqlite = { version = "0.31", features = ["backup", "bundled", "column_decltype", "functions", "hooks", "limits", "serialize"] }
 serde_json = "1.0"
 snapback-auth = { path = "../snapback-auth" }
 snapback-cli = { path = "../snapback-cli" }
 snapback-engine = { path = "../snapback-engine" }
-snapback-kernel = { path = "../snapback-kernel" }
 snapback-server = { path = "../snapback-server" }
-tempfile = "3.23"
 
 [lints]
 workspace = true

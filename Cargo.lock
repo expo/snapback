@@ -4167,6 +4167,7 @@ dependencies = [
  "sha2 0.10.9",
  "snapback-activation",
  "snapback-auth",
+ "snapback-harness",
  "snapback-kernel",
  "snapback-runtime",
  "snapback-services",
@@ -4190,6 +4191,7 @@ dependencies = [
  "snapback-engine",
  "snapback-kernel",
  "snapback-server",
+ "snapback-services",
  "tempfile",
 ]
 

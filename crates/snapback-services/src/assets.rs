@@ -826,14 +826,6 @@ impl AssetWidthPrepareTicketV1 {
     pub fn store_for_test(&self) -> std::sync::Arc<dyn crate::assets_store::AssetStore> {
         self.store.clone()
     }
-
-    #[cfg(any(test, feature = "remainder-tests"))]
-    pub fn replace_store_for_test(
-        &mut self,
-        store: std::sync::Arc<dyn crate::assets_store::AssetStore>,
-    ) {
-        self.store = store;
-    }
 }
 
 impl AssetWidthPlanTicketV1 {
@@ -1393,14 +1385,6 @@ impl FinalizePrepareTicketV1 {
     #[cfg(any(test, feature = "remainder-tests"))]
     pub fn store_for_test(&self) -> std::sync::Arc<dyn crate::assets_store::AssetStore> {
         self.store.clone()
-    }
-
-    #[cfg(any(test, feature = "remainder-tests"))]
-    pub fn replace_store_for_test(
-        &mut self,
-        store: std::sync::Arc<dyn crate::assets_store::AssetStore>,
-    ) {
-        self.store = store;
     }
 
     pub fn prepare(&self) -> SnapbackResult<FinalizePreparationV1> {
