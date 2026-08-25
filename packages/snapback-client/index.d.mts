@@ -460,6 +460,53 @@ export interface MutationTiming {
   readonly committedAtMs: number | null;
 }
 
+export interface MutationPhaseDurationsV1 {
+  readonly queueWaitMs: number | null;
+  readonly authWaitMs: number | null;
+  readonly executionMs: number | null;
+  readonly commitMs: number | null;
+}
+
+export interface MutationPhaseCostV1 extends MutationTiming, MutationPhaseDurationsV1 {
+  readonly format: 'snapback.mutation-phase-cost.v1';
+  /** Stable gated-inspection pseudonym, never the caller-supplied raw id. */
+  readonly clientMutationId: `sha256:${string}`;
+  readonly functionId: string;
+  readonly disposition: string;
+}
+
+export interface MutationPhaseAggregateV1 {
+  readonly functionId: string;
+  readonly count: number;
+  readonly queueWaitMs: Readonly<{ count: number; totalMs: number; maxMs: number | null }>;
+  readonly authWaitMs: Readonly<{ count: number; totalMs: number; maxMs: number | null }>;
+  readonly executionMs: Readonly<{ count: number; totalMs: number; maxMs: number | null }>;
+  readonly commitMs: Readonly<{ count: number; totalMs: number; maxMs: number | null }>;
+}
+
+export interface MutationPhaseCostInspectionV1 {
+  readonly format: 'snapback.mutation-phase-cost-inspection.v1';
+  readonly records: readonly MutationPhaseCostV1[];
+  readonly counters: readonly MutationPhaseAggregateV1[];
+  readonly otherKeys: MutationPhaseAggregateV1;
+  readonly evictedKeys: number;
+  readonly droppedRecords: number;
+  readonly retainedBytes: number;
+  readonly recordLimit: number;
+  readonly byteLimit: number;
+}
+
+export declare function inspectionPseudonymV1(value: string): `sha256:${string}`;
+export declare function mutationPhaseDurationsV1(
+  timing?: Partial<MutationTiming> | null,
+): MutationPhaseDurationsV1;
+export declare function projectMutationPhaseCostV1(input: Readonly<{
+  clientMutationId: string;
+  functionId: string;
+  timing?: Partial<MutationTiming> | null;
+  disposition: string;
+}>): MutationPhaseCostV1;
+
 export type MutationDisposition = (
   | { readonly status: 'pending'; readonly blockedReason: string | null }
   | {
@@ -864,8 +911,12 @@ export interface LiveQueryHandle<Rows> {
   version: number;
   /** Wall-clock time of the most recent authoritative delivery. */
   readonly lastDeliveryAtMs: number | null;
-  /** Monotone count of authoritative deliveries for this handle. */
+  /** Storage commit version of the most recent authoritative delivery. */
   readonly authoritativeRevision: number;
+  /** Client-clock lag for the most recent locally observed covered commit. */
+  readonly deliveryLagMs: number | null;
+  /** Headless has no consumer-value suppression layer; provider projections may. */
+  readonly suppressedEqualSnapshots: number;
   rows: Rows;
   /** Canonical server/retained rows before generated private layers. */
   readonly authoritativeRows: Rows;
@@ -1568,17 +1619,16 @@ export interface SnapbackLiveManagerInspection {
 }
 
 export interface SnapbackOwnershipTupleInspection {
+  readonly format: 'snapback.ownership-tuple-inspection.v1';
+  /** Stable inspection pseudonym; the raw app id remains in the internal key. */
   readonly canonicalAppId: string | null;
+  /** Stable inspection pseudonym; the raw partition remains in the internal key. */
   readonly storagePartition: string;
-  readonly serverOrigin: string;
-  readonly settledAuthority: Readonly<{
-    readonly state: string;
-    readonly settled: boolean;
-    readonly transitionOwner: string | null;
-    readonly barrierPhase: string | null;
-  }>;
+  readonly serverInstance: 'self';
+  readonly authorityClass: string;
 }
 
+<<<<<<< HEAD
 export interface SnapbackRuntimeCostDiagnosticsInspection {
   readonly enabled: boolean;
   readonly keyCapacity: number;
@@ -1619,6 +1669,59 @@ export interface SnapbackRuntimeCostDiagnosticsInspection {
   }>;
 }
 
+=======
+export declare function projectOwnershipTupleInspectionV1(input: Readonly<{
+  readonly canonicalAppId?: string | null;
+  readonly storagePartition: string;
+  readonly settledAuthority?: Readonly<{ state?: string; settled?: boolean }> | null;
+}>): SnapbackOwnershipTupleInspection;
+
+export type PendingDeliveryReasonV1 =
+  | 'terminal-quarantine'
+  | 'auth-barrier'
+  | 'custody-unsettled'
+  | 'authority-unavailable'
+  | 'transport-recovery'
+  | 'server-pending';
+
+export type PendingDeliveryOutcomeClassV1 =
+  | 'reason'
+  | 'neutral'
+  | 'snapshot-skew'
+  | 'defect';
+
+export interface PendingDeliveryOutcomeV1 {
+  readonly outcome: PendingDeliveryOutcomeClassV1;
+  readonly pendingDeliveryReason: PendingDeliveryReasonV1 | null;
+  readonly detail: Readonly<Record<string, unknown>>;
+}
+
+export interface PendingDeliveryInspectionRowV1 extends PendingDeliveryOutcomeV1 {
+  readonly format: 'snapback.pending-delivery-inspection-row.v1';
+  /** Null only for the unconditional ordinary initial-PENDING lifecycle row. */
+  readonly subscriptionId: string | null;
+  readonly functionId: string | null;
+  readonly serverRegistry: Readonly<Record<string, unknown>> | null;
+  readonly wave: Readonly<Record<string, unknown>> | null;
+}
+
+export interface PendingDeliveryInspectionV1 {
+  readonly format: 'snapback.pending-delivery-inspection.v1';
+  readonly subscriptions: readonly PendingDeliveryInspectionRowV1[];
+}
+
+export declare function derivePendingDeliveryOutcomeV1(
+  clientRow: Readonly<Record<string, unknown>> | null,
+  serverRow: Readonly<Record<string, unknown>> | null,
+): PendingDeliveryOutcomeV1;
+
+export declare function joinPendingDeliveryInspectionV1(
+  clientSnapshot: Readonly<Record<string, unknown>>,
+  serverSnapshot: Readonly<Record<string, unknown>>,
+  options?: Readonly<{ previous?: PendingDeliveryInspectionV1 | null }>,
+): PendingDeliveryInspectionV1;
+
+>>>>>>> 111ac41dc (feat(client,react): W5 client runtime-cost and stalled-delivery inspection)
 export interface SnapbackLocalResourceInspection {
   readonly managers: readonly SnapbackLiveManagerInspection[];
   readonly managerCount: number;
@@ -1634,14 +1737,25 @@ export interface SnapbackLocalResourceInspection {
   readonly subscriptions: readonly Readonly<{
     owner: string;
     connectionId: string;
+    subscriptionId: string | null;
     functionName: string;
     state: 'active' | 'paused';
+    subscriptionState: string;
     connection: string;
+    connectionState: string;
+    supersedesSubscriptionId: string | null;
     snapshotVersion: number;
+    lastDeliveryAtMs: number | null;
+    authoritativeRevision: number;
+    deliveryLagMs: number | null;
+    suppressedEqualSnapshots: number;
+    terminalCode: string | null;
+    ownershipTuple: SnapbackOwnershipTupleInspection;
     authBarrier: string | null;
     readiness: 'ready' | 'waiting';
     outboxSuspensionReason: string | null;
   }>[];
+  readonly mutationPhaseCosts: MutationPhaseCostInspectionV1;
   readonly subscriptionCount: number;
   readonly runtimeCostDiagnostics: SnapbackRuntimeCostDiagnosticsInspection;
   readonly socketDemand: number;
@@ -1786,6 +1900,7 @@ export class SnapbackClient {
   ): unknown;
   isAuthorityCaptureCurrent(capture: unknown): boolean;
   localResourceInspection(connectionIds?: Iterable<string> | null): SnapbackLocalResourceInspection;
+  mutationPhaseCostInspection(): MutationPhaseCostInspectionV1;
   storePolicyInspection(input: Readonly<{
     authorityPartitionDigest: `sha256:${string}`;
   }>): Promise<StorePolicyInspectionV1>;

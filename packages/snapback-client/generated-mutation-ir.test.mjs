@@ -223,6 +223,10 @@ test('generated mutate derives online projection without durable outbox custody'
   assertDerivedBody(requestBody);
   assertDerivedSettlement(settlement, requestBody);
   assert.equal((await storelessClient.mutationStatus(requestBody.clientMutationId)).status, 'settled');
+  const ephemeralCost = storelessClient.mutationPhaseCostInspection();
+  assert.equal(ephemeralCost.records.length, 1);
+  assert.equal(ephemeralCost.records[0].disposition, 'settled');
+  assert.equal(ephemeralCost.counters[0].count, 1);
 
   calls = 0;
   await assert.rejects(
