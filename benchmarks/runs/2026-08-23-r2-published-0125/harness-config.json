@@ -514,6 +514,7 @@
       "allowedHostId": "mac-mini-durand",
       "loadCeilingId": "mac16-11-m4-pro-12core-loadavg-10-approved-20260824",
       "baseline": {"wallSeconds": 4336, "outputTokens": 141020},
+      "disposition": {"kind": "driver-failure-report", "path": "BLOCKED-grok-clique-explicit-suite-status-finalization.md", "sha256": "sha256:bb8d4c1b7367f891e8206cc34fd777c37a1a0319395d1f4ffe7fe6bdea0bcf8c"},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "grok-clique-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/grok-clique-explicit.json"],
       "admissionArtifact": "admissions/grok-clique-explicit.json",
       "meteringPolicy": {"adapter": "unavailable", "capFamily": "grok-advisory", "nativeCounts": "registered-unavailable", "unavailableReason": "advisory-family-no-approved-native-per-turn-adapter"}
