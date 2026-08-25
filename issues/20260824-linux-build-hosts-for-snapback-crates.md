@@ -171,3 +171,42 @@ One caveat found during the dry run and not yet diagnosed: the generator also re
 for `npm:@expo/snapback-expo#SnapbackDiagnosticError`. That may be an artifact of the incomplete
 worktree or a genuine issue in the rebased content; it needs re-checking in the main checkout before
 any landing, and must not be assumed benign.
+
+## Pre-gate: build every crate a lane touches, before dispatching its review
+
+Two lanes reached a reviewer without compiling. One failed `cargo test -p snapback-engine` with four
+`E0308`s in its own new code; the other failed `cargo check --locked -p snapback-server --tests`
+because a file never imported two types the lane had introduced. Both lanes reported passing suites —
+truthfully, for the crates they *did* run.
+
+That is a whole review cycle spent on a `cargo check` failure, twice. It is also how a functional bug
+hides: the second lane's missing import masked a **deadlock** in the approval path that only appeared
+once the imports were added and an end-to-end test ran, timing out twice at status 124.
+
+**The check is cheap and belongs to whoever dispatches the review**, not to the lane that already
+believes it is finished:
+
+```sh
+git diff --name-only origin/main <lane-sha> | grep '^crates/' | cut -d/ -f2 | sort -u
+```
+
+then `cargo check --locked -p <each> --tests` for every crate listed. Lanes in this program touch
+five to eight crates each — one recent set:
+
+| Lane | Crates touched |
+|---|---|
+| deny | snapback, -engine, -kernel, -server, -types |
+| Q04 | snapback, -engine, -kernel, -sync, -types |
+| Q10 | snapback, -engine, -kernel, -server, -sync, -types |
+| Q05 | snapback, -auth, -engine, -kernel, -server, -sync, -types |
+| OAuth | snapback, -activation, -cli, -engine, -kernel, -server, -sync, -types |
+| Q06 | snapback, -engine, -kernel, -server, -sync, -types |
+
+A lane that runs `-p snapback-auth` and `-p snapback-sync` and stops has tested two of seven. The
+crate list is derivable from the diff in one command, so there is no excuse for either the lane or
+the dispatcher to guess at it.
+
+Note this interacts with the worktree gaps above: a lane cannot build `snapback-engine` or
+`snapback-server` at all without `vendor/ibex` present, so "I could not run those" and "those do not
+compile" look identical from the lane's side. Fix the environment first, then the absence of a result
+means something.
