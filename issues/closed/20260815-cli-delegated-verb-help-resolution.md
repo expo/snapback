@@ -36,7 +36,7 @@ the missing registry walk, so options adjacent to `--help` cannot be mistaken
 for command-path components, and guards the `auth password reset` and `unlock`
 leaf paths in `packages/snapback-cli/cli-help.test.mjs`.
 
-The carrier-usage papercut remains open because the text is emitted by native
+(Superseded by the Resolution below.) The carrier-usage papercut remained open at that point because the text is emitted by native
 Clap before the JS wrapper runs the delegated operation. The Rust site is
 `AuthPasswordCarrierArgs` in `crates/snapback-cli/src/cli.rs`: its three
 `required_unless_present_any` declarations make Clap list every carrier as
