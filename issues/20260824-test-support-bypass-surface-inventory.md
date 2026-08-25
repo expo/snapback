@@ -783,6 +783,30 @@ is absent (`E0425`) and `FinalizePrepareTicketV1` has no public `clone` method
 live `LocalSnapback` owners and verifies the runtime fallback refuses it with
 `SNAPBACK_ASSET_FINALIZE_OWNER_MISMATCH` before Phase A.
 
+### Additive feature-cell verification
+
+Each `+feature` cell below was compiled with defaults still enabled, matching
+Cargo's additive/unified feature semantics; `no-default` is the separate
+caller-selected cell. This is **25 enumerated checks** (24 package cells plus
+workspace all-features):
+
+| Package | Default | No default | Each additive feature |
+|---|---|---|---|
+| `snapback-auth` | pass | pass | `test-support`: pass |
+| `snapback-sync` | pass | pass | `sync-owner`: pass; `test-support`: inherited standalone red |
+| `snapback-services` | pass | pass | `services-owner`: pass; `benchmark-support`: pass; `remainder-tests`: pass |
+| `snapback-engine` | pass | inherited standalone red | `engine-owner`: pass; `test-support`: pass |
+| `snapback-server` | pass | pass | `server-owner`: pass; `benchmark-support`: pass; `test-support`: pass |
+| `snapback-kernel` | pass | pass | `test-support`: pass |
+| workspace | pass with `--all-features` | — | stronger `--all-targets --all-features`: pass |
+
+Both standalone reds were executed again on `origin/main` rather than inferred:
+the noted sync cell still does not forward auth/kernel test support, and engine
+without defaults resolves the long-standing `crate::server::route_registry`
+reference after that module moved out of the engine (`E0433`). Neither path was
+changed by rounds 2 or 3, so this lane did not broaden into those inherited
+build-graph defects.
+
 ---
 
 ## Addendum — independent mechanical estimate, recorded before the tiering lane reports

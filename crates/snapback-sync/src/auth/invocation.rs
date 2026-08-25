@@ -3079,31 +3079,7 @@ impl InvocationGate {
         active_mode: AuthMode,
         transition_generation: u64,
     ) -> SnapbackResult<AdmissionLease> {
-        let active_deployment = (active_mode == AuthMode::Sessions).then(|| {
-            let digest =
-                |prefix: &str, marker: char| format!("{prefix}{}", marker.to_string().repeat(64));
-            DeploymentIdentity {
-                schema_version: active_mode.artifact_version().to_owned(),
-                auth_mode: active_mode,
-                app_id: "invocation-compatibility-admission".to_owned(),
-                schema_hash: digest(SCHEMA_V1_PREFIX, '1'),
-                bundle_hash: digest(FUNCTION_V1_PREFIX, '2'),
-                inputs_hash: digest(INPUTS_V1_PREFIX, '3'),
-            }
-        });
-        let mode = AuthModeStateRecord {
-            format_version: AUTH_MODE_FORMAT_VERSION,
-            transition_generation,
-            active: active_mode,
-            desired: active_mode,
-            mode_state: AuthModeStatus::Settled,
-            app_data_availability: AppDataAvailability::Available,
-            sessions_ever_activated: active_mode == AuthMode::Sessions,
-            active_deployment,
-            requested_deployment: None,
-            quarantine: None,
-        };
-        AdmissionController::from_mode_state(&mode)?.admit_for_mode(active_mode)
+        test_admission_controller(active_mode, transition_generation)?.admit_for_mode(active_mode)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -3137,7 +3113,7 @@ impl InvocationGate {
             profile,
             match managed {
                 Some(admission) => admission,
-                None => AdmissionLease::unmanaged(transition_generation, admission_epoch),
+                None => Self::compatibility_admission(active_mode, transition_generation)?,
             },
             wire,
             resolved,
