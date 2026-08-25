@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { readFileDescriptorSafe } from './deployment-control.mjs';
+import { __deploymentTest } from './deployment-control.mjs';
 
 const INVALID_CODE = 'SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID';
 const root = mkdtempSync(join(tmpdir(), 'snapback-admin-token-custody-'));
@@ -31,18 +31,34 @@ chmodSync(native, 0o755);
 test.after(() => rmSync(root, { force: true, recursive: true }));
 
 function readToken(path, maximumBytes = 4 * 1024) {
-  return readFileDescriptorSafe(
+  return __deploymentTest.readFileDescriptorSafeHarness(
     path,
     INVALID_CODE,
     { maximumBytes, ownerOnly: true },
   ).toString('utf8').trim();
 }
 
-function assertInvalid(operation) {
-  assert.throws(operation, (error) => error?.code === INVALID_CODE);
+function diagnosticDocument(stderr) {
+  for (const line of stderr.split(/\r?\n/u)) {
+    if (!line.startsWith('{')) continue;
+    try {
+      const parsed = JSON.parse(line);
+      if (Array.isArray(parsed?.diagnostics)) return parsed;
+    } catch {
+      // Ignore non-JSON process warnings; the CLI diagnostic remains one line.
+    }
+  }
+  assert.fail(`stderr did not contain a diagnostic JSON document: ${stderr}`);
 }
 
-function assertCliRefuses(path) {
+function cliEnvironment() {
+  const env = { ...process.env, SNAPBACK_RUNTIME_BINARY: native };
+  delete env.FORCE_COLOR;
+  delete env.NO_COLOR;
+  return env;
+}
+
+function assertCliRefuses(path, options = {}) {
   const result = spawnSync(
     process.execPath,
     [
@@ -54,15 +70,19 @@ function assertCliRefuses(path) {
     ],
     {
       encoding: 'utf8',
-      env: { ...process.env, SNAPBACK_RUNTIME_BINARY: native },
+      env: cliEnvironment(),
+      timeout: options.timeout,
     },
   );
+  assert.equal(result.error, undefined, result.error?.message);
   assert.equal(result.status, 1, result.stderr);
-  assert.equal(JSON.parse(result.stderr).diagnostics[0].code, INVALID_CODE);
-  return result;
+  const diagnostic = diagnosticDocument(result.stderr).diagnostics[0];
+  assert.equal(diagnostic.code, INVALID_CODE);
+  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /EXECUTED/u);
+  return { diagnostic, result };
 }
 
-test('admin-token custody refuses a pathname substituted with a symlink', () => {
+test('admin-token custody refuses a symlink carrier', () => {
   const path = join(root, 'substituted-token');
   const forwarded = join(root, 'forwarded-token');
   writeFileSync(path, 'original-token\n', { mode: 0o600 });
@@ -72,7 +92,10 @@ test('admin-token custody refuses a pathname substituted with a symlink', () => 
   unlinkSync(path);
   symlinkSync(forwarded, path);
 
-  const result = assertCliRefuses(path);
+  const { diagnostic, result } = assertCliRefuses(path);
+  assert.match(diagnostic.details.observedMode, /^0[0-7]{3}$/u);
+  assert.ok(diagnostic.details.failedPredicates.includes('not-a-regular-file'));
+  assert.ok(diagnostic.details.failedPredicates.includes('symbolic-link'));
   assert.doesNotMatch(result.stderr, /forwarded-token/u);
 });
 
@@ -81,13 +104,15 @@ test('admin-token custody refuses a file owned by a different uid', {
 }, () => {
   const path = join(root, 'wrong-owner-token');
   writeFileSync(path, 'wrong-owner-token\n', { mode: 0o600 });
-  const getuid = process.getuid;
-  process.getuid = () => getuid() + 1;
-  try {
-    assertInvalid(() => readToken(path));
-  } finally {
-    process.getuid = getuid;
-  }
+  assert.throws(
+    () => __deploymentTest.readFileDescriptorSafeHarness(
+      path,
+      INVALID_CODE,
+      { maximumBytes: 4 * 1024, ownerOnly: true, ownerUid: process.getuid() + 1 },
+    ),
+    (error) => error?.code === INVALID_CODE
+      && error?.diagnostic?.details?.failedPredicates?.includes('not-owned-by-current-user'),
+  );
 });
 
 test('admin-token custody refuses a multiply linked file', () => {
@@ -95,7 +120,9 @@ test('admin-token custody refuses a multiply linked file', () => {
   writeFileSync(path, 'linked-token\n', { mode: 0o600 });
   linkSync(path, join(root, 'linked-token-alias'));
 
-  assertCliRefuses(path);
+  const { diagnostic } = assertCliRefuses(path);
+  assert.equal(diagnostic.details.observedMode, '0600');
+  assert.ok(diagnostic.details.failedPredicates.includes('link-count-not-one'));
 });
 
 test('admin-token custody refuses a file over its byte bound', () => {
@@ -104,5 +131,28 @@ test('admin-token custody refuses a file over its byte bound', () => {
   chmodSync(path, 0o600);
 
   const result = assertCliRefuses(path);
-  assert.doesNotMatch(result.stderr, /x{32}/u);
+  assert.doesNotMatch(result.result.stderr, /x{32}/u);
+});
+
+test('admin-token custody rejects NUL without disclosing the token sentinel', () => {
+  const path = join(root, 'nul-token');
+  const sentinel = 'sbat_NUL_SENTINEL_MUST_NEVER_BE_DISCLOSED';
+  writeFileSync(path, Buffer.from(`${sentinel}\0trailing-secret`), { mode: 0o600 });
+
+  const { result } = assertCliRefuses(path);
+  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, new RegExp(sentinel, 'u'));
+});
+
+test('admin-token custody refuses an owner-only FIFO without blocking', {
+  skip: process.platform === 'win32',
+}, () => {
+  const path = join(root, 'token-fifo');
+  const created = spawnSync('mkfifo', [path], { encoding: 'utf8', timeout: 2_000 });
+  assert.equal(created.error, undefined, created.error?.message);
+  assert.equal(created.status, 0, created.stderr);
+  chmodSync(path, 0o600);
+
+  const { diagnostic } = assertCliRefuses(path, { timeout: 2_000 });
+  assert.equal(diagnostic.details.observedMode, '0600');
+  assert.ok(diagnostic.details.failedPredicates.includes('not-a-regular-file'));
 });

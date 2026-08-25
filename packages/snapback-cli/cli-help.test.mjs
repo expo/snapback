@@ -92,6 +92,21 @@ exit 97
 `);
   chmodSync(native, 0o755);
   const env = { ...process.env, SNAPBACK_RUNTIME_BINARY: native };
+  delete env.FORCE_COLOR;
+  delete env.NO_COLOR;
+
+  const diagnosticDocument = (stderr) => {
+    for (const line of stderr.split(/\r?\n/u)) {
+      if (!line.startsWith('{')) continue;
+      try {
+        const parsed = JSON.parse(line);
+        if (Array.isArray(parsed?.diagnostics)) return parsed;
+      } catch {
+        // Ignore non-JSON process warnings; the CLI diagnostic remains one line.
+      }
+    }
+    assert.fail(`stderr did not contain a diagnostic JSON document: ${stderr}`);
+  };
 
   const manifest = JSON.parse(readFileSync(join(packageDir, 'package.json'), 'utf8'));
   const version = spawnSync(process.execPath, [cli, '--version'], { encoding: 'utf8', env });
@@ -232,8 +247,35 @@ exit 97
     { encoding: 'utf8', env },
   );
   assert.equal(permissiveTokenFile.status, 1);
-  assert.equal(JSON.parse(permissiveTokenFile.stderr).diagnostics[0].code, 'SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID');
+  const permissiveTokenDiagnostic = diagnosticDocument(permissiveTokenFile.stderr).diagnostics[0];
+  assert.equal(permissiveTokenDiagnostic.code, 'SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID');
+  assert.equal(permissiveTokenDiagnostic.details.observedMode, '0644');
+  assert.ok(permissiveTokenDiagnostic.details.failedPredicates.includes('group-or-other-permission-bits'));
   assert.doesNotMatch(permissiveTokenFile.stderr, /file-admin-token/u);
+
+  for (const tokenArguments of [['--token', 'inline-token'], ['--token=inline-token']]) {
+    const conflictingTokenCarriers = spawnSync(
+      process.execPath,
+      [
+        cli, 'auth', 'password', 'unlock',
+        '--url', 'http://snapback.test',
+        '--email', 'locked@example.test',
+        '--admin-token-file', adminTokenFile,
+        ...tokenArguments,
+      ],
+      { encoding: 'utf8', env },
+    );
+    assert.equal(conflictingTokenCarriers.status, 1, conflictingTokenCarriers.stderr);
+    assert.equal(
+      diagnosticDocument(conflictingTokenCarriers.stderr).diagnostics[0].code,
+      'SNAPBACK_CLI_ARGUMENT_INVALID',
+    );
+    assert.doesNotMatch(
+      `${conflictingTokenCarriers.stdout}\n${conflictingTokenCarriers.stderr}`,
+      /EXECUTED/u,
+      'conflicting token carriers must refuse before the native runtime runs',
+    );
+  }
 
   const guideHelp = spawnSync(process.execPath, [cli, 'guide', '--help'], { encoding: 'utf8', env });
   assert.equal(guideHelp.status, 0, guideHelp.stderr);

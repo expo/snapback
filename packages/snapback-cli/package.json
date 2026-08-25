@@ -37,6 +37,7 @@
     "expo-dev.mjs",
     "fake-expo-push.d.mts",
     "fake-expo-push.mjs",
+    "file-custody.mjs",
     "fixtures/comparator/app/snapback",
     "fixtures/comparator/green.config.mjs",
     "fixtures/push-seam/app/snapback",

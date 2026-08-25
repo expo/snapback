@@ -77,7 +77,6 @@ import {
   inspectTarget,
   listBackups,
   queryControlLogs,
-  readFileDescriptorSafe,
   sealHostedAdmissionEnvelope,
   showTarget,
   validateTargetDescriptor,
@@ -87,6 +86,7 @@ import {
   verifyRemoteDrillPlan,
   verifyRestoreReceipt,
 } from './deployment-control.mjs';
+import { readFileDescriptorSafe } from './file-custody.mjs';
 import {
   createRuntimeRecoveryRecord,
   inspectRuntimeBinary,
@@ -4600,7 +4600,9 @@ function refineGeneratedArtifactFailure(error, {
 }
 
 const MAX_ADMIN_TOKEN_FILE_BYTES = 4 * 1024;
-const MAX_DEV_IDENTITY_FILE_BYTES = 512;
+// HTTP field values admit HTAB, visible ASCII, and obs-text. Everything else
+// is also unsafe to hand across the environment/header carrier boundary.
+const INVALID_ADMIN_TOKEN_CARRIER_VALUE = /[^\t\x20-\x7e\x80-\xff]/u;
 
 function readOwnerOnlyAdminTokenFile(path) {
   const absolute = resolve(path);
@@ -4609,22 +4611,35 @@ function readOwnerOnlyAdminTokenFile(path) {
     bytes = readFileDescriptorSafe(
       absolute,
       'SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID',
-      { maximumBytes: MAX_ADMIN_TOKEN_FILE_BYTES, ownerOnly: true },
+      {
+        maximumBytes: MAX_ADMIN_TOKEN_FILE_BYTES,
+        ownerOnly: true,
+        makeFailure: (code, message, details) => diagnosticError(code, message, details),
+      },
     );
   } catch (cause) {
-    const error = diagnosticError(
+    if (cause?.code === 'SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID') throw cause;
+    throw diagnosticError(
       'SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID',
-      cause?.message ?? 'the admin-token carrier could not be read safely',
+      'the admin-token carrier could not be read safely',
       { path: absolute },
     );
-    error.cause = cause;
-    throw error;
   }
-  const token = bytes.toString('utf8').trim();
+  const text = bytes.toString('utf8');
+  const token = text.endsWith('\r\n')
+    ? text.slice(0, -2)
+    : (text.endsWith('\n') ? text.slice(0, -1) : text);
   if (!token) {
     throw diagnosticError(
       'SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID',
       'the admin-token carrier is empty',
+      { path: absolute },
+    );
+  }
+  if (INVALID_ADMIN_TOKEN_CARRIER_VALUE.test(token)) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID',
+      'the admin-token carrier contains characters that cannot be used safely',
       { path: absolute },
     );
   }
@@ -4772,14 +4787,19 @@ export function managedDevIdentityCapability(descriptor, context = {}) {
   const declared = descriptor?.devIdentityCapabilityFile;
   const expected = expectedDevIdentityCapabilityPath(descriptor, context);
   if (typeof declared !== 'string' || expected === null) return null;
-  if (canonicalFileCarrierPath(declared) !== canonicalFileCarrierPath(expected)) return null;
+  if (canonicalFilesystemPath(declared) !== canonicalFilesystemPath(expected)) return null;
+  let metadata;
+  try {
+    metadata = lstatSync(expected);
+  } catch {
+    return null;
+  }
+  if (!metadata.isFile() || metadata.isSymbolicLink() || (metadata.mode & 0o077) !== 0) {
+    return null;
+  }
   let capability;
   try {
-    capability = readFileDescriptorSafe(
-      expected,
-      'SNAPBACK_DEV_IDENTITY_FILE_INVALID',
-      { maximumBytes: MAX_DEV_IDENTITY_FILE_BYTES, ownerOnly: true },
-    ).toString('utf8').trim();
+    capability = readFileSync(expected, 'utf8').trim();
   } catch {
     return null;
   }
