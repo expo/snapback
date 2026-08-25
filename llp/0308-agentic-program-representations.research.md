@@ -42,8 +42,8 @@ useful imports are not a new language but four mechanisms:** (1)
 *derived* incremental maintenance for the closed query IR (DBSP-style),
 consumed by the matcher's delta lanes and by local materialization, (2)
 plan derivation from JS handlers as an **explicit, checked admission** —
-advisory until a sound checker exists — plus strengthening the shipped
-declaration-conformance mechanism, (3) implementing LLP 0274's already
+advisory until a sound checker exists — plus widening the shipped
+declaration-conformance mechanism's observation coverage, (3) implementing LLP 0274's already
 accepted typed write-authority design, whose hard residue is the
 write-site census, and (4) incremental validation for agent candidate
 loops, routed through LLP 0241's identity/custody decision. GPU
@@ -85,8 +85,9 @@ The conversation's load-bearing claims, in the form relevant to Snapback:
 ### F1. Snapback already implements the thesis's substrate, contract, and placement layers
 
 Of the source's three layers (contract / implementation family /
-schedule), the contract and schedule layers — and the canonical-graph
-substrate beneath them — did not need importing; they are the house
+schedule), the contract and schedule layers — and the closed canonical
+representations beneath them (several, not one graph; see F2) — did
+not need importing; they are the house
 design, stated in the corpus and enforced in code. The implementation-
 family layer is the one that is absent (see the remainder map below):
 
@@ -196,7 +197,7 @@ Lane-by-lane, for the opaque handler:
 | Lane | Today | Residual gap |
 |---|---|---|
 | Plan admission | plan-only, static | opaque = no plan, by design |
-| Invalidation | captures first, then declared-`reads:` fallback | fallback is table-granular; captures prove disjointness only where captured |
+| Invalidation | captures first, then declared-`reads:` fallback | fallback is table-granular; point captures give exact wakes only — disjointness needs a captured query predicate |
 | Declaration conformance | LLP 0146 D1 reports; strict opt-in by ruling | over-declaration judgeable only in aggregate (D2 coverage); one observation ≠ completeness proof |
 | Local exec / retention | plan-only (closed-inputs proof required) | opaque never eligible |
 | Delta eligibility | plan-only, shape-guarded | opaque always re-run |
@@ -208,8 +209,9 @@ how much of the fragmentation map in F2 each import unifies. That is
 *not* adoption order. By do-now order the sequence is: the I4
 measurement probe and the I1 scope spike first (cheap, decision-forcing),
 I3 as the LLP 0274 implementation program starts (it is that program's
-status analysis), I1's spec on its owner's schedule, and I2 last —
-gated on its open checker question.
+status analysis), I1's spec on its owner's schedule, and I2(b) last —
+gated on its open checker question (I2(a)'s aggregate rung already
+ships and proceeds on LLP 0146's own schedule).
 
 #### I1. Derive the incremental lanes instead of hand-writing them
 
@@ -268,17 +270,20 @@ was a defect in this document's first revision.
 Authored `reads:` are trusted for the invalidation fallback, but
 declarations are not unverified: LLP 0146 D1's per-invocation
 declaration/observation reports and opt-in strict enforcement
-(`SNAPBACK_HANDLER_UNDECLARED_READ`/`_WRITE`, refused at load on
-targets that cannot enforce it) exist in Rust today. Two constraints
-are ratified and this document proposes changing neither: strict mode
-is **per-app opt-in, not default** (author ruling recorded in LLP 0146;
-a default change would be an explicit 0146 amendment carrying target
-scope, compatibility, and non-enforcing-target handling), and a
-per-invocation report's unwitnessed declarations are **data, not a
-verdict** — over-declaration is only judgeable in aggregate. The narrow
-import is therefore the aggregate rung LLP 0146 already names: D2
-coverage over accumulated invocation reports, which is where
-over-/under-declaration verdicts legitimately live. Owner: LLP 0146.
+(`SNAPBACK_HANDLER_UNDECLARED_READ`/`_WRITE` at runtime; a target that
+cannot enforce the flag refuses it at load with
+`SNAPBACK_STRICT_DECLARATIONS_TARGET_UNSUPPORTED`) exist today. Two
+constraints are ratified and this document proposes changing neither:
+strict mode is **per-app opt-in, not default** (author ruling recorded
+in LLP 0146; a default change would be an explicit 0146 amendment
+carrying target scope, compatibility, and non-enforcing-target
+handling), and a per-invocation report's unwitnessed declarations are
+**data, not a verdict** — observed under-declaration is authoritative
+per invocation; over-declaration is only judgeable in aggregate. The
+aggregate rung itself (D2 coverage) also already ships
+(`aggregateConformance`, `packages/snapback-cli/verify.mjs`), so the
+residue is narrower still: widening authoritative path observation so
+aggregate coverage judges more of each app. Owner: LLP 0146.
 
 **(b) Plan derivation — advisory first, sound checker before any lane
 flip.** Let codegen (or an agent pass) attempt to derive an equivalent
@@ -323,8 +328,9 @@ members, and unresolved call graphs become opaque absent proof: a
 context alias (`const alias = ctx; alias.db.insert(...)`) or a computed
 member (`ctx[key].insert(...)`) currently produces neither a site nor
 an opaque marker, and mutable `let`/`var` helper bindings are accepted
-as exact without reassignment analysis. §S0's diagnosis is narrowed,
-not retired.
+as exact without reassignment analysis
+(`packages/snapback-codegen/write-policy.mjs`). §S0's diagnosis is
+narrowed, not retired.
 
 The import therefore narrows to: **implement 0274's accepted design**,
 with the genuinely hard part being the census — classifying every write
@@ -400,8 +406,9 @@ already satisfied.
 ### F4. What not to import
 
 - **GPU compilation/execution.** The entire point of Snapback's closed
-  IRs is that analysis is bounded and cheap (`MAX_PLAN_STEPS = 64`;
-  graphs are small by admission). There is no volume to accelerate.
+  IRs is that analysis is bounded and cheap (`MAX_PLAN_STEPS = 64` in
+  `crates/snapback-types/src/value_expr.rs`; graphs are small by
+  admission). There is no volume to accelerate.
 - **A new surface language.** The conversation itself recommends
   against one, and the corpus already encodes the ruling: profiles are
   projections that must lower into the shared normalized boundary (LLP
@@ -421,7 +428,7 @@ already satisfied.
 
 ## Confidence
 
-- **F1 (closed-IR/contract/placement layers implemented): high** — with
+- **F1 (substrate/contract/placement layers implemented): high** — with
   the remainder map's absences (implementation families, generation-time
   equivalence gates, subgraph-level repair diagnostics) stated as part
   of the finding. Grounded in shipped code read for this document
@@ -456,8 +463,8 @@ differential dataflow (McSherry, Murray, Isaacs, Isard, CIDR 2013,
 <https://www.cidrdb.org/cidr2013/Papers/CIDR13_Paper111.pdf>;
 Materialize) for I1 — noting
 DBSP incrementalizes a query algebra and supplies none of the
-Snapback-specific replica or authority protocols; Alive2 (Lopes,
-Menendez, Nagarakatte, Regehr, PLDI 2021,
+Snapback-specific replica or authority protocols; Alive2 (Lopes, Lee,
+Hur, Liu, Regehr, PLDI 2021,
 <https://web.ist.utl.pt/nuno.lopes/pubs/alive2-pldi21.pdf>)
 for I2 strictly as the **generation/acceptance division of labor**
 (Alive2 itself is a formal refinement checker over IR semantics — the
@@ -503,6 +510,16 @@ discussion (grep-verified).
 
 ## Revision history
 
+- **r4 (2026-08-25, UNREVIEWED).** Post-convergence non-material fixes
+  from round 3 (loop converged dual-READY on r3): Alive2 author list
+  corrected (Lopes, Lee, Hur, Liu, Regehr); I2(a) records that the
+  aggregate D2 rung already ships (`aggregateConformance`) with the
+  residue being wider authoritative observation, splits the runtime
+  strict codes from the load-time target refusal code, and notes
+  under-declaration is authoritative per invocation; F1's singular
+  "canonical-graph substrate" pluralized; matrix residual, one-line
+  finding, do-now I2(b) scoping, confidence label, and two artifact
+  pins harmonized. No recommendation changed.
 - **r3 (2026-08-25).** Response to round-2 delta reviews (grok READY;
   codex NOT READY with two IN-DELTA MATERIALs, zero pre-existing).
   I2(a) rewritten inside LLP 0146's ratified rulings: strict mode stays

@@ -113,3 +113,35 @@ NOT READY
 ## Verdict
 
 NOT READY
+## Round 3 — 2026-08-25 (delta round on r2→r3)
+
+- Reviewer: codex `gpt-5.6-sol` @ ultra (verified in run log),
+  read-only in capsule-r3 (capsule-r2 lineage + r3 overlay; zero 0308
+  review artifacts, verified); received the r2→r3 diff and its own
+  round-2 review only.
+- Revision under review: r3, target sha256/16 `d9f306d0d91582b0`
+  (commit `6583d3e07`). Instructions sha256/16 `810cce0b6909cf7d`.
+- Run: launched 2026-08-25T07:35:02Z, exit 0. Body below is the
+  complete final message, verbatim.
+
+### Review body (verbatim)
+
+## Round-2 disposition check
+
+1. **DISPOSED** — §I2(a) now preserves strict mode as per-app opt-in, treats unwitnessed declarations as data, reserves over-declaration for aggregate coverage, and excludes authored `writes:` from invalidation fallback, matching LLP 0146 and current implementation.
+2. **DISPOSED** — §I3 now explicitly identifies the context-alias, computed-member, and mutable-helper exact-empty false negatives confirmed in `write-policy.mjs`, consistent with LLP 0274’s opaque-unless-proven requirement.
+
+## MATERIAL concerns
+
+None.
+
+## Non-material observations
+
+1. **IN-DELTA** — §I2(a) presents aggregate D2 coverage as the remaining import, although `aggregateConformance` already ships in `verify.mjs:1357–1502`; the actual residue is expanding authoritative path observations. It also says both over- and under-declaration verdicts live there, while complete `missingReads`/`missingWrites` are authoritative per invocation.
+2. **IN-DELTA** — §I2(a)’s parenthetical conflates runtime strict-enforcement codes with target admission. `SNAPBACK_HANDLER_UNDECLARED_READ/WRITE` are runtime violations; a non-enforcing target refuses the flag at load with `SNAPBACK_STRICT_DECLARATIONS_TARGET_UNSUPPORTED`.
+3. **IN-DELTA** — §F1’s singular “canonical-graph substrate” overstates the architecture. Snapback has several canonical closed representations with separate identity machinery, as §F2 and §I4 themselves explain. This does not distort the recommendations.
+4. **IN-DELTA** — The Alive2 bibliography names the wrong authors. The PLDI 2021 paper lists Nuno P. Lopes, Juneyoung Lee, Chung-Kil Hur, Zhengyang Liu, and John Regehr. [PLDI paper entry](https://pldi21.sigplan.org/details/pldi-2021-papers/5/Alive2-Bounded-Translation-Validation-for-LLVM)
+
+## Verdict
+
+READY

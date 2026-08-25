@@ -102,3 +102,40 @@ None.
 
 ## Verdict
 READY
+
+## Round 3 — 2026-08-25 (delta round on r2→r3)
+
+- Reviewer: `grok-4.6` @ xhigh, headless, terminal ban, no repository
+  access; received r3 in full, the r2→r3 unified diff, and its own
+  round-2 review only.
+- Revision under review: r3, target sha256/16 `d9f306d0d91582b0`
+  (commit `6583d3e07`). Prompt sha256/16 `07cabb87d898bf3f`.
+- Run: launched 2026-08-25T07:35:04Z, exit 0, empty stderr; body
+  below is the complete stdout, verbatim (including leading narration
+  about reading the offloaded prompt).
+
+### Review body (verbatim)
+
+The offloaded prompt holds the full r2→r3 diff and r3 document. I’ll read that file first so the delta review is based on the complete material, without running any shell commands.The first chunk covers instructions, the r2 review, and the start of r3. Next I’ll read the rest of the document so the delta review covers the full text.I’ll grep the offloaded prompt for a few consistency checks (Related cites, leftover r2 wording) so the review rests on the full r3 text.## Round-2 disposition check
+
+1. **NM1 F1 layer-count wording — DISPOSED.** Summary, F1 heading, and F1 lead now name the source’s three layers (contract / implementation family / schedule), call closed IR the substrate, and state that the family layer is the absence.
+2. **NM3 unverifiable r2 reversals (scanner past §S0) — PARTIALLY DISPOSED.** The r2 “unresolved alias/computed paths go opaque” claim is gone and replaced by named exact-empty false negatives; those replacement claims, like the rest of NM3’s list, remain citation-grounded and unverifiable from this document alone.
+3. **NM4 Related-header hygiene — DISPOSED.** LLP 0203 and LLP 0307 are in Related; LLP 0173 is out; body cites and Related now match.
+4. **NM6 numeric pinning — PARTIALLY DISPOSED.** `~13` `HandlerPlan` arms are pinned to the enum in `crates/snapback-types/src/manifest/types.rs`; `MAX_PLAN_STEPS = 64` in F4 is still unpinned.
+
+## MATERIAL concerns
+
+None.
+
+## Non-material observations
+
+1. **IN-DELTA.** The one-line finding still says “strengthening the shipped declaration-conformance mechanism,” while I2(a) now refuses a default-strict change and names LLP 0146 D2 coverage as the import. “Strengthening” still covers shipping D2; a reader of the one-liner alone could hear a stronger 0146 amendment than the body now allows.
+2. **IN-DELTA.** I2(a) says over-/under-declaration verdicts “legitimately live” in D2. That over-groups: D1 strict already verdicts observed under-declaration (`SNAPBACK_HANDLER_UNDECLARED_READ`/`_WRITE`). The F2 matrix is more careful (over-declaration and completeness are the aggregate remainder). No change to the I2(a) product is required.
+3. **IN-DELTA.** Do-now still ranks “I2 last — gated on its open checker question” after I2(a) became 0146’s already-named D2 rung, which is not gated on OQ2. The checker gate belongs to I2(b). LLP 0146 can still run D2 on its own schedule; this is grouping, not a wrong owner.
+4. **IN-DELTA.** F2 prose now splits captured point reads (exact positive wakes) from serialized query predicates (disjointness). The invalidation matrix residual still says only “captures prove disjointness only where captured.” The Today column remains right; the residual cell did not pick up the split.
+5. **IN-DELTA.** New load-bearing status claims (scanner exact-empty holes, load-refusal of non-enforcing targets, `implementationHash` / envelope-member digests unused by any validation pass) are internally consistent and still unverifiable here. Same consumer rule as r2 NM3: check the artifacts; do not treat this document as the proof. The scanner holes, unlike `HandlerPlan`, are not pinned to a file.
+6. **IN-DELTA.** The F1 confidence label still reads “closed-IR/contract/placement layers implemented” after the heading moved to substrate / contract / placement. Cosmetic leftover.
+7. **PRE-EXISTING.** `MAX_PLAN_STEPS = 64` in F4 is still an unpinned numeric. The ranking criterion (“how much of F2’s fragmentation map each import unifies”) is unchanged and still looser than the I1/I3 bodies; those bodies and the do-now list remain what a program should follow.
+
+## Verdict
+READY
