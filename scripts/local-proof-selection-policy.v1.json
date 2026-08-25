@@ -1078,6 +1078,16 @@
       ]
     },
     {
+      "id": "cold-clone-report-probe",
+      "groups": [
+        "demos"
+      ],
+      "files": [
+        "scripts/cold-clone-check.sh",
+        "scripts/cold-clone-report-probe.test.mjs"
+      ]
+    },
+    {
       "id": "linux-runtime-release-script",
       "groups": [
         "packaging"
@@ -1400,6 +1410,7 @@
         "chrome-process-lifecycle-fixtures",
         "client-errors",
         "codegen-regressions",
+        "cold-clone-report-probe-fixtures",
         "current-binary-build",
         "current-binary-readiness",
         "demo-catalog-fixtures",

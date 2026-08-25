@@ -37,17 +37,54 @@ const makeManifest = () => ({
   mutations: { doThing: {} },
 });
 
+const connectivityFailure = (message = 'Failed to fetch') => {
+  const dispatchFailure = new Error(message);
+  dispatchFailure.fetchDispatchFailed = true;
+  const error = new Error(`SNAPBACK_CLIENT_REFUSED: ${message}`, { cause: dispatchFailure });
+  error.diagnostic = {
+    code: 'SNAPBACK_CLIENT_REFUSED',
+    message,
+  };
+  return error;
+};
+
+const codeOnlyClientRefusal = () => {
+  const error = new Error('SNAPBACK_CLIENT_REFUSED: malformed response');
+  error.diagnostic = {
+    code: 'SNAPBACK_CLIENT_REFUSED',
+    message: 'malformed response',
+  };
+  return error;
+};
+
+const httpError = (status = 502) => {
+  const error = new Error(`SNAPBACK_HTTP_ERROR: HTTP ${status} with non-JSON body`);
+  error.status = status;
+  error.diagnostic = {
+    code: 'SNAPBACK_HTTP_ERROR',
+    message: `HTTP ${status} with non-JSON body`,
+  };
+  return error;
+};
+
 // Mock kit client: liveQuery handles record their onUpdate fan-out so the
-// test can push server rows; `failures` makes the first N health calls throw.
-const makeClient = ({ failures = 0 } = {}) => {
-  const state = { healthCalls: 0, mutations: [], handles: [] };
+// test can push server rows. Failure counters throw diagnostic-bearing,
+// transport-proven connectivity errors for the first N calls.
+const makeClient = ({ failures = 0, liveFailures = 0 } = {}) => {
+  const state = { healthCalls: 0, liveQueryCalls: 0, mutations: [], handles: [] };
   return {
     state,
     async health() {
       state.healthCalls += 1;
-      if (state.healthCalls <= failures) throw new Error(`health failed (${state.healthCalls})`);
+      if (state.healthCalls <= failures) {
+        throw connectivityFailure(`health failed (${state.healthCalls})`);
+      }
     },
     async liveQuery(name, { onUpdate }) {
+      state.liveQueryCalls += 1;
+      if (state.liveQueryCalls <= liveFailures) {
+        throw connectivityFailure(`live subscribe failed (${state.liveQueryCalls})`);
+      }
       const handle = {
         name,
         rows: [],
@@ -180,7 +217,7 @@ const makeRuntime = ({ subscriptionDisposeError = null } = {}) => {
   assert.equal(alphaHandle.disposed, true, 'dispose releases the real surface');
 }
 
-// --- transient connect failures retry on capped backoff, then attach ---
+// --- diagnostic-bearing connectivity failures from connect retry, then attach ---
 {
   const client = makeClient({ failures: 2 });
   const retries = [];
@@ -212,6 +249,27 @@ const makeRuntime = ({ subscriptionDisposeError = null } = {}) => {
   handle.dispose();
 }
 
+// --- the same connectivity provenance from live subscribe retries, then attaches ---
+{
+  const client = makeClient({ liveFailures: 1 });
+  const retries = [];
+  const handle = createRenderFirstSnapbackContractSurface({
+    runtime: makeRuntime(),
+    client,
+    userId: 'u1',
+    manifest: makeManifest(),
+    liveQueries: ['alpha'],
+    retryBaseDelayMs: 1,
+    onRetry: (error, info) => retries.push({ error, ...info }),
+  });
+  await handle.attached;
+  assert.equal(client.state.liveQueryCalls, 2);
+  assert.equal(retries.length, 1);
+  assert.equal(retries[0].error.diagnostic.code, 'SNAPBACK_CLIENT_REFUSED');
+  assert.equal(retries[0].attempt, 0);
+  handle.dispose();
+}
+
 // --- retry hooks are observational: throwing cannot strand attachment ---
 {
   const client = makeClient({ failures: 1 });
@@ -232,6 +290,54 @@ const makeRuntime = ({ subscriptionDisposeError = null } = {}) => {
   await handle.attached;
   assert.equal(hooks, 1);
   assert.equal(client.state.healthCalls, 2, 'attachment continues after throwing retry hook');
+  handle.dispose();
+}
+
+// --- the fallback code alone is not transport provenance: terminal, no retry ---
+{
+  const refusal = codeOnlyClientRefusal();
+  let connectCalls = 0;
+  const retries = [];
+  const handle = createRenderFirstSnapbackContractSurface({
+    runtime: makeRuntime(),
+    client: makeClient(),
+    userId: 'u1',
+    manifest: makeManifest(),
+    liveQueries: ['alpha'],
+    retryBaseDelayMs: 1,
+    connect: async () => {
+      connectCalls += 1;
+      throw refusal;
+    },
+    onRetry: (...args) => retries.push(args),
+  });
+  await assert.rejects(handle.attached, (error) => error === refusal);
+  assert.equal(connectCalls, 1);
+  assert.equal(retries.length, 0);
+  handle.dispose();
+}
+
+// --- an answered non-2xx HTTP response is terminal, even from a dead proxy origin ---
+{
+  const responseError = httpError(502);
+  let connectCalls = 0;
+  const retries = [];
+  const handle = createRenderFirstSnapbackContractSurface({
+    runtime: makeRuntime(),
+    client: makeClient(),
+    userId: 'u1',
+    manifest: makeManifest(),
+    liveQueries: ['alpha'],
+    retryBaseDelayMs: 1,
+    connect: async () => {
+      connectCalls += 1;
+      throw responseError;
+    },
+    onRetry: (...args) => retries.push(args),
+  });
+  await assert.rejects(handle.attached, (error) => error === responseError);
+  assert.equal(connectCalls, 1);
+  assert.equal(retries.length, 0);
   handle.dispose();
 }
 

@@ -2,14 +2,14 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:17e4802d53b8c1d51474735b410502e12f8c0a57da576dd7d5707f0013310fcc"
+    "sourceDigest": "sha256:85d1ac4b4cfe8e95b52461adc823edf86348ec1999accded5f0adc9a9d547c8e"
   },
   "limits": {
     "lookupBytes": 16384
   },
   "counts": {
     "codes": 3672,
-    "sourceFiles": 613,
+    "sourceFiles": 614,
     "emittingSites": 12927,
     "httpClassified": 1730,
     "guideAnchored": 466
@@ -21754,7 +21754,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 694,
+          "line": 667,
           "column": 8
         }
       ],
@@ -22146,7 +22146,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 684,
+          "line": 657,
           "column": 8
         },
         {
@@ -36817,12 +36817,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 1081,
+          "line": 1054,
           "column": 10
         },
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 1219,
+          "line": 1192,
           "column": 10
         },
         {
@@ -36842,7 +36842,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 1016,
+          "line": 989,
           "column": 10
         },
         {
@@ -36862,12 +36862,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 1010,
+          "line": 983,
           "column": 10
         },
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 1151,
+          "line": 1124,
           "column": 12
         },
         {
@@ -36951,8 +36951,8 @@
           "column": 47
         },
         {
-          "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 113,
+          "file": "packages/snapback-contract/connectivity-failure.mjs",
+          "line": 18,
           "column": 41
         }
       ],
@@ -42775,12 +42775,12 @@
       "sites": [
         {
           "file": "packages/snapback-contract/render-first.mjs",
-          "line": 46,
+          "line": 47,
           "column": 17
         },
         {
           "file": "packages/snapback-contract/render-first.mjs",
-          "line": 53,
+          "line": 54,
           "column": 21
         }
       ],
@@ -42795,7 +42795,7 @@
       "sites": [
         {
           "file": "packages/snapback-contract/render-first.mjs",
-          "line": 37,
+          "line": 38,
           "column": 17
         }
       ],
@@ -61249,7 +61249,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 1387,
+          "line": 1360,
           "column": 20
         }
       ],
@@ -73004,7 +73004,7 @@
         },
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 943,
+          "line": 916,
           "column": 10
         }
       ],
@@ -73049,12 +73049,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 917,
+          "line": 890,
           "column": 8
         },
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 961,
+          "line": 934,
           "column": 8
         }
       ],
@@ -73144,7 +73144,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 927,
+          "line": 900,
           "column": 8
         }
       ],
@@ -74624,12 +74624,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 196,
+          "line": 169,
           "column": 4
         },
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 1091,
+          "line": 1064,
           "column": 10
         }
       ],
@@ -74789,12 +74789,12 @@
         },
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 749,
+          "line": 722,
           "column": 8
         },
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 1221,
+          "line": 1194,
           "column": 10
         }
       ],
@@ -74809,7 +74809,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 1264,
+          "line": 1237,
           "column": 10
         }
       ],
@@ -74824,7 +74824,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 1252,
+          "line": 1225,
           "column": 10
         }
       ],
@@ -74839,7 +74839,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 1284,
+          "line": 1257,
           "column": 10
         }
       ],
@@ -74934,17 +74934,17 @@
         },
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 729,
+          "line": 702,
           "column": 8
         },
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 772,
+          "line": 745,
           "column": 8
         },
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 1220,
+          "line": 1193,
           "column": 10
         }
       ],
@@ -75014,12 +75014,12 @@
         },
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 722,
+          "line": 695,
           "column": 8
         },
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 765,
+          "line": 738,
           "column": 8
         }
       ],
@@ -75121,7 +75121,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 190,
+          "line": 163,
           "column": 4
         }
       ],
@@ -75136,7 +75136,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 1332,
+          "line": 1305,
           "column": 12
         }
       ],
@@ -75181,7 +75181,7 @@
         },
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 184,
+          "line": 157,
           "column": 4
         }
       ],
@@ -75213,12 +75213,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 179,
+          "line": 152,
           "column": 4
         },
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 208,
+          "line": 181,
           "column": 25
         }
       ],
@@ -75233,7 +75233,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 202,
+          "line": 175,
           "column": 4
         }
       ],
@@ -75278,7 +75278,7 @@
         },
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 1512,
+          "line": 1485,
           "column": 67
         }
       ],
@@ -75308,7 +75308,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 1900,
+          "line": 1873,
           "column": 10
         }
       ],
@@ -75323,7 +75323,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 1911,
+          "line": 1884,
           "column": 12
         }
       ],
@@ -92089,7 +92089,7 @@
         },
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 449,
+          "line": 422,
           "column": 18
         }
       ],
@@ -99731,12 +99731,12 @@
         },
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 504,
+          "line": 477,
           "column": 51
         },
         {
           "file": "packages/snapback-client/outbox-shared.mjs",
-          "line": 1818,
+          "line": 1791,
           "column": 10
         },
         {

@@ -91,37 +91,10 @@ export function createOutboxAuthorizationDispatchGate() {
   };
 }
 
-// Connectivity classification shared by the LLP 0043 M2 queue path and the
-// offline binding-receipt path (react-binding.mjs, which cannot import
-// index.mjs without a cycle): transport PROVENANCE, not constructor identity
-// (0137 A1-Expo f2). The primary signal is `fetchDispatchFailed` — stamped
-// by index.mjs's sanitizeTransportError exactly where the fetch dispatch
-// itself rejected, i.e. no Response was ever produced (no HTTP status, no
-// server diagnostic, no receipt). WHATWG runtimes reject with TypeError
-// there, but Expo/RN fetch rejects connection failures with a plain Error,
-// so class identity alone silently disabled the queue on that carrier. The
-// `instanceof TypeError` arm remains for errors that reach this predicate
-// without crossing the stamped boundary. Caller-owned aborts and deadline
-// expiries are not outages; anything the server answered — refusals,
-// conflicts, rejections — is NOT connectivity and is never queued.
-export const isConnectivityFailureError = (error) => (
-  (
-    (
-      (error?.fetchDispatchFailed === true || error?.cause?.fetchDispatchFailed === true)
-      && (
-        error?.diagnostic === undefined
-        || error?.diagnostic?.code === 'SNAPBACK_CLIENT_REFUSED'
-      )
-    )
-    || (error instanceof TypeError && error?.diagnostic === undefined)
-  )
-  && error?.name !== 'AbortError'
-  && error?.cause?.name !== 'AbortError'
-  && error?.name !== 'TimeoutError'
-  && error?.cause?.name !== 'TimeoutError'
-  && error?.status === undefined
-  && error?.receipt === undefined
-);
+// Connectivity classification is shared with the render-first Contract
+// adapter from the lower package layer. Keep this established client subpath
+// as the public re-export used by outbox and binding callers.
+export { isConnectivityFailureError } from '@expo/snapback-contract/connectivity-failure';
 
 const REPLAY_OPAQUE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/;
 const SHA256_DIGEST = /^sha256:[0-9a-f]{64}$/;

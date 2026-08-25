@@ -68,13 +68,6 @@ function projectBackendStatus(status: BackendStatus): void {
   if (hostBindingsMounted) publishHostState('backend', { status });
 }
 
-function retryableBackendConnectError(error: unknown): unknown {
-  // @ref LLP 0034#107-render-first-surface-mode-2026-07-09-eng-23736 — a generic client transport refusal retries behind the bundled board; only a specific contract diagnostic is a terminal build defect.
-  const code = (error as { diagnostic?: { code?: unknown } } | null)?.diagnostic?.code;
-  if (code !== 'SNAPBACK_CLIENT_REFUSED') return error;
-  return new Error(error instanceof Error ? error.message : String(error));
-}
-
 // Startup timing (ENG-23727 / ENG-24386 acceptance): all values are ms since
 // timeOrigin (performance.now() epoch) so the acceptance suite can compare
 // them. `htmlReceivedMs` is the budget origin because static dependencies
@@ -309,9 +302,9 @@ setRouteEstimateTransport(async (args) => {
 // tables are empty) via the `connect` hook, then the generated Contract
 // surface with live push (LLP 0034 D1). Transient failures (server down,
 // network) retry on capped backoff while the board keeps showing scheduled
-// departures under an honest note; a structured contract diagnostic (stale
-// generated artifacts) is a build defect, not an outage, and fails loudly
-// instead of retrying forever.
+// departures under an honest note. The adapter keys that decision on client
+// transport provenance across both connect and live subscription setup;
+// answered HTTP failures and other terminal defects fail loudly.
 let provisioned: string[] = [];
 const renderFirst = createRenderFirstSnapbackContractSurface({
   runtime: contractRuntime,
@@ -325,18 +318,14 @@ const renderFirst = createRenderFirstSnapbackContractSurface({
   connect: async () => {
     // Render-first means backend work itself starts after the useful board
     // paint—not merely that `ready` records its timestamp later.
-    try {
-      await firstBoardPaintReady;
-      await client.health();
-      const ensured = await client.ensureApp({ schema: schemaManifest, functions: functionsManifest, seed });
-      provisioned = [
-        ensured.schema === 'provisioned' ? 'schema' : null,
-        ensured.functions === 'provisioned' ? 'functions' : null,
-        ensured.seed === 'seeded' ? 'seed' : null,
-      ].filter((action): action is string => action !== null);
-    } catch (error) {
-      throw retryableBackendConnectError(error);
-    }
+    await firstBoardPaintReady;
+    await client.health();
+    const ensured = await client.ensureApp({ schema: schemaManifest, functions: functionsManifest, seed });
+    provisioned = [
+      ensured.schema === 'provisioned' ? 'schema' : null,
+      ensured.functions === 'provisioned' ? 'functions' : null,
+      ensured.seed === 'seeded' ? 'seed' : null,
+    ].filter((action): action is string => action !== null);
   },
   onRetry: (error, { attempt, delayMs }) => {
     projectBackendStatus('offline');

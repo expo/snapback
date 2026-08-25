@@ -49,6 +49,11 @@ export const SCRIPTS_TEST_INVENTORY = Object.freeze([
     runner: { mechanism: 'verify-local-proof', gateId: 'package-export-types-fixtures' },
   },
   {
+    file: 'scripts/cold-clone-report-probe.test.mjs',
+    disposition: 'run',
+    runner: { mechanism: 'verify-local-proof', gateId: 'cold-clone-report-probe-fixtures' },
+  },
+  {
     file: 'scripts/generate-app-api-md.test.mjs',
     disposition: 'run',
     runner: { mechanism: 'verify-local-proof', gateId: 'app-api-md-fixtures' },
