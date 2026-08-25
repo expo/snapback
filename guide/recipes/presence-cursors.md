@@ -27,7 +27,7 @@ the [ephemeral-state reference](../realtime/ephemeral-state.md) inventories
 every collection option, key mode, recovery rule, and Contract link.
 
 For React, start with
-[`useSnapbackPresence`](../realtime/ephemeral-state.md#find-the-react-hook-from-ephemeral-vocabulary),
+[`useSnapbackPresence`](../realtime/ephemeral-state.md#stop-publishing-when-activity-goes-idle),
 the managed hook for generated ephemeral collections; that page transcludes a
 conversation-scoped typing indicator from `demos/messaging-snapback`. The raw
 `subscribeEphemeral` path below remains useful for headless consumers and code

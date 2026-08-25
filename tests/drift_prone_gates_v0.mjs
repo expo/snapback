@@ -66,10 +66,15 @@ const IMPLEMENTATION_FILES = [
   '.githooks/pre-push',
   'issues/closed/20260811-record-inventory-guide.md',
   'crates/allowed-dependencies.v1.json',
+  'guide/capabilities.md',
+  'issues/20260825-guide-gap-first-class-notifications.md',
+  'issues/20260825-guide-gap-kotlin-dart-clients.md',
+  'issues/20260825-guide-gap-sequence-publication-targets.md',
   'scripts/check-path-migration-stragglers.mjs',
   'scripts/check-visibility-governance.mjs',
   'scripts/check-workspace-graph.mjs',
   'scripts/drift-prone-gates.mjs',
+  'scripts/guide-lib.mjs',
   'scripts/check-contract-meta.mjs',
   'scripts/check-contract-meta.test.mjs',
   'scripts/check-diary-identity.mjs',
@@ -1355,6 +1360,66 @@ test('backstop keys distinct reds by signature and updates an unchanged observat
   assert.match(runs[2].output, /not filing a duplicate; updated its last observation/u);
 });
 
+test('backstop routes each expired GAP review row to one open owner ticket', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-gap-review-backstop-'));
+  const repo = join(scratch, 'repo');
+  mkdirSync(repo);
+  try {
+    git(repo, ['init', '--quiet']);
+    git(repo, ['config', 'user.name', 'Snapback GAP review fixture']);
+    git(repo, ['config', 'user.email', 'snapback-gap-review@example.invalid']);
+    mkdirSync(join(repo, 'fixture'));
+    mkdirSync(join(repo, 'guide'));
+    mkdirSync(join(repo, 'issues'));
+    writeFileSync(join(repo, '.gitignore'), '/target\n');
+    writeFileSync(join(repo, 'fixture/gate.mjs'), OUTCOME_GATE_SOURCE);
+    writeFileSync(join(repo, 'fixture/frozen-record.json'), '{}\n');
+    writeFileSync(join(repo, 'fixture/state.json'), '{"prepare":"pass","check":"pass"}\n');
+    writeFileSync(join(repo, 'issues/guide-gap-tracker.md'), '# Guide gap tracker\n');
+    writeFileSync(join(repo, 'guide/capabilities.md'), [
+      '# Capability index',
+      '',
+      '## Capabilities',
+      '',
+      '| id | What | Aliases | Targets | Maturity | Witness | Authorities | Page |',
+      '| --- | --- | --- | --- | --- | --- | --- | --- |',
+      '| backend.expired | Expired fixture | expired | none | design-only | — | fixture | GAP (owner: Fixture Owner, review: 2026-08-24; issue: issues/guide-gap-tracker.md) |',
+      '',
+    ].join('\n'));
+    const revision = commitAll(repo, 'test: expired GAP review fixture');
+    const env = {
+      ...process.env,
+      SNAPBACK_DRIFT_TICKET_DATE: '2026-08-25',
+    };
+    const runOnce = () => capturePrePush(() => runBackstop({
+      head: revision,
+      gate: 'guide',
+      issuesDir: 'issues',
+      root: repo,
+      context: fixtureOutcomeContext(),
+      env,
+    }));
+
+    const first = runOnce();
+    const second = runOnce();
+    const tickets = readdirSync(join(repo, 'issues'))
+      .filter((name) => name.includes('guide-gap-review-expired'));
+
+    assert.equal(first.status, 0, first.output);
+    assert.equal(second.status, 0, second.output);
+    assert.match(first.output, /GAP REVIEW EXPIRED backend\.expired; owner: Fixture Owner; pointer: issues\/guide-gap-tracker\.md/u);
+    assert.match(first.output, /FILED issues\/20260825-guide-gap-review-expired-backend-expired\.md/u);
+    assert.match(second.output, /existing open GAP review ticket .*; not filing a duplicate/u);
+    assert.deepEqual(tickets, ['20260825-guide-gap-review-expired-backend-expired.md']);
+    const body = readFileSync(join(repo, 'issues', tickets[0]), 'utf8');
+    assert.match(body, /\*\*Routing signature:\*\* `gap-review:backend\.expired`/u);
+    assert.match(body, /\*\*Owner:\*\* Fixture Owner/u);
+    assert.match(body, /\*\*Gap pointer:\*\* `issues\/guide-gap-tracker\.md`/u);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 function captureDeclarationOrderBatteryFixture(scratch, context) {
   const resultsPath = join(scratch, 'declaration-order-results.jsonl');
   const selectedGatesPath = join(scratch, 'declaration-order-selected-gates.txt');
@@ -1977,7 +2042,7 @@ test('diary identity backstop files one ticket for a new collision', { timeout: 
     assert.equal(second.status, 1, second.output);
     assert.match(second.output, /existing open ticket .*; not filing a duplicate/u);
     const diaryTickets = readdirSync(join(repo, 'issues'))
-      .filter((name) => name.includes('main-drift-diary-identity'));
+      .filter((name) => name.startsWith('20260810-main-drift-diary-identity-'));
     assert.equal(diaryTickets.length, 1);
     assert.match(diaryTickets[0], /^20260810-main-drift-diary-identity-[0-9a-f]{16}\.md$/u);
     console.log(

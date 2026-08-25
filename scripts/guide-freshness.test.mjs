@@ -15,7 +15,9 @@ import {
   authoritiesDigest,
   authoritiesDigestAtRevision,
   buildManifest,
+  checkCapabilityGapRows,
   checkFreshness,
+  checkLinks,
   isRecordedBenchmarkEventsTranscript,
   parseFrontmatter,
 } from './guide-lib.mjs';
@@ -60,6 +62,74 @@ ${reviewField}
 # Fixture
 `;
 }
+
+test('guide links resolve rendered heading anchors with docs-site slug identity', (t) => {
+  const { root } = fixture(t);
+  const sourcePath = 'guide/source.md';
+  const targetPath = 'guide/target.md';
+  const source = [
+    '[formatted](./target.md#a-marked-heading)',
+    '[duplicate](./target.md#repeat-1)',
+    '[explicit](./target.md#stable-explicit)',
+    '[broken](./target.md#missing-heading)',
+  ].join('\n');
+  const target = [
+    '# A *marked* `Heading`',
+    '## Repeat',
+    '## Repeat',
+    '<a id="stable-explicit"></a>',
+  ].join('\n');
+  writeFileSync(join(root, sourcePath), source);
+  writeFileSync(join(root, targetPath), target);
+
+  const errors = [];
+  checkLinks(root, new Map([[sourcePath, source], [targetPath, target]]), errors, []);
+
+  assert.deepEqual(errors, [
+    `${sourcePath}: relative link resolves to missing anchor #missing-heading in ${targetPath}`,
+  ]);
+});
+
+test('GAP review dates warn while closed and missing issue pointers fail', (t) => {
+  const { root } = fixture(t);
+  mkdirSync(join(root, 'issues/closed'), { recursive: true });
+  writeFileSync(join(root, 'issues/open-gap.md'), '# Open gap\n');
+  writeFileSync(join(root, 'issues/closed/closed-gap.md'), '# Closed gap\n');
+  const capabilities = new Map([
+    ['expired', {
+      id: 'expired',
+      page: 'GAP (owner: Owner A, review: 2026-08-23; issue: issues/open-gap.md)',
+    }],
+    ['soon', {
+      id: 'soon',
+      page: 'GAP (owner: Owner B, review: 2026-09-01; issue: issues/open-gap.md)',
+    }],
+    ['future', {
+      id: 'future',
+      page: 'GAP (owner: Owner C, review: 2026-09-02; issue: issues/open-gap.md)',
+    }],
+    ['closed', {
+      id: 'closed',
+      page: 'GAP (owner: Owner D, review: 2026-09-30; issue: issues/closed/closed-gap.md)',
+    }],
+    ['missing', {
+      id: 'missing',
+      page: 'GAP (owner: Owner E, review: 2026-09-30; issue: issues/missing-gap.md)',
+    }],
+  ]);
+  const errors = [];
+  const warnings = [];
+
+  checkCapabilityGapRows(root, capabilities, errors, warnings, { today: '2026-08-25' });
+
+  assert.deepEqual(errors, [
+    "guide/capabilities.md: GAP row 'closed' points at closed issue issues/closed/closed-gap.md",
+    "guide/capabilities.md: GAP row 'missing' points at missing issue issues/missing-gap.md",
+  ]);
+  assert.equal(warnings.length, 2);
+  assert.match(warnings[0], /GAP REVIEW WARNING: row 'expired' expired on 2026-08-23; owner: Owner A; pointer: issues\/open-gap\.md/u);
+  assert.match(warnings[1], /GAP REVIEW WARNING: row 'soon' expires within 7 days on 2026-09-01; owner: Owner B; pointer: issues\/open-gap\.md/u);
+});
 
 test('authority digest ignores unrelated commits and changes on authority bytes', (t) => {
   const { root, reviewedCommit } = fixture(t);

@@ -218,29 +218,37 @@ def check(root):
                 text = read_text(os.path.join(dirpath, name))
                 if text is None:
                     continue
+                try:
+                    doc_headings = md_headings(text)
+                    fields = {}
+                    for line in text.splitlines()[1:40]:
+                        fm = FIELD_RE.match(line.strip())
+                        if fm:
+                            fields.setdefault(fm.group(1), fm.group(2).strip())
+                    for req in REQUIRED_FIELDS:
+                        if req not in fields:
+                            rep.error(f"{rel}: missing required metadata field **{req}:**")
+                    doc_type = fields.get("Type", "").split()[0].lower() if fields.get("Type") else ""
+                    if doc_type and doc_type != ftype:
+                        rep.error(f"{rel}: filename type '.{ftype}.md' != **Type:** {fields['Type']}")
+                    status = fields.get("Status", "").split()[0].lower() if fields.get("Status") else ""
+                    if status in GATED_STATUSES:
+                        bare = text.count(INFERRED) - text.count("`" + INFERRED)
+                        if bare > 0:
+                            rep.error(f"{rel}: {INFERRED} claim in {fields.get('Status')} document "
+                                      f"(ratify to [confirmed] or remove before promotion)")
+                except Exception as error:
+                    rep.error(
+                        f"{rel}: could not parse LLP document "
+                        f"({type(error).__name__}: {error})"
+                    )
+                    continue
                 if num in docs:
                     rep.error(f"{rel}: duplicate LLP number {num} (also {docs[num]})")
                 else:
                     docs[num] = rel
-                    headings[num] = md_headings(text)
-                fields = {}
-                for line in text.splitlines()[1:40]:
-                    fm = FIELD_RE.match(line.strip())
-                    if fm:
-                        fields.setdefault(fm.group(1), fm.group(2).strip())
-                for req in REQUIRED_FIELDS:
-                    if req not in fields:
-                        rep.error(f"{rel}: missing required metadata field **{req}:**")
-                doc_type = fields.get("Type", "").split()[0].lower() if fields.get("Type") else ""
-                if doc_type and doc_type != ftype:
-                    rep.error(f"{rel}: filename type '.{ftype}.md' != **Type:** {fields['Type']}")
-                status = fields.get("Status", "").split()[0].lower() if fields.get("Status") else ""
+                    headings[num] = doc_headings
                 statuses[num] = status
-                if status in GATED_STATUSES:
-                    bare = text.count(INFERRED) - text.count("`" + INFERRED)
-                    if bare > 0:
-                        rep.error(f"{rel}: {INFERRED} claim in {fields.get('Status')} document "
-                                  f"(ratify to [confirmed] or remove before promotion)")
 
     # @ref LLP 0000#numbering — a sub-LLP's parent must exist
     for num, rel in sorted(docs.items()):

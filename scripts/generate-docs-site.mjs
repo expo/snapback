@@ -25,6 +25,7 @@ import {
   SYMBOL_REGISTRY_PATH,
   buildFlatGuide,
   checkPublishedClosure,
+  headingSlug,
   listGuidePages,
   parseFrontmatter,
   repoRoot,
@@ -68,32 +69,6 @@ function escapeHtml(value) {
 
 function escapeAttribute(value) {
   return escapeHtml(value).replaceAll('`', '&#96;');
-}
-
-function plainInlineText(value) {
-  return value
-    .replace(/`([^`]*)`/gu, '$1')
-    .replace(/!\[([^\]]*)\]\([^)]*\)/gu, '$1')
-    .replace(/\[([^\]]+)\]\([^)]*\)/gu, '$1')
-    .replace(/[*_~]/gu, '')
-    .trim();
-}
-
-// GitHub-compatible enough for the Guide's authored heading fragments. The
-// LLP 0194 symbol identities do not depend on this heuristic: their explicit
-// <a id="symbol-…"> anchors pass through byte-for-byte and are checked against
-// the canonical registry below.
-function headingSlug(value, seen) {
-  const base = plainInlineText(value)
-    .normalize('NFKC')
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s_-]/gu, '')
-    .trim()
-    .replace(/\s+/gu, '-');
-  const stem = base || 'section';
-  const count = seen.get(stem) ?? 0;
-  seen.set(stem, count + 1);
-  return count === 0 ? stem : `${stem}-${count}`;
 }
 
 function normalizeBasePath(raw) {

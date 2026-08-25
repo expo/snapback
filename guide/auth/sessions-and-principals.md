@@ -452,7 +452,7 @@ immediately:
   points at an identity that no longer exists.
 
 Under the
-[supervised Expo dev loop](../clients/react-expo.md#run-the-supervised-expo-development-loop),
+[supervised Expo dev loop](../clients/react-expo.md#appendix-run-the-supervised-expo-development-loop),
 `snapback reset --dev-fresh` performs the
 reset and supervisor re-mint as one command; standalone dev targets receive a
 verification mint before the command reports readiness.

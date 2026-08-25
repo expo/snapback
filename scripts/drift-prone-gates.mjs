@@ -41,6 +41,10 @@ import {
   selectGate,
 } from './select-local-proof.mjs';
 import { validateInapplicabilityRecord } from './check-local-proof-gates.mjs';
+import {
+  CAPABILITIES_PATH,
+  capabilityGapRowsFromText,
+} from './guide-lib.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const ZERO_SHA = /^0{40}$/u;
@@ -2360,6 +2364,93 @@ export function runBatteryBackstop({
   return batteryRed ? 1 : 0;
 }
 
+function gapReviewTicketMarker(rowId) {
+  return `**Routing signature:** \`gap-review:${rowId}\``;
+}
+
+function findOpenGapReviewTicket(ticketRoot, rowId) {
+  if (!existsSync(ticketRoot)) return null;
+  const marker = gapReviewTicketMarker(rowId);
+  for (const name of readdirSync(ticketRoot).sort()) {
+    const path = join(ticketRoot, name);
+    if (!name.endsWith('.md') || !lstatSync(path).isFile()) continue;
+    if (readFileSync(path, 'utf8').includes(marker)) return path;
+  }
+  return null;
+}
+
+function fileGapReviewTicket({ ticketRoot, row, headRevision, date }) {
+  if (!/^\d{4}-\d{2}-\d{2}$/u.test(date)) fail(`invalid ticket date ${date}`);
+  const compactDate = date.replaceAll('-', '');
+  const rowSlug = row.id.replace(/[^a-z0-9]+/gu, '-').replace(/^-|-$/gu, '');
+  const path = join(ticketRoot, `${compactDate}-guide-gap-review-expired-${rowSlug}.md`);
+  if (existsSync(path)) fail(`GAP review ticket collision at ${path}`);
+  const body = `# guide-gap: review expired for \`${row.id}\`
+
+**Status:** Open
+**Systems:** Guide, Documentation, Capability registry
+**Date:** ${date}
+${gapReviewTicketMarker(row.id)}
+**GAP review row:** \`${row.id}\`
+**Review date:** ${row.reviewDate}
+**Owner:** ${row.owner}
+**Gap pointer:** \`${row.pointer}\`
+**Detected at:** \`${headRevision}\`
+**Related:** LLP 0061 §3, LLP 0232 §D-6
+
+## Summary
+
+The scheduled drift backstop found that the capability-index GAP row
+\`${row.id}\` passed its review date. Calendar expiry is advisory at push time;
+this owner-routed ticket is the durable review prompt. It is keyed by the row id
+and remains idempotent while open.
+
+## Resolve
+
+Re-examine the GAP with its named owner. Update or remove the row and its filing
+pointer as appropriate, record the outcome here, and move this ticket to
+\`issues/closed/\`.
+`;
+  writeFileSync(path, body);
+  return path;
+}
+
+// @ref LLP 0061#3-verification-snippets-that-ran — calendar expiry warns at
+// push time and becomes owner-routed scheduled work rather than a gate red.
+// @ref LLP 0232#d-6-advisory-fix-forward-routing — one stable row signature
+// retains one open repair ticket until the owner resolves it.
+function routeExpiredGapReviews({ root, ticketRoot, revision, date }) {
+  const paths = gitPaths(root, [
+    'ls-tree', '-r', '--name-only', '-z', revision, '--', CAPABILITIES_PATH,
+  ]);
+  if (!paths.includes(CAPABILITIES_PATH)) return;
+  const rows = capabilityGapRowsFromText(
+    git(root, ['show', `${revision}:${CAPABILITIES_PATH}`]),
+  );
+  for (const row of rows) {
+    if (!row.reviewDate || !row.owner || !row.pointer || row.reviewDate >= date) continue;
+    console.error(
+      `[snapback-drift-backstop] GAP REVIEW EXPIRED ${row.id}; `
+        + `owner: ${row.owner}; pointer: ${row.pointer}`,
+    );
+    const existing = findOpenGapReviewTicket(ticketRoot, row.id);
+    if (existing) {
+      console.error(
+        `[snapback-drift-backstop] existing open GAP review ticket ${relative(root, existing)}; `
+          + 'not filing a duplicate',
+      );
+      continue;
+    }
+    const ticket = fileGapReviewTicket({
+      ticketRoot,
+      row,
+      headRevision: revision,
+      date,
+    });
+    console.error(`[snapback-drift-backstop] FILED ${relative(root, ticket)}`);
+  }
+}
+
 export function runBackstop({
   head,
   gate = null,
@@ -2376,6 +2467,13 @@ export function runBackstop({
   }
   const ticketRoot = safeIssuesRoot(root, issuesDir);
   mkdirSync(ticketRoot, { recursive: true });
+  const ticketDate = env.SNAPBACK_DRIFT_TICKET_DATE ?? DEFAULT_TICKET_DATE();
+  routeExpiredGapReviews({
+    root,
+    ticketRoot,
+    revision,
+    date: ticketDate,
+  });
   const infrastructureStreaks = readInfrastructureStreaks(root);
   let failures = 0;
   let infrastructureFailures = 0;

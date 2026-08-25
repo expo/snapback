@@ -9,8 +9,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-12
-reviewed-authorities-digest: sha256:db256fee9e3faac8594cfcf8b3e51cb5206704d222c85855d0535a9842947283
+reviewed: 2026-08-25
+reviewed-authorities-digest: sha256:c6d3196396cbda2d9c03c521c99d57d9cf8100686ce08c48146f5dde15776f08
 ---
 
 # Guide conventions
@@ -136,7 +136,9 @@ diagnosis; LLP 0061 owns these conventions):
 Two classes, checked:
 
 - **Corpus-internal links** are relative paths within `guide/`
-  (`../realtime/live-queries.md`). They must resolve.
+  (`../realtime/live-queries.md`). They must resolve. A `file.md#anchor`
+  fragment must resolve to an actual heading or explicit anchor using the same
+  slug identity as the rendered docs site.
 - **Out-of-corpus references** — `authorities:`, `examples:`, and inline
   bridges into `llp/`, `demos/`, `crates/snapback/src/`, etc. — use repo-root paths in
   frontmatter and the `repo:` scheme inline
@@ -194,7 +196,12 @@ see which suite carries its guarantee.
 rows carry a **witness** — a route in the declared registry, a host-op id, a
 package export, a generated-manifest field, or a CLI command proving the
 capability exists in code. Uncovered capabilities are explicit **GAP** rows
-naming an owner and a review date. The authored
+naming an owner, a review date, and a live open `issues/` pointer. A missing
+pointer or one under `issues/closed/` is a hard consistency error. An expired
+review date, or one expiring within seven days, prints a clearly labelled
+warning without failing the push-time check. The scheduled drift backstop
+files one open owner-routed ticket per expired capability id and does not
+duplicate it while that ticket remains open. The authored
 [`surface-map.md`](./surface-map.md) carries the mechanically growing route
 and host-op classifications under a separate size budget. The checker joins
 that map against the repo's declared enumerations — every enumerated entry
@@ -258,5 +265,6 @@ Regeneration writes only gitignored paths; the tracked tree stays clean.
 Warning-only, but sound: the checker hashes each page's current `authorities:`
 bytes and reports when they differ from `reviewed-authorities-digest`. Dates
 and commit locations are never identity, so an unrelated rebase cannot change
-the verdict. Expired GAP review dates and check failures gate; drift warnings
-don't (LLP 0061 §Design 3).
+the verdict. GAP review-date expiry is also warning-only and routes through the
+scheduled backstop; structural failures, including closed or missing GAP issue
+custody, still gate (LLP 0061 §Design 3).

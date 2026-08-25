@@ -5,6 +5,10 @@
 **Systems:** Docs, Developer experience, Tooling, Client integration, API, Testing
 **Author:** Charlie Cheever / Claude Fable 5
 **Date:** 2026-07-15
+**Revised:** 2026-08-25 (GAP review routing amendment: expired and
+soon-expiring review dates are warning-only in the push-time Guide check;
+closed or missing issue custody is a hard consistency error; the scheduled
+drift backstop files one owner-routed, row-keyed ticket for each expired GAP.)
 **Revised:** 2026-08-15 (LLP 0259 Rung A first-read amendment: the served
 funnel and every first-read carrier now lead with the `guide/start/` tier —
 a shared ≤3 KiB mental-model page, full start packets for `react` and
@@ -488,8 +492,9 @@ LLP 0010/0012:
 - **`guide-consistency`** — frontmatter validates against
   `frontmatter.schema.json`; `authorities:` and `examples:` paths exist;
   capability ids in pages exist in the index and index page-links resolve;
-  the §2 inventory joins hold; GAP rows carry owner + review date, and
-  expired review dates are reported; every page reachable from `index.md`;
+  the §2 inventory joins hold; GAP rows carry owner + review date plus a live
+  `issues/` pointer; closed or missing issue pointers fail, while expired and
+  seven-day-soon review dates are reported as warnings; every page reachable from `index.md`;
   the index within its size budget; `targets:` and `maturity:` present and
   consistent with the index; the generated manifest (§4) not stale.
 - **Freshness** — warning-only, but sound: the check compares each page's
@@ -500,9 +505,12 @@ LLP 0010/0012:
   deliberate act in a review pass; ordinary Guide regeneration never changes
   authored review anchors. This adopts 0365's dates-are-not-identity principle
   while making the verdict invariant under gate-disjoint rebases, as required
-  by LLP 0232 D-2. **Day-one gates:** snippet failures, consistency failures
-  (including join violations), and expired GAP review dates. Drift warnings
-  stay warnings.
+  by LLP 0232 D-2. **Day-one gates:** snippet failures and consistency
+  failures, including join violations and closed/missing GAP issue custody.
+  Authority drift and GAP review-date expiry stay warnings. The scheduled
+  `scripts/drift-prone-gates.mjs backstop` converts each expired GAP row into
+  one owner-routed filesystem ticket keyed by stable capability id, so the
+  review prompt reaches its owner without making the next pusher renew it.
 
 **Implementation note (2026-08-06).** The published-closure fence is now a
 registered guide-consistency check: page or section `since:` / `unreleased:`

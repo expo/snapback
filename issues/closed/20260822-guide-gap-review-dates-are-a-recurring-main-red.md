@@ -60,3 +60,36 @@ Worth considering, not decided here:
 
 Filed rather than fixed because the right answer is a policy call, and because unilaterally
 editing other owners' rows is how a re-review prompt becomes meaningless.
+
+## Resolution (2026-08-25)
+
+The push-time Guide check now emits a clearly labelled `GAP REVIEW WARNING`
+for every expired row or row expiring within seven days, including its owner
+and issue pointer. Calendar expiry no longer contributes a hard error. Missing
+issue files and pointers under `issues/closed/` are hard consistency errors.
+The scheduled drift backstop reads the committed capability index and files
+one open `guide-gap` review ticket per expired capability id; repeat runs find
+the stable routing signature and do not duplicate it. The backstop remains
+green when expiry is its only signal.
+
+Row dispositions:
+
+- `backend.notifications`: retained. The closed 2026-07-28 issue's resolution
+  added the honest design-only row; it did not ship LLP 0045's durable
+  notification lifecycle. Retargeted to
+  `issues/20260825-guide-gap-first-class-notifications.md`.
+- `clients.non-js`: retained. The closed Swift issue corrected the Swift
+  proving-client nonclaim; it did not create Kotlin or Dart clients.
+  Retargeted to `issues/20260825-guide-gap-kotlin-dart-clients.md`.
+- `backend.sequences`: the full GAP-pointer audit found this additional
+  missing path. Its closed drift ticket repaired the contributor-source local
+  carrier while explicitly leaving public-package, remote, conformance, and
+  hosted qualification unclaimed. Retargeted to
+  `issues/20260825-guide-gap-sequence-publication-targets.md`.
+- The soon-due rows listed in this ticket for interior queries, both media
+  reruns, the real-process restart witness, and local capture/execution all
+  still point to open tickets and were left unchanged.
+
+LLP 0061 and `guide/conventions.md` now state the warning/routing policy and
+the hard live-pointer invariant. Fail-first tests cover warning boundaries,
+closed/missing pointers, and idempotent scheduled routing.

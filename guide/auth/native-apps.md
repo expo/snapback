@@ -37,7 +37,7 @@ Swift sets `Configuration.sessionBearer`.
 the supervised dev loop (`snapback dev --expo`) already auto-mints an
 ordinary session through its loopback-only
 `GET /_snapback/expo/v1/bootstrap` exchange under `SnapbackExpoProvider` —
-see [the supervised Expo development loop](../clients/react-expo.md#run-the-supervised-expo-development-loop)
+see [the supervised Expo development loop](../clients/react-expo.md#appendix-run-the-supervised-expo-development-loop)
 before wiring a broker by hand.
 
 An application that uses `SnapbackExpoProvider` can consume the broker's

@@ -43,3 +43,19 @@ that stops at the first malformed file cannot tell you how many files are malfor
 Metadata headers use bold markdown: `**Type:**`, `**Status:**`, `**Systems:**`, `**Author:**`,
 `**Date:**`, `**Revised:**`, `**Related:**`. Plain `Status:` parses as ordinary prose and the
 document is treated as having no status at all.
+
+## Resolution (2026-08-25)
+
+The `Status` guard requested by the ticket was already present on this lane's
+main base, so a plain-text `Status:` no longer reaches the former empty-split
+`IndexError`. A temporary copy of LLP 0303 with that malformed header produced
+exactly `missing required metadata field **Status:**`, exited 1, and emitted no
+traceback.
+
+The remaining corpus-wide failure mode was that an unexpected exception in any
+document's heading/metadata parse still escaped the document loop. `ref-check`
+now catches that parse per document, reports the document path plus exception,
+and continues collecting the rest of the corpus. `tests/ref_check_v0.py` covers
+both the real plain-text-header diagnostic and a forced one-document parser
+failure; the hardening test failed with the expected `ValueError` traceback
+before the implementation and the full focused suite passes afterward.

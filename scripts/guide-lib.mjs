@@ -78,6 +78,53 @@ const MIN_ROUTE_PATHS = 50;
 const MIN_HOST_OPS = 10;
 const REVIEWED_AUTHORITIES_DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/;
 const GIT_AUTHORITY_MAX_BUFFER = 64 * 1024 * 1024;
+const GAP_REVIEW_WARNING_DAYS = 7;
+
+function plainInlineText(value) {
+  return value
+    .replace(/`([^`]*)`/gu, '$1')
+    .replace(/!\[([^\]]*)\]\([^)]*\)/gu, '$1')
+    .replace(/\[([^\]]+)\]\([^)]*\)/gu, '$1')
+    .replace(/[*_~]/gu, '')
+    .trim();
+}
+
+// Shared with the docs-site renderer so source validation and rendered-site
+// validation assign byte-identical identities to authored headings.
+export function headingSlug(value, seen = new Map()) {
+  const base = plainInlineText(value)
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s_-]/gu, '')
+    .trim()
+    .replace(/\s+/gu, '-');
+  const stem = base || 'section';
+  const count = seen.get(stem) ?? 0;
+  seen.set(stem, count + 1);
+  return count === 0 ? stem : `${stem}-${count}`;
+}
+
+export function markdownAnchors(body) {
+  const anchors = new Set();
+  const seenHeadings = new Map();
+  const lines = body.replaceAll('\r\n', '\n').split('\n');
+  let fenced = false;
+  for (const line of lines) {
+    if (/^```/u.test(line)) {
+      fenced = !fenced;
+      continue;
+    }
+    if (fenced) continue;
+    const heading = /^(#{1,6})\s+(.+)$/u.exec(line);
+    if (heading) {
+      anchors.add(headingSlug(heading[2], seenHeadings));
+      continue;
+    }
+    const explicit = /^<a\s+id="([^"]+)"\s*><\/a>\s*$/u.exec(line);
+    if (explicit) anchors.add(explicit[1]);
+  }
+  return anchors;
+}
 
 export function repoRoot() {
   return resolve(dirname(new URL(import.meta.url).pathname), '..');
@@ -530,11 +577,31 @@ export function checkSnippets(root, pageBodies, errors) {
 
 export function checkLinks(root, pageBodies, errors, warnings) {
   const graph = new Map();
+  const anchorsByPath = new Map(
+    [...pageBodies].map(([path, body]) => [path, markdownAnchors(body)]),
+  );
+  const checkAnchor = (sourcePath, targetPath, rawFragment, label) => {
+    if (!rawFragment || !anchorsByPath.has(targetPath)) return;
+    let fragment;
+    try {
+      fragment = decodeURIComponent(rawFragment);
+    } catch {
+      errors.push(`${sourcePath}: ${label} has malformed encoded anchor #${rawFragment} in ${targetPath}`);
+      return;
+    }
+    if (!anchorsByPath.get(targetPath).has(fragment)) {
+      errors.push(`${sourcePath}: ${label} resolves to missing anchor #${fragment} in ${targetPath}`);
+    }
+  };
   for (const [path, body] of pageBodies) {
     const outgoing = [];
     for (const m of body.matchAll(/\]\(((?:repo\([^)]+\):)?[^)\s]+)\)/g)) {
       const target = m[1];
-      if (/^(https?:|mailto:|#)/.test(target)) continue;
+      if (/^(https?:|mailto:)/.test(target)) continue;
+      if (target.startsWith('#')) {
+        checkAnchor(path, path, target.slice(1), 'same-page link');
+        continue;
+      }
       const crossRepo = /^repo\(([a-z0-9][a-z0-9._-]*)\):(.+)$/.exec(target);
       if (crossRepo) {
         const [, repository, repoPathWithAnchor] = crossRepo;
@@ -551,15 +618,20 @@ export function checkLinks(root, pageBodies, errors, warnings) {
         continue;
       }
       if (target.startsWith('repo:')) {
-        const p = join(root, target.slice('repo:'.length).split('#')[0]);
+        const [repoPath, fragment] = target.slice('repo:'.length).split('#', 2);
+        const p = join(root, repoPath);
         if (!existsSync(p)) errors.push(`${path}: repo: reference does not exist: ${target}`);
+        else checkAnchor(path, repoPath, fragment, 'repo: reference');
         continue;
       }
-      const resolved = resolve(root, dirname(path), target.split('#')[0]);
+      const [relativePath, fragment] = target.split('#', 2);
+      const resolved = resolve(root, dirname(path), relativePath);
       if (!existsSync(resolved)) {
         errors.push(`${path}: relative link does not resolve: ${target}`);
       } else if (resolved.endsWith('.md') && relative(root, resolved).startsWith(GUIDE_DIR)) {
-        outgoing.push(relative(root, resolved));
+        const targetPath = relative(root, resolved);
+        outgoing.push(targetPath);
+        checkAnchor(path, targetPath, fragment, 'relative link');
       }
     }
     graph.set(path, outgoing);
@@ -706,9 +778,72 @@ export function extractHostOps(root, errors) {
   return ops;
 }
 
-export function checkCapabilityIndex(root, index, pageInfo, errors) {
+function gapRowDetails(capability) {
+  if (!capability.page.startsWith('GAP')) return null;
+  const review = capability.page.match(
+    /owner:\s*([^,)]+),\s*review:\s*(\d{4}-\d{2}-\d{2})/u,
+  );
+  const pointer = capability.page.match(/\bissues\/[A-Za-z0-9._/-]+\.md\b/u)?.[0] ?? null;
+  return {
+    id: capability.id,
+    owner: review?.[1].trim() ?? null,
+    reviewDate: review?.[2] ?? null,
+    pointer,
+  };
+}
+
+export function capabilityGapRowsFromText(text) {
+  const lines = text.split('\n');
+  const start = lines.findIndex((line) => line.startsWith('## Capabilities'));
+  return parseTable(lines, start)
+    .filter((row) => row.length === 8 && row[7].startsWith('GAP'))
+    .map(([id, what, aliases, targets, maturity, witness, authorities, page]) => (
+      gapRowDetails({ id, what, aliases, targets, maturity, witness, authorities, page })
+    ));
+}
+
+export function checkCapabilityGapRows(
+  root,
+  capabilities,
+  errors,
+  warnings,
+  { today = new Date().toISOString().slice(0, 10) } = {},
+) {
+  const todayDay = Date.parse(`${today}T00:00:00Z`) / 86_400_000;
+  for (const capability of capabilities.values()) {
+    const gap = gapRowDetails(capability);
+    if (!gap) continue;
+    if (!gap.owner || !gap.reviewDate) {
+      errors.push(
+        `${CAPABILITIES_PATH}: GAP row '${gap.id}' must carry (owner: X, review: YYYY-MM-DD)`,
+      );
+    }
+    if (!gap.pointer) {
+      errors.push(`${CAPABILITIES_PATH}: GAP row '${gap.id}' must carry an issues/*.md link`);
+    } else if (gap.pointer.startsWith('issues/closed/')) {
+      errors.push(`${CAPABILITIES_PATH}: GAP row '${gap.id}' points at closed issue ${gap.pointer}`);
+    } else if (!existsSync(join(root, gap.pointer))) {
+      errors.push(`${CAPABILITIES_PATH}: GAP row '${gap.id}' points at missing issue ${gap.pointer}`);
+    }
+    if (!gap.reviewDate || !gap.owner || !gap.pointer) continue;
+    const reviewDay = Date.parse(`${gap.reviewDate}T00:00:00Z`) / 86_400_000;
+    const daysUntilReview = reviewDay - todayDay;
+    if (daysUntilReview < 0) {
+      warnings.push(
+        `GAP REVIEW WARNING: row '${gap.id}' expired on ${gap.reviewDate}; `
+          + `owner: ${gap.owner}; pointer: ${gap.pointer}`,
+      );
+    } else if (daysUntilReview <= GAP_REVIEW_WARNING_DAYS) {
+      warnings.push(
+        `GAP REVIEW WARNING: row '${gap.id}' expires within 7 days on ${gap.reviewDate}; `
+          + `owner: ${gap.owner}; pointer: ${gap.pointer}`,
+      );
+    }
+  }
+}
+
+export function checkCapabilityIndex(root, index, pageInfo, errors, warnings = []) {
   const { capabilities, routeMap, hostOpMap } = index;
-  const today = new Date().toISOString().slice(0, 10);
   const claimedBy = new Map();
   for (const [path, info] of pageInfo) {
     for (const cap of info.frontmatter?.capabilities ?? []) {
@@ -717,21 +852,12 @@ export function checkCapabilityIndex(root, index, pageInfo, errors) {
       claimedBy.get(cap).push({ path, info });
     }
   }
+  // @ref LLP 0061#2-the-capability-index-registry-lite-with-witnesses —
+  // every honest GAP has durable issue custody, not only an owner/date.
+  checkCapabilityGapRows(root, capabilities, errors, warnings);
   for (const cap of capabilities.values()) {
     const gap = cap.page.startsWith('GAP');
-    if (gap) {
-      // @ref LLP 0061#2-the-capability-index-registry-lite-with-witnesses —
-      // every honest GAP has durable issue custody, not only an owner/date.
-      const m = cap.page.match(/owner:\s*([^,)]+),\s*review:\s*(\d{4}-\d{2}-\d{2})/);
-      if (!m) {
-        errors.push(`${CAPABILITIES_PATH}: GAP row '${cap.id}' must carry (owner: X, review: YYYY-MM-DD)`);
-      } else if (m[2] < today) {
-        errors.push(`${CAPABILITIES_PATH}: GAP row '${cap.id}' review date ${m[2]} has expired`);
-      }
-      if (!/\bissues\/[A-Za-z0-9._/-]+\.md\b/.test(cap.page)) {
-        errors.push(`${CAPABILITIES_PATH}: GAP row '${cap.id}' must carry an issues/*.md link`);
-      }
-    } else {
+    if (!gap) {
       const pagePath = join(GUIDE_DIR, cap.page);
       if (!pageInfo.has(pagePath)) {
         errors.push(`${CAPABILITIES_PATH}: '${cap.id}' points at missing page ${cap.page}`);

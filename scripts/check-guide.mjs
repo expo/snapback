@@ -257,7 +257,7 @@ if (runConsistency) {
   if (index && corpus) {
     const joined = runCollectedCheck(
       'capability and surface joins',
-      (errors) => checkCapabilityIndex(root, index, corpus.pageInfo, errors),
+      (errors) => checkCapabilityIndex(root, index, corpus.pageInfo, errors, warnings),
     );
     if (joined.value) surfaces = joined.value;
   } else {
