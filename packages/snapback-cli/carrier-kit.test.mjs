@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process';
 import {
   chmodSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -601,12 +602,15 @@ try {
   );
 
   const successArtifacts = join(root, 'success-artifacts');
+  mkdirSync(successArtifacts, { mode: 0o755 });
+  chmodSync(successArtifacts, 0o755);
   const successConfig = config('success');
   assert.equal(successConfig.carriers['web-browser'].origin, undefined);
   assert.equal(successConfig.carriers['web-browser'].structuredReadiness.kind, 'expo-supervisor');
   assert.equal(await runTemplateCarrierCli(successConfig, [
     'web-browser', '--browser', browser, '--artifacts', successArtifacts,
   ], { root }), 0);
+  assert.equal(lstatSync(successArtifacts).mode & 0o777, 0o700);
   const director = JSON.parse(readFileSync(join(successArtifacts, 'director-log.json'), 'utf8'));
   assert.equal(director.status, 'completed');
   assert.equal(director.proofAuthority.kind, 'llp-0146-d2');

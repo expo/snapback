@@ -70,22 +70,49 @@ setInterval(() => {}, 60_000);
 `);
 
 writeFileSync(pathLockScript, `
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { withCleanupPathLock } from ${JSON.stringify(pathToFileURL(join(packageRoot, 'process-teardown.mjs')).href)};
 
 const endpointPath = process.argv[2];
 const mode = process.argv[3];
-await withCleanupPathLock(endpointPath, async () => {
-  process.stdout.write(JSON.stringify({ state: 'lock-acquired' }) + '\\n');
-  await new Promise(() => {});
-}, {
-  timeoutMs: 10_000,
-  ...(mode === 'die-while-reclaiming' ? {
-    async afterReclaimMarkerAcquired() {
-      process.stdout.write(JSON.stringify({ state: 'reclaim-marker-acquired' }) + '\\n');
-      await new Promise(() => {});
-    },
-  } : {}),
-});
+const contenderId = process.argv[4];
+const releaseFile = process.argv[5];
+try {
+  await withCleanupPathLock(endpointPath, async () => {
+    const lockOwner = JSON.parse(readFileSync(join(dirname(endpointPath), '.dc-lock'), 'utf8'));
+    process.stdout.write(JSON.stringify({ state: mode === 'stale-contender' ? 'protected-action' : 'lock-acquired', contenderId, lockOwner }) + '\\n');
+    await new Promise(() => {});
+  }, {
+    timeoutMs: mode === 'stale-contender' ? 750 : 10_000,
+    markerStaleMs: mode === 'stale-contender' ? 0 : undefined,
+    ...(mode === 'die-while-reclaiming' ? {
+      async afterReclaimMarkerAcquired() {
+        process.stdout.write(JSON.stringify({ state: 'reclaim-marker-acquired' }) + '\\n');
+        await new Promise(() => {});
+      },
+    } : {}),
+    ...(mode === 'stale-contender' ? {
+      async afterStaleReclaimMarkerObserved({ marker }) {
+        process.stdout.write(JSON.stringify({
+          state: 'stale-reclaim-observed',
+          contenderId,
+          marker: {
+            device: marker.device,
+            inode: marker.inode,
+            modifiedAtMs: marker.modifiedAtMs,
+            bytes: marker.bytes,
+          },
+        }) + '\\n');
+        while (!existsSync(releaseFile)) {
+          await new Promise((resolveWait) => setTimeout(resolveWait, 10));
+        }
+      },
+    } : {}),
+  });
+} catch (error) {
+  process.stdout.write(JSON.stringify({ state: 'refused', contenderId, code: error?.code }) + '\\n');
+}
 `);
 
 async function eventually(check, { timeoutMs = 10_000, label = 'condition' } = {}) {
@@ -200,6 +227,38 @@ async function startPathLockActor(endpointPath, mode) {
     return false;
   }, { label: `${mode} path-lock barrier` });
   return { child, ready };
+}
+
+async function startStaleReclaimContender(endpointPath, contenderId, releaseFile) {
+  const child = spawn(
+    process.execPath,
+    [pathLockScript, endpointPath, 'stale-contender', contenderId, releaseFile],
+    { stdio: ['ignore', 'pipe', 'pipe'] },
+  );
+  holders.add(child);
+  const messages = [];
+  let stdout = '';
+  let stderr = '';
+  child.stdout.setEncoding('utf8');
+  child.stderr.setEncoding('utf8');
+  child.stdout.on('data', (chunk) => {
+    stdout += chunk;
+    for (;;) {
+      const newline = stdout.indexOf('\n');
+      if (newline === -1) break;
+      messages.push(JSON.parse(stdout.slice(0, newline)));
+      stdout = stdout.slice(newline + 1);
+    }
+  });
+  child.stderr.on('data', (chunk) => { stderr += chunk; });
+  await eventually(
+    () => messages.find((message) => message.state === 'stale-reclaim-observed')
+      ?? (child.exitCode !== null || child.signalCode !== null
+        ? Promise.reject(new Error(`stale contender exited before observation: ${stderr || stdout}`))
+        : false),
+    { label: `${contenderId} stale-reclaim observation` },
+  );
+  return { child, messages };
 }
 
 function publishSupervisorDescriptor(root, holder) {
@@ -505,6 +564,51 @@ try {
   assert.equal(existsSync(join(lockRecoveryRoot, '.dc-lock')), false);
   assert.equal(existsSync(join(lockRecoveryRoot, '.dc-reclaim')), false);
   console.log('coordination markers: successor recovers after reclaimer SIGKILL');
+
+  const takeoverRaceRoot = makeRoot('takeover-race');
+  const takeoverRaceEndpoint = join(takeoverRaceRoot, 'dev-control.sock');
+  const takeoverDeadLockHolder = await startPathLockActor(takeoverRaceEndpoint, 'hold-lock');
+  await killHolder(takeoverDeadLockHolder);
+  const takeoverDeadReclaimer = await startPathLockActor(
+    takeoverRaceEndpoint,
+    'die-while-reclaiming',
+  );
+  await killHolder(takeoverDeadReclaimer);
+  const takeoverReleaseFile = join(takeoverRaceRoot, 'release-stale-contenders');
+  const staleContenders = await Promise.all([
+    startStaleReclaimContender(takeoverRaceEndpoint, 'first', takeoverReleaseFile),
+    startStaleReclaimContender(takeoverRaceEndpoint, 'second', takeoverReleaseFile),
+  ]);
+  const observedGenerations = staleContenders.map(({ messages }) => (
+    messages.find((message) => message.state === 'stale-reclaim-observed').marker
+  ));
+  assert.deepEqual(
+    observedGenerations[0],
+    observedGenerations[1],
+    'both contenders must park after observing the same stale reclaim generation',
+  );
+  writeFileSync(takeoverReleaseFile, 'release\n', { mode: 0o600 });
+  const takeoverOutcomes = await eventually(() => {
+    const messages = staleContenders.flatMap((contender) => contender.messages)
+      .filter((message) => message.state === 'protected-action' || message.state === 'refused');
+    return messages.length === 2 ? messages : false;
+  }, { label: 'stale reclaim contender outcomes' });
+  const takeoverEntrants = takeoverOutcomes.filter((message) => message.state === 'protected-action');
+  const takeoverRefusals = takeoverOutcomes.filter((message) => message.state === 'refused');
+  assert.equal(
+    takeoverEntrants.length,
+    1,
+    'exactly one stale-generation contender may enter the protected action',
+  );
+  assert.equal(takeoverRefusals.length, 1);
+  assert.equal(takeoverRefusals[0].code, 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE');
+  assert.deepEqual(
+    JSON.parse(readFileSync(join(takeoverRaceRoot, '.dc-lock'), 'utf8')),
+    takeoverEntrants[0].lockOwner,
+    'the losing contender must leave the winning lock owner marker intact',
+  );
+  await Promise.all(staleContenders.map(killHolder));
+  console.log('stale reclaimer takeover: one generation claim enters and loser preserves owner marker');
 
   const reaperRaceRoot = makeRoot('x');
   const reaperRaceHolder = await startHolder(reaperRaceRoot, 'unit-reaper-stale');

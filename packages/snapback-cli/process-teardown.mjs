@@ -1,9 +1,10 @@
 import { spawn, spawnSync } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import {
   chmodSync,
   closeSync,
   existsSync,
+  linkSync,
   lstatSync,
   mkdtempSync,
   openSync,
@@ -11,7 +12,6 @@ import {
   readdirSync,
   renameSync,
   rmSync,
-  writeSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -177,11 +177,21 @@ function writeExclusiveOwnerRecord(path, value) {
   let descriptor = null;
   try {
     descriptor = openSync(path, 'wx', 0o600);
-    writeSync(descriptor, `${JSON.stringify(value)}\n`);
+    writeFileSync(descriptor, `${JSON.stringify(value)}\n`);
     closeSync(descriptor);
     descriptor = null;
   } finally {
     if (descriptor !== null) closeSync(descriptor);
+  }
+}
+
+function linkExclusiveOwnerRecord(path, value) {
+  const temporary = join(dirname(path), `.dc-c-${value.token}`);
+  try {
+    writeExclusiveOwnerRecord(temporary, value);
+    linkSync(temporary, path);
+  } finally {
+    rmSync(temporary, { force: true });
   }
 }
 
@@ -235,7 +245,20 @@ function sameCleanupPathLockMarker(left, right) {
     && right !== null
     && left.device === right.device
     && left.inode === right.inode
+    && left.modifiedAtMs === right.modifiedAtMs
     && left.bytes === right.bytes;
+}
+
+function cleanupPathLockMarkerGeneration(marker) {
+  return createHash('sha256')
+    .update(marker.device)
+    .update('\0')
+    .update(marker.inode)
+    .update('\0')
+    .update(String(marker.modifiedAtMs))
+    .update('\0')
+    .update(marker.bytes)
+    .digest('hex');
 }
 
 function cleanupPathLockMarkerAge(marker, now = Date.now()) {
@@ -244,6 +267,32 @@ function cleanupPathLockMarkerAge(marker, now = Date.now()) {
     ? Date.parse(marker.owner.acquiredAt)
     : marker.modifiedAtMs;
   return Math.max(0, now - acquiredAt);
+}
+
+function claimStaleCleanupPathMarker({
+  lockDirectory,
+  reclaimFile,
+  marker,
+  owner,
+}) {
+  const claimFile = join(
+    lockDirectory,
+    `.dc-t-${cleanupPathLockMarkerGeneration(marker)}`,
+  );
+  try {
+    // link(2) publishes a complete owner record and elects exactly one
+    // claimant for this stale generation. Retain the linked token as a
+    // tombstone so a contender parked on the old observation cannot wake
+    // after takeover and repeat the election.
+    linkExclusiveOwnerRecord(claimFile, owner);
+    return claimFile;
+  } catch (error) {
+    if (error?.code !== 'EEXIST') throw error;
+    throw Object.assign(
+      new Error(`stale cleanup path reclaimer is already claimed ${reclaimFile}`),
+      { code: 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE' },
+    );
+  }
 }
 
 function releaseCleanupPathLock(lockFile, owner) {
@@ -259,6 +308,7 @@ function releaseCleanupPathLock(lockFile, owner) {
 
 async function acquireCleanupPathLock(path, timeoutMs = CLEANUP_PATH_LOCK_TIMEOUT_MS, {
   afterReclaimMarkerAcquired,
+  afterStaleReclaimMarkerObserved,
   markerStaleMs = CLEANUP_PATH_MARKER_STALE_MS,
 } = {}) {
   const lockDirectory = dirname(resolve(path));
@@ -328,6 +378,17 @@ async function acquireCleanupPathLock(path, timeoutMs = CLEANUP_PATH_LOCK_TIMEOU
         await new Promise((resolveWait) => setTimeout(resolveWait, 10));
         continue;
       }
+      await afterStaleReclaimMarkerObserved?.({
+        lockFile,
+        reclaimFile,
+        marker: incumbent,
+      });
+      claimStaleCleanupPathMarker({
+        lockDirectory,
+        reclaimFile,
+        marker: incumbent,
+        owner: reclaimOwner,
+      });
       const reclaimReplacement = join(lockDirectory, `.dc-r-${reclaimOwner.token.slice(0, 8)}`);
       try {
         writeExclusiveOwnerRecord(reclaimReplacement, reclaimOwner);
@@ -376,10 +437,12 @@ async function acquireCleanupPathLock(path, timeoutMs = CLEANUP_PATH_LOCK_TIMEOU
 export async function withCleanupPathLock(path, action, {
   timeoutMs,
   afterReclaimMarkerAcquired,
+  afterStaleReclaimMarkerObserved,
   markerStaleMs,
 } = {}) {
   const lock = await acquireCleanupPathLock(path, timeoutMs, {
     afterReclaimMarkerAcquired,
+    afterStaleReclaimMarkerObserved,
     markerStaleMs,
   });
   try {
