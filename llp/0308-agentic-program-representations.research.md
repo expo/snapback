@@ -6,9 +6,11 @@
 Storage, Handler runtime, Agent experience
 **Author:** Claude Fable / Charlie Cheever
 **Date:** 2026-08-24
-**Related:** LLP 0000, LLP 0008, LLP 0051, LLP 0080, LLP 0082, LLP 0108,
-LLP 0155, LLP 0173, LLP 0186, LLP 0190, LLP 0200, LLP 0209, LLP 0237,
-LLP 0264, LLP 0270, LLP 0274, LLP 0276, LLP 0304
+**Revised:** 2026-08-25
+**Related:** LLP 0000, LLP 0008, LLP 0020, LLP 0051, LLP 0068, LLP 0080,
+LLP 0082, LLP 0108, LLP 0146, LLP 0155, LLP 0173, LLP 0186, LLP 0190,
+LLP 0209, LLP 0234, LLP 0237, LLP 0241, LLP 0252, LLP 0264, LLP 0270,
+LLP 0274, LLP 0276, LLP 0304
 
 ## Summary
 
@@ -32,21 +34,26 @@ retained alternatives (e-graphs / equality saturation) and correctness by
 *speculate-then-check*: creative, untrusted generation gated by a small,
 deterministic validator.
 
-**Finding in one line: Snapback already implements the representation half
-of this thesis, deliberately and in shipped Rust; the useful imports are
-not a new language but four mechanisms** — (1) *derived* incremental
-maintenance for the closed query IR (DBSP-style) instead of hand-written
-delta rules, (2) checked lowering of JS handlers into declarative plans
-(translation validation) so the tier ladder becomes search instead of a
-cliff, (3) lowering the table policy IR out of syntactic JavaScript
-analysis into the same closed, typed representation as reads and writes,
-and (4) incremental, content-addressed validation so agent candidate loops
-pay per changed node rather than per full regeneration. GPU execution, a
-new surface language, CRDTs, and heavyweight e-graph machinery do not pay
-here today.
+**Finding in one line: Snapback already implements a substantial part of
+the representation thesis — the closed-IR, contract, and placement
+layers — deliberately and in shipped Rust; what it lacks is retained
+implementation families and any generation-time equivalence gate, and the
+useful imports are not a new language but four mechanisms:** (1)
+*derived* incremental maintenance for the closed query IR (DBSP-style),
+consumed by the matcher's delta lanes and by local materialization, (2)
+plan derivation from JS handlers as an **explicit, checked admission** —
+advisory until a sound checker exists — plus strengthening the shipped
+declaration-conformance mechanism, (3) implementing LLP 0274's already
+accepted typed write-authority design, whose hard residue is the
+write-site census, and (4) incremental validation for agent candidate
+loops, routed through LLP 0241's identity/custody decision. GPU
+execution, a new surface language, CRDTs, and e-graph machinery are
+dispositioned as not-now.
 
-This is a Research document: it recommends and ranks, it does not commit.
-Each import names the program that would own it.
+This is a Research document: it recommends, it does not commit. The
+numbered order of the imports is **architectural leverage, not adoption
+order** — §F3 states both orderings. Each import names the program that
+would own it.
 
 ## Source ideas, compressed
 
@@ -71,14 +78,14 @@ The conversation's load-bearing claims, in the form relevant to Snapback:
    frontiers. This — not GPU lexing — is where the hardware goes.
 6. **Structured diagnostics as repair input.** A failure returns the
    violated constraint, the smallest conflicting subgraph, and candidate
-   repairs — not prose.
+   repairs — not prose. (Dispositioned in §F3.)
 
 ## Findings
 
-### F1. Snapback is already a running instance of the representation thesis
+### F1. Snapback already implements the representation thesis's closed-IR, contract, and placement layers
 
-The thesis did not need importing; it is the house design, stated in the
-corpus and enforced in code:
+Three of the source's layers did not need importing; they are the house
+design, stated in the corpus and enforced in code:
 
 - **Programs as closed, analyzable data.** LLP 0051's `ValueExpr` /
   mutation-plan IR: "one evaluator serves every consumer — mutation
@@ -88,8 +95,10 @@ corpus and enforced in code:
   and a conformance corpus. LLP 0209's `graph_query_v1`: "a finite,
   acyclic, closed intermediate representation. An admitted graph is data,
   not code."
-- **Dependencies as part of the IR.** LLP 0209 makes per-node captured
-  read dependencies definitional, and the shipped matcher consumes
+- **Dependencies as part of the profile.** LLP 0209 makes the captured
+  read dependencies each node kind contributes definitional in the
+  profile (the runtime captures themselves are evaluator-produced
+  companion evidence), and the shipped matcher consumes
   `CapturedReadDependency` records carrying the serialized plan as the
   predicate.
 - **Contracts with honest refusal.** `ExprError::Unanalyzable`,
@@ -104,22 +113,35 @@ corpus and enforced in code:
   a comment edit does not rotate semantics), and the graph IR's
   host-recomputed plan/instance/materialization identities.
 - **The schedule layer exists and is the local-first story.** The client
-  ships the *same* IR evaluator the server runs
-  (`packages/snapback-client/ir-evaluator.mjs`), and
+  ships a browser-side evaluator over the *same closed IR* the server
+  executes (`packages/snapback-client/ir-evaluator.mjs` — two
+  evaluators, one IR, held to agreement by conformance), and
   `classifyLocalMutationIrV1` is precisely a placement decision computed
   from analysis of the program: which plans may execute optimistically
   on-device, which are server-only, with closed reason codes. Optimistic
   state is recomputable presentation replayed through that evaluator
-  (LLP 0155's rebase), and LLP 0270's divergence rule — a server/local
+  (LLP 0155's rebase). LLP 0270's divergence rule — a server/local
   mismatch is a content failure that disables the local lane through a
-  rotation or kill switch, never a silent fallback — *is*
-  speculate-then-check with a trusted comparator.
+  rotation or kill switch, never a silent fallback — is **runtime
+  divergence detection between two evaluations of the same admitted
+  IR**. It is *not* a generation-time equivalence gate between two
+  different programs; that mechanism (the Alive2-style split) does not
+  exist anywhere in the stack today and is what §I2 proposes.
 - **Agent-first is the ratified priority.** LLP 0000: agent DX wins where
   it trades against human ergonomics; agents should get "close to
   guarantees" and "complete feedback loops." The conversation's
   prediction that agents will happily emit redundant machine-checkable
   declarations is confirmed by practice here (declared reads, declared
   cost ceilings, declared refusal codes, result contracts).
+
+**The remainder map — what the stack does *not* have of the source
+thesis:** retained implementation families (a function has exactly one
+admitted body; alternatives are never kept — parked under deferred
+e-graphs in §F3); any generation-time equivalence gate between distinct
+programs (§I2's subject); and structured diagnostics at the
+conflicting-subgraph-plus-candidate-repairs level (dispositioned at the
+end of §F3). A consumer of this document should read F1 as "closed IR +
+contracts + placement: present" and not as "the thesis is shipped."
 
 Notably, the conversation's closing suggestion — don't build a new
 surface language; build an agent-only semantic IR beneath a familiar
@@ -134,21 +156,51 @@ are the reactive domain.
 What Snapback does *not* have is uniformity. There are roughly five
 separate representations with separate identity, analysis, and precision
 machinery: ~13 `HandlerPlan` arms, the `ValueExpr` mutation IR, the
-`graph_query_v1` IR, the table policy carriers (read side in Rust, write
-side derived in JavaScript codegen), and the migration-intent IR. The
-live matcher's precision ladder is a hand-written match over plan classes
-— per-node dependency matching for graphs, predicate-level for single
-declarative queries, table-granular for relational v1 and for opaque JS
-via declared `reads:`, conservative fallback for the rest — with each
+`graph_query_v1` IR, the table policy carriers (read and write carriers
+in Rust; the write-side *derivation* in JavaScript codegen), and the
+migration-intent IR. (The migration-intent IR is deliberately out of
+scope for §F3's imports: its derivation is already deterministic and
+separately governed; I1–I4 do not cover it.) The live matcher's
+precision ladder is a hand-written match over plan classes, with each
 rung's precision individually designed and individually proven.
 
 The escape hatch is `FunctionRuntime::IbexModule`: opaque JS in the
-handler VM. Every analysis fails closed against it, correctly. LLP 0209
-§7 already ruled that re-run plus scheduling plus memoization is "a
+handler VM. The cliff is real but narrower than "everything falls off":
+**static-admission lanes** (declarative-plan admission, local-first
+execution, cold retention `rqsEligible`, delta eligibility) are
+plan-only, while **invalidation precision is not binary** — the matcher
+consults captured runtime read dependencies *before* any
+runtime-specific fallback, for opaque handlers too (point reads and
+serialized query predicates match precisely; LLP 0020's capture
+mechanism), and the authored `reads:` table-granular key plus a
+per-principal skip is the fallback when captures cannot decide.
+Separately, **declaration conformance already ships**: LLP 0146 D1
+defines per-invocation declaration/observation reports with opt-in
+strict enforcement (`crates/snapback-kernel/src/conformance.rs`). LLP
+0209 §7 ruled that re-run plus scheduling plus memoization is "a
 legitimate stable resting point, not a waypoint" for opaque handlers —
-so any import below must coexist with the hatch, not promise to close it.
+so any import below must coexist with the hatch, not promise to close
+it.
 
-### F3. Where the imports pay (ranked)
+Lane-by-lane, for the opaque handler:
+
+| Lane | Today | Residual gap |
+|---|---|---|
+| Plan admission | plan-only, static | opaque = no plan, by design |
+| Invalidation | captures first, then declared-`reads:` fallback | fallback is table-granular; captures prove disjointness only where captured |
+| Declaration conformance | LLP 0146 D1 reports; strict opt-in | strict not default; one observation ≠ completeness proof |
+| Local exec / retention | plan-only (closed-inputs proof required) | opaque never eligible |
+| Delta eligibility | plan-only, shape-guarded | opaque always re-run |
+
+### F3. Where the imports pay
+
+**Ranking criterion.** I1–I4 are ordered by **architectural leverage**:
+how much of the fragmentation map in F2 each import unifies. That is
+*not* adoption order. By do-now order the sequence is: the I4
+measurement probe and the I1 scope spike first (cheap, decision-forcing),
+I3 as the LLP 0274 implementation program starts (it is that program's
+status analysis), I1's spec on its owner's schedule, and I2 last —
+gated on its open checker question.
 
 #### I1. Derive the incremental lanes instead of hand-writing them
 
@@ -160,124 +212,137 @@ incremental (Z-set / delta) semantics, and the incremental version of
 *any* plan in the algebra follows by construction.
 
 Today's reality, from LLP 0209's own measurements: the shipped
-`live_delta` lane excludes ordered/limited (top-N), membership-gated,
-and relational shapes, and on the 5.5M-row Zerobugs fixture the observed
-delta-lane delivery count was **zero** — the hot queries are exactly the
-excluded shapes. Meanwhile three open fronts are all blocked on the same
-missing machinery:
+`live_delta` lane excludes ordered or cap-saturated windows,
+membership-gated, and relational shapes (unordered limited queries under
+their effective cap remain eligible), and on the 5.5M-row Zerobugs
+fixture the observed delta-lane delivery count was **zero** — the hot
+queries are exactly the excluded shapes. LLP 0008 DK-3 is the
+load-bearing precedent here — its mechanism and decision stand; only its
+historical measurements were superseded — and LLP 0209 G3-B's per-node
+delta rules are designed-not-written, with the plan being to hand-derive
+them per node kind.
 
-- **LLP 0209 G3-B** — per-node-kind delta rules for the graph IR are
-  designed-not-written, and the plan is to hand-derive them per node
-  kind.
-- **LLP 0209 §8 rung 5** — the replica continuity contract (base-version
-  stamping, cumulative-vs-compositional deltas, gap-to-replace) is
-  explicitly undesigned; current deltas are "not claimed
-  replica-applicable."
-- **LLP 0190 D3** — local query evaluation beyond `result-transform.v1`
-  needs exactly a maintained local materialization.
+**Scope, stated precisely.** One operator-level derivation serves two
+consumers: (a) the matcher's per-plan delta rules (0209 G3-B) and (b) a
+maintained local materialization for local query evaluation (LLP 0190
+D3). It does **not** derive the third front: LLP 0209 §8 rung 5's
+replica continuity contract (base/predecessor stamping, delivery mode,
+gap detection, gap-to-replace) is a distribution-protocol problem that
+remains after every operator has a delta form, and LLP 0190's authority,
+completeness, absence, custody, bounds, and rebuild contracts are
+likewise separate obligations that *consume* deltas rather than falling
+out of them. Membership semi-joins additionally require
+authority-bearing inputs the algebra alone does not supply. An I1 spec
+must preserve DK-3/G3's existing wire kinds, fallback boundaries,
+convergence rules, and authority contracts — the derivation slots inside
+them — and, because a wrong delta is a live-data correctness failure,
+must sit next to LLP 0270's divergence-comparator posture rather than
+being treated as a pure matcher speedup.
 
-Because the query IR is closed and tiny — seven graph node kinds, a
-pinned expression library — defining incremental semantics per operator
-is a bounded exercise, and per-plan delta rules, replica maintenance, and
-local evaluation all become *the same derivation* consumed three ways.
-The per-node captured-dependency vocabulary already in the IR is the
-scaffolding such maintenance wants.
+Honest caveat: the excluded shapes (top-N windows, membership
+semi-joins with retractions) are also where incremental algebra needs
+the most care, so "mechanical" is relative. But deriving them from
+operator semantics once still dominates proving each rung ad hoc in
+`live_matcher.rs`, and it composes: a new node kind lands with its delta
+rule by construction instead of joining the conservative-fallback queue.
 
-Honest caveat: the shapes the current lane excludes (top-N windows,
-membership semi-joins) are also where incremental algebra needs the most
-care — windows need dedicated operators and retraction handling, and
-"mechanical" is relative. But deriving them from operator semantics once
-still dominates proving each rung ad hoc in `live_matcher.rs`, and it
-composes: a new node kind lands with its delta rule by construction
-instead of joining the conservative-fallback queue.
+*Owner if adopted:* the LLP 0209 program (G3-B/G3-C) and LLP 0190 D3
+consume it; replica continuity is a separate later contract.
 
-*Owner if adopted:* the LLP 0209 program (G3-B/G3-C) and LLP 0190 D3;
-LLP 0008 DK-3 is the superseded hand-written slice.
+#### I2. Plan derivation as explicit, checked admission — and finish declaration conformance
 
-#### I2. Checked lowering: turn the tier cliff into search-plus-validation
+The static-admission cliff in F2 bundles high-value lanes behind "author
+wrote a plan." Two separable products would soften it; conflating them
+was a defect in this document's first revision.
 
-The sharpest discontinuity in the authoring surface is binary: a function
-is either a fully analyzable plan or opaque `IbexModule` JS, and
-invalidation precision, local-first admission, cold retention
-(`rqsEligible` is declarative-public-only today), and delta eligibility
-all fall off the cliff together. LLP 0051 D2's "outgrew the IR"
-taxonomy (`conditional-writes`, `filtered-read-guards`, `type-coercion`,
-`general-iteration`) names the cliff edge precisely but treats it as
-terminal.
+**(a) Declaration conformance — strengthen what ships.** Authored
+`reads:`/`writes:` are trusted for the invalidation fallback, but they
+are not unverified: LLP 0146 D1's per-invocation observation reports and
+opt-in strict enforcement exist in Rust today. The import is narrow:
+move strict enforcement toward the default and state its honest limit —
+a per-invocation observation catches over- and under-declaration on
+observed paths; it is not a completeness proof over all inputs. Owner:
+LLP 0146.
 
-The import: let codegen — or an agent pass, per the conversation's
-generation/acceptance split — *attempt to derive* an equivalent
-declarative plan from a JS handler, and admit the derived form only when
-a small trusted checker validates equivalence (differential execution
-against the conformance corpus and representative stores, or per-shape
-structural proof where the subset permits). On success the function
-silently gains the analyzable lane; on failure it stays honestly opaque.
-Authoring cost: zero — the author keeps writing the JS they wrote.
-
-This also closes a real soundness gap: `reads:`/`writes:` on
-`defineJsQuery`/`defineJsMutation` are authored declarations, checked
-non-empty and used as the invalidation key, but never verified against
-handler behavior. A checked lowering (or, for handlers that don't lower,
-a validated read-set observation from the handler VM) converts a
-trusted declaration into a checked fact.
-
-The existing acorn-based scanners (`write-policy.mjs` site collection,
-the N+1 advisory, the LLP 0173 authorization review projection) are the
-embryo of this — syntactic today, admittedly unsound under aliasing.
-The house already knows the honest failure mode (`Unanalyzable` →
-conservative); checked lowering extends the same shape upward.
+**(b) Plan derivation — advisory first, sound checker before any lane
+flip.** Let codegen (or an agent pass) attempt to derive an equivalent
+declarative plan from a subset JS handler. The first honest rung is
+**advisory**: the derivation is surfaced as a suggested rewrite; if
+adopted as source it enters ordinary plan admission, and nothing was
+trusted. Automatic promotion — the derived plan gaining invalidation,
+local-execution, retention, or delta lanes *on the handler's behalf* —
+is a correctness-sensitive admission and requires a **sound refinement
+check over a semantics-closed source fragment** (structural proof,
+proof-producing translation, or abstract interpretation; SMT if it comes
+to that). Differential execution against the conformance corpus and
+representative stores is a pre-filter and a way to qualify the checker;
+finite tests cannot authorize the lane, and promotion must be an
+explicit, named admission with a stated soundness claim and non-silent
+failure — never silent. This respects two standing rulings: LLP 0108
+expressly declines to infer reads, writes, authorization, effects, or
+results from behavior, and LLP 0237's bounded-syntax admissions do not
+claim semantic purity; automatic promotion would need to amend them
+knowingly, not bypass them.
 
 *Owner if adopted:* the LLP 0108/0237 handler-subset line plus LLP 0051;
-LLP 0304's rule that every profile lowers into
-`NormalizedApplicationDefinitionV1` is the boundary the derived plan
-lands behind.
+LLP 0252's rule that every profile lowers into
+`NormalizedApplicationDefinitionV1` (applied by LLP 0304) is the
+boundary a derived plan lands behind.
 
-#### I3. Give the policy IR a typed home
+#### I3. Implement LLP 0274; the census is the hard residue
 
-The weakest representation in the stack is the one governing
-authorization. The read side (`TableVisibilityV1`) is a closed Rust
-carrier, but the write side is derived by ~4,700 lines of JavaScript
-codegen (`write-policy.mjs`, `visibility-governance.mjs`), only the
-owner-write slice is implemented (`snapback.owner-write.v1`), and LLP
-0274 §S0 concedes the site scanner "can report an exact empty site set
-for aliased, computed, or helper writes." Meanwhile LLP 0274's accepted
-design is, in substance, a typing discipline — discriminated-field
-immutability under every posture, exact read-arm/write-authority pair
-matching, an audience-narrowing comparator that refuses self-proving
-claims — with no typed representation to run over.
+This document's first revision claimed the policy typing discipline had
+"no typed home." That was stale twice over: Rust already carries
+`TableVisibilityV1` *and* `FunctionWritePolicyV1`, and LLP 0274 —
+Accepted Spec — already specifies the successor carriers
+(`TableWritePostureV2`, `FunctionWritePolicyV2`,
+`WriteExecutionAuthorityV1`), a closed dispatcher, and an
+exact-versus-opaque write-operation census. The governance comparator
+already compares canonical policy bodies, not handler ASTs; and the
+write-site scanner has improved past §S0's dated self-diagnosis (it
+follows named helper chains and marks unresolved alias/computed paths
+opaque), though its residual soundness still needs an audit.
 
-The import is the conversation's "make the internal facts flatter and
-more regular," applied at the point of maximum stakes: lower read and
-write policy into the same closed IR family as plans and graphs, and run
-the LLP 0274 rules and the governance comparator as analyses over that
-IR rather than as AST inspection of handler source. Combined with I2,
-write-site facts become checked rather than scanned.
+The import therefore narrows to: **implement 0274's accepted design**,
+with the genuinely hard part being the census — classifying every write
+site exactly or opaquely, soundly — plus the scanner soundness audit
+that decides how much of the census can be exact. Moving the derivation
+itself from JavaScript codegen into Rust is *not* pending on some future
+window: LLP 0276 is Accepted and structurally realized, and deliberately
+retains no-build JavaScript tooling; relocating policy derivation would
+be an explicit 0276 amendment, argued on its own merits.
 
-*Owner if adopted:* the LLP 0274 implementation program (the
-`snapback.write-authority.v2`/v3 rotations it already plans), with LLP
-0264/0234 as the governing context and LLP 0276's workspace
-rearchitecture as the natural moment to move the derivation into Rust.
+*Owner if adopted:* the LLP 0274 implementation program (its planned
+`snapback.write-authority.v2`/v3 rotations), with LLP 0264/0234 as
+governing context.
 
-#### I4. Incremental, content-addressed validation for candidate loops
+#### I4. Incremental validation for candidate loops — through LLP 0241
 
 The conversation's sharpest observation about parallelism: agents get
 their leverage *between* candidate programs — a thousand candidate
 patches share nearly all their nodes, so validation should be paid per
 changed frontier, with content-addressing as the sharing mechanism.
-Snapback content-addresses everything already but validates
-monolithically: every candidate edit in an agent repair loop pays a full
-`generate` pass — normalization, admission, governance comparison,
-contract reification — regardless of how little changed.
+Snapback content-addresses coarsely and validates monolithically: the
+codegen cache is keyed by the complete `inputsHash`, publication
+verifies and replaces the complete generated graph, and
+`NormalizedApplicationDefinitionV1` has whole-definition identities
+while operations are ordinary array entries.
 
-The import: make the validation pipeline incremental over the normalized
-definition's content-addressed nodes, and batchable, so `bun run
-generate` on the Nth variant of one function costs proportional to that
-function. This is a direct spend against the loop-cost problem LLP 0186
-and LLP 0307 are chipping at, and it needs no new theory — only cache
-keys the artifacts already define.
+This document's first revision said the change "needs no new theory —
+only cache keys the artifacts already define." That understated it. Safe
+incrementality needs versioned pass dependencies, invalidation rules for
+cross-cutting inputs (schema, policy, toolchain), cache-trust custody,
+and preservation of LLP 0241's whole-generation atomicity — sub-identity
+diffing is supported there, but activation is atomic and the complete
+graph must verify. That is a real design, owned where identity and
+custody are already decided: **LLP 0241**, with LLP 0186 sequencing the
+edit-loop priorities (LLP 0307 was a bounded round, now Implemented and
+closed; its successor round could carry the measurement).
 
-*Owner if adopted:* LLP 0186 / the LLP 0307 chip-away line (codegen
-performance), independent of I1–I3.
+The measurement-first posture survives and strengthens: instrument
+`bun run generate` for the attainable cache-hit ceiling under realistic
+agent edit sequences *before* designing the dependency contract (open
+question 4).
 
 #### Deferred: e-graph plan optimization
 
@@ -289,7 +354,22 @@ for complete rewrite-rule coverage. But today plan shape is authored
 (and `indexed_by` is explicit by design), no measurement names plan
 choice as a cost center, and the machinery is heavy. Park it until
 authored plan shape is demonstrably the bottleneck; note it as the
-natural growth path past I1.
+natural growth path past I1. This is also where the source's "retained
+implementation families" layer would enter, if it ever does.
+
+#### Dispositioned: structured diagnostics (source idea 6)
+
+Partially met, remainder unranked. The stack's refusal discipline
+returns authoritative *reasons* — stable `SNAPBACK_*` codes with
+file/line/column at generation time, per-node decision ledgers with
+named dispositions in the graph matcher, declaration-conformance delta
+reports — which is more than prose but less than the source's full
+form: the smallest conflicting subgraph plus candidate repairs that
+preserve the other constraints. That remainder is a legitimate candidate
+import for the agent-experience line (LLP 0146/0186/0203), left
+unranked here because no measurement yet names diagnostic quality as the
+binding constraint on agent repair loops. It should not be read as
+already satisfied.
 
 ### F4. What not to import
 
@@ -297,40 +377,48 @@ natural growth path past I1.
   IRs is that analysis is bounded and cheap (`MAX_PLAN_STEPS = 64`;
   graphs are small by admission). There is no volume to accelerate.
 - **A new surface language.** The conversation itself recommends
-  against one, and LLP 0304 already encodes the ruling: profiles are
-  projections that must lower into the shared normalized boundary and
-  "may not create profile-specific runtime, storage, authorization,
-  asset, or migration behavior."
+  against one, and the corpus already encodes the ruling: profiles are
+  projections that must lower into the shared normalized boundary (LLP
+  0252, applied by LLP 0304) and may not create profile-specific
+  runtime, storage, authorization, asset, or migration behavior.
 - **CRDTs / exotic convergence for ordinary rows.** Deliberately
   rejected; server-authoritative OCC over captured read sets with
   `SNAPBACK_MUTATION_CONFLICT` is a design commitment (LLP 0008, LLP
-  0068's carve-out), not a gap.
-- **SMT/formal proof machinery.** The closed IRs admit direct decision
-  procedures; the house's receipt-and-comparator style (LLP 0270's
-  divergence kill switch) buys the same trust more cheaply. Revisit only
-  if I2's equivalence checker outgrows differential testing.
+  0068's narrow carve-out), not a gap.
+- **SMT/formal proof machinery — wholesale.** The closed IRs admit
+  direct decision procedures, and the house's receipt-and-comparator
+  style buys runtime trust cheaply. But the disposition is now scoped by
+  §I2: *automatic* lane promotion for derived plans has sound
+  verification as its admission price — structural proof or abstract
+  interpretation first, SMT if the fragment demands it — and the cheap
+  alternative is the advisory rung, which needs no checker at all.
 
 ## Confidence
 
-- **F1 (thesis already implemented): high.** Grounded in shipped code
-  read for this document (`value_expr.rs`, `live_matcher.rs`,
-  `graph.rs`/`graph_evaluator.rs`, `ir-evaluator.mjs`,
-  `optimistic-rebase.mjs`) and the cited LLPs.
+- **F1 (closed-IR/contract/placement layers implemented): high** — with
+  the remainder map's absences (implementation families, generation-time
+  equivalence gates, subgraph-level repair diagnostics) stated as part
+  of the finding. Grounded in shipped code read for this document
+  (`value_expr.rs`, `live_matcher.rs`, `graph.rs`/`graph_evaluator.rs`,
+  `ir-evaluator.mjs`, `optimistic-rebase.mjs`, `conformance.rs`) and the
+  cited LLPs.
 - **F2 (fragmentation is the gap): high** as description; **medium** as
-  a claim that unification is worth its migration cost — LLP 0276's
-  rearchitecture is the cheapest window, and outside such a window the
-  per-arm machinery keeps working.
-- **I1: high** on fit and on the three-fronts-one-derivation claim;
-  **medium** on effort — windows and retraction semantics for
-  membership shapes are genuinely the hard 20%. Evidence base for the
-  motivating measurement is N=1 (Zerobugs fixture, LLP 0209 E-1/E-2).
-- **I2: medium-high.** The subset is already bounded (LLP 0108/0237),
-  which makes derivation tractable; the risk is checker soundness
-  ambition creep. Scope discipline: differential validation, honest
-  refusal, no completeness claim.
-- **I3: high** on direction (LLP 0274 already implies it); timing
-  should ride the 0274 implementation program rather than precede it.
-- **I4: high**; smallest theory, most immediately measurable payoff.
+  a claim that unification is worth its migration cost.
+- **I1: high** on fit for its two consumers (matcher deltas, local
+  materialization); **medium** on effort — windows and retraction
+  semantics for membership shapes are genuinely the hard 20%; replica
+  continuity and 0190's custody contracts are explicitly *not* claimed.
+  Evidence base for the motivating measurement is N=1 (Zerobugs, LLP
+  0209 E-1/E-2).
+- **I2: medium.** The advisory rung is low-risk and buildable; the open
+  question is whether any sound checker over a useful fragment is worth
+  its cost, and nothing here claims the declaration gap "closed" —
+  conformance observation narrows it on observed paths only.
+- **I3: high** that the direction is right — because it is already the
+  accepted direction; this import is status analysis plus the census.
+- **I4: medium-high** on payoff; feasibility honestly priced as a real
+  dependency-and-custody design under LLP 0241, which is why the
+  measurement probe comes first.
 - **Deferred e-graphs: medium** that it eventually pays; **high** that
   it should not start now.
 
@@ -338,31 +426,62 @@ natural growth path past I1.
 
 External: DBSP (Budiu, Chajed, McSherry, Ryzhyk, Tannen — automatic
 incremental view maintenance for rich query languages; Feldera) and
-differential dataflow (McSherry et al.; Materialize) for I1; Alive2
-(Lopes et al.) and translation validation generally for I2; egg (Willsey
-et al.) and egglog (Zhang et al.) for the deferred item; Halide's
-algorithm/schedule separation for the placement framing the client
-admission classifier already embodies.
+differential dataflow (McSherry et al.; Materialize) for I1 — noting
+DBSP incrementalizes a query algebra and supplies none of the
+Snapback-specific replica or authority protocols; Alive2 (Lopes et al.)
+for I2 strictly as the **generation/acceptance division of labor**
+(Alive2 itself is a formal refinement checker over IR semantics — the
+opposite of differential testing, which is why §I2 separates the
+advisory rung from sound promotion); egg (Willsey et al.) and egglog
+(Zhang et al.) for the deferred item; Halide's algorithm/schedule
+separation for the *placement* framing the client admission classifier
+embodies — placement, not Halide's compute schedule; cost-model
+extraction stays with the deferred e-graph item.
 
-Internal: LLP 0082 already documented the adjacent industry design —
-InstantDB's InstaQL compiling to Datalog with one query language and two
-execution paths (client Datalog, server SQL) — which is I1's "same
-derivation consumed by server and client" in commercial form. LLP 0080's
-maintained projections are the in-house precedent for derived
+Internal: LLP 0082's InstantDB research (InstaQL compiling to Datalog,
+one query language with client and server execution paths) is precedent
+for **F1's shared-IR, two-evaluators posture — not for I1**: dual
+execution of one representation is not incremental view maintenance.
+LLP 0080's maintained projections are the in-house precedent for derived
 materialization. The corpus has no prior e-graph or equality-saturation
 discussion (grep-verified).
 
 ## Open questions
 
-1. Should I1 be specified as an extension of LLP 0209 (G3-B done right)
-   or as its own Spec that 0209, 0190, and the replica contract all
-   cite? The three-consumers framing argues for the latter.
-2. For I2, what is the minimum trusted checker that justifies flipping a
-   function's lane — corpus-differential only, or corpus plus a bounded
-   store-state enumeration per shape class?
-3. Does I3 wait for LLP 0276's crates/ workspace (policy derivation
-   moves to Rust once) or land a first slice inside the existing
-   JavaScript derivation with the IR as its output format?
-4. Is there appetite to measure I4's ceiling cheaply — e.g., instrument
-   `bun run generate` for cache-hit-rate-if-keyed before building the
-   cache?
+1. Should the I1 derivation be specified as an extension of LLP 0209
+   (G3-B done right) or as its own Spec with exactly two consumers —
+   0209's matcher deltas and 0190 D3's local materialization — that the
+   later replica-continuity contract then references for its delta
+   payloads? (The replica contract is separate work either way.)
+2. For I2, is the advisory rung alone worth shipping, and if promotion
+   is ever wanted: what is the largest source fragment with closed
+   semantics over which a structural or abstract-interpretation
+   refinement check is *sound* — and is that fragment big enough to
+   matter?
+3. For I3, does the census land inside the 0274 implementation program's
+   first rotation, or after the scanner soundness audit bounds how much
+   of it can be exact? (Any Rust relocation of the derivation is a
+   separate, explicit LLP 0276 amendment.)
+4. Is there appetite to measure I4's ceiling cheaply — instrument
+   `bun run generate` for cache-hit-rate-if-keyed under a realistic
+   agent edit sequence — before any dependency-contract design under
+   LLP 0241?
+
+## Revision history
+
+- **r2 (2026-08-25).** Response to round-1 super-refine reviews (codex,
+  grok — both NOT READY). Added F1's remainder map; reclassified LLP
+  0270's comparator as runtime divergence detection, not
+  speculate-then-check; corrected the opaque-handler baseline (captures
+  precede the declared-reads fallback; LLP 0146 D1 conformance ships)
+  and added the F2 lane matrix; narrowed I1 to two consumers and
+  restored DK-3's standing; split I2 into declaration conformance vs.
+  advisory-first plan derivation with sound-checker-gated promotion;
+  reframed I3 as implementing Accepted LLP 0274 (typed carriers exist
+  and are specified; census is the residue; 0276 relocation = explicit
+  amendment); rerouted I4 through LLP 0241 with honest feasibility;
+  stated the ranking criterion and do-now order; dispositioned source
+  idea 6; fixed prior-art attributions (LLP 0082 → F1 precedent; LLP
+  0252 owns the normalized boundary) and the ordered/limited
+  delta-eligibility wording.
+- **r1 (2026-08-24).** Initial version; entered Review at loop start.
