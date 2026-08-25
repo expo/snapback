@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:eb725a35fbaeefab006aab6bdb26dbe20c5d0cc8c7fcb3e7f17114c9ae7cd4c0"
+    "sourceDigest": "sha256:0707264b55ddb9f263320f6218b7d7ab6646101ad73cb4f3a38ed70479867cb6"
   },
   "limits": {
     "lookupBytes": 16384
@@ -34685,12 +34685,12 @@
         },
         {
           "file": "crates/snapback-kernel/src/live_matcher.rs",
-          "line": 1518,
+          "line": 1571,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/live_matcher.rs",
-          "line": 1580,
+          "line": 1633,
           "column": 18
         },
         {

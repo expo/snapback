@@ -13464,7 +13464,7 @@
             "oracleFields": [
               "items[*].issue.id"
             ],
-            "comparison": "exact-id-order"
+            "comparison": "exact-after-id-tiebreak-normalization"
           },
           "nodeCompleteness": [
             {
@@ -13664,8 +13664,8 @@
         },
         "oracleEvidence": {
           "authority": "zerobugs-serving-control-opaque-handler",
-          "comparison": "exact",
-          "deviationTicket": null,
+          "comparison": "exact-after-pinned-physical-id-tiebreak-normalization",
+          "deviationTicket": "issues/20260823-zerobugs-control-descending-tiebreak-deviation.md",
           "present": {
             "rawDigest": "sha256:ad3ace1d23811760e081830e019df62585ff563e3c99f0383d2e594901473abd",
             "rawOrder": [
@@ -16053,8 +16053,8 @@
         },
         "oracleEvidence": {
           "authority": "zerobugs-serving-control-opaque-handler",
-          "comparison": "exact-after-pinned-physical-id-tiebreak-normalization",
-          "deviationTicket": "issues/20260823-zerobugs-control-descending-tiebreak-deviation.md",
+          "comparison": "exact",
+          "deviationTicket": null,
           "present": {
             "rawDigest": "sha256:d6b5a19450f481a18a82ab57c98b520bf55158715c66309e30547313dc8d1882",
             "rawOrder": [
@@ -18242,7 +18242,7 @@
             "oracleFields": [
               "items[*].issue.id"
             ],
-            "comparison": "exact-id-order"
+            "comparison": "exact-after-id-tiebreak-normalization"
           },
           "nodeCompleteness": [
             {
@@ -18442,8 +18442,8 @@
         },
         "oracleEvidence": {
           "authority": "zerobugs-serving-control-opaque-handler",
-          "comparison": "exact",
-          "deviationTicket": null,
+          "comparison": "exact-after-pinned-physical-id-tiebreak-normalization",
+          "deviationTicket": "issues/20260823-zerobugs-control-descending-tiebreak-deviation.md",
           "present": {
             "rawDigest": "sha256:8a2e72c2a39c116739c94308d630ebfc08c759325315b062c236bc7df6633feb",
             "rawOrder": [
@@ -20631,7 +20631,7 @@
             "oracleFields": [
               "items[*].issue.id"
             ],
-            "comparison": "exact-id-order"
+            "comparison": "exact-after-id-tiebreak-normalization"
           },
           "nodeCompleteness": [
             {
@@ -23239,8 +23239,8 @@
         },
         "oracleEvidence": {
           "authority": "zerobugs-serving-control-opaque-handler",
-          "comparison": "exact-after-pinned-physical-id-tiebreak-normalization",
-          "deviationTicket": "issues/20260823-zerobugs-control-descending-tiebreak-deviation.md",
+          "comparison": "exact",
+          "deviationTicket": null,
           "present": {
             "rawDigest": "sha256:f71be2a7a023be47d1a3a292e6a636e09c96531dd7d9f90fae52d4a51b63821a",
             "rawOrder": [
@@ -25402,8 +25402,8 @@
         },
         "oracleEvidence": {
           "authority": "zerobugs-serving-control-opaque-handler",
-          "comparison": "exact-after-pinned-physical-id-tiebreak-normalization",
-          "deviationTicket": "issues/20260823-zerobugs-control-descending-tiebreak-deviation.md",
+          "comparison": "exact",
+          "deviationTicket": null,
           "present": {
             "rawDigest": "sha256:b6dd90e4d17902f58146fe5ec0a31748187a76e6f066a0b03bdd87f5a8a17622",
             "rawOrder": [
@@ -27565,8 +27565,8 @@
         },
         "oracleEvidence": {
           "authority": "zerobugs-serving-control-opaque-handler",
-          "comparison": "exact-after-pinned-physical-id-tiebreak-normalization",
-          "deviationTicket": "issues/20260823-zerobugs-control-descending-tiebreak-deviation.md",
+          "comparison": "exact",
+          "deviationTicket": null,
           "present": {
             "rawDigest": "sha256:02d3d6108fbf0f6f4f7fb24cdc5cd82133fd68432e25559d6a1c3b7eeaf43fe4",
             "rawOrder": [
@@ -29713,8 +29713,8 @@
         },
         "oracleEvidence": {
           "authority": "zerobugs-serving-control-opaque-handler",
-          "comparison": "exact-after-pinned-physical-id-tiebreak-normalization",
-          "deviationTicket": "issues/20260823-zerobugs-control-descending-tiebreak-deviation.md",
+          "comparison": "exact",
+          "deviationTicket": null,
           "present": {
             "rawDigest": "sha256:4f90beaaf21a3ad9f1ee542df3a2b65c4cd75a7457516fa0c9228c22d62803dd",
             "rawOrder": [
@@ -32106,8 +32106,8 @@
         },
         "oracleEvidence": {
           "authority": "zerobugs-serving-control-opaque-handler",
-          "comparison": "exact-after-pinned-physical-id-tiebreak-normalization",
-          "deviationTicket": "issues/20260823-zerobugs-control-descending-tiebreak-deviation.md",
+          "comparison": "exact",
+          "deviationTicket": null,
           "present": {
             "rawDigest": "sha256:e168b7151e1fc5de3fcb41e768da3af6e762b362a7e143fd3cc1f1fbcdfb8e3d",
             "rawOrder": [
@@ -234953,5 +234953,5 @@
     "large-seed42-v1",
     "hot-recent-v1"
   ],
-  "contentDigest": "sha256:240f2b1897b3faa48451309d0a4981f3c1f5813cc254d62708b642c0c8105756"
+  "contentDigest": "sha256:dd8d1ffcb365eb6747afbee9acdc5131ea511d1d3780d9f79cdb40247395a591"
 }

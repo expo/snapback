@@ -478,6 +478,7 @@ function normalizeListOrderForGraph(result, tables, sortField, sortDirection) {
   const sourceToPhysical = new Map(tables.issue.map(row => [row.id, row._id]));
   const multiplier = sortDirection === 'desc' ? -1 : 1;
   const items = normalized[0].items;
+  const rawOrderedSourceIssueIDs = items.map(item => item.issue.id);
   const tieCounts = new Map();
   for (const item of items) {
     const value = item.issue[sortField];
@@ -489,10 +490,14 @@ function normalizeListOrderForGraph(result, tables, sortField, sortDirection) {
     if (leftValue !== rightValue) return (leftValue < rightValue ? -1 : 1) * multiplier;
     return sourceToPhysical.get(left.issue.id).localeCompare(sourceToPhysical.get(right.issue.id));
   });
+  const orderedSourceIssueIDs = items.map(item => item.issue.id);
   return {
     result: normalized,
     tieGroups: [...tieCounts.values()].filter(count => count > 1).length,
-    orderedSourceIssueIDs: items.map(item => item.issue.id),
+    orderedSourceIssueIDs,
+    orderWasNormalized: rawOrderedSourceIssueIDs.some(
+      (sourceIssueID, index) => sourceIssueID !== orderedSourceIssueIDs[index],
+    ),
   };
 }
 
@@ -1910,6 +1915,11 @@ async function freezeFilterOrderMatrix({
       const normalizedAfter = normalizeListOrderForGraph(
         rawAfter, afterTables, definition.sortField, definition.sortDirection,
       );
+      assert.equal(
+        normalizedAfter.orderWasNormalized,
+        normalized.orderWasNormalized,
+        `${definition.id} title-only replacement preserves the oracle order disposition`,
+      );
       const mappedAfter = expectedFromOracle(
         'issueListV2', normalizedAfter.result, fieldMapping, {labelRows: afterTables.label},
       );
@@ -1925,12 +1935,22 @@ async function freezeFilterOrderMatrix({
         rawOracleDigest: digestBytes(JSON.stringify(raw)),
         rawOracleOrder: raw[0].items.map(item => item.issue.id),
         normalizedOracleOrder: normalized.orderedSourceIssueIDs,
+        orderWasNormalized: normalized.orderWasNormalized,
         tieGroups: normalized.tieGroups,
         membershipCandidateRows: proofRootIds.length,
         expected,
         expectedAfter,
       };
     }
+    assert.equal(
+      worlds.present.orderWasNormalized,
+      worlds.absent.orderWasNormalized,
+      `${definition.id} hidden rows cannot change the oracle order disposition`,
+    );
+    const orderWasNormalized = worlds.present.orderWasNormalized;
+    fieldMapping.order.comparison = orderWasNormalized
+      ? 'exact-after-id-tiebreak-normalization'
+      : 'exact-id-order';
     assert.deepEqual(
       worlds.present.expected, worlds.absent.expected,
       `${definition.id} hidden rows cannot influence initial bytes or proofs`,
@@ -1962,10 +1982,10 @@ async function freezeFilterOrderMatrix({
       },
       oracleEvidence: {
         authority: 'zerobugs-serving-control-opaque-handler',
-        comparison: definition.sortDirection === 'desc'
+        comparison: orderWasNormalized
           ? 'exact-after-pinned-physical-id-tiebreak-normalization'
           : 'exact',
-        deviationTicket: definition.sortDirection === 'desc'
+        deviationTicket: orderWasNormalized
           ? 'issues/20260823-zerobugs-control-descending-tiebreak-deviation.md'
           : null,
         present: {
