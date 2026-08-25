@@ -254,6 +254,7 @@ export const PACKAGE_TEST_INVENTORIES = [
     suffix: '.test.mjs',
     scriptNames: ['pretest', 'test'],
     expectedFiles: [
+      'activity-presence-bare-provider.test.mjs',
       'activity-presence.test.mjs',
       'assets.test.mjs',
       'auth-bootstrap.test.mjs',
@@ -304,7 +305,6 @@ export const PACKAGE_TEST_INVENTORIES = [
     suffix: '.test.mjs',
     scriptNames: ['pretest', 'test'],
     expectedFiles: [
-      'activity-presence-bare-provider.test.mjs',
       'activity-presence.test.mjs',
       'app-binding.test.mjs',
       'declared-dev-binding.test.mjs',
@@ -1139,6 +1139,11 @@ export function checkPackageTestInventories(options = {}) {
 // 355 -> 356 (2026-08-25, guide-gap round-2 repairs): @expo/snapback-cli gains
 // the independently runnable complete diagnostic-anchor regression, and
 // @expo/snapback-expo gains the bare-provider browser AppState fallback probe.
+// 356 -> 357 (2026-08-25, guide-gap round-2/round-5 repairs): @expo/snapback-cli
+// gains the independently runnable complete diagnostic-anchor regression, and
+// @expo/snapback-react gains the supported activity-presence contract under a
+// bare React provider. The Expo facade fallback remains an unregistered
+// observation because it is not a maintained public contract.
 // LLP 0300 nine-row acceptance traceability (0301 §8 set-level table):
 // 1 cold bring-up -> templates/*/acceptance.mjs + declared-dev-episode.test.mjs;
 // 2 two principals -> declared-dev-episode.test.mjs; 3 forwards/tunnel/rebinding

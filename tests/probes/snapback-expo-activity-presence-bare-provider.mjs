@@ -46,8 +46,10 @@ if (!probe) {
 
   const React = (await import('react')).default;
   const TestRenderer = await import('react-test-renderer');
-  const { SnapbackProvider } = await import('@expo/snapback-react');
-  const { useSnapbackActivityPresence } = await import('./activity-presence.mjs');
+  const { SnapbackProvider } = await import('../../packages/snapback-react/index.mjs');
+  const { useSnapbackActivityPresence } = await import(
+    '../../packages/snapback-expo/activity-presence.mjs'
+  );
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
   let publishCalls = 0;
@@ -126,5 +128,5 @@ if (!probe) {
   assert.equal(deleteCalls, 1, 'observed fallback currently withdraws facade activity intent');
   await TestRenderer.act(async () => { renderer.unmount(); });
 
-  console.log('activity-presence-bare-provider.test.mjs: behavior observation passed (current browser AppState fallback under bare SnapbackProvider; not a supported contract)');
+console.log('snapback-expo-activity-presence-bare-provider.mjs: behavior observation passed (current browser AppState fallback under bare SnapbackProvider; not a supported contract)');
 }

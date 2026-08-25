@@ -9,8 +9,10 @@
 // checks (3) required guidance against each named page while rejecting stale
 // guidance across the page set, (4) that every Rosetta record alias
 // (guide/rosetta/records/*.json) is mirrored as a seed-case route term, and
-// (5) that every route term containing a SNAPBACK_* code carries an exact
-// diagnostic target pin.
+// (5) that every route term containing a SNAPBACK_* code either carries an
+// exact diagnostic target pin into one of the case's expected pages or an
+// explicit shared/per-operation disposition explaining why no case-local
+// primary pin is honest.
 // It does NOT run agents: actual cold-agent navigation within the
 // ~15-tool-use budget stays the manual/W1-instrument protocol.
 // @ref LLP 0186#amendment-2026-08-06-w2-rosetta-section--worked-example-tier — alias-tier terms must be mirrored as retrieval-eval seed cases.
@@ -30,10 +32,13 @@ const ROSETTA_DIR = 'guide/rosetta/records';
 // is a numbered `**Label:**` list item whose final lines are the two
 // machine-parsed markers: `Expected pages:` (backticked guide-relative
 // paths) followed by `Route terms:` (double-quoted grep vocabulary). Cases may
-// also carry `Required guidance:`, `Rejected guidance:`, and
-// `Exact diagnostic target:` markers. The first two bind a repaired page to
-// semantic wording; the last binds a diagnostic query to one generated
-// registry anchor so lexical drift cannot silently retarget exact lookup.
+// also carry `Required guidance:`, `Rejected guidance:`,
+// `Exact diagnostic target:`, and `Diagnostic pin disposition:` markers. The
+// first two bind a repaired page to semantic wording; the third binds a
+// diagnostic query to one generated registry anchor on an expected page so
+// lexical drift cannot silently retarget exact lookup. The last is the
+// explicit exception for a shared/per-operation diagnostic whose registry
+// primary intentionally belongs to a different intent page.
 function parseSeedCases(text, errors) {
   const lines = text.split('\n');
   const start = lines.findIndex((line) => line.startsWith('## Seed intents'));
@@ -79,11 +84,17 @@ function parseSeedCases(text, errors) {
     const requiredAt = seed.text.indexOf('Required guidance:');
     const rejectedAt = seed.text.indexOf('Rejected guidance:');
     const exactDiagnosticAt = seed.text.indexOf('Exact diagnostic target:');
+    const diagnosticDispositionAt = seed.text.indexOf('Diagnostic pin disposition:');
     const markerEnd = (start, candidates) => Math.min(
       ...candidates.filter((value) => value > start),
       seed.text.length,
     );
-    const termsEnd = markerEnd(termsAt, [requiredAt, rejectedAt, exactDiagnosticAt]);
+    const termsEnd = markerEnd(termsAt, [
+      requiredAt,
+      rejectedAt,
+      exactDiagnosticAt,
+      diagnosticDispositionAt,
+    ]);
     seed.expectedPages = [...seed.text.slice(pagesAt, termsAt).matchAll(/`([^`]+)`/g)]
       .map((m) => m[1]);
     seed.terms = [...seed.text.slice(termsAt, termsEnd).matchAll(/"([^"]+)"/g)].map((m) => m[1]);
@@ -92,11 +103,18 @@ function parseSeedCases(text, errors) {
     )];
     seed.requiredGuidance = requiredAt === -1
       ? []
-      : [...seed.text.slice(requiredAt, markerEnd(requiredAt, [rejectedAt, exactDiagnosticAt])).matchAll(/"([^"]+)"/g)]
+      : [...seed.text.slice(requiredAt, markerEnd(requiredAt, [
+          rejectedAt,
+          exactDiagnosticAt,
+          diagnosticDispositionAt,
+        ])).matchAll(/"([^"]+)"/g)]
         .map((m) => m[1]);
     seed.rejectedGuidance = rejectedAt === -1
       ? []
-      : [...seed.text.slice(rejectedAt, markerEnd(rejectedAt, [exactDiagnosticAt])).matchAll(/"([^"]+)"/g)]
+      : [...seed.text.slice(rejectedAt, markerEnd(rejectedAt, [
+          exactDiagnosticAt,
+          diagnosticDispositionAt,
+        ])).matchAll(/"([^"]+)"/g)]
         .map((m) => m[1]);
     if (exactDiagnosticAt !== -1) {
       const exact = seed.text.slice(exactDiagnosticAt).match(
@@ -108,10 +126,30 @@ function parseSeedCases(text, errors) {
         seed.exactDiagnosticTarget = { code: exact[1], anchor: exact[2] };
       }
     }
-    if (seed.routeDiagnosticCodes.length > 0 && !seed.exactDiagnosticTarget) {
+    if (diagnosticDispositionAt !== -1) {
+      const disposition = seed.text.slice(diagnosticDispositionAt).match(
+        /Diagnostic pin disposition:\s*`(SNAPBACK_[A-Z0-9_]+)`\s*->\s*`shared\/per-operation`\s*—\s*(\S[^\n]*)/u,
+      );
+      if (!disposition) {
+        errors.push(`${who}: malformed "Diagnostic pin disposition:" marker`);
+      } else {
+        seed.diagnosticPinDisposition = {
+          code: disposition[1],
+          reason: disposition[2].trim(),
+        };
+      }
+    }
+    if (seed.exactDiagnosticTarget && seed.diagnosticPinDisposition) {
+      errors.push(`${who}: cannot carry both an exact diagnostic target and a shared/per-operation disposition`);
+    }
+    if (
+      seed.routeDiagnosticCodes.length > 0
+      && !seed.exactDiagnosticTarget
+      && !seed.diagnosticPinDisposition
+    ) {
       errors.push(
         `${who}: route term diagnostic ${seed.routeDiagnosticCodes.join(', ')} requires an `
-        + '"Exact diagnostic target:" marker',
+        + '"Exact diagnostic target:" or explicit "Diagnostic pin disposition:" marker',
       );
     } else if (
       seed.exactDiagnosticTarget
@@ -119,6 +157,14 @@ function parseSeedCases(text, errors) {
     ) {
       errors.push(
         `${who}: exact diagnostic target ${seed.exactDiagnosticTarget.code} is not present in Route terms`,
+      );
+    }
+    if (
+      seed.diagnosticPinDisposition
+      && !seed.routeDiagnosticCodes.includes(seed.diagnosticPinDisposition.code)
+    ) {
+      errors.push(
+        `${who}: diagnostic pin disposition ${seed.diagnosticPinDisposition.code} is not present in Route terms`,
       );
     }
     if (seed.expectedPages.length === 0) errors.push(`${who}: "Expected pages:" lists no backticked pages`);
@@ -264,6 +310,18 @@ function main() {
     if (seed.exactDiagnosticTarget) {
       const { code, anchor } = seed.exactDiagnosticTarget;
       const actual = diagnostics[code]?.guideAnchor ?? null;
+      const targetPage = anchor.match(/^\/_snapback\/guide\/([^#?]+)(?:#.*)?$/u)?.[1] ?? null;
+      if (targetPage === null) {
+        errors.push(
+          `${EVAL_PAGE}: case ${seed.number} (${seed.label}) exact diagnostic target has an `
+          + `invalid Guide anchor: ${anchor}`,
+        );
+      } else if (!seed.expectedPages.includes(targetPage)) {
+        errors.push(
+          `${EVAL_PAGE}: case ${seed.number} (${seed.label}) exact diagnostic target page `
+          + `${targetPage} is not among Expected pages (${seed.expectedPages.join(', ')})`,
+        );
+      }
       if (actual !== anchor) {
         errors.push(
           `${EVAL_PAGE}: case ${seed.number} (${seed.label}) exact diagnostic target drifted: `
@@ -271,6 +329,25 @@ function main() {
         );
       } else {
         reports.push(`case ${seed.number} (${seed.label}): ${code} => ${anchor}`);
+      }
+    } else if (seed.diagnosticPinDisposition) {
+      const { code } = seed.diagnosticPinDisposition;
+      const actual = diagnostics[code]?.guideAnchor ?? null;
+      const targetPage = actual?.match(/^\/_snapback\/guide\/([^#?]+)(?:#.*)?$/u)?.[1] ?? null;
+      if (actual === null || targetPage === null) {
+        errors.push(
+          `${EVAL_PAGE}: case ${seed.number} (${seed.label}) shared/per-operation diagnostic `
+          + `${code} has no valid registry primary Guide target`,
+        );
+      } else if (seed.expectedPages.includes(targetPage)) {
+        errors.push(
+          `${EVAL_PAGE}: case ${seed.number} (${seed.label}) shared/per-operation diagnostic `
+          + `${code} already targets expected page ${targetPage}; use an exact diagnostic target`,
+        );
+      } else {
+        reports.push(
+          `case ${seed.number} (${seed.label}): ${code} => shared/per-operation; registry primary ${actual}`,
+        );
       }
     }
   }

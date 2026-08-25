@@ -6,29 +6,31 @@
 
 ## Problem
 
-The Clique run inferred from its failed composition that
 `@expo/snapback-expo`'s `useSnapbackActivityPresence` requires
-`SnapbackExpoLifecycleContext` and that a URL-first `SnapbackProvider` must use
-the React export. The guide did not state the provider boundary and paved
-import, so the run could not distinguish an implementation observation from
-the supported public contract.
+`SnapbackExpoLifecycleContext`. A URL-first `SnapbackProvider` (the
+working Clique landing) does not provide it. The hook that works is
+`@expo/snapback-react`. Familiar learned this from package types, not
+from the familiar profile page.
 
 The generation-fence on `touch()` is a product change (LLP 0310.000 Track
 D). This ticket is the import/docs slice only.
 
 ## Direction
 
-Establish the current behavior from source and a bare-provider render probe,
-then teach only the provider-scoped public contract.
-
+On the familiar profile page and the ephemeral/presence recipe: URL-first
+web imports `useSnapbackActivityPresence` from `@expo/snapback-react`.
+The Expo facade hook is for `SnapbackExpoProvider` only.
 ## Resolution (2026-08-25)
 
-Resolved the documentation slice after checking LLP 0257 and
-`packages/snapback-expo/activity-presence.mjs`. The independently runnable
-`activity-presence-bare-provider.test.mjs` currently observes that the facade
-hook falls back through the conditional browser AppState resolver under a bare
-`SnapbackProvider`, and that backgrounding invokes withdrawal. This is an
-implementation observation, not a public contract or a Guide recommendation.
+Resolved the documentation slice after checking LLP 0257 and the React/Expo
+activity-presence sources. The maintained
+`packages/snapback-react/activity-presence-bare-provider.test.mjs` now proves
+the supported React hook under a bare `SnapbackProvider`. The independently
+runnable, unregistered
+`tests/probes/snapback-expo-activity-presence-bare-provider.mjs`
+continues to characterize the facade's conditional browser AppState fallback.
+That fallback is an implementation observation, not a public contract or a
+Guide recommendation.
 
 LLP 0310.000 Ruling 3 remains authoritative: URL-first web under a bare
 `SnapbackProvider` imports from `@expo/snapback-react`, while the Expo facade is

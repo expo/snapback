@@ -165,8 +165,10 @@ Lane 1 misses, absorbed 2026-08-07).
     Expected pages: `testing/large-fixtures.md`.
     Route terms: "SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED", "large fixture",
     "seed ceiling".
-    Exact diagnostic target: `SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED` ->
-    `/_snapback/guide/backend/versioned-seeds.md#interpret-refusals`.
+    Diagnostic pin disposition: `SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED` ->
+    `shared/per-operation` — The refusal covers seed-effect ceilings generally;
+    its primary target remains the versioned-seed refusal guide, while this
+    case's intent-specific route is the large-fixtures page.
 
 16. **Domain errors and optimistic create:** "Show 'card is locked' copy when
     a mutation is rejected, and optimistically create a row whose ID the
@@ -207,8 +209,10 @@ tickets (declared refusals, principal↔app-identity binding, SVG assets).
     Expected pages: `backend/mutations.md`.
     Route terms: "declared refusal", "ctx.refuse", "SNAPBACK_APP_REFUSAL",
     "appCode".
-    Exact diagnostic target: `SNAPBACK_APP_REFUSAL` ->
-    `/_snapback/guide/backend/declarative-plans.md#anti-patterns`.
+    Diagnostic pin disposition: `SNAPBACK_APP_REFUSAL` ->
+    `shared/per-operation` — The application-refusal envelope spans authored
+    operations; its primary target remains declarative plans, while this case
+    routes mutation authors to the mutations page.
 
 19. **Principal to app identity:** "My app has its own users table with OAuth
     ids — how do I connect Snapback's `ctx.auth.userId` to it?" The run fails
@@ -242,8 +246,10 @@ store copy, and nothing in the guide named the sibling.
     Expected pages: `operating/backup-and-copy.md`.
     Route terms: "backup", "copy database", "clone database",
     "auth-keyring.json", "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE".
-    Exact diagnostic target: `SNAPBACK_AUTH_PROVIDER_UNAVAILABLE` ->
-    `/_snapback/guide/capabilities.md#capabilities`.
+    Diagnostic pin disposition: `SNAPBACK_AUTH_PROVIDER_UNAVAILABLE` ->
+    `shared/per-operation` — The code spans auth-provider lifecycle and host
+    operations; its primary target remains the capability index, while this
+    case's missing-keyring symptom routes to backup and copy.
 
 Case 22 absorbs the replicated mutation-authoring miss recorded in
 `issues/closed/20260808-ctx-db-verbs-undocumented.md`.
@@ -266,8 +272,10 @@ Case 23 absorbs the repeated headless-call-shape miss recorded in
     Expected pages: `clients/headless.md`.
     Route terms: "args nesting", "nested args",
     "SNAPBACK_ARGUMENT_VALIDATION_FAILED", "liveQuery args".
-    Exact diagnostic target: `SNAPBACK_ARGUMENT_VALIDATION_FAILED` ->
-    `/_snapback/guide/backend/trusted-runtime-values.md#keep-generated-fields-out-of-operation-arguments`.
+    Diagnostic pin disposition: `SNAPBACK_ARGUMENT_VALIDATION_FAILED` ->
+    `shared/per-operation` — Argument validation is shared across generated
+    operations; its primary target remains trusted runtime values, while this
+    case teaches the headless call shape.
 
 Case 24 absorbs the repeated verifier-config source-reading detour recorded in
 `issues/closed/20260808-verify-config-authoring-guide-anchor.md`.
@@ -650,8 +658,10 @@ installation and inverse provider-neutral Contract adaptation.
     Expected pages: `recipes/sessions-fixture-install.md`.
     Route terms: "install sessions fixtures", "fixture-source digest",
     "SNAPBACK_AUTH_PASSWORD_EXISTS", "matched repeat".
-    Exact diagnostic target: `SNAPBACK_AUTH_PASSWORD_EXISTS` ->
-    `/_snapback/guide/clients/contract-adapter.md#refuse-unqualified-milestones-and-translate-errors-deliberately`.
+    Diagnostic pin disposition: `SNAPBACK_AUTH_PASSWORD_EXISTS` ->
+    `shared/per-operation` — Password-existence is a reusable auth refusal;
+    its primary target remains error translation, while this case requires the
+    matched-repeat fixture proof.
 
 58. **Frozen provider-neutral Contract adapter:** "Implement an already-frozen
     provider-neutral `ContractDataProvider` over Snapback without changing the
@@ -698,8 +708,10 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
     Route terms: "SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED", "eager route-entry receipt", "background writes during auth transitions", "authorization-suspended foreground".
     Required guidance: "declare `{ key, idempotent: true, successorValid: true }` only for latest-wins housekeeping", "`blockedReason: auth-barrier` means zero transport", "foreground admission is independent of suspended housekeeping", "observe `SNAPBACK_HOUSEKEEPING_SUPERSEDED` through mutation status".
     Rejected guidance: "mark foreground gestures as housekeeping", "retry on a timer while auth changes".
-    Exact diagnostic target: `SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED` ->
-    `/_snapback/guide/clients/headless.md#enter-and-leave-session-authority`.
+    Diagnostic pin disposition: `SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED` ->
+    `shared/per-operation` — Authorization suspension is a shared outbox
+    transition state; its primary target remains the headless authority
+    lifecycle, while this case routes background-write policy to the recipe.
 
 62. **Presence heartbeat versus bound value:** "My typing indicator is stuck
     and presence is not expiring under the five-second ceiling. I passed
@@ -934,8 +946,10 @@ or assuming LLP 0278 D3 shipped.
     "SNAPBACK_QUERY_IN_ITEMS_EXCEEDED".
     Required guidance: "at most 499 actor IDs per chunk",
     "LLP 0278 D3 remains design-only".
-    Exact diagnostic target: `SNAPBACK_QUERY_IN_ITEMS_EXCEEDED` ->
-    `/_snapback/guide/backend/queries.md#builder-bounds-and-their-refusal-codes`.
+    Diagnostic pin disposition: `SNAPBACK_QUERY_IN_ITEMS_EXCEEDED` ->
+    `shared/per-operation` — The operand ceiling applies to all relational
+    queries; its primary target remains the query-builder bounds, while this
+    case routes the feed workaround to the chunked semi-join recipe.
 
 89. **Force the membership-feed chunk seam:** "Prove a membership feed's
     top 20 merge across multiple actor chunks without creating 500 fixture
@@ -1100,7 +1114,11 @@ appears somewhere in the named page set, and rejected guidance is absent from
 that set, (4) every Rosetta record alias
 (`guide/rosetta/records/*.json`) is mirrored as a seed-case route term, per the
 LLP 0186 W2 amendment, and (5) any seed case whose route terms include a
-`SNAPBACK_*` code pins that code's exact primary Guide target.
+`SNAPBACK_*` code either pins that code's exact primary Guide target on one of
+the case's `Expected pages` or records an explicit `shared/per-operation`
+disposition explaining why the code's global primary belongs to a different
+intent page. The exception is case-local and visible; it does not weaken or
+retarget the diagnostic registry.
 
 What it does **not** prove: that a cold agent actually navigates to the
 page within the ~15-tool-use budget, plans with the paved technique, or
