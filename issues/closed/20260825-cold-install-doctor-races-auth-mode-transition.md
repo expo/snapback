@@ -102,3 +102,15 @@ live, and shutdown OK diagnostics. `node scripts/check-inventories.mjs` passes w
 tests, 29 script tests, 31 demos/catalog entries, 487 publication leaves, and 157 guide pages/1871
 snippets. The F-3 packed witness is recorded in the follow-up note below after running from the
 clean resolution commit.
+
+### F-3 follow-up
+
+The single bounded F-3 attempt used clean commit `eaab3919c`. The public-package release build
+finished successfully, and `node scripts/snapback-publish.mjs` produced 13 `dry-run-ok` rows with
+`sourceDirty: false`. The cold-install witness passed the packaged doctor point that originally
+failed and advanced to the later scaffold `npm run prove` step. It exited 1 there because the
+checked-in starter acceptance returned incomplete registered-path evidence:
+`SNAPBACK_VERIFY_COVERAGE_PATH_INCOMPLETE` for `list-todos` and `create-todo`, followed by
+`SNAPBACK_VERIFY_STARTER_ACCEPTANCE_FAILED`. No cold-install receipt was minted. That acceptance
+fixture/proof mismatch is outside this ticket; the one-attempt bound was honored and the witness was
+not rerun.
