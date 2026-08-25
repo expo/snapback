@@ -10,7 +10,7 @@ Storage, Handler runtime, Agent experience
 **Related:** LLP 0000, LLP 0008, LLP 0020, LLP 0051, LLP 0068, LLP 0080,
 LLP 0082, LLP 0108, LLP 0146, LLP 0155, LLP 0186, LLP 0190, LLP 0203,
 LLP 0209, LLP 0234, LLP 0237, LLP 0241, LLP 0252, LLP 0264, LLP 0270,
-LLP 0274, LLP 0276, LLP 0304, LLP 0307
+LLP 0274, LLP 0276, LLP 0304, LLP 0307, LLP 0309
 
 ## Summary
 
@@ -510,6 +510,11 @@ discussion (grep-verified).
 
 ## Revision history
 
+- **I1 graduated (2026-08-25, author request).** The delta-derivation
+  import (§I1) graduated to its own proposal, LLP 0309 (Draft RFC),
+  with the review-sharpened scope; the scanner false negatives named in
+  §I3 were filed as `issues/20260825-write-policy-scanner-*.md`. This
+  document remains Shelved as the research record.
 - **Shelved (2026-08-25, author ruling).** Charlie Cheever ruled
   "shelve it for now" after the super-refine loop converged dual-READY
   on r3. Nothing here is refuted or withdrawn: the findings stand as
