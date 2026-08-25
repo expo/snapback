@@ -22909,7 +22909,10 @@ pub fn spawn_maintenance_worker(runtime: AppState) -> JoinHandle<()> {
             })
             .await;
             for batch in planned {
-                let _ = ephemeral.complete_room_reauthorization(batch);
+                let _ = with_snapback(&state, move |snapback| {
+                    snapback.complete_room_reauthorization(batch)
+                })
+                .await;
             }
             if run_maintenance {
                 // Provider outages and malformed responses deliberately leave

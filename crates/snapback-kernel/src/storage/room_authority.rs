@@ -12,11 +12,11 @@ use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::ephemeral::{
     AccessPolicy, AuthContext, ConnectionEffectFence, ConnectionId, DurableMessage,
     EphemeralCollection, EphemeralError, EphemeralErrorCode, EphemeralMessage, RealtimeEnvelope,
-    ResyncReason, RoomId, Scope, validate_collection_definitions,
+    ResyncReason, RoomId, RoomPermissionProjection, Scope, validate_collection_definitions,
 };
 use crate::manifest::{PORTABLE_STORAGE_VERSION_MAX, SchemaManifest};
 use crate::process_bound_identity::ProcessBoundIdentity;
-use rusqlite::{OptionalExtension as _, params};
+use rusqlite::{Connection, OptionalExtension as _, Transaction, TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
@@ -328,6 +328,7 @@ impl RoomReauthorizationSubscriber {
 pub struct ResolvedRoomSubscriberReauthorization {
     connection_id: ConnectionId,
     expected_effect_fence: Option<ConnectionEffectFence>,
+    subject: RoomReauthorizationSubject,
     authorized_auth: Option<AuthContext>,
 }
 
@@ -357,6 +358,8 @@ pub struct ResolvedRoomReauthorizationBatch {
     root: Arc<RoomAuthorityRegistry>,
     room: RoomId,
     generation: u64,
+    collection: EphemeralCollection,
+    min_commit_version: u64,
     resolutions: Vec<ResolvedRoomSubscriberReauthorization>,
 }
 
@@ -368,6 +371,77 @@ impl ResolvedRoomReauthorizationBatch {
     pub fn generation(&self) -> u64 {
         self.generation
     }
+}
+
+fn resolve_room_reauthorization_subject_on(
+    connection: &Connection,
+    schema: &SchemaManifest,
+    projection: &RoomPermissionProjection,
+    scope_fields: &[(String, String)],
+    collection: &EphemeralCollection,
+    room: &RoomId,
+    min_commit_version: u64,
+    subject: &RoomReauthorizationSubject,
+) -> SnapbackResult<Option<AuthContext>> {
+    let (durable_user_id, session_id) = match subject {
+        RoomReauthorizationSubject::Unauthenticated => (None, None),
+        RoomReauthorizationSubject::User { user_id } => (Some(user_id.clone()), None),
+        RoomReauthorizationSubject::Session {
+            session_id,
+            generation,
+        } => {
+            let generation = i64::try_from(*generation).ok();
+            let durable_user_id = match generation {
+                Some(generation) => {
+                    let floor_ms =
+                        i64::try_from(super::auth::read_session_clock_floor_on(connection)?)
+                            .unwrap_or(i64::MAX);
+                    connection
+                        .query_row(
+                            "SELECT session.user_id
+                             FROM _auth_sessions AS session
+                             JOIN _auth_users AS user ON user.id = session.user_id
+                             WHERE session.id = ?1
+                               AND session.generation = ?2
+                               AND session.revoked_at_ms IS NULL
+                               AND session.expires_at_ms > ?3
+                               AND session.absolute_expires_at_ms > ?3
+                               AND user.deactivated_at_ms IS NULL",
+                            params![session_id, generation, floor_ms],
+                            |row| row.get::<_, String>(0),
+                        )
+                        .optional()?
+                }
+                None => None,
+            };
+            (durable_user_id, Some(session_id.clone()))
+        }
+    };
+    // Even an internally enumerated userless/terminal subject runs the
+    // durable membership read. Its absence is not a caller-provided denial
+    // answer, and one malformed subscriber therefore cannot wedge the
+    // legitimate room's retryable completion forever.
+    let granted = super::room_permission_projection_granted_on(
+        connection,
+        schema,
+        &projection.table,
+        &projection.subject_field,
+        durable_user_id.as_deref().unwrap_or(""),
+        scope_fields,
+        projection.role_field.as_deref(),
+        projection.allowed_roles.as_deref(),
+        min_commit_version,
+    )?;
+    Ok(durable_user_id.filter(|_| granted).map(|user_id| {
+        let fresh = AuthContext {
+            principal: None,
+            session_id,
+            user_id: Some(user_id.clone()),
+            permissions: BTreeSet::new(),
+            stream_initiator: Some(crate::stream_attempt::StreamInitiator::SessionUser(user_id)),
+        };
+        collection.grant_projected_room_permission(fresh, &room.scope)
+    }))
 }
 
 impl AuthorizationCommitParticipant {
@@ -484,6 +558,7 @@ impl AuthorizationCommitParticipant {
             resolutions.push(ResolvedRoomSubscriberReauthorization {
                 connection_id: subscriber.connection_id,
                 expected_effect_fence: subscriber.effect_fence,
+                subject: subscriber.subject,
                 authorized_auth,
             });
         }
@@ -491,6 +566,8 @@ impl AuthorizationCommitParticipant {
             root: self.registry.clone(),
             room: pending.room,
             generation: pending.obligation.room_authority_generation,
+            collection: pending.collection,
+            min_commit_version: pending.obligation.min_commit_version,
             resolutions,
         })
     }
@@ -1242,24 +1319,77 @@ impl AuthorizationCommitParticipant {
 
     /// Consume a database-derived batch and open the finite quiescence leaf
     /// only when it belongs to this exact registry instance and generation.
-    pub fn begin_room_reauthorization_completion(
-        &self,
+    /// The durable facts are re-read under an IMMEDIATE SQLite transaction
+    /// that remains held through subscriber retention and obligation clear.
+    ///
+    /// @ref LLP 0303#a-durable-record-is-checked-at-acquisition-a-live-handle-outlives-it —
+    /// a resolved batch is only a cache; completion revalidates its session
+    /// and membership facts at the guarded effect.
+    pub fn begin_room_reauthorization_completion<'registry, 'database>(
+        &'registry self,
+        database: &'database super::ServingDatabase,
         batch: ResolvedRoomReauthorizationBatch,
-    ) -> Result<RoomReauthorizationCompletion<'_>, EphemeralError> {
-        if !Arc::ptr_eq(&self.registry, &batch.root) {
-            return Err(authority_pending_error());
+    ) -> SnapbackResult<Option<RoomReauthorizationCompletion<'registry, 'database>>> {
+        if !Arc::ptr_eq(&self.registry, &batch.root)
+            || !batch.root.binding_matches(&database.binding())
+        {
+            return Ok(None);
         }
         let ResolvedRoomReauthorizationBatch {
             root: _,
             room,
             generation,
+            collection,
+            min_commit_version,
             resolutions,
         } = batch;
-        let admission = self.begin_room_reauthorization_admission(&room, generation)?;
-        Ok(RoomReauthorizationCompletion {
+        let admission = match self.begin_room_reauthorization_admission(&room, generation) {
+            Ok(admission) => admission,
+            Err(_) => return Ok(None),
+        };
+        let durable_fence =
+            Transaction::new_unchecked(&database.db.conn, TransactionBehavior::Immediate)?;
+        let projection = collection.permission_backing.as_ref().ok_or_else(|| {
+            projection_unavailable(
+                "resolved protected room lacks its durable permissionBacking projection",
+            )
+        })?;
+        let scope_fields = projection
+            .scope_fields
+            .iter()
+            .map(|(scope_field, table_field)| {
+                room.scope
+                    .get(scope_field)
+                    .map(|value| (table_field.clone(), value.to_owned()))
+                    .ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_EPHEMERAL_INVALID_SCOPE",
+                            "ephemeral",
+                            "room scope does not satisfy its permissionBacking projection",
+                        )
+                    })
+            })
+            .collect::<SnapbackResult<Vec<_>>>()?;
+        for resolution in &resolutions {
+            let current = resolve_room_reauthorization_subject_on(
+                &durable_fence,
+                database.db.schema(),
+                projection,
+                &scope_fields,
+                &collection,
+                &room,
+                min_commit_version,
+                &resolution.subject,
+            )?;
+            if current != resolution.authorized_auth {
+                return Ok(None);
+            }
+        }
+        Ok(Some(RoomReauthorizationCompletion {
             admission,
+            durable_fence,
             resolutions,
-        })
+        }))
     }
 }
 
@@ -1368,12 +1498,13 @@ impl NonAuthorizingRoomAuthority {
         self.participant.begin_room_retirement_admission(room)
     }
 
-    pub fn begin_room_reauthorization_completion(
-        &self,
+    pub fn begin_room_reauthorization_completion<'registry, 'database>(
+        &'registry self,
+        database: &'database super::ServingDatabase,
         batch: ResolvedRoomReauthorizationBatch,
-    ) -> Result<RoomReauthorizationCompletion<'_>, EphemeralError> {
+    ) -> SnapbackResult<Option<RoomReauthorizationCompletion<'registry, 'database>>> {
         self.participant
-            .begin_room_reauthorization_completion(batch)
+            .begin_room_reauthorization_completion(database, batch)
     }
 }
 
@@ -2139,12 +2270,13 @@ impl RoomReauthorizationAdmission<'_> {
 /// A finite quiescent completion cut holding the database-derived decisions.
 /// Construction consumes a [`ResolvedRoomReauthorizationBatch`] and is
 /// confined to its exact registry root.
-pub struct RoomReauthorizationCompletion<'a> {
-    admission: RoomReauthorizationAdmission<'a>,
+pub struct RoomReauthorizationCompletion<'registry, 'database> {
+    admission: RoomReauthorizationAdmission<'registry>,
+    durable_fence: Transaction<'database>,
     resolutions: Vec<ResolvedRoomSubscriberReauthorization>,
 }
 
-impl RoomReauthorizationCompletion<'_> {
+impl RoomReauthorizationCompletion<'_, '_> {
     pub fn room(&self) -> &RoomId {
         &self.admission.room
     }
@@ -2158,11 +2290,23 @@ impl RoomReauthorizationCompletion<'_> {
     }
 
     pub fn complete_exact(self) {
-        self.admission.complete_exact();
+        let Self {
+            admission,
+            durable_fence,
+            resolutions: _,
+        } = self;
+        admission.complete_exact();
+        drop(durable_fence);
     }
 
     pub fn remove_missing_room(self) {
-        self.admission.remove_missing_room();
+        let Self {
+            admission,
+            durable_fence,
+            resolutions: _,
+        } = self;
+        admission.remove_missing_room();
+        drop(durable_fence);
     }
 }
 
@@ -3302,8 +3446,9 @@ mod tests {
         assert!(
             target
                 .participant
-                .begin_room_reauthorization_completion(wrong_root_batch)
-                .is_err(),
+                .begin_room_reauthorization_completion(&target.database, wrong_root_batch)
+                .unwrap()
+                .is_none(),
             "a live generation on another registry is not interchangeable"
         );
         assert_eq!(source.participant.pending_reauthorizations().len(), 1);
@@ -3326,15 +3471,17 @@ mod tests {
             .unwrap();
         source
             .participant
-            .begin_room_reauthorization_completion(exact_batch)
+            .begin_room_reauthorization_completion(&source.database, exact_batch)
+            .unwrap()
             .expect("the exact root and generation admit completion")
             .complete_exact();
         assert!(source.participant.pending_reauthorizations().is_empty());
         assert!(
             source
                 .participant
-                .begin_room_reauthorization_completion(stale_duplicate)
-                .is_err(),
+                .begin_room_reauthorization_completion(&source.database, stale_duplicate)
+                .unwrap()
+                .is_none(),
             "clearing the level-triggered fact makes a duplicate batch stale"
         );
     }

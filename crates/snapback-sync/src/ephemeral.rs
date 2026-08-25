@@ -3344,13 +3344,18 @@ impl RoomAuthority {
         }
     }
 
-    fn begin_room_reauthorization_completion(
-        &self,
+    fn begin_room_reauthorization_completion<'registry, 'database>(
+        &'registry self,
+        database: &'database ServingDatabase,
         batch: ResolvedRoomReauthorizationBatch,
-    ) -> Result<RoomReauthorizationCompletion<'_>, EphemeralError> {
+    ) -> SnapbackResult<Option<RoomReauthorizationCompletion<'registry, 'database>>> {
         match self {
-            Self::Bound(participant) => participant.begin_room_reauthorization_completion(batch),
-            Self::Unbound(authority) => authority.begin_room_reauthorization_completion(batch),
+            Self::Bound(participant) => {
+                participant.begin_room_reauthorization_completion(database, batch)
+            }
+            Self::Unbound(authority) => {
+                authority.begin_room_reauthorization_completion(database, batch)
+            }
         }
     }
 
@@ -3860,7 +3865,7 @@ impl LocalEphemeralBackend {
     /// Resolve the exact pending enumeration through this backend's private
     /// participant. No ordinary-operation [`AuthContext`] is accepted here.
     ///
-    /// @ref LLP 0303#enumerate-the-effects-siblings-not-the-entry-points —
+    /// @ref LLP 0303#q-enumerate-the-effects-siblings-not-the-entry-points —
     /// pending enumeration and resolution are one bound producer; a caller
     /// cannot compose the pending observation with independently supplied
     /// authorization answers.
@@ -3890,6 +3895,7 @@ impl LocalEphemeralBackend {
 
     pub fn complete_room_reauthorization(
         &self,
+        database: &ServingDatabase,
         batch: ResolvedRoomReauthorizationBatch,
     ) -> SnapbackResult<bool> {
         // Reauthorization may remove entries and, at generation exhaustion,
@@ -3900,10 +3906,10 @@ impl LocalEphemeralBackend {
         let completion = match self
             .shared
             .room_authority
-            .begin_room_reauthorization_completion(batch)
+            .begin_room_reauthorization_completion(database, batch)?
         {
-            Ok(completion) => completion,
-            Err(_) => return Ok(false),
+            Some(completion) => completion,
+            None => return Ok(false),
         };
         let room_id = completion.room().clone();
         let room_authority_generation = completion.generation();
