@@ -95,14 +95,20 @@ function isJavaScriptEnvironmentObjectKey(source, offset, code) {
   });
 }
 
-function isJavaScriptEnvironmentNameTable(source, offset) {
+function isEnvironmentNameTable(source, offset) {
   const open = Math.max(source.lastIndexOf('{', offset), source.lastIndexOf('[', offset));
   if (open === -1) return false;
-  const prefix = source.slice(Math.max(0, open - 512), open);
-  const declaration = prefix.match(
+  const prefix = source.slice(Math.max(0, open - 1024), open);
+  const javaScriptDeclaration = prefix.match(
     /\b(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*(?:(?:Object\.freeze|new\s+Set)\s*\()?\s*$/u,
   );
-  return declaration !== null && isEnvironmentIdentifier(declaration[1]);
+  if (javaScriptDeclaration !== null) {
+    return isEnvironmentIdentifier(javaScriptDeclaration[1]);
+  }
+  const rustDeclaration = prefix.match(
+    /\b(?:pub\s+)?const\s+([A-Z][A-Z0-9_]*)\s*:[^=]+?=\s*&?\s*$/su,
+  );
+  return rustDeclaration !== null && isEnvironmentIdentifier(rustDeclaration[1]);
 }
 
 function rustIndirectEnvironmentOffsets(source) {
@@ -179,8 +185,91 @@ function indirectEnvironmentHelperOffsets(source, matches) {
   )).map((match) => match.index));
 }
 
-function environmentAnalysis(source) {
+function stringLiteralBounds(source, { ordinaryMultiline = false } = {}) {
+  const literals = new Map();
+  let index = 0;
+  while (index < source.length) {
+    if (source.startsWith('//', index)) {
+      const newline = source.indexOf('\n', index + 2);
+      index = newline === -1 ? source.length : newline + 1;
+      continue;
+    }
+    if (source.startsWith('/*', index)) {
+      const close = source.indexOf('*/', index + 2);
+      index = close === -1 ? source.length : close + 2;
+      continue;
+    }
+
+    const delimiter = source.startsWith('"""', index)
+      ? '"""'
+      : ['"', "'", '`'].includes(source[index])
+        ? source[index]
+        : null;
+    if (delimiter === null) {
+      index += 1;
+      continue;
+    }
+
+    const rawPrefix = delimiter === '"'
+      ? source.slice(Math.max(0, index - 32), index).match(/(?:^|[^A-Za-z0-9_])(?:br|r)(#+)$/u)
+      : null;
+    const closingDelimiter = rawPrefix === null ? delimiter : `"${rawPrefix[1]}`;
+    const raw = rawPrefix !== null;
+    const contentStart = index + delimiter.length;
+    let cursor = contentStart;
+    let terminated = false;
+    while (cursor < source.length) {
+      if (source.startsWith(closingDelimiter, cursor)) {
+        terminated = true;
+        break;
+      }
+      // JavaScript strings, Rust character literals, and Rust lifetimes cannot
+      // carry an unescaped newline between single quotes. Treating a lifetime
+      // as a string opener would hide every later literal until the next
+      // apostrophe in the file.
+      if (
+        source[cursor] === '\n'
+        && (delimiter === "'" || (delimiter === '"' && !ordinaryMultiline))
+      ) break;
+      if (!raw && delimiter.length === 1 && source[cursor] === '\\') {
+        cursor += 2;
+      } else {
+        cursor += 1;
+      }
+    }
+    if (!terminated) {
+      index += delimiter.length;
+      continue;
+    }
+    literals.set(contentStart, { end: cursor });
+    index = cursor + closingDelimiter.length;
+  }
+  return literals;
+}
+
+function diagnosticLiteralShape(match, literals) {
+  const literal = literals.get(match.index);
+  if (literal === undefined) return null;
+  if (literal.end === match.index + match[0].length) return 'whole';
+  if (match.input[match.index + match[0].length] === ':') return 'prefix';
+  return 'reference';
+}
+
+function isExplicitDiagnosticCodePosition(source, offset) {
+  const before = source.slice(Math.max(0, offset - 512), offset);
+  return (
+    /\bthrow\b[^;\n]*$/u.test(before)
+    || /\bnew\s+Error\s*\(\s*["'`]$/u.test(before)
+    || /\b(?:code|diagnosticCode|diagnostic_code|errorCode|error_code)\s*:\s*["'`]$/u.test(before)
+    || /\.code\s*=\s*["'`]$/u.test(before)
+    || /\b(?:diagnosticError|codedError|verifyError|codegenError|conformanceDiagnostic|graph_serving_error)\s*\(\s*["'`]$/u.test(before)
+    || /\b(?:SnapbackError|Diagnostic)::(?:error|warning|info|new)\s*\(\s*["'`]$/u.test(before)
+  );
+}
+
+function environmentAnalysis(source, options) {
   const matches = [...source.matchAll(DIAGNOSTIC_CODE_PATTERN)];
+  const literals = stringLiteralBounds(source, options);
   const siteKinds = new Map();
   for (const offset of rustIndirectEnvironmentOffsets(source)) {
     siteKinds.set(offset, 'indirect-read');
@@ -196,19 +285,33 @@ function environmentAnalysis(source) {
       siteKinds.set(match.index, 'read');
     } else if (
       isJavaScriptEnvironmentObjectKey(source, match.index, match[0])
-      || isJavaScriptEnvironmentNameTable(source, match.index)
+      || isEnvironmentNameTable(source, match.index)
     ) {
       siteKinds.set(match.index, 'table-entry');
     }
   }
-  return { siteKinds };
+  const names = new Set(matches
+    .filter((match) => siteKinds.has(match.index))
+    .map((match) => match[0]));
+  return { literals, matches, names, siteKinds };
 }
 
-export function environmentVariableSites(source) {
-  const analysis = environmentAnalysis(source);
-  return [...source.matchAll(DIAGNOSTIC_CODE_PATTERN)]
-    .filter((match) => analysis.siteKinds.has(match.index))
-    .map((match) => ({ match, kind: analysis.siteKinds.get(match.index) }));
+export function environmentVariableSites(source, { environmentNames, ordinaryMultiline } = {}) {
+  const analysis = environmentAnalysis(source, { ordinaryMultiline });
+  const classifiedNames = environmentNames ?? analysis.names;
+  return analysis.matches.flatMap((match) => {
+    const kind = analysis.siteKinds.get(match.index);
+    if (kind !== undefined) return [{ match, kind }];
+    if (
+      classifiedNames.has(match[0])
+      && diagnosticSiteKind(source, match, analysis, classifiedNames) === null
+      && diagnosticLiteralShape(match, analysis.literals) !== null
+      && !isCommentReference(source, match.index)
+    ) {
+      return [{ match, kind: 'mention' }];
+    }
+    return [];
+  });
 }
 
 function isCommentReference(source, offset) {
@@ -245,26 +348,34 @@ function isJavaScriptComparison(source, offset, code) {
   );
 }
 
-function diagnosticSiteKind(source, match, environmentSites) {
+function diagnosticSiteKind(source, match, analysis, environmentNames) {
   const offset = match.index;
   if (hasReservedMarker(source, offset)) return 'reserved';
   if (
     hasReferenceOnlyMarker(source, offset)
-    || environmentSites.has(offset)
+    || analysis.siteKinds.has(offset)
     || isCommentReference(source, offset)
     || isJavaScriptComparison(source, offset, match[0])
+  ) return null;
+  const literalShape = diagnosticLiteralShape(match, analysis.literals);
+  if (literalShape === 'prefix') return 'emission';
+  if (literalShape !== 'whole') return null;
+  if (
+    environmentNames.has(match[0])
+    && !isExplicitDiagnosticCodePosition(source, offset)
   ) return null;
   return 'emission';
 }
 
-export function diagnosticSourceSites(source) {
-  const analysis = environmentAnalysis(source);
-  return [...source.matchAll(DIAGNOSTIC_CODE_PATTERN)].flatMap((match) => {
-    const kind = diagnosticSiteKind(source, match, analysis.siteKinds);
+export function diagnosticSourceSites(source, { environmentNames, ordinaryMultiline } = {}) {
+  const analysis = environmentAnalysis(source, { ordinaryMultiline });
+  const classifiedNames = environmentNames ?? analysis.names;
+  return analysis.matches.flatMap((match) => {
+    const kind = diagnosticSiteKind(source, match, analysis, classifiedNames);
     return kind === null ? [] : [{ match, kind }];
   });
 }
 
-export function diagnosticCodeMatches(source) {
-  return diagnosticSourceSites(source).map(({ match }) => match);
+export function diagnosticCodeMatches(source, options) {
+  return diagnosticSourceSites(source, options).map(({ match }) => match);
 }

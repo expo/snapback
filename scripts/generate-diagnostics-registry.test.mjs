@@ -52,7 +52,7 @@ test('diagnostic source classifier excludes environment reads per site and retai
     '../tests/fixtures/diagnostics-registry/non-emitting-reference-sites.txt',
   ), 'utf8');
 
-  assert.equal([...fixture.matchAll(/SNAPBACK_[A-Z0-9_]+/gu)].length, 31);
+  assert.equal([...fixture.matchAll(/SNAPBACK_[A-Z0-9_]+/gu)].length, 36);
 
   assert.deepEqual(
     [...diagnosticCodeMatches(fixture)].map((match) => match[0]),
@@ -60,8 +60,8 @@ test('diagnostic source classifier excludes environment reads per site and retai
       'SNAPBACK_FIXTURE_RUST_MISMATCH',
       'SNAPBACK_FIXTURE_JS_EMITTED',
       'SNAPBACK_FIXTURE_JS_URL_EMITTED',
-      'SNAPBACK_FIXTURE_JS_MESSAGE_ENV',
       'SNAPBACK_FIXTURE_JS_MESSAGE_OWNER',
+      'SNAPBACK_FIXTURE_PREFIXED_CODE',
       'SNAPBACK_FIXTURE_DUAL_ROLE',
       'SNAPBACK_FIXTURE_DUAL_ROLE',
     ],
@@ -78,7 +78,7 @@ test('diagnostic source classifier excludes environment reads per site and retai
     )),
     [
       "throw new Error('SNAPBACK_FIXTURE_DUAL_ROLE');",
-      'eprintln!("SNAPBACK_FIXTURE_DUAL_ROLE detail={detail}");',
+      'eprintln!("SNAPBACK_FIXTURE_DUAL_ROLE: detail={detail}");',
     ],
   );
 
@@ -93,6 +93,30 @@ test('diagnostic source classifier excludes environment reads per site and retai
       kind,
     })),
     [{ line: "const dualRole = env('SNAPBACK_FIXTURE_DUAL_ROLE');", kind: 'read' }],
+  );
+
+  const environmentNameListSites = environmentVariableSites(fixture)
+    .filter(({ match }) => match[0].startsWith('SNAPBACK_FIXTURE_LIST_'));
+  assert.deepEqual(
+    environmentNameListSites.map(({ match, kind }) => ({ name: match[0], kind })),
+    [
+      { name: 'SNAPBACK_FIXTURE_LIST_ENV', kind: 'table-entry' },
+      { name: 'SNAPBACK_FIXTURE_LIST_SECOND_ENV', kind: 'table-entry' },
+    ],
+  );
+
+  const nonEmittingMessageNames = new Set([
+    'SNAPBACK_FIXTURE_JS_MESSAGE_ENV',
+    'SNAPBACK_FIXTURE_PREFIXED_ENV',
+    'SNAPBACK_FIXTURE_EXAMPLE_ENV',
+    'SNAPBACK_FIXTURE_LIST_ENV',
+    'SNAPBACK_FIXTURE_LIST_SECOND_ENV',
+  ]);
+  assert.deepEqual(
+    diagnosticSourceSites(fixture)
+      .filter(({ match }) => nonEmittingMessageNames.has(match[0]))
+      .map(({ match }) => match[0]),
+    [],
   );
 
   const classifiedNames = [

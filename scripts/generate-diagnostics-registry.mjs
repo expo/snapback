@@ -2,9 +2,11 @@
 // Generate the build-bound diagnostics vocabulary, its Guide projection, and
 // the public TypeScript code union. Output is sorted and carries no wall-clock
 // value, so identical inputs always produce identical bytes.
-// Source classification excludes environment-variable access/declarations,
-// comments, and unambiguous JavaScript comparisons per site. For a
-// reference-only site whose syntax is otherwise ambiguous, put
+// A diagnostic emission is a whole-string code literal in diagnostic position
+// or a leading `CODE:` message prefix. Environment-variable access,
+// declarations/tables, message references, comments, and unambiguous
+// JavaScript comparisons are excluded per site. For a reference-only site
+// whose syntax is otherwise ambiguous, put
 // `diagnostics-registry: reference-only` in a comment on that line or the
 // immediately preceding line; never mark a line that also emits. To reserve a
 // retired spelling in the stable vocabulary, use `diagnostics-registry:
@@ -225,11 +227,27 @@ function assertPathRelocationPreservesSubsystem(code, sites) {
 }
 
 function collectSites() {
+  const sources = new Map(productionPaths.map((path) => (
+    [path, readFileSync(join(root, path), 'utf8')]
+  )));
+  const environmentNames = new Set();
+  for (const [path, source] of sources) {
+    for (const { match } of environmentVariableSites(source, {
+      ordinaryMultiline: path.endsWith('.rs'),
+    })) {
+      environmentNames.add(match[0]);
+    }
+  }
+
   const byCode = new Map();
   const byEnvironmentVariable = new Map();
   for (const path of productionPaths) {
-    const source = readFileSync(join(root, path), 'utf8');
-    for (const { match, kind } of diagnosticSourceSites(source)) {
+    const source = sources.get(path);
+    const sourceOptions = {
+      environmentNames,
+      ordinaryMultiline: path.endsWith('.rs'),
+    };
+    for (const { match, kind } of diagnosticSourceSites(source, sourceOptions)) {
       const code = match[0];
       const location = lineAndColumn(source, match.index);
       const sites = byCode.get(code) ?? [];
@@ -240,7 +258,7 @@ function collectSites() {
       });
       byCode.set(code, sites);
     }
-    for (const { match, kind } of environmentVariableSites(source)) {
+    for (const { match, kind } of environmentVariableSites(source, sourceOptions)) {
       const name = match[0];
       const location = lineAndColumn(source, match.index);
       const sites = byEnvironmentVariable.get(name) ?? [];

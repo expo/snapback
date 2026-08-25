@@ -32,54 +32,56 @@ instead of as diagnostic codes, then regenerate.
 
 ## Resolution (2026-08-25)
 
-The generator now classifies each source occurrence before publishing either
-vocabulary. It recognizes direct and injected JavaScript/Swift environment
-objects, helper calls and helper-indirected reads, environment object keys and
-name tables, Rust `var`/`var_os`/`option_env!` access, and const-indirected
-reads. Environment classification is per site, not unioned by name across the
-production corpus. There is no constructor-name allowlist: any occurrence that
-is not itself an environment read/declaration, comparison, comment, or marked
-reference stays registered as an emission, including plain `throw new Error`,
-Rust `eprintln!`/`format!`, and arbitrary constructors.
+The generator now applies a literal-position rule before publishing either
+vocabulary. A `SNAPBACK_*` token is an emission only when it is the complete
+code literal at a diagnostic site or the first token of a `CODE: message`
+literal. A token later in a message, the second token in
+`CODE: ... ENVIRONMENT_NAME ...`, or the name in a `NAME=value` example is a
+reference, not another diagnostic emission. Whole-string names in environment
+accessors and environment-name tables/lists are environment sites. The scan is
+two-pass so a name established as environment configuration in one production
+file is still classified correctly when another file mentions or tables it.
 
-The machine registry now has a separate `environment` section with source
-locations and `read`, `indirect-read`, `declaration`, or `table-entry` site
-kinds. The existing generated `diagnostic-codes.d.mts` also owns the
-`SnapbackEnvironmentVariable` union, re-exported by `@expo/snapback-client`.
-Keeping both unions in that file gives the one generator and already-published
-package file a single lifecycle; the symbol registry discovers the new export
-without adding another generated-file inventory.
+The machine registry's separate `environment` section records `read`,
+`indirect-read`, `declaration`, `table-entry`, and `mention` sites. The generated
+`diagnostic-codes.d.mts` continues to own both `SnapbackDiagnosticCode` and
+`SnapbackEnvironmentVariable`, re-exported by `@expo/snapback-client`, so the
+diagnostics registry, symbol registry, and Guide projections share one generated
+authority.
 
-Of the original examples, `SNAPBACK_EXPO_METRO_PORT`,
-`SNAPBACK_DEV_CLIENT_PORT`, `SNAPBACK_DEV_BOOTSTRAP_PORT`, and
-`SNAPBACK_DEV_PORT_RANGE` are environment-only. `SNAPBACK_DEV_AUTH_ORIGINS`,
-`SNAPBACK_RUNTIME_BINARY`, and `SNAPBACK_DEV_PORT` are dual-role names: their
-environment sites live under `environment`, while their separately emitted
-message/detail sites remain diagnostics. The same boundary retains
-`SNAPBACK_GRAPH_EXEC_DISABLED` and `SNAPBACK_VERIFY_PROFILE_TIMEOUT` as real
-diagnostics while recording their reads separately.
+The round-2 implementation had restored 47 diagnostic names. Exactly four now
+remain, each for a real site: reserved
+`SNAPBACK_IBEX_CLI_UNAVAILABLE` at
+`crates/snapback-runtime/src/runtime.rs:99`, plus the three publication-authority
+`CODE:` errors at `packages/snapback-publication-authority/service.mjs:27`
+(`SNAPBACK_PUBLICATION_AUTHORITY_PORT`), `:30`
+(`SNAPBACK_PUBLICATION_AUTHORITY_INSTALLATION_ID`), and `:33`
+(`SNAPBACK_PUBLICATION_AUTHORITY_ORIGIN`). The other 43 restored names were
+message/environment references and are no longer diagnostics. In particular,
+`SNAPBACK_PASSWORD`, `SNAPBACK_ADMIN_TOKEN`, `SNAPBACK_DEV_PORT`, and
+`SNAPBACK_RUNTIME_BINARY` occur only in `SnapbackEnvironmentVariable`, not
+`SnapbackDiagnosticCode`.
 
-Ordinary comment-only spellings are not harvested. One deliberate exception is
-the retired `SNAPBACK_IBEX_CLI_UNAVAILABLE` compatibility spelling: its runtime
-comment carries `diagnostics-registry: reserved`, and the registry retains that
-exact occurrence with site kind `reserved` without counting it as an emission.
+The earlier dual-role rule still holds: an environment name emitted elsewhere
+as a whole diagnostic code or `CODE:` prefix stays registered, but only the
+emitting occurrence appears in its diagnostic sites. Ordinary comment-only
+spellings remain excluded. The explicit `diagnostics-registry: reserved` marker
+is the deliberate exception for a retired stable spelling and does not count as
+an emission. The HTTP-only `NON_DIAGNOSTIC_SNAPBACK_LITERALS` table remains
+separate because it includes legitimate non-HTTP diagnostics and is not a safe
+public-registry denylist.
 
-The generator deliberately does not consume
-`NON_DIAGNOSTIC_SNAPBACK_LITERALS`: that list governs HTTP projection and
-contains legitimate non-HTTP diagnostics, so treating it as a public-registry
-denylist would erase real emissions. No hand-maintained environment allowlist
-was added.
+The companion fixture now has 36 raw `SNAPBACK_*` substrings and retains seven
+emitting occurrences across six names. Its fail-first run showed the old
+classifier wrongly emitting both environment-list entries, a mid-message
+environment name, the environment token after a valid `CODE:` prefix, and a
+`NAME=value` example. It also pins the dual-role `throw new Error` case,
+Rust/JavaScript code positions, negative-lookbehind spellings, environment site
+kinds, and the explicit reservation marker.
 
-The companion fixture now contains 31 raw `SNAPBACK_*` substrings. It covers
-the negative-lookbehind cases `__SNAPBACK_FIXTURE_NESTED__` and
-`PUBLIC_SNAPBACK_FIXTURE_ORIGIN`, and a dual-role name with one environment
-read plus plain JavaScript and Rust emissions. The classifier retains seven
-emitting occurrences across six names and only the emitting occurrences of the
-dual-role name. A separate unit case pins the explicit reservation behavior.
-
-Across the complete correction, regeneration moved from 3,629 codes / 12,507
-sites to 3,549 codes / 12,176 emitting sites plus one reserved site, while the
-separate environment vocabulary contains 146 names / 239 classified sites.
-The round-2 fixes restored 47 registered codes — 46 emission names plus one
-reserved spelling — and 106 emitting sites over the over-suppressing
-3,502-code / 12,070-site intermediate registry.
+Final regeneration produces 3,437 diagnostic codes, 11,759 emitting sites, and
+one reserved site. The environment section contains 146 variables across 273
+sites: 185 reads, 16 indirect reads, 13 declarations, 25 table entries, and 34
+message mentions. The original pre-classification registry had 3,629 codes and
+12,507 sites; the round-2 regressed registry had 3,549 codes, 12,176 emitting
+sites, one reserved site, and 239 environment sites.

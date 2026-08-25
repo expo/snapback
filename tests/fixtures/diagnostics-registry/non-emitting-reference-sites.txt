@@ -1,6 +1,6 @@
 // Rust environment reads are configuration, not diagnostics.
 if std::env::var_os("SNAPBACK_FIXTURE_RUST_TRACE").is_some() {
-    eprintln!("SNAPBACK_FIXTURE_RUST_MISMATCH field={field}");
+    eprintln!("SNAPBACK_FIXTURE_RUST_MISMATCH: field={field}");
 }
 if env::var("SNAPBACK_FIXTURE_RUST_MODE").is_ok() {}
 if var_os("SNAPBACK_FIXTURE_IMPORTED_TRACE").is_some() {}
@@ -24,6 +24,10 @@ const FIXTURE_ENVIRONMENT_NAMES = Object.freeze({
   trace: 'SNAPBACK_FIXTURE_JS_TABLE_TRACE',
 });
 if (env?.[FIXTURE_ENVIRONMENT_NAMES.trace]) recover();
+const FIXTURE_ENVIRONMENT_NAME_LIST: &[&str] = &[
+  "SNAPBACK_FIXTURE_LIST_ENV",
+  "SNAPBACK_FIXTURE_LIST_SECOND_ENV",
+];
 if (error.code === 'SNAPBACK_FIXTURE_JS_REFERENCE') recover();
 if ('SNAPBACK_FIXTURE_JS_REVERSE_REFERENCE' !== error.code) recover();
 switch (error.code) { case 'SNAPBACK_FIXTURE_JS_CASE_REFERENCE': recover(); }
@@ -38,12 +42,14 @@ throw Object.assign(
   new Error('set SNAPBACK_FIXTURE_JS_MESSAGE_ENV before retrying'),
   { code: 'SNAPBACK_FIXTURE_JS_MESSAGE_OWNER' },
 );
+throw new Error('SNAPBACK_FIXTURE_PREFIXED_CODE: set SNAPBACK_FIXTURE_PREFIXED_ENV before retrying');
+const environmentExample = 'SNAPBACK_FIXTURE_EXAMPLE_ENV=/absolute/path';
 
 // A name that is read from the environment and emitted elsewhere retains only
 // its emitting site.
 const dualRole = env('SNAPBACK_FIXTURE_DUAL_ROLE');
 throw new Error('SNAPBACK_FIXTURE_DUAL_ROLE');
-eprintln!("SNAPBACK_FIXTURE_DUAL_ROLE detail={detail}");
+eprintln!("SNAPBACK_FIXTURE_DUAL_ROLE: detail={detail}");
 
 // SNAPBACK_FIXTURE_COMMENT_REFERENCE is documentation, not an emission.
 

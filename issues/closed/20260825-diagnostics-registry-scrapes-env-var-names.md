@@ -29,36 +29,35 @@ to excluded references.
 
 ## Resolution (2026-08-25, superseded by canonical ticket)
 
-The root cause was the generator's raw identifier sweep: every production
-`SNAPBACK_*` match became an emitting site without examining its source
-context. A source classifier now excludes Rust and JavaScript environment
-accesses, quoted equality/case comparisons, and explicitly marked
-reference-only sites per occurrence. The generator header documents the narrow
-`diagnostics-registry: reference-only` escape hatch for ambiguous syntax and
-the inverse `diagnostics-registry: reserved` marker for historical vocabulary.
-It does not union environment names across files or depend on a constructor
-allowlist to keep real emissions alive.
+The root cause was the raw identifier sweep, followed by a round-2 regression
+that treated every otherwise-unclassified token as an emission. The corrected
+classifier admits only a whole-string code literal in diagnostic position or a
+leading `CODE:` message prefix. Mid-message tokens, the environment token after
+a valid `CODE:` prefix, `NAME=value` examples, environment accessors, and
+environment-name tables/lists cannot manufacture diagnostic sites. A two-pass
+production scan carries established environment names across files while still
+retaining a dual-role name's separately proven emission.
 
-A fixture keeps real Rust and JavaScript emissions beside excluded environment
-reads and consumer references, covers both prefixed-identifier
-negative-lookbehind shapes, and proves a dual-role name retains its plain
-JavaScript and Rust emitting sites. It now has 31 raw substrings and seven
-retained emitting occurrences across six names; a second unit case covers the
-reservation marker.
+The fail-first fixture has 36 raw substrings and seven retained emissions across
+six names. Before the correction it wrongly emitted two environment-list rows,
+a mid-message environment name, a second token after `CODE:`, and a
+`NAME=value` example. The fixture also pins a dual-role
+`throw new Error('SNAPBACK_...')`, a leading Rust `CODE:` message, both
+prefixed-identifier negative-lookbehind shapes, environment site kinds, and the
+explicit `diagnostics-registry: reserved` mechanism.
 
-The registry separately publishes 146 environment names / 239 classified
-sites, and `@expo/snapback-client` exports the generated
-`SnapbackEnvironmentVariable` union from the same generator-owned declaration
-file as `SnapbackDiagnosticCode`. Across the completed correction,
-regeneration moved from 3,629 codes / 12,507 sites to 3,549 codes / 12,176
-emitting sites plus one reserved site;
-`SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE` is absent from the registry, Guide
-diagnostic projection and diagnostic type union but present in the environment
-registry and type union, while
-`SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH` remains registered.
+The final registry publishes 3,437 diagnostic codes / 11,759 emitting sites /
+one reserved site and a separate environment vocabulary of 146 names / 273
+sites (185 reads, 16 indirect reads, 13 declarations, 25 table entries, 34
+mentions). `SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE` is absent from the diagnostic
+registry, Guide diagnostic projection, and `SnapbackDiagnosticCode`, but remains
+in the environment registry and `SnapbackEnvironmentVariable`;
+`SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH` remains a diagnostic.
 
-The 20260823 ticket is the canonical report because it predates this duplicate
-and names the full affected family. Its resolution records the complete shape
-coverage, the environment-only and dual-role dispositions,
-and why the HTTP-specific Rust exclusion list was not reused as a public
-registry denylist.
+Of the 47 names restored by the regressed round-2 classifier, only the reserved
+`SNAPBACK_IBEX_CLI_UNAVAILABLE` marker and the three publication-authority
+`CODE:` errors remain diagnostics. `SNAPBACK_PASSWORD`,
+`SNAPBACK_ADMIN_TOKEN`, `SNAPBACK_DEV_PORT`, and `SNAPBACK_RUNTIME_BINARY` are
+environment-only in the generated type surface. The canonical 20260823 ticket
+records the exact four retained sites, complete counts, dual-role rule, and why
+the HTTP-specific Rust exclusion list is not a public-registry denylist.
