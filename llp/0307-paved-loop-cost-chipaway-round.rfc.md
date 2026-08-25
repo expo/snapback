@@ -210,6 +210,20 @@ CI-passthrough diagnosis; and no shortened binding term exists (the
 term-crossing obligation stands). The next publication should carry the
 lane-I fix before any full pin.
 
+**Q-b executed 2026-08-25** against published 0.1.27
+(`benchmarks/runs/2026-08-25-qb-lifecycle-probe-0127/record.md`). Verdict:
+**the caller-owned LLP 0301/0302 journey qualifies clean** — URL-first
+scripts shipped in the template, declared-dev binding with no expiry
+structurally possible, the §3 standing gate auto-re-verified across a
+live backend replacement with zero manual binding work, and the
+caller-owned Metro served a schema successor hot (corroborating the T1
+CI fix from the caller side). Q-a's binding-term obligation is resolved
+for this path: declared-dev has no clock term. Off-spec findings routed:
+`issues/20260825-livequery-headless-transport-default.md` and
+`issues/20260825-caller-owned-devloop-papercuts.md`. Both pin gates (Q-a,
+Q-b) are now green; the full-pin gate waits only on T1 (landed) and the
+instrument bump.
+
 ### Track T — tickets filed with this RFC
 
 1. `issues/20260824-metro-generated-module-freshness.md` —
