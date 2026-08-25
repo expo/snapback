@@ -13144,6 +13144,21 @@ impl LocalSnapback {
         ))
     }
 
+    /// Corpus assertions exercise memo, authorization, and delta lane
+    /// semantics, not the scheduler's wall-clock overload fallback. Parallel
+    /// corpus evaluation can otherwise leave a later subscription pending
+    /// beyond the production five-second hold interval, reclassifying its
+    /// data work as a forced refresh solely because the test process is busy.
+    #[cfg(any(test, feature = "test-support"))]
+    fn graph_corpus_coalescer_for_test() -> Arc<crate::live_coalesce::LiveFanoutCoalescer> {
+        Arc::new(crate::live_coalesce::LiveFanoutCoalescer::with_tunables(
+            crate::live_coalesce::LiveCoalesceTunables {
+                max_hold: Duration::MAX,
+                ..crate::live_coalesce::LiveCoalesceTunables::default()
+            },
+        ))
+    }
+
     #[cfg(any(test, feature = "test-support"))]
     pub(crate) fn configure_graph_corpus_scheduler_for_test(
         &mut self,
@@ -13187,9 +13202,7 @@ impl LocalSnapback {
         // Pin the sole activation input that is process-global rather than
         // corpus-owned so both freeze passes observe identical materialization.
         self.app_generation = 1;
-        self.install_live_fanout_coalescer(Arc::new(
-            crate::live_coalesce::LiveFanoutCoalescer::new(),
-        ));
+        self.install_live_fanout_coalescer(Self::graph_corpus_coalescer_for_test());
         self.pending_live_fanout.evaluation_memo.disabled = false;
 
         let (reserved, version_stream, boot_sequence) = self
@@ -13240,9 +13253,7 @@ impl LocalSnapback {
     pub(crate) fn configure_graph_measurement_scheduler_for_test(
         &mut self,
     ) -> SnapbackResult<AuthorizationInvalidationConnection> {
-        self.install_live_fanout_coalescer(Arc::new(
-            crate::live_coalesce::LiveFanoutCoalescer::new(),
-        ));
+        self.install_live_fanout_coalescer(Self::graph_corpus_coalescer_for_test());
         self.pending_live_fanout.evaluation_memo.disabled = false;
         let (authorization, version_stream, boot_sequence) = self
             .auth_database_mut()
@@ -13387,9 +13398,7 @@ impl LocalSnapback {
     #[cfg(any(test, feature = "test-support"))]
     pub(crate) fn measure_graph_serving_groups_for_test(&mut self) -> SnapbackResult<Value> {
         if self.live_coalescer.is_none() {
-            self.install_live_fanout_coalescer(Arc::new(
-                crate::live_coalesce::LiveFanoutCoalescer::new(),
-            ));
+            self.install_live_fanout_coalescer(Self::graph_corpus_coalescer_for_test());
         }
         self.pending_live_fanout.evaluation_memo.disabled = false;
         self.notify_live_subscriptions(&[]);
@@ -13441,9 +13450,7 @@ impl LocalSnapback {
         only_subscription: Option<&str>,
     ) -> SnapbackResult<bool> {
         if self.live_coalescer.is_none() {
-            self.install_live_fanout_coalescer(Arc::new(
-                crate::live_coalesce::LiveFanoutCoalescer::new(),
-            ));
+            self.install_live_fanout_coalescer(Self::graph_corpus_coalescer_for_test());
         }
         self.pending_live_fanout.evaluation_memo.disabled = false;
         if let Some(subscription_id) = only_subscription {

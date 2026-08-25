@@ -11,7 +11,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
-use std::sync::{Mutex, OnceLock};
+use std::sync::OnceLock;
 
 use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
@@ -86,14 +86,6 @@ const CORPUS_ARGS_HASH: &str =
     "sha256:5555555555555555555555555555555555555555555555555555555555555555";
 const LARGE_FIXTURE_DEFERRAL_MARKER: &str = "requires the preserved CSV shards";
 const LARGE_FIXTURE_RERUN_COMMAND: &str = "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs";
-static GRAPH_MEMO_INTERACTION_TEST_LOCK: Mutex<()> = Mutex::new(());
-
-fn serial_graph_memo_interaction_test() -> std::sync::MutexGuard<'static, ()> {
-    GRAPH_MEMO_INTERACTION_TEST_LOCK
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
-}
-
 fn repository_path(relative: &str) -> PathBuf {
     PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../..")).join(relative)
 }
@@ -2123,7 +2115,6 @@ fn drain_graph_scheduler_snapshots(
 
 #[test]
 fn graph_scheduler_case_same_key_memoizes_one_turn_and_delivers_three() {
-    let _memo_guard = serial_graph_memo_interaction_test();
     const N: usize = 3;
     let corpus = graph_corpus();
     let (mut snapback, name, call, authority, connection) = graph_scheduler_memo_fixture(&corpus);
@@ -2225,7 +2216,6 @@ fn graph_scheduler_case_same_key_memoizes_one_turn_and_delivers_three() {
 
 #[test]
 fn graph_scheduler_case_continuation_and_first_page_preserve_each_ledger_lineage() {
-    let _memo_guard = serial_graph_memo_interaction_test();
     let corpus = graph_corpus();
     let (mut snapback, name, call, authority, connection) =
         graph_scheduler_continuation_memo_fixture(&corpus);
@@ -2347,7 +2337,6 @@ fn graph_scheduler_case_continuation_and_first_page_preserve_each_ledger_lineage
 
 #[test]
 fn graph_scheduler_case_authority_context_replacement_retires_same_partition_memo() {
-    let _memo_guard = serial_graph_memo_interaction_test();
     let corpus = graph_corpus();
     let (mut snapback, name, call, authority_a, connection) = graph_scheduler_memo_fixture(&corpus);
     let connection_id = "g3-a-authority-context-replacement";
@@ -2452,7 +2441,6 @@ fn graph_scheduler_case_authority_context_replacement_retires_same_partition_mem
 
 #[test]
 fn graph_scheduler_case_matcher_wake_retires_then_reevaluates_once() {
-    let _memo_guard = serial_graph_memo_interaction_test();
     const N: usize = 3;
     let corpus = graph_corpus();
     let (mut snapback, name, call, authority, connection) = graph_scheduler_memo_fixture(&corpus);
@@ -2525,7 +2513,6 @@ fn graph_scheduler_case_matcher_wake_retires_then_reevaluates_once() {
 
 #[test]
 fn graph_scheduler_case_materialization_and_partition_keys_do_not_share() {
-    let _memo_guard = serial_graph_memo_interaction_test();
     let corpus = graph_corpus();
     let (mut snapback, name, call, authority, connection) = graph_scheduler_memo_fixture(&corpus);
     let connection_id = "g3-a-mixed-keys";
@@ -2594,7 +2581,6 @@ fn graph_scheduler_case_materialization_and_partition_keys_do_not_share() {
 
 #[test]
 fn graph_scheduler_case_evaluation_cut_does_not_share() {
-    let _memo_guard = serial_graph_memo_interaction_test();
     let corpus = graph_corpus();
     let (mut snapback, name, call, authority, connection) = graph_scheduler_memo_fixture(&corpus);
     let connection_id = "g3-a-cut-isolation";
@@ -2674,7 +2660,6 @@ fn graph_scheduler_case_evaluation_cut_does_not_share() {
 
 #[test]
 fn graph_scheduler_case_tiny_budget_evicts_oldest_and_reevaluates() {
-    let _memo_guard = serial_graph_memo_interaction_test();
     let corpus = graph_corpus();
     let (mut snapback, name, call, authority, connection) = graph_scheduler_memo_fixture(&corpus);
     let connection_id = "g3-a-eviction";
@@ -2751,7 +2736,6 @@ fn graph_scheduler_case_tiny_budget_evicts_oldest_and_reevaluates() {
 
 #[test]
 fn graph_scheduler_case_tiny_byte_budget_evicts_and_refuses_oversize_results() {
-    let _memo_guard = serial_graph_memo_interaction_test();
     let corpus = graph_corpus();
     let (mut snapback, name, call, authority, connection) = graph_scheduler_memo_fixture(&corpus);
     let connection_id = "g3-a-byte-eviction";
@@ -7224,7 +7208,6 @@ fn served_window_ledger_accumulates_snapshot_delta_forced_replacement() {
 #[test]
 fn graph_delta_same_partition_subscriptions_converge_with_independent_ledgers_and_shared_replace_memo()
  {
-    let _memo_guard = serial_graph_memo_interaction_test();
     let corpus = graph_corpus();
     let (mut snapback, connection_id, subscriptions) =
         serve_issue_summary_window_ledgers(&corpus, 4, 2);
@@ -7501,7 +7484,6 @@ fn assert_graph_memo_receiver_keeps_delta_negotiation(
 /// @ref LLP 0209#6 — a memo hit skips evaluation, never per-subscription delivery.
 #[test]
 fn graph_memo_legacy_receiver_keeps_replace_delivery_from_delta_seed() {
-    let _memo_guard = serial_graph_memo_interaction_test();
     let corpus = graph_corpus();
     assert_graph_memo_receiver_keeps_delta_negotiation(&corpus, true, false);
 }
@@ -7512,7 +7494,6 @@ fn graph_memo_legacy_receiver_keeps_replace_delivery_from_delta_seed() {
 /// @ref LLP 0209#6 — a memo hit skips evaluation, never per-subscription delivery.
 #[test]
 fn graph_memo_delta_receiver_keeps_negotiation_from_legacy_seed() {
-    let _memo_guard = serial_graph_memo_interaction_test();
     let corpus = graph_corpus();
     assert_graph_memo_receiver_keeps_delta_negotiation(&corpus, false, true);
 }
