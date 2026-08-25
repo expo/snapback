@@ -52,7 +52,7 @@ test('diagnostic source classifier excludes environment reads per site and retai
     '../tests/fixtures/diagnostics-registry/non-emitting-reference-sites.txt',
   ), 'utf8');
 
-  assert.equal([...fixture.matchAll(/SNAPBACK_[A-Z0-9_]+/gu)].length, 67);
+  assert.equal([...fixture.matchAll(/SNAPBACK_[A-Z0-9_]+/gu)].length, 70);
 
   const sourceOptions = { ordinaryMultiline: true };
   assert.deepEqual(
@@ -138,6 +138,31 @@ test('diagnostic source classifier excludes environment reads per site and retai
     environmentVariableSites(fixture, sourceOptions)
       .filter(({ match }) => match[0] === 'SNAPBACK_FIXTURE_COMMENTED_ENV_ACCESS'),
     [],
+  );
+
+  assert.deepEqual(
+    environmentVariableSites(fixture, sourceOptions)
+      .filter(({ match }) => match[0] === 'SNAPBACK_FIXTURE_OPAQUE_INDIRECT_ENV')
+      .map(({ match, kind }) => ({ name: match[0], kind })),
+    [{ name: 'SNAPBACK_FIXTURE_OPAQUE_INDIRECT_ENV', kind: 'declaration' }],
+  );
+  assert.deepEqual(
+    diagnosticSourceSites(fixture, sourceOptions)
+      .filter(({ match }) => match[0] === 'SNAPBACK_FIXTURE_OPAQUE_INDIRECT_ENV'),
+    [],
+  );
+
+  assert.deepEqual(
+    diagnosticSourceSites(fixture, {
+      ...sourceOptions,
+      receivedProtocolVocabulary: true,
+    })
+      .filter(({ match }) => match[0].startsWith('SNAPBACK_FIXTURE_RECEIVED_PROTOCOL'))
+      .map(({ match, kind }) => ({ code: match[0], kind })),
+    [
+      { code: 'SNAPBACK_FIXTURE_RECEIVED_PROTOCOL', kind: 'received' },
+      { code: 'SNAPBACK_FIXTURE_RECEIVED_PROTOCOL_SECOND', kind: 'received' },
+    ],
   );
 
   const workerBindingNames = [
@@ -240,6 +265,12 @@ test('generated registry retains target emitters and dynamic artifact-header emi
   assert.equal(registry.diagnostics.SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE, undefined);
   assert.ok(registry.environment.SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE);
 
+  assert.equal(registry.diagnostics.SNAPBACK_DERIVED_INSTANCE_ID, undefined);
+  assert.deepEqual(
+    registry.environment.SNAPBACK_DERIVED_INSTANCE_ID.sites.map(({ file, kind }) => ({ file, kind })),
+    [{ file: 'targets/cloudflare/src/network-profile.js', kind: 'declaration' }],
+  );
+
   for (const binding of [
     'SNAPBACK_SUBSCRIPTION_PER_CONNECTION_LIMIT',
     'SNAPBACK_SUBSCRIPTION_ARGS_BYTES',
@@ -289,6 +320,52 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     [{ file: 'crates/snapback-kernel/src/storage/schema_seed.rs', kind: 'reserved' }],
   );
 
+  const tigrisRoleCodes = [
+    'SNAPBACK_HOSTED_TARGET_TIGRIS_ARTIFACT_PARTIAL',
+    'SNAPBACK_HOSTED_TARGET_TIGRIS_AUDIT_PARTIAL',
+    'SNAPBACK_HOSTED_TARGET_TIGRIS_BACKUP_PARTIAL',
+    'SNAPBACK_HOSTED_TARGET_TIGRIS_CLEANUP_PARTIAL',
+    'SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL_STATE_PARTIAL',
+    'SNAPBACK_HOSTED_TARGET_TIGRIS_LOGS_PARTIAL',
+  ];
+  for (const code of tigrisRoleCodes) {
+    assert.ok(registry.diagnostics[code], `${code} must be registered`);
+  }
+  assert.equal(
+    registry.diagnostics['SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL-STATE_PARTIAL'],
+    undefined,
+  );
+
+  for (const code of [
+    'SNAPBACK_AUTH_SESSION_REVOKED',
+    'SNAPBACK_AUTH_FAMILY_REVOKED',
+    'SNAPBACK_CLIENT_UPGRADE_REQUIRED',
+  ]) {
+    assert.ok(
+      registry.diagnostics[code]?.sites.some((site) => site.kind === 'received'),
+      `${code} must retain a received protocol site`,
+    );
+  }
+
+  for (const code of [
+    'SNAPBACK_AUTH_MODE_CHANGED',
+    'SNAPBACK_OPERATION_CANCELLED',
+    'SNAPBACK_ADMIN_SECRET_READ_MINT_DENIED',
+    'SNAPBACK_API_BUDGETS_UNAVAILABLE',
+    'SNAPBACK_AUTHORITY_ROSTER_CURSOR_INVALID',
+    'SNAPBACK_PROMOTION_EFFECT_INTENT_MISSING',
+    'SNAPBACK_SCHEMA_UNIQUE_INDEX_OPTIONAL_FIELD',
+    'SNAPBACK_UNSUPPORTED_BLOB',
+  ]) {
+    assert.ok(
+      registry.diagnostics[code]?.sites.some((site) => (
+        site.file === 'crates/snapback-server/src/server/api_error.rs'
+        && site.kind === 'reserved'
+      )),
+      `${code} must retain its HTTP-table reservation`,
+    );
+  }
+
   assert.deepEqual(
     Object.keys(registry.diagnostics).filter((code) => code.endsWith('_')),
     [],
@@ -304,5 +381,17 @@ test('diagnostic source classifier retains explicit historical reservations', ()
   assert.deepEqual(
     diagnosticSourceSites(source).map(({ match, kind }) => ({ code: match[0], kind })),
     [{ code: 'SNAPBACK_FIXTURE_RETIRED', kind: 'reserved' }],
+  );
+});
+
+test('diagnostic source classifier retains explicitly marked received vocabulary', () => {
+  const source = [
+    '// diagnostics-registry: received',
+    "const ambiguousReceivedCode = 'SNAPBACK_FIXTURE_AMBIGUOUS_RECEIVED';",
+  ].join('\n');
+
+  assert.deepEqual(
+    diagnosticSourceSites(source).map(({ match, kind }) => ({ code: match[0], kind })),
+    [{ code: 'SNAPBACK_FIXTURE_AMBIGUOUS_RECEIVED', kind: 'received' }],
   );
 });

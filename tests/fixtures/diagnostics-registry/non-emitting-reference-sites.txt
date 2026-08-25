@@ -18,6 +18,11 @@ const injectedTrace = environment.SNAPBACK_FIXTURE_JS_INJECTED_TRACE;
 const helperTrace = env('SNAPBACK_FIXTURE_JS_HELPER_TRACE');
 function requiredEnvironment(name) { return process.env[name]; }
 const indirectHelperTrace = requiredEnvironment('SNAPBACK_FIXTURE_JS_INDIRECT_HELPER');
+const DERIVED_INSTANCE_ID_BINDING = 'SNAPBACK_FIXTURE_OPAQUE_INDIRECT_ENV';
+const opaqueInjectedTrace = env[DERIVED_INSTANCE_ID_BINDING];
+const opaqueOptionalTrace = this.env?.[DERIVED_INSTANCE_ID_BINDING];
+const opaqueProcessTrace = process.env[DERIVED_INSTANCE_ID_BINDING];
+const opaqueHelperTrace = requiredEnvironment(DERIVED_INSTANCE_ID_BINDING);
 class FixtureWorkerEnvironment {
   testingBoundedLimit(binding) { return this.env[binding]; }
   testingOptionalLimit(binding) { return this.env?.[binding]; }
@@ -64,6 +69,13 @@ const FIXTURE_DIAGNOSTIC_CATALOG = new Set([
   'SNAPBACK_FIXTURE_CATALOG_REFERENCE',
   'SNAPBACK_FIXTURE_CATALOG_SECOND_REFERENCE',
 ]);
+const FIXTURE_RECEIVED_CODES = new Set([
+  'SNAPBACK_FIXTURE_RECEIVED_PROTOCOL',
+  'SNAPBACK_FIXTURE_RECEIVED_PROTOCOL_SECOND',
+]);
+function dispatchFixtureProtocol(error) {
+  return FIXTURE_RECEIVED_CODES.has(error.code) ? 'handled' : 'throw';
+}
 if matches!(code, "SNAPBACK_FIXTURE_MATCHES_REFERENCE" | "SNAPBACK_FIXTURE_MATCHES_SECOND_REFERENCE") {}
 const __SNAPBACK_FIXTURE_NESTED__ = true;
 const PUBLIC_SNAPBACK_FIXTURE_ORIGIN = 'https://example.test';

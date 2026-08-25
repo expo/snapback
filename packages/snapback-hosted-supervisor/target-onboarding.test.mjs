@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import {
   buildTargetOnboardingPlan,
@@ -35,6 +36,18 @@ assert.deepEqual(Object.keys(TARGET_TIGRIS_ROLES).sort(), [
   'control-state',
   'logs',
 ]);
+const targetOnboardingSource = readFileSync(new URL('./target-onboarding.mjs', import.meta.url), 'utf8');
+for (const code of [
+  'SNAPBACK_HOSTED_TARGET_TIGRIS_ARTIFACT_PARTIAL',
+  'SNAPBACK_HOSTED_TARGET_TIGRIS_AUDIT_PARTIAL',
+  'SNAPBACK_HOSTED_TARGET_TIGRIS_BACKUP_PARTIAL',
+  'SNAPBACK_HOSTED_TARGET_TIGRIS_CLEANUP_PARTIAL',
+  'SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL_STATE_PARTIAL',
+  'SNAPBACK_HOSTED_TARGET_TIGRIS_LOGS_PARTIAL',
+]) {
+  assert.ok(targetOnboardingSource.includes(`'${code}'`));
+}
+assert.equal(targetOnboardingSource.includes('SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL-STATE_PARTIAL'), false);
 const artifactPolicy = targetRolePolicy(
   TARGET_DEFAULTS,
   'artifact',

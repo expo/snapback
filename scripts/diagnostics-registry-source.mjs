@@ -23,6 +23,7 @@ export const DIAGNOSTICS_PRODUCTION_ROOTS = Object.freeze([
 ]);
 const REFERENCE_ONLY_MARKER = 'diagnostics-registry: reference-only';
 const RESERVED_MARKER = 'diagnostics-registry: reserved';
+const RECEIVED_MARKER = 'diagnostics-registry: received';
 const EMISSION_MARKER = 'diagnostics-registry: emission';
 
 function lineBounds(source, offset) {
@@ -45,6 +46,10 @@ function hasReferenceOnlyMarker(source, offset) {
 
 function hasReservedMarker(source, offset) {
   return hasSiteMarker(source, offset, RESERVED_MARKER);
+}
+
+function hasReceivedMarker(source, offset) {
+  return hasSiteMarker(source, offset, RECEIVED_MARKER);
 }
 
 function hasEmissionMarker(source, offset) {
@@ -159,10 +164,24 @@ function rustIndirectEnvironmentOffsets(source) {
 
 function javaScriptIndirectEnvironmentOffsets(source) {
   const offsets = new Set();
+  const helpers = [...environmentHelperNames(source)];
   for (const declaration of source.matchAll(
     /\b(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*["'](SNAPBACK_[A-Z0-9_]+)["']/gu,
   )) {
-    if (!isEnvironmentIdentifier(declaration[1])) continue;
+    const identifier = escapeRegExp(declaration[1]);
+    const accessorUse = new RegExp(
+      `(?:\\b(?:process|Bun)\\.env(?:\\?\\.)?\\[\\s*${identifier}\\s*\\]|\\bDeno\\.env\\.(?:get|has)\\s*\\(\\s*${identifier}\\b|\\b(?:this\\.)?(?:env|environment)(?:\\?\\.)?\\[\\s*${identifier}\\s*\\])`,
+      'u',
+    );
+    const helperUse = helpers.length === 0 ? null : new RegExp(
+      `\\b(?:${helpers.map(escapeRegExp).join('|')})\\s*\\(\\s*${identifier}\\b`,
+      'u',
+    );
+    if (
+      !isEnvironmentIdentifier(declaration[1])
+      && !accessorUse.test(source)
+      && !(helperUse?.test(source) ?? false)
+    ) continue;
     const code = declaration[2];
     offsets.add(declaration.index + declaration[0].lastIndexOf(code));
   }
@@ -468,7 +487,7 @@ function environmentAnalysis(source, options) {
   const names = new Set(matches
     .filter((match) => siteKinds.has(match.index))
     .map((match) => match[0]));
-  return { literals, matches, names, siteKinds };
+  return { literals, matches, names, siteKinds, receivedOffsets: new Set() };
 }
 
 export function environmentVariableSites(source, { environmentNames, ordinaryMultiline } = {}) {
@@ -558,6 +577,48 @@ function isCodeReferenceCatalogue(source, offset) {
   return remainder.length === 0;
 }
 
+function hasReceivedMembershipConsumer(source, open, close) {
+  const prefix = source.slice(Math.max(0, open - 2048), open);
+  const direct = prefix.match(
+    /\b(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*(?:(?:Object\.freeze|new\s+Set)\s*\()?\s*$/u,
+  );
+  const property = prefix.match(
+    /\b([A-Za-z_$][\w$]*)\s*:\s*(?:Object\.freeze\s*\()?\s*$/u,
+  );
+  const member = direct?.[1] ?? property?.[1];
+  if (member === undefined) return false;
+
+  const after = source.slice(close + 1);
+  const directConsumption = new RegExp(
+    `\\b${escapeRegExp(member)}\\s*\\.(?:has|includes)\\s*\\(`,
+    'u',
+  );
+  if (directConsumption.test(after)) return true;
+
+  for (const derived of source.matchAll(
+    /\bconst\s+([A-Za-z_$][\w$]*)\s*=\s*new\s+Set\s*\(([^)]*)\)/gu,
+  )) {
+    if (!new RegExp(`(?:^|\\.)${escapeRegExp(member)}\\b`, 'u').test(derived[2])) continue;
+    const derivedConsumption = new RegExp(
+      `\\b${escapeRegExp(derived[1])}\\s*\\.(?:has|includes)\\s*\\(`,
+      'u',
+    );
+    if (derivedConsumption.test(source.slice(derived.index + derived[0].length))) return true;
+  }
+  return false;
+}
+
+function receivedProtocolOffsets(source, matches) {
+  const offsets = new Set();
+  for (const match of matches) {
+    if (!isCodeReferenceCatalogue(source, match.index)) continue;
+    const open = source.lastIndexOf('[', match.index);
+    const close = source.indexOf(']', match.index);
+    if (hasReceivedMembershipConsumer(source, open, close)) offsets.add(match.index);
+  }
+  return offsets;
+}
+
 function isReferencePosition(source, offset, code) {
   return (
     isComparisonOrPrefixCheck(source, offset, code)
@@ -571,11 +632,13 @@ function diagnosticSiteKind(source, match, analysis, environmentNames) {
   const offset = match.index;
   if (hasReservedMarker(source, offset)) return 'reserved';
   if (hasEmissionMarker(source, offset)) return 'emission';
+  if (hasReceivedMarker(source, offset)) return 'received';
   if (isCommentReference(source, offset)) return null;
   if (
     hasReferenceOnlyMarker(source, offset)
     || analysis.siteKinds.has(offset)
   ) return null;
+  if (analysis.receivedOffsets.has(offset)) return 'received';
   if (isReferencePosition(source, offset, match[0])) return null;
   if (isUnrecognizedDiagnosticReference(source, match)) return null;
   if (isHtmlDiagnosticPosition(source, match)) {
@@ -600,8 +663,15 @@ function diagnosticSiteKind(source, match, analysis, environmentNames) {
   return 'emission';
 }
 
-export function diagnosticSourceSites(source, { environmentNames, ordinaryMultiline } = {}) {
+export function diagnosticSourceSites(source, {
+  environmentNames,
+  ordinaryMultiline,
+  receivedProtocolVocabulary = false,
+} = {}) {
   const analysis = environmentAnalysis(source, { ordinaryMultiline });
+  analysis.receivedOffsets = receivedProtocolVocabulary
+    ? receivedProtocolOffsets(source, analysis.matches)
+    : new Set();
   const classifiedNames = environmentNames ?? analysis.names;
   return analysis.matches.flatMap((match) => {
     const kind = diagnosticSiteKind(source, match, analysis, classifiedNames);

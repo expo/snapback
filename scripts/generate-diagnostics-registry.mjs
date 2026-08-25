@@ -21,7 +21,10 @@
 // spelling whose concrete emitter is dynamic, or a retired spelling in the
 // stable vocabulary, use `diagnostics-registry: reserved` at that exact site;
 // reservations are published with their own site kind and do not count as
-// emissions.
+// emissions. Closed code-literal Sets/arrays in shipped client packages count
+// as `received` vocabulary when the table flows to a `.has(code)` or
+// `.includes(code)` dispatch membership test. Ambiguous receive tables use
+// `diagnostics-registry: received` on the literal line instead.
 // @ref LLP 0193#program — D1's complete source inventory is the substrate for
 // exact error lookup and typed client diagnostics.
 
@@ -236,6 +239,12 @@ function shippedPackageProductionPaths() {
 }
 
 const packageProductionPaths = shippedPackageProductionPaths();
+const shippedClientProtocolRoots = Object.freeze([
+  'packages/snapback-admin-client/',
+  'packages/snapback-client/',
+  'packages/snapback-expo/',
+  'packages/snapback-react/',
+]);
 const targetProductionPaths = walk(join(root, 'targets'), (path) => (
   /\.(?:cjs|js|mjs)$/u.test(path)
   && !isExcludedProductionJavaScript(path)
@@ -342,6 +351,12 @@ function collectSites() {
     const sourceOptions = {
       environmentNames,
       ordinaryMultiline: path.endsWith('.rs'),
+      // These are public client arms selected from their shipped package
+      // manifests above. A closed literal table must also feed a dispatch
+      // membership test; all other catalogues remain reference-only.
+      receivedProtocolVocabulary: shippedClientProtocolRoots.some((rootPath) => (
+        path.startsWith(rootPath)
+      )),
     };
     for (const { match, kind } of diagnosticSourceSites(source, sourceOptions)) {
       const code = match[0];
@@ -350,7 +365,7 @@ function collectSites() {
       sites.push({
         file: path,
         ...location,
-        ...(kind === 'reserved' ? { kind } : {}),
+        ...(kind === 'emission' ? {} : { kind }),
       });
       byCode.set(code, sites);
     }
@@ -558,23 +573,26 @@ function renderMarkdown(registry) {
     '',
     'This build-bound registry is generated from production Rust, JavaScript, and Swift sources. Use `snapback guide SNAPBACK_*` for an exact, bounded lookup before searching prose.',
     '',
-    `**${registry.counts.codes.toLocaleString('en-US')} stable codes** from ${registry.counts.sourceFiles.toLocaleString('en-US')} production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site and explicit reservation.`,
+    `**${registry.counts.codes.toLocaleString('en-US')} stable codes** from ${registry.counts.sourceFiles.toLocaleString('en-US')} production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site, received-vocabulary site, and explicit reservation.`,
     '',
-    '| Code | Subsystem | HTTP | Guide | First registered site | Sites |',
-    '| --- | --- | ---: | --- | --- | ---: |',
+    '| Code | Vocabulary | Subsystem | HTTP | Guide | First registered site | Sites |',
+    '| --- | --- | --- | ---: | --- | --- | ---: |',
   ];
   for (const record of Object.values(registry.diagnostics)) {
     const guideTarget = record.guideAnchor?.replace('/_snapback/guide/', '../');
     const guide = guideTarget ? `[guide](${guideTarget})` : '—';
     const first = record.sites[0];
+    const vocabulary = [...new Set(record.sites.map((site) => (
+      site.kind === undefined ? 'emitted' : site.kind
+    )))].sort().join(', ');
     const anchor = `<a id="diagnostic-${record.code.toLowerCase().replaceAll('_', '-')}"></a>`;
-    lines.push(`| ${anchor}\`${record.code}\` | ${escapeTable(record.subsystem)} | ${record.httpStatus ?? '—'} | ${guide} | \`${first.file}:${first.line}\` | ${record.sites.length} |`);
+    lines.push(`| ${anchor}\`${record.code}\` | ${escapeTable(vocabulary)} | ${escapeTable(record.subsystem)} | ${record.httpStatus ?? '—'} | ${guide} | \`${first.file}:${first.line}\` | ${record.sites.length} |`);
   }
   lines.push(
     '',
     '## Environment variables',
     '',
-    `**${registry.counts.environmentVariables.toLocaleString('en-US')} environment variables** have ${registry.counts.environmentSites.toLocaleString('en-US')} classified read or declaration sites. These names remain grep-visible and separately typed without being mistaken for diagnostic emissions.`,
+    `**${registry.counts.environmentVariables.toLocaleString('en-US')} environment variables** have ${registry.counts.environmentSites.toLocaleString('en-US')} classified sites (reads, declarations, table entries, mentions). These names remain grep-visible and separately typed without being mistaken for diagnostic emissions.`,
     '',
     '| Variable | Site kinds | First classified site | Sites |',
     '| --- | --- | --- | ---: |',
@@ -596,7 +614,7 @@ function renderTypes(codes, environmentNames) {
     ...codes.map((code, index) => (index === 0 ? `  '${code}'` : `  | '${code}'`)),
     ';',
     '',
-    '/** Environment-variable names classified from production source reads and declarations. */',
+    '/** Environment-variable names classified from production reads, declarations, tables, and mentions. */',
     'export type SnapbackEnvironmentVariable =',
     ...environmentNames.map((name, index) => (index === 0 ? `  '${name}'` : `  | '${name}'`)),
     ';',
@@ -657,7 +675,10 @@ const registry = {
     codes: codes.length,
     sourceFiles: productionPaths.length,
     emittingSites: Object.values(diagnostics).reduce((total, record) => (
-      total + record.sites.filter((site) => site.kind !== 'reserved').length
+      total + record.sites.filter((site) => site.kind === undefined).length
+    ), 0),
+    receivedSites: Object.values(diagnostics).reduce((total, record) => (
+      total + record.sites.filter((site) => site.kind === 'received').length
     ), 0),
     reservedSites: Object.values(diagnostics).reduce((total, record) => (
       total + record.sites.filter((site) => site.kind === 'reserved').length
@@ -688,4 +709,4 @@ if (check && stale.length > 0) {
   console.error('[diagnostics-registry] run node scripts/generate-diagnostics-registry.mjs');
   process.exit(1);
 }
-console.log(`[diagnostics-registry] ${check ? 'ok' : 'wrote'} — ${codes.length} codes, ${registry.counts.emittingSites} emitting sites, ${registry.counts.reservedSites} reserved sites, ${environmentNames.length} environment variables, ${registry.counts.environmentSites} environment sites, ${registry.counts.httpClassified} HTTP-classified`);
+console.log(`[diagnostics-registry] ${check ? 'ok' : 'wrote'} — ${codes.length} codes, ${registry.counts.emittingSites} emitting sites, ${registry.counts.receivedSites} received sites, ${registry.counts.reservedSites} reserved sites, ${environmentNames.length} environment variables, ${registry.counts.environmentSites} environment sites, ${registry.counts.httpClassified} HTTP-classified`);

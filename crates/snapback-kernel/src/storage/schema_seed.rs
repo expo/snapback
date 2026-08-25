@@ -288,11 +288,13 @@ pub(super) fn validate_versioned_seed_request(
             // seats install under the seed writer with per-row provenance
             // stamping, and the same-transaction activation scan enforces
             // vocabulary, axes, uniqueness, referential integrity, and
-            // lastHolder eligibility. The first-landing
+            // lastHolder eligibility.
+            //
             // diagnostics-registry: reserved
-            // SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED narrowing is
-            // retired (dated 0109 amendment, 2026-08-01); unknown tables
-            // still refuse here.
+            // SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED
+            //
+            // The first-landing narrowing is retired (dated 0109 amendment,
+            // 2026-08-01); unknown tables still refuse here.
             // @ref LLP 0109#8-authorization-and-authority-bearing-rows
             let _ = schema_table(schema, table_name)?;
         }

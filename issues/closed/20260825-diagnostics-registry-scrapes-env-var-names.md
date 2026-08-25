@@ -42,35 +42,52 @@ comments before environment classification and treats Rust match patterns,
 `matches!`, comparisons, code catalogues, and
 `startsWith`/`starts_with`/`contains`/`endsWith` prefix checks as references.
 Tokens ending in `_` are never complete codes. Ambiguous real emitters,
-synthetic dynamic emissions, reference-only sites, and deliberate reservations
-have separate explicit markers.
+synthetic dynamic emissions, reference-only sites, received protocol
+vocabulary, and deliberate reservations have separate explicit markers.
 
-The fail-first fixture has 67 raw substrings and 17 retained occurrences across
-16 emitting names. It covers generated JavaScript, multiline Rust SQL, escaped
-poison, severity prefixes, Rust print/log macros, a commented environment
-access, match arms, `matches!`, code catalogues, prefix checks, a trailing-
-underscore family token, dual-role names, and the explicit emission,
-synthetic-emission, reference-only, and reservation markers.
+The fail-first fixture has 70 raw substrings and 17 retained occurrences across
+16 emitting names plus two received-protocol occurrences. It covers generated
+JavaScript, multiline Rust SQL, escaped poison, severity prefixes, Rust
+print/log macros, a commented environment access, match arms, `matches!`, code
+catalogues, prefix checks, a trailing-underscore family token, dual-role names,
+and the explicit emission,
+synthetic-emission, reference-only, received, and reservation markers.
 
-The final registry publishes 3,521 diagnostic codes / 10,501 emitting sites /
-two reserved sites and a separate environment vocabulary of 177 names / 356
-sites (264 reads, 16 indirect reads, 13 declarations, 22 table entries, 41
-mentions). `SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE` is absent from the diagnostic
+The final registry publishes 3,537 diagnostic codes / 10,507 emitting sites /
+92 received sites / 10 reserved sites and a separate environment vocabulary of
+178 names / 357 sites (264 reads, 16 indirect reads, 14 declarations, 22 table
+entries, 41 mentions). `SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE` is absent from the diagnostic
 registry, Guide diagnostic projection, and `SnapbackDiagnosticCode`, but remains
 in the environment registry and `SnapbackEnvironmentVariable`;
-`SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH` remains a diagnostic.
+`SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH` remains a diagnostic. Opaque constant
+uses are traced to environment access, so `SNAPBACK_DERIVED_INSTANCE_ID` is
+environment-only even though `DERIVED_INSTANCE_ID_BINDING` does not look like an
+environment identifier.
 
 The production inventory now includes all 14 JavaScript modules under
 `targets/cloudflare/src/`. The six round-4 review codes are restored with real
 target emitting sites; they are not reference vocabulary. The four dynamic
 `validate_artifact_header` stale-artifact codes have normal synthetic-emission
-sites. `SNAPBACK_IBEX_CLI_UNAVAILABLE` and the retired
-`SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED` remain reserved.
+sites. `SNAPBACK_IBEX_CLI_UNAVAILABLE`, the retired
+`SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED`, and the eight HTTP-table-only
+names recorded in `issues/20260825-http-table-only-diagnostic-reservations.md`
+remain reserved. The hosted Tigris loop now publishes all six literal role
+codes; `control-state` uses normalized
+`SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL_STATE_PARTIAL` instead of the invalid
+hyphenated dynamic spelling.
+
+Shipped-client closed code tables that feed `.has(code)` or `.includes(code)`
+dispatch tests now contribute `received` sites rather than disappearing as
+catalogues. In particular `SNAPBACK_AUTH_SESSION_REVOKED`,
+`SNAPBACK_AUTH_FAMILY_REVOKED`, and `SNAPBACK_CLIENT_UPGRADE_REQUIRED` are back
+in `SnapbackDiagnosticCode` as received-only protocol vocabulary.
 
 The three publication-authority names retain their original validation text and
 are environment-only: their reads and message mentions remain, but their
 validation messages are not diagnostic emissions. The
-canonical 20260823 ticket records the final merge-base comparison: 236 removed
-names (144 environment and 92 non-environment), the restored Cloudflare
+canonical 20260823 ticket records the final merge-base comparison: 224 removed
+names (144 environment and 80 non-environment), down from the round-6 review
+checkpoint's 235 (144 + 91) because three received protocol names and eight
+HTTP reservations re-entered the union. It also records the restored Cloudflare
 emitters, the corrected comment-site count, and why the HTTP-specific Rust
 exclusion list is not a public-registry denylist.

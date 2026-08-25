@@ -58,8 +58,14 @@ The machine registry's separate `environment` section records `read`,
 diagnostics registry, symbol registry, and Guide projections share one generated
 authority.
 
-The final comparison with merge-base `e370bb8f7` finds 236 removed names: 144
-are now environment variables and 92 are not in the environment section. The
+The final round-6 comparison with merge-base `e370bb8f7` finds 224 removed
+names: 144 are now environment variables and 80 are not in the environment
+section. The review checkpoint before this round measured 235 removals (144
+environment and 91 non-environment). Eleven names re-enter the public union in
+this round: the client-protocol vocabulary
+`SNAPBACK_AUTH_SESSION_REVOKED`, `SNAPBACK_AUTH_FAMILY_REVOKED`, and
+`SNAPBACK_CLIENT_UPGRADE_REQUIRED` as `received` sites, plus the eight
+HTTP-table-only names listed below as explicit `reserved` sites. The
 non-environment group contains constants, protocol/version symbols, receipt
 labels, wildcard/identifier fragments, test/reference vocabulary,
 secret-staging keys, and incomplete family prefixes rather than diagnostics.
@@ -93,7 +99,11 @@ configuration reads and validation-message mentions remain in
 `SnapbackEnvironmentVariable`, and none is a `SnapbackDiagnosticCode` member.
 `SNAPBACK_PASSWORD`,
 `SNAPBACK_ADMIN_TOKEN`, `SNAPBACK_DEV_PORT`, and `SNAPBACK_RUNTIME_BINARY` are
-environment-only.
+environment-only. Constant declarations no longer depend on environment-like
+identifier spelling: every constant carrying a `SNAPBACK_*` literal is traced
+to bracket access and recognized environment-helper calls. Consequently
+`SNAPBACK_DERIVED_INSTANCE_ID` is environment-only through the opaque
+`DERIVED_INSTANCE_ID_BINDING` declaration in the Cloudflare target.
 
 The dual-role rule still holds: an environment name emitted elsewhere at a
 proven diagnostic site stays registered, but only the emitting occurrence
@@ -101,19 +111,35 @@ appears in its diagnostic sites. Ordinary comments remain excluded. The
 `diagnostics-registry: emission SNAPBACK_X` marker records a normal emitting
 site for a real dynamically assembled spelling. The four concrete
 `validate_artifact_header` stale-artifact spellings use that marker, while
-`diagnostics-registry: reserved` now retains only the retired
-`SNAPBACK_IBEX_CLI_UNAVAILABLE` spelling and the retired
-`SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED` seed-lane refusal;
-reservations do not count as emissions. An audit of all 92 non-environment
-removals found no other retired diagnostic: the remaining names are active
-catalogue/reference vocabulary, protocol and format constants, fixture names,
-wildcard fragments, or other non-diagnostic identifiers. The lifecycle
-registry names none of the 92. The HTTP-only
+`diagnostics-registry: reserved` retains the retired
+`SNAPBACK_IBEX_CLI_UNAVAILABLE` spelling, the retired
+`SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED` seed-lane refusal, and eight
+HTTP-table-only spellings: `SNAPBACK_AUTH_MODE_CHANGED`,
+`SNAPBACK_OPERATION_CANCELLED`, `SNAPBACK_ADMIN_SECRET_READ_MINT_DENIED`,
+`SNAPBACK_API_BUDGETS_UNAVAILABLE`,
+`SNAPBACK_AUTHORITY_ROSTER_CURSOR_INVALID`,
+`SNAPBACK_PROMOTION_EFFECT_INTENT_MISSING`,
+`SNAPBACK_SCHEMA_UNIQUE_INDEX_OPTIONAL_FIELD`, and
+`SNAPBACK_UNSUPPORTED_BLOB`. Reservations do not count as emissions. The eight
+HTTP-only arms are deletion candidates for the Rust-capable follow-up
+`issues/20260825-http-table-only-diagnostic-reservations.md`. An audit of all 80
+non-environment removals found no other retired diagnostic: the remaining names
+are active catalogue/reference vocabulary, protocol and format constants,
+fixture names, wildcard fragments, or other non-diagnostic identifiers. The
+lifecycle registry names none of the 80. The HTTP-only
 `NON_DIAGNOSTIC_SNAPBACK_LITERALS` table remains separate because it includes
 legitimate non-HTTP diagnostics and is not a safe public-registry denylist.
 
-The companion fixture now has 67 raw `SNAPBACK_*` substrings and retains 17
-emitting occurrences across 16 names. Its fail-first runs proved all classifier
+Closed code-literal Sets/arrays in shipped client packages now contribute
+`received` sites when they flow to a `.has(code)` or `.includes(code)` dispatch
+membership test; ambiguous tables use the explicit `diagnostics-registry:
+received` marker. This keeps 82 received names across 92 sites in the public
+diagnostic union without mislabelling them as emissions. The three round-6
+client-protocol restorations named above are received-only.
+
+The companion fixture now has 70 raw `SNAPBACK_*` substrings and retains 17
+emitting occurrences across 16 names plus two received-protocol occurrences.
+Its fail-first runs proved all classifier
 repairs: generated JavaScript and multiline Rust SQL were absent while match
 arms, `matches!`, code catalogues, prefix checks, and a trailing-underscore
 family token were falsely present; the exact production
@@ -138,6 +164,12 @@ active diagnostic spellings:
 `SNAPBACK_TEXT_DECODER_INSTALL_FAILED`, and
 `SNAPBACK_WRANGLER_PRECHECK_FAILED`.
 
+The hosted Tigris partial-credential loop now uses an explicit six-role literal
+mapping. Its `control-state` refusal spelling changes from the invalid dynamic
+`SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL-STATE_PARTIAL` form to the normalized
+`SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL_STATE_PARTIAL`; the other five roles keep
+the same runtime spelling. All six literals are registered emissions.
+
 The worker-binding repair moves six names into the environment vocabulary:
 `SNAPBACK_ACCEPTED_SOCKET_LIMIT`, `SNAPBACK_LEGACY_PROOF_SOCKET_LIMIT`,
 `SNAPBACK_SOCKETS_PER_CONNECTION_LIMIT`, `SNAPBACK_SUBSCRIPTION_ARGS_BYTES`,
@@ -147,10 +179,10 @@ global-subscription, and connection-grant dual-role names keep only their
 actual `kitError`, `requestDiagnostic`, or `code:` emitting sites in the
 diagnostic vocabulary.
 
-Final regeneration produces 3,521 diagnostic codes, 10,501 emitting sites, and
-two reserved sites from 637 production source files. The environment section
-contains 177 variables across 356 sites: 264 reads, 16 indirect reads, 13
-declarations, 22 table entries, and 41 message mentions. Excluding the
+Final regeneration produces 3,537 diagnostic codes, 10,507 emitting sites, 92
+received sites, and 10 reserved sites from 637 production source files. The
+environment section contains 178 variables across 357 sites: 264 reads, 16
+indirect reads, 14 declarations, 22 table entries, and 41 message mentions. Excluding the
 comment-only `SNAPBACK_ADMIN_TOKEN` pseudo-read removes one bad read; restoring
 the three original publication-authority validation strings contributes three
 real message mentions.

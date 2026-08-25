@@ -1239,6 +1239,7 @@ export function buildManifest(root, pageInfo, snippetRecords, index, surfaces) {
         sourceDigest: diagnostics.buildIdentity?.sourceDigest,
         codes: diagnostics.counts?.codes ?? 0,
         emittingSites: diagnostics.counts?.emittingSites ?? 0,
+        receivedSites: diagnostics.counts?.receivedSites ?? 0,
       },
     },
     capabilities: { covered: covered.sort(), gaps: gaps.sort() },
