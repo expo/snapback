@@ -206,7 +206,8 @@ pub struct DeniedOAuthAuthorization {
 }
 
 /// Test-only physical projection of every durable row the OAuth-denial
-/// fixtures change, including both halves of the linked consent record.
+/// fixtures change, including every column of both halves of the linked
+/// consent record.
 #[cfg(any(test, feature = "test-support"))]
 #[doc(hidden)]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -221,8 +222,20 @@ pub struct OAuthDenialDurableRowsForTest {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct OAuthDenialAuthorizationRowForTest {
     pub request_id: String,
+    pub client_id: String,
+    pub principal_user_id: String,
     pub consenting_user_id: String,
+    pub redirect_uri: String,
+    pub code_challenge: String,
+    pub bundle_names_json: String,
+    pub oauth_state: Option<String>,
     pub status: String,
+    pub code_hash: Option<Vec<u8>>,
+    pub grant_id: Option<String>,
+    pub created_at_ms: u64,
+    pub expires_at_ms: u64,
+    pub code_expires_at_ms: Option<u64>,
+    pub consumed_at_ms: Option<u64>,
 }
 
 #[derive(Debug)]
@@ -836,29 +849,54 @@ impl LocalDatabase {
                 },
             )?;
             let mut pairing_statement = connection.prepare(
-                "SELECT id, minted_by_user_id, state, grant_id
+                "SELECT id, code_hash, minted_by_user_id, agent_user_id,
+                        requested_scopes, state, attempts, created_at_ms,
+                        expires_at_ms, consumed_at_ms, grant_id
                  FROM _auth_pairing_requests ORDER BY id",
             )?;
             let pairing_requests = pairing_statement
                 .query_map([], |row| {
                     Ok(super::auth_grants::GrantApprovalPairingRowForTest {
                         request_id: row.get(0)?,
-                        minted_by_user_id: row.get(1)?,
-                        state: row.get(2)?,
-                        grant_id: row.get(3)?,
+                        code_hash: row.get(1)?,
+                        minted_by_user_id: row.get(2)?,
+                        agent_user_id: row.get(3)?,
+                        requested_scopes: row.get(4)?,
+                        state: row.get(5)?,
+                        attempts: row.get(6)?,
+                        created_at_ms: row.get(7)?,
+                        expires_at_ms: row.get(8)?,
+                        consumed_at_ms: row.get(9)?,
+                        grant_id: row.get(10)?,
                     })
                 })?
                 .collect::<Result<Vec<_>, _>>()?;
             let mut authorization_statement = connection.prepare(
-                "SELECT request_id, consenting_user_id, status
+                "SELECT request_id, client_id, principal_user_id,
+                        consenting_user_id, redirect_uri, code_challenge,
+                        bundle_names_json, oauth_state, status, code_hash,
+                        grant_id, created_at_ms, expires_at_ms,
+                        code_expires_at_ms, consumed_at_ms
                  FROM _snapback_oauth_authorizations ORDER BY request_id",
             )?;
             let authorizations = authorization_statement
                 .query_map([], |row| {
                     Ok(OAuthDenialAuthorizationRowForTest {
                         request_id: row.get(0)?,
-                        consenting_user_id: row.get(1)?,
-                        status: row.get(2)?,
+                        client_id: row.get(1)?,
+                        principal_user_id: row.get(2)?,
+                        consenting_user_id: row.get(3)?,
+                        redirect_uri: row.get(4)?,
+                        code_challenge: row.get(5)?,
+                        bundle_names_json: row.get(6)?,
+                        oauth_state: row.get(7)?,
+                        status: row.get(8)?,
+                        code_hash: row.get(9)?,
+                        grant_id: row.get(10)?,
+                        created_at_ms: row.get(11)?,
+                        expires_at_ms: row.get(12)?,
+                        code_expires_at_ms: row.get(13)?,
+                        consumed_at_ms: row.get(14)?,
                     })
                 })?
                 .collect::<Result<Vec<_>, _>>()?;

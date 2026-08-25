@@ -463,7 +463,9 @@ pub enum GrantApproval {
     Existing(ApprovedGrant),
 }
 
-/// Test-only physical projection of every row grant approval may change.
+/// Test-only physical projection of every row grant approval or denial may
+/// change. Every table row is column-complete so an unexpected write to any
+/// durable field remains observable.
 #[cfg(any(test, feature = "test-support"))]
 #[doc(hidden)]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -486,8 +488,15 @@ pub struct GrantApprovalMetaRowForTest {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GrantApprovalPairingRowForTest {
     pub request_id: String,
+    pub code_hash: Vec<u8>,
     pub minted_by_user_id: String,
+    pub agent_user_id: Option<String>,
+    pub requested_scopes: Option<String>,
     pub state: String,
+    pub attempts: u64,
+    pub created_at_ms: u64,
+    pub expires_at_ms: u64,
+    pub consumed_at_ms: Option<u64>,
     pub grant_id: Option<String>,
 }
 
@@ -509,8 +518,8 @@ pub struct GrantApprovalGrantRowForTest {
 }
 
 /// Test-only physical projection of every durable table grant revocation
-/// writes. The projection includes each subject predicate used by single and
-/// bulk revocation plus every column their statements update.
+/// writes. The projection includes every physical column, not only subject
+/// predicates and fields the intended statements update.
 #[cfg(any(test, feature = "test-support"))]
 #[doc(hidden)]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -528,7 +537,14 @@ pub struct GrantRevocationGrantRowForTest {
     pub grant_id: String,
     pub actor_user_id: String,
     pub effective_user_id: Option<String>,
+    pub scopes: String,
+    pub created_at_ms: u64,
+    pub expires_at_ms: Option<u64>,
     pub revoked_at_ms: Option<u64>,
+    pub created_by: String,
+    pub request_id: Option<String>,
+    pub consent_digest: Option<Vec<u8>>,
+    pub last_used_at_ms: u64,
 }
 
 #[cfg(any(test, feature = "test-support"))]
@@ -536,7 +552,12 @@ pub struct GrantRevocationGrantRowForTest {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GrantRevocationTokenRowForTest {
     pub token_id: String,
+    pub token_hash: Vec<u8>,
     pub grant_id: String,
+    pub credential_id: String,
+    pub credential_generation: u64,
+    pub created_at_ms: u64,
+    pub expires_at_ms: u64,
     pub revoked_at_ms: Option<u64>,
 }
 
@@ -545,17 +566,51 @@ pub struct GrantRevocationTokenRowForTest {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GrantRevocationWatchRowForTest {
     pub watch_id: String,
+    pub owner_kind: String,
+    pub owner_principal_id: String,
+    pub owner_authority_instance_id: String,
+    pub authority_mode: String,
     pub anchor_grant_id: Option<String>,
     pub installation_grant_id: Option<String>,
+    pub anchor_expires_at_ms: u64,
+    pub query_function_id: String,
+    pub query_function_name: String,
+    pub query_basis: u64,
+    pub query_args_json: String,
+    pub query_args_digest: String,
+    pub read_dependencies_json: String,
+    pub predicate_json: String,
+    pub reaction_kind: String,
+    pub reaction_function_id: String,
+    pub reaction_function_name: String,
+    pub reaction_function_kind: String,
+    pub reaction_basis: u64,
+    pub reaction_args_json: String,
+    pub reaction_args_digest: String,
+    pub webhook_url: Option<String>,
+    pub webhook_secret_ref: Option<String>,
     pub status: String,
     pub status_reason: Option<String>,
     pub notification_json: Option<String>,
+    pub daily_firing_budget: u64,
+    pub budget_day: u64,
+    pub firings_today: u64,
+    pub debounce_ms: u64,
+    pub next_evaluation_at_ms: u64,
     pub pending_job_id: Option<String>,
     pub dirty_while_pending: bool,
     pub pending_firing_ordinal: Option<u64>,
     pub pending_firing_job_id: Option<String>,
+    pub last_predicate_state: bool,
+    pub evaluation_count: u64,
+    pub coalesced_invalidation_count: u64,
+    pub firing_count: u64,
+    pub journal_count: u64,
+    pub last_evaluated_at_ms: Option<u64>,
+    pub last_fired_at_ms: Option<u64>,
     pub last_firing_outcome: Option<String>,
     pub last_diagnostic_code: Option<String>,
+    pub created_at_ms: u64,
     pub updated_at_ms: u64,
 }
 
@@ -603,16 +658,25 @@ impl LocalDatabase {
                 },
             )?;
             let mut pairing_statement = connection.prepare(
-                "SELECT id, minted_by_user_id, state, grant_id
+                "SELECT id, code_hash, minted_by_user_id, agent_user_id,
+                        requested_scopes, state, attempts, created_at_ms,
+                        expires_at_ms, consumed_at_ms, grant_id
                  FROM _auth_pairing_requests ORDER BY id",
             )?;
             let pairing_requests = pairing_statement
                 .query_map([], |row| {
                     Ok(GrantApprovalPairingRowForTest {
                         request_id: row.get(0)?,
-                        minted_by_user_id: row.get(1)?,
-                        state: row.get(2)?,
-                        grant_id: row.get(3)?,
+                        code_hash: row.get(1)?,
+                        minted_by_user_id: row.get(2)?,
+                        agent_user_id: row.get(3)?,
+                        requested_scopes: row.get(4)?,
+                        state: row.get(5)?,
+                        attempts: row.get(6)?,
+                        created_at_ms: row.get(7)?,
+                        expires_at_ms: row.get(8)?,
+                        consumed_at_ms: row.get(9)?,
+                        grant_id: row.get(10)?,
                     })
                 })?
                 .collect::<Result<Vec<_>, _>>()?;
@@ -664,7 +728,9 @@ impl LocalDatabase {
                 },
             )?;
             let mut grant_statement = connection.prepare(
-                "SELECT id, actor_user_id, effective_user_id, revoked_at_ms
+                "SELECT id, actor_user_id, effective_user_id, scopes,
+                        created_at_ms, expires_at_ms, revoked_at_ms, created_by,
+                        request_id, consent_digest, last_used_at_ms
                  FROM _auth_grants ORDER BY id",
             )?;
             let grants = grant_statement
@@ -673,66 +739,109 @@ impl LocalDatabase {
                         grant_id: row.get(0)?,
                         actor_user_id: row.get(1)?,
                         effective_user_id: row.get(2)?,
-                        revoked_at_ms: row
-                            .get::<_, Option<i64>>(3)?
-                            .map(u64::try_from)
-                            .transpose()
-                            .map_err(|error| {
-                                rusqlite::Error::FromSqlConversionFailure(
-                                    3,
-                                    rusqlite::types::Type::Integer,
-                                    Box::new(error),
-                                )
-                            })?,
+                        scopes: row.get(3)?,
+                        created_at_ms: row.get(4)?,
+                        expires_at_ms: row.get(5)?,
+                        revoked_at_ms: row.get(6)?,
+                        created_by: row.get(7)?,
+                        request_id: row.get(8)?,
+                        consent_digest: row.get(9)?,
+                        last_used_at_ms: row.get(10)?,
                     })
                 })?
                 .collect::<Result<Vec<_>, _>>()?;
             let mut token_statement = connection.prepare(
-                "SELECT id, grant_id, revoked_at_ms FROM _auth_grant_tokens ORDER BY id",
+                "SELECT id, token_hash, grant_id, credential_id,
+                        credential_generation, created_at_ms, expires_at_ms,
+                        revoked_at_ms
+                 FROM _auth_grant_tokens ORDER BY id",
             )?;
             let tokens = token_statement
                 .query_map([], |row| {
                     Ok(GrantRevocationTokenRowForTest {
                         token_id: row.get(0)?,
-                        grant_id: row.get(1)?,
-                        revoked_at_ms: row
-                            .get::<_, Option<i64>>(2)?
-                            .map(u64::try_from)
-                            .transpose()
-                            .map_err(|error| {
-                                rusqlite::Error::FromSqlConversionFailure(
-                                    2,
-                                    rusqlite::types::Type::Integer,
-                                    Box::new(error),
-                                )
-                            })?,
+                        token_hash: row.get(1)?,
+                        grant_id: row.get(2)?,
+                        credential_id: row.get(3)?,
+                        credential_generation: row.get(4)?,
+                        created_at_ms: row.get(5)?,
+                        expires_at_ms: row.get(6)?,
+                        revoked_at_ms: row.get(7)?,
                     })
                 })?
                 .collect::<Result<Vec<_>, _>>()?;
             let mut watch_statement = connection.prepare(
-                "SELECT id, anchor_grant_id, installation_grant_id,
+                "SELECT id, owner_kind, owner_principal_id,
+                        owner_authority_instance_id, authority_mode,
+                        anchor_grant_id, installation_grant_id,
+                        anchor_expires_at_ms, query_function_id,
+                        query_function_name, query_basis, query_args_json,
+                        query_args_digest, read_dependencies_json,
+                        predicate_json, reaction_kind, reaction_function_id,
+                        reaction_function_name, reaction_function_kind,
+                        reaction_basis, reaction_args_json,
+                        reaction_args_digest, webhook_url, webhook_secret_ref,
                         status, status_reason, notification_json,
-                        pending_job_id, dirty_while_pending,
-                        pending_firing_ordinal, pending_firing_job_id,
-                        last_firing_outcome, last_diagnostic_code, updated_at_ms
+                        daily_firing_budget, budget_day, firings_today,
+                        debounce_ms, next_evaluation_at_ms, pending_job_id,
+                        dirty_while_pending, pending_firing_ordinal,
+                        pending_firing_job_id, last_predicate_state,
+                        evaluation_count, coalesced_invalidation_count,
+                        firing_count, journal_count, last_evaluated_at_ms,
+                        last_fired_at_ms, last_firing_outcome,
+                        last_diagnostic_code, created_at_ms, updated_at_ms
                  FROM _snapback_watches ORDER BY id",
             )?;
             let watches = watch_statement
                 .query_map([], |row| {
                     Ok(GrantRevocationWatchRowForTest {
                         watch_id: row.get(0)?,
-                        anchor_grant_id: row.get(1)?,
-                        installation_grant_id: row.get(2)?,
-                        status: row.get(3)?,
-                        status_reason: row.get(4)?,
-                        notification_json: row.get(5)?,
-                        pending_job_id: row.get(6)?,
-                        dirty_while_pending: row.get(7)?,
-                        pending_firing_ordinal: row.get(8)?,
-                        pending_firing_job_id: row.get(9)?,
-                        last_firing_outcome: row.get(10)?,
-                        last_diagnostic_code: row.get(11)?,
-                        updated_at_ms: row.get(12)?,
+                        owner_kind: row.get(1)?,
+                        owner_principal_id: row.get(2)?,
+                        owner_authority_instance_id: row.get(3)?,
+                        authority_mode: row.get(4)?,
+                        anchor_grant_id: row.get(5)?,
+                        installation_grant_id: row.get(6)?,
+                        anchor_expires_at_ms: row.get(7)?,
+                        query_function_id: row.get(8)?,
+                        query_function_name: row.get(9)?,
+                        query_basis: row.get(10)?,
+                        query_args_json: row.get(11)?,
+                        query_args_digest: row.get(12)?,
+                        read_dependencies_json: row.get(13)?,
+                        predicate_json: row.get(14)?,
+                        reaction_kind: row.get(15)?,
+                        reaction_function_id: row.get(16)?,
+                        reaction_function_name: row.get(17)?,
+                        reaction_function_kind: row.get(18)?,
+                        reaction_basis: row.get(19)?,
+                        reaction_args_json: row.get(20)?,
+                        reaction_args_digest: row.get(21)?,
+                        webhook_url: row.get(22)?,
+                        webhook_secret_ref: row.get(23)?,
+                        status: row.get(24)?,
+                        status_reason: row.get(25)?,
+                        notification_json: row.get(26)?,
+                        daily_firing_budget: row.get(27)?,
+                        budget_day: row.get(28)?,
+                        firings_today: row.get(29)?,
+                        debounce_ms: row.get(30)?,
+                        next_evaluation_at_ms: row.get(31)?,
+                        pending_job_id: row.get(32)?,
+                        dirty_while_pending: row.get(33)?,
+                        pending_firing_ordinal: row.get(34)?,
+                        pending_firing_job_id: row.get(35)?,
+                        last_predicate_state: row.get(36)?,
+                        evaluation_count: row.get(37)?,
+                        coalesced_invalidation_count: row.get(38)?,
+                        firing_count: row.get(39)?,
+                        journal_count: row.get(40)?,
+                        last_evaluated_at_ms: row.get(41)?,
+                        last_fired_at_ms: row.get(42)?,
+                        last_firing_outcome: row.get(43)?,
+                        last_diagnostic_code: row.get(44)?,
+                        created_at_ms: row.get(45)?,
+                        updated_at_ms: row.get(46)?,
                     })
                 })?
                 .collect::<Result<Vec<_>, _>>()?;

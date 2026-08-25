@@ -4314,6 +4314,10 @@ impl CounterRandom {
     fn new() -> Self {
         Self(AtomicU8::new(1))
     }
+
+    fn next_fill_byte(&self) -> u8 {
+        self.0.load(Ordering::SeqCst)
+    }
 }
 
 impl RandomSource for CounterRandom {
@@ -31602,14 +31606,21 @@ const DENY_MIDDLE_USER: &str = "user-m";
 const DENY_UPPER_USER: &str = "user-z";
 const DENY_USERS: [&str; 3] = [DENY_LOWER_USER, DENY_MIDDLE_USER, DENY_UPPER_USER];
 const AUTH_CLOCK_META_KEY_FOR_DENY_TESTS: &str = "auth_invalidation_clock_high_water_ms_v1";
+const DENIAL_SCOPES_JSON: &str =
+    r#"[{"fn":"fn:denialRead","kind":"query","basis":0,"authorityCreating":false}]"#;
+const OAUTH_DENIAL_SCOPES_JSON: &str =
+    r#"[{"fn":"fn:oauthDenialRead","kind":"query","basis":0,"authorityCreating":false}]"#;
+const GRANT_REVOCATION_SCOPES_JSON: &str = r#"[{"fn":"fn:listItems","kind":"query","basis":0,"authorityCreating":false},{"fn":"fn:liveItems","kind":"liveQuery","basis":0,"authorityCreating":false},{"fn":"fn:queuedWrite","kind":"mutation","basis":0,"authorityCreating":false},{"fn":"fn:writeAction","kind":"action","basis":0,"authorityCreating":false}]"#;
 
 // Expected-value provenance for the four matrices below:
 // - authority source/user and target user come from this literal case table;
-// - request, grant, and token ids come from fixture setup results captured
-//   before the operation under test;
+// - opaque request/token/credential/integration ids and secret hashes come
+//   from deterministic fixture setup results captured before the operation;
+// - all remaining pairing, OAuth, grant, token, and watch columns come from
+//   literal fixture inputs and declared lifetime constants;
 // - watch ids and their anchor/installation bindings are fixture choices made
-//   before the operation; all ten expected watch-write columns are literals
-//   here, including the independently spelled terminal notification JSON;
+//   before the operation; all 47 expected watch columns are literals here,
+//   including the independently spelled terminal notification JSON;
 // - durable states, revocation times, and the auth-clock value come only from
 //   the literal case table plus DENY_FIXTURE_MS/DENY_EFFECT_MS;
 // - accepted/refused codes come from the existing storage and authority error
@@ -31728,7 +31739,8 @@ fn denial_scope_manifest() -> FunctionManifest {
 
 struct GrantDenialFixture {
     snapback: LocalSnapback,
-    request_ids: BTreeMap<&'static str, String>,
+    pairing_requests:
+        BTreeMap<&'static str, crate::storage::auth_grants::GrantApprovalPairingRowForTest>,
 }
 
 impl GrantDenialFixture {
@@ -31738,7 +31750,7 @@ impl GrantDenialFixture {
 
         let mut snapback = LocalSnapback::memory().expect("grant denial memory fixture");
         let random = CounterRandom::new();
-        let request_ids = {
+        let pairing_requests = {
             let database = snapback.auth_database_mut();
             database
                 .activate_current_auth_catalog()
@@ -31777,6 +31789,7 @@ impl GrantDenialFixture {
                     let pairing = database
                         .mint_pairing_code(user_id, DENY_FIXTURE_MS, &random)
                         .expect("mint grant denial pairing code");
+                    let code_hash = pairing.secret.token_hash().as_bytes().to_vec();
                     database
                         .present_pairing_code(
                             &credential.secret,
@@ -31789,20 +31802,37 @@ impl GrantDenialFixture {
                             DENY_FIXTURE_MS,
                         )
                         .expect("present grant denial pairing code");
-                    (user_id, pairing.request_id)
+                    (
+                        user_id,
+                        crate::storage::auth_grants::GrantApprovalPairingRowForTest {
+                            request_id: pairing.request_id,
+                            code_hash,
+                            minted_by_user_id: user_id.to_owned(),
+                            agent_user_id: Some("agent-denial-shared".to_owned()),
+                            requested_scopes: Some(DENIAL_SCOPES_JSON.to_owned()),
+                            state: "pending".to_owned(),
+                            attempts: 0,
+                            created_at_ms: DENY_FIXTURE_MS,
+                            expires_at_ms: pairing.expires_at_ms,
+                            consumed_at_ms: Some(DENY_FIXTURE_MS),
+                            grant_id: None,
+                        },
+                    )
                 })
                 .collect()
         };
         Self {
             snapback,
-            request_ids,
+            pairing_requests,
         }
     }
 
     fn request_id(&self, user_id: &str) -> &str {
-        self.request_ids
+        self.pairing_requests
             .get(user_id)
             .expect("grant denial target request")
+            .request_id
+            .as_str()
     }
 
     fn expected_rows(
@@ -31811,22 +31841,16 @@ impl GrantDenialFixture {
     ) -> crate::storage::auth_grants::GrantApprovalDurableRowsForTest {
         use crate::storage::auth_grants::{
             GrantApprovalDurableRowsForTest, GrantApprovalMetaRowForTest,
-            GrantApprovalPairingRowForTest,
         };
 
-        let mut pairing_requests = DENY_USERS
-            .into_iter()
-            .map(|user_id| GrantApprovalPairingRowForTest {
-                request_id: self.request_id(user_id).to_owned(),
-                minted_by_user_id: user_id.to_owned(),
-                state: if deny_case_is_accepted(case) && user_id == case.target_user {
-                    "denied".to_owned()
-                } else {
-                    "pending".to_owned()
-                },
-                grant_id: None,
-            })
-            .collect::<Vec<_>>();
+        let mut pairing_requests = self.pairing_requests.values().cloned().collect::<Vec<_>>();
+        if deny_case_is_accepted(case) {
+            pairing_requests
+                .iter_mut()
+                .find(|row| row.minted_by_user_id == case.target_user)
+                .expect("grant denial expected target")
+                .state = "denied".to_owned();
+        }
         pairing_requests.sort_by(|left, right| left.request_id.cmp(&right.request_id));
         GrantApprovalDurableRowsForTest {
             authorization_clock: GrantApprovalMetaRowForTest {
@@ -31882,7 +31906,12 @@ fn grant_denial_derives_subject_and_preserves_every_other_durable_request() {
 
 struct OAuthDenialFixture {
     snapback: LocalSnapback,
-    request_ids: BTreeMap<&'static str, String>,
+    pairing_requests:
+        BTreeMap<&'static str, crate::storage::auth_grants::GrantApprovalPairingRowForTest>,
+    authorizations: BTreeMap<
+        &'static str,
+        crate::storage::auth_integrations::OAuthDenialAuthorizationRowForTest,
+    >,
 }
 
 impl OAuthDenialFixture {
@@ -31941,7 +31970,7 @@ impl OAuthDenialFixture {
         let functions_for_scope_bases = functions.clone();
         let mut snapback = settled_sessions_activation_snapback(schema, functions);
         let random = CounterRandom::new();
-        let request_ids = {
+        let (pairing_requests, authorizations) = {
             let database = snapback.auth_database_mut();
             database
                 .reconcile_auth_scope_bases(&functions_for_scope_bases)
@@ -31973,75 +32002,103 @@ impl OAuthDenialFixture {
                     .insert_human_user_for_test(user_id, DENY_FIXTURE_MS)
                     .expect("create OAuth denial fixture user");
             }
-            DENY_USERS
-                .into_iter()
-                .map(|user_id| {
-                    let request_id = database
-                        .begin_oauth_authorization(
-                            user_id,
-                            &client_id,
-                            "https://example.test/callback",
-                            &["read".to_owned()],
-                            "abcdefghijklmnopqrstuvwxyzABCDEFGH012345678",
-                            Some("shared-oauth-state"),
-                            DENY_FIXTURE_MS,
-                            &random,
-                        )
-                        .expect("begin OAuth denial fixture request")
-                        .request_id;
-                    (user_id, request_id)
-                })
-                .collect()
+            let mut pairing_requests = BTreeMap::new();
+            let mut authorizations = BTreeMap::new();
+            for user_id in DENY_USERS {
+                let inert_pairing_hash = vec![random.next_fill_byte(); 32];
+                let begun = database
+                    .begin_oauth_authorization(
+                        user_id,
+                        &client_id,
+                        "https://example.test/callback",
+                        &["read".to_owned()],
+                        "abcdefghijklmnopqrstuvwxyzABCDEFGH012345678",
+                        Some("shared-oauth-state"),
+                        DENY_FIXTURE_MS,
+                        &random,
+                    )
+                    .expect("begin OAuth denial fixture request");
+                let request_id = begun.request_id;
+                pairing_requests.insert(
+                    user_id,
+                    crate::storage::auth_grants::GrantApprovalPairingRowForTest {
+                        request_id: request_id.clone(),
+                        code_hash: inert_pairing_hash,
+                        minted_by_user_id: user_id.to_owned(),
+                        agent_user_id: Some(begun.client.principal_user_id.clone()),
+                        requested_scopes: Some(OAUTH_DENIAL_SCOPES_JSON.to_owned()),
+                        state: "pending".to_owned(),
+                        attempts: 0,
+                        created_at_ms: DENY_FIXTURE_MS,
+                        expires_at_ms: DENY_FIXTURE_MS
+                            + crate::storage::auth_integrations::OAUTH_AUTHORIZATION_REQUEST_TTL_MS,
+                        consumed_at_ms: Some(DENY_FIXTURE_MS),
+                        grant_id: None,
+                    },
+                );
+                authorizations.insert(
+                    user_id,
+                    crate::storage::auth_integrations::OAuthDenialAuthorizationRowForTest {
+                        request_id,
+                        client_id: begun.client.client_id,
+                        principal_user_id: begun.client.principal_user_id,
+                        consenting_user_id: user_id.to_owned(),
+                        redirect_uri: "https://example.test/callback".to_owned(),
+                        code_challenge: "abcdefghijklmnopqrstuvwxyzABCDEFGH012345678".to_owned(),
+                        bundle_names_json: r#"["read"]"#.to_owned(),
+                        oauth_state: Some("shared-oauth-state".to_owned()),
+                        status: "pending".to_owned(),
+                        code_hash: None,
+                        grant_id: None,
+                        created_at_ms: DENY_FIXTURE_MS,
+                        expires_at_ms: DENY_FIXTURE_MS
+                            + crate::storage::auth_integrations::OAUTH_AUTHORIZATION_REQUEST_TTL_MS,
+                        code_expires_at_ms: None,
+                        consumed_at_ms: None,
+                    },
+                );
+            }
+            (pairing_requests, authorizations)
         };
         Self {
             snapback,
-            request_ids,
+            pairing_requests,
+            authorizations,
         }
     }
 
     fn request_id(&self, user_id: &str) -> &str {
-        self.request_ids
+        self.pairing_requests
             .get(user_id)
             .expect("OAuth denial target request")
+            .request_id
+            .as_str()
     }
 
     fn expected_rows(
         &self,
         case: DenySubjectCase,
     ) -> crate::storage::auth_integrations::OAuthDenialDurableRowsForTest {
-        use crate::storage::auth_grants::{
-            GrantApprovalMetaRowForTest, GrantApprovalPairingRowForTest,
-        };
-        use crate::storage::auth_integrations::{
-            OAuthDenialAuthorizationRowForTest, OAuthDenialDurableRowsForTest,
-        };
+        use crate::storage::auth_grants::GrantApprovalMetaRowForTest;
+        use crate::storage::auth_integrations::OAuthDenialDurableRowsForTest;
 
-        let mut pairing_requests = DENY_USERS
-            .into_iter()
-            .map(|user_id| GrantApprovalPairingRowForTest {
-                request_id: self.request_id(user_id).to_owned(),
-                minted_by_user_id: user_id.to_owned(),
-                state: if deny_case_is_accepted(case) && user_id == case.target_user {
-                    "denied".to_owned()
-                } else {
-                    "pending".to_owned()
-                },
-                grant_id: None,
-            })
-            .collect::<Vec<_>>();
+        let mut pairing_requests = self.pairing_requests.values().cloned().collect::<Vec<_>>();
+        if deny_case_is_accepted(case) {
+            pairing_requests
+                .iter_mut()
+                .find(|row| row.minted_by_user_id == case.target_user)
+                .expect("OAuth pairing expected target")
+                .state = "denied".to_owned();
+        }
         pairing_requests.sort_by(|left, right| left.request_id.cmp(&right.request_id));
-        let mut authorizations = DENY_USERS
-            .into_iter()
-            .map(|user_id| OAuthDenialAuthorizationRowForTest {
-                request_id: self.request_id(user_id).to_owned(),
-                consenting_user_id: user_id.to_owned(),
-                status: if deny_case_is_accepted(case) && user_id == case.target_user {
-                    "denied".to_owned()
-                } else {
-                    "pending".to_owned()
-                },
-            })
-            .collect::<Vec<_>>();
+        let mut authorizations = self.authorizations.values().cloned().collect::<Vec<_>>();
+        if deny_case_is_accepted(case) {
+            authorizations
+                .iter_mut()
+                .find(|row| row.consenting_user_id == case.target_user)
+                .expect("OAuth authorization expected target")
+                .status = "denied".to_owned();
+        }
         authorizations.sort_by(|left, right| left.request_id.cmp(&right.request_id));
         OAuthDenialDurableRowsForTest {
             authorization_clock: GrantApprovalMetaRowForTest {
@@ -32099,7 +32156,8 @@ fn oauth_denial_derives_subject_and_preserves_every_other_durable_request() {
 struct GrantRevocationFixture {
     snapback: LocalSnapback,
     grant_ids: BTreeMap<&'static str, Vec<String>>,
-    token_ids: BTreeMap<&'static str, Vec<String>>,
+    tokens:
+        BTreeMap<&'static str, Vec<crate::storage::auth_grants::GrantRevocationTokenRowForTest>>,
     watches: Vec<GrantRevocationWatchFixture>,
 }
 
@@ -32165,7 +32223,7 @@ impl GrantRevocationFixture {
         functions.functions.push(revocation_query);
         let mut snapback = settled_sessions_activation_snapback(schema, functions);
         let random = CounterRandom::new();
-        let (grant_ids, token_ids, watches) = {
+        let (grant_ids, tokens, watches) = {
             let database = snapback.auth_database_mut();
             database
                 .activate_current_auth_catalog()
@@ -32195,7 +32253,7 @@ impl GrantRevocationFixture {
                 .reconcile_auth_scope_bases(&denial_scope_manifest())
                 .expect("install grant revocation scope basis");
             let mut grant_ids = BTreeMap::new();
-            let mut token_ids = BTreeMap::new();
+            let mut tokens = BTreeMap::new();
             for user_id in DENY_USERS {
                 let suffix = user_id.strip_prefix("user-").expect("denial user suffix");
                 let mut user_grants = Vec::new();
@@ -32211,7 +32269,7 @@ impl GrantRevocationFixture {
                             DENY_FIXTURE_MS,
                         )
                         .expect("create grant revocation fixture grant");
-                    let token_id = database
+                    let token = database
                         .mint_scoped_token(
                             &credential.secret,
                             &grant_id,
@@ -32219,13 +32277,24 @@ impl GrantRevocationFixture {
                             DENY_FIXTURE_MS,
                             &random,
                         )
-                        .expect("mint grant revocation fixture token")
-                        .token_id;
+                        .expect("mint grant revocation fixture token");
+                    let token_hash = token.secret.token_hash().as_bytes().to_vec();
                     user_grants.push(grant_id);
-                    user_tokens.push(token_id);
+                    user_tokens.push(
+                        crate::storage::auth_grants::GrantRevocationTokenRowForTest {
+                            token_id: token.token_id,
+                            token_hash,
+                            grant_id: token.grant_id,
+                            credential_id: token.credential_id,
+                            credential_generation: token.credential_generation,
+                            created_at_ms: DENY_FIXTURE_MS,
+                            expires_at_ms: token.expires_at_ms,
+                            revoked_at_ms: None,
+                        },
+                    );
                 }
                 grant_ids.insert(user_id, user_grants);
-                token_ids.insert(user_id, user_tokens);
+                tokens.insert(user_id, user_tokens);
             }
             let mut watches = Vec::new();
             for grant_id in grant_ids.values().flatten() {
@@ -32271,12 +32340,12 @@ impl GrantRevocationFixture {
                 )
                 .expect("seed unrelated active grant revocation watch");
             watches.push(unrelated);
-            (grant_ids, token_ids, watches)
+            (grant_ids, tokens, watches)
         };
         Self {
             snapback,
             grant_ids,
-            token_ids,
+            tokens,
             watches,
         }
     }
@@ -32289,14 +32358,19 @@ impl GrantRevocationFixture {
     }
 
     fn terminal_token_ids(&self, user_id: &str, bulk: bool) -> Vec<String> {
-        let ids = self
-            .token_ids
+        let rows = self
+            .tokens
             .get(user_id)
             .expect("grant revocation terminal tokens");
         if bulk {
-            ids.clone()
+            rows.iter().map(|row| row.token_id.clone()).collect()
         } else {
-            vec![ids.first().expect("single grant revocation token").clone()]
+            vec![
+                rows.first()
+                    .expect("single grant revocation token")
+                    .token_id
+                    .clone(),
+            ]
         }
     }
 
@@ -32307,8 +32381,7 @@ impl GrantRevocationFixture {
     ) -> crate::storage::auth_grants::GrantRevocationDurableRowsForTest {
         use crate::storage::auth_grants::{
             GrantApprovalMetaRowForTest, GrantRevocationDurableRowsForTest,
-            GrantRevocationGrantRowForTest, GrantRevocationTokenRowForTest,
-            GrantRevocationWatchRowForTest,
+            GrantRevocationGrantRowForTest, GrantRevocationWatchRowForTest,
         };
 
         let accepted = deny_case_is_accepted(case);
@@ -32322,30 +32395,35 @@ impl GrantRevocationFixture {
                         grant_id: grant_id.clone(),
                         actor_user_id: "agent-revocation-shared".to_owned(),
                         effective_user_id: Some(user_id.to_owned()),
+                        scopes: GRANT_REVOCATION_SCOPES_JSON.to_owned(),
+                        created_at_ms: DENY_FIXTURE_MS,
+                        expires_at_ms: Some(DENY_FIXTURE_MS + 48 * 60 * 60 * 1_000),
                         revoked_at_ms: (accepted
                             && user_id == case.target_user
                             && (bulk || index == 0))
                             .then_some(DENY_EFFECT_MS),
+                        created_by: "test".to_owned(),
+                        request_id: None,
+                        consent_digest: None,
+                        last_used_at_ms: DENY_FIXTURE_MS,
                     })
             })
             .collect::<Vec<_>>();
         grants.sort_by(|left, right| left.grant_id.cmp(&right.grant_id));
-        let mut tokens = DENY_USERS
-            .into_iter()
-            .flat_map(|user_id| {
-                self.token_ids[user_id]
-                    .iter()
-                    .enumerate()
-                    .map(move |(index, token_id)| GrantRevocationTokenRowForTest {
-                        token_id: token_id.clone(),
-                        grant_id: self.grant_ids[user_id][index].clone(),
-                        revoked_at_ms: (accepted
-                            && user_id == case.target_user
-                            && (bulk || index == 0))
-                            .then_some(DENY_EFFECT_MS),
-                    })
-            })
-            .collect::<Vec<_>>();
+        let mut tokens =
+            DENY_USERS
+                .into_iter()
+                .flat_map(|user_id| {
+                    self.tokens[user_id].iter().cloned().enumerate().map(
+                        move |(index, mut token)| {
+                            token.revoked_at_ms =
+                                (accepted && user_id == case.target_user && (bulk || index == 0))
+                                    .then_some(DENY_EFFECT_MS);
+                            token
+                        },
+                    )
+                })
+                .collect::<Vec<_>>();
         tokens.sort_by(|left, right| left.token_id.cmp(&right.token_id));
         let target_grant_ids = &self.grant_ids[case.target_user];
         let revoked_grant_ids = if bulk {
@@ -32364,8 +32442,30 @@ impl GrantRevocationFixture {
                     });
                 GrantRevocationWatchRowForTest {
                     watch_id: fixture.watch_id.clone(),
+                    owner_kind: "integration".to_owned(),
+                    owner_principal_id: format!("{}:owner", fixture.watch_id),
+                    owner_authority_instance_id: format!("{}:authority", fixture.watch_id),
+                    authority_mode: "capturedGrant".to_owned(),
                     anchor_grant_id: Some(fixture.anchor_grant_id.clone()),
                     installation_grant_id: Some(fixture.installation_grant_id.clone()),
+                    anchor_expires_at_ms: DENY_FIXTURE_MS
+                        + crate::watches::ANCHOR_LIFETIME_MS,
+                    query_function_id: format!("{}:query", fixture.watch_id),
+                    query_function_name: "grantRevocationFixtureQuery".to_owned(),
+                    query_basis: 1,
+                    query_args_json: "{}".to_owned(),
+                    query_args_digest: "grant-revocation-query-args".to_owned(),
+                    read_dependencies_json: "[]".to_owned(),
+                    predicate_json: r#"{"path":"/rows","op":"exists"}"#.to_owned(),
+                    reaction_kind: "function".to_owned(),
+                    reaction_function_id: format!("{}:reaction", fixture.watch_id),
+                    reaction_function_name: "grantRevocationFixtureReaction".to_owned(),
+                    reaction_function_kind: "action".to_owned(),
+                    reaction_basis: 1,
+                    reaction_args_json: "{}".to_owned(),
+                    reaction_args_digest: "grant-revocation-reaction-args".to_owned(),
+                    webhook_url: None,
+                    webhook_secret_ref: None,
                     status: if targeted { "dead" } else { "active" }.to_owned(),
                     status_reason: targeted.then(|| "grant_revoked".to_owned()),
                     notification_json: Some(if targeted {
@@ -32374,12 +32474,24 @@ impl GrantRevocationFixture {
                     } else {
                         "{\"kind\":\"fixtureActive\"}".to_owned()
                     }),
+                    daily_firing_budget: 10,
+                    budget_day: 0,
+                    firings_today: 0,
+                    debounce_ms: crate::watches::DEFAULT_DEBOUNCE_MS,
+                    next_evaluation_at_ms: DENY_FIXTURE_MS,
                     pending_job_id: (!targeted)
                         .then(|| format!("{}:pending-job", fixture.watch_id)),
                     dirty_while_pending: !targeted,
                     pending_firing_ordinal: (!targeted).then_some(7),
                     pending_firing_job_id: (!targeted)
                         .then(|| format!("{}:pending-firing-job", fixture.watch_id)),
+                    last_predicate_state: false,
+                    evaluation_count: 3,
+                    coalesced_invalidation_count: 2,
+                    firing_count: 1,
+                    journal_count: 1,
+                    last_evaluated_at_ms: Some(DENY_FIXTURE_MS),
+                    last_fired_at_ms: Some(DENY_FIXTURE_MS),
                     last_firing_outcome: Some(
                         if targeted { "dead" } else { "fixture_pending" }.to_owned(),
                     ),
@@ -32391,6 +32503,7 @@ impl GrantRevocationFixture {
                         }
                         .to_owned(),
                     ),
+                    created_at_ms: DENY_FIXTURE_MS,
                     updated_at_ms: if targeted {
                         DENY_EFFECT_MS
                     } else {
@@ -32574,13 +32687,14 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
         first_grantor_request_id: String,
         second_grantor_request_id: String,
         upper_request_id: String,
+        pairing_rows: Vec<GrantApprovalPairingRowForTest>,
     }
 
     impl Fixture {
         fn new() -> Self {
             let mut snapback = LocalSnapback::memory().expect("grant approval memory fixture");
             let random = CounterRandom::new();
-            let request_ids = {
+            let pairing_rows = {
                 let database = snapback.auth_database_mut();
                 database
                     .activate_current_auth_catalog()
@@ -32642,18 +32756,19 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                     .expect("install grant approval scope basis");
 
                 [
-                    ("user-a", &first_credential.secret),
-                    (FIRST_GRANTOR, &first_credential.secret),
-                    (SECOND_GRANTOR, &second_credential.secret),
-                    ("user-z", &first_credential.secret),
+                    ("user-a", FIRST_AGENT, &first_credential.secret),
+                    (FIRST_GRANTOR, FIRST_AGENT, &first_credential.secret),
+                    (SECOND_GRANTOR, SECOND_AGENT, &second_credential.secret),
+                    ("user-z", FIRST_AGENT, &first_credential.secret),
                 ]
                 .into_iter()
                 .enumerate()
-                .map(|(index, (user_id, credential))| {
+                .map(|(index, (user_id, agent_user_id, credential))| {
                     let minted_at_ms = 1_100 + (index as u64 * 10);
                     let pairing = database
                         .mint_pairing_code(user_id, minted_at_ms, &random)
                         .expect("mint grant approval pairing code");
+                    let code_hash = pairing.secret.token_hash().as_bytes().to_vec();
                     let presentation = database
                         .present_pairing_code(
                             credential,
@@ -32667,7 +32782,19 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                         )
                         .expect("present grant approval pairing code");
                     assert!(matches!(presentation, PairingPresentation::Created(_)));
-                    pairing.request_id
+                    GrantApprovalPairingRowForTest {
+                        request_id: pairing.request_id,
+                        code_hash,
+                        minted_by_user_id: user_id.to_owned(),
+                        agent_user_id: Some(agent_user_id.to_owned()),
+                        requested_scopes: Some(EXPECTED_SCOPES_JSON.to_owned()),
+                        state: "pending".to_owned(),
+                        attempts: 0,
+                        created_at_ms: minted_at_ms,
+                        expires_at_ms: pairing.expires_at_ms,
+                        consumed_at_ms: Some(minted_at_ms + 1),
+                        grant_id: None,
+                    }
                 })
                 .collect::<Vec<_>>()
             };
@@ -32676,7 +32803,10 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                 first_grantor_request_id,
                 second_grantor_request_id,
                 upper_request_id,
-            ]: [String; 4] = request_ids
+            ]: [String; 4] = pairing_rows
+                .iter()
+                .map(|row| row.request_id.clone())
+                .collect::<Vec<_>>()
                 .try_into()
                 .expect("four grant approval requests");
             Self {
@@ -32685,6 +32815,7 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                 first_grantor_request_id,
                 second_grantor_request_id,
                 upper_request_id,
+                pairing_rows,
             }
         }
 
@@ -32696,32 +32827,7 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
         }
 
         fn pending_rows(&self) -> Vec<GrantApprovalPairingRowForTest> {
-            let mut rows = vec![
-                GrantApprovalPairingRowForTest {
-                    request_id: self.lower_request_id.clone(),
-                    minted_by_user_id: "user-a".to_owned(),
-                    state: "pending".to_owned(),
-                    grant_id: None,
-                },
-                GrantApprovalPairingRowForTest {
-                    request_id: self.first_grantor_request_id.clone(),
-                    minted_by_user_id: FIRST_GRANTOR.to_owned(),
-                    state: "pending".to_owned(),
-                    grant_id: None,
-                },
-                GrantApprovalPairingRowForTest {
-                    request_id: self.second_grantor_request_id.clone(),
-                    minted_by_user_id: SECOND_GRANTOR.to_owned(),
-                    state: "pending".to_owned(),
-                    grant_id: None,
-                },
-                GrantApprovalPairingRowForTest {
-                    request_id: self.upper_request_id.clone(),
-                    minted_by_user_id: "user-z".to_owned(),
-                    state: "pending".to_owned(),
-                    grant_id: None,
-                },
-            ];
+            let mut rows = self.pairing_rows.clone();
             rows.sort_by(|left, right| left.request_id.cmp(&right.request_id));
             rows
         }
