@@ -85,3 +85,56 @@ rows moved together.
 duplicate wrapper. Stated as an assessment rather than a fact, because it is reconstructed from
 call-site shapes rather than from a claim the landing made — which is the entire failure this ticket
 is about. A `Closes-rows:` trailer would have made it a lookup.
+
+---
+
+## Correction: "11 of 96" was overcounting. It is 7.
+
+The deny/revoke landing did carry a `Closes-rows:` trailer — the mechanism proposed by this ticket
+was adopted immediately, which is the good news. But it named **function names**, not row
+identifiers:
+
+```
+Closes-rows: deny_oauth_authorization (derivation), deny_grant_request (derivation),
+             revoke_grant_for_user (derivation), revoke_grants_by_actor_for_user (derivation)
+```
+
+Checking each against the bucket assignment: **none of the four appears in it.** They were not
+catalogued rows. They came from a neighbourhood audit recorded in
+`issues/20260824-deny-paths-left-unfixed-beside-fixed-approve-paths.md`, after two earlier lanes
+fixed approve-style operations and left the adjacent deny operations untouched.
+
+So the accurate ledger is:
+
+| Source | Rows in the 96 |
+|---|---:|
+| Landed before this session (F188, F190, F191) | 3 |
+| OAuth consent landing (F170–F173) | 4 |
+| **Total against the 96** | **7** |
+| deny/revoke landing (4 boundaries, adjacent work) | **0** |
+
+**Approximately 7 of 96, not 11.** The deny work is real and valuable — it closed a genuine
+denial-of-service and state-corruption surface, and made the OAuth consent/deny pair symmetric — but
+it is *additional* to the inventory rather than progress through it.
+
+### What this changes about the trailer
+
+The trailer needs to be **row identifiers from the bucket assignment**, and where a landing closes
+something outside the inventory it should say so explicitly:
+
+```
+Closes-rows: F170, F171, F172, F173
+Closes-adjacent: deny_oauth_authorization, deny_grant_request, revoke_grant_for_user,
+                 revoke_grants_by_actor_for_user   (neighbourhood audit; not in the 96)
+```
+
+Without that distinction the trailer reproduces exactly the ambiguity it was introduced to remove —
+a reader summing trailers would have reached 11 too.
+
+### On the pattern
+
+This is the fourth count in this programme published and then corrected: 137→134, 47→34, an unclear
+in-session figure, and now 11→7. Every one was an over-count, and every one was found by recounting
+by hand rather than by a check. That consistency is itself a signal: the natural failure mode here is
+crediting adjacent or duplicated work to the inventory, so a count should be treated as unverified
+until each identifier has been looked up.
