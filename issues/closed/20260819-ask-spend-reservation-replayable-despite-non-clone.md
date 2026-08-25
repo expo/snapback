@@ -1,10 +1,11 @@
 # `AskSpendReservation` is replayable despite losing `Clone`
 
-**Status:** Open
+**Status:** Closed
 **Filed:** 2026-08-19
+**Resolved:** 2026-08-25
 **Severity:** Medium
 **Systems:** Security/authorization, Storage, Billing/quota
-**Related:** LLP 0283 F-1, `c963a5bcb`
+**Related:** LLP 0283 F-1, LLP 0303, `c963a5bcb`, `1f096cd54`
 
 ## Finding
 
@@ -34,3 +35,12 @@ for closure.
 - Settlement consumes the reservation by value, or the ledger tracks reservation identity
   so a given reservation can settle at most once.
 - A regression settles the same reservation twice and proves the second attempt fails.
+
+## Resolution
+
+Settlement now consumes the non-`Clone` reservation by value through kernel, engine, and
+serving layers. An external dependent-crate witness that settled the same reservation twice
+against the baseline now refuses at the second settlement expression with Rust E0382 (use of
+moved value). The reservation also carries the exact database binding, while the engine
+carrier retains the exact prepared turn used to reserve it and derives settlement's effect
+guard from that retained turn.
