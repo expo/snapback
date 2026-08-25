@@ -5602,9 +5602,38 @@ function generatedApplicationDescriptor(generatedRoot) {
   return descriptor;
 }
 
+function generatedTargetCapabilityManifest(generatedRoot) {
+  const path = join(generatedRoot, 'capability.manifest.json');
+  let manifest;
+  try {
+    manifest = JSON.parse(readFileSync(path, 'utf8'));
+  } catch (cause) {
+    const error = diagnosticError(
+      'SNAPBACK_DEV_APPLICATION_DESCRIPTOR_INVALID',
+      `could not read generated target capability manifest ${path}`,
+      { path },
+    );
+    error.cause = cause;
+    throw error;
+  }
+  if (
+    manifest?.artifactKind !== 'capabilityManifest'
+    || typeof manifest.targetProfileId !== 'string'
+    || !Array.isArray(manifest.supportedCapabilities)
+  ) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_APPLICATION_DESCRIPTOR_INVALID',
+      'generated target capability manifest lacks its closed target support facts',
+      { path },
+    );
+  }
+  return manifest;
+}
+
 function issueDevBinding(publisher, generatedRoot, descriptor) {
   return publisher.issue({
     descriptor: generatedApplicationDescriptor(generatedRoot),
+    capabilityManifest: generatedTargetCapabilityManifest(generatedRoot),
     origin: new URL(descriptor.serverUrl).origin,
     routing: 'loopback',
   });

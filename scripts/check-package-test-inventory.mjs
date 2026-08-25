@@ -409,6 +409,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'micro-profile.test.mjs',
       'mixed-route-v2.test.mjs',
       'n-plus-one-advisory.test.mjs',
+      'offline-replay-authoring-packed.test.mjs',
       'omission-defaults.test.mjs',
       'operation-schemas.test.mjs',
       'plain-join-advisory.test.mjs',
@@ -598,7 +599,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 353,
+  expectedTotal = 354,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1119,6 +1120,8 @@ export function checkPackageTestInventories(options = {}) {
 // the target-capability authoring parity gate.
 // 351 -> 353 (2026-08-24, LLP 0307.000 Lane S1): @expo/snapback-acceptance
 // gains the replay suite and @expo/snapback-cli the replay verb suite.
+// 353 -> 354 (2026-08-25, LLP 0307 Lane S3): @expo/snapback-codegen gains
+// the packed offline-replay authoring and client-admission closure proof.
 // LLP 0300 nine-row acceptance traceability (0301 §8 set-level table):
 // 1 cold bring-up -> templates/*/acceptance.mjs + declared-dev-episode.test.mjs;
 // 2 two principals -> declared-dev-episode.test.mjs; 3 forwards/tunnel/rebinding

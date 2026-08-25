@@ -46,12 +46,6 @@ const expectedIntentionallyNonAuthorable = [
     bindingOffers: 'feature-derived-only',
     clientAdmission: 'feature-derived-only',
   },
-  {
-    id: 'offline_mutation_replay',
-    reason: 'authorability is withheld until settlement-ledger binding offers and queue-aware client admission land as one owned unit',
-    bindingOffers: 'not-offered',
-    clientAdmission: 'not-admitted',
-  },
 ];
 
 assert.deepEqual(
@@ -74,4 +68,4 @@ assert.deepEqual(
   'every Rust target capability id must be schema-authorable or explicitly reasoned as non-authorable',
 );
 
-console.log('target-capability-authoring-parity.test.mjs: 45 registry ids = 39 authorable + 6 intentionally non-authorable');
+console.log('target-capability-authoring-parity.test.mjs: 45 registry ids = 40 authorable + 5 intentionally non-authorable');

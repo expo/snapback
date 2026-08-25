@@ -9,6 +9,7 @@ const APP_BINDING_ROOT_KEYS = Object.freeze([
   'source',
   'target',
 ]);
+const OFFLINE_MUTATION_REPLAY_CAPABILITY = 'offline_mutation_replay';
 
 function diagnosticError(code, message, details = {}) {
   const diagnostic = Object.freeze({
@@ -42,8 +43,38 @@ function publicRefreshDiagnostic(error, predecessor, generation) {
   });
 }
 
-function bindingFromDescriptor({ descriptor, origin, routing, generation, now, ttlMs }) {
+function bindingFromDescriptor({
+  descriptor,
+  capabilityManifest,
+  origin,
+  routing,
+  generation,
+  now,
+  ttlMs,
+}) {
   const offeredCapabilities = new Set(descriptor.capabilities.required);
+  if (offeredCapabilities.has(OFFLINE_MUTATION_REPLAY_CAPABILITY)) {
+    // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 —
+    // a supervised binding may offer durable replay only from the selected
+    // target's positive settlement-ledger fact. The generated requirement is
+    // demand, never authority to mint the offer by itself.
+    const ledgerRegistered = capabilityManifest?.targetProfileId === 'local-dev-sqlite-ibex'
+      && Array.isArray(capabilityManifest.supportedCapabilities)
+      && capabilityManifest.supportedCapabilities.includes(OFFLINE_MUTATION_REPLAY_CAPABILITY);
+    if (!ledgerRegistered) {
+      const vocabulary = Object.freeze({
+        targetFacts: 'not-supported',
+        authorableSet: 'authorable',
+        bindingOffers: 'not-offered',
+        clientAdmission: 'not-admitted',
+      });
+      throw diagnosticError(
+        'SNAPBACK_CAPABILITY_UNSUPPORTED',
+        `the supervised local SQLite binding cannot offer ${OFFLINE_MUTATION_REPLAY_CAPABILITY} without the selected target's positive settlement-ledger fact`,
+        { capability: OFFLINE_MUTATION_REPLAY_CAPABILITY, vocabulary },
+      );
+    }
+  }
   if (descriptor.authBootstrap?.entryMechanisms?.includes('password-v1')) {
     offeredCapabilities.add('auth.passwords');
   }
@@ -241,8 +272,9 @@ export function createSupervisedBindingPublisher({
     return binding;
   };
 
-  const issue = ({ descriptor, origin, routing }) => publish(bindingFromDescriptor({
+  const issue = ({ descriptor, capabilityManifest = null, origin, routing }) => publish(bindingFromDescriptor({
     descriptor,
+    capabilityManifest,
     origin,
     routing,
     generation,

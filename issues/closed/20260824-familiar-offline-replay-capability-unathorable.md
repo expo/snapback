@@ -1,7 +1,8 @@
 # Familiar cannot author the advertised offline replay capability
 
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-08-24
+**Resolved:** 2026-08-25
 **Systems:** Familiar TypeScript codegen, schema capabilities, app binding,
 offline mutation replay
 **Related:** LLP 0058; LLP 0201; LLP 0255;
@@ -100,3 +101,30 @@ queue dispatch refuses at M7 time). Two-part repair instead:
   the existing typed diagnostic.
 - Published-closure tests prove capability vocabulary parity across Familiar
   schema input, generated target facts, binding offers, and client admission.
+
+## Resolution
+
+Resolved as the indivisible LLP 0307 S3 unit rather than as a bare vocabulary
+addition:
+
+- `offline_mutation_replay` moved from the reasoned non-authorable allowlist
+  into the shared schema-authorable target-capability set; the Rust-registry
+  parity split is now 40 authorable plus 5 intentionally non-authorable ids.
+- Explicit and Familiar schema requirements lower through the same path into
+  schema requirements, generated function experimental acknowledgments, and
+  application binding requirements.
+- The supervised local SQLite binding issuer now requires the selected
+  `local-dev-sqlite-ibex` manifest's positive settlement-ledger fact before it
+  offers the capability. A requirement alone cannot mint the offer.
+- A selected ledger-less target refuses `SNAPBACK_CAPABILITY_UNSUPPORTED`
+  before output with the complete target-facts / authorable-set /
+  binding-offers / client-admission vocabulary. The independent client fence
+  still refuses `SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED` before
+  transport and before queue persistence.
+- The npm-packed closure witness generates both authoring profiles, admits the
+  target-grounded binding, queues through `useSnapbackMutation` without an
+  app-owned queue, replays the same `clientMutationId` after reconnect, and
+  proves the ledger-less pre-transport negative.
+
+The governing self-contained dated amendments are recorded in LLP 0253 and
+LLP 0058. No new `SNAPBACK_*` diagnostic code was introduced.
