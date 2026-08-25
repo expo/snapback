@@ -7,8 +7,8 @@
 //!   2. the round-trip gate — a representative value of each artifact serializes
 //!      via serde_json and validates against the committed schema, proving the
 //!      generated schema matches the actual serde representation;
-//!   3. the demo-artifact gate — every committed generated demo manifest
-//!      validates against the schema and parses back through the runtime struct.
+//!   3. the demo-artifact gate — every registered demo manifest is regenerated,
+//!      validates against the schema, and parses back through the runtime struct.
 //!
 //! Regenerate the committed schemas with:
 //!   DYLD_FRAMEWORK_PATH="$PWD/vendor/ibex/ios/Frameworks" \
@@ -22,6 +22,8 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::PathBuf;
+use std::process::Command;
+use std::sync::{Mutex, OnceLock};
 
 use snapback::auth::deployment::{
     AuthenticationBucketPolicy, AuthenticationThrottle, BrowserCredentialPosture,
@@ -2896,6 +2898,7 @@ fn data_tier_publication_validates_against_committed_schemas() {
 
 #[test]
 fn remote_service_publication_is_closed_digest_bound_and_host_private() {
+    materialize_remote_service_publication();
     let root = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."));
     let generated = root.join("demos/todo-v2/snapback/generated-remote-service");
     let read_json = |path: &std::path::Path| -> Value {
@@ -3637,10 +3640,89 @@ const GENERATED_BACKENDS: [&str; 8] = [
     "demos/messaging-snapback/snapback/generated",
 ];
 
-/// Demo-artifact gate: every committed generated demo manifest validates against
-/// the Rust-derived schema (the codegen output the schema is meant to describe).
+static CODEGEN_TEST_LOCK: Mutex<()> = Mutex::new(());
+static DK7_DEMO_MANIFESTS: OnceLock<Result<(), String>> = OnceLock::new();
+static REMOTE_SERVICE_PUBLICATION: OnceLock<Result<(), String>> = OnceLock::new();
+
+// @ref LLP 0032#phase-5--product-boundary-and-dx — the demo manifests are
+// regenerable review caches, so the DK-7 consumer gate materializes them from
+// codegen instead of depending on another test or checkout having done so.
+fn run_codegen(
+    backend: &str,
+    target_profile: Option<&str>,
+    outbound_actions: bool,
+) -> Result<(), String> {
+    let repo = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."));
+    let mut command = Command::new("node");
+    command
+        .current_dir(&repo)
+        .arg("packages/snapback-codegen/index.mjs")
+        .arg(backend);
+    if let Some(target_profile) = target_profile {
+        command.args(["--target-profile", target_profile]);
+    }
+    if outbound_actions {
+        command.env("SNAPBACK_OUTBOUND_ACTIONS", "1");
+    } else {
+        command.env_remove("SNAPBACK_OUTBOUND_ACTIONS");
+    }
+    let output = command
+        .output()
+        .map_err(|error| format!("could not start codegen for {backend}: {error}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "codegen for {backend} exited with {}\nstdout:\n{}\nstderr:\n{}",
+            output.status,
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr),
+        ));
+    }
+    Ok(())
+}
+
+fn materialize_remote_service_publication() {
+    let result = REMOTE_SERVICE_PUBLICATION.get_or_init(|| {
+        let _guard = CODEGEN_TEST_LOCK
+            .lock()
+            .map_err(|_| "codegen test lock was poisoned".to_owned())?;
+        run_codegen(
+            "demos/todo-v2/snapback",
+            Some("remote-service-sqlite-ibex"),
+            false,
+        )
+    });
+    if let Err(error) = result {
+        panic!("SNAPBACK_TEST_REMOTE_SERVICE_PUBLICATION_REGEN_FAILED: {error}");
+    }
+}
+
+fn materialize_dk7_demo_manifests() {
+    let result = DK7_DEMO_MANIFESTS.get_or_init(|| {
+        let _guard = CODEGEN_TEST_LOCK
+            .lock()
+            .map_err(|_| "codegen test lock was poisoned".to_owned())?;
+        for generated in GENERATED_BACKENDS {
+            let backend = generated
+                .strip_suffix("/generated")
+                .ok_or_else(|| format!("generated backend has no /generated suffix: {generated}"))?;
+            let outbound_actions = matches!(
+                backend,
+                "demos/all-aboard/snapback" | "demos/all-aboard/tests/egress-probe"
+            );
+            run_codegen(backend, None, outbound_actions)?;
+        }
+        Ok(())
+    });
+    if let Err(error) = result {
+        panic!("SNAPBACK_TEST_DK7_DEMO_MANIFEST_REGEN_FAILED: {error}");
+    }
+}
+
+/// Demo-artifact gate: every registered generated demo manifest validates
+/// against the Rust-derived schema (the codegen output it is meant to describe).
 #[test]
 fn dk7_committed_demo_manifests_validate_against_schemas() {
+    materialize_dk7_demo_manifests();
     let repo = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."));
     let pairs = [
         ("schema.manifest.schema.json", "schema.manifest.json"),
@@ -3677,6 +3759,7 @@ fn dk7_committed_demo_manifests_validate_against_schemas() {
 /// pass their artifact-header validation — the schema and the parser agree.
 #[test]
 fn dk7_committed_demo_manifests_parse_through_runtime_structs() {
+    materialize_dk7_demo_manifests();
     let repo = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."));
     for backend in GENERATED_BACKENDS {
         let dir = repo.join(backend);
