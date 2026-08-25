@@ -15,6 +15,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { isRecordedBenchmarkEventsTranscript } from './guide-lib.mjs';
+
 // @ref LLP 0061#3-verification-snippets-that-ran — the Guide's exact
 // transclusion is compiled as an external consumer against npm-packed bytes.
 // @ref LLP 0044#client-upload-surface — the framework-neutral task stays on
@@ -100,6 +102,9 @@ function checkRawClientAccessorSweep() {
     const lineSeparator = line.indexOf(':', pathSeparator + 1);
     assert(pathSeparator > 0 && lineSeparator > pathSeparator, `unexpected git grep row: ${line}`);
     const path = line.slice(0, pathSeparator);
+    if (isRecordedBenchmarkEventsTranscript(path)) {
+      continue;
+    }
     const sourceLine = line.slice(lineSeparator + 1);
     for (const match of sourceLine.matchAll(/client[.]assets[.][A-Za-z_$][A-Za-z0-9_$]*/gu)) {
       assert.equal(

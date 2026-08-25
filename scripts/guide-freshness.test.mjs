@@ -16,6 +16,7 @@ import {
   authoritiesDigestAtRevision,
   buildManifest,
   checkFreshness,
+  isRecordedBenchmarkEventsTranscript,
   parseFrontmatter,
 } from './guide-lib.mjs';
 import {
@@ -195,4 +196,32 @@ test('migration preserves the historical verdict and refresh is deliberate', (t)
   const refreshedWarnings = [];
   checkFreshness(root, new Map([[pagePath, { frontmatter: refreshed }]]), refreshedWarnings, []);
   assert.deepEqual(refreshedWarnings, []);
+});
+
+test('recorded benchmark events/*.jsonl transcripts are frozen evidence, not authored examples', () => {
+  assert.equal(
+    isRecordedBenchmarkEventsTranscript(
+      'benchmarks/runs/2026-08-23-r2-published-0125/cells/opus-clique-explicit/events/harness.stdout.jsonl',
+    ),
+    true,
+  );
+  assert.equal(
+    isRecordedBenchmarkEventsTranscript(
+      'benchmarks/runs/2026-08-23-r2-published-0125/events/harness.stdout.jsonl',
+    ),
+    true,
+  );
+  assert.equal(isRecordedBenchmarkEventsTranscript('guide/backend/assets.md'), false);
+  assert.equal(
+    isRecordedBenchmarkEventsTranscript(
+      'benchmarks/runs/2026-08-23-r2-published-0125/cells/opus-clique-explicit/events/nested/harness.stdout.jsonl',
+    ),
+    false,
+  );
+  assert.equal(
+    isRecordedBenchmarkEventsTranscript(
+      'demos/rematch-bakeoff/snapback/guide-cache/backend_assets.md',
+    ),
+    false,
+  );
 });

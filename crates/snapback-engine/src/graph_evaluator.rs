@@ -2291,6 +2291,26 @@ fn evaluate_principal(
                 state.capture_auth_user(attachment, user_id);
                 auth_attached = true;
             }
+        } else {
+            // Binding missed: still emit one parent-keyed fact so registration's
+            // parent-key-set stays exact. No target-table query is possible.
+            // @ref LLP 0209#32-authority-partition-identity-and-versioning —
+            // an unbound principal cannot drop parents from the attested set.
+            let _ = state.capture_graph(
+                node,
+                GraphCapturedDependencyV1::PrincipalField {
+                    table: table.clone(),
+                    index: access_index.clone(),
+                    parent_key: Some(parent.key.clone()),
+                    partition_hash: request.partition_hash.clone(),
+                    field: principal_field.clone(),
+                    value_digest: captured_value_digest(
+                        b"snapback:g0-corpus-principal-value:v1:",
+                        &Value::Null,
+                    )?,
+                    found: false,
+                },
+            );
         }
         output.extend(children_rows.iter().cloned());
         insert_child(state, parent_node_id, parent, node_id, children_rows)?;

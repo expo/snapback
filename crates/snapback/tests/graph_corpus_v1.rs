@@ -303,7 +303,8 @@ mod pb_measurement {
     ) -> Vec<(String, GraphQueryCarrierV1, FunctionDefinition)> {
         snapback.declare_graph_query_v1_capability();
         let mut carriers = served_graph_carriers(snapback, corpus);
-        if std::env::var("SNAPBACK_PB_MODE").as_deref() == Ok("observe") {
+        let pb_mode = std::env::var("SNAPBACK_PB_MODE").ok();
+        if pb_mode.as_deref() == Some("observe") || pb_mode.as_deref() == Some("register-probe") {
             // The retained-group measurement schedules one refresh. Match the
             // existing G2-C measurement support by widening only that runtime
             // lineage allowance; the artifact maps the identity back to the
@@ -314,7 +315,9 @@ mod pb_measurement {
                     FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier.clone()));
             }
         }
-        let mut manifest = if std::env::var("SNAPBACK_PB_MODE").as_deref() == Ok("observe") {
+        let mut manifest = if pb_mode.as_deref() == Some("observe")
+            || pb_mode.as_deref() == Some("register-probe")
+        {
             FunctionManifest {
                 app_id: "zerobugs-graph-pb-observe".to_owned(),
                 bundle_hash: Some(CORPUS_BUNDLE_HASH.to_owned()),
@@ -501,6 +504,144 @@ mod pb_measurement {
             .find(|row| row["graphPlanHash"] == carrier.plan_hash.as_str())
             .unwrap()
             .clone()
+    }
+
+    fn register_probe(
+        mut snapback: LocalSnapback,
+        corpus: &Value,
+        carriers: &[(String, GraphQueryCarrierV1, FunctionDefinition)],
+    ) -> Value {
+        let project_source = std::env::var("SNAPBACK_PB_PROJECT_SOURCE_ID")
+            .unwrap_or_else(|_| LARGE_PROJECT_SOURCE.to_owned());
+        let project = snapback
+            .scan_table("project", 1_000, 0)
+            .unwrap()
+            .rows
+            .into_iter()
+            .find(|row| row["id"].as_str() == Some(&project_source))
+            .unwrap();
+        let project = project["_id"].as_str().unwrap();
+        let requested_query = std::env::var("SNAPBACK_PB_QUERY").ok();
+        let source = std::env::var("SNAPBACK_PB_DETAIL_SOURCE_ID")
+            .unwrap_or_else(|_| DETAIL_SOURCE.to_owned());
+        let physical = if requested_query
+            .as_deref()
+            .is_none_or(|query| matches!(query, "issueDetail" | "listIssueByID"))
+        {
+            issue_by_source(&snapback, &source)["_id"]
+                .as_str()
+                .unwrap()
+                .to_owned()
+        } else {
+            "pb-unused-physical-issue".to_owned()
+        };
+        let schema = snapback.inspect_core().unwrap().schema;
+        let mut graphs = Vec::new();
+        for query in ["issueListV2", "issueDetail", "listIssueByID"]
+            .into_iter()
+            .filter(|query| requested_query.as_deref().is_none_or(|only| only == *query))
+        {
+            let carrier = &carriers.iter().find(|row| row.0 == query).unwrap().1;
+            let call = call_for(corpus, carrier, query, project, &source, &physical);
+            let windows: Vec<GraphNodeWindowIdentityV1> =
+                serde_json::from_value(call["windows"].clone()).unwrap();
+            let evaluated_parents = windows
+                .iter()
+                .filter_map(|window| {
+                    let parents = window
+                        .intervals
+                        .iter()
+                        .map(|interval| interval.parent_key.clone())
+                        .collect::<Option<Vec<GraphRowKeyV1>>>()?;
+                    Some((window.node_id.clone(), parents))
+                })
+                .collect::<BTreeMap<_, _>>();
+            let instance = graph_instance_identity_v1(
+                carrier,
+                &call["args"],
+                windows.clone(),
+                &evaluated_parents,
+            )
+            .unwrap_or_else(|reason| panic!("{query} instance identity: {reason:?}"));
+            let mut materialization_preimage: GraphMaterializationPreimageV1 =
+                serde_json::from_value(call["materialization"].clone()).unwrap();
+            materialization_preimage.graph_instance_hash = instance.instance_hash.clone();
+            materialization_preimage.function.result_contract_hash =
+                carrier.normalized_plan.result_contract_hash.clone();
+            let materialization = graph_materialization_identity_v1(materialization_preimage)
+                .unwrap_or_else(|reason| panic!("{query} materialization identity: {reason:?}"));
+            let mut partition_preimage: GraphAuthorityPartitionPreimageV1 =
+                serde_json::from_value(call["partition"].clone()).unwrap();
+            partition_preimage.graph_plan_hash = carrier.plan_hash.clone();
+            let partition = graph_authority_partition_identity_v1(partition_preimage)
+                .unwrap_or_else(|reason| panic!("{query} partition identity: {reason:?}"));
+            let request = evaluation_request(corpus, &call, &materialization, &partition);
+            let output = match snapback.evaluate_graph_query(&carrier.normalized_plan, &request)
+            {
+                Ok(output) => output,
+                Err(error) => {
+                    graphs.push(json!({
+                        "query":query,
+                        "evaluationError":{
+                            "code":error.diagnostic.code,
+                            "message":error.diagnostic.message,
+                        }
+                    }));
+                    continue;
+                }
+            };
+            let matcher_input = normalized_matcher_input(&carrier.normalized_plan, &request);
+            let registration_demand = GraphSubscriptionRegistrationDemandV1 {
+                args: request.args.clone(),
+                windows: request.windows.clone(),
+                input: matcher_input,
+                permission_values_by_table: request
+                    .authority
+                    .permission_values_by_table
+                    .iter()
+                    .map(|(table, permission)| {
+                        (
+                            table.clone(),
+                            GraphRegistrationPermissionValuesV1 {
+                                field: permission.field.clone(),
+                                allowed_values: permission.allowed_values.clone(),
+                            },
+                        )
+                    })
+                    .collect(),
+                materialization,
+                partition,
+            };
+            let registered = register_graph_subscription_dependencies(
+                carrier,
+                &schema,
+                &registration_demand,
+                &output.captured_reads,
+                &output.capture_attachments,
+                &output.captured_query_outputs,
+            );
+            graphs.push(json!({
+                "query":query,
+                "graphPlanHash":carrier.plan_hash,
+                "evaluationRefusal":output.refusal_reason.as_ref().map(|reason| reason.code()),
+                "captureReadCount":output.captured_reads.len(),
+                "captureAttachmentCount":output.capture_attachments.len(),
+                "capturedQueryOutputCount":output.captured_query_outputs.len(),
+                "registration": match registered {
+                    Ok(_) => json!({"ok":true}),
+                    Err(reason) => json!({
+                        "ok":false,
+                        "code":reason.code(),
+                        "reason":format!("{reason:?}"),
+                    }),
+                }
+            }));
+        }
+        json!({
+            "format":"snapback.graph-pb-register-probe.v1",
+            "profile":std::env::var("SNAPBACK_PB_PROFILE").unwrap_or_else(|_| "register-probe".into()),
+            "graphs":graphs,
+        })
     }
 
     fn observe(
@@ -731,6 +872,7 @@ mod pb_measurement {
         let value = match std::env::var("SNAPBACK_PB_MODE").as_deref() {
             Ok("observe") => observe(snapback, &corpus, &carriers),
             Ok("hot-trial") => hot_trial(snapback, &corpus, &carriers),
+            Ok("register-probe") => register_probe(snapback, &corpus, &carriers),
             mode => panic!("invalid SNAPBACK_PB_MODE {mode:?}"),
         };
         let path = std::env::var("SNAPBACK_PB_OUTPUT").unwrap();
@@ -6917,6 +7059,22 @@ fn graph_registration_refuses_semantically_forged_provenance() {
     };
     assert!(register(&demand, &output).is_ok(), "baseline registers");
 
+    let mut hashed_mismatch = output.clone();
+    let mismatched_instance = Sha256V1::new(
+        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_owned(),
+    )
+    .expect("forged instance hash");
+    for read in &mut hashed_mismatch.captured_reads {
+        if let Some(graph) = read.graph.as_mut() {
+            graph.instance_hash = mismatched_instance.clone();
+        }
+    }
+    assert_eq!(
+        register(&demand, &hashed_mismatch).expect_err("forged instance hash"),
+        snapback_types::manifest::GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch,
+        "a valid capture vector with a forged instance hash still refuses"
+    );
+
     let mut forged_filter = output.clone();
     let query_read_index = forged_filter
         .capture_attachments
@@ -7002,6 +7160,63 @@ fn graph_registration_refuses_semantically_forged_provenance() {
     assert!(
         register(&bare_hash, &output).is_err(),
         "a bare hash that disagrees with its supplied preimage cannot register"
+    );
+}
+
+#[test]
+fn graph_registration_covers_unbound_principal_parent_set() {
+    let corpus = graph_corpus();
+    let (carrier, _, demand, bound_output) = registration_fixture(&corpus, "issueListV2");
+    assert!(
+        register_graph_subscription_dependencies(
+            &carrier,
+            &corpus_schema(&corpus_seed_tables(&corpus)),
+            &demand,
+            &bound_output.captured_reads,
+            &bound_output.capture_attachments,
+            &bound_output.captured_query_outputs,
+        )
+        .is_ok(),
+        "the bound-principal corpus world still registers"
+    );
+
+    let mut snapback = graph_store(&corpus, None);
+    let call = &corpus["g0ExitObservationEvidence"]
+        .as_array()
+        .expect("G0 exit evidence")
+        .iter()
+        .find(|evidence| evidence["graphPlanHash"] == carrier.plan_hash.as_str())
+        .expect("issueListV2 invocation")["invocation"];
+    let (materialization, partition) =
+        validate_corpus_invocation(&carrier, call, "issueListV2");
+    let mut request = evaluation_request(&corpus, call, &materialization, &partition);
+    request.authority.auth.user_id = Some("unbound-principal".to_owned());
+    request.authority.auth.principal = Some("unbound-principal".to_owned());
+    let output = snapback
+        .evaluate_graph_query(&carrier.normalized_plan, &request)
+        .expect("unbound principal still evaluates");
+    assert!(output.refusal_reason.is_none());
+    let schema = snapback.inspect_core().unwrap().schema;
+    let mut unbound_demand = GraphSubscriptionRegistrationDemandV1 {
+        args: request.args.clone(),
+        windows: request.windows.clone(),
+        input: normalized_matcher_input(&carrier.normalized_plan, &request),
+        permission_values_by_table: demand.permission_values_by_table.clone(),
+        materialization,
+        partition,
+    };
+    unbound_demand.input.auth = request.authority.auth.clone();
+    assert!(
+        register_graph_subscription_dependencies(
+            &carrier,
+            &schema,
+            &unbound_demand,
+            &output.captured_reads,
+            &output.capture_attachments,
+            &output.captured_query_outputs,
+        )
+        .is_ok(),
+        "missing identityBinding must not drop parents from the attested set"
     );
 }
 

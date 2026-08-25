@@ -210,17 +210,28 @@ struct GraphRegistrationFact<'a> {
     query_outputs: BTreeMap<usize, &'a [Value]>,
 }
 
+fn demand_mismatch(field: &'static str) -> GraphDemandTimeRefusalReasonV1 {
+    if std::env::var_os("SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE").is_some() {
+        eprintln!("SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH field={field}");
+    }
+    GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch
+}
+
 fn registration_facts<'a>(
     carrier: &GraphQueryCarrierV1,
     reads: &'a [CapturedReadDependency],
     attachments: &[GraphCapturedReadAttachmentV1],
     query_outputs: &'a [GraphCapturedQueryOutputV1],
 ) -> Result<(Vec<GraphRegistrationFact<'a>>, Vec<u64>), GraphDemandTimeRefusalReasonV1> {
-    if !graph_plan_identity_v1(&carrier.normalized_plan)
+    let rebuilt_plan = graph_plan_identity_v1(&carrier.normalized_plan);
+    if !rebuilt_plan
+        .as_ref()
         .is_ok_and(|identity| identity.plan_hash == carrier.plan_hash)
-        || reads.iter().any(|read| !read.graph_pairing_is_valid())
     {
-        return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+        return Err(demand_mismatch("plan-hash"));
+    }
+    if reads.iter().any(|read| !read.graph_pairing_is_valid()) {
+        return Err(demand_mismatch("graph-pairing"));
     }
     let mut claimed = BTreeSet::new();
     let mut attached_graphs = BTreeSet::new();
@@ -230,64 +241,64 @@ fn registration_facts<'a>(
     let mut outputs_by_query = BTreeMap::new();
     for output in query_outputs {
         let index = usize::try_from(output.query_read_index)
-            .map_err(|_| GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+            .map_err(|_| demand_mismatch("query-output-index"))?;
         if outputs_by_query
             .insert(index, output.rows.as_slice())
             .is_some()
         {
-            return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+            return Err(demand_mismatch("duplicate-query-output"));
         }
     }
     for attachment in attachments {
         let graph_index = usize::try_from(attachment.graph_read_index)
-            .map_err(|_| GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+            .map_err(|_| demand_mismatch("graph-read-index"))?;
         let graph_read = reads
             .get(graph_index)
-            .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+            .ok_or_else(|| demand_mismatch("graph-read-missing"))?;
         let graph = graph_read
             .graph
             .as_ref()
-            .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+            .ok_or_else(|| demand_mismatch("graph-payload-missing"))?;
         if !attached_graphs.insert(graph_index)
             || !claimed.insert(graph_index)
             || validate_graph_captured_read_v1(graph, &carrier.normalized_plan).is_err()
         {
-            return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+            return Err(demand_mismatch("graph-attachment"));
         }
         let node_index = carrier
             .normalized_plan
             .nodes
             .iter()
             .position(|node| node.node_id() == graph.node_id)
-            .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+            .ok_or_else(|| demand_mismatch("unknown-node-id"))?;
         if last_node_index.is_some_and(|last| node_index < last) {
-            return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+            return Err(demand_mismatch("attachment-order"));
         }
         last_node_index = Some(node_index);
         cardinalities[node_index] = cardinalities[node_index]
             .checked_add(1)
-            .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+            .ok_or_else(|| demand_mismatch("capture-cardinality"))?;
         let mut ordinary_reads = Vec::with_capacity(attachment.ordinary_read_indices.len());
         let mut attached_outputs = BTreeMap::new();
         for ordinary_index in &attachment.ordinary_read_indices {
             let ordinary_index = usize::try_from(*ordinary_index)
-                .map_err(|_| GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+                .map_err(|_| demand_mismatch("ordinary-read-index"))?;
             let ordinary = reads
                 .get(ordinary_index)
-                .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+                .ok_or_else(|| demand_mismatch("ordinary-read-missing"))?;
             if ordinary.graph.is_some()
                 || ordinary.kind == CapturedReadKind::GraphNode
                 || !claimed.insert(ordinary_index)
             {
-                return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+                return Err(demand_mismatch("ordinary-attachment"));
             }
             if ordinary.kind == CapturedReadKind::Query {
                 let rows = outputs_by_query
                     .remove(&ordinary_index)
-                    .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+                    .ok_or_else(|| demand_mismatch("query-output-missing"))?;
                 attached_outputs.insert(ordinary_index, rows);
             } else if outputs_by_query.contains_key(&ordinary_index) {
-                return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+                return Err(demand_mismatch("query-output-unattached"));
             }
             ordinary_reads.push((ordinary_index, ordinary));
         }
@@ -302,7 +313,7 @@ fn registration_facts<'a>(
         || claimed.len() != reads.len()
         || !outputs_by_query.is_empty()
     {
-        return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+        return Err(demand_mismatch("capture-vector-coverage"));
     }
     Ok((facts, cardinalities))
 }
@@ -359,7 +370,7 @@ fn registration_query_rows_are_attested(
             })
             .collect::<Result<Vec<_>, GraphDemandTimeRefusalReasonV1>>()?;
         if read.rows != ids || read.version.is_none() {
-            return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+            return Err(demand_mismatch("query-row-attestation"));
         }
     }
     let mut actual_points = fact
@@ -370,26 +381,27 @@ fn registration_query_rows_are_attested(
             Ok((
                 read.table
                     .clone()
-                    .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?,
+                    .ok_or_else(|| demand_mismatch("row-table"))?,
                 read.id
                     .clone()
-                    .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?,
+                    .ok_or_else(|| demand_mismatch("row-id"))?,
                 read.version
-                    .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?,
+                    .ok_or_else(|| demand_mismatch("row-version"))?,
             ))
         })
         .collect::<Result<Vec<_>, GraphDemandTimeRefusalReasonV1>>()?;
     expected_points.sort();
     actual_points.sort();
-    if expected_points != actual_points
-        || fact.ordinary.iter().any(|(_, read)| {
-            !matches!(
-                read.kind,
-                CapturedReadKind::Query | CapturedReadKind::Row | CapturedReadKind::Auth
-            )
-        })
-    {
-        return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+    if expected_points != actual_points {
+        return Err(demand_mismatch("row-point-set"));
+    }
+    if fact.ordinary.iter().any(|(_, read)| {
+        !matches!(
+            read.kind,
+            CapturedReadKind::Query | CapturedReadKind::Row | CapturedReadKind::Auth
+        )
+    }) {
+        return Err(demand_mismatch("ordinary-kind"));
     }
     Ok(())
 }
@@ -441,24 +453,37 @@ fn registration_query_is_exact(
     expected: &QueryPlan,
 ) -> Result<(), GraphDemandTimeRefusalReasonV1> {
     let expected_value = serde_json::to_value(expected)
-        .map_err(|_| GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+        .map_err(|_| demand_mismatch("query-plan-serialize"))?;
     let (order, limit, result_count, boundary) = query_dependency_metadata(expected, rows)
-        .map_err(|_| GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
-    if supplied != expected
-        || read.predicate.as_ref() != Some(&expected_value)
-        || read.table.as_deref() != Some(expected.table.as_str())
-        || read.order != order
-        || read.limit != limit
-        || read.result_count != result_count
-        || read.boundary != boundary
-        || read.rows
-            != rows
-                .iter()
-                .map(|row| row.get("_id").and_then(Value::as_str).map(str::to_owned))
-                .collect::<Option<Vec<_>>>()
-                .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?
-    {
-        return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+        .map_err(|_| demand_mismatch("query-metadata"))?;
+    if supplied != expected {
+        return Err(demand_mismatch("query-plan"));
+    }
+    if read.predicate.as_ref() != Some(&expected_value) {
+        return Err(demand_mismatch("query-predicate"));
+    }
+    if read.table.as_deref() != Some(expected.table.as_str()) {
+        return Err(demand_mismatch("query-table"));
+    }
+    if read.order != order {
+        return Err(demand_mismatch("query-order"));
+    }
+    if read.limit != limit {
+        return Err(demand_mismatch("query-limit"));
+    }
+    if read.result_count != result_count {
+        return Err(demand_mismatch("query-result-count"));
+    }
+    if read.boundary != boundary {
+        return Err(demand_mismatch("query-boundary"));
+    }
+    let ids = rows
+        .iter()
+        .map(|row| row.get("_id").and_then(Value::as_str).map(str::to_owned))
+        .collect::<Option<Vec<_>>>()
+        .ok_or_else(|| demand_mismatch("query-row-id"))?;
+    if read.rows != ids {
+        return Err(demand_mismatch("query-row-ids"));
     }
     Ok(())
 }
@@ -591,7 +616,7 @@ fn exact_parent_fact_set(
     if actual.len() != expected.len()
         || actual.iter().cloned().collect::<BTreeSet<_>>() != *expected
     {
-        return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+        return Err(demand_mismatch("parent-key-set"));
     }
     Ok(())
 }
@@ -932,9 +957,6 @@ fn attest_principal_facts(
             .get(&parent_key)
             .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
         let records = registration_query_records(fact)?;
-        let Some(principal) = principal.as_ref() else {
-            return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
-        };
         let GraphCapturedDependencyV1::PrincipalField {
             value_digest,
             found,
@@ -942,6 +964,12 @@ fn attest_principal_facts(
         } = &fact.graph.dependency
         else {
             unreachable!()
+        };
+        let Some(principal) = principal.as_ref() else {
+            if *found || !records.is_empty() {
+                return Err(demand_mismatch("principal-unbound-parent"));
+            }
+            continue;
         };
         if value_digest
             != &registration_value_digest(
@@ -1022,7 +1050,7 @@ fn attest_registration_semantics(
                 ..
             } => {
                 if node_facts.len() != 1 {
-                    return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+                    return Err(demand_mismatch("root-window-fact-count"));
                 }
                 let GraphCapturedDependencyV1::RootRange {
                     direction: Some(direction),
@@ -1032,7 +1060,7 @@ fn attest_registration_semantics(
                     ..
                 } = &node_facts[0].graph.dependency
                 else {
-                    return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+                    return Err(demand_mismatch("root-window-range"));
                 };
                 let window = registration_window(demand, node.node_id(), None)?;
                 if direction != &window.direction
@@ -1041,11 +1069,11 @@ fn attest_registration_semantics(
                     || *limit != window.take
                     || window.order != *order
                 {
-                    return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+                    return Err(demand_mismatch("root-window-order"));
                 }
                 let records = registration_query_records(node_facts[0])?;
                 if records.len() != 1 {
-                    return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+                    return Err(demand_mismatch("root-window-query-count"));
                 }
                 let (_, read, supplied, rows) = &records[0];
                 let expected = registration_query_plan(
@@ -1204,7 +1232,7 @@ fn attest_registration_semantics(
                         || *limit != window.take
                         || window.order != *order
                     {
-                        return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+                        return Err(demand_mismatch("child-window-order"));
                     }
                     let relation = registration_relation_filters(parent, join_on);
                     let records = registration_query_records(fact)?;
@@ -1333,7 +1361,7 @@ fn attest_registration_semantics(
         .iter()
         .any(|fact| fact.graph.instance_hash != instance.instance_hash)
     {
-        return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+        return Err(demand_mismatch("instance-hash"));
     }
 
     let mut materialization_preimage = demand.materialization.preimage.clone();
@@ -1341,11 +1369,11 @@ fn attest_registration_semantics(
     if materialization_preimage.function.result_contract_hash
         != carrier.normalized_plan.result_contract_hash
     {
-        return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+        return Err(demand_mismatch("result-contract-hash"));
     }
     let materialization = graph_materialization_identity_v1(materialization_preimage)?;
     if materialization != demand.materialization {
-        return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+        return Err(demand_mismatch("materialization-hash"));
     }
 
     let declared_class2 = carrier
@@ -1381,7 +1409,7 @@ fn attest_registration_semantics(
         || demand.partition.preimage.class2.len() != supplied_class2.len()
         || needs_class3 != demand.partition.preimage.class3.is_some()
     {
-        return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+        return Err(demand_mismatch("authority-partition-inputs"));
     }
     let mut partition_preimage = demand.partition.preimage.clone();
     partition_preimage.graph_plan_hash = carrier.plan_hash.clone();
@@ -1395,7 +1423,7 @@ fn attest_registration_semantics(
             )
         })
     {
-        return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+        return Err(demand_mismatch("authority-partition-hash"));
     }
     Ok((
         closures,

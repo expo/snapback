@@ -1177,3 +1177,19 @@ export function auditGuideManifestInventory({
     snippetCount: [...snippetRecords.values()].flat().length,
   };
 }
+
+// Recorded benchmark harness transcripts are frozen evidence of what a model
+// typed under test, not authored examples. The raw-client asset-accessor
+// sweep keeps authored files on createAssetClient and skips this class.
+export function isRecordedBenchmarkEventsTranscript(path) {
+  if (!path.startsWith('benchmarks/runs/') || !path.endsWith('.jsonl')) {
+    return false;
+  }
+  const marker = '/events/';
+  const eventsAt = path.lastIndexOf(marker);
+  if (eventsAt <= 'benchmarks/runs'.length) {
+    return false;
+  }
+  const afterEvents = path.slice(eventsAt + marker.length);
+  return afterEvents.length > 0 && !afterEvents.includes('/');
+}

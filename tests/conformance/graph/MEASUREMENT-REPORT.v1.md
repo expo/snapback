@@ -294,3 +294,39 @@ node scripts/check-inventories.mjs
 - Machine load was shared and high. No latency magnitude, variance, or ordering
   claim is made from the excluded N=1 empty diagnostic, and no zero is
   synthesized for any N=0 large or hot cell.
+
+## Addendum 2026-08-25 — clone method and demand-identity unblock
+
+The prescribed `.backup` hang is explained by a stale `server.pid` (38187, dead)
+and restore-lock pid (63089, dead) while `127.0.0.1:4290` was a leftover
+published-smoke process on a different sqlite file. Nothing held
+`hot-diag-baseline/diag.sqlite3` (WAL 0 bytes). The unblocking clone recipe is
+read-only `VACUUM INTO`, not a filesystem copy of a live WAL DB:
+
+```sh
+src="$PRIMARY/demos/zerobugs/fixtures-local/hot-diag-baseline"
+dst="$PWD/demos/zerobugs/fixtures-local/oq4-clone"
+mkdir -p "$dst"
+sqlite3 "file:${src}/diag.sqlite3?mode=ro" "VACUUM INTO '${dst}/diag.sqlite3'"
+cp "$src/diag.sqlite3.auth-keyring.json" "$dst/diag.sqlite3.auth-keyring.json"
+cp "$src/startup-artifacts.json" "$dst/startup-artifacts.json"
+```
+
+Two independent `VACUUM INTO` runs produced `diag.sqlite3` at 8753221632 bytes
+each. The source file and WAL were unchanged; `:4290` was not signalled.
+
+`SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH` at dependency registration on the
+large/hot fixture was `parent-key-set`: principal-bound nodes emitted no
+per-parent capture when `identityBinding` missed the test principal (the
+CSV loader does not ingest that table). Empty-result point lookups therefore
+registered (zero parents) while any non-empty graph refused. The evaluator now
+emits a `found: false` parent-keyed fact for every parent when the binding
+misses, and registration accepts that exact set. Corpus-bound principals still
+register; a forged instance hash still refuses.
+
+`SNAPBACK_PB_MODE=observe` subscribe on the Aug-7 catalog still hits
+`SNAPBACK_AUTH_IDENTITY_CORE_REQUIRES_V3` (identity-core writes are not a
+migration). Evaluate+register (`SNAPBACK_PB_MODE=register-probe`) on the
+`VACUUM INTO` clone completed registration for `issueListV2`, `issueDetail`,
+and `listIssueByID` twice with no demand-identity refusal. D2-H2/H3 hot N≥3
+publication remains follow-on.
