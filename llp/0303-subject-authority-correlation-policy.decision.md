@@ -6,7 +6,7 @@
 **Author:** Claude (Opus 5), commissioned by Charlie Cheever (author ruling
 2026-08-24, in session supervising LLP 0283 F-1)
 **Date:** 2026-08-24
-**Revised:** 2026-08-25 (o — an enumeration under default features is not an enumeration)
+**Revised:** 2026-08-25 (p — the fix inherits the defect; the guard test rarely tries the live route)
 **Related:** LLP 0283, LLP 0298, LLP 0285, LLP 0274,
 `issues/20260824-liveness-row-bucket-assignment.md`,
 `issues/20260824-entitlement-predicates-for-the-live-sites.md`
@@ -462,6 +462,50 @@ Practically, an enumeration should state which feature sets it covered, and a re
 "default only" as incomplete rather than as an answer. The cheap check is to re-run the search with
 each additive feature enabled and diff the candidate set; the writers that appear are exactly the
 ones the default-feature pass cannot see.
+
+### The fix inherits the defect, and the test that guards it usually doesn't try
+
+Two patterns have now recurred often enough to state as rules rather than observations. Both concern
+what happens *after* a lane has correctly identified and fixed its defect.
+
+**A new durable guard inherits every question the old one failed.** Three lanes added durable state
+to close a defect, and in all three the new state carried the same flaw one level up:
+
+- a monotonic **replay floor** was added to stop replay after receipt expiry. `auth_gc()` accepts a
+  caller-supplied timestamp, so `auth_gc(AUTH_MAX_SAFE_TIMESTAMP)` advances the floor to its maximum
+  and **permanently locks out every future issuance, revocation, rotation, alarm and password
+  change**;
+- a **participant-provenance marker** was added to stop presence being treated as provenance. The
+  marker turned out to be establishable by a composition of only public APIs, with no real issuer
+  ever existing;
+- a **monotone epoch trigger** was added to stop canonical replay. The trigger checks only
+  `NEW.sequence == OLD.sequence + 1`, authenticating nothing, so an ordinary `UPDATE` from a raw
+  connection replaces the singleton with an attacker-chosen owner.
+
+> Whenever a fix introduces durable state, ask of the new state exactly what was asked of the old:
+> **who can write it, can a caller advance or pre-empt it, is it monotonic structurally or only by
+> convention, and is it written in the same transaction as the effect it authorises?**
+
+Note the direction of harm inverts. The original defects let an attacker *do* something; these
+successors let an attacker **deny service permanently** — a maximum floor, a poisoned marker, a
+forged epoch. A fix for an availability-neutral defect that creates a stronger availability attack is
+not progress.
+
+**And the boundary test a lane writes for its own fix tends to exercise the guarded case.** Two
+instances, both caught only by executable review:
+
+- a membership boundary test called the very public factories that constitute the live route, and
+  asserted only that `FunctionKind::Query` is refused. It never tried `Mutation` plus commit — which
+  works, and commits a durable row;
+- a migrated service test asserted `ScopedServiceRetired` on the branch where the disposition is
+  **hardcoded**, rather than the branch where it is derived from the fence — so it passed with a live
+  fence and proved nothing about terminalization.
+
+> A boundary test must attempt the composition that **succeeds**, and fail first on it. A test that
+> exercises the path already closed will pass forever without demonstrating anything.
+
+The cheap discipline: for every new guard, write the test that would have caught the *original*
+defect, confirm it fails against the unfixed code, and only then confirm it passes.
 
 This is the same family as the constructor/setter case above: a derivation that holds at one instant
 and is undone afterwards. Setters undo it by assignment; combinators undo it by rewrapping; recycling
