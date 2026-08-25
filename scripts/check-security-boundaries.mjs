@@ -117,7 +117,8 @@ export function validateFixtureInventory(
   if (unmountedPrivilegeCrates.length > 0) {
     errors.push(`privilege-bearing workspace crate(s) have no attack mounts: ${unmountedPrivilegeCrates.join(', ')}`);
   }
-  // @ref LLP 0284#i-12 — a featureSet may only name `crate/feature` for a crate the fixture
+  // @ref LLP 0284#36-inventory-honesty — I-12 forbids the fixture from depending on a
+  // scanner-empty crate, so a featureSet may only name `crate/feature` for a crate the fixture
   // actually declares. Cargo rejects an undeclared `dep/feature` at invocation with
   // "does not contain this feature", which aborts the whole gate on the first offending cell and
   // leaves every later attack unevaluated. Four separate lanes declared
