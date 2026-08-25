@@ -23,6 +23,7 @@ export type SnapbackAppDataSurface = Pick<
   | 'localResourceInspection'
   | 'authSession'
   | 'authRequestCode'
+  | 'authStepUpRequest'
   | 'authExchange'
   | 'authPasswordSignup'
   | 'authPasswordSignIn'

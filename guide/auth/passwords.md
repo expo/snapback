@@ -4,13 +4,13 @@ id: auth.passwords
 order: 2
 audience: agent-first
 capabilities: [auth.passwords, auth.sessions, auth.browser-session-custody, auth.application-bootstrap-native-custody]
-authorities: [llp/0227-password-credential-auth.rfc.md, llp/0214-snapback-identity-core.spec.md, llp/0215-effect-budgets.spec.md, llp/0011-auth-and-permissions.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, crates/snapback-auth/src/auth/provider.rs, crates/snapback-server/src/auth/runtime.rs, crates/snapback-types/src/auth/wire.rs, crates/snapback-types/src/contract_types.rs, crates/snapback-kernel/src/storage/auth_identity.rs, crates/snapback-server/src/server.rs, crates/snapback-cli/src/cli.rs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/app-client.mjs, packages/snapback-client/app-client.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/password-auth.test.mjs, packages/snapback-react/auth-bootstrap.test.mjs, packages/snapback-react/index.mjs, packages/snapback-expo/provider-auth-bootstrap.test.mjs, packages/snapback-expo/provider.mjs, packages/snapback-admin-client/index.mjs]
+authorities: [llp/0227-password-credential-auth.rfc.md, llp/0214-snapback-identity-core.spec.md, llp/0215-effect-budgets.spec.md, llp/0011-auth-and-permissions.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, llp/0303-subject-authority-correlation-policy.decision.md, crates/snapback-auth/src/auth/provider.rs, crates/snapback-server/src/auth/runtime.rs, crates/snapback-types/src/auth/wire.rs, crates/snapback-types/src/contract_types.rs, crates/snapback-kernel/src/storage/auth_identity.rs, crates/snapback-server/src/server.rs, crates/snapback-cli/src/cli.rs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/app-client.mjs, packages/snapback-client/app-client.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/password-auth.test.mjs, packages/snapback-cli/sessions-dev-loop.test.mjs, packages/snapback-react/auth-bootstrap.test.mjs, packages/snapback-react/index.mjs, packages/snapback-expo/provider-auth-bootstrap.test.mjs, packages/snapback-expo/provider.mjs, packages/snapback-admin-client/index.mjs]
 examples: [packages/snapback-cli/templates/react, packages/snapback-cli/templates/expo-chat, tests/fixtures/application-auth/browser-explicit/application, demos/browser-auth]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-16
-reviewed-authorities-digest: sha256:eaff689bf18067532fde1b0fc3ed72bc259043893ac37fd2c914974a76df01bd
+reviewed: 2026-08-25
+reviewed-authorities-digest: sha256:97e949ba26eb1e2644ed5ae93eb97971816f70206ec347b7b11d215621b8107a
 ---
 
 # Email and password
@@ -397,14 +397,14 @@ credential.session.userId       ← the same principal, wire response
 `session.provider` reports `local-password` at mint **and on every later
 refresh**, so a session's credential class stays legible for its whole life.
 
-Signup additionally returns `recoveryCodes` — the only response that carries a
-sixth field. Everything else stays byte-shape-identical to `/auth/exchange`.
+Signup and first-password set additionally return `recoveryCodes`; other
+credential responses stay byte-shape-identical to `/auth/exchange`.
 
 ## Recovery codes are the recovery path
 
-Signup returns eight one-time recovery codes. **They are shown exactly once**
-and are not readable again — not through the admin console, not through any
-route. Store them at signup or lose them.
+Signup and first-password set return eight one-time recovery codes. **They are
+shown exactly once** and are not readable again — not through the admin
+console, not through any route. Store them when returned or lose them.
 
 - `authRecoveryConsume({ email, code })` mints a session and automatically
   replaces the whole set. A consumed code cannot be reused.
@@ -420,16 +420,47 @@ projection, or error diagnostics.
 authenticated session **and** the current password — a stolen bearer alone
 cannot rotate a credential.
 
-Change is a **same-authority rotation**, not a new login: it rotates the acting
-session's bearer, keeps the authority instance id, and revokes the user's
-*other* sessions. A session belonging to a different user is untouched. Because
-the authority is preserved, the client adopts it through the same rotation path
-refresh uses.
+Ordinary change is a **same-authority rotation**, not a new login: it rotates
+the acting session's bearer, keeps the authority instance id, and revokes the
+user's *other* sessions. A session belonging to a different user is untouched.
+Because the authority is preserved, the client adopts it through the same
+rotation path refresh uses.
 
 `authPasswordSet({ newPassword, stepUp })` adds a first password to a principal
 that has none. It additionally requires a fresh operation-bound step-up
-challenge naming the principal's own verified `email-code` identity — acquire it
-with `POST /auth/request-code` against that address.
+challenge. The server derives the subject from the current authenticated
+`email-code` session; the app neither discovers nor supplies an internal
+identity id.
+
+First-password set issues a new local-password session for the same user. The
+client adopts that successor through its fenced authority-transition path, not
+ordinary change's same-session bearer rotation.
+
+<!-- since: 0.1.27 unreleased -->
+> **Unreleased.** This identity-free password-set helper is newer than the
+> latest published `@expo/snapback-client` (`0.1.26`). Build from source until
+> `0.1.27` is published.
+
+Use `authStepUpRequest({ operation: 'passwordSet' })`, deliver the code to the
+human, then submit that challenge and code to `authPasswordSet`:
+
+```js source=packages/snapback-cli/sessions-dev-loop.test.mjs
+async function setFirstPassword({ client, newPassword, readStepUpCode }) {
+  const stepUp = await client.authStepUpRequest({ operation: 'passwordSet' });
+  const code = await readStepUpCode(stepUp.challengeId);
+  return client.authPasswordSet({
+    newPassword,
+    stepUp: { challengeId: stepUp.challengeId, code },
+  });
+}
+```
+
+The returned value includes the eight one-time `recoveryCodes`; present them to
+the user and do not silently discard them.
+
+The raw mint route used by the client is `POST /auth/step-up/request` with
+`{ "operation": "passwordSet" }`. `POST /auth/request-code` starts the
+ordinary sign-in ceremony; it does not mint a password-set step-up.
 
 ## From the CLI
 

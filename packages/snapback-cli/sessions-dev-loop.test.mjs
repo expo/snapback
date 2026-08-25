@@ -96,6 +96,15 @@ const waitFor = async (predicate, label, timeoutMs = 45_000) => {
   throw new Error(`${label} timed out${lastError ? `: ${lastError.message}` : ''}`);
 };
 
+async function setFirstPassword({ client, newPassword, readStepUpCode }) {
+  const stepUp = await client.authStepUpRequest({ operation: 'passwordSet' });
+  const code = await readStepUpCode(stepUp.challengeId);
+  return client.authPasswordSet({
+    newPassword,
+    stepUp: { challengeId: stepUp.challengeId, code },
+  });
+}
+
 try {
   dev = await runDev({
     backendDirectory: backendRoot,
@@ -218,6 +227,65 @@ try {
     `exit ${sessionsUserRun.status}`,
     sessionsUserRun.stdout.trim(),
   ].join('\n'));
+  // The first-party client can attach a first password without discovering or
+  // supplying an internal identity id. The dev-only mailbox read stands in
+  // for the human entering the delivered step-up code.
+  {
+    const ready = JSON.parse(readFileSync(readyFile, 'utf8'));
+    const adminToken = readFileSync(ready.adminTokenFile, 'utf8').trim();
+    const impersonationCapability = readFileSync(
+      ready.impersonationCapabilityFile,
+      'utf8',
+    ).trim();
+    const coordinator = new AuthCoordinator({
+      appId: carrier.schema.appId,
+      storage: createMemoryAuthCustodyStorage({ state: { custody: {} } }),
+      broadcastChannelFactory: null,
+      hintStorage: null,
+    });
+    const client = new SnapbackClient(dev.serverUrl, {
+      authCoordinator: coordinator,
+      clientStoreId: 'sessions-password-set-step-up',
+      rqsStore: null,
+      offlineQueue: false,
+    });
+    const readStepUpCode = async (challengeId) => {
+      const response = await fetch(
+        `${dev.serverUrl}/_snapback/api/auth/mailbox?challengeId=${encodeURIComponent(challengeId)}`,
+        {
+          headers: {
+            'x-snapback-admin-token': adminToken,
+            'x-snapback-impersonation-capability': impersonationCapability,
+          },
+        },
+      );
+      const body = await response.json();
+      assert.equal(response.status, 200, JSON.stringify(body));
+      return body.code;
+    };
+    try {
+      const email = `sessions-password-set-${process.pid}@example.com`;
+      const requested = await client.authRequestCode(email);
+      const emailCode = await readStepUpCode(requested.challengeId);
+      const emailCredential = await client.authExchange({
+        challengeId: requested.challengeId,
+        code: emailCode,
+      });
+      const result = await setFirstPassword({
+        client,
+        newPassword: 'sessions-password-set-step-up-123!',
+        readStepUpCode,
+      });
+      assert.equal(result.session.userId, emailCredential.session.userId);
+      assert.equal(result.session.provider, 'local-password');
+      assert.equal(result.recoveryCodes.length, 8);
+      assert.equal(Object.hasOwn(result, 'token'), false);
+      assert.equal(client.auth.currentPrincipal().userId, emailCredential.session.userId);
+    } finally {
+      await client.closeAuth();
+      await coordinator.close();
+    }
+  }
 
   // issues/20260729-sessions-client-inspect-omits-protocol-offer: the official
   // public inspection method negotiates the active sessions profile without

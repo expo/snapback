@@ -702,6 +702,7 @@ export interface SnapbackClientAuthNamespace {
   subscribeCurrentPrincipal(listener: () => void): () => void;
   readonly authSession: SnapbackClient['authSession'];
   readonly authRequestCode: SnapbackClient['authRequestCode'];
+  readonly authStepUpRequest: SnapbackClient['authStepUpRequest'];
   readonly authExchange: SnapbackClient['authExchange'];
   readonly authEnterAsGuest: SnapbackClient['authEnterAsGuest'];
   readonly authClaimGuestWithPassword: SnapbackClient['authClaimGuestWithPassword'];
@@ -728,7 +729,6 @@ export interface AuthChallengePublicProjectionV1 {
 export interface AuthPasswordSetStepUpV1 {
   readonly challengeId: string;
   readonly code: string;
-  readonly identityId: string;
 }
 
 export interface SettledMutation {
@@ -1835,6 +1835,9 @@ export class SnapbackClient {
   closeAuth(): Promise<void>;
   authSession(options?: Readonly<{ readonly force?: boolean }>): Promise<AuthSessionProjectionV1>;
   authRequestCode(email: string): Promise<AuthChallengePublicProjectionV1>;
+  authStepUpRequest(input: Readonly<{
+    readonly operation: 'passwordSet';
+  }>): Promise<AuthChallengePublicProjectionV1>;
   authExchange(input: Readonly<{
     readonly challengeId: string;
     readonly code: string;
@@ -1859,7 +1862,7 @@ export class SnapbackClient {
   authPasswordSet(input: Readonly<{
     readonly newPassword: string;
     readonly stepUp: AuthPasswordSetStepUpV1;
-  }>): Promise<AuthCredentialPublicProjectionV1>;
+  }>): Promise<AuthRecoveryCredentialPublicProjectionV1>;
   authPasswordReset(input: Readonly<{
     readonly challengeId: string;
     readonly code: string;

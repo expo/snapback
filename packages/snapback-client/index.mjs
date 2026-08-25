@@ -3938,6 +3938,7 @@ export class SnapbackClient {
       subscribeCurrentPrincipal: (listener) => this.#subscribeCurrentPrincipal(listener),
       authSession: (...args) => this.authSession(...args),
       authRequestCode: (...args) => this.authRequestCode(...args),
+      authStepUpRequest: (...args) => this.authStepUpRequest(...args),
       authExchange: (...args) => this.authExchange(...args),
       authEnterAsGuest: (...args) => this.authEnterAsGuest(...args),
       authClaimGuestWithPassword: (...args) => this.authClaimGuestWithPassword(...args),
@@ -7811,6 +7812,32 @@ export class SnapbackClient {
     return committed.value;
   }
 
+  async authStepUpRequest({ operation }) {
+    if (operation !== 'passwordSet') {
+      throw new TypeError('authStepUpRequest operation must be passwordSet');
+    }
+    if (!this.authCoordinator) {
+      throw new TypeError('authStepUpRequest requires AuthCoordinator custody');
+    }
+    this.#requirePasswordBearerCustody();
+    await this.authSession();
+    const capture = this.authCoordinator.capture();
+    const bearer = this.authCoordinator.credentialFor(capture).bearer;
+    const response = projectChallengeResponse(await this.#trackedFetchJson(
+      'POST',
+      '/auth/step-up/request',
+      { operation },
+      this.#authOfferHeaders(true, bearer),
+      { forbiddenSecrets: [bearer] },
+    ));
+    if (!response) throw opaqueCredentialResponseError();
+    const committed = await this.commitAuthorityPublication(capture, () => (
+      markAuthorityCapture(response, capture)
+    ));
+    if (!committed.committed) throw staleAuthorityError();
+    return committed.value;
+  }
+
   // The provider returns a bearer, but coordinated clients never publish it
   // to app code. Custody advances and every local participant resumes before
   // this method exposes the non-secret session projection.
@@ -8070,6 +8097,48 @@ export class SnapbackClient {
     return outcome.value;
   }
 
+  async #authPasswordCredentialTransition({
+    path,
+    body,
+    forbiddenSecrets,
+  }) {
+    if (!this.authCoordinator) {
+      throw new TypeError('password credential transition requires AuthCoordinator custody');
+    }
+    this.#requirePasswordBearerCustody();
+    await this.authSession();
+    const capture = this.authCoordinator.capture();
+    const predecessor = this.authCoordinator.credentialFor(capture);
+    if (predecessor.authority.kind !== 'session') throw staleAuthorityError();
+    const raw = await this.#trackedFetchJson(
+      'POST',
+      path,
+      body,
+      this.#authOfferHeaders(true, predecessor.bearer),
+      { forbiddenSecrets: [predecessor.bearer, ...forbiddenSecrets] },
+    );
+    const response = this.#validateCredentialResponseWithRecoveryCodes(
+      raw,
+      [predecessor.bearer, ...forbiddenSecrets],
+    );
+    const successorAuthority = credentialAuthority(
+      response,
+      'sessions',
+      predecessor.authority.authorizationStreamIncarnation,
+    );
+    if (successorAuthority.userId !== predecessor.authority.userId) {
+      throw opaqueCredentialResponseError();
+    }
+    await this.#transitionCredentialAuthority(capture, {
+      authority: successorAuthority,
+      bearer: response.token,
+      refreshAfterMs: response.refreshAfter,
+    });
+    const projected = credentialPublicProjectionWithRecoveryCodes(response);
+    this.#publishCredentialPrincipal(projected);
+    return projected;
+  }
+
   authPasswordSignup({ email, password }) {
     return this.#authPasswordAnonymousIssuance({
       path: '/auth/password/signup',
@@ -8141,11 +8210,10 @@ export class SnapbackClient {
   }
 
   authPasswordSet({ newPassword, stepUp }) {
-    return this.#authPasswordCredentialRotation({
+    return this.#authPasswordCredentialTransition({
       path: '/auth/password/change',
       body: { currentPassword: null, newPassword, stepUp },
       forbiddenSecrets: [newPassword, stepUp?.code],
-      recoveryCodes: false,
     });
   }
 

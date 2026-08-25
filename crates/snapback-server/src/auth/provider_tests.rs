@@ -3427,16 +3427,12 @@ mod tests {
         )
         .await;
         let actor_old_bearer = issue_token(&actor);
-        let actor_identity = database
-            .identity_id_for_provider_subject_for_test("email-code", "claimed@example.com")
-            .expect("actor email identity");
         let actor_session = &actor.response().session;
         let password_set_binding = StepUpBinding::password_set(
             actor_session.user_id.clone(),
             actor_session.id.clone(),
             actor_session.generation,
             actor_session.authority_instance_id.clone(),
-            actor_identity.clone(),
         );
         let admission = provider.admit().await;
         let step_up_address = admission
@@ -3483,7 +3479,6 @@ mod tests {
             .prepare_password_set(
                 &database,
                 actor.response().token(),
-                &actor_identity,
                 "claimed@example.com",
                 now_ms + 3,
                 PasswordIssuanceCustody::Bearer,

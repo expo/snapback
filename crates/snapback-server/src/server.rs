@@ -16878,10 +16878,7 @@ enum StepUpRequest {
         #[serde(rename = "effectId")]
         effect_id: String,
     },
-    PasswordSet {
-        #[serde(rename = "identityId")]
-        identity_id: String,
-    },
+    PasswordSet {},
 }
 
 struct PairingCodeSecretResponse {
@@ -17148,7 +17145,6 @@ fn effect_step_up_binding(
 
 fn password_set_step_up_binding(
     authority: &PreparedAuthority,
-    identity_id: String,
     source: InvocationSource,
 ) -> Result<StepUpBinding, ApiError> {
     require_provider_session_authority(authority, source)?;
@@ -17167,13 +17163,12 @@ fn password_set_step_up_binding(
         session_id.clone(),
         *generation,
         authority_instance_id.clone(),
-        identity_id,
     ))
 }
 
 /// Fresh-authentication requests derive their human address from the exact
-/// live session. The wire chooses only a closed operation and target; it can
-/// neither redirect delivery nor mint an unbound proof.
+/// live session. The wire chooses only a closed operation; it can neither
+/// select a subject, redirect delivery, nor mint an unbound proof.
 ///
 /// @ref LLP 0055#re-credentialing-recovery-and-the-production-profile-invariant — step-up is operation/target bound,
 /// five-minute, single-use, and capture-only outside production until LLP 0045.
@@ -17193,9 +17188,8 @@ async fn auth_step_up_request(
         StepUpRequest::EffectApproval { effect_id } => {
             effect_step_up_binding(&authority, effect_id)?
         }
-        StepUpRequest::PasswordSet { identity_id } => password_set_step_up_binding(
+        StepUpRequest::PasswordSet {} => password_set_step_up_binding(
             &authority,
-            identity_id,
             InvocationSource::AgentGrantManagement,
         )?,
     };
@@ -20026,7 +20020,6 @@ async fn auth_password_change(
         PasswordChangeRequest::Set(request) => {
             let binding = password_set_step_up_binding(
                 &authority,
-                request.step_up.identity_id.clone(),
                 InvocationSource::AuthRefresh,
             )?;
             let admission = provider.admit().await;
@@ -20045,12 +20038,10 @@ async fn auth_password_change(
                 )
                 .await
                 .map_err(map_provider_error)?;
-            let identity_id = request.step_up.identity_id.clone();
             let step_up_proof = proof_admission.proof().clone();
             let preparation = with_snapback(&runtime.snapback, move |snapback| {
                 snapback.execute_auth_plan(proof_admission.prepare_password_set_plan(
                     &bearer,
-                    &identity_id,
                     now_ms,
                     PasswordIssuanceCustody::Bearer,
                 ))

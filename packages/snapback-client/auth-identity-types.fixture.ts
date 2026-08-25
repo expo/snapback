@@ -59,6 +59,11 @@ client.clearAuthSession();
 client.authTerminalStatus().terminated.valueOf();
 const stopTerminal = client.subscribeAuthTerminal(() => undefined);
 stopTerminal();
+void client.authStepUpRequest({ operation: 'passwordSet' });
+void client.authPasswordSet({
+  newPassword: 'not-a-runtime-secret',
+  stepUp: { challengeId: 'challenge', code: 'code' },
+}).then((credential) => credential.recoveryCodes.length);
 
 const external = new SnapbackClient('http://127.0.0.1:5050', {
   bearerToken: 'sbs_identity_fixture',

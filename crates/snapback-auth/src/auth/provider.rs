@@ -226,15 +226,18 @@ impl StepUpBinding {
         session_id: String,
         session_generation: u64,
         authority_instance_id: String,
-        email_identity_id: String,
     ) -> Self {
+        // @ref LLP 0303#the-governing-principle — the server derives the
+        // password-set subject from this exact session; callers never carry
+        // an internal identity selector.
+        let target_id = session_id.clone();
         Self {
             user_id,
             session_id,
             session_generation,
             authority_instance_id,
             operation: "passwordSet",
-            target_id: email_identity_id,
+            target_id,
         }
     }
 
@@ -302,7 +305,6 @@ impl StepUpProofAdmission {
     pub fn prepare_password_set_plan<'a>(
         &'a self,
         acting: &'a SessionBearer,
-        email_identity_id: &'a str,
         now_ms: u64,
         custody: PasswordIssuanceCustody,
     ) -> impl super::database_plan::AuthDatabasePlan<Output = SnapbackResult<PasswordSetPreparation>> + 'a
@@ -312,7 +314,6 @@ impl StepUpProofAdmission {
             self._admission.provider.prepare_password_set(
                 database,
                 acting,
-                email_identity_id,
                 identifier,
                 now_ms,
                 custody,
@@ -2280,7 +2281,6 @@ impl AuthProvider {
         &self,
         database: &LocalDatabase,
         acting: &SessionBearer,
-        email_identity_id: &str,
         identifier: &str,
         now_ms: u64,
         custody: PasswordIssuanceCustody,
@@ -2297,8 +2297,7 @@ impl AuthProvider {
                 "password identifier does not satisfy the declared mode",
             )
         })?;
-        let planning =
-            database.password_set_planning(acting, email_identity_id, &canonical, now_ms)?;
+        let planning = database.password_set_planning(acting, &canonical, now_ms)?;
         let mut revocations = plan_user_session_revocations(
             database,
             &planning.predecessor.acting_user_id,
@@ -2442,7 +2441,6 @@ impl AuthProvider {
         &self,
         database: &LocalDatabase,
         acting: &SessionBearer,
-        email_identity_id: &str,
         step_up: StepUpProof,
         identifier: &str,
         password: crate::auth::identity_core::PasswordSecret,
@@ -2454,7 +2452,6 @@ impl AuthProvider {
         let preparation = self.prepare_password_set(
             database,
             acting,
-            email_identity_id,
             identifier,
             now_ms,
             custody,
@@ -3405,17 +3402,10 @@ impl AuthAdmission {
     ) -> ProviderResult<CanonicalAddress> {
         validate_now(now_ms)?;
         let catalog = database.auth_catalog_read();
-        let address = if binding.operation == "passwordSet" {
-            catalog.password_set_step_up_address(
-                &binding.catalog_binding(),
-                &binding.target_id,
-                now_ms,
-            )
-        } else {
-            catalog.step_up_address(&binding.catalog_binding(), now_ms)
-        }
-        .map_err(|_| provider_unavailable())?
-        .ok_or_else(auth_required)?;
+        let address = catalog
+            .step_up_address(&binding.catalog_binding(), now_ms)
+            .map_err(|_| provider_unavailable())?
+            .ok_or_else(auth_required)?;
         CanonicalAddress::parse(&address).map_err(|_| provider_unavailable())
     }
 

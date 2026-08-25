@@ -20666,13 +20666,6 @@ async fn password_change_closed_union_rotates_and_requires_step_up_for_first_set
     let set_email = "set-first-password@example.com";
     let email_credential = password_test_email_exchange(&router, &provider, set_email).await;
     let email_bearer = email_credential["token"].as_str().unwrap().to_owned();
-    let email_identity_id = with_snapback(&state.snapback, move |snapback| {
-        snapback
-            .remainder_auth_database_mut()
-            .identity_id_for_provider_subject_for_test("email-code", set_email)
-    })
-    .await
-    .expect("email-code identity id");
 
     let bearer_alone = router
         .clone()
@@ -20699,7 +20692,6 @@ async fn password_change_closed_union_rotates_and_requires_step_up_for_first_set
             "/auth/step-up/request",
             serde_json::to_vec(&json!({
                 "operation": "passwordSet",
-                "identityId": email_identity_id,
             }))
             .unwrap(),
             &email_bearer,
@@ -20724,7 +20716,6 @@ async fn password_change_closed_union_rotates_and_requires_step_up_for_first_set
                 "stepUp": {
                     "challengeId": challenge_id,
                     "code": code,
-                    "identityId": email_identity_id,
                 }
             }))
             .unwrap(),

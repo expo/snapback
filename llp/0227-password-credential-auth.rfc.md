@@ -5,6 +5,8 @@
 **Systems:** Auth, Server, CLI, Client protocol, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-10
+**Revised:** 2026-08-25 (j — password-set subject derivation and published
+client step-up mint surface corrected per LLP 0303)
 **Revised:** 2026-08-10 (a — initial draft, commissioned by the author ruling
 in `issues/20260809-password-credential-auth.md`)
 **Revised:** 2026-08-10 (b — Draft → Review at llp-super-refine loop start,
@@ -221,7 +223,7 @@ are callable non-interactively — the benchmark's core demand.
 |---|---|---|
 | `POST /auth/password/signup` | `{ email, password }` | 200, composed credential response |
 | `POST /auth/password/signin` | `{ email, password }` | 200, composed credential response |
-| `POST /auth/password/change` | closed union: `{ currentPassword, newPassword }` (rotate) **or** `{ currentPassword: null, newPassword, stepUp: { challengeId, code, identityId } }` (set) + bearer | 200, composed credential response (rotated bearer; see below) |
+| `POST /auth/password/change` | closed union: `{ currentPassword, newPassword }` (rotate) **or** `{ currentPassword: null, newPassword, stepUp: { challengeId, code } }` (set) + bearer | 200, composed credential response (rotated bearer; see below) |
 | `POST /auth/password/reset` | `{ challengeId, code, newPassword }` | 200, composed credential response |
 
 The success payload of signup, signin, and reset is **byte-shape-identical to
@@ -256,10 +258,13 @@ Client methods: `client.authPasswordSignup({ email, password })`,
 `client.authPasswordReset({ challengeId, code, newPassword })`. Adoption
 splits by predecessor state: signup/signin/reset adopt as **anonymous
 issuance** (the `authExchange` path, which requires an anonymous
-coordinator), while change is an **authenticated same-authority rotation**
-(the `withCredentialRotation` path refresh already uses: verify same
-authority descriptor, replace the credential within it, refuse on authority
-mismatch or stale response). Custody, refresh, and the logout barrier are
+coordinator), password rotation is an **authenticated same-authority
+rotation** (the `withCredentialRotation` path refresh already uses: verify
+the same authority descriptor, replace the credential within it, refuse on
+authority mismatch or stale response), and first-password set is an
+authenticated same-user transition to the newly issued local-password
+session. Set additionally projects the new recovery codes returned by its
+credential-creation transaction. Custody, refresh, and the logout barrier are
 untouched. **Sender-constrained custody:** when sender-constrained
 credentials are active, v1 password methods refuse with a typed client
 error rather than silently downgrading to bearer-only custody; the
@@ -303,17 +308,17 @@ every later refresh with no new column and no DTO change.
   refuses with a typed code — and additionally requires a **fresh
   operation-bound step-up challenge** consumed in the same transaction
   (LLP 0151's rule): the change/set DTO gains an optional
-  `stepUp: { challengeId, code, identityId }` member, carried by a new
+  `stepUp: { challengeId, code }` member, carried by a new
   closed password-set entry in the existing operation-tagged step-up enum,
   bound to the exact session generation, authority instance, operation, and
-  target as the existing step-up consumers are — the **target is the named
-  `'email-code'` identity** (`identityId`), which must belong to the acting
-  principal (ownership validated in the transaction; refused otherwise), so
-  a multi-email principal's set is unambiguous and a single-email
-  principal's is exact. The proof is acquired end-to-end through the
-  existing surface: `POST /auth/request-code` against the target
-  identity's address mints the challenge (one-active-challenge rules
-  apply), and the set call consumes it via `stepUp`. A stolen bearer alone can neither
+  server-derived target as the existing step-up consumers are — the **target
+  is the exact `'email-code'` identity that issued the authenticated
+  session**, never a caller-supplied identity selector (LLP 0303), so a
+  multi-email principal's set is unambiguous and a single-email principal's
+  is exact. The proof is acquired end-to-end through
+  `POST /auth/step-up/request` with `{ operation: 'passwordSet' }` (or the
+  client's `authStepUpRequest` projection); one-active-challenge rules apply,
+  and the set call consumes it via `stepUp`. A stolen bearer alone can neither
   rotate nor create the credential. Set on an address whose `'password'`
   identity belongs to a *different* principal **displaces** that identity
   and its credential — email proof outranks an unverified squat.
@@ -680,7 +685,7 @@ that surface cannot land next to an unbounded verifier.
   from the lockout `failed_count`; the verification fence extends to the
   ledger predecessor; displacement becomes a first-class session-terminal
   operation with `durableDelete` settlement (LLP 0059); the step-up carrier
-  gains its `identityId` target with ownership validation; the
+  binds the exact server-derived session identity; the
   10th-attempt boundary and the CLI bearer carrier are pinned.
 - **(e — UNREVIEWED)** post-round-3 closing fixes applied after the review
   budget closed and not seen by any reviewer: acceptance criterion 7 made

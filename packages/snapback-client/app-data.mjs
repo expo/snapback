@@ -25,6 +25,7 @@ export const APP_DATA_CLIENT_METHODS = Object.freeze([
   // Sessions flow.
   'authSession',
   'authRequestCode',
+  'authStepUpRequest',
   'authExchange',
   'authPasswordSignup',
   'authPasswordSignIn',

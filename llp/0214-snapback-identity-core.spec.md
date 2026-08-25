@@ -6,6 +6,9 @@
 Security, Delivery, Testing
 **Author:** Charlie Cheever / Codex (gpt-5.6-sol) via Claude orchestration
 **Date:** 2026-08-09
+**Revised:** 2026-08-25 (v0.9 — password-set authority now derives the exact
+email identity from the authenticated session instead of accepting an
+identity selector from the caller, per LLP 0303)
 **Revised:** 2026-08-22 (v0.8 — third guest-entry security review separates
 recipient enumeration from resource-only hash-CPU accounting, extends fixed
 availability ordering to guest entry, and closes proof/registry drift)
@@ -3417,9 +3420,9 @@ is the **catalog authority**; the outcome:
    classifications and observability facts.
 5. **Flow semantics adopted from 0227** (normative here, detailed there):
    the two-phase exact-predecessor verification fence extended over the
-   ledger predecessor; step-up-bound first-password set with the
-   `identityId` target; uniform KDF spend for lock-window attempts; reset
-   screening parity.
+   ledger predecessor; step-up-bound first-password set whose email identity
+   is derived from the exact authenticated session (LLP 0303); uniform KDF
+   spend for lock-window attempts; reset screening parity.
 6. **Landing remains gated** on this Spec's own preconditions (§19) —
    including the backup-format blocker
    (`issues/20260810-llp-0214-floor-catalog-v3-backup-blocked.md`) — and
@@ -3495,12 +3498,15 @@ with exact commit-time recheck and cap-eviction terminal causes,
 token-collision admission, commit-uncertainty reconciliation, and LLP 0059
 projection finalization.
 
-Password change is consequently an authenticated **same-authority rotation**,
-not the floor's authority transition: it rotates the acting session's bearer
-and revokes the user's *other* sessions through a new user-scoped revocation
-operation (LLP 0057's bulk helper is deliberately instance-wide and is not
-reused). Preserving the authority instance id is what lets the client arm adopt
-change through its existing credential-rotation path instead of a fresh login.
+Password rotation is consequently an authenticated **same-authority
+rotation**, not the floor's authority transition: it rotates the acting
+session's bearer and revokes the user's *other* sessions through a new
+user-scoped revocation operation (LLP 0057's bulk helper is deliberately
+instance-wide and is not reused). Preserving the authority instance id is what
+lets the client arm adopt rotation through its existing credential-rotation
+path. First-password set is different: credential creation issues a new
+local-password session for the same user, so the client adopts it through the
+ordinary fenced authority-transition path.
 
 ## 22. Amendment (2026-08-15): application auth bootstrap inputs
 

@@ -283,6 +283,7 @@ test('client.auth is a vocabulary-only projection with exact flat-method contrac
       'authRefresh',
       'authRequestCode',
       'authSession',
+      'authStepUpRequest',
       'authTerminalStatus',
       'authorityTransitionStatus',
       'currentPrincipal',
@@ -323,6 +324,61 @@ test('client.auth is a vocabulary-only projection with exact flat-method contrac
       'anonymous',
     ]);
     unsubscribe();
+  } finally {
+    await fixture.close();
+  }
+});
+
+test('password set mints and submits an identity-free step-up proof', async () => {
+  const fixture = makeFixture({
+    sessionHandshake: (bearer) => bearer === CHANGE_BEARER
+      ? handshake({
+          bearer,
+          sessionId: OTHER_SESSION,
+          authorityInstanceId: OTHER_AUTHORITY,
+        })
+      : handshake({ bearer }),
+  });
+  try {
+    fixture.respond('/auth/password/signup', () => (
+      Response.json(credential({ codes: recoveryCodes }))
+    ));
+    await fixture.client.authPasswordSignup({
+      email: 'person@example.com',
+      password: PASSWORD,
+    });
+    fixture.respond('/auth/step-up/request', ({ authorization, body }) => {
+      assert.equal(authorization, `Bearer ${SIGNUP_BEARER}`);
+      assert.deepEqual(body, { operation: 'passwordSet' });
+      return Response.json({ challengeId: 'step-up-challenge', expiresAt: Date.now() + 60_000 });
+    });
+    const stepUp = await fixture.client.authStepUpRequest({ operation: 'passwordSet' });
+    assert.equal(stepUp.challengeId, 'step-up-challenge');
+    fixture.respond('/auth/password/change', ({ authorization, body }) => {
+      assert.equal(authorization, `Bearer ${SIGNUP_BEARER}`);
+      assert.deepEqual(body, {
+        currentPassword: null,
+        newPassword: NEW_PASSWORD,
+        stepUp: { challengeId: stepUp.challengeId, code: '123456' },
+      });
+      return Response.json(credential({
+        token: CHANGE_BEARER,
+        authorityInstanceId: OTHER_AUTHORITY,
+        sessionId: OTHER_SESSION,
+        codes: recoveryCodes,
+      }));
+    });
+    const result = await fixture.client.authPasswordSet({
+      newPassword: NEW_PASSWORD,
+      stepUp: { challengeId: stepUp.challengeId, code: '123456' },
+    });
+    assert.equal(result.session.userId, USER);
+    assert.equal(result.session.id, OTHER_SESSION);
+    assert.deepEqual(result.recoveryCodes, recoveryCodes);
+    assert.equal(fixture.coordinator.credentialFor(
+      fixture.coordinator.capture(),
+    ).bearer, CHANGE_BEARER);
+    assert.equal(fixture.coordinator.authority.sessionId, OTHER_SESSION);
   } finally {
     await fixture.close();
   }

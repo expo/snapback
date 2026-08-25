@@ -2611,7 +2611,6 @@ impl LocalDatabase {
     pub fn password_set_planning(
         &self,
         acting: &SessionBearer,
-        email_identity_id: &str,
         canonical_identifier: &str,
         now_ms: u64,
     ) -> SnapbackResult<PasswordSetPlanning> {
@@ -2623,28 +2622,45 @@ impl LocalDatabase {
                     "password identifier does not satisfy the declared mode",
                 ));
             }
-            let acting_row: Option<(String, String, i64, Vec<u8>)> = connection
+            // @ref LLP 0303#the-governing-principle — the authenticated
+            // session derives the exact email identity used for password set.
+            let acting_row: Option<(String, String, String, i64, Vec<u8>)> = connection
                 .query_row(
-                    "SELECT s.id,s.user_id,s.generation,s.token_hash
+                    "SELECT s.id,s.user_id,s.identity_id,s.generation,s.token_hash
                      FROM _auth_sessions s
                      JOIN _auth_users u ON u.id=s.user_id
                      WHERE s.token_hash=?1 AND s.revoked_at_ms IS NULL
                        AND ?2<s.expires_at_ms AND u.deactivated_at_ms IS NULL",
                     params![acting.token_hash().as_bytes().as_slice(), now_ms],
-                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+                    |row| {
+                        Ok((
+                            row.get(0)?,
+                            row.get(1)?,
+                            row.get(2)?,
+                            row.get(3)?,
+                            row.get(4)?,
+                        ))
+                    },
                 )
                 .optional()?;
-            let (acting_session_id, acting_user_id, acting_generation, acting_digest) = acting_row
+            let (
+                acting_session_id,
+                acting_user_id,
+                email_identity_id,
+                acting_generation,
+                acting_digest,
+            ) = acting_row
                 .ok_or_else(|| auth_error("SNAPBACK_AUTH_SESSION_INVALID", "session is invalid"))?;
-            let target: Option<(String, String)> = connection
+            let target: Option<String> = connection
                 .query_row(
-                    "SELECT user_id,subject FROM _auth_identities
-                     WHERE id=?1 AND provider='email-code' AND disabled_at_ms IS NULL",
-                    [email_identity_id],
-                    |row| Ok((row.get(0)?, row.get(1)?)),
+                    "SELECT subject FROM _auth_identities
+                     WHERE id=?1 AND user_id=?2
+                       AND provider='email-code' AND disabled_at_ms IS NULL",
+                    params![email_identity_id, acting_user_id],
+                    |row| row.get(0),
                 )
                 .optional()?;
-            if target != Some((acting_user_id.clone(), canonical_identifier.to_owned())) {
+            if target.as_deref() != Some(canonical_identifier) {
                 return Err(auth_error(
                     "SNAPBACK_AUTH_PASSWORD_SET_AUTHORITY_INVALID",
                     "password set authority is invalid",
@@ -2690,7 +2706,7 @@ impl LocalDatabase {
                             "authentication state invariant failed",
                         )
                     })?,
-                    email_identity_id: email_identity_id.to_owned(),
+                    email_identity_id,
                 },
                 displaced,
             })

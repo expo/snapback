@@ -3112,7 +3112,8 @@ impl LocalDatabase {
                        AND session.revoked_at_ms IS NULL
                        AND session.expires_at_ms > ?5
                        AND session.absolute_expires_at_ms > ?5
-                       AND identity.provider = 'email-code'",
+                       AND identity.provider = 'email-code'
+                       AND identity.disabled_at_ms IS NULL",
                     params![
                         binding.session_id,
                         binding.user_id,
@@ -3127,42 +3128,6 @@ impl LocalDatabase {
         })
     }
 
-    pub(super) fn auth_password_set_step_up_address(
-        &self,
-        binding: &CatalogStepUpBinding<'_>,
-        email_identity_id: &str,
-        now_ms: u64,
-    ) -> SnapbackResult<Option<String>> {
-        self.with_auth_read(|connection| {
-            connection
-                .query_row(
-                    "SELECT target.subject
-                     FROM _auth_sessions AS session
-                     JOIN _auth_identities AS target
-                       ON target.id = ?6
-                      AND target.user_id = session.user_id
-                      AND target.provider = 'email-code'
-                      AND target.disabled_at_ms IS NULL
-                     WHERE session.id = ?1 AND session.user_id = ?2
-                       AND session.generation = ?3
-                       AND session.authority_instance_id = ?4
-                       AND session.revoked_at_ms IS NULL
-                       AND session.expires_at_ms > ?5
-                       AND session.absolute_expires_at_ms > ?5",
-                    params![
-                        binding.session_id,
-                        binding.user_id,
-                        binding.session_generation as i64,
-                        binding.authority_instance_id,
-                        now_ms as i64,
-                        email_identity_id,
-                    ],
-                    |row| row.get::<_, String>(0),
-                )
-                .optional()
-                .map_err(crate::diagnostic::SnapbackError::from)
-        })
-    }
 
     pub(super) fn auth_challenge_coordination(
         &self,
@@ -4877,16 +4842,6 @@ impl<'a> AuthCatalogKernel<'a> {
         now_ms: u64,
     ) -> SnapbackResult<Option<String>> {
         self.read_db().auth_step_up_address(binding, now_ms)
-    }
-
-    pub fn password_set_step_up_address(
-        &self,
-        binding: &CatalogStepUpBinding<'_>,
-        email_identity_id: &str,
-        now_ms: u64,
-    ) -> SnapbackResult<Option<String>> {
-        self.read_db()
-            .auth_password_set_step_up_address(binding, email_identity_id, now_ms)
     }
 
     pub fn challenge_coordination(

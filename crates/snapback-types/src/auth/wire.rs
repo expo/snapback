@@ -64,7 +64,6 @@ pub struct PasswordSetStepUpRequest {
     pub challenge_id: String,
     #[schemars(with = "String")]
     pub code: SecretInput,
-    pub identity_id: String,
 }
 
 impl fmt::Debug for PasswordSetStepUpRequest {
@@ -73,7 +72,6 @@ impl fmt::Debug for PasswordSetStepUpRequest {
             .debug_struct("PasswordSetStepUpRequest")
             .field("challenge_id", &self.challenge_id)
             .field("code", &"[REDACTED]")
-            .field("identity_id", &self.identity_id)
             .finish()
     }
 }
@@ -93,11 +91,7 @@ impl fmt::Debug for PasswordChangeRequest {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Rotate(_) => formatter.write_str("PasswordChangeRequest::Rotate([REDACTED])"),
-            Self::Set(request) => formatter
-                .debug_struct("PasswordChangeRequest::Set")
-                .field("identity_id", &request.step_up.identity_id)
-                .field("secrets", &"[REDACTED]")
-                .finish(),
+            Self::Set(_) => formatter.write_str("PasswordChangeRequest::Set([REDACTED])"),
         }
     }
 }

@@ -479,6 +479,10 @@
       "identity": "npm:@expo/snapback-client#SnapbackOwnershipTupleInspection.serverOrigin",
       "removedIn": "0.1.27",
       "replacedBy": "npm:@expo/snapback-client#SnapbackOwnershipTupleInspection.serverInstance"
+    },
+    {
+      "identity": "npm:@expo/snapback-client#AuthPasswordSetStepUpV1.identityId",
+      "removedIn": "0.1.27"
     }
   ]
 }
