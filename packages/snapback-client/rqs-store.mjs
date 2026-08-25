@@ -52,6 +52,8 @@ const OFFLINE_REPLAY_CAPABILITY_REQUEST =
   'snapback.offline-replay-capability-request.v1';
 const OFFLINE_REPLAY_CAPABILITY_OUTCOME =
   'snapback.offline-replay-capability-outcome.v1';
+const OFFLINE_REPLAY_CAPABILITY_UNRESERVED_OBSERVATION =
+  'snapback.offline-replay-capability-unreserved-observation.v1';
 const OUTBOX_NORMALIZATION_TIMEOUT_MS = 5_000;
 let outboxNormalizationRequestCounter = 0;
 
@@ -61,6 +63,18 @@ const exactRecord = (value, fields) => (
   && !Array.isArray(value)
   && Object.keys(value).length === fields.length
   && fields.every((field) => Object.hasOwn(value, field))
+);
+
+const prepareUnreservedOfflineReplayCapabilityObservation = (value) => (
+  exactRecord(value, ['schemaVersion', 'observedStoreRevision'])
+  && value.schemaVersion === OFFLINE_REPLAY_CAPABILITY_UNRESERVED_OBSERVATION
+  && Number.isSafeInteger(value.observedStoreRevision)
+  && value.observedStoreRevision >= 0
+    ? Object.freeze({
+        schemaVersion: value.schemaVersion,
+        observedStoreRevision: value.observedStoreRevision,
+      })
+    : null
 );
 
 const normalizationChannelName = (databaseName) => (
@@ -754,6 +768,23 @@ export function createIndexedDbRqsResumeStore({
     return meta;
   };
 
+  // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 — an
+  // unbrokered follower may retain fail-closed local evidence, but takeover
+  // compares its pre-request revision and never invents a request sequence.
+  async function captureUnreservedOfflineReplayCapabilityObservation() {
+    const db = await database();
+    const tx = db.transaction([STORE_META], 'readonly');
+    const meta = await readMetaFromStore(tx.objectStore(STORE_META));
+    await transactionDone(tx);
+    const currentRevision = meta.offlineMutationReplayCapabilityFact?.storeRevision;
+    return Object.freeze({
+      schemaVersion: OFFLINE_REPLAY_CAPABILITY_UNRESERVED_OBSERVATION,
+      observedStoreRevision: Number.isSafeInteger(currentRevision) && currentRevision >= 1
+        ? currentRevision
+        : 0,
+    });
+  }
+
   async function beginOfflineReplayCapabilityObservationAsWriter() {
     if (!writer || closed) return false;
     const db = await database();
@@ -821,20 +852,100 @@ export function createIndexedDbRqsResumeStore({
     return structuredClone(versioned.fact);
   }
 
+  async function stashPendingOfflineReplayCapabilityFact(fact, observation = null) {
+    let storedFact;
+    try { storedFact = structuredClone(fact); } catch { return false; }
+    const preparedObservation = prepareOfflineMutationReplayCapabilityObservation(observation);
+    const unreservedObservation = prepareUnreservedOfflineReplayCapabilityObservation(observation);
+    let observedStoreRevision = preparedObservation?.observedStoreRevision
+      ?? unreservedObservation?.observedStoreRevision;
+    if (observedStoreRevision === undefined) {
+      try {
+        const db = await database();
+        const tx = db.transaction([STORE_META], 'readonly');
+        const meta = await readMetaFromStore(tx.objectStore(STORE_META));
+        await transactionDone(tx);
+        const currentRevision = meta.offlineMutationReplayCapabilityFact?.storeRevision;
+        observedStoreRevision = Number.isSafeInteger(currentRevision) && currentRevision >= 1
+          ? currentRevision
+          : 0;
+      } catch {
+        return false;
+      }
+    }
+    pendingOfflineReplayCapabilityFact = Object.freeze({
+      fact: storedFact,
+      observedStoreRevision,
+      observation: preparedObservation,
+    });
+    return true;
+  }
+
   async function flushPendingOfflineReplayCapabilityFact() {
     const pending = pendingOfflineReplayCapabilityFact;
     if (pending === null || !writer || closed) return;
     try {
-      const observation = await beginOfflineReplayCapabilityObservationAsWriter();
-      if (observation === false) return;
-      await commitOfflineReplayCapabilityAsWriter(pending, observation);
+      if (pending.observation !== null) {
+        await commitOfflineReplayCapabilityAsWriter(pending.fact, pending.observation);
+      } else {
+        // This follower answer never reserved a request sequence. Preserve
+        // only the revision it actually observed and compare-and-commit on
+        // takeover; a newer shared answer wins, and takeover mints no sequence
+        // that could make the stale local answer appear newer.
+        const db = await database();
+        const tx = db.transaction([STORE_META], 'readwrite');
+        const txStore = tx.objectStore(STORE_META);
+        const current = await readMetaFromStore(txStore);
+        const currentFact = current.offlineMutationReplayCapabilityFact;
+        const currentStoreRevision = Number.isSafeInteger(currentFact?.storeRevision)
+          && currentFact.storeRevision >= 1
+          ? currentFact.storeRevision
+          : 0;
+        if (currentStoreRevision !== pending.observedStoreRevision) {
+          await transactionDone(tx);
+          if (pendingOfflineReplayCapabilityFact === pending) {
+            pendingOfflineReplayCapabilityFact = null;
+          }
+          return;
+        }
+        if (currentStoreRevision === Number.MAX_SAFE_INTEGER) {
+          tx.abort();
+          throw storeError(
+            'SNAPBACK_RQS_STORE_CORRUPT',
+            'offline replay capability fact revision exhausted',
+          );
+        }
+        const replacementFact = structuredClone(pending.fact);
+        delete replacementFact.storeRevision;
+        delete replacementFact.requestSequence;
+        if (
+          Number.isSafeInteger(currentFact?.requestSequence)
+          && currentFact.requestSequence >= 1
+        ) {
+          replacementFact.requestSequence = currentFact.requestSequence;
+        }
+        replacementFact.storeRevision = currentStoreRevision + 1;
+        const replacement = prepareStoreMeta({
+          ...current,
+          offlineMutationReplayCapabilityFact: replacementFact,
+        });
+        if (replacement === null) {
+          tx.abort();
+          throw storeError(
+            'SNAPBACK_RQS_STORE_CORRUPT',
+            'refusing invalid pending offline replay capability fact',
+          );
+        }
+        txStore.put(replacement, RQS_STORE_META_KEY);
+        await transactionDone(tx);
+      }
       if (pendingOfflineReplayCapabilityFact === pending) {
         pendingOfflineReplayCapabilityFact = null;
       }
     } catch {
       // Keep the latest answered negative in instance custody. A later writer
-      // acquisition or explicit commit retries it; predecessor shared bytes
-      // never become evidence for the observing client in the meantime.
+      // acquisition retries its captured compare-and-commit; predecessor
+      // shared bytes never become evidence for the observing client meanwhile.
     }
   }
 
@@ -1471,19 +1582,39 @@ export function createIndexedDbRqsResumeStore({
 
     async beginOfflineMutationReplayCapabilityObservation() {
       if (this.isWriter()) return beginOfflineReplayCapabilityObservationAsWriter();
-      return requestIndexedDbOfflineReplayCapabilityOperation({
+      const reserved = await requestIndexedDbOfflineReplayCapabilityOperation({
         databaseName,
         operation: 'reserve',
         broadcastChannelFactory: resolvedBroadcastChannelFactory,
         timeoutMs: outboxNormalizationTimeoutMs,
       });
+      if (reserved !== false) return reserved;
+      try {
+        return await captureUnreservedOfflineReplayCapabilityObservation();
+      } catch {
+        return false;
+      }
     },
 
     async commitOfflineMutationReplayCapabilityFact(fact, observation = null) {
+      const unreservedObservation = prepareUnreservedOfflineReplayCapabilityObservation(
+        observation,
+      );
+      if (unreservedObservation !== null) {
+        if (fact?.supported === false) {
+          await stashPendingOfflineReplayCapabilityFact(fact, unreservedObservation);
+        } else if (pendingOfflineReplayCapabilityFact?.fact?.origin === fact?.origin) {
+          pendingOfflineReplayCapabilityFact = null;
+        }
+        if (writer && !closed && pendingOfflineReplayCapabilityFact !== null) {
+          await flushPendingOfflineReplayCapabilityFact();
+        }
+        return false;
+      }
       if (observation === false) {
         if (fact?.supported === false) {
-          try { pendingOfflineReplayCapabilityFact = structuredClone(fact); } catch { /* invalid */ }
-        } else if (pendingOfflineReplayCapabilityFact?.origin === fact?.origin) {
+          await stashPendingOfflineReplayCapabilityFact(fact);
+        } else if (pendingOfflineReplayCapabilityFact?.fact?.origin === fact?.origin) {
           pendingOfflineReplayCapabilityFact = null;
         }
         return false;
@@ -1493,7 +1624,7 @@ export function createIndexedDbRqsResumeStore({
         observation = await this.beginOfflineMutationReplayCapabilityObservation();
         if (observation === false) {
           if (fact?.supported === false) {
-            try { pendingOfflineReplayCapabilityFact = structuredClone(fact); } catch { /* invalid */ }
+            await stashPendingOfflineReplayCapabilityFact(fact);
           }
           return false;
         }
@@ -1508,8 +1639,8 @@ export function createIndexedDbRqsResumeStore({
       });
       if (brokered === false) {
         if (fact?.supported === false) {
-          try { pendingOfflineReplayCapabilityFact = structuredClone(fact); } catch { /* invalid */ }
-        } else if (pendingOfflineReplayCapabilityFact?.origin === fact?.origin) {
+          await stashPendingOfflineReplayCapabilityFact(fact, observation);
+        } else if (pendingOfflineReplayCapabilityFact?.fact?.origin === fact?.origin) {
           pendingOfflineReplayCapabilityFact = null;
         }
         if (writer && !closed && pendingOfflineReplayCapabilityFact !== null) {
@@ -1520,7 +1651,7 @@ export function createIndexedDbRqsResumeStore({
         }
         return false;
       }
-      if (pendingOfflineReplayCapabilityFact?.origin === fact?.origin) {
+      if (pendingOfflineReplayCapabilityFact?.fact?.origin === fact?.origin) {
         pendingOfflineReplayCapabilityFact = null;
       }
       const current = await this.readOfflineMutationReplayCapabilityFact();

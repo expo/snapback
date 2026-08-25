@@ -5,8 +5,19 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
+**Revised:** 2026-08-25 (capability-fact currency and dispatch-safety
+clarification: a newer positive continues an observed positive's authority
+when canonical origin, target profile, and complete artifact generation are
+identical; a negative or target-identity/generation change supersedes it.
+Supersession before dispatch retires custody and refuses the POST, while
+supersession after dispatch preserves the pending recovery identity through an
+ambiguous response. An unreserved IndexedDB follower answer carries only its
+observed revision into takeover and is dropped if shared state advanced; it
+never mints a takeover request sequence. The conservative redirect policy
+explicitly includes anonymous query POSTs.)
 **Revised:** 2026-08-25 (`queue: 'auto'` capability-evidence correction: each
-`/inspect` reserves a store-writer-owned request sequence before transport;
+`/inspect` attempts to reserve a store-writer-owned request sequence before
+transport, with the broker-unavailable fallback narrowed above;
 answered facts compare-and-commit by the observed store revision or a newer
 shared request sequence, while no-response failures advance neither the
 answered fact nor the client answered high-water. Enqueue and replay re-read
@@ -393,25 +404,44 @@ answer may gate a try-then-queue dispatch.
 Answered negative facts replace predecessor positives through the elected
 writer when the carrier can prove that route. If IndexedDB has no usable
 `BroadcastChannel`, the observing follower retains a local negative override
-that wins over shared predecessor bytes before and after writer takeover; only
-a later answered positive from the same canonical target clears it. The Node
-file store routes peer replacement to an in-process writer. It makes no
-cross-process broker claim: a follower in another process cannot replace the
-writer's bytes and therefore fails closed locally instead of reusing the
-predecessor positive. Cached evidence never licenses a foreground POST; if
-enqueue custody belongs to another writer, the client propagates
-`SNAPBACK_OUTBOX_NOT_WRITER` and leaves that writer's record untouched.
+that wins for that observer. The unreserved answer captures the shared fact
+revision observed before its HTTP request but no request sequence. On writer
+takeover it compare-and-commits only if that exact revision remains current;
+if a writer committed a newer answer, the pending shared replacement is
+dropped and no takeover sequence is minted, while the observing client's
+local override may remain fail-closed. A later answered positive from the same
+canonical target clears the override; repointing the client to another
+canonical origin drops it. The Node file store routes peer replacement to an
+in-process writer. It makes no cross-process broker claim: a follower in
+another process cannot replace the writer's bytes and therefore fails closed
+locally instead of reusing the predecessor positive. Cached evidence never
+licenses a foreground POST; if enqueue custody belongs to another writer, the
+client propagates `SNAPBACK_OUTBOX_NOT_WRITER` and leaves that writer's record
+untouched.
 
 Capability validity is a compare-and-read fence. Admission re-reads the shared
 fact and revision immediately before durable enqueue; foreground transport
 re-reads them again before POST; and an ambiguous response re-reads them before
-the client may resolve `queued`. A superseded fact retires any pending record
-admitted under it and cannot be refreshed retroactively after an ambiguous
-effect. Replay performs the same shared re-read immediately before each POST.
+the client may resolve `queued`. Fact revision alone is not supersession: a
+newer `supported: true` fact with the same canonical origin, target profile,
+and complete artifact generation continues the authority of the positive fact
+observed at admission. A negative or a change to any of those target-identity
+axes supersedes it. Before transport, supersession retires the admitted record
+and fails closed without a POST. Once transport has started, an ambiguous
+response keeps the durable record pending because deleting its settlement
+identity could duplicate an already-committed effect; that record still needs
+a fresh positive before replay and cannot be made replayable retroactively by
+the ambiguous response itself. Replay performs the same shared re-read
+immediately before each POST.
+
 All mutation/replay POSTs, and all other effect-producing HTTP methods, use
-manual redirect handling. A 307/308 (or other redirect response) is an
-answered `SNAPBACK_REDIRECT_REFUSED`, never a connectivity failure and never a
-queue/replay trigger.
+manual redirect handling. The JS client deliberately applies that posture
+method-conservatively to every non-GET/HEAD/OPTIONS request, including
+anonymous query POSTs: its shared route helper does not infer effect semantics
+from a path before transport. A 301/302/307/308 (or other redirect response)
+is an answered `SNAPBACK_REDIRECT_REFUSED`, never a connectivity failure and
+never a queue/replay trigger; deployments must expose the canonical POST path
+instead of relying on proxy or trailing-slash rewrites.
 
 Ordinary query success and every retained/stale-to-current live transition
 schedule the same in-flight-deduplicated observation. Applications may await

@@ -2355,6 +2355,32 @@ test('capability inspection refuses redirects instead of borrowing another origi
   assert.deepEqual(await store.outboxRecords(), []);
 });
 
+test('anonymous query POSTs refuse redirects instead of relying on proxy rewrites', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const client = new InspectingSnapbackClient('https://query-post-redirect.example', {
+    rqsStore: null,
+    __outboxDrainLifecycle: false,
+  });
+  let queryPosts = 0;
+  globalThis.fetch = async (url, init) => {
+    assert.equal(new URL(url).pathname, '/query/listThings');
+    assert.equal(init.method, 'POST');
+    assert.equal(init.redirect, 'manual', 'anonymous query POSTs use the conservative method policy');
+    queryPosts += 1;
+    return new Response(null, {
+      status: 302,
+      headers: { location: 'https://query-post-redirect.example/query/listThings/' },
+    });
+  };
+
+  await assert.rejects(
+    () => client.query('listThings'),
+    (error) => error?.code === 'SNAPBACK_REDIRECT_REFUSED',
+  );
+  assert.equal(queryPosts, 1, 'the redirected query is not followed');
+  await client.close();
+});
+
 test('foreground mutations treat 307/308 redirects as answered refusals', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   for (const status of [307, 308]) {
@@ -2760,11 +2786,17 @@ test('broker-unavailable peer negative stays fail-closed before and after Indexe
     if (Date.now() > handoffDeadline) throw new Error('timed out waiting for writer handoff');
     await new Promise((resolve) => setTimeout(resolve, 5));
   }
-  await waitForOfflineReplayCapabilityFact(
+  const takeoverNegative = await waitForOfflineReplayCapabilityFact(
     followerStore,
     (fact) => fact.supported === false,
     'the takeover writer to flush its locally retained negative',
   );
+  assert.equal(
+    takeoverNegative.requestSequence,
+    durablePredecessor.requestSequence,
+    'an unreserved answer reuses the observed sequence instead of minting one on takeover',
+  );
+  assert.equal(takeoverNegative.storeRevision, durablePredecessor.storeRevision + 1);
   mutationCalls = 0;
   await assert.rejects(
     () => negativeClient.mutate('createThing', {
@@ -2814,6 +2846,144 @@ test('broker-unavailable peer negative stays fail-closed before and after Indexe
   await negativeClient.close();
   await positiveClient.close();
   await followerStore.close();
+});
+
+test('unreserved follower negative cannot overwrite a newer positive after writer takeover', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const indexedDB = new IDBFactory();
+  const lockManager = createContendedLockManager();
+  const options = {
+    indexedDB,
+    lockManager,
+    databaseName: 'outbox-capability-unreserved-negative-takeover',
+    broadcastChannelFactory: null,
+  };
+  const writerStore = createIndexedDbRqsResumeStore(options);
+  const followerStore = createIndexedDbRqsResumeStore(options);
+  await Promise.all([writerStore.whenLockSettled(), followerStore.whenLockSettled()]);
+  const origin = 'https://unreserved-negative-takeover.example';
+  const writerClient = new InspectingSnapbackClient(origin, {
+    rqsStore: writerStore,
+    __outboxDrainLifecycle: false,
+  });
+  const followerClient = new InspectingSnapbackClient(origin, {
+    rqsStore: followerStore,
+    __outboxDrainLifecycle: false,
+  });
+  assert.equal(writerStore.isWriter(), true);
+  assert.equal(followerStore.isWriter(), false);
+
+  globalThis.fetch = async () => Response.json(offlineReplayInspection({
+    supported: true,
+    targetProfileId: 'local-dev-sqlite-ibex',
+  }));
+  await writerClient.inspect();
+  assert.equal((await writerStore.readOfflineMutationReplayCapabilityFact()).storeRevision, 1);
+
+  let releaseFollowerNegative;
+  const followerNegativeRelease = new Promise((resolve) => { releaseFollowerNegative = resolve; });
+  let markFollowerNegativeStarted;
+  const followerNegativeStarted = new Promise((resolve) => { markFollowerNegativeStarted = resolve; });
+  globalThis.fetch = async () => {
+    markFollowerNegativeStarted();
+    await followerNegativeRelease;
+    return Response.json(offlineReplayInspection({
+      supported: false,
+      targetProfileId: 'cloudflare-do-sqlite-v8',
+    }));
+  };
+  const followerNegative = followerClient.inspect();
+  await followerNegativeStarted;
+  assert.equal(
+    (await writerStore.readOfflineMutationReplayCapabilityFact()).storeRevision,
+    1,
+    'the follower captured revision 1 before its unreserved answer returned',
+  );
+
+  const newerPositiveObservation = await writerStore
+    .beginOfflineMutationReplayCapabilityObservation();
+  await writerStore.commitOfflineMutationReplayCapabilityFact({
+    schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
+    origin,
+    supported: true,
+    reason: null,
+    targetProfileId: 'local-dev-sqlite-ibex',
+    artifactGeneration: TEST_ARTIFACT_GENERATION,
+  }, newerPositiveObservation);
+  const newerPositive = await writerStore.readOfflineMutationReplayCapabilityFact();
+  assert.equal(newerPositive.supported, true);
+  assert.equal(newerPositive.storeRevision, 2);
+  releaseFollowerNegative();
+  await followerNegative;
+  assert.deepEqual(
+    await writerStore.readOfflineMutationReplayCapabilityFact(),
+    newerPositive,
+    'the later follower answer cannot write while it lacks a reservation',
+  );
+
+  await writerStore.close();
+  const handoffDeadline = Date.now() + 5_000;
+  while (!followerStore.isWriter()) {
+    if (Date.now() > handoffDeadline) throw new Error('timed out waiting for writer handoff');
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.deepEqual(
+    await followerStore.readOfflineMutationReplayCapabilityFact(),
+    newerPositive,
+    'takeover drops an unreserved answer whose observed shared revision advanced',
+  );
+
+  await followerClient.close();
+  await writerClient.close();
+  await followerStore.close();
+});
+
+test('repointing a client drops a local negative override from the previous origin', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const commitCapabilityFact = store.commitOfflineMutationReplayCapabilityFact.bind(store);
+  store.commitOfflineMutationReplayCapabilityFact = async () => false;
+  const firstOrigin = 'https://local-override-first.example';
+  const secondOrigin = 'https://local-override-second.example';
+  const client = new InspectingSnapbackClient(firstOrigin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+
+  globalThis.fetch = async () => Response.json(offlineReplayInspection({
+    supported: false,
+    targetProfileId: 'cloudflare-do-sqlite-v8',
+  }));
+  await client.inspect();
+  store.commitOfflineMutationReplayCapabilityFact = commitCapabilityFact;
+  await commitCapabilityFact({
+    schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
+    origin: secondOrigin,
+    supported: true,
+    reason: null,
+    targetProfileId: 'local-dev-sqlite-ibex',
+    artifactGeneration: TEST_ARTIFACT_GENERATION,
+  });
+
+  client.baseUrl = secondOrigin;
+  let mutationPosts = 0;
+  globalThis.fetch = async (url) => {
+    if (new URL(url).pathname.startsWith('/mutation/')) mutationPosts += 1;
+    throw new TypeError('second origin offline');
+  };
+  const queued = await client.mutate('createThing', {
+    args: { title: 'second-origin-cached-positive' },
+    clientMutationId: 'cm-local-override-origin-change',
+  });
+  assert.equal(queued.status, 'queued');
+  assert.equal(mutationPosts, 0, 'the second origin uses its enqueue-only positive fact');
+  assert.deepEqual(
+    (await store.outboxPending()).map((record) => record.id),
+    ['cm-local-override-origin-change'],
+  );
+  await client.close();
+  await store.close();
 });
 
 test('an answered negative overrides cached support before durable replacement settles', async (t) => {
@@ -3111,10 +3281,11 @@ const exerciseCrossClientCapabilityOrdering = async ({
     await assert.rejects(mutation, (error) => isConnectivityFailureError(error));
     assert.equal(mutationPosts, 1, `${label}: one foreground POST reached the ambiguous cut`);
     assert.deepEqual(
-      await writerStore.outboxPending(),
-      [],
-      `${label}: the superseded admission leaves no replayable pending record`,
+      (await writerStore.outboxPending()).map((record) => record.id),
+      [`cm-${label}-cross-client-negative`],
+      `${label}: supersession after POST preserves the ambiguous recovery identity`,
     );
+    await writerStore.outboxDiscard(`cm-${label}-cross-client-negative`);
 
     let markDelayedPositiveStarted;
     const delayedPositiveStarted = new Promise((resolve) => {
@@ -3320,9 +3491,9 @@ test('a newer negative retires positive-admitted custody before ambiguous mutati
         inspectionSupported = null;
       },
     }),
-    (error) => isConnectivityFailureError(error),
+    (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
   );
-  assert.equal(mutationPosts, 1, 'the superseded positive permits only one online-only POST');
+  assert.equal(mutationPosts, 0, 'the superseded positive is retired before any mutation POST');
   assert.equal(
     (await store.readOfflineMutationReplayCapabilityFact()).supported,
     false,
@@ -3332,6 +3503,45 @@ test('a newer negative retires positive-admitted custody before ambiguous mutati
     await store.outboxPending(),
     [],
     'the record admitted under the superseded positive cannot remain replayable',
+  );
+  await client.close();
+  await store.close();
+});
+
+test('a newer identical positive preserves admitted custody through an ambiguous POST', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const client = new InspectingSnapbackClient('https://identical-positive-currency.example', {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  let mutationPosts = 0;
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+    if (path === '/inspect') {
+      return Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId: 'local-dev-sqlite-ibex',
+      }));
+    }
+    mutationPosts += 1;
+    throw new TypeError('ambiguous mutation response after identical positive');
+  };
+
+  const queued = await client.mutate('createThing', {
+    args: { title: 'identical-positive-remains-authoritative' },
+    clientMutationId: 'cm-identical-positive-currency',
+    __beforeTransportDispatch: () => client.inspect(),
+  });
+  assert.equal(queued.status, 'queued');
+  assert.equal(mutationPosts, 1, 'exactly one foreground POST reaches the ambiguous cut');
+  const fact = await store.readOfflineMutationReplayCapabilityFact();
+  assert.equal(fact.supported, true);
+  assert.equal(fact.storeRevision, 2, 'the identical positive is a newer durable observation');
+  assert.deepEqual(
+    (await store.outboxPending()).map((record) => record.id),
+    ['cm-identical-positive-currency'],
+    'the ambiguously dispatched mutation keeps durable replay custody',
   );
   await client.close();
   await store.close();

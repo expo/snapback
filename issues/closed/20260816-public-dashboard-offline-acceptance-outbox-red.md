@@ -142,3 +142,59 @@ Round-6 verification (2026-08-25):
 - `./ref-check --verbose`: `311 LLP docs, 6637 refs in 12503 files, 0 errors,
   0 unchecked`.
 - `git diff --check`: no output (pass).
+
+### Round-7 review closure (2026-08-25)
+
+Capability fact currency is now semantic rather than revision-equality: a
+newer positive continues the observed positive only when canonical origin,
+target profile, and complete artifact generation are identical. A negative or
+target-identity/generation change supersedes it. Supersession before dispatch
+retires the durable record and refuses without a POST; once a POST has started,
+an ambiguous response keeps the record pending so the settlement identity is
+not lost.
+
+An IndexedDB follower that cannot reserve through the writer now captures the
+shared fact revision before its inspection request, but no request sequence.
+Takeover compare-and-commits against exactly that revision, drops the pending
+answer if shared state advanced, and never mints a sequence for the unreserved
+answer. A local negative override is also discarded when the same client is
+repointed to another canonical origin.
+
+The all-non-read redirect posture is intentional. Every non-GET/HEAD/OPTIONS
+request, including an anonymous query POST, remains `redirect: 'manual'` and
+maps redirects to `SNAPBACK_REDIRECT_REFUSED`; proxies must serve the canonical
+POST path directly rather than rely on 301/302 or trailing-slash rewrites.
+
+Round-7 fail-first evidence, captured before the fixes (or against the named
+temporary mutation, then restored):
+
+- the identical-positive race returned `SNAPBACK_CLIENT_REFUSED: ambiguous
+  mutation response after identical positive` instead of `queued`, losing the
+  record;
+- the inverse negative-before-dispatch race reached the fetch double and
+  returned `SNAPBACK_CLIENT_REFUSED: ambiguous mutation response` instead of
+  the capability refusal, proving the retired record was still dispatched;
+- the unreserved takeover test replaced expected positive revision 2 / request
+  sequence 2 with stale negative revision 3 / freshly minted sequence 3;
+- the repointed-origin test returned `SNAPBACK_CLIENT_REFUSED: second origin
+  offline` instead of using the second origin's cached positive to enqueue;
+- restoring post-dispatch retirement failed the IndexedDB cross-client test
+  with actual pending ids `[]` instead of
+  `['cm-indexeddb-cross-client-negative']`;
+- temporarily exempting query POSTs from the method-conservative redirect rule
+  failed with actual `redirect: undefined` instead of `'manual'`.
+
+Round-7 focused verification updates the client suite total to `tests 110`,
+`pass 110`, `fail 0`. The public-dashboard witnesses remain `PASS
+public-dashboard / offline-local-first (JS arm) — 9/9` and `PASS
+public-dashboard / headless — 6/6`; both used the explicitly configured binary
+stamped at `f446d966b` and reported the expected checkout stamp mismatch.
+`node scripts/generate-symbol-registry.mjs --check` reports `56 modules, 1455
+symbols, runtime parity exact`. `node scripts/check-guide.mjs` reports `21
+passed, 1 failed, 0 skipped, 0 preconditions; 157 pages, 1872 snippets, 174
+routes + 51 host-ops joined, 94 warnings`; the sole failure is the deliberately
+unregenerated diagnostics registry owned by integration, while the symbol,
+manifest/MCP, and flat-projection checks pass. `./ref-check --verbose` reports
+`311 LLP docs, 6639 refs in 12503 files, 0 errors, 0 unchecked`, and `git diff
+--check` produces no output. The diagnostics registry and Markdown projection
+remain byte-identical to this lane's starting commit.

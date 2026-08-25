@@ -238,17 +238,35 @@ proof of the same contracts. The headless witness proves:
   An answered negative always wins for the client that observed it. IndexedDB
   followers route replacement through the elected writer when
   `BroadcastChannel` is available; without that broker, the follower keeps a
-  local negative override across writer handoff and refuses the older shared
-  positive. The Node file carrier routes this replacement only to an
-  in-process peer writer. Cross-process file routing is not claimed: the
-  observing follower fails closed locally. Cached evidence never licenses a
-  mutation POST, and a follower that cannot take enqueue custody surfaces
+  local negative override and refuses the older shared positive. Its
+  unreserved answer captures the shared revision observed before transport;
+  takeover writes it only if that revision is still current, and drops it if
+  the prior writer committed a newer answer. No takeover request sequence is
+  invented. The local override may remain fail-closed for that observer, but
+  it is dropped if the same client is repointed to another canonical origin.
+  The Node file carrier routes this replacement only to an in-process peer
+  writer. Cross-process file routing is not claimed: the observing follower
+  fails closed locally. Cached evidence never licenses a mutation POST, and a
+  follower that cannot take enqueue custody surfaces
   `SNAPBACK_OUTBOX_NOT_WRITER` without changing the writer-held record.
+  A newer positive fact continues an admitted positive's authority when its
+  canonical origin, target profile, and complete artifact generation are
+  identical. A negative or target-identity/generation change retires custody
+  before dispatch and refuses without a POST; after a POST has started, an
+  ambiguous response keeps the record pending so settlement recovery is not
+  lost.
   Successful queries and live handles that later transition from retained or
   stale to current schedule this observation with in-flight deduplication. To
   coordinate with it, await
   `client.whenOfflineMutationReplayCapabilitySettled()`; application code must
   not poll the RQS store's internal capability metadata.
+- **POST redirects are deliberately terminal, including for queries.** The JS
+  client uses `redirect: 'manual'` for every non-GET/HEAD/OPTIONS request and
+  maps every redirect response to `SNAPBACK_REDIRECT_REFUSED`. That includes
+  credential-free query POSTs: configure proxies and trailing-slash routing to
+  serve the canonical POST path directly rather than relying on 301/302
+  rewrites. This method-conservative rule keeps mutation/replay and any future
+  effect-producing POST from silently crossing transport authority.
 - **Per-record sessions and agent custody.** A settled authority fence adds
   the exact server-issued `authorityDescriptor`, server-proven
   `principalScope`, and durable fence lineage to the queued record; no bearer,

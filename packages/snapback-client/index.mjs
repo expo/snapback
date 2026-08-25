@@ -3169,6 +3169,21 @@ const normalizeOfflineMutationReplayCapabilityFact = (value) => {
   });
 };
 
+// @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 — fact
+// revisions order observations; positive authority is semantic target identity.
+const samePositiveOfflineMutationReplayAuthority = (left, right) => (
+  left?.supported === true
+  && right?.supported === true
+  && canonicalServerOrigin(left.origin) === canonicalServerOrigin(right.origin)
+  && left.targetProfileId === right.targetProfileId
+  && (
+    left.artifactGeneration === null
+      ? right.artifactGeneration === null
+      : right.artifactGeneration !== null
+        && sameArtifactGeneration(left.artifactGeneration, right.artifactGeneration)
+  )
+);
+
 const offlineQueueSettlementLedgerError = ({
   cause = undefined,
   reason,
@@ -7214,8 +7229,8 @@ export class SnapbackClient {
     };
     // The store reservation is issued in this client's dispatch order. The
     // HTTP request starts only after the writer has assigned its shared
-    // sequence, so responses from different clients can be compared without
-    // trusting arrival time or a process-local clock.
+    // sequence or a broker-unavailable follower has captured the revision it
+    // actually observed, so takeover never invents ordering after the answer.
     const task = this.__offlineMutationReplayCapabilityObservationTail.then(reserve, reserve);
     this.__offlineMutationReplayCapabilityObservationTail = task.then(
       () => undefined,
@@ -7231,6 +7246,23 @@ export class SnapbackClient {
     let fact = normalizeOfflineMutationReplayCapabilityFact(
       this.__offlineMutationReplayCapabilityLocalOverride,
     );
+    if (
+      fact !== null
+      && canonicalServerOrigin(fact.origin) !== canonicalServerOrigin(this.baseUrl)
+    ) {
+      this.__offlineMutationReplayCapabilityLocalOverride = null;
+      this.__offlineMutationReplayCapabilityLocalOverrideRequestSequence = null;
+      const observed = normalizeOfflineMutationReplayCapabilityFact(
+        this.__observedOfflineMutationReplayCapability,
+      );
+      if (
+        observed !== null
+        && canonicalServerOrigin(observed.origin) !== canonicalServerOrigin(this.baseUrl)
+      ) {
+        this.__observedOfflineMutationReplayCapability = null;
+      }
+      fact = null;
+    }
     if (fact !== null) return fact;
     let store = null;
     try { store = this.#offlineQueueStore(false); } catch { store = null; }
@@ -7243,9 +7275,13 @@ export class SnapbackClient {
       this.__observedOfflineMutationReplayCapability = fact;
       return fact;
     }
-    return normalizeOfflineMutationReplayCapabilityFact(
+    fact = normalizeOfflineMutationReplayCapabilityFact(
       this.__observedOfflineMutationReplayCapability,
     );
+    return fact !== null
+      && canonicalServerOrigin(fact.origin) === canonicalServerOrigin(this.baseUrl)
+      ? fact
+      : null;
   }
 
   async #isOfflineMutationReplayCapabilityFactCurrent(fact, requestSequence = null) {
@@ -7254,6 +7290,10 @@ export class SnapbackClient {
     if (expected === null) return false;
     const current = await this.#currentOfflineMutationReplayCapabilityFact();
     if (current === null) return false;
+    // Fact revisions order observations, but a newer positive with the same
+    // complete target identity continues the predecessor's authority. Only a
+    // negative or an origin/profile/artifact-generation change supersedes it.
+    if (samePositiveOfflineMutationReplayAuthority(expected, current)) return true;
     if (expected.storeRevision !== undefined) {
       return current.storeRevision === expected.storeRevision
         && (
@@ -13857,21 +13897,15 @@ export class SnapbackClient {
         }
         durableOnlineRecord = true;
         if (!await revalidateQueueCapability({ retireRecord: true })) {
-          if (queue === true) throw capabilitySupersededError();
-          queueStore = null;
+          throw capabilitySupersededError();
         }
         this.#notifyOutboxListeners();
         if (generatedPresentationEnabled) {
           await this.#refreshOptimisticMutationViews('generated-ir-enqueued');
         }
       } catch (error) {
-        if (error?.offlineReplayCapabilitySuperseded === true && queue === 'auto') {
-          queueStore = null;
-          durableOnlineRecord = false;
-          durableOnlineStoredRecord = null;
-          queueInsertionOwnership = null;
-          releaseForegroundOwnership();
-        } else {
+        if (error?.offlineReplayCapabilitySuperseded === true) throw error;
+        else {
           const code = error?.diagnostic?.code ?? error?.code;
           if (
             queueCapabilityEvidence === 'cached'
@@ -13983,8 +14017,14 @@ export class SnapbackClient {
             authAdmissionOperation: 'mutation',
             beforeTransportDispatch: async () => {
               await __beforeTransportDispatch?.();
-              if (!await revalidateQueueCapability({ retireRecord: true })) {
-                if (queue === true) throw capabilitySupersededError();
+              const capabilityGuardedDispatch = durableOnlineRecord;
+              if (
+                capabilityGuardedDispatch
+                && !await revalidateQueueCapability({ retireRecord: true })
+              ) {
+                // Retirement linearizes before fetch dispatch. Once the
+                // durable identity is gone, no foreground POST may reuse it.
+                throw capabilitySupersededError();
               }
               if (
                 preparationAuthorityCapture !== null
@@ -14228,7 +14268,7 @@ export class SnapbackClient {
             throw error;
           }
           if (queueStore && isConnectivityFailureError(error)) {
-            if (!await revalidateQueueCapability({ retireRecord: true })) {
+            if (!await revalidateQueueCapability()) {
               this.#recordOutboxDiagnostic({
                 code: OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED,
                 mutation: name,
@@ -14236,9 +14276,9 @@ export class SnapbackClient {
                 reason: 'inspection-superseded-after-transport',
                 targetProfileId: null,
               });
-              // The ambiguous write crossed under the fact captured before
-              // dispatch. Once that fact is superseded, a new inspection
-              // cannot retroactively authorize durable retry of this effect.
+              // Dispatch already happened, so capability supersession cannot
+              // safely erase the only recovery identity. Keep the record
+              // pending; a fresh positive is still required before replay.
               throw error;
             }
             // LLP 0043 M2 / LLP 0129 Phase 0: delivery refused at the
