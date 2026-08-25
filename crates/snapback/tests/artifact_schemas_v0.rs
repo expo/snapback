@@ -7,8 +7,9 @@
 //!   2. the round-trip gate — a representative value of each artifact serializes
 //!      via serde_json and validates against the committed schema, proving the
 //!      generated schema matches the actual serde representation;
-//!   3. the demo-artifact gate — every registered demo manifest is regenerated,
-//!      validates against the schema, and parses back through the runtime struct.
+//!   3. the demo-artifact gate — every registered demo is regenerated in an
+//!      isolated backend copy; committed review artifacts must match that fresh
+//!      generation, while cache manifests validate and parse from the temp output.
 //!
 //! Regenerate the committed schemas with:
 //!   DYLD_FRAMEWORK_PATH="$PWD/vendor/ibex/ios/Frameworks" \
@@ -21,9 +22,8 @@
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::sync::{Mutex, OnceLock};
 
 use snapback::auth::deployment::{
     AuthenticationBucketPolicy, AuthenticationThrottle, BrowserCredentialPosture,
@@ -2898,9 +2898,10 @@ fn data_tier_publication_validates_against_committed_schemas() {
 
 #[test]
 fn remote_service_publication_is_closed_digest_bound_and_host_private() {
-    materialize_remote_service_publication();
+    let materialized = materialize_remote_service_publication();
     let root = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."));
-    let generated = root.join("demos/todo-v2/snapback/generated-remote-service");
+    assert_committed_review_artifacts_match_fresh_generation(&materialized);
+    let generated = &materialized.generated;
     let read_json = |path: &std::path::Path| -> Value {
         serde_json::from_str(
             &fs::read_to_string(path)
@@ -2927,6 +2928,12 @@ fn remote_service_publication_is_closed_digest_bound_and_host_private() {
         serde_json::from_value(auth_value).expect("parse remote auth manifest type");
     let data: RemoteDataCapabilityManifest =
         serde_json::from_value(data_value).expect("parse remote data manifest type");
+    assert_eq!(profile.publication.kind, "gitPinnedCheckout");
+    assert_eq!(profile.publication.addressing, "commitSha");
+    assert_eq!(
+        profile.publication.profile_path,
+        "demos/todo-v2/snapback/generated-remote-service/remote-service.profile.json"
+    );
     assert!(!profile.local_server_lifecycle);
     assert_eq!(profile.endpoint_policy.scheme, "https");
     assert_eq!(profile.endpoint_policy.authority, "host-private");
@@ -2944,8 +2951,9 @@ fn remote_service_publication_is_closed_digest_bound_and_host_private() {
     assert!(!auth.credential_policy.value_in_info_plist);
 
     let verify_ref = |reference: &PublishedArtifactRef| {
-        let bytes = fs::read(root.join(&reference.path))
-            .unwrap_or_else(|_| panic!("missing published ref {}", reference.path));
+        let path = materialized.resolve_publication_reference(&root, &reference.path);
+        let bytes =
+            fs::read(&path).unwrap_or_else(|_| panic!("missing published ref {}", reference.path));
         let actual = format!("sha256:{:x}", Sha256::digest(bytes));
         assert_eq!(
             reference.sha256, actual,
@@ -3640,22 +3648,33 @@ const GENERATED_BACKENDS: [&str; 8] = [
     "demos/messaging-snapback/snapback/generated",
 ];
 
-static CODEGEN_TEST_LOCK: Mutex<()> = Mutex::new(());
-static DK7_DEMO_MANIFESTS: OnceLock<Result<(), String>> = OnceLock::new();
-static REMOTE_SERVICE_PUBLICATION: OnceLock<Result<(), String>> = OnceLock::new();
+struct MaterializedBackend {
+    _temporary: tempfile::TempDir,
+    committed_generated: PathBuf,
+    generated: PathBuf,
+}
 
-// @ref LLP 0032#phase-5--product-boundary-and-dx — the demo manifests are
-// regenerable review caches, so the DK-7 consumer gate materializes them from
-// codegen instead of depending on another test or checkout having done so.
-fn run_codegen(
-    backend: &str,
+impl MaterializedBackend {
+    fn resolve_publication_reference(&self, repo: &Path, reference: &str) -> PathBuf {
+        const REMOTE_GENERATED: &str = "demos/todo-v2/snapback/generated-remote-service/";
+        reference.strip_prefix(REMOTE_GENERATED).map_or_else(
+            || repo.join(reference),
+            |relative| self.generated.join(relative),
+        )
+    }
+}
+
+// @ref LLP 0173#1-artifact-and-custody — generated custody is per leaf: compare
+// consumer-committed projections read-only and materialize cache leaves only in
+// isolated temporary backend copies.
+fn run_codegen_command(
+    backend: &Path,
     target_profile: Option<&str>,
     outbound_actions: bool,
 ) -> Result<(), String> {
-    let repo = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."));
     let mut command = Command::new("node");
     command
-        .current_dir(&repo)
+        .current_dir(repo_root())
         .arg("packages/snapback-codegen/index.mjs")
         .arg(backend);
     if let Some(target_profile) = target_profile {
@@ -3668,10 +3687,11 @@ fn run_codegen(
     }
     let output = command
         .output()
-        .map_err(|error| format!("could not start codegen for {backend}: {error}"))?;
+        .map_err(|error| format!("could not start codegen for {}: {error}", backend.display()))?;
     if !output.status.success() {
         return Err(format!(
-            "codegen for {backend} exited with {}\nstdout:\n{}\nstderr:\n{}",
+            "codegen for {} exited with {}\nstdout:\n{}\nstderr:\n{}",
+            backend.display(),
             output.status,
             String::from_utf8_lossy(&output.stdout),
             String::from_utf8_lossy(&output.stderr),
@@ -3680,41 +3700,309 @@ fn run_codegen(
     Ok(())
 }
 
-fn materialize_remote_service_publication() {
-    let result = REMOTE_SERVICE_PUBLICATION.get_or_init(|| {
-        let _guard = CODEGEN_TEST_LOCK
-            .lock()
-            .map_err(|_| "codegen test lock was poisoned".to_owned())?;
-        run_codegen(
-            "demos/todo-v2/snapback",
-            Some("remote-service-sqlite-ibex"),
-            false,
+fn copy_backend_tree(source: &Path, destination: &Path) -> Result<(), String> {
+    fs::create_dir_all(destination).map_err(|error| {
+        format!(
+            "create temporary backend directory {}: {error}",
+            destination.display()
         )
-    });
-    if let Err(error) = result {
-        panic!("SNAPBACK_TEST_REMOTE_SERVICE_PUBLICATION_REGEN_FAILED: {error}");
+    })?;
+    for entry in fs::read_dir(source)
+        .map_err(|error| format!("read backend directory {}: {error}", source.display()))?
+    {
+        let entry = entry.map_err(|error| format!("read backend entry: {error}"))?;
+        let name = entry.file_name();
+        if matches!(
+            name.to_str(),
+            Some("generated" | "generated-remote-service" | ".snapback")
+        ) {
+            continue;
+        }
+        let source_path = entry.path();
+        let destination_path = destination.join(&name);
+        let file_type = entry
+            .file_type()
+            .map_err(|error| format!("inspect backend entry {}: {error}", source_path.display()))?;
+        if file_type.is_dir() {
+            copy_backend_tree(&source_path, &destination_path)?;
+        } else if file_type.is_file() {
+            fs::copy(&source_path, &destination_path).map_err(|error| {
+                format!(
+                    "copy backend file {} to {}: {error}",
+                    source_path.display(),
+                    destination_path.display()
+                )
+            })?;
+        } else {
+            return Err(format!(
+                "temporary backend copy refuses non-file entry {}",
+                source_path.display()
+            ));
+        }
     }
+    Ok(())
 }
 
-fn materialize_dk7_demo_manifests() {
-    let result = DK7_DEMO_MANIFESTS.get_or_init(|| {
-        let _guard = CODEGEN_TEST_LOCK
-            .lock()
-            .map_err(|_| "codegen test lock was poisoned".to_owned())?;
+fn copy_codegen_governance_inputs(
+    source_backend: &Path,
+    destination_backend: &Path,
+) -> Result<(), String> {
+    const GOVERNANCE_INPUTS: [&str; 5] = [
+        "visibility-override-owner-baseline.json",
+        "visibility-override-baseline.json",
+        "table-visibility-policy-baseline.json",
+        "table-visibility-policy-transition-ledger.json",
+        "visibility-governance-quarantine-ledger.json",
+    ];
+    let destination_generated = destination_backend.join("generated");
+    for leaf in GOVERNANCE_INPUTS {
+        let source = source_backend.join("generated").join(leaf);
+        if !source.exists() {
+            continue;
+        }
+        fs::create_dir_all(&destination_generated).map_err(|error| {
+            format!(
+                "create temporary governance input directory {}: {error}",
+                destination_generated.display()
+            )
+        })?;
+        let destination = destination_generated.join(leaf);
+        fs::copy(&source, &destination).map_err(|error| {
+            format!(
+                "copy governance input {} to {}: {error}",
+                source.display(),
+                destination.display()
+            )
+        })?;
+    }
+    Ok(())
+}
+
+fn copy_nearest_demo_manifest(
+    repo: &Path,
+    source_backend: &Path,
+    temporary_repo: &Path,
+) -> Result<(), String> {
+    let mut candidate = Some(source_backend);
+    while let Some(directory) = candidate {
+        let manifest = directory.join("demo.snapback.json");
+        if manifest.is_file() {
+            let relative = manifest.strip_prefix(repo).map_err(|error| {
+                format!(
+                    "demo manifest {} is outside repository {}: {error}",
+                    manifest.display(),
+                    repo.display()
+                )
+            })?;
+            let destination = temporary_repo.join(relative);
+            let parent = destination.parent().ok_or_else(|| {
+                format!(
+                    "demo manifest destination has no parent: {}",
+                    destination.display()
+                )
+            })?;
+            fs::create_dir_all(parent).map_err(|error| {
+                format!(
+                    "create temporary demo manifest directory {}: {error}",
+                    parent.display()
+                )
+            })?;
+            fs::copy(&manifest, &destination).map_err(|error| {
+                format!(
+                    "copy demo manifest {} to {}: {error}",
+                    manifest.display(),
+                    destination.display()
+                )
+            })?;
+            return Ok(());
+        }
+        if directory == repo {
+            break;
+        }
+        candidate = directory.parent();
+    }
+    Err(format!(
+        "no demo.snapback.json governs backend {}",
+        source_backend.display()
+    ))
+}
+
+#[cfg(unix)]
+fn symlink_directory(source: &Path, destination: &Path) -> std::io::Result<()> {
+    std::os::unix::fs::symlink(source, destination)
+}
+
+#[cfg(windows)]
+fn symlink_directory(source: &Path, destination: &Path) -> std::io::Result<()> {
+    std::os::windows::fs::symlink_dir(source, destination)
+}
+
+fn run_codegen_in_temporary_repository(
+    backend_relative: &Path,
+    generated_name: &str,
+    target_profile: Option<&str>,
+    outbound_actions: bool,
+) -> Result<MaterializedBackend, String> {
+    let repo = repo_root();
+    let source_backend = repo.join(backend_relative);
+    let temporary = tempfile::Builder::new()
+        .prefix("snapback-artifact-schemas-")
+        .tempdir()
+        .map_err(|error| format!("create isolated codegen repository: {error}"))?;
+    fs::write(
+        temporary.path().join(".git"),
+        "isolated codegen fixture; not a repository\n",
+    )
+    .map_err(|error| format!("mark isolated codegen repository: {error}"))?;
+
+    let backend = temporary.path().join(backend_relative);
+    copy_backend_tree(&source_backend, &backend)?;
+    copy_codegen_governance_inputs(&source_backend, &backend)?;
+    copy_nearest_demo_manifest(&repo, &source_backend, temporary.path())?;
+    fs::create_dir_all(temporary.path().join("demos"))
+        .map_err(|error| format!("create isolated demos directory: {error}"))?;
+    symlink_directory(
+        &repo.join("demos/_kit"),
+        &temporary.path().join("demos/_kit"),
+    )
+    .map_err(|error| format!("link isolated codegen authoring shim: {error}"))?;
+    let node_modules = repo.join("node_modules");
+    if node_modules.is_dir() {
+        symlink_directory(&node_modules, &temporary.path().join("node_modules"))
+            .map_err(|error| format!("link isolated codegen dependencies: {error}"))?;
+    }
+
+    run_codegen_command(&backend, target_profile, outbound_actions)?;
+    Ok(MaterializedBackend {
+        generated: backend.join(generated_name),
+        committed_generated: source_backend.join(generated_name),
+        _temporary: temporary,
+    })
+}
+
+fn materialize_remote_service_publication() -> MaterializedBackend {
+    run_codegen_in_temporary_repository(
+        Path::new("demos/todo-v2/snapback"),
+        "generated-remote-service",
+        Some("remote-service-sqlite-ibex"),
+        false,
+    )
+    .unwrap_or_else(|error| {
+        panic!("SNAPBACK_TEST_REMOTE_SERVICE_PUBLICATION_REGEN_FAILED: {error}")
+    })
+}
+
+fn materialize_dk7_demo_manifests() -> Vec<MaterializedBackend> {
+    let result: Result<Vec<MaterializedBackend>, String> = (|| {
+        let mut materialized = Vec::with_capacity(GENERATED_BACKENDS.len());
         for generated in GENERATED_BACKENDS {
-            let backend = generated
-                .strip_suffix("/generated")
-                .ok_or_else(|| format!("generated backend has no /generated suffix: {generated}"))?;
+            let backend = generated.strip_suffix("/generated").ok_or_else(|| {
+                format!("generated backend has no /generated suffix: {generated}")
+            })?;
             let outbound_actions = matches!(
                 backend,
                 "demos/all-aboard/snapback" | "demos/all-aboard/tests/egress-probe"
             );
-            run_codegen(backend, None, outbound_actions)?;
+            materialized.push(run_codegen_in_temporary_repository(
+                Path::new(backend),
+                "generated",
+                None,
+                outbound_actions,
+            )?);
         }
-        Ok(())
-    });
-    if let Err(error) = result {
-        panic!("SNAPBACK_TEST_DK7_DEMO_MANIFEST_REGEN_FAILED: {error}");
+        Ok(materialized)
+    })();
+    result.unwrap_or_else(|error| panic!("SNAPBACK_TEST_DK7_DEMO_MANIFEST_REGEN_FAILED: {error}"))
+}
+
+fn read_json_file(path: &Path) -> Value {
+    let source =
+        fs::read_to_string(path).unwrap_or_else(|error| panic!("read {}: {error}", path.display()));
+    serde_json::from_str(&source)
+        .unwrap_or_else(|error| panic!("parse {}: {error}", path.display()))
+}
+
+fn assert_json_validates_against_schema(
+    instance_path: &Path,
+    schema_path: &Path,
+    diagnostic: &str,
+) {
+    let instance = read_json_file(instance_path);
+    let schema = read_json_file(schema_path);
+    let validator = jsonschema::validator_for(&schema)
+        .unwrap_or_else(|error| panic!("compile {}: {error}", schema_path.display()));
+    let errors = validator
+        .iter_errors(&instance)
+        .map(|error| format!("  {}: {error}", error.instance_path()))
+        .collect::<Vec<_>>();
+    assert!(
+        errors.is_empty(),
+        "{diagnostic}: {} does not validate against {}:\n{}",
+        instance_path.display(),
+        schema_path.display(),
+        errors.join("\n")
+    );
+}
+
+fn assert_committed_review_artifacts_match_fresh_generation(materialized: &MaterializedBackend) {
+    let committed_index_path = materialized.committed_generated.join("artifacts.json");
+    let fresh_index_path = materialized.generated.join("artifacts.json");
+    assert_json_validates_against_schema(
+        &committed_index_path,
+        &repo_root().join("packages/snapback-codegen/review-manifest.schema.json"),
+        "SNAPBACK_TEST_COMMITTED_GENERATED_ARTIFACT_SCHEMA_INVALID",
+    );
+
+    let fresh_index = read_json_file(&fresh_index_path);
+    let mut committed_leaves = vec![
+        "artifacts.json",
+        "schema.manifest.json",
+        "functions.manifest.json",
+    ];
+    for leaf in fresh_index["files"]
+        .as_array()
+        .expect("fresh artifacts.json files")
+        .iter()
+        .filter(|file| file["custody"] == "consumer-committed")
+        .map(|file| {
+            file["path"]
+                .as_str()
+                .expect("consumer-committed artifact path")
+        })
+    {
+        if !committed_leaves.contains(&leaf) {
+            committed_leaves.push(leaf);
+        }
+    }
+
+    for leaf in &committed_leaves {
+        let committed_path = materialized.committed_generated.join(leaf);
+        let fresh_path = materialized.generated.join(leaf);
+        let committed = fs::read(&committed_path).unwrap_or_else(|error| {
+            panic!(
+                "SNAPBACK_TEST_COMMITTED_GENERATED_ARTIFACT_MISSING: read {}: {error}; run `scripts/check-generated-artifacts`",
+                committed_path.display()
+            )
+        });
+        let fresh = fs::read(&fresh_path)
+            .unwrap_or_else(|error| panic!("read fresh {}: {error}", fresh_path.display()));
+        assert!(
+            committed == fresh,
+            "SNAPBACK_TEST_COMMITTED_GENERATED_ARTIFACT_DRIFT: {} differs from an isolated fresh generation of the same inputs; run `scripts/check-generated-artifacts`",
+            committed_path.display()
+        );
+    }
+
+    for (leaf, schema) in [
+        ("schema.manifest.json", "schema.manifest.schema.json"),
+        ("functions.manifest.json", "functions.manifest.schema.json"),
+    ] {
+        let committed_path = materialized.committed_generated.join(leaf);
+        assert_json_validates_against_schema(
+            &committed_path,
+            &schemas_dir().join(schema),
+            "SNAPBACK_TEST_COMMITTED_GENERATED_ARTIFACT_SCHEMA_INVALID",
+        );
     }
 }
 
@@ -3722,8 +4010,10 @@ fn materialize_dk7_demo_manifests() {
 /// against the Rust-derived schema (the codegen output it is meant to describe).
 #[test]
 fn dk7_committed_demo_manifests_validate_against_schemas() {
-    materialize_dk7_demo_manifests();
-    let repo = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."));
+    let materialized = materialize_dk7_demo_manifests();
+    for backend in &materialized {
+        assert_committed_review_artifacts_match_fresh_generation(backend);
+    }
     let pairs = [
         ("schema.manifest.schema.json", "schema.manifest.json"),
         ("functions.manifest.schema.json", "functions.manifest.json"),
@@ -3736,8 +4026,8 @@ fn dk7_committed_demo_manifests_validate_against_schemas() {
         let schema = committed(schema_file);
         let validator = jsonschema::validator_for(&schema)
             .unwrap_or_else(|error| panic!("compile {schema_file}: {error}"));
-        for backend in GENERATED_BACKENDS {
-            let path = repo.join(backend).join(manifest_file);
+        for backend in &materialized {
+            let path = backend.generated.join(manifest_file);
             let text = fs::read_to_string(&path)
                 .unwrap_or_else(|error| panic!("read {}: {error}", path.display()));
             let manifest: Value = serde_json::from_str(&text)
@@ -3748,7 +4038,9 @@ fn dk7_committed_demo_manifests_validate_against_schemas() {
                 .collect();
             assert!(
                 errors.is_empty(),
-                "{backend}/{manifest_file} does not validate against {schema_file}:\n{}",
+                "{}/{} does not validate against {schema_file}:\n{}",
+                backend.generated.display(),
+                manifest_file,
                 errors.join("\n")
             );
         }
@@ -3759,20 +4051,20 @@ fn dk7_committed_demo_manifests_validate_against_schemas() {
 /// pass their artifact-header validation — the schema and the parser agree.
 #[test]
 fn dk7_committed_demo_manifests_parse_through_runtime_structs() {
-    materialize_dk7_demo_manifests();
-    let repo = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."));
-    for backend in GENERATED_BACKENDS {
-        let dir = repo.join(backend);
+    let materialized = materialize_dk7_demo_manifests();
+    for backend in &materialized {
+        assert_committed_review_artifacts_match_fresh_generation(backend);
+        let dir = &backend.generated;
         let schema: SchemaManifest = serde_json::from_str(
             &fs::read_to_string(dir.join("schema.manifest.json")).expect("read schema manifest"),
         )
-        .unwrap_or_else(|error| panic!("{backend}: schema manifest rejected: {error}"));
+        .unwrap_or_else(|error| panic!("{}: schema manifest rejected: {error}", dir.display()));
         schema.validate_artifact().expect("schema artifact header");
         let functions: FunctionManifest = serde_json::from_str(
             &fs::read_to_string(dir.join("functions.manifest.json"))
                 .expect("read functions manifest"),
         )
-        .unwrap_or_else(|error| panic!("{backend}: functions manifest rejected: {error}"));
+        .unwrap_or_else(|error| panic!("{}: functions manifest rejected: {error}", dir.display()));
         functions
             .validate_artifact()
             .expect("functions artifact header");
@@ -3780,7 +4072,7 @@ fn dk7_committed_demo_manifests_parse_through_runtime_structs() {
             &fs::read_to_string(dir.join("capability.manifest.json"))
                 .expect("read capability manifest"),
         )
-        .unwrap_or_else(|error| panic!("{backend}: capability manifest rejected: {error}"));
+        .unwrap_or_else(|error| panic!("{}: capability manifest rejected: {error}", dir.display()));
     }
 }
 
