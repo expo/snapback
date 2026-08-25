@@ -1360,7 +1360,7 @@ test('backstop keys distinct reds by signature and updates an unchanged observat
   assert.match(runs[2].output, /not filing a duplicate; updated its last observation/u);
 });
 
-test('backstop routes each expired GAP review row to one open owner ticket', () => {
+test('backstop GAP review routing survives marker-stripped reruns and routing errors', () => {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-gap-review-backstop-'));
   const repo = join(scratch, 'repo');
   mkdirSync(repo);
@@ -1401,18 +1401,45 @@ test('backstop routes each expired GAP review row to one open owner ticket', () 
     }));
 
     const first = runOnce();
+    const ticketsAfterFirstRun = readdirSync(join(repo, 'issues'))
+      .filter((name) => name.includes('guide-gap-review-expired'));
+    assert.deepEqual(ticketsAfterFirstRun, ['20260825-guide-gap-review-expired-backend-expired.md']);
+    const ticketPath = join(repo, 'issues', ticketsAfterFirstRun[0]);
+    const filedBody = readFileSync(ticketPath, 'utf8');
+    assert.match(filedBody, /\*\*Routing signature:\*\* `gap-review:backend\.expired`/u);
+    assert.match(filedBody, /\*\*Owner:\*\* Fixture Owner/u);
+    assert.match(filedBody, /\*\*Gap pointer:\*\* `issues\/guide-gap-tracker\.md`/u);
+    writeFileSync(
+      ticketPath,
+      filedBody.replace(/^\*\*Routing signature:\*\* `gap-review:backend\.expired`\n/mu, ''),
+    );
+
     const second = runOnce();
+    const routingFailure = capturePrePush(() => runBackstop({
+      head: revision,
+      gate: 'guide',
+      issuesDir: 'issues',
+      root: repo,
+      context: fixtureOutcomeContext(),
+      env: {
+        ...env,
+        SNAPBACK_DRIFT_TICKET_DATE: 'not-a-date',
+      },
+    }));
     const tickets = readdirSync(join(repo, 'issues'))
       .filter((name) => name.includes('guide-gap-review-expired'));
 
     assert.equal(first.status, 0, first.output);
     assert.equal(second.status, 0, second.output);
+    assert.equal(routingFailure.status, 0, routingFailure.output);
     assert.match(first.output, /GAP REVIEW EXPIRED backend\.expired; owner: Fixture Owner; pointer: issues\/guide-gap-tracker\.md/u);
     assert.match(first.output, /FILED issues\/20260825-guide-gap-review-expired-backend-expired\.md/u);
-    assert.match(second.output, /existing open GAP review ticket .*; not filing a duplicate/u);
+    assert.match(second.output, /existing GAP review ticket .*; treating it as already filed/u);
+    assert.match(routingFailure.output, /WARNING GAP review routing failed; continuing with frozen-record gates: SNAPBACK_DRIFT_GATE_INVALID: invalid ticket date not-a-date/u);
+    assert.match(routingFailure.output, /PASS guide/u);
     assert.deepEqual(tickets, ['20260825-guide-gap-review-expired-backend-expired.md']);
     const body = readFileSync(join(repo, 'issues', tickets[0]), 'utf8');
-    assert.match(body, /\*\*Routing signature:\*\* `gap-review:backend\.expired`/u);
+    assert.doesNotMatch(body, /\*\*Routing signature:\*\*/u);
     assert.match(body, /\*\*Owner:\*\* Fixture Owner/u);
     assert.match(body, /\*\*Gap pointer:\*\* `issues\/guide-gap-tracker\.md`/u);
   } finally {

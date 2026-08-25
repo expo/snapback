@@ -419,6 +419,9 @@ every shipped row** (a route in the declared registry, a host-op id, a
 package export, a generated-manifest field, or a CLI command that proves the
 capability exists), and the guide page or an explicit **GAP** row naming an
 owner and a review date, with the filing pointer.
+A missing or closed filing pointer hard-fails consistency; an expired or
+seven-day-soon review date warns, with expired rows routed idempotently by the
+scheduled backstop.
 
 Two **day-one inventory joins**, run by `guide-consistency` (§3), keep the
 index honest where the repo already has declared, machine-readable

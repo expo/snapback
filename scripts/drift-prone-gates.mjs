@@ -2384,7 +2384,7 @@ function fileGapReviewTicket({ ticketRoot, row, headRevision, date }) {
   const compactDate = date.replaceAll('-', '');
   const rowSlug = row.id.replace(/[^a-z0-9]+/gu, '-').replace(/^-|-$/gu, '');
   const path = join(ticketRoot, `${compactDate}-guide-gap-review-expired-${rowSlug}.md`);
-  if (existsSync(path)) fail(`GAP review ticket collision at ${path}`);
+  if (existsSync(path)) return { path, filed: false };
   const body = `# guide-gap: review expired for \`${row.id}\`
 
 **Status:** Open
@@ -2412,7 +2412,7 @@ pointer as appropriate, record the outcome here, and move this ticket to
 \`issues/closed/\`.
 `;
   writeFileSync(path, body);
-  return path;
+  return { path, filed: true };
 }
 
 // @ref LLP 0061#3-verification-snippets-that-ran — calendar expiry warns at
@@ -2441,13 +2441,20 @@ function routeExpiredGapReviews({ root, ticketRoot, revision, date }) {
       );
       continue;
     }
-    const ticket = fileGapReviewTicket({
+    const { path: ticket, filed } = fileGapReviewTicket({
       ticketRoot,
       row,
       headRevision: revision,
       date,
     });
-    console.error(`[snapback-drift-backstop] FILED ${relative(root, ticket)}`);
+    if (filed) {
+      console.error(`[snapback-drift-backstop] FILED ${relative(root, ticket)}`);
+    } else {
+      console.error(
+        `[snapback-drift-backstop] existing GAP review ticket ${relative(root, ticket)}; `
+          + 'treating it as already filed',
+      );
+    }
   }
 }
 
@@ -2468,12 +2475,19 @@ export function runBackstop({
   const ticketRoot = safeIssuesRoot(root, issuesDir);
   mkdirSync(ticketRoot, { recursive: true });
   const ticketDate = env.SNAPBACK_DRIFT_TICKET_DATE ?? DEFAULT_TICKET_DATE();
-  routeExpiredGapReviews({
-    root,
-    ticketRoot,
-    revision,
-    date: ticketDate,
-  });
+  try {
+    routeExpiredGapReviews({
+      root,
+      ticketRoot,
+      revision,
+      date: ticketDate,
+    });
+  } catch (error) {
+    console.error(
+      '[snapback-drift-backstop] WARNING GAP review routing failed; '
+        + `continuing with frozen-record gates: ${error?.message ?? error}`,
+    );
+  }
   const infrastructureStreaks = readInfrastructureStreaks(root);
   let failures = 0;
   let infrastructureFailures = 0;
