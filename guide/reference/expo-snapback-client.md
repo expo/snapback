@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:31338b7adbb0a431578deca63b9dd11941c1b410aec4
 # @expo/snapback-client
 
 Build-bound public API projection for `@expo/snapback-client`. Canonical registry identity:
-`sha256:8632d01b8c0d1bdd9831f2005cd8c61a58e8be407a7bc41f1d40367ebf37e24a`.
+`sha256:d741335d7b41e485c19960abbd9d806a246c40babc6cfa8ca2e0ef90d9b60167`.
 Runtime parity condition:
 `import` → `packages/snapback-client/index.mjs`.
 
@@ -7967,6 +7967,7 @@ export type SnapbackDiagnosticCode =
   | 'SNAPBACK_ADMIN_READY_FILE_INVALID'
   | 'SNAPBACK_ADMIN_READY_FILE_REQUIRED'
   | 'SNAPBACK_ADMIN_READY_FILE_UNAVAILABLE'
+  | 'SNAPBACK_ADMIN_READ_TOKEN_MISSING'
   | 'SNAPBACK_ADMIN_RELAY_BODY_REFUSED'
   | 'SNAPBACK_ADMIN_RELAY_CONNECT_REFUSED'
   | 'SNAPBACK_ADMIN_RELAY_FORWARDING_HEADER_REFUSED'
