@@ -829,6 +829,8 @@ function rustAttributes(source) {
   return rustAttributeEntries(source).map((attribute) => attribute.source);
 }
 
+const AMBIGUOUS_MODULE_PATH = Symbol('ambiguous module path');
+
 function modulePathBeforeStatement(source, attributes, statementStart) {
   const pathAttributes = attributes.filter((attribute) => (
     attribute.end <= statementStart
@@ -837,7 +839,8 @@ function modulePathBeforeStatement(source, attributes, statementStart) {
         source.slice(attribute.end, statementStart),
       )).trim() === ''
   ));
-  if (pathAttributes.length !== 1) return null;
+  if (pathAttributes.length === 0) return null;
+  if (pathAttributes.length > 1) return AMBIGUOUS_MODULE_PATH;
   const [pathAttribute] = pathAttributes;
   return /^#\s*!?\s*\[\s*path\s*=\s*"([^"\\]+)"\s*\]$/su.exec(pathAttribute.source)?.[1] ?? null;
 }

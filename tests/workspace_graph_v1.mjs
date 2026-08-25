@@ -583,6 +583,16 @@ test('reviewed runtime_cost globs cannot be rebound at their canonical path', ()
   );
 });
 
+test('reviewed null-path glob roots reject ambiguous path declarations', () => {
+  assert.throws(
+    () => validateEngineDefinitionDenylist(artifact, [{
+      path: join(repositoryRoot, 'crates/snapback-engine/src/manifest.rs'),
+      source: '#[path = "ask.rs"] #[path = "manifest/capabilities.rs"] mod capabilities;\npub use capabilities::*;',
+    }]),
+    /may not shadow reviewed glob binding capabilities/u,
+  );
+});
+
 test('reviewed local glob roots cannot be rebound', () => {
   for (const { path, source } of [
     {
