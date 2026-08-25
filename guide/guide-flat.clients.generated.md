@@ -3966,6 +3966,13 @@ forwards on exit
 ([LLP 0181 §Supervised development baseline](repo:llp/0181-zero-configuration-expo.rfc.md#supervised-development-baseline),
 [`runExpoDev`](repo:packages/snapback-cli/expo-dev.mjs)).
 
+For a headless `--json` launch whose stdin is `/dev/null`, read the
+`controlSocket` field from `.snapback/expo-supervisor.json` and use its
+owner-bound acknowledgement protocol; do not signal a process by pattern.
+The exact request shape, `reload-metro` / `stop-children` verb set, and
+stale/foreign refusal rules are in
+[Control a detached Expo dev supervisor](../operating/agent-controls.md#control-a-detached-expo-dev-supervisor).
+
 When a watched backend edit reaches `generated-and-loaded`, the supervisor
 reads the successor `app.descriptor.json` and remints the binding for that exact
 descriptor identity while keeping the same supervisor generation and route.

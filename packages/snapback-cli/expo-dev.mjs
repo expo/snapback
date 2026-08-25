@@ -60,12 +60,386 @@ const SUPERVISED_AUTHORITY_REQUEST = 'mint';
 export const SUPERVISED_DEV_IDENTITY_CHECKOUT_PATH = '/_snapback/expo/v1/dev-identity-checkout';
 export const SUPERVISED_DEV_IDENTITY_CHECKOUT_HEADER = 'x-snapback-dev-identity-checkout';
 export const SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV = 'SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE';
+export const DEV_CONTROL_SOCKET_FORMAT = 'snapback.dev-control.v1';
+export const DEV_CONTROL_COMMAND_FORMAT = 'snapback.dev-control-command.v1';
+export const DEV_CONTROL_ACK_FORMAT = 'snapback.dev-control-ack.v1';
+export const DEV_CONTROL_RESULT_FORMAT = 'snapback.dev-control-result.v1';
 export const METRO_WATCH_BLIND_ROOTS = Object.freeze(['/private/tmp', '/tmp']);
 export const SUPERVISOR_PARENT_PID_ENV = 'SNAPBACK_EXPO_SUPERVISOR_PARENT_PID';
 export const SUPERVISOR_PARENT_START_TIME_ENV = 'SNAPBACK_EXPO_SUPERVISOR_PARENT_START_TIME';
 const EXPO_GO_IOS_BUNDLE_IDENTIFIER = 'host.exp.Exponent';
 const EXPO_GO_ANDROID_COMPONENT_PREFIX = 'host.exp.exponent/';
 const EXPO_APP_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*$/u;
+const DEV_CONTROL_SOCKET_BASENAME = 'dev-control.sock';
+const DEV_CONTROL_COMMAND_LIMIT_BYTES = 16 * 1024;
+const DEV_CONTROL_VERBS = Object.freeze(['reload-metro', 'stop-children']);
+
+function devControlDiagnostic(code, message, details = {}) {
+  return Object.freeze({ code, severity: 'error', subsystem: 'cli', message, details });
+}
+
+function devControlResult({ requestId = null, verb = null, ok, result, diagnostic }) {
+  return Object.freeze({
+    schemaVersion: DEV_CONTROL_RESULT_FORMAT,
+    ok,
+    state: 'result',
+    ...(requestId === null ? {} : { requestId }),
+    ...(verb === null ? {} : { verb }),
+    ...(result === undefined ? {} : { result }),
+    ...(diagnostic === undefined ? {} : { diagnostics: [diagnostic] }),
+  });
+}
+
+function controlLifecycleReceipt(input) {
+  const digest = createHash('sha256').update(JSON.stringify({
+    schemaVersion: DEV_CONTROL_SOCKET_FORMAT,
+    readyFile: resolve(input.readyFile),
+    ownerPid: input.ownerPid,
+    ownerUid: input.ownerUid,
+    ownerIncarnationId: input.ownerIncarnationId,
+    ownerStartTime: input.ownerStartTime,
+    startedAt: input.startedAt,
+  })).digest('hex');
+  return `sha256:${digest}`;
+}
+
+function validateDevControlCommand(command, controlSocket, endpoint) {
+  const requestId = typeof command?.requestId === 'string' && command.requestId.length > 0
+    ? command.requestId
+    : null;
+  const verb = typeof command?.verb === 'string' ? command.verb : null;
+  if (
+    command?.schemaVersion !== DEV_CONTROL_COMMAND_FORMAT
+    || requestId === null
+    || verb === null
+    || command?.owner === null
+    || typeof command?.owner !== 'object'
+    || Array.isArray(command.owner)
+  ) {
+    return devControlResult({
+      requestId,
+      verb,
+      ok: false,
+      diagnostic: devControlDiagnostic(
+        'SNAPBACK_DEV_COMMAND_INVALID',
+        'expected one owner-bound snapback.dev-control-command.v1 JSON object',
+        { supported: DEV_CONTROL_VERBS },
+      ),
+    });
+  }
+  if (endpoint.uid !== controlSocket.ownerUid || command.owner.uid !== controlSocket.ownerUid) {
+    return devControlResult({
+      requestId,
+      verb,
+      ok: false,
+      diagnostic: devControlDiagnostic(
+        'SNAPBACK_DEV_CONTROL_OTHER_UID',
+        'the dev control endpoint does not belong to this lifecycle owner uid',
+        { expectedUid: controlSocket.ownerUid },
+      ),
+    });
+  }
+  if (
+    endpoint.device !== controlSocket.endpoint.device
+    || endpoint.inode !== controlSocket.endpoint.inode
+    || command.owner.pid !== controlSocket.ownerPid
+    || command.owner.incarnationId !== controlSocket.ownerIncarnationId
+  ) {
+    return devControlResult({
+      requestId,
+      verb,
+      ok: false,
+      diagnostic: devControlDiagnostic(
+        'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
+        'the dev control endpoint belongs to a different lifecycle owner',
+        { ownerPid: controlSocket.ownerPid, ownerIncarnationId: controlSocket.ownerIncarnationId },
+      ),
+    });
+  }
+  if (command.lifecycleReceipt !== controlSocket.lifecycleReceipt) {
+    return devControlResult({
+      requestId,
+      verb,
+      ok: false,
+      diagnostic: devControlDiagnostic(
+        'SNAPBACK_DEV_CONTROL_STALE_INCARNATION',
+        'the dev control request names a stale lifecycle receipt',
+        { ownerIncarnationId: controlSocket.ownerIncarnationId },
+      ),
+    });
+  }
+  if (!DEV_CONTROL_VERBS.includes(verb)) {
+    return devControlResult({
+      requestId,
+      verb,
+      ok: false,
+      diagnostic: devControlDiagnostic(
+        'SNAPBACK_DEV_COMMAND_UNKNOWN_VERB',
+        `unknown owner control verb ${verb}`,
+        { verb, supported: DEV_CONTROL_VERBS },
+      ),
+    });
+  }
+  return Object.freeze({ requestId, verb });
+}
+
+function observedControlEndpoint(path) {
+  const observed = lstatSync(path);
+  if (!observed.isSocket() || observed.isSymbolicLink()) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
+      'the dev control path is not the socket created by this lifecycle owner',
+      { path },
+    );
+  }
+  return Object.freeze({
+    uid: observed.uid,
+    mode: observed.mode & 0o777,
+    device: String(observed.dev),
+    inode: String(observed.ino),
+  });
+}
+
+export async function startDevControlSocket(options) {
+  if (process.platform === 'win32' || typeof process.getuid !== 'function') {
+    throw diagnosticError(
+      'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
+      'the owner-bound dev control channel requires unix domain sockets and uid custody',
+      { platform: process.platform },
+    );
+  }
+  const path = join(dirname(resolve(options.readyFile)), DEV_CONTROL_SOCKET_BASENAME);
+  const ownerUid = process.getuid();
+  const ownerPid = process.pid;
+  const stateDirectory = lstatSync(dirname(path));
+  if (!stateDirectory.isDirectory() || stateDirectory.isSymbolicLink() || stateDirectory.uid !== ownerUid) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_CONTROL_OTHER_UID',
+      'the dev owner state directory must be a same-uid non-symlink directory',
+      { path: dirname(path), expectedUid: ownerUid, observedUid: stateDirectory.uid },
+    );
+  }
+  if (existsSync(path)) {
+    const observed = lstatSync(path);
+    const code = observed.uid === ownerUid
+      ? 'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER'
+      : 'SNAPBACK_DEV_CONTROL_OTHER_UID';
+    throw diagnosticError(
+      code,
+      'the dev control socket path is already occupied by another endpoint',
+      { path, expectedUid: ownerUid, observedUid: observed.uid },
+    );
+  }
+
+  const sockets = new Set();
+  let closed = false;
+  let closePromise = null;
+  let controlSocket = null;
+  const server = createNetServer({ allowHalfOpen: true }, (socket) => {
+    sockets.add(socket);
+    socket.setEncoding('utf8');
+    let buffer = '';
+    let handled = false;
+    socket.on('close', () => sockets.delete(socket));
+    // A caller may disconnect after the acknowledgement while a verb is
+    // still settling. That abandons only its reply; it must not crash the
+    // lifecycle owner or cancel an operation already acknowledged.
+    socket.on('error', () => sockets.delete(socket));
+    socket.on('data', (chunk) => {
+      if (handled) return;
+      buffer += chunk;
+      if (Buffer.byteLength(buffer) > DEV_CONTROL_COMMAND_LIMIT_BYTES) {
+        handled = true;
+        socket.end(`${JSON.stringify(devControlResult({
+          ok: false,
+          diagnostic: devControlDiagnostic(
+            'SNAPBACK_DEV_COMMAND_INVALID',
+            'the dev control command exceeded the 16 KiB limit',
+          ),
+        }))}\n`);
+        return;
+      }
+      const newline = buffer.indexOf('\n');
+      if (newline === -1) return;
+      handled = true;
+      const line = buffer.slice(0, newline);
+      void (async () => {
+        let command;
+        try {
+          command = JSON.parse(line);
+        } catch {
+          socket.end(`${JSON.stringify(devControlResult({
+            ok: false,
+            diagnostic: devControlDiagnostic(
+              'SNAPBACK_DEV_COMMAND_INVALID',
+              'dev control commands are newline-delimited JSON objects',
+            ),
+          }))}\n`);
+          return;
+        }
+        let endpoint;
+        try {
+          endpoint = observedControlEndpoint(path);
+        } catch (error) {
+          socket.end(`${JSON.stringify(devControlResult({
+            requestId: typeof command?.requestId === 'string' ? command.requestId : null,
+            verb: typeof command?.verb === 'string' ? command.verb : null,
+            ok: false,
+            diagnostic: error?.diagnostic ?? devControlDiagnostic(
+              'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
+              'the dev control endpoint identity could not be verified',
+              { path },
+            ),
+          }))}\n`);
+          return;
+        }
+        const validation = validateDevControlCommand(command, controlSocket, endpoint);
+        if (validation?.schemaVersion === DEV_CONTROL_RESULT_FORMAT) {
+          socket.end(`${JSON.stringify(validation)}\n`);
+          return;
+        }
+        const { requestId, verb } = validation;
+        socket.write(`${JSON.stringify({
+          schemaVersion: DEV_CONTROL_ACK_FORMAT,
+          ok: true,
+          state: 'acknowledged',
+          requestId,
+          verb,
+          ownerIncarnationId: controlSocket.ownerIncarnationId,
+          lifecycleReceipt: controlSocket.lifecycleReceipt,
+        })}\n`);
+        let result;
+        try {
+          result = await options.verbs[verb]({ requestId });
+        } catch (error) {
+          socket.end(`${JSON.stringify(devControlResult({
+            requestId,
+            verb,
+            ok: false,
+            diagnostic: error?.diagnostic ?? devControlDiagnostic(
+              error?.code ?? 'SNAPBACK_DEV_COMMAND_FAILED',
+              error?.message ?? `dev control verb ${verb} failed`,
+              { verb },
+            ),
+          }))}\n`);
+          return;
+        }
+        const encodedResult = `${JSON.stringify(devControlResult({
+          requestId,
+          verb,
+          ok: result?.ok !== false,
+          result,
+        }))}\n`;
+        if (verb !== 'stop-children') {
+          socket.end(encodedResult);
+          return;
+        }
+        // The owner has already reclaimed its children. Give the result a
+        // bounded chance to flush, then close the transient endpoint and let
+        // the packaged CLI exit even if the caller abandoned the connection.
+        await new Promise((resolveFlush) => {
+          let settled = false;
+          const finish = () => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timeout);
+            resolveFlush();
+          };
+          const timeout = setTimeout(finish, 1_000);
+          socket.once('close', finish);
+          socket.end(encodedResult, finish);
+        });
+        await close();
+        options.onStopComplete?.();
+      })();
+    });
+  });
+  await new Promise((resolveListen, rejectListen) => {
+    const onError = (cause) => {
+      server.off('listening', onListening);
+      rejectListen(diagnosticError(
+        'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
+        `the dev control socket could not bind at ${path}: ${cause.message}`,
+        { path, cause: cause.code ?? cause.message },
+      ));
+    };
+    const onListening = () => {
+      server.off('error', onError);
+      resolveListen();
+    };
+    server.once('error', onError);
+    server.once('listening', onListening);
+    // Unix-domain endpoints inherit the process umask at bind time. Make the
+    // endpoint owner-only from its first visible instant, before the explicit
+    // chmod and identity check below close the final mode assertion.
+    const previousUmask = process.umask(0o177);
+    try {
+      server.listen(path);
+    } finally {
+      process.umask(previousUmask);
+    }
+  });
+  // @ref LLP 0262#d1-the-dev-identity-capability — local development custody
+  // is owner-only and uid-bound; the socket follows the same 0600 discipline.
+  chmodSync(path, 0o600);
+  const endpoint = observedControlEndpoint(path);
+  if (endpoint.uid !== ownerUid || endpoint.mode !== 0o600) {
+    server.close();
+    throw diagnosticError(
+      'SNAPBACK_DEV_CONTROL_OTHER_UID',
+      'the dev control socket did not acquire owner-only uid/mode custody',
+      { path, expectedUid: ownerUid, observedUid: endpoint.uid, observedMode: endpoint.mode },
+    );
+  }
+  const descriptor = Object.freeze({
+    schemaVersion: DEV_CONTROL_SOCKET_FORMAT,
+    path,
+    ownerPid,
+    ownerUid,
+    ownerIncarnationId: options.ownerIncarnationId,
+    ownerStartTime: options.ownerStartTime,
+    lifecycleReceipt: controlLifecycleReceipt({
+      readyFile: options.readyFile,
+      ownerPid,
+      ownerUid,
+      ownerIncarnationId: options.ownerIncarnationId,
+      ownerStartTime: options.ownerStartTime,
+      startedAt: options.startedAt,
+    }),
+    verbs: DEV_CONTROL_VERBS,
+  });
+  controlSocket = Object.freeze({
+    ...descriptor,
+    endpoint,
+  });
+  const close = () => {
+    if (closePromise !== null) return closePromise;
+    closePromise = new Promise((resolveClose) => {
+      closed = true;
+      for (const socket of sockets) socket.destroy();
+      server.close(() => resolveClose());
+      if (!server.listening) resolveClose();
+    }).finally(() => {
+      // @ref LLP 0192#d-1-the-durable-state-registry — this socket is
+      // transient instance-local state, not a durable member. Remove only the
+      // exact endpoint this owner bound; a replacement is never deleted.
+      try {
+        const observed = observedControlEndpoint(path);
+        if (observed.device === endpoint.device && observed.inode === endpoint.inode) {
+          rmSync(path, { force: true });
+        }
+      } catch {
+        // Missing or replaced endpoints are permanently discharged.
+      }
+    });
+    return closePromise;
+  };
+  return Object.freeze({
+    descriptor,
+    get closed() { return closed; },
+    close,
+  });
+}
 
 export function expoSupervisorChildEnvironment(env = process.env) {
   const childEnv = { ...(env ?? {}) };
@@ -2359,6 +2733,8 @@ export async function runExpoDev(options = {}) {
   let supervisorDescriptorTemporaryFile = null;
   let supervisorDescriptorCleanupResource = null;
   let supervisorDescriptorTemporaryCleanupResource = null;
+  let controlSocketHandle = null;
+  let metroReloading = false;
   const abortSignal = options.signal ?? null;
   let abortListener = null;
   const appDescriptorPath = join(backendRoot, 'generated', 'app.descriptor.json');
@@ -2380,11 +2756,14 @@ export async function runExpoDev(options = {}) {
   // origin and its admin/impersonation carriers are known.
   let sharedAuthBroker = null;
   let sharedAuthProjection = sharedDevelopmentAuthProjection(null, null);
-  const close = () => {
+  const close = ({ preserveControlSocket = false } = {}) => {
     if (closePromise !== null) return closePromise;
     closePromise = (async () => {
       closed = true;
       const failures = [];
+      if (!preserveControlSocket) {
+        try { await controlSocketHandle?.close?.(); } catch (error) { failures.push(error); }
+      }
       try { parentLease?.close?.(); } catch (error) { failures.push(error); }
       parentLease = null;
       try { bindingPublisher?.close?.(); } catch (error) { failures.push(error); }
@@ -2415,7 +2794,7 @@ export async function runExpoDev(options = {}) {
       authority = pendingAuthority = null;
       if (abortListener !== null) abortSignal?.removeEventListener('abort', abortListener);
       abortListener = null;
-      emit({ ok: failures.length === 0, state: 'closed', reclaimed: {
+      const closedEvent = emit({ ok: failures.length === 0, state: 'closed', reclaimed: {
         backend: dev?.managed === true,
         metro: metro !== null,
         bootstrap: bootstrap !== null,
@@ -2424,6 +2803,7 @@ export async function runExpoDev(options = {}) {
       if (failures.length > 0) {
         throw new AggregateError(failures, 'Expo supervisor cleanup failed');
       }
+      return closedEvent;
     })();
     return closePromise;
   };
@@ -2599,7 +2979,7 @@ export async function runExpoDev(options = {}) {
       metroPlaceholder = null;
       await placeholder?.close?.();
       assertStartupActive();
-      metro = startMetro({
+      const startedMetro = startMetro({
         command: options.metroCommand,
         directory: expoDirectory,
         port: metroProcessPort,
@@ -2610,7 +2990,7 @@ export async function runExpoDev(options = {}) {
         emit,
         cleanupLease,
         onExit(code, signal, cause) {
-          if (!closed) {
+          if (!closed && !metroReloading && metro?.child === startedMetro.child) {
             const error = diagnosticError(
               'SNAPBACK_EXPO_METRO_EXITED',
               cause
@@ -2622,6 +3002,7 @@ export async function runExpoDev(options = {}) {
           }
         },
       });
+      metro = startedMetro;
       return metro;
     };
     assertStartupActive();
@@ -3158,7 +3539,7 @@ export async function runExpoDev(options = {}) {
       signal: options.signal ?? null,
     });
     assertStartupActive();
-    const metroReadiness = Object.freeze({
+    let metroReadiness = Object.freeze({
       pid: metro.child.pid,
       startTime: metroProcessIdentity.startTime,
       origin: appOrigin(route.appHost, metroPort),
@@ -3172,6 +3553,118 @@ export async function runExpoDev(options = {}) {
       dev.applicationReadyFile,
       applicationReceipt,
     );
+    supervisorDescriptorFile = join(dirname(dev.readyFile), 'expo-supervisor.json');
+    const updateSupervisorDescriptor = (fields) => {
+      if (!existsSync(supervisorDescriptorFile)) return;
+      const current = JSON.parse(readFileSync(supervisorDescriptorFile, 'utf8'));
+      if (current.supervisorGeneration !== generation) {
+        throw diagnosticError(
+          'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
+          'the Expo supervisor descriptor was replaced by another lifecycle owner',
+          { path: supervisorDescriptorFile, expected: generation, observed: current.supervisorGeneration },
+        );
+      }
+      writeFileSync(supervisorDescriptorFile, `${JSON.stringify({ ...current, ...fields }, null, 2)}\n`);
+      chmodSync(supervisorDescriptorFile, 0o600);
+    };
+    let metroControlChain = Promise.resolve();
+    const reloadMetroVerb = ({ requestId } = {}) => {
+      const run = metroControlChain.then(async () => {
+        if (closed || metro === null) {
+          return Object.freeze({
+            schemaVersion: EXPO_DEV_EVENT_FORMAT,
+            ok: false,
+            state: 'metro-reload-failed',
+            verb: 'reload-metro',
+            ...(requestId === undefined ? {} : { requestId }),
+            diagnostics: [devControlDiagnostic(
+              'SNAPBACK_EXPO_SUPERVISOR_CLOSED',
+              'the Expo supervisor has no live Metro child to reload',
+            )],
+          });
+        }
+        const previousMetro = metro;
+        const previousPid = previousMetro.child.pid;
+        metroReloading = true;
+        try {
+          await stopProcessGroup(previousMetro.child, { processGroup: true });
+          if (metro === previousMetro) metro = null;
+          const restartedMetro = await launchMetro();
+          listeners = await waitForListenerInventory({
+            backendPid,
+            metroPid: restartedMetro.child.pid,
+            metroProcess: restartedMetro.child,
+            webFrontPort: metroFront?.port ?? null,
+            expected: expectedListeners,
+            timeoutMs: options.metroReadyTimeoutMs ?? 30_000,
+          });
+          const identity = processIdentity(restartedMetro.child.pid, processTable());
+          if (identity === null) {
+            throw diagnosticError(
+              'SNAPBACK_EXPO_METRO_RELOAD_FAILED',
+              'the replacement Metro process disappeared before its identity was recorded',
+            );
+          }
+          metroReadiness = Object.freeze({
+            pid: restartedMetro.child.pid,
+            startTime: identity.startTime,
+            origin: appOrigin(route.appHost, metroPort),
+            upstreamOrigin: appOrigin(LOOPBACK_HOST, metroProcessPort),
+          });
+          updateSupervisorDescriptor({ metro: metroReadiness, listeners });
+          return emit({
+            ok: true,
+            state: 'metro-reloaded',
+            verb: 'reload-metro',
+            ...(requestId === undefined ? {} : { requestId }),
+            previousPid,
+            pid: restartedMetro.child.pid,
+            metro: metroReadiness,
+            listeners,
+          });
+        } catch (error) {
+          return emit({
+            ok: false,
+            state: 'metro-reload-failed',
+            verb: 'reload-metro',
+            ...(requestId === undefined ? {} : { requestId }),
+            previousPid,
+            diagnostics: [error?.diagnostic ?? devControlDiagnostic(
+              error?.code ?? 'SNAPBACK_EXPO_METRO_RELOAD_FAILED',
+              error?.message ?? 'the replacement Metro process did not become ready',
+            )],
+          });
+        } finally {
+          metroReloading = false;
+        }
+      });
+      metroControlChain = run.then(() => undefined, () => undefined);
+      return run;
+    };
+    const stopChildrenVerb = async ({ requestId } = {}) => {
+      const closedEvent = await closeSupervisor({ preserveControlSocket: true });
+      return Object.freeze({
+        schemaVersion: EXPO_DEV_EVENT_FORMAT,
+        ok: true,
+        state: 'children-stopped',
+        verb: 'stop-children',
+        ...(requestId === undefined ? {} : { requestId }),
+        reclaimed: closedEvent?.reclaimed ?? null,
+      });
+    };
+    if (options.controlSocket === true) {
+      controlSocketHandle = await startDevControlSocket({
+        readyFile: dev.readyFile,
+        ownerIncarnationId: generation,
+        ownerStartTime: supervisorProcessIdentity.startTime,
+        startedAt,
+        verbs: {
+          'reload-metro': reloadMetroVerb,
+          'stop-children': stopChildrenVerb,
+        },
+        onStopComplete: options.onControlStop,
+      });
+    }
     const finalReadiness = {
       ok: true,
       state: finalState,
@@ -3188,10 +3681,10 @@ export async function runExpoDev(options = {}) {
       ...(dev.environmentFile === null ? {} : { environmentFile: dev.environmentFile }),
       metro: metroReadiness,
       bootstrap: bootstrapReadiness,
+      ...(controlSocketHandle === null ? {} : { controlSocket: controlSocketHandle.descriptor }),
       portPlan,
       adminConsoleCommand: `snapback admin --ready-file ${JSON.stringify(dev.readyFile)}`,
     };
-    supervisorDescriptorFile = join(dirname(dev.readyFile), 'expo-supervisor.json');
     supervisorDescriptorTemporaryFile = `${supervisorDescriptorFile}.${process.pid}.${correlationId}.tmp`;
     supervisorDescriptorCleanupResource = reserveCleanupPath(
       cleanupLease,
@@ -3225,6 +3718,7 @@ export async function runExpoDev(options = {}) {
       applicationReady: applicationReceiptProjection,
       exchangeOrigin: bootstrap.origin,
       controlPath: SUPERVISED_CONTROL_PATH,
+      ...(controlSocketHandle === null ? {} : { controlSocket: controlSocketHandle.descriptor }),
       metro: metroReadiness,
       ...(metroAttestation === null ? {} : {
         attestation: {
@@ -3287,7 +3781,8 @@ export async function runExpoDev(options = {}) {
       get environmentFile() { return dev.environmentFile; },
       get portPlan() { return portPlan; },
       get listeners() { return listeners; },
-      verbs: dev.verbs,
+      get controlSocket() { return controlSocketHandle?.descriptor ?? null; },
+      verbs: Object.freeze({ ...dev.verbs, 'reload-metro': reloadMetroVerb }),
       async replaceAuthority(email) {
         if (closed) {
           throw diagnosticError('SNAPBACK_EXPO_SUPERVISOR_CLOSED', 'the Expo supervisor is closed');

@@ -62,6 +62,7 @@ const runtimeBinary = process.env.SNAPBACK_SERVER_BINARY
   ?? process.env.SNAPBACK_RUNTIME_BINARY
   ?? join(repoRoot, 'target', 'debug', 'snapback');
 const metroFreshnessOnly = process.argv.includes('--metro-freshness-only');
+const controlSocketOnly = process.argv.includes('--control-socket-only');
 if (!metroFreshnessOnly) {
   assert.ok(existsSync(runtimeBinary), `real Snapback runtime is missing: ${runtimeBinary}`);
 }
@@ -71,6 +72,7 @@ const scratchRoot = realpathSync(mkdtempSync(join(tmpdir(), 'snapback-expo-dev-l
 const metroScript = join(scratchRoot, 'headless-metro.mjs');
 const cliLifecycleRunner = join(scratchRoot, 'cli-lifecycle-runner.mjs');
 const supervisors = [];
+const cliChildren = [];
 const governanceInputs = Object.freeze([
   'elevated-read-site-baseline.json',
   'table-visibility-policy-baseline.json',
@@ -394,8 +396,8 @@ function snapshotEnvFiles(directory) {
   return files;
 }
 
-function fixture(name, { sessions }) {
-  const projectRoot = join(scratchRoot, name);
+function fixture(name, { sessions, root = scratchRoot }) {
+  const projectRoot = join(root, name);
   const backendRoot = join(projectRoot, 'snapback');
   const expoRoot = join(projectRoot, 'app');
   mkdirSync(projectRoot, { recursive: true });
@@ -599,6 +601,50 @@ function listenerOrigin({ host, port }) {
   return `http://${host.includes(':') ? `[${host}]` : host}:${port}`;
 }
 
+function controlCommand(controlSocket, verb, requestId, overrides = {}) {
+  return {
+    schemaVersion: 'snapback.dev-control-command.v1',
+    requestId,
+    verb,
+    owner: {
+      pid: controlSocket.ownerPid,
+      uid: controlSocket.ownerUid,
+      incarnationId: controlSocket.ownerIncarnationId,
+      ...(overrides.owner ?? {}),
+    },
+    lifecycleReceipt: overrides.lifecycleReceipt ?? controlSocket.lifecycleReceipt,
+  };
+}
+
+async function sendControlCommand(controlSocket, command) {
+  return await new Promise((resolveMessages, rejectMessages) => {
+    const messages = [];
+    let buffer = '';
+    const socket = createConnection(controlSocket.path);
+    socket.setEncoding('utf8');
+    socket.setTimeout(30_000, () => socket.destroy(new Error(
+      `timed out waiting for control result for ${command.requestId}`,
+    )));
+    socket.once('connect', () => socket.write(`${JSON.stringify(command)}\n`));
+    socket.on('data', (chunk) => {
+      buffer += chunk;
+      let newline;
+      while ((newline = buffer.indexOf('\n')) !== -1) {
+        const line = buffer.slice(0, newline);
+        buffer = buffer.slice(newline + 1);
+        if (!line) continue;
+        const message = JSON.parse(line);
+        messages.push(message);
+        if (message.schemaVersion === 'snapback.dev-control-result.v1') {
+          socket.end();
+        }
+      }
+    });
+    socket.once('error', rejectMessages);
+    socket.once('close', () => resolveMessages(messages));
+  });
+}
+
 async function runCliSupervisor(target, platform = 'ios', portArgs = []) {
   const cli = join(packageRoot, 'cli.mjs');
   const events = [];
@@ -628,6 +674,7 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = []) {
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
+  cliChildren.push(child);
   child.stdout.setEncoding('utf8');
   child.stderr.setEncoding('utf8');
   child.stderr.on('data', (chunk) => { stderr += chunk; });
@@ -642,8 +689,13 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = []) {
     }
   });
   await eventually(
-    () => events.find((event) => event.schemaVersion === 'snapback.expo-dev.v1'
-      && event.state === 'ready'),
+    () => {
+      if (child.exitCode !== null || child.signalCode !== null) {
+        throw new Error(`snapback dev --expo exited before readiness: ${stderr || stdoutBuffer}`);
+      }
+      return events.find((event) => event.schemaVersion === 'snapback.expo-dev.v1'
+        && event.state === 'ready');
+    },
     { label: 'snapback dev --expo CLI readiness' },
   );
   const readyEvent = events.find((event) => event.state === 'ready');
@@ -653,7 +705,85 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = []) {
     readyEvent.bootstrap.origin,
     readyEvent.metro.origin,
   );
-  child.kill('SIGINT');
+  const supervisorDescriptorPath = join(dirname(target.readyFile), 'expo-supervisor.json');
+  const supervisorDescriptor = JSON.parse(readFileSync(supervisorDescriptorPath, 'utf8'));
+  const controlSocket = supervisorDescriptor.controlSocket;
+  assert.equal(controlSocket?.schemaVersion, 'snapback.dev-control.v1');
+  assert.equal(controlSocket.ownerPid, child.pid);
+  assert.equal(controlSocket.ownerIncarnationId, supervisorDescriptor.supervisorGeneration);
+  assert.deepEqual(controlSocket.verbs, ['reload-metro', 'stop-children']);
+  assert.equal(controlSocket.path, join(dirname(target.readyFile), 'dev-control.sock'));
+  const endpointStat = statSync(controlSocket.path);
+  assert.equal(endpointStat.isSocket(), true);
+  assert.equal(endpointStat.mode & 0o777, 0o600);
+  if (typeof process.getuid === 'function') assert.equal(endpointStat.uid, process.getuid());
+
+  const stale = await sendControlCommand(
+    controlSocket,
+    controlCommand(controlSocket, 'reload-metro', 'stale-1', {
+      lifecycleReceipt: 'sha256:stale-lifecycle-receipt',
+    }),
+  );
+  assert.equal(stale.at(-1).diagnostics[0].code, 'SNAPBACK_DEV_CONTROL_STALE_INCARNATION');
+  const foreign = await sendControlCommand(
+    controlSocket,
+    controlCommand(controlSocket, 'reload-metro', 'foreign-1', {
+      owner: { incarnationId: 'supervisor-foreign-owner' },
+    }),
+  );
+  assert.equal(foreign.at(-1).diagnostics[0].code, 'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER');
+  const otherUid = await sendControlCommand(
+    controlSocket,
+    controlCommand(controlSocket, 'reload-metro', 'uid-1', {
+      owner: { uid: controlSocket.ownerUid + 1 },
+    }),
+  );
+  assert.equal(otherUid.at(-1).diagnostics[0].code, 'SNAPBACK_DEV_CONTROL_OTHER_UID');
+  const unknown = await sendControlCommand(
+    controlSocket,
+    controlCommand(controlSocket, 'recook', 'unknown-1'),
+  );
+  assert.equal(unknown.length, 1, 'a refused verb must not receive an acknowledgement');
+  assert.equal(unknown[0].diagnostics[0].code, 'SNAPBACK_DEV_COMMAND_UNKNOWN_VERB');
+
+  const metroPidBefore = supervisorDescriptor.metro.pid;
+  const reload = await sendControlCommand(
+    controlSocket,
+    controlCommand(controlSocket, 'reload-metro', 'reload-1'),
+  );
+  assert.deepEqual(
+    reload.map(({ schemaVersion, state, requestId, verb }) => ({ schemaVersion, state, requestId, verb })),
+    [
+      {
+        schemaVersion: 'snapback.dev-control-ack.v1',
+        state: 'acknowledged',
+        requestId: 'reload-1',
+        verb: 'reload-metro',
+      },
+      {
+        schemaVersion: 'snapback.dev-control-result.v1',
+        state: 'result',
+        requestId: 'reload-1',
+        verb: 'reload-metro',
+      },
+    ],
+  );
+  assert.equal(reload[1].ok, true);
+  assert.equal(reload[1].result.state, 'metro-reloaded');
+  assert.equal(reload[1].result.previousPid, metroPidBefore);
+  assert.notEqual(reload[1].result.pid, metroPidBefore);
+  assert.equal((await fetch(`${readyEvent.metro.origin}/control-reload`)).ok, true);
+
+  const stop = await sendControlCommand(
+    controlSocket,
+    controlCommand(controlSocket, 'stop-children', 'stop-1'),
+  );
+  assert.equal(stop[0].state, 'acknowledged');
+  assert.equal(stop[0].requestId, 'stop-1');
+  assert.equal(stop[1].state, 'result');
+  assert.equal(stop[1].requestId, 'stop-1');
+  assert.equal(stop[1].ok, true);
+  assert.equal(stop[1].result.state, 'children-stopped');
   const exit = await Promise.race([
     new Promise((resolveExit) => child.once('exit', (code, signal) => resolveExit({ code, signal }))),
     new Promise((_, rejectExit) => setTimeout(
@@ -666,6 +796,7 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = []) {
     && event.state === 'control-event'));
   assert(events.some((event) => event.schemaVersion === 'snapback.expo-dev.v1'
     && event.state === 'closed'));
+  assert.equal(existsSync(controlSocket.path), false);
   return { events, readyEvent, listenerEvent, bearer: exchange.authority.token };
 }
 
@@ -700,6 +831,20 @@ function assertGrepAbsent(label, files, bearers) {
 }
 
 try {
+  if (controlSocketOnly) {
+    const controlRoot = mkdtempSync('/tmp/sbctl-');
+    const controlFixture = fixture('app', { sessions: true, root: controlRoot });
+    const controlRange = await reserveFreeRange(8);
+    try {
+      const controlRun = await runCliSupervisor(controlFixture, 'web', [
+        '--port-range', `${controlRange.lo}-${controlRange.hi}`,
+      ]);
+      assert.equal(controlRun.readyEvent.platform, 'web');
+      console.log('expo-dev-loop.test.mjs: /dev/null control socket reload/refusals/ack/cleanup slice pass');
+    } finally {
+      rmSync(controlRoot, { recursive: true, force: true });
+    }
+  } else {
   let largeUpstreamCancelled = false;
   let largeUpstreamBytes = 0;
   const largeUpstreamTotal = 16 * 1024 * 1024;
@@ -2198,8 +2343,12 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
     'shutdown reports every owned arm reclaimed',
   );
 
-  console.log('expo-dev-loop.test.mjs: 6 LLP 0299 port-plan cases plus WS reset/cancelled-response handoff, zero-write rendezvous carrier, supervised web backend URL, anonymous password signup/signin, explicit on-demand mint adoption and safe signout, repeated TTL cold boots, transient descriptor, served successor generated descriptor without Metro restart, Sessions refusal+mint, all-listener loopback proof, provider live/mutation/presence/HMR/reconnect/authority replacement+conflict, leak matrix, SIGINT, and strict cleanup pass');
+  console.log('expo-dev-loop.test.mjs: 6 LLP 0299 port-plan cases plus WS reset/cancelled-response handoff, zero-write rendezvous carrier, supervised web backend URL, anonymous password signup/signin, explicit on-demand mint adoption and safe signout, control-socket reload/refusals/ack/cleanup, repeated TTL cold boots, transient descriptor, served successor generated descriptor without Metro restart, Sessions refusal+mint, all-listener loopback proof, provider live/mutation/presence/HMR/reconnect/authority replacement+conflict, leak matrix, SIGINT, and strict cleanup pass');
+  }
 } finally {
+  for (const child of cliChildren) {
+    if (child.exitCode === null && child.signalCode === null) child.kill('SIGINT');
+  }
   await Promise.allSettled(supervisors.flatMap((supervisor) => (
     typeof supervisor?.close === 'function' ? [supervisor.close()] : []
   )));

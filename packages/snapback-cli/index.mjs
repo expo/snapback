@@ -9236,6 +9236,7 @@ export async function runCli(argv, options = {}) {
           ...(androidComponent ? { androidComponent } : {}),
           ...(expoAppScheme ? { expoAppScheme } : {}),
           platform: expoSelectedPlatform,
+          controlSocket: true,
           signal: interrupt.signal,
           onEvent(event) {
             printDevEvent(event, { json, plainProfile: false });
@@ -9245,6 +9246,10 @@ export async function runCli(argv, options = {}) {
             criticalExit = error;
             options.onCriticalExit?.(error);
             if (result !== null) void settle(error);
+          },
+          onControlStop() {
+            options.onControlStop?.();
+            void settle();
           },
         });
         if (result.ok === false) {

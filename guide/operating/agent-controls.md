@@ -83,6 +83,50 @@ missing, `resources/list` reports
 does not list pretend Guide/catalog resources. Direct reads fail explicitly;
 documentation absence never appears as success.
 
+## Control a detached Expo dev supervisor
+
+`snapback dev --expo --json` publishes an owner-bound Unix control socket in
+the same state directory as its ready file. The default path is
+`.snapback/dev-control.sock`; read the exact path and lifecycle binding from
+the `controlSocket` field in `.snapback/expo-supervisor.json` or the final
+`snapback.expo-dev.v1` readiness event. Do not guess a path or signal a process
+by name.
+
+The socket is mode `0600`, owned by the supervisor UID, and removed during
+clean shutdown. It is transient instance-local state: do not copy it with the
+database or treat a leftover endpoint as durable owner authority. Each request
+must repeat the descriptor's `ownerPid`, `ownerUid`, `ownerIncarnationId`, and
+`lifecycleReceipt`:
+
+```json fragment reason="illustrative descriptor-bound control request"
+{"schemaVersion":"snapback.dev-control-command.v1","requestId":"reload-1","verb":"reload-metro","owner":{"pid":1234,"uid":501,"incarnationId":"supervisor-…"},"lifecycleReceipt":"sha256:…"}
+```
+
+One connection carries one newline-delimited request. A valid verb first
+returns `snapback.dev-control-ack.v1` with the same request id, then a
+`snapback.dev-control-result.v1` after the operation settles. Wait for the
+result before claiming the operation took effect.
+
+The socket's closed verb set is:
+
+| Verb | Settled result |
+| --- | --- |
+| `reload-metro` | Stops the owned Metro process group, launches Metro again on the same planned port, re-verifies listener ownership, updates `expo-supervisor.json`, and reports the previous and replacement PIDs. |
+| `stop-children` | Reclaims the supervisor-owned backend, Metro, bootstrap exchange, front, and port forwards; flushes the result; then removes the socket and lets the CLI owner exit. |
+
+An endpoint or request naming another UID, owner incarnation, or lifecycle
+receipt refuses with `SNAPBACK_DEV_CONTROL_OTHER_UID`,
+`SNAPBACK_DEV_CONTROL_FOREIGN_OWNER`, or
+`SNAPBACK_DEV_CONTROL_STALE_INCARNATION`. Never unlink and replace an endpoint
+to bypass one of these refusals.
+
+Interactive humans keep the existing stdin channel: TTY keys remain
+`s`/`r`/`R`/`f`/`q`, and non-TTY
+`snapback.dev-command.v1` input remains available when a launcher preserves a
+pipe. Stdin EOF still does not stop the supervisor. The socket is the supported
+agent path when stdin is `/dev/null`; it is not a FIFO and does not add recook
+as a client verb.
+
 ## Run functions against sessions mode
 
 `snapback run --ready-file .snapback/dev.ready.json <public-query>` keeps its

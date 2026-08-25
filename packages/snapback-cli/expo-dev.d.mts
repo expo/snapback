@@ -15,6 +15,10 @@ export const SUPERVISED_EXCHANGE_PATH: '/_snapback/expo/v1/bootstrap';
 export const SUPERVISED_DEV_IDENTITY_CHECKOUT_PATH: '/_snapback/expo/v1/dev-identity-checkout';
 export const SUPERVISED_DEV_IDENTITY_CHECKOUT_HEADER: 'x-snapback-dev-identity-checkout';
 export const SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV: 'SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE';
+export const DEV_CONTROL_SOCKET_FORMAT: 'snapback.dev-control.v1';
+export const DEV_CONTROL_COMMAND_FORMAT: 'snapback.dev-control-command.v1';
+export const DEV_CONTROL_ACK_FORMAT: 'snapback.dev-control-ack.v1';
+export const DEV_CONTROL_RESULT_FORMAT: 'snapback.dev-control-result.v1';
 export const METRO_WATCH_BLIND_ROOTS: readonly string[];
 export const SUPERVISOR_PARENT_PID_ENV: 'SNAPBACK_EXPO_SUPERVISOR_PARENT_PID';
 export const SUPERVISOR_PARENT_START_TIME_ENV: 'SNAPBACK_EXPO_SUPERVISOR_PARENT_START_TIME';
@@ -81,6 +85,35 @@ export function emitCliMetroWatchInertAdvisory(options?: Readonly<{
   write?: (line: string) => void;
 }>): CliMetroWatchInertAdvisory | null;
 export const SUPERVISED_CONTROL_PATH: '/_snapback/expo/v1/control';
+
+export interface DevControlSocketDescriptor {
+  readonly schemaVersion: 'snapback.dev-control.v1';
+  readonly path: string;
+  readonly ownerPid: number;
+  readonly ownerUid: number;
+  readonly ownerIncarnationId: string;
+  readonly ownerStartTime: string;
+  readonly lifecycleReceipt: `sha256:${string}`;
+  readonly verbs: readonly ['reload-metro', 'stop-children'];
+}
+
+export interface DevControlSocketHandle {
+  readonly descriptor: DevControlSocketDescriptor;
+  readonly closed: boolean;
+  close(): Promise<void>;
+}
+
+export function startDevControlSocket(options: Readonly<{
+  readyFile: string;
+  ownerIncarnationId: string;
+  ownerStartTime: string;
+  startedAt: string;
+  verbs: Readonly<{
+    'reload-metro': (context: Readonly<{ requestId: string }>) => unknown | Promise<unknown>;
+    'stop-children': (context: Readonly<{ requestId: string }>) => unknown | Promise<unknown>;
+  }>;
+  onStopComplete?: () => void;
+}>): Promise<DevControlSocketHandle>;
 
 export function admittedBrowserExchangeOrigin(originHeader: unknown): string | null;
 
@@ -363,6 +396,7 @@ export interface ExpoDevSupervisor {
   readonly applicationReady: ExpoApplicationReadyProjection;
   readonly exchangeOrigin: string;
   readonly metroOrigin: string;
+  readonly controlSocket: DevControlSocketDescriptor | null;
   readonly snapbackUrl: string;
   readonly androidEmulatorUrl: string;
   readonly environmentFile: Readonly<Record<string, unknown>> | null;
@@ -376,6 +410,9 @@ export interface ExpoDevSupervisor {
 }
 
 export interface RunExpoDevOptions extends Readonly<Record<string, unknown>> {
+  /** Publish the CLI owner's Unix control socket. The packaged `snapback dev`
+   * command enables it; programmatic supervisors opt in explicitly. */
+  readonly controlSocket?: boolean;
   readonly writeEnvFile?: string;
   readonly clientPort?: number;
   readonly bootstrapPort?: number;
@@ -403,6 +440,8 @@ export interface RunExpoDevOptions extends Readonly<Record<string, unknown>> {
     port: number,
     reservation: Readonly<{ close(): Promise<void> }>,
   ) => void | Promise<void>;
+  /** Called after a stop-children result has been flushed and the socket closed. */
+  readonly onControlStop?: () => void;
 }
 
 export function runExpoDev(options?: RunExpoDevOptions): Promise<ExpoDevSupervisor>;
