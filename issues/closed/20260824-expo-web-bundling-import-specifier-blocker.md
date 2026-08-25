@@ -63,3 +63,13 @@ The source fix and the qualification-gap repair landed as `ed05f9b88`
 fixture now transforms the adapter, template gate performs a real web
 export. This ticket stays open solely for its published-package acceptance
 item — verify on the next npm closure (0.1.27) and then close.
+
+## Resolution (2026-08-24, published)
+
+The 0.1.27 closure (qualified at `986813777`, holding tag
+`fastpath-0-1-27-98681377721e`) ships the fix, and its both-platform
+template qualification ran lane I's supervised web-export acceptance step
+against the staged published tarballs — the exact published-surface check
+whose absence let 0.1.25/0.1.26 ship broken. The acceptance-gap half is
+therefore structurally closed: this class now fails qualification, not the
+first agent's first hour.

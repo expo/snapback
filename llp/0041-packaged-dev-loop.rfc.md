@@ -6,6 +6,10 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
 
+**Revised (0.1.27 ceremony complete):** 2026-08-24 (the fourteen-package
+closure published and promoted from `98681377721e` under holding tag
+`fastpath-0-1-27-98681377721e`; see §0.1.27 for the completed record and
+mandatory security nonclaims.)
 **Revised (0.1.26 ceremony complete):** 2026-08-24 (the fourteen-package
 closure published and promoted from qualified source `118babab1647` under
 holding tag `fastpath-0-1-26-118babab1647`; both platform store receipts,
@@ -1645,6 +1649,55 @@ This cut gives LLP 0295 R2 a coherent published Snapback closure containing the
 landed LLP 0295 W1–W5 and LLP 0294 W6/W7 repair surface. It does not claim that
 R2 has run, that its instrument is validated, or that any authoring profile has
 won.
+
+### 0.1.27 (2026-08-24) — fourteen-package qualified fast-path publication
+
+The fourteen-package identity-preset closure published from qualified source
+revision `98681377721e86a836cd26f138b55e5cd2968a52` (the LLP 0307 chip-away
+round's completed tip) under holding tag `fastpath-0-1-27-98681377721e`. The
+retained pass-2 qualified ledger is
+`~/snapback-release-ledgers/fastpath-ledger-0.1.27-98681377721e.json`
+(SHA-256 `70793e11c07c7f1b38596ed524923339ef3f2974c7c251efcc63f64f8f3b3a26`);
+the retained final ceremony is
+`~/snapback-release-ledgers/fastpath-ceremony-0.1.27-98681377721e.json`
+(SHA-256 `a7e86cd79a2325b825a066e71181565aed332db034b7b94f6e7e70b62422721a`);
+the separate post-promotion cold boot receipt is
+`~/snapback-release-ledgers/smoke-0.1.27-post-promotion-receipt.json`
+(SHA-256 `b23abf384d46fb8c2a6dc52561612a64e21008d1720d75d7342366ab67cda332`),
+all eleven checks green. Both platform store receipts minted and reopened
+clean from staged bytes (Darwin `3bb1a2c1…`, Linux `7e5546eb…` on
+`expo-build-1000`), all seven Linux runtime artifact SHA-256s re-verified
+against the v3 attestation post-transfer, and the shared build-matched admin
+snapshot (`30594f47…`) matched on both platforms. All five registered
+templates scaffolded, generated, and passed static acceptance on both
+platforms — now including the supervised Expo **web export** step added by
+this round's qualification-gap repair, which is the published-surface check
+the 0.1.26 closure lacked.
+
+All fourteen exact versions published under the holding tag and re-downloaded
+byte-identical to the ledger; the registry-installed boot smoke passed all
+eleven checks before promotion. The first complete `latest` readback observed
+ordinary npm propagation lag for three package names
+(`SNAPBACK_FASTPATH_LATEST_PROMOTION_INCOMPLETE`, the 0.1.25/0.1.26 shape);
+one idempotent scripted resume skipped the already-published immutable
+versions, repeated byte verification and the boot smoke, and closed with all
+fourteen `latest` tags at 0.1.27. `origin/main` was at the qualified source
+at ceremony open and at the post-promotion fetch — no mid-ceremony drift.
+The fast path acquires no publication-authority lease;
+`publicationAuthorityEpoch` is `null` for this closure.
+
+Surface highlights carried by this closure (the LLP 0307 round): the
+`snapback replay` headless replay surface (LLP 0307.000), the supervised
+Expo web-bundling repair, the supervised Metro CI/watch repair, the shared
+declared-refusal projection, Familiar `defineAuth`, the W5 runtime-cost
+diagnostics with their gated pull, the tri-state fixed-port probe, and the
+sessions acknowledge wire repair.
+
+Mandatory security nonclaims (LLP 0283 Revised (g)): all four F-1 defect
+families remain open; the LLP 0284 security gates remain red by design; this
+publication claims no adversarial-handler containment, no F-1 closure, and
+no green LLP 0284 gate state. The 0.1.27 package qualification does not
+weaken or supersede any of those facts.
 
 ### 0.1.26 (2026-08-24) — fourteen-package qualified fast-path publication
 
