@@ -50,8 +50,6 @@ const OFFLINE_REPLAY_CAPABILITY_REQUEST =
   'snapback.offline-replay-capability-request.v1';
 const OFFLINE_REPLAY_CAPABILITY_OUTCOME =
   'snapback.offline-replay-capability-outcome.v1';
-const OFFLINE_REPLAY_CAPABILITY_COMMITTED =
-  'snapback.offline-replay-capability-committed.v1';
 const OUTBOX_NORMALIZATION_TIMEOUT_MS = 5_000;
 let outboxNormalizationRequestCounter = 0;
 
@@ -530,6 +528,7 @@ export function createIndexedDbRqsResumeStore({
   let pendingReactBindingReceipt = null;
   let pendingOutboxNormalization = false;
   let outboxNormalizationTask = null;
+  let pendingOfflineReplayCapabilityFact = null;
   let initialMeta = createInitialStoreMeta({ clientStoreId, randomBytes });
   let authorityTransitionWipe = null;
   const writerLockListeners = new Set();
@@ -543,15 +542,6 @@ export function createIndexedDbRqsResumeStore({
     throw new TypeError('broadcastChannelFactory must be a function, null, or undefined');
   }
   let outboxNormalizationChannel = null;
-  const broadcastOfflineReplayCapabilityFact = (fact) => {
-    if (outboxNormalizationChannel === null) return;
-    try {
-      outboxNormalizationChannel.postMessage({
-        format: OFFLINE_REPLAY_CAPABILITY_COMMITTED,
-        fact,
-      });
-    } catch { /* durable bytes remain authoritative */ }
-  };
   function registerOutboxNormalizationBroker() {
     if (outboxNormalizationChannel !== null || resolvedBroadcastChannelFactory === null) return;
     let channel;
@@ -697,7 +687,10 @@ export function createIndexedDbRqsResumeStore({
         ),
       });
       adjudicateLock();
-      notifyWriterLock(true);
+      void flushPendingOfflineReplayCapabilityFact()
+        .finally(() => {
+          if (writer && !closed) notifyWriterLock(true);
+        });
       void flushPendingReactBindingReceipt().catch((error) => {
         warnReactBindingReceiptNotPersisted({ error });
       });
@@ -761,8 +754,22 @@ export function createIndexedDbRqsResumeStore({
     }
     txStore.put(replacement, RQS_STORE_META_KEY);
     await transactionDone(tx);
-    broadcastOfflineReplayCapabilityFact(stored);
     return structuredClone(stored);
+  }
+
+  async function flushPendingOfflineReplayCapabilityFact() {
+    const pending = pendingOfflineReplayCapabilityFact;
+    if (pending === null || !writer || closed) return;
+    try {
+      await commitOfflineReplayCapabilityAsWriter(pending);
+      if (pendingOfflineReplayCapabilityFact === pending) {
+        pendingOfflineReplayCapabilityFact = null;
+      }
+    } catch {
+      // Keep the latest answered negative in instance custody. A later writer
+      // acquisition or explicit commit retries it; predecessor shared bytes
+      // never become evidence for the observing client in the meantime.
+    }
   }
 
   const readAllForBudget = async (txStore) => {
@@ -1404,7 +1411,23 @@ export function createIndexedDbRqsResumeStore({
         broadcastChannelFactory: resolvedBroadcastChannelFactory,
         timeoutMs: outboxNormalizationTimeoutMs,
       });
-      if (brokered === false) return false;
+      if (brokered === false) {
+        if (fact?.supported === false) {
+          try { pendingOfflineReplayCapabilityFact = structuredClone(fact); } catch { /* invalid */ }
+        } else if (pendingOfflineReplayCapabilityFact?.origin === fact?.origin) {
+          pendingOfflineReplayCapabilityFact = null;
+        }
+        if (writer && !closed && pendingOfflineReplayCapabilityFact !== null) {
+          await flushPendingOfflineReplayCapabilityFact();
+          if (pendingOfflineReplayCapabilityFact === null) {
+            return this.readOfflineMutationReplayCapabilityFact();
+          }
+        }
+        return false;
+      }
+      if (pendingOfflineReplayCapabilityFact?.origin === fact?.origin) {
+        pendingOfflineReplayCapabilityFact = null;
+      }
       const current = await this.readOfflineMutationReplayCapabilityFact();
       if (
         !Number.isSafeInteger(brokered.storeRevision)
@@ -1685,6 +1708,7 @@ export function createIndexedDbRqsResumeStore({
       if (closed) return;
       closed = true;
       pendingReactBindingReceipt = null;
+      pendingOfflineReplayCapabilityFact = null;
       const wasWriter = releaseLock !== null;
       unregisterOutboxNormalizationBroker();
       releaseLock?.();

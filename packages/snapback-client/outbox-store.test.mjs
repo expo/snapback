@@ -2544,6 +2544,62 @@ test('migrated retained live query discovers on reconnect, publicly settles, the
   await migratedStore.close();
 });
 
+test('a new default client queues offline from its predecessor client capability observation', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const directory = mkdtempSync(join(tmpdir(), 'snapback-capability-product-relaunch-'));
+  const previousDir = process.env.SNAPBACK_CLIENT_RQS_DIR;
+  const previousSwitch = process.env.SNAPBACK_CLIENT_RQS_STORE;
+  try {
+    process.env.SNAPBACK_CLIENT_RQS_DIR = directory;
+    delete process.env.SNAPBACK_CLIENT_RQS_STORE;
+    const origin = 'https://product-relaunch-capability.example';
+    const first = new InspectingSnapbackClient(origin, {
+      __outboxDrainLifecycle: false,
+    });
+    await first.rqsStore.whenLockSettled();
+    globalThis.fetch = async () => Response.json(offlineReplayInspection({
+      supported: true,
+      targetProfileId: 'local-dev-sqlite-ibex',
+    }));
+    await first.inspect();
+    assert.equal(
+      (await first.rqsStore.readOfflineMutationReplayCapabilityFact()).supported,
+      true,
+    );
+    await first.close();
+
+    const second = new InspectingSnapbackClient(origin, {
+      __outboxDrainLifecycle: false,
+    });
+    await second.rqsStore.whenLockSettled();
+    let inspectCalls = 0;
+    let mutationPosts = 0;
+    globalThis.fetch = async (url) => {
+      if (new URL(url).pathname === '/inspect') inspectCalls += 1;
+      else if (new URL(url).pathname.startsWith('/mutation/')) mutationPosts += 1;
+      throw new TypeError('fetch failed');
+    };
+    const queued = await second.mutate('createThing', {
+      args: { title: 'cold-client-cached-capability' },
+      clientMutationId: 'cm-product-relaunch-cached-capability',
+    });
+    assert.equal(queued.status, 'queued');
+    assert.equal(inspectCalls, 1, 'the successor still attempts one fresh capability probe');
+    assert.equal(mutationPosts, 0, 'cached evidence takes the enqueue-only product path');
+    assert.deepEqual(
+      (await second.rqsStore.outboxPending()).map((record) => record.id),
+      ['cm-product-relaunch-cached-capability'],
+    );
+    await second.close();
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+    if (previousDir === undefined) delete process.env.SNAPBACK_CLIENT_RQS_DIR;
+    else process.env.SNAPBACK_CLIENT_RQS_DIR = previousDir;
+    if (previousSwitch === undefined) delete process.env.SNAPBACK_CLIENT_RQS_STORE;
+    else process.env.SNAPBACK_CLIENT_RQS_STORE = previousSwitch;
+  }
+});
+
 test('broker-unavailable peer negative stays fail-closed before and after IndexedDB writer handoff', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const indexedDB = new IDBFactory();
@@ -2616,6 +2672,11 @@ test('broker-unavailable peer negative stays fail-closed before and after Indexe
     if (Date.now() > handoffDeadline) throw new Error('timed out waiting for writer handoff');
     await new Promise((resolve) => setTimeout(resolve, 5));
   }
+  await waitForOfflineReplayCapabilityFact(
+    followerStore,
+    (fact) => fact.supported === false,
+    'the takeover writer to flush its locally retained negative',
+  );
   mutationCalls = 0;
   await assert.rejects(
     () => negativeClient.mutate('createThing', {
@@ -2630,6 +2691,40 @@ test('broker-unavailable peer negative stays fail-closed before and after Indexe
     'writer takeover does not resurrect the predecessor cached positive',
   );
   assert.deepEqual(await followerStore.outboxRecords(), [], 'handoff still queues nothing');
+
+  const newcomerStore = createIndexedDbRqsResumeStore(options);
+  await newcomerStore.whenLockSettled();
+  assert.equal(newcomerStore.isWriter(), false, 'the new context observes the takeover writer');
+  const newcomerClient = new InspectingSnapbackClient('http://127.0.0.1:4400', {
+    rqsStore: newcomerStore,
+    __outboxDrainLifecycle: false,
+  });
+  let newcomerMutationCalls = 0;
+  globalThis.fetch = async (url) => {
+    if (new URL(url).pathname !== '/inspect') newcomerMutationCalls += 1;
+    throw new TypeError('fetch failed');
+  };
+  await assert.rejects(
+    () => newcomerClient.mutate('createThing', {
+      args: { title: 'new-context-must-observe-takeover-negative' },
+      clientMutationId: 'cm-peer-negative-new-context',
+    }),
+    (error) => isConnectivityFailureError(error),
+  );
+  assert.equal(
+    newcomerMutationCalls,
+    1,
+    'a new client uses the durable negative and makes one online-only attempt',
+  );
+  assert.deepEqual(
+    await newcomerStore.outboxRecords(),
+    [],
+    'the new context cannot resurrect the predecessor positive after takeover',
+  );
+  await newcomerClient.close();
+  await newcomerStore.close();
+  await negativeClient.close();
+  await positiveClient.close();
   await followerStore.close();
 });
 
@@ -2686,6 +2781,125 @@ test('an answered negative overrides cached support before durable replacement s
     releaseNegativeCommit();
     await negativeInspection;
   }
+});
+
+test('a delayed positive capability commit cannot overtake a later answered negative', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const commitCapabilityFact = store.commitOfflineMutationReplayCapabilityFact.bind(store);
+  let releasePositiveCommit;
+  const positiveCommitRelease = new Promise((resolve) => { releasePositiveCommit = resolve; });
+  let markPositiveCommitStarted;
+  const positiveCommitStarted = new Promise((resolve) => { markPositiveCommitStarted = resolve; });
+  store.commitOfflineMutationReplayCapabilityFact = async (fact) => {
+    if (fact.supported === true) {
+      markPositiveCommitStarted();
+      await positiveCommitRelease;
+    }
+    return commitCapabilityFact(fact);
+  };
+  const client = new InspectingSnapbackClient('https://inverse-inspection-race.example', {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+
+  globalThis.fetch = async () => Response.json(offlineReplayInspection({
+    supported: true,
+    targetProfileId: 'local-dev-sqlite-ibex',
+  }));
+  const positiveInspection = client.inspect();
+  await positiveCommitStarted;
+
+  let markNegativeAnswered;
+  const negativeAnswered = new Promise((resolve) => { markNegativeAnswered = resolve; });
+  globalThis.fetch = async () => {
+    markNegativeAnswered();
+    return Response.json(offlineReplayInspection({
+      supported: false,
+      targetProfileId: 'cloudflare-do-sqlite-v8',
+    }));
+  };
+  const negativeInspection = client.inspect();
+  await negativeAnswered;
+  await new Promise((resolve) => setImmediate(resolve));
+  releasePositiveCommit();
+  await Promise.all([positiveInspection, negativeInspection]);
+
+  let mutationPosts = 0;
+  globalThis.fetch = async (url) => {
+    if (new URL(url).pathname.startsWith('/mutation/')) mutationPosts += 1;
+    throw new TypeError('ambiguous mutation response');
+  };
+  await assert.rejects(
+    () => client.mutate('createThing', {
+      args: { title: 'ledger-less-target' },
+      clientMutationId: 'cm-inverse-inspection-race',
+    }),
+    (error) => isConnectivityFailureError(error),
+  );
+  assert.equal(mutationPosts, 1, 'the ledger-less target receives one online-only attempt');
+  assert.equal(
+    (await store.readOfflineMutationReplayCapabilityFact()).supported,
+    false,
+    'the later answered negative remains the durable capability fact',
+  );
+  assert.deepEqual(
+    await store.outboxRecords(),
+    [],
+    'an ambiguous ledger-less attempt leaves no duplicate-capable pending mutation',
+  );
+  await client.close();
+  await store.close();
+});
+
+test('a newer negative retires positive-admitted custody before ambiguous mutation transport', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const client = new InspectingSnapbackClient('https://transport-epoch-race.example', {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  let inspectionSupported = true;
+  let mutationPosts = 0;
+  globalThis.fetch = async (url) => {
+    if (new URL(url).pathname === '/inspect') {
+      if (inspectionSupported === null) throw new TypeError('capability transport lost');
+      return Response.json(offlineReplayInspection({
+        supported: inspectionSupported,
+        targetProfileId: inspectionSupported
+          ? 'local-dev-sqlite-ibex'
+          : 'cloudflare-do-sqlite-v8',
+      }));
+    }
+    mutationPosts += 1;
+    throw new TypeError('ambiguous mutation response');
+  };
+
+  await assert.rejects(
+    () => client.mutate('createThing', {
+      args: { title: 'negative-before-transport' },
+      clientMutationId: 'cm-transport-epoch-race',
+      __beforeTransportDispatch: async () => {
+        inspectionSupported = false;
+        await client.inspect();
+        inspectionSupported = null;
+      },
+    }),
+    (error) => isConnectivityFailureError(error),
+  );
+  assert.equal(mutationPosts, 1, 'the superseded positive permits only one online-only POST');
+  assert.equal(
+    (await store.readOfflineMutationReplayCapabilityFact()).supported,
+    false,
+    'the transport boundary preserves the newer answered negative',
+  );
+  assert.deepEqual(
+    await store.outboxPending(),
+    [],
+    'the record admitted under the superseded positive cannot remain replayable',
+  );
+  await client.close();
+  await store.close();
 });
 
 test('a 502 lifecycle answer is in-flight deduplication only and a later read recovers positive support', async (t) => {

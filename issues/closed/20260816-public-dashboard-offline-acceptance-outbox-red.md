@@ -88,11 +88,21 @@ drain from the durable store.
 Fail-first evidence: the focused client test failed without the client change
 with `SNAPBACK_CLIENT_REFUSED: fetch failed` (`tests 1`, `pass 0`, `fail 1`).
 The original acceptance reproduced at `FAIL ... — 4/9` before the fix.
+The round-5 inverse-race regression also ran before its implementation change:
+`tests 1`, `pass 0`, `fail 1`, failing with `Missing expected rejection`
+because the ambiguous ledger-less mutation incorrectly resolved `queued` from
+the delayed predecessor positive.
 
-Round-3 verification (2026-08-25):
+Round-5 verification (2026-08-25):
 
-- `node --test packages/snapback-client/outbox-store.test.mjs`: `tests 94`,
-  `pass 94`, `fail 0`. The same run names the new focused cases:
+- `node --test packages/snapback-client/outbox-store.test.mjs`: `tests 100`,
+  `pass 100`, `fail 0`. The same run names the new focused cases:
+  delayed-positive/later-negative response ordering with one online-only
+  mutation POST and no duplicate-capable pending record, newer-negative epoch
+  revalidation after positive-admitted enqueue and immediately before ambiguous
+  transport, a newly constructed IndexedDB client after negative-observer writer
+  takeover, the default-store product path across client close/reopen with
+  cached enqueue and zero mutation POSTs,
   broker-unavailable negative plus IndexedDB writer handoff, migrated retained
   live query reconnect plus public capability settlement and later offline
   queueing, cached-evidence `SNAPBACK_OUTBOX_NOT_WRITER` with no POST, and
@@ -111,13 +121,16 @@ Round-3 verification (2026-08-25):
   preconditions; 157 pages, 1872 snippets, 174 routes + 51 host-ops joined, 94
   warnings`. Symbol registry, guide corpus, manifest/MCP, and flat projections
   pass. The diagnostics-registry freshness check remained red at this
-  pre-integration checkpoint because the round-3 `index.mjs` line shifts were
+  pre-integration checkpoint because the round-5 `index.mjs` line shifts were
   still moving; integration regenerates the final emitting-site coordinates.
+- `node scripts/check-inventories.mjs`: the only red is `guide-manifest`, whose
+  source check reports the same deliberately unregenerated diagnostics-registry
+  emitting-site drift. Integration owns that regeneration.
 - Regenerated projections: `guide/reference/registry.json` and its 57 Markdown
   symbol projections; `guide/guide-manifest.generated.json`; the changed
-  global, reference, and sync flat guides; and the diagnostics-registry JSON
-  and Markdown. Integration regenerates the diagnostics registry once more
-  after the final `index.mjs` line shifts.
+  global/reference flat guides. The manifest generator's automatic diagnostics
+  rewrite was restored to the lane's starting bytes as instructed; integration
+  regenerates the diagnostics registry after the final `index.mjs` line shifts.
 - `./ref-check --verbose`: `311 LLP docs, 6636 refs in 12503 files, 0 errors,
   0 unchecked`.
 - `git diff --check`: no output (pass).

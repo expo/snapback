@@ -3586,6 +3586,9 @@ export class SnapbackClient {
     this.__offlineMutationReplayCapability = __offlineMutationReplayCapability;
     this.__observedOfflineMutationReplayCapability = null;
     this.__offlineMutationReplayCapabilityLocalOverride = null;
+    this.__offlineMutationReplayCapabilityLocalOverrideEpoch = null;
+    this.__offlineMutationReplayCapabilityResponseEpoch = 0;
+    this.__offlineMutationReplayCapabilityCommitTail = Promise.resolve();
     this.__offlineMutationReplayLifecycleProbe = null;
     this.__offlineMutationReplayLifecycleSettlement = Promise.resolve(null);
     if (operationIdentityProtocol !== null && operationIdentityProtocol !== 1) {
@@ -7170,7 +7173,25 @@ export class SnapbackClient {
   }
 
   health() { return this.#req('GET', '/health'); }
-  async inspect() {
+
+  #nextOfflineMutationReplayCapabilityResponseEpoch() {
+    if (this.__offlineMutationReplayCapabilityResponseEpoch === Number.MAX_SAFE_INTEGER) {
+      throw new RangeError('offline replay capability inspection response epoch exhausted');
+    }
+    this.__offlineMutationReplayCapabilityResponseEpoch += 1;
+    return this.__offlineMutationReplayCapabilityResponseEpoch;
+  }
+
+  #isOfflineMutationReplayCapabilityResponseCurrent(responseEpoch) {
+    return this.__offlineMutationReplayCapability !== null
+      || (
+        Number.isSafeInteger(responseEpoch)
+        && responseEpoch >= 0
+        && responseEpoch === this.__offlineMutationReplayCapabilityResponseEpoch
+      );
+  }
+
+  async #inspectWithOfflineMutationReplayCapabilityEpoch() {
     const origin = canonicalServerOrigin(this.baseUrl);
     let inspection;
     try {
@@ -7186,16 +7207,24 @@ export class SnapbackClient {
       // or proxy error. Only a request that produced no Response preserves
       // the predecessor fact for a possible automatic enqueue fallback.
       if (!isConnectivityFailureError(cause)) {
+        const responseEpoch = this.#nextOfflineMutationReplayCapabilityResponseEpoch();
         await this.#recordOfflineMutationReplayCapabilityFact(
           offlineMutationReplayCapabilityFactFromAnsweredError(cause, origin),
+          responseEpoch,
         );
       }
       throw cause;
     }
+    const responseEpoch = this.#nextOfflineMutationReplayCapabilityResponseEpoch();
     await this.#recordOfflineMutationReplayCapabilityFact(
       offlineMutationReplayCapabilityFactFromInspection(inspection, origin),
+      responseEpoch,
     );
-    return inspection;
+    return Object.freeze({ inspection, responseEpoch });
+  }
+
+  async inspect() {
+    return (await this.#inspectWithOfflineMutationReplayCapabilityEpoch()).inspection;
   }
 
   // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 —
@@ -7203,9 +7232,12 @@ export class SnapbackClient {
   // @ref LLP 0058#target-capability-registry-amendment--offline-mutation-replay-2026-08-12 —
   // a missing capability gap is never positive support; inspect the closed
   // supportedCapabilities set on both local and Cloudflare payload shapes.
-  async #recordOfflineMutationReplayCapabilityFact(fact) {
+  async #recordOfflineMutationReplayCapabilityFact(fact, responseEpoch) {
     const normalized = normalizeOfflineMutationReplayCapabilityFact(fact);
     if (normalized === null) return null;
+    if (!this.#isOfflineMutationReplayCapabilityResponseCurrent(responseEpoch)) {
+      return normalized;
+    }
     // The answered fact is authoritative for this observer before durable
     // writer brokering begins. In particular, a parallel transport-lost
     // enqueue probe must not see the predecessor positive while a negative
@@ -7213,48 +7245,64 @@ export class SnapbackClient {
     const localNegativeOverride = normalized.supported === false ? normalized : null;
     if (localNegativeOverride !== null) {
       this.__offlineMutationReplayCapabilityLocalOverride = localNegativeOverride;
+      this.__offlineMutationReplayCapabilityLocalOverrideEpoch = responseEpoch;
       this.__observedOfflineMutationReplayCapability = localNegativeOverride;
-    }
-    let store = null;
-    try { store = this.#offlineQueueStore(false); } catch { store = null; }
-    if (typeof store?.commitOfflineMutationReplayCapabilityFact === 'function') {
-      try {
-        const committed = await store.commitOfflineMutationReplayCapabilityFact(normalized);
-        if (
-          committed !== false
-          && typeof store.readOfflineMutationReplayCapabilityFact === 'function'
-        ) {
-          const shared = normalizeOfflineMutationReplayCapabilityFact(
-            await store.readOfflineMutationReplayCapabilityFact(),
-          );
-          if (shared !== null) {
-            this.__observedOfflineMutationReplayCapability = shared;
-            if (
-              localNegativeOverride === null
-              || this.__offlineMutationReplayCapabilityLocalOverride === localNegativeOverride
-            ) {
-              this.__offlineMutationReplayCapabilityLocalOverride = null;
-            }
-            return shared;
-          }
-        }
-      } catch { /* the fresh answer remains usable only by its direct caller */ }
-    }
-    // A follower may receive a newer answered negative while its writer
-    // broker is unavailable. The durable predecessor is then incoherent for
-    // this observer: retain the negative locally so writer takeover cannot
-    // resurrect an older positive. A later answered positive from this exact
-    // canonical target clears the override; an uncommitted positive alone is
-    // never promoted into durable cached evidence.
-    if (normalized.supported === false) {
-      this.__offlineMutationReplayCapabilityLocalOverride ??= normalized;
     } else if (
       this.__offlineMutationReplayCapabilityLocalOverride?.origin === normalized.origin
     ) {
       this.__offlineMutationReplayCapabilityLocalOverride = null;
+      this.__offlineMutationReplayCapabilityLocalOverrideEpoch = null;
     }
-    this.__observedOfflineMutationReplayCapability = normalized;
-    return normalized;
+    const commit = async () => {
+      // Commit in response order. A previous answered inspection may already
+      // be inside a delayed store write when this response arrives; the local
+      // override above closes that interval, and the ordered tail guarantees
+      // the newer answer is the final durable replacement.
+      if (!this.#isOfflineMutationReplayCapabilityResponseCurrent(responseEpoch)) {
+        return normalized;
+      }
+      let store = null;
+      try { store = this.#offlineQueueStore(false); } catch { store = null; }
+      if (typeof store?.commitOfflineMutationReplayCapabilityFact === 'function') {
+        try {
+          const committed = await store.commitOfflineMutationReplayCapabilityFact(normalized);
+          if (!this.#isOfflineMutationReplayCapabilityResponseCurrent(responseEpoch)) {
+            return normalized;
+          }
+          if (
+            committed !== false
+            && typeof store.readOfflineMutationReplayCapabilityFact === 'function'
+          ) {
+            const shared = normalizeOfflineMutationReplayCapabilityFact(
+              await store.readOfflineMutationReplayCapabilityFact(),
+            );
+            if (
+              shared !== null
+              && this.#isOfflineMutationReplayCapabilityResponseCurrent(responseEpoch)
+            ) {
+              this.__observedOfflineMutationReplayCapability = shared;
+              if (
+                this.__offlineMutationReplayCapabilityLocalOverrideEpoch === responseEpoch
+              ) {
+                this.__offlineMutationReplayCapabilityLocalOverride = null;
+                this.__offlineMutationReplayCapabilityLocalOverrideEpoch = null;
+              }
+              return shared;
+            }
+          }
+        } catch { /* the fresh answer remains usable only by its direct caller */ }
+      }
+      if (this.#isOfflineMutationReplayCapabilityResponseCurrent(responseEpoch)) {
+        this.__observedOfflineMutationReplayCapability = normalized;
+      }
+      return normalized;
+    };
+    const task = this.__offlineMutationReplayCapabilityCommitTail.then(commit, commit);
+    this.__offlineMutationReplayCapabilityCommitTail = task.then(
+      () => undefined,
+      () => undefined,
+    );
+    return task;
   }
 
   async #cachedOfflineMutationReplayCapabilityFact(expectedGeneration) {
@@ -7307,11 +7355,15 @@ export class SnapbackClient {
         reason: this.__offlineMutationReplayCapability ? null : 'not-advertised',
         targetProfileId: null,
         evidence: 'configured',
+        responseEpoch: null,
       });
     }
     let inspection;
+    let responseEpoch;
     try {
-      inspection = await this.inspect();
+      ({ inspection, responseEpoch } = await (
+        this.#inspectWithOfflineMutationReplayCapabilityEpoch()
+      ));
     } catch (cause) {
       // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 —
       // only queue:'auto' may reuse a target-bound prior positive after a
@@ -7321,7 +7373,13 @@ export class SnapbackClient {
         const cached = await this.#cachedOfflineMutationReplayCapabilityFact(
           expectedGeneration,
         );
-        if (cached !== null) return Object.freeze({ ...cached, evidence: 'cached' });
+        if (cached !== null) {
+          return Object.freeze({
+            ...cached,
+            evidence: 'cached',
+            responseEpoch: this.__offlineMutationReplayCapabilityResponseEpoch,
+          });
+        }
       }
       return Object.freeze({
         supported: false,
@@ -7330,6 +7388,7 @@ export class SnapbackClient {
           : 'inspection-refused',
         targetProfileId: null,
         cause,
+        responseEpoch: this.__offlineMutationReplayCapabilityResponseEpoch,
       });
     }
     const fact = offlineMutationReplayCapabilityFactFromInspection(
@@ -7349,9 +7408,10 @@ export class SnapbackClient {
         supported: false,
         reason: 'target-identity-mismatch',
         evidence: 'fresh',
+        responseEpoch,
       });
     }
-    return Object.freeze({ ...fact, evidence: 'fresh' });
+    return Object.freeze({ ...fact, evidence: 'fresh', responseEpoch });
   }
 
   async #observeOfflineMutationReplayCapabilityFromLifecycle() {
@@ -11069,6 +11129,7 @@ export class SnapbackClient {
       alreadyCommitted = false,
       functionId = record.function,
       queueReasonClass = 'connectivity',
+      beforeEnqueue = null,
     } = {},
   ) {
     try {
@@ -11087,6 +11148,9 @@ export class SnapbackClient {
           return null;
         }
       }
+      if (typeof beforeEnqueue === 'function' && await beforeEnqueue() !== true) {
+        return null;
+      }
       let stored;
       if (alreadyCommitted) {
         stored = (await store.outboxRecords()).find((candidate) => candidate?.id === record.id);
@@ -11104,6 +11168,20 @@ export class SnapbackClient {
           queueFence,
         );
         this.#recordRuntimeCostOutboxEnqueue(stored, functionId);
+      }
+      if (typeof beforeEnqueue === 'function' && await beforeEnqueue() !== true) {
+        const insertionOwnership = outboxInsertionOwnershipFrom(stored);
+        if (
+          insertionOwnership !== null
+          && typeof store.outboxDiscardPendingInsertion === 'function'
+        ) {
+          await store.outboxDiscardPendingInsertion(
+            stored.id,
+            insertionOwnership.sequence,
+            outboxAuthorizationFenceFrom(stored),
+          );
+        }
+        return null;
       }
       if (
         !alreadyCommitted
@@ -12190,6 +12268,7 @@ export class SnapbackClient {
       });
       return { replayed: 0, failed: 0, stranded: 0, quarantined: 0, remaining: 0 };
     }
+    let replayCapabilityResponseEpoch = null;
     if (queuedBeforeCustody.length > 0) {
       // The check precedes every queue-state reconciliation and mutation
       // transport: a target without the ledger cannot double-apply an old
@@ -12204,7 +12283,8 @@ export class SnapbackClient {
           stopped: true,
         };
       }
-      await this.#requireOfflineMutationReplayCapability();
+      const capability = await this.#requireOfflineMutationReplayCapability();
+      replayCapabilityResponseEpoch = capability.responseEpoch;
     }
     if (!shouldContinue()) {
       const remaining = (await store.outboxRecords()).filter(isUnresolvedOutboxRecord).length;
@@ -12450,6 +12530,11 @@ export class SnapbackClient {
           queue: false,
           __authorizationDispatchOwnership: OUTBOX_AUTHORIZATION_DISPATCH_OWNERSHIP,
           __beforeTransportDispatch: async () => {
+            if (!this.#isOfflineMutationReplayCapabilityResponseCurrent(
+              replayCapabilityResponseEpoch,
+            )) {
+              throw offlineQueueSettlementLedgerError({ reason: 'inspection-superseded' });
+            }
             authorizationDispatchRelease = await acquireOutboxAuthorizationDispatch(
               store,
               record.dispatchLane ?? 'foreground',
@@ -12618,6 +12703,14 @@ export class SnapbackClient {
               ? 'uncovered-range-exhausted'
               : 'uncovered-reauth-required',
           });
+          break;
+        }
+        if (error?.code === OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED) {
+          replayStop.value = Object.freeze({
+            kind: 'paused',
+            reason: 'replay-paused:capability-superseded',
+          });
+          stopped = true;
           break;
         }
         if (isConnectivityFailureError(error)) {
@@ -13071,13 +13164,15 @@ export class SnapbackClient {
       : this.#custodyReconciliationStore();
     let queueCapabilityVerified = queue === false ? false : null;
     let queueCapabilityEvidence = null;
+    let queueCapabilityResponseEpoch = null;
     if (queue === true) {
       // Preserve the existing local-custody error ordering: an explicit queue
       // request with no durable store fails locally before any target probe.
       this.#offlineQueueStore(true);
-      await this.#requireOfflineMutationReplayCapability();
+      const capability = await this.#requireOfflineMutationReplayCapability();
       queueCapabilityVerified = true;
       queueCapabilityEvidence = 'fresh';
+      queueCapabilityResponseEpoch = capability.responseEpoch;
     } else if (
       queue === 'auto'
       && this.#offlineQueueStore(false) !== null
@@ -13089,6 +13184,7 @@ export class SnapbackClient {
       if (capability.supported) {
         queueCapabilityVerified = true;
         queueCapabilityEvidence = capability.evidence ?? 'fresh';
+        queueCapabilityResponseEpoch = capability.responseEpoch;
         if (queueCapabilityEvidence === 'cached' && clientMutationId === null) {
           clientMutationId = createClientMutationId();
         }
@@ -13162,6 +13258,25 @@ export class SnapbackClient {
     let queueStore = generatedMutation !== null
       ? generatedComposedStore
       : queue === false ? null : this.#offlineQueueStore(queue === true);
+    // A capability answer may be superseded while generated preparation or
+    // custody capture is in flight. Revalidate at the enqueue boundary: an
+    // explicit queue refuses, while automatic mode degrades to an ordinary
+    // online-only attempt without creating replayable bytes.
+    if (
+      queueStore !== null
+      && queueCapabilityVerified === true
+      && !this.#isOfflineMutationReplayCapabilityResponseCurrent(
+        queueCapabilityResponseEpoch,
+      )
+    ) {
+      if (queue === true) {
+        throw offlineQueueSettlementLedgerError({ reason: 'inspection-superseded' });
+      }
+      queueStore = null;
+      queueCapabilityVerified = false;
+      queueCapabilityEvidence = null;
+      queueCapabilityResponseEpoch = null;
+    }
     const operationIdentityEnabled = this.__operationIdentityProtocol === 1 && queueStore !== null;
     if (operationIdentityEnabled) {
       const requiredMethods = [
@@ -13417,6 +13532,60 @@ export class SnapbackClient {
       }
       foregroundOutboxOwnershipId = null;
     };
+    const capabilitySupersededError = () => {
+      const error = offlineQueueSettlementLedgerError({ reason: 'inspection-superseded' });
+      error.offlineReplayCapabilitySuperseded = true;
+      return error;
+    };
+    const retireSupersededCapabilityRecord = async () => {
+      if (!durableOnlineRecord || queueStore === null || clientMutationId === null) return;
+      const expectedAuthorizationFence = durableOnlineStoredRecord === null
+        ? null
+        : outboxAuthorizationFenceFrom(durableOnlineStoredRecord);
+      let discarded = false;
+      if (
+        queueInsertionOwnership !== null
+        && typeof queueStore.outboxDiscardPendingInsertion === 'function'
+      ) {
+        discarded = await queueStore.outboxDiscardPendingInsertion(
+          clientMutationId,
+          queueInsertionOwnership.sequence,
+          expectedAuthorizationFence,
+        );
+      } else if (typeof queueStore.outboxDiscard === 'function') {
+        discarded = await queueStore.outboxDiscard(
+          clientMutationId,
+          expectedAuthorizationFence,
+        );
+      }
+      if (discarded !== true) {
+        const current = (await queueStore.outboxRecords())
+          .find((record) => record?.id === clientMutationId) ?? null;
+        if (current?.status === 'pending') {
+          const error = capabilitySupersededError();
+          error.outboxSettlementPersistenceFailure = true;
+          throw error;
+        }
+      }
+      durableOnlineRecord = false;
+      durableOnlineStoredRecord = null;
+      queueInsertionOwnership = null;
+      releaseForegroundOwnership();
+      this.#notifyOutboxListeners();
+    };
+    const revalidateQueueCapability = async ({ retireRecord = false } = {}) => {
+      if (
+        queueCapabilityVerified !== true
+        || this.#isOfflineMutationReplayCapabilityResponseCurrent(
+          queueCapabilityResponseEpoch,
+        )
+      ) return true;
+      if (retireRecord) await retireSupersededCapabilityRecord();
+      queueCapabilityVerified = false;
+      queueCapabilityEvidence = null;
+      queueCapabilityResponseEpoch = null;
+      return false;
+    };
     try {
       if (queueStore && durableMutationRecord) {
       try {
@@ -13428,6 +13597,7 @@ export class SnapbackClient {
             queueAuthority !== null
             && this.authorityFence?.isCurrent?.(queueAuthority.capture) !== true
           ) throw staleAuthorityError();
+          if (!await revalidateQueueCapability()) throw capabilitySupersededError();
           return operation(queueFence);
         };
         if (operationIdentityEnabled) {
@@ -13603,32 +13773,44 @@ export class SnapbackClient {
           claimForegroundOwnership(stored);
         }
         durableOnlineRecord = true;
+        if (!await revalidateQueueCapability({ retireRecord: true })) {
+          if (queue === true) throw capabilitySupersededError();
+          queueStore = null;
+        }
         this.#notifyOutboxListeners();
         if (generatedPresentationEnabled) {
           await this.#refreshOptimisticMutationViews('generated-ir-enqueued');
         }
       } catch (error) {
-        const code = error?.diagnostic?.code ?? error?.code;
-        if (
-          queueCapabilityEvidence === 'cached'
-          && code === 'SNAPBACK_OUTBOX_NOT_WRITER'
-        ) {
-          // Cached support authorizes enqueue custody only. If another writer
-          // owns that custody, surface its exact refusal and never convert the
-          // missing record into a ledger error or an online POST.
-          throw error;
+        if (error?.offlineReplayCapabilitySuperseded === true && queue === 'auto') {
+          queueStore = null;
+          durableOnlineRecord = false;
+          durableOnlineStoredRecord = null;
+          queueInsertionOwnership = null;
+          releaseForegroundOwnership();
+        } else {
+          const code = error?.diagnostic?.code ?? error?.code;
+          if (
+            queueCapabilityEvidence === 'cached'
+            && code === 'SNAPBACK_OUTBOX_NOT_WRITER'
+          ) {
+            // Cached support authorizes enqueue custody only. If another writer
+            // owns that custody, surface its exact refusal and never convert the
+            // missing record into a ledger error or an online POST.
+            throw error;
+          }
+          if (
+            !generatedPresentationEnabled
+            || queue !== 'auto'
+            || code !== 'SNAPBACK_OUTBOX_NOT_WRITER'
+          ) throw error;
+          // @ref LLP 0270#d3-derive-and-attach-optimistic-presentation-by-default
+          // A non-writer cannot claim durable replay, but it can retain the
+          // generated operation in the process-local ledger for this
+          // online attempt. Connectivity failure still rejects because no
+          // durable queue accepted custody.
+          queueStore = null;
         }
-        if (
-          !generatedPresentationEnabled
-          || queue !== 'auto'
-          || code !== 'SNAPBACK_OUTBOX_NOT_WRITER'
-        ) throw error;
-        // @ref LLP 0270#d3-derive-and-attach-optimistic-presentation-by-default
-        // A non-writer cannot claim durable replay, but it can retain the
-        // generated operation in the process-local ledger for this
-        // online attempt. Connectivity failure still rejects because no
-        // durable queue accepted custody.
-        queueStore = null;
       }
       }
     let ephemeralOptimisticRecord = false;
@@ -13718,6 +13900,9 @@ export class SnapbackClient {
             authAdmissionOperation: 'mutation',
             beforeTransportDispatch: async () => {
               await __beforeTransportDispatch?.();
+              if (!await revalidateQueueCapability({ retireRecord: true })) {
+                if (queue === true) throw capabilitySupersededError();
+              }
               if (
                 preparationAuthorityCapture !== null
                 && !this.isAuthorityCaptureCurrent(preparationAuthorityCapture)
@@ -13960,6 +14145,7 @@ export class SnapbackClient {
             throw error;
           }
           if (queueStore && isConnectivityFailureError(error)) {
+            await revalidateQueueCapability({ retireRecord: true });
             if (queueCapabilityVerified !== true) {
               const capability = await this.#offlineMutationReplayCapabilityFact({
                 allowCachedForEnqueue: true,
@@ -13981,6 +14167,8 @@ export class SnapbackClient {
                 throw error;
               }
               queueCapabilityVerified = true;
+              queueCapabilityEvidence = capability.evidence ?? 'fresh';
+              queueCapabilityResponseEpoch = capability.responseEpoch;
             }
             // LLP 0043 M2 / LLP 0129 Phase 0: delivery refused at the
             // transport — queue the intent durably under a client-minted
@@ -14023,6 +14211,7 @@ export class SnapbackClient {
                 alreadyCommitted: durableOnlineRecord,
                 functionId,
                 queueReasonClass: this.#connectivityQueueReasonClass(error),
+                beforeEnqueue: () => revalidateQueueCapability({ retireRecord: true }),
               },
             );
             if (queued) {
