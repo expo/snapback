@@ -8,3 +8,5 @@ dist/
 # are restored from the digest-bound cache by the normal Snapback toolchain.
 snapback/generated/*
 !snapback/generated/artifacts.json
+!snapback/generated/authorization-review.json
+!snapback/generated/elevated-read-site-baseline.json
