@@ -64,7 +64,13 @@ writeFileSync(3, JSON.stringify({
 // page, so the budget takes the higher of the two raises rather than their sum.
 // Same one-notch relief as every prior raise; OQ1's module-slicing question
 // stays open in issues/20260815-symbol-registry-client-page-budget.md.
-const modulePageBudgetBytes = 491_520;
+// 2026-08-24 (second raise that day): the LLP 0267 §§7.2/7.4 W5 client
+// inspection surface (MutationPhaseCostV1, subscription/ownership inspection,
+// pendingDeliveryReason join — lane B) plus the same-day W5 lane C
+// diagnostics types pushed expo-snapback-client.md to 495,791 bytes. One
+// notch (480 KiB → 512 KiB); OQ1's module-slicing question stays open in
+// issues/20260815-symbol-registry-client-page-budget.md.
+const modulePageBudgetBytes = 524_288;
 const indexPageBudgetBytes = 32_768;
 const scopes = [
   { manifest: 'packages/snapback-client/package.json', exports: 'all' },
