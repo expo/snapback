@@ -2506,7 +2506,7 @@ collections — including presence, typing indicators, and cursors. Pass a
 generated connection-keyed ephemeral reference. A non-skipped value is
 declarative managed intent: the provider publishes it after the authoritative
 room snapshot and refreshes it within the generated TTL and rate limits. The
-[ephemeral-state reference](../realtime/ephemeral-state.md#find-the-react-hook-from-ephemeral-vocabulary)
+[ephemeral-state reference](../realtime/ephemeral-state.md#stop-publishing-when-activity-goes-idle)
 transcludes the messaging demo's conversation-scoped typing hook, including
 observer-mode `publish`/`delete`; there is no separate
 `useSnapbackEphemeral` hook.
