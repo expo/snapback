@@ -2,16 +2,23 @@
 // Generate the build-bound diagnostics vocabulary, its Guide projection, and
 // the public TypeScript code union. Output is sorted and carries no wall-clock
 // value, so identical inputs always produce identical bytes.
-// A diagnostic emission is a whole-string code literal in diagnostic position
-// or a leading `CODE:` message prefix. Environment-variable access,
-// declarations/tables, message references, comments, and unambiguous
-// JavaScript comparisons are excluded per site. For a reference-only site
+// A diagnostic emission is a whole outer-string code literal or a leading
+// outer-string `CODE:` message prefix (optionally `WARNING|ERROR|INFO CODE:`).
+// A token nested inside a larger string
+// counts only when that enclosing string is executable/generated source whose
+// local syntax constructs or assigns a diagnostic, or SQL that writes it to an
+// explicit diagnostic/error-code column. Environment-variable access,
+// declarations/tables, message references, comments, comparisons, Rust match
+// patterns, and code catalogues are excluded per site. For a real emitter the
+// syntax cannot prove, put `diagnostics-registry: emission` in a comment on
+// that line or the immediately preceding line. For a reference-only site
 // whose syntax is otherwise ambiguous, put
 // `diagnostics-registry: reference-only` in a comment on that line or the
 // immediately preceding line; never mark a line that also emits. To reserve a
-// retired spelling in the stable vocabulary, use `diagnostics-registry:
-// reserved` at that exact site; reservations are published with their own site
-// kind and do not count as emissions.
+// spelling whose concrete emitter is dynamic, or a retired spelling in the
+// stable vocabulary, use `diagnostics-registry: reserved` at that exact site;
+// reservations are published with their own site kind and do not count as
+// emissions.
 // @ref LLP 0193#program — D1's complete source inventory is the substrate for
 // exact error lookup and typed client diagnostics.
 
@@ -154,6 +161,9 @@ const productionPaths = [
     && !/(?:^|\.)fixture\.mjs$/u.test(path)
     && !diagnosticCatalogPaths.includes(path)
   )),
+  // Embedded byte-for-byte by both handler runtimes: production JavaScript,
+  // despite the non-module extension.
+  'packages/snapback-harness/ctx-bootstrap.js',
   ...walk(join(root, 'clients/swift'), (path) => path.endsWith('.swift') && path.includes('/Sources/')),
 ].sort();
 

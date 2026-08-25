@@ -24,13 +24,13 @@ const authorityInstallationId =
   process.env.SNAPBACK_PUBLICATION_AUTHORITY_INSTALLATION_ID;
 const configuredAuthorityOrigin = process.env.SNAPBACK_PUBLICATION_AUTHORITY_ORIGIN;
 if (!Number.isSafeInteger(port) || port < 1 || port > 65_535) {
-  throw new Error('SNAPBACK_PUBLICATION_AUTHORITY_PORT: value must be in [1, 65535]');
+  throw new Error('SNAPBACK_PUBLICATION_AUTHORITY_PORT must be in [1, 65535]');
 }
 if (!authorityInstallationId) {
-  throw new Error('SNAPBACK_PUBLICATION_AUTHORITY_INSTALLATION_ID: value is required');
+  throw new Error('SNAPBACK_PUBLICATION_AUTHORITY_INSTALLATION_ID is required');
 }
 if (!configuredAuthorityOrigin) {
-  throw new Error('SNAPBACK_PUBLICATION_AUTHORITY_ORIGIN: value is required');
+  throw new Error('SNAPBACK_PUBLICATION_AUTHORITY_ORIGIN is required');
 }
 const authorityOrigin = normalizeAuthorityOrigin(configuredAuthorityOrigin, {
   allowLoopbackHttp:

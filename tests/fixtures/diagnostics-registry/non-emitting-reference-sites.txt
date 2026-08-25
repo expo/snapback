@@ -28,9 +28,19 @@ const FIXTURE_ENVIRONMENT_NAME_LIST: &[&str] = &[
   "SNAPBACK_FIXTURE_LIST_ENV",
   "SNAPBACK_FIXTURE_LIST_SECOND_ENV",
 ];
+// const commentedAccess = process.env.SNAPBACK_FIXTURE_COMMENTED_ENV_ACCESS;
 if (error.code === 'SNAPBACK_FIXTURE_JS_REFERENCE') recover();
 if ('SNAPBACK_FIXTURE_JS_REVERSE_REFERENCE' !== error.code) recover();
 switch (error.code) { case 'SNAPBACK_FIXTURE_JS_CASE_REFERENCE': recover(); }
+let status = match code {
+  "SNAPBACK_FIXTURE_MATCH_ARM_REFERENCE"
+  | "SNAPBACK_FIXTURE_MATCH_ARM_SECOND_REFERENCE" => StatusCode::BAD_REQUEST,
+};
+const FIXTURE_DIAGNOSTIC_CATALOG = new Set([
+  'SNAPBACK_FIXTURE_CATALOG_REFERENCE',
+  'SNAPBACK_FIXTURE_CATALOG_SECOND_REFERENCE',
+]);
+if matches!(code, "SNAPBACK_FIXTURE_MATCHES_REFERENCE" | "SNAPBACK_FIXTURE_MATCHES_SECOND_REFERENCE") {}
 const __SNAPBACK_FIXTURE_NESTED__ = true;
 const PUBLIC_SNAPBACK_FIXTURE_ORIGIN = 'https://example.test';
 
@@ -43,7 +53,27 @@ throw Object.assign(
   { code: 'SNAPBACK_FIXTURE_JS_MESSAGE_OWNER' },
 );
 throw new Error('SNAPBACK_FIXTURE_PREFIXED_CODE: set SNAPBACK_FIXTURE_PREFIXED_ENV before retrying');
+throw new Error('SNAPBACK_FIXTURE_LEADING_ERROR_CODE must be configured');
 const environmentExample = 'SNAPBACK_FIXTURE_EXAMPLE_ENV=/absolute/path';
+const publicationPort = process.env.SNAPBACK_FIXTURE_PUBLICATION_PORT;
+throw new Error('SNAPBACK_FIXTURE_PUBLICATION_PORT must be configured');
+
+// Generated JavaScript and stored SQL still create real diagnostic records.
+const generatedJavaScript = `
+  export function invoke() {
+    throw new Error('SNAPBACK_FIXTURE_GENERATED_JS_EMISSION');
+  }
+`;
+let storedDiagnosticSql = r#"
+  INSERT INTO diagnostic_events (diagnostic_code, message)
+  VALUES ('SNAPBACK_FIXTURE_SQL_STORED_EMISSION', 'stored refusal')
+"#;
+const escapedPoison = "\"SNAPBACK_FIXTURE_ESCAPED_POISON: generated manifest is stale\"";
+eprintln!("WARNING SNAPBACK_FIXTURE_WARNING_PREFIX: local transport is cleartext");
+const quotedReference = "documentation names 'SNAPBACK_FIXTURE_QUOTED_REFERENCE' only";
+
+// diagnostics-registry: emission
+eprintln!("WARNING SNAPBACK_FIXTURE_MARKED_EMISSION: local transport is cleartext");
 
 // A name that is read from the environment and emitted elsewhere retains only
 // its emitting site.

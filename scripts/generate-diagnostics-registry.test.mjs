@@ -52,22 +52,43 @@ test('diagnostic source classifier excludes environment reads per site and retai
     '../tests/fixtures/diagnostics-registry/non-emitting-reference-sites.txt',
   ), 'utf8');
 
-  assert.equal([...fixture.matchAll(/SNAPBACK_[A-Z0-9_]+/gu)].length, 36);
+  assert.equal([...fixture.matchAll(/SNAPBACK_[A-Z0-9_]+/gu)].length, 52);
 
+  const sourceOptions = { ordinaryMultiline: true };
   assert.deepEqual(
-    [...diagnosticCodeMatches(fixture)].map((match) => match[0]),
+    [...diagnosticCodeMatches(fixture, sourceOptions)].map((match) => match[0]),
     [
       'SNAPBACK_FIXTURE_RUST_MISMATCH',
       'SNAPBACK_FIXTURE_JS_EMITTED',
       'SNAPBACK_FIXTURE_JS_URL_EMITTED',
       'SNAPBACK_FIXTURE_JS_MESSAGE_OWNER',
       'SNAPBACK_FIXTURE_PREFIXED_CODE',
+      'SNAPBACK_FIXTURE_LEADING_ERROR_CODE',
+      'SNAPBACK_FIXTURE_GENERATED_JS_EMISSION',
+      'SNAPBACK_FIXTURE_SQL_STORED_EMISSION',
+      'SNAPBACK_FIXTURE_ESCAPED_POISON',
+      'SNAPBACK_FIXTURE_WARNING_PREFIX',
+      'SNAPBACK_FIXTURE_MARKED_EMISSION',
       'SNAPBACK_FIXTURE_DUAL_ROLE',
       'SNAPBACK_FIXTURE_DUAL_ROLE',
     ],
   );
 
-  const dualRoleSites = diagnosticSourceSites(fixture)
+  const nestedEmissionNames = new Set([
+    'SNAPBACK_FIXTURE_GENERATED_JS_EMISSION',
+    'SNAPBACK_FIXTURE_SQL_STORED_EMISSION',
+    'SNAPBACK_FIXTURE_ESCAPED_POISON',
+    'SNAPBACK_FIXTURE_WARNING_PREFIX',
+    'SNAPBACK_FIXTURE_MARKED_EMISSION',
+  ]);
+  assert.deepEqual(
+    diagnosticSourceSites(fixture, sourceOptions)
+      .filter(({ match }) => nestedEmissionNames.has(match[0]))
+      .map(({ match, kind }) => ({ code: match[0], kind })),
+    [...nestedEmissionNames].map((code) => ({ code, kind: 'emission' })),
+  );
+
+  const dualRoleSites = diagnosticSourceSites(fixture, sourceOptions)
     .filter(({ match }) => match[0] === 'SNAPBACK_FIXTURE_DUAL_ROLE');
   assert.equal(dualRoleSites.length, 2);
   assert.ok(dualRoleSites.every(({ kind }) => kind === 'emission'));
@@ -82,7 +103,7 @@ test('diagnostic source classifier excludes environment reads per site and retai
     ],
   );
 
-  const dualRoleEnvironmentSites = environmentVariableSites(fixture)
+  const dualRoleEnvironmentSites = environmentVariableSites(fixture, sourceOptions)
     .filter(({ match }) => match[0] === 'SNAPBACK_FIXTURE_DUAL_ROLE');
   assert.deepEqual(
     dualRoleEnvironmentSites.map(({ match, kind }) => ({
@@ -95,7 +116,7 @@ test('diagnostic source classifier excludes environment reads per site and retai
     [{ line: "const dualRole = env('SNAPBACK_FIXTURE_DUAL_ROLE');", kind: 'read' }],
   );
 
-  const environmentNameListSites = environmentVariableSites(fixture)
+  const environmentNameListSites = environmentVariableSites(fixture, sourceOptions)
     .filter(({ match }) => match[0].startsWith('SNAPBACK_FIXTURE_LIST_'));
   assert.deepEqual(
     environmentNameListSites.map(({ match, kind }) => ({ name: match[0], kind })),
@@ -105,23 +126,37 @@ test('diagnostic source classifier excludes environment reads per site and retai
     ],
   );
 
+  assert.deepEqual(
+    environmentVariableSites(fixture, sourceOptions)
+      .filter(({ match }) => match[0] === 'SNAPBACK_FIXTURE_COMMENTED_ENV_ACCESS'),
+    [],
+  );
+
   const nonEmittingMessageNames = new Set([
     'SNAPBACK_FIXTURE_JS_MESSAGE_ENV',
     'SNAPBACK_FIXTURE_PREFIXED_ENV',
     'SNAPBACK_FIXTURE_EXAMPLE_ENV',
     'SNAPBACK_FIXTURE_LIST_ENV',
     'SNAPBACK_FIXTURE_LIST_SECOND_ENV',
+    'SNAPBACK_FIXTURE_PUBLICATION_PORT',
+    'SNAPBACK_FIXTURE_MATCH_ARM_REFERENCE',
+    'SNAPBACK_FIXTURE_MATCH_ARM_SECOND_REFERENCE',
+    'SNAPBACK_FIXTURE_CATALOG_REFERENCE',
+    'SNAPBACK_FIXTURE_CATALOG_SECOND_REFERENCE',
+    'SNAPBACK_FIXTURE_MATCHES_REFERENCE',
+    'SNAPBACK_FIXTURE_MATCHES_SECOND_REFERENCE',
+    'SNAPBACK_FIXTURE_QUOTED_REFERENCE',
   ]);
   assert.deepEqual(
-    diagnosticSourceSites(fixture)
+    diagnosticSourceSites(fixture, sourceOptions)
       .filter(({ match }) => nonEmittingMessageNames.has(match[0]))
       .map(({ match }) => match[0]),
     [],
   );
 
   const classifiedNames = [
-    ...diagnosticSourceSites(fixture),
-    ...environmentVariableSites(fixture),
+    ...diagnosticSourceSites(fixture, sourceOptions),
+    ...environmentVariableSites(fixture, sourceOptions),
   ].map(({ match }) => match[0]);
   assert.ok(!classifiedNames.includes('SNAPBACK_FIXTURE_NESTED__'));
   assert.ok(!classifiedNames.includes('SNAPBACK_FIXTURE_ORIGIN'));

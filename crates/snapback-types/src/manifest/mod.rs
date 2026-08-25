@@ -115,6 +115,11 @@ pub fn validate_artifact_header(
     content_hash: Option<&str>,
     inputs_hash: Option<&str>,
 ) -> SnapbackResult<()> {
+    // The concrete expansions below are emitted by the dynamic format strings.
+    // diagnostics-registry: reserved — SNAPBACK_STALE_SCHEMA_ARTIFACT_KIND
+    // diagnostics-registry: reserved — SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION
+    // diagnostics-registry: reserved — SNAPBACK_STALE_FUNCTION_ARTIFACT_KIND
+    // diagnostics-registry: reserved — SNAPBACK_STALE_FUNCTION_ARTIFACT_VERSION
     if artifact_kind != expected_kind {
         return Err(SnapbackError::error(
             format!(

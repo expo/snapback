@@ -32,15 +32,24 @@ instead of as diagnostic codes, then regenerate.
 
 ## Resolution (2026-08-25)
 
-The generator now applies a literal-position rule before publishing either
-vocabulary. A `SNAPBACK_*` token is an emission only when it is the complete
-code literal at a diagnostic site or the first token of a `CODE: message`
-literal. A token later in a message, the second token in
-`CODE: ... ENVIRONMENT_NAME ...`, or the name in a `NAME=value` example is a
-reference, not another diagnostic emission. Whole-string names in environment
+The generator now classifies each source site before publishing either
+vocabulary. An outer literal is an emission when it is a diagnostic-position
+whole code or a leading `CODE:` message; `WARNING`, `ERROR`, or `INFO` may
+precede that leading code. A nested quoted token counts only when its enclosing
+string is demonstrably generated executable source that constructs or assigns a
+diagnostic, SQL that writes an explicit diagnostic/error-code column, or an
+escaped poison message. `diagnostics-registry: emission` covers a real site
+whose syntax cannot prove that fact. Rust match patterns, `matches!`, equality
+comparisons, all-code arrays/sets, comments, and marked reference-only sites do
+not emit.
+
+A token later in prose, the environment name after a valid diagnostic prefix,
+or a `NAME=value` example is a reference. Whole-string names in environment
 accessors and environment-name tables/lists are environment sites. The scan is
 two-pass so a name established as environment configuration in one production
-file is still classified correctly when another file mentions or tables it.
+file is still classified correctly when another file mentions it. Comment
+exclusion runs first, so the explanatory `SNAPBACK_ADMIN_TOKEN` access in
+`packages/snapback-client/app-data.mjs` is no longer published as a read.
 
 The machine registry's separate `environment` section records `read`,
 `indirect-read`, `declaration`, `table-entry`, and `mention` sites. The generated
@@ -49,39 +58,50 @@ The machine registry's separate `environment` section records `read`,
 diagnostics registry, symbol registry, and Guide projections share one generated
 authority.
 
-The round-2 implementation had restored 47 diagnostic names. Exactly four now
-remain, each for a real site: reserved
-`SNAPBACK_IBEX_CLI_UNAVAILABLE` at
-`crates/snapback-runtime/src/runtime.rs:99`, plus the three publication-authority
-`CODE:` errors at `packages/snapback-publication-authority/service.mjs:27`
-(`SNAPBACK_PUBLICATION_AUTHORITY_PORT`), `:30`
-(`SNAPBACK_PUBLICATION_AUTHORITY_INSTALLATION_ID`), and `:33`
-(`SNAPBACK_PUBLICATION_AUTHORITY_ORIGIN`). The other 43 restored names were
-message/environment references and are no longer diagnostics. In particular,
-`SNAPBACK_PASSWORD`, `SNAPBACK_ADMIN_TOKEN`, `SNAPBACK_DEV_PORT`, and
-`SNAPBACK_RUNTIME_BINARY` occur only in `SnapbackEnvironmentVariable`, not
-`SnapbackDiagnosticCode`.
+The complete comparison with the lane's pre-fix parent found 237 removed names:
+141 are now environment variables and 96 were not in the environment section.
+Of those 96, 21 have real generated, stored, poison, or leading-message emission
+paths and are restored; the other 75 are constants, protocol/version symbols,
+receipt labels, wildcard/identifier fragments, test/reference vocabulary, or
+secret-staging keys rather than diagnostics. The five review exemplars
+`SNAPBACK_DEV_APP_BINDING_UNAVAILABLE`,
+`SNAPBACK_FAMILIAR_HOST_EFFECT_UNSUPPORTED`,
+`SNAPBACK_CODEGEN_DEFINITION_AMBIENT_UNAVAILABLE`,
+`SNAPBACK_IBEX_GLOBAL_DENY_INCOMPLETE`, and
+`SNAPBACK_JOB_LEASE_EXPIRED` are present again, along with the related generated
+definition, familiar, job, poison, and LAN-warning codes.
 
-The earlier dual-role rule still holds: an environment name emitted elsewhere
-as a whole diagnostic code or `CODE:` prefix stays registered, but only the
-emitting occurrence appears in its diagnostic sites. Ordinary comment-only
-spellings remain excluded. The explicit `diagnostics-registry: reserved` marker
-is the deliberate exception for a retired stable spelling and does not count as
-an emission. The HTTP-only `NON_DIAGNOSTIC_SNAPBACK_LITERALS` table remains
-separate because it includes legitimate non-HTTP diagnostics and is not a safe
-public-registry denylist.
+The three publication-authority messages now retain their original runtime text:
+`SNAPBACK_PUBLICATION_AUTHORITY_PORT`,
+`SNAPBACK_PUBLICATION_AUTHORITY_INSTALLATION_ID`, and
+`SNAPBACK_PUBLICATION_AUTHORITY_ORIGIN` are environment-only names: their
+configuration reads and validation-message mentions remain in
+`SnapbackEnvironmentVariable`, and none is a `SnapbackDiagnosticCode` member.
+`SNAPBACK_PASSWORD`,
+`SNAPBACK_ADMIN_TOKEN`, `SNAPBACK_DEV_PORT`, and `SNAPBACK_RUNTIME_BINARY` are
+environment-only.
 
-The companion fixture now has 36 raw `SNAPBACK_*` substrings and retains seven
-emitting occurrences across six names. Its fail-first run showed the old
-classifier wrongly emitting both environment-list entries, a mid-message
-environment name, the environment token after a valid `CODE:` prefix, and a
-`NAME=value` example. It also pins the dual-role `throw new Error` case,
-Rust/JavaScript code positions, negative-lookbehind spellings, environment site
-kinds, and the explicit reservation marker.
+The dual-role rule still holds: an environment name emitted elsewhere at a
+proven diagnostic site stays registered, but only the emitting occurrence
+appears in its diagnostic sites. Ordinary comments remain excluded. The
+`diagnostics-registry: reserved` marker retains the retired Ibex spelling and
+the four concrete stale-artifact spellings emitted by dynamic format strings;
+reservations do not count as emissions. The HTTP-only
+`NON_DIAGNOSTIC_SNAPBACK_LITERALS` table remains separate because it includes
+legitimate non-HTTP diagnostics and is not a safe public-registry denylist.
 
-Final regeneration produces 3,437 diagnostic codes, 11,759 emitting sites, and
-one reserved site. The environment section contains 146 variables across 273
-sites: 185 reads, 16 indirect reads, 13 declarations, 25 table entries, and 34
-message mentions. The original pre-classification registry had 3,629 codes and
-12,507 sites; the round-2 regressed registry had 3,549 codes, 12,176 emitting
-sites, one reserved site, and 239 environment sites.
+The companion fixture now has 52 raw `SNAPBACK_*` substrings and retains 13
+emitting occurrences across 12 names. Its fail-first run proved both sides of
+the regression: generated JavaScript and multiline Rust SQL were absent while
+match arms, `matches!`, and code catalogues were falsely present. It also pins a
+commented environment access, escaped poison, an unmarked `WARNING CODE:`
+message, explicit emission/reference/reservation markers, dual-role emission,
+and prefixed-identifier negative-lookbehind shapes.
+
+Final regeneration produces 3,436 diagnostic codes, 10,210 emitting sites, and
+five reserved sites from 615 production source files. The environment section
+contains 146 variables across 275 sites: 184 reads, 16 indirect reads, 13
+declarations, 25 table entries, and 37 message mentions. Excluding the
+comment-only `SNAPBACK_ADMIN_TOKEN` pseudo-read removes one bad read; restoring
+the three original publication-authority validation strings contributes three
+real message mentions.

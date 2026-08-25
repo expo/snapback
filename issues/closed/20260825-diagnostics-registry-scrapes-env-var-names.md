@@ -30,34 +30,33 @@ to excluded references.
 ## Resolution (2026-08-25, superseded by canonical ticket)
 
 The root cause was the raw identifier sweep, followed by a round-2 regression
-that treated every otherwise-unclassified token as an emission. The corrected
-classifier admits only a whole-string code literal in diagnostic position or a
-leading `CODE:` message prefix. Mid-message tokens, the environment token after
-a valid `CODE:` prefix, `NAME=value` examples, environment accessors, and
-environment-name tables/lists cannot manufacture diagnostic sites. A two-pass
-production scan carries established environment names across files while still
-retaining a dual-role name's separately proven emission.
+that treated every otherwise-unclassified token as an emission and a round-3
+rule that inspected only the start of the outer host-language string. The final
+classifier admits diagnostic-position whole codes and leading `CODE:` messages
+(including `WARNING|ERROR|INFO CODE:`), plus proven nested generated-source,
+stored-SQL, and escaped-poison emitters. It rejects comments before environment
+classification and treats Rust match patterns, `matches!`, comparisons, and
+all-code catalogues as references. Ambiguous real emitters and deliberate
+reservations have separate explicit markers.
 
-The fail-first fixture has 36 raw substrings and seven retained emissions across
-six names. Before the correction it wrongly emitted two environment-list rows,
-a mid-message environment name, a second token after `CODE:`, and a
-`NAME=value` example. The fixture also pins a dual-role
-`throw new Error('SNAPBACK_...')`, a leading Rust `CODE:` message, both
-prefixed-identifier negative-lookbehind shapes, environment site kinds, and the
-explicit `diagnostics-registry: reserved` mechanism.
+The fail-first fixture has 52 raw substrings and 13 retained occurrences across
+12 emitting names. It covers generated JavaScript, multiline Rust SQL, escaped
+poison, severity prefixes, a commented environment access, match arms,
+`matches!`, code catalogues, dual-role names, and the explicit emission,
+reference-only, and reservation markers.
 
-The final registry publishes 3,437 diagnostic codes / 11,759 emitting sites /
-one reserved site and a separate environment vocabulary of 146 names / 273
-sites (185 reads, 16 indirect reads, 13 declarations, 25 table entries, 34
+The final registry publishes 3,436 diagnostic codes / 10,210 emitting sites /
+five reserved sites and a separate environment vocabulary of 146 names / 275
+sites (184 reads, 16 indirect reads, 13 declarations, 25 table entries, 37
 mentions). `SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE` is absent from the diagnostic
 registry, Guide diagnostic projection, and `SnapbackDiagnosticCode`, but remains
 in the environment registry and `SnapbackEnvironmentVariable`;
 `SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH` remains a diagnostic.
 
-Of the 47 names restored by the regressed round-2 classifier, only the reserved
-`SNAPBACK_IBEX_CLI_UNAVAILABLE` marker and the three publication-authority
-`CODE:` errors remain diagnostics. `SNAPBACK_PASSWORD`,
-`SNAPBACK_ADMIN_TOKEN`, `SNAPBACK_DEV_PORT`, and `SNAPBACK_RUNTIME_BINARY` are
-environment-only in the generated type surface. The canonical 20260823 ticket
-records the exact four retained sites, complete counts, dual-role rule, and why
-the HTTP-specific Rust exclusion list is not a public-registry denylist.
+The three publication-authority names retain their original validation text and
+are environment-only: their reads and message mentions remain, but their
+validation messages are not diagnostic emissions. The
+canonical 20260823 ticket records the complete
+237-name baseline analysis (141 environment, 96 non-environment), the 21 real
+emitters restored from the latter group, the corrected comment-site count, and
+why the HTTP-specific Rust exclusion list is not a public-registry denylist.

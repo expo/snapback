@@ -6065,6 +6065,7 @@ async fn admin_claim_link(request: AdminClaimLinkRequest) -> anyhow::Result<()> 
         // explicit ruled posture. Name the exposure and every compensating
         // bound at mint time; hostile networks should use the HTTPS tailnet.
         eprintln!(
+            // diagnostics-registry: emission
             "WARNING SNAPBACK_ADMIN_LAN_CLEARTEXT: {} is plain HTTP on {} ({}). On-link attackers can observe or hijack this session. Bounds: single-use claim exchange, ten-minute idle expiry, ninety-minute absolute cap, redemption record, and master revocation. Use --tailscale on networks you do not trust.",
             relay.origin, selected.interface, selected.address
         );

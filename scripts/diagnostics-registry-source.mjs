@@ -1,6 +1,7 @@
 export const DIAGNOSTIC_CODE_PATTERN = /(?<![A-Z0-9_])SNAPBACK_[A-Z0-9_]+/gu;
 const REFERENCE_ONLY_MARKER = 'diagnostics-registry: reference-only';
 const RESERVED_MARKER = 'diagnostics-registry: reserved';
+const EMISSION_MARKER = 'diagnostics-registry: emission';
 
 function lineBounds(source, offset) {
   const start = source.lastIndexOf('\n', offset - 1) + 1;
@@ -22,6 +23,10 @@ function hasReferenceOnlyMarker(source, offset) {
 
 function hasReservedMarker(source, offset) {
   return hasSiteMarker(source, offset, RESERVED_MARKER);
+}
+
+function hasEmissionMarker(source, offset) {
+  return hasSiteMarker(source, offset, EMISSION_MARKER);
 }
 
 function escapeRegExp(value) {
@@ -186,7 +191,8 @@ function indirectEnvironmentHelperOffsets(source, matches) {
 }
 
 function stringLiteralBounds(source, { ordinaryMultiline = false } = {}) {
-  const literals = new Map();
+  const byContentStart = new Map();
+  const ranges = [];
   let index = 0;
   while (index < source.length) {
     if (source.startsWith('//', index)) {
@@ -241,17 +247,54 @@ function stringLiteralBounds(source, { ordinaryMultiline = false } = {}) {
       index += delimiter.length;
       continue;
     }
-    literals.set(contentStart, { end: cursor });
+    const literal = { contentStart, end: cursor };
+    byContentStart.set(contentStart, literal);
+    ranges.push(literal);
     index = cursor + closingDelimiter.length;
   }
-  return literals;
+  return { byContentStart, ranges };
+}
+
+function enclosingStringLiteral(offset, literals) {
+  let low = 0;
+  let high = literals.ranges.length - 1;
+  let candidate = null;
+  while (low <= high) {
+    const middle = Math.floor((low + high) / 2);
+    const literal = literals.ranges[middle];
+    if (literal.contentStart <= offset) {
+      candidate = literal;
+      low = middle + 1;
+    } else {
+      high = middle - 1;
+    }
+  }
+  return candidate !== null && offset < candidate.end ? candidate : null;
 }
 
 function diagnosticLiteralShape(match, literals) {
-  const literal = literals.get(match.index);
-  if (literal === undefined) return null;
-  if (literal.end === match.index + match[0].length) return 'whole';
-  if (match.input[match.index + match[0].length] === ':') return 'prefix';
+  const source = match.input;
+  const end = match.index + match[0].length;
+  const literal = enclosingStringLiteral(match.index, literals);
+  if (literal === null) return null;
+  if (literal.contentStart === match.index) {
+    if (literal.end === end) return 'whole';
+    if (source[end] === ':') return 'prefix';
+    return 'reference';
+  }
+
+  const leadingText = source.slice(literal.contentStart, match.index);
+  if (source[end] === ':' && /^(?:WARNING|ERROR|INFO)\s+$/u.test(leadingText)) {
+    return 'prefix';
+  }
+
+  // Preserve the immediately surrounding nested quote shape for generated
+  // source/SQL classifiers without admitting arbitrary quoted prose. Escaped
+  // closing quotes occur inside ordinary Rust/JavaScript host strings.
+  const quotedBefore = /["'`]$/u.test(leadingText);
+  const quotedAfter = /^(?:\\)?["'`]/u.test(source.slice(end, end + 2));
+  if (quotedBefore && quotedAfter) return 'nested-whole';
+  if (quotedBefore && source[end] === ':') return 'nested-prefix';
   return 'reference';
 }
 
@@ -262,9 +305,79 @@ function isExplicitDiagnosticCodePosition(source, offset) {
     || /\bnew\s+Error\s*\(\s*["'`]$/u.test(before)
     || /\b(?:code|diagnosticCode|diagnostic_code|errorCode|error_code)\s*:\s*["'`]$/u.test(before)
     || /\.code\s*=\s*["'`]$/u.test(before)
-    || /\b(?:diagnosticError|codedError|verifyError|codegenError|conformanceDiagnostic|graph_serving_error)\s*\(\s*["'`]$/u.test(before)
+    || /\b(?:diagnosticError|codedError|verifyError|codegenError|conformanceDiagnostic|graph_serving_error|__snapbackFail|__snapbackFamiliarFail|snapbackError)\s*\(\s*["'`]$/u.test(before)
     || /\b(?:SnapbackError|Diagnostic)::(?:error|warning|info|new)\s*\(\s*["'`]$/u.test(before)
   );
+}
+
+function isLeadingDiagnosticCodePosition(source, match, literals) {
+  const literal = literals.byContentStart.get(match.index);
+  if (literal === undefined) return false;
+  const end = match.index + match[0].length;
+  if (literal.end !== end && !/^[:\s]/u.test(source.slice(end, end + 1))) return false;
+  return isExplicitDiagnosticCodePosition(source, match.index);
+}
+
+function isGeneratedSourceDiagnosticPosition(source, match, literals) {
+  const literal = enclosingStringLiteral(match.index, literals);
+  if (literal === null || literal.contentStart === match.index) return false;
+  const before = source.slice(Math.max(literal.contentStart, match.index - 512), match.index);
+
+  // A nested token is an emission only when the enclosing host-language string
+  // is demonstrably executable/generated source and local nested syntax binds
+  // it to an Error/throw, diagnostic-like call, or code property. A quoted code
+  // in prose, a regex, or stored protocol text remains a reference.
+  return (
+    /\b(?:throw\s+(?:new\s+)?|new\s+)Error\s*\(\s*\\?["'`]$/u.test(before)
+    || /(?:\\?["'])?\b(?:code|diagnosticCode|diagnostic_code|errorCode|error_code)(?:\\?["'])?\s*[:=]\s*\\?["'`]$/u.test(before)
+    || /\b[A-Za-z_$][\w$]*(?:Fail|fail|Error|error|Diagnostic|diagnostic|Refuse|refuse)\s*\(\s*\\?["'`]$/u.test(before)
+  );
+}
+
+function isStoredDiagnosticSqlPosition(source, match, literals) {
+  const literal = enclosingStringLiteral(match.index, literals);
+  if (literal === null) return false;
+  const before = source.slice(literal.contentStart, match.index);
+  const statement = source.slice(literal.contentStart, literal.end);
+  if (!/\b(?:INSERT|REPLACE|UPDATE)\b/iu.test(statement)) return false;
+
+  // SQL emits only when it writes the token into an explicitly named
+  // diagnostic/error-code column. WHERE predicates and read-only code tables
+  // are references. INSERT/REPLACE prove the column list plus VALUES; UPDATE
+  // proves a SET assignment.
+  const codeColumn = '(?:diagnostic_code|error_code|last_error_code)';
+  const updateAssignment = new RegExp(
+    `\\bSET\\b[\\s\\S]*\\b${codeColumn}\\s*=\\s*["']$`,
+    'iu',
+  );
+  if (updateAssignment.test(before)) return true;
+  const insertValue = new RegExp(
+    `\\b(?:INSERT|REPLACE)\\s+INTO\\b[\\s\\S]*\\([^)]*\\b${codeColumn}\\b[^)]*\\)\\s*VALUES\\s*\\([^)]*["']$`,
+    'iu',
+  );
+  return insertValue.test(before);
+}
+
+function isEscapedPoisonDiagnosticPosition(source, match, literals) {
+  const literal = enclosingStringLiteral(match.index, literals);
+  if (literal === null) return false;
+  return /\\["'`]$/u.test(source.slice(literal.contentStart, match.index))
+    && source[match.index + match[0].length] === ':';
+}
+
+function isHtmlDiagnosticPosition(source, match) {
+  return source.slice(Math.max(0, match.index - 16), match.index).endsWith('<code>')
+    && source.slice(
+      match.index + match[0].length,
+      match.index + match[0].length + 16,
+    ).startsWith('</code>');
+}
+
+function isUnrecognizedDiagnosticReference(source, match) {
+  return /^["']?[\s\S]{0,384}["']unrecognized["']\s*:\s*true/u.test(source.slice(
+    match.index + match[0].length,
+    match.index + match[0].length + 512,
+  ));
 }
 
 function environmentAnalysis(source, options) {
@@ -281,6 +394,12 @@ function environmentAnalysis(source, options) {
     siteKinds.set(offset, 'read');
   }
   for (const match of matches) {
+    // Comments are references first; `process.env.SNAPBACK_X` in explanatory
+    // prose must not become an environment read site.
+    if (isCommentReference(source, match.index)) {
+      siteKinds.delete(match.index);
+      continue;
+    }
     if (isDirectEnvironmentVariableAccess(source, match.index)) {
       siteKinds.set(match.index, 'read');
     } else if (
@@ -305,7 +424,7 @@ export function environmentVariableSites(source, { environmentNames, ordinaryMul
     if (
       classifiedNames.has(match[0])
       && diagnosticSiteKind(source, match, analysis, classifiedNames) === null
-      && diagnosticLiteralShape(match, analysis.literals) !== null
+      && analysis.literals.byContentStart.has(match.index)
       && !isCommentReference(source, match.index)
     ) {
       return [{ match, kind: 'mention' }];
@@ -348,15 +467,71 @@ function isJavaScriptComparison(source, offset, code) {
   );
 }
 
+function isRustMatchArmPattern(source, offset, code) {
+  const after = source.slice(offset + code.length, offset + code.length + 8192);
+  const arrow = after.indexOf('=>');
+  if (arrow === -1) return false;
+  const patternTail = after.slice(0, arrow)
+    .replace(/\/\/[^\n]*(?:\n|$)/gu, '')
+    .replace(/\/\*[\s\S]*?\*\//gu, '');
+  return /^["']\s*(?:\|\s*(?:r#*)?["']SNAPBACK_[A-Z0-9_]+["']\s*)*$/u.test(patternTail);
+}
+
+function isRustMatchesReference(source, offset) {
+  const before = source.slice(Math.max(0, offset - 4096), offset);
+  return /\bmatches!\s*\([^;{}]*$/su.test(before);
+}
+
+function isCodeReferenceCatalogue(source, offset) {
+  const open = source.lastIndexOf('[', offset);
+  if (open === -1 || offset - open > 8192) return false;
+  const close = source.indexOf(']', offset);
+  if (close === -1 || close - open > 8192) return false;
+  const contents = source.slice(open + 1, close);
+  const quotedCodes = [...contents.matchAll(
+    /(?:r#*)?["']SNAPBACK_[A-Z0-9_]+["']/gu,
+  )];
+  if (quotedCodes.length < 2) return false;
+  const remainder = contents
+    .replace(/\/\/[^\n]*(?:\n|$)/gu, '')
+    .replace(/\/\*[\s\S]*?\*\//gu, '')
+    .replace(/(?:r#*)?["']SNAPBACK_[A-Z0-9_]+["']/gu, '')
+    .replace(/[\s,]/gu, '');
+  return remainder.length === 0;
+}
+
+function isReferencePosition(source, offset, code) {
+  return (
+    isJavaScriptComparison(source, offset, code)
+    || isRustMatchArmPattern(source, offset, code)
+    || isRustMatchesReference(source, offset)
+    || isCodeReferenceCatalogue(source, offset)
+  );
+}
+
 function diagnosticSiteKind(source, match, analysis, environmentNames) {
   const offset = match.index;
   if (hasReservedMarker(source, offset)) return 'reserved';
+  if (isCommentReference(source, offset)) return null;
   if (
     hasReferenceOnlyMarker(source, offset)
     || analysis.siteKinds.has(offset)
-    || isCommentReference(source, offset)
-    || isJavaScriptComparison(source, offset, match[0])
   ) return null;
+  if (hasEmissionMarker(source, offset)) return 'emission';
+  if (isReferencePosition(source, offset, match[0])) return null;
+  if (isUnrecognizedDiagnosticReference(source, match)) return null;
+  if (isHtmlDiagnosticPosition(source, match)) {
+    return environmentNames.has(match[0]) ? null : 'emission';
+  }
+  if (
+    isGeneratedSourceDiagnosticPosition(source, match, analysis.literals)
+    || isStoredDiagnosticSqlPosition(source, match, analysis.literals)
+    || isEscapedPoisonDiagnosticPosition(source, match, analysis.literals)
+  ) return 'emission';
+  if (
+    isLeadingDiagnosticCodePosition(source, match, analysis.literals)
+    && !environmentNames.has(match[0])
+  ) return 'emission';
   const literalShape = diagnosticLiteralShape(match, analysis.literals);
   if (literalShape === 'prefix') return 'emission';
   if (literalShape !== 'whole') return null;
