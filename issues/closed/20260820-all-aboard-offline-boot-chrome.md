@@ -42,21 +42,24 @@ acceptance report on failure**, not just the path to a temp file that may not su
 
 ## Resolution (2026-08-25)
 
-The browser client turns a bare blocked-fetch failure into the structured
-`SNAPBACK_CLIENT_REFUSED` diagnostic. All Aboard passed that diagnostic through
-its render-first `connect` hook, whose contract treats diagnostic-bearing
-errors as terminal build defects. The bundled schedule board still rendered,
-but the terminal `ready` rejection also called `showBootError`, producing the
-blocking chrome over the honest offline surface.
+The browser client stamps `fetchDispatchFailed` only when fetch dispatch fails
+before any response exists. The Contract render-first adapter now uses that
+provenance across both establishment seams: All Aboard's health/ensure
+`connect` preflight and surface construction/live subscription. The latter has
+one intentional adapter: the Full client turns a failed initial `liveQuery()`
+with no admissible retained answer into `SNAPBACK_QUERY_OFFLINE_UNAVAILABLE`,
+whose direct cause retains the dispatch stamp, so render-first retries that
+exact wrapper without widening the shared outbox classifier. Diagnostic-free
+construction `TypeError`s, diagnostic codes without provenance, and answered
+HTTP failures remain terminal. No All Aboard app-level error unwrap remains.
 
-The Contract surface now unwraps only `SNAPBACK_CLIENT_REFUSED` failures from
-the health/ensure preflight into an ordinary retryable error. The render-first
-loop therefore retains the default board, projects backend status as offline,
-and keeps retrying; specific Contract diagnostics still reject loudly. The
-browser check now includes the boot-chrome text in its failure, so a recurrence
-is immediately attributable. `scripts/cold-clone-check.sh` now prints the
-machine-readable report section before failing, and carries a fail-only report
-probe so that behavior can be checked without the full cold-clone sequence.
+The render-first loop therefore retains the default board, projects backend
+status as offline, and keeps retrying on proven connectivity loss; specific
+Contract and construction defects still reject loudly. The browser check now
+includes the boot-chrome text in its failure, so a recurrence is immediately
+attributable. `scripts/cold-clone-check.sh` now prints the machine-readable
+report section before failing, and carries a fail-only report probe so that
+behavior can be checked without the full cold-clone sequence.
 
 Fail-first evidence: with Exact required and the lane's shared prebuilt runtime
 selected explicitly, `node demos/all-aboard/tests/acceptance/browser.mjs`

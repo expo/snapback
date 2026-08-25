@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:85d1ac4b4cfe8e95b52461adc823edf86348ec1999accded5f0adc9a9d547c8e"
+    "sourceDigest": "sha256:a5a9dcce73c02af6baa1390e14d8c2f6b8d61aee18c35e28b42b784c88a33140"
   },
   "limits": {
     "lookupBytes": 16384
@@ -10,7 +10,7 @@
   "counts": {
     "codes": 3672,
     "sourceFiles": 614,
-    "emittingSites": 12927,
+    "emittingSites": 12928,
     "httpClassified": 1730,
     "guideAnchored": 466
   },
@@ -36952,8 +36952,8 @@
         },
         {
           "file": "packages/snapback-contract/connectivity-failure.mjs",
-          "line": 18,
-          "column": 41
+          "line": 17,
+          "column": 37
         }
       ],
       "httpStatus": null,
@@ -80433,6 +80433,11 @@
           "file": "packages/snapback-client/index.mjs",
           "line": 3209,
           "column": 11
+        },
+        {
+          "file": "packages/snapback-contract/render-first.mjs",
+          "line": 278,
+          "column": 36
         }
       ],
       "httpStatus": null,

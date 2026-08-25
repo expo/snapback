@@ -7,6 +7,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
+import { SnapbackDiagnosticError } from '../snapback-client/diagnostic-error.mjs';
 import { createRenderFirstSnapbackContractSurface, createDeferredContractLinks } from './index.mjs';
 
 // Exact's Hermes fallback lowers this intentional barrel cycle to CommonJS.
@@ -48,6 +49,34 @@ const connectivityFailure = (message = 'Failed to fetch') => {
   return error;
 };
 
+const queryOfflineUnavailableFailure = (message = 'Failed to fetch') => {
+  const dispatchFailure = new TypeError(message);
+  dispatchFailure.fetchDispatchFailed = true;
+  const diagnostic = Object.freeze({
+    schemaVersion: 'snapback.client-diagnostic.v1',
+    code: 'SNAPBACK_QUERY_OFFLINE_UNAVAILABLE',
+    severity: 'error',
+    subsystem: 'client',
+    message: 'alpha is unavailable offline because no authoritative retained answer exists',
+    details: Object.freeze({
+      function: 'alpha',
+      retentionClass: 'none',
+      retentionDisposition: 'volatile',
+      localAnswer: Object.freeze({ answerClass: 'unknown', freshness: null }),
+    }),
+  });
+  const error = new SnapbackDiagnosticError(diagnostic, {
+    message: diagnostic.message,
+    cause: dispatchFailure,
+    operation: 'query',
+    refKind: 'Query',
+    effectCommitted: false,
+    effectMayHaveCommitted: false,
+  });
+  error.name = 'SnapbackQueryOfflineUnavailableError';
+  return error;
+};
+
 const codeOnlyClientRefusal = () => {
   const error = new Error('SNAPBACK_CLIENT_REFUSED: malformed response');
   error.diagnostic = {
@@ -70,7 +99,7 @@ const httpError = (status = 502) => {
 // Mock kit client: liveQuery handles record their onUpdate fan-out so the
 // test can push server rows. Failure counters throw diagnostic-bearing,
 // transport-proven connectivity errors for the first N calls.
-const makeClient = ({ failures = 0, liveFailures = 0 } = {}) => {
+const makeClient = ({ failures = 0, liveFailures = 0, liveFailure = null } = {}) => {
   const state = { healthCalls: 0, liveQueryCalls: 0, mutations: [], handles: [] };
   return {
     state,
@@ -83,7 +112,7 @@ const makeClient = ({ failures = 0, liveFailures = 0 } = {}) => {
     async liveQuery(name, { onUpdate }) {
       state.liveQueryCalls += 1;
       if (state.liveQueryCalls <= liveFailures) {
-        throw connectivityFailure(`live subscribe failed (${state.liveQueryCalls})`);
+        throw liveFailure ?? connectivityFailure(`live subscribe failed (${state.liveQueryCalls})`);
       }
       const handle = {
         name,
@@ -249,9 +278,10 @@ const makeRuntime = ({ subscriptionDisposeError = null } = {}) => {
   handle.dispose();
 }
 
-// --- the same connectivity provenance from live subscribe retries, then attaches ---
+// --- the real Full-client offline-unavailable wrap retries, then attaches ---
 {
-  const client = makeClient({ liveFailures: 1 });
+  const offlineUnavailable = queryOfflineUnavailableFailure('live subscribe failed');
+  const client = makeClient({ liveFailures: 1, liveFailure: offlineUnavailable });
   const retries = [];
   const handle = createRenderFirstSnapbackContractSurface({
     runtime: makeRuntime(),
@@ -265,7 +295,9 @@ const makeRuntime = ({ subscriptionDisposeError = null } = {}) => {
   await handle.attached;
   assert.equal(client.state.liveQueryCalls, 2);
   assert.equal(retries.length, 1);
-  assert.equal(retries[0].error.diagnostic.code, 'SNAPBACK_CLIENT_REFUSED');
+  assert.equal(retries[0].error, offlineUnavailable);
+  assert.equal(retries[0].error.code, 'SNAPBACK_QUERY_OFFLINE_UNAVAILABLE');
+  assert.equal(retries[0].error.cause.fetchDispatchFailed, true);
   assert.equal(retries[0].attempt, 0);
   handle.dispose();
 }
@@ -338,6 +370,30 @@ const makeRuntime = ({ subscriptionDisposeError = null } = {}) => {
   await assert.rejects(handle.attached, (error) => error === responseError);
   assert.equal(connectCalls, 1);
   assert.equal(retries.length, 0);
+  handle.dispose();
+}
+
+// --- a diagnostic-free surface-construction TypeError is terminal ---
+{
+  const retries = [];
+  const handle = createRenderFirstSnapbackContractSurface({
+    runtime: makeRuntime(),
+    client: makeClient(),
+    userId: 'u1',
+    manifest: makeManifest(),
+    liveQueries: ['alpha'],
+    requiredQueries: 'alpha',
+    retryBaseDelayMs: 1,
+    onRetry: (...args) => retries.push(args),
+  });
+  await assert.rejects(
+    handle.attached,
+    (error) => (
+      error instanceof TypeError
+      && error.message === 'createSnapbackContractSurface requiredQueries must be an array when provided.'
+    ),
+  );
+  assert.equal(retries.length, 0, 'local construction defects must not retry');
   handle.dispose();
 }
 

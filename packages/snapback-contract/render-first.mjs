@@ -275,6 +275,19 @@ export function createDeferredContractLinks({ queries = [], mutations = [], ephe
 // surfaces beat a blocking boot screen either way (ENG-23727).
 const RENDER_FIRST_BASE_DELAY_MS = 1_000;
 const RENDER_FIRST_MAX_DELAY_MS = 15_000;
+const QUERY_OFFLINE_UNAVAILABLE = 'SNAPBACK_QUERY_OFFLINE_UNAVAILABLE';
+
+// @ref LLP 0034#107-render-first-surface-mode-2026-07-09-eng-23736 — the Full
+// client turns a proven live-subscribe dispatch failure into this typed D4
+// refusal while retaining the dispatch provenance on its direct cause. This
+// adapter-only recognition must not widen the shared outbox classifier.
+const isRenderFirstConnectivityFailureError = (error) => (
+  isConnectivityFailureError(error)
+  || (
+    error?.code === QUERY_OFFLINE_UNAVAILABLE
+    && error?.cause?.fetchDispatchFailed === true
+  )
+);
 
 export function createRenderFirstSnapbackContractSurface(options = {}) {
   const {
@@ -375,7 +388,7 @@ export function createRenderFirstSnapbackContractSurface(options = {}) {
         return;
       } catch (error) {
         if (disposed) return;
-        if (!isConnectivityFailureError(error)) {
+        if (!isRenderFirstConnectivityFailureError(error)) {
           rejectAttached(error);
           return;
         }
