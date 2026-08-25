@@ -354,16 +354,18 @@ const waitForOfflineReplayCapabilityFact = async (store, predicate, label) => {
   }
 };
 
-test('store_meta migration defaults only the three additive slots and fails closed otherwise', () => {
+test('store_meta migration defaults only declared additive fields and fails closed otherwise', () => {
   const initial = createInitialStoreMeta();
   const predecessor = structuredClone(initial);
   delete predecessor.materializationLeaseCustody;
   delete predecessor.authorizedQueryRetention;
   delete predecessor.offlineMutationReplayCapabilityFact;
+  delete predecessor.generationCounters.offlineReplayCapabilityRequestHighWater;
   const migrated = prepareStoreMeta(predecessor);
   assert.deepEqual(migrated.materializationLeaseCustody, {});
   assert.deepEqual(migrated.authorizedQueryRetention, {});
   assert.deepEqual(migrated.offlineMutationReplayCapabilityFact, {});
+  assert.equal(migrated.generationCounters.offlineReplayCapabilityRequestHighWater, 0);
 
   for (const slot of [
     'durableRegistrations',
@@ -409,7 +411,7 @@ async function exerciseOutboxContract(store, { label }) {
   );
   assert.deepEqual(
     committedCapabilityFact,
-    { ...capabilityFact, storeRevision: 1 },
+    { ...capabilityFact, requestSequence: 1, storeRevision: 1 },
     `${label}: commits target-bound offline replay capability evidence`,
   );
   assert.deepEqual(
@@ -2353,6 +2355,92 @@ test('capability inspection refuses redirects instead of borrowing another origi
   assert.deepEqual(await store.outboxRecords(), []);
 });
 
+test('foreground mutations treat 307/308 redirects as answered refusals', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  for (const status of [307, 308]) {
+    const store = createDurableTestStore();
+    const client = new InspectingSnapbackClient(`https://mutation-redirect-${status}.example`, {
+      rqsStore: store,
+      __outboxDrainLifecycle: false,
+    });
+    let mutationPosts = 0;
+    globalThis.fetch = async (url, init = {}) => {
+      const path = new URL(url).pathname;
+      if (path === '/inspect') {
+        return Response.json(offlineReplayInspection({
+          supported: true,
+          targetProfileId: 'local-dev-sqlite-ibex',
+        }));
+      }
+      mutationPosts += 1;
+      assert.equal(init.redirect, 'manual', `${status}: mutation POST rejects redirects`);
+      return new Response(null, {
+        status,
+        headers: { location: 'https://redirect-target.example/mutation/createThing' },
+      });
+    };
+    await assert.rejects(
+      () => client.mutate('createThing', {
+        args: { status },
+        clientMutationId: `cm-foreground-redirect-${status}`,
+      }),
+      (error) => (
+        error.code === 'SNAPBACK_REDIRECT_REFUSED'
+        && !isConnectivityFailureError(error)
+      ),
+    );
+    assert.equal(mutationPosts, 1, `${status}: no redirected second hop is followed`);
+    assert.deepEqual(await store.outboxPending(), [], `${status}: redirect is never queued`);
+    const [record] = await store.outboxRecords();
+    assert.equal(record.status, 'failed', `${status}: answered refusal is terminal locally`);
+    assert.equal(record.failure.code, 'SNAPBACK_REDIRECT_REFUSED');
+    await client.close();
+    await store.close();
+  }
+});
+
+test('replay mutations treat 307/308 redirects as answered refusals', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  for (const status of [307, 308]) {
+    const store = createDurableTestStore();
+    await store.outboxEnqueue({
+      id: `cm-replay-redirect-${status}`,
+      function: 'createThing',
+      args: { status },
+    });
+    const client = new InspectingSnapbackClient(`https://replay-redirect-${status}.example`, {
+      rqsStore: store,
+      __outboxDrainLifecycle: false,
+    });
+    let replayPosts = 0;
+    globalThis.fetch = async (url, init = {}) => {
+      const path = new URL(url).pathname;
+      if (path === '/inspect') {
+        return Response.json(offlineReplayInspection({
+          supported: true,
+          targetProfileId: 'local-dev-sqlite-ibex',
+        }));
+      }
+      replayPosts += 1;
+      assert.equal(init.redirect, 'manual', `${status}: replay POST rejects redirects`);
+      return new Response(null, {
+        status,
+        headers: { location: 'https://redirect-target.example/mutation/createThing' },
+      });
+    };
+    const replay = await client.replayQueuedMutations();
+    assert.equal(replay.replayed, 0);
+    assert.equal(replay.failed, 1);
+    assert.equal(replayPosts, 1, `${status}: replay follows no redirected second hop`);
+    assert.deepEqual(await store.outboxPending(), [], `${status}: redirect leaves no replay work`);
+    const [record] = await store.outboxRecords();
+    assert.equal(record.status, 'failed');
+    assert.equal(record.failure.code, 'SNAPBACK_REDIRECT_REFUSED');
+    await client.close();
+    await store.close();
+  }
+});
+
 test('replay refuses to drain an existing outbox for a ledger-less target', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
@@ -2850,6 +2938,353 @@ test('a delayed positive capability commit cannot overtake a later answered nega
   );
   await client.close();
   await store.close();
+});
+
+test('a delayed earlier inspect response cannot resurrect a later answered negative', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const client = new InspectingSnapbackClient('https://dispatch-ordered-inspection.example', {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  let releasePositiveFetch;
+  const positiveFetchRelease = new Promise((resolve) => { releasePositiveFetch = resolve; });
+  let markPositiveFetchStarted;
+  const positiveFetchStarted = new Promise((resolve) => { markPositiveFetchStarted = resolve; });
+  let inspectCalls = 0;
+  globalThis.fetch = async (url) => {
+    assert.equal(new URL(url).pathname, '/inspect');
+    inspectCalls += 1;
+    if (inspectCalls === 1) {
+      markPositiveFetchStarted();
+      await positiveFetchRelease;
+      return Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId: 'local-dev-sqlite-ibex',
+      }));
+    }
+    return Response.json(offlineReplayInspection({
+      supported: false,
+      targetProfileId: 'cloudflare-do-sqlite-v8',
+    }));
+  };
+
+  const delayedPositive = client.inspect();
+  await positiveFetchStarted;
+  await client.inspect();
+  releasePositiveFetch();
+  await delayedPositive;
+
+  const answered = await store.readOfflineMutationReplayCapabilityFact();
+  assert.equal(answered.supported, false, 'dispatch-later negative remains durable');
+  assert.equal(answered.requestSequence, 2, 'the store records request order, not arrival order');
+
+  let mutationPosts = 0;
+  globalThis.fetch = async (url) => {
+    if (new URL(url).pathname.startsWith('/mutation/')) mutationPosts += 1;
+    throw new TypeError('offline after dispatch-ordered negative');
+  };
+  await assert.rejects(
+    () => client.mutate('createThing', {
+      args: { title: 'must-not-resurrect' },
+      clientMutationId: 'cm-dispatch-ordered-negative',
+    }),
+    (error) => isConnectivityFailureError(error),
+  );
+  assert.equal(mutationPosts, 1, 'the negative target gets only the online-only attempt');
+  assert.deepEqual(await store.outboxRecords(), [], 'the delayed positive queues nothing');
+  await client.close();
+  await store.close();
+});
+
+test('a later connectivity-lost inspect does not discard an in-flight first discovery', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const client = new InspectingSnapbackClient('https://connectivity-does-not-answer.example', {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  let releaseFirstInspect;
+  const firstInspectRelease = new Promise((resolve) => { releaseFirstInspect = resolve; });
+  let markFirstInspectStarted;
+  const firstInspectStarted = new Promise((resolve) => { markFirstInspectStarted = resolve; });
+  let inspectCalls = 0;
+  globalThis.fetch = async (url) => {
+    assert.equal(new URL(url).pathname, '/inspect');
+    inspectCalls += 1;
+    if (inspectCalls === 1) {
+      markFirstInspectStarted();
+      await firstInspectRelease;
+      return Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId: 'local-dev-sqlite-ibex',
+      }));
+    }
+    throw new TypeError('later inspect lost transport');
+  };
+
+  const firstDiscovery = client.inspect();
+  await firstInspectStarted;
+  await assert.rejects(() => client.inspect(), (error) => isConnectivityFailureError(error));
+  releaseFirstInspect();
+  await firstDiscovery;
+  assert.equal(
+    (await store.readOfflineMutationReplayCapabilityFact()).supported,
+    true,
+    'a no-Response probe does not advance the answered request high-water',
+  );
+
+  let mutationPosts = 0;
+  globalThis.fetch = async (url) => {
+    if (new URL(url).pathname.startsWith('/mutation/')) mutationPosts += 1;
+    throw new TypeError('offline after first discovery');
+  };
+  const queued = await client.mutate('createThing', {
+    args: { title: 'first-discovery-remains-cacheable' },
+    clientMutationId: 'cm-first-discovery-remains-cacheable',
+  });
+  assert.equal(queued.status, 'queued');
+  assert.equal(mutationPosts, 0, 'the preserved positive takes the enqueue-only cached path');
+  assert.deepEqual(
+    (await store.outboxPending()).map((record) => record.id),
+    ['cm-first-discovery-remains-cacheable'],
+  );
+  await client.close();
+  await store.close();
+});
+
+const exerciseCrossClientCapabilityOrdering = async ({
+  label,
+  writerStore,
+  followerStore,
+}) => {
+  const origin = `https://${label}-capability-ordering.example`;
+  const admittingClient = new InspectingSnapbackClient(origin, {
+    rqsStore: writerStore,
+    __outboxDrainLifecycle: false,
+  });
+  const replacingClient = new InspectingSnapbackClient(origin, {
+    rqsStore: followerStore,
+    __outboxDrainLifecycle: false,
+  });
+  try {
+    let mutationPosts = 0;
+    let markMutationStarted;
+    const mutationStarted = new Promise((resolve) => { markMutationStarted = resolve; });
+    let releaseAmbiguousMutation;
+    const ambiguousMutationRelease = new Promise((resolve) => {
+      releaseAmbiguousMutation = resolve;
+    });
+    globalThis.fetch = async (url) => {
+      const path = new URL(url).pathname;
+      if (path === '/inspect') {
+        return Response.json(offlineReplayInspection({
+          supported: true,
+          targetProfileId: 'local-dev-sqlite-ibex',
+        }));
+      }
+      mutationPosts += 1;
+      markMutationStarted();
+      await ambiguousMutationRelease;
+      throw new TypeError(`${label} ambiguous mutation response`);
+    };
+    const mutation = admittingClient.mutate('createThing', {
+      args: { title: `${label}-cross-client-negative` },
+      clientMutationId: `cm-${label}-cross-client-negative`,
+    });
+    await mutationStarted;
+
+    globalThis.fetch = async (url) => {
+      assert.equal(new URL(url).pathname, '/inspect');
+      return Response.json(offlineReplayInspection({
+        supported: false,
+        targetProfileId: 'cloudflare-do-sqlite-v8',
+      }));
+    };
+    await replacingClient.inspect();
+    assert.equal(
+      (await writerStore.readOfflineMutationReplayCapabilityFact()).supported,
+      false,
+      `${label}: follower-routed negative is durable before the ambiguous response`,
+    );
+    releaseAmbiguousMutation();
+    await assert.rejects(mutation, (error) => isConnectivityFailureError(error));
+    assert.equal(mutationPosts, 1, `${label}: one foreground POST reached the ambiguous cut`);
+    assert.deepEqual(
+      await writerStore.outboxPending(),
+      [],
+      `${label}: the superseded admission leaves no replayable pending record`,
+    );
+
+    let markDelayedPositiveStarted;
+    const delayedPositiveStarted = new Promise((resolve) => {
+      markDelayedPositiveStarted = resolve;
+    });
+    let releaseDelayedPositive;
+    const delayedPositiveRelease = new Promise((resolve) => {
+      releaseDelayedPositive = resolve;
+    });
+    let inspectCalls = 0;
+    globalThis.fetch = async (url) => {
+      assert.equal(new URL(url).pathname, '/inspect');
+      inspectCalls += 1;
+      if (inspectCalls === 1) {
+        markDelayedPositiveStarted();
+        await delayedPositiveRelease;
+        return Response.json(offlineReplayInspection({
+          supported: true,
+          targetProfileId: 'local-dev-sqlite-ibex',
+        }));
+      }
+      return Response.json(offlineReplayInspection({
+        supported: false,
+        targetProfileId: 'cloudflare-do-sqlite-v8',
+      }));
+    };
+    const delayedPositive = admittingClient.inspect();
+    await delayedPositiveStarted;
+    await replacingClient.inspect();
+    const newerNegative = await writerStore.readOfflineMutationReplayCapabilityFact();
+    releaseDelayedPositive();
+    await delayedPositive;
+    assert.deepEqual(
+      await writerStore.readOfflineMutationReplayCapabilityFact(),
+      newerNegative,
+      `${label}: delayed older positive cannot overwrite the newer negative`,
+    );
+
+    let offlineMutationPosts = 0;
+    globalThis.fetch = async (url) => {
+      if (new URL(url).pathname.startsWith('/mutation/')) offlineMutationPosts += 1;
+      throw new TypeError(`${label} offline after cross-client negative`);
+    };
+    await assert.rejects(
+      () => admittingClient.mutate('createThing', {
+        args: { title: `${label}-negative-stays-closed` },
+        clientMutationId: `cm-${label}-negative-stays-closed`,
+      }),
+      (error) => isConnectivityFailureError(error),
+    );
+    assert.equal(offlineMutationPosts, 1, `${label}: stale positive licenses no cached enqueue`);
+    assert.deepEqual(
+      await writerStore.outboxPending(),
+      [],
+      `${label}: the later offline loss remains non-replayable`,
+    );
+
+    const replayId = `cm-${label}-replay-shared-generation`;
+    await writerStore.outboxEnqueue({
+      id: replayId,
+      function: 'createThing',
+      args: { title: `${label}-replay-shared-generation` },
+    });
+    const readCapabilityFact = writerStore.readOfflineMutationReplayCapabilityFact
+      .bind(writerStore);
+    let capabilityReads = 0;
+    let markReplayCapabilityRead;
+    const replayCapabilityRead = new Promise((resolve) => {
+      markReplayCapabilityRead = resolve;
+    });
+    let releaseReplayCapabilityRead;
+    const replayCapabilityReadRelease = new Promise((resolve) => {
+      releaseReplayCapabilityRead = resolve;
+    });
+    writerStore.readOfflineMutationReplayCapabilityFact = async () => {
+      capabilityReads += 1;
+      if (capabilityReads === 2) {
+        markReplayCapabilityRead();
+        await replayCapabilityReadRelease;
+      }
+      return readCapabilityFact();
+    };
+    try {
+      let replayInspectionSupported = true;
+      let replayPosts = 0;
+      globalThis.fetch = async (url) => {
+        const path = new URL(url).pathname;
+        if (path === '/inspect') {
+          return Response.json(offlineReplayInspection({
+            supported: replayInspectionSupported,
+            targetProfileId: replayInspectionSupported
+              ? 'local-dev-sqlite-ibex'
+              : 'cloudflare-do-sqlite-v8',
+          }));
+        }
+        replayPosts += 1;
+        return Response.json({ result: { replayed: true }, version: 1 });
+      };
+      const replay = admittingClient.replayQueuedMutations();
+      await replayCapabilityRead;
+      replayInspectionSupported = false;
+      await replacingClient.inspect();
+      releaseReplayCapabilityRead();
+      const replayResult = await replay;
+      assert.equal(replayPosts, 0, `${label}: replay re-reads the shared fact before POST`);
+      assert.equal(replayResult.stopped, true, `${label}: replay pauses on superseded support`);
+      assert.deepEqual(
+        (await writerStore.outboxPending()).map((record) => record.id),
+        [replayId],
+        `${label}: capability supersession preserves pending replay custody`,
+      );
+      await writerStore.outboxDiscard(replayId);
+    } finally {
+      releaseReplayCapabilityRead();
+      writerStore.readOfflineMutationReplayCapabilityFact = readCapabilityFact;
+    }
+  } finally {
+    await replacingClient.close();
+    await admittingClient.close();
+  }
+};
+
+test('IndexedDB writer/follower share capability ordering across admission and response races', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const indexedDB = new IDBFactory();
+  const lockManager = createContendedLockManager();
+  const broadcastHub = createBroadcastHub();
+  const options = {
+    indexedDB,
+    lockManager,
+    databaseName: 'outbox-capability-two-client-races',
+    broadcastChannelFactory: () => broadcastHub.factory(),
+  };
+  const writerStore = createIndexedDbRqsResumeStore(options);
+  const followerStore = createIndexedDbRqsResumeStore(options);
+  await Promise.all([writerStore.whenLockSettled(), followerStore.whenLockSettled()]);
+  try {
+    assert.equal(writerStore.isWriter(), true);
+    assert.equal(followerStore.isWriter(), false);
+    await exerciseCrossClientCapabilityOrdering({
+      label: 'indexeddb',
+      writerStore,
+      followerStore,
+    });
+  } finally {
+    await followerStore.close();
+    await writerStore.close();
+  }
+});
+
+test('file writer/follower share capability ordering across admission and response races', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const directory = mkdtempSync(join(tmpdir(), 'snapback-capability-ordering-file-'));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const options = { directory, identity: 'origin:capability-two-client-races' };
+  const writerStore = createFileRqsResumeStore(options);
+  const followerStore = createFileRqsResumeStore(options);
+  await Promise.all([writerStore.whenLockSettled(), followerStore.whenLockSettled()]);
+  try {
+    assert.equal(writerStore.isWriter(), true);
+    assert.equal(followerStore.isWriter(), false);
+    await exerciseCrossClientCapabilityOrdering({
+      label: 'file',
+      writerStore,
+      followerStore,
+    });
+  } finally {
+    await followerStore.close();
+    await writerStore.close();
+  }
 });
 
 test('a newer negative retires positive-admitted custody before ambiguous mutation transport', async (t) => {

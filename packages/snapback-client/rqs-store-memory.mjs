@@ -27,11 +27,13 @@ import {
   RQS_STORE_MAX_ENTRIES,
 } from './rqs-store.mjs';
 import {
+  allocateOfflineMutationReplayCapabilityObservationInMeta,
   allocateQueryInstanceIdInMeta,
+  compareAndVersionOfflineMutationReplayCapabilityFact,
   createInitialStoreMeta,
   mintClientStoreId,
+  prepareOfflineMutationReplayCapabilityObservation,
   prepareStoreMeta,
-  versionOfflineMutationReplayCapabilityFact,
   wipeStoreMeta,
 } from './rqs-store-meta.mjs';
 
@@ -137,16 +139,46 @@ export function createMemoryRqsResumeStore({
   state.authorityTransitionWipers.set(instance, (...args) => (
     commitAuthorityTransitionAsWriter(...args)
   ));
+  state.offlineReplayCapabilityObservers ??= new Map();
   state.offlineReplayCapabilityCommitters ??= new Map();
-  const commitOfflineReplayCapabilityAsWriter = async (fact) => {
+  const beginOfflineReplayCapabilityObservationAsWriter = async () => {
     if (!requireWriter()) return false;
-    const stored = versionOfflineMutationReplayCapabilityFact(
+    const allocated = allocateOfflineMutationReplayCapabilityObservationInMeta(
+      state.storeMeta,
+    );
+    if (allocated === null) {
+      const error = new Error(
+        'SNAPBACK_RQS_STORE_CORRUPT: refusing invalid offline replay capability observation',
+      );
+      error.code = 'SNAPBACK_RQS_STORE_CORRUPT';
+      throw error;
+    }
+    state.storeMeta = allocated.meta;
+    return allocated.observation;
+  };
+  const commitOfflineReplayCapabilityAsWriter = async (fact, observation = null) => {
+    if (!requireWriter()) return false;
+    if (observation === false) return false;
+    let workingMeta = state.storeMeta;
+    let preparedObservation = prepareOfflineMutationReplayCapabilityObservation(observation);
+    if (preparedObservation === null) {
+      const allocated = allocateOfflineMutationReplayCapabilityObservationInMeta(workingMeta);
+      if (allocated === null) return false;
+      workingMeta = allocated.meta;
+      preparedObservation = allocated.observation;
+    }
+    if (
+      preparedObservation.requestSequence
+      > workingMeta.generationCounters.offlineReplayCapabilityRequestHighWater
+    ) return false;
+    const versioned = compareAndVersionOfflineMutationReplayCapabilityFact(
       state.storeMeta.offlineMutationReplayCapabilityFact,
       fact,
+      preparedObservation,
     );
-    const replacement = stored === null ? null : prepareStoreMeta({
-      ...state.storeMeta,
-      offlineMutationReplayCapabilityFact: stored,
+    const replacement = versioned === null ? null : prepareStoreMeta({
+      ...workingMeta,
+      offlineMutationReplayCapabilityFact: versioned.fact,
     });
     if (replacement === null) {
       const error = new Error(
@@ -156,8 +188,12 @@ export function createMemoryRqsResumeStore({
       throw error;
     }
     state.storeMeta = replacement;
-    return structuredClone(stored);
+    return structuredClone(versioned.fact);
   };
+  state.offlineReplayCapabilityObservers.set(
+    instance,
+    beginOfflineReplayCapabilityObservationAsWriter,
+  );
   state.offlineReplayCapabilityCommitters.set(
     instance,
     commitOfflineReplayCapabilityAsWriter,
@@ -242,12 +278,24 @@ export function createMemoryRqsResumeStore({
       return structuredClone(meta.offlineMutationReplayCapabilityFact);
     },
 
-    async commitOfflineMutationReplayCapabilityFact(fact) {
+    async beginOfflineMutationReplayCapabilityObservation() {
       requireOpen();
-      if (state.writer === instance) return commitOfflineReplayCapabilityAsWriter(fact);
+      if (state.writer === instance) {
+        return beginOfflineReplayCapabilityObservationAsWriter();
+      }
+      const request = state.offlineReplayCapabilityObservers.get(state.writer);
+      if (typeof request !== 'function') return false;
+      return request();
+    },
+
+    async commitOfflineMutationReplayCapabilityFact(fact, observation = null) {
+      requireOpen();
+      if (state.writer === instance) {
+        return commitOfflineReplayCapabilityAsWriter(fact, observation);
+      }
       const request = state.offlineReplayCapabilityCommitters.get(state.writer);
       if (typeof request !== 'function') return false;
-      return request(fact);
+      return request(fact, observation);
     },
 
     async readStoreMeta() {
@@ -276,6 +324,7 @@ export function createMemoryRqsResumeStore({
           'writerGeneration',
           'authorityGenerationHighWater',
           'queryGenerationHighWater',
+          'offlineReplayCapabilityRequestHighWater',
         ].some((field) => (
           replacement.generationCounters[field] < state.storeMeta.generationCounters[field]
         ))
@@ -785,6 +834,7 @@ export function createMemoryRqsResumeStore({
       if (closed) return;
       closed = true;
       state.authorityTransitionWipers.delete(instance);
+      state.offlineReplayCapabilityObservers.delete(instance);
       state.offlineReplayCapabilityCommitters.delete(instance);
       if (state.writer !== instance) {
         writerLockListeners.clear();
@@ -825,6 +875,7 @@ export function createMemoryRqsStoreBacking({ clientStoreId = null, randomBytes 
     waiters: [],
     authorizationDispatchGate: createOutboxAuthorizationDispatchGate(),
     authorityTransitionWipers: new Map(),
+    offlineReplayCapabilityObservers: new Map(),
     offlineReplayCapabilityCommitters: new Map(),
   };
 }

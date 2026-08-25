@@ -29,10 +29,12 @@ import {
   RQS_STORE_MAX_ENTRIES,
 } from './rqs-store.mjs';
 import {
+  allocateOfflineMutationReplayCapabilityObservationInMeta,
   allocateQueryInstanceIdInMeta,
+  compareAndVersionOfflineMutationReplayCapabilityFact,
   createInitialStoreMeta,
+  prepareOfflineMutationReplayCapabilityObservation,
   prepareStoreMeta,
-  versionOfflineMutationReplayCapabilityFact,
   wipeStoreMeta,
 } from './rqs-store-meta.mjs';
 
@@ -651,22 +653,53 @@ export async function createSqliteRqsResumeStore({
         (await readMeta()).offlineMutationReplayCapabilityFact,
       ));
     },
-    commitOfflineMutationReplayCapabilityFact(fact) {
+    beginOfflineMutationReplayCapabilityObservation() {
+      return serialized(() => writeTransaction(
+        'offline-replay-capability-observation',
+        async () => {
+          const allocated = allocateOfflineMutationReplayCapabilityObservationInMeta(
+            await readMeta(),
+          );
+          if (allocated === null) {
+            throw corruptError('refusing invalid offline replay capability observation');
+          }
+          await writeRecord('store_meta', 'state', allocated.meta);
+          return clone(allocated.observation);
+        },
+      ));
+    },
+    commitOfflineMutationReplayCapabilityFact(fact, observation = null) {
+      if (observation === false) return Promise.resolve(false);
       return serialized(() => writeTransaction('offline-replay-capability-fact', async () => {
         const current = await readMeta();
-        const stored = versionOfflineMutationReplayCapabilityFact(
+        let workingMeta = current;
+        let preparedObservation = prepareOfflineMutationReplayCapabilityObservation(observation);
+        if (preparedObservation === null) {
+          const allocated = allocateOfflineMutationReplayCapabilityObservationInMeta(current);
+          if (allocated === null) {
+            throw corruptError('refusing invalid offline replay capability observation');
+          }
+          workingMeta = allocated.meta;
+          preparedObservation = allocated.observation;
+        }
+        if (
+          preparedObservation.requestSequence
+          > workingMeta.generationCounters.offlineReplayCapabilityRequestHighWater
+        ) return false;
+        const versioned = compareAndVersionOfflineMutationReplayCapabilityFact(
           current.offlineMutationReplayCapabilityFact,
           fact,
+          preparedObservation,
         );
-        const replacement = stored === null ? null : prepareStoreMeta({
-          ...current,
-          offlineMutationReplayCapabilityFact: stored,
+        const replacement = versioned === null ? null : prepareStoreMeta({
+          ...workingMeta,
+          offlineMutationReplayCapabilityFact: versioned.fact,
         });
         if (replacement === null) {
           throw corruptError('refusing invalid offline replay capability fact');
         }
         await writeRecord('store_meta', 'state', replacement);
-        return clone(stored);
+        return clone(versioned.fact);
       }));
     },
     readStoreMeta() { return serialized(async () => clone(await readMeta())); },
@@ -678,7 +711,12 @@ export async function createSqliteRqsResumeStore({
         if (
           replacement.clientStoreId !== current.clientStoreId
           || replacement.queryInstanceIdHighWater < current.queryInstanceIdHighWater
-          || ['writerGeneration', 'authorityGenerationHighWater', 'queryGenerationHighWater']
+          || [
+            'writerGeneration',
+            'authorityGenerationHighWater',
+            'queryGenerationHighWater',
+            'offlineReplayCapabilityRequestHighWater',
+          ]
             .some((field) => replacement.generationCounters[field] < current.generationCounters[field])
         ) {
           throw storeError(

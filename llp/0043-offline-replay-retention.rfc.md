@@ -5,19 +5,18 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-25 (`queue: 'auto'` capability-evidence correction: the
-last answered `/inspect` fact wins and is persisted under canonical origin
-plus the target's served app artifact generation; generated mutation
-references must match that generation, while string-named mutations carry no
-generation and match on canonical origin. Only an automatic enqueue whose
-re-probe loses transport may reuse a matching prior positive, and cached
-evidence enqueues without a foreground attempt. Answered gaps and HTTP errors
-replace/refuse, while every replay requires a fresh positive answer. A
-follower whose replacement broker is unavailable retains an answered negative
-as a process-local override across writer handoff; cached enqueue then fails
-closed, including with exact `SNAPBACK_OUTBOX_NOT_WRITER` when another writer
-owns the record. Current live-query transitions schedule deduplicated
-observation, exposed through a public settlement promise.)
+**Revised:** 2026-08-25 (`queue: 'auto'` capability-evidence correction: each
+`/inspect` reserves a store-writer-owned request sequence before transport;
+answered facts compare-and-commit by the observed store revision or a newer
+shared request sequence, while no-response failures advance neither the
+answered fact nor the client answered high-water. Enqueue and replay re-read
+that shared fact/generation at their durable and transport boundaries, and an
+ambiguous write whose fact was superseded cannot become replayable. Facts stay
+bound to canonical origin plus served app artifact generation; cached evidence
+is enqueue-only. Answered gaps, HTTP errors, and write redirects refuse; replay
+always requires a fresh positive. Broker-unavailable followers retain a local
+negative override. Live-query transitions schedule deduplicated observation,
+exposed through a public settlement promise.)
 **Revised:** 2026-08-16 (authorization observation amendment: every validated
 queue exposes its real payload-free authorization metadata even while a
 legacy/destructive record normalization awaits the exact writer; records,
@@ -365,10 +364,20 @@ the target's served app artifact generation (`schemaVersion`, `appId`,
 `schemaHash`, `bundleHash`, and `inputsHash`). A generated mutation reference
 must match that exact generation before cached evidence can admit its enqueue;
 a string-named mutation carries no generation witness, so its cached match is
-scoped to canonical origin only. The last answered inspection wins: a later
-positive or gap manifest replaces its predecessor, and an answered HTTP error
-(including identity refusal or a proxy 5xx) records refusal rather than being
-treated as offline ambiguity.
+scoped to canonical origin only.
+
+Inspection order belongs to the durable store, not a client instance or HTTP
+arrival order. Before dispatch, each inspection reserves a monotonic request
+sequence from the elected writer and captures the current fact revision. An
+answered positive, gap, or HTTP error compare-and-commits only when that
+revision is still current or its shared request sequence is newer than the
+last answered fact's sequence. A delayed older response therefore cannot
+overwrite a newer answer from the same or another client. A request that
+produces no HTTP response commits nothing: it advances neither the stored
+answered sequence nor the observing client's answered-request high-water, so
+it cannot discard an earlier discovery still in flight. The fact revision and
+answered request sequence are durable metadata and are preserved across
+writer/follower handoff.
 
 `queue: 'auto'` ordinarily uses that fresh answer. Its one narrow exception is
 the enqueue fallback: when the capability re-probe itself loses transport and
@@ -392,6 +401,17 @@ writer's bytes and therefore fails closed locally instead of reusing the
 predecessor positive. Cached evidence never licenses a foreground POST; if
 enqueue custody belongs to another writer, the client propagates
 `SNAPBACK_OUTBOX_NOT_WRITER` and leaves that writer's record untouched.
+
+Capability validity is a compare-and-read fence. Admission re-reads the shared
+fact and revision immediately before durable enqueue; foreground transport
+re-reads them again before POST; and an ambiguous response re-reads them before
+the client may resolve `queued`. A superseded fact retires any pending record
+admitted under it and cannot be refreshed retroactively after an ambiguous
+effect. Replay performs the same shared re-read immediately before each POST.
+All mutation/replay POSTs, and all other effect-producing HTTP methods, use
+manual redirect handling. A 307/308 (or other redirect response) is an
+answered `SNAPBACK_REDIRECT_REFUSED`, never a connectivity failure and never a
+queue/replay trigger.
 
 Ordinary query success and every retained/stale-to-current live transition
 schedule the same in-flight-deduplicated observation. Applications may await

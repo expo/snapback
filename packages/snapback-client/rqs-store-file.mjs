@@ -70,11 +70,13 @@ import {
   validateOutboxState,
 } from './outbox-shared.mjs';
 import {
+  allocateOfflineMutationReplayCapabilityObservationInMeta,
   allocateQueryInstanceIdInMeta,
+  compareAndVersionOfflineMutationReplayCapabilityFact,
   createInitialStoreMeta,
   mintClientStoreId,
+  prepareOfflineMutationReplayCapabilityObservation,
   prepareStoreMeta,
-  versionOfflineMutationReplayCapabilityFact,
   wipeStoreMeta,
 } from './rqs-store-meta.mjs';
 
@@ -490,6 +492,7 @@ export function createFileRqsResumeStore({
   let migrationMeta = null;
   let competingWriter = null;
   let authorityTransitionBroker = null;
+  let offlineReplayCapabilityObservationBroker = null;
   let offlineReplayCapabilityBroker = null;
   let authorizationMutationBroker = null;
   let authorizationMutationWithinDispatchBroker = null;
@@ -590,6 +593,9 @@ export function createFileRqsResumeStore({
         authorityTransition: (...args) => authorityTransitionBroker?.(...args),
         authorityTransitionWithinDispatch: (...args) => (
           authorityTransitionWithinDispatchBroker?.(...args)
+        ),
+        offlineReplayCapabilityObservation: (...args) => (
+          offlineReplayCapabilityObservationBroker?.(...args)
         ),
         offlineReplayCapability: (...args) => offlineReplayCapabilityBroker?.(...args),
         authorizationMutation: (...args) => authorizationMutationBroker?.(...args),
@@ -771,23 +777,50 @@ export function createFileRqsResumeStore({
     await files.syncDirectory(directory);
   };
 
-  const commitOfflineReplayCapabilityAsWriter = async (fact) => {
+  const beginOfflineReplayCapabilityObservationAsWriter = async () => {
     if (!writer || closed) return false;
     const state = await readState();
-    const stored = versionOfflineMutationReplayCapabilityFact(
+    const allocated = allocateOfflineMutationReplayCapabilityObservationInMeta(
+      state.storeMeta,
+    );
+    if (allocated === null) throw corruptError(blobPath);
+    await writeState({ ...state, storeMeta: allocated.meta });
+    return allocated.observation;
+  };
+  const commitOfflineReplayCapabilityAsWriter = async (fact, observation = null) => {
+    if (!writer || closed) return false;
+    if (observation === false) return false;
+    const state = await readState();
+    let workingMeta = state.storeMeta;
+    let preparedObservation = prepareOfflineMutationReplayCapabilityObservation(observation);
+    if (preparedObservation === null) {
+      const allocated = allocateOfflineMutationReplayCapabilityObservationInMeta(workingMeta);
+      if (allocated === null) throw corruptError(blobPath);
+      workingMeta = allocated.meta;
+      preparedObservation = allocated.observation;
+    }
+    if (
+      preparedObservation.requestSequence
+      > workingMeta.generationCounters.offlineReplayCapabilityRequestHighWater
+    ) return false;
+    const versioned = compareAndVersionOfflineMutationReplayCapabilityFact(
       state.storeMeta.offlineMutationReplayCapabilityFact,
       fact,
+      preparedObservation,
     );
-    const replacement = stored === null ? null : prepareStoreMeta({
-      ...state.storeMeta,
-      offlineMutationReplayCapabilityFact: stored,
+    const replacement = versioned === null ? null : prepareStoreMeta({
+      ...workingMeta,
+      offlineMutationReplayCapabilityFact: versioned.fact,
     });
     if (replacement === null) throw corruptError(blobPath);
     await writeState({ ...state, storeMeta: replacement });
-    return structuredClone(stored);
+    return structuredClone(versioned.fact);
   };
-  offlineReplayCapabilityBroker = (fact) => serialized(
-    () => commitOfflineReplayCapabilityAsWriter(fact),
+  offlineReplayCapabilityObservationBroker = () => serialized(
+    () => beginOfflineReplayCapabilityObservationAsWriter(),
+  );
+  offlineReplayCapabilityBroker = (fact, observation = null) => serialized(
+    () => commitOfflineReplayCapabilityAsWriter(fact, observation),
   );
 
   function requestOutboxNormalization() {
@@ -1522,17 +1555,31 @@ export function createFileRqsResumeStore({
       ));
     },
 
-    async commitOfflineMutationReplayCapabilityFact(fact) {
+    async beginOfflineMutationReplayCapabilityObservation() {
       requireOpen();
       return serialized(async () => {
         await acquireLock();
-        if (writer) return commitOfflineReplayCapabilityAsWriter(fact);
+        if (writer) return beginOfflineReplayCapabilityObservationAsWriter();
+        const holder = heldLocks.get(lockPath);
+        if (
+          holder?.instanceId !== competingWriter?.instanceId
+          || typeof holder?.offlineReplayCapabilityObservation !== 'function'
+        ) return false;
+        return holder.offlineReplayCapabilityObservation();
+      });
+    },
+
+    async commitOfflineMutationReplayCapabilityFact(fact, observation = null) {
+      requireOpen();
+      return serialized(async () => {
+        await acquireLock();
+        if (writer) return commitOfflineReplayCapabilityAsWriter(fact, observation);
         const holder = heldLocks.get(lockPath);
         if (
           holder?.instanceId !== competingWriter?.instanceId
           || typeof holder?.offlineReplayCapability !== 'function'
         ) return false;
-        return holder.offlineReplayCapability(fact);
+        return holder.offlineReplayCapability(fact, observation);
       });
     },
 
@@ -1557,6 +1604,7 @@ export function createFileRqsResumeStore({
             'writerGeneration',
             'authorityGenerationHighWater',
             'queryGenerationHighWater',
+            'offlineReplayCapabilityRequestHighWater',
           ].some((field) => (
             replacement.generationCounters[field] < current.generationCounters[field]
           ))

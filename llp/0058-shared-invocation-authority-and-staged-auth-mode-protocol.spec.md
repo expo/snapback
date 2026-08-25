@@ -17,6 +17,14 @@ for the same origin, with exact artifact-generation matching required for
 generated mutation references (string-named mutations carry no generation),
 while every answered manifest or HTTP refusal replaces it. Cached evidence is
 enqueue-only and never licenses a foreground mutation attempt.)
+**Revised:** 2026-08-25 (offline replay client-consumption clarification: the
+store writer sequences inspections at dispatch and compare-and-commits answers
+against the shared fact generation; no-response failures do not advance the
+answered order. Enqueue, foreground transport, ambiguous-response fallback,
+and replay re-read that generation. A fresh positive served manifest remains
+mandatory for replay; the narrow transport-lost `queue: 'auto'` exception is
+same-origin, generation-bound, and enqueue-only. Write redirects are answered
+refusals.)
 **Revised:** 2026-08-22 (asset closure extends the split-phase fence to
 attempt-inspect and TUS HEAD lazy expiry, caller-backed finalize SQLite
 phases, and signed/strict on-demand-width publication commits. Finalize and
@@ -456,7 +464,14 @@ a no-response transport loss, but only from durable evidence bound to the same
 canonical origin and, for a generated mutation reference, its exact app
 artifact generation. String-named mutations carry no generation witness. That
 exception never admits replay or transport and therefore enqueues without a
-foreground mutation POST.
+foreground mutation POST. The durable store writer assigns the request order
+before inspection transport and compare-and-commits answered facts by observed
+fact revision or newer shared request sequence. Clients re-read the committed
+fact and generation before enqueue, before mutation/replay transport, and
+before turning an ambiguous foreground response into queued custody. A
+no-response inspection does not advance answered order. Effect-producing HTTP
+requests reject redirects; such a response is an answered refusal, not
+connectivity ambiguity.
 
 #### Dated offer-binding amendment — authorable offline replay (2026-08-25)
 

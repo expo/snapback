@@ -65,17 +65,18 @@ offline server, and the client discarded the positive capability manifest it
 had already observed. It then surfaced the original
 `SNAPBACK_CLIENT_REFUSED` instead of accepting durable custody.
 
-The client now persists the latest answered `offline_mutation_replay` fact
-through ordinary successful query/live-query lifecycle, bound to canonical
-origin and the target's served artifact generation. Generated mutation
-references must match that exact generation; string-named mutations carry no
-generation and therefore match the cached fact on canonical origin. A
-`queue: 'auto'` enqueue probe that loses transport may reuse that matching
-prior positive only to enqueue directly, without a foreground mutation POST;
-any answered successor manifest or HTTP error replaces it. Replay always
-requires a fresh positive inspection, so 404/502 responses and transport loss
-refuse before mutation POST. Focused tests guard the HTTP, replay, relaunch,
-cross-context replacement, origin, and generated-reference identity boundaries.
+The client now persists the latest dispatch-ordered answered
+`offline_mutation_replay` fact through ordinary successful query/live-query
+lifecycle, bound to canonical origin and the target's served artifact
+generation. The store writer reserves a shared request sequence before each
+inspection fetch and compare-and-commits its answer against the observed fact
+revision; a no-response failure advances neither the durable fact nor the
+client answered high-water. Enqueue and replay re-read the shared fact and
+generation at their durable/transport boundaries, including before ambiguous
+foreground failure may resolve `queued`. Generated mutation references must
+match the exact artifact generation; string-named mutations match on canonical
+origin. Cached support is enqueue-only, replay always needs a fresh positive,
+and all effect-producing HTTP methods reject redirects as answered refusals.
 
 The demo acceptance is again un-prewarmed: it closes the online client, stops
 the backend, then creates the offline client. The fact acquired by normal
@@ -88,25 +89,30 @@ drain from the durable store.
 Fail-first evidence: the focused client test failed without the client change
 with `SNAPBACK_CLIENT_REFUSED: fetch failed` (`tests 1`, `pass 0`, `fail 1`).
 The original acceptance reproduced at `FAIL ... — 4/9` before the fix.
-The round-5 inverse-race regression also ran before its implementation change:
-`tests 1`, `pass 0`, `fail 1`, failing with `Missing expected rejection`
-because the ambiguous ledger-less mutation incorrectly resolved `queued` from
-the delayed predecessor positive.
+The round-6 regressions were each run against a temporary mutation of their
+safety cut before restoration:
 
-Round-5 verification (2026-08-25):
+- moving sequence reservation from dispatch to response arrival failed the
+  delayed-fetch test with `dispatch-later negative remains durable` and
+  `true !== false`;
+- advancing the answered high-water on connectivity failed the in-flight first
+  discovery test with `undefined !== true`;
+- bypassing store compare-and-commit failed the IndexedDB two-client test at
+  `delayed older positive cannot overwrite the newer negative`;
+- bypassing the shared generation re-read failed foreground admission with
+  `Missing expected rejection`, while bypassing only the replay re-read failed
+  `replay re-reads the shared fact before POST` with `1 !== 0`;
+- disabling write redirect rejection failed the foreground test because
+  `redirect` was `undefined` instead of `'manual'`, and failed replay with
+  actual code `ERR_ASSERTION` instead of `SNAPBACK_REDIRECT_REFUSED`.
 
-- `node --test packages/snapback-client/outbox-store.test.mjs`: `tests 100`,
-  `pass 100`, `fail 0`. The same run names the new focused cases:
-  delayed-positive/later-negative response ordering with one online-only
-  mutation POST and no duplicate-capable pending record, newer-negative epoch
-  revalidation after positive-admitted enqueue and immediately before ambiguous
-  transport, a newly constructed IndexedDB client after negative-observer writer
-  takeover, the default-store product path across client close/reopen with
-  cached enqueue and zero mutation POSTs,
-  broker-unavailable negative plus IndexedDB writer handoff, migrated retained
-  live query reconnect plus public capability settlement and later offline
-  queueing, cached-evidence `SNAPBACK_OUTBOX_NOT_WRITER` with no POST, and
-  in-process file peer-negative routing.
+Round-6 verification (2026-08-25):
+
+- `node --test packages/snapback-client/outbox-store.test.mjs`: `tests 106`,
+  `pass 106`, `fail 0`. New cases cover delayed fetch arrival, connectivity not
+  answering, cross-client admission/ambiguous-response and replay re-reads,
+  stale-answer compare-and-commit on IndexedDB writer/follower and file
+  writer/follower, and foreground/replay 307/308 refusal.
 - `SNAPBACK_SERVER_BINARY="$PWD/target/debug/snapback" node
   demos/public-dashboard/tests/acceptance/offline-local-first.mjs`: `PASS
   public-dashboard / offline-local-first (JS arm) — 9/9`. The first check now
@@ -120,17 +126,19 @@ Round-5 verification (2026-08-25):
 - `node scripts/check-guide.mjs`: `21 passed, 1 failed, 0 skipped, 0
   preconditions; 157 pages, 1872 snippets, 174 routes + 51 host-ops joined, 94
   warnings`. Symbol registry, guide corpus, manifest/MCP, and flat projections
-  pass. The diagnostics-registry freshness check remained red at this
-  pre-integration checkpoint because the round-5 `index.mjs` line shifts were
-  still moving; integration regenerates the final emitting-site coordinates.
-- `node scripts/check-inventories.mjs`: the only red is `guide-manifest`, whose
-  source check reports the same deliberately unregenerated diagnostics-registry
-  emitting-site drift. Integration owns that regeneration.
+  pass. The only red is the deliberately unregenerated diagnostics registry;
+  integration owns the final emitting-site rewrite after lane integration.
+- `node scripts/generate-symbol-registry.mjs --check`: `[symbol-registry] ok —
+  56 modules, 1455 symbols, runtime parity exact`.
+- `node scripts/check-inventories.mjs`: the only red is `guide-manifest`; its
+  source check reports the same diagnostics-registry staleness delegated to
+  integration.
 - Regenerated projections: `guide/reference/registry.json` and its 57 Markdown
   symbol projections; `guide/guide-manifest.generated.json`; the changed
-  global/reference flat guides. The manifest generator's automatic diagnostics
-  rewrite was restored to the lane's starting bytes as instructed; integration
-  regenerates the diagnostics registry after the final `index.mjs` line shifts.
-- `./ref-check --verbose`: `311 LLP docs, 6636 refs in 12503 files, 0 errors,
+  global/reference flat guides. The diagnostics registry currently committed
+  on this branch is an intermediate earlier regeneration; this round did not
+  update it, and integration rewrites its final emitting sites. No claim is
+  made that those branch bytes equal the lane's original starting bytes.
+- `./ref-check --verbose`: `311 LLP docs, 6637 refs in 12503 files, 0 errors,
   0 unchecked`.
 - `git diff --check`: no output (pass).

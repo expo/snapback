@@ -29,12 +29,14 @@ import {
   validateOutboxState,
 } from './outbox-shared.mjs';
 import {
+  allocateOfflineMutationReplayCapabilityObservationInMeta,
   allocateQueryInstanceIdInMeta,
+  compareAndVersionOfflineMutationReplayCapabilityFact,
   createInitialStoreMeta,
   mintClientStoreId,
+  prepareOfflineMutationReplayCapabilityObservation,
   prepareStoreMeta,
   RQS_STORE_META_KEY,
-  versionOfflineMutationReplayCapabilityFact,
   wipeStoreMeta,
 } from './rqs-store-meta.mjs';
 
@@ -97,18 +99,24 @@ const validOutboxNormalizationOutcome = (value) => (
 );
 
 const validOfflineReplayCapabilityRequest = (value) => (
-  exactRecord(value, ['format', 'requestId', 'fact'])
+  exactRecord(value, ['format', 'requestId', 'operation', 'fact', 'observation'])
   && value.format === OFFLINE_REPLAY_CAPABILITY_REQUEST
   && typeof value.requestId === 'string'
   && value.requestId.length > 0
   && value.requestId.length <= 128
-  && value.fact !== null
-  && typeof value.fact === 'object'
-  && !Array.isArray(value.fact)
+  && ['reserve', 'commit'].includes(value.operation)
+  && (value.operation === 'reserve'
+    ? value.fact === null && value.observation === null
+    : value.fact !== null
+      && typeof value.fact === 'object'
+      && !Array.isArray(value.fact)
+      && value.observation !== null
+      && typeof value.observation === 'object'
+      && !Array.isArray(value.observation))
 );
 
 const validOfflineReplayCapabilityOutcome = (value) => (
-  exactRecord(value, ['format', 'requestId', 'outcome', 'fact'])
+  exactRecord(value, ['format', 'requestId', 'outcome', 'fact', 'observation'])
   && value.format === OFFLINE_REPLAY_CAPABILITY_OUTCOME
   && typeof value.requestId === 'string'
   && value.requestId.length > 0
@@ -117,6 +125,10 @@ const validOfflineReplayCapabilityOutcome = (value) => (
   && (
     value.fact === null
     || (typeof value.fact === 'object' && !Array.isArray(value.fact))
+  )
+  && (
+    value.observation === null
+    || (typeof value.observation === 'object' && !Array.isArray(value.observation))
   )
 );
 
@@ -197,9 +209,11 @@ export async function requestIndexedDbOutboxNormalization({
   });
 }
 
-async function requestIndexedDbOfflineReplayCapabilityCommit({
+async function requestIndexedDbOfflineReplayCapabilityOperation({
   databaseName,
-  fact,
+  operation,
+  fact = null,
+  observation = null,
   broadcastChannelFactory,
   timeoutMs,
 }) {
@@ -237,14 +251,18 @@ async function requestIndexedDbOfflineReplayCapabilityCommit({
       if (!validOfflineReplayCapabilityOutcome(message) || message.requestId !== requestId) {
         return;
       }
-      finish(message.outcome === 'committed' ? structuredClone(message.fact) : false);
+      finish(message.outcome === 'committed'
+        ? structuredClone(operation === 'reserve' ? message.observation : message.fact)
+        : false);
     };
     timer = setTimeout(() => finish(false), timeoutMs);
     try {
       channel.postMessage({
         format: OFFLINE_REPLAY_CAPABILITY_REQUEST,
         requestId,
+        operation,
         fact,
+        observation,
       });
     } catch {
       finish(false);
@@ -584,13 +602,17 @@ export function createIndexedDbRqsResumeStore({
         return;
       }
       if (validOfflineReplayCapabilityRequest(message)) {
-        void commitOfflineReplayCapabilityAsWriter(message.fact).then((stored) => {
+        const operation = message.operation === 'reserve'
+          ? beginOfflineReplayCapabilityObservationAsWriter()
+          : commitOfflineReplayCapabilityAsWriter(message.fact, message.observation);
+        void operation.then((stored) => {
           if (!writer || closed) return;
           channel.postMessage({
             format: OFFLINE_REPLAY_CAPABILITY_OUTCOME,
             requestId: message.requestId,
             outcome: stored === false ? 'refused' : 'committed',
-            fact: stored === false ? null : stored,
+            fact: message.operation === 'commit' && stored !== false ? stored : null,
+            observation: message.operation === 'reserve' && stored !== false ? stored : null,
           });
         }).catch(() => {
           if (!writer || closed) return;
@@ -600,6 +622,7 @@ export function createIndexedDbRqsResumeStore({
               requestId: message.requestId,
               outcome: 'refused',
               fact: null,
+              observation: null,
             });
           } catch { /* a failed broker remains fail-closed */ }
         });
@@ -731,19 +754,60 @@ export function createIndexedDbRqsResumeStore({
     return meta;
   };
 
-  async function commitOfflineReplayCapabilityAsWriter(fact) {
+  async function beginOfflineReplayCapabilityObservationAsWriter() {
     if (!writer || closed) return false;
     const db = await database();
     const tx = db.transaction([STORE_META], 'readwrite');
     const txStore = tx.objectStore(STORE_META);
     const current = await readMetaFromStore(txStore);
-    const stored = versionOfflineMutationReplayCapabilityFact(
+    const allocated = allocateOfflineMutationReplayCapabilityObservationInMeta(current);
+    if (allocated === null) {
+      tx.abort();
+      throw storeError(
+        'SNAPBACK_RQS_STORE_CORRUPT',
+        'refusing invalid offline replay capability observation',
+      );
+    }
+    txStore.put(allocated.meta, RQS_STORE_META_KEY);
+    await transactionDone(tx);
+    return structuredClone(allocated.observation);
+  }
+
+  async function commitOfflineReplayCapabilityAsWriter(fact, observation = null) {
+    if (!writer || closed) return false;
+    const db = await database();
+    const tx = db.transaction([STORE_META], 'readwrite');
+    const txStore = tx.objectStore(STORE_META);
+    const current = await readMetaFromStore(txStore);
+    let workingMeta = current;
+    let preparedObservation = prepareOfflineMutationReplayCapabilityObservation(observation);
+    if (preparedObservation === null) {
+      const allocated = allocateOfflineMutationReplayCapabilityObservationInMeta(current);
+      if (allocated === null) {
+        tx.abort();
+        throw storeError(
+          'SNAPBACK_RQS_STORE_CORRUPT',
+          'refusing invalid offline replay capability observation',
+        );
+      }
+      workingMeta = allocated.meta;
+      preparedObservation = allocated.observation;
+    }
+    if (
+      preparedObservation.requestSequence
+      > workingMeta.generationCounters.offlineReplayCapabilityRequestHighWater
+    ) {
+      tx.abort();
+      return false;
+    }
+    const versioned = compareAndVersionOfflineMutationReplayCapabilityFact(
       current.offlineMutationReplayCapabilityFact,
       fact,
+      preparedObservation,
     );
-    const replacement = stored === null ? null : prepareStoreMeta({
-      ...current,
-      offlineMutationReplayCapabilityFact: stored,
+    const replacement = versioned === null ? null : prepareStoreMeta({
+      ...workingMeta,
+      offlineMutationReplayCapabilityFact: versioned.fact,
     });
     if (replacement === null) {
       tx.abort();
@@ -754,14 +818,16 @@ export function createIndexedDbRqsResumeStore({
     }
     txStore.put(replacement, RQS_STORE_META_KEY);
     await transactionDone(tx);
-    return structuredClone(stored);
+    return structuredClone(versioned.fact);
   }
 
   async function flushPendingOfflineReplayCapabilityFact() {
     const pending = pendingOfflineReplayCapabilityFact;
     if (pending === null || !writer || closed) return;
     try {
-      await commitOfflineReplayCapabilityAsWriter(pending);
+      const observation = await beginOfflineReplayCapabilityObservationAsWriter();
+      if (observation === false) return;
+      await commitOfflineReplayCapabilityAsWriter(pending, observation);
       if (pendingOfflineReplayCapabilityFact === pending) {
         pendingOfflineReplayCapabilityFact = null;
       }
@@ -1403,11 +1469,40 @@ export function createIndexedDbRqsResumeStore({
       return structuredClone(meta.offlineMutationReplayCapabilityFact);
     },
 
-    async commitOfflineMutationReplayCapabilityFact(fact) {
-      if (this.isWriter()) return commitOfflineReplayCapabilityAsWriter(fact);
-      const brokered = await requestIndexedDbOfflineReplayCapabilityCommit({
+    async beginOfflineMutationReplayCapabilityObservation() {
+      if (this.isWriter()) return beginOfflineReplayCapabilityObservationAsWriter();
+      return requestIndexedDbOfflineReplayCapabilityOperation({
         databaseName,
+        operation: 'reserve',
+        broadcastChannelFactory: resolvedBroadcastChannelFactory,
+        timeoutMs: outboxNormalizationTimeoutMs,
+      });
+    },
+
+    async commitOfflineMutationReplayCapabilityFact(fact, observation = null) {
+      if (observation === false) {
+        if (fact?.supported === false) {
+          try { pendingOfflineReplayCapabilityFact = structuredClone(fact); } catch { /* invalid */ }
+        } else if (pendingOfflineReplayCapabilityFact?.origin === fact?.origin) {
+          pendingOfflineReplayCapabilityFact = null;
+        }
+        return false;
+      }
+      if (this.isWriter()) return commitOfflineReplayCapabilityAsWriter(fact, observation);
+      if (observation === null) {
+        observation = await this.beginOfflineMutationReplayCapabilityObservation();
+        if (observation === false) {
+          if (fact?.supported === false) {
+            try { pendingOfflineReplayCapabilityFact = structuredClone(fact); } catch { /* invalid */ }
+          }
+          return false;
+        }
+      }
+      const brokered = await requestIndexedDbOfflineReplayCapabilityOperation({
+        databaseName,
+        operation: 'commit',
         fact,
+        observation,
         broadcastChannelFactory: resolvedBroadcastChannelFactory,
         timeoutMs: outboxNormalizationTimeoutMs,
       });
@@ -1462,6 +1557,7 @@ export function createIndexedDbRqsResumeStore({
           'writerGeneration',
           'authorityGenerationHighWater',
           'queryGenerationHighWater',
+          'offlineReplayCapabilityRequestHighWater',
         ].some((field) => (
           replacement.generationCounters[field] < current.generationCounters[field]
         ))

@@ -110,6 +110,7 @@ export function createInitialStoreMeta({ clientStoreId = null, randomBytes } = {
       writerGeneration: 0,
       authorityGenerationHighWater: 0,
       queryGenerationHighWater: 0,
+      offlineReplayCapabilityRequestHighWater: 0,
     },
     handleKey: mintStoreHandleKey(randomBytes),
     ...Object.fromEntries(RECORD_SLOTS.map((slot) => [slot, {}])),
@@ -118,10 +119,11 @@ export function createInitialStoreMeta({ clientStoreId = null, randomBytes } = {
 
 export function prepareStoreMeta(value) {
   if (!plainRecord(value) || !jsonValue(value)) return null;
-  // Additive format-v3 migrations are closed: only the two original
-  // hydration/lease additions and the later target-capability fact may be
-  // defaulted. Missing allocator, registration, or fence state remains
-  // corruption instead of being silently reset to an empty high-water.
+  // Additive format-v3 migrations are closed: the two original
+  // hydration/lease additions, the target-capability fact, and its later
+  // request allocator may be defaulted. Missing predecessor allocators,
+  // registration, or fence state remains corruption instead of being
+  // silently reset to an empty high-water.
   const prepared = {
     ...value,
     ...Object.fromEntries(
@@ -137,10 +139,19 @@ export function prepareStoreMeta(value) {
     || prepared.queryInstanceIdHighWater < 0
   ) return null;
   if (!plainRecord(prepared.generationCounters)) return null;
+  prepared.generationCounters = {
+    ...prepared.generationCounters,
+    // Additive format-v3 migration for the shared capability-observation
+    // allocator. Reservations are durable even when their request loses
+    // transport; only answered facts advance the fact itself.
+    offlineReplayCapabilityRequestHighWater:
+      prepared.generationCounters.offlineReplayCapabilityRequestHighWater ?? 0,
+  };
   for (const field of [
     'writerGeneration',
     'authorityGenerationHighWater',
     'queryGenerationHighWater',
+    'offlineReplayCapabilityRequestHighWater',
   ]) {
     if (!Number.isSafeInteger(prepared.generationCounters[field]) || prepared.generationCounters[field] < 0) {
       return null;
@@ -157,26 +168,88 @@ export function prepareStoreMeta(value) {
   }
 }
 
-export function versionOfflineMutationReplayCapabilityFact(current, fact) {
-  if (!plainRecord(fact) || !jsonValue(fact)) return null;
-  let storeRevision = 0;
-  if (plainRecord(current) && Object.keys(current).length > 0) {
-    if (current.storeRevision !== undefined) {
-      if (
-        !Number.isSafeInteger(current.storeRevision)
-        || current.storeRevision < 1
-        || current.storeRevision === Number.MAX_SAFE_INTEGER
-      ) return null;
-      storeRevision = current.storeRevision;
-    }
-    // A direct fact without storeRevision is the one-release predecessor
-    // representation and advances to revision 1 on its next replacement.
+const OFFLINE_REPLAY_CAPABILITY_OBSERVATION_V1 =
+  'snapback.offline-replay-capability-observation.v1';
+
+export function prepareOfflineMutationReplayCapabilityObservation(value) {
+  if (
+    !plainRecord(value)
+    || value.schemaVersion !== OFFLINE_REPLAY_CAPABILITY_OBSERVATION_V1
+    || !Number.isSafeInteger(value.requestSequence)
+    || value.requestSequence < 1
+    || !Number.isSafeInteger(value.observedStoreRevision)
+    || value.observedStoreRevision < 0
+  ) return null;
+  return Object.freeze({
+    schemaVersion: OFFLINE_REPLAY_CAPABILITY_OBSERVATION_V1,
+    requestSequence: value.requestSequence,
+    observedStoreRevision: value.observedStoreRevision,
+  });
+}
+
+export function allocateOfflineMutationReplayCapabilityObservationInMeta(value) {
+  const meta = prepareStoreMeta(value);
+  if (meta === null) return null;
+  const highWater = meta.generationCounters.offlineReplayCapabilityRequestHighWater;
+  if (highWater === Number.MAX_SAFE_INTEGER) {
+    const error = new Error(
+      'SNAPBACK_RQS_STORE_ALLOCATOR_EXHAUSTED: offline replay capability request allocator exhausted',
+    );
+    error.code = 'SNAPBACK_RQS_STORE_ALLOCATOR_EXHAUSTED';
+    throw error;
   }
+  const current = meta.offlineMutationReplayCapabilityFact;
+  const observedStoreRevision = plainRecord(current)
+    && Number.isSafeInteger(current.storeRevision)
+    && current.storeRevision >= 1
+    ? current.storeRevision
+    : 0;
+  const requestSequence = highWater + 1;
+  meta.generationCounters.offlineReplayCapabilityRequestHighWater = requestSequence;
+  return {
+    meta,
+    observation: Object.freeze({
+      schemaVersion: OFFLINE_REPLAY_CAPABILITY_OBSERVATION_V1,
+      requestSequence,
+      observedStoreRevision,
+    }),
+  };
+}
+
+export function compareAndVersionOfflineMutationReplayCapabilityFact(
+  current,
+  fact,
+  observation,
+) {
+  const preparedObservation = prepareOfflineMutationReplayCapabilityObservation(observation);
+  if (preparedObservation === null || !plainRecord(fact) || !jsonValue(fact)) return null;
+  const currentFact = plainRecord(current) ? clone(current) : {};
+  const currentStoreRevision = Number.isSafeInteger(currentFact.storeRevision)
+    && currentFact.storeRevision >= 1
+    ? currentFact.storeRevision
+    : 0;
+  const currentRequestSequence = Number.isSafeInteger(currentFact.requestSequence)
+    && currentFact.requestSequence >= 1
+    ? currentFact.requestSequence
+    : 0;
+  const currentGenerationWasObserved =
+    preparedObservation.observedStoreRevision === currentStoreRevision;
+  const requestIsNewerThanAnsweredFact =
+    preparedObservation.requestSequence > currentRequestSequence;
+  if (!currentGenerationWasObserved && !requestIsNewerThanAnsweredFact) {
+    return { fact: currentFact, committed: false };
+  }
+  if (currentStoreRevision === Number.MAX_SAFE_INTEGER) return null;
   const replacement = clone(fact);
   delete replacement.storeRevision;
+  delete replacement.requestSequence;
   return {
-    ...replacement,
-    storeRevision: storeRevision + 1,
+    fact: {
+      ...replacement,
+      requestSequence: preparedObservation.requestSequence,
+      storeRevision: currentStoreRevision + 1,
+    },
+    committed: true,
   };
 }
 
