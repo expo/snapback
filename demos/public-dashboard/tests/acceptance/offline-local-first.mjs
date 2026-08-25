@@ -167,18 +167,18 @@ await runAcceptance(suite, async () => {
   handleA.dispose();
   await handleA.settled?.();
   await closeClient(clientA);
-  // Carry the server's positive settlement-ledger advertisement into the
-  // fresh client before disconnect. A later answered target manifest still
-  // replaces it; only a transport-lost re-probe may reuse this evidence.
-  // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 —
-  // durable enqueue needs positive target evidence, not the absence of a gap.
-  let clientB = openClient();
-  await clientB.inspect();
   await server.stop();
 
+  let clientB;
   let handleB;
   const updatesB = [];
   await suite.check('fresh client instance (same process) with the backend down renders retained rows (Diary 0027 comparator)', async () => {
+    // No manual inspect/pre-warm: client A's ordinary successful live-query
+    // lifecycle persisted the target-bound capability fact in the same
+    // durable store that this offline relaunch now opens.
+    // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 —
+    // only a transport-lost enqueue probe may reuse this exact prior answer.
+    clientB = openClient();
     handleB = await clientB.liveQuery('metricsFeed', {
       connectionId: 'offline-arm-b',
       args: { dashboardId: 'ops' },

@@ -645,6 +645,25 @@ export async function createSqliteRqsResumeStore({
         return true;
       }));
     },
+    readOfflineMutationReplayCapabilityFact() {
+      return serialized(async () => clone(
+        (await readMeta()).offlineMutationReplayCapabilityFact,
+      ));
+    },
+    commitOfflineMutationReplayCapabilityFact(fact) {
+      return serialized(() => writeTransaction('offline-replay-capability-fact', async () => {
+        const current = await readMeta();
+        const replacement = prepareStoreMeta({
+          ...current,
+          offlineMutationReplayCapabilityFact: fact,
+        });
+        if (replacement === null) {
+          throw corruptError('refusing invalid offline replay capability fact');
+        }
+        await writeRecord('store_meta', 'state', replacement);
+        return true;
+      }));
+    },
     readStoreMeta() { return serialized(async () => clone(await readMeta())); },
     writeStoreMeta(value) {
       return serialized(() => writeTransaction('store-meta-write', async () => {

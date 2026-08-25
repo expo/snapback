@@ -5,6 +5,11 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
+**Revised:** 2026-08-25 (`queue: 'auto'` capability-evidence correction: the
+last answered `/inspect` fact wins and is persisted under canonical origin
+plus exact app artifact generation; only an automatic enqueue whose re-probe
+loses transport may reuse a matching prior positive. Answered gaps and HTTP
+errors replace/refuse, while every replay requires a fresh positive answer.)
 **Revised:** 2026-08-16 (authorization observation amendment: every validated
 queue exposes its real payload-free authorization metadata even while a
 legacy/destructive record normalization awaits the exact writer; records,
@@ -343,14 +348,31 @@ described. The target therefore advertises the positive closed capability
 mutation id, omitting a capability gap, or successfully handling an ordinary
 mutation is not equivalent evidence.
 
-Before creating durable intent, `queue: true` requires that positive fact and
-otherwise refuses with the typed client error
-`SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED`. `queue: 'auto'` degrades
-to `queue: false` when support is absent or cannot be inspected: an ambiguous
-transport failure remains the caller-visible error and no outbox record is
-created. Before any queued record is reconciled or re-POSTed,
-`replayQueuedMutations()` performs the same check and refuses with that typed
-error, leaving the record pending and unchanged. Local SQLite advertises the
+Before creating durable intent, `queue: true` requires a fresh positive fact
+and otherwise refuses with the typed client error
+`SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED`. The normal online client
+lifecycle acquires the answered manifest and persists its replay-capability
+fact in the durable client-store domain, bound to canonical server origin and
+the exact app artifact generation (`schemaVersion`, `appId`, `schemaHash`,
+`bundleHash`, and `inputsHash`). The last answered inspection wins: a later
+positive or gap manifest replaces its predecessor, and an answered HTTP error
+(including identity refusal or a proxy 5xx) records refusal rather than being
+treated as offline ambiguity.
+
+`queue: 'auto'` ordinarily uses that fresh answer. Its one narrow exception is
+the enqueue fallback: when the capability re-probe itself loses transport and
+therefore produces no HTTP response, it may reuse a prior positive fact only
+when the canonical origin and any operation-carried app generation still match
+the fact's complete target identity. If no matching positive exists, the
+ambiguous mutation transport failure remains the caller-visible error and no
+outbox record is created. This exception licenses durable custody only; it is
+never transport or replay authority.
+
+Before any queued record is reconciled or re-POSTed,
+`replayQueuedMutations()` always performs a fresh inspection and requires its
+positive answer. It never reuses process or durable cached evidence; a lost
+inspection, answered gap, 4xx, or 5xx refuses with the typed capability error
+and leaves the record pending and unchanged. Local SQLite advertises the
 capability because `_snapback_client_mutations` settles the id in the
 application-write transaction. The Cloudflare coordinator does not own that
 ledger and continues to report `offline_mutation_replay` as a gap, so its JS

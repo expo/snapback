@@ -10,6 +10,11 @@ const RECORD_SLOTS = [
   'durableRegistrations',
   'policyBudgetFacts',
   'brokerRoster',
+  // Last answered target capability fact used only to admit an automatic
+  // offline enqueue after a transport-lost re-probe. The value itself binds
+  // canonical origin plus exact app artifact generation; replay never reads
+  // this slot as execution authority.
+  'offlineMutationReplayCapabilityFact',
   'fenceHighWaters',
   'tombstoneHighWaters',
   'barrierHighWaters',
@@ -106,17 +111,16 @@ export function createInitialStoreMeta({ clientStoreId = null, randomBytes } = {
 
 export function prepareStoreMeta(value) {
   if (!plainRecord(value) || !jsonValue(value)) return null;
-  // Additive format-v3 migration: carriers created before the hydration
-  // bridge have no lease-custody slot. Absence means no retained auth-scoped
-  // materialization, never an implicit valid lease.
+  // Additive format-v3 migration: an absent record slot is the empty fact,
+  // never implicit authority. This covers the hydration/lease additions and
+  // later target-capability evidence without rotating the durable identity.
   const prepared = {
     ...value,
-    ...(value.materializationLeaseCustody === undefined
-      ? { materializationLeaseCustody: {} }
-      : {}),
-    ...(value.authorizedQueryRetention === undefined
-      ? { authorizedQueryRetention: {} }
-      : {}),
+    ...Object.fromEntries(
+      RECORD_SLOTS
+        .filter((slot) => value[slot] === undefined)
+        .map((slot) => [slot, {}]),
+    ),
   };
   if (prepared.formatVersion !== RQS_STORE_FORMAT_VERSION) return null;
   if (typeof prepared.clientStoreId !== 'string' || prepared.clientStoreId.length === 0) return null;

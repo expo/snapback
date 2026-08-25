@@ -1,6 +1,6 @@
 # public-dashboard offline acceptance: outbox phase red on main (4/9)
 
-**Status:** Open
+**Status:** Resolved
 **Impact:** 4
 **Urgency:** 4
 **Ease:** 3
@@ -65,17 +65,22 @@ offline server, and the client discarded the positive capability manifest it
 had already observed. It then surfaced the original
 `SNAPBACK_CLIENT_REFUSED` instead of accepting durable custody.
 
-`SnapbackClient.inspect()` now records the latest answered
-`offline_mutation_replay` fact. If a later capability probe loses transport,
-the gate may reuse a prior positive fact; any answered successor manifest
-still replaces it, so a Cloudflare-style explicit capability gap refuses
-before replay. A focused client test guards both halves of that rule.
+The client now persists the latest answered `offline_mutation_replay` fact
+through ordinary successful query/live-query lifecycle, bound to canonical
+origin and exact app artifact generation. A `queue: 'auto'` enqueue probe that
+loses transport may reuse that matching prior positive; any answered successor
+manifest or HTTP error replaces it. Replay always requires a fresh positive
+inspection, so 404/502 responses and transport loss refuse before mutation
+POST. Focused tests guard the HTTP, replay, relaunch, and identity-binding
+boundaries.
 
-The demo acceptance now observes the target manifest before disconnecting.
-After the server restart it relaunches the direct/headless client from the new
-server kit options, preserving the durable outbox while rotating the per-boot
-dev-identity capability required by LLP 0262. This avoids presenting stale
-identity custody and exercises default drain from the durable store.
+The demo acceptance is again un-prewarmed: it closes the online client, stops
+the backend, then creates the offline client. The fact acquired by normal
+online use survives in the default durable store. After restart it relaunches
+the direct/headless client from the new server kit options, preserving the
+durable outbox while rotating the per-boot dev-identity capability required by
+LLP 0262. This avoids presenting stale identity custody and exercises default
+drain from the durable store.
 
 Fail-first evidence: the focused client test failed without the client change
 with `SNAPBACK_CLIENT_REFUSED: fetch failed` (`tests 1`, `pass 0`, `fail 1`).
@@ -87,8 +92,8 @@ Verification:
   the lane's explicit shared runtime/server binary: `PASS ... — 9/9`;
 - `node demos/public-dashboard/tests/acceptance/headless.mjs` with the same
   binary configuration: `PASS ... — 6/6`;
-- `node --test packages/snapback-client/outbox-store.test.mjs`: `tests 85`,
-  `pass 85`, `fail 0`;
+- `node --test packages/snapback-client/outbox-store.test.mjs`: `tests 88`,
+  `pass 88`, `fail 0`;
 - `node --test packages/snapback-client/app-data.test.mjs`: `tests 1`,
   `pass 1`, `fail 0`;
 - `./ref-check --verbose`: `311 LLP docs, 6581 refs in 12260 files, 0 errors,

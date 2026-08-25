@@ -81,12 +81,14 @@ acceptance report was fabricated or hand-edited.
 
 ## 2026-08-25 — offline outbox capability custody
 
-The offline acceptance now observes the local target's positive
-`offline_mutation_replay` advertisement before disconnecting, queues its two
-generic mutations while transport is unavailable, and relaunches the durable
-client after the dev server restarts so the per-boot identity capability is
-current. The pending records then drain in order and the settlement ledger
-returns the original result for a duplicate delivery.
+The offline acceptance now acquires the local target's positive
+`offline_mutation_replay` advertisement through ordinary successful client use,
+persists it beside the durable query/outbox state, and creates the next client
+only after transport is unavailable. There is no demo-authored `inspect()`
+pre-warm. The fresh client queues its two generic mutations, then relaunches
+after the dev server restarts so the per-boot identity capability is current.
+The pending records drain in order and the settlement ledger returns the
+original result for a duplicate delivery.
 
 ### What felt good
 
@@ -94,17 +96,18 @@ returns the original result for a duplicate delivery.
   public-read table posture as the cause despite the codegen migration warning.
 - The durable store kept both intents across client shutdown, and the ordinary
   default drain replayed them after relaunch without demo-authored retry code.
-- The target guide made both safety boundaries explicit: positive settlement-
-  ledger evidence admits custody, while dev-identity credentials rotate per
-  server boot.
+- Binding persisted capability evidence to origin and exact app generation
+  preserved the safety boundary without making the demo manage it explicitly;
+  dev-identity credentials still rotate per server boot.
 
 ### What felt bad or surprising
 
-- The client correctly recognized `fetch failed` as connectivity loss, but its
-  follow-up capability probe used the same unavailable transport and discarded
-  a positive manifest already observed from that server. The resulting
-  `SNAPBACK_CLIENT_REFUSED` made a capability-evidence loss look like mutation
-  failure classification.
+- The first fix made manual inspection part of the acceptance setup, which hid
+  the real fresh-client-offline product path. Capability custody needed to be
+  part of the normal client/store lifecycle, not test ceremony.
+- Separating enqueue evidence from replay evidence was easy to miss: cached
+  support can justify retaining intent after a no-response probe, but only a
+  fresh positive inspection can justify transmitting that intent.
 - Once enqueue worked, the old acceptance's same-client restart path exposed a
   second, independent mismatch: the client retained the previous boot's dev
   identity capability. A direct/headless client must relaunch from the current

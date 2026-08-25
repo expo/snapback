@@ -1242,6 +1242,36 @@ export function createIndexedDbRqsResumeStore({
       return true;
     },
 
+    async readOfflineMutationReplayCapabilityFact() {
+      const db = await database();
+      const tx = db.transaction([STORE_META], 'readonly');
+      const meta = await readMetaFromStore(tx.objectStore(STORE_META));
+      await transactionDone(tx);
+      return structuredClone(meta.offlineMutationReplayCapabilityFact);
+    },
+
+    async commitOfflineMutationReplayCapabilityFact(fact) {
+      if (!this.isWriter()) return false;
+      const db = await database();
+      const tx = db.transaction([STORE_META], 'readwrite');
+      const txStore = tx.objectStore(STORE_META);
+      const current = await readMetaFromStore(txStore);
+      const replacement = prepareStoreMeta({
+        ...current,
+        offlineMutationReplayCapabilityFact: fact,
+      });
+      if (replacement === null) {
+        tx.abort();
+        throw storeError(
+          'SNAPBACK_RQS_STORE_CORRUPT',
+          'refusing invalid offline replay capability fact',
+        );
+      }
+      txStore.put(replacement, RQS_STORE_META_KEY);
+      await transactionDone(tx);
+      return true;
+    },
+
     async readStoreMeta() {
       const db = await database();
       const tx = db.transaction([STORE_META], 'readonly');

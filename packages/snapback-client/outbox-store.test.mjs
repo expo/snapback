@@ -249,8 +249,47 @@ const offlineReplayCapabilityManifest = ({ supported, targetProfileId }) => ({
   capabilityGaps: supported ? [] : ['offline_mutation_replay'],
 });
 
+const offlineReplayInspection = ({
+  supported,
+  targetProfileId,
+  generation = TEST_ARTIFACT_GENERATION,
+}) => ({
+  targetProfileId,
+  schema: {
+    schemaVersion: generation.schemaVersion,
+    appId: generation.appId,
+    schemaHash: generation.schemaHash,
+    inputsHash: generation.inputsHash,
+  },
+  functions: {
+    schemaVersion: generation.schemaVersion,
+    appId: generation.appId,
+    bundleHash: generation.bundleHash,
+    inputsHash: generation.inputsHash,
+  },
+  capabilityManifest: offlineReplayCapabilityManifest({ supported, targetProfileId }),
+});
+
 async function exerciseOutboxContract(store, { label }) {
   assert.equal(await store.outboxEmpty(), true, `${label}: starts empty`);
+  const capabilityFact = {
+    schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
+    origin: 'https://capability-fact.example',
+    supported: true,
+    reason: null,
+    targetProfileId: 'local-dev-sqlite-ibex',
+    artifactGeneration: TEST_ARTIFACT_GENERATION,
+  };
+  assert.equal(
+    await store.commitOfflineMutationReplayCapabilityFact(capabilityFact),
+    true,
+    `${label}: commits target-bound offline replay capability evidence`,
+  );
+  assert.deepEqual(
+    await store.readOfflineMutationReplayCapabilityFact(),
+    capabilityFact,
+    `${label}: reads target-bound offline replay capability evidence`,
+  );
   assert.equal(
     typeof store.outboxPrepareSubmission,
     'function',
@@ -2067,49 +2106,153 @@ test('a target advertising the settlement ledger still queues and replays', asyn
   assert.equal(delivered[0].clientMutationId, queued.clientMutationId);
 });
 
-test('a prior positive settlement-ledger advertisement survives an offline capability probe', async (t) => {
+test('normal online client use persists settlement-ledger evidence for an un-prewarmed offline relaunch', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const backing = createMemoryRqsStoreBacking();
+  const firstStore = createDurableTestStore({ backing });
+  const firstClient = new InspectingSnapbackClient('http://127.0.0.1:4400', {
+    rqsStore: firstStore,
+    __outboxDrainLifecycle: false,
+  });
+
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+    if (path === '/query/listThings') return Response.json({ rows: [], version: 1 });
+    if (path === '/inspect') {
+      return Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId: 'local-dev-sqlite-ibex',
+      }));
+    }
+    throw new Error(`unexpected online lifecycle request ${path}`);
+  };
+  await firstClient.query('listThings');
+  assert.equal(
+    (await firstStore.readOfflineMutationReplayCapabilityFact()).supported,
+    true,
+    'ordinary query lifecycle persisted the answered manifest',
+  );
+  await firstStore.close();
+
+  const reopenedStore = createDurableTestStore({ backing });
+  const relaunchedClient = new InspectingSnapbackClient('http://127.0.0.1:4400', {
+    rqsStore: reopenedStore,
+    __outboxDrainLifecycle: false,
+  });
+  globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
+  const queued = await relaunchedClient.mutate('createThing', {
+    args: { title: 'offline-without-manual-prewarm' },
+  });
+  assert.equal(queued.status, 'queued');
+  assert.equal((await reopenedStore.outboxPending()).length, 1);
+  await reopenedStore.close();
+});
+
+test('replay requires a fresh positive inspection after cached support and refuses 404/502 answers', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+
+  for (const status of [404, 502]) {
+    const store = createDurableTestStore();
+    await store.outboxEnqueue({
+      id: `cm-answered-${status}`,
+      function: 'createThing',
+      args: { status },
+    });
+    const client = new InspectingSnapbackClient('http://127.0.0.1:4400', {
+      rqsStore: store,
+      __outboxDrainLifecycle: false,
+    });
+
+    globalThis.fetch = async () => Response.json(offlineReplayInspection({
+      supported: true,
+      targetProfileId: 'local-dev-sqlite-ibex',
+    }));
+    await client.inspect();
+
+    let mutationCalls = 0;
+    globalThis.fetch = async (url) => {
+      if (new URL(url).pathname === '/inspect') {
+        return new Response(`answered ${status}`, { status });
+      }
+      mutationCalls += 1;
+      throw new Error(`HTTP ${status} inspect must refuse before replay transport`);
+    };
+    await assert.rejects(
+      () => client.replayQueuedMutations(),
+      (error) => error.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
+    );
+    assert.equal(mutationCalls, 0, `HTTP ${status} answer prevents mutation POST`);
+    assert.equal((await store.outboxPending()).length, 1, 'refusal preserves pending custody');
+    assert.equal(
+      (await store.readOfflineMutationReplayCapabilityFact()).supported,
+      false,
+      `HTTP ${status} replaces the cached positive fact`,
+    );
+    await store.close();
+  }
+});
+
+test('replay never reuses cached settlement-ledger evidence after transport loss', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  await store.outboxEnqueue({ id: 'cm-offline-replay', function: 'createThing', args: {} });
+  const client = new InspectingSnapbackClient('http://127.0.0.1:4400', {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  globalThis.fetch = async () => Response.json(offlineReplayInspection({
+    supported: true,
+    targetProfileId: 'local-dev-sqlite-ibex',
+  }));
+  await client.inspect();
+
+  let mutationCalls = 0;
+  globalThis.fetch = async (url) => {
+    if (new URL(url).pathname !== '/inspect') mutationCalls += 1;
+    throw new TypeError('fetch failed');
+  };
+  await assert.rejects(
+    () => client.replayQueuedMutations(),
+    (error) => error.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
+  );
+  assert.equal(mutationCalls, 0, 'transport-lost inspection never licenses replay POST');
+  assert.equal((await store.outboxPending()).length, 1);
+});
+
+test('automatic enqueue rejects cached support bound to a different app generation', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
   const client = new InspectingSnapbackClient('http://127.0.0.1:4400', {
     rqsStore: store,
     __outboxDrainLifecycle: false,
   });
-
-  globalThis.fetch = async (url) => {
-    assert.equal(new URL(url).pathname, '/inspect');
-    return Response.json({
-      capabilityManifest: offlineReplayCapabilityManifest({
-        supported: true,
-        targetProfileId: 'local-dev-sqlite-ibex',
-      }),
-    });
-  };
+  globalThis.fetch = async () => Response.json(offlineReplayInspection({
+    supported: true,
+    targetProfileId: 'local-dev-sqlite-ibex',
+  }));
   await client.inspect();
 
-  globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
-  const queued = await client.mutate('createThing', { args: { title: 'offline-after-inspect' } });
-  assert.equal(queued.status, 'queued');
-  assert.equal((await store.outboxPending()).length, 1);
-
-  let mutationCalls = 0;
-  globalThis.fetch = async (url) => {
-    if (new URL(url).pathname === '/inspect') {
-      return Response.json({
-        capabilityManifest: offlineReplayCapabilityManifest({
-          supported: false,
-          targetProfileId: 'cloudflare-do-sqlite-v8',
-        }),
-      });
-    }
-    mutationCalls += 1;
-    throw new Error('an answered target gap must refuse before replay transport');
+  const successorGeneration = {
+    ...TEST_ARTIFACT_GENERATION,
+    schemaHash: `sha256:${'d'.repeat(64)}`,
   };
+  const successorMutation = {
+    artifactKind: 'functionReference',
+    kind: 'Mutation',
+    id: `${successorGeneration.appId}:createThing`,
+    name: 'createThing',
+    expectedGeneration: successorGeneration,
+    argsContract: {
+      fields: [{ name: 'title', required: true, value: { kind: 'string' } }],
+    },
+    argumentSchema: TEST_CREATE_THING_ARGUMENT_SCHEMA,
+  };
+  globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
   await assert.rejects(
-    () => client.replayQueuedMutations(),
-    (error) => error.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
+    () => client.mutate(successorMutation, { args: { title: 'wrong-generation' } }),
+    (error) => isConnectivityFailureError(error),
   );
-  assert.equal(mutationCalls, 0);
-  assert.equal((await store.outboxPending()).length, 1, 'refusal preserves pending custody');
+  assert.deepEqual(await store.outboxRecords(), [], 'identity mismatch invalidates cached support');
 });
 
 test('closeAuth releases an owned default store for the next sequential client', async () => {

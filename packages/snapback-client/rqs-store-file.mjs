@@ -1493,6 +1493,29 @@ export function createFileRqsResumeStore({
       });
     },
 
+    async readOfflineMutationReplayCapabilityFact() {
+      requireOpen();
+      return serialized(async () => structuredClone(
+        (await readState()).storeMeta.offlineMutationReplayCapabilityFact,
+      ));
+    },
+
+    async commitOfflineMutationReplayCapabilityFact(fact) {
+      requireOpen();
+      if (!writer) return false;
+      return serialized(async () => {
+        if (!writer) return false;
+        const state = await readState();
+        const replacement = prepareStoreMeta({
+          ...state.storeMeta,
+          offlineMutationReplayCapabilityFact: fact,
+        });
+        if (replacement === null) throw corruptError(blobPath);
+        await writeState({ ...state, storeMeta: replacement });
+        return true;
+      });
+    },
+
     async readStoreMeta() {
       requireOpen();
       return serialized(async () => structuredClone((await readState()).storeMeta));

@@ -205,6 +205,34 @@ export function createMemoryRqsResumeStore({
       return true;
     },
 
+    async readOfflineMutationReplayCapabilityFact() {
+      requireOpen();
+      const meta = prepareStoreMeta(state.storeMeta);
+      if (meta === null) {
+        const error = new Error('SNAPBACK_RQS_STORE_CORRUPT: RQS store metadata is invalid');
+        error.code = 'SNAPBACK_RQS_STORE_CORRUPT';
+        throw error;
+      }
+      return structuredClone(meta.offlineMutationReplayCapabilityFact);
+    },
+
+    async commitOfflineMutationReplayCapabilityFact(fact) {
+      if (!requireWriter()) return false;
+      const replacement = prepareStoreMeta({
+        ...state.storeMeta,
+        offlineMutationReplayCapabilityFact: fact,
+      });
+      if (replacement === null) {
+        const error = new Error(
+          'SNAPBACK_RQS_STORE_CORRUPT: refusing invalid offline replay capability fact',
+        );
+        error.code = 'SNAPBACK_RQS_STORE_CORRUPT';
+        throw error;
+      }
+      state.storeMeta = replacement;
+      return true;
+    },
+
     async readStoreMeta() {
       requireOpen();
       const meta = prepareStoreMeta(state.storeMeta);
