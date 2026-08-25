@@ -1172,6 +1172,7 @@ fn evaluation_request(
             .expect("corpus invocation binds one advanced graph lineage")
             .to_owned(),
         materialization_hash: materialization.materialization_hash.clone(),
+        materialization_identity: Some(materialization.clone()),
         partition_hash: partition.partition_hash.clone(),
         authorization_version: serde_json::from_value(call["authorizationVersion"].clone())
             .unwrap(),
@@ -6453,10 +6454,11 @@ fn bounded_root_lookahead_is_prefix_and_window_page_overflow_refuses() {
     root_window.lower = end(candidates.first().unwrap());
     root_window.upper = end(candidates.last().unwrap());
     root_window.take = 1;
-    let output = graph_store(&corpus, None)
+    rebind_request_materialization(&carrier.normalized_plan, &mut request);
+    let bounded_output = graph_store(&corpus, None)
         .evaluate_graph_query(&carrier.normalized_plan, &request)
         .expect("bounded root demand evaluates");
-    let output = serde_json::to_value(output).unwrap();
+    let output = serde_json::to_value(&bounded_output).unwrap();
     let bounded_case = evaluator_edge_case(&corpus, "g2-bounded-root-named-truncation");
     assert_eq!(
         output["nodeCompleteness"][0]["label"],
@@ -6473,14 +6475,14 @@ fn bounded_root_lookahead_is_prefix_and_window_page_overflow_refuses() {
         bounded_case["expect"]["windowLedgers"]
     );
 
-    let (_, mut overflow) = request_for_case(&corpus, case);
-    overflow.prior_window_ledgers = vec![
-        serde_json::from_value(json!({
-            "nodeId":"n0","pages":1,"rootRows":0,"scannedRows":0,
-            "resultRows":0,"resultBytes":0,"indexRanges":0
-        }))
-        .unwrap(),
-    ];
+    let mut overflow = request;
+    overflow.prior_window_ledgers = bounded_output.window_ledgers;
+    let ledger = &mut overflow.prior_window_ledgers[0];
+    ledger.root_rows = 0;
+    ledger.scanned_rows = 0;
+    ledger.result_rows = 0;
+    ledger.result_bytes = 0;
+    ledger.index_ranges = 0;
     let refused = graph_store(&corpus, None)
         .evaluate_graph_query(&carrier.normalized_plan, &overflow)
         .expect("window-page overflow materializes");
@@ -6613,6 +6615,7 @@ fn mixed_parent_named_child_ranges_keep_per_parent_has_more() {
         .windows
         .push(serde_json::from_value(json!({"nodeId":"n2","intervals":intervals})).unwrap());
     request.advanced_node_id = "n2".to_owned();
+    rebind_request_materialization(&plan, &mut request);
     let output = graph_store(&corpus, None)
         .evaluate_graph_query(&plan, &request)
         .expect("mixed named child ranges evaluate");
@@ -6647,6 +6650,31 @@ fn ledger_for<'a>(ledgers: &'a [GraphWindowLedgerV1], node_id: &str) -> &'a Grap
         .unwrap_or_else(|| panic!("missing ledger for {node_id}"))
 }
 
+fn recompute_window_rollup(plan: &mut Value) {
+    let fields = [
+        "maxWindowPages",
+        "maxWindowRootRows",
+        "maxWindowScannedRows",
+        "maxWindowResultRows",
+        "maxWindowResultBytes",
+        "maxWindowIndexRanges",
+    ];
+    let nodes = plan["queryCost"]["graph"]["nodes"]
+        .as_array()
+        .expect("graph costs");
+    let rollup = fields
+        .into_iter()
+        .map(|field| {
+            let value = nodes
+                .iter()
+                .filter_map(|node| node[field].as_u64())
+                .sum::<u64>();
+            (field.to_owned(), json!(value))
+        })
+        .collect::<Map<_, _>>();
+    plan["queryCost"]["graph"]["windowRollup"] = Value::Object(rollup);
+}
+
 fn double_window_budget(plan: &mut Value, node_id: &str) {
     let cost = plan["queryCost"]["graph"]["nodes"]
         .as_array_mut()
@@ -6667,6 +6695,382 @@ fn double_window_budget(plan: &mut Value, node_id: &str) {
             .unwrap_or_else(|| panic!("missing {field} for {node_id}"));
         cost[field] = json!(value.checked_mul(2).expect("test window budget doubles"));
     }
+    recompute_window_rollup(plan);
+}
+
+fn rebind_request_materialization(plan: &GraphQueryPlanV1, request: &mut GraphEvaluationRequestV1) {
+    let plan_identity = graph_plan_identity_v1(plan).expect("test plan identity rebuilds");
+    let evaluated_parents = request
+        .windows
+        .iter()
+        .filter_map(|window| {
+            window
+                .intervals
+                .iter()
+                .map(|interval| interval.parent_key.clone())
+                .collect::<Option<Vec<_>>>()
+                .map(|parents| (window.node_id.clone(), parents))
+        })
+        .collect::<BTreeMap<_, _>>();
+    let instance = graph_instance_identity_v1(
+        &plan_identity,
+        &request.args,
+        request.windows.clone(),
+        &evaluated_parents,
+    )
+    .expect("test demand identity rebuilds");
+    let mut preimage = request
+        .materialization_identity
+        .as_ref()
+        .expect("test request carries host materialization custody")
+        .preimage
+        .clone();
+    preimage.graph_instance_hash = instance.instance_hash;
+    let identity = graph_materialization_identity_v1(preimage)
+        .expect("test materialization identity rebuilds");
+    request.materialization_hash = identity.materialization_hash.clone();
+    request.materialization_identity = Some(identity);
+}
+
+fn captured_parent_range_rows(
+    output: &GraphEvaluationOutputV1,
+    node_id: &str,
+    parent_key: &GraphRowKeyV1,
+) -> Vec<String> {
+    let graph_read_index = output
+        .captured_reads
+        .iter()
+        .enumerate()
+        .find_map(|(index, read)| {
+            let graph = read.graph.as_ref()?;
+            match &graph.dependency {
+                GraphCapturedDependencyV1::ParentRange {
+                    parent_key: captured,
+                    ..
+                } if graph.node_id == node_id && captured == parent_key => Some(index as u64),
+                _ => None,
+            }
+        })
+        .unwrap_or_else(|| panic!("missing {node_id} capture for {parent_key:?}"));
+    let query_read_index = output
+        .capture_attachments
+        .iter()
+        .find(|attachment| attachment.graph_read_index == graph_read_index)
+        .expect("parent range has an ordinary query attachment")
+        .ordinary_read_indices
+        .iter()
+        .copied()
+        .find(|index| output.captured_reads[*index as usize].kind == CapturedReadKind::Query)
+        .expect("parent range attaches its ordinary query");
+    output.captured_reads[query_read_index as usize]
+        .rows
+        .clone()
+}
+
+/// @ref LLP 0209#24-plan-instance-and-contextual-materialization-identity —
+/// a demand-paged child vector is keyed by parent and a continuation is the
+/// `(parentKey, key entries, key id)` tuple; it cannot route through position.
+/// @ref LLP 0209#41-per-node-production-rules — every parent keeps its own
+/// range evidence, so one parent's page cannot shadow another's interval.
+#[test]
+fn multi_parent_child_resume_routes_by_parent_and_refuses_crossed_parent() {
+    let corpus = graph_corpus();
+    let case = executable_case(&corpus, "g0-pair-list-hidden-internal-root");
+    let (carrier, mut request) = request_for_case(&corpus, case);
+    let mut plan_value = serde_json::to_value(&carrier.normalized_plan).unwrap();
+    plan_value["nodes"][2]["page"] = json!({"kind":"demand"});
+    for (field, value) in [
+        ("maxWindowPages", 2_u64),
+        ("maxWindowRootRows", 0),
+        ("maxWindowScannedRows", 67_584),
+        ("maxWindowResultRows", 2_048),
+        ("maxWindowResultBytes", 67_108_864),
+        ("maxWindowIndexRanges", 34_816),
+    ] {
+        plan_value["queryCost"]["graph"]["nodes"][2][field] = json!(value);
+    }
+    plan_value["queryCost"]["graph"]["windowRollup"] = json!({
+        "maxWindowPages":3,"maxWindowRootRows":1024,"maxWindowScannedRows":121857,
+        "maxWindowResultRows":3072,"maxWindowResultBytes":100663296,
+        "maxWindowIndexRanges":71681
+    });
+    let plan: GraphQueryPlanV1 = serde_json::from_value(plan_value.clone()).unwrap();
+    assert!(
+        graph_query_plan_faults_v1(&plan).is_empty(),
+        "multi-parent demand mutation remains admitted: {:?}",
+        graph_query_plan_faults_v1(&plan),
+    );
+
+    let tables = corpus_seed_tables(&corpus);
+    let project = request.args["projectID"].clone();
+    let allowed_visibility = request.authority.permission_values_by_table["issueListRead"]
+        .allowed_values
+        .clone();
+    let mut roots = tables["issueListRead"]
+        .iter()
+        .filter(|row| {
+            row["projectID"] == project && allowed_visibility.contains(&row["visibility"])
+        })
+        .collect::<Vec<_>>();
+    roots.sort_by(|left, right| {
+        right["modified"]
+            .as_i64()
+            .cmp(&left["modified"].as_i64())
+            .then_with(|| {
+                right["sourceIssueID"]
+                    .as_str()
+                    .cmp(&left["sourceIssueID"].as_str())
+            })
+            .then_with(|| left["_id"].as_str().cmp(&right["_id"].as_str()))
+    });
+    let children_for = |root: &Map<String, Value>| {
+        let mut children = tables["issueLabelRead"]
+            .iter()
+            .filter(|row| row["issueID"] == root["issueID"])
+            .collect::<Vec<_>>();
+        children.sort_by(|left, right| {
+            left["labelID"]
+                .as_str()
+                .cmp(&right["labelID"].as_str())
+                .then_with(|| left["_id"].as_str().cmp(&right["_id"].as_str()))
+        });
+        children
+    };
+    let selected = roots
+        .windows(2)
+        .find(|pair| children_for(pair[0]).len() >= 2 && children_for(pair[1]).len() >= 2)
+        .expect("fixture has two adjacent parents with multi-page child sets");
+    let selected = [selected[0], selected[1]];
+    let child_sets = selected.map(|root| children_for(root));
+    assert_ne!(
+        child_sets[0]
+            .iter()
+            .map(|row| row["_id"].as_str().unwrap())
+            .collect::<BTreeSet<_>>(),
+        child_sets[1]
+            .iter()
+            .map(|row| row["_id"].as_str().unwrap())
+            .collect::<BTreeSet<_>>(),
+        "the two parents have distinct physical child sets",
+    );
+
+    let root_end = |row: &Map<String, Value>| {
+        serde_json::from_value(json!({
+            "kind":"inclusive","key":{
+                "entries":[["modified",row["modified"]],["sourceIssueID",row["sourceIssueID"]]],
+                "id":row["_id"]
+            }
+        }))
+        .unwrap()
+    };
+    request.windows[0].intervals[0].window.lower = root_end(selected[0]);
+    request.windows[0].intervals[0].window.upper = root_end(selected[1]);
+    request.windows[0].intervals[0].window.take = 2;
+    let child_order = match &plan.nodes[2] {
+        GraphNodeV1::BoundedToMany { order, .. } => order.clone(),
+        _ => panic!("n2 is the bounded child"),
+    };
+    let mut intervals = selected
+        .iter()
+        .map(|root| {
+            serde_json::from_value(json!({
+                "parentKey":{"table":"issueListRead","id":root["_id"]},
+                "window":{
+                    "order":child_order,"direction":"forward",
+                    "lower":{"kind":"unbounded"},"upper":{"kind":"unbounded"},"take":1
+                }
+            }))
+            .unwrap()
+        })
+        .collect::<Vec<GraphParentWindowIdentityV1>>();
+    intervals.sort_by_key(|interval| {
+        snapback_types::rqs_contract::jcs(
+            &serde_json::to_value(&interval.parent_key).expect("parent key serializes"),
+        )
+        .expect("parent key canonicalizes")
+    });
+    request.windows.push(GraphNodeWindowIdentityV1 {
+        node_id: "n2".to_owned(),
+        intervals,
+    });
+    request.advanced_node_id = "n2".to_owned();
+    rebind_request_materialization(&plan, &mut request);
+    let first = graph_store(&corpus, None)
+        .evaluate_graph_query(&plan, &request)
+        .expect("both parent first pages evaluate");
+
+    let child_window = request
+        .windows
+        .iter()
+        .find(|window| window.node_id == "n2")
+        .expect("child demand entry");
+    assert_eq!(child_window.intervals.len(), 2);
+    assert_eq!(
+        child_window
+            .intervals
+            .iter()
+            .map(|interval| interval.parent_key.clone().unwrap())
+            .collect::<BTreeSet<_>>(),
+        selected
+            .iter()
+            .map(|root| GraphRowKeyV1 {
+                table: "issueListRead".to_owned(),
+                id: root["_id"].as_str().unwrap().to_owned(),
+            })
+            .collect(),
+        "the demand vector carries both keyed per-parent intervals",
+    );
+    let proof = first
+        .node_completeness
+        .iter()
+        .find(|proof| proof.node_id == "n2")
+        .expect("child proof");
+    let ranges = proof.proof["ranges"]
+        .as_array()
+        .expect("child prefix ranges");
+    assert_eq!(ranges.len(), 2);
+    let advanced_parent = GraphRowKeyV1 {
+        table: "issueListRead".to_owned(),
+        id: selected[0]["_id"].as_str().unwrap().to_owned(),
+    };
+    let untouched_parent = GraphRowKeyV1 {
+        table: "issueListRead".to_owned(),
+        id: selected[1]["_id"].as_str().unwrap().to_owned(),
+    };
+    let continuation_for = |parent: &GraphRowKeyV1| {
+        ranges
+            .iter()
+            .find(|range| range["parentKey"] == serde_json::to_value(parent).unwrap())
+            .expect("parent prefix range")["continuation"]
+            .clone()
+    };
+    let advanced_continuation = continuation_for(&advanced_parent);
+    let untouched_continuation = continuation_for(&untouched_parent);
+
+    let mut resumed = request.clone();
+    resumed.prior_window_ledgers = first.window_ledgers.clone();
+    let before_intervals = resumed.windows[1].intervals.clone();
+    let advanced_index = resumed.windows[1]
+        .intervals
+        .iter()
+        .position(|interval| interval.parent_key.as_ref() == Some(&advanced_parent))
+        .unwrap();
+    resumed.windows[1].intervals[advanced_index].window.lower =
+        serde_json::from_value(json!({"kind":"exclusive","key":advanced_continuation})).unwrap();
+    let untouched_index = resumed.windows[1]
+        .intervals
+        .iter()
+        .position(|interval| interval.parent_key.as_ref() == Some(&untouched_parent))
+        .unwrap();
+    assert_eq!(
+        resumed.windows[1].intervals[untouched_index], before_intervals[untouched_index],
+        "the other parent's interval stays byte-for-byte unchanged",
+    );
+    rebind_request_materialization(&plan, &mut resumed);
+    let second = graph_store(&corpus, None)
+        .evaluate_graph_query(&plan, &resumed)
+        .expect("one keyed parent resumes independently");
+    assert_eq!(
+        captured_parent_range_rows(&second, "n2", &advanced_parent),
+        vec![child_sets[0][1]["_id"].as_str().unwrap().to_owned()],
+        "the resumed range contains exactly the advanced parent's next row",
+    );
+    assert_eq!(
+        captured_parent_range_rows(&second, "n2", &untouched_parent),
+        vec![child_sets[1][0]["_id"].as_str().unwrap().to_owned()],
+        "the untouched parent still evaluates its unchanged first interval",
+    );
+
+    let mut wrong_parent = request.clone();
+    wrong_parent.prior_window_ledgers = first.window_ledgers;
+    let wrong_index = wrong_parent.windows[1]
+        .intervals
+        .iter()
+        .position(|interval| interval.parent_key.as_ref() == Some(&untouched_parent))
+        .unwrap();
+    wrong_parent.windows[1].intervals[wrong_index].window.lower =
+        serde_json::from_value(json!({"kind":"exclusive","key":advanced_continuation})).unwrap();
+    rebind_request_materialization(&plan, &mut wrong_parent);
+    assert_eq!(
+        graph_store(&corpus, None)
+            .evaluate_graph_query(&plan, &wrong_parent)
+            .unwrap_err()
+            .diagnostic
+            .code,
+        "SNAPBACK_GRAPH_CURSOR_UNBOUND",
+        "LLP 0209 §2.4 refuses a page-two key crossed onto another parent",
+    );
+    assert_ne!(advanced_continuation, untouched_continuation);
+}
+
+/// @ref LLP 0209#24-plan-instance-and-contextual-materialization-identity —
+/// a cumulative ledger authenticates its exact materialization and demand
+/// lineage; same-node counters from another identity refuse rather than
+/// silently restarting page evaluation.
+#[test]
+fn continuation_ledgers_refuse_crossed_materialization_direction_and_demand() {
+    let corpus = graph_corpus();
+    let case = executable_case(&corpus, "g0-pair-list-hidden-internal-root");
+    let (carrier, request) = request_for_case(&corpus, case);
+    let first = graph_store(&corpus, None)
+        .evaluate_graph_query(&carrier.normalized_plan, &request)
+        .expect("first page mints authenticated ledger lineages");
+    assert_eq!(
+        serde_json::to_value(&first.window_ledgers).unwrap(),
+        case["expect"]["windowLedgers"],
+        "lineage custody does not change existing frozen ledger bytes",
+    );
+
+    let assert_cursor_unbound = |context: &str, crossed: GraphEvaluationRequestV1| {
+        assert_eq!(
+            graph_store(&corpus, None)
+                .evaluate_graph_query(&carrier.normalized_plan, &crossed)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_GRAPH_CURSOR_UNBOUND",
+            "{context} refuses in the cursor/ledger register",
+        );
+    };
+
+    let mut crossed_materialization = request.clone();
+    crossed_materialization.prior_window_ledgers = first.window_ledgers.clone();
+    let mut preimage = crossed_materialization
+        .materialization_identity
+        .as_ref()
+        .unwrap()
+        .preimage
+        .clone();
+    preimage.deployment_id.push_str("-crossed");
+    let identity = graph_materialization_identity_v1(preimage).unwrap();
+    crossed_materialization.materialization_hash = identity.materialization_hash.clone();
+    crossed_materialization.materialization_identity = Some(identity);
+    assert_cursor_unbound("crossed materialization", crossed_materialization);
+
+    let mut crossed_direction = request.clone();
+    crossed_direction.prior_window_ledgers = first.window_ledgers.clone();
+    crossed_direction.windows[0].intervals[0].window.direction =
+        match crossed_direction.windows[0].intervals[0].window.direction {
+            GraphDirectionV1::Forward => GraphDirectionV1::Backward,
+            GraphDirectionV1::Backward => GraphDirectionV1::Forward,
+        };
+    rebind_request_materialization(&carrier.normalized_plan, &mut crossed_direction);
+    assert_cursor_unbound("crossed direction", crossed_direction);
+
+    let mut crossed_demand = request.clone();
+    crossed_demand.prior_window_ledgers = first.window_ledgers.clone();
+    crossed_demand.windows[0].intervals[0].window.take = crossed_demand.windows[0].intervals[0]
+        .window
+        .take
+        .saturating_sub(1)
+        .max(1);
+    rebind_request_materialization(&carrier.normalized_plan, &mut crossed_demand);
+    assert_cursor_unbound("crossed demand vector", crossed_demand);
+
+    let mut deserialized = request;
+    deserialized.prior_window_ledgers =
+        serde_json::from_value(serde_json::to_value(&first.window_ledgers).unwrap()).unwrap();
+    assert_cursor_unbound("unauthenticated deserialized counters", deserialized);
 }
 
 fn assert_first_page_charged(
@@ -6718,7 +7122,13 @@ fn child_and_sibling_continuations_advance_only_the_bound_lineage() {
     let mut child_plan_value = serde_json::to_value(&carrier.normalized_plan).unwrap();
     double_window_budget(&mut child_plan_value, "n2");
     let child_plan: GraphQueryPlanV1 = serde_json::from_value(child_plan_value).unwrap();
+    assert!(
+        graph_query_plan_faults_v1(&child_plan).is_empty(),
+        "child continuation test plan remains admitted: {:?}",
+        graph_query_plan_faults_v1(&child_plan),
+    );
     child_request.advanced_node_id = "n2".to_owned();
+    rebind_request_materialization(&child_plan, &mut child_request);
     let first_child_output = graph_store(&corpus, None)
         .evaluate_graph_query(&child_plan, &child_request)
         .expect("first page charges every evaluated demand lineage");
@@ -6758,14 +7168,20 @@ fn child_and_sibling_continuations_advance_only_the_bound_lineage() {
     for (field, value) in [
         ("maxWindowPages", 2_u64),
         ("maxWindowRootRows", 0),
-        ("maxWindowScannedRows", 128),
+        ("maxWindowScannedRows", 66),
         ("maxWindowResultRows", 2),
         ("maxWindowResultBytes", 16_777_216),
-        ("maxWindowIndexRanges", 128),
+        ("maxWindowIndexRanges", 34),
     ] {
         plan_value["queryCost"]["graph"]["nodes"][4][field] = json!(value);
     }
+    recompute_window_rollup(&mut plan_value);
     let sibling_plan: GraphQueryPlanV1 = serde_json::from_value(plan_value).unwrap();
+    assert!(
+        graph_query_plan_faults_v1(&sibling_plan).is_empty(),
+        "sibling continuation test plan remains admitted: {:?}",
+        graph_query_plan_faults_v1(&sibling_plan),
+    );
     let parent_key = sibling_request.windows[1].intervals[0]
         .parent_key
         .clone()
@@ -6791,6 +7207,7 @@ fn child_and_sibling_continuations_advance_only_the_bound_lineage() {
         .unwrap(),
     );
     sibling_request.advanced_node_id = "n4".to_owned();
+    rebind_request_materialization(&sibling_plan, &mut sibling_request);
     let first_sibling_output = graph_store(&corpus, None)
         .evaluate_graph_query(&sibling_plan, &sibling_request)
         .expect("first page charges the added demand sibling too");
@@ -6928,6 +7345,7 @@ fn class_two_context_is_complete_per_declared_policy_input_kind() {
             }
             GraphPolicyInputKindV1::PermissionBacking => unreachable!(),
         }
+        rebind_request_materialization(&plan, &mut request);
         let output = graph_store(&corpus, None)
             .evaluate_graph_query(&plan, &request)
             .unwrap_or_else(|error| panic!("{edge_case_id}: {error:?}"));
@@ -6941,6 +7359,7 @@ fn class_two_context_is_complete_per_declared_policy_input_kind() {
     let mut missing = request;
     missing.authority.permission_values_by_table.clear();
     missing.authority.resolved_membership_inputs.clear();
+    rebind_request_materialization(&membership_plan, &mut missing);
     let refused = graph_store(&corpus, None)
         .evaluate_graph_query(&membership_plan, &missing)
         .expect("missing declared membership input fails closed as a materialized result");
@@ -6970,6 +7389,7 @@ fn optional_argument_omission_stays_absent_with_zero_cardinality() {
         .as_object_mut()
         .unwrap()
         .remove("selectedLabelIDs");
+    rebind_request_materialization(&plan, &mut request);
 
     let output = graph_store(&corpus, None)
         .evaluate_graph_query(&plan, &request)
@@ -6993,6 +7413,7 @@ fn root_and_child_zero_take_emit_unknown_without_continuations() {
     let root_case = executable_case(&corpus, "g0-pair-list-hidden-internal-root");
     let (root_carrier, mut root_request) = request_for_case(&corpus, root_case);
     root_request.windows[0].intervals[0].window.take = 0;
+    rebind_request_materialization(&root_carrier.normalized_plan, &mut root_request);
     let root_output = graph_store(&corpus, None)
         .evaluate_graph_query(&root_carrier.normalized_plan, &root_request)
         .expect("root take zero evaluates without a panic path");
@@ -7009,6 +7430,7 @@ fn root_and_child_zero_take_emit_unknown_without_continuations() {
     let (child_carrier, mut child_request) = request_for_case(&corpus, child_case);
     child_request.windows[1].intervals[0].window.take = 0;
     child_request.advanced_node_id = "n2".to_owned();
+    rebind_request_materialization(&child_carrier.normalized_plan, &mut child_request);
     let child_output = graph_store(&corpus, None)
         .evaluate_graph_query(&child_carrier.normalized_plan, &child_request)
         .expect("child take zero evaluates without a panic path");
@@ -8737,8 +9159,74 @@ fn execute_two_way_sequence(
 
         if sequence["liveReplacement"]["stepId"] == step_id {
             let replacement = &sequence["liveReplacement"];
+            // The replacement is the one served-only observation in this
+            // artifact. Exercise it on a separate retained lineage so its
+            // publication charge cannot be discarded by the evaluator/served
+            // page-two parity walk below.
+            let mut replacement_served = filter_order_store(corpus, fixture, "present");
+            replacement_served.declare_graph_query_v1_capability();
+            let diagnostics =
+                replacement_served.load_functions(served_graph_manifest(corpus, &served_carriers));
+            assert!(
+                diagnostics
+                    .iter()
+                    .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error),
+                "{step_id} replacement manifest diagnostics: {diagnostics:#?}",
+            );
+            replacement_served.install_graph_serving_authority_context_for_test(
+                query,
+                GraphServingAuthorityContextV1 {
+                    evaluation: authority.clone(),
+                    class2: serde_json::from_value(call["partition"]["class2"].clone())
+                        .expect("replacement class-2 inputs"),
+                },
+            );
+            let replacement_connection_id = format!("{connection_id}-replacement");
+            let mut replacement_args = call["args"].as_object().unwrap().clone();
+            replacement_args.insert(
+                snapback_engine::graph_evaluator::GRAPH_SERVING_DEMAND_ARG.to_owned(),
+                json!({
+                    "format":"snapback.graph-serving-demand.v1",
+                    "windows":call["windows"],
+                    "advancedNodeId":target_node_id,
+                    "priorWindowLedgers":[],
+                }),
+            );
+            let replacement_established = replacement_served
+                .subscribe_live(
+                    query,
+                    LiveSubscribeInput {
+                        connection_id: replacement_connection_id.clone(),
+                        input: HandlerInput {
+                            args: Value::Object(replacement_args),
+                            auth: authority.auth.clone(),
+                            read_set: Vec::new(),
+                            correlation: None,
+                            ctx_ledger: None,
+                        },
+                        authorization_namespace: None,
+                        supersedes: None,
+                        resume_from_token: None,
+                    },
+                )
+                .unwrap_or_else(|error| panic!("establish replacement {step_id}: {error:?}"));
+            assert_eq!(
+                replacement_established
+                    .snapshot
+                    .as_ref()
+                    .expect("replacement establishment snapshot")
+                    .rows,
+                expected_rows,
+                "{step_id} replacement starts from the same page",
+            );
+            assert!(
+                replacement_served
+                    .drain_live_stream(&replacement_connection_id)
+                    .is_empty(),
+                "{step_id} replacement establishment has no asynchronous frame",
+            );
             invoke_graph_corpus_mutation(
-                &mut served,
+                &mut replacement_served,
                 replacement["mutation"]
                     .as_str()
                     .expect("two-way live mutation"),
@@ -8748,9 +9236,9 @@ fn execute_two_way_sequence(
                 },
             )
             .unwrap_or_else(|error| panic!("mutate {step_id}: {error:?}"));
-            let _ = served.flush_pending_live_fanout();
-            let frames = served
-                .drain_live_stream(&connection_id)
+            let _ = replacement_served.flush_pending_live_fanout();
+            let frames = replacement_served
+                .drain_live_stream(&replacement_connection_id)
                 .into_iter()
                 .map(|frame| serde_json::from_str::<Value>(&frame).expect("two-way live frame"))
                 .collect::<Vec<_>>();
@@ -8769,12 +9257,8 @@ fn execute_two_way_sequence(
                 frames[0]["rows"], expected_after,
                 "{step_id} replacement rows"
             );
-            let mut replacement_observation = served
-                .graph_serving_observation_for_test(
-                    supersedes
-                        .as_deref()
-                        .expect("retained backward subscription"),
-                )
+            let mut replacement_observation = replacement_served
+                .graph_serving_observation_for_test(&replacement_established.subscription_id)
                 .expect("backward replacement observation");
             normalize_snapshot_tuple(&mut replacement_observation);
             normalize_served_harness_identity(&mut replacement_observation);

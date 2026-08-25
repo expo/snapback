@@ -12,7 +12,7 @@ Status: implemented and frozen locally; ticket intentionally remains open until 
 
 Implementation commit: `9cd114fe8` (`feat(graph): execute two-way window corpus`).
 
-The additive `twoWayWindows` corpus section and `two-way-window-observations.v1.json` execute 32 exact evaluator observations, with served-path parity for every initial/resume observation. Four existing selectable root orders plus two nullable orders run forward and backward in two pages. The child `comments` demand range runs two pages in both directions. Inclusive/exclusive backward bounds, NULL-last ordering, SQL/matcher NULL-`Lt` three-valued logic, and a backward-established live replacement are separate executable cases.
+The additive `twoWayWindows` corpus section and `two-way-window-observations.v1.json` execute 31 exact evaluator observations plus 1 served-only live replacement, with served-path parity for every initial/resume evaluator observation. Four existing selectable root orders plus two nullable orders run forward and backward in two pages. The child `comments` demand range runs two pages in both directions. Inclusive/exclusive backward bounds, NULL-last ordering, SQL/matcher NULL-`Lt` three-valued logic, and a backward-established live replacement are separate executable cases.
 
 Backward oracle rows carry the C1 mechanical disposition derived from raw-vs-normalized order comparison. A normalized row names `issues/20260823-zerobugs-control-descending-tiebreak-deviation.md`; an unnormalized row is explicitly `exact`. The inverted logical/physical Matrix tie fixture remains load-bearing. Existing graph corpus rows and sealed artifacts are preserved; the added array-bearing/backward carriers remain outside G3 delta eligibility.
 

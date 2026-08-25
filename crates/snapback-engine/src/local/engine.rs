@@ -22720,7 +22720,7 @@ impl LocalSnapback {
             None
         };
 
-        let subscription_input = retained_authority.canonicalize_input(input.input);
+        let mut subscription_input = retained_authority.canonicalize_input(input.input);
         if matches!(
             function.runtime,
             FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(_))
@@ -22801,6 +22801,15 @@ impl LocalSnapback {
             },
             None => None,
         };
+        if let Some(previous_id) = superseded_subscription_id.as_ref()
+            && let Some(previous) = self.subscriptions.get(previous_id)
+            && let Some(graph) = previous.graph_serving.as_ref()
+        {
+            bind_server_graph_continuation(
+                &mut subscription_input,
+                &graph.evaluation.window_ledgers,
+            )?;
+        }
         let release = usize::from(superseded_subscription_id.is_some());
 
         // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — retained
@@ -41458,6 +41467,8 @@ fn live_subscription_rerun_input(subscription: &LiveSubscription) -> SnapbackRes
             )
         })?;
     demand.prior_window_ledgers = graph.evaluation.window_ledgers.clone();
+    demand.prior_window_ledger_lineages =
+        crate::graph_evaluator::graph_window_ledger_lineages(&demand.prior_window_ledgers)?;
     *encoded = serde_json::to_value(demand).map_err(|error| {
         graph_serving_error(
             "SNAPBACK_GRAPH_DEMAND_INVALID",
@@ -41484,7 +41495,7 @@ fn graph_serving_demand(
                 "served graph queries require the exact graph demand carrier",
             )
         })?;
-    let demand: crate::graph_evaluator::GraphServingDemandV1 = serde_json::from_value(encoded)
+    let mut demand: crate::graph_evaluator::GraphServingDemandV1 = serde_json::from_value(encoded)
         .map_err(|error| {
             graph_serving_error(
                 "SNAPBACK_GRAPH_DEMAND_INVALID",
@@ -41497,7 +41508,52 @@ fn graph_serving_demand(
             "graph demand carrier has an unsupported format",
         ));
     }
+    crate::graph_evaluator::attach_graph_window_ledger_lineages(
+        &mut demand.prior_window_ledgers,
+        &demand.prior_window_ledger_lineages,
+    )?;
     Ok((input, demand))
+}
+
+fn bind_server_graph_continuation(
+    input: &mut HandlerInput,
+    retained: &[crate::graph_evaluator::GraphWindowLedgerV1],
+) -> SnapbackResult<()> {
+    let Some(encoded) = input
+        .args
+        .as_object_mut()
+        .and_then(|args| args.get_mut(crate::graph_evaluator::GRAPH_SERVING_DEMAND_ARG))
+    else {
+        return Ok(());
+    };
+    let mut demand: crate::graph_evaluator::GraphServingDemandV1 =
+        serde_json::from_value(encoded.clone()).map_err(|error| {
+            graph_serving_error(
+                "SNAPBACK_GRAPH_DEMAND_INVALID",
+                format!("superseding graph demand carrier is invalid: {error}"),
+            )
+        })?;
+    if demand.prior_window_ledgers.is_empty() {
+        return Ok(());
+    }
+    if serde_json::to_value(&demand.prior_window_ledgers).ok()
+        != serde_json::to_value(retained).ok()
+    {
+        return Err(graph_serving_error(
+            "SNAPBACK_GRAPH_CURSOR_UNBOUND",
+            "superseding graph demand counters do not match the retained server lineage",
+        ));
+    }
+    demand.prior_window_ledgers = retained.to_vec();
+    demand.prior_window_ledger_lineages =
+        crate::graph_evaluator::graph_window_ledger_lineages(retained)?;
+    *encoded = serde_json::to_value(demand).map_err(|error| {
+        graph_serving_error(
+            "SNAPBACK_GRAPH_DEMAND_INVALID",
+            format!("superseding graph demand carrier could not be authenticated: {error}"),
+        )
+    })?;
+    Ok(())
 }
 
 fn graph_demand_is_root_first_page(
@@ -42992,6 +43048,7 @@ fn execute_query_invocation(
                 windows: demand.windows.clone(),
                 advanced_node_id: demand.advanced_node_id.clone(),
                 materialization_hash: materialization.materialization_hash.clone(),
+                materialization_identity: Some(materialization.clone()),
                 partition_hash: partition.partition_hash.clone(),
                 authorization_version,
                 evaluation_cut: crate::manifest::GraphEvaluationCutV1(evaluation_cut),

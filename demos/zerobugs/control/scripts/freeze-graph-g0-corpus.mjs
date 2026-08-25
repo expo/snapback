@@ -1379,23 +1379,25 @@ function graphCompareValue(left, right) {
   return left < right ? -1 : 1;
 }
 
-function graphSortRows(rows, order, direction = 'forward') {
+function graphCompareRows(left, right, order, direction = 'forward') {
   const reversed = direction === 'backward';
-  return [...rows].sort((left, right) => {
-    for (const component of order) {
-      const leftValue = left[component.field];
-      const rightValue = right[component.field];
-      const leftNull = leftValue === null || leftValue === undefined;
-      const rightNull = rightValue === null || rightValue === undefined;
-      if (leftNull !== rightNull) return leftNull ? 1 : -1;
-      const declared = component.direction === 'Desc' ? -1 : 1;
-      const compared = graphCompareValue(leftValue, rightValue);
-      if (compared !== 0) return compared * declared * (reversed ? -1 : 1);
-    }
-    // LLP 0007/0209: physical `_id` is always the ascending tie rule, even
-    // for backward traversal.
-    return graphCompareValue(left._id, right._id);
-  });
+  for (const component of order) {
+    const leftValue = left[component.field];
+    const rightValue = right[component.field];
+    const leftNull = leftValue === null || leftValue === undefined;
+    const rightNull = rightValue === null || rightValue === undefined;
+    if (leftNull !== rightNull) return leftNull ? 1 : -1;
+    const declared = component.direction === 'Desc' ? -1 : 1;
+    const compared = graphCompareValue(leftValue, rightValue);
+    if (compared !== 0) return compared * declared * (reversed ? -1 : 1);
+  }
+  // LLP 0007/0209: physical `_id` is always the ascending tie rule, even
+  // for backward traversal.
+  return graphCompareValue(left._id, right._id);
+}
+
+function graphSortRows(rows, order, direction = 'forward') {
+  return [...rows].sort((left, right) => graphCompareRows(left, right, order, direction));
 }
 
 function evaluateIssueSummaryCorpusInternal(tables, args, allowedVisibility, take = 1_024) {
@@ -2271,11 +2273,47 @@ async function freezeTwoWayWindows({
     boundedRoot.order,
     'backward',
   );
-  const boundedDisposition = rootWalks.find(walk => (
-    walk.query === 'issueListMatrixProjectModifiedDesc' && walk.direction === 'backward'
-  )).normalizationDisposition;
-  const boundedCases = ['inclusive', 'exclusive'].map(kind => {
+  const boundedCases = [];
+  for (const kind of ['inclusive', 'exclusive']) {
     const selected = kind === 'inclusive' ? boundedRows.slice(1, 7) : boundedRows.slice(2, 6);
+    const lowerRow = boundedRows[1];
+    const upperRow = boundedRows[6];
+    // The opaque handler's cursor tie uses source id, so it cannot directly
+    // spell the graph interval's physical `_id` endpoints. Traverse the raw
+    // oracle independently, apply those exact decoded endpoints mechanically,
+    // then let normalizationDisposition prove row-set parity and ordering for
+    // this case alone.
+    const raw = await listHandler(mockContext(tables, principal), {
+      listContext: defaultListContext({
+        projectName, sortField: 'modified', sortDirection: 'desc',
+      }),
+      limit: 1_023,
+      start: null,
+      dir: 'backward',
+      inclusive: false,
+    });
+    assert.equal(raw[0].status, 'complete', `bounded ${kind} raw oracle completes`);
+    const rawIntervalRows = raw[0].items
+      .map(item => tables.issueListRead.find(row => row.sourceIssueID === item.issue.id))
+      .map(row => {
+        assert(row, `bounded ${kind} raw oracle row maps to its physical read-model row`);
+        return row;
+      })
+      .filter(row => {
+        const afterLower = graphCompareRows(row, lowerRow, boundedRoot.order, 'backward');
+        const beforeUpper = graphCompareRows(row, upperRow, boundedRoot.order, 'backward');
+        return kind === 'inclusive'
+          ? afterLower >= 0 && beforeUpper <= 0
+          : afterLower > 0 && beforeUpper < 0;
+      });
+    const rawOrder = rawIntervalRows.map(row => row.sourceIssueID);
+    const normalizedOrder = selected.map(row => row.sourceIssueID);
+    const boundedDisposition = normalizationDisposition(
+      rawOrder,
+      normalizedOrder,
+      'backward',
+      'zerobugs-serving-control-opaque-handler-bounded-interval',
+    );
     const windows = rootWindow(
       boundedRoot,
       'backward',
@@ -2287,7 +2325,7 @@ async function freezeTwoWayWindows({
       boundedCarrier, boundedArgs, principal, 0, 'issueListMatrixProjectModifiedDesc', [],
       {windows, advancedNodeId: boundedRoot.nodeId},
     );
-    return {
+    boundedCases.push({
       id: `issueListMatrixProjectModifiedDesc-backward-bounded-${kind}`,
       query: 'issueListMatrixProjectModifiedDesc',
       direction: 'backward',
@@ -2303,8 +2341,8 @@ async function freezeTwoWayWindows({
         nodeLabel: 'window', graphLabel: 'window', hasMore: false,
         sourceExhausted: null, continuation: null,
       },
-    };
-  });
+    });
+  }
 
   const nullFilterCarrier = carriers.issueListWindowsAssigneeBefore;
   const nullFilterRoot = nullFilterCarrier.normalizedPlan.nodes.find(node => node.kind === 'root-window');

@@ -11,10 +11,11 @@ use crate::manifest::{
     GraphCapturedReadAttachmentV1, GraphCapturedReadV1, GraphChildPageV1, GraphCompletenessLabelV1,
     GraphCompositionProofV1, GraphDataNodeKindV1, GraphEdgeV1, GraphEvaluationCutV1,
     GraphEvaluationTimeRefusalReasonV1, GraphExistsModeV1, GraphIntervalEndV1, GraphLiteralPageV1,
-    GraphMaterializedRefusalReasonV1, GraphNodeCompletenessProofClassV1,
-    GraphNodeCompletenessProofV1, GraphNodeKindV1, GraphNodeV1, GraphNodeWindowIdentityV1,
-    GraphProjectionLiteralV1, GraphProjectionObjectV1, GraphProjectionValueV1, GraphQueryPlanV1,
-    GraphRowKeyV1, GraphToOnePresenceV1, GraphWindowIdentityV1, HandlerInput, OrderDirection,
+    GraphMaterializationIdentityV1, GraphMaterializedRefusalReasonV1,
+    GraphNodeCompletenessProofClassV1, GraphNodeCompletenessProofV1, GraphNodeKindV1, GraphNodeV1,
+    GraphNodeWindowIdentityV1, GraphParentWindowIdentityV1, GraphProjectionLiteralV1,
+    GraphProjectionObjectV1, GraphProjectionValueV1, GraphQueryPlanV1, GraphRowKeyV1,
+    GraphToOnePresenceV1, GraphWindowIdentityV1, HandlerInput, KeysetKeyV1, OrderDirection,
     OrderExpr, QueryPlan, Sha256V1, TableVisibilityV1, ValueExpr, graph_instance_identity_v1,
     graph_plan_identity_v1, validate_graph_arguments_v1, validate_graph_window_vector_v1,
 };
@@ -41,6 +42,11 @@ pub struct GraphServingDemandV1 {
     pub advanced_node_id: String,
     #[serde(default)]
     pub prior_window_ledgers: Vec<GraphWindowLedgerV1>,
+    /// Server-carried authentication records for `prior_window_ledgers`.
+    /// Evaluator results omit these records so frozen observation JSON stays
+    /// byte-identical; retained serving state reattaches them at this seam.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub prior_window_ledger_lineages: Vec<GraphWindowLedgerLineageV1>,
     /// Additive DK-3 negotiation. Absent or unknown values keep graph
     /// subscriptions replace-compatible.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -88,6 +94,10 @@ pub struct GraphEvaluationRequestV1 {
     /// evaluated demand lineage; continuation siblings carry byte-for-byte.
     pub advanced_node_id: String,
     pub materialization_hash: Sha256V1,
+    /// Host-recomputed outer identity used to authenticate cumulative
+    /// ledgers. This is internal custody, not frozen request/result surface.
+    #[serde(skip)]
+    pub materialization_identity: Option<GraphMaterializationIdentityV1>,
     pub partition_hash: Sha256V1,
     pub authorization_version: crate::storage::AuthorizationVersion,
     pub evaluation_cut: GraphEvaluationCutV1,
@@ -106,6 +116,33 @@ pub struct GraphWindowLedgerV1 {
     pub result_rows: u64,
     pub result_bytes: u64,
     pub index_ranges: u64,
+    /// Retained beside the counters in memory and omitted from evaluator and
+    /// inspection JSON so existing frozen corpus rows remain byte-identical.
+    #[serde(skip)]
+    lineage: Option<GraphWindowLedgerLineageV1>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GraphWindowLedgerContinuationV1 {
+    pub parent_key: Option<GraphRowKeyV1>,
+    pub key: KeysetKeyV1,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+/// @ref LLP 0209#24-plan-instance-and-contextual-materialization-identity —
+/// cumulative counters ride beside continuation custody authenticated to the
+/// exact materialization, demand node, and canonical per-parent intervals.
+pub struct GraphWindowLedgerLineageV1 {
+    pub node_id: String,
+    pub materialization_context_hash: Sha256V1,
+    pub plan_hash: Sha256V1,
+    pub args_digest: Sha256V1,
+    pub partition_hash: Sha256V1,
+    pub intervals: Vec<GraphParentWindowIdentityV1>,
+    pub continuations: Vec<GraphWindowLedgerContinuationV1>,
+    pub lineage_hash: Sha256V1,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, JsonSchema, PartialEq, Serialize)]
@@ -2642,6 +2679,180 @@ fn demand_costs(plan: &GraphQueryPlanV1) -> Vec<&crate::manifest::GraphNodeCostV
         .collect()
 }
 
+fn cursor_unbound(message: impl Into<String>) -> SnapbackError {
+    SnapbackError::error("SNAPBACK_GRAPH_CURSOR_UNBOUND", "query", message.into())
+}
+
+fn lineage_hash(lineage: &GraphWindowLedgerLineageV1) -> SnapbackResult<Sha256V1> {
+    captured_value_digest(
+        b"snapback:graph-window-ledger-lineage:v1:",
+        &json!({
+            "format":"snapback.graph-window-ledger-lineage.v1",
+            "nodeId":lineage.node_id,
+            "materializationContextHash":lineage.materialization_context_hash,
+            "planHash":lineage.plan_hash,
+            "argsDigest":lineage.args_digest,
+            "partitionHash":lineage.partition_hash,
+            "intervals":lineage.intervals,
+            "continuations":lineage.continuations,
+        }),
+    )
+}
+
+fn current_lineage(
+    plan: &GraphQueryPlanV1,
+    request: &GraphEvaluationRequestV1,
+    node_id: &str,
+    continuations: Vec<GraphWindowLedgerContinuationV1>,
+) -> SnapbackResult<GraphWindowLedgerLineageV1> {
+    let materialization = request.materialization_identity.as_ref().ok_or_else(|| {
+        cursor_unbound("graph window ledger is missing host materialization custody")
+    })?;
+    if materialization.materialization_hash != request.materialization_hash {
+        return Err(cursor_unbound(
+            "graph window ledger materialization hash does not match host custody",
+        ));
+    }
+    let plan_identity = graph_plan_identity_v1(plan)
+        .map_err(|_| cursor_unbound("graph window ledger plan identity cannot be rebuilt"))?;
+    let evaluated_parents = supplied_parent_sets(request);
+    let instance = graph_instance_identity_v1(
+        &plan_identity,
+        &request.args,
+        request.windows.clone(),
+        &evaluated_parents,
+    )
+    .map_err(|_| cursor_unbound("graph window ledger demand identity cannot be rebuilt"))?;
+    if materialization.preimage.graph_instance_hash != instance.instance_hash {
+        return Err(cursor_unbound(
+            "graph window ledger materialization does not bind the current demand",
+        ));
+    }
+    let intervals = instance
+        .preimage
+        .windows
+        .iter()
+        .find(|window| window.node_id == node_id)
+        .map(|window| window.intervals.clone())
+        .ok_or_else(|| cursor_unbound("graph window ledger node has no demand vector entry"))?;
+    let mut context = serde_json::to_value(&materialization.preimage).map_err(|_| {
+        cursor_unbound("graph window ledger materialization context cannot be serialized")
+    })?;
+    context
+        .as_object_mut()
+        .expect("materialization preimage serializes as an object")
+        .remove("graphInstanceHash");
+    let materialization_context_hash =
+        captured_value_digest(b"snapback:graph-window-ledger-context:v1:", &context)?;
+    let mut lineage = GraphWindowLedgerLineageV1 {
+        node_id: node_id.to_owned(),
+        materialization_context_hash,
+        plan_hash: plan_identity.plan_hash,
+        args_digest: instance.preimage.args_digest,
+        partition_hash: request.partition_hash.clone(),
+        intervals,
+        continuations,
+        lineage_hash: Sha256V1::new(format!("sha256:{}", "0".repeat(64)))
+            .expect("zero digest is valid"),
+    };
+    lineage.lineage_hash = lineage_hash(&lineage)?;
+    Ok(lineage)
+}
+
+fn continuation_for_parent<'a>(
+    lineage: &'a GraphWindowLedgerLineageV1,
+    parent_key: &Option<GraphRowKeyV1>,
+) -> Option<&'a KeysetKeyV1> {
+    lineage
+        .continuations
+        .iter()
+        .find(|continuation| &continuation.parent_key == parent_key)
+        .map(|continuation| &continuation.key)
+}
+
+fn keyset_keys_match(left: &KeysetKeyV1, right: &KeysetKeyV1) -> bool {
+    let left = serde_json::to_value(left)
+        .ok()
+        .and_then(|value| snapback_types::rqs_contract::jcs(&value).ok());
+    let right = serde_json::to_value(right)
+        .ok()
+        .and_then(|value| snapback_types::rqs_contract::jcs(&value).ok());
+    left.is_some() && left == right
+}
+
+fn prior_lineage_matches_current(
+    prior: &GraphWindowLedgerLineageV1,
+    current: &GraphWindowLedgerLineageV1,
+    may_advance: bool,
+) -> bool {
+    if lineage_hash(prior).ok().as_ref() != Some(&prior.lineage_hash)
+        || prior.node_id != current.node_id
+        || prior.materialization_context_hash != current.materialization_context_hash
+        || prior.plan_hash != current.plan_hash
+        || prior.args_digest != current.args_digest
+        || prior.partition_hash != current.partition_hash
+        || prior.intervals.len() != current.intervals.len()
+    {
+        return false;
+    }
+    prior
+        .intervals
+        .iter()
+        .zip(&current.intervals)
+        .all(|(before, after)| {
+            if before == after {
+                return true;
+            }
+            may_advance
+                && before.parent_key == after.parent_key
+                && before.window.order == after.window.order
+                && before.window.direction == after.window.direction
+                && before.window.take == after.window.take
+                && before.window.upper == after.window.upper
+                && continuation_for_parent(prior, &before.parent_key).is_some_and(|key| {
+                    matches!(
+                        &after.window.lower,
+                        GraphIntervalEndV1::Exclusive { key: after_key }
+                            if keyset_keys_match(key, after_key)
+                    )
+                })
+        })
+}
+
+pub(crate) fn graph_window_ledger_lineages(
+    ledgers: &[GraphWindowLedgerV1],
+) -> SnapbackResult<Vec<GraphWindowLedgerLineageV1>> {
+    ledgers
+        .iter()
+        .map(|ledger| {
+            ledger
+                .lineage
+                .clone()
+                .ok_or_else(|| cursor_unbound("graph window ledger has no authenticated lineage"))
+        })
+        .collect()
+}
+
+pub(crate) fn attach_graph_window_ledger_lineages(
+    ledgers: &mut [GraphWindowLedgerV1],
+    lineages: &[GraphWindowLedgerLineageV1],
+) -> SnapbackResult<()> {
+    if ledgers.len() != lineages.len() {
+        return Err(cursor_unbound(
+            "graph window ledger authentication vector has the wrong length",
+        ));
+    }
+    for (ledger, lineage) in ledgers.iter_mut().zip(lineages) {
+        if ledger.node_id != lineage.node_id || lineage_hash(lineage)? != lineage.lineage_hash {
+            return Err(cursor_unbound(
+                "graph window ledger authentication record does not match its counter row",
+            ));
+        }
+        ledger.lineage = Some(lineage.clone());
+    }
+    Ok(())
+}
+
 fn validate_prior_ledgers(
     plan: &GraphQueryPlanV1,
     request: &GraphEvaluationRequestV1,
@@ -2667,11 +2878,25 @@ fn validate_prior_ledgers(
             .zip(expected)
             .any(|(ledger, cost)| ledger.node_id != cost.node_id)
     {
-        return Err(SnapbackError::error(
-            "SNAPBACK_GRAPH_CURSOR_UNBOUND",
-            "query",
+        return Err(cursor_unbound(
             "graph window ledger vector does not match demand lineages",
         ));
+    }
+    for ledger in &request.prior_window_ledgers {
+        let prior = ledger
+            .lineage
+            .as_ref()
+            .ok_or_else(|| cursor_unbound("graph window ledger lineage is unauthenticated"))?;
+        let current = current_lineage(plan, request, &ledger.node_id, Vec::new())?;
+        if !prior_lineage_matches_current(
+            prior,
+            &current,
+            ledger.node_id == request.advanced_node_id,
+        ) {
+            return Err(cursor_unbound(
+                "graph window ledger lineage does not authenticate this continuation",
+            ));
+        }
     }
     Ok(())
 }
@@ -2722,7 +2947,7 @@ fn next_ledgers(
     state: &EvaluationState,
     result_rows: u64,
     result_bytes: u64,
-) -> Option<Vec<GraphWindowLedgerV1>> {
+) -> SnapbackResult<Option<Vec<GraphWindowLedgerV1>>> {
     let mut ledgers = request
         .prior_window_ledgers
         .iter()
@@ -2745,7 +2970,7 @@ fn next_ledgers(
             continue;
         }
         let is_root = plan.root_node_id == cost.node_id;
-        let scanned_rows = plan
+        let Some(scanned_rows) = plan
             .query_cost
             .graph
             .nodes
@@ -2756,8 +2981,11 @@ fn next_ledgers(
                 } else {
                     Some(sum)
                 }
-            })?;
-        let index_ranges = plan
+            })
+        else {
+            return Ok(None);
+        };
+        let Some(index_ranges) = plan
             .query_cost
             .graph
             .nodes
@@ -2768,29 +2996,124 @@ fn next_ledgers(
                 } else {
                     Some(sum)
                 }
-            })?;
-        ledger.pages = ledger.pages.checked_add(1)?;
-        ledger.root_rows = ledger.root_rows.checked_add(if is_root {
-            state.work.root.get(&cost.node_id).copied().unwrap_or(0)
-        } else {
-            0
-        })?;
-        ledger.scanned_rows = ledger.scanned_rows.checked_add(scanned_rows)?;
-        ledger.result_rows = ledger.result_rows.checked_add(result_rows)?;
-        ledger.result_bytes = ledger.result_bytes.checked_add(result_bytes)?;
-        ledger.index_ranges = ledger.index_ranges.checked_add(index_ranges)?;
-        if ledger.pages > cost.max_window_pages?
-            || ledger.root_rows > cost.max_window_root_rows?
-            || ledger.scanned_rows > cost.max_window_scanned_rows?
-            || ledger.result_rows > cost.max_window_result_rows?
-            || ledger.result_bytes > cost.max_window_result_bytes?
-            || ledger.index_ranges > cost.max_window_index_ranges?
+            })
+        else {
+            return Ok(None);
+        };
+        let Some((pages, root_rows, scanned_rows, result_rows, result_bytes, index_ranges)) =
+            ledger
+                .pages
+                .checked_add(1)
+                .zip(ledger.root_rows.checked_add(if is_root {
+                    state.work.root.get(&cost.node_id).copied().unwrap_or(0)
+                } else {
+                    0
+                }))
+                .zip(ledger.scanned_rows.checked_add(scanned_rows))
+                .zip(ledger.result_rows.checked_add(result_rows))
+                .zip(ledger.result_bytes.checked_add(result_bytes))
+                .zip(ledger.index_ranges.checked_add(index_ranges))
+                .map(
+                    |(
+                        ((((pages, root_rows), scanned_rows), result_rows), result_bytes),
+                        index_ranges,
+                    )| {
+                        (
+                            pages,
+                            root_rows,
+                            scanned_rows,
+                            result_rows,
+                            result_bytes,
+                            index_ranges,
+                        )
+                    },
+                )
+        else {
+            return Ok(None);
+        };
+        let Some((
+            max_pages,
+            max_root_rows,
+            max_scanned_rows,
+            max_result_rows,
+            max_result_bytes,
+            max_index_ranges,
+        )) = cost
+            .max_window_pages
+            .zip(cost.max_window_root_rows)
+            .zip(cost.max_window_scanned_rows)
+            .zip(cost.max_window_result_rows)
+            .zip(cost.max_window_result_bytes)
+            .zip(cost.max_window_index_ranges)
+            .map(
+                |(
+                    ((((pages, root_rows), scanned_rows), result_rows), result_bytes),
+                    index_ranges,
+                )| {
+                    (
+                        pages,
+                        root_rows,
+                        scanned_rows,
+                        result_rows,
+                        result_bytes,
+                        index_ranges,
+                    )
+                },
+            )
+        else {
+            return Ok(None);
+        };
+        if pages > max_pages
+            || root_rows > max_root_rows
+            || scanned_rows > max_scanned_rows
+            || result_rows > max_result_rows
+            || result_bytes > max_result_bytes
+            || index_ranges > max_index_ranges
         {
-            return None;
+            return Ok(None);
         }
+        ledger.pages = pages;
+        ledger.root_rows = root_rows;
+        ledger.scanned_rows = scanned_rows;
+        ledger.result_rows = result_rows;
+        ledger.result_bytes = result_bytes;
+        ledger.index_ranges = index_ranges;
+        let intervals = request
+            .windows
+            .iter()
+            .find(|window| window.node_id == cost.node_id)
+            .map(|window| &window.intervals)
+            .ok_or_else(|| cursor_unbound("graph window ledger node lost its demand entry"))?;
+        let continuations = intervals
+            .iter()
+            .filter_map(|interval| {
+                let parent_id = interval
+                    .parent_key
+                    .as_ref()
+                    .map_or("", |parent| parent.id.as_str());
+                state
+                    .continuations
+                    .get(&(cost.node_id.clone(), parent_id.to_owned()))
+                    .map(|key| {
+                        serde_json::from_value(key.clone()).map(|key| {
+                            GraphWindowLedgerContinuationV1 {
+                                parent_key: interval.parent_key.clone(),
+                                key,
+                            }
+                        })
+                    })
+            })
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| cursor_unbound("graph window continuation key is malformed"))?;
+        ledger.lineage = Some(current_lineage(
+            plan,
+            request,
+            &cost.node_id,
+            continuations,
+        )?);
         output.push(ledger.clone());
     }
-    Some(output)
+    Ok(Some(output))
 }
 
 fn refused_output(
@@ -3076,7 +3399,7 @@ pub(crate) fn evaluate_graph_query_on(
             &state,
             result_length,
             result_bytes.len() as u64,
-        )
+        )?
         .ok_or_else(|| {
             SnapbackError::error(
                 "SNAPBACK_QUERY_COST_BOUND_EXCEEDED",
@@ -3835,7 +4158,8 @@ pub(crate) fn evaluate_graph_delta_on(
         &state,
         rows.len() as u64,
         result_bytes.len() as u64,
-    ) else {
+    )?
+    else {
         return Ok(None);
     };
     let new_root_ids = state

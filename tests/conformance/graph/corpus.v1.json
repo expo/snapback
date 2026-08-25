@@ -46791,30 +46791,26 @@
         "direction": "backward",
         "boundKind": "inclusive",
         "normalizationDisposition": {
-          "authority": "zerobugs-serving-control-opaque-handler",
+          "authority": "zerobugs-serving-control-opaque-handler-bounded-interval",
           "rawOrder": [
-            "matrix-decoy-assignee",
             "matrix-decoy-creator",
             "matrix-decoy-open",
             "matrix-e",
             "matrix-d",
             "matrix-c",
-            "matrix-a",
             "matrix-b"
           ],
           "normalizedOrder": [
-            "matrix-decoy-assignee",
             "matrix-decoy-creator",
             "matrix-decoy-open",
             "matrix-e",
             "matrix-d",
             "matrix-c",
-            "matrix-b",
-            "matrix-a"
+            "matrix-b"
           ],
-          "orderWasNormalized": true,
-          "comparison": "exact-after-pinned-physical-id-tiebreak-normalization",
-          "deviationTicket": "issues/20260823-zerobugs-control-descending-tiebreak-deviation.md"
+          "orderWasNormalized": false,
+          "comparison": "exact",
+          "deviationTicket": null
         },
         "invocation": {
           "planHash": "sha256:f7886d1a36b823824025c4b49a443d537824572690b0a0c4f3e2d0776fb07d46",
@@ -46986,30 +46982,22 @@
         "direction": "backward",
         "boundKind": "exclusive",
         "normalizationDisposition": {
-          "authority": "zerobugs-serving-control-opaque-handler",
+          "authority": "zerobugs-serving-control-opaque-handler-bounded-interval",
           "rawOrder": [
-            "matrix-decoy-assignee",
-            "matrix-decoy-creator",
             "matrix-decoy-open",
             "matrix-e",
             "matrix-d",
-            "matrix-c",
-            "matrix-a",
-            "matrix-b"
+            "matrix-c"
           ],
           "normalizedOrder": [
-            "matrix-decoy-assignee",
-            "matrix-decoy-creator",
             "matrix-decoy-open",
             "matrix-e",
             "matrix-d",
-            "matrix-c",
-            "matrix-b",
-            "matrix-a"
+            "matrix-c"
           ],
-          "orderWasNormalized": true,
-          "comparison": "exact-after-pinned-physical-id-tiebreak-normalization",
-          "deviationTicket": "issues/20260823-zerobugs-control-descending-tiebreak-deviation.md"
+          "orderWasNormalized": false,
+          "comparison": "exact",
+          "deviationTicket": null
         },
         "invocation": {
           "planHash": "sha256:f7886d1a36b823824025c4b49a443d537824572690b0a0c4f3e2d0776fb07d46",
@@ -48266,7 +48254,7 @@
       }
     ],
     "deltaEligibility": "unchanged-backward-not-eligible",
-    "contentDigest": "sha256:0f68d263049fcfaf9c0eb9d84be58a4fbc29176192fef22de9376866a22d0dd8"
+    "contentDigest": "sha256:23a1a9197d31340d5feb4cadc7ce01c14b9e8be1d47c50f2bc6efe7ca181712e"
   },
   "authorityOwner": {
     "format": "snapback.graph-corpus-authority-owner.v1",
@@ -250368,5 +250356,5 @@
     "large-seed42-v1",
     "hot-recent-v1"
   ],
-  "contentDigest": "sha256:cd0af63d12c3a615b0e34386238ecec2708c4ec31e0f2e9358c2a2d0b1a7c318"
+  "contentDigest": "sha256:8a04c40667b9492edfd77dd6c8fcb97648a6a02ea4352f1b911553d19fc22e30"
 }
