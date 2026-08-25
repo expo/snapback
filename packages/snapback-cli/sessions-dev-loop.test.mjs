@@ -141,7 +141,15 @@ try {
   // README "Smoke-check a running backend": keep the documented command and
   // its default sessions-scaffold execution in one acceptance witness.
   const documentedPublicRun = 'snapback run --ready-file .snapback/dev.ready.json listTodos';
-  assert.ok(readFileSync(join(repoRoot, 'README.md'), 'utf8').includes(documentedPublicRun));
+  for (const readmePath of [
+    join(repoRoot, 'README.md'),
+    join(packageRoot, 'README.md'),
+  ]) {
+    assert.ok(
+      readFileSync(readmePath, 'utf8').includes(documentedPublicRun),
+      `${readmePath} must pin the sessions-safe public command`,
+    );
+  }
   const publicRun = spawnSync(
     runtimeBinary,
     ['run', '--ready-file', '.snapback/dev.ready.json', 'listTodos'],

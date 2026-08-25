@@ -81,6 +81,8 @@ admin token, bearer, lease, or `userId`. The native fixture now installs a
 settled sessions deployment plus session activation readiness, proves the
 public command succeeds, and preserves the protected-query
 `SNAPBACK_AUTH_REQUIRED`/zero-handler-execution negative. A packaged CLI test
-also executes the README's exact public command shape against the generated
-default React sessions scaffold. The issue remains closed because the
-documented command passes end to end.
+also executes the exact public command shape from both the repository-root
+`README.md` and the published package's `packages/snapback-cli/README.md`
+against the generated default React sessions scaffold; the test pins that
+exact command in both READMEs. The issue remains closed because the documented
+command passes end to end.

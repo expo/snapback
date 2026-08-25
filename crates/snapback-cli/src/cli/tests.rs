@@ -1103,34 +1103,43 @@ fn anonymous_public_query_retry_matches_first_party_request_shape() {
     assert_eq!(response, json!({ "rows": [] }));
 
     let request = server.join().unwrap();
-    assert!(request.starts_with("POST /query/listTodos HTTP/1.1\r\n"));
-    assert!(request.lines().any(|line| {
-        let Some((name, value)) = line.split_once(':') else {
-            return false;
-        };
-        name.eq_ignore_ascii_case(crate::auth::handshake::AUTH_CLIENT_PROTOCOL_HEADER)
-            && value.trim() == "1"
-    }));
-    let lower = request.to_ascii_lowercase();
+    let (head, body) = request
+        .split_once("\r\n\r\n")
+        .expect("HTTP request contains a body separator");
+    let mut head_lines = head.split("\r\n");
+    assert_eq!(head_lines.next(), Some("POST /query/listTodos HTTP/1.1"));
+    let headers = head_lines
+        .map(|line| {
+            let (name, value) = line.split_once(':').expect("well-formed HTTP header");
+            (name.trim(), value.trim())
+        })
+        .collect::<Vec<_>>();
+    let header = |expected: &str| {
+        headers
+            .iter()
+            .find(|(name, _)| name.eq_ignore_ascii_case(expected))
+            .map(|(_, value)| *value)
+    };
+    assert_eq!(
+        header(crate::auth::handshake::AUTH_CLIENT_PROTOCOL_HEADER),
+        Some("1")
+    );
     for forbidden in [
-        "x-snapback-admin-token:",
-        "authorization:",
-        "x-snapback-authorized-lease",
+        "authorization",
+        "x-snapback-admin-token",
+        "x-snapback-console-credential",
+        crate::admin_secret_read::SECRET_READ_LEASE_HEADER,
+        crate::auth::handshake::AUTHORIZED_LEASE_PROTOCOL_HEADER,
         "x-snapback-custody",
-        "userid",
     ] {
         assert!(
-            !lower.contains(forbidden),
+            header(forbidden).is_none(),
             "forbidden carrier {forbidden}: {request}"
         );
     }
-    let (_, body) = request
-        .split_once("\r\n\r\n")
-        .expect("HTTP request contains a body separator");
-    assert_eq!(
-        serde_json::from_str::<Value>(body).expect("query request JSON"),
-        json!({ "args": { "status": "open" } }),
-    );
+    let body = serde_json::from_str::<Value>(body).expect("query request JSON");
+    assert_eq!(body.get("userId"), None);
+    assert_eq!(body, json!({ "args": { "status": "open" } }));
 }
 
 fn health_with_nonce(nonce: &str) -> serde_json::Value {

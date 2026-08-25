@@ -44,11 +44,43 @@ live queries, the generated conversation surface, and typing presence).
    ready file:
 
    ```sh
-   snapback run listTodos \
-     --ready-file .snapback/dev.ready.json \
-     --user user_ada \
-     --args '{}'
+   snapback run --ready-file .snapback/dev.ready.json listTodos
    ```
+
+This anonymous public form sends no `userId`, session bearer, lease, or admin
+credential. On the default sessions scaffold it succeeds only when the query
+admits an anonymous caller; authenticated queries remain fail-closed.
+
+For an authenticated sessions-mode query, mint a local test session from a
+trusted terminal, then give the returned `data.token` to the first-party
+external-session client in trusted server/test code:
+
+```sh
+snapback session mint --ready-file .snapback/dev.ready.json \
+  --email person@example.test
+```
+
+```js
+import { createExternalSessionClient } from '@expo/snapback-client/online';
+import api from './snapback/generated/api.mjs';
+
+const baseUrl = process.env.SNAPBACK_URL;
+const bearerToken = process.env.SNAPBACK_SESSION_BEARER;
+if (!baseUrl || !bearerToken) throw new Error('missing trusted test session');
+const client = createExternalSessionClient(baseUrl, {
+  bearerToken,
+});
+const result = await client.query(api.myAuthenticatedQuery, { args: {} });
+await client.close();
+```
+
+Set `SNAPBACK_URL` from the readiness descriptor's `serverUrl` and
+`SNAPBACK_SESSION_BEARER` to the mint response's `data.token`. Keep both the
+mint result and bearer out of browser/native bundles and logs.
+
+`snapback run --user <id> ...` is only for an `auth: { mode: 'dev' }`
+backend. Sessions mode deliberately rejects that client-asserted identity;
+use the mint plus `createExternalSessionClient` path instead.
 
 For ordinary completion, run `bun run prove`, the only done-oracle; it writes
 the authoritative aggregate `snapback verify` receipt (acceptance evidence,
