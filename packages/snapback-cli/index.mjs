@@ -5451,12 +5451,13 @@ function qualifiedRuntimeIdentity(
   runtimeIdentity,
   qualifiedBinary = null,
   environment = process.env,
+  cliPackageRoot = packageRoot,
 ) {
   const qualifiedPath = qualifiedBinary === null ? null : resolve(qualifiedBinary);
   const qualifiedPhysicalPath = qualifiedPath !== null && existsSync(qualifiedPath)
     ? realpathSync(qualifiedPath)
     : qualifiedPath;
-  const checkoutRoot = sourceCheckoutRoot();
+  const checkoutRoot = sourceCheckoutRoot(cliPackageRoot);
   const checkoutRelative = qualifiedPhysicalPath === null || checkoutRoot === null
     ? null
     : relative(checkoutRoot, qualifiedPhysicalPath);
@@ -5477,7 +5478,7 @@ function qualifiedRuntimeIdentity(
   const qualifiedBuildIdentity = qualifiedBinary === null
     ? runtimeIdentity
     : inspectRuntimeBinary(qualifiedRuntime.binary, environment);
-  const runtimeRoot = runtimeReadinessRoot(qualifiedRuntime);
+  const runtimeRoot = runtimeReadinessRoot(qualifiedRuntime, cliPackageRoot);
   const packaged = !['override', 'qualified-override', 'source-checkout'].includes(
     qualifiedRuntime.source,
   );
@@ -9317,6 +9318,7 @@ export const __test = {
   fixedPortAttachFailure,
   loadGenerated,
   portFromUrl,
+  qualifiedRuntimeIdentity,
   readLegacyApplicationReadyReceipt,
   readReadyDescriptor,
   refineGeneratedArtifactFailure,

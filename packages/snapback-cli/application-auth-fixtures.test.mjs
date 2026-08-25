@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { webcrypto } from 'node:crypto';
 import {
   cpSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -37,7 +38,18 @@ for (const packageName of ['snapback-client', 'snapback-expo', 'snapback-react']
     'dir',
   );
 }
-symlinkSync(join(repoRoot, 'node_modules', 'react'), join(fixtureModules, 'react'), 'dir');
+const packageLocalReact = join(
+  repoRoot,
+  'packages',
+  'snapback-react',
+  'node_modules',
+  'react',
+);
+symlinkSync(
+  existsSync(packageLocalReact) ? packageLocalReact : join(repoRoot, 'node_modules', 'react'),
+  join(fixtureModules, 'react'),
+  'dir',
+);
 const priorRqsStore = process.env.SNAPBACK_CLIENT_RQS_STORE;
 process.env.SNAPBACK_CLIENT_RQS_STORE = 'off';
 

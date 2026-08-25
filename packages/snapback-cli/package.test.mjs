@@ -43,6 +43,10 @@ import {
 } from './index.mjs';
 import { __deploymentTest } from './deployment-control.mjs';
 import {
+  digestRuntimeArtifacts,
+  issueRuntimeReadinessReceipt,
+} from './runtime-readiness.mjs';
+import {
   defineTemplateCarrierConfig,
   selfCheckTemplateCarrierConfig,
 } from './carrier-kit.mjs';
@@ -549,6 +553,108 @@ try {
       source: 'override',
     }, linkedCliPackageRoot),
     externalCheckout,
+  );
+  const qualifiedPhysicalCheckout = join(root, 'qualified-runtime-physical-checkout');
+  const qualifiedPhysicalCliRoot = join(
+    qualifiedPhysicalCheckout,
+    'packages',
+    'snapback-cli',
+  );
+  const qualifiedPhysicalBinary = join(
+    qualifiedPhysicalCheckout,
+    'target',
+    'debug',
+    'snapback',
+  );
+  mkdirSync(qualifiedPhysicalCliRoot, { recursive: true });
+  mkdirSync(dirname(qualifiedPhysicalBinary), { recursive: true });
+  writeFileSync(join(qualifiedPhysicalCheckout, 'Cargo.toml'), '[workspace]\n');
+  writeFileSync(join(qualifiedPhysicalCliRoot, 'package.json'), '{}\n');
+  const qualifiedBuildIdentity = Object.freeze({
+    gitCommit: 'qualified-runtime-physical',
+    gitDirty: false,
+    crateVersion: '1.2.3',
+    buildProfile: 'debug',
+  });
+  writeFileSync(qualifiedPhysicalBinary, `#!/usr/bin/env node
+console.log(JSON.stringify({ binary: ${JSON.stringify(qualifiedBuildIdentity)} }));
+`);
+  chmodSync(qualifiedPhysicalBinary, 0o755);
+  const qualifiedPhysicalArtifact = process.platform === 'darwin'
+    ? join(
+      qualifiedPhysicalCheckout,
+      'vendor',
+      'ibex',
+      'ios',
+      'Frameworks',
+      'hermesvm.framework',
+      'hermesvm',
+    )
+    : join(
+      qualifiedPhysicalCheckout,
+      'vendor',
+      'ibex',
+      'linux',
+      'lib',
+      'libhermesvm.so',
+    );
+  mkdirSync(dirname(qualifiedPhysicalArtifact), { recursive: true });
+  writeFileSync(qualifiedPhysicalArtifact, 'qualified physical Hermes fixture');
+  issueRuntimeReadinessReceipt({
+    root: qualifiedPhysicalCheckout,
+    binaryPath: qualifiedPhysicalBinary,
+    issuer: 'snapback-cli-package-qualified-runtime-regression',
+    artifacts: digestRuntimeArtifacts(qualifiedPhysicalCheckout),
+    qualification: {
+      probe: 'restricted-no-eval-handler-vm',
+      ok: true,
+      report: {
+        schemaVersion: 'snapback.runtime-qualify.v1',
+        probe: 'restricted-no-eval-handler-vm',
+        ok: true,
+        binary: qualifiedBuildIdentity,
+      },
+    },
+  });
+  const qualifiedLogicalCheckout = join(root, 'qualified-runtime-logical-checkout');
+  const qualifiedLogicalCliRoot = join(
+    qualifiedLogicalCheckout,
+    'packages',
+    'snapback-cli',
+  );
+  mkdirSync(qualifiedLogicalCliRoot, { recursive: true });
+  writeFileSync(join(qualifiedLogicalCheckout, 'Cargo.toml'), '[workspace]\n');
+  writeFileSync(join(qualifiedLogicalCliRoot, 'package.json'), '{}\n');
+  symlinkSync(
+    join(qualifiedPhysicalCheckout, 'target'),
+    join(qualifiedLogicalCheckout, 'target'),
+    'dir',
+  );
+  const qualifiedLogicalBinary = join(
+    qualifiedLogicalCheckout,
+    'target',
+    'debug',
+    'snapback',
+  );
+  // Exercise the separate qualified-runtime custody decision: the logical
+  // target path belongs to one checkout, while the binary, receipt, and Hermes
+  // artifacts physically belong to another.
+  const qualifiedIdentity = __test.qualifiedRuntimeIdentity(
+    {
+      binary: qualifiedPhysicalBinary,
+      source: 'override',
+      platform: `${process.platform}-${process.arch}`,
+    },
+    { runnable: true, stamp: qualifiedBuildIdentity },
+    qualifiedLogicalBinary,
+    process.env,
+    qualifiedLogicalCliRoot,
+  );
+  assert.equal(qualifiedIdentity.qualifiedBinary.path, qualifiedLogicalBinary);
+  assert.equal(qualifiedIdentity.qualifiedBinary.source, 'qualified-override');
+  assert.equal(
+    qualifiedIdentity.qualifiedBinary.qualification.receiptPath,
+    `${qualifiedLogicalBinary}.runtime-readiness.json`,
   );
   const fakeRuntime = join(root, 'snapback');
   writeFileSync(fakeRuntime, '#!/bin/sh\nexit 0\n');

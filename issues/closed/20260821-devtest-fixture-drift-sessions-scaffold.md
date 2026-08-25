@@ -28,22 +28,24 @@ reset-dev-fresh generation failure.
 
 The sessions scaffold failure was a strict fixture assertion: the React
 template already declared sessions mode, so rewriting it was a no-op that the
-test treated as failure. The sessions-dev-loop fixture now accepts an existing
-sessions declaration and rewrites only an older dev-mode shape; the
-reset-dev-fresh fixture uses the same tolerant rule.
+test treated as failure. The tolerant `sessions-dev-loop` rewrite that accepts
+an existing sessions declaration was already present on this branch's merge
+base. This branch fixes the remaining fixture-environment gap by linking
+`@expo/snapback-client` into the temporary project: generated
+`app.binding.*.mjs` modules import
+`@expo/snapback-client/internal/declared-dev-mint`.
 
 The reset-dev-fresh initial generation failure was isolated to fixture setup,
 before any forced lifecycle verb: deleting the copied `generated/` directory
-also deleted the LLP 0234 authorization-program inputs. The fixture retains
-and restores the owner/override baselines, table-policy baseline and transition
-ledger, and quarantine ledger before regeneration. This change documents that
-governance dependency with an `@ref` and leaves the generated products
-themselves disposable.
+also deleted the LLP 0234 authorization-program inputs. The fixture now derives
+the complete generated preservation set from `GOVERNANCE_FILES`, including
+`elevated-read-site-baseline.json`, and restores those governance inputs before
+regeneration. This change documents that dependency with an `@ref` and leaves
+the generated products themselves disposable.
 
-Two lane-environment drifts masked those assertions and are fixed in the same
-scoped test path: generated temp modules now receive the workspace client link
-they import, and the shared runtime symlink is verified against the physical
-checkout's Hermes artifacts rather than the empty lane checkout.
+The other lane-environment drift is fixed in the same scoped test path: the
+shared runtime symlink is verified against the physical checkout's Hermes
+artifacts rather than the empty lane checkout.
 
 Verification: `sessions-dev-loop.test.mjs`, `reset-dev-fresh.test.mjs`, and
 the 50-case `verify.test.mjs` suite pass against the shared prebuilt runtime.
