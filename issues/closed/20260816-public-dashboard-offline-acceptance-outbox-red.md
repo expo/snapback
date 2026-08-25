@@ -563,3 +563,73 @@ single diagnostics-registry red (`21 passed, 1 failed`).
 errors, 0 unchecked`; `git diff --check` produces no output. The diagnostics
 registry, its Markdown projection, and the generated diagnostic-code union
 remain byte-identical to round-12 HEAD and were not regenerated.
+
+### Round-14 review closure (2026-08-25)
+
+Cached capability reuse for a string-named mutation now requires the client to
+have an established application id and the cached served artifact generation
+to carry that same app id. A same-origin app-B client therefore rejects app-A
+cached evidence, makes the ordinary online-only mutation attempt, and persists
+no outbox record. An unbound client and a capability manifest with no artifact
+identity also remain online-only. Generated references continue to compare
+their complete call-time generation.
+
+The initial replay snapshot is no longer rejected as a whole. Target binding
+is checked in sequence at each record's submission boundary, so a valid
+target-B prefix settles before the first target-A record pauses replay; that
+record and every ordered successor remain pending with
+`SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH`. The configured capability shortcut
+now carries an adjacent comment recording that it is an undeclared test seam,
+not production replay authority.
+
+The public-dashboard offline witness now derives generation-bound Online-class
+mutation references from its generated app descriptor. This establishes the
+application identity needed by the fresh offline client without invoking a
+private seam or opting the JS-arm witness into the separately owned local
+optimistic-projection claim.
+
+The watched pre-fix regressions failed together with:
+
+```text
+✖ an initial mixed-target snapshot replays its valid prefix before pausing
+AssertionError [ERR_ASSERTION]: the valid target-B prefix replays
+0 !== 2
+✖ automatic string-named enqueue refuses cached support from a replaced same-origin app
+AssertionError [ERR_ASSERTION]: Missing expected rejection.
+ℹ pass 0
+ℹ fail 2
+```
+
+The exact required five-run command produced:
+
+```text
+ℹ pass 130
+ℹ fail 0
+ℹ pass 130
+ℹ fail 0
+ℹ pass 130
+ℹ fail 0
+ℹ pass 130
+ℹ fail 0
+ℹ pass 130
+ℹ fail 0
+```
+
+`authority-transition-conformance.test.mjs` reports `tests 9`, `pass 9`,
+`fail 0`. The public-dashboard witnesses report `PASS public-dashboard /
+offline-local-first (JS arm) — 9/9` and `PASS public-dashboard / headless —
+6/6`, with `cleanupErrors: []` in both machine-readable reports. Both used the
+explicitly configured binary stamped at `a97e75286` and reported the expected
+checkout stamp mismatch.
+
+`node scripts/generate-symbol-registry.mjs --check` reports
+`[symbol-registry] ok — 56 modules, 1455 symbols, runtime parity exact`.
+`./ref-check --verbose` reports `311 LLP docs, 6645 refs in 12504 files, 0
+errors, 0 unchecked`; `git diff --check` produces no output. The symbol
+registry, 57 reference pages, Guide manifest, and flat projections were
+refreshed without invoking the diagnostics generator. The diagnostics registry
+JSON, diagnostics Markdown, and generated diagnostic-code union remain
+byte-identical to round-13 HEAD and were not regenerated. The additional
+`node scripts/check-guide.mjs` run reports `21 passed, 1 failed, 0 skipped, 0
+preconditions; 157 pages, 1872 snippets, 174 routes + 51 host-ops joined, 94
+warnings`; its sole red is those deliberately stale diagnostics projections.

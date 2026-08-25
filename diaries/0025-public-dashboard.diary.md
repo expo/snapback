@@ -118,3 +118,31 @@ positive target gate and settlement ledger add ceremony but prevent unsafe
 replay against a target that cannot deduplicate. The useful ergonomic payoff is
 that the intent, ordering, and exactly-once result survive the relaunch without
 application-managed queue tables or reconciliation code.
+
+## 2026-08-25 — app-bound cached outbox evidence
+
+The Round-14 client correction made the offline witness's string-only mutation
+calls accurately fail closed: a fresh headless client had durable capability
+evidence but no established app binding, so it could not safely decide which
+app id to persist in an outbox-v2 record. The witness now derives its mutation
+references from the generated app descriptor. It retains their generation and
+argument/result contracts while omitting the local optimistic-execution plan,
+because this suite deliberately proves the Online-class JS arm rather than the
+separate React projection path.
+
+### What felt good
+
+- The refusal exposed a real mismatch between the acceptance fixture and the
+  product's app-identity boundary instead of requiring another client escape
+  hatch.
+- Generation-bearing references preserve the same exactly-once duplicate
+  fingerprint across enqueue, replay, and explicit duplicate delivery.
+
+### What felt bad or surprising
+
+- A raw string mutation looked app-specific because the server origin was the
+  same, but origin is not application identity when an app can be replaced in
+  place.
+- Using the fully hydrated generated reference would also opt this narrowly
+  scoped witness into local optimistic projection. The fixture needs an
+  explicit Online-class projection of that reference to keep its claim honest.

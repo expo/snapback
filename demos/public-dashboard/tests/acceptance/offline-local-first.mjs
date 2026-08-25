@@ -50,6 +50,15 @@ const generatedDir = join(appDir, 'snapback', 'generated');
 const readJson = (path) => JSON.parse(readFileSync(path, 'utf8'));
 const generated = (name) => readJson(join(generatedDir, name));
 const seed = readJson(join(appDir, 'snapback', 'seed.json'));
+const generatedAppDescriptor = generated('app.descriptor.json');
+// This witness remains the Online-class JS arm: retain the generated target
+// identity and contracts, but omit the local optimistic-execution plan that a
+// React/provider acceptance owns separately.
+const onlineReference = ({ mutationIr: _localExecutionPlan, ...reference }) => (
+  Object.freeze(reference)
+);
+const recordMetric = onlineReference(generatedAppDescriptor.api.mutations.recordMetric);
+const setMetricValue = onlineReference(generatedAppDescriptor.api.mutations.setMetricValue);
 
 const sleep = (ms) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
 async function waitUntil(predicate, { timeoutMs = 30_000, label = 'condition' } = {}) {
@@ -200,10 +209,10 @@ await runAcceptance(suite, async () => {
   let queuedUpdate;
   let queuedDiagnosticCodes = [];
   await suite.check('offline create/update queue durably with client-minted ids', async () => {
-    queuedCreate = await clientB.mutate('recordMetric', {
+    queuedCreate = await clientB.mutate(recordMetric, {
       args: { dashboardId: 'ops', label: 'error_rate', value: 3 },
     });
-    queuedUpdate = await clientB.mutate('setMetricValue', {
+    queuedUpdate = await clientB.mutate(setMetricValue, {
       args: { id: 'metric_ops_uptime', value: 98 },
     });
     assertEqual(queuedCreate.status, 'queued', 'create queued');
@@ -348,7 +357,7 @@ await runAcceptance(suite, async () => {
   });
 
   await suite.check('duplicate delivery of a settled id returns the original settlement (exactly-once ledger)', async () => {
-    const duplicate = await clientB.mutate('recordMetric', {
+    const duplicate = await clientB.mutate(recordMetric, {
       args: { dashboardId: 'ops', label: 'error_rate', value: 3 },
       clientMutationId: queuedCreate.clientMutationId,
       queue: false,

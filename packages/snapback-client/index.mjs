@@ -7503,6 +7503,9 @@ export class SnapbackClient {
     operationTarget = null,
   ) {
     if (!this.#isOfflineMutationOperationTargetCurrent(operationTarget)) return false;
+    // This constructor-injected seam exists only for tests that exercise
+    // outbox mechanics without a server. Production clients leave it null,
+    // so they always traverse the target-bound capability currency checks.
     if (this.__offlineMutationReplayCapability !== null) return true;
     const expected = normalizeOfflineMutationReplayCapabilityFact(fact);
     if (expected === null) return false;
@@ -7691,17 +7694,29 @@ export class SnapbackClient {
 
   async #cachedOfflineMutationReplayCapabilityFact(expectedGeneration, transportTarget) {
     const fact = await this.#currentOfflineMutationReplayCapabilityFact(transportTarget);
+    const establishedAppId = expectedGeneration === null
+      ? this.__inspectionAppId
+      : null;
     if (
       fact?.supported !== true
       || canonicalServerOrigin(fact.origin) !== transportTarget.origin
       // Generated references must equal every artifact identity component.
-      // String-named mutations carry no generation, so their cached boundary
-      // is the canonical origin rather than an invented operation witness.
       || (
         expectedGeneration !== null
         && (
           fact.artifactGeneration === null
           || !sameArtifactGeneration(fact.artifactGeneration, expectedGeneration)
+        )
+      )
+      // String-named references have no call-time generation witness. Cached
+      // reuse therefore requires the app identity already established by the
+      // client binding and the same served app id in the cached fact. An
+      // unbound client or identity-free manifest stays online-only.
+      || (
+        expectedGeneration === null
+        && (
+          typeof establishedAppId !== 'string'
+          || fact.artifactGeneration?.appId !== establishedAppId
         )
       )
     ) return null;
@@ -12749,39 +12764,6 @@ export class SnapbackClient {
         ?? (this.__offlineMutationReplayCapability === null
           ? null
           : INTERNAL_CONFIGURED_REPLAY_APP_ID);
-      const targetRefusal = queuedBeforeCustody
-        .map((record) => ({
-          record,
-          error: offlineMutationReplayTargetBindingError(
-            record,
-            replayOperationTarget,
-            knownReplayAppId,
-          ),
-        }))
-        .find(({ error }) => error !== null);
-      if (targetRefusal !== undefined) {
-        const { record, error } = targetRefusal;
-        this.#recordOutboxDiagnostic({
-          code: error.code,
-          mutation: record.function,
-          clientMutationId: record.id,
-          ...error.diagnostic.details,
-        });
-        replayStop.value = Object.freeze({
-          kind: 'paused',
-          reason: error.code === 'SNAPBACK_OUTBOX_REPLAY_TARGET_MISSING'
-            ? 'replay-paused:enqueue-target-missing'
-            : 'replay-paused:enqueue-target-mismatch',
-        });
-        return {
-          replayed: 0,
-          failed: 0,
-          stranded: 0,
-          quarantined: 0,
-          remaining: queuedBeforeCustody.length,
-          stopped: true,
-        };
-      }
     }
     if (!shouldContinue()) {
       const remaining = (await store.outboxRecords()).filter(isUnresolvedOutboxRecord).length;

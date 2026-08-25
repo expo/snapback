@@ -2628,6 +2628,7 @@ test('migrated retained live query discovers on reconnect, publicly settles, the
     rqsStore: migratedStore,
     __outboxDrainLifecycle: false,
   });
+  client.__registerInspectionAppId(TEST_ARTIFACT_GENERATION.appId);
   let online = false;
   let inspectCalls = 0;
   let mutationCalls = 0;
@@ -2715,7 +2716,7 @@ test('migrated retained live query discovers on reconnect, publicly settles, the
   await migratedStore.close();
 });
 
-test('a new default client queues offline from its predecessor client capability observation', async (t) => {
+test('a new default client stays online-only without an established app binding', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const directory = mkdtempSync(join(tmpdir(), 'snapback-capability-product-relaunch-'));
   const previousDir = process.env.SNAPBACK_CLIENT_RQS_DIR;
@@ -2750,16 +2751,19 @@ test('a new default client queues offline from its predecessor client capability
       else if (new URL(url).pathname.startsWith('/mutation/')) mutationPosts += 1;
       throw new TypeError('fetch failed');
     };
-    const queued = await second.mutate('createThing', {
-      args: { title: 'cold-client-cached-capability' },
-      clientMutationId: 'cm-product-relaunch-cached-capability',
-    });
-    assert.equal(queued.status, 'queued');
+    await assert.rejects(
+      () => second.mutate('createThing', {
+        args: { title: 'cold-client-cached-capability' },
+        clientMutationId: 'cm-product-relaunch-cached-capability',
+      }),
+      (error) => isConnectivityFailureError(error),
+    );
     assert.equal(inspectCalls, 1, 'the successor still attempts one fresh capability probe');
-    assert.equal(mutationPosts, 0, 'cached evidence takes the enqueue-only product path');
+    assert.equal(mutationPosts, 1, 'an unbound successor retains the online-only attempt');
     assert.deepEqual(
       (await second.rqsStore.outboxPending()).map((record) => record.id),
-      ['cm-product-relaunch-cached-capability'],
+      [],
+      'the predecessor app identity is never guessed into a new durable record',
     );
     await second.close();
   } finally {
@@ -3163,6 +3167,7 @@ test('repointing a client drops a local negative override from the previous orig
     rqsStore: store,
     __outboxDrainLifecycle: false,
   });
+  client.__registerInspectionAppId(TEST_ARTIFACT_GENERATION.appId);
 
   globalThis.fetch = async () => Response.json(offlineReplayInspection({
     supported: false,
@@ -3387,6 +3392,7 @@ test('a later connectivity-lost inspect does not discard an in-flight first disc
     rqsStore: store,
     __outboxDrainLifecycle: false,
   });
+  client.__registerInspectionAppId(TEST_ARTIFACT_GENERATION.appId);
   let releaseFirstInspect;
   const firstInspectRelease = new Promise((resolve) => { releaseFirstInspect = resolve; });
   let markFirstInspectStarted;
@@ -4160,6 +4166,67 @@ test('cross-target relaunch refuses the persisted enqueue target before POST', a
   }
 });
 
+test('an initial mixed-target snapshot replays its valid prefix before pausing', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const originA = 'https://initial-mixed-target-a.example';
+  const originB = 'https://initial-mixed-target-b.example';
+  const generation = { ...TEST_ARTIFACT_GENERATION, appId: 'initial-mixed-target-app' };
+  const targetAProfile = 'initial-mixed-target-a';
+  const targetBProfile = 'initial-mixed-target-b';
+  const targetBPrefix = ['cm-initial-mixed-b-1', 'cm-initial-mixed-b-2'];
+  const targetAId = 'cm-initial-mixed-a';
+  const targetBSuccessor = 'cm-initial-mixed-b-after-a';
+  for (const { id, origin, targetProfileId } of [
+    ...targetBPrefix.map((id) => ({ id, origin: originB, targetProfileId: targetBProfile })),
+    { id: targetAId, origin: originA, targetProfileId: targetAProfile },
+    { id: targetBSuccessor, origin: originB, targetProfileId: targetBProfile },
+  ]) {
+    await store.outboxEnqueue({
+      id,
+      function: 'createThing',
+      ...currentOutboxTarget({ origin, targetProfileId, generation }),
+      args: { title: id },
+    });
+  }
+
+  const mutationPosts = [];
+  globalThis.fetch = async (url, init = {}) => {
+    if (new URL(url).pathname === '/inspect') {
+      return Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId: targetBProfile,
+        generation,
+      }));
+    }
+    mutationPosts.push(JSON.parse(init.body).clientMutationId);
+    return Response.json({ result: { replayed: true }, version: mutationPosts.length });
+  };
+  const client = new InspectingSnapbackClient(originB, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  try {
+    const replay = await client.replayQueuedMutations();
+    assert.equal(replay.replayed, targetBPrefix.length, 'the valid target-B prefix replays');
+    assert.equal(replay.stopped, true, 'the first cross-target record pauses the drain');
+    assert.equal(replay.remaining, 2, 'the mismatch and its successor remain pending');
+    assert.deepEqual(mutationPosts, targetBPrefix, 'no POST starts at or after the mismatch');
+    assert.deepEqual(
+      (await store.outboxPending()).map((record) => record.id),
+      [targetAId, targetBSuccessor],
+      'the mismatched record and its successor retain ordered pending custody',
+    );
+    assert.equal(
+      client.outboxDiagnostics.at(-1)?.code,
+      'SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH',
+    );
+  } finally {
+    await client.close();
+    await store.close();
+  }
+});
+
 test('a cross-target record injected into the second pending snapshot stays pending', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
@@ -4703,6 +4770,7 @@ test('closing a client fences its late capability answer on an injected shared s
       rqsStore: store,
       __outboxDrainLifecycle: false,
     });
+    secondClient.__registerInspectionAppId(TEST_ARTIFACT_GENERATION.appId);
     const queued = await secondClient.mutate('createThing', {
       args: { title: 'successor observes pre-close positive' },
       clientMutationId: 'cm-successor-pre-close-capability',
@@ -4724,6 +4792,7 @@ test('successful queries retain a positive lifecycle probe instead of scheduling
     rqsStore: store,
     __outboxDrainLifecycle: false,
   });
+  client.__registerInspectionAppId(TEST_ARTIFACT_GENERATION.appId);
   let inspectCalls = 0;
   let mutationPhase = false;
   let mutationPosts = 0;
@@ -4946,7 +5015,55 @@ test('automatic enqueue rejects cached support bound to a different app generati
   assert.deepEqual(await store.outboxRecords(), [], 'identity mismatch invalidates cached support');
 });
 
-test('automatic string-named enqueue reuses origin-bound direct-manifest support', async (t) => {
+test('automatic string-named enqueue refuses cached support from a replaced same-origin app', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const origin = 'https://cached-same-origin-app-replacement.example';
+  const appA = { ...TEST_ARTIFACT_GENERATION, appId: 'cached-app-a' };
+  const appB = { ...TEST_ARTIFACT_GENERATION, appId: 'cached-app-b' };
+  await store.commitOfflineMutationReplayCapabilityFact({
+    schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
+    origin,
+    supported: true,
+    reason: null,
+    targetProfileId: 'same-origin-local-target',
+    artifactGeneration: appA,
+  });
+  const client = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  client.__registerInspectionAppId(appB.appId);
+  let inspectCalls = 0;
+  let mutationPosts = 0;
+  globalThis.fetch = async (url) => {
+    if (new URL(url).pathname === '/inspect') inspectCalls += 1;
+    else mutationPosts += 1;
+    throw new TypeError('same-origin replacement is offline');
+  };
+
+  try {
+    await assert.rejects(
+      () => client.mutate('createThing', {
+        args: { title: 'belongs to app B' },
+        clientMutationId: 'cm-cached-same-origin-app-replacement',
+      }),
+      (error) => isConnectivityFailureError(error),
+    );
+    assert.equal(inspectCalls, 1, 'automatic admission still attempts a fresh capability probe');
+    assert.equal(mutationPosts, 1, 'mismatched cached evidence leaves the call online-only');
+    assert.deepEqual(
+      await store.outboxRecords(),
+      [],
+      'no durable record is mislabeled with the cached predecessor app identity',
+    );
+  } finally {
+    await client.close();
+    await store.close();
+  }
+});
+
+test('automatic string-named enqueue refuses identity-free cached manifest support', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
   const client = new InspectingSnapbackClient('https://direct-manifest.example', {
@@ -4972,16 +5089,18 @@ test('automatic string-named enqueue reuses origin-bound direct-manifest support
     else mutationCalls += 1;
     throw new TypeError('offline after direct manifest');
   };
-  const queued = await client.mutate('createThing', {
-    args: { title: 'origin-bound' },
-    clientMutationId: 'cm-direct-manifest',
-  });
-  assert.equal(queued.status, 'queued');
+  await assert.rejects(
+    () => client.mutate('createThing', {
+      args: { title: 'origin-bound' },
+      clientMutationId: 'cm-direct-manifest',
+    }),
+    (error) => isConnectivityFailureError(error),
+  );
   assert.equal(inspectCalls, 1, 'the automatic enqueue still performs its fresh re-probe');
-  assert.equal(mutationCalls, 0, 'cached direct-manifest evidence stays enqueue-only');
+  assert.equal(mutationCalls, 1, 'identity-free cached evidence leaves the call online-only');
   assert.deepEqual(
     (await store.outboxPending()).map((record) => record.id),
-    ['cm-direct-manifest'],
+    [],
   );
 });
 
@@ -5353,6 +5472,7 @@ test('cached enqueue defers operation identity range transport until fresh-gated
     operationIdentityProtocol: 1,
     __outboxDrainLifecycle: false,
   });
+  client.__registerInspectionAppId(TEST_ARTIFACT_GENERATION.appId);
   let rangePosts = 0;
   let mutationPosts = 0;
   globalThis.fetch = async (url) => {

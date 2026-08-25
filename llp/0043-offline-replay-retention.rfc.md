@@ -5,6 +5,13 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
+**Revised:** 2026-08-25 (round-14 target-binding correction: cached evidence
+for a string-named mutation is reusable only when the client has an
+established application identity and the cached served generation carries the
+same app id; unbound clients and identity-free cached manifests remain
+online-only. Initial replay target checks are per-record and ordered: a valid
+prefix settles before the first mismatch pauses that record and every
+successor.)
 **Revised:** 2026-08-25 (round-13 replay/redirect correction: every prepared
 replay record is checked against the durable enqueue target while the
 authorization-dispatch fence is held, before custody reconciliation, range
@@ -395,8 +402,12 @@ fact in the durable client-store domain, bound to canonical server origin and
 the target's served app artifact generation (`schemaVersion`, `appId`,
 `schemaHash`, `bundleHash`, and `inputsHash`). A generated mutation reference
 must match that exact generation before cached evidence can admit its enqueue;
-a string-named mutation carries no generation witness, so its cached match is
-scoped to canonical origin only.
+a string-named mutation carries no call-time generation witness, so cached
+evidence may admit it only when the client has already established an app id
+from its served descriptor/binding and the cached served generation carries
+that same app id. An unbound client, a different app id at the same origin, or
+an identity-free cached manifest stays online-only instead of guessing the app
+identity that record schema v2 would persist.
 
 Inspection order belongs to the durable store, not a client instance or HTTP
 arrival order. Before dispatch, each inspection reserves a monotonic request
@@ -414,13 +425,14 @@ writer/follower handoff.
 `queue: 'auto'` ordinarily uses that fresh answer. Its one narrow exception is
 the enqueue fallback: when the capability re-probe itself loses transport and
 therefore produces no HTTP response, it may reuse a prior positive fact only
-when the canonical origin and any operation-carried app generation still match
-the fact's complete target identity. If no matching positive exists, the
-ambiguous mutation transport failure remains the caller-visible error and no
-outbox record is created. This exception licenses durable custody only; it is
-never transport or replay authority. Consequently cached evidence takes the
-enqueue-only path without a foreground mutation POST; only a fresh positive
-answer may gate a try-then-queue dispatch.
+when the canonical origin plus either the operation-carried generation or the
+string reference's established app id still match the fact's served target
+identity. If no matching positive exists, the ambiguous mutation transport
+failure remains the caller-visible error and no outbox record is created. This
+exception licenses durable custody only; it is never transport or replay
+authority. Consequently cached evidence takes the enqueue-only path without a
+foreground mutation POST; only a fresh positive answer may gate a
+try-then-queue dispatch.
 
 Answered negative facts replace predecessor positives through the elected
 writer when the carrier can prove that route. If IndexedDB has no usable
@@ -486,11 +498,14 @@ references store their complete call-time artifact generation; string-named
 references store the application identity already established by the served
 app descriptor/binding. Before replay changes queue custody, assigns an
 operation-identity range, marks dispatch, or sends a mutation, a fresh pinned
-target must equal every persisted axis. A difference refuses with
+target must equal every persisted axis. Replay performs this comparison in
+sequence at each record's custody boundary: records in a valid prefix may
+settle, then the first difference pauses the drain and leaves that record plus
+every successor pending. A difference refuses with
 `SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH`; a pre-v2 record with no target
-refuses separately with `SNAPBACK_OUTBOX_REPLAY_TARGET_MISSING`. Both records
-remain pending and produce no mutation POST. An explicit future protocol may
-adopt target-bound intent, but neither ordinary replay nor the current
+refuses separately with `SNAPBACK_OUTBOX_REPLAY_TARGET_MISSING`. The refused
+record produces no mutation POST. An explicit future protocol may adopt
+target-bound intent, but neither ordinary replay nor the current
 sidecar-adoption checks infer that authority; target adoption is out of scope
 for this amendment.
 
