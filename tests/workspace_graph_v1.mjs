@@ -593,6 +593,20 @@ test('reviewed null-path glob roots reject ambiguous path declarations', () => {
   );
 });
 
+test('reviewed crate-root module globs preserve their absent path attributes', () => {
+  const canonicalPath = join(repositoryRoot, 'crates/snapback-engine/src/lib.rs');
+  for (const source of [
+    '#[path = "ask.rs"] mod local;',
+    '#[path = "ask.rs"] mod runtime;',
+  ]) {
+    assert.throws(
+      () => validateEngineDefinitionDenylist(artifact, [{ path: canonicalPath, source }]),
+      /may not shadow reviewed glob binding (?:local|runtime)/u,
+      source,
+    );
+  }
+});
+
 test('reviewed local glob roots cannot be rebound', () => {
   for (const { path, source } of [
     {

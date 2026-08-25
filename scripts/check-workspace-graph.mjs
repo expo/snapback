@@ -1068,12 +1068,12 @@ function validateEngineDefinitionInputs(files) {
         );
       }
     }
-    for (const binding of DECLARATION_PROTECTED_ENGINE_GLOB_BINDINGS) {
-      const origin = ENGINE_GLOB_ROOT_ORIGINS.get(binding);
-      let declarations = masked;
+    for (const [binding, origin] of ENGINE_GLOB_ROOT_ORIGINS) {
       const reviewedDeclaration = origin.kind === 'module'
         ? origin.declarations.find(({ file: declarationFile }) => declarationFile === repositoryFile)
         : undefined;
+      if (!DECLARATION_PROTECTED_ENGINE_GLOB_BINDINGS.has(binding) && !reviewedDeclaration) continue;
+      let declarations = masked;
       if (reviewedDeclaration) {
         declarations = declarations.replace(
           new RegExp(
