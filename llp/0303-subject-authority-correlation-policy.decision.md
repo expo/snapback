@@ -6,7 +6,7 @@
 **Author:** Claude (Opus 5), commissioned by Charlie Cheever (author ruling
 2026-08-24, in session supervising LLP 0283 F-1)
 **Date:** 2026-08-24
-**Revised:** 2026-08-24 (i — re-runnable producers and generic seams)
+**Revised:** 2026-08-24 (j — move semantics protect the handle, not the fact)
 **Related:** LLP 0283, LLP 0298, LLP 0285, LLP 0274,
 `issues/20260824-liveness-row-bucket-assignment.md`,
 `issues/20260824-entitlement-predicates-for-the-live-sites.md`
@@ -278,6 +278,43 @@ repeatable.
 Both corollaries share a shape with the constructor case above: the lane closed the route named in
 the finding, and the capability persisted one step upstream or one level of indirection away. When
 answering any of these findings, state where the capability now lives, not merely what was deleted.
+
+### Move semantics protect the handle, not the fact
+
+Four lanes were reviewed in one round after each had adopted by-value consumption — the fix this
+document had been recommending. **All four were defeated by the same thing**, which makes it a
+property of the approach rather than four mistakes:
+
+- One lane's `commit_plan()` clones the operation binding, so commit producers stay replayable and a
+  later no-op can settle an earlier durable commit.
+- One lane's `reserve_invalidation_boot_issuer()` can be called twice while the first registry is
+  still live; the second issuer then authenticates retirement through the first boot.
+- One lane's public generic producers reconstruct the capability from arbitrary payloads.
+- One lane consumed its `HostedAdmissionEnvelope` by value — and the envelope remains
+  **deserializable**, while `select_admission_for_now` reconstructs a fresh equal value on every
+  call.
+
+> **Consuming a value by move makes that Rust binding single-use. It does not make the underlying
+> fact single-use.** If the value can be deserialized from bytes, re-read from storage, or re-minted
+> by calling its producer again, then "single-use" is a property of one local variable and nothing
+> else.
+
+This is why the progression `Clone` → remove `Clone` → consume by value keeps failing. Each step
+narrows *how many handles you can hold*, and none of them touches *how many times the fact can be
+made*.
+
+**Single-use of a fact requires durable state.** A replay ledger, a consumed-nonce table, a
+monotonic counter checked against durable storage, a row whose absence means "already used" — some
+record that survives the process and that the second attempt must contend with. A type-system
+property cannot express it, because the type system does not know what happened last Tuesday.
+
+So a lane claiming single-use must answer: **what durable record makes the second attempt fail, and
+where is it written?** If the answer is "the value was moved", the claim is about a variable. If a
+signed document, a serialised envelope, or anything reconstructible from bytes is involved, the
+answer must be durable or the claim is false.
+
+Type-level consumption remains worth having — it closes the accidental path and makes misuse a
+compile error. It is a complement to the durable check, never a substitute for it.
 
 This is the same family as the constructor/setter case above: a derivation that holds at one instant
 and is undone afterwards. Setters undo it by assignment; combinators undo it by rewrapping; recycling
