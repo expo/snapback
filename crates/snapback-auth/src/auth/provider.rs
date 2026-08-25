@@ -2973,12 +2973,17 @@ impl AuthProvider {
     /// stable protocol key.
     pub fn authenticate_invalidation_boot_issuer(
         &self,
-        issuer_id: crate::auth::invalidation::IssuerId,
+        reservation: crate::storage::InvalidationBootIssuerReservation,
+        expectation_view: crate::storage::AuthorizationExpectationView,
         target_profile_id: &str,
         app_id: &str,
     ) -> ProviderResult<crate::auth::invalidation::LiveInvalidationIssuer> {
         self.keyring
             .with_active_key(self.now_ms(), self.random.as_ref(), |key_id, key| {
+                let issuer_id = crate::auth::invalidation::IssuerId::fresh(
+                    reservation.authorization().incarnation.clone(),
+                    reservation.boot_sequence(),
+                )?;
                 crate::auth::invalidation::IssuerAuthenticator::new(
                     key_id.as_str(),
                     *key.expose_secret(),
@@ -2986,7 +2991,9 @@ impl AuthProvider {
                 .and_then(|authenticator| {
                     let authenticated =
                         authenticator.authenticate(issuer_id, target_profile_id, app_id)?;
-                    crate::auth::invalidation::LiveInvalidationIssuer::with_authenticator(
+                    crate::auth::invalidation::LiveInvalidationIssuer::new(
+                        reservation,
+                        expectation_view,
                         authenticated,
                         authenticator,
                         target_profile_id,

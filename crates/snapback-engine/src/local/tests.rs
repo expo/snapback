@@ -25,8 +25,8 @@ use super::{
 use crate::auth::admission::AdmissionController;
 use crate::auth::crypto::{CryptoError, RandomSource};
 use crate::auth::invalidation::{
-    AuthorizationInvalidationConnection, InvalidationDisposition, LiveInvalidationIssuer,
-    QueryNamespace, ResolutionKind, ScopeId,
+    AuthorizationInvalidationConnection, InvalidationDisposition, QueryNamespace, ResolutionKind,
+    ScopeId,
 };
 use crate::auth::invocation::{
     InvocationGate, InvocationSource, PreparedAuthority, PreparedInvocation, ResolvedAppAuthority,

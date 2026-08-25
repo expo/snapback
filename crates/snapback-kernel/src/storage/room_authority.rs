@@ -152,6 +152,13 @@ impl AuthorizationParticipantActivation {
         &self,
         registry: &Arc<RoomAuthorityRegistry>,
     ) -> SnapbackResult<()> {
+        self.require_projection_identity(registry).map(drop)
+    }
+
+    fn require_projection_identity(
+        &self,
+        registry: &Arc<RoomAuthorityRegistry>,
+    ) -> SnapbackResult<Arc<AuthorizationIssuerProjectionIdentity>> {
         let state = self
             .projection
             .lock()
@@ -188,7 +195,7 @@ impl AuthorizationParticipantActivation {
                 "authorization commit issuer projection belongs to another incarnation",
             ));
         }
-        Ok(())
+        Ok(projection)
     }
 
     fn fail_closed(&self, error: SnapbackError) -> SnapbackError {
@@ -1162,7 +1169,7 @@ impl AuthorizationCommitReservation {
                 "authorization participant is not ready at transaction bind",
             ));
         }
-        activation.require_projection(ready_registry)?;
+        let issuer_projection = activation.require_projection_identity(ready_registry)?;
         if !self.binding.matches(database_binding) {
             return Err(participant_database_mismatch());
         }
@@ -1237,6 +1244,7 @@ impl AuthorizationCommitReservation {
             binding: self.binding.clone(),
             registry: self.registry.clone(),
             activation,
+            issuer_projection,
             registry_generation: self.registry_generation,
             ticket,
             predecessor: durable_predecessor.cloned(),
@@ -1304,6 +1312,7 @@ pub(crate) struct PreparedAuthorizationCommit {
     binding: DatabaseBinding,
     registry: Arc<RoomAuthorityRegistry>,
     activation: Arc<AuthorizationParticipantActivation>,
+    issuer_projection: Arc<AuthorizationIssuerProjectionIdentity>,
     registry_generation: u64,
     ticket: RoomDependencyTicket,
     predecessor: Option<AuthorizationVersion>,
@@ -1329,6 +1338,13 @@ impl PreparedAuthorizationCommit {
             .known_commit
             .set(known)
             .map_err(|_| expectation_stale("authorization commit verdict was already installed"))?;
+        if !self.incarnation_rotated {
+            // @ref LLP 0303#why-coverage-kept-leaking-both-lanes-chose-verify-where-derive-was-available
+            // — only the exact prepared commit can stage the successor that
+            // the obligation registry derives from this installed issuer.
+            self.issuer_projection
+                .stage_committed(&self.authorization)?;
+        }
         let registry = self.registry.clone();
         let activation = self.activation.clone();
         let binding = self.binding.clone();
@@ -1413,11 +1429,23 @@ pub struct AuthorizationIssuerProjection {
 
 struct AuthorizationIssuerProjectionIdentity {
     view: AuthorizationExpectationView,
+    committed_epoch: AtomicU64,
 }
 
 impl AuthorizationIssuerProjection {
     pub fn current(&self) -> SnapbackResult<AuthorizationVersion> {
-        self.identity.view.current()
+        if self.identity.view.activation.state() == ACTIVATION_RETIRED
+            || self.identity.view.registry.is_retired()
+            || self.identity.view.registry.generation() != self.identity.view.registry_generation
+        {
+            return Err(projection_unavailable(
+                "authorization issuer projection is retired",
+            ));
+        }
+        Ok(AuthorizationVersion {
+            incarnation: self.identity.view.issuer_incarnation.to_string(),
+            epoch: self.identity.committed_epoch.load(Ordering::Acquire),
+        })
     }
 
     pub fn project_committed(&self, outcome: &AuthorizationCommitOutcome) -> SnapbackResult<()> {
@@ -1433,7 +1461,38 @@ impl AuthorizationIssuerProjection {
     }
 }
 
+impl AuthorizationIssuerProjectionIdentity {
+    fn stage_committed(&self, authorization: &AuthorizationVersion) -> SnapbackResult<()> {
+        if authorization.incarnation != self.view.issuer_incarnation.as_ref() {
+            return Err(expectation_stale(
+                "prepared authorization commit crossed its issuer incarnation",
+            ));
+        }
+        let mut current = self.committed_epoch.load(Ordering::Acquire);
+        loop {
+            if authorization.epoch < current {
+                return Err(expectation_stale(
+                    "prepared authorization commits must advance monotonically",
+                ));
+            }
+            match self.committed_epoch.compare_exchange_weak(
+                current,
+                authorization.epoch,
+                Ordering::AcqRel,
+                Ordering::Acquire,
+            ) {
+                Ok(_) => return Ok(()),
+                Err(observed) => current = observed,
+            }
+        }
+    }
+}
+
 impl AuthorizationExpectationView {
+    pub(super) fn database_binding_matches(&self, binding: &DatabaseBinding) -> bool {
+        self.registry.binding_matches(binding)
+    }
+
     pub(super) fn new(
         registry: Arc<RoomAuthorityRegistry>,
         registry_generation: u64,
@@ -1492,9 +1551,12 @@ impl AuthorizationExpectationView {
     /// invalidation issuer. Activation accepts this opaque identity, never a
     /// caller-supplied authorization value.
     pub fn into_issuer_projection(self) -> SnapbackResult<AuthorizationIssuerProjection> {
-        self.current()?;
+        let committed_authorization = self.current()?;
         Ok(AuthorizationIssuerProjection {
-            identity: Arc::new(AuthorizationIssuerProjectionIdentity { view: self }),
+            identity: Arc::new(AuthorizationIssuerProjectionIdentity {
+                view: self,
+                committed_epoch: AtomicU64::new(committed_authorization.epoch),
+            }),
         })
     }
 
@@ -2336,9 +2398,10 @@ mod tests {
     fn ready_fixture() -> ReadyFixture {
         let local = LocalDatabase::memory().expect("in-memory database");
         let mut database = ServingDatabase::adopt(local).expect("serving database");
-        let (authorization, _, _) = database
+        let reservation = database
             .reserve_invalidation_boot_issuer()
             .expect("durable authorization snapshot");
+        let authorization = reservation.authorization().clone();
         let participant = database
             .take_authorization_commit_participant()
             .expect("sole participant");
@@ -2423,7 +2486,8 @@ mod tests {
                 .authorization_commit_reservation_required()
                 .unwrap()
         );
-        let (authorization, _, _) = database.reserve_invalidation_boot_issuer().unwrap();
+        let reservation = database.reserve_invalidation_boot_issuer().unwrap();
+        let authorization = reservation.authorization().clone();
         let participant = database.take_authorization_commit_participant().unwrap();
         let pending = database
             .authorization_commit_reservation_required()

@@ -7,10 +7,10 @@ use crate::auth::admission::{
 use crate::auth::descriptor::require_current_descriptor;
 use crate::auth::invalidation::{
     AuthorizationInvalidationConnection, AuthorizationInvalidationProjection, CompositeWitness,
-    DataWitness, InstalledInvalidationReservation, InvalidationDisposition, LiveInvalidationIssuer,
-    ObligationExpectation, ObligationRegistry, QueryNamespace, ResolutionKind, ResolutionTicket,
-    ResyncObligation, RetryEpisode, RetryEpisodeKey, RetryReservation, RetryReservationKind,
-    ScopeId, ScopeRetirement, ScopeRetirementCandidate,
+    DataWitness, InstalledInvalidationIssuer, InvalidationDisposition, LiveInvalidationIssuer,
+    ObligationRegistry, QueryNamespace, ResolutionKind, ResolutionTicket, ResyncObligation,
+    RetryEpisode, RetryEpisodeKey, RetryReservation, RetryReservationKind, ScopeId,
+    ScopeRetirement, ScopeRetirementCandidate,
 };
 #[cfg(test)]
 use crate::auth::invocation::install_classified_admission_hook_for_test;
@@ -3537,8 +3537,7 @@ pub struct ManagedWebsocketWitness {
 /// pre-existing connection and room seams performed with it.
 #[derive(Clone)]
 pub struct EngineInvalidationBinding {
-    issuer: LiveInvalidationIssuer,
-    installed: InstalledInvalidationReservation,
+    issuer: InstalledInvalidationIssuer,
 }
 
 impl EngineInvalidationBinding {
@@ -3552,9 +3551,21 @@ impl EngineInvalidationBinding {
         &self,
         effect_fence: crate::ephemeral::ConnectionEffectFence,
     ) -> SnapbackResult<crate::auth::invalidation::AuthorizationInvalidationConnection> {
-        self.issuer
-            .reserve_connection(&self.installed, effect_fence)
+        self.issuer.reserve_connection(effect_fence)
     }
+}
+
+#[cfg(any(test, feature = "test-support"))]
+fn invalidation_provider_for_test() -> crate::auth::provider::AuthProvider {
+    let keyring = Arc::new(crate::auth::keyring::AuthKeyringStore::in_memory());
+    keyring
+        .load_or_mint_initial(0, &crate::auth::crypto::OsRandom)
+        .expect("mint test invalidation protocol key");
+    crate::auth::provider::AuthProvider::new(
+        crate::contract_types::AuthProviderProfile::Test,
+        keyring,
+    )
+    .expect("construct test invalidation provider")
 }
 
 impl ManagedWebsocketWitness {
@@ -4168,11 +4179,9 @@ pub struct FinalizeWitnessRetryTicketV1 {
 }
 
 struct LocalInvalidationState {
-    issuer: LiveInvalidationIssuer,
-    installed: InstalledInvalidationReservation,
+    issuer: InstalledInvalidationIssuer,
     obligations: ObligationRegistry,
     version_stream: String,
-    next_cause_sequence: u64,
 }
 
 impl LocalInvalidationState {
@@ -4180,34 +4189,18 @@ impl LocalInvalidationState {
         &self,
         effect_fence: crate::ephemeral::ConnectionEffectFence,
     ) -> SnapbackResult<AuthorizationInvalidationConnection> {
-        self.issuer
-            .reserve_connection(&self.installed, effect_fence)
+        self.issuer.reserve_connection(effect_fence)
     }
 
     fn accepts_connection(&self, connection: &AuthorizationInvalidationConnection) -> bool {
         let current = &self.obligations.expectation().authorization;
-        self.installed.owns(connection)
+        self.issuer.owns(connection)
             && connection.protocol_version()
                 == crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION
             && connection.issuer_id() == &self.issuer.authenticated().issuer_id
             && connection.authorization().incarnation == current.incarnation
             && connection.authorization().epoch <= current.epoch
             && connection.version_stream() == self.version_stream
-    }
-
-    fn reserve_cause_sequence(&mut self) -> SnapbackResult<u64> {
-        let current = self.next_cause_sequence;
-        self.next_cause_sequence = current
-            .checked_add(1)
-            .filter(|value| *value <= crate::auth::invalidation::MAX_PROTOCOL_COUNTER)
-            .ok_or_else(|| {
-                SnapbackError::error(
-                    "SNAPBACK_AUTH_INVALIDATION_CAUSE_EXHAUSTED",
-                    "auth",
-                    "authorization invalidation cause sequence exhausted",
-                )
-            })?;
-        Ok(current)
     }
 
     fn witness(&self, min_commit_version: u64) -> CompositeWitness {
@@ -4249,12 +4242,13 @@ impl LocalInvalidationState {
         &mut self,
         scope: &ScopeId,
         expected: &Option<ScopeRetirementCandidate>,
-    ) {
-        let actual = self.obligations.retire_scope(scope);
+    ) -> SnapbackResult<()> {
+        let actual = self.obligations.retire_scope(scope)?;
         assert_eq!(
             &actual, expected,
             "authenticated scope retirement frontier changed during commit"
         );
+        Ok(())
     }
 }
 
@@ -10104,36 +10098,20 @@ impl LocalSnapback {
     pub(crate) fn install_auth_invalidation(
         &mut self,
         issuer: LiveInvalidationIssuer,
-        authorization: crate::storage::AuthorizationVersion,
-        version_stream: String,
     ) -> SnapbackResult<EngineInvalidationBinding> {
-        let view = self
-            .ephemeral
-            .authorization_expectation_view_for_install(&mut self.db)?;
-        if view.current()? != authorization {
-            return Err(SnapbackError::error(
-                "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
-                "auth",
-                "kernel authorization expectation does not match the reserved boot issuer",
-            ));
-        }
-        let installed = issuer.bind_authorization_expectation(view)?;
-        issuer.install_version_stream(version_stream.clone())?;
-        let obligations = ObligationRegistry::new(ObligationExpectation {
-            authorization,
-            version_stream: Some(version_stream.clone()),
-            issuer_id: Some(issuer.authenticated().issuer_id.clone()),
-        })?;
+        let obligations = ObligationRegistry::new(issuer)?;
+        let installed_issuer = obligations.installed_issuer().clone();
+        let version_stream = installed_issuer.version_stream().to_owned();
         self.auth_invalidation = Some(LocalInvalidationState {
-            issuer: issuer.clone(),
-            installed: installed.clone(),
+            issuer: installed_issuer.clone(),
             obligations,
             version_stream,
-            next_cause_sequence: 1,
         });
         self.ephemeral
-            .install_authorization_issuer_and_activate(&mut self.db, issuer.clone())?;
-        Ok(EngineInvalidationBinding { issuer, installed })
+            .install_authorization_issuer_and_activate(&mut self.db, installed_issuer.clone())?;
+        Ok(EngineInvalidationBinding {
+            issuer: installed_issuer,
+        })
     }
 
     /// Remove every process-local issuer projection after a durable reset
@@ -10177,10 +10155,9 @@ impl LocalSnapback {
             let target_profile_id = schema.target_profile.clone().unwrap_or_else(|| {
                 crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned()
             });
-            let (authorization, version_stream, boot_sequence) =
-                self.db.reserve_invalidation_boot_issuer()?;
+            let reservation = self.db.reserve_invalidation_boot_issuer()?;
             if let Some(reset_successor) = reset_successor
-                && authorization.incarnation != reset_successor
+                && reservation.authorization().incarnation != reset_successor
             {
                 return Err(SnapbackError::error(
                     "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
@@ -10188,14 +10165,18 @@ impl LocalSnapback {
                     "reset successor issuer reservation observed another authorization incarnation",
                 ));
             }
-            let issuer_id = crate::auth::invalidation::IssuerId::fresh(
-                authorization.incarnation.clone(),
-                boot_sequence,
-            )?;
+            let view = self
+                .ephemeral
+                .authorization_expectation_view_for_install(&mut self.db)?;
             let issuer = provider
-                .authenticate_invalidation_boot_issuer(issuer_id, &target_profile_id, &app_id)
+                .authenticate_invalidation_boot_issuer(
+                    reservation,
+                    view,
+                    &target_profile_id,
+                    &app_id,
+                )
                 .map_err(crate::auth::provider::ProviderError::into_snapback_error)?;
-            self.install_auth_invalidation(issuer, authorization, version_stream)
+            self.install_auth_invalidation(issuer)
         })();
         if attempt.is_err() && reset_successor.is_some() {
             self.clear_auth_invalidation_projection();
@@ -13491,44 +13472,29 @@ impl LocalSnapback {
         self.install_live_fanout_coalescer(Self::graph_corpus_coalescer_for_test());
         self.pending_live_fanout.evaluation_memo.disabled = false;
 
-        let (reserved, version_stream, boot_sequence) = self
-            .auth_database_mut()
-            .reserve_invalidation_boot_issuer()?;
-        if reserved != authorization || version_stream != data_version_stream {
+        let provider = invalidation_provider_for_test();
+        let binding = self.install_authenticated_auth_invalidation(&provider, None)?;
+        if binding.authorization_expectation()? != authorization {
             return Err(SnapbackError::error(
                 "SNAPBACK_TEST_FIXTURE_INVALID",
                 "query",
                 "the graph corpus scheduler did not reserve its exact frozen stream identities",
             ));
         }
-        let issuer_id = crate::auth::invalidation::IssuerId::fresh(
-            authorization.incarnation.clone(),
-            boot_sequence,
+        let connection = binding.prepare_connection(
+            crate::ephemeral::ConnectionEffectFence::anonymous(
+                authorization.incarnation.clone(),
+                "graph-corpus-grant",
+            ),
         )?;
-        let authenticator = crate::auth::invalidation::IssuerAuthenticator::new(
-            "graph-corpus-protocol-key",
-            [0x47; 32],
-        )?;
-        let authenticated = authenticator.authenticate(
-            issuer_id,
-            TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
-            self.db.schema().app_id.as_str(),
-        )?;
-        let issuer = LiveInvalidationIssuer::with_authenticator(
-            authenticated,
-            authenticator,
-            TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
-            self.db.schema().app_id.as_str(),
-        )?;
-        let binding = self.install_auth_invalidation(
-            issuer,
-            authorization.clone(),
-            data_version_stream.to_owned(),
-        )?;
-        binding.prepare_connection(crate::ephemeral::ConnectionEffectFence::anonymous(
-            authorization.incarnation,
-            format!("graph-corpus-grant-{boot_sequence}"),
-        ))
+        if connection.version_stream() != data_version_stream {
+            return Err(SnapbackError::error(
+                "SNAPBACK_TEST_FIXTURE_INVALID",
+                "query",
+                "the graph corpus scheduler did not reserve its exact frozen stream identities",
+            ));
+        }
+        Ok(connection)
     }
 
     /// Bind the real authorization stream already present in a sessions-mode
@@ -13540,33 +13506,12 @@ impl LocalSnapback {
     ) -> SnapbackResult<AuthorizationInvalidationConnection> {
         self.install_live_fanout_coalescer(Self::graph_corpus_coalescer_for_test());
         self.pending_live_fanout.evaluation_memo.disabled = false;
-        let (authorization, version_stream, boot_sequence) = self
-            .auth_database_mut()
-            .reserve_invalidation_boot_issuer()?;
-        let issuer_id = crate::auth::invalidation::IssuerId::fresh(
-            authorization.incarnation.clone(),
-            boot_sequence,
-        )?;
-        let authenticator = crate::auth::invalidation::IssuerAuthenticator::new(
-            "graph-measurement-protocol-key",
-            [0x50; 32],
-        )?;
-        let authenticated = authenticator.authenticate(
-            issuer_id,
-            TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
-            self.db.schema().app_id.as_str(),
-        )?;
-        let issuer = LiveInvalidationIssuer::with_authenticator(
-            authenticated,
-            authenticator,
-            TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
-            self.db.schema().app_id.as_str(),
-        )?;
-        let binding =
-            self.install_auth_invalidation(issuer, authorization.clone(), version_stream)?;
+        let provider = invalidation_provider_for_test();
+        let binding = self.install_authenticated_auth_invalidation(&provider, None)?;
+        let authorization = binding.authorization_expectation()?;
         binding.prepare_connection(crate::ephemeral::ConnectionEffectFence::anonymous(
             authorization.incarnation,
-            format!("graph-measurement-grant-{boot_sequence}"),
+            "graph-measurement-grant",
         ))
     }
 
@@ -23222,7 +23167,7 @@ impl LocalSnapback {
                 if let Err(error) = registration {
                     state
                         .obligations
-                        .rollback_unpublished_live_scope(&scope_id, &connection_scope);
+                        .rollback_unpublished_live_scope(&scope_id, &connection_scope)?;
                     return Err(error);
                 }
                 registered_scope_cleanup = Some((scope_id.clone(), connection_scope));
@@ -23268,7 +23213,7 @@ impl LocalSnapback {
                                 ) {
                                     state
                                         .obligations
-                                        .rollback_unpublished_live_scope(scope, connection_scope);
+                                        .rollback_unpublished_live_scope(scope, connection_scope)?;
                                 }
                                 return Err(error);
                             }
@@ -23276,17 +23221,17 @@ impl LocalSnapback {
                     }
                     _ => None,
                 };
+            if let (Some(state), Some((scope, candidate, retirement))) =
+                (self.auth_invalidation.as_mut(), prepared_retirement)
+            {
+                state.commit_scope_retirement(&scope, &candidate)?;
+                scope_retirements.extend(retirement);
+            }
             if let Some(retired) = self.subscriptions.remove(&old_id) {
                 retired.observation.finish(200, None, "superseded");
             }
             self.runtime_cost.retire_subscription(&old_id);
             self.retire_live_evaluation_memo_subscription(&old_id);
-            if let (Some(state), Some((scope, candidate, retirement))) =
-                (self.auth_invalidation.as_mut(), prepared_retirement)
-            {
-                state.commit_scope_retirement(&scope, &candidate);
-                scope_retirements.extend(retirement);
-            }
             let receipt = Receipt::Subscription {
                 event: SubscriptionReceiptEvent::Disposed,
                 reason: Some("superseded".to_owned()),
@@ -23637,20 +23582,22 @@ impl LocalSnapback {
             }
             _ => None,
         };
-        // No fallible step remains after the retained producer is removed.
+        // Authenticate and commit the retirement before removing the retained
+        // producer: the durable issuer guard can still refuse a concurrently
+        // retired boot at this point.
         self.touch_connection(&input.connection_id, now_millis());
+        let scope_retirement = match (self.auth_invalidation.as_mut(), prepared_retirement) {
+            (Some(state), Some((scope, candidate, retirement))) => {
+                state.commit_scope_retirement(&scope, &candidate)?;
+                retirement
+            }
+            _ => None,
+        };
         self.subscriptions.remove(&subscription.id);
         self.runtime_cost.retire_subscription(&subscription.id);
         self.retire_live_evaluation_memo_subscription(&subscription.id);
         subscription.observation.finish(200, None, "unsubscribed");
         self.refresh_auth_scoped_live_connections();
-        let scope_retirement = match (self.auth_invalidation.as_mut(), prepared_retirement) {
-            (Some(state), Some((scope, candidate, retirement))) => {
-                state.commit_scope_retirement(&scope, &candidate);
-                retirement
-            }
-            _ => None,
-        };
         // Losing the last watcher of a demand-gated live query disarms cron.
         self.refresh_cron_active();
         let receipt = Receipt::Subscription {
@@ -24185,11 +24132,11 @@ impl LocalSnapback {
                 let owner_continuity_id =
                     crate::ids::mint_time_ordered(crate::ids::Kind::OwnerContinuity);
                 let transfer_cause = if previous.is_some() {
-                    Some(state.reserve_cause_sequence()?)
+                    Some(state.obligations.reserve_cause_sequence()?)
                 } else {
                     None
                 };
-                let fresh_cause = state.reserve_cause_sequence()?;
+                let fresh_cause = state.obligations.reserve_cause_sequence()?;
                 let mut quarantine_entry = None;
                 let staged = (|| {
                     state
@@ -24234,7 +24181,7 @@ impl LocalSnapback {
                 if let Err(error) = staged {
                     state
                         .obligations
-                        .rollback_unpublished_live_scope(&replacement, &connection_scope);
+                        .rollback_unpublished_live_scope(&replacement, &connection_scope)?;
                     return Err(error);
                 }
                 authorization.owner_continuity_id = owner_continuity_id;
@@ -24246,7 +24193,7 @@ impl LocalSnapback {
                         .auth_invalidation
                         .as_mut()
                         .expect("resume checked installed invalidation state");
-                    let cause = state.reserve_cause_sequence()?;
+                    let cause = state.obligations.reserve_cause_sequence()?;
                     state.obligations.raise_with_quarantine_lifecycle(
                         authorization.scope_id.clone(),
                         cause,
@@ -24274,7 +24221,7 @@ impl LocalSnapback {
                             .as_mut()
                             .expect("state remains installed")
                             .obligations
-                            .rollback_unpublished_live_scope(replacement, connection_scope);
+                            .rollback_unpublished_live_scope(replacement, connection_scope)?;
                     }
                     // The failed attempt exposed no replacement identity. Keep
                     // the exact retained predecessor as cleanup/delivery owner
@@ -24300,7 +24247,7 @@ impl LocalSnapback {
                             .as_mut()
                             .expect("state remains installed")
                             .obligations
-                            .rollback_unpublished_live_scope(replacement, connection_scope);
+                            .rollback_unpublished_live_scope(replacement, connection_scope)?;
                     }
                     return Err(error);
                 }
@@ -24329,7 +24276,7 @@ impl LocalSnapback {
                         .as_mut()
                         .expect("state remains installed")
                         .obligations
-                        .rollback_unpublished_live_scope(replacement, connection_scope);
+                        .rollback_unpublished_live_scope(replacement, connection_scope)?;
                 }
                 return Err(error);
             }
@@ -24359,7 +24306,7 @@ impl LocalSnapback {
                                 .as_mut()
                                 .expect("state remains installed")
                                 .obligations
-                                .rollback_unpublished_live_scope(replacement, connection_scope);
+                                .rollback_unpublished_live_scope(replacement, connection_scope)?;
                         }
                         return Err(error);
                     }
@@ -24391,7 +24338,7 @@ impl LocalSnapback {
                             .as_mut()
                             .expect("state remains installed")
                             .obligations
-                            .rollback_unpublished_live_scope(replacement, connection_scope);
+                            .rollback_unpublished_live_scope(replacement, connection_scope)?;
                     }
                     return Err(SnapbackError::error(
                         "SNAPBACK_AUTH_INVALIDATION_SERIALIZE_FAILED",
@@ -24432,7 +24379,7 @@ impl LocalSnapback {
                         .as_mut()
                         .expect("state remains installed")
                         .obligations
-                        .rollback_unpublished_live_scope(replacement, connection_scope);
+                        .rollback_unpublished_live_scope(replacement, connection_scope)?;
                 }
                 return Err(error);
             }
@@ -24446,7 +24393,7 @@ impl LocalSnapback {
                         .as_mut()
                         .expect("state remains installed")
                         .obligations
-                        .rollback_unpublished_live_scope(replacement, connection_scope);
+                        .rollback_unpublished_live_scope(replacement, connection_scope)?;
                 }
                 return Err(error);
             }
@@ -24462,7 +24409,7 @@ impl LocalSnapback {
                     .as_mut()
                     .expect("state remains installed")
                     .obligations
-                    .retire_scope(&predecessor_scope);
+                    .retire_scope(&predecessor_scope)?;
                 assert_eq!(
                     actual, retirement_candidate,
                     "validated live scope retirement frontier changed during commit"
@@ -30052,7 +29999,7 @@ impl LocalSnapback {
                              invalidation state",
                         )
                     })?;
-                    let cause = state.reserve_cause_sequence()?;
+                    let cause = state.obligations.reserve_cause_sequence()?;
                     let witness = state.witness(publication_version);
                     let quarantine_entry = state.obligations.raise_with_quarantine_lifecycle(
                         scope.clone(),
@@ -30104,12 +30051,12 @@ impl LocalSnapback {
                     )
                     .with_details(json!({ "error": error.to_string() }))
                 })?;
-                // No fallible step remains: remove, then commit the
-                // authenticated retirement (the unsubscribe ordering).
-                self.subscriptions.remove(&subscription.id);
+                // The serialized durable guard can still refuse a retired
+                // issuer, so commit before removing the retained producer.
                 if let Some(state) = self.auth_invalidation.as_mut() {
-                    state.commit_scope_retirement(&scope, &prepared_retirement);
+                    state.commit_scope_retirement(&scope, &prepared_retirement)?;
                 }
+                self.subscriptions.remove(&subscription.id);
                 payload
             } else {
                 serde_json::to_vec(&LiveEnvelope::ResyncRequired {
@@ -32295,7 +32242,7 @@ impl LocalSnapback {
                     "authorization invalidation is not installed",
                 )
             })?;
-            let cause = state.reserve_cause_sequence()?;
+            let cause = state.obligations.reserve_cause_sequence()?;
             Some(state.obligations.raise_with_quarantine_lifecycle(
                 authorization.scope_id.clone(),
                 cause,
@@ -32395,7 +32342,7 @@ impl LocalSnapback {
                         "authorization invalidation is not installed",
                     )
                 })?;
-                let cause = state.reserve_cause_sequence()?;
+                let cause = state.obligations.reserve_cause_sequence()?;
                 let witness = state.witness(min_commit_version);
                 state.obligations.raise(
                     root.clone(),
@@ -32714,7 +32661,7 @@ impl LocalSnapback {
                         if current.retry_episode_id == failure.retry_episode_id {
                             return state.obligations.projection(scope);
                         }
-                        let cause = state.reserve_cause_sequence().ok()?;
+                        let cause = state.obligations.reserve_cause_sequence().ok()?;
                         state
                             .obligations
                             .raise(
@@ -32875,11 +32822,7 @@ impl LocalSnapback {
                     "authorization event cannot advance without invalidation state",
                 )
             })
-            .and_then(|state| {
-                state
-                    .obligations
-                    .advance_authenticated_authorization(authorization.version.clone())
-            })?;
+            .and_then(|state| state.obligations.advance_authenticated_authorization())?;
         if !authorization.incarnation_rotated {
             let ephemeral = self.ephemeral.clone();
             let issuer = self
@@ -32945,7 +32888,7 @@ impl LocalSnapback {
                     .as_ref()
                     .expect("filtered auth-scoped subscription")
                     .scope_id;
-                let cause = state.reserve_cause_sequence()?;
+                let cause = state.obligations.reserve_cause_sequence()?;
                 let witness = state.witness(min_commit_version);
                 let (obligation, entered) = state.obligations.raise_with_quarantine_lifecycle(
                     scope.clone(),
@@ -34768,7 +34711,7 @@ impl LocalSnapback {
             let _publication = admission.effect_guard("live failure/resync publication")?;
             if let Some(authorization) = subscription.authorization.as_ref() {
                 let raised = self.auth_invalidation.as_mut().and_then(|state| {
-                    let cause = state.reserve_cause_sequence().ok()?;
+                    let cause = state.obligations.reserve_cause_sequence().ok()?;
                     let witness = state.witness(min_commit_version);
                     let (obligation, entered) = state
                         .obligations

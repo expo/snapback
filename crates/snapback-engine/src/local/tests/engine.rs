@@ -17949,7 +17949,8 @@ fn same_mode_sessions_activation_projection_error_stays_closed() {
         .auth_invalidation
         .as_mut()
         .expect("installed invalidation state")
-        .next_cause_sequence = crate::auth::invalidation::MAX_PROTOCOL_COUNTER;
+        .obligations
+        .set_next_cause_sequence_for_test(crate::auth::invalidation::MAX_PROTOCOL_COUNTER);
 
     let (_, successor_functions) = sessions_activation_pair('e', true);
     let successor_bundle = successor_functions.bundle_hash.clone().unwrap();
@@ -30760,31 +30761,12 @@ fn live_resume_retires_predecessor_before_successor_admission() {
 }
 
 fn install_test_invalidation(snapback: &mut LocalSnapback) -> AuthorizationInvalidationConnection {
-    let (authorization, version_stream, boot_sequence) = snapback
-        .auth_database_mut()
-        .reserve_invalidation_boot_issuer()
-        .expect("reserve test issuer");
-    let issuer_id = crate::auth::invalidation::IssuerId::fresh(
-        authorization.incarnation.clone(),
-        boot_sequence,
-    )
-    .expect("test issuer id");
-    let authenticator =
-        crate::auth::invalidation::IssuerAuthenticator::new("test-protocol-key", [0x5a; 32])
-            .expect("test authenticator");
-    let authenticated = authenticator
-        .authenticate(issuer_id, "test-target", "test-app")
-        .expect("authenticate test issuer");
-    let issuer = LiveInvalidationIssuer::with_authenticator(
-        authenticated,
-        authenticator,
-        "test-target",
-        "test-app",
-    )
-    .expect("live test issuer");
     let binding = snapback
-        .install_auth_invalidation(issuer.clone(), authorization.clone(), version_stream)
+        .install_authenticated_auth_invalidation(&invalidation_provider_for_test(), None)
         .expect("install test invalidation");
+    let authorization = binding
+        .authorization_expectation()
+        .expect("test authorization expectation");
     binding
         .prepare_connection(crate::ephemeral::ConnectionEffectFence::anonymous(
             authorization.incarnation,
@@ -35877,7 +35859,10 @@ fn raise_client_query_obligation(snapback: &mut LocalSnapback, namespace: QueryN
         .as_mut()
         .expect("installed invalidation state");
     let witness = state.witness(0);
-    let cause = state.reserve_cause_sequence().expect("cause sequence");
+    let cause = state
+        .obligations
+        .reserve_cause_sequence()
+        .expect("cause sequence");
     state
         .obligations
         .raise(

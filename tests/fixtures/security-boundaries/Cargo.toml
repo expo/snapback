@@ -250,6 +250,30 @@ path = "src/bin/construct_resolved_app_authority_from_parts.rs"
 name = "join-and-carry-resolved-app-authority"
 path = "src/bin/join_and_carry_resolved_app_authority.rs"
 
+[[bin]]
+name = "supply-obligation-authorization"
+path = "src/bin/supply_obligation_authorization.rs"
+
+[[bin]]
+name = "replace-obligation-expectation"
+path = "src/bin/replace_obligation_expectation.rs"
+
+[[bin]]
+name = "forge-live-invalidation-issuer"
+path = "src/bin/forge_live_invalidation_issuer.rs"
+
+[[bin]]
+name = "clone-live-invalidation-issuer"
+path = "src/bin/clone_live_invalidation_issuer.rs"
+
+[[bin]]
+name = "reuse-live-invalidation-issuer"
+path = "src/bin/reuse_live_invalidation_issuer.rs"
+
+[[bin]]
+name = "sign-scope-retirement-directly"
+path = "src/bin/sign_scope_retirement_directly.rs"
+
 # Harness-only counterexample: never part of attacks.v1.json.
 [[bin]]
 name = "unrelated-error-satisfies-regex"

@@ -322,40 +322,6 @@ impl AuthRuntime {
         }
     }
 
-    /// Reserve and authenticate the process issuer before listener bind. The
-    /// SQLite reservation commits first; authentication failure therefore
-    /// burns a sequence and prevents serving rather than reusing it.
-    #[cfg(test)]
-    pub(crate) fn reserve_invalidation_boot_issuer(
-        &self,
-        snapback: &mut LocalSnapback,
-        target_profile_id: &str,
-        app_id: &str,
-    ) -> ProviderResult<(
-        crate::auth::invalidation::LiveInvalidationIssuer,
-        crate::storage::AuthorizationVersion,
-        String,
-    )> {
-        if !self.catalog_ready {
-            return Err(
-                crate::diagnostic::SnapbackError::new(provider_unavailable_diagnostic()).into(),
-            );
-        }
-        let (authorization, version_stream, boot_sequence) = snapback
-            .remainder_auth_database_mut()
-            .reserve_invalidation_boot_issuer()?;
-        let issuer_id = crate::auth::invalidation::IssuerId::fresh(
-            authorization.incarnation.clone(),
-            boot_sequence,
-        )?;
-        let issuer = self.provider.authenticate_invalidation_boot_issuer(
-            issuer_id,
-            target_profile_id,
-            app_id,
-        )?;
-        Ok((issuer, authorization, version_stream))
-    }
-
     pub fn health(&self) -> AuthProviderHealth {
         if !self.catalog_ready {
             return AuthProviderHealth::Dormant;

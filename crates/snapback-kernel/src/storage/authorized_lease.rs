@@ -380,6 +380,7 @@ mod tests {
     use serde_json::Map;
     use sha2::{Digest as _, Sha256};
     use std::collections::BTreeMap;
+    use std::ops::{Deref, DerefMut};
     use tempfile::tempdir;
 
     const NOW: u64 = 1_800_000_000_000;
@@ -440,7 +441,29 @@ mod tests {
         )
     }
 
-    fn sessions_database(path: Option<&std::path::Path>) -> LocalDatabase {
+    // @ref LLP 0303#move-semantics-protect-the-handle-not-the-fact — one test
+    // database lifetime retains one genuine producer reservation; synthetic
+    // leases reuse its facts instead of replaying the producer.
+    struct SessionsDatabase {
+        database: LocalDatabase,
+        invalidation_issuer: crate::storage::InvalidationBootIssuerReservation,
+    }
+
+    impl Deref for SessionsDatabase {
+        type Target = LocalDatabase;
+
+        fn deref(&self) -> &Self::Target {
+            &self.database
+        }
+    }
+
+    impl DerefMut for SessionsDatabase {
+        fn deref_mut(&mut self) -> &mut Self::Target {
+            &mut self.database
+        }
+    }
+
+    fn sessions_database(path: Option<&std::path::Path>) -> SessionsDatabase {
         let mut db = match path {
             Some(path) => LocalDatabase::open(path).unwrap(),
             None => LocalDatabase::memory().unwrap(),
@@ -480,7 +503,11 @@ mod tests {
             Ok(())
         })
         .unwrap();
-        db
+        let invalidation_issuer = db.reserve_invalidation_boot_issuer().unwrap();
+        SessionsDatabase {
+            database: db,
+            invalidation_issuer,
+        }
     }
 
     fn signer() -> AuthorizedLeaseAuthenticator {
@@ -488,13 +515,14 @@ mod tests {
     }
 
     fn lease_with_session_not_after(
-        db: &mut LocalDatabase,
+        db: &mut SessionsDatabase,
         request: &str,
         now_ms: u64,
         session_not_after_ms: u64,
     ) -> AuthorizedLease {
-        let (authorization, version_stream, boot_sequence) =
-            db.reserve_invalidation_boot_issuer().unwrap();
+        let authorization = db.invalidation_issuer.authorization().clone();
+        let version_stream = db.invalidation_issuer.version_stream().to_owned();
+        let boot_sequence = db.invalidation_issuer.boot_sequence();
         let deployment = db
             .auth_mode_snapshot()
             .unwrap()
@@ -535,7 +563,7 @@ mod tests {
             .unwrap()
     }
 
-    fn current_lease(db: &mut LocalDatabase, request: &str, now_ms: u64) -> AuthorizedLease {
+    fn current_lease(db: &mut SessionsDatabase, request: &str, now_ms: u64) -> AuthorizedLease {
         lease_with_session_not_after(db, request, now_ms, NOW + AUTHORIZED_LEASE_HARD_MAX_MS)
     }
 

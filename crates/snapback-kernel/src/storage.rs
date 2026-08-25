@@ -81,6 +81,7 @@ mod schema_transition;
 mod settlement;
 mod versions;
 
+pub use auth_invalidation::InvalidationBootIssuerReservation;
 pub use room_authority::{
     AuthorizationCommitOutcome, AuthorizationCommitParticipant, AuthorizationCommitReservation,
     AuthorizationExpectationView, AuthorizationIssuerProjection, AuthorizationOutboxAdmission,
@@ -1597,6 +1598,16 @@ pub struct LocalDatabase {
     /// cannot claim a parallel serving authority while the first graph lives.
     commit_authority_key: String,
     commit_authority_claimed: bool,
+    /// Unforgeable identity for this exact database-open lifetime. The
+    /// invalidation boot-issuance record persists it beside the reserved boot
+    /// sequence so a second reservation from this lifetime cannot be mistaken
+    /// for an ordinary process restart.
+    invalidation_boot_owner_id: String,
+    /// Private connection authority behind the trigger-protected durable boot
+    /// reservation. Raw DML connections have neither this pending tuple nor
+    /// the registered function that can advance its singleton.
+    invalidation_boot_reservation_authority:
+        auth_invalidation::InvalidationBootReservationAuthority,
     /// The connection-local generated writer facade and SQLite authorizer.
     /// It remains dormant until a durable coverage manifest is present.
     writer_authority: write_authority::WriterAuthorityV1,
@@ -3032,6 +3043,9 @@ impl LocalDatabase {
             commit_authority_identity: Arc::new(()),
             commit_authority_key: memory_commit_authority_key(),
             commit_authority_claimed: false,
+            invalidation_boot_owner_id: Uuid::new_v4().hyphenated().to_string(),
+            invalidation_boot_reservation_authority:
+                auth_invalidation::InvalidationBootReservationAuthority::default(),
             writer_authority: write_authority::WriterAuthorityV1::default(),
             path: None,
             derived_fork: None,
@@ -3049,6 +3063,8 @@ impl LocalDatabase {
             order_field_bounds: Arc::new(BTreeMap::new()),
             sequence_declarations: Arc::new(BTreeMap::new()),
         };
+        db.invalidation_boot_reservation_authority
+            .install(&db.conn)?;
         crate::operation_detail::install(&db.conn, None)?;
         db.configure(false)?;
         db.create_infra()?;
@@ -3102,6 +3118,9 @@ impl LocalDatabase {
             commit_authority_identity: Arc::new(()),
             commit_authority_key,
             commit_authority_claimed: false,
+            invalidation_boot_owner_id: Uuid::new_v4().hyphenated().to_string(),
+            invalidation_boot_reservation_authority:
+                auth_invalidation::InvalidationBootReservationAuthority::default(),
             writer_authority: write_authority::WriterAuthorityV1::default(),
             path: Some(path.clone()),
             derived_fork,
@@ -3119,6 +3138,8 @@ impl LocalDatabase {
             order_field_bounds: Arc::new(BTreeMap::new()),
             sequence_declarations: Arc::new(BTreeMap::new()),
         };
+        db.invalidation_boot_reservation_authority
+            .install(&db.conn)?;
         crate::operation_detail::install(&db.conn, Some(&path))?;
         db.configure(true)?;
         db.create_infra()?;
@@ -3348,6 +3369,9 @@ impl LocalDatabase {
             commit_authority_identity: Arc::new(()),
             commit_authority_key: memory_commit_authority_key(),
             commit_authority_claimed: false,
+            invalidation_boot_owner_id: Uuid::new_v4().hyphenated().to_string(),
+            invalidation_boot_reservation_authority:
+                auth_invalidation::InvalidationBootReservationAuthority::default(),
             writer_authority: write_authority::WriterAuthorityV1::default(),
             path: None,
             derived_fork: self.derived_fork.clone(),
@@ -3365,6 +3389,9 @@ impl LocalDatabase {
             order_field_bounds: self.order_field_bounds.clone(),
             sequence_declarations: self.sequence_declarations.clone(),
         };
+        restored
+            .invalidation_boot_reservation_authority
+            .install(&restored.conn)?;
         #[cfg(test)]
         {
             restored.service_authority_fences =
@@ -7574,6 +7601,102 @@ impl LocalDatabase {
               records INTEGER NOT NULL CHECK(records >= 0),
               PRIMARY KEY(authority_subject, client_store_id)
             );
+            -- @ref LLP 0303#a-durable-record-is-checked-at-acquisition-a-live-handle-outlives-it
+            -- — the compatibility meta projections are restorable, so the
+            -- point-of-use guard also consumes this structurally monotone
+            -- singleton. Its exact successor must first exist in the bounded
+            -- reservation singleton below; ordinary DML cannot create that
+            -- reservation because only the kernel writer connection owns the
+            -- matching pending tuple and registered scalar function.
+            -- A database owner able to DROP this table or its triggers can
+            -- rewrite every local authorization fact and is outside the
+            -- SQLite-level threat model; raw DML through an independent
+            -- connection remains in scope and is what these triggers fence.
+            CREATE TABLE IF NOT EXISTS _snapback_auth_invalidation_boot_reservation_v1 (
+              id INTEGER PRIMARY KEY CHECK(id = 1),
+              boot_sequence INTEGER NOT NULL CHECK(boot_sequence BETWEEN 1 AND 9007199254740991),
+              database_open_owner_id TEXT NOT NULL,
+              authorization_incarnation TEXT NOT NULL
+            );
+            CREATE TRIGGER IF NOT EXISTS _snapback_auth_invalidation_boot_reservation_insert_v1
+              BEFORE INSERT ON _snapback_auth_invalidation_boot_reservation_v1
+              WHEN EXISTS(
+                     SELECT 1 FROM _snapback_auth_invalidation_boot_reservation_v1 WHERE id = 1
+                   )
+                OR __snapback_auth_invalidation_boot_reservation_matches_v1(
+                     NEW.boot_sequence,
+                     NEW.database_open_owner_id,
+                     NEW.authorization_incarnation
+                   ) != 1
+              BEGIN
+                SELECT RAISE(ROLLBACK, 'authorization invalidation boot reservation is not kernel-authorized');
+              END;
+            CREATE TRIGGER IF NOT EXISTS _snapback_auth_invalidation_boot_reservation_update_v1
+              BEFORE UPDATE ON _snapback_auth_invalidation_boot_reservation_v1
+              WHEN NEW.id != OLD.id
+                OR NEW.boot_sequence != OLD.boot_sequence + 1
+                OR __snapback_auth_invalidation_boot_reservation_matches_v1(
+                     NEW.boot_sequence,
+                     NEW.database_open_owner_id,
+                     NEW.authorization_incarnation
+                   ) != 1
+              BEGIN
+                SELECT RAISE(ROLLBACK, 'authorization invalidation boot reservation is not kernel-authorized');
+              END;
+            CREATE TRIGGER IF NOT EXISTS _snapback_auth_invalidation_boot_reservation_no_delete_v1
+              BEFORE DELETE ON _snapback_auth_invalidation_boot_reservation_v1
+              BEGIN
+                SELECT RAISE(ROLLBACK, 'authorization invalidation boot reservation cannot be deleted');
+              END;
+            CREATE TABLE IF NOT EXISTS _snapback_auth_invalidation_boot_epoch_v1 (
+              id INTEGER PRIMARY KEY CHECK(id = 1),
+              boot_sequence INTEGER NOT NULL CHECK(boot_sequence BETWEEN 1 AND 9007199254740991),
+              database_open_owner_id TEXT NOT NULL,
+              authorization_incarnation TEXT NOT NULL
+            );
+            CREATE TRIGGER IF NOT EXISTS _snapback_auth_invalidation_boot_epoch_no_second_insert_v1
+              BEFORE INSERT ON _snapback_auth_invalidation_boot_epoch_v1
+              WHEN EXISTS(SELECT 1 FROM _snapback_auth_invalidation_boot_epoch_v1 WHERE id = 1)
+              BEGIN
+                SELECT RAISE(ABORT, 'authorization invalidation boot epoch is a monotone singleton');
+              END;
+            CREATE TRIGGER IF NOT EXISTS _snapback_auth_invalidation_boot_epoch_no_delete_v1
+              BEFORE DELETE ON _snapback_auth_invalidation_boot_epoch_v1
+              BEGIN
+                SELECT RAISE(ABORT, 'authorization invalidation boot epoch cannot be deleted');
+              END;
+            CREATE TRIGGER IF NOT EXISTS _snapback_auth_invalidation_boot_epoch_monotone_update_v1
+              BEFORE UPDATE ON _snapback_auth_invalidation_boot_epoch_v1
+              WHEN NEW.id != OLD.id OR NEW.boot_sequence != OLD.boot_sequence + 1
+              BEGIN
+                SELECT RAISE(ABORT, 'authorization invalidation boot epoch must advance by one');
+              END;
+            CREATE TRIGGER IF NOT EXISTS _snapback_auth_invalidation_boot_epoch_reserved_insert_v1
+              BEFORE INSERT ON _snapback_auth_invalidation_boot_epoch_v1
+              WHEN NOT EXISTS(
+                SELECT 1
+                  FROM _snapback_auth_invalidation_boot_reservation_v1 reservation
+                 WHERE reservation.id = 1
+                   AND reservation.boot_sequence = NEW.boot_sequence
+                   AND reservation.database_open_owner_id = NEW.database_open_owner_id
+                   AND reservation.authorization_incarnation = NEW.authorization_incarnation
+              )
+              BEGIN
+                SELECT RAISE(ROLLBACK, 'authorization invalidation boot epoch has no authentic reservation');
+              END;
+            CREATE TRIGGER IF NOT EXISTS _snapback_auth_invalidation_boot_epoch_reserved_update_v1
+              BEFORE UPDATE ON _snapback_auth_invalidation_boot_epoch_v1
+              WHEN NOT EXISTS(
+                SELECT 1
+                  FROM _snapback_auth_invalidation_boot_reservation_v1 reservation
+                 WHERE reservation.id = 1
+                   AND reservation.boot_sequence = NEW.boot_sequence
+                   AND reservation.database_open_owner_id = NEW.database_open_owner_id
+                   AND reservation.authorization_incarnation = NEW.authorization_incarnation
+              )
+              BEGIN
+                SELECT RAISE(ROLLBACK, 'authorization invalidation boot epoch has no authentic reservation');
+              END;
             -- @ref LLP 0053#the-lease-the-only-mechanism-for-the-unreachable-client —
             -- a request id is consumed only at the same linearization point
             -- that rechecks data/auth/activation and the server clock.

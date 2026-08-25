@@ -439,7 +439,7 @@ use crate::auth::deployment::{
     HostedOperatorSurface, HostedServingAuthority, SessionInvalidation,
     SharedAuthenticationThrottleConfig,
 };
-use crate::auth::invalidation::QueryNamespace;
+use crate::auth::invalidation::{AuthorizationInvalidationConnection, IssuerId, QueryNamespace};
 use crate::auth::invocation::{
     InvocationGate, InvocationSource, ResolvedAppAuthority, WireAuthorityFields,
 };
@@ -32742,10 +32742,13 @@ fn connection_previous_token_reuse_compares_every_authority_field() {
 #[test]
 fn connection_registry_negotiates_exact_invalidation_v1_with_bound_authority() {
     let registry = ConnectionRegistry::default();
-    let mut snapback = LocalSnapback::memory().expect("memory connection registry fixture");
+    let directory = tempfile::tempdir().expect("connection registry fixture directory");
+    let path = directory.path().join("connection-registry.sqlite3");
+    let mut predecessor =
+        LocalSnapback::open(&path).expect("file-backed connection registry fixture");
     let keyring = Arc::new(AuthKeyringStore::in_memory());
     activate_catalog(
-        snapback.remainder_auth_database_mut(),
+        predecessor.remainder_auth_database_mut(),
         keyring.as_ref(),
         super::now_millis(),
         &OsRandom,
@@ -32753,13 +32756,14 @@ fn connection_registry_negotiates_exact_invalidation_v1_with_bound_authority() {
     .expect("activate connection registry auth catalog");
     let provider = AuthProvider::new(AuthProviderProfile::Test, keyring)
         .expect("construct connection registry auth provider");
-    // Boot 1 has no predecessor and correctly carries no retirement proof.
-    // Install it, then install the next real boot so this test retains its
-    // retirement coverage instead of asserting that boot 1 retires a
-    // nonexistent boot 0.
-    snapback
+    // Boot 1 has no predecessor. End that database-open lifetime before
+    // reopening the same durable store: only a real restart may reserve boot
+    // 2 and authenticate boot 1's retirement.
+    predecessor
         .install_authenticated_auth_invalidation(&provider, None)
         .expect("install predecessor database-bound invalidation issuer");
+    drop(predecessor);
+    let mut snapback = LocalSnapback::open(&path).expect("reopen connection registry fixture");
     let binding = snapback
         .install_authenticated_auth_invalidation(&provider, None)
         .expect("install a successor database-bound invalidation issuer");

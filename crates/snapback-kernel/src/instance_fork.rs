@@ -349,6 +349,20 @@ pub const TABLE_CUSTODY: &[CustodyRule] = &[
         disposition: CustodyDisposition::Scrub,
     },
     CustodyRule {
+        name: "_snapback_auth_invalidation_boot_reservation_v1",
+        // Preserve the last authentic reservation beside the copied epoch.
+        // The fork's first issuer advances both under its newly installed
+        // connection authority and rotated authorization incarnation.
+        disposition: CustodyDisposition::Copy,
+    },
+    CustodyRule {
+        name: "_snapback_auth_invalidation_boot_epoch_v1",
+        // Preserve the non-decreasing high-water. Fork activation rotates the
+        // authorization incarnation, and the first fork issuer advances this
+        // copied epoch exactly once to name that successor incarnation.
+        disposition: CustodyDisposition::Copy,
+    },
+    CustodyRule {
         name: "_snapback_authorized_lease_reservations",
         disposition: CustodyDisposition::Scrub,
     },

@@ -13,7 +13,7 @@
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::storage::{
     AuthorizationCommitOutcome, AuthorizationExpectationView, AuthorizationIssuerProjection,
-    AuthorizationVersion,
+    AuthorizationVersion, InvalidationBootIssuerReservation,
 };
 use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
@@ -22,8 +22,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, OnceLock, RwLock};
 
 pub use snapback_types::auth::invalidation::*;
 
@@ -118,7 +118,7 @@ pub struct AuthorizationInvalidationConnection {
     version_stream: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     issuer_retirement: Option<IssuerRetirement>,
-    /// Process-local identity of the exact issuer reservation history that
+    /// Process-local identity of the exact installed issuer state that
     /// allocated `connection_generation`. This is deliberately not a wire
     /// field: deserialization cannot recreate installed-issuer provenance.
     ///
@@ -127,7 +127,7 @@ pub struct AuthorizationInvalidationConnection {
     /// caller-copyable generation attribute.
     #[serde(skip)]
     #[schemars(skip)]
-    reservation_history: Arc<AtomicU64>,
+    issuer_state: Arc<InvalidationIssuerState>,
     /// Exact connection grant/fence for which this reservation was made.
     /// Downstream admissions derive their fence from this field instead of
     /// accepting a second caller-selected subject.
@@ -190,7 +190,7 @@ impl PartialEq for AuthorizationInvalidationConnection {
             && self.version_stream == other.version_stream
             && self.issuer_retirement == other.issuer_retirement
             && self.effect_fence == other.effect_fence
-            && Arc::ptr_eq(&self.reservation_history, &other.reservation_history)
+            && Arc::ptr_eq(&self.issuer_state, &other.issuer_state)
     }
 }
 
@@ -227,39 +227,29 @@ pub struct IssuerRetirement {
 /// One process's authenticated live-scope identity and non-wrapping local
 /// reservations. The durable boot sequence makes restarting these atomics at
 /// one safe; every published full ScopeId still differs across boots.
-#[derive(Clone)]
 pub struct LiveInvalidationIssuer {
-    authenticated: AuthenticatedBootIssuer,
-    retirement_signer: Option<Arc<RetirementSigner>>,
-    authorization_expectation: Arc<OnceLock<AuthorizationIssuerProjection>>,
-    version_stream: Arc<RwLock<Option<String>>>,
-    next_connection_generation: Arc<AtomicU64>,
-    next_scope_sequence: Arc<AtomicU64>,
+    state: Arc<InvalidationIssuerState>,
 }
 
-/// Opaque proof that this exact issuer reservation history was bound to the
-/// database/registry authorization projection during installation. A shaped
-/// or authenticated-but-uninstalled issuer cannot reserve a connection
-/// descriptor because it cannot produce this capability.
-/// @ref LLP 0303#a-derivation-is-only-as-strong-as-its-root — connection
-/// provenance is the exact installed reservation history, not its generation.
+/// Cloneable post-installation access to one issuer. This handle can reserve
+/// connection/scope identities and project committed authorization, but it
+/// cannot construct another obligation registry: that constructor consumes
+/// the non-Clone [`LiveInvalidationIssuer`] root.
 #[derive(Clone)]
-pub struct InstalledInvalidationReservation {
-    reservation_history: Arc<AtomicU64>,
+pub struct InstalledInvalidationIssuer {
+    state: Arc<InvalidationIssuerState>,
 }
 
-impl InstalledInvalidationReservation {
-    pub fn owns(&self, connection: &AuthorizationInvalidationConnection) -> bool {
-        Arc::ptr_eq(&self.reservation_history, &connection.reservation_history)
-    }
-}
-
-impl std::fmt::Debug for InstalledInvalidationReservation {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("InstalledInvalidationReservation")
-            .finish_non_exhaustive()
-    }
+struct InvalidationIssuerState {
+    authenticated: AuthenticatedBootIssuer,
+    /// Retains the kernel's exact database/incarnation boot-owner lease for
+    /// as long as any installed issuer or obligation registry can act.
+    _boot_reservation: InvalidationBootIssuerReservation,
+    retirement_signer: RetirementSigner,
+    authorization_expectation: AuthorizationIssuerProjection,
+    version_stream: String,
+    next_connection_generation: AtomicU64,
+    next_scope_sequence: AtomicU64,
 }
 
 struct RetirementSigner {
@@ -272,39 +262,33 @@ impl std::fmt::Debug for LiveInvalidationIssuer {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
             .debug_struct("LiveInvalidationIssuer")
-            .field("issuer_id", &self.authenticated.issuer_id)
+            .field("issuer_id", &self.state.authenticated.issuer_id)
+            .field("key_id", &"[REDACTED]")
+            .finish_non_exhaustive()
+    }
+}
+
+impl std::fmt::Debug for InstalledInvalidationIssuer {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("InstalledInvalidationIssuer")
+            .field("issuer_id", &self.state.authenticated.issuer_id)
             .field("key_id", &"[REDACTED]")
             .finish_non_exhaustive()
     }
 }
 
 impl LiveInvalidationIssuer {
-    pub fn new(authenticated: AuthenticatedBootIssuer) -> SnapbackResult<Self> {
-        authenticated.issuer_id.validate()?;
-        validate_opaque(&authenticated.key_id, "authenticatedIssuer.keyId")?;
-        let mac = URL_SAFE_NO_PAD
-            .decode(&authenticated.mac)
-            .map_err(|_| corrupt("authenticated issuer MAC is not canonical base64url"))?;
-        if mac.len() != 32 || URL_SAFE_NO_PAD.encode(mac) != authenticated.mac {
-            return Err(corrupt(
-                "authenticated issuer MAC is not a canonical SHA-256 value",
-            ));
-        }
-        Ok(Self {
-            authenticated,
-            retirement_signer: None,
-            authorization_expectation: Arc::new(OnceLock::new()),
-            version_stream: Arc::new(RwLock::new(None)),
-            next_connection_generation: Arc::new(AtomicU64::new(1)),
-            next_scope_sequence: Arc::new(AtomicU64::new(1)),
-        })
-    }
-
-    /// Construct a production issuer that can authenticate retirement
-    /// frontiers with the exact key/target/app tuple that authenticated its
-    /// boot descriptor. Keeping the signer process-local makes ordinary
-    /// request input incapable of manufacturing cleanup authority.
-    pub fn with_authenticator(
+    /// Authenticate and bind one exact durably reserved boot issuer. This is
+    /// crate-private so an external caller cannot substitute its own protocol
+    /// key authority; `AuthProvider` is the production constructor.
+    ///
+    /// @ref LLP 0303#corollary--the-artifact-must-carry-provenance-not-just-type —
+    /// the reservation and expectation view must come from the same database
+    /// instance, and the authenticated descriptor must name that reservation.
+    pub(crate) fn new(
+        reservation: InvalidationBootIssuerReservation,
+        expectation_view: AuthorizationExpectationView,
         authenticated: AuthenticatedBootIssuer,
         authenticator: IssuerAuthenticator,
         target_profile_id: impl Into<String>,
@@ -313,153 +297,120 @@ impl LiveInvalidationIssuer {
         let target_profile_id = target_profile_id.into();
         let app_id = app_id.into();
         authenticator.verify(&authenticated, &target_profile_id, &app_id)?;
-        let mut issuer = Self::new(authenticated)?;
-        issuer.retirement_signer = Some(Arc::new(RetirementSigner {
-            authenticator,
-            target_profile_id,
-            app_id,
-        }));
-        Ok(issuer)
+        reservation.validate_expectation_view(&expectation_view)?;
+        if authenticated.issuer_id.authorization_incarnation
+            != reservation.authorization().incarnation
+            || authenticated.issuer_id.boot_sequence != reservation.boot_sequence()
+        {
+            return Err(invalidation_error(
+                "SNAPBACK_AUTH_INVALIDATION_ISSUER_INVALID",
+                "authenticated issuer does not name the exact reserved boot sequence",
+            ));
+        }
+        validate_retirement_authorization(reservation.authorization(), &authenticated.issuer_id)?;
+        validate_opaque(reservation.version_stream(), "versionStream")?;
+        let version_stream = reservation.version_stream().to_owned();
+        let authorization_expectation = expectation_view.into_issuer_projection()?;
+        Ok(Self {
+            state: Arc::new(InvalidationIssuerState {
+                authenticated,
+                _boot_reservation: reservation,
+                retirement_signer: RetirementSigner {
+                    authenticator,
+                    target_profile_id,
+                    app_id,
+                },
+                authorization_expectation,
+                version_stream,
+                next_connection_generation: AtomicU64::new(1),
+                next_scope_sequence: AtomicU64::new(1),
+            }),
+        })
+    }
+
+    fn into_installed(self) -> InstalledInvalidationIssuer {
+        InstalledInvalidationIssuer { state: self.state }
+    }
+}
+
+impl InstalledInvalidationIssuer {
+    fn with_current_issuance<T>(
+        &self,
+        effect: impl FnOnce() -> SnapbackResult<T>,
+    ) -> SnapbackResult<T> {
+        self.state._boot_reservation.with_current_issuance(effect)
     }
 
     pub fn authenticated(&self) -> &AuthenticatedBootIssuer {
-        &self.authenticated
-    }
-
-    pub fn bind_authorization_expectation(
-        &self,
-        view: AuthorizationExpectationView,
-    ) -> SnapbackResult<InstalledInvalidationReservation> {
-        let authorization = view.current()?;
-        validate_retirement_authorization(&authorization, &self.authenticated.issuer_id)?;
-        let projection = view.into_issuer_projection()?;
-        self.authorization_expectation
-            .set(projection)
-            .map_err(|_| {
-                invalidation_error(
-                    "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
-                    "invalidation issuer authorization expectation was already bound",
-                )
-            })?;
-        Ok(InstalledInvalidationReservation {
-            reservation_history: self.next_connection_generation.clone(),
-        })
+        &self.state.authenticated
     }
 
     pub fn project_authorization_expectation(
         &self,
         outcome: &AuthorizationCommitOutcome,
     ) -> SnapbackResult<()> {
-        self.authorization_expectation
-            .get()
-            .ok_or_else(|| {
-                invalidation_error(
-                    "SNAPBACK_AUTH_INVALIDATION_ISSUER_UNAVAILABLE",
-                    "invalidation issuer has no bound authorization expectation",
-                )
-            })?
-            .project_committed(outcome)
+        self.with_current_issuance(|| {
+            self.state
+                .authorization_expectation
+                .project_committed(outcome)
+        })
     }
 
     pub fn authorization_expectation(&self) -> SnapbackResult<AuthorizationVersion> {
-        self.authorization_expectation
-            .get()
-            .ok_or_else(|| {
-                invalidation_error(
-                    "SNAPBACK_AUTH_INVALIDATION_ISSUER_UNAVAILABLE",
-                    "invalidation issuer has no bound authorization expectation",
-                )
-            })?
-            .current()
+        self.state.authorization_expectation.current()
     }
 
     /// Exact database/registry/generation identity of the projection this
     /// issuer owns. Callers use it as activation proof; comparing only
     /// `AuthorizationVersion` would accept a copied or forked database.
-    pub fn authorization_issuer_projection(
-        &self,
-    ) -> SnapbackResult<&AuthorizationIssuerProjection> {
-        self.authorization_expectation.get().ok_or_else(|| {
-            invalidation_error(
-                "SNAPBACK_AUTH_INVALIDATION_ISSUER_UNAVAILABLE",
-                "invalidation issuer has no bound authorization expectation",
-            )
-        })
+    pub fn authorization_issuer_projection(&self) -> &AuthorizationIssuerProjection {
+        &self.state.authorization_expectation
     }
 
-    pub fn install_version_stream(&self, version_stream: impl Into<String>) -> SnapbackResult<()> {
-        let version_stream = version_stream.into();
-        validate_opaque(&version_stream, "versionStream")?;
-        let mut current = self
-            .version_stream
-            .write()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if current
-            .as_ref()
-            .is_some_and(|current| current != &version_stream)
-        {
-            return Err(invalidation_error(
-                "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
-                "issuer data version stream cannot change within one boot",
-            ));
-        }
-        *current = Some(version_stream);
-        Ok(())
+    pub fn version_stream(&self) -> &str {
+        &self.state.version_stream
     }
 
-    pub fn version_stream(&self) -> SnapbackResult<String> {
-        self.version_stream
-            .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .clone()
-            .ok_or_else(|| {
-                invalidation_error(
-                    "SNAPBACK_AUTH_INVALIDATION_ISSUER_UNAVAILABLE",
-                    "invalidation issuer has no installed data version stream",
-                )
-            })
+    pub fn owns(&self, connection: &AuthorizationInvalidationConnection) -> bool {
+        Arc::ptr_eq(&self.state, &connection.issuer_state)
     }
 
-    /// Reserve and describe one connection directly from this issuer's exact
-    /// reservation history and the grant fence the connection will use.
+    /// Reserve and describe one connection directly from this exact installed
+    /// issuer and the grant fence the connection will use.
     pub fn reserve_connection(
         &self,
-        installed: &InstalledInvalidationReservation,
         effect_fence: snapback_types::ephemeral::ConnectionEffectFence,
     ) -> SnapbackResult<AuthorizationInvalidationConnection> {
-        if !Arc::ptr_eq(
-            &self.next_connection_generation,
-            &installed.reservation_history,
-        ) {
-            return Err(invalidation_error(
-                "SNAPBACK_AUTH_INVALIDATION_ISSUER_UNAVAILABLE",
-                "connection reservation belongs to another installed issuer history",
-            ));
-        }
-        let issuer_retirement = self.authenticate_prior_issuer_retirement()?;
-        let connection_generation = reserve_atomic_counter(
-            &self.next_connection_generation,
-            "SNAPBACK_AUTH_INVALIDATION_CONNECTION_GENERATION_EXHAUSTED",
-            "authorization invalidation connection generation exhausted",
-        )?;
-        Ok(AuthorizationInvalidationConnection {
-            protocol_version: AUTH_INVALIDATION_PROTOCOL_VERSION,
-            issuer_id: self.authenticated.issuer_id.clone(),
-            connection_generation,
-            authorization: self.authorization_expectation()?,
-            version_stream: self.version_stream()?,
-            issuer_retirement,
-            reservation_history: installed.reservation_history.clone(),
-            effect_fence,
+        // @ref LLP 0303#a-durable-record-is-checked-at-acquisition-a-live-handle-outlives-it
+        // — mirror the admission-fence epoch check at the allocation effect:
+        // an installed handle is not evidence that its durable boot remains current.
+        self.with_current_issuance(|| {
+            let issuer_retirement = self.authenticate_prior_issuer_retirement_unchecked()?;
+            let connection_generation = reserve_atomic_counter(
+                &self.state.next_connection_generation,
+                "SNAPBACK_AUTH_INVALIDATION_CONNECTION_GENERATION_EXHAUSTED",
+                "authorization invalidation connection generation exhausted",
+            )?;
+            Ok(AuthorizationInvalidationConnection {
+                protocol_version: AUTH_INVALIDATION_PROTOCOL_VERSION,
+                issuer_id: self.state.authenticated.issuer_id.clone(),
+                connection_generation,
+                authorization: self.authorization_expectation()?,
+                version_stream: self.state.version_stream.clone(),
+                issuer_retirement,
+                issuer_state: self.state.clone(),
+                effect_fence,
+            })
         })
     }
-
     pub fn reserve_scope_sequence(&self) -> SnapbackResult<u64> {
-        reserve_atomic_counter(
-            &self.next_scope_sequence,
-            "SNAPBACK_AUTH_INVALIDATION_SCOPE_SEQUENCE_EXHAUSTED",
-            "authorization invalidation scope sequence exhausted",
-        )
+        self.with_current_issuance(|| {
+            reserve_atomic_counter(
+                &self.state.next_scope_sequence,
+                "SNAPBACK_AUTH_INVALIDATION_SCOPE_SEQUENCE_EXHAUSTED",
+                "authorization invalidation scope sequence exhausted",
+            )
+        })
     }
 
     pub fn authenticate_scope_retirement(
@@ -467,39 +418,33 @@ impl LiveInvalidationIssuer {
         namespace: QueryNamespace,
         retire_through_scope_sequence: u64,
     ) -> SnapbackResult<ScopeRetirement> {
-        let authorization_expectation = self.authorization_expectation()?;
-        let signer = self.retirement_signer.as_ref().ok_or_else(|| {
-            invalidation_error(
-                "SNAPBACK_AUTH_INVALIDATION_ISSUER_UNAVAILABLE",
-                "invalidation issuer has no retirement signer",
+        self.with_current_issuance(|| {
+            let authorization_expectation = self.authorization_expectation()?;
+            let signer = &self.state.retirement_signer;
+            signer.authenticator.authenticate_scope_retirement(
+                self.authenticated(),
+                namespace,
+                retire_through_scope_sequence,
+                authorization_expectation,
+                &signer.target_profile_id,
+                &signer.app_id,
             )
-        })?;
-        signer.authenticator.authenticate_scope_retirement(
-            self.authenticated(),
-            namespace,
-            retire_through_scope_sequence,
-            authorization_expectation,
-            &signer.target_profile_id,
-            &signer.app_id,
-        )
+        })
     }
 
-    pub fn authenticate_prior_issuer_retirement(&self) -> SnapbackResult<Option<IssuerRetirement>> {
+    fn authenticate_prior_issuer_retirement_unchecked(
+        &self,
+    ) -> SnapbackResult<Option<IssuerRetirement>> {
         let authorization_expectation = self.authorization_expectation()?;
         let Some(retire_through_boot_sequence) =
-            self.authenticated.issuer_id.boot_sequence.checked_sub(1)
+            self.authenticated().issuer_id.boot_sequence.checked_sub(1)
         else {
             return Ok(None);
         };
         if retire_through_boot_sequence == 0 {
             return Ok(None);
         }
-        let signer = self.retirement_signer.as_ref().ok_or_else(|| {
-            invalidation_error(
-                "SNAPBACK_AUTH_INVALIDATION_ISSUER_UNAVAILABLE",
-                "invalidation issuer has no retirement signer",
-            )
-        })?;
+        let signer = &self.state.retirement_signer;
         signer
             .authenticator
             .authenticate_issuer_retirement(
@@ -510,6 +455,10 @@ impl LiveInvalidationIssuer {
                 &signer.app_id,
             )
             .map(Some)
+    }
+
+    pub fn authenticate_prior_issuer_retirement(&self) -> SnapbackResult<Option<IssuerRetirement>> {
+        self.with_current_issuance(|| self.authenticate_prior_issuer_retirement_unchecked())
     }
 }
 
@@ -588,7 +537,7 @@ impl IssuerAuthenticator {
         })
     }
 
-    pub fn authenticate_scope_retirement(
+    pub(crate) fn authenticate_scope_retirement(
         &self,
         authenticated: &AuthenticatedBootIssuer,
         namespace: QueryNamespace,
@@ -656,7 +605,7 @@ impl IssuerAuthenticator {
         verify_retirement_mac(expected, &retirement.mac)
     }
 
-    pub fn authenticate_issuer_retirement(
+    pub(crate) fn authenticate_issuer_retirement(
         &self,
         current_issuer: &AuthenticatedBootIssuer,
         retire_through_boot_sequence: u64,
@@ -946,7 +895,9 @@ pub struct ScopeRetirementCandidate {
 /// Process-local persistent-until-discharge obligations. Process death ends
 /// every live scope; reconnect must allocate a new issuer and fresh snapshot.
 pub struct ObligationRegistry {
+    issuer: InstalledInvalidationIssuer,
     expectation: ObligationExpectation,
+    next_cause_sequence: u64,
     obligations: BTreeMap<ScopeId, ObligationEntry>,
     revision_high_water: BTreeMap<ScopeId, u64>,
     resolution_by_scope: BTreeMap<ScopeId, IssuedResolution>,
@@ -959,10 +910,21 @@ pub struct ObligationRegistry {
 }
 
 impl ObligationRegistry {
-    pub fn new(expectation: ObligationExpectation) -> SnapbackResult<Self> {
-        expectation.validate()?;
+    pub fn new(issuer: LiveInvalidationIssuer) -> SnapbackResult<Self> {
+        // @ref LLP 0303#why-coverage-kept-leaking-both-lanes-chose-verify-where-derive-was-available
+        // — consuming the non-Clone root makes a second registry from one
+        // authenticated reservation unconstructible.
+        let issuer = issuer.into_installed();
+        let current = issuer.clone();
+        current.with_current_issuance(|| Self::from_installed(issuer))
+    }
+
+    fn from_installed(issuer: InstalledInvalidationIssuer) -> SnapbackResult<Self> {
+        let expectation = obligation_expectation(&issuer)?;
         Ok(Self {
+            issuer,
             expectation,
+            next_cause_sequence: 1,
             obligations: BTreeMap::new(),
             revision_high_water: BTreeMap::new(),
             resolution_by_scope: BTreeMap::new(),
@@ -975,17 +937,59 @@ impl ObligationRegistry {
         })
     }
 
+    #[cfg(test)]
+    fn from_installed_for_unit_tests(issuer: InstalledInvalidationIssuer) -> SnapbackResult<Self> {
+        Self::from_installed(issuer)
+    }
+
+    fn with_current_mutation<T>(
+        &mut self,
+        effect: impl FnOnce(&mut Self) -> SnapbackResult<T>,
+    ) -> SnapbackResult<T> {
+        let issuer = self.issuer.clone();
+        issuer.with_current_issuance(|| effect(self))
+    }
+
     pub fn expectation(&self) -> &ObligationExpectation {
         &self.expectation
+    }
+
+    pub fn installed_issuer(&self) -> &InstalledInvalidationIssuer {
+        &self.issuer
+    }
+
+    /// Reserve the next registry-wide cause identity at the same serialized
+    /// currentness cut as the other invalidation protocol allocations.
+    pub fn reserve_cause_sequence(&mut self) -> SnapbackResult<u64> {
+        self.with_current_mutation(|registry| {
+            let current = registry.next_cause_sequence;
+            registry.next_cause_sequence = current
+                .checked_add(1)
+                .filter(|value| *value <= MAX_PROTOCOL_COUNTER)
+                .ok_or_else(|| {
+                    invalidation_error(
+                        "SNAPBACK_AUTH_INVALIDATION_CAUSE_EXHAUSTED",
+                        "authorization invalidation cause sequence exhausted",
+                    )
+                })?;
+            Ok(current)
+        })
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn set_next_cause_sequence_for_test(&mut self, sequence: u64) {
+        self.next_cause_sequence = sequence;
     }
 
     /// Move the trusted expectation forward within the current durable
     /// incarnation. Existing live scopes are retained; their next cause must
     /// replace old-pair proof with this newly authenticated pair.
-    pub fn advance_authenticated_authorization(
-        &mut self,
-        authorization: AuthorizationVersion,
-    ) -> SnapbackResult<()> {
+    pub fn advance_authenticated_authorization(&mut self) -> SnapbackResult<()> {
+        self.with_current_mutation(Self::advance_authenticated_authorization_unchecked)
+    }
+
+    fn advance_authenticated_authorization_unchecked(&mut self) -> SnapbackResult<()> {
+        let authorization = self.issuer.authorization_expectation()?;
         validate_uuid_v7(
             &authorization.incarnation,
             "expectation.authorization.incarnation",
@@ -1007,29 +1011,6 @@ impl ObligationRegistry {
         Ok(())
     }
 
-    /// Moving to a new authenticated expectation terminates old live scopes;
-    /// no arrival-ordered frame can perform this operation.
-    pub fn replace_authenticated_expectation(
-        &mut self,
-        expectation: ObligationExpectation,
-    ) -> SnapbackResult<Vec<ResyncObligation>> {
-        expectation.validate()?;
-        let prior = self
-            .obligations
-            .values()
-            .map(|entry| entry.obligation.clone())
-            .collect();
-        self.expectation = expectation;
-        self.obligations.clear();
-        self.resolution_by_scope.clear();
-        self.connection_children.clear();
-        self.active_subscription_scopes.clear();
-        self.issued_scope_high_water.clear();
-        self.scope_retirement_frontier.clear();
-        self.owner_continuity_by_scope.clear();
-        Ok(prior)
-    }
-
     /// Register a published subscription scope before it can enter retained
     /// live state. The per-namespace scalar is kept only while that namespace
     /// has live scopes, so churn is bounded by current live state rather than
@@ -1039,8 +1020,18 @@ impl ObligationRegistry {
         scope_id: ScopeId,
         owner_continuity_id: impl Into<String>,
     ) -> SnapbackResult<()> {
-        scope_id.validate()?;
         let owner_continuity_id = owner_continuity_id.into();
+        self.with_current_mutation(move |registry| {
+            registry.register_live_scope_unchecked(scope_id, owner_continuity_id)
+        })
+    }
+
+    fn register_live_scope_unchecked(
+        &mut self,
+        scope_id: ScopeId,
+        owner_continuity_id: String,
+    ) -> SnapbackResult<()> {
+        scope_id.validate()?;
         validate_opaque(&owner_continuity_id, "ownerContinuityId")?;
         let ScopeId::Subscription {
             issuer_id,
@@ -1092,9 +1083,31 @@ impl ObligationRegistry {
         witness: CompositeWitness,
         retry_episode_id: Option<String>,
     ) -> SnapbackResult<ResyncObligation> {
+        let cause_id = cause_id.into();
+        self.with_current_mutation(move |registry| {
+            registry.raise_unchecked(
+                scope_id,
+                cause_sequence,
+                cause_id,
+                max_disposition,
+                witness,
+                retry_episode_id,
+            )
+        })
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn raise_unchecked(
+        &mut self,
+        scope_id: ScopeId,
+        cause_sequence: u64,
+        cause_id: String,
+        max_disposition: InvalidationDisposition,
+        witness: CompositeWitness,
+        retry_episode_id: Option<String>,
+    ) -> SnapbackResult<ResyncObligation> {
         scope_id.validate()?;
         validate_counter(cause_sequence, "causeSequence", true)?;
-        let cause_id = cause_id.into();
         validate_opaque(&cause_id, "causeId")?;
         witness.validate()?;
         if let Some(id) = &retry_episode_id {
@@ -1197,11 +1210,34 @@ impl ObligationRegistry {
         witness: CompositeWitness,
         retry_episode_id: Option<String>,
     ) -> SnapbackResult<(ResyncObligation, bool)> {
+        let cause_id = cause_id.into();
+        self.with_current_mutation(move |registry| {
+            registry.raise_with_quarantine_lifecycle_unchecked(
+                scope_id,
+                cause_sequence,
+                cause_id,
+                max_disposition,
+                witness,
+                retry_episode_id,
+            )
+        })
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn raise_with_quarantine_lifecycle_unchecked(
+        &mut self,
+        scope_id: ScopeId,
+        cause_sequence: u64,
+        cause_id: String,
+        max_disposition: InvalidationDisposition,
+        witness: CompositeWitness,
+        retry_episode_id: Option<String>,
+    ) -> SnapbackResult<(ResyncObligation, bool)> {
         let was_quarantined = matches!(&scope_id, ScopeId::Subscription { .. })
             && self.obligations.get(&scope_id).is_some_and(|entry| {
                 entry.obligation.max_disposition >= InvalidationDisposition::Quarantine
             });
-        let obligation = self.raise(
+        let obligation = self.raise_unchecked(
             scope_id,
             cause_sequence,
             cause_id,
@@ -1279,6 +1315,17 @@ impl ObligationRegistry {
         connection_scope: &ScopeId,
         subscription_scope: ScopeId,
     ) -> SnapbackResult<Option<ResyncObligation>> {
+        let connection_scope = connection_scope.clone();
+        self.with_current_mutation(move |registry| {
+            registry.register_connection_child_unchecked(&connection_scope, subscription_scope)
+        })
+    }
+
+    fn register_connection_child_unchecked(
+        &mut self,
+        connection_scope: &ScopeId,
+        subscription_scope: ScopeId,
+    ) -> SnapbackResult<Option<ResyncObligation>> {
         let Some(root) = self.obligations.get(connection_scope).cloned() else {
             return Ok(None);
         };
@@ -1293,7 +1340,7 @@ impl ObligationRegistry {
             .entry(connection_scope.clone())
             .or_default()
             .insert(subscription_scope.clone());
-        let child = self.raise(
+        let child = self.raise_unchecked(
             subscription_scope,
             root.cause_sequence,
             format!("root:{}.{}", root.cause_id, root.obligation.revision),
@@ -1309,10 +1356,25 @@ impl ObligationRegistry {
         connection_scope: &ScopeId,
         subscription_scope: ScopeId,
     ) -> SnapbackResult<(Option<ResyncObligation>, bool)> {
+        let connection_scope = connection_scope.clone();
+        self.with_current_mutation(move |registry| {
+            registry.register_connection_child_with_quarantine_lifecycle_unchecked(
+                &connection_scope,
+                subscription_scope,
+            )
+        })
+    }
+
+    fn register_connection_child_with_quarantine_lifecycle_unchecked(
+        &mut self,
+        connection_scope: &ScopeId,
+        subscription_scope: ScopeId,
+    ) -> SnapbackResult<(Option<ResyncObligation>, bool)> {
         let was_quarantined = self.pending(&subscription_scope).is_some_and(|obligation| {
             obligation.max_disposition >= InvalidationDisposition::Quarantine
         });
-        let child = self.register_connection_child(connection_scope, subscription_scope)?;
+        let child =
+            self.register_connection_child_unchecked(connection_scope, subscription_scope)?;
         let entered = !was_quarantined
             && child.as_ref().is_some_and(|obligation| {
                 obligation.max_disposition >= InvalidationDisposition::Quarantine
@@ -1321,6 +1383,20 @@ impl ObligationRegistry {
     }
 
     pub fn issue_resolution(
+        &mut self,
+        scope_id: &ScopeId,
+        kind: ResolutionKind,
+        witness: CompositeWitness,
+        snapshot_identity: &[u8],
+    ) -> SnapbackResult<ResolutionTicket> {
+        let scope_id = scope_id.clone();
+        let snapshot_identity = snapshot_identity.to_vec();
+        self.with_current_mutation(move |registry| {
+            registry.issue_resolution_unchecked(&scope_id, kind, witness, &snapshot_identity)
+        })
+    }
+
+    fn issue_resolution_unchecked(
         &mut self,
         scope_id: &ScopeId,
         kind: ResolutionKind,
@@ -1420,6 +1496,17 @@ impl ObligationRegistry {
         ack_token: &str,
         client_commit_applied: bool,
     ) -> SnapbackResult<AcknowledgeOutcome> {
+        let ack_token = ack_token.to_owned();
+        self.with_current_mutation(move |registry| {
+            registry.acknowledge_unchecked(&ack_token, client_commit_applied)
+        })
+    }
+
+    fn acknowledge_unchecked(
+        &mut self,
+        ack_token: &str,
+        client_commit_applied: bool,
+    ) -> SnapbackResult<AcknowledgeOutcome> {
         validate_opaque(ack_token, "ackToken")?;
         if !client_commit_applied {
             return Err(invalidation_error(
@@ -1465,6 +1552,23 @@ impl ObligationRegistry {
         connection_generation: u64,
         ack_token: &str,
     ) -> SnapbackResult<AcknowledgeOutcome> {
+        let issuer_id = issuer_id.clone();
+        let ack_token = ack_token.to_owned();
+        self.with_current_mutation(move |registry| {
+            registry.acknowledge_subscription_unchecked(
+                &issuer_id,
+                connection_generation,
+                &ack_token,
+            )
+        })
+    }
+
+    fn acknowledge_subscription_unchecked(
+        &mut self,
+        issuer_id: &IssuerId,
+        connection_generation: u64,
+        ack_token: &str,
+    ) -> SnapbackResult<AcknowledgeOutcome> {
         validate_opaque(ack_token, "ackToken")?;
         let belongs = self
             .resolution_by_scope
@@ -1490,7 +1594,7 @@ impl ObligationRegistry {
         if !belongs {
             return Ok(AcknowledgeOutcome::Stale);
         }
-        self.acknowledge(ack_token, true)
+        self.acknowledge_unchecked(ack_token, true)
     }
 
     pub fn resolution_for_ack_token(&self, ack_token: &str) -> Option<&ResolutionTicket> {
@@ -1500,7 +1604,15 @@ impl ObligationRegistry {
             .map(|issued| &issued.ticket)
     }
 
-    pub fn retire_scope(&mut self, scope_id: &ScopeId) -> Option<ScopeRetirementCandidate> {
+    pub fn retire_scope(
+        &mut self,
+        scope_id: &ScopeId,
+    ) -> SnapbackResult<Option<ScopeRetirementCandidate>> {
+        let scope_id = scope_id.clone();
+        self.with_current_mutation(move |registry| Ok(registry.retire_scope_unchecked(&scope_id)))
+    }
+
+    fn retire_scope_unchecked(&mut self, scope_id: &ScopeId) -> Option<ScopeRetirementCandidate> {
         self.remove_live_scope_state(scope_id);
         self.scope_retirement_candidate(scope_id)
     }
@@ -1512,6 +1624,19 @@ impl ObligationRegistry {
     /// inherit that root. Scope sequences remain spent, so no unpublished
     /// identity can be reused.
     pub fn rollback_unpublished_live_scope(
+        &mut self,
+        scope_id: &ScopeId,
+        connection_scope: &ScopeId,
+    ) -> SnapbackResult<()> {
+        let scope_id = scope_id.clone();
+        let connection_scope = connection_scope.clone();
+        self.with_current_mutation(move |registry| {
+            registry.rollback_unpublished_live_scope_unchecked(&scope_id, &connection_scope);
+            Ok(())
+        })
+    }
+
+    fn rollback_unpublished_live_scope_unchecked(
         &mut self,
         scope_id: &ScopeId,
         connection_scope: &ScopeId,
@@ -1666,7 +1791,19 @@ impl ObligationRegistry {
         Ok(())
     }
 
-    pub fn retire_connection(&mut self, issuer_id: &IssuerId, connection_generation: u64) {
+    pub fn retire_connection(
+        &mut self,
+        issuer_id: &IssuerId,
+        connection_generation: u64,
+    ) -> SnapbackResult<()> {
+        let issuer_id = issuer_id.clone();
+        self.with_current_mutation(move |registry| {
+            registry.retire_connection_unchecked(&issuer_id, connection_generation);
+            Ok(())
+        })
+    }
+
+    fn retire_connection_unchecked(&mut self, issuer_id: &IssuerId, connection_generation: u64) {
         let connection = ScopeId::Connection {
             issuer_id: issuer_id.clone(),
             connection_generation,
@@ -1690,7 +1827,7 @@ impl ObligationRegistry {
             .cloned()
             .collect::<Vec<_>>();
         for scope in scopes {
-            let _ = self.retire_scope(&scope);
+            let _ = self.retire_scope_unchecked(&scope);
         }
         self.connection_children.remove(&connection);
         self.obligations.remove(&connection);
@@ -1749,15 +1886,17 @@ impl ObligationRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::storage::{LocalDatabase, ServingDatabase};
+    use std::sync::OnceLock;
 
-    const INCARNATION: &str = "018f0d90-7b11-7a22-8c33-445566778899";
-
+    // Existing scope, witness, and registry fixtures all follow one issuer installed through the
+    // production binding APIs; none reconstructs an ObligationExpectation beside the registry.
+    // This shared fixture supports only the legacy behavior tests below.
+    // The Q43 diagonal cases use separate databases and issuer instances.
+    // Their expected fields are captured before registry construction.
+    // Empty-state expectations come from the constructor contract itself.
     fn issuer() -> IssuerId {
-        IssuerId {
-            authorization_incarnation: INCARNATION.to_owned(),
-            boot_sequence: 7,
-            boot_nonce: URL_SAFE_NO_PAD.encode([3_u8; 16]),
-        }
+        canonical_issuer_fixture().expected_issuer_id.clone()
     }
 
     fn namespace(instance: u64) -> QueryNamespace {
@@ -1790,9 +1929,9 @@ mod tests {
             serde_json::json!({
                 "kind": "subscription",
                 "issuerId": {
-                    "authorizationIncarnation": INCARNATION,
-                    "bootSequence": 7,
-                    "bootNonce": "AwMDAwMDAwMDAwMDAwMDAw",
+                    "authorizationIncarnation": issuer().authorization_incarnation,
+                    "bootSequence": issuer().boot_sequence,
+                    "bootNonce": issuer().boot_nonce,
                 },
                 "namespace": {
                     "clientStoreId": "store-A",
@@ -1811,25 +1950,21 @@ mod tests {
     }
 
     fn witness(version: u64) -> CompositeWitness {
+        // Legacy obligation tests project the same authorization and data stream that were bound
+        // to their registry's canonical live issuer through the production installation APIs.
+        let fixture = canonical_issuer_fixture();
         CompositeWitness {
-            authorization: AuthorizationVersion {
-                incarnation: INCARNATION.to_owned(),
-                epoch: 4,
-            },
+            authorization: fixture.expected_authorization.clone(),
             data: Some(DataWitness {
-                version_stream: "stream-A".to_owned(),
+                version_stream: fixture.expected_version_stream.clone(),
                 min_commit_version: version,
             }),
         }
     }
 
     fn registry() -> ObligationRegistry {
-        ObligationRegistry::new(ObligationExpectation {
-            authorization: witness(0).authorization,
-            version_stream: Some("stream-A".to_owned()),
-            issuer_id: Some(issuer()),
-        })
-        .unwrap()
+        ObligationRegistry::from_installed_for_unit_tests(canonical_issuer_fixture().issuer.clone())
+            .unwrap()
     }
 
     fn register_scope(registry: &mut ObligationRegistry, instance: u64) {
@@ -1923,7 +2058,11 @@ mod tests {
     #[test]
     fn retirement_macs_bind_frontier_namespace_expectation_and_current_boot() {
         let signer = IssuerAuthenticator::new("protocol-key", [7_u8; 32]).unwrap();
-        let authenticated = signer.authenticate(issuer(), "local-dev", "app-A").unwrap();
+        let mut current_issuer = issuer();
+        current_issuer.boot_sequence = 3;
+        let authenticated = signer
+            .authenticate(current_issuer, "local-dev", "app-A")
+            .unwrap();
         let scope_retirement = signer
             .authenticate_scope_retirement(
                 &authenticated,
@@ -1989,10 +2128,10 @@ mod tests {
             .unwrap();
 
         let preview = registry.preview_scope_retirement(&first).unwrap();
-        let first_retirement = registry.retire_scope(&first).unwrap();
+        let first_retirement = registry.retire_scope(&first).unwrap().unwrap();
         assert_eq!(preview, first_retirement);
         assert_eq!(first_retirement.retire_through_scope_sequence, 4);
-        assert!(registry.retire_scope(&second).is_some());
+        assert!(registry.retire_scope(&second).unwrap().is_some());
         assert!(registry.pending(&second).is_none());
     }
 
@@ -2028,7 +2167,9 @@ mod tests {
             .unwrap();
         assert!(registry.pending(&replacement).is_some());
 
-        registry.rollback_unpublished_live_scope(&replacement, &connection);
+        registry
+            .rollback_unpublished_live_scope(&replacement, &connection)
+            .unwrap();
 
         assert!(registry.pending(&replacement).is_none());
         assert!(registry.pending(&connection).is_some());
@@ -2373,4 +2514,245 @@ mod tests {
         assert_eq!(retries.episodes()[&key].attempts_reserved, 1);
         assert!(retries.episodes()[&key].manual_retry_id.is_none());
     }
+
+    struct LiveIssuerFixture {
+        issuer: LiveInvalidationIssuer,
+        expected_authorization: AuthorizationVersion,
+        expected_version_stream: String,
+        expected_issuer_id: IssuerId,
+    }
+
+    struct InstalledIssuerFixture {
+        issuer: InstalledInvalidationIssuer,
+        expected_authorization: AuthorizationVersion,
+        expected_version_stream: String,
+        expected_issuer_id: IssuerId,
+    }
+
+    fn live_issuer_fixture(nonce_byte: u8, expected_authorization_epoch: u64) -> LiveIssuerFixture {
+        let mut local = LocalDatabase::memory().expect("in-memory database");
+        for activation in 0..expected_authorization_epoch {
+            let mut schema = crate::manifest::SchemaManifest::default();
+            schema.app_id = format!("q43-fixture-{nonce_byte}-{activation}");
+            local
+                .schema_seed()
+                .apply_schema(schema)
+                .expect("authorization-affecting schema activation");
+        }
+        let mut database = ServingDatabase::adopt(local).expect("serving database");
+        let reservation = database
+            .reserve_invalidation_boot_issuer()
+            .expect("durable authorization snapshot");
+        let authorization = reservation.authorization().clone();
+        let version_stream = reservation.version_stream().to_owned();
+        let boot_sequence = reservation.boot_sequence();
+        assert_eq!(authorization.epoch, expected_authorization_epoch);
+        let participant = database
+            .take_authorization_commit_participant()
+            .expect("sole participant");
+        database
+            .bind_authorization_commit_participant(&participant)
+            .expect("exact construction bind");
+        let view = database
+            .authorization_expectation_view_for_participant_install(&participant)
+            .expect("kernel-owned expectation view");
+        let issuer_id = IssuerId {
+            authorization_incarnation: authorization.incarnation.clone(),
+            boot_sequence,
+            boot_nonce: URL_SAFE_NO_PAD.encode([nonce_byte; 16]),
+        };
+        let key_id = format!("test-key-{nonce_byte}");
+        let authenticator = IssuerAuthenticator::new(&key_id, [nonce_byte; 32])
+            .expect("fixture issuer authenticator");
+        let authenticated = authenticator
+            .authenticate(issuer_id.clone(), "q43-target", "q43-app")
+            .expect("authenticated fixture descriptor");
+        let issuer = LiveInvalidationIssuer::new(
+            reservation,
+            view,
+            authenticated,
+            authenticator,
+            "q43-target",
+            "q43-app",
+        )
+        .expect("valid live invalidation issuer");
+        LiveIssuerFixture {
+            issuer,
+            expected_authorization: authorization,
+            expected_version_stream: version_stream,
+            expected_issuer_id: issuer_id,
+        }
+    }
+
+    fn issuer_construction_inputs() -> (
+        InvalidationBootIssuerReservation,
+        AuthorizationExpectationView,
+        AuthorizationVersion,
+    ) {
+        let local = LocalDatabase::memory().expect("in-memory database");
+        let mut database = ServingDatabase::adopt(local).expect("serving database");
+        let reservation = database
+            .reserve_invalidation_boot_issuer()
+            .expect("durably reserve issuer");
+        let authorization = reservation.authorization().clone();
+        let participant = database
+            .take_authorization_commit_participant()
+            .expect("sole participant");
+        database
+            .bind_authorization_commit_participant(&participant)
+            .expect("bind participant");
+        let view = database
+            .authorization_expectation_view_for_participant_install(&participant)
+            .expect("database-bound expectation view");
+        (reservation, view, authorization)
+    }
+
+    #[test]
+    fn live_issuer_construction_authenticates_the_descriptor_mac() {
+        let (reservation, view, authorization) = issuer_construction_inputs();
+        let issuer_id = IssuerId {
+            authorization_incarnation: authorization.incarnation,
+            boot_sequence: reservation.boot_sequence(),
+            boot_nonce: URL_SAFE_NO_PAD.encode([0x31; 16]),
+        };
+        let signer = IssuerAuthenticator::new("signer", [0x31; 32]).unwrap();
+        let authenticated = signer
+            .authenticate(issuer_id, "q43-target", "q43-app")
+            .unwrap();
+        let wrong_authority = IssuerAuthenticator::new("signer", [0x32; 32]).unwrap();
+
+        let error = LiveInvalidationIssuer::new(
+            reservation,
+            view,
+            authenticated,
+            wrong_authority,
+            "q43-target",
+            "q43-app",
+        )
+        .expect_err("shape-valid descriptor signed by another key must fail");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_INVALIDATION_ISSUER_INVALID"
+        );
+        assert_eq!(
+            error.diagnostic.message,
+            "invalidation issuer authentication failed"
+        );
+    }
+
+    #[test]
+    fn live_issuer_construction_rejects_an_unreserved_boot_sequence() {
+        let (reservation, view, authorization) = issuer_construction_inputs();
+        let authenticator = IssuerAuthenticator::new("signer", [0x33; 32]).unwrap();
+        let authenticated = authenticator
+            .authenticate(
+                IssuerId {
+                    authorization_incarnation: authorization.incarnation,
+                    boot_sequence: 1_000,
+                    boot_nonce: URL_SAFE_NO_PAD.encode([0x33; 16]),
+                },
+                "q43-target",
+                "q43-app",
+            )
+            .unwrap();
+
+        let error = LiveInvalidationIssuer::new(
+            reservation,
+            view,
+            authenticated,
+            authenticator,
+            "q43-target",
+            "q43-app",
+        )
+        .expect_err("authenticated but unreserved sequence must fail");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_INVALIDATION_ISSUER_INVALID"
+        );
+        assert_eq!(
+            error.diagnostic.message,
+            "authenticated issuer does not name the exact reserved boot sequence"
+        );
+    }
+
+    fn canonical_issuer_fixture() -> &'static InstalledIssuerFixture {
+        static FIXTURE: OnceLock<InstalledIssuerFixture> = OnceLock::new();
+        FIXTURE.get_or_init(|| {
+            let fixture = live_issuer_fixture(3, 4);
+            let registry = ObligationRegistry::new(fixture.issuer)
+                .expect("consume canonical live issuer once");
+            InstalledIssuerFixture {
+                issuer: registry.installed_issuer().clone(),
+                expected_authorization: fixture.expected_authorization,
+                expected_version_stream: fixture.expected_version_stream,
+                expected_issuer_id: fixture.expected_issuer_id,
+            }
+        })
+    }
+
+    fn assert_registry_installation(
+        registry: &ObligationRegistry,
+        expected_authorization: &AuthorizationVersion,
+        expected_version_stream: &str,
+        expected_issuer_id: &IssuerId,
+    ) {
+        assert_eq!(registry.expectation.authorization, *expected_authorization,);
+        assert_eq!(
+            registry.expectation.version_stream.as_deref(),
+            Some(expected_version_stream),
+        );
+        assert_eq!(
+            registry.expectation.issuer_id.as_ref(),
+            Some(expected_issuer_id),
+        );
+        assert!(registry.obligations.is_empty());
+        assert!(registry.revision_high_water.is_empty());
+        assert!(registry.resolution_by_scope.is_empty());
+        assert!(registry.last_discharged.is_empty());
+        assert!(registry.connection_children.is_empty());
+        assert!(registry.active_subscription_scopes.is_empty());
+        assert!(registry.issued_scope_high_water.is_empty());
+        assert!(registry.scope_retirement_frontier.is_empty());
+        assert!(registry.owner_continuity_by_scope.is_empty());
+    }
+
+    #[test]
+    fn registry_installation_cannot_diverge_from_live_issuer() {
+        let issuer_i0 = live_issuer_fixture(13, 2);
+        let registry_i0 = ObligationRegistry::new(issuer_i0.issuer).unwrap();
+
+        assert_registry_installation(
+            &registry_i0,
+            &issuer_i0.expected_authorization,
+            &issuer_i0.expected_version_stream,
+            &issuer_i0.expected_issuer_id,
+        );
+    }
+
+    #[test]
+    fn registry_installation_derives_from_second_live_issuer() {
+        let issuer_i1 = live_issuer_fixture(29, 5);
+        let registry_i1 = ObligationRegistry::new(issuer_i1.issuer).unwrap();
+
+        assert_registry_installation(
+            &registry_i1,
+            &issuer_i1.expected_authorization,
+            &issuer_i1.expected_version_stream,
+            &issuer_i1.expected_issuer_id,
+        );
+    }
+}
+
+fn obligation_expectation(
+    issuer: &InstalledInvalidationIssuer,
+) -> SnapbackResult<ObligationExpectation> {
+    // @ref LLP 0303#why-coverage-kept-leaking-both-lanes-chose-verify-where-derive-was-available
+    // — derive the registry expectation at object creation instead of checking a caller-built one.
+    let expectation = ObligationExpectation {
+        authorization: issuer.authorization_expectation()?,
+        version_stream: Some(issuer.version_stream().to_owned()),
+        issuer_id: Some(issuer.authenticated().issuer_id.clone()),
+    };
+    expectation.validate()?;
+    Ok(expectation)
 }

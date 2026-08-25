@@ -6,13 +6,16 @@
 
 use super::{
     AuthorizationInvalidationAckInput, LiveInvalidationAdmission, LiveSubscribeInput,
-    LocalSnapback, live_stream_text,
+    LocalSnapback, invalidation_provider_for_test, live_stream_text,
 };
 use crate::auth::admission::AdmissionLease;
 use crate::auth::invalidation::{
     AuthorizationInvalidationConnection, LiveInvalidationIssuer, QueryNamespace,
 };
-use crate::auth::invocation::{InvocationSource, PreparedAuthority, ResolvedAppAuthority};
+use crate::auth::invocation::{
+    InvocationGate, InvocationSource, PreparedAuthority, ResolvedAppAuthority, WireAuthorityFields,
+};
+use crate::contract_types::ServerProfile;
 use crate::diagnostic::SnapbackError;
 use crate::manifest::{
     AuthMode, ElevatedReadCapabilityV1, ElevatedReadFormV1, ElevatedReadTableCeilingV1,
@@ -497,31 +500,12 @@ fn configure(mut snapback: LocalSnapback) -> LocalSnapback {
 }
 
 fn install_invalidation(snapback: &mut LocalSnapback) -> AuthorizationInvalidationConnection {
-    let (authorization, version_stream, boot_sequence) = snapback
-        .auth_database_mut()
-        .reserve_invalidation_boot_issuer()
-        .expect("reserve acceptance issuer");
-    let issuer_id = crate::auth::invalidation::IssuerId::fresh(
-        authorization.incarnation.clone(),
-        boot_sequence,
-    )
-    .expect("fresh acceptance issuer id");
-    let authenticator =
-        crate::auth::invalidation::IssuerAuthenticator::new("llp-0053-acceptance-key", [0x53; 32])
-            .expect("acceptance authenticator");
-    let authenticated = authenticator
-        .authenticate(issuer_id, "local-test", "llp-0053-shapes")
-        .expect("authenticate acceptance issuer");
-    let issuer = LiveInvalidationIssuer::with_authenticator(
-        authenticated,
-        authenticator,
-        "local-test",
-        "llp-0053-shapes",
-    )
-    .expect("acceptance issuer");
     let binding = snapback
-        .install_auth_invalidation(issuer, authorization.clone(), version_stream)
+        .install_authenticated_auth_invalidation(&invalidation_provider_for_test(), None)
         .expect("install acceptance invalidation");
+    let authorization = binding
+        .authorization_expectation()
+        .expect("acceptance authorization expectation");
     binding
         .prepare_connection(crate::ephemeral::ConnectionEffectFence::anonymous(
             authorization.incarnation,

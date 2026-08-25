@@ -5,7 +5,10 @@
 //! scope replacement, and obligation revision changes.
 
 use super::auth_stream::ensure_authorization_version_in;
-use super::{LocalDatabase, MAX_AUTHORIZATION_EPOCH};
+use super::{
+    AuthorizationExpectationView, AuthorizationVersion, DatabaseBinding, LocalDatabase,
+    MAX_AUTHORIZATION_EPOCH,
+};
 use crate::auth::invalidation::{
     AUTH_ERROR_ATTEMPTS_TOTAL, AUTH_ERROR_RETRY_WINDOW_MS, AUTH_RETRY_EPISODE_MAX_GLOBAL,
     AUTH_RETRY_EPISODE_MAX_PER_AUTH_STORE, CompositeWitness, DataWitness, MAX_PROTOCOL_COUNTER,
@@ -13,14 +16,299 @@ use crate::auth::invalidation::{
     validate_opaque,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
-use rusqlite::{OptionalExtension, Transaction, TransactionBehavior, params};
-use std::collections::BTreeMap;
+use rusqlite::{
+    Connection, OpenFlags, OptionalExtension, Transaction, TransactionBehavior, params,
+};
+use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, BTreeSet};
+use std::path::Path;
+use std::sync::{Arc, Mutex, OnceLock};
 use uuid::Uuid;
 
 const BOOT_SEQUENCE_META_KEY: &str = "auth_invalidation_boot_sequence_v1";
+const BOOT_ISSUANCE_META_KEY: &str = "auth_invalidation_boot_issuance_v1";
+const BOOT_RESERVATION_TABLE: &str = "_snapback_auth_invalidation_boot_reservation_v1";
+const BOOT_EPOCH_TABLE: &str = "_snapback_auth_invalidation_boot_epoch_v1";
+pub(super) const BOOT_RESERVATION_MATCH_FUNCTION: &str =
+    "__snapback_auth_invalidation_boot_reservation_matches_v1";
 const DATA_VERSION_STREAM_META_KEY: &str = "auth_invalidation_data_version_stream_v1";
 pub(super) const AUTH_CLOCK_META_KEY: &str = "auth_invalidation_clock_high_water_ms_v1";
 const RETRY_GLOBAL_COUNT_META_KEY: &str = "auth_invalidation_retry_records_v1";
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct PersistedBootIssuance {
+    database_open_owner_id: String,
+    authorization_incarnation: String,
+    boot_sequence: u64,
+}
+
+/// Connection-owned authority for creating the durable reservation that an
+/// epoch advance must consume. SQL triggers cannot authenticate a writer from
+/// durable SQL values alone: a raw writer that can update every participating
+/// row can reproduce every value the trigger can read. The binding therefore
+/// lives in this kernel-installed scalar function and its process-only pending
+/// tuple; the durable reservation table records the exact tuple the epoch
+/// trigger is allowed to consume.
+///
+/// Registering or replacing an application-defined SQLite function is native
+/// connection configuration, not DML. An independent ordinary-DML connection
+/// has no matching function and cannot create or advance the reservation.
+///
+/// @ref LLP 0303#a-durable-record-is-checked-at-acquisition-a-live-handle-outlives-it
+/// — the resource carries a durable reservation and every writer must present
+/// the exact connection-owned pending tuple before advancing it.
+#[derive(Clone, Default)]
+pub(super) struct InvalidationBootReservationAuthority {
+    pending: Arc<Mutex<Option<PersistedBootIssuance>>>,
+}
+
+impl InvalidationBootReservationAuthority {
+    pub(super) fn install(&self, connection: &Connection) -> SnapbackResult<()> {
+        let pending = Arc::clone(&self.pending);
+        connection.create_scalar_function(
+            BOOT_RESERVATION_MATCH_FUNCTION,
+            3,
+            rusqlite::functions::FunctionFlags::SQLITE_UTF8,
+            move |context| {
+                let sequence: i64 = context.get(0)?;
+                let owner: String = context.get(1)?;
+                let incarnation: String = context.get(2)?;
+                let candidate =
+                    u64::try_from(sequence)
+                        .ok()
+                        .map(|boot_sequence| PersistedBootIssuance {
+                            database_open_owner_id: owner,
+                            authorization_incarnation: incarnation,
+                            boot_sequence,
+                        });
+                let matches = pending
+                    .lock()
+                    .map(|expected| candidate.as_ref() == expected.as_ref())
+                    .unwrap_or(false);
+                Ok(i64::from(matches))
+            },
+        )?;
+        Ok(())
+    }
+
+    fn arm(
+        &self,
+        issuance: &PersistedBootIssuance,
+    ) -> SnapbackResult<ArmedInvalidationBootReservation> {
+        issuance.validate()?;
+        let mut pending = self
+            .pending
+            .lock()
+            .map_err(|_| corrupt("invalidation boot reservation authority is unavailable"))?;
+        if pending.is_some() {
+            return Err(corrupt(
+                "invalidation boot reservation authority is already armed",
+            ));
+        }
+        *pending = Some(issuance.clone());
+        drop(pending);
+        Ok(ArmedInvalidationBootReservation {
+            pending: Arc::clone(&self.pending),
+        })
+    }
+}
+
+/// Move-only lexical lifetime for one pending reservation tuple. Drop clears
+/// the connection function on success, rollback, or any intermediate error.
+struct ArmedInvalidationBootReservation {
+    pending: Arc<Mutex<Option<PersistedBootIssuance>>>,
+}
+
+impl Drop for ArmedInvalidationBootReservation {
+    fn drop(&mut self) {
+        let mut pending = self
+            .pending
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        // A poisoned authority must fail closed for every later trigger
+        // invocation rather than leave any tuple armed.
+        *pending = None;
+    }
+}
+
+/// Kernel-owned point-of-use view of the durable boot epoch. File-backed
+/// issuers retain one private SQLite connection so every later
+/// identifier, registry mutation, or retirement issuance can compare its
+/// captured epoch and perform its process-local effect while holding the same
+/// IMMEDIATE transaction. In-memory databases cannot be shared across
+/// processes; their retained owner lease is sufficient.
+///
+/// @ref LLP 0303#a-durable-record-is-checked-at-acquisition-a-live-handle-outlives-it
+/// — acquisition alone is a cache, so a live handle revalidates at use.
+struct DurableInvalidationBootEpoch {
+    expected: PersistedBootIssuance,
+    reader: Option<Mutex<Connection>>,
+}
+
+impl DurableInvalidationBootEpoch {
+    fn open_reader(path: Option<&Path>) -> SnapbackResult<Option<Mutex<Connection>>> {
+        let Some(path) = path else {
+            return Ok(None);
+        };
+        let connection = Connection::open_with_flags(
+            path,
+            OpenFlags::SQLITE_OPEN_READ_WRITE
+                | OpenFlags::SQLITE_OPEN_URI
+                | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )?;
+        // BEGIN IMMEDIATE is itself a write transaction and SQLite rejects it
+        // on a query_only connection. This connection stays private to the
+        // guard and exposes no SQL seam; its transaction body performs only
+        // the canonical reads plus the process-local effect.
+        connection.execute_batch("PRAGMA busy_timeout = 5000;")?;
+        Ok(Some(Mutex::new(connection)))
+    }
+
+    fn with_current<T>(&self, effect: impl FnOnce() -> SnapbackResult<T>) -> SnapbackResult<T> {
+        let Some(reader) = &self.reader else {
+            return effect();
+        };
+        let mut connection = reader
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        // @ref LLP 0303#enumerate-the-siblings-or-the-review-will — BEGIN
+        // IMMEDIATE serializes the singleton writer. The comparison and the
+        // process-local effect both happen before COMMIT releases that lock.
+        let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let sequence = strict_meta_u64(&tx, BOOT_SEQUENCE_META_KEY)?;
+        let issuance = strict_boot_issuance(&tx)?;
+        let reservation = strict_boot_reservation(&tx)?;
+        let epoch = strict_boot_epoch(&tx)?;
+        if sequence == Some(self.expected.boot_sequence)
+            && issuance.as_ref() == Some(&self.expected)
+            && reservation.as_ref() == Some(&self.expected)
+            && epoch.as_ref() == Some(&self.expected)
+        {
+            let output = effect()?;
+            tx.commit()?;
+            return Ok(output);
+        }
+        Err(boot_issuer_retired())
+    }
+}
+
+impl PersistedBootIssuance {
+    fn validate(&self) -> SnapbackResult<()> {
+        let owner_id = Uuid::parse_str(&self.database_open_owner_id)
+            .map_err(|_| corrupt("invalidation boot issuance owner is not a canonical UUIDv4"))?;
+        if owner_id.get_version_num() != 4
+            || owner_id.hyphenated().to_string() != self.database_open_owner_id
+        {
+            return Err(corrupt(
+                "invalidation boot issuance owner is not a canonical UUIDv4",
+            ));
+        }
+        crate::auth::invalidation::validate_uuid_v7(
+            &self.authorization_incarnation,
+            "bootIssuance.authorizationIncarnation",
+        )?;
+        validate_counter(self.boot_sequence, "bootIssuance.bootSequence", true)?;
+        Ok(())
+    }
+}
+
+/// Keeps a same-process second database handle from presenting an ordinary
+/// restart owner while an issuer for this database/incarnation is reachable.
+/// The durable issuance row remains the primary same-owner replay authority;
+/// this lease closes the separate-handle composition until process death.
+struct InvalidationBootOwnerLease {
+    claim: (String, String),
+}
+
+impl Drop for InvalidationBootOwnerLease {
+    fn drop(&mut self) {
+        let mut claimed = live_invalidation_boot_owners()
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        claimed.remove(&self.claim);
+    }
+}
+
+fn live_invalidation_boot_owners() -> &'static Mutex<BTreeSet<(String, String)>> {
+    static CLAIMED: OnceLock<Mutex<BTreeSet<(String, String)>>> = OnceLock::new();
+    CLAIMED.get_or_init(|| Mutex::new(BTreeSet::new()))
+}
+
+/// One committed, never-reused invalidation boot reservation for one exact
+/// database instance. Private fields and the absence of `Clone` make the
+/// durable reservation a one-use input to live-issuer construction.
+///
+/// @ref LLP 0053#invalidation-is-an-obligation-not-a-message — the boot
+/// sequence is durably consumed before any issuer can escape.
+/// @ref LLP 0303#corollary--the-artifact-must-carry-provenance-not-just-type —
+/// the reservation retains the exact database identity that produced it.
+pub struct InvalidationBootIssuerReservation {
+    binding: DatabaseBinding,
+    authorization: AuthorizationVersion,
+    version_stream: String,
+    boot_sequence: u64,
+    durable_epoch: DurableInvalidationBootEpoch,
+    _owner_lease: InvalidationBootOwnerLease,
+}
+
+impl std::fmt::Debug for InvalidationBootIssuerReservation {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("InvalidationBootIssuerReservation")
+            .field("authorization", &self.authorization)
+            .field("version_stream", &self.version_stream)
+            .field("boot_sequence", &self.boot_sequence)
+            .finish_non_exhaustive()
+    }
+}
+
+impl InvalidationBootIssuerReservation {
+    pub fn authorization(&self) -> &AuthorizationVersion {
+        &self.authorization
+    }
+
+    pub fn version_stream(&self) -> &str {
+        &self.version_stream
+    }
+
+    pub fn boot_sequence(&self) -> u64 {
+        self.boot_sequence
+    }
+
+    /// Re-read the durable boot epoch immediately before an installed issuer
+    /// allocates or signs another protocol artifact. The captured reservation
+    /// remains move-only, but already-installed handles can outlive it in
+    /// another process and therefore must not rely on acquisition-time proof.
+    #[doc(hidden)]
+    pub fn with_current_issuance<T>(
+        &self,
+        effect: impl FnOnce() -> SnapbackResult<T>,
+    ) -> SnapbackResult<T> {
+        self.durable_epoch.with_current(effect)
+    }
+
+    pub fn validate_expectation_view(
+        &self,
+        view: &AuthorizationExpectationView,
+    ) -> SnapbackResult<()> {
+        if !view.database_binding_matches(&self.binding) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_INVALIDATION_ISSUER_INVALID",
+                "auth",
+                "invalidation boot reservation and authorization expectation belong to different databases",
+            ));
+        }
+        if view.current()? != self.authorization {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
+                "auth",
+                "kernel authorization expectation does not match the reserved boot issuer",
+            ));
+        }
+        Ok(())
+    }
+}
 
 fn corrupt(message: impl Into<String>) -> SnapbackError {
     SnapbackError::error("SNAPBACK_AUTH_INVALIDATION_CORRUPT", "auth", message.into())
@@ -31,6 +319,22 @@ fn exhausted() -> SnapbackError {
         "SNAPBACK_AUTH_INVALIDATION_ISSUER_EXHAUSTED",
         "auth",
         "authorization invalidation boot sequence exhausted the JavaScript-safe range",
+    )
+}
+
+fn boot_already_active() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_INVALIDATION_BOOT_ALREADY_ACTIVE",
+        "auth",
+        "authorization invalidation boot issuer is already active for this database lifetime",
+    )
+}
+
+fn boot_issuer_retired() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_INVALIDATION_ISSUER_RETIRED",
+        "auth",
+        "authorization invalidation issuer was retired by a newer durable boot issuance",
     )
 }
 
@@ -588,22 +892,111 @@ impl LocalDatabase {
     /// Reserve one never-reused boot sequence in the same transaction that
     /// reads the authorization incarnation it names. A crash consumes the
     /// reservation; rollback makes it available because no issuer escaped.
+    ///
+    /// @ref LLP 0303#move-semantics-protect-the-handle-not-the-fact — the
+    /// durable issuance record, not ownership of one Rust binding, refuses a
+    /// second boot for the same database-open lifetime and incarnation.
     pub fn reserve_invalidation_boot_issuer(
         &mut self,
-    ) -> SnapbackResult<(crate::storage::AuthorizationVersion, String, u64)> {
+    ) -> SnapbackResult<InvalidationBootIssuerReservation> {
+        let binding = self.binding();
+        let database_open_owner_id = self.invalidation_boot_owner_id.clone();
+        let database_claim_key = self.commit_authority_key.clone();
+        let reservation_authority = self.invalidation_boot_reservation_authority.clone();
+        let durable_reader = DurableInvalidationBootEpoch::open_reader(self.path.as_deref())?;
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         let authorization = ensure_authorization_version_in(&tx)?;
         let version_stream = ensure_data_version_stream_in(&tx)?;
-        let previous = strict_meta_u64(&tx, BOOT_SEQUENCE_META_KEY)?.unwrap_or(0);
+        let live_claim = (database_claim_key, authorization.incarnation.clone());
+        let mut live_owners = live_invalidation_boot_owners()
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let projected_sequence = strict_meta_u64(&tx, BOOT_SEQUENCE_META_KEY)?;
+        let projected_issuance = strict_boot_issuance(&tx)?;
+        let durable_reservation = strict_boot_reservation(&tx)?;
+        let durable_epoch = strict_boot_epoch(&tx)?;
+        if projected_sequence.is_some() != projected_issuance.is_some() {
+            return Err(corrupt(
+                "invalidation boot sequence and issuance projections must appear together",
+            ));
+        }
+        if let (Some(sequence), Some(issuance)) = (projected_sequence, projected_issuance.as_ref())
+            && issuance.boot_sequence != sequence
+        {
+            return Err(corrupt(
+                "invalidation boot issuance does not match the durable sequence high-water",
+            ));
+        }
+        if let Some(epoch) = durable_epoch.as_ref() {
+            if projected_sequence != Some(epoch.boot_sequence)
+                || projected_issuance.as_ref() != Some(epoch)
+            {
+                return Err(corrupt(
+                    "invalidation boot compatibility projections do not match the monotone epoch",
+                ));
+            }
+        }
+        if let Some(reservation) = durable_reservation.as_ref()
+            && durable_epoch.as_ref() != Some(reservation)
+        {
+            return Err(corrupt(
+                "invalidation boot reservation does not match the monotone epoch",
+            ));
+        }
+        if durable_reservation.is_some() && durable_epoch.is_none() {
+            return Err(corrupt(
+                "invalidation boot reservation exists without a monotone epoch",
+            ));
+        }
+        let previous = durable_epoch
+            .as_ref()
+            .map(|epoch| epoch.boot_sequence)
+            .or(projected_sequence)
+            .unwrap_or(0);
+        if let Some(issuance) = projected_issuance {
+            if issuance.database_open_owner_id == database_open_owner_id
+                && issuance.authorization_incarnation == authorization.incarnation
+            {
+                return Err(boot_already_active());
+            }
+        }
+        if live_owners.contains(&live_claim) {
+            return Err(boot_already_active());
+        }
         let sequence = previous
             .checked_add(1)
             .filter(|value| *value <= MAX_AUTHORIZATION_EPOCH)
             .ok_or_else(exhausted)?;
+        let issuance = PersistedBootIssuance {
+            database_open_owner_id,
+            authorization_incarnation: authorization.incarnation.clone(),
+            boot_sequence: sequence,
+        };
+        // The connection function is armed only around this exact transaction.
+        // Its trigger-protected durable row is written before the compatibility
+        // projections and epoch, so the epoch trigger consumes an existing,
+        // exact reservation rather than authenticating monotonicity alone.
+        let _armed_reservation = reservation_authority.arm(&issuance)?;
+        write_boot_reservation(&tx, durable_reservation.as_ref(), &issuance)?;
         write_meta_u64(&tx, BOOT_SEQUENCE_META_KEY, sequence)?;
+        write_boot_issuance(&tx, &issuance)?;
+        write_boot_epoch(&tx, durable_epoch.as_ref(), &issuance)?;
         tx.commit()?;
-        Ok((authorization, version_stream, sequence))
+        let inserted = live_owners.insert(live_claim.clone());
+        debug_assert!(inserted, "live boot claim was checked before commit");
+        Ok(InvalidationBootIssuerReservation {
+            binding,
+            authorization,
+            version_stream,
+            boot_sequence: sequence,
+            durable_epoch: DurableInvalidationBootEpoch {
+                expected: issuance,
+                reader: durable_reader,
+            },
+            _owner_lease: InvalidationBootOwnerLease { claim: live_claim },
+        })
     }
 
     /// Run one retry-registry operation for exactly one episode key under one
@@ -1187,6 +1580,241 @@ pub(super) fn ensure_data_version_stream_in(tx: &Transaction<'_>) -> SnapbackRes
     }
 }
 
+fn strict_boot_issuance(
+    connection: &rusqlite::Connection,
+) -> SnapbackResult<Option<PersistedBootIssuance>> {
+    let value: Option<(String, Vec<u8>)> = connection
+        .query_row(
+            "SELECT typeof(value), CAST(value AS BLOB)
+             FROM _snapback_meta WHERE key = ?1",
+            params![BOOT_ISSUANCE_META_KEY],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?;
+    let Some((storage_class, bytes)) = value else {
+        return Ok(None);
+    };
+    if storage_class != "text" {
+        return Err(corrupt("invalidation boot issuance is not SQLite text"));
+    }
+    let issuance: PersistedBootIssuance = serde_json::from_slice(&bytes)
+        .map_err(|_| corrupt("invalidation boot issuance is not canonical JSON"))?;
+    issuance.validate()?;
+    let canonical = serde_json::to_vec(&issuance)
+        .map_err(|_| corrupt("invalidation boot issuance could not be encoded"))?;
+    if canonical != bytes {
+        return Err(corrupt("invalidation boot issuance is not canonical JSON"));
+    }
+    Ok(Some(issuance))
+}
+
+fn strict_boot_epoch(
+    connection: &rusqlite::Connection,
+) -> SnapbackResult<Option<PersistedBootIssuance>> {
+    strict_boot_record(connection, BOOT_EPOCH_TABLE, "epoch")
+}
+
+fn strict_boot_reservation(
+    connection: &rusqlite::Connection,
+) -> SnapbackResult<Option<PersistedBootIssuance>> {
+    strict_boot_record(connection, BOOT_RESERVATION_TABLE, "reservation")
+}
+
+fn strict_boot_record(
+    connection: &rusqlite::Connection,
+    table: &str,
+    label: &str,
+) -> SnapbackResult<Option<PersistedBootIssuance>> {
+    let value: Option<(String, Vec<u8>, String, Vec<u8>, String, Vec<u8>, String, Vec<u8>)> =
+        connection
+            .query_row(
+                &format!(
+                    "SELECT typeof(id), CAST(id AS BLOB),
+                            typeof(boot_sequence), CAST(boot_sequence AS BLOB),
+                            typeof(database_open_owner_id), CAST(database_open_owner_id AS BLOB),
+                            typeof(authorization_incarnation), CAST(authorization_incarnation AS BLOB)
+                       FROM {table}"
+                ),
+                [],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                        row.get(5)?,
+                        row.get(6)?,
+                        row.get(7)?,
+                    ))
+                },
+            )
+            .optional()?;
+    let Some((
+        id_class,
+        id_bytes,
+        sequence_class,
+        sequence_bytes,
+        owner_class,
+        owner_bytes,
+        incarnation_class,
+        incarnation_bytes,
+    )) = value
+    else {
+        return Ok(None);
+    };
+    if id_class != "integer" || id_bytes != b"1" {
+        return Err(corrupt(format!(
+            "invalidation boot {label} singleton id is not canonical integer 1"
+        )));
+    }
+    if sequence_class != "integer" {
+        return Err(corrupt(format!(
+            "invalidation boot {label} sequence is not a SQLite integer"
+        )));
+    }
+    let sequence_text = std::str::from_utf8(&sequence_bytes).map_err(|_| {
+        corrupt(format!(
+            "invalidation boot {label} sequence is not canonical UTF-8"
+        ))
+    })?;
+    let boot_sequence = sequence_text.parse::<u64>().map_err(|_| {
+        corrupt(format!(
+            "invalidation boot {label} sequence is not canonical"
+        ))
+    })?;
+    if sequence_text != boot_sequence.to_string() {
+        return Err(corrupt(format!(
+            "invalidation boot {label} sequence is not canonical"
+        )));
+    }
+    if owner_class != "text" || incarnation_class != "text" {
+        return Err(corrupt(format!(
+            "invalidation boot {label} owner and incarnation must be SQLite text"
+        )));
+    }
+    let epoch = PersistedBootIssuance {
+        database_open_owner_id: String::from_utf8(owner_bytes)
+            .map_err(|_| corrupt(format!("invalidation boot {label} owner is not UTF-8")))?,
+        authorization_incarnation: String::from_utf8(incarnation_bytes).map_err(|_| {
+            corrupt(format!(
+                "invalidation boot {label} incarnation is not UTF-8"
+            ))
+        })?,
+        boot_sequence,
+    };
+    epoch.validate()?;
+    Ok(Some(epoch))
+}
+
+fn write_boot_issuance(
+    tx: &Transaction<'_>,
+    issuance: &PersistedBootIssuance,
+) -> SnapbackResult<()> {
+    issuance.validate()?;
+    let encoded = serde_json::to_string(issuance)
+        .map_err(|_| corrupt("invalidation boot issuance could not be encoded"))?;
+    write_text_meta(tx, BOOT_ISSUANCE_META_KEY, &encoded)
+}
+
+fn write_boot_reservation(
+    tx: &Transaction<'_>,
+    previous: Option<&PersistedBootIssuance>,
+    issuance: &PersistedBootIssuance,
+) -> SnapbackResult<()> {
+    issuance.validate()?;
+    let changed = if let Some(previous) = previous {
+        if previous.boot_sequence.checked_add(1) != Some(issuance.boot_sequence) {
+            return Err(corrupt(
+                "invalidation boot reservation successor is not exactly monotone",
+            ));
+        }
+        tx.execute(
+            &format!(
+                "UPDATE {BOOT_RESERVATION_TABLE}
+                    SET boot_sequence = ?1,
+                        database_open_owner_id = ?2,
+                        authorization_incarnation = ?3
+                  WHERE id = 1 AND boot_sequence = ?4"
+            ),
+            params![
+                issuance.boot_sequence,
+                issuance.database_open_owner_id,
+                issuance.authorization_incarnation,
+                previous.boot_sequence,
+            ],
+        )?
+    } else {
+        tx.execute(
+            &format!(
+                "INSERT INTO {BOOT_RESERVATION_TABLE}(
+                    id, boot_sequence, database_open_owner_id, authorization_incarnation
+                 ) VALUES(1, ?1, ?2, ?3)"
+            ),
+            params![
+                issuance.boot_sequence,
+                issuance.database_open_owner_id,
+                issuance.authorization_incarnation,
+            ],
+        )?
+    };
+    if changed != 1 {
+        return Err(corrupt(
+            "invalidation boot reservation did not advance exactly once",
+        ));
+    }
+    Ok(())
+}
+
+fn write_boot_epoch(
+    tx: &Transaction<'_>,
+    previous: Option<&PersistedBootIssuance>,
+    issuance: &PersistedBootIssuance,
+) -> SnapbackResult<()> {
+    issuance.validate()?;
+    let changed = if let Some(previous) = previous {
+        if previous.boot_sequence.checked_add(1) != Some(issuance.boot_sequence) {
+            return Err(corrupt(
+                "invalidation boot epoch successor is not exactly monotone",
+            ));
+        }
+        tx.execute(
+            &format!(
+                "UPDATE {BOOT_EPOCH_TABLE}
+                    SET boot_sequence = ?1,
+                        database_open_owner_id = ?2,
+                        authorization_incarnation = ?3
+                  WHERE id = 1 AND boot_sequence = ?4"
+            ),
+            params![
+                issuance.boot_sequence,
+                issuance.database_open_owner_id,
+                issuance.authorization_incarnation,
+                previous.boot_sequence,
+            ],
+        )?
+    } else {
+        tx.execute(
+            &format!(
+                "INSERT INTO {BOOT_EPOCH_TABLE}(
+                    id, boot_sequence, database_open_owner_id, authorization_incarnation
+                 ) VALUES(1, ?1, ?2, ?3)"
+            ),
+            params![
+                issuance.boot_sequence,
+                issuance.database_open_owner_id,
+                issuance.authorization_incarnation,
+            ],
+        )?
+    };
+    if changed != 1 {
+        return Err(corrupt(
+            "invalidation boot epoch did not advance exactly once",
+        ));
+    }
+    Ok(())
+}
+
 pub(super) fn strict_meta_u64(
     connection: &rusqlite::Connection,
     key: &str,
@@ -1288,15 +1916,18 @@ mod tests {
         let directory = tempdir().unwrap();
         let path = directory.path().join("app.sqlite3");
         let mut first = LocalDatabase::open(&path).unwrap();
-        let (authorization, stream, sequence) = first.reserve_invalidation_boot_issuer().unwrap();
-        assert_eq!(sequence, 1);
+        let reservation = first.reserve_invalidation_boot_issuer().unwrap();
+        let authorization = reservation.authorization().clone();
+        let stream = reservation.version_stream().to_owned();
+        assert_eq!(reservation.boot_sequence(), 1);
+        drop(reservation);
         drop(first);
 
         let mut second = LocalDatabase::open(&path).unwrap();
-        let (reopened, reopened_stream, next) = second.reserve_invalidation_boot_issuer().unwrap();
-        assert_eq!(reopened, authorization);
-        assert_eq!(reopened_stream, stream);
-        assert_eq!(next, 2);
+        let reopened = second.reserve_invalidation_boot_issuer().unwrap();
+        assert_eq!(reopened.authorization(), &authorization);
+        assert_eq!(reopened.version_stream(), stream);
+        assert_eq!(reopened.boot_sequence(), 2);
     }
 
     #[test]
@@ -1731,7 +2362,7 @@ impl super::ServingDatabase {
     }
     pub fn reserve_invalidation_boot_issuer(
         &mut self,
-    ) -> SnapbackResult<(crate::storage::AuthorizationVersion, String, u64)> {
+    ) -> SnapbackResult<InvalidationBootIssuerReservation> {
         self.db.reserve_invalidation_boot_issuer()
     }
     pub fn resolve_invalidation_retry_episode(

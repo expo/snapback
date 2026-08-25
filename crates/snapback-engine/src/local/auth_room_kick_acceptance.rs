@@ -10,7 +10,6 @@
 //! `tests/eng-24604-protected-room-kick.acceptance.md`.
 
 use super::*;
-use crate::auth::invalidation::{IssuerAuthenticator, IssuerId};
 use crate::auth::mode::{
     AuthProgramReadiness, DeploymentIdentity, FUNCTION_V1_PREFIX, INPUTS_V1_PREFIX,
     SCHEMA_V1_PREFIX,
@@ -1876,32 +1875,33 @@ fn postcommit_projection_after_issuer_clear_does_not_reopen_or_panic() {
     );
 }
 
+// @ref LLP 0303#move-semantics-protect-the-handle-not-the-fact — clearing all
+// process-local projections does not turn the same database-open lifetime into
+// a successor boot producer.
 #[test]
-fn managed_local_install_rebuilds_a_suspended_issuer_projection() {
+fn suspended_local_projection_refuses_a_second_boot_producer_before_reopening() {
     let (mut snapback, predecessor) = codegen_membership_snapback_with_binding();
     snapback
         .clear_installed_auth_invalidation(&predecessor)
         .expect("suspend and clear the predecessor issuer");
+    drop(predecessor);
 
-    let mut local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
-    let (_, successor) = install_invalidation_with_binding(&mut snapback);
-    let batch = local_scope.take_after_local_batch();
-    drop(local_scope);
-    crate::exec_guard::run_after_local_batch(batch).unwrap();
-
-    assert!(
-        snapback
-            .authorization_commit_reservation_required()
-            .expect("successor issuer reactivates authorization commits")
-    );
+    let replay = match snapback
+        .install_authenticated_auth_invalidation(&invalidation_provider_for_test(), None)
+    {
+        Ok(_) => panic!("one database-open lifetime minted a successor boot issuer"),
+        Err(error) => error,
+    };
     assert_eq!(
-        successor
-            .authorization_expectation()
-            .expect("successor issuer reads the rebuilt projection"),
-        snapback
-            .authorization_reservation_snapshot()
-            .expect("read the durable successor frontier")
-            .1
+        replay.diagnostic.code,
+        "SNAPBACK_AUTH_INVALIDATION_BOOT_ALREADY_ACTIVE"
+    );
+    let still_unavailable = snapback
+        .authorization_commit_reservation_required()
+        .expect_err("the refused replay cannot rebuild the suspended projection");
+    assert_eq!(
+        still_unavailable.diagnostic.code,
+        "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
     );
 }
 
@@ -2166,27 +2166,12 @@ fn install_invalidation_with_binding(
     [AuthorizationInvalidationConnection; 2],
     EngineInvalidationBinding,
 ) {
-    let (authorization, version_stream, boot_sequence) = snapback
-        .auth_database_mut()
-        .reserve_invalidation_boot_issuer()
-        .expect("reserve acceptance issuer");
-    let issuer_id = IssuerId::fresh(authorization.incarnation.clone(), boot_sequence)
-        .expect("acceptance issuer id");
-    let authenticator = IssuerAuthenticator::new("eng-24604-protocol-key", [0x46; 32])
-        .expect("acceptance authenticator");
-    let authenticated = authenticator
-        .authenticate(issuer_id, "local-test", "card-game")
-        .expect("authenticated acceptance issuer");
-    let issuer = LiveInvalidationIssuer::with_authenticator(
-        authenticated,
-        authenticator,
-        "local-test",
-        "card-game",
-    )
-    .expect("live acceptance issuer");
     let binding = snapback
-        .install_auth_invalidation(issuer, authorization.clone(), version_stream)
+        .install_authenticated_auth_invalidation(&invalidation_provider_for_test(), None)
         .expect("install acceptance invalidation");
+    let authorization = binding
+        .authorization_expectation()
+        .expect("acceptance authorization expectation");
     let connection_a = binding
         .prepare_connection(crate::ephemeral::ConnectionEffectFence::anonymous(
             authorization.incarnation.clone(),

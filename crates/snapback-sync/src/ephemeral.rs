@@ -3414,7 +3414,7 @@ struct EphemeralShared {
     /// window: an affected room absent at prepare sees either its matching
     /// ticket or the successor epoch, never a predecessor grant under a fresh
     /// control.
-    authorization_issuer: StdMutex<Option<crate::auth::invalidation::LiveInvalidationIssuer>>,
+    authorization_issuer: StdMutex<Option<crate::auth::invalidation::InstalledInvalidationIssuer>>,
 }
 
 /// The local-memory implementation of the LLP 0013 `EphemeralBackend`
@@ -3567,7 +3567,7 @@ impl LocalEphemeralBackend {
             })?;
         database.activate_authorization_commit_participant(
             participant,
-            issuer.authorization_issuer_projection()?,
+            issuer.authorization_issuer_projection(),
         )
     }
 
@@ -3619,7 +3619,7 @@ impl LocalEphemeralBackend {
 
     pub fn install_authorization_issuer(
         &self,
-        issuer: crate::auth::invalidation::LiveInvalidationIssuer,
+        issuer: crate::auth::invalidation::InstalledInvalidationIssuer,
     ) {
         crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
             "ephemeral authorization issuer installation",
@@ -3641,7 +3641,7 @@ impl LocalEphemeralBackend {
     pub fn install_authorization_issuer_and_activate(
         &self,
         database: &mut ServingDatabase,
-        issuer: crate::auth::invalidation::LiveInvalidationIssuer,
+        issuer: crate::auth::invalidation::InstalledInvalidationIssuer,
     ) -> SnapbackResult<()> {
         let RoomAuthority::Bound(participant) = &self.shared.room_authority else {
             return Err(SnapbackError::error(
@@ -3650,7 +3650,7 @@ impl LocalEphemeralBackend {
                 "standalone ephemeral backend has no database-bound authorization participant",
             ));
         };
-        let issuer_projection = issuer.authorization_issuer_projection()?.clone();
+        let issuer_projection = issuer.authorization_issuer_projection().clone();
         if crate::exec_guard::local_write_scope_active() {
             database.activate_authorization_commit_participant(participant, &issuer_projection)?;
             let backend = self.clone();
@@ -9330,34 +9330,23 @@ mod tests {
     }
 
     fn authorization_issuer(
-        authorization: &AuthorizationVersion,
-        boot_sequence: u64,
-        version_stream: &str,
+        reservation: crate::storage::InvalidationBootIssuerReservation,
         view: AuthorizationExpectationView,
-    ) -> crate::auth::invalidation::LiveInvalidationIssuer {
-        let issuer_id = crate::auth::invalidation::IssuerId::fresh(
-            authorization.incarnation.clone(),
-            boot_sequence,
+    ) -> crate::auth::invalidation::InstalledInvalidationIssuer {
+        let keyring = Arc::new(crate::auth::keyring::AuthKeyringStore::in_memory());
+        keyring
+            .load_or_mint_initial(0, &crate::auth::crypto::OsRandom)
+            .unwrap();
+        let provider = crate::auth::provider::AuthProvider::new(
+            crate::contract_types::AuthProviderProfile::Test,
+            keyring,
         )
         .unwrap();
-        let authenticator =
-            crate::auth::invalidation::IssuerAuthenticator::new("ephemeral-test", [0x45; 32])
-                .unwrap();
-        let authenticated = authenticator
-            .authenticate(issuer_id, "test-target", "test-app")
+        let issuer = provider
+            .authenticate_invalidation_boot_issuer(reservation, view, "test-target", "test-app")
             .unwrap();
-        let issuer = crate::auth::invalidation::LiveInvalidationIssuer::with_authenticator(
-            authenticated,
-            authenticator,
-            "test-target",
-            "test-app",
-        )
-        .unwrap();
-        let _installed = issuer.bind_authorization_expectation(view).unwrap();
-        issuer
-            .install_version_stream(version_stream.to_owned())
-            .unwrap();
-        issuer
+        let registry = crate::auth::invalidation::ObligationRegistry::new(issuer).unwrap();
+        registry.installed_issuer().clone()
     }
 
     struct BoundBackendFixture {
@@ -9369,9 +9358,10 @@ mod tests {
     fn bound_backend_fixture() -> BoundBackendFixture {
         let local = crate::storage::LocalDatabase::memory().expect("in-memory database");
         let mut database = ServingDatabase::adopt(local).expect("serving database");
-        let (authorization, version_stream, boot_sequence) = database
+        let reservation = database
             .reserve_invalidation_boot_issuer()
             .expect("durable authorization snapshot");
+        let authorization = reservation.authorization().clone();
         let backend = LocalEphemeralBackend::for_serving_database(
             EphemeralStoreLimits::default(),
             &mut database,
@@ -9381,7 +9371,7 @@ mod tests {
             .authorization_expectation_view_for_install(&mut database)
             .expect("kernel authorization expectation view");
         assert_eq!(view.current().unwrap(), authorization);
-        let issuer = authorization_issuer(&authorization, boot_sequence, &version_stream, view);
+        let issuer = authorization_issuer(reservation, view);
         backend.install_authorization_issuer(issuer);
         backend
             .activate_authorization_commit_interlock(&mut database)
@@ -9418,8 +9408,11 @@ mod tests {
         );
     }
 
+    // @ref LLP 0303#move-semantics-protect-the-handle-not-the-fact — clearing
+    // a process-local projection does not authorize another producer call from
+    // the same database-open lifetime.
     #[test]
-    fn managed_successor_install_reactivates_a_suspended_projection_before_reopening() {
+    fn suspended_projection_refuses_a_second_boot_producer_before_reopening() {
         let mut fixture = bound_backend_fixture();
         fixture.backend.clear_authorization_issuer();
         let unavailable = fixture
@@ -9431,37 +9424,21 @@ mod tests {
             "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
         );
 
-        let (authorization, version_stream, boot_sequence) = fixture
+        let replay = fixture
             .database
             .reserve_invalidation_boot_issuer()
-            .expect("reserve a successor issuer while projection is suspended");
-        let view = fixture
-            .backend
-            .authorization_expectation_view_for_install(&mut fixture.database)
-            .expect("bind the successor view to the exact ready participant");
-        let issuer = authorization_issuer(&authorization, boot_sequence, &version_stream, view);
-
-        let mut local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
-        fixture
-            .backend
-            .install_authorization_issuer_and_activate(&mut fixture.database, issuer)
-            .expect("database-validated successor activation");
-        let batch = local_scope.take_after_local_batch();
-        drop(local_scope);
-        crate::exec_guard::run_after_local_batch(batch).unwrap();
-
-        assert!(
-            fixture
-                .database
-                .authorization_commit_reservation_required()
-                .expect("successor projection reopens authorization commits")
-        );
+            .expect_err("one database-open lifetime cannot mint a successor boot issuer");
         assert_eq!(
-            fixture
-                .backend
-                .authorization_expectation_for_test()
-                .expect("successor issuer copy is installed before reopening"),
-            authorization
+            replay.diagnostic.code,
+            "SNAPBACK_AUTH_INVALIDATION_BOOT_ALREADY_ACTIVE"
+        );
+        let still_unavailable = fixture
+            .database
+            .authorization_commit_reservation_required()
+            .expect_err("the refused replay cannot reopen authorization commits");
+        assert_eq!(
+            still_unavailable.diagnostic.code,
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
         );
     }
 
