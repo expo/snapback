@@ -5,7 +5,7 @@
 **Systems:** Live queries, Relational queries, Schema, Auth, Performance, Client SDK
 **Author:** Claude Fable 5 (commissioned by the LLP 0191 author rulings, Charlie Cheever, 2026-08-08)
 **Date:** 2026-08-09
-**Revised:** 2026-08-24 (v0.9 — G2-B rounds 1–2 make range traversal identity
+**Revised:** 2026-08-24 (v0.10 — G3-A memoization landed; see the §9 dated note; prior v0.9 — G2-B rounds 1–2 make range traversal identity
 and semantic-provenance registration/completeness attestation explicit; G2-A landed (the
 corpus-proven graph evaluator, series ending `e486f4827`) and the LLP 0268 exit extension landed
 (`a11054ca4`): the G0 exit is re-recorded with six 0268 §7 labels SATISFIED
@@ -3335,6 +3335,33 @@ or identities.
   LLP 0190's owner at that point, not before; until ruled, no §7 delta
   is claimed replica-applicable.
 
+### v0.10 — G3-A: memoization landed (dated note, 2026-08-24)
+
+**G3-A** (commission `issues/20260824-llp0209-g3-commission.md`, deliverable 1)
+landed as `69e5fee9d` + fix round `6a370fdc7`: the scheduler memoizes graph
+evaluations keyed by the §6 owner-recomputed tuple (outer materialization
+identity, authority-partition identity, `authorizationVersion`,
+`evaluationCut`), with matcher-wake, authorization-version, fence, teardown,
+generation, and kill-switch retirement; declared per-instance bounds
+(256 entries / 256 MiB with the full retained graph payload charged);
+hit/miss/retirement/eviction inspect counters; and debug-build convergence
+oracles. The dual-family review loop forced four narrowings now normative:
+(1) memo sharing is restricted to root first-page evaluations with empty
+prior window ledgers on both producer and receiver — continuations
+structurally miss, so per-subscription ledger lineages are never
+transplanted; (2) authority-context replacement retires every graph memo
+entry (defense against evaluation-input changes that preserve the class-2
+partition digest — the owner-incoherence seam both reviewers flagged);
+(3) the byte budget charges the complete retained registration payload
+(dependency copies, attachments, matcher input, structural work, ledgers,
+identities), fail-closed on overflow; (4) memo-era group-state observations
+live in the G3-A-labeled artifact
+(`tests/conformance/graph/served-observations.g3-a.v1.json`) — the sealed
+G2-C evidence is byte-untouched. A W5 runtime-cost integration conflict was
+resolved at rebase by keeping both retirement paths (runtime-cost + the
+stats-carrying memo helper). Records: `llp/reviews/0209-g3-a.{codex,grok}.md`.
+G3-B (delta rules) and G3-C (measurement/record) remain.
+
 ### v0.9 — the G2 program record (dated note, 2026-08-25)
 
 **G2 is complete.** G2-B (`0310fe817..c40bf169b`) made the evaluator emit
@@ -3405,6 +3432,10 @@ longer prover or corpus structure.
 
 ## Revision history
 
+- **v0.10 (2026-08-24).** G3-A landed (`69e5fee9d`+`6a370fdc7`): §6
+  memoization with review-forced first-page/empty-ledger sharing restriction,
+  authority-context retirement, full retained-payload byte accounting, and the
+  G3-A-labeled observation artifact; records `llp/reviews/0209-g3-a.*`.
 - **v0.9 (2026-08-25).** The G2 program record (see §9): G2-A/B/C landed;
   D2-H2 met on the corpus replay at N=1 honest scope; 0268 §7 eight
   SATISFIED + BOUNDS PARTIAL on the ticketed large/hot observations.

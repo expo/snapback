@@ -112,3 +112,4 @@ relational/opaque paths untouched.
 ## Status
 
 - 2026-08-24 — commissioned; packet landed.
+- 2026-08-24 — **G3-A LANDED** (`69e5fee9d` + fix round `6a370fdc7`; dual-family READY at r2; records `llp/reviews/0209-g3-a.*`; spec v0.10 dated note). Review-forced narrowings: first-page/empty-ledger sharing, authority-context retirement, full retained-payload byte charging, G3-A-labeled observations (G2-C freeze untouched). Remaining: G3-B (delta rules), G3-C (measurement + record).
