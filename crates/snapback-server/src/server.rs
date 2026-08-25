@@ -5601,7 +5601,7 @@ struct ConnectionGrantRecord {
     /// ordinary close still preserves the reusable grant itself.
     socket_teardown: Option<u64>,
     managed_authority: bool,
-    /// Stage-1 developer-identity witness from a verified
+    /// Stage-2 developer-identity witness from a verified
     /// `x-snapback-dev-identity` carrier on `/connection/open`.
     dev_identity_witnessed: bool,
     authority: BoundGrantAuthority,
@@ -7169,6 +7169,19 @@ pub struct ConnectionGrant {
     pub connection_id: String,
     #[serde(rename = "connectionToken")]
     pub connection_token: String,
+    /// Credential-free, dev-only observation of the capability check performed
+    /// for this exact open. `false` is intentionally distinct from absence so
+    /// stage-2 carrier witnesses fail if a relay or native client strips the
+    /// header even though the open itself remains compatibility-admitted.
+    ///
+    /// @ref LLP 0262#d2-carriers-per-shipped-topology — topology witnesses
+    ///   consume server-recorded custody, never client-side header intent.
+    #[serde(
+        rename = "devIdentityCapabilityWitnessed",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub dev_identity_capability_witnessed: Option<bool>,
     #[serde(
         rename = "authorizationInvalidation",
         default,
@@ -7237,6 +7250,10 @@ impl std::fmt::Debug for ConnectionGrant {
             .debug_struct("ConnectionGrant")
             .field("connection_id", &self.connection_id)
             .field("connection_token", &"[REDACTED]")
+            .field(
+                "dev_identity_capability_witnessed",
+                &self.dev_identity_capability_witnessed,
+            )
             .field(
                 "authorization_invalidation",
                 &self.authorization_invalidation,
@@ -8073,6 +8090,7 @@ impl ConnectionRegistry {
                     grant: ConnectionGrant {
                         connection_id: id.clone(),
                         connection_token,
+                        dev_identity_capability_witnessed: None,
                         authorization_invalidation,
                         // Echo ⇔ explicit binding: a legacy lineage's
                         // confirming re-open offer produces no echo.
@@ -8152,6 +8170,7 @@ impl ConnectionRegistry {
                 grant: ConnectionGrant {
                     connection_id,
                     connection_token,
+                    dev_identity_capability_witnessed: None,
                     authorization_invalidation,
                     wire_version: wire_version_offer.clone(),
                     ephemeral_authority_protocol,
@@ -9409,7 +9428,7 @@ async fn open_connection(
     };
     let allow_suggested = runtime.server.profile.allows_provisioning();
     let use_key = prepared.authenticated_use_key();
-    let opened = {
+    let mut opened = {
         let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
         let ephemeral_authority_instance = if ephemeral_authority_protocol.is_some() {
             if hosted_serving.is_some() {
@@ -9460,6 +9479,10 @@ async fn open_connection(
                 )
             })?
     };
+    opened.grant.dev_identity_capability_witnessed = runtime
+        .dev_identity_capabilities
+        .as_ref()
+        .map(|_| dev_identity_witnessed);
     let deadline = match record_connection_authenticated_use(&runtime, use_key, &admission).await {
         Ok(deadline) => deadline,
         Err(error) => {
@@ -16646,7 +16669,31 @@ async fn enforce_registered_route_policy_inner(
         None,
     )
     .await;
+    let dev_identity_capability_observation = prepared_authority.as_ref().and_then(|authority| {
+        (policy_mode == PolicyAuthMode::Dev
+            && runtime.dev_identity_capabilities.is_some()
+            && matches!(
+                authority.resolved(),
+                ResolvedAppAuthority::DevImpersonation { .. }
+            ))
+        .then(|| {
+            // A presented malformed/mismatched value was already refused by
+            // authority preparation, so successful presence means verified.
+            request
+                .headers()
+                .contains_key(crate::dev_identity::DEV_IDENTITY_CAPABILITY_HEADER)
+        })
+    });
     let mut response = next.run(request).await;
+    if let Some(witnessed) = dev_identity_capability_observation {
+        // @ref LLP 0262#d1-the-dev-identity-capability — this dev-only,
+        // credential-free observation reports the server verdict for the
+        // exact identity-bearing request. It never reflects bearer material.
+        response.headers_mut().insert(
+            HeaderName::from_static(crate::dev_identity::DEV_IDENTITY_CAPABILITY_WITNESS_HEADER),
+            HeaderValue::from_static(if witnessed { "true" } else { "false" }),
+        );
+    }
     #[cfg(test)]
     pause_test_finite_authority_request(
         test_finite_authority_pause_id.as_deref(),

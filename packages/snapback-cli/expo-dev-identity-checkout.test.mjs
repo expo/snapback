@@ -20,10 +20,16 @@ import {
   SUPERVISED_DEV_IDENTITY_CHECKOUT_HEADER as APP_CHECKOUT_HEADER,
   SUPERVISED_DEV_IDENTITY_CHECKOUT_PATH as APP_CHECKOUT_PATH,
 } from '../snapback-expo/supervised-environment.mjs';
+import { serializeSecretFreeReceipt } from '../../demos/expo-native-checkout-reader/scripts/receipt-safety.mjs';
 
 assert.equal(APP_CHECKOUT_ENV, SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV);
 assert.equal(APP_CHECKOUT_HEADER, SUPERVISED_DEV_IDENTITY_CHECKOUT_HEADER);
 assert.equal(APP_CHECKOUT_PATH, SUPERVISED_DEV_IDENTITY_CHECKOUT_PATH);
+assert.throws(
+  () => serializeSecretFreeReceipt({ capability: 'sbdev_unit_boundary_probe' }),
+  /attempted to retain a dev-identity capability/u,
+  'receipt serialization rejects an sbdev_ value in any report field',
+);
 
 const scratch = mkdtempSync(join(tmpdir(), 'snapback-expo-checkout-'));
 const capabilityFile = join(scratch, 'dev.ready.json.dev-identity');

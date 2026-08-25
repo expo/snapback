@@ -116,3 +116,26 @@ Still pending, unchanged: Android emulator (no AVD on this host — explicit
 nonclaim tonight), Android physical USB (no hardware — explicit nonclaim),
 and the full Expo-web browser isolation row. The D5 stage-2 constraint for
 the packaged Expo NATIVE row remains gated on the Android rows.
+
+## Progress — 2026-08-25 (review-strengthened witness correction)
+
+Live Android-emulator, Expo-web, and current iOS-simulator receipts exist under
+`demos/expo-native-checkout-reader/receipts/android-2026-08-25T14-54-18-163Z/`,
+`web-2026-08-25T14-49-42-653Z/`, and
+`ios-2026-08-25T15-06-51-734Z/`. They remain useful carrier, rotation, and
+negative-path evidence, but review found that the native app marked the
+capability observed before transport and all three admitted queries returned
+zero rows. Stage 2 admits an absent capability, so those facts were not
+fail-sensitive proof that the native client delivered it.
+
+The app now reads the server's post-verification
+`devIdentityCapabilityWitnessed` connection-grant fact after the real client
+transport, seeds a row for the supervised session user, and requires at least
+one returned row. The old receipts are retained honestly. The strengthened
+real-browser Expo-web rerun passes under
+`web-2026-08-25T16-03-15-778Z/` with `rowCount: 1` and no native capability.
+The iOS-simulator and Android-emulator D2 rows remain **NOT YET** pending
+strengthened reruns; neither simulator nor emulator was rerun during this
+correction. After those reruns, the only new hardware topology still required
+is physical Android over USB; that row remains an explicit nonclaim until a
+USB device is available.

@@ -364,6 +364,7 @@ async function bootDevServer() {
     bindPortExactly: true,
     db: devDbPath,
     cwd: repoRoot,
+    env: { SNAPBACK_DEV_AUTH_ORIGINS: pageOrigin },
     provenance: { appId: artifactIndex.appId, artifactsPath: artifactIndexPath },
     serverBinary: runtimeBinary,
   });
@@ -679,40 +680,98 @@ try {
   page = await openPage(firstBrowser.context);
 
   await check('dev-identity-web-relay', async () => {
-    const direct = await fetch(`${server.baseUrl}/connection/open`, {
+    const assertServerWitnessed = (value, label) => assert.equal(
+      value,
+      'true',
+      `${label}: server did not record verified dev-identity custody`,
+    );
+    const body = JSON.stringify({
+      args: {},
+      read_set: [],
+      auth: { user_id: 'relay-witness-user' },
+    });
+    const direct = await fetch(`${server.baseUrl}/query/myTodos`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
         'x-snapback-dev-identity': 'sbdev_browser_input_must_be_overwritten',
       },
-      body: '{}',
+      body,
     });
     assert.equal(direct.status, 403, 'untrusted browser capability was not refused directly');
     const directBody = await direct.json();
     assert.equal(directBody.diagnostic?.code, 'SNAPBACK_DEV_IDENTITY_REFUSED');
 
-    const relayed = await page.evaluate(async () => {
-      const response = await fetch('/__snapback/connection/open', {
+    const sidecarMatchesServer = readFileSync(`${devDbPath}.dev-identity`, 'utf8').trim()
+      === server.clientOptions.devIdentityCapability;
+    assert.equal(sidecarMatchesServer, true, 'external Vite handoff sidecar was not the current server carrier');
+    const currentDirect = await fetch(`${server.baseUrl}/query/myTodos`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-snapback-dev-identity': server.clientOptions.devIdentityCapability,
+      },
+      body,
+    });
+    assert.equal(currentDirect.status, 200, 'current server carrier was not admitted directly');
+    assert.equal(
+      currentDirect.headers.get('x-snapback-dev-identity-witnessed'),
+      'true',
+      'current direct carrier was admitted without a witnessed server verdict',
+    );
+
+    const stripped = await fetch(`${server.baseUrl}/query/myTodos`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body,
+    });
+    assert.equal(stripped.status, 200, 'stage-2 stripped-header control was not admitted');
+    assert.equal(
+      stripped.headers.get('x-snapback-dev-identity-witnessed'),
+      'false',
+      'stripped-header control did not expose an unwitnessed server verdict',
+    );
+    assert.throws(
+      () => assertServerWitnessed(
+        stripped.headers.get('x-snapback-dev-identity-witnessed'),
+        'stripped-header control',
+      ),
+      /server did not record verified dev-identity custody/u,
+      'stripping the header did not falsify the positive witness criterion',
+    );
+
+    const relayed = await page.evaluate(async (requestBody) => {
+      const response = await fetch('/__snapback/query/myTodos', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
           'x-snapback-dev-identity': 'sbdev_browser_input_must_be_overwritten',
         },
-        body: '{}',
+        body: requestBody,
       });
       return {
         status: response.status,
         reflectedCapability: response.headers.get('x-snapback-dev-identity'),
+        capabilityWitnessed:
+          response.headers.get('x-snapback-dev-identity-witnessed'),
         body: await response.text(),
       };
-    });
-    assert.equal(relayed.status, 200, 'external Vite relay did not stamp its custody capability');
+    }, body);
+    assert.equal(
+      relayed.status,
+      200,
+      `external Vite relay did not stamp its custody capability: ${relayed.body}`,
+    );
     assert.equal(relayed.reflectedCapability, null, 'relay reflected its custody capability');
+    assertServerWitnessed(relayed.capabilityWitnessed, 'external Vite relay');
     assert.equal(relayed.body.includes('sbdev_'), false, 'relay response body exposed capability material');
     return {
       topology: 'web/browser -> external Vite relay -> loopback Snapback',
       directRefusalCode: directBody.diagnostic.code,
       relayedStatus: relayed.status,
+      serverCapabilityWitnessed: true,
+      strippedHeaderControlWitnessed: false,
+      strippedHeaderPositiveCriterionFailed: true,
       clientHeaderDisposition: 'overwritten',
       responseCapabilityExposure: false,
     };

@@ -16640,10 +16640,18 @@ async fn dev_client_asserted_capability_verifies_when_present_and_warns_when_abs
         .await
         .unwrap();
     assert_eq!(valid.status(), StatusCode::OK);
+    assert_eq!(
+        valid.headers()[crate::dev_identity::DEV_IDENTITY_CAPABILITY_WITNESS_HEADER],
+        "true"
+    );
     assert_eq!(response_json(valid).await["userId"], "user-1");
 
     let absent = router.clone().oneshot(request(None)).await.unwrap();
     assert_eq!(absent.status(), StatusCode::OK);
+    assert_eq!(
+        absent.headers()[crate::dev_identity::DEV_IDENTITY_CAPABILITY_WITNESS_HEADER],
+        "false"
+    );
     assert!(
         !warning_witness.warn_unwitnessed_assertion_once(),
         "the accepted absent-capability assertion emitted the boot warning"
@@ -16721,6 +16729,7 @@ async fn connection_open_binds_only_a_verified_dev_identity_witness() {
         .unwrap();
     assert_eq!(opened.status(), StatusCode::OK);
     let opened = response_json(opened).await;
+    assert_eq!(opened["devIdentityCapabilityWitnessed"], true);
     let prepared = state
         .connections
         .prepare_act(
@@ -16749,6 +16758,7 @@ async fn connection_open_binds_only_a_verified_dev_identity_witness() {
         .unwrap();
     assert_eq!(reopened.status(), StatusCode::OK);
     let reopened = response_json(reopened).await;
+    assert_eq!(reopened["devIdentityCapabilityWitnessed"], false);
     assert_eq!(reopened["connectionId"], connection_id);
     assert_eq!(reopened["connectionToken"], connection_token);
     let prepared = state
@@ -16798,7 +16808,7 @@ async fn connection_open_binds_only_a_verified_dev_identity_witness() {
     );
     assert!(
         !warning_witness.warn_unwitnessed_assertion_once(),
-        "the headerless reopen makes the stage-1 missing-capability warning reachable again"
+        "the headerless reopen makes the stage-2 missing-capability warning reachable again"
     );
 
     let restored = router
@@ -16812,6 +16822,10 @@ async fn connection_open_binds_only_a_verified_dev_identity_witness() {
         .await
         .unwrap();
     assert_eq!(restored.status(), StatusCode::OK);
+    assert_eq!(
+        response_json(restored).await["devIdentityCapabilityWitnessed"],
+        true
+    );
     let prepared = state
         .connections
         .prepare_act(
@@ -25197,6 +25211,7 @@ fn connection_credential_debug_is_redacted() {
     let grant = ConnectionGrant {
         connection_id: "conn_debug".to_owned(),
         connection_token: SENTINEL.to_owned(),
+        dev_identity_capability_witnessed: Some(true),
         authorization_invalidation: None,
         wire_version: Some(crate::wire_version::WIRE_VERSION_V1.to_owned()),
         ephemeral_authority_protocol: Some(crate::ephemeral::EPHEMERAL_AUTHORITY_PROTOCOL_V1),

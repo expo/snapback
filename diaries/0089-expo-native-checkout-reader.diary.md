@@ -126,3 +126,21 @@ session/query rather than treating either as implied.
 
 Physical Android USB is the only supported D2 witness still gating LLP 0262
 stage 3.
+
+## Review correction — 2026-08-25
+
+The first native receipt treated “the client intended to attach the header” as
+if the server had witnessed it. That distinction matters in stage 2: a
+headerless request is still admitted, so a transport that silently strips the
+capability could pass the old application check. The strengthened fixture uses
+the actual client connection-grant path and records only the server's
+credential-free, post-verification `devIdentityCapabilityWitnessed` result. A
+headerless request now produces `false` and fails the positive assertion.
+
+The fixture also mutates a session-owned row before querying and requires at
+least one result. The existing iOS and Android-emulator receipts predate the
+server-observed check, so they are retained as narrower carrier/negative-path
+evidence while their D2 rows return to **NOT YET** until rerun. The real
+Expo-web bundle was rerun and now records one sessions-authorized row while
+preserving browser custody isolation. This was acceptance-test honesty rather
+than missing app-author guidance; no Guide-gap ticket was filed.

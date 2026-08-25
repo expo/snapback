@@ -27,6 +27,30 @@ async function postReceipt(receipt) {
   });
 }
 
+async function seedSessionWitnessRow({
+  fetch: witnessFetch,
+  origin,
+  bearer,
+  capability = null,
+  note,
+}) {
+  const response = await witnessFetch(`${origin}/mutation/seedWitnessRow`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${bearer}`,
+      'content-type': 'application/json',
+      'x-snapback-auth-client-protocol': '1',
+      ...(capability === null ? {} : { 'x-snapback-dev-identity': capability }),
+    },
+    body: JSON.stringify({ args: { note }, read_set: [] }),
+  });
+  if (!response.ok) {
+    throw Object.assign(new Error(`witness seed mutation returned HTTP ${response.status}`), {
+      code: 'SNAPBACK_CHECKOUT_WITNESS_SEED_FAILED',
+    });
+  }
+}
+
 export default function App() {
   const [status, setStatus] = useState('running');
 
@@ -39,6 +63,7 @@ export default function App() {
         checkoutHeaderPresented: false,
         devIdentityHeaderPresented: false,
         devIdentityAdmissionAccepted: false,
+        serverDevIdentityCapabilityWitnessed: false,
         sessionBearerPresented: false,
       };
       const observingFetch = async (input, init = {}) => {
@@ -94,6 +119,13 @@ export default function App() {
           let directTransportErrorName = null;
           globalThis.fetch = observingFetch;
           try {
+            phase = 'web-seed';
+            await seedSessionWitnessRow({
+              fetch: observingFetch,
+              origin: admission.binding.target.origin,
+              bearer: authority.bearer,
+              note: 'expo-web-supervised-session',
+            });
             phase = 'web-query';
             result = await client.query(api.listWitnessRows, { args: {} });
             phase = 'web-direct-refusal';
@@ -126,6 +158,7 @@ export default function App() {
             || observed.devIdentityHeaderPresented
             || !observed.sessionBearerPresented
             || !Array.isArray(result?.rows)
+            || result.rows.length < 1
             || !(
               (directRefusal?.status === 403
                 && refusal?.diagnostic?.code === 'SNAPBACK_DEV_IDENTITY_REFUSED')
@@ -170,19 +203,21 @@ export default function App() {
         globalThis.fetch = observingFetch;
         try {
           phase = 'native-dev-identity-admission';
-          const capabilityAdmission = await observingFetch(
-            `${admission.binding.target.origin}/connection/open`,
-            {
-              method: 'POST',
-              headers: {
-                'content-type': 'application/json',
-                'x-snapback-auth-client-protocol': '1',
-                'x-snapback-dev-identity': capability,
-              },
-              body: '{}',
-            },
+          const connectionGrant = await client.connectionGrant(
+            'expo-native-dev-identity-witness',
           );
-          observed.devIdentityAdmissionAccepted = capabilityAdmission.status === 200;
+          observed.serverDevIdentityCapabilityWitnessed =
+            connectionGrant.devIdentityCapabilityWitnessed === true;
+          observed.devIdentityAdmissionAccepted =
+            observed.serverDevIdentityCapabilityWitnessed;
+          phase = 'native-seed';
+          await seedSessionWitnessRow({
+            fetch: observingFetch,
+            origin: admission.binding.target.origin,
+            bearer: authority.bearer,
+            capability,
+            note: 'expo-native-supervised-session',
+          });
           phase = 'native-query';
           result = await client.query(api.listWitnessRows, {
             args: {},
@@ -197,8 +232,10 @@ export default function App() {
           || !observed.checkoutHeaderPresented
           || !observed.devIdentityHeaderPresented
           || !observed.devIdentityAdmissionAccepted
+          || !observed.serverDevIdentityCapabilityWitnessed
           || !observed.sessionBearerPresented
           || !Array.isArray(result?.rows)
+          || result.rows.length < 1
         ) {
           throw Object.assign(new Error('native checkout witness facts were incomplete'), {
             code: 'SNAPBACK_CHECKOUT_WITNESS_FACTS_INCOMPLETE',
@@ -213,6 +250,8 @@ export default function App() {
           checkoutHeaderPresented: observed.checkoutHeaderPresented,
           devIdentityHeaderPresented: observed.devIdentityHeaderPresented,
           devIdentityAdmissionAccepted: observed.devIdentityAdmissionAccepted,
+          serverDevIdentityCapabilityWitnessed:
+            observed.serverDevIdentityCapabilityWitnessed,
           checkoutRedeemed: true,
           sessionBearerPresented: observed.sessionBearerPresented,
           queryAccepted: true,
@@ -230,6 +269,8 @@ export default function App() {
           checkoutHeaderPresented: observed.checkoutHeaderPresented,
           devIdentityHeaderPresented: observed.devIdentityHeaderPresented,
           devIdentityAdmissionAccepted: observed.devIdentityAdmissionAccepted,
+          serverDevIdentityCapabilityWitnessed:
+            observed.serverDevIdentityCapabilityWitnessed,
           sessionBearerPresented: observed.sessionBearerPresented,
           code: typeof error?.code === 'string' ? error.code : 'SNAPBACK_CHECKOUT_WITNESS_FAILED',
         }).catch(() => {});

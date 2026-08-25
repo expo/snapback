@@ -42,7 +42,7 @@ separate from sessions, admin tokens, and impersonation. The ready descriptor
 names its owner-only sidecar in `devIdentityCapabilityFile`; direct/headless
 clients and the demo kit read it, managed Vite stamps it behind the same-origin
 relay, external dev hosts receive `SNAPBACK_DEV_IDENTITY_FILE`, and supervised
-native Expo redeems a one-shot launch nonce. Stage 1 verifies any capability
+native Expo redeems a one-shot launch nonce. Stage 2 verifies any capability
 that is presented but still accepts an absent one with a single server warning
 per boot. Missing capability becomes a refusal only at LLP 0262's enforce
 stage, after every supported carrier has an acceptance witness; none of this

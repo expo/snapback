@@ -18,6 +18,9 @@ use subtle::ConstantTimeEq as _;
 use zeroize::{Zeroize as _, Zeroizing};
 
 pub const DEV_IDENTITY_CAPABILITY_HEADER: &str = "x-snapback-dev-identity";
+/// Credential-free, dev-only server observation returned on an identity-bearing
+/// app request after the capability check has completed.
+pub const DEV_IDENTITY_CAPABILITY_WITNESS_HEADER: &str = "x-snapback-dev-identity-witnessed";
 pub const MAX_DEV_IDENTITY_CAPABILITY_FILE_BYTES: usize = 128;
 pub const DEV_IDENTITY_CONFIG_FORBIDDEN_CODE: &str = "SNAPBACK_DEV_IDENTITY_CONFIG_FORBIDDEN";
 /// Versioned name for the acceptance-gated enforcement flip. The date records

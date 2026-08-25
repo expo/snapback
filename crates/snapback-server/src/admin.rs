@@ -2487,10 +2487,14 @@ impl ServerContext {
         {
             return false;
         }
-        eprintln!(
-            "SNAPBACK_ADMIN_READ_CAPABILITY_MISSING: accepted one bare-loopback AdminRead without a verified administrator credential; enforcement flip {DEV_IDENTITY_ENFORCEMENT_FLIP} remains acceptance-gated; see LLP 0262#d3-admin-reads-join-the-token--narrowly"
-        );
+        eprintln!("{}", self.bare_loopback_admin_read_warning());
         true
+    }
+
+    fn bare_loopback_admin_read_warning(&self) -> String {
+        format!(
+            "SNAPBACK_ADMIN_READ_TOKEN_MISSING: accepted one bare-loopback AdminRead without a verified administrator credential; enforcement flip {DEV_IDENTITY_ENFORCEMENT_FLIP} remains acceptance-gated; see LLP 0262#d3-admin-reads-join-the-token--narrowly"
+        )
     }
 
     #[cfg(test)]
@@ -6983,13 +6987,43 @@ mod tests {
             )
             .expect("bind claim to managed front");
 
-        let response = crate::server::app(state)
+        let router = crate::server::app(state);
+        let token_read = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/_snapback/api/inspect")
+                    .header("x-snapback-admin-token", "claim-warning-admin")
+                    .extension(ConnectInfo(
+                        "127.0.0.1:43124".parse::<SocketAddr>().unwrap(),
+                    ))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("token-bearing AdminRead response");
+        assert_eq!(token_read.status(), StatusCode::OK);
+        assert!(
+            !warning_witness.bare_loopback_admin_read_warning_was_emitted(),
+            "a matching admin token must not consume the D3 warning"
+        );
+        assert!(
+            warning_witness
+                .bare_loopback_admin_read_warning()
+                .contains(DEV_IDENTITY_ENFORCEMENT_FLIP),
+            "the D3 warning must name the committed enforcement flip"
+        );
+
+        let response = router
             .oneshot(
                 Request::builder()
                     .method("POST")
                     .uri("/_snapback/api/console/claim/exchange")
                     .header(header::CONTENT_TYPE, "application/json")
-                    .extension(ConnectInfo("127.0.0.1:43124".parse::<SocketAddr>().unwrap()))
+                    .extension(ConnectInfo(
+                        "127.0.0.1:43124".parse::<SocketAddr>().unwrap(),
+                    ))
                     .body(Body::from(
                         serde_json::to_vec(&serde_json::json!({
                             "claimCode": claim.claim_code,

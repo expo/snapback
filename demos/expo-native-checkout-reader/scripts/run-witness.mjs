@@ -15,6 +15,7 @@ import {
   runExpoDev,
 } from '../../../packages/snapback-cli/expo-dev.mjs';
 import { launchChromeCdp } from '../../_kit/chrome-process.mjs';
+import { serializeSecretFreeReceipt } from './receipt-safety.mjs';
 
 const scriptRoot = dirname(fileURLToPath(import.meta.url));
 const witnessRoot = resolve(scriptRoot, '..');
@@ -74,12 +75,10 @@ function writeReceipt(row, facts) {
     platform,
     capturedAt: new Date().toISOString(),
   };
-  const serialized = `${JSON.stringify(document, null, 2)}\n`;
-  for (const secret of secretValues) {
-    if (typeof secret === 'string' && secret.length > 0 && serialized.includes(secret)) {
-      throw new Error(`receipt ${row} attempted to retain checkout material`);
-    }
-  }
+  const serialized = serializeSecretFreeReceipt(document, {
+    secretValues,
+    label: `receipt ${row}`,
+  });
   writeFileSync(receiptPath(row), serialized, { mode: 0o600 });
 }
 

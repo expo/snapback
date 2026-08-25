@@ -267,59 +267,87 @@ console.log(JSON.stringify({ event: 'client-listening', origin: 'http://127.0.0.
     assert.match(capability, /^sbdev_[A-Za-z0-9._~-]+$/u);
     return capability;
   };
-  const openDirect = (directBackendUrl, capability) => fetch(`${directBackendUrl}/connection/open`, {
+  const openDirect = (directBackendUrl, capability, bearer = null) => fetch(`${directBackendUrl}/connection/open`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
       'x-snapback-auth-client-protocol': '1',
-      'x-snapback-dev-identity': capability,
+      ...(capability === null ? {} : { 'x-snapback-dev-identity': capability }),
+      ...(bearer === null ? {} : { authorization: `Bearer ${bearer}` }),
     },
     body: '{}',
   });
+  const assertWitnessedOpenBody = (body, label) => {
+    assert.equal(
+      body.devIdentityCapabilityWitnessed,
+      true,
+      `${label}: server did not record verified dev-identity custody`,
+    );
+  };
   const assertOpenAdmitted = async (response, label) => {
     const body = await response.clone().text();
     assert.equal(response.status, 200, `${label}: HTTP ${response.status}: ${body}`);
+    assertWitnessedOpenBody(JSON.parse(body), label);
   };
-  const witnessDevIdentityRelay = async (directBackendUrl, label) => {
+  const witnessDevIdentityRelay = async (directBackendUrl, label, bearer) => {
     const supplied = 'sbdev_browser_input_must_be_overwritten';
-    const direct = await openDirect(directBackendUrl, supplied);
+    const direct = await openDirect(directBackendUrl, supplied, bearer);
     assert.equal(direct.status, 403, `${label}: client-supplied capability reached the backend`);
     assert.equal((await direct.json()).diagnostic?.code, 'SNAPBACK_DEV_IDENTITY_REFUSED');
+    const stripped = await openDirect(directBackendUrl, null, bearer);
+    assert.equal(stripped.status, 200, `${label}: stage-2 stripped-header control was not admitted`);
+    const strippedBody = await stripped.json();
+    assert.equal(
+      strippedBody.devIdentityCapabilityWitnessed,
+      false,
+      `${label}: stripped-header control did not expose an unwitnessed server verdict`,
+    );
+    assert.throws(
+      () => assertWitnessedOpenBody(strippedBody, `${label} stripped-header control`),
+      /server did not record verified dev-identity custody/u,
+      `${label}: stripping the header did not falsify the positive witness criterion`,
+    );
     const relayed = await fetch(`${relay}/connection/open`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
         'x-snapback-auth-client-protocol': '1',
         'x-snapback-dev-identity': supplied,
+        authorization: `Bearer ${bearer}`,
       },
       body: '{}',
     });
     assert.equal(relayed.status, 200, `${label}: managed relay did not stamp current custody`);
     assert.equal(relayed.headers.get('x-snapback-dev-identity'), null);
-    assert.equal((await relayed.text()).includes('sbdev_'), false);
+    const relayedBody = await relayed.text();
+    assert.equal(relayedBody.includes('sbdev_'), false);
+    assertWitnessedOpenBody(JSON.parse(relayedBody), label);
   };
   const initialRawCapability = readRawDevIdentityCapability();
   await assertOpenAdmitted(await openDirect(serverUrl, initialRawCapability), 'initial raw sidecar');
-  await witnessDevIdentityRelay(serverUrl, 'initial managed boot');
-  console.log('raw sidecar client and managed Vite relay both present current dev-identity custody');
   console.log('status verb reports server, last-load, and client-arm facts');
 
   // --- app data through the client surface -----------------------------------
-  const devSession = spawnSync(process.execPath, [
-    cli,
-    'auth', 'dev-session',
-    '--ready-file', readyFile,
-    '--email', 'dev-loop@example.test',
-    '--json',
-  ], {
-    cwd: project,
-    encoding: 'utf8',
-    env: { ...process.env, SNAPBACK_RUNTIME_BINARY: runtimeBinary },
-    timeout: 60_000,
-  });
-  assert.equal(devSession.status, 0, devSession.stderr);
-  const { bearer: devSessionBearer } = JSON.parse(devSession.stdout);
+  const mintDevSessionBearer = () => {
+    const devSession = spawnSync(process.execPath, [
+      cli,
+      'auth', 'dev-session',
+      '--ready-file', readyFile,
+      '--email', 'dev-loop@example.test',
+      '--json',
+    ], {
+      cwd: project,
+      encoding: 'utf8',
+      env: { ...process.env, SNAPBACK_RUNTIME_BINARY: runtimeBinary },
+      timeout: 60_000,
+    });
+    assert.equal(devSession.status, 0, devSession.stderr);
+    return JSON.parse(devSession.stdout).bearer;
+  };
+  const devSessionBearer = mintDevSessionBearer();
   assert.equal(typeof devSessionBearer, 'string');
+  await witnessDevIdentityRelay(serverUrl, 'initial managed boot', devSessionBearer);
+  console.log('raw sidecar client and managed Vite relay both present server-witnessed current dev-identity custody');
   const appHeaders = {
     authorization: `Bearer ${devSessionBearer}`,
     'content-type': 'application/json',
@@ -488,7 +516,11 @@ console.log(JSON.stringify({ event: 'client-listening', origin: 'http://127.0.0.
     await openDirect(status2.server.serverUrl, restartedRawCapability),
     'restarted raw sidecar',
   );
-  await witnessDevIdentityRelay(status2.server.serverUrl, 'restarted managed boot');
+  await witnessDevIdentityRelay(
+    status2.server.serverUrl,
+    'restarted managed boot',
+    mintDevSessionBearer(),
+  );
   // The relay re-resolves its backend target from the rewritten ready file:
   // data survived (same database) and new writes work, through the SAME
   // running Vite process.
@@ -549,7 +581,11 @@ console.log(JSON.stringify({ event: 'client-listening', origin: 'http://127.0.0.
     await openDirect(status3.server.serverUrl, refreshedRawCapability),
     'dev-fresh raw sidecar',
   );
-  await witnessDevIdentityRelay(status3.server.serverUrl, 'dev-fresh managed boot');
+  await witnessDevIdentityRelay(
+    status3.server.serverUrl,
+    'dev-fresh managed boot',
+    mintDevSessionBearer(),
+  );
   console.log('dev-fresh verb: new managed boot rotated and re-harvested dev-identity custody');
 
   // Closed stdin is ordinary for detached agents and generated package scripts:

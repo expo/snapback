@@ -1,8 +1,10 @@
 # Expo dev-identity checkout witness report
 
-Implementation and live Expo-web, iOS-simulator, and Android-emulator receipts
-are present. Use these commands to reproduce a machine-runnable row or to
-obtain the still-missing physical Android USB witness.
+Implementation and a strengthened Expo-web receipt are present. Retained
+iOS-simulator and Android-emulator receipts predate the fail-sensitive server
+observation and no longer qualify their D2 rows. Use these commands to refresh
+a machine-runnable native row or to obtain the still-missing physical Android
+USB witness.
 
 ## Prepare the runtime and witness dependencies
 
@@ -35,9 +37,10 @@ SNAPBACK_RUNTIME_BINARY="$PWD/../../../target/debug/snapback" node ../scripts/ru
 ```
 
 This launches the real Expo web bundle in Chrome. The receipt proves ordinary
-session query admission while the native checkout hook/capability and
-dev-identity header remain absent, plus browser-transport and generic host-side
-refusal for a direct invalid dev-identity assertion.
+session mutation/query admission with at least one session-owned row while the
+native checkout hook/capability and dev-identity header remain absent, plus
+browser-transport and generic host-side refusal for a direct invalid
+dev-identity assertion.
 
 ## Android emulator
 
@@ -64,12 +67,15 @@ per-serial reverse route for its value-free receipt sink.
 
 ## Retained and outstanding rows
 
-- iOS simulator native reader and rotation replacement: passed in
-  `receipts/ios-2026-08-25T15-06-51-734Z/`.
-- Android emulator native reader and rotation replacement: passed in
-  `receipts/android-2026-08-25T14-54-18-163Z/`.
-- Expo web ordinary-session isolation and direct refusal: passed in
-  `receipts/web-2026-08-25T14-49-42-653Z/`.
+- iOS simulator carrier and rotation/refusal evidence is retained in
+  `receipts/ios-2026-08-25T15-06-51-734Z/`, but the D2 row is **NOT YET** until
+  a rerun records the server's post-transport capability witness and a
+  nonempty session-owned query.
+- Android emulator carrier and rotation/refusal evidence is retained in
+  `receipts/android-2026-08-25T14-54-18-163Z/`, but the D2 row is **NOT YET**
+  for the same reason.
+- Expo web ordinary-session mutation/query and isolation/refusal: passed with
+  `rowCount: 1` in `receipts/web-2026-08-25T16-03-15-778Z/`.
 - Android physical USB native reader and rotation replacement (explicit
   nonclaim until hardware is available).
 - Replay refusal, unspent post-rotation refusal, the narrow server-side
@@ -77,6 +83,12 @@ per-serial reverse route for its value-free receipt sink.
   passed alongside both retained native runs.
 - The Node `fetch` Origin-gate probes retained beside native receipts remain
   narrower than the separately retained real-browser Expo-web row.
+
+The native application now obtains an actual client connection grant and
+records `serverDevIdentityCapabilityWitnessed` only from the server response,
+after transport. A stripped capability therefore yields `false` even though
+stage 2 still admits the request, and the native acceptance assertion fails.
+The app also seeds and requires at least one row for the supervised session.
 
 ## Prior 2026-08-16 verification record
 

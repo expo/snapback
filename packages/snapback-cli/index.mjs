@@ -4820,7 +4820,9 @@ function resolveDevIdentityCapabilityForCli(descriptor, context) {
   // the first capability-less CLI assertion is explicit on operator stderr.
   process.stderr.write(
     'SNAPBACK_DEV_IDENTITY_ABSENT: no usable dev-identity capability was found'
-      + `${expected ? ` at ${expected}` : ''}; continuing without it during Stage 2\n`,
+      + `${expected ? ` at ${expected}` : ''}; continuing without it during Stage 2; `
+      + 'enforcement flip 2026-08-25/LLP-0262-stage-3 remains acceptance-gated; '
+      + 'see LLP 0262#d5-rollout-stages\n',
   );
   return null;
 }
@@ -6334,9 +6336,13 @@ export async function runDev(options = {}) {
   let devIdentityCapability;
   try {
     adminToken = managedAdminToken(descriptor, database);
-    devIdentityCapability = generatedAuthMode === 'dev'
-      ? resolveDevIdentityCapabilityForCli(descriptor, { readyFile, database })
-      : null;
+    // @ref LLP 0262#d2-carriers-per-shipped-topology — a sessions-first
+    //   managed loop may still exercise a dev-identity assertion, so its
+    //   supervised client arm receives relay custody in every local auth mode.
+    devIdentityCapability = resolveDevIdentityCapabilityForCli(
+      descriptor,
+      { readyFile, database },
+    );
     // `/inspect` becomes the bounded administrative projection when an admin
     // credential is attached, and therefore correctly requires a separately
     // minted secret-read lease. Dev attachment needs only liveness and process
@@ -6852,9 +6858,10 @@ export async function runDev(options = {}) {
       }
       refreshBackendPortPlan(descriptor);
       adminToken = managedAdminToken(descriptor, database);
-      devIdentityCapability = generatedAuthMode === 'dev'
-        ? resolveDevIdentityCapabilityForCli(descriptor, { readyFile, database })
-        : null;
+      devIdentityCapability = resolveDevIdentityCapabilityForCli(
+        descriptor,
+        { readyFile, database },
+      );
       if (startupPin) {
         emitDevEvent({
           schemaVersion: 'snapback.dev.v1',
@@ -6989,9 +6996,10 @@ export async function runDev(options = {}) {
       descriptor = validateDevTarget(await waitForReady(readyFile, child), { readyFile, database });
       refreshBackendPortPlan(descriptor);
       adminToken = managedAdminToken(descriptor, database);
-      devIdentityCapability = generatedAuthMode === 'dev'
-        ? resolveDevIdentityCapabilityForCli(descriptor, { readyFile, database })
-        : null;
+      devIdentityCapability = resolveDevIdentityCapabilityForCli(
+        descriptor,
+        { readyFile, database },
+      );
       emitDevEvent({
         schemaVersion: 'snapback.dev.v1',
         ok: true,

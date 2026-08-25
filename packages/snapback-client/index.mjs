@@ -6051,6 +6051,10 @@ export class SnapbackClient {
         return markAuthorityCapture({
           id: granted.connectionId,
           token: granted.connectionToken,
+          devIdentityCapabilityWitnessed:
+            typeof granted.devIdentityCapabilityWitnessed === 'boolean'
+              ? granted.devIdentityCapabilityWitnessed
+              : null,
           authorizationInvalidation,
           // The §0B.3 bound-version witness: the token on explicitly bound
           // lineages, null on legacy lineages and pre-B1 servers (§0B.6).

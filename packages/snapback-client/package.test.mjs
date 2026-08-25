@@ -1847,6 +1847,7 @@ assert.equal(appStateListeners.size, 0);
       return Response.json({
         connectionId: body.connectionId,
         connectionToken: 'sct_dev_identity_fixture',
+        devIdentityCapabilityWitnessed: true,
         wireVersion: 'snapback.v1',
       });
     }
@@ -1866,7 +1867,8 @@ assert.equal(appStateListeners.size, 0);
     await devClient.reset();
     await devClient.loadSchema({ auth: { user_id: 'admin-shaped-fixture' } });
     await devClient.query('listTodos', { userId: 'user_fixture' });
-    await devClient.connectionGrant('dev-identity-open');
+    const witnessedGrant = await devClient.connectionGrant('dev-identity-open');
+    assert.equal(witnessedGrant.devIdentityCapabilityWitnessed, true);
     const [health, admin, adminWithAssertion, query, open] = requests;
     assert.equal(
       new Headers(health.init.headers).get('x-snapback-dev-identity'),
