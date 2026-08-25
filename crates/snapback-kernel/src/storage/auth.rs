@@ -2649,16 +2649,9 @@ pub fn install_frozen_v1_catalog_fixture(database: &mut LocalDatabase) -> Snapba
     Ok(())
 }
 
-impl super::ServingDatabase {
-    #[cfg(any(test, feature = "test-support"))]
-    pub fn install_frozen_v1_catalog_fixture(&mut self) -> SnapbackResult<()> {
-        install_frozen_v1_catalog_fixture(&mut self.db)
-    }
-}
-
 /// Install the exact frozen version-2 catalog for recognition/no-migration
 /// compatibility tests. Production activation never targets this descriptor.
-#[cfg(any(test, feature = "test-support"))]
+#[cfg(test)]
 pub fn install_frozen_v2_catalog_fixture(database: &mut LocalDatabase) -> SnapbackResult<()> {
     if database.inspect_auth_catalog()? != AuthCatalogState::Uninitialized {
         return Err(corrupt(
@@ -5119,26 +5112,5 @@ impl super::ServingDatabase {
     ) -> SnapbackResult<()> {
         self.db
             .activate_current_auth_catalog_with_password_identifier_mode(mode)
-    }
-    #[cfg(any(test, feature = "test-support"))]
-    pub fn insert_password_attempt_for_test(
-        &mut self,
-        address: &str,
-        window_start_ms: u64,
-        failed_count: u64,
-        locked_until_ms: Option<u64>,
-    ) -> SnapbackResult<()> {
-        self.db.insert_password_attempt_for_test(
-            address,
-            window_start_ms,
-            failed_count,
-            locked_until_ms,
-        )
-    }
-}
-impl super::ServingDatabase {
-    #[cfg(any(test, feature = "test-support"))]
-    pub fn insert_large_backup_fixture_for_test(&mut self) -> SnapbackResult<()> {
-        self.db.insert_large_backup_fixture_for_test()
     }
 }

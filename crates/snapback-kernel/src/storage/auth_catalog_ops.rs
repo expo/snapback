@@ -5462,24 +5462,6 @@ impl<'a> AuthCatalogKernel<'a> {
     }
 
     #[cfg(any(test, feature = "test-support"))]
-    pub fn insert_email_identity_for_test(
-        &mut self,
-        identity_id: &str,
-        user_id: &str,
-        address: &str,
-        now_ms: u64,
-    ) -> SnapbackResult<()> {
-        insert_test_email_identity(
-            &self.write_db().conn,
-            identity_id,
-            user_id,
-            address,
-            now_ms,
-            false,
-        )
-    }
-
-    #[cfg(any(test, feature = "test-support"))]
     pub fn insert_activation_live_grant_for_test(&mut self, now_ms: u64) -> SnapbackResult<()> {
         self.write_db()
             .auth_insert_activation_live_grant_for_test(now_ms)

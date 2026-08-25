@@ -153,7 +153,7 @@ impl<'a> CheckpointsKernel<'a> {
         self.db.create_named_checkpoint(destination, request)
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn create_named_checkpoint_at_cut_for_test(
         &mut self,
         destination: Option<&Path>,

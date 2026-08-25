@@ -524,7 +524,7 @@ impl LocalDatabase {
         .into_result()
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn stage_auth_mode_classified(
         &mut self,
         requested_deployment: DeploymentIdentity,
@@ -972,7 +972,7 @@ impl LocalDatabase {
         Ok(next)
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn consume_dev_downgrade(
         &mut self,
         allow_auth_downgrade: bool,
@@ -1099,7 +1099,7 @@ impl LocalDatabase {
 
     /// Same-mode deployment update with an exact complete pair identity. This
     /// is the integration seam that atomically advances `activeDeployment`.
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn apply_same_mode_schema(
         &mut self,
         deployment: DeploymentIdentity,
@@ -1111,7 +1111,7 @@ impl LocalDatabase {
     /// Pre-bind same-mode deployment, with an optional seed accepted only for
     /// a truly fresh target. DDL, seed, active manifest, and deployment
     /// identity share one SQLite cut.
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn apply_same_mode_deployment(
         &mut self,
         deployment: DeploymentIdentity,
@@ -1296,7 +1296,7 @@ impl LocalDatabase {
 
     /// Test convenience for callers that do not exercise ambiguous commit
     /// classification.
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn apply_same_mode_network_deployment(
         &mut self,
         deployment: DeploymentIdentity,
@@ -1315,7 +1315,7 @@ impl LocalDatabase {
     /// a repeated network provision may carry seed data for an existing app;
     /// it is applied only when every named target is empty.
     // @ref LLP 0058#same-mode-provisioning — a complete preflighted pair advances schema and deployment identity atomically before function publication.
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn apply_same_mode_network_deployment_classified(
         &mut self,
         deployment: DeploymentIdentity,
@@ -3768,24 +3768,5 @@ impl super::ServingDatabase {
     ) -> SnapbackResult<()> {
         self.db
             .apply_same_mode_dev_deployment_with_functions(deployment, manifest, functions, seed)
-    }
-}
-impl super::ServingDatabase {
-    #[cfg(any(test, feature = "test-support"))]
-    pub fn stage_auth_mode(
-        &mut self,
-        requested_deployment: DeploymentIdentity,
-        schema_manifest: SchemaManifest,
-        seed: Option<SeedData>,
-    ) -> SnapbackResult<AuthModeStateRecord> {
-        self.db
-            .stage_auth_mode(requested_deployment, schema_manifest, seed)
-    }
-    #[cfg(any(test, feature = "test-support"))]
-    pub fn consume_sessions_auth_mode(
-        &mut self,
-        readiness: &AuthProgramReadiness,
-    ) -> SnapbackResult<AuthModeStateRecord> {
-        self.db.consume_sessions_auth_mode(readiness)
     }
 }

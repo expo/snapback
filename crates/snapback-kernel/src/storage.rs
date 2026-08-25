@@ -24180,14 +24180,6 @@ impl ServingDatabase {
         self.db.initialize_data_version_stream_for_test()
     }
     #[cfg(any(test, feature = "test-support"))]
-    pub fn install_operation_coverage_for_test(
-        &mut self,
-        mut lanes: Vec<String>,
-        mut writers: Vec<String>,
-    ) -> SnapbackResult<()> {
-        self.db.install_operation_coverage_for_test(lanes, writers)
-    }
-    #[cfg(any(test, feature = "test-support"))]
     pub fn remove_active_operation_coverage_manifest_for_test(&self) -> SnapbackResult<()> {
         self.db.remove_active_operation_coverage_manifest_for_test()
     }

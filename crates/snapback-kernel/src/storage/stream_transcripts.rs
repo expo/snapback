@@ -167,7 +167,7 @@ fn parse_initiator(kind: &str, key: String) -> SnapbackResult<StreamInitiator> {
 }
 
 impl LocalDatabase {
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn activate_stream_transcript_manifest(
         &mut self,
         manifest: &FunctionManifest,

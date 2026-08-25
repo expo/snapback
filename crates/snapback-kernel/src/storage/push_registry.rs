@@ -1543,12 +1543,3 @@ impl PushRegistryKernel<'_> {
             .push_assert_idle_retention_for_test(declaration, retention)
     }
 }
-impl super::ServingDatabase {
-    #[cfg(any(test, feature = "test-support"))]
-    pub fn activate_push_registry_for_test(
-        &mut self,
-        declaration: crate::push::PushSeamDeclarationV1,
-    ) -> SnapbackResult<()> {
-        self.db.activate_push_registry_for_test(declaration)
-    }
-}
