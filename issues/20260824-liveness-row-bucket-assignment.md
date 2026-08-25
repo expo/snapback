@@ -16,6 +16,11 @@ have accompanied the counts.
 
 **Corrected totals: 7 P1-SHIP / 68 P2-POLICY / 17 P3-LOW / 40 P4-DUPLICATE / 2 RESOLVED = 134.**
 
+> **Superseded in part (2026-08-25).** An audit of the P4 bucket found that only **12** of the 40 are
+> true duplicates; **28** are siblings that survive their canonical row's correction and remain
+> actionable. The actionable total is therefore **120**, not 92. See
+> `issues/20260825-twenty-eight-of-forty-p4-rows-are-siblings-not-duplicates.md`.
+
 The published P1 count of 9 is no longer current: F190 and F191 (the grant-revocation planners)
 were P1 at `8ded451f8` and are RESOLVED at HEAD by `a5d66e941` + `23db84b46`. The P2/P3/P4 counts
 were independently re-derived and happen to match the previously published aggregates — but they
