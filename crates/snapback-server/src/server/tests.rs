@@ -25189,7 +25189,7 @@ const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
     ),
     (
         "SNAPBACK_GRAPH_DELTA_CONVERGENCE",
-        "environment variable enabling the LLP 0209 G3 served-path shadow convergence assertion; never an HTTP diagnostic",
+        "environment variable controlling the LLP 0209 G3 served-path shadow convergence policy: 0 opts out, 1 checks every delivery, and the unset default checks all debug deliveries plus a deterministic release sample; never an HTTP diagnostic",
     ),
     (
         "SNAPBACK_SPIKE_TRACE",

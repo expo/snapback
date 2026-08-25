@@ -1202,6 +1202,57 @@ fn graph_serving_live_input(connection_id: &str) -> LiveSubscribeInput {
 }
 
 #[test]
+fn graph_delta_convergence_policy_defaults_on_and_honors_explicit_modes() {
+    for prior_deliveries in [0, 1, 4, 65, u64::MAX] {
+        assert!(!super::graph_delta_convergence_enabled(
+            Some("0"),
+            false,
+            true,
+            prior_deliveries,
+        ));
+        assert!(super::graph_delta_convergence_enabled(
+            Some("1"),
+            false,
+            false,
+            prior_deliveries,
+        ));
+        assert!(super::graph_delta_convergence_enabled(
+            None,
+            false,
+            true,
+            prior_deliveries,
+        ));
+    }
+    for prior_deliveries in 0..super::GRAPH_DELTA_CONVERGENCE_INITIAL_DELIVERIES {
+        assert!(super::graph_delta_convergence_enabled(
+            None,
+            false,
+            false,
+            prior_deliveries,
+        ));
+    }
+    let first_sample = super::GRAPH_DELTA_CONVERGENCE_INITIAL_DELIVERIES;
+    assert!(super::graph_delta_convergence_enabled(
+        None,
+        false,
+        false,
+        first_sample,
+    ));
+    assert!(!super::graph_delta_convergence_enabled(
+        None,
+        false,
+        false,
+        first_sample + 1,
+    ));
+    assert!(super::graph_delta_convergence_enabled(
+        None,
+        false,
+        false,
+        first_sample + super::GRAPH_DELTA_CONVERGENCE_SAMPLE_MODULUS,
+    ));
+}
+
+#[test]
 fn graph_serving_kill_switch_is_exactly_one() {
     const CHILD_MARKER: &str = "SNAPBACK_TEST_GRAPH_EXEC_DISABLED_CHILD";
     assert!(super::graph_execution_disabled(Some("1")));
@@ -3866,26 +3917,35 @@ fn live_evaluation_memo_estimator_matches_serialized_lengths() {
         .saturating_add(serialized_json_estimated_bytes(
             &invocation.read_dependencies,
         ))
-        .saturating_add(registration.dependencies.retained_payload_estimated_bytes())
-        .saturating_add(serialized_json_estimated_bytes(&registration.matcher_input))
+        .saturating_add(
+            registration
+                .evaluation
+                .dependencies
+                .retained_payload_estimated_bytes(),
+        )
         .saturating_add(serialized_json_estimated_bytes(
-            &registration.structural_work,
+            &registration.evaluation.matcher_input,
         ))
         .saturating_add(serialized_json_estimated_bytes(
-            &registration.window_ledgers,
+            &registration.evaluation.structural_work,
         ))
         .saturating_add(serialized_json_estimated_bytes(
-            &registration.materialization,
-        ))
-        .saturating_add(serialized_json_estimated_bytes(&registration.partition))
-        .saturating_add(serialized_json_estimated_bytes(
-            &registration.authorization_version,
+            &registration.evaluation.window_ledgers,
         ))
         .saturating_add(serialized_json_estimated_bytes(
-            &registration.evaluation_cut,
+            &registration.evaluation.materialization,
         ))
         .saturating_add(serialized_json_estimated_bytes(
-            &registration.memo_eligible_first_page,
+            &registration.evaluation.partition,
+        ))
+        .saturating_add(serialized_json_estimated_bytes(
+            &registration.evaluation.authorization_version,
+        ))
+        .saturating_add(serialized_json_estimated_bytes(
+            &registration.evaluation.evaluation_cut,
+        ))
+        .saturating_add(serialized_json_estimated_bytes(
+            &registration.evaluation.memo_eligible_first_page,
         ));
 
     assert_eq!(
@@ -3893,7 +3953,10 @@ fn live_evaluation_memo_estimator_matches_serialized_lengths() {
         serialized_bytes
     );
     assert!(
-        registration.dependencies.retained_payload_estimated_bytes()
+        registration
+            .evaluation
+            .dependencies
+            .retained_payload_estimated_bytes()
             >= serialized_json_estimated_bytes(&invocation.read_dependencies),
         "the attested registration charges its second dependency-vector copy",
     );

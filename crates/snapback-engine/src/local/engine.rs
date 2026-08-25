@@ -150,6 +150,8 @@ const LIVE_EVALUATION_MEMO_MAX_ENTRIES: usize = 256;
 const LIVE_EVALUATION_MEMO_MAX_ESTIMATED_BYTES: usize = 256 * 1024 * 1024;
 const LIVE_EVALUATION_MEMO_ENTRY_OVERHEAD_BYTES: usize = 256;
 const LIVE_EVALUATION_MEMO_HOLDER_OVERHEAD_BYTES: usize = 64;
+const GRAPH_DELTA_CONVERGENCE_INITIAL_DELIVERIES: u64 = 4;
+const GRAPH_DELTA_CONVERGENCE_SAMPLE_MODULUS: u64 = 64;
 static NEXT_APP_GENERATION: AtomicU64 = AtomicU64::new(1);
 
 fn live_evaluation_memo_disabled(value: Option<&str>) -> bool {
@@ -162,6 +164,26 @@ fn graph_execution_disabled(value: Option<&str>) -> bool {
 
 fn graph_delta_disabled(value: Option<&str>) -> bool {
     matches!(value, Some("1") | Some("true"))
+}
+
+/// @ref LLP 0209#7-rung-4--incremental-maintenance-for-admitted-shapes-extending-dk-3 — delta convergence is checked on every debug delivery and, until independent lane proof exists, on the first four plus one deterministic delivery in every 64 per subscription in release; `SNAPBACK_GRAPH_DELTA_CONVERGENCE=0` explicitly opts out and `=1` forces every delivery.
+fn graph_delta_convergence_enabled(
+    value: Option<&str>,
+    force_all: bool,
+    debug_assertions: bool,
+    prior_deliveries: u64,
+) -> bool {
+    match value {
+        Some("0" | "false") => false,
+        Some("1" | "true") => true,
+        _ if force_all || debug_assertions => true,
+        _ if prior_deliveries < GRAPH_DELTA_CONVERGENCE_INITIAL_DELIVERIES => true,
+        _ => {
+            (prior_deliveries - GRAPH_DELTA_CONVERGENCE_INITIAL_DELIVERIES)
+                % GRAPH_DELTA_CONVERGENCE_SAMPLE_MODULUS
+                == 0
+        }
+    }
 }
 
 /// Hard retained durable-live ceilings for the canonical local server. These
@@ -994,8 +1016,47 @@ impl LiveEvaluationMemoKey {
     }
 }
 
+#[derive(Clone)]
+struct MemoizedLiveEvaluation {
+    output: QueryOutput,
+    read_dependencies: Vec<CapturedReadDependency>,
+    graph_evaluation: Option<GraphServingEvaluationState>,
+}
+
+impl MemoizedLiveEvaluation {
+    fn from_invocation(invocation: &QueryInvocation) -> Self {
+        Self {
+            output: invocation.output.clone(),
+            read_dependencies: invocation.read_dependencies.clone(),
+            graph_evaluation: invocation
+                .graph_serving
+                .as_ref()
+                .map(|graph| graph.evaluation.clone()),
+        }
+    }
+
+    fn for_receiver(
+        &self,
+        receiver: Option<&GraphServingDeliveryState>,
+    ) -> Option<QueryInvocation> {
+        let graph_serving = match (&self.graph_evaluation, receiver) {
+            (Some(evaluation), Some(receiver)) => Some(GraphServingRegistration {
+                evaluation: evaluation.clone(),
+                delivery: GraphServingDeliveryState::after_fresh_evaluation_for_receiver(receiver),
+            }),
+            (None, None) => None,
+            _ => return None,
+        };
+        Some(QueryInvocation {
+            output: self.output.clone(),
+            read_dependencies: self.read_dependencies.clone(),
+            graph_serving,
+        })
+    }
+}
+
 struct LiveEvaluationMemoEntry {
-    result: QueryInvocation,
+    evaluation: MemoizedLiveEvaluation,
     holders: BTreeSet<String>,
     estimated_bytes: usize,
     sequence: u64,
@@ -1044,16 +1105,20 @@ impl LiveEvaluationMemo {
         &mut self,
         key: &LiveEvaluationMemoKey,
         subscription_id: &str,
-        reusable: impl FnOnce(&QueryInvocation) -> bool,
+        receiver: Option<&GraphServingDeliveryState>,
+        reusable: impl FnOnce(&MemoizedLiveEvaluation) -> bool,
     ) -> Option<(QueryInvocation, u64)> {
         if self.disabled {
             return None;
         }
         let entry = self.entries.get_mut(key)?;
-        if !reusable(&entry.result) {
+        if !reusable(&entry.evaluation) {
             return None;
         }
-        let result = entry.result.clone();
+        // The memo has no delivery field: reconstruct the registration from
+        // shared evaluation plus the receiving subscription's own policy and
+        // delivery sequence.
+        let result = entry.evaluation.for_receiver(receiver)?;
         #[cfg(test)]
         {
             self.result_clones = self.result_clones.saturating_add(1);
@@ -1089,7 +1154,7 @@ impl LiveEvaluationMemo {
             *oversize_refusals = oversize_refusals.saturating_add(1);
             return 0;
         }
-        let result = result.clone();
+        let evaluation = MemoizedLiveEvaluation::from_invocation(result);
         #[cfg(test)]
         {
             self.result_clones = self.result_clones.saturating_add(1);
@@ -1097,7 +1162,7 @@ impl LiveEvaluationMemo {
         self.next_sequence = self.next_sequence.wrapping_add(1).max(1);
         let sequence = self.next_sequence;
         let entry = LiveEvaluationMemoEntry {
-            result,
+            evaluation,
             holders: BTreeSet::from([subscription_id.to_owned()]),
             estimated_bytes,
             sequence,
@@ -3872,8 +3937,8 @@ pub struct LocalSnapback {
     /// Construction is conservative; a target owner must explicitly declare
     /// this capability, independently of the execution kill switch.
     graph_query_v1_target_declared: Arc<AtomicBool>,
-    /// Test-support forces the qualification oracle for every emitted graph
-    /// delta. Served targets opt in through the environment gate instead.
+    /// Test-support override for deterministic corpus qualification; ordinary
+    /// served targets use the build/env/sampling policy helper.
     graph_delta_convergence_all: bool,
     #[cfg(any(test, feature = "test-support"))]
     graph_delta_force_convergence_failure: bool,
@@ -4827,7 +4892,7 @@ pub struct GraphServingAuthorityContextV1 {
 }
 
 #[derive(Clone, Debug)]
-struct GraphServingRegistration {
+struct GraphServingEvaluationState {
     dependencies: snapback_sync::graph_captured_read::RegisteredGraphSubscriptionDependenciesV1,
     matcher_input: HandlerInput,
     structural_work: crate::graph_evaluator::StructuralWorkV1,
@@ -4840,9 +4905,43 @@ struct GraphServingRegistration {
     plan: crate::manifest::GraphQueryPlanV1,
     request: crate::graph_evaluator::GraphEvaluationRequestV1,
     evaluation: crate::graph_evaluator::GraphEvaluationOutputV1,
+}
+
+#[derive(Clone, Debug)]
+struct GraphServingDeliveryPolicy {
     delta_enabled: bool,
+}
+
+#[derive(Clone, Debug)]
+struct GraphServingDeliveryState {
+    policy: GraphServingDeliveryPolicy,
+    convergence_deliveries: u64,
     delta_requires_replace: bool,
     last_delta_delivery: Option<GraphDeltaDeliveryObservationV1>,
+}
+
+impl GraphServingDeliveryState {
+    fn after_fresh_evaluation_for_receiver(receiver: &Self) -> Self {
+        Self {
+            policy: receiver.policy.clone(),
+            convergence_deliveries: receiver.convergence_deliveries,
+            delta_requires_replace: false,
+            last_delta_delivery: None,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+struct GraphServingRegistration {
+    evaluation: GraphServingEvaluationState,
+    delivery: GraphServingDeliveryState,
+}
+
+impl GraphServingRegistration {
+    fn graft_receiver_delivery_policy(&mut self, receiver: &Self) {
+        self.delivery =
+            GraphServingDeliveryState::after_fresh_evaluation_for_receiver(&receiver.delivery);
+    }
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -4893,27 +4992,32 @@ fn serialized_json_estimated_bytes(value: &impl Serialize) -> usize {
 
 fn graph_serving_registration_estimated_bytes(registration: &GraphServingRegistration) -> usize {
     registration
+        .evaluation
         .dependencies
         .retained_payload_estimated_bytes()
-        .saturating_add(serialized_json_estimated_bytes(&registration.matcher_input))
         .saturating_add(serialized_json_estimated_bytes(
-            &registration.structural_work,
+            &registration.evaluation.matcher_input,
         ))
         .saturating_add(serialized_json_estimated_bytes(
-            &registration.window_ledgers,
+            &registration.evaluation.structural_work,
         ))
         .saturating_add(serialized_json_estimated_bytes(
-            &registration.materialization,
-        ))
-        .saturating_add(serialized_json_estimated_bytes(&registration.partition))
-        .saturating_add(serialized_json_estimated_bytes(
-            &registration.authorization_version,
+            &registration.evaluation.window_ledgers,
         ))
         .saturating_add(serialized_json_estimated_bytes(
-            &registration.evaluation_cut,
+            &registration.evaluation.materialization,
         ))
         .saturating_add(serialized_json_estimated_bytes(
-            &registration.memo_eligible_first_page,
+            &registration.evaluation.partition,
+        ))
+        .saturating_add(serialized_json_estimated_bytes(
+            &registration.evaluation.authorization_version,
+        ))
+        .saturating_add(serialized_json_estimated_bytes(
+            &registration.evaluation.evaluation_cut,
+        ))
+        .saturating_add(serialized_json_estimated_bytes(
+            &registration.evaluation.memo_eligible_first_page,
         ))
 }
 
@@ -8778,7 +8882,7 @@ impl LocalSnapback {
         if !subscription
             .graph_serving
             .as_ref()
-            .is_some_and(|registration| registration.memo_eligible_first_page)
+            .is_some_and(|registration| registration.evaluation.memo_eligible_first_page)
         {
             return None;
         }
@@ -8839,19 +8943,20 @@ impl LocalSnapback {
         result: &QueryInvocation,
     ) -> Option<GraphLiveEvaluationMemoKey> {
         let graph = result.graph_serving.as_ref()?;
-        if !graph.memo_eligible_first_page
-            || result.output.version != graph.evaluation_cut.0
-            || graph.dependencies.materialization_hash()
-                != &graph.materialization.materialization_hash
-            || graph.dependencies.partition_hash() != &graph.partition.partition_hash
+        if !graph.evaluation.memo_eligible_first_page
+            || result.output.version != graph.evaluation.evaluation_cut.0
+            || graph.evaluation.dependencies.materialization_hash()
+                != &graph.evaluation.materialization.materialization_hash
+            || graph.evaluation.dependencies.partition_hash()
+                != &graph.evaluation.partition.partition_hash
         {
             return None;
         }
         Self::graph_live_evaluation_memo_key_from_identities(
-            &graph.materialization,
-            &graph.partition,
-            &graph.authorization_version,
-            graph.evaluation_cut,
+            &graph.evaluation.materialization,
+            &graph.evaluation.partition,
+            &graph.evaluation.authorization_version,
+            graph.evaluation.evaluation_cut,
         )
     }
 
@@ -8877,22 +8982,37 @@ impl LocalSnapback {
             .graph_serving
             .as_ref()
             .expect("the graph convergence oracle carries graph registration");
-        debug_assert_eq!(cached_graph.materialization, fresh_graph.materialization);
-        debug_assert_eq!(cached_graph.partition, fresh_graph.partition);
         debug_assert_eq!(
-            cached_graph.authorization_version,
-            fresh_graph.authorization_version
+            cached_graph.evaluation.materialization,
+            fresh_graph.evaluation.materialization
         );
-        debug_assert_eq!(cached_graph.evaluation_cut, fresh_graph.evaluation_cut);
         debug_assert_eq!(
-            cached_graph.memo_eligible_first_page,
-            fresh_graph.memo_eligible_first_page
+            cached_graph.evaluation.partition,
+            fresh_graph.evaluation.partition
         );
-        debug_assert_eq!(cached_graph.structural_work, fresh_graph.structural_work);
-        debug_assert_eq!(cached_graph.window_ledgers, fresh_graph.window_ledgers);
         debug_assert_eq!(
-            cached_graph.dependencies.reads(),
-            fresh_graph.dependencies.reads()
+            cached_graph.evaluation.authorization_version,
+            fresh_graph.evaluation.authorization_version
+        );
+        debug_assert_eq!(
+            cached_graph.evaluation.evaluation_cut,
+            fresh_graph.evaluation.evaluation_cut
+        );
+        debug_assert_eq!(
+            cached_graph.evaluation.memo_eligible_first_page,
+            fresh_graph.evaluation.memo_eligible_first_page
+        );
+        debug_assert_eq!(
+            cached_graph.evaluation.structural_work,
+            fresh_graph.evaluation.structural_work
+        );
+        debug_assert_eq!(
+            cached_graph.evaluation.window_ledgers,
+            fresh_graph.evaluation.window_ledgers
+        );
+        debug_assert_eq!(
+            cached_graph.evaluation.dependencies.reads(),
+            fresh_graph.evaluation.dependencies.reads()
         );
     }
 
@@ -9013,28 +9133,33 @@ impl LocalSnapback {
         let input = live_subscription_rerun_input(subscription)?;
         let key = self.live_evaluation_memo_key(subscription, &input, &authority);
         if let Some(key) = key.as_ref()
-            && let Some((cached, evictions)) =
-                self.pending_live_fanout
-                    .evaluation_memo
-                    .get_if(key, &subscription.id, |cached| match key {
-                        LiveEvaluationMemoKey::Graph(_) => {
-                            cached.graph_serving.as_ref().is_some_and(|graph| {
-                                subscription
-                                    .graph_serving
-                                    .as_ref()
-                                    .is_some_and(|registration| {
-                                        // The ledger is deliberately not memo identity:
-                                        // equal authority partitions must remain shareable.
-                                        // It is nevertheless a reuse precondition so a
-                                        // shared full evaluation can never transplant one
-                                        // subscription's advanced lineage into another.
-                                        graph.request.prior_window_ledgers
-                                            == registration.window_ledgers
-                                    })
-                            })
-                        }
-                        LiveEvaluationMemoKey::Opaque(_) => true,
-                    })
+            && let Some((cached, evictions)) = self.pending_live_fanout.evaluation_memo.get_if(
+                key,
+                &subscription.id,
+                subscription
+                    .graph_serving
+                    .as_ref()
+                    .map(|graph| &graph.delivery),
+                |cached| match key {
+                    LiveEvaluationMemoKey::Graph(_) => {
+                        cached.graph_evaluation.as_ref().is_some_and(|graph| {
+                            subscription
+                                .graph_serving
+                                .as_ref()
+                                .is_some_and(|registration| {
+                                    // The ledger is deliberately not memo identity:
+                                    // equal authority partitions must remain shareable.
+                                    // It is nevertheless a reuse precondition so a
+                                    // shared full evaluation can never transplant one
+                                    // subscription's advanced lineage into another.
+                                    graph.request.prior_window_ledgers
+                                        == registration.evaluation.window_ledgers
+                                })
+                        })
+                    }
+                    LiveEvaluationMemoKey::Opaque(_) => true,
+                },
+            )
         {
             #[cfg(debug_assertions)]
             if matches!(key, LiveEvaluationMemoKey::Graph(_)) {
@@ -9052,7 +9177,7 @@ impl LocalSnapback {
                     // Eligibility describes the subscription's immutable
                     // root-first-page shape, not the owner-injected ledger in
                     // this particular rerun input.
-                    graph.memo_eligible_first_page = true;
+                    graph.evaluation.memo_eligible_first_page = true;
                 }
                 Self::debug_assert_graph_live_evaluation_memo_convergence(&cached, &fresh);
             }
@@ -9100,10 +9225,11 @@ impl LocalSnapback {
             // this particular rerun ineligible to build a memo key. The next
             // settled turn may share again; `get_if` separately requires
             // exact prior-ledger compatibility.
-            graph.memo_eligible_first_page = subscription
-                .graph_serving
-                .as_ref()
-                .is_some_and(|registration| registration.memo_eligible_first_page);
+            if let Some(receiver) = subscription.graph_serving.as_ref() {
+                graph.evaluation.memo_eligible_first_page =
+                    receiver.evaluation.memo_eligible_first_page;
+                graph.graft_receiver_delivery_policy(receiver);
+            }
         }
 
         let turn_is_publishable = self
@@ -12900,8 +13026,7 @@ impl LocalSnapback {
     }
 
     /// Make every graph delta run the fresh-evaluation convergence oracle.
-    /// The frozen corpus uses this deterministic seam; production
-    /// qualification uses `SNAPBACK_GRAPH_DELTA_CONVERGENCE=1`.
+    /// The frozen corpus uses this deterministic seam.
     #[cfg(any(test, feature = "test-support"))]
     pub fn require_graph_delta_convergence_for_test(&mut self) {
         self.graph_delta_convergence_all = true;
@@ -12967,26 +13092,56 @@ impl LocalSnapback {
             .graph_serving
             .as_ref()?;
         Some(json!({
-            "structuralWork": graph.structural_work,
-            "windowLedgers": graph.window_ledgers,
-            "capturedDependencies": graph.dependencies.reads().iter()
+            "structuralWork": graph.evaluation.structural_work,
+            "windowLedgers": graph.evaluation.window_ledgers,
+            "capturedDependencies": graph.evaluation.dependencies.reads().iter()
                 .filter_map(|read| read.graph.as_ref())
                 .collect::<Vec<_>>(),
-            "instanceHash": graph.dependencies.instance_hash(),
-            "materializationHash": graph.dependencies.materialization_hash(),
-            "partitionHash": graph.dependencies.partition_hash(),
-            "materialization": graph.materialization.preimage,
-            "partition": graph.partition.preimage,
-            "authorizationVersion": graph.authorization_version,
-            "evaluationCut": graph.evaluation_cut,
-            "orderedRootIds": graph.evaluation.ordered_root_ids,
-            "orderedRootKeys": graph.evaluation.ordered_root_keys,
-            "resultBytes": graph.evaluation.result_bytes,
-            "label": graph.evaluation.label,
-            "nodeCompleteness": graph.evaluation.node_completeness,
-            "graphCompleteness": graph.evaluation.graph_completeness,
-            "deltaDelivery": graph.last_delta_delivery,
+            "instanceHash": graph.evaluation.dependencies.instance_hash(),
+            "materializationHash": graph.evaluation.dependencies.materialization_hash(),
+            "partitionHash": graph.evaluation.dependencies.partition_hash(),
+            "materialization": graph.evaluation.materialization.preimage,
+            "partition": graph.evaluation.partition.preimage,
+            "authorizationVersion": graph.evaluation.authorization_version,
+            "evaluationCut": graph.evaluation.evaluation_cut,
+            "orderedRootIds": graph.evaluation.evaluation.ordered_root_ids,
+            "orderedRootKeys": graph.evaluation.evaluation.ordered_root_keys,
+            "resultBytes": graph.evaluation.evaluation.result_bytes,
+            "label": graph.evaluation.evaluation.label,
+            "nodeCompleteness": graph.evaluation.evaluation.node_completeness,
+            "graphCompleteness": graph.evaluation.evaluation.graph_completeness,
+            "deltaDelivery": graph.delivery.last_delta_delivery,
         }))
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn corrupt_graph_delta_retained_result_for_test(&mut self, subscription_id: &str) -> bool {
+        let Some(graph) = self
+            .subscriptions
+            .get_mut(subscription_id)
+            .and_then(|subscription| subscription.graph_serving.as_mut())
+        else {
+            return false;
+        };
+        graph.evaluation.evaluation.result_bytes = Some("[]".to_owned());
+        true
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn graph_delta_delivery_state_for_test(
+        &self,
+        subscription_id: &str,
+    ) -> Option<(bool, bool)> {
+        let delivery = &self
+            .subscriptions
+            .get(subscription_id)?
+            .graph_serving
+            .as_ref()?
+            .delivery;
+        Some((
+            delivery.policy.delta_enabled,
+            delivery.delta_requires_replace,
+        ))
     }
 
     #[cfg(any(test, feature = "test-support"))]
@@ -13075,6 +13230,51 @@ impl LocalSnapback {
             issuer_retirement: None,
         };
         self.install_auth_invalidation(issuer, authorization, data_version_stream.to_owned())?;
+        Ok(connection)
+    }
+
+    /// Bind the real authorization stream already present in a sessions-mode
+    /// fixture clone. Unlike the corpus scheduler fixture, this does not
+    /// activate a catalog, insert an identity, or replace stream identities.
+    #[cfg(any(test, feature = "test-support"))]
+    pub(crate) fn configure_graph_measurement_scheduler_for_test(
+        &mut self,
+    ) -> SnapbackResult<AuthorizationInvalidationConnection> {
+        self.install_live_fanout_coalescer(Arc::new(
+            crate::live_coalesce::LiveFanoutCoalescer::new(),
+        ));
+        self.pending_live_fanout.evaluation_memo.disabled = false;
+        let (authorization, version_stream, boot_sequence) = self
+            .auth_database_mut()
+            .reserve_invalidation_boot_issuer()?;
+        let issuer_id = crate::auth::invalidation::IssuerId::fresh(
+            authorization.incarnation.clone(),
+            boot_sequence,
+        )?;
+        let authenticator = crate::auth::invalidation::IssuerAuthenticator::new(
+            "graph-measurement-protocol-key",
+            [0x50; 32],
+        )?;
+        let authenticated = authenticator.authenticate(
+            issuer_id,
+            TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
+            self.db.schema().app_id.as_str(),
+        )?;
+        let issuer = LiveInvalidationIssuer::with_authenticator(
+            authenticated,
+            authenticator,
+            TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
+            self.db.schema().app_id.as_str(),
+        )?;
+        let connection = AuthorizationInvalidationConnection {
+            protocol_version: crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION,
+            issuer_id: issuer.authenticated().issuer_id.clone(),
+            connection_generation: issuer.reserve_connection_generation()?,
+            authorization: authorization.clone(),
+            version_stream: version_stream.clone(),
+            issuer_retirement: None,
+        };
+        self.install_auth_invalidation(issuer, authorization, version_stream)?;
         Ok(connection)
     }
 
@@ -13213,15 +13413,15 @@ impl LocalSnapback {
                     .filter(|(key, _)| key.function() == subscription.function)
                     .map(|(_, entry)| {
                         json!({
-                            "resultBytes": serialized_json_estimated_bytes(&entry.result.output.rows),
-                            "dependencyBytes": serialized_json_estimated_bytes(&entry.result.read_dependencies),
+                            "resultBytes": serialized_json_estimated_bytes(&entry.evaluation.output.rows),
+                            "dependencyBytes": serialized_json_estimated_bytes(&entry.evaluation.read_dependencies),
                             "retainedGroupStateBytes": entry.estimated_bytes,
                             "subscriberFanout": entry.holders.len(),
                         })
                     })
                     .collect::<Vec<_>>();
                 Some(json!({
-                    "graphPlanHash": graph.dependencies.reads().iter()
+                    "graphPlanHash": graph.evaluation.dependencies.reads().iter()
                         .find_map(|read| read.graph.as_ref())
                         .map(|read| read.graph_plan_hash.clone()),
                     "groupCount": groups.len(),
@@ -13345,8 +13545,8 @@ impl LocalSnapback {
         let function = self.functions.function(&subscription.function)?;
         Some(live_subscription_match_decision_with_graph_registration(
             function,
-            &graph.matcher_input,
-            &graph.dependencies,
+            &graph.evaluation.matcher_input,
+            &graph.evaluation.dependencies,
             changes,
         ))
     }
@@ -30482,8 +30682,8 @@ impl LocalSnapback {
         let decision = match subscription.graph_serving.as_ref() {
             Some(graph) => live_subscription_match_decision_with_graph_registration(
                 function,
-                &graph.matcher_input,
-                &graph.dependencies,
+                &graph.evaluation.matcher_input,
+                &graph.evaluation.dependencies,
                 changes,
             ),
             None => live_subscription_match_decision(
@@ -32992,14 +33192,14 @@ impl LocalSnapback {
                 continue;
             }
             let match_decision = match subscription.graph_serving.as_ref() {
-                Some(graph) if graph.delta_requires_replace => LiveMatchDecisionV1 {
+                Some(graph) if graph.delivery.delta_requires_replace => LiveMatchDecisionV1 {
                     outcome: LiveMatchOutcome::ConservativeFallback,
                     graph_nodes: Vec::new(),
                 },
                 Some(graph) => live_subscription_match_decision_with_graph_registration(
                     function,
-                    &graph.matcher_input,
-                    &graph.dependencies,
+                    &graph.evaluation.matcher_input,
+                    &graph.evaluation.dependencies,
                     changes,
                 ),
                 None => live_subscription_match_decision(
@@ -33093,8 +33293,8 @@ impl LocalSnapback {
                 _ => None,
             };
             let graph_delta = subscription.graph_serving.as_ref().is_some_and(|graph| {
-                graph.delta_enabled
-                    && !graph.delta_requires_replace
+                graph.delivery.policy.delta_enabled
+                    && !graph.delivery.delta_requires_replace
                     && subscription.authorization.is_none()
                     && !changes.is_empty()
                     && !force_replace.contains(&subscription.id)
@@ -33479,22 +33679,24 @@ impl LocalSnapback {
                 && subscription
                     .graph_serving
                     .as_ref()
-                    .is_some_and(|prior| prior.delta_enabled)
+                    .is_some_and(|prior| prior.delivery.policy.delta_enabled)
             {
                 let matched_node_ids = graph_nodes
                     .iter()
                     .filter(|node| node.disposition == GraphNodeMatchDispositionV1::Match)
                     .map(|node| node.node_id.clone())
                     .collect::<Vec<_>>();
-                graph.last_delta_delivery = Some(GraphDeltaDeliveryObservationV1 {
+                graph.delivery.last_delta_delivery = Some(GraphDeltaDeliveryObservationV1 {
                     lane: "replace".to_owned(),
                     matched_node_ids,
                     frame_bytes: payload.len() as u64,
-                    evaluation_cost: graph.structural_work.evaluation_cost(),
+                    evaluation_cost: graph.evaluation.structural_work.evaluation_cost(),
                     delta_frame_bytes: None,
                     delta_evaluation_cost: None,
                     replace_frame_bytes: Some(payload.len() as u64),
-                    replace_evaluation_cost: Some(graph.structural_work.evaluation_cost()),
+                    replace_evaluation_cost: Some(
+                        graph.evaluation.structural_work.evaluation_cost(),
+                    ),
                     convergence_checked: false,
                     convergence_matched: false,
                 });
@@ -33726,8 +33928,8 @@ impl LocalSnapback {
         let Some(registration) = subscription.graph_serving.as_ref() else {
             return Ok(None);
         };
-        if !registration.delta_enabled
-            || registration.delta_requires_replace
+        if !registration.delivery.policy.delta_enabled
+            || registration.delivery.delta_requires_replace
             || subscription.authorization.is_some()
         {
             return Ok(None);
@@ -33740,20 +33942,24 @@ impl LocalSnapback {
         if matched_node_ids.is_empty() {
             return Ok(None);
         }
-        let convergence_enabled = self.graph_delta_convergence_all
-            || std::env::var("SNAPBACK_GRAPH_DELTA_CONVERGENCE")
+        let convergence_enabled = graph_delta_convergence_enabled(
+            std::env::var("SNAPBACK_GRAPH_DELTA_CONVERGENCE")
                 .ok()
-                .is_some_and(|value| matches!(value.as_str(), "1" | "true"));
-        let plan = registration.plan.clone();
-        let prior = registration.evaluation.clone();
-        let mut request = registration.request.clone();
+                .as_deref(),
+            self.graph_delta_convergence_all,
+            cfg!(debug_assertions),
+            registration.delivery.convergence_deliveries,
+        );
+        let plan = registration.evaluation.plan.clone();
+        let prior = registration.evaluation.evaluation.clone();
+        let mut request = registration.evaluation.request.clone();
         request.prior_window_ledgers = prior.window_ledgers.clone();
         let (delta, fresh, applied_result) =
             self.db.query_reads_read().with_pinned_read_view(|read| {
                 let evaluation_cut = read.current_version()?;
                 let (authorization_version, _) = read.membership_cursor_custody_snapshot()?;
                 if evaluation_cut != frame_version
-                    || authorization_version != registration.authorization_version
+                    || authorization_version != registration.evaluation.authorization_version
                 {
                     return Ok((None, None, None));
                 }
@@ -33815,6 +34021,14 @@ impl LocalSnapback {
                 .saturating_add(1);
         }
         if !convergence_matched {
+            if let Some(graph) = self
+                .subscriptions
+                .get_mut(&subscription.id)
+                .and_then(|stored| stored.graph_serving.as_mut())
+            {
+                graph.delivery.convergence_deliveries =
+                    graph.delivery.convergence_deliveries.saturating_add(1);
+            }
             self.live_evaluation_stats.graph_delta_convergence_failures = self
                 .live_evaluation_stats
                 .graph_delta_convergence_failures
@@ -33828,6 +34042,14 @@ impl LocalSnapback {
         }
         if turn_control.is_some_and(|control| !control.begin_publication()) {
             return Ok(Some(DeltaFanout::NoChange));
+        }
+        if let Some(graph) = self
+            .subscriptions
+            .get_mut(&subscription.id)
+            .and_then(|stored| stored.graph_serving.as_mut())
+        {
+            graph.delivery.convergence_deliveries =
+                graph.delivery.convergence_deliveries.saturating_add(1);
         }
         let result_bytes = delta
             .output
@@ -33927,17 +34149,17 @@ impl LocalSnapback {
             if let Some(stored) = self.subscriptions.get_mut(&subscription.id)
                 && let Some(graph) = stored.graph_serving.as_mut()
             {
-                graph.structural_work = delta.output.structural_work.clone();
-                graph.window_ledgers = delta.output.window_ledgers.clone();
-                graph.authorization_version = request.authorization_version.clone();
-                graph.evaluation_cut = request.evaluation_cut;
-                graph.request = request;
-                graph.evaluation = delta.output;
+                graph.evaluation.structural_work = delta.output.structural_work.clone();
+                graph.evaluation.window_ledgers = delta.output.window_ledgers.clone();
+                graph.evaluation.authorization_version = request.authorization_version.clone();
+                graph.evaluation.evaluation_cut = request.evaluation_cut;
+                graph.evaluation.request = request;
+                graph.evaluation.evaluation = delta.output;
                 // The attested capture belongs to the predecessor snapshot.
                 // Until a fresh replace rebuilds it, no later matcher skip is
                 // permitted against that stale evidence.
-                graph.delta_requires_replace = true;
-                graph.last_delta_delivery = Some(observation.clone());
+                graph.delivery.delta_requires_replace = true;
+                graph.delivery.last_delta_delivery = Some(observation.clone());
             }
             self.enqueue_subscription_durable(subscription, payload)
         };
@@ -41132,7 +41354,7 @@ fn live_subscription_rerun_input(subscription: &LiveSubscription) -> SnapbackRes
                 format!("retained graph demand carrier is invalid: {error}"),
             )
         })?;
-    demand.prior_window_ledgers = graph.window_ledgers.clone();
+    demand.prior_window_ledgers = graph.evaluation.window_ledgers.clone();
     *encoded = serde_json::to_value(demand).map_err(|error| {
         graph_serving_error(
             "SNAPBACK_GRAPH_DEMAND_INVALID",
@@ -42763,21 +42985,28 @@ fn execute_query_invocation(
                 },
                 read_dependencies: evaluated.captured_reads.clone(),
                 graph_serving: Some(GraphServingRegistration {
-                    dependencies,
-                    matcher_input,
-                    structural_work: evaluated.structural_work.clone(),
-                    window_ledgers: evaluated.window_ledgers.clone(),
-                    materialization,
-                    partition,
-                    authorization_version: request.authorization_version.clone(),
-                    evaluation_cut: request.evaluation_cut,
-                    memo_eligible_first_page,
-                    plan: carrier.normalized_plan.clone(),
-                    request,
-                    evaluation: evaluated,
-                    delta_enabled: demand.requests_rung1_delta(),
-                    delta_requires_replace: false,
-                    last_delta_delivery: None,
+                    evaluation: GraphServingEvaluationState {
+                        dependencies,
+                        matcher_input,
+                        structural_work: evaluated.structural_work.clone(),
+                        window_ledgers: evaluated.window_ledgers.clone(),
+                        materialization,
+                        partition,
+                        authorization_version: request.authorization_version.clone(),
+                        evaluation_cut: request.evaluation_cut,
+                        memo_eligible_first_page,
+                        plan: carrier.normalized_plan.clone(),
+                        request,
+                        evaluation: evaluated,
+                    },
+                    delivery: GraphServingDeliveryState {
+                        policy: GraphServingDeliveryPolicy {
+                            delta_enabled: demand.requests_rung1_delta(),
+                        },
+                        convergence_deliveries: 0,
+                        delta_requires_replace: false,
+                        last_delta_delivery: None,
+                    },
                 }),
             })
         }
@@ -42865,7 +43094,7 @@ fn execute_query_invocation(
             structural_work: invocation
                 .graph_serving
                 .as_ref()
-                .map(|registration| registration.structural_work.clone()),
+                .map(|registration| registration.evaluation.structural_work.clone()),
             target_work: None,
         });
     }

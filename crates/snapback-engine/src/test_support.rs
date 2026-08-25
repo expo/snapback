@@ -182,6 +182,14 @@ pub fn configure_graph_corpus_scheduler(
     snapback.configure_graph_corpus_scheduler_for_test(authorization, data_version_stream)
 }
 
+/// Bind a sessions-mode fixture clone's existing authorization stream for a
+/// read-only served-path measurement. No catalog or identity rows are added.
+pub fn configure_graph_measurement_scheduler(
+    snapback: &mut LocalSnapback,
+) -> SnapbackResult<crate::auth::invalidation::AuthorizationInvalidationConnection> {
+    snapback.configure_graph_measurement_scheduler_for_test()
+}
+
 /// Establish a corpus graph with the real sessions-mode retained authority
 /// and invalidation protocol. Caller-loaded JavaScript remains refused.
 pub fn subscribe_graph_corpus_case(

@@ -11,7 +11,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 
 use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
@@ -28,9 +28,10 @@ use snapback_engine::graph_evaluator::{
 };
 use snapback_engine::test_support::{
     apply_graph_delta_to_result_for_test, configure_graph_corpus_scheduler,
-    graph_corpus_authorization_frames, graph_corpus_memo_entries, invoke_graph_corpus_mutation,
-    measure_graph_serving_groups, refresh_graph_corpus_scheduler, set_graph_corpus_memo_limits,
-    subscribe_graph_corpus_case, subscribe_graph_corpus_partition_case,
+    configure_graph_measurement_scheduler, graph_corpus_authorization_frames,
+    graph_corpus_memo_entries, invoke_graph_corpus_mutation, measure_graph_serving_groups,
+    refresh_graph_corpus_scheduler, set_graph_corpus_memo_limits, subscribe_graph_corpus_case,
+    subscribe_graph_corpus_partition_case,
 };
 use snapback_kernel::storage::{ChangeOp, ChangedRow};
 use snapback_sync::graph_captured_read::{
@@ -83,6 +84,15 @@ const CORPUS_IMPLEMENTATION_HASH: &str =
     "sha256:4444444444444444444444444444444444444444444444444444444444444444";
 const CORPUS_ARGS_HASH: &str =
     "sha256:5555555555555555555555555555555555555555555555555555555555555555";
+const LARGE_FIXTURE_DEFERRAL_MARKER: &str = "requires the preserved CSV shards";
+const LARGE_FIXTURE_RERUN_COMMAND: &str = "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs";
+static GRAPH_MEMO_INTERACTION_TEST_LOCK: Mutex<()> = Mutex::new(());
+
+fn serial_graph_memo_interaction_test() -> std::sync::MutexGuard<'static, ()> {
+    GRAPH_MEMO_INTERACTION_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
 
 fn repository_path(relative: &str) -> PathBuf {
     PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../..")).join(relative)
@@ -267,18 +277,31 @@ fn inferred_field_type(values: impl Iterator<Item = Value>) -> FieldType {
     }
 }
 
+// @ref LLP 0209#9-sequencing-and-measurement-what-lands-first-and-how-it-is-measured
+// — P-B measures the admitted served/group path against isolated fixture
+// clones; this module is inert unless the caller supplies an explicit mode,
+// database, corpus, and output path.
 mod pb_measurement {
     use super::*;
     use std::time::Instant;
 
     const DETAIL_SOURCE: &str = "oAMDrWzUjYBIRhM6n2TA2";
+    const LARGE_PROJECT_SOURCE: &str = "OfAwqxYz9GbQfkkFpNpkT";
 
-    fn invocation<'a>(corpus: &'a Value, carrier: &GraphQueryCarrierV1) -> &'a Value {
+    fn original_plan_hash<'a>(corpus: &'a Value, query: &str) -> &'a str {
+        corpus_queries(corpus)
+            .find(|row| row["query"] == query)
+            .and_then(|row| row["carrier"]["planHash"].as_str())
+            .expect("P-B original graph plan hash")
+    }
+
+    fn invocation_for_query<'a>(corpus: &'a Value, query: &str) -> &'a Value {
+        let plan_hash = original_plan_hash(corpus, query);
         &corpus["g0ExitObservationEvidence"]
             .as_array()
             .unwrap()
             .iter()
-            .find(|row| row["graphPlanHash"] == carrier.plan_hash.as_str())
+            .find(|row| row["graphPlanHash"] == plan_hash)
             .unwrap()["invocation"]
     }
 
@@ -287,8 +310,37 @@ mod pb_measurement {
         corpus: &Value,
     ) -> Vec<(String, GraphQueryCarrierV1, FunctionDefinition)> {
         snapback.declare_graph_query_v1_capability();
-        let carriers = served_graph_carriers(snapback, corpus);
-        let mut manifest = served_graph_manifest(corpus, &carriers);
+        let mut carriers = served_graph_carriers(snapback, corpus);
+        if std::env::var("SNAPBACK_PB_MODE").as_deref() == Ok("observe") {
+            // The retained-group measurement schedules one refresh. Match the
+            // existing G2-C measurement support by widening only that runtime
+            // lineage allowance; the artifact maps the identity back to the
+            // original declaration and records first-evaluation work.
+            for (_, carrier, definition) in &mut carriers {
+                ensure_graph_window_pages(carrier, 2);
+                definition.runtime =
+                    FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier.clone()));
+            }
+        }
+        let mut manifest = if std::env::var("SNAPBACK_PB_MODE").as_deref() == Ok("observe") {
+            FunctionManifest {
+                app_id: "zerobugs-graph-pb-observe".to_owned(),
+                bundle_hash: Some(CORPUS_BUNDLE_HASH.to_owned()),
+                inputs_hash: Some(CORPUS_INPUTS_HASH.to_owned()),
+                acknowledged_experimental_capabilities: vec![
+                    TargetCapabilityId::ArgsContractV1.as_str().to_owned(),
+                    TargetCapabilityId::GraphQueryV1.as_str().to_owned(),
+                    TargetCapabilityId::ResultContractV1.as_str().to_owned(),
+                ],
+                functions: carriers
+                    .iter()
+                    .map(|(_, _, definition)| definition.clone())
+                    .collect(),
+                ..FunctionManifest::default()
+            }
+        } else {
+            served_graph_manifest(corpus, &carriers)
+        };
         manifest.app_id = snapback.inspect_core().unwrap().schema.app_id;
         let diagnostics = snapback.load_functions(manifest);
         assert!(
@@ -348,7 +400,7 @@ mod pb_measurement {
         source_issue: &str,
         physical_issue: &str,
     ) -> Value {
-        let mut call = invocation(corpus, carrier).clone();
+        let mut call = invocation_for_query(corpus, query).clone();
         match query {
             "issueListV2" | "issueSummary" => call["args"]["projectID"] = json!(project),
             "issueDetail" => {
@@ -370,16 +422,35 @@ mod pb_measurement {
     fn subscribe(
         snapback: &mut LocalSnapback,
         corpus: &Value,
+        carrier: &GraphQueryCarrierV1,
         query: &str,
         call: &Value,
         observers: usize,
+        invalidation: &snapback::auth::invalidation::AuthorizationInvalidationConnection,
     ) -> (String, Vec<String>, Vec<f64>) {
-        let authority = corpus_authority(corpus, corpus_invocation_principal(call));
+        let principal = corpus_invocation_principal(call);
+        let authority = corpus_authority(corpus, principal);
+        let scope_identities = owner_resolved_scope_identities(carrier, &call["args"], principal);
+        let class2 = carrier
+            .normalized_plan
+            .authority_partition_rule
+            .class2_inputs
+            .iter()
+            .zip(scope_identities)
+            .map(|(input, scope_identity)| {
+                json!({
+                    "nodeId":input.node_id,
+                    "declarationId":input.declaration_id,
+                    "scopeIdentity":scope_identity,
+                    "policyIdentity":input.policy_identity,
+                })
+            })
+            .collect::<Vec<_>>();
         snapback.install_graph_serving_authority_context_for_test(
             query,
             GraphServingAuthorityContextV1 {
                 evaluation: authority.clone(),
-                class2: serde_json::from_value(call["partition"]["class2"].clone()).unwrap(),
+                class2: serde_json::from_value(Value::Array(class2)).unwrap(),
             },
         );
         let mut args = call["args"].as_object().unwrap().clone();
@@ -403,20 +474,25 @@ mod pb_measurement {
         };
         let mut ids = Vec::new();
         let mut elapsed = Vec::new();
-        for _ in 0..observers {
+        for observer in 0..observers {
             let started = Instant::now();
-            let established = snapback
-                .subscribe_live(
-                    query,
-                    LiveSubscribeInput {
-                        connection_id: connection.clone(),
-                        input: input.clone(),
-                        authorization_namespace: None,
-                        supersedes: None,
-                        resume_from_token: None,
-                    },
-                )
-                .unwrap();
+            let established = subscribe_graph_corpus_case(
+                snapback,
+                query,
+                LiveSubscribeInput {
+                    connection_id: connection.clone(),
+                    input: input.clone(),
+                    authorization_namespace: Some(QueryNamespace {
+                        client_store_id: "pb-graph-corpus".to_owned(),
+                        query_key: query.to_owned(),
+                        query_instance_id: observer as u64 + 1,
+                    }),
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+                invalidation.clone(),
+            )
+            .unwrap_or_else(|error| panic!("P-B subscribe {query} observer {observer}: {error:?}"));
             elapsed.push(started.elapsed().as_secs_f64() * 1_000.0);
             assert!(established.snapshot.is_some());
             ids.push(established.subscription_id);
@@ -440,17 +516,33 @@ mod pb_measurement {
         corpus: &Value,
         carriers: &[(String, GraphQueryCarrierV1, FunctionDefinition)],
     ) -> Value {
-        let hot = hot_rows(&snapback)
+        let invalidation = configure_graph_measurement_scheduler(&mut snapback)
+            .expect("bind the fixture clone's authorization stream");
+        let project_source = std::env::var("SNAPBACK_PB_PROJECT_SOURCE_ID")
+            .unwrap_or_else(|_| LARGE_PROJECT_SOURCE.to_owned());
+        let project = snapback
+            .scan_table("project", 1_000, 0)
+            .unwrap()
+            .rows
             .into_iter()
-            .find(|row| row["visibility"] == "public")
+            .find(|row| row["id"].as_str() == Some(&project_source))
             .unwrap();
-        let project = hot["projectID"].as_str().unwrap();
+        let project = project["_id"].as_str().unwrap();
+        let requested_query = std::env::var("SNAPBACK_PB_QUERY").ok();
         let source = std::env::var("SNAPBACK_PB_DETAIL_SOURCE_ID")
             .unwrap_or_else(|_| DETAIL_SOURCE.to_owned());
-        let detail = issue_by_source(&snapback, &source);
-        let physical = detail["_id"].as_str().unwrap();
+        let physical = if requested_query
+            .as_deref()
+            .is_none_or(|query| matches!(query, "issueDetail" | "listIssueByID"))
+        {
+            issue_by_source(&snapback, &source)["_id"]
+                .as_str()
+                .unwrap()
+                .to_owned()
+        } else {
+            "pb-unused-physical-issue".to_owned()
+        };
         let mut graphs = Vec::new();
-        let requested_query = std::env::var("SNAPBACK_PB_QUERY").ok();
         for query in [
             "issueListV2",
             "issueDetail",
@@ -461,13 +553,20 @@ mod pb_measurement {
         .filter(|query| requested_query.as_deref().is_none_or(|only| only == *query))
         {
             let carrier = &carriers.iter().find(|row| row.0 == query).unwrap().1;
-            let call = call_for(corpus, carrier, query, project, &source, physical);
+            let call = call_for(corpus, carrier, query, project, &source, &physical);
             let observers = std::env::var("SNAPBACK_PB_OBSERVERS")
                 .ok()
                 .and_then(|value| value.parse().ok())
                 .unwrap_or(1);
-            let (connection, ids, establishment_ms) =
-                subscribe(&mut snapback, corpus, query, &call, observers);
+            let (connection, ids, establishment_ms) = subscribe(
+                &mut snapback,
+                corpus,
+                carrier,
+                query,
+                &call,
+                observers,
+                &invalidation,
+            );
             let observation = snapback
                 .graph_serving_observation_for_test(&ids[0])
                 .unwrap();
@@ -480,7 +579,7 @@ mod pb_measurement {
             let frames = snapback.drain_live_stream(&connection);
             graphs.push(json!({
                 "query":query,
-                "graphPlanHash":carrier.plan_hash,
+                "graphPlanHash":original_plan_hash(corpus, query),
                 "sourceIssueID":if matches!(query, "issueDetail" | "listIssueByID") { json!(source) } else { Value::Null },
                 "resultBytes":result_bytes.len(),
                 "resultRows":result_rows,
@@ -507,6 +606,8 @@ mod pb_measurement {
         corpus: &Value,
         carriers: &[(String, GraphQueryCarrierV1, FunctionDefinition)],
     ) -> Value {
+        let invalidation = configure_graph_measurement_scheduler(&mut snapback)
+            .expect("bind the fixture clone's authorization stream");
         let query = "issueSummary";
         let carrier = &carriers.iter().find(|row| row.0 == query).unwrap().1;
         let rows = hot_rows(&snapback);
@@ -522,8 +623,15 @@ mod pb_measurement {
             .ok()
             .and_then(|value| value.parse().ok())
             .unwrap_or(6);
-        let (connection, ids, establishment_ms) =
-            subscribe(&mut snapback, corpus, query, &call, observers);
+        let (connection, ids, establishment_ms) = subscribe(
+            &mut snapback,
+            corpus,
+            carrier,
+            query,
+            &call,
+            observers,
+            &invalidation,
+        );
         let initial_observation = snapback
             .graph_serving_observation_for_test(&ids[0])
             .unwrap();
@@ -598,11 +706,32 @@ mod pb_measurement {
 
     #[test]
     fn pb_measure_loaded_zerobugs_clone() {
-        let corpus = graph_corpus();
+        let corpus = std::env::var("SNAPBACK_PB_CORPUS_PATH").map_or_else(
+            |_| graph_corpus(),
+            |path| {
+                serde_json::from_slice(
+                    &std::fs::read(&path)
+                        .unwrap_or_else(|error| panic!("read P-B corpus {path}: {error}")),
+                )
+                .unwrap_or_else(|error| panic!("parse P-B corpus {path}: {error}"))
+            },
+        );
         let mut snapback = if let Ok(database) = std::env::var("SNAPBACK_PB_MEASURE_DB") {
             LocalSnapback::open(database).unwrap()
         } else if std::env::var("SNAPBACK_PB_SMOKE").as_deref() == Ok("1") {
-            graph_store(&corpus, None)
+            let mut smoke = graph_store(&corpus, None);
+            let authorization = serde_json::from_value(json!({
+                "incarnation":"01890f3c-9d5b-7000-8000-000000000001",
+                "epoch":0,
+            }))
+            .expect("smoke authorization version");
+            configure_graph_corpus_scheduler(
+                &mut smoke,
+                authorization,
+                GRAPH_CORPUS_DATA_VERSION_STREAM,
+            )
+            .expect("configure P-B smoke sessions stream");
+            smoke
         } else {
             return;
         };
@@ -1994,6 +2123,7 @@ fn drain_graph_scheduler_snapshots(
 
 #[test]
 fn graph_scheduler_case_same_key_memoizes_one_turn_and_delivers_three() {
+    let _memo_guard = serial_graph_memo_interaction_test();
     const N: usize = 3;
     let corpus = graph_corpus();
     let (mut snapback, name, call, authority, connection) = graph_scheduler_memo_fixture(&corpus);
@@ -2095,6 +2225,7 @@ fn graph_scheduler_case_same_key_memoizes_one_turn_and_delivers_three() {
 
 #[test]
 fn graph_scheduler_case_continuation_and_first_page_preserve_each_ledger_lineage() {
+    let _memo_guard = serial_graph_memo_interaction_test();
     let corpus = graph_corpus();
     let (mut snapback, name, call, authority, connection) =
         graph_scheduler_continuation_memo_fixture(&corpus);
@@ -2216,6 +2347,7 @@ fn graph_scheduler_case_continuation_and_first_page_preserve_each_ledger_lineage
 
 #[test]
 fn graph_scheduler_case_authority_context_replacement_retires_same_partition_memo() {
+    let _memo_guard = serial_graph_memo_interaction_test();
     let corpus = graph_corpus();
     let (mut snapback, name, call, authority_a, connection) = graph_scheduler_memo_fixture(&corpus);
     let connection_id = "g3-a-authority-context-replacement";
@@ -2320,6 +2452,7 @@ fn graph_scheduler_case_authority_context_replacement_retires_same_partition_mem
 
 #[test]
 fn graph_scheduler_case_matcher_wake_retires_then_reevaluates_once() {
+    let _memo_guard = serial_graph_memo_interaction_test();
     const N: usize = 3;
     let corpus = graph_corpus();
     let (mut snapback, name, call, authority, connection) = graph_scheduler_memo_fixture(&corpus);
@@ -2392,6 +2525,7 @@ fn graph_scheduler_case_matcher_wake_retires_then_reevaluates_once() {
 
 #[test]
 fn graph_scheduler_case_materialization_and_partition_keys_do_not_share() {
+    let _memo_guard = serial_graph_memo_interaction_test();
     let corpus = graph_corpus();
     let (mut snapback, name, call, authority, connection) = graph_scheduler_memo_fixture(&corpus);
     let connection_id = "g3-a-mixed-keys";
@@ -2460,6 +2594,7 @@ fn graph_scheduler_case_materialization_and_partition_keys_do_not_share() {
 
 #[test]
 fn graph_scheduler_case_evaluation_cut_does_not_share() {
+    let _memo_guard = serial_graph_memo_interaction_test();
     let corpus = graph_corpus();
     let (mut snapback, name, call, authority, connection) = graph_scheduler_memo_fixture(&corpus);
     let connection_id = "g3-a-cut-isolation";
@@ -2539,6 +2674,7 @@ fn graph_scheduler_case_evaluation_cut_does_not_share() {
 
 #[test]
 fn graph_scheduler_case_tiny_budget_evicts_oldest_and_reevaluates() {
+    let _memo_guard = serial_graph_memo_interaction_test();
     let corpus = graph_corpus();
     let (mut snapback, name, call, authority, connection) = graph_scheduler_memo_fixture(&corpus);
     let connection_id = "g3-a-eviction";
@@ -2615,6 +2751,7 @@ fn graph_scheduler_case_tiny_budget_evicts_oldest_and_reevaluates() {
 
 #[test]
 fn graph_scheduler_case_tiny_byte_budget_evicts_and_refuses_oversize_results() {
+    let _memo_guard = serial_graph_memo_interaction_test();
     let corpus = graph_corpus();
     let (mut snapback, name, call, authority, connection) = graph_scheduler_memo_fixture(&corpus);
     let connection_id = "g3-a-byte-eviction";
@@ -3333,14 +3470,17 @@ fn ensure_graph_window_pages(carrier: &mut GraphQueryCarrierV1, minimum_pages: u
     *carrier = graph_plan_identity_v1(plan).expect("rescaled graph plan stays admitted");
 }
 
-fn serve_issue_summary_window_ledgers(
+fn serve_issue_summary_window_ledgers_with_delivery(
     corpus: &Value,
     max_pages: u64,
-    subscription_count: usize,
+    delta_negotiations: &[bool],
+    force_convergence_all: bool,
 ) -> (LocalSnapback, String, Vec<String>) {
     let mut snapback = graph_store(corpus, None);
     snapback.declare_graph_query_v1_capability();
-    snapback.require_graph_delta_convergence_for_test();
+    if force_convergence_all {
+        snapback.require_graph_delta_convergence_for_test();
+    }
     let mut carriers = served_graph_carriers(&snapback, corpus);
     let (_, carrier, definition) = carriers
         .iter_mut()
@@ -3372,36 +3512,40 @@ fn serve_issue_summary_window_ledgers(
                 .expect("issueSummary class-2 inputs"),
         },
     );
-    let mut args = call["args"]
+    let args = call["args"]
         .as_object()
         .expect("issueSummary graph args")
         .clone();
-    args.insert(
-        snapback_engine::graph_evaluator::GRAPH_SERVING_DEMAND_ARG.to_owned(),
-        json!({
-            "format":"snapback.graph-serving-demand.v1",
-            "windows":call["windows"],
-            "advancedNodeId":call["advancedNodeId"],
-            "priorWindowLedgers":[],
-            "deltaFormat":"snapback.graph-live-delta.v1",
-        }),
-    );
     let connection_id = format!("g3-window-ledger-{max_pages}");
-    let input = HandlerInput {
-        args: Value::Object(args),
-        auth: authority.auth,
-        read_set: Vec::new(),
-        correlation: None,
-        ctx_ledger: None,
-    };
-    let subscription_ids = (0..subscription_count)
-        .map(|_| {
+    let subscription_ids = delta_negotiations
+        .iter()
+        .map(|delta_enabled| {
+            let mut demand = json!({
+                "format":"snapback.graph-serving-demand.v1",
+                "windows":call["windows"],
+                "advancedNodeId":call["advancedNodeId"],
+                "priorWindowLedgers":[],
+            });
+            if *delta_enabled {
+                demand["deltaFormat"] = json!("snapback.graph-live-delta.v1");
+            }
+            let mut subscription_args = args.clone();
+            subscription_args.insert(
+                snapback_engine::graph_evaluator::GRAPH_SERVING_DEMAND_ARG.to_owned(),
+                demand,
+            );
             let established = snapback
                 .subscribe_live(
                     "issueSummary",
                     LiveSubscribeInput {
                         connection_id: connection_id.clone(),
-                        input: input.clone(),
+                        input: HandlerInput {
+                            args: Value::Object(subscription_args),
+                            auth: authority.auth.clone(),
+                            read_set: Vec::new(),
+                            correlation: None,
+                            ctx_ledger: None,
+                        },
                         authorization_namespace: None,
                         supersedes: None,
                         resume_from_token: None,
@@ -3414,6 +3558,19 @@ fn serve_issue_summary_window_ledgers(
         .collect::<Vec<_>>();
     assert!(snapback.drain_live_stream(&connection_id).is_empty());
     (snapback, connection_id, subscription_ids)
+}
+
+fn serve_issue_summary_window_ledgers(
+    corpus: &Value,
+    max_pages: u64,
+    subscription_count: usize,
+) -> (LocalSnapback, String, Vec<String>) {
+    serve_issue_summary_window_ledgers_with_delivery(
+        corpus,
+        max_pages,
+        &vec![true; subscription_count],
+        true,
+    )
 }
 
 fn serve_issue_summary_window_ledger(
@@ -4050,7 +4207,20 @@ fn assert_exact_object_keys(value: &Value, expected: &[&str], label: &str) {
 
 fn corpus_authority_owner() -> &'static Value {
     static OWNER: OnceLock<Value> = OnceLock::new();
-    OWNER.get_or_init(|| load_json(CORPUS_FILE)["authorityOwner"].clone())
+    OWNER.get_or_init(|| {
+        std::env::var("SNAPBACK_PB_CORPUS_PATH").map_or_else(
+            |_| load_json(CORPUS_FILE)["authorityOwner"].clone(),
+            |path| {
+                serde_json::from_slice::<Value>(
+                    &std::fs::read(&path)
+                        .unwrap_or_else(|error| panic!("read P-B corpus {path}: {error}")),
+                )
+                .unwrap_or_else(|error| panic!("parse P-B corpus {path}: {error}"))
+                    ["authorityOwner"]
+                    .clone()
+            },
+        )
+    })
 }
 
 fn authority_fact(principal: &str) -> &'static Value {
@@ -7054,6 +7224,7 @@ fn served_window_ledger_accumulates_snapshot_delta_forced_replacement() {
 #[test]
 fn graph_delta_same_partition_subscriptions_converge_with_independent_ledgers_and_shared_replace_memo()
  {
+    let _memo_guard = serial_graph_memo_interaction_test();
     let corpus = graph_corpus();
     let (mut snapback, connection_id, subscriptions) =
         serve_issue_summary_window_ledgers(&corpus, 4, 2);
@@ -7219,6 +7390,187 @@ fn graph_delta_same_partition_subscriptions_converge_with_independent_ledgers_an
         after_sibling_refresh.memo_hits - before_sibling_refresh.memo_hits,
         1,
         "the sibling may share the fresh result once its own ledger presents the compatible prior",
+    );
+}
+
+fn assert_graph_memo_receiver_keeps_delta_negotiation(
+    corpus: &Value,
+    producer_delta_enabled: bool,
+    receiver_delta_enabled: bool,
+) {
+    let (mut snapback, connection_id, subscriptions) =
+        serve_issue_summary_window_ledgers_with_delivery(
+            corpus,
+            4,
+            &[producer_delta_enabled, receiver_delta_enabled],
+            false,
+        );
+    let producer = &subscriptions[0];
+    let receiver = &subscriptions[1];
+
+    assert!(refresh_graph_corpus_scheduler(&mut snapback, Some(producer)).unwrap());
+    let producer_refresh = snapback
+        .drain_live_stream(&connection_id)
+        .into_iter()
+        .map(|frame| serde_json::from_str::<Value>(&frame).expect("producer refresh frame JSON"))
+        .collect::<Vec<_>>();
+    assert_eq!(producer_refresh.len(), 1);
+    assert_eq!(producer_refresh[0]["subscription_id"], producer.as_str());
+    assert_eq!(producer_refresh[0]["kind"], "live_replace");
+
+    let before_receiver = snapback
+        .inspect_core()
+        .expect("inspect before receiver memo hit")
+        .live_evaluation;
+    assert!(refresh_graph_corpus_scheduler(&mut snapback, Some(receiver)).unwrap());
+    let receiver_refresh = snapback
+        .drain_live_stream(&connection_id)
+        .into_iter()
+        .map(|frame| serde_json::from_str::<Value>(&frame).expect("receiver refresh frame JSON"))
+        .collect::<Vec<_>>();
+    assert_eq!(receiver_refresh.len(), 1);
+    assert_eq!(receiver_refresh[0]["subscription_id"], receiver.as_str());
+    assert_eq!(receiver_refresh[0]["kind"], "live_replace");
+    let after_receiver = snapback
+        .inspect_core()
+        .expect("inspect after receiver memo hit")
+        .live_evaluation;
+    assert_eq!(after_receiver.memo_hits - before_receiver.memo_hits, 1);
+    assert_eq!(
+        snapback.graph_delta_delivery_state_for_test(receiver),
+        Some((receiver_delta_enabled, false)),
+        "the memo hit must install the receiver's own negotiation with a fresh delivery latch",
+    );
+
+    let before_delivery = after_receiver;
+    patch_issue_summary_title(
+        &mut snapback,
+        if receiver_delta_enabled {
+            "G3 receiver-local opted-in delta"
+        } else {
+            "G3 receiver-local legacy replace"
+        },
+    );
+    assert!(
+        snapback.flush_pending_live_fanout(),
+        "the paired mutation schedules retained graph delivery",
+    );
+    let frames = snapback
+        .drain_live_stream(&connection_id)
+        .into_iter()
+        .map(|frame| serde_json::from_str::<Value>(&frame).expect("paired delivery frame JSON"))
+        .collect::<Vec<_>>();
+    assert_eq!(frames.len(), 2);
+    let receiver_frame = frames
+        .iter()
+        .find(|frame| frame["subscription_id"] == receiver.as_str())
+        .expect("receiver content frame");
+    let after_delivery = snapback
+        .inspect_core()
+        .expect("inspect after paired delivery")
+        .live_evaluation;
+    if receiver_delta_enabled {
+        assert_eq!(
+            receiver_frame["kind"],
+            "live_delta",
+            "opted-in receiver fell back: convergence checks +{}, failures +{}, delta deliveries +{}, replace fallbacks +{}",
+            after_delivery.graph_delta_convergence_checks
+                - before_delivery.graph_delta_convergence_checks,
+            after_delivery.graph_delta_convergence_failures
+                - before_delivery.graph_delta_convergence_failures,
+            after_delivery.graph_delta_deliveries - before_delivery.graph_delta_deliveries,
+            after_delivery.graph_delta_replace_fallbacks
+                - before_delivery.graph_delta_replace_fallbacks,
+        );
+        assert_eq!(receiver_frame["ops"], json!([]));
+        assert_eq!(
+            receiver_frame["graph"]["format"],
+            "snapback.graph-live-delta.v1",
+        );
+    } else {
+        assert_eq!(receiver_frame["kind"], "live_replace");
+        assert!(receiver_frame["rows"].is_array());
+        assert!(receiver_frame.get("ops").is_none());
+        assert!(receiver_frame.get("graph").is_none());
+    }
+}
+
+/// Memo identity deliberately excludes delivery negotiation, so reuse must
+/// not transplant an opted-in producer's policy into a legacy receiver.
+///
+/// @ref LLP 0209#6 — a memo hit skips evaluation, never per-subscription delivery.
+#[test]
+fn graph_memo_legacy_receiver_keeps_replace_delivery_from_delta_seed() {
+    let _memo_guard = serial_graph_memo_interaction_test();
+    let corpus = graph_corpus();
+    assert_graph_memo_receiver_keeps_delta_negotiation(&corpus, true, false);
+}
+
+/// Memo identity deliberately excludes delivery negotiation, so reuse must
+/// not transplant a legacy producer's policy into an opted-in receiver.
+///
+/// @ref LLP 0209#6 — a memo hit skips evaluation, never per-subscription delivery.
+#[test]
+fn graph_memo_delta_receiver_keeps_negotiation_from_legacy_seed() {
+    let _memo_guard = serial_graph_memo_interaction_test();
+    let corpus = graph_corpus();
+    assert_graph_memo_receiver_keeps_delta_negotiation(&corpus, false, true);
+}
+
+/// The default debug served path must catch real retained-state divergence
+/// without either convergence test override and fail honest to a replacement.
+///
+/// @ref LLP 0209#7-rung-4--incremental-maintenance-for-admitted-shapes-extending-dk-3 — every admitted node rule retains a fresh-evaluation convergence guard.
+#[test]
+fn graph_delta_default_convergence_policy_force_replaces_corrupted_retained_state() {
+    let corpus = graph_corpus();
+    let (mut snapback, connection_id, subscriptions) =
+        serve_issue_summary_window_ledgers_with_delivery(&corpus, 3, &[true], false);
+    let subscription_id = &subscriptions[0];
+    assert!(
+        snapback.corrupt_graph_delta_retained_result_for_test(subscription_id),
+        "the served subscription exposes retained graph state to test support",
+    );
+    let before = snapback
+        .inspect_core()
+        .expect("inspect before default convergence mismatch")
+        .live_evaluation;
+
+    patch_issue_summary_title(&mut snapback, "G3 default convergence mismatch");
+    let frames = snapback
+        .drain_live_stream(&connection_id)
+        .into_iter()
+        .map(|frame| serde_json::from_str::<Value>(&frame).expect("mismatch fallback frame JSON"))
+        .collect::<Vec<_>>();
+    assert_eq!(frames.len(), 1);
+    assert_eq!(frames[0]["subscription_id"], subscription_id.as_str());
+    assert_eq!(frames[0]["kind"], "live_replace");
+    assert!(
+        frames[0]["rows"]
+            .as_array()
+            .is_some_and(|rows| !rows.is_empty())
+    );
+
+    let after = snapback
+        .inspect_core()
+        .expect("inspect after default convergence mismatch")
+        .live_evaluation;
+    assert_eq!(
+        after.graph_delta_convergence_checks - before.graph_delta_convergence_checks,
+        1,
+    );
+    assert_eq!(
+        after.graph_delta_convergence_failures - before.graph_delta_convergence_failures,
+        1,
+    );
+    assert_eq!(
+        after.graph_delta_deliveries - before.graph_delta_deliveries,
+        0,
+        "the divergent delta must not cross publication",
+    );
+    assert_eq!(
+        after.graph_delta_replace_fallbacks - before.graph_delta_replace_fallbacks,
+        1,
     );
 }
 
@@ -7934,13 +8286,55 @@ fn assert_provisional_records_name_validation(value: &Value) {
     }
 }
 
+fn assert_measured_or_fixture_deferred(
+    value: &Value,
+    expected_measurement: u64,
+    large_fixture_spot_check: &Value,
+) {
+    if let Some(measurement) = value.as_u64() {
+        assert_eq!(measurement, expected_measurement);
+        return;
+    }
+
+    assert_eq!(value, LARGE_FIXTURE_DEFERRAL_MARKER);
+    assert_eq!(
+        large_fixture_spot_check["command"], LARGE_FIXTURE_RERUN_COMMAND,
+        "a preserved-shard deferral must retain its pinned rerun command",
+    );
+}
+
+fn assert_sibling_fixture_deferrals_are_pinned(value: &Value, large_fixture_spot_check: &Value) {
+    match value {
+        Value::Array(values) => {
+            for value in values {
+                assert_sibling_fixture_deferrals_are_pinned(value, large_fixture_spot_check);
+            }
+        }
+        Value::Object(fields) => {
+            for value in fields.values() {
+                assert_sibling_fixture_deferrals_are_pinned(value, large_fixture_spot_check);
+            }
+        }
+        Value::String(marker) if marker.starts_with("requires the preserved CSV") => {
+            assert_eq!(marker, LARGE_FIXTURE_DEFERRAL_MARKER);
+            assert_eq!(
+                large_fixture_spot_check["command"], LARGE_FIXTURE_RERUN_COMMAND,
+                "every preserved-shard deferral must retain its pinned rerun command",
+            );
+        }
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
+    }
+}
+
 /// Every numeric declaration has a neighboring derivation record. Logical
-/// maxima cite fixtures/oracle bytes; physical declarations retain the
-/// required `[G2 measures]` posture and exact-match the admitted carriers.
+/// maxima cite fixtures/oracle bytes. P-B may confirm the byte-exact fixture
+/// maxima even when max-bearing served observations refuse; served-only and
+/// operational ceilings remain provisional in that case.
 #[test]
 fn bounds_are_fixture_derived() {
     let corpus = graph_corpus();
     let bounds = graph_bounds();
+    let large_fixture_spot_check = &bounds["largeFixtureSpotCheck"];
     assert_eq!(bounds["fixtures"]["normal"]["users"], 14);
     assert_eq!(bounds["fixtures"]["normal"]["issues"], 516);
     assert_eq!(bounds["fixtures"]["normal"]["comments"], 924);
@@ -7961,6 +8355,16 @@ fn bounds_are_fixture_derived() {
         bounds["fixtures"]["documentedPerIssueDistribution"]["comments"]["obtainableReceiptCeiling"],
         2_527_886,
     );
+    let exact_seed42_maximum =
+        &bounds["fixtures"]["documentedPerIssueDistribution"]["comments"]["exactSeed42Maximum"];
+    let large_fixture_measured = exact_seed42_maximum.is_number();
+    let large_served_measured =
+        bounds["servedMeasurement"]["status"] == "normal-and-large-fixture-validated-hot-blocked";
+    assert_measured_or_fixture_deferred(exact_seed42_maximum, 27, large_fixture_spot_check);
+    assert_sibling_fixture_deferrals_are_pinned(
+        &bounds["fixtures"]["documentedPerIssueDistribution"],
+        large_fixture_spot_check,
+    );
     assert_provisional_records_name_validation(&bounds);
 
     let mut without_digest = bounds.clone();
@@ -7979,14 +8383,35 @@ fn bounds_are_fixture_derived() {
             serde_json::from_value(query["carrier"].clone()).unwrap();
         let actual = serde_json::to_value(&carrier.normalized_plan.query_cost).unwrap();
         let derivation = &bounds["queries"][name]["derivationTable"];
-        assert_eq!(
-            derivation["queryCost"]["maxResultBytes"]["provisional"], true,
-            "large/hot result-byte maxima are not yet verified",
-        );
-        assert_eq!(
-            bounds["queries"][name]["physical"]["observationPosture"],
-            "normal fixture measured through admitted serving; large/hot ceilings remain provisional"
-        );
+        let large_measured = large_served_measured
+            && matches!(name, "issueListV2" | "issueDetail" | "listIssueByID");
+        if large_measured {
+            assert_eq!(
+                derivation["queryCost"]["maxResultBytes"]["provisional"],
+                false,
+            );
+            assert_eq!(
+                bounds["queries"][name]["physical"]["observationPosture"],
+                "normal and large fixtures measured through admitted serving; hot-recent-v1 is blocked and remains provisional"
+            );
+            let large = &bounds["queries"][name]["physical"]["servedLargeMeasurement"];
+            assert_eq!(large["fixture"], "large-seed42-v1");
+            assert_eq!(large["graphPlanHash"], carrier.plan_hash.as_str());
+            for section in ["result", "queryCost", "windowRollup"] {
+                for field in large[section].as_object().unwrap().values() {
+                    assert_eq!(field["disposition"], "fit");
+                }
+            }
+        } else {
+            assert_eq!(
+                derivation["queryCost"]["maxResultBytes"]["provisional"],
+                true,
+            );
+            assert_eq!(
+                bounds["queries"][name]["physical"]["observationPosture"],
+                "normal fixture measured through admitted serving; large/hot ceilings remain provisional"
+            );
+        }
         let measured = &bounds["queries"][name]["physical"]["servedNormalMeasurement"];
         assert_eq!(measured["fixture"], "normal-seed-v1");
         assert_eq!(measured["graphPlanHash"], carrier.plan_hash.as_str());
@@ -8068,7 +8493,7 @@ fn bounds_are_fixture_derived() {
     let list_root_pages = &bounds["queries"]["issueListV2"]["derivationTable"]["graph"]["nodes"][0]
         ["fields"]["maxWindowPages"];
     assert_eq!(list_root_pages["value"], 1);
-    assert_eq!(list_root_pages["provisional"], true);
+    assert_eq!(list_root_pages["provisional"], !large_served_measured);
     assert!(
         list_root_pages["derivation"]
             .as_str()
@@ -8080,15 +8505,24 @@ fn bounds_are_fixture_derived() {
     let comments = &detail["derivationTable"]["graph"]["nodes"][2];
     assert_eq!(comments["nodeId"], "n2");
     assert_eq!(comments["fields"]["maxWindowPages"]["value"], 1);
-    assert_eq!(comments["fields"]["maxWindowPages"]["provisional"], true);
-    assert!(
-        comments["fields"]["maxWindowPages"]["derivation"]
-            .as_str()
-            .is_some_and(
-                |text| text.contains("21 / declared maxChildrenPerParent 1,024")
-                    && text.contains("= 1")
-            ),
+    assert_eq!(
+        comments["fields"]["maxWindowPages"]["provisional"],
+        !large_fixture_measured,
     );
+    let comments_page_derivation = comments["fields"]["maxWindowPages"]["derivation"]
+        .as_str()
+        .expect("comments page derivation");
+    if large_fixture_measured {
+        assert!(
+            comments_page_derivation.contains("27 comments per issue")
+                && comments_page_derivation.contains("=1"),
+        );
+    } else {
+        assert!(
+            comments_page_derivation.contains("21 / declared maxChildrenPerParent 1,024")
+                && comments_page_derivation.contains("= 1"),
+        );
+    }
     assert_eq!(
         comments["fields"]["maxWindowPages"]["validationCommand"],
         "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs",
@@ -8110,19 +8544,24 @@ fn bounds_are_fixture_derived() {
         ("maxWindowIndexRanges", 27),
     ] {
         assert_eq!(rollup[field]["value"], value, "detail rollup {field}");
-        assert_eq!(rollup[field]["provisional"], true);
+        assert_eq!(rollup[field]["provisional"], !large_served_measured);
     }
 
     let spot = &bounds["largeFixtureSpotCheck"];
-    let large_fixture = repository_path("demos/zerobugs/fixtures-local/large-seed42-v1");
-    if large_fixture.exists() {
-        assert_eq!(spot["status"], "available-requires-zb5-rerun");
+    if large_served_measured {
+        assert_eq!(spot["status"], "completed-byte-exact-and-served");
+        assert_eq!(spot["shardDigestVerification"]["exactMatches"], 16);
+        assert_eq!(spot["shardDigestVerification"]["mismatches"], 0);
+    } else if large_fixture_measured {
+        assert_eq!(spot["status"], "completed-byte-exact-served-maxima-blocked");
+        assert_eq!(spot["shardDigestVerification"]["exactMatches"], 16);
+        assert_eq!(spot["shardDigestVerification"]["mismatches"], 0);
     } else {
-        assert_eq!(spot["status"], "deferred-to-zb5-gate-rerun");
-        assert_eq!(
-            spot["command"],
-            "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
-        );
+        assert!(matches!(
+            spot["status"].as_str(),
+            Some("available-requires-zb5-rerun" | "deferred-to-zb5-gate-rerun")
+        ));
+        assert_eq!(spot["command"], LARGE_FIXTURE_RERUN_COMMAND);
     }
 }
 
