@@ -1083,22 +1083,25 @@ platform, and generated-directory assumptions from that run.
      bare provider.
      Expected pages: `backend/familiar-profile.md`, `realtime/ephemeral-state.md`, `recipes/activity-presence.md`.
      Route terms: "URL-first activity presence", "useSnapbackActivityPresence".
-     Required guidance: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`",
-     "Under a bare `SnapbackProvider`, the React hook has no AppState-driven background withdrawal",
-     "typing intent expires by the presence deadline rather than being withdrawn immediately".
+     Required guidance per page:
+     `backend/familiar-profile.md`: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`", "Under a bare `SnapbackProvider`, the React hook has no AppState-driven background withdrawal", "typing intent expires by the presence deadline rather than being withdrawn immediately".
+     `realtime/ephemeral-state.md`: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`", "The React hook under a bare `SnapbackProvider` has no AppState-driven background withdrawal", "typing intent expires by the presence deadline rather than being withdrawn immediately".
+     `recipes/activity-presence.md`: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`", "Under a bare `SnapbackProvider`, the React hook has no AppState-driven background withdrawal", "typing intent expires by the presence deadline rather than being withdrawn immediately".
      Rejected guidance: "expects SnapbackExpoLifecycleContext",
      "works under a bare provider", "works under a bare `SnapbackProvider`",
      "The Expo facade also works under a bare `SnapbackProvider`".
 
-101. **Durable custody in Node acceptance:** "Run expo-chat acceptance with
-     durable-required custody from Node."
+101. **Durable custody in Node and Expo Native acceptance:** "Run expo-chat
+     acceptance with durable-required custody from Node or Expo Native."
      The run fails if it selects the Node memory client platform, treats an
      in-memory server database as the problem, or invents a second custody
-     store instead of using the template helper.
+     store instead of using the template helper. It also fails if it applies
+     the web helper to a missing or invalid Expo Native custody module.
      Expected pages: `start/expo-chat.md`, `testing/acceptance.md`.
-     Route terms: "durable-required", "SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE".
-     Required guidance: "Node `memory` refuses durable custody with `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`",
-     "`expo-web` with `fake-indexeddb`".
+     Route terms: "durable-required", "SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE", "Expo Native acceptance".
+     Required guidance per page:
+     `start/expo-chat.md`: "Node `memory` refuses durable custody with `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`", "`expo-web` with `fake-indexeddb`".
+     `testing/acceptance.md`: "Node `memory` refuses durable custody with `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`", "`expo-web` with `fake-indexeddb` does not repair Expo Native", "Install `@expo/snapback-expo-custody`, list it in the app's Expo `plugins`, and rebuild the native app", "The module is unavailable in Expo Go".
      Exact diagnostic target: `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE` ->
      `/_snapback/guide/testing/acceptance.md#recover-from-snapbackauthcustodydurableunavailable`.
 

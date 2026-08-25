@@ -4,13 +4,13 @@ id: auth.sessions-and-principals
 order: 1
 audience: agent-first
 capabilities: [auth.sessions, auth.guest-sessions, auth.browser-session-custody, auth.scoped-queries]
-authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0172-explicit-function-authorization.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, packages/snapback-codegen/index.mjs, crates/snapback-server/src/admin.rs, crates/snapback-types/src/auth/mode.rs, crates/snapback-auth/src/auth/provider.rs, crates/snapback-auth/src/dev_identity.rs, crates/snapback-engine/src/host_ops.rs, crates/snapback-engine/src/runtime/host_glue.rs, crates/snapback-kernel/src/storage/settlement.rs, crates/snapback-kernel/src/operation_ledger.rs, crates/snapback-server/src/server.rs, crates/snapback-cli/src/cli.rs, packages/snapback-cli/expo-dev.mjs, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/unrecognized-authority-recovery.test.mjs, packages/snapback-contract/index.mjs, packages/snapback-vite/lifecycle.mjs, packages/snapback-vite/proxy.mjs, demos/_kit/as-user.mjs, demos/_kit/server-process.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0172-explicit-function-authorization.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, packages/snapback-codegen/index.mjs, crates/snapback-server/src/admin.rs, crates/snapback-types/src/auth/mode.rs, crates/snapback-types/src/auth/descriptor.rs, crates/snapback-types/src/manifest/graph.rs, crates/snapback-types/src/manifest/types.rs, crates/snapback-auth/src/auth/provider.rs, crates/snapback-auth/src/dev_identity.rs, crates/snapback-engine/src/graph_evaluator.rs, crates/snapback-engine/src/host_ops.rs, crates/snapback-engine/src/runtime/host_glue.rs, crates/snapback-kernel/src/storage/settlement.rs, crates/snapback-kernel/src/operation_ledger.rs, crates/snapback-server/src/server.rs, crates/snapback/tests/graph_corpus_v1.rs, crates/snapback-cli/src/cli.rs, packages/snapback-cli/expo-dev.mjs, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/unrecognized-authority-recovery.test.mjs, packages/snapback-contract/index.mjs, packages/snapback-vite/lifecycle.mjs, packages/snapback-vite/proxy.mjs, demos/_kit/as-user.mjs, demos/_kit/server-process.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/browser-auth, demos/card-game, demos/party-wall, packages/snapback-client/auth-identity-types.fixture.ts]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:c8fafbe4dca37a6cfc1ab35ec945eb5eb212dd7fa5e1c6c1456ab5d85f865b98
+reviewed-authorities-digest: sha256:e9a5e7e368f9933811a10bbef80e5dd7b88c230591011effbd58465c1f1b25ce
 ---
 
 # Sessions and principals
@@ -244,12 +244,29 @@ which bearers are live.
 
 Search vocabulary: stale auth result.
 
-This refusal means a client mutation identity or replay ledger is already
-bound to different resolved authority facts. The server will not disclose or
-replay a predecessor session's result under a new principal, session, or
-authority instance, even when the domain operation is otherwise idempotent.
-Do not reuse a client mutation identity after the session or authority
-instance changes.
+This code has two operation families. Inspect the client error's `operation`
+and `details` (or a graph result's `refusalReason` and
+`graphCompleteness.proof.primaryReason`) before choosing a recovery:
+
+- **Mutation or replay:** `operation` names a mutation/replay path, or
+  `details` carries `clientMutationId`, `guidance: "discard_or_rerecord"`, or
+  an authority-descriptor `reason`. The emitters cover an absent, unknown, or
+  mismatched queued authority descriptor; divergent authority facts on an
+  active operation or expired-operation tombstone; a retained settlement's
+  auth-fingerprint or authority-instance mismatch; and a `ctx` answer ledger
+  recorded under another auth context. The server will not disclose or replay
+  a predecessor session's result under a new principal, session, or authority
+  instance, even when the domain operation is otherwise idempotent. Do not
+  reuse a client mutation identity after the session or authority instance
+  changes.
+- **Graph query or live query:** `operation` is `query` or
+  `liveQuery.subscribe`, or the graph result carries
+  `refusalReason: "SNAPBACK_AUTH_STALE_RESULT"`. Graph evaluation emits this
+  materialized refusal when a partition-scoped (class-two) graph reaches
+  evaluation without every proof-declared permission-backing, membership, or
+  role input in its current authority context. This is not a mutation replay
+  collision: do not discard an outbox record or invent a
+  `clientMutationId`.
 
 For durable outbox work, inspect the stranded record and reconcile whether its
 domain effect already exists before discarding or recording a successor. Use a
@@ -257,6 +274,14 @@ fresh client mutation id for a new authenticated attempt; do not turn an
 ambiguous predecessor outcome into a blind duplicate. An ordinary online
 mutation call generates its own identity, so this most often affects replay
 tools or code that supplies `clientMutationId` explicitly.
+
+For a graph/query refusal, wait for the current auth transition barrier, then
+create a fresh query or subscription attempt from the current application
+client. A custom graph carrier must resolve every permission-backing,
+membership, and role input declared by the graph proof for the same authority
+partition and authorization version before evaluation. If the same current
+attempt still refuses, inspect that carrier or its generated graph artifacts;
+blindly retrying the same incomplete authority context cannot repair it.
 
 ## Mint test personas: the complete local recipe
 

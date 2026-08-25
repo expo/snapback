@@ -2232,22 +2232,25 @@ platform, and generated-directory assumptions from that run.
      bare provider.
      Expected pages: `backend/familiar-profile.md`, `realtime/ephemeral-state.md`, `recipes/activity-presence.md`.
      Route terms: "URL-first activity presence", "useSnapbackActivityPresence".
-     Required guidance: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`",
-     "Under a bare `SnapbackProvider`, the React hook has no AppState-driven background withdrawal",
-     "typing intent expires by the presence deadline rather than being withdrawn immediately".
+     Required guidance per page:
+     `backend/familiar-profile.md`: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`", "Under a bare `SnapbackProvider`, the React hook has no AppState-driven background withdrawal", "typing intent expires by the presence deadline rather than being withdrawn immediately".
+     `realtime/ephemeral-state.md`: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`", "The React hook under a bare `SnapbackProvider` has no AppState-driven background withdrawal", "typing intent expires by the presence deadline rather than being withdrawn immediately".
+     `recipes/activity-presence.md`: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`", "Under a bare `SnapbackProvider`, the React hook has no AppState-driven background withdrawal", "typing intent expires by the presence deadline rather than being withdrawn immediately".
      Rejected guidance: "expects SnapbackExpoLifecycleContext",
      "works under a bare provider", "works under a bare `SnapbackProvider`",
      "The Expo facade also works under a bare `SnapbackProvider`".
 
-101. **Durable custody in Node acceptance:** "Run expo-chat acceptance with
-     durable-required custody from Node."
+101. **Durable custody in Node and Expo Native acceptance:** "Run expo-chat
+     acceptance with durable-required custody from Node or Expo Native."
      The run fails if it selects the Node memory client platform, treats an
      in-memory server database as the problem, or invents a second custody
-     store instead of using the template helper.
+     store instead of using the template helper. It also fails if it applies
+     the web helper to a missing or invalid Expo Native custody module.
      Expected pages: `start/expo-chat.md`, `testing/acceptance.md`.
-     Route terms: "durable-required", "SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE".
-     Required guidance: "Node `memory` refuses durable custody with `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`",
-     "`expo-web` with `fake-indexeddb`".
+     Route terms: "durable-required", "SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE", "Expo Native acceptance".
+     Required guidance per page:
+     `start/expo-chat.md`: "Node `memory` refuses durable custody with `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`", "`expo-web` with `fake-indexeddb`".
+     `testing/acceptance.md`: "Node `memory` refuses durable custody with `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`", "`expo-web` with `fake-indexeddb` does not repair Expo Native", "Install `@expo/snapback-expo-custody`, list it in the app's Expo `plugins`, and rebuild the native app", "The module is unavailable in Expo Go".
      Exact diagnostic target: `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE` ->
      `/_snapback/guide/testing/acceptance.md#recover-from-snapbackauthcustodydurableunavailable`.
 
@@ -2321,13 +2324,13 @@ id: auth.sessions-and-principals
 order: 1
 audience: agent-first
 capabilities: [auth.sessions, auth.guest-sessions, auth.browser-session-custody, auth.scoped-queries]
-authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0172-explicit-function-authorization.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, packages/snapback-codegen/index.mjs, crates/snapback-server/src/admin.rs, crates/snapback-types/src/auth/mode.rs, crates/snapback-auth/src/auth/provider.rs, crates/snapback-auth/src/dev_identity.rs, crates/snapback-engine/src/host_ops.rs, crates/snapback-engine/src/runtime/host_glue.rs, crates/snapback-kernel/src/storage/settlement.rs, crates/snapback-kernel/src/operation_ledger.rs, crates/snapback-server/src/server.rs, crates/snapback-cli/src/cli.rs, packages/snapback-cli/expo-dev.mjs, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/unrecognized-authority-recovery.test.mjs, packages/snapback-contract/index.mjs, packages/snapback-vite/lifecycle.mjs, packages/snapback-vite/proxy.mjs, demos/_kit/as-user.mjs, demos/_kit/server-process.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0172-explicit-function-authorization.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, packages/snapback-codegen/index.mjs, crates/snapback-server/src/admin.rs, crates/snapback-types/src/auth/mode.rs, crates/snapback-types/src/auth/descriptor.rs, crates/snapback-types/src/manifest/graph.rs, crates/snapback-types/src/manifest/types.rs, crates/snapback-auth/src/auth/provider.rs, crates/snapback-auth/src/dev_identity.rs, crates/snapback-engine/src/graph_evaluator.rs, crates/snapback-engine/src/host_ops.rs, crates/snapback-engine/src/runtime/host_glue.rs, crates/snapback-kernel/src/storage/settlement.rs, crates/snapback-kernel/src/operation_ledger.rs, crates/snapback-server/src/server.rs, crates/snapback/tests/graph_corpus_v1.rs, crates/snapback-cli/src/cli.rs, packages/snapback-cli/expo-dev.mjs, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/unrecognized-authority-recovery.test.mjs, packages/snapback-contract/index.mjs, packages/snapback-vite/lifecycle.mjs, packages/snapback-vite/proxy.mjs, demos/_kit/as-user.mjs, demos/_kit/server-process.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/browser-auth, demos/card-game, demos/party-wall, packages/snapback-client/auth-identity-types.fixture.ts]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:c8fafbe4dca37a6cfc1ab35ec945eb5eb212dd7fa5e1c6c1456ab5d85f865b98
+reviewed-authorities-digest: sha256:e9a5e7e368f9933811a10bbef80e5dd7b88c230591011effbd58465c1f1b25ce
 ---
 
 # Sessions and principals
@@ -2561,12 +2564,29 @@ which bearers are live.
 
 Search vocabulary: stale auth result.
 
-This refusal means a client mutation identity or replay ledger is already
-bound to different resolved authority facts. The server will not disclose or
-replay a predecessor session's result under a new principal, session, or
-authority instance, even when the domain operation is otherwise idempotent.
-Do not reuse a client mutation identity after the session or authority
-instance changes.
+This code has two operation families. Inspect the client error's `operation`
+and `details` (or a graph result's `refusalReason` and
+`graphCompleteness.proof.primaryReason`) before choosing a recovery:
+
+- **Mutation or replay:** `operation` names a mutation/replay path, or
+  `details` carries `clientMutationId`, `guidance: "discard_or_rerecord"`, or
+  an authority-descriptor `reason`. The emitters cover an absent, unknown, or
+  mismatched queued authority descriptor; divergent authority facts on an
+  active operation or expired-operation tombstone; a retained settlement's
+  auth-fingerprint or authority-instance mismatch; and a `ctx` answer ledger
+  recorded under another auth context. The server will not disclose or replay
+  a predecessor session's result under a new principal, session, or authority
+  instance, even when the domain operation is otherwise idempotent. Do not
+  reuse a client mutation identity after the session or authority instance
+  changes.
+- **Graph query or live query:** `operation` is `query` or
+  `liveQuery.subscribe`, or the graph result carries
+  `refusalReason: "SNAPBACK_AUTH_STALE_RESULT"`. Graph evaluation emits this
+  materialized refusal when a partition-scoped (class-two) graph reaches
+  evaluation without every proof-declared permission-backing, membership, or
+  role input in its current authority context. This is not a mutation replay
+  collision: do not discard an outbox record or invent a
+  `clientMutationId`.
 
 For durable outbox work, inspect the stranded record and reconcile whether its
 domain effect already exists before discarding or recording a successor. Use a
@@ -2574,6 +2594,14 @@ fresh client mutation id for a new authenticated attempt; do not turn an
 ambiguous predecessor outcome into a blind duplicate. An ordinary online
 mutation call generates its own identity, so this most often affects replay
 tools or code that supplies `clientMutationId` explicitly.
+
+For a graph/query refusal, wait for the current auth transition barrier, then
+create a fresh query or subscription attempt from the current application
+client. A custom graph carrier must resolve every permission-backing,
+membership, and role input declared by the graph proof for the same authority
+partition and authorization version before evaluation. If the same current
+attempt still refuses, inspect that carrier or its generated graph artifacts;
+blindly retrying the same incomplete authority context cannot repair it.
 
 ## Mint test personas: the complete local recipe
 
@@ -31092,7 +31120,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-custody-format-version"></a>`SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION` | auth | — | — | `packages/snapback-client/app-client.mjs:3` | 15 |
 | <a id="diagnostic-snapback-auth-custody-lock-lost"></a>`SNAPBACK_AUTH_CUSTODY_LOCK_LOST` | auth | — | — | `packages/snapback-client/agent-authority.mjs:1104` | 10 |
 | <a id="diagnostic-snapback-auth-custody-lock-unavailable"></a>`SNAPBACK_AUTH_CUSTODY_LOCK_UNAVAILABLE` | auth | — | — | `packages/snapback-client/agent-authority.mjs:1084` | 9 |
-| <a id="diagnostic-snapback-auth-custody-module-invalid"></a>`SNAPBACK_AUTH_CUSTODY_MODULE_INVALID` | auth | — | — | `packages/snapback-expo/provider.mjs:265` | 1 |
+| <a id="diagnostic-snapback-auth-custody-module-invalid"></a>`SNAPBACK_AUTH_CUSTODY_MODULE_INVALID` | auth | — | [guide](../testing/acceptance.md#expo-native-acceptance) | `packages/snapback-expo/provider.mjs:265` | 1 |
 | <a id="diagnostic-snapback-auth-custody-operation-overlap"></a>`SNAPBACK_AUTH_CUSTODY_OPERATION_OVERLAP` | auth | — | — | `packages/snapback-client/agent-authority.mjs:1121` | 1 |
 | <a id="diagnostic-snapback-auth-custody-ownership-reentrant"></a>`SNAPBACK_AUTH_CUSTODY_OWNERSHIP_REENTRANT` | auth | — | — | `packages/snapback-client/agent-authority.mjs:1187` | 1 |
 | <a id="diagnostic-snapback-auth-custody-owner-key-unsupported"></a>`SNAPBACK_AUTH_CUSTODY_OWNER_KEY_UNSUPPORTED` | auth | — | — | `packages/snapback-codegen/client-lifecycle.mjs:306` | 2 |
@@ -74930,13 +74958,13 @@ id: testing.acceptance
 order: 1
 audience: agent-first
 capabilities: [testing.acceptance, operating.server-lifecycle]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0012-headless-integration-contract.spec.md, llp/0031-server-route-taxonomy.spec.md, crates/snapback-cli/src/cli.rs, demos/_kit/harness.mjs, demos/_kit/server-process.mjs, packages/snapback-cli/templates/expo-chat/acceptance.mjs, packages/snapback-cli/comparator-profile.mjs, packages/snapback-cli/comparator-receipt.schema.json, schemas/host-ready.schema.json]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0012-headless-integration-contract.spec.md, llp/0031-server-route-taxonomy.spec.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, crates/snapback-cli/src/cli.rs, demos/_kit/harness.mjs, demos/_kit/server-process.mjs, packages/snapback-cli/templates/expo-chat/acceptance.mjs, packages/snapback-cli/comparator-profile.mjs, packages/snapback-cli/comparator-receipt.schema.json, packages/snapback-client/app-client.mjs, packages/snapback-expo/provider.mjs, packages/snapback-expo-custody/index.mjs, packages/snapback-expo-custody/README.md, schemas/host-ready.schema.json]
 examples: [demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs, demos/all-aboard/tests/acceptance/headless.mjs, packages/snapback-cli/templates/expo-chat/acceptance.mjs, packages/snapback-cli/fixtures/comparator/green.config.mjs]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:1daecbe0386e2309bfb4a65a46f7747f44b756b5ff385515af397757cbf4857b
+reviewed-authorities-digest: sha256:4b19959c4391db0311eac308d47f541ffc49fddce1ca0b68e8e1e4266f5f7862
 ---
 
 # Acceptance testing
@@ -75005,6 +75033,8 @@ that must run under bun.
 
 ## Recover from `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`
 
+### Node and browser-shaped acceptance
+
 Client custody is independent of the server database choice. A server may use
 `--memory`, but Node's client platform named `memory` is volatile. Node
 `memory` refuses durable custody with
@@ -75017,6 +75047,34 @@ The expo-chat template's existing
 constructs that platform with one `IDBFactory` and passes it to
 `createSnapbackAppClient`. Reuse that helper shape; do not invent a second
 custody store.
+
+### Expo Native acceptance
+
+`expo-web` with `fake-indexeddb` does not repair Expo Native. On iOS or
+Android, inspect `details.platform`, `details.package`, `details.causeCode`,
+and `details.reportedGrade`:
+
+- `details.package: "@expo/snapback-expo-custody"` with
+  `causeCode: "ERR_MODULE_NOT_FOUND"` means the optional JavaScript package is
+  absent. Install `@expo/snapback-expo-custody`, list it in the app's Expo
+  `plugins`, and rebuild the native app.
+- `causeCode: "SNAPBACK_AUTH_CUSTODY_MODULE_INVALID"` means the resolved
+  package does not export `createNativeAuthCustodyStorage()`. Align the
+  `@expo/snapback-*` package versions, reinstall, and rebuild instead of
+  injecting a memory store.
+- `causeCode: "ERR_NATIVE_MODULE_NOT_FOUND"` or another failure from
+  `platformGrade()` means the JavaScript package loaded but its native module
+  is missing or invalid. The module is unavailable in Expo Go: use an Expo
+  development or production build, keep the custody config plugin declared,
+  run the native prebuild step, and rebuild the app.
+- `details.platform: "expo-native"` with a missing, thrown, malformed, or
+  insufficient grade is the application-client validation path. Use the
+  first-party provider-resolved native adapter whose `platformGrade()` reports
+  the admitted iOS/Android `single-runtime` tuple; do not downgrade a
+  `durable-required` policy to `memory`.
+
+After rebuilding, rerun the native acceptance carrier. A Node helper cannot
+prove that the native Keychain or DataStore/Keystore module is linked.
 
 ## Server lifecycle: isolated, provenance-verified, owned
 

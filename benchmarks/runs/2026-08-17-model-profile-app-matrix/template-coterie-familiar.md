@@ -36,7 +36,10 @@ against a real Snapback backend: published Snapback {{SNAPBACK_VERSION}} from
 the public npm
 registry, authored in the familiar layout: a sessions-mode backend with
 `schema.ts`, top-level function modules with `query`/`mutation`/`action`
-constructors, and `_generated/` produced by the published codegen. Opt in
+constructors, and `generated/` produced by the published codegen. Regenerate
+that directory, commit `generated/artifacts.json`, and never hand-edit its
+outputs. The `_generated/` spelling is a refused alias; use only `generated/`.
+Opt in
 explicitly with `"authoringProfile": "snapback-familiar-ts-v1"` in
 `snapback/codegen.policy.json`; do not fall back to the explicit profile. Read
 the served "Familiar TypeScript profile" guide page first. A deterministic in-memory

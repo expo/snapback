@@ -32,9 +32,10 @@ const ROSETTA_DIR = 'guide/rosetta/records';
 // is a numbered `**Label:**` list item whose final lines are the two
 // machine-parsed markers: `Expected pages:` (backticked guide-relative
 // paths) followed by `Route terms:` (double-quoted grep vocabulary). Cases may
-// also carry `Required guidance:`, `Rejected guidance:`,
+// also carry `Required guidance:`, `Required guidance per page:`, `Rejected guidance:`,
 // `Exact diagnostic target:`, and `Diagnostic pin disposition:` markers. The
-// first two bind a repaired page to semantic wording; exact-target markers bind
+// guidance markers bind repaired pages to semantic wording; the per-page form
+// requires every quoted phrase on its named page. Exact-target markers bind
 // diagnostic queries to generated registry anchors on expected pages so
 // lexical drift cannot silently retarget exact lookup. Disposition markers are
 // explicit per-code exceptions for shared/per-operation diagnostics whose
@@ -82,6 +83,7 @@ function parseSeedCases(text, errors) {
       continue;
     }
     const requiredAt = seed.text.indexOf('Required guidance:');
+    const requiredPerPageAt = seed.text.indexOf('Required guidance per page:');
     const rejectedAt = seed.text.indexOf('Rejected guidance:');
     const exactDiagnosticAt = seed.text.indexOf('Exact diagnostic target:');
     const diagnosticDispositionAt = seed.text.indexOf('Diagnostic pin disposition:');
@@ -91,6 +93,7 @@ function parseSeedCases(text, errors) {
     );
     const termsEnd = markerEnd(termsAt, [
       requiredAt,
+      requiredPerPageAt,
       rejectedAt,
       exactDiagnosticAt,
       diagnosticDispositionAt,
@@ -104,11 +107,38 @@ function parseSeedCases(text, errors) {
     seed.requiredGuidance = requiredAt === -1
       ? []
       : [...seed.text.slice(requiredAt, markerEnd(requiredAt, [
+          requiredPerPageAt,
           rejectedAt,
           exactDiagnosticAt,
           diagnosticDispositionAt,
         ])).matchAll(/"([^"]+)"/g)]
         .map((m) => m[1]);
+    seed.requiredGuidanceByPage = new Map();
+    if (requiredPerPageAt !== -1) {
+      const block = seed.text.slice(requiredPerPageAt, markerEnd(requiredPerPageAt, [
+        rejectedAt,
+        exactDiagnosticAt,
+        diagnosticDispositionAt,
+      ]));
+      for (const match of block.matchAll(/^\s+`([^`]+)`:\s*(.+)$/gmu)) {
+        const page = match[1];
+        const guidance = [...match[2].matchAll(/"([^"]+)"/g)].map((item) => item[1]);
+        if (!seed.expectedPages.includes(page)) {
+          errors.push(`${who}: per-page required guidance names non-expected page ${page}`);
+        } else if (seed.requiredGuidanceByPage.has(page)) {
+          errors.push(`${who}: duplicate per-page required guidance for ${page}`);
+        } else if (guidance.length === 0) {
+          errors.push(`${who}: per-page required guidance for ${page} lists no quoted phrases`);
+        } else {
+          seed.requiredGuidanceByPage.set(page, guidance);
+        }
+      }
+      for (const page of seed.expectedPages) {
+        if (!seed.requiredGuidanceByPage.has(page)) {
+          errors.push(`${who}: per-page required guidance omits expected page ${page}`);
+        }
+      }
+    }
     seed.rejectedGuidance = rejectedAt === -1
       ? []
       : [...seed.text.slice(rejectedAt, markerEnd(rejectedAt, [
@@ -285,6 +315,17 @@ function main() {
           errors.push(
             `${EVAL_PAGE}: case ${seed.number} (${seed.label}) expected page guide/${page} `
             + 'contains none of the case\'s required guidance',
+          );
+        }
+      }
+    }
+    for (const [page, guidanceList] of seed.requiredGuidanceByPage ?? []) {
+      const normalizedPageText = normalizeGuidance(pageTexts.get(page)?.body ?? '');
+      for (const guidance of guidanceList) {
+        if (!normalizedPageText.includes(normalizeGuidance(guidance))) {
+          errors.push(
+            `${EVAL_PAGE}: case ${seed.number} (${seed.label}) expected page guide/${page} `
+            + `is missing per-page required guidance "${guidance}"`,
           );
         }
       }

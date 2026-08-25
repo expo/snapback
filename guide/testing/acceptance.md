@@ -4,13 +4,13 @@ id: testing.acceptance
 order: 1
 audience: agent-first
 capabilities: [testing.acceptance, operating.server-lifecycle]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0012-headless-integration-contract.spec.md, llp/0031-server-route-taxonomy.spec.md, crates/snapback-cli/src/cli.rs, demos/_kit/harness.mjs, demos/_kit/server-process.mjs, packages/snapback-cli/templates/expo-chat/acceptance.mjs, packages/snapback-cli/comparator-profile.mjs, packages/snapback-cli/comparator-receipt.schema.json, schemas/host-ready.schema.json]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0012-headless-integration-contract.spec.md, llp/0031-server-route-taxonomy.spec.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, crates/snapback-cli/src/cli.rs, demos/_kit/harness.mjs, demos/_kit/server-process.mjs, packages/snapback-cli/templates/expo-chat/acceptance.mjs, packages/snapback-cli/comparator-profile.mjs, packages/snapback-cli/comparator-receipt.schema.json, packages/snapback-client/app-client.mjs, packages/snapback-expo/provider.mjs, packages/snapback-expo-custody/index.mjs, packages/snapback-expo-custody/README.md, schemas/host-ready.schema.json]
 examples: [demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs, demos/all-aboard/tests/acceptance/headless.mjs, packages/snapback-cli/templates/expo-chat/acceptance.mjs, packages/snapback-cli/fixtures/comparator/green.config.mjs]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:1daecbe0386e2309bfb4a65a46f7747f44b756b5ff385515af397757cbf4857b
+reviewed-authorities-digest: sha256:4b19959c4391db0311eac308d47f541ffc49fddce1ca0b68e8e1e4266f5f7862
 ---
 
 # Acceptance testing
@@ -79,6 +79,8 @@ that must run under bun.
 
 ## Recover from `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`
 
+### Node and browser-shaped acceptance
+
 Client custody is independent of the server database choice. A server may use
 `--memory`, but Node's client platform named `memory` is volatile. Node
 `memory` refuses durable custody with
@@ -91,6 +93,34 @@ The expo-chat template's existing
 constructs that platform with one `IDBFactory` and passes it to
 `createSnapbackAppClient`. Reuse that helper shape; do not invent a second
 custody store.
+
+### Expo Native acceptance
+
+`expo-web` with `fake-indexeddb` does not repair Expo Native. On iOS or
+Android, inspect `details.platform`, `details.package`, `details.causeCode`,
+and `details.reportedGrade`:
+
+- `details.package: "@expo/snapback-expo-custody"` with
+  `causeCode: "ERR_MODULE_NOT_FOUND"` means the optional JavaScript package is
+  absent. Install `@expo/snapback-expo-custody`, list it in the app's Expo
+  `plugins`, and rebuild the native app.
+- `causeCode: "SNAPBACK_AUTH_CUSTODY_MODULE_INVALID"` means the resolved
+  package does not export `createNativeAuthCustodyStorage()`. Align the
+  `@expo/snapback-*` package versions, reinstall, and rebuild instead of
+  injecting a memory store.
+- `causeCode: "ERR_NATIVE_MODULE_NOT_FOUND"` or another failure from
+  `platformGrade()` means the JavaScript package loaded but its native module
+  is missing or invalid. The module is unavailable in Expo Go: use an Expo
+  development or production build, keep the custody config plugin declared,
+  run the native prebuild step, and rebuild the app.
+- `details.platform: "expo-native"` with a missing, thrown, malformed, or
+  insufficient grade is the application-client validation path. Use the
+  first-party provider-resolved native adapter whose `platformGrade()` reports
+  the admitted iOS/Android `single-runtime` tuple; do not downgrade a
+  `durable-required` policy to `memory`.
+
+After rebuilding, rerun the native acceptance carrier. A Node helper cannot
+prove that the native Keychain or DataStore/Keystore module is linked.
 
 ## Server lifecycle: isolated, provenance-verified, owned
 

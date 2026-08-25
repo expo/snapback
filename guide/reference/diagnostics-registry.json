@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:cc2b256e3d15e74401046c739588ee3c41e1e6632987afa96c775aaca3a30da7"
+    "sourceDigest": "sha256:c7abaacc59e14a3d5c9a53c799dcd91740a768b3b008123226f8536d34a7a14b"
   },
   "limits": {
     "lookupBytes": 16384
@@ -12,7 +12,7 @@
     "sourceFiles": 616,
     "emittingSites": 12974,
     "httpClassified": 1729,
-    "guideAnchored": 467
+    "guideAnchored": 468
   },
   "diagnostics": {
     "SNAPBACK_ACTION_CAPACITY_EXCEEDED": {
@@ -19400,7 +19400,8 @@
       "guideAnchor": "/_snapback/guide/testing/acceptance.md#recover-from-snapbackauthcustodydurableunavailable",
       "guideAnchors": [
         "/_snapback/guide/testing/acceptance.md#recover-from-snapbackauthcustodydurableunavailable",
-        "/_snapback/guide/start/expo-chat.md#posture"
+        "/_snapback/guide/start/expo-chat.md#posture",
+        "/_snapback/guide/testing/acceptance.md#node-and-browser-shaped-acceptance"
       ]
     },
     "SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION": {
@@ -19615,8 +19616,10 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/testing/acceptance.md#expo-native-acceptance",
+      "guideAnchors": [
+        "/_snapback/guide/testing/acceptance.md#expo-native-acceptance"
+      ]
     },
     "SNAPBACK_AUTH_CUSTODY_OPERATION_OVERLAP": {
       "code": "SNAPBACK_AUTH_CUSTODY_OPERATION_OVERLAP",
