@@ -22,11 +22,13 @@ crate, file, or naming similarity.
 | Strict derive-not-supply | 37 | 58 | No |
 | Pending-effect cross-principal binding | 1 | 2 | No — landed (Q06) |
 | Ask payer selection | 1 | 2 | **Yes** |
-| Honest singleton residue | 6 | 6 | One of six: Q23 |
-| **Total** | **45** | **68** | **2 decisions / 3 rows** |
+| Honest singleton residue | 6 | 6 | One of six: Q23 (ruled owner-bound 2026-08-25; see below) |
+| **Total** | **45** | **68** | **2 decisions / 3 rows at 2026-08-25 analysis time; 1 decision / 2 rows after the Q23 ruling** |
 
-Collapsed: **68 rows → 9 distinct decision questions, 7 of which are already decided.** Two product
-decisions remain open and they cover **3 rows**. Q06's two rows have landed, leaving 66 represented
+Collapsed (2026-08-25 analysis-time state; superseded for Q23 by the ruling update below): **68 rows → 9
+distinct decision questions, 7 of which are already decided.** Two product decisions remained open
+at analysis time and covered **3 rows**; after the Q23 ruling the remainder is **1 open product
+decision (Q13) / 2 rows**. Q06's two rows have landed, leaving 66 represented
 in code, of which **63 are engineering work under settled policy** and **3 are author-blocked**.
 
 The 68-row partition was checked for exact set equality: 68 unique members, no duplicates, no

@@ -59,7 +59,8 @@ F122 is sequencing-gated by the Q11/C005 authority seal but does not itself requ
 Product decisions, not correlation rulings:
 
 - Q13: F203 and C014. Billing principal selection remains open.
-- Q23: F146. Dev-mode impersonation policy remains open.
+- Q23: F146. Dev-mode impersonation policy was open at this 2026-08-24 plan; ruled owner-bound on
+  2026-08-25 — superseded by the note below.
 
 **2026-08-25 ruling note:** Q23 is now owner-bound; see LLP 0303 §Product decisions — Q13 open,
 Q23 ruled. Implementation is assigned to the `q23-owner-bound` lane; this planning ticket stays open.
@@ -963,7 +964,7 @@ Every executable row uses at least four cases A–D. No timestamp, index, label,
 
 6. **Test-support exposure.** The feature/test helper `prepare_dev_input` at `invocation.rs:2879` must follow the selected policy rather than silently preserving a second rule.
 
-7. **Batching.** Stop for product ruling. Deployed-profile impossibility remains unchanged and is not the unresolved question.
+7. **Batching.** At this 2026-08-24 plan: stop for product ruling (superseded by the 2026-08-25 ruling note below — the ruling is owner-bound; proceed under it). Deployed-profile impossibility remains unchanged and is not the unresolved question.
 
 **Fixture:** To be specified by the selected product policy. Do not write an acceptance matrix that implicitly chooses unrestricted, owner-bound, or fixture-bound behavior.
 
