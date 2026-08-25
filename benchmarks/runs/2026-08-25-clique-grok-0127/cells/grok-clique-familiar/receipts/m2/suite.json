@@ -1,0 +1,174 @@
+{
+  "schemaVersion": "clique.suite-receipt.v1",
+  "milestone": "m2",
+  "pass": true,
+  "at": "2026-08-25T11:58:12.706Z",
+  "lifecycle": {
+    "formatVersion": "snapback.application-ready.v1",
+    "serverUrl": "http://127.0.0.1:48100",
+    "hostReadyDescriptorDigest": "sha256:c021eb1671d8c38938c269e97e3bb46850be2d6feb17b60e84d80fe412a46af2",
+    "pid": 2113796
+  },
+  "assertions": [
+    {
+      "id": "m2-a01",
+      "pass": true,
+      "details": {
+        "postId": "id_01m0wchyeff8rt1mt7pwknkw9n"
+      }
+    },
+    {
+      "id": "m2-a02",
+      "pass": true,
+      "details": {
+        "postId": "id_01m0wchys6efg9xhsyg9gyzdwg"
+      }
+    },
+    {
+      "id": "m2-a03",
+      "pass": true,
+      "details": {
+        "postId": "id_01m0wchyycek9r4c5f16gczsh1"
+      }
+    },
+    {
+      "id": "m2-a06",
+      "pass": true,
+      "details": {
+        "found": true
+      }
+    },
+    {
+      "id": "m2-a08",
+      "pass": true,
+      "details": {
+        "remainingDirect": false
+      }
+    },
+    {
+      "id": "m2-a09",
+      "pass": true,
+      "details": {
+        "inGlobal": true
+      }
+    },
+    {
+      "id": "m2-a10",
+      "pass": true,
+      "details": {
+        "postId": "id_01m0wchz8pes9r6e0tp7dem4aw"
+      }
+    },
+    {
+      "id": "m2-a11",
+      "pass": true,
+      "details": {
+        "absentFollowing": true
+      }
+    },
+    {
+      "id": "m2-a12",
+      "pass": true,
+      "details": {
+        "text": "Suite text post https://example.com/cafe",
+        "tappable": "kit-linkify"
+      }
+    },
+    {
+      "id": "m2-a13",
+      "pass": true,
+      "details": {
+        "preview": false
+      }
+    },
+    {
+      "id": "m2-a15",
+      "pass": true,
+      "details": {
+        "liked": false,
+        "likeCount": 0
+      }
+    },
+    {
+      "id": "m2-a16",
+      "pass": true,
+      "details": {
+        "attributed": true
+      }
+    },
+    {
+      "id": "m2-a17",
+      "pass": true,
+      "details": {
+        "removed": true
+      }
+    },
+    {
+      "id": "m2-a18",
+      "pass": true,
+      "details": {
+        "surfaced": true
+      }
+    },
+    {
+      "id": "m2-a20",
+      "pass": true,
+      "details": {
+        "count": 2
+      }
+    },
+    {
+      "id": "m2-a21",
+      "pass": true,
+      "details": {
+        "replyId": "id_01m0wchzzsfbgt2hvm62sgp8kt"
+      }
+    },
+    {
+      "id": "m2-a22",
+      "pass": true,
+      "details": {
+        "page1": 13,
+        "page2": 0,
+        "cursor": null
+      }
+    },
+    {
+      "id": "m2-a23",
+      "pass": true,
+      "details": {
+        "page1": 20,
+        "page2": 18
+      }
+    },
+    {
+      "id": "m2-a24",
+      "pass": true,
+      "details": {
+        "overlap": 0
+      }
+    },
+    {
+      "id": "m2-a25",
+      "pass": true,
+      "details": {
+        "postId": "id_01m0wcj0gret1tz905dd0qpp1y"
+      }
+    },
+    {
+      "id": "m2-a26",
+      "pass": true,
+      "details": {
+        "ownRepost": true
+      }
+    },
+    {
+      "id": "m2-a27",
+      "pass": true,
+      "details": {
+        "followingCount": 0,
+        "followerCount": 2
+      }
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "milestone": "m1",
+  "pass": true,
+  "origin": "http://127.0.0.1:48110",
+  "results": [
+    {
+      "id": "m1-a01",
+      "pass": true,
+      "detail": "signup succeeded"
+    },
+    {
+      "id": "m1-a02",
+      "pass": true,
+      "detail": "authenticated feed tabs"
+    },
+    {
+      "id": "m1-a03",
+      "pass": true,
+      "detail": "That handle is already taken."
+    },
+    {
+      "id": "m1-a04",
+      "pass": true,
+      "detail": "SNAPBACK_AUTH_PASSWORD_EXISTS: a password credential already exists for this identifier"
+    },
+    {
+      "id": "m1-a08",
+      "pass": true,
+      "detail": "AM\nEdit profile\nAlice Suite m1mt8lf0cc\n@alice\nSuite bio m1mt8lf0cc\n◦ Oakland, CA\nhttps://example.com/alice\n0 Followers\n0 Following"
+    },
+    {
+      "id": "m1-a10",
+      "pass": true,
+      "detail": "avatar upload save"
+    },
+    {
+      "id": "m1-a11",
+      "pass": true,
+      "detail": "avatar renders on profile"
+    }
+  ],
+  "at": "2026-08-25T11:40:06.482Z"
+}

@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "clique.suite-receipt.v1",
+  "milestone": "m1",
+  "pass": true,
+  "at": "2026-08-25T11:29:49.149Z",
+  "lifecycle": {
+    "formatVersion": "snapback.application-ready.v1",
+    "serverUrl": "http://127.0.0.1:48100",
+    "hostReadyDescriptorDigest": "sha256:ee3c9d6b2fac5c7bc1a547a8b5814e98835e5db75256810a114d9ff91217fc62",
+    "pid": 2110936
+  },
+  "assertions": [
+    {
+      "id": "m1-a01",
+      "pass": true,
+      "details": {
+        "email": "m1-signup-1787657388549-2111237@example.com",
+        "userId": "usr_3bes0txne7xemamc566jpb6er6",
+        "recovery": 8
+      }
+    },
+    {
+      "id": "m1-a02",
+      "pass": true,
+      "details": {
+        "status": "authenticated"
+      }
+    },
+    {
+      "id": "m1-a03",
+      "pass": true,
+      "details": {
+        "visibleError": "That handle is already taken.",
+        "appCode": "HANDLE_TAKEN"
+      }
+    },
+    {
+      "id": "m1-a04",
+      "pass": true,
+      "details": {
+        "visibleError": "That email is already registered."
+      }
+    },
+    {
+      "id": "m1-a08",
+      "pass": true,
+      "details": {
+        "displayName": "Alice Edited",
+        "bio": "Edited bio for M1."
+      }
+    },
+    {
+      "id": "m1-a10",
+      "pass": true,
+      "details": {
+        "assetId": "01a038af-037c-7b32-a725-ab77e1bc89f6"
+      }
+    },
+    {
+      "id": "m1-a11",
+      "pass": true,
+      "details": {
+        "assetId": "01a038af-037c-7b32-a725-ab77e1bc89f6",
+        "url": "http://127.0.0.1:48100/assets/public/01a038af-037c-7b32-a725-ab77e1bc89f6/primary"
+      }
+    }
+  ]
+}

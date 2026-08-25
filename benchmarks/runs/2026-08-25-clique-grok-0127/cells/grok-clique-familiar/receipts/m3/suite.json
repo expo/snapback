@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "clique.suite-receipt.v1",
+  "milestone": "m3",
+  "pass": true,
+  "at": "2026-08-25T12:27:15.229Z",
+  "lifecycle": {
+    "formatVersion": "snapback.application-ready.v1",
+    "serverUrl": "http://127.0.0.1:48100",
+    "hostReadyDescriptorDigest": "sha256:1ef54fb5ef12d8e4c7003e35446f13f62bb9649888517f7c42635b3b4f9428c7",
+    "pid": 2118625
+  },
+  "assertions": [
+    {
+      "id": "m3-a03",
+      "pass": true,
+      "details": {
+        "conversationId": "id_01m0we740aek8tk9jkvd036wd3"
+      }
+    },
+    {
+      "id": "m3-a04",
+      "pass": true,
+      "details": {
+        "conversationId": "id_01m0we763bfs9rcpg6jdzjahn7"
+      }
+    },
+    {
+      "id": "m3-a05",
+      "pass": true,
+      "details": {
+        "a": "id_01m0we763bfs9rcpg6jdzjahn7",
+        "b": "id_01m0we766xfphtaqers69np8kg"
+      }
+    },
+    {
+      "id": "m3-a10",
+      "pass": true,
+      "details": {
+        "excerpt": "Coffee after work?"
+      }
+    },
+    {
+      "id": "m3-a11",
+      "pass": true,
+      "details": {
+        "jump": true,
+        "quoteId": "id_01m0we746aft1tv7v2xepagps8"
+      }
+    },
+    {
+      "id": "m3-a14",
+      "pass": true,
+      "details": {
+        "appCode": "NOT_ADMIN"
+      }
+    },
+    {
+      "id": "m3-a15",
+      "pass": true,
+      "details": {
+        "first": 19,
+        "second": 19
+      }
+    }
+  ]
+}

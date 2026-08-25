@@ -1,0 +1,28 @@
+{
+  "milestone": "m2",
+  "pass": false,
+  "origin": "http://127.0.0.1:48110",
+  "results": [
+    {
+      "id": "m2-a01",
+      "pass": true,
+      "detail": "text post"
+    },
+    {
+      "id": "m2-a12",
+      "pass": true,
+      "detail": "url present"
+    },
+    {
+      "id": "m2-a13",
+      "pass": true,
+      "detail": "no unfurl card"
+    },
+    {
+      "id": "suite-crash",
+      "pass": false,
+      "detail": "Error: feed item not found: The blue glaze finally worked.\n    at loadUntilText (file:///home/ccheever/clique-grok-0127-20260825/lanes/explicit/clique/scripts/acceptance.mjs:56:9)\n    at async file:///home/ccheever/clique-grok-0127-20260825/lanes/explicit/clique/scripts/acceptance.mjs:201:5\nOVERLAY:"
+    }
+  ],
+  "at": "2026-08-25T11:53:15.123Z"
+}

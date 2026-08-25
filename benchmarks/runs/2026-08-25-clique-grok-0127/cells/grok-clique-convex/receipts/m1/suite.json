@@ -1,0 +1,36 @@
+{
+  "milestone": "M1",
+  "pass": true,
+  "failures": [],
+  "results": [
+    {
+      "id": "m1-a01",
+      "pass": true
+    },
+    {
+      "id": "m1-a02",
+      "pass": true
+    },
+    {
+      "id": "m1-a03",
+      "pass": true
+    },
+    {
+      "id": "m1-a04",
+      "pass": true
+    },
+    {
+      "id": "m1-a08",
+      "pass": true
+    },
+    {
+      "id": "m1-a10",
+      "pass": true
+    },
+    {
+      "id": "m1-a11",
+      "pass": true
+    }
+  ],
+  "at": "2026-08-25T11:57:48.302Z"
+}
