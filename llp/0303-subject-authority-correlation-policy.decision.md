@@ -6,7 +6,7 @@
 **Author:** Claude (Opus 5), commissioned by Charlie Cheever (author ruling
 2026-08-24, in session supervising LLP 0283 F-1)
 **Date:** 2026-08-24
-**Revised:** 2026-08-24 (j — move semantics protect the handle, not the fact)
+**Revised:** 2026-08-25 (k — durable records are checked at acquisition; handles outlive them)
 **Related:** LLP 0283, LLP 0298, LLP 0285, LLP 0274,
 `issues/20260824-liveness-row-bucket-assignment.md`,
 `issues/20260824-entitlement-predicates-for-the-live-sites.md`
@@ -315,6 +315,44 @@ answer must be durable or the claim is false.
 
 Type-level consumption remains worth having — it closes the accidental path and makes misuse a
 compile error. It is a complement to the durable check, never a substitute for it.
+
+### A durable record is checked at acquisition; a live handle outlives it
+
+Four lanes implemented durable single-use correctly — the record written atomically with the effect —
+and the first two reviews still found holes, in two different places. Both are about *when* the
+durable state is consulted, not whether it exists.
+
+**Cross-process, the handle survives the record.** A reviewer ran two processes against one SQLite
+file:
+
+```
+Process A installed boot sequence 1 and stayed alive
+Process B opened the same file and installed boot sequence 2
+Process A then successfully issued another connection from sequence 1
+
+FULL_HOLDING   sequence=1 connection_generation=1
+FULL_ISSUED    sequence=2 issuer_sequence=2
+FULL_STILL_LIVE sequence=1 connection_generation=2
+```
+
+The ledger was written and read correctly. The defect is that the durable check runs when a handle is
+**acquired**, and the handle then keeps working after the durable state has moved on.
+
+> **A durable record consulted only at acquisition is a cache.** If a live handle can outlive the
+> record it was validated against, revalidate at the point of *use*, or make the handle unable to
+> survive a change — a generation counter compared on every use is the usual shape, and this
+> repository already carries one in the admission-fence epoch checks.
+
+**And the key itself can be poisoned.** A second lane's ledger stored only the envelope digest, and
+its commit carrier was caller-constructible across a public boundary. Pre-seeding the canonical digest
+caused a **later genuine signed envelope to be refused as already replayed** — turning a security
+control into an availability attack. A replay guard needs a separately stored request digest, so
+*replay of the same request* is distinguishable from *a different request colliding on the key*, and
+its commit carrier must be opaque and producer-bound.
+
+Both findings share a shape with everything above: the mechanism was right and the boundary was one
+step away from where it was checked. When claiming durable single-use, state **where the check runs**
+and **what happens to handles issued before it**.
 
 This is the same family as the constructor/setter case above: a derivation that holds at one instant
 and is undone afterwards. Setters undo it by assignment; combinators undo it by rewrapping; recycling
