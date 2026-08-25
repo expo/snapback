@@ -6,7 +6,7 @@
 **Author:** Claude (Opus 5), commissioned by Charlie Cheever (author ruling
 2026-08-24, in session supervising LLP 0283 F-1)
 **Date:** 2026-08-24
-**Revised:** 2026-08-25 (n — enumerate the siblings, or the review will)
+**Revised:** 2026-08-25 (o — an enumeration under default features is not an enumeration)
 **Related:** LLP 0283, LLP 0298, LLP 0285, LLP 0274,
 `issues/20260824-liveness-row-bucket-assignment.md`,
 `issues/20260824-entitlement-predicates-for-the-live-sites.md`
@@ -427,6 +427,41 @@ it as `pub` when enumerating. And an enumeration that finds an uncovered sibling
 report it *because no executed witness exists yet* has still found it — the honest form is to name
 it as unproven and close it anyway, rather than let its absence from the findings list read as
 absence from the surface.
+
+### An enumeration under default features is not an enumeration
+
+Revision (n) said to enumerate the siblings. This says **where** to look, because two careful
+enumerations over the same code both missed the same thing.
+
+A lane closing an authorization interlock had its coverage checked twice by executable review. The
+first found `identity_reap_guests_default_tombstone`; the second confirmed guest claim as the only
+other direct epoch writer. Both were thorough, and both were reading **default features**. A third
+review then found:
+
+```
+install_graph_corpus_streams_for_test  — public under additive `test-support`,
+writes the caller-selected incarnation and epoch directly, no interlock
+
+via ServingDatabase::auth_database_mut()  → result=Ok(())  epoch 0→1
+via a separately opened LocalDatabase     → result=Ok(())  epoch 0→1
+```
+
+> **Enumerate across every feature combination a dependent can enable, not the one you build with.**
+
+This matters more here than in most codebases, for a reason that is easy to forget: **Cargo features
+are additive and unified across the graph.** A single dependent enabling `test-support` for any
+reason — one integration test, one benchmark, one transitive crate — turns it on for *every*
+compilation of that crate in that graph. There is no per-consumer scoping. So a `test-support`-gated
+writer is not "only reachable in tests"; it is reachable by anything in a graph that contains a test.
+
+The scale is on record: 172 class-C items in this repository are reachable from dependent crates,
+**171 of them dependent-reachable**, and an independent line-level analysis found **zero** with any
+legitimate embedder use.
+
+Practically, an enumeration should state which feature sets it covered, and a review should treat
+"default only" as incomplete rather than as an answer. The cheap check is to re-run the search with
+each additive feature enabled and diff the candidate set; the writers that appear are exactly the
+ones the default-feature pass cannot see.
 
 This is the same family as the constructor/setter case above: a derivation that holds at one instant
 and is undone afterwards. Setters undo it by assignment; combinators undo it by rewrapping; recycling
