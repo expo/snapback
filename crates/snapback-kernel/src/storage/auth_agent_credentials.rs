@@ -587,6 +587,10 @@ impl LocalDatabase {
     /// Idempotently revoke exactly the scoped token presented in the request.
     /// Durable grant/credential authority is untouched; this is a carrier
     /// ending and therefore projects the carrier terminal disposition.
+    ///
+    /// @ref LLP 0303#the-fix-inherits-the-defect-and-the-test-that-guards-it-usually-doesnt-try
+    ///   — the exact carrier gate is consumed by the transaction that writes
+    ///   and reconciles the durable release effect.
     pub fn release_scoped_token(
         &mut self,
         token: &ScopedToken,
@@ -594,33 +598,91 @@ impl LocalDatabase {
     ) -> SnapbackResult<ReleasedScopedToken> {
         self.observe_agent_authorization_clock(now_ms)?;
         let hash = token.token_hash();
-        self.with_auth_transaction(|tx| {
-            require_agent_clock_on(tx, now_ms)?;
-            let row: Option<(String, bool)> = tx
-                .query_row(
-                    "SELECT id, revoked_at_ms IS NOT NULL
-                     FROM _auth_grant_tokens WHERE token_hash = ?1",
-                    params![hash.as_bytes()],
-                    |row| Ok((row.get(0)?, row.get(1)?)),
-                )
-                .optional()?;
-            let Some((token_id, already_revoked)) = row else {
-                return Err(scoped_token_invalid(
-                    ScopedTokenAuthorityDisposition::Carrier,
-                ));
-            };
-            if !already_revoked {
-                tx.execute(
-                    "UPDATE _auth_grant_tokens SET revoked_at_ms = ?1
-                     WHERE id = ?2 AND revoked_at_ms IS NULL",
-                    params![now_ms as i64, token_id],
-                )?;
+        let mut body_outcome = None;
+        let attempt = self.attempt_auth_transaction_with_service_terminal(
+            crate::auth::service_authority_contract::ServiceAuthorityDisposition::Carrier,
+            |tx| {
+                let token_id = tx
+                    .query_row(
+                        "SELECT id FROM _auth_grant_tokens WHERE token_hash = ?1",
+                        params![hash.as_bytes()],
+                        |row| row.get(0),
+                    )
+                    .optional()?
+                    .ok_or_else(|| {
+                        scoped_token_invalid(ScopedTokenAuthorityDisposition::Carrier)
+                    })?;
+                Ok(vec![token_id])
+            },
+            |tx| {
+                require_agent_clock_on(tx, now_ms)?;
+                let row: Option<(String, bool)> = tx
+                    .query_row(
+                        "SELECT id, revoked_at_ms IS NOT NULL
+                         FROM _auth_grant_tokens WHERE token_hash = ?1",
+                        params![hash.as_bytes()],
+                        |row| Ok((row.get(0)?, row.get(1)?)),
+                    )
+                    .optional()?;
+                let Some((token_id, already_revoked)) = row else {
+                    return Err(scoped_token_invalid(
+                        ScopedTokenAuthorityDisposition::Carrier,
+                    ));
+                };
+                if !already_revoked {
+                    tx.execute(
+                        "UPDATE _auth_grant_tokens SET revoked_at_ms = ?1
+                         WHERE id = ?2 AND revoked_at_ms IS NULL",
+                        params![now_ms as i64, token_id],
+                    )?;
+                }
+                body_outcome = Some(ReleasedScopedToken {
+                    token_id,
+                    newly_revoked: !already_revoked,
+                });
+                Ok(())
+            },
+        );
+        let operation_key = body_outcome
+            .as_ref()
+            .map_or("unresolved", |outcome| outcome.token_id.as_str());
+        let attempt = inject_agent_lifecycle_service_commit_uncertainty(
+            attempt,
+            "release-scoped-token",
+            operation_key,
+        );
+        match attempt {
+            ServiceAuthTransactionAttempt::Committed(()) => {
+                body_outcome.ok_or_else(agent_lifecycle_commit_uncertain)
             }
-            Ok(ReleasedScopedToken {
-                token_id,
-                newly_revoked: !already_revoked,
-            })
-        })
+            ServiceAuthTransactionAttempt::RolledBack(error) => Err(error),
+            ServiceAuthTransactionAttempt::CommitUncertain { error, terminal } => {
+                let expected = body_outcome
+                    .as_ref()
+                    .ok_or_else(agent_lifecycle_commit_uncertain)?;
+                let durable_state = self.with_auth_read(|connection| {
+                    Ok(connection
+                        .query_row(
+                            "SELECT id, revoked_at_ms IS NOT NULL
+                             FROM _auth_grant_tokens WHERE token_hash = ?1",
+                            params![hash.as_bytes()],
+                            |row| Ok((row.get::<_, String>(0)?, row.get::<_, bool>(1)?)),
+                        )
+                        .optional()?)
+                })?;
+                match durable_state {
+                    Some((token_id, true)) if token_id == expected.token_id => {
+                        self.reconcile_ambiguous_service_terminal(terminal, true)?;
+                        body_outcome.ok_or_else(agent_lifecycle_commit_uncertain)
+                    }
+                    Some((token_id, false)) if token_id == expected.token_id => {
+                        self.reconcile_ambiguous_service_terminal(terminal, false)?;
+                        Err(error)
+                    }
+                    _ => Err(agent_lifecycle_commit_uncertain()),
+                }
+            }
+        }
     }
 
     pub fn oauth_revoke_scoped_token(
@@ -3014,18 +3076,54 @@ mod tests {
     }
 
     #[test]
-    fn exact_scoped_token_release_is_idempotent_and_carrier_only() {
+    fn exact_scoped_token_release_consumes_terminal_transaction_and_is_idempotent() {
         let (mut db, issued) = scoped_token_fixture(10_000);
         assert_eq!(
             db.plan_scoped_token_release(&issued.secret).unwrap(),
             issued.token_id
         );
+        let interlock =
+            crate::auth::service_fence::RecordingServiceAuthorityCommitInterlock::default();
+        let authority = db
+            .claim_kernel_commit_authority()
+            .expect("kernel authority");
+        db.install_service_authority_commit_interlock(
+            &authority.binding(),
+            interlock.bind(&authority),
+        )
+        .expect("bind recording service terminal interlock");
+
         let released = db.release_scoped_token(&issued.secret, 1_001).unwrap();
         assert_eq!(released.token_id, issued.token_id);
         assert!(released.newly_revoked);
+        assert_eq!(
+            interlock.plans(),
+            vec![(
+                vec![issued.token_id.clone()],
+                ServiceAuthorityDisposition::Carrier,
+            )],
+            "the release transaction consumes the exact carrier terminal plan"
+        );
+        assert_eq!(interlock.committed(), 1);
+        assert_eq!(interlock.rolled_back(), 0);
+        assert_eq!(interlock.ambiguous(), 0);
+        assert_eq!(
+            db.conn
+                .query_row(
+                    "SELECT revoked_at_ms FROM _auth_grant_tokens WHERE id = ?1",
+                    params![issued.token_id],
+                    |row| row.get::<_, Option<i64>>(0),
+                )
+                .unwrap(),
+            Some(1_001),
+            "the same committed transaction durably revokes the carrier"
+        );
+
         let repeated = db.release_scoped_token(&issued.secret, 1_002).unwrap();
         assert_eq!(repeated.token_id, issued.token_id);
         assert!(!repeated.newly_revoked);
+        assert_eq!(interlock.plans().len(), 2);
+        assert_eq!(interlock.committed(), 2);
         assert_scoped_token_disposition(
             db.resolve_scoped_token(&issued.secret, 1_002).unwrap_err(),
             "carrier",
@@ -3035,6 +3133,28 @@ mod tests {
         assert_scoped_token_disposition(
             db.release_scoped_token(&unknown, 1_003).unwrap_err(),
             "carrier",
+        );
+    }
+
+    #[test]
+    fn scoped_token_release_reconciles_a_lost_commit_acknowledgement() {
+        let (mut db, issued) = scoped_token_fixture(10_000);
+        inject_next_agent_lifecycle_commit_uncertain("release-scoped-token", &issued.token_id);
+
+        let released = db
+            .release_scoped_token(&issued.secret, 1_001)
+            .expect("the exact durable successor reconciles the lost acknowledgement");
+        assert_eq!(released.token_id, issued.token_id);
+        assert!(released.newly_revoked);
+        assert_eq!(
+            db.conn
+                .query_row(
+                    "SELECT revoked_at_ms FROM _auth_grant_tokens WHERE id = ?1",
+                    params![issued.token_id],
+                    |row| row.get::<_, Option<i64>>(0),
+                )
+                .unwrap(),
+            Some(1_001)
         );
     }
 

@@ -430,7 +430,9 @@ use crate::admin::{AppState, ServerContext};
 use crate::admin_impersonation::{
     IMPERSONATION_CAPABILITY_HEADER, ImpersonationCapabilityRegistry,
 };
-use crate::auth::crypto::{AgentCredential, CryptoError, OsRandom, RandomSource, SessionBearer};
+use crate::auth::crypto::{
+    AgentCredential, CryptoError, OsRandom, RandomSource, ScopedToken, SessionBearer,
+};
 use crate::auth::deployment::{
     AuthenticationBucketPolicy, AuthenticationThrottle, BrowserCredentialPosture,
     BrowserDirectBearerSeam, EffectiveSource, ExternalTls, HostedAdmission, HostedAuthCapabilities,
@@ -7986,6 +7988,92 @@ async fn finite_authority_matrix_pending_durable(state: &AppState) -> usize {
         .expect("inspect matrix outbox effects")
         .ephemeral
         .pending_durable_messages
+}
+
+/// A successful exact-token release must settle the process publication from
+/// the same transaction that durably revokes the carrier.
+///
+/// @ref LLP 0303#the-fix-inherits-the-defect-and-the-test-that-guards-it-usually-doesnt-try
+///   — the boundary test observes both the consumed gate and its durable row.
+#[tokio::test]
+async fn token_release_consumes_terminal_gate_and_commits_durable_revocation() {
+    let fixture = finite_authority_matrix_fixture().await;
+    let opened = fixture
+        .router
+        .clone()
+        .oneshot(connection_open_request(
+            Some(&fixture.token),
+            json!({
+                "connectionId": "token-release-terminal-transaction",
+                "authInvalidationProtocol": 1,
+            }),
+        ))
+        .await
+        .expect("open released-token service connection");
+    assert_eq!(opened.status(), StatusCode::OK);
+    let opened = response_json(opened).await;
+    let connection_id = opened["connectionId"]
+        .as_str()
+        .expect("released-token connection id");
+    let service_publication = {
+        let registry = fixture.state.connections.lock();
+        let record = registry
+            .grants
+            .get(connection_id)
+            .expect("released-token connection grant");
+        let BoundGrantAuthority::ServicePrincipal {
+            service_publication,
+            ..
+        } = &record.authority
+        else {
+            panic!("scoped token must retain a service publication")
+        };
+        service_publication.clone()
+    };
+
+    let release_at_ms = fixture.start_ms + 1;
+    fixture.clock.set(release_at_ms);
+    let released_token = fixture.token.clone();
+    let mut release = auth_http_request(
+        "POST",
+        "/auth/agents/token/release",
+        serde_json::to_vec(&json!({ "token": released_token })).unwrap(),
+        true,
+        None,
+        None,
+    );
+    offer_auth_client_protocol(&mut release);
+    let released = fixture
+        .router
+        .clone()
+        .oneshot(release)
+        .await
+        .expect("token release response");
+    assert_eq!(released.status(), StatusCode::NO_CONTENT);
+
+    assert_eq!(
+        service_publication
+            .resolve_act(fixture.clock.epoch_ms(), fixture.clock.monotonic_now())
+            .expect("resolve released-token publication"),
+        ServiceAuthorityActResolution::Terminal(ServiceAuthorityDisposition::Carrier),
+        "204 requires the exact carrier gate to have committed"
+    );
+    let durable_error = with_snapback(&fixture.state.snapback, move |snapback| {
+        let token = ScopedToken::parse(&released_token).expect("parse released scoped token");
+        snapback
+            .remainder_auth_database_mut()
+            .resolve_scoped_token(&token, release_at_ms)
+    })
+    .await
+    .expect_err("204 requires durable token revocation");
+    assert_eq!(
+        durable_error.diagnostic.code,
+        "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID"
+    );
+    assert_eq!(
+        durable_error.diagnostic.details["authorityDisposition"],
+        "carrier"
+    );
 }
 
 async fn commit_finite_authority_matrix_ending(
