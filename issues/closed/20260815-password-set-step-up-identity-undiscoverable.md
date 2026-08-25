@@ -59,6 +59,8 @@ passes (26/26), including malformed-success cleanup and concurrent predecessor
 rotation; the server password filter passes (15/15); the live-session fixture
 seam regression passes (1/1); `cargo build --bin snapback` and
 `scripts/bootstrap-ibex-runtime` pass; the real sessions-dev-loop
-client/server witness passes (1/1); the guide checker reports 18 passed and 4
-stale generated-registry/projection failures deferred to integration;
+client/server witness passes (1/1); the guide checker reports 19 passed and 3 failed, the three being the
+stale generated diagnostics-registry/manifest/flat projections regenerated at
+integration (the passwords.md authority digest was refreshed after the LLP
+0227 edit);
 `ref-check` reports 0 errors; and `git diff --check` passes.

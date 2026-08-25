@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:d79e5d2363e97acd01f63e3142f00d9c9c66e603d56dd266e55a2e9370d22db7
+reviewed-authorities-digest: sha256:cbc7fe004611f2e8b7ef525e8f4c67052df33e37fafc38d943c69744d1bb5ea7
 ---
 
 # Email and password
