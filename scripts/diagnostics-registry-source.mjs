@@ -1,5 +1,6 @@
 export const DIAGNOSTIC_CODE_PATTERN = /(?<![A-Z0-9_])SNAPBACK_[A-Z0-9_]+/gu;
 const REFERENCE_ONLY_MARKER = 'diagnostics-registry: reference-only';
+const RESERVED_MARKER = 'diagnostics-registry: reserved';
 
 function lineBounds(source, offset) {
   const start = source.lastIndexOf('\n', offset - 1) + 1;
@@ -7,12 +8,20 @@ function lineBounds(source, offset) {
   return { start, end: nextNewline === -1 ? source.length : nextNewline };
 }
 
-function hasReferenceOnlyMarker(source, offset) {
+function hasSiteMarker(source, offset, marker) {
   const current = lineBounds(source, offset);
-  if (source.slice(current.start, current.end).includes(REFERENCE_ONLY_MARKER)) return true;
+  if (source.slice(current.start, current.end).includes(marker)) return true;
   if (current.start === 0) return false;
   const previous = lineBounds(source, current.start - 1);
-  return source.slice(previous.start, previous.end).includes(REFERENCE_ONLY_MARKER);
+  return source.slice(previous.start, previous.end).includes(marker);
+}
+
+function hasReferenceOnlyMarker(source, offset) {
+  return hasSiteMarker(source, offset, REFERENCE_ONLY_MARKER);
+}
+
+function hasReservedMarker(source, offset) {
+  return hasSiteMarker(source, offset, RESERVED_MARKER);
 }
 
 function escapeRegExp(value) {
@@ -172,26 +181,34 @@ function indirectEnvironmentHelperOffsets(source, matches) {
 
 function environmentAnalysis(source) {
   const matches = [...source.matchAll(DIAGNOSTIC_CODE_PATTERN)];
-  const siteOffsets = rustIndirectEnvironmentOffsets(source);
-  for (const offset of javaScriptIndirectEnvironmentOffsets(source)) siteOffsets.add(offset);
-  for (const offset of indirectEnvironmentHelperOffsets(source, matches)) siteOffsets.add(offset);
+  const siteKinds = new Map();
+  for (const offset of rustIndirectEnvironmentOffsets(source)) {
+    siteKinds.set(offset, 'indirect-read');
+  }
+  for (const offset of javaScriptIndirectEnvironmentOffsets(source)) {
+    siteKinds.set(offset, 'declaration');
+  }
+  for (const offset of indirectEnvironmentHelperOffsets(source, matches)) {
+    siteKinds.set(offset, 'read');
+  }
   for (const match of matches) {
-    if (
-      isDirectEnvironmentVariableAccess(source, match.index)
-      || isJavaScriptEnvironmentObjectKey(source, match.index, match[0])
+    if (isDirectEnvironmentVariableAccess(source, match.index)) {
+      siteKinds.set(match.index, 'read');
+    } else if (
+      isJavaScriptEnvironmentObjectKey(source, match.index, match[0])
       || isJavaScriptEnvironmentNameTable(source, match.index)
     ) {
-      siteOffsets.add(match.index);
+      siteKinds.set(match.index, 'table-entry');
     }
   }
-  return {
-    names: new Set(matches.filter((match) => siteOffsets.has(match.index)).map((match) => match[0])),
-    siteOffsets,
-  };
+  return { siteKinds };
 }
 
-export function environmentVariableNames(source) {
-  return environmentAnalysis(source).names;
+export function environmentVariableSites(source) {
+  const analysis = environmentAnalysis(source);
+  return [...source.matchAll(DIAGNOSTIC_CODE_PATTERN)]
+    .filter((match) => analysis.siteKinds.has(match.index))
+    .map((match) => ({ match, kind: analysis.siteKinds.get(match.index) }));
 }
 
 function isCommentReference(source, offset) {
@@ -217,20 +234,6 @@ function isCommentReference(source, offset) {
   return trimmed.startsWith('/*') || trimmed.startsWith('*');
 }
 
-function isExplicitDiagnosticEmission(source, offset) {
-  const before = source.slice(Math.max(0, offset - 512), offset);
-  return (
-    /\b(?:code|diagnosticCode|diagnostic_code|errorCode|error_code)\s*:\s*["'`]$/u.test(before)
-    || /\.code\s*=\s*["'`]$/u.test(before)
-    || /\b(?:diagnosticError|codedError|verifyError|codegenError|conformanceDiagnostic|graph_serving_error)\s*\(\s*["'`]$/u.test(before)
-    || /\b(?:SnapbackError|Diagnostic)::(?:error|warning|info|new)\s*\(\s*["'`]$/u.test(before)
-  );
-}
-
-function isEnvironmentNameReference(source, offset, code, environmentNames) {
-  return environmentNames.has(code) && !isExplicitDiagnosticEmission(source, offset);
-}
-
 function isJavaScriptComparison(source, offset, code) {
   const before = source.slice(Math.max(0, offset - 128), offset);
   const after = source.slice(offset + code.length, offset + code.length + 128);
@@ -242,30 +245,26 @@ function isJavaScriptComparison(source, offset, code) {
   );
 }
 
-export function isEmittingDiagnosticSite(
-  source,
-  match,
-  { environmentNames = environmentVariableNames(source), siteOffsets } = {},
-) {
-  const code = match[0];
+function diagnosticSiteKind(source, match, environmentSites) {
   const offset = match.index;
-  const environmentSites = siteOffsets ?? environmentAnalysis(source).siteOffsets;
-  return !(
+  if (hasReservedMarker(source, offset)) return 'reserved';
+  if (
     hasReferenceOnlyMarker(source, offset)
     || environmentSites.has(offset)
     || isCommentReference(source, offset)
-    || isEnvironmentNameReference(source, offset, code, environmentNames)
-    || isJavaScriptComparison(source, offset, code)
-  );
+    || isJavaScriptComparison(source, offset, match[0])
+  ) return null;
+  return 'emission';
 }
 
-export function diagnosticCodeMatches(source, { environmentNames } = {}) {
+export function diagnosticSourceSites(source) {
   const analysis = environmentAnalysis(source);
-  const classifiedNames = environmentNames ?? analysis.names;
-  return [...source.matchAll(DIAGNOSTIC_CODE_PATTERN)].filter((match) => (
-    isEmittingDiagnosticSite(source, match, {
-      environmentNames: classifiedNames,
-      siteOffsets: analysis.siteOffsets,
-    })
-  ));
+  return [...source.matchAll(DIAGNOSTIC_CODE_PATTERN)].flatMap((match) => {
+    const kind = diagnosticSiteKind(source, match, analysis.siteKinds);
+    return kind === null ? [] : [{ match, kind }];
+  });
+}
+
+export function diagnosticCodeMatches(source) {
+  return diagnosticSourceSites(source).map(({ match }) => match);
 }

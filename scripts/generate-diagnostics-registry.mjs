@@ -3,10 +3,13 @@
 // the public TypeScript code union. Output is sorted and carries no wall-clock
 // value, so identical inputs always produce identical bytes.
 // Source classification excludes environment-variable access/declarations,
-// comments, environment names mentioned in messages, and unambiguous
-// JavaScript comparisons. For a reference-only site whose syntax is otherwise
-// ambiguous, put `diagnostics-registry: reference-only` in a comment on that
-// line or the immediately preceding line; never mark a line that also emits.
+// comments, and unambiguous JavaScript comparisons per site. For a
+// reference-only site whose syntax is otherwise ambiguous, put
+// `diagnostics-registry: reference-only` in a comment on that line or the
+// immediately preceding line; never mark a line that also emits. To reserve a
+// retired spelling in the stable vocabulary, use `diagnostics-registry:
+// reserved` at that exact site; reservations are published with their own site
+// kind and do not count as emissions.
 // @ref LLP 0193#program — D1's complete source inventory is the substrate for
 // exact error lookup and typed client diagnostics.
 
@@ -22,8 +25,8 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   DIAGNOSTIC_CODE_PATTERN as CODE_PATTERN,
-  diagnosticCodeMatches,
-  environmentVariableNames,
+  diagnosticSourceSites,
+  environmentVariableSites,
 } from './diagnostics-registry-source.mjs';
 import { authoritiesDigest } from './guide-lib.mjs';
 
@@ -48,6 +51,7 @@ const outputs = {
 const markdownAuthorities = [
   'llp/0193-errors-as-docs-completeness.plan.md',
   'scripts/generate-diagnostics-registry.mjs',
+  'scripts/diagnostics-registry-source.mjs',
   'crates/snapback-server/src/server/api_error.rs',
   'crates/snapback-server/src/server/tests.rs',
 ];
@@ -221,26 +225,30 @@ function assertPathRelocationPreservesSubsystem(code, sites) {
 }
 
 function collectSites() {
-  const sources = new Map(productionPaths.map((path) => (
-    [path, readFileSync(join(root, path), 'utf8')]
-  )));
-  const environmentNames = new Set();
-  for (const source of sources.values()) {
-    for (const name of environmentVariableNames(source)) environmentNames.add(name);
-  }
-
   const byCode = new Map();
+  const byEnvironmentVariable = new Map();
   for (const path of productionPaths) {
-    const source = sources.get(path);
-    for (const match of diagnosticCodeMatches(source, { environmentNames })) {
+    const source = readFileSync(join(root, path), 'utf8');
+    for (const { match, kind } of diagnosticSourceSites(source)) {
       const code = match[0];
       const location = lineAndColumn(source, match.index);
       const sites = byCode.get(code) ?? [];
-      sites.push({ file: path, ...location });
+      sites.push({
+        file: path,
+        ...location,
+        ...(kind === 'reserved' ? { kind } : {}),
+      });
       byCode.set(code, sites);
     }
+    for (const { match, kind } of environmentVariableSites(source)) {
+      const name = match[0];
+      const location = lineAndColumn(source, match.index);
+      const sites = byEnvironmentVariable.get(name) ?? [];
+      sites.push({ file: path, ...location, kind });
+      byEnvironmentVariable.set(name, sites);
+    }
   }
-  return byCode;
+  return { byCode, byEnvironmentVariable };
 }
 
 const HTTP_STATUS_NUMBERS = {
@@ -436,9 +444,9 @@ function renderMarkdown(registry) {
     '',
     'This build-bound registry is generated from production Rust, JavaScript, and Swift sources. Use `snapback guide SNAPBACK_*` for an exact, bounded lookup before searching prose.',
     '',
-    `**${registry.counts.codes.toLocaleString('en-US')} stable codes** from ${registry.counts.sourceFiles.toLocaleString('en-US')} production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site.`,
+    `**${registry.counts.codes.toLocaleString('en-US')} stable codes** from ${registry.counts.sourceFiles.toLocaleString('en-US')} production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site and explicit reservation.`,
     '',
-    '| Code | Subsystem | HTTP | Guide | First emitting site | Sites |',
+    '| Code | Subsystem | HTTP | Guide | First registered site | Sites |',
     '| --- | --- | ---: | --- | --- | ---: |',
   ];
   for (const record of Object.values(registry.diagnostics)) {
@@ -448,10 +456,25 @@ function renderMarkdown(registry) {
     const anchor = `<a id="diagnostic-${record.code.toLowerCase().replaceAll('_', '-')}"></a>`;
     lines.push(`| ${anchor}\`${record.code}\` | ${escapeTable(record.subsystem)} | ${record.httpStatus ?? '—'} | ${guide} | \`${first.file}:${first.line}\` | ${record.sites.length} |`);
   }
+  lines.push(
+    '',
+    '## Environment variables',
+    '',
+    `**${registry.counts.environmentVariables.toLocaleString('en-US')} environment variables** have ${registry.counts.environmentSites.toLocaleString('en-US')} classified read or declaration sites. These names remain grep-visible and separately typed without being mistaken for diagnostic emissions.`,
+    '',
+    '| Variable | Site kinds | First classified site | Sites |',
+    '| --- | --- | --- | ---: |',
+  );
+  for (const record of Object.values(registry.environment)) {
+    const kinds = [...new Set(record.sites.map((site) => site.kind))].sort().join(', ');
+    const first = record.sites[0];
+    const anchor = `<a id="environment-${record.name.toLowerCase().replaceAll('_', '-')}"></a>`;
+    lines.push(`| ${anchor}\`${record.name}\` | ${escapeTable(kinds)} | \`${first.file}:${first.line}\` | ${record.sites.length} |`);
+  }
   return `${lines.join('\n')}\n`;
 }
 
-function renderTypes(codes) {
+function renderTypes(codes, environmentNames) {
   return [
     '// Generated by scripts/generate-diagnostics-registry.mjs. Never hand-edit.',
     '// @ref LLP 0193#program — the client diagnostic vocabulary is source-complete and drift-checked.',
@@ -459,10 +482,15 @@ function renderTypes(codes) {
     ...codes.map((code, index) => (index === 0 ? `  '${code}'` : `  | '${code}'`)),
     ';',
     '',
+    '/** Environment-variable names classified from production source reads and declarations. */',
+    'export type SnapbackEnvironmentVariable =',
+    ...environmentNames.map((name, index) => (index === 0 ? `  '${name}'` : `  | '${name}'`)),
+    ';',
+    '',
   ].join('\n');
 }
 
-const byCode = collectSites();
+const { byCode, byEnvironmentVariable } = collectSites();
 const statuses = parseHttpStatuses();
 const codes = [...byCode.keys()].sort();
 const anchors = guideAnchors(new Set(codes));
@@ -482,6 +510,16 @@ for (const code of codes) {
     httpStatusClass: httpStatus === null ? null : `${Math.floor(httpStatus / 100)}xx`,
     guideAnchor: guide[0] ?? null,
     guideAnchors: guide,
+  };
+}
+const environmentNames = [...byEnvironmentVariable.keys()].sort();
+const environment = {};
+for (const name of environmentNames) {
+  environment[name] = {
+    name,
+    sites: byEnvironmentVariable.get(name).sort((left, right) => (
+      left.file.localeCompare(right.file) || left.line - right.line || left.column - right.column
+    )),
   };
 }
 const inputPaths = [
@@ -504,16 +542,24 @@ const registry = {
   counts: {
     codes: codes.length,
     sourceFiles: productionPaths.length,
-    emittingSites: Object.values(diagnostics).reduce((total, record) => total + record.sites.length, 0),
+    emittingSites: Object.values(diagnostics).reduce((total, record) => (
+      total + record.sites.filter((site) => site.kind !== 'reserved').length
+    ), 0),
+    reservedSites: Object.values(diagnostics).reduce((total, record) => (
+      total + record.sites.filter((site) => site.kind === 'reserved').length
+    ), 0),
     httpClassified: Object.values(diagnostics).filter((record) => record.httpStatus !== null).length,
     guideAnchored: Object.values(diagnostics).filter((record) => record.guideAnchor !== null).length,
+    environmentVariables: environmentNames.length,
+    environmentSites: Object.values(environment).reduce((total, record) => total + record.sites.length, 0),
   },
   diagnostics,
+  environment,
 };
 const rendered = new Map([
   [outputs.registry, `${JSON.stringify(registry, null, 2)}\n`],
   [outputs.markdown, renderMarkdown(registry)],
-  [outputs.types, renderTypes(codes)],
+  [outputs.types, renderTypes(codes, environmentNames)],
 ]);
 
 const stale = [];
@@ -528,4 +574,4 @@ if (check && stale.length > 0) {
   console.error('[diagnostics-registry] run node scripts/generate-diagnostics-registry.mjs');
   process.exit(1);
 }
-console.log(`[diagnostics-registry] ${check ? 'ok' : 'wrote'} — ${codes.length} codes, ${registry.counts.emittingSites} sites, ${registry.counts.httpClassified} HTTP-classified`);
+console.log(`[diagnostics-registry] ${check ? 'ok' : 'wrote'} — ${codes.length} codes, ${registry.counts.emittingSites} emitting sites, ${registry.counts.reservedSites} reserved sites, ${environmentNames.length} environment variables, ${registry.counts.environmentSites} environment sites, ${registry.counts.httpClassified} HTTP-classified`);

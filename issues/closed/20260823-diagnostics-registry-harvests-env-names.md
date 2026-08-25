@@ -32,24 +32,37 @@ instead of as diagnostic codes, then regenerate.
 
 ## Resolution (2026-08-25)
 
-The generator now classifies source sites before publishing the diagnostic
+The generator now classifies each source occurrence before publishing either
 vocabulary. It recognizes direct and injected JavaScript/Swift environment
 objects, helper calls and helper-indirected reads, environment object keys and
-name tables, Rust `var`/`var_os`/`option_env!` access, const-indirected reads,
-and environment names mentioned in comments or messages. Classification is
-site-specific: a name read from the environment and emitted as a diagnostic
-elsewhere retains only the emitting site.
+name tables, Rust `var`/`var_os`/`option_env!` access, and const-indirected
+reads. Environment classification is per site, not unioned by name across the
+production corpus. There is no constructor-name allowlist: any occurrence that
+is not itself an environment read/declaration, comparison, comment, or marked
+reference stays registered as an emission, including plain `throw new Error`,
+Rust `eprintln!`/`format!`, and arbitrary constructors.
 
-All examples from this ticket left the public union:
-`SNAPBACK_DEV_AUTH_ORIGINS`, `SNAPBACK_RUNTIME_BINARY`,
-`SNAPBACK_EXPO_METRO_PORT`, `SNAPBACK_DEV_PORT`,
+The machine registry now has a separate `environment` section with source
+locations and `read`, `indirect-read`, `declaration`, or `table-entry` site
+kinds. The existing generated `diagnostic-codes.d.mts` also owns the
+`SnapbackEnvironmentVariable` union, re-exported by `@expo/snapback-client`.
+Keeping both unions in that file gives the one generator and already-published
+package file a single lifecycle; the symbol registry discovers the new export
+without adding another generated-file inventory.
+
+Of the original examples, `SNAPBACK_EXPO_METRO_PORT`,
 `SNAPBACK_DEV_CLIENT_PORT`, `SNAPBACK_DEV_BOOTSTRAP_PORT`, and
-`SNAPBACK_DEV_PORT_RANGE`. The broader audit found no remaining code whose
-only sites are environment reads, comparisons, tables, comments, or message
-references. `SNAPBACK_GRAPH_EXEC_DISABLED` and
-`SNAPBACK_VERIFY_PROFILE_TIMEOUT` honestly remain because each is also emitted
-as a real diagnostic; their registry entries now contain only that constructor
-site.
+`SNAPBACK_DEV_PORT_RANGE` are environment-only. `SNAPBACK_DEV_AUTH_ORIGINS`,
+`SNAPBACK_RUNTIME_BINARY`, and `SNAPBACK_DEV_PORT` are dual-role names: their
+environment sites live under `environment`, while their separately emitted
+message/detail sites remain diagnostics. The same boundary retains
+`SNAPBACK_GRAPH_EXEC_DISABLED` and `SNAPBACK_VERIFY_PROFILE_TIMEOUT` as real
+diagnostics while recording their reads separately.
+
+Ordinary comment-only spellings are not harvested. One deliberate exception is
+the retired `SNAPBACK_IBEX_CLI_UNAVAILABLE` compatibility spelling: its runtime
+comment carries `diagnostics-registry: reserved`, and the registry retains that
+exact occurrence with site kind `reserved` without counting it as an emission.
 
 The generator deliberately does not consume
 `NON_DIAGNOSTIC_SNAPBACK_LITERALS`: that list governs HTTP projection and
@@ -57,7 +70,16 @@ contains legitimate non-HTTP diagnostics, so treating it as a public-registry
 denylist would erase real emissions. No hand-maintained environment allowlist
 was added.
 
-The companion fixture expanded from the 12 raw matches present at round-2
-review to 28 shapes. The prior classifier accepted 18 of those matches; the
-fixed classifier retains the five real emissions. Regeneration changed the
-registry from 3,629 codes / 12,507 sites to 3,502 codes / 12,070 sites.
+The companion fixture now contains 31 raw `SNAPBACK_*` substrings. It covers
+the negative-lookbehind cases `__SNAPBACK_FIXTURE_NESTED__` and
+`PUBLIC_SNAPBACK_FIXTURE_ORIGIN`, and a dual-role name with one environment
+read plus plain JavaScript and Rust emissions. The classifier retains seven
+emitting occurrences across six names and only the emitting occurrences of the
+dual-role name. A separate unit case pins the explicit reservation behavior.
+
+Across the complete correction, regeneration moved from 3,629 codes / 12,507
+sites to 3,549 codes / 12,176 emitting sites plus one reserved site, while the
+separate environment vocabulary contains 146 names / 239 classified sites.
+The round-2 fixes restored 47 registered codes — 46 emission names plus one
+reserved spelling — and 106 emitting sites over the over-suppressing
+3,502-code / 12,070-site intermediate registry.

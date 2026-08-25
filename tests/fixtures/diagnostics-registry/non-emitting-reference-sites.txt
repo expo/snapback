@@ -27,6 +27,8 @@ if (env?.[FIXTURE_ENVIRONMENT_NAMES.trace]) recover();
 if (error.code === 'SNAPBACK_FIXTURE_JS_REFERENCE') recover();
 if ('SNAPBACK_FIXTURE_JS_REVERSE_REFERENCE' !== error.code) recover();
 switch (error.code) { case 'SNAPBACK_FIXTURE_JS_CASE_REFERENCE': recover(); }
+const __SNAPBACK_FIXTURE_NESTED__ = true;
+const PUBLIC_SNAPBACK_FIXTURE_ORIGIN = 'https://example.test';
 
 // Object/error construction remains an emission site.
 throw Object.assign(new Error('refused'), { code: 'SNAPBACK_FIXTURE_JS_EMITTED' });
@@ -40,7 +42,8 @@ throw Object.assign(
 // A name that is read from the environment and emitted elsewhere retains only
 // its emitting site.
 const dualRole = env('SNAPBACK_FIXTURE_DUAL_ROLE');
-throw diagnosticError('SNAPBACK_FIXTURE_DUAL_ROLE', 'refused');
+throw new Error('SNAPBACK_FIXTURE_DUAL_ROLE');
+eprintln!("SNAPBACK_FIXTURE_DUAL_ROLE detail={detail}");
 
 // SNAPBACK_FIXTURE_COMMENT_REFERENCE is documentation, not an emission.
 

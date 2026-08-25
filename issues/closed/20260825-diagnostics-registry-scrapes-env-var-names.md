@@ -33,31 +33,32 @@ The root cause was the generator's raw identifier sweep: every production
 `SNAPBACK_*` match became an emitting site without examining its source
 context. A source classifier now excludes Rust and JavaScript environment
 accesses, quoted equality/case comparisons, and explicitly marked
-reference-only sites. The generator header documents the narrow
-`diagnostics-registry: reference-only` escape hatch for ambiguous syntax.
+reference-only sites per occurrence. The generator header documents the narrow
+`diagnostics-registry: reference-only` escape hatch for ambiguous syntax and
+the inverse `diagnostics-registry: reserved` marker for historical vocabulary.
+It does not union environment names across files or depend on a constructor
+allowlist to keep real emissions alive.
 
 A fixture keeps real Rust and JavaScript emissions beside excluded environment
-reads and consumer references. The original 9-match count was stale: the
-round-2 review baseline already had 12 raw matches, and the completed fixture
-now has 28. The prior classifier accepted 18; the fixed classifier retains the
-five real emissions (1 test, 1 pass). Across the completed correction,
-regeneration moved from 3,629 codes / 12,507 sites to 3,502 codes / 12,070
-sites;
+reads and consumer references, covers both prefixed-identifier
+negative-lookbehind shapes, and proves a dual-role name retains its plain
+JavaScript and Rust emitting sites. It now has 31 raw substrings and seven
+retained emitting occurrences across six names; a second unit case covers the
+reservation marker.
+
+The registry separately publishes 146 environment names / 239 classified
+sites, and `@expo/snapback-client` exports the generated
+`SnapbackEnvironmentVariable` union from the same generator-owned declaration
+file as `SnapbackDiagnosticCode`. Across the completed correction,
+regeneration moved from 3,629 codes / 12,507 sites to 3,549 codes / 12,176
+emitting sites plus one reserved site;
 `SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE` is absent from the registry, Guide
-projection, and public type union, while
+diagnostic projection and diagnostic type union but present in the environment
+registry and type union, while
 `SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH` remains registered.
 
 The 20260823 ticket is the canonical report because it predates this duplicate
 and names the full affected family. Its resolution records the complete shape
-coverage, every original example removed, the dual-role names that must remain,
+coverage, the environment-only and dual-role dispositions,
 and why the HTTP-specific Rust exclusion list was not reused as a public
 registry denylist.
-
-Final verification passed: diagnostics registry check (3,502 codes / 12,070
-sites / 1,709 HTTP-classified), symbol registry check (56 modules / 1,454
-symbols / exact runtime parity), classifier fixture (1/1), local-proof selector
-(19/19), scripts test inventory (32/32 run), repository inventories (356
-package tests, 32 scripts tests, 31 demos/catalog entries, 487 publication
-leaves, 157 Guide pages / 1,871 snippets), Guide check (22 passed, 0
-failed/skipped/preconditions), `ref-check` (311 LLP docs, 7,212 refs, 0
-errors/unchecked), and the generated-artifact sweep.

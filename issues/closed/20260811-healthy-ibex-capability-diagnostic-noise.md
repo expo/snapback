@@ -81,6 +81,10 @@ external executable, so there is no genuine missing-CLI refusal path to retain.
 
 The retired `SNAPBACK_IBEX_CLI_UNAVAILABLE` spelling remains reserved in the
 generated diagnostic vocabulary for compatibility with historical records.
+The runtime comment carries the explicit `diagnostics-registry: reserved`
+marker; the generated registry records that occurrence with site kind
+`reserved`, keeps it out of the emitting-site count, and retains it in the
+public `SnapbackDiagnosticCode` union.
 Runtime, local generation, inspect casing, server projection, and admin tests
 cover the new boundary; the admin regression also proves that two genuine
 same-code warnings remain two ordered `recentDiagnostics` occurrences.
