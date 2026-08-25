@@ -92,7 +92,7 @@ Each row points to one question group defined and ranked below.
 | F067 | `provider:4420` | Q39 |
 | F069 | `provider:4439` | Q36 |
 | F070 | `provider:4448` | Q05 |
-| F073 | `crates/snapback-auth/src/auth/lease.rs:260` | Q16 |
+| F073 | `crates/snapback-kernel/src/auth/lease.rs:260` | Q16 |
 | F075 | `auth-invalidation:181` | Q15 |
 | F081 | `auth-invalidation:416` | Q15 |
 | F082 | `auth-invalidation:459` | Q42 |
@@ -102,7 +102,7 @@ Each row points to one question group defined and ranked below.
 | F100 | `projection:1811` | Q03 |
 | F101 | `projection:1967` | Q03 |
 | F102 | `projection:2057` | Q03 |
-| F112 | `crates/snapback-sync/src/auth/service_fence.rs:753` | Q19 |
+| F112 | `crates/snapback-auth/src/auth/service_fence.rs:753` | Q19 |
 | F113 | `crates/snapback-sync/src/auth/service_fence.rs:821` | Q07 |
 | F117 | `crates/snapback-kernel/src/auth/service_fence.rs:98` | Q20 |
 | F118 | `invocation:397` | Q10 |
