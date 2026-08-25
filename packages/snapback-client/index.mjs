@@ -6322,6 +6322,7 @@ export class SnapbackClient {
 
   async #request(method, path, body, headers, {
     admin = false,
+    rejectRedirects = false,
     supersededRetry = true,
     senderChallengeRetry = true,
     expectedAuthorityCapture = null,
@@ -6618,6 +6619,7 @@ export class SnapbackClient {
                   merged,
                   {
                     ...senderFetchOptions,
+                    rejectRedirects,
                     onFetchInvoked: () => { fetchInvoked = true; },
                   },
                 );
@@ -6633,6 +6635,7 @@ export class SnapbackClient {
               merged,
               {
                 ...senderFetchOptions,
+                rejectRedirects,
                 onFetchInvoked: () => { fetchInvoked = true; },
               },
             );
@@ -6691,6 +6694,7 @@ export class SnapbackClient {
         // #request so identity verification completes before this replay.
         return this.#request(method, path, body, headers, {
           admin,
+          rejectRedirects,
           supersededRetry,
           senderChallengeRetry: false,
           expectedAuthorityCapture: capture,
@@ -6726,6 +6730,7 @@ export class SnapbackClient {
           // episode is verified before AUTH_MODE_PENDING is replayed.
           return await this.#request(method, path, body, headers, {
             admin,
+            rejectRedirects,
             supersededRetry,
             senderChallengeRetry,
             expectedAuthorityCapture,
@@ -6798,6 +6803,7 @@ export class SnapbackClient {
           // declared-dev identity preflight before the transport replay.
           return await this.#request(method, path, body, headers, {
             admin,
+            rejectRedirects,
             supersededRetry,
             senderChallengeRetry,
             expectedAuthorityCapture: retryAuthorityCapture,
@@ -6850,6 +6856,7 @@ export class SnapbackClient {
           // response invalidated the declared-dev episode.
           return this.#request(method, path, body, headers, {
             admin,
+            rejectRedirects,
             supersededRetry: false,
             senderChallengeRetry,
             expectedAuthorityCapture,
@@ -6958,6 +6965,7 @@ export class SnapbackClient {
       onSenderErrorNonce = null,
       onFetchInvoked = null,
       forbiddenSecrets = [],
+      rejectRedirects = false,
     } = {},
   ) {
     let declaredDevOperation = null;
@@ -6999,7 +7007,9 @@ export class SnapbackClient {
         headers: Object.keys(merged).length > 0 ? merged : undefined,
         body: body === undefined ? undefined : JSON.stringify(body),
         signal,
-        ...(credentialed || declaredDevOperation !== null ? { redirect: 'manual' } : {}),
+        ...(credentialed || declaredDevOperation !== null || rejectRedirects
+          ? { redirect: 'manual' }
+          : {}),
       });
     } catch (error) {
       this.__declaredDevEpisodeGate?.invalidate(declaredDevOperation);
@@ -7007,7 +7017,7 @@ export class SnapbackClient {
       throw sanitizeTransportError(error, requestSecrets, { dispatchFailure: true });
     }
     if (!res.ok) this.__declaredDevEpisodeGate?.invalidate(declaredDevOperation);
-    if (credentialed && isRedirectResponse(res)) {
+    if ((credentialed || rejectRedirects) && isRedirectResponse(res)) {
       try { await res.body?.cancel?.(); } catch { /* the refusal owns cleanup */ }
       throw redirectRefusedError(res.status);
     }
@@ -7169,6 +7179,7 @@ export class SnapbackClient {
         '/inspect',
         undefined,
         this.#authOfferHeaders(false),
+        { rejectRedirects: true },
       );
     } catch (cause) {
       // An HTTP answer is current target evidence even when it is a refusal
@@ -7195,6 +7206,15 @@ export class SnapbackClient {
   async #recordOfflineMutationReplayCapabilityFact(fact) {
     const normalized = normalizeOfflineMutationReplayCapabilityFact(fact);
     if (normalized === null) return null;
+    // The answered fact is authoritative for this observer before durable
+    // writer brokering begins. In particular, a parallel transport-lost
+    // enqueue probe must not see the predecessor positive while a negative
+    // replacement is still waiting for its writer acknowledgement.
+    const localNegativeOverride = normalized.supported === false ? normalized : null;
+    if (localNegativeOverride !== null) {
+      this.__offlineMutationReplayCapabilityLocalOverride = localNegativeOverride;
+      this.__observedOfflineMutationReplayCapability = localNegativeOverride;
+    }
     let store = null;
     try { store = this.#offlineQueueStore(false); } catch { store = null; }
     if (typeof store?.commitOfflineMutationReplayCapabilityFact === 'function') {
@@ -7209,7 +7229,12 @@ export class SnapbackClient {
           );
           if (shared !== null) {
             this.__observedOfflineMutationReplayCapability = shared;
-            this.__offlineMutationReplayCapabilityLocalOverride = null;
+            if (
+              localNegativeOverride === null
+              || this.__offlineMutationReplayCapabilityLocalOverride === localNegativeOverride
+            ) {
+              this.__offlineMutationReplayCapabilityLocalOverride = null;
+            }
             return shared;
           }
         }
@@ -7222,7 +7247,7 @@ export class SnapbackClient {
     // canonical target clears the override; an uncommitted positive alone is
     // never promoted into durable cached evidence.
     if (normalized.supported === false) {
-      this.__offlineMutationReplayCapabilityLocalOverride = normalized;
+      this.__offlineMutationReplayCapabilityLocalOverride ??= normalized;
     } else if (
       this.__offlineMutationReplayCapabilityLocalOverride?.origin === normalized.origin
     ) {
@@ -7261,10 +7286,12 @@ export class SnapbackClient {
       // Generated references must equal every artifact identity component.
       // String-named mutations carry no generation, so their cached boundary
       // is the canonical origin rather than an invented operation witness.
-      || fact.artifactGeneration === null
       || (
         expectedGeneration !== null
-        && !sameArtifactGeneration(fact.artifactGeneration, expectedGeneration)
+        && (
+          fact.artifactGeneration === null
+          || !sameArtifactGeneration(fact.artifactGeneration, expectedGeneration)
+        )
       )
     ) return null;
     return fact;
@@ -7354,9 +7381,11 @@ export class SnapbackClient {
     return this.__offlineMutationReplayLifecycleProbe;
   }
 
-  /** Settle the latest target-capability observation scheduled by ordinary
-   * query/live-query lifecycle. This is the public coordination boundary for
-   * discovery; applications never need to poll RQS store metadata. */
+  /** Settle the last target-capability inspection scheduled by ordinary
+   * query/live-query lifecycle. This reports that lifecycle observation, not
+   * current enqueue eligibility: a later transport-lost automatic enqueue may
+   * separately reuse matching durable evidence. Applications never need to
+   * poll RQS store metadata. */
   whenOfflineMutationReplayCapabilitySettled() {
     return this.__offlineMutationReplayLifecycleSettlement;
   }

@@ -110,15 +110,14 @@ Round-3 verification (2026-08-25):
 - `node scripts/check-guide.mjs`: `21 passed, 1 failed, 0 skipped, 0
   preconditions; 157 pages, 1872 snippets, 174 routes + 51 host-ops joined, 94
   warnings`. Symbol registry, guide corpus, manifest/MCP, and flat projections
-  pass. Only the diagnostics-registry freshness check is red: the round-3
-  `index.mjs` line shifts require the supervisor-owned diagnostics regeneration
-  and `SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE` union fix, deliberately excluded
-  from this lane.
+  pass. The diagnostics-registry freshness check remained red at this
+  pre-integration checkpoint because the round-3 `index.mjs` line shifts were
+  still moving; integration regenerates the final emitting-site coordinates.
 - Regenerated projections: `guide/reference/registry.json` and its 57 Markdown
-  symbol projections; `guide/guide-manifest.generated.json`; and the changed
-  global, reference, and sync flat guides. The diagnostics registry JSON and
-  Markdown were restored unchanged to `HEAD` before rebuilding the guide
-  projections.
+  symbol projections; `guide/guide-manifest.generated.json`; the changed
+  global, reference, and sync flat guides; and the diagnostics-registry JSON
+  and Markdown. Integration regenerates the diagnostics registry once more
+  after the final `index.mjs` line shifts.
 - `./ref-check --verbose`: `311 LLP docs, 6636 refs in 12503 files, 0 errors,
   0 unchecked`.
 - `git diff --check`: no output (pass).

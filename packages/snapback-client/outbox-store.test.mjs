@@ -2312,6 +2312,47 @@ test('explicit queueing fails with a typed capability error for a ledger-less ta
   assert.deepEqual(await store.outboxRecords(), []);
 });
 
+test('capability inspection refuses redirects instead of borrowing another origin ledger', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const client = new InspectingSnapbackClient('https://target-a.example', {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  let redirectedInspectionCalls = 0;
+  let mutationCalls = 0;
+  globalThis.fetch = async (url, init = {}) => {
+    if (new URL(url).pathname === '/inspect') {
+      if (init.redirect === 'manual') {
+        return new Response(null, {
+          status: 302,
+          headers: { location: 'https://target-b.example/inspect' },
+        });
+      }
+      redirectedInspectionCalls += 1;
+      return Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId: 'target-b-ledger',
+      }));
+    }
+    mutationCalls += 1;
+    return Response.json({ result: { unsafe: true }, version: 1 });
+  };
+
+  await assert.rejects(
+    () => client.mutate('createThing', { args: {}, queue: true }),
+    (error) => error.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
+  );
+  assert.equal(redirectedInspectionCalls, 0, 'the target-B inspection is never followed');
+  assert.equal(mutationCalls, 0, 'target-B evidence never licenses a mutation POST to target A');
+  assert.equal(
+    (await store.readOfflineMutationReplayCapabilityFact()).supported,
+    false,
+    'the redirect is retained as an answered inspection refusal',
+  );
+  assert.deepEqual(await store.outboxRecords(), []);
+});
+
 test('replay refuses to drain an existing outbox for a ledger-less target', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
@@ -2592,6 +2633,61 @@ test('broker-unavailable peer negative stays fail-closed before and after Indexe
   await followerStore.close();
 });
 
+test('an answered negative overrides cached support before durable replacement settles', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  await store.commitOfflineMutationReplayCapabilityFact({
+    schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
+    origin: 'https://interleaved-negative.example',
+    supported: true,
+    reason: null,
+    targetProfileId: 'local-dev-sqlite-ibex',
+    artifactGeneration: TEST_ARTIFACT_GENERATION,
+  });
+  const commitCapabilityFact = store.commitOfflineMutationReplayCapabilityFact.bind(store);
+  let releaseNegativeCommit;
+  const negativeCommitRelease = new Promise((resolve) => { releaseNegativeCommit = resolve; });
+  let markNegativeCommitStarted;
+  const negativeCommitStarted = new Promise((resolve) => { markNegativeCommitStarted = resolve; });
+  store.commitOfflineMutationReplayCapabilityFact = async (fact) => {
+    if (fact.supported === false) {
+      markNegativeCommitStarted();
+      await negativeCommitRelease;
+    }
+    return commitCapabilityFact(fact);
+  };
+  const client = new InspectingSnapbackClient('https://interleaved-negative.example', {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  globalThis.fetch = async () => Response.json(offlineReplayInspection({
+    supported: false,
+    targetProfileId: 'cloudflare-do-sqlite-v8',
+  }));
+  const negativeInspection = client.inspect();
+  await negativeCommitStarted;
+
+  let mutationCalls = 0;
+  globalThis.fetch = async (url) => {
+    if (new URL(url).pathname !== '/inspect') mutationCalls += 1;
+    throw new TypeError('parallel transport loss');
+  };
+  try {
+    await assert.rejects(
+      () => client.mutate('createThing', {
+        args: { title: 'must-not-use-predecessor-positive' },
+        clientMutationId: 'cm-interleaved-negative',
+      }),
+      (error) => isConnectivityFailureError(error),
+    );
+    assert.equal(mutationCalls, 1, 'the parallel mutation remains an online-only attempt');
+    assert.deepEqual(await store.outboxRecords(), [], 'the predecessor positive queues nothing');
+  } finally {
+    releaseNegativeCommit();
+    await negativeInspection;
+  }
+});
+
 test('a 502 lifecycle answer is in-flight deduplication only and a later read recovers positive support', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
@@ -2767,6 +2863,44 @@ test('automatic enqueue rejects cached support bound to a different app generati
     (error) => isConnectivityFailureError(error),
   );
   assert.deepEqual(await store.outboxRecords(), [], 'identity mismatch invalidates cached support');
+});
+
+test('automatic string-named enqueue reuses origin-bound direct-manifest support', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const client = new InspectingSnapbackClient('https://direct-manifest.example', {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  globalThis.fetch = async () => Response.json(offlineReplayCapabilityManifest({
+    supported: true,
+    targetProfileId: 'remote-service',
+  }));
+  await client.inspect();
+  assert.equal(
+    (await store.readOfflineMutationReplayCapabilityFact()).artifactGeneration,
+    null,
+    'a direct manifest carries no invented artifact generation',
+  );
+
+  let inspectCalls = 0;
+  let mutationCalls = 0;
+  globalThis.fetch = async (url) => {
+    if (new URL(url).pathname === '/inspect') inspectCalls += 1;
+    else mutationCalls += 1;
+    throw new TypeError('offline after direct manifest');
+  };
+  const queued = await client.mutate('createThing', {
+    args: { title: 'origin-bound' },
+    clientMutationId: 'cm-direct-manifest',
+  });
+  assert.equal(queued.status, 'queued');
+  assert.equal(inspectCalls, 1, 'the automatic enqueue still performs its fresh re-probe');
+  assert.equal(mutationCalls, 0, 'cached direct-manifest evidence stays enqueue-only');
+  assert.deepEqual(
+    (await store.outboxPending()).map((record) => record.id),
+    ['cm-direct-manifest'],
+  );
 });
 
 test('closeAuth releases an owned default store for the next sequential client', async () => {
