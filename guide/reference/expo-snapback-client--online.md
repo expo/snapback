@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:f67d35e504fd945115dfec0f54016b6e9cb601306c48
 # @expo/snapback-client/online
 
 Build-bound public API projection for `@expo/snapback-client/online`. Canonical registry identity:
-`sha256:37f8a8367b29412636986082a6d8b661d60fa7b6a8bd3c7a3c2a2bc378c40510`.
+`sha256:d34441c172c680ea0515fea9d2d00daab71d6b9bdf3d89d183b5651217dbff50`.
 Runtime parity condition:
 `import` → `packages/snapback-client/online.mjs`.
 

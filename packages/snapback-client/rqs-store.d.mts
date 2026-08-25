@@ -227,6 +227,18 @@ export interface RqsResumeStore {
     stranded: number;
     strandedIds: readonly string[];
   }>>;
+  outboxReconcileCustodyRecords(
+    recordIds: readonly string[],
+    principalScope: Readonly<Record<string, unknown>>,
+    authorityDescriptor: Readonly<Record<string, unknown>>,
+    custody: Readonly<{ authorityEpoch: number; authorityKey: string }>,
+    expectedAuthorityGeneration: number,
+  ): Promise<false | Readonly<{
+    deleted: number;
+    deletedIds: readonly string[];
+    stranded: number;
+    strandedIds: readonly string[];
+  }>>;
   outboxDiscardStranded(
     ids: readonly string[],
     principalScope: Readonly<Record<string, unknown>>,

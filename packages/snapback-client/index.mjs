@@ -10251,6 +10251,7 @@ export class SnapbackClient {
       && typeof store.outboxMarkResultGone === 'function'
       && typeof store.outboxMarkStranded === 'function'
       && typeof store.outboxReconcileCustody === 'function'
+      && typeof store.outboxReconcileCustodyRecords === 'function'
       && typeof store.outboxDiscardStranded === 'function'
       && typeof store.wipeForAuthorityTransition === 'function';
     if (!capable) {
@@ -10554,12 +10555,16 @@ export class SnapbackClient {
     return false;
   }
 
-  /// Reconcile the complete custody matrix in one store transition before a
-  /// client observation or drain. An unsettled/terminal fence leaves bytes
-  /// untouched and returns an inadmissible result.
+  /// Reconcile the custody matrix in one store transition, optionally limited
+  /// to an already-admitted record set. An unsettled/terminal fence leaves
+  /// bytes untouched and returns an inadmissible result.
   async #reconcileQueueCustody(
     store,
-    { required = false, authorizationDispatchOwned = false } = {},
+    {
+      required = false,
+      authorizationDispatchOwned = false,
+      recordIds = null,
+    } = {},
   ) {
     if (!this.authorityFence) {
       return { settled: true, authority: null, result: null };
@@ -10601,6 +10606,7 @@ export class SnapbackClient {
       const result = await this.#applyQueueCustodyReconciliation(store, authority, {
         expectedAuthorityGeneration,
         authorizationDispatchOwned,
+        recordIds,
       });
       return { settled: true, authority, result };
     } catch (error) {
@@ -10616,6 +10622,7 @@ export class SnapbackClient {
       validateCurrent = true,
       expectedAuthorityGeneration = null,
       authorizationDispatchOwned = false,
+      recordIds = null,
     } = {},
   ) {
     let beforeRecords = [];
@@ -10623,12 +10630,20 @@ export class SnapbackClient {
     const pendingBefore = new Map(beforeRecords
       .filter((record) => record?.status === 'pending')
       .map((record) => [record.id, record]));
-    const commit = () => store.outboxReconcileCustody(
-      authority.principalScope,
-      authority.authorityDescriptor,
-      authority.custody,
-      expectedAuthorityGeneration,
-    );
+    const commit = () => (recordIds === null
+      ? store.outboxReconcileCustody(
+        authority.principalScope,
+        authority.authorityDescriptor,
+        authority.custody,
+        expectedAuthorityGeneration,
+      )
+      : store.outboxReconcileCustodyRecords(
+        recordIds,
+        authority.principalScope,
+        authority.authorityDescriptor,
+        authority.custody,
+        expectedAuthorityGeneration,
+      ));
     let result;
     if (authorizationDispatchOwned) {
       result = await commit();
@@ -12771,18 +12786,6 @@ export class SnapbackClient {
         replayed: 0, failed: 0, stranded: 0, quarantined: 0, remaining, stopped: true,
       };
     }
-    const headCustody = await this.#reconcileQueueCustody(store);
-    if (!headCustody.settled) {
-      const remaining = (await store.outboxRecords()).filter(isUnresolvedOutboxRecord).length;
-      const code = headCustody.error?.diagnostic?.code ?? headCustody.error?.code ?? 'unsettled';
-      replayStop.value = Object.freeze({
-        kind: 'paused',
-        reason: `custody-unavailable:${code}`,
-      });
-      return {
-        replayed: 0, failed: 0, stranded: 0, quarantined: 0, remaining, stopped: true,
-      };
-    }
     let pending;
     try {
       pending = (await store.outboxPending()).filter(shouldReplayRecord);
@@ -12805,59 +12808,7 @@ export class SnapbackClient {
       }
       if (!shouldReplayRecord(queuedRecord)) continue;
       let record = queuedRecord;
-      // Re-read and reconcile at the actual submission slot. The current
-      // implementation drains serially, but this gate is the normative fence
-      // a future pipelining client must preserve: no leaf-visible dependent
-      // crosses while its minting predecessor is pending or unresolved.
-      // @ref LLP 0133#divergence-on-settle — sequence order is a submission
-      //   fence, and cascade is checked again immediately before transport.
-      const prepared = await store.outboxPrepareSubmission(record.id);
-      if (
-        prepared?.status === 'authorization-suspended'
-        || prepared?.status === 'authorization-stale'
-      ) {
-        replayStop.value = Object.freeze({
-          kind: 'paused',
-          reason: 'authorization-suspended',
-        });
-        stopped = true;
-        break;
-      }
-      if (prepared?.status === 'blocked') {
-        replayStop.value = Object.freeze({
-          kind: 'terminal',
-          reason: 'terminal-disposition:sequence-blocked',
-        });
-        stopped = true;
-        break;
-      }
-      if (prepared?.status === 'failed') {
-        failed += 1;
-        this.#recordMutationPhaseCost({
-          clientMutationId: record.id,
-          functionId: record.function,
-          disposition: 'failed',
-          timing: mutationTiming(prepared.record ?? record),
-        });
-        this.#recordOutboxDiagnostic({
-          code: 'SNAPBACK_SPECULATIVE_ID_UNRESOLVED',
-          mutation: record.function,
-          clientMutationId: record.id,
-          reason: prepared.record?.failure?.message,
-        });
-        continue;
-      }
-      if (prepared?.status === 'quarantined') {
-        replayStop.value = Object.freeze({
-          kind: 'terminal',
-          reason: 'terminal-disposition:quarantined',
-        });
-        stopped = true;
-        break;
-      }
-      if (prepared?.status !== 'ready' || !prepared.record) continue;
-      record = prepared.record;
-      let preparationFence = prepared.fence;
+      let preparationFence = null;
       let replayAuthority = null;
       let authorizationDispatchRelease = null;
       let authorizationDispatchSettlement = Promise.resolve();
@@ -12902,29 +12853,30 @@ export class SnapbackClient {
           break;
         }
         await ensureAuthorizationDispatch();
-        // The pending set can grow after the drain's first snapshot. Validate
-        // the exact prepared record while holding the same dispatch fence that
-        // owns custody reconciliation, range issuance, stamping, and POST.
+        // The pending set can grow after the drain's first snapshot. Shared
+        // capability currency and the persisted target fence both precede the
+        // only custody write this record can authorize.
+        // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 —
+        //   mismatched target custody stays byte-identical and pending.
+        await assertReplayCapabilityCurrent();
         assertReplayRecordTargetCurrent(record);
-        if (record.custody !== undefined && record.custody !== null) {
-          // Re-attest at every submission slot. Reconciliation normally handled
-          // either mismatch at the drain head; these comparisons are the
-          // belt-and-braces transport gate for authority changes during a drain.
-          // @ref LLP 0043#js-arm-sessions-custody-queue--recorded-design-2026-08-03-commissioned-at-author-sitting-2--ratified-2026-08-04-author-sitting-3-implementation-authorized-as-a-lane — never transmit a
-          //   record under an authority other than its enqueue authority.
-          const custody = await this.#reconcileQueueCustody(store, {
-            authorizationDispatchOwned: true,
+        // @ref LLP 0043#js-arm-sessions-custody-queue--recorded-design-2026-08-03-commissioned-at-author-sitting-2--ratified-2026-08-04-author-sitting-3-implementation-authorized-as-a-lane — never transmit a
+        //   record under an authority other than its enqueue authority.
+        const custody = await this.#reconcileQueueCustody(store, {
+          authorizationDispatchOwned: true,
+          recordIds: [record.id],
+        });
+        if (!custody.settled) {
+          const code = custody.error?.diagnostic?.code ?? custody.error?.code ?? 'unsettled';
+          replayStop.value = Object.freeze({
+            kind: 'paused',
+            reason: `custody-unavailable:${code}`,
           });
-          if (!custody.settled || custody.authority === null) {
-            const code = custody.error?.diagnostic?.code ?? custody.error?.code ?? 'unsettled';
-            replayStop.value = Object.freeze({
-              kind: 'paused',
-              reason: `custody-unavailable:${code}`,
-            });
-            stopped = true;
-            break;
-          }
-          replayAuthority = custody.authority;
+          stopped = true;
+          break;
+        }
+        replayAuthority = custody.authority;
+        if (replayAuthority !== null) {
           if (!samePrincipalScope(record.principalScope, replayAuthority.principalScope)) {
             continue;
           }
@@ -12934,12 +12886,60 @@ export class SnapbackClient {
           ) {
             continue;
           }
-          const currentPrepared = await store.outboxPrepareSubmission(record.id);
-          if (currentPrepared?.status !== 'ready' || !currentPrepared.record) continue;
-          record = currentPrepared.record;
-          preparationFence = currentPrepared.fence;
-          assertReplayRecordTargetCurrent(record);
         }
+        // Re-read after the scoped custody transaction at the actual
+        // submission slot. The current serial drain and any future pipelining
+        // must preserve this predecessor/cascade fence.
+        // @ref LLP 0133#divergence-on-settle — sequence order is a submission
+        //   fence, and cascade is checked again immediately before transport.
+        const prepared = await store.outboxPrepareSubmission(record.id);
+        if (
+          prepared?.status === 'authorization-suspended'
+          || prepared?.status === 'authorization-stale'
+        ) {
+          replayStop.value = Object.freeze({
+            kind: 'paused',
+            reason: 'authorization-suspended',
+          });
+          stopped = true;
+          break;
+        }
+        if (prepared?.status === 'blocked') {
+          replayStop.value = Object.freeze({
+            kind: 'terminal',
+            reason: 'terminal-disposition:sequence-blocked',
+          });
+          stopped = true;
+          break;
+        }
+        if (prepared?.status === 'failed') {
+          failed += 1;
+          this.#recordMutationPhaseCost({
+            clientMutationId: record.id,
+            functionId: record.function,
+            disposition: 'failed',
+            timing: mutationTiming(prepared.record ?? record),
+          });
+          this.#recordOutboxDiagnostic({
+            code: 'SNAPBACK_SPECULATIVE_ID_UNRESOLVED',
+            mutation: record.function,
+            clientMutationId: record.id,
+            reason: prepared.record?.failure?.message,
+          });
+          continue;
+        }
+        if (prepared?.status === 'quarantined') {
+          replayStop.value = Object.freeze({
+            kind: 'terminal',
+            reason: 'terminal-disposition:quarantined',
+          });
+          stopped = true;
+          break;
+        }
+        if (prepared?.status !== 'ready' || !prepared.record) continue;
+        record = prepared.record;
+        preparationFence = prepared.fence;
+        assertReplayRecordTargetCurrent(record);
         if (this.__operationIdentityProtocol === 1 && record.operationIssuance === null) {
           // Currency and operation-range transport share one authorization-
           // dispatch ownership interval. A peer negative wins before the range
@@ -13529,7 +13529,10 @@ export class SnapbackClient {
       );
     }
 
-    await this.#reconcileQueueCustody(store, { required: true });
+    // Replay owns the first custody write so its fresh capability and
+    // persisted per-record target fences run before a target-valid prefix is
+    // reconciled. Adoption prerequisites may inspect this snapshot, but must
+    // not mutate a mismatched record before replay reports the target refusal.
     const beforeRecords = await store.outboxRecords();
     const before = outboxDispositionCounts(beforeRecords);
     for (const record of beforeRecords.filter((entry) => entry?.status === 'pending')) {

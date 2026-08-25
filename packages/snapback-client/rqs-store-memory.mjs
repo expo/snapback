@@ -701,6 +701,27 @@ export function createMemoryRqsResumeStore({
       return structuredClone(applied.result);
     },
 
+    async outboxReconcileCustodyRecords(
+      recordIds,
+      principalScope,
+      authorityDescriptor,
+      custody,
+      expectedAuthorityGeneration = null,
+    ) {
+      requireOpen();
+      const applied = outboxOps.reconcileCustody(
+        state.outbox,
+        principalScope,
+        authorityDescriptor,
+        custody,
+        now(),
+        expectedAuthorityGeneration,
+        recordIds,
+      );
+      state.outbox = applied.state;
+      return structuredClone(applied.result);
+    },
+
     async outboxDiscardStranded(ids, principalScope, expectedAuthorizationFence = null) {
       if (!requireWriter()) return false;
       const applied = outboxOps.discardStranded(

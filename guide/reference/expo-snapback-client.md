@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:47a2eb431a304aea2e4a2e9bd39c4caf39084be98633
 # @expo/snapback-client
 
 Build-bound public API projection for `@expo/snapback-client`. Canonical registry identity:
-`sha256:37f8a8367b29412636986082a6d8b661d60fa7b6a8bd3c7a3c2a2bc378c40510`.
+`sha256:d34441c172c680ea0515fea9d2d00daab71d6b9bdf3d89d183b5651217dbff50`.
 Runtime parity condition:
 `import` → `packages/snapback-client/index.mjs`.
 
@@ -2194,7 +2194,7 @@ export function createIdentifierRemediationSet(input: {
 
 Stable identity: `npm:@expo/snapback-client#createIndexedDbRqsResumeStore`
 Kind: `runtime-function`
-Source: `packages/snapback-client/rqs-store.d.mts:317`
+Source: `packages/snapback-client/rqs-store.d.mts:329`
 
 IndexedDB-backed persisted RQS resume store under single-writer Web-Lock
 ownership. `indexedDB` and `lockManager` are host handles (an `IDBFactory`
@@ -5842,6 +5842,18 @@ export interface RqsResumeStore {
     stranded: number;
     strandedIds: readonly string[];
   }>>;
+  outboxReconcileCustodyRecords(
+    recordIds: readonly string[],
+    principalScope: Readonly<Record<string, unknown>>,
+    authorityDescriptor: Readonly<Record<string, unknown>>,
+    custody: Readonly<{ authorityEpoch: number; authorityKey: string }>,
+    expectedAuthorityGeneration: number,
+  ): Promise<false | Readonly<{
+    deleted: number;
+    deletedIds: readonly string[];
+    stranded: number;
+    strandedIds: readonly string[];
+  }>>;
   outboxDiscardStranded(
     ids: readonly string[],
     principalScope: Readonly<Record<string, unknown>>,
@@ -5944,6 +5956,7 @@ Members and overload groups:
 - `outboxMarkStranded` — method; 1 signature
 - `outboxDiscardPendingInsertion` — method; 1 signature
 - `outboxReconcileCustody` — method; 1 signature
+- `outboxReconcileCustodyRecords` — method; 1 signature
 - `outboxDiscardStranded` — method; 1 signature
 - `outboxMarkQuarantined` — method; 1 signature
 - `outboxReenterQuarantined` — method; 1 signature

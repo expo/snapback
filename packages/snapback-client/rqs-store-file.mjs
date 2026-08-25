@@ -1390,6 +1390,28 @@ export function createFileRqsResumeStore({
       )).result);
     },
 
+    async outboxReconcileCustodyRecords(
+      recordIds,
+      principalScope,
+      authorityDescriptor,
+      custody,
+      expectedAuthorityGeneration = null,
+    ) {
+      requireOpen();
+      return serialized(async () => (await outboxWrite(
+        (outbox) => outboxOps.reconcileCustody(
+          outbox,
+          principalScope,
+          authorityDescriptor,
+          custody,
+          now(),
+          expectedAuthorityGeneration,
+          recordIds,
+        ),
+        { deferToWriter: true },
+      )).result);
+    },
+
     async outboxDiscardStranded(ids, principalScope, expectedAuthorizationFence = null) {
       requireOpen();
       return serialized(async () => (await outboxWrite(

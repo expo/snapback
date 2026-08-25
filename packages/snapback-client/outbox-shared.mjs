@@ -1624,10 +1624,11 @@ export const outboxOps = {
       result: stored,
     };
   },
-  /// Reconcile every fenced queue record in one store transaction before the
-  /// current authority observes it. The ruled item-5 table strands
-  /// anonymous→authenticated, dev→sessions, and same-user predecessor intent;
-  /// cross-user, sessions→dev, and incarnation changes privacy-delete.
+  /// Reconcile either every fenced queue record or an explicitly admitted
+  /// record set in one store transaction before the current authority observes
+  /// it. The ruled item-5 table strands anonymous→authenticated, dev→sessions,
+  /// and same-user predecessor intent; cross-user, sessions→dev, and
+  /// incarnation changes privacy-delete.
   ///
   /// @ref LLP 0059#dated-amendment-total-client-authority-transition-state-and-settlement-matrix-2026-08-21-llp-0295-d02 — apply the item-5 predecessor queue disposition table before successor observation.
   reconcileCustody(
@@ -1637,12 +1638,30 @@ export const outboxOps = {
     custody,
     now,
     expectedAuthorityGeneration = null,
+    eligibleRecordIds = null,
   ) {
     const currentScope = normalizePrincipalScope(principalScope);
     const currentCustody = normalizeCustody(custody);
     const currentInstance = authorityInstanceId(authorityDescriptor);
     if (currentScope === null || currentCustody === null || currentInstance === null) {
       throw invalidOutboxRecord('queue custody reconciliation requires a settled authority');
+    }
+    let eligible = null;
+    if (eligibleRecordIds !== null) {
+      if (
+        !Array.isArray(eligibleRecordIds)
+        || eligibleRecordIds.some((id) => typeof id !== 'string' || id.length === 0)
+      ) {
+        throw invalidOutboxRecord(
+          'record-scoped queue custody reconciliation requires non-empty record ids',
+        );
+      }
+      eligible = new Set(eligibleRecordIds);
+      if (eligible.size !== eligibleRecordIds.length) {
+        throw invalidOutboxRecord(
+          'record-scoped queue custody reconciliation requires unique record ids',
+        );
+      }
     }
     let working = state;
     const authorizationQueue = requireAuthorizationAuthorityGeneration(
@@ -1652,6 +1671,7 @@ export const outboxOps = {
     const deletedIds = [];
     const strandedIds = [];
     for (const record of Object.values(state.records).sort(outboxOrder)) {
+      if (eligible !== null && !eligible.has(record.id)) continue;
       if (!isFencedRecord(record)) {
         if (
           record.status === 'pending'

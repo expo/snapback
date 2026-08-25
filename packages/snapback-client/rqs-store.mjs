@@ -1462,6 +1462,27 @@ export function createIndexedDbRqsResumeStore({
       );
     },
 
+    async outboxReconcileCustodyRecords(
+      recordIds,
+      principalScope,
+      authorityDescriptor,
+      custody,
+      expectedAuthorityGeneration = null,
+    ) {
+      return outboxWrite(
+        (state) => outboxOps.reconcileCustody(
+          state,
+          principalScope,
+          authorityDescriptor,
+          custody,
+          now(),
+          expectedAuthorityGeneration,
+          recordIds,
+        ),
+        { throwWhenNotWriter: true, authorizationWriter: true },
+      );
+    },
+
     async outboxDiscardStranded(ids, principalScope, expectedAuthorizationFence = null) {
       return outboxWrite((state) => outboxOps.discardStranded(
         state,

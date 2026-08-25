@@ -960,6 +960,25 @@ export async function createSqliteRqsResumeStore({
         )
       ));
     },
+    outboxReconcileCustodyRecords(
+      recordIds,
+      principalScope,
+      descriptor,
+      custody,
+      expectedAuthorityGeneration = null,
+    ) {
+      return mutateOutbox('outbox-reconcile-custody-records', (state) => (
+        outboxOps.reconcileCustody(
+          state,
+          principalScope,
+          descriptor,
+          custody,
+          now(),
+          expectedAuthorityGeneration,
+          recordIds,
+        )
+      ));
+    },
     outboxDiscardStranded(ids, principalScope, expectedAuthorizationFence = null) {
       return mutateOutbox('outbox-discard-stranded', (state) => (
         outboxOps.discardStranded(

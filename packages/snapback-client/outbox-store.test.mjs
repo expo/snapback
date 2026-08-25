@@ -13,6 +13,10 @@ import { test } from 'node:test';
 
 import { IDBFactory } from 'fake-indexeddb';
 
+import {
+  AuthCoordinator,
+  createMemoryAuthCustodyStorage,
+} from '../snapback-contract/auth-coordinator.mjs';
 import { createNodeSqliteNamespace } from '../../demos/expo-local-first-carrier/node-sqlite-adapter.mjs';
 import { SnapbackClient as InspectingSnapbackClient, isSnapbackDiagnosticError } from './index.mjs';
 import {
@@ -64,6 +68,11 @@ const TEST_AUTHORITY_DESCRIPTOR = Object.freeze({
   sessionGeneration: 1,
 });
 const TEST_SESSION_USER_ID = '018f0d90-7b25-7a22-8c33-445566778899';
+const TEST_SUCCESSOR_AUTHORITY_DESCRIPTOR = Object.freeze({
+  descriptorVersion: 1,
+  authorityInstanceId: '018f0d90-7b24-7a22-8c33-4455667788bb',
+  sessionGeneration: 2,
+});
 const TEST_ARTIFACT_GENERATION = Object.freeze({
   schemaVersion: 'snapback.v0',
   appId: 'outbox-adoption-test',
@@ -115,6 +124,33 @@ const testQueueResolution = Object.freeze({
 const currentAuthorityGeneration = async (store) => (
   (await store.outboxAuthorizationStatus()).authorityGeneration
 );
+
+const createSuccessorCoordinator = () => new AuthCoordinator({
+  appId: TEST_ARTIFACT_GENERATION.appId,
+  storage: createMemoryAuthCustodyStorage(),
+  broadcastChannelFactory: null,
+  hintStorage: null,
+});
+
+const settleSuccessorCoordinator = async (coordinator) => {
+  const anonymous = await coordinator.establishAnonymous({
+    kind: 'anonymous',
+    authMode: 'sessions',
+    authorizationStreamIncarnation: '018f0d90-7b26-7a22-8c33-445566778899',
+  });
+  const capture = await coordinator.transition(anonymous, {
+    authority: {
+      kind: 'session',
+      authMode: 'sessions',
+      authorizationStreamIncarnation: '018f0d90-7b26-7a22-8c33-445566778899',
+      sessionId: '018f0d90-7b27-7a22-8c33-445566778899',
+      userId: TEST_SESSION_USER_ID,
+    },
+    bearer: 'sbs_outbox_target_successor',
+    refreshAfterMs: Date.now() + 60_000,
+  }, 'test-successor-established');
+  return capture;
+};
 
 const applyQueueRoot = async (store, obligation, expectedAuthorityGeneration = undefined) => (
   store.outboxApplyAuthorizationObligation(
@@ -670,6 +706,36 @@ async function exerciseOutboxContract(store, { label }) {
     principalScope: predecessorScope,
     custody: { authorityEpoch: 1, authorityKey: 'authority-key-a' },
   });
+  await store.outboxEnqueue(fenced('cm-custody-scoped-selected'));
+  await store.outboxEnqueue(fenced('cm-custody-scoped-preserved'));
+  const scopedPreservedBefore = structuredClone(
+    (await store.outboxRecords())
+      .find((record) => record.id === 'cm-custody-scoped-preserved'),
+  );
+  const scoped = await store.outboxReconcileCustodyRecords(
+    ['cm-custody-scoped-selected'],
+    predecessorScope,
+    {
+      ...predecessorDescriptor,
+      authorityInstanceId: 'authority-scoped-successor',
+      sessionGeneration: 2,
+    },
+    { authorityEpoch: 2, authorityKey: 'authority-key-scoped-successor' },
+    await currentAuthorityGeneration(store),
+  );
+  assert.deepEqual(
+    scoped.strandedIds,
+    ['cm-custody-scoped-selected'],
+    `${label}: scoped reconciliation changes only the selected record`,
+  );
+  assert.deepEqual(
+    (await store.outboxRecords())
+      .find((record) => record.id === 'cm-custody-scoped-preserved'),
+    scopedPreservedBefore,
+    `${label}: scoped reconciliation leaves every unselected record byte-identical`,
+  );
+  await store.outboxDiscardStranded(['cm-custody-scoped-selected'], predecessorScope);
+  await store.outboxDiscard('cm-custody-scoped-preserved');
   await store.outboxEnqueue(fenced('cm-strand-pending'));
   await store.outboxEnqueue(fenced('cm-strand-failed'));
   await store.outboxEnqueue(fenced('cm-custody-settled'));
@@ -4227,6 +4293,109 @@ test('an initial mixed-target snapshot replays its valid prefix before pausing',
   }
 });
 
+test('session-fenced target mismatch precedes authority-instance custody reconciliation', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const coordinator = createSuccessorCoordinator();
+  const originA = 'https://session-fenced-target-a.example';
+  const originB = 'https://session-fenced-target-b.example';
+  const targetAProfile = 'session-fenced-target-a';
+  const targetBProfile = 'session-fenced-target-b';
+  const principalScope = {
+    authMode: 'sessions',
+    authorizationStreamIncarnation: '018f0d90-7b26-7a22-8c33-445566778899',
+    userId: TEST_SESSION_USER_ID,
+  };
+  const targetBId = 'cm-session-fenced-target-b-prefix';
+  const targetAId = 'cm-session-fenced-target-a-mismatch';
+  const mutationPosts = [];
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    if (path === '/auth/session') {
+      const handshake = sessionHandshake(
+        TEST_SUCCESSOR_AUTHORITY_DESCRIPTOR,
+        TEST_SESSION_USER_ID,
+      );
+      return Response.json({
+        ...handshake,
+        deploymentIdentity: {
+          ...handshake.deploymentIdentity,
+          appId: TEST_ARTIFACT_GENERATION.appId,
+        },
+      });
+    }
+    if (path === '/inspect') {
+      return Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId: targetBProfile,
+      }));
+    }
+    const body = JSON.parse(init.body);
+    mutationPosts.push(body.clientMutationId);
+    return Response.json({
+      result: { replayed: true },
+      version: mutationPosts.length,
+      authorityDescriptor: TEST_SUCCESSOR_AUTHORITY_DESCRIPTOR,
+    });
+  };
+  const client = new InspectingSnapbackClient(originB, {
+    authCoordinator: coordinator,
+    authClientProtocol: 1,
+    authorityDescriptorProtocol: 1,
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  try {
+    const capture = await settleSuccessorCoordinator(coordinator);
+    await client.authSession();
+    const custody = {
+      authorityEpoch: capture.authorityEpoch,
+      authorityKey: capture.authorityKey,
+    };
+    await store.outboxEnqueue({
+      id: targetBId,
+      function: 'createThing',
+      ...currentOutboxTarget({ origin: originB, targetProfileId: targetBProfile }),
+      args: { title: targetBId },
+      authorityDescriptor: TEST_SUCCESSOR_AUTHORITY_DESCRIPTOR,
+      principalScope,
+      custody,
+    });
+    await store.outboxEnqueue({
+      id: targetAId,
+      function: 'createThing',
+      ...currentOutboxTarget({ origin: originA, targetProfileId: targetAProfile }),
+      args: { title: targetAId },
+      authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR,
+      principalScope,
+      custody,
+    });
+    const mismatchedBefore = structuredClone(
+      (await store.outboxRecords()).find((record) => record.id === targetAId),
+    );
+    const replay = await client.replayQueuedMutations();
+    assert.equal(replay.replayed, 1, 'the valid target-B prefix replays normally');
+    assert.equal(replay.stopped, true, 'the target-A record pauses the target-B drain');
+    assert.deepEqual(mutationPosts, [targetBId], 'the target-A record sends zero mutation POSTs');
+    const mismatchedAfter = (await store.outboxRecords())
+      .find((record) => record.id === targetAId);
+    assert.deepEqual(
+      mismatchedAfter,
+      mismatchedBefore,
+      'the target-A record remains byte-identical and pending',
+    );
+    assert.equal(mismatchedAfter.status, 'pending');
+    assert.equal(
+      client.outboxDiagnostics.at(-1)?.code,
+      'SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH',
+    );
+  } finally {
+    await client.close();
+    await coordinator.close();
+    await store.close();
+  }
+});
+
 test('a cross-target record injected into the second pending snapshot stays pending', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
@@ -5318,6 +5487,96 @@ test('checked sidecar adoption cannot bypass persisted target without target ado
   );
   assert.equal(Object.isFrozen(receipt), true);
   assert.equal(Object.isFrozen(receipt.before), true);
+});
+
+test('sidecar adoption target mismatch precedes authority-instance custody reconciliation', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const clientStoreId = (await store.readStoreMeta()).clientStoreId;
+  const coordinator = createSuccessorCoordinator();
+  const originA = 'http://127.0.0.1:41101';
+  const originB = 'http://127.0.0.1:41102';
+  let mutationPosts = 0;
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+    if (path === '/auth/session') {
+      const handshake = sessionHandshake(
+        TEST_SUCCESSOR_AUTHORITY_DESCRIPTOR,
+        TEST_SESSION_USER_ID,
+      );
+      return Response.json({
+        ...handshake,
+        deploymentIdentity: {
+          ...handshake.deploymentIdentity,
+          appId: TEST_ARTIFACT_GENERATION.appId,
+        },
+      });
+    }
+    if (path === '/inspect') {
+      return Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId: 'local-dev-sqlite-ibex',
+      }));
+    }
+    mutationPosts += 1;
+    return Response.json({ result: { wrongTarget: true }, version: mutationPosts });
+  };
+  const candidate = new InspectingSnapbackClient(originB, {
+    authCoordinator: coordinator,
+    authClientProtocol: 1,
+    authorityDescriptorProtocol: 1,
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  try {
+    const capture = await settleSuccessorCoordinator(coordinator);
+    await candidate.authSession();
+    await store.outboxEnqueue({
+      id: 'cm-session-fenced-sidecar-target-a',
+      function: 'createThing',
+      ...currentOutboxTarget({
+        origin: originA,
+        targetProfileId: 'local-dev-sqlite-ibex',
+        generated: true,
+      }),
+      args: { title: 'pending across authenticated sidecar targets' },
+      expectedGeneration: TEST_ARTIFACT_GENERATION,
+      argumentSchema: TEST_CREATE_THING_ARGUMENT_SCHEMA,
+      authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR,
+      principalScope: {
+        authMode: 'sessions',
+        authorizationStreamIncarnation: '018f0d90-7b26-7a22-8c33-445566778899',
+        userId: TEST_SESSION_USER_ID,
+      },
+      custody: {
+        authorityEpoch: capture.authorityEpoch,
+        authorityKey: capture.authorityKey,
+      },
+    });
+    const before = structuredClone((await store.outboxRecords())[0]);
+    const receipt = await candidate.adoptQueuedMutations({
+      expectedClientStoreId: clientStoreId,
+      expectedGeneration: TEST_ARTIFACT_GENERATION,
+      afterFreshSnapshot: async () => TEST_FRESH_SNAPSHOT_BARRIER,
+    });
+    assert.equal(receipt.replayed, 0);
+    assert.equal(receipt.remaining, 1);
+    assert.equal(receipt.stopped, true);
+    assert.equal(mutationPosts, 0, 'adoption sends zero POSTs for the target-A record');
+    assert.deepEqual(
+      (await store.outboxRecords())[0],
+      before,
+      'adoption leaves the target-A record byte-identical and pending',
+    );
+    assert.equal(
+      candidate.outboxDiagnostics.at(-1)?.code,
+      'SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH',
+    );
+  } finally {
+    await candidate.close();
+    await coordinator.close();
+    await store.close();
+  }
 });
 
 test('sidecar adoption refuses freshness, store, writer, and artifact divergence before replay', async (t) => {

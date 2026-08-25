@@ -633,3 +633,60 @@ byte-identical to round-13 HEAD and were not regenerated. The additional
 `node scripts/check-guide.mjs` run reports `21 passed, 1 failed, 0 skipped, 0
 preconditions; 157 pages, 1872 snippets, 174 routes + 51 host-ops joined, 94
 warnings`; its sole red is those deliberately stale diagnostics projections.
+
+### Round-15 review closure (2026-08-25)
+
+Replay now revalidates the shared capability fact and the exact record's
+persisted enqueue target while holding the authorization-dispatch fence,
+before any custody write. Custody reconciliation is record-scoped across the
+memory, IndexedDB, SQLite, and file store arms; a valid target-B prefix may
+therefore settle without deleting or stranding a later session-fenced target-A
+record. The first mismatch stays byte-identical and pending, emits
+`SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH`, and sends no mutation POST.
+`adoptQueuedMutations()` no longer performs an earlier whole-queue custody
+write; its first custody mutation is delegated to the same ordered replay
+fence. Store-contract coverage proves an unselected record remains
+byte-identical under scoped reconciliation, and public regressions cover both
+ordinary replay and sidecar adoption after an authority-instance rotation.
+
+The pre-fix regression produced:
+
+```text
+✖ session-fenced target mismatch precedes authority-instance custody reconciliation
+AssertionError [ERR_ASSERTION]: the target-A record pauses the target-B drain
+false !== true
+```
+
+The exact required five-run command produced:
+
+```text
+ℹ pass 132
+ℹ fail 0
+ℹ pass 132
+ℹ fail 0
+ℹ pass 132
+ℹ fail 0
+ℹ pass 132
+ℹ fail 0
+ℹ pass 132
+ℹ fail 0
+```
+
+`authority-transition-conformance.test.mjs` reports `tests 9`, `pass 9`,
+`fail 0`. The public-dashboard witnesses report `PASS public-dashboard /
+offline-local-first (JS arm) — 9/9` and `PASS public-dashboard / headless —
+6/6`, with `cleanupErrors: []` in both machine-readable reports. Both used the
+explicitly configured binary stamped at `a97e75286` while the checkout was
+`449725250`, and reported the expected checkout stamp mismatch.
+
+`./ref-check --verbose` reports `311 LLP docs, 6646 refs in 12504 files, 0
+errors, 0 unchecked`; `git diff --check` produces no output.
+`node scripts/generate-symbol-registry.mjs --check` reports
+`[symbol-registry] ok — 56 modules, 1455 symbols, runtime parity exact`. The
+symbol registry, 57 reference pages, Guide manifest, and flat projections were
+refreshed without invoking the diagnostics generator. `node
+scripts/check-guide.mjs` reports `21 passed, 1 failed, 0 skipped, 0
+preconditions; 157 pages, 1872 snippets, 174 routes + 51 host-ops joined, 94
+warnings`; its sole red is the deliberately stale diagnostics projection. The
+diagnostics registry JSON, diagnostics Markdown, and generated diagnostic-code
+union were not regenerated and remain byte-identical to round-14 HEAD.

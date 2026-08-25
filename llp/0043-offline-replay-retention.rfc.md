@@ -5,6 +5,12 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
+**Revised:** 2026-08-25 (round-15 custody-order correction: shared capability
+currency and each persisted enqueue target pass before any custody write;
+reconciliation is limited to the already-validated record, so a valid prefix
+may settle while the first mismatch remains byte-identical and pending. The
+sidecar-adoption path delegates its first custody write to the same ordered
+replay fence.)
 **Revised:** 2026-08-25 (round-14 target-binding correction: cached evidence
 for a string-named mutation is reusable only when the client has an
 established application identity and the cached served generation carries the
@@ -497,11 +503,14 @@ target's canonical origin, target profile, and artifact identity. Generated
 references store their complete call-time artifact generation; string-named
 references store the application identity already established by the served
 app descriptor/binding. Before replay changes queue custody, assigns an
-operation-identity range, marks dispatch, or sends a mutation, a fresh pinned
-target must equal every persisted axis. Replay performs this comparison in
-sequence at each record's custody boundary: records in a valid prefix may
-settle, then the first difference pauses the drain and leaves that record plus
-every successor pending. A difference refuses with
+operation-identity range, marks dispatch, or sends a mutation, the shared
+capability fact must remain current and a fresh pinned target must equal every
+persisted axis. Replay performs both comparisons in sequence at each record's
+custody boundary, and the ensuing custody transaction is limited to that
+already-validated record: records in a valid prefix may settle, then the first
+difference pauses the drain and leaves that record byte-identical plus every
+successor pending. Sidecar adoption delegates its first custody write to the
+same ordered replay fence. A difference refuses with
 `SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH`; a pre-v2 record with no target
 refuses separately with `SNAPBACK_OUTBOX_REPLAY_TARGET_MISSING`. The refused
 record produces no mutation POST. An explicit future protocol may adopt

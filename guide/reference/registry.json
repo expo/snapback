@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-symbol-registry.v1",
   "generatedBy": "scripts/generate-symbol-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:37f8a8367b29412636986082a6d8b661d60fa7b6a8bd3c7a3c2a2bc378c40510",
+    "sourceDigest": "sha256:d34441c172c680ea0515fea9d2d00daab71d6b9bdf3d89d183b5651217dbff50",
     "publishedClosureVersion": "0.1.27",
     "packageVersions": {
       "@expo/snapback-cli": "0.1.27",
@@ -9976,16 +9976,16 @@
       },
       "source": {
         "file": "packages/snapback-client/rqs-store.d.mts",
-        "line": 317,
+        "line": 329,
         "column": 1,
-        "endLine": 339
+        "endLine": 351
       },
       "sources": [
         {
           "file": "packages/snapback-client/rqs-store.d.mts",
-          "line": 317,
+          "line": 329,
           "column": 1,
-          "endLine": 339
+          "endLine": 351
         }
       ],
       "publicDeclaration": {
@@ -25413,7 +25413,7 @@
         "exportNames": [],
         "conditions": []
       },
-      "signature": "export interface RqsResumeStore {\n  isWriter(): boolean;\n  whenLockSettled(): Promise<void>;\n  /** Shared authorization-dispatch gate. Lane dispatches exclude their own\n   * lane while foreground and housekeeping may proceed beside one another;\n   * an omitted lane is an exclusive authority-transition cut. */\n  withOutboxAuthorizationDispatch<T>(\n    operation: () => T | Promise<T>,\n    options?: Readonly<{ lane?: 'foreground' | 'housekeeping' | null }>,\n  ): Promise<T>;\n  /** Optional role-transition notification. File carriers without a native\n   * watch primitive are polled only while pending work awaits writer custody. */\n  subscribeWriterLock?(listener: (writer: boolean) => void): () => void;\n  outboxEmpty(): Promise<boolean>;\n  outboxAuthorizationStatus(): Promise<Readonly<{\n    authorityGeneration: number;\n    generation: number;\n    suspended: boolean;\n    pendingScopeCount: number;\n    effectiveDisposition: 'retain' | 'quarantine' | 'delete';\n  }>>;\n  outboxAuthorizationTransitionVisible(\n    kind: string,\n    payload: Readonly<Record<string, unknown>>,\n    expectedAuthorityGeneration?: number | null,\n  ): Promise<boolean>;\n  outboxApplyAuthorizationObligation(\n    obligation: Readonly<Record<string, unknown>>,\n    expectedAuthorityGeneration: number,\n  ): Promise<Readonly<Record<string, unknown>>>;\n  outboxResolveAuthorizationObligation(\n    resolution: Readonly<Record<string, unknown>>,\n    expectedAuthorityGeneration: number,\n  ): Promise<Readonly<Record<string, unknown>>>;\n  outboxAcknowledgeAuthorizationResolution(\n    resolution: Readonly<Record<string, unknown>>,\n    expectedAuthorityGeneration: number,\n  ): Promise<boolean>;\n  outboxRetireAuthorizationScopes(\n    scopes: readonly Readonly<Record<string, unknown>>[],\n    expectedAuthorityGeneration: number,\n  ): Promise<Readonly<Record<string, unknown>>>;\n  outboxEnqueue(\n    record: Readonly<Record<string, unknown>>,\n    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,\n  ): Promise<Readonly<Record<string, unknown>> & { readonly insertionOwned: boolean }>;\n  outboxRecords(): Promise<readonly Readonly<Record<string, unknown>>[]>;\n  outboxMarkStranded(\n    id: string,\n    reason: string,\n    predecessorPrincipalScope?: Readonly<Record<string, unknown>> | null,\n    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,\n    effectProvenance?: Readonly<{\n      effectCommitted: boolean | null;\n      effectMayHaveCommitted: boolean | null;\n    }> | null,\n  ): Promise<false | Readonly<Record<string, unknown>>>;\n  outboxDiscardPendingInsertion?(\n    id: string,\n    insertionSequence: number,\n    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,\n  ): Promise<boolean>;\n  outboxReconcileCustody(\n    principalScope: Readonly<Record<string, unknown>>,\n    authorityDescriptor: Readonly<Record<string, unknown>>,\n    custody: Readonly<{ authorityEpoch: number; authorityKey: string }>,\n    expectedAuthorityGeneration: number,\n  ): Promise<false | Readonly<{\n    deleted: number;\n    deletedIds: readonly string[];\n    stranded: number;\n    strandedIds: readonly string[];\n  }>>;\n  outboxDiscardStranded(\n    ids: readonly string[],\n    principalScope: Readonly<Record<string, unknown>>,\n    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,\n  ): Promise<false | Readonly<{\n    discarded: number;\n    clientMutationIds: readonly string[];\n  }>>;\n  outboxMarkQuarantined?(\n    id: string,\n    refusal: Readonly<{ code: string }>,\n    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,\n  ): Promise<false | Readonly<{\n    count: number;\n    tombstones: readonly Readonly<Record<string, unknown>>[];\n  }>>;\n  outboxReenterQuarantined?(\n    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,\n  ): Promise<false | Readonly<{\n    count: number;\n    clientMutationIds: readonly string[];\n  }>>;\n  outboxEnqueueWithOperationIdentity?(\n    record: Readonly<Record<string, unknown>>,\n    authorityCohortKey: string,\n    range?: Readonly<Record<string, unknown>> | null,\n    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,\n  ): Promise<Readonly<Record<string, unknown>> & { readonly insertionOwned: boolean }>;\n  outboxAssignOperationIdentity?(\n    id: string,\n    authorityCohortKey: string,\n    range?: Readonly<Record<string, unknown>> | null,\n    descriptor?: Readonly<Record<string, unknown>>,\n    principal?: Readonly<Record<string, unknown>>,\n    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,\n  ): Promise<Readonly<Record<string, unknown>> | false | null>;\n  outboxOperationIdentityRange?(\n    authorityCohortKey: string,\n  ): Promise<Readonly<Record<string, unknown>> | null>;\n  /** Optional metadata slot used to prepare React bindings while offline. */\n  loadReactBindingReceipt?(): Promise<Readonly<Record<string, unknown>> | null>;\n  /** Writer-gated replacement; IndexedDB may defer until writer election. */\n  commitReactBindingReceipt?(\n    receipt: Readonly<Record<string, unknown>>,\n  ): Promise<boolean | 'deferred'>;\n  readStoreMeta(): Promise<RqsStoreMetaV3>;\n  writeStoreMeta(meta: RqsStoreMetaV3): Promise<boolean>;\n  allocateQueryInstanceId(): Promise<number | null>;\n  /** Internal v3 section seam. The callback must be synchronous. */\n  materializationTransaction<T>(\n    mode: 'readonly' | 'readwrite',\n    operation: (view: RqsMaterializationTransactionView) => T,\n  ): Promise<T>;\n  /** Raw persisted record — callers MUST verify with\n   * `verifyPersistedResumeEntry` before trusting it. */\n  load(key: string): Promise<RqsPersistedResumeRecord | null>;\n  commit(\n    key: string,\n    entry: Readonly<{ rows: readonly RqsRow[]; meta: RqsPersistedResumeMeta; token: string }>,\n  ): Promise<RqsStoreCommitResult>;\n  markInProgress(key: string): Promise<boolean>;\n  markResumed(key: string, at?: number): Promise<boolean>;\n  remove(key: string): Promise<boolean>;\n  wipe(): Promise<boolean>;\n  /** Clear resident/read projections for a session authority transition while\n   * preserving the outbox for per-record descriptor reconciliation. */\n  wipeForAuthorityTransition(\n    authorityTransitionKey?: string | null,\n    authorityTransitionEpoch?: number | null,\n    options?: Readonly<{ rebaseUnscopedPending?: boolean }>,\n  ): Promise<boolean>;\n  /** Raw authority-transition commit for a caller that already owns the shared\n   * authorization-dispatch fence. */\n  wipeForAuthorityTransitionWithinDispatch?(\n    authorityTransitionKey?: string | null,\n    authorityTransitionEpoch?: number | null,\n    options?: Readonly<{ rebaseUnscopedPending?: boolean }>,\n  ): Promise<boolean>;\n  resetCorruptStoreIdentity(): Promise<RqsStoreIdentityResetResult>;\n  inspection(): Promise<RqsStoreInspection>;\n  close(): Promise<void>;\n}",
+      "signature": "export interface RqsResumeStore {\n  isWriter(): boolean;\n  whenLockSettled(): Promise<void>;\n  /** Shared authorization-dispatch gate. Lane dispatches exclude their own\n   * lane while foreground and housekeeping may proceed beside one another;\n   * an omitted lane is an exclusive authority-transition cut. */\n  withOutboxAuthorizationDispatch<T>(\n    operation: () => T | Promise<T>,\n    options?: Readonly<{ lane?: 'foreground' | 'housekeeping' | null }>,\n  ): Promise<T>;\n  /** Optional role-transition notification. File carriers without a native\n   * watch primitive are polled only while pending work awaits writer custody. */\n  subscribeWriterLock?(listener: (writer: boolean) => void): () => void;\n  outboxEmpty(): Promise<boolean>;\n  outboxAuthorizationStatus(): Promise<Readonly<{\n    authorityGeneration: number;\n    generation: number;\n    suspended: boolean;\n    pendingScopeCount: number;\n    effectiveDisposition: 'retain' | 'quarantine' | 'delete';\n  }>>;\n  outboxAuthorizationTransitionVisible(\n    kind: string,\n    payload: Readonly<Record<string, unknown>>,\n    expectedAuthorityGeneration?: number | null,\n  ): Promise<boolean>;\n  outboxApplyAuthorizationObligation(\n    obligation: Readonly<Record<string, unknown>>,\n    expectedAuthorityGeneration: number,\n  ): Promise<Readonly<Record<string, unknown>>>;\n  outboxResolveAuthorizationObligation(\n    resolution: Readonly<Record<string, unknown>>,\n    expectedAuthorityGeneration: number,\n  ): Promise<Readonly<Record<string, unknown>>>;\n  outboxAcknowledgeAuthorizationResolution(\n    resolution: Readonly<Record<string, unknown>>,\n    expectedAuthorityGeneration: number,\n  ): Promise<boolean>;\n  outboxRetireAuthorizationScopes(\n    scopes: readonly Readonly<Record<string, unknown>>[],\n    expectedAuthorityGeneration: number,\n  ): Promise<Readonly<Record<string, unknown>>>;\n  outboxEnqueue(\n    record: Readonly<Record<string, unknown>>,\n    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,\n  ): Promise<Readonly<Record<string, unknown>> & { readonly insertionOwned: boolean }>;\n  outboxRecords(): Promise<readonly Readonly<Record<string, unknown>>[]>;\n  outboxMarkStranded(\n    id: string,\n    reason: string,\n    predecessorPrincipalScope?: Readonly<Record<string, unknown>> | null,\n    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,\n    effectProvenance?: Readonly<{\n      effectCommitted: boolean | null;\n      effectMayHaveCommitted: boolean | null;\n    }> | null,\n  ): Promise<false | Readonly<Record<string, unknown>>>;\n  outboxDiscardPendingInsertion?(\n    id: string,\n    insertionSequence: number,\n    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,\n  ): Promise<boolean>;\n  outboxReconcileCustody(\n    principalScope: Readonly<Record<string, unknown>>,\n    authorityDescriptor: Readonly<Record<string, unknown>>,\n    custody: Readonly<{ authorityEpoch: number; authorityKey: string }>,\n    expectedAuthorityGeneration: number,\n  ): Promise<false | Readonly<{\n    deleted: number;\n    deletedIds: readonly string[];\n    stranded: number;\n    strandedIds: readonly string[];\n  }>>;\n  outboxReconcileCustodyRecords(\n    recordIds: readonly string[],\n    principalScope: Readonly<Record<string, unknown>>,\n    authorityDescriptor: Readonly<Record<string, unknown>>,\n    custody: Readonly<{ authorityEpoch: number; authorityKey: string }>,\n    expectedAuthorityGeneration: number,\n  ): Promise<false | Readonly<{\n    deleted: number;\n    deletedIds: readonly string[];\n    stranded: number;\n    strandedIds: readonly string[];\n  }>>;\n  outboxDiscardStranded(\n    ids: readonly string[],\n    principalScope: Readonly<Record<string, unknown>>,\n    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,\n  ): Promise<false | Readonly<{\n    discarded: number;\n    clientMutationIds: readonly string[];\n  }>>;\n  outboxMarkQuarantined?(\n    id: string,\n    refusal: Readonly<{ code: string }>,\n    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,\n  ): Promise<false | Readonly<{\n    count: number;\n    tombstones: readonly Readonly<Record<string, unknown>>[];\n  }>>;\n  outboxReenterQuarantined?(\n    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,\n  ): Promise<false | Readonly<{\n    count: number;\n    clientMutationIds: readonly string[];\n  }>>;\n  outboxEnqueueWithOperationIdentity?(\n    record: Readonly<Record<string, unknown>>,\n    authorityCohortKey: string,\n    range?: Readonly<Record<string, unknown>> | null,\n    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,\n  ): Promise<Readonly<Record<string, unknown>> & { readonly insertionOwned: boolean }>;\n  outboxAssignOperationIdentity?(\n    id: string,\n    authorityCohortKey: string,\n    range?: Readonly<Record<string, unknown>> | null,\n    descriptor?: Readonly<Record<string, unknown>>,\n    principal?: Readonly<Record<string, unknown>>,\n    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,\n  ): Promise<Readonly<Record<string, unknown>> | false | null>;\n  outboxOperationIdentityRange?(\n    authorityCohortKey: string,\n  ): Promise<Readonly<Record<string, unknown>> | null>;\n  /** Optional metadata slot used to prepare React bindings while offline. */\n  loadReactBindingReceipt?(): Promise<Readonly<Record<string, unknown>> | null>;\n  /** Writer-gated replacement; IndexedDB may defer until writer election. */\n  commitReactBindingReceipt?(\n    receipt: Readonly<Record<string, unknown>>,\n  ): Promise<boolean | 'deferred'>;\n  readStoreMeta(): Promise<RqsStoreMetaV3>;\n  writeStoreMeta(meta: RqsStoreMetaV3): Promise<boolean>;\n  allocateQueryInstanceId(): Promise<number | null>;\n  /** Internal v3 section seam. The callback must be synchronous. */\n  materializationTransaction<T>(\n    mode: 'readonly' | 'readwrite',\n    operation: (view: RqsMaterializationTransactionView) => T,\n  ): Promise<T>;\n  /** Raw persisted record — callers MUST verify with\n   * `verifyPersistedResumeEntry` before trusting it. */\n  load(key: string): Promise<RqsPersistedResumeRecord | null>;\n  commit(\n    key: string,\n    entry: Readonly<{ rows: readonly RqsRow[]; meta: RqsPersistedResumeMeta; token: string }>,\n  ): Promise<RqsStoreCommitResult>;\n  markInProgress(key: string): Promise<boolean>;\n  markResumed(key: string, at?: number): Promise<boolean>;\n  remove(key: string): Promise<boolean>;\n  wipe(): Promise<boolean>;\n  /** Clear resident/read projections for a session authority transition while\n   * preserving the outbox for per-record descriptor reconciliation. */\n  wipeForAuthorityTransition(\n    authorityTransitionKey?: string | null,\n    authorityTransitionEpoch?: number | null,\n    options?: Readonly<{ rebaseUnscopedPending?: boolean }>,\n  ): Promise<boolean>;\n  /** Raw authority-transition commit for a caller that already owns the shared\n   * authorization-dispatch fence. */\n  wipeForAuthorityTransitionWithinDispatch?(\n    authorityTransitionKey?: string | null,\n    authorityTransitionEpoch?: number | null,\n    options?: Readonly<{ rebaseUnscopedPending?: boolean }>,\n  ): Promise<boolean>;\n  resetCorruptStoreIdentity(): Promise<RqsStoreIdentityResetResult>;\n  inspection(): Promise<RqsStoreInspection>;\n  close(): Promise<void>;\n}",
       "overloads": [],
       "members": [
         {
@@ -25721,6 +25721,25 @@
           ]
         },
         {
+          "identity": "npm:@expo/snapback-client#RqsResumeStore.outboxReconcileCustodyRecords",
+          "name": "outboxReconcileCustodyRecords",
+          "kind": "method",
+          "signature": "outboxReconcileCustodyRecords(\n    recordIds: readonly string[],\n    principalScope: Readonly<Record<string, unknown>>,\n    authorityDescriptor: Readonly<Record<string, unknown>>,\n    custody: Readonly<{ authorityEpoch: number; authorityKey: string }>,\n    expectedAuthorityGeneration: number,\n  ): Promise<false | Readonly<{\n    deleted: number;\n    deletedIds: readonly string[];\n    stranded: number;\n    strandedIds: readonly string[];\n  }>>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-client/rqs-store.d.mts",
+              "line": 230,
+              "column": 3,
+              "endLine": 241
+            }
+          ]
+        },
+        {
           "identity": "npm:@expo/snapback-client#RqsResumeStore.outboxDiscardStranded",
           "name": "outboxDiscardStranded",
           "kind": "method",
@@ -25733,9 +25752,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 230,
+              "line": 242,
               "column": 3,
-              "endLine": 237
+              "endLine": 249
             }
           ]
         },
@@ -25752,9 +25771,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 238,
+              "line": 250,
               "column": 3,
-              "endLine": 245
+              "endLine": 257
             }
           ]
         },
@@ -25771,9 +25790,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 246,
+              "line": 258,
               "column": 3,
-              "endLine": 251
+              "endLine": 263
             }
           ]
         },
@@ -25790,9 +25809,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 252,
+              "line": 264,
               "column": 3,
-              "endLine": 257
+              "endLine": 269
             }
           ]
         },
@@ -25809,9 +25828,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 258,
+              "line": 270,
               "column": 3,
-              "endLine": 265
+              "endLine": 277
             }
           ]
         },
@@ -25828,9 +25847,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 266,
+              "line": 278,
               "column": 3,
-              "endLine": 268
+              "endLine": 280
             }
           ]
         },
@@ -25847,9 +25866,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 270,
+              "line": 282,
               "column": 3,
-              "endLine": 270
+              "endLine": 282
             }
           ]
         },
@@ -25866,9 +25885,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 272,
+              "line": 284,
               "column": 3,
-              "endLine": 274
+              "endLine": 286
             }
           ]
         },
@@ -25885,9 +25904,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 275,
+              "line": 287,
               "column": 3,
-              "endLine": 275
+              "endLine": 287
             }
           ]
         },
@@ -25904,9 +25923,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 276,
+              "line": 288,
               "column": 3,
-              "endLine": 276
+              "endLine": 288
             }
           ]
         },
@@ -25923,9 +25942,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 277,
+              "line": 289,
               "column": 3,
-              "endLine": 277
+              "endLine": 289
             }
           ]
         },
@@ -25942,9 +25961,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 279,
+              "line": 291,
               "column": 3,
-              "endLine": 282
+              "endLine": 294
             }
           ]
         },
@@ -25961,9 +25980,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 285,
+              "line": 297,
               "column": 3,
-              "endLine": 285
+              "endLine": 297
             }
           ]
         },
@@ -25980,9 +25999,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 286,
+              "line": 298,
               "column": 3,
-              "endLine": 289
+              "endLine": 301
             }
           ]
         },
@@ -25999,9 +26018,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 290,
+              "line": 302,
               "column": 3,
-              "endLine": 290
+              "endLine": 302
             }
           ]
         },
@@ -26018,9 +26037,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 291,
+              "line": 303,
               "column": 3,
-              "endLine": 291
+              "endLine": 303
             }
           ]
         },
@@ -26037,9 +26056,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 292,
+              "line": 304,
               "column": 3,
-              "endLine": 292
+              "endLine": 304
             }
           ]
         },
@@ -26056,9 +26075,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 293,
+              "line": 305,
               "column": 3,
-              "endLine": 293
+              "endLine": 305
             }
           ]
         },
@@ -26075,9 +26094,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 296,
+              "line": 308,
               "column": 3,
-              "endLine": 300
+              "endLine": 312
             }
           ]
         },
@@ -26094,9 +26113,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 303,
+              "line": 315,
               "column": 3,
-              "endLine": 307
+              "endLine": 319
             }
           ]
         },
@@ -26113,9 +26132,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 308,
+              "line": 320,
               "column": 3,
-              "endLine": 308
+              "endLine": 320
             }
           ]
         },
@@ -26132,9 +26151,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 309,
+              "line": 321,
               "column": 3,
-              "endLine": 309
+              "endLine": 321
             }
           ]
         },
@@ -26151,9 +26170,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 310,
+              "line": 322,
               "column": 3,
-              "endLine": 310
+              "endLine": 322
             }
           ]
         }
@@ -26166,14 +26185,14 @@
         "file": "packages/snapback-client/rqs-store.d.mts",
         "line": 157,
         "column": 1,
-        "endLine": 311
+        "endLine": 323
       },
       "sources": [
         {
           "file": "packages/snapback-client/rqs-store.d.mts",
           "line": 157,
           "column": 1,
-          "endLine": 311
+          "endLine": 323
         }
       ],
       "publicDeclaration": {
@@ -78562,16 +78581,16 @@
       },
       "source": {
         "file": "packages/snapback-client/rqs-store.d.mts",
-        "line": 317,
+        "line": 329,
         "column": 1,
-        "endLine": 339
+        "endLine": 351
       },
       "sources": [
         {
           "file": "packages/snapback-client/rqs-store.d.mts",
-          "line": 317,
+          "line": 329,
           "column": 1,
-          "endLine": 339
+          "endLine": 351
         }
       ],
       "publicDeclaration": {
@@ -78706,16 +78725,16 @@
       },
       "source": {
         "file": "packages/snapback-client/rqs-store.d.mts",
-        "line": 344,
+        "line": 356,
         "column": 1,
-        "endLine": 358
+        "endLine": 370
       },
       "sources": [
         {
           "file": "packages/snapback-client/rqs-store.d.mts",
-          "line": 344,
+          "line": 356,
           "column": 1,
-          "endLine": 358
+          "endLine": 370
         }
       ],
       "publicDeclaration": {
@@ -79748,7 +79767,7 @@
         "exportNames": [],
         "conditions": []
       },
-      "signature": "export interface RqsResumeStore {\n  isWriter(): boolean;\n  whenLockSettled(): Promise<void>;\n  /** Shared authorization-dispatch gate. Lane dispatches exclude their own\n   * lane while foreground and housekeeping may proceed beside one another;\n   * an omitted lane is an exclusive authority-transition cut. */\n  withOutboxAuthorizationDispatch<T>(\n    operation: () => T | Promise<T>,\n    options?: Readonly<{ lane?: 'foreground' | 'housekeeping' | null }>,\n  ): Promise<T>;\n  /** Optional role-transition notification. File carriers without a native\n   * watch primitive are polled only while pending work awaits writer custody. */\n  subscribeWriterLock?(listener: (writer: boolean) => void): () => void;\n  outboxEmpty(): Promise<boolean>;\n  outboxAuthorizationStatus(): Promise<Readonly<{\n    authorityGeneration: number;\n    generation: number;\n    suspended: boolean;\n    pendingScopeCount: number;\n    effectiveDisposition: 'retain' | 'quarantine' | 'delete';\n  }>>;\n  outboxAuthorizationTransitionVisible(\n    kind: string,\n    payload: Readonly<Record<string, unknown>>,\n    expectedAuthorityGeneration?: number | null,\n  ): Promise<boolean>;\n  outboxApplyAuthorizationObligation(\n    obligation: Readonly<Record<string, unknown>>,\n    expectedAuthorityGeneration: number,\n  ): Promise<Readonly<Record<string, unknown>>>;\n  outboxResolveAuthorizationObligation(\n    resolution: Readonly<Record<string, unknown>>,\n    expectedAuthorityGeneration: number,\n  ): Promise<Readonly<Record<string, unknown>>>;\n  outboxAcknowledgeAuthorizationResolution(\n    resolution: Readonly<Record<string, unknown>>,\n    expectedAuthorityGeneration: number,\n  ): Promise<boolean>;\n  outboxRetireAuthorizationScopes(\n    scopes: readonly Readonly<Record<string, unknown>>[],\n    expectedAuthorityGeneration: number,\n  ): Promise<Readonly<Record<string, unknown>>>;\n  outboxEnqueue(\n    record: Readonly<Record<string, unknown>>,\n    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,\n  ): Promise<Readonly<Record<string, unknown>> & { readonly insertionOwned: boolean }>;\n  outboxRecords(): Promise<readonly Readonly<Record<string, unknown>>[]>;\n  outboxMarkStranded(\n    id: string,\n    reason: string,\n    predecessorPrincipalScope?: Readonly<Record<string, unknown>> | null,\n    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,\n    effectProvenance?: Readonly<{\n      effectCommitted: boolean | null;\n      effectMayHaveCommitted: boolean | null;\n    }> | null,\n  ): Promise<false | Readonly<Record<string, unknown>>>;\n  outboxDiscardPendingInsertion?(\n    id: string,\n    insertionSequence: number,\n    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,\n  ): Promise<boolean>;\n  outboxReconcileCustody(\n    principalScope: Readonly<Record<string, unknown>>,\n    authorityDescriptor: Readonly<Record<string, unknown>>,\n    custody: Readonly<{ authorityEpoch: number; authorityKey: string }>,\n    expectedAuthorityGeneration: number,\n  ): Promise<false | Readonly<{\n    deleted: number;\n    deletedIds: readonly string[];\n    stranded: number;\n    strandedIds: readonly string[];\n  }>>;\n  outboxDiscardStranded(\n    ids: readonly string[],\n    principalScope: Readonly<Record<string, unknown>>,\n    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,\n  ): Promise<false | Readonly<{\n    discarded: number;\n    clientMutationIds: readonly string[];\n  }>>;\n  outboxMarkQuarantined?(\n    id: string,\n    refusal: Readonly<{ code: string }>,\n    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,\n  ): Promise<false | Readonly<{\n    count: number;\n    tombstones: readonly Readonly<Record<string, unknown>>[];\n  }>>;\n  outboxReenterQuarantined?(\n    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,\n  ): Promise<false | Readonly<{\n    count: number;\n    clientMutationIds: readonly string[];\n  }>>;\n  outboxEnqueueWithOperationIdentity?(\n    record: Readonly<Record<string, unknown>>,\n    authorityCohortKey: string,\n    range?: Readonly<Record<string, unknown>> | null,\n    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,\n  ): Promise<Readonly<Record<string, unknown>> & { readonly insertionOwned: boolean }>;\n  outboxAssignOperationIdentity?(\n    id: string,\n    authorityCohortKey: string,\n    range?: Readonly<Record<string, unknown>> | null,\n    descriptor?: Readonly<Record<string, unknown>>,\n    principal?: Readonly<Record<string, unknown>>,\n    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,\n  ): Promise<Readonly<Record<string, unknown>> | false | null>;\n  outboxOperationIdentityRange?(\n    authorityCohortKey: string,\n  ): Promise<Readonly<Record<string, unknown>> | null>;\n  /** Optional metadata slot used to prepare React bindings while offline. */\n  loadReactBindingReceipt?(): Promise<Readonly<Record<string, unknown>> | null>;\n  /** Writer-gated replacement; IndexedDB may defer until writer election. */\n  commitReactBindingReceipt?(\n    receipt: Readonly<Record<string, unknown>>,\n  ): Promise<boolean | 'deferred'>;\n  readStoreMeta(): Promise<RqsStoreMetaV3>;\n  writeStoreMeta(meta: RqsStoreMetaV3): Promise<boolean>;\n  allocateQueryInstanceId(): Promise<number | null>;\n  /** Internal v3 section seam. The callback must be synchronous. */\n  materializationTransaction<T>(\n    mode: 'readonly' | 'readwrite',\n    operation: (view: RqsMaterializationTransactionView) => T,\n  ): Promise<T>;\n  /** Raw persisted record — callers MUST verify with\n   * `verifyPersistedResumeEntry` before trusting it. */\n  load(key: string): Promise<RqsPersistedResumeRecord | null>;\n  commit(\n    key: string,\n    entry: Readonly<{ rows: readonly RqsRow[]; meta: RqsPersistedResumeMeta; token: string }>,\n  ): Promise<RqsStoreCommitResult>;\n  markInProgress(key: string): Promise<boolean>;\n  markResumed(key: string, at?: number): Promise<boolean>;\n  remove(key: string): Promise<boolean>;\n  wipe(): Promise<boolean>;\n  /** Clear resident/read projections for a session authority transition while\n   * preserving the outbox for per-record descriptor reconciliation. */\n  wipeForAuthorityTransition(\n    authorityTransitionKey?: string | null,\n    authorityTransitionEpoch?: number | null,\n    options?: Readonly<{ rebaseUnscopedPending?: boolean }>,\n  ): Promise<boolean>;\n  /** Raw authority-transition commit for a caller that already owns the shared\n   * authorization-dispatch fence. */\n  wipeForAuthorityTransitionWithinDispatch?(\n    authorityTransitionKey?: string | null,\n    authorityTransitionEpoch?: number | null,\n    options?: Readonly<{ rebaseUnscopedPending?: boolean }>,\n  ): Promise<boolean>;\n  resetCorruptStoreIdentity(): Promise<RqsStoreIdentityResetResult>;\n  inspection(): Promise<RqsStoreInspection>;\n  close(): Promise<void>;\n}",
+      "signature": "export interface RqsResumeStore {\n  isWriter(): boolean;\n  whenLockSettled(): Promise<void>;\n  /** Shared authorization-dispatch gate. Lane dispatches exclude their own\n   * lane while foreground and housekeeping may proceed beside one another;\n   * an omitted lane is an exclusive authority-transition cut. */\n  withOutboxAuthorizationDispatch<T>(\n    operation: () => T | Promise<T>,\n    options?: Readonly<{ lane?: 'foreground' | 'housekeeping' | null }>,\n  ): Promise<T>;\n  /** Optional role-transition notification. File carriers without a native\n   * watch primitive are polled only while pending work awaits writer custody. */\n  subscribeWriterLock?(listener: (writer: boolean) => void): () => void;\n  outboxEmpty(): Promise<boolean>;\n  outboxAuthorizationStatus(): Promise<Readonly<{\n    authorityGeneration: number;\n    generation: number;\n    suspended: boolean;\n    pendingScopeCount: number;\n    effectiveDisposition: 'retain' | 'quarantine' | 'delete';\n  }>>;\n  outboxAuthorizationTransitionVisible(\n    kind: string,\n    payload: Readonly<Record<string, unknown>>,\n    expectedAuthorityGeneration?: number | null,\n  ): Promise<boolean>;\n  outboxApplyAuthorizationObligation(\n    obligation: Readonly<Record<string, unknown>>,\n    expectedAuthorityGeneration: number,\n  ): Promise<Readonly<Record<string, unknown>>>;\n  outboxResolveAuthorizationObligation(\n    resolution: Readonly<Record<string, unknown>>,\n    expectedAuthorityGeneration: number,\n  ): Promise<Readonly<Record<string, unknown>>>;\n  outboxAcknowledgeAuthorizationResolution(\n    resolution: Readonly<Record<string, unknown>>,\n    expectedAuthorityGeneration: number,\n  ): Promise<boolean>;\n  outboxRetireAuthorizationScopes(\n    scopes: readonly Readonly<Record<string, unknown>>[],\n    expectedAuthorityGeneration: number,\n  ): Promise<Readonly<Record<string, unknown>>>;\n  outboxEnqueue(\n    record: Readonly<Record<string, unknown>>,\n    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,\n  ): Promise<Readonly<Record<string, unknown>> & { readonly insertionOwned: boolean }>;\n  outboxRecords(): Promise<readonly Readonly<Record<string, unknown>>[]>;\n  outboxMarkStranded(\n    id: string,\n    reason: string,\n    predecessorPrincipalScope?: Readonly<Record<string, unknown>> | null,\n    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,\n    effectProvenance?: Readonly<{\n      effectCommitted: boolean | null;\n      effectMayHaveCommitted: boolean | null;\n    }> | null,\n  ): Promise<false | Readonly<Record<string, unknown>>>;\n  outboxDiscardPendingInsertion?(\n    id: string,\n    insertionSequence: number,\n    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,\n  ): Promise<boolean>;\n  outboxReconcileCustody(\n    principalScope: Readonly<Record<string, unknown>>,\n    authorityDescriptor: Readonly<Record<string, unknown>>,\n    custody: Readonly<{ authorityEpoch: number; authorityKey: string }>,\n    expectedAuthorityGeneration: number,\n  ): Promise<false | Readonly<{\n    deleted: number;\n    deletedIds: readonly string[];\n    stranded: number;\n    strandedIds: readonly string[];\n  }>>;\n  outboxReconcileCustodyRecords(\n    recordIds: readonly string[],\n    principalScope: Readonly<Record<string, unknown>>,\n    authorityDescriptor: Readonly<Record<string, unknown>>,\n    custody: Readonly<{ authorityEpoch: number; authorityKey: string }>,\n    expectedAuthorityGeneration: number,\n  ): Promise<false | Readonly<{\n    deleted: number;\n    deletedIds: readonly string[];\n    stranded: number;\n    strandedIds: readonly string[];\n  }>>;\n  outboxDiscardStranded(\n    ids: readonly string[],\n    principalScope: Readonly<Record<string, unknown>>,\n    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,\n  ): Promise<false | Readonly<{\n    discarded: number;\n    clientMutationIds: readonly string[];\n  }>>;\n  outboxMarkQuarantined?(\n    id: string,\n    refusal: Readonly<{ code: string }>,\n    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,\n  ): Promise<false | Readonly<{\n    count: number;\n    tombstones: readonly Readonly<Record<string, unknown>>[];\n  }>>;\n  outboxReenterQuarantined?(\n    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,\n  ): Promise<false | Readonly<{\n    count: number;\n    clientMutationIds: readonly string[];\n  }>>;\n  outboxEnqueueWithOperationIdentity?(\n    record: Readonly<Record<string, unknown>>,\n    authorityCohortKey: string,\n    range?: Readonly<Record<string, unknown>> | null,\n    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,\n  ): Promise<Readonly<Record<string, unknown>> & { readonly insertionOwned: boolean }>;\n  outboxAssignOperationIdentity?(\n    id: string,\n    authorityCohortKey: string,\n    range?: Readonly<Record<string, unknown>> | null,\n    descriptor?: Readonly<Record<string, unknown>>,\n    principal?: Readonly<Record<string, unknown>>,\n    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,\n  ): Promise<Readonly<Record<string, unknown>> | false | null>;\n  outboxOperationIdentityRange?(\n    authorityCohortKey: string,\n  ): Promise<Readonly<Record<string, unknown>> | null>;\n  /** Optional metadata slot used to prepare React bindings while offline. */\n  loadReactBindingReceipt?(): Promise<Readonly<Record<string, unknown>> | null>;\n  /** Writer-gated replacement; IndexedDB may defer until writer election. */\n  commitReactBindingReceipt?(\n    receipt: Readonly<Record<string, unknown>>,\n  ): Promise<boolean | 'deferred'>;\n  readStoreMeta(): Promise<RqsStoreMetaV3>;\n  writeStoreMeta(meta: RqsStoreMetaV3): Promise<boolean>;\n  allocateQueryInstanceId(): Promise<number | null>;\n  /** Internal v3 section seam. The callback must be synchronous. */\n  materializationTransaction<T>(\n    mode: 'readonly' | 'readwrite',\n    operation: (view: RqsMaterializationTransactionView) => T,\n  ): Promise<T>;\n  /** Raw persisted record — callers MUST verify with\n   * `verifyPersistedResumeEntry` before trusting it. */\n  load(key: string): Promise<RqsPersistedResumeRecord | null>;\n  commit(\n    key: string,\n    entry: Readonly<{ rows: readonly RqsRow[]; meta: RqsPersistedResumeMeta; token: string }>,\n  ): Promise<RqsStoreCommitResult>;\n  markInProgress(key: string): Promise<boolean>;\n  markResumed(key: string, at?: number): Promise<boolean>;\n  remove(key: string): Promise<boolean>;\n  wipe(): Promise<boolean>;\n  /** Clear resident/read projections for a session authority transition while\n   * preserving the outbox for per-record descriptor reconciliation. */\n  wipeForAuthorityTransition(\n    authorityTransitionKey?: string | null,\n    authorityTransitionEpoch?: number | null,\n    options?: Readonly<{ rebaseUnscopedPending?: boolean }>,\n  ): Promise<boolean>;\n  /** Raw authority-transition commit for a caller that already owns the shared\n   * authorization-dispatch fence. */\n  wipeForAuthorityTransitionWithinDispatch?(\n    authorityTransitionKey?: string | null,\n    authorityTransitionEpoch?: number | null,\n    options?: Readonly<{ rebaseUnscopedPending?: boolean }>,\n  ): Promise<boolean>;\n  resetCorruptStoreIdentity(): Promise<RqsStoreIdentityResetResult>;\n  inspection(): Promise<RqsStoreInspection>;\n  close(): Promise<void>;\n}",
       "overloads": [],
       "members": [
         {
@@ -80056,6 +80075,25 @@
           ]
         },
         {
+          "identity": "npm:@expo/snapback-client/rqs-store#RqsResumeStore.outboxReconcileCustodyRecords",
+          "name": "outboxReconcileCustodyRecords",
+          "kind": "method",
+          "signature": "outboxReconcileCustodyRecords(\n    recordIds: readonly string[],\n    principalScope: Readonly<Record<string, unknown>>,\n    authorityDescriptor: Readonly<Record<string, unknown>>,\n    custody: Readonly<{ authorityEpoch: number; authorityKey: string }>,\n    expectedAuthorityGeneration: number,\n  ): Promise<false | Readonly<{\n    deleted: number;\n    deletedIds: readonly string[];\n    stranded: number;\n    strandedIds: readonly string[];\n  }>>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-client/rqs-store.d.mts",
+              "line": 230,
+              "column": 3,
+              "endLine": 241
+            }
+          ]
+        },
+        {
           "identity": "npm:@expo/snapback-client/rqs-store#RqsResumeStore.outboxDiscardStranded",
           "name": "outboxDiscardStranded",
           "kind": "method",
@@ -80068,9 +80106,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 230,
+              "line": 242,
               "column": 3,
-              "endLine": 237
+              "endLine": 249
             }
           ]
         },
@@ -80087,9 +80125,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 238,
+              "line": 250,
               "column": 3,
-              "endLine": 245
+              "endLine": 257
             }
           ]
         },
@@ -80106,9 +80144,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 246,
+              "line": 258,
               "column": 3,
-              "endLine": 251
+              "endLine": 263
             }
           ]
         },
@@ -80125,9 +80163,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 252,
+              "line": 264,
               "column": 3,
-              "endLine": 257
+              "endLine": 269
             }
           ]
         },
@@ -80144,9 +80182,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 258,
+              "line": 270,
               "column": 3,
-              "endLine": 265
+              "endLine": 277
             }
           ]
         },
@@ -80163,9 +80201,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 266,
+              "line": 278,
               "column": 3,
-              "endLine": 268
+              "endLine": 280
             }
           ]
         },
@@ -80182,9 +80220,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 270,
+              "line": 282,
               "column": 3,
-              "endLine": 270
+              "endLine": 282
             }
           ]
         },
@@ -80201,9 +80239,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 272,
+              "line": 284,
               "column": 3,
-              "endLine": 274
+              "endLine": 286
             }
           ]
         },
@@ -80220,9 +80258,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 275,
+              "line": 287,
               "column": 3,
-              "endLine": 275
+              "endLine": 287
             }
           ]
         },
@@ -80239,9 +80277,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 276,
+              "line": 288,
               "column": 3,
-              "endLine": 276
+              "endLine": 288
             }
           ]
         },
@@ -80258,9 +80296,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 277,
+              "line": 289,
               "column": 3,
-              "endLine": 277
+              "endLine": 289
             }
           ]
         },
@@ -80277,9 +80315,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 279,
+              "line": 291,
               "column": 3,
-              "endLine": 282
+              "endLine": 294
             }
           ]
         },
@@ -80296,9 +80334,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 285,
+              "line": 297,
               "column": 3,
-              "endLine": 285
+              "endLine": 297
             }
           ]
         },
@@ -80315,9 +80353,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 286,
+              "line": 298,
               "column": 3,
-              "endLine": 289
+              "endLine": 301
             }
           ]
         },
@@ -80334,9 +80372,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 290,
+              "line": 302,
               "column": 3,
-              "endLine": 290
+              "endLine": 302
             }
           ]
         },
@@ -80353,9 +80391,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 291,
+              "line": 303,
               "column": 3,
-              "endLine": 291
+              "endLine": 303
             }
           ]
         },
@@ -80372,9 +80410,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 292,
+              "line": 304,
               "column": 3,
-              "endLine": 292
+              "endLine": 304
             }
           ]
         },
@@ -80391,9 +80429,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 293,
+              "line": 305,
               "column": 3,
-              "endLine": 293
+              "endLine": 305
             }
           ]
         },
@@ -80410,9 +80448,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 296,
+              "line": 308,
               "column": 3,
-              "endLine": 300
+              "endLine": 312
             }
           ]
         },
@@ -80429,9 +80467,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 303,
+              "line": 315,
               "column": 3,
-              "endLine": 307
+              "endLine": 319
             }
           ]
         },
@@ -80448,9 +80486,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 308,
+              "line": 320,
               "column": 3,
-              "endLine": 308
+              "endLine": 320
             }
           ]
         },
@@ -80467,9 +80505,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 309,
+              "line": 321,
               "column": 3,
-              "endLine": 309
+              "endLine": 321
             }
           ]
         },
@@ -80486,9 +80524,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/rqs-store.d.mts",
-              "line": 310,
+              "line": 322,
               "column": 3,
-              "endLine": 310
+              "endLine": 322
             }
           ]
         }
@@ -80501,14 +80539,14 @@
         "file": "packages/snapback-client/rqs-store.d.mts",
         "line": 157,
         "column": 1,
-        "endLine": 311
+        "endLine": 323
       },
       "sources": [
         {
           "file": "packages/snapback-client/rqs-store.d.mts",
           "line": 157,
           "column": 1,
-          "endLine": 311
+          "endLine": 323
         }
       ],
       "publicDeclaration": {
@@ -129661,6 +129699,10 @@
         "npm:@expo/snapback-client/rqs-store#RqsResumeStore"
       ],
       "RqsResumeStore.outboxReconcileCustody": [
+        "npm:@expo/snapback-client#RqsResumeStore",
+        "npm:@expo/snapback-client/rqs-store#RqsResumeStore"
+      ],
+      "RqsResumeStore.outboxReconcileCustodyRecords": [
         "npm:@expo/snapback-client#RqsResumeStore",
         "npm:@expo/snapback-client/rqs-store#RqsResumeStore"
       ],
