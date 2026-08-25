@@ -20666,6 +20666,22 @@ async fn password_change_closed_union_rotates_and_requires_step_up_for_first_set
     let set_email = "set-first-password@example.com";
     let email_credential = password_test_email_exchange(&router, &provider, set_email).await;
     let email_bearer = email_credential["token"].as_str().unwrap().to_owned();
+    let acting_user_id = email_credential["session"]["userId"]
+        .as_str()
+        .expect("email-code acting user id")
+        .to_owned();
+    let sibling_email = "set-first-password-sibling@example.com";
+    let sibling_identity_id = with_snapback(&state.snapback, move |snapback| {
+        snapback
+            .remainder_auth_database_mut()
+            .insert_email_code_identity_for_existing_user_for_test(
+                &acting_user_id,
+                sibling_email,
+                super::now_millis(),
+            )
+    })
+    .await
+    .expect("same-user sibling email-code identity");
 
     let bearer_alone = router
         .clone()
@@ -20683,6 +20699,25 @@ async fn password_change_closed_union_rotates_and_requires_step_up_for_first_set
     assert_eq!(bearer_alone.status(), StatusCode::BAD_REQUEST);
     assert_eq!(
         response_json(bearer_alone).await["diagnostic"]["code"],
+        "SNAPBACK_AUTH_REQUEST_INVALID"
+    );
+
+    let legacy_mint_selector = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/auth/step-up/request",
+            serde_json::to_vec(&json!({
+                "operation": "passwordSet",
+                "identityId": sibling_identity_id.clone(),
+            }))
+            .unwrap(),
+            &email_bearer,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(legacy_mint_selector.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        response_json(legacy_mint_selector).await["diagnostic"]["code"],
         "SNAPBACK_AUTH_REQUEST_INVALID"
     );
 
@@ -20706,6 +20741,29 @@ async fn password_change_closed_union_rotates_and_requires_step_up_for_first_set
     let mailbox =
         serde_json::to_value(provider.mailbox_entry(&challenge_id).await.unwrap()).unwrap();
     let code = mailbox["code"].as_str().unwrap();
+    let legacy_set_selector = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/auth/password/change",
+            serde_json::to_vec(&json!({
+                "currentPassword": null,
+                "newPassword": "set-route-password-123!",
+                "stepUp": {
+                    "challengeId": challenge_id.clone(),
+                    "code": code,
+                    "identityId": sibling_identity_id,
+                }
+            }))
+            .unwrap(),
+            &email_bearer,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(legacy_set_selector.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        response_json(legacy_set_selector).await["diagnostic"]["code"],
+        "SNAPBACK_AUTH_REQUEST_INVALID"
+    );
     let set = router
         .clone()
         .oneshot(session_auth_http_request(
@@ -20727,6 +20785,16 @@ async fn password_change_closed_union_rotates_and_requires_step_up_for_first_set
     let set = response_json(set).await;
     assert_eq!(set_status, StatusCode::OK, "{set}");
     assert_password_credential_shape(&set, true);
+    let password_subject_counts = with_snapback(&state.snapback, move |snapback| {
+        let database = snapback.remainder_auth_database_mut();
+        Ok::<_, crate::diagnostic::SnapbackError>((
+            database.password_identity_subject_count_for_test(set_email)?,
+            database.password_identity_subject_count_for_test(sibling_email)?,
+        ))
+    })
+    .await
+    .expect("password-set subject derivation counts");
+    assert_eq!(password_subject_counts, (1, 0));
 
     // The email-code and local-password identities now share one principal,
     // so the capture-profile reset route may consume a fresh email challenge.

@@ -8106,7 +8106,9 @@ export class SnapbackClient {
       throw new TypeError('password credential transition requires AuthCoordinator custody');
     }
     this.#requirePasswordBearerCustody();
-    await this.authSession();
+    const currentDescriptor = requireAuthorityDescriptor(
+      (await this.authSession()).authorityDescriptor,
+    );
     const capture = this.authCoordinator.capture();
     const predecessor = this.authCoordinator.credentialFor(capture);
     if (predecessor.authority.kind !== 'session') throw staleAuthorityError();
@@ -8126,7 +8128,23 @@ export class SnapbackClient {
       'sessions',
       predecessor.authority.authorizationStreamIncarnation,
     );
-    if (successorAuthority.userId !== predecessor.authority.userId) {
+    if (
+      response.session.provider !== 'local-password'
+      || successorAuthority.userId !== predecessor.authority.userId
+      || successorAuthority.sessionId === predecessor.authority.sessionId
+      || response.authorityDescriptor.authorityInstanceId
+        === currentDescriptor.authorityInstanceId
+    ) {
+      // Password-set success terminalizes the predecessor and must name the
+      // fresh local-password session it issued. A malformed success cannot
+      // leave the now-suspect predecessor bearer in custody, while the exact
+      // capture keeps a concurrent successor outside this cleanup.
+      // @ref LLP 0059#coordinator-interface — only an exact captured
+      // predecessor may be cleared after an invalid transition response.
+      await this.authCoordinator.compareAndClear(
+        capture,
+        'password_set_invalid_successor',
+      );
       throw opaqueCredentialResponseError();
     }
     await this.#transitionCredentialAuthority(capture, {

@@ -643,7 +643,7 @@ export interface AuthCredentialPublicProjectionV1 {
   readonly authorityDescriptor: AuthorityDescriptorV1;
 }
 
-/** One-time recovery custody returned only by signup/consume/rotate. */
+/** One-time recovery custody returned only by signup/authPasswordSet/consume/rotate. */
 export interface AuthRecoveryCredentialPublicProjectionV1
   extends AuthCredentialPublicProjectionV1 {
   readonly recoveryCodes: readonly string[];

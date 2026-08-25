@@ -17,6 +17,7 @@ const OTHER_AUTHORITY = '018f0d90-7b25-7a22-8c33-445566778899';
 const OTHER_SESSION = '018f0d90-7b26-7a22-8c33-445566778899';
 const OTHER_USER = '018f0d90-7b27-7a22-8c33-445566778899';
 const SIGNUP_BEARER = 'sbs_password_signup_secret';
+const EMAIL_BEARER = 'sbs_email_code_secret';
 const CHANGE_BEARER = 'sbs_password_change_secret';
 const CLAIM_BEARER = 'sbs_guest_claim_secret';
 const PASSWORD = 'a-password-that-must-not-leak';
@@ -132,7 +133,7 @@ const makeFixture = ({
 } = {}) => {
   const originalFetch = globalThis.fetch;
   const routeHandlers = new Map();
-  const knownBearers = new Set([SIGNUP_BEARER, CHANGE_BEARER]);
+  const knownBearers = new Set([SIGNUP_BEARER, EMAIL_BEARER, CHANGE_BEARER]);
   const requests = [];
   globalThis.fetch = async (url, init = {}) => {
     const path = new URL(url).pathname;
@@ -182,6 +183,33 @@ const deferred = () => {
   let resolve;
   const promise = new Promise((settle) => { resolve = settle; });
   return { promise, resolve };
+};
+
+const enterEmailCodeSession = async (fixture) => {
+  fixture.respond('/auth/request-code', ({ authorization, body }) => {
+    assert.equal(authorization, null);
+    assert.deepEqual(body, { email: 'person@example.com' });
+    return Response.json({
+      challengeId: 'email-code-challenge',
+      expiresAt: Date.now() + 60_000,
+    });
+  });
+  const challenge = await fixture.client.authRequestCode('person@example.com');
+  fixture.respond('/auth/exchange', ({ authorization, body }) => {
+    assert.equal(authorization, null);
+    assert.deepEqual(body, {
+      challengeId: challenge.challengeId,
+      code: '654321',
+    });
+    return Response.json(credential({
+      token: EMAIL_BEARER,
+      provider: 'email-code',
+    }));
+  });
+  await fixture.client.authExchange({
+    challengeId: challenge.challengeId,
+    code: '654321',
+  });
 };
 
 test('password signup adopts the server principal without exposing the bearer', async () => {
@@ -340,22 +368,16 @@ test('password set mints and submits an identity-free step-up proof', async () =
       : handshake({ bearer }),
   });
   try {
-    fixture.respond('/auth/password/signup', () => (
-      Response.json(credential({ codes: recoveryCodes }))
-    ));
-    await fixture.client.authPasswordSignup({
-      email: 'person@example.com',
-      password: PASSWORD,
-    });
+    await enterEmailCodeSession(fixture);
     fixture.respond('/auth/step-up/request', ({ authorization, body }) => {
-      assert.equal(authorization, `Bearer ${SIGNUP_BEARER}`);
+      assert.equal(authorization, `Bearer ${EMAIL_BEARER}`);
       assert.deepEqual(body, { operation: 'passwordSet' });
       return Response.json({ challengeId: 'step-up-challenge', expiresAt: Date.now() + 60_000 });
     });
     const stepUp = await fixture.client.authStepUpRequest({ operation: 'passwordSet' });
     assert.equal(stepUp.challengeId, 'step-up-challenge');
     fixture.respond('/auth/password/change', ({ authorization, body }) => {
-      assert.equal(authorization, `Bearer ${SIGNUP_BEARER}`);
+      assert.equal(authorization, `Bearer ${EMAIL_BEARER}`);
       assert.deepEqual(body, {
         currentPassword: null,
         newPassword: NEW_PASSWORD,
@@ -379,6 +401,40 @@ test('password set mints and submits an identity-free step-up proof', async () =
       fixture.coordinator.capture(),
     ).bearer, CHANGE_BEARER);
     assert.equal(fixture.coordinator.authority.sessionId, OTHER_SESSION);
+  } finally {
+    await fixture.close();
+  }
+});
+
+test('password set rejects predecessor-session reuse and clears predecessor custody', async () => {
+  const fixture = makeFixture();
+  try {
+    await enterEmailCodeSession(fixture);
+    fixture.respond('/auth/password/change', ({ authorization, body }) => {
+      assert.equal(authorization, `Bearer ${EMAIL_BEARER}`);
+      assert.deepEqual(body, {
+        currentPassword: null,
+        newPassword: NEW_PASSWORD,
+        stepUp: { challengeId: 'step-up-challenge', code: '123456' },
+      });
+      return Response.json(credential({
+        token: CHANGE_BEARER,
+        authorityInstanceId: OTHER_AUTHORITY,
+        sessionId: SESSION,
+        codes: recoveryCodes,
+      }));
+    });
+    await assert.rejects(
+      fixture.client.authPasswordSet({
+        newPassword: NEW_PASSWORD,
+        stepUp: { challengeId: 'step-up-challenge', code: '123456' },
+      }),
+      (error) => error?.code === 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID',
+    );
+    assert.equal(fixture.coordinator.authority.kind, 'anonymous');
+    assert.equal(fixture.coordinator.credentialFor(
+      fixture.coordinator.capture(),
+    ).bearer, null);
   } finally {
     await fixture.close();
   }

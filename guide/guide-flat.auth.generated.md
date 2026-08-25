@@ -1581,8 +1581,9 @@ These are not shipped, and Snapback says so rather than pretending:
 - **Do not construct `AuthCoordinator` or call an authority-adoption method in
   an ordinary React/Expo app.** The generated application client and provider
   own that composition; the explicit seam is for custom brokers and shells.
-- **Do not discard, log, analyze, or silently persist signup recovery codes.**
-  Present the one-time projection immediately and hand custody to the user.
+- **Do not discard, log, analyze, or silently persist recovery codes returned
+  by signup or `authPasswordSet`.** Present the one-time projection immediately
+  and hand custody to the user.
 - **Do not implement user switch as sign-in over an authenticated principal.**
   Sign out, wait for settled anonymous, then enter the successor account.
 - **Do not infer Expo-native restoration from browser or Expo-web evidence.**

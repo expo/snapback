@@ -3040,6 +3040,27 @@ impl LocalDatabase {
             )
         })
     }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn insert_email_code_identity_for_existing_user_for_test(
+        &mut self,
+        user_id: &str,
+        address: &str,
+        created_at_ms: u64,
+    ) -> SnapbackResult<String> {
+        let identity_id = crate::ids::mint_time_ordered(crate::ids::Kind::Identity);
+        self.with_auth_transaction(|transaction| {
+            insert_test_email_identity(
+                transaction,
+                &identity_id,
+                user_id,
+                address,
+                created_at_ms,
+                false,
+            )
+        })?;
+        Ok(identity_id)
+    }
 }
 
 #[cfg(any(test, feature = "test-support"))]

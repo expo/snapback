@@ -223,7 +223,7 @@ are callable non-interactively — the benchmark's core demand.
 |---|---|---|
 | `POST /auth/password/signup` | `{ email, password }` | 200, composed credential response |
 | `POST /auth/password/signin` | `{ email, password }` | 200, composed credential response |
-| `POST /auth/password/change` | closed union: `{ currentPassword, newPassword }` (rotate) **or** `{ currentPassword: null, newPassword, stepUp: { challengeId, code } }` (set) + bearer | 200, composed credential response (rotated bearer; see below) |
+| `POST /auth/password/change` | closed union: `{ currentPassword, newPassword }` (rotate) **or** `{ currentPassword: null, newPassword, stepUp: { challengeId, code } }` (set) + bearer | 200, composed credential response (rotation keeps the authority and rotates its bearer; first-set issues a new `local-password` session; see below) |
 | `POST /auth/password/reset` | `{ challengeId, code, newPassword }` | 200, composed credential response |
 
 The success payload of signup, signin, and reset is **byte-shape-identical to
