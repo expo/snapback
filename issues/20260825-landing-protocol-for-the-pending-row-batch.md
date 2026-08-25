@@ -3,7 +3,7 @@
 Status: open
 Date: 2026-08-25
 Systems: Tooling, Testing
-Related: llp/0232-optimistic-landing.decision.md,
+Related: llp/0232-green-pointer-development-model.rfc.md,
   issues/20260825-a-closes-rows-trailer-is-a-claim-not-a-label.md,
   issues/20260825-none-of-the-nine-landed-rows-were-closed.md
 
@@ -66,3 +66,47 @@ q12 → soundroots**.
 
 Nothing lands before its review returns and its trailer is verified per row. This protocol is about how
 to land what has *already* earned it, not a licence to land early.
+
+## Preflight: record immutable inputs before step 1
+
+A rehearsal of this protocol could not start because the target ref was absent on the machine it ran
+on — it had been published to a different host. The agent correctly refused to guess or substitute a
+commit, but the failure was avoidable and would have been worse mid-batch.
+
+Before touching anything, resolve and record both SHAs:
+
+```sh
+target=$(git rev-parse --verify refs/pend/<lane>^{commit}) || exit 1
+base=$(git rev-parse --verify origin/main^{commit}) || exit 1
+git show -s --format='%H %s' "$target"
+git worktree add --detach ~/lanes/rehearsal "$base"
+```
+
+Without this, a missing or moved pending ref makes the procedure neither reproducible nor safely
+recoverable. Two corollaries learned the same way:
+
+- **Publish lane refs to every machine that will need them**, not just the two build hosts. An analysis
+  host could not verify a commit it was asked about for exactly this reason.
+- **`origin/main` advanced several times during a single setup.** That is not a hazard to work around
+  once; it is the steady state. Resolve `base` explicitly and rebase against the resolved SHA rather
+  than against a moving `origin/main`.
+
+## When the cherry-pick conflicts in source, stop
+
+The first real application of this protocol hit five conflicting source files, because a previously
+landed row had touched the same code. **`git cherry-pick --abort` then failed**, leaving unmerged files
+in a clone shared with other agent sessions.
+
+Recovery that worked, and should be the documented path:
+
+1. `git cherry-pick --quit` to clear sequencer state without touching the tree.
+2. `git reset` (mixed) to clear the index.
+3. **Verify every dirty path against the target commit's own file list before restoring anything** —
+   `git diff --name-only <base> <target>`. Any path not in that list belongs to another session.
+4. `git checkout HEAD -- <file>` for each verified tracked file; remove the untracked files the pick
+   introduced.
+
+Better still: **when source conflicts appear, do not resolve them in the shared clone.** Send the
+rebase back to the lane worktree that owns the commit, with instructions to keep both sides' intent and
+to re-run its own witnesses afterwards — a rebase that silently changes a refusal is the failure this
+protocol exists to prevent.
