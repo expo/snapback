@@ -1,34 +1,17 @@
-use snapback_sync::ephemeral::{AuthContext, LocalEphemeralBackend, PendingRoomReauthorization};
+use snapback_engine::ephemeral::{AuthContext, PendingRoomReauthorization};
+use snapback_engine::local::{EphemeralApi, LocalSnapback};
 
 fn supply_results(
-    backend: &LocalEphemeralBackend,
-    pending: &PendingRoomReauthorization,
+    snapback: &LocalSnapback,
+    ephemeral: &EphemeralApi,
+    pending: PendingRoomReauthorization,
     auth: AuthContext,
 ) {
     // @attack
-    let _ = backend.complete_room_reauthorization(
-        &pending.room,
-        pending.obligation.room_authority_generation,
-        pending
-            .subscribers
-            .iter()
-            .enumerate()
-            .map(|(index, subscriber)| {
-                if index == 0 {
-                    snapback_sync::ephemeral::RoomSubscriberResolution::Authorized {
-                        connection_id: subscriber.connection_id.clone(),
-                        expected_effect_fence: subscriber.effect_fence.clone(),
-                        auth: auth.clone(),
-                    }
-                } else {
-                    snapback_sync::ephemeral::RoomSubscriberResolution::Denied {
-                        connection_id: subscriber.connection_id.clone(),
-                        expected_effect_fence: subscriber.effect_fence.clone(),
-                    }
-                }
-            })
-            .collect(),
-    );
+    let batch = snapback
+        .resolve_pending_ephemeral_room_permissions(pending, vec![Some(auth)])
+        .expect("caller-selected room reauthorization results resolve");
+    let _ = ephemeral.complete_room_reauthorization(batch);
 }
 
 fn main() {}

@@ -16,6 +16,7 @@ use crate::ephemeral::{
 };
 use crate::manifest::{PORTABLE_STORAGE_VERSION_MAX, SchemaManifest};
 use crate::process_bound_identity::ProcessBoundIdentity;
+use rusqlite::{OptionalExtension as _, params};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
@@ -273,24 +274,50 @@ impl PendingRoomReauthorization {
     }
 }
 
-/// One exact snapshotted subscriber paired with the independently refreshed
-/// connection authority that the database permission projection must decide.
+/// The identity captured by pending-room enumeration. This is deliberately a
+/// different type from the publicly constructible ordinary-operation
+/// [`AuthContext`]: resolution accepts no caller-built authorization answer.
+pub enum RoomReauthorizationSubject {
+    Unauthenticated,
+    User { user_id: String },
+    Session { session_id: String, generation: u64 },
+}
+
+impl RoomReauthorizationSubject {
+    pub fn unauthenticated() -> Self {
+        Self::Unauthenticated
+    }
+
+    pub fn user(user_id: String) -> Self {
+        Self::User { user_id }
+    }
+
+    pub fn session(session_id: String, generation: u64) -> Self {
+        Self::Session {
+            session_id,
+            generation,
+        }
+    }
+}
+
+/// One exact snapshotted subscriber paired with the identity that pending
+/// enumeration derived from the installed subscriber and its effect fence.
 pub struct RoomReauthorizationSubscriber {
     connection_id: ConnectionId,
     effect_fence: Option<ConnectionEffectFence>,
-    fresh_authority: Option<AuthContext>,
+    subject: RoomReauthorizationSubject,
 }
 
 impl RoomReauthorizationSubscriber {
     pub fn new(
         connection_id: ConnectionId,
         effect_fence: Option<ConnectionEffectFence>,
-        fresh_authority: Option<AuthContext>,
+        subject: RoomReauthorizationSubject,
     ) -> Self {
         Self {
             connection_id,
             effect_fence,
-            fresh_authority,
+            subject,
         }
     }
 }
@@ -343,18 +370,24 @@ impl ResolvedRoomReauthorizationBatch {
     }
 }
 
-impl super::ServingDatabase {
-    /// Resolve every snapshotted room subscriber against this exact serving
-    /// database and return a registry-bound completion carrier.
+impl AuthorizationCommitParticipant {
+    /// Resolve every internally enumerated room subscriber against this exact
+    /// participant and serving database, returning a registry-bound completion
+    /// carrier. The live participant is privately held by the ephemeral
+    /// backend; an obtainable pending observation is insufficient by itself.
     ///
-    /// @ref LLP 0303#the-governing-principle — authorization outcomes are
-    /// derived at the database owner instead of accepted from the caller.
+    /// @ref LLP 0303#the-governing-principle — the subscriber subject comes
+    /// from pending enumeration and the resulting context is database-derived,
+    /// never supplied alongside the pending authority.
     pub fn resolve_room_reauthorization(
         &self,
+        database: &super::ServingDatabase,
         pending: PendingRoomReauthorization,
         subscribers: Vec<RoomReauthorizationSubscriber>,
     ) -> SnapbackResult<ResolvedRoomReauthorizationBatch> {
-        if !pending.root.binding_matches(&self.binding()) {
+        if !Arc::ptr_eq(&self.registry, &pending.root)
+            || !pending.root.binding_matches(&database.binding())
+        {
             return Err(participant_database_mismatch());
         }
         let projection = pending
@@ -366,53 +399,88 @@ impl super::ServingDatabase {
                     "pending protected room lacks its durable permissionBacking projection",
                 )
             })?;
+        let scope_fields = projection
+            .scope_fields
+            .iter()
+            .map(|(scope_field, table_field)| {
+                pending
+                    .room
+                    .scope
+                    .get(scope_field)
+                    .map(|value| (table_field.clone(), value.to_owned()))
+                    .ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_EPHEMERAL_INVALID_SCOPE",
+                            "ephemeral",
+                            "room scope does not satisfy its permissionBacking projection",
+                        )
+                    })
+            })
+            .collect::<SnapbackResult<Vec<_>>>()?;
         let mut resolutions = Vec::with_capacity(subscribers.len());
         for subscriber in subscribers {
-            let authorized_auth = match subscriber.fresh_authority {
-                Some(fresh) => {
-                    let Some(user_id) = fresh.user_id.as_deref() else {
-                        resolutions.push(ResolvedRoomSubscriberReauthorization {
-                            connection_id: subscriber.connection_id,
-                            expected_effect_fence: subscriber.effect_fence,
-                            authorized_auth: None,
-                        });
-                        continue;
+            let (durable_user_id, session_id) = match &subscriber.subject {
+                RoomReauthorizationSubject::Unauthenticated => (None, None),
+                RoomReauthorizationSubject::User { user_id } => (Some(user_id.clone()), None),
+                RoomReauthorizationSubject::Session {
+                    session_id,
+                    generation,
+                } => {
+                    let generation = i64::try_from(*generation).ok();
+                    let durable_user_id = match generation {
+                        Some(generation) => database.db.with_auth_read(|connection| {
+                            let floor_ms = i64::try_from(super::auth::read_session_clock_floor_on(
+                                connection,
+                            )?)
+                            .unwrap_or(i64::MAX);
+                            Ok(connection
+                                .query_row(
+                                    "SELECT session.user_id
+                                     FROM _auth_sessions AS session
+                                     JOIN _auth_users AS user ON user.id = session.user_id
+                                     WHERE session.id = ?1
+                                       AND session.generation = ?2
+                                       AND session.revoked_at_ms IS NULL
+                                       AND session.expires_at_ms > ?3
+                                       AND session.absolute_expires_at_ms > ?3
+                                       AND user.deactivated_at_ms IS NULL",
+                                    params![session_id, generation, floor_ms],
+                                    |row| row.get::<_, String>(0),
+                                )
+                                .optional()?)
+                        })?,
+                        None => None,
                     };
-                    let scope_fields = projection
-                        .scope_fields
-                        .iter()
-                        .map(|(scope_field, table_field)| {
-                            pending
-                                .room
-                                .scope
-                                .get(scope_field)
-                                .map(|value| (table_field.clone(), value.to_owned()))
-                                .ok_or_else(|| {
-                                    SnapbackError::error(
-                                        "SNAPBACK_EPHEMERAL_INVALID_SCOPE",
-                                        "ephemeral",
-                                        "room scope does not satisfy its permissionBacking projection",
-                                    )
-                                })
-                        })
-                        .collect::<SnapbackResult<Vec<_>>>()?;
-                    let granted = self.room_permission_projection_granted(
-                        &projection.table,
-                        &projection.subject_field,
-                        user_id,
-                        &scope_fields,
-                        projection.role_field.as_deref(),
-                        projection.allowed_roles.as_deref(),
-                        pending.obligation.min_commit_version,
-                    )?;
-                    granted.then(|| {
-                        pending
-                            .collection
-                            .grant_projected_room_permission(fresh, &pending.room.scope)
-                    })
+                    (durable_user_id, Some(session_id.clone()))
                 }
-                None => None,
             };
+            // Even an internally enumerated userless/terminal subject runs the
+            // durable membership read. Its absence is not a caller-provided
+            // denial answer, and one malformed subscriber therefore cannot
+            // wedge the legitimate room's retryable completion forever.
+            let granted = database.db.room_permission_projection_granted(
+                &projection.table,
+                &projection.subject_field,
+                durable_user_id.as_deref().unwrap_or(""),
+                &scope_fields,
+                projection.role_field.as_deref(),
+                projection.allowed_roles.as_deref(),
+                pending.obligation.min_commit_version,
+            )?;
+            let authorized_auth = durable_user_id.filter(|_| granted).map(|user_id| {
+                let fresh = AuthContext {
+                    principal: None,
+                    session_id,
+                    user_id: Some(user_id.clone()),
+                    permissions: BTreeSet::new(),
+                    stream_initiator: Some(crate::stream_attempt::StreamInitiator::SessionUser(
+                        user_id,
+                    )),
+                };
+                pending
+                    .collection
+                    .grant_projected_room_permission(fresh, &pending.room.scope)
+            });
             resolutions.push(ResolvedRoomSubscriberReauthorization {
                 connection_id: subscriber.connection_id,
                 expected_effect_fence: subscriber.effect_fence,
@@ -420,7 +488,7 @@ impl super::ServingDatabase {
             });
         }
         Ok(ResolvedRoomReauthorizationBatch {
-            root: pending.root,
+            root: self.registry.clone(),
             room: pending.room,
             generation: pending.obligation.room_authority_generation,
             resolutions,
@@ -1265,6 +1333,16 @@ impl NonAuthorizingRoomAuthority {
 
     pub fn pending_reauthorizations(&self) -> Vec<PendingRoomReauthorization> {
         self.participant.pending_reauthorizations()
+    }
+
+    pub fn resolve_room_reauthorization(
+        &self,
+        database: &super::ServingDatabase,
+        pending: PendingRoomReauthorization,
+        subscribers: Vec<RoomReauthorizationSubscriber>,
+    ) -> SnapbackResult<ResolvedRoomReauthorizationBatch> {
+        self.participant
+            .resolve_room_reauthorization(database, pending, subscribers)
     }
 
     pub fn begin_outbox_admission(
@@ -3199,10 +3277,11 @@ mod tests {
         install_room_resync(&target);
 
         let wrong_database_pending = source.participant.pending_reauthorizations().pop().unwrap();
-        let mismatch = match target
-            .database
-            .resolve_room_reauthorization(wrong_database_pending, Vec::new())
-        {
+        let mismatch = match target.participant.resolve_room_reauthorization(
+            &target.database,
+            wrong_database_pending,
+            Vec::new(),
+        ) {
             Err(error) => error,
             Ok(_) => panic!("a different database resolved the source root"),
         };
@@ -3213,8 +3292,9 @@ mod tests {
         assert_eq!(source.participant.pending_reauthorizations().len(), 1);
 
         let wrong_root_batch = source
-            .database
+            .participant
             .resolve_room_reauthorization(
+                &source.database,
                 source.participant.pending_reauthorizations().pop().unwrap(),
                 Vec::new(),
             )
@@ -3229,15 +3309,17 @@ mod tests {
         assert_eq!(source.participant.pending_reauthorizations().len(), 1);
 
         let exact_batch = source
-            .database
+            .participant
             .resolve_room_reauthorization(
+                &source.database,
                 source.participant.pending_reauthorizations().pop().unwrap(),
                 Vec::new(),
             )
             .unwrap();
         let stale_duplicate = source
-            .database
+            .participant
             .resolve_room_reauthorization(
+                &source.database,
                 source.participant.pending_reauthorizations().pop().unwrap(),
                 Vec::new(),
             )

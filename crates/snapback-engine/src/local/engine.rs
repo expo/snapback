@@ -29200,24 +29200,11 @@ impl LocalSnapback {
     }
 
     #[cfg(test)]
-    pub(crate) fn reauthorize_pending_ephemeral_rooms<Resolve>(
-        &mut self,
-        mut resolve_connection: Resolve,
-    ) -> SnapbackResult<usize>
-    where
-        Resolve: FnMut(&str, &AuthContext) -> SnapbackResult<Option<AuthContext>>,
-    {
+    pub(crate) fn reauthorize_pending_ephemeral_rooms(&mut self) -> SnapbackResult<usize> {
         let pending = self.ephemeral.pending_room_reauthorizations();
         let mut completed = 0_usize;
         for room in pending {
-            let fresh = room
-                .subscribers()
-                .iter()
-                .map(|subscriber| {
-                    resolve_connection(subscriber.connection_id(), subscriber.previous_auth())
-                })
-                .collect::<SnapbackResult<Vec<_>>>()?;
-            let batch = self.resolve_pending_ephemeral_room_permissions(room, fresh)?;
+            let batch = self.resolve_pending_ephemeral_room_permissions(room)?;
             if self.ephemeral.complete_room_reauthorization(batch)? {
                 completed = completed.saturating_add(1);
             }
@@ -29228,9 +29215,9 @@ impl LocalSnapback {
     pub fn resolve_pending_ephemeral_room_permissions(
         &self,
         room: crate::ephemeral::PendingRoomReauthorization,
-        fresh_authorities: Vec<Option<AuthContext>>,
     ) -> SnapbackResult<ResolvedRoomReauthorizationBatch> {
-        room.resolve_with_database(&self.db, fresh_authorities)
+        self.ephemeral
+            .resolve_pending_room_reauthorization(&self.db, room)
     }
 
     fn room_permission_projection_granted(

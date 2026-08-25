@@ -16,7 +16,8 @@ use crate::storage::{
     AuthorizationOutboxAdmission, AuthorizationReservationCancellation, AuthorizationVersion,
     NonAuthorizingRoomAuthority, OutboxFrameDisposition, RealtimePublicationValidity,
     RoomAuthorityOperationGuard, RoomCreationAdmission, RoomReauthorizationCompletion,
-    RoomReauthorizationSubscriber, RoomRetirementAdmission, ServingDatabase,
+    RoomReauthorizationSubject, RoomReauthorizationSubscriber, RoomRetirementAdmission,
+    ServingDatabase,
 };
 pub use crate::storage::{
     RealtimePublicationPermit, ResolvedRoomReauthorizationBatch, RoomAuthorityPermit,
@@ -3150,19 +3151,13 @@ type SharedOutbox = Arc<StdMutex<OutboundQueue>>;
 
 pub struct RoomSubscriberReauthorization {
     connection_id: ConnectionId,
-    #[cfg(any(test, feature = "test-support"))]
-    previous_auth: AuthContext,
+    subject: RoomReauthorizationSubject,
     effect_fence: Option<ConnectionEffectFence>,
 }
 
 impl RoomSubscriberReauthorization {
     pub fn connection_id(&self) -> &ConnectionId {
         &self.connection_id
-    }
-
-    #[cfg(any(test, feature = "test-support"))]
-    pub fn previous_auth(&self) -> &AuthContext {
-        &self.previous_auth
     }
 
     pub fn effect_fence(&self) -> Option<&ConnectionEffectFence> {
@@ -3187,34 +3182,24 @@ impl PendingRoomReauthorization {
     pub fn subscribers(&self) -> &[RoomSubscriberReauthorization] {
         &self.subscribers
     }
+}
 
-    /// Consume the exact pending snapshot and have the matching serving
-    /// database derive every authorization outcome.
-    pub fn resolve_with_database(
-        self,
-        database: &ServingDatabase,
-        fresh_authorities: Vec<Option<AuthContext>>,
-    ) -> SnapbackResult<ResolvedRoomReauthorizationBatch> {
-        if self.subscribers.len() != fresh_authorities.len() {
-            return Err(SnapbackError::error(
-                "SNAPBACK_EPHEMERAL_REAUTHORIZATION_INCOMPLETE",
-                "ephemeral",
-                "room permission phase requires one authority result per snapshotted subscriber",
-            ));
+fn room_reauthorization_subject(
+    auth: &AuthContext,
+    effect_fence: Option<&ConnectionEffectFence>,
+) -> RoomReauthorizationSubject {
+    match effect_fence.map(|fence| &fence.authority) {
+        Some(ConnectionEffectAuthority::Session {
+            session_id,
+            generation,
+        }) => RoomReauthorizationSubject::session(session_id.to_string(), *generation),
+        Some(ConnectionEffectAuthority::ServicePrincipal { .. }) => {
+            RoomReauthorizationSubject::unauthenticated()
         }
-        let subscribers = self
-            .subscribers
-            .into_iter()
-            .zip(fresh_authorities)
-            .map(|(subscriber, fresh_authority)| {
-                RoomReauthorizationSubscriber::new(
-                    subscriber.connection_id,
-                    subscriber.effect_fence,
-                    fresh_authority,
-                )
-            })
-            .collect();
-        database.resolve_room_reauthorization(self.authority, subscribers)
+        Some(ConnectionEffectAuthority::Anonymous) | None => auth.user_id.clone().map_or_else(
+            RoomReauthorizationSubject::unauthenticated,
+            RoomReauthorizationSubject::user,
+        ),
     }
 }
 
@@ -3309,6 +3294,22 @@ impl RoomAuthority {
         match self {
             Self::Bound(participant) => participant.pending_reauthorizations(),
             Self::Unbound(authority) => authority.pending_reauthorizations(),
+        }
+    }
+
+    fn resolve_room_reauthorization(
+        &self,
+        database: &ServingDatabase,
+        pending: crate::storage::PendingRoomReauthorization,
+        subscribers: Vec<RoomReauthorizationSubscriber>,
+    ) -> SnapbackResult<ResolvedRoomReauthorizationBatch> {
+        match self {
+            Self::Bound(participant) => {
+                participant.resolve_room_reauthorization(database, pending, subscribers)
+            }
+            Self::Unbound(authority) => {
+                authority.resolve_room_reauthorization(database, pending, subscribers)
+            }
         }
     }
 
@@ -3843,8 +3844,10 @@ impl LocalEphemeralBackend {
                         .map(
                             |(connection_id, subscriber)| RoomSubscriberReauthorization {
                                 connection_id: connection_id.clone(),
-                                #[cfg(any(test, feature = "test-support"))]
-                                previous_auth: subscriber.auth.clone(),
+                                subject: room_reauthorization_subject(
+                                    &subscriber.auth,
+                                    subscriber.effect_fence.as_ref(),
+                                ),
                                 effect_fence: subscriber.effect_fence.clone(),
                             },
                         )
@@ -3852,6 +3855,37 @@ impl LocalEphemeralBackend {
                 })
             })
             .collect()
+    }
+
+    /// Resolve the exact pending enumeration through this backend's private
+    /// participant. No ordinary-operation [`AuthContext`] is accepted here.
+    ///
+    /// @ref LLP 0303#enumerate-the-effects-siblings-not-the-entry-points —
+    /// pending enumeration and resolution are one bound producer; a caller
+    /// cannot compose the pending observation with independently supplied
+    /// authorization answers.
+    pub fn resolve_pending_room_reauthorization(
+        &self,
+        database: &ServingDatabase,
+        pending: PendingRoomReauthorization,
+    ) -> SnapbackResult<ResolvedRoomReauthorizationBatch> {
+        let PendingRoomReauthorization {
+            authority,
+            subscribers,
+        } = pending;
+        let subscribers = subscribers
+            .into_iter()
+            .map(|subscriber| {
+                RoomReauthorizationSubscriber::new(
+                    subscriber.connection_id,
+                    subscriber.effect_fence,
+                    subscriber.subject,
+                )
+            })
+            .collect();
+        self.shared
+            .room_authority
+            .resolve_room_reauthorization(database, authority, subscribers)
     }
 
     pub fn complete_room_reauthorization(
