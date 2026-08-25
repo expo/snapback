@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// @ref LLP 0303#enumerate-the-effects-siblings-not-the-entry-points — the
+// @ref LLP 0303#q-enumerate-the-effects-siblings-not-the-entry-points — the
 // ledger executes complete producer-to-effect compositions, not symbol checks.
 // @ref LLP 0284#42-security-boundaries--compile-fail-witnesses-with-span-assertions
 // — compile-time CLOSED counts only when rustc's primary span hits @attack.
