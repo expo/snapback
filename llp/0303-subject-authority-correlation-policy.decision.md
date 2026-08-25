@@ -6,7 +6,7 @@
 **Author:** Claude (Opus 5), commissioned by Charlie Cheever (author ruling
 2026-08-24, in session supervising LLP 0283 F-1)
 **Date:** 2026-08-24
-**Revised:** 2026-08-25 (l — a guard held in per-handle state is opt-in)
+**Revised:** 2026-08-25 (m — the strict enumeration listed 41 identifiers under a 37 label)
 **Related:** LLP 0283, LLP 0298, LLP 0285, LLP 0274,
 `issues/20260824-liveness-row-bucket-assignment.md`,
 `issues/20260824-entitlement-predicates-for-the-live-sites.md`
@@ -408,9 +408,19 @@ path** writes, not the columns the previously-fixed path wrote.
 
 ## Approved dispositions
 
-**Strict — derive from the authority (37 questions).** Q01–Q05, Q07–Q12, Q14–Q22, Q24–Q35,
-Q37–Q45. In each case the subject, scope, claim, descriptor, channel, writer class, token set,
+**Strict — derive from the authority (37 questions).** Q01–Q05, Q07–Q12, Q14–Q22, Q24,
+Q26, Q28–Q29, Q31–Q38, Q40–Q44. In each case the subject, scope, claim, descriptor, channel, writer class, token set,
 namespace, or lease field must be produced by whatever verified it, not asserted by the caller.
+
+> **Enumeration repair (revision m).** As first published, that sentence carried the label "37
+> questions" over printed ranges containing **41** identifiers. The ranges wrongly included Q23,
+> Q25, Q27, Q30, Q39 and Q45, and omitted Q36. The document repairs itself: Q39 is classified below
+> as an external effect that precedes proof of ownership by design; Q36 is ranked for
+> implementation below with a DERIVE disposition; Q23's product dimension is listed as still open;
+> and Q25, Q27, Q30 and Q45 are cross-principal flows whose plans retain exact *relation*
+> verification rather than derivation. The ranges above are the repaired set and total exactly 37.
+> The defect mattered: a label and its own enumeration disagreed by four, and every downstream
+> count drawn from it inherited the error.
 
 **Strict, with an explicit binding rather than ownership (2).**
 - **Q06** — effect approval. The approver is deliberately a different principal from the
