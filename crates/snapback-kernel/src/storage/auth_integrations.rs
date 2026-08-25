@@ -2848,6 +2848,25 @@ mod tests {
     }
 }
 impl super::ServingDatabase {
+    pub fn integration_record_with_caller_attribution_if_present(
+        &self,
+        principal_user_id: &str,
+    ) -> SnapbackResult<Option<(IntegrationRecord, super::AuthorityCallerAttributionBasis)>> {
+        self.db
+            .integration_record_if_present(principal_user_id)
+            .map(|record| {
+                record.map(|record| {
+                    let attribution = super::AuthorityCallerAttributionBasis {
+                        database_binding: self.binding(),
+                        lane: "integration",
+                        caller_key: record.integration_id.clone(),
+                        principal_user_id: Some(record.principal_user_id.clone()),
+                    };
+                    (record, attribution)
+                })
+            })
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn begin_oauth_authorization(
         &mut self,

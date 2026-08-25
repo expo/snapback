@@ -882,6 +882,21 @@ mod tests {
     }
 }
 impl super::ServingDatabase {
+    pub fn resolve_capability_link_with_caller_attribution(
+        &self,
+        token: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<(CapabilityLinkRecord, super::AuthorityCallerAttributionBasis)> {
+        let record = self.db.resolve_capability_link(token, now_ms)?;
+        let attribution = super::AuthorityCallerAttributionBasis {
+            database_binding: self.binding(),
+            lane: "link",
+            caller_key: record.id.clone(),
+            principal_user_id: None,
+        };
+        Ok((record, attribution))
+    }
+
     pub fn mint_capability_link(
         &mut self,
         request: MintCapabilityLink,

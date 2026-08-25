@@ -7,8 +7,10 @@
 use super::{LocalDatabase, SnapbackResult};
 use crate::diagnostic::SnapbackError;
 use crate::manifest::SchemaManifest;
+use base64::Engine as _;
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use serde::Serialize;
+use sha2::{Digest as _, Sha256};
 
 pub const DECLARED_CLIENT_TABLE: &str = "_snapback_declared_clients";
 
@@ -26,6 +28,13 @@ pub const DECLARED_CLIENT_MAX_AGE_POLICY_GENERATION: u64 = 4;
 /// durable pre-authentication shape must have a hard byte bound.
 pub const DECLARED_CLIENT_MAX_ID_BYTES: usize = 512;
 const MAX_SAFE_COUNTER: u64 = 9_007_199_254_740_991;
+
+pub fn caller_key(normalized_id: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(b"snapback:declared-client-id:v1\n");
+    hasher.update(normalized_id.as_bytes());
+    base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(hasher.finalize())
+}
 
 const TABLE_SQL: &str = r#"
 CREATE TABLE IF NOT EXISTS _snapback_declared_clients (
@@ -593,6 +602,31 @@ impl super::ServingDatabase {
     ) -> SnapbackResult<DeclaredClientObservation> {
         self.db
             .observe_declared_client(normalized_id, now_ms, network_evidence_generation)
+    }
+    pub fn observe_declared_client_with_caller_attribution(
+        &mut self,
+        normalized_id: &str,
+        now_ms: u64,
+        network_evidence_generation: u64,
+    ) -> SnapbackResult<(
+        DeclaredClientObservation,
+        Option<super::AuthorityCallerAttributionBasis>,
+    )> {
+        let observation =
+            self.db
+                .observe_declared_client(normalized_id, now_ms, network_evidence_generation)?;
+        let attribution = match &observation {
+            DeclaredClientObservation::Observed(record) => {
+                Some(super::AuthorityCallerAttributionBasis {
+                    database_binding: self.binding(),
+                    lane: "declared",
+                    caller_key: caller_key(&record.normalized_id),
+                    principal_user_id: None,
+                })
+            }
+            DeclaredClientObservation::Capacity => None,
+        };
+        Ok((observation, attribution))
     }
     pub fn mark_declared_client_refusal(&mut self, normalized_id: &str) -> SnapbackResult<()> {
         self.db.mark_declared_client_refusal(normalized_id)

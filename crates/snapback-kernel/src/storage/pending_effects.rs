@@ -133,15 +133,15 @@ pub struct PendingEffectRecord {
     pub function_kind: FunctionKind,
     pub args: Value,
     pub args_digest: String,
-    pub caller_lane: String,
-    pub caller_key: String,
-    pub authority: PendingEffectAuthority,
+    caller_lane: String,
+    caller_key: String,
+    authority: PendingEffectAuthority,
     pub generation: ArtifactGeneration,
     pub effect_class: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub link_origin_id: Option<String>,
     #[serde(skip_serializing)]
-    pub approver_principal_id: Option<String>,
+    approver_principal_id: Option<String>,
     pub created_at_ms: u64,
     pub expires_at_ms: u64,
     pub status: PendingEffectStatus,
@@ -155,6 +155,48 @@ pub struct PendingEffectRecord {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub outcome_code: Option<String>,
     pub journal: Vec<PendingEffectJournalEntry>,
+    /// Present only on the exact row loaded for one admitted approval. This
+    /// does not serialize or persist; it prevents a list/read DTO (or a row
+    /// loaded from another database) from becoming attribution authority.
+    #[serde(skip)]
+    caller_attribution_binding: Option<PendingEffectCallerAttributionBinding>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct PendingEffectCallerAttributionBinding {
+    database_binding: crate::storage::DatabaseBinding,
+    approver_principal_id: String,
+}
+
+impl PendingEffectRecord {
+    pub fn caller_lane(&self) -> &str {
+        &self.caller_lane
+    }
+
+    pub fn caller_key(&self) -> &str {
+        &self.caller_key
+    }
+
+    pub fn authority(&self) -> &PendingEffectAuthority {
+        &self.authority
+    }
+
+    pub fn approver_principal_id(&self) -> Option<&str> {
+        self.approver_principal_id.as_deref()
+    }
+
+    /// Return the producing database only when `approver_principal_id` is the
+    /// approver retained by the same prepared-approval carrier as this row.
+    /// Ordinary pending-effect read DTOs deliberately return `None`.
+    pub fn caller_attribution_database_binding(
+        &self,
+        approver_principal_id: &str,
+    ) -> Option<&crate::storage::DatabaseBinding> {
+        self.caller_attribution_binding
+            .as_ref()
+            .filter(|binding| binding.approver_principal_id == approver_principal_id)
+            .map(|binding| &binding.database_binding)
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -645,6 +687,7 @@ fn read_record(conn: &Connection, id: &str) -> SnapbackResult<Option<PendingEffe
             executed_at_ms: row.20.map(|value| value as u64),
             outcome_code: row.21,
             journal: serde_json::from_str(&row.22).map_err(|_| catalog_corrupt())?,
+            caller_attribution_binding: None,
         })
     })
     .transpose()
@@ -871,7 +914,7 @@ impl LocalDatabase {
             return Err(not_found());
         }
         self.with_auth_transaction(|tx| lazy_expire(tx, Some(id), now_ms))?;
-        let record = read_record(&self.conn, id)?.ok_or_else(not_found)?;
+        let mut record = read_record(&self.conn, id)?.ok_or_else(not_found)?;
         if record.status == PendingEffectStatus::Expired {
             return Err(expired());
         }
@@ -885,6 +928,10 @@ impl LocalDatabase {
         {
             return Err(approval_denied());
         }
+        record.caller_attribution_binding = Some(PendingEffectCallerAttributionBinding {
+            database_binding: self.binding(),
+            approver_principal_id: approver_principal_id.to_owned(),
+        });
         Ok(PreparedPendingEffectApproval {
             database_binding: self.binding(),
             record,
@@ -911,13 +958,17 @@ impl LocalDatabase {
         let id = prepared.id.clone();
         self.with_auth_transaction(|tx| {
             lazy_expire(tx, Some(&id), now_ms)?;
-            let current = read_record(tx, &id)?.ok_or_else(not_found)?;
+            let mut current = read_record(tx, &id)?.ok_or_else(not_found)?;
             if current.status == PendingEffectStatus::Expired {
                 return Err(expired());
             }
             if current.status != PendingEffectStatus::Pending {
                 return Err(state_invalid());
             }
+            // The prepared row carries an ephemeral attribution binding that
+            // is intentionally absent from durable readback. Normalize only
+            // that private proof before comparing every durable field.
+            current.caller_attribution_binding = prepared.caller_attribution_binding.clone();
             if current != prepared {
                 return Err(state_invalid());
             }

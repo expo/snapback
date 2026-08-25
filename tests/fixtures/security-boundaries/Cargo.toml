@@ -363,6 +363,13 @@ path = "src/bin/f145_prepare_asset_callbacks_authority.rs"
 [[bin]]
 name = "f272-supply-ticket-and-effect"
 path = "src/bin/f272_supply_ticket_and_effect.rs"
+[[bin]]
+name = "record-effect-approver-without-authority"
+path = "src/bin/record_effect_approver_without_authority.rs"
+
+[[bin]]
+name = "publish-scope-retirement-without-commit"
+path = "src/bin/publish_scope_retirement_without_commit.rs"
 
 # Harness-only counterexample: never part of attacks.v1.json.
 [[bin]]

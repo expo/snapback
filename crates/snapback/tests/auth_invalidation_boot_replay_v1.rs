@@ -355,8 +355,7 @@ fn retired_boot_refuses_fresh_and_existing_registry_mutations_across_processes()
     assert_eq!(durable_boot_state(&mutation_database), successor_rows);
 
     let signing = registry
-        .installed_issuer()
-        .authenticate_scope_retirement(namespace, 1)
+        .prepare_scope_retirement_authenticated(&first)
         .expect_err("installed signer must not sign for a retired boot");
     assert_retired(&signing);
     assert_eq!(durable_boot_state(&mutation_database), successor_rows);

@@ -26,11 +26,13 @@ use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{
     AuthInput, AuthMode, AuthRequirement, FunctionDefinition, FunctionKind, HandlerInput,
 };
+use crate::storage::AuthorityCallerAttributionBasis;
 use crate::storage::auth_agent_credentials::ResolvedScopedToken;
 use crate::storage::auth_asset_callbacks::{
     ASSET_CALLBACKS_SERVICE_NAME, AssetCallbacksServicePrincipal,
 };
 use crate::storage::auth_grants::ExactGrantScope;
+use crate::storage::pending_effects::{PendingEffectAuthority, PendingEffectRecord};
 use serde::Serialize;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -71,6 +73,10 @@ fn authorization_stream_retired_error() -> SnapbackError {
         "retryable": true,
         "cause": "stream_replaced",
     }))
+}
+
+fn caller_attribution_invalid(message: &'static str) -> SnapbackError {
+    SnapbackError::error("SNAPBACK_INVOCATION_AUTHORITY_INVALID", "auth", message)
 }
 
 /// Presence of one authority-bearing wire location.
@@ -1526,6 +1532,53 @@ pub struct PreparedAuthority {
     rehearsal_fence: Option<crate::auth::rehearsal::RehearsalAuthorityFence>,
 }
 
+/// Opaque authority root for pending-effect approver attribution. The retained
+/// management authority, rather than an independently supplied principal id,
+/// is revalidated when telemetry is attached to the effect execution.
+///
+/// @ref LLP 0303#root-strength — a derived approver remains as strong as the
+/// exact effect-management authority from which it was derived.
+#[derive(Clone)]
+pub struct PreparedEffectApproverAttribution {
+    authority: PreparedAuthority,
+}
+
+impl std::fmt::Debug for PreparedEffectApproverAttribution {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("PreparedEffectApproverAttribution(..)")
+    }
+}
+
+impl PreparedEffectApproverAttribution {
+    fn validated_subject(&self) -> SnapbackResult<&ResolvedSessionAuthority> {
+        self.authority
+            .validate_admission("pending-effect approver attribution")?;
+        if self.authority.source != InvocationSource::EffectManagement
+            || self.authority.active_mode != AuthMode::Sessions
+        {
+            return Err(caller_attribution_invalid(
+                "pending-effect approver attribution requires effect-management session authority",
+            ));
+        }
+        let ResolvedAppAuthority::Session(subject) = &self.authority.resolved else {
+            return Err(caller_attribution_invalid(
+                "pending-effect approver attribution requires effect-management session authority",
+            ));
+        };
+        Ok(subject)
+    }
+
+    /// The principal derived from the retained approving authority. Exposing
+    /// this value lets storage select the intended row, but does not let a
+    /// caller construct or retarget this carrier.
+    pub fn principal_id(&self) -> &str {
+        let ResolvedAppAuthority::Session(subject) = &self.authority.resolved else {
+            unreachable!("sealed effect-approver carrier retains session authority")
+        };
+        subject.user_id()
+    }
+}
+
 /// Explicit stream/session reservation for an authority-sensitive durable
 /// effect. Dev authority is represented by its own closed variant; absence of
 /// a session publication is never interpreted as an implicit mode-only bypass.
@@ -2243,9 +2296,220 @@ impl PreparedAuthority {
         self
     }
 
-    pub fn with_caller_attribution(mut self, attribution: CallerAttributionV1) -> Self {
+    /// Retain the exact effect-management authority that is approving a
+    /// pending effect. No subject value is accepted at this boundary.
+    ///
+    /// @ref LLP 0303#the-governing-principle — the approver is derived from
+    /// the authority that actually approves instead of supplied beside it.
+    pub fn prepare_effect_approver_attribution(
+        &self,
+    ) -> SnapbackResult<PreparedEffectApproverAttribution> {
+        let prepared = PreparedEffectApproverAttribution {
+            authority: self.clone(),
+        };
+        prepared.validated_subject()?;
+        Ok(prepared)
+    }
+
+    /// Derive same-principal telemetry directly from this prepared authority.
+    /// Cross-principal transport and pending-effect lanes have separate,
+    /// provenance-carrying entry points below.
+    ///
+    /// @ref LLP 0303#the-governing-principle — an authority-derived subject
+    /// is not accepted as an independent caller DTO.
+    pub fn with_authority_caller_attribution(mut self) -> SnapbackResult<Self> {
+        self.validate_admission("caller telemetry attribution")?;
+        let attribution = match (&self.source, &self.resolved) {
+            (
+                InvocationSource::WatchEvaluation | InvocationSource::WatchReaction,
+                ResolvedAppAuthority::RevalidatedPrincipal(subject),
+            ) => CallerAttributionV1::owner(subject.user_id().to_owned()),
+            (
+                InvocationSource::WatchEvaluation | InvocationSource::WatchReaction,
+                ResolvedAppAuthority::ServicePrincipal(subject),
+            ) => CallerAttributionV1::owner(subject.actor_user_id().to_owned()),
+            (InvocationSource::WatchEvaluation | InvocationSource::WatchReaction, _) => {
+                return Err(caller_attribution_invalid(
+                    "watch caller attribution requires its revalidated owner authority",
+                ));
+            }
+            (InvocationSource::EffectExecution, _) => {
+                return Err(caller_attribution_invalid(
+                    "effect execution caller attribution requires its prepared pending effect",
+                ));
+            }
+            (_, ResolvedAppAuthority::Anonymous) => CallerAttributionV1::anonymous(),
+            (_, ResolvedAppAuthority::ServicePrincipal(subject))
+                if subject.integration_status().is_some() =>
+            {
+                return Err(caller_attribution_invalid(
+                    "integration caller attribution requires its database-resolved registration",
+                ));
+            }
+            _ => CallerAttributionV1::first_party(),
+        };
         self.caller_attribution = Some(attribution);
-        self
+        Ok(self)
+    }
+
+    /// Attach a cross-principal transport caller only from an opaque fact
+    /// produced by the same serving database as this admitted authority.
+    ///
+    /// @ref LLP 0303#corollary--the-artifact-must-carry-provenance-not-just-type —
+    /// the database origin and authority class are checked together here.
+    pub fn with_external_caller_attribution(
+        mut self,
+        basis: AuthorityCallerAttributionBasis,
+    ) -> SnapbackResult<Self> {
+        self.validate_admission("external caller telemetry attribution")?;
+        let same_database = self
+            .admission
+            .origin()
+            .is_some_and(|origin| origin.matches_database_binding(basis.database_binding()));
+        if !same_database {
+            return Err(caller_attribution_invalid(
+                "external caller attribution belongs to another engine authority graph",
+            ));
+        }
+        let attribution = match basis.lane() {
+            "integration"
+                if matches!(
+                    &self.resolved,
+                    ResolvedAppAuthority::ServicePrincipal(subject)
+                        if subject.integration_status().is_some()
+                            && basis.principal_user_id() == Some(subject.actor_user_id())
+                ) =>
+            {
+                CallerAttributionV1::integration(basis.caller_key().to_owned())
+            }
+            "declared"
+                if basis.principal_user_id().is_none()
+                    && matches!(self.resolved, ResolvedAppAuthority::Anonymous)
+                    && matches!(
+                        self.source,
+                        InvocationSource::HttpQuery
+                            | InvocationSource::HttpMutation
+                            | InvocationSource::HttpAction
+                            | InvocationSource::HttpRun
+                            | InvocationSource::HttpAsk
+                            | InvocationSource::HttpMcp
+                    ) =>
+            {
+                CallerAttributionV1::declared(basis.caller_key().to_owned())
+            }
+            "link"
+                if basis.principal_user_id().is_none()
+                    && matches!(self.resolved, ResolvedAppAuthority::Anonymous)
+                    && self.source == InvocationSource::HttpCapabilityLink =>
+            {
+                CallerAttributionV1::link(basis.caller_key().to_owned())
+            }
+            _ => {
+                return Err(caller_attribution_invalid(
+                    "external caller attribution does not match the prepared authority lane",
+                ));
+            }
+        };
+        self.caller_attribution = Some(attribution);
+        Ok(self)
+    }
+
+    /// Attribute one approved effect to the original caller and the exact
+    /// approver retained by the database-bound prepared approval.
+    ///
+    /// @ref LLP 0303#the-governing-principle — caller, approver, and original
+    /// authority are verified as one database-produced pending-effect row.
+    pub fn with_effect_caller_attribution(
+        mut self,
+        effect: &PendingEffectRecord,
+        approver: &PreparedEffectApproverAttribution,
+    ) -> SnapbackResult<Self> {
+        self.validate_admission("pending-effect caller telemetry attribution")?;
+        if self.source != InvocationSource::EffectExecution {
+            return Err(caller_attribution_invalid(
+                "pending-effect caller attribution requires effect execution authority",
+            ));
+        }
+        let approver_principal_id = approver.validated_subject()?.user_id();
+        let binding = effect
+            .caller_attribution_database_binding(approver_principal_id)
+            .ok_or_else(|| {
+                caller_attribution_invalid(
+                    "pending-effect caller attribution requires the exact prepared approval",
+                )
+            })?;
+        if !self
+            .admission
+            .origin()
+            .is_some_and(|origin| origin.matches_database_binding(binding))
+        {
+            return Err(caller_attribution_invalid(
+                "pending-effect caller attribution belongs to another engine authority graph",
+            ));
+        }
+        if !approver
+            .authority
+            .admission
+            .origin()
+            .is_some_and(|origin| origin.matches_database_binding(binding))
+        {
+            return Err(caller_attribution_invalid(
+                "pending-effect approver authority belongs to another engine authority graph",
+            ));
+        }
+        let authority_matches = match (&self.resolved, effect.authority()) {
+            (ResolvedAppAuthority::Anonymous, PendingEffectAuthority::Anonymous) => true,
+            (
+                ResolvedAppAuthority::Session(subject),
+                PendingEffectAuthority::Session {
+                    user_id,
+                    session_id,
+                    provider,
+                    generation,
+                    authority_instance_id,
+                    authorization_stream_incarnation,
+                },
+            ) => {
+                subject.user_id() == user_id
+                    && subject.session_id() == session_id
+                    && subject.provider() == provider
+                    && subject.generation() == *generation
+                    && subject.authority_instance_id() == authority_instance_id
+                    && self.authorization_stream_incarnation()
+                        == Some(authorization_stream_incarnation.as_str())
+            }
+            (
+                ResolvedAppAuthority::ServicePrincipal(subject),
+                PendingEffectAuthority::ServicePrincipal {
+                    actor_user_id,
+                    credential_id,
+                    credential_generation,
+                    grant_id,
+                    token_id,
+                    effective_user_id,
+                    token_expires_at_ms,
+                },
+            ) => {
+                subject.actor_user_id() == actor_user_id
+                    && subject.credential_id() == credential_id
+                    && subject.credential_generation() == *credential_generation
+                    && subject.grant_id() == grant_id
+                    && subject.token_id() == token_id
+                    && subject.effective_user_id() == effective_user_id.as_deref()
+                    && subject.token_expires_at_ms() == *token_expires_at_ms
+            }
+            _ => false,
+        };
+        if !authority_matches {
+            return Err(caller_attribution_invalid(
+                "pending-effect caller attribution does not match the original authority",
+            ));
+        }
+        self.caller_attribution = Some(
+            CallerAttributionV1::from_effect(effect.caller_lane(), effect.caller_key().to_owned())
+                .with_approver(approver_principal_id.to_owned()),
+        );
+        Ok(self)
     }
 
     /// Reclassify a session-authorized management request only for the exact
@@ -3870,6 +4134,234 @@ mod tests {
         );
         function.auth_requirement = requirement;
         function
+    }
+
+    fn effect_attribution_fixture() -> (crate::storage::ServingDatabase, AdmissionController) {
+        let mut local = crate::storage::LocalDatabase::memory()
+            .expect("pending-effect attribution fixture database");
+        local
+            .activate_current_auth_catalog()
+            .expect("activate pending-effect attribution auth catalog");
+        let mut schema = crate::manifest::SchemaManifest::default();
+        schema.app_id = "effect-attribution-fixture".to_owned();
+        schema.api = Some(crate::contract_types::ApiManifest {
+            enabled: true,
+            ..crate::contract_types::ApiManifest::default()
+        });
+        local
+            .schema_seed()
+            .apply_schema(schema)
+            .expect("activate pending-effect storage");
+        let database = crate::storage::ServingDatabase::adopt(local)
+            .expect("adopt pending-effect attribution database");
+        let digest =
+            |prefix: &str, marker: char| format!("{prefix}{}", marker.to_string().repeat(64));
+        let mode = AuthModeStateRecord {
+            format_version: AUTH_MODE_FORMAT_VERSION,
+            transition_generation: 0,
+            active: AuthMode::Sessions,
+            desired: AuthMode::Sessions,
+            mode_state: AuthModeStatus::Settled,
+            app_data_availability: AppDataAvailability::Available,
+            sessions_ever_activated: true,
+            active_deployment: Some(DeploymentIdentity {
+                schema_version: "snapback.v1".to_owned(),
+                auth_mode: AuthMode::Sessions,
+                app_id: "effect-attribution-fixture".to_owned(),
+                schema_hash: digest(SCHEMA_V1_PREFIX, '1'),
+                bundle_hash: digest(FUNCTION_V1_PREFIX, '2'),
+                inputs_hash: digest(INPUTS_V1_PREFIX, '3'),
+            }),
+            requested_deployment: None,
+            quarantine: None,
+        };
+        let admission =
+            AdmissionController::from_mode_state_with_database_binding(&mode, database.binding())
+                .expect("bind admission to the serving database");
+        (database, admission)
+    }
+
+    fn create_effect_attribution_row(
+        database: &mut crate::storage::ServingDatabase,
+        caller_key: &str,
+        approver: Option<&str>,
+        now_ms: u64,
+    ) -> crate::storage::pending_effects::PendingEffectRecord {
+        database
+            .create_pending_effect_admitted(crate::storage::pending_effects::CreatePendingEffect {
+                function_id: "fn:effectAttribution".to_owned(),
+                function_name: "effectAttribution".to_owned(),
+                function_kind: FunctionKind::Mutation,
+                args: json!({ "caller": caller_key }),
+                caller_lane: "integration".to_owned(),
+                caller_key: caller_key.to_owned(),
+                authority: crate::storage::pending_effects::PendingEffectAuthority::Anonymous,
+                generation: crate::manifest::ArtifactGeneration {
+                    schema_version: "snapback.v1".to_owned(),
+                    app_id: "effect-attribution-fixture".to_owned(),
+                    schema_hash: "schema".to_owned(),
+                    bundle_hash: "bundle".to_owned(),
+                    inputs_hash: "inputs".to_owned(),
+                },
+                link_origin_id: None,
+                approver_principal_id: approver.map(str::to_owned),
+                declared_write_set: vec!["items".to_owned()],
+                now_ms,
+                ttl_ms: 60_000,
+            })
+            .expect("create durable pending effect")
+    }
+
+    fn effect_execution_authority(admission: &AdmissionController) -> PreparedAuthority {
+        InvocationGate::prepare_admitted_authority(
+            InvocationSource::EffectExecution,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            admission
+                .admit_for_mode(AuthMode::Sessions)
+                .expect("admit exact engine graph"),
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::Anonymous,
+            None,
+        )
+        .expect("prepare exact anonymous original authority")
+    }
+
+    fn effect_management_authority(
+        admission: &AdmissionController,
+        approver: &str,
+    ) -> PreparedAuthority {
+        let lease = admission
+            .admit_for_mode(AuthMode::Sessions)
+            .expect("admit effect-management session");
+        let resolved = test_session_authority_with_origin(
+            approver,
+            format!("session-{approver}"),
+            "email-code",
+            1,
+            format!("authority-{approver}"),
+            10_000,
+            None,
+            None,
+            lease.origin().expect("managed database-bound admission"),
+        );
+        InvocationGate::prepare_admitted_authority(
+            InvocationSource::EffectManagement,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            lease,
+            &WireAuthorityFields::default(),
+            resolved,
+            Some(AuthClaimsProjection::server_derived(Vec::new(), Vec::new())),
+        )
+        .expect("prepare exact effect-management authority")
+    }
+
+    #[test]
+    fn pending_effect_caller_and_approver_attribution_refuses_crossed_rows() {
+        let (mut database, admission) = effect_attribution_fixture();
+        let effect_c0 =
+            create_effect_attribution_row(&mut database, "caller-C0", Some("approver-A0"), 100);
+        let effect_c1 =
+            create_effect_attribution_row(&mut database, "caller-C1", Some("approver-A1"), 101);
+        let prepared_c0_a0 = database
+            .prepare_pending_effect_approval(&effect_c0.id, "approver-A0", 110)
+            .expect("prepare C0/A0");
+        let prepared_c1_a1 = database
+            .prepare_pending_effect_approval(&effect_c1.id, "approver-A1", 110)
+            .expect("prepare C1/A1");
+        let authority = effect_execution_authority(&admission);
+        let approver_a0 = effect_management_authority(&admission, "approver-A0")
+            .prepare_effect_approver_attribution()
+            .expect("derive A0 from its approving authority");
+        let approver_a1 = effect_management_authority(&admission, "approver-A1")
+            .prepare_effect_approver_attribution()
+            .expect("derive A1 from its approving authority");
+
+        let crossed_approver = authority
+            .clone()
+            .with_effect_caller_attribution(prepared_c0_a0.effect(), &approver_a1)
+            .expect_err("C0/A0's row must refuse unrelated A1");
+        assert_eq!(
+            crossed_approver.diagnostic.code,
+            "SNAPBACK_INVOCATION_AUTHORITY_INVALID"
+        );
+        let crossed_other_row = authority
+            .clone()
+            .with_effect_caller_attribution(prepared_c1_a1.effect(), &approver_a0)
+            .expect_err("C1/A1's row must refuse unrelated A0");
+        assert_eq!(
+            crossed_other_row.diagnostic.code,
+            "SNAPBACK_INVOCATION_AUTHORITY_INVALID"
+        );
+
+        let unbound_read = database
+            .pending_effect(&effect_c0.id, 111)
+            .expect("ordinary read DTO");
+        let unbound = authority
+            .clone()
+            .with_effect_caller_attribution(&unbound_read, &approver_a0)
+            .expect_err("a read DTO is not a prepared approval capability");
+        assert_eq!(
+            unbound.diagnostic.code,
+            "SNAPBACK_INVOCATION_AUTHORITY_INVALID"
+        );
+
+        let legitimate = authority
+            .clone()
+            .with_effect_caller_attribution(prepared_c0_a0.effect(), &approver_a0)
+            .expect("refused crossed attempts must not poison C0/A0");
+        assert_eq!(
+            legitimate.telemetry_caller_details().unwrap(),
+            json!({
+                "callerLane": "integration",
+                "callerKey": "caller-C0",
+                "approverKey": "approver-A0",
+            })
+        );
+
+        let (mut foreign_database, foreign_admission) = effect_attribution_fixture();
+        let foreign_effect = create_effect_attribution_row(
+            &mut foreign_database,
+            "caller-C0",
+            Some("approver-A0"),
+            100,
+        );
+        let foreign_approval = foreign_database
+            .prepare_pending_effect_approval(&foreign_effect.id, "approver-A0", 110)
+            .expect("prepare same-shaped row in another database");
+        let foreign_error = authority
+            .with_effect_caller_attribution(foreign_approval.effect(), &approver_a0)
+            .expect_err("same-shaped foreign row must not cross engine graphs");
+        assert_eq!(
+            foreign_error.diagnostic.code,
+            "SNAPBACK_INVOCATION_AUTHORITY_INVALID"
+        );
+
+        // Denial inversion: a fresh authority from the foreign graph still
+        // accepts that graph's legitimate pair after the cross-graph refusal.
+        let foreign_approver = effect_management_authority(&foreign_admission, "approver-A0")
+            .prepare_effect_approver_attribution()
+            .expect("derive foreign A0 authority");
+        effect_execution_authority(&foreign_admission)
+            .with_effect_caller_attribution(foreign_approval.effect(), &foreign_approver)
+            .expect("foreign graph remains usable by its legitimate authority");
+
+        // Adapt the original public two-call attack instead of merely proving
+        // the old string parameter disappeared. Storage may prepare an
+        // unrestricted row for an arbitrary string, but the final consumer
+        // refuses to record it when the actual approving authority derives A0.
+        let unrestricted = create_effect_attribution_row(&mut database, "caller-open", None, 120);
+        let forged = database
+            .prepare_pending_effect_approval(&unrestricted.id, "attacker-selected-approver", 121)
+            .expect("raw storage preparation remains independently callable");
+        let adapted_attack = effect_execution_authority(&admission)
+            .with_effect_caller_attribution(forged.effect(), &approver_a0)
+            .expect_err("caller-supplied storage binding is not approver authority");
+        assert_eq!(
+            adapted_attack.diagnostic.code,
+            "SNAPBACK_INVOCATION_AUTHORITY_INVALID"
+        );
     }
 
     fn prepared(authority: ResolvedAppAuthority) -> PreparedAuthority {

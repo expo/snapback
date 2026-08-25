@@ -11,15 +11,15 @@ use crate::auth::descriptor::{
 use crate::auth::invalidation::{
     AuthorizationInvalidationConnection, AuthorizationInvalidationProjection, CompositeWitness,
     DataWitness, InstalledInvalidationIssuer, InvalidationDisposition, LiveInvalidationIssuer,
-    ObligationRegistry, QueryNamespace, ResolutionKind, ResolutionTicket, ResyncObligation,
-    RetryEpisode, RetryEpisodeKey, RetryReservation, RetryReservationKind, ScopeId,
-    ScopeRetirement, ScopeRetirementCandidate,
+    ObligationRegistry, PreparedScopeRetirement, QueryNamespace, ResolutionKind, ResolutionTicket,
+    ResyncObligation, RetryEpisode, RetryEpisodeKey, RetryReservation, RetryReservationKind,
+    ScopeId, ScopeRetirement,
 };
 use crate::auth::invocation::{
     AuthorizedEffectCommitGuard, AuthorizedEffectReservation, AuthorizedEffectReservationError,
     CallerAuthorityTerminalCause, FunctionAttribution, HandlerAuthProjection, InvocationGate,
-    InvocationSource, PreparedAuthority, PreparedInvocation, ResolvedAppAuthority,
-    RetainedLiveAuthority, WireAuthorityFields,
+    InvocationSource, PreparedAuthority, PreparedEffectApproverAttribution, PreparedInvocation,
+    ResolvedAppAuthority, RetainedLiveAuthority, WireAuthorityFields, descriptor_for_authority,
 };
 use crate::auth::lease::{
     AuthorizedLease, AuthorizedLeaseConfig, AuthorizedLeaseData, AuthorizedLeaseIssue,
@@ -95,8 +95,7 @@ use crate::storage::{
     ShutdownCheckpointReport, StorageInfo, TableScan,
 };
 use crate::telemetry::{
-    CallerAttributionLocalExt as _, ObservationSpanLocalExt as _, TelemetryLocalExt as _,
-    TelemetryStoreIdentityLocalExt as _,
+    ObservationSpanLocalExt as _, TelemetryLocalExt as _, TelemetryStoreIdentityLocalExt as _,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
@@ -3727,6 +3726,7 @@ impl ServiceAuthorityTerminalPlan {
 #[derive(Clone, Debug)]
 pub struct ResolvedCapabilityLink {
     record: crate::storage::capability_links::CapabilityLinkRecord,
+    caller_attribution: crate::storage::AuthorityCallerAttributionBasis,
 }
 
 impl ResolvedCapabilityLink {
@@ -3761,6 +3761,10 @@ impl ResolvedCapabilityLink {
     pub fn approval_per_use(&self) -> bool {
         self.record.approval_per_use
     }
+
+    pub fn caller_attribution_basis(&self) -> &crate::storage::AuthorityCallerAttributionBasis {
+        &self.caller_attribution
+    }
 }
 
 #[derive(Debug)]
@@ -3794,6 +3798,7 @@ pub use crate::auth::invocation::ResolvedServiceAuthority;
 pub struct PreparedEffectApproval {
     pending: crate::storage::pending_effects::PreparedPendingEffectApproval,
     management: PreparedAuthority,
+    approver_attribution: PreparedEffectApproverAttribution,
 }
 
 impl PreparedEffectApproval {
@@ -4317,7 +4322,7 @@ impl LocalInvalidationState {
     fn prepare_scope_retirement_authenticated(
         &self,
         scope: &ScopeId,
-    ) -> SnapbackResult<(Option<ScopeRetirementCandidate>, Option<ScopeRetirement>)> {
+    ) -> SnapbackResult<PreparedScopeRetirement> {
         #[cfg(test)]
         if FAIL_NEXT_SCOPE_RETIREMENT_AUTH.with(|fail| fail.replace(false)) {
             return Err(SnapbackError::error(
@@ -4326,30 +4331,16 @@ impl LocalInvalidationState {
                 "injected authenticated scope-retirement failure",
             ));
         }
-        let candidate = self.obligations.preview_scope_retirement(scope);
-        let retirement = candidate
-            .as_ref()
-            .map(|candidate| {
-                self.issuer.authenticate_scope_retirement(
-                    candidate.namespace.clone(),
-                    candidate.retire_through_scope_sequence,
-                )
-            })
-            .transpose()?;
-        Ok((candidate, retirement))
+        self.obligations
+            .prepare_scope_retirement_authenticated(scope)
     }
 
     fn commit_scope_retirement(
         &mut self,
-        scope: &ScopeId,
-        expected: &Option<ScopeRetirementCandidate>,
-    ) -> SnapbackResult<()> {
-        let actual = self.obligations.retire_scope(scope)?;
-        assert_eq!(
-            &actual, expected,
-            "authenticated scope retirement frontier changed during commit"
-        );
-        Ok(())
+        prepared: PreparedScopeRetirement,
+    ) -> SnapbackResult<Option<ScopeRetirement>> {
+        self.obligations
+            .commit_scope_retirement_authenticated(prepared)
     }
 }
 
@@ -5833,6 +5824,19 @@ impl LocalSnapback {
         self.db.integration_record_if_present(principal_user_id)
     }
 
+    pub fn integration_record_with_caller_attribution_if_present(
+        &self,
+        principal_user_id: &str,
+    ) -> SnapbackResult<
+        Option<(
+            crate::storage::auth_integrations::IntegrationRecord,
+            crate::storage::AuthorityCallerAttributionBasis,
+        )>,
+    > {
+        self.db
+            .integration_record_with_caller_attribution_if_present(principal_user_id)
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn begin_oauth_authorization(
         &mut self,
@@ -6086,15 +6090,19 @@ impl LocalSnapback {
         effect_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<PreparedEffectApproval> {
-        let (approver_id, _) = Self::require_effect_management_session(management)?;
+        let approver_attribution = management.prepare_effect_approver_attribution()?;
         let pending = {
             let _effect = management.effect_guard("pending-effect approval preparation")?;
-            self.db
-                .prepare_pending_effect_approval(effect_id, &approver_id, now_ms)?
+            self.db.prepare_pending_effect_approval(
+                effect_id,
+                approver_attribution.principal_id(),
+                now_ms,
+            )?
         };
         let approval = PreparedEffectApproval {
             pending,
             management: management.clone(),
+            approver_attribution,
         };
         self.validate_prepared_effect_current(&approval, None, now_ms)?;
         Ok(approval)
@@ -6122,17 +6130,6 @@ impl LocalSnapback {
         ))
     }
 
-    fn effect_caller_attribution(
-        approval: &PreparedEffectApproval,
-    ) -> crate::telemetry::CallerAttributionV1 {
-        let effect = approval.pending.effect();
-        crate::telemetry::CallerAttributionV1::from_effect(
-            &effect.caller_lane,
-            effect.caller_key.clone(),
-        )
-        .with_approver(approval.pending.approver_principal_id().to_owned())
-    }
-
     pub fn prepare_pending_effect_anonymous_original(
         &mut self,
         approval: &PreparedEffectApproval,
@@ -6155,7 +6152,10 @@ impl LocalSnapback {
                 now_ms,
                 Some(publication),
             )?
-            .with_caller_attribution(Self::effect_caller_attribution(approval));
+            .with_effect_caller_attribution(
+                approval.pending.effect(),
+                &approval.approver_attribution,
+            )?;
         Ok(PreparedEffectOriginalAuthority {
             database_binding: self.db.binding(),
             effect_id: approval.effect_id().to_owned(),
@@ -6195,7 +6195,10 @@ impl LocalSnapback {
                 &WireAuthorityFields::default(),
                 now_ms,
             )?
-            .with_caller_attribution(Self::effect_caller_attribution(approval));
+            .with_effect_caller_attribution(
+                approval.pending.effect(),
+                &approval.approver_attribution,
+            )?;
         Ok(PreparedEffectOriginalAuthority {
             database_binding: self.db.binding(),
             effect_id: approval.effect_id().to_owned(),
@@ -6240,7 +6243,10 @@ impl LocalSnapback {
                 now_ms,
                 stream_publication,
             )?
-            .with_caller_attribution(Self::effect_caller_attribution(approval));
+            .with_effect_caller_attribution(
+                approval.pending.effect(),
+                &approval.approver_attribution,
+            )?;
         Ok(PreparedEffectOriginalAuthority {
             database_binding: self.db.binding(),
             effect_id: approval.effect_id().to_owned(),
@@ -6463,8 +6469,11 @@ impl LocalSnapback {
         now_ms: u64,
     ) -> SnapbackResult<ResolvedCapabilityLink> {
         self.db
-            .resolve_capability_link(token, now_ms)
-            .map(|record| ResolvedCapabilityLink { record })
+            .resolve_capability_link_with_caller_attribution(token, now_ms)
+            .map(|(record, caller_attribution)| ResolvedCapabilityLink {
+                record,
+                caller_attribution,
+            })
     }
 
     pub fn mint_capability_link(
@@ -7335,6 +7344,22 @@ impl LocalSnapback {
     ) -> SnapbackResult<crate::storage::declared_clients::DeclaredClientObservation> {
         self.db
             .observe_declared_client(normalized_id, now_ms, network_evidence_generation)
+    }
+
+    pub fn observe_declared_client_with_caller_attribution(
+        &mut self,
+        normalized_id: &str,
+        now_ms: u64,
+        network_evidence_generation: u64,
+    ) -> SnapbackResult<(
+        crate::storage::declared_clients::DeclaredClientObservation,
+        Option<crate::storage::AuthorityCallerAttributionBasis>,
+    )> {
+        self.db.observe_declared_client_with_caller_attribution(
+            normalized_id,
+            now_ms,
+            network_evidence_generation,
+        )
     }
 
     fn connected_session_principal(authority: &PreparedAuthority) -> SnapbackResult<Option<&str>> {
@@ -23607,9 +23632,7 @@ impl LocalSnapback {
                 match (self.auth_invalidation.as_ref(), retired_scope.as_ref()) {
                     (Some(state), Some(scope)) => {
                         match state.prepare_scope_retirement_authenticated(scope) {
-                            Ok((candidate, retirement)) => {
-                                Some((scope.clone(), candidate, retirement))
-                            }
+                            Ok(prepared) => Some(prepared),
                             Err(error) => {
                                 if let (Some(state), Some((scope, connection_scope))) = (
                                     self.auth_invalidation.as_mut(),
@@ -23625,10 +23648,10 @@ impl LocalSnapback {
                     }
                     _ => None,
                 };
-            if let (Some(state), Some((scope, candidate, retirement))) =
+            if let (Some(state), Some(prepared)) =
                 (self.auth_invalidation.as_mut(), prepared_retirement)
             {
-                state.commit_scope_retirement(&scope, &candidate)?;
+                let retirement = state.commit_scope_retirement(prepared)?;
                 scope_retirements.extend(retirement);
             }
             if let Some(retired) = self.subscriptions.remove(&old_id) {
@@ -23980,9 +24003,7 @@ impl LocalSnapback {
             subscription.authorization.as_ref(),
         ) {
             (Some(state), Some(authorization)) => {
-                let (candidate, retirement) =
-                    state.prepare_scope_retirement_authenticated(&authorization.scope_id)?;
-                Some((authorization.scope_id.clone(), candidate, retirement))
+                Some(state.prepare_scope_retirement_authenticated(&authorization.scope_id)?)
             }
             _ => None,
         };
@@ -23991,10 +24012,7 @@ impl LocalSnapback {
         // retired boot at this point.
         self.touch_connection(&input.connection_id, now_millis());
         let scope_retirement = match (self.auth_invalidation.as_mut(), prepared_retirement) {
-            (Some(state), Some((scope, candidate, retirement))) => {
-                state.commit_scope_retirement(&scope, &candidate)?;
-                retirement
-            }
+            (Some(state), Some(prepared)) => state.commit_scope_retirement(prepared)?,
             _ => None,
         };
         self.subscriptions.remove(&subscription.id);
@@ -24684,25 +24702,13 @@ impl LocalSnapback {
                 }
                 return Err(error);
             }
-            let (retirement_candidate, retirement) = if connection_changed {
+            let prepared_retirement = if connection_changed {
                 let state = self
                     .auth_invalidation
                     .as_ref()
                     .expect("state remains installed");
-                let candidate = state
-                    .obligations
-                    .preview_scope_retirement(&predecessor_scope);
-                let retirement = candidate
-                    .as_ref()
-                    .map(|candidate| {
-                        state.issuer.authenticate_scope_retirement(
-                            candidate.namespace.clone(),
-                            candidate.retire_through_scope_sequence,
-                        )
-                    })
-                    .transpose();
-                match retirement {
-                    Ok(retirement) => (candidate, retirement),
+                match state.prepare_scope_retirement_authenticated(&predecessor_scope) {
+                    Ok(prepared) => Some(prepared),
                     Err(error) => {
                         if let Some((replacement, connection_scope, _)) = replacement_stage.as_ref()
                         {
@@ -24716,7 +24722,7 @@ impl LocalSnapback {
                     }
                 }
             } else {
-                (None, None)
+                None
             };
             let authorization_invalidation = self
                 .auth_invalidation
@@ -24773,7 +24779,11 @@ impl LocalSnapback {
                     .as_ref()
                     .expect("state remains installed")
                     .obligations
-                    .require_scope_retirement_preview(&predecessor_scope, &retirement_candidate)
+                    .require_prepared_scope_retirement(
+                        prepared_retirement
+                            .as_ref()
+                            .expect("connection change prepared retirement"),
+                    )
             } else {
                 Ok(())
             };
@@ -24807,18 +24817,15 @@ impl LocalSnapback {
             // are ready, then expose the successor fence and obligation as one
             // commit. A response that returns Err never exposes a replacement
             // scope and therefore owes the client no retirement frontier.
-            if connection_changed {
-                let actual = self
-                    .auth_invalidation
+            let retirement = if let Some(prepared) = prepared_retirement {
+                self.auth_invalidation
                     .as_mut()
                     .expect("state remains installed")
                     .obligations
-                    .retire_scope(&predecessor_scope)?;
-                assert_eq!(
-                    actual, retirement_candidate,
-                    "validated live scope retirement frontier changed during commit"
-                );
-            }
+                    .commit_scope_retirement_authenticated(prepared)?
+            } else {
+                None
+            };
             self.premark_auth_scoped_live_connection(&input.connection_id);
             let stored = self
                 .subscriptions
@@ -27787,9 +27794,7 @@ impl LocalSnapback {
                 )?
             }
         };
-        Ok(Some(authority.with_caller_attribution(
-            crate::telemetry::CallerAttributionV1::owner(record.owner_principal_id.clone()),
-        )))
+        Ok(Some(authority.with_authority_caller_attribution()?))
     }
 
     fn dispatch_watch_reaction(
@@ -30445,9 +30450,8 @@ impl LocalSnapback {
                             "a just-raised publication obligation has no projection",
                         )
                     })?;
-                    let (candidate, _retirement) =
-                        state.prepare_scope_retirement_authenticated(&scope)?;
-                    (projection, candidate)
+                    let prepared = state.prepare_scope_retirement_authenticated(&scope)?;
+                    (projection, prepared)
                 };
                 let payload = serde_json::to_vec(&LiveEnvelope::authorization_invalidation(
                     projection.obligation,
@@ -30465,7 +30469,7 @@ impl LocalSnapback {
                 // The serialized durable guard can still refuse a retired
                 // issuer, so commit before removing the retained producer.
                 if let Some(state) = self.auth_invalidation.as_mut() {
-                    state.commit_scope_retirement(&scope, &prepared_retirement)?;
+                    let _retirement = state.commit_scope_retirement(prepared_retirement)?;
                 }
                 self.subscriptions.remove(&subscription.id);
                 payload

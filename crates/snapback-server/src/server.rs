@@ -96,9 +96,7 @@ use crate::runtime::{
     ActionStreamChunk, ActionStreamOpened, ActionStreamRequest, CapabilityState, IbexActionHost,
 };
 use crate::storage::auth::AuthTransactionAttempt;
-use crate::telemetry::{
-    CallerAttributionLocalExt as _, ObservationSpanLocalExt as _, TelemetryLocalExt as _,
-};
+use crate::telemetry::{ObservationSpanLocalExt as _, TelemetryLocalExt as _};
 use axum::extract::rejection::{BytesRejection, FormRejection, JsonRejection, QueryRejection};
 use axum::extract::ws::{CloseFrame, Message, Utf8Bytes, WebSocket, WebSocketUpgrade};
 use axum::extract::{
@@ -16644,8 +16642,25 @@ async fn enforce_registered_route_policy_inner(
                 );
             }
         };
-        prepared_authority =
-            prepared_authority.map(|authority| authority.with_caller_attribution(attribution));
+        let authority = prepared_authority
+            .take()
+            .expect("external attribution follows prepared authority");
+        let response_authority = authority.clone();
+        let attached = match attribution {
+            Some(basis) => authority.with_external_caller_attribution(basis),
+            None => authority.with_authority_caller_attribution(),
+        };
+        prepared_authority = match attached {
+            Ok(authority) => Some(authority),
+            Err(error) => {
+                return finish_registered_response(
+                    response_policy,
+                    ApiError::from(error).into_response(),
+                    route_admission.as_ref(),
+                    Some(&response_authority),
+                );
+            }
+        };
     } else if let Some(authority) = prepared_authority.as_ref() {
         let attribution =
             match telemetry_caller_attribution_for_authority(&runtime, authority).await {
@@ -16659,8 +16674,25 @@ async fn enforce_registered_route_policy_inner(
                     );
                 }
             };
-        prepared_authority =
-            prepared_authority.map(|authority| authority.with_caller_attribution(attribution));
+        let authority = prepared_authority
+            .take()
+            .expect("authority attribution follows prepared authority");
+        let response_authority = authority.clone();
+        let attached = match attribution {
+            Some(basis) => authority.with_external_caller_attribution(basis),
+            None => authority.with_authority_caller_attribution(),
+        };
+        prepared_authority = match attached {
+            Ok(authority) => Some(authority),
+            Err(error) => {
+                return finish_registered_response(
+                    response_policy,
+                    ApiError::from(error).into_response(),
+                    route_admission.as_ref(),
+                    Some(&response_authority),
+                );
+            }
+        };
     }
     if let Some(authority) = prepared_authority.as_ref() {
         if let Some(connection_act) = prepared_connection_act.as_mut() {
@@ -28533,13 +28565,13 @@ async fn mark_declared_client_refusal(runtime: &AppState, normalized_id: String)
 async fn telemetry_caller_attribution_for_authority(
     runtime: &AppState,
     authority: &PreparedAuthority,
-) -> Result<crate::telemetry::CallerAttributionV1, ApiError> {
+) -> Result<Option<crate::storage::AuthorityCallerAttributionBasis>, ApiError> {
     if let ResolvedAppAuthority::ServicePrincipal(subject) = authority.resolved()
         && subject.integration_status().is_some()
     {
         let actor = subject.actor_user_id().to_owned();
         let record = with_snapback(&runtime.snapback, move |snapback| {
-            snapback.integration_record_if_present(&actor)
+            snapback.integration_record_with_caller_attribution_if_present(&actor)
         })
         .await?
         .ok_or_else(|| {
@@ -28549,17 +28581,9 @@ async fn telemetry_caller_attribution_for_authority(
                 "integration registration metadata is unavailable",
             ))
         })?;
-        return Ok(crate::telemetry::CallerAttributionV1::integration(
-            record.integration_id,
-        ));
+        return Ok(Some(record.1));
     }
-    Ok(
-        if matches!(authority.resolved(), ResolvedAppAuthority::Anonymous) {
-            crate::telemetry::CallerAttributionV1::anonymous()
-        } else {
-            crate::telemetry::CallerAttributionV1::first_party()
-        },
-    )
+    Ok(None)
 }
 
 async fn admit_external_api_lane(
@@ -28570,7 +28594,7 @@ async fn admit_external_api_lane(
     network_digest: [u8; 32],
     network_generation: u64,
     now_ms: u64,
-) -> Result<crate::telemetry::CallerAttributionV1, ApiError> {
+) -> Result<Option<crate::storage::AuthorityCallerAttributionBasis>, ApiError> {
     if let Some(link) = capability_link {
         if let Some(context) = client_id_context
             && context.declared.is_some()
@@ -28592,9 +28616,7 @@ async fn admit_external_api_lane(
                     retry_after,
                 )
             })?;
-        return Ok(crate::telemetry::CallerAttributionV1::link(
-            link.id().to_owned(),
-        ));
+        return Ok(Some(link.caller_attribution_basis().clone()));
     }
     if let ResolvedAppAuthority::ServicePrincipal(subject) = authority.resolved()
         && let Some(status) = subject.integration_status()
@@ -28617,7 +28639,7 @@ async fn admit_external_api_lane(
         }
         let actor = subject.actor_user_id().to_owned();
         let record = with_snapback(&runtime.snapback, move |snapback| {
-            snapback.integration_record_if_present(&actor)
+            snapback.integration_record_with_caller_attribution_if_present(&actor)
         })
         .await?
         .ok_or_else(|| {
@@ -28627,6 +28649,7 @@ async fn admit_external_api_lane(
                 "integration registration metadata is unavailable",
             ))
         })?;
+        let (record, attribution) = record;
         runtime
             .connections
             .consume_external_api(
@@ -28642,28 +28665,20 @@ async fn admit_external_api_lane(
                     retry_after,
                 )
             })?;
-        return Ok(crate::telemetry::CallerAttributionV1::integration(
-            record.integration_id,
-        ));
+        return Ok(Some(attribution));
     }
 
     let Some(context) = client_id_context else {
-        return Ok(crate::telemetry::CallerAttributionV1::first_party());
+        return Ok(None);
     };
     let Some(declared) = context.declared.as_ref() else {
-        return Ok(
-            if matches!(authority.resolved(), ResolvedAppAuthority::Anonymous) {
-                crate::telemetry::CallerAttributionV1::anonymous()
-            } else {
-                crate::telemetry::CallerAttributionV1::first_party()
-            },
-        );
+        return Ok(None);
     };
     // The declared lane is auth-free. Authenticated humans and ordinary agent
     // principals do not become declared merely by adding a caller string.
     if !matches!(authority.resolved(), ResolvedAppAuthority::Anonymous) {
         context.set_status("ignored-authenticated-caller");
-        return Ok(crate::telemetry::CallerAttributionV1::first_party());
+        return Ok(None);
     }
     let api_enabled = with_snapback(&runtime.snapback, |snapback| {
         Ok::<_, SnapbackError>(snapback.external_api_enabled())
@@ -28673,7 +28688,7 @@ async fn admit_external_api_lane(
         // Preserve the external surface's established exposure refusal. A
         // syntactically valid declaration cannot activate its own ledger.
         context.set_status("ignored-api-disabled");
-        return Ok(crate::telemetry::CallerAttributionV1::anonymous());
+        return Ok(None);
     }
 
     let existing =
@@ -28686,18 +28701,22 @@ async fn admit_external_api_lane(
         )
     {
         context.set_status("ignored-creation-throttled");
-        return Ok(crate::telemetry::CallerAttributionV1::anonymous());
+        return Ok(None);
     }
     let normalized_id = declared.value.clone();
-    let observation = with_snapback(&runtime.snapback, move |snapback| {
-        snapback.observe_declared_client(&normalized_id, now_ms, network_generation)
+    let (observation, attribution) = with_snapback(&runtime.snapback, move |snapback| {
+        snapback.observe_declared_client_with_caller_attribution(
+            &normalized_id,
+            now_ms,
+            network_generation,
+        )
     })
     .await?;
     let record = match observation {
         crate::storage::declared_clients::DeclaredClientObservation::Observed(record) => record,
         crate::storage::declared_clients::DeclaredClientObservation::Capacity => {
             context.set_status("ignored-capacity");
-            return Ok(crate::telemetry::CallerAttributionV1::anonymous());
+            return Ok(None);
         }
     };
     if record.status == crate::storage::declared_clients::DeclaredClientStatus::Suspended {
@@ -28730,9 +28749,7 @@ async fn admit_external_api_lane(
             retry_after,
         ));
     }
-    Ok(crate::telemetry::CallerAttributionV1::declared(
-        declared_client_caller_key(&record.normalized_id),
-    ))
+    Ok(attribution)
 }
 
 async fn validate_external_api_request(

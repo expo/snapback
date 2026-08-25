@@ -413,7 +413,7 @@ impl InstalledInvalidationIssuer {
         })
     }
 
-    pub fn authenticate_scope_retirement(
+    fn authenticate_scope_retirement(
         &self,
         namespace: QueryNamespace,
         retire_through_scope_sequence: u64,
@@ -888,13 +888,38 @@ pub enum AcknowledgeOutcome {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ScopeRetirementCandidate {
-    pub namespace: QueryNamespace,
-    pub retire_through_scope_sequence: u64,
+    namespace: QueryNamespace,
+    retire_through_scope_sequence: u64,
+}
+
+/// Opaque pre-commit retirement carrier. Preparation may perform the fallible
+/// issuer authentication needed by a later publication cut, but it never
+/// exposes the signed wire proof. Only consuming this carrier through the
+/// producing registry's commit method can release [`ScopeRetirement`].
+///
+/// The carrier is deliberately neither `Clone` nor serializable: dropping it
+/// abandons the private proof and leaves the scope live; it cannot be stapled
+/// to another registry or placed in a client response.
+///
+/// @ref LLP 0303#corollary--the-artifact-must-carry-provenance-not-just-type —
+/// the carrier retains the exact registry instance that previewed and signed it.
+pub struct PreparedScopeRetirement {
+    registry_identity: Arc<()>,
+    scope_id: ScopeId,
+    candidate: Option<ScopeRetirementCandidate>,
+    retirement: Option<ScopeRetirement>,
+}
+
+impl std::fmt::Debug for PreparedScopeRetirement {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("PreparedScopeRetirement(..)")
+    }
 }
 
 /// Process-local persistent-until-discharge obligations. Process death ends
 /// every live scope; reconnect must allocate a new issuer and fresh snapshot.
 pub struct ObligationRegistry {
+    registry_identity: Arc<()>,
     issuer: InstalledInvalidationIssuer,
     expectation: ObligationExpectation,
     next_cause_sequence: u64,
@@ -922,6 +947,7 @@ impl ObligationRegistry {
     fn from_installed(issuer: InstalledInvalidationIssuer) -> SnapbackResult<Self> {
         let expectation = obligation_expectation(&issuer)?;
         Ok(Self {
+            registry_identity: Arc::new(()),
             issuer,
             expectation,
             next_cause_sequence: 1,
@@ -1674,9 +1700,9 @@ impl ObligationRegistry {
     }
 
     /// Compute and record the contiguous retirement frontier after `scope_id`
-    /// has left the live/obligation indexes. Callers that need an authenticated
-    /// proof before committing retirement use `preview_scope_retirement`
-    /// first; with one exclusive registry owner the resulting candidate is
+    /// has left the live/obligation indexes. Authenticated callers first retain
+    /// an opaque preview, then release its proof only through the committing
+    /// mutation; with one exclusive registry owner the resulting candidate is
     /// identical.
     fn scope_retirement_candidate(
         &mut self,
@@ -1778,17 +1804,73 @@ impl ObligationRegistry {
         })
     }
 
-    pub fn require_scope_retirement_preview(
+    /// Prepare the exact retirement frontier and authenticate its private wire
+    /// proof without exposing that proof. Callers supply only the scope being
+    /// removed; they cannot cross a candidate from one obligation registry
+    /// with another installed issuer or replace the namespace/sequence pair.
+    ///
+    /// @ref LLP 0303#the-governing-principle — the retirement subject is
+    /// derived from the exact obligation authority rather than supplied beside it.
+    pub fn prepare_scope_retirement_authenticated(
         &self,
         scope_id: &ScopeId,
-        expected: &Option<ScopeRetirementCandidate>,
+    ) -> SnapbackResult<PreparedScopeRetirement> {
+        let candidate = self.preview_scope_retirement(scope_id);
+        let retirement = candidate
+            .as_ref()
+            .map(|candidate| {
+                self.issuer.authenticate_scope_retirement(
+                    candidate.namespace.clone(),
+                    candidate.retire_through_scope_sequence,
+                )
+            })
+            .transpose()?;
+        Ok(PreparedScopeRetirement {
+            registry_identity: self.registry_identity.clone(),
+            scope_id: scope_id.clone(),
+            candidate,
+            retirement,
+        })
+    }
+
+    /// Revalidate an opaque preparation before the caller crosses its final
+    /// publication cut. This reveals neither the candidate nor the signed
+    /// proof and accepts only a carrier produced by this exact registry.
+    pub fn require_prepared_scope_retirement(
+        &self,
+        prepared: &PreparedScopeRetirement,
     ) -> SnapbackResult<()> {
-        if &self.preview_scope_retirement(scope_id) != expected {
+        if !Arc::ptr_eq(&self.registry_identity, &prepared.registry_identity) {
+            return Err(corrupt(
+                "scope retirement preparation belongs to another obligation registry",
+            ));
+        }
+        if self.preview_scope_retirement(&prepared.scope_id) != prepared.candidate {
             return Err(corrupt(
                 "live scope retirement frontier changed before transfer commit",
             ));
         }
         Ok(())
+    }
+
+    /// Commit the exact prepared retirement and only then release its signed
+    /// client wire proof. A caller holding [`ScopeRetirement`] from this path
+    /// therefore has evidence that the corresponding live scope was removed.
+    ///
+    /// @ref LLP 0303#s-a-compile-fail-witness-proves-a-spelling-is-gone-not-a-capability —
+    /// preparation remains public, but its value cannot reach a wire consumer;
+    /// the capability is released only after this mutation succeeds.
+    pub fn commit_scope_retirement_authenticated(
+        &mut self,
+        prepared: PreparedScopeRetirement,
+    ) -> SnapbackResult<Option<ScopeRetirement>> {
+        self.require_prepared_scope_retirement(&prepared)?;
+        let actual = self.retire_scope(&prepared.scope_id)?;
+        assert_eq!(
+            actual, prepared.candidate,
+            "validated live scope retirement frontier changed during commit"
+        );
+        Ok(prepared.retirement)
     }
 
     pub fn retire_connection(
@@ -2133,6 +2215,178 @@ mod tests {
         assert_eq!(first_retirement.retire_through_scope_sequence, 4);
         assert!(registry.retire_scope(&second).unwrap().is_some());
         assert!(registry.pending(&second).is_none());
+    }
+
+    #[test]
+    fn scope_retirement_derives_issuer_namespace_and_frontier_from_one_registry() {
+        fn subscription_scope(
+            issuer_id: IssuerId,
+            namespace: QueryNamespace,
+            scope_sequence: u64,
+            label: &str,
+        ) -> ScopeId {
+            ScopeId::Subscription {
+                issuer_id,
+                namespace,
+                scope_sequence,
+                connection_generation: 1,
+                subscription_id: label.to_owned(),
+            }
+        }
+
+        let fixture_i0 = live_issuer_fixture(0x41, 2);
+        let issuer_i0 = fixture_i0.expected_issuer_id.clone();
+        let mut registry_i0 = ObligationRegistry::new(fixture_i0.issuer).unwrap();
+        let fixture_i1 = live_issuer_fixture(0x42, 3);
+        let issuer_i1 = fixture_i1.expected_issuer_id.clone();
+        let mut registry_i1 = ObligationRegistry::new(fixture_i1.issuer).unwrap();
+
+        let namespace_n0 = QueryNamespace {
+            client_store_id: "store-0".to_owned(),
+            query_key: "todos:{}".to_owned(),
+            query_instance_id: 10,
+        };
+        let namespace_n1 = QueryNamespace {
+            client_store_id: "store-1".to_owned(),
+            query_key: "notes:{}".to_owned(),
+            query_instance_id: 11,
+        };
+        let obligation_o0 = subscription_scope(
+            issuer_i0.clone(),
+            namespace_n0.clone(),
+            1,
+            "issuer-0-namespace-0",
+        );
+        let obligation_o1 = subscription_scope(
+            issuer_i1.clone(),
+            namespace_n1.clone(),
+            1,
+            "issuer-1-namespace-1",
+        );
+        let unrelated_n1 = subscription_scope(
+            issuer_i0.clone(),
+            namespace_n1.clone(),
+            2,
+            "issuer-0-namespace-1",
+        );
+        registry_i0
+            .register_live_scope(obligation_o0.clone(), "owner-0")
+            .unwrap();
+        registry_i0
+            .register_live_scope(unrelated_n1.clone(), "owner-unrelated")
+            .unwrap();
+        registry_i1
+            .register_live_scope(obligation_o1.clone(), "owner-1")
+            .unwrap();
+
+        let crossed_issuer = registry_i0
+            .prepare_scope_retirement_authenticated(&obligation_o1)
+            .unwrap();
+        assert!(crossed_issuer.candidate.is_none());
+        assert!(crossed_issuer.retirement.is_none());
+        let crossed_namespace = subscription_scope(
+            issuer_i0.clone(),
+            QueryNamespace {
+                client_store_id: "forged-store".to_owned(),
+                query_key: "forged-query:{}".to_owned(),
+                query_instance_id: 99,
+            },
+            1,
+            "forged-namespace",
+        );
+        let crossed_namespace = registry_i0
+            .prepare_scope_retirement_authenticated(&crossed_namespace)
+            .unwrap();
+        assert!(crossed_namespace.candidate.is_none());
+        assert!(crossed_namespace.retirement.is_none());
+
+        // Preparation authenticates privately but neither removes the scope
+        // nor yields a client wire proof. Dropping it is a complete no-op.
+        let prepared_i0 = registry_i0
+            .prepare_scope_retirement_authenticated(&obligation_o0)
+            .unwrap();
+        let candidate_i0 = prepared_i0
+            .candidate
+            .clone()
+            .expect("registered obligation yields a frontier");
+        assert_eq!(candidate_i0.namespace, namespace_n0);
+        assert_eq!(candidate_i0.retire_through_scope_sequence, 1);
+        assert!(
+            registry_i0
+                .active_subscription_scopes
+                .contains(&obligation_o0)
+        );
+        assert_eq!(
+            registry_i0.preview_scope_retirement(&obligation_o0),
+            Some(candidate_i0.clone())
+        );
+        drop(prepared_i0);
+        assert!(
+            registry_i0
+                .active_subscription_scopes
+                .contains(&obligation_o0)
+        );
+        assert_eq!(
+            registry_i0.preview_scope_retirement(&obligation_o0),
+            Some(candidate_i0.clone())
+        );
+
+        // Even another live registry cannot turn the opaque carrier into a
+        // proof or mutation; exact producing-registry identity is retained.
+        let crossed_registry = registry_i0
+            .prepare_scope_retirement_authenticated(&obligation_o0)
+            .unwrap();
+        let crossed_error = registry_i1
+            .commit_scope_retirement_authenticated(crossed_registry)
+            .expect_err("another registry must refuse the prepared retirement");
+        assert_eq!(
+            crossed_error.diagnostic.code,
+            "SNAPBACK_AUTH_INVALIDATION_CORRUPT"
+        );
+
+        let unrelated_key = (issuer_i0.clone(), namespace_n1.clone());
+        let unrelated_high_water = registry_i0.issued_scope_high_water[&unrelated_key];
+        let prepared_i0 = registry_i0
+            .prepare_scope_retirement_authenticated(&obligation_o0)
+            .unwrap();
+        let retirement_i0 = registry_i0
+            .commit_scope_retirement_authenticated(prepared_i0)
+            .unwrap()
+            .expect("committed retirement releases its proof");
+        assert_eq!(retirement_i0.issuer_id, issuer_i0);
+        assert_eq!(retirement_i0.namespace, namespace_n0);
+        assert_eq!(retirement_i0.retire_through_scope_sequence, 1);
+        assert!(
+            !registry_i0
+                .issued_scope_high_water
+                .contains_key(&(issuer_i0.clone(), namespace_n0.clone()))
+        );
+        assert_eq!(
+            registry_i0.issued_scope_high_water[&unrelated_key], unrelated_high_water,
+            "retiring N0 must not mutate N1's issuance state",
+        );
+        assert!(
+            !registry_i0
+                .scope_retirement_frontier
+                .contains_key(&(issuer_i0.clone(), namespace_n0))
+        );
+
+        // A refused crossed attempt must not create permanent denial: the
+        // independent issuer/registry can still derive and authenticate O1.
+        let prepared_i1 = registry_i1
+            .prepare_scope_retirement_authenticated(&obligation_o1)
+            .unwrap();
+        let candidate_i1 = prepared_i1
+            .candidate
+            .clone()
+            .expect("I1 still has its own frontier");
+        let retirement_i1 = registry_i1
+            .commit_scope_retirement_authenticated(prepared_i1)
+            .unwrap()
+            .expect("I1 remains usable after the refusal");
+        assert_eq!(candidate_i1.namespace, namespace_n1);
+        assert_eq!(retirement_i1.issuer_id, issuer_i1);
+        assert_eq!(retirement_i1.namespace, namespace_n1);
     }
 
     #[test]

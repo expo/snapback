@@ -823,6 +823,39 @@ pub fn app_writes_are_authorization_event(schema: &SchemaManifest, changes: &[Ch
 #[derive(Clone)]
 pub struct DatabaseBinding(Arc<()>);
 
+/// Opaque proof that one telemetry caller key was resolved by the same
+/// serving database graph as the invocation that will consume it. The value
+/// is deliberately cloneable: attribution is loss-tolerant telemetry, so
+/// repeated observation has no durable or authorization effect.
+///
+/// @ref LLP 0303#corollary--the-artifact-must-carry-provenance-not-just-type —
+/// cross-principal transport attribution retains its producing database.
+#[derive(Clone, Debug)]
+pub struct AuthorityCallerAttributionBasis {
+    database_binding: DatabaseBinding,
+    lane: &'static str,
+    caller_key: String,
+    principal_user_id: Option<String>,
+}
+
+impl AuthorityCallerAttributionBasis {
+    pub fn database_binding(&self) -> &DatabaseBinding {
+        &self.database_binding
+    }
+
+    pub fn lane(&self) -> &'static str {
+        self.lane
+    }
+
+    pub fn caller_key(&self) -> &str {
+        &self.caller_key
+    }
+
+    pub fn principal_user_id(&self) -> Option<&str> {
+        self.principal_user_id.as_deref()
+    }
+}
+
 impl std::fmt::Debug for DatabaseBinding {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str("DatabaseBinding(..)")

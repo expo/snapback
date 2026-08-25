@@ -5712,13 +5712,16 @@ async fn effect_approval_reprepares_original_session_with_catalog_claims() {
     assert_eq!(durable.function_kind, effect.function_kind);
     assert_eq!(durable.args, effect.args);
     assert_eq!(durable.args_digest, effect.args_digest);
-    assert_eq!(durable.caller_lane, effect.caller_lane);
-    assert_eq!(durable.caller_key, effect.caller_key);
-    assert_eq!(durable.authority, effect.authority);
+    assert_eq!(durable.caller_lane(), effect.caller_lane());
+    assert_eq!(durable.caller_key(), effect.caller_key());
+    assert_eq!(durable.authority(), effect.authority());
     assert_eq!(durable.generation, effect.generation);
     assert_eq!(durable.effect_class, effect.effect_class);
     assert_eq!(durable.link_origin_id, effect.link_origin_id);
-    assert_eq!(durable.approver_principal_id, effect.approver_principal_id);
+    assert_eq!(
+        durable.approver_principal_id(),
+        effect.approver_principal_id()
+    );
     assert_eq!(durable.created_at_ms, effect.created_at_ms);
     assert_eq!(durable.expires_at_ms, effect.expires_at_ms);
     assert_eq!(
@@ -5752,7 +5755,7 @@ async fn effect_approval_reprepares_original_session_with_catalog_claims() {
         [
             (
                 "created",
-                Some(effect.caller_key.as_str()),
+                Some(effect.caller_key()),
                 Some("SNAPBACK_EFFECT_APPROVAL_PENDING"),
             ),
             ("approved", Some(expected_approver.as_str()), None),
