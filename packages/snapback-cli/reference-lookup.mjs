@@ -109,7 +109,7 @@ function budgetedDiagnostic(query, diagnostic, identity, slice, budget) {
     truncation: {
       truncated: true,
       slice,
-      elided: [`emitting sites outside ${start + 1}-${Math.min(start + pageSize, sites.length)} of ${sites.length}`],
+      elided: [`diagnostic sites outside ${start + 1}-${Math.min(start + pageSize, sites.length)} of ${sites.length}`],
       nextSlice: hasMore ? slice + 1 : null,
       nextCommand: hasMore ? `snapback guide ${query} --slice ${slice + 1}` : null,
     },
@@ -307,7 +307,14 @@ export function formatGuideReferenceLookup(result) {
     if (anchors.length === 1) lines.push(`Guide: ${anchors[0]}`);
     else if (anchors.length > 1) lines.push('Guide anchors:', ...anchors.map((anchor) => `- ${anchor}`));
     if (result.diagnostic.sites?.length) {
-      lines.push('', 'Emitting sites:', ...result.diagnostic.sites.map((site) => `- ${site.file}:${site.line}:${site.column}`));
+      const siteGroups = [
+        ['Emitting sites:', result.diagnostic.sites.filter((site) => site.kind === undefined || site.kind === 'emission')],
+        ['Received sites:', result.diagnostic.sites.filter((site) => site.kind === 'received')],
+        ['Reserved sites:', result.diagnostic.sites.filter((site) => site.kind === 'reserved')],
+      ];
+      for (const [heading, sites] of siteGroups) {
+        if (sites.length) lines.push('', heading, ...sites.map((site) => `- ${site.file}:${site.line}:${site.column}`));
+      }
     }
   } else if (result.member) {
     lines.push(`${result.symbol.module} · ${result.symbol.kind}`, '', result.member.signature);

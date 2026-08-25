@@ -350,15 +350,21 @@ export function targetRolePolicy(config, role, actions) {
   };
 }
 
-async function ensureTargetTigrisRole(rootCredentials, config, role, actions) {
+export async function ensureTargetTigrisRole(
+  rootCredentials,
+  config,
+  role,
+  actions,
+  { readCredential = keychainGet } = {},
+) {
   const roleStem = role.replaceAll(/[^a-z0-9-]/g, '-');
   const accountStem = `target-${config.targetApp}-tigris-${roleStem}`;
   const idAccount = `${accountStem}-id`;
   const secretAccount = `${accountStem}-secret`;
   const policyAccount = `${accountStem}-policy-arn`;
-  let accessKeyId = keychainGet(config.keychainService, idAccount);
-  let secretAccessKey = keychainGet(config.keychainService, secretAccount);
-  let policyArn = keychainGet(config.keychainService, policyAccount);
+  let accessKeyId = readCredential(config.keychainService, idAccount);
+  let secretAccessKey = readCredential(config.keychainService, secretAccount);
+  let policyArn = readCredential(config.keychainService, policyAccount);
   const policyVersion = role === 'cleanup' ? 'v2' : 'v1';
   const policyName = `snapback-target-${config.targetApp}-${roleStem}-${policyVersion}`;
   const predecessorPolicyArn = policyArn && !policyArn.endsWith(`/${policyName}`)

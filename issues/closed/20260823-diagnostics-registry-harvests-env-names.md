@@ -58,14 +58,15 @@ The machine registry's separate `environment` section records `read`,
 diagnostics registry, symbol registry, and Guide projections share one generated
 authority.
 
-The final comparison with merge-base `e370bb8f7` finds 223 removed names: 144
+The final comparison with merge-base `e370bb8f7` finds 222 removed names: 143
 are now environment variables and 79 are not in the environment section.
-Twelve names re-enter the public union relative to the earlier review
+Thirteen names re-enter the public union relative to the earlier review
 checkpoint: the client-protocol vocabulary
 `SNAPBACK_AUTH_SESSION_REVOKED`, `SNAPBACK_AUTH_FAMILY_REVOKED`, and
 `SNAPBACK_CLIENT_UPGRADE_REQUIRED` as `received` sites, plus the eight
 HTTP-table-only names already listed and
-`SNAPBACK_BRANCH_CAPTURE_ONLY_MISSING` as nine explicit `reserved` sites. The
+`SNAPBACK_BRANCH_CAPTURE_ONLY_MISSING` and
+`SNAPBACK_SHUTDOWN_CHECKPOINT_TIMEOUT_MS` as ten explicit `reserved` sites. The
 non-environment group contains constants, protocol/version symbols, receipt
 labels, wildcard/identifier fragments, test/reference vocabulary,
 secret-staging keys, and incomplete family prefixes rather than diagnostics.
@@ -120,8 +121,9 @@ HTTP-table-only spellings: `SNAPBACK_AUTH_MODE_CHANGED`,
 `SNAPBACK_AUTHORITY_ROSTER_CURSOR_INVALID`,
 `SNAPBACK_BRANCH_CAPTURE_ONLY_MISSING`,
 `SNAPBACK_PROMOTION_EFFECT_INTENT_MISSING`,
-`SNAPBACK_SCHEMA_UNIQUE_INDEX_OPTIONAL_FIELD`, and
-`SNAPBACK_UNSUPPORTED_BLOB`. Reservations do not count as emissions. The nine
+`SNAPBACK_SCHEMA_UNIQUE_INDEX_OPTIONAL_FIELD`,
+`SNAPBACK_SHUTDOWN_CHECKPOINT_TIMEOUT_MS`, and
+`SNAPBACK_UNSUPPORTED_BLOB`. Reservations do not count as emissions. The ten
 HTTP-only arms are deletion candidates for the Rust-capable follow-up
 `issues/20260825-http-table-only-diagnostic-reservations.md`. An audit of all 79
 non-environment removals initially missed this ninth retired diagnostic; after
@@ -245,19 +247,19 @@ Captured output:
 {
   "mergeBase": "e370bb8f789007cffae1f4d80c4feabdedc81cb5",
   "counts": {
-    "codes": 3538,
+    "codes": 3539,
     "sourceFiles": 637,
     "emittingSites": 10509,
     "receivedSites": 92,
-    "reservedSites": 11,
-    "httpClassified": 1709,
+    "reservedSites": 12,
+    "httpClassified": 1710,
     "guideAnchored": 427,
     "environmentVariables": 178,
-    "environmentSites": 357
+    "environmentSites": 356
   },
   "environmentKinds": {
     "read": 256,
-    "mention": 41,
+    "mention": 40,
     "declaration": 14,
     "remove": 3,
     "write": 14,
@@ -265,12 +267,12 @@ Captured output:
     "indirect-read": 16
   },
   "mergeBaseRemovals": {
-    "total": 223,
-    "environment": 144,
+    "total": 222,
+    "environment": 143,
     "other": 79
   },
   "fixtureRawTokens": 78,
   "receivedCodes": 82,
-  "httpReservations": 9
+  "httpReservations": 10
 }
 ```

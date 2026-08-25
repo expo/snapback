@@ -483,6 +483,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // These are operator-only shutdown controls/failures rather than
         // served request outcomes. Inventory still classifies them explicitly
         // so an accidental HTTP projection remains fail-safe.
+        // diagnostics-registry: reserved SNAPBACK_SHUTDOWN_CHECKPOINT_TIMEOUT_MS
         "SNAPBACK_SHUTDOWN_CHECKPOINT_TIMEOUT_MS"
         | "SNAPBACK_SHUTDOWN_WAL_CHECKPOINT_INCOMPLETE" => {
             StatusCode::INTERNAL_SERVER_ERROR

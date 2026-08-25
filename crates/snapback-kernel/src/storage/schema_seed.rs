@@ -291,7 +291,6 @@ pub(super) fn validate_versioned_seed_request(
             // lastHolder eligibility.
             //
             // diagnostics-registry: reserved SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED
-            // SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED
             //
             // The first-landing narrowing is retired (dated 0109 amendment,
             // 2026-08-01); unknown tables still refuse here.

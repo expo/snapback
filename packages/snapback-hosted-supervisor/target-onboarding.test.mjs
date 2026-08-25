@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   assertTargetTigrisCredentialPair,
   buildTargetOnboardingPlan,
+  ensureTargetTigrisRole,
   TARGET_DEFAULTS,
   TARGET_SUPERVISOR_SECRET_FILES,
   TARGET_TIGRIS_PARTIAL_CODES,
@@ -47,6 +48,23 @@ assert.deepEqual(Object.values(TARGET_TIGRIS_PARTIAL_CODES).sort(), [
 ].sort());
 assert.throws(
   () => assertTargetTigrisCredentialPair('control-state', 'present-id', null),
+  (error) => {
+    assert.equal(error.message, TARGET_TIGRIS_PARTIAL_CODES['control-state']);
+    return true;
+  },
+);
+await assert.rejects(
+  () => ensureTargetTigrisRole(
+    {},
+    TARGET_DEFAULTS,
+    'control-state',
+    TARGET_TIGRIS_ROLES['control-state'],
+    {
+      readCredential: (_service, account) => (
+        account.endsWith('-id') ? 'present-id' : null
+      ),
+    },
+  ),
   (error) => {
     assert.equal(error.message, TARGET_TIGRIS_PARTIAL_CODES['control-state']);
     return true;

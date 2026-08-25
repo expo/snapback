@@ -45,6 +45,24 @@ export function assertTargetTigrisCredentialPair(
   secretAccessKey: string | null | undefined,
 ): void;
 
+export interface TargetTigrisCredential {
+  readonly role: TargetTigrisRole;
+  readonly accessKeyId: string;
+  readonly secretAccessKey: string;
+  readonly created: boolean;
+  readonly policyRotated: boolean;
+}
+
+export function ensureTargetTigrisRole(
+  rootCredentials: Readonly<{ accessKeyId: string; secretAccessKey: string }>,
+  config: TargetOnboardingConfig,
+  role: TargetTigrisRole,
+  actions: readonly string[],
+  dependencies?: Readonly<{
+    readCredential?: (service: string, account: string) => string | null;
+  }>,
+): Promise<TargetTigrisCredential>;
+
 /** `[guestSecretFilePath, flySecretName]` projection pairs for the supervisor Machine. */
 export const TARGET_SUPERVISOR_SECRET_FILES: ReadonlyArray<readonly [string, string]>;
 

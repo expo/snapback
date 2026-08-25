@@ -70,7 +70,7 @@ The production inventory now includes all 14 JavaScript modules under
 target emitting sites; they are not reference vocabulary. The four dynamic
 `validate_artifact_header` stale-artifact codes have normal synthetic-emission
 sites. `SNAPBACK_IBEX_CLI_UNAVAILABLE`, the retired
-`SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED`, and the nine HTTP-table-only
+`SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED`, and the ten HTTP-table-only
 names recorded in `issues/20260825-http-table-only-diagnostic-reservations.md`
 remain reserved. The hosted Tigris loop now publishes all six literal role
 codes; `control-state` uses normalized
@@ -87,9 +87,9 @@ in `SnapbackDiagnosticCode` as received-only protocol vocabulary.
 The three publication-authority names retain their original validation text and
 are environment-only: their reads and message mentions remain, but their
 validation messages are not diagnostic emissions. The
-canonical 20260823 ticket records the final merge-base comparison: 223 removed
-names (144 environment and 79 non-environment); three received protocol names
-and nine HTTP reservations re-entered the union relative to the earlier review
+canonical 20260823 ticket records the final merge-base comparison: 222 removed
+names (143 environment and 79 non-environment); three received protocol names
+and ten HTTP reservations re-entered the union relative to the earlier review
 checkpoint. It also records the restored Cloudflare
 emitters, the corrected comment-site count, and why the HTTP-specific Rust
 exclusion list is not a public-registry denylist.
@@ -98,9 +98,9 @@ The canonical ticket includes the runnable final-registry measurement script.
 Its captured output for this resolution is:
 
 ```text
-codes=3538 emittingSites=10509 receivedSites=92 reservedSites=11
-environmentVariables=178 environmentSites=357
-environmentKinds: read=256 write=14 remove=3 indirect-read=16 declaration=14 table-entry=13 mention=41
-mergeBaseRemovals: total=223 environment=144 other=79
-fixtureRawTokens=78 receivedCodes=82 httpReservations=9
+codes=3539 emittingSites=10509 receivedSites=92 reservedSites=12
+environmentVariables=178 environmentSites=356
+environmentKinds: read=256 write=14 remove=3 indirect-read=16 declaration=14 table-entry=13 mention=40
+mergeBaseRemovals: total=222 environment=143 other=79
+fixtureRawTokens=78 receivedCodes=82 httpReservations=10
 ```

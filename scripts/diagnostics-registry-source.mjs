@@ -64,8 +64,10 @@ function hasSiteMarker(source, offset, marker, code) {
     // line; the next-line site is the one retained in the registry.
     if (
       offset === markerCodeOffset
-      && next !== null
-      && lineContainsCode(source, next, code)
+      && (
+        lineContainsCode(source, { start: current.start, end: markerCodeOffset }, code)
+        || (next !== null && lineContainsCode(source, next, code))
+      )
     ) return false;
     return true;
   }

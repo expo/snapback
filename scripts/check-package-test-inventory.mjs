@@ -104,6 +104,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'packaged-store-qualification.test.mjs',
       'port-plan.test.mjs',
       'reset-dev-fresh.test.mjs',
+      'reference-lookup-reserved-code.test.mjs',
       'reference-lookup.test.mjs',
       'replay-cli.test.mjs',
       'scaffold-skill-budget.test.mjs',
@@ -606,7 +607,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 361,
+  expectedTotal = 362,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1154,6 +1155,8 @@ export function checkPackageTestInventories(options = {}) {
 // on joins the package test command and canonical gating inventory.
 // 360 -> 361 (2026-08-25, LLP 0310.000 Track E): @expo/snapback-cli gains the
 // owner-bound dev-control socket occupancy, EOF/deadline, and cleanup-lease suite.
+// 361 -> 362 (2026-08-25, diagnostics registry round-9 review):
+// @expo/snapback-cli gains the focused reserved-code lookup-label regression.
 // LLP 0300 nine-row acceptance traceability (0301 §8 set-level table):
 // 1 cold bring-up -> templates/*/acceptance.mjs + declared-dev-episode.test.mjs;
 // 2 two principals -> declared-dev-episode.test.mjs; 3 forwards/tunnel/rebinding

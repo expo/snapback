@@ -250,6 +250,7 @@ test('generated registry retains target emitters and dynamic artifact-header emi
   const cloudflareCodes = [
     'SNAPBACK_ACTION_STREAM_CANCELLED',
     'SNAPBACK_ACTION_REPLAY_DIVERGED',
+    'SNAPBACK_CONNECTION_SESSION_REPLACED',
     'SNAPBACK_TEST_CRON_ACTION_INTERRUPTED',
     'SNAPBACK_HOST_FETCH_DESTINATION_INVALID',
     'SNAPBACK_HOST_FETCH_DESTINATION_REFUSED',
@@ -377,6 +378,7 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     'SNAPBACK_BRANCH_CAPTURE_ONLY_MISSING',
     'SNAPBACK_PROMOTION_EFFECT_INTENT_MISSING',
     'SNAPBACK_SCHEMA_UNIQUE_INDEX_OPTIONAL_FIELD',
+    'SNAPBACK_SHUTDOWN_CHECKPOINT_TIMEOUT_MS',
     'SNAPBACK_UNSUPPORTED_BLOB',
   ]) {
     assert.ok(
@@ -416,4 +418,24 @@ test('diagnostic source classifier retains explicitly marked received vocabulary
     diagnosticSourceSites(source).map(({ match, kind }) => ({ code: match[0], kind })),
     [{ code: 'SNAPBACK_FIXTURE_AMBIGUOUS_RECEIVED', kind: 'received' }],
   );
+});
+
+test('same-line named markers retain only their target site', () => {
+  for (const [marker, kind] of [
+    ['emission', 'emission'],
+    ['reserved', 'reserved'],
+    ['received', 'received'],
+  ]) {
+    const code = `SNAPBACK_FIXTURE_SAME_LINE_${marker.toUpperCase()}`;
+    const source = `const value = "${code}"; // diagnostics-registry: ${marker} ${code}`;
+    const sites = diagnosticSourceSites(source);
+    assert.deepEqual(
+      sites.map(({ match, kind: siteKind }) => ({
+        code: match[0],
+        column: match.index + 1,
+        kind: siteKind,
+      })),
+      [{ code, column: source.indexOf(code) + 1, kind }],
+    );
+  }
 });
