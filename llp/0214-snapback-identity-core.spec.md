@@ -6,6 +6,9 @@
 Security, Delivery, Testing
 **Author:** Charlie Cheever / Codex (gpt-5.6-sol) via Claude orchestration
 **Date:** 2026-08-09
+**Revised:** 2026-08-25 (v0.10 — distinguish first-password replacement of
+the email-code predecessor with a new local-password session from in-place
+acting-session rotation on password change)
 **Revised:** 2026-08-25 (v0.9 — password-set authority now derives the exact
 email identity from the authenticated session instead of accepting an
 identity selector from the caller, per LLP 0303)
@@ -2517,7 +2520,8 @@ The transaction atomically:
 
 1. creates the local username identity when absent;
 2. creates the password credential and material;
-3. rotates the acting session;
+3. revokes the acting email-code session and creates a new local-password
+   replacement session;
 4. revokes other sessions under the credential-change policy;
 5. writes `password.set`;
 6. advances authorization state when provisioning writes are permission

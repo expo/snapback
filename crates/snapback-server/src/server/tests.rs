@@ -20666,16 +20666,13 @@ async fn password_change_closed_union_rotates_and_requires_step_up_for_first_set
     let set_email = "set-first-password@example.com";
     let email_credential = password_test_email_exchange(&router, &provider, set_email).await;
     let email_bearer = email_credential["token"].as_str().unwrap().to_owned();
-    let acting_user_id = email_credential["session"]["userId"]
-        .as_str()
-        .expect("email-code acting user id")
-        .to_owned();
     let sibling_email = "set-first-password-sibling@example.com";
+    let sibling_fixture_bearer = email_bearer.clone();
     let sibling_identity_id = with_snapback(&state.snapback, move |snapback| {
         snapback
             .remainder_auth_database_mut()
-            .insert_email_code_identity_for_existing_user_for_test(
-                &acting_user_id,
+            .insert_email_code_identity_for_live_session_for_test(
+                &sibling_fixture_bearer,
                 sibling_email,
                 super::now_millis(),
             )

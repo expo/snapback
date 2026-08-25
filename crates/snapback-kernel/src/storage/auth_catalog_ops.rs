@@ -21,6 +21,9 @@ use sha2::{Digest as _, Sha256};
 use uuid::Uuid;
 use zeroize::Zeroizing;
 
+#[cfg(any(test, feature = "test-support"))]
+use crate::auth::crypto::SessionBearer;
+
 pub const INTERNAL_AUTH_COLLISION: &str = "INTERNAL_AUTH_COLLISION";
 pub(super) const GUEST_IDEMPOTENCY_TABLE: &str = "_snapback_auth_guest_idempotency";
 
@@ -232,6 +235,7 @@ pub struct CatalogStepUpBinding<'a> {
     pub session_id: &'a str,
     pub session_generation: u64,
     pub authority_instance_id: &'a str,
+    pub operation: &'a str,
 }
 
 #[derive(Clone, Debug)]
@@ -3042,24 +3046,125 @@ impl LocalDatabase {
     }
 
     #[cfg(any(test, feature = "test-support"))]
-    pub fn insert_email_code_identity_for_existing_user_for_test(
+    pub fn insert_email_code_identity_for_live_session_for_test(
         &mut self,
-        user_id: &str,
+        bearer: &str,
         address: &str,
-        created_at_ms: u64,
+        now_ms: u64,
     ) -> SnapbackResult<String> {
+        let bearer =
+            SessionBearer::parse_any_version(bearer).map_err(|_| internal_state_snapback())?;
+        let token_hash = bearer.token_hash();
         let identity_id = crate::ids::mint_time_ordered(crate::ids::Kind::Identity);
         self.with_auth_transaction(|transaction| {
-            insert_test_email_identity(
-                transaction,
-                &identity_id,
-                user_id,
-                address,
-                created_at_ms,
-                false,
-            )
+            // @ref LLP 0285#1-what-closed-means-here — the test-support seam
+            // derives the identity owner from a live durable predecessor; it
+            // never accepts a caller-selected principal id.
+            let user_id = transaction
+                .query_row(
+                    "SELECT user_id FROM _auth_sessions
+                     WHERE token_hash = ?1 AND revoked_at_ms IS NULL
+                       AND expires_at_ms > ?2 AND absolute_expires_at_ms > ?2",
+                    params![token_hash.as_bytes().as_slice(), now_ms as i64],
+                    |row| row.get::<_, String>(0),
+                )
+                .optional()?
+                .ok_or_else(internal_state_snapback)?;
+            insert_test_email_identity(transaction, &identity_id, &user_id, address, now_ms, false)
         })?;
         Ok(identity_id)
+    }
+}
+
+#[cfg(test)]
+mod live_session_email_fixture_tests {
+    use super::*;
+    use crate::auth::crypto::{CryptoError, RandomSource};
+
+    struct FixedRandom(u8);
+
+    impl RandomSource for FixedRandom {
+        fn fill(&self, destination: &mut [u8]) -> Result<(), CryptoError> {
+            destination.fill(self.0);
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn live_session_email_fixture_cannot_attach_to_unrelated_user() {
+        let mut database = LocalDatabase::memory().expect("fixture database");
+        database
+            .activate_current_auth_catalog()
+            .expect("current auth catalog");
+        let bearer = SessionBearer::generate(&FixedRandom(7)).expect("fixture bearer");
+        let token_hash = bearer.token_hash();
+        database
+            .with_auth_transaction(|transaction| {
+                transaction.execute(
+                    "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, ?3), (?2, ?3)",
+                    params!["fixture-user", "unrelated-user", 10_i64],
+                )?;
+                insert_test_email_identity(
+                    transaction,
+                    "fixture-identity",
+                    "fixture-user",
+                    "primary@example.com",
+                    10,
+                    false,
+                )?;
+                insert_test_identity_session(
+                    transaction,
+                    "fixture-session",
+                    "fixture-user",
+                    "fixture-identity",
+                    "fixture-authority",
+                    token_hash.as_bytes(),
+                    10,
+                    10,
+                    1_000,
+                    2_000,
+                )
+            })
+            .expect("live session predecessor");
+
+        let identity_id = database
+            .insert_email_code_identity_for_live_session_for_test(
+                bearer.expose_secret(),
+                "sibling@example.com",
+                20,
+            )
+            .expect("derived-user sibling identity");
+        let attached_user = database
+            .with_auth_read(|connection| {
+                Ok(connection.query_row(
+                    "SELECT user_id FROM _auth_identities WHERE id = ?1",
+                    [&identity_id],
+                    |row| row.get::<_, String>(0),
+                )?)
+            })
+            .expect("attached identity owner");
+        assert_eq!(attached_user, "fixture-user");
+        assert_ne!(attached_user, "unrelated-user");
+
+        let expired = database.insert_email_code_identity_for_live_session_for_test(
+            bearer.expose_secret(),
+            "must-not-attach@example.com",
+            1_000,
+        );
+        assert_eq!(
+            expired
+                .expect_err("expired predecessor must refuse")
+                .diagnostic
+                .code,
+            "INTERNAL_AUTH_STATE",
+        );
+        assert_eq!(
+            database
+                .auth_catalog_read()
+                .identity_subject_count_for_test("must-not-attach@example.com")
+                .expect("refused identity count"),
+            0,
+        );
     }
 }
 
@@ -3134,13 +3239,14 @@ impl LocalDatabase {
                        AND session.expires_at_ms > ?5
                        AND session.absolute_expires_at_ms > ?5
                        AND identity.provider = 'email-code'
-                       AND identity.disabled_at_ms IS NULL",
+                       AND (?6 != 'passwordSet' OR identity.disabled_at_ms IS NULL)",
                     params![
                         binding.session_id,
                         binding.user_id,
                         binding.session_generation as i64,
                         binding.authority_instance_id,
                         now_ms as i64,
+                        binding.operation,
                     ],
                     |row| row.get::<_, String>(0),
                 )
@@ -3148,7 +3254,6 @@ impl LocalDatabase {
                 .map_err(crate::diagnostic::SnapbackError::from)
         })
     }
-
 
     pub(super) fn auth_challenge_coordination(
         &self,
@@ -3347,13 +3452,15 @@ impl LocalDatabase {
                        AND session.revoked_at_ms IS NULL
                        AND session.expires_at_ms > ?5
                        AND session.absolute_expires_at_ms > ?5
-                       AND identity.provider = 'email-code'",
+                       AND identity.provider = 'email-code'
+                       AND (?6 != 'passwordSet' OR identity.disabled_at_ms IS NULL)",
                     params![
                         binding.session_id,
                         binding.user_id,
                         binding.session_generation as i64,
                         binding.authority_instance_id,
                         now_ms as i64,
+                        binding.operation,
                     ],
                     |row| row.get::<_, String>(0),
                 )

@@ -179,6 +179,7 @@ impl StepUpBinding {
             session_id: &self.session_id,
             session_generation: self.session_generation,
             authority_instance_id: &self.authority_instance_id,
+            operation: self.operation,
         }
     }
 

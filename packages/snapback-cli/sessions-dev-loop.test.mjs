@@ -277,6 +277,8 @@ try {
         readStepUpCode,
       });
       assert.equal(result.session.userId, emailCredential.session.userId);
+      assert.notEqual(result.session.id, emailCredential.session.id);
+      assert.notEqual(result.session.provider, emailCredential.session.provider);
       assert.equal(result.session.provider, 'local-password');
       assert.equal(result.recoveryCodes.length, 8);
       assert.equal(Object.hasOwn(result, 'token'), false);

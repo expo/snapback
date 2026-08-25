@@ -8119,10 +8119,24 @@ export class SnapbackClient {
       this.#authOfferHeaders(true, predecessor.bearer),
       { forbiddenSecrets: [predecessor.bearer, ...forbiddenSecrets] },
     );
-    const response = this.#validateCredentialResponseWithRecoveryCodes(
-      raw,
-      [predecessor.bearer, ...forbiddenSecrets],
-    );
+    let response;
+    try {
+      response = this.#validateCredentialResponseWithRecoveryCodes(
+        raw,
+        [predecessor.bearer, ...forbiddenSecrets],
+      );
+    } catch (error) {
+      // The password-set commit already terminalized this exact predecessor.
+      // Even a success body that fails closed-shape validation must not leave
+      // its dead bearer in custody; a concurrent authority remains untouched.
+      // @ref LLP 0059#coordinator-interface — malformed committed successes may
+      // clear only the exact predecessor captured before the request.
+      await this.authCoordinator.compareAndClear(
+        capture,
+        'password_set_invalid_successor',
+      );
+      throw error;
+    }
     const successorAuthority = credentialAuthority(
       response,
       'sessions',
@@ -8147,12 +8161,37 @@ export class SnapbackClient {
       );
       throw opaqueCredentialResponseError();
     }
-    await this.#transitionCredentialAuthority(capture, {
+
+    // The POST runs outside custody ownership. Reconcile the well-formed
+    // successor against a fresh settled capture, matching authExchange: a peer
+    // may have refreshed the predecessor or already adopted this successor.
+    // @ref LLP 0059#coordinator-interface — only the exact successor is
+    // idempotent; a current authority other than predecessor or successor is
+    // stale.
+    let currentCapture;
+    try {
+      currentCapture = this.authCoordinator.capture();
+    } catch (error) {
+      if (
+        error?.code === 'SNAPBACK_CLIENT_AUTHORITY_CLEARING'
+        || error?.code === 'SNAPBACK_CLIENT_AUTHORITY_STALE'
+      ) throw staleAuthorityError();
+      throw error;
+    }
+    const current = this.authCoordinator.credentialFor(currentCapture);
+    const projected = credentialPublicProjectionWithRecoveryCodes(response);
+    if (sameClientAuthority(current.authority, successorAuthority)) {
+      this.#publishCredentialPrincipal(projected);
+      return projected;
+    }
+    if (!sameClientAuthority(current.authority, predecessor.authority)) {
+      throw staleAuthorityError();
+    }
+    await this.#transitionCredentialAuthority(currentCapture, {
       authority: successorAuthority,
       bearer: response.token,
       refreshAfterMs: response.refreshAfter,
     });
-    const projected = credentialPublicProjectionWithRecoveryCodes(response);
     this.#publishCredentialPrincipal(projected);
     return projected;
   }

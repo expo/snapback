@@ -18,6 +18,7 @@ const OTHER_SESSION = '018f0d90-7b26-7a22-8c33-445566778899';
 const OTHER_USER = '018f0d90-7b27-7a22-8c33-445566778899';
 const SIGNUP_BEARER = 'sbs_password_signup_secret';
 const EMAIL_BEARER = 'sbs_email_code_secret';
+const ROTATED_EMAIL_BEARER = 'sbs_email_code_rotated_secret';
 const CHANGE_BEARER = 'sbs_password_change_secret';
 const CLAIM_BEARER = 'sbs_guest_claim_secret';
 const PASSWORD = 'a-password-that-must-not-leak';
@@ -133,7 +134,12 @@ const makeFixture = ({
 } = {}) => {
   const originalFetch = globalThis.fetch;
   const routeHandlers = new Map();
-  const knownBearers = new Set([SIGNUP_BEARER, EMAIL_BEARER, CHANGE_BEARER]);
+  const knownBearers = new Set([
+    SIGNUP_BEARER,
+    EMAIL_BEARER,
+    ROTATED_EMAIL_BEARER,
+    CHANGE_BEARER,
+  ]);
   const requests = [];
   globalThis.fetch = async (url, init = {}) => {
     const path = new URL(url).pathname;
@@ -357,7 +363,7 @@ test('client.auth is a vocabulary-only projection with exact flat-method contrac
   }
 });
 
-test('password set mints and submits an identity-free step-up proof', async () => {
+test('password set submits identity-free step-up and recaptures after concurrent rotation', async () => {
   const fixture = makeFixture({
     sessionHandshake: (bearer) => bearer === CHANGE_BEARER
       ? handshake({
@@ -404,9 +410,71 @@ test('password set mints and submits an identity-free step-up proof', async () =
   } finally {
     await fixture.close();
   }
+
+  const concurrent = makeFixture({
+    sessionHandshake: (bearer) => bearer === CHANGE_BEARER
+      ? handshake({
+          bearer,
+          sessionId: OTHER_SESSION,
+          authorityInstanceId: OTHER_AUTHORITY,
+        })
+      : handshake({ bearer }),
+  });
+  const requestStarted = deferred();
+  const passwordSetResponse = deferred();
+  try {
+    await enterEmailCodeSession(concurrent);
+    concurrent.respond('/auth/password/change', async ({ authorization }) => {
+      assert.equal(authorization, `Bearer ${EMAIL_BEARER}`);
+      requestStarted.resolve();
+      return passwordSetResponse.promise;
+    });
+    const setting = concurrent.client.authPasswordSet({
+      newPassword: NEW_PASSWORD,
+      stepUp: { challengeId: 'step-up-challenge', code: '123456' },
+    });
+    await requestStarted.promise;
+    const refreshCapture = concurrent.coordinator.capture();
+    const refreshed = await concurrent.coordinator.withCredentialRotation(
+      refreshCapture,
+      async ({ bearer }) => {
+        assert.equal(bearer, EMAIL_BEARER);
+        return {
+          bearer: ROTATED_EMAIL_BEARER,
+          refreshAfterMs: Date.now() + 60_000,
+          value: null,
+        };
+      },
+    );
+    assert.equal(refreshed.rotated, true);
+
+    const transition = concurrent.coordinator.transition.bind(concurrent.coordinator);
+    concurrent.coordinator.transition = (expected, ...args) => {
+      assert.equal(
+        expected.custodyRevision,
+        concurrent.coordinator.capture().custodyRevision,
+        'password set must transition the fresh post-response capture',
+      );
+      return transition(expected, ...args);
+    };
+    passwordSetResponse.resolve(Response.json(credential({
+      token: CHANGE_BEARER,
+      authorityInstanceId: OTHER_AUTHORITY,
+      sessionId: OTHER_SESSION,
+      codes: recoveryCodes,
+    })));
+    const result = await setting;
+    assert.equal(result.session.id, OTHER_SESSION);
+    assert.equal(concurrent.coordinator.authority.sessionId, OTHER_SESSION);
+    assert.equal(concurrent.coordinator.credentialFor(
+      concurrent.coordinator.capture(),
+    ).bearer, CHANGE_BEARER);
+  } finally {
+    await concurrent.close();
+  }
 });
 
-test('password set rejects predecessor-session reuse and clears predecessor custody', async () => {
+test('password set clears predecessor custody for every invalid HTTP 200 response', async () => {
   const fixture = makeFixture();
   try {
     await enterEmailCodeSession(fixture);
@@ -437,6 +505,32 @@ test('password set rejects predecessor-session reuse and clears predecessor cust
     ).bearer, null);
   } finally {
     await fixture.close();
+  }
+
+  const malformed = makeFixture();
+  try {
+    await enterEmailCodeSession(malformed);
+    malformed.respond('/auth/password/change', ({ authorization }) => {
+      assert.equal(authorization, `Bearer ${EMAIL_BEARER}`);
+      return Response.json(credential({
+        token: CHANGE_BEARER,
+        authorityInstanceId: OTHER_AUTHORITY,
+        sessionId: OTHER_SESSION,
+      }));
+    });
+    await assert.rejects(
+      malformed.client.authPasswordSet({
+        newPassword: NEW_PASSWORD,
+        stepUp: { challengeId: 'step-up-challenge', code: '123456' },
+      }),
+      (error) => error?.code === 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID',
+    );
+    assert.equal(malformed.coordinator.authority.kind, 'anonymous');
+    assert.equal(malformed.coordinator.credentialFor(
+      malformed.coordinator.capture(),
+    ).bearer, null);
+  } finally {
+    await malformed.close();
   }
 });
 

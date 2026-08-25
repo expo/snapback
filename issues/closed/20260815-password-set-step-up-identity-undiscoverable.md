@@ -54,7 +54,11 @@ an authored `0.1.27` lifecycle removal fact.
 
 Fail-first evidence: the focused server test received HTTP 400 instead of 200
 for the identity-free mint, and the client test failed because
-`authStepUpRequest` did not exist. Final evidence: both focused server tests
-pass (1/1 each), the client password suite passes (25/25), the real
-sessions-dev-loop client/server witness passes, the guide checker passes
-(22/22), inventories pass, and `ref-check` reports 0 errors.
+`authStepUpRequest` did not exist. Final evidence: the client password suite
+passes (26/26), including malformed-success cleanup and concurrent predecessor
+rotation; the server password filter passes (15/15); the live-session fixture
+seam regression passes (1/1); `cargo build --bin snapback` and
+`scripts/bootstrap-ibex-runtime` pass; the real sessions-dev-loop
+client/server witness passes (1/1); the guide checker reports 18 passed and 4
+stale generated-registry/projection failures deferred to integration;
+`ref-check` reports 0 errors; and `git diff --check` passes.

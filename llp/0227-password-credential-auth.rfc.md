@@ -5,6 +5,9 @@
 **Systems:** Auth, Server, CLI, Client protocol, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-10
+**Revised:** 2026-08-25 (l — first-password set is documented as replacing
+the email-code predecessor with a new local-password session; password change
+alone rotates the acting session in place)
 **Revised:** 2026-08-25 (j — password-set subject derivation and published
 client step-up mint surface corrected per LLP 0303)
 **Revised:** 2026-08-10 (a — initial draft, commissioned by the author ruling
@@ -329,9 +332,12 @@ every later refresh with no new column and no DTO change.
   exactly that set with the `durableDelete` terminal disposition — the
   committed ending of a backing authority, which is what this is. The
   displaced principal keeps its account, data, and any sessions minted
-  through other identities, and loses password login. Both change forms write the hash, increment
-  `credential_generation`, rotate the acting session's bearer, and revoke
-  the user's other sessions (revocation operation below).
+  through other identities, and loses password login. Password change writes
+  the hash, increments `credential_generation`, rotates the acting session's
+  bearer in place, and revokes the user's other sessions. First-password set
+  writes the initial credential, revokes the acting email-code predecessor,
+  issues a new local-password session, and revokes the user's other sessions
+  (revocation operation below).
 - **Reset is same-principal only.** `POST /auth/password/reset` resolves the
   address, then requires that the address's `'email-code'` identity and its
   `'password'` identity belong to the **same principal**; any other
