@@ -128,6 +128,10 @@ assert.equal(
   requests[1].url,
   `http://127.0.0.1:4321${SUPERVISED_EXCHANGE_PATH}?authority=mint`,
 );
+assert.equal(requests[1].options.method, 'POST');
+assert.deepEqual(JSON.parse(requests[1].options.body), {
+  correlationId: 'supervised-environment-correlation',
+});
 assert.equal(requests[0].options.cache, 'no-store');
 assert.equal(requests[0].options.method, 'GET');
 assert.equal(JSON.stringify(binding).includes('token'), false);
@@ -176,7 +180,7 @@ const abortingEnvironment = createSupervisedExpoEnvironment({
     exchangeFetches += 1;
     return Response.json({
       format: SUPERVISED_EXCHANGE_FORMAT,
-      correlationId: `abort-correlation-${exchangeFetches}`,
+      correlationId: 'abort-correlation',
       binding: bootstrapBinding,
       authority: {
         status: 'ready',
@@ -259,8 +263,13 @@ try {
   const checkoutEnvironment = createSupervisedExpoEnvironment({
     exchangeOrigin: 'http://127.0.0.1:4321',
     async fetch(url, options) {
-      if (options.method === 'GET') {
-        assert.equal(url, `http://127.0.0.1:4321${SUPERVISED_EXCHANGE_PATH}`);
+      if (url.startsWith(`http://127.0.0.1:4321${SUPERVISED_EXCHANGE_PATH}`)) {
+        assert.equal(
+          url,
+          options.method === 'GET'
+            ? `http://127.0.0.1:4321${SUPERVISED_EXCHANGE_PATH}`
+            : `http://127.0.0.1:4321${SUPERVISED_EXCHANGE_PATH}?authority=mint`,
+        );
         checkoutBootstraps += 1;
         return Response.json({
           format: SUPERVISED_EXCHANGE_FORMAT,
@@ -305,7 +314,7 @@ try {
     await checkoutEnvironment.resolveDevIdentityCapability(),
     'sbdev_native_client_option_proof',
   );
-  assert.equal(checkoutBootstraps, 1);
+  assert.equal(checkoutBootstraps, 2);
   assert.equal(checkoutRedemptions, 1, 'one native process redeems its checkout nonce once');
 
   let retryableRedemptions = 0;
@@ -313,8 +322,13 @@ try {
   const retryableEnvironment = createSupervisedExpoEnvironment({
     exchangeOrigin: 'http://127.0.0.1:4321',
     async fetch(url, options) {
-      if (options.method === 'GET') {
-        assert.equal(url, `http://127.0.0.1:4321${SUPERVISED_EXCHANGE_PATH}`);
+      if (url.startsWith(`http://127.0.0.1:4321${SUPERVISED_EXCHANGE_PATH}`)) {
+        assert.equal(
+          url,
+          options.method === 'GET'
+            ? `http://127.0.0.1:4321${SUPERVISED_EXCHANGE_PATH}`
+            : `http://127.0.0.1:4321${SUPERVISED_EXCHANGE_PATH}?authority=mint`,
+        );
         retryableBootstraps += 1;
         return Response.json({
           format: SUPERVISED_EXCHANGE_FORMAT,
@@ -363,7 +377,7 @@ try {
     'sbdev_native_retry_proof',
     'only the fulfilled capability is cached',
   );
-  assert.equal(retryableBootstraps, 1);
+  assert.equal(retryableBootstraps, 2);
   assert.equal(retryableRedemptions, 2);
 } finally {
   if (previousNavigator === undefined) delete globalThis.navigator;

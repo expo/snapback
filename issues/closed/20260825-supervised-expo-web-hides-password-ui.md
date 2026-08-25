@@ -37,25 +37,27 @@ Implemented LLP 0310.000 Track B (in review).
   admitted backend data/auth origin. The supervisor origin remains the
   credential-free control-plane rendezvous and the selected binding source.
 - The ordinary bootstrap exchange returns the binding with authority
-  `unavailable`, including after another client has minted. Only
-  `?authority=mint` receives a bearer, every explicit adoption receives a
-  fresh session, and the first mint does not emit `authority-replaced`.
+  `unavailable`, including after another client has minted. Explicit adoption
+  is a capability-bearing POST from an exact admitted origin; every accepted
+  request receives a fresh session, and the first mint does not emit
+  `authority-replaced`.
 - The default supervised-web provider stays anonymous and its password form
   remains visible. A real `SnapbackExpoProvider` React tree with a mounted
   query also proves that explicitly adopting a mint and signing it out leaves
   the query auth-blocked and the password form visible without publishing
   `SNAPBACK_AUTH_SESSION_EXPIRED`; the fake server records the logout revocation
   and would reject any later reuse of that bearer.
-- On the real supervisor, a first-party web boot with no `url` option consumes
-  `EXPO_PUBLIC_SNAPBACK_URL` while retaining the supervisor rendezvous as its
-  binding source. The original supervisor cache makes the second explicit
+- On the real supervisor, the first-party provider retains the supervisor
+  rendezvous as its binding source, and that admitted binding's target origin
+  exactly equals Metro's injected `EXPO_PUBLIC_SNAPBACK_URL`. The original
+  supervisor cache makes the second explicit
   adoption after sign-out fail with `SNAPBACK_AUTH_SESSION_EXPIRED`; the fixed
   supervisor remints and that adoption succeeds.
-- Backend URL injection and no-boot-mint behavior are limited to web. Native
-  supervision remains sessions-first, and all 13 `expo-chat` starter
-  acceptance checks pass against the qualified runtime. The checkout
-  regression also proves that the native nonce is stripped from Metro and
-  every `EXPO_PUBLIC_*` value.
+- Backend URL injection is limited to web. Native supervision remains
+  sessions-first at the provider boundary, but now mints its one initial
+  session on the default adoption request instead of eagerly creating and
+  leaking an unused predecessor. The checkout regression also proves that the
+  native nonce is stripped from Metro and every `EXPO_PUBLIC_*` value.
 - LLP 0300 P4, the Familiar profile page, the React Expo guide, and the
   `expo-chat` start packet now describe this posture. Generated diagnostics,
   symbol, manifest, flat-guide, and first-read projections were refreshed.
@@ -93,4 +95,7 @@ qualified binary, including anonymous password signup/sign-in, explicit mint
 adoption, safe sign-out, remint after revocation, ordinary-route bearer
 secrecy, URL/control-plane separation, generated-graph freshness, and strict
 cleanup. The focused bootstrap, provider, supervised-environment, identity
-checkout, guide, inventory, and reference checks pass as well.
+checkout, guide, and inventory checks pass as well. The initial branch failed
+`ref-check` because its base omitted LLP 0310/0310.000; the byte-identical
+documents and current links were imported from `origin/main`, after which the
+reference check passed.

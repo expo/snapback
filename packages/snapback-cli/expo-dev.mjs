@@ -266,12 +266,17 @@ const BROWSER_EXCHANGE_ORIGIN_PREFIXES = Object.freeze([
 ]);
 const DEFAULT_BINDING_TTL_MS = 60 * 60 * 1_000;
 const DEFAULT_EMAIL = 'snapback-dev@localhost.invalid';
+const BOOTSTRAP_BODY_LIMIT_BYTES = 4 * 1_024;
 const CONTROL_BODY_LIMIT_BYTES = 4 * 1_024;
 const SUPERVISED_CONNECT_CARRIER = 'supervisor-rendezvous';
 
 export function admittedBrowserExchangeOrigin(originHeader) {
   if (typeof originHeader !== 'string') return null;
-  return BROWSER_EXCHANGE_ORIGIN_PREFIXES.some((prefix) => originHeader.startsWith(prefix))
+  let parsed;
+  try { parsed = new URL(originHeader); } catch { return null; }
+  return parsed.origin === originHeader
+    && parsed.port.length > 0
+    && BROWSER_EXCHANGE_ORIGIN_PREFIXES.some((prefix) => originHeader.startsWith(prefix))
     ? originHeader
     : null;
 }
@@ -413,8 +418,9 @@ function clientDiagnostic(source, fallbackCode, fallbackMessage) {
 // primitive. The operator token stays supervisor-held and is passed only to
 // the native wrapper; the app-facing result contains only the ordinary
 // session envelope.
-// @ref LLP 0300#p4--the-dev-session-becomes-explicit — the supervisor calls
-// this primitive only after explicit session adoption or replacement demand.
+// @ref LLP 0300#p4--the-dev-session-becomes-explicit — no target boot-mints;
+// the supervisor calls this primitive only after application adoption or
+// later replacement demand.
 export function mintSupervisedOrdinarySession({
   runtimeBinary,
   readyFile,
@@ -1593,9 +1599,21 @@ async function waitForListenerInventory({
 
 export async function startBootstrapExchange(
   getPayload,
-  { onControl, onDevIdentityCheckout, onSharedAuth, port = 0 } = {},
+  {
+    admittedAuthorityOrigins = [],
+    onControl,
+    onDevIdentityCheckout,
+    onSharedAuth,
+    port = 0,
+  } = {},
 ) {
   const sockets = new Set();
+  const currentAuthorityOrigins = () => {
+    const resolved = typeof admittedAuthorityOrigins === 'function'
+      ? admittedAuthorityOrigins()
+      : admittedAuthorityOrigins;
+    return new Set(resolved ?? []);
+  };
   const handleRequest = async (request, response) => {
     // @ref LLP 0151#shared-development-browser-adapter — the shared development
     // broker is mounted on the origin the client already discovers, so a new app
@@ -1613,6 +1631,8 @@ export async function startBootstrapExchange(
       || (authorityRequest === SUPERVISED_AUTHORITY_REQUEST
         && [...requestUrl.searchParams.keys()].length === 1);
     const admittedOrigin = admittedBrowserExchangeOrigin(request.headers.origin);
+    const authorityOriginAdmitted = admittedOrigin !== null
+      && currentAuthorityOrigins().has(admittedOrigin);
     response.setHeader('cache-control', 'no-store, max-age=0');
     response.setHeader('pragma', 'no-cache');
     response.setHeader('referrer-policy', 'no-referrer');
@@ -1621,17 +1641,34 @@ export async function startBootstrapExchange(
     // @ref LLP 0176#security-claims-follow-reachability — loopback-only origin
     // admission, matching src/server.rs local_dev_cors, remains the security
     // boundary; only the exchange's response headers widen.
-    if (admittedOrigin !== null) {
+    if (
+      admittedOrigin !== null
+      && (authorityRequest !== SUPERVISED_AUTHORITY_REQUEST || authorityOriginAdmitted)
+    ) {
       response.setHeader('access-control-allow-origin', admittedOrigin);
       response.setHeader('vary', 'Origin');
-      response.setHeader('access-control-allow-methods', 'GET, OPTIONS');
-      response.setHeader('access-control-allow-headers', 'accept');
+      response.setHeader(
+        'access-control-allow-methods',
+        authorityRequest === SUPERVISED_AUTHORITY_REQUEST ? 'POST, OPTIONS' : 'GET, OPTIONS',
+      );
+      response.setHeader(
+        'access-control-allow-headers',
+        authorityRequest === SUPERVISED_AUTHORITY_REQUEST ? 'accept, content-type' : 'accept',
+      );
     }
     if (
       request.method === 'OPTIONS'
       && requestUrl.pathname === SUPERVISED_EXCHANGE_PATH
       && validAuthorityRequest
     ) {
+      if (authorityRequest === SUPERVISED_AUTHORITY_REQUEST && !authorityOriginAdmitted) {
+        response.statusCode = 403;
+        response.end(JSON.stringify({
+          ok: false,
+          code: 'SNAPBACK_EXPO_BOOTSTRAP_UNAVAILABLE',
+        }));
+        return;
+      }
       response.setHeader('access-control-max-age', '600');
       response.statusCode = 204;
       response.end();
@@ -1663,6 +1700,87 @@ export async function startBootstrapExchange(
       }
       response.statusCode = 200;
       response.end(JSON.stringify({ ok: true, devIdentityCapability: capability }));
+      return;
+    }
+    if (
+      request.method === 'POST'
+      && requestUrl.pathname === SUPERVISED_EXCHANGE_PATH
+      && authorityRequest === SUPERVISED_AUTHORITY_REQUEST
+      && validAuthorityRequest
+    ) {
+      // @ref LLP 0310.000#track-b--url-visible-mint-not-stolen — adoption is
+      // state-changing: require the exact admitted app origin and the
+      // unguessable per-boot correlation capability from the binding-only
+      // exchange before invoking the mint callback.
+      if (!authorityOriginAdmitted) {
+        response.statusCode = 403;
+        response.end(JSON.stringify({
+          ok: false,
+          code: 'SNAPBACK_EXPO_BOOTSTRAP_UNAVAILABLE',
+        }));
+        return;
+      }
+      let body;
+      try {
+        const chunks = [];
+        let bytes = 0;
+        let oversized = false;
+        for await (const chunk of request) {
+          bytes += chunk.length;
+          if (bytes > BOOTSTRAP_BODY_LIMIT_BYTES) {
+            oversized = true;
+            continue;
+          }
+          chunks.push(chunk);
+        }
+        if (oversized) throw new SyntaxError('authority adoption body exceeded the size limit');
+        body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        if (
+          body === null
+          || typeof body !== 'object'
+          || Array.isArray(body)
+          || Object.keys(body).length !== 1
+          || typeof body.correlationId !== 'string'
+          || body.correlationId.length === 0
+        ) throw new SyntaxError('authority adoption body must carry only correlationId');
+      } catch {
+        response.statusCode = 403;
+        response.end(JSON.stringify({
+          ok: false,
+          code: 'SNAPBACK_EXPO_BOOTSTRAP_UNAVAILABLE',
+        }));
+        return;
+      }
+      let bootstrapPayload;
+      try {
+        bootstrapPayload = await getPayload(Object.freeze({ requestAuthority: false }));
+      } catch {
+        bootstrapPayload = null;
+      }
+      if (
+        bootstrapPayload === null
+        || !constantTimeTokenEqual(body.correlationId, bootstrapPayload.correlationId)
+      ) {
+        response.statusCode = 403;
+        response.end(JSON.stringify({
+          ok: false,
+          code: 'SNAPBACK_EXPO_BOOTSTRAP_UNAVAILABLE',
+        }));
+        return;
+      }
+      let payload;
+      try {
+        payload = await getPayload(Object.freeze({ requestAuthority: true }));
+      } catch {
+        payload = null;
+      }
+      if (payload === null) {
+        response.statusCode = 503;
+        response.end(JSON.stringify({ ok: false, code: 'SNAPBACK_EXPO_BOOTSTRAP_UNAVAILABLE' }));
+        return;
+      }
+      response.statusCode = 200;
+      response.end(JSON.stringify(payload));
       return;
     }
     if (request.method === 'POST' && request.url === SUPERVISED_CONTROL_PATH) {
@@ -1716,7 +1834,7 @@ export async function startBootstrapExchange(
     if (
       request.method !== 'GET'
       || requestUrl.pathname !== SUPERVISED_EXCHANGE_PATH
-      || !validAuthorityRequest
+      || requestUrl.search !== ''
     ) {
       response.statusCode = 404;
       response.end(JSON.stringify({ ok: false, code: 'SNAPBACK_EXPO_BOOTSTRAP_ROUTE_NOT_FOUND' }));
@@ -1725,7 +1843,7 @@ export async function startBootstrapExchange(
     let payload;
     try {
       payload = await getPayload(Object.freeze({
-        requestAuthority: authorityRequest === SUPERVISED_AUTHORITY_REQUEST,
+        requestAuthority: false,
       }));
     } catch {
       response.statusCode = 503;
@@ -1998,6 +2116,7 @@ async function bindPlannedSupervisorListeners({
   plan,
   platform,
   attestation,
+  admittedAuthorityOrigins,
   getBootstrapPayload,
   onControl,
   onDevIdentityCheckout,
@@ -2022,6 +2141,7 @@ async function bindPlannedSupervisorListeners({
       }
       if (owner === 'bootstrap') {
         return startBootstrapExchange(getBootstrapPayload, {
+          admittedAuthorityOrigins,
           onControl,
           onDevIdentityCheckout,
           onSharedAuth,
@@ -2206,6 +2326,7 @@ export async function runExpoDev(options = {}) {
   let forwarding = null;
   let authority = Object.freeze({ status: 'unavailable' });
   let authorityRequested = false;
+  let authorityMintCount = 0;
   let authorityEmail = options.email ?? DEFAULT_EMAIL;
   let requestSupervisedAuthority = () => authority;
   let checkoutRegistry = null;
@@ -2235,6 +2356,7 @@ export async function runExpoDev(options = {}) {
   let rotateBindingAfterLoad = () => null;
   let publishBindingProjection = () => null;
   let bindingProjection = null;
+  let admittedAuthorityOrigins = Object.freeze([]);
   let applicationReceiptProjection = null;
   let portPlan = null;
   let handleBootstrapControl = async () => ({
@@ -2391,6 +2513,7 @@ export async function runExpoDev(options = {}) {
       plan: requestedPortPlan,
       platform,
       attestation: metroAttestation,
+      admittedAuthorityOrigins: () => admittedAuthorityOrigins,
       onReservation(owner, reservation) {
         if (owner === 'bootstrap') bootstrap = reservation;
         else if (owner === 'client' && platform === 'web') metroFront = reservation;
@@ -2440,6 +2563,10 @@ export async function runExpoDev(options = {}) {
     metroPlaceholder = reservedListeners.metroPlaceholder;
     const metroPort = reservedListeners.clientPort;
     const metroProcessPort = reservedListeners.metroProcessPort;
+    admittedAuthorityOrigins = Object.freeze([
+      ...expoBackendClientOrigins(metroPort),
+      bootstrap.origin,
+    ]);
     portPlan = materializeDevPortPlan(requestedPortPlan, reservedListeners.assigned);
     const backendEnv = expoBackendDevAuthEnvironment(childEnv, metroPort);
     emit({
@@ -2585,6 +2712,7 @@ export async function runExpoDev(options = {}) {
       authorityRequested = true;
       let operatorToken = managedAdminToken(readReadyDescriptor(dev.readyFile), database);
       try {
+        authorityMintCount += 1;
         authority = mintSupervisedOrdinarySession({
           runtimeBinary: dev.runtime.binary,
           readyFile: dev.readyFile,
@@ -2607,8 +2735,9 @@ export async function runExpoDev(options = {}) {
       }
       return authority.status;
     };
-    // @ref LLP 0300#p4--the-dev-session-becomes-explicit — web binding
-    // admission never invokes the mint; only an explicit authority query does.
+    // @ref LLP 0300#p4--the-dev-session-becomes-explicit — binding admission
+    // never invokes the mint on web or native; application adoption requests
+    // the first ordinary session on demand.
     // @ref LLP 0310.000#track-b--url-visible-mint-not-stolen — every explicit
     // web adoption or refresh receives a fresh session, while the first mint
     // is not misreported as an authority replacement.
@@ -2617,11 +2746,9 @@ export async function runExpoDev(options = {}) {
       mintAndSwapAuthority(authorityEmail, { emitReplacement });
       return authority;
     };
-    // @ref LLP 0262#d2-carriers-per-shipped-topology — native supervised
-    // targets remain sessions-first; Track B's no-boot-mint rule is web-only.
-    if (platform !== 'web') {
-      mintAndSwapAuthority(authorityEmail, { emitReplacement: false });
-    }
+    // @ref LLP 0262#d2-carriers-per-shipped-topology — native remains
+    // sessions-first at the provider boundary, but the provider's default
+    // adoption request is now the first mint; there is no discarded S1.
     let route = null;
     handleBootstrapControl = async ({ operatorToken, body }) => {
         let expectedOperatorToken = null;
@@ -3153,6 +3280,7 @@ export async function runExpoDev(options = {}) {
       inspection() {
         return Object.freeze({
           correlationId,
+          authorityMintCount,
           listeners,
           binding: publicBinding(bindingProjection),
           applicationReady: currentApplicationReceiptProjection(),

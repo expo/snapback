@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:3755e89790072b3ea61c6a7769438bcb397fb48b3c99
 # @expo/snapback-client/commands
 
 Build-bound public API projection for `@expo/snapback-client/commands`. Canonical registry identity:
-`sha256:a4edee4eb3e16334075e6c9e37bf56b02dc84652ac2917e03d7ff04a5ed84cfb`.
+`sha256:705ea64870fe97edf454b42688e2890f9c32512145f334770b7e7d97195a52fd`.
 Runtime parity condition:
 `import` → `packages/snapback-client/commands.mjs`.
 

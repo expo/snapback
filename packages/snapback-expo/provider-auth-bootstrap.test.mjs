@@ -498,6 +498,120 @@ async function settleReactUntil(predicate, message) {
   }
   assert.fail(typeof message === 'function' ? message() : message);
 }
+
+// Default web posture is anonymous-first even when the supervisor can mint.
+// Omit the prop entirely: this is the public default, while the native fixture
+// below keeps its explicit-false opt-out coverage.
+const defaultWebSupervisor = {
+  bearer: SUPERVISED_BEARER,
+  binding: liveBinding,
+  events: [],
+  diagnostics: [],
+};
+const defaultWebBaseEnvironment = environmentFor(Object.freeze({
+  ...platform,
+  databaseName: 'snapback-expo-auth-bootstrap-default-web',
+}), defaultWebSupervisor);
+let defaultWebBindingResolutions = 0;
+const defaultWebEnvironment = Object.freeze({
+  ...defaultWebBaseEnvironment,
+  async resolveBinding(input) {
+    defaultWebBindingResolutions += 1;
+    return defaultWebBaseEnvironment.resolveBinding(input);
+  },
+});
+let defaultWebPrincipal = null;
+let defaultWebBootState = null;
+function DefaultWebPasswordProjection() {
+  defaultWebPrincipal = useSnapbackCurrentPrincipal();
+  return defaultWebPrincipal?.status === 'anonymous'
+    ? React.createElement('password-form', { testID: 'default-web-password-form' })
+    : null;
+}
+let defaultWebRenderer;
+await act(async () => {
+  defaultWebRenderer = TestRenderer.create(React.createElement(
+    SnapbackExpoProvider,
+    {
+      app: protectedApp,
+      environment: defaultWebEnvironment,
+      outboxDrain: 'manual',
+      fallback(state) {
+        defaultWebBootState = state;
+        return null;
+      },
+    },
+    React.createElement(DefaultWebPasswordProjection),
+  ));
+});
+await settleReactUntil(
+  () => defaultWebPrincipal?.status === 'anonymous',
+  () => `an omitted adoption prop on expo-web must settle anonymous: ${JSON.stringify({
+    boot: defaultWebBootState,
+    diagnostics: defaultWebSupervisor.diagnostics,
+  })}`,
+);
+assert.equal(
+  defaultWebRenderer.root.findAllByProps({ testID: 'default-web-password-form' }).length,
+  1,
+  'the omitted-prop expo-web default exposes password entry',
+);
+assert.deepEqual(
+  defaultWebSupervisor.events,
+  [],
+  'the omitted-prop expo-web default never resolves supervised authority',
+);
+await act(async () => {
+  defaultWebRenderer.unmount();
+  await new Promise((resolve) => setImmediate(resolve));
+});
+
+const defaultRefreshSupervisor = {
+  bearer: SUPERVISED_BEARER,
+  binding: liveBinding,
+  events: [],
+  diagnostics: [],
+};
+const defaultRefreshBaseEnvironment = environmentFor(Object.freeze({
+  ...platform,
+  databaseName: 'snapback-expo-auth-bootstrap-default-refresh',
+}), defaultRefreshSupervisor);
+let defaultRefreshBindingResolutions = 0;
+const defaultRefreshEnvironment = Object.freeze({
+  ...defaultRefreshBaseEnvironment,
+  async resolveBinding(input) {
+    defaultRefreshBindingResolutions += 1;
+    return defaultRefreshBaseEnvironment.resolveBinding(input);
+  },
+});
+let defaultRefreshClientConstructions = 0;
+const defaultRefreshBoot = createSnapbackExpoBoot({
+  app: protectedApp,
+  environment: defaultRefreshEnvironment,
+  async createApplicationClient(input, observer) {
+    defaultRefreshClientConstructions += 1;
+    const appClient = await createSnapbackAppClientWithBootstrapObserver(input, observer);
+    appClient.client.prepareReactBinding = async () => ({ source: 'deployment' });
+    return appClient;
+  },
+  createProvider: fakeReactProvider,
+  bindLifecycle: () => Object.freeze({ dispose() {}, async settled() {} }),
+});
+const defaultRefreshReady = await defaultRefreshBoot.start();
+assert.equal(defaultRefreshReady.status, 'ready', JSON.stringify(defaultRefreshReady));
+assert.equal(defaultRefreshBindingResolutions, 1);
+assert.equal(defaultRefreshClientConstructions, 1);
+assert.equal((await defaultRefreshBoot.refreshAuthority()).status, 'ready');
+assert.equal(defaultRefreshBindingResolutions, 2, 'refresh re-resolves and re-admits the binding');
+assert.equal(defaultRefreshClientConstructions, 2, 'refresh rebinds the existing app-client owner');
+assert.deepEqual(
+  defaultRefreshSupervisor.events,
+  [],
+  'refresh remains rebind-only when supervised adoption was not opted in',
+);
+assert.equal(defaultRefreshBoot.appClient().auth.currentPrincipal().status, 'anonymous');
+await defaultRefreshBoot.dispose();
+
 const liveSubscriptions = () => server.requests.filter(
   ({ path }) => path === '/live/listTodos/subscribe',
 );
@@ -986,15 +1100,15 @@ try {
     bindingCache: null,
     onDiagnostic: (value) => checkoutDiagnostics.push(value),
     async fetch(url, options) {
-      if (options.method === 'GET') {
-        const expectedUrl = checkoutBootstraps === 0
+      if (url.startsWith(`http://127.0.0.1:4321${SUPERVISED_EXCHANGE_PATH}`)) {
+        const expectedUrl = options.method === 'GET'
           ? `http://127.0.0.1:4321${SUPERVISED_EXCHANGE_PATH}`
           : `http://127.0.0.1:4321${SUPERVISED_EXCHANGE_PATH}?authority=mint`;
         assert.equal(url, expectedUrl);
         checkoutBootstraps += 1;
         return Response.json({
           format: SUPERVISED_EXCHANGE_FORMAT,
-          correlationId: `failed-checkout-adoption-${checkoutBootstraps}`,
+          correlationId: 'failed-checkout-adoption',
           binding,
           authority: {
             status: 'ready',

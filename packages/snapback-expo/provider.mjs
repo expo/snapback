@@ -386,6 +386,8 @@ export function createSnapbackExpoBoot(options = {}) {
   let lifecycleSource = null;
   let authorityDisposer = null;
   let applicationClient = null;
+  let applicationClientAdoptsSupervisedSession = false;
+  let applicationClientInputForBinding = null;
   let bootstrapUnsubscribe = null;
   let admittedBinding = null;
   let admittedBindingFacts = null;
@@ -603,6 +605,7 @@ export function createSnapbackExpoBoot(options = {}) {
         // remains sessions-first; only browser/Expo web makes adoption opt-in.
         const shouldAdoptSupervisedSession = adoptSupervisedSession
           ?? !['browser', 'expo-web'].includes(platform?.kind);
+        applicationClientAdoptsSupervisedSession = shouldAdoptSupervisedSession;
         // @ref LLP 0151#resolved-provider-entry — Adapters resolve once, here,
         // from the declaration plus the supervisor's credential-free shared-auth
         // projection. An app that declares no provider builds none.
@@ -612,21 +615,22 @@ export function createSnapbackExpoBoot(options = {}) {
           platform,
           environment,
         }));
+        applicationClientInputForBinding = (binding) => ({
+          app,
+          ...(binding.source === 'declared-dev'
+            ? { url: binding.target.origin }
+            : { binding }),
+          platform,
+          now,
+          signal: controller.signal,
+          rqsStore: resolvedRqsStore,
+          ...(authProviders === null ? {} : { authProviders }),
+          ...(environment.onDiagnostic === undefined
+            ? {}
+            : { onDiagnostic: environment.onDiagnostic }),
+        });
         applicationClient = await awaitBoundary(createApplicationClient(
-          {
-            app,
-            ...(admittedBinding.source === 'declared-dev'
-              ? { url: admittedBinding.target.origin }
-              : { binding: admittedBinding }),
-            platform,
-            now,
-            signal: controller.signal,
-            rqsStore: resolvedRqsStore,
-            ...(authProviders === null ? {} : { authProviders }),
-            ...(environment.onDiagnostic === undefined
-              ? {}
-              : { onDiagnostic: environment.onDiagnostic }),
-          },
+          applicationClientInputForBinding(admittedBinding),
           (snapshot) => {
             if (!disposed && snapshot.status !== 'ready') publish(snapshot);
           },
@@ -823,11 +827,49 @@ export function createSnapbackExpoBoot(options = {}) {
       refreshPromise = (async () => {
         if (disposed || state.status !== 'ready' || admittedBinding === null) return state;
         if (applicationClient !== null) {
+          if (admittedBinding.source !== 'supervised-dev') return state;
           if (
-            admittedBinding.source !== 'supervised-dev'
-            || typeof environment.resolveSupervisedAuthority !== 'function'
+            applicationClientAdoptsSupervisedSession
+            && typeof environment.resolveSupervisedAuthority !== 'function'
           ) return state;
           try {
+            if (!applicationClientAdoptsSupervisedSession) {
+              // An anonymous-first web provider refreshes only its binding.
+              // Calling the authority resolver here would turn a lifecycle
+              // refresh into an unasked session mint and adoption.
+              const resolution = await awaitBoundary(environment.resolveBinding(Object.freeze({
+                app,
+                bindingOverride: null,
+                signal: controller.signal,
+                url,
+              })));
+              if (!resolution || typeof resolution !== 'object' || !resolution.binding) {
+                const error = new Error('binding resolver returned no AppBinding refresh candidate');
+                error.code = 'SNAPBACK_APP_BINDING_UNAVAILABLE';
+                throw error;
+              }
+              const refreshedBinding = await awaitBoundary(admitBindingCandidate(
+                resolution.binding,
+                resolution.admission ?? {},
+              ));
+              if (applicationClientInputForBinding === null) {
+                const error = new Error('application-client binding rebind is unavailable');
+                error.code = 'SNAPBACK_EXPO_ENVIRONMENT_INVALID';
+                throw error;
+              }
+              const reboundProjection = await awaitBoundary(createApplicationClient(
+                applicationClientInputForBinding(refreshedBinding),
+                () => {},
+              ), (lateProjection) => lateProjection?.dispose?.());
+              if (reboundProjection !== applicationClient) {
+                await awaitBoundary(reboundProjection?.dispose?.());
+              }
+              admittedBinding = refreshedBinding;
+              admittedBindingAdmission = resolution.admission ?? {};
+              admittedBindingFacts = publicBindingFacts(admittedBinding);
+              publish(projectApplicationBootstrap());
+              return state;
+            }
             const supervised = await awaitBoundary(environment.resolveSupervisedAuthority(Object.freeze({
               app,
               binding: admittedBinding,

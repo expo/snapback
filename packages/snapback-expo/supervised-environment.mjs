@@ -306,6 +306,7 @@ export function createSupervisedExpoEnvironment({
 } = {}) {
   const exchanges = new Map();
   const offlineFallbacks = new Map();
+  const supervisorCapabilities = new Map();
   // @ref LLP 0151#shared-development-browser-adapter — the credential-free
   // shared-auth projection is retained separately from the one-shot authority
   // exchange, because the client reads it whenever it builds a provider
@@ -358,7 +359,10 @@ export function createSupervisedExpoEnvironment({
     }
   };
 
-  const fetchExchange = async (signal, { requestAuthority = false } = {}) => {
+  const fetchExchange = async (
+    signal,
+    { requestAuthority = false, supervisorCapability = null } = {},
+  ) => {
     const origin = normalizedExchangeOrigin(exchangeOrigin);
     if (origin === null) {
       throw codedError(
@@ -380,13 +384,33 @@ export function createSupervisedExpoEnvironment({
     }
     let response;
     try {
+      if (requestAuthority && !nonEmptyString(supervisorCapability)) {
+        throw codedError(
+          'SNAPBACK_EXPO_BOOTSTRAP_INVALID',
+          'The supervised authority request has no per-boot correlation capability.',
+        );
+      }
       const exchangeUrl = requestAuthority
         ? `${origin}${SUPERVISED_EXCHANGE_PATH}?authority=mint`
         : `${origin}${SUPERVISED_EXCHANGE_PATH}`;
+      const headers = {
+        accept: 'application/json',
+        ...(requestAuthority ? { 'content-type': 'application/json' } : {}),
+      };
+      // Browser fetch supplies its real Origin and forbids callers from
+      // forging it. React Native and headless protocol witnesses have no page
+      // origin, so they identify the exact supervisor origin explicitly; the
+      // per-boot correlation capability remains the independent proof.
+      if (requestAuthority && globalThis.location?.origin === undefined) {
+        headers.origin = origin;
+      }
       response = await fetchImplementation(exchangeUrl, {
-        method: 'GET',
+        method: requestAuthority ? 'POST' : 'GET',
         cache: 'no-store',
-        headers: { accept: 'application/json' },
+        headers,
+        ...(requestAuthority
+          ? { body: JSON.stringify({ correlationId: supervisorCapability }) }
+          : {}),
         signal,
       });
     } catch (cause) {
@@ -410,7 +434,33 @@ export function createSupervisedExpoEnvironment({
         { origin, status: response.status },
       );
     }
-    return validateExchange(await response.json());
+    const exchange = validateExchange(await response.json());
+    if (requestAuthority && exchange.correlationId !== supervisorCapability) {
+      throw codedError(
+        'SNAPBACK_EXPO_BOOTSTRAP_INVALID',
+        'The supervised authority response did not match its per-boot correlation capability.',
+      );
+    }
+    supervisorCapabilities.set(bindingKey(exchange.binding), exchange.correlationId);
+    return exchange;
+  };
+
+  const fetchAuthorityExchange = async (signal, key, retained = null) => {
+    let capability = retained?.correlationId ?? supervisorCapabilities.get(key) ?? null;
+    if (!nonEmptyString(capability)) {
+      const bootstrap = await fetchExchange(signal);
+      if (bindingKey(bootstrap.binding) !== key) {
+        throw codedError(
+          'SNAPBACK_APP_BINDING_OVERRIDE_UNCONFIRMED',
+          'The authority bootstrap did not match the admitted supervised binding.',
+        );
+      }
+      capability = bootstrap.correlationId;
+    }
+    return fetchExchange(signal, {
+      requestAuthority: true,
+      supervisorCapability: capability,
+    });
   };
 
   const logConsumedCheckoutOnce = (status) => {
@@ -592,10 +642,8 @@ export function createSupervisedExpoEnvironment({
       // exchange retains an unavailable marker; reaching this explicit
       // authority resolver is what asks the supervisor to mint on demand.
       const retained = exchanges.get(key);
-      const exchange = refresh || retained?.authority?.status === 'unavailable'
-        ? await fetchExchange(signal, { requestAuthority: true })
-        : retained ?? await fetchExchange(signal, { requestAuthority: true });
-      if (retained === exchange) exchanges.delete(key);
+      const exchange = await fetchAuthorityExchange(signal, key, retained);
+      exchanges.delete(key);
       if (bindingKey(exchange.binding) !== key) {
         throw codedError(
           refresh ? 'SNAPBACK_APP_BINDING_EXPIRED' : 'SNAPBACK_APP_BINDING_OVERRIDE_UNCONFIRMED',
@@ -660,9 +708,7 @@ export function createSupervisedExpoEnvironment({
           },
         });
       }
-      const exchange = storedExchange?.authority?.status === 'unavailable'
-        ? await fetchExchange(signal, { requestAuthority: true })
-        : storedExchange ?? await fetchExchange(signal, { requestAuthority: true });
+      const exchange = await fetchAuthorityExchange(signal, key, storedExchange);
       exchanges.delete(key);
       const required = authorityRequired(exchange);
       if (required) return required;
@@ -717,7 +763,11 @@ export function createSupervisedExpoEnvironment({
           { cause: 'ordinary-session-unavailable' },
         );
       }
-      const exchange = await fetchExchange(signal, { requestAuthority: true });
+      const exchange = await fetchAuthorityExchange(
+        signal,
+        bindingKey(binding),
+        exchanges.get(bindingKey(binding)) ?? null,
+      );
       if (bindingKey(exchange.binding) !== bindingKey(binding)) {
         throw codedError(
           'SNAPBACK_APP_BINDING_EXPIRED',

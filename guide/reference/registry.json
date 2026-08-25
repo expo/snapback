@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-symbol-registry.v1",
   "generatedBy": "scripts/generate-symbol-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:a4edee4eb3e16334075e6c9e37bf56b02dc84652ac2917e03d7ff04a5ed84cfb",
+    "sourceDigest": "sha256:705ea64870fe97edf454b42688e2890f9c32512145f334770b7e7d97195a52fd",
     "publishedClosureVersion": "0.1.27",
     "packageVersions": {
       "@expo/snapback-cli": "0.1.27",

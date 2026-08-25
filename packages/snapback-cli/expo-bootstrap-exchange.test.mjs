@@ -426,7 +426,7 @@ const admittedOrigins = [
 for (const origin of admittedOrigins) {
   assert.equal(admittedBrowserExchangeOrigin(origin), origin);
 }
-assert.equal(admittedBrowserExchangeOrigin('http://localhost:'), 'http://localhost:');
+assert.equal(admittedBrowserExchangeOrigin('http://localhost:'), null);
 for (const origin of [
   undefined,
   '',
@@ -442,16 +442,21 @@ const browserOrigin = 'http://localhost:8081';
 const payload = {
   ok: true,
   format: 'snapback.expo-supervised-exchange.v1',
+  correlationId: 'bootstrap-correlation-capability',
   binding: { appId: 'test-app' },
   session: { accessToken: 'ordinary-session' },
 };
 let currentPayload = payload;
 let payloadFailure = null;
 const payloadRequests = [];
+let authorityMintRequests = 0;
 const exchange = await startBootstrapExchange(async (request) => {
   payloadRequests.push(request);
+  if (request.requestAuthority) authorityMintRequests += 1;
   if (payloadFailure !== null) throw payloadFailure;
   return currentPayload;
+}, {
+  admittedAuthorityOrigins: [browserOrigin],
 });
 
 try {
@@ -466,13 +471,62 @@ try {
   assert.deepEqual(await admittedGet.json(), payload);
   assert.deepEqual(payloadRequests.at(-1), { requestAuthority: false });
 
+  const requestsBeforeAuthorityGet = payloadRequests.length;
   const authorityGet = await fetch(
     `${exchange.origin}${SUPERVISED_EXCHANGE_PATH}?authority=mint`,
     { headers: { Origin: browserOrigin } },
   );
-  assert.equal(authorityGet.status, 200);
-  assert.deepEqual(await authorityGet.json(), payload);
-  assert.deepEqual(payloadRequests.at(-1), { requestAuthority: true });
+  assert.equal(authorityGet.status, 404, 'state-changing adoption is not a GET');
+  assert.equal(payloadRequests.length, requestsBeforeAuthorityGet);
+
+  const authorityBody = JSON.stringify({ correlationId: payload.correlationId });
+  const requestsBeforeOriginRefusals = payloadRequests.length;
+  const originlessAuthorityPost = await fetch(
+    `${exchange.origin}${SUPERVISED_EXCHANGE_PATH}?authority=mint`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: authorityBody,
+    },
+  );
+  assert.equal(originlessAuthorityPost.status, 403);
+  const wrongOriginAuthorityPost = await fetch(
+    `${exchange.origin}${SUPERVISED_EXCHANGE_PATH}?authority=mint`,
+    {
+      method: 'POST',
+      headers: {
+        Origin: 'http://127.0.0.1:8082',
+        'content-type': 'application/json',
+      },
+      body: authorityBody,
+    },
+  );
+  assert.equal(wrongOriginAuthorityPost.status, 403);
+  assert.equal(payloadRequests.length, requestsBeforeOriginRefusals);
+  assert.equal(authorityMintRequests, 0, 'origin refusals happen before minting');
+
+  const wrongCapabilityAuthorityPost = await fetch(
+    `${exchange.origin}${SUPERVISED_EXCHANGE_PATH}?authority=mint`,
+    {
+      method: 'POST',
+      headers: { Origin: browserOrigin, 'content-type': 'application/json' },
+      body: JSON.stringify({ correlationId: 'wrong-bootstrap-capability' }),
+    },
+  );
+  assert.equal(wrongCapabilityAuthorityPost.status, 403);
+  assert.equal(authorityMintRequests, 0, 'capability refusal happens before minting');
+
+  const authorityPost = await fetch(
+    `${exchange.origin}${SUPERVISED_EXCHANGE_PATH}?authority=mint`,
+    {
+      method: 'POST',
+      headers: { Origin: browserOrigin, 'content-type': 'application/json' },
+      body: authorityBody,
+    },
+  );
+  assert.equal(authorityPost.status, 200);
+  assert.deepEqual(await authorityPost.json(), payload);
+  assert.equal(authorityMintRequests, 1);
 
   const requestsBeforeInvalidQuery = payloadRequests.length;
   const invalidAuthorityGet = await fetch(
@@ -502,14 +556,15 @@ try {
       method: 'OPTIONS',
       headers: {
         Origin: browserOrigin,
-        'Access-Control-Request-Method': 'GET',
-        'Access-Control-Request-Headers': 'accept',
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'accept, content-type',
       },
     },
   );
   assert.equal(authorityPreflight.status, 204);
   assert.equal(authorityPreflight.headers.get('access-control-allow-origin'), browserOrigin);
-  assert.match(authorityPreflight.headers.get('access-control-allow-methods'), /\bGET\b/u);
+  assert.match(authorityPreflight.headers.get('access-control-allow-methods'), /\bPOST\b/u);
+  assert.match(authorityPreflight.headers.get('access-control-allow-headers'), /content-type/u);
   assert.equal(authorityPreflight.headers.get('access-control-max-age'), '600');
   assert.equal(await authorityPreflight.text(), '');
 

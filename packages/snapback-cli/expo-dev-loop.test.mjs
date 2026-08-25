@@ -552,6 +552,27 @@ async function assertOriginClosed(origin, label) {
   }, { label: `${label} listener cleanup` });
 }
 
+async function requestSupervisedMint(exchangeOrigin, admittedOrigin, bootstrap = null) {
+  const bindingExchange = bootstrap ?? await (
+    await fetch(`${exchangeOrigin}${SUPERVISED_EXCHANGE_PATH}`, {
+      headers: { Origin: admittedOrigin },
+    })
+  ).json();
+  const response = await fetch(
+    `${exchangeOrigin}${SUPERVISED_EXCHANGE_PATH}?authority=mint`,
+    {
+      method: 'POST',
+      headers: {
+        Origin: admittedOrigin,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ correlationId: bindingExchange.correlationId }),
+    },
+  );
+  assert.equal(response.status, 200);
+  return response.json();
+}
+
 function listenerOrigin({ host, port }) {
   return `http://${host.includes(':') ? `[${host}]` : host}:${port}`;
 }
@@ -606,9 +627,10 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = []) {
   const readyEvent = events.find((event) => event.state === 'ready');
   assert.equal(readyEvent.connectCarrier, 'supervisor-rendezvous');
   const listenerEvent = events.find((event) => event.state === 'listeners-verified');
-  const exchange = await (
-    await fetch(`${readyEvent.bootstrap.origin}${SUPERVISED_EXCHANGE_PATH}?authority=mint`)
-  ).json();
+  const exchange = await requestSupervisedMint(
+    readyEvent.bootstrap.origin,
+    readyEvent.metro.origin,
+  );
   child.kill('SIGINT');
   const exit = await Promise.race([
     new Promise((resolveExit) => child.once('exit', (code, signal) => resolveExit({ code, signal }))),
@@ -928,11 +950,10 @@ try {
   supervisors.splice(supervisors.indexOf(envPinnedRun.supervisor), 1);
   await eventually(() => !existsSync(envPinned.readyFile), { label: 'env-pinned ready-file cleanup' });
 
-  // Ruling 2 makes Sessions-mode web boot anonymous-first; it does not make a
-  // target whose auth mode is not Sessions application-ready. Both the
-  // ordinary first-party bootstrap and explicit adoption surface the same
-  // policy refusal without leaking a bearer on the ordinary exchange.
-  const unsettled = fixture('unsettled', { sessions: false });
+  // Ruling 2 makes supervised web anonymous-first. A separate native-default
+  // boot below adopts on demand and surfaces the unsettled Sessions refusal;
+  // the ordinary exchange itself never mints or leaks a bearer.
+  const unsettled = fixture('unsettled-web', { sessions: true });
   const unsettledRun = await startFixture(unsettled, { platform: 'web' });
   assert.deepEqual(JSON.parse(readFileSync(unsettled.metroEnv, 'utf8')), {
     nodeOptions: '--trace-warnings --dns-result-order=ipv4first',
@@ -952,34 +973,42 @@ try {
     join(unsettled.backendRoot, 'generated', 'app.descriptor.json'),
     'utf8',
   ));
+  const unsettledWebBaseEnvironment = createSupervisedExpoEnvironment({
+    exchangeOrigin: unsettledRun.supervisor.exchangeOrigin,
+    appState: appStateHarness(),
+    runtimePlatform: 'web',
+  });
+  let unsettledWebPlatformResolutions = 0;
+  const unsettledWebEnvironment = Object.freeze({
+    ...unsettledWebBaseEnvironment,
+    resolveAppClientPlatform() {
+      unsettledWebPlatformResolutions += 1;
+      return Object.freeze({
+        kind: 'expo-web',
+        indexedDB: new IDBFactory(),
+        lockManager: Object.freeze({
+          request: (_name, _options, operation) => operation(),
+        }),
+        cryptoObject: webcrypto,
+        databaseName: 'expo-track-b-unsettled-web',
+      });
+    },
+  });
   const unsettledBoot = createSnapbackExpoBoot({
     app: unsettledApp,
-    environment: createSupervisedExpoEnvironment({
-      exchangeOrigin: unsettledRun.supervisor.exchangeOrigin,
-      appState: appStateHarness(),
-    }),
+    environment: unsettledWebEnvironment,
   });
   const anonymousUnsettled = await unsettledBoot.start();
-  assert.equal(anonymousUnsettled.status, 'authority-required');
-  assert.equal(anonymousUnsettled.diagnostic.code, 'SNAPBACK_AUTH_POLICY_UNAVAILABLE');
-  assert.equal(
-    anonymousUnsettled.diagnostic.details.cause,
-    'sessions-auth-mode-unavailable',
-  );
+  assert.equal(anonymousUnsettled.status, 'ready', JSON.stringify({
+    state: anonymousUnsettled,
+    mintCount: unsettledRun.supervisor.inspection().authorityMintCount,
+    platformResolutions: unsettledWebPlatformResolutions,
+  }));
+  assert.equal(unsettledWebPlatformResolutions, 1);
+  assert.equal(unsettledBoot.appClient().auth.currentPrincipal().status, 'anonymous');
+  assert.equal(unsettledRun.supervisor.inspection().authorityMintCount, 0);
   await unsettledBoot.dispose();
-  const unsettledAdoptionBoot = createSnapbackExpoBoot({
-    app: unsettledApp,
-    adoptSupervisedSession: true,
-    environment: createSupervisedExpoEnvironment({
-      exchangeOrigin: unsettledRun.supervisor.exchangeOrigin,
-      appState: appStateHarness(),
-    }),
-  });
-  const authorityRequired = await unsettledAdoptionBoot.start();
-  assert.equal(authorityRequired.status, 'authority-required');
-  assert.equal(authorityRequired.diagnostic.code, 'SNAPBACK_AUTH_POLICY_UNAVAILABLE');
-  assert.equal(authorityRequired.diagnostic.details.cause, 'sessions-auth-mode-unavailable');
-  await unsettledAdoptionBoot.dispose();
+
   const unsettledOrigins = {
     backend: unsettledRun.supervisor.binding.target.origin,
     metro: unsettledRun.supervisor.metroOrigin,
@@ -988,9 +1017,55 @@ try {
   await unsettledRun.supervisor.close();
   supervisors.splice(supervisors.indexOf(unsettledRun.supervisor), 1);
   await Promise.all(Object.entries(unsettledOrigins).map(([label, origin]) => (
-    assertOriginClosed(origin, `unsettled ${label}`)
+    assertOriginClosed(origin, `unsettled web ${label}`)
   )));
-  await eventually(() => !existsSync(unsettled.readyFile), { label: 'unsettled ready-file cleanup' });
+  await eventually(() => !existsSync(unsettled.readyFile), {
+    label: 'unsettled web ready-file cleanup',
+  });
+
+  const unsettledNative = fixture('unsettled-native', { sessions: false });
+  const unsettledNativeRun = await startFixture(unsettledNative, { platform: 'ios' });
+  const unsettledNativeApp = JSON.parse(readFileSync(
+    join(unsettledNative.backendRoot, 'generated', 'app.descriptor.json'),
+    'utf8',
+  ));
+  const unsettledNativeEnvironment = Object.freeze({
+    ...createSupervisedExpoEnvironment({
+      exchangeOrigin: unsettledNativeRun.supervisor.exchangeOrigin,
+      appState: appStateHarness(),
+      runtimePlatform: 'native',
+    }),
+    resolveAppClientPlatform() {
+      return Object.freeze({ kind: 'memory', cryptoObject: webcrypto });
+    },
+  });
+  const unsettledNativeAdoptionBoot = createSnapbackExpoBoot({
+    app: unsettledNativeApp,
+    environment: unsettledNativeEnvironment,
+  });
+  const authorityRequired = await unsettledNativeAdoptionBoot.start();
+  assert.equal(authorityRequired.status, 'authority-required');
+  assert.equal(authorityRequired.diagnostic.code, 'SNAPBACK_AUTH_POLICY_UNAVAILABLE');
+  assert.equal(authorityRequired.diagnostic.details.cause, 'sessions-auth-mode-unavailable');
+  assert.equal(
+    unsettledNativeRun.supervisor.inspection().authorityMintCount,
+    1,
+    'native default adoption performs exactly one on-demand mint attempt',
+  );
+  await unsettledNativeAdoptionBoot.dispose();
+  const unsettledNativeOrigins = {
+    backend: unsettledNativeRun.supervisor.binding.target.origin,
+    metro: unsettledNativeRun.supervisor.metroOrigin,
+    bootstrap: unsettledNativeRun.supervisor.exchangeOrigin,
+  };
+  await unsettledNativeRun.supervisor.close();
+  supervisors.splice(supervisors.indexOf(unsettledNativeRun.supervisor), 1);
+  await Promise.all(Object.entries(unsettledNativeOrigins).map(([label, origin]) => (
+    assertOriginClosed(origin, `unsettled native ${label}`)
+  )));
+  await eventually(() => !existsSync(unsettledNative.readyFile), {
+    label: 'unsettled native ready-file cleanup',
+  });
 
   // A real Metro exit in the former post-inventory/pre-publish race must be
   // latched as startup-fatal. Killing the admitted listener synchronously
@@ -1340,6 +1415,11 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   await anonymousBoot.appClient().auth.signOut();
   assert.equal(anonymousBoot.appClient().auth.currentPrincipal().status, 'anonymous');
   await anonymousBoot.dispose();
+  assert.equal(
+    supervisor.inspection().authorityMintCount,
+    0,
+    'the real mint call count remains zero before the first explicit web adoption',
+  );
 
   const replacementEventsBeforeAdoption = events.filter(
     (event) => event.state === 'authority-replaced',
@@ -1355,6 +1435,11 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   assert.equal(adoptedReady.binding.source, 'supervised-dev');
   assert.equal(adoptedReady.authoritySource, 'supervised-development');
   assert.equal(adoptedBoot.appClient().auth.currentPrincipal().status, 'authenticated');
+  assert.equal(
+    supervisor.inspection().authorityMintCount,
+    1,
+    'the first explicit adoption is the first real supervisor mint',
+  );
   await adoptedBoot.appClient().auth.signOut();
   assert.equal(adoptedBoot.appClient().auth.currentPrincipal().status, 'anonymous');
   assert.equal(adoptedBoot.getSnapshot().status, 'ready');
@@ -1393,12 +1478,12 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
     replacementEventsBeforeAdoption + 1,
     'the second explicit adoption remints and reports an authority replacement',
   );
+  assert.equal(supervisor.inspection().authorityMintCount, 2);
 
-  const mintedExchange = await (
-    await fetch(
-      `${supervisor.exchangeOrigin}${SUPERVISED_EXCHANGE_PATH}?authority=mint`,
-    )
-  ).json();
+  const mintedExchange = await requestSupervisedMint(
+    supervisor.exchangeOrigin,
+    supervisor.metroOrigin,
+  );
   const firstBearer = mintedExchange.authority.token;
   assert.match(firstBearer, /^sbs_/u);
   assert.equal(JSON.stringify(mintedExchange.binding).includes(firstBearer), false);
@@ -1640,11 +1725,10 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
 
   const replacementBootStart = bootStates.length;
   assert.equal(await supervisor.replaceAuthority('second@expo-e1.test'), 'ready');
-  const secondExchange = await (
-    await fetch(
-      `${supervisor.exchangeOrigin}${SUPERVISED_EXCHANGE_PATH}?authority=mint`,
-    )
-  ).json();
+  const secondExchange = await requestSupervisedMint(
+    supervisor.exchangeOrigin,
+    supervisor.metroOrigin,
+  );
   const secondBearer = secondExchange.authority.token;
   assert.match(secondBearer, /^sbs_/u);
   assert.notEqual(secondBearer, firstBearer);
@@ -1836,6 +1920,55 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   );
   assert.equal(existsSync(join(settled.expoRoot, 'public')), false);
   await eventually(() => !existsSync(settled.readyFile), { label: 'settled ready-file cleanup' });
+
+  // Native supervision is still sessions-first at the provider boundary, but
+  // it no longer creates and discards an eager S1. The omitted-prop native
+  // default performs the first and only mint on its adoption request.
+  const nativeOnDemand = fixture('native-on-demand-mint', { sessions: true });
+  const nativeOnDemandRun = await startFixture(nativeOnDemand, { platform: 'ios' });
+  assert.equal(nativeOnDemandRun.supervisor.inspection().authorityMintCount, 0);
+  const nativeOnDemandApp = JSON.parse(readFileSync(
+    join(nativeOnDemand.backendRoot, 'generated', 'app.descriptor.json'),
+    'utf8',
+  ));
+  const nativeOnDemandEnvironment = Object.freeze({
+    ...createSupervisedExpoEnvironment({
+      exchangeOrigin: nativeOnDemandRun.supervisor.exchangeOrigin,
+      appState: appStateHarness(),
+      runtimePlatform: 'native',
+      clientOptions: { rqsStore: null, offlineQueue: false },
+    }),
+    resolveAppClientPlatform() {
+      return Object.freeze({ kind: 'memory', cryptoObject: webcrypto });
+    },
+  });
+  const nativeOnDemandBoot = createSnapbackExpoBoot({
+    app: nativeOnDemandApp,
+    environment: nativeOnDemandEnvironment,
+  });
+  const nativeOnDemandReady = await nativeOnDemandBoot.start();
+  assert.equal(nativeOnDemandReady.status, 'ready', JSON.stringify(nativeOnDemandReady));
+  assert.equal(nativeOnDemandReady.authoritySource, 'supervised-development');
+  assert.equal(
+    nativeOnDemandRun.supervisor.inspection().authorityMintCount,
+    1,
+    'one native boot mints exactly one session and has no eager S1',
+  );
+  await nativeOnDemandBoot.dispose();
+  const nativeOnDemandOrigins = {
+    backend: nativeOnDemandRun.supervisor.binding.target.origin,
+    metro: nativeOnDemandRun.supervisor.metroOrigin,
+    bootstrap: nativeOnDemandRun.supervisor.exchangeOrigin,
+  };
+  await nativeOnDemandRun.supervisor.close();
+  supervisors.splice(supervisors.indexOf(nativeOnDemandRun.supervisor), 1);
+  await Promise.all(Object.entries(nativeOnDemandOrigins).map(([label, origin]) => (
+    assertOriginClosed(origin, `native on-demand ${label}`)
+  )));
+  await eventually(
+    () => !existsSync(nativeOnDemand.readyFile),
+    { label: 'native on-demand ready-file cleanup' },
+  );
 
   // Exercise the packaged command wiring and signal path, not only the
   // programmatic supervisor seam. It reuses the settled database, receives a
