@@ -52,10 +52,12 @@ export function loadRowAttackLedger(fixtureRoot) {
   }
   const rows = new Set();
   for (const attack of ledger.attacks) {
-    if (!/^F\d{3}$/u.test(attack.row) || rows.has(attack.row)
+    if (!/^[CF]\d{3}$/u.test(attack.row) || rows.has(attack.row)
         || typeof attack.bin !== 'string' || typeof attack.source !== 'string'
         || !['OPEN', 'CLOSED'].includes(attack.expected)
-        || typeof attack.note !== 'string') {
+        || typeof attack.note !== 'string'
+        || (attack.expectedCode !== undefined
+          && !/^E\d{4}$/u.test(attack.expectedCode))) {
       throw new GateInfrastructureError(`${ledgerPath} has an invalid or duplicate attack row`);
     }
     rows.add(attack.row);
@@ -287,7 +289,16 @@ function compileObservation({ fixtureRoot, targetDir, attack, cell }) {
       diagnostic: `compile failed away from @attack; the fixture needs maintenance\n${nearby}`,
     };
   }
-  const { message, span } = hits[0];
+  const selected = attack.expectedCode === undefined
+    ? hits[0]
+    : hits.find(({ message }) => message.code === attack.expectedCode);
+  if (!selected) {
+    return {
+      observed: 'ERROR',
+      diagnostic: `compile failed at @attack, but expected ${attack.expectedCode}; saw ${sorted(new Set(hits.map(({ message }) => message.code ?? 'unclassified'))).join(', ')}`,
+    };
+  }
+  const { message, span } = selected;
   return {
     observed: 'CLOSED',
     diagnostic: `${message.code ?? 'rustc error'} at ${relative(fixtureRoot, source)}:${span.line_start}:${span.column_start}: ${message.message}`,

@@ -67,5 +67,65 @@ name = "f191"
 path = "src/attacks/f191.rs"
 
 [[bin]]
+name = "c005"
+path = "src/attacks/c005.rs"
+
+[[bin]]
+name = "c009"
+path = "src/attacks/c009.rs"
+
+[[bin]]
+name = "f094"
+path = "src/attacks/f094.rs"
+
+[[bin]]
+name = "f143"
+path = "src/attacks/f143.rs"
+
+[[bin]]
+name = "f182"
+path = "src/attacks/f182.rs"
+
+[[bin]]
+name = "f112"
+path = "src/attacks/f112.rs"
+
+[[bin]]
+name = "f113"
+path = "src/attacks/f113.rs"
+
+[[bin]]
+name = "c006"
+path = "src/attacks/c006.rs"
+
+[[bin]]
+name = "f115"
+path = "src/attacks/f115.rs"
+
+[[bin]]
+name = "f149"
+path = "src/attacks/f149.rs"
+
+[[bin]]
+name = "f150"
+path = "src/attacks/f150.rs"
+
+[[bin]]
+name = "f279"
+path = "src/attacks/f279.rs"
+
+[[bin]]
+name = "f280"
+path = "src/attacks/f280.rs"
+
+[[bin]]
+name = "c012"
+path = "src/attacks/c012.rs"
+
+[[bin]]
+name = "f053"
+path = "src/attacks/f053.rs"
+
+[[bin]]
 name = "negative-routes"
 path = "src/bin/negative_routes.rs"

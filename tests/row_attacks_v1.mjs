@@ -9,11 +9,15 @@ import {
 
 const fixtureRoot = new URL('./fixtures/row-attacks/', import.meta.url).pathname;
 
-test('row-attack ledger carries the nine audited rows and both feature cells', () => {
+test('row-attack ledger carries the 24 measured rows and both feature cells', () => {
   const ledger = loadRowAttackLedger(fixtureRoot);
   assert.deepEqual(
     ledger.attacks.map(({ row }) => row),
-    ['F157', 'F170', 'F171', 'F172', 'F173', 'F175', 'F188', 'F190', 'F191'],
+    [
+      'F157', 'F170', 'F171', 'F172', 'F173', 'F175', 'F188', 'F190', 'F191',
+      'C005', 'C009', 'F094', 'F143', 'F182', 'F112', 'F113', 'C006', 'F115',
+      'F149', 'F150', 'F279', 'F280', 'C012', 'F053',
+    ],
   );
   assert.deepEqual(ledger.featureCells.map(({ id }) => id), [
     'production',
@@ -31,7 +35,27 @@ test('row-attack ledger carries the nine audited rows and both feature cells', (
       F188: 'CLOSED',
       F190: 'CLOSED',
       F191: 'CLOSED',
+      C005: 'CLOSED',
+      C009: 'CLOSED',
+      F094: 'CLOSED',
+      F143: 'CLOSED',
+      F182: 'CLOSED',
+      F112: 'OPEN',
+      F113: 'OPEN',
+      C006: 'OPEN',
+      F115: 'OPEN',
+      F149: 'OPEN',
+      F150: 'OPEN',
+      F279: 'OPEN',
+      F280: 'OPEN',
+      C012: 'OPEN',
+      F053: 'OPEN',
     },
+  );
+  assert.ok(
+    ledger.attacks
+      .filter(({ row }) => ['C005', 'C009', 'F094', 'F143', 'F182'].includes(row))
+      .every(({ expectedCode }) => /^E\d{4}$/u.test(expectedCode)),
   );
 });
 

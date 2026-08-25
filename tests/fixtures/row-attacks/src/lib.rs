@@ -933,8 +933,13 @@ async fn main() -> Result<(), String> {
 pub struct BaseAttackFixture {
     _directory: tempfile::TempDir,
     pub engine: LocalSnapback,
+    pub catalog: LocalDatabase,
+    pub provider: Arc<AuthProvider>,
     pub mode_state: AuthModeStateRecord,
     pub victim_user_id: String,
+    pub victim_session_id: String,
+    pub victim_session_generation: u64,
+    pub victim_bearer: String,
     pub route_authority: snapback_sync::auth::coordinator::PreparedBearerAuthority,
 }
 
@@ -999,6 +1004,8 @@ pub async fn setup_base_attack() -> Result<BaseAttackFixture, String> {
         return Err("guest issuance did not commit".to_owned());
     };
     let victim_user_id = issue.response().session.user_id.clone();
+    let victim_session_id = issue.response().session.id.clone();
+    let victim_session_generation = issue.response().session.generation;
     let victim_bearer = issue.response().token().expose_secret().to_owned();
     let mode_state = engine
         .auth_mode_snapshot()
@@ -1010,8 +1017,13 @@ pub async fn setup_base_attack() -> Result<BaseAttackFixture, String> {
     Ok(BaseAttackFixture {
         _directory: directory,
         engine,
+        catalog,
+        provider,
         mode_state,
         victim_user_id,
+        victim_session_id,
+        victim_session_generation,
+        victim_bearer,
         route_authority,
     })
 }
@@ -1168,7 +1180,6 @@ async fn setup_q06_base() -> Result<Q06Base, String> {
     let integration = engine_a
         .register_oauth_client(
             &lease_a,
-            AgentsMode::Open,
             None,
             Some("Q06 cross-engine principal".to_owned()),
             IntegrationRegistrationFacts {
