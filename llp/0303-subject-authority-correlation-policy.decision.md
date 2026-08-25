@@ -687,6 +687,49 @@ exact accepted/refused sets asserted; **durable rows read back and asserted**, b
 observes only method outcomes cannot prove a database property; and a mutation review including
 comparison-operator mutations and subjects on both sides of the caller's lexical ordering.
 
+### (s) A compile-fail witness proves a spelling is gone, not a capability
+
+The strongest evidence any lane produced this cycle was a full fail-first matrix: six attacks, seven
+feature cells, **42/42 compiled before the change and 42/42 refused `E0599` at the annotated attack
+expression after it**. It was checked and it held exactly as reported. Two of the six rows were still
+open, and the review's sentence is the one to remember:
+
+> Those `E0599` results establish removal of the **old spelling**, not removal of the **effect**.
+
+Both surviving rows fell to a *different public composition* reaching the same effect. In one, the
+new provider-instance binding was correct at the route it was written for, while three sibling public
+consumers — `commit_password_issuance`, `commit_guest_issuance`,
+`ExchangeAdmission::commit_planned_issuance` — consumed the same issuance plan **without checking the
+instance at all**; a dependent minted a plan with provider A and committed it through provider B. In
+the other, the removed `admit_email` was genuinely gone, but a public attempt-planner still accepted a
+**raw caller-selected identifier** and composed with the commit to advance the named account's failure
+ledger to lockout — a denial-of-service against any account the caller names.
+
+This is why the diagnostic code matters less than it looks. `E0599` (no method), `E0425` (unresolved
+name) and `E0603` (private path) are all satisfied by *renaming*, by moving behind a generic bound, or
+by deleting one of several routes to the effect. A sibling lane's 61 privilege-scanner findings
+disappeared this cycle with the capability fully intact, because the scanner keyed on a literal type
+name. A witness that refuses tells you that *this expression* no longer compiles; it never tells you
+that no expression does.
+
+Two requirements follow, and they apply to the *fix*, not to the review:
+
+1. **Enumerate the effect's consumers as well as its producers.** Revisions (n) and (q) require
+   enumerating what produces an effect. This adds the other side: every consumer of a carrier that
+   grants the effect must check the binding, because one unchecked consumer is the entire row. The
+   check being correct where it was written is not coverage.
+2. **A row's evidence must include an attempt to reach the effect by another route**, executed, not
+   reasoned. Every defect of this shape found this cycle was produced by *running* a dependent-crate
+   composition; every one was missed by a lane that read the code and concluded it was safe. Reading
+   establishes what the code intends; only running establishes what the composition permits — and this
+   defect class is about compositions by construction.
+
+The corresponding instrument change: the row-attack corpus records a row as CLOSED only when the
+attack fails **at its marked attack expression** with the expected diagnostic. When a struct it names
+evolved, one witness began failing `E0560` (no such field) instead of `E0451` (private field) — a
+*shape* error rather than a *privacy* error, which would have proved nothing. The corpus reported the
+mismatch rather than counting the row closed.
+
 ## Severity context
 
 Every defect behind these questions is reachable only from in-crate code, not remotely. These are
