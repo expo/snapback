@@ -12,13 +12,21 @@ fn supply_results(
         pending
             .subscribers
             .iter()
-            .map(
-                |subscriber| snapback_sync::ephemeral::RoomSubscriberResolution::Authorized {
-                    connection_id: subscriber.connection_id.clone(),
-                    expected_effect_fence: subscriber.effect_fence.clone(),
-                    auth: auth.clone(),
-                },
-            )
+            .enumerate()
+            .map(|(index, subscriber)| {
+                if index == 0 {
+                    snapback_sync::ephemeral::RoomSubscriberResolution::Authorized {
+                        connection_id: subscriber.connection_id.clone(),
+                        expected_effect_fence: subscriber.effect_fence.clone(),
+                        auth: auth.clone(),
+                    }
+                } else {
+                    snapback_sync::ephemeral::RoomSubscriberResolution::Denied {
+                        connection_id: subscriber.connection_id.clone(),
+                        expected_effect_fence: subscriber.effect_fence.clone(),
+                    }
+                }
+            })
             .collect(),
     );
 }
