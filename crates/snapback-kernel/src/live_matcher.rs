@@ -652,7 +652,7 @@ fn attest_membership_fact(
     argument_id: Option<&str>,
     parent_rows: &RegistrationRows,
     fact: &GraphRegistrationFact<'_>,
-) -> Result<(), GraphDemandTimeRefusalReasonV1> {
+) -> Result<bool, GraphDemandTimeRefusalReasonV1> {
     let GraphCapturedDependencyV1::Membership {
         parent_key,
         argument_id: captured_argument_id,
@@ -719,8 +719,10 @@ fn attest_membership_fact(
         if !records.is_empty() || *matched_count != 0 {
             return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
         }
-        return Ok(());
+        return Ok(matches!(mode, GraphExistsModeV1::All) && probes.is_empty());
     };
+    let required_matches = u64::try_from(probes.len())
+        .map_err(|_| GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
     for probe in probes {
         let mut probe_filters = filters.to_vec();
         if matches!(mode, GraphExistsModeV1::All) {
@@ -812,7 +814,10 @@ fn attest_membership_fact(
     if cursor != records.len() || actual_matched != *matched_count {
         return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
     }
-    Ok(())
+    Ok(match mode {
+        GraphExistsModeV1::Exists => actual_matched == 1,
+        GraphExistsModeV1::All => actual_matched == required_matches,
+    })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1260,6 +1265,7 @@ fn attest_registration_semantics(
                 edge,
                 filters,
                 argument_id,
+                parent_node_id,
                 ..
             } => {
                 exact_parent_fact_set(
@@ -1272,8 +1278,14 @@ fn attest_registration_semantics(
                         _ => None,
                     },
                 )?;
+                let mut retained_parents = RegistrationRows::new();
                 for fact in node_facts {
-                    attest_membership_fact(
+                    let GraphCapturedDependencyV1::Membership { parent_key, .. } =
+                        &fact.graph.dependency
+                    else {
+                        return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+                    };
+                    if attest_membership_fact(
                         carrier,
                         schema,
                         demand,
@@ -1284,8 +1296,20 @@ fn attest_registration_semantics(
                         argument_id.as_deref(),
                         &parent_rows,
                         fact,
-                    )?;
+                    )? {
+                        retained_parents.insert(
+                            parent_key.clone(),
+                            parent_rows
+                                .get(parent_key)
+                                .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?
+                                .clone(),
+                        );
+                    }
                 }
+                // @ref LLP 0209#51-captured-vocabulary-by-normalized-node — a
+                // predicate-only semi-join narrows the immediate parent
+                // population before later sibling captures are attested.
+                outputs.insert(parent_node_id.clone(), retained_parents);
             }
             GraphNodeV1::PrincipalBound {
                 table,
