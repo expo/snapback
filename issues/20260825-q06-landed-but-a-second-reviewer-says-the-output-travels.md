@@ -1,6 +1,6 @@
 # Q06 landed, and a second reviewer says the reconstructed output still travels
 
-Status: open — claim under execution, not yet established
+Status: resolved — executed; rows stay landed, three residual risks filed below
 Date: 2026-08-25
 Systems: snapback-engine, snapback-kernel, snapback-sync
 Related: llp/0303-subject-authority-correlation-policy.decision.md,
@@ -78,3 +78,72 @@ before any change is designed.
 **If confirmed**, the landed row count falls from 9 to 7 and F157/F175 reopen. **If refuted**, the
 refutation is recorded here against this claim, and Q06 gains the executed evidence it should have
 had at landing.
+
+---
+
+## Resolution (2026-08-25): SURVIVED, and the reviewer was structurally right anyway
+
+Executed from a dependent crate with **default features and no `test-support`**
+(`NO_TEST_SUPPORT_FEATURES` asserted in the transcript). Two `LocalSnapback::memory()` engines, the
+legitimate F175 path on A, a pending effect created on B with P's coordinates copied, and A's
+resolution fed into B's wrapper.
+
+**The wrapper accepted it.** The reviewer's structural observation was correct:
+
+```
+SERVICE_WRAPPER_ACCEPTED effect_b=pfx_… principal_p=usr_…
+```
+
+**Execution then refused, and for the right reason.** `validate_prepared_service_authority_classified`
+calls `retained_service_authority_is_live_readonly` against **B's** database
+(`engine.rs:8238`, check at `:8350`):
+
+```
+SERVICE_EXECUTION_REFUSED code=SNAPBACK_AUTH_SCOPED_TOKEN_INVALID
+  message=scoped agent token authority is no longer current
+B_DURABLE_EFFECT status=refused app_rows=0
+B_AUTH_ROWS users_for_p=0 tokens_for_p=0 credentials_for_p=0 grants_for_p=0
+```
+
+P's credential/grant/token/user chain is not live in B, so nothing committed. The watched fail-first
+reached its assertion before the corrected run, so this is an executed result rather than a fixture
+artefact.
+
+**F157 and F175 stay landed.** The landed row count does not fall.
+
+## What the execution did *not* clear
+
+The reviewer's framing is exact and should not be softened: *"defense-in-depth rather than explicit
+producer-database binding, so the wrapper's unbound-output property is real."* Three residual risks
+follow, none of which reopen the rows but all of which are real:
+
+1. **The output genuinely is unbound.** `PreparedBearerAuthority` and `ResolvedServiceAuthority`
+   still carry no producing-database identity and are `Clone`. What stopped the attack was a
+   *later liveness check on unrelated state*, not correlation. Any future path that reaches an
+   effect without that liveness check inherits the hole.
+2. **The session arm refused only incidentally.** B attempted to load A's session ID and produced a
+   generic `SNAPBACK_SQLITE_ERROR` — the reviewer calls this "not an explicit producer-binding check
+   and diagnostically fragile." A refusal that depends on a foreign key lookup happening to fail is
+   not a control.
+3. **`LocalDatabase::resolve_retained_service_authority` remains a public kernel sibling**
+   (`auth_agent_credentials.rs:3540`) and was called successfully from the dependent crate with
+   default features.
+
+## The methodological point
+
+The claim was recorded **before** the answer existed, precisely so a refutation would land against a
+written claim rather than a memory. That worked: the reviewer's structural finding is confirmed, its
+consequence is refuted, and both halves are now on the record instead of only the convenient one.
+
+Note also that the second reviewer's finding was *not* worthless for being wrong about the outcome.
+It correctly identified that the input view is bound and the reconstructed output is not — which is
+a true and useful fact about the code that nobody had noticed, and which item 1 above preserves as
+open work.
+
+## Provenance
+
+Reproduction and transcripts committed in the lane at `f37244a4a` under
+`tests/reproductions/q06-pending-effect-output-binding/`. The lane disclosed that it could not read
+the original review file (destroyed with `/tmp` in the build-host reboot) and executed from the
+composition quoted in its brief instead.
+
