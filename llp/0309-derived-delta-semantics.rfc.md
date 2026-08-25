@@ -1,7 +1,7 @@
 # LLP 0309: Derived delta semantics for the closed query algebra
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Review
 **Systems:** Live queries, Offline sync, Storage, Code generation
 **Author:** Claude Fable / Charlie Cheever
 **Date:** 2026-08-25
