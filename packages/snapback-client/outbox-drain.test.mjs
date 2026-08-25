@@ -6,10 +6,7 @@ import {
   createMemoryAuthCustodyStorage,
 } from '@expo/snapback-contract/auth-coordinator';
 
-import {
-  SnapbackClient as InspectingSnapbackClient,
-  inspectionPseudonymV1,
-} from './index.mjs';
+import { SnapbackClient as InspectingSnapbackClient } from './index.mjs';
 import {
   createMemoryRqsResumeStore,
   createMemoryRqsStoreBacking,
@@ -49,12 +46,6 @@ const enqueue = (store, id = 'cm-drain') => store.outboxEnqueue({
   function: 'createThing',
   args: { id },
 });
-
-const mutationCostRecord = (client, clientMutationId) => (
-  client.mutationPhaseCostInspection().records.find(
-    (record) => record.clientMutationId === inspectionPseudonymV1(clientMutationId),
-  ) ?? null
-);
 
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 
@@ -587,7 +578,6 @@ test('replay-latched enqueue survives terminal pause without an external wake', 
     'replay-latched successor settlement after terminal pause',
   );
   assert.equal((await client.mutationStatus('cm-terminal-replay-head')).status, 'failed');
-  assert.equal(mutationCostRecord(client, 'cm-terminal-replay-head')?.disposition, 'failed');
   assert(phases.includes('paused'), 'the terminal replay exits through the paused phase');
   assert.equal(attempts.get('cm-terminal-replay-head'), 1);
   assert.equal(attempts.get('cm-terminal-replay-successor'), 2);
@@ -666,9 +656,6 @@ test('fenced default lifecycle settles restored work after synchronize with no o
     'synchronize-only restored settlement',
   );
   assert.equal(replayed, 1);
-  const restoredCost = mutationCostRecord(client, 'cm-restored-custody-wake');
-  assert.equal(restoredCost?.disposition, 'settled');
-  assert.equal(Number.isFinite(restoredCost?.queueWaitMs), true);
 });
 
 test('default controller quarantines an upgrade-incompatible restored intent', async (t) => {
@@ -698,7 +685,6 @@ test('default controller quarantines an upgrade-incompatible restored intent', a
   );
   assert.equal(submissions, 1);
   assert.equal((await client.outboxStatus()).quarantined, 1);
-  assert.equal(mutationCostRecord(client, 'cm-default-quarantine')?.disposition, 'quarantined');
 });
 
 test('default controller strands a server-stale restored intent', async (t) => {
@@ -736,7 +722,6 @@ test('default controller strands a server-stale restored intent', async (t) => {
   );
   assert.equal(submissions, 1);
   assert.equal((await client.outboxStatus()).stranded, 1);
-  assert.equal(mutationCostRecord(client, 'cm-default-strand')?.disposition, 'stranded');
 });
 
 test('default controller preserves result-gone and stops before successors', async (t) => {
@@ -775,40 +760,6 @@ test('default controller preserves result-gone and stops before successors', asy
     (await client.mutationStatus('cm-default-result-gone-successor')).status,
     'pending',
   );
-  assert.equal(mutationCostRecord(client, 'cm-default-result-gone')?.disposition, 'resultGone');
-});
-
-test('restored terminal scan is exact after detail eviction and status rereads', async (t) => {
-  const store = createDurableTestStore();
-  for (let index = 0; index < 513; index += 1) {
-    const id = `cm-restored-terminal-${index}`;
-    await enqueue(store, id);
-    const consumed = await store.outboxDurablyConsume(id, {
-      version: index + 1,
-      changed_count: 1,
-      result: { ok: true },
-      timing: { authorizedAtMs: 10, executedAtMs: 11, committedAtMs: 12 },
-    });
-    assert.equal(consumed.status, 'settled');
-  }
-  const client = new SnapbackClient('https://restored-terminal-costs.test', {
-    rqsStore: store,
-    __outboxDrainLifecycle: false,
-  });
-  t.after(() => client.close());
-  await waitFor(
-    () => client.mutationPhaseCostInspection().counters[0]?.count === 513,
-    'restored terminal cost scan',
-  );
-  const before = client.mutationPhaseCostInspection();
-  assert.equal(before.records.length, 512);
-  assert.equal(before.droppedRecords, 1);
-  assert.equal(before.counters[0].count, 513);
-  assert.equal((await client.mutationStatus('cm-restored-terminal-0')).status, 'settled');
-  assert.equal((await client.mutationStatus('cm-restored-terminal-0')).status, 'settled');
-  const after = client.mutationPhaseCostInspection();
-  assert.equal(after.counters[0].count, 513, 'status observation never re-counts a terminal event');
-  assert.equal(after.droppedRecords, 1);
 });
 
 test('close tears down the default lifecycle and no replay starts afterward', async (t) => {

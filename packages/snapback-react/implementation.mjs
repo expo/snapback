@@ -23,11 +23,7 @@ import {
   SnapbackDiagnosticError,
   asSnapbackDiagnosticError,
 } from '@expo/snapback-client/diagnostic-error';
-import {
-  inspectionPseudonymV1,
-  isTerminalLiveProtocolRefusal,
-  projectOwnershipTupleInspectionV1,
-} from '@expo/snapback-client';
+import { isTerminalLiveProtocolRefusal } from '@expo/snapback-client';
 
 import {
   admittedReactCommand,
@@ -1140,20 +1136,9 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     rows,
     generation = store.generation,
     presentedRows = rows,
-    detail = null,
   ) => {
-    const deliveredVersion = Number.isSafeInteger(detail?.version)
-      ? detail.version
-      : Number.isSafeInteger(store.handle?.current?.authoritativeRevision)
-        ? store.handle.current.authoritativeRevision
-        : store.authoritativeRevision + 1;
-    store.authoritativeRevision = deliveredVersion;
-    store.lastDeliveryAtMs = Number.isFinite(store.handle?.current?.lastDeliveryAtMs)
-      ? store.handle.current.lastDeliveryAtMs
-      : Date.now();
-    store.deliveryLagMs = Number.isFinite(store.handle?.current?.deliveryLagMs)
-      ? store.handle.current.deliveryLagMs
-      : null;
+    store.authoritativeRevision += 1;
+    store.lastDeliveryAtMs = Date.now();
     store.authoritativeData = validateQueryRows(store.resultContract, rows);
     store.generatedData = validateQueryRows(store.resultContract, presentedRows);
     store.freshness = 'current';
@@ -1217,7 +1202,6 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       // but do not republish an unchanged consumer-visible snapshot. A
       // reconnect/custody lifecycle cut changes the key and therefore cannot
       // be swallowed by this branch.
-      store.suppressedEqualSnapshots += 1;
       store.snapshot = Object.freeze({
         ...store.snapshot,
         lastDeliveryAtMs: store.lastDeliveryAtMs,
@@ -1440,7 +1424,6 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       // predecessor's delivery time or authoritative revision.
       store.lastDeliveryAtMs = null;
       store.authoritativeRevision = 0;
-      store.deliveryLagMs = null;
     }
     if (handle) {
       try { handle.dispose(); } catch (error) { recordDiagnostic(error); }
@@ -1588,35 +1571,30 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     try {
       handle = client.startLiveQuery(store.reference, {
         connectionId,
-<<<<<<< HEAD
         __frameworkOwnerLabel: `provider:${providerInstanceId}/query:${store.reference?.name ?? store.reference?.id ?? 'unknown'}`,
-=======
-        ownerLabel: `provider:${providerInstanceId}/query:${store.reference?.name ?? store.reference?.id ?? 'unknown'}`,
-        __ownerLabelFrameworkAssigned: true,
->>>>>>> 111ac41dc (feat(client,react): W5 client runtime-cost and stalled-delivery inspection)
         args: store.args,
-        transport: 'stream',
-        fallbackToPoll: false,
-        supersedes,
-        ...(preparedDevUserId === null ? {} : { userId: preparedDevUserId }),
-        persistResume: preparedPersistResume,
-        ...(authorityAdmission.authorityContext?.capture == null
-          ? {}
-          : { authorityCapture: authorityAdmission.authorityContext.capture }),
-        ...(store.registeredSubscription?.authorizationNamespace == null
-          ? {}
-          : { authorizationNamespace: store.registeredSubscription.authorizationNamespace }),
-        ...(store.supersedesSubscriptionId === null
-          ? {}
-          : { supersedesSubscriptionId: store.supersedesSubscriptionId }),
-        ...(store.registeredSubscription === null
-          ? {}
-          : { registeredSubscription: store.registeredSubscription }),
-        // React's external store validates and projects the internal row carrier
-        // itself (including blank/retained lifecycle states). Public headless
-        // live handles project single-value contracts in snapback-client.
-        __internalRawResultCarrier: true,
-        onUpdate(rows, detail) {
+      transport: 'stream',
+      fallbackToPoll: false,
+      supersedes,
+      ...(preparedDevUserId === null ? {} : { userId: preparedDevUserId }),
+      persistResume: preparedPersistResume,
+      ...(authorityAdmission.authorityContext?.capture == null
+        ? {}
+        : { authorityCapture: authorityAdmission.authorityContext.capture }),
+      ...(store.registeredSubscription?.authorizationNamespace == null
+        ? {}
+        : { authorizationNamespace: store.registeredSubscription.authorizationNamespace }),
+      ...(store.supersedesSubscriptionId === null
+        ? {}
+        : { supersedesSubscriptionId: store.supersedesSubscriptionId }),
+      ...(store.registeredSubscription === null
+        ? {}
+        : { registeredSubscription: store.registeredSubscription }),
+      // React's external store validates and projects the internal row carrier
+      // itself (including blank/retained lifecycle states). Public headless
+      // live handles project single-value contracts in snapback-client.
+      __internalRawResultCarrier: true,
+      onUpdate(rows, detail) {
         // Fence before touching any store-owned projection state. publish()
         // also checks this generation, but predecessor callbacks mutate rows
         // before publishing and therefore need this synchronous ingress cut.
@@ -1668,13 +1646,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
             if (detail.freshness === 'retained') {
               publishRetained(store, detail.authoritativeRows, generation, rows ?? []);
             } else {
-              publishAuthoritative(
-                store,
-                detail.authoritativeRows,
-                generation,
-                rows ?? [],
-                detail,
-              );
+              publishAuthoritative(store, detail.authoritativeRows, generation, rows ?? []);
             }
           } else {
             publishGeneratedPresentation(store, rows ?? [], detail, generation);
@@ -1724,7 +1696,6 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           detail?.authoritativeRows ?? rows ?? [],
           generation,
           rows ?? [],
-          detail,
         );
       },
       onConnectionChange(connection, detail) {
@@ -1795,7 +1766,6 @@ function createRegistry(binding, providerInstanceId, options = {}) {
             handle.current.authoritativeRows ?? handle.current.rows,
             generation,
             handle.current.rows,
-            handle.current,
           );
         }
         return;
@@ -1878,8 +1848,6 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       generatedPresentation: null,
       authoritativeRevision: readOnlySnapshot === null ? 0 : 1,
       lastDeliveryAtMs: null,
-      deliveryLagMs: null,
-      suppressedEqualSnapshots: 0,
       freshness: readOnlySnapshot === null ? 'unknown' : 'snapshot',
       retention: null,
       authorizationProjectionSuspended: false,
@@ -4367,21 +4335,28 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       const clientResources = typeof client.localResourceInspection === 'function'
         ? client.localResourceInspection([connectionId])
         : null;
-      // The exact raw label was used to select this manager, but the gated
-      // client snapshot has already projected that caller-influencable label.
-      const clientManager = clientResources?.managers?.[0] ?? null;
+      const clientManager = clientResources?.managers?.find(
+        (candidate) => candidate.connectionId === connectionId,
+      ) ?? null;
+      let fallbackOrigin = client.baseUrl ?? null;
+      try { fallbackOrigin = new URL(client.baseUrl).origin; } catch { /* test doubles */ }
       const authority = typeof client.authorityTransitionStatus === 'function'
         ? client.authorityTransitionStatus()
         : null;
       const ownershipTuple = clientResources?.ownershipTuple
-        ?? projectOwnershipTupleInspectionV1({
+        ?? Object.freeze({
           canonicalAppId: binding.appId,
           storagePartition: typeof client.clientStoreId === 'string'
             ? client.clientStoreId
             : 'unavailable',
+          serverOrigin: typeof fallbackOrigin === 'string'
+            ? fallbackOrigin
+            : 'unavailable',
           settledAuthority: Object.freeze({
             state: authority?.state ?? 'unknown',
             settled: authority?.settled === true,
+            transitionOwner: authority?.transitionOwner ?? null,
+            barrierPhase: authority?.barrierPhase ?? null,
           }),
         });
       const grantAgeMs = clientManager?.grantAgeMs ?? null;
@@ -4390,39 +4365,19 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         : options.__outboxDrainMode?.() === 'manual'
           ? 'manual-policy'
           : clientResources?.outboxSuspensionReason ?? null;
-      const projectedConnectionId = clientManager?.connectionId
-        ?? inspectionPseudonymV1(connectionId);
-      const subscriptions = Object.freeze(activeStores().map((store) => {
-        const liveHandle = store.handle?.current ?? null;
-        return Object.freeze({
-          owner: `provider:${providerInstanceId}/query:${store.reference?.name ?? store.reference?.id ?? 'unknown'}`,
-          connectionId: projectedConnectionId,
-          subscriptionId: liveHandle?.inspectionSubscriptionId
-            ?? liveHandle?.subscriptionId
-            ?? null,
-          functionName: store.reference?.name ?? null,
-          state: store.snapshot.status,
-          subscriptionState: liveHandle?.inspectionSubscriptionState
-            ?? (store.snapshot.status === 'pending' ? 'PENDING' : 'LIVE'),
-          connection: store.snapshot.connection,
-          connectionState: liveHandle?.inspectionConnectionState
-            ?? (store.snapshot.connection === 'live'
-              ? 'ATTACHED_LIVE'
-              : store.snapshot.connection === 'polling' ? 'ATTACHED_POLL' : 'GRANTED'),
-          supersedesSubscriptionId: liveHandle?.inspectionSupersedesSubscriptionId ?? null,
-          snapshotVersion: store.authoritativeRevision,
-          lastDeliveryAtMs: store.lastDeliveryAtMs,
-          authoritativeRevision: store.authoritativeRevision,
-          deliveryLagMs: store.deliveryLagMs,
-          suppressedEqualSnapshots: store.suppressedEqualSnapshots,
-          terminalCode: liveHandle?.terminalDiagnosticCode ?? null,
-          readiness: store.snapshot.status === 'ready' ? 'ready' : 'waiting',
-          authBarrier: custodyPaused ? 'closed' : 'open',
-          outboxSuspensionReason,
-          ownershipTuple,
-          grantAgeMs,
-        });
-      }));
+      const subscriptions = Object.freeze(activeStores().map((store) => Object.freeze({
+        owner: `provider:${providerInstanceId}/query:${store.reference?.name ?? store.reference?.id ?? 'unknown'}`,
+        connectionId,
+        functionName: store.reference?.name ?? null,
+        state: store.snapshot.status,
+        connection: store.snapshot.connection,
+        snapshotVersion: store.authoritativeRevision,
+        readiness: store.snapshot.status === 'ready' ? 'ready' : 'waiting',
+        authBarrier: custodyPaused ? 'closed' : 'open',
+        outboxSuspensionReason,
+        ownershipTuple,
+        grantAgeMs,
+      })));
       return Object.freeze({
         providerInstanceId,
         terminal,
@@ -4472,7 +4427,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         subscriptionHardCeiling: SERVER_SUBSCRIPTION_CAP,
         connections: Object.freeze([Object.freeze({
           owner: `provider:${providerInstanceId}`,
-          connectionId: projectedConnectionId,
+          connectionId,
           state: aggregateConnection().status,
           authBarrier: custodyPaused ? 'closed' : 'open',
           readiness: aggregateConnection().status === 'live' ? 'ready' : 'waiting',
@@ -4481,10 +4436,6 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           grantAgeMs,
         })]),
         subscriptions,
-        mutationPhaseCosts: clientResources?.mutationPhaseCosts
-          ?? (typeof client.mutationPhaseCostInspection === 'function'
-            ? client.mutationPhaseCostInspection()
-            : null),
         leases: leases.size,
         reservations: 0,
         timers: [...rooms.values()].filter((room) => room.heartbeatTimer !== null).length,

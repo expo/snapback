@@ -457,11 +457,7 @@ test('typed headless live handles reset delivery facts on auth blank and resume'
       kind: 'snapshot',
     });
     assert.equal(Number.isSafeInteger(handle.lastDeliveryAtMs), true);
-    assert.equal(
-      handle.authoritativeRevision,
-      2,
-      'the successor exposes its LIVE storage commit version',
-    );
+    assert.equal(handle.authoritativeRevision, 1, 'the successor starts from revision one');
     assert.equal(subscribeSequence, 2, 'resume obtains a fresh one-row snapshot');
   } finally {
     await handle?.dispose();
