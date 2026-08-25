@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import test from 'node:test';
 
 import {
   assertTemplateScriptSurface,
   discoverRegisteredTemplates,
+  qualifyOneTemplate,
 } from './template-portfolio-qualification-lib.mjs';
 
 const CLI_ROOT = resolve(import.meta.dirname, '../packages/snapback-cli');
@@ -72,6 +74,47 @@ test('every registered template exposes a manifest-derived cold-agent glossary',
     readFileSync(resolve(CLI_ROOT, 'templates', 'crud-dashboard', 'acceptance.mjs'), 'utf8'),
     /adminClient\.liveQuery\(api\.projectDetail/u,
   );
+});
+
+test('template qualification runs generate, static acceptance, and prove in order', () => {
+  const temporary = mkdtempSync(join(tmpdir(), 'snapback-template-qualification-unit-'));
+  const calls = [];
+  try {
+    const result = qualifyOneTemplate({
+      name: 'stub-template',
+      cli: '/stub/snapback',
+      mode: 'registry',
+      registry: 'https://registry.npmjs.org',
+      tarballs: null,
+      temporary,
+      runCommand(command, args) {
+        calls.push({ command, args: [...args] });
+        if (args[0] === 'new') {
+          mkdirSync(args[1], { recursive: true });
+          writeFileSync(
+            join(args[1], 'package.json'),
+            `${JSON.stringify({ name: 'stub-template', version: '1.0.0' }, null, 2)}\n`,
+          );
+        }
+      },
+    });
+
+    assert.equal(result.status, 'passed');
+    assert.equal(result.proof, true);
+    assert.deepEqual(
+      calls.flatMap(({ command, args }) => {
+        if (args[0] === 'generate') return ['generate'];
+        if (command === 'npm' && args[0] === 'run' && args[1] === 'test:static') {
+          return ['test:static'];
+        }
+        if (command === 'npm' && args[0] === 'run' && args[1] === 'prove') return ['prove'];
+        return [];
+      }),
+      ['generate', 'test:static', 'prove'],
+    );
+  } finally {
+    rmSync(temporary, { recursive: true, force: true });
+  }
 });
 
 test('missing scripts, changed command classes, and documentation drift fail closed', () => {

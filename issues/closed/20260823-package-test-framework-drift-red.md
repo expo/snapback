@@ -134,10 +134,10 @@ the registered path ids `list-todos` and `create-todo`, so it reported both
 `@expo/snapback-acceptance` declaration/runner like the other starters, derives
 its verify profile from that same declaration, and keeps the session-bound
 query, mutation, and observation assertions in application source. The shared
-runner's `bindingFor(app)` projection admits the verifier's release-shaped app
-binding without weakening session custody. A new checkout-local fresh scaffold
-passed `npm run prove` against the lane's prebuilt runtime: all five verifier
-stages and `todo-contract-live` passed.
+runner's `bindingFor(app)` projection mints a supervised-dev loopback binding
+from `ready.serverUrl` without weakening session custody. A new checkout-local
+fresh scaffold passed `npm run prove` against the lane's prebuilt runtime: all
+five verifier stages and `todo-contract-live` passed.
 
 Template portfolio qualification now runs each packed scaffold's `prove` after
 generate and static acceptance. Its independent unit guard also carries the

@@ -20,8 +20,9 @@ import {
 } from './snapback-package-cold-install-lib.mjs';
 
 // @ref LLP 0196#program — both freshness halves enumerate the template
-// registry from the installed CLI, then scaffold, generate, and statically
-// accept each entry against either exact tarballs or the published closure.
+// registry from the installed CLI, then scaffold, generate, statically accept,
+// and run each entry's `prove` done-oracle against exact tarballs or the
+// published closure.
 const RECEIPT_SCHEMA_VERSION = 'snapback.template-portfolio-qualification.v1';
 const SNAPBACK_PACKAGE_PATTERN = /^@expo\/snapback-/u;
 const REQUIRED_TEMPLATE_SCRIPTS = Object.freeze([
@@ -309,17 +310,18 @@ function collectInstalledSnapbackPackages(projectRoot) {
     });
 }
 
-function qualifyOneTemplate({
+export function qualifyOneTemplate({
   name,
   cli,
   mode,
   registry,
   tarballs,
   temporary,
+  runCommand = run,
 }) {
   const project = join(temporary, 'templates', name);
   mkdirSync(dirname(project), { recursive: true });
-  run(cli, ['new', project, '--template', name, '--json'], {
+  runCommand(cli, ['new', project, '--template', name, '--json'], {
     cwd: temporary,
     env: { ...process.env, CI: '1' },
     timeout: 60_000,
@@ -339,7 +341,7 @@ function qualifyOneTemplate({
     '--registry', registry,
     ...(mode === 'staged' ? [...tarballs.values()].map(({ path }) => path) : []),
   ];
-  run('npm', installArguments, {
+  runCommand('npm', installArguments, {
     cwd: project,
     env: {
       ...process.env,
@@ -348,7 +350,7 @@ function qualifyOneTemplate({
     },
   });
   const scaffoldCli = join(project, 'node_modules', '.bin', 'snapback');
-  run(scaffoldCli, ['generate', 'snapback', '--json'], {
+  runCommand(scaffoldCli, ['generate', 'snapback', '--json'], {
     cwd: project,
     env: {
       ...process.env,
@@ -357,12 +359,12 @@ function qualifyOneTemplate({
     },
     timeout: 180_000,
   });
-  run('npm', ['run', 'test:static'], {
+  runCommand('npm', ['run', 'test:static'], {
     cwd: project,
     env: { ...process.env, CI: '1' },
     timeout: 180_000,
   });
-  run('npm', ['run', 'prove'], {
+  runCommand('npm', ['run', 'prove'], {
     cwd: project,
     env: { ...process.env, CI: '1' },
     timeout: 300_000,
