@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:fc77fd0e119e0c0ee742c36e1326023c350c706a775d51538a2d5ec21f9dac45"
+    "sourceDigest": "sha256:f34a0d6d58263b7666e7daf0fc174ccdeb776cf8b7db7f7dae48594d43130a82"
   },
   "limits": {
     "lookupBytes": 16384
@@ -10,7 +10,7 @@
   "counts": {
     "codes": 3671,
     "sourceFiles": 612,
-    "emittingSites": 12919,
+    "emittingSites": 12918,
     "httpClassified": 1730,
     "guideAnchored": 466
   },
@@ -3660,12 +3660,12 @@
       "sites": [
         {
           "file": "crates/snapback-server/src/admin_secret_read.rs",
-          "line": 846,
+          "line": 817,
           "column": 10
         },
         {
           "file": "crates/snapback-server/src/admin_secret_read.rs",
-          "line": 1186,
+          "line": 1157,
           "column": 14
         },
         {
@@ -3705,12 +3705,12 @@
       "sites": [
         {
           "file": "crates/snapback-server/src/admin_secret_read.rs",
-          "line": 691,
+          "line": 665,
           "column": 18
         },
         {
           "file": "crates/snapback-server/src/admin_secret_read.rs",
-          "line": 1272,
+          "line": 1243,
           "column": 14
         },
         {
@@ -3730,7 +3730,7 @@
       "sites": [
         {
           "file": "crates/snapback-server/src/admin_secret_read.rs",
-          "line": 822,
+          "line": 793,
           "column": 10
         },
         {
@@ -3748,11 +3748,6 @@
       "code": "SNAPBACK_ADMIN_SECRET_READ_MINT_DENIED",
       "subsystem": "server",
       "sites": [
-        {
-          "file": "crates/snapback-server/src/admin_secret_read.rs",
-          "line": 679,
-          "column": 18
-        },
         {
           "file": "crates/snapback-server/src/server/api_error.rs",
           "line": 717,
@@ -3790,22 +3785,22 @@
       "sites": [
         {
           "file": "crates/snapback-server/src/admin_secret_read.rs",
-          "line": 854,
+          "line": 825,
           "column": 10
         },
         {
           "file": "crates/snapback-server/src/admin_secret_read.rs",
-          "line": 948,
+          "line": 919,
           "column": 14
         },
         {
           "file": "crates/snapback-server/src/admin_secret_read.rs",
-          "line": 1042,
+          "line": 1013,
           "column": 14
         },
         {
           "file": "crates/snapback-server/src/admin_secret_read.rs",
-          "line": 1084,
+          "line": 1055,
           "column": 18
         },
         {
@@ -3832,12 +3827,12 @@
         },
         {
           "file": "crates/snapback-server/src/admin_secret_read.rs",
-          "line": 930,
+          "line": 901,
           "column": 14
         },
         {
           "file": "crates/snapback-server/src/admin_secret_read.rs",
-          "line": 1133,
+          "line": 1104,
           "column": 14
         },
         {
@@ -3857,7 +3852,7 @@
       "sites": [
         {
           "file": "crates/snapback-server/src/admin_secret_read.rs",
-          "line": 865,
+          "line": 836,
           "column": 10
         },
         {
@@ -3882,12 +3877,12 @@
         },
         {
           "file": "crates/snapback-server/src/admin_secret_read.rs",
-          "line": 985,
+          "line": 956,
           "column": 14
         },
         {
           "file": "crates/snapback-server/src/admin_secret_read.rs",
-          "line": 1092,
+          "line": 1063,
           "column": 18
         },
         {
@@ -3912,12 +3907,12 @@
         },
         {
           "file": "crates/snapback-server/src/admin_secret_read.rs",
-          "line": 966,
+          "line": 937,
           "column": 14
         },
         {
           "file": "crates/snapback-server/src/admin_secret_read.rs",
-          "line": 1088,
+          "line": 1059,
           "column": 18
         },
         {
@@ -3952,7 +3947,7 @@
       "sites": [
         {
           "file": "crates/snapback-server/src/admin_secret_read.rs",
-          "line": 830,
+          "line": 801,
           "column": 10
         },
         {
@@ -3994,7 +3989,7 @@
       "sites": [
         {
           "file": "crates/snapback-server/src/admin_secret_read.rs",
-          "line": 838,
+          "line": 809,
           "column": 10
         },
         {
