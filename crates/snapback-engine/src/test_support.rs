@@ -103,10 +103,10 @@ pub fn asset_host_op(
     snapback.asset_host_op(operation, input, user_id, profile)
 }
 
-pub fn asset_store_obj(
-    snapback: &LocalSnapback,
-) -> SnapbackResult<std::sync::Arc<dyn crate::assets_store::AssetStore>> {
-    snapback.asset_store_obj()
+/// Return only the non-authoritative backend classification. The store handle
+/// is deliberately dropped inside the owner crate.
+pub fn asset_store_kind(snapback: &LocalSnapback) -> SnapbackResult<&'static str> {
+    snapback.asset_store_obj().map(|store| store.kind())
 }
 
 pub fn asset_set_attempt_expiry(

@@ -1039,10 +1039,37 @@ impl AssetTusPatchTicketV1 {
     }
 }
 
-/// Immutable continuity ticket between asset-finalize preflight and commit.
-/// The byte-store handle is config-derived while Local is available, then
-/// clone-shareable without retaining any LocalSnapback or database borrow.
+/// Process-local identity of the `LocalSnapback` that admitted a finalize
+/// preflight. The value can be minted by an embedding, but only the identity
+/// retained by that exact owner will match at either lock-held commit cut.
+///
+/// @ref LLP 0303#derivation-is-a-lifetime-property-not-a-constructor-event —
+/// an owned split-phase carrier must retain exact-owner provenance after the
+/// constructor borrow ends.
 #[derive(Clone)]
+#[doc(hidden)]
+pub struct AssetFinalizeOwnerBindingV1(std::sync::Arc<()>);
+
+impl AssetFinalizeOwnerBindingV1 {
+    pub fn new() -> Self {
+        Self(std::sync::Arc::new(()))
+    }
+
+    fn matches(&self, other: &Self) -> bool {
+        std::sync::Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl Default for AssetFinalizeOwnerBindingV1 {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Immutable continuity ticket between asset-finalize preflight and commit.
+/// The byte-store handle is config-derived while Local is available. The
+/// ticket stays owned so prepare can run outside the global writer, but it is
+/// not publicly cloneable and its exact owner is rechecked on reacquisition.
 pub struct FinalizePrepareTicketV1 {
     attempt: AssetAttemptRecordV1,
     request: AssetFinalizeRequestV1,
@@ -1054,6 +1081,7 @@ pub struct FinalizePrepareTicketV1 {
     app_id: String,
     app_quota: u64,
     schema: crate::manifest::SchemaManifest,
+    owner: AssetFinalizeOwnerBindingV1,
 }
 
 /// A deterministic byte/policy refusal still returns through the lock-held
@@ -1111,7 +1139,7 @@ pub struct FinalizeCleanupCommitTicketV1 {
 impl FinalizePutTicketV1 {
     fn clone_with_leases(&self, publication_put_leases: Vec<AssetPublicationPutLeaseV1>) -> Self {
         Self {
-            ticket: self.ticket.clone(),
+            ticket: self.ticket.clone_for_commit_retry(),
             prepared: self.prepared.clone(),
             publication: self.publication.clone(),
             required_publications: self.required_publications.clone(),
@@ -1349,6 +1377,7 @@ impl FinalizePrepareTicketV1 {
         app_id: String,
         app_quota: u64,
         schema: crate::manifest::SchemaManifest,
+        owner: AssetFinalizeOwnerBindingV1,
     ) -> SnapbackResult<Self> {
         let attempt = proof.into_attempt();
         Ok(Self {
@@ -1362,7 +1391,29 @@ impl FinalizePrepareTicketV1 {
             app_id,
             app_quota,
             schema,
+            owner,
         })
+    }
+
+    fn clone_for_commit_retry(&self) -> Self {
+        Self {
+            attempt: self.attempt.clone(),
+            request: self.request.clone(),
+            frozen_intent: self.frozen_intent.clone(),
+            on_ready: self.on_ready.clone(),
+            store: self.store.clone(),
+            image_finalization_enabled: self.image_finalization_enabled,
+            video_finalization_enabled: self.video_finalization_enabled,
+            app_id: self.app_id.clone(),
+            app_quota: self.app_quota,
+            schema: self.schema.clone(),
+            owner: self.owner.clone(),
+        }
+    }
+
+    #[doc(hidden)]
+    pub fn belongs_to_owner(&self, owner: &AssetFinalizeOwnerBindingV1) -> bool {
+        self.owner.matches(owner)
     }
 
     pub fn attempt(&self) -> &AssetAttemptRecordV1 {
@@ -1433,8 +1484,21 @@ pub type FinalizePrepareParts = (
 );
 
 impl FinalizePrepareTicketV1 {
-    pub fn into_parts(self) -> FinalizePrepareParts {
-        (
+    /// Deconstruct the carrier only for the exact owner that admitted it.
+    /// This is the sole route that releases its clone-shared store handle.
+    #[doc(hidden)]
+    pub fn into_parts(
+        self,
+        owner: &AssetFinalizeOwnerBindingV1,
+    ) -> SnapbackResult<FinalizePrepareParts> {
+        if !self.belongs_to_owner(owner) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_FINALIZE_OWNER_MISMATCH",
+                "assets",
+                "the finalize ticket belongs to another LocalSnapback owner",
+            ));
+        }
+        Ok((
             self.attempt,
             self.request,
             self.frozen_intent,
@@ -1445,7 +1509,14 @@ impl FinalizePrepareTicketV1 {
             self.app_id,
             self.app_quota,
             self.schema,
-        )
+        ))
+    }
+}
+
+impl FinalizeCommitTicketV1 {
+    #[doc(hidden)]
+    pub fn belongs_to_owner(&self, owner: &AssetFinalizeOwnerBindingV1) -> bool {
+        self.put.ticket.belongs_to_owner(owner)
     }
 }
 

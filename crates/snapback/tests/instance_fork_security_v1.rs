@@ -188,7 +188,7 @@ fn manual_cron_and_asset_provider_paths_deny_on_a_fork() {
         Err(error) => error,
     };
     assert_eq!(cron.diagnostic.code, "SNAPBACK_FORK_EGRESS_DENIED");
-    let denied = match snapback_engine::test_support::asset_store_obj(&fork) {
+    let denied = match snapback_engine::test_support::asset_store_kind(&fork) {
         Ok(_) => panic!("a fork must never construct a provider asset store"),
         Err(error) => error,
     };

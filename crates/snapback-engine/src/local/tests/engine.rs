@@ -11520,6 +11520,38 @@ fn asset_finalize_revocation_between_preflight_and_commit_refuses_before_phase_a
 }
 
 #[test]
+fn asset_finalize_ticket_refuses_a_different_local_owner() {
+    let mut source = asset_test_snapback();
+    let created = asset_upload(&mut source, "user_a", b"owner-bound-finalize", true);
+    let authority = asset_dev_authority(&source, "user_a", InvocationSource::HttpQuery);
+    let ticket = match source
+        .asset_attempt_finalize_preflight(
+            &authority,
+            crate::assets::AssetFinalizeRequestV1 {
+                attempt_id: created.task.attempt_id,
+                lifecycle_generation: 1,
+                declared_digest: None,
+            },
+        )
+        .expect("source preflight proceeds")
+    {
+        FinalizePreflightV1::Proceed(ticket) => ticket,
+        FinalizePreflightV1::AlreadyComplete(_) => panic!("attempt is not complete yet"),
+    };
+    let preparation = ticket.prepare().expect("source prepare succeeds");
+    let mut other = asset_test_snapback();
+
+    let error = match other.asset_attempt_finalize_plan(&authority, ticket, preparation) {
+        Err(error) => error,
+        Ok(_) => panic!("another LocalSnapback must refuse the owned ticket"),
+    };
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_ASSET_FINALIZE_OWNER_MISMATCH"
+    );
+}
+
+#[test]
 fn asset_finalize_double_preflight_commits_one_winner_and_one_idempotent_retry() {
     let mut snapback = asset_test_snapback();
     let created = asset_upload(&mut snapback, "user_a", b"double-preflight", true);

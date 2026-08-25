@@ -3958,6 +3958,9 @@ pub struct LocalSnapback {
     /// Deployment configuration captured once at the public construction
     /// boundary. Asset-store construction never re-reads process-global env.
     asset_store_config: AssetStoreConfig,
+    /// Exact process-local owner retained by every split-phase finalize
+    /// ticket and rechecked before either lock-held database cut.
+    asset_finalize_owner: crate::assets::AssetFinalizeOwnerBindingV1,
     /// Process-unique registry namespace for this instance's StreamAttemptV1
     /// records (LLP 0076). A monotonic nonce, never a pointer: allocator
     /// reuse must not let a new instance observe a dead instance's live
@@ -16202,6 +16205,7 @@ impl LocalSnapback {
                 self.functions.app_id.clone(),
                 self.asset_app_quota(),
                 self.db.schema().clone(),
+                self.asset_finalize_owner.clone(),
             )?,
         ))
     }
@@ -16497,6 +16501,10 @@ impl LocalSnapback {
     ) -> SnapbackResult<FinalizePhaseAOutcomeV1> {
         use crate::assets;
 
+        if !ticket.belongs_to_owner(&self.asset_finalize_owner) {
+            return Err(asset_finalize_owner_mismatch_error());
+        }
+
         // The old single-lock choreography made this check immovable between
         // preflight and Phase A. The split admits revocation in that window,
         // so the commit half must repeat it before creating durable state.
@@ -16700,6 +16708,10 @@ impl LocalSnapback {
     ) -> SnapbackResult<FinalizePhaseCDOutcomeV1> {
         use crate::assets;
 
+        if !ticket.belongs_to_owner(&self.asset_finalize_owner) {
+            return Err(asset_finalize_owner_mismatch_error());
+        }
+
         let mut retry_ticket = authorized_effect
             .is_some()
             .then(|| FinalizeWitnessRetryTicketV1 {
@@ -16763,7 +16775,7 @@ impl LocalSnapback {
             app_id,
             app_quota,
             schema,
-        ) = ticket.into_parts();
+        ) = ticket.into_parts(&self.asset_finalize_owner)?;
         let detected = prepared.detected_content_type;
         let canonical = prepared.canonical;
         let image_media_facts = prepared.media_facts;
@@ -28994,6 +29006,7 @@ impl LocalSnapback {
             app_state_graph_identity: Arc::new(()),
             operator_authority_identity: Arc::new(()),
             asset_store_config,
+            asset_finalize_owner: crate::assets::AssetFinalizeOwnerBindingV1::new(),
             stream_attempt_namespace: STREAM_ATTEMPT_NAMESPACE
                 .fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             asset_memory_store_root: std::sync::OnceLock::new(),
@@ -43822,6 +43835,14 @@ fn asset_intent_generation_revoked_error() -> SnapbackError {
         "SNAPBACK_ASSET_INTENT_REVOKED",
         "assets",
         "this intent's policy generation is revoked; nothing further finalizes under it",
+    )
+}
+
+fn asset_finalize_owner_mismatch_error() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_ASSET_FINALIZE_OWNER_MISMATCH",
+        "assets",
+        "the finalize ticket belongs to another LocalSnapback owner",
     )
 }
 

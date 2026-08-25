@@ -701,6 +701,88 @@ No fixes are implemented by this inventory.
 
 - `crates/snapback-types/src/runtime/proof_shapes.rs:26` — `MediaProjectionInvocationScopeV1::for_test`: `fn for_test(process_epoch: impl Into<String>, invocation_nonce: u64, pinned_snapshot: u64,)->Self` — production-equivalent or opaque-input-preserving.
 
+## Round-3 correction — Appendix B composition re-audit (2026-08-25)
+
+The prior Appendix B rule was unsound because it classified each declaration in
+isolation. This correction rechecked **all 73** Appendix B entries against the
+simultaneously reachable additive-feature graph, including public production
+routes, other test-support routes, retained owned carriers, and a second handle
+to the same owner or resource.
+
+**Corrected rule:** A test-support item is production-equivalent only when every composition of its live inputs and outputs with every simultaneously reachable public route is no more authoritative than a composition available without test-support.
+
+Result: **46 pass and 27 fail**. One failure is the reviewed
+`snapback_engine::test_support::asset_store_obj`; the other **26 item failures**
+are additional. The 27 include one namespace gate (`snapback_server::test_support`)
+because the original inventory counts a public module as its own reachability
+edge; excluding namespace-only entries, the result is 26 failing callable/type
+items. Entries removed in the round-2 commits still fail the old classification
+and are marked closed rather than silently counted as passes.
+
+### Every failing Appendix B item
+
+| Crate | Item | Composition that invalidates class B | Status |
+|---|---|---|---|
+| auth | `AuthAdmission::refresh` | retain a live admission while selecting the `LocalDatabase` whose protected auth rows are rotated | open |
+| auth | `AuthAdmission::logout` | retain a live admission while selecting the `LocalDatabase` whose session family is revoked | open |
+| auth | `AuthAdmission::family_alarm` | retain a live admission while selecting the `LocalDatabase` receiving the family terminal mutation | open |
+| auth | `ExchangeAdmission::exchange` | retain a live exchange admission while selecting the `LocalDatabase` that consumes the code and issues authority | open |
+| engine | `EphemeralApi::enqueue_durable_for_test` | a clone of the live owner's public `EphemeralApi` accepts caller bytes into that owner's transport outbox | open |
+| engine | `EphemeralApi::enqueue_durable_with_network_egress_for_test` | the same live handle accepts caller bytes plus a separately reached egress carrier | open |
+| engine | `EphemeralApi::enqueue_durable_bound_for_test` | the same live handle accepts caller bytes plus a separately reached connection-effect fence | open |
+| engine | `EngineInvalidationBinding::from_issuer_for_test` | a separately constructed issuer can be wrapped and installed into an `AppState` through its public binding route | open |
+| engine | `LocalSnapback::restore_sender_proof_after_test_outage` | the live owner can be retained across the sibling test-only outage mutation and then caller-timed back into a trusted replay-ready state | open |
+| engine | `SignedAssetFixture` | the value jointly exposes a live `LocalSnapback` and genuine `PreparedAuthority`; ordinary owner APIs accept the retained authority | already independently classed C through `signed_asset_fixture`; open |
+| engine | `test_support::asset_store_obj` | a retained finalize ticket and a shared borrow of its live owner yield full mutation authority over the ticket's store | closed in round 3 |
+| kernel | `LocalDatabase::initialize_data_version_stream_for_test` | a retained owner-derived carrier can coexist with caller-timed replacement/initialization of the same database's durable stream identity | open |
+| kernel | `ServingDatabase::attempt_unmediated_app_insert_for_test` | a live serving owner accepts a direct app-table write outside its ordinary mutation authority | open |
+| kernel | `ServingDatabase::initialize_data_version_stream_for_test` | the serving wrapper exposes the same stream-identity composition on a live serving owner | open |
+| kernel | `LocalDatabase::identity_password_set` | a retained bearer from one route is applied directly to caller-selected protected auth storage | open |
+| kernel | `LocalDatabase::identity_password_authenticate` | caller-selected protected auth storage directly mints a live session/bearer | open |
+| kernel | `LocalDatabase::identity_password_change` | caller-selected protected auth storage directly rotates credentials and revokes live sessions | open |
+| kernel | `LocalDatabase::identity_recovery_consume` | caller-selected protected auth storage consumes a recovery proof and mints a live session | open |
+| server | `test_support` module edge | enabling the namespace makes both failing server compositions reachable; modules are separate reachability items under the original counting rule | open |
+| server | `app_state_with_secret_read_mint_for_test` | a proof root reached through the public pinned-sibling route can be attached to a separately supplied live `LocalSnapback` | open |
+| server | `drive_push_maintenance_once_for_test` | a retained live `AppState` accepts caller-selected profile and wall time for a real mutating maintenance pass | open |
+| services | `AssetWidthPrepareTicketV1::store_for_test` | a live width-prepare ticket simultaneously yielded full mutation authority over its source store | closed in round 2 |
+| services | `AssetWidthPutTicketV1::publication_for_test` | a live external-PUT ticket yields its planned physical key, which a separately reached handle to the same store can alter | open |
+| services | `FinalizePrepareTicketV1::store_for_test` | a live finalize-prepare ticket simultaneously yielded full mutation authority over its source store | closed in round 2 |
+| services | `FinalizePutTicketV1::publication_for_test` | a live external-PUT ticket yields its planned physical key, which a separately reached handle to the same store can alter | open |
+| services | `AssetFsStore::blobs_dir_for_test` | a live store object yields its raw backing directory, enabling ordinary filesystem mutation through a second route | open |
+| services | `renew_managed_with_crash_cut_for_test` | a caller-selected crash cut can leave the same managed fork reached by ordinary lifecycle routes between durable renewal cuts | open |
+
+### Passing groups, accounting for all remaining entries
+
+| Group | Count | Composition result |
+|---|---:|---|
+| auth admission identities, bounded transition wrappers, and `BearerCandidate` | 5 | identities are passive; transition wrappers add only a shorter fail-closed wait to the public transition; the bearer remains private |
+| engine bounded drain, backend-selecting constructor, classified auth-provision commit, and seed preflight | 4 | the drain is narrower than production, backend selection is configuration-equivalent, commit revalidates, and the public preflight enum already permits the same conservative reservation |
+| kernel key-authenticator, push validation, database binding, invalid signed URLs, collision shapes, seed validation, and commit-capsule prototype | 31 | public production constructors/identity routes are equivalent; validators and deliberately invalid tokens add no authority; the prototype remains database-borrow-bound and writes only `_test_*` tables |
+| sync Appendix B entries | 5 | production already exposes the same authority view/split or a stronger leased handoff; sampled-expiry predecessors revalidate; the bound drain is narrower |
+| types invocation-scope constructor | 1 | all fields and the identical literal construction are already public without test-support |
+| **Total passing** | **46** | |
+
+Round 3 also found a non-Appendix-B sibling of the reviewed route:
+`FinalizePrepareTicketV1` was publicly `Clone`, while its consuming public
+`into_parts` returned the same `Arc<dyn AssetStore>`. A dependent could clone,
+consume one copy for the store, and retain the other ticket. Round 3 removes
+the prepare ticket's public clone implementation. The later type-states retain
+their existing retry clones, but their route back to the embedded store now
+requires the same unforgeable exact-owner identity that is checked before both
+lock-held cuts.
+
+### Dependent-crate witness
+
+A temporary dependent package enabled `snapback-engine` with its default and
+`test-support` features. Against round-2 commit `b97ffa403`, it retained the
+owned finalize-prepare ticket, reached the owner's store through
+`test_support::asset_store_obj`, called `wipe_all`, and exited successfully.
+Against round 3, the same package is refused at compile time: `asset_store_obj`
+is absent (`E0425`) and `FinalizePrepareTicketV1` has no public `clone` method
+(`E0599`). A separate engine regression test moves a genuine ticket between two
+live `LocalSnapback` owners and verifies the runtime fallback refuses it with
+`SNAPBACK_ASSET_FINALIZE_OWNER_MISMATCH` before Phase A.
+
 ---
 
 ## Addendum — independent mechanical estimate, recorded before the tiering lane reports
