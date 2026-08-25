@@ -2600,6 +2600,109 @@ fn graph_scheduler_case_continuation_and_first_page_preserve_each_ledger_lineage
     assert_eq!(entries[0]["holders"], json!([sibling.subscription_id]));
 }
 
+/// @ref LLP 0209#23-closure-admission-demand-time-evaluation-time-and-qualification-registers —
+/// a continuation with no subscription/supersession-owned lineage refuses in
+/// the cursor register even when the caller reproduces the old unkeyed hash.
+/// @ref LLP 0209#24-plan-instance-and-contextual-materialization-identity —
+/// caller-visible counters cannot mint or reset a server-retained lineage.
+#[test]
+fn fresh_graph_request_refuses_forged_reset_ledger_lineage() {
+    let corpus = graph_corpus();
+    let (mut snapback, name, call, authority, connection) =
+        graph_scheduler_continuation_memo_fixture(&corpus);
+    let connection_id = "g3-a-forged-window-lineage";
+    let first = subscribe_graph_corpus_case(
+        &mut snapback,
+        &name,
+        graph_scheduler_memo_input(&call, &authority, connection_id, 1, None),
+        connection.clone(),
+    )
+    .expect("establish genuine first-page lineage");
+    let first_observation = snapback
+        .graph_serving_observation_for_test(&first.subscription_id)
+        .expect("genuine first-page graph observation");
+    let first_ledgers = first_observation["windowLedgers"].clone();
+    assert_eq!(first_ledgers.as_array().unwrap().len(), 1);
+
+    let mut continuation_input =
+        graph_scheduler_memo_input(&call, &authority, connection_id, 2, None);
+    continuation_input.input.args[snapback_engine::graph_evaluator::GRAPH_SERVING_DEMAND_ARG]["priorWindowLedgers"] =
+        first_ledgers.clone();
+    continuation_input.supersedes = Some(first.subscription_id);
+    let continuation =
+        subscribe_graph_corpus_case(&mut snapback, &name, continuation_input, connection.clone())
+            .expect("advance the genuine server-retained lineage");
+    assert_eq!(
+        snapback
+            .graph_serving_observation_for_test(&continuation.subscription_id)
+            .expect("advanced genuine graph observation")["windowLedgers"][0]["pages"],
+        2,
+    );
+
+    // Reproduce the exact caller-forgeable record accepted before this fix:
+    // every identity field plus its unkeyed SHA-256, but with the page-one
+    // counters captured before the genuine lineage advanced to page two.
+    let mut materialization_context = first_observation["materialization"].clone();
+    materialization_context
+        .as_object_mut()
+        .expect("materialization preimage object")
+        .remove("graphInstanceHash");
+    let root_proof = first_observation["nodeCompleteness"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|proof| proof["nodeId"] == first_ledgers[0]["nodeId"])
+        .expect("root completeness proof");
+    let node_id = first_ledgers[0]["nodeId"].clone();
+    let intervals = call["windows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|window| window["nodeId"] == node_id)
+        .expect("root demand intervals")["intervals"]
+        .clone();
+    let mut forged_lineage = json!({
+        "format":"snapback.graph-window-ledger-lineage.v1",
+        "nodeId":node_id,
+        "materializationContextHash":jcs_domain_hash(
+            "snapback:graph-window-ledger-context:v1:",
+            &materialization_context,
+        ),
+        "planHash":first_observation["partition"]["graphPlanHash"],
+        "argsDigest":jcs_domain_hash("snapback:materialization-args:v1:", &call["args"]),
+        "partitionHash":first_observation["partitionHash"],
+        "intervals":intervals,
+        "continuations":[{
+            "parentKey":null,
+            "key":root_proof["proof"]["continuation"],
+        }],
+    });
+    let forged_hash = jcs_domain_hash("snapback:graph-window-ledger-lineage:v1:", &forged_lineage);
+    forged_lineage["lineageHash"] = json!(forged_hash);
+
+    let mut forged = graph_scheduler_memo_input(&call, &authority, connection_id, 3, None);
+    forged.input.args[snapback_engine::graph_evaluator::GRAPH_SERVING_DEMAND_ARG]["priorWindowLedgers"] =
+        first_ledgers.clone();
+    forged.input.args[snapback_engine::graph_evaluator::GRAPH_SERVING_DEMAND_ARG]["priorWindowLedgerLineages"] =
+        json!([forged_lineage]);
+    let refusal = subscribe_graph_corpus_case(&mut snapback, &name, forged, connection.clone())
+        .expect_err("a fresh caller-forged lineage must never evaluate");
+    assert_eq!(
+        refusal.diagnostic.code, "SNAPBACK_GRAPH_DEMAND_INVALID",
+        "the lineage field is absent from caller-controlled deserialization",
+    );
+
+    let mut reset = graph_scheduler_memo_input(&call, &authority, connection_id, 4, None);
+    reset.input.args[snapback_engine::graph_evaluator::GRAPH_SERVING_DEMAND_ARG]["priorWindowLedgers"] =
+        first_ledgers;
+    let refusal = subscribe_graph_corpus_case(&mut snapback, &name, reset, connection)
+        .expect_err("reset counters without retained lineage must never evaluate");
+    assert_eq!(
+        refusal.diagnostic.code, "SNAPBACK_GRAPH_CURSOR_UNBOUND",
+        "the cursor/lineage register fails closed without subscription custody",
+    );
+}
+
 #[test]
 fn graph_scheduler_case_authority_context_replacement_retires_same_partition_memo() {
     let corpus = graph_corpus();

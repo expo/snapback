@@ -42,11 +42,6 @@ pub struct GraphServingDemandV1 {
     pub advanced_node_id: String,
     #[serde(default)]
     pub prior_window_ledgers: Vec<GraphWindowLedgerV1>,
-    /// Server-carried authentication records for `prior_window_ledgers`.
-    /// Evaluator results omit these records so frozen observation JSON stays
-    /// byte-identical; retained serving state reattaches them at this seam.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub prior_window_ledger_lineages: Vec<GraphWindowLedgerLineageV1>,
     /// Additive DK-3 negotiation. Absent or unknown values keep graph
     /// subscriptions replace-compatible.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -122,27 +117,24 @@ pub struct GraphWindowLedgerV1 {
     lineage: Option<GraphWindowLedgerLineageV1>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct GraphWindowLedgerContinuationV1 {
-    pub parent_key: Option<GraphRowKeyV1>,
-    pub key: KeysetKeyV1,
+#[derive(Clone, Debug, PartialEq)]
+struct GraphWindowLedgerContinuationV1 {
+    parent_key: Option<GraphRowKeyV1>,
+    key: KeysetKeyV1,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[derive(Clone, Debug, PartialEq)]
 /// @ref LLP 0209#24-plan-instance-and-contextual-materialization-identity —
-/// cumulative counters ride beside continuation custody authenticated to the
-/// exact materialization, demand node, and canonical per-parent intervals.
-pub struct GraphWindowLedgerLineageV1 {
-    pub node_id: String,
-    pub materialization_context_hash: Sha256V1,
-    pub plan_hash: Sha256V1,
-    pub args_digest: Sha256V1,
-    pub partition_hash: Sha256V1,
-    pub intervals: Vec<GraphParentWindowIdentityV1>,
-    pub continuations: Vec<GraphWindowLedgerContinuationV1>,
-    pub lineage_hash: Sha256V1,
+/// cumulative counters ride only in server-retained registration custody,
+/// bound to the exact materialization, demand node, and per-parent intervals.
+struct GraphWindowLedgerLineageV1 {
+    node_id: String,
+    materialization_context_hash: Sha256V1,
+    plan_hash: Sha256V1,
+    args_digest: Sha256V1,
+    partition_hash: Sha256V1,
+    intervals: Vec<GraphParentWindowIdentityV1>,
+    continuations: Vec<GraphWindowLedgerContinuationV1>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, JsonSchema, PartialEq, Serialize)]
@@ -2683,22 +2675,6 @@ fn cursor_unbound(message: impl Into<String>) -> SnapbackError {
     SnapbackError::error("SNAPBACK_GRAPH_CURSOR_UNBOUND", "query", message.into())
 }
 
-fn lineage_hash(lineage: &GraphWindowLedgerLineageV1) -> SnapbackResult<Sha256V1> {
-    captured_value_digest(
-        b"snapback:graph-window-ledger-lineage:v1:",
-        &json!({
-            "format":"snapback.graph-window-ledger-lineage.v1",
-            "nodeId":lineage.node_id,
-            "materializationContextHash":lineage.materialization_context_hash,
-            "planHash":lineage.plan_hash,
-            "argsDigest":lineage.args_digest,
-            "partitionHash":lineage.partition_hash,
-            "intervals":lineage.intervals,
-            "continuations":lineage.continuations,
-        }),
-    )
-}
-
 fn current_lineage(
     plan: &GraphQueryPlanV1,
     request: &GraphEvaluationRequestV1,
@@ -2744,7 +2720,7 @@ fn current_lineage(
         .remove("graphInstanceHash");
     let materialization_context_hash =
         captured_value_digest(b"snapback:graph-window-ledger-context:v1:", &context)?;
-    let mut lineage = GraphWindowLedgerLineageV1 {
+    Ok(GraphWindowLedgerLineageV1 {
         node_id: node_id.to_owned(),
         materialization_context_hash,
         plan_hash: plan_identity.plan_hash,
@@ -2752,11 +2728,7 @@ fn current_lineage(
         partition_hash: request.partition_hash.clone(),
         intervals,
         continuations,
-        lineage_hash: Sha256V1::new(format!("sha256:{}", "0".repeat(64)))
-            .expect("zero digest is valid"),
-    };
-    lineage.lineage_hash = lineage_hash(&lineage)?;
-    Ok(lineage)
+    })
 }
 
 fn continuation_for_parent<'a>(
@@ -2785,8 +2757,7 @@ fn prior_lineage_matches_current(
     current: &GraphWindowLedgerLineageV1,
     may_advance: bool,
 ) -> bool {
-    if lineage_hash(prior).ok().as_ref() != Some(&prior.lineage_hash)
-        || prior.node_id != current.node_id
+    if prior.node_id != current.node_id
         || prior.materialization_context_hash != current.materialization_context_hash
         || prior.plan_hash != current.plan_hash
         || prior.args_digest != current.args_digest
@@ -2817,40 +2788,6 @@ fn prior_lineage_matches_current(
                     )
                 })
         })
-}
-
-pub(crate) fn graph_window_ledger_lineages(
-    ledgers: &[GraphWindowLedgerV1],
-) -> SnapbackResult<Vec<GraphWindowLedgerLineageV1>> {
-    ledgers
-        .iter()
-        .map(|ledger| {
-            ledger
-                .lineage
-                .clone()
-                .ok_or_else(|| cursor_unbound("graph window ledger has no authenticated lineage"))
-        })
-        .collect()
-}
-
-pub(crate) fn attach_graph_window_ledger_lineages(
-    ledgers: &mut [GraphWindowLedgerV1],
-    lineages: &[GraphWindowLedgerLineageV1],
-) -> SnapbackResult<()> {
-    if ledgers.len() != lineages.len() {
-        return Err(cursor_unbound(
-            "graph window ledger authentication vector has the wrong length",
-        ));
-    }
-    for (ledger, lineage) in ledgers.iter_mut().zip(lineages) {
-        if ledger.node_id != lineage.node_id || lineage_hash(lineage)? != lineage.lineage_hash {
-            return Err(cursor_unbound(
-                "graph window ledger authentication record does not match its counter row",
-            ));
-        }
-        ledger.lineage = Some(lineage.clone());
-    }
-    Ok(())
 }
 
 fn validate_prior_ledgers(

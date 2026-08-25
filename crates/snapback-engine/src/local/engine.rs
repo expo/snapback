@@ -8897,7 +8897,11 @@ impl LocalSnapback {
             .validate_admission("graph live-evaluation memo key")
             .ok()?;
         let input = prepared.canonicalize_input(subscription.input.clone());
-        let (input, demand) = graph_serving_demand(input).ok()?;
+        let retained_window_ledgers = subscription
+            .graph_serving
+            .as_ref()
+            .map(|graph| graph.evaluation.window_ledgers.as_slice());
+        let (input, demand) = graph_serving_demand(input, retained_window_ledgers).ok()?;
         if !graph_demand_is_root_first_page(&carrier.normalized_plan, &demand) {
             return None;
         }
@@ -9134,6 +9138,10 @@ impl LocalSnapback {
         // evaluation turn, and therefore still runs on a memo hit.
         self.validate_expected_generation(&authority, subscription.expected_generation.as_ref())?;
         let input = live_subscription_rerun_input(subscription)?;
+        let retained_graph_window_ledgers = subscription
+            .graph_serving
+            .as_ref()
+            .map(|graph| graph.evaluation.window_ledgers.as_slice());
         let key = self.live_evaluation_memo_key(subscription, &input, &authority);
         if let Some(key) = key.as_ref()
             && let Some((cached, evictions)) = self.pending_live_fanout.evaluation_memo.get_if(
@@ -9170,12 +9178,14 @@ impl LocalSnapback {
                 // DK-3's convergence pattern: every debug memo hit is checked
                 // against a fresh owner evaluation, while release builds skip
                 // the evaluation turn exactly as the mechanism requires.
-                let mut fresh = self.invoke_query_with_dependencies_prepared_generation(
-                    &subscription.function,
-                    input.clone(),
-                    authority,
-                    subscription.expected_generation.as_ref(),
-                )?;
+                let mut fresh = self
+                    .invoke_query_with_dependencies_prepared_generation_and_graph_lineage(
+                        &subscription.function,
+                        input.clone(),
+                        authority,
+                        subscription.expected_generation.as_ref(),
+                        retained_graph_window_ledgers,
+                    )?;
                 if let Some(graph) = fresh.graph_serving.as_mut() {
                     // Eligibility describes the subscription's immutable
                     // root-first-page shape, not the owner-injected ledger in
@@ -9214,11 +9224,12 @@ impl LocalSnapback {
         let mut result = if is_reserved_live_function(&subscription.function) {
             self.reserved_live_invocation(&authority, &subscription.function, &input)
         } else {
-            self.invoke_query_with_dependencies_prepared_generation(
+            self.invoke_query_with_dependencies_prepared_generation_and_graph_lineage(
                 &subscription.function,
                 input,
                 authority,
                 subscription.expected_generation.as_ref(),
+                retained_graph_window_ledgers,
             )
         }?;
 
@@ -13932,6 +13943,23 @@ impl LocalSnapback {
         authority: PreparedAuthority,
         expected_generation: Option<&ArtifactGeneration>,
     ) -> SnapbackResult<QueryInvocation> {
+        self.invoke_query_with_dependencies_prepared_generation_and_graph_lineage(
+            name,
+            input,
+            authority,
+            expected_generation,
+            None,
+        )
+    }
+
+    fn invoke_query_with_dependencies_prepared_generation_and_graph_lineage(
+        &self,
+        name: &str,
+        input: HandlerInput,
+        authority: PreparedAuthority,
+        expected_generation: Option<&ArtifactGeneration>,
+        retained_graph_window_ledgers: Option<&[crate::graph_evaluator::GraphWindowLedgerV1]>,
+    ) -> SnapbackResult<QueryInvocation> {
         self.validate_prepared_service_authority(&authority)?;
         let function = resolve_invocation_function(
             &self.function_generation_recovery_state,
@@ -13971,6 +13999,7 @@ impl LocalSnapback {
                     }),
                     self.graph_query_v1_target_declared.load(Ordering::Acquire),
                     self.graph_serving_authority_context(name),
+                    retained_graph_window_ledgers,
                     None,
                     None,
                     &self.runtime_cost.query_observation_recorder(),
@@ -22027,6 +22056,7 @@ impl LocalSnapback {
                             self.graph_serving_authority_context(name),
                             None,
                             None,
+                            None,
                             &self.runtime_cost.query_observation_recorder(),
                             if function.kind == FunctionKind::LiveQuery {
                                 QueryExecutionKindV1::LiveEstablishment
@@ -22720,7 +22750,7 @@ impl LocalSnapback {
             None
         };
 
-        let mut subscription_input = retained_authority.canonicalize_input(input.input);
+        let subscription_input = retained_authority.canonicalize_input(input.input);
         if matches!(
             function.runtime,
             FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(_))
@@ -22801,14 +22831,13 @@ impl LocalSnapback {
             },
             None => None,
         };
-        if let Some(previous_id) = superseded_subscription_id.as_ref()
-            && let Some(previous) = self.subscriptions.get(previous_id)
-            && let Some(graph) = previous.graph_serving.as_ref()
-        {
-            bind_server_graph_continuation(
-                &mut subscription_input,
-                &graph.evaluation.window_ledgers,
-            )?;
+        let retained_graph_window_ledgers = superseded_subscription_id
+            .as_ref()
+            .and_then(|previous_id| self.subscriptions.get(previous_id))
+            .and_then(|previous| previous.graph_serving.as_ref())
+            .map(|graph| graph.evaluation.window_ledgers.clone());
+        if let Some(retained) = retained_graph_window_ledgers.as_deref() {
+            validate_server_graph_continuation(&subscription_input, retained)?;
         }
         let release = usize::from(superseded_subscription_id.is_some());
 
@@ -22886,6 +22915,7 @@ impl LocalSnapback {
                         }),
                         self.graph_query_v1_target_declared.load(Ordering::Acquire),
                         self.graph_serving_authority_context(name),
+                        retained_graph_window_ledgers.as_deref(),
                         if proof_namespace
                             .as_ref()
                             .is_some_and(|namespace| namespace.query_key.starts_with("qmk1."))
@@ -24473,10 +24503,15 @@ impl LocalSnapback {
             let query = if is_reserved_live_function(&subscription.function) {
                 self.reserved_live_invocation(&rerun, &subscription.function, &rerun_input)?
             } else {
-                self.invoke_query_with_dependencies_prepared(
+                self.invoke_query_with_dependencies_prepared_generation_and_graph_lineage(
                     &subscription.function,
                     rerun_input,
                     rerun,
+                    None,
+                    subscription
+                        .graph_serving
+                        .as_ref()
+                        .map(|graph| graph.evaluation.window_ledgers.as_slice()),
                 )?
             };
             let permission_epochs = permission_epochs_from_dependencies(&query.read_dependencies);
@@ -35795,6 +35830,7 @@ impl ReadLane {
                             self.graph_query_v1_target_declared.load(Ordering::Acquire),
                             self.graph_serving_authority_context(name),
                             None,
+                            None,
                             Some(&vector_quarantine),
                             &self.query_observations,
                             QueryExecutionKindV1::Finite,
@@ -41467,8 +41503,6 @@ fn live_subscription_rerun_input(subscription: &LiveSubscription) -> SnapbackRes
             )
         })?;
     demand.prior_window_ledgers = graph.evaluation.window_ledgers.clone();
-    demand.prior_window_ledger_lineages =
-        crate::graph_evaluator::graph_window_ledger_lineages(&demand.prior_window_ledgers)?;
     *encoded = serde_json::to_value(demand).map_err(|error| {
         graph_serving_error(
             "SNAPBACK_GRAPH_DEMAND_INVALID",
@@ -41480,6 +41514,7 @@ fn live_subscription_rerun_input(subscription: &LiveSubscription) -> SnapbackRes
 
 fn graph_serving_demand(
     mut input: HandlerInput,
+    retained_window_ledgers: Option<&[crate::graph_evaluator::GraphWindowLedgerV1]>,
 ) -> SnapbackResult<(HandlerInput, crate::graph_evaluator::GraphServingDemandV1)> {
     let args = input.args.as_object_mut().ok_or_else(|| {
         graph_serving_error(
@@ -41508,21 +41543,49 @@ fn graph_serving_demand(
             "graph demand carrier has an unsupported format",
         ));
     }
-    crate::graph_evaluator::attach_graph_window_ledger_lineages(
-        &mut demand.prior_window_ledgers,
-        &demand.prior_window_ledger_lineages,
-    )?;
+    bind_server_retained_graph_lineage(&mut demand, retained_window_ledgers)?;
     Ok((input, demand))
 }
 
-fn bind_server_graph_continuation(
-    input: &mut HandlerInput,
+/// Bind caller-visible cumulative counters to the opaque lineage retained by
+/// the subscription registry. A non-empty continuation has no wire-carried
+/// lineage escape hatch: without this server-side channel it refuses.
+///
+/// @ref LLP 0209#24-plan-instance-and-contextual-materialization-identity —
+/// ledger counters cannot rotate or authenticate an otherwise equal lineage.
+fn bind_server_retained_graph_lineage(
+    demand: &mut crate::graph_evaluator::GraphServingDemandV1,
+    retained: Option<&[crate::graph_evaluator::GraphWindowLedgerV1]>,
+) -> SnapbackResult<()> {
+    if demand.prior_window_ledgers.is_empty() {
+        return Ok(());
+    }
+    let retained = retained.ok_or_else(|| {
+        graph_serving_error(
+            "SNAPBACK_GRAPH_CURSOR_UNBOUND",
+            "graph continuation has no server-retained ledger lineage",
+        )
+    })?;
+    if serde_json::to_value(&demand.prior_window_ledgers).ok()
+        != serde_json::to_value(retained).ok()
+    {
+        return Err(graph_serving_error(
+            "SNAPBACK_GRAPH_CURSOR_UNBOUND",
+            "superseding graph demand counters do not match the retained server lineage",
+        ));
+    }
+    demand.prior_window_ledgers = retained.to_vec();
+    Ok(())
+}
+
+fn validate_server_graph_continuation(
+    input: &HandlerInput,
     retained: &[crate::graph_evaluator::GraphWindowLedgerV1],
 ) -> SnapbackResult<()> {
     let Some(encoded) = input
         .args
-        .as_object_mut()
-        .and_then(|args| args.get_mut(crate::graph_evaluator::GRAPH_SERVING_DEMAND_ARG))
+        .as_object()
+        .and_then(|args| args.get(crate::graph_evaluator::GRAPH_SERVING_DEMAND_ARG))
     else {
         return Ok(());
     };
@@ -41533,27 +41596,7 @@ fn bind_server_graph_continuation(
                 format!("superseding graph demand carrier is invalid: {error}"),
             )
         })?;
-    if demand.prior_window_ledgers.is_empty() {
-        return Ok(());
-    }
-    if serde_json::to_value(&demand.prior_window_ledgers).ok()
-        != serde_json::to_value(retained).ok()
-    {
-        return Err(graph_serving_error(
-            "SNAPBACK_GRAPH_CURSOR_UNBOUND",
-            "superseding graph demand counters do not match the retained server lineage",
-        ));
-    }
-    demand.prior_window_ledgers = retained.to_vec();
-    demand.prior_window_ledger_lineages =
-        crate::graph_evaluator::graph_window_ledger_lineages(retained)?;
-    *encoded = serde_json::to_value(demand).map_err(|error| {
-        graph_serving_error(
-            "SNAPBACK_GRAPH_DEMAND_INVALID",
-            format!("superseding graph demand carrier could not be authenticated: {error}"),
-        )
-    })?;
-    Ok(())
+    bind_server_retained_graph_lineage(&mut demand, Some(retained))
 }
 
 fn graph_demand_is_root_first_page(
@@ -41840,6 +41883,7 @@ fn execute_query_invocation(
     cursor_authority: Option<RelationalCursorAuthority<'_>>,
     graph_query_v1_target_declared: bool,
     graph_authority_context: Option<GraphServingAuthorityContextV1>,
+    retained_graph_window_ledgers: Option<&[crate::graph_evaluator::GraphWindowLedgerV1]>,
     examined_entry_ceiling: Option<usize>,
     vector_quarantine: Option<&VectorQuarantineCapture>,
     query_observations: &QueryObservationRecorder,
@@ -41861,6 +41905,7 @@ fn execute_query_invocation(
                 cursor_authority,
                 graph_query_v1_target_declared,
                 graph_authority_context,
+                retained_graph_window_ledgers,
                 examined_entry_ceiling,
                 Some(capture),
                 query_observations,
@@ -41916,7 +41961,7 @@ fn execute_query_invocation(
                 "graph execution is disabled by the serving kill switch",
             ));
         }
-        let (input, demand) = graph_serving_demand(input)?;
+        let (input, demand) = graph_serving_demand(input, retained_graph_window_ledgers)?;
         (input, Some(demand))
     } else {
         (input, None)
