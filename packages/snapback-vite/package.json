@@ -81,6 +81,6 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node packed-password-relay.test.mjs && node dev-identity-relay.test.mjs && node package.test.mjs && node password-recovery-relay.test.mjs && node channel-a.test.mjs && node rqs-serializer.test.mjs && bun bun-relay.test.mjs"
+    "test": "node stale-descriptor.test.mjs && node packed-password-relay.test.mjs && node dev-identity-relay.test.mjs && node package.test.mjs && node password-recovery-relay.test.mjs && node channel-a.test.mjs && node rqs-serializer.test.mjs && bun bun-relay.test.mjs"
   }
 }

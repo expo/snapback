@@ -1,7 +1,8 @@
 # SNAPBACK_DEV_FIXED_PORT_STALE_LISTENER fires falsely on a stale descriptor with no OS listener
 
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-08-24
+**Resolved:** 2026-08-24
 **Systems:** CLI, Local server lifecycle, Diagnostics
 **Related:** LLP 0301, LLP 0306 (chip-away B11),
 `issues/closed/20260821-fixed-origin-external-client-dev-lifecycle.md`,
@@ -64,3 +65,16 @@ At sites 1 and 2, probe the port before choosing the diagnostic:
   `dev` and the Vite lifecycle re-emit
   (`packages/snapback-vite/lifecycle.mjs:505-512`).
 - Guide text for the code matches the narrowed meaning.
+
+## Resolution
+
+`verifyDevAttach` now probes the pinned loopback port before rewriting either
+descriptor-health or application-ready-receipt failures. An accepting port
+retains `SNAPBACK_DEV_FIXED_PORT_STALE_LISTENER`; a refusing port produces
+`SNAPBACK_DEV_FIXED_PORT_STALE_DESCRIPTOR` with the ready-file path and an
+exact remove-and-start-fresh remediation. Only `ECONNREFUSED` selects that
+diagnosis, and its text says the refusal was observed at probe time. A timeout
+or any other socket error preserves the descriptor and reports the existing
+`SNAPBACK_DEV_SERVER_ATTACH_FAILED` code with the probe error. CLI and Vite
+regressions cover refused, accepting, timeout, and other-error branches, and the
+two guide passages document the distinction.

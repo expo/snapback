@@ -424,9 +424,14 @@ inside or outside the range.
 Flags win over environment values. Supervisor-owned pins (`--client-port` and
 `--bootstrap-port`) are strict: an occupied pin refuses with
 `SNAPBACK_DEV_PORT_UNAVAILABLE`. The backend pin (`--port`) retains the
-receipt-verified `SNAPBACK_DEV_FIXED_PORT_STALE_LISTENER` refusal. A range with
-no remaining candidate refuses with `SNAPBACK_DEV_PORT_RANGE_EXHAUSTED`.
-Neither path adopts or signals the holder.
+receipt-verified `SNAPBACK_DEV_FIXED_PORT_STALE_LISTENER` refusal only when the
+port accepts connections. A leftover ready descriptor whose pinned port refuses
+the connection at probe time instead yields
+`SNAPBACK_DEV_FIXED_PORT_STALE_DESCRIPTOR` and names the descriptor to remove
+before starting fresh. A timeout or other socket error preserves the descriptor
+and yields `SNAPBACK_DEV_SERVER_ATTACH_FAILED`. A range with no remaining
+candidate refuses with `SNAPBACK_DEV_PORT_RANGE_EXHAUSTED`. Neither occupied-port
+path adopts or signals the holder.
 
 Final readiness, `expo-supervisor.json`, and `inspection()` expose `portPlan`
 with each owner, selected port, range/pin source, and flag/environment

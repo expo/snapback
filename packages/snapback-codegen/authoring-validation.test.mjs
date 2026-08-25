@@ -106,6 +106,34 @@ async function validCase({ schema = validSchema, functions, handlers = {} }) {
 
 {
   const diagnostics = await invalidCase({
+    schema: `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({
+  todos: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }).sync(),
+}, { requiredCapabilities: ['offline_mutation_replay'] });
+`,
+    functions: 'export {};\n',
+  });
+  const refusal = diagnostics.find(({ code }) => code === 'SNAPBACK_CAPABILITY_UNSUPPORTED');
+  assert(refusal, JSON.stringify(diagnostics));
+  assert.equal(refusal.capability, 'offline_mutation_replay');
+  assert.equal(
+    refusal.reason,
+    'authorability is withheld until settlement-ledger binding offers and queue-aware client admission land as one owned unit',
+  );
+  assert.deepEqual(refusal.vocabulary, {
+    targetFacts: 'registered',
+    authorableSet: 'intentionally-non-authorable',
+    bindingOffers: 'not-offered',
+    clientAdmission: 'not-admitted',
+  });
+  for (const label of ['target facts=', 'authorable set=', 'binding offers=', 'client admission=']) {
+    assert(refusal.message.includes(label), `missing ${label} from ${refusal.message}`);
+  }
+}
+
+{
+  const diagnostics = await invalidCase({
     functions: `
 import { defineAction } from '${defineUrl}';
 export const proposedButUnimplemented = defineAction({ runtime: { profile: 'isolated-node-action-v1' }, effects: ['delivery'] });
@@ -1098,7 +1126,7 @@ export default defineSchema({${tables}}, { ephemeral: defineEphemeral({${collect
 // Counterpart: src/ephemeral.rs:
 // tests::codegen_emitted_membership_projection_parses_and_activates_in_sessions.
 const CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_CANONICAL_SHA256 =
-  'd5e4c1a77ed620ace6a41c0d377d007eead53454c8272d65b58a8cf21f33c0fa';
+  '115caa6b485d5b2d02fa7d3e2e2af810499da5359351540a1955795983535f19';
 
 function canonicalJson(value) {
   const sort = (entry) => {

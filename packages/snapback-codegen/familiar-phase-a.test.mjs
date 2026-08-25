@@ -364,12 +364,12 @@ test('no-branch checker fails closed outside its exact sanctioned allowlist', ()
     [join(repoRoot, 'scripts', 'check-authoring-profile-branches.mjs')],
     { cwd: repoRoot, encoding: 'utf8' },
   );
-  assert.equal(live.status, 1, live.stderr);
+  assert.equal(live.status, 0, live.stderr);
   assert.match(
-    live.stderr,
-    /crates\/snapback-sync\/src\/ephemeral\.rs:\d+ reads authoringProfile/u,
+    live.stdout,
+    /\[authoring-profile-branches\] PASS: \d+ production files; \d+ allowlisted authoring-profile read\(s\)/u,
   );
-  assert.doesNotMatch(live.stderr, /ENOENT/u);
+  assert.equal(live.stderr, '');
 });
 
 test('generation emits normalized definition and profile custody; invalid policy is atomic', async () => {

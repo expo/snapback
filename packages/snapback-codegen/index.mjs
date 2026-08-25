@@ -1094,6 +1094,50 @@ const TARGET_CAPABILITY_IDS = new Set([
   'write_activity_v1',
   'vector_search_v1',
 ]);
+// @ref LLP 0307#track-t--tickets-filed-with-this-rfc — registry parity is
+// closed through reviewed exceptions, never by silently treating every
+// runtime capability id as a schema-authorable requirement.
+const INTENTIONALLY_NON_AUTHORABLE_TARGET_CAPABILITIES = new Map([
+  ['asset_image_finalization_v1', Object.freeze({
+    reason: 'image finalization is derived from typed asset intent policy so its target preflight cannot be bypassed by a free-form schema requirement',
+    bindingOffers: 'feature-derived-only',
+    clientAdmission: 'feature-derived-only',
+  })],
+  ['asset_image_pipeline_v1', Object.freeze({
+    reason: 'the image pipeline is derived from typed asset declarations so its media-policy preflight remains authoritative',
+    bindingOffers: 'feature-derived-only',
+    clientAdmission: 'feature-derived-only',
+  })],
+  ['asset_lifecycle_v1', Object.freeze({
+    reason: 'asset lifecycle requirements are derived from typed asset intents rather than free-form schema requirements',
+    bindingOffers: 'feature-derived-only',
+    clientAdmission: 'feature-derived-only',
+  })],
+  ['asset_reference_gc_v1', Object.freeze({
+    reason: 'reference GC is admitted only through schema assets.referenceGc and its target-bound grace-policy checks',
+    bindingOffers: 'feature-derived-only',
+    clientAdmission: 'feature-derived-only',
+  })],
+  ['asset_video_finalization_v1', Object.freeze({
+    reason: 'video finalization is derived from typed asset intent policy so its target preflight cannot be bypassed by a free-form schema requirement',
+    bindingOffers: 'feature-derived-only',
+    clientAdmission: 'feature-derived-only',
+  })],
+  ['offline_mutation_replay', Object.freeze({
+    reason: 'authorability is withheld until settlement-ledger binding offers and queue-aware client admission land as one owned unit',
+    bindingOffers: 'not-offered',
+    clientAdmission: 'not-admitted',
+  })],
+]);
+
+export function targetCapabilityAuthoringVocabularyCanonicalJson() {
+  return JSON.stringify({
+    authorable: [...TARGET_CAPABILITY_IDS].sort(),
+    intentionallyNonAuthorable: [...INTENTIONALLY_NON_AUTHORABLE_TARGET_CAPABILITIES]
+      .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
+      .map(([id, entry]) => ({ id, ...entry })),
+  });
+}
 // @ref LLP 0058#capability-maturity — mirror of the Rust registry's
 // non-stable maturity table (src/manifest.rs TargetCapabilityId::maturity).
 // @ref LLP 0134#9-acceptance — this mirror is checked byte-for-byte against
@@ -1884,9 +1928,26 @@ function validateAuthoredRequiredCapabilities(required, err) {
     return;
   }
   for (const capability of required) {
-    if (typeof capability !== 'string' || !TARGET_CAPABILITY_IDS.has(capability)) {
-      err('SNAPBACK_CAPABILITY_UNSUPPORTED', 'capability', `unknown required target capability ${String(capability)}`, { capability });
+    if (typeof capability === 'string' && TARGET_CAPABILITY_IDS.has(capability)) continue;
+    const withheld = typeof capability === 'string'
+      ? INTENTIONALLY_NON_AUTHORABLE_TARGET_CAPABILITIES.get(capability)
+      : undefined;
+    if (withheld !== undefined) {
+      const vocabulary = {
+        targetFacts: 'registered',
+        authorableSet: 'intentionally-non-authorable',
+        bindingOffers: withheld.bindingOffers,
+        clientAdmission: withheld.clientAdmission,
+      };
+      err(
+        'SNAPBACK_CAPABILITY_UNSUPPORTED',
+        'capability',
+        `required target capability ${capability} is intentionally non-authorable: ${withheld.reason}; capability vocabulary table: target facts=${vocabulary.targetFacts}; authorable set=${vocabulary.authorableSet}; binding offers=${vocabulary.bindingOffers}; client admission=${vocabulary.clientAdmission}`,
+        { capability, reason: withheld.reason, vocabulary },
+      );
+      continue;
     }
+    err('SNAPBACK_CAPABILITY_UNSUPPORTED', 'capability', `unknown required target capability ${String(capability)}`, { capability });
   }
 }
 

@@ -118,6 +118,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'dev-identity-relay.test.mjs',
       'packed-password-relay.test.mjs',
       'package.test.mjs',
+      'stale-descriptor.test.mjs',
       'password-recovery-relay.test.mjs',
       'rqs-serializer.test.mjs',
     ],
@@ -436,6 +437,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'stored-enum-authoring.test.mjs',
       'structured-stored-values.test.mjs',
       'table-visibility-authoring.test.mjs',
+      'target-capability-authoring-parity.test.mjs',
       'typed-search-wrapper.test.mjs',
       'typescript-profile.test.mjs',
       'vector-authoring.test.mjs',
@@ -595,7 +597,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 349,
+  expectedTotal = 351,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1111,6 +1113,9 @@ export function checkPackageTestInventories(options = {}) {
 // packed Explicit + Familiar declared-refusal preservation proof.
 // 348 -> 349 (2026-08-24, LLP 0267 §7.5-7.6 Lane C): @expo/snapback-client
 // gains the equivalent-work / multiplicity diagnostics proof.
+// 349 -> 351 (2026-08-24, LLP 0307 Lane F): @expo/snapback-vite gains the
+// stale-descriptor tri-state re-emit proof and @expo/snapback-codegen gains
+// the target-capability authoring parity gate.
 // LLP 0300 nine-row acceptance traceability (0301 §8 set-level table):
 // 1 cold bring-up -> templates/*/acceptance.mjs + declared-dev-episode.test.mjs;
 // 2 two principals -> declared-dev-episode.test.mjs; 3 forwards/tunnel/rebinding

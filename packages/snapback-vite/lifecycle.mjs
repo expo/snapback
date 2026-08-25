@@ -139,6 +139,42 @@ function normalizeSetup(setup, projectRoot) {
   };
 }
 
+function autoAttachFailureEvent(error, readyFile) {
+  if (error?.code === 'SNAPBACK_DEV_FIXED_PORT_STALE_DESCRIPTOR') {
+    return {
+      event: 'diagnostic',
+      code: error.code,
+      severity: 'error',
+      message: 'auto mode found a ready descriptor whose pinned port refused a connection at probe time; remove the named descriptor and retry to start fresh',
+      readyFile,
+    };
+  }
+  if (error?.code === 'SNAPBACK_DEV_FIXED_PORT_STALE_LISTENER') {
+    return {
+      event: 'diagnostic',
+      code: error.code,
+      severity: 'error',
+      message: 'auto mode refuses an occupied port without removing or replacing its unverified lifecycle',
+      readyFile,
+    };
+  }
+  if (
+    error?.code === 'SNAPBACK_DEV_SERVER_ATTACH_FAILED'
+    && error?.diagnostic?.details?.probeState === 'indeterminate'
+  ) {
+    const probeError = error.diagnostic.details.probeError ?? 'UNKNOWN_SOCKET_ERROR';
+    return {
+      event: 'diagnostic',
+      code: error.code,
+      severity: 'error',
+      message: `auto mode could not determine whether the pinned port has a listener because the probe failed with ${probeError}; the ready descriptor was preserved`,
+      readyFile,
+      probeError,
+    };
+  }
+  return null;
+}
+
 async function probeHealth(serverUrl) {
   try {
     const response = await fetch(`${serverUrl.replace(/\/$/, '')}/health`);
@@ -502,14 +538,9 @@ export function createSnapbackViteLifecycle(options = {}) {
         try {
           await attachTo({ shape: 'attach' });
         } catch (error) {
-          if (error?.code !== 'SNAPBACK_DEV_FIXED_PORT_STALE_LISTENER') throw error;
-          emit({
-            event: 'diagnostic',
-            code: 'SNAPBACK_DEV_FIXED_PORT_STALE_LISTENER',
-            severity: 'error',
-            message: 'auto mode refuses a stale descriptor without removing or replacing its unverified lifecycle',
-            readyFile,
-          });
+          const event = autoAttachFailureEvent(error, readyFile);
+          if (event === null) throw error;
+          emit(event);
           throw error;
         }
       } else {
@@ -616,3 +647,5 @@ export function createSnapbackViteLifecycle(options = {}) {
     state: publicState,
   };
 }
+
+export const __test = { autoAttachFailureEvent };

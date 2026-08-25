@@ -59,6 +59,9 @@ export function storedStructuredContractHash(
 /** Canonical sorted projection of Rust's registry-owned experimental ids. */
 export function experimentalTargetCapabilityIdsCanonicalJson(): string;
 
+/** Test-only canonical projection of schema-authorable registry ids and reviewed exceptions. */
+export function targetCapabilityAuthoringVocabularyCanonicalJson(): string;
+
 /**
  * Validates the closed, server-prepared trust root before codegen publishes it.
  * The returned value is the same candidate, preserving its caller-known shape.

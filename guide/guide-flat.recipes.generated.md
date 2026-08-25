@@ -3395,9 +3395,15 @@ before it changes the listener. A stale listener or wrong binding refuses
 without adopting, killing, or replacing the process. An expired binding on an
 otherwise matching cut is reissued rather than treated as a foreign child.
 Closing an attached handle never shuts down the original owner's child.
-`SNAPBACK_DEV_FIXED_PORT_STALE_LISTENER` names an occupied port without the
-intended receipt-bound lifecycle; `SNAPBACK_DEV_FIXED_BINDING_MISMATCH` names
-a live lifecycle whose admitted binding facts differ from the request; and
+`SNAPBACK_DEV_FIXED_PORT_STALE_LISTENER` means the port actually accepts
+connections but does not expose the intended receipt-bound lifecycle.
+`SNAPBACK_DEV_FIXED_PORT_STALE_DESCRIPTOR` instead means the ready descriptor
+appears stale because the pinned port refused the connection at probe time;
+remove the named descriptor and rerun `snapback dev` without `--attach` to start
+fresh. A timeout or any other socket error preserves the descriptor and reports
+`SNAPBACK_DEV_SERVER_ATTACH_FAILED` with the underlying probe error.
+`SNAPBACK_DEV_FIXED_BINDING_MISMATCH` names a live lifecycle whose admitted
+binding facts differ from the request, and
 `SNAPBACK_DEV_APPLICATION_READY_STALE` names a same-host receipt that differs
 from live application or authority facts.
 

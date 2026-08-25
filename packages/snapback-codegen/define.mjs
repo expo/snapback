@@ -369,6 +369,17 @@ const TARGET_CAPABILITIES = new Set([
   'write_activity_v1',
   'vector_search_v1',
 ]);
+// These registry ids remain non-authorable. Passing them through definition
+// evaluation lets the generator emit its reviewed four-layer vocabulary table
+// instead of collapsing them into the generic definition assertion.
+const TARGET_CAPABILITY_DIAGNOSTIC_IDS = new Set([
+  'asset_image_finalization_v1',
+  'asset_image_pipeline_v1',
+  'asset_lifecycle_v1',
+  'asset_reference_gc_v1',
+  'asset_video_finalization_v1',
+  'offline_mutation_replay',
+]);
 const SEARCH_INDEX_SPEC_FIELDS = new Set([
   'semanticVersion', 'textFields', 'fieldClassifications', 'equalityFilters', 'storedFields',
   'highlightFields', 'visibility', 'sourceLimits', 'queryLimits',
@@ -2552,7 +2563,10 @@ export function defineSchema(tables, options = {}) {
   if (options.requiredCapabilities !== undefined) {
     assert(Array.isArray(options.requiredCapabilities), 'defineSchema requiredCapabilities must be an array');
     for (const capability of options.requiredCapabilities) {
-      assert(TARGET_CAPABILITIES.has(capability), `unknown required target capability ${String(capability)}`);
+      assert(
+        TARGET_CAPABILITIES.has(capability) || TARGET_CAPABILITY_DIAGNOSTIC_IDS.has(capability),
+        `unknown required target capability ${String(capability)}`,
+      );
     }
   }
   // @ref LLP 0044#deletion-retention-and-garbage-collection — reference GC

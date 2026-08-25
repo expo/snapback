@@ -3862,20 +3862,76 @@ export function writeDevEnvironmentFile(path, {
   });
 }
 
-function loopbackPortAcceptsConnections(port) {
+function probeLoopbackPortConnection(port) {
   return new Promise((resolveProbe) => {
     const socket = createConnection({ host: '127.0.0.1', port });
     let settled = false;
-    const settle = (listening) => {
+    const settle = (result) => {
       if (settled) return;
       settled = true;
       socket.destroy();
-      resolveProbe(listening);
+      resolveProbe(Object.freeze(result));
     };
-    socket.setTimeout(500, () => settle(false));
-    socket.once('connect', () => settle(true));
-    socket.once('error', () => settle(false));
+    socket.setTimeout(500, () => settle({ state: 'indeterminate', error: 'ETIMEDOUT' }));
+    socket.once('connect', () => settle({ state: 'accepting' }));
+    socket.once('error', (error) => settle(
+      error?.code === 'ECONNREFUSED'
+        ? { state: 'refused', error: 'ECONNREFUSED' }
+        : { state: 'indeterminate', error: error?.code ?? error?.message ?? 'UNKNOWN_SOCKET_ERROR' },
+    ));
   });
+}
+
+async function fixedPortAttachFailure(error, {
+  fixedPort,
+  readyFile,
+  applicationReadyFile = null,
+  message,
+  probePort = probeLoopbackPortConnection,
+}) {
+  const probe = await probePort(fixedPort);
+  if (probe.state === 'accepting') {
+    return diagnosticError(
+      'SNAPBACK_DEV_FIXED_PORT_STALE_LISTENER',
+      message,
+      {
+        port: fixedPort,
+        readyFile,
+        ...(applicationReadyFile === null ? {} : { applicationReadyFile }),
+        cause: error.code ?? 'SNAPBACK_DEV_SERVER_ATTACH_FAILED',
+        supportedProfile: 'snapback dev --port <backend-port> --external-client-origin <client-origin>',
+        safety: 'the listener was not adopted or terminated',
+      },
+    );
+  }
+  if (probe.state !== 'refused' || probe.error !== 'ECONNREFUSED') {
+    const probeError = probe.error ?? 'UNKNOWN_SOCKET_ERROR';
+    return diagnosticError(
+      'SNAPBACK_DEV_SERVER_ATTACH_FAILED',
+      `the pinned host descriptor could not be verified, and the loopback port probe was indeterminate (${probeError}); preserving the descriptor`,
+      {
+        port: fixedPort,
+        readyFile,
+        ...(applicationReadyFile === null ? {} : { applicationReadyFile }),
+        cause: error.code ?? 'SNAPBACK_DEV_SERVER_ATTACH_FAILED',
+        probeState: 'indeterminate',
+        probeError,
+        safety: 'the descriptor was preserved and no listener was adopted or terminated',
+      },
+    );
+  }
+  return diagnosticError(
+    'SNAPBACK_DEV_FIXED_PORT_STALE_DESCRIPTOR',
+    `the pinned host descriptor appears stale; connection to port ${fixedPort} was refused at probe time`,
+    {
+      port: fixedPort,
+      readyFile,
+      ...(applicationReadyFile === null ? {} : { applicationReadyFile }),
+      cause: error.code ?? 'SNAPBACK_DEV_SERVER_ATTACH_FAILED',
+      remediation: `remove the stale ready descriptor ${readyFile} and rerun snapback dev without --attach to start fresh`,
+      safety: 'the connection was refused at probe time, so nothing was adopted or terminated',
+    },
+  );
 }
 
 async function probeLoopbackPort(port) {
@@ -5571,17 +5627,11 @@ export async function verifyDevAttach({
     await validateReadyDescriptorHealth(descriptor);
   } catch (error) {
     if (fixedPort !== null) {
-      throw diagnosticError(
-        'SNAPBACK_DEV_FIXED_PORT_STALE_LISTENER',
-        'the pinned host descriptor does not identify a live receipt-verifiable Snapback listener',
-        {
-          port: fixedPort,
-          readyFile,
-          cause: error.code ?? 'SNAPBACK_DEV_SERVER_ATTACH_FAILED',
-          supportedProfile: 'snapback dev --port <backend-port> --external-client-origin <client-origin>',
-          safety: 'the listener was not adopted or terminated',
-        },
-      );
+      throw await fixedPortAttachFailure(error, {
+        fixedPort,
+        readyFile,
+        message: 'the pinned host descriptor does not identify a receipt-verifiable Snapback listener, but the port accepts connections',
+      });
     }
     throw error;
   }
@@ -5590,18 +5640,12 @@ export async function verifyDevAttach({
     receipt = readApplicationReadyReceipt(applicationReadyFile);
   } catch (error) {
     if (fixedPort !== null) {
-      throw diagnosticError(
-        'SNAPBACK_DEV_FIXED_PORT_STALE_LISTENER',
-        'the pinned Snapback origin has no verifiable application-ready owner receipt',
-        {
-          port: fixedPort,
-          readyFile,
-          applicationReadyFile,
-          cause: error.code ?? 'SNAPBACK_DEV_APPLICATION_READY_INVALID',
-          supportedProfile: 'snapback dev --port <backend-port> --external-client-origin <client-origin>',
-          safety: 'the listener was not adopted or terminated',
-        },
-      );
+      throw await fixedPortAttachFailure(error, {
+        fixedPort,
+        readyFile,
+        applicationReadyFile,
+        message: 'the pinned Snapback origin accepts connections but has no verifiable application-ready owner receipt',
+      });
     }
     throw error;
   }
@@ -5981,7 +6025,10 @@ export async function runDev(options = {}) {
     if (options.attach === true) {
       throw diagnosticError('SNAPBACK_DEV_READY_FILE_REQUIRED', `--attach requires ${readyFile}`, { readyFile });
     }
-    if (fixedPort !== null && await loopbackPortAcceptsConnections(fixedPort)) {
+    if (
+      fixedPort !== null
+      && (await probeLoopbackPortConnection(fixedPort)).state === 'accepting'
+    ) {
       throw diagnosticError(
         'SNAPBACK_DEV_FIXED_PORT_STALE_LISTENER',
         `port ${fixedPort} is already occupied without the requested receipt-bound Snapback lifecycle`,
@@ -9145,6 +9192,7 @@ export const __test = {
   devBackendUrls,
   devIdentityClientEnvironment,
   expectedActivationTargetFromActivation,
+  fixedPortAttachFailure,
   loadGenerated,
   portFromUrl,
   readLegacyApplicationReadyReceipt,

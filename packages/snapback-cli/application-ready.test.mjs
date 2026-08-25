@@ -86,6 +86,7 @@ function readReceipt(path = applicationReadyFile) {
     'appDataAvailability',
     'desiredMode',
     'modeState',
+    'sessionActivationReady',
   ]);
   assert.equal(statSync(path).mode & 0o777, 0o600);
   assert.equal(receipt.binding.format, 'snapback.app-binding.v1');
@@ -327,10 +328,88 @@ try {
       && error.diagnostic.details.recordedAdmissionContract.clientOrigins.includes(clientOrigin),
   );
   assert.equal(readReadyDescriptor(readyFile).startupNonce, fixedNonce);
+
+  // A healthy listener whose application-ready receipt is absent exercises
+  // the second fixed-port rewrite site. The port probe keeps this classified
+  // as an occupied, unverified listener rather than a stale descriptor.
+  const liveReadyDescriptor = readReadyDescriptor(readyFile);
+  const liveReceiptBytes = readFileSync(applicationReadyFile, 'utf8');
+  rmSync(applicationReadyFile);
+  await assert.rejects(
+    () => runDev({
+      backendDirectory: backendRoot,
+      projectRoot,
+      readyFile,
+      database,
+      runtimeBinary,
+      port: fixedPort,
+      externalClientOrigin: clientOrigin,
+      env: fixedEnvironment,
+      attach: true,
+      watch: false,
+      serverStdio: ['ignore', 'ignore', 'ignore'],
+    }),
+    (error) => error.code === 'SNAPBACK_DEV_FIXED_PORT_STALE_LISTENER'
+      && error.diagnostic.details.cause === 'SNAPBACK_DEV_APPLICATION_READY_REQUIRED',
+  );
+  writeFileSync(applicationReadyFile, liveReceiptBytes, { mode: 0o600 });
   await fixedAttach.close();
   handles.splice(handles.indexOf(fixedAttach), 1);
   await fixedOwner.close();
   handles.splice(handles.indexOf(fixedOwner), 1);
+
+  // A dead process can leave a syntactically valid descriptor behind. When
+  // the pinned port refuses the connection at probe time, the diagnostic
+  // names the descriptor and exact remediation without inventing a listener.
+  const deadReadyFile = join(stateRoot, 'dead.ready.json');
+  const deadApplicationReadyFile = `${deadReadyFile}.application-ready`;
+  writeFileSync(deadReadyFile, `${JSON.stringify(liveReadyDescriptor, null, 2)}\n`, { mode: 0o600 });
+  await assert.rejects(
+    () => runDev({
+      backendDirectory: backendRoot,
+      projectRoot,
+      readyFile: deadReadyFile,
+      applicationReadyFile: deadApplicationReadyFile,
+      database,
+      runtimeBinary,
+      port: fixedPort,
+      externalClientOrigin: clientOrigin,
+      env: fixedEnvironment,
+      attach: true,
+      watch: false,
+      serverStdio: ['ignore', 'ignore', 'ignore'],
+    }),
+    (error) => error.code === 'SNAPBACK_DEV_FIXED_PORT_STALE_DESCRIPTOR'
+      && error.diagnostic.details.readyFile === deadReadyFile
+      && error.message.includes('at probe time')
+      && error.diagnostic.details.remediation.includes('rerun snapback dev without --attach'),
+  );
+  assert.equal(existsSync(deadReadyFile), true, 'attach refusal leaves the stale descriptor for explicit remediation');
+
+  // A timeout or any non-refusal socket error leaves the port state unknown.
+  // Neither branch may prescribe removal of a descriptor that could still
+  // identify a live but backlogged listener.
+  for (const probeError of ['ETIMEDOUT', 'EACCES']) {
+    const indeterminate = await __test.fixedPortAttachFailure(
+      Object.assign(new Error('application receipt unavailable'), {
+        code: 'SNAPBACK_DEV_APPLICATION_READY_REQUIRED',
+      }),
+      {
+        fixedPort,
+        readyFile: deadReadyFile,
+        applicationReadyFile: deadApplicationReadyFile,
+        message: 'unused accepting-listener message',
+        probePort: async () => ({ state: 'indeterminate', error: probeError }),
+      },
+    );
+    assert.equal(indeterminate.code, 'SNAPBACK_DEV_SERVER_ATTACH_FAILED');
+    assert.equal(indeterminate.diagnostic.details.probeError, probeError);
+    assert.equal(indeterminate.diagnostic.details.cause, 'SNAPBACK_DEV_APPLICATION_READY_REQUIRED');
+    assert.match(indeterminate.message, new RegExp(probeError));
+    assert.doesNotMatch(indeterminate.message, /remove/u);
+    assert.equal(existsSync(deadReadyFile), true, `${probeError} preserves the ready descriptor`);
+  }
+  rmSync(deadReadyFile, { force: true });
 
   // A listener with no receipt-bound lifecycle is a typed refusal and is
   // still accepting connections after Snapback declines it.
