@@ -190,11 +190,14 @@ function functionLocalBindings(fn, ownTopLevelName = null) {
   };
 }
 
+function isContextIdentifier(node, contextNames) {
+  return node?.type === 'Identifier' && contextNames.has(node.name);
+}
+
 function isContextDbObject(member, contextNames) {
   return member?.type === 'MemberExpression'
     && memberName(member) === 'db'
-    && member.object?.type === 'Identifier'
-    && contextNames.has(member.object.name);
+    && isContextIdentifier(member.object, contextNames);
 }
 
 function isContextDbMember(member, contextNames) {
@@ -291,6 +294,7 @@ export function scanGenericWriteSites(
   let selectedOperationRoot = null;
   const topLevelHelpers = new Map();
   const ambiguousTopLevelHelpers = new Set();
+  const mutableTopLevelHelpers = new Set();
   const addTopLevelHelper = (name, node) => {
     if (!name || !FUNCTION_NODE_TYPES.has(node?.type)) return;
     if (topLevelHelpers.has(name)) ambiguousTopLevelHelpers.add(name);
@@ -305,6 +309,11 @@ export function scanGenericWriteSites(
       for (const declarator of declaration.declarations ?? []) {
         if (declarator.id?.type === 'Identifier') {
           addTopLevelHelper(declarator.id.name, declarator.init);
+          // @ref LLP 0274#sound-operation-census — let/var helper bindings are
+          // reassignable, so following their initializer is not an exact proof.
+          if (declaration.kind !== 'const' && FUNCTION_NODE_TYPES.has(declarator.init?.type)) {
+            mutableTopLevelHelpers.add(declarator.id.name);
+          }
         }
       }
     }
@@ -366,16 +375,11 @@ export function scanGenericWriteSites(
       enqueueFunction(node, { capturedContextNames: state.contextNames });
       return;
     }
-    if (node.type === 'VariableDeclarator'
-      && patternCapturesDb(node.id)
-      && node.init?.type === 'Identifier'
-      && state.contextNames.has(node.init.name)) {
-      opaque = true;
-    }
-    if (node.type === 'AssignmentExpression'
-      && patternCapturesDb(node.left)
-      && node.right?.type === 'Identifier'
-      && state.contextNames.has(node.right.name)) {
+    // @ref LLP 0274#sound-operation-census — any binding initialized from a
+    // context parameter is an escaped ctx; exact census cannot follow it.
+    if ((node.type === 'VariableDeclarator' && isContextIdentifier(node.init, state.contextNames))
+      || (node.type === 'AssignmentExpression' && isContextIdentifier(node.right, state.contextNames))
+      || (node.type === 'AssignmentPattern' && isContextIdentifier(node.right, state.contextNames))) {
       opaque = true;
     }
     if (node.type === 'CallExpression' && node.callee?.type === 'Identifier') {
@@ -384,6 +388,8 @@ export function scanGenericWriteSites(
         if (state.localBindings.has(helperName)) {
           opaque = true;
         } else if (ambiguousTopLevelHelpers.has(helperName)) {
+          opaque = true;
+        } else if (mutableTopLevelHelpers.has(helperName)) {
           opaque = true;
         } else {
           const helper = topLevelHelpers.get(helperName);
@@ -436,6 +442,14 @@ export function scanGenericWriteSites(
       const selectedMember = parent?.type === 'MemberExpression' && parent.object === node;
       if (!selectedMember) opaque = true;
     }
+    // @ref LLP 0274#sound-operation-census — computed members on ctx are not
+    // statically bound `ctx.db.<form>` calls; unresolved keys must be opaque.
+    if (node.type === 'MemberExpression'
+      && isContextIdentifier(node.object, state.contextNames)
+      && node.computed
+      && memberName(node) === null) {
+      opaque = true;
+    }
     for (const value of Object.values(node)) {
       if (Array.isArray(value)) {
         for (const child of value) {
@@ -451,6 +465,7 @@ export function scanGenericWriteSites(
       parameterContextNames: parameterContext(selectedOperationRoot.params?.[0]),
     });
   } else if (topLevelHelpers.has(operation) && !ambiguousTopLevelHelpers.has(operation)) {
+    if (mutableTopLevelHelpers.has(operation)) opaque = true;
     const root = topLevelHelpers.get(operation);
     enqueueFunction(root, {
       parameterContextNames: parameterContext(root.params?.[0]),
@@ -487,7 +502,10 @@ export function scanGenericWriteSites(
   const uniqueSites = new Map(sites.map((site) => [site.siteId, site]));
   sites.length = 0;
   sites.push(...uniqueSites.values());
-  // @ref LLP 0264#d9-authorization-review-projection — follow only statically named top-level helper edges from the selected handler.
+  // @ref LLP 0264#d9-authorization-review-projection — follow only statically
+  // named const top-level helper edges from the selected handler.
+  // @ref LLP 0274#sound-operation-census — escaped ctx, computed members, and
+  // reassignable helpers are opaque absent a sound proof.
   return {
     sites: sites.sort((left, right) => compareText(left.siteId, right.siteId)),
     opaque,

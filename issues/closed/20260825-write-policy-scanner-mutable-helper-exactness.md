@@ -1,6 +1,6 @@
 # Write-policy scanner: mutable helper bindings accepted as exact without reassignment analysis
 
-**Status:** Open
+**Status:** Resolved
 **Systems:** Authorization, Code generation
 **Date:** 2026-08-25
 **Related:** LLP 0274 (census exactness requires proof; unresolved call
@@ -47,3 +47,17 @@ current acceptance.
 ## Owner
 
 The LLP 0274 implementation program's scanner soundness audit.
+
+## Resolution
+
+Resolved 2026-08-25 in `packages/snapback-codegen/write-policy.mjs`.
+
+Exact helper following is now restricted to `const` bindings (and
+function declarations). A call to a top-level `let` or `var`
+function-valued helper — or selecting such a binding as the operation
+root — marks the module `opaque` and does not treat the initializer as
+proven. The pinning test now asserts `opaque-module` for `let`/`var` and
+keeps `exact-static` only for `const`.
+
+This is the write-policy JavaScript census (LLP 0274 D6), not LLP 0284's
+Rust privilege-surface scanner or the durable-effect sink census.

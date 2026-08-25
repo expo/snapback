@@ -1,6 +1,6 @@
 # Write-policy scanner: aliased/computed receivers produce neither a site nor an opaque marker
 
-**Status:** Open
+**Status:** Resolved
 **Systems:** Authorization, Code generation
 **Date:** 2026-08-25
 **Related:** LLP 0274 (write-operation census: escaped contexts, computed
@@ -58,3 +58,22 @@ site-bearing) outcome — never exact-empty.
 
 The LLP 0274 implementation program's scanner soundness audit (these
 holes are that audit's named starting set).
+
+## Resolution
+
+Resolved 2026-08-25 in `packages/snapback-codegen/write-policy.mjs`.
+
+`scanGenericWriteSites` now marks the module `opaque` when a binding is
+initialized or assigned from a context identifier (`const alias = ctx`,
+`alias = ctx`) and when a computed member on a context identifier has no
+statically resolved string key (`ctx[key].insert(...)`). Static computed
+paths that already resolve (`ctx["db"].insert(...)`) stay exact.
+
+Without `opaqueWritePosture: conservative-v1`, those shapes now refuse
+as `SNAPBACK_TABLE_WRITE_UNCOMPOSED_SURFACE` with `opaque-module`
+resolution; they no longer project an exact-empty census. Regression
+coverage is in `write-policy.test.mjs` ("aliased context and computed
+context members are opaque, never exact-empty").
+
+This is the write-policy JavaScript census (LLP 0274 D6), not LLP 0284's
+Rust privilege-surface scanner or the durable-effect sink census.

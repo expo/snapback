@@ -373,6 +373,67 @@ test('whole ctx.db aliases, destructuring, and pass-through project opaque opera
   }
 });
 
+test('aliased context and computed context members are opaque, never exact-empty', () => {
+  const sources = [
+    `globalThis.__snapbackHandlers = {
+      escape: async (ctx) => {
+        const alias = ctx;
+        return alias.db.insert('todos', {});
+      },
+    };`,
+    `globalThis.__snapbackHandlers = {
+      escape: async (ctx) => {
+        let alias;
+        alias = ctx;
+        return alias.db.insert('todos', {});
+      },
+    };`,
+    `globalThis.__snapbackHandlers = {
+      escape: async (ctx, args) => ctx[args.key].insert('todos', {}),
+    };`,
+    `globalThis.__snapbackHandlers = {
+      escape: async (ctx, args) => {
+        const alias = ctx;
+        return alias[args.key].insert('todos', {});
+      },
+    };`,
+  ];
+  for (const source of sources) {
+    const census = scanGenericWriteSites(source, 'escape');
+    assert.equal(census.opaque, true);
+    const fn = jsMutation('escape', source, {
+      handlerForm: 'module',
+      opaqueWritePosture: 'conservative-v1',
+      declaredTableCeiling: ['todos'],
+    });
+    const result = buildWritePolicyChecks({
+      tables: { todos: ownerTable() }, functions: [fn], sourceFunctions: [fn], err: errorSink,
+    });
+    assert.equal(result.rows.length, 1);
+    assert.equal(result.rows[0].siteResolution, 'opaque-module');
+    assert.equal(result.rows[0].writeForm, 'opaque');
+  }
+
+  const staticComputed = scanGenericWriteSites(`globalThis.__snapbackHandlers = {
+    inspect: async (ctx) => ctx["db"].insert('todos', {}),
+  };`, 'inspect');
+  assert.equal(staticComputed.opaque, false);
+  assert.equal(staticComputed.sites.length, 1);
+  assert.equal(staticComputed.sites[0].writeForm, 'insert');
+
+  const silent = jsMutation('escape', sources[0], { handlerForm: 'module' });
+  assert.throws(
+    () => buildWritePolicyChecks({
+      tables: { todos: ownerTable() },
+      functions: [silent],
+      sourceFunctions: [silent],
+      err: errorSink,
+    }),
+    ({ code, details }) => code === 'SNAPBACK_TABLE_WRITE_UNCOMPOSED_SURFACE'
+      && details.candidateWritePolicyCheck.siteResolution === 'opaque-module',
+  );
+});
+
 test('module census follows a registered handler into a top-level helper', () => {
   const source = `
 async function insertTodo(ctx, title) {
@@ -391,26 +452,47 @@ globalThis.__snapbackHandlers = {
   assert.equal(result.rows[0].sourceEvidence.line, 3);
 });
 
-test('module census follows top-level variable helpers with function-valued initializers', () => {
-  const sources = [
-    `const persist = (context, title) => context.db.insert('todos', { title });`,
+test('module census follows top-level const helpers with function-valued initializers', () => {
+  const source = `
+const persist = (context, title) => context.db.insert('todos', { title });
+globalThis.__snapbackHandlers = {
+  createTodo: async (ctx, args) => persist(ctx, args.title),
+};
+`;
+  const fn = jsMutation('createTodo', source, { handlerForm: 'module' });
+  const result = buildWritePolicyChecks({
+    tables: { todos: ownerTable() }, functions: [fn], sourceFunctions: [fn], err: errorSink,
+  });
+  assert.equal(result.rows.length, 1);
+  assert.equal(result.rows[0].siteResolution, 'exact-static');
+  assert.equal(result.rows[0].writeForm, 'insert');
+});
+
+test('module census demotes reassignable let/var helpers from exact-static to opaque', () => {
+  const helpers = [
     `let persist = function save(context, title) {
        return context.db.insert('todos', { title });
      };`,
     `var persist = async (context, title) => context.db.insert('todos', { title });`,
   ];
-  for (const helper of sources) {
+  for (const helper of helpers) {
     const source = `${helper}
       globalThis.__snapbackHandlers = {
         createTodo: async (ctx, args) => persist(ctx, args.title),
       };`;
-    const fn = jsMutation('createTodo', source, { handlerForm: 'module' });
+    const census = scanGenericWriteSites(source, 'createTodo');
+    assert.equal(census.opaque, true);
+    const fn = jsMutation('createTodo', source, {
+      handlerForm: 'module',
+      opaqueWritePosture: 'conservative-v1',
+      declaredTableCeiling: ['todos'],
+    });
     const result = buildWritePolicyChecks({
       tables: { todos: ownerTable() }, functions: [fn], sourceFunctions: [fn], err: errorSink,
     });
     assert.equal(result.rows.length, 1);
-    assert.equal(result.rows[0].siteResolution, 'exact-static');
-    assert.equal(result.rows[0].writeForm, 'insert');
+    assert.equal(result.rows[0].siteResolution, 'opaque-module');
+    assert.equal(result.rows[0].writeForm, 'opaque');
   }
 });
 
