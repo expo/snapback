@@ -9,4 +9,8 @@ export {
   issueListMatrixAssignee,
   issueListMatrixLabelsAll,
   issueListMatrixCombined,
+  issueListWindowsAssigneeAsc,
+  issueListWindowsAssigneeDesc,
+  issueListWindowsAssigneeBefore,
+  issueDetailTwoWay,
 } from './filter-order-queries.generated.mjs';

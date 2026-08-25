@@ -19,6 +19,7 @@ use snapback::auth::invalidation::QueryNamespace;
 use snapback::live_matcher::{
     GraphNodeMatchDispositionV1, LiveMatchOutcome,
     live_subscription_match_decision_with_graph_registration, live_subscription_match_outcome,
+    row_matches_query_filters,
 };
 use snapback::local::{GraphServingAuthorityContextV1, LiveSubscribeInput, LocalSnapback};
 use snapback::manifest::*;
@@ -50,6 +51,8 @@ const PROVER_DISPOSITIONS_FILE: &str =
     "tests/conformance/graph/broadcast-prover-dispositions.v1.json";
 const PAIRED_FIXTURES_FILE: &str = "tests/conformance/graph/paired-world-fixtures.v1.json";
 const FILTER_ORDER_FIXTURE_FILE: &str = "tests/conformance/graph/filter-order-fixture.v1.json";
+const TWO_WAY_OBSERVATIONS_FILE: &str =
+    "tests/conformance/graph/two-way-window-observations.v1.json";
 const RUNTIME_CAPTURES_FILE: &str = "tests/conformance/graph/runtime-captures.g2-b.v1.json";
 const MATCH_DISPOSITIONS_FILE: &str = "tests/conformance/graph/match-dispositions.v1.json";
 const SERVED_OBSERVATIONS_FILE: &str = "tests/conformance/graph/served-observations.g2-c.v1.json";
@@ -267,6 +270,11 @@ fn graph_index_manifest(table: &str, declared_fields: &BTreeSet<String>) -> Vec<
             (
                 "by_matrix_project_created",
                 &["projectID", "created"],
+                false,
+            ),
+            (
+                "by_matrix_project_assignee_order",
+                &["projectID", "assigneeID"],
                 false,
             ),
             (
@@ -1709,6 +1717,18 @@ fn filter_order_carriers(
             .expect("filter/order queries")
             .iter(),
     )
+}
+
+fn two_way_carriers(
+    snapback: &LocalSnapback,
+    corpus: &Value,
+    query: &str,
+) -> Vec<(String, GraphQueryCarrierV1, FunctionDefinition)> {
+    let rows = [json!({
+        "query": query,
+        "carrier": corpus["twoWayWindows"]["queries"][query],
+    })];
+    served_graph_carriers_from(snapback, rows.iter())
 }
 
 fn graph_corpus_scheduler_mutations(corpus: &Value) -> Vec<FunctionDefinition> {
@@ -8379,6 +8399,621 @@ fn filter_order_matrix_executes_evaluator_and_served_replacement_paths() {
                 );
             }
         }
+    }
+}
+
+fn two_way_step_physical_ids(
+    output: &GraphEvaluationOutputV1,
+    expected: &Value,
+    tables: &BTreeMap<String, Vec<Map<String, Value>>>,
+) -> Vec<String> {
+    if expected.get("physicalRootIds").is_some() {
+        let by_source = tables["issueListRead"]
+            .iter()
+            .map(|row| {
+                (
+                    row["sourceIssueID"].as_str().expect("source issue id"),
+                    row["_id"].as_str().expect("physical list root id"),
+                )
+            })
+            .collect::<BTreeMap<_, _>>();
+        return output
+            .ordered_root_ids
+            .iter()
+            .map(|source| {
+                by_source
+                    .get(source.as_str())
+                    .unwrap_or_else(|| panic!("missing physical list root for {source}"))
+                    .to_string()
+            })
+            .collect();
+    }
+    let rows: Value = serde_json::from_str(
+        output
+            .result_bytes
+            .as_deref()
+            .expect("two-way child result bytes"),
+    )
+    .expect("two-way child rows parse");
+    let by_source = tables["comment"]
+        .iter()
+        .map(|row| {
+            (
+                row["id"].as_str().expect("source comment id"),
+                row["_id"].as_str().expect("physical comment id"),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    rows[0]["comments"]
+        .as_array()
+        .expect("detail comments array")
+        .iter()
+        .map(|comment| {
+            by_source[comment["id"].as_str().expect("projected comment source id")].to_string()
+        })
+        .collect()
+}
+
+fn assert_two_way_step(
+    context: &str,
+    output: &GraphEvaluationOutputV1,
+    expected: &Value,
+    target_node_id: &str,
+) -> Value {
+    let actual = serde_json::to_value(output).expect("two-way evaluator output serializes");
+    assert_eq!(
+        actual["resultBytes"], expected["resultBytes"],
+        "{context} rows/bytes"
+    );
+    assert_eq!(
+        actual["orderedRootIds"], expected["orderedRootIds"],
+        "{context} logical root order",
+    );
+    assert_eq!(
+        actual["resultLength"],
+        expected["orderedRootIds"].as_array().map_or(0, Vec::len)
+    );
+    assert_eq!(
+        actual["label"], expected["graphLabel"],
+        "{context} graph label"
+    );
+    let proof = actual["nodeCompleteness"]
+        .as_array()
+        .expect("two-way node proofs")
+        .iter()
+        .find(|proof| proof["nodeId"] == target_node_id)
+        .unwrap_or_else(|| panic!("{context} target proof {target_node_id}"));
+    assert_eq!(
+        proof["label"], expected["nodeLabel"],
+        "{context} node label"
+    );
+    let range_evidence = proof["proof"]["ranges"]
+        .as_array()
+        .and_then(|ranges| ranges.first())
+        .unwrap_or(&proof["proof"]);
+    assert_eq!(
+        range_evidence["hasMore"], expected["hasMore"],
+        "{context} hasMore"
+    );
+    assert_eq!(
+        range_evidence
+            .get("sourceExhausted")
+            .unwrap_or(&Value::Null),
+        &expected["sourceExhausted"],
+        "{context} source exhaustion",
+    );
+    let normalize_numbers = |value: &Value| {
+        fn visit(value: &mut Value) {
+            match value {
+                Value::Number(number) => {
+                    *value = json!(number.as_f64().expect("finite keyset number"));
+                }
+                Value::Array(values) => values.iter_mut().for_each(visit),
+                Value::Object(object) => object.values_mut().for_each(visit),
+                _ => {}
+            }
+        }
+        let mut value = value.clone();
+        visit(&mut value);
+        value
+    };
+    assert_eq!(
+        normalize_numbers(range_evidence.get("continuation").unwrap_or(&Value::Null)),
+        normalize_numbers(&expected["continuation"]),
+        "{context} continuation identity",
+    );
+    actual
+}
+
+fn execute_two_way_sequence(
+    corpus: &Value,
+    fixture: &Value,
+    sequence: &Value,
+    observations: &mut Vec<Value>,
+) -> Vec<String> {
+    let query = sequence["query"].as_str().expect("two-way query");
+    let carrier: GraphQueryCarrierV1 =
+        serde_json::from_value(corpus["twoWayWindows"]["queries"][query].clone())
+            .expect("two-way carrier");
+    let tables = filter_order_seed_tables(corpus, fixture, "present");
+    let evaluator = filter_order_store(corpus, fixture, "present");
+    let mut served = filter_order_store(corpus, fixture, "present");
+    served.declare_graph_query_v1_capability();
+    let served_carriers = two_way_carriers(&served, corpus, query);
+    let diagnostics = served.load_functions(served_graph_manifest(corpus, &served_carriers));
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error),
+        "{} served manifest diagnostics: {diagnostics:#?}",
+        sequence["id"].as_str().unwrap_or(query),
+    );
+
+    let steps = sequence["steps"].as_array().expect("two-way steps");
+    let first_call = &steps[0]["invocation"];
+    let authority = corpus_authority(corpus, corpus_invocation_principal(first_call));
+    served.install_graph_serving_authority_context_for_test(
+        query,
+        GraphServingAuthorityContextV1 {
+            evaluation: authority.clone(),
+            class2: serde_json::from_value(first_call["partition"]["class2"].clone())
+                .expect("two-way class-2 inputs"),
+        },
+    );
+    let connection_id = format!(
+        "two-way-{}",
+        sequence["id"]
+            .as_str()
+            .unwrap_or(query)
+            .replace(|character: char| !character.is_ascii_alphanumeric(), "-"),
+    );
+    let mut direct_ledgers = Vec::new();
+    let mut served_ledgers: Vec<GraphWindowLedgerV1> = Vec::new();
+    let mut supersedes = None;
+    let mut complete_physical_order = Vec::new();
+
+    for step in steps {
+        let step_id = step["id"].as_str().expect("two-way step id");
+        let call = &step["invocation"];
+        let expected = &step["expected"];
+        let (materialization, partition) = validate_corpus_invocation(&carrier, call, query);
+        let mut request = evaluation_request(corpus, call, &materialization, &partition);
+        request.prior_window_ledgers = direct_ledgers;
+        let matcher_input = normalized_matcher_input(&carrier.normalized_plan, &request);
+        let output = evaluator
+            .evaluate_graph_query(&carrier.normalized_plan, &request)
+            .unwrap_or_else(|error| panic!("evaluate {step_id}: {error:?}"));
+        let target_node_id = call["advancedNodeId"].as_str().expect("advanced node id");
+        let actual = assert_two_way_step(step_id, &output, expected, target_node_id);
+        let physical_ids = two_way_step_physical_ids(&output, expected, &tables);
+        let expected_physical_field = if expected.get("physicalRootIds").is_some() {
+            "physicalRootIds"
+        } else {
+            "physicalChildIds"
+        };
+        assert_eq!(
+            physical_ids,
+            expected[expected_physical_field]
+                .as_array()
+                .expect("frozen physical ids")
+                .iter()
+                .map(|id| id.as_str().unwrap().to_owned())
+                .collect::<Vec<_>>(),
+            "{step_id} physical order",
+        );
+        complete_physical_order.extend(physical_ids);
+
+        if expected.get("matcherNullDisposition").is_some() {
+            let query_plan = output
+                .captured_reads
+                .iter()
+                .filter_map(|read| read.predicate.clone())
+                .filter_map(|predicate| serde_json::from_value::<QueryPlan>(predicate).ok())
+                .find(|plan| {
+                    plan.table == "issueListRead"
+                        && plan
+                            .filters
+                            .iter()
+                            .any(|filter| filter.field == "assigneeID" && filter.op == FilterOp::Lt)
+                })
+                .expect("captured SQL plan carries the assignee Lt predicate");
+            for row_id in sequence["nullPhysicalRootIds"]
+                .as_array()
+                .expect("frozen null roots")
+            {
+                let row = tables["issueListRead"]
+                    .iter()
+                    .find(|row| row["_id"] == *row_id)
+                    .expect("NULL matcher row");
+                assert_eq!(
+                    row_matches_query_filters(
+                        &query_plan,
+                        &matcher_input,
+                        &Value::Object(row.clone()),
+                    ),
+                    None,
+                    "{step_id} matcher preserves SQL's NULL Lt unknown/non-matching state",
+                );
+            }
+        }
+        direct_ledgers = output.window_ledgers.clone();
+
+        let mut args = call["args"].as_object().expect("two-way args").clone();
+        args.insert(
+            snapback_engine::graph_evaluator::GRAPH_SERVING_DEMAND_ARG.to_owned(),
+            json!({
+                "format":"snapback.graph-serving-demand.v1",
+                "windows":call["windows"],
+                "advancedNodeId":target_node_id,
+                "priorWindowLedgers":served_ledgers,
+            }),
+        );
+        let established = served
+            .subscribe_live(
+                query,
+                LiveSubscribeInput {
+                    connection_id: connection_id.clone(),
+                    input: HandlerInput {
+                        args: Value::Object(args),
+                        auth: authority.auth.clone(),
+                        read_set: Vec::new(),
+                        correlation: None,
+                        ctx_ledger: None,
+                    },
+                    authorization_namespace: None,
+                    supersedes: supersedes.take(),
+                    resume_from_token: None,
+                },
+            )
+            .unwrap_or_else(|error| panic!("serve {step_id}: {error:?}"));
+        let expected_rows: Vec<Value> = serde_json::from_str(
+            expected["resultBytes"]
+                .as_str()
+                .expect("two-way expected bytes"),
+        )
+        .expect("two-way expected rows");
+        assert_eq!(
+            established
+                .snapshot
+                .as_ref()
+                .expect("two-way served snapshot")
+                .rows,
+            expected_rows,
+            "{step_id} served rows/order/bytes",
+        );
+        let served_observation = served
+            .graph_serving_observation_for_test(&established.subscription_id)
+            .expect("two-way served observation");
+        let mut comparable_actual = actual.clone();
+        let mut comparable_served = served_observation.clone();
+        normalize_snapshot_tuple(&mut comparable_actual);
+        normalize_snapshot_tuple(&mut comparable_served);
+        normalize_served_harness_identity(&mut comparable_actual);
+        normalize_served_harness_identity(&mut comparable_served);
+        for field in [
+            "resultBytes",
+            "orderedRootIds",
+            "nodeCompleteness",
+            "graphCompleteness",
+            "structuralWork",
+            "windowLedgers",
+        ] {
+            assert_eq!(
+                comparable_served[field], comparable_actual[field],
+                "{step_id} served/evaluator {field}",
+            );
+        }
+        served_ledgers = serde_json::from_value(served_observation["windowLedgers"].clone())
+            .expect("served two-way ledgers");
+        supersedes = Some(established.subscription_id.clone());
+        assert!(
+            served.drain_live_stream(&connection_id).is_empty(),
+            "{step_id} establishment has no asynchronous frame",
+        );
+
+        let mut frozen_fields = json!({
+            "resultBytes":actual["resultBytes"],
+            "orderedRootIds":actual["orderedRootIds"],
+            "resultLength":actual["resultLength"],
+            "nodeCompleteness":actual["nodeCompleteness"],
+            "graphCompleteness":actual["graphCompleteness"],
+            "structuralWork":actual["structuralWork"],
+            "windowLedgers":actual["windowLedgers"],
+        });
+        // In-memory stores mint their snapshot authorization incarnation when
+        // they are created. Parallel graph tests can therefore change this
+        // harness-only tuple while all query/proof semantics remain exact.
+        // Freeze the same snapshot marker used by evaluator/served parity;
+        // materialization, partition, rows, completeness, continuations,
+        // structural work, and window ledgers remain byte-exact.
+        normalize_snapshot_tuple(&mut frozen_fields);
+        observations.push(json!({
+            "id":step_id,
+            "query":query,
+            "direction":sequence.get("direction").cloned().unwrap_or(Value::Null),
+            "evaluator":frozen_fields,
+            "servedExactParity":true,
+        }));
+
+        if sequence["liveReplacement"]["stepId"] == step_id {
+            let replacement = &sequence["liveReplacement"];
+            invoke_graph_corpus_mutation(
+                &mut served,
+                replacement["mutation"]
+                    .as_str()
+                    .expect("two-way live mutation"),
+                HandlerInput {
+                    args: replacement["args"].clone(),
+                    ..HandlerInput::default()
+                },
+            )
+            .unwrap_or_else(|error| panic!("mutate {step_id}: {error:?}"));
+            let _ = served.flush_pending_live_fanout();
+            let frames = served
+                .drain_live_stream(&connection_id)
+                .into_iter()
+                .map(|frame| serde_json::from_str::<Value>(&frame).expect("two-way live frame"))
+                .collect::<Vec<_>>();
+            assert_eq!(frames.len(), 1, "{step_id} one backward-window replacement");
+            assert_eq!(
+                frames[0]["kind"], replacement["servedDisposition"],
+                "{step_id} remains all-replace and does not widen delta eligibility",
+            );
+            let expected_after: Value = serde_json::from_str(
+                replacement["expectedResultBytes"]
+                    .as_str()
+                    .expect("two-way replacement bytes"),
+            )
+            .expect("two-way replacement rows");
+            assert_eq!(
+                frames[0]["rows"], expected_after,
+                "{step_id} replacement rows"
+            );
+            let mut replacement_observation = served
+                .graph_serving_observation_for_test(
+                    supersedes
+                        .as_deref()
+                        .expect("retained backward subscription"),
+                )
+                .expect("backward replacement observation");
+            normalize_snapshot_tuple(&mut replacement_observation);
+            normalize_served_harness_identity(&mut replacement_observation);
+            observations.push(json!({
+                "id":format!("{step_id}-live-replacement"),
+                "query":query,
+                "direction":sequence.get("direction").cloned().unwrap_or(Value::Null),
+                "served":{
+                    "resultBytes":replacement_observation["resultBytes"],
+                    "orderedRootIds":replacement_observation["orderedRootIds"],
+                    "resultLength":replacement_observation["resultLength"],
+                    "nodeCompleteness":replacement_observation["nodeCompleteness"],
+                    "graphCompleteness":replacement_observation["graphCompleteness"],
+                    "structuralWork":replacement_observation["structuralWork"],
+                    "windowLedgers":replacement_observation["windowLedgers"],
+                },
+                "servedDisposition":"live_replace",
+            }));
+        }
+    }
+    complete_physical_order
+}
+
+fn assert_backward_normalization_disposition(case: &Value) {
+    let disposition = case["normalizationDisposition"]["comparison"]
+        .as_str()
+        .expect("backward normalization disposition");
+    assert!(
+        disposition == "exact"
+            || (disposition == "exact-after-pinned-physical-id-tiebreak-normalization"
+                && case["normalizationDisposition"]["deviationTicket"]
+                    == "issues/20260823-zerobugs-control-descending-tiebreak-deviation.md"),
+        "{} has an explicit exact or authorized backward disposition",
+        case["id"],
+    );
+}
+
+/// LLP 0209 D2 promotes root and child continuations from metadata into the
+/// evaluator and the retained served scheduler. The frozen JS rows remain the
+/// independent oracle; the additive Rust artifact binds the exact evaluator
+/// proofs, continuations, work, and ledgers emitted for those rows.
+///
+/// @ref LLP 0209#v08-spec-gap-notes-from-g2-a-fix-round-1 — backward
+/// traversal reverses only declared components and retains physical `_id ASC`.
+/// @ref LLP 0209#24-plan-instance-and-contextual-materialization-identity —
+/// each resume binds the complete window vector and advances its own ledger.
+#[test]
+fn two_way_windows_execute_evaluator_and_served_scheduler_paths() {
+    let corpus = graph_corpus();
+    let fixture = filter_order_fixture();
+    let two_way = &corpus["twoWayWindows"];
+    assert_eq!(
+        two_way["deltaEligibility"],
+        "unchanged-backward-not-eligible"
+    );
+    let tie_rows = two_way["tieFixture"]["rows"]
+        .as_array()
+        .expect("two-way inverted tie fixture");
+    let tie_physical = tie_rows
+        .iter()
+        .map(|row| row["physicalID"].as_str().unwrap())
+        .collect::<Vec<_>>();
+    let tie_source = tie_rows
+        .iter()
+        .map(|row| row["sourceID"].as_str().unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        tie_physical[0].cmp(tie_physical[1]),
+        tie_source[1].cmp(tie_source[0])
+    );
+    let matrix_list_rows = fixture["worlds"]["present"]["additions"]["issueListRead"]
+        .as_array()
+        .expect("matrix list roots");
+    let tie_list_physical = tie_physical
+        .iter()
+        .map(|issue_id| {
+            matrix_list_rows
+                .iter()
+                .find(|row| row["issueID"] == *issue_id)
+                .and_then(|row| row["_id"].as_str())
+                .expect("tied issue has a physical list root")
+        })
+        .collect::<Vec<_>>();
+
+    let mut observations = Vec::new();
+    let mut root_orders = BTreeMap::<(String, String), Vec<String>>::new();
+    for walk in two_way["rootWalks"].as_array().expect("two-way root walks") {
+        if walk["direction"] == "backward" {
+            assert_backward_normalization_disposition(walk);
+        }
+        let physical = execute_two_way_sequence(&corpus, &fixture, walk, &mut observations);
+        assert_eq!(
+            physical,
+            walk["expectedCompletePhysicalOrder"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|id| id.as_str().unwrap().to_owned())
+                .collect::<Vec<_>>(),
+            "{} walk has no skipped or duplicated unchanged row",
+            walk["id"],
+        );
+        assert_eq!(
+            physical.iter().collect::<BTreeSet<_>>().len(),
+            physical.len(),
+            "{} contains no duplicate physical row",
+            walk["id"],
+        );
+        if walk["family"] == "nullable-root-order" {
+            let nulls = walk["nullSortKeyPhysicalIDs"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|id| id.as_str().unwrap().to_owned())
+                .collect::<Vec<_>>();
+            assert_eq!(
+                &physical[physical.len() - nulls.len()..],
+                nulls,
+                "{} keeps NULL last independently of traversal direction",
+                walk["id"],
+            );
+        }
+        if walk["family"] == "selectable-root-order" && walk["direction"] == "backward" {
+            let first = physical
+                .iter()
+                .position(|id| id == tie_list_physical[0])
+                .unwrap();
+            let second = physical
+                .iter()
+                .position(|id| id == tie_list_physical[1])
+                .unwrap();
+            assert!(
+                first < second,
+                "{} tied physical ids remain ascending",
+                walk["id"]
+            );
+        }
+        root_orders.insert(
+            (
+                walk["query"].as_str().unwrap().to_owned(),
+                walk["direction"].as_str().unwrap().to_owned(),
+            ),
+            physical,
+        );
+    }
+    for query in root_orders
+        .keys()
+        .map(|(query, _)| query.clone())
+        .collect::<BTreeSet<_>>()
+    {
+        let forward = &root_orders[&(query.clone(), "forward".to_owned())];
+        let backward = &root_orders[&(query.clone(), "backward".to_owned())];
+        assert_eq!(
+            forward.iter().collect::<BTreeSet<_>>(),
+            backward.iter().collect::<BTreeSet<_>>(),
+            "{query} forward-to-backward traversal has no skipped unchanged row",
+        );
+    }
+
+    for bounded in two_way["boundedCases"].as_array().expect("backward bounds") {
+        assert_backward_normalization_disposition(bounded);
+        let sequence = json!({
+            "id":bounded["id"],
+            "query":bounded["query"],
+            "direction":"backward",
+            "steps":[bounded],
+        });
+        let actual = execute_two_way_sequence(&corpus, &fixture, &sequence, &mut observations);
+        assert_eq!(
+            actual,
+            bounded["expected"]["physicalRootIds"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|id| id.as_str().unwrap().to_owned())
+                .collect::<Vec<_>>(),
+            "{} exact bounded interval rows",
+            bounded["id"],
+        );
+    }
+
+    let null_case = &two_way["nullThreeValuedLogic"];
+    let null_sequence = json!({
+        "id":null_case["id"],
+        "query":null_case["query"],
+        "direction":"forward",
+        "nullPhysicalRootIds":null_case["nullPhysicalRootIds"],
+        "steps":[null_case],
+    });
+    execute_two_way_sequence(&corpus, &fixture, &null_sequence, &mut observations);
+
+    let mut child_orders = BTreeMap::new();
+    for walk in two_way["childWalks"]
+        .as_array()
+        .expect("two-way child walks")
+    {
+        if walk["direction"] == "backward" {
+            assert_backward_normalization_disposition(walk);
+        }
+        let physical = execute_two_way_sequence(&corpus, &fixture, walk, &mut observations);
+        assert_eq!(
+            physical,
+            walk["expectedCompletePhysicalOrder"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|id| id.as_str().unwrap().to_owned())
+                .collect::<Vec<_>>(),
+            "{} child resume has no skipped or duplicated row",
+            walk["id"],
+        );
+        child_orders.insert(walk["direction"].as_str().unwrap().to_owned(), physical);
+    }
+    assert_eq!(
+        child_orders["forward"].iter().collect::<BTreeSet<_>>(),
+        child_orders["backward"].iter().collect::<BTreeSet<_>>(),
+        "child forward-to-backward traversal covers the same unchanged rows",
+    );
+
+    let artifact = content_digest(json!({
+        "format":"snapback.graph-two-way-window-observations.v1",
+        "version":1,
+        "scope":{
+            "rootWalks":two_way["rootWalks"].as_array().unwrap().len(),
+            "boundedCases":two_way["boundedCases"].as_array().unwrap().len(),
+            "childWalks":two_way["childWalks"].as_array().unwrap().len(),
+            "liveReplacements":1,
+            "deltaEligibility":"unchanged-backward-not-eligible",
+        },
+        "observations":observations,
+    }));
+    if std::env::var_os("SNAPBACK_FREEZE_GRAPH_TWO_WAY").is_some() {
+        write_frozen_json(TWO_WAY_OBSERVATIONS_FILE, &artifact);
+    } else {
+        assert_eq!(
+            artifact,
+            load_json(TWO_WAY_OBSERVATIONS_FILE),
+            "two-way evaluator/served observation artifact is stale",
+        );
     }
 }
 

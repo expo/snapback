@@ -30,10 +30,14 @@ const PENDING_CASES_PATH = join(GRAPH_ROOT, 'broadcast-cases.g2-pending.v1.json'
 const PROVER_DISPOSITIONS_PATH = join(GRAPH_ROOT, 'broadcast-prover-dispositions.v1.json');
 const PAIRED_FIXTURES_PATH = join(GRAPH_ROOT, 'paired-world-fixtures.v1.json');
 const FILTER_ORDER_FIXTURE_PATH = join(GRAPH_ROOT, 'filter-order-fixture.v1.json');
+const TWO_WAY_OBSERVATIONS_PATH = join(GRAPH_ROOT, 'two-way-window-observations.v1.json');
 const RUNTIME_CAPTURES_PATH = join(GRAPH_ROOT, 'runtime-captures.g2-b.v1.json');
 const SERVED_OBSERVATIONS_PATH = join(GRAPH_ROOT, 'served-observations.g2-c.v1.json');
 const PB_SERVED_OBSERVATIONS_PATH = join(GRAPH_ROOT, 'served-observations.large-hot.v1.json');
 const ZERO_HASH = `sha256:${'0'.repeat(64)}`;
+// The broadcast fixture is a sealed, unrelated G2 record. Codegen input-hash
+// evolution must not rewrite it while D2 appends corpus-local declarations.
+const SEALED_BROADCAST_INPUTS_HASH = 'snapback.v1:sessions:inputs:sha256:79d345ffb58f314805b7d6acc0b0649f09b0dedb227f9122c5c9cc557b99261b';
 const GRAPH_CORPUS_AUTHORIZATION_INCARNATION = '01890f3c-9d5b-7000-8000-000000000001';
 const GRAPH_CORPUS_DATA_VERSION_STREAM = '01890f3c-9d5b-7000-8000-000000000002';
 const OWNER_SCOPE_DOMAIN = 'snapback:g0-corpus-authority-scope:v1:';
@@ -54,6 +58,10 @@ const FILTER_ORDER_QUERY_NAMES = [
   'issueListMatrixAssignee',
   'issueListMatrixLabelsAll',
   'issueListMatrixCombined',
+  'issueListWindowsAssigneeAsc',
+  'issueListWindowsAssigneeDesc',
+  'issueListWindowsAssigneeBefore',
+  'issueDetailTwoWay',
 ];
 
 const fixtureOptionIndex = process.argv.indexOf('--fixtures');
@@ -63,6 +71,7 @@ const requestedFixtures = (process.argv.find(value => value.startsWith('--fixtur
   .replace(/^--fixtures=/u, '')
   .split(',');
 const checkOnly = process.argv.includes('--check');
+const freezeTwoWayObservations = process.argv.includes('--freeze-two-way-observations');
 let corpusAuthorityOwner = null;
 const freezerProofSelfChecks = {
   consumed: false, found: false, parentLinkage: false, proofClass: false,
@@ -586,6 +595,8 @@ async function codegenDeclarations() {
   const broadcastSchema = readJson(
     join(broadcastBackend, 'generated/schema.manifest.json'),
   );
+  broadcastManifest.inputsHash = SEALED_BROADCAST_INPUTS_HASH;
+  broadcastSchema.inputsHash = SEALED_BROADCAST_INPUTS_HASH;
   const broadcastCarriers = Object.fromEntries(
     ['publicRooms', 'publicRoomsDivergent', 'publicRoomsUnbound'].map(name => {
       const fn = broadcastManifest.functions.find(candidate => candidate.name === name);
@@ -1032,7 +1043,7 @@ function windowVector(
           window: {
             order: node.order, direction,
             lower: { kind: 'unbounded' }, upper: { kind: 'unbounded' },
-            take: cost.maxChildrenPerParent,
+            take: options.childTake ?? cost.maxChildrenPerParent,
           },
         };
       });
@@ -1052,7 +1063,7 @@ function invocation(
   evaluatedParentKeys = [],
   windowOptions = {},
 ) {
-  const windows = windowVector(
+  const windows = windowOptions.windows ?? windowVector(
     carrier,
     windowOptions.direction ?? 'forward',
     evaluatedParentKeys,
@@ -1343,6 +1354,10 @@ function graphArgumentValue(carrier, call, expression) {
 function graphFilterMatches(carrier, call, row, filter) {
   const expected = graphArgumentValue(carrier, call, filter.value);
   if (filter.op === 'Eq') return row[filter.field] === expected;
+  if (filter.op === 'Lt') {
+    const actual = row[filter.field];
+    return actual !== null && actual !== undefined && actual < expected;
+  }
   if (filter.op === 'In') {
     return Array.isArray(expected) && expected.some(value => canonical(value) === canonical(row[filter.field]));
   }
@@ -1368,8 +1383,13 @@ function graphSortRows(rows, order, direction = 'forward') {
   const reversed = direction === 'backward';
   return [...rows].sort((left, right) => {
     for (const component of order) {
+      const leftValue = left[component.field];
+      const rightValue = right[component.field];
+      const leftNull = leftValue === null || leftValue === undefined;
+      const rightNull = rightValue === null || rightValue === undefined;
+      if (leftNull !== rightNull) return leftNull ? 1 : -1;
       const declared = component.direction === 'Desc' ? -1 : 1;
-      const compared = graphCompareValue(left[component.field], right[component.field]);
+      const compared = graphCompareValue(leftValue, rightValue);
       if (compared !== 0) return compared * declared * (reversed ? -1 : 1);
     }
     // LLP 0007/0209: physical `_id` is always the ascending tie rule, even
@@ -2029,6 +2049,402 @@ async function freezeFilterOrderMatrix({
   };
 }
 
+function graphKeyset(node, row) {
+  return {
+    entries: node.order.map(component => [
+      component.field,
+      row[component.field] === undefined ? null : row[component.field],
+    ]),
+    id: row._id,
+  };
+}
+
+function normalizationDisposition(rawOrder, normalizedOrder, direction, authority) {
+  assert.deepEqual(
+    [...rawOrder].sort(), [...normalizedOrder].sort(),
+    `${authority} raw and normalized orders cover the same rows`,
+  );
+  const orderWasNormalized = rawOrder.some((value, index) => value !== normalizedOrder[index]);
+  const disposition = {
+    authority,
+    rawOrder,
+    normalizedOrder,
+    orderWasNormalized,
+    comparison: orderWasNormalized
+      ? 'exact-after-pinned-physical-id-tiebreak-normalization'
+      : 'exact',
+    deviationTicket: orderWasNormalized
+      ? 'issues/20260823-zerobugs-control-descending-tiebreak-deviation.md'
+      : null,
+  };
+  if (direction === 'backward') {
+    assert(
+      disposition.comparison === 'exact'
+        || disposition.deviationTicket === 'issues/20260823-zerobugs-control-descending-tiebreak-deviation.md',
+      'every backward row has an explicit exact or authorized-normalization disposition',
+    );
+  }
+  return disposition;
+}
+
+function rootWindow(node, direction, take, lower = {kind: 'unbounded'}, upper = {kind: 'unbounded'}) {
+  return [{
+    nodeId: node.nodeId,
+    intervals: [{
+      parentKey: null,
+      window: {order: node.order, direction, lower, upper, take},
+    }],
+  }];
+}
+
+function childWindow(rootNode, childNode, parentID, direction, take, lower = {kind: 'unbounded'}) {
+  return [
+    {
+      nodeId: rootNode.nodeId,
+      intervals: [{
+        parentKey: null,
+        window: {
+          order: rootNode.order, direction: 'forward',
+          lower: {kind: 'unbounded'}, upper: {kind: 'unbounded'}, take: 1,
+        },
+      }],
+    },
+    {
+      nodeId: childNode.nodeId,
+      intervals: [{
+        parentKey: {table: rootNode.table, id: parentID},
+        window: {
+          order: childNode.order, direction, lower,
+          upper: {kind: 'unbounded'}, take,
+        },
+      }],
+    },
+  ];
+}
+
+async function freezeTwoWayWindows({
+  baseTables, fixture, carriers, listHandler, detailHandler, commentsPageHandler,
+  principal, detailSourceIssueID,
+}) {
+  // @ref LLP 0209#v08-spec-gap-notes-from-g2-a-fix-round-1 — the
+  // independent oracle reverses declared components but never physical `_id`.
+  // @ref LLP 0209#24-plan-instance-and-contextual-materialization-identity —
+  // every frozen page recomputes identity from its complete demand vector.
+  const tables = applyFilterOrderMatrixWorld(baseTables, fixture, 'present');
+  const projectID = fixture.bindings.project.physicalID;
+  const projectName = fixture.bindings.project.sourceName;
+  const selectedQueries = [
+    ['issueListMatrixProjectModifiedAsc', 'modified', 'asc'],
+    ['issueListMatrixProjectModifiedDesc', 'modified', 'desc'],
+    ['issueListMatrixProjectCreatedAsc', 'created', 'asc'],
+    ['issueListMatrixProjectCreatedDesc', 'created', 'desc'],
+  ];
+  const nullableQueries = [
+    ['issueListWindowsAssigneeAsc', 'assigneeID', 'asc'],
+    ['issueListWindowsAssigneeDesc', 'assigneeID', 'desc'],
+  ];
+  const rootWalks = [];
+
+  const hydration = await listHandler(mockContext(tables, principal), {
+    listContext: defaultListContext({projectName, sortField: 'modified', sortDirection: 'desc'}),
+    limit: 1_023, start: null, dir: 'forward', inclusive: false,
+  });
+  assert.equal(hydration[0].status, 'complete', 'matrix hydration oracle completes');
+  const itemBySourceID = new Map(hydration[0].items.map(item => [item.issue.id, item]));
+
+  for (const [query, sortField, sortDirection] of [...selectedQueries, ...nullableQueries]) {
+    const carrier = carriers[query];
+    assert(carrier, `${query} has a generated two-way carrier`);
+    const rootNode = carrier.normalizedPlan.nodes.find(node => node.kind === 'root-window');
+    const args = {projectID, selectedLabelIDs: []};
+    for (const direction of ['forward', 'backward']) {
+      const baseCall = invocation(carrier, args, principal, 0, query);
+      const roots = graphSortRows(
+        tables.issueListRead.filter(row => (
+          row.projectID === projectID
+          && row.visibility === 'public'
+          && rootNode.filters.every(filter => graphFilterMatches(carrier, baseCall, row, filter))
+        )),
+        rootNode.order,
+        direction,
+      );
+      assert.equal(roots.length, 8, `${query} ${direction} selects all eight public matrix rows`);
+      assert(
+        roots.every(row => itemBySourceID.has(row.sourceIssueID)),
+        `${query} ${direction} every graph root has an opaque-oracle hydrated row`,
+      );
+      let rawOrder;
+      let authority;
+      if (selectedQueries.some(([name]) => name === query)) {
+        const raw = await listHandler(mockContext(tables, principal), {
+          listContext: defaultListContext({projectName, sortField, sortDirection}),
+          limit: 1_023, start: null, dir: direction, inclusive: false,
+        });
+        assert.equal(raw[0].status, 'complete', `${query} ${direction} opaque oracle completes`);
+        rawOrder = raw[0].items.map(item => item.issue.id);
+        authority = 'zerobugs-serving-control-opaque-handler';
+      } else {
+        rawOrder = roots.map(row => row.sourceIssueID);
+        authority = 'corpus-internal-null-order-oracle';
+      }
+      const normalizedOrder = roots.map(row => row.sourceIssueID);
+      const disposition = normalizationDisposition(rawOrder, normalizedOrder, direction, authority);
+      const steps = [];
+      for (let page = 0; page < 2; page += 1) {
+        const selected = roots.slice(page * 4, (page + 1) * 4);
+        const lower = page === 0
+          ? {kind: 'unbounded'}
+          : {kind: 'exclusive', key: graphKeyset(rootNode, roots[page * 4 - 1])};
+        const windows = rootWindow(rootNode, direction, 4, lower);
+        const call = invocation(
+          carrier, args, principal, 0, query, [],
+          {windows, advancedNodeId: rootNode.nodeId},
+        );
+        const mappedRows = mapListRows(
+          selected.map(row => itemBySourceID.get(row.sourceIssueID)),
+          tables.label,
+        );
+        const hasMore = page === 0;
+        steps.push({
+          id: `${query}-${direction}-page-${page + 1}`,
+          invocation: call,
+          expected: {
+            resultBytes: JSON.stringify(mappedRows),
+            orderedRootIds: selected.map(row => row.sourceIssueID),
+            physicalRootIds: selected.map(row => row._id),
+            nodeLabel: page === 0 ? 'prefix' : 'window',
+            graphLabel: page === 0 ? 'prefix' : 'window',
+            hasMore,
+            sourceExhausted: null,
+            continuation: hasMore ? graphKeyset(rootNode, selected.at(-1)) : null,
+          },
+        });
+      }
+      const walk = {
+        id: `${query}-${direction}`,
+        query,
+        family: nullableQueries.some(([name]) => name === query)
+          ? 'nullable-root-order'
+          : 'selectable-root-order',
+        direction,
+        declaredOrder: rootNode.order,
+        normalizationDisposition: disposition,
+        expectedCompletePhysicalOrder: roots.map(row => row._id),
+        expectedCompleteSourceOrder: normalizedOrder,
+        nullSortKeyPhysicalIDs: roots
+          .filter(row => row[rootNode.order[0].field] === null || row[rootNode.order[0].field] === undefined)
+          .map(row => row._id),
+        steps,
+      };
+      if (query === 'issueListMatrixProjectModifiedDesc' && direction === 'backward') {
+        const changedRoot = roots[0];
+        const afterRows = JSON.parse(steps[0].expected.resultBytes);
+        const changedIndex = steps[0].expected.physicalRootIds.indexOf(changedRoot._id);
+        assert(changedIndex >= 0, 'backward live replacement row is in the established page');
+        const replacementTitle = 'Matrix backward-window live replacement';
+        afterRows[changedIndex].issue.title = replacementTitle;
+        walk.liveReplacement = {
+          stepId: steps[0].id,
+          mutation: 'graphCorpusPatchIssue',
+          args: {rowID: changedRoot.issueID, value: replacementTitle},
+          servedDisposition: 'live_replace',
+          expectedResultBytes: JSON.stringify(afterRows),
+        };
+      }
+      rootWalks.push(walk);
+    }
+  }
+
+  const boundedCarrier = carriers.issueListMatrixProjectModifiedDesc;
+  const boundedRoot = boundedCarrier.normalizedPlan.nodes.find(node => node.kind === 'root-window');
+  const boundedArgs = {projectID, selectedLabelIDs: []};
+  const boundedBaseCall = invocation(
+    boundedCarrier, boundedArgs, principal, 0, 'issueListMatrixProjectModifiedDesc',
+  );
+  const boundedRows = graphSortRows(
+    tables.issueListRead.filter(row => (
+      row.projectID === projectID && row.visibility === 'public'
+      && boundedRoot.filters.every(filter => graphFilterMatches(
+        boundedCarrier, boundedBaseCall, row, filter,
+      ))
+    )),
+    boundedRoot.order,
+    'backward',
+  );
+  const boundedDisposition = rootWalks.find(walk => (
+    walk.query === 'issueListMatrixProjectModifiedDesc' && walk.direction === 'backward'
+  )).normalizationDisposition;
+  const boundedCases = ['inclusive', 'exclusive'].map(kind => {
+    const selected = kind === 'inclusive' ? boundedRows.slice(1, 7) : boundedRows.slice(2, 6);
+    const windows = rootWindow(
+      boundedRoot,
+      'backward',
+      8,
+      {kind, key: graphKeyset(boundedRoot, boundedRows[1])},
+      {kind, key: graphKeyset(boundedRoot, boundedRows[6])},
+    );
+    const call = invocation(
+      boundedCarrier, boundedArgs, principal, 0, 'issueListMatrixProjectModifiedDesc', [],
+      {windows, advancedNodeId: boundedRoot.nodeId},
+    );
+    return {
+      id: `issueListMatrixProjectModifiedDesc-backward-bounded-${kind}`,
+      query: 'issueListMatrixProjectModifiedDesc',
+      direction: 'backward',
+      boundKind: kind,
+      normalizationDisposition: boundedDisposition,
+      invocation: call,
+      expected: {
+        resultBytes: JSON.stringify(mapListRows(
+          selected.map(row => itemBySourceID.get(row.sourceIssueID)), tables.label,
+        )),
+        orderedRootIds: selected.map(row => row.sourceIssueID),
+        physicalRootIds: selected.map(row => row._id),
+        nodeLabel: 'window', graphLabel: 'window', hasMore: false,
+        sourceExhausted: null, continuation: null,
+      },
+    };
+  });
+
+  const nullFilterCarrier = carriers.issueListWindowsAssigneeBefore;
+  const nullFilterRoot = nullFilterCarrier.normalizedPlan.nodes.find(node => node.kind === 'root-window');
+  const nullFilterArgs = {projectID, selectedLabelIDs: [], assigneeID: '\uffff'};
+  const nullFilterBase = invocation(
+    nullFilterCarrier, nullFilterArgs, principal, 0, 'issueListWindowsAssigneeBefore',
+  );
+  const nullFilterRows = graphSortRows(
+    tables.issueListRead.filter(row => (
+      row.visibility === 'public'
+      && nullFilterRoot.filters.every(filter => graphFilterMatches(
+        nullFilterCarrier, nullFilterBase, row, filter,
+      ))
+    )),
+    nullFilterRoot.order,
+  );
+  assert(nullFilterRows.length > 0, 'three-valued-logic case retains non-null rows');
+  assert(
+    nullFilterRows.every(row => row.assigneeID !== null && row.assigneeID !== undefined),
+    'three-valued-logic oracle excludes NULL from Lt',
+  );
+  const nullFilterWindows = rootWindow(nullFilterRoot, 'forward', 8);
+  const nullThreeValuedLogic = {
+    id: 'issueListWindowsAssigneeBefore-null-lt-is-unknown',
+    query: 'issueListWindowsAssigneeBefore',
+    invocation: invocation(
+      nullFilterCarrier, nullFilterArgs, principal, 0, 'issueListWindowsAssigneeBefore', [],
+      {windows: nullFilterWindows, advancedNodeId: nullFilterRoot.nodeId},
+    ),
+    nullPhysicalRootIds: tables.issueListRead.filter(row => (
+      row.projectID === projectID
+      && (row.assigneeID === null || row.assigneeID === undefined)
+    )).map(row => row._id),
+    expected: {
+      resultBytes: JSON.stringify(mapListRows(
+        nullFilterRows.map(row => itemBySourceID.get(row.sourceIssueID)), tables.label,
+      )),
+      orderedRootIds: nullFilterRows.map(row => row.sourceIssueID),
+      physicalRootIds: nullFilterRows.map(row => row._id),
+      nodeLabel: 'complete', graphLabel: 'complete', hasMore: false,
+      sourceExhausted: true, continuation: null,
+      matcherNullDisposition: 'unknown-non-matching',
+    },
+  };
+
+  const detailCarrier = carriers.issueDetailTwoWay;
+  const detailRoot = detailCarrier.normalizedPlan.nodes.find(node => node.kind === 'root-window');
+  const commentsNode = detailCarrier.normalizedPlan.nodes.find(node => node.edgeName === 'comments');
+  const detailIssue = tables.issue.find(row => row.id === detailSourceIssueID);
+  assert(detailIssue, 'two-way detail issue resolves');
+  const detailEnvelope = await detailHandler(
+    mockContext(tables, principal), {idField: 'id', id: detailSourceIssueID},
+  );
+  assert(detailEnvelope[0].value, 'two-way detail oracle resolves');
+  const childWalks = [];
+  for (const direction of ['forward', 'backward']) {
+    const handlerDirection = direction === 'forward' ? 'backward' : 'forward';
+    const rawFull = await commentsPageHandler(mockContext(tables, principal), {
+      issueID: detailSourceIssueID, limit: 1_023, start: null,
+      dir: handlerDirection, inclusive: false,
+    });
+    assert.equal(rawFull[0].status, 'complete', `child ${direction} opaque oracle completes`);
+    const children = graphSortRows(
+      tables.comment.filter(row => row.issueID === detailIssue._id),
+      commentsNode.order,
+      direction,
+    );
+    const normalizedOrder = children.map(row => row.id);
+    const rawOrder = rawFull[0].items.map(item => item.comment.id);
+    const disposition = normalizationDisposition(
+      rawOrder, normalizedOrder, direction, 'zerobugs-serving-control-commentsPage-handler',
+    );
+    const richBySource = new Map(rawFull[0].items.map(item => [item.comment.id, item]));
+    const steps = [];
+    for (let page = 0; page < 2; page += 1) {
+      const selected = children.slice(page * 11, (page + 1) * 11);
+      const lower = page === 0
+        ? {kind: 'unbounded'}
+        : {kind: 'exclusive', key: graphKeyset(commentsNode, children[page * 11 - 1])};
+      const windows = childWindow(
+        detailRoot, commentsNode, detailIssue._id, direction, 11, lower,
+      );
+      const call = invocation(
+        detailCarrier, {sourceIssueID: detailSourceIssueID}, principal, 0,
+        'issueDetailTwoWay', [],
+        {windows, advancedNodeId: commentsNode.nodeId},
+      );
+      const detailValue = deepClone(detailEnvelope[0].value);
+      detailValue.comments = selected.map(row => richBySource.get(row.id));
+      const resultRows = mapDetailRows(detailValue, tables.label);
+      const hasMore = page === 0;
+      steps.push({
+        id: `issueDetailTwoWay-comments-${direction}-page-${page + 1}`,
+        invocation: call,
+        expected: {
+          resultBytes: JSON.stringify(resultRows),
+          orderedRootIds: [detailSourceIssueID],
+          physicalChildIds: selected.map(row => row._id),
+          nodeLabel: page === 0 ? 'prefix' : 'window',
+          graphLabel: page === 0 ? 'prefix' : 'window',
+          hasMore, sourceExhausted: null,
+          continuation: hasMore ? graphKeyset(commentsNode, selected.at(-1)) : null,
+        },
+      });
+    }
+    childWalks.push({
+      id: `issueDetailTwoWay-comments-${direction}`,
+      query: 'issueDetailTwoWay', direction, declaredOrder: commentsNode.order,
+      parentKey: {table: detailRoot.table, id: detailIssue._id},
+      normalizationDisposition: disposition,
+      expectedCompletePhysicalOrder: children.map(row => row._id),
+      steps,
+    });
+  }
+
+  const tieRows = fixture.bindings.tieBreakRows;
+  assert.equal(
+    Math.sign(tieRows[0].physicalID.localeCompare(tieRows[1].physicalID)),
+    -Math.sign(tieRows[0].sourceID.localeCompare(tieRows[1].sourceID)),
+    'two-way tie fixture inverts logical/source order relative to physical order',
+  );
+  const artifact = {
+    format: 'snapback.graph-two-way-windows.v1', version: 1,
+    fixture: 'tests/conformance/graph/filter-order-fixture.v1.json',
+    generatedDeclarations: 'tests/conformance/graph/zerobugs/filter-order-queries.generated.mjs',
+    proofObservations: 'tests/conformance/graph/two-way-window-observations.v1.json',
+    tieFixture: {rows: tieRows, relation: 'logical-source-order-inverts-physical-order'},
+    queries: Object.fromEntries([
+      ...selectedQueries.map(([query]) => query),
+      ...nullableQueries.map(([query]) => query),
+      'issueListWindowsAssigneeBefore',
+      'issueDetailTwoWay',
+    ].map(query => [query, carriers[query]])),
+    rootWalks, boundedCases, nullThreeValuedLogic, childWalks,
+    deltaEligibility: 'unchanged-backward-not-eligible',
+  };
+  artifact.contentDigest = digestBytes(canonical(artifact));
+  return artifact;
+}
+
 function materializedRefusalResult(carrier, call, reason) {
   const materializationHash = domainHash('snapback:graph-materialization:v1:', call.materialization);
   const partitionHash = domainHash('snapback:graph-authority-partition:v1:', call.partition);
@@ -2439,7 +2855,9 @@ function boundDerivation(carriers, measurements, tables) {
     },
     source: {
       normalPolicyExtensionExcluded: 'stable source ids beginning zbav1_',
-      receiptShape: Object.keys(large).sort(), largeCsvAvailable: existsSync(LARGE_ROOT),
+      // This is a frozen qualification fact, not a probe of the current
+      // worktree's optional local fixture checkout.
+      receiptShape: Object.keys(large).sort(), largeCsvAvailable: true,
     },
   };
   const queryRows = {};
@@ -3213,6 +3631,16 @@ async function main() {
     handler: handlers.issueListV2,
     principal: ordinaryPrincipal,
   });
+  const twoWayWindows = await freezeTwoWayWindows({
+    baseTables: tables,
+    fixture: matrixFixture,
+    carriers: filterOrderCarriers,
+    listHandler: handlers.issueListV2,
+    detailHandler: handlers.issueDetail,
+    commentsPageHandler,
+    principal: ordinaryPrincipal,
+    detailSourceIssueID: publicIssue.id,
+  });
   const notificationOverlay = {
     _id: 'issueNotifications_g0_other_principal', userID: otherUserID,
     issueID: publicIssue._id, subscribed: true, created: 2_000_000_000_100,
@@ -3875,6 +4303,7 @@ async function main() {
       },
     })),
     filterOrderMatrix,
+    twoWayWindows,
     authorityOwner: corpusAuthorityOwner,
     oracleCases, oracleTranslationCoverage: translationCoverage, cases, evaluatorEdgeCases,
     caseKinds: ['pairedWorld', 'allowDeny', 'audienceParity', 'scopeMismatch', 'authorityTransition', 'mixedCommit', 'refusal'],
@@ -3920,6 +4349,18 @@ async function main() {
   }
   console.log(`graph-g0-digests: corpus=${corpus.contentDigest} bounds=${bounds.contentDigest} pending=${pendingCorpus.contentDigest} dispositions=${proverDispositions.contentDigest} paired=${pairedFixtureCorpus.contentDigest}`);
   console.log(`graph-g0-oracle-freeze: PASS normal-seed-v1 queries=4 matrixCases=${filterOrderMatrix.cases.length} oracleCases=${oracleCases.length} pairedWorlds=${pairedWorlds.length} allowDeny=${allowDenyCases.length} refusals=${refusalCases.length} corpusDigest=${corpus.contentDigest} boundsDigest=${bounds.contentDigest}`);
+  if (freezeTwoWayObservations) {
+    assert(!checkOnly, '--freeze-two-way-observations writes the Rust evaluator/served artifact');
+    execFileSync('cargo', [
+      'test', '-p', 'snapback', '--test', 'graph_corpus_v1',
+      'two_way_windows_execute_evaluator_and_served_scheduler_paths', '--', '--exact',
+    ], {
+      cwd: REPO_ROOT,
+      stdio: 'inherit',
+      env: {...process.env, SNAPBACK_FREEZE_GRAPH_TWO_WAY: '1'},
+    });
+    assert(existsSync(TWO_WAY_OBSERVATIONS_PATH), 'Rust two-way observation freezer wrote its artifact');
+  }
   if (!existsSync(LARGE_ROOT)) console.log('graph-g0-large-spot-check: DEFERRED receipt-only; rerun zb5 command recorded in bound-derivation.v1.json');
 }
 

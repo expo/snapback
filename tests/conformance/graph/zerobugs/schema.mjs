@@ -100,8 +100,11 @@ export const issueListRead = defineTable({
   // oracle's sourceIssueID tie-break.
   // @ref LLP 0209#9-sequencing-and-measurement-what-lands-first-and-how-it-is-measured
   // — P-C freezes every filter/order variant as an admitted static plan.
+  // @ref LLP 0209#v08-spec-gap-notes-from-g2-a-fix-round-1 — D2's nullable
+  // two-way order keeps the final physical `_id ASC` tie implicit.
   .index('by_matrix_project_modified', ['projectID', 'modified'])
   .index('by_matrix_project_created', ['projectID', 'created'])
+  .index('by_matrix_project_assignee_order', ['projectID', 'assigneeID'])
   .index('by_matrix_project_open_modified', ['projectID', 'open', 'modified'])
   .index('by_matrix_project_creator_modified', ['projectID', 'creatorID', 'modified'])
   .index('by_matrix_project_assignee_modified', ['projectID', 'assigneeID', 'modified'])
