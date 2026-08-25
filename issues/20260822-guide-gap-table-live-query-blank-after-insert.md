@@ -31,16 +31,18 @@ closed owner-visibility-exit delta leak
 
 ## Required change
 
-- Document, with a failing-then-fixed example, that a table live query on
-  `eq('_id')` / parent-id after a same-table insert may go empty, and that
-  `defineJsLiveQuery` re-runs and keeps the row.
-- Name the selection rule in the queries / live-queries pages and in
-  `snapback guide` aliases (`blank after insert`, `Loading thread`,
-  `live_delta empty`).
-- If this is a matcher/delta defect rather than intended physics, fix the
-  incrementalizer so a just-inserted matching row cannot disappear from an
-  already-subscribed point query; keep the Guide warning until that fix
-  ships.
+- Capture a faithful React/JS `writePost` reproduction and probe trace across
+  `postById` / `repliesForPost`, including the identities, subscription and
+  settlement versions, raw durable frames, authorization events, and component
+  mount state. A product test that actually reproduces the blank is equivalent
+  evidence.
+- If that evidence reproduces a matcher/delta defect, fix the incrementalizer
+  and retain the failing-then-fixed product test. If it identifies a
+  non-matcher cause, document and test that boundary instead.
+- Keep the residual warning, workaround, selection rule, and `snapback guide`
+  aliases (`blank after insert`, `Loading thread`, `live_delta empty`) until
+  the faithful trace or genuinely blanking product test lands and the cause is
+  fixed or documented.
 
 ## Acceptance
 

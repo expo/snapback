@@ -357,6 +357,7 @@ try {
     .liveStreamManager(connectionId, FAST_STREAM)
     .onDurable(wireRec.onWire);
   const pointRec = recorder();
+  const populatedParentPointRec = recorder();
   const parentRec = recorder();
   const orderedParentRec = recorder();
   const provisionalPointRec = recorder();
@@ -367,6 +368,14 @@ try {
     transport: 'stream',
     stream: FAST_STREAM,
     onUpdate: pointRec.onUpdate,
+  });
+  const populatedParentPointHandle = await subscriber.liveQuery('postById', {
+    args: { id: parentId },
+    connectionId,
+    userId: ADA,
+    transport: 'stream',
+    stream: FAST_STREAM,
+    onUpdate: populatedParentPointRec.onUpdate,
   });
   const parentHandle = await subscriber.liveQuery('repliesForPostUnordered', {
     args: { parentId },
@@ -397,6 +406,11 @@ try {
     await suite.check('matcher characterization: second-client socket preserves identity and operation payloads', async () => {
       assertEqual(provisionalId === canonicalId, false, 'provisional and canonical identities are distinct');
       assertEqual(pointHandle.rows, [], 'canonical point snapshot starts empty before insert');
+      assertEqual(
+        populatedParentPointHandle.rows.map(({ _id, replyCount }) => ({ _id, replyCount })),
+        [{ _id: parentId, replyCount: 0 }],
+        'populated parent point snapshot starts with the parent',
+      );
       assertEqual(parentHandle.rows, [], 'unordered parent snapshot starts empty before insert');
       assertEqual(orderedParentHandle.rows, [], 'ordered parent snapshot starts empty before insert');
       assertEqual(provisionalPointHandle.rows, [], 'provisional point snapshot is not a row address');
@@ -441,6 +455,10 @@ try {
         () => orderedParentHandle.rows.some((row) => row._id === canonicalId),
         'ordered parent replacement',
       );
+      await populatedParentPointRec.waitFor(
+        () => populatedParentPointHandle.rows[0]?.replyCount === 1,
+        'populated parent point replacement',
+      );
       await provisionalPointRec.waitFor(
         () => provisionalPointRec.updates.some((update) => update.kind === 'current_as_of'),
         'provisional point convergence watermark',
@@ -455,6 +473,21 @@ try {
         pointRec.updates.map((update) => update.ids),
         [[], [canonicalId]],
         'canonical point recorder retains the snapshot and delta row payloads',
+      );
+      assertEqual(
+        populatedParentPointRec.updates.map((update) => update.kind),
+        ['snapshot', 'live_replace'],
+        'populated parent point delivery orders snapshot before replacement',
+      );
+      assertEqual(
+        populatedParentPointRec.updates.map((update) => (
+          update.rows.map(({ _id, replyCount }) => ({ _id, replyCount }))
+        )),
+        [
+          [{ _id: parentId, replyCount: 0 }],
+          [{ _id: parentId, replyCount: 1 }],
+        ],
+        'populated parent point retains the parent and increments replyCount',
       );
       assertEqual(
         parentRec.updates.map((update) => update.kind),
@@ -480,9 +513,10 @@ try {
       // The authoritative snapshot is the subscribe response; the later Add
       // is the durable socket frame. The recorder assertions above bind their
       // delivery order, while these raw frames retain the exact operation.
-      for (const [label, handle, expectedRow] of [
-        ['point', pointHandle, pointHandle.rows[0]],
-        ['parent', parentHandle, parentHandle.rows[0]],
+      const replyFixture = { _id: canonicalId, parentId, title: 'reply' };
+      for (const [label, handle] of [
+        ['point', pointHandle],
+        ['parent', parentHandle],
       ]) {
         const frames = wireRec.wireFrames.filter(
           (candidate) => candidate.subscription_id === handle.subscriptionId,
@@ -493,12 +527,26 @@ try {
           `${label} raw durable socket carries exactly one Add frame`,
         );
         assertEqual(
-          frames[0].ops,
-          [{ op: 'add', id: canonicalId, row: expectedRow }],
-          `${label} raw Add payload`,
+          frames[0].ops.map(({ op, id }) => ({ op, id })),
+          [{ op: 'add', id: canonicalId }],
+          `${label} raw Add operation`,
+        );
+        assertEqual(
+          {
+            _id: frames[0].ops[0].row._id,
+            parentId: frames[0].ops[0].row.parentId,
+            title: frames[0].ops[0].row.title,
+          },
+          replyFixture,
+          `${label} raw Add row matches the independent fixture`,
         );
       }
       assertEqual(pointHandle.rows.map((row) => row._id), [canonicalId], 'point keeps the canonical row');
+      assertEqual(
+        populatedParentPointHandle.rows.map(({ _id, replyCount }) => ({ _id, replyCount })),
+        [{ _id: parentId, replyCount: 1 }],
+        'populated parent point keeps the incremented parent',
+      );
       assertEqual(parentHandle.rows.map((row) => row._id), [canonicalId], 'parent keeps the canonical child');
       assertEqual(orderedParentHandle.rows.map((row) => row._id), [canonicalId], 'ordered parent keeps the child');
       assertEqual(provisionalPointHandle.rows, [], 'provisional point never aliases the canonical row');
@@ -506,6 +554,7 @@ try {
         provisionalId,
         canonicalId,
         pointKinds: pointRec.updates.map((update) => update.kind),
+        populatedParentPointKinds: populatedParentPointRec.updates.map((update) => update.kind),
         parentKinds: parentRec.updates.map((update) => update.kind),
         orderedParentKinds: orderedParentRec.updates.map((update) => update.kind),
         wireOps: wireRec.wireFrames
@@ -534,6 +583,7 @@ try {
     });
   } finally {
     pointHandle.dispose();
+    populatedParentPointHandle.dispose();
     parentHandle.dispose();
     orderedParentHandle.dispose();
     provisionalPointHandle.dispose();
