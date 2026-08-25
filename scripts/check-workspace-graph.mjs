@@ -101,6 +101,7 @@ const SAFE_ENGINE_DERIVES = new Set([
   'Default',
   'Deserialize',
   'Eq',
+  'JsonSchema',
   'Ord',
   'PartialEq',
   'PartialOrd',
@@ -159,6 +160,7 @@ const SAFE_ENGINE_GLOB_IMPORTS = new Set([
   'snapback_types::push::*',
   'snapback_types::runtime::*',
   'super::*',
+  'super::runtime_cost::*',
 ]);
 const TRUSTED_ENGINE_CRATE_BINDINGS = new Set([
   'rusqlite',

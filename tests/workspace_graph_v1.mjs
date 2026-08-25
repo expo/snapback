@@ -444,6 +444,7 @@ test('definition-producing engine includes and macros fail closed', () => {
     'use foreign_derive::DefineSearch as Serialize;\n#[derive(Serialize)] struct Harmless;',
     'use foreign_attr::DefineSearch as serde;\n#[serde] struct Harmless;',
     'use foreign_derive::Serialize;\n#[derive(Serialize)] struct Harmless;',
+    'use foreign_derive::JsonSchema;\n#[derive(JsonSchema)] struct Harmless;',
     'use foreign_attr::serde;\n#[serde] struct Harmless;',
     'extern crate foreign as serde_json;\nserde_json::json!({});',
     'pub(crate) extern crate foreign as serde_json;\nserde_json::json!({});',
@@ -459,6 +460,20 @@ test('definition-producing engine includes and macros fail closed', () => {
       source,
     );
   }
+});
+
+test('reviewed engine derives remain bound to their canonical imports', () => {
+  assert.doesNotThrow(() => validateEngineDefinitionDenylist(artifact, [{
+    path: '/fixture/engine.rs',
+    source: 'use schemars::JsonSchema;\n#[derive(JsonSchema)] struct Harmless;',
+  }]));
+});
+
+test('reviewed engine compatibility globs stay exact', () => {
+  assert.doesNotThrow(() => validateEngineDefinitionDenylist(artifact, [{
+    path: '/fixture/engine.rs',
+    source: 'use super::runtime_cost::*;',
+  }]));
 });
 
 test('comment and literal examples do not count as engine definitions', () => {
