@@ -1751,7 +1751,7 @@ test('acceptance runner publication metadata exposes only the supported root', (
   assert.deepEqual(new Set(Object.keys(manifest.exports)), new Set(['.', './package.json']));
   assert.deepEqual(
     new Set(manifest.files),
-    new Set(['README.md', 'index.d.mts', 'index.mjs']),
+    new Set(['README.md', 'index.d.mts', 'index.mjs', 'replay.mjs', 'replay-worker.mjs']),
   );
   const stamped = structuredClone(manifest);
   stamped.version = '0.1.25';
