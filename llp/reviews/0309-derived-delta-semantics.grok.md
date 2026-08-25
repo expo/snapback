@@ -58,3 +58,40 @@ The RFC’s direction is the right one: one operator-level incremental semantics
 
 ## Verdict
 NOT READY
+
+## Round 2 — 2026-08-25 (delta round on r2)
+
+- Reviewer: `grok-4.6` @ xhigh, headless, terminal ban, no repository
+  access; received r2 in full, the r1→r2 unified diff, and its own
+  round-1 review only (cross-family blindness preserved).
+- Revision under review: r2, target sha256/16 `f3e1d4c8067d6fd6`
+  (worktree commit `a3b25007c`). Prompt sha256/16 `4507d08e5321aae1`.
+- Run: launched 2026-08-25T09:54:16Z, exit 0, empty stderr; body
+  below is the complete stdout, verbatim (including the leading
+  narration sentence about loading the offloaded prompt).
+
+### Review body (verbatim)
+
+The prompt was truncated; I’ll load the offloaded full request so the review uses the complete r2 document and diff, not a partial excerpt.## Round-1 disposition check
+
+1. **DISPOSED.** D1 is recast as methodology plus Stage A acceptance criteria; D1.1 gives a typed partial `∂O`, bilinear joins (either-side plus both-change), ranked-sequence vs Z-set composition, batch atomicity, maintain-only equation, and a Stage A wire mapping.
+2. **DISPOSED.** Motivation drops “maintenance state = the captures”; D1.3 requires a have/missing/wrong-grain ledger against captures *and* G3 retained state, with amendment or `FALLBACK`-pin — not a claim that Stage C can proceed on the listed capture fields.
+3. **DISPOSED.** The table is an explicit hypothesis set; to-one and principal-bound are stateful bilinear joins; projection is split on row-identity preservation; stateful inventory is restated; Stage A owes a `GraphNodeV1` / `TableVisibilityV1` closure check.
+4. **DISPOSED.** D4.2 names the 0209 owners, the (a)/(b)/(c) rule, shipped-as-deployed-contract, unclassified divergence blocking Stage C, and “Stage B changes no runtime code.”
+
+## MATERIAL concerns
+
+None.
+
+## Non-material observations
+
+1. **IN-DELTA.** D1.1’s signature is unary in `Δin` while the bilinear bullet requires two inputs plus a both-change term. Stage A should treat join `Δin` as a product (or two unary arms plus a both-change arm) in the type, not only in prose.
+2. **IN-DELTA.** “Stateful rows number **five**” collapses membership-visibility with semi-join; the table has six stateful rows, plus nested assembly as a third bucket. Harmless if the closure check is the inventory, misleading if someone treats the “five” as the hard list.
+3. **IN-DELTA.** D2 adds “`FALLBACK`-returning” beside standing ineligibility (not-yet-admitted, state-gapped). Every form is partial, so that phrase can be read as pinning every plan. D1.1 already maps a *verdict* to `live_replace`; D2 should say that, not an operator class.
+4. **IN-DELTA.** D1.1 returns `state_O'`; D4.2 audits retained-state transitions; D4.1 vectors are only `(state, change batch, expected delta or FALLBACK)`. Include expected next state in the vector schema.
+5. **IN-DELTA.** Missing/wrong-grain resolves only by “0209-path amendment or `FALLBACK`-pin,” while D1.3 also names server-internal retained indexes as a source. Adding an evaluator-internal structure is not a capture amendment; don’t fail-close it into the profile path.
+6. **IN-DELTA.** Class (c) notes a shipped lane as a sound approximation of the reference, and Stage C instantiates Stage A. One sentence that (c) records are shipped-lane-only and do not become per-kind exceptions in new rungs would stop the residual special-case path.
+7. **PRE-EXISTING.** Motivation’s capture-field list and G3 retained-state inventory are still unevidenced citations. D1.3 is the right posture only if Stage A treats those lists as leads, not as the ledger.
+
+## Verdict
+READY

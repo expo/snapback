@@ -78,3 +78,42 @@ The RFC identifies a promising direction, and its preservation of fail-closed ad
 ## Verdict
 
 NOT READY
+## Round 2 — 2026-08-25 (delta round on r2)
+
+- Reviewer: codex `gpt-5.6-sol` @ ultra (verified in run log),
+  read-only in capsule c0309-r2 (r1-capsule lineage + r2 overlay; zero
+  0309 review artifacts, verified); received the r1→r2 diff and its
+  own round-1 review only.
+- Revision under review: r2, target sha256/16 `f3e1d4c8067d6fd6`
+  (worktree commit `a3b25007c`). Instructions sha256/16
+  `503d24aad9800869`.
+- Run: launched 2026-08-25T09:54:14Z, exit 0. Body below is the
+  complete final message, verbatim.
+
+### Review body (verbatim)
+
+## Round-1 disposition check
+
+1. **PARTIALLY DISPOSED.** R2 correctly rejects “state = captures” and accounts for retained rows, authorized reads, image direction, and custody, but D1.3 still omits outer serving state such as window-ledger and capture-freshness transitions.
+2. **PARTIALLY DISPOSED.** The classifications are substantially corrected, but D1.1 still mis-types composite multi-relation nodes as two-input operators, while its one-row closure rule cannot express their decomposition.
+3. **PARTIALLY DISPOSED.** R2 adds an executable reference evaluator and Stage-B decision rule, but its equivalence oracle still omits shipped read/effect, proof, ledger, and capture-continuity obligations.
+4. **DISPOSED.** Local derivation is now conditional, and D3.2 preserves LLP 0190’s exact-plan, projection, authority, proof, and hidden-row custody restrictions.
+5. **DISPOSED.** D4.3 now matches the landed G3 response: record the mismatch, suppress the delta, and force a fresh replace for that event; LLP 0270 remains scoped to advertised local profiles.
+
+## MATERIAL concerns
+
+1. **[IN-DELTA] The typed decomposition still does not cover the closed surface.** D1.1 says principal-bound relations and semi-joins take two inputs (`llp/0309-derived-delta-semantics.rfc.md:126-129`), but `PrincipalBound` may consume parent, optional binding, and target relations, while a through-edge semi-join consumes parent, through, and target relations (`graph.rs:254-280,964-997`; `graph_evaluator.rs:1774-1885,2141-2238`). Moreover, the closure check says each `GraphNodeV1` variant maps to exactly one table row, although rows mix primitive operators with composite node kinds. Stage A must require an explicit syntax-directed decomposition into elementary binary operators—or typed n-ary forms with every input-change term—and check every semantic component, not one row per variant.
+
+2. **[IN-DELTA] The reference semantics and Stage-B oracle still omit parts of the shipped maintenance contract.** D4.2 compares eligibility, fallback, retained-state transitions, and emitted ops (`llp/0309-derived-delta-semantics.rfc.md:251-263`), but G3 separately maintains bounded/authorized read effects, proof updates and composition, window ledgers, and stale-capture replacement state (`graph_evaluator.rs:228-235,3785-3870`; `local/engine.rs:34068-34110,34159-34168`). Two implementations could agree on the listed axes while widening reads or breaking proof, ledger, or capture continuity. These axes must be included in the derivation/equivalence contract or explicitly excluded and protected by a separate mandatory acceptance gate.
+
+## Non-material observations
+
+1. **[IN-DELTA]** “Stateful rows number five” miscounts six explicit rows: membership visibility, two joins, bounded to-many, root window, and exists semi-join.
+
+2. **[IN-DELTA]** “Change events as delivered carry post-images” is overbroad. Inserts and updates carry post-images, while deletes may carry the deleted pre-image or no row, depending on the carrier (`storage.rs:5628-5654,16229-16264`).
+
+3. **[IN-DELTA]** D3.2 mandates Stage-A forms for future “local maintenance” while leaving patch-only maintenance open; patch application is not operator-level derivation. Scope the mandate to client-side derivation and make `FALLBACK` handling consumer-specific: server-side replace versus local `unknown`/hydrate/refusal.
+
+## Verdict
+
+NOT READY

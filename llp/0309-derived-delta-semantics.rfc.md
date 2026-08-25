@@ -123,19 +123,27 @@ incremental form `∂O` with an explicit type:
   The wire encoding of the result (the existing additive
   `add`/`update`/`remove` op vocabulary) is unchanged; Stage A defines
   the mapping from delta carriers onto it.
-- **Joins are bilinear.** Equality to-one, principal-bound relations,
-  and semi-joins take two inputs; `∂O` must specify the form for a
-  change on either input, each using retained state of the other side,
-  and the composed both-change term.
+- **Composite nodes decompose; every input gets a change term.** The
+  elementary operators are unary or binary; binary forms type `Δin` as
+  a product (or two unary arms plus a both-change arm), each arm using
+  retained state of the other side. Composite node kinds are covered by
+  **syntax-directed decomposition into elementary operators** — a
+  principal-bound relation may consume parent, optional binding, and
+  target relations; a through-edge semi-join consumes parent, through,
+  and target relations — or, where Stage A instead types an n-ary form
+  directly, it must give the change term for every input. No composite
+  is treated as two-input by fiat.
 - `∂O` is **partial by design**: the defining property
   `O(S + ΔS) = O(S) + ∂O(S, ΔS)` (in each carrier's composition) is
   required only on maintain verdicts; `FALLBACK(reason)` is a
   first-class outcome and maps to `live_replace` — the honest default,
   unchanged.
-- Change events as delivered carry post-images. Where a form needs a
-  pre-image (an interior ordered row's prior sort key, for example),
-  the state contract must supply it — retained state or an authorized
-  point read — or the form returns `FALLBACK`.
+- Image direction is carrier-dependent: inserts and updates deliver
+  post-images; deletes may deliver the pre-image or no row at all.
+  Where a form needs an image the carrier does not supply (an interior
+  ordered row's prior sort key, for example), the state contract must
+  supply it — retained state or an authorized point read — or the form
+  returns `FALLBACK`.
 
 #### D1.2 Classification hypotheses (Stage A confirms or corrects)
 
@@ -153,12 +161,14 @@ incremental form `∂O` with an explicit type:
 | Exists semi-join (incl. through-tables, repeated existence) | stateful; 0↔1 support transitions | per-row support counts (gap: OQ-2) |
 | Search-membership | **excluded** — D6's writer owns its invalidation facts (LLP 0209 OQ-4) | — |
 
-Stateful rows number **five** (both join kinds, to-many, window,
-semi-join/membership-visibility), not three; the linear rows are the
-one-liners. Stage A must additionally run a **closure check**: every
-`GraphNodeV1` variant and every `TableVisibilityV1` arm maps to exactly
-one row (or a named refusal), so the table provably covers the closed
-surface rather than sampling it.
+Stateful rows number **six** (membership visibility arms, both join
+kinds, to-many, window, exists semi-join), with nested result assembly
+a separate derived bucket; the linear rows are the one-liners. Stage A
+must additionally run a **closure check**: every `GraphNodeV1` variant
+and every `TableVisibilityV1` arm maps to a **decomposition** into
+table rows (or a named refusal) that covers all of its semantic
+components — rows are elementary operators, and composite node kinds
+map to compositions, never "one row per variant."
 
 #### D1.3 The state contract
 
@@ -170,9 +180,14 @@ data, authorized point read), pre-image vs post-image needs, and
 custody class (**server-internal** — like the evaluator's retained
 state, which is deliberately non-serialized — vs **eligible to cross
 the client custody boundary**, which is a separate, stricter claim
-gated by LLP 0190's authority/projection restrictions). A missing or
-wrong-grain entry is resolved by a 0209-path amendment or the operator
-stays `FALLBACK`-pinned — never silently approximated.
+gated by LLP 0190's authority/projection restrictions). The ledger's
+scope includes the **outer serving state** the shipped lanes maintain —
+window ledgers and capture-freshness/replacement transitions — not only
+per-operator relation state. A missing or wrong-grain entry is resolved
+by a capture amendment through 0209's path, by an **evaluator-internal
+retained-state addition** (internal state is not profile surface and
+needs no capture amendment), or the operator stays `FALLBACK`-pinned —
+never silently approximated.
 
 Predicate evaluation inside delta forms reuses the LLP 0051 `ValueExpr`
 evaluator unchanged, inheriting the matcher/SQL agreement invariant and
@@ -185,8 +200,10 @@ the plan's dataflow (bilinear operators compose over both inputs; this
 is dataflow composition, not a linear pipeline). Eligibility remains a
 *conjunction with per-kind admission*: an operator kind participates
 only once its form is admitted (vectors + convergence checks, §D4),
-and any not-yet-admitted, state-gapped, or `FALLBACK`-returning
-operator pins the plan to `live_replace` — LLP 0209 §7's rule
+and any not-yet-admitted or state-gapped operator — or a `FALLBACK`
+*verdict* from an admitted form on the change at hand (every form is
+partial; the verdict, not the operator class, is what pins) — pins the
+plan to `live_replace` — LLP 0209 §7's rule
 unchanged, including semi-joins fail-closed pending the certified
 evaluator condition (LLP 0056; LLP 0067 §F2a) and one ineligible node
 pinning the whole graph.
@@ -231,6 +248,12 @@ hidden rows must not influence output; the server's retained state is
 server-internal and does not ship). What the client would maintain —
 authorized base facts with local derivation, or only server-produced
 patches — is the rung-5-adjacent seam decision (OQ-4), not this RFC's.
+The conditional mandate is scoped to client-side **derivation**:
+applying server-produced patches is not operator-level derivation and
+carries no Stage A obligation. `FALLBACK` handling is
+consumer-specific — server-side, replace; locally, the honest response
+is the profile's (`unknown`, hydrate, or refusal per LLP 0190), never
+a silent local approximation.
 
 Explicitly not a consumer: the replica continuity contract
 (base/predecessor stamping, cumulative-vs-compositional semantics,
@@ -242,7 +265,8 @@ do not define it, and nothing here claims replica applicability.
 1. **Reference evaluator + vectors (the derivation artifact).** Stage A
    ships the operator semantics as an executable reference evaluator
    over the delta carriers, plus per-operator conformance vectors
-   (state, change batch, expected delta or FALLBACK) under
+   (state, change batch, expected delta or FALLBACK, **and expected
+   next state** — forms return `state_O'`, so vectors pin it) under
    `tests/conformance/` in the house pattern — three-valued-logic and
    boundary edge cases included. The reference evaluator is the
    drift-prevention mechanism (the honest analogue of LLP 0051's
@@ -253,14 +277,22 @@ do not define it, and nothing here claims replica applicability.
    rung 1's — are compared against the reference evaluator on the
    existing corpora and replay fixtures, across eligibility decisions,
    fallback verdicts, retained-state transitions, and emitted ops (not
-   only success bytes). The decision rule: **shipped behavior is the
+   only success bytes), **and** the shipped maintenance obligations
+   beyond them: bounded/authorized read effects, proof updates and
+   composition, window-ledger transitions, and stale-capture
+   replacement/continuity. Each of those axes is either inside the
+   derivation/equivalence contract or explicitly excluded and
+   protected by its own mandatory acceptance gate — never silently out
+   of scope. The decision rule: **shipped behavior is the
    deployed contract and presumed correct**; each divergence is
    classified by the 0209 owners as (a) reference-semantics error —
    fix Stage A; (b) shipped defect — filed as a fix-forward ticket per
    LLP 0189, never patched by Stage B itself; or (c) intentional
    conservative approximation — recorded, with the reference noting
-   the shipped lane as a sound approximation. An unclassified
-   divergence blocks Stage C. Stage B changes no runtime code.
+   the shipped lane as a sound approximation; class (c) records are
+   **shipped-lane-only** and never become per-kind exceptions
+   instantiated into new rungs. An unclassified divergence blocks
+   Stage C. Stage B changes no runtime code.
 3. **Runtime comparator, described accurately.** The shipped
    discipline is DK-3's debug convergence assertion and G3 rung 1's
    default-on sampling, whose landed mismatch response is: record the
@@ -331,6 +363,24 @@ shipped lanes on its own, with the reference evaluator as its oracle.
 
 ## Revision history
 
+- **r3 (2026-08-25).** Response to round-2 delta reviews (grok READY;
+  codex NOT READY with two IN-DELTA MATERIALs, zero pre-existing).
+  D1.1: composite node kinds now covered by syntax-directed
+  decomposition into elementary operators (principal-bound and
+  through-edge semi-joins named as three-input composites; binary
+  forms type `Δin` as a product; n-ary forms need every input's change
+  term); image-direction bullet made carrier-accurate (deletes may
+  carry pre-image or no row). Closure check redefined as decomposition
+  coverage of all semantic components, never one row per variant;
+  stateful count corrected to six. D1.3: ledger scope extended to
+  outer serving state (window ledgers, capture freshness) and a third
+  resolution path added (evaluator-internal state addition, no capture
+  amendment). D4.1 vectors pin expected next state. D4.2 oracle axes
+  extended to read effects, proofs, window ledgers, and
+  stale-capture continuity — in-contract or excluded behind a
+  mandatory gate; class (c) scoped shipped-lane-only. D2's fallback
+  phrasing fixed to the verdict, not an operator class. D3.2 mandate
+  scoped to client-side derivation with consumer-specific FALLBACK.
 - **r2 (2026-08-25).** Response to round-1 super-refine reviews (codex,
   grok — both NOT READY). Recast the RFC as methodology + acceptance
   criteria with Stage A owning the semantics; added the D1.1 carrier
