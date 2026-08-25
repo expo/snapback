@@ -372,6 +372,7 @@ export function createSnapbackExpoBoot(options = {}) {
     bindLifecycle = bindSnapbackAppLifecycle,
     createApplicationClient = createSnapbackAppClientWithBootstrapObserver,
     adoptSupervisedAuthority = adoptSupervisedBootstrapAuthority,
+    adoptSupervisedSession = false,
     acquireDefaultRqsStore = acquireExpoSqliteDefaultRqsStore,
     now = () => Date.now(),
   } = options;
@@ -632,7 +633,8 @@ export function createSnapbackExpoBoot(options = {}) {
         }
 
         if (
-          admittedBinding.source === 'supervised-dev'
+          adoptSupervisedSession
+          && admittedBinding.source === 'supervised-dev'
           && typeof environment.resolveSupervisedAuthority === 'function'
         ) {
           const supervised = await awaitBoundary(environment.resolveSupervisedAuthority(Object.freeze({
@@ -995,6 +997,7 @@ export function SnapbackExpoProvider(props) {
     url = undefined,
     environment = defaultSnapbackExpoEnvironment,
     rqsStore = undefined,
+    adoptSupervisedSession = false,
     fallback = null,
     children = null,
     outboxDrain = 'auto',
@@ -1019,10 +1022,17 @@ export function SnapbackExpoProvider(props) {
         for (const listener of [...listeners]) listener();
       },
     });
-  }, [app, binding, environment, rqsStore, url]);
+  }, [adoptSupervisedSession, app, binding, environment, rqsStore, url]);
   const active = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
   useEffect(() => {
-    const boot = createSnapbackExpoBoot({ app, binding, url, environment, rqsStore });
+    const boot = createSnapbackExpoBoot({
+      app,
+      binding,
+      url,
+      environment,
+      rqsStore,
+      adoptSupervisedSession,
+    });
     let current = true;
     const sync = () => {
       if (!current) return;
@@ -1041,7 +1051,7 @@ export function SnapbackExpoProvider(props) {
       unsubscribe();
       void boot.dispose();
     };
-  }, [app, binding, environment, rqsStore, store, url]);
+  }, [adoptSupervisedSession, app, binding, environment, rqsStore, store, url]);
   const state = active.state;
   const lifecycleValue = useMemo(() => Object.freeze({
     environment,

@@ -33,6 +33,7 @@ export function expoBackendClientOrigins(metroPort: number): readonly string[];
 export function expoMetroChildEnvironment(options: Readonly<{
   env?: Readonly<Record<string, string | undefined>>;
   bootstrapOrigin: string;
+  backendOrigin?: string;
   port: number;
 }>): Record<string, string | undefined>;
 
@@ -113,7 +114,7 @@ export function createDevIdentityCheckoutRegistry(options: Readonly<{
 }>): DevIdentityCheckoutRegistry;
 
 export function startBootstrapExchange(
-  getPayload: () => unknown | null | Promise<unknown | null>,
+  getPayload: (request: Readonly<{ requestAuthority: boolean }>) => unknown | null | Promise<unknown | null>,
   options?: Readonly<{
     onControl?: (
       request: BootstrapExchangeControlRequest,

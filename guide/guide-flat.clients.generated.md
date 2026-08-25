@@ -3494,8 +3494,8 @@ examples: [demos/expo-golden-path-fixture, demos/expo-golden-path-fixture/receip
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-24
-reviewed-authorities-digest: sha256:fca517e84d82d08eaa178a659ff7e4a56b5b74566676e3bfee7c39e37cfb2929
+reviewed: 2026-08-25
+reviewed-authorities-digest: sha256:3a996361804792e7ba2955a608b744be0615758fcae884fa4764849c3a812884
 ---
 
 # React Expo Online clients
@@ -3823,8 +3823,11 @@ wrap an independently owned listener in the supervised `--expo` loop.
 > boundary on an older closure.
 
 This supervised boot has three application-visible pieces: the config-plugin
-entry, the generated `app`, and `SnapbackExpoProvider`; the rendezvous wins
-over any configured URL, so the older no-URL composition remains valid here
+entry, the generated `app`, and `SnapbackExpoProvider`. On web the supervisor
+injects `EXPO_PUBLIC_SNAPBACK_URL` as the backend data/auth origin as well as
+its control-plane rendezvous origin. The rendezvous remains the binding source
+and wins over the configured URL, so the older no-URL composition remains valid
+here
 ([LLP 0181 §Config plugin](repo:llp/0181-zero-configuration-expo.rfc.md#config-plugin),
 [LLP 0181 §Provider](repo:llp/0181-zero-configuration-expo.rfc.md#provider)).
 The working fixture's plugin entry is:
@@ -3869,12 +3872,15 @@ the app needs product-shaped multi-persona behavior. The checkpoint-era
 `useSnapbackQuery({ provider, query, userId })` bridge in an older demo is a
 test-era workaround, not the packaged path.
 
-The supervised mint is one session for the supervised origin, so every browser
-context that adopts it becomes the same principal. A two-user browser proof
-must decline that ambient authority and use ordinary password signup/sign-in
-with separate custody per context. The canonical URL-first path avoids this
-footgun by minting nothing at startup; use `snapback auth dev-session` only as
-an explicit operator tool, never as a template-consumed app session.
+The supervised web loop does not mint at startup, and the provider does not
+adopt a supervised session by default. It reaches anonymous `ready`, where
+ordinary password signup/sign-in uses the injected backend URL. Pass
+`adoptSupervisedSession` only when a test explicitly wants the on-demand
+supervised mint. That mint is one session for the supervised origin, so every
+browser context that explicitly adopts it becomes the same principal; a
+two-user proof should instead use ordinary password entry with separate
+custody per context. `snapback auth dev-session` likewise remains an explicit
+operator tool, never a template-consumed app session.
 
 From an Expo app whose backend is the conventional `snapback/` child, select
 the supervised carrier explicitly (iOS remains the default when the platform
@@ -3979,11 +3985,14 @@ origin.
 
 When Metro's file watching is inert — the project under a watcher-blind root such as `/private/tmp`, or `CI` truthy in the effective Metro environment of a bundler you started yourself — the supervised readiness stream carries one advisory `SNAPBACK_EXPO_METRO_WATCH_INERT` event naming the condition and the fix, so a stale bundle is not misread as an application bug. The supervised `--expo` loop strips `CI` from its owned Metro child (the supervised loop is a watch loop by contract), so a headless controller with `CI=1` no longer disables watching there. On unsupervised `snapback dev` invocations that own their client (`--client-command`), the same code is still printed as an advisory, not a refusal, when the CLI process has a truthy `CI`: if you start Metro or Expo yourself, do not inherit `CI=1`; unset `CI` or pass `CI=0`.
 
-Metro receives only the credential-free rendezvous origin. At runtime the Expo
-facade performs a `GET /_snapback/expo/v1/bootstrap` with `cache: "no-store"`;
-the loopback-only response pairs the expiring binding with either an ordinary
-session or a structured authority refusal. The exchange has the supervisor's
-lifetime and is reclaimed with the other children
+Metro receives the credential-free rendezvous origin and, on web, the backend
+data/auth origin as `EXPO_PUBLIC_SNAPBACK_URL`. At runtime the Expo facade
+performs a `GET /_snapback/expo/v1/bootstrap` with `cache: "no-store"`; the
+loopback-only response carries the expiring binding and an unavailable
+authority marker. Explicit supervised adoption makes a second, on-demand
+authority request, which returns either an ordinary session or a structured
+refusal. The exchange has the supervisor's lifetime and is reclaimed with the
+other children
 ([LLP 0181 §Delivery E1, "E1 carrier disposition"](repo:llp/0181-zero-configuration-expo.rfc.md#e1--simulatoremulator-loop),
 [supervised environment](repo:packages/snapback-expo/supervised-environment.mjs)).
 LLP 0181's E1 acceptance requires the bearer to remain absent from the named
@@ -4004,14 +4013,14 @@ committed enforcement flip; a presented invalid capability is refused now,
 and enforcement waits for the acceptance suite to witness every supported
 carrier.
 
-### Settle the backend into Sessions mode first
+### Settle the backend into Sessions mode before explicit adoption
 
-The automatic mint inherits the native `auth.mintSession` precondition: the
+The on-demand mint inherits the native `auth.mintSession` precondition: the
 app must already be settled and available in Sessions mode. The fixture does
 this in its [schema](repo:demos/expo-golden-path-fixture/snapback/schema.mjs).
-If that precondition is absent, the mint refuses and the provider reports
-`authority-required` with the native diagnostic; it never hangs or silently
-continues as anonymous. See [Sessions and principals](../auth/sessions-and-principals.md)
+Without that precondition, default boot still reaches anonymous `ready`; an
+explicit `adoptSupervisedSession` request reports `authority-required` with
+the native diagnostic. See [Sessions and principals](../auth/sessions-and-principals.md)
 for the mode transition, and [LLP 0181 §Provider](repo:llp/0181-zero-configuration-expo.rfc.md#provider)
 for the provider state contract.
 

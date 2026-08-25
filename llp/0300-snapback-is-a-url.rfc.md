@@ -11,6 +11,11 @@ seem to run into the same issues"; "maybe we should just try to be more like
 them"; "Let's make an LLP/RFC about this, then refine it, then make a spec,
 then implement")
 **Date:** 2026-08-24
+**Revised:** 2026-08-25 (j — P4 amended for supervised Expo web: publish the
+same backend origin as `EXPO_PUBLIC_SNAPBACK_URL`, create its optional
+ordinary-session mint on demand, require explicit provider adoption, and
+leave sign-out at anonymous password entry. The supervisor rendezvous remains
+the sole binding source and a control-plane origin.)
 **Revised:** 2026-08-24 (i — Accepted → Implemented. The URL-first server
 and identity route landed in `05dfbba22`, the declared-dev client gate and
 stream-less operation battery in `9653d21d2`, the CLI/writer/dev-session and
@@ -268,13 +273,29 @@ Spec material.
 ### P4 — The dev session becomes explicit
 
 The URL path mints nothing ambiently and plain `snapback dev snapback`
-mints nothing by default: it prints *instructions*; the supervised
-`--expo` path retains its existing issuance behavior unchanged; `snapback auth dev-session` mints on
-explicit request, and the capability is an operator tool — templates never
-auto-consume it as the app session, and it is never written to `.env.local`
-or any bundler-public variable. Apps and harnesses wanting distinct
-principals use ordinary signup/login per context. This closes the
-one-mint-shared-by-every-tab class on the canonical path by construction.
+mints nothing by default: it prints *instructions*. `snapback auth
+dev-session` mints on explicit request, and the capability is an operator
+tool — templates never auto-consume it as the app session, and it is never
+written to `.env.local` or any bundler-public variable. Apps and harnesses
+wanting distinct principals use ordinary signup/login per context.
+
+The supervised `--expo --expo-platform web` path follows the same
+application-auth posture. Its Metro child receives
+`EXPO_PUBLIC_SNAPBACK_URL` set to the exact backend data/auth origin; the
+existing `EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN` remains a control-plane
+rendezvous and never becomes a second binding source. The credential-free
+exchange publishes the binding without creating a session. A supervised
+ordinary session is minted only when a client explicitly requests adoption,
+and `SnapbackExpoProvider`/`createSnapbackExpoBoot` do so only when
+`adoptSupervisedSession: true` is supplied (an explicit refresh or operator
+replacement remains explicit too). The default first-party provider therefore
+reaches anonymous ready and exposes guest/password entry. Signing out an
+adopted supervised session stays at that anonymous owner; it does not
+implicitly re-adopt or turn the ended session into a provider failure.
+
+This closes the one-mint-shared-by-every-tab class on both canonical and
+supervised web paths by construction, while preserving explicit one-session
+supervised adoption for tests that want it.
 
 ### P5 — What does not change, and what this RFC amends in LLP 0299
 

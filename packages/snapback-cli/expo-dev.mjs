@@ -56,6 +56,7 @@ export const EXPO_DEV_EVENT_FORMAT = 'snapback.expo-dev.v1';
 export const EXPO_SUPERVISOR_DESCRIPTOR_FORMAT = 'snapback.expo-supervisor.v1';
 export const SUPERVISED_EXCHANGE_FORMAT = 'snapback.expo-supervised-exchange.v1';
 export const SUPERVISED_EXCHANGE_PATH = '/_snapback/expo/v1/bootstrap';
+const SUPERVISED_AUTHORITY_REQUEST = 'mint';
 export const SUPERVISED_DEV_IDENTITY_CHECKOUT_PATH = '/_snapback/expo/v1/dev-identity-checkout';
 export const SUPERVISED_DEV_IDENTITY_CHECKOUT_HEADER = 'x-snapback-dev-identity-checkout';
 export const SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV = 'SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE';
@@ -106,7 +107,7 @@ export function expoBackendClientOrigins(metroPort) {
   ]);
 }
 
-export function expoMetroChildEnvironment({ env, bootstrapOrigin, port }) {
+export function expoMetroChildEnvironment({ env, bootstrapOrigin, backendOrigin, port }) {
   const childEnv = {
     ...(env ?? {}),
     EXPO_NO_TELEMETRY: '1',
@@ -115,6 +116,12 @@ export function expoMetroChildEnvironment({ env, bootstrapOrigin, port }) {
     // environment; a durable .env copy is a rejected stale-lifecycle
     // configuration surface.
     EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN: bootstrapOrigin,
+    // @ref LLP 0300#p4--the-dev-session-becomes-explicit — supervised web
+    // exposes the backend data/auth origin while retaining the supervisor
+    // origin above as the binding rendezvous control plane.
+    ...(typeof backendOrigin === 'string' && backendOrigin.length > 0
+      ? { EXPO_PUBLIC_SNAPBACK_URL: backendOrigin }
+      : {}),
     SNAPBACK_EXPO_METRO_PORT: String(port),
     RCT_METRO_PORT: String(port),
     // Expo's --localhost server asks Node to listen on the hostname
@@ -124,9 +131,9 @@ export function expoMetroChildEnvironment({ env, bootstrapOrigin, port }) {
     NODE_OPTIONS: metroNodeOptions(env?.NODE_OPTIONS),
   };
   // @ref LLP 0262#d2-carriers-per-shipped-topology — the browser-visible
-  // Metro environment carries only the credential-free rendezvous origin.
-  // The checkout nonce is delivered by the native launcher, never by Metro or
-  // an EXPO_PUBLIC_* variable.
+  // Metro environment carries only credential-free origins. The checkout
+  // nonce is delivered by the native launcher, never by Metro or an
+  // EXPO_PUBLIC_* variable.
   delete childEnv[SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV];
   // @ref LLP 0241#d6-development-commands-share-one-recovery-model — the
   // supervised Metro arm is always a generated-client watch custodian. Parent
@@ -400,10 +407,12 @@ function clientDiagnostic(source, fallbackCode, fallbackMessage) {
   });
 }
 
-// @ref LLP 0181#provider — E1 automates the already-shipped native session
-// mint primitive. The operator token stays supervisor-held and is passed only
-// to the native wrapper; the app-facing result contains only the ordinary
+// @ref LLP 0181#provider — E1 uses the already-shipped native session mint
+// primitive. The operator token stays supervisor-held and is passed only to
+// the native wrapper; the app-facing result contains only the ordinary
 // session envelope.
+// @ref LLP 0300#p4--the-dev-session-becomes-explicit — the supervisor calls
+// this primitive only after explicit session adoption or replacement demand.
 export function mintSupervisedOrdinarySession({
   runtimeBinary,
   readyFile,
@@ -1693,14 +1702,25 @@ export async function startBootstrapExchange(
       }
       return;
     }
-    if (request.method !== 'GET' || request.url !== SUPERVISED_EXCHANGE_PATH) {
+    const requestUrl = new URL(request.url ?? '/', 'http://supervisor.local');
+    const authorityRequest = requestUrl.searchParams.get('authority');
+    const validAuthorityRequest = requestUrl.search === ''
+      || (authorityRequest === SUPERVISED_AUTHORITY_REQUEST
+        && [...requestUrl.searchParams.keys()].length === 1);
+    if (
+      request.method !== 'GET'
+      || requestUrl.pathname !== SUPERVISED_EXCHANGE_PATH
+      || !validAuthorityRequest
+    ) {
       response.statusCode = 404;
       response.end(JSON.stringify({ ok: false, code: 'SNAPBACK_EXPO_BOOTSTRAP_ROUTE_NOT_FOUND' }));
       return;
     }
     let payload;
     try {
-      payload = await getPayload();
+      payload = await getPayload(Object.freeze({
+        requestAuthority: authorityRequest === SUPERVISED_AUTHORITY_REQUEST,
+      }));
     } catch {
       response.statusCode = 503;
       response.end(JSON.stringify({ ok: false, code: 'SNAPBACK_EXPO_BOOTSTRAP_UNAVAILABLE' }));
@@ -2031,6 +2051,7 @@ function startMetro({
   port,
   platform,
   bootstrapOrigin,
+  backendOrigin,
   env,
   emit,
   onExit,
@@ -2044,7 +2065,7 @@ function startMetro({
     cleanupLease,
     label: 'Expo Metro',
     cwd: directory,
-    env: expoMetroChildEnvironment({ env, bootstrapOrigin, port }),
+    env: expoMetroChildEnvironment({ env, bootstrapOrigin, backendOrigin, port }),
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   const logs = [];
@@ -2145,8 +2166,9 @@ function resolveExpoDeviceSelection(options) {
 }
 
 // @ref LLP 0181#supervised-development-baseline — one owner coordinates the
-// backend, Metro, expiring binding, transient session exchange, correlated
-// readiness stream, signal-ready close operation, and complete cleanup.
+// backend, Metro, expiring binding, credential-free rendezvous, optional
+// on-demand session exchange, correlated readiness stream, signal-ready close
+// operation, and complete cleanup.
 export async function runExpoDev(options = {}) {
   const correlationId = options.correlationId ?? `snapback-expo-${randomUUID()}`;
   const generation = options.supervisorGeneration ?? `supervisor-${randomUUID()}`;
@@ -2176,7 +2198,9 @@ export async function runExpoDev(options = {}) {
   let metroFront = null;
   let metroPlaceholder = null;
   let forwarding = null;
-  let authority = null;
+  let authority = Object.freeze({ status: 'unavailable' });
+  let authorityRequested = false;
+  let requestSupervisedAuthority = () => authority;
   let checkoutRegistry = null;
   let checkoutNonce = null;
   let nativeCheckoutLaunch = null;
@@ -2369,10 +2393,11 @@ export async function runExpoDev(options = {}) {
         await options.afterSupervisorOwnerBound?.(owner, port, reservation);
         assertStartupActive();
       },
-      getBootstrapPayload: async () => {
+      getBootstrapPayload: async ({ requestAuthority = false } = {}) => {
         const exchangeBinding = await bindingPublisher.bindingForExchange();
         if (exchangeBinding !== null) publishBindingProjection(exchangeBinding);
-        return exchangeBinding === null || authority === null
+        if (requestAuthority) await requestSupervisedAuthority();
+        return exchangeBinding === null
           ? null
           : Object.freeze({
               format: SUPERVISED_EXCHANGE_FORMAT,
@@ -2414,7 +2439,7 @@ export async function runExpoDev(options = {}) {
       platform: options.platform ?? 'ios',
       device: selectedDevice,
     });
-    const launchMetro = async () => {
+    const launchMetro = async (backendOrigin) => {
       if (metro !== null) return metro;
       assertStartupActive();
       const placeholder = metroPlaceholder;
@@ -2427,6 +2452,7 @@ export async function runExpoDev(options = {}) {
         port: metroProcessPort,
         platform,
         bootstrapOrigin: bootstrap.origin,
+        backendOrigin: platform === 'web' ? backendOrigin : undefined,
         env: childEnv,
         emit,
         cleanupLease,
@@ -2498,8 +2524,8 @@ export async function runExpoDev(options = {}) {
       try { await dev.close?.(); } catch { /* latched critical exit wins */ }
     }
     assertStartupActive();
-    await launchMetro();
     let backendRoute = portFromOrigin(dev.serverUrl, 'Snapback backend');
+    await launchMetro(backendRoute.origin);
     const backendProvenance = devPortPlanOwner(dev.portPlan, 'backend');
     portPlan = materializeDevPortPlan(
       portPlan,
@@ -2546,6 +2572,7 @@ export async function runExpoDev(options = {}) {
       getReadyDescriptor: () => readReadyDescriptor(dev.readyFile),
     });
     const mintAndSwapAuthority = (email, { emitReplacement = true } = {}) => {
+      authorityRequested = true;
       let operatorToken = managedAdminToken(readReadyDescriptor(dev.readyFile), database);
       try {
         authority = mintSupervisedOrdinarySession({
@@ -2570,7 +2597,15 @@ export async function runExpoDev(options = {}) {
       }
       return authority.status;
     };
-    mintAndSwapAuthority(options.email ?? DEFAULT_EMAIL, { emitReplacement: false });
+    // @ref LLP 0300#p4--the-dev-session-becomes-explicit — binding admission
+    // never invokes the mint; only the explicit authority query reaches this
+    // issuance site.
+    requestSupervisedAuthority = () => {
+      if (authority.status !== 'ready') {
+        mintAndSwapAuthority(options.email ?? DEFAULT_EMAIL);
+      }
+      return authority;
+    };
     let route = null;
     handleBootstrapControl = async ({ operatorToken, body }) => {
         let expectedOperatorToken = null;
@@ -2685,7 +2720,8 @@ export async function runExpoDev(options = {}) {
             timeoutMs: options.metroReadyTimeoutMs ?? 30_000,
           });
           emit({ ok: true, state: 'listeners-verified', listeners });
-          mintAndSwapAuthority(options.email ?? DEFAULT_EMAIL);
+          if (authorityRequested) mintAndSwapAuthority(options.email ?? DEFAULT_EMAIL);
+          else authority = Object.freeze({ status: 'unavailable' });
           if (shouldLaunchExpoNativeCheckout(route, options)) {
             checkoutNonce = checkoutRegistry.issue({
               platform: route.platform,
@@ -2889,7 +2925,7 @@ export async function runExpoDev(options = {}) {
         nativeCheckout: nativeCheckoutLaunch,
       });
     }
-    const finalState = authority.status === 'ready' ? 'ready' : 'authority-required';
+    const finalState = 'ready';
     assertStartupActive();
     if ((dev.child && (dev.child.exitCode !== null || dev.child.signalCode !== null))
         || metro.child.exitCode !== null || metro.child.signalCode !== null) {
@@ -2977,7 +3013,7 @@ export async function runExpoDev(options = {}) {
       applicationReceipt,
     );
     const finalReadiness = {
-      ok: authority.status === 'ready',
+      ok: true,
       state: finalState,
       connectCarrier: SUPERVISED_CONNECT_CARRIER,
       ...createExpoRoutingReadiness(route),
@@ -3072,7 +3108,7 @@ export async function runExpoDev(options = {}) {
       schemaVersion: EXPO_DEV_EVENT_FORMAT,
       ok: true,
       get state() {
-        return authority?.status === 'ready' ? 'ready' : 'authority-required';
+        return 'ready';
       },
       correlationId,
       supervisorGeneration: generation,

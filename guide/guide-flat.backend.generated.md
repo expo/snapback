@@ -2743,12 +2743,17 @@ reference exercises:
    commit the refreshed `snapback/generated/artifacts.json` plus only the
    projections selected by policy. Never patch a generated manifest to make a
    type error disappear.
-6. Run `snapback dev snapback --expo` for the supervised device loop. Keep the
-   acceptance owner separate from the rendered route: use the generated
-   template's headless `acceptance.mjs`/`acceptance.live.mjs` pattern to boot
-   isolated state, mint the test persona, drive generated references, observe
-   the live result, and shut down. Add an on-device process-kill/relaunch rung
-   for SecureStore restoration and the actual picker/upload path.
+6. Run `snapback dev snapback --expo` for the supervised device loop. On web,
+   that loop injects the backend as `EXPO_PUBLIC_SNAPBACK_URL`; the first boot
+   reaches anonymous `ready`, so guest/password UI works without starting once
+   on the URL-first loop. Supervised web adopts an ordinary session only with
+   `adoptSupervisedSession={true}`; native adopts by default and
+   `adoptSupervisedSession={false}` opts out. Keep the acceptance owner
+   separate from the rendered route: use the generated template's headless
+   `acceptance.mjs`/`acceptance.live.mjs` pattern to boot isolated state, mint
+   the test persona, drive generated references, observe the live result, and
+   shut down. Add an on-device process-kill/relaunch rung for SecureStore
+   restoration and the actual picker/upload path.
 
 The profile changes authoring syntax only. Expo boot, asset custody,
 acceptance process ownership, generated-artifact review, live delivery, and

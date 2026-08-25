@@ -11,6 +11,7 @@ import {
   realpathSync,
   rmSync,
   statSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -85,6 +86,7 @@ import { join } from 'node:path';
 
 const port = Number(process.env.SNAPBACK_EXPO_METRO_PORT);
 const origin = process.env.EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN;
+const backendOrigin = process.env.EXPO_PUBLIC_SNAPBACK_URL;
 const generatedRoot = process.env.SNAPBACK_EXPO_TEST_GENERATED_ROOT;
 const ci = String(process.env.CI ?? '').trim().toLowerCase();
 const watching = !['1', 'true'].includes(ci);
@@ -138,15 +140,20 @@ writeFileSync(process.env.SNAPBACK_EXPO_TEST_ENV, JSON.stringify({
   defaultResultOrder: getDefaultResultOrder(),
   ci: process.env.CI ?? null,
   watching,
+  backendOrigin: backendOrigin ?? null,
 }));
 writeFileSync(process.env.SNAPBACK_EXPO_TEST_BUNDLE, [
   '// headless Metro bundle fixture',
   'export const supervisedOrigin = ' + JSON.stringify(origin) + ';',
+  'export const snapbackUrl = ' + JSON.stringify(backendOrigin) + ';',
 ].join('\\n') + '\\n');
 writeFileSync(process.env.SNAPBACK_EXPO_TEST_SOURCE_MAP, JSON.stringify({
   version: 3,
   sources: ['App.tsx'],
-  sourcesContent: ['export const supervisedOrigin = ' + JSON.stringify(origin)],
+  sourcesContent: [
+    'export const supervisedOrigin = ' + JSON.stringify(origin) + ';\\n'
+      + 'export const snapbackUrl = ' + JSON.stringify(backendOrigin) + ';',
+  ],
   names: [],
   mappings: '',
 }));
@@ -329,6 +336,7 @@ if (metroFreshnessOnly) {
       defaultResultOrder: 'ipv4first',
       ci: null,
       watching: true,
+      backendOrigin: null,
     });
     const metroPid = child.pid;
     publishGraph(successor);
@@ -384,6 +392,8 @@ function fixture(name, { sessions }) {
   const projectRoot = join(scratchRoot, name);
   const backendRoot = join(projectRoot, 'snapback');
   const expoRoot = join(projectRoot, 'app');
+  mkdirSync(projectRoot, { recursive: true });
+  symlinkSync(join(repoRoot, 'node_modules'), join(projectRoot, 'node_modules'), 'dir');
   cpSync(sourceFixture, backendRoot, { recursive: true });
   const governance = governanceInputs.map((name) => [
     name,
@@ -585,7 +595,7 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = []) {
   assert.equal(readyEvent.connectCarrier, 'supervisor-rendezvous');
   const listenerEvent = events.find((event) => event.state === 'listeners-verified');
   const exchange = await (
-    await fetch(`${readyEvent.bootstrap.origin}${SUPERVISED_EXCHANGE_PATH}`)
+    await fetch(`${readyEvent.bootstrap.origin}${SUPERVISED_EXCHANGE_PATH}?authority=mint`)
   ).json();
   child.kill('SIGINT');
   const exit = await Promise.race([
@@ -906,8 +916,9 @@ try {
   supervisors.splice(supervisors.indexOf(envPinnedRun.supervisor), 1);
   await eventually(() => !existsSync(envPinned.readyFile), { label: 'env-pinned ready-file cleanup' });
 
-  // A target not settled in Sessions mode still completes binding delivery,
-  // but the real native mint refusal becomes authority-required in the app.
+  // A target not settled in Sessions mode still completes anonymous binding
+  // delivery. Only explicit supervised-session adoption asks the server to
+  // mint, at which point the real native refusal becomes authority-required.
   const unsettled = fixture('unsettled', { sessions: false });
   const unsettledRun = await startFixture(unsettled, { platform: 'web' });
   assert.deepEqual(JSON.parse(readFileSync(unsettled.metroEnv, 'utf8')), {
@@ -915,14 +926,14 @@ try {
     defaultResultOrder: 'ipv4first',
     ci: null,
     watching: true,
+    backendOrigin: unsettledRun.supervisor.binding.target.origin,
   });
-  assert.equal(unsettledRun.supervisor.state, 'authority-required');
+  assert.equal(unsettledRun.supervisor.state, 'ready');
   assertListenerInventory(unsettledRun.supervisor);
   const unsettledExchange = await (
     await fetch(`${unsettledRun.supervisor.exchangeOrigin}${SUPERVISED_EXCHANGE_PATH}`)
   ).json();
-  assert.equal(unsettledExchange.authority.status, 'authority-required');
-  assert.equal(unsettledExchange.authority.diagnostic.code, 'SNAPBACK_AUTH_POLICY_UNAVAILABLE');
+  assert.equal(unsettledExchange.authority.status, 'unavailable');
   assert.equal(Object.hasOwn(unsettledExchange.authority, 'token'), false);
   const unsettledApp = JSON.parse(readFileSync(
     join(unsettled.backendRoot, 'generated', 'app.descriptor.json'),
@@ -935,11 +946,23 @@ try {
       appState: appStateHarness(),
     }),
   });
-  const authorityRequired = await unsettledBoot.start();
+  const anonymousUnsettled = await unsettledBoot.start();
+  assert.equal(anonymousUnsettled.status, 'ready');
+  assert.equal(unsettledBoot.appClient().auth.currentPrincipal().status, 'anonymous');
+  await unsettledBoot.dispose();
+  const unsettledAdoptionBoot = createSnapbackExpoBoot({
+    app: unsettledApp,
+    adoptSupervisedSession: true,
+    environment: createSupervisedExpoEnvironment({
+      exchangeOrigin: unsettledRun.supervisor.exchangeOrigin,
+      appState: appStateHarness(),
+    }),
+  });
+  const authorityRequired = await unsettledAdoptionBoot.start();
   assert.equal(authorityRequired.status, 'authority-required');
   assert.equal(authorityRequired.diagnostic.code, 'SNAPBACK_AUTH_POLICY_UNAVAILABLE');
   assert.equal(authorityRequired.diagnostic.details.cause, 'sessions-auth-mode-unavailable');
-  await unsettledBoot.dispose();
+  await unsettledAdoptionBoot.dispose();
   const unsettledOrigins = {
     backend: unsettledRun.supervisor.binding.target.origin,
     metro: unsettledRun.supervisor.metroOrigin,
@@ -1219,9 +1242,102 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   const firstExchange = await (
     await fetch(`${supervisor.exchangeOrigin}${SUPERVISED_EXCHANGE_PATH}`)
   ).json();
-  const firstBearer = firstExchange.authority.token;
+  assert.equal(firstExchange.authority.status, 'unavailable');
+  assert.equal(Object.hasOwn(firstExchange.authority, 'token'), false);
+
+  const injectedMetroEnvironment = JSON.parse(readFileSync(settled.metroEnv, 'utf8'));
+  assert.equal(
+    injectedMetroEnvironment.backendOrigin,
+    supervisor.binding.target.origin,
+    'EXPO_PUBLIC_SNAPBACK_URL is the exact supervised backend data/auth origin',
+  );
+  assert.notEqual(
+    injectedMetroEnvironment.backendOrigin,
+    supervisor.exchangeOrigin,
+    'the rendezvous control plane is not projected as a second Snapback backend',
+  );
+
+  const applicationApp = JSON.parse(readFileSync(
+    join(settled.backendRoot, 'generated', 'app.descriptor.json'),
+    'utf8',
+  ));
+  const applicationDiagnostics = [];
+  const applicationEnvironment = (databaseName) => Object.freeze({
+    ...createSupervisedExpoEnvironment({
+      exchangeOrigin: supervisor.exchangeOrigin,
+      appState: appStateHarness(),
+      runtimePlatform: 'web',
+      clientOptions: {
+        rqsStore: null,
+        offlineQueue: false,
+        clientStoreId: databaseName,
+      },
+      onDiagnostic(diagnostic) { applicationDiagnostics.push(diagnostic); },
+    }),
+    resolveAppClientPlatform() {
+      return Object.freeze({
+        kind: 'expo-web',
+        indexedDB: new IDBFactory(),
+        lockManager: Object.freeze({
+          request: (_name, _options, operation) => operation(),
+        }),
+        cryptoObject: webcrypto,
+        databaseName,
+      });
+    },
+  });
+  const anonymousBoot = createSnapbackExpoBoot({
+    app: applicationApp,
+    url: injectedMetroEnvironment.backendOrigin,
+    environment: applicationEnvironment('expo-track-b-anonymous'),
+    now: () => settledNow,
+  });
+  const anonymousReady = await anonymousBoot.start();
+  assert.equal(anonymousReady.status, 'ready', JSON.stringify(anonymousReady));
+  assert.equal(anonymousReady.binding.source, 'supervised-dev');
+  assert.equal(anonymousBoot.appClient().auth.currentPrincipal().status, 'anonymous');
+  const passwordEmail = `expo-track-b-${process.pid}@example.com`;
+  const password = 'expo-track-b-password';
+  const signup = await anonymousBoot.appClient().auth.signUpWithPassword({
+    email: passwordEmail,
+    password,
+  });
+  assert.equal(signup.recoveryCodes.length, 8);
+  assert.equal(anonymousBoot.appClient().auth.currentPrincipal().status, 'authenticated');
+  await anonymousBoot.appClient().auth.signOut();
+  assert.equal(anonymousBoot.appClient().auth.currentPrincipal().status, 'anonymous');
+  await anonymousBoot.appClient().auth.signInWithPassword({ email: passwordEmail, password });
+  assert.equal(anonymousBoot.appClient().auth.currentPrincipal().status, 'authenticated');
+  await anonymousBoot.appClient().auth.signOut();
+  assert.equal(anonymousBoot.appClient().auth.currentPrincipal().status, 'anonymous');
+  await anonymousBoot.dispose();
+
+  const adoptedBoot = createSnapbackExpoBoot({
+    app: applicationApp,
+    url: injectedMetroEnvironment.backendOrigin,
+    environment: applicationEnvironment('expo-track-b-adopted'),
+    adoptSupervisedSession: true,
+    now: () => settledNow,
+  });
+  const adoptedReady = await adoptedBoot.start();
+  assert.equal(adoptedReady.status, 'ready', JSON.stringify(adoptedReady));
+  assert.equal(adoptedReady.binding.source, 'supervised-dev');
+  assert.equal(adoptedReady.authoritySource, 'supervised-development');
+  assert.equal(adoptedBoot.appClient().auth.currentPrincipal().status, 'authenticated');
+  await adoptedBoot.appClient().auth.signOut();
+  assert.equal(adoptedBoot.appClient().auth.currentPrincipal().status, 'anonymous');
+  assert.equal(adoptedBoot.getSnapshot().status, 'ready');
+  assert.equal(
+    applicationDiagnostics.some(({ code }) => code === 'SNAPBACK_AUTH_SESSION_EXPIRED'),
+    false,
+  );
+  await adoptedBoot.dispose();
+  const mintedExchange = await (
+    await fetch(`${supervisor.exchangeOrigin}${SUPERVISED_EXCHANGE_PATH}`)
+  ).json();
+  const firstBearer = mintedExchange.authority.token;
   assert.match(firstBearer, /^sbs_/u);
-  assert.equal(JSON.stringify(firstExchange.binding).includes(firstBearer), false);
+  assert.equal(JSON.stringify(mintedExchange.binding).includes(firstBearer), false);
 
   const app = JSON.parse(readFileSync(
     join(settled.backendRoot, 'generated', 'app.descriptor.json'),
@@ -1734,7 +1850,7 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
     'shutdown reports every owned arm reclaimed',
   );
 
-  console.log('expo-dev-loop.test.mjs: 6 LLP 0299 port-plan cases plus WS reset/cancelled-response handoff, zero-write rendezvous carrier, repeated TTL cold boots, transient descriptor, served successor generated descriptor without Metro restart, Sessions refusal+mint, all-listener loopback proof, provider live/mutation/presence/HMR/reconnect/authority replacement+conflict, leak matrix, SIGINT, and strict cleanup pass');
+  console.log('expo-dev-loop.test.mjs: 6 LLP 0299 port-plan cases plus WS reset/cancelled-response handoff, zero-write rendezvous carrier, supervised web backend URL, anonymous password signup/signin, explicit on-demand mint adoption and safe signout, repeated TTL cold boots, transient descriptor, served successor generated descriptor without Metro restart, Sessions refusal+mint, all-listener loopback proof, provider live/mutation/presence/HMR/reconnect/authority replacement+conflict, leak matrix, SIGINT, and strict cleanup pass');
 } finally {
   await Promise.allSettled(supervisors.flatMap((supervisor) => (
     typeof supervisor?.close === 'function' ? [supervisor.close()] : []

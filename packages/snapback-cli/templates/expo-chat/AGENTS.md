@@ -1,7 +1,7 @@
 # Building this Snapback app
 
 <!-- @ref LLP 0259#1-first-read-contract — the transcluded start packet is the whole required first read; escalate one page at a time, never a linear capability-index read. -->
-<!-- start-packet:begin expo-chat digest=sha256:af9867db08843095cde9958942c17f6c6db0a8c10bc81addd2ca37a265a74be7 -->
+<!-- start-packet:begin expo-chat digest=sha256:2262c14cc625d9c9e75a227d75abd92cb03684ccbd7125d672f13777dc289114 -->
 This is the first read (LLP 0259 Rung A). Use edit targets; open one page
 only for a brief, `SNAPBACK_*` refusal, or failed `prove`, via
 `snapback guide <query>`.
@@ -60,8 +60,8 @@ only `generated/`.
   anonymous `ready`; call `auth.enterAsGuest()` on the same `useSnapbackAuth()`
   owner before sends/uploads, or enter a password. Recovery codes appear once
   after signup or guest claim.
-  URL-first dev mints no ambient session; multi-browser proofs sign up or sign
-  in separately in each context instead of adopting the supervised mint.
+  Web starts sessionless. Native auto-adopts; the session is minted on that
+  first adoption request. `adoptSupervisedSession` opts web in/native out.
 - **Custody: `volatile-explicit`.** This disposable template deliberately says
   memory custody, so a native process restart returns anonymous and must enter
   again. It does not silently weaken a durable policy; select

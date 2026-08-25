@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-symbol-registry.v1",
   "generatedBy": "scripts/generate-symbol-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:020fae83887019d90f99d657e3530f6b6352705c7e6ba5dea60ff00a39bc2ff6",
+    "sourceDigest": "sha256:a4edee4eb3e16334075e6c9e37bf56b02dc84652ac2917e03d7ff04a5ed84cfb",
     "publishedClosureVersion": "0.1.27",
     "packageVersions": {
       "@expo/snapback-cli": "0.1.27",
@@ -108296,7 +108296,7 @@
           "default"
         ]
       },
-      "signature": "export function createSnapbackExpoBoot(options: Readonly<{\n  app: AppDescriptorV1Like;\n  binding?: AppBindingV1 | null;\n  url?: string;\n  environment?: SnapbackExpoEnvironmentV1;\n  /** Explicit store or null opt-out. Omission requests the evidence-gated\n   * default; pending/unqualified target rows resolve to the reported volatile\n   * fallback rather than a durable carrier. */\n  rqsStore?: RqsStore | null;\n  createProvider?: (\n    binding: PreparedReactBinding,\n    options: Readonly<{ assetSourceAdapter: import('@expo/snapback-client').CommandAssetSourceAdapter }>,\n  ) => SnapbackReactProvider;\n  bindLifecycle?: (\n    appState: AppStateSource,\n    provider: Pick<SnapbackReactProvider, 'pause' | 'resume'>,\n    options?: Readonly<{ onError?: (error: unknown) => void }>,\n  ) => Readonly<{ dispose(): void; settled(): Promise<void> }>;\n  createApplicationClient?: (input: Readonly<{\n    app: SnapbackApplicationDescriptorV1;\n    binding?: SnapbackAppBindingV1;\n    url?: string;\n    platform: SnapbackAppClientPlatform;\n    now?: () => number;\n    signal?: AbortSignal;\n    rqsStore?: unknown;\n  }>, observer: (snapshot: AuthBootstrapSnapshot) => void) => Promise<SnapbackAppClient>;\n  adoptSupervisedAuthority?: (\n    appClient: SnapbackAppClient,\n    input: Readonly<{\n      bearer: string;\n      binding: SnapbackAppBindingV1;\n      refreshAfterMs: number;\n      clientOptions?: Readonly<{ devIdentityCapability: string }>;\n    }>,\n  ) => Promise<Readonly<{ status: 'adopted' | 'rebound' | 'conflict' | 'dropped' }>>;\n  now?: () => number;\n}>): SnapbackExpoBootController;",
+      "signature": "export function createSnapbackExpoBoot(options: Readonly<{\n  app: AppDescriptorV1Like;\n  binding?: AppBindingV1 | null;\n  url?: string;\n  environment?: SnapbackExpoEnvironmentV1;\n  /** Explicit store or null opt-out. Omission requests the evidence-gated\n   * default; pending/unqualified target rows resolve to the reported volatile\n   * fallback rather than a durable carrier. */\n  rqsStore?: RqsStore | null;\n  /** Explicitly request and adopt the supervisor's on-demand development session. */\n  adoptSupervisedSession?: boolean;\n  createProvider?: (\n    binding: PreparedReactBinding,\n    options: Readonly<{ assetSourceAdapter: import('@expo/snapback-client').CommandAssetSourceAdapter }>,\n  ) => SnapbackReactProvider;\n  bindLifecycle?: (\n    appState: AppStateSource,\n    provider: Pick<SnapbackReactProvider, 'pause' | 'resume'>,\n    options?: Readonly<{ onError?: (error: unknown) => void }>,\n  ) => Readonly<{ dispose(): void; settled(): Promise<void> }>;\n  createApplicationClient?: (input: Readonly<{\n    app: SnapbackApplicationDescriptorV1;\n    binding?: SnapbackAppBindingV1;\n    url?: string;\n    platform: SnapbackAppClientPlatform;\n    now?: () => number;\n    signal?: AbortSignal;\n    rqsStore?: unknown;\n  }>, observer: (snapshot: AuthBootstrapSnapshot) => void) => Promise<SnapbackAppClient>;\n  adoptSupervisedAuthority?: (\n    appClient: SnapbackAppClient,\n    input: Readonly<{\n      bearer: string;\n      binding: SnapbackAppBindingV1;\n      refreshAfterMs: number;\n      clientOptions?: Readonly<{ devIdentityCapability: string }>;\n    }>,\n  ) => Promise<Readonly<{ status: 'adopted' | 'rebound' | 'conflict' | 'dropped' }>>;\n  now?: () => number;\n}>): SnapbackExpoBootController;",
       "overloads": [],
       "members": [],
       "documentation": {
@@ -108307,14 +108307,14 @@
         "file": "packages/snapback-expo/index.d.mts",
         "line": 405,
         "column": 1,
-        "endLine": 442
+        "endLine": 444
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
           "line": 405,
           "column": 1,
-          "endLine": 442
+          "endLine": 444
         }
       ],
       "publicDeclaration": {
@@ -109115,16 +109115,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 460,
+        "line": 464,
         "column": 1,
-        "endLine": 460
+        "endLine": 464
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 460,
+          "line": 464,
           "column": 1,
-          "endLine": 460
+          "endLine": 464
         }
       ],
       "publicDeclaration": {
@@ -113603,7 +113603,7 @@
           "default"
         ]
       },
-      "signature": "export function SnapbackExpoProvider(props: Readonly<{\n  app: AppDescriptorV1Like;\n  binding?: AppBindingV1 | null;\n  url?: string;\n  environment?: SnapbackExpoEnvironmentV1;\n  /** Explicit store or null opt-out. Omission requests the evidence-gated\n   * default; pending/unqualified target rows resolve to the reported volatile\n   * fallback rather than a durable carrier. */\n  rqsStore?: RqsStore | null;\n  fallback?: any | ((state: ExpoBootState) => any);\n  children?: any;\n  outboxDrain?: 'auto' | 'manual';\n  outboxDrainOptions?: Omit<OutboxDrainOptions, 'automatic'>;\n}>): any;",
+      "signature": "export function SnapbackExpoProvider(props: Readonly<{\n  app: AppDescriptorV1Like;\n  binding?: AppBindingV1 | null;\n  url?: string;\n  environment?: SnapbackExpoEnvironmentV1;\n  /** Explicit store or null opt-out. Omission requests the evidence-gated\n   * default; pending/unqualified target rows resolve to the reported volatile\n   * fallback rather than a durable carrier. */\n  rqsStore?: RqsStore | null;\n  /** Explicitly request and adopt the supervisor's on-demand development session. */\n  adoptSupervisedSession?: boolean;\n  fallback?: any | ((state: ExpoBootState) => any);\n  children?: any;\n  outboxDrain?: 'auto' | 'manual';\n  outboxDrainOptions?: Omit<OutboxDrainOptions, 'automatic'>;\n}>): any;",
       "overloads": [],
       "members": [],
       "documentation": {
@@ -113612,16 +113612,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 444,
+        "line": 446,
         "column": 1,
-        "endLine": 457
+        "endLine": 461
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 444,
+          "line": 446,
           "column": 1,
-          "endLine": 457
+          "endLine": 461
         }
       ],
       "publicDeclaration": {
@@ -117078,16 +117078,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 459,
+        "line": 463,
         "column": 1,
-        "endLine": 459
+        "endLine": 463
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 459,
+          "line": 463,
           "column": 1,
-          "endLine": 459
+          "endLine": 463
         }
       ],
       "publicDeclaration": {

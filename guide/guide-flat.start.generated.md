@@ -315,8 +315,8 @@ only `generated/`.
   anonymous `ready`; call `auth.enterAsGuest()` on the same `useSnapbackAuth()`
   owner before sends/uploads, or enter a password. Recovery codes appear once
   after signup or guest claim.
-  URL-first dev mints no ambient session; multi-browser proofs sign up or sign
-  in separately in each context instead of adopting the supervised mint.
+  Web starts sessionless. Native auto-adopts; the session is minted on that
+  first adoption request. `adoptSupervisedSession` opts web in/native out.
 - **Custody: `volatile-explicit`.** This disposable template deliberately says
   memory custody, so a native process restart returns anonymous and must enter
   again. It does not silently weaken a durable policy; select

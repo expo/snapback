@@ -411,6 +411,8 @@ export function createSnapbackExpoBoot(options: Readonly<{
    * default; pending/unqualified target rows resolve to the reported volatile
    * fallback rather than a durable carrier. */
   rqsStore?: RqsStore | null;
+  /** Explicitly request and adopt the supervisor's on-demand development session. */
+  adoptSupervisedSession?: boolean;
   createProvider?: (
     binding: PreparedReactBinding,
     options: Readonly<{ assetSourceAdapter: import('@expo/snapback-client').CommandAssetSourceAdapter }>,
@@ -450,6 +452,8 @@ export function SnapbackExpoProvider(props: Readonly<{
    * default; pending/unqualified target rows resolve to the reported volatile
    * fallback rather than a durable carrier. */
   rqsStore?: RqsStore | null;
+  /** Explicitly request and adopt the supervisor's on-demand development session. */
+  adoptSupervisedSession?: boolean;
   fallback?: any | ((state: ExpoBootState) => any);
   children?: any;
   outboxDrain?: 'auto' | 'manual';

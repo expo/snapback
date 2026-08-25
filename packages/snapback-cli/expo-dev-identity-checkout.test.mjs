@@ -128,8 +128,19 @@ try {
   const metroEnvironment = expoMetroChildEnvironment({
     env: { [SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV]: nonce },
     bootstrapOrigin: 'http://127.0.0.1:4321',
+    backendOrigin: 'http://127.0.0.1:4287',
     port: 8081,
   });
+  assert.equal(
+    metroEnvironment.EXPO_PUBLIC_SNAPBACK_URL,
+    'http://127.0.0.1:4287',
+    'supervised web exposes the backend data/auth origin separately from the control plane',
+  );
+  assert.equal(
+    metroEnvironment.EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN,
+    'http://127.0.0.1:4321',
+    'the supervisor origin remains the rendezvous control plane',
+  );
   assert.equal(metroEnvironment[SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV], undefined);
   assert.equal(
     Object.entries(metroEnvironment).some(([key, value]) => (
@@ -283,7 +294,7 @@ try {
   assert.equal(launchExpoNativeCheckout(web, nonce, { run, env: {} }), null);
   assert.equal(launchCalls.length, 3, 'Expo web has no native checkout launch channel');
 
-  console.log('expo-dev-identity-checkout.test.mjs: default-off issuance, bootstrap secrecy, one-shot/rotation invalidation, browser-origin refusal, and complete opt-in native launch sequencing pass');
+  console.log('expo-dev-identity-checkout.test.mjs: supervised web backend URL/control-plane separation, default-off issuance, bootstrap secrecy, one-shot/rotation invalidation, browser-origin refusal, and complete opt-in native launch sequencing pass');
 } finally {
   await exchange.close();
   rmSync(scratch, { recursive: true, force: true });

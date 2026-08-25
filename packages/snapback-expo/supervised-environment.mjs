@@ -213,7 +213,7 @@ function validateExchange(value) {
         'The local supervisor returned an invalid ordinary-session carrier.',
       );
     }
-  } else if (value.authority.status !== 'authority-required') {
+  } else if (!['authority-required', 'unavailable'].includes(value.authority.status)) {
     throw codedError(
       'SNAPBACK_EXPO_BOOTSTRAP_INVALID',
       'The local supervisor returned an unknown authority bootstrap state.',
@@ -285,8 +285,8 @@ async function clearClientAuthority(client) {
 
 // @ref LLP 0181#provider — the common-path provider resolves its non-secret
 // rendezvous from supervised runtime injection, then receives the AppBinding
-// and ordinary session through one transient no-store exchange. Neither value
-// is a component prop or persistent public configuration.
+// through a transient no-store exchange. Neither the binding nor any optional
+// ordinary session is persistent public configuration.
 // @ref LLP 0176#security-claims-follow-reachability — this E1 carrier accepts
 // only the supervisor-provided loopback origin; it does not infer or open a
 // LAN/tunnel address.
@@ -358,7 +358,7 @@ export function createSupervisedExpoEnvironment({
     }
   };
 
-  const fetchExchange = async (signal) => {
+  const fetchExchange = async (signal, { requestAuthority = false } = {}) => {
     const origin = normalizedExchangeOrigin(exchangeOrigin);
     if (origin === null) {
       throw codedError(
@@ -380,7 +380,10 @@ export function createSupervisedExpoEnvironment({
     }
     let response;
     try {
-      response = await fetchImplementation(`${origin}${SUPERVISED_EXCHANGE_PATH}`, {
+      const exchangeUrl = requestAuthority
+        ? `${origin}${SUPERVISED_EXCHANGE_PATH}?authority=mint`
+        : `${origin}${SUPERVISED_EXCHANGE_PATH}`;
+      response = await fetchImplementation(exchangeUrl, {
         method: 'GET',
         cache: 'no-store',
         headers: { accept: 'application/json' },
@@ -585,10 +588,13 @@ export function createSupervisedExpoEnvironment({
         // retained state; absence of an ambient mint is not boot failure.
         return Object.freeze({ status: 'unavailable' });
       }
+      // @ref LLP 0300#p4--the-dev-session-becomes-explicit — the binding-only
+      // exchange retains an unavailable marker; reaching this explicit
+      // authority resolver is what asks the supervisor to mint on demand.
       const retained = exchanges.get(key);
-      const exchange = refresh
-        ? await fetchExchange(signal)
-        : retained ?? await fetchExchange(signal);
+      const exchange = refresh || retained?.authority?.status === 'unavailable'
+        ? await fetchExchange(signal, { requestAuthority: true })
+        : retained ?? await fetchExchange(signal, { requestAuthority: true });
       if (retained === exchange) exchanges.delete(key);
       if (bindingKey(exchange.binding) !== key) {
         throw codedError(
@@ -604,6 +610,9 @@ export function createSupervisedExpoEnvironment({
         binding: exchange.binding,
         admission: supervisedAdmission(),
       });
+      if (exchange.authority.status === 'unavailable') {
+        return Object.freeze({ status: 'unavailable' });
+      }
       const devIdentityCapability = await resolveDevIdentityCapability(signal);
       return Object.freeze({
         status: 'ready',
@@ -651,7 +660,9 @@ export function createSupervisedExpoEnvironment({
           },
         });
       }
-      const exchange = storedExchange ?? await fetchExchange(signal);
+      const exchange = storedExchange?.authority?.status === 'unavailable'
+        ? await fetchExchange(signal, { requestAuthority: true })
+        : storedExchange ?? await fetchExchange(signal, { requestAuthority: true });
       exchanges.delete(key);
       const required = authorityRequired(exchange);
       if (required) return required;
@@ -706,7 +717,7 @@ export function createSupervisedExpoEnvironment({
           { cause: 'ordinary-session-unavailable' },
         );
       }
-      const exchange = await fetchExchange(signal);
+      const exchange = await fetchExchange(signal, { requestAuthority: true });
       if (bindingKey(exchange.binding) !== bindingKey(binding)) {
         throw codedError(
           'SNAPBACK_APP_BINDING_EXPIRED',

@@ -78,6 +78,11 @@ void pickerAdapter({
 });
 createSnapbackExpoBoot({ app: generatedApp, binding, environment });
 createSnapbackExpoBoot({ app: generatedApp, url: 'http://localhost:4287', environment });
+createSnapbackExpoBoot({
+  app: generatedApp,
+  environment,
+  adoptSupervisedSession: true,
+});
 const state: ExpoBootState = boot.getSnapshot();
 if (state.status === 'starting') {
   const stage: 'binding' | 'custody' | 'authority' | 'client' = state.stage;

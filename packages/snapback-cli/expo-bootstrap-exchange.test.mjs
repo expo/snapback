@@ -447,7 +447,9 @@ const payload = {
 };
 let currentPayload = payload;
 let payloadFailure = null;
-const exchange = await startBootstrapExchange(async () => {
+const payloadRequests = [];
+const exchange = await startBootstrapExchange(async (request) => {
+  payloadRequests.push(request);
   if (payloadFailure !== null) throw payloadFailure;
   return currentPayload;
 });
@@ -462,6 +464,23 @@ try {
   assert.equal(admittedGet.headers.get('access-control-allow-methods'), 'GET, OPTIONS');
   assert.equal(admittedGet.headers.get('access-control-allow-headers'), 'accept');
   assert.deepEqual(await admittedGet.json(), payload);
+  assert.deepEqual(payloadRequests.at(-1), { requestAuthority: false });
+
+  const authorityGet = await fetch(
+    `${exchange.origin}${SUPERVISED_EXCHANGE_PATH}?authority=mint`,
+    { headers: { Origin: browserOrigin } },
+  );
+  assert.equal(authorityGet.status, 200);
+  assert.deepEqual(await authorityGet.json(), payload);
+  assert.deepEqual(payloadRequests.at(-1), { requestAuthority: true });
+
+  const requestsBeforeInvalidQuery = payloadRequests.length;
+  const invalidAuthorityGet = await fetch(
+    `${exchange.origin}${SUPERVISED_EXCHANGE_PATH}?authority=ambient`,
+    { headers: { Origin: browserOrigin } },
+  );
+  assert.equal(invalidAuthorityGet.status, 404);
+  assert.equal(payloadRequests.length, requestsBeforeInvalidQuery);
 
   const preflight = await fetch(`${exchange.origin}${SUPERVISED_EXCHANGE_PATH}`, {
     method: 'OPTIONS',
@@ -540,7 +559,7 @@ try {
     code: 'SNAPBACK_EXPO_BOOTSTRAP_ROUTE_NOT_FOUND',
   });
 
-  console.log('expo-bootstrap-exchange.test.mjs: scoped loopback CORS, preflight, payload, refusal, and route handling pass');
+  console.log('expo-bootstrap-exchange.test.mjs: scoped loopback CORS, binding-only and explicit authority requests, preflight, payload refusal, and route handling pass');
 } finally {
   await exchange.close();
 }

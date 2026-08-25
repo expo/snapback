@@ -494,6 +494,11 @@ await settleReactUntil(
 );
 assert.equal(liveProjection.query.status, 'blocked');
 assert.equal(liveSubscriptions().length, 0, 'anonymous protected query performs no stream work');
+assert.deepEqual(
+  liveSupervisor.events,
+  [],
+  'default first-party boot does not request or adopt supervised authority',
+);
 await act(async () => {
   await liveProjection.auth.signUpWithPassword({
     email: 'application@example.com',
@@ -654,6 +659,7 @@ const supervisor = {
 const boot = createSnapbackExpoBoot({
   app,
   environment: environmentFor(platform, supervisor),
+  adoptSupervisedSession: true,
   now: () => TEST_NOW_MS,
   async createApplicationClient(input, observer) {
     const appClient = await createSnapbackAppClientWithBootstrapObserver(input, observer);
@@ -742,6 +748,7 @@ const carrierProtocolAdoptionInputs = [];
 const carrierProtocolBoot = createSnapbackExpoBoot({
   app: carrierProtocolApp,
   environment: environmentFor(carrierProtocolPlatform, carrierProtocolSupervisor),
+  adoptSupervisedSession: true,
   now: () => Date.parse('2026-08-15T12:30:00.000Z'),
   async createApplicationClient(input, observer) {
     const appClient = await createSnapbackAppClientWithBootstrapObserver(input, observer);
@@ -773,6 +780,42 @@ assert.deepEqual(
 );
 await carrierProtocolBoot.dispose();
 
+const adoptedSignoutPlatform = Object.freeze({
+  ...platform,
+  databaseName: 'snapback-expo-auth-bootstrap-adopted-signout-test',
+});
+const adoptedSignoutSupervisor = {
+  bearer: SUPERVISED_BEARER,
+  events: [],
+  diagnostics: [],
+};
+const adoptedSignoutBoot = createSnapbackExpoBoot({
+  app,
+  environment: environmentFor(adoptedSignoutPlatform, adoptedSignoutSupervisor),
+  adoptSupervisedSession: true,
+  now: () => TEST_NOW_MS,
+  async createApplicationClient(input, observer) {
+    const appClient = await createSnapbackAppClientWithBootstrapObserver(input, observer);
+    appClient.client.prepareReactBinding = async () => ({ source: 'deployment' });
+    return appClient;
+  },
+  createProvider: fakeReactProvider,
+  bindLifecycle: () => Object.freeze({ dispose() {}, async settled() {} }),
+});
+const adoptedSignoutReady = await adoptedSignoutBoot.start();
+assert.equal(adoptedSignoutReady.status, 'ready');
+assert.equal(adoptedSignoutReady.authoritySource, 'supervised-development');
+await adoptedSignoutBoot.appClient().auth.signOut();
+assert.equal(adoptedSignoutBoot.appClient().auth.currentPrincipal().status, 'anonymous');
+assert.equal(adoptedSignoutBoot.getSnapshot().status, 'ready');
+assert.equal(
+  adoptedSignoutSupervisor.diagnostics.some(
+    ({ code }) => code === 'SNAPBACK_AUTH_SESSION_EXPIRED',
+  ),
+  false,
+);
+await adoptedSignoutBoot.dispose();
+
 const anonymousPlatform = Object.freeze({
   ...platform,
   databaseName: 'snapback-expo-auth-bootstrap-anonymous-test',
@@ -781,6 +824,7 @@ const anonymousSupervisor = { bearer: SUPERVISED_BEARER, events: [], diagnostics
 const anonymousBoot = createSnapbackExpoBoot({
   app,
   environment: environmentFor(anonymousPlatform, anonymousSupervisor),
+  adoptSupervisedSession: true,
   now: () => TEST_NOW_MS,
   async createApplicationClient(input, observer) {
     const appClient = await createSnapbackAppClientWithBootstrapObserver(input, observer);
@@ -845,7 +889,10 @@ try {
     onDiagnostic: (value) => checkoutDiagnostics.push(value),
     async fetch(url, options) {
       if (options.method === 'GET') {
-        assert.equal(url, `http://127.0.0.1:4321${SUPERVISED_EXCHANGE_PATH}`);
+        const expectedUrl = checkoutBootstraps === 0
+          ? `http://127.0.0.1:4321${SUPERVISED_EXCHANGE_PATH}`
+          : `http://127.0.0.1:4321${SUPERVISED_EXCHANGE_PATH}?authority=mint`;
+        assert.equal(url, expectedUrl);
         checkoutBootstraps += 1;
         return Response.json({
           format: SUPERVISED_EXCHANGE_FORMAT,
@@ -912,8 +959,10 @@ try {
 }
 
 assert.deepEqual(supervisor.events, ['boot', 'refresh', 'refresh', 'refresh', 'refresh']);
+assert.deepEqual(adoptedSignoutSupervisor.events, ['boot']);
 assert.deepEqual(anonymousSupervisor.events, ['boot', 'refresh']);
 assert.deepEqual(supervisor.diagnostics, []);
+assert.deepEqual(adoptedSignoutSupervisor.diagnostics, []);
 assert.deepEqual(
   anonymousSupervisor.diagnostics.map(({ code }) => code),
   ['SNAPBACK_APP_BINDING_EXPIRED'],
@@ -935,4 +984,4 @@ server.restore();
 if (priorRqs === undefined) delete process.env.SNAPBACK_CLIENT_RQS_STORE;
 else process.env.SNAPBACK_CLIENT_RQS_STORE = priorRqs;
 
-console.log('provider-auth-bootstrap.test.mjs: authenticated live-query re-entry, post-signin protected-hook mount, default sessions lifecycle, native client-option forwarding, redeem-refusal adoption, refresh rebind-only, and signOut readmission pass');
+console.log('provider-auth-bootstrap.test.mjs: default anonymous password entry without supervisor adoption, authenticated live-query re-entry, explicit on-demand supervised adoption with safe signOut, native client-option forwarding, redeem-refusal adoption, and refresh rebind-only pass');

@@ -66,6 +66,7 @@ const environment = createSupervisedExpoEnvironment({
   },
   async fetch(url, options) {
     requests.push({ url, options });
+    const requestAuthority = new URL(url).searchParams.get('authority') === 'mint';
     return {
       ok: true,
       async json() {
@@ -73,7 +74,7 @@ const environment = createSupervisedExpoEnvironment({
           format: SUPERVISED_EXCHANGE_FORMAT,
           correlationId: 'supervised-environment-correlation',
           binding,
-          authority: {
+          authority: requestAuthority ? {
             status: 'authority-required',
             diagnostic: {
               schemaVersion: 'snapback.client-diagnostic.v1',
@@ -97,7 +98,7 @@ const environment = createSupervisedExpoEnvironment({
               },
               description: 'Settle Sessions auth mode, then retry bootstrap.',
             }],
-          },
+          } : { status: 'unavailable' },
         };
       },
     };
@@ -107,6 +108,7 @@ const environment = createSupervisedExpoEnvironment({
 const boot = createSnapbackExpoBoot({
   app,
   environment,
+  adoptSupervisedSession: true,
   now: () => Date.parse('2026-08-05T20:30:00.000Z'),
 });
 const state = await boot.start();
@@ -120,8 +122,12 @@ assert.equal(
   false,
   'supervisor-originated diagnostic and remediation state cannot publish bearer material',
 );
-assert.equal(requests.length, 1, 'binding and refusal travel in one bootstrap exchange');
+assert.equal(requests.length, 2, 'binding admission does not mint before explicit adoption');
 assert.equal(requests[0].url, `http://127.0.0.1:4321${SUPERVISED_EXCHANGE_PATH}`);
+assert.equal(
+  requests[1].url,
+  `http://127.0.0.1:4321${SUPERVISED_EXCHANGE_PATH}?authority=mint`,
+);
 assert.equal(requests[0].options.cache, 'no-store');
 assert.equal(requests[0].options.method, 'GET');
 assert.equal(JSON.stringify(binding).includes('token'), false);
@@ -369,4 +375,4 @@ try {
   }
 }
 
-console.log('supervised-environment.test.mjs: default environment, no-prop exchange, sanitized refusal, abort cleanup, retryable redemption, and one-shot native checkout pass');
+console.log('supervised-environment.test.mjs: default environment, binding-only exchange, explicit on-demand authority request, sanitized refusal, abort cleanup, retryable redemption, and one-shot native checkout pass');
