@@ -7,6 +7,9 @@ Authorization, Runtime readiness, Packaging, Templates, Verification,
 Developer experience, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-17
+**Revised:** 2026-08-25 (D6's concrete React/Vite template typecheck gap is
+closed for both packaged Vite templates; broader cold-install closure remains
+owned by the first-use ceremony budget harness.)
 **Revised:** 2026-08-23 (D9's supported root package
 `@expo/snapback-acceptance` first-published in the qualified fourteen-package
 0.1.25 closure from `9d9265394953`; package publication does not make it a
@@ -353,7 +356,7 @@ Each published template must be tested from packed npm bytes through:
 
 The test must run outside the Snapback workspace so hoisted dependencies,
 source-checkout receipts, and sibling artifacts cannot make it pass. The
-Bugboard typecheck failure in `issues/20260817-react-template-typecheck-node-types.md`
+Bugboard typecheck failure in `issues/closed/20260817-react-template-typecheck-node-types.md`
 is an example of the class this gate owns.
 
 ### D7. Measure ceremony without rewarding hidden work
@@ -683,7 +686,7 @@ be implemented before improving its own golden path.
 
 ### Implementation tickets
 
-- `issues/20260817-react-template-typecheck-node-types.md` — close the concrete
+- `issues/closed/20260817-react-template-typecheck-node-types.md` — close the concrete
   React template hygiene failure found by Diary 0091.
 - `issues/20260817-0275-derive-closed-plan-result-contracts.md` — implement D3.
 - `issues/20260817-0275-auto-qualify-packaged-runtime-in-prove.md` — implement

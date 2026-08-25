@@ -1047,7 +1047,6 @@ status: current
 targets: [local]
 maturity: shipped
 since: 0.1.27
-unreleased: true
 reviewed: 2026-08-24
 reviewed-authorities-digest: sha256:0ef57f1c87b477ec70a4b4fffe46d431ad76fd8f7292966cd38b68dfe215b075
 ---
@@ -1057,9 +1056,6 @@ reviewed-authorities-digest: sha256:0ef57f1c87b477ec70a4b4fffe46d431ad76fd8f7292
 > **Local target only.** This page describes the local dev/test target.
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
-
-> **Unreleased.** Runtime-cost snapshots are newer than the newest published
-> package closure, 0.1.26. They are expected in 0.1.27.
 
 Use the runtime-cost snapshot when a mutation appears stuck, a live projection
 does not advance, a query examines surprising work, or a framework-owned hook
@@ -2380,11 +2376,7 @@ actions can read
 auth/runtime/secrets, refuse, and call a generated mutation reference; they do
 not expose `ctx.db`, fetch, assets, jobs, realtime, or streaming.
 
-<!-- since: 0.1.27 unreleased -->
-
-> **Unreleased.** This generated-server auth spelling is newer than the newest
-> published package closure, 0.1.26. Use a source checkout until 0.1.27 is
-> published.
+<!-- since: 0.1.27 -->
 
 ## Declare Familiar auth from the generated server
 

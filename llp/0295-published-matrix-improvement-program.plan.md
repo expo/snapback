@@ -8,7 +8,16 @@ Ephemeral state, Memberships, Assets, Client integration, Exact/Contract
 integration, Guide, Benchmarks, Testing, Performance, Rust build
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-20
-**Revised:** 2026-08-25 (R2 campaign closure: links the twelve-cell synthesis,
+**Revised:** 2026-08-25 (W5 closure fix round: the production receipt now binds
+each real subscription to its registry-selected distinct wave, requires positive
+queue wait for the forced delayed send, checks row-value redaction on the
+pre-overflow join-source envelope, and exercises signed hosted input through
+both production adapter-composition stages before asserting recorder-off).
+2026-08-25 (W5 integration closure: the reopened LLP 0267 §7.7
+remainder now has production-path multiplicity, pending-to-settled attribution,
+bounded host/client pull, adversarial redaction, managed-dev/direct-serve
+posture, and hosted-adapter default-off receipts; W5 remains local-only and
+does not advance W6, R1/R2, or hosted telemetry). 2026-08-25 (R2 campaign closure: links the twelve-cell synthesis,
 records three validator-clean records and nine consumed cells, makes no
 scorecard comparison from the empty eligible population, and leaves the R3
 go/no-go decision with the author). 2026-08-24 (W5 fix-round evidence correction: all four source
@@ -300,7 +309,7 @@ Move 5 instruments all of them and supplies the evidence for Phase 3.
 | 2. Fixed-origin lifecycle | W1 closed 2026-08-21 (`15efbe6cb`, `7a2903ae6`, `a3a2d8725`, `e98961ad3`, `70e2b9af4`); Guide recipe ticket closed | none owned here; R1 verifies the packed journey |
 | 3. Authority transitions and live composition | W2 conformance closed (`cebbf5c1a`, `f22cd67d6`, `94d4d8546`, `ea062befb`, `411334ae5`); 1D classified the six-subscription case as an LLP 0200 composition bound; LLP 0267 §7's owner acceptance landed at v0.15 | the pre-inconsistency client diagnostic in `issues/20260820-familiar-live-subscription-contention.md`, owned by `issues/20260822-client-runtime-cost-and-delivery-inspection.md` |
 | 4. Safe private composition | W4 closed 2026-08-22 (`a0bb35684`, `0b0bbaac7`, `810eacd2c`); D0.5 closed with four implementation records | none owned here |
-| 5. Cost and evidence visibility | per-milestone token metering (`59894588b`); W5's recorder/server, client/join, framework-warning, and integration/Guide source slices exist; the authenticated serialized host-operation/client join and incomplete-work receipt are integrated under LLP 0267 §7 v0.18 | `issues/20260822-runtime-cost-diagnostics-integration-proof.md` remains open for full §7.7 multiplicity/posture assembly; `issues/20260821-clique-instrument-observability-version-bump.md` remains W6 (LLP 0281 Draft); the binary-size drift metric in `issues/20260820-debug-binary-symbol-bloat.md` and post-landing R1 remain open |
+| 5. Cost and evidence visibility | per-milestone token metering (`59894588b`); W5's four source slices and Guide exist; LLP 0267 §7.7 integration is closed with real enqueue/replay, live-query, React asset, bounded host/client pull, redaction, join, and dev-on/direct+hosted-off composition receipts | `issues/20260821-clique-instrument-observability-version-bump.md` remains W6 (LLP 0281 Draft); the binary-size drift metric in `issues/20260820-debug-binary-symbol-bloat.md` and post-landing R1 remain open |
 
 The consumer-skill size ceiling breach found while staging the Air run
 (`issues/20260822-consumer-skill-body-exceeds-0259-ceiling.md`) is an
@@ -747,19 +756,27 @@ license to add ambient telemetry. Redaction, bounded storage, and the
 local-only-v1/hosted-nonclaim posture are binding. Closed design ticket:
 `issues/closed/20260821-app-boundary-runtime-cost-diagnostics-design.md`.
 
-**Implementation source reconciliation (2026-08-24 fix round).** All four W5
+**Implementation source reconciliation (2026-08-25 integration closure).** All four W5
 source slices exist: (A) bounded recorder plus mutation/live observations, with
 best-effort declarative physical facts always incomplete and collection
 branch-and-drop; (B) client mutation timing and the pure gated-snapshot delivery
 join; (C) equivalent-work and provider/asset multiplicity warnings; and (D) the
 authenticated pull path and worked Guide attributions. A/B/C landed on `main`
-before D. The integrated receipt now starts a managed server and real client,
-serializes a ready-file-authenticated `app.inspect` result, feeds its runtime
-state into the client join, and retains a value-free incomplete JS-work record.
-Multiplicity and hosted/direct posture remain separate owner-test receipts, so
-this paragraph does not claim full §7.7 acceptance and the integration ticket
-is open. This does not advance W6, the binary-size metric, or R1, and does not
-claim hosted export, upload, collection, or a cost stream.
+before D. The closed integration receipt now drives real durable enqueue and
+replay, duplicate `liveQuery` establishment, and React asset-hook issuance into
+the client pull; crosses one selected mutation from pending to settled with
+positive queue-wait attribution; joins each subscription to the exact distinct
+wave named by its server registry row in the serialized ready-file-authenticated
+`app.inspect` snapshot; exercises client key overflow and host record/byte
+overflow; and proves adversarial row values remain absent from that original
+pre-overflow join source. Managed dev reports on, direct serve reports off, and
+signed adapter inputs pass through `compose_hosted_edge_admission` and
+`with_hosted_edge_admission` before the real hosted composition is observed
+recorder-off both before and after successful loopback listener binding.
+Together with the focused owner fixtures, that closes LLP 0267 §7.7. It does
+not advance W6, the binary-size metric, or R1, and does not claim hosted export,
+upload, collection, or a cost stream; incomplete physical evidence remains
+incomplete.
 
 ### W6. Instrument and context economy
 

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, webcrypto } from 'node:crypto';
 import {
   chmodSync,
   cpSync,
@@ -137,6 +137,215 @@ test('packed runner emits an admitted receipt and cleans up in reverse order', a
   });
   assert.equal(admission.complete, true, JSON.stringify(admission.invalidPaths));
   assert.deepEqual(admission.observedPathIds, ['list-path', 'delivery-path']);
+});
+
+// @ref LLP 0295#program-invariant-vertical-paved-path-coherence — one packed
+// fixture binds generated lifecycle truth to the acceptance binding and the
+// ordinary bootstrap admission that consumes it.
+test('packed Expo guest lifecycle, binding offer, and bootstrap admission agree', async () => {
+  const generatedRoot = join(
+    workspaceRoot,
+    'packages',
+    'snapback-cli',
+    'templates',
+    'expo-chat',
+    'snapback',
+    'generated',
+  );
+  const [{ app, api: generatedApi }, { createSnapbackAppClient }] = await Promise.all([
+    import(pathToFileURL(join(generatedRoot, 'api.mjs')).href),
+    import(pathToFileURL(join(workspaceRoot, 'packages', 'snapback-client', 'index.mjs')).href),
+  ]);
+  const lifecycleManifest = JSON.parse(readFileSync(
+    join(generatedRoot, 'client-lifecycle.v1.json'),
+    'utf8',
+  ));
+  const generatedArtifacts = JSON.parse(readFileSync(
+    join(generatedRoot, 'artifacts.json'),
+    'utf8',
+  ));
+  const shippedEntries = lifecycleManifest.rows.authEntryMechanisms.entries.filter(
+    (entry) => entry.configured && entry.phase === 'shipped',
+  );
+  const targetCapabilities = Object.freeze(
+    shippedEntries.map(({ targetCapability }) => targetCapability),
+  );
+  const guestEntry = shippedEntries.find((entry) => entry.mechanism === 'guest-v1');
+  assert.equal(guestEntry?.targetCapability, 'auth.guest-sessions');
+
+  const verticalAcceptance = api.defineStarterAcceptance({
+    acceptanceFile: import.meta.url,
+    appRoot: packageRoot,
+    artifacts: generatedArtifacts,
+    overallTimeoutMs: 1_000,
+    cleanupTimeoutMs: 200,
+    paths: {
+      guestBootstrap: {
+        id: 'guest-lifecycle-binding-bootstrap',
+        kind: 'success',
+        targetProfileId: 'local-dev-sqlite-ibex',
+        operation: generatedApi.conversations,
+      },
+    },
+    async journey({ bindingFor, paths, step }) {
+      await step(paths.guestBootstrap, async () => {
+        const binding = bindingFor(app, {
+          // Preserve the shipped template's 0.1.26 caller shape so reverting
+          // the acceptance projection fails specifically on guest admission.
+          // Target inspection below, not this request, admits the offers.
+          offeredCapabilities: ['auth.passwords'],
+        });
+        const bindingWithoutGuestProjection = Object.freeze({
+          ...binding,
+          capabilities: Object.freeze({
+            offered: Object.freeze(binding.capabilities.offered.filter(
+              (capability) => capability !== 'auth.guest-sessions',
+            )),
+          }),
+        });
+        await assert.rejects(
+          createSnapbackAppClient({
+            app,
+            binding: bindingWithoutGuestProjection,
+            platform: Object.freeze({ kind: 'memory', cryptoObject: webcrypto }),
+            rqsStore: null,
+          }),
+          (error) => error?.code === 'SNAPBACK_AUTH_BOOTSTRAP_MECHANISM_UNAVAILABLE'
+            && error?.diagnostic?.details?.mechanism === 'guest-v1'
+            && error?.diagnostic?.details?.missingCapability === 'auth.guest-sessions',
+        );
+        assert.equal(transportRequests, 0);
+        for (const entry of shippedEntries) {
+          assert(app.authBootstrap.entryMechanisms.includes(entry.mechanism));
+          assert(binding.capabilities.offered.includes(entry.targetCapability));
+        }
+        const client = await createSnapbackAppClient({
+          app,
+          binding,
+          platform: Object.freeze({ kind: 'memory', cryptoObject: webcrypto }),
+          rqsStore: null,
+        });
+        try {
+          assert.equal(client.bootstrapState().status, 'ready');
+        } finally {
+          await client.dispose();
+        }
+        return {
+          mechanism: guestEntry.mechanism,
+          targetCapability: guestEntry.targetCapability,
+          bootstrap: 'admitted',
+        };
+      });
+    },
+  });
+
+  const originalFetch = globalThis.fetch;
+  const priorRqsSetting = process.env.SNAPBACK_CLIENT_RQS_STORE;
+  let transportRequests = 0;
+  process.env.SNAPBACK_CLIENT_RQS_STORE = 'off';
+  globalThis.fetch = async (url) => {
+    transportRequests += 1;
+    assert.equal(new URL(url).pathname, '/auth/session');
+    return Response.json({
+      protocolVersion: 1,
+      serverStartupNonce: 'guest-vertical-fixture',
+      authorizationStreamIncarnation: '018f0d90-ab20-7a22-8c33-445566778899',
+      transitionGeneration: 0,
+      activeMode: 'sessions',
+      desiredMode: 'sessions',
+      modeState: 'settled',
+      appDataAvailability: 'available',
+      quarantineCode: null,
+      clientProtocols: {
+        authClient: 1,
+        authInvalidation: null,
+        authorityDescriptor: 1,
+        authorizedLease: null,
+      },
+      availability: {
+        onlineRequestResponse: { available: true, reason: null },
+        authScopedLive: {
+          available: false,
+          minimumAuthInvalidationProtocol: 1,
+          reason: 'SNAPBACK_AUTH_INVALIDATION_PROTOCOL_REQUIRED',
+        },
+        retainedReads: {
+          available: false,
+          minimumAuthInvalidationProtocol: 1,
+          minimumAuthorizedLeaseProtocol: 1,
+          reason: 'SNAPBACK_AUTH_RETAINED_READS_UNAVAILABLE',
+        },
+        queuedReplay: {
+          available: true,
+          minimumAuthorityDescriptorProtocol: 1,
+          reason: null,
+        },
+      },
+      provider: { key: 'guest', available: true },
+      transports: ['bearer'],
+      authority: {
+        kind: 'anonymous',
+        userId: null,
+        sessionId: null,
+        isAuthenticated: false,
+      },
+      authorityDescriptor: {
+        descriptorVersion: 1,
+        authorityInstanceId: '018f0d90-ab20-7a22-8c33-445566778899',
+        sessionGeneration: 0,
+      },
+      deploymentIdentity: {
+        schemaVersion: generatedArtifacts.schemaVersion,
+        authMode: 'sessions',
+        appId: generatedArtifacts.appId,
+        schemaHash: generatedArtifacts.schemaHash,
+        bundleHash: generatedArtifacts.bundleHash,
+        inputsHash: generatedArtifacts.inputsHash,
+      },
+      authorizedLease: null,
+    });
+  };
+  try {
+    const events = [];
+    const { receipt, exitCode } = await api.runStarterAcceptance(verticalAcceptance, {
+      lifecycle: Object.freeze({
+        schemaVersion: 'snapback.starter-lifecycle-adapter.v1',
+        async start() {
+          events.push('start');
+          return Object.freeze({
+            ready: Object.freeze({ ready: true, serverUrl: 'http://127.0.0.1:1' }),
+            loadedIdentity: Object.freeze({
+              appId: generatedArtifacts.appId,
+              bundleHash: generatedArtifacts.bundleHash,
+            }),
+            adminClient: Object.freeze({
+              async inspect() {
+                return Object.freeze({
+                  capabilityManifest: Object.freeze({
+                    supportedCapabilities: targetCapabilities,
+                  }),
+                  subscriptions: Object.freeze([]),
+                });
+              },
+            }),
+            health: () => Object.freeze({ running: true }),
+          });
+        },
+        async stop() {
+          events.push('stop');
+          return Object.freeze({ exited: true });
+        },
+      }),
+      emit: false,
+    });
+    assert.equal(exitCode, 0, JSON.stringify(receipt.diagnostic));
+    assert.equal(receipt.status, 'passed');
+    assert.deepEqual(events, ['start', 'stop']);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (priorRqsSetting === undefined) delete process.env.SNAPBACK_CLIENT_RQS_STORE;
+    else process.env.SNAPBACK_CLIENT_RQS_STORE = priorRqsSetting;
+  }
 });
 
 test('timeout and failed assertion remain failed while bounded cleanup still runs', async (t) => {

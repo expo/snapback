@@ -508,7 +508,6 @@ struct LeaseRecord {
 }
 
 struct RegistryState {
-    root_digest: [u8; 32],
     leases: HashMap<[u8; 32], LeaseRecord>,
 }
 
@@ -526,17 +525,6 @@ pub struct SecretReadLeaseRegistry {
 /// supplied in its place.
 pub struct SecretReadOperator {
     registry: SecretReadLeaseRegistry,
-    root: SecretReadRoot,
-}
-
-struct SecretReadRoot {
-    secret: [u8; 32],
-}
-
-impl Drop for SecretReadRoot {
-    fn drop(&mut self) {
-        self.secret.fill(0);
-    }
 }
 
 impl SecretReadLeaseRegistry {
@@ -557,10 +545,8 @@ impl SecretReadLeaseRegistry {
         reset_generation: Arc<AtomicU64>,
         clock: Arc<dyn Fn() -> Instant + Send + Sync>,
     ) -> (Self, SecretReadOperator) {
-        let secret = random_secret();
         let registry = Self {
             state: Arc::new(Mutex::new(RegistryState {
-                root_digest: digest(&secret),
                 leases: HashMap::new(),
             })),
             reset_generation,
@@ -568,7 +554,6 @@ impl SecretReadLeaseRegistry {
         };
         let operator = SecretReadOperator {
             registry: registry.clone(),
-            root: SecretReadRoot { secret },
         };
         (registry, operator)
     }
@@ -667,20 +652,9 @@ impl SecretReadLeaseRegistry {
         Ok(())
     }
 
-    fn mint(
-        &self,
-        root: &SecretReadRoot,
-        request: SecretReadLeaseRequest,
-    ) -> SnapbackResult<SecretReadLease> {
+    fn mint(&self, request: SecretReadLeaseRequest) -> SnapbackResult<SecretReadLease> {
         request.validate()?;
         let mut state = self.lock_state();
-        if !constant_time_eq(&state.root_digest, &digest(&root.secret)) {
-            return Err(SnapbackError::error(
-                "SNAPBACK_ADMIN_SECRET_READ_MINT_DENIED",
-                "admin-secret-read",
-                "secret-read leases may only be minted by the operator plane",
-            ));
-        }
         let now = (self.clock)();
         let generation = self.reset_generation.load(Ordering::Acquire);
         state
@@ -716,10 +690,14 @@ impl SecretReadLeaseRegistry {
 }
 
 impl SecretReadOperator {
-    /// Mint a short-lived derived lease entirely in process. The root
-    /// capability is never returned or accepted by an HTTP handler.
+    /// Mint a short-lived derived lease entirely in process. The operator
+    /// capability is never returned to or accepted by an HTTP handler.
+    ///
+    /// @ref LLP 0303#the-governing-principle — the
+    /// non-cloneable operator mints only into the registry it already owns;
+    /// no independently supplied root or registry participates in minting.
     pub fn mint(&self, request: SecretReadLeaseRequest) -> SnapbackResult<SecretReadLease> {
-        self.registry.mint(&self.root, request)
+        self.registry.mint(request)
     }
 }
 
@@ -734,13 +712,6 @@ fn random_secret() -> [u8; 32] {
 
 fn digest(bytes: &[u8]) -> [u8; 32] {
     Sha256::digest(bytes).into()
-}
-
-fn constant_time_eq(left: &[u8; 32], right: &[u8; 32]) -> bool {
-    left.iter()
-        .zip(right)
-        .fold(0_u8, |diff, (left, right)| diff | (left ^ right))
-        == 0
 }
 
 fn unix_time_ms() -> u64 {

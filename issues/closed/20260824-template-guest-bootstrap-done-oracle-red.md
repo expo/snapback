@@ -1,6 +1,6 @@
 # Shipped expo-chat done-oracle red at guest bootstrap despite declared+offered guest mechanism
 
-**Status:** Closed
+**Status:** Resolved
 **Opened:** 2026-08-24
 **Resolved:** 2026-08-25
 **Systems:** Auth, Acceptance testing, Templates, Code generation
@@ -48,42 +48,76 @@ the product path works; the done-oracle/bootstrap seam is what disagrees.
   edits.
 - The vertical fixture fails if any of the three layers drifts again.
 
-## Resolution
+## Resolution (2026-08-25)
 
-The acceptance-owned synthetic supervised binding was the lying layer. The
-generated `client-lifecycle.v1.json` correctly declared `guest-v1`, and the
-real supervisor correctly projected that declaration to
-`auth.guest-sessions`. The public acceptance runner's `bindingFor(...)`
-instead copied the generated required capabilities plus a template-authored
-extras list; `expo-chat/acceptance.mjs` manually supplied only
-`auth.passwords`. After the zero-config preflight passed, the second synthetic
-bootstrap therefore refused the declared guest mechanism before check 2.
+The acceptance runner's synthetic supervised binding was the lying layer.
+`bindSupervisedApp` copied the generated application's required capabilities
+and caller-supplied extras, but unlike the real supervisor binding it did not
+project admitted auth entry mechanisms into target offers. Expo-chat supplied
+`auth.passwords` explicitly, so its generated `guest-v1` declaration met a
+binding that omitted `auth.guest-sessions`; the ordinary app-client bootstrap
+correctly refused the false binding. Codegen's lifecycle fact and the runtime
+supervisor offer projection were both correct.
 
-`@expo/snapback-acceptance` now derives the `auth.passwords` and
-`auth.guest-sessions` offers from the generated
-`authBootstrap.entryMechanisms`, matching the real supervisor. The Expo chat
-acceptance no longer transcribes either mechanism capability. The existing
-packed guest-session proof now includes `@expo/snapback-acceptance` and binds
-the shipped template's generated guest lifecycle row to the acceptance
-binding offer and the real packed client bootstrap admission in one 1/1
-vertical fixture.
+`@expo/snapback-acceptance` now projects `auth.passwords` and
+`auth.guest-sessions` from the generated bootstrap policy when it constructs
+the supervised binding. Its packed-package test loads Expo-chat's generated
+lifecycle table and descriptor, intersects each shipped mechanism with the
+acceptance binding, and lets the real app-client bootstrap admit the result.
+Before the projection fix that fixture exited 1 at the missing target
+capability assertion; after the fix it passes.
 
-Published 0.1.27 was verified to retain the defect: a fresh registry scaffold
-declared `guest-v1`, its real supervisor source projected
-`auth.guest-sessions`, its acceptance source supplied only `auth.passwords`,
-and the packed client dynamically emitted
-`SNAPBACK_AUTH_BOOTSTRAP_MECHANISM_UNAVAILABLE` for the missing guest offer.
+The 0.1.26 closure should have caught the red done-oracle. Like
+`20260824-expo-web-bundling-import-specifier-blocker`, its template
+qualification stopped at static acceptance, so a broken first-hour journey
+shipped. The current cold-install harness had grown a raw `npm test` step, but
+that still tested a debugging implementation instead of the template's sole
+done-oracle. Packed Expo-chat qualification now runs `npm run prove`, and a
+source guard prevents regression to raw-only acceptance.
 
-The 0.1.27 closure should have caught the red done-oracle under LLP 0275 D6
-and LLP 0196 T5. Its implemented template qualification stopped at scaffold,
-install, generate, and `test:static` (plus the Expo web-export repair); LLP
-0041's 0.1.27 record likewise reports static acceptance, even though LLP
-0041's template contract says static acceptance cannot satisfy the acceptance
-claim. No new release gate was added in this repair: the packed vertical
-fixture covers the three-layer drift class requested by this ticket.
+Verification:
 
-Final evidence used candidate-packed CLI and acceptance bytes over the
-published 0.1.27 dependency/runtime closure on a clean remote scaffold with no
-application edits. `bun run prove` exited 0 with verify status `passed`, all
-five stages passed, the acceptance profile passed with zero diagnostics, and
-conformance reported `expectedPaths: 13`, `observedPaths: 13`.
+- Fresh scaffold, installed with the packed fixed acceptance package and this
+  checkout's qualified runtime, after the scaffold's declared `generate`
+  stage: `fresh scaffold prove: 13/13 paths observed; status=passed;
+  profile=passed`. A bare `prove` on a cache-less tree still fail-closes with
+  `SNAPBACK_CODEGEN_CACHE_INVALID`; that pre-existing property was not the
+  guest-bootstrap red. The README's documented first-hour order and the packed
+  cold-install qualification both run `generate` before `prove`; this fix does
+  not fold generation into the done-oracle.
+- `node --test --test-concurrency=1 packages/snapback-acceptance/package.test.mjs`:
+  29 tests passed, 0 failed.
+- `node --test scripts/snapback-package-cold-install.test.mjs`: 46 tests
+  passed, 0 failed.
+- `./ref-check --verbose`: 311 LLP docs, 6565 refs in 12168 files, 0 errors,
+  0 unchecked.
+
+## Follow-up hardening (2026-08-25)
+
+The first projection repair was necessary but self-attesting: a generated
+mechanism could manufacture its own synthetic target offer. This follow-up
+supersedes that projection semantics. Acceptance now computes offers as the
+intersection of the generated-required/mechanism-derived request allowlist
+with admitted target evidence. The evidence comes from the live target's
+inspected `capabilityManifest.supportedCapabilities` plus the acceptance
+package's owned `STARTER_SUPERVISOR_CAPABILITIES`; caller-supplied requests
+cannot manufacture an offer.
+
+Rust's target registry and committed target manifests now advertise
+`auth.passwords` and `auth.guest-sessions` explicitly as experimental facts,
+while codegen treats both as derived, intentionally non-authorable
+capabilities. A generated guest entry against target evidence without
+`auth.guest-sessions` refuses before publication. The packed vertical witness
+also removes the guest target fact, demonstrates that a caller request cannot
+restore it, and observes the pre-I/O
+`SNAPBACK_AUTH_BOOTSTRAP_MECHANISM_UNAVAILABLE` refusal with
+`missingCapability: auth.guest-sessions` and zero auth transport requests.
+
+Classification remained unchanged: the acceptance-owned synthetic binding was
+the lying layer, while generated lifecycle policy, the real supervisor's
+target projection, and client refusal were correct. Published 0.1.27 was also
+verified to retain the defect. Its closure should have caught the red
+done-oracle under LLP 0275 D6 and LLP 0196 T5, but qualification stopped at
+scaffold, install, generate, and static acceptance. Candidate-packed CLI and
+acceptance bytes subsequently passed the untouched Expo-chat `bun run prove`
+journey with all five stages green and 13/13 paths observed.

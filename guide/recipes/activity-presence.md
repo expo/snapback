@@ -71,11 +71,7 @@ delete to become visible: for a five-second ceiling, the shown three-second
 idle window leaves that convergence budget. TTL will not enforce the deadline
 while the activity owner is active.
 
-<!-- since: 0.1.27 unreleased -->
-
-> **Unreleased.** The volatile-value development diagnostic is newer than the
-> newest published package closure, 0.1.26. The stable-value repair applies to
-> every version that includes `useSnapbackActivityPresence`.
+<!-- since: 0.1.27 -->
 
 ## Keep presence values stable
 

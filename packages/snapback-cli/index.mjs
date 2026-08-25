@@ -20,6 +20,7 @@ import {
   rmdirSync,
   rmSync,
   statSync,
+  symlinkSync,
   watch,
   writeFileSync,
 } from 'node:fs';
@@ -451,11 +452,14 @@ export function resolveRuntimeBinary(options = {}) {
   return { binary, source: packageName, platform };
 }
 
-function runtimeReadinessRoot(runtime) {
+function runtimeReadinessRoot(runtime, cliPackageRoot = packageRoot) {
   if (runtime.checkoutRoot) return runtime.checkoutRoot;
-  const checkoutRoot = sourceCheckoutRoot();
+  const binary = existsSync(runtime.binary)
+    ? realpathSync(runtime.binary)
+    : resolve(runtime.binary);
+  const checkoutRoot = sourceCheckoutRoot(cliPackageRoot);
   if (checkoutRoot !== null) {
-    const candidate = relative(checkoutRoot, resolve(runtime.binary));
+    const candidate = relative(checkoutRoot, binary);
     if (
       candidate !== ''
       && candidate !== '..'
@@ -466,7 +470,6 @@ function runtimeReadinessRoot(runtime) {
   // another source checkout must reopen that checkout's digest-bound receipt
   // and Hermes artifacts, not reinterpret target/debug as a package root.
   if (['override', 'qualified-override'].includes(runtime.source)) {
-    const binary = resolve(runtime.binary);
     let candidate = dirname(binary);
     for (;;) {
       const parent = dirname(candidate);
@@ -484,7 +487,7 @@ function runtimeReadinessRoot(runtime) {
       candidate = parent;
     }
   }
-  return dirname(dirname(resolve(runtime.binary)));
+  return dirname(dirname(binary));
 }
 
 // @ref LLP 0010#native-runtime-bootstrap — the digest binding follows the
@@ -707,7 +710,10 @@ export async function doctor(options = {}) {
   const stateRoot = join(projectRoot, '.snapback');
   const readyFile = join(stateRoot, 'doctor.ready.json');
   const database = join(stateRoot, 'doctor.sqlite3');
+  const startupArtifacts = join(stateRoot, 'doctor.startup-artifacts.json');
   let child = null;
+  let client = null;
+  let authCoordinator = null;
   let live = null;
   let failure = null;
   try {
@@ -721,43 +727,136 @@ export async function doctor(options = {}) {
       );
     }
     mkdirSync(stateRoot, { recursive: true });
+    const schemaPath = resolveGeneratedArtifact(
+      join(backendRoot, 'generated'),
+      'schema.manifest.json',
+    );
+    const functionsPath = resolveGeneratedArtifact(
+      join(backendRoot, 'generated'),
+      'functions.manifest.json',
+    );
+    const schema = JSON.parse(readFileSync(schemaPath, 'utf8'));
+    const functions = JSON.parse(readFileSync(functionsPath, 'utf8'));
+    const requestedMode = schema?.auth?.mode ?? 'dev';
+    const needsStartupActivation = requestedMode === 'sessions';
+    if (needsStartupActivation) {
+      // @ref LLP 0058#cold-startup-artifact-carrier — a sessions deployment
+      // activates before listener bind; readiness then proves the seed reset
+      // cannot race the staged dev-to-sessions transition.
+      writeFileSync(startupArtifacts, `${JSON.stringify({
+        formatVersion: 1,
+        schema,
+        functions,
+      })}\n`, { mode: 0o600 });
+    }
     const childEnvironment = runtimeSpawnEnvironment(runtime.binary, options.env);
     // @ref LLP 0301#2-origin-admission--the-path-split-implemented — the
     // posture is lifecycle-owner input, never ambient.
     delete childEnvironment.SNAPBACK_DEV_ADMISSION_POSTURE;
-    child = spawn(runtime.binary, ['start', '--ready-file', readyFile, '--db', database], {
+    child = spawn(runtime.binary, [
+      'start', '--ready-file', readyFile, '--db', database,
+      ...(needsStartupActivation ? ['--startup-artifacts', startupArtifacts] : []),
+    ], {
       cwd: projectRoot,
       env: childEnvironment,
       stdio: ['ignore', 'ignore', 'ignore'],
     });
+    const readyTimeoutMs = options.readyTimeoutMs ?? 15_000;
     const descriptor = validateDevTarget(
-      await waitForReady(readyFile, child, options.readyTimeoutMs ?? 15_000),
+      await waitForReady(readyFile, child, readyTimeoutMs),
       { readyFile, database },
     );
     const adminToken = managedAdminToken(descriptor, database);
-    await loadGenerated(runtime.binary, projectRoot, backendRoot, readyFile, adminToken, {
-      seed: true,
-      database,
-      env: options.env,
-    });
+    const generatedActivation = await loadGenerated(
+      runtime.binary,
+      projectRoot,
+      backendRoot,
+      readyFile,
+      adminToken,
+      {
+        seed: true,
+        database,
+        skipSchemaFunctions: needsStartupActivation,
+        env: options.env,
+      },
+    );
+    // @ref LLP 0224#layered-readiness-not-one-overloaded-boolean — host
+    // readiness and completed post-bind generated provisioning are distinct
+    // boundaries; sessions ensureApp is also LLP 0058 same-mode activation.
+    const activationReadiness = {
+      requestedMode,
+      startup: {
+        signal: 'runtime-ready-file',
+        timeoutMs: readyTimeoutMs,
+        startupCarrier: needsStartupActivation,
+      },
+      postBind: {
+        signal: 'load-generated-return',
+        branch: generatedActivation.branch,
+        admissionBoundary: needsStartupActivation
+          ? 'sessions-same-mode-activation'
+          : 'none',
+      },
+    };
     checks.push(doctorDiagnostic(
       'SNAPBACK_DOCTOR_BUNDLE_LOAD_OK',
       'runtime',
       'the disposable server created its VM and loaded the generated bundle',
+      { activationReadiness },
     ));
 
-    const apiModule = await import(`${pathToFileURL(join(backendRoot, 'generated', 'api.mjs')).href}?doctor=${Date.now()}`);
+    const generatedClientEntry = fileURLToPath(
+      import.meta.resolve('@expo/snapback-client/internal/declared-dev-mint'),
+    );
+    const generatedClientPackage = dirname(dirname(generatedClientEntry));
+    const generatedPackageScope = join(projectRoot, 'node_modules', '@expo');
+    mkdirSync(generatedPackageScope, { recursive: true });
+    symlinkSync(
+      generatedClientPackage,
+      join(generatedPackageScope, 'snapback-client'),
+      process.platform === 'win32' ? 'junction' : 'dir',
+    );
+    // @ref LLP 0012#call-time-generation-binding — doctor imports and calls
+    // the generated references so kind, args, and generation fences are part
+    // of the vertical slice rather than bypassed by string operation names.
+    const apiModule = await import(
+      `${pathToFileURL(resolveGeneratedArtifact(join(backendRoot, 'generated'), 'api.mjs')).href}?doctor=${Date.now()}`,
+    );
     const api = apiModule.default;
-    const devIdentityCapability = resolveDevIdentityCapabilityForCli(descriptor, {
-      readyFile,
-      database,
-    });
-    const client = new SnapbackClient(descriptor.serverUrl, {
+    const devIdentityCapability = requestedMode === 'dev'
+      ? resolveDevIdentityCapabilityForCli(descriptor, {
+          readyFile,
+          database,
+        })
+      : null;
+    authCoordinator = requestedMode === 'sessions'
+      ? new AuthCoordinator({
+          appId: schema.appId,
+          storage: createMemoryAuthCustodyStorage(),
+          broadcastChannelFactory: null,
+          hintStorage: null,
+        })
+      : null;
+    client = new SnapbackClient(descriptor.serverUrl, {
       adminToken,
-      devIdentityCapability,
+      ...(devIdentityCapability ? { devIdentityCapability } : {}),
+      ...(authCoordinator ? {
+        authCoordinator,
+        rqsStore: null,
+        offlineQueue: false,
+      } : {}),
     });
     const userId = 'user_doctor';
-    const before = await client.query(api.listTodos, { userId });
+    if (authCoordinator) {
+      await client.authPasswordSignup({
+        email: `doctor-${randomUUID()}@example.invalid`,
+        password: `snapback-doctor-${randomUUID()}`,
+      });
+    }
+    const before = await client.query(
+      api.listTodos,
+      requestedMode === 'dev' ? { userId } : {},
+    );
     if (!Array.isArray(before.rows)) {
       throw diagnosticError('SNAPBACK_DOCTOR_QUERY_FAILED', 'the disposable query returned no rows array');
     }
@@ -769,7 +868,7 @@ export async function doctor(options = {}) {
     ));
 
     const mutation = await client.mutate(api.createTodo, {
-      userId,
+      ...(requestedMode === 'dev' ? { userId } : {}),
       args: { title: 'Snapback doctor vertical slice' },
       clientMutationId: `doctor-${process.pid}-${Date.now()}`,
     });
@@ -787,7 +886,10 @@ export async function doctor(options = {}) {
       { version: mutation.version },
     ));
 
-    live = await client.liveQuery(api.listTodos, { connectionId: 'doctor', userId });
+    live = await client.liveQuery(api.listTodos, {
+      connectionId: 'doctor',
+      ...(requestedMode === 'dev' ? { userId } : {}),
+    });
     if (!live.rows.some((row) => row.title === 'Snapback doctor vertical slice')) {
       throw diagnosticError('SNAPBACK_DOCTOR_LIVE_FAILED', 'the disposable live snapshot omitted the committed row');
     }
@@ -815,6 +917,17 @@ export async function doctor(options = {}) {
         { message: error?.message ?? String(error) },
       );
     }
+    try {
+      await client?.closeAuth();
+      await authCoordinator?.close();
+    } catch (error) {
+      failure ??= doctorDiagnostic(
+        'SNAPBACK_DOCTOR_CLEANUP_FAILED',
+        'auth',
+        'the disposable doctor auth coordinator did not close cleanly',
+        { message: error?.message ?? String(error) },
+      );
+    }
     if (child?.exitCode === null) {
       const stop = native(runtime.binary, ['stop', '--ready-file', readyFile], {
         cwd: projectRoot,
@@ -839,7 +952,12 @@ export async function doctor(options = {}) {
       }
     }
     try {
-      rmSync(scratch, { recursive: true, force: true });
+      rmSync(scratch, {
+        recursive: true,
+        force: true,
+        maxRetries: 5,
+        retryDelay: 50,
+      });
     } catch (error) {
       failure ??= doctorDiagnostic(
         'SNAPBACK_DOCTOR_CLEANUP_FAILED',
@@ -5449,12 +5567,16 @@ function qualifiedRuntimeIdentity(
   runtimeIdentity,
   qualifiedBinary = null,
   environment = process.env,
+  cliPackageRoot = packageRoot,
 ) {
   const qualifiedPath = qualifiedBinary === null ? null : resolve(qualifiedBinary);
-  const checkoutRoot = sourceCheckoutRoot();
-  const checkoutRelative = qualifiedPath === null || checkoutRoot === null
+  const qualifiedPhysicalPath = qualifiedPath !== null && existsSync(qualifiedPath)
+    ? realpathSync(qualifiedPath)
+    : qualifiedPath;
+  const checkoutRoot = sourceCheckoutRoot(cliPackageRoot);
+  const checkoutRelative = qualifiedPhysicalPath === null || checkoutRoot === null
     ? null
-    : relative(checkoutRoot, qualifiedPath);
+    : relative(checkoutRoot, qualifiedPhysicalPath);
   const qualifiedCheckoutRoot = checkoutRelative !== null
     && checkoutRelative !== ''
     && checkoutRelative !== '..'
@@ -5472,7 +5594,7 @@ function qualifiedRuntimeIdentity(
   const qualifiedBuildIdentity = qualifiedBinary === null
     ? runtimeIdentity
     : inspectRuntimeBinary(qualifiedRuntime.binary, environment);
-  const runtimeRoot = runtimeReadinessRoot(qualifiedRuntime);
+  const runtimeRoot = runtimeReadinessRoot(qualifiedRuntime, cliPackageRoot);
   const packaged = !['override', 'qualified-override', 'source-checkout'].includes(
     qualifiedRuntime.source,
   );
@@ -5602,9 +5724,38 @@ function generatedApplicationDescriptor(generatedRoot) {
   return descriptor;
 }
 
+function generatedTargetCapabilityManifest(generatedRoot) {
+  const path = join(generatedRoot, 'capability.manifest.json');
+  let manifest;
+  try {
+    manifest = JSON.parse(readFileSync(path, 'utf8'));
+  } catch (cause) {
+    const error = diagnosticError(
+      'SNAPBACK_DEV_APPLICATION_DESCRIPTOR_INVALID',
+      `could not read generated target capability manifest ${path}`,
+      { path },
+    );
+    error.cause = cause;
+    throw error;
+  }
+  if (
+    manifest?.artifactKind !== 'capabilityManifest'
+    || typeof manifest.targetProfileId !== 'string'
+    || !Array.isArray(manifest.supportedCapabilities)
+  ) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_APPLICATION_DESCRIPTOR_INVALID',
+      'generated target capability manifest lacks its closed target support facts',
+      { path },
+    );
+  }
+  return manifest;
+}
+
 function issueDevBinding(publisher, generatedRoot, descriptor) {
   return publisher.issue({
     descriptor: generatedApplicationDescriptor(generatedRoot),
+    capabilityManifest: generatedTargetCapabilityManifest(generatedRoot),
     origin: new URL(descriptor.serverUrl).origin,
     routing: 'loopback',
   });
@@ -9283,6 +9434,7 @@ export const __test = {
   fixedPortAttachFailure,
   loadGenerated,
   portFromUrl,
+  qualifiedRuntimeIdentity,
   readLegacyApplicationReadyReceipt,
   readReadyDescriptor,
   refineGeneratedArtifactFailure,

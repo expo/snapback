@@ -20,8 +20,14 @@ use snapback::admin_impersonation::{
     IMPERSONATION_CAPABILITY_HEADER, ImpersonationCapabilityRegistry,
 };
 use snapback::auth::crypto::OsRandom;
+use snapback::diagnostic::DiagnosticSeverity;
 use snapback::host_ops::{HostOpsRequest, HostReadyDescriptor, execute_host_op};
 use snapback::local::LocalSnapback;
+use snapback::manifest::{
+    AuthRequirement, FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime,
+    IbexModule,
+};
+use snapback::server::PolicyAuthMode;
 use snapback_server::test_support::axum::body::{Body, to_bytes};
 use snapback_server::test_support::axum::http::{Request, StatusCode, header};
 use std::fs;
@@ -79,6 +85,159 @@ fn wait_for_cli_ready(
         );
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
+}
+
+/// A sessions target treats the absence of client authority as anonymous.
+/// The native CLI must therefore omit `userId`, not serialize `--user`'s
+/// absent value as the explicitly forbidden JSON null. The app-route retry
+/// must still enforce an authenticated function before its handler executes.
+// @ref LLP 0058#session-mode-body-closure — every legacy authority field,
+// populated or null, is rejected before the host operation runs.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn snapback_run_sessions_retry_runs_public_and_refuses_protected_query() {
+    let mut snapback = LocalSnapback::memory().expect("sessions CLI fixture");
+    let source = r#"
+let protectedExecutions = 0;
+globalThis.__snapbackHandlers = {
+  publicStatus() { return [{ visibility: 'public' }]; },
+  protectedStatus() {
+    protectedExecutions += 1;
+    return [{ marker: 'PROTECTED_HANDLER_EXECUTED' }];
+  },
+  protectedExecutionProbe() { return [{ protectedExecutions }]; },
+};
+"#
+    .to_owned();
+    let mut public_query = FunctionDefinition::new(
+        "publicStatus",
+        FunctionKind::Query,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: source.clone(),
+            export: "publicStatus".to_owned(),
+        }),
+    );
+    public_query.auth_requirement = Some(AuthRequirement::Public);
+    let mut protected_query = FunctionDefinition::new(
+        "protectedStatus",
+        FunctionKind::Query,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: source.clone(),
+            export: "protectedStatus".to_owned(),
+        }),
+    );
+    protected_query.auth_requirement = Some(AuthRequirement::Authenticated);
+    let mut execution_probe = FunctionDefinition::new(
+        "protectedExecutionProbe",
+        FunctionKind::Query,
+        FunctionRuntime::IbexModule(IbexModule {
+            source,
+            export: "protectedExecutionProbe".to_owned(),
+        }),
+    );
+    execution_probe.auth_requirement = Some(AuthRequirement::Public);
+    let diagnostics = snapback.load_functions(FunctionManifest {
+        functions: vec![public_query, protected_query, execution_probe],
+        ..FunctionManifest::default()
+    });
+    assert!(
+        diagnostics.iter().all(|diagnostic| !matches!(
+            &diagnostic.severity,
+            DiagnosticSeverity::Error | DiagnosticSeverity::Fatal
+        )),
+        "sessions CLI fixture functions must load: {diagnostics:?}"
+    );
+
+    let std_listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = std_listener.local_addr().unwrap();
+    let mut context = ServerContext::from_bound_listener(&std_listener).unwrap();
+    context.profile = ServerProfile::Test;
+    context.admin_token = Some("sessions-public-cli-admin".to_owned());
+    std_listener.set_nonblocking(true).unwrap();
+    let listener = tokio::net::TcpListener::from_std(std_listener).unwrap();
+    let state = test_app_state_from_snapback(snapback, context)
+        .with_policy_auth_mode(PolicyAuthMode::Sessions);
+    let server = tokio::spawn(async move {
+        snapback::server::app(state)
+            .bind(listener)
+            .expect("bind sessions CLI fixture")
+            .serve()
+            .await
+            .expect("serve sessions CLI fixture");
+    });
+
+    let (public_output, protected_output, probe_output) = tokio::task::spawn_blocking(move || {
+        let run = |function: &str| {
+            std::process::Command::new(env!("CARGO_BIN_EXE_snapback"))
+                .args([
+                    "run",
+                    "--url",
+                    &format!("http://{address}"),
+                    "--token",
+                    "sessions-public-cli-admin",
+                    function,
+                ])
+                .env_remove("SNAPBACK_ADMIN_TOKEN")
+                .output()
+                .expect("run native CLI against sessions fixture")
+        };
+        (
+            run("publicStatus"),
+            run("protectedStatus"),
+            run("protectedExecutionProbe"),
+        )
+    })
+    .await
+    .unwrap();
+    server.abort();
+
+    assert!(
+        public_output.status.success(),
+        "snapback run stderr: {}\nstdout: {}",
+        String::from_utf8_lossy(&public_output.stderr),
+        String::from_utf8_lossy(&public_output.stdout),
+    );
+    let envelope: Value = serde_json::from_slice(&public_output.stdout).expect("CLI query result");
+    assert_eq!(
+        envelope["rows"][0]["visibility"], "public",
+        "public sessions invocation must use the anonymous query route: {envelope}"
+    );
+    assert!(
+        envelope.get("diagnostic").is_none(),
+        "the successful anonymous query must not carry a refusal: {envelope}"
+    );
+
+    assert!(
+        !protected_output.status.success(),
+        "an authenticated query must remain closed to snapback run's anonymous retry"
+    );
+    let protected: Value = serde_json::from_slice(&protected_output.stdout)
+        .expect("protected CLI refusal must remain structured JSON");
+    assert_eq!(
+        protected["diagnostic"]["code"], "SNAPBACK_AUTH_REQUIRED",
+        "the app route must refuse the anonymous retry at the function gate: {protected}"
+    );
+    let protected_process_output = format!(
+        "{}\n{}",
+        String::from_utf8_lossy(&protected_output.stdout),
+        String::from_utf8_lossy(&protected_output.stderr)
+    );
+    assert!(
+        !protected_process_output.contains("PROTECTED_HANDLER_EXECUTED"),
+        "the protected handler marker must not escape: {protected_process_output}"
+    );
+
+    assert!(
+        probe_output.status.success(),
+        "execution probe stderr: {}\nstdout: {}",
+        String::from_utf8_lossy(&probe_output.stderr),
+        String::from_utf8_lossy(&probe_output.stdout),
+    );
+    let probe: Value =
+        serde_json::from_slice(&probe_output.stdout).expect("protected execution probe result");
+    assert_eq!(
+        probe["rows"][0]["protectedExecutions"], 0,
+        "the authenticated handler must not execute on the anonymous retry path: {probe}"
+    );
 }
 
 /// @ref LLP 0184#2-derived-ownership-not-a-second-registry — the native CLI

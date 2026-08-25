@@ -151,11 +151,7 @@ actions can read
 auth/runtime/secrets, refuse, and call a generated mutation reference; they do
 not expose `ctx.db`, fetch, assets, jobs, realtime, or streaming.
 
-<!-- since: 0.1.27 unreleased -->
-
-> **Unreleased.** This generated-server auth spelling is newer than the newest
-> published package closure, 0.1.26. Use a source checkout until 0.1.27 is
-> published.
+<!-- since: 0.1.27 -->
 
 ## Declare Familiar auth from the generated server
 

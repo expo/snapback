@@ -42,6 +42,8 @@
     { "id": "construct-authorization-outcome", "bin": "construct-authorization-outcome", "source": "src/bin/construct_authorization_outcome.rs", "mount": "snapback-kernel", "featureSets": [[]], "expectedCode": "E0451" },
     { "id": "construct-authorization-view", "bin": "construct-authorization-view", "source": "src/bin/construct_authorization_view.rs", "mount": "snapback-kernel", "featureSets": [[]], "expectedCode": "E0451" },
     { "id": "shared-serving-database-unmediated-insert", "bin": "shared-serving-database-unmediated-insert", "source": "src/bin/shared_serving_database_unmediated_insert.rs", "mount": "snapback-kernel", "featureSets": [["snapback-kernel/test-support"]], "expectedCode": "E0596" },
-    { "id": "shared-serving-database-deref-unmediated-insert", "bin": "shared-serving-database-deref-unmediated-insert", "source": "src/bin/shared_serving_database_deref_unmediated_insert.rs", "mount": "snapback-kernel", "featureSets": [["snapback-kernel/test-support"]], "expectedCode": "E0624" }
+    { "id": "shared-serving-database-deref-unmediated-insert", "bin": "shared-serving-database-deref-unmediated-insert", "source": "src/bin/shared_serving_database_deref_unmediated_insert.rs", "mount": "snapback-kernel", "featureSets": [["snapback-kernel/test-support"]], "expectedCode": "E0624" },
+    { "id": "clone-secret-read-operator", "bin": "clone-secret-read-operator", "source": "src/bin/clone_secret_read_operator.rs", "mount": "snapback-server", "featureSets": [[]], "expectedCode": "E0599", "seedTypes": ["SecretReadOperator"] },
+    { "id": "mint-secret-read-lease-from-registry", "bin": "mint-secret-read-lease-from-registry", "source": "src/bin/mint_secret_read_lease_from_registry.rs", "mount": "snapback-server", "featureSets": [[]], "expectedCode": "E0624", "seedTypes": ["SecretReadLeaseRegistry"] }
   ]
 }

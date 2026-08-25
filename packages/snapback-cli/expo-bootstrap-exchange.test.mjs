@@ -14,7 +14,10 @@ const TEST_TTL_MS = 1_000;
 const TEST_REFRESH_WINDOW_MS = 200;
 const TEST_GENERATION = 'supervisor-fake-clock';
 
-function descriptor(suffix = 'a') {
+function descriptor(
+  suffix = 'a',
+  required = ['auth.application-bootstrap.v1'],
+) {
   return Object.freeze({
     format: 'snapback.app.v1',
     authoringProfile: 'snapback-explicit-v1',
@@ -25,7 +28,7 @@ function descriptor(suffix = 'a') {
       descriptor: `sha256:descriptor-${suffix}`,
     }),
     capabilities: Object.freeze({
-      required: Object.freeze(['auth.application-bootstrap.v1']),
+      required: Object.freeze([...required]),
     }),
     api: Object.freeze({
       queries: Object.freeze({}),
@@ -38,6 +41,42 @@ function descriptor(suffix = 'a') {
     surfaces: Object.freeze({}),
     authBootstrap: Object.freeze({ entryMechanisms: Object.freeze(['password-v1']) }),
   });
+}
+
+// The settlement-ledger offer is target-grounded. A descriptor requirement
+// cannot make the supervised binding claim it by itself.
+{
+  const publisher = createSupervisedBindingPublisher({
+    generation: 'supervisor-offline-replay-ledger',
+    now: () => BASE_NOW,
+  });
+  const replayDescriptor = descriptor('offline-replay', [
+    'auth.application-bootstrap.v1',
+    'offline_mutation_replay',
+  ]);
+  assert.throws(
+    () => publisher.issue({
+      descriptor: replayDescriptor,
+      origin: 'http://127.0.0.1:4310',
+      routing: 'loopback',
+    }),
+    (error) => (
+      error.code === 'SNAPBACK_CAPABILITY_UNSUPPORTED'
+      && error.diagnostic.details.capability === 'offline_mutation_replay'
+      && error.diagnostic.details.vocabulary.bindingOffers === 'not-offered'
+    ),
+  );
+  const binding = publisher.issue({
+    descriptor: replayDescriptor,
+    capabilityManifest: {
+      targetProfileId: 'local-dev-sqlite-ibex',
+      supportedCapabilities: ['offline_mutation_replay'],
+    },
+    origin: 'http://127.0.0.1:4310',
+    routing: 'loopback',
+  });
+  assert(binding.capabilities.offered.includes('offline_mutation_replay'));
+  publisher.close();
 }
 
 function refreshIssuance(binding, { now, ttlMs }) {

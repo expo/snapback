@@ -3,7 +3,7 @@
 Status: Open
 
 Authority: Draft LLP 0275 D6/D7; related to LLP 0196, LLP 0198, Diary 0091,
-and `issues/20260817-react-template-typecheck-node-types.md`.
+and `issues/closed/20260817-react-template-typecheck-node-types.md`.
 
 ## Problem
 

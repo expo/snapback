@@ -720,7 +720,7 @@ pub const CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_JSON: &str =
 // codegenEmittedMembershipManifestMatchesRustFixtureDigest.
 #[cfg(any(test, feature = "test-support"))]
 pub const CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_CANONICAL_SHA256: &str =
-    "115caa6b485d5b2d02fa7d3e2e2af810499da5359351540a1955795983535f19";
+    "2670350835e52ff98a02a3c3a38a2671294ba08b42b9539a42d3d659cb8c7a1b";
 
 /// The bound on the durable and resync outbox lanes, independent of a
 /// collection's coalescing-map cap. A subscriber that never drains cannot grow

@@ -6,6 +6,11 @@
 Code generation, React, Client integration, Packaging, Documentation, Testing
 **Author:** Claude (Fable 5) / Charlie Cheever
 **Date:** 2026-08-13
+**Revised:** 2026-08-25 (LLP 0307 S3 dated amendment: Familiar and Explicit
+schema authoring now admit `offline_mutation_replay` only as the complete
+settlement-ledger unit—generated schema/function/application facts,
+target-grounded supervised binding offer, queue-aware canonical React client,
+and four-layer refuse-before-output closure.)
 **Revised:** 2026-08-24 (dated amendment under LLP 0307 ruled question 4:
 `defineAuth` moves from constructor disposition 4 to the shared schema-module
 surface at disposition 1 and joins the `@expo/snapback/server`,
@@ -1136,6 +1141,54 @@ for the Explicit economy lane; it binds the LLP 0275 D6 cold-install
 closure, not a new lifecycle mechanism (D0.1/W1 own lifecycle design).
 `issues/20260821-authoring-profile-vertical-contract-fixtures.md` is the
 execution ticket and carries the lane checklists.
+
+### Dated amendment — 2026-08-25: authorable offline mutation replay
+
+This amendment executes LLP 0307 ruled question 6 as one indivisible unit.
+`offline_mutation_replay` is a schema-authorable target capability in both
+`snapback-familiar-ts-v1` and `snapback-explicit-v1`; Familiar uses the shared
+`defineSchema(..., { requiredCapabilities: [...] })` spelling. The generator
+must project that authored demand into all three artifacts needed by later
+admission: `schema.manifest.json.requiredCapabilities`, the generated
+function artifact's `acknowledgedExperimentalCapabilities` while LLP 0043 is
+Draft, and `app.descriptor.json.capabilities.required`. The two profiles use
+the same lowering and target preflight; there is no Familiar-only runtime
+branch.
+
+Authorability is demand, not target authority. Generation intersects the
+requirement with the selected target's Rust-owned
+`supportedCapabilities`. If the selected target lacks the atomic
+client-mutation settlement ledger, generation refuses
+`SNAPBACK_CAPABILITY_UNSUPPORTED` before creating or replacing output and
+reports this complete vocabulary table:
+
+| Layer | Supported local SQLite | Target without ledger |
+| --- | --- | --- |
+| schema input | `authorable` | `authorable` |
+| generated target facts | `supported` | `not-supported` |
+| supervised binding offers | `offered` | `not-offered` |
+| queue-aware client admission | `admitted` after positive inspection | `not-admitted` |
+
+The supervised local SQLite issuer may place `offline_mutation_replay` in
+`AppBindingV1.capabilities.offered` only when the generated target manifest
+positively lists the id for `local-dev-sqlite-ibex`; copying the application
+requirement alone is forbidden. Binding admission then proves the generated
+application requirement is met. At consumption time the canonical
+`@expo/snapback-react` `useSnapbackMutation` remains queue-aware (default
+`queue: "auto"`); a transport-proven offline call receives client-owned
+durable intent custody with one replay-stable `clientMutationId`, and
+`replayQueuedMutations()` settles that exact id after reconnect. No app-owned
+queue is part of the Familiar path. The Familiar convenience `useMutation`
+remains the S6.3 settled-only `queue: false` projection; it does not silently
+change semantics.
+
+A served target without positive ledger support still refuses explicit queue
+or replay before mutation transport with
+`SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED`. The committed packed
+closure witness consumes npm-packed codegen, CLI binding issuer, Expo binding
+admission, headless client, and React packages; it proves both authoring
+profiles, all four table layers, stable-id hook queue/replay, and the
+ledger-less pre-transport negative. The id therefore never lands alone.
 
 ## Acceptance for this Spec
 

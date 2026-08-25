@@ -524,6 +524,90 @@ This follows from the projection rule in
 writes cannot see that path's mutation. When adding a per-path test, project the columns **that
 path** writes, not the columns the previously-fixed path wrote.
 
+### Enumerate the effect's siblings, not the entry point's
+
+Revision (n) made sibling enumeration a deliverable of the fix. Two independent reviewers of the same
+commit then disagreed about whether a row was closed, and the disagreement located a gap in that rule.
+
+One reviewer enumerated **every mint factory** for the effect — engine raw, engine guarded, kernel,
+serving, HTTP — found each one properly bound, and declared the row closed. That enumeration was
+complete and correct for what it covered. The second reviewer ignored factories entirely and defeated
+the row by **composition**: a public row-producer, `insert_email_session_for_test`, binds a generated
+bearer hash to a caller-named subject, and that bearer is then accepted by the public raw mint, which
+returns the plaintext secret. The repository already composed those two APIs in an existing test.
+
+Both reviewers were competent; one asked the narrower question. So:
+
+> Enumerating the sibling **entry points** of a fixed function is not enumerating the siblings of the
+> **effect**. The question is not "what else calls this?" but "what else produces this?" — including a
+> pair of public calls where neither alone produces it.
+
+This is the same shape as
+`issues/20260825-production-equivalent-is-not-a-clearing-rule.md`, where 166 items were cleared by a
+rule that evaluated each helper in isolation: a claim that holds for one thing and fails for a pair.
+It also recurs as the *partial APIs compose* finding against agent registration, where
+`create_agent_principal` and `issue_initial_agent_credential` are individually harmless and jointly
+produce the whole controlled state.
+
+Two practical consequences:
+
+- A row's enumeration must include the **producers of every input** the fixed path trusts, not only the
+  alternate callers of the fixed path. A caller-plantable session row is an authority-producing API
+  even though its name says `insert`.
+- **Look in the existing tests first.** Twice now the proof of a live composition was already written
+  in this repository as a fixture — an existing test that composes two public APIs is evidence the
+  composition is reachable, and it is cheaper to find than to derive.
+
+A corollary for signature-based tooling: the privilege ratchet read the same 107 on both trees while
+both of these compositions were live. **A flat ratchet is not evidence**; it counts declared paths, and
+a composition declares nothing new.
+
+### Monotonic prevents lowering; the ceiling is absorbing
+
+Four lanes this cycle were defeated by the same move, and it is not the one the fixes were designed
+against. Each introduced durable monotone state to make an authority single-use, correctly refused
+attempts to lower it, and left the maximum reachable:
+
+- A sender replay epoch set to `i64::MAX` advanced the durable epoch irreversibly, cleared replay and
+  nonce state, and additionally broke later stream-reset rotation, which only updates while the epoch
+  is *below* `i64::MAX`.
+- An invalidation reservation written with a non-canonical owner committed, after which every
+  legitimate issuer installation failed `SNAPBACK_AUTH_INVALIDATION_CORRUPT`.
+- An auth session clock seeded to `AUTH_MAX_SAFE_TIMESTAMP` cannot decrease, so every legitimate
+  issuance — which adds a positive lifetime — fails its safe-timestamp check. The floor survives
+  restart.
+- A commit replay floor updated to `9007199254740991` caps every operation's retention horizon at the
+  same maximum, and the commit path refuses when `retain_until_ms <= floor_ms`. One upward write
+  permanently refuses all fresh issuance, revocation, rotation, family-alarm and password-change.
+
+In every case the guard worked as specified. **"Monotonic" is a constraint on direction, not on
+magnitude**, and the maximum of the type is an absorbing state: once reached, nothing legitimate can
+proceed and nothing can move it back.
+
+The harm direction inverts, which is what makes this worse than the defect being fixed. The original
+row is an escalation — someone acts on a subject they should not. The fix's failure is **permanent
+denial of service with no recovery path short of raw database surgery**. Revision (p) recorded that
+inversion; this records the specific mechanism that keeps producing it.
+
+Three questions are now required of every durable monotone value a fix introduces:
+
+1. **Who may advance it, and is the advance *derived* rather than *supplied*?** A caller-supplied time
+   or floor is the defect in miniature — the same "authority validated, subject supplied" shape one
+   level down. Qualify it against the database clock, or derive it from committed state.
+2. **Is the maximum reachable, and is it absorbing?** If reaching it refuses all future work, the value
+   needs a bound below the type's maximum, or a distinguished unreachable state that is not a valid
+   input.
+3. **What is the recovery path?** "Raw SQL surgery" and "restore from backup" are not recovery paths.
+   Design one, and test it.
+
+A note on the tests, because all four lanes' tests missed this identically. They exercised lowering,
+deletion and replacement — never *raising*. One lane's poison regression called the poisoning API and
+then issued through the **already-running, unseeded provider**, so it never read the poisoned floor and
+could not observe the denial it had just created. A poison test must poison first, then attempt a
+**legitimate** operation through freshly seeded or restarted state, and watch it succeed. Asserting
+against the state the fix wrote, rather than the state an attacker would write, is the recurring
+projection defect in a new place.
+
 ## Approved dispositions
 
 **Strict — derive from the authority (37 questions).** Q01–Q05, Q07–Q12, Q14–Q22, Q24,

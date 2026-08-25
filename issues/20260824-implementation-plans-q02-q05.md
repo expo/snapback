@@ -376,6 +376,26 @@ Collision: this plan must touch `auth/invocation.rs`, so it must wait for author
 
 Scope: while `PreparedAuthority` is caller-constructible, the valid claim is only “the membership writer is derived from the provided `PreparedInvocation` and its matched scope.” It is not yet valid to say a forged prepared invocation or writer is impossible.
 
+> **DEFEATED BEFORE IMPLEMENTATION (2026-08-25).** The Q05 operation-identity proposal below —
+> provider identity plus an injected random nonce — must **not** be implemented as written. A
+> read-only pre-implementation analysis established that a dependent can supply a constant or
+> repeating `RandomSource`, so allegedly distinct operations share identity. This is reachable under
+> ordinary construction: the provider's public dependency constructor accepts `Arc<dyn RandomSource>`
+> (`crates/snapback-auth/src/auth/provider.rs:1527-1574`). Separately, rotation and issuance commit
+> plans are clonable or expose a rerunnable `commit_plan(&self)`
+> (`provider.rs:622-660`, `provider.rs:1206-1219`), so "the carrier was moved" does not establish that
+> one commit event occurred — the move-semantics limit recorded in LLP 0303.
+>
+> What a replacement must satisfy: identity carried from a **producer-owned source a dependent cannot
+> inject or reset**; the consumer compares the **installed producer/database instance** rather than
+> accepting whichever provider minted the object; `Clone`, repeated `commit_plan(&self)`, callback
+> reruns and test-support construction are all inside the threat model; and if single-use or
+> cross-restart replay resistance matters, a Rust move is insufficient — consumed state must live in
+> durable or producer-owned state.
+>
+> The safe identity mechanism is still an open design question. This paragraph is a stop sign, not a
+> solution.
+
 ## Q05 — opaque auth operation identity
 
 Decision: every issuance/rotation/revocation plan, its commit plan, admission, transaction attempt, committed session/revocations, projection carrier and plaintext release must carry one opaque process-local operation identity. Raw durable response values may not be recombined.

@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { webcrypto } from 'node:crypto';
 import {
   cpSync,
+  existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -27,7 +29,27 @@ const fixtureSource = join(repoRoot, 'tests', 'fixtures', 'application-auth');
 const root = mkdtempSync(join(tmpdir(), 'snapback-application-auth-fixtures-'));
 const fixtureRoot = join(root, 'application-auth');
 cpSync(fixtureSource, fixtureRoot, { recursive: true });
-symlinkSync(join(repoRoot, 'node_modules'), join(root, 'node_modules'), 'dir');
+const fixtureModules = join(root, 'node_modules');
+mkdirSync(join(fixtureModules, '@expo'), { recursive: true });
+for (const packageName of ['snapback-client', 'snapback-expo', 'snapback-react']) {
+  symlinkSync(
+    join(repoRoot, 'packages', packageName),
+    join(fixtureModules, '@expo', packageName),
+    'dir',
+  );
+}
+const packageLocalReact = join(
+  repoRoot,
+  'packages',
+  'snapback-react',
+  'node_modules',
+  'react',
+);
+symlinkSync(
+  existsSync(packageLocalReact) ? packageLocalReact : join(repoRoot, 'node_modules', 'react'),
+  join(fixtureModules, 'react'),
+  'dir',
+);
 const priorRqsStore = process.env.SNAPBACK_CLIENT_RQS_STORE;
 process.env.SNAPBACK_CLIENT_RQS_STORE = 'off';
 

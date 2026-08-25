@@ -2195,6 +2195,10 @@ export async function runExpoDev(options = {}) {
   const abortSignal = options.signal ?? null;
   let abortListener = null;
   const appDescriptorPath = join(backendRoot, 'generated', 'app.descriptor.json');
+  const capabilityManifestPath = join(backendRoot, 'generated', 'capability.manifest.json');
+  const currentCapabilityManifest = () => JSON.parse(
+    readFileSync(capabilityManifestPath, 'utf8'),
+  );
   let rotateBindingAfterLoad = () => null;
   let publishBindingProjection = () => null;
   let bindingProjection = null;
@@ -2654,6 +2658,7 @@ export async function runExpoDev(options = {}) {
           });
           const refreshedBinding = bindingPublisher.issue({
             descriptor,
+            capabilityManifest: currentCapabilityManifest(),
             origin: appOrigin(route.appHost, backendRoute.port),
             routing: route.bindingRouting,
           });
@@ -2784,6 +2789,7 @@ export async function runExpoDev(options = {}) {
     };
     const initialBinding = bindingPublisher.issue({
       descriptor,
+      capabilityManifest: currentCapabilityManifest(),
       origin: appOrigin(route.appHost, backendRoute.port),
       routing: route.bindingRouting,
     });
@@ -2808,6 +2814,7 @@ export async function runExpoDev(options = {}) {
       descriptor = successor;
       const rotatedBinding = bindingPublisher.issue({
         descriptor,
+        capabilityManifest: currentCapabilityManifest(),
         origin: appOrigin(route.appHost, backendRoute.port),
         routing: route.bindingRouting,
       });

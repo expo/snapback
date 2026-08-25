@@ -2687,15 +2687,18 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             user,
         }) => {
             let parsed_args = parse_run_args(args)?;
-            host_op_via_http(
-                &target,
-                json!({
-                    "operation": "function.run",
-                    "function": function,
-                    "args": parsed_args,
-                    "userId": user,
-                }),
-            )
+            let anonymous = user.is_none();
+            let mut request = json!({
+                "operation": "function.run",
+                "function": &function,
+                "args": &parsed_args,
+            });
+            // @ref LLP 0058#session-mode-body-closure — absence means anonymous;
+            // even an explicit null is forbidden legacy body authority in sessions mode.
+            if let Some(user) = user {
+                request["userId"] = json!(user);
+            }
+            run_function_via_http(&target, &function, parsed_args, request, anonymous)
         }
         Some(HostCommand::Remediation { command }) => match command {
             RemediationCommand::Apply { target, input } => {
@@ -5007,6 +5010,79 @@ fn host_op_via_http(target: &TargetArgs, request: Value) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Preserve the administrative host-op path for normal runs. A sessions-mode
+/// query refuses that path at its scoped secret-read boundary; only then do we
+/// retry as the anonymous app caller the absent `--user` requested. The public
+/// query route's manifest gate is the authority for whether that retry may run.
+// @ref LLP 0058#session-mode-body-closure — sessions app routes derive
+// anonymous authority from carrier absence and reject all legacy body auth.
+fn run_function_via_http(
+    target: &TargetArgs,
+    function: &str,
+    args: Value,
+    request: Value,
+    anonymous: bool,
+) -> anyhow::Result<()> {
+    let (envelope, resolved) = post_host_op_with_target(target, request)?;
+    let secret_read_refusal = envelope.pointer("/diagnostic/code").and_then(Value::as_str)
+        == Some("SNAPBACK_ADMIN_SECRET_READ_REQUIRED");
+    if anonymous && secret_read_refusal {
+        let (ok, response) = post_anonymous_query(&resolved.server_url, function, args)?;
+        println!("{}", serde_json::to_string_pretty(&response)?);
+        if !ok {
+            let exit_code = response
+                .pointer("/diagnostic/code")
+                .and_then(Value::as_str)
+                .map_or(EXIT_FUNCTION_ERROR, classify_native_exit);
+            std::process::exit(exit_code);
+        }
+        return Ok(());
+    }
+    if !print_envelope(&envelope) {
+        std::process::exit(envelope_exit_code(&envelope));
+    }
+    Ok(())
+}
+
+fn post_anonymous_query(
+    server_url: &str,
+    function: &str,
+    args: Value,
+) -> anyhow::Result<(bool, Value)> {
+    let function = percent_encode_path_segment(function);
+    let endpoint = format!("{}/query/{function}", server_url.trim_end_matches('/'));
+    match ureq::post(&endpoint).send_json(json!({ "args": args })) {
+        Ok(response) => Ok((
+            true,
+            response
+                .into_json()
+                .context("anonymous query response was not JSON")?,
+        )),
+        Err(ureq::Error::Status(_status, response)) => Ok((
+            false,
+            response
+                .into_json()
+                .context("anonymous query refusal was not JSON")?,
+        )),
+        Err(error) => Err(error).context("anonymous query request failed"),
+    }
+}
+
+fn percent_encode_path_segment(value: &str) -> String {
+    const HEX: &[u8; 16] = b"0123456789ABCDEF";
+    let mut encoded = String::with_capacity(value.len());
+    for byte in value.bytes() {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~') {
+            encoded.push(char::from(byte));
+        } else {
+            encoded.push('%');
+            encoded.push(char::from(HEX[usize::from(byte >> 4)]));
+            encoded.push(char::from(HEX[usize::from(byte & 0x0f)]));
+        }
+    }
+    encoded
+}
+
 /// LLP 0184 §B: `debug.live.forceResync` fences on the target's startup
 /// nonce so the request cannot silently land on a different process than
 /// the operator inspected. `--ready-file`'s descriptor already carries the
@@ -5038,6 +5114,13 @@ fn resolve_startup_nonce(target: &TargetArgs, explicit: Option<String>) -> anyho
 }
 
 fn post_host_op(target: &TargetArgs, request: Value) -> anyhow::Result<Value> {
+    post_host_op_with_target(target, request).map(|(envelope, _resolved)| envelope)
+}
+
+fn post_host_op_with_target(
+    target: &TargetArgs,
+    request: Value,
+) -> anyhow::Result<(Value, ResolvedHttpTarget)> {
     // Resolve the URL and optional local capability from one validated
     // descriptor snapshot. Reading the path once for the URL and again for the
     // token would let a rename between reads combine an attacker's URL with a
@@ -5051,7 +5134,7 @@ fn post_host_op(target: &TargetArgs, request: Value) -> anyhow::Result<Value> {
         .clone()
         .or_else(|| std::env::var("SNAPBACK_ADMIN_TOKEN").ok())
         .filter(|token| !token.is_empty())
-        .or(resolved.minted_token);
+        .or_else(|| resolved.minted_token.clone());
     let mut http = ureq::post(&format!("{}/_snapback/api/host-ops", resolved.server_url));
     if let Some(token) = token.filter(|token| !token.is_empty()) {
         http = http.set("x-snapback-admin-token", &token);
@@ -5068,17 +5151,18 @@ fn post_host_op(target: &TargetArgs, request: Value) -> anyhow::Result<Value> {
             capability.expose_secret(),
         );
     }
-    match http.send_json(request) {
-        Ok(response) => Ok(response
+    let envelope = match http.send_json(request) {
+        Ok(response) => response
             .into_json()
-            .context("host-ops response was not JSON")?),
+            .context("host-ops response was not JSON")?,
         // A gated/refused call returns the structured ApiError body — surface
         // it verbatim rather than as a transport error.
-        Err(ureq::Error::Status(_status, response)) => Ok(response
+        Err(ureq::Error::Status(_status, response)) => response
             .into_json()
-            .context("host-ops error response was not JSON")?),
-        Err(error) => Err(error).context("host-ops request failed"),
-    }
+            .context("host-ops error response was not JSON")?,
+        Err(error) => return Err(error).context("host-ops request failed"),
+    };
+    Ok((envelope, resolved))
 }
 
 fn telemetry_secret_read_lease(

@@ -43,6 +43,10 @@ import {
 } from './index.mjs';
 import { __deploymentTest } from './deployment-control.mjs';
 import {
+  digestRuntimeArtifacts,
+  issueRuntimeReadinessReceipt,
+} from './runtime-readiness.mjs';
+import {
   defineTemplateCarrierConfig,
   selfCheckTemplateCarrierConfig,
 } from './carrier-kit.mjs';
@@ -535,6 +539,123 @@ try {
     binary: externalBinary,
     source: 'override',
   }), externalCheckout);
+  const linkedCheckout = join(root, 'linked-runtime-checkout');
+  const linkedCliPackageRoot = join(linkedCheckout, 'packages', 'snapback-cli');
+  const linkedExternalBinary = join(linkedCheckout, 'target', 'debug', 'snapback');
+  mkdirSync(linkedCliPackageRoot, { recursive: true });
+  mkdirSync(dirname(linkedExternalBinary), { recursive: true });
+  writeFileSync(join(linkedCheckout, 'Cargo.toml'), '[workspace]\n');
+  writeFileSync(join(linkedCliPackageRoot, 'package.json'), '{}\n');
+  symlinkSync(externalBinary, linkedExternalBinary);
+  assert.equal(
+    __test.runtimeReadinessRoot({
+      binary: linkedExternalBinary,
+      source: 'override',
+    }, linkedCliPackageRoot),
+    externalCheckout,
+  );
+  const qualifiedPhysicalCheckout = join(root, 'qualified-runtime-physical-checkout');
+  const qualifiedPhysicalCliRoot = join(
+    qualifiedPhysicalCheckout,
+    'packages',
+    'snapback-cli',
+  );
+  const qualifiedPhysicalBinary = join(
+    qualifiedPhysicalCheckout,
+    'target',
+    'debug',
+    'snapback',
+  );
+  mkdirSync(qualifiedPhysicalCliRoot, { recursive: true });
+  mkdirSync(dirname(qualifiedPhysicalBinary), { recursive: true });
+  writeFileSync(join(qualifiedPhysicalCheckout, 'Cargo.toml'), '[workspace]\n');
+  writeFileSync(join(qualifiedPhysicalCliRoot, 'package.json'), '{}\n');
+  const qualifiedBuildIdentity = Object.freeze({
+    gitCommit: 'qualified-runtime-physical',
+    gitDirty: false,
+    crateVersion: '1.2.3',
+    buildProfile: 'debug',
+  });
+  writeFileSync(qualifiedPhysicalBinary, `#!/usr/bin/env node
+console.log(JSON.stringify({ binary: ${JSON.stringify(qualifiedBuildIdentity)} }));
+`);
+  chmodSync(qualifiedPhysicalBinary, 0o755);
+  const qualifiedPhysicalArtifact = process.platform === 'darwin'
+    ? join(
+      qualifiedPhysicalCheckout,
+      'vendor',
+      'ibex',
+      'ios',
+      'Frameworks',
+      'hermesvm.framework',
+      'hermesvm',
+    )
+    : join(
+      qualifiedPhysicalCheckout,
+      'vendor',
+      'ibex',
+      'linux',
+      'lib',
+      'libhermesvm.so',
+    );
+  mkdirSync(dirname(qualifiedPhysicalArtifact), { recursive: true });
+  writeFileSync(qualifiedPhysicalArtifact, 'qualified physical Hermes fixture');
+  issueRuntimeReadinessReceipt({
+    root: qualifiedPhysicalCheckout,
+    binaryPath: qualifiedPhysicalBinary,
+    issuer: 'snapback-cli-package-qualified-runtime-regression',
+    artifacts: digestRuntimeArtifacts(qualifiedPhysicalCheckout),
+    qualification: {
+      probe: 'restricted-no-eval-handler-vm',
+      ok: true,
+      report: {
+        schemaVersion: 'snapback.runtime-qualify.v1',
+        probe: 'restricted-no-eval-handler-vm',
+        ok: true,
+        binary: qualifiedBuildIdentity,
+      },
+    },
+  });
+  const qualifiedLogicalCheckout = join(root, 'qualified-runtime-logical-checkout');
+  const qualifiedLogicalCliRoot = join(
+    qualifiedLogicalCheckout,
+    'packages',
+    'snapback-cli',
+  );
+  mkdirSync(qualifiedLogicalCliRoot, { recursive: true });
+  writeFileSync(join(qualifiedLogicalCheckout, 'Cargo.toml'), '[workspace]\n');
+  writeFileSync(join(qualifiedLogicalCliRoot, 'package.json'), '{}\n');
+  symlinkSync(
+    join(qualifiedPhysicalCheckout, 'target'),
+    join(qualifiedLogicalCheckout, 'target'),
+    'dir',
+  );
+  const qualifiedLogicalBinary = join(
+    qualifiedLogicalCheckout,
+    'target',
+    'debug',
+    'snapback',
+  );
+  // Exercise the separate qualified-runtime custody decision: the logical
+  // target path belongs to one checkout, while the binary, receipt, and Hermes
+  // artifacts physically belong to another.
+  const qualifiedIdentity = __test.qualifiedRuntimeIdentity(
+    {
+      binary: qualifiedPhysicalBinary,
+      source: 'override',
+      platform: `${process.platform}-${process.arch}`,
+    },
+    { runnable: true, stamp: qualifiedBuildIdentity },
+    qualifiedLogicalBinary,
+    process.env,
+    qualifiedLogicalCliRoot,
+  );
+  assert.equal(qualifiedIdentity.qualifiedBinary.path, qualifiedLogicalBinary);
+  assert.equal(qualifiedIdentity.qualifiedBinary.source, 'qualified-override');
+  assert.equal(
+    qualifiedIdentity.qualifiedBinary.qualification.receiptPath,
+    `${qualifiedLogicalBinary}.runtime-readiness.json`,
+  );
   const fakeRuntime = join(root, 'snapback');
   writeFileSync(fakeRuntime, '#!/bin/sh\nexit 0\n');
   chmodSync(fakeRuntime, 0o755);
@@ -679,6 +800,17 @@ console.log(JSON.stringify({
   const reactManifest = JSON.parse(readFileSync(join(reactProject, 'package.json'), 'utf8'));
   assert.equal(reactManifest.dependencies['@expo/snapback-acceptance'], SCAFFOLD_PIN);
   assert.match(reactManifest.dependencies['@expo/snapback-react'], /^\^\d+\.\d+\.\d+/);
+  // @ref LLP 0275#d6-treat-template-cold-install-closure-as-a-release-requirement —
+  // Vite templates carry the ambient Node and browser libraries their own
+  // clean-scaffold typecheck consumes.
+  assert.equal(reactManifest.devDependencies['@types/node'], '^25.0.0');
+  const reactTsconfig = JSON.parse(readFileSync(join(reactProject, 'tsconfig.json'), 'utf8'));
+  assert.deepEqual(reactTsconfig.compilerOptions.types, ['node']);
+  assert.deepEqual(reactTsconfig.compilerOptions.lib, ['ESNext', 'DOM', 'DOM.Iterable']);
+  assert.match(
+    readFileSync(join(reactProject, 'src', 'snapback-dev.d.ts'), 'utf8'),
+    /<reference types="vite\/client" \/>/u,
+  );
   assert.equal(reactManifest.scripts.test, 'node acceptance.mjs');
   assert.equal(reactManifest.scripts['test:static'], 'node acceptance.static.mjs');
   assert.equal(reactManifest.scripts['test:live'], undefined);
@@ -728,6 +860,14 @@ console.log(JSON.stringify({
   const crudManifest = JSON.parse(readFileSync(join(crudProject, 'package.json'), 'utf8'));
   assert.equal(crudManifest.dependencies['@expo/snapback-acceptance'], SCAFFOLD_PIN);
   assert.match(crudManifest.dependencies['@expo/snapback-react'], /^\^\d+\.\d+\.\d+/);
+  assert.equal(crudManifest.devDependencies['@types/node'], '^25.0.0');
+  const crudTsconfig = JSON.parse(readFileSync(join(crudProject, 'tsconfig.json'), 'utf8'));
+  assert.deepEqual(crudTsconfig.compilerOptions.types, ['node']);
+  assert.deepEqual(crudTsconfig.compilerOptions.lib, ['ESNext', 'DOM', 'DOM.Iterable']);
+  assert.match(
+    readFileSync(join(crudProject, 'src', 'snapback-dev.d.ts'), 'utf8'),
+    /<reference types="vite\/client" \/>/u,
+  );
   assert.equal(crudManifest.scripts.test, 'node acceptance.mjs');
   assert.equal(crudManifest.scripts['test:static'], 'node acceptance.static.mjs');
   assert.equal(crudManifest.scripts['test:live'], undefined);
@@ -747,7 +887,10 @@ console.log(JSON.stringify({
   const crudStatic = spawnSync(process.execPath, ['acceptance.static.mjs'], { cwd: crudProject, encoding: 'utf8' });
   assert.equal(crudStatic.status, 0, crudStatic.stderr);
   assertCarrierSelfCheck(crudProject, ['headless', 'web-browser']);
-  assert.match(readFileSync(join(crudProject, 'acceptance.mjs'), 'utf8'), /client\.liveQuery\(api\.projectDetail/u);
+  assert.match(
+    readFileSync(join(crudProject, 'acceptance.mjs'), 'utf8'),
+    /adminClient\.liveQuery\(api\.projectDetail/u,
+  );
 
   const mediaProject = join(root, 'media-feed');
   const mediaScaffold = scaffoldApp(mediaProject, { template: 'media-feed' });

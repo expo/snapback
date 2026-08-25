@@ -1073,6 +1073,7 @@ const TARGET_CAPABILITY_IDS = new Set([
   'mutation_read_set_validation',
   'mixed_bundle_boot_v2',
   'notifications.expoPushSeam',
+  'offline_mutation_replay',
   'realtime.connected-client-predicate',
   'permission_epoch_resync',
   'registered_bundle_boot_v1',
@@ -1132,11 +1133,6 @@ const INTENTIONALLY_NON_AUTHORABLE_TARGET_CAPABILITIES = new Map([
     reason: 'video finalization is derived from typed asset intent policy so its target preflight cannot be bypassed by a free-form schema requirement',
     bindingOffers: 'feature-derived-only',
     clientAdmission: 'feature-derived-only',
-  })],
-  ['offline_mutation_replay', Object.freeze({
-    reason: 'authorability is withheld until settlement-ledger binding offers and queue-aware client admission land as one owned unit',
-    bindingOffers: 'not-offered',
-    clientAdmission: 'not-admitted',
   })],
 ]);
 
@@ -2001,12 +1997,30 @@ export function targetArtifactAuthProblems(manifest, version, authMode, required
     const registeredTargetCapability = TARGET_CAPABILITY_IDS.has(capability)
       || INTENTIONALLY_NON_AUTHORABLE_TARGET_CAPABILITIES.has(capability);
     if (!registeredTargetCapability || !supported.has(capability)) {
+      // @ref LLP 0307#open-questions--ruled-2026-08-24-delegated-author-judgment —
+      // offline replay is one four-layer unit. A target without the ledger
+      // refuses before output and reports every vocabulary edge that remains
+      // closed; authorability alone must never manufacture a binding offer.
+      const vocabulary = capability === 'offline_mutation_replay'
+        ? Object.freeze({
+            targetFacts: 'not-supported',
+            authorableSet: 'authorable',
+            bindingOffers: 'not-offered',
+            clientAdmission: 'not-admitted',
+          })
+        : null;
+      const baseMessage = `target ${manifest.targetProfileId ?? 'unknown'} does not support required capability ${capability}`;
       problems.push({
         code: 'SNAPBACK_CAPABILITY_UNSUPPORTED',
         message: capabilityUnsupportedMessage(
-          `target ${manifest.targetProfileId ?? 'unknown'} does not support required capability ${capability}`,
+          vocabulary === null
+            ? baseMessage
+            : `${baseMessage}; capability vocabulary table: target facts=${vocabulary.targetFacts}; authorable set=${vocabulary.authorableSet}; binding offers=${vocabulary.bindingOffers}; client admission=${vocabulary.clientAdmission}`,
         ),
-        details: { capability },
+        details: {
+          capability,
+          ...(vocabulary === null ? {} : { vocabulary }),
+        },
       });
     }
   }

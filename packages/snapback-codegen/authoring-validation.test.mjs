@@ -105,7 +105,7 @@ async function validCase({ schema = validSchema, functions, handlers = {} }) {
 }
 
 {
-  const diagnostics = await invalidCase({
+  const result = await validCase({
     schema: `
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({
@@ -114,22 +114,12 @@ export default defineSchema({
 `,
     functions: 'export {};\n',
   });
-  const refusal = diagnostics.find(({ code }) => code === 'SNAPBACK_CAPABILITY_UNSUPPORTED');
-  assert(refusal, JSON.stringify(diagnostics));
-  assert.equal(refusal.capability, 'offline_mutation_replay');
-  assert.equal(
-    refusal.reason,
-    'authorability is withheld until settlement-ledger binding offers and queue-aware client admission land as one owned unit',
-  );
-  assert.deepEqual(refusal.vocabulary, {
-    targetFacts: 'registered',
-    authorableSet: 'intentionally-non-authorable',
-    bindingOffers: 'not-offered',
-    clientAdmission: 'not-admitted',
-  });
-  for (const label of ['target facts=', 'authorable set=', 'binding offers=', 'client admission=']) {
-    assert(refusal.message.includes(label), `missing ${label} from ${refusal.message}`);
-  }
+  const schema = JSON.parse(readFileSync(join(result.outDir, 'schema.manifest.json'), 'utf8'));
+  const functions = JSON.parse(readFileSync(join(result.outDir, 'functions.manifest.json'), 'utf8'));
+  const descriptor = JSON.parse(readFileSync(join(result.outDir, 'app.descriptor.json'), 'utf8'));
+  assert(schema.requiredCapabilities.includes('offline_mutation_replay'));
+  assert(functions.acknowledgedExperimentalCapabilities.includes('offline_mutation_replay'));
+  assert(descriptor.capabilities.required.includes('offline_mutation_replay'));
 }
 
 {
@@ -1126,7 +1116,7 @@ export default defineSchema({${tables}}, { ephemeral: defineEphemeral({${collect
 // Counterpart: src/ephemeral.rs:
 // tests::codegen_emitted_membership_projection_parses_and_activates_in_sessions.
 const CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_CANONICAL_SHA256 =
-  '115caa6b485d5b2d02fa7d3e2e2af810499da5359351540a1955795983535f19';
+  '2670350835e52ff98a02a3c3a38a2671294ba08b42b9539a42d3d659cb8c7a1b';
 
 function canonicalJson(value) {
   const sort = (entry) => {

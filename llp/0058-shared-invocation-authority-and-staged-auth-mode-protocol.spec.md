@@ -5,6 +5,11 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
+**Revised:** 2026-08-25 (offline replay offer-binding amendment: an authored
+requirement is carried through generated schema/function/application facts,
+but only the selected target's positive atomic-ledger fact may mint the
+supervised binding offer; missing support refuses before output with the
+four-layer vocabulary table.)
 **Revised:** 2026-08-22 (asset closure extends the split-phase fence to
 attempt-inspect and TUS HEAD lazy expiry, caller-backed finalize SQLite
 phases, and signed/strict on-demand-width publication commits. Finalize and
@@ -439,6 +444,44 @@ The capability is `experimental` while its governing LLP 0043 remains Draft.
 The JS client consumes the served `/inspect` manifest as an execution-safety
 fact: positive presence admits durable enqueue and drain; absence, an older
 manifest, an unavailable inspection, or a merely absent gap does not.
+
+#### Dated offer-binding amendment — authorable offline replay (2026-08-25)
+
+The `offline_mutation_replay` registry row now participates in one closed
+authoring-to-consumption chain. An application in either authoring profile may
+name the id in schema `requiredCapabilities`. Codegen carries that demand in
+the schema manifest, carries the experimental-contract acknowledgment in the
+paired function manifest, and carries the application requirement in
+`AppDescriptorV1.capabilities.required`. It still resolves the union of
+schema, function, and cron requirements against the selected Rust-owned
+target manifest before any generated output is published.
+
+The four vocabularies and their authorities are:
+
+| Vocabulary layer | Positive authority | Negative disposition |
+| --- | --- | --- |
+| schema input | the closed codegen authorable-id set contains `offline_mutation_replay` | unknown ids refuse |
+| generated target facts | the selected target manifest positively lists the id because its atomic settlement ledger is registered | `not-supported` |
+| binding offers | the supervised local SQLite issuer consumes that exact positive target fact and lists the id in `AppBindingV1.capabilities.offered` | `not-offered` |
+| client admission | live `/inspect` positively lists the id before durable enqueue or drain | `not-admitted`; explicit queue/replay refuses typed before transport |
+
+An authored requirement is never authority for the third row. The supervisor
+must not copy `offline_mutation_replay` into an offer unless the selected
+manifest is `local-dev-sqlite-ibex` and positively supports it. Conversely,
+that positive fact plus the generated application requirement makes the local
+offer explicit and lets ordinary `AppBindingV1` admission prove the match.
+
+When the selected target lacks support, codegen refuses
+`SNAPBACK_CAPABILITY_UNSUPPORTED` before creating or replacing output. Its
+diagnostic details and message report the four-layer state exactly as
+`target facts=not-supported`, `authorable set=authorable`, `binding
+offers=not-offered`, and `client admission=not-admitted`. If an older or
+external artifact nevertheless reaches a JS client against a ledger-less
+target, LLP 0043's independent live-inspection fence remains authoritative:
+`SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED` occurs before mutation
+transport and creates no queue record. Thus schema admission, artifact facts,
+binding admission, and client safety fail closed independently while sharing
+one capability id.
 
 ### Capability maturity
 
