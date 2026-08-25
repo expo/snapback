@@ -157,6 +157,16 @@ test('scripts test subjects select their bound fixture gates', () => {
   includesAll(guide, ['guide-freshness-fixtures']);
   assert.equal(guide.selectedGates.includes('publication-script-fixtures'), false);
 
+  for (const diagnosticsRegistrySubject of [
+    'scripts/diagnostics-registry-source.mjs',
+    'scripts/generate-diagnostics-registry.test.mjs',
+  ]) {
+    includesAll(select([diagnosticsRegistrySubject]), [
+      'diagnostics-registry-fixtures',
+      'guide-freshness-fixtures',
+    ]);
+  }
+
   includesAll(select(['scripts/build-linux-runtime-release']), [
     'linux-runtime-release-fixtures',
   ]);

@@ -153,6 +153,28 @@ test('scripts test inventory rejects a missing local-proof gate', () => {
   }
 });
 
+test('scripts test inventory rejects an unclassified local-proof gate', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-scripts-gate-classification-drift-'));
+  try {
+    write(join(scratch, 'scripts/registered.test.mjs'), '');
+    const audit = auditScriptsTestInventory({
+      root: scratch,
+      inventory: [{
+        file: 'scripts/registered.test.mjs',
+        disposition: 'run',
+        runner: { mechanism: 'verify-local-proof', gateId: 'registered-fixtures' },
+      }],
+      proofSource: 'run registered-fixtures -- node --test scripts/registered.test.mjs\n',
+      packageInventories: [],
+      cloudflareSuites: [],
+      selectionPolicy: { alwaysGates: [], groups: {}, driftProneGates: {} },
+    });
+    assert.match(audit.errors.join('\n'), /gate registered-fixtures is not classified/u);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 test('scripts test inventory rejects a pathname argument to a non-Node command', () => {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-scripts-no-op-bypass-'));
   try {

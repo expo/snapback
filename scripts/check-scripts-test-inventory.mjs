@@ -275,8 +275,15 @@ function validateRunEntry(entry, context, errors) {
   if (runner.mechanism === 'verify-local-proof') {
     if (!context.gateIds.has(runner.gateId)) {
       errors.push(`${entry.file}: verify-local-proof gate ${runner.gateId ?? '(missing)'} does not exist`);
-    } else if (!commandRunsFile(context.calls, runner.gateId, entry.file)) {
-      errors.push(`${entry.file}: verify-local-proof gate ${runner.gateId} does not run this file`);
+    } else {
+      if (!context.classifiedGateIds.has(runner.gateId)) {
+        errors.push(
+          `${entry.file}: verify-local-proof gate ${runner.gateId} is not classified by the local-proof selection policy`,
+        );
+      }
+      if (!commandRunsFile(context.calls, runner.gateId, entry.file)) {
+        errors.push(`${entry.file}: verify-local-proof gate ${runner.gateId} does not run this file`);
+      }
     }
     return;
   }
@@ -346,10 +353,15 @@ export function auditScriptsTestInventory({
   const discovered = discovery.files;
   const expected = inventory.map(({ file }) => file).sort();
   const calls = parseGateCalls(proofSource);
+  const classifiedGateIds = new Set([
+    ...(selectionPolicy.alwaysGates ?? []),
+    ...Object.values(selectionPolicy.groups ?? {}).flatMap(({ gates = [] }) => gates),
+  ]);
   const context = {
     root,
     calls,
     gateIds: new Set(calls.map(({ gateId }) => gateId)),
+    classifiedGateIds,
     packageInventories,
     cloudflareSuites,
     selectionPolicy,

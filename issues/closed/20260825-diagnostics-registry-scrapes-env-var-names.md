@@ -4,7 +4,8 @@
 **Date:** 2026-08-25
 **Systems:** Diagnostics, Guide, Packaging
 **Related:** LLP 0193, `scripts/generate-diagnostics-registry.mjs`,
-`crates/snapback-kernel/src/live_matcher.rs`
+`crates/snapback-kernel/src/live_matcher.rs`, canonical ticket
+`issues/closed/20260823-diagnostics-registry-harvests-env-names.md`
 
 ## Symptom
 
@@ -26,7 +27,7 @@ as emissions. Preserve an explicit marker for ambiguous reference-only sites,
 and guard the classifier with a fixture test that retains real emissions next
 to excluded references.
 
-## Resolution (2026-08-25)
+## Resolution (2026-08-25, superseded by canonical ticket)
 
 The root cause was the generator's raw identifier sweep: every production
 `SNAPBACK_*` match became an emitting site without examining its source
@@ -36,17 +37,27 @@ reference-only sites. The generator header documents the narrow
 `diagnostics-registry: reference-only` escape hatch for ambiguous syntax.
 
 A fixture keeps real Rust and JavaScript emissions beside excluded environment
-reads and consumer references. The new test failed against the unfiltered sweep
-with 9 matches instead of the expected 2 (exit 1), then passed after the
-classifier landed (1 test, 1 pass). Regeneration removed 45 environment-only
-names and 426 non-emitting sites while adding no codes;
+reads and consumer references. The original 9-match count was stale: the
+round-2 review baseline already had 12 raw matches, and the completed fixture
+now has 28. The prior classifier accepted 18; the fixed classifier retains the
+five real emissions (1 test, 1 pass). Across the completed correction,
+regeneration moved from 3,629 codes / 12,507 sites to 3,502 codes / 12,070
+sites;
 `SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE` is absent from the registry, Guide
 projection, and public type union, while
 `SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH` remains registered.
 
-Final verification passed: diagnostics registry check (3,629 codes / 12,507
-sites / 1,728 HTTP-classified), generator fixture (1/1), scripts test inventory
-(32/32 run), repository inventories (356 package tests, 32 scripts tests, 31
-demos/catalog entries, 487 publication leaves, 157 Guide pages / 1,871
-snippets), Guide check (22 passed, 0 failed/skipped/preconditions), and
-`ref-check` (311 LLP docs, 7,212 refs, 0 errors/unchecked).
+The 20260823 ticket is the canonical report because it predates this duplicate
+and names the full affected family. Its resolution records the complete shape
+coverage, every original example removed, the dual-role names that must remain,
+and why the HTTP-specific Rust exclusion list was not reused as a public
+registry denylist.
+
+Final verification passed: diagnostics registry check (3,502 codes / 12,070
+sites / 1,709 HTTP-classified), symbol registry check (56 modules / 1,454
+symbols / exact runtime parity), classifier fixture (1/1), local-proof selector
+(19/19), scripts test inventory (32/32 run), repository inventories (356
+package tests, 32 scripts tests, 31 demos/catalog entries, 487 publication
+leaves, 157 Guide pages / 1,871 snippets), Guide check (22 passed, 0
+failed/skipped/preconditions), `ref-check` (311 LLP docs, 7,212 refs, 0
+errors/unchecked), and the generated-artifact sweep.

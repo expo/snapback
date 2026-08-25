@@ -48,11 +48,16 @@ test('diagnostic source classifier excludes environment reads and reference-only
     '../tests/fixtures/diagnostics-registry/non-emitting-reference-sites.txt',
   ), 'utf8');
 
+  assert.equal([...fixture.matchAll(/SNAPBACK_[A-Z0-9_]+/gu)].length, 28);
+
   assert.deepEqual(
     [...diagnosticCodeMatches(fixture)].map((match) => match[0]),
     [
       'SNAPBACK_FIXTURE_RUST_MISMATCH',
       'SNAPBACK_FIXTURE_JS_EMITTED',
+      'SNAPBACK_FIXTURE_JS_URL_EMITTED',
+      'SNAPBACK_FIXTURE_JS_MESSAGE_OWNER',
+      'SNAPBACK_FIXTURE_DUAL_ROLE',
     ],
   );
 });

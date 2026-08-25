@@ -4,17 +4,45 @@ if std::env::var_os("SNAPBACK_FIXTURE_RUST_TRACE").is_some() {
 }
 if env::var("SNAPBACK_FIXTURE_RUST_MODE").is_ok() {}
 if var_os("SNAPBACK_FIXTURE_IMPORTED_TRACE").is_some() {}
+if option_env!("SNAPBACK_FIXTURE_RUST_OPTION_ENV").is_some() {}
+const TRACE_ENV: &str = "SNAPBACK_FIXTURE_RUST_INDIRECT_TRACE";
+if std::env::var_os(TRACE_ENV).is_some() {}
+fn required_env(name: &str) -> Option<String> { std::env::var(name).ok() }
+required_env("SNAPBACK_FIXTURE_RUST_HELPER_ENV");
 
 // JavaScript environment reads and comparisons consume names without emitting them.
 const trace = process.env.SNAPBACK_FIXTURE_JS_TRACE;
 const optionalTrace = process.env?.SNAPBACK_FIXTURE_JS_OPTIONAL_TRACE;
 const bracketTrace = process.env['SNAPBACK_FIXTURE_JS_BRACKET_TRACE'];
+const injectedTrace = environment.SNAPBACK_FIXTURE_JS_INJECTED_TRACE;
+const helperTrace = env('SNAPBACK_FIXTURE_JS_HELPER_TRACE');
+function requiredEnvironment(name) { return process.env[name]; }
+const indirectHelperTrace = requiredEnvironment('SNAPBACK_FIXTURE_JS_INDIRECT_HELPER');
+const boundTrace = env?.SNAPBACK_FIXTURE_JS_BOUND_OPTIONAL_TRACE;
+const childEnv = { SNAPBACK_FIXTURE_JS_OBJECT_KEY: '1' };
+const FIXTURE_ENVIRONMENT_NAMES = Object.freeze({
+  trace: 'SNAPBACK_FIXTURE_JS_TABLE_TRACE',
+});
+if (env?.[FIXTURE_ENVIRONMENT_NAMES.trace]) recover();
 if (error.code === 'SNAPBACK_FIXTURE_JS_REFERENCE') recover();
 if ('SNAPBACK_FIXTURE_JS_REVERSE_REFERENCE' !== error.code) recover();
 switch (error.code) { case 'SNAPBACK_FIXTURE_JS_CASE_REFERENCE': recover(); }
 
 // Object/error construction remains an emission site.
 throw Object.assign(new Error('refused'), { code: 'SNAPBACK_FIXTURE_JS_EMITTED' });
+throw Object.assign(new Error('https://snapback.dev/refused'), { code: 'SNAPBACK_FIXTURE_JS_URL_EMITTED' });
+const messageEnvironment = env('SNAPBACK_FIXTURE_JS_MESSAGE_ENV');
+throw Object.assign(
+  new Error('set SNAPBACK_FIXTURE_JS_MESSAGE_ENV before retrying'),
+  { code: 'SNAPBACK_FIXTURE_JS_MESSAGE_OWNER' },
+);
+
+// A name that is read from the environment and emitted elsewhere retains only
+// its emitting site.
+const dualRole = env('SNAPBACK_FIXTURE_DUAL_ROLE');
+throw diagnosticError('SNAPBACK_FIXTURE_DUAL_ROLE', 'refused');
+
+// SNAPBACK_FIXTURE_COMMENT_REFERENCE is documentation, not an emission.
 
 // diagnostics-registry: reference-only
 const ambiguousCatalogEntry = 'SNAPBACK_FIXTURE_MARKED_REFERENCE';

@@ -2,7 +2,8 @@
 // Generate the build-bound diagnostics vocabulary, its Guide projection, and
 // the public TypeScript code union. Output is sorted and carries no wall-clock
 // value, so identical inputs always produce identical bytes.
-// Source classification excludes environment-variable access and unambiguous
+// Source classification excludes environment-variable access/declarations,
+// comments, environment names mentioned in messages, and unambiguous
 // JavaScript comparisons. For a reference-only site whose syntax is otherwise
 // ambiguous, put `diagnostics-registry: reference-only` in a comment on that
 // line or the immediately preceding line; never mark a line that also emits.
@@ -22,6 +23,7 @@ import { fileURLToPath } from 'node:url';
 import {
   DIAGNOSTIC_CODE_PATTERN as CODE_PATTERN,
   diagnosticCodeMatches,
+  environmentVariableNames,
 } from './diagnostics-registry-source.mjs';
 import { authoritiesDigest } from './guide-lib.mjs';
 
@@ -219,10 +221,18 @@ function assertPathRelocationPreservesSubsystem(code, sites) {
 }
 
 function collectSites() {
+  const sources = new Map(productionPaths.map((path) => (
+    [path, readFileSync(join(root, path), 'utf8')]
+  )));
+  const environmentNames = new Set();
+  for (const source of sources.values()) {
+    for (const name of environmentVariableNames(source)) environmentNames.add(name);
+  }
+
   const byCode = new Map();
   for (const path of productionPaths) {
-    const source = readFileSync(join(root, path), 'utf8');
-    for (const match of diagnosticCodeMatches(source)) {
+    const source = sources.get(path);
+    for (const match of diagnosticCodeMatches(source, { environmentNames })) {
       const code = match[0];
       const location = lineAndColumn(source, match.index);
       const sites = byCode.get(code) ?? [];

@@ -367,7 +367,9 @@
         "files": [
           "llp/0193-errors-as-docs-completeness.plan.md",
           "llp/0194-generated-api-reference.rfc.md",
+          "scripts/diagnostics-registry-source.mjs",
           "scripts/generate-diagnostics-registry.mjs",
+          "scripts/generate-diagnostics-registry.test.mjs",
           "scripts/generate-symbol-registry.mjs",
           "scripts/migrate-guide-review-digests.mjs",
           "scripts/symbol-lifecycle.mjs"
@@ -1001,6 +1003,16 @@
       ]
     },
     {
+      "id": "scripts-diagnostics-registry",
+      "groups": [
+        "guide"
+      ],
+      "files": [
+        "scripts/diagnostics-registry-source.mjs",
+        "scripts/generate-diagnostics-registry.test.mjs"
+      ]
+    },
+    {
       "id": "scripts-publication-store-fixtures",
       "groups": [
         "publication",
@@ -1174,6 +1186,7 @@
         "guide-published-closure-fixtures",
         "guide-shell-command-fixtures",
         "guide-freshness-fixtures",
+        "diagnostics-registry-fixtures",
         "guide"
       ]
     },
