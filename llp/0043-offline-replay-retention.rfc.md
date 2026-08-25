@@ -7,9 +7,12 @@
 **Date:** 2026-07-07
 **Revised:** 2026-08-25 (`queue: 'auto'` capability-evidence correction: the
 last answered `/inspect` fact wins and is persisted under canonical origin
-plus exact app artifact generation; only an automatic enqueue whose re-probe
-loses transport may reuse a matching prior positive. Answered gaps and HTTP
-errors replace/refuse, while every replay requires a fresh positive answer.)
+plus the target's served app artifact generation; generated mutation
+references must match that generation, while string-named mutations carry no
+generation and match on canonical origin. Only an automatic enqueue whose
+re-probe loses transport may reuse a matching prior positive, and cached
+evidence enqueues without a foreground attempt. Answered gaps and HTTP errors
+replace/refuse, while every replay requires a fresh positive answer.)
 **Revised:** 2026-08-16 (authorization observation amendment: every validated
 queue exposes its real payload-free authorization metadata even while a
 legacy/destructive record normalization awaits the exact writer; records,
@@ -353,8 +356,11 @@ and otherwise refuses with the typed client error
 `SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED`. The normal online client
 lifecycle acquires the answered manifest and persists its replay-capability
 fact in the durable client-store domain, bound to canonical server origin and
-the exact app artifact generation (`schemaVersion`, `appId`, `schemaHash`,
-`bundleHash`, and `inputsHash`). The last answered inspection wins: a later
+the target's served app artifact generation (`schemaVersion`, `appId`,
+`schemaHash`, `bundleHash`, and `inputsHash`). A generated mutation reference
+must match that exact generation before cached evidence can admit its enqueue;
+a string-named mutation carries no generation witness, so its cached match is
+scoped to canonical origin only. The last answered inspection wins: a later
 positive or gap manifest replaces its predecessor, and an answered HTTP error
 (including identity refusal or a proxy 5xx) records refusal rather than being
 treated as offline ambiguity.
@@ -366,7 +372,9 @@ when the canonical origin and any operation-carried app generation still match
 the fact's complete target identity. If no matching positive exists, the
 ambiguous mutation transport failure remains the caller-visible error and no
 outbox record is created. This exception licenses durable custody only; it is
-never transport or replay authority.
+never transport or replay authority. Consequently cached evidence takes the
+enqueue-only path without a foreground mutation POST; only a fresh positive
+answer may gate a try-then-queue dispatch.
 
 Before any queued record is reconciled or re-POSTed,
 `replayQueuedMutations()` always performs a fresh inspection and requires its

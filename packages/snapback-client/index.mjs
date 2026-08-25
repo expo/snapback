@@ -3135,6 +3135,10 @@ const normalizeOfflineMutationReplayCapabilityFact = (value) => {
     || typeof value.supported !== 'boolean'
     || !(value.reason === null || typeof value.reason === 'string')
     || !(value.targetProfileId === null || typeof value.targetProfileId === 'string')
+    || !(
+      value.storeRevision === undefined
+      || (Number.isSafeInteger(value.storeRevision) && value.storeRevision >= 1)
+    )
   ) return null;
   let artifactGeneration = null;
   if (value.artifactGeneration !== null) {
@@ -3154,6 +3158,7 @@ const normalizeOfflineMutationReplayCapabilityFact = (value) => {
     reason: value.reason,
     targetProfileId: value.targetProfileId,
     artifactGeneration,
+    ...(value.storeRevision === undefined ? {} : { storeRevision: value.storeRevision }),
   });
 };
 
@@ -7188,38 +7193,52 @@ export class SnapbackClient {
   async #recordOfflineMutationReplayCapabilityFact(fact) {
     const normalized = normalizeOfflineMutationReplayCapabilityFact(fact);
     if (normalized === null) return null;
-    this.__observedOfflineMutationReplayCapability = normalized;
     let store = null;
     try { store = this.#offlineQueueStore(false); } catch { store = null; }
     if (typeof store?.commitOfflineMutationReplayCapabilityFact === 'function') {
       try {
-        await store.commitOfflineMutationReplayCapabilityFact(normalized);
-      } catch { /* in-memory evidence remains valid for this process */ }
+        const committed = await store.commitOfflineMutationReplayCapabilityFact(normalized);
+        if (
+          committed !== false
+          && typeof store.readOfflineMutationReplayCapabilityFact === 'function'
+        ) {
+          const shared = normalizeOfflineMutationReplayCapabilityFact(
+            await store.readOfflineMutationReplayCapabilityFact(),
+          );
+          if (shared !== null) {
+            this.__observedOfflineMutationReplayCapability = shared;
+            return shared;
+          }
+        }
+      } catch { /* the fresh answer remains usable only by its direct caller */ }
     }
+    this.__observedOfflineMutationReplayCapability = normalized;
     return normalized;
   }
 
   async #cachedOfflineMutationReplayCapabilityFact(expectedGeneration) {
-    let fact = this.__observedOfflineMutationReplayCapability;
-    if (fact === null) {
-      let store = null;
-      try { store = this.#offlineQueueStore(false); } catch { store = null; }
-      if (typeof store?.readOfflineMutationReplayCapabilityFact === 'function') {
-        try {
-          fact = normalizeOfflineMutationReplayCapabilityFact(
-            await store.readOfflineMutationReplayCapabilityFact(),
-          );
-        } catch { fact = null; }
-      }
-      if (fact !== null) this.__observedOfflineMutationReplayCapability = fact;
+    let store = null;
+    try { store = this.#offlineQueueStore(false); } catch { store = null; }
+    let fact = null;
+    if (typeof store?.readOfflineMutationReplayCapabilityFact === 'function') {
+      try {
+        // Shared bytes are authoritative over every process cache. This read
+        // occurs after the writer-routed replacement settles, so a negative
+        // answered in another context invalidates a predecessor positive.
+        fact = normalizeOfflineMutationReplayCapabilityFact(
+          await store.readOfflineMutationReplayCapabilityFact(),
+        );
+      } catch { fact = null; }
+      this.__observedOfflineMutationReplayCapability = fact;
+    } else {
+      fact = this.__observedOfflineMutationReplayCapability;
     }
     if (
       fact?.supported !== true
       || fact.origin !== canonicalServerOrigin(this.baseUrl)
-      // Cached support must name the exact app generation it answered for.
-      // A string reference carries no contradictory generation; a generated
-      // reference must equal every identity component before the fact can be
-      // reused for this enqueue.
+      // Generated references must equal every artifact identity component.
+      // String-named mutations carry no generation, so their cached boundary
+      // is the canonical origin rather than an invented operation witness.
       || fact.artifactGeneration === null
       || (
         expectedGeneration !== null
@@ -7238,6 +7257,7 @@ export class SnapbackClient {
         supported: this.__offlineMutationReplayCapability,
         reason: this.__offlineMutationReplayCapability ? null : 'not-advertised',
         targetProfileId: null,
+        evidence: 'configured',
       });
     }
     let inspection;
@@ -7252,7 +7272,7 @@ export class SnapbackClient {
         const cached = await this.#cachedOfflineMutationReplayCapabilityFact(
           expectedGeneration,
         );
-        if (cached !== null) return cached;
+        if (cached !== null) return Object.freeze({ ...cached, evidence: 'cached' });
       }
       return Object.freeze({
         supported: false,
@@ -7279,9 +7299,10 @@ export class SnapbackClient {
         ...fact,
         supported: false,
         reason: 'target-identity-mismatch',
+        evidence: 'fresh',
       });
     }
-    return fact;
+    return Object.freeze({ ...fact, evidence: 'fresh' });
   }
 
   async #observeOfflineMutationReplayCapabilityFromLifecycle() {
@@ -7292,11 +7313,12 @@ export class SnapbackClient {
     if (this.__offlineMutationReplayLifecycleProbe === null) {
       const task = this.#offlineMutationReplayCapabilityFact();
       this.__offlineMutationReplayLifecycleProbe = task;
-      const fact = await task;
-      if (fact.reason === 'inspection-unavailable') {
-        this.__offlineMutationReplayLifecycleProbe = null;
-      }
-      return fact;
+      void task.finally(() => {
+        if (this.__offlineMutationReplayLifecycleProbe === task) {
+          this.__offlineMutationReplayLifecycleProbe = null;
+        }
+      }).catch(() => {});
+      return task;
     }
     return this.__offlineMutationReplayLifecycleProbe;
   }
@@ -9125,12 +9147,12 @@ export class SnapbackClient {
         name,
         ref,
       });
-    }).then(async (output) => {
+    }).then((output) => {
       // The first successful ordinary read acquires target capability evidence
       // through the normal client lifecycle and persists it with the durable
       // store. A relaunched client can therefore queue while offline without
       // application-authored inspect pre-warming.
-      await this.#observeOfflineMutationReplayCapabilityFromLifecycle();
+      void this.#observeOfflineMutationReplayCapabilityFromLifecycle().catch(() => {});
       return projectTypedQueryOutput(ref, output);
     });
   }
@@ -12981,27 +13003,29 @@ export class SnapbackClient {
       ? null
       : this.#custodyReconciliationStore();
     let queueCapabilityVerified = queue === false ? false : null;
+    let queueCapabilityEvidence = null;
     if (queue === true) {
       // Preserve the existing local-custody error ordering: an explicit queue
       // request with no durable store fails locally before any target probe.
       this.#offlineQueueStore(true);
       await this.#requireOfflineMutationReplayCapability();
       queueCapabilityVerified = true;
+      queueCapabilityEvidence = 'fresh';
     } else if (
       queue === 'auto'
-      && (
-        ref?.mutationIr?.format === 'snapback.generated-mutation-ir.v1'
-        || clientMutationId !== null
-        || optimisticOperation !== null
-        || this.__operationIdentityProtocol === 1
-      )
       && this.#offlineQueueStore(false) !== null
     ) {
       const capability = await this.#offlineMutationReplayCapabilityFact({
         allowCachedForEnqueue: true,
         expectedGeneration: generation,
       });
-      if (capability.supported) queueCapabilityVerified = true;
+      if (capability.supported) {
+        queueCapabilityVerified = true;
+        queueCapabilityEvidence = capability.evidence ?? 'fresh';
+        if (queueCapabilityEvidence === 'cached' && clientMutationId === null) {
+          clientMutationId = createClientMutationId();
+        }
+      }
       else queue = false;
     }
     let generatedMutation = null;
@@ -13548,6 +13572,28 @@ export class SnapbackClient {
       ephemeralOptimisticRecord = true;
       await this.#refreshOptimisticMutationViews('generated-ir-ephemeral-admitted');
     }
+    if (queueCapabilityEvidence === 'cached') {
+      // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 —
+      // cached support grants enqueue custody only. It cannot authorize a
+      // foreground attempt against a target that may have changed since the
+      // answered manifest, because a lost response could otherwise duplicate
+      // the effect before fresh-gated replay.
+      const queued = durableOnlineRecord && queueStore && durableMutationRecord
+        ? await this.#enqueueOfflineMutation(queueStore, durableMutationRecord, {
+            alreadyCommitted: true,
+            functionId,
+            queueReasonClass: 'no-attempt-policy',
+          })
+        : null;
+      if (queued === null) {
+        throw offlineQueueSettlementLedgerError({
+          reason: 'cached-enqueue-custody-unavailable',
+        });
+      }
+      return generatedMutation === null
+        ? queued
+        : { ...queued, operationHash: generatedMutation.operationHash };
+    }
     let reservationRetryAuthorityCapture = queueAuthority?.capture ?? authorityCapture;
     let reservationRetryExternalBearer = null;
     let reservationRetryExternalTransportGeneration = null;
@@ -13843,12 +13889,14 @@ export class SnapbackClient {
                 allowCachedForEnqueue: true,
                 expectedGeneration: generation,
               });
-              if (!capability.supported) {
+              if (!capability.supported || capability.evidence === 'cached') {
                 this.#recordOutboxDiagnostic({
                   code: OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED,
                   mutation: name,
                   clientMutationId,
-                  reason: capability.reason,
+                  reason: capability.evidence === 'cached'
+                    ? 'cached-evidence-after-foreground-attempt'
+                    : capability.reason,
                   targetProfileId: capability.targetProfileId,
                 });
                 // `queue:'auto'` degrades to `queue:false`: the original
@@ -19037,9 +19085,7 @@ export class SnapbackClient {
       throw error;
     }
     if (handle.freshness === 'current') {
-      try {
-        await this.#observeOfflineMutationReplayCapabilityFromLifecycle();
-      } catch { /* capability observation never owns a successful live read */ }
+      void this.#observeOfflineMutationReplayCapabilityFromLifecycle().catch(() => {});
     }
     return handle;
   }

@@ -13,8 +13,10 @@ four-layer vocabulary table.)
 **Revised:** 2026-08-25 (offline replay client-consumption clarification: a
 fresh positive served manifest is mandatory for replay; only a transport-lost
 `queue: 'auto'` enqueue re-probe may reuse the prior positive fact persisted
-for the same origin and exact app artifact generation, while every answered
-manifest or HTTP refusal replaces it.)
+for the same origin, with exact artifact-generation matching required for
+generated mutation references (string-named mutations carry no generation),
+while every answered manifest or HTTP refusal replaces it. Cached evidence is
+enqueue-only and never licenses a foreground mutation attempt.)
 **Revised:** 2026-08-22 (asset closure extends the split-phase fence to
 attempt-inspect and TUS HEAD lazy expiry, caller-backed finalize SQLite
 phases, and signed/strict on-demand-width publication commits. Finalize and
@@ -451,8 +453,10 @@ fact. A fresh positive presence admits replay; absence, an older manifest, an
 answered gap/error, an unavailable inspection, or a merely absent gap does
 not. LLP 0043's enqueue-only exception may reuse the last positive answer after
 a no-response transport loss, but only from durable evidence bound to the same
-canonical origin and exact app artifact generation. That exception never
-admits replay or transport.
+canonical origin and, for a generated mutation reference, its exact app
+artifact generation. String-named mutations carry no generation witness. That
+exception never admits replay or transport and therefore enqueues without a
+foreground mutation POST.
 
 #### Dated offer-binding amendment — authorable offline replay (2026-08-25)
 

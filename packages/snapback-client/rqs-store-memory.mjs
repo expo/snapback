@@ -31,6 +31,7 @@ import {
   createInitialStoreMeta,
   mintClientStoreId,
   prepareStoreMeta,
+  versionOfflineMutationReplayCapabilityFact,
   wipeStoreMeta,
 } from './rqs-store-meta.mjs';
 
@@ -136,6 +137,31 @@ export function createMemoryRqsResumeStore({
   state.authorityTransitionWipers.set(instance, (...args) => (
     commitAuthorityTransitionAsWriter(...args)
   ));
+  state.offlineReplayCapabilityCommitters ??= new Map();
+  const commitOfflineReplayCapabilityAsWriter = async (fact) => {
+    if (!requireWriter()) return false;
+    const stored = versionOfflineMutationReplayCapabilityFact(
+      state.storeMeta.offlineMutationReplayCapabilityFact,
+      fact,
+    );
+    const replacement = stored === null ? null : prepareStoreMeta({
+      ...state.storeMeta,
+      offlineMutationReplayCapabilityFact: stored,
+    });
+    if (replacement === null) {
+      const error = new Error(
+        'SNAPBACK_RQS_STORE_CORRUPT: refusing invalid offline replay capability fact',
+      );
+      error.code = 'SNAPBACK_RQS_STORE_CORRUPT';
+      throw error;
+    }
+    state.storeMeta = replacement;
+    return structuredClone(stored);
+  };
+  state.offlineReplayCapabilityCommitters.set(
+    instance,
+    commitOfflineReplayCapabilityAsWriter,
+  );
   // @ref LLP 0053#client-fences — a public wipe cannot advance the shared
   // generation while predecessor authorization dispatch remains in flight.
   const authorityTransitionWipe = (...args) => withAuthorizationDispatch(
@@ -217,20 +243,11 @@ export function createMemoryRqsResumeStore({
     },
 
     async commitOfflineMutationReplayCapabilityFact(fact) {
-      if (!requireWriter()) return false;
-      const replacement = prepareStoreMeta({
-        ...state.storeMeta,
-        offlineMutationReplayCapabilityFact: fact,
-      });
-      if (replacement === null) {
-        const error = new Error(
-          'SNAPBACK_RQS_STORE_CORRUPT: refusing invalid offline replay capability fact',
-        );
-        error.code = 'SNAPBACK_RQS_STORE_CORRUPT';
-        throw error;
-      }
-      state.storeMeta = replacement;
-      return true;
+      requireOpen();
+      if (state.writer === instance) return commitOfflineReplayCapabilityAsWriter(fact);
+      const request = state.offlineReplayCapabilityCommitters.get(state.writer);
+      if (typeof request !== 'function') return false;
+      return request(fact);
     },
 
     async readStoreMeta() {
@@ -768,6 +785,7 @@ export function createMemoryRqsResumeStore({
       if (closed) return;
       closed = true;
       state.authorityTransitionWipers.delete(instance);
+      state.offlineReplayCapabilityCommitters.delete(instance);
       if (state.writer !== instance) {
         writerLockListeners.clear();
         return;
@@ -807,6 +825,7 @@ export function createMemoryRqsStoreBacking({ clientStoreId = null, randomBytes 
     waiters: [],
     authorizationDispatchGate: createOutboxAuthorizationDispatchGate(),
     authorityTransitionWipers: new Map(),
+    offlineReplayCapabilityCommitters: new Map(),
   };
 }
 

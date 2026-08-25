@@ -34,6 +34,7 @@ import {
   mintClientStoreId,
   prepareStoreMeta,
   RQS_STORE_META_KEY,
+  versionOfflineMutationReplayCapabilityFact,
   wipeStoreMeta,
 } from './rqs-store-meta.mjs';
 
@@ -45,6 +46,12 @@ export const RQS_REACT_BINDING_RECEIPT_MAX_BYTES = 64 * 1024;
 
 const OUTBOX_NORMALIZATION_REQUEST = 'snapback.outbox-normalization-request.v1';
 const OUTBOX_NORMALIZATION_OUTCOME = 'snapback.outbox-normalization-outcome.v1';
+const OFFLINE_REPLAY_CAPABILITY_REQUEST =
+  'snapback.offline-replay-capability-request.v1';
+const OFFLINE_REPLAY_CAPABILITY_OUTCOME =
+  'snapback.offline-replay-capability-outcome.v1';
+const OFFLINE_REPLAY_CAPABILITY_COMMITTED =
+  'snapback.offline-replay-capability-committed.v1';
 const OUTBOX_NORMALIZATION_TIMEOUT_MS = 5_000;
 let outboxNormalizationRequestCounter = 0;
 
@@ -89,6 +96,30 @@ const validOutboxNormalizationOutcome = (value) => (
   && value.requestId.length > 0
   && value.requestId.length <= 128
   && ['committed', 'refused'].includes(value.outcome)
+);
+
+const validOfflineReplayCapabilityRequest = (value) => (
+  exactRecord(value, ['format', 'requestId', 'fact'])
+  && value.format === OFFLINE_REPLAY_CAPABILITY_REQUEST
+  && typeof value.requestId === 'string'
+  && value.requestId.length > 0
+  && value.requestId.length <= 128
+  && value.fact !== null
+  && typeof value.fact === 'object'
+  && !Array.isArray(value.fact)
+);
+
+const validOfflineReplayCapabilityOutcome = (value) => (
+  exactRecord(value, ['format', 'requestId', 'outcome', 'fact'])
+  && value.format === OFFLINE_REPLAY_CAPABILITY_OUTCOME
+  && typeof value.requestId === 'string'
+  && value.requestId.length > 0
+  && value.requestId.length <= 128
+  && ['committed', 'refused'].includes(value.outcome)
+  && (
+    value.fact === null
+    || (typeof value.fact === 'object' && !Array.isArray(value.fact))
+  )
 );
 
 const unavailableOutboxProjection = () => Object.freeze({
@@ -164,6 +195,61 @@ export async function requestIndexedDbOutboxNormalization({
       channel.postMessage({ format: OUTBOX_NORMALIZATION_REQUEST, requestId });
     } catch {
       finish({ status: 'unavailable', reason: 'channel-failed' });
+    }
+  });
+}
+
+async function requestIndexedDbOfflineReplayCapabilityCommit({
+  databaseName,
+  fact,
+  broadcastChannelFactory,
+  timeoutMs,
+}) {
+  if (typeof broadcastChannelFactory !== 'function') return false;
+  let channel;
+  try {
+    channel = broadcastChannelFactory(normalizationChannelName(databaseName));
+  } catch {
+    return false;
+  }
+  if (
+    channel === null
+    || typeof channel !== 'object'
+    || typeof channel.postMessage !== 'function'
+    || typeof channel.close !== 'function'
+  ) {
+    try { channel?.close?.(); } catch { /* invalid carrier */ }
+    return false;
+  }
+  channel.unref?.();
+  const requestId = mintOutboxNormalizationRequestId();
+  return new Promise((resolve) => {
+    let settled = false;
+    let timer = null;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      if (timer !== null) clearTimeout(timer);
+      channel.onmessage = null;
+      try { channel.close(); } catch { /* completion is already known */ }
+      resolve(value);
+    };
+    channel.onmessage = (event) => {
+      const message = event?.data;
+      if (!validOfflineReplayCapabilityOutcome(message) || message.requestId !== requestId) {
+        return;
+      }
+      finish(message.outcome === 'committed' ? structuredClone(message.fact) : false);
+    };
+    timer = setTimeout(() => finish(false), timeoutMs);
+    try {
+      channel.postMessage({
+        format: OFFLINE_REPLAY_CAPABILITY_REQUEST,
+        requestId,
+        fact,
+      });
+    } catch {
+      finish(false);
     }
   });
 }
@@ -457,6 +543,15 @@ export function createIndexedDbRqsResumeStore({
     throw new TypeError('broadcastChannelFactory must be a function, null, or undefined');
   }
   let outboxNormalizationChannel = null;
+  const broadcastOfflineReplayCapabilityFact = (fact) => {
+    if (outboxNormalizationChannel === null) return;
+    try {
+      outboxNormalizationChannel.postMessage({
+        format: OFFLINE_REPLAY_CAPABILITY_COMMITTED,
+        fact,
+      });
+    } catch { /* durable bytes remain authoritative */ }
+  };
   function registerOutboxNormalizationBroker() {
     if (outboxNormalizationChannel !== null || resolvedBroadcastChannelFactory === null) return;
     let channel;
@@ -477,24 +572,48 @@ export function createIndexedDbRqsResumeStore({
     channel.unref?.();
     channel.onmessage = (event) => {
       const message = event?.data;
-      if (!validOutboxNormalizationRequest(message) || !writer || closed) return;
-      void requestOutboxNormalization().then((committed) => {
-        if (!writer || closed) return;
-        channel.postMessage({
-          format: OUTBOX_NORMALIZATION_OUTCOME,
-          requestId: message.requestId,
-          outcome: committed === true ? 'committed' : 'refused',
-        });
-      }).catch(() => {
-        if (!writer || closed) return;
-        try {
+      if (!writer || closed) return;
+      if (validOutboxNormalizationRequest(message)) {
+        void requestOutboxNormalization().then((committed) => {
+          if (!writer || closed) return;
           channel.postMessage({
             format: OUTBOX_NORMALIZATION_OUTCOME,
             requestId: message.requestId,
-            outcome: 'refused',
+            outcome: committed === true ? 'committed' : 'refused',
           });
-        } catch { /* a failed broker remains fail-closed */ }
-      });
+        }).catch(() => {
+          if (!writer || closed) return;
+          try {
+            channel.postMessage({
+              format: OUTBOX_NORMALIZATION_OUTCOME,
+              requestId: message.requestId,
+              outcome: 'refused',
+            });
+          } catch { /* a failed broker remains fail-closed */ }
+        });
+        return;
+      }
+      if (validOfflineReplayCapabilityRequest(message)) {
+        void commitOfflineReplayCapabilityAsWriter(message.fact).then((stored) => {
+          if (!writer || closed) return;
+          channel.postMessage({
+            format: OFFLINE_REPLAY_CAPABILITY_OUTCOME,
+            requestId: message.requestId,
+            outcome: stored === false ? 'refused' : 'committed',
+            fact: stored === false ? null : stored,
+          });
+        }).catch(() => {
+          if (!writer || closed) return;
+          try {
+            channel.postMessage({
+              format: OFFLINE_REPLAY_CAPABILITY_OUTCOME,
+              requestId: message.requestId,
+              outcome: 'refused',
+              fact: null,
+            });
+          } catch { /* a failed broker remains fail-closed */ }
+        });
+      }
     };
     outboxNormalizationChannel = channel;
   }
@@ -618,6 +737,33 @@ export function createIndexedDbRqsResumeStore({
     }
     return meta;
   };
+
+  async function commitOfflineReplayCapabilityAsWriter(fact) {
+    if (!writer || closed) return false;
+    const db = await database();
+    const tx = db.transaction([STORE_META], 'readwrite');
+    const txStore = tx.objectStore(STORE_META);
+    const current = await readMetaFromStore(txStore);
+    const stored = versionOfflineMutationReplayCapabilityFact(
+      current.offlineMutationReplayCapabilityFact,
+      fact,
+    );
+    const replacement = stored === null ? null : prepareStoreMeta({
+      ...current,
+      offlineMutationReplayCapabilityFact: stored,
+    });
+    if (replacement === null) {
+      tx.abort();
+      throw storeError(
+        'SNAPBACK_RQS_STORE_CORRUPT',
+        'refusing invalid offline replay capability fact',
+      );
+    }
+    txStore.put(replacement, RQS_STORE_META_KEY);
+    await transactionDone(tx);
+    broadcastOfflineReplayCapabilityFact(stored);
+    return structuredClone(stored);
+  }
 
   const readAllForBudget = async (txStore) => {
     const [keys, values] = await Promise.all([
@@ -1251,25 +1397,21 @@ export function createIndexedDbRqsResumeStore({
     },
 
     async commitOfflineMutationReplayCapabilityFact(fact) {
-      if (!this.isWriter()) return false;
-      const db = await database();
-      const tx = db.transaction([STORE_META], 'readwrite');
-      const txStore = tx.objectStore(STORE_META);
-      const current = await readMetaFromStore(txStore);
-      const replacement = prepareStoreMeta({
-        ...current,
-        offlineMutationReplayCapabilityFact: fact,
+      if (this.isWriter()) return commitOfflineReplayCapabilityAsWriter(fact);
+      const brokered = await requestIndexedDbOfflineReplayCapabilityCommit({
+        databaseName,
+        fact,
+        broadcastChannelFactory: resolvedBroadcastChannelFactory,
+        timeoutMs: outboxNormalizationTimeoutMs,
       });
-      if (replacement === null) {
-        tx.abort();
-        throw storeError(
-          'SNAPBACK_RQS_STORE_CORRUPT',
-          'refusing invalid offline replay capability fact',
-        );
-      }
-      txStore.put(replacement, RQS_STORE_META_KEY);
-      await transactionDone(tx);
-      return true;
+      if (brokered === false) return false;
+      const current = await this.readOfflineMutationReplayCapabilityFact();
+      if (
+        !Number.isSafeInteger(brokered.storeRevision)
+        || !Number.isSafeInteger(current?.storeRevision)
+        || current.storeRevision < brokered.storeRevision
+      ) return false;
+      return current;
     },
 
     async readStoreMeta() {

@@ -12,8 +12,8 @@ const RECORD_SLOTS = [
   'brokerRoster',
   // Last answered target capability fact used only to admit an automatic
   // offline enqueue after a transport-lost re-probe. The value itself binds
-  // canonical origin plus exact app artifact generation; replay never reads
-  // this slot as execution authority.
+  // canonical origin plus, for generated references, exact app artifact
+  // generation; replay never reads this slot as execution authority.
   'offlineMutationReplayCapabilityFact',
   'fenceHighWaters',
   'tombstoneHighWaters',
@@ -30,9 +30,16 @@ const RECORD_SLOTS = [
   'authorizedQueryRetention',
 ];
 const RESET_SLOTS = [
-  ...RECORD_SLOTS.slice(0, 3),
+  'durableRegistrations',
+  'policyBudgetFacts',
+  'brokerRoster',
   'materializationLeaseCustody',
   'authorizedQueryRetention',
+];
+const ADDITIVE_DEFAULT_SLOTS = [
+  'materializationLeaseCustody',
+  'authorizedQueryRetention',
+  'offlineMutationReplayCapabilityFact',
 ];
 
 const plainRecord = (value) => (
@@ -111,13 +118,14 @@ export function createInitialStoreMeta({ clientStoreId = null, randomBytes } = {
 
 export function prepareStoreMeta(value) {
   if (!plainRecord(value) || !jsonValue(value)) return null;
-  // Additive format-v3 migration: an absent record slot is the empty fact,
-  // never implicit authority. This covers the hydration/lease additions and
-  // later target-capability evidence without rotating the durable identity.
+  // Additive format-v3 migrations are closed: only the two original
+  // hydration/lease additions and the later target-capability fact may be
+  // defaulted. Missing allocator, registration, or fence state remains
+  // corruption instead of being silently reset to an empty high-water.
   const prepared = {
     ...value,
     ...Object.fromEntries(
-      RECORD_SLOTS
+      ADDITIVE_DEFAULT_SLOTS
         .filter((slot) => value[slot] === undefined)
         .map((slot) => [slot, {}]),
     ),
@@ -147,6 +155,29 @@ export function prepareStoreMeta(value) {
   } catch {
     return null;
   }
+}
+
+export function versionOfflineMutationReplayCapabilityFact(current, fact) {
+  if (!plainRecord(fact) || !jsonValue(fact)) return null;
+  let storeRevision = 0;
+  if (plainRecord(current) && Object.keys(current).length > 0) {
+    if (current.storeRevision !== undefined) {
+      if (
+        !Number.isSafeInteger(current.storeRevision)
+        || current.storeRevision < 1
+        || current.storeRevision === Number.MAX_SAFE_INTEGER
+      ) return null;
+      storeRevision = current.storeRevision;
+    }
+    // A direct fact without storeRevision is the one-release predecessor
+    // representation and advances to revision 1 on its next replacement.
+  }
+  const replacement = clone(fact);
+  delete replacement.storeRevision;
+  return {
+    ...replacement,
+    storeRevision: storeRevision + 1,
+  };
 }
 
 export function allocateQueryInstanceIdInMeta(value) {

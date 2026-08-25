@@ -140,6 +140,11 @@ await runAcceptance(suite, async () => {
     assert(handleA.retention?.retainable === true, 'eligible query classified retainable');
     assert(handleA.rqsResume?.token, 'server minted a resume token');
     await handleA.flushResumeState();
+    await waitUntil(async () => (
+      await clientA.rqsStore.readOfflineMutationReplayCapabilityFact()
+    )?.supported === true, {
+      label: 'fire-and-forget replay-capability observation',
+    });
     const inspection = await clientA.rqsStore.inspection();
     assert(inspection.entries >= 1, 'persisted entry committed');
     return { store: { ...clientA.rqsStoreInfo }, entries: inspection.entries };

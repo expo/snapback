@@ -74,6 +74,7 @@ import {
   createInitialStoreMeta,
   mintClientStoreId,
   prepareStoreMeta,
+  versionOfflineMutationReplayCapabilityFact,
   wipeStoreMeta,
 } from './rqs-store-meta.mjs';
 
@@ -489,6 +490,7 @@ export function createFileRqsResumeStore({
   let migrationMeta = null;
   let competingWriter = null;
   let authorityTransitionBroker = null;
+  let offlineReplayCapabilityBroker = null;
   let authorizationMutationBroker = null;
   let authorizationMutationWithinDispatchBroker = null;
   let authorityTransitionWithinDispatchBroker = null;
@@ -589,6 +591,7 @@ export function createFileRqsResumeStore({
         authorityTransitionWithinDispatch: (...args) => (
           authorityTransitionWithinDispatchBroker?.(...args)
         ),
+        offlineReplayCapability: (...args) => offlineReplayCapabilityBroker?.(...args),
         authorizationMutation: (...args) => authorizationMutationBroker?.(...args),
         authorizationMutationWithinDispatch: (...args) => (
           authorizationMutationWithinDispatchBroker?.(...args)
@@ -767,6 +770,25 @@ export function createFileRqsResumeStore({
     await chmodBestEffort(blobPath, FILE_MODE);
     await files.syncDirectory(directory);
   };
+
+  const commitOfflineReplayCapabilityAsWriter = async (fact) => {
+    if (!writer || closed) return false;
+    const state = await readState();
+    const stored = versionOfflineMutationReplayCapabilityFact(
+      state.storeMeta.offlineMutationReplayCapabilityFact,
+      fact,
+    );
+    const replacement = stored === null ? null : prepareStoreMeta({
+      ...state.storeMeta,
+      offlineMutationReplayCapabilityFact: stored,
+    });
+    if (replacement === null) throw corruptError(blobPath);
+    await writeState({ ...state, storeMeta: replacement });
+    return structuredClone(stored);
+  };
+  offlineReplayCapabilityBroker = (fact) => serialized(
+    () => commitOfflineReplayCapabilityAsWriter(fact),
+  );
 
   function requestOutboxNormalization() {
     pendingOutboxNormalization = true;
@@ -1502,17 +1524,15 @@ export function createFileRqsResumeStore({
 
     async commitOfflineMutationReplayCapabilityFact(fact) {
       requireOpen();
-      if (!writer) return false;
       return serialized(async () => {
-        if (!writer) return false;
-        const state = await readState();
-        const replacement = prepareStoreMeta({
-          ...state.storeMeta,
-          offlineMutationReplayCapabilityFact: fact,
-        });
-        if (replacement === null) throw corruptError(blobPath);
-        await writeState({ ...state, storeMeta: replacement });
-        return true;
+        await acquireLock();
+        if (writer) return commitOfflineReplayCapabilityAsWriter(fact);
+        const holder = heldLocks.get(lockPath);
+        if (
+          holder?.instanceId !== competingWriter?.instanceId
+          || typeof holder?.offlineReplayCapability !== 'function'
+        ) return false;
+        return holder.offlineReplayCapability(fact);
       });
     },
 

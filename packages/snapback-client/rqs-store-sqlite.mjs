@@ -32,6 +32,7 @@ import {
   allocateQueryInstanceIdInMeta,
   createInitialStoreMeta,
   prepareStoreMeta,
+  versionOfflineMutationReplayCapabilityFact,
   wipeStoreMeta,
 } from './rqs-store-meta.mjs';
 
@@ -653,15 +654,19 @@ export async function createSqliteRqsResumeStore({
     commitOfflineMutationReplayCapabilityFact(fact) {
       return serialized(() => writeTransaction('offline-replay-capability-fact', async () => {
         const current = await readMeta();
-        const replacement = prepareStoreMeta({
+        const stored = versionOfflineMutationReplayCapabilityFact(
+          current.offlineMutationReplayCapabilityFact,
+          fact,
+        );
+        const replacement = stored === null ? null : prepareStoreMeta({
           ...current,
-          offlineMutationReplayCapabilityFact: fact,
+          offlineMutationReplayCapabilityFact: stored,
         });
         if (replacement === null) {
           throw corruptError('refusing invalid offline replay capability fact');
         }
         await writeRecord('store_meta', 'state', replacement);
-        return true;
+        return clone(stored);
       }));
     },
     readStoreMeta() { return serialized(async () => clone(await readMeta())); },

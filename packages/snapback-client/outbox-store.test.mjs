@@ -13,6 +13,7 @@ import { test } from 'node:test';
 
 import { IDBFactory } from 'fake-indexeddb';
 
+import { createNodeSqliteNamespace } from '../../demos/expo-local-first-carrier/node-sqlite-adapter.mjs';
 import { SnapbackClient as InspectingSnapbackClient, isSnapbackDiagnosticError } from './index.mjs';
 import {
   createMemoryRqsResumeStore,
@@ -24,6 +25,12 @@ import {
   RQS_FILE_STORE_FORMAT_V1,
 } from './rqs-store-file.mjs';
 import { createIndexedDbRqsResumeStore } from './rqs-store.mjs';
+import { createSqliteRqsResumeStore } from './rqs-store-sqlite.mjs';
+import {
+  createInitialStoreMeta,
+  prepareStoreMeta,
+  wipeStoreMeta,
+} from './rqs-store-meta.mjs';
 import {
   clearNativeRqsFiles,
   registerNativeRqsFiles,
@@ -236,6 +243,68 @@ const grantingLocks = {
   request: (_name, _options, callback) => Promise.resolve(callback({ mode: 'exclusive' })),
 };
 
+const createContendedLockManager = () => {
+  const states = new Map();
+  const stateFor = (name) => {
+    if (!states.has(name)) states.set(name, { held: false, queue: [] });
+    return states.get(name);
+  };
+  const pump = (name) => {
+    const state = stateFor(name);
+    if (state.held) return;
+    const next = state.queue.shift();
+    if (!next) return;
+    if (next.aborted) {
+      pump(name);
+      return;
+    }
+    state.held = true;
+    Promise.resolve(next.callback({ name, mode: 'exclusive' }))
+      .then(next.resolve, next.reject)
+      .finally(() => {
+        state.held = false;
+        pump(name);
+      });
+  };
+  return {
+    request(name, options, callback) {
+      return new Promise((resolve, reject) => {
+        const entry = { callback, resolve, reject, aborted: false };
+        options?.signal?.addEventListener('abort', () => {
+          entry.aborted = true;
+          reject(Object.assign(new Error('aborted'), { name: 'AbortError' }));
+        });
+        stateFor(name).queue.push(entry);
+        pump(name);
+      });
+    },
+  };
+};
+
+const createBroadcastHub = () => {
+  const channels = new Set();
+  return {
+    factory() {
+      const channel = {
+        closed: false,
+        onmessage: null,
+        postMessage(data) {
+          for (const peer of [...channels]) {
+            if (peer === this || peer.closed) continue;
+            queueMicrotask(() => peer.onmessage?.({ data: structuredClone(data) }));
+          }
+        },
+        close() {
+          this.closed = true;
+          channels.delete(this);
+        },
+      };
+      channels.add(channel);
+      return channel;
+    },
+  };
+};
+
 const createDurableTestStore = (options = undefined) => {
   const store = createMemoryRqsResumeStore(options);
   store.durability = () => ({ implementation: 'memory-test-double', durable: true });
@@ -270,6 +339,56 @@ const offlineReplayInspection = ({
   capabilityManifest: offlineReplayCapabilityManifest({ supported, targetProfileId }),
 });
 
+const waitForOfflineReplayCapabilityFact = async (store, predicate, label) => {
+  const deadline = Date.now() + 5_000;
+  for (;;) {
+    const fact = await store.readOfflineMutationReplayCapabilityFact();
+    if (predicate(fact)) return fact;
+    if (Date.now() > deadline) throw new Error(`timed out waiting for ${label}`);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+};
+
+test('store_meta migration defaults only the three additive slots and fails closed otherwise', () => {
+  const initial = createInitialStoreMeta();
+  const predecessor = structuredClone(initial);
+  delete predecessor.materializationLeaseCustody;
+  delete predecessor.authorizedQueryRetention;
+  delete predecessor.offlineMutationReplayCapabilityFact;
+  const migrated = prepareStoreMeta(predecessor);
+  assert.deepEqual(migrated.materializationLeaseCustody, {});
+  assert.deepEqual(migrated.authorizedQueryRetention, {});
+  assert.deepEqual(migrated.offlineMutationReplayCapabilityFact, {});
+
+  for (const slot of [
+    'durableRegistrations',
+    'policyBudgetFacts',
+    'brokerRoster',
+    'fenceHighWaters',
+    'tombstoneHighWaters',
+    'barrierHighWaters',
+  ]) {
+    const partial = structuredClone(initial);
+    delete partial[slot];
+    assert.equal(prepareStoreMeta(partial), null, `missing ${slot} refuses instead of resetting`);
+  }
+
+  const capabilityFact = { supported: true, storeRevision: 7 };
+  const wiped = wipeStoreMeta({
+    ...initial,
+    offlineMutationReplayCapabilityFact: capabilityFact,
+    durableRegistrations: { registration: true },
+    fenceHighWaters: { protected: 11 },
+  });
+  assert.deepEqual(wiped.durableRegistrations, {}, 'wipe names the registration slot explicitly');
+  assert.deepEqual(wiped.fenceHighWaters, { protected: 11 }, 'wipe preserves fence high-waters');
+  assert.deepEqual(
+    wiped.offlineMutationReplayCapabilityFact,
+    capabilityFact,
+    'authority wipe does not erase target capability evidence',
+  );
+});
+
 async function exerciseOutboxContract(store, { label }) {
   assert.equal(await store.outboxEmpty(), true, `${label}: starts empty`);
   const capabilityFact = {
@@ -280,14 +399,17 @@ async function exerciseOutboxContract(store, { label }) {
     targetProfileId: 'local-dev-sqlite-ibex',
     artifactGeneration: TEST_ARTIFACT_GENERATION,
   };
-  assert.equal(
-    await store.commitOfflineMutationReplayCapabilityFact(capabilityFact),
-    true,
+  const committedCapabilityFact = await store.commitOfflineMutationReplayCapabilityFact(
+    capabilityFact,
+  );
+  assert.deepEqual(
+    committedCapabilityFact,
+    { ...capabilityFact, storeRevision: 1 },
     `${label}: commits target-bound offline replay capability evidence`,
   );
   assert.deepEqual(
     await store.readOfflineMutationReplayCapabilityFact(),
-    capabilityFact,
+    committedCapabilityFact,
     `${label}: reads target-bound offline replay capability evidence`,
   );
   assert.equal(
@@ -801,6 +923,64 @@ test('indexeddb arm carries the outbox contract atomically', async () => {
   const inspection = await store.inspection();
   assert.equal(inspection.outbox.pending, 0);
   await store.close();
+});
+
+test('indexeddb follower routes and confirms versioned capability replacement through writer broadcast', async () => {
+  const indexedDB = new IDBFactory();
+  const lockManager = createContendedLockManager();
+  const broadcastHub = createBroadcastHub();
+  const options = {
+    indexedDB,
+    lockManager,
+    databaseName: 'outbox-capability-cross-context',
+    broadcastChannelFactory: () => broadcastHub.factory(),
+  };
+  const writer = createIndexedDbRqsResumeStore(options);
+  const follower = createIndexedDbRqsResumeStore(options);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(writer.isWriter(), true);
+  assert.equal(follower.isWriter(), false);
+  const positive = {
+    schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
+    origin: 'https://broadcast.example',
+    supported: true,
+    reason: null,
+    targetProfileId: 'local-dev-sqlite-ibex',
+    artifactGeneration: TEST_ARTIFACT_GENERATION,
+  };
+  assert.equal(
+    (await writer.commitOfflineMutationReplayCapabilityFact(positive)).storeRevision,
+    1,
+  );
+  const negative = {
+    ...positive,
+    supported: false,
+    reason: 'not-advertised',
+    targetProfileId: 'cloudflare-do-sqlite-v8',
+  };
+  const committed = await follower.commitOfflineMutationReplayCapabilityFact(negative);
+  assert.equal(committed.supported, false);
+  assert.equal(committed.storeRevision, 2);
+  assert.deepEqual(await writer.readOfflineMutationReplayCapabilityFact(), committed);
+  await follower.close();
+  await writer.close();
+});
+
+test('sqlite arm carries the outbox contract atomically', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'snapback-outbox-sqlite-'));
+  const store = await createSqliteRqsResumeStore({
+    sqlite: createNodeSqliteNamespace(directory),
+    databaseName: 'outbox.sqlite',
+  });
+  try {
+    await exerciseOutboxContract(store, { label: 'sqlite' });
+    assert.deepEqual(store.durability(), { implementation: 'expo-sqlite', durable: true });
+    const inspection = await store.inspection();
+    assert.equal(inspection.outbox.pending, 0);
+  } finally {
+    await store.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test('authorization generations fence prepare, settlement, late enqueue, and delete redaction', async () => {
@@ -2127,10 +2307,10 @@ test('normal online client use persists settlement-ledger evidence for an un-pre
     throw new Error(`unexpected online lifecycle request ${path}`);
   };
   await firstClient.query('listThings');
-  assert.equal(
-    (await firstStore.readOfflineMutationReplayCapabilityFact()).supported,
-    true,
-    'ordinary query lifecycle persisted the answered manifest',
+  await waitForOfflineReplayCapabilityFact(
+    firstStore,
+    (fact) => fact.supported === true,
+    'ordinary query lifecycle to persist the answered manifest',
   );
   await firstStore.close();
 
@@ -2139,13 +2319,150 @@ test('normal online client use persists settlement-ledger evidence for an un-pre
     rqsStore: reopenedStore,
     __outboxDrainLifecycle: false,
   });
-  globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
+  let inspectCalls = 0;
+  let mutationCalls = 0;
+  globalThis.fetch = async (url) => {
+    if (new URL(url).pathname === '/inspect') inspectCalls += 1;
+    else mutationCalls += 1;
+    throw new TypeError('fetch failed');
+  };
   const queued = await relaunchedClient.mutate('createThing', {
     args: { title: 'offline-without-manual-prewarm' },
+    clientMutationId: 'cm-cached-enqueue-only',
   });
   assert.equal(queued.status, 'queued');
   assert.equal((await reopenedStore.outboxPending()).length, 1);
+  assert.equal(inspectCalls, 1, 'cached fallback follows a transport-lost inspect probe');
+  assert.equal(mutationCalls, 0, 'cached support enqueues without a foreground mutation POST');
   await reopenedStore.close();
+});
+
+test('an answered negative in a peer client replaces a process-cached positive through the writer', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const backing = createMemoryRqsStoreBacking();
+  const writerStore = createDurableTestStore({ backing });
+  const followerStore = createDurableTestStore({ backing });
+  const positiveClient = new InspectingSnapbackClient('http://127.0.0.1:4400', {
+    rqsStore: writerStore,
+    __outboxDrainLifecycle: false,
+  });
+  const negativeClient = new InspectingSnapbackClient('http://127.0.0.1:4400', {
+    rqsStore: followerStore,
+    __outboxDrainLifecycle: false,
+  });
+  assert.equal(writerStore.isWriter(), true);
+  assert.equal(followerStore.isWriter(), false);
+
+  globalThis.fetch = async () => Response.json(offlineReplayInspection({
+    supported: true,
+    targetProfileId: 'local-dev-sqlite-ibex',
+  }));
+  await positiveClient.inspect();
+  assert.equal(
+    (await writerStore.readOfflineMutationReplayCapabilityFact()).storeRevision,
+    1,
+  );
+
+  globalThis.fetch = async () => Response.json(offlineReplayInspection({
+    supported: false,
+    targetProfileId: 'cloudflare-do-sqlite-v8',
+  }));
+  await negativeClient.inspect();
+  const sharedNegative = await writerStore.readOfflineMutationReplayCapabilityFact();
+  assert.equal(sharedNegative.supported, false);
+  assert.equal(sharedNegative.storeRevision, 2, 'the elected writer versions the peer replacement');
+  assert.deepEqual(
+    await followerStore.readOfflineMutationReplayCapabilityFact(),
+    sharedNegative,
+    'both contexts observe the same durable fact',
+  );
+
+  let mutationCalls = 0;
+  globalThis.fetch = async (url) => {
+    if (new URL(url).pathname !== '/inspect') mutationCalls += 1;
+    throw new TypeError('fetch failed');
+  };
+  await assert.rejects(
+    () => positiveClient.mutate('createThing', {
+      args: { title: 'must-not-use-process-positive' },
+      clientMutationId: 'cm-peer-negative',
+    }),
+    (error) => isConnectivityFailureError(error),
+  );
+  assert.equal(mutationCalls, 1, 'the peer negative degrades auto queueing to foreground-only');
+  assert.deepEqual(await writerStore.outboxRecords(), [], 'the stale process positive queues nothing');
+  await followerStore.close();
+  await writerStore.close();
+});
+
+test('a 502 lifecycle answer is in-flight deduplication only and a later read recovers positive support', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const client = new InspectingSnapbackClient('http://127.0.0.1:4400', {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  let inspectCalls = 0;
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+    if (path === '/query/listThings') return Response.json({ rows: [], version: inspectCalls + 1 });
+    if (path === '/inspect') {
+      inspectCalls += 1;
+      if (inspectCalls === 1) return new Response('proxy unavailable', { status: 502 });
+      return Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId: 'local-dev-sqlite-ibex',
+      }));
+    }
+    throw new Error(`unexpected lifecycle recovery request ${path}`);
+  };
+
+  await client.query('listThings');
+  const negative = await waitForOfflineReplayCapabilityFact(
+    store,
+    (fact) => fact.supported === false && fact.reason === 'inspection-refused',
+    'the answered 502 capability fact',
+  );
+  assert.equal(negative.storeRevision, 1);
+
+  await client.query('listThings');
+  const recovered = await waitForOfflineReplayCapabilityFact(
+    store,
+    (fact) => fact.supported === true,
+    'a later successful lifecycle capability recovery',
+  );
+  assert.equal(inspectCalls, 2, 'the settled negative promise is not retained as a cache');
+  assert.equal(recovered.storeRevision, 2);
+  await store.close();
+});
+
+test('automatic enqueue never reuses a positive fact from another canonical origin', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const firstOrigin = new InspectingSnapbackClient('http://127.0.0.1:4400', {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  globalThis.fetch = async () => Response.json(offlineReplayInspection({
+    supported: true,
+    targetProfileId: 'local-dev-sqlite-ibex',
+  }));
+  await firstOrigin.inspect();
+
+  const otherOrigin = new InspectingSnapbackClient('http://127.0.0.1:5500', {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
+  await assert.rejects(
+    () => otherOrigin.mutate('createThing', {
+      args: { title: 'wrong-origin' },
+      clientMutationId: 'cm-wrong-origin',
+    }),
+    (error) => isConnectivityFailureError(error),
+  );
+  assert.deepEqual(await store.outboxRecords(), [], 'origin mismatch invalidates cached support');
+  await store.close();
 });
 
 test('replay requires a fresh positive inspection after cached support and refuses 404/502 answers', async (t) => {

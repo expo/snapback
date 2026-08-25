@@ -224,9 +224,13 @@ proof of the same contracts. The headless witness proves:
   local SQLite target positively advertises `offline_mutation_replay` in its
   `/inspect` capability manifest because it atomically settles and republishes
   a replayed `clientMutationId`. `queue: 'auto'` behaves as `queue: false` for
-  any target that does not advertise that capability (or whose manifest cannot
-  be inspected): an ambiguous transport failure surfaces and nothing is
-  enqueued. Explicit `queue: true` and a non-empty
+  any target that does not advertise that capability. If a re-probe loses
+  transport without an HTTP answer, one enqueue-only exception may reuse the
+  last durable positive for the same canonical origin (and the exact artifact
+  generation for a generated mutation reference; string-named mutations carry
+  no generation). That path enqueues directly without a foreground mutation
+  POST. With no matching prior positive, the ambiguous transport failure
+  surfaces and nothing is enqueued. Explicit `queue: true` and a non-empty
   `replayQueuedMutations()` drain instead refuse with
   `SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED`, leaving existing intent
   pending. In particular, the current Cloudflare proof does not have this

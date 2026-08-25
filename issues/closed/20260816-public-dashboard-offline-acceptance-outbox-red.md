@@ -67,12 +67,15 @@ had already observed. It then surfaced the original
 
 The client now persists the latest answered `offline_mutation_replay` fact
 through ordinary successful query/live-query lifecycle, bound to canonical
-origin and exact app artifact generation. A `queue: 'auto'` enqueue probe that
-loses transport may reuse that matching prior positive; any answered successor
-manifest or HTTP error replaces it. Replay always requires a fresh positive
-inspection, so 404/502 responses and transport loss refuse before mutation
-POST. Focused tests guard the HTTP, replay, relaunch, and identity-binding
-boundaries.
+origin and the target's served artifact generation. Generated mutation
+references must match that exact generation; string-named mutations carry no
+generation and therefore match the cached fact on canonical origin. A
+`queue: 'auto'` enqueue probe that loses transport may reuse that matching
+prior positive only to enqueue directly, without a foreground mutation POST;
+any answered successor manifest or HTTP error replaces it. Replay always
+requires a fresh positive inspection, so 404/502 responses and transport loss
+refuse before mutation POST. Focused tests guard the HTTP, replay, relaunch,
+cross-context replacement, origin, and generated-reference identity boundaries.
 
 The demo acceptance is again un-prewarmed: it closes the online client, stops
 the backend, then creates the offline client. The fact acquired by normal
