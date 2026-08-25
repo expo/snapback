@@ -6013,15 +6013,6 @@ enum GrantReverseKey {
     ServiceToken(String),
 }
 
-enum ResolvedRoomConnectionAuthority {
-    Absent,
-    Current {
-        auth: Option<AuthContext>,
-        effect_fence: crate::ephemeral::ConnectionEffectFence,
-    },
-    Replaced,
-}
-
 #[derive(Clone, Debug)]
 struct PreparedConnectionOpenAuthority {
     resolved: ResolvedAppAuthority,
@@ -8401,93 +8392,6 @@ impl ConnectionRegistry {
             None,
         ))
         .map(|opened| opened.grant)
-    }
-
-    fn resolve_room_connection_authority(
-        &self,
-        connection_id: &str,
-        expected_effect_fence: Option<&crate::ephemeral::ConnectionEffectFence>,
-        coordinator: Option<&AuthCoordinator>,
-        epoch_now_ms: u64,
-        monotonic_now: Instant,
-    ) -> SnapbackResult<ResolvedRoomConnectionAuthority> {
-        let (grant_id, managed_authority, bound) = {
-            let state = self.lock();
-            let Some(record) = state.grants.get(connection_id) else {
-                return Ok(ResolvedRoomConnectionAuthority::Absent);
-            };
-            (
-                record.grant_id.clone(),
-                record.managed_authority,
-                record.authority.clone(),
-            )
-        };
-        if matches!(bound, BoundGrantAuthority::ServicePrincipal { .. }) {
-            return Err(SnapbackError::error(
-                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
-                "auth",
-                "grant-backed live and ephemeral operations are unavailable until the agent live fence is ready",
-            )
-            .with_details(json!({ "capability": "grantBackedLive" })));
-        }
-        let effect_fence = bound.effect_fence(&grant_id);
-        if expected_effect_fence.is_some_and(|expected| expected != &effect_fence) {
-            return Ok(ResolvedRoomConnectionAuthority::Replaced);
-        }
-        let resolved = if !managed_authority {
-            None
-        } else {
-            match &bound {
-                BoundGrantAuthority::Anonymous { .. } => Some(ResolvedAppAuthority::Anonymous),
-                BoundGrantAuthority::ServicePrincipal { .. } => {
-                    unreachable!("service-principal room authority refused above")
-                }
-                BoundGrantAuthority::Session {
-                    authorization_stream_incarnation,
-                    session_id,
-                    user_id,
-                    provider,
-                    generation,
-                    ..
-                } => match coordinator {
-                    Some(coordinator) => {
-                        let resolution = coordinator.resolve_bound_connection_session(
-                            authorization_stream_incarnation,
-                            session_id,
-                            user_id,
-                            provider,
-                            *generation,
-                            epoch_now_ms,
-                            monotonic_now,
-                        )?;
-                        match resolution {
-                            BoundSessionResolution::Current(prepared) => {
-                                Some(prepared.resolved().clone())
-                            }
-                            BoundSessionResolution::Terminal { .. }
-                            | BoundSessionResolution::Unavailable => None,
-                        }
-                    }
-                    None => None,
-                },
-            }
-        };
-        let current = bound
-            .publication()
-            .try_publish(epoch_now_ms, monotonic_now, || {
-                Ok(self.lock().grants.get(connection_id).is_some_and(|record| {
-                    record.grant_id == grant_id
-                        && record.socket_teardown.is_none()
-                        && record.authority.effect_fence(&record.grant_id) == effect_fence
-                }))
-            })?;
-        if current != Some(true) {
-            return Ok(ResolvedRoomConnectionAuthority::Replaced);
-        }
-        Ok(ResolvedRoomConnectionAuthority::Current {
-            auth: resolved.as_ref().map(ephemeral_auth_from_authority),
-            effect_fence,
-        })
     }
 
     /// Verify a presented token for one connection-scoped operation. Unknown
