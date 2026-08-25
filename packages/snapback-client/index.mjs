@@ -3086,6 +3086,25 @@ const OFFLINE_MUTATION_REPLAY_CAPABILITY = 'offline_mutation_replay';
 const OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED =
   'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED';
 
+const offlineMutationReplayCapabilityFactFromInspection = (inspection) => {
+  // Local `/inspect` nests the manifest in PublicInspect; the Cloudflare
+  // proof serves that same manifest directly at `/inspect` and `/capability`.
+  const manifest = inspection?.capabilityManifest
+    ?? (Array.isArray(inspection?.supportedCapabilities) ? inspection : null);
+  const targetProfileId = typeof manifest?.targetProfileId === 'string'
+    ? manifest.targetProfileId
+    : typeof inspection?.targetProfileId === 'string'
+      ? inspection.targetProfileId
+      : null;
+  const supported = Array.isArray(manifest?.supportedCapabilities)
+    && manifest.supportedCapabilities.includes(OFFLINE_MUTATION_REPLAY_CAPABILITY);
+  return Object.freeze({
+    supported,
+    reason: supported ? null : 'not-advertised',
+    targetProfileId,
+  });
+};
+
 const offlineQueueSettlementLedgerError = ({
   cause = undefined,
   reason,
@@ -3508,6 +3527,7 @@ export class SnapbackClient {
     this.outboxDrainPolicy = outboxDrain;
     this.__outboxDrainLifecycle = __outboxDrainLifecycle;
     this.__offlineMutationReplayCapability = __offlineMutationReplayCapability;
+    this.__observedOfflineMutationReplayCapability = null;
     if (operationIdentityProtocol !== null && operationIdentityProtocol !== 1) {
       throw new TypeError('operationIdentityProtocol must be null or 1');
     }
@@ -7080,8 +7100,16 @@ export class SnapbackClient {
   }
 
   health() { return this.#req('GET', '/health'); }
-  inspect() {
-    return this.#req('GET', '/inspect', undefined, this.#authOfferHeaders(false));
+  async inspect() {
+    const inspection = await this.#req(
+      'GET',
+      '/inspect',
+      undefined,
+      this.#authOfferHeaders(false),
+    );
+    this.__observedOfflineMutationReplayCapability =
+      offlineMutationReplayCapabilityFactFromInspection(inspection);
+    return inspection;
   }
 
   // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 —
@@ -7101,6 +7129,13 @@ export class SnapbackClient {
     try {
       inspection = await this.inspect();
     } catch (cause) {
+      // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 —
+      // prior positive server evidence still admits custody when the next
+      // probe itself loses transport. Any answered successor manifest
+      // replaces this observation, so an explicit target gap still refuses.
+      if (this.__observedOfflineMutationReplayCapability?.supported === true) {
+        return this.__observedOfflineMutationReplayCapability;
+      }
       return Object.freeze({
         supported: false,
         reason: 'inspection-unavailable',
@@ -7108,22 +7143,7 @@ export class SnapbackClient {
         cause,
       });
     }
-    // Local `/inspect` nests the manifest in PublicInspect; the Cloudflare
-    // proof serves that same manifest directly at `/inspect` and `/capability`.
-    const manifest = inspection?.capabilityManifest
-      ?? (Array.isArray(inspection?.supportedCapabilities) ? inspection : null);
-    const targetProfileId = typeof manifest?.targetProfileId === 'string'
-      ? manifest.targetProfileId
-      : typeof inspection?.targetProfileId === 'string'
-        ? inspection.targetProfileId
-        : null;
-    const supported = Array.isArray(manifest?.supportedCapabilities)
-      && manifest.supportedCapabilities.includes(OFFLINE_MUTATION_REPLAY_CAPABILITY);
-    return Object.freeze({
-      supported,
-      reason: supported ? null : 'not-advertised',
-      targetProfileId,
-    });
+    return offlineMutationReplayCapabilityFactFromInspection(inspection);
   }
 
   async #requireOfflineMutationReplayCapability() {

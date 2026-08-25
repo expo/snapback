@@ -78,3 +78,40 @@ visible once the fixture moved.
 Codegen succeeded locally. The Node acceptance could not execute in this
 sandbox because binding its loopback server failed with `listen EPERM`; no
 acceptance report was fabricated or hand-edited.
+
+## 2026-08-25 — offline outbox capability custody
+
+The offline acceptance now observes the local target's positive
+`offline_mutation_replay` advertisement before disconnecting, queues its two
+generic mutations while transport is unavailable, and relaunches the durable
+client after the dev server restarts so the per-boot identity capability is
+current. The pending records then drain in order and the settlement ledger
+returns the original result for a duplicate delivery.
+
+### What felt good
+
+- The online mutation probe settled normally, which quickly ruled out the
+  public-read table posture as the cause despite the codegen migration warning.
+- The durable store kept both intents across client shutdown, and the ordinary
+  default drain replayed them after relaunch without demo-authored retry code.
+- The target guide made both safety boundaries explicit: positive settlement-
+  ledger evidence admits custody, while dev-identity credentials rotate per
+  server boot.
+
+### What felt bad or surprising
+
+- The client correctly recognized `fetch failed` as connectivity loss, but its
+  follow-up capability probe used the same unavailable transport and discarded
+  a positive manifest already observed from that server. The resulting
+  `SNAPBACK_CLIENT_REFUSED` made a capability-evidence loss look like mutation
+  failure classification.
+- Once enqueue worked, the old acceptance's same-client restart path exposed a
+  second, independent mismatch: the client retained the previous boot's dev
+  identity capability. A direct/headless client must relaunch from the current
+  server kit; supervised app clients have the live rotation seam.
+
+Compared with a hand-built React cache or a Supabase offline queue, Snapback's
+positive target gate and settlement ledger add ceremony but prevent unsafe
+replay against a target that cannot deduplicate. The useful ergonomic payoff is
+that the intent, ordering, and exactly-once result survive the relaunch without
+application-managed queue tables or reconciliation code.

@@ -2067,6 +2067,51 @@ test('a target advertising the settlement ledger still queues and replays', asyn
   assert.equal(delivered[0].clientMutationId, queued.clientMutationId);
 });
 
+test('a prior positive settlement-ledger advertisement survives an offline capability probe', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const client = new InspectingSnapbackClient('http://127.0.0.1:4400', {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+
+  globalThis.fetch = async (url) => {
+    assert.equal(new URL(url).pathname, '/inspect');
+    return Response.json({
+      capabilityManifest: offlineReplayCapabilityManifest({
+        supported: true,
+        targetProfileId: 'local-dev-sqlite-ibex',
+      }),
+    });
+  };
+  await client.inspect();
+
+  globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
+  const queued = await client.mutate('createThing', { args: { title: 'offline-after-inspect' } });
+  assert.equal(queued.status, 'queued');
+  assert.equal((await store.outboxPending()).length, 1);
+
+  let mutationCalls = 0;
+  globalThis.fetch = async (url) => {
+    if (new URL(url).pathname === '/inspect') {
+      return Response.json({
+        capabilityManifest: offlineReplayCapabilityManifest({
+          supported: false,
+          targetProfileId: 'cloudflare-do-sqlite-v8',
+        }),
+      });
+    }
+    mutationCalls += 1;
+    throw new Error('an answered target gap must refuse before replay transport');
+  };
+  await assert.rejects(
+    () => client.replayQueuedMutations(),
+    (error) => error.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
+  );
+  assert.equal(mutationCalls, 0);
+  assert.equal((await store.outboxPending()).length, 1, 'refusal preserves pending custody');
+});
+
 test('closeAuth releases an owned default store for the next sequential client', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'snapback-client-handoff-'));
   const previousDir = process.env.SNAPBACK_CLIENT_RQS_DIR;

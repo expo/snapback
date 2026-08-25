@@ -167,13 +167,18 @@ await runAcceptance(suite, async () => {
   handleA.dispose();
   await handleA.settled?.();
   await closeClient(clientA);
+  // Carry the server's positive settlement-ledger advertisement into the
+  // fresh client before disconnect. A later answered target manifest still
+  // replaces it; only a transport-lost re-probe may reuse this evidence.
+  // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 —
+  // durable enqueue needs positive target evidence, not the absence of a gap.
+  let clientB = openClient();
+  await clientB.inspect();
   await server.stop();
 
-  let clientB;
   let handleB;
   const updatesB = [];
   await suite.check('fresh client instance (same process) with the backend down renders retained rows (Diary 0027 comparator)', async () => {
-    clientB = openClient();
     handleB = await clientB.liveQuery('metricsFeed', {
       connectionId: 'offline-arm-b',
       args: { dashboardId: 'ops' },
@@ -189,6 +194,7 @@ await runAcceptance(suite, async () => {
   // ---- Warm-session offline writes queue durably ----
   let queuedCreate;
   let queuedUpdate;
+  let queuedDiagnosticCodes = [];
   await suite.check('offline create/update queue durably with client-minted ids', async () => {
     queuedCreate = await clientB.mutate('recordMetric', {
       args: { dashboardId: 'ops', label: 'error_rate', value: 3 },
@@ -205,6 +211,11 @@ await runAcceptance(suite, async () => {
     assert(queuedUpdate.sequence > queuedCreate.sequence, 'monotonic sequence order');
     const pending = await clientB.rqsStore.outboxPending();
     assertEqual(pending.map((r) => r.function), ['recordMetric', 'setMetricValue'], 'durable pending queue');
+    queuedDiagnosticCodes = clientB.outboxDiagnostics.map(({ code }) => code);
+    assert(
+      queuedDiagnosticCodes.includes('SNAPBACK_OFFLINE_MUTATION_QUEUED'),
+      'queue diagnostic recorded',
+    );
     return {
       queuedCreate: {
         status: queuedCreate.status,
@@ -260,7 +271,10 @@ await runAcceptance(suite, async () => {
   });
 
   // ---- Reconnect: ordered replay settles exactly-once ----
-  await suite.check('server restart settles the queued intent exactly-once through the outbox', async () => {
+  await suite.check('server restart and client relaunch settle the queued intent exactly-once through the outbox', async () => {
+    handleB.dispose();
+    await handleB.settled?.();
+    await closeClient(clientB);
     server = await bootServer();
     // The dev server provisions per boot (the packaged dev loop's ensure-on-
     // boot); re-ensure with the identical artifacts is idempotent and
@@ -274,9 +288,35 @@ await runAcceptance(suite, async () => {
       functions: generated('functions.manifest.json'),
       seed,
     });
-    await waitUntil(async () => (await clientB.rqsStore.outboxPending()).length === 0, {
-      label: 'outbox drain after reconnect',
+    // The direct/headless dev-identity credential rotates on every server
+    // boot. Relaunch with the new server-kit custody while preserving the
+    // durable store that owns the pending outbox.
+    // @ref LLP 0262#d1-the-dev-identity-capability — stale presented
+    // capabilities are refused; a fresh client receives the current boot's
+    // private carrier from server.clientOptions.
+    clientB = openClient();
+    handleB = await clientB.liveQuery('metricsFeed', {
+      connectionId: 'offline-arm-b-relaunch',
+      args: { dashboardId: 'ops' },
+      transport: 'stream',
+      onUpdate: (rows, detail) => updatesB.push({
+        kind: detail.kind,
+        freshness: detail.freshness ?? null,
+        rows: rows.length,
+      }),
     });
+    try {
+      await waitUntil(async () => (await clientB.rqsStore.outboxPending()).length === 0, {
+        label: 'outbox drain after reconnect',
+      });
+    } catch (error) {
+      const status = await clientB.outboxStatus();
+      throw new Error(
+        `${error.message}; outbox=${JSON.stringify(status)}; `
+        + `handle=${JSON.stringify({ connection: handleB.connection, freshness: handleB.freshness })}`,
+        { cause: error },
+      );
+    }
     await waitUntil(() => handleB.freshness === 'current', { label: 'handle back to current' });
     await waitUntil(
       () => handleB.rows.some((row) => row.label === 'error_rate' && row.value === 3),
@@ -286,7 +326,10 @@ await runAcceptance(suite, async () => {
     assertEqual(uptime.value, 98, 'replayed update applied');
     const errorRows = handleB.rows.filter((row) => row.label === 'error_rate');
     assertEqual(errorRows.length, 1, 'exactly one settled create');
-    const diagnostics = clientB.outboxDiagnostics.map(({ code }) => code);
+    const diagnostics = [
+      ...queuedDiagnosticCodes,
+      ...clientB.outboxDiagnostics.map(({ code }) => code),
+    ];
     assert(diagnostics.includes('SNAPBACK_OFFLINE_MUTATION_QUEUED'), 'queue diagnostic recorded');
     assert(diagnostics.includes('SNAPBACK_OFFLINE_MUTATION_REPLAYED'), 'replay diagnostic recorded');
     return {
