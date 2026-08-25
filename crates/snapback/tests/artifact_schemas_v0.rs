@@ -3284,6 +3284,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
         &serde_json::to_value(ConnectionGrant {
             connection_id: "conn_1".to_owned(),
             connection_token: "tok_1".to_owned(),
+            dev_identity_capability_witnessed: None,
             authorization_invalidation: None,
             wire_version: None,
             ephemeral_authority_protocol: None,
@@ -3300,6 +3301,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
         &serde_json::to_value(ConnectionGrant {
             connection_id: "conn_1".to_owned(),
             connection_token: "tok_1".to_owned(),
+            dev_identity_capability_witnessed: Some(true),
             authorization_invalidation: None,
             wire_version: Some("snapback.v1".to_owned()),
             ephemeral_authority_protocol: Some(

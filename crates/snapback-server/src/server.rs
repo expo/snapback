@@ -13194,7 +13194,7 @@ fn verify_or_warn_client_asserted_dev_identity(
     runtime: &AppState,
     headers: &HeaderMap,
     resolved: &ResolvedAppAuthority,
-) -> Result<(), ApiError> {
+) -> Result<bool, ApiError> {
     let witnessed = verify_presented_dev_identity_capability(runtime, headers)?;
     if !witnessed
         && matches!(resolved, ResolvedAppAuthority::DevImpersonation { .. })
@@ -13202,7 +13202,7 @@ fn verify_or_warn_client_asserted_dev_identity(
     {
         registry.warn_unwitnessed_assertion_once();
     }
-    Ok(())
+    Ok(witnessed)
 }
 
 fn dev_host_operation_authority(value: Option<&Value>) -> ResolvedAppAuthority {
@@ -13256,14 +13256,15 @@ async fn prepare_registered_route_authority(
     prepared_connection_session: Option<crate::auth::coordinator::PreparedBearerAuthority>,
     prepared_connection_service: Option<crate::local::ResolvedServiceAuthority>,
     resolved_connection_authority: Option<&ResolvedAppAuthority>,
-) -> Result<Option<PreparedAuthority>, ApiError> {
+) -> Result<(Option<PreparedAuthority>, Option<bool>), ApiError> {
     let Some(source) = source else {
-        return Ok(None);
+        return Ok((None, None));
     };
     let Some(admission) = admission else {
         debug_assert_eq!(source, InvocationSource::BootstrapHandshake);
-        return Ok(None);
+        return Ok((None, None));
     };
+    let mut dev_identity_capability_observation = None;
     let handler_value = invocation_authority_value(source, body);
     let wire = invocation_wire_authority(source, handler_value);
     let mode_state = runtime.auth_mode_state();
@@ -13355,7 +13356,9 @@ async fn prepare_registered_route_authority(
                     // app-plane ClientAsserted installation is capability
                     // witnessed; admin-token host operations retain their
                     // existing authority contract (Ruling OQ2).
-                    verify_or_warn_client_asserted_dev_identity(runtime, headers, &resolved)?;
+                    dev_identity_capability_observation = Some(
+                        verify_or_warn_client_asserted_dev_identity(runtime, headers, &resolved)?,
+                    );
                     RouteAuthorityResolution::Dev(resolved)
                 } else if source == InvocationSource::DirectAdminRunner {
                     RouteAuthorityResolution::Dev(dev_body_authority(handler_value))
@@ -13601,10 +13604,13 @@ async fn prepare_registered_route_authority(
     let rehearsal_authority = installed_auth_coordinator(runtime)?
         .rehearsal_authority_binding()
         .map_err(ApiError::from)?;
-    Ok(Some(
-        rehearsal_authority
-            .bind(authority, None)
-            .map_err(ApiError::from)?,
+    Ok((
+        Some(
+            rehearsal_authority
+                .bind(authority, None)
+                .map_err(ApiError::from)?,
+        ),
+        dev_identity_capability_observation,
     ))
 }
 
@@ -15645,6 +15651,7 @@ async fn enforce_registered_route_policy_inner(
     // proof cut has already completed, but LLP 0058's forbidden-field
     // precedence still wins within post-admission processing.
     let mut early_prepared_authority = None;
+    let mut dev_identity_capability_observation = None;
     // @ref LLP 0031#enforcement — authenticate every connection carrier
     // before bounded JSON inspection. Body-carried connection ids get a
     // second exact id↔bearer check after decoding; an attacker-controlled
@@ -15989,8 +15996,11 @@ async fn enforce_registered_route_policy_inner(
         )
         .await
         {
-            Ok(Some(authority)) => Some(authority),
-            Ok(None) => {
+            Ok((Some(authority), observation)) => {
+                dev_identity_capability_observation = observation;
+                Some(authority)
+            }
+            Ok((None, _)) => {
                 return finish_registered_response(
                     effective,
                     ApiError::from(SnapbackError::error(
@@ -16539,7 +16549,10 @@ async fn enforce_registered_route_policy_inner(
         )
         .await
         {
-            Ok(authority) => authority,
+            Ok((authority, observation)) => {
+                dev_identity_capability_observation = observation;
+                authority
+            }
             Err(error) => {
                 return finish_registered_response(
                     response_policy,
@@ -16669,21 +16682,6 @@ async fn enforce_registered_route_policy_inner(
         None,
     )
     .await;
-    let dev_identity_capability_observation = prepared_authority.as_ref().and_then(|authority| {
-        (policy_mode == PolicyAuthMode::Dev
-            && runtime.dev_identity_capabilities.is_some()
-            && matches!(
-                authority.resolved(),
-                ResolvedAppAuthority::DevImpersonation { .. }
-            ))
-        .then(|| {
-            // A presented malformed/mismatched value was already refused by
-            // authority preparation, so successful presence means verified.
-            request
-                .headers()
-                .contains_key(crate::dev_identity::DEV_IDENTITY_CAPABILITY_HEADER)
-        })
-    });
     let mut response = next.run(request).await;
     if let Some(witnessed) = dev_identity_capability_observation {
         // @ref LLP 0262#d1-the-dev-identity-capability — this dev-only,

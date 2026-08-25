@@ -51,6 +51,7 @@ import {
   selfCheckTemplateCarrierConfig,
 } from './carrier-kit.mjs';
 import { assertTemplateScriptSurface } from '../../scripts/template-portfolio-qualification-lib.mjs';
+import { DEV_IDENTITY_ENFORCEMENT_FLIP } from './dev-identity.mjs';
 
 const root = realpathSync.native(mkdtempSync(join(tmpdir(), 'snapback-cli-package-')));
 // issues/closed/20260810-expo-chat-template-pins-trail-the-closure: scaffoldApp
@@ -379,7 +380,7 @@ try {
   }
   assert.equal(
     absentNotice,
-    `SNAPBACK_DEV_IDENTITY_ABSENT: no usable dev-identity capability was found at ${missingCapabilityPath}; continuing without it during Stage 2; enforcement flip 2026-08-25/LLP-0262-stage-3 remains acceptance-gated; see LLP 0262#d5-rollout-stages\n`,
+    `SNAPBACK_DEV_IDENTITY_ABSENT: no usable dev-identity capability was found at ${missingCapabilityPath}; continuing without it during Stage 2; enforcement flip ${DEV_IDENTITY_ENFORCEMENT_FLIP} remains acceptance-gated; see LLP 0262#d5-rollout-stages\n`,
     'the path-bearing Stage-2 absence notice is emitted once per process',
   );
   assert.deepEqual(__test.devIdentityClientEnvironment(

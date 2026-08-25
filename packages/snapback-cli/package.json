@@ -32,6 +32,7 @@
     "comparator-receipt.schema.json",
     "deployment-control.d.mts",
     "deployment-control.mjs",
+    "dev-identity.mjs",
     "expo-binding-refresh.mjs",
     "expo-dev.d.mts",
     "expo-dev.mjs",

@@ -28,6 +28,8 @@ pub const DEV_IDENTITY_CONFIG_FORBIDDEN_CODE: &str = "SNAPBACK_DEV_IDENTITY_CONF
 ///
 /// @ref LLP 0262#d5-rollout-stages — enforcement remains gated on every D2
 ///   topology even after operators begin seeing this stable flip identifier.
+/// Keep the JS projection in `packages/snapback-cli/dev-identity.mjs` aligned;
+/// the CLI and its package test import that one committed JS spelling.
 pub const DEV_IDENTITY_ENFORCEMENT_FLIP: &str = "2026-08-25/LLP-0262-stage-3";
 
 #[derive(Clone)]

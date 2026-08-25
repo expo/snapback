@@ -16678,6 +16678,62 @@ async fn dev_client_asserted_capability_verifies_when_present_and_warns_when_abs
 }
 
 #[tokio::test]
+async fn dev_identity_exposure_witness_header_excludes_unverified_host_op_authority() {
+    async fn echo_authority(Extension(authority): Extension<PreparedAuthority>) -> Json<Value> {
+        Json(json!({ "userId": authority.projection().user_id() }))
+    }
+
+    let (state, impersonation_capability) = auth_runtime_fixture(PolicyAuthMode::Dev);
+    let (registry, _) = dev_identity_capability_fixture();
+    let state = state.with_dev_identity_capabilities(registry);
+    let router = super::router_from_registrations(
+        vec![super::RegisteredRoute::new(
+            super::system_api_route(
+                "POST",
+                "/_snapback/api/host-ops",
+                super::RoutePolicy::AdminRead,
+                super::ResponseSensitivity::SensitiveApplicationData,
+            )
+            .with_effect(super::EffectPolicy::OperationSpecific),
+            axum::routing::post(echo_authority),
+        )],
+        state.clone(),
+    )
+    .with_state(state);
+    let response = router
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/_snapback/api/host-ops")
+                .header(header::CONTENT_TYPE, "application/json")
+                .header("x-snapback-admin-token", "auth-http-admin")
+                .header(
+                    crate::admin_impersonation::IMPERSONATION_CAPABILITY_HEADER,
+                    impersonation_capability,
+                )
+                .header(
+                    crate::dev_identity::DEV_IDENTITY_CAPABILITY_HEADER,
+                    "sbdev_bogus-but-present",
+                )
+                .body(Body::from(
+                    r#"{"operation":"function.run","function":"unknown","userId":"user-1","args":{}}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert!(
+        response
+            .headers()
+            .get(crate::dev_identity::DEV_IDENTITY_CAPABILITY_WITNESS_HEADER)
+            .is_none(),
+        "an OQ2 host-op authority must not report an unverified capability header"
+    );
+    assert_eq!(response_json(response).await["userId"], "user-1");
+}
+
+#[tokio::test]
 async fn connection_open_binds_only_a_verified_dev_identity_witness() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
     let (registry, capability) = dev_identity_capability_fixture();

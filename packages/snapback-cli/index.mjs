@@ -101,6 +101,7 @@ import {
   verifyRuntimePackageSeal,
 } from './runtime-readiness.mjs';
 import { maskInitSourceCommentsAndStrings } from './source-mask.mjs';
+import { DEV_IDENTITY_ENFORCEMENT_FLIP } from './dev-identity.mjs';
 import { createSupervisedBindingPublisher } from './expo-binding-refresh.mjs';
 import {
   loadComparatorProfile,
@@ -4821,7 +4822,7 @@ function resolveDevIdentityCapabilityForCli(descriptor, context) {
   process.stderr.write(
     'SNAPBACK_DEV_IDENTITY_ABSENT: no usable dev-identity capability was found'
       + `${expected ? ` at ${expected}` : ''}; continuing without it during Stage 2; `
-      + 'enforcement flip 2026-08-25/LLP-0262-stage-3 remains acceptance-gated; '
+      + `enforcement flip ${DEV_IDENTITY_ENFORCEMENT_FLIP} remains acceptance-gated; `
       + 'see LLP 0262#d5-rollout-stages\n',
   );
   return null;

@@ -6993,7 +6993,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("GET")
-                    .uri("/_snapback/api/inspect")
+                    .uri("/_snapback/api/health")
                     .header("x-snapback-admin-token", "claim-warning-admin")
                     .extension(ConnectInfo(
                         "127.0.0.1:43124".parse::<SocketAddr>().unwrap(),

@@ -137,3 +137,17 @@ keeps D5 stage 3 closed:
 Physical iOS and Android LAN/TCP remain intentionally unsupported, not silent
 carrier gaps. The stage-3 enforcement arm did not change; this ticket remains
 open until the outstanding USB witness lands and the author-gated flip is made.
+
+## Dated note — 2026-08-25 (native D2 evidence correction)
+
+Stage 3 is blocked by exactly three missing D2 witnesses: **iOS simulator —
+NOT YET**, pending a strengthened rerun; **Android emulator — NOT YET**, pending
+a strengthened rerun; and **physical Android USB — NOT YET**. The retained
+`ios-2026-08-25T15-06-51-734Z` and
+`android-2026-08-25T14-54-18-163Z` native receipts predate the fail-sensitive,
+server-observed checks and must not be treated as D2 evidence. The strengthened
+Expo-web evidence is `web-2026-08-25T16-03-15-778Z`.
+
+This note supersedes the earlier claim above that the simulator and emulator
+were witnessed and that only physical USB blocked stage 3. No native witness
+was rerun as part of this correction.

@@ -157,6 +157,13 @@
     "connectionToken": {
       "type": "string"
     },
+    "devIdentityCapabilityWitnessed": {
+      "description": "Credential-free, dev-only observation of the capability check performed\nfor this exact open. `false` is intentionally distinct from absence so\nstage-2 carrier witnesses fail if a relay or native client strips the\nheader even though the open itself remains compatibility-admitted.\n\n@ref LLP 0262#d2-carriers-per-shipped-topology — topology witnesses\n  consume server-recorded custody, never client-side header intent.",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
     "ephemeralAuthorityInstance": {
       "description": "Opaque authority-instance witness. Every negotiated ephemeral frame\nrepeats this value so clients can fence in-memory state across target\nprocess replacement.",
       "pattern": "^eai1\\.[A-Za-z0-9_-]{43}$",
