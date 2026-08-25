@@ -60,6 +60,18 @@ export function loadAttacks(fixtureRoot = DEFAULT_FIXTURE_ROOT) {
 // @ref LLP 0284#36-inventory-honesty — each claimed mount is joined to cargo
 // metadata dependency keys, its actual bin source, and parsed crate references;
 // descriptive or source-swapped supersets fail.
+// Workspace-member crates the fixture package actually declares as dependencies. A `crate/feature`
+// naming anything outside this set is unrunnable, not merely wrong.
+export function fixtureDependencyNames(root, fixtureRoot) {
+  const product = runCargoMetadata(resolve(root, 'Cargo.toml'));
+  const productNames = new Set(workspacePackages(product).map(({ name }) => name));
+  const fixture = runCargoMetadata(resolve(fixtureRoot, 'Cargo.toml'));
+  const pkg = workspacePackages(fixture)
+    .find(({ name }) => name === 'snapback-security-boundary-fixtures');
+  if (!pkg) return [];
+  return pkg.dependencies.filter(({ name }) => productNames.has(name)).map(({ name }) => name);
+}
+
 export function validateFixtureInventory(
   root,
   fixtureRoot,
@@ -104,6 +116,27 @@ export function validateFixtureInventory(
   }
   if (unmountedPrivilegeCrates.length > 0) {
     errors.push(`privilege-bearing workspace crate(s) have no attack mounts: ${unmountedPrivilegeCrates.join(', ')}`);
+  }
+  // @ref LLP 0284#i-12 — a featureSet may only name `crate/feature` for a crate the fixture
+  // actually declares. Cargo rejects an undeclared `dep/feature` at invocation with
+  // "does not contain this feature", which aborts the whole gate on the first offending cell and
+  // leaves every later attack unevaluated. Four separate lanes declared
+  // snapback-server/test-support or snapback-activation/test-support — crates I-12 forbids the
+  // fixture from mounting because the scanner certifies their privilege surface empty — and each
+  // cost a review round to diagnose. Report it here, by attack and cell, instead.
+  const declared = new Set(dependencyKeys);
+  for (const attack of attacks) {
+    const offenders = new Set();
+    for (const featureSet of attack.featureSets) {
+      for (const feature of featureSet) {
+        if (typeof feature !== 'string' || !feature.includes('/')) continue;
+        const crate = feature.slice(0, feature.indexOf('/'));
+        if (!declared.has(crate)) offenders.add(feature);
+      }
+    }
+    if (offenders.size > 0) {
+      errors.push(`${attack.id} declares feature(s) of crates the fixture does not depend on, which aborts cargo before any attack runs: ${sorted([...offenders]).join(', ')}`);
+    }
   }
   const bins = new Map(fixturePackage.targets
     .filter((target) => target.kind.includes('bin'))
@@ -269,7 +302,20 @@ export function auditSecurityBoundaries(
     ...validateFixtureInventory(root, fixtureRoot, attacks, privilegeScan.findings),
     ...validateSeedWitnessCoverage(privilegeScan.findings, attacks),
   ];
-  const outcomes = attacks.flatMap((attack) => runAttack({ attack, fixtureRoot }));
+  // An attack whose featureSets name an undeclared crate cannot be run: cargo rejects the
+  // invocation itself, and because that throws, every later attack goes unevaluated and the
+  // inventory errors computed above are never printed. Skipping the unrunnable entries keeps one
+  // bad row from masking the rest of the gate — the row is still reported as an inventory RED.
+  const declaredCrates = new Set(fixtureDependencyNames(root, fixtureRoot));
+  const runnable = attacks.filter((attack) => attack.featureSets.every((featureSet) => featureSet
+    .every((feature) => typeof feature !== 'string'
+      || !feature.includes('/')
+      || declaredCrates.has(feature.slice(0, feature.indexOf('/'))))));
+  const skipped = attacks.length - runnable.length;
+  if (skipped > 0) {
+    process.stderr.write(`[security-boundary] skipping ${skipped} unrunnable attack(s); see inventory REDs above\n`);
+  }
+  const outcomes = runnable.flatMap((attack) => runAttack({ attack, fixtureRoot }));
   const durationMs = Number(process.hrtime.bigint() - started) / 1_000_000;
   return { attacks, inventoryErrors, outcomes, durationMs };
 }
