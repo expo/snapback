@@ -4,7 +4,7 @@
 use snapback_engine::local::{
     LiveInvalidationAdmission, LiveSubscribeInput, LocalSnapback,
 };
-use snapback_server::auth::invocation::PreparedAuthority;
+use snapback_sync::auth::invocation::PreparedAuthority;
 
 fn attempt_independent_parts(
     snapback: &mut LocalSnapback,
