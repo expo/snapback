@@ -59,6 +59,7 @@ import {
 } from "../lane-controller.mjs";
 import {
   admissionIdentity,
+  allCampaignPorts,
   configuredExecutionBinding,
   createAdmissionArtifact,
   inspectCommittedSeriality,
@@ -2934,10 +2935,7 @@ async function makeFinalizeExistingFixture({
     ports: {
       checkedAt: issuedAt,
       unbound: true,
-      values: Array.from(
-        { length: sourceCell.ports[1] - sourceCell.ports[0] + 1 },
-        (_, index) => sourceCell.ports[0] + index,
-      ),
+      values: allCampaignPorts(sourceConfig),
     },
     harness: {
       key: sourceCell.harness,
