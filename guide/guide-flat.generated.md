@@ -1834,7 +1834,7 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
     people in one Node acceptance process, but every persona wrote as Henry."
     The run fails if it assumes separate client objects imply separate durable
     custody or omits one stable `storagePartition` per actor.
-    Expected pages: `recipes/multi-persona-clients.md`.
+    Expected pages: `recipes/multi-persona-clients.md`, `clients/headless.md`.
     Route terms: "every persona wrote as Henry", "multiple clients same session", "personas share login", "storagePartition", "process-global in Node", "multi-persona harness".
     Required guidance: "one stable explicit storagePartition per persona or worker", "DEFAULT_AUTH_STORAGE_PARTITION".
 
@@ -2060,10 +2060,11 @@ miss and binds it to the runtime warning rather than prose alone.
     the same user after another persona signed in?" The run fails if it treats
     the warning as a refusal, proposes clearing shared custody as the default
     repair, or omits the stable per-persona partition.
-    Expected pages: `recipes/multi-persona-clients.md`.
+    Expected pages: `recipes/multi-persona-clients.md`, `clients/headless.md`.
     Route terms: "second client same user", "multiple clients same session",
     "personas share login", "SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE".
-    Required guidance: "one stable explicit storagePartition per persona or worker".
+    Required guidance: "one stable explicit storagePartition per persona or worker",
+    "storagePartition".
     Exact diagnostic target: `SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE` ->
     `/_snapback/guide/clients/headless.md#construct-one-client-per-backend-and-custody-context`.
 
@@ -2123,9 +2124,9 @@ Case 92 absorbs the first-party guest-session entry closure from LLP 0294 W6.1.
     out." The run fails if it invents an Expo-only auth owner, supplies ids,
     expiry, or cleanup from the client, weakens custody, or merges into an
     existing password identity.
-    Expected pages: `auth/sessions-and-principals.md`.
+    Expected pages: `auth/sessions-and-principals.md`, `auth/passwords.md`.
     Route terms: "enterAsGuest", "claimGuestWithPassword", "guest entry".
-    Required guidance: "A caller never supplies the principal id, session id, expiry, or cleanup policy", "An existing password identity refuses".
+    Required guidance: "A caller never supplies the principal id, session id, expiry, or cleanup policy", "An existing password identity refuses", "SNAPBACK_AUTH_GUEST_CLAIM_COLLISION".
 
 Cases 93–96 absorb the 2026-08-24 Familiar auth-entrypoint and volatile
 activity-presence guide gaps. Their route terms preserve the vocabulary used
@@ -2177,14 +2178,15 @@ React/JS product blank is not yet explained.
     empty canonical post-settlement snapshot. It must not fail a page merely
     for recommending `defineJsLiveQuery` plus a local cache as the documented
     application workaround while the Clique path remains unexplained.
-    Expected pages: `realtime/live-queries.md`.
+    Expected pages: `realtime/live-queries.md`, `backend/queries.md`.
     Route terms: "blank after insert", "Loading thread", "live_delta empty".
     Required guidance: "HostPlan matching inserts are guaranteed",
     "Clique still observed a blank",
     "Never put a provisional id on a point query",
     "Wait for live delivery only when subscribed before the insert",
     "A post-settlement subscribe with the canonical id must snapshot the row",
-    "defineJsLiveQuery plus a local cache remains the documented application workaround".
+    "defineJsLiveQuery plus a local cache remains the documented application workaround",
+    "defineJsLiveQuery plus a local cache".
 
 Cases 98–101 absorb the published 0.1.27 Clique guide misses recorded in LLP
 0310. Their route terms preserve the failed lookup and the wrong package,
@@ -2211,13 +2213,14 @@ platform, and generated-directory assumptions from that run.
 
 100. **URL-first activity presence import:** "Which package exports activity
      presence for URL-first Expo web with SnapbackProvider?"
-     The run fails if it claims the facade requires `SnapbackExpoProvider`,
-     loses background withdrawal by choosing the React hook when AppState
-     withdrawal matters, or invents a third hook.
+     The run fails if it omits the paved React import, falsely claims the Expo
+     facade expects `SnapbackExpoLifecycleContext`, or misses the browser
+     AppState fallback available when background withdrawal matters.
      Expected pages: `backend/familiar-profile.md`, `realtime/ephemeral-state.md`, `recipes/activity-presence.md`.
      Route terms: "URL-first activity presence", "browser AppState resolver".
-     Required guidance: "Either hook works for URL-first web under a bare `SnapbackProvider`",
-     "The Expo facade keeps AppState-driven background withdrawal; the React hook does not".
+     Required guidance: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`",
+     "The Expo facade also works under a bare `SnapbackProvider` via the browser AppState fallback".
+     Rejected guidance: "expects SnapbackExpoLifecycleContext".
 
 101. **Durable custody in Node acceptance:** "Run expo-chat acceptance with
      durable-required custody from Node."
@@ -8566,13 +8569,15 @@ Enclave/Keystore proof transport remains outside the shipped native target.
 
 ## One Expo Router journey
 
-Either hook works for URL-first web under a bare `SnapbackProvider`.
-`@expo/snapback-expo`'s `useSnapbackActivityPresence` falls back to the browser
-AppState resolver when no Expo lifecycle context exists, so the Expo facade
-keeps AppState-driven background withdrawal; the React hook does not. Import
-the facade when that withdrawal matters, or use the React hook for the same
-activity deadline without the platform lifecycle listener. Do not invent a
-third hook.
+For URL-first web under a bare `SnapbackProvider`, import
+`useSnapbackActivityPresence` from `@expo/snapback-react`; that is the paved
+choice. The `@expo/snapback-expo` facade is the provider-owned choice in a
+`SnapbackExpoProvider` tree. The Expo facade also works under a bare
+`SnapbackProvider` via the browser AppState fallback, using the browser AppState resolver;
+use that fallback when AppState-driven background
+withdrawal matters. The React hook keeps the same
+activity deadline but does not add platform-lifecycle withdrawal. Do not
+invent a third hook.
 Search vocabulary: URL-first activity presence.
 
 Here is the shortest coherent application loop, rather than six disconnected
@@ -14412,8 +14417,9 @@ operations, or a one-off verification script.
 > **Multiple Node clients can share one login.** App clients in one process
 > share durable auth custody when both their app identity and
 > `storagePartition` match; the implicit partition is `"default"`. A
-> multi-persona harness must assign one stable partition per actor or every
-> client may restore the same principal. Once multiple implicit-default handles
+> multi-persona harness must assign one stable explicit `storagePartition` per persona or worker,
+> or every client may restore the same principal. Once
+> multiple implicit-default handles
 > share an authenticated durable owner — whether construction happened before
 > or after sign-in — the client emits the bounded warning
 > `SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE`. Follow the
@@ -24551,13 +24557,16 @@ First decide whether the value is continuously bound or activity-driven. The
 and lifecycle guide, including the Supabase `track()` analogue, bound `skip`
 withdrawal, `idleMs` product deadline, heartbeat ownership, and delete path.
 
-Either hook works for URL-first web under a bare `SnapbackProvider`.
-`@expo/snapback-expo`'s facade falls back to the browser AppState resolver when
-no Expo lifecycle context exists, gates the first publication until observation
-is established, and withdraws on backgrounding. The Expo facade keeps
-AppState-driven background withdrawal; the React hook does not. The direct
-React hook still has the same activity deadline state machine; do not invent a
-third hook.
+For URL-first web under a bare `SnapbackProvider`, import
+`useSnapbackActivityPresence` from `@expo/snapback-react`; that is the paved
+choice. The `@expo/snapback-expo` facade is the provider-owned choice in a
+`SnapbackExpoProvider` tree. The Expo facade also works under a bare
+`SnapbackProvider` via the browser AppState fallback: its browser AppState
+resolver gates the first publication until observation is established and
+withdraws on backgrounding.
+Use that fallback when AppState-driven background withdrawal matters. The
+React hook keeps the same activity deadline without the platform lifecycle
+listener; do not invent a third hook.
 
 The messaging demo has one deliberate direct-client exception. Its interactive
 server uses dev-mode persona assertions, while the `typing` collection also
@@ -29020,12 +29029,15 @@ five-second TTL or acceptance ceiling does not make that value disappear after
 five seconds of no typing. Bound withdrawal is `skip`; `null` is a value publish
 attempt and fails the generated value contract.
 
-Either hook works for URL-first web under a bare `SnapbackProvider`. The
-`@expo/snapback-expo` facade falls back to the browser AppState resolver when
-no Expo lifecycle context exists. The Expo facade keeps AppState-driven
-background withdrawal; the React hook does not. Choose the facade when that
-withdrawal matters, or the React hook for the same activity deadline without
-the platform lifecycle listener. There is no third activity-presence hook.
+For URL-first web under a bare `SnapbackProvider`, import
+`useSnapbackActivityPresence` from `@expo/snapback-react`; that is the paved
+choice. The `@expo/snapback-expo` facade is the provider-owned choice in a
+`SnapbackExpoProvider` tree. The Expo facade also works under a bare
+`SnapbackProvider` via the browser AppState fallback, using the browser
+AppState resolver; use that fallback when AppState-driven background
+withdrawal matters. The React hook keeps the same
+activity deadline without the platform lifecycle listener. There is no third
+activity-presence hook.
 
 This is the usual cause of a “typing indicator stuck” or “presence not
 expiring” report. The heartbeat-vs-bound-value decision comes before choosing

@@ -43,9 +43,10 @@ function toDeliveredForm(packet) {
   return packet
     .replaceAll('](./', '](/_snapback/guide/start/')
     .replaceAll('](../', '](/_snapback/guide/')
-    .replace(
-      /Reuse this\s+\[`expo-web` with `fake-indexeddb` helper\]\(repo:packages\/snapback-cli\/templates\/expo-chat\/acceptance\.mjs\);/u,
-      'Reuse the local `acceptance.mjs` `expo-web` with `fake-indexeddb`\n  helper;',
+    // Template-owned repo links become scaffold-relative without rewriting prose.
+    .replaceAll(
+      /\]\(repo:packages\/snapback-cli\/templates\/[^/]+\/([^)]+)\)/gu,
+      '](./$1)',
     );
 }
 

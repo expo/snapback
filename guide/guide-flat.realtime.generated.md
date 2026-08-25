@@ -382,13 +382,16 @@ First decide whether the value is continuously bound or activity-driven. The
 and lifecycle guide, including the Supabase `track()` analogue, bound `skip`
 withdrawal, `idleMs` product deadline, heartbeat ownership, and delete path.
 
-Either hook works for URL-first web under a bare `SnapbackProvider`.
-`@expo/snapback-expo`'s facade falls back to the browser AppState resolver when
-no Expo lifecycle context exists, gates the first publication until observation
-is established, and withdraws on backgrounding. The Expo facade keeps
-AppState-driven background withdrawal; the React hook does not. The direct
-React hook still has the same activity deadline state machine; do not invent a
-third hook.
+For URL-first web under a bare `SnapbackProvider`, import
+`useSnapbackActivityPresence` from `@expo/snapback-react`; that is the paved
+choice. The `@expo/snapback-expo` facade is the provider-owned choice in a
+`SnapbackExpoProvider` tree. The Expo facade also works under a bare
+`SnapbackProvider` via the browser AppState fallback: its browser AppState
+resolver gates the first publication until observation is established and
+withdraws on backgrounding.
+Use that fallback when AppState-driven background withdrawal matters. The
+React hook keeps the same activity deadline without the platform lifecycle
+listener; do not invent a third hook.
 
 The messaging demo has one deliberate direct-client exception. Its interactive
 server uses dev-mode persona assertions, while the `typing` collection also

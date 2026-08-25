@@ -26,8 +26,15 @@ Resolved the documentation slice after checking LLP 0257 and
 `packages/snapback-expo/activity-presence.mjs`. The independently runnable
 `activity-presence-bare-provider.test.mjs` renders the facade hook under a bare
 `SnapbackProvider`, exercises the conditional browser AppState resolver, and
-proves backgrounding invokes withdrawal. Therefore either export works
-URL-first, but only the Expo facade keeps AppState-driven background withdrawal.
-The Familiar profile, ephemeral-state page, activity-presence recipe, and
-retrieval case 100 now state that contract and do not reject the Expo import.
-The generation-fence product change was not implemented or tested in this lane.
+proves backgrounding invokes withdrawal. The documented paved choice remains
+`@expo/snapback-react` for URL-first web under a bare `SnapbackProvider`,
+matching LLP 0310.000 Ruling 3. The Expo facade is the provider-owned choice for
+`SnapbackExpoProvider` trees and also works under a bare provider through its
+browser AppState fallback; use that fallback when AppState-driven background
+withdrawal matters. The Familiar profile, ephemeral-state page,
+activity-presence recipe, and retrieval case 100 now state both facts. The
+generation-fence product change was not implemented or tested in this lane.
+
+Follow-up for the RFC owner: Ruling 3's Expo-facade wording could be amended to
+mention the proven bare-provider browser AppState fallback. This docs lane does
+not edit the RFC.

@@ -20,10 +20,12 @@ old path. Keep a one-line note that `_generated/` is a refused alias.
 
 ## Resolution (2026-08-25)
 
-Resolved the guide work. The Familiar profile, expo-chat start packet, and
-four Clique-facing source briefs use `generated/` and state that
-`_generated/` is a refused alias. Retrieval case 98 replaces the dead wrong
-guess with the teaching pages' existing "refused alias" vocabulary, and the
+Resolved the guide work. `guide/backend/familiar-profile.md`, the live
+`guide/start/expo-chat.md` packet and its generated
+`packages/snapback-cli/templates/expo-chat/AGENTS.md` projection, and the live
+`benchmarks/runs/2026-08-17-model-profile-app-matrix/template-clique-familiar.md`
+brief use `generated/` and state that `_generated/` is a refused alias.
+Retrieval case 98 uses the teaching pages' "refused alias" vocabulary, and the
 per-page guidance check verifies that both named guide pages retain the
-correction. This resolution changes documentation only; it does not make a
-new codegen claim.
+correction. Frozen run prompts remain unchanged. This resolution changes
+documentation only; it does not make a new codegen claim.
