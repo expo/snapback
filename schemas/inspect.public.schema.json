@@ -5168,12 +5168,14 @@
           "type": "boolean"
         },
         "authorityProfileDependence": {
+          "description": "Omission is the canonical zero-value encoding and means `[]`.",
           "items": {
             "$ref": "#/$defs/AuthorityProfileIdentityV1"
           },
           "type": "array"
         },
         "authorizationDependence": {
+          "description": "Omission is the canonical zero-value encoding and means `[]`.",
           "items": {
             "$ref": "#/$defs/AuthorizationInputDimension"
           },
@@ -5284,6 +5286,7 @@
           "type": "array"
         },
         "stream": {
+          "description": "Omission is the canonical zero-value encoding and means `false`.",
           "type": "boolean"
         },
         "syncabilityClass": {
@@ -5306,7 +5309,6 @@
         "id",
         "name",
         "kind",
-        "stream",
         "sequences",
         "resultContract",
         "requiredCapabilities",
@@ -5315,8 +5317,6 @@
         "rqsEligible",
         "authorityCreating",
         "retainable",
-        "authorizationDependence",
-        "authorityProfileDependence",
         "readSetSummary",
         "writeSetSummary",
         "permissionEpochBumps",

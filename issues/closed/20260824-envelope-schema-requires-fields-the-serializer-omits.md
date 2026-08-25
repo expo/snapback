@@ -1,6 +1,6 @@
 # API envelope schema requires fields the Rust serializer omits at their zero values
 
-**Status:** Open
+**Status:** Closed
 **Systems:** Contract, Rust core, Verification
 **Date:** 2026-08-24
 **Source:** dual code review (codex gpt-5.6-sol xhigh) of the app-api-md
@@ -42,3 +42,21 @@ committed, but not the production encoding.
 Either way, add a conformance case that validates a *serializer-produced*
 zero-value envelope against the schema, so the encoding and the schema cannot
 drift apart silently again.
+
+## Resolution (2026-08-25)
+
+The schema was generated from `PublicFunctionDefinition`, but schemars treated
+the three serde-omitted zero-value fields as required. The Rust source now
+declares their schema defaults and documents the wire interpretation: omitted
+`stream` means `false`, while omitted `authorizationDependence` and
+`authorityProfileDependence` mean `[]`. Regenerating the schema removes those
+properties from `required` without changing serialized envelopes or their
+digests.
+
+Rust conformance coverage now constructs and serializes a zero-value function,
+composes a real API envelope, confirms the fields are absent, and validates it
+against the committed schema. The app API Markdown `--server` test likewise
+serves the omission form. Focused fail-first runs rejected the omitted fields
+before the schemars fix; afterward the snapback-types regression passed 1/1,
+the complete `artifact_schemas_v0` test passed 40/40, and the Markdown generator
+suite passed 7/7. Generated-artifact, inventory, and guide checks also passed.

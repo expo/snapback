@@ -9389,7 +9389,9 @@ pub struct PublicFunctionDefinition {
     #[serde(rename = "exportedName")]
     pub exported_name: Option<String>,
     pub kind: FunctionKind,
+    /// Omission is the canonical zero-value encoding and means `false`.
     #[serde(skip_serializing_if = "is_false")]
+    #[schemars(default)]
     pub stream: bool,
     #[serde(rename = "handlerForm", skip_serializing_if = "Option::is_none")]
     pub handler_form: Option<String>,
@@ -9435,15 +9437,19 @@ pub struct PublicFunctionDefinition {
     pub retainable: bool,
     #[serde(rename = "retentionClass", skip_serializing_if = "Option::is_none")]
     pub retention_class: Option<String>,
+    /// Omission is the canonical zero-value encoding and means `[]`.
     #[serde(
         rename = "authorizationDependence",
         skip_serializing_if = "Vec::is_empty"
     )]
+    #[schemars(default)]
     pub authorization_dependence: Vec<AuthorizationInputDimension>,
+    /// Omission is the canonical zero-value encoding and means `[]`.
     #[serde(
         rename = "authorityProfileDependence",
         skip_serializing_if = "Vec::is_empty"
     )]
+    #[schemars(default)]
     pub authority_profile_dependence: Vec<AuthorityProfileIdentityV1>,
     #[serde(
         rename = "generatedAuthorityOperation",
@@ -14872,5 +14878,50 @@ mod media_ref_manifest_tests {
             error.diagnostic.code,
             "SNAPBACK_MEDIA_PROJECTION_SNAPSHOT_UNAVAILABLE"
         );
+    }
+}
+
+#[cfg(test)]
+mod public_projection_schema_tests {
+    use super::*;
+
+    #[test]
+    fn public_projection_schema_accepts_omitted_zero_value_function_facts() {
+        let function = FunctionDefinition::new(
+            "zeroFacts",
+            FunctionKind::Query,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: "globalThis.__snapbackHandlers = {};".to_owned(),
+                export: "zeroFacts".to_owned(),
+            }),
+        );
+        let public = serde_json::to_value(PublicFunctionDefinition::from(function))
+            .expect("serialize public function projection");
+        for field in [
+            "stream",
+            "authorizationDependence",
+            "authorityProfileDependence",
+        ] {
+            assert!(
+                public.get(field).is_none(),
+                "the zero-value public projection must omit {field}"
+            );
+        }
+
+        let schema = serde_json::to_value(schemars::schema_for!(PublicFunctionDefinition))
+            .expect("serialize public function schema");
+        let required = schema["required"]
+            .as_array()
+            .expect("public function required fields");
+        for field in [
+            "stream",
+            "authorizationDependence",
+            "authorityProfileDependence",
+        ] {
+            assert!(
+                !required.iter().any(|required| required == field),
+                "the schema must treat omitted {field} as its zero value"
+            );
+        }
     }
 }
