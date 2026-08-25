@@ -1,0 +1,18 @@
+{
+  "status": "passed",
+  "receiptRows": [
+    "ios-native-reader",
+    "ios-rotation-replacement",
+    "browser-origin-redemption-refusal",
+    "tunneled-raw-http-isolation",
+    "post-rotation-refusal",
+    "replay-refusal"
+  ],
+  "device": {
+    "class": "simulator"
+  },
+  "format": "snapback.expo-dev-identity-witness.v1",
+  "row": "run-summary",
+  "platform": "ios",
+  "capturedAt": "2026-08-25T15:07:04.419Z"
+}

@@ -985,9 +985,10 @@ export function installAndroidPortForwarding(plan, {
 
 // @ref LLP 0262#d2-carriers-per-shipped-topology — checkout nonces travel
 // only in native process-launch custody: simctl child environment for iOS and
-// one selected serial's Activity extras for Android. Only after that launch
-// succeeds does the supervisor open the non-secret Metro development-client
-// URL. This helper has no web arm and never receives the dev-identity
+// one selected serial's Activity extras for Android. The non-secret Metro
+// development-client URL rides the same iOS launch argument (avoiding the
+// iOS 26 confirmation imposed on `simctl openurl`) or a subsequent Android
+// intent. This helper has no web arm and never receives the dev-identity
 // capability itself.
 export function launchExpoNativeCheckout(plan, nonce, {
   xcrunBinary = 'xcrun',
@@ -1037,6 +1038,8 @@ export function launchExpoNativeCheckout(plan, nonce, {
       '--terminate-running-process',
       iosSimulator,
       iosBundleIdentifier,
+      '--initialUrl',
+      developmentClientUrl,
     ], {
       encoding: 'utf8',
       timeout: 30_000,
@@ -1071,6 +1074,10 @@ export function launchExpoNativeCheckout(plan, nonce, {
       'am',
       'start',
       '-S',
+      // Wait for the forced restart to reach the Activity before delivering
+      // the development-client URL. Without `-W`, Android can accept both
+      // commands but discard the second intent while the process is starting.
+      '-W',
       '-n',
       androidComponent,
       '--es',
@@ -1093,14 +1100,8 @@ export function launchExpoNativeCheckout(plan, nonce, {
       },
     );
   }
-  const openResult = plan.platform === 'ios'
-    ? run(xcrunBinary, [
-      'simctl',
-      'openurl',
-      iosSimulator,
-      developmentClientUrl,
-    ], { encoding: 'utf8', timeout: 30_000, env })
-    : run(adbBinary, [
+  const openResult = plan.platform === 'android'
+    ? run(adbBinary, [
       '-s',
       plan.androidSerial,
       'shell',
@@ -1110,8 +1111,9 @@ export function launchExpoNativeCheckout(plan, nonce, {
       'android.intent.action.VIEW',
       '-d',
       developmentClientUrl,
-    ], { encoding: 'utf8', timeout: 30_000, env });
-  if (openResult?.error || openResult?.status !== 0) {
+    ], { encoding: 'utf8', timeout: 30_000, env })
+    : null;
+  if (openResult !== null && (openResult.error || openResult.status !== 0)) {
     throw diagnosticError(
       'SNAPBACK_EXPO_NATIVE_LAUNCH_FAILED',
       'the selected native Expo target could not open the supervised Metro development-client URL',

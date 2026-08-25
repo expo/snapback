@@ -1,0 +1,17 @@
+{
+  "appFormat": "snapback.expo-dev-identity-witness-app.v1",
+  "appRow": "native-reader",
+  "status": "passed",
+  "hookInstalledBeforeApplicationModule": true,
+  "checkoutHeaderPresented": true,
+  "devIdentityHeaderPresented": true,
+  "devIdentityAdmissionAccepted": true,
+  "checkoutRedeemed": true,
+  "sessionBearerPresented": true,
+  "queryAccepted": true,
+  "rowCount": 0,
+  "format": "snapback.expo-dev-identity-witness.v1",
+  "row": "ios-native-reader",
+  "platform": "ios",
+  "capturedAt": "2026-08-25T15:07:01.165Z"
+}

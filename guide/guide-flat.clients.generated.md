@@ -826,11 +826,12 @@ per-boot capability as `devIdentityCapability`; the client sends its dedicated
 `/connection/open`, never on admin-token-gated host operations. The demo
 server kit validates the ready descriptor's `devIdentityCapabilityFile`, reads
 the owner-only sidecar, and exposes both `server.devIdentityCapability` and
-`server.clientOptions` for direct construction. LLP 0262 rollout stage 1 still
+`server.clientOptions` for direct construction. LLP 0262 rollout stage 2 still
 accepts a client whose kit or older server has no carrier, with one server
-warning per boot; a presented bad value already receives the generic
-`SNAPBACK_DEV_IDENTITY_REFUSED`, and absence becomes a refusal only after the
-supported-carrier acceptance witness permits the enforce-stage flip.
+warning per boot naming the committed enforcement flip; a presented bad value
+already receives the generic `SNAPBACK_DEV_IDENTITY_REFUSED`, and absence
+becomes a refusal only after every supported carrier's acceptance witness
+permits that flip.
 
 ```js source=packages/snapback-client/index.mjs
     bearerToken = null,
@@ -3996,10 +3997,11 @@ checkout nonce through the native-only launch channel, and the Expo facade
 redeems it into private client custody. The nonce and bearer are removed from
 Metro and Expo web environments; Expo web receives no capability through the
 browser bootstrap and needs a relay-stamping front for dev identity, while its
-ordinary supervised sessions path is unaffected. LLP 0262 stage 1 still
-accepts an absent capability with the server's once-per-boot warning; a
-presented invalid capability is refused now, and enforcement waits for the
-acceptance suite to witness every supported carrier.
+ordinary supervised sessions path is unaffected. LLP 0262 stage 2 still
+accepts an absent capability with the server's once-per-boot warning naming the
+committed enforcement flip; a presented invalid capability is refused now,
+and enforcement waits for the acceptance suite to witness every supported
+carrier.
 
 ### Settle the backend into Sessions mode first
 

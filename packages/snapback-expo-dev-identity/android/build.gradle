@@ -13,3 +13,9 @@ android {
     versionName '0.1.0'
   }
 }
+
+dependencies {
+  // ReactActivityHandler's callback types live in react-android; the Expo
+  // module plugin does not put them on a library module's compile classpath.
+  implementation 'com.facebook.react:react-android'
+}

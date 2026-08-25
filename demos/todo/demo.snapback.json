@@ -69,6 +69,7 @@
   },
   "acceptanceChecks": {
     "headless": [
+      "ready-descriptor dev-identity custody admits the current boot and generically refuses a mismatched capability",
       "schema load (no error diagnostics)",
       "generated function references load + inspectable",
       "deterministic reset + declarative seed",

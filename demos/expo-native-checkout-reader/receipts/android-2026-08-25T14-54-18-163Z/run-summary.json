@@ -1,0 +1,19 @@
+{
+  "status": "passed",
+  "receiptRows": [
+    "android-native-reader",
+    "android-rotation-replacement",
+    "browser-origin-redemption-refusal",
+    "tunneled-raw-http-isolation",
+    "post-rotation-refusal",
+    "replay-refusal"
+  ],
+  "device": {
+    "class": "emulator",
+    "serial": "emulator-5554"
+  },
+  "format": "snapback.expo-dev-identity-witness.v1",
+  "row": "run-summary",
+  "platform": "android",
+  "capturedAt": "2026-08-25T14:54:36.365Z"
+}

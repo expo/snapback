@@ -1263,6 +1263,42 @@ async fn embedded_serving_emits_resolved_exposure_warning_once() {
     server.await.expect("embedded warning server joins");
 }
 
+#[tokio::test]
+async fn fronted_unset_profile_serves_with_production_refusal_and_no_warning() {
+    let context = crate::admin::ServerContext::new_with_resolved_environment(
+        "127.0.0.1",
+        0,
+        true,
+        None,
+        crate::admin::resolve_exposure(Some("fronted")),
+    );
+    assert_eq!(context.profile, ServerProfile::Prod);
+    let warning_witness = context.clone();
+    let state = AppState::try_from_snapback(
+        LocalSnapback::memory().expect("fronted production test instance"),
+        context,
+    )
+    .expect("fronted production app state");
+    let response = super::app(state)
+        .oneshot(
+            Request::builder()
+                .uri("/inspect")
+                .body(Body::empty())
+                .expect("fronted inspect request"),
+        )
+        .await
+        .expect("fronted inspect response");
+    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(
+        response_json(response).await["diagnostic"]["code"],
+        "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+    );
+    assert!(
+        !warning_witness.emit_startup_warning_once(),
+        "fronted with an unset profile resolves silently to production"
+    );
+}
+
 #[test]
 fn already_terminal_session_errors_preserve_exact_durable_disposition() {
     let cap = already_terminal_session_error(Some(RevocationReason::CapEviction));

@@ -1,8 +1,8 @@
-# Expo native dev-identity checkout witness report
+# Expo dev-identity checkout witness report
 
-Implementation is present; live native receipts are pending. Run these commands
-from the repository root on the orchestrator host (never from the agent
-sandbox).
+Implementation and live Expo-web, iOS-simulator, and Android-emulator receipts
+are present. Use these commands to reproduce a machine-runnable row or to
+obtain the still-missing physical Android USB witness.
 
 ## Prepare the runtime and witness dependencies
 
@@ -28,6 +28,17 @@ refusal, tunneled bootstrap secret isolation, replay refusal, and refusal of an
 unspent checkout after backend rotation. It does not emit the full Expo web
 isolation row described below.
 
+## Expo web in real Chrome
+
+```sh
+SNAPBACK_RUNTIME_BINARY="$PWD/../../../target/debug/snapback" node ../scripts/run-witness.mjs --platform web
+```
+
+This launches the real Expo web bundle in Chrome. The receipt proves ordinary
+session query admission while the native checkout hook/capability and
+dev-identity header remain absent, plus browser-transport and generic host-side
+refusal for a direct invalid dev-identity assertion.
+
 ## Android emulator
 
 ```sh
@@ -51,20 +62,23 @@ classified it as `emulator` or `usb`; the supervisor installs and verifies the
 three exact per-serial `adb reverse` routes, while the harness owns one separate
 per-serial reverse route for its value-free receipt sink.
 
-## Rows awaiting live orchestrator runs
+## Retained and outstanding rows
 
-- iOS simulator native reader and rotation replacement.
-- Android emulator native reader and rotation replacement.
+- iOS simulator native reader and rotation replacement: passed in
+  `receipts/ios-2026-08-25T15-06-51-734Z/`.
+- Android emulator native reader and rotation replacement: passed in
+  `receipts/android-2026-08-25T14-54-18-163Z/`.
+- Expo web ordinary-session isolation and direct refusal: passed in
+  `receipts/web-2026-08-25T14-49-42-653Z/`.
 - Android physical USB native reader and rotation replacement (explicit
   nonclaim until hardware is available).
 - Replay refusal, unspent post-rotation refusal, the narrow server-side
   browser-Origin redemption refusal, and tunneled bootstrap secret isolation
-  alongside each native run.
-- Full Expo web isolation remains explicitly pending: it requires the real Expo
-  web bundle running in a browser context. The Node `fetch` Origin-gate probe is
-  retained only as `browser-origin-redemption-refusal` and is not that row.
+  passed alongside both retained native runs.
+- The Node `fetch` Origin-gate probes retained beside native receipts remain
+  narrower than the separately retained real-browser Expo-web row.
 
-## Verification run for this implementation
+## Prior 2026-08-16 verification record
 
 The following are the verbatim JS/static verification commands run for this
 change:
@@ -95,15 +109,16 @@ an invalid built-in `localStorage` without `--no-experimental-webstorage`.
 `ref-check` reported 272 LLP documents, 5,753 references, and zero errors or
 unchecked references. The package inventory reports 301 declared test files.
 
-Static witness preparation also passed: Snapback generation completed without
-warnings, Expo prebuilt both native targets, and autolinking resolved the iOS
-module/app-delegate subscriber plus the Android module/lifecycle package. No
-native build, simulator, emulator, USB launch, or live receipt was attempted in
-the sandbox.
+In that prior run, static witness preparation also passed: Snapback generation
+completed without warnings, Expo prebuilt both native targets, and autolinking
+resolved the iOS module/app-delegate subscriber plus the Android
+module/lifecycle package. No native build, simulator, emulator, USB launch, or
+live receipt was attempted in that sandbox run. The current retained receipts
+above supersede that nonclaim.
 
-Two additional repository-wide diagnostics remain inherited and unrelated to
-this implementation: `node scripts/check-inventories.mjs` reports missing
+That prior run also recorded two repository-wide diagnostics unrelated to its
+implementation: `node scripts/check-inventories.mjs` reported missing
 generated Guide/demo inputs plus stale diagnostics projections, and
-`node scripts/check-package-export-types.mjs` reports the existing
+`node scripts/check-package-export-types.mjs` reported the existing
 `@expo/snapback-codegen/visibility-governance` export without a `types`
 condition.

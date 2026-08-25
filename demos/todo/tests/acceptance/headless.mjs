@@ -50,9 +50,39 @@ globalThis.__snapbackHandlers = {
 const server = await startServer({ port: 4399, db: ':memory:', cwd: repoRoot,
   provenance: { appId: 'todo', artifactsPath: join(repoRoot, 'demos', 'todo', 'snapback', 'generated', 'artifacts.json') } });
 const db = new SnapbackClient(server.baseUrl, server.clientOptions);
-const suite = createSuite('todo / headless', { expectedChecks: 24 });
+const suite = createSuite('todo / headless', { expectedChecks: 25 });
 
 try {
+  await suite.check('headless ready-descriptor capability admits only the witnessed boot', async () => {
+    assert(server.devIdentityCapability?.startsWith('sbdev_'), 'ready descriptor omitted dev identity capability');
+    assertEqual(
+      server.clientOptions.devIdentityCapability,
+      server.devIdentityCapability,
+      'headless client option did not use the harvested capability',
+    );
+    const open = (headers = {}) => fetch(`${server.baseUrl}/connection/open`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...headers },
+      body: '{}',
+    });
+    const accepted = await open({
+      'x-snapback-dev-identity': server.devIdentityCapability,
+    });
+    assertEqual(accepted.status, 200, 'current boot capability was not admitted');
+    const refused = await open({
+      'x-snapback-dev-identity': 'sbdev_headless_wrong_boot',
+    });
+    assertEqual(refused.status, 403, 'mismatched capability was not refused');
+    const refusal = await refused.json();
+    assertEqual(refusal.diagnostic?.code, 'SNAPBACK_DEV_IDENTITY_REFUSED', 'generic refusal code');
+    return {
+      carrier: 'ready-descriptor-sidecar',
+      acceptedStatus: accepted.status,
+      refusedStatus: refused.status,
+      refusalCode: refusal.diagnostic.code,
+    };
+  });
+
   await suite.check('health reports local ibex+sqlite target', async () => {
     const health = await db.health();
     assert(health.ok, 'server not ok');

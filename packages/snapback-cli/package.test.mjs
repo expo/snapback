@@ -379,8 +379,8 @@ try {
   }
   assert.equal(
     absentNotice,
-    `SNAPBACK_DEV_IDENTITY_ABSENT: no usable dev-identity capability was found at ${missingCapabilityPath}; continuing without it during Stage 1\n`,
-    'the path-bearing Stage-1 absence notice is emitted once per process',
+    `SNAPBACK_DEV_IDENTITY_ABSENT: no usable dev-identity capability was found at ${missingCapabilityPath}; continuing without it during Stage 2\n`,
+    'the path-bearing Stage-2 absence notice is emitted once per process',
   );
   assert.deepEqual(__test.devIdentityClientEnvironment(
     { PATH: '/fixture/bin' },

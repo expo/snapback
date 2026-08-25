@@ -8,7 +8,7 @@
 // restarting either process.
 
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
@@ -28,15 +28,13 @@ import { scaffoldApp } from './index.mjs';
 
 const packageDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(packageDir, '..', '..');
+const cli = join(packageDir, 'cli.mjs');
 const runtimeBinary = process.env.SNAPBACK_RUNTIME_BINARY
   ?? join(repoRoot, 'target', 'debug', 'snapback');
 assert.ok(
   existsSync(runtimeBinary),
   `native snapback binary missing at ${runtimeBinary}; run \`cargo build --bin snapback\` or set SNAPBACK_RUNTIME_BINARY`,
 );
-
-const ADA = 'user_ada';
-const auth = (userId) => ({ principal: userId, session_id: null, user_id: userId, permissions: [] });
 
 function freePort() {
   return new Promise((resolvePort, rejectPort) => {
@@ -192,7 +190,7 @@ console.log(JSON.stringify({ event: 'client-listening', origin: 'http://127.0.0.
   const relay = `${clientOrigin}/__snapback`;
 
   dev = spawn(process.execPath, [
-    join(packageDir, 'cli.mjs'),
+    cli,
     'dev', 'snapback',
     '--ready-file', readyFile,
     '--db', database,
@@ -261,23 +259,87 @@ console.log(JSON.stringify({ event: 'client-listening', origin: 'http://127.0.0.
   assert.equal(status1.client.running, true);
   assert.equal(status1.client.pid, clientPid);
   const serverUrl = status1.server.serverUrl;
+  const readRawDevIdentityCapability = () => {
+    const descriptor = JSON.parse(readFileSync(readyFile, 'utf8'));
+    const expected = `${database}.dev-identity`;
+    assert.equal(descriptor.devIdentityCapabilityFile, expected);
+    const capability = readFileSync(expected, 'utf8').trim();
+    assert.match(capability, /^sbdev_[A-Za-z0-9._~-]+$/u);
+    return capability;
+  };
+  const openDirect = (directBackendUrl, capability) => fetch(`${directBackendUrl}/connection/open`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-snapback-auth-client-protocol': '1',
+      'x-snapback-dev-identity': capability,
+    },
+    body: '{}',
+  });
+  const assertOpenAdmitted = async (response, label) => {
+    const body = await response.clone().text();
+    assert.equal(response.status, 200, `${label}: HTTP ${response.status}: ${body}`);
+  };
+  const witnessDevIdentityRelay = async (directBackendUrl, label) => {
+    const supplied = 'sbdev_browser_input_must_be_overwritten';
+    const direct = await openDirect(directBackendUrl, supplied);
+    assert.equal(direct.status, 403, `${label}: client-supplied capability reached the backend`);
+    assert.equal((await direct.json()).diagnostic?.code, 'SNAPBACK_DEV_IDENTITY_REFUSED');
+    const relayed = await fetch(`${relay}/connection/open`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-snapback-auth-client-protocol': '1',
+        'x-snapback-dev-identity': supplied,
+      },
+      body: '{}',
+    });
+    assert.equal(relayed.status, 200, `${label}: managed relay did not stamp current custody`);
+    assert.equal(relayed.headers.get('x-snapback-dev-identity'), null);
+    assert.equal((await relayed.text()).includes('sbdev_'), false);
+  };
+  const initialRawCapability = readRawDevIdentityCapability();
+  await assertOpenAdmitted(await openDirect(serverUrl, initialRawCapability), 'initial raw sidecar');
+  await witnessDevIdentityRelay(serverUrl, 'initial managed boot');
+  console.log('raw sidecar client and managed Vite relay both present current dev-identity custody');
   console.log('status verb reports server, last-load, and client-arm facts');
 
   // --- app data through the client surface -----------------------------------
+  const devSession = spawnSync(process.execPath, [
+    cli,
+    'auth', 'dev-session',
+    '--ready-file', readyFile,
+    '--email', 'dev-loop@example.test',
+    '--json',
+  ], {
+    cwd: project,
+    encoding: 'utf8',
+    env: { ...process.env, SNAPBACK_RUNTIME_BINARY: runtimeBinary },
+    timeout: 60_000,
+  });
+  assert.equal(devSession.status, 0, devSession.stderr);
+  const { bearer: devSessionBearer } = JSON.parse(devSession.stdout);
+  assert.equal(typeof devSessionBearer, 'string');
+  const appHeaders = {
+    authorization: `Bearer ${devSessionBearer}`,
+    'content-type': 'application/json',
+    'x-snapback-auth-client-protocol': '1',
+  };
   const mutate = async (title) => {
     const response = await fetch(`${relay}/mutation/createTodo`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ args: { title }, auth: auth(ADA), read_set: [] }),
+      headers: appHeaders,
+      body: JSON.stringify({ args: { title }, read_set: [] }),
     });
-    assert.equal(response.ok, true, `createTodo ${title}: HTTP ${response.status}`);
+    const failureBody = response.ok ? '' : await response.clone().text();
+    assert.equal(response.ok, true, `createTodo ${title}: HTTP ${response.status}: ${failureBody}`);
     return response.json();
   };
   const listTitles = async () => {
     const response = await fetch(`${relay}/query/listTodos`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ args: {}, auth: auth(ADA), read_set: [] }),
+      headers: appHeaders,
+      body: JSON.stringify({ args: {}, read_set: [] }),
     });
     assert.equal(response.ok, true, `listTodos: HTTP ${response.status}`);
     const body = await response.json();
@@ -297,8 +359,8 @@ console.log(JSON.stringify({ event: 'client-listening', origin: 'http://127.0.0.
   });
   const runtimeTypoResponse = await fetch(`${relay}/mutation/runtimeTypo`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ args: {}, auth: auth(ADA), read_set: [] }),
+    headers: appHeaders,
+    body: JSON.stringify({ args: {}, read_set: [] }),
   });
   assert.equal(runtimeTypoResponse.status, 400);
   const runtimeTypo = await runtimeTypoResponse.json();
@@ -314,8 +376,8 @@ console.log(JSON.stringify({ event: 'client-listening', origin: 'http://127.0.0.
   });
   const removedRuntimeTypoResponse = await fetch(`${relay}/mutation/runtimeTypo`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ args: {}, auth: auth(ADA), read_set: [] }),
+    headers: appHeaders,
+    body: JSON.stringify({ args: {}, read_set: [] }),
   });
   assert.equal(removedRuntimeTypoResponse.status, 404);
   const removedRuntimeTypo = await removedRuntimeTypoResponse.json();
@@ -344,8 +406,8 @@ console.log(JSON.stringify({ event: 'client-listening', origin: 'http://127.0.0.
   );
   const discoveredResponse = await fetch(`${relay}/query/watcherDiscoveredTodos`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ args: {}, auth: auth(ADA), read_set: [] }),
+    headers: appHeaders,
+    body: JSON.stringify({ args: {}, read_set: [] }),
   });
   assert.equal(discoveredResponse.status, 200);
   const discovered = await discoveredResponse.json();
@@ -359,8 +421,8 @@ console.log(JSON.stringify({ event: 'client-listening', origin: 'http://127.0.0.
   );
   const retiredResponse = await fetch(`${relay}/query/watcherDiscoveredTodos`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ args: {}, auth: auth(ADA), read_set: [] }),
+    headers: appHeaders,
+    body: JSON.stringify({ args: {}, read_set: [] }),
   });
   assert.equal(retiredResponse.status, 404);
   const retired = await retiredResponse.json();
@@ -419,6 +481,14 @@ console.log(JSON.stringify({ event: 'client-listening', origin: 'http://127.0.0.
   assert.equal(status2.server.pid, restarted.pid);
   assert.equal(status2.client.running, true, 'restart must not restart the client process');
   assert.equal(status2.client.pid, clientPid);
+  const restartedRawCapability = readRawDevIdentityCapability();
+  assert.notEqual(restartedRawCapability, initialRawCapability);
+  assert.equal((await openDirect(status2.server.serverUrl, initialRawCapability)).status, 403);
+  await assertOpenAdmitted(
+    await openDirect(status2.server.serverUrl, restartedRawCapability),
+    'restarted raw sidecar',
+  );
+  await witnessDevIdentityRelay(status2.server.serverUrl, 'restarted managed boot');
   // The relay re-resolves its backend target from the rewritten ready file:
   // data survived (same database) and new writes work, through the SAME
   // running Vite process.
@@ -451,12 +521,43 @@ console.log(JSON.stringify({ event: 'client-listening', origin: 'http://127.0.0.
   assert.equal(badJson.diagnostics[0].code, 'SNAPBACK_DEV_COMMAND_INVALID');
   console.log('unknown verbs and malformed commands produce structured errors, not a crash');
 
+  // --- dev-fresh verb: custody rotates with the reset managed boot -----------
+  mark = stream.mark();
+  send({ schemaVersion: 'snapback.dev-command.v1', verb: 'dev-fresh', requestId: 'df-1' });
+  const refreshed = await stream.waitFor(
+    (event) => event.state === 'database-refreshed' && event.requestId === 'df-1',
+    { from: mark, timeoutMs: 90_000, label: 'database-refreshed df-1' },
+  );
+  assert.ok(Number.isInteger(refreshed.pid));
+  await stream.waitFor(
+    (event) => event.requestId === 'df-1'
+      && event.state === 'generated-and-loaded'
+      && event.changed === '(dev-fresh)',
+    { from: mark, label: 'post-dev-fresh load df-1' },
+  );
+  mark = stream.mark();
+  send({ schemaVersion: 'snapback.dev-command.v1', verb: 'status', requestId: 'st-3' });
+  const status3 = await stream.waitFor(
+    (event) => event.state === 'status' && event.requestId === 'st-3',
+    { from: mark, label: 'status st-3' },
+  );
+  assert.equal(status3.client.pid, clientPid);
+  const refreshedRawCapability = readRawDevIdentityCapability();
+  assert.notEqual(refreshedRawCapability, restartedRawCapability);
+  assert.equal((await openDirect(status3.server.serverUrl, restartedRawCapability)).status, 403);
+  await assertOpenAdmitted(
+    await openDirect(status3.server.serverUrl, refreshedRawCapability),
+    'dev-fresh raw sidecar',
+  );
+  await witnessDevIdentityRelay(status3.server.serverUrl, 'dev-fresh managed boot');
+  console.log('dev-fresh verb: new managed boot rotated and re-harvested dev-identity custody');
+
   // Closed stdin is ordinary for detached agents and generated package scripts:
   // it closes the optional command channel without silently stopping dev.
   dev.stdin.end();
   await new Promise((resolveDelay) => setTimeout(resolveDelay, 250));
   assert.equal(dev.exitCode, null, 'snapback dev must remain live after non-TTY stdin EOF');
-  const healthAfterEof = await fetch(`${serverUrl}/health`).then((response) => response.json());
+  const healthAfterEof = await fetch(`${status3.server.serverUrl}/health`).then((response) => response.json());
   assert.equal(healthAfterEof.ok, true, 'managed backend must remain healthy after stdin EOF');
   console.log('stdin EOF closes only the control channel; dev and both managed arms remain live');
 
@@ -467,7 +568,7 @@ console.log(JSON.stringify({ event: 'client-listening', origin: 'http://127.0.0.
   dev = null;
   await eventually(async () => {
     try {
-      await fetch(`${serverUrl}/health`);
+      await fetch(`${status3.server.serverUrl}/health`);
       return false;
     } catch {
       return true;

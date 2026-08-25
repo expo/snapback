@@ -194,24 +194,17 @@ try {
     run, env: {}, iosBundleIdentifier, expoAppScheme,
   });
   assert.equal(iosLaunch.carrier, 'ios-simctl-environment');
-  assert.deepEqual(launchCalls[0].args.slice(0, 3), [
+  assert.deepEqual(launchCalls[0].args, [
     'simctl', 'launch', '--terminate-running-process',
+    'booted', iosBundleIdentifier,
+    '--initialUrl',
+    'snapback-checkout-witness://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A4102',
   ]);
   assert.equal(
     launchCalls[0].options.env[`SIMCTL_CHILD_${SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV}`],
     nonce,
   );
-  assert.deepEqual(launchCalls[1], {
-    binary: 'xcrun',
-    args: [
-      'simctl',
-      'openurl',
-      'booted',
-      'snapback-checkout-witness://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A4102',
-    ],
-    options: { encoding: 'utf8', timeout: 30_000, env: {} },
-  });
-  assert.equal(launchCalls[1].args.some((arg) => arg.includes(nonce)), false);
+  assert.equal(launchCalls[0].args.some((arg) => arg.includes(nonce)), false);
   assert.equal(iosLaunch.developmentClientUrl.includes(nonce), false);
 
   const android = createExpoRoutingPlan({
@@ -240,25 +233,25 @@ try {
     run, env: {}, androidComponent, expoAppScheme,
   });
   assert.equal(androidLaunch.carrier, 'android-adb-activity-extra');
-  assert.deepEqual(launchCalls[2].args.slice(0, 6), [
-    '-s', 'emulator-5554', 'shell', 'am', 'start', '-S',
+  assert.deepEqual(launchCalls[1].args.slice(0, 7), [
+    '-s', 'emulator-5554', 'shell', 'am', 'start', '-S', '-W',
   ]);
-  assert.deepEqual(launchCalls[2].args.slice(-3), [
+  assert.deepEqual(launchCalls[1].args.slice(-3), [
     '--es', SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV, nonce,
   ]);
-  assert.deepEqual(launchCalls[3].args, [
+  assert.deepEqual(launchCalls[2].args, [
     '-s', 'emulator-5554',
     'shell', 'am', 'start',
     '-a', 'android.intent.action.VIEW',
     '-d', 'snapback-checkout-witness://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A4202',
   ]);
-  assert.equal(launchCalls[3].args.some((arg) => arg.includes(nonce)), false);
+  assert.equal(launchCalls[2].args.some((arg) => arg.includes(nonce)), false);
   assert.equal(androidLaunch.developmentClientUrl.includes(nonce), false);
 
   const failedSequenceCalls = [];
   assert.throws(
-    () => launchExpoNativeCheckout(ios, nonce, {
-      iosBundleIdentifier,
+    () => launchExpoNativeCheckout(android, nonce, {
+      androidComponent,
       expoAppScheme,
       env: {},
       run(binary, args, options) {
@@ -282,7 +275,7 @@ try {
     false,
   );
   assert.equal(launchExpoNativeCheckout(web, nonce, { run, env: {} }), null);
-  assert.equal(launchCalls.length, 4, 'Expo web has no native checkout launch channel');
+  assert.equal(launchCalls.length, 3, 'Expo web has no native checkout launch channel');
 
   console.log('expo-dev-identity-checkout.test.mjs: default-off issuance, bootstrap secrecy, one-shot/rotation invalidation, browser-origin refusal, and complete opt-in native launch sequencing pass');
 } finally {

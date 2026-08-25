@@ -48,7 +48,7 @@ const surfaceRoot = join(demoRoot, 'surfaces', 'web');
 const runtimeRoot = join(demoRoot, '.runtime');
 const artifactIndexPath = join(generatedRoot, 'artifacts.json');
 const LIST_ID = 'witness';
-const EXPECTED_CHECKS = 8;
+const EXPECTED_CHECKS = 9;
 const RENDER_PHASE_CEILING = 50;
 const PROFILE_PREFIX = 'snapback-lane-a1-profile-';
 const DEV_PROTECTED_RETENTION_CODE = 'SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE';
@@ -444,6 +444,11 @@ async function stopServer() {
 }
 
 async function startVite(relayBackendUrl = backendUrl) {
+  // @ref LLP 0262#d2-carriers-per-shipped-topology — external Vite receives
+  //   only the trusted-host sidecar path and owns stamping browser requests.
+  const devIdentityCapabilityFile = relayBackendUrl === backendUrl
+    ? `${devDbPath}.dev-identity`
+    : null;
   const handle = await createViteServer({
     root: surfaceRoot,
     configFile: false,
@@ -452,6 +457,9 @@ async function startVite(relayBackendUrl = backendUrl) {
       server: { mode: 'external', url: relayBackendUrl },
       projectRoot: demoRoot,
       generatedRoots: ['snapback/generated', 'snapback-sessions/generated'],
+      env: devIdentityCapabilityFile === null
+        ? process.env
+        : { ...process.env, SNAPBACK_DEV_IDENTITY_FILE: devIdentityCapabilityFile },
     })],
     server: { host: '127.0.0.1', port: vitePort, strictPort: true },
   });
@@ -669,6 +677,46 @@ try {
   vite = await startVite();
   firstBrowser = await launchBrowser('SIGKILL');
   page = await openPage(firstBrowser.context);
+
+  await check('dev-identity-web-relay', async () => {
+    const direct = await fetch(`${server.baseUrl}/connection/open`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-snapback-dev-identity': 'sbdev_browser_input_must_be_overwritten',
+      },
+      body: '{}',
+    });
+    assert.equal(direct.status, 403, 'untrusted browser capability was not refused directly');
+    const directBody = await direct.json();
+    assert.equal(directBody.diagnostic?.code, 'SNAPBACK_DEV_IDENTITY_REFUSED');
+
+    const relayed = await page.evaluate(async () => {
+      const response = await fetch('/__snapback/connection/open', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-snapback-dev-identity': 'sbdev_browser_input_must_be_overwritten',
+        },
+        body: '{}',
+      });
+      return {
+        status: response.status,
+        reflectedCapability: response.headers.get('x-snapback-dev-identity'),
+        body: await response.text(),
+      };
+    });
+    assert.equal(relayed.status, 200, 'external Vite relay did not stamp its custody capability');
+    assert.equal(relayed.reflectedCapability, null, 'relay reflected its custody capability');
+    assert.equal(relayed.body.includes('sbdev_'), false, 'relay response body exposed capability material');
+    return {
+      topology: 'web/browser -> external Vite relay -> loopback Snapback',
+      directRefusalCode: directBody.diagnostic.code,
+      relayedStatus: relayed.status,
+      clientHeaderDisposition: 'overwritten',
+      responseCapabilityExposure: false,
+    };
+  });
 
   await check('1.retained-current-labeling', async () => {
     const defaultRetainedManifest = functionsManifest.functions.find(({ name }) => name === 'todosFeed');

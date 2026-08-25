@@ -20,6 +20,12 @@ use zeroize::{Zeroize as _, Zeroizing};
 pub const DEV_IDENTITY_CAPABILITY_HEADER: &str = "x-snapback-dev-identity";
 pub const MAX_DEV_IDENTITY_CAPABILITY_FILE_BYTES: usize = 128;
 pub const DEV_IDENTITY_CONFIG_FORBIDDEN_CODE: &str = "SNAPBACK_DEV_IDENTITY_CONFIG_FORBIDDEN";
+/// Versioned name for the acceptance-gated enforcement flip. The date records
+/// the stage-2 warning contract; it does not bypass the stage-3 witness gate.
+///
+/// @ref LLP 0262#d5-rollout-stages — enforcement remains gated on every D2
+///   topology even after operators begin seeing this stable flip identifier.
+pub const DEV_IDENTITY_ENFORCEMENT_FLIP: &str = "2026-08-25/LLP-0262-stage-3";
 
 #[derive(Clone)]
 pub struct DevIdentityCapabilityRegistry {
@@ -103,12 +109,12 @@ impl DevIdentityCapabilityRegistry {
         Ok(VerifiedDevIdentityCapability { _private: () })
     }
 
-    /// Stage 1 compatibility posture: accept an identity-bearing assertion
-    /// without the capability, but make the migration debt visible exactly
+    /// Stage 2 warning posture: accept an identity-bearing assertion without
+    /// the capability, but name the acceptance-gated enforcement flip exactly
     /// once for this boot. No asserted identity or bearer material is logged.
     ///
-    /// @ref LLP 0262#d5-rollout-stages — stage 1 warns once per
-    ///   boot for absent capability instead of refusing the request.
+    /// @ref LLP 0262#d5-rollout-stages — stage 2 names the future flip while
+    ///   retaining stage 1's compatibility acceptance until all witnesses land.
     pub fn warn_unwitnessed_assertion_once(&self) -> bool {
         if self
             .state
@@ -118,18 +124,18 @@ impl DevIdentityCapabilityRegistry {
         {
             return false;
         }
-        match self.capability_file() {
-            Some(path) => eprintln!(
-                "SNAPBACK_DEV_IDENTITY_CAPABILITY_MISSING: accepted one legacy developer identity assertion without {}; configure the client to read {}",
-                DEV_IDENTITY_CAPABILITY_HEADER,
-                path.display()
-            ),
-            None => eprintln!(
-                "SNAPBACK_DEV_IDENTITY_CAPABILITY_MISSING: accepted one legacy developer identity assertion without {}; use the capability disclosed once on the operator terminal",
-                DEV_IDENTITY_CAPABILITY_HEADER
-            ),
-        }
+        eprintln!("{}", self.unwitnessed_assertion_warning());
         true
+    }
+
+    fn unwitnessed_assertion_warning(&self) -> String {
+        let remedy = match self.capability_file() {
+            Some(path) => format!("configure the client to read {}", path.display()),
+            None => "use the capability disclosed once on the operator terminal".to_owned(),
+        };
+        format!(
+            "SNAPBACK_DEV_IDENTITY_CAPABILITY_MISSING: accepted one legacy developer identity assertion without {DEV_IDENTITY_CAPABILITY_HEADER}; {remedy}; enforcement flip {DEV_IDENTITY_ENFORCEMENT_FLIP} remains gated on the D2 acceptance witnesses; see LLP 0262#d5-rollout-stages"
+        )
     }
 
     pub fn log_presented_refusal(&self) {
@@ -461,6 +467,10 @@ mod tests {
             &OsRandom,
         )
         .unwrap();
+        let warning = registry.unwitnessed_assertion_warning();
+        assert!(warning.contains(DEV_IDENTITY_ENFORCEMENT_FLIP));
+        assert!(warning.contains("LLP 0262#d5-rollout-stages"));
+        assert!(!warning.contains("startup-warning"));
         assert!(registry.warn_unwitnessed_assertion_once());
         assert!(!registry.warn_unwitnessed_assertion_once());
         assert!(!registry.clone().warn_unwitnessed_assertion_once());

@@ -1,0 +1,9 @@
+{
+  "status": "passed",
+  "httpStatus": 403,
+  "priorRedemptionSucceeded": true,
+  "format": "snapback.expo-dev-identity-witness.v1",
+  "row": "replay-refusal",
+  "platform": "android",
+  "capturedAt": "2026-08-25T14:54:29.661Z"
+}

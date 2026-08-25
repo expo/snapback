@@ -284,10 +284,11 @@ re-reads that sidecar and stamps `x-snapback-dev-identity` on relayed app
 requests and `/connection/open`; it overwrites a browser-supplied value and
 never exposes the bearer through `virtual:snapback/dev`. Attach or external
 Vite instead receives the explicit trusted-host handoff
-`SNAPBACK_DEV_IDENTITY_FILE=<path>`. During LLP 0262 rollout stage 1, missing
-custody still runs with one server warning per boot; a capability that is
-present but does not verify is already refused, and full enforcement waits for
-the carrier acceptance witness.
+`SNAPBACK_DEV_IDENTITY_FILE=<path>`. During LLP 0262 rollout stage 2, missing
+custody still runs with one server warning per boot that names the committed
+enforcement flip; a capability that is present but does not verify is already
+refused, and full enforcement waits for every supported carrier's acceptance
+witness.
 
 Use `snapback --help` to enumerate the complete packaged and delegated native
 surface. `snapback <command> [<subcommand>...] --help` is non-executing and

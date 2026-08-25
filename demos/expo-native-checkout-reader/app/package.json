@@ -48,6 +48,7 @@
     "@expo/snapback-runtime-linux-x64": "file:../../../packages/snapback-runtime-linux-x64"
   },
   "devDependencies": {
-    "@types/react": "~19.2.4"
+    "@types/react": "~19.2.4",
+    "playwright-core": "1.62.0"
   }
 }

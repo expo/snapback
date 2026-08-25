@@ -5,6 +5,7 @@ import {
 } from '@expo/snapback-codegen/define';
 
 export const listWitnessRows = defineLiveQuery({
+  auth: 'authenticated',
   table: 'witnessRows',
   args: {},
   filter: [eq('ownerId', authUserId())],

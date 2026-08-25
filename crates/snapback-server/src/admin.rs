@@ -46,6 +46,7 @@ use futures_util::StreamExt as _;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest as _, Sha256};
+use snapback_auth::dev_identity::DEV_IDENTITY_ENFORCEMENT_FLIP;
 use std::collections::{BTreeSet, HashMap};
 use std::ffi::OsString;
 use std::fmt;
@@ -2296,6 +2297,9 @@ pub struct ServerContext {
     /// Clones share the emission guard so serving can report it exactly once.
     startup_warning: Option<Arc<str>>,
     startup_warning_emitted: Arc<AtomicBool>,
+    /// Stage-2 migration warning for AdminRead requests admitted solely by a
+    /// bare loopback transport. Clones share the once-per-boot guard.
+    bare_loopback_admin_read_warning_emitted: Arc<AtomicBool>,
 }
 
 impl fmt::Debug for ServerContext {
@@ -2416,6 +2420,7 @@ impl ServerContext {
             admin_dist: env_admin_dist(),
             startup_warning: None,
             startup_warning_emitted: Arc::new(AtomicBool::new(false)),
+            bare_loopback_admin_read_warning_emitted: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -2466,6 +2471,32 @@ impl ServerContext {
     #[cfg(test)]
     pub(crate) fn startup_warning_was_emitted(&self) -> bool {
         self.startup_warning_emitted.load(Ordering::Acquire)
+    }
+
+    /// Warn once when an AdminRead was admitted by bare loopback rather than a
+    /// verified administrator credential. The request remains allowed until
+    /// the separately gated enforcement stage lands.
+    ///
+    /// @ref LLP 0262#d3-admin-reads-join-the-token--narrowly — stage 2 makes
+    ///   every bare-loopback read visible without logging a bearer or identity.
+    pub(crate) fn emit_bare_loopback_admin_read_warning_once(&self) -> bool {
+        if self
+            .bare_loopback_admin_read_warning_emitted
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .is_err()
+        {
+            return false;
+        }
+        eprintln!(
+            "SNAPBACK_ADMIN_READ_CAPABILITY_MISSING: accepted one bare-loopback AdminRead without a verified administrator credential; enforcement flip {DEV_IDENTITY_ENFORCEMENT_FLIP} remains acceptance-gated; see LLP 0262#d3-admin-reads-join-the-token--narrowly"
+        );
+        true
+    }
+
+    #[cfg(test)]
+    pub(crate) fn bare_loopback_admin_read_warning_was_emitted(&self) -> bool {
+        self.bare_loopback_admin_read_warning_emitted
+            .load(Ordering::Acquire)
     }
 
     /// Record the socket address returned by the listener that will serve this
@@ -4444,7 +4475,16 @@ fn authorize_admin_access(
         provided.as_deref(),
         write,
     ) {
-        AdminAccess::Allowed => Ok(()),
+        AdminAccess::Allowed => {
+            let verified_master = matches!(
+                (ctx.admin_token.as_deref(), provided.as_deref()),
+                (Some(configured), Some(candidate)) if token_eq(configured, candidate)
+            );
+            if !write && ctx.loopback && !verified_master {
+                ctx.emit_bare_loopback_admin_read_warning_once();
+            }
+            Ok(())
+        }
         AdminAccess::Disabled => Err(SnapbackError::error(
             "SNAPBACK_ADMIN_DISABLED",
             "admin",
@@ -6911,6 +6951,70 @@ mod tests {
         assert!(!public_text.contains("authority-effective-inspection"));
         assert!(!public_text.contains("hidden-profile"));
         assert!(!public_text.contains("membership-visible-search"));
+    }
+
+    #[tokio::test]
+    async fn claim_exchange_witnesses_the_once_per_boot_bare_loopback_read_warning() {
+        use axum::body::{Body, to_bytes};
+        use axum::http::Request;
+        use tower::ServiceExt as _;
+
+        let mut context = ServerContext::detached();
+        context.profile = ServerProfile::Dev;
+        context.admin_token = Some("claim-warning-admin".to_owned());
+        let warning_witness = context.clone();
+        let state = AppState::try_from_snapback(LocalSnapback::memory().unwrap(), context)
+            .expect("claim warning app state");
+        let lease = state
+            .console_reachability
+            .register("http://192.0.2.10:43123", "claim-warning-startup")
+            .expect("register managed claim front");
+        let claim = state.server.console_claims.mint().expect("mint claim");
+        state
+            .console_reachability
+            .bind_claim(
+                &lease.session_id,
+                state
+                    .server
+                    .console_claims
+                    .pending_claim_digest(&claim.claim_code)
+                    .expect("pending claim digest"),
+                claim.expires_at_ms,
+            )
+            .expect("bind claim to managed front");
+
+        let response = crate::server::app(state)
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/_snapback/api/console/claim/exchange")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .extension(ConnectInfo("127.0.0.1:43124".parse::<SocketAddr>().unwrap()))
+                    .body(Body::from(
+                        serde_json::to_vec(&serde_json::json!({
+                            "claimCode": claim.claim_code,
+                        }))
+                        .unwrap(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .expect("claim exchange response");
+        assert_eq!(
+            response.status(),
+            StatusCode::OK,
+            "{}",
+            String::from_utf8_lossy(
+                &to_bytes(response.into_body(), 1_000_000)
+                    .await
+                    .expect("claim exchange body")
+            )
+        );
+        assert!(warning_witness.bare_loopback_admin_read_warning_was_emitted());
+        assert!(
+            !warning_witness.emit_bare_loopback_admin_read_warning_once(),
+            "the claim exchange must consume the shared once-per-boot warning"
+        );
     }
 
     #[tokio::test]

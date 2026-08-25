@@ -9316,8 +9316,9 @@ async fn open_connection(
 ) -> Result<Json<ConnectionGrant>, ApiError> {
     let body = parse_optional_json::<OpenConnectionRequest>(&headers, body)?;
     // @ref LLP 0262#d1-the-dev-identity-capability — a verified open carrier
-    // becomes an internal witness on the connection grant. Stage 1 records
-    // the witness but does not refuse later identity frames for its absence.
+    // becomes an internal witness on the connection grant. Stage 2 records
+    // the witness and warns, but does not refuse later identity frames for
+    // its absence until the acceptance-gated enforcement stage.
     let dev_identity_witnessed = verify_presented_dev_identity_capability(&runtime, &headers)?;
     let (
         suggested,
@@ -34127,7 +34128,7 @@ fn handle_live_socket_text_authorized(
         && !effect_context.dev_identity_witnessed
         && let Some(registry) = effect_context.dev_identity_capabilities
     {
-        // @ref LLP 0262#d5-rollout-stages — stage 1 records the
+        // @ref LLP 0262#d5-rollout-stages — stage 2 records the
         // connection witness and warns once, but accepts an unwitnessed dev
         // identity frame until the explicit enforcement stage lands.
         registry.warn_unwitnessed_assertion_once();

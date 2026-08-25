@@ -62,11 +62,12 @@ each boot, unlinked on clean shutdown, and advertised as
 its resolved sidecar is present. Direct clients present the value in
 `x-snapback-dev-identity` (never `Authorization`), while the managed Vite relay
 stamps it server-side so browser code never sees the bearer. This is rollout
-stage 1: a presented malformed or mismatched capability is refused with the
+stage 2: a presented malformed or mismatched capability is refused with the
 generic `SNAPBACK_DEV_IDENTITY_REFUSED`, but an absent capability is still
 accepted and produces only the first capability-less-dev-assertion warning of
-that boot. Enforcement waits for LLP 0262 D5's acceptance witness across every
-supported carrier; the current stage does not make a tunnel a supported public
+that boot. The warning names the committed enforcement flip, which remains
+blocked until LLP 0262 D5 has acceptance witnesses across every supported
+carrier; the current stage does not make a tunnel a supported public
 deployment.
 
 Declare reachability with the closed

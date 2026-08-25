@@ -1,0 +1,13 @@
+{
+  "status": "passed",
+  "receiptRows": [
+    "web-session-isolation"
+  ],
+  "device": {
+    "class": "browser"
+  },
+  "format": "snapback.expo-dev-identity-witness.v1",
+  "row": "run-summary",
+  "platform": "web",
+  "capturedAt": "2026-08-25T14:49:51.633Z"
+}

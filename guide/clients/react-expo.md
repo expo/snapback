@@ -513,10 +513,11 @@ checkout nonce through the native-only launch channel, and the Expo facade
 redeems it into private client custody. The nonce and bearer are removed from
 Metro and Expo web environments; Expo web receives no capability through the
 browser bootstrap and needs a relay-stamping front for dev identity, while its
-ordinary supervised sessions path is unaffected. LLP 0262 stage 1 still
-accepts an absent capability with the server's once-per-boot warning; a
-presented invalid capability is refused now, and enforcement waits for the
-acceptance suite to witness every supported carrier.
+ordinary supervised sessions path is unaffected. LLP 0262 stage 2 still
+accepts an absent capability with the server's once-per-boot warning naming the
+committed enforcement flip; a presented invalid capability is refused now,
+and enforcement waits for the acceptance suite to witness every supported
+carrier.
 
 ### Settle the backend into Sessions mode first
 

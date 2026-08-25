@@ -75,11 +75,12 @@ per-boot capability as `devIdentityCapability`; the client sends its dedicated
 `/connection/open`, never on admin-token-gated host operations. The demo
 server kit validates the ready descriptor's `devIdentityCapabilityFile`, reads
 the owner-only sidecar, and exposes both `server.devIdentityCapability` and
-`server.clientOptions` for direct construction. LLP 0262 rollout stage 1 still
+`server.clientOptions` for direct construction. LLP 0262 rollout stage 2 still
 accepts a client whose kit or older server has no carrier, with one server
-warning per boot; a presented bad value already receives the generic
-`SNAPBACK_DEV_IDENTITY_REFUSED`, and absence becomes a refusal only after the
-supported-carrier acceptance witness permits the enforce-stage flip.
+warning per boot naming the committed enforcement flip; a presented bad value
+already receives the generic `SNAPBACK_DEV_IDENTITY_REFUSED`, and absence
+becomes a refusal only after every supported carrier's acceptance witness
+permits that flip.
 
 ```js source=packages/snapback-client/index.mjs
     bearerToken = null,

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
-import { SnapbackClient } from '@expo/snapback-client';
+import { Platform, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { createExternalSessionClient } from '@expo/snapback-client';
 import { createSupervisedExpoEnvironment } from '@expo/snapback-expo/supervised-environment';
 
 import api, { app } from './snapback/generated/api.mjs';
@@ -33,10 +33,13 @@ export default function App() {
   useEffect(() => {
     const controller = new AbortController();
     void (async () => {
+      let phase = 'environment';
       const originalFetch = globalThis.fetch;
       const observed = {
         checkoutHeaderPresented: false,
         devIdentityHeaderPresented: false,
+        devIdentityAdmissionAccepted: false,
+        sessionBearerPresented: false,
       };
       const observingFetch = async (input, init = {}) => {
         const url = typeof input === 'string' ? input : input.url;
@@ -44,28 +47,121 @@ export default function App() {
         if (url.includes('/_snapback/expo/v1/dev-identity-checkout')) {
           observed.checkoutHeaderPresented = headers.has('x-snapback-dev-identity-checkout');
         }
-        if (url.includes('/query/')) {
+        if (url.includes('/connection/open')) {
           observed.devIdentityHeaderPresented = headers.has('x-snapback-dev-identity');
+        }
+        if (url.includes('/query/')) {
+          observed.devIdentityHeaderPresented = observed.devIdentityHeaderPresented
+            || headers.has('x-snapback-dev-identity');
+          observed.sessionBearerPresented = headers.get('authorization')?.startsWith('Bearer ') === true;
         }
         return originalFetch.call(globalThis, input, init);
       };
 
       try {
+        const runtimePlatform = Platform.OS === 'web' ? 'web' : 'native';
         const environment = createSupervisedExpoEnvironment({
           fetch: observingFetch,
-          runtimePlatform: 'native',
+          runtimePlatform,
         });
+        phase = 'binding';
         const admission = await environment.resolveBinding({ app, signal: controller.signal });
+        phase = 'dev-identity';
         const capability = await environment.resolveDevIdentityCapability({
           signal: controller.signal,
         });
+        phase = 'authority';
+        const authority = await environment.resolveSupervisedAuthority({
+          binding: admission.binding,
+          signal: controller.signal,
+        });
+        if (authority.status !== 'ready' || typeof authority.bearer !== 'string') {
+          throw Object.assign(new Error('Expo did not receive an ordinary session'), {
+            code: 'SNAPBACK_CHECKOUT_WITNESS_SESSION_UNAVAILABLE',
+          });
+        }
+        // @ref LLP 0262#d2-carriers-per-shipped-topology — Expo web keeps its
+        //   ordinary session and must neither redeem nor assert native custody.
+        if (runtimePlatform === 'web') {
+          const client = createExternalSessionClient(admission.binding.target.origin, {
+            ...(authority.clientOptions ?? {}),
+            bearerToken: authority.bearer,
+            rqsStore: null,
+            offlineQueue: false,
+          });
+          let result;
+          let directRefusal;
+          let directTransportErrorName = null;
+          globalThis.fetch = observingFetch;
+          try {
+            phase = 'web-query';
+            result = await client.query(api.listWitnessRows, { args: {} });
+            phase = 'web-direct-refusal';
+            try {
+              directRefusal = await originalFetch.call(
+                globalThis,
+                `${admission.binding.target.origin}/connection/open`,
+                {
+                  method: 'POST',
+                  headers: {
+                    'content-type': 'application/json',
+                    'x-snapback-auth-client-protocol': '1',
+                    'x-snapback-dev-identity': 'sbdev_expo_web_must_not_possess_custody',
+                  },
+                  body: '{}',
+                },
+              );
+            } catch (error) {
+              directTransportErrorName = error?.name ?? 'UnknownError';
+            }
+          } finally {
+            if (globalThis.fetch === observingFetch) globalThis.fetch = originalFetch;
+            await client.closeAuth();
+          }
+          phase = 'web-refusal-body';
+          const refusal = directRefusal === undefined ? null : await directRefusal.json();
+          if (
+            hookInstalledBeforeApplicationModule
+            || capability !== null
+            || observed.devIdentityHeaderPresented
+            || !observed.sessionBearerPresented
+            || !Array.isArray(result?.rows)
+            || !(
+              (directRefusal?.status === 403
+                && refusal?.diagnostic?.code === 'SNAPBACK_DEV_IDENTITY_REFUSED')
+              || (directRefusal === undefined && directTransportErrorName === 'TypeError')
+            )
+          ) {
+            throw Object.assign(new Error('Expo web custody/session facts were incomplete'), {
+              code: 'SNAPBACK_CHECKOUT_WITNESS_WEB_FACTS_INCOMPLETE',
+            });
+          }
+          await postReceipt({
+            format: 'snapback.expo-dev-identity-witness-app.v1',
+            row: 'web-session-isolation',
+            status: 'passed',
+            hookInstalledBeforeApplicationModule,
+            checkoutCapabilityAbsent: true,
+            devIdentityHeaderPresented: observed.devIdentityHeaderPresented,
+            sessionBearerPresented: observed.sessionBearerPresented,
+            queryAccepted: true,
+            rowCount: result.rows.length,
+            directRefusalStatus: directRefusal?.status ?? null,
+            directRefusalCode: refusal?.diagnostic?.code ?? null,
+            directTransportRefused: directRefusal === undefined,
+          });
+          setStatus('passed');
+          return;
+        }
         if (typeof capability !== 'string' || !capability.startsWith('sbdev_')) {
           throw Object.assign(new Error('native checkout did not return a capability'), {
             code: 'SNAPBACK_CHECKOUT_WITNESS_CAPABILITY_UNAVAILABLE',
           });
         }
 
-        const client = new SnapbackClient(admission.binding.target.origin, {
+        const client = createExternalSessionClient(admission.binding.target.origin, {
+          ...(authority.clientOptions ?? {}),
+          bearerToken: authority.bearer,
           devIdentityCapability: capability,
           rqsStore: null,
           offlineQueue: false,
@@ -73,9 +169,23 @@ export default function App() {
         let result;
         globalThis.fetch = observingFetch;
         try {
+          phase = 'native-dev-identity-admission';
+          const capabilityAdmission = await observingFetch(
+            `${admission.binding.target.origin}/connection/open`,
+            {
+              method: 'POST',
+              headers: {
+                'content-type': 'application/json',
+                'x-snapback-auth-client-protocol': '1',
+                'x-snapback-dev-identity': capability,
+              },
+              body: '{}',
+            },
+          );
+          observed.devIdentityAdmissionAccepted = capabilityAdmission.status === 200;
+          phase = 'native-query';
           result = await client.query(api.listWitnessRows, {
             args: {},
-            userId: 'native-checkout-witness',
           });
         } finally {
           if (globalThis.fetch === observingFetch) globalThis.fetch = originalFetch;
@@ -86,6 +196,8 @@ export default function App() {
           !hookInstalledBeforeApplicationModule
           || !observed.checkoutHeaderPresented
           || !observed.devIdentityHeaderPresented
+          || !observed.devIdentityAdmissionAccepted
+          || !observed.sessionBearerPresented
           || !Array.isArray(result?.rows)
         ) {
           throw Object.assign(new Error('native checkout witness facts were incomplete'), {
@@ -100,7 +212,9 @@ export default function App() {
           hookInstalledBeforeApplicationModule,
           checkoutHeaderPresented: observed.checkoutHeaderPresented,
           devIdentityHeaderPresented: observed.devIdentityHeaderPresented,
+          devIdentityAdmissionAccepted: observed.devIdentityAdmissionAccepted,
           checkoutRedeemed: true,
+          sessionBearerPresented: observed.sessionBearerPresented,
           queryAccepted: true,
           rowCount: result.rows.length,
         });
@@ -108,9 +222,15 @@ export default function App() {
       } catch (error) {
         await postReceipt({
           format: 'snapback.expo-dev-identity-witness-app.v1',
-          row: 'native-reader',
+          row: Platform.OS === 'web' ? 'web-session-isolation' : 'native-reader',
           status: 'failed',
           hookInstalledBeforeApplicationModule,
+          phase,
+          errorName: typeof error?.name === 'string' ? error.name : 'UnknownError',
+          checkoutHeaderPresented: observed.checkoutHeaderPresented,
+          devIdentityHeaderPresented: observed.devIdentityHeaderPresented,
+          devIdentityAdmissionAccepted: observed.devIdentityAdmissionAccepted,
+          sessionBearerPresented: observed.sessionBearerPresented,
           code: typeof error?.code === 'string' ? error.code : 'SNAPBACK_CHECKOUT_WITNESS_FAILED',
         }).catch(() => {});
         setStatus('failed');
@@ -122,7 +242,7 @@ export default function App() {
   return (
     <SafeAreaView style={styles.root}>
       <View style={styles.card}>
-        <Text style={styles.title}>Snapback native checkout witness</Text>
+        <Text style={styles.title}>Snapback checkout witness</Text>
         <Text testID="witness-status" style={styles.status}>{status}</Text>
       </View>
     </SafeAreaView>

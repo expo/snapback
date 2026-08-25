@@ -76,3 +76,53 @@ environment and permanently consume an empty delivery. The getter now performs
 the environment capture attempt itself under the same lock when needed, and
 both capture paths unset the environment immediately. This was native launch
 ordering friction, not a missing Guide fact, so no guide-gap ticket was filed.
+
+## Progress — 2026-08-25 (live Android emulator row WITNESSED)
+
+The Android emulator row now passes end to end and is retained under
+`demos/expo-native-checkout-reader/receipts/android-2026-08-25T14-54-18-163Z/`.
+It proves the selected emulator's per-serial `adb reverse` path, Activity-extra
+checkout, pre-JS native reader, query admission, rotation replacement, replay
+and post-rotation refusal, browser-Origin refusal, and tunneled bootstrap
+isolation without retaining either secret value.
+
+Android exposed two concrete integration frictions. The legacy Expo activity
+handler compiles against React Activity callback types, so the native module
+needs an explicit `react-android` implementation dependency. More subtly,
+issuing the Metro deep link immediately after `am start -S` can lose the intent
+while Android is still forcing the process restart even though both commands
+return success. Adding `-W` to the nonce-bearing Activity launch made the
+supervisor wait for Activity readiness before opening the non-secret Metro URL.
+
+The witness harness also had drifted from the canonical managed database
+layout now required by `dev-fresh`; putting each run under its own
+`.snapback/dev.sqlite3` project restored safe rotation. Compared with a typical
+React Native plus Convex/Supabase smoke test, this is heavier device and
+negative-evidence plumbing, but the failure modes are correspondingly precise:
+the receipt distinguishes native custody, stale/replayed delivery, browser
+redemption, and raw HTTP isolation instead of treating “the app launched” as
+the security claim. No Guide-gap ticket was filed because these were carrier
+implementation and acceptance-harness defects, not missing author guidance.
+
+## Progress — 2026-08-25 (Expo web and current iOS simulator WITNESSED)
+
+The real Expo web bundle now passes in Chrome under
+`demos/expo-native-checkout-reader/receipts/web-2026-08-25T14-49-42-653Z/`.
+It keeps the ordinary session path working while proving that the native hook,
+checkout capability, and dev-identity header are absent; direct custom-header
+assertion is CORS-transport-refused in the browser and generically refused at
+the host-side probe. This is materially stronger than inferring web behavior
+from the native run's Node Origin-gate request.
+
+The current sessions-first iOS simulator row passes under
+`demos/expo-native-checkout-reader/receipts/ios-2026-08-25T15-06-51-734Z/`.
+iOS 26 revealed that a separate `simctl openurl` now presents a confirmation
+on every development-client launch. Passing Expo's supported `--initialUrl`
+argument in the same nonce-bearing `simctl launch` avoids that UI gate without
+moving the nonce out of child-environment custody. Relative to ordinary Expo
+development, the carrier remains unusually evidence-heavy, but the retained
+receipt now proves both the dev-identity admission and the composing ordinary
+session/query rather than treating either as implied.
+
+Physical Android USB is the only supported D2 witness still gating LLP 0262
+stage 3.

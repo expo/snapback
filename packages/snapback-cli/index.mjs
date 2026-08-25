@@ -4782,7 +4782,7 @@ function expectedDevIdentityCapabilityPath(descriptor, { readyFile, database = n
 }
 
 /** Resolve a descriptor-advertised dev-identity capability on the admin-token
- * anchor ladder; null keeps Stage 1 compatible with older local binaries. */
+ * anchor ladder; null keeps Stage 2 compatible with older local binaries. */
 export function managedDevIdentityCapability(descriptor, context = {}) {
   const declared = descriptor?.devIdentityCapabilityFile;
   const expected = expectedDevIdentityCapabilityPath(descriptor, context);
@@ -4816,11 +4816,11 @@ function resolveDevIdentityCapabilityForCli(descriptor, context) {
   if (capability !== null || missingDevIdentityCapabilityNoted) return capability;
   missingDevIdentityCapabilityNoted = true;
   const expected = expectedDevIdentityCapabilityPath(descriptor, context);
-  // @ref LLP 0262#d5-rollout-stages — Stage 1 proceeds without custody, but
+  // @ref LLP 0262#d5-rollout-stages — Stage 2 proceeds without custody, but
   // the first capability-less CLI assertion is explicit on operator stderr.
   process.stderr.write(
     'SNAPBACK_DEV_IDENTITY_ABSENT: no usable dev-identity capability was found'
-      + `${expected ? ` at ${expected}` : ''}; continuing without it during Stage 1\n`,
+      + `${expected ? ` at ${expected}` : ''}; continuing without it during Stage 2\n`,
   );
   return null;
 }

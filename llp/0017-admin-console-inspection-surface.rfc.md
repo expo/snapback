@@ -5,9 +5,9 @@
 **Systems:** Developer experience, Runtime, Storage, Realtime, Security, Client integration, Contract/Exact, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-26
-**Revised:** 2026-08-16 (accepted LLP 0262 D3 amends the served loopback-read
-default at its future enforce stage; this dated cross-reference does not claim
-the stage-1 read arm changed)
+**Revised:** 2026-08-25 (LLP 0262 D3 stage 2 now logs the first bare-loopback
+admin read per boot; the served read arm still changes only at the future,
+acceptance-gated enforce stage)
 **Revised:** 2026-08-12 (ordinary `snapback admin` browser launch now puts only
 the existing process-ephemeral, single-use, thirty-minute `sbcl_` claim in the
 browser helper argv; the same-origin loopback page atomically exchanges it for
@@ -543,8 +543,9 @@ state, diagnostics, and eventually data and mutation controls.
 > admin reads will require the admin token or an existing console credential.
 > The route-enumerated credential-bootstrap set remains pre-credential:
 > approval request, approval poll, and claim exchange keep their own bounded
-> proofs so a first console credential can still be obtained. LLP 0262 stage 1
-> does not change the read arm.
+> proofs so a first console credential can still be obtained. LLP 0262 stage 2
+> warns once per boot on a bare-loopback admin read, including claim exchange,
+> but does not change the read arm.
 
 Local defaults:
 

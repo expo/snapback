@@ -104,3 +104,36 @@ source at `80aa7b8a5`:
 - The custody primitive the RFC generalizes already ships five times
   (admin token, impersonation/agent-destroy/rehearsal capabilities,
   secret-read proof) on `secure_file`/`owner_only_file`.
+
+## Dated note — 2026-08-25 (stage 2 expanded; enforce remains gated)
+
+LLP 0262's D1–D6 implementation state is now audited in the RFC. Stage 2 names
+the committed enforcement flip `2026-08-25/LLP-0262-stage-3` in the
+once-per-boot missing-capability warning, and bare-loopback admin reads now
+warn once per server boot, including the real claim-exchange redemption path.
+`SNAPBACK_EXPOSURE=fronted` with no explicit profile has a server-level
+production-refusal witness; explicit non-production profiles retain their
+truth-table behavior and warning.
+
+The machine-exercisable D2 carrier witnesses now cover CLI verbs, `_kit` /
+headless, managed Vite, external/attach Vite in a real browser, raw
+sidecar/header clients, Expo web in real Chrome, iOS simulator, and Android
+emulator. Current retained summaries are
+`demos/expo-native-checkout-reader/receipts/web-2026-08-25T14-49-42-653Z/run-summary.json`,
+`demos/expo-native-checkout-reader/receipts/ios-2026-08-25T15-06-51-734Z/run-summary.json`,
+and
+`demos/expo-native-checkout-reader/receipts/android-2026-08-25T14-54-18-163Z/run-summary.json`.
+The native receipts report `passed` for checkout plus ordinary-session
+composition, rotation replacement, replay and post-rotation refusal,
+browser-Origin refusal, and tunneled bootstrap isolation. The web receipt
+reports `passed` for ordinary-session query admission with no native custody,
+direct browser transport refusal, and generic host-side refusal.
+
+Exactly one supported D2 row still lacks an acceptance witness and therefore
+keeps D5 stage 3 closed:
+
+1. Android physical USB over the selected serial's `adb reverse` carrier.
+
+Physical iOS and Android LAN/TCP remain intentionally unsupported, not silent
+carrier gaps. The stage-3 enforcement arm did not change; this ticket remains
+open until the outstanding USB witness lands and the author-gated flip is made.

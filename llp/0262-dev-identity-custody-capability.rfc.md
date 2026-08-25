@@ -5,7 +5,7 @@
 **Systems:** Auth mode, Server, Security, Developer experience, Local server lifecycle, Demos, Packaged dev loop, CLI
 **Author:** Claude (Fable 5) / Charlie Cheever
 **Date:** 2026-08-15
-**Revised:** 2026-08-16 (r5: Accepted by author ruling; all four OQs ruled and folded in; revision history trimmed)
+**Revised:** 2026-08-25 (r7: stage-2 implementation audit, dated enforcement-flip warning, and headless/web/simulator topology witnesses; stage 3 remains gated)
 **Related:** LLP 0009, LLP 0010, LLP 0017 (D3 amends its loopback-read default), LLP 0030 (browser-facts fence preserved), LLP 0031, LLP 0036, LLP 0039, LLP 0060, LLP 0168, LLP 0181, LLP 0213, `issues/20260804-tunnelled-loopback-server-keeps-dev-profile.md`, `issues/closed/20260811-ios-physical-device-dev-carrier-decision-packet.md`
 
 ## Summary
@@ -207,6 +207,36 @@ advertisement. Unchanged-and-composing: `validate_plaintext_auth_transport`
 stamp (overwrite + restart re-read), `_kit` harvest (~34 suites use the
 impersonation harvest today), CLI, Expo supervisor gated leg, guide.
 
+## Implementation state (2026-08-25)
+
+This is the stage-2 audit required before enforcement. It combines the exact
+`grep -rn "LLP 0262" crates/ packages/ scripts/` inventory with inspection of
+the unannotated composition and test sites those references govern. “Witness”
+means an exercised request path or retained device receipt; a package seam test
+is identified as such and does not stand in for a missing topology acceptance
+witness. `NOT YET` rows keep D5 stage 3 closed.
+
+| Item | Implemented where | Witness or gap |
+| --- | --- | --- |
+| D1 — mint, anchor ladder, owner-only publication, rotation/unlink, production refusal | `snapback-auth/src/dev_identity.rs`; `snapback-cli/src/cli.rs`; the ready descriptor and owned teardown in the CLI | Rust lifecycle tests cover file-backed and ready-file anchors, permissions, rotation, unlink, and production refusal. `demos/todo/tests/acceptance/headless.mjs` witnesses the `--memory` + ready-file carrier; `packages/snapback-cli/dev-loop.test.mjs` witnesses rotation across restart and `dev-fresh`. |
+| D1 — HTTP `ClientAsserted` gate, generic refusal, constant-time verification, operator-only remediation | `snapback-server/src/server.rs`; `snapback-auth/src/dev_identity.rs`; `snapback-types/src/auth/crypto.rs` | Server tests witness verified, malformed, mismatched, and absent stage-2 requests. The Todo headless and browser-local-first acceptances witness current-capability admission and the generic network refusal without exposing the sidecar or bearer. |
+| D1 — `/connection/open` witness and live-socket binding | `snapback-server/src/server.rs`; `snapback-client/index.mjs` | Server connection-open/live-frame tests cover witness binding. Todo headless, browser-local-first, and the managed CLI dev loop exercise `/connection/open`; full live delivery continues in the Todo suite. |
+| D2 — CLI verbs | `snapback-cli/index.mjs` resolves and passes the anchor-ladder capability; native lifecycle is in `snapback-cli/src/cli.rs` | `packages/snapback-cli/dev-loop.test.mjs` scaffolds the shipped template, drives `status`, `reload`, `restart`, and `dev-fresh`, and re-witnesses relay custody after both boot-rotating verbs. |
+| D2 — `_kit` / harness / headless | `demos/_kit/server-process.mjs`; `snapback-client/index.mjs` | `demos/todo/tests/acceptance/headless.mjs` witnesses the memory/ready-file path, direct client option, current-boot admission, and mismatched-boot refusal. |
+| D2 — managed Vite | `snapback-vite/lifecycle.mjs`; `snapback-vite/proxy.mjs`; `snapback-vite/index.mjs` | `packages/snapback-cli/dev-loop.test.mjs` runs a real managed backend plus real Vite, proves browser-input overwrite, and re-reads custody after restart and `dev-fresh`. Package relay tests separately cover HTTP, both WebSocket legs, and same-port nonce rotation. |
+| D2 — external/attach Vite | Explicit `SNAPBACK_DEV_IDENTITY_FILE` handoff in `snapback-vite/lifecycle.mjs` and relay stamping in `proxy.mjs` | `demos/browser-local-first/tests/acceptance/browser-public-witness.mjs` uses real Chrome, an external Vite host, and a real Snapback server to prove direct invalid refusal, relay overwrite/admission, and no response exposure. |
+| D2 — Expo native iOS simulator | Checkout exchange and single `simctl launch --initialUrl` carrier in `snapback-cli/expo-dev.mjs`; native-only module in `snapback-expo-dev-identity/ios`; private provider custody in `snapback-expo` | Retained passed receipt `demos/expo-native-checkout-reader/receipts/ios-2026-08-25T15-06-51-734Z/run-summary.json` witnesses the real simulator carrier, native checkout, ordinary session composition, rotation replacement, replay/post-rotation refusal, browser-origin redemption refusal, and tunneled raw-HTTP isolation. Passing the non-secret Metro URL in the nonce-bearing launch avoids the iOS 26 confirmation surface imposed on a separate `simctl openurl`. |
+| D2 — Expo native Android emulator | Per-serial checkout launch extra and `adb reverse` in `packages/snapback-cli/expo-dev.mjs`; Android native module in `packages/snapback-expo-dev-identity/android` | Retained passed receipt `demos/expo-native-checkout-reader/receipts/android-2026-08-25T14-54-18-163Z/run-summary.json` witnesses the real emulator carrier, native checkout, ordinary session composition, rotation replacement, replay/post-rotation refusal, browser-origin redemption refusal, and tunneled raw-HTTP isolation. The launch helper waits for the forced Activity restart before delivering the development-client URL, closing the observed Android intent race. |
+| D2 — Expo native Android physical USB | Same implemented Android carrier as the emulator row | **NOT YET:** no physical-device USB acceptance receipt. This is the explicit D5/OQ3 gate this lane cannot satisfy. |
+| D2 — Expo web | Web export filtering in `snapback-expo/supervised-environment.mjs`; native-only checkout and provider refusal in `snapback-expo/provider.mjs`; ordinary sessions in the supervised authority path | Retained passed receipt `demos/expo-native-checkout-reader/receipts/web-2026-08-25T14-49-42-653Z/run-summary.json` comes from the real Expo web bundle in Chrome and witnesses ordinary-session query admission, absent checkout/native capability, no dev-identity header, browser-transport refusal of a direct custom-header assertion, and generic host-side refusal of the same invalid assertion. The managed Vite row above separately witnesses accepted relay stamping. |
+| D2 — physical iOS and Android LAN/TCP | Supervisor/device selection keeps these targets refused or unsupported; the prior physical-iOS decision packet remains authoritative | Intentionally unsupported, so there is no supported-carrier witness to gate D5. Any future support requires a new ruled carrier and acceptance witness. |
+| D2 — raw `snapback start` + hand-rolled client | Sidecar advertisement and header contract ship in the native CLI; `guide/auth/targets.md` documents the operator steps | `packages/snapback-cli/dev-loop.test.mjs` independently reads the native child descriptor and owner-only sidecar, makes hand-rolled direct requests, and proves both current-boot admission and stale-capability refusal across restart and `dev-fresh`. |
+| D3 — stage-2 bare-loopback read warning and credential-bootstrap carve-out | `snapback-server/src/admin.rs` emits once per `ServerContext` boot after console-credential and admin-token checks; approval request/poll/claim exchange remain route-enumerated `AdminRead` | `claim_exchange_witnesses_the_once_per_boot_bare_loopback_read_warning` redeems the first console credential through the real claim-exchange route and proves that request consumes the shared warning once. |
+| D3 — enforce admin-token/console-credential read arm | Design owner remains `evaluate_access` plus the enumerated bootstrap routes | **NOT YET by design:** bare loopback reads remain admitted after the stage-2 warning; the read arm must not flip until D5 stage 3. |
+| D4 — closed exposure vocabulary and complete truth table | `snapback-server/src/admin.rs`; process composition in `snapback-cli/src/cli.rs`; served warning emission in `snapback-server/src/server.rs` | `resolve_profile_exposure_truth_table_is_closed_and_fail_closed` covers unset/empty/direct/fronted/unknown across explicit profiles. Server tests witness explicit non-prod warning and `fronted` + unset resolving silently to production with a production-policy refusal. |
+| D5 — staged rollout | Stage 1 mint/distribute is shipped. Stage 2 uses `DEV_IDENTITY_ENFORCEMENT_FLIP = "2026-08-25/LLP-0262-stage-3"`, names the RFC from both warning paths, and has the witnesses above | Stage 2 is **PARTIAL**. Stage 3 is **NOT YET** and remains blocked by the physical Android USB acceptance witness; no unsafe-accept escape hatch exists before that flip. |
+| D6 — chokepoints and unchanged composing fences | Server authority installation/open/grant and warning sites are in `server.rs`/`admin.rs`; startup/sidecars are in `cli.rs`; carriers are in `_kit`, client, Vite, CLI, Expo, and the guide. Transport/origin/profile-operation gates were not moved | Component tests and the topology witnesses above exercise the landed chokepoints. The D3 enforcement chokepoint remains intentionally **NOT YET**. |
+
 ## Non-goals
 
 - Building the LLP 0168 relay/edge, any public dev carrier, or the
@@ -247,3 +277,7 @@ The loop's four open questions were ruled at acceptance:
   carrier; closed fail-closed `SNAPBACK_EXPOSURE` set; four tightenings.
 - 2026-08-16 r5: Accepted; OQ1–OQ4 ruled and folded in; history trimmed.
   Full round-by-round record: `llp/reviews/0262-*.run.md`.
+- 2026-08-25 r6: recorded the D1–D6 implementation/witness audit and stage-2
+  warning contract; stage 3 remains gated on the named D2 gaps.
+- 2026-08-25 r7: witnessed the real Expo-web and current sessions-first iOS
+  simulator/Android emulator rows; only physical Android USB still gates D5.

@@ -2,9 +2,9 @@
 
 import { spawnSync } from 'node:child_process';
 import { createServer as createHttpServer, request as httpRequest } from 'node:http';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
   SUPERVISED_CONTROL_PATH,
@@ -14,11 +14,15 @@ import {
   SUPERVISED_EXCHANGE_PATH,
   runExpoDev,
 } from '../../../packages/snapback-cli/expo-dev.mjs';
+import { launchChromeCdp } from '../../_kit/chrome-process.mjs';
 
 const scriptRoot = dirname(fileURLToPath(import.meta.url));
 const witnessRoot = resolve(scriptRoot, '..');
 const appRoot = join(witnessRoot, 'app');
 const repoRoot = resolve(witnessRoot, '..', '..');
+const { chromium } = await import(pathToFileURL(
+  join(appRoot, 'node_modules', 'playwright-core', 'index.mjs'),
+).href);
 const stateRoot = join(witnessRoot, '.state');
 const iosBundleIdentifier = 'dev.snapback.checkoutwitness';
 const androidComponent = 'dev.snapback.checkoutwitness/.MainActivity';
@@ -32,21 +36,30 @@ function flag(name, fallback = null) {
 const platform = flag('--platform');
 const androidSerial = flag('--android-serial');
 const iosSimulator = flag('--ios-simulator', 'booted');
+const browserBinary = flag(
+  '--browser',
+  process.env.SNAPBACK_BROWSER_EXECUTABLE
+    ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+);
 const runtimeBinary = process.env.SNAPBACK_RUNTIME_BINARY
   ?? join(repoRoot, 'target', 'debug', 'snapback');
-if (!['ios', 'android'].includes(platform)) {
-  throw new Error('usage: node run-witness.mjs --platform ios|android [--android-serial <serial>] [--ios-simulator <udid>]');
+if (!['ios', 'android', 'web'].includes(platform)) {
+  throw new Error('usage: node run-witness.mjs --platform ios|android|web [--android-serial <serial>] [--ios-simulator <udid>] [--browser <path>]');
 }
 if (platform === 'android' && !androidSerial) {
   throw new Error('--android-serial is required for Android emulator and USB rows');
+}
+if (platform === 'web' && !existsSync(browserBinary)) {
+  throw new Error(`--browser is not an existing browser executable: ${browserBinary}`);
 }
 
 const runId = `${platform}-${new Date().toISOString().replace(/[:.]/gu, '-')}`;
 const receiptRoot = resolve(flag('--receipts', join(witnessRoot, 'receipts', runId)));
 const runStateRoot = join(stateRoot, runId);
-const readyFile = join(runStateRoot, 'snapback.ready.json');
+const managedStateRoot = join(runStateRoot, '.snapback');
+const readyFile = join(managedStateRoot, 'snapback.ready.json');
 mkdirSync(receiptRoot, { recursive: true });
-mkdirSync(runStateRoot, { recursive: true });
+mkdirSync(managedStateRoot, { recursive: true });
 
 function receiptPath(row) {
   return join(receiptRoot, `${row}.json`);
@@ -90,6 +103,14 @@ function waitFor(predicate, label, timeoutMs = 120_000) {
 
 const appReports = [];
 const receiptServer = createHttpServer(async (request, response) => {
+  response.setHeader('access-control-allow-origin', '*');
+  response.setHeader('access-control-allow-methods', 'POST, OPTIONS');
+  response.setHeader('access-control-allow-headers', 'content-type');
+  if (request.method === 'OPTIONS') {
+    response.statusCode = 204;
+    response.end();
+    return;
+  }
   if (request.method !== 'POST' || request.url !== '/receipt') {
     response.statusCode = 404;
     response.end();
@@ -136,9 +157,15 @@ const captureNativeLaunch = (binary, args, options) => {
 const nonceFor = (launch) => platform === 'ios'
   ? launch.options.env[`SIMCTL_CHILD_${SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV}`]
   : launch.args.at(-1);
+const commandsPerLaunch = platform === 'ios' ? 1 : 2;
 const launchSequence = (index) => {
-  const sequence = capturedLaunches.slice(index * 2, (index + 1) * 2);
-  if (sequence.length !== 2) throw new Error(`native launch sequence ${index} is incomplete`);
+  const sequence = capturedLaunches.slice(
+    index * commandsPerLaunch,
+    (index + 1) * commandsPerLaunch,
+  );
+  if (sequence.length !== commandsPerLaunch) {
+    throw new Error(`native launch sequence ${index} is incomplete`);
+  }
   return sequence;
 };
 const runLaunchSequence = (index) => {
@@ -165,6 +192,8 @@ function assertBootstrapSecretIsolation(response, body, checkoutNonce) {
 let supervisor = null;
 let tunnel = null;
 let androidReceiptReverse = false;
+let browserLifecycle = null;
+let browserConnection = null;
 try {
   if (platform === 'android') {
     const reverse = spawnSync('adb', [
@@ -176,25 +205,78 @@ try {
 
   supervisor = await runExpoDev({
     backendDirectory: join(appRoot, 'snapback'),
-    projectRoot: appRoot,
+    // `dev-fresh` may recursively reset only the canonical project-owned
+    // `.snapback/dev.sqlite3`; keep the witness state in its per-run project.
+    projectRoot: runStateRoot,
     expoDirectory: appRoot,
-    database: join(runStateRoot, 'snapback.sqlite3'),
+    database: join(managedStateRoot, 'dev.sqlite3'),
     readyFile,
-    applicationReadyFile: join(runStateRoot, 'application-ready.json'),
+    applicationReadyFile: join(managedStateRoot, 'application-ready.json'),
     runtimeBinary,
     platform,
-    ...(platform === 'android' ? { androidSerial } : { iosSimulator }),
-    nativeCheckout: true,
-    expoAppScheme: devClientScheme,
-    ...(platform === 'ios' ? { iosBundleIdentifier } : { androidComponent }),
-    nativeLaunchRun: captureNativeLaunch,
+    ...(platform === 'android'
+      ? { androidSerial }
+      : platform === 'ios' ? { iosSimulator } : {}),
+    ...(platform === 'web' ? {} : {
+      nativeCheckout: true,
+      expoAppScheme: devClientScheme,
+      ...(platform === 'ios' ? { iosBundleIdentifier } : { androidComponent }),
+      nativeLaunchRun: captureNativeLaunch,
+    }),
     env: {
       ...process.env,
       EXPO_PUBLIC_SNAPBACK_CHECKOUT_WITNESS_ORIGIN: `http://127.0.0.1:${receiptPort}`,
     },
     serverStdio: ['ignore', 'ignore', 'ignore'],
   });
-  await waitFor(() => capturedLaunches.length >= 2, 'initial native checkout launch sequence');
+  if (platform === 'web') {
+    // @ref LLP 0262#d2-carriers-per-shipped-topology — a real Expo-web
+    //   browser proves ordinary sessions compose while native custody is absent.
+    browserLifecycle = await launchChromeCdp({
+      chromeBin: browserBinary,
+      initialUrl: 'about:blank',
+      userDataPrefix: 'snapback-expo-web-dev-identity-',
+      startupTimeoutMs: 30_000,
+    });
+    browserConnection = await chromium.connectOverCDP(browserLifecycle.ws);
+    const page = browserConnection.contexts().flatMap((context) => context.pages())[0];
+    if (!page) throw new Error('Expo web Chrome launch did not expose a page');
+    await page.goto(supervisor.metroOrigin, { waitUntil: 'domcontentloaded' });
+    const webReport = await waitFor(
+      () => appReports.find((report) => report.row === 'web-session-isolation'),
+      'Expo web session/custody receipt',
+      180_000,
+    );
+    const hostDirectRefusal = await fetch(`${supervisor.binding.target.origin}/connection/open`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-snapback-auth-client-protocol': '1',
+        'x-snapback-dev-identity': 'sbdev_expo_web_host_probe_wrong_boot',
+      },
+      body: '{}',
+    });
+    const hostDirectRefusalBody = await hostDirectRefusal.json();
+    const hostRefusalPassed = hostDirectRefusal.status === 403
+      && hostDirectRefusalBody.diagnostic?.code === 'SNAPBACK_DEV_IDENTITY_REFUSED';
+    writeReceipt('web-session-isolation', {
+      ...projectAppReceipt(webReport),
+      hostDirectRefusalStatus: hostDirectRefusal.status,
+      hostDirectRefusalCode: hostDirectRefusalBody.diagnostic?.code ?? null,
+    });
+    writeReceipt('run-summary', {
+      status: webReport.status === 'passed' && hostRefusalPassed ? 'passed' : 'failed',
+      receiptRows: ['web-session-isolation'],
+      device: { class: 'browser' },
+    });
+    if (webReport.status !== 'passed' || !hostRefusalPassed) {
+      throw new Error(`Expo web witness failed with ${webReport.code ?? 'UNKNOWN'}`);
+    }
+  } else {
+  await waitFor(
+    () => capturedLaunches.length >= commandsPerLaunch,
+    'initial native checkout launch sequence',
+  );
   const initialNonce = nonceFor(launchSequence(0)[0]);
   secretValues.add(initialNonce);
 
@@ -266,14 +348,26 @@ try {
         body: JSON.stringify({ verb: 'dev-fresh', requestId }),
       });
       const payload = await response.json();
-      if (!response.ok || payload.ok !== true) throw new Error('supervisor rotation failed');
+      if (!response.ok || payload.ok !== true) {
+        const code = payload?.diagnostic?.code
+          ?? payload?.diagnostics?.[0]?.code
+          ?? payload?.code
+          ?? 'UNKNOWN';
+        const shape = Array.isArray(payload)
+          ? 'array'
+          : Object.keys(payload ?? {}).sort().join(',');
+        throw new Error(`supervisor rotation failed (HTTP ${response.status}, ${code}, keys=${shape})`);
+      }
     } finally {
       operatorToken = null;
     }
   };
 
   await rotate('unspent-old-nonce-refusal');
-  await waitFor(() => capturedLaunches.length >= 4, 'post-rotation native checkout launch sequence');
+  await waitFor(
+    () => capturedLaunches.length >= commandsPerLaunch * 2,
+    'post-rotation native checkout launch sequence',
+  );
   const freshNonce = nonceFor(launchSequence(1)[0]);
   secretValues.add(freshNonce);
   if (freshNonce === initialNonce) throw new Error('backend rotation reused checkout delivery');
@@ -308,7 +402,10 @@ try {
   });
 
   await rotate('fresh-launch-replacement');
-  await waitFor(() => capturedLaunches.length >= 6, 'replacement native checkout launch sequence');
+  await waitFor(
+    () => capturedLaunches.length >= commandsPerLaunch * 3,
+    'replacement native checkout launch sequence',
+  );
   const replacementNonce = nonceFor(launchSequence(2)[0]);
   secretValues.add(replacementNonce);
   if (replacementNonce === freshNonce) throw new Error('fresh launch reused checkout delivery');
@@ -322,15 +419,17 @@ try {
     freshLaunchDeliveryReplacedPriorBoot: true,
   });
 
-  writeReceipt('run-summary', {
-    status: [
+  const nativeStatuses = [
       firstAppReport.status,
       replacementReport.status,
       browserOriginAttempt.status === 403 ? 'passed' : 'failed',
       tunneledBootstrap.status === 200 ? 'passed' : 'failed',
       staleAttempt.status === 403 ? 'passed' : 'failed',
       replayAttempt.status === 403 ? 'passed' : 'failed',
-    ].every((status) => status === 'passed') ? 'passed' : 'failed',
+    ];
+  const nativePassed = nativeStatuses.every((status) => status === 'passed');
+  writeReceipt('run-summary', {
+    status: nativePassed ? 'passed' : 'failed',
     receiptRows: [
       `${platform}-native-reader`,
       `${platform}-rotation-replacement`,
@@ -343,8 +442,12 @@ try {
       ? { class: 'simulator' }
       : { class: supervisor.device.class, serial: supervisor.device.serial },
   });
+  if (!nativePassed) throw new Error(`${platform} native witness reported a failed row`);
+  }
   process.stdout.write(`${receiptRoot}\n`);
 } finally {
+  await browserConnection?.close?.().catch(() => {});
+  await browserLifecycle?.stop?.().catch(() => {});
   await supervisor?.close?.().catch(() => {});
   await new Promise((resolveClose) => receiptServer.close(resolveClose));
   if (tunnel) await new Promise((resolveClose) => tunnel.close(resolveClose));

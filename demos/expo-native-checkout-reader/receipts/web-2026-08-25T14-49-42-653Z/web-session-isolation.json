@@ -1,0 +1,20 @@
+{
+  "appFormat": "snapback.expo-dev-identity-witness-app.v1",
+  "appRow": "web-session-isolation",
+  "status": "passed",
+  "hookInstalledBeforeApplicationModule": false,
+  "checkoutCapabilityAbsent": true,
+  "devIdentityHeaderPresented": false,
+  "sessionBearerPresented": true,
+  "queryAccepted": true,
+  "rowCount": 0,
+  "directRefusalStatus": null,
+  "directRefusalCode": null,
+  "directTransportRefused": true,
+  "hostDirectRefusalStatus": 403,
+  "hostDirectRefusalCode": "SNAPBACK_DEV_IDENTITY_REFUSED",
+  "format": "snapback.expo-dev-identity-witness.v1",
+  "row": "web-session-isolation",
+  "platform": "web",
+  "capturedAt": "2026-08-25T14:49:51.632Z"
+}

@@ -32,6 +32,7 @@
   },
   "acceptanceChecks": {
     "browser-public-witness": [
+      "an external Vite relay overwrites browser-supplied dev-identity input with host custody while direct invalid custody is refused",
       "current authoritative public rows persist in the default IndexedDB carrier",
       "a full Chrome SIGKILL and same-profile relaunch renders pre-intent retained rows while authority is unreachable",
       "offline add/toggle intents survive process death and replay only after a fresh authoritative snapshot",
