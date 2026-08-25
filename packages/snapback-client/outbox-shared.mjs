@@ -37,6 +37,11 @@ export const OUTBOX_MAX_RECORDS = 1024;
 export const OUTBOX_MAX_RECORD_BYTES = 262_144; // 256 KiB serialized
 export const OUTBOX_MAX_PENDING_ACKS = 4096;
 export const OUTBOX_QUARANTINE_TOMBSTONE_FORMAT = 'snapback.outbox-quarantine-tombstone.v1';
+// @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 — replay
+// authority includes the immutable enqueue target; predecessor records remain
+// readable but cannot replay without a separately approved adoption protocol.
+const OUTBOX_RECORD_SCHEMA_VERSION = 2;
+const OUTBOX_ENQUEUE_TARGET_SCHEMA_VERSION = 'snapback.outbox-enqueue-target.v1';
 
 /**
  * Fair two-lane dispatch gate. Foreground and housekeeping each remain
@@ -153,6 +158,61 @@ const invalidOutboxRecord = (message) => outboxError(
   message,
 );
 
+const OUTBOX_GENERATION_KEYS = Object.freeze([
+  'schemaVersion',
+  'appId',
+  'schemaHash',
+  'bundleHash',
+  'inputsHash',
+]);
+
+const normalizeOutboxEnqueueTarget = (value) => {
+  if (
+    !plainRecord(value)
+    || value.schemaVersion !== OUTBOX_ENQUEUE_TARGET_SCHEMA_VERSION
+    || typeof value.canonicalOrigin !== 'string'
+    || value.canonicalOrigin.length === 0
+    || !(value.targetProfileId === null || typeof value.targetProfileId === 'string')
+    || !plainRecord(value.artifactIdentity)
+  ) return null;
+  const artifactIdentity = value.artifactIdentity;
+  if (
+    artifactIdentity.kind === 'app'
+    && typeof artifactIdentity.appId === 'string'
+    && artifactIdentity.appId.length > 0
+    && Object.keys(artifactIdentity).length === 2
+  ) {
+    return {
+      schemaVersion: OUTBOX_ENQUEUE_TARGET_SCHEMA_VERSION,
+      canonicalOrigin: value.canonicalOrigin,
+      targetProfileId: value.targetProfileId,
+      artifactIdentity: { kind: 'app', appId: artifactIdentity.appId },
+    };
+  }
+  const generation = artifactIdentity.generation;
+  if (
+    artifactIdentity.kind !== 'generated'
+    || Object.keys(artifactIdentity).length !== 2
+    || !plainRecord(generation)
+    || Object.keys(generation).length !== OUTBOX_GENERATION_KEYS.length
+    || Object.keys(generation).some((key) => !OUTBOX_GENERATION_KEYS.includes(key))
+    || OUTBOX_GENERATION_KEYS.some(
+      (key) => typeof generation[key] !== 'string' || generation[key].length === 0,
+    )
+  ) return null;
+  return {
+    schemaVersion: OUTBOX_ENQUEUE_TARGET_SCHEMA_VERSION,
+    canonicalOrigin: value.canonicalOrigin,
+    targetProfileId: value.targetProfileId,
+    artifactIdentity: {
+      kind: 'generated',
+      generation: Object.fromEntries(
+        OUTBOX_GENERATION_KEYS.map((key) => [key, generation[key]]),
+      ),
+    },
+  };
+};
+
 export const outboxNotWriterError = () => outboxError(
   'SNAPBACK_OUTBOX_NOT_WRITER',
   'this context does not hold single-writer ownership of the client store; '
@@ -191,6 +251,21 @@ export function normalizeOutboxRecordInput(record) {
   }
   if (typeof functionName !== 'string' || !functionName) {
     throw invalidOutboxRecord('outbox record needs a function name');
+  }
+  const enqueueTarget = record.enqueueTarget === undefined
+    ? null
+    : normalizeOutboxEnqueueTarget(record.enqueueTarget);
+  if (record.outboxRecordSchemaVersion === undefined) {
+    if (record.enqueueTarget !== undefined) {
+      throw invalidOutboxRecord('legacy outbox records cannot carry a v2 enqueue target');
+    }
+  } else if (
+    record.outboxRecordSchemaVersion !== OUTBOX_RECORD_SCHEMA_VERSION
+    || enqueueTarget === null
+  ) {
+    throw invalidOutboxRecord(
+      `outbox record schema v${OUTBOX_RECORD_SCHEMA_VERSION} requires a valid enqueue target`,
+    );
   }
   const principalScope = normalizePrincipalScope(record.principalScope);
   const custody = normalizeCustody(record.custody);
@@ -269,6 +344,10 @@ export function normalizeOutboxRecordInput(record) {
   return {
     id,
     function: functionName,
+    ...(enqueueTarget === null ? {} : {
+      outboxRecordSchemaVersion: OUTBOX_RECORD_SCHEMA_VERSION,
+      enqueueTarget,
+    }),
     args: record.args ?? {},
     userId: stringOrNull(record.userId),
     readSet: Array.isArray(record.readSet) ? record.readSet : [],

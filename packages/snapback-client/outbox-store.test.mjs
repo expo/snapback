@@ -53,6 +53,7 @@ class SnapbackClient extends InspectingSnapbackClient {
       __outboxDrainLifecycle: false,
       ...options,
     });
+    this.__registerInspectionAppId(TEST_ARTIFACT_GENERATION.appId);
   }
 }
 
@@ -351,6 +352,23 @@ const offlineReplayInspection = ({
     inputsHash: generation.inputsHash,
   },
   capabilityManifest: offlineReplayCapabilityManifest({ supported, targetProfileId }),
+});
+
+const currentOutboxTarget = ({
+  origin,
+  targetProfileId = 'local-dev-sqlite-ibex',
+  generation = TEST_ARTIFACT_GENERATION,
+  generated = false,
+}) => ({
+  outboxRecordSchemaVersion: 2,
+  enqueueTarget: {
+    schemaVersion: 'snapback.outbox-enqueue-target.v1',
+    canonicalOrigin: origin,
+    targetProfileId,
+    artifactIdentity: generated
+      ? { kind: 'generated', generation }
+      : { kind: 'app', appId: generation.appId },
+  },
 });
 
 const waitForOfflineReplayCapabilityFact = async (store, predicate, label) => {
@@ -2468,6 +2486,7 @@ test('replay mutations treat 307/308 redirects as answered refusals', async (t) 
     await store.outboxEnqueue({
       id: `cm-replay-redirect-${status}`,
       function: 'createThing',
+      ...currentOutboxTarget({ origin: `https://replay-redirect-${status}.example` }),
       args: { status },
     });
     const client = new InspectingSnapbackClient(`https://replay-redirect-${status}.example`, {
@@ -2554,12 +2573,10 @@ test('a target advertising the settlement ledger still queues and replays', asyn
   globalThis.fetch = async (url, init) => {
     const path = new URL(url).pathname;
     if (path === '/inspect') {
-      return Response.json({
-        capabilityManifest: offlineReplayCapabilityManifest({
-          supported: true,
-          targetProfileId: 'local-dev-sqlite-ibex',
-        }),
-      });
+      return Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId: 'local-dev-sqlite-ibex',
+      }));
     }
     if (!online) throw new TypeError('offline');
     if (path === '/connection/open') {
@@ -2583,6 +2600,7 @@ test('a target advertising the settlement ledger still queues and replays', asyn
   assert.deepEqual(
     { replayed: replay.replayed, failed: replay.failed, remaining: replay.remaining },
     { replayed: 1, failed: 0, remaining: 0 },
+    JSON.stringify({ replay, diagnostics: client.outboxDiagnostics, pending: await store.outboxPending() }),
   );
   assert.equal(delivered.length, 1);
   assert.equal(delivered[0].clientMutationId, queued.clientMutationId);
@@ -3539,6 +3557,7 @@ const exerciseCrossClientCapabilityOrdering = async ({
     await writerStore.outboxEnqueue({
       id: replayId,
       function: 'createThing',
+      ...currentOutboxTarget({ origin }),
       args: { title: `${label}-replay-shared-generation` },
     });
     const readCapabilityFact = writerStore.readOfflineMutationReplayCapabilityFact
@@ -3634,8 +3653,9 @@ test('file writer/follower share capability ordering across admission and respon
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const options = { directory, identity: 'origin:capability-two-client-races' };
   const writerStore = createFileRqsResumeStore(options);
+  await writerStore.whenLockSettled();
   const followerStore = createFileRqsResumeStore(options);
-  await Promise.all([writerStore.whenLockSettled(), followerStore.whenLockSettled()]);
+  await followerStore.whenLockSettled();
   try {
     assert.equal(writerStore.isWriter(), true);
     assert.equal(followerStore.isWriter(), false);
@@ -3949,6 +3969,7 @@ test('replay capability re-read after submission preparation is the final transp
   await store.outboxEnqueue({
     id: clientMutationId,
     function: 'createThing',
+    ...currentOutboxTarget({ origin }),
     args: { title: 'negative committed during replay submission preparation' },
   });
   let inspectionSupported = true;
@@ -4015,6 +4036,7 @@ test('replay refuses a baseUrl repoint between drain inspection and POST', async
   await store.outboxEnqueue({
     id: clientMutationId,
     function: 'createThing',
+    ...currentOutboxTarget({ origin: originA }),
     args: { title: 'keep replay on its inspected target' },
   });
   const client = new InspectingSnapbackClient(originA, {
@@ -4075,6 +4097,223 @@ test('replay refuses a baseUrl repoint between drain inspection and POST', async
   }
 });
 
+test('cross-target relaunch refuses the persisted enqueue target before POST', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const originA = 'https://persisted-target-a.example';
+  const originB = 'https://persisted-target-b.example';
+  const appGeneration = {
+    ...TEST_ARTIFACT_GENERATION,
+    appId: 'persisted-target-app',
+  };
+  const targetAProfile = 'local-target-a';
+  const targetBProfile = 'local-target-b';
+  let targetBPosts = 0;
+  globalThis.fetch = async (url) => {
+    const target = new URL(url);
+    if (target.pathname === '/inspect') {
+      return Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId: target.origin === originA ? targetAProfile : targetBProfile,
+        generation: appGeneration,
+      }));
+    }
+    if (target.origin === originA) throw new TypeError('target A went offline after admission');
+    targetBPosts += 1;
+    return Response.json({ result: { wrongTarget: true }, version: 1 });
+  };
+  const enqueueClient = new InspectingSnapbackClient(originA, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  const queued = await enqueueClient.mutate('createThing', {
+    clientMutationId: 'cm-persisted-cross-target-relaunch',
+    args: { title: 'belongs to target A' },
+  });
+  assert.equal(queued.status, 'queued');
+  await enqueueClient.close();
+
+  const replayClient = new InspectingSnapbackClient(originB, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  try {
+    const replay = await replayClient.replayQueuedMutations();
+    assert.equal(replay.replayed, 0, 'target A intent is not replayed by target B');
+    assert.equal(replay.stopped, true, 'target mismatch pauses replay');
+    assert.equal(targetBPosts, 0, 'target mismatch sends zero mutation POSTs to target B');
+    assert.deepEqual(
+      (await store.outboxPending()).map((record) => record.id),
+      ['cm-persisted-cross-target-relaunch'],
+      'target mismatch leaves the record pending',
+    );
+    assert.equal(
+      replayClient.outboxDiagnostics.at(-1)?.code,
+      'SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH',
+    );
+  } finally {
+    await replayClient.close();
+    await store.close();
+  }
+});
+
+test('same-origin app replacement refuses string-named persisted intent before POST', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const origin = 'https://persisted-app-identity.example';
+  const appA = { ...TEST_ARTIFACT_GENERATION, appId: 'persisted-app-a' };
+  const appB = { ...TEST_ARTIFACT_GENERATION, appId: 'persisted-app-b' };
+  let servedGeneration = appA;
+  let successorPosts = 0;
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+    if (path === '/inspect') {
+      return Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId: 'same-origin-local-target',
+        generation: servedGeneration,
+      }));
+    }
+    if (servedGeneration === appA) throw new TypeError('app A stopped after admission');
+    successorPosts += 1;
+    return Response.json({ result: { wrongApp: true }, version: 1 });
+  };
+  const enqueueClient = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  const queued = await enqueueClient.mutate('createThing', {
+    clientMutationId: 'cm-persisted-same-origin-app',
+    args: { title: 'belongs to app A' },
+  });
+  assert.equal(queued.status, 'queued');
+  await enqueueClient.close();
+  servedGeneration = appB;
+
+  const replayClient = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  try {
+    const replay = await replayClient.replayQueuedMutations();
+    assert.equal(replay.replayed, 0, 'app A intent is not replayed by app B');
+    assert.equal(replay.stopped, true, 'app identity mismatch pauses replay');
+    assert.equal(successorPosts, 0, 'app identity mismatch sends zero mutation POSTs');
+    assert.deepEqual(
+      (await store.outboxPending()).map((record) => record.id),
+      ['cm-persisted-same-origin-app'],
+      'app identity mismatch leaves the record pending',
+    );
+    assert.equal(
+      replayClient.outboxDiagnostics.at(-1)?.code,
+      'SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH',
+    );
+  } finally {
+    await replayClient.close();
+    await store.close();
+  }
+});
+
+test('matching persisted enqueue target replays exactly once after relaunch', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const origin = 'https://persisted-target-match.example';
+  const generation = { ...TEST_ARTIFACT_GENERATION, appId: 'persisted-target-match-app' };
+  let online = false;
+  let mutationPosts = 0;
+  globalThis.fetch = async (url) => {
+    if (new URL(url).pathname === '/inspect') {
+      return Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId: 'persisted-target-match-profile',
+        generation,
+      }));
+    }
+    mutationPosts += 1;
+    if (!online) throw new TypeError('offline after enqueue admission');
+    return Response.json({ result: { matched: true }, version: 1 });
+  };
+  const enqueueClient = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  const queued = await enqueueClient.mutate('createThing', {
+    clientMutationId: 'cm-persisted-target-match',
+    args: { title: 'same target only' },
+  });
+  assert.equal(queued.status, 'queued');
+  const [persisted] = await store.outboxPending();
+  assert.equal(persisted.outboxRecordSchemaVersion, 2);
+  assert.deepEqual(persisted.enqueueTarget, {
+    schemaVersion: 'snapback.outbox-enqueue-target.v1',
+    canonicalOrigin: origin,
+    targetProfileId: 'persisted-target-match-profile',
+    artifactIdentity: { kind: 'app', appId: generation.appId },
+  });
+  await enqueueClient.close();
+  online = true;
+
+  const replayClient = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  try {
+    const replay = await replayClient.replayQueuedMutations();
+    assert.deepEqual(
+      { replayed: replay.replayed, failed: replay.failed, remaining: replay.remaining },
+      { replayed: 1, failed: 0, remaining: 0 },
+    );
+    assert.equal(mutationPosts, 2, 'one failed foreground POST and one replay POST occur');
+    assert.deepEqual(await store.outboxPending(), []);
+  } finally {
+    await replayClient.close();
+    await store.close();
+  }
+});
+
+test('legacy targetless outbox record fails closed with a distinct replay diagnostic', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  await store.outboxEnqueue({
+    id: 'cm-legacy-targetless-record',
+    function: 'createThing',
+    args: { title: 'pre-v2 record' },
+  });
+  let mutationPosts = 0;
+  globalThis.fetch = async (url) => {
+    if (new URL(url).pathname === '/inspect') {
+      return Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId: 'legacy-targetless-profile',
+      }));
+    }
+    mutationPosts += 1;
+    return Response.json({ result: { shouldNotRun: true }, version: 1 });
+  };
+  const client = new InspectingSnapbackClient('https://legacy-targetless.example', {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  try {
+    const replay = await client.replayQueuedMutations();
+    assert.equal(replay.replayed, 0, 'targetless legacy intent is never replayed');
+    assert.equal(replay.stopped, true, 'targetless legacy intent pauses replay');
+    assert.equal(mutationPosts, 0, 'targetless legacy intent sends zero mutation POSTs');
+    assert.deepEqual(
+      (await store.outboxPending()).map((record) => record.id),
+      ['cm-legacy-targetless-record'],
+      'targetless legacy intent remains pending',
+    );
+    assert.equal(
+      client.outboxDiagnostics.at(-1)?.code,
+      'SNAPBACK_OUTBOX_REPLAY_TARGET_MISSING',
+    );
+  } finally {
+    await client.close();
+    await store.close();
+  }
+});
+
 test('replay checks peer capability currency under the dispatch lock before range refresh', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
@@ -4083,6 +4322,7 @@ test('replay checks peer capability currency under the dispatch lock before rang
   await store.outboxEnqueue({
     id: clientMutationId,
     function: 'createThing',
+    ...currentOutboxTarget({ origin, targetProfileId: null }),
     args: { title: 'peer negative precedes range transport' },
     userId: 'user-a',
   });
@@ -4631,6 +4871,7 @@ test('automatic string-named enqueue reuses origin-bound direct-manifest support
     rqsStore: store,
     __outboxDrainLifecycle: false,
   });
+  client.__registerInspectionAppId(TEST_ARTIFACT_GENERATION.appId);
   globalThis.fetch = async () => Response.json(offlineReplayCapabilityManifest({
     supported: true,
     targetProfileId: 'remote-service',
@@ -4811,27 +5052,39 @@ test('mutate queues on connectivity failure and replays exactly-once', async (t)
   );
 });
 
-test('checked sidecar adoption drains one injected store against the candidate origin', async (t) => {
+test('checked sidecar adoption cannot bypass persisted target without target adoption', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
   const clientStoreId = (await store.readStoreMeta()).clientStoreId;
   await store.outboxEnqueue({
     id: 'cm-sidecar-adoption',
     function: 'createThing',
+    ...currentOutboxTarget({
+      origin: 'http://127.0.0.1:41001',
+      targetProfileId: 'local-dev-sqlite-ibex',
+      generation: TEST_ARTIFACT_GENERATION,
+      generated: true,
+    }),
     args: { title: 'pending across origin' },
     expectedGeneration: TEST_ARTIFACT_GENERATION,
     argumentSchema: TEST_CREATE_THING_ARGUMENT_SCHEMA,
   });
   const delivered = [];
   globalThis.fetch = async (url, init = {}) => {
-    if (String(url).endsWith('/inspect')) return Response.json(adoptionInspection());
+    if (String(url).endsWith('/inspect')) {
+      return Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId: 'local-dev-sqlite-ibex',
+        generation: TEST_ARTIFACT_GENERATION,
+      }));
+    }
     const body = JSON.parse(init.body);
     delivered.push({ url: String(url), body });
     return Response.json({ result: { ok: true }, version: 7 });
   };
-  const candidate = new SnapbackClient('http://127.0.0.1:41002', {
+  const candidate = new InspectingSnapbackClient('http://127.0.0.1:41002', {
     rqsStore: store,
-    offlineQueue: true,
+    __outboxDrainLifecycle: false,
   });
   const receipt = await candidate.adoptQueuedMutations({
     expectedClientStoreId: clientStoreId,
@@ -4842,23 +5095,26 @@ test('checked sidecar adoption drains one injected store against the candidate o
   assert.equal(receipt.clientStoreId, clientStoreId);
   assert.equal(receipt.writer, true);
   assert.equal(receipt.pendingBefore, 1);
-  assert.equal(receipt.replayed, 1, JSON.stringify({
+  assert.equal(receipt.replayed, 0, JSON.stringify({
     receipt,
     stop: candidate.__outboxLastReplayStop,
     diagnostics: candidate.outboxDiagnostics,
   }));
-  assert.equal(receipt.remaining, 0);
-  assert.equal(receipt.stopped, false);
+  assert.equal(receipt.remaining, 1);
+  assert.equal(receipt.stopped, true);
   assert.deepEqual(
     receipt.before,
     { pending: 1, failed: 0, stranded: 0, quarantined: 0, resultGone: 0 },
   );
   assert.deepEqual(
     receipt.after,
-    { pending: 0, failed: 0, stranded: 0, quarantined: 0, resultGone: 0 },
+    { pending: 1, failed: 0, stranded: 0, quarantined: 0, resultGone: 0 },
   );
-  assert.equal(delivered[0].url, 'http://127.0.0.1:41002/mutation/createThing');
-  assert.equal(delivered[0].body.clientMutationId, 'cm-sidecar-adoption');
+  assert.deepEqual(delivered, [], 'target adoption is not inferred from sidecar admission');
+  assert.equal(
+    candidate.outboxDiagnostics.at(-1)?.code,
+    'SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH',
+  );
   assert.equal(Object.isFrozen(receipt), true);
   assert.equal(Object.isFrozen(receipt.before), true);
 });
@@ -5334,6 +5590,10 @@ test('replay range preparation pauses while an authorization root remains active
   await store.outboxEnqueue({
     id: 'cm-delayed-range-replay',
     function: 'createThing',
+    ...currentOutboxTarget({
+      origin: 'https://operation-range-fence.example',
+      targetProfileId: null,
+    }),
     args: { title: 'fenced during range refresh' },
     userId: 'user-a',
   });
@@ -5996,15 +6256,37 @@ test('queued generated mutation retains its call-time artifact generation throug
     },
     expectedGeneration,
   };
-  const client = new SnapbackClient('http://127.0.0.1:9', {
+  const client = new InspectingSnapbackClient('http://127.0.0.1:9', {
     rqsStore: store,
+    __outboxDrainLifecycle: false,
   });
-  globalThis.fetch = async () => { throw new TypeError('offline'); };
+  globalThis.fetch = async (url) => {
+    if (new URL(url).pathname === '/inspect') {
+      return Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId: 'local-dev-sqlite-ibex',
+        generation: expectedGeneration,
+      }));
+    }
+    throw new TypeError('offline');
+  };
   await client.mutate(ref, { args: { value: 1 } });
-  assert.deepEqual((await store.outboxPending())[0].expectedGeneration, expectedGeneration);
+  const [queuedRecord] = await store.outboxPending();
+  assert.deepEqual(queuedRecord.expectedGeneration, expectedGeneration);
+  assert.deepEqual(
+    queuedRecord.enqueueTarget.artifactIdentity,
+    { kind: 'generated', generation: expectedGeneration },
+  );
 
   let replayBody;
-  globalThis.fetch = async (_url, init) => {
+  globalThis.fetch = async (url, init) => {
+    if (new URL(url).pathname === '/inspect') {
+      return Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId: 'local-dev-sqlite-ibex',
+        generation: expectedGeneration,
+      }));
+    }
     replayBody = JSON.parse(init.body);
     return Response.json({
       version: 1,
@@ -6046,6 +6328,11 @@ test('persisted generated mutation without reference kind replays as Mutation', 
   await store.outboxEnqueue({
     id: 'cm-legacy-kindless-generated',
     function: 'legacyGenerationBoundMutation',
+    ...currentOutboxTarget({
+      origin: 'http://127.0.0.1:9',
+      generation: expectedGeneration,
+      generated: true,
+    }),
     args: { value: 2 },
     readSet: [],
     expectedGeneration,
@@ -6055,7 +6342,14 @@ test('persisted generated mutation without reference kind replays as Mutation', 
   assert.equal(Object.hasOwn(persisted, 'kind'), false, 'legacy durable shape has no reference kind');
 
   let replayBody;
-  globalThis.fetch = async (_url, init) => {
+  globalThis.fetch = async (url, init) => {
+    if (new URL(url).pathname === '/inspect') {
+      return Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId: 'local-dev-sqlite-ibex',
+        generation: expectedGeneration,
+      }));
+    }
     replayBody = JSON.parse(init.body);
     return Response.json({
       version: 1,
@@ -6063,7 +6357,10 @@ test('persisted generated mutation without reference kind replays as Mutation', 
       authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR,
     });
   };
-  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+  const client = new InspectingSnapbackClient('http://127.0.0.1:9', {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
   const replay = await client.replayQueuedMutations();
   assert.deepEqual(
     { replayed: replay.replayed, failed: replay.failed, remaining: replay.remaining },
@@ -6478,6 +6775,7 @@ test('committed result-expired becomes durable result-gone and blocks ordered su
   await store.outboxEnqueue({
     id: 'cm-after-result-expired',
     function: 'updateThing',
+    ...currentOutboxTarget({ origin: 'http://127.0.0.1:9', targetProfileId: null }),
     args: { title: 'must-wait' },
   });
   calls = 0;
@@ -6679,6 +6977,10 @@ test('recreated file-backed client preserves result-gone without redelivery', as
   await reopenedStore.outboxEnqueue({
     id: 'cm-after-result-gone-relaunch',
     function: 'updateThing',
+    ...currentOutboxTarget({
+      origin: 'https://result-gone.example',
+      targetProfileId: null,
+    }),
     args: { title: 'must remain fenced' },
   });
   let calls = 0;

@@ -5,6 +5,12 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
+**Revised:** 2026-08-25 (durable enqueue-target binding: additive outbox
+record schema v2 persists canonical origin, target profile, and generated
+artifact generation or string-reference app identity. Replay compares the
+record with its fresh pinned target before custody changes or transport;
+mismatch and pre-v2 target absence are distinct coded pending refusals.
+Cross-target adoption is deliberately not defined by this amendment.)
 **Revised:** 2026-08-25 (pinned-target rule: each foreground mutation and
 replay cycle captures one immutable transport base URL and canonical origin
 before inspection, then completes that target with the positive fact's target
@@ -465,6 +471,21 @@ never started. For an uncovered replay record, that same read runs under the
 authorization-dispatch lock immediately before any operation-identity range
 request; a peer negative therefore skips both range issuance and mutation
 transport.
+
+The operation-lifetime pin is also durable enqueue identity. Every newly
+created outbox record uses additive record schema v2 and stores the enqueue
+target's canonical origin, target profile, and artifact identity. Generated
+references store their complete call-time artifact generation; string-named
+references store the application identity already established by the served
+app descriptor/binding. Before replay changes queue custody, assigns an
+operation-identity range, marks dispatch, or sends a mutation, a fresh pinned
+target must equal every persisted axis. A difference refuses with
+`SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH`; a pre-v2 record with no target
+refuses separately with `SNAPBACK_OUTBOX_REPLAY_TARGET_MISSING`. Both records
+remain pending and produce no mutation POST. An explicit future protocol may
+adopt target-bound intent, but neither ordinary replay nor the current
+sidecar-adoption checks infer that authority; target adoption is out of scope
+for this amendment.
 
 All mutation/replay POSTs, and all other effect-producing HTTP methods, use
 manual redirect handling. The JS client deliberately applies that posture

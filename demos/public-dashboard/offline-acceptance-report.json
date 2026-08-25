@@ -141,7 +141,7 @@
       "details": {
         "updateKinds": [
           "persisted",
-          "snapshot"
+          "current_as_of"
         ],
         "rows": 3
       }

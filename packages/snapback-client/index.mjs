@@ -51,7 +51,7 @@ import {
   SnapbackDiagnosticError,
   asSnapbackDiagnosticError,
   isSnapbackDiagnosticError,
-  snapbackDiagnosticError,
+  snapbackDiagnosticError as diagnosticError,
 } from './diagnostic-error.mjs';
 
 export { DEFAULT_AUTH_STORAGE_PARTITION } from './app-client-defaults.mjs';
@@ -3087,12 +3087,15 @@ const OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED =
   'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED';
 const OFFLINE_MUTATION_REPLAY_CAPABILITY_FACT_V1 =
   'snapback.offline-mutation-replay-capability-fact.v1';
+const OUTBOX_RECORD_SCHEMA_VERSION = 2;
+const OUTBOX_ENQUEUE_TARGET_SCHEMA_VERSION = 'snapback.outbox-enqueue-target.v1';
 
 const canonicalServerOrigin = (baseUrl) => {
   try { return new URL(baseUrl).origin; } catch { return baseUrl; }
 };
 
 const normalizedOperationBaseUrl = (baseUrl) => String(baseUrl).replace(/\/$/u, '');
+const INTERNAL_CONFIGURED_REPLAY_APP_ID = 'snapback.internal-configured-replay-capability';
 
 const pinOfflineMutationTransportTarget = (baseUrl, artifactGeneration = null) => {
   // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 — the
@@ -3149,21 +3152,98 @@ const OPERATION_TARGET_CHANGED = 'SNAPBACK_CLIENT_OPERATION_TARGET_CHANGED';
 const offlineMutationOperationTargetChangedError = (target, currentBaseUrl) => {
   const current = normalizedOperationBaseUrl(currentBaseUrl);
   const message = 'the client target changed after mutation/replay admission; transport was refused';
-  const diagnostic = Object.freeze({
-    schemaVersion: 'snapback.client-diagnostic.v1',
-    code: OPERATION_TARGET_CHANGED,
-    severity: 'error',
-    subsystem: 'outbox',
+  return diagnosticError(
+    'SNAPBACK_CLIENT_OPERATION_TARGET_CHANGED',
     message,
-    details: Object.freeze({
+    {
       reason: 'operation-target-changed',
       pinnedOrigin: target.origin,
       currentOrigin: canonicalServerOrigin(current),
       targetProfileId: target.targetProfileId,
       artifactGeneration: target.artifactGeneration,
-    }),
+    },
+  );
+};
+
+const offlineMutationOutboxEnqueueTarget = (
+  operationTarget,
+  generatedArtifactGeneration,
+  knownAppId,
+) => {
+  // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 — the
+  // operation pin becomes durable record identity at the enqueue boundary.
+  const artifactIdentity = generatedArtifactGeneration === null
+    ? {
+      kind: 'app',
+      appId: operationTarget.artifactGeneration?.appId ?? knownAppId,
+    }
+    : {
+      kind: 'generated',
+      generation: normalizeExpectedGeneration(
+        generatedArtifactGeneration,
+        'outbox enqueue generated artifact identity',
+      ),
+    };
+  if (typeof artifactIdentity.appId !== 'string' && artifactIdentity.kind === 'app') {
+    throw offlineQueueSettlementLedgerError({ reason: 'target-identity-mismatch' });
+  }
+  return Object.freeze({
+    schemaVersion: OUTBOX_ENQUEUE_TARGET_SCHEMA_VERSION,
+    canonicalOrigin: canonicalServerOrigin(operationTarget.origin),
+    targetProfileId: operationTarget.targetProfileId,
+    artifactIdentity: Object.freeze(artifactIdentity),
   });
-  return new SnapbackDiagnosticError(diagnostic, { message });
+};
+
+const offlineMutationReplayTargetBindingError = (record, replayTarget, knownAppId) => {
+  // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 — a
+  // replay target is proven from current server facts, never rebound from the
+  // record; legacy absence and mismatch both retain pending custody.
+  if (
+    record?.outboxRecordSchemaVersion !== OUTBOX_RECORD_SCHEMA_VERSION
+    || record?.enqueueTarget == null
+  ) {
+    return diagnosticError(
+      'SNAPBACK_OUTBOX_REPLAY_TARGET_MISSING',
+      'the durable outbox record predates persisted enqueue-target identity; replay is refused until an explicit adoption protocol approves it',
+      {
+        reason: 'enqueue-target-missing',
+        clientMutationId: record?.id ?? null,
+        recordSchemaVersion: record?.outboxRecordSchemaVersion ?? null,
+      },
+    );
+  }
+  const persisted = record.enqueueTarget;
+  const currentAppId = replayTarget.artifactGeneration?.appId ?? knownAppId;
+  const artifactMatches = persisted.artifactIdentity?.kind === 'generated'
+    ? replayTarget.artifactGeneration !== null
+      && sameArtifactGeneration(
+        persisted.artifactIdentity.generation,
+        replayTarget.artifactGeneration,
+      )
+    : persisted.artifactIdentity?.kind === 'app'
+      && typeof currentAppId === 'string'
+      && persisted.artifactIdentity.appId === currentAppId;
+  if (
+    canonicalServerOrigin(persisted.canonicalOrigin) === replayTarget.origin
+    && persisted.targetProfileId === replayTarget.targetProfileId
+    && artifactMatches
+  ) return null;
+  return diagnosticError(
+    'SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH',
+    'the durable outbox record belongs to a different canonical origin, target profile, or application artifact; replay is refused',
+    {
+      reason: 'enqueue-target-mismatch',
+      clientMutationId: record.id,
+      persistedTarget: persisted,
+      replayTarget: {
+        canonicalOrigin: replayTarget.origin,
+        targetProfileId: replayTarget.targetProfileId,
+        artifactGeneration: replayTarget.artifactGeneration,
+        appId: currentAppId ?? null,
+      },
+    },
+  );
 };
 
 const offlineMutationReplayCapabilityFactFromInspection = (inspection, origin) => {
@@ -12633,6 +12713,44 @@ export class SnapbackClient {
       replayCapabilityFact = capability;
       replayCapabilityRequestSequence = capability.inspectionRequestSequence;
       replayOperationTarget = capability.operationTarget ?? replayTransportTarget;
+      const knownReplayAppId = replayOperationTarget.artifactGeneration?.appId
+        ?? this.__inspectionAppId
+        ?? (this.__offlineMutationReplayCapability === null
+          ? null
+          : INTERNAL_CONFIGURED_REPLAY_APP_ID);
+      const targetRefusal = queuedBeforeCustody
+        .map((record) => ({
+          record,
+          error: offlineMutationReplayTargetBindingError(
+            record,
+            replayOperationTarget,
+            knownReplayAppId,
+          ),
+        }))
+        .find(({ error }) => error !== null);
+      if (targetRefusal !== undefined) {
+        const { record, error } = targetRefusal;
+        this.#recordOutboxDiagnostic({
+          code: error.code,
+          mutation: record.function,
+          clientMutationId: record.id,
+          ...error.diagnostic.details,
+        });
+        replayStop.value = Object.freeze({
+          kind: 'paused',
+          reason: error.code === 'SNAPBACK_OUTBOX_REPLAY_TARGET_MISSING'
+            ? 'replay-paused:enqueue-target-missing'
+            : 'replay-paused:enqueue-target-mismatch',
+        });
+        return {
+          replayed: 0,
+          failed: 0,
+          stranded: 0,
+          quarantined: 0,
+          remaining: queuedBeforeCustody.length,
+          stopped: true,
+        };
+      }
     }
     if (!shouldContinue()) {
       const remaining = (await store.outboxRecords()).filter(isUnresolvedOutboxRecord).length;
@@ -13536,9 +13654,19 @@ export class SnapbackClient {
       if (!await capabilityIsCurrent()) {
         throw offlineQueueSettlementLedgerError({ reason: 'inspection-superseded' });
       }
+      const enqueueTarget = offlineMutationOutboxEnqueueTarget(
+        operationTarget,
+        generation,
+        this.__inspectionAppId
+          ?? (this.__offlineMutationReplayCapability === null
+            ? null
+            : INTERNAL_CONFIGURED_REPLAY_APP_ID),
+      );
       const stored = await store.outboxEnqueue({
         id: clientMutationId,
         function: name,
+        outboxRecordSchemaVersion: OUTBOX_RECORD_SCHEMA_VERSION,
+        enqueueTarget,
         args,
         userId: typeof userId === 'string' ? userId : null,
         readSet,
@@ -13883,9 +14011,23 @@ export class SnapbackClient {
     if (settlementIdentity !== null) body.settlementIdentity = settlementIdentity;
     if (settlementClaims !== null) body.settlementClaims = settlementClaims;
     if (boundedSkew !== null) body.boundedSkew = boundedSkew;
+    const durableOutboxEnqueueTarget = queueStore
+      ? offlineMutationOutboxEnqueueTarget(
+        operationTarget,
+        generation,
+        this.__inspectionAppId
+          ?? (this.__offlineMutationReplayCapability === null
+            ? null
+            : INTERNAL_CONFIGURED_REPLAY_APP_ID),
+      )
+      : null;
     let durableMutationRecord = clientMutationId ? {
       id: clientMutationId,
       function: name,
+      ...(durableOutboxEnqueueTarget === null ? {} : {
+        outboxRecordSchemaVersion: OUTBOX_RECORD_SCHEMA_VERSION,
+        enqueueTarget: durableOutboxEnqueueTarget,
+      }),
       args,
       userId: typeof userId === 'string' ? userId : null,
       readSet,
@@ -14682,6 +14824,8 @@ export class SnapbackClient {
               durableMutationRecord ?? {
                 id: createClientMutationId(),
                 function: name,
+                outboxRecordSchemaVersion: OUTBOX_RECORD_SCHEMA_VERSION,
+                enqueueTarget: durableOutboxEnqueueTarget,
                 args,
                 userId: typeof userId === 'string' ? userId : null,
                 readSet,
@@ -15581,7 +15725,7 @@ export class SnapbackClient {
   } = {}) {
     scope = normalizeEphemeralScope(ref, scope);
     if ((expectedScopeEpoch === null) !== (expectedEntryVersion === null)) {
-      throw snapbackDiagnosticError(
+      throw diagnosticError(
         'SNAPBACK_EPHEMERAL_WITHDRAWAL_FENCE_INVALID',
         'ephemeral withdrawal requires scopeEpoch and entryVersion together',
         {},
@@ -15594,7 +15738,7 @@ export class SnapbackClient {
       || !Number.isSafeInteger(expectedEntryVersion)
       || expectedEntryVersion < 1
     )) {
-      throw snapbackDiagnosticError(
+      throw diagnosticError(
         'SNAPBACK_EPHEMERAL_WITHDRAWAL_FENCE_INVALID',
         'ephemeral withdrawal fence values must be positive safe integers',
         {},
@@ -21672,7 +21816,7 @@ function collectionName(ref) {
 function normalizeEphemeralScope(ref, scope) {
   if (typeof ref === 'string') return scope;
   if (ref?.artifactKind !== 'ephemeralCollectionReference') {
-    throw snapbackDiagnosticError(
+    throw diagnosticError(
       'SNAPBACK_ARGUMENT_NORMALIZATION_FAILED',
       'generated ephemeral collection reference is required',
       { path: 'ref' },

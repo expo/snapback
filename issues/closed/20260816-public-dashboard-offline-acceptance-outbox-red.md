@@ -403,11 +403,10 @@ Round-11 fail-first evidence from the four production regressions:
 - replay range currency: `AssertionError [ERR_ASSERTION]: a peer negative
   prevents identity-range transport`, `1 !== 0`.
 
-Round-11 verification updates the combined client/conformance command to
-`tests 132`, `pass 132`, `fail 0`. One immediately preceding full run exposed
-the pre-existing file-store writer-election race at `writerStore.isWriter()`
-(`false !== true`); the isolated test then passed and the complete requested
-command passed on rerun. The public-dashboard witnesses are `PASS
+Round-11 recorded a combined client/conformance result of `tests 132`, `pass
+132`, `fail 0`, but its file writer-election fixture was nondeterministic.
+Round 12 supersedes that single-run evidence with a deterministic fixture and
+the required ten complete outbox runs below. The public-dashboard witnesses are `PASS
 public-dashboard / offline-local-first (JS arm) — 9/9` and `PASS
 public-dashboard / headless — 6/6`; both used the explicitly configured binary
 stamped at `f446d966b` and reported the expected checkout stamp mismatch.
@@ -424,3 +423,75 @@ diagnostic bytes. Integration remains responsible for the final diagnostics
 emitting-site regeneration.
 `./ref-check --verbose` reports `311 LLP docs, 6642 refs in 12503 files, 0
 errors, 0 unchecked`; `git diff --check` produces no output.
+
+### Round-12 review closure (2026-08-25)
+
+Every newly enqueued durable record now uses additive outbox record schema v2
+and persists the enqueue target's canonical origin, target profile, and
+artifact identity. Generated references persist the complete call-time
+generation; string-named references persist the application identity from the
+served descriptor/binding. Replay compares all persisted axes with its fresh
+pinned target before queue reconciliation, range issuance, dispatch stamping,
+or mutation transport. A mismatch emits
+`SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH`; a pre-v2 targetless record emits the
+distinct `SNAPBACK_OUTBOX_REPLAY_TARGET_MISSING`. Both remain pending and send
+zero mutation POSTs.
+
+The existing sidecar-adoption surface does not authorize replacing or waiving
+that persisted target. Its cross-target case now stops pending with zero POSTs;
+`issues/20260825-outbox-target-adoption-protocol.md` tracks the separate design
+needed for an explicit adoption authority. No adoption protocol is introduced
+in this round.
+
+The file writer/follower ordering fixture now awaits the intended writer's
+lock before opening the follower, matching the established file-store pattern.
+Fail-first evidence for the persisted-target regressions was:
+
+- cross-target relaunch: `AssertionError [ERR_ASSERTION]: target A intent is
+  not replayed by target B`, `1 !== 0`;
+- same-origin app replacement: `AssertionError [ERR_ASSERTION]: app A intent
+  is not replayed by app B`, `1 !== 0`;
+- matching relaunch/schema persistence: `AssertionError [ERR_ASSERTION]:
+  Expected values to be strictly equal:`, `undefined !== 2`;
+- legacy targetless record: `AssertionError [ERR_ASSERTION]: targetless legacy
+  intent is never replayed`, `1 !== 0`.
+
+The exact required ten-run command produced:
+
+```text
+ℹ pass 127
+ℹ fail 0
+ℹ pass 127
+ℹ fail 0
+ℹ pass 127
+ℹ fail 0
+ℹ pass 127
+ℹ fail 0
+ℹ pass 127
+ℹ fail 0
+ℹ pass 127
+ℹ fail 0
+ℹ pass 127
+ℹ fail 0
+ℹ pass 127
+ℹ fail 0
+ℹ pass 127
+ℹ fail 0
+ℹ pass 127
+ℹ fail 0
+```
+
+`authority-transition-conformance.test.mjs` reports `tests 9`, `pass 9`,
+`fail 0`. The public-dashboard witnesses report `PASS public-dashboard /
+offline-local-first (JS arm) — 9/9` and `PASS public-dashboard / headless —
+6/6`; both used the explicitly configured binary stamped at `a97e75286` and
+reported the expected checkout stamp mismatch. The symbol check reports
+`[symbol-registry] ok — 56 modules, 1455 symbols, runtime parity exact`.
+`./ref-check --verbose` reports `311 LLP docs, 6645 refs in 12504 files, 0
+errors, 0 unchecked`; `git diff --check` produces no output. The diagnostics
+registry, its Markdown projection, and the generated diagnostic-code union
+were not regenerated. Integration regeneration will add
+`SNAPBACK_CLIENT_OPERATION_TARGET_CHANGED`,
+`SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH`, and
+`SNAPBACK_OUTBOX_REPLAY_TARGET_MISSING` to the union from their ordinary
+literal `diagnosticError(...)` emitting sites.

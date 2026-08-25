@@ -17,6 +17,11 @@ for the same origin, with exact artifact-generation matching required for
 generated mutation references (string-named mutations carry no generation),
 while every answered manifest or HTTP refusal replaces it. Cached evidence is
 enqueue-only and never licenses a foreground mutation attempt.)
+**Revised:** 2026-08-25 (durable target identity: outbox record v2 persists
+canonical origin, target profile, and generated generation or string-reference
+app identity. Replay compares that identity before custody or transport;
+targetless predecessors and mismatches are distinct fail-closed pending
+diagnostics. Cross-target adoption remains a separate unapproved protocol.)
 **Revised:** 2026-08-25 (offline replay pinned-target clarification: one
 immutable operation target binds capability inspection/fact origin, durable
 admission, identity-range issuance, and mutation POST. Target repointing is a
@@ -522,6 +527,16 @@ target was repointed. Replay reads the shared fact under its
 authorization-dispatch lock before an uncovered record requests a range and
 again before marking a submission dispatched, so superseded capability sends
 neither range nor mutation transport and leaves no false dispatch stamp.
+
+The same target identity is persisted in additive outbox record schema v2:
+canonical origin, target profile, and either the complete generation for a
+generated mutation reference or the established application identity for a
+string-named reference. A fresh replay fact must match the persisted target
+before any record custody transition, range request, dispatch stamp, or
+mutation POST. `SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH` and the distinct
+pre-v2 `SNAPBACK_OUTBOX_REPLAY_TARGET_MISSING` refusal both retain pending
+custody. This amendment does not grant the existing sidecar adoption surface
+authority to rewrite or waive persisted target identity.
 
 ### Capability maturity
 
