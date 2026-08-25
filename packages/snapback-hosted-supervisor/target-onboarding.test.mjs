@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 
 import {
+  assertTargetTigrisCredentialPair,
   buildTargetOnboardingPlan,
   TARGET_DEFAULTS,
   TARGET_SUPERVISOR_SECRET_FILES,
+  TARGET_TIGRIS_PARTIAL_CODES,
   TARGET_TIGRIS_ROLES,
   targetRolePolicy,
 } from './target-onboarding.mjs';
@@ -36,18 +37,21 @@ assert.deepEqual(Object.keys(TARGET_TIGRIS_ROLES).sort(), [
   'control-state',
   'logs',
 ]);
-const targetOnboardingSource = readFileSync(new URL('./target-onboarding.mjs', import.meta.url), 'utf8');
-for (const code of [
+assert.deepEqual(Object.values(TARGET_TIGRIS_PARTIAL_CODES).sort(), [
   'SNAPBACK_HOSTED_TARGET_TIGRIS_ARTIFACT_PARTIAL',
   'SNAPBACK_HOSTED_TARGET_TIGRIS_AUDIT_PARTIAL',
   'SNAPBACK_HOSTED_TARGET_TIGRIS_BACKUP_PARTIAL',
   'SNAPBACK_HOSTED_TARGET_TIGRIS_CLEANUP_PARTIAL',
   'SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL_STATE_PARTIAL',
   'SNAPBACK_HOSTED_TARGET_TIGRIS_LOGS_PARTIAL',
-]) {
-  assert.ok(targetOnboardingSource.includes(`'${code}'`));
-}
-assert.equal(targetOnboardingSource.includes('SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL-STATE_PARTIAL'), false);
+].sort());
+assert.throws(
+  () => assertTargetTigrisCredentialPair('control-state', 'present-id', null),
+  (error) => {
+    assert.equal(error.message, TARGET_TIGRIS_PARTIAL_CODES['control-state']);
+    return true;
+  },
+);
 const artifactPolicy = targetRolePolicy(
   TARGET_DEFAULTS,
   'artifact',

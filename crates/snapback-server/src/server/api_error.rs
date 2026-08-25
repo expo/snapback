@@ -1686,6 +1686,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // @ref LLP 0165#contract-summary-normative-details-per-llp-0162-4-6 —
         // checkpoint byte/WAL bounds and proof/publication failures follow the
         // same reviewed resource-versus-invariant split.
+        // diagnostics-registry: reserved
         "SNAPBACK_BRANCH_CAPTURE_ONLY_MISSING"
         | "SNAPBACK_BRANCH_LIMIT_INVALID"
         | "SNAPBACK_BRANCH_OPERATION_INVALID"

@@ -6,7 +6,7 @@ Related: `crates/snapback-server/src/server/api_error.rs`, LLP 0193
 
 ## Why
 
-The diagnostics registry now reserves eight spellings that remain only in the
+The diagnostics registry now reserves nine spellings that remain only in the
 server's HTTP-status match table. Removing those dead match arms is a Rust
 product change and was deliberately kept out of the JS-only `registry-envvar`
 lane:
@@ -16,6 +16,7 @@ lane:
 - `SNAPBACK_ADMIN_SECRET_READ_MINT_DENIED`
 - `SNAPBACK_API_BUDGETS_UNAVAILABLE`
 - `SNAPBACK_AUTHORITY_ROSTER_CURSOR_INVALID`
+- `SNAPBACK_BRANCH_CAPTURE_ONLY_MISSING`
 - `SNAPBACK_PROMOTION_EFFECT_INTENT_MISSING`
 - `SNAPBACK_SCHEMA_UNIQUE_INDEX_OPTIONAL_FIELD`
 - `SNAPBACK_UNSUPPORTED_BLOB`
@@ -23,7 +24,7 @@ lane:
 ## Follow-up
 
 Confirm each code has no live producer, protocol obligation, persisted-record
-compatibility requirement, or Guide contract. If all eight are dead, delete
+compatibility requirement, or Guide contract. If all nine are dead, delete
 their match arms in a Rust-capable lane and remove the adjacent
 `diagnostics-registry: reserved` comments in the same change. Regenerate the
 diagnostics registry, symbol registry, and Guide projections afterwards.

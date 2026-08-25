@@ -113,20 +113,22 @@ site for a real dynamically assembled spelling. The four concrete
 `validate_artifact_header` stale-artifact spellings use that marker, while
 `diagnostics-registry: reserved` retains the retired
 `SNAPBACK_IBEX_CLI_UNAVAILABLE` spelling, the retired
-`SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED` seed-lane refusal, and eight
+`SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED` seed-lane refusal, and nine
 HTTP-table-only spellings: `SNAPBACK_AUTH_MODE_CHANGED`,
 `SNAPBACK_OPERATION_CANCELLED`, `SNAPBACK_ADMIN_SECRET_READ_MINT_DENIED`,
 `SNAPBACK_API_BUDGETS_UNAVAILABLE`,
 `SNAPBACK_AUTHORITY_ROSTER_CURSOR_INVALID`,
+`SNAPBACK_BRANCH_CAPTURE_ONLY_MISSING`,
 `SNAPBACK_PROMOTION_EFFECT_INTENT_MISSING`,
 `SNAPBACK_SCHEMA_UNIQUE_INDEX_OPTIONAL_FIELD`, and
-`SNAPBACK_UNSUPPORTED_BLOB`. Reservations do not count as emissions. The eight
+`SNAPBACK_UNSUPPORTED_BLOB`. Reservations do not count as emissions. The nine
 HTTP-only arms are deletion candidates for the Rust-capable follow-up
 `issues/20260825-http-table-only-diagnostic-reservations.md`. An audit of all 80
-non-environment removals found no other retired diagnostic: the remaining names
-are active catalogue/reference vocabulary, protocol and format constants,
-fixture names, wildcard fragments, or other non-diagnostic identifiers. The
-lifecycle registry names none of the 80. The HTTP-only
+non-environment removals initially missed this ninth retired diagnostic; after
+reserving `SNAPBACK_BRANCH_CAPTURE_ONLY_MISSING`, the remaining names are active
+catalogue/reference vocabulary, protocol and format constants, fixture names,
+wildcard fragments, or other non-diagnostic identifiers. The lifecycle registry
+names none of the 80. The HTTP-only
 `NON_DIAGNOSTIC_SNAPBACK_LITERALS` table remains separate because it includes
 legitimate non-HTTP diagnostics and is not a safe public-registry denylist.
 
@@ -137,7 +139,7 @@ received` marker. This keeps 82 received names across 92 sites in the public
 diagnostic union without mislabelling them as emissions. The three round-6
 client-protocol restorations named above are received-only.
 
-The companion fixture now has 70 raw `SNAPBACK_*` substrings and retains 17
+The companion fixture now has 78 raw `SNAPBACK_*` substrings and retains 17
 emitting occurrences across 16 names plus two received-protocol occurrences.
 Its fail-first runs proved all classifier
 repairs: generated JavaScript and multiline Rust SQL were absent while match
@@ -145,6 +147,9 @@ arms, `matches!`, code catalogues, prefix checks, and a trailing-underscore
 family token were falsely present; the exact production
 `eprintln!("SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH field={field}")` line and
 the `println!`, `tracing::*!`, `log::*!`, and synthetic-marker rows were absent.
+The environment half additionally pins multiline block-comment exclusion and
+distinct read, write, and remove roles for JavaScript and Rust process/child
+environment sites.
 The final classifier treats a diagnostic-leading string argument to those Rust
 print/log macros as an emission when the token is followed by `:` or whitespace,
 treats `startsWith`/`starts_with`/`contains`/`endsWith` operands as references,

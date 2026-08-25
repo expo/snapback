@@ -69,15 +69,43 @@ function isEnvironmentIdentifier(identifier) {
   );
 }
 
-function isDirectEnvironmentVariableAccess(source, offset) {
+function environmentMutationOperator(after) {
+  return /^\s*(?:=(?!=|>)|\?\?=|\|\|=|&&=|\+=|-=|\*=|\/=|%=)/u.test(after);
+}
+
+function directEnvironmentSiteKind(source, offset, code) {
   const before = source.slice(Math.max(0, offset - 256), offset);
+  const after = source.slice(offset + code.length, offset + code.length + 128);
+
+  if (
+    /\.env_remove\s*\(\s*["']$/u.test(before)
+    || /\b(?:std::)?env::remove_var\s*\(\s*(?:r#*)?["']$/u.test(before)
+    || /\bdelete\s+(?:process|Bun)\.env(?:\.|\?\.)$/u.test(before)
+    || (
+      /\bdelete\s+(?:process|Bun)\.env(?:\?\.)?\[\s*["']$/u.test(before)
+      && /^["']\s*\]/u.test(after)
+    )
+  ) return 'remove';
+
+  if (
+    /\.env\s*\(\s*["']$/u.test(before)
+    || /\b(?:std::)?env::set_var\s*\(\s*(?:r#*)?["']$/u.test(before)
+    || (
+      /\b(?:process|Bun)\.env(?:\.|\?\.)$/u.test(before)
+      && environmentMutationOperator(after)
+    )
+    || (
+      /\b(?:process|Bun)\.env(?:\?\.)?\[\s*["']$/u.test(before)
+      && /^["']\s*\]/u.test(after)
+      && environmentMutationOperator(after.replace(/^["']\s*\]/u, ''))
+    )
+  ) return 'write';
 
   // Rust: compile-time env macros, std::env::var(_os), env::var(_os), and
   // imported var_os.
   if (/(?:\b(?:option_env!|env!)|\b(?:std::)?env::(?:var|var_os)|\bvar_os)\s*\(\s*(?:r#*)?["']$/u.test(before)) {
-    return true;
+    return 'read';
   }
-  if (/\.(?:env|env_remove)\s*\(\s*["']$/u.test(before)) return true;
 
   // JavaScript/Swift: direct process/Bun/Deno access, injected env objects,
   // env helper calls, and bracket access through an env/environment binding.
@@ -91,12 +119,12 @@ function isDirectEnvironmentVariableAccess(source, offset) {
     || /\b(?:[A-Za-z_$][\w$]*\.)*(?:env|environment)(?:\?\.)?\[\s*["']$/u.test(before)
     || /\b[A-Za-z_$][\w$]*(?:Env|Environment)(?:\?\.)?\[\s*["']$/u.test(before)
     || /\b(?:env|environment)\s*\(\s*["']$/u.test(before)
-  );
+  ) ? 'read' : null;
 }
 
-function isJavaScriptEnvironmentObjectKey(source, offset, code) {
+function javaScriptEnvironmentObjectKind(source, offset, code) {
   const after = source.slice(offset + code.length, offset + code.length + 16);
-  if (!/^\s*:/u.test(after)) return false;
+  if (!/^\s*:/u.test(after)) return null;
 
   const contextStart = Math.max(0, offset - 4096);
   const context = source.slice(contextStart, offset);
@@ -105,26 +133,34 @@ function isJavaScriptEnvironmentObjectKey(source, offset, code) {
     /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:Object\.freeze\s*\()?\s*\{/gu,
   )) {
     if (isEnvironmentIdentifier(assignment[1])) {
-      candidates.push(contextStart + assignment.index + assignment[0].lastIndexOf('{'));
+      candidates.push({
+        kind: 'table-entry',
+        open: contextStart + assignment.index + assignment[0].lastIndexOf('{'),
+      });
     }
   }
   for (const property of context.matchAll(/\b(?:env|environment)\s*:\s*\{/gu)) {
-    candidates.push(contextStart + property.index + property[0].lastIndexOf('{'));
+    candidates.push({
+      kind: 'write',
+      open: contextStart + property.index + property[0].lastIndexOf('{'),
+    });
   }
   for (const returned of context.matchAll(/\breturn\s*\{/gu)) {
     const open = contextStart + returned.index + returned[0].lastIndexOf('{');
     const beforeReturn = source.slice(Math.max(0, open - 4096), open);
     const functions = [...beforeReturn.matchAll(/\bfunction\s+([A-Za-z_$][\w$]*)\s*\(/gu)];
-    if (isEnvironmentIdentifier(functions.at(-1)?.[1] ?? '')) candidates.push(open);
+    if (isEnvironmentIdentifier(functions.at(-1)?.[1] ?? '')) {
+      candidates.push({ kind: 'table-entry', open });
+    }
   }
-  return candidates.some((open) => {
+  return candidates.sort((left, right) => right.open - left.open).find(({ open }) => {
     let depth = 0;
     for (const character of source.slice(open, offset)) {
       if (character === '{') depth += 1;
       else if (character === '}') depth -= 1;
     }
     return depth > 0;
-  });
+  })?.kind ?? null;
 }
 
 function isEnvironmentNameTable(source, offset) {
@@ -260,17 +296,34 @@ function indirectEnvironmentHelperOffsets(source, matches) {
 
 function stringLiteralBounds(source, { ordinaryMultiline = false } = {}) {
   const byContentStart = new Map();
+  const comments = [];
   const ranges = [];
   let index = 0;
   while (index < source.length) {
     if (source.startsWith('//', index)) {
       const newline = source.indexOf('\n', index + 2);
+      const end = newline === -1 ? source.length : newline;
+      comments.push({ start: index, end });
       index = newline === -1 ? source.length : newline + 1;
       continue;
     }
     if (source.startsWith('/*', index)) {
-      const close = source.indexOf('*/', index + 2);
-      index = close === -1 ? source.length : close + 2;
+      let cursor = index + 2;
+      let depth = 1;
+      while (cursor < source.length && depth > 0) {
+        if (ordinaryMultiline && source.startsWith('/*', cursor)) {
+          depth += 1;
+          cursor += 2;
+        } else if (source.startsWith('*/', cursor)) {
+          depth -= 1;
+          cursor += 2;
+        } else {
+          cursor += 1;
+        }
+      }
+      const end = cursor;
+      comments.push({ start: index, end });
+      index = end;
       continue;
     }
 
@@ -320,7 +373,7 @@ function stringLiteralBounds(source, { ordinaryMultiline = false } = {}) {
     ranges.push(literal);
     index = cursor + closingDelimiter.length;
   }
-  return { byContentStart, ranges };
+  return { byContentStart, comments, ranges };
 }
 
 function enclosingStringLiteral(offset, literals) {
@@ -471,16 +524,17 @@ function environmentAnalysis(source, options) {
   for (const match of matches) {
     // Comments are references first; `process.env.SNAPBACK_X` in explanatory
     // prose must not become an environment read site.
-    if (isCommentReference(source, match.index)) {
+    if (isCommentReference(match.index, literals.comments)) {
       siteKinds.delete(match.index);
       continue;
     }
-    if (isDirectEnvironmentVariableAccess(source, match.index)) {
-      siteKinds.set(match.index, 'read');
-    } else if (
-      isJavaScriptEnvironmentObjectKey(source, match.index, match[0])
-      || isEnvironmentNameTable(source, match.index)
-    ) {
+    const directKind = directEnvironmentSiteKind(source, match.index, match[0]);
+    const objectKind = javaScriptEnvironmentObjectKind(source, match.index, match[0]);
+    if (directKind !== null) {
+      siteKinds.set(match.index, directKind);
+    } else if (objectKind !== null) {
+      siteKinds.set(match.index, objectKind);
+    } else if (isEnvironmentNameTable(source, match.index)) {
       siteKinds.set(match.index, 'table-entry');
     }
   }
@@ -500,7 +554,7 @@ export function environmentVariableSites(source, { environmentNames, ordinaryMul
       classifiedNames.has(match[0])
       && diagnosticSiteKind(source, match, analysis, classifiedNames) === null
       && analysis.literals.byContentStart.has(match.index)
-      && !isCommentReference(source, match.index)
+      && !isCommentReference(match.index, analysis.literals.comments)
     ) {
       return [{ match, kind: 'mention' }];
     }
@@ -508,27 +562,21 @@ export function environmentVariableSites(source, { environmentNames, ordinaryMul
   });
 }
 
-function isCommentReference(source, offset) {
-  const current = lineBounds(source, offset);
-  const beforeOnLine = source.slice(current.start, offset);
-  for (let marker = beforeOnLine.indexOf('//'); marker !== -1; marker = beforeOnLine.indexOf('//', marker + 2)) {
-    const preceding = beforeOnLine.slice(0, marker);
-    const insideQuotedText = ['"', "'", '`'].some((quote) => {
-      let count = 0;
-      for (let index = 0; index < preceding.length; index += 1) {
-        if (preceding[index] !== quote) continue;
-        let backslashes = 0;
-        for (let cursor = index - 1; cursor >= 0 && preceding[cursor] === '\\'; cursor -= 1) {
-          backslashes += 1;
-        }
-        if (backslashes % 2 === 0) count += 1;
-      }
-      return count % 2 === 1;
-    });
-    if (!insideQuotedText) return true;
+function isCommentReference(offset, comments) {
+  let low = 0;
+  let high = comments.length - 1;
+  let candidate = null;
+  while (low <= high) {
+    const middle = Math.floor((low + high) / 2);
+    const comment = comments[middle];
+    if (comment.start <= offset) {
+      candidate = comment;
+      low = middle + 1;
+    } else {
+      high = middle - 1;
+    }
   }
-  const trimmed = beforeOnLine.trimStart();
-  return trimmed.startsWith('/*') || trimmed.startsWith('*');
+  return candidate !== null && offset < candidate.end;
 }
 
 function isComparisonOrPrefixCheck(source, offset, code) {
@@ -633,7 +681,7 @@ function diagnosticSiteKind(source, match, analysis, environmentNames) {
   if (hasReservedMarker(source, offset)) return 'reserved';
   if (hasEmissionMarker(source, offset)) return 'emission';
   if (hasReceivedMarker(source, offset)) return 'received';
-  if (isCommentReference(source, offset)) return null;
+  if (isCommentReference(offset, analysis.literals.comments)) return null;
   if (
     hasReferenceOnlyMarker(source, offset)
     || analysis.siteKinds.has(offset)

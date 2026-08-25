@@ -9,6 +9,10 @@ const TRACE_ENV: &str = "SNAPBACK_FIXTURE_RUST_INDIRECT_TRACE";
 if std::env::var_os(TRACE_ENV).is_some() {}
 fn required_env(name: &str) -> Option<String> { std::env::var(name).ok() }
 required_env("SNAPBACK_FIXTURE_RUST_HELPER_ENV");
+Command::new("snapback").env("SNAPBACK_FIXTURE_RUST_CHILD_WRITE", "1");
+Command::new("snapback").env_remove("SNAPBACK_FIXTURE_RUST_CHILD_REMOVE");
+std::env::set_var("SNAPBACK_FIXTURE_RUST_PROCESS_WRITE", "1");
+std::env::remove_var("SNAPBACK_FIXTURE_RUST_PROCESS_REMOVE");
 
 // JavaScript environment reads and comparisons consume names without emitting them.
 const trace = process.env.SNAPBACK_FIXTURE_JS_TRACE;
@@ -53,6 +57,12 @@ const FIXTURE_ENVIRONMENT_NAME_LIST: &[&str] = &[
   "SNAPBACK_FIXTURE_LIST_SECOND_ENV",
 ];
 // const commentedAccess = process.env.SNAPBACK_FIXTURE_COMMENTED_ENV_ACCESS;
+/* This block-comment continuation deliberately has no leading star.
+process.env.SNAPBACK_FIXTURE_MULTILINE_COMMENTED_ENV must remain prose.
+*/
+process.env.SNAPBACK_FIXTURE_JS_WRITE = '1';
+delete process.env.SNAPBACK_FIXTURE_JS_REMOVE;
+spawnSync('snapback', [], { env: { SNAPBACK_FIXTURE_JS_SPAWN_WRITE: '1' } });
 if (error.code === 'SNAPBACK_FIXTURE_JS_REFERENCE') recover();
 if ('SNAPBACK_FIXTURE_JS_REVERSE_REFERENCE' !== error.code) recover();
 switch (error.code) { case 'SNAPBACK_FIXTURE_JS_CASE_REFERENCE': recover(); }

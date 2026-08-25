@@ -52,7 +52,7 @@ test('diagnostic source classifier excludes environment reads per site and retai
     '../tests/fixtures/diagnostics-registry/non-emitting-reference-sites.txt',
   ), 'utf8');
 
-  assert.equal([...fixture.matchAll(/SNAPBACK_[A-Z0-9_]+/gu)].length, 70);
+  assert.equal([...fixture.matchAll(/SNAPBACK_[A-Z0-9_]+/gu)].length, 78);
 
   const sourceOptions = { ordinaryMultiline: true };
   assert.deepEqual(
@@ -138,6 +138,27 @@ test('diagnostic source classifier excludes environment reads per site and retai
     environmentVariableSites(fixture, sourceOptions)
       .filter(({ match }) => match[0] === 'SNAPBACK_FIXTURE_COMMENTED_ENV_ACCESS'),
     [],
+  );
+  assert.deepEqual(
+    environmentVariableSites(fixture, sourceOptions)
+      .filter(({ match }) => match[0] === 'SNAPBACK_FIXTURE_MULTILINE_COMMENTED_ENV'),
+    [],
+  );
+
+  const environmentMutationKinds = new Map([
+    ['SNAPBACK_FIXTURE_RUST_CHILD_WRITE', 'write'],
+    ['SNAPBACK_FIXTURE_RUST_CHILD_REMOVE', 'remove'],
+    ['SNAPBACK_FIXTURE_RUST_PROCESS_WRITE', 'write'],
+    ['SNAPBACK_FIXTURE_RUST_PROCESS_REMOVE', 'remove'],
+    ['SNAPBACK_FIXTURE_JS_WRITE', 'write'],
+    ['SNAPBACK_FIXTURE_JS_REMOVE', 'remove'],
+    ['SNAPBACK_FIXTURE_JS_SPAWN_WRITE', 'write'],
+  ]);
+  assert.deepEqual(
+    environmentVariableSites(fixture, sourceOptions)
+      .filter(({ match }) => environmentMutationKinds.has(match[0]))
+      .map(({ match, kind }) => ({ name: match[0], kind })),
+    [...environmentMutationKinds].map(([name, kind]) => ({ name, kind })),
   );
 
   assert.deepEqual(
@@ -353,6 +374,7 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     'SNAPBACK_ADMIN_SECRET_READ_MINT_DENIED',
     'SNAPBACK_API_BUDGETS_UNAVAILABLE',
     'SNAPBACK_AUTHORITY_ROSTER_CURSOR_INVALID',
+    'SNAPBACK_BRANCH_CAPTURE_ONLY_MISSING',
     'SNAPBACK_PROMOTION_EFFECT_INTENT_MISSING',
     'SNAPBACK_SCHEMA_UNIQUE_INDEX_OPTIONAL_FIELD',
     'SNAPBACK_UNSUPPORTED_BLOB',

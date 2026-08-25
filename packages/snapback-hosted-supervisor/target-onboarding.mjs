@@ -72,7 +72,7 @@ export const TARGET_TIGRIS_ROLES = Object.freeze({
   cleanup: ['s3:DeleteObject', 's3:ListBucket'],
 });
 
-const TARGET_TIGRIS_PARTIAL_CODES = Object.freeze({
+export const TARGET_TIGRIS_PARTIAL_CODES = Object.freeze({
   artifact: 'SNAPBACK_HOSTED_TARGET_TIGRIS_ARTIFACT_PARTIAL',
   backup: 'SNAPBACK_HOSTED_TARGET_TIGRIS_BACKUP_PARTIAL',
   'control-state': 'SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL_STATE_PARTIAL',
@@ -80,6 +80,12 @@ const TARGET_TIGRIS_PARTIAL_CODES = Object.freeze({
   logs: 'SNAPBACK_HOSTED_TARGET_TIGRIS_LOGS_PARTIAL',
   cleanup: 'SNAPBACK_HOSTED_TARGET_TIGRIS_CLEANUP_PARTIAL',
 });
+
+export function assertTargetTigrisCredentialPair(role, accessKeyId, secretAccessKey) {
+  if (Boolean(accessKeyId) !== Boolean(secretAccessKey)) {
+    throw new Error(TARGET_TIGRIS_PARTIAL_CODES[role]);
+  }
+}
 
 const BASE_SUPERVISOR_SECRET_FILES = Object.freeze([
   ['/run/secrets/fly-read-token', 'SUPERVISOR_FLY_READ_TOKEN'],
@@ -359,9 +365,7 @@ async function ensureTargetTigrisRole(rootCredentials, config, role, actions) {
     ? policyArn
     : null;
   if (predecessorPolicyArn) policyArn = null;
-  if (Boolean(accessKeyId) !== Boolean(secretAccessKey)) {
-    throw new Error(TARGET_TIGRIS_PARTIAL_CODES[role]);
-  }
+  assertTargetTigrisCredentialPair(role, accessKeyId, secretAccessKey);
   let created = false;
   const iam = tigrisIamClient(rootCredentials);
   if (!accessKeyId) {
