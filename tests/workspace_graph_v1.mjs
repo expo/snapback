@@ -469,6 +469,47 @@ test('reviewed engine derives remain bound to their canonical imports', () => {
   }]));
 });
 
+for (const { name, path, source, expected } of [
+  {
+    name: 'config_types',
+    path: join(repositoryRoot, 'crates/snapback-engine/src/local/engine.rs'),
+    source: 'use foreign_bridge::config_types::{self};\npub use config_types::*;',
+    expected: /may not shadow reviewed glob binding config_types/u,
+  },
+  {
+    name: 'runtime_cost',
+    path: join(repositoryRoot, 'crates/snapback-engine/src/local.rs'),
+    source: 'use foreign_macros::runtime_cost::{self};\npub use runtime_cost::*;',
+    expected: /may not shadow reviewed glob binding runtime_cost/u,
+  },
+  {
+    name: 'nested snapback_kernel',
+    path: join(repositoryRoot, 'crates/snapback-engine/src/lib.rs'),
+    source: 'pub mod assets { use foreign_bridge::snapback_kernel::{self}; pub use snapback_kernel::assets::*; }',
+    expected: /may not shadow reviewed glob binding snapback_kernel/u,
+  },
+  {
+    name: 'host_ops_contract',
+    path: join(repositoryRoot, 'crates/snapback-engine/src/lib.rs'),
+    source: 'pub use snapback_types::{identity};\nuse foreign_macros::{host_ops_contract::{self}};',
+    expected: /may not shadow reviewed glob binding host_ops_contract/u,
+  },
+  {
+    name: 'schemars',
+    path: '/fixture/engine.rs',
+    source: 'use foreign_bridge::schemars::{self};\nuse schemars::JsonSchema;\n#[derive(JsonSchema)] struct Harmless;',
+    expected: /may not import trusted macro binding schemars from an unreviewed path/u,
+  },
+]) {
+  test(`Rust self use-tree leaves cannot rebind ${name}`, () => {
+    assert.throws(
+      () => validateEngineDefinitionDenylist(artifact, [{ path, source }]),
+      expected,
+      source,
+    );
+  });
+}
+
 test('reviewed engine compatibility globs stay bound to their exact files', () => {
   assert.doesNotThrow(() => validateEngineDefinitionDenylist(artifact, [
     {
@@ -477,7 +518,7 @@ test('reviewed engine compatibility globs stay bound to their exact files', () =
     },
     {
       path: join(repositoryRoot, 'crates/snapback-engine/src/local/engine.rs'),
-      source: 'use super::runtime_cost::*;',
+      source: 'use snapback_types::local::config_types;\npub use config_types::*;\nuse super::runtime_cost::*;',
     },
   ]));
 

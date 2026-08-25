@@ -847,10 +847,90 @@ function canonicalProtectedEngineUse(binding, repositoryFile, useSpec) {
   return false;
 }
 
-function unaliasedRustUseBindings(useSpec) {
-  return new Set([...useSpec.matchAll(
-    /(?:^|::|[,{])\s*(?:r#)?([A-Za-z_][A-Za-z0-9_]*)\s*(?=,|\}|$)/gu,
-  )].map((match) => match[1]));
+function rustUseTreeIntroductions(useSpec) {
+  const tokens = [];
+  let cursor = 0;
+  while (cursor < useSpec.length) {
+    if (/\s/u.test(useSpec[cursor])) {
+      cursor += 1;
+      continue;
+    }
+    if (useSpec.startsWith('::', cursor)) {
+      tokens.push({ kind: '::' });
+      cursor += 2;
+      continue;
+    }
+    if ('{},*'.includes(useSpec[cursor])) {
+      tokens.push({ kind: useSpec[cursor] });
+      cursor += 1;
+      continue;
+    }
+    const identifier = /^(r#)?([A-Za-z_][A-Za-z0-9_]*)/u.exec(useSpec.slice(cursor));
+    assert(identifier, `snapback-engine could not parse Rust use tree: ${useSpec.trim()}`);
+    tokens.push({
+      kind: 'identifier',
+      name: identifier[2],
+      raw: identifier[1] !== undefined,
+    });
+    cursor += identifier[0].length;
+  }
+
+  let tokenIndex = 0;
+  const introductions = [];
+  const peek = (kind) => tokens[tokenIndex]?.kind === kind;
+
+  function parseGroup(prefix) {
+    assert(peek('{'), `snapback-engine could not parse Rust use tree: ${useSpec.trim()}`);
+    tokenIndex += 1;
+    while (!peek('}')) {
+      assert(tokenIndex < tokens.length, `snapback-engine could not parse Rust use tree: ${useSpec.trim()}`);
+      parseTree(prefix);
+      if (!peek(',')) break;
+      tokenIndex += 1;
+      if (peek('}')) break;
+    }
+    assert(peek('}'), `snapback-engine could not parse Rust use tree: ${useSpec.trim()}`);
+    tokenIndex += 1;
+  }
+
+  function parseTree(prefix) {
+    if (peek('{')) {
+      parseGroup(prefix);
+      return;
+    }
+    if (peek('*')) {
+      tokenIndex += 1;
+      return;
+    }
+    const segment = tokens[tokenIndex];
+    assert(segment?.kind === 'identifier', `snapback-engine could not parse Rust use tree: ${useSpec.trim()}`);
+    tokenIndex += 1;
+    const isSelfLeaf = !segment.raw && segment.name === 'self' && prefix.length > 0;
+    const path = isSelfLeaf ? prefix : [...prefix, segment.name];
+
+    const asToken = tokens[tokenIndex];
+    if (asToken?.kind === 'identifier' && !asToken.raw && asToken.name === 'as') {
+      tokenIndex += 1;
+      const alias = tokens[tokenIndex];
+      assert(alias?.kind === 'identifier', `snapback-engine could not parse Rust use tree: ${useSpec.trim()}`);
+      tokenIndex += 1;
+      if (alias.name !== '_') introductions.push({ binding: alias.name, path, aliased: true });
+      return;
+    }
+    if (peek('::')) {
+      assert(!isSelfLeaf, `snapback-engine could not parse Rust use tree: ${useSpec.trim()}`);
+      tokenIndex += 1;
+      parseTree(path);
+      return;
+    }
+    const binding = isSelfLeaf ? prefix.at(-1) : segment.name;
+    if (binding !== undefined) introductions.push({ binding, path, aliased: false });
+  }
+
+  if (peek('::')) tokenIndex += 1;
+  parseTree([]);
+  assert(tokenIndex === tokens.length, `snapback-engine could not parse Rust use tree: ${useSpec.trim()}`);
+  return introductions;
 }
 
 function validateEngineDefinitionInputs(files) {
@@ -922,6 +1002,7 @@ function validateEngineDefinitionInputs(files) {
     }
     for (const useMatch of masked.matchAll(/(?:^|[;{}])\s*(?:pub(?:\s*\([^)]*\))?\s+)?use\s+([^;]+);/gmu)) {
       const useSpec = useMatch[1];
+      const introductions = rustUseTreeIntroductions(useSpec);
       if (/(?:^|[,:{])\s*\*/u.test(useSpec)) {
         const normalizedUseSpec = useSpec.replace(/\s+/gu, '');
         assert(
@@ -931,34 +1012,26 @@ function validateEngineDefinitionInputs(files) {
           `snapback-engine may not import an unreviewed glob ${normalizedUseSpec}: ${repositoryFile}`,
         );
       }
-      for (const alias of useSpec.matchAll(/\bas\s+(?:r#)?([A-Za-z_][A-Za-z0-9_]*)/gu)) {
+      for (const { binding, path, aliased } of introductions) {
+        if (PROTECTED_ENGINE_GLOB_BINDINGS.has(binding)) {
+          assert(
+            !aliased && canonicalProtectedEngineUse(binding, repositoryFile, useSpec),
+            `snapback-engine may not ${aliased ? 'alias' : 'shadow'} reviewed glob binding ${binding}: ${repositoryFile}`,
+          );
+        }
+        if (!TRUSTED_ENGINE_BINDINGS.has(binding)) continue;
         assert(
-          !PROTECTED_ENGINE_GLOB_BINDINGS.has(alias[1]),
-          `snapback-engine may not alias reviewed glob binding ${alias[1]}: ${repositoryFile}`,
+          !aliased,
+          `snapback-engine may not alias a trusted macro binding ${binding}: ${relative(ROOT, file.path).split(sep).join('/')}`,
         );
+        const canonicalCrate = CANONICAL_ENGINE_IMPORTS.get(binding);
+        const pathString = path.join('::');
+        const canonical = canonicalCrate
+          ? pathString.startsWith(`${canonicalCrate}::`)
+          : TRUSTED_ENGINE_CRATE_BINDINGS.has(binding) && pathString === binding;
         assert(
-          !TRUSTED_ENGINE_BINDINGS.has(alias[1]),
-          `snapback-engine may not alias a trusted macro binding ${alias[1]}: ${relative(ROOT, file.path).split(sep).join('/')}`,
-        );
-      }
-      for (const binding of unaliasedRustUseBindings(useSpec)) {
-        if (!PROTECTED_ENGINE_GLOB_BINDINGS.has(binding)) continue;
-        assert(
-          canonicalProtectedEngineUse(binding, repositoryFile, useSpec),
-          `snapback-engine may not shadow reviewed glob binding ${binding}: ${repositoryFile}`,
-        );
-      }
-      for (const binding of TRUSTED_ENGINE_BINDINGS) {
-        const simpleBinding = binding.includes('::') ? binding.slice(binding.lastIndexOf('::') + 2) : binding;
-        const imported = new RegExp(
-          String.raw`(?:^|::|[,{])\s*(?:r#)?${simpleBinding}\s*(?:,|\}|$)`,
-          'u',
-        ).test(useSpec);
-        if (!imported) continue;
-        const canonicalCrate = CANONICAL_ENGINE_IMPORTS.get(simpleBinding);
-        assert(
-          canonicalCrate && useSpec.trimStart().startsWith(`${canonicalCrate}::`),
-          `snapback-engine may not import trusted macro binding ${simpleBinding} from an unreviewed path: ${relative(ROOT, file.path).split(sep).join('/')}`,
+          canonical,
+          `snapback-engine may not import trusted macro binding ${binding} from an unreviewed path: ${relative(ROOT, file.path).split(sep).join('/')}`,
         );
       }
     }
