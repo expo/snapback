@@ -5,7 +5,17 @@
 **Systems:** Live queries, Relational queries, Performance, Diagnostics, Schema
 **Author:** Codex gpt-5.6-sol xhigh, orchestrated by Claude Fable 5 (commissioned by the author performance-direction ruling 2026-08-15, Charlie Cheever)
 **Date:** 2026-08-16
-**Revised:** 2026-08-24 (v0.18 — fix-round evidence correction: all four W5
+**Revised:** 2026-08-25 (v0.20 — fix-round proof tightening: each real-pull
+subscription joins the exact `lastDeliveredWaveSeq`, same-version subscriptions
+have distinct waves, delayed connectivity produces positive queue wait, the
+join-source host envelope is value-free before overflow, and signed hosted
+adapter input traverses both production composition stages before recorder-off
+is asserted). 2026-08-25 (v0.19 — completes the reopened §7.7 integration
+remainder: production enqueue/liveQuery/React-hook facts arrive through the
+real client pull, a single delayed-send journey crosses pending to settled,
+real host/client bounds and redaction are exercised, managed dev is on while
+direct serve and hosted adapter composition remain off; no hosted telemetry or
+public surface is claimed). 2026-08-24 (v0.18 — fix-round evidence correction: all four W5
 source slices exist, but full §7.7 acceptance remains open because multiplicity
 and hosted/direct posture have focused owner fixtures rather than one assembled
 cross-process receipt; the authenticated host-operation-to-client join and
@@ -1286,27 +1296,29 @@ status or the provisional budget values. Implementation slices are tracked by
 the four tickets graduated from
 `issues/closed/20260821-app-boundary-runtime-cost-diagnostics-design.md`.
 
-**Implementation source and evidence status (2026-08-24 fix round).** The four
+**Implementation source and evidence status (2026-08-25 integration closure).** The four
 W5 source slices exist as one local-only diagnostic surface: the bounded server
 recorder and live/query producers; the client mutation-phase projection and
 pure subscription/wave join; equivalent-enqueue/no-op-commit/provider/asset
 multiplicity warnings; and the authenticated pull snapshot plus Guide. The
-dependency slices landed on `main` before the integration slice. Evidence is
-narrower than v0.17 claimed:
+dependency slices landed on `main` before the integration slice. The reopened
+integration remainder now supplies the missing assembled evidence:
 
-| Ticket | 2026-08-24 state |
+| Ticket | 2026-08-25 state |
 | --- | --- |
 | `issues/closed/20260822-runtime-cost-recorder-and-server-observations.md` | closed at owner scope; collection failure and recorder contention branch-and-drop; SQLite physical summaries remain `complete: false` |
 | `issues/closed/20260822-client-runtime-cost-and-delivery-inspection.md` | closed at owner scope; the pure join consumes the production singular `runtimeCost` / bounded-wave shape |
 | `issues/closed/20260822-equivalent-work-and-framework-multiplicity-diagnostics.md` | closed at owner scope; warning families have focused fixtures, not the cross-process D receipt |
-| `issues/20260822-runtime-cost-diagnostics-integration-proof.md` | open; authenticated serialized host-operation → client join and incomplete-work receipt landed, but §7.7 multiplicity/posture assembly remains unclaimed |
+| `issues/closed/20260822-runtime-cost-diagnostics-integration-proof.md` | closed; one managed-dev receipt drives real enqueue/replay with positive queue attribution, live-query, React asset, authenticated host pull, exact registry-selected distinct-wave join, pre-overflow redaction, and bounded-overflow paths; direct serve and signed-input production hosted adapter composition separately prove default-off posture |
 
-This records implemented source and a partial integration receipt, not complete
-§7.7 acceptance or a hosted capability promotion. `snapback dev` is the
+Together with the closed owner fixtures above, this completes §7.7 acceptance.
+The claim is scoped to bounded instance-local diagnostics and the tested
+composition paths, not a hosted capability promotion. `snapback dev` is the
 default-on boundary; direct and hosted serving remain default-off, an operator
 opt-in remains instance-local/gated, `PublicInspect` remains unchanged, and v1
 still has no export, upload, collection, or streaming protocol for cost
-records.
+records. Incomplete physical observations remain incomplete; the integrated
+receipt never reinterprets their physical zeros as measured zero work.
 
 ## Open questions
 
@@ -1319,6 +1331,23 @@ surface.
 
 ## Revision history
 
+- **v0.20 (2026-08-25).** Tightens the integration receipt after scoped review:
+  the real join now requires every `wave.waveSeq` to equal its subscription
+  registry row's `lastDeliveredWaveSeq` and requires all three same-version
+  waves to be distinct; the forced connectivity delay must yield positive
+  `queueWaitMs`; redaction is explicit on the authenticated pre-overflow host
+  envelope used by the join; and signed adapter files traverse production
+  `compose_hosted_edge_admission` and `with_hosted_edge_admission` before the
+  hosted recorder-off and listener-pending assertions, then recorder-off is
+  rechecked after the observed loopback listener binds successfully.
+- **v0.19 (2026-08-25).** Completes the reopened §7.7 integration remainder:
+  a managed-dev receipt drives production durable enqueue/replay,
+  duplicate-live-query, React asset-hook, authenticated host pull, client
+  pull/join, adversarial cost-record redaction, and bounded-overflow paths as
+  one journey;
+  direct serving and real hosted adapter composition prove default-off. This
+  is local instance diagnostics acceptance, not hosted telemetry or a public
+  surface promotion, and incomplete physical evidence stays incomplete.
 - **v0.18 (2026-08-24).** Corrects v0.17's evidence overclaim: records the real
   authenticated serialized host-operation → client join and retained
   `complete: false` JS-work fixture, keeps SQLite planner summaries explicitly

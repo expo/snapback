@@ -497,7 +497,7 @@ use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use futures_util::{SinkExt as _, StreamExt as _};
 use ring::rand::SystemRandom;
-use ring::signature::{ECDSA_P256_SHA256_FIXED_SIGNING, EcdsaKeyPair, KeyPair};
+use ring::signature::{ECDSA_P256_SHA256_FIXED_SIGNING, EcdsaKeyPair, Ed25519KeyPair, KeyPair};
 use serde_json::{Map, Value, json};
 use sha2::{Digest as _, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
@@ -1149,13 +1149,28 @@ async fn hosted_adapter_authority_requires_the_consumed_loopback_listener() {
     let mut state = test_detached_app_state(LocalSnapback::memory().expect("hosted bind instance"));
     Arc::make_mut(&mut state.server).auth_deployment =
         crate::auth::deployment::AuthDeploymentTarget::Hosted;
-    let mut state = state
-        .with_hosted_serving_authority(hosted_serving_authority(super::now_millis()))
-        .expect("install verified hosted authority fixture");
-    // This is the private postcondition of the public
-    // `with_hosted_edge_admission` path. A raw authority fixture alone uses
-    // `NotRequired`; only adapter composition enters `Pending`.
-    state.hosted_listener_binding = crate::admin::HostedListenerBinding::Pending;
+    let (_adapter_fixture, admission) = hosted_edge_admission_fixture();
+    let (state, _renewal) = state
+        .with_hosted_edge_admission(admission)
+        .await
+        .expect("consume the production hosted-edge admission");
+    // @ref LLP 0267#71-posture-first-redaction-bounded-storage-localhosted —
+    // the production hosted adapter composition inherits the engine's
+    // recorder-off default; consuming a verified admission cannot opt capture
+    // in.
+    assert!(
+        !state
+            .snapback
+            .try_lock()
+            .expect("inspect hosted recorder posture")
+            .runtime_cost_recorder_enabled_for_test(),
+        "verified hosted composition must preserve recorder-off posture",
+    );
+    assert_eq!(
+        state.hosted_listener_binding,
+        crate::admin::HostedListenerBinding::Pending,
+        "production hosted composition must require the consumed listener",
+    );
 
     let direct = super::app(state.clone())
         .oneshot(
@@ -1189,9 +1204,17 @@ async fn hosted_adapter_authority_requires_the_consumed_loopback_listener() {
     let loopback = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
         .expect("bind loopback regression listener");
+    let post_bind_inspection = state.clone();
+    let _bound = super::app(state)
+        .bind(loopback)
+        .expect("the exact observed loopback listener admits the opaque authority");
     assert!(
-        super::app(state).bind(loopback).is_ok(),
-        "the exact observed loopback listener admits the opaque authority",
+        !post_bind_inspection
+            .snapback
+            .try_lock()
+            .expect("inspect bound hosted recorder posture")
+            .runtime_cost_recorder_enabled_for_test(),
+        "successful hosted listener admission must preserve recorder-off posture",
     );
 }
 
@@ -1853,6 +1876,115 @@ fn hosted_serving_authority(now_ms: u64) -> HostedServingAuthority {
             family: policy,
         },
     )
+}
+
+fn hosted_edge_admission_fixture() -> (tempfile::TempDir, crate::admin::HostedEdgeAdmission) {
+    use crate::auth::hosted_edge::{
+        AdmissionRenewal, FirstContactTransport, HOSTED_EDGE_PROFILE, HostedAdmissionEnvelope,
+        HostedEdgeConfig,
+    };
+
+    let key = Ed25519KeyPair::from_seed_unchecked(&[23_u8; 32])
+        .expect("construct hosted-edge test signing key");
+    let public_key = key.public_key().as_ref();
+    let public_origin = "https://app.example.test";
+    let first_contact_transport = FirstContactTransport::HstsPreloadedSuffix;
+    let support_sha256 = "b".repeat(64);
+    let deployment_id = "deployment-hosted-adapter-composition";
+    let now_ms = super::now_millis();
+    let policy = AuthenticationBucketPolicy {
+        interval_ms: 1,
+        burst: 10_000,
+        maximum_denial_debt_attempts: 100,
+    };
+    let admission = HostedAdmission {
+        version: 1,
+        deployment_id: deployment_id.to_owned(),
+        configuration_sha256: crate::auth::hosted_edge::configuration_digest(
+            HOSTED_EDGE_PROFILE,
+            public_origin,
+            first_contact_transport,
+            true,
+            true,
+            public_key,
+        ),
+        support_sha256: support_sha256.clone(),
+        admission_epoch: 7,
+        issued_at_ms: now_ms.saturating_sub(1_000),
+        expires_at_ms: now_ms + 60_000,
+        limiter_epoch: 11,
+        authentication_throttle_config: SharedAuthenticationThrottleConfig {
+            retention_ms: 900_000,
+            maximum_key_count: 100_000,
+            global: policy,
+            source: policy,
+            subject: policy,
+            source_subject: policy,
+            family: policy,
+        },
+        invalidation_epoch: 13,
+        sender_replay_epoch_floor: 0,
+        handler_protocol_version: 1,
+        handler_incarnation: "handler-hosted-adapter-composition".to_owned(),
+        operator_surface: HostedOperatorSurface::Disabled,
+        browser_direct_bearer_seam: BrowserDirectBearerSeam::Excluded,
+        hosted_auth: HostedAuthCapabilities {
+            external_tls: ExternalTls::Enforced,
+            effective_source: EffectiveSource::Trusted,
+            authentication_throttle: AuthenticationThrottle::SharedEnforced,
+            session_invalidation: SessionInvalidation::GloballyFenced,
+            client_credential_posture: BrowserCredentialPosture::SenderConstrainedV2,
+        },
+    };
+    let mut envelope = HostedAdmissionEnvelope {
+        profile: HOSTED_EDGE_PROFILE.to_owned(),
+        public_origin: public_origin.to_owned(),
+        first_contact_transport,
+        renewal: AdmissionRenewal::PresignedWindow,
+        admission,
+        hosted_target_admission: None,
+        signature: String::new(),
+    };
+    let signing_input = crate::auth::hosted_edge::admission_signing_input(
+        &envelope.profile,
+        &envelope.public_origin,
+        envelope.first_contact_transport,
+        envelope.renewal,
+        &envelope.admission,
+    )
+    .expect("canonicalize hosted-edge admission fixture");
+    envelope.signature = URL_SAFE_NO_PAD.encode(key.sign(&signing_input).as_ref());
+
+    let config = HostedEdgeConfig {
+        format_version: 1,
+        deployment_id: deployment_id.to_owned(),
+        public_origin: public_origin.to_owned(),
+        first_contact_transport,
+        admission_public_key: URL_SAFE_NO_PAD.encode(public_key),
+        support_sha256,
+    };
+    let fixture = tempfile::tempdir().expect("hosted-edge adapter fixture directory");
+    let config_path = fixture.path().join("hosted-edge.json");
+    let admission_path = fixture.path().join("hosted-admission.json");
+    fs::write(
+        &config_path,
+        serde_json::to_vec(&config).expect("serialize hosted-edge config fixture"),
+    )
+    .expect("write hosted-edge config fixture");
+    fs::write(
+        &admission_path,
+        serde_json::to_vec(&envelope).expect("serialize hosted admission fixture"),
+    )
+    .expect("write hosted admission fixture");
+    let composed = crate::admin::compose_hosted_edge_admission(
+        crate::auth::deployment::AuthDeploymentTarget::Hosted,
+        Some(&config_path),
+        Some(&admission_path),
+        std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST),
+    )
+    .expect("compose production hosted-edge admission")
+    .expect("hosted target produces an admission");
+    (fixture, composed)
 }
 
 fn hosted_serving_authority_with_throttle(
