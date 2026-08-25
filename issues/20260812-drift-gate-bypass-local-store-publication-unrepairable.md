@@ -8,6 +8,8 @@
 **Systems:** Pre-push gates, Capability publication, Generated records, Local persistent store
 **Date:** 2026-08-12
 **Drift gate:** `local-store-publication`
+**Failure signature:** `sha256:3daaf301d85d6913e43803ee7a20710d5ad4932924e9f3125bd6530baa7db90c`
+**Last observed:** `057ce5898fcc7217dea8dddd7bd4b02deadb4eb7`
 **Bypass:** `SNAPBACK_DRIFT_GATES_BYPASS=1`, author-authorized 2026-08-12
 **Related:** `issues/20260811-record-inventory-local-store-publication.md` (the
 same mechanism, Impact 5 / Urgency 5, already open),

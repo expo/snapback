@@ -12,7 +12,7 @@
 **Failure signature:** `sha256:32096d9a41ed29d9ec0b513a7f6d4bdcd119506dea25a0ea128dcc4d726f239f`
 **Causal landing:** `0597c4e7c3ed5d01afcedcb772e879904c308b25` (fix(ephemeral): pin membership projection axes to the declaration; restore the corrupt-row proof)
 **Detected at:** `ddbd581eb77b7cb468b9b5764422b3a178438278`
-**Last observed:** `ddbd581eb77b7cb468b9b5764422b3a178438278`
+**Last observed:** `057ce5898fcc7217dea8dddd7bd4b02deadb4eb7`
 **Attribution:** `first-parent-signature-epoch`
 **Related:** LLP 0175 §D2.1
 
