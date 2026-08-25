@@ -807,6 +807,59 @@ reference after that module moved out of the engine (`E0433`). Neither path was
 changed by rounds 2 or 3, so this lane did not broaden into those inherited
 build-graph defects.
 
+## Round-4 F170 closure — remove the engine database escape (2026-08-26)
+
+The producer audit started with the repository's tests. Two engine OAuth
+fixtures composed the owning-crate `LocalSnapback::auth_database_mut` with raw
+`LocalDatabase::register_agent_principal_with_class`: the consent ownership
+fixture and `OAuthDenialFixture::new`. Both now obtain a Sessions admission and
+call `LocalSnapback::register_oauth_client`, retaining the durable integration
+record and credential assertions through the guarded production path.
+
+For the exact integration-record-plus-initial-credential effect, the complete
+producer set is:
+
+- raw `LocalDatabase::register_agent_principal_with_class` and its
+  `ServingDatabase` forwarding wrapper;
+- guarded `LocalSnapback::register_oauth_client` and the guarded
+  `LocalSnapback::register_agent_principal` class-generic sibling; and
+- the HTTP dynamic-registration route, which supplies its route admission to
+  the first guarded engine producer.
+
+The lower-level principal creation, integration-record insertion, and initial
+credential issuance functions are private or `pub(crate)` in the kernel. The
+repository does compose principal creation plus initial credential issuance in
+owning-crate `cfg(test)` fixtures, and a kernel test writes integration rows
+directly, but no pair of dependent-reachable public calls can combine those
+pieces into this effect. The feature-gated watch-management fixture can seed an
+integration record but cannot issue its initial credential. These were counted
+as producer inputs rather than omitted because no one call performs the whole
+effect.
+
+`snapback_engine::test_support` now exports no `LocalDatabase`,
+`ServingDatabase`, mutable database reference, raw-database callback, or
+equivalent owner escape. Its remaining helpers return bounded outcomes or
+opaque carriers. The owning-crate `LocalSnapback::auth_database_mut` remains
+`pub(crate)` and its relevant uses are under `cfg(test)`; this is materially
+different from a public `test-support` item because a dependent cannot enable
+`cfg(test)` for the dependency.
+
+The checked dependent attack ran successfully before deletion in both additive
+cells: defaults plus `snapback-engine/test-support`, and defaults plus unified
+`test-support` across engine/auth/kernel/sync. It issued a user ID and credential
+ID, found the durable integration record, and observed a byte-different SQLite
+image. After deletion both cells fail with primary `E0425` at the
+`test_support::auth_database_mut(&mut target)` attack expression (not at the
+module import).
+
+The fixture migration preserves the legitimate OAuth composition, so this fix
+does not invert into permanent denial. It adds no durable, monotone, replay, or
+single-use state and therefore introduces no ceiling or recovery mechanism.
+F170 closes. F053 does not: removing `insert_session_tombstone_for_test` would
+require migrating the checked dependent row attack and two cross-crate server
+collision fixtures, so round 4 leaves it for its own lane rather than weakening
+either fixture.
+
 ---
 
 ## Addendum — independent mechanical estimate, recorded before the tiering lane reports

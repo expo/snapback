@@ -36,6 +36,10 @@ name = "claim-via-engine-reexport"
 path = "src/bin/claim_via_engine_reexport.rs"
 
 [[bin]]
+name = "register-oauth-via-raw-engine-database"
+path = "src/bin/register_oauth_via_raw_engine_database.rs"
+
+[[bin]]
 name = "admit-system-push"
 path = "src/bin/admit_system_push.rs"
 

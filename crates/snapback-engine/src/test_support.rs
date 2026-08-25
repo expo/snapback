@@ -68,10 +68,6 @@ pub fn live_unscoped_invalidation_admission(
     LiveInvalidationAdmission::without_invalidation(effect_fence).with_session_mode(session_mode)
 }
 
-pub fn auth_database_mut(snapback: &mut LocalSnapback) -> &mut crate::storage::LocalDatabase {
-    snapback.auth_database_mut()
-}
-
 pub fn erase_protected_record(
     snapback: &mut LocalSnapback,
     request: &crate::proof_checkpoint::ProtectedRecordErasureRequestV1,

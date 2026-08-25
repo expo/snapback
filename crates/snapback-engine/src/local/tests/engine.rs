@@ -30992,16 +30992,19 @@ fn oauth_consent_ownership_fixture() -> (LocalSnapback, String, String) {
     let functions_for_scope_bases = functions.clone();
     let mut snapback = settled_sessions_activation_snapback(schema, functions);
     let random = CounterRandom::new();
-    let database = snapback.auth_database_mut();
-    database
+    snapback
+        .auth_database_mut()
         .reconcile_auth_scope_bases(&functions_for_scope_bases)
         .expect("install OAuth scope bases");
-    let integration = database
-        .register_agent_principal_with_class(
+    let admission = snapback
+        .admission_controller()
+        .admit_for_mode(AuthMode::Sessions)
+        .expect("admit OAuth integration registration");
+    let integration = snapback
+        .register_oauth_client(
+            &admission,
             None,
             Some(OAUTH_INTEGRATION_DISPLAY_NAME.to_owned()),
-            Some("ops@example.test".to_owned()),
-            crate::storage::auth_integrations::AgentRegistrationClass::Integration,
             crate::storage::auth_integrations::IntegrationRegistrationFacts {
                 origin: Some("https://example.test".to_owned()),
                 redirect_uris: vec!["https://example.test/callback".to_owned()],
@@ -31012,7 +31015,7 @@ fn oauth_consent_ownership_fixture() -> (LocalSnapback, String, String) {
         )
         .expect("register OAuth integration");
     let principal_user_id = integration.user_id.clone();
-    let client_id = database
+    let client_id = snapback
         .integration_record_if_present(&integration.user_id)
         .expect("read integration record")
         .expect("integration record exists")
@@ -32760,31 +32763,35 @@ impl OAuthDenialFixture {
         let functions_for_scope_bases = functions.clone();
         let mut snapback = settled_sessions_activation_snapback(schema, functions);
         let random = CounterRandom::new();
+        snapback
+            .auth_database_mut()
+            .reconcile_auth_scope_bases(&functions_for_scope_bases)
+            .expect("install OAuth denial scope bases");
+        let admission = snapback
+            .admission_controller()
+            .admit_for_mode(AuthMode::Sessions)
+            .expect("admit OAuth denial integration registration");
+        let integration = snapback
+            .register_oauth_client(
+                &admission,
+                None,
+                Some("OAuth Denial Integration".to_owned()),
+                crate::storage::auth_integrations::IntegrationRegistrationFacts {
+                    origin: Some("https://example.test".to_owned()),
+                    redirect_uris: vec!["https://example.test/callback".to_owned()],
+                },
+                ServerProfile::Test,
+                DENY_FIXTURE_MS,
+                &random,
+            )
+            .expect("register OAuth denial integration");
+        let client_id = snapback
+            .integration_record_if_present(&integration.user_id)
+            .expect("read OAuth denial integration")
+            .expect("OAuth denial integration exists")
+            .integration_id;
         let (pairing_requests, authorizations) = {
             let database = snapback.auth_database_mut();
-            database
-                .reconcile_auth_scope_bases(&functions_for_scope_bases)
-                .expect("install OAuth denial scope bases");
-            let integration = database
-                .register_agent_principal_with_class(
-                    None,
-                    Some("OAuth Denial Integration".to_owned()),
-                    Some("ops@example.test".to_owned()),
-                    crate::storage::auth_integrations::AgentRegistrationClass::Integration,
-                    crate::storage::auth_integrations::IntegrationRegistrationFacts {
-                        origin: Some("https://example.test".to_owned()),
-                        redirect_uris: vec!["https://example.test/callback".to_owned()],
-                    },
-                    ServerProfile::Test,
-                    DENY_FIXTURE_MS,
-                    &random,
-                )
-                .expect("register OAuth denial integration");
-            let client_id = database
-                .integration_record_if_present(&integration.user_id)
-                .expect("read OAuth denial integration")
-                .expect("OAuth denial integration exists")
-                .integration_id;
             for user_id in DENY_USERS {
                 database
                     .auth_catalog()
