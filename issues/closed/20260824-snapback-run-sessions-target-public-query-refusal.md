@@ -65,3 +65,22 @@ whose optional field is guarded by `skip_serializing_if = "Option::is_none"`,
 so a future refactor cannot silently restore explicit null body authority.
 The regression was confirmed fail-first with `userId: null` (`1 failed`, exit
 101), then passed with the omission guard (`1 passed`, exit 0).
+
+## Follow-up fix (2026-08-25)
+
+The first fix's fixture selected the sessions policy but did not install the
+fully settled sessions runtime facts that require an auth-client protocol offer
+on every online app-data request. The anonymous `/query/{name}` retry therefore
+shipped without `x-snapback-auth-client-protocol: 1`; the default React
+scaffold correctly refused it with
+`SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED` and `snapback run` exited 3.
+
+The retry now matches the first-party client's `anonymous-public` request
+shape: it sends the v1 auth-client offer with an args-only body and sends no
+admin token, bearer, lease, or `userId`. The native fixture now installs a
+settled sessions deployment plus session activation readiness, proves the
+public command succeeds, and preserves the protected-query
+`SNAPBACK_AUTH_REQUIRED`/zero-handler-execution negative. A packaged CLI test
+also executes the README's exact public command shape against the generated
+default React sessions scaffold. The issue remains closed because the
+documented command passes end to end.

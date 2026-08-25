@@ -1082,6 +1082,57 @@ fn stop_descriptor(startup_nonce: Option<&str>) -> crate::host_ops::HostReadyDes
     }
 }
 
+#[test]
+fn anonymous_public_query_retry_matches_first_party_request_shape() {
+    let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let address = listener.local_addr().unwrap();
+    let server = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().unwrap();
+        let request = read_http_request(&mut stream);
+        write_http_json(&mut stream, &json!({ "rows": [] }));
+        request
+    });
+
+    let (ok, response) = super::post_anonymous_query(
+        &format!("http://{address}"),
+        "listTodos",
+        json!({ "status": "open" }),
+    )
+    .expect("anonymous public query request");
+    assert!(ok);
+    assert_eq!(response, json!({ "rows": [] }));
+
+    let request = server.join().unwrap();
+    assert!(request.starts_with("POST /query/listTodos HTTP/1.1\r\n"));
+    assert!(request.lines().any(|line| {
+        let Some((name, value)) = line.split_once(':') else {
+            return false;
+        };
+        name.eq_ignore_ascii_case(crate::auth::handshake::AUTH_CLIENT_PROTOCOL_HEADER)
+            && value.trim() == "1"
+    }));
+    let lower = request.to_ascii_lowercase();
+    for forbidden in [
+        "x-snapback-admin-token:",
+        "authorization:",
+        "x-snapback-authorized-lease",
+        "x-snapback-custody",
+        "userid",
+    ] {
+        assert!(
+            !lower.contains(forbidden),
+            "forbidden carrier {forbidden}: {request}"
+        );
+    }
+    let (_, body) = request
+        .split_once("\r\n\r\n")
+        .expect("HTTP request contains a body separator");
+    assert_eq!(
+        serde_json::from_str::<Value>(body).expect("query request JSON"),
+        json!({ "args": { "status": "open" } }),
+    );
+}
+
 fn health_with_nonce(nonce: &str) -> serde_json::Value {
     json!({ "ok": true, "binary": { "startupNonce": nonce } })
 }

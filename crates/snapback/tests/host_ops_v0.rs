@@ -15,16 +15,21 @@ fn test_app_state_from_snapback(
 }
 
 use serde_json::{Value, json};
-use snapback::admin::{ServerContext, ServerProfile};
+use snapback::admin::{AppState, ServerContext, ServerProfile};
 use snapback::admin_impersonation::{
     IMPERSONATION_CAPABILITY_HEADER, ImpersonationCapabilityRegistry,
 };
 use snapback::auth::crypto::OsRandom;
+use snapback::auth::mode::{
+    AUTH_MODE_FORMAT_VERSION, AppDataAvailability, AuthModeStateRecord, AuthModeStatus,
+    AuthProgramReadiness, DeploymentIdentity, FUNCTION_V1_PREFIX, INPUTS_V1_PREFIX,
+    SCHEMA_V1_PREFIX,
+};
 use snapback::diagnostic::DiagnosticSeverity;
 use snapback::host_ops::{HostOpsRequest, HostReadyDescriptor, execute_host_op};
 use snapback::local::LocalSnapback;
 use snapback::manifest::{
-    AuthRequirement, FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime,
+    AuthMode, AuthRequirement, FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime,
     IbexModule,
 };
 use snapback::server::PolicyAuthMode;
@@ -87,10 +92,39 @@ fn wait_for_cli_ready(
     }
 }
 
-/// A sessions target treats the absence of client authority as anonymous.
-/// The native CLI must therefore omit `userId`, not serialize `--user`'s
-/// absent value as the explicitly forbidden JSON null. The app-route retry
-/// must still enforce an authenticated function before its handler executes.
+fn fully_settled_sessions_runtime(state: AppState) -> AppState {
+    let digest = |prefix: &str, marker: char| format!("{prefix}{}", marker.to_string().repeat(64));
+    let deployment = DeploymentIdentity {
+        schema_version: "snapback.v1".to_owned(),
+        auth_mode: AuthMode::Sessions,
+        app_id: "default-react-scaffold".to_owned(),
+        schema_hash: digest(SCHEMA_V1_PREFIX, '1'),
+        bundle_hash: digest(FUNCTION_V1_PREFIX, '2'),
+        inputs_hash: digest(INPUTS_V1_PREFIX, '3'),
+    };
+    state
+        .with_auth_runtime_facts(
+            AuthModeStateRecord {
+                format_version: AUTH_MODE_FORMAT_VERSION,
+                transition_generation: 1,
+                active: AuthMode::Sessions,
+                desired: AuthMode::Sessions,
+                mode_state: AuthModeStatus::Settled,
+                app_data_availability: AppDataAvailability::Available,
+                sessions_ever_activated: true,
+                active_deployment: Some(deployment),
+                requested_deployment: None,
+                quarantine: None,
+            },
+            AuthProgramReadiness::new(true, true, true, true, true, true, true),
+        )
+        .expect("install fully settled sessions runtime")
+}
+
+/// The default React scaffold settles sessions mode and requires every online
+/// app client to offer auth-client protocol v1. The native CLI must omit
+/// `userId`, offer that protocol on its anonymous app-route retry, and still
+/// enforce an authenticated function before its handler executes.
 // @ref LLP 0058#session-mode-body-closure — every legacy authority field,
 // populated or null, is rejected before the host operation runs.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -154,8 +188,10 @@ globalThis.__snapbackHandlers = {
     context.admin_token = Some("sessions-public-cli-admin".to_owned());
     std_listener.set_nonblocking(true).unwrap();
     let listener = tokio::net::TcpListener::from_std(std_listener).unwrap();
-    let state = test_app_state_from_snapback(snapback, context)
-        .with_policy_auth_mode(PolicyAuthMode::Sessions);
+    let state = fully_settled_sessions_runtime(
+        test_app_state_from_snapback(snapback, context)
+            .with_policy_auth_mode(PolicyAuthMode::Sessions),
+    );
     let server = tokio::spawn(async move {
         snapback::server::app(state)
             .bind(listener)

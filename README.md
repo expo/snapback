@@ -175,6 +175,54 @@ export function App() {
 }
 ```
 
+### Smoke-check a running backend
+
+With `bun run dev` still running, invoke a declared-public query directly from
+the project root:
+
+```sh
+snapback run --ready-file .snapback/dev.ready.json listTodos
+```
+
+This is the public form: it sends no `userId`, session bearer, lease, or admin
+credential to the application query route. On the default sessions-mode React
+scaffold it offers the anonymous-public auth protocol and succeeds only when
+the generated function declares `auth: 'public'` (or otherwise admits an
+anonymous caller). An authenticated function remains fail-closed with
+`SNAPBACK_AUTH_REQUIRED`.
+
+For an authenticated sessions-mode call, mint a local test session from the
+trusted terminal, then give the returned `data.token` to the first-party
+external-session client in trusted server/test code:
+
+```sh
+snapback session mint --ready-file .snapback/dev.ready.json \
+  --email person@example.test
+```
+
+```js
+import { createExternalSessionClient } from '@expo/snapback-client/online';
+import api from './snapback/generated/api.mjs';
+
+const baseUrl = process.env.SNAPBACK_URL;
+const bearerToken = process.env.SNAPBACK_SESSION_BEARER;
+if (!baseUrl || !bearerToken) throw new Error('missing trusted test session');
+const client = createExternalSessionClient(baseUrl, {
+  bearerToken,
+});
+const result = await client.query(api.myAuthenticatedQuery, { args: {} });
+await client.close();
+```
+
+Set `SNAPBACK_URL` from the readiness descriptor's `serverUrl` and set
+`SNAPBACK_SESSION_BEARER` to the mint response's `data.token` only in that
+trusted process. Keep the mint result and bearer out of browser/native bundles
+and logs.
+
+`snapback run --user <id> ...` is the explicit client-asserted identity form
+for an `auth: { mode: 'dev' }` backend; sessions mode deliberately rejects it.
+Use the mint plus `createExternalSessionClient` path there instead.
+
 Every snippet in [`guide/`](./guide/index.md) marked `source=` is a verbatim
 excerpt of a file CI executes end to end; `scripts/check-guide.mjs` fails the
 build if one drifts.

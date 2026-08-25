@@ -5062,7 +5062,13 @@ fn post_anonymous_query(
 ) -> anyhow::Result<(bool, Value)> {
     let function = percent_encode_path_segment(function);
     let endpoint = format!("{}/query/{function}", server_url.trim_end_matches('/'));
-    match ureq::post(&endpoint).send_json(json!({ "args": args })) {
+    // @ref LLP 0058#bootstrap-handshake — anonymous-public custody has no
+    // credential handshake; its per-request auth-client offer is the complete
+    // sessions-compatible authority posture.
+    match ureq::post(&endpoint)
+        .set(crate::auth::handshake::AUTH_CLIENT_PROTOCOL_HEADER, "1")
+        .send_json(json!({ "args": args }))
+    {
         Ok(response) => Ok((
             true,
             response

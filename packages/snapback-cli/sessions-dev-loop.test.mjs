@@ -3,6 +3,7 @@
 // the closed startup carrier from the generated schema itself.
 
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import {
   chmodSync,
   existsSync,
@@ -136,6 +137,65 @@ try {
   assert.equal(session.activeMode, 'sessions');
   assert.equal(session.modeState, 'settled');
   assert.equal(session.appDataAvailability, 'available');
+
+  // README "Smoke-check a running backend": keep the documented command and
+  // its default sessions-scaffold execution in one acceptance witness.
+  const documentedPublicRun = 'snapback run --ready-file .snapback/dev.ready.json listTodos';
+  assert.ok(readFileSync(join(repoRoot, 'README.md'), 'utf8').includes(documentedPublicRun));
+  const publicRun = spawnSync(
+    runtimeBinary,
+    ['run', '--ready-file', '.snapback/dev.ready.json', 'listTodos'],
+    { cwd: projectRoot, encoding: 'utf8', env: process.env },
+  );
+  assert.equal(
+    publicRun.status,
+    0,
+    `README public run failed\nstdout: ${publicRun.stdout}\nstderr: ${publicRun.stderr}`,
+  );
+  const publicRows = JSON.parse(publicRun.stdout);
+  assert.ok(Array.isArray(publicRows.rows));
+
+  const readyDescriptor = JSON.parse(readFileSync(readyFile, 'utf8'));
+  const adminToken = readFileSync(readyDescriptor.adminTokenFile, 'utf8').trim();
+  const urlPublicRun = spawnSync(
+    runtimeBinary,
+    ['run', '--url', dev.serverUrl, '--token', adminToken, 'listTodos'],
+    { cwd: projectRoot, encoding: 'utf8', env: process.env },
+  );
+  assert.equal(
+    urlPublicRun.status,
+    0,
+    `explicit-URL public run failed\nstdout: ${urlPublicRun.stdout}\nstderr: ${urlPublicRun.stderr}`,
+  );
+  assert.ok(Array.isArray(JSON.parse(urlPublicRun.stdout).rows));
+
+  const sessionsUserRun = spawnSync(
+    runtimeBinary,
+    ['run', '--ready-file', '.snapback/dev.ready.json', 'listTodos', '--user', 'readme-dev-user'],
+    { cwd: projectRoot, encoding: 'utf8', env: process.env },
+  );
+  assert.equal(
+    sessionsUserRun.status,
+    5,
+    `sessions --user run must refuse\nstdout: ${sessionsUserRun.stdout}\nstderr: ${sessionsUserRun.stderr}`,
+  );
+  const sessionsUserRefusal = JSON.parse(sessionsUserRun.stdout);
+  assert.equal(
+    sessionsUserRefusal.diagnostic.code,
+    'SNAPBACK_ADMIN_SECRET_READ_REQUIRED',
+  );
+
+  console.log([
+    '$ snapback run --ready-file .snapback/dev.ready.json listTodos',
+    `exit ${publicRun.status}`,
+    publicRun.stdout.trim(),
+    '$ snapback run --url <server-url> --token <admin-token> listTodos',
+    `exit ${urlPublicRun.status}`,
+    urlPublicRun.stdout.trim(),
+    '$ snapback run --ready-file .snapback/dev.ready.json listTodos --user readme-dev-user',
+    `exit ${sessionsUserRun.status}`,
+    sessionsUserRun.stdout.trim(),
+  ].join('\n'));
 
   // issues/20260729-sessions-client-inspect-omits-protocol-offer: the official
   // public inspection method negotiates the active sessions profile without

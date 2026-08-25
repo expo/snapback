@@ -9,13 +9,13 @@ id: operating.agent-controls
 order: 1
 audience: agent-first
 capabilities: [operating.agent-controls]
-authorities: [llp/0184-agent-accessible-control-plane.rfc.md, llp/0031-server-route-taxonomy.spec.md, llp/0042-agent-mcp-surface.rfc.md, crates/snapback-server/src/control_catalog.rs, crates/snapback-cli/src/cli.rs, packages/snapback-cli/mcp-control.mjs]
+authorities: [llp/0184-agent-accessible-control-plane.rfc.md, llp/0031-server-route-taxonomy.spec.md, llp/0042-agent-mcp-surface.rfc.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, crates/snapback-server/src/control_catalog.rs, crates/snapback-cli/src/cli.rs, packages/snapback-cli/mcp-control.mjs, packages/snapback-client/index.mjs]
 examples: []
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-06
-reviewed-authorities-digest: sha256:75f5b707ea9db54c16456455dbb49bbe5b8e4d5217ecb69f6cc061b87d64e04e
+reviewed: 2026-08-25
+reviewed-authorities-digest: sha256:03b9df8b8507e75ab0d5c3001950f2fb5df4c44f2f94bf8869213868c103d05b
 ---
 
 # Discover agent controls
@@ -87,6 +87,20 @@ missing, `resources/list` reports
 `SNAPBACK_MCP_NATIVE_DOCUMENTATION_UNAVAILABLE` in resource diagnostics and
 does not list pretend Guide/catalog resources. Direct reads fail explicitly;
 documentation absence never appears as success.
+
+## Run functions against sessions mode
+
+`snapback run --ready-file .snapback/dev.ready.json <public-query>` keeps its
+default authority anonymous. After the local administrative projection reaches
+its scoped secret-read boundary, the native CLI retries a query through the
+ordinary `/query/{name}` app route with the auth-client v1 offer and no admin
+token, session bearer, lease, or `userId`. The function manifest stays
+authoritative: public queries run, while authenticated queries refuse with
+`SNAPBACK_AUTH_REQUIRED` and the mint recovery remains
+`snapback session mint --ready-file <path> --email <address>` followed by
+`createExternalSessionClient(baseUrl, { bearerToken })` in trusted server/test
+code. `--user` is the client-asserted dev-mode posture; do not use it against a
+sessions target.
 
 ## Generated inventory
 
