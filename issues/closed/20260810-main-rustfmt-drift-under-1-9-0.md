@@ -69,3 +69,18 @@ Until then, the working rule this ticket records: **do not run `cargo fmt
 High — reproduced on a clean worktree at `3d1553975`, and independently
 confirmed by `rustfmt --edition 2024 --check` reporting drift on HEAD's own
 copy of `crates/snapback/src/server/effects.rs` before any local edit.
+
+## Resolution (2026-08-25)
+
+Closed by the sbs-0825 orchestration. Two facts changed since filing:
+
+- The formatter is pinned: `rust-toolchain.toml` declares `channel = "1.97.0"` with the `rustfmt`
+  component (the ticket's preferred fix 1), so every agent and CI run formats with rustfmt
+  1.9.0-stable.
+- The tree is fmt-idempotent under that pin. At `origin/main` on 2026-08-25 `cargo fmt --all --check`
+  reported only a handful of hunks in 4 files (`crates/snapback/tests/graph_corpus_v1.rs`,
+  `crates/snapback-kernel/src/live_matcher.rs` from `72b766977`; `crates/snapback-engine/src/local/tests/engine.rs` and `crates/snapback-kernel/build.rs` from the 2026-08-25 sbs-0825 landings); this landing
+  formats them. The ~400-line drift enumerated above was reformatted by intervening landings.
+
+The working rule stands: format only what you wrote; `cargo fmt --all` on an unrelated landing is
+still not a license to sweep the tree. `cargo fmt --all --check` is the verification.

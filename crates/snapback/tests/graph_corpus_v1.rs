@@ -576,8 +576,7 @@ mod pb_measurement {
             let partition = graph_authority_partition_identity_v1(partition_preimage)
                 .unwrap_or_else(|reason| panic!("{query} partition identity: {reason:?}"));
             let request = evaluation_request(corpus, &call, &materialization, &partition);
-            let output = match snapback.evaluate_graph_query(&carrier.normalized_plan, &request)
-            {
+            let output = match snapback.evaluate_graph_query(&carrier.normalized_plan, &request) {
                 Ok(output) => output,
                 Err(error) => {
                     graphs.push(json!({
@@ -7187,8 +7186,7 @@ fn graph_registration_covers_unbound_principal_parent_set() {
         .iter()
         .find(|evidence| evidence["graphPlanHash"] == carrier.plan_hash.as_str())
         .expect("issueListV2 invocation")["invocation"];
-    let (materialization, partition) =
-        validate_corpus_invocation(&carrier, call, "issueListV2");
+    let (materialization, partition) = validate_corpus_invocation(&carrier, call, "issueListV2");
     let mut request = evaluation_request(&corpus, call, &materialization, &partition);
     request.authority.auth.user_id = Some("unbound-principal".to_owned());
     request.authority.auth.principal = Some("unbound-principal".to_owned());

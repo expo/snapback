@@ -382,11 +382,8 @@ fn registration_query_rows_are_attested(
                 read.table
                     .clone()
                     .ok_or_else(|| demand_mismatch("row-table"))?,
-                read.id
-                    .clone()
-                    .ok_or_else(|| demand_mismatch("row-id"))?,
-                read.version
-                    .ok_or_else(|| demand_mismatch("row-version"))?,
+                read.id.clone().ok_or_else(|| demand_mismatch("row-id"))?,
+                read.version.ok_or_else(|| demand_mismatch("row-version"))?,
             ))
         })
         .collect::<Result<Vec<_>, GraphDemandTimeRefusalReasonV1>>()?;
@@ -452,10 +449,10 @@ fn registration_query_is_exact(
     rows: &[Value],
     expected: &QueryPlan,
 ) -> Result<(), GraphDemandTimeRefusalReasonV1> {
-    let expected_value = serde_json::to_value(expected)
-        .map_err(|_| demand_mismatch("query-plan-serialize"))?;
-    let (order, limit, result_count, boundary) = query_dependency_metadata(expected, rows)
-        .map_err(|_| demand_mismatch("query-metadata"))?;
+    let expected_value =
+        serde_json::to_value(expected).map_err(|_| demand_mismatch("query-plan-serialize"))?;
+    let (order, limit, result_count, boundary) =
+        query_dependency_metadata(expected, rows).map_err(|_| demand_mismatch("query-metadata"))?;
     if supplied != expected {
         return Err(demand_mismatch("query-plan"));
     }

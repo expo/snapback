@@ -31617,7 +31617,7 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_
 
 #[test]
 fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_n_foreign_other_authority()
-{
+ {
     run_oauth_consent_approval_case(
         OAUTH_APPROVAL_L_SHAPE[0],
         OAuthApprovalAttempt::ForeignOtherAuthority,
@@ -31639,7 +31639,7 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_
 
 #[test]
 fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_n_selector_below_all()
-{
+ {
     run_oauth_consent_approval_case(
         OAUTH_APPROVAL_L_SHAPE[0],
         OAuthApprovalAttempt::SelectorBelowAll,
@@ -31648,7 +31648,7 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_
 
 #[test]
 fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_n_selector_above_all()
-{
+ {
     run_oauth_consent_approval_case(
         OAUTH_APPROVAL_L_SHAPE[0],
         OAuthApprovalAttempt::SelectorAboveAll,
@@ -31665,7 +31665,7 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_
 
 #[test]
 fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_m_foreign_other_authority()
-{
+ {
     run_oauth_consent_approval_case(
         OAUTH_APPROVAL_L_SHAPE[1],
         OAuthApprovalAttempt::ForeignOtherAuthority,
@@ -31687,7 +31687,7 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_
 
 #[test]
 fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_m_selector_below_all()
-{
+ {
     run_oauth_consent_approval_case(
         OAUTH_APPROVAL_L_SHAPE[1],
         OAuthApprovalAttempt::SelectorBelowAll,
@@ -31696,7 +31696,7 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_
 
 #[test]
 fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_m_selector_above_all()
-{
+ {
     run_oauth_consent_approval_case(
         OAUTH_APPROVAL_L_SHAPE[1],
         OAuthApprovalAttempt::SelectorAboveAll,
@@ -31713,7 +31713,7 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user_n_session_
 
 #[test]
 fn oauth_consent_approval_refuses_requests_outside_the_authority_user_n_session_m_foreign_other_authority()
-{
+ {
     run_oauth_consent_approval_case(
         OAUTH_APPROVAL_L_SHAPE[2],
         OAuthApprovalAttempt::ForeignOtherAuthority,
@@ -31735,7 +31735,7 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user_n_session_
 
 #[test]
 fn oauth_consent_approval_refuses_requests_outside_the_authority_user_n_session_m_selector_below_all()
-{
+ {
     run_oauth_consent_approval_case(
         OAUTH_APPROVAL_L_SHAPE[2],
         OAuthApprovalAttempt::SelectorBelowAll,
@@ -31744,7 +31744,7 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user_n_session_
 
 #[test]
 fn oauth_consent_approval_refuses_requests_outside_the_authority_user_n_session_m_selector_above_all()
-{
+ {
     run_oauth_consent_approval_case(
         OAUTH_APPROVAL_L_SHAPE[2],
         OAuthApprovalAttempt::SelectorAboveAll,

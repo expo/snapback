@@ -4343,8 +4343,8 @@ fn password_environment_carrier_argv(
             )
     });
     if targets_password {
-        // This marker carries no secret. It exists only so clap can retain the
-        // config-set required-unless grammar while the separately zeroized
+        // This marker carries no secret. It exists only so the hidden marker can satisfy the
+        // required single-choice password-carrier ArgGroup while the separately zeroized
         // dev/test-only environment value remains outside argv.
         arguments.push("--__snapback-password-environment-carrier".into());
     }

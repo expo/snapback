@@ -14,10 +14,9 @@ fn main() {
         std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR is set by cargo"),
     );
     let catalog_path = manifest_dir.join("../../control-catalog/generated/control-catalog.v1.json");
-    let mut catalog: serde_json::Value = serde_json::from_slice(
-        &fs::read(&catalog_path).expect("read generated control catalog"),
-    )
-    .expect("generated control catalog must be valid JSON");
+    let mut catalog: serde_json::Value =
+        serde_json::from_slice(&fs::read(&catalog_path).expect("read generated control catalog"))
+            .expect("generated control catalog must be valid JSON");
 
     // @ref LLP 0041#runtime-distribution — the packaged binary's embedded
     // catalog must carry the same source stamp as the executable around it.
