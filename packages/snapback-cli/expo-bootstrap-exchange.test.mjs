@@ -496,6 +496,23 @@ try {
   assert.equal(preflight.headers.get('access-control-max-age'), '600');
   assert.equal(await preflight.text(), '');
 
+  const authorityPreflight = await fetch(
+    `${exchange.origin}${SUPERVISED_EXCHANGE_PATH}?authority=mint`,
+    {
+      method: 'OPTIONS',
+      headers: {
+        Origin: browserOrigin,
+        'Access-Control-Request-Method': 'GET',
+        'Access-Control-Request-Headers': 'accept',
+      },
+    },
+  );
+  assert.equal(authorityPreflight.status, 204);
+  assert.equal(authorityPreflight.headers.get('access-control-allow-origin'), browserOrigin);
+  assert.match(authorityPreflight.headers.get('access-control-allow-methods'), /\bGET\b/u);
+  assert.equal(authorityPreflight.headers.get('access-control-max-age'), '600');
+  assert.equal(await authorityPreflight.text(), '');
+
   const unadmittedGet = await fetch(`${exchange.origin}${SUPERVISED_EXCHANGE_PATH}`, {
     headers: { Origin: 'http://192.0.2.10:8081' },
   });

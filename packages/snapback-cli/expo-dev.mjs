@@ -119,6 +119,8 @@ export function expoMetroChildEnvironment({ env, bootstrapOrigin, backendOrigin,
     // @ref LLP 0300#p4--the-dev-session-becomes-explicit — supervised web
     // exposes the backend data/auth origin while retaining the supervisor
     // origin above as the binding rendezvous control plane.
+    // @ref LLP 0310.000#track-b--url-visible-mint-not-stolen — Track B makes
+    // the web data/auth URL visible without turning it into binding authority.
     ...(typeof backendOrigin === 'string' && backendOrigin.length > 0
       ? { EXPO_PUBLIC_SNAPBACK_URL: backendOrigin }
       : {}),
@@ -1605,6 +1607,11 @@ export async function startBootstrapExchange(
       const url = new URL(request.url, 'http://supervisor.local');
       if (await onSharedAuth(request, response, url)) return;
     }
+    const requestUrl = new URL(request.url ?? '/', 'http://supervisor.local');
+    const authorityRequest = requestUrl.searchParams.get('authority');
+    const validAuthorityRequest = requestUrl.search === ''
+      || (authorityRequest === SUPERVISED_AUTHORITY_REQUEST
+        && [...requestUrl.searchParams.keys()].length === 1);
     const admittedOrigin = admittedBrowserExchangeOrigin(request.headers.origin);
     response.setHeader('cache-control', 'no-store, max-age=0');
     response.setHeader('pragma', 'no-cache');
@@ -1620,7 +1627,11 @@ export async function startBootstrapExchange(
       response.setHeader('access-control-allow-methods', 'GET, OPTIONS');
       response.setHeader('access-control-allow-headers', 'accept');
     }
-    if (request.method === 'OPTIONS' && request.url === SUPERVISED_EXCHANGE_PATH) {
+    if (
+      request.method === 'OPTIONS'
+      && requestUrl.pathname === SUPERVISED_EXCHANGE_PATH
+      && validAuthorityRequest
+    ) {
       response.setHeader('access-control-max-age', '600');
       response.statusCode = 204;
       response.end();
@@ -1702,11 +1713,6 @@ export async function startBootstrapExchange(
       }
       return;
     }
-    const requestUrl = new URL(request.url ?? '/', 'http://supervisor.local');
-    const authorityRequest = requestUrl.searchParams.get('authority');
-    const validAuthorityRequest = requestUrl.search === ''
-      || (authorityRequest === SUPERVISED_AUTHORITY_REQUEST
-        && [...requestUrl.searchParams.keys()].length === 1);
     if (
       request.method !== 'GET'
       || requestUrl.pathname !== SUPERVISED_EXCHANGE_PATH
@@ -2200,6 +2206,7 @@ export async function runExpoDev(options = {}) {
   let forwarding = null;
   let authority = Object.freeze({ status: 'unavailable' });
   let authorityRequested = false;
+  let authorityEmail = options.email ?? DEFAULT_EMAIL;
   let requestSupervisedAuthority = () => authority;
   let checkoutRegistry = null;
   let checkoutNonce = null;
@@ -2403,7 +2410,9 @@ export async function runExpoDev(options = {}) {
               format: SUPERVISED_EXCHANGE_FORMAT,
               correlationId,
               binding: exchangeBinding,
-              authority,
+              authority: requestAuthority
+                ? authority
+                : Object.freeze({ status: 'unavailable' }),
               // @ref LLP 0151#shared-development-browser-adapter — the broker
               // origin and its one exact return target are credential-free, so
               // they ride the ordinary exchange instead of an EXPO_PUBLIC_*
@@ -2572,6 +2581,7 @@ export async function runExpoDev(options = {}) {
       getReadyDescriptor: () => readReadyDescriptor(dev.readyFile),
     });
     const mintAndSwapAuthority = (email, { emitReplacement = true } = {}) => {
+      authorityEmail = email;
       authorityRequested = true;
       let operatorToken = managedAdminToken(readReadyDescriptor(dev.readyFile), database);
       try {
@@ -2597,15 +2607,21 @@ export async function runExpoDev(options = {}) {
       }
       return authority.status;
     };
-    // @ref LLP 0300#p4--the-dev-session-becomes-explicit — binding admission
-    // never invokes the mint; only the explicit authority query reaches this
-    // issuance site.
+    // @ref LLP 0300#p4--the-dev-session-becomes-explicit — web binding
+    // admission never invokes the mint; only an explicit authority query does.
+    // @ref LLP 0310.000#track-b--url-visible-mint-not-stolen — every explicit
+    // web adoption or refresh receives a fresh session, while the first mint
+    // is not misreported as an authority replacement.
     requestSupervisedAuthority = () => {
-      if (authority.status !== 'ready') {
-        mintAndSwapAuthority(options.email ?? DEFAULT_EMAIL);
-      }
+      const emitReplacement = authorityRequested;
+      mintAndSwapAuthority(authorityEmail, { emitReplacement });
       return authority;
     };
+    // @ref LLP 0262#d2-carriers-per-shipped-topology — native supervised
+    // targets remain sessions-first; Track B's no-boot-mint rule is web-only.
+    if (platform !== 'web') {
+      mintAndSwapAuthority(authorityEmail, { emitReplacement: false });
+    }
     let route = null;
     handleBootstrapControl = async ({ operatorToken, body }) => {
         let expectedOperatorToken = null;
@@ -2720,7 +2736,7 @@ export async function runExpoDev(options = {}) {
             timeoutMs: options.metroReadyTimeoutMs ?? 30_000,
           });
           emit({ ok: true, state: 'listeners-verified', listeners });
-          if (authorityRequested) mintAndSwapAuthority(options.email ?? DEFAULT_EMAIL);
+          if (authorityRequested) mintAndSwapAuthority(authorityEmail);
           else authority = Object.freeze({ status: 'unavailable' });
           if (shouldLaunchExpoNativeCheckout(route, options)) {
             checkoutNonce = checkoutRegistry.issue({

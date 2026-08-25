@@ -57,7 +57,8 @@ const repoRoot = resolve(packageRoot, '..', '..');
 // Default to this checkout's own bootstrapped binary. The previous default was
 // an absolute path into one developer's home directory, which made this test
 // unrunnable everywhere else.
-const runtimeBinary = process.env.SNAPBACK_RUNTIME_BINARY
+const runtimeBinary = process.env.SNAPBACK_SERVER_BINARY
+  ?? process.env.SNAPBACK_RUNTIME_BINARY
   ?? join(repoRoot, 'target', 'debug', 'snapback');
 const metroFreshnessOnly = process.argv.includes('--metro-freshness-only');
 if (!metroFreshnessOnly) {
@@ -190,8 +191,12 @@ import { runCli } from ${JSON.stringify(pathToFileURL(join(packageRoot, 'index.m
 
 const [barrier, cleanupStarted, bundle, sourceMap, metroEnvironment, generatedRoot, ...args] = process.argv.slice(2);
 const code = await runCli(args, {
+  runtimeBinary: process.env.SNAPBACK_SERVER_BINARY
+    ?? process.env.SNAPBACK_RUNTIME_BINARY,
   env: {
     ...process.env,
+    SNAPBACK_RUNTIME_BINARY: process.env.SNAPBACK_SERVER_BINARY
+      ?? process.env.SNAPBACK_RUNTIME_BINARY,
     SNAPBACK_EXPO_TEST_BUNDLE: bundle,
     SNAPBACK_EXPO_TEST_SOURCE_MAP: sourceMap,
     SNAPBACK_EXPO_TEST_ENV: metroEnvironment,
@@ -393,6 +398,9 @@ function fixture(name, { sessions }) {
   const backendRoot = join(projectRoot, 'snapback');
   const expoRoot = join(projectRoot, 'app');
   mkdirSync(projectRoot, { recursive: true });
+  // The copied fixture's generated modules import workspace packages such as
+  // @expo/snapback-client. Once they live under this scratch project, Node can
+  // resolve those bare imports only through a project-local node_modules.
   symlinkSync(join(repoRoot, 'node_modules'), join(projectRoot, 'node_modules'), 'dir');
   cpSync(sourceFixture, backendRoot, { recursive: true });
   const governance = governanceInputs.map((name) => [
@@ -542,6 +550,10 @@ async function assertOriginClosed(origin, label) {
       return true;
     }
   }, { label: `${label} listener cleanup` });
+}
+
+function listenerOrigin({ host, port }) {
+  return `http://${host.includes(':') ? `[${host}]` : host}:${port}`;
 }
 
 async function runCliSupervisor(target, platform = 'ios', portArgs = []) {
@@ -916,9 +928,10 @@ try {
   supervisors.splice(supervisors.indexOf(envPinnedRun.supervisor), 1);
   await eventually(() => !existsSync(envPinned.readyFile), { label: 'env-pinned ready-file cleanup' });
 
-  // A target not settled in Sessions mode still completes anonymous binding
-  // delivery. Only explicit supervised-session adoption asks the server to
-  // mint, at which point the real native refusal becomes authority-required.
+  // Ruling 2 makes Sessions-mode web boot anonymous-first; it does not make a
+  // target whose auth mode is not Sessions application-ready. Both the
+  // ordinary first-party bootstrap and explicit adoption surface the same
+  // policy refusal without leaking a bearer on the ordinary exchange.
   const unsettled = fixture('unsettled', { sessions: false });
   const unsettledRun = await startFixture(unsettled, { platform: 'web' });
   assert.deepEqual(JSON.parse(readFileSync(unsettled.metroEnv, 'utf8')), {
@@ -947,8 +960,12 @@ try {
     }),
   });
   const anonymousUnsettled = await unsettledBoot.start();
-  assert.equal(anonymousUnsettled.status, 'ready');
-  assert.equal(unsettledBoot.appClient().auth.currentPrincipal().status, 'anonymous');
+  assert.equal(anonymousUnsettled.status, 'authority-required');
+  assert.equal(anonymousUnsettled.diagnostic.code, 'SNAPBACK_AUTH_POLICY_UNAVAILABLE');
+  assert.equal(
+    anonymousUnsettled.diagnostic.details.cause,
+    'sessions-auth-mode-unavailable',
+  );
   await unsettledBoot.dispose();
   const unsettledAdoptionBoot = createSnapbackExpoBoot({
     app: unsettledApp,
@@ -1061,6 +1078,10 @@ try {
   await eventually(() => !processGroupAlive(cliSignalState.metroPid), {
     label: 'production CLI SIGTERM Metro group cleanup',
   });
+  await assertOriginClosed(
+    listenerOrigin(cliSignalState.listeners.find(({ owner }) => owner === 'backend')),
+    'production CLI SIGTERM backend',
+  );
   assert.equal(existsSync(join(dirname(cliSignal.readyFile), 'expo-supervisor.json')), false);
   assert.equal(existsSync(join(cliSignal.expoRoot, 'public')), false);
 
@@ -1120,6 +1141,10 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   await eventually(() => !processGroupAlive(cliTimeoutState.metroPid), {
     label: 'production runExpoDev carrier-timeout Metro group cleanup',
   });
+  await assertOriginClosed(
+    listenerOrigin(cliTimeoutState.listeners.find(({ owner }) => owner === 'backend')),
+    'production runExpoDev carrier-timeout backend',
+  );
   assert.equal(existsSync(join(cliTimeoutArtifacts, 'expo-supervisor.json')), false);
   assert.equal(existsSync(join(cliTimeout.expoRoot, 'public')), false);
 
@@ -1288,13 +1313,17 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   });
   const anonymousBoot = createSnapbackExpoBoot({
     app: applicationApp,
-    url: injectedMetroEnvironment.backendOrigin,
     environment: applicationEnvironment('expo-track-b-anonymous'),
     now: () => settledNow,
   });
   const anonymousReady = await anonymousBoot.start();
   assert.equal(anonymousReady.status, 'ready', JSON.stringify(anonymousReady));
   assert.equal(anonymousReady.binding.source, 'supervised-dev');
+  assert.equal(
+    anonymousBoot.appClient().client.baseUrl,
+    injectedMetroEnvironment.backendOrigin,
+    'a first-party boot with no url option uses the injected backend origin while rendezvous remains the binding source',
+  );
   assert.equal(anonymousBoot.appClient().auth.currentPrincipal().status, 'anonymous');
   const passwordEmail = `expo-track-b-${process.pid}@example.com`;
   const password = 'expo-track-b-password';
@@ -1312,9 +1341,11 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   assert.equal(anonymousBoot.appClient().auth.currentPrincipal().status, 'anonymous');
   await anonymousBoot.dispose();
 
+  const replacementEventsBeforeAdoption = events.filter(
+    (event) => event.state === 'authority-replaced',
+  ).length;
   const adoptedBoot = createSnapbackExpoBoot({
     app: applicationApp,
-    url: injectedMetroEnvironment.backendOrigin,
     environment: applicationEnvironment('expo-track-b-adopted'),
     adoptSupervisedSession: true,
     now: () => settledNow,
@@ -1331,13 +1362,51 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
     applicationDiagnostics.some(({ code }) => code === 'SNAPBACK_AUTH_SESSION_EXPIRED'),
     false,
   );
+  assert.equal(
+    events.filter((event) => event.state === 'authority-replaced').length,
+    replacementEventsBeforeAdoption,
+    'the first explicit mint is issuance, not authority replacement',
+  );
   await adoptedBoot.dispose();
+
+  const readoptedBoot = createSnapbackExpoBoot({
+    app: applicationApp,
+    environment: applicationEnvironment('expo-track-b-readopted'),
+    adoptSupervisedSession: true,
+    now: () => settledNow,
+  });
+  const readoptedReady = await readoptedBoot.start();
+  assert.equal(readoptedReady.status, 'ready', JSON.stringify(readoptedReady));
+  assert.equal(readoptedReady.authoritySource, 'supervised-development');
+  assert.equal(
+    readoptedBoot.appClient().auth.currentPrincipal().status,
+    'authenticated',
+    'a second explicit adopter receives a fresh session after the first adopter signs out',
+  );
+  await readoptedBoot.dispose();
+  assert.equal(
+    applicationDiagnostics.some(({ code }) => code === 'SNAPBACK_AUTH_SESSION_EXPIRED'),
+    false,
+  );
+  assert.equal(
+    events.filter((event) => event.state === 'authority-replaced').length,
+    replacementEventsBeforeAdoption + 1,
+    'the second explicit adoption remints and reports an authority replacement',
+  );
+
   const mintedExchange = await (
-    await fetch(`${supervisor.exchangeOrigin}${SUPERVISED_EXCHANGE_PATH}`)
+    await fetch(
+      `${supervisor.exchangeOrigin}${SUPERVISED_EXCHANGE_PATH}?authority=mint`,
+    )
   ).json();
   const firstBearer = mintedExchange.authority.token;
   assert.match(firstBearer, /^sbs_/u);
   assert.equal(JSON.stringify(mintedExchange.binding).includes(firstBearer), false);
+  const postMintPlainExchange = await (
+    await fetch(`${supervisor.exchangeOrigin}${SUPERVISED_EXCHANGE_PATH}`)
+  ).json();
+  assert.equal(postMintPlainExchange.authority.status, 'unavailable');
+  assert.equal(Object.hasOwn(postMintPlainExchange.authority, 'token'), false);
 
   const app = JSON.parse(readFileSync(
     join(settled.backendRoot, 'generated', 'app.descriptor.json'),
@@ -1572,7 +1641,9 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   const replacementBootStart = bootStates.length;
   assert.equal(await supervisor.replaceAuthority('second@expo-e1.test'), 'ready');
   const secondExchange = await (
-    await fetch(`${supervisor.exchangeOrigin}${SUPERVISED_EXCHANGE_PATH}`)
+    await fetch(
+      `${supervisor.exchangeOrigin}${SUPERVISED_EXCHANGE_PATH}?authority=mint`,
+    )
   ).json();
   const secondBearer = secondExchange.authority.token;
   assert.match(secondBearer, /^sbs_/u);

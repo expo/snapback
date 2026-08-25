@@ -39,14 +39,20 @@ const USER_B = '018f0d90-9c21-7a22-8c33-445566778899';
 const SESSION_A = '018f0d90-9c22-7a22-8c33-445566778899';
 const SESSION_B = '018f0d90-9c23-7a22-8c33-445566778899';
 const SESSION_C = '018f0d90-9c27-7a22-8c33-445566778899';
+const SESSION_D = '018f0d90-9c29-7a22-8c33-445566778899';
+const SESSION_E = '018f0d90-9c2b-7a22-8c33-445566778899';
 const AUTHORITY_A = '018f0d90-9c24-7a22-8c33-445566778899';
 const AUTHORITY_B = '018f0d90-9c25-7a22-8c33-445566778899';
 const AUTHORITY_C = '018f0d90-9c28-7a22-8c33-445566778899';
+const AUTHORITY_D = '018f0d90-9c2a-7a22-8c33-445566778899';
+const AUTHORITY_E = '018f0d90-9c2c-7a22-8c33-445566778899';
 const INCARNATION = '018f0d90-9c26-7a22-8c33-445566778899';
 const APPLICATION_BEARER = 'sbs_expo_application_authority_secret';
 const APPLICATION_SIGNIN_BEARER = 'sbs_expo_application_signin_authority_secret';
 const SUPERVISED_BEARER = 'sbs_expo_supervised_authority_secret';
 const SUPERVISED_REMINT = 'sbs_expo_supervised_remint_secret';
+const SUPERVISED_SIGNOUT_BEARER = 'sbs_expo_supervised_signout_secret';
+const SUPERVISED_REMINT_AFTER_ENTRY = 'sbs_expo_supervised_remint_after_entry_secret';
 const PASSWORD = 'expo-bootstrap-password-secret';
 const RECOVERY_CODES = Object.freeze(Array.from({ length: 8 }, (_, index) => (
   `sbrv1_${String(index).padStart(2, '0')}${'A'.repeat(25)}`
@@ -138,7 +144,18 @@ function installAuthServer() {
       sessionId: SESSION_B,
       authorityInstanceId: AUTHORITY_B,
     }],
+    [SUPERVISED_SIGNOUT_BEARER, {
+      userId: USER_B,
+      sessionId: SESSION_D,
+      authorityInstanceId: AUTHORITY_D,
+    }],
+    [SUPERVISED_REMINT_AFTER_ENTRY, {
+      userId: USER_B,
+      sessionId: SESSION_E,
+      authorityInstanceId: AUTHORITY_E,
+    }],
   ]);
+  const revokedBearers = new Set();
   const handshake = (bearer, authInvalidationProtocol) => {
     const authenticated = bearers.get(bearer) ?? null;
     const authLiveOffered = authInvalidationProtocol === '1';
@@ -194,24 +211,27 @@ function installAuthServer() {
       authorizedLease: null,
     };
   };
-  const credential = (token, record) => ({
-    tokenType: 'Bearer',
-    token,
-    refreshAfter: Date.now() + 60_000,
-    session: {
-      id: record.sessionId,
-      userId: record.userId,
-      provider: 'local-password',
-      createdAt: Date.now(),
-      expiresAt: Date.now() + 120_000,
-      absoluteExpiresAt: Date.now() + 240_000,
-    },
-    authorityDescriptor: {
-      descriptorVersion: 1,
-      authorityInstanceId: record.authorityInstanceId,
-      sessionGeneration: 1,
-    },
-  });
+  const credential = (token, record) => {
+    revokedBearers.delete(token);
+    return {
+      tokenType: 'Bearer',
+      token,
+      refreshAfter: Date.now() + 60_000,
+      session: {
+        id: record.sessionId,
+        userId: record.userId,
+        provider: 'local-password',
+        createdAt: Date.now(),
+        expiresAt: Date.now() + 120_000,
+        absoluteExpiresAt: Date.now() + 240_000,
+      },
+      authorityDescriptor: {
+        descriptorVersion: 1,
+        authorityInstanceId: record.authorityInstanceId,
+        sessionGeneration: 1,
+      },
+    };
+  };
   globalThis.fetch = async (url, init = {}) => {
     const path = new URL(url).pathname;
     const headers = new Headers(init.headers);
@@ -222,6 +242,12 @@ function installAuthServer() {
     const body = init.body === undefined ? null : JSON.parse(init.body);
     requests.push({ path, bearer, authInvalidationProtocol, connectionToken, body });
     if (path === '/auth/session') {
+      if (revokedBearers.has(bearer)) {
+        return Response.json({
+          code: 'SNAPBACK_AUTH_SESSION_EXPIRED',
+          message: 'the ordinary session has ended',
+        }, { status: 401 });
+      }
       return Response.json(handshake(bearer, authInvalidationProtocol));
     }
     if (path === '/inspect') {
@@ -249,7 +275,10 @@ function installAuthServer() {
         bearers.get(APPLICATION_SIGNIN_BEARER),
       ));
     }
-    if (path === '/auth/logout') return new Response(null, { status: 204 });
+    if (path === '/auth/logout') {
+      if (bearer !== null) revokedBearers.add(bearer);
+      return new Response(null, { status: 204 });
+    }
     if (path === '/connection/open') {
       if (body.authInvalidationProtocol !== 1) {
         return Response.json({
@@ -283,6 +312,7 @@ function installAuthServer() {
   };
   return {
     requests,
+    revokedBearers,
     restore() { globalThis.fetch = originalFetch; },
   };
 }
@@ -384,7 +414,7 @@ const liveBinding = structuredClone(binding);
 liveBinding.provenance.issuedAt = new Date(Date.now() - 30 * 60_000).toISOString();
 liveBinding.provenance.expiresAt = new Date(Date.now() + 30 * 60_000).toISOString();
 const liveSupervisor = {
-  bearer: null,
+  bearer: SUPERVISED_BEARER,
   binding: liveBinding,
   events: [],
   diagnostics: [],
@@ -450,7 +480,14 @@ function LiveProjection({ showQuery = true }) {
   liveProjection.auth = useSnapbackAuth();
   liveProjection.principal = useSnapbackCurrentPrincipal();
   if (!showQuery) liveProjection.query = null;
-  return showQuery ? React.createElement(ProtectedLiveProjection) : null;
+  return React.createElement(
+    React.Fragment,
+    null,
+    liveProjection.principal?.status === 'anonymous'
+      ? React.createElement('password-form', { testID: 'password-form' })
+      : null,
+    showQuery ? React.createElement(ProtectedLiveProjection) : null,
+  );
 }
 async function settleReactUntil(predicate, message) {
   for (let attempt = 0; attempt < 100; attempt += 1) {
@@ -472,6 +509,7 @@ const liveTree = (showQuery = true) => React.createElement(
   {
     app: protectedApp,
     environment: liveEnvironment,
+    adoptSupervisedSession: false,
     outboxDrain: 'manual',
     fallback(state) {
       liveProjection.boot = state;
@@ -493,6 +531,11 @@ await settleReactUntil(
   })}`,
 );
 assert.equal(liveProjection.query.status, 'blocked');
+assert.equal(
+  liveRenderer.root.findAllByProps({ testID: 'password-form' }).length,
+  1,
+  'default first-party boot exposes password entry instead of adopting the available mint',
+);
 assert.equal(liveSubscriptions().length, 0, 'anonymous protected query performs no stream work');
 assert.deepEqual(
   liveSupervisor.events,
@@ -536,6 +579,7 @@ await settleReactUntil(
 );
 assert.equal(liveProjection.principal.status, 'anonymous');
 assert.equal(liveProjection.query.status, 'blocked');
+assert.equal(liveRenderer.root.findAllByProps({ testID: 'password-form' }).length, 1);
 assert.equal(
   liveSubscriptions().length,
   streamsAfterSignup,
@@ -638,7 +682,96 @@ assert.equal(
   1,
   'post-signin protected hook registration creates exactly one socket',
 );
-await act(async () => { liveRenderer.unmount(); });
+await act(async () => {
+  liveRenderer.unmount();
+  await new Promise((resolve) => setImmediate(resolve));
+});
+
+// Regression: an explicitly adopted supervised mint is a normal session, not
+// a permanent provider bootstrap dependency. The fake server below models the
+// real revocation edge: once logout ends the bearer, any attempted reuse gets
+// SNAPBACK_AUTH_SESSION_EXPIRED. Keep a protected query mounted across that
+// transition and require the real React provider to expose password entry.
+const adoptedSignoutCustody = createMemoryAuthCustodyStorage();
+const adoptedSignoutPlatform = Object.freeze({
+  kind: 'expo-native',
+  cryptoObject: webcrypto,
+  authCustodyStorage: Object.freeze({
+    ownerKeyCapability: adoptedSignoutCustody.ownerKeyCapability,
+    withOwnership: adoptedSignoutCustody.withOwnership,
+    platformGrade: async () => Object.freeze({
+      grade: 'single-runtime',
+      mechanism: 'provider-adopted-signout-native-fixture',
+    }),
+  }),
+});
+const adoptedSignoutSupervisor = {
+  bearer: SUPERVISED_SIGNOUT_BEARER,
+  binding: liveBinding,
+  events: [],
+  diagnostics: [],
+};
+const adoptedSignoutProjection = { auth: null, principal: null, query: null, boot: null };
+function AdoptedSignoutProjection() {
+  adoptedSignoutProjection.auth = useSnapbackAuth();
+  adoptedSignoutProjection.principal = useSnapbackCurrentPrincipal();
+  adoptedSignoutProjection.query = useSnapbackQuery(protectedApp.api.queries.listTodos, {});
+  return adoptedSignoutProjection.principal?.status === 'anonymous'
+    ? React.createElement('password-form', { testID: 'adopted-signout-password-form' })
+    : null;
+}
+let adoptedSignoutRenderer;
+await act(async () => {
+  adoptedSignoutRenderer = TestRenderer.create(React.createElement(
+    SnapbackExpoProvider,
+    {
+      app: protectedApp,
+      environment: environmentFor(adoptedSignoutPlatform, adoptedSignoutSupervisor),
+      adoptSupervisedSession: true,
+      outboxDrain: 'manual',
+      fallback(state) {
+        adoptedSignoutProjection.boot = state;
+        return null;
+      },
+    },
+    React.createElement(AdoptedSignoutProjection),
+  ));
+});
+await settleReactUntil(
+  () => adoptedSignoutProjection.principal?.status === 'authenticated'
+    && adoptedSignoutProjection.query?.status === 'ready',
+  () => `the real provider must adopt the supervised mint and mount its protected query: ${JSON.stringify({
+    boot: adoptedSignoutProjection.boot,
+    diagnostics: adoptedSignoutSupervisor.diagnostics,
+    requests: server.requests.slice(-10),
+  })}`,
+);
+await act(async () => { await adoptedSignoutProjection.auth.signOut(); });
+await settleReactUntil(
+  () => adoptedSignoutProjection.principal?.status === 'anonymous'
+    && adoptedSignoutProjection.query?.status === 'blocked'
+    && adoptedSignoutRenderer.root.findAllByProps({
+      testID: 'adopted-signout-password-form',
+    }).length === 1,
+  () => `signout must fence the adopted query and expose password entry: ${JSON.stringify({
+    boot: adoptedSignoutProjection.boot,
+    principal: adoptedSignoutProjection.principal,
+    query: adoptedSignoutProjection.query,
+    diagnostics: adoptedSignoutSupervisor.diagnostics,
+    requests: server.requests.slice(-10),
+  })}`,
+);
+assert.equal(server.revokedBearers.has(SUPERVISED_SIGNOUT_BEARER), true);
+assert.equal(
+  adoptedSignoutSupervisor.diagnostics.some(
+    ({ code }) => code === 'SNAPBACK_AUTH_SESSION_EXPIRED',
+  ),
+  false,
+);
+await act(async () => {
+  adoptedSignoutRenderer.unmount();
+  await new Promise((resolve) => setImmediate(resolve));
+});
 globalThis.WebSocket = originalWebSocket;
 if (previousLiveNavigator === undefined) delete globalThis.navigator;
 else Object.defineProperty(globalThis, 'navigator', previousLiveNavigator);
@@ -719,6 +852,7 @@ await boot.appClient().auth.signInWithPassword({
   password: PASSWORD,
 });
 assert.equal(boot.appClient().bootstrapState().authoritySource, 'application-entry');
+supervisor.bearer = SUPERVISED_REMINT_AFTER_ENTRY;
 const applicationConflict = await boot.refreshAuthority();
 assert.equal(applicationConflict.status, 'ready');
 assert.equal(boot.appClient().auth.currentPrincipal().userId, USER_A);
@@ -779,42 +913,6 @@ assert.deepEqual(
   'the future native-reader result crosses only the internal client-option seam',
 );
 await carrierProtocolBoot.dispose();
-
-const adoptedSignoutPlatform = Object.freeze({
-  ...platform,
-  databaseName: 'snapback-expo-auth-bootstrap-adopted-signout-test',
-});
-const adoptedSignoutSupervisor = {
-  bearer: SUPERVISED_BEARER,
-  events: [],
-  diagnostics: [],
-};
-const adoptedSignoutBoot = createSnapbackExpoBoot({
-  app,
-  environment: environmentFor(adoptedSignoutPlatform, adoptedSignoutSupervisor),
-  adoptSupervisedSession: true,
-  now: () => TEST_NOW_MS,
-  async createApplicationClient(input, observer) {
-    const appClient = await createSnapbackAppClientWithBootstrapObserver(input, observer);
-    appClient.client.prepareReactBinding = async () => ({ source: 'deployment' });
-    return appClient;
-  },
-  createProvider: fakeReactProvider,
-  bindLifecycle: () => Object.freeze({ dispose() {}, async settled() {} }),
-});
-const adoptedSignoutReady = await adoptedSignoutBoot.start();
-assert.equal(adoptedSignoutReady.status, 'ready');
-assert.equal(adoptedSignoutReady.authoritySource, 'supervised-development');
-await adoptedSignoutBoot.appClient().auth.signOut();
-assert.equal(adoptedSignoutBoot.appClient().auth.currentPrincipal().status, 'anonymous');
-assert.equal(adoptedSignoutBoot.getSnapshot().status, 'ready');
-assert.equal(
-  adoptedSignoutSupervisor.diagnostics.some(
-    ({ code }) => code === 'SNAPBACK_AUTH_SESSION_EXPIRED',
-  ),
-  false,
-);
-await adoptedSignoutBoot.dispose();
 
 const anonymousPlatform = Object.freeze({
   ...platform,

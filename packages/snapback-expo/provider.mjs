@@ -372,7 +372,7 @@ export function createSnapbackExpoBoot(options = {}) {
     bindLifecycle = bindSnapbackAppLifecycle,
     createApplicationClient = createSnapbackAppClientWithBootstrapObserver,
     adoptSupervisedAuthority = adoptSupervisedBootstrapAuthority,
-    adoptSupervisedSession = false,
+    adoptSupervisedSession = undefined,
     acquireDefaultRqsStore = acquireExpoSqliteDefaultRqsStore,
     now = () => Date.now(),
   } = options;
@@ -599,6 +599,10 @@ export function createSnapbackExpoBoot(options = {}) {
 
       if (firstPartyBootstrapOptIn(app)) {
         const platform = await awaitBoundary(resolveAppClientPlatform(environment, app));
+        // @ref LLP 0262#d2-carriers-per-shipped-topology — supervised native
+        // remains sessions-first; only browser/Expo web makes adoption opt-in.
+        const shouldAdoptSupervisedSession = adoptSupervisedSession
+          ?? !['browser', 'expo-web'].includes(platform?.kind);
         // @ref LLP 0151#resolved-provider-entry — Adapters resolve once, here,
         // from the declaration plus the supervisor's credential-free shared-auth
         // projection. An app that declares no provider builds none.
@@ -633,7 +637,7 @@ export function createSnapbackExpoBoot(options = {}) {
         }
 
         if (
-          adoptSupervisedSession
+          shouldAdoptSupervisedSession
           && admittedBinding.source === 'supervised-dev'
           && typeof environment.resolveSupervisedAuthority === 'function'
         ) {
@@ -997,7 +1001,7 @@ export function SnapbackExpoProvider(props) {
     url = undefined,
     environment = defaultSnapbackExpoEnvironment,
     rqsStore = undefined,
-    adoptSupervisedSession = false,
+    adoptSupervisedSession = undefined,
     fallback = null,
     children = null,
     outboxDrain = 'auto',
