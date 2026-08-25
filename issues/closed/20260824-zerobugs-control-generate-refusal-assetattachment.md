@@ -54,3 +54,23 @@ pass on the re-frozen corpus.
 - If the governance refusal is intended to block generation for undeclared
   tables, record that decision in the governing LLP and update the zb5 gate
   docs/pins accordingly.
+
+## Resolution (2026-08-25)
+
+Resolved on `main` by `db1574a9c` ("fix(zerobugs): declare control table
+visibility") and `06e6b4a6b` (tracked consumer-committed review projections),
+which landed the Lane M2 approach above. Verified 2026-08-25 at `32c193d3e`:
+`bun run generate` in `demos/zerobugs/control` (with
+`SNAPBACK_RUNTIME_BINARY` pointing at a fresh debug build) exits 0 and reports
+`table visibility 23 declared; 0 implicit`, producing
+`snapback/generated/api.mjs`. The remaining output is the informational
+`declare-explicit-write-authority` migration plan (22 tables / 116 findings),
+which does not refuse generation. The honest-narrowest per-table migration
+remains the author decision tracked in
+`20260824-zerobugs-control-honest-narrowest-visibility.md`.
+
+Observation recorded for follow-up: regenerating rewrites the tracked
+`snapback/generated/artifacts.json` / `authorization-review.json` (descriptor,
+binding, and bundle hashes moved with later codegen landings), so the committed
+projections are stale relative to current codegen; the sbs-0825 graph-demand
+lane re-freezes them.
