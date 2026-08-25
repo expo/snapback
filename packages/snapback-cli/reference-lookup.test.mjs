@@ -4,7 +4,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { runCli } from './index.mjs';
-import { formatGuideReferenceLookup, lookupGuideReference } from './reference-lookup.mjs';
+import { lookupGuideReference } from './reference-lookup.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const sharedCases = JSON.parse(readFileSync(
@@ -47,19 +47,15 @@ assert.equal(diagnostic.diagnostic.httpStatus, 401);
 assert.equal(diagnostic.diagnostic.sites, undefined);
 assert.match(diagnostic.identity.diagnosticsSourceDigest, /^sha256:[0-9a-f]{64}$/u);
 assert.ok(Buffer.byteLength(JSON.stringify(diagnostic)) <= 16_384);
-const staleAuthDiagnostic = lookupGuideReference(
-  ['SNAPBACK_AUTH_STALE_RESULT'],
+const capabilityDiagnostic = lookupGuideReference(
+  ['SNAPBACK_CAPABILITY_UNSUPPORTED'],
   { projectRoot: root },
 );
-assert.equal(staleAuthDiagnostic.match, 'diagnostic');
-assert.equal(staleAuthDiagnostic.diagnostic.sites, undefined);
-assert.deepEqual(
-  staleAuthDiagnostic.diagnostic.guideAnchors,
-  ['/_snapback/guide/auth/sessions-and-principals.md#recover-from-snapbackauthstaleresult'],
-);
-assert.match(
-  formatGuideReferenceLookup(staleAuthDiagnostic),
-  /Guide: \/_snapback\/guide\/auth\/sessions-and-principals\.md#recover-from-snapbackauthstaleresult/u,
+assert.equal(capabilityDiagnostic.match, 'diagnostic');
+assert.equal(capabilityDiagnostic.diagnostic.sites, undefined);
+assert.equal(
+  capabilityDiagnostic.diagnostic.guideAnchor,
+  '/_snapback/guide/backend/streamed-actions.md#read-the-refusal-codes',
 );
 const internalDiagnostic = lookupGuideReference(
   ['SNAPBACK_AUTH_SESSION_EXPIRED'],

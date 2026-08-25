@@ -12,9 +12,8 @@ assertion, UI-kit, and choreography files.
 
 Backend pin: published Snapback 0.1.25 from the public npm registry. Use a
 sessions-mode Snapback backend with the familiar layout: `schema.ts`, top-level
-function modules with `query`/`mutation`/`action` constructors, `generated/`
-produced by the published codegen, and the familiar React hooks. The
-`_generated/` spelling is a refused alias. Opt in
+function modules with `query`/`mutation`/`action` constructors, `_generated/`
+produced by the published codegen, and the familiar React hooks. Opt in
 explicitly by setting `"authoringProfile": "snapback-familiar-ts-v1"` in
 `snapback/codegen.policy.json`. Do not fall back to the explicit
 `schema.mjs`/`functions.mjs` profile. Your primary documentation is the Guide

@@ -26,8 +26,7 @@ makes green structurally impossible, record the exact instrument failure rather
 than relabeling it.
 
 Use a sessions-mode Snapback backend and the familiar layout (`schema.ts`,
-top-level function modules, `generated/`, familiar React hooks). The
-`_generated/` spelling is a refused alias. Use the
+top-level function modules, `_generated/`, familiar React hooks). Use the
 workspace at the pinned source snapshot; do not substitute the older published
 0.1.20 explicit profile. Run generation through the source codegen. Prefer the
 already-built local runtime or the published 0.1.20 runtime only when compatible;

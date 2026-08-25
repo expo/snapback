@@ -278,10 +278,11 @@ function headingSlug(text) {
 function guideAnchors() {
   const anchors = new Map();
   const headingAnchors = new Map();
-  // @ref LLP 0223#tickets — retrieval-eval seeds and eval-run transcripts are
-  // retained evidence of the retrieval protocol, not retrieval targets: a
-  // code mentioned in either must not capture (or alphabetically demote) the
-  // guide anchor an agent is routed to when the code fires.
+  // Retrieval-eval is the routing-test corpus, not an author-facing diagnostic
+  // target; its seeded codes must not capture or demote their tested anchors.
+  // @ref LLP 0223#tickets — eval-run transcripts are retained evidence of the
+  // retrieval protocol, not retrieval targets, so transcript vocabulary is
+  // excluded from anchoring too.
   const paths = walk(join(root, 'guide'), (path) => (
     path.endsWith('.md')
     && !/^guide\/guide-flat(?:\.[a-z0-9-]+)?\.generated\.md$/.test(path)

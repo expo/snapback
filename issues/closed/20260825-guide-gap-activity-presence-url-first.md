@@ -6,28 +6,28 @@
 
 ## Problem
 
+The Clique run inferred from its failed composition that
 `@expo/snapback-expo`'s `useSnapbackActivityPresence` requires
-`SnapbackExpoLifecycleContext`. A URL-first `SnapbackProvider` (the
-working Clique landing) does not provide it. The hook that works is
-`@expo/snapback-react`. Familiar learned this from package types, not
-from the familiar profile page.
+`SnapbackExpoLifecycleContext` and that a URL-first `SnapbackProvider` must use
+the React export. The guide did not state the bare-provider fallback contract,
+so the run could not distinguish a product failure from the supported import.
 
 The generation-fence on `touch()` is a product change (LLP 0310.000 Track
 D). This ticket is the import/docs slice only.
 
 ## Direction
 
-On the familiar profile page and the ephemeral/presence recipe: URL-first
-web imports `useSnapbackActivityPresence` from `@expo/snapback-react`.
-The Expo facade hook is for `SnapbackExpoProvider` only.
+Establish the shipped behavior from source and a bare-provider render probe,
+then teach the provider-independent import choice and its lifecycle consequence.
 
 ## Resolution (2026-08-25)
 
-Resolved the documentation slice. The Familiar profile, ephemeral-state page,
-and activity-presence recipe bind the hook import to the provider: URL-first
-`SnapbackProvider` trees use `@expo/snapback-react`; the
-`@expo/snapback-expo` facade is for `SnapbackExpoProvider`. Retrieval case 100
-now routes the preserved "URL-first activity presence" vocabulary, requires
-guidance on every named page, and rejects the old unconditional Expo-facade
-import. The generation-fence product change was not implemented or tested in
-this lane.
+Resolved the documentation slice after checking LLP 0257 and
+`packages/snapback-expo/activity-presence.mjs`. The independently runnable
+`activity-presence-bare-provider.test.mjs` renders the facade hook under a bare
+`SnapbackProvider`, exercises the conditional browser AppState resolver, and
+proves backgrounding invokes withdrawal. Therefore either export works
+URL-first, but only the Expo facade keeps AppState-driven background withdrawal.
+The Familiar profile, ephemeral-state page, activity-presence recipe, and
+retrieval case 100 now state that contract and do not reject the Expo import.
+The generation-fence product change was not implemented or tested in this lane.

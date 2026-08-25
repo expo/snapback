@@ -3853,11 +3853,12 @@ five-second TTL or acceptance ceiling does not make that value disappear after
 five seconds of no typing. Bound withdrawal is `skip`; `null` is a value publish
 attempt and fails the generated value contract.
 
-Choose the import from the provider that owns the tree. URL-first web imports
-`useSnapbackActivityPresence` from `@expo/snapback-react` alongside
-`SnapbackProvider`. The `@expo/snapback-expo` facade hook is for
-`SnapbackExpoProvider` only; it requires the Expo lifecycle context and adds
-AppState withdrawal. There is no third activity-presence hook.
+Either hook works for URL-first web under a bare `SnapbackProvider`. The
+`@expo/snapback-expo` facade falls back to the browser AppState resolver when
+no Expo lifecycle context exists. The Expo facade keeps AppState-driven
+background withdrawal; the React hook does not. Choose the facade when that
+withdrawal matters, or the React hook for the same activity deadline without
+the platform lifecycle listener. There is no third activity-presence hook.
 
 This is the usual cause of a “typing indicator stuck” or “presence not
 expiring” report. The heartbeat-vs-bound-value decision comes before choosing

@@ -1159,7 +1159,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:c75663b2f4959dcd9bc7a910781a9bdc3091318b27a8c5ed12721fdd1a089067
+reviewed-authorities-digest: sha256:5e1d3ec912e9a7c2ac68119492fda4ff9ada03c2662316aa8687befd6d2d1153
 ---
 
 # Retrieval eval protocol
@@ -2060,11 +2060,10 @@ miss and binds it to the runtime warning rather than prose alone.
     the same user after another persona signed in?" The run fails if it treats
     the warning as a refusal, proposes clearing shared custody as the default
     repair, or omits the stable per-persona partition.
-    Expected pages: `recipes/multi-persona-clients.md`, `clients/headless.md`.
+    Expected pages: `recipes/multi-persona-clients.md`.
     Route terms: "second client same user", "multiple clients same session",
     "personas share login", "SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE".
-    Required guidance: "one stable explicit storagePartition per persona or worker",
-    "storagePartition".
+    Required guidance: "one stable explicit storagePartition per persona or worker".
     Exact diagnostic target: `SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE` ->
     `/_snapback/guide/clients/headless.md#construct-one-client-per-backend-and-custody-context`.
 
@@ -2124,9 +2123,9 @@ Case 92 absorbs the first-party guest-session entry closure from LLP 0294 W6.1.
     out." The run fails if it invents an Expo-only auth owner, supplies ids,
     expiry, or cleanup from the client, weakens custody, or merges into an
     existing password identity.
-    Expected pages: `auth/sessions-and-principals.md`, `auth/passwords.md`.
+    Expected pages: `auth/sessions-and-principals.md`.
     Route terms: "enterAsGuest", "claimGuestWithPassword", "guest entry".
-    Required guidance: "A caller never supplies the principal id, session id, expiry, or cleanup policy", "An existing password identity refuses", "SNAPBACK_AUTH_GUEST_CLAIM_COLLISION".
+    Required guidance: "A caller never supplies the principal id, session id, expiry, or cleanup policy", "An existing password identity refuses".
 
 Cases 93–96 absorb the 2026-08-24 Familiar auth-entrypoint and volatile
 activity-presence guide gaps. Their route terms preserve the vocabulary used
@@ -2178,15 +2177,14 @@ React/JS product blank is not yet explained.
     empty canonical post-settlement snapshot. It must not fail a page merely
     for recommending `defineJsLiveQuery` plus a local cache as the documented
     application workaround while the Clique path remains unexplained.
-    Expected pages: `realtime/live-queries.md`, `backend/queries.md`.
+    Expected pages: `realtime/live-queries.md`.
     Route terms: "blank after insert", "Loading thread", "live_delta empty".
     Required guidance: "HostPlan matching inserts are guaranteed",
     "Clique still observed a blank",
     "Never put a provisional id on a point query",
     "Wait for live delivery only when subscribed before the insert",
     "A post-settlement subscribe with the canonical id must snapshot the row",
-    "defineJsLiveQuery plus a local cache remains the documented application workaround",
-    "defineJsLiveQuery plus a local cache".
+    "defineJsLiveQuery plus a local cache remains the documented application workaround".
 
 Cases 98–101 absorb the published 0.1.27 Clique guide misses recorded in LLP
 0310. Their route terms preserve the failed lookup and the wrong package,
@@ -2213,13 +2211,13 @@ platform, and generated-directory assumptions from that run.
 
 100. **URL-first activity presence import:** "Which package exports activity
      presence for URL-first Expo web with SnapbackProvider?"
-     The run fails if it imports the facade hook that requires
-     SnapbackExpoLifecycleContext or invents a third hook.
+     The run fails if it claims the facade requires `SnapbackExpoProvider`,
+     loses background withdrawal by choosing the React hook when AppState
+     withdrawal matters, or invents a third hook.
      Expected pages: `backend/familiar-profile.md`, `realtime/ephemeral-state.md`, `recipes/activity-presence.md`.
-     Route terms: "URL-first activity presence", "SnapbackExpoLifecycleContext".
-     Required guidance: "URL-first web imports `useSnapbackActivityPresence` from `@expo/snapback-react`",
-     "The `@expo/snapback-expo` facade hook is for `SnapbackExpoProvider` only".
-     Rejected guidance: "In Expo, import `useSnapbackActivityPresence` from `@expo/snapback-expo`".
+     Route terms: "URL-first activity presence", "browser AppState resolver".
+     Required guidance: "Either hook works for URL-first web under a bare `SnapbackProvider`",
+     "The Expo facade keeps AppState-driven background withdrawal; the React hook does not".
 
 101. **Durable custody in Node acceptance:** "Run expo-chat acceptance with
      durable-required custody from Node."

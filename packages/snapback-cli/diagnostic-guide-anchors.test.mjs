@@ -1,0 +1,87 @@
+import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { lookupGuideReference } from './reference-lookup.mjs';
+
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+const historicalRevision = process.env.SNAPBACK_DIAGNOSTICS_REGISTRY_GIT_REV;
+let projectRoot = root;
+let temporaryRoot = null;
+
+const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
+
+if (historicalRevision) {
+  temporaryRoot = mkdtempSync(join(tmpdir(), 'snapback-diagnostic-anchors-'));
+  const guideRoot = join(temporaryRoot, 'guide');
+  const referenceRoot = join(guideRoot, 'reference');
+  mkdirSync(referenceRoot, { recursive: true });
+
+  const registryBytes = readFileSync(join(root, 'guide/reference/registry.json'));
+  const diagnosticsBytes = execFileSync(
+    'git',
+    ['show', `${historicalRevision}:guide/reference/diagnostics-registry.json`],
+    { cwd: root, maxBuffer: 8 * 1024 * 1024 },
+  );
+  const diagnostics = JSON.parse(diagnosticsBytes);
+  const manifest = JSON.parse(readFileSync(
+    join(root, 'guide/guide-manifest.generated.json'),
+    'utf8',
+  ));
+  manifest.resources['reference.diagnostics-registry'] = {
+    ...manifest.resources['reference.diagnostics-registry'],
+    bytes: diagnosticsBytes.byteLength,
+    sha256: sha256(diagnosticsBytes),
+    sourceDigest: diagnostics.buildIdentity.sourceDigest,
+  };
+
+  writeFileSync(join(referenceRoot, 'registry.json'), registryBytes);
+  writeFileSync(join(referenceRoot, 'diagnostics-registry.json'), diagnosticsBytes);
+  writeFileSync(
+    join(guideRoot, 'guide-manifest.generated.json'),
+    `${JSON.stringify(manifest, null, 2)}\n`,
+  );
+  projectRoot = temporaryRoot;
+}
+
+try {
+  const staleAuth = lookupGuideReference(
+    ['SNAPBACK_AUTH_STALE_RESULT'],
+    { projectRoot },
+  );
+  assert.equal(staleAuth.match, 'diagnostic');
+  assert.equal(staleAuth.truncation, null);
+  assert.equal(staleAuth.diagnostic.sites, undefined);
+  assert.deepEqual(
+    staleAuth.diagnostic.guideAnchors,
+    ['/_snapback/guide/auth/sessions-and-principals.md#recover-from-snapbackauthstaleresult'],
+  );
+
+  const capability = lookupGuideReference(
+    ['SNAPBACK_CAPABILITY_UNSUPPORTED'],
+    { projectRoot },
+  );
+  assert.equal(capability.match, 'diagnostic');
+  assert.equal(capability.truncation, null);
+  assert.equal(capability.diagnostic.sites, undefined);
+  assert.deepEqual(capability.diagnostic.guideAnchors, [
+    '/_snapback/guide/backend/streamed-actions.md#read-the-refusal-codes',
+    '/_snapback/guide/backend/streamed-actions.md#require-the-capability-and-enable-egress',
+    '/_snapback/guide/backend/text-search.md#declare-an-index',
+    '/_snapback/guide/conventions.md#running-the-checks-in-a-fresh-tree',
+  ]);
+} finally {
+  if (temporaryRoot !== null) rmSync(temporaryRoot, { recursive: true, force: true });
+}
+
+console.log('diagnostic-guide-anchors.test.mjs: COMPLETE diagnostic guideAnchors and capability canary pass');

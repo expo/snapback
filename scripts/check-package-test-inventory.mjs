@@ -74,6 +74,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'cli-help.test.mjs',
       'comparator-profile.test.mjs',
       'declaration-suggestion-cli.test.mjs',
+      'diagnostic-guide-anchors.test.mjs',
       'dev-admission-posture.test.mjs',
       'dev-cli-diagnostics.test.mjs',
       'dev-env-writer.test.mjs',
@@ -303,6 +304,7 @@ export const PACKAGE_TEST_INVENTORIES = [
     suffix: '.test.mjs',
     scriptNames: ['pretest', 'test'],
     expectedFiles: [
+      'activity-presence-bare-provider.test.mjs',
       'activity-presence.test.mjs',
       'app-binding.test.mjs',
       'declared-dev-binding.test.mjs',
@@ -1134,6 +1136,9 @@ export function checkPackageTestInventories(options = {}) {
 // the Rust-to-JS dev-identity enforcement-flip identity guard.
 // 354 -> 355 (2026-08-25, LLP 0262 round-4 review): @expo/snapback-cli gains
 // the profile-aware Stage-2 dev-identity absence-notice guard.
+// 355 -> 356 (2026-08-25, guide-gap round-2 repairs): @expo/snapback-cli gains
+// the independently runnable complete diagnostic-anchor regression, and
+// @expo/snapback-expo gains the bare-provider browser AppState fallback probe.
 // LLP 0300 nine-row acceptance traceability (0301 §8 set-level table):
 // 1 cold bring-up -> templates/*/acceptance.mjs + declared-dev-episode.test.mjs;
 // 2 two principals -> declared-dev-episode.test.mjs; 3 forwards/tunnel/rebinding
