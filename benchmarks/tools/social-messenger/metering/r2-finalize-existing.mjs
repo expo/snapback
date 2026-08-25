@@ -26,6 +26,7 @@ import {
   assertCommittedConfig,
   configuredExecutionBinding,
   currentHostIdentity,
+  inspectCommittedDispositions,
   liveSourceClosure,
   loadPolicyForCell,
   probeLaunchQuiet,
@@ -45,7 +46,6 @@ import { composeRunRecord } from "./record-composer.mjs";
 import { inspectPrivateCellPath } from "./r2-private-paths.mjs";
 import {
   collectHashDescriptors,
-  isFinalizedStatus,
   validateFinalizedCellSlot,
 } from "./r2-finalized-cell.mjs";
 
@@ -75,6 +75,12 @@ function sameJson(left, right) {
 
 function digest(bytes) {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+}
+
+function prefixedDigest(value) {
+  return typeof value === "string" && value.startsWith("sha256:")
+    ? value
+    : `sha256:${value}`;
 }
 
 function inside(root, path) {
@@ -114,38 +120,27 @@ function writeExactOrAbsent(path, bytes) {
 async function inspectFinalizationSeriality({ harnessConfig, cellId, repositoryRoot, gitRead = git }) {
   const requestedIndex = harnessConfig.cellOrder.indexOf(cellId);
   if (requestedIndex < 0) throw new Error(`R2_FINALIZE_REFUSAL: unknown cell ${cellId}`);
-  const committedRoot = resolve(repositoryRoot, harnessConfig.paths.committedRunRoot);
-  const committedPrefix = [];
-  for (const [index, id] of harnessConfig.cellOrder.entries()) {
-    const slotPath = resolve(committedRoot, "cells", id, "cell.json");
-    const slot = JSON.parse(readFileSync(slotPath, "utf8"));
-    const recordPath = resolve(committedRoot, "cells", id, "record.json");
-    const meteringPath = resolve(committedRoot, "cells", id, "metering.json");
-    if (index < requestedIndex) {
-      if (!isFinalizedStatus(slot.status)) {
-        throw new Error(`R2_FINALIZE_SERIALITY: prior cell ${id} is not finalized`);
-      }
-      await validateFinalizedCellSlot({
-        slotPath,
-        cellId: id,
-        repositoryRoot,
-        expectedMilestones: harnessConfig.execution.milestones,
-        gitRead,
-      });
-      committedPrefix.push(id);
-    } else if (index === requestedIndex) {
-      if (slot.status !== "not-started" && slot.status !== "recorded-finalized") {
-        throw new Error(`R2_FINALIZE_SERIALITY: target slot ${id} has an incompatible status`);
-      }
-    } else if (slot.status !== "not-started" || existsSync(recordPath) || existsSync(meteringPath)) {
-      throw new Error(`R2_FINALIZE_SERIALITY: later slot ${id} is not pristine`);
-    }
-  }
+  const state = await inspectCommittedDispositions({
+    harnessConfig,
+    repositoryRoot,
+    gitRead,
+    privateExists: (path) => (
+      resolve(path) === resolve(harnessConfig.paths.privateExecutionRoot, "cells", cellId)
+        ? false
+        : existsSync(path)
+    ),
+  });
+  const landedDispositions = state.landedDispositions.filter(
+    (disposition) => disposition.cellId !== cellId,
+  );
   return {
     gitHead: gitRead(["rev-parse", "HEAD"], repositoryRoot),
-    committedPrefix,
+    committedPrefix: landedDispositions.map((disposition) => disposition.cellId),
     requestedIndex,
-    laterPristine: harnessConfig.cellOrder.slice(requestedIndex + 1),
+    laterPristine: state.pristineCells.filter((id) => (
+      id !== cellId && harnessConfig.cellOrder.indexOf(id) > requestedIndex
+    )),
+    landedDispositions,
     privateCellState: "retained-for-finalization",
   };
 }
@@ -330,6 +325,51 @@ function assertRawRetainedManifestIdentity({
   return { manifest, base, coverage };
 }
 
+function retainedFinalizationMigration({ harnessConfig, attempt }) {
+  const migration = harnessConfig.pins?.instrument?.instrumentMigrations?.at(-1);
+  const overlay = harnessConfig.pins?.instrument?.d06MeteringOverlay;
+  const currentInstrument = harnessConfig.pins?.instrument?.manifestSha256;
+  const currentRoot = harnessConfig.paths?.instrumentRoot;
+  const currentMeteringRoot = harnessConfig.execution?.sourceClosure?.meteringRoot?.sha256;
+  if (
+    migration?.date !== "2026-08-25"
+    || migration.reason !== "post-terminal pure harness telemetry must not invalidate a semantic authoring boundary"
+    || migration.commits?.includes("scoped-review-pending") !== true
+    || prefixedDigest(migration.harnessConfigSha256From)
+      !== attempt.harnessConfig?.sha256
+    || prefixedDigest(migration.instrumentManifestSha256From)
+      !== attempt.instrument?.source?.sha256
+    || migration.instrumentManifestSha256To !== currentInstrument
+    || migration.materializedRootFrom !== attempt.instrument?.materialized?.root
+    || migration.materializedRootTo !== currentRoot
+    || prefixedDigest(migration.meteringRootSha256From)
+      !== attempt.execution?.sourceClosure?.meteringRoot?.sha256
+    || prefixedDigest(migration.meteringRootSha256To) !== currentMeteringRoot
+    || migration.joinerSha256To !== overlay?.joinerSha256
+    || migration.finalizeExistingSha256To !== overlay?.finalizeExistingSha256
+    || migration.semantics !== "only block-claim and host-load-sample may drain after the authoring terminal; every semantic or unregistered observation type still fails closed"
+  ) {
+    return null;
+  }
+  return migration;
+}
+
+function executionMatchesMigration(retained, current, migration) {
+  if (!retained || !current) return false;
+  const retainedWithoutClosure = { ...retained };
+  const currentWithoutClosure = { ...current };
+  delete retainedWithoutClosure.sourceClosure;
+  delete currentWithoutClosure.sourceClosure;
+  return sameJson(retainedWithoutClosure, currentWithoutClosure)
+    && retained.sourceClosure?.version === current.sourceClosure?.version
+    && retained.sourceClosure?.meteringRoot?.path === current.sourceClosure?.meteringRoot?.path
+    && retained.sourceClosure?.meteringRoot?.sha256
+      === prefixedDigest(migration.meteringRootSha256From)
+    && current.sourceClosure?.meteringRoot?.sha256
+      === prefixedDigest(migration.meteringRootSha256To)
+    && sameJson(retained.sourceClosure?.files, current.sourceClosure?.files);
+}
+
 function assertAttemptProvenance({
   attempt,
   cellRoot,
@@ -341,6 +381,7 @@ function assertAttemptProvenance({
   observedHostIdentity,
 }) {
   const expectedCell = registeredCellExpectations(harnessConfig, cell);
+  const migration = retainedFinalizationMigration({ harnessConfig, attempt });
   if (
     attempt.version !== "snapback.r2-private-cell-attempt.v2"
     || attempt.runId !== harnessConfig.runId
@@ -350,7 +391,10 @@ function assertAttemptProvenance({
     || attempt.state !== "one-attempt-started"
     || !sameJson(attempt.registeredCell, expectedCell)
     || attempt.harnessConfig?.path !== resolve(harnessConfigPath)
-    || attempt.harnessConfig?.sha256 !== digest(configBytes)
+    || (
+      attempt.harnessConfig?.sha256 !== digest(configBytes)
+      && migration === null
+    )
   ) {
     throw new Error("R2_FINALIZE_REFUSAL: private evidence is not the exact registered one-attempt capsule");
   }
@@ -380,13 +424,17 @@ function assertAttemptProvenance({
     || !sameJson(admission.instrument, attempt.instrument)
     || !sameJson(admission.host, attempt.host)
     || !sameJson(admission.controllerCommand, cell.controllerCommand)
-    || admission.harnessConfig?.sha256 !== digest(configBytes)
+    || admission.harnessConfig?.sha256 !== attempt.harnessConfig.sha256
     || admission.harnessConfig?.path !== resolve(harnessConfigPath)
+    || (migration !== null && admission.seriality?.gitHead !== migration.sourceRevisionFrom)
   ) {
     throw new Error("R2_FINALIZE_REFUSAL: admission identity/bytes/config/host/execution provenance mismatch");
   }
   const liveExecution = configuredExecutionBinding({ harnessConfig, cell, repositoryRoot });
-  if (!sameJson(liveExecution, attempt.execution)) {
+  if (
+    !sameJson(liveExecution, attempt.execution)
+    && (migration === null || !executionMatchesMigration(attempt.execution, liveExecution, migration))
+  ) {
     throw new Error("R2_FINALIZE_REFUSAL: executing source/config closure changed since the admitted attempt");
   }
   const expectedActualExecution = {
@@ -406,6 +454,27 @@ function assertAttemptProvenance({
   );
   const materializedManifestPath = resolve(attempt.instrument?.materialized?.manifestPath ?? "");
   const materializedRoot = resolve(attempt.instrument?.materialized?.root ?? "");
+  const currentMaterializedRoot = resolve(harnessConfig.paths.instrumentRoot);
+  const currentMaterializedManifestPath = resolve(currentMaterializedRoot, "instrument.manifest.json");
+  const retainedInstrumentMigrated = migration !== null
+    && attempt.instrument?.source?.sha256
+      === prefixedDigest(migration.instrumentManifestSha256From)
+    && attempt.instrument?.materialized?.root === migration.materializedRootFrom
+    && attempt.instrument?.materialized?.manifestPath
+      === resolve(migration.materializedRootFrom, "instrument.manifest.json")
+    && attempt.instrument?.materialized?.sha256
+      === prefixedDigest(migration.instrumentManifestSha256From)
+    && digest(instrumentManifestBytes)
+      === prefixedDigest(migration.instrumentManifestSha256To)
+    && digest(readRegular(
+      currentMaterializedManifestPath,
+      currentMaterializedRoot,
+      "current materialized instrument manifest",
+    )) === prefixedDigest(migration.instrumentManifestSha256To);
+  const retainedInstrumentCurrent = attempt.instrument?.source?.sha256
+      === digest(instrumentManifestBytes)
+    && attempt.instrument.source.sha256
+      === `sha256:${harnessConfig.pins.instrument.manifestSha256}`;
   if (
     admission.harness?.key !== cell.harness
     || admission.harness?.binary !== harness?.binary
@@ -414,8 +483,7 @@ function assertAttemptProvenance({
     || admission.harness?.auth?.ok !== true
     || attempt.instrument?.instrumentPin !== harnessConfig.pins.instrument.instrumentPin
     || attempt.instrument?.source?.path !== instrumentManifestPath
-    || attempt.instrument?.source?.sha256 !== digest(instrumentManifestBytes)
-    || attempt.instrument.source.sha256 !== `sha256:${harnessConfig.pins.instrument.manifestSha256}`
+    || (!retainedInstrumentCurrent && !retainedInstrumentMigrated)
     || !inside(materializedRoot, materializedManifestPath)
     || digest(readRegular(materializedManifestPath, materializedRoot, "materialized instrument manifest"))
       !== attempt.instrument?.materialized?.sha256
@@ -546,7 +614,7 @@ function assertAttemptProvenance({
   ) {
     throw new Error("R2_FINALIZE_REFUSAL: controller lock/timestamp/process ownership graph is inconsistent");
   }
-  return { admission, ownershipFinal };
+  return { admission, ownershipFinal, migration };
 }
 
 function retainedSessionOwnership(manifest) {
@@ -936,11 +1004,20 @@ export async function finalizeExisting({
     repositoryRoot,
     gitRead: dependencies.gitRead ?? git,
   });
+  const serialityHeadAccepted = provenance.admission.seriality?.gitHead === seriality.gitHead
+    || (
+      provenance.migration !== null
+      && provenance.admission.seriality?.gitHead === provenance.migration.sourceRevisionFrom
+    );
   if (
-    provenance.admission.seriality?.gitHead !== seriality.gitHead
+    !serialityHeadAccepted
     || !sameJson(provenance.admission.seriality?.committedPrefix, seriality.committedPrefix)
     || provenance.admission.seriality?.requestedIndex !== seriality.requestedIndex
     || !sameJson(provenance.admission.seriality?.laterPristine, seriality.laterPristine)
+    || !sameJson(
+      provenance.admission.seriality?.landedDispositions,
+      seriality.landedDispositions,
+    )
     || provenance.admission.seriality?.privateCellState !== "absent"
   ) {
     throw new Error("R2_FINALIZE_REFUSAL: retained admission did not authorize this exact serial campaign transition");

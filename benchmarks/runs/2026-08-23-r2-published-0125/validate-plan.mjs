@@ -153,14 +153,19 @@ delete recoveryWithoutIntegrity.integrity;
 const instrumentMigrations = config.pins.instrument.instrumentMigrations;
 const dispositionMigration = instrumentMigrations?.[1];
 const suiteStatusMigration = instrumentMigrations?.[2];
+const boundaryTelemetryMigration = instrumentMigrations?.[3];
 const recoveryInstrumentMigrated = dispositionMigration?.instrumentManifestSha256From
     === recovery.resumeInstrument.sha256?.replace(/^sha256:/u, '')
   && dispositionMigration.instrumentManifestSha256To
     === suiteStatusMigration?.instrumentManifestSha256From
-  && suiteStatusMigration.instrumentManifestSha256To === config.pins.instrument.manifestSha256
+  && suiteStatusMigration.instrumentManifestSha256To
+    === boundaryTelemetryMigration?.instrumentManifestSha256From
+  && boundaryTelemetryMigration.instrumentManifestSha256To
+    === config.pins.instrument.manifestSha256
   && dispositionMigration.materializedRootFrom === recovery.resumeInstrument.materializedRoot
   && dispositionMigration.materializedRootTo === suiteStatusMigration.materializedRootFrom
-  && suiteStatusMigration.materializedRootTo === config.paths.instrumentRoot;
+  && suiteStatusMigration.materializedRootTo === boundaryTelemetryMigration.materializedRootFrom
+  && boundaryTelemetryMigration.materializedRootTo === config.paths.instrumentRoot;
 if (
   recovery.version !== recoveryDescriptor.version
   || recovery.completedCell !== config.cellOrder[0]
@@ -304,7 +309,7 @@ for (const [field, path] of Object.entries(overlayHashes)) {
 }
 if (
   !Array.isArray(instrumentMigrations)
-  || instrumentMigrations.length !== 3
+  || instrumentMigrations.length !== 4
   || dispositionMigration?.date !== '2026-08-24'
   || dispositionMigration.reason !== 'two-host R2 execution requires disposition-complete admission independent of plan order'
   || dispositionMigration.commits?.includes('scoped-review-pending') !== true
@@ -332,15 +337,47 @@ if (
   )
   || suiteStatusMigration.meteringRootSha256From !== 'b8b56bc3f29cf689b7401f58eec4c77583a52c66bb2ec638b055bad552363c9e'
   || suiteStatusMigration.meteringRootSha256To
-    !== config.execution.sourceClosure.meteringRoot.sha256.replace(/^sha256:/u, '')
+    !== boundaryTelemetryMigration.meteringRootSha256From
   || suiteStatusMigration.instrumentManifestSha256From
     !== dispositionMigration.instrumentManifestSha256To
-  || suiteStatusMigration.instrumentManifestSha256To !== config.pins.instrument.manifestSha256
+  || suiteStatusMigration.instrumentManifestSha256To
+    !== boundaryTelemetryMigration.instrumentManifestSha256From
   || suiteStatusMigration.materializedRootFrom !== dispositionMigration.materializedRootTo
-  || suiteStatusMigration.materializedRootTo !== config.paths.instrumentRoot
+  || suiteStatusMigration.materializedRootTo !== boundaryTelemetryMigration.materializedRootFrom
   || suiteStatusMigration.semantics !== 'unchanged receipt verdict plus identical refusal-time SHA-256 may restore an unbound aggregate rollover; verdict flips and receipt identity changes still fail closed'
 ) {
   fail('instrument migration does not bind the suite-status receipt-identity implementation');
+}
+if (
+  boundaryTelemetryMigration.date !== '2026-08-25'
+  || boundaryTelemetryMigration.reason !== 'post-terminal pure harness telemetry must not invalidate a semantic authoring boundary'
+  || boundaryTelemetryMigration.commits?.includes('scoped-review-pending') !== true
+  || boundaryTelemetryMigration.sourceRevisionFrom !== '4890eb48555042dd6eee5ffa116039d3fe9107c4'
+  || boundaryTelemetryMigration.harnessConfigSha256From !== 'd3f2959a03e1c63c914039a5f9f29ad69455918a1bb32e2de994f29786c464d3'
+  || boundaryTelemetryMigration.joinerSha256From !== '6cdb9a603b4d436c12a61cef7f882a9b0dc99948b043f18e7fe22b9bf5137fcd'
+  || boundaryTelemetryMigration.joinerSha256To !== repositorySha256(
+    overlayHashes.joinerSha256,
+  )
+  || boundaryTelemetryMigration.observationsSha256From !== '1de845b90a135a138bc7d9aed40a80a0d2d5c64d2928a27caf31874408d76c8a'
+  || boundaryTelemetryMigration.observationsSha256To !== repositorySha256(
+    overlayHashes.observationsSha256,
+  )
+  || boundaryTelemetryMigration.finalizeExistingSha256From !== 'cf9848906ed653a8ebd667f7c17cf79b4e2651c3a995c98872a6bb3d93d1a4d7'
+  || boundaryTelemetryMigration.finalizeExistingSha256To !== repositorySha256(
+    overlayHashes.finalizeExistingSha256,
+  )
+  || boundaryTelemetryMigration.meteringRootSha256From !== 'c1e875f6c992da33a79c26ec686de78b8daa58aab1f63f96e7ab72d142a6d5b4'
+  || boundaryTelemetryMigration.meteringRootSha256To
+    !== config.execution.sourceClosure.meteringRoot.sha256.replace(/^sha256:/u, '')
+  || boundaryTelemetryMigration.instrumentManifestSha256From
+    !== suiteStatusMigration.instrumentManifestSha256To
+  || boundaryTelemetryMigration.instrumentManifestSha256To
+    !== config.pins.instrument.manifestSha256
+  || boundaryTelemetryMigration.materializedRootFrom !== suiteStatusMigration.materializedRootTo
+  || boundaryTelemetryMigration.materializedRootTo !== config.paths.instrumentRoot
+  || boundaryTelemetryMigration.semantics !== 'only block-claim and host-load-sample may drain after the authoring terminal; every semantic or unregistered observation type still fails closed'
+) {
+  fail('instrument migration does not bind the post-terminal harness-telemetry finalization implementation');
 }
 
 for (const field of ['entrypoint', 'driver', 'signal', 'admission', 'finalizeExisting', 'materializeInstrument']) {

@@ -135,6 +135,19 @@ const BLOCK_EVENT_TYPES = Object.freeze({
   apiInterruptions: ["api-request"],
 });
 
+// These events describe the harness observer itself rather than an action by
+// the model or driver. They may be stamped while a timer/pending writer drains
+// after the authoring terminal. Every unlisted (including future) type remains
+// window-bound by default.
+const AFTER_TERMINAL_HARNESS_TELEMETRY_TYPES = new Set([
+  "block-claim",
+  "host-load-sample",
+]);
+
+export function isAfterTerminalHarnessTelemetryType(type) {
+  return AFTER_TERMINAL_HARNESS_TELEMETRY_TYPES.has(type);
+}
+
 function requiredString(value, label) {
   if (typeof value !== "string" || value.length === 0) {
     throw new TypeError(`${label} must be a non-empty string`);

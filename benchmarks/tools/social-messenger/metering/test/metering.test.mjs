@@ -86,6 +86,7 @@ import {
   OBSERVATION_VERSION,
   ObservationWriter,
   LaneObservationHarness,
+  isAfterTerminalHarnessTelemetryType,
   parseObservationJsonLines,
   projectMilestoneObservability,
   scorecardEligibility,
@@ -326,6 +327,60 @@ test("usage after the final terminal boundary fails closed instead of disappeari
     },
     maxClockSkewMs: 100,
   }), /completes after the final M1 usage settlement/u);
+});
+
+test("retained post-terminal harness telemetry is accepted while semantic actions fail closed", async () => {
+  const telemetry = await fixtureJson(
+    "real-grok-coterie-familiar-after-boundary-telemetry.json",
+  );
+  const semantic = await fixtureJson(
+    "real-opus-coterie-familiar-after-boundary-semantic.json",
+  );
+  assert.equal(isAfterTerminalHarnessTelemetryType("host-load-sample"), true);
+  assert.equal(isAfterTerminalHarnessTelemetryType("block-claim"), true);
+  assert.equal(isAfterTerminalHarnessTelemetryType("semantic-action"), false);
+  assert.equal(isAfterTerminalHarnessTelemetryType("future-unregistered-type"), false);
+
+  const result = joinUsageToMilestones({
+    channel: {
+      source: "advisory-family-no-approved-native-per-turn-adapter",
+      unavailableReason: "advisory-family-no-approved-native-per-turn-adapter",
+      turns: null,
+    },
+    boundaries: { M1: telemetry.boundary },
+    observations: {
+      events: [telemetry.claim, telemetry.event].map((event) => ({
+        ...event,
+        evidenceSourceId: "retained-grok-coterie-familiar-controller",
+        evidencePath: telemetry.source.path,
+        evidenceLine: event.sequence,
+      })),
+      evidence: [{
+        sourceId: "retained-grok-coterie-familiar-controller",
+        path: telemetry.source.path,
+        sha256: telemetry.source.sha256,
+      }],
+    },
+  });
+  assert.equal(result.milestones.M1.hostLoad.sampleCount, 1);
+
+  assert.throws(() => joinUsageToMilestones({
+    channel: {
+      source: "claude-code-session-usage",
+      unavailableReason: null,
+      turns: [],
+    },
+    boundaries: { M1: semantic.boundary },
+    observations: {
+      events: [{
+        ...semantic.event,
+        evidenceSourceId: "retained-opus-coterie-familiar-controller",
+        evidencePath: semantic.source.path,
+        evidenceLine: semantic.source.sequence,
+      }],
+      evidence: [],
+    },
+  }), /M1 observation semantic-action is after its terminal boundary/u);
 });
 
 test("recorded clock-skew bounds reject ambiguous timestamp joins", async () => {

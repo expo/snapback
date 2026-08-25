@@ -80,3 +80,22 @@ Application code, prompts, model output, credentials, and unrelated receipt
 fields are omitted. In both cells the final aggregate carried unbound false
 M1/M2 placeholders, while the retained M1 receipt verdict remained green and
 its bytes exactly matched the choreography-captured identity.
+
+`real-grok-coterie-familiar-after-boundary-telemetry.json` retains the exact
+M1 boundary and exact sequence-142 `host-load-sample` event from the immutable
+2026-08-25 Grok Coterie Familiar attempt. The complete controller stream is
+retained at the path recorded in the fixture and hashes to
+`9aaba42f715092a66ce84f964c0fb65dd8cfedcc0f991db9fb602508489dfef7`;
+the fixture event is the exact JSONL line 142 payload. It is the positive
+regression for timer telemetry draining 12.407 seconds after the semantic
+authoring terminal.
+
+`real-opus-coterie-familiar-after-boundary-semantic.json` is the minimized
+boundary-check projection from the retained 2026-08-24 Opus Coterie Familiar
+attempt documented in
+`benchmarks/runs/2026-08-23-r2-published-0125/BLOCKED-charlies-macbook-pro-2-opus-coterie-familiar-finalization.md`.
+It preserves the exact controller-stream SHA-256, M1 terminal, sequence, time,
+and type of the first refused post-terminal semantic action. Fields irrelevant
+to the boundary decision are omitted. This fixture remains the negative
+regression: semantic model/driver actions after the authoring terminal fail
+closed.

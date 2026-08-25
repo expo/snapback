@@ -1,0 +1,42 @@
+{
+  "source": {
+    "path": "/Users/ccheever/bench-matrix-20260823-r2/cells/grok-coterie-familiar/events/lane-controller-observations.jsonl",
+    "sha256": "sha256:9aaba42f715092a66ce84f964c0fb65dd8cfedcc0f991db9fb602508489dfef7",
+    "line": 142
+  },
+  "boundary": {
+    "status": "green",
+    "firstGreenAt": "2026-08-25T05:11:04.629Z",
+    "suitePassAt": "2026-08-25T05:11:04.629Z",
+    "choreoPassAt": "2026-08-25T05:11:04.629Z",
+    "terminalAt": "2026-08-25T05:11:04.629Z",
+    "terminalSequence": 1,
+    "terminalReason": "green"
+  },
+  "claim": {
+    "version": "social-messenger-observation.v1",
+    "laneRunId": "2026-08-23-r2-published-0125/grok-coterie-familiar",
+    "milestone": "M1",
+    "sequence": 5,
+    "at": "2026-08-25T04:16:16.932Z",
+    "type": "block-claim",
+    "block": "hostLoad",
+    "owner": null,
+    "claimed": true,
+    "reason": null
+  },
+  "event": {
+    "version": "social-messenger-observation.v1",
+    "laneRunId": "2026-08-23-r2-published-0125/grok-coterie-familiar",
+    "milestone": "M1",
+    "sequence": 142,
+    "at": "2026-08-25T05:11:17.036Z",
+    "type": "host-load-sample",
+    "loadavg1": 6.0732421875,
+    "loadavg5": 6.689453125,
+    "loadavg15": 5.61572265625,
+    "ceiling1": 10,
+    "ceiling5": 10,
+    "ceiling15": 10
+  }
+}

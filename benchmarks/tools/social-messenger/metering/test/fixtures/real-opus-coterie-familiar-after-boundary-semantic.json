@@ -1,0 +1,24 @@
+{
+  "source": {
+    "path": "/Users/ccheever/bench-matrix-20260823-r2/cells/opus-coterie-familiar/events/lane-controller-observations.jsonl",
+    "sha256": "sha256:f63a114470fc99653e1a4b8e375ea30424d47a164107983209fbbe9d4f0495fa",
+    "sequence": 342
+  },
+  "boundary": {
+    "status": "green",
+    "firstGreenAt": "2026-08-24T20:41:27.846Z",
+    "suitePassAt": "2026-08-24T20:41:27.846Z",
+    "choreoPassAt": "2026-08-24T20:41:27.846Z",
+    "terminalAt": "2026-08-24T20:41:27.846Z",
+    "terminalSequence": 1,
+    "terminalReason": "green"
+  },
+  "event": {
+    "version": "social-messenger-observation.v1",
+    "laneRunId": "2026-08-23-r2-published-0125/opus-coterie-familiar",
+    "milestone": "M1",
+    "sequence": 342,
+    "at": "2026-08-24T20:41:27.940Z",
+    "type": "semantic-action"
+  }
+}

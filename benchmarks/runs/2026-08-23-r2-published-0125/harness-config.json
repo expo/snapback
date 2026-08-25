@@ -21,7 +21,7 @@
   "paths": {
     "committedRunRoot": "benchmarks/runs/2026-08-23-r2-published-0125",
     "privateExecutionRoot": "/Users/ccheever/bench-matrix-20260823-r2",
-    "instrumentRoot": "/Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260824-v6",
+    "instrumentRoot": "/Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260825-v9",
     "exactPinnedCheckout": "/Users/ccheever/bench-matrix-20260817/exact-pinned"
   },
   "machines": {
@@ -70,7 +70,7 @@
       "meteringRoot": {
         "kind": "directory",
         "path": "benchmarks/tools/social-messenger/metering",
-      "sha256": "sha256:c1e875f6c992da33a79c26ec686de78b8daa58aab1f63f96e7ab72d142a6d5b4"
+      "sha256": "sha256:789dfcf036ff9dadb73d82591870a2a61945488410caed7e5fa76ab62061dc59"
       },
       "files": [
         {
@@ -219,14 +219,14 @@
       "manifestPath": "benchmarks/instrument.manifest.json",
       "semanticSnapshotRevision": "e8048d8238b3abe1fe3d6553bd12f334affbf88f",
       "instrumentPin": "social-messenger@0.3.3-m8",
-    "manifestSha256": "2f87099eb13640f632ee76483c6c414f03f8671174c7ac52098c858292d540ae",
+    "manifestSha256": "1ae3e6fc5fe853e328053b01bfc339eb0231906c9a0b6cd511ec117d92eaa4fe",
       "fixtureVersion": "0.2.0-m8",
       "schemaVersion": "0.3.0-m8",
       "uiVersion": "0.3.1-m8",
       "choreographyVersion": "0.3.3-m8",
       "d06MeteringOverlay": {
-      "revision": "suite-status-finalization-scoped-review-pending-no-campaign-cell-rerun",
-        "status": "scoped-review-pending-suite-status-finalization-no-campaign-cell-rerun",
+      "revision": "post-terminal-harness-telemetry-finalization-scoped-review-pending-no-campaign-cell-rerun",
+        "status": "scoped-review-pending-post-terminal-harness-telemetry-finalization-no-campaign-cell-rerun",
         "recordSchema": "benchmarks/schema/social-messenger/run-record.schema.json",
         "recordSchemaSha256": "3403455e98fad656125ea2ab0993f780bdb112849fb127bd8bcfcbcf6f2b8a64",
       "extensionSchemaSha256": "5d8a6f41d1f02d7fe8df4ef761bb7cd921d2fa2c711e938c553c903689e14c4b",
@@ -237,15 +237,15 @@
       "productionDriverSha256": "61931aeca07f67b569127d75ae256b5cce372ce335dbde4530f8934303f10559",
         "signalSha256": "f2f835538bc92cd5ea2af0098e43ca0e97cf3934101c713f6c13ede55066a712",
       "manifestLoaderSha256": "4af14ab4e413df1abc2b7f463ec739644c0be0f692193633669fecc382631dc7",
-      "joinerSha256": "6cdb9a603b4d436c12a61cef7f882a9b0dc99948b043f18e7fe22b9bf5137fcd",
-        "observationsSha256": "1de845b90a135a138bc7d9aed40a80a0d2d5c64d2928a27caf31874408d76c8a",
+      "joinerSha256": "03c61e6aceaf54ad7fb993666ca94aea5c493290f7a4e5a9744306b44ad5c3fb",
+        "observationsSha256": "27b37159ae35a24ba458bca3cf2b29a8eead6e231031750a3f6360aa98d7cdd0",
         "codexAdapterSha256": "4c420019dd003737a4b1c7d2ca6103678a80258290b85a206e67cd500628920b",
       "codexNativeEvidenceSha256": "d510466a1dbf897ce4091a4ccb59fc5d31dbd50be7652e5f63ec22a1306fc744",
       "recordComposerSha256": "66868a4513a682b411e219927752edc16b7ee0cb85bb01b11f0c5dea56a5b98e",
       "admissionToolSha256": "b7b56f1b571bd05240002e5c68926a02507e09d4cfa67b0f5032842c9daa489d",
       "finalizedCellValidatorSha256": "cce9a149c421801e0badea8b7bc04518df12e9280d5f7ed664d246fca7baadb2",
       "hostLockSha256": "55a4c8cb77d13658f7e5a4aae73c3aefd1826408124e4cc60bb70d972f57a6fb",
-      "finalizeExistingSha256": "cf9848906ed653a8ebd667f7c17cf79b4e2651c3a995c98872a6bb3d93d1a4d7",
+      "finalizeExistingSha256": "2fa7f63a8fd155090b6d8751aad5cfc3d386c3d4d9fd05595b50b3cfb4434cb3",
       "instrumentMaterializerSha256": "1ac7cd354d22e67c4b1eb19d96ac395a0ab62e0ecd3506bdf13844952c65306a"
       },
       "instrumentMigrations": [
@@ -286,6 +286,26 @@
           "materializedRootFrom": "/Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260824-v5",
           "materializedRootTo": "/Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260824-v6",
           "semantics": "unchanged receipt verdict plus identical refusal-time SHA-256 may restore an unbound aggregate rollover; verdict flips and receipt identity changes still fail closed"
+        },
+        {
+          "date": "2026-08-25",
+          "reason": "post-terminal pure harness telemetry must not invalidate a semantic authoring boundary",
+          "commits": ["scoped-review-pending"],
+          "sourceRevisionFrom": "4890eb48555042dd6eee5ffa116039d3fe9107c4",
+          "harnessConfigSha256From": "d3f2959a03e1c63c914039a5f9f29ad69455918a1bb32e2de994f29786c464d3",
+          "joinerSha256From": "6cdb9a603b4d436c12a61cef7f882a9b0dc99948b043f18e7fe22b9bf5137fcd",
+          "joinerSha256To": "03c61e6aceaf54ad7fb993666ca94aea5c493290f7a4e5a9744306b44ad5c3fb",
+          "observationsSha256From": "1de845b90a135a138bc7d9aed40a80a0d2d5c64d2928a27caf31874408d76c8a",
+          "observationsSha256To": "27b37159ae35a24ba458bca3cf2b29a8eead6e231031750a3f6360aa98d7cdd0",
+          "finalizeExistingSha256From": "cf9848906ed653a8ebd667f7c17cf79b4e2651c3a995c98872a6bb3d93d1a4d7",
+          "finalizeExistingSha256To": "2fa7f63a8fd155090b6d8751aad5cfc3d386c3d4d9fd05595b50b3cfb4434cb3",
+          "meteringRootSha256From": "c1e875f6c992da33a79c26ec686de78b8daa58aab1f63f96e7ab72d142a6d5b4",
+          "meteringRootSha256To": "789dfcf036ff9dadb73d82591870a2a61945488410caed7e5fa76ab62061dc59",
+          "instrumentManifestSha256From": "2f87099eb13640f632ee76483c6c414f03f8671174c7ac52098c858292d540ae",
+          "instrumentManifestSha256To": "1ae3e6fc5fe853e328053b01bfc339eb0231906c9a0b6cd511ec117d92eaa4fe",
+          "materializedRootFrom": "/Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260824-v6",
+          "materializedRootTo": "/Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260825-v9",
+          "semantics": "only block-claim and host-load-sample may drain after the authoring terminal; every semantic or unregistered observation type still fails closed"
         }
       ],
       "observabilityBump": {
@@ -587,6 +607,7 @@
       "allowedHostId": "mac-mini-durand",
       "loadCeilingId": "mac16-11-m4-pro-12core-loadavg-10-approved-20260824",
       "baseline": {"wallSeconds": 7002, "outputTokens": 196650},
+      "disposition": {"kind": "driver-failure-report", "path": "BLOCKED-grok-coterie-familiar-observation-window-finalization.md", "sha256": "sha256:cf75cd6259873179afdfd8773037190d400aa0b511b68a917a891aff55609aa0"},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "grok-coterie-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/grok-coterie-familiar.json"],
       "admissionArtifact": "admissions/grok-coterie-familiar.json",
       "meteringPolicy": {"adapter": "unavailable", "capFamily": "grok-advisory", "nativeCounts": "registered-unavailable", "unavailableReason": "advisory-family-no-approved-native-per-turn-adapter"}

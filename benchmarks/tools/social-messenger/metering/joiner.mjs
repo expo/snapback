@@ -11,6 +11,7 @@ import { withEventDiagnostic } from "./finalization-diagnostics.mjs";
 import {
   CURRENT_INSTRUMENT_PIN,
   OBSERVATION_VERSION,
+  isAfterTerminalHarnessTelemetryType,
   projectMilestoneObservability,
   scorecardEligibility,
 } from "./observations.mjs";
@@ -225,7 +226,11 @@ export function joinUsageToMilestones({
         && exception.at === event.at
         && exception.type === event.type
       ));
-      if (eventAt > upper + maxClockSkewMs && !retainedExactException) {
+      if (
+        eventAt > upper + maxClockSkewMs
+        && !retainedExactException
+        && !isAfterTerminalHarnessTelemetryType(event.type)
+      ) {
         throw new Error(
           `${event.milestone} observation ${event.type} is after its terminal boundary`,
         );
