@@ -70,12 +70,12 @@
       "authoringProfile": "snapback-explicit-v1",
       "ephemeralCollections": [],
       "generatedAt": 0,
-      "inputsHash": "snapback.v1:sessions:inputs:sha256:b9b31358a5e0d93c26c24803bd6b84687fddb75c601749fb9652180e47d41100",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:938c3d99007cfae11bec1e91526f560b824269e92593b20abea9adb05fe09e3a",
       "portabilityFlags": [],
       "requiredCapabilities": [
         "auth.sessions.v1"
       ],
-      "schemaHash": "snapback.v1:sessions:schema:sha256:668d6ad49d9e5993be2c3301b13a66a763477cc4dce6f8f7cb5e5d957979e712",
+      "schemaHash": "snapback.v1:sessions:schema:sha256:bab26fc6ff08862eb12404d88098fbfc90163fe0ee263903103abef86df275c5",
       "schemaVersion": "snapback.v1",
       "tables": [
         {
@@ -182,7 +182,7 @@
       "artifactKind": "functionManifest",
       "authoredSourceHash": "sha256:3b61f10f27de912487e0789cf6279c2301e1a1d10153f45cff63770331e5f488",
       "authoringProfile": "snapback-explicit-v1",
-      "bundleHash": "snapback.v1:sessions:function:sha256:a881da541fef46b1556e32f4a807b4e02613d722a804346158c1c5d220315d49",
+      "bundleHash": "snapback.v1:sessions:function:sha256:fddf1efa446ad92e484366b2dd7df483096a0e38e7111931069a5cf6e584998d",
       "config": [],
       "cronJobs": [],
       "functions": [
@@ -1146,7 +1146,7 @@
         }
       ],
       "generatedAt": 0,
-      "inputsHash": "snapback.v1:sessions:inputs:sha256:b9b31358a5e0d93c26c24803bd6b84687fddb75c601749fb9652180e47d41100",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:938c3d99007cfae11bec1e91526f560b824269e92593b20abea9adb05fe09e3a",
       "schemaVersion": "snapback.v1",
       "unsupportedDependencyDiagnostics": []
     },
@@ -148855,5 +148855,5 @@
     "large-seed42-v1",
     "hot-recent-v1"
   ],
-  "contentDigest": "sha256:7607c12189050290374c2bef7ce6bebf61276f0ae354d488e3dd73348e1ea546"
+  "contentDigest": "sha256:9549fa1f7fca883398b938f3d170de4e04badbb35c347144279575094c91da87"
 }
