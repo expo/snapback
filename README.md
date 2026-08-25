@@ -185,11 +185,12 @@ snapback run --ready-file .snapback/dev.ready.json listTodos
 ```
 
 This is the public form: it sends no `userId`, session bearer, lease, or admin
-credential to the application query route. On the default sessions-mode React
-scaffold it offers the anonymous-public auth protocol and succeeds only when
-the generated function declares `auth: 'public'` (or otherwise admits an
-anonymous caller). An authenticated function remains fail-closed with
-`SNAPBACK_AUTH_REQUIRED`.
+credential to the application query route. The ready-file admin token reaches
+host-ops first so the CLI can resolve the target, but it is not forwarded to
+the query route. On the default sessions-mode React scaffold it offers the
+anonymous-public auth protocol and succeeds only when the generated function
+declares `auth: 'public'` (or otherwise admits an anonymous caller). An
+authenticated function remains fail-closed with `SNAPBACK_AUTH_REQUIRED`.
 
 For an authenticated sessions-mode call, mint a local test session from the
 trusted terminal, then give the returned `data.token` to the first-party
@@ -218,6 +219,12 @@ Set `SNAPBACK_URL` from the readiness descriptor's `serverUrl` and set
 `SNAPBACK_SESSION_BEARER` to the mint response's `data.token` only in that
 trusted process. Keep the mint result and bearer out of browser/native bundles
 and logs.
+
+An `optional-user` operation can admit an anonymous caller and still require a
+user in its implementation. In particular, a query that dereferences
+`authUserId()` needs `snapback session mint` plus
+`createExternalSessionClient`; without that session it fails closed with
+`SNAPBACK_AUTH_USER_MISSING`.
 
 `snapback run --user <id> ...` is the explicit client-asserted identity form
 for an `auth: { mode: 'dev' }` backend; sessions mode deliberately rejects it.

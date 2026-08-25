@@ -1083,7 +1083,7 @@ fn stop_descriptor(startup_nonce: Option<&str>) -> crate::host_ops::HostReadyDes
 }
 
 #[test]
-fn anonymous_public_query_retry_matches_first_party_request_shape() {
+fn anonymous_public_query_sends_protocol_offer_without_authority_carriers_and_args_only_body() {
     let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let address = listener.local_addr().unwrap();
     let server = std::thread::spawn(move || {

@@ -14,14 +14,15 @@ Install the CLI, scaffold an app, and install the generated dependencies:
 
 ```sh
 npm install --global @expo/snapback-cli
-snapback new my-app --template todo-contract
+snapback new my-app --template react
 cd my-app
 bun install
 ```
 
-Use `--template react` for the React/Vite starter, or `--template expo-chat`
-for the golden-path Expo conversation starter (messages with image upload,
-live queries, the generated conversation surface, and typing presence).
+Use `--template todo-contract` for the Contract todo starter, or
+`--template expo-chat` for the golden-path Expo conversation starter (messages
+with image upload, live queries, the generated conversation surface, and typing
+presence).
 
 ## The golden path
 
@@ -48,8 +49,11 @@ live queries, the generated conversation surface, and typing presence).
    ```
 
 This anonymous public form sends no `userId`, session bearer, lease, or admin
-credential. On the default sessions scaffold it succeeds only when the query
-admits an anonymous caller; authenticated queries remain fail-closed.
+credential to the application query route. The ready-file admin token reaches
+host-ops first so the CLI can resolve the target, but it is not forwarded to
+the query route. On the default sessions scaffold the command succeeds only
+when the query admits an anonymous caller; authenticated queries remain
+fail-closed.
 
 For an authenticated sessions-mode query, mint a local test session from a
 trusted terminal, then give the returned `data.token` to the first-party
@@ -77,6 +81,12 @@ await client.close();
 Set `SNAPBACK_URL` from the readiness descriptor's `serverUrl` and
 `SNAPBACK_SESSION_BEARER` to the mint response's `data.token`. Keep both the
 mint result and bearer out of browser/native bundles and logs.
+
+An `optional-user` operation can admit an anonymous caller and still require a
+user in its implementation. In particular, a query that dereferences
+`authUserId()` needs `snapback session mint` plus
+`createExternalSessionClient`; without that session it fails closed with
+`SNAPBACK_AUTH_USER_MISSING`.
 
 `snapback run --user <id> ...` is only for an `auth: { mode: 'dev' }`
 backend. Sessions mode deliberately rejects that client-asserted identity;

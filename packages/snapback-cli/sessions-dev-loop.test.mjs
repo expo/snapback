@@ -140,20 +140,34 @@ try {
 
   // README "Smoke-check a running backend": keep the documented command and
   // its default sessions-scaffold execution in one acceptance witness.
-  const documentedPublicRun = 'snapback run --ready-file .snapback/dev.ready.json listTodos';
+  const documentedPublicRunFence = /(?:^|\n)([ \t]*)```sh\n\1(snapback run --ready-file \.snapback\/dev\.ready\.json listTodos)\n\1```(?:\n|$)/u;
+  let documentedPublicRun = null;
   for (const readmePath of [
     join(repoRoot, 'README.md'),
     join(packageRoot, 'README.md'),
   ]) {
+    const match = readFileSync(readmePath, 'utf8').match(documentedPublicRunFence);
     assert.ok(
-      readFileSync(readmePath, 'utf8').includes(documentedPublicRun),
-      `${readmePath} must pin the sessions-safe public command`,
+      match,
+      `${readmePath} must pin the exact one-line sessions-safe command fence`,
     );
+    documentedPublicRun ??= match[2];
+    assert.equal(match[2], documentedPublicRun);
   }
+  const cliBinRoot = join(scratchRoot, 'readme-bin');
+  mkdirSync(cliBinRoot);
+  symlinkSync(runtimeBinary, join(cliBinRoot, 'snapback'));
   const publicRun = spawnSync(
-    runtimeBinary,
-    ['run', '--ready-file', '.snapback/dev.ready.json', 'listTodos'],
-    { cwd: projectRoot, encoding: 'utf8', env: process.env },
+    documentedPublicRun,
+    {
+      cwd: projectRoot,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PATH: `${cliBinRoot}:${process.env.PATH ?? ''}`,
+      },
+      shell: true,
+    },
   );
   assert.equal(
     publicRun.status,
