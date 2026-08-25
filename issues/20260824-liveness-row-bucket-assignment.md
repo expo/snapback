@@ -26,6 +26,11 @@ have accompanied the counts.
 > true duplicates; **28** are siblings that survive their canonical row's correction and remain
 > actionable. The actionable total is therefore **120**, not 92. See
 > `issues/20260825-twenty-eight-of-forty-p4-rows-are-siblings-not-duplicates.md`.
+>
+> **Superseded further (2026-08-25).** F190 and F191 are **not** resolved — a caller-minted or
+> first-engine `PreparedAuthority` still travels to a second engine — and F280 is a sibling rather
+> than a duplicate. The actionable total is **123**. See
+> `issues/20260825-neither-resolved-row-is-resolved-and-f188-does-not-generalize.md`.
 
 The published P1 count of 9 is no longer current: F190 and F191 (the grant-revocation planners)
 were P1 at `8ded451f8` and are RESOLVED at HEAD by `a5d66e941` + `23db84b46`. The P2/P3/P4 counts
