@@ -469,6 +469,11 @@
     {
       "identity": "npm:@expo/snapback-react/core#SnapbackQueuedMutationError.sequence",
       "removedIn": "0.1.23"
+    },
+    {
+      "identity": "npm:@expo/snapback-client#SnapbackOwnershipTupleInspection.settledAuthority",
+      "removedIn": "0.1.27",
+      "replacedBy": "npm:@expo/snapback-client#SnapbackOwnershipTupleInspection.authorityClass"
     }
   ]
 }
