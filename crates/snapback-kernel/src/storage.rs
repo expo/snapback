@@ -1598,10 +1598,11 @@ pub struct LocalDatabase {
     /// cannot claim a parallel serving authority while the first graph lives.
     commit_authority_key: String,
     commit_authority_claimed: bool,
-    /// Unforgeable identity for this exact database-open lifetime. The
+    /// Process-generated identity for this exact database-open lifetime. The
     /// invalidation boot-issuance record persists it beside the reserved boot
-    /// sequence so a second reservation from this lifetime cannot be mistaken
-    /// for an ordinary process restart.
+    /// sequence so kernel-owned connections can distinguish a second
+    /// reservation from an ordinary process restart. A raw database owner can
+    /// replace this value and is not authenticated by it.
     invalidation_boot_owner_id: String,
     /// Connection-local integrity state behind the trigger-protected durable
     /// boot reservation. This is defense in depth for kernel-owned
@@ -7626,7 +7627,7 @@ impl LocalDatabase {
                      NEW.authorization_incarnation
                    ) != 1
               BEGIN
-                SELECT RAISE(ROLLBACK, 'authorization invalidation boot reservation is not kernel-authorized');
+                SELECT RAISE(ROLLBACK, 'authorization invalidation boot reservation does not match the configured connection');
               END;
             CREATE TRIGGER IF NOT EXISTS _snapback_auth_invalidation_boot_reservation_update_v1
               BEFORE UPDATE ON _snapback_auth_invalidation_boot_reservation_v1
@@ -7638,7 +7639,7 @@ impl LocalDatabase {
                      NEW.authorization_incarnation
                    ) != 1
               BEGIN
-                SELECT RAISE(ROLLBACK, 'authorization invalidation boot reservation is not kernel-authorized');
+                SELECT RAISE(ROLLBACK, 'authorization invalidation boot reservation does not match the configured connection');
               END;
             CREATE TRIGGER IF NOT EXISTS _snapback_auth_invalidation_boot_reservation_no_delete_v1
               BEFORE DELETE ON _snapback_auth_invalidation_boot_reservation_v1
@@ -7679,7 +7680,7 @@ impl LocalDatabase {
                    AND reservation.authorization_incarnation = NEW.authorization_incarnation
               )
               BEGIN
-                SELECT RAISE(ROLLBACK, 'authorization invalidation boot epoch has no authentic reservation');
+                SELECT RAISE(ROLLBACK, 'authorization invalidation boot epoch has no matching reservation');
               END;
             CREATE TRIGGER IF NOT EXISTS _snapback_auth_invalidation_boot_epoch_reserved_update_v1
               BEFORE UPDATE ON _snapback_auth_invalidation_boot_epoch_v1
@@ -7692,7 +7693,7 @@ impl LocalDatabase {
                    AND reservation.authorization_incarnation = NEW.authorization_incarnation
               )
               BEGIN
-                SELECT RAISE(ROLLBACK, 'authorization invalidation boot epoch has no authentic reservation');
+                SELECT RAISE(ROLLBACK, 'authorization invalidation boot epoch has no matching reservation');
               END;
             -- @ref LLP 0053#the-lease-the-only-mechanism-for-the-unreachable-client —
             -- a request id is consumed only at the same linearization point

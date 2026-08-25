@@ -58,7 +58,7 @@ fn durable_boot_reservation(path: &Path) -> (u64, String, String) {
             [],
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
         )
-        .expect("durable authentic invalidation boot reservation")
+        .expect("durable invalidation boot reservation")
 }
 
 fn assert_boot_projection_matches_epoch(path: &Path) {

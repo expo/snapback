@@ -11,9 +11,10 @@ pub use snapback_activation::{bundle, completeness, config, deploy, operational_
 pub use snapback_auth::dev_identity;
 pub use snapback_engine::{ask, push, runtime};
 pub(crate) use snapback_kernel::proof_checkpoint;
+pub(crate) use snapback_kernel::storage;
 pub use snapback_kernel::{
     authoring_suggestion, conformance, data_patch, diagnostic, membership_rules, operation_ledger,
-    remediation, secure_file, seed_identity, storage, watches,
+    remediation, secure_file, seed_identity, watches,
 };
 pub use snapback_services::{errors_query, outbound_policy, telemetry_query, webhooks};
 pub use snapback_sync::{ephemeral, live_coalesce, spike_trace, stream_attempt};

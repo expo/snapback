@@ -209,8 +209,10 @@ impl PersistedBootIssuance {
 
 /// Keeps a same-process second database handle from presenting an ordinary
 /// restart owner while an issuer for this database/incarnation is reachable.
-/// The durable issuance row remains the primary same-owner replay authority;
-/// this lease closes the separate-handle composition until process death.
+/// The durable issuance row remains the primary same-owner consistency check
+/// on kernel-owned connections; this lease closes the separate-handle
+/// composition until process death. Neither protects against a raw database
+/// owner.
 struct InvalidationBootOwnerLease {
     claim: (String, String),
 }
@@ -983,7 +985,7 @@ impl LocalDatabase {
         // The connection function is armed only around this exact transaction.
         // Its trigger-protected durable row is written before the compatibility
         // projections and epoch, so the epoch trigger consumes an existing,
-        // exact reservation rather than authenticating monotonicity alone.
+        // exact reservation rather than checking monotonicity alone.
         let _armed_reservation = reservation_authority.arm(&issuance)?;
         write_boot_reservation(&tx, durable_reservation.as_ref(), &issuance)?;
         write_meta_u64(&tx, BOOT_SEQUENCE_META_KEY, sequence)?;

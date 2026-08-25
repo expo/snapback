@@ -6,7 +6,8 @@
 #![allow(clippy::result_large_err)]
 
 pub use snapback_auth::auth;
-pub use snapback_kernel::{diagnostic, secure_file, seed_identity, storage};
+pub(crate) use snapback_kernel::storage;
+pub use snapback_kernel::{diagnostic, secure_file, seed_identity};
 pub use snapback_types::{
     contract_types, error_tracking, host_ops_contract, identity, live_wire, manifest, rqs_contract,
 };
