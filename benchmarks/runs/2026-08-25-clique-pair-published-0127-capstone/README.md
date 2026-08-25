@@ -114,6 +114,44 @@ ineligible cell still retains its product findings and cost narrative.
 Every failure is owner-classified (product / instrument / harness / host);
 an instrument failure returns to LLP 0281, not to the matrix.
 
+## Amendment 2026-08-25: manual execution mechanism
+
+The preparation round (authoring-only, honest) proved the chartered
+mechanism infeasible as written: the R2 driver stack is **reduced-run-only
+in material semantics** — `r2-cell-driver.mjs` writes `runScope: "reduced"`,
+appends an M1–M3-only handoff, and ends the native session after M3 — so
+"driver stack, full M1–M8" was not executable on any host. Five further
+fail-closed incompatibilities (macOS-only host probes; Git-object reads
+against this gitless host tree; unavailable Node-byte/kernel/memory
+bindings; admission ignoring the M7 port blocks; no non-consuming smoke)
+are documented at the top of `RUNBOOK.md` and filed as
+`issues/20260825-metering-driver-full-journey-portability.md` — that work
+is the R3 prerequisite, not this run's.
+
+**This run therefore executes in the manual shape** (the 0.1.25 baseline's
+own shape): per-arm codex sessions launched directly with the adapted
+prompts, which carry the milestone clock contract natively (`start=<epoch>`,
+timestamped lines at every milestone start and green, wall-by-milestone and
+first-green tables, correction-loop attribution, separately clocked scale
+replay and fresh M7). Per-milestone metering comes from those agent-stamped
+clocks, the `0.3.4-m8` choreography receipts (boundary v2, outcome
+classes), and harness-native per-turn token events joined to milestone
+windows post hoc. **The cells are not D0.6 scorecard-eligible** (they were
+already not claim-eligible at N=1 per LLP 0201 D5); they are the
+cost-profile comparison this capstone exists for.
+
+Admission simplifies to documented preflight equivalents executed and
+recorded before each cell: npm `latest` re-verification, loadavg ≤ 10.00 on
+three one-minute samples, fresh process/port probes over the full port
+blocks including M7, clean env posture (`NODE_OPTIONS`/`NODE_PATH`/loader
+injection absent), read-only instrument digest check — without the R2
+byte-binding capsule, which is part of the filed driver work.
+
+Also filed from the preparation round:
+`issues/20260825-metering-suite-red-0334-fixtures.md` — the metering test
+suite is red on main (52/85 locally) after the `0.3.4-m8` landing left
+`0.3.3`-pinned fixtures behind; fix-forward, independent of this run.
+
 ## Artifacts
 
 - `harness-config.json`, `admissions/`, `cells/<cell>/` (driver-produced
