@@ -2,8 +2,8 @@
 
 use super::jobs::{BufferedJobEnqueue, JobProducer};
 use super::{
-    CommitCapsuleAuthority, CommitCapsuleIntent, DatabaseBinding, ExactCommitRows, LocalDatabase,
-    SnapbackResult,
+    CommitCapsuleAuthority, CommitCapsuleIntent, CommitCapsuleIntentInstance, DatabaseBinding,
+    ExactCommitRows, LocalDatabase, SnapbackResult, commit_capsule_intent_fingerprint,
 };
 use crate::diagnostic::SnapbackError;
 use crate::manifest::SchemaManifest;
@@ -286,7 +286,47 @@ impl CommitCapsuleIntent for WatchManagementIntent {
     fn operation_identity(&self) -> &Self::OperationIdentity {
         self.operation_identity()
     }
+
+    fn intended_rows_fingerprint(&self) -> [u8; 32] {
+        match self {
+            Self::Transition {
+                operation_identity,
+                watch_id,
+                target,
+                resume_job_id,
+            } => commit_capsule_intent_fingerprint(
+                "watch-management.transition.v1",
+                &[
+                    operation_identity.as_ref().as_bytes(),
+                    watch_id.as_bytes(),
+                    target.as_str().as_bytes(),
+                    if resume_job_id.is_some() {
+                        b"some"
+                    } else {
+                        b"none"
+                    },
+                    resume_job_id.as_deref().unwrap_or_default().as_bytes(),
+                ],
+            ),
+            Self::Renewal {
+                operation_identity,
+                watch_id,
+                ttl_ms,
+                replacement_grant_id,
+            } => commit_capsule_intent_fingerprint(
+                "watch-management.renewal.v1",
+                &[
+                    operation_identity.as_ref().as_bytes(),
+                    watch_id.as_bytes(),
+                    &ttl_ms.to_be_bytes(),
+                    replacement_grant_id.as_bytes(),
+                ],
+            ),
+        }
+    }
 }
+
+impl super::commit_capsule_intent_sealed::Sealed for WatchManagementIntent {}
 
 #[derive(Clone, Debug, PartialEq)]
 struct WatchAnchorGrantRow {
@@ -326,7 +366,7 @@ enum WatchManagementIntendedEffect {
 /// those sibling rows are inseparable members of this carrier.
 #[derive(Clone, Debug)]
 pub struct WatchManagementIntendedRows {
-    operation_identity: WatchManagementOperationIdentity,
+    intent: CommitCapsuleIntentInstance<WatchManagementIntent>,
     watch: WatchRecord,
     durable_watch: WatchDurableRow,
     effect: WatchManagementIntendedEffect,
@@ -785,7 +825,7 @@ impl LocalDatabase {
         let binding = self.binding();
         match intent {
             WatchManagementIntent::Transition {
-                operation_identity,
+                operation_identity: _,
                 watch_id,
                 target,
                 resume_job_id,
@@ -833,7 +873,7 @@ impl LocalDatabase {
                 let durable_watch =
                     durable_watch_row_on(&tx, watch_id)?.ok_or_else(catalog_corrupt)?;
                 let intended = WatchManagementIntendedRows {
-                    operation_identity: operation_identity.clone(),
+                    intent: CommitCapsuleIntentInstance::new(binding.clone(), intent),
                     watch: watch.clone(),
                     durable_watch,
                     effect: WatchManagementIntendedEffect::Transition {
@@ -853,7 +893,7 @@ impl LocalDatabase {
                 })
             }
             WatchManagementIntent::Renewal {
-                operation_identity,
+                operation_identity: _,
                 watch_id,
                 ttl_ms,
                 replacement_grant_id,
@@ -975,7 +1015,7 @@ impl LocalDatabase {
                 let replacement_anchor =
                     anchor_grant_row_on(&tx, replacement_grant_id)?.ok_or_else(catalog_corrupt)?;
                 let intended = WatchManagementIntendedRows {
-                    operation_identity: operation_identity.clone(),
+                    intent: CommitCapsuleIntentInstance::new(binding.clone(), intent),
                     watch: watch.clone(),
                     durable_watch,
                     effect: WatchManagementIntendedEffect::Renewal {
@@ -1046,7 +1086,7 @@ impl LocalDatabase {
         };
         Ok(Some(ExactCommitRows::new(
             self.binding(),
-            intended.operation_identity.clone(),
+            intended.intent.clone(),
             WatchManagementCommit {
                 record: watch,
                 evaluation_enqueued,
@@ -2962,8 +3002,8 @@ mod tests {
             .expect("reconcile exact resume successor")
             .expect("status, pending link, and exact job establish success");
         let committed = witness
-            .into_value_for(&authority, &intent)
-            .expect("database- and identifier-matched resume witness");
+            .into_value_for(&authority, &authority.derive_intent_instance(&intent))
+            .expect("database- and intended-row-matched resume witness");
         assert!(committed.evaluation_enqueued);
 
         // This removes the whole job after first observing an exact successor.

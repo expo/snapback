@@ -6,7 +6,8 @@
 //!   stays in the storage kernel.
 
 use super::{
-    CommitCapsuleAuthority, CommitCapsuleIntent, DatabaseBinding, ExactCommitRows, LocalDatabase,
+    CommitCapsuleAuthority, CommitCapsuleIntent, CommitCapsuleIntentInstance, DatabaseBinding,
+    ExactCommitRows, LocalDatabase, commit_capsule_intent_fingerprint,
     observe_durable_commit_for_test,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
@@ -60,7 +61,21 @@ impl CommitCapsuleIntent for PrototypeIntent {
     fn operation_identity(&self) -> &Self::OperationIdentity {
         &self.operation_id
     }
+
+    fn intended_rows_fingerprint(&self) -> [u8; 32] {
+        commit_capsule_intent_fingerprint(
+            "prototype.v1",
+            &[
+                self.operation_id.as_ref().as_bytes(),
+                self.payload.as_bytes(),
+                self.proof_id.as_bytes(),
+                self.response.as_bytes(),
+            ],
+        )
+    }
 }
+
+impl super::commit_capsule_intent_sealed::Sealed for PrototypeIntent {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PrototypeValue {
@@ -148,8 +163,8 @@ pub fn stage<'connection>(
         tx.rollback()?;
         if exact {
             return Ok(PrototypeStage::Existing(ExactCommitRows::new(
-                binding,
-                intent.operation_id.clone(),
+                binding.clone(),
+                CommitCapsuleIntentInstance::new(binding, intent),
                 PrototypeValue {
                     operation_id: intent.operation_id.as_ref().to_owned(),
                     response,
@@ -298,7 +313,7 @@ pub fn exact_reconciliation(
     Ok(exact.then(|| {
         ExactCommitRows::new(
             db.binding(),
-            intent.operation_id.clone(),
+            CommitCapsuleIntentInstance::new(db.binding(), intent),
             PrototypeValue {
                 operation_id: intent.operation_id.as_ref().to_owned(),
                 response,
@@ -375,4 +390,135 @@ pub fn facts_from_path(path: &Path, intent: &PrototypeIntent) -> SnapbackResult<
         proof_rows,
         exact_intended_rows,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn intent(
+        operation_id: &str,
+        payload: &str,
+        proof_id: &str,
+        response: &str,
+    ) -> PrototypeIntent {
+        PrototypeIntent {
+            operation_id: PrototypeOperationIdentity::new(operation_id),
+            payload: payload.to_owned(),
+            proof_id: proof_id.to_owned(),
+            response: response.to_owned(),
+        }
+    }
+
+    fn commit(db: &mut LocalDatabase, intent: &PrototypeIntent) {
+        let authority = CommitCapsuleAuthority {
+            binding: db.binding(),
+        };
+        match stage(db, intent, true).expect("stage prototype intent") {
+            PrototypeStage::Pending(pending) => {
+                pending.commit(&authority).expect("commit prototype intent");
+            }
+            PrototypeStage::Existing(_) => panic!("fresh prototype intent unexpectedly existed"),
+        }
+    }
+
+    #[test]
+    fn exact_rows_reject_same_operation_id_with_different_intended_rows() {
+        let mut db = LocalDatabase::memory().expect("prototype database");
+        initialize(&mut db).expect("initialize prototype tables");
+        let decoy = intent(
+            "shared-operation",
+            "decoy-payload",
+            "proof-decoy",
+            "same-response",
+        );
+        let target = intent(
+            "shared-operation",
+            "target-payload",
+            "proof-target",
+            "same-response",
+        );
+        commit(&mut db, &decoy);
+
+        let witness = exact_reconciliation(&mut db, &decoy)
+            .expect("query decoy exact rows")
+            .expect("decoy exact rows exist")
+            .map(|_| PrototypeValue {
+                operation_id: target.operation_id.as_ref().to_owned(),
+                response: target.response.clone(),
+            });
+        let authority = CommitCapsuleAuthority {
+            binding: db.binding(),
+        };
+        let target_instance = authority.derive_intent_instance(&target);
+        let error = witness
+            .into_value_for(&authority, &target_instance)
+            .expect_err("same caller operation id must not retarget an exact-row witness");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_COMMIT_RECONCILIATION_WITNESS_MISMATCH"
+        );
+
+        let decoy_facts = facts(&mut db, &decoy).expect("read decoy durable facts");
+        let target_facts = facts(&mut db, &target).expect("read target durable facts");
+        assert_eq!(decoy_facts.operation_rows, 1);
+        assert_eq!(decoy_facts.proof_rows, 1);
+        assert!(decoy_facts.exact_intended_rows);
+        assert!(!target_facts.exact_intended_rows);
+    }
+
+    #[test]
+    fn exact_rows_accept_legitimate_retry_after_database_reopen() {
+        let directory = tempfile::tempdir().expect("prototype directory");
+        let path = directory.path().join("prototype.sqlite3");
+        let retry = intent("retry-operation", "payload", "proof-retry", "response");
+        {
+            let mut db = LocalDatabase::open(&path).expect("open first prototype database");
+            initialize(&mut db).expect("initialize prototype tables");
+            commit(&mut db, &retry);
+        }
+
+        let mut reopened = LocalDatabase::open(&path).expect("reopen prototype database");
+        let witness = exact_reconciliation(&mut reopened, &retry)
+            .expect("query retry exact rows after reopen")
+            .expect("retry exact rows survive reopen");
+        let authority = CommitCapsuleAuthority {
+            binding: reopened.binding(),
+        };
+        let retry_instance = authority.derive_intent_instance(&retry);
+        let value = witness
+            .into_value_for(&authority, &retry_instance)
+            .expect("same semantic retry remains valid after reopen");
+        assert_eq!(value.operation_id, "retry-operation");
+        assert_eq!(value.response, "response");
+    }
+
+    #[test]
+    fn exact_rows_reject_another_database_producer() {
+        let mut source = LocalDatabase::memory().expect("source prototype database");
+        initialize(&mut source).expect("initialize source prototype tables");
+        let exact = intent(
+            "producer-operation",
+            "payload",
+            "proof-producer",
+            "response",
+        );
+        commit(&mut source, &exact);
+        let witness = exact_reconciliation(&mut source, &exact)
+            .expect("query source exact rows")
+            .expect("source exact rows exist");
+
+        let destination = LocalDatabase::memory().expect("destination prototype database");
+        let authority = CommitCapsuleAuthority {
+            binding: destination.binding(),
+        };
+        let destination_instance = authority.derive_intent_instance(&exact);
+        let error = witness
+            .into_value_for(&authority, &destination_instance)
+            .expect_err("another database producer must not consume the witness");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_COMMIT_RECONCILIATION_WITNESS_MISMATCH"
+        );
+    }
 }

@@ -880,50 +880,108 @@ impl CommitCapsuleAuthority {
     fn matches(&self, binding: &DatabaseBinding) -> bool {
         self.binding.matches(binding)
     }
+
+    /// Derive the canonical intent subject from this exact database authority.
+    /// Callers may carry the opaque result but cannot replace its producer or
+    /// fingerprint fields.
+    #[doc(hidden)]
+    pub fn derive_intent_instance<I: CommitCapsuleIntent>(
+        &self,
+        intent: &I,
+    ) -> CommitCapsuleIntentInstance<I> {
+        CommitCapsuleIntentInstance::new(self.binding.clone(), intent)
+    }
 }
 
-/// An intent supplies the typed operation identifier a bounded commit capsule
-/// compares at witness consumption. The associated type prevents accidental
-/// cross-intent-type comparison, and `map` preserves the identifier.
+mod commit_capsule_intent_sealed {
+    pub trait Sealed {}
+}
+
+/// A kernel-owned intent defines the canonical semantic fingerprint that an
+/// exact-row witness must retain. The operation identity remains useful for
+/// idempotency lookup, but it is no longer the reconciliation correlation.
 ///
-/// Identifiers remain caller-constructible, have no uniqueness ledger, and do
-/// not bind an intent instance or intended-row fingerprint. Equal identifiers
-/// can therefore describe semantically different intents.
+/// The private supertrait keeps dependent crates from defining a deliberately
+/// lossy fingerprint for an otherwise kernel-minted witness.
 ///
-/// @ref LLP 0225#3-transaction-and-commit-boundaries--who-may-commit-what —
-/// exact reconciliation currently compares database and typed operation
-/// identifier; the stronger intent-instance binding remains fix-forward.
-pub trait CommitCapsuleIntent {
+/// @ref LLP 0303#the-governing-principle — exact-row consumption derives the
+/// complete intended-row subject from the authority-bound intent instance;
+/// it never accepts a raw intent beside the authority.
+pub trait CommitCapsuleIntent: commit_capsule_intent_sealed::Sealed {
     type OperationIdentity: AsRef<str> + Clone + Eq;
 
     fn operation_identity(&self) -> &Self::OperationIdentity;
+
+    #[doc(hidden)]
+    fn intended_rows_fingerprint(&self) -> [u8; 32];
+}
+
+pub(crate) fn commit_capsule_intent_fingerprint(domain: &str, components: &[&[u8]]) -> [u8; 32] {
+    let mut digest = Sha256::new();
+    digest.update(b"snapback.commit-capsule-intent.v1\0");
+    digest.update((domain.len() as u64).to_be_bytes());
+    digest.update(domain.as_bytes());
+    for component in components {
+        digest.update((component.len() as u64).to_be_bytes());
+        digest.update(component);
+    }
+    digest.finalize().into()
+}
+
+/// Opaque authority-derived identity for one canonical commit intent on one
+/// live database producer. Equal logical retries on the same open producer
+/// compare equal; another database or another semantic intent does not.
+///
+/// Cloning preserves an idempotency correlation, not a single-use fact. Exact
+/// witnesses themselves remain move-consumed, and durable exact-row reads may
+/// intentionally reproduce the same successful reconciliation after response
+/// loss or restart.
+#[derive(Clone, Debug)]
+pub struct CommitCapsuleIntentInstance<I: CommitCapsuleIntent> {
+    producer: DatabaseBinding,
+    intended_rows_fingerprint: [u8; 32],
+    marker: std::marker::PhantomData<fn(&I)>,
+}
+
+impl<I: CommitCapsuleIntent> CommitCapsuleIntentInstance<I> {
+    pub(crate) fn new(producer: DatabaseBinding, intent: &I) -> Self {
+        Self {
+            producer,
+            intended_rows_fingerprint: intent.intended_rows_fingerprint(),
+            marker: std::marker::PhantomData,
+        }
+    }
+
+    fn matches(&self, other: &Self) -> bool {
+        self.producer.matches(&other.producer)
+            && self.intended_rows_fingerprint == other.intended_rows_fingerprint
+    }
 }
 
 /// Kernel-minted proof that one reconciliation query observed the successor
 /// described by its supplied intended-row carrier in one database.
 ///
 /// The server capsule may consume this proof, but cannot construct one from a
-/// caller-supplied value. Consumption rejects another database or an unequal
-/// operation identifier. It does not distinguish two semantically different
-/// intents that share a caller-constructed identifier.
+/// caller-supplied value. Consumption rejects another database, another
+/// producer instance, or another canonical intended-row fingerprint.
 ///
 /// @ref LLP 0059#rollback-and-ambiguous-commit — ambiguous success requires
 /// kernel-observed exact intended rows, not a caller assertion.
 pub struct ExactCommitRows<I: CommitCapsuleIntent, T> {
     binding: DatabaseBinding,
-    operation_identity: I::OperationIdentity,
+    intent: CommitCapsuleIntentInstance<I>,
     value: T,
 }
 
 impl<I: CommitCapsuleIntent, T> ExactCommitRows<I, T> {
     pub(crate) fn new(
         binding: DatabaseBinding,
-        operation_identity: I::OperationIdentity,
+        intent: CommitCapsuleIntentInstance<I>,
         value: T,
     ) -> Self {
         Self {
             binding,
-            operation_identity,
+            intent,
             value,
         }
     }
@@ -931,15 +989,16 @@ impl<I: CommitCapsuleIntent, T> ExactCommitRows<I, T> {
     pub fn into_value_for(
         self,
         authority: &CommitCapsuleAuthority,
-        intent: &I,
+        intent: &CommitCapsuleIntentInstance<I>,
     ) -> SnapbackResult<T> {
         if !authority.matches(&self.binding)
-            || &self.operation_identity != intent.operation_identity()
+            || !self.intent.producer.matches(&self.binding)
+            || !self.intent.matches(intent)
         {
             return Err(SnapbackError::error(
                 "SNAPBACK_COMMIT_RECONCILIATION_WITNESS_MISMATCH",
                 "storage",
-                "the exact-row witness belongs to another database or operation",
+                "the exact-row witness belongs to another database producer or intended rows",
             ));
         }
         Ok(self.value)
@@ -948,7 +1007,7 @@ impl<I: CommitCapsuleIntent, T> ExactCommitRows<I, T> {
     pub fn map<U>(self, map: impl FnOnce(T) -> U) -> ExactCommitRows<I, U> {
         ExactCommitRows {
             binding: self.binding,
-            operation_identity: self.operation_identity,
+            intent: self.intent,
             value: map(self.value),
         }
     }

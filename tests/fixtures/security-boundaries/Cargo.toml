@@ -252,6 +252,10 @@ name = "compose-agent-registration-partials"
 path = "src/bin/compose_agent_registration_partials.rs"
 
 [[bin]]
+name = "supply-exact-commit-rows-intent"
+path = "src/bin/supply_exact_commit_rows_intent.rs"
+
+[[bin]]
 # F283 remains open. Keep its witness bins for the future closure, but leave
 # them deliberately unregistered in the rejection-only attacks.v1.json.
 name = "prepare-live-subscribe-from-parts"

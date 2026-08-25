@@ -9,8 +9,8 @@
 //! @ref LLP 0058#split-phase-authorized-effect-fence — caller authority is
 //!   reserved outside Local and the mode guard is acquired only at COMMIT.
 //! @ref LLP 0059#rollback-and-ambiguous-commit — production reconciliation
-//!   queries compare their supplied intended rows before returning a witness;
-//!   the remaining same-ID replay seam is tracked explicitly.
+//!   queries bind their exact-row witness to the authority-derived canonical
+//!   intended-row fingerprint before returning a value.
 //! @ref LLP 0225#3-transaction-and-commit-boundaries--who-may-commit-what —
 //!   the adapter owns orchestration while production adopters use a
 //!   kernel-supplied pending transaction. The open adapter trait and exposed
@@ -594,7 +594,7 @@ pub(crate) struct FinalCommitCut<I: crate::storage::CommitCapsuleIntent, U> {
     disposition: Option<FinalCutDisposition>,
     panic_uncertain: Option<U>,
     uncertain_retention: CommitUncertainRetention<U>,
-    intent: PhantomData<fn(&I)>,
+    intent: crate::storage::CommitCapsuleIntentInstance<I>,
     #[cfg(test)]
     before_guard_for_test: Option<Box<dyn FnOnce() + Send>>,
 }
@@ -604,8 +604,10 @@ impl<I: crate::storage::CommitCapsuleIntent, U: Send + 'static> FinalCommitCut<I
         operation: &'static str,
         deadline: Instant,
         commit_authority: crate::storage::CommitCapsuleAuthority,
+        intent: &I,
         uncertain_retention: CommitUncertainRetention<U>,
     ) -> Self {
+        let intent = commit_authority.derive_intent_instance(intent);
         Self {
             operation,
             deadline,
@@ -613,7 +615,7 @@ impl<I: crate::storage::CommitCapsuleIntent, U: Send + 'static> FinalCommitCut<I
             disposition: None,
             panic_uncertain: None,
             uncertain_retention,
-            intent: PhantomData,
+            intent,
             #[cfg(test)]
             before_guard_for_test: None,
         }
@@ -699,13 +701,11 @@ impl<I: crate::storage::CommitCapsuleIntent, U: Send + 'static> FinalCommitCut<I
     }
 
     /// Accept an idempotent predecessor only through a kernel-minted witness
-    /// whose database and operation identifier match. This does not bind the
-    /// intent instance or reject a semantically different intent with the same
-    /// caller-constructed identifier.
+    /// whose database producer and canonical intended-row fingerprint match
+    /// the instance derived when this final cut was created.
     pub(crate) fn exact_existing<T>(
         &mut self,
         reservation: &CommitCapsuleReservation,
-        intent: &I,
         witness: crate::storage::ExactCommitRows<I, T>,
     ) -> CommitAttempt<T> {
         assert!(
@@ -726,7 +726,7 @@ impl<I: crate::storage::CommitCapsuleIntent, U: Send + 'static> FinalCommitCut<I
             }
         };
         self.disposition = Some(FinalCutDisposition::ExactExisting);
-        let result = witness.into_value_for(&self.commit_authority, intent);
+        let result = witness.into_value_for(&self.commit_authority, &self.intent);
         drop(commit_guard);
         match result {
             Ok(value) => CommitAttempt(CommitAttemptState::Committed(value)),
@@ -833,6 +833,7 @@ where
             spec.operation,
             spec.deadline,
             runtime.authority().clone(),
+            &intent,
             uncertain_retention,
         );
         let mut transaction = CommitCapsuleTransaction::new(&mut guard);
@@ -897,7 +898,7 @@ where
                                 BlockingCapsuleResult::Panicked(payload)
                             }
                             Ok(Ok(Some(witness))) => match witness
-                                .into_value_for(&final_cut.commit_authority, &intent)
+                                .into_value_for(&final_cut.commit_authority, &final_cut.intent)
                             {
                                 Ok(value) => {
                                     final_cut.discard_reconciled_carrier();

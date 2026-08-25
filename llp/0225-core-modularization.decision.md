@@ -89,6 +89,9 @@ same-ID intent replay are recorded as latent fix-forward residuals)
 **Revised:** 2026-08-23 (ae — §3 records the capsule's independent
 construction-origin seal; open pending adapters, captured commit authority,
 same-ID intent replay, and PreparedAuthority publication substitution remain)
+**Revised:** 2026-08-25 (af — §3 records authority-derived exact-row intent
+instances; same-ID semantic replay through reconciliation is closed while the
+other capsule residuals remain)
 **Related:** LLP 0199 (accepted incremental core-modularization Decision this
 consolidates), LLP 0000 (root explainer — load-bearing invariants), LLP 0038
 (July whole-system review; first `local.rs` god-object finding), LLP 0059
@@ -306,11 +309,12 @@ incorporates 0199's OQ3 ruling and the implemented 2026-08-09 follow-up.
    database or operation identity, composition APIs expose cloneable commit
    authority, and Rust closures may capture that authority and reach the public
    watch staging/commit pair without `FinalCommitCut`. The exact-row witness is
-   kernel-minted, retains a typed operation identifier through `map`, and is
-   consumed only when its database and identifier equal the supplied
-   authority/intent. It does not bind the intent instance or intended-row
-   fingerprint, and caller-constructible identifiers have no uniqueness
-   ledger. Every final-cut exit does still record a one-shot disposition.
+   kernel-minted and retains an opaque database-producer plus canonical
+   intended-row fingerprint through `map`. The final cut derives the matching
+   intent instance from its already-bound database authority instead of
+   accepting a raw intent at witness consumption. Caller-constructible
+   operation identifiers remain idempotency lookup keys, not reconciliation
+   correlation. Every final-cut exit also records a one-shot disposition.
 
    The AppState construction root now closes that destination-origin splice.
    Its one-shot engine claim carries an opaque identity minted by the exact
@@ -334,8 +338,8 @@ incorporates 0199's OQ3 ruling and the implemented 2026-08-09 follow-up.
    kernel's commit-authority check is what refuses the result today. That
    post-construction path is tracked as a residual.
    It does not seal the open `PendingCommit` adapter, prevent closure capture
-   of cloneable commit authority, bind reconciliation to semantic intent, or
-   close `PreparedAuthority` publication substitution. Those remain in
+   of cloneable commit authority, or close `PreparedAuthority` publication
+   substitution. Those remain in
    `issues/20260822-capsule-structural-residuals.md` and
    `issues/20260822-authority-publication-binding-design.md`.
 2. **The generation-activation coordinator owns the atomic transition, not
@@ -1490,3 +1494,10 @@ so slices can follow product priorities.
   the construction-origin Critical only; the open pending adapter,
   captured-authority, same-ID replay, and PreparedAuthority
   publication-substitution residuals remain.
+- **2026-08-25 (af).** Exact-row witnesses now retain an opaque intent instance
+  minted from the database-bound commit-capsule authority and a sealed,
+  kernel-defined canonical intended-row fingerprint. `FinalCommitCut` derives
+  and retains that instance when it receives its bound authority and intent;
+  witness consumption no longer accepts a raw caller intent. Equal operation
+  IDs with different intended rows and witnesses from another database are
+  refused, while same-semantic retries after database reopen remain valid.

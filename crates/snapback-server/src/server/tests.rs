@@ -42430,7 +42430,7 @@ async fn run_commit_capsule_prototype<Gate: Send + 'static>(
             let pending = match staged {
                 crate::storage::commit_capsule_prototype::PrototypeStage::Existing(witness) => {
                     drop(terminal_gate);
-                    let exact = final_cut.exact_existing(reservation, intent, witness);
+                    let exact = final_cut.exact_existing(reservation, witness);
                     if hooks.reuse_final_cut {
                         return final_cut.commit(
                             reservation,
