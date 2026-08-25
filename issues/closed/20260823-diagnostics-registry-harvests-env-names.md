@@ -115,8 +115,9 @@ to bracket access and recognized environment-helper calls. Consequently
 The dual-role rule still holds: an environment name emitted elsewhere at a
 proven diagnostic site stays registered, but only the emitting occurrence
 appears in its diagnostic sites. Ordinary comments remain excluded. The
-`diagnostics-registry: emission SNAPBACK_X` marker records a normal emitting
-site for a real dynamically assembled spelling. The four concrete
+`diagnostics-registry: emission SNAPBACK_X` marker records a synthetic emitting
+site on the following statement for a real dynamically assembled spelling,
+rather than publishing the marker-comment coordinate. The four concrete
 `validate_artifact_header` stale-artifact spellings use that marker, while
 `diagnostics-registry: reserved SNAPBACK_X` retains the retired
 `SNAPBACK_IBEX_CLI_UNAVAILABLE` spelling, the retired
@@ -200,7 +201,7 @@ global-subscription, and connection-grant dual-role names keep only their
 actual `kitError`, `requestDiagnostic`, or `code:` emitting sites in the
 diagnostic vocabulary.
 
-Final regeneration produces 3,537 diagnostic codes, 10,257 emitting sites, 93
+Final regeneration produces 3,537 diagnostic codes, 10,258 emitting sites, 93
 received sites, and 11 reserved sites from 634 production source files. The
 environment section contains 181 variables across 359 sites: 256 reads, 17
 writes, 3 removes, 16 indirect reads, 14 declarations, 12 table entries, and 41
@@ -266,7 +267,7 @@ Captured output:
   "counts": {
     "codes": 3537,
     "sourceFiles": 634,
-    "emittingSites": 10257,
+    "emittingSites": 10258,
     "receivedSites": 93,
     "reservedSites": 11,
     "httpClassified": 1709,
@@ -293,3 +294,12 @@ Captured output:
   "httpReservations": 9
 }
 ```
+
+### Known JS/native lookup divergence
+
+The generated registry and JavaScript Guide wrapper expose environment-only
+and dual-role names, but the embedded Rust CLI/MCP lookup does not yet consult
+the registry's `environment` section and mislabels received/reserved sites as
+emissions. This closed ticket does not claim native parity; the exact Rust
+change and parity tests are tracked in
+`issues/20260825-native-guide-lookup-registry-kinds-parity.md`.

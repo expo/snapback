@@ -57,7 +57,7 @@ and the explicit emission, synthetic-emission, environment-write,
 reference-only, received, and reservation markers. A constructed Rust fixture
 also places a match-arm arrow more than 8192 characters after the first token.
 
-The final registry publishes 3,537 diagnostic codes / 10,257 emitting sites /
+The final registry publishes 3,537 diagnostic codes / 10,258 emitting sites /
 93 received sites / 11 reserved sites and a separate environment vocabulary of
 181 names / 359 sites (256 reads, 17 writes, 3 removes, 16 indirect reads, 14
 declarations, 12 table entries, 41 mentions).
@@ -108,9 +108,18 @@ The canonical ticket includes the runnable final-registry measurement script.
 Its captured output for this resolution is:
 
 ```text
-codes=3537 emittingSites=10257 receivedSites=93 reservedSites=11
+codes=3537 emittingSites=10258 receivedSites=93 reservedSites=11
 environmentVariables=181 environmentSites=359
 environmentKinds: read=256 write=17 remove=3 indirect-read=16 declaration=14 table-entry=12 mention=41
 mergeBaseRemovals: total=223 environment=147 other=76
 fixtureRawTokens=85 receivedCodes=83 httpReservations=9
 ```
+
+### Known JS/native lookup divergence
+
+The generated registry and JavaScript Guide wrapper expose environment-only
+and dual-role names, but the embedded Rust CLI/MCP lookup does not yet consult
+the registry's `environment` section and mislabels received/reserved sites as
+emissions. This closed ticket does not claim native parity; the exact Rust
+change and parity tests are tracked in
+`issues/20260825-native-guide-lookup-registry-kinds-parity.md`.

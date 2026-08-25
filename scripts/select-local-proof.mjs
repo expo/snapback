@@ -91,6 +91,7 @@ export function validateSelectionPolicy(policy, calls) {
     const matchers = ['files', 'prefixes', 'suffixes'].flatMap((key) => rule[key] ?? []);
     validateUniqueStrings(matchers, `path rule ${rule.id} matchers`);
     assert(matchers.length > 0, `path rule ${rule.id} has a matcher`);
+    validateRuleExtensions(rule, `path rule ${rule.id}`);
     if (rule.disposition === 'all') {
       assert(rule.groups === undefined, `broad path rule ${rule.id} has no groups`);
     } else {
@@ -107,6 +108,7 @@ export function validateSelectionPolicy(policy, calls) {
     const matchers = ['files', 'prefixes', 'suffixes'].flatMap((key) => rule[key] ?? []);
     validateUniqueStrings(matchers, `additive path rule ${rule.id} matchers`);
     assert(matchers.length > 0, `additive path rule ${rule.id} has a matcher`);
+    validateRuleExtensions(rule, `additive path rule ${rule.id}`);
     assert(rule.disposition === undefined, `additive path rule ${rule.id} disposition`);
     validateUniqueStrings(rule.groups, `additive path rule ${rule.id} groups`);
     for (const group of rule.groups) {
@@ -509,9 +511,22 @@ function closePrerequisites(selected, calls, overrides) {
 }
 
 function matchesRule(path, rule) {
-  return (rule.files ?? []).includes(path)
+  const matchesPath = (rule.files ?? []).includes(path)
     || (rule.prefixes ?? []).some((prefix) => path.startsWith(prefix))
     || (rule.suffixes ?? []).some((suffix) => path.endsWith(suffix));
+  return matchesPath && (
+    rule.extensions === undefined
+    || rule.extensions.some((extension) => path.endsWith(extension))
+  );
+}
+
+function validateRuleExtensions(rule, description) {
+  if (rule.extensions === undefined) return;
+  validateUniqueStrings(rule.extensions, `${description} extensions`);
+  assert(rule.extensions.length > 0, `${description} extensions are non-empty`);
+  for (const extension of rule.extensions) {
+    assert(/^\.[a-z0-9]+$/u.test(extension), `${description} extension ${extension}`);
+  }
 }
 
 function validRepositoryPath(path) {

@@ -154,6 +154,63 @@ function budgetedEnvironment(query, environment, identity, slice, budget) {
   return result;
 }
 
+function budgetedDiagnosticEnvironment(
+  query,
+  diagnostic,
+  environment,
+  identity,
+  slice,
+  budget,
+) {
+  const complete = {
+    schemaVersion: 'snapback.guide-symbol-lookup.v1',
+    ok: true,
+    query,
+    match: 'diagnostic-environment',
+    identity,
+    diagnostic,
+    environment,
+    truncation: null,
+  };
+  if (Buffer.byteLength(JSON.stringify(complete)) <= budget) return complete;
+
+  const diagnosticSites = Array.isArray(diagnostic.sites) ? diagnostic.sites : [];
+  const environmentSites = Array.isArray(environment.sites) ? environment.sites : [];
+  const sites = [
+    ...diagnosticSites.map((site) => ({ owner: 'diagnostic', site })),
+    ...environmentSites.map((site) => ({ owner: 'environment', site })),
+  ];
+  const pageSize = 24;
+  const start = (slice - 1) * pageSize;
+  const visible = sites.slice(start, start + pageSize);
+  const hasMore = start + pageSize < sites.length;
+  const result = {
+    ...complete,
+    match: 'diagnostic-environment-slice',
+    diagnostic: {
+      ...diagnostic,
+      ...(diagnostic.sites === undefined
+        ? {}
+        : { sites: visible.filter(({ owner }) => owner === 'diagnostic').map(({ site }) => site) }),
+    },
+    environment: {
+      ...environment,
+      sites: visible.filter(({ owner }) => owner === 'environment').map(({ site }) => site),
+    },
+    truncation: {
+      truncated: true,
+      slice,
+      elided: [`diagnostic/environment sites outside ${start + 1}-${Math.min(start + pageSize, sites.length)} of ${sites.length}`],
+      nextSlice: hasMore ? slice + 1 : null,
+      nextCommand: hasMore ? `snapback guide ${query} --slice ${slice + 1}` : null,
+    },
+  };
+  if (Buffer.byteLength(JSON.stringify(result)) > budget) {
+    throw new Error(`SNAPBACK_GUIDE_LOOKUP_BUDGET_EXCEEDED: diagnostic/environment slice ${query} exceeds ${budget} bytes`);
+  }
+  return result;
+}
+
 function memberMatch(symbol, query) {
   const prefix = `${symbol.name}.`;
   if (!query.startsWith(prefix)) return null;
@@ -319,6 +376,16 @@ export function lookupGuideReference(argv, options = {}) {
       : Object.fromEntries(
           Object.entries(diagnostics.diagnostics[query]).filter(([key]) => key !== 'sites'),
         );
+    if (diagnostics.environment?.[query]) {
+      return budgetedDiagnosticEnvironment(
+        query,
+        diagnostic,
+        diagnostics.environment[query],
+        identity,
+        slice,
+        budget,
+      );
+    }
     return budgetedDiagnostic(query, diagnostic, identity, slice, budget);
   }
   if (diagnostics.environment?.[query]) {
@@ -372,7 +439,8 @@ export function formatGuideReferenceLookup(result) {
         if (sites.length) lines.push('', heading, ...sites.map((site) => `- ${site.file}:${site.line}:${site.column}`));
       }
     }
-  } else if (result.environment) {
+  }
+  if (result.environment) {
     lines.push('environment variable');
     if (result.environment.sites?.length) {
       lines.push(
@@ -383,19 +451,19 @@ export function formatGuideReferenceLookup(result) {
         )),
       );
     }
-  } else if (result.member) {
+  } else if (!result.diagnostic && result.member) {
     lines.push(`${result.symbol.module} · ${result.symbol.kind}`, '', result.member.signature);
     // @ref LLP 0194#amendment-2026-08-09-authored-symbol-lifecycle-facts —
     // exact lookup projects registry lifecycle facts without reparsing declarations.
     lines.push(...formattedLifecycle(result.symbol.lifecycle), ...formattedLifecycle(result.member.lifecycle));
-  } else if (result.symbol) {
+  } else if (!result.diagnostic && result.symbol) {
     lines.push(`${result.symbol.module} · ${result.symbol.kind}`);
     lines.push(...formattedLifecycle(result.symbol.lifecycle));
     if (result.symbol.signature) lines.push('', result.symbol.signature);
     if (result.symbol.members?.length) {
       lines.push('', ...result.symbol.members.map((member) => `${member.name}: ${member.signature ?? member.kind}`));
     }
-  } else {
+  } else if (!result.diagnostic) {
     lines.push('', ...result.symbols.map((symbol) => `${symbol.name} — ${symbol.kind} — ${symbol.identity}`));
   }
   if (result.truncation) {

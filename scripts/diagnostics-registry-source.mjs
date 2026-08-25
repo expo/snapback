@@ -105,6 +105,28 @@ function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
 }
 
+const LANGUAGE_KEYWORDS = new Set([
+  // JavaScript (including contextual declaration/control words that the
+  // permissive helper recognizer must never treat as method names).
+  'as', 'async', 'await', 'break', 'case', 'catch', 'class', 'const',
+  'continue', 'debugger', 'default', 'delete', 'do', 'else', 'enum',
+  'export', 'extends', 'false', 'finally', 'for', 'from', 'function', 'get',
+  'if', 'import', 'in', 'instanceof', 'let', 'new', 'null', 'of', 'return',
+  'set', 'static', 'super', 'switch', 'this', 'throw', 'true', 'try',
+  'typeof', 'var', 'void', 'while', 'with', 'yield',
+  // Rust and Swift control/declaration words that fit the same identifier
+  // grammar and occur in the mixed-language classifier fixtures.
+  'crate', 'defer', 'dyn', 'extern', 'fallthrough', 'fn', 'func', 'guard',
+  'impl', 'init', 'is', 'loop', 'match', 'mod', 'move', 'mut', 'nil', 'open',
+  'operator', 'private', 'protocol', 'pub', 'public', 'ref', 'repeat',
+  'rethrows', 'self', 'struct', 'subscript', 'trait', 'type', 'typealias',
+  'unsafe', 'use', 'where',
+]);
+
+function isLanguageKeyword(identifier) {
+  return LANGUAGE_KEYWORDS.has(identifier);
+}
+
 function isEnvironmentIdentifier(identifier) {
   return (
     /^(?:env|environment)$/u.test(identifier)
@@ -312,7 +334,9 @@ function environmentHelperNames(source) {
       `(?:process\\.env(?:\\?\\.)?\\[\\s*${parameter}\\s*\\]|(?:this\\.)?(?:env|environment)(?:\\?\\.)?\\[\\s*${parameter}\\s*\\]|(?:std::)?env::(?:var|var_os)\\(\\s*${parameter}\\s*\\))`,
       'u',
     );
-    if (dynamicRead.test(body)) helpers.add(declaration[1]);
+    if (dynamicRead.test(body) && !isLanguageKeyword(declaration[1])) {
+      helpers.add(declaration[1]);
+    }
   }
   for (const declaration of source.matchAll(
     /(?:^|[;{},]\s*|\n\s*)(?:static\s+)?([A-Za-z_$][\w$]*)\s*(?:=|:)\s*(?:async\s*)?\(\s*([A-Za-z_$][\w$]*)[^)]*\)\s*=>\s*([^;\n]+)/gmu,
@@ -322,7 +346,9 @@ function environmentHelperNames(source) {
       `(?:process\\.env(?:\\?\\.)?\\[\\s*${parameter}\\s*\\]|(?:this\\.)?(?:env|environment)(?:\\?\\.)?\\[\\s*${parameter}\\s*\\])`,
       'u',
     );
-    if (dynamicRead.test(declaration[3])) helpers.add(declaration[1]);
+    if (dynamicRead.test(declaration[3]) && !isLanguageKeyword(declaration[1])) {
+      helpers.add(declaration[1]);
+    }
   }
   for (const declaration of source.matchAll(
     /(?:^|[;{},]\s*|\n\s*)(?:static\s+)?([A-Za-z_$][\w$]*)\s*(?:=|:)\s*(?:async\s+)?([A-Za-z_$][\w$]*)\s*=>\s*([^;\n]+)/gmu,
@@ -332,7 +358,9 @@ function environmentHelperNames(source) {
       `(?:process\\.env(?:\\?\\.)?\\[\\s*${parameter}\\s*\\]|(?:this\\.)?(?:env|environment)(?:\\?\\.)?\\[\\s*${parameter}\\s*\\])`,
       'u',
     );
-    if (dynamicRead.test(declaration[3])) helpers.add(declaration[1]);
+    if (dynamicRead.test(declaration[3]) && !isLanguageKeyword(declaration[1])) {
+      helpers.add(declaration[1]);
+    }
   }
   return helpers;
 }
@@ -349,7 +377,239 @@ function indirectEnvironmentHelperOffsets(source, matches) {
   )).map((match) => match.index));
 }
 
-function stringLiteralBounds(source, { ordinaryMultiline = false } = {}) {
+// This purpose-built tokenizer keeps the generator dependency-free while
+// tracking the lexical distinctions the registry needs: comments, strings,
+// expression-position regex literals versus division, and nested template
+// expressions. It does not attempt to build a JavaScript AST.
+function javaScriptLiteralBounds(source) {
+  const byContentStart = new Map();
+  const comments = [];
+  const ranges = [];
+  const regexPrefixKeywords = new Set([
+    'await', 'case', 'delete', 'do', 'else', 'in', 'instanceof', 'new',
+    'return', 'throw', 'typeof', 'void', 'yield',
+  ]);
+  const controlConditionKeywords = new Set([
+    'catch', 'for', 'if', 'switch', 'while', 'with',
+  ]);
+
+  function addLiteral(contentStart, end) {
+    const literal = { contentStart, end };
+    byContentStart.set(contentStart, literal);
+    ranges.push(literal);
+  }
+
+  function scanQuoted(open, delimiter) {
+    const contentStart = open + 1;
+    let cursor = contentStart;
+    while (cursor < source.length) {
+      if (source[cursor] === '\\') {
+        cursor += 2;
+        continue;
+      }
+      if (source[cursor] === delimiter) {
+        addLiteral(contentStart, cursor);
+        return cursor + 1;
+      }
+      if (source[cursor] === '\n' || source[cursor] === '\r') return open + 1;
+      cursor += 1;
+    }
+    return open + 1;
+  }
+
+  function scanRegex(open) {
+    let cursor = open + 1;
+    let characterClass = false;
+    while (cursor < source.length) {
+      if (source[cursor] === '\\') {
+        cursor += 2;
+        continue;
+      }
+      if (source[cursor] === '\n' || source[cursor] === '\r') return open + 1;
+      if (source[cursor] === '[') characterClass = true;
+      else if (source[cursor] === ']') characterClass = false;
+      else if (source[cursor] === '/' && !characterClass) {
+        cursor += 1;
+        while (/[$\w]/u.test(source[cursor] ?? '')) cursor += 1;
+        return cursor;
+      }
+      cursor += 1;
+    }
+    return open + 1;
+  }
+
+  function scanTemplate(open) {
+    let contentStart = open + 1;
+    let cursor = contentStart;
+    while (cursor < source.length) {
+      if (source[cursor] === '\\') {
+        cursor += 2;
+        continue;
+      }
+      if (source[cursor] === '`') {
+        addLiteral(contentStart, cursor);
+        return cursor + 1;
+      }
+      if (source.startsWith('${', cursor)) {
+        addLiteral(contentStart, cursor);
+        cursor = scanCode(cursor + 2, true);
+        contentStart = cursor;
+        continue;
+      }
+      cursor += 1;
+    }
+    return open + 1;
+  }
+
+  function scanCode(start, stopAtTemplateBrace) {
+    let index = start;
+    let braceDepth = 0;
+    let expectExpression = true;
+    let previousWord = '';
+    const conditionParens = [];
+    while (index < source.length) {
+      const character = source[index];
+      if (/\s/u.test(character)) {
+        index += 1;
+        continue;
+      }
+      if (source.startsWith('//', index)) {
+        const newline = source.indexOf('\n', index + 2);
+        const end = newline === -1 ? source.length : newline;
+        comments.push({ start: index, end });
+        index = newline === -1 ? source.length : newline + 1;
+        continue;
+      }
+      if (source.startsWith('/*', index)) {
+        const close = source.indexOf('*/', index + 2);
+        const end = close === -1 ? source.length : close + 2;
+        comments.push({ start: index, end });
+        index = end;
+        continue;
+      }
+      if (character === '"' || character === "'") {
+        const next = scanQuoted(index, character);
+        if (next === index + 1) {
+          index += 1;
+        } else {
+          index = next;
+          expectExpression = false;
+          previousWord = '';
+        }
+        continue;
+      }
+      if (character === '`') {
+        const next = scanTemplate(index);
+        index = next === index + 1 ? index + 1 : next;
+        expectExpression = false;
+        previousWord = '';
+        continue;
+      }
+      if (character === '/') {
+        if (expectExpression) {
+          const next = scanRegex(index);
+          if (next !== index + 1) {
+            index = next;
+            expectExpression = false;
+            previousWord = '';
+            continue;
+          }
+        }
+        index += source[index + 1] === '=' ? 2 : 1;
+        expectExpression = true;
+        previousWord = '';
+        continue;
+      }
+      if (/[A-Za-z_$]/u.test(character)) {
+        const word = source.slice(index).match(/^[A-Za-z_$][\w$]*/u)[0];
+        index += word.length;
+        expectExpression = regexPrefixKeywords.has(word);
+        previousWord = word;
+        continue;
+      }
+      if (/\d/u.test(character)) {
+        const number = source.slice(index).match(/^(?:0[xob][\da-f_]+|\d[\d._e+-]*)/iu)[0];
+        index += number.length;
+        expectExpression = false;
+        previousWord = '';
+        continue;
+      }
+      if (character === '(') {
+        conditionParens.push(controlConditionKeywords.has(previousWord));
+        index += 1;
+        expectExpression = true;
+        previousWord = '';
+        continue;
+      }
+      if (character === ')') {
+        expectExpression = conditionParens.pop() === true;
+        index += 1;
+        previousWord = '';
+        continue;
+      }
+      if (character === '{') {
+        braceDepth += 1;
+        index += 1;
+        expectExpression = true;
+        previousWord = '';
+        continue;
+      }
+      if (character === '}') {
+        if (stopAtTemplateBrace && braceDepth === 0) return index + 1;
+        braceDepth = Math.max(0, braceDepth - 1);
+        index += 1;
+        expectExpression = false;
+        previousWord = '';
+        continue;
+      }
+      if (character === '[') {
+        index += 1;
+        expectExpression = true;
+        previousWord = '';
+        continue;
+      }
+      if (character === ']') {
+        index += 1;
+        expectExpression = false;
+        previousWord = '';
+        continue;
+      }
+      if (character === '.') {
+        index += source.startsWith('...', index) ? 3 : 1;
+        expectExpression = false;
+        previousWord = '';
+        continue;
+      }
+      if (character === ';' || character === ',' || character === ':' || character === '?') {
+        index += source.startsWith('?.', index) ? 2 : 1;
+        expectExpression = true;
+        previousWord = '';
+        continue;
+      }
+      if ('=+-*%&|^!~<>'.includes(character)) {
+        const operator = source.slice(index).match(/^(?:===|!==|>>>|\*\*|&&|\|\||\?\?|=>|==|!=|<=|>=|<<|>>|\+\+|--|\+=|-=|\*=|%=|&=|\|=|\^=|[=+\-*%&|^!~<>])/u)[0];
+        index += operator.length;
+        expectExpression = operator !== '++' && operator !== '--';
+        previousWord = '';
+        continue;
+      }
+      index += 1;
+      previousWord = '';
+    }
+    return index;
+  }
+
+  scanCode(0, false);
+  ranges.sort((left, right) => left.contentStart - right.contentStart);
+  comments.sort((left, right) => left.start - right.start);
+  return { byContentStart, comments, ranges };
+}
+
+function stringLiteralBounds(source, {
+  ordinaryMultiline = false,
+  javascript = false,
+} = {}) {
+  if (javascript) return javaScriptLiteralBounds(source);
   const byContentStart = new Map();
   const comments = [];
   const ranges = [];
@@ -603,8 +863,12 @@ function environmentAnalysis(source, options) {
   return { literals, matches, names, siteKinds, receivedOffsets: new Set() };
 }
 
-export function environmentVariableSites(source, { environmentNames, ordinaryMultiline } = {}) {
-  const analysis = environmentAnalysis(source, { ordinaryMultiline });
+export function environmentVariableSites(source, {
+  environmentNames,
+  javascript,
+  ordinaryMultiline,
+} = {}) {
+  const analysis = environmentAnalysis(source, { javascript, ordinaryMultiline });
   const classifiedNames = environmentNames ?? analysis.names;
   return analysis.matches.flatMap((match) => {
     const kind = analysis.siteKinds.get(match.index);
@@ -636,6 +900,60 @@ function isCommentReference(offset, comments) {
     }
   }
   return candidate !== null && offset < candidate.end;
+}
+
+function followingStatementOffset(source, offset) {
+  let cursor = offset;
+  while (cursor < source.length) {
+    while (/\s/u.test(source[cursor] ?? '')) cursor += 1;
+    if (source.startsWith('//', cursor)) {
+      const newline = source.indexOf('\n', cursor + 2);
+      cursor = newline === -1 ? source.length : newline + 1;
+      continue;
+    }
+    if (source.startsWith('/*', cursor)) {
+      const close = source.indexOf('*/', cursor + 2);
+      cursor = close === -1 ? source.length : close + 2;
+      continue;
+    }
+    break;
+  }
+  return cursor < source.length ? cursor : null;
+}
+
+function syntheticMatch(code, index, source) {
+  const match = [code];
+  match.index = index;
+  match.input = source;
+  return match;
+}
+
+function syntheticEmissionSites(source, comments) {
+  const sites = [];
+  const markerPattern = new RegExp(
+    `${escapeRegExp(EMISSION_MARKER)}\\s+(SNAPBACK_[A-Z0-9_]*[A-Z0-9])(?![A-Z0-9_])`,
+    'gu',
+  );
+  for (const marker of source.matchAll(markerPattern)) {
+    if (!isCommentReference(marker.index, comments)) continue;
+    const code = marker[1];
+    const markerLine = lineBounds(source, marker.index);
+    const beforeMarker = { start: markerLine.start, end: marker.index };
+    // A same-line marker annotates the concrete literal before its comment.
+    if (lineContainsCode(source, beforeMarker, code)) continue;
+    const target = followingStatementOffset(source, markerLine.end);
+    if (target === null) continue;
+    const targetLine = lineBounds(source, target);
+    // A concrete spelling on the target line remains the source coordinate;
+    // only genuinely dynamic spellings need a synthetic match.
+    if (lineContainsCode(source, targetLine, code)) continue;
+    sites.push({
+      match: syntheticMatch(code, target, source),
+      kind: 'emission',
+      synthetic: true,
+    });
+  }
+  return sites;
 }
 
 function isComparisonOrPrefixCheck(source, offset, code) {
@@ -784,8 +1102,11 @@ function isReferencePosition(source, offset, code) {
 function diagnosticSiteKind(source, match, analysis, environmentNames) {
   const offset = match.index;
   if (hasReservedMarker(source, offset, match[0])) return 'reserved';
-  if (hasEmissionMarker(source, offset, match[0])) return 'emission';
   if (hasReceivedMarker(source, offset, match[0])) return 'received';
+  if (
+    hasEmissionMarker(source, offset, match[0])
+    && !isCommentReference(offset, analysis.literals.comments)
+  ) return 'emission';
   if (isCommentReference(offset, analysis.literals.comments)) return null;
   if (
     hasReferenceOnlyMarker(source, offset)
@@ -818,18 +1139,23 @@ function diagnosticSiteKind(source, match, analysis, environmentNames) {
 
 export function diagnosticSourceSites(source, {
   environmentNames,
+  javascript,
   ordinaryMultiline,
   receivedProtocolVocabulary = false,
 } = {}) {
-  const analysis = environmentAnalysis(source, { ordinaryMultiline });
+  const analysis = environmentAnalysis(source, { javascript, ordinaryMultiline });
   analysis.receivedOffsets = receivedProtocolVocabulary
     ? receivedProtocolOffsets(source, analysis.matches)
     : new Set();
   const classifiedNames = environmentNames ?? analysis.names;
-  return analysis.matches.flatMap((match) => {
+  const sites = analysis.matches.flatMap((match) => {
     const kind = diagnosticSiteKind(source, match, analysis, classifiedNames);
     return kind === null ? [] : [{ match, kind }];
   });
+  sites.push(...syntheticEmissionSites(source, analysis.literals.comments));
+  return sites.sort((left, right) => (
+    left.match.index - right.match.index || left.match[0].localeCompare(right.match[0])
+  ));
 }
 
 export function diagnosticCodeMatches(source, options) {

@@ -219,7 +219,7 @@ test('a new Rust source file selects the rustfmt gate', () => {
   assert.equal(select(['README.md']).selectedGates.includes('rustfmt'), false);
 });
 
-test('published package READMEs retain their fast funnel under production-prefix coverage', () => {
+test('published package READMEs retain their fast funnel outside source-extension coverage', () => {
   const packageRoot = new URL('../packages/', import.meta.url);
   const publicReadmes = readdirSync(packageRoot, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
@@ -242,8 +242,9 @@ test('published package READMEs retain their fast funnel under production-prefix
 
   const readme = select(['packages/snapback-client/README.md']);
   assert.equal(readme.selectionClass, 'FAST_ONLY');
-  assert.deepEqual(readme.selectedGroups, ['diagnostics-registry', 'package-readme']);
-  includesAll(readme, ['diagnostics-registry-fixtures', 'package-readme-funnel']);
+  assert.deepEqual(readme.selectedGroups, ['package-readme']);
+  includesAll(readme, ['package-readme-funnel']);
+  assert.equal(readme.selectedGates.includes('diagnostics-registry-fixtures'), false);
   assert.equal(readme.selectedGates.includes('snapback-client-package'), false);
   assert.equal(readme.requirements.javascriptDependencies, true);
   assert.equal(readme.requirements.native, false);
@@ -301,7 +302,7 @@ test('diagnostic production sources select registry fixtures and Guide drift', (
     ({ id }) => id === 'diagnostics-production-sources',
   );
   assert.deepEqual(productionRule.prefixes, DIAGNOSTICS_PRODUCTION_ROOTS);
-  assert.equal(productionRule.suffixes, undefined);
+  assert.deepEqual(productionRule.extensions, ['.rs', '.js', '.mjs', '.cjs', '.swift']);
 
   const guideTriggerPrefixes = context.policy.driftProneGates.guide.triggerRules.prefixes;
   for (const rootPrefix of DIAGNOSTICS_PRODUCTION_ROOTS) {
@@ -321,6 +322,19 @@ test('diagnostic production sources select registry fixtures and Guide drift', (
     assert(
       selectDriftProneGates([source], context).selectedDriftProneGates.includes('guide'),
       `${source} must select Guide drift`,
+    );
+  }
+
+  for (const nonSource of [
+    'crates/snapback-kernel/src/diagnostics.md',
+    'packages/snapback-client/diagnostics.json',
+    'targets/cloudflare/src/diagnostics.ts',
+    'clients/swift/Sources/Snapback/diagnostics.txt',
+  ]) {
+    assert.equal(
+      select([nonSource]).matchedRules.includes('diagnostics-production-sources'),
+      false,
+      `${nonSource} is outside the generator's scanned extensions`,
     );
   }
 });

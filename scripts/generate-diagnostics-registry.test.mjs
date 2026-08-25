@@ -92,8 +92,14 @@ test('diagnostic source classifier excludes environment reads per site and retai
   assert.deepEqual(
     diagnosticSourceSites(fixture, sourceOptions)
       .filter(({ match }) => nestedEmissionNames.has(match[0]))
-      .map(({ match, kind }) => ({ code: match[0], kind })),
-    [...nestedEmissionNames].map((code) => ({ code, kind: 'emission' })),
+      .map(({ match, kind, synthetic }) => ({ code: match[0], kind, synthetic })),
+    [...nestedEmissionNames].map((code) => ({
+      code,
+      kind: 'emission',
+      ...(code.startsWith('SNAPBACK_FIXTURE_MARKED_') || code.endsWith('_SYNTHETIC_DYNAMIC')
+        ? { synthetic: true }
+        : { synthetic: undefined }),
+    })),
   );
 
   const dualRoleSites = diagnosticSourceSites(fixture, sourceOptions)
@@ -248,6 +254,24 @@ test('diagnostic source classifier excludes environment reads per site and retai
   assert.ok(!classifiedNames.includes('SNAPBACK_FIXTURE_TRAILING_PREFIX_'));
 });
 
+test('JavaScript tokenizer skips regex literals but preserves division and template expressions', () => {
+  const fixture = readFileSync(resolve(
+    import.meta.dirname,
+    '../tests/fixtures/diagnostics-registry/javascript-lexical-boundaries.mjs',
+  ), 'utf8');
+  assert.match(fixture, /const quote = \/\["\]\/[;] throw new Error\("SNAPBACK_FIXTURE_REAL"\);/u);
+  assert.match(fixture, /const quotient = a \/ b \/ c;/u);
+  assert.deepEqual(
+    diagnosticSourceSites(fixture, { javascript: true })
+      .map(({ match, kind }) => ({ code: match[0], kind })),
+    [
+      { code: 'SNAPBACK_FIXTURE_REAL', kind: 'emission' },
+      { code: 'SNAPBACK_FIXTURE_DIVISION_REAL', kind: 'emission' },
+      { code: 'SNAPBACK_FIXTURE_TEMPLATE_REAL', kind: 'emission' },
+    ],
+  );
+});
+
 test('Rust match-arm references scan an entire brace-bounded or-pattern', () => {
   const firstCode = 'SNAPBACK_FIXTURE_LONG_MATCH_ARM_FIRST';
   const longRustOrPatternFixture = [
@@ -304,6 +328,15 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     ) ?? [];
     assert.equal(sites.length, 1, `${code} must have one artifact-header emitting site`);
     assert.equal(sites[0].kind, undefined, `${code} must use the normal emission site kind`);
+    assert.equal(sites[0].synthetic, true, `${code} must identify its dynamic site`);
+    assert.notEqual(
+      readFileSync(resolve(import.meta.dirname, '..', sites[0].file), 'utf8')
+        .split('\n')[sites[0].line - 1]
+        .trimStart()
+        .startsWith('//'),
+      true,
+      `${code} must attach to code rather than the marker comment`,
+    );
   }
 
   const demandMismatchSites = registry.diagnostics
@@ -379,9 +412,24 @@ test('generated registry retains target emitters and dynamic artifact-header emi
   ];
   for (const code of tigrisRoleCodes) {
     assert.deepEqual(
-      registry.diagnostics[code]?.sites.map(({ file, kind }) => ({ file, kind })),
-      [{ file: 'packages/snapback-hosted-supervisor/target-onboarding.mjs', kind: undefined }],
+      registry.diagnostics[code]?.sites.map(({ file, kind, synthetic }) => ({
+        file,
+        kind,
+        synthetic,
+      })),
+      [{
+        file: 'packages/snapback-hosted-supervisor/target-onboarding.mjs',
+        kind: undefined,
+        synthetic: true,
+      }],
       `${code} must retain its finite dynamic-emission site`,
+    );
+    const [site] = registry.diagnostics[code].sites;
+    assert.match(
+      readFileSync(resolve(import.meta.dirname, '..', site.file), 'utf8')
+        .split('\n')[site.line - 1],
+      /^\s*throw new Error\(/u,
+      `${code} must attach to the dynamic throw statement`,
     );
   }
   assert.equal(registry.diagnostics.SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL_STATE_PARTIAL, undefined);
@@ -507,10 +555,44 @@ test('same-line named markers retain only their target site', () => {
         code: match[0],
         column: match.index + 1,
         kind: siteKind,
+        synthetic: sites[0].synthetic,
       })),
-      [{ code, column: source.indexOf(code) + 1, kind }],
+      [{ code, column: source.indexOf(code) + 1, kind, synthetic: undefined }],
     );
   }
+});
+
+test('environment helper discovery rejects language keywords', () => {
+  const fixture = [
+    'if (name) { return process.env[name]; }',
+    "if ('SNAPBACK_FIXTURE_KEYWORD_IF') {}",
+    'while (name) { return process.env[name]; }',
+    "while ('SNAPBACK_FIXTURE_KEYWORD_WHILE') {}",
+    'for (name) { return process.env[name]; }',
+    "for ('SNAPBACK_FIXTURE_KEYWORD_FOR') {}",
+    'switch (name) { return process.env[name]; }',
+    "switch ('SNAPBACK_FIXTURE_KEYWORD_SWITCH') {}",
+    'catch (name) { return process.env[name]; }',
+    "catch ('SNAPBACK_FIXTURE_KEYWORD_CATCH') {}",
+    'return (name) => process.env[name];',
+    "return ('SNAPBACK_FIXTURE_KEYWORD_RETURN');",
+    'match (name) { return process.env[name]; }',
+    "match ('SNAPBACK_FIXTURE_KEYWORD_MATCH') {}",
+  ].join('\n');
+
+  assert.deepEqual(environmentVariableSites(fixture), []);
+});
+
+test('synthetic emission markers attach to the following statement', () => {
+  const fixture = [
+    '// diagnostics-registry: emission SNAPBACK_FIXTURE_DYNAMIC_THROW',
+    'throw new Error(dynamicCode);',
+  ].join('\n');
+  const [site] = diagnosticSourceSites(fixture);
+  assert.equal(site.match[0], 'SNAPBACK_FIXTURE_DYNAMIC_THROW');
+  assert.equal(site.match.index, fixture.indexOf('throw'));
+  assert.equal(site.kind, 'emission');
+  assert.equal(site.synthetic, true);
 });
 
 test('generated diagnostics registry projections are current', () => {

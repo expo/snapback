@@ -12,9 +12,10 @@
 // patterns, prefix checks, and code catalogues are excluded per site. Tokens
 // ending in `_` are incomplete family prefixes, never codes. For a real emitter
 // the syntax cannot prove, put `diagnostics-registry: emission SNAPBACK_X` in a
-// comment on that line or the immediately preceding line. When a dynamic
-// emitter never contains the complete spelling, put that same named marker at
-// the exact site; it is recorded as an ordinary emission. For
+// comment on that line or before the statement. When a dynamic emitter never
+// contains the complete spelling, put that same named marker immediately
+// before the statement; the registry attaches a synthetic emission site to the
+// statement rather than publishing the marker-comment coordinate. For
 // a reference-only site whose syntax is otherwise ambiguous, put
 // `diagnostics-registry: reference-only` in a comment on that line or the
 // immediately preceding line; never mark a line that also emits. To reserve a
@@ -347,6 +348,7 @@ function collectSites() {
   const environmentNames = new Set();
   for (const [path, source] of sources) {
     for (const { match } of environmentVariableSites(source, {
+      javascript: /\.(?:cjs|js|mjs)$/u.test(path),
       ordinaryMultiline: path.endsWith('.rs'),
     })) {
       environmentNames.add(match[0]);
@@ -359,6 +361,7 @@ function collectSites() {
     const source = sources.get(path);
     const sourceOptions = {
       environmentNames,
+      javascript: /\.(?:cjs|js|mjs)$/u.test(path),
       ordinaryMultiline: path.endsWith('.rs'),
       // These are public client arms selected from their shipped package
       // manifests above. A closed literal table must also feed a dispatch
@@ -367,7 +370,7 @@ function collectSites() {
         path.startsWith(rootPath)
       )),
     };
-    for (const { match, kind } of diagnosticSourceSites(source, sourceOptions)) {
+    for (const { match, kind, synthetic } of diagnosticSourceSites(source, sourceOptions)) {
       const code = match[0];
       const location = lineAndColumn(source, match.index);
       const sites = byCode.get(code) ?? [];
@@ -375,6 +378,7 @@ function collectSites() {
         file: path,
         ...location,
         ...(kind === 'emission' ? {} : { kind }),
+        ...(synthetic === true ? { synthetic: true } : {}),
       });
       byCode.set(code, sites);
     }

@@ -709,6 +709,13 @@
         "packages/",
         "targets/",
         "clients/swift/"
+      ],
+      "extensions": [
+        ".rs",
+        ".js",
+        ".mjs",
+        ".cjs",
+        ".swift"
       ]
     },
     {

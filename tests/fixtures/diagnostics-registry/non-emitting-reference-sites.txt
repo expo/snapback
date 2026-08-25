@@ -133,6 +133,7 @@ const quotedReference = "documentation names 'SNAPBACK_FIXTURE_QUOTED_REFERENCE'
 emitMarkedDiagnostic();
 
 // diagnostics-registry: emission SNAPBACK_FIXTURE_SYNTHETIC_DYNAMIC
+throw new Error(dynamicFixtureCode);
 
 // A name that is read from the environment and emitted elsewhere retains only
 // its emitting site.

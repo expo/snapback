@@ -4,7 +4,10 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { runCli } from './index.mjs';
-import { lookupGuideReference } from './reference-lookup.mjs';
+import {
+  formatGuideReferenceLookup,
+  lookupGuideReference,
+} from './reference-lookup.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const sharedCases = JSON.parse(readFileSync(
@@ -76,6 +79,24 @@ assert.deepEqual(
 assert.match(environment.identity.diagnosticsSourceDigest, /^sha256:[0-9a-f]{64}$/u);
 assert.ok(Buffer.byteLength(JSON.stringify(environment)) <= 16_384);
 
+const dualRole = lookupGuideReference(
+  ['SNAPBACK_ACCEPTED_SOCKET_LIMIT'],
+  { projectRoot: root },
+);
+assert.equal(dualRole.match, 'diagnostic-environment');
+assert.equal(dualRole.diagnostic.code, 'SNAPBACK_ACCEPTED_SOCKET_LIMIT');
+assert.equal(dualRole.diagnostic.sites, undefined);
+assert.equal(dualRole.environment.name, 'SNAPBACK_ACCEPTED_SOCKET_LIMIT');
+assert.deepEqual(
+  dualRole.environment.sites.map(({ file, kind }) => ({ file, kind })),
+  [{ file: 'targets/cloudflare/src/coordinator.js', kind: 'read' }],
+);
+assert.ok(Buffer.byteLength(JSON.stringify(dualRole)) <= 16_384);
+assert.match(
+  formatGuideReferenceLookup(dualRole),
+  /snapback[^]*environment variable[^]*Environment sites:[^]*- read: targets\/cloudflare\/src\/coordinator\.js:/u,
+);
+
 const large = lookupGuideReference(['SnapbackClient'], { projectRoot: root });
 assert.equal(large.match, 'symbol-slice');
 assert.equal(large.truncation.truncated, true);
@@ -121,4 +142,4 @@ assert.equal(
   environmentCliResult.result.environment.name,
   'SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE',
 );
-console.log('reference-lookup.test.mjs: exact diagnostic/environment/member, bounded symbol/module, identity, and fallback pass');
+console.log('reference-lookup.test.mjs: exact diagnostic/environment/dual-role/member, bounded symbol/module, identity, and fallback pass');
