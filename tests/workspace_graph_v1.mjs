@@ -514,7 +514,7 @@ test('reviewed engine compatibility globs stay bound to their exact files', () =
   assert.doesNotThrow(() => validateEngineDefinitionDenylist(artifact, [
     {
       path: join(repositoryRoot, 'crates/snapback-engine/src/local.rs'),
-      source: 'mod runtime_cost;\npub use runtime_cost::*;',
+      source: '#[path = "local/runtime_cost.rs"] mod runtime_cost;\npub use runtime_cost::*;',
     },
     {
       path: join(repositoryRoot, 'crates/snapback-engine/src/local/engine.rs'),
@@ -541,9 +541,13 @@ test('reviewed runtime_cost globs cannot be rebound at their canonical path', ()
   const canonicalPath = join(repositoryRoot, 'crates/snapback-engine/src/local.rs');
   for (const source of [
     'extern crate foreign_macros as runtime_cost;\npub use runtime_cost::*;\n#[derive(JsonSchema)] struct Harmless;',
+    'pub(crate)extern crate foreign as runtime_cost;\npub use runtime_cost::*;',
     'use foreign_macros as runtime_cost;\npub use runtime_cost::*;\n#[derive(JsonSchema)] struct Harmless;',
     'use foreign_macros::{JsonSchema as runtime_cost};\npub use runtime_cost::*;\n#[derive(JsonSchema)] struct Harmless;',
     'use foreign_macros::runtime_cost;\npub use runtime_cost::*;',
+    'pub(crate)use foreign::runtime_cost::{self};\npub use runtime_cost::*;',
+    'pub(super)use foreign::runtime_cost::{self};\npub use runtime_cost::*;',
+    'pub(in crate)use foreign::runtime_cost::{self};\npub use runtime_cost::*;',
     'struct runtime_cost;\npub use runtime_cost::*;',
     'type runtime_cost = foreign_macros::JsonSchema;\npub use runtime_cost::*;',
     'mod runtime_cost {}\npub use runtime_cost::*;',
@@ -554,6 +558,13 @@ test('reviewed runtime_cost globs cannot be rebound at their canonical path', ()
       source,
     );
   }
+  assert.throws(
+    () => validateEngineDefinitionDenylist(artifact, [{
+      path: canonicalPath,
+      source: '#[path = "ask.rs"] mod runtime_cost;\npub use runtime_cost::*;',
+    }]),
+    /may not shadow reviewed glob binding runtime_cost/u,
+  );
   assert.throws(
     () => validateEngineDefinitionDenylist(artifact, [{
       path: join(repositoryRoot, 'crates/snapback-engine/src/other.rs'),

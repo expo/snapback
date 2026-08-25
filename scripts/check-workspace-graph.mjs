@@ -182,27 +182,31 @@ const SAFE_ENGINE_GLOB_IMPORTS = [
   { file: 'crates/snapback-engine/src/runtime.rs', glob: 'snapback_types::runtime::*', root: 'snapback_types' },
   { file: 'crates/snapback-engine/src/test_support.rs', glob: 'super::*', root: 'crate' },
 ];
-// Every glob root has one reviewed origin. Relative `super` roots name their
-// resolved module here; duplicate module names list each legitimate declaring
-// scope. Source aliases and Cargo renames may not introduce these bindings.
+// Every glob root has one reviewed origin. Module roots bind both the declaring
+// file and its exact #[path] target (or the absence of one); duplicate module
+// names list each legitimate declaration. Source aliases and Cargo renames may
+// not introduce these bindings.
 const ENGINE_GLOB_ROOT_ORIGINS = new Map([
   ['crate', { kind: 'crate-root', file: 'crates/snapback-engine/src/lib.rs' }],
-  ['capabilities', { kind: 'module', files: ['crates/snapback-engine/src/manifest.rs'] }],
+  ['capabilities', { kind: 'module', declarations: [{ file: 'crates/snapback-engine/src/manifest.rs', path: null }] }],
   ['config_types', { kind: 'use', file: 'crates/snapback-engine/src/local/engine.rs', path: 'snapback_types::local::config_types' }],
-  ['engine', { kind: 'module', files: ['crates/snapback-engine/src/local.rs', 'crates/snapback-engine/src/local/tests.rs'] }],
-  ['generation_host', { kind: 'module', files: ['crates/snapback-engine/src/local/engine.rs'] }],
-  ['host_glue', { kind: 'module', files: ['crates/snapback-engine/src/runtime.rs'] }],
+  ['engine', { kind: 'module', declarations: [
+    { file: 'crates/snapback-engine/src/local.rs', path: 'local/engine.rs' },
+    { file: 'crates/snapback-engine/src/local/tests.rs', path: 'tests/engine.rs' },
+  ] }],
+  ['generation_host', { kind: 'module', declarations: [{ file: 'crates/snapback-engine/src/local/engine.rs', path: 'generation_host.rs' }] }],
+  ['host_glue', { kind: 'module', declarations: [{ file: 'crates/snapback-engine/src/runtime.rs', path: 'runtime/host_glue.rs' }] }],
   ['host_ops_contract', { kind: 'use-child', file: 'crates/snapback-engine/src/lib.rs', parent: 'snapback_types' }],
-  ['local', { kind: 'module', files: ['crates/snapback-engine/src/lib.rs'] }],
-  ['manifest', { kind: 'module', files: ['crates/snapback-engine/src/lib.rs'] }],
-  ['push', { kind: 'module', files: ['crates/snapback-engine/src/lib.rs'] }],
-  ['runtime', { kind: 'module', files: ['crates/snapback-engine/src/lib.rs'] }],
-  ['runtime_cost', { kind: 'module', files: ['crates/snapback-engine/src/local.rs'] }],
+  ['local', { kind: 'module', declarations: [{ file: 'crates/snapback-engine/src/lib.rs', path: null }] }],
+  ['manifest', { kind: 'module', declarations: [{ file: 'crates/snapback-engine/src/lib.rs', path: null }] }],
+  ['push', { kind: 'module', declarations: [{ file: 'crates/snapback-engine/src/lib.rs', path: null }] }],
+  ['runtime', { kind: 'module', declarations: [{ file: 'crates/snapback-engine/src/lib.rs', path: null }] }],
+  ['runtime_cost', { kind: 'module', declarations: [{ file: 'crates/snapback-engine/src/local.rs', path: 'local/runtime_cost.rs' }] }],
   ['snapback_kernel', { kind: 'crate', package: 'snapback-kernel' }],
   ['snapback_runtime', { kind: 'crate', package: 'snapback-runtime' }],
   ['snapback_services', { kind: 'crate', package: 'snapback-services' }],
   ['snapback_types', { kind: 'crate', package: 'snapback-types' }],
-  ['tests', { kind: 'module', files: ['crates/snapback-engine/src/local/engine.rs'] }],
+  ['tests', { kind: 'module', declarations: [{ file: 'crates/snapback-engine/src/local/engine.rs', path: 'tests.rs' }] }],
 ]);
 const PROTECTED_ENGINE_GLOB_BINDINGS = new Set(
   [...ENGINE_GLOB_ROOT_ORIGINS.keys()].filter((binding) => binding !== 'crate'),
@@ -713,7 +717,7 @@ function maskRustAttributes(source) {
   return characters.join('');
 }
 
-function rustAttributes(source) {
+function rustAttributeEntries(source) {
   const attributes = [];
   let cursor = 0;
   while (cursor < source.length) {
@@ -813,10 +817,26 @@ function rustAttributes(source) {
       end += 1;
     }
     assert(depth === 0, 'Rust source contains an unterminated attribute');
-    attributes.push(source.slice(cursor, end));
+    attributes.push({ source: source.slice(cursor, end), start: cursor, end });
     cursor = end;
   }
   return attributes;
+}
+
+function rustAttributes(source) {
+  return rustAttributeEntries(source).map((attribute) => attribute.source);
+}
+
+function modulePathBeforeStatement(source, attributes, statementStart) {
+  const pathAttribute = attributes.findLast((attribute) => (
+    attribute.end <= statementStart
+      && /^#\s*!?\s*\[\s*path\b/su.test(attribute.source)
+      && maskRustAttributes(maskRustCommentsAndLiterals(
+        source.slice(attribute.end, statementStart),
+      )).trim() === ''
+  ));
+  if (!pathAttribute) return null;
+  return /^#\s*!?\s*\[\s*path\s*=\s*"([^"\\]+)"\s*\]$/su.exec(pathAttribute.source)?.[1] ?? null;
 }
 
 function directUseChild(useSpec, parent, binding) {
@@ -941,7 +961,8 @@ function validateEngineDefinitionInputs(files) {
     'reviewed engine glob roots must each have exactly one canonical origin entry',
   );
   for (const file of files) {
-    for (const attribute of rustAttributes(file.source)) {
+    const attributes = rustAttributeEntries(file.source);
+    for (const { source: attribute } of attributes) {
       const head = /^#\s*!?\s*\[\s*([A-Za-z_][A-Za-z0-9_]*(?:::[A-Za-z_][A-Za-z0-9_]*)*)/su.exec(attribute)?.[1];
       assert(
         head && SAFE_ENGINE_ATTRIBUTES.has(head),
@@ -989,7 +1010,11 @@ function validateEngineDefinitionInputs(files) {
 
     const masked = maskRustAttributes(maskRustCommentsAndLiterals(file.source));
     const repositoryFile = relative(ROOT, file.path).split(sep).join('/');
-    for (const externMatch of masked.matchAll(/(?:^|[;{}])\s*(?:pub(?:\s*\([^)]*\))?\s+)?extern\s+crate\s+(?:r#)?([A-Za-z_][A-Za-z0-9_]*)(?:\s+as\s+(?:r#)?([A-Za-z_][A-Za-z0-9_]*))?\s*;/gmu)) {
+    const visibility = String.raw`(?:pub(?:\s*\([^)]*\)\s*|\s+))?`;
+    for (const externMatch of masked.matchAll(new RegExp(
+      String.raw`(?:^|[;{}])\s*${visibility}extern\s+crate\s+(?:r#)?([A-Za-z_][A-Za-z0-9_]*)(?:\s+as\s+(?:r#)?([A-Za-z_][A-Za-z0-9_]*))?\s*;`,
+      'gmu',
+    ))) {
       const binding = externMatch[2] ?? externMatch[1];
       assert(
         !PROTECTED_ENGINE_GLOB_BINDINGS.has(binding),
@@ -1000,7 +1025,10 @@ function validateEngineDefinitionInputs(files) {
         `snapback-engine may not alias an extern crate to trusted macro binding ${binding}: ${relative(ROOT, file.path).split(sep).join('/')}`,
       );
     }
-    for (const useMatch of masked.matchAll(/(?:^|[;{}])\s*(?:pub(?:\s*\([^)]*\))?\s+)?use\s+([^;]+);/gmu)) {
+    for (const useMatch of masked.matchAll(new RegExp(
+      String.raw`(?:^|[;{}])\s*${visibility}use\s+([^;]+);`,
+      'gmu',
+    ))) {
       const useSpec = useMatch[1];
       const introductions = rustUseTreeIntroductions(useSpec);
       if (/(?:^|[,:{])\s*\*/u.test(useSpec)) {
@@ -1038,18 +1066,27 @@ function validateEngineDefinitionInputs(files) {
     for (const binding of DECLARATION_PROTECTED_ENGINE_GLOB_BINDINGS) {
       const origin = ENGINE_GLOB_ROOT_ORIGINS.get(binding);
       let declarations = masked;
-      if (origin.kind === 'module' && origin.files.includes(repositoryFile)) {
+      const reviewedDeclaration = origin.kind === 'module'
+        ? origin.declarations.find(({ file: declarationFile }) => declarationFile === repositoryFile)
+        : undefined;
+      if (reviewedDeclaration) {
         declarations = declarations.replace(
           new RegExp(
-            String.raw`(^|[;{}])(\s*)(?:pub(?:\s*\([^)]*\))?\s+)?mod\s+(?:r#)?${binding}\s*;`,
+            String.raw`(^|[;{}])(\s*)(${visibility})mod\s+(?:r#)?${binding}\s*;`,
             'gmu',
           ),
-          (match, prefix) => prefix + match.slice(prefix.length).replace(/[^\r\n]/gu, ' '),
+          (match, prefix, whitespace, _visibility, offset) => {
+            const statementStart = offset + prefix.length + whitespace.length;
+            if (modulePathBeforeStatement(file.source, attributes, statementStart) !== reviewedDeclaration.path) {
+              return match;
+            }
+            return prefix + match.slice(prefix.length).replace(/[^\r\n]/gu, ' ');
+          },
         );
       }
       assert(
         !new RegExp(
-          String.raw`(?:^|[;{}])\s*(?:pub(?:\s*\([^)]*\))?\s+)?(?:(?:unsafe|auto)\s+)*(?:mod|type|struct|enum|union|trait)\s+(?:r#)?${binding}\b`,
+          String.raw`(?:^|[;{}])\s*${visibility}(?:(?:unsafe|auto)\s+)*(?:mod|type|struct|enum|union|trait)\s+(?:r#)?${binding}\b`,
           'mu',
         ).test(declarations),
         `snapback-engine may not shadow reviewed glob binding ${binding}: ${repositoryFile}`,
