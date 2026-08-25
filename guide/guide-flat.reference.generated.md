@@ -677,7 +677,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-custody-cas-stale"></a>`SNAPBACK_AUTH_CUSTODY_CAS_STALE` | auth | — | — | `packages/snapback-client/agent-authority.mjs:1210` | 10 |
 | <a id="diagnostic-snapback-auth-custody-corrupt"></a>`SNAPBACK_AUTH_CUSTODY_CORRUPT` | auth | — | — | `packages/snapback-client/agent-authority.mjs:108` | 14 |
 | <a id="diagnostic-snapback-auth-custody-counter-exhausted"></a>`SNAPBACK_AUTH_CUSTODY_COUNTER_EXHAUSTED` | auth | — | — | `packages/snapback-client/agent-authority.mjs:117` | 5 |
-| <a id="diagnostic-snapback-auth-custody-durable-unavailable"></a>`SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE` | auth | — | — | `packages/snapback-client/app-client.mjs:843` | 7 |
+| <a id="diagnostic-snapback-auth-custody-durable-unavailable"></a>`SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE` | auth | — | [guide](../retrieval-eval.md#seed-intents) | `packages/snapback-client/app-client.mjs:843` | 7 |
 | <a id="diagnostic-snapback-auth-custody-format-version"></a>`SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION` | auth | — | — | `packages/snapback-client/app-client.mjs:3` | 15 |
 | <a id="diagnostic-snapback-auth-custody-lock-lost"></a>`SNAPBACK_AUTH_CUSTODY_LOCK_LOST` | auth | — | — | `packages/snapback-client/agent-authority.mjs:1104` | 10 |
 | <a id="diagnostic-snapback-auth-custody-lock-unavailable"></a>`SNAPBACK_AUTH_CUSTODY_LOCK_UNAVAILABLE` | auth | — | — | `packages/snapback-client/agent-authority.mjs:1084` | 9 |
@@ -934,7 +934,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-session-token-carrier-invalid"></a>`SNAPBACK_AUTH_SESSION_TOKEN_CARRIER_INVALID` | auth | — | — | `crates/snapback-cli/src/cli.rs:4512` | 6 |
 | <a id="diagnostic-snapback-auth-shared-development-refused"></a>`SNAPBACK_AUTH_SHARED_DEVELOPMENT_REFUSED` | auth | — | — | `packages/snapback-cli/shared-development-broker.mjs:245` | 2 |
 | <a id="diagnostic-snapback-auth-source-untrusted"></a>`SNAPBACK_AUTH_SOURCE_UNTRUSTED` | auth | 503 | — | `crates/snapback-auth/src/auth/effective_source.rs:29` | 7 |
-| <a id="diagnostic-snapback-auth-stale-result"></a>`SNAPBACK_AUTH_STALE_RESULT` | auth | 400 | [guide](../sync/offline-and-retention.md#retained-asset-references-do-not-retain-image-bytes) | `crates/snapback-engine/src/runtime/host_glue.rs:1396` | 16 |
+| <a id="diagnostic-snapback-auth-stale-result"></a>`SNAPBACK_AUTH_STALE_RESULT` | auth | 400 | [guide](../auth/sessions-and-principals.md#recover-from-snapbackauthstaleresult) | `crates/snapback-engine/src/runtime/host_glue.rs:1396` | 16 |
 | <a id="diagnostic-snapback-auth-startup-artifact-mismatch"></a>`SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH` | auth | 503 | [guide](../backend/schema-evolution.md#recover-from-snapbackauthstartupartifactmismatch) | `crates/snapback-cli/src/cli.rs:66` | 18 |
 | <a id="diagnostic-snapback-auth-startup-artifact-required"></a>`SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED` | auth | 503 | [guide](../backend/schema-evolution.md#diagnose-the-four-boundary-codes) | `crates/snapback-cli/src/cli.rs:59` | 4 |
 | <a id="diagnostic-snapback-auth-status-ungenerated"></a>`SNAPBACK_AUTH_STATUS_UNGENERATED` | auth | — | — | `packages/snapback-cli/auth-setup.mjs:642` | 1 |

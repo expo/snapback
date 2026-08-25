@@ -3835,8 +3835,8 @@ examples: [demos/messaging-snapback, packages/snapback-cli/templates/expo-chat, 
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-24
-reviewed-authorities-digest: sha256:a43849a5d72402bf957233393a1321549b84338822bd9a8766f91f0aa7d47a54
+reviewed: 2026-08-25
+reviewed-authorities-digest: sha256:87b3b3dfd641544285f417a31e6f94cf34186881c33aac835598402798dc27da
 ---
 
 # Recipe: activity presence, heartbeats, and withdrawal
@@ -3852,6 +3852,12 @@ while that binding is mounted, so the provider heartbeat keeps renewing it. A
 five-second TTL or acceptance ceiling does not make that value disappear after
 five seconds of no typing. Bound withdrawal is `skip`; `null` is a value publish
 attempt and fails the generated value contract.
+
+Choose the import from the provider that owns the tree. URL-first web imports
+`useSnapbackActivityPresence` from `@expo/snapback-react` alongside
+`SnapbackProvider`. The `@expo/snapback-expo` facade hook is for
+`SnapbackExpoProvider` only; it requires the Expo lifecycle context and adds
+AppState withdrawal. There is no third activity-presence hook.
 
 This is the usual cause of a “typing indicator stuck” or “presence not
 expiring” report. The heartbeat-vs-bound-value decision comes before choosing

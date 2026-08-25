@@ -27,9 +27,10 @@ const ROSETTA_DIR = 'guide/rosetta/records';
 // is a numbered `**Label:**` list item whose final lines are the two
 // machine-parsed markers: `Expected pages:` (backticked guide-relative
 // paths) followed by `Route terms:` (double-quoted grep vocabulary). Cases may
-// also carry `Required guidance:` and `Rejected guidance:` markers; those bind
-// a repaired page to semantic wording instead of letting any route-term
-// occurrence masquerade as the requested repair.
+// also carry `Required guidance:`, `Rejected guidance:`, and
+// `Exact diagnostic target:` markers. The first two bind a repaired page to
+// semantic wording; the last binds a diagnostic query to one generated
+// registry anchor so lexical drift cannot silently retarget exact lookup.
 function parseSeedCases(text, errors) {
   const lines = text.split('\n');
   const start = lines.findIndex((line) => line.startsWith('## Seed intents'));
@@ -74,21 +75,33 @@ function parseSeedCases(text, errors) {
     }
     const requiredAt = seed.text.indexOf('Required guidance:');
     const rejectedAt = seed.text.indexOf('Rejected guidance:');
+    const exactDiagnosticAt = seed.text.indexOf('Exact diagnostic target:');
     const markerEnd = (start, candidates) => Math.min(
       ...candidates.filter((value) => value > start),
       seed.text.length,
     );
-    const termsEnd = markerEnd(termsAt, [requiredAt, rejectedAt]);
+    const termsEnd = markerEnd(termsAt, [requiredAt, rejectedAt, exactDiagnosticAt]);
     seed.expectedPages = [...seed.text.slice(pagesAt, termsAt).matchAll(/`([^`]+)`/g)]
       .map((m) => m[1]);
     seed.terms = [...seed.text.slice(termsAt, termsEnd).matchAll(/"([^"]+)"/g)].map((m) => m[1]);
     seed.requiredGuidance = requiredAt === -1
       ? []
-      : [...seed.text.slice(requiredAt, markerEnd(requiredAt, [rejectedAt])).matchAll(/"([^"]+)"/g)]
+      : [...seed.text.slice(requiredAt, markerEnd(requiredAt, [rejectedAt, exactDiagnosticAt])).matchAll(/"([^"]+)"/g)]
         .map((m) => m[1]);
     seed.rejectedGuidance = rejectedAt === -1
       ? []
-      : [...seed.text.slice(rejectedAt).matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+      : [...seed.text.slice(rejectedAt, markerEnd(rejectedAt, [exactDiagnosticAt])).matchAll(/"([^"]+)"/g)]
+        .map((m) => m[1]);
+    if (exactDiagnosticAt !== -1) {
+      const exact = seed.text.slice(exactDiagnosticAt).match(
+        /Exact diagnostic target:\s*`(SNAPBACK_[A-Z0-9_]+)`\s*->\s*`([^`]+)`/u,
+      );
+      if (!exact) {
+        errors.push(`${who}: malformed "Exact diagnostic target:" marker`);
+      } else {
+        seed.exactDiagnosticTarget = { code: exact[1], anchor: exact[2] };
+      }
+    }
     if (seed.expectedPages.length === 0) errors.push(`${who}: "Expected pages:" lists no backticked pages`);
     if (seed.terms.length === 0) errors.push(`${who}: "Route terms:" lists no quoted terms`);
   }
@@ -143,6 +156,10 @@ function main() {
   const capIndexErrors = [];
   const capIndex = parseCapabilityIndex(root, capIndexErrors);
   errors.push(...capIndexErrors);
+  const diagnostics = JSON.parse(readFileSync(
+    join(root, 'guide/reference/diagnostics-registry.json'),
+    'utf8',
+  )).diagnostics ?? {};
 
   // (1) Every expected page exists; load each for lexical matching.
   const pageTexts = new Map();
@@ -209,6 +226,18 @@ function main() {
           `${EVAL_PAGE}: case ${seed.number} (${seed.label}) still contains rejected guidance `
           + `"${guidance}" in its expected page(s)`,
         );
+      }
+    }
+    if (seed.exactDiagnosticTarget) {
+      const { code, anchor } = seed.exactDiagnosticTarget;
+      const actual = diagnostics[code]?.guideAnchor ?? null;
+      if (actual !== anchor) {
+        errors.push(
+          `${EVAL_PAGE}: case ${seed.number} (${seed.label}) exact diagnostic target drifted: `
+          + `${code} expected ${anchor}, got ${actual ?? 'null'}`,
+        );
+      } else {
+        reports.push(`case ${seed.number} (${seed.label}): ${code} => ${anchor}`);
       }
     }
   }

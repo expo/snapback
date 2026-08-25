@@ -9,8 +9,8 @@ examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs, demos/messaging
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:9a60c2f3fbc466a0c6e0cd02e9e38d34f9108aedeec935d6d0de749d8b8e4505
+reviewed: 2026-08-25
+reviewed-authorities-digest: sha256:14fd01ccc94236b2329cf932f611d72c1151c8d35c489f7b154af5eef65c967a
 ---
 
 # Ephemeral realtime state
@@ -38,10 +38,13 @@ First decide whether the value is continuously bound or activity-driven. The
 and lifecycle guide, including the Supabase `track()` analogue, bound `skip`
 withdrawal, `idleMs` product deadline, heartbeat ownership, and delete path.
 
-In Expo, import `useSnapbackActivityPresence` from `@expo/snapback-expo`. Its
-facade wrapper gates the first publication until AppState observation is
-established and withdraws on backgrounding. A direct `@expo/snapback-react`
-import has the same deadline state machine but no platform lifecycle listener.
+URL-first web imports `useSnapbackActivityPresence` from
+`@expo/snapback-react` when the tree uses `SnapbackProvider`. The
+`@expo/snapback-expo` facade hook is for `SnapbackExpoProvider` only: its
+wrapper expects that lifecycle context, gates the first publication until
+AppState observation is established, and withdraws on backgrounding. The
+direct React hook has the same deadline state machine but no platform
+lifecycle listener; do not invent a third hook.
 
 The messaging demo has one deliberate direct-client exception. Its interactive
 server uses dev-mode persona assertions, while the `typing` collection also

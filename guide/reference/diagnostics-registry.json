@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:72ca549747f394ab212c2c28de0a54e229f4da68b5ab4d0d61958cb7e889af81"
+    "sourceDigest": "sha256:43daa3cb06db918836820f634b019ecb05dda0c7451aebfece53c6b9457ca970"
   },
   "limits": {
     "lookupBytes": 16384
@@ -12,7 +12,7 @@
     "sourceFiles": 616,
     "emittingSites": 12974,
     "httpClassified": 1729,
-    "guideAnchored": 466
+    "guideAnchored": 467
   },
   "diagnostics": {
     "SNAPBACK_ACTION_CAPACITY_EXCEEDED": {
@@ -19401,8 +19401,12 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/retrieval-eval.md#seed-intents",
+      "guideAnchors": [
+        "/_snapback/guide/retrieval-eval.md#seed-intents",
+        "/_snapback/guide/start/expo-chat.md#posture",
+        "/_snapback/guide/testing/acceptance.md#select-a-durable-capable-client-platform"
+      ]
     },
     "SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION": {
       "code": "SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION",
@@ -29723,8 +29727,10 @@
       ],
       "httpStatus": 400,
       "httpStatusClass": "4xx",
-      "guideAnchor": "/_snapback/guide/sync/offline-and-retention.md#retained-asset-references-do-not-retain-image-bytes",
+      "guideAnchor": "/_snapback/guide/auth/sessions-and-principals.md#recover-from-snapbackauthstaleresult",
       "guideAnchors": [
+        "/_snapback/guide/auth/sessions-and-principals.md#recover-from-snapbackauthstaleresult",
+        "/_snapback/guide/retrieval-eval.md#seed-intents",
         "/_snapback/guide/sync/offline-and-retention.md#retained-asset-references-do-not-retain-image-bytes"
       ]
     },

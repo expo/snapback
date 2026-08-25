@@ -2261,8 +2261,8 @@ status: current
 targets: [local]
 maturity: partial
 since: 0.1.21
-reviewed: 2026-08-24
-reviewed-authorities-digest: sha256:fb601aa5741322ef374a3bbf199ae6dc49acdf427b9f7b07b118c9e7d9f09967
+reviewed: 2026-08-25
+reviewed-authorities-digest: sha256:8a798955f4e2b28d1d9f9477a4438ccccd9f889778d0dc92bf7d1624038e4661
 ---
 
 # Familiar TypeScript profile (Experimental, non-default)
@@ -2310,6 +2310,11 @@ snapback/
   contracts.ts             # non-function helper module
   generated/               # generated server/api declarations and runtime
 ```
+
+### Generated directory spelling
+
+The `_generated/` spelling is a refused alias. Use the single
+`snapback/generated/` graph; do not create an alternate directory or symlink.
 
 Nested modules are helpers, not function namespaces. A top-level
 function/intent module may export only familiar function or asset-intent
@@ -2696,6 +2701,13 @@ Enclave/Keystore proof transport remains outside the shipped native target.
 
 ## One Expo Router journey
 
+For URL-first Expo web using `SnapbackProvider`, import
+`useSnapbackActivityPresence` from `@expo/snapback-react`. The
+`@expo/snapback-expo` facade hook is for `SnapbackExpoProvider` only: it
+expects that provider's `SnapbackExpoLifecycleContext` and adds AppState
+withdrawal. These are two context-appropriate exports of the same presence
+feature, not a third hook to invent.
+
 Here is the shortest coherent application loop, rather than six disconnected
 reference exercises:
 
@@ -2719,10 +2731,8 @@ reference exercises:
    `api.module.export` reference.
 5. After every source change run `snapback generate snapback`; review and
    commit the refreshed `snapback/generated/artifacts.json` plus only the
-   projections selected by policy. `_generated/` is retired: do not create it,
-   including as a symlink, because codegen and dev admission refuse the
-   alternate root. Never patch a generated manifest to make a type error
-   disappear.
+   projections selected by policy. Never patch a generated manifest to make a
+   type error disappear.
 6. Run `snapback dev snapback --expo` for the supervised device loop. Keep the
    acceptance owner separate from the rendered route: use the generated
    template's headless `acceptance.mjs`/`acceptance.live.mjs` pattern to boot

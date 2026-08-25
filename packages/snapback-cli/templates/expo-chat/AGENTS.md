@@ -1,7 +1,7 @@
 # Building this Snapback app
 
 <!-- @ref LLP 0259#1-first-read-contract — the transcluded start packet is the whole required first read; escalate one page at a time, never a linear capability-index read. -->
-<!-- start-packet:begin expo-chat digest=sha256:16767e8db23e02cc0246242b54ece9d60ed998f1433893b1d4b2f627ba27b1a6 -->
+<!-- start-packet:begin expo-chat digest=sha256:53fb9f88fbcd8dd2e30f9c9d673265db492741afcd2cc7f67ed6619473c97b36 -->
 This is the whole first read (LLP 0259 Rung A). Work from the edit targets;
 open one more page only for a brief, `SNAPBACK_*` refusal, or failed `prove`,
 via `snapback guide <query>`.
@@ -52,6 +52,7 @@ Metro must not inherit `CI=1` (it disables watching).
 
 `snapback/generated/` is codegen-owned: regenerate, commit
 `generated/artifacts.json`, never hand-edit outputs.
+`_generated/` is a refused alias; use only `generated/`.
 
 ## Posture
 
@@ -61,11 +62,11 @@ Metro must not inherit `CI=1` (it disables watching).
   password entry. Recovery codes surface once after signup or guest claim.
   URL-first dev mints no ambient session; multi-browser proofs sign up or sign
   in separately in each context instead of adopting the supervised mint.
-- **Custody: `volatile-explicit`.** This disposable template deliberately says
-  memory custody, so a native process restart returns anonymous and must enter
-  again. It does not silently weaken a durable policy; select
-  `durable-required` only for a platform tuple admitted by the native custody
-  capability row.
+- **Custody: `volatile-explicit`.** Native restart returns anonymous.
+  `durable-required` needs a durable-capable platform: Node `memory` refuses
+  with `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`. For headless proof, reuse
+  the [existing `expo-web` + `fake-indexeddb` helper](repo:packages/snapback-cli/templates/expo-chat/acceptance.mjs),
+  never a second store.
 - **Security caveat — client-supplied `senderId` is a demo convenience,
   never a boundary.** The seeded **TEST PERSONA** control passes the active
   persona's id as `senderId`/`userId` so demos work. In a real app, derive

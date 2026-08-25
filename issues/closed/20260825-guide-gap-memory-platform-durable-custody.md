@@ -16,3 +16,12 @@ so, so the first headless replay is a correction loop.
 On the expo-chat start packet / acceptance recipe: durable custody is an
 `expo-web` (or other durable-capable) platform; `memory` will refuse.
 Point at the existing acceptance helper. Do not invent a second store.
+
+## Resolution (2026-08-25)
+
+Resolved the LLP 0310.000 P8 guide ticket (in review), whose product boundary
+keeps durable custody out of Node `memory`. The expo-chat start packet and
+acceptance guide now state the `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`
+refusal and point to the existing `expo-web` plus `fake-indexeddb` acceptance
+helper. Retrieval case 101 and `check-guide` verify that guidance. This lane
+did not add or exercise another custody store.

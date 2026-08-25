@@ -17,3 +17,11 @@ The **docs spelling** is still wrong and charged orientation in this run.
 Replace `_generated/` with `generated/` on the familiar profile page, the
 expo-chat start packet, and any Clique-facing brief that still uses the
 old path. Keep a one-line note that `_generated/` is a refused alias.
+
+## Resolution (2026-08-25)
+
+Resolved the LLP 0310.000 G1 guide work (in review). The Familiar profile,
+expo-chat start packet, and four Clique-facing source briefs now use
+`generated/` and state that `_generated/` is a refused alias. Retrieval case
+98 and `check-guide` verify that both guide pages carry that guidance. This
+resolution changes documentation only; it does not make a new codegen claim.

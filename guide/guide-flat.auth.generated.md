@@ -14,8 +14,8 @@ examples: [demos/browser-auth, demos/card-game, demos/party-wall, packages/snapb
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:23f134768e81fd81474a4b9a172610c2bfe16975b84f5ba8a84f4adc927400e7
+reviewed: 2026-08-25
+reviewed-authorities-digest: sha256:ea2d439df09714b73c6dc51986b5c67a8f3e500a19589519851d436249625b03
 ---
 
 # Sessions and principals
@@ -244,6 +244,22 @@ the opaque, revoke-only alarm for a bearer you believe leaked: it revokes the
 still-live session behind the presented bearer's token family and returns a
 deliberately delayed, uniform, empty response, so it cannot be used to probe
 which bearers are live.
+
+## Recover from `SNAPBACK_AUTH_STALE_RESULT`
+
+This refusal means a client mutation identity or replay ledger is already
+bound to different resolved authority facts. The server will not disclose or
+replay a predecessor session's result under a new principal, session, or
+authority instance, even when the domain operation is otherwise idempotent.
+Do not reuse a client mutation identity after the session or authority
+instance changes.
+
+For durable outbox work, inspect the stranded record and reconcile whether its
+domain effect already exists before discarding or recording a successor. Use a
+fresh client mutation id for a new authenticated attempt; do not turn an
+ambiguous predecessor outcome into a blind duplicate. An ordinary online
+mutation call generates its own identity, so this most often affects replay
+tools or code that supplies `clientMutationId` explicitly.
 
 ## Mint test personas: the complete local recipe
 

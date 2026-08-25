@@ -16,3 +16,11 @@ auth results.
 Point the diagnostic registry / `snapback guide` index for
 `SNAPBACK_AUTH_STALE_RESULT` at the auth page that actually describes it.
 Add a retrieval check so this code cannot silently retarget.
+
+## Resolution (2026-08-25)
+
+Resolved the LLP 0310.000 G1 guide work (in review). The auth guide now
+describes `SNAPBACK_AUTH_STALE_RESULT`, the generated diagnostic registry
+targets that section, and retrieval case 99 pins the exact generated anchor.
+The diagnostics-registry check, guide check, and direct lookup demonstration
+verify the route; they do not exercise a live stale-result mutation.

@@ -1153,13 +1153,13 @@ id: meta.retrieval-eval
 order: 91
 audience: agent-first
 capabilities: []
-authorities: [llp/0061-agent-first-snapback-guide.rfc.md, llp/0245-infer-show-freeze-declarations.rfc.md]
+authorities: [llp/0061-agent-first-snapback-guide.rfc.md, llp/0245-infer-show-freeze-declarations.rfc.md, scripts/check-retrieval-eval.mjs]
 examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-22
-reviewed-authorities-digest: sha256:10af46608872447c531a418afe66fcbdafccb07872e6f8a0a20c6b3257b73c57
+reviewed: 2026-08-25
+reviewed-authorities-digest: sha256:c75663b2f4959dcd9bc7a910781a9bdc3091318b27a8c5ed12721fdd1a089067
 ---
 
 # Retrieval eval protocol
@@ -2152,6 +2152,48 @@ React/JS product blank is not yet explained.
     "A post-settlement subscribe with the canonical id must snapshot the row",
     "defineJsLiveQuery plus a local cache remains the documented application workaround".
 
+Cases 98–101 absorb the published 0.1.27 Clique guide misses recorded in LLP
+0310. Their route terms preserve the failed lookup and the wrong package,
+platform, and generated-directory assumptions from that run.
+
+98. **Generated directory spelling:** "Should a Familiar or expo-chat app
+    import `_generated/`, or is that a compatibility alias for `generated/`?"
+    The run fails if it creates the legacy directory or symlink, or teaches two
+    watcher-visible paths for one generated graph.
+    Expected pages: `backend/familiar-profile.md`, `start/expo-chat.md`.
+    Route terms: "_generated compatibility alias", "generated directory spelling".
+    Required guidance: "The `_generated/` spelling is a refused alias".
+
+99. **Stale auth result lookup:** "A mutation reports
+    SNAPBACK_AUTH_STALE_RESULT after the signed-in session changes."
+    The run fails if the diagnostic routes to an unrelated asset-retention
+    section or retries the old client mutation identity under new authority.
+    Expected pages: `auth/sessions-and-principals.md`.
+    Route terms: "SNAPBACK_AUTH_STALE_RESULT", "stale auth result".
+    Required guidance: "Do not reuse a client mutation identity after the session or authority instance changes",
+    "Use a fresh client mutation id for a new authenticated attempt".
+    Exact diagnostic target: `SNAPBACK_AUTH_STALE_RESULT` ->
+    `/_snapback/guide/auth/sessions-and-principals.md#recover-from-snapbackauthstaleresult`.
+
+100. **URL-first activity presence import:** "Which package exports activity
+     presence for URL-first Expo web with SnapbackProvider?"
+     The run fails if it imports the facade hook that requires
+     SnapbackExpoLifecycleContext or invents a third hook.
+     Expected pages: `backend/familiar-profile.md`, `realtime/ephemeral-state.md`, `recipes/activity-presence.md`.
+     Route terms: "URL-first activity presence", "SnapbackExpoLifecycleContext".
+     Required guidance: "URL-first web imports `useSnapbackActivityPresence` from `@expo/snapback-react`",
+     "The `@expo/snapback-expo` facade hook is for `SnapbackExpoProvider` only".
+
+101. **Durable custody in Node acceptance:** "Run expo-chat acceptance with
+     durable-required custody from Node."
+     The run fails if it selects the Node memory client platform, treats an
+     in-memory server database as the problem, or invents a second custody
+     store instead of using the template helper.
+     Expected pages: `start/expo-chat.md`, `testing/acceptance.md`.
+     Route terms: "durable custody Node memory", "SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE".
+     Required guidance: "Node `memory` refuses durable custody with `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`",
+     "`expo-web` with `fake-indexeddb`".
+
 ## Static routing check
 
 The deterministic half of this corpus is executable:
@@ -2220,8 +2262,8 @@ examples: [demos/browser-auth, demos/card-game, demos/party-wall, packages/snapb
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:23f134768e81fd81474a4b9a172610c2bfe16975b84f5ba8a84f4adc927400e7
+reviewed: 2026-08-25
+reviewed-authorities-digest: sha256:ea2d439df09714b73c6dc51986b5c67a8f3e500a19589519851d436249625b03
 ---
 
 # Sessions and principals
@@ -2450,6 +2492,22 @@ the opaque, revoke-only alarm for a bearer you believe leaked: it revokes the
 still-live session behind the presented bearer's token family and returns a
 deliberately delayed, uniform, empty response, so it cannot be used to probe
 which bearers are live.
+
+## Recover from `SNAPBACK_AUTH_STALE_RESULT`
+
+This refusal means a client mutation identity or replay ledger is already
+bound to different resolved authority facts. The server will not disclose or
+replay a predecessor session's result under a new principal, session, or
+authority instance, even when the domain operation is otherwise idempotent.
+Do not reuse a client mutation identity after the session or authority
+instance changes.
+
+For durable outbox work, inspect the stranded record and reconcile whether its
+domain effect already exists before discarding or recording a successor. Use a
+fresh client mutation id for a new authenticated attempt; do not turn an
+ambiguous predecessor outcome into a blind duplicate. An ordinary online
+mutation call generates its own identity, so this most often affects replay
+tools or code that supplies `clientMutationId` explicitly.
 
 ## Mint test personas: the complete local recipe
 
@@ -8026,8 +8084,8 @@ status: current
 targets: [local]
 maturity: partial
 since: 0.1.21
-reviewed: 2026-08-24
-reviewed-authorities-digest: sha256:fb601aa5741322ef374a3bbf199ae6dc49acdf427b9f7b07b118c9e7d9f09967
+reviewed: 2026-08-25
+reviewed-authorities-digest: sha256:8a798955f4e2b28d1d9f9477a4438ccccd9f889778d0dc92bf7d1624038e4661
 ---
 
 # Familiar TypeScript profile (Experimental, non-default)
@@ -8075,6 +8133,11 @@ snapback/
   contracts.ts             # non-function helper module
   generated/               # generated server/api declarations and runtime
 ```
+
+### Generated directory spelling
+
+The `_generated/` spelling is a refused alias. Use the single
+`snapback/generated/` graph; do not create an alternate directory or symlink.
 
 Nested modules are helpers, not function namespaces. A top-level
 function/intent module may export only familiar function or asset-intent
@@ -8461,6 +8524,13 @@ Enclave/Keystore proof transport remains outside the shipped native target.
 
 ## One Expo Router journey
 
+For URL-first Expo web using `SnapbackProvider`, import
+`useSnapbackActivityPresence` from `@expo/snapback-react`. The
+`@expo/snapback-expo` facade hook is for `SnapbackExpoProvider` only: it
+expects that provider's `SnapbackExpoLifecycleContext` and adds AppState
+withdrawal. These are two context-appropriate exports of the same presence
+feature, not a third hook to invent.
+
 Here is the shortest coherent application loop, rather than six disconnected
 reference exercises:
 
@@ -8484,10 +8554,8 @@ reference exercises:
    `api.module.export` reference.
 5. After every source change run `snapback generate snapback`; review and
    commit the refreshed `snapback/generated/artifacts.json` plus only the
-   projections selected by policy. `_generated/` is retired: do not create it,
-   including as a symlink, because codegen and dev admission refuse the
-   alternate root. Never patch a generated manifest to make a type error
-   disappear.
+   projections selected by policy. Never patch a generated manifest to make a
+   type error disappear.
 6. Run `snapback dev snapback --expo` for the supervised device loop. Keep the
    acceptance owner separate from the rendered route: use the generated
    template's headless `acceptance.mjs`/`acceptance.live.mjs` pattern to boot
@@ -24410,8 +24478,8 @@ examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs, demos/messaging
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:9a60c2f3fbc466a0c6e0cd02e9e38d34f9108aedeec935d6d0de749d8b8e4505
+reviewed: 2026-08-25
+reviewed-authorities-digest: sha256:14fd01ccc94236b2329cf932f611d72c1151c8d35c489f7b154af5eef65c967a
 ---
 
 # Ephemeral realtime state
@@ -24439,10 +24507,13 @@ First decide whether the value is continuously bound or activity-driven. The
 and lifecycle guide, including the Supabase `track()` analogue, bound `skip`
 withdrawal, `idleMs` product deadline, heartbeat ownership, and delete path.
 
-In Expo, import `useSnapbackActivityPresence` from `@expo/snapback-expo`. Its
-facade wrapper gates the first publication until AppState observation is
-established and withdraws on backgrounding. A direct `@expo/snapback-react`
-import has the same deadline state machine but no platform lifecycle listener.
+URL-first web imports `useSnapbackActivityPresence` from
+`@expo/snapback-react` when the tree uses `SnapbackProvider`. The
+`@expo/snapback-expo` facade hook is for `SnapbackExpoProvider` only: its
+wrapper expects that lifecycle context, gates the first publication until
+AppState observation is established, and withdraws on backgrounding. The
+direct React hook has the same deadline state machine but no platform
+lifecycle listener; do not invent a third hook.
 
 The messaging demo has one deliberate direct-client exception. Its interactive
 server uses dev-mode persona assertions, while the `typing` collection also
@@ -28887,8 +28958,8 @@ examples: [demos/messaging-snapback, packages/snapback-cli/templates/expo-chat, 
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-24
-reviewed-authorities-digest: sha256:a43849a5d72402bf957233393a1321549b84338822bd9a8766f91f0aa7d47a54
+reviewed: 2026-08-25
+reviewed-authorities-digest: sha256:87b3b3dfd641544285f417a31e6f94cf34186881c33aac835598402798dc27da
 ---
 
 # Recipe: activity presence, heartbeats, and withdrawal
@@ -28904,6 +28975,12 @@ while that binding is mounted, so the provider heartbeat keeps renewing it. A
 five-second TTL or acceptance ceiling does not make that value disappear after
 five seconds of no typing. Bound withdrawal is `skip`; `null` is a value publish
 attempt and fails the generated value contract.
+
+Choose the import from the provider that owns the tree. URL-first web imports
+`useSnapbackActivityPresence` from `@expo/snapback-react` alongside
+`SnapbackProvider`. The `@expo/snapback-expo` facade hook is for
+`SnapbackExpoProvider` only; it requires the Expo lifecycle context and adds
+AppState withdrawal. There is no third activity-presence hook.
 
 This is the usual cause of a “typing indicator stuck” or “presence not
 expiring” report. The heartbeat-vs-bound-value decision comes before choosing
@@ -30936,7 +31013,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-custody-cas-stale"></a>`SNAPBACK_AUTH_CUSTODY_CAS_STALE` | auth | — | — | `packages/snapback-client/agent-authority.mjs:1210` | 10 |
 | <a id="diagnostic-snapback-auth-custody-corrupt"></a>`SNAPBACK_AUTH_CUSTODY_CORRUPT` | auth | — | — | `packages/snapback-client/agent-authority.mjs:108` | 14 |
 | <a id="diagnostic-snapback-auth-custody-counter-exhausted"></a>`SNAPBACK_AUTH_CUSTODY_COUNTER_EXHAUSTED` | auth | — | — | `packages/snapback-client/agent-authority.mjs:117` | 5 |
-| <a id="diagnostic-snapback-auth-custody-durable-unavailable"></a>`SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE` | auth | — | — | `packages/snapback-client/app-client.mjs:843` | 7 |
+| <a id="diagnostic-snapback-auth-custody-durable-unavailable"></a>`SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE` | auth | — | [guide](../retrieval-eval.md#seed-intents) | `packages/snapback-client/app-client.mjs:843` | 7 |
 | <a id="diagnostic-snapback-auth-custody-format-version"></a>`SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION` | auth | — | — | `packages/snapback-client/app-client.mjs:3` | 15 |
 | <a id="diagnostic-snapback-auth-custody-lock-lost"></a>`SNAPBACK_AUTH_CUSTODY_LOCK_LOST` | auth | — | — | `packages/snapback-client/agent-authority.mjs:1104` | 10 |
 | <a id="diagnostic-snapback-auth-custody-lock-unavailable"></a>`SNAPBACK_AUTH_CUSTODY_LOCK_UNAVAILABLE` | auth | — | — | `packages/snapback-client/agent-authority.mjs:1084` | 9 |
@@ -31193,7 +31270,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-session-token-carrier-invalid"></a>`SNAPBACK_AUTH_SESSION_TOKEN_CARRIER_INVALID` | auth | — | — | `crates/snapback-cli/src/cli.rs:4512` | 6 |
 | <a id="diagnostic-snapback-auth-shared-development-refused"></a>`SNAPBACK_AUTH_SHARED_DEVELOPMENT_REFUSED` | auth | — | — | `packages/snapback-cli/shared-development-broker.mjs:245` | 2 |
 | <a id="diagnostic-snapback-auth-source-untrusted"></a>`SNAPBACK_AUTH_SOURCE_UNTRUSTED` | auth | 503 | — | `crates/snapback-auth/src/auth/effective_source.rs:29` | 7 |
-| <a id="diagnostic-snapback-auth-stale-result"></a>`SNAPBACK_AUTH_STALE_RESULT` | auth | 400 | [guide](../sync/offline-and-retention.md#retained-asset-references-do-not-retain-image-bytes) | `crates/snapback-engine/src/runtime/host_glue.rs:1396` | 16 |
+| <a id="diagnostic-snapback-auth-stale-result"></a>`SNAPBACK_AUTH_STALE_RESULT` | auth | 400 | [guide](../auth/sessions-and-principals.md#recover-from-snapbackauthstaleresult) | `crates/snapback-engine/src/runtime/host_glue.rs:1396` | 16 |
 | <a id="diagnostic-snapback-auth-startup-artifact-mismatch"></a>`SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH` | auth | 503 | [guide](../backend/schema-evolution.md#recover-from-snapbackauthstartupartifactmismatch) | `crates/snapback-cli/src/cli.rs:66` | 18 |
 | <a id="diagnostic-snapback-auth-startup-artifact-required"></a>`SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED` | auth | 503 | [guide](../backend/schema-evolution.md#diagnose-the-four-boundary-codes) | `crates/snapback-cli/src/cli.rs:59` | 4 |
 | <a id="diagnostic-snapback-auth-status-ungenerated"></a>`SNAPBACK_AUTH_STATUS_UNGENERATED` | auth | — | — | `packages/snapback-cli/auth-setup.mjs:642` | 1 |
@@ -73460,13 +73537,13 @@ id: start.expo-chat
 order: 4
 audience: agent-first
 capabilities: []
-authorities: [llp/0259-agent-first-read-budget.rfc.md, llp/0299-supervised-listener-port-plan.spec.md, llp/0300-snapback-is-a-url.rfc.md, llp/0301-url-first-dev-lifecycle.spec.md, llp/0302-declared-dev-client-binding.spec.md, packages/snapback-cli/templates/expo-chat/snapback/schema.mjs, packages/snapback-cli/templates/expo-chat/App.tsx]
+authorities: [llp/0259-agent-first-read-budget.rfc.md, llp/0299-supervised-listener-port-plan.spec.md, llp/0300-snapback-is-a-url.rfc.md, llp/0301-url-first-dev-lifecycle.spec.md, llp/0302-declared-dev-client-binding.spec.md, packages/snapback-cli/templates/expo-chat/snapback/schema.mjs, packages/snapback-cli/templates/expo-chat/App.tsx, packages/snapback-cli/templates/expo-chat/acceptance.mjs]
 examples: [packages/snapback-cli/templates/expo-chat]
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-24
-reviewed-authorities-digest: sha256:e409ac99f8cf13246c81236bc680e4dd89fc8ee753fa34a890a166cd05190b19
+reviewed: 2026-08-25
+reviewed-authorities-digest: sha256:560723c3d50af032b129a79451faf7bf891f34dc3de8504df6f7f09a4a568a4f
 ---
 
 # Start packet: the `expo-chat` template
@@ -73522,6 +73599,7 @@ Metro must not inherit `CI=1` (it disables watching).
 
 `snapback/generated/` is codegen-owned: regenerate, commit
 `generated/artifacts.json`, never hand-edit outputs.
+`_generated/` is a refused alias; use only `generated/`.
 
 ## Posture
 
@@ -73531,11 +73609,11 @@ Metro must not inherit `CI=1` (it disables watching).
   password entry. Recovery codes surface once after signup or guest claim.
   URL-first dev mints no ambient session; multi-browser proofs sign up or sign
   in separately in each context instead of adopting the supervised mint.
-- **Custody: `volatile-explicit`.** This disposable template deliberately says
-  memory custody, so a native process restart returns anonymous and must enter
-  again. It does not silently weaken a durable policy; select
-  `durable-required` only for a platform tuple admitted by the native custody
-  capability row.
+- **Custody: `volatile-explicit`.** Native restart returns anonymous.
+  `durable-required` needs a durable-capable platform: Node `memory` refuses
+  with `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`. For headless proof, reuse
+  the [existing `expo-web` + `fake-indexeddb` helper](repo:packages/snapback-cli/templates/expo-chat/acceptance.mjs),
+  never a second store.
 - **Security caveat — client-supplied `senderId` is a demo convenience,
   never a boundary.** The seeded **TEST PERSONA** control passes the active
   persona's id as `senderId`/`userId` so demos work. In a real app, derive
@@ -74777,13 +74855,13 @@ id: testing.acceptance
 order: 1
 audience: agent-first
 capabilities: [testing.acceptance, operating.server-lifecycle]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0012-headless-integration-contract.spec.md, llp/0031-server-route-taxonomy.spec.md, crates/snapback-cli/src/cli.rs, demos/_kit/harness.mjs, demos/_kit/server-process.mjs, packages/snapback-cli/comparator-profile.mjs, packages/snapback-cli/comparator-receipt.schema.json, schemas/host-ready.schema.json]
-examples: [demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs, demos/all-aboard/tests/acceptance/headless.mjs, packages/snapback-cli/fixtures/comparator/green.config.mjs]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0012-headless-integration-contract.spec.md, llp/0031-server-route-taxonomy.spec.md, crates/snapback-cli/src/cli.rs, demos/_kit/harness.mjs, demos/_kit/server-process.mjs, packages/snapback-cli/templates/expo-chat/acceptance.mjs, packages/snapback-cli/comparator-profile.mjs, packages/snapback-cli/comparator-receipt.schema.json, schemas/host-ready.schema.json]
+examples: [demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs, demos/all-aboard/tests/acceptance/headless.mjs, packages/snapback-cli/templates/expo-chat/acceptance.mjs, packages/snapback-cli/fixtures/comparator/green.config.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:b0d9926f4ded2f3c1b3fd241040a6ba00c0b1ad64a34f295e039b92def0b82f4
+reviewed: 2026-08-25
+reviewed-authorities-digest: sha256:1daecbe0386e2309bfb4a65a46f7747f44b756b5ff385515af397757cbf4857b
 ---
 
 # Acceptance testing
@@ -74849,6 +74927,21 @@ Assertion helpers: `assert`, `assertEqual`, and
 `assertThrows(fn, code, msg)`, which matches `error.diagnostic.code` —
 stable codes, never message text. `requireBunRuntime(label)` guards suites
 that must run under bun.
+
+## Select a durable-capable client platform
+
+Client custody is independent of the server database choice. A server may use
+`--memory`, but Node's client platform named `memory` is volatile. Node
+`memory` refuses durable custody with
+`SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`; it never silently downgrades a
+`durable-required` policy.
+
+For a headless browser-shaped proof, use `expo-web` with `fake-indexeddb`.
+The expo-chat template's existing
+[acceptance helper](repo:packages/snapback-cli/templates/expo-chat/acceptance.mjs)
+constructs that platform with one `IDBFactory` and passes it to
+`createSnapbackAppClient`. Reuse that helper shape; do not invent a second
+custody store.
 
 ## Server lifecycle: isolated, provenance-verified, owned
 

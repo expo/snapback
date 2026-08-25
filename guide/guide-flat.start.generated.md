@@ -245,13 +245,13 @@ id: start.expo-chat
 order: 4
 audience: agent-first
 capabilities: []
-authorities: [llp/0259-agent-first-read-budget.rfc.md, llp/0299-supervised-listener-port-plan.spec.md, llp/0300-snapback-is-a-url.rfc.md, llp/0301-url-first-dev-lifecycle.spec.md, llp/0302-declared-dev-client-binding.spec.md, packages/snapback-cli/templates/expo-chat/snapback/schema.mjs, packages/snapback-cli/templates/expo-chat/App.tsx]
+authorities: [llp/0259-agent-first-read-budget.rfc.md, llp/0299-supervised-listener-port-plan.spec.md, llp/0300-snapback-is-a-url.rfc.md, llp/0301-url-first-dev-lifecycle.spec.md, llp/0302-declared-dev-client-binding.spec.md, packages/snapback-cli/templates/expo-chat/snapback/schema.mjs, packages/snapback-cli/templates/expo-chat/App.tsx, packages/snapback-cli/templates/expo-chat/acceptance.mjs]
 examples: [packages/snapback-cli/templates/expo-chat]
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-24
-reviewed-authorities-digest: sha256:e409ac99f8cf13246c81236bc680e4dd89fc8ee753fa34a890a166cd05190b19
+reviewed: 2026-08-25
+reviewed-authorities-digest: sha256:560723c3d50af032b129a79451faf7bf891f34dc3de8504df6f7f09a4a568a4f
 ---
 
 # Start packet: the `expo-chat` template
@@ -307,6 +307,7 @@ Metro must not inherit `CI=1` (it disables watching).
 
 `snapback/generated/` is codegen-owned: regenerate, commit
 `generated/artifacts.json`, never hand-edit outputs.
+`_generated/` is a refused alias; use only `generated/`.
 
 ## Posture
 
@@ -316,11 +317,11 @@ Metro must not inherit `CI=1` (it disables watching).
   password entry. Recovery codes surface once after signup or guest claim.
   URL-first dev mints no ambient session; multi-browser proofs sign up or sign
   in separately in each context instead of adopting the supervised mint.
-- **Custody: `volatile-explicit`.** This disposable template deliberately says
-  memory custody, so a native process restart returns anonymous and must enter
-  again. It does not silently weaken a durable policy; select
-  `durable-required` only for a platform tuple admitted by the native custody
-  capability row.
+- **Custody: `volatile-explicit`.** Native restart returns anonymous.
+  `durable-required` needs a durable-capable platform: Node `memory` refuses
+  with `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`. For headless proof, reuse
+  the [existing `expo-web` + `fake-indexeddb` helper](repo:packages/snapback-cli/templates/expo-chat/acceptance.mjs),
+  never a second store.
 - **Security caveat — client-supplied `senderId` is a demo convenience,
   never a boundary.** The seeded **TEST PERSONA** control passes the active
   persona's id as `senderId`/`userId` so demos work. In a real app, derive

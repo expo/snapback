@@ -4,13 +4,13 @@ id: testing.acceptance
 order: 1
 audience: agent-first
 capabilities: [testing.acceptance, operating.server-lifecycle]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0012-headless-integration-contract.spec.md, llp/0031-server-route-taxonomy.spec.md, crates/snapback-cli/src/cli.rs, demos/_kit/harness.mjs, demos/_kit/server-process.mjs, packages/snapback-cli/comparator-profile.mjs, packages/snapback-cli/comparator-receipt.schema.json, schemas/host-ready.schema.json]
-examples: [demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs, demos/all-aboard/tests/acceptance/headless.mjs, packages/snapback-cli/fixtures/comparator/green.config.mjs]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0012-headless-integration-contract.spec.md, llp/0031-server-route-taxonomy.spec.md, crates/snapback-cli/src/cli.rs, demos/_kit/harness.mjs, demos/_kit/server-process.mjs, packages/snapback-cli/templates/expo-chat/acceptance.mjs, packages/snapback-cli/comparator-profile.mjs, packages/snapback-cli/comparator-receipt.schema.json, schemas/host-ready.schema.json]
+examples: [demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs, demos/all-aboard/tests/acceptance/headless.mjs, packages/snapback-cli/templates/expo-chat/acceptance.mjs, packages/snapback-cli/fixtures/comparator/green.config.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:b0d9926f4ded2f3c1b3fd241040a6ba00c0b1ad64a34f295e039b92def0b82f4
+reviewed: 2026-08-25
+reviewed-authorities-digest: sha256:1daecbe0386e2309bfb4a65a46f7747f44b756b5ff385515af397757cbf4857b
 ---
 
 # Acceptance testing
@@ -76,6 +76,21 @@ Assertion helpers: `assert`, `assertEqual`, and
 `assertThrows(fn, code, msg)`, which matches `error.diagnostic.code` —
 stable codes, never message text. `requireBunRuntime(label)` guards suites
 that must run under bun.
+
+## Select a durable-capable client platform
+
+Client custody is independent of the server database choice. A server may use
+`--memory`, but Node's client platform named `memory` is volatile. Node
+`memory` refuses durable custody with
+`SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`; it never silently downgrades a
+`durable-required` policy.
+
+For a headless browser-shaped proof, use `expo-web` with `fake-indexeddb`.
+The expo-chat template's existing
+[acceptance helper](repo:packages/snapback-cli/templates/expo-chat/acceptance.mjs)
+constructs that platform with one `IDBFactory` and passes it to
+`createSnapbackAppClient`. Reuse that helper shape; do not invent a second
+custody store.
 
 ## Server lifecycle: isolated, provenance-verified, owned
 

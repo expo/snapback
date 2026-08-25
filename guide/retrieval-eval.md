@@ -4,13 +4,13 @@ id: meta.retrieval-eval
 order: 91
 audience: agent-first
 capabilities: []
-authorities: [llp/0061-agent-first-snapback-guide.rfc.md, llp/0245-infer-show-freeze-declarations.rfc.md]
+authorities: [llp/0061-agent-first-snapback-guide.rfc.md, llp/0245-infer-show-freeze-declarations.rfc.md, scripts/check-retrieval-eval.mjs]
 examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-22
-reviewed-authorities-digest: sha256:10af46608872447c531a418afe66fcbdafccb07872e6f8a0a20c6b3257b73c57
+reviewed: 2026-08-25
+reviewed-authorities-digest: sha256:c75663b2f4959dcd9bc7a910781a9bdc3091318b27a8c5ed12721fdd1a089067
 ---
 
 # Retrieval eval protocol
@@ -1002,6 +1002,48 @@ React/JS product blank is not yet explained.
     "Wait for live delivery only when subscribed before the insert",
     "A post-settlement subscribe with the canonical id must snapshot the row",
     "defineJsLiveQuery plus a local cache remains the documented application workaround".
+
+Cases 98–101 absorb the published 0.1.27 Clique guide misses recorded in LLP
+0310. Their route terms preserve the failed lookup and the wrong package,
+platform, and generated-directory assumptions from that run.
+
+98. **Generated directory spelling:** "Should a Familiar or expo-chat app
+    import `_generated/`, or is that a compatibility alias for `generated/`?"
+    The run fails if it creates the legacy directory or symlink, or teaches two
+    watcher-visible paths for one generated graph.
+    Expected pages: `backend/familiar-profile.md`, `start/expo-chat.md`.
+    Route terms: "_generated compatibility alias", "generated directory spelling".
+    Required guidance: "The `_generated/` spelling is a refused alias".
+
+99. **Stale auth result lookup:** "A mutation reports
+    SNAPBACK_AUTH_STALE_RESULT after the signed-in session changes."
+    The run fails if the diagnostic routes to an unrelated asset-retention
+    section or retries the old client mutation identity under new authority.
+    Expected pages: `auth/sessions-and-principals.md`.
+    Route terms: "SNAPBACK_AUTH_STALE_RESULT", "stale auth result".
+    Required guidance: "Do not reuse a client mutation identity after the session or authority instance changes",
+    "Use a fresh client mutation id for a new authenticated attempt".
+    Exact diagnostic target: `SNAPBACK_AUTH_STALE_RESULT` ->
+    `/_snapback/guide/auth/sessions-and-principals.md#recover-from-snapbackauthstaleresult`.
+
+100. **URL-first activity presence import:** "Which package exports activity
+     presence for URL-first Expo web with SnapbackProvider?"
+     The run fails if it imports the facade hook that requires
+     SnapbackExpoLifecycleContext or invents a third hook.
+     Expected pages: `backend/familiar-profile.md`, `realtime/ephemeral-state.md`, `recipes/activity-presence.md`.
+     Route terms: "URL-first activity presence", "SnapbackExpoLifecycleContext".
+     Required guidance: "URL-first web imports `useSnapbackActivityPresence` from `@expo/snapback-react`",
+     "The `@expo/snapback-expo` facade hook is for `SnapbackExpoProvider` only".
+
+101. **Durable custody in Node acceptance:** "Run expo-chat acceptance with
+     durable-required custody from Node."
+     The run fails if it selects the Node memory client platform, treats an
+     in-memory server database as the problem, or invents a second custody
+     store instead of using the template helper.
+     Expected pages: `start/expo-chat.md`, `testing/acceptance.md`.
+     Route terms: "durable custody Node memory", "SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE".
+     Required guidance: "Node `memory` refuses durable custody with `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`",
+     "`expo-web` with `fake-indexeddb`".
 
 ## Static routing check
 
