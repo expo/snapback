@@ -1832,11 +1832,11 @@ pub struct AuthUrlArgs {
 }
 
 #[derive(clap::Args)]
+#[group(required = true, multiple = false)]
 pub struct AuthPasswordCarrierArgs {
     /// Read password line(s) from standard input. Change reads current then new.
     #[arg(
         long,
-        required_unless_present_any = ["password_fd", "password_environment"],
         conflicts_with_all = ["password_fd", "password_environment"]
     )]
     pub password_stdin: bool,
@@ -1844,7 +1844,6 @@ pub struct AuthPasswordCarrierArgs {
     #[arg(
         long,
         value_name = "N",
-        required_unless_present_any = ["password_stdin", "password_environment"],
         conflicts_with_all = ["password_stdin", "password_environment"]
     )]
     pub password_fd: Option<u32>,
@@ -1853,7 +1852,6 @@ pub struct AuthPasswordCarrierArgs {
     #[arg(
         long = "__snapback-password-environment-carrier",
         hide = true,
-        required_unless_present_any = ["password_stdin", "password_fd"],
         conflicts_with_all = ["password_stdin", "password_fd"]
     )]
     pub password_environment: bool,
@@ -2688,16 +2686,7 @@ pub async fn run_from_env() -> anyhow::Result<()> {
         }) => {
             let parsed_args = parse_run_args(args)?;
             let anonymous = user.is_none();
-            let mut request = json!({
-                "operation": "function.run",
-                "function": &function,
-                "args": &parsed_args,
-            });
-            // @ref LLP 0058#session-mode-body-closure — absence means anonymous;
-            // even an explicit null is forbidden legacy body authority in sessions mode.
-            if let Some(user) = user {
-                request["userId"] = json!(user);
-            }
+            let request = function_run_request(&function, &parsed_args, user.as_deref());
             run_function_via_http(&target, &function, parsed_args, request, anonymous)
         }
         Some(HostCommand::Remediation { command }) => match command {
@@ -3636,6 +3625,28 @@ fn parse_run_args(args: Option<String>) -> anyhow::Result<Value> {
         anyhow::bail!("--args must be a JSON object");
     }
     Ok(parsed)
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct FunctionRunCliRequest<'a> {
+    operation: &'static str,
+    function: &'a str,
+    args: &'a Value,
+    // @ref LLP 0058#session-mode-body-closure — absence means anonymous;
+    // even an explicit null is forbidden legacy body authority in sessions mode.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    user_id: Option<&'a str>,
+}
+
+fn function_run_request(function: &str, args: &Value, user_id: Option<&str>) -> Value {
+    serde_json::to_value(FunctionRunCliRequest {
+        operation: "function.run",
+        function,
+        args,
+        user_id,
+    })
+    .expect("function.run request is JSON-serializable")
 }
 
 fn parse_network_profile_selection(raw: &str) -> anyhow::Result<Value> {

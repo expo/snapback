@@ -2286,6 +2286,94 @@ fn password_auth_cli_has_only_non_argv_password_and_session_carriers() {
 }
 
 #[test]
+fn password_carrier_usage_renders_one_required_alternative_group() {
+    let missing_carrier = Cli::try_parse_from([
+        "snapback",
+        "auth",
+        "password",
+        "reset",
+        "--url",
+        "http://127.0.0.1:4287",
+        "--challenge-id",
+        "sbc_challenge",
+        "--code",
+        "123456",
+    ])
+    .expect_err("one password carrier must be required");
+    assert_eq!(
+        missing_carrier.kind(),
+        clap::error::ErrorKind::MissingRequiredArgument
+    );
+    let diagnostic = missing_carrier.to_string();
+    assert!(
+        diagnostic.contains(
+            "<--password-stdin|--password-fd <N>|--__snapback-password-environment-carrier>"
+        ),
+        "{diagnostic}"
+    );
+
+    let help = Cli::try_parse_from(["snapback", "auth", "password", "reset", "--help"])
+        .expect_err("--help exits through clap")
+        .to_string();
+    assert!(!help.contains("Internal marker injected by run_from_env"));
+
+    for carriers in [
+        vec!["--password-stdin", "--password-fd", "9"],
+        vec![
+            "--password-stdin",
+            "--__snapback-password-environment-carrier",
+        ],
+        vec![
+            "--password-fd",
+            "9",
+            "--__snapback-password-environment-carrier",
+        ],
+    ] {
+        let mut argv = vec![
+            "snapback",
+            "auth",
+            "password",
+            "reset",
+            "--url",
+            "http://127.0.0.1:4287",
+            "--challenge-id",
+            "sbc_challenge",
+            "--code",
+            "123456",
+        ];
+        argv.extend(carriers);
+        assert_eq!(
+            Cli::try_parse_from(argv)
+                .expect_err("password carriers remain mutually exclusive")
+                .kind(),
+            clap::error::ErrorKind::ArgumentConflict
+        );
+    }
+}
+
+#[test]
+fn function_run_body_omits_absent_user() {
+    let args = json!({ "limit": 1 });
+    assert_eq!(
+        super::function_run_request("publicQuery", &args, None),
+        json!({
+            "operation": "function.run",
+            "function": "publicQuery",
+            "args": { "limit": 1 },
+        })
+    );
+    assert_eq!(
+        super::function_run_request("privateQuery", &args, Some("user_a")),
+        json!({
+            "operation": "function.run",
+            "function": "privateQuery",
+            "args": { "limit": 1 },
+            "userId": "user_a",
+        })
+    );
+}
+
+#[test]
 fn password_auth_cli_spells_reset_recovery_and_admin_unlock_exactly() {
     let reset = Cli::parse_from([
         "snapback",

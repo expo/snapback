@@ -31183,35 +31183,30 @@ fn run_oauth_consent_begin_case(case: OAuthConsentBeginCase) {
     assert_eq!(after, expected, "{} accepted durable snapshot", case.name());
 }
 
-macro_rules! oauth_consent_begin_case_test {
-    ($name:ident, $case:expr) => {
-        #[test]
-        fn $name() {
-            run_oauth_consent_begin_case($case);
-        }
-    };
+#[test]
+fn oauth_consent_request_derives_the_durable_user_from_authority_first_exact() {
+    run_oauth_consent_begin_case(OAuthConsentBeginCase::FirstExact);
 }
 
-oauth_consent_begin_case_test!(
-    oauth_consent_request_derives_the_durable_user_from_authority_first_exact,
-    OAuthConsentBeginCase::FirstExact
-);
-oauth_consent_begin_case_test!(
-    oauth_consent_request_derives_the_durable_user_from_authority_second_exact,
-    OAuthConsentBeginCase::SecondExact
-);
-oauth_consent_begin_case_test!(
-    oauth_consent_request_derives_the_durable_user_from_authority_third_exact,
-    OAuthConsentBeginCase::ThirdExact
-);
-oauth_consent_begin_case_test!(
-    oauth_consent_request_derives_the_durable_user_from_authority_wrong_source,
-    OAuthConsentBeginCase::WrongSource
-);
-oauth_consent_begin_case_test!(
-    oauth_consent_request_derives_the_durable_user_from_authority_absent_user,
-    OAuthConsentBeginCase::AbsentUser
-);
+#[test]
+fn oauth_consent_request_derives_the_durable_user_from_authority_second_exact() {
+    run_oauth_consent_begin_case(OAuthConsentBeginCase::SecondExact);
+}
+
+#[test]
+fn oauth_consent_request_derives_the_durable_user_from_authority_third_exact() {
+    run_oauth_consent_begin_case(OAuthConsentBeginCase::ThirdExact);
+}
+
+#[test]
+fn oauth_consent_request_derives_the_durable_user_from_authority_wrong_source() {
+    run_oauth_consent_begin_case(OAuthConsentBeginCase::WrongSource);
+}
+
+#[test]
+fn oauth_consent_request_derives_the_durable_user_from_authority_absent_user() {
+    run_oauth_consent_begin_case(OAuthConsentBeginCase::AbsentUser);
+}
 
 const OAUTH_APPROVAL_REQUESTED_AT_MS: u64 = 1_000;
 const OAUTH_APPROVAL_APPROVED_AT_MS: u64 = 2_000;
@@ -31612,105 +31607,149 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user_wrong_sour
     );
 }
 
-macro_rules! oauth_consent_approval_case_test {
-    ($name:ident, $authority:expr, $attempt:expr) => {
-        #[test]
-        fn $name() {
-            run_oauth_consent_approval_case($authority, $attempt);
-        }
-    };
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_n_foreign_lower() {
+    run_oauth_consent_approval_case(
+        OAUTH_APPROVAL_L_SHAPE[0],
+        OAuthApprovalAttempt::ForeignLower,
+    );
 }
 
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_n_foreign_lower,
-    OAUTH_APPROVAL_L_SHAPE[0],
-    OAuthApprovalAttempt::ForeignLower
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_n_foreign_other_authority,
-    OAUTH_APPROVAL_L_SHAPE[0],
-    OAuthApprovalAttempt::ForeignOtherAuthority
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_n_foreign_upper,
-    OAUTH_APPROVAL_L_SHAPE[0],
-    OAuthApprovalAttempt::ForeignUpper
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_n_target,
-    OAUTH_APPROVAL_L_SHAPE[0],
-    OAuthApprovalAttempt::Target
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_n_selector_below_all,
-    OAUTH_APPROVAL_L_SHAPE[0],
-    OAuthApprovalAttempt::SelectorBelowAll
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_n_selector_above_all,
-    OAUTH_APPROVAL_L_SHAPE[0],
-    OAuthApprovalAttempt::SelectorAboveAll
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_m_foreign_lower,
-    OAUTH_APPROVAL_L_SHAPE[1],
-    OAuthApprovalAttempt::ForeignLower
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_m_foreign_other_authority,
-    OAUTH_APPROVAL_L_SHAPE[1],
-    OAuthApprovalAttempt::ForeignOtherAuthority
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_m_foreign_upper,
-    OAUTH_APPROVAL_L_SHAPE[1],
-    OAuthApprovalAttempt::ForeignUpper
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_m_target,
-    OAUTH_APPROVAL_L_SHAPE[1],
-    OAuthApprovalAttempt::Target
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_m_selector_below_all,
-    OAUTH_APPROVAL_L_SHAPE[1],
-    OAuthApprovalAttempt::SelectorBelowAll
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_m_selector_above_all,
-    OAUTH_APPROVAL_L_SHAPE[1],
-    OAuthApprovalAttempt::SelectorAboveAll
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_n_session_m_foreign_lower,
-    OAUTH_APPROVAL_L_SHAPE[2],
-    OAuthApprovalAttempt::ForeignLower
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_n_session_m_foreign_other_authority,
-    OAUTH_APPROVAL_L_SHAPE[2],
-    OAuthApprovalAttempt::ForeignOtherAuthority
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_n_session_m_foreign_upper,
-    OAUTH_APPROVAL_L_SHAPE[2],
-    OAuthApprovalAttempt::ForeignUpper
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_n_session_m_target,
-    OAUTH_APPROVAL_L_SHAPE[2],
-    OAuthApprovalAttempt::Target
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_n_session_m_selector_below_all,
-    OAUTH_APPROVAL_L_SHAPE[2],
-    OAuthApprovalAttempt::SelectorBelowAll
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_n_session_m_selector_above_all,
-    OAUTH_APPROVAL_L_SHAPE[2],
-    OAuthApprovalAttempt::SelectorAboveAll
-);
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_n_foreign_other_authority()
+{
+    run_oauth_consent_approval_case(
+        OAUTH_APPROVAL_L_SHAPE[0],
+        OAuthApprovalAttempt::ForeignOtherAuthority,
+    );
+}
+
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_n_foreign_upper() {
+    run_oauth_consent_approval_case(
+        OAUTH_APPROVAL_L_SHAPE[0],
+        OAuthApprovalAttempt::ForeignUpper,
+    );
+}
+
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_n_target() {
+    run_oauth_consent_approval_case(OAUTH_APPROVAL_L_SHAPE[0], OAuthApprovalAttempt::Target);
+}
+
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_n_selector_below_all()
+{
+    run_oauth_consent_approval_case(
+        OAUTH_APPROVAL_L_SHAPE[0],
+        OAuthApprovalAttempt::SelectorBelowAll,
+    );
+}
+
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_n_selector_above_all()
+{
+    run_oauth_consent_approval_case(
+        OAUTH_APPROVAL_L_SHAPE[0],
+        OAuthApprovalAttempt::SelectorAboveAll,
+    );
+}
+
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_m_foreign_lower() {
+    run_oauth_consent_approval_case(
+        OAUTH_APPROVAL_L_SHAPE[1],
+        OAuthApprovalAttempt::ForeignLower,
+    );
+}
+
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_m_foreign_other_authority()
+{
+    run_oauth_consent_approval_case(
+        OAUTH_APPROVAL_L_SHAPE[1],
+        OAuthApprovalAttempt::ForeignOtherAuthority,
+    );
+}
+
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_m_foreign_upper() {
+    run_oauth_consent_approval_case(
+        OAUTH_APPROVAL_L_SHAPE[1],
+        OAuthApprovalAttempt::ForeignUpper,
+    );
+}
+
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_m_target() {
+    run_oauth_consent_approval_case(OAUTH_APPROVAL_L_SHAPE[1], OAuthApprovalAttempt::Target);
+}
+
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_m_selector_below_all()
+{
+    run_oauth_consent_approval_case(
+        OAUTH_APPROVAL_L_SHAPE[1],
+        OAuthApprovalAttempt::SelectorBelowAll,
+    );
+}
+
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_m_selector_above_all()
+{
+    run_oauth_consent_approval_case(
+        OAUTH_APPROVAL_L_SHAPE[1],
+        OAuthApprovalAttempt::SelectorAboveAll,
+    );
+}
+
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_n_session_m_foreign_lower() {
+    run_oauth_consent_approval_case(
+        OAUTH_APPROVAL_L_SHAPE[2],
+        OAuthApprovalAttempt::ForeignLower,
+    );
+}
+
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_n_session_m_foreign_other_authority()
+{
+    run_oauth_consent_approval_case(
+        OAUTH_APPROVAL_L_SHAPE[2],
+        OAuthApprovalAttempt::ForeignOtherAuthority,
+    );
+}
+
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_n_session_m_foreign_upper() {
+    run_oauth_consent_approval_case(
+        OAUTH_APPROVAL_L_SHAPE[2],
+        OAuthApprovalAttempt::ForeignUpper,
+    );
+}
+
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_n_session_m_target() {
+    run_oauth_consent_approval_case(OAUTH_APPROVAL_L_SHAPE[2], OAuthApprovalAttempt::Target);
+}
+
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_n_session_m_selector_below_all()
+{
+    run_oauth_consent_approval_case(
+        OAUTH_APPROVAL_L_SHAPE[2],
+        OAuthApprovalAttempt::SelectorBelowAll,
+    );
+}
+
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_n_session_m_selector_above_all()
+{
+    run_oauth_consent_approval_case(
+        OAUTH_APPROVAL_L_SHAPE[2],
+        OAuthApprovalAttempt::SelectorAboveAll,
+    );
+}
 
 #[test]
 fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {

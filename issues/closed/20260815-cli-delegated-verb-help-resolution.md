@@ -1,6 +1,6 @@
 # Third-level `--help` on delegated native CLI verbs prints the parent's help
 
-**Status:** Open — delegated help resolved 2026-08-25; native carrier usage remains
+**Status:** Resolved
 **Opened:** 2026-08-15 · **Severity:** P3 · **Area:** CLI
 **Found by:** the password clean-install proof
 (`issues/closed/20260809-password-credential-auth.md`), against published
@@ -44,3 +44,29 @@ required in the missing-carrier diagnostic and concatenate all three into the
 usage line. A Rust lane must preserve the existing conflicts and hidden
 environment marker while rendering the group as alternatives with an explicit
 choose-one marker.
+
+## Resolution (2026-08-25)
+
+The delegated-help half was caused by the package wrapper stopping its native
+registry walk too early and treating options next to `--help` as verb-path
+components. The separately landed JS fix walks to the longest registered verb
+path and covers the `auth password reset` and `unlock` leaves.
+
+The native usage half was caused by three independent
+`required_unless_present_any` declarations. Clap therefore rendered each
+carrier as separately required. `AuthPasswordCarrierArgs` now declares one
+required, single-choice `ArgGroup`, retaining the explicit pairwise conflicts
+and the internal environment carrier's hidden Options-table behavior. The
+missing-input diagnostic and usage line render the three carriers inside one
+`<A|B|C>` alternative group, while stdin, inherited-fd, and
+injected-environment parsing continue to select the same fields and mixed
+carriers still fail with `ArgumentConflict`.
+
+Verification: `cargo test -p snapback-cli
+password_` passed all 5 selected tests, including the existing stdin, fd, and
+injected-environment carrier coverage and the new usage/conflict regression.
+The new regression was confirmed fail-first against the independent-required
+shape (`1 failed`, exit 101). Native `snapback auth password reset --help`
+exits 0, and the no-carrier invocation exits 2 with both the diagnostic and
+usage line rendering
+`<--password-stdin|--password-fd <N>|--__snapback-password-environment-carrier>`.
