@@ -52,3 +52,22 @@ REALIGN (foundation = 0000, 0002, 0031)
 - Linked 0000, 0002, and 0031 into `foundation/`.
 - Updated `AGENTS.md`, `ref-check`, LLP 0000, LLP 0070's tombstone pointer,
   LLP 0276's straggler exemption, and the path-migration manifest.
+
+## Applied — larger kernel (author choice, same day)
+
+`Accepted` → `Active` and linked into `foundation/`:
+
+- 0033 license posture
+- 0037 schema source of truth
+- 0148 prefixed identifiers
+- 0189 verification cadence and claim gating
+- 0192 store durable-state set
+- 0225 core modularization
+- 0226 identity architecture
+- 0298 durable effect scope
+- 0303 subject-authority correlation
+
+Foundation after this step: 0000, 0002, 0031, 0033, 0037, 0148, 0189, 0192,
+0225, 0226, 0298, 0303. RFCs, research, plans, and fine-grained specs stay
+out. `current/` is unchanged. Status hygiene for Draft core specs (0010,
+0007, 0004) remains a later pass.

@@ -6,6 +6,9 @@
 **Role:** Root
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
+**Revised:** 2026-08-25 (LLP v2 larger kernel: `llp/foundation/` links
+0000, 0002, 0031, and the nine standing decisions 0033, 0037, 0148, 0189,
+0192, 0225, 0226, 0298, 0303 — each `Active`)
 **Revised:** 2026-08-25 (LLP v2 overlay adoption: `llp/current/` is the
 declared working set and `llp/foundation/` is the kernel; documents keep
 their path for life and `Tombstoned` is a status, not a directory)

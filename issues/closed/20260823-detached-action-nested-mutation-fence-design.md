@@ -1,6 +1,6 @@
 # Design: caller-bound fencing for detached-action nested mutations
 
-Status: Proposed — design complete, implementation not dispatched
+Status: Closed
 Created: 2026-08-23
 Related: issues/20260822-author-rulings-fence-program.md (the binding ruling),
 issues/20260822-residual-exposure-remeasurement.md (the measurement),
@@ -364,3 +364,11 @@ check reached through managed HostPlan's legacy recorded-mutation staging pipeli
 - This fix does not structurally seal origin or commit, solve same-ID replay, or fence irreversible outbound effects. Any requirement for those properties requires a kernel-minted pending mutation type and the separate capsule-residual/handoff work.
 - Rejecting every host call after a caller terminal latch is the closed safe policy. If pure utility host calls must remain available, add a small explicit whitelist; new operations must default to authority-bearing.
 - If tests cannot observe the actual production closure and actual storage cut, stop and add those seams before implementation. A passing test without those observations is not evidence for this fence.
+
+## Resolution
+
+Closed 2026-08-25. Design implemented: detached-action nested mutations
+use `MutationEffectPosture::AuthorizedAction` and were measured
+route-closed. Residual "does not correlate the two authority axes" is owned
+by `issues/20260823-two-landed-fences-do-not-correlate-the-authority-axes.md`.
+Do not treat this design ticket as unstarted work.

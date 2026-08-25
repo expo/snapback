@@ -1,6 +1,6 @@
 # Re-measurement after the detached-action fence: the top path is closed
 
-Status: Superseded for completion scope by LLP 0298; route-closure evidence remains valid
+Status: Closed
 Created: 2026-08-23
 Related: issues/20260823-remeasurement-property-still-false.md (prior measurement),
 issues/20260823-detached-action-nested-mutation-fence-design.md,
@@ -169,3 +169,11 @@ Neither item counts as progress on this property:
 
 - The OAuth pairing cap is not present in this measured ref. The ordinary cap counts only rows with `consumed_at_ms IS NULL` ([auth_grants.rs:229](crates/snapback-kernel/src/storage/auth_grants.rs:229)), while OAuth directly inserts its pairing parent with `consumed_at_ms = now` ([auth_integrations.rs:874](crates/snapback-kernel/src/storage/auth_integrations.rs:874)).
 - The FK wedge is **not fixed**: `_snapback_oauth_authorizations.request_id` still uses `ON DELETE RESTRICT` ([auth_integrations.rs:52](crates/snapback-kernel/src/storage/auth_integrations.rs:52), [auth_integrations.rs:72](crates/snapback-kernel/src/storage/auth_integrations.rs:72)). Its deferred status and two recorded data-loss paths remain outside this measurement’s closure claims.
+
+## Resolution
+
+Closed 2026-08-25. Status already recorded this as superseded for completion
+scope by LLP 0298; the route-closure evidence remains in this file as history.
+The current open measurement is
+`issues/20260823-remeasurement-under-llp-0297.md`. Remaining in-scope effects
+are the LLP 0298 closure set, owned by the F-1 authorized-effect program.

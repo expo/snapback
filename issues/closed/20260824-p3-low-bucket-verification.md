@@ -1,6 +1,6 @@
 # Superseded P3-LOW reasoning review: execution is required
 
-Status: superseded by issues/20260825-p3-low-top-six-execution.md
+Status: Closed
 Date: 2026-08-24
 Systems: snapback-auth, snapback-sync, snapback-engine, snapback-kernel, snapback-server
 Related: issues/20260824-liveness-row-bucket-assignment.md, LLP 0303,
@@ -109,3 +109,12 @@ Fetch limitation: I ran `git fetch origin main` first, but the read-only sandbox
 Rows not located on the inspected main: **none**.
 
 Rows whose bucket-document sites moved: **F285, F286, F287, and F288**, each by +44 lines.
+
+## Resolution
+
+Closed 2026-08-25 as superseded. The file already pointed at
+`issues/20260825-p3-low-top-six-execution.md`, which falsified the six attempted
+P3-LOW bounds including this document's CONFIRMED-P3 verdicts. Remaining P3
+work lives in that successor and
+`issues/20260825-twelve-of-seventeen-p3-rows-need-execution.md`. Do not use this
+ticket's old counts or closure reasons to retire rows.

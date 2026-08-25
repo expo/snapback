@@ -1,6 +1,6 @@
 # Re-measurement: the property is still false, but true for three named subsets
 
-Status: Superseded — rerun after the detached-action landing; latest measurement linked below
+Status: Closed
 Created: 2026-08-22
 Related: issues/20260821-residual-caller-terminal-write-exposure.md (the original measurement),
 issues/20260822-authorized-effect-program-status.md
@@ -139,3 +139,12 @@ I also verified watch creation rather than trusting the description: its extract
 No files were modified.
 
 Yes—the program is closer: it closed every remaining caller-backed asset SQLite cut and 8 of 9 previously in-flight mode-only sites, leaving six active ranked direct-route families plus the stream-attempt family, with watch creation deliberately excluded.
+
+## Resolution
+
+Closed 2026-08-25 as a superseded measurement snapshot. Later measurements
+superseded this run: the detached-action fence closed the top path, then
+`issues/20260823-remeasurement-after-detached-action-fence.md` recorded that
+movement, and `issues/20260823-remeasurement-under-llp-0297.md` is the current
+open measurement under LLP 0298. Remaining fence work lives in the F-1 program
+tickets, not here.

@@ -1,6 +1,6 @@
 # Integrating a long-lived lane: four resolution hazards, learned the hard way
 
-Status: Open — practice note
+Status: Closed
 Created: 2026-08-23
 Related: issues/20260823-implementation-sequencing.md
 
@@ -60,3 +60,10 @@ fourth.
 3. After any bulk resolution, check for duplicated `impl`/`fn` definitions before building.
 4. Compile before believing any structural check.
 5. If two files need more than a couple of hand merges, delegate to a lane with the facts you have.
+
+## Resolution
+
+Closed 2026-08-25. Practice note captured (merge-tree vs rebase, generated
+files vs source, Cargo feature keys, same-item edits). No remaining
+engineering item; the living process note for the fence program is
+`issues/20260823-implementation-sequencing.md`.

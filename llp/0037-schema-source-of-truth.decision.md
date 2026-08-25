@@ -1,10 +1,12 @@
 # LLP 0037: Schema source of truth — Rust types, generated JSON Schema
 
 **Type:** Decision
-**Status:** Accepted
+**Status:** Active
 **Systems:** API, Tooling, Client integration, Contract/Exact, Testing, Packaging
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-02
+**Revised:** 2026-08-25 (Active: linked into `llp/foundation/` as part of the
+LLP v2 larger kernel)
 **Revised:** 2026-08-07 (AgentSafe declaration projection hardening: the hand-authored `packages/snapback-codegen/index.d.mts` AgentSafe block is now structurally compared with all four committed Rust-generated schema projections by a Node-only gate, invoked directly and from the DK-7 Rust drift test. The two artifact-local `EffectSettlementCapabilityV1` definitions are documented as separate `$defs` namespaces rather than one repository-global type.)
 **Revised:** 2026-07-31 (LLP 0044 companion: the asset upload-intent
 reference, attempt/transfer/lifecycle/receipt DTOs, and `SNAPBACK_ASSET_*`

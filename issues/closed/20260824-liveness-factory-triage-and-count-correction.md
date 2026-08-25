@@ -1,6 +1,6 @@
 # Triage of the liveness-only factories — and a correction to my own count
 
-Status: open
+Status: Closed
 Date: 2026-08-24
 Systems: snapback-auth, snapback-engine, snapback-kernel, snapback-server
 Related: issues/20260824-authority-minting-factory-inventory.md,
@@ -55,3 +55,13 @@ The triage marks two conditions explicitly, per instruction:
 The 9 P1-SHIP rows are the only code work that can proceed without a policy decision; each names its
 predicate and an existing tested helper. The 68 P2 rows should be grouped by the *question* they
 raise rather than by module, so one decision can resolve many rows at once.
+
+## Resolution
+
+Closed 2026-08-25 as a superseded count-correction snapshot. The 134
+LIVENESS-ONLY + 3 UNCLEAR correction is recorded; later row assignment and
+falsifications live in
+`issues/20260824-liveness-row-bucket-assignment.md`,
+`issues/20260825-p3-low-top-six-execution.md`, and
+`issues/20260825-twenty-eight-of-forty-p4-rows-are-siblings-not-duplicates.md`.
+Do not cite this ticket's 9/68/17/40 aggregates as current.

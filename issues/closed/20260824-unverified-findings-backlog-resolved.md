@@ -1,6 +1,6 @@
 # The unverified-findings backlog is now settled: all five CONFIRMED, three with corrections
 
-Status: open
+Status: Closed
 Date: 2026-08-24
 Systems: snapback-sync, snapback-auth, snapback-engine
 Related: issues/20260822-authorized-effect-program-status.md,
@@ -65,3 +65,11 @@ The backlog of unverified claims is empty as of this ticket. Three of the five w
 right but wrong in mechanism — the same pattern that has already changed the fix twice in this
 program — which is why they were adjudicated individually instead of being carried forward as a
 count.
+
+## Resolution
+
+Closed 2026-08-25. Adjudication complete: V1–V5 CONFIRMED, three with
+mechanism corrections. No remaining unverified backlog. Fixes belong to the
+correlation / sealed-plan work
+(`issues/20260824-sealed-plan-protocol-already-exists-and-is-already-broken.md`,
+`issues/20260823-mandatory-authority-correlation-design.md`).

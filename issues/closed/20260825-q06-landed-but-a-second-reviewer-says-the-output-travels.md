@@ -1,6 +1,6 @@
 # Q06 landed, and a second reviewer says the reconstructed output still travels
 
-Status: resolved — executed; rows stay landed, three residual risks filed below
+Status: Closed
 Date: 2026-08-25
 Systems: snapback-engine, snapback-kernel, snapback-sync
 Related: llp/0303-subject-authority-correlation-policy.decision.md,

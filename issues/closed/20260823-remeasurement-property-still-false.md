@@ -1,6 +1,6 @@
 # Re-measurement at 4776e028e: still false, and R1/R2 did not move it
 
-Status: Superseded — detached-action fence remeasurement landed later on 2026-08-23
+Status: Closed
 Created: 2026-08-23
 Related: issues/20260822-residual-exposure-remeasurement.md (prior measurement at 261e595ad),
 issues/20260821-residual-caller-terminal-write-exposure.md (original),
@@ -136,3 +136,12 @@ Dependency order for an unqualified, structurally credible claim:
 7. **Resolve the literal-property issue.** If the quoted property truly means every caller-triggered SQLite write, auxiliary artifacts, lazy cleanup, and accepted clock writes must also be fenced or transferred to a clearly independent system-owned lifecycle. Leaving their behavior unchanged permits only the narrower consequence-based property to become true.
 
 The immediate remote risk item is detached `ctx.runMutation`; the **highest-leverage program item is Step 5**, because without it every route fence continues to depend on publication carriers that in-process code can substitute.
+
+## Resolution
+
+Closed 2026-08-25 as a superseded measurement snapshot. The detached-action
+fence landed later the same day; see
+`issues/20260823-remeasurement-after-detached-action-fence.md` (historical) and
+`issues/20260823-remeasurement-under-llp-0297.md` (current). This ticket's
+"still FALSE, top path is detached ctx.runMutation" headline is no longer the
+live measurement.

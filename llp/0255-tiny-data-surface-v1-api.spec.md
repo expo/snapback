@@ -1,4 +1,4 @@
-# LLP 0255: Tiny data surface v1 — API and artifact specification
+# LLP 0255: Tiny data surface v1 — API and artifact specification [Tombstoned]
 
 **Type:** Spec
 **Status:** Tombstoned
@@ -26,6 +26,11 @@ day)
 LLP 0155, LLP 0157, LLP 0218, LLP 0238, LLP 0240, LLP 0241, LLP 0243,
 LLP 0245, LLP 0247, LLP 0108, LLP 0043, LLP 0053, LLP 0058, LLP 0059,
 LLP 0080, LLP 0110, LLP 0133, LLP 0193, LLP 0203, LLP 0004
+**Superseded by:** LLP 0254 D10 withdrawal (no successor surface)
+
+> **Tombstoned — read for history only.** Withdrawn with LLP 0254 on
+> 2026-08-15. Historical text is the implemented experiment record. Do not
+> implement from this document.
 
 ## Summary
 

@@ -1,4 +1,4 @@
-# LLP 0254: Tiny ordinary data surface
+# LLP 0254: Tiny ordinary data surface [Tombstoned]
 
 **Type:** RFC
 **Status:** Tombstoned
@@ -25,6 +25,12 @@ LLP 0127, LLP 0146, LLP 0155, LLP 0157, LLP 0166, LLP 0193, LLP 0194,
 LLP 0196, LLP 0197, LLP 0203, LLP 0218, LLP 0231, LLP 0236, LLP 0238,
 LLP 0240, LLP 0241, LLP 0242, LLP 0243, LLP 0245, LLP 0247, LLP 0252,
 LLP 0253, diaries 0027–0031
+**Superseded by:** none (withdrawn; no successor surface)
+
+> **Tombstoned — read for history only.** Charlie Cheever withdrew this
+> surface (D10, 2026-08-15). The public Tiny doorway and its generated
+> projections are gone; there is no successor and no migration period. Do
+> not implement from this document.
 
 ## Summary
 

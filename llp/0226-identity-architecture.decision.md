@@ -1,10 +1,12 @@
 # LLP 0226: Identity architecture — namespaces, provenance, and conversion
 
 **Type:** Decision
-**Status:** Accepted
+**Status:** Active
 **Systems:** Schema, Auth, Mutations, Storage, Client SDK, Effects
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-10
+**Revised:** 2026-08-25 (Active: linked into `llp/foundation/` as part of the
+LLP v2 larger kernel)
 **Revised:** 2026-08-10 (a — initial draft)
 **Revised:** 2026-08-10 (b — Draft → Review at llp-super-refine loop start,
 the one authorized transition; independent-loop topology)

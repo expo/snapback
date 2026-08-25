@@ -1,6 +1,6 @@
 # Align README notification claims with shipped capability facts
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 4
 **Urgency:** 5
 **Ease:** 5
@@ -41,3 +41,13 @@ built-in SMS workflow that does not exist.
   and maturity fields.
 - A regression test fails on an unqualified email/SMS/push headline while the
   capability remains design-only.
+
+## Resolution
+
+Closed 2026-08-25. The overclaim was removed in `4e903046c` (docs(readme):
+rewrite for the current state of the project) on the same day this ticket was
+filed. The README now lists first-class notifications as design-only, agrees
+with `guide/capabilities.md` (`backend.notifications` design-only), and
+describes the shipped Expo push seam separately under Background work. A
+mechanical regression test that fails on an unqualified email/SMS/push
+headline was not added; the user-facing overclaim is gone.

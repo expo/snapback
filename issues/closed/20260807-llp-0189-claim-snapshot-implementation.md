@@ -1,6 +1,6 @@
 # Implement LLP 0189 claim-snapshot and battery mechanics
 
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-08-07
 **Systems:** Testing, CI, Packaging, Publication
 **Related:** LLP 0189, LLP 0175,
@@ -387,3 +387,13 @@ derived-id, fresh-rescope, code-owned range derivation, conditional
 This ticket remains **Open** on two residues: the new D-4 range-design ticket,
 and the existing derived-fork requalification requirement in
 `issues/20260807-derived-fork-publication-wave-drift-requalification.md`.
+
+## Resolution
+
+Closed 2026-08-25. Mechanical LLP 0189 pieces landed: v3 claim-scoped
+digests (D-3/D-4), snapshot/withdrawal semantics, and D-1 battery-red
+ticket automation (the `issues/YYYYMMDD-battery-*` series). The named
+derived-fork requalification residue is already in
+`issues/closed/20260807-derived-fork-publication-wave-drift-requalification.md`.
+Follow-ons that remain open are separate tickets, notably
+`issues/20260816-capability-maturity-a5-merge-bypass.md`.

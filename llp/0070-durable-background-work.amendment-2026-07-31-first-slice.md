@@ -6,6 +6,10 @@ background work). Not a numbered LLP document.
 **Author:** Claude (Fable 5); tombstoned by the 2026-08-01 absorption pass
 (Charlie's ballot item 4b).
 **Date:** 2026-07-31 (authored); 2026-08-01 (absorbed and tombstoned)
+**Superseded by:** LLP 0070 §First slice as shipped (2026-07-31; absorbed 2026-08-01)
+
+> **Tombstoned — read for history only.** Absorbed into the LLP 0070 RFC
+> body on 2026-08-01. Consult that section, not this file.
 
 The spec text this note carried — the enqueue-association receipt shape
 (LLP 0127 decision 7), callee-class admission (LLP 0121 OQ2), the

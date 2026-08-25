@@ -1,6 +1,6 @@
 # P4 bucket verification — all 40 rows reach a durable or outbound effect
 
-Status: open  
+Status: Closed
 Date: 2026-08-24  
 Systems: snapback-auth, snapback-sync, snapback-engine, snapback-kernel, snapback-server  
 Related: `issues/20260824-liveness-row-bucket-assignment.md`, LLP 0283, LLP 0303
@@ -168,4 +168,13 @@ Q23's product policy is no longer partly open. The author selected **owner-bound
 impersonation, rejected unrestricted and fixture-bound impersonation, and required `local_dev_only`
 to become environment-derived. F121/F211 implementation is unblocked in the separate
 `q23-owner-bound` lane; deployed-environment impossibility remains unchanged. See LLP 0303 §Product
-decisions — Q13 open, Q23 ruled. This verification ticket remains open.
+decisions — Q13 open, Q23 ruled.
+
+## Resolution
+
+Closed 2026-08-25 as superseded. The successor
+`issues/20260825-twenty-eight-of-forty-p4-rows-are-siblings-not-duplicates.md`
+is the authoritative P4 audit (28 siblings, 12 genuine, neither RESOLVED
+row actually resolved). Do not close P4 rows from this ticket's
+CONFIRMED-P4-impossible claim alone. Q23 implementation remains on the
+q23-owner-bound lane / LLP 0303.

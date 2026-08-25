@@ -1,10 +1,12 @@
 # LLP 0192: The store durable-state set and the supported copy verb
 
 **Type:** Decision
-**Status:** Accepted
+**Status:** Active
 **Systems:** Storage, Auth, Assets, Admin, Operations, Developer experience
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-08
+**Revised:** 2026-08-25 (Active: linked into `llp/foundation/` as part of the
+LLP v2 larger kernel)
 **Revised:** 2026-08-21 (the packaged `dev-fresh` reset now requires the
 canonical CLI-owned managed-store path, validates the database before deleting
 anything, and refuses shared-directory or symlink ambiguity)

@@ -1,4 +1,4 @@
-# LLP 0256: Tiny data surface evaluation
+# LLP 0256: Tiny data surface evaluation [Tombstoned]
 
 **Type:** Plan
 **Status:** Tombstoned
@@ -14,6 +14,11 @@ backstop is removed.)
 **Revised:** 2026-08-14
 **Related:** LLP 0254, LLP 0252, LLP 0197, LLP 0102, LLP 0082, LLP 0065,
 LLP 0253
+**Superseded by:** LLP 0254 D10 withdrawal (no successor evaluation)
+
+> **Tombstoned — read for history only.** Withdrawn with LLP 0254 on
+> 2026-08-15. The publication clock closed without timed D9 runs. Do not
+> run or implement from this document.
 
 ## Summary
 

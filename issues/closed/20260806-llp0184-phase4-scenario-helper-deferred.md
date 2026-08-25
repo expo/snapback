@@ -1,6 +1,6 @@
 # LLP 0184 Phase 4 real-connection scenario helper deferred
 
-**Status:** Deferred
+**Status:** Closed
 **Impact:** 2
 **Urgency:** 1
 **Ease:** 2
@@ -82,3 +82,10 @@ all of these are true:
 
 Until then, acceptance should keep using the shipped real headless/client
 paths and file concrete friction where it occurs.
+
+## Resolution
+
+Closed 2026-08-25 as deferred-as-done for LLP 0184 Phase 4. The 2026-08-06
+disposition was "do not build" a simulated-publish control or one-off
+real-connection helper. Reopen only if LLP 0146 D6 later justifies a
+real-connection helper under the constraints already written here.

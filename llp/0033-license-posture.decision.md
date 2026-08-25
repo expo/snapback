@@ -1,10 +1,12 @@
 # LLP 0033: License posture — MIT and the free-riding trade
 
 **Type:** Decision
-**Status:** Accepted
+**Status:** Active
 **Systems:** Project, Packaging, Deployment
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-01
+**Revised:** 2026-08-25 (Active: linked into `llp/foundation/` as part of the
+LLP v2 larger kernel)
 **Revised:** 2026-07-01 (ratified same day: MIT eyes-open; DK-8 decided)
 **Related:** LLP 0000, LLP 0022, LLP 0032
 

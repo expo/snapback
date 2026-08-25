@@ -1,11 +1,13 @@
 # LLP 0298: What counts as a durable write — the authorized-effect completion criterion
 
 **Type:** Decision
-**Status:** Accepted
+**Status:** Active
 **Systems:** Auth, Storage, Server, Proof/gates
 **Author:** Claude (Opus 5), commissioned by Charlie Cheever (author ruling
 2026-08-23, in session supervising LLP 0283 F-1)
 **Date:** 2026-08-23
+**Revised:** 2026-08-25 (Active: linked into `llp/foundation/` as part of the
+LLP v2 larger kernel)
 **Revised:** 2026-08-23 (a — initial ruling)
 **Related:** LLP 0058, LLP 0059, LLP 0283,
 `issues/20260823-remeasurement-after-detached-action-fence.md`,

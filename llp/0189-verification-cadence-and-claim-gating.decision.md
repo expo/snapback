@@ -1,10 +1,12 @@
 # LLP 0189: Verification cadence and claim gating
 
 **Type:** Decision
-**Status:** Accepted
+**Status:** Active
 **Systems:** Testing, CI, Packaging, Documentation, Developer experience, LLP governance
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-07
+**Revised:** 2026-08-25 (Active: linked into `llp/foundation/` as part of the
+LLP v2 larger kernel)
 **Revised:** 2026-08-10 (D-8 coverage-shape amendment, author-directed in
 session, Charlie Cheever: system behavior is a cross-product of axes while
 tests and docs pin points; two same-day defects from Diary 0074's probe sat

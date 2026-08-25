@@ -1,12 +1,14 @@
 # LLP 0225: Core modularization — the consolidated ownership map, commit boundaries, and enforcement arm
 
 **Type:** Decision
-**Status:** Accepted
+**Status:** Active
 **Systems:** Rust core, Server, Storage, Migration, Live/realtime, Assets,
 Jobs, Auth, Transport, Embedding, Proof/gates, LLP governance
 **Author:** Claude (Fable 5), commissioned by Charlie Cheever (author ruling
 2026-08-10 in `issues/20260808-core-modularization-decision.md`)
 **Date:** 2026-08-10
+**Revised:** 2026-08-25 (Active: linked into `llp/foundation/` as part of the
+LLP v2 larger kernel)
 **Revised:** 2026-08-10 (a — initial draft discharging the commission;
 consolidates LLP 0199 with the shipped ownership manifest, the promoted
 pre-push gate, and the landed first slice)

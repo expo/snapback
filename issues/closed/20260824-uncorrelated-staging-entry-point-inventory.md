@@ -1,6 +1,6 @@
 # Uncorrelated staging entry-point inventory
 
-Status: Complete static inventory at `96b3f49ea`; analysis only
+Status: Closed
 Date: 2026-08-24
 Systems: snapback-sync, snapback-engine, snapback-kernel, snapback-services,
   snapback-server
@@ -658,3 +658,12 @@ It must report the two mutation leaves, asset-attempt transaction, stream
 settlement transaction, client-mutation acknowledgement, asset-read
 transaction, and the two auth transaction leaves. A count change requires a
 new inventory row even when no authority-type signature changed.
+
+## Resolution
+
+Closed 2026-08-25 as analysis-complete. The four reusable staging shapes and
+the corrected guard population are recorded in this file. Remaining
+implementation lives in
+`issues/20260823-mandatory-authority-correlation-design.md`,
+`issues/20260823-two-landed-fences-do-not-correlate-the-authority-axes.md`,
+and `issues/20260823-origin-bound-commit-capsule-design.md`.
