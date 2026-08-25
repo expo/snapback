@@ -28,8 +28,6 @@ Commit `711a77bd8a` introduced two `macro_rules!` definitions in
 definitions throughout `snapback-engine`; unlike reviewed derives, imports,
 and macro invocations, this rule has no manifest allowlist. Suppressing the
 path in the JS checker would weaken LLP 0276's engine-definition denylist.
-The Rust-side hardening would spell the local import as
-`self::runtime_cost::*`; this ticket does not change Rust.
 
 ## Required Rust change
 
@@ -37,6 +35,12 @@ Remove both test-generating macros and replace their invocations with ordinary
 explicit `#[test]` functions that call the existing runner functions with the
 same cases and retain the current test names. Do not change the production
 OAuth behavior or weaken the workspace-graph checker.
+
+## Optional import spelling cleanup
+
+Separately, the local re-export may be made more explicit as
+`self::runtime_cost::*`. That spelling cleanup is optional and is not the fix
+required by this ticket; replacing the two test-generating macros is.
 
 Verify with the affected Rust OAuth tests, then run:
 

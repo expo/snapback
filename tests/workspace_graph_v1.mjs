@@ -496,6 +496,25 @@ test('reviewed engine compatibility globs stay bound to their exact files', () =
   }
 });
 
+test('reviewed runtime_cost globs cannot be rebound at their canonical path', () => {
+  const canonicalPath = join(repositoryRoot, 'crates/snapback-engine/src/local.rs');
+  for (const source of [
+    'extern crate foreign_macros as runtime_cost;\npub use runtime_cost::*;\n#[derive(JsonSchema)] struct Harmless;',
+    'use foreign_macros as runtime_cost;\npub use runtime_cost::*;\n#[derive(JsonSchema)] struct Harmless;',
+    'use foreign_macros::{JsonSchema as runtime_cost};\npub use runtime_cost::*;\n#[derive(JsonSchema)] struct Harmless;',
+    'use foreign_macros::runtime_cost;\npub use runtime_cost::*;',
+    'struct runtime_cost;\npub use runtime_cost::*;',
+    'type runtime_cost = foreign_macros::JsonSchema;\npub use runtime_cost::*;',
+    'mod runtime_cost {}\npub use runtime_cost::*;',
+  ]) {
+    assert.throws(
+      () => validateEngineDefinitionDenylist(artifact, [{ path: canonicalPath, source }]),
+      /may not (?:alias|shadow).*runtime_cost/u,
+      source,
+    );
+  }
+});
+
 test('comment and literal examples do not count as engine definitions', () => {
   const source = [
     '// pub fn search() {}',

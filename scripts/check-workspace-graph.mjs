@@ -182,6 +182,11 @@ const SAFE_ENGINE_GLOB_IMPORTS = [
   { file: 'crates/snapback-engine/src/runtime.rs', glob: 'snapback_types::runtime::*' },
   { file: 'crates/snapback-engine/src/test_support.rs', glob: 'super::*' },
 ];
+// These reviewed globs trust a local module, not whichever source item happens
+// to claim the same binding. The map names the sole allowed module declaration.
+const PROTECTED_ENGINE_GLOB_BINDINGS = new Map([
+  ['runtime_cost', 'crates/snapback-engine/src/local.rs'],
+]);
 const TRUSTED_ENGINE_CRATE_BINDINGS = new Set([
   'runtime_cost',
   'rusqlite',
@@ -830,8 +835,19 @@ function validateEngineDefinitionInputs(files) {
 
     const masked = maskRustAttributes(maskRustCommentsAndLiterals(file.source));
     const repositoryFile = relative(ROOT, file.path).split(sep).join('/');
+    const protectedGlobBindings = new Set(
+      [...PROTECTED_ENGINE_GLOB_BINDINGS.keys()].filter((binding) => (
+        SAFE_ENGINE_GLOB_IMPORTS.some(({ file: reviewedFile, glob }) => (
+          reviewedFile === repositoryFile && glob.split('::').at(-2) === binding
+        ))
+      )),
+    );
     for (const externMatch of masked.matchAll(/(?:^|[;{}])\s*(?:pub(?:\s*\([^)]*\))?\s+)?extern\s+crate\s+(?:r#)?([A-Za-z_][A-Za-z0-9_]*)(?:\s+as\s+(?:r#)?([A-Za-z_][A-Za-z0-9_]*))?\s*;/gmu)) {
       const binding = externMatch[2] ?? externMatch[1];
+      assert(
+        !protectedGlobBindings.has(binding),
+        `snapback-engine may not alias or shadow reviewed glob binding ${binding}: ${repositoryFile}`,
+      );
       assert(
         !TRUSTED_ENGINE_BINDINGS.has(binding) || externMatch[1] === binding,
         `snapback-engine may not alias an extern crate to trusted macro binding ${binding}: ${relative(ROOT, file.path).split(sep).join('/')}`,
@@ -850,6 +866,10 @@ function validateEngineDefinitionInputs(files) {
       }
       for (const alias of useSpec.matchAll(/\bas\s+(?:r#)?([A-Za-z_][A-Za-z0-9_]*)/gu)) {
         assert(
+          !protectedGlobBindings.has(alias[1]),
+          `snapback-engine may not alias reviewed glob binding ${alias[1]}: ${repositoryFile}`,
+        );
+        assert(
           !TRUSTED_ENGINE_BINDINGS.has(alias[1]),
           `snapback-engine may not alias a trusted macro binding ${alias[1]}: ${relative(ROOT, file.path).split(sep).join('/')}`,
         );
@@ -867,6 +887,31 @@ function validateEngineDefinitionInputs(files) {
           `snapback-engine may not import trusted macro binding ${simpleBinding} from an unreviewed path: ${relative(ROOT, file.path).split(sep).join('/')}`,
         );
       }
+      for (const binding of protectedGlobBindings) {
+        assert(
+          !new RegExp(
+            String.raw`(?:^|::|[,{])\s*(?:r#)?${binding}\s*(?:,|\}|$)`,
+            'u',
+          ).test(useSpec),
+          `snapback-engine may not shadow reviewed glob binding ${binding}: ${repositoryFile}`,
+        );
+      }
+    }
+    for (const binding of protectedGlobBindings) {
+      let declarations = masked;
+      if (repositoryFile === PROTECTED_ENGINE_GLOB_BINDINGS.get(binding)) {
+        declarations = declarations.replace(
+          new RegExp(String.raw`(^|[;{}])(\s*)mod\s+(?:r#)?${binding}\s*;`, 'mu'),
+          (match, prefix) => prefix + match.slice(prefix.length).replace(/[^\r\n]/gu, ' '),
+        );
+      }
+      assert(
+        !new RegExp(
+          String.raw`(?:^|[;{}])\s*(?:pub(?:\s*\([^)]*\))?\s+)?(?:(?:unsafe|auto)\s+)*(?:mod|type|struct|enum|union|trait)\s+(?:r#)?${binding}\b`,
+          'mu',
+        ).test(declarations),
+        `snapback-engine may not shadow reviewed glob binding ${binding}: ${repositoryFile}`,
+      );
     }
     assert(
       !/(?:^|[;{}])\s*(?:pub(?:\s*\([^)]*\))?\s+)?(?:mod|type|struct|enum|union|trait)\s+(?:r#)?(?:rusqlite|schemars|serde|serde_json|snapback_services|std|tokio)\b/mu.test(masked),
