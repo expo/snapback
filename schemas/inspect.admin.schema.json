@@ -1,5 +1,84 @@
 {
   "$defs": {
+    "AccessBoundShapeV1": {
+      "properties": {
+        "component": {
+          "type": "string"
+        },
+        "lower": {
+          "$ref": "#/$defs/AccessBoundV1"
+        },
+        "upper": {
+          "$ref": "#/$defs/AccessBoundV1"
+        }
+      },
+      "required": [
+        "component",
+        "lower",
+        "upper"
+      ],
+      "type": "object"
+    },
+    "AccessBoundV1": {
+      "enum": [
+        "absent",
+        "exclusive",
+        "inclusive"
+      ],
+      "type": "string"
+    },
+    "AccessDirectionV1": {
+      "enum": [
+        "asc",
+        "desc",
+        "unordered"
+      ],
+      "type": "string"
+    },
+    "AccessPathConsultationV1": {
+      "properties": {
+        "boundShape": {
+          "items": {
+            "$ref": "#/$defs/AccessBoundShapeV1"
+          },
+          "type": "array"
+        },
+        "direction": {
+          "$ref": "#/$defs/AccessDirectionV1"
+        },
+        "examinedEntries": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "nodeId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ordinal": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "selectedPath": {
+          "$ref": "#/$defs/SelectedAccessPathV1"
+        },
+        "table": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "ordinal",
+        "table",
+        "selectedPath",
+        "boundShape",
+        "direction",
+        "examinedEntries"
+      ],
+      "type": "object"
+    },
     "AccessPolicy": {
       "oneOf": [
         {
@@ -3779,6 +3858,36 @@
       ],
       "type": "string"
     },
+    "CappedFunctionMutationPhaseCountersV1": {
+      "properties": {
+        "evictedKeys": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "functions": {
+          "additionalProperties": {
+            "$ref": "#/$defs/FunctionMutationPhaseCountersV1"
+          },
+          "type": "object"
+        },
+        "keyCapacity": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "otherKeys": {
+          "$ref": "#/$defs/FunctionMutationPhaseCountersV1"
+        }
+      },
+      "required": [
+        "keyCapacity",
+        "functions",
+        "otherKeys",
+        "evictedKeys"
+      ],
+      "type": "object"
+    },
     "ClientMutationRetentionInfo": {
       "properties": {
         "bytes": {
@@ -3927,6 +4036,25 @@
         "transport",
         "authorityScope",
         "aggregationMode"
+      ],
+      "type": "object"
+    },
+    "CoveredVersionsV1": {
+      "properties": {
+        "first": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "last": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "first",
+        "last"
       ],
       "type": "object"
     },
@@ -5990,6 +6118,31 @@
       },
       "type": "object"
     },
+    "FunctionMutationPhaseCountersV1": {
+      "properties": {
+        "authorization": {
+          "$ref": "#/$defs/PhaseCostCounterV1"
+        },
+        "commit": {
+          "$ref": "#/$defs/PhaseCostCounterV1"
+        },
+        "execution": {
+          "$ref": "#/$defs/PhaseCostCounterV1"
+        },
+        "mutationCount": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "mutationCount",
+        "authorization",
+        "execution",
+        "commit"
+      ],
+      "type": "object"
+    },
     "FunctionResultContract": {
       "oneOf": [
         {
@@ -7436,6 +7589,42 @@
         }
       ]
     },
+    "GraphObservedArgumentWorkV1": {
+      "additionalProperties": false,
+      "properties": {
+        "argumentId": {
+          "type": "string"
+        },
+        "observed": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "argumentId",
+        "observed"
+      ],
+      "type": "object"
+    },
+    "GraphObservedNodeWorkV1": {
+      "additionalProperties": false,
+      "properties": {
+        "nodeId": {
+          "type": "string"
+        },
+        "observed": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "nodeId",
+        "observed"
+      ],
+      "type": "object"
+    },
     "GraphPartitionEquivalenceProofV1": {
       "additionalProperties": false,
       "properties": {
@@ -8726,6 +8915,124 @@
       ],
       "type": "object"
     },
+    "LiveDeliveryWaveV1": {
+      "properties": {
+        "coalesced": {
+          "type": "boolean"
+        },
+        "coveredVersions": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CoveredVersionsV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "deliveredFrames": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "deliveredVersion": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "distinctEvaluationGroups": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "format": {
+          "type": "string"
+        },
+        "functionId": {
+          "type": "string"
+        },
+        "maxEvaluationTurnMs": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "maxMemoDeliveryTurnMs": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "memoDeliveries": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "planIdentity": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "realEvaluations": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "rerunCause": {
+          "$ref": "#/$defs/LiveRerunCauseV1"
+        },
+        "subscriberCount": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "totalEvaluationTurnMs": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "totalMemoDeliveryTurnMs": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "waveSeq": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "format",
+        "waveSeq",
+        "functionId",
+        "rerunCause",
+        "coalesced",
+        "subscriberCount",
+        "distinctEvaluationGroups",
+        "realEvaluations",
+        "memoDeliveries",
+        "deliveredFrames"
+      ],
+      "type": "object"
+    },
+    "LiveEvaluationStageV1": {
+      "enum": [
+        "idle",
+        "evaluating"
+      ],
+      "type": "string"
+    },
     "LiveEvaluationStats": {
       "description": "Scheduler evaluation lifecycle and wire-output accounting.",
       "properties": {
@@ -8806,6 +9113,54 @@
         "lastTurnDurationMs",
         "deliveredFramesByWireKind",
         "deliveredBytes"
+      ],
+      "type": "object"
+    },
+    "LiveFanoutBasisV1": {
+      "properties": {
+        "admissionFactor": {
+          "format": "double",
+          "type": "number"
+        },
+        "executionKind": {
+          "$ref": "#/$defs/QueryExecutionKindV1"
+        },
+        "maxDistinctEvaluationGroups": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxObservers": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "memoDeliveryBasisMs": {
+          "format": "double",
+          "type": "number"
+        },
+        "rawMemoDeliveryMaxMs": {
+          "format": "double",
+          "type": "number"
+        },
+        "rawRealEvaluationMaxMs": {
+          "format": "double",
+          "type": "number"
+        },
+        "realEvaluationBasisMs": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "executionKind",
+        "rawRealEvaluationMaxMs",
+        "rawMemoDeliveryMaxMs",
+        "admissionFactor",
+        "realEvaluationBasisMs",
+        "memoDeliveryBasisMs",
+        "maxObservers",
+        "maxDistinctEvaluationGroups"
       ],
       "type": "object"
     },
@@ -8904,6 +9259,23 @@
       ],
       "type": "object"
     },
+    "LivePendingWorkV1": {
+      "enum": [
+        "none",
+        "queued",
+        "coalescing"
+      ],
+      "type": "string"
+    },
+    "LiveRerunCauseV1": {
+      "enum": [
+        "authorization-invalidation",
+        "mutation-invalidation",
+        "refresh",
+        "reconnect-reestablish"
+      ],
+      "type": "string"
+    },
     "LiveSettlementStats": {
       "description": "Commit-ack to caller-settlement decomposition for applied mutations.",
       "properties": {
@@ -8919,6 +9291,61 @@
       "required": [
         "lastCommitAckToSettlementMs",
         "cumulativeCommitAckToSettlementMs"
+      ],
+      "type": "object"
+    },
+    "LiveSubscriptionCostRowV1": {
+      "properties": {
+        "currentWaveSeq": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "evaluation": {
+          "$ref": "#/$defs/LiveEvaluationStageV1"
+        },
+        "functionId": {
+          "type": "string"
+        },
+        "lastDeliveredVersion": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "lastDeliveredWaveSeq": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "owedThroughVersion": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "pendingWork": {
+          "$ref": "#/$defs/LivePendingWorkV1"
+        },
+        "subscriptionId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "subscriptionId",
+        "functionId",
+        "evaluation",
+        "pendingWork"
       ],
       "type": "object"
     },
@@ -9772,6 +10199,92 @@
       ],
       "type": "object"
     },
+    "MutationPhaseCostV1": {
+      "properties": {
+        "authWaitMs": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "authorizedAtMs": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "clientMutationId": {
+          "type": "string"
+        },
+        "commitMs": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "committedAtMs": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "dispatchedAtMs": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "disposition": {
+          "type": "string"
+        },
+        "enqueuedAtMs": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "executedAtMs": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "executionMs": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "format": {
+          "type": "string"
+        },
+        "functionId": {
+          "type": "string"
+        },
+        "queueWaitMs": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "format",
+        "clientMutationId",
+        "functionId",
+        "disposition"
+      ],
+      "type": "object"
+    },
     "MutationPlan": {
       "properties": {
         "ownerWriteChecks": {
@@ -10304,6 +10817,29 @@
         }
       ]
     },
+    "PhaseCostCounterV1": {
+      "properties": {
+        "count": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxMs": {
+          "format": "double",
+          "type": "number"
+        },
+        "totalMs": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "count",
+        "totalMs",
+        "maxMs"
+      ],
+      "type": "object"
+    },
     "ProjectionLeaf": {
       "additionalProperties": false,
       "properties": {
@@ -10669,6 +11205,209 @@
       ],
       "type": "object"
     },
+    "QueryCostObservationInspectV1": {
+      "description": "Value-free bounded projection retained by the recorder. There is\nintentionally no `fixtureIdentity` field.",
+      "properties": {
+        "authorityClass": {
+          "type": "string"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "consultationSample": {
+          "items": {
+            "$ref": "#/$defs/AccessPathConsultationV1"
+          },
+          "type": "array"
+        },
+        "consultationsTruncated": {
+          "type": "boolean"
+        },
+        "estimateBasis": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LiveFanoutBasisV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "estimatedLiveFanoutMs": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "evaluationTurnMs": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "executionKind": {
+          "$ref": "#/$defs/QueryExecutionKindV1"
+        },
+        "format": {
+          "type": "string"
+        },
+        "functionGeneration": {
+          "type": "string"
+        },
+        "functionId": {
+          "type": "string"
+        },
+        "indexRangeCount": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "memoDeliveryTurnMs": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "planIdentity": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "resultBytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "resultRows": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "scannedRows": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "status": {
+          "$ref": "#/$defs/QueryObservationStatusV1"
+        },
+        "structuralWork": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StructuralWorkV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "targetProfile": {
+          "type": "string"
+        },
+        "targetWork": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QueryTargetWorkV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "totalConsultations": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "format",
+        "functionId",
+        "functionGeneration",
+        "targetProfile",
+        "authorityClass",
+        "executionKind",
+        "status",
+        "complete",
+        "scannedRows",
+        "consultationSample",
+        "totalConsultations",
+        "consultationsTruncated",
+        "indexRangeCount"
+      ],
+      "type": "object"
+    },
+    "QueryExecutionKindV1": {
+      "enum": [
+        "finite",
+        "liveEstablishment",
+        "liveReevaluation"
+      ],
+      "type": "string"
+    },
+    "QueryObservationRingSnapshotV1": {
+      "properties": {
+        "byteCapacity": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "droppedRecords": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "recordCapacity": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "records": {
+          "items": {
+            "$ref": "#/$defs/QueryCostObservationInspectV1"
+          },
+          "type": "array"
+        },
+        "retainedBytes": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "truncatedRecords": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "recordCapacity",
+        "byteCapacity",
+        "retainedBytes",
+        "droppedRecords",
+        "truncatedRecords",
+        "records"
+      ],
+      "type": "object"
+    },
+    "QueryObservationStatusV1": {
+      "enum": [
+        "executed",
+        "memoDelivery",
+        "skipped",
+        "refused"
+      ],
+      "type": "string"
+    },
     "QueryPlan": {
       "properties": {
         "filters": {
@@ -10723,6 +11462,17 @@
       },
       "required": [
         "table"
+      ],
+      "type": "object"
+    },
+    "QueryTargetWorkV1": {
+      "properties": {
+        "vector": {
+          "$ref": "#/$defs/VectorWorkCountersV1"
+        }
+      },
+      "required": [
+        "vector"
       ],
       "type": "object"
     },
@@ -11559,6 +12309,126 @@
       ],
       "type": "object"
     },
+    "RuntimeCostRingSnapshotV1": {
+      "properties": {
+        "byteCapacity": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "droppedRecords": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "recordCapacity": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "records": {
+          "items": {
+            "$ref": "#/$defs/MutationPhaseCostV1"
+          },
+          "type": "array"
+        },
+        "retainedBytes": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "recordCapacity",
+        "byteCapacity",
+        "retainedBytes",
+        "droppedRecords",
+        "records"
+      ],
+      "type": "object"
+    },
+    "RuntimeCostRingSnapshotV12": {
+      "properties": {
+        "byteCapacity": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "droppedRecords": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "recordCapacity": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "records": {
+          "items": {
+            "$ref": "#/$defs/LiveDeliveryWaveV1"
+          },
+          "type": "array"
+        },
+        "retainedBytes": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "recordCapacity",
+        "byteCapacity",
+        "retainedBytes",
+        "droppedRecords",
+        "records"
+      ],
+      "type": "object"
+    },
+    "RuntimeCostSnapshotV1": {
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "format": {
+          "type": "string"
+        },
+        "liveDeliveryWaves": {
+          "$ref": "#/$defs/RuntimeCostRingSnapshotV12"
+        },
+        "mutationPhases": {
+          "$ref": "#/$defs/RuntimeCostRingSnapshotV1"
+        },
+        "queryObservations": {
+          "$ref": "#/$defs/QueryObservationRingSnapshotV1"
+        },
+        "serverMutationPhaseCounters": {
+          "$ref": "#/$defs/CappedFunctionMutationPhaseCountersV1"
+        },
+        "subscriptionRegistry": {
+          "items": {
+            "$ref": "#/$defs/LiveSubscriptionCostRowV1"
+          },
+          "type": "array"
+        },
+        "totalByteCapacity": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "format",
+        "enabled",
+        "totalByteCapacity",
+        "mutationPhases",
+        "queryObservations",
+        "liveDeliveryWaves",
+        "serverMutationPhaseCounters",
+        "subscriptionRegistry"
+      ],
+      "type": "object"
+    },
     "SchemaAssetsPolicyV1": {
       "additionalProperties": false,
       "description": "Schema-level asset policy block (`defineSchema(..., { assets })`).",
@@ -12154,6 +13024,70 @@
         }
       ]
     },
+    "SelectedAccessPathV1": {
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "fullScan",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "index": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "point",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "index"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "index": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "unique",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "index"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "index": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "boundedIndex",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "index"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "SequenceDeclaration": {
       "additionalProperties": false,
       "properties": {
@@ -12519,6 +13453,62 @@
         "version",
         "descriptor",
         "encoding"
+      ],
+      "type": "object"
+    },
+    "StructuralWorkV1": {
+      "additionalProperties": false,
+      "properties": {
+        "argumentExpansionByNode": {
+          "items": {
+            "$ref": "#/$defs/GraphObservedNodeWorkV1"
+          },
+          "type": "array"
+        },
+        "argumentItems": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "argumentItemsByArgument": {
+          "items": {
+            "$ref": "#/$defs/GraphObservedArgumentWorkV1"
+          },
+          "type": "array"
+        },
+        "examinedEntriesByNode": {
+          "items": {
+            "$ref": "#/$defs/GraphObservedNodeWorkV1"
+          },
+          "type": "array"
+        },
+        "maxFanoutByNode": {
+          "items": {
+            "$ref": "#/$defs/GraphObservedNodeWorkV1"
+          },
+          "type": "array"
+        },
+        "relationshipLookupsByNode": {
+          "items": {
+            "$ref": "#/$defs/GraphObservedNodeWorkV1"
+          },
+          "type": "array"
+        },
+        "rootRowsByNode": {
+          "items": {
+            "$ref": "#/$defs/GraphObservedNodeWorkV1"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "rootRowsByNode",
+        "examinedEntriesByNode",
+        "relationshipLookupsByNode",
+        "maxFanoutByNode",
+        "argumentItemsByArgument",
+        "argumentItems",
+        "argumentExpansionByNode"
       ],
       "type": "object"
     },
@@ -13572,6 +14562,45 @@
         }
       ]
     },
+    "VectorWorkCountersV1": {
+      "additionalProperties": false,
+      "description": "The four closed logical-work categories. Candidate count and scalar-pair\ncount are retained separately inside category three because acceptance\ncompares both facts.",
+      "properties": {
+        "candidatesScored": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "filterComparisons": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "postingsEnumerated": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "releaseSourceReads": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "scalarPairs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "postingsEnumerated",
+        "filterComparisons",
+        "candidatesScored",
+        "scalarPairs",
+        "releaseSourceReads"
+      ],
+      "type": "object"
+    },
     "VisibilityFixtureProfileV1": {
       "additionalProperties": false,
       "properties": {
@@ -14006,6 +15035,10 @@
     "runtime": {
       "$ref": "#/$defs/RuntimeCapabilities"
     },
+    "runtimeCost": {
+      "$ref": "#/$defs/RuntimeCostSnapshotV1",
+      "description": "Pull-only, process-local cost diagnostics. The exhaustive\n`PublicInspect` projection below deliberately drops this entire field."
+    },
     "schema": {
       "$ref": "#/$defs/SchemaManifest"
     },
@@ -14056,6 +15089,7 @@
     "liveSettlement",
     "liveAuthority",
     "liveWatermarks",
+    "runtimeCost",
     "ephemeral",
     "cron",
     "maintenance",

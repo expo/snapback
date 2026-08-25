@@ -1919,6 +1919,19 @@ fn pending_live_test_entry(
         force_replace: lane != PendingLiveLane::Data,
         frames: 1,
         coverage_through,
+        covered_versions: (lane == PendingLiveLane::Data).then_some(CoveredVersionsV1 {
+            first: coverage_through,
+            last: coverage_through,
+        }),
+        rerun_cause: match lane {
+            PendingLiveLane::Authority => LiveRerunCauseV1::AuthorizationInvalidation,
+            PendingLiveLane::Refresh => LiveRerunCauseV1::Refresh,
+            PendingLiveLane::Data => LiveRerunCauseV1::MutationInvalidation,
+        },
+        coalesced: false,
+        reclassifies_as_refresh: false,
+        runtime_wave_seq: None,
+        runtime_plan_identity: None,
         first_deferred_at,
         trace_commit_versions,
         trace_queued_ms,
@@ -2089,6 +2102,137 @@ fn queue_and_flush_live_memo_refresh(snapback: &mut LocalSnapback) {
     );
 }
 
+#[test]
+fn runtime_cost_live_scheduler_emits_wave_and_exact_registry_anchor() {
+    let mut snapback = live_limit_snapback();
+    snapback.set_runtime_cost_recorder_enabled(true);
+    install_live_memo_scheduler(&mut snapback);
+    let subscription_id = snapback
+        .subscribe_live(
+            "listItems",
+            live_limit_input("runtime-cost-wave", json!({})),
+        )
+        .expect("subscribe recorder fixture")
+        .subscription_id;
+
+    queue_and_flush_live_memo_refresh(&mut snapback);
+
+    let runtime_cost = snapback.inspect().unwrap().runtime_cost;
+    assert_eq!(runtime_cost.live_delivery_waves.records.len(), 2);
+    let establishment = runtime_cost
+        .live_delivery_waves
+        .records
+        .iter()
+        .find(|wave| wave.rerun_cause == LiveRerunCauseV1::ReconnectReestablish)
+        .expect("establishment wave");
+    assert_eq!(establishment.subscriber_count, 1);
+    assert_eq!(establishment.delivered_frames, 1);
+    let wave = runtime_cost
+        .live_delivery_waves
+        .records
+        .iter()
+        .find(|wave| wave.rerun_cause == LiveRerunCauseV1::Refresh)
+        .expect("refresh wave");
+    assert_eq!(wave.rerun_cause, LiveRerunCauseV1::Refresh);
+    assert_eq!(wave.subscriber_count, 1);
+    assert_eq!(wave.real_evaluations, 1);
+    assert_eq!(wave.memo_deliveries, 0);
+    assert_eq!(wave.delivered_frames, 1);
+    assert!(wave.delivered_version.is_some());
+    let registry = runtime_cost
+        .subscription_registry
+        .iter()
+        .find(|row| row.subscription_id == subscription_id)
+        .expect("subscription registry row");
+    assert_eq!(registry.last_delivered_wave_seq, Some(wave.wave_seq));
+    assert_eq!(registry.last_delivered_version, wave.delivered_version);
+    assert_eq!(registry.evaluation, LiveEvaluationStageV1::Idle);
+    assert_eq!(registry.current_wave_seq, None);
+    assert_eq!(registry.pending_work, LivePendingWorkV1::None);
+}
+
+#[test]
+fn runtime_cost_supersession_retires_predecessor_and_establishes_successor() {
+    let mut snapback = live_limit_snapback();
+    snapback.set_runtime_cost_recorder_enabled(true);
+    let predecessor = snapback
+        .subscribe_live(
+            "listItems",
+            live_limit_input("runtime-cost-reconnect", json!({})),
+        )
+        .expect("predecessor subscription")
+        .subscription_id;
+    let mut replacement = live_limit_input("runtime-cost-reconnect", json!({}));
+    replacement.supersedes = Some(predecessor.clone());
+    let successor = snapback
+        .subscribe_live("listItems", replacement)
+        .expect("successor subscription")
+        .subscription_id;
+
+    let registry = snapback
+        .inspect()
+        .unwrap()
+        .runtime_cost
+        .subscription_registry;
+    assert_eq!(registry.len(), 1);
+    assert_eq!(registry[0].subscription_id, successor);
+    assert_ne!(registry[0].subscription_id, predecessor);
+    assert_eq!(registry[0].evaluation, LiveEvaluationStageV1::Idle);
+    assert_eq!(registry[0].pending_work, LivePendingWorkV1::None);
+}
+
+#[test]
+fn runtime_cost_effect_fence_purge_retires_the_production_registry_row() {
+    let mut snapback = live_limit_snapback();
+    snapback.set_runtime_cost_recorder_enabled(true);
+    let fence = crate::ephemeral::ConnectionEffectFence::session(
+        "runtime-cost-incarnation",
+        "runtime-cost-grant",
+        "runtime-cost-session",
+        1,
+    );
+    let authority = InvocationGate::prepare_authority(
+        InvocationSource::LiveInitialQuery,
+        AuthMode::Dev,
+        ServerProfile::Test,
+        0,
+        0,
+        &WireAuthorityFields::default(),
+        ResolvedAppAuthority::DevImpersonation {
+            user_id: "principal-a".to_owned(),
+            roles: Vec::new(),
+            local_dev_only: true,
+        },
+    )
+    .expect("prepare fenced runtime-cost authority");
+    let subscription_id = snapback
+        .subscribe_live_prepared_with_invalidation(
+            "listItems",
+            live_memo_input("runtime-cost-purge", json!({}), "principal-a"),
+            authority,
+            LiveInvalidationAdmission {
+                session_mode: false,
+                connection: None,
+                effect_fence: Some(fence.clone()),
+            },
+        )
+        .expect("subscribe fenced runtime-cost row")
+        .subscription_id;
+
+    snapback.purge_connection_topology("runtime-cost-purge", &fence);
+
+    assert!(!snapback.subscriptions.contains_key(&subscription_id));
+    assert!(
+        snapback
+            .inspect()
+            .unwrap()
+            .runtime_cost
+            .subscription_registry
+            .is_empty(),
+        "the production effect-fence purge/reap seam retires the cost row"
+    );
+}
+
 fn live_memo_frames(snapback: &mut LocalSnapback, connection_id: &str) -> Vec<Value> {
     drain_live_stream_through_test_sink(snapback, connection_id)
         .into_iter()
@@ -2160,6 +2304,23 @@ fn single_holder_live_memo_fixture(
 #[test]
 fn live_evaluation_memo_six_same_principal_subscriptions_execute_once_and_deliver_six() {
     let mut snapback = live_limit_snapback();
+    snapback.set_runtime_cost_recorder_enabled(true);
+    let schema = snapback.db.schema().clone();
+    let function = snapback
+        .functions
+        .functions
+        .iter_mut()
+        .find(|function| function.name == "listItems")
+        .expect("listItems fixture");
+    function.auth_requirement = Some(crate::manifest::AuthRequirement::Public);
+    function.read_set_summary = crate::manifest::DependencySummary {
+        primary_table: Some("items".to_owned()),
+        tables: vec!["items".to_owned()],
+        mode: Some("singleTable".to_owned()),
+        auth_scope_field: None,
+    };
+    function.args_contract = Some(FunctionArgsContract::default());
+    install_schema_documents_contract(function, &schema, "items");
     snapback
         .invoke_mutation(
             "insertItem",
@@ -2173,14 +2334,18 @@ fn live_evaluation_memo_six_same_principal_subscriptions_execute_once_and_delive
     let connections = (0..6)
         .map(|index| format!("memo-same-{index}"))
         .collect::<Vec<_>>();
-    for connection_id in &connections {
-        snapback
-            .subscribe_live(
-                "listItems",
-                live_memo_input(connection_id, json!({}), "principal-a"),
-            )
-            .expect("subscribe identical observer");
-    }
+    let subscription_ids = connections
+        .iter()
+        .map(|connection_id| {
+            snapback
+                .subscribe_live(
+                    "listItems",
+                    live_memo_input(connection_id, json!({}), "principal-a"),
+                )
+                .expect("subscribe identical observer")
+                .subscription_id
+        })
+        .collect::<Vec<_>>();
     let before = snapback.live_evaluation_stats.clone();
     let deliveries_before = snapback.live_delivery.total_deliveries;
 
@@ -2207,6 +2372,31 @@ fn live_evaluation_memo_six_same_principal_subscriptions_execute_once_and_delive
         snapback.live_delivery.total_deliveries - deliveries_before,
         6
     );
+    let runtime_cost = snapback.inspect().unwrap().runtime_cost;
+    let refresh_waves = runtime_cost
+        .live_delivery_waves
+        .records
+        .iter()
+        .filter(|wave| wave.rerun_cause == LiveRerunCauseV1::Refresh)
+        .collect::<Vec<_>>();
+    assert_eq!(refresh_waves.len(), 1);
+    let wave = refresh_waves[0];
+    assert_eq!(wave.subscriber_count, 6);
+    assert_eq!(wave.distinct_evaluation_groups, 1);
+    assert_eq!(wave.real_evaluations, 1);
+    assert_eq!(wave.memo_deliveries, 5);
+    assert_eq!(wave.delivered_frames, 6);
+    assert!(wave.plan_identity.is_some());
+    assert!(wave.total_evaluation_turn_ms.is_some());
+    assert!(wave.total_memo_delivery_turn_ms.is_some());
+    for subscription_id in &subscription_ids {
+        let registry = runtime_cost
+            .subscription_registry
+            .iter()
+            .find(|row| row.subscription_id == *subscription_id)
+            .expect("six-observer registry row");
+        assert_eq!(registry.last_delivered_wave_seq, Some(wave.wave_seq));
+    }
 
     let result_bytes = connections
         .iter()
@@ -2222,6 +2412,253 @@ fn live_evaluation_memo_six_same_principal_subscriptions_execute_once_and_delive
             .windows(2)
             .all(|pair| pair[0].as_slice() == pair[1].as_slice()),
         "every subscriber consumes byte-identical result rows"
+    );
+}
+
+#[test]
+fn runtime_cost_charges_only_subscriptions_the_matcher_invalidates() {
+    let mut snapback = live_limit_snapback();
+    snapback.set_runtime_cost_recorder_enabled(true);
+    install_live_memo_scheduler(&mut snapback);
+    let matching = snapback
+        .subscribe_live(
+            "listItemsByValue",
+            live_limit_input("runtime-cost-matching", json!({ "value": "target" })),
+        )
+        .expect("matching subscription")
+        .subscription_id;
+    let disjoint = snapback
+        .subscribe_live(
+            "listItemsByValue",
+            live_limit_input("runtime-cost-disjoint", json!({ "value": "other" })),
+        )
+        .expect("disjoint subscription")
+        .subscription_id;
+
+    let commit = snapback
+        .invoke_mutation(
+            "insertItem",
+            HandlerInput {
+                args: json!({ "value": "target" }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("matching mutation");
+
+    let queued = snapback.inspect().unwrap().runtime_cost;
+    let matching_row = queued
+        .subscription_registry
+        .iter()
+        .find(|row| row.subscription_id == matching)
+        .expect("matching registry row");
+    assert_eq!(matching_row.owed_through_version, Some(commit.version));
+    assert_eq!(matching_row.pending_work, LivePendingWorkV1::Queued);
+    let disjoint_row = queued
+        .subscription_registry
+        .iter()
+        .find(|row| row.subscription_id == disjoint)
+        .expect("disjoint registry row");
+    assert_eq!(disjoint_row.owed_through_version, None);
+    assert_eq!(disjoint_row.pending_work, LivePendingWorkV1::None);
+
+    assert!(snapback.flush_pending_live_fanout());
+    let settled = snapback.inspect().unwrap().runtime_cost;
+    assert!(
+        settled
+            .subscription_registry
+            .iter()
+            .all(|row| row.owed_through_version.is_none()),
+        "the matching delivery settles its exact charge without inventing one for the disjoint row"
+    );
+}
+
+#[test]
+fn runtime_cost_nonversion_refresh_keeps_its_writeless_obligation_queued() {
+    let mut snapback = live_limit_snapback();
+    snapback.set_runtime_cost_recorder_enabled(true);
+    install_live_memo_scheduler(&mut snapback);
+    let subscription_id = snapback
+        .subscribe_live(
+            "listItems",
+            live_limit_input("runtime-cost-resync", json!({})),
+        )
+        .expect("resync subscription")
+        .subscription_id;
+    let frame_version = snapback
+        .db
+        .versions_read()
+        .current_version()
+        .expect("current version");
+    let plan_identity = snapback
+        .functions
+        .function("listItems")
+        .and_then(|function| runtime_cost_plan_identity(function, snapback.db.schema()));
+    let wave_seq = snapback.runtime_cost.reserve_wave_seq();
+    snapback
+        .runtime_cost
+        .charge_writeless_authority(&subscription_id);
+    snapback.enqueue_permission_resync(
+        subscription_id.clone(),
+        "scope-a".to_owned(),
+        2,
+        frame_version,
+        wave_seq,
+        plan_identity,
+    );
+
+    assert!(snapback.flush_pending_live_fanout());
+    let row = snapback
+        .inspect()
+        .unwrap()
+        .runtime_cost
+        .subscription_registry
+        .into_iter()
+        .find(|row| row.subscription_id == subscription_id)
+        .expect("resync registry row");
+    assert_eq!(row.owed_through_version, None);
+    assert_eq!(row.evaluation, LiveEvaluationStageV1::Idle);
+    assert_eq!(row.current_wave_seq, None);
+    assert_eq!(row.pending_work, LivePendingWorkV1::Queued);
+}
+
+#[test]
+fn runtime_cost_refresh_overflow_and_query_cost_terminal_retire_production_rows() {
+    let mut overflow = live_limit_snapback();
+    overflow.set_runtime_cost_recorder_enabled(true);
+    install_live_memo_scheduler(&mut overflow);
+    let overflow_id = overflow
+        .subscribe_live(
+            "listItems",
+            live_limit_input("runtime-cost-overflow", json!({})),
+        )
+        .expect("overflow subscription")
+        .subscription_id;
+    for _ in 0..1_024 {
+        let outcome = overflow
+            .ephemeral
+            .enqueue_durable("runtime-cost-overflow", b"{}".to_vec());
+        assert!(!outcome.overflowed_now);
+    }
+    let frame_version = overflow
+        .db
+        .versions_read()
+        .current_version()
+        .expect("overflow version");
+    let wave_seq = overflow.runtime_cost.reserve_wave_seq();
+    overflow
+        .runtime_cost
+        .charge_writeless_authority(&overflow_id);
+    overflow.enqueue_permission_resync(
+        overflow_id.clone(),
+        "scope-overflow".to_owned(),
+        3,
+        frame_version,
+        wave_seq,
+        None,
+    );
+    assert!(overflow.flush_pending_live_fanout());
+    assert!(!overflow.subscriptions.contains_key(&overflow_id));
+    assert!(
+        overflow
+            .inspect()
+            .unwrap()
+            .runtime_cost
+            .subscription_registry
+            .iter()
+            .all(|row| row.subscription_id != overflow_id),
+        "the production permission-resync overflow seam retires the cost row"
+    );
+
+    let mut inline_overflow = live_limit_snapback();
+    inline_overflow.set_runtime_cost_recorder_enabled(true);
+    let inline_id = inline_overflow
+        .subscribe_live(
+            "listItems",
+            live_limit_input("runtime-cost-inline-overflow", json!({})),
+        )
+        .expect("inline overflow subscription")
+        .subscription_id;
+    inline_overflow
+        .subscriptions
+        .get_mut(&inline_id)
+        .expect("inline overflow retained subscription")
+        .read_dependencies
+        .push(CapturedReadDependency {
+            graph: None,
+            kind: CapturedReadKind::Permission,
+            table: None,
+            id: None,
+            version: Some(0),
+            predicate: None,
+            rows: Vec::new(),
+            field: None,
+            value: Some(json!("scope-inline-overflow")),
+            order: None,
+            limit: None,
+            result_count: None,
+            boundary: None,
+        });
+    for _ in 0..1_024 {
+        let outcome = inline_overflow
+            .ephemeral
+            .enqueue_durable("runtime-cost-inline-overflow", b"{}".to_vec());
+        assert!(!outcome.overflowed_now);
+    }
+    let inline_admission = inline_overflow
+        .admission
+        .admit_dev()
+        .expect("inline overflow admission");
+    let inline_version = inline_overflow
+        .db
+        .versions_read()
+        .current_version()
+        .expect("inline overflow version");
+    inline_overflow
+        .notify_permission_resyncs_in_frame(
+            &[("scope-inline-overflow".to_owned(), 1)],
+            inline_version,
+            &inline_admission,
+        )
+        .expect("inline permission resync fanout");
+    assert!(!inline_overflow.subscriptions.contains_key(&inline_id));
+    assert!(
+        inline_overflow
+            .inspect()
+            .unwrap()
+            .runtime_cost
+            .subscription_registry
+            .iter()
+            .all(|row| row.subscription_id != inline_id),
+        "the production inline permission-resync overflow seam retires the cost row"
+    );
+
+    let mut terminal = live_limit_snapback();
+    terminal.set_runtime_cost_recorder_enabled(true);
+    let terminal_id = terminal
+        .subscribe_live(
+            "listItems",
+            live_limit_input("runtime-cost-terminal", json!({})),
+        )
+        .expect("terminal subscription")
+        .subscription_id;
+    assert!(!terminal.retire_terminal_query_cost_quarantine(
+        &terminal_id,
+        Some("SNAPBACK_QUERY_COST_DIAGNOSTIC_ONLY")
+    ));
+    assert!(terminal.subscriptions.contains_key(&terminal_id));
+    assert!(terminal.retire_terminal_query_cost_quarantine(
+        &terminal_id,
+        Some("SNAPBACK_QUERY_COST_LIVE_TURN_REFUSED")
+    ));
+    assert!(!terminal.subscriptions.contains_key(&terminal_id));
+    assert!(
+        terminal
+            .inspect()
+            .unwrap()
+            .runtime_cost
+            .subscription_registry
+            .is_empty(),
+        "only the exact terminal query-cost refusal retires the row"
     );
 }
 
@@ -3499,6 +3936,7 @@ fn live_timeout_scheduler_fixture() -> (
     Arc<crate::live_coalesce::LiveFanoutCoalescer>,
 ) {
     let mut snapback = live_limit_snapback();
+    snapback.set_runtime_cost_recorder_enabled(true);
     let subscription_id = snapback
         .subscribe_live(
             "listItems",
@@ -3536,6 +3974,13 @@ fn live_evaluation_first_timeout_queues_one_refresh_and_keeps_subscription() {
     assert_eq!(pending.lane, PendingLiveLane::Refresh);
     assert!(matches!(pending.work, PendingLiveWork::Refresh));
     assert!(pending.force_replace);
+    let registry = snapback
+        .inspect()
+        .unwrap()
+        .runtime_cost
+        .subscription_registry;
+    assert_eq!(registry.len(), 1);
+    assert_eq!(registry[0].pending_work, LivePendingWorkV1::Queued);
 }
 
 // @ref LLP 0200#25-cancellation-fairness-and-bounded-staleness — a
@@ -3584,6 +4029,15 @@ fn live_evaluation_second_timeout_tears_down_with_resync_and_retires_state() {
     assert_eq!(envelopes.len(), 1);
     assert_eq!(envelopes[0]["reason"], "SNAPBACK_LIVE_EVALUATION_TIMEOUT");
     assert_eq!(envelopes[0]["clear_retained"], true);
+    assert!(
+        snapback
+            .inspect()
+            .unwrap()
+            .runtime_cost
+            .subscription_registry
+            .is_empty(),
+        "second timeout retires the exact cost registry row"
+    );
 }
 
 #[test]
@@ -5342,6 +5796,7 @@ fn agent_safe_projection_rejects_marker_only_owner_artifact_and_activation_clear
 #[test]
 fn gated_inspect_reports_telemetry_buffer_state_and_public_projection_drops_it() {
     let mut snapback = LocalSnapback::memory().unwrap();
+    snapback.set_runtime_cost_recorder_enabled(true);
     snapback.telemetry.point(
         "log",
         "inspect-buffer-fixture",
@@ -5358,6 +5813,10 @@ fn gated_inspect_reports_telemetry_buffer_state_and_public_projection_drops_it()
     assert!(
         public.get("telemetry").is_none(),
         "anonymous inspect remains its exhaustive identity-only projection"
+    );
+    assert!(
+        public.get("runtimeCost").is_none(),
+        "anonymous inspect does not gain runtime cost rings, counters, or identities"
     );
 }
 
@@ -29253,6 +29712,7 @@ fn live_subscription_observations_join_once_and_record_disconnect_cause() {
     let directory = tempfile::tempdir().expect("live telemetry fixture directory");
     let database_path = directory.path().join("live-telemetry.sqlite3");
     let mut snapback = live_limit_snapback();
+    snapback.set_runtime_cost_recorder_enabled(true);
     snapback.telemetry = crate::telemetry::Telemetry::open_for_database(
         &database_path,
         "01900000-0000-7000-8000-000000000001",
@@ -29263,6 +29723,7 @@ fn live_subscription_observations_join_once_and_record_disconnect_cause() {
     let unsubscribed = snapback
         .subscribe_live("listItems", live_limit_input("live-unsubscribe", json!({})))
         .expect("subscribe first live observation");
+    let unsubscribed_id = unsubscribed.subscription_id.clone();
     snapback
         .telemetry
         .force_flush()
@@ -29289,10 +29750,31 @@ fn live_subscription_observations_join_once_and_record_disconnect_cause() {
             },
         )
         .expect("explicit unsubscribe terminal");
-    snapback
+    assert!(
+        snapback
+            .inspect()
+            .unwrap()
+            .runtime_cost
+            .subscription_registry
+            .iter()
+            .all(|row| row.subscription_id != unsubscribed_id),
+        "the production unsubscribe seam retires its exact cost row"
+    );
+    let disconnected = snapback
         .subscribe_live("listItems", live_limit_input("live-disconnect", json!({})))
-        .expect("subscribe disconnect observation");
+        .expect("subscribe disconnect observation")
+        .subscription_id;
     snapback.disconnect_topology_for_transport("live-disconnect", 1);
+    assert!(
+        snapback
+            .inspect()
+            .unwrap()
+            .runtime_cost
+            .subscription_registry
+            .iter()
+            .all(|row| row.subscription_id != disconnected),
+        "the production disconnect/loss seam retires its exact cost row"
+    );
     snapback
         .telemetry
         .force_flush()

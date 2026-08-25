@@ -4703,6 +4703,10 @@ function managedDevRuntimeEnvironment(environment) {
     // production launcher remain redacted unless they make the same deliberate
     // choice; an inherited caller value cannot silently change this supervisor.
     SNAPBACK_HANDLER_ERROR_EXPOSURE: 'development',
+    // @ref LLP 0267#71-posture-first-redaction-bounded-storage-localhosted —
+    // managed development is the recorder's default-on boundary. Native
+    // serving remains default-off and requires its own explicit instance flag.
+    SNAPBACK_RUNTIME_COST_RECORDER: '1',
   };
   // @ref LLP 0301#2-origin-admission--the-path-split-implemented — the
   // posture and its complete declaration list were constructed immediately

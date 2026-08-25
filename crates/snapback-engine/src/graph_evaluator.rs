@@ -18,6 +18,7 @@ use crate::manifest::{
     graph_plan_identity_v1, validate_graph_arguments_v1, validate_graph_window_vector_v1,
 };
 use crate::storage::{CapturedReadDependency, CapturedReadKind, DbRead};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use sha2::{Digest as _, Sha256};
@@ -96,7 +97,7 @@ pub struct GraphWindowLedgerV1 {
     pub index_ranges: u64,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct StructuralWorkV1 {
     pub root_rows_by_node: Vec<GraphObservedNodeWorkV1>,
@@ -108,14 +109,14 @@ pub struct StructuralWorkV1 {
     pub argument_expansion_by_node: Vec<GraphObservedNodeWorkV1>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct GraphObservedNodeWorkV1 {
     pub node_id: String,
     pub observed: u64,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct GraphObservedArgumentWorkV1 {
     pub argument_id: String,

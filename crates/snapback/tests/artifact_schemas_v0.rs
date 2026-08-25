@@ -72,7 +72,7 @@ use snapback::local::{
     EquivalentWorkInspect, InspectState, LiveAuthorityLaneStats, LiveDeliveryStats,
     LiveEvaluationStats, LiveMatcherDecisionStats, LiveResumeInput, LiveSettlementStats,
     LiveSubscribeInput, LiveUnsubscribeInput, LiveWatermarkStats, MaintenanceDiagnostics,
-    PublicInspect,
+    PublicInspect, RuntimeCostRecorder,
 };
 use snapback::manifest::{
     ArtifactGeneration, AuthInput, AuthorityDescriptor, CLIENT_MUTATION_ACK_MAX_IDS,
@@ -1700,6 +1700,22 @@ fn dk7_every_artifact_has_a_committed_schema_file() {
     }
 }
 
+#[test]
+fn runtime_cost_inspect_schemas_match_rust_types_without_rotating_public_contracts() {
+    for SchemaArtifact { file, schema } in artifact_schemas().into_iter().filter(|artifact| {
+        matches!(
+            artifact.file,
+            "inspect.schema.json" | "inspect.admin.schema.json" | "inspect.public.schema.json"
+        )
+    }) {
+        assert_eq!(
+            committed(file),
+            schema,
+            "{file} drifted from the Rust inspect carrier"
+        );
+    }
+}
+
 /// A representative InspectState literal exercising the full runtime/inspect
 /// closure (manifests, runtime capabilities, cron, ephemeral, diagnostics).
 fn representative_inspect() -> InspectState {
@@ -1802,6 +1818,7 @@ fn representative_inspect() -> InspectState {
         live_settlement: LiveSettlementStats::default(),
         live_authority: LiveAuthorityLaneStats::default(),
         live_watermarks: LiveWatermarkStats::default(),
+        runtime_cost: RuntimeCostRecorder::disabled().snapshot(),
         ephemeral: EphemeralDiagnostics {
             room_count: 1,
             entry_count: 1,

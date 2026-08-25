@@ -3078,6 +3078,16 @@ impl AppState {
                 Some(bindings) => bindings,
                 None => instance.claim_app_state_graph(server_profile, auth_deployment)?,
             };
+            // @ref LLP 0267#71-posture-first-redaction-bounded-storage-localhosted —
+            // direct serving and hosted instances stay off by default. The
+            // managed `snapback dev` supervisor or an operator must set the
+            // exact instance flag to opt this process into gated local capture.
+            instance.set_runtime_cost_recorder_enabled(runtime_cost_recorder_enabled(
+                server_profile,
+                std::env::var("SNAPBACK_RUNTIME_COST_RECORDER")
+                    .ok()
+                    .as_deref(),
+            ));
             let (
                 admission,
                 commit_capsule_authority,
@@ -3899,6 +3909,10 @@ impl AppState {
         Self::try_detached(snapback)
             .expect("AppState::detached compatibility wrapper failed; use try_detached")
     }
+}
+
+fn runtime_cost_recorder_enabled(_profile: ServerProfile, explicit: Option<&str>) -> bool {
+    explicit == Some("1")
 }
 
 fn telemetry_export_continuation_key() -> SnapbackResult<[u8; 32]> {
@@ -6456,6 +6470,20 @@ mod tests {
     use crate::auth::admission::AdmissionController;
     use crate::auth::invocation::{InvocationGate, WireAuthorityFields};
     use std::collections::BTreeMap;
+
+    #[test]
+    fn runtime_cost_recorder_is_serve_and_hosted_default_off() {
+        assert!(!runtime_cost_recorder_enabled(ServerProfile::Dev, None));
+        assert!(!runtime_cost_recorder_enabled(ServerProfile::Prod, None));
+        assert!(!runtime_cost_recorder_enabled(
+            ServerProfile::Prod,
+            Some("true")
+        ));
+        assert!(runtime_cost_recorder_enabled(
+            ServerProfile::Prod,
+            Some("1")
+        ));
+    }
 
     #[test]
     fn legacy_dev_auth_origins_remain_exact_normalized_loopback_origins() {

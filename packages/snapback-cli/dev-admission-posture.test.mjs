@@ -65,6 +65,11 @@ try {
     });
     try {
       assert.notEqual(childEnvironment, null);
+      assert.equal(
+        childEnvironment.SNAPBACK_RUNTIME_COST_RECORDER,
+        '1',
+        'managed snapback dev owns the recorder default-on boundary',
+      );
       return {
         admissionPosture: childEnvironment.SNAPBACK_DEV_ADMISSION_POSTURE,
         origins: childEnvironment.SNAPBACK_DEV_AUTH_ORIGINS,

@@ -42,6 +42,10 @@ pub struct InspectState {
     pub live_authority: LiveAuthorityLaneStats,
     #[serde(rename = "liveWatermarks")]
     pub live_watermarks: LiveWatermarkStats,
+    /// Pull-only, process-local cost diagnostics. The exhaustive
+    /// `PublicInspect` projection below deliberately drops this entire field.
+    #[serde(rename = "runtimeCost")]
+    pub runtime_cost: RuntimeCostSnapshotV1,
     pub ephemeral: EphemeralDiagnostics,
     pub cron: CronInspectState,
     pub maintenance: MaintenanceDiagnostics,
@@ -409,6 +413,7 @@ impl From<InspectState> for PublicInspect {
             live_settlement,
             live_authority,
             live_watermarks,
+            runtime_cost: _,
             ephemeral,
             cron,
             maintenance,

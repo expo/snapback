@@ -1,3 +1,4 @@
+use super::runtime_cost::*;
 use crate::assets::AssetFactsLocalExt as _;
 use crate::auth::admission::AdmissionLease;
 use crate::auth::admission::{
@@ -872,6 +873,12 @@ struct PendingLiveFanout {
     force_replace: bool,
     frames: u64,
     coverage_through: u64,
+    covered_versions: Option<CoveredVersionsV1>,
+    rerun_cause: LiveRerunCauseV1,
+    coalesced: bool,
+    reclassifies_as_refresh: bool,
+    runtime_wave_seq: Option<u64>,
+    runtime_plan_identity: Option<String>,
     first_deferred_at: Instant,
     /// Populated only while the optional spike trace is enabled, so the
     /// production-disabled path performs no per-commit allocation.
@@ -884,14 +891,40 @@ struct CurrentLiveEvaluation {
     subscription_id: String,
     connection_id: String,
     cut_version: u64,
+    wave_seq: Option<u64>,
+    function_id: String,
+    plan_identity: Option<String>,
+    rerun_cause: LiveRerunCauseV1,
+    coalesced: bool,
+    covered_versions: Option<CoveredVersionsV1>,
     commit_versions: Vec<u64>,
     queued_ms: Option<f64>,
     started_ms: Option<f64>,
     started_at: Instant,
     delivered_frames: u64,
+    delivered_version: Option<u64>,
     delivered_bytes: u64,
     wire_kind: Option<&'static str>,
+    real_evaluation: bool,
+    memo_delivery: bool,
+    authority_gate_discarded: bool,
+    matcher_proved_coverage: bool,
     control: Arc<crate::live_coalesce::LiveEvaluationControl>,
+}
+
+fn runtime_cost_plan_identity(
+    function: &FunctionDefinition,
+    schema: &SchemaManifest,
+) -> Option<String> {
+    match &function.runtime {
+        FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier)) => {
+            Some(carrier.plan_hash.to_string())
+        }
+        _ => crate::manifest::single_node_identity_v1(function, Some(schema))
+            .ok()
+            .flatten()
+            .map(|identity| identity.plan_hash),
+    }
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -1168,6 +1201,22 @@ impl PendingLiveScheduler {
             inherited_commit_versions.append(&mut pending.trace_commit_versions);
             pending.trace_commit_versions = inherited_commit_versions;
             pending.trace_queued_ms = replaced.trace_queued_ms.or(pending.trace_queued_ms);
+            pending.covered_versions = match (replaced.covered_versions, pending.covered_versions) {
+                (Some(left), Some(right)) => Some(CoveredVersionsV1 {
+                    first: left.first.min(right.first),
+                    last: left.last.max(right.last),
+                }),
+                (Some(covered), None) | (None, Some(covered)) => Some(covered),
+                (None, None) => None,
+            };
+            if !pending.reclassifies_as_refresh {
+                pending.rerun_cause = pending.rerun_cause.merge(replaced.rerun_cause);
+            }
+            pending.runtime_wave_seq = replaced.runtime_wave_seq.or(pending.runtime_wave_seq);
+            pending.runtime_plan_identity = replaced
+                .runtime_plan_identity
+                .or(pending.runtime_plan_identity);
+            pending.coalesced = true;
         }
         self.entries.insert(subscription_id.clone(), pending);
         match lane {
@@ -3705,6 +3754,10 @@ pub struct LocalSnapback {
     last_commit_ack_at: Option<Instant>,
     live_authority_stats: LiveAuthorityLaneStats,
     live_watermark_stats: LiveWatermarkStats,
+    // @ref LLP 0267#71-posture-first-redaction-bounded-storage-localhosted —
+    // this process-local recorder defaults disabled and is exposed only by the
+    // gated inspect projection.
+    runtime_cost: RuntimeCostRecorder,
     // @ref LLP 0008#dated-decision--post-commit-fan-out-coalescing-2026-08-08 —
     // installed by the serving process together with its backstop flusher
     // task; when absent (unit tests, embedders that opt out) every commit
@@ -7114,6 +7167,33 @@ impl LocalSnapback {
         self.telemetry.clone()
     }
 
+    /// Install the host-resolved cost-recorder posture. The engine default is
+    /// always off; managed development and explicitly configured serving
+    /// processes opt in at their trusted composition boundary.
+    pub fn set_runtime_cost_recorder_enabled(&mut self, enabled: bool) {
+        self.runtime_cost.set_enabled(enabled);
+    }
+
+    pub fn record_server_mutation_phases(
+        &mut self,
+        function_id: &str,
+        authorization_ms: Option<f64>,
+        execution_ms: Option<f64>,
+        commit_ms: Option<f64>,
+    ) {
+        self.runtime_cost.record_server_mutation_phases(
+            function_id,
+            authorization_ms,
+            execution_ms,
+            commit_ms,
+        );
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn runtime_cost_recorder_enabled_for_test(&self) -> bool {
+        self.runtime_cost.is_enabled()
+    }
+
     /// Atomically claim this graph for the supported AppState composition
     /// seam and bind its already-resolved transport posture. A second claim
     /// fails before it can mutate profile or network state.
@@ -8224,6 +8304,9 @@ impl LocalSnapback {
                 .live_evaluation_stats
                 .memo_evictions
                 .saturating_add(evictions);
+            if let Some(evaluation) = self.current_live_evaluation.as_mut() {
+                evaluation.memo_delivery = true;
+            }
             return Ok(cached);
         }
         if key.is_some() {
@@ -8234,6 +8317,9 @@ impl LocalSnapback {
             .live_evaluation_stats
             .evaluations_executed
             .saturating_add(1);
+        if let Some(evaluation) = self.current_live_evaluation.as_mut() {
+            evaluation.real_evaluation = true;
+        }
 
         let result = if is_reserved_live_function(&subscription.function) {
             self.reserved_live_invocation(&authority, &subscription.function, &subscription.input)
@@ -9696,6 +9782,7 @@ impl LocalSnapback {
             self.subscriptions.values().cloned().collect();
         for subscription in &dropped_subscriptions {
             subscription.observation.finish(200, None, "reset");
+            self.runtime_cost.retire_subscription(&subscription.id);
         }
         self.subscriptions.clear();
         let memo_disabled = self.pending_live_fanout.evaluation_memo.disabled;
@@ -11960,6 +12047,7 @@ impl LocalSnapback {
                 .clone(),
             live_authority: self.live_authority_stats.clone(),
             live_watermarks: self.live_watermark_stats.clone(),
+            runtime_cost: self.runtime_cost.snapshot(),
             ephemeral: EphemeralDiagnostics::default(),
             cron,
             maintenance: self.maintenance.clone(),
@@ -21239,6 +21327,7 @@ impl LocalSnapback {
             Some(definition) => definition?,
             None => self.function(name)?.clone(),
         };
+        let runtime_plan_identity = runtime_cost_plan_identity(&function, self.db.schema());
         let proof_namespace = input.authorization_namespace.clone();
         self.validate_expected_generation(&authority, expected_generation)?;
         if function.kind != FunctionKind::LiveQuery {
@@ -21439,6 +21528,9 @@ impl LocalSnapback {
 
         let eval_queue_ms = crate::spike_trace::timestamp_ms();
         let eval_start_ms = crate::spike_trace::timestamp_ms();
+        let runtime_cost_evaluation_started_at = (self.runtime_cost.is_enabled()
+            && pinned_bundle_invocation.is_none())
+        .then(Instant::now);
         let query = if let Some(query) = pinned_bundle_invocation {
             query
         } else if reserved_live {
@@ -21491,6 +21583,8 @@ impl LocalSnapback {
             finish_function_observation(span, &mut result);
             result?
         };
+        let runtime_cost_evaluation_turn_ms = runtime_cost_evaluation_started_at
+            .map(|started_at| started_at.elapsed().as_secs_f64() * 1_000.0);
         let eval_finish_ms = crate::spike_trace::timestamp_ms();
         let permission_epochs = permission_epochs_from_dependencies(&query.read_dependencies);
 
@@ -21817,6 +21911,7 @@ impl LocalSnapback {
             if let Some(retired) = self.subscriptions.remove(&old_id) {
                 retired.observation.finish(200, None, "superseded");
             }
+            self.runtime_cost.retire_subscription(&old_id);
             self.pending_live_fanout
                 .evaluation_memo
                 .retire_subscription(&old_id);
@@ -21873,6 +21968,13 @@ impl LocalSnapback {
                 observation,
                 rqs: rqs_state,
             },
+        );
+        self.runtime_cost.establish_subscription(
+            &subscription_id,
+            name,
+            Some(query.output.version),
+            runtime_plan_identity,
+            runtime_cost_evaluation_turn_ms,
         );
         if let Some(obligation) = subscription_quarantine_entry.as_ref() {
             self.record_quarantine_entry(obligation, true);
@@ -22188,6 +22290,7 @@ impl LocalSnapback {
         // No fallible step remains after the retained producer is removed.
         self.touch_connection(&input.connection_id, now_millis());
         self.subscriptions.remove(&subscription.id);
+        self.runtime_cost.retire_subscription(&subscription.id);
         self.pending_live_fanout
             .evaluation_memo
             .retire_subscription(&subscription.id);
@@ -24956,6 +25059,7 @@ impl LocalSnapback {
         self.subscriptions
             .retain(|_, subscription| subscription.connection_id != connection_id);
         for subscription_id in retired_subscription_ids {
+            self.runtime_cost.retire_subscription(&subscription_id);
             self.pending_live_fanout
                 .evaluation_memo
                 .retire_subscription(&subscription_id);
@@ -26815,6 +26919,12 @@ impl LocalSnapback {
             .saturating_add(payload.len() as u64);
         if let Some(evaluation) = self.current_live_evaluation.as_mut() {
             evaluation.delivered_frames = evaluation.delivered_frames.saturating_add(1);
+            if let Some((subscription_id, version)) = position
+                && subscription_id == evaluation.subscription_id
+            {
+                evaluation.delivered_version =
+                    Some(evaluation.delivered_version.unwrap_or(0).max(version));
+            }
             evaluation.delivered_bytes = evaluation
                 .delivered_bytes
                 .saturating_add(payload.len() as u64);
@@ -26937,6 +27047,11 @@ impl LocalSnapback {
                 .live_authority_stats
                 .stale_authority_frames_discarded
                 .saturating_add(1);
+            if let Some(evaluation) = self.current_live_evaluation.as_mut()
+                && evaluation.subscription_id == subscription.id
+            {
+                evaluation.authority_gate_discarded = true;
+            }
             crate::spike_trace::fence(&subscription.id, "stale_discard", resolved, None);
         }
         authorized
@@ -27017,6 +27132,7 @@ impl LocalSnapback {
                 || subscription.effect_fence.as_ref() != Some(effect_fence)
         });
         for subscription_id in retired_subscription_ids {
+            self.runtime_cost.retire_subscription(&subscription_id);
             self.pending_live_fanout
                 .evaluation_memo
                 .retire_subscription(&subscription_id);
@@ -27543,6 +27659,7 @@ impl LocalSnapback {
             last_commit_ack_at: None,
             live_authority_stats: LiveAuthorityLaneStats::default(),
             live_watermark_stats: LiveWatermarkStats::default(),
+            runtime_cost: RuntimeCostRecorder::disabled(),
             live_coalescer: None,
             pending_live_fanout: PendingLiveScheduler::default(),
             live_evaluation_timeout_streaks: BTreeMap::new(),
@@ -28666,6 +28783,7 @@ impl LocalSnapback {
                 })?
             };
             self.subscriptions.remove(&subscription.id);
+            self.runtime_cost.retire_subscription(&subscription.id);
             self.pending_live_fanout
                 .evaluation_memo
                 .retire_subscription(&subscription.id);
@@ -29370,6 +29488,40 @@ impl LocalSnapback {
             })
     }
 
+    // @ref LLP 0267#73-query-and-live-re-evaluation-visibility-extends-1-adds-delivery —
+    // the registry's committed-version charge is made only by the same exact
+    // matcher proof that admits the subscription to this commit's work.
+    fn runtime_cost_commit_invalidates_subscription(
+        &self,
+        subscription: &LiveSubscription,
+        changes: &[ChangedRow],
+    ) -> bool {
+        if is_reserved_live_function(&subscription.function) {
+            return true;
+        }
+        let Some(function) = self.functions.function(&subscription.function) else {
+            return false;
+        };
+        if self.subscription_has_stale_permission(subscription) {
+            return false;
+        }
+        let decision = match subscription.graph_serving.as_ref() {
+            Some(graph) => live_subscription_match_decision_with_graph_registration(
+                function,
+                &graph.matcher_input,
+                &graph.dependencies,
+                changes,
+            ),
+            None => live_subscription_match_decision(
+                function,
+                &subscription.input,
+                &subscription.read_dependencies,
+                changes,
+            ),
+        };
+        decision.outcome != LiveMatchOutcome::Skip
+    }
+
     fn enqueue_live_data_fanout(
         &mut self,
         changes: &[ChangedRow],
@@ -29383,10 +29535,62 @@ impl LocalSnapback {
         let is_refresh = changes.is_empty();
         let trace_queued_ms = crate::spike_trace::timestamp_ms();
         let mut enqueued = false;
+        let mut runtime_wave_seqs = self
+            .pending_live_fanout
+            .entries
+            .iter()
+            .filter_map(|(subscription_id, pending)| {
+                let function_id = self.subscriptions.get(subscription_id)?.function.clone();
+                Some((
+                    (
+                        function_id,
+                        pending.runtime_plan_identity.clone(),
+                        pending.coverage_through,
+                    ),
+                    pending.runtime_wave_seq,
+                ))
+            })
+            .collect::<BTreeMap<_, _>>();
         for subscription_id in subscription_ids {
             if already_resynced.contains(&subscription_id) {
                 continue;
             }
+            let (function_id, runtime_plan_identity, commit_invalidates) = {
+                let subscription = self
+                    .subscriptions
+                    .get(&subscription_id)
+                    .expect("subscription ids came from the retained map");
+                let function_id = subscription.function.clone();
+                let plan_identity = self
+                    .functions
+                    .function(&function_id)
+                    .and_then(|function| runtime_cost_plan_identity(function, self.db.schema()));
+                let commit_invalidates = is_refresh
+                    || self.runtime_cost_commit_invalidates_subscription(subscription, changes);
+                (function_id, plan_identity, commit_invalidates)
+            };
+            if is_refresh {
+                self.runtime_cost
+                    .charge_writeless_authority(&subscription_id);
+            } else if commit_invalidates {
+                self.runtime_cost
+                    .charge_committed_version(&subscription_id, frame_version);
+            }
+            let wave_key = (function_id, runtime_plan_identity.clone(), frame_version);
+            let runtime_wave_seq = if let Some(seq) = self
+                .pending_live_fanout
+                .entries
+                .get(&subscription_id)
+                .and_then(|pending| pending.runtime_wave_seq)
+            {
+                Some(seq)
+            } else if let Some(seq) = runtime_wave_seqs.get(&wave_key) {
+                *seq
+            } else {
+                let seq = self.runtime_cost.reserve_wave_seq();
+                runtime_wave_seqs.insert(wave_key, seq);
+                seq
+            };
             if self
                 .pending_live_fanout
                 .entries
@@ -29398,6 +29602,27 @@ impl LocalSnapback {
                     )
                 })
             {
+                if !is_refresh {
+                    if let Some(pending) =
+                        self.pending_live_fanout.entries.get_mut(&subscription_id)
+                    {
+                        pending.covered_versions = Some(match pending.covered_versions.take() {
+                            Some(covered) => CoveredVersionsV1 {
+                                first: covered.first.min(frame_version),
+                                last: covered.last.max(frame_version),
+                            },
+                            None => CoveredVersionsV1 {
+                                first: frame_version,
+                                last: frame_version,
+                            },
+                        });
+                        pending.rerun_cause = pending
+                            .rerun_cause
+                            .merge(LiveRerunCauseV1::MutationInvalidation);
+                        pending.coalesced = true;
+                    }
+                    self.runtime_cost.mark_coalescing(&subscription_id);
+                }
                 continue;
             }
             if is_refresh {
@@ -29410,6 +29635,12 @@ impl LocalSnapback {
                         force_replace: true,
                         frames: 1,
                         coverage_through: frame_version,
+                        covered_versions: None,
+                        rerun_cause: LiveRerunCauseV1::Refresh,
+                        coalesced: false,
+                        reclassifies_as_refresh: false,
+                        runtime_wave_seq,
+                        runtime_plan_identity: runtime_plan_identity.clone(),
                         first_deferred_at: Instant::now(),
                         trace_commit_versions: trace_queued_ms
                             .map(|_| vec![frame_version])
@@ -29427,6 +29658,21 @@ impl LocalSnapback {
                 pending.changes.extend_from_slice(changes);
                 pending.frames = pending.frames.saturating_add(1);
                 pending.coverage_through = frame_version;
+                pending.covered_versions = Some(match pending.covered_versions.take() {
+                    Some(covered) => CoveredVersionsV1 {
+                        first: covered.first.min(frame_version),
+                        last: covered.last.max(frame_version),
+                    },
+                    None => CoveredVersionsV1 {
+                        first: frame_version,
+                        last: frame_version,
+                    },
+                });
+                pending.rerun_cause = pending
+                    .rerun_cause
+                    .merge(LiveRerunCauseV1::MutationInvalidation);
+                pending.coalesced = true;
+                self.runtime_cost.mark_coalescing(&subscription_id);
                 if trace_queued_ms.is_some() {
                     pending.trace_commit_versions.push(frame_version);
                 }
@@ -29449,6 +29695,12 @@ impl LocalSnapback {
                             force_replace: true,
                             frames: 1,
                             coverage_through: frame_version,
+                            covered_versions: None,
+                            rerun_cause: LiveRerunCauseV1::Refresh,
+                            coalesced: true,
+                            reclassifies_as_refresh: true,
+                            runtime_wave_seq,
+                            runtime_plan_identity: runtime_plan_identity.clone(),
                             first_deferred_at: Instant::now(),
                             trace_commit_versions: Vec::new(),
                             trace_queued_ms,
@@ -29466,6 +29718,15 @@ impl LocalSnapback {
                         force_replace: false,
                         frames: 1,
                         coverage_through: frame_version,
+                        covered_versions: Some(CoveredVersionsV1 {
+                            first: frame_version,
+                            last: frame_version,
+                        }),
+                        rerun_cause: LiveRerunCauseV1::MutationInvalidation,
+                        coalesced: false,
+                        reclassifies_as_refresh: false,
+                        runtime_wave_seq,
+                        runtime_plan_identity,
                         first_deferred_at: Instant::now(),
                         trace_commit_versions: trace_queued_ms
                             .map(|_| vec![frame_version])
@@ -29517,6 +29778,8 @@ impl LocalSnapback {
         scope: String,
         epoch: u64,
         frame_version: u64,
+        runtime_wave_seq: Option<u64>,
+        runtime_plan_identity: Option<String>,
     ) {
         let Some(coalescer) = self.live_coalescer.clone() else {
             return;
@@ -29530,7 +29793,7 @@ impl LocalSnapback {
             return;
         }
         self.pending_live_fanout.push(
-            subscription_id,
+            subscription_id.clone(),
             PendingLiveFanout {
                 lane: PendingLiveLane::Refresh,
                 work: PendingLiveWork::PermissionResync {
@@ -29542,6 +29805,12 @@ impl LocalSnapback {
                 force_replace: true,
                 frames: 1,
                 coverage_through: frame_version,
+                covered_versions: None,
+                rerun_cause: LiveRerunCauseV1::Refresh,
+                coalesced: false,
+                reclassifies_as_refresh: false,
+                runtime_wave_seq,
+                runtime_plan_identity,
                 first_deferred_at: Instant::now(),
                 trace_commit_versions: crate::spike_trace::timestamp_ms()
                     .map(|_| vec![frame_version])
@@ -29550,6 +29819,8 @@ impl LocalSnapback {
                 generation: 0,
             },
         );
+        self.runtime_cost
+            .charge_writeless_authority(&subscription_id);
         coalescer.request_flush();
     }
 
@@ -29558,6 +29829,8 @@ impl LocalSnapback {
         subscription_id: String,
         min_commit_version: u64,
         membership_declarations: Vec<String>,
+        runtime_wave_seq: Option<u64>,
+        runtime_plan_identity: Option<String>,
     ) {
         let Some(coalescer) = self.live_coalescer.clone() else {
             return;
@@ -29568,7 +29841,7 @@ impl LocalSnapback {
             .get(&subscription_id)
             .map_or_else(Instant::now, |pending| pending.first_deferred_at);
         self.pending_live_fanout.push(
-            subscription_id,
+            subscription_id.clone(),
             PendingLiveFanout {
                 lane: PendingLiveLane::Authority,
                 work: PendingLiveWork::AuthorityRestore {
@@ -29579,12 +29852,20 @@ impl LocalSnapback {
                 force_replace: true,
                 frames: 1,
                 coverage_through: min_commit_version,
+                covered_versions: None,
+                rerun_cause: LiveRerunCauseV1::AuthorizationInvalidation,
+                coalesced: false,
+                reclassifies_as_refresh: false,
+                runtime_wave_seq,
+                runtime_plan_identity,
                 first_deferred_at,
                 trace_commit_versions: Vec::new(),
                 trace_queued_ms: crate::spike_trace::timestamp_ms(),
                 generation: 0,
             },
         );
+        self.runtime_cost
+            .charge_writeless_authority(&subscription_id);
         coalescer.request_flush();
     }
 
@@ -29696,12 +29977,19 @@ impl LocalSnapback {
                 force_replace: true,
                 frames: 1,
                 coverage_through,
+                covered_versions: None,
+                rerun_cause: LiveRerunCauseV1::Refresh,
+                coalesced: true,
+                reclassifies_as_refresh: true,
+                runtime_wave_seq: None,
+                runtime_plan_identity: None,
                 first_deferred_at: Instant::now(),
                 trace_commit_versions: Vec::new(),
                 trace_queued_ms: None,
                 generation: 0,
             },
         );
+        self.runtime_cost.refresh_degradation(&subscription_id);
         self.record_attached_diagnostics(vec![
             Diagnostic::warning(
                 "SNAPBACK_LIVE_OVERLOAD_DEGRADE",
@@ -29797,6 +30085,14 @@ impl LocalSnapback {
             .get(subscription_id)
             .map(|subscription| subscription.connection_id.clone())
             .unwrap_or_default();
+        let function_id = self
+            .subscriptions
+            .get(subscription_id)
+            .map(|subscription| subscription.function.clone())
+            .unwrap_or_default();
+        let wave_seq = self
+            .runtime_cost
+            .start_wave(subscription_id, pending.runtime_wave_seq);
         self.live_evaluation_stats.evaluations_started = self
             .live_evaluation_stats
             .evaluations_started
@@ -29805,13 +30101,24 @@ impl LocalSnapback {
             subscription_id: subscription_id.to_owned(),
             connection_id,
             cut_version: frame_version,
+            wave_seq,
+            function_id,
+            plan_identity: pending.runtime_plan_identity.clone(),
+            rerun_cause: pending.rerun_cause,
+            coalesced: pending.coalesced || pending.frames > 1,
+            covered_versions: pending.covered_versions.clone(),
             commit_versions: pending.trace_commit_versions.clone(),
             queued_ms: pending.trace_queued_ms,
             started_ms: crate::spike_trace::timestamp_ms(),
             started_at: Instant::now(),
             delivered_frames: 0,
+            delivered_version: None,
             delivered_bytes: 0,
             wire_kind: None,
+            real_evaluation: false,
+            memo_delivery: false,
+            authority_gate_discarded: false,
+            matcher_proved_coverage: false,
             control: control.clone(),
         });
 
@@ -29878,6 +30185,7 @@ impl LocalSnapback {
             control.is_abandoned(),
             diagnostic_code.as_deref(),
         );
+        self.retire_terminal_query_cost_quarantine(subscription_id, diagnostic_code.as_deref());
 
         if control.is_abandoned() {
             self.handle_live_evaluation_timeout(subscription_id, frame_version, &admission);
@@ -29929,6 +30237,64 @@ impl LocalSnapback {
                 .live_evaluation_stats
                 .evaluations_finished
                 .saturating_add(1);
+        }
+        if let Some(wave_seq) = evaluation.wave_seq {
+            if abandoned {
+                self.runtime_cost
+                    .evaluation_timeout(&evaluation.subscription_id, wave_seq);
+            } else if evaluation.authority_gate_discarded {
+                self.runtime_cost
+                    .authority_gate_discard(&evaluation.subscription_id, wave_seq);
+            } else if diagnostic_code.is_some() {
+                self.runtime_cost
+                    .finish_in_flight_cancellation(&evaluation.subscription_id, wave_seq);
+            } else if let Some(delivered_version) = evaluation.delivered_version {
+                self.runtime_cost.deliver_wave(
+                    &evaluation.subscription_id,
+                    wave_seq,
+                    delivered_version,
+                );
+            } else if evaluation.matcher_proved_coverage {
+                self.runtime_cost.complete_without_delivery(
+                    &evaluation.subscription_id,
+                    wave_seq,
+                    frame_version,
+                );
+            } else {
+                self.runtime_cost
+                    .finish_in_flight_cancellation(&evaluation.subscription_id, wave_seq);
+            }
+            let (max_evaluation_turn_ms, total_evaluation_turn_ms) = if evaluation.real_evaluation {
+                (Some(duration_ms), Some(duration_ms))
+            } else {
+                (None, None)
+            };
+            let (max_memo_delivery_turn_ms, total_memo_delivery_turn_ms) =
+                if evaluation.memo_delivery {
+                    (Some(duration_ms), Some(duration_ms))
+                } else {
+                    (None, None)
+                };
+            self.runtime_cost
+                .record_live_delivery_wave(LiveDeliveryWaveV1 {
+                    format: "snapback.live-delivery-wave.v1".to_owned(),
+                    wave_seq,
+                    function_id: evaluation.function_id.clone(),
+                    plan_identity: evaluation.plan_identity.clone(),
+                    rerun_cause: evaluation.rerun_cause,
+                    coalesced: evaluation.coalesced,
+                    covered_versions: evaluation.covered_versions.clone(),
+                    delivered_version: evaluation.delivered_version,
+                    subscriber_count: 1,
+                    distinct_evaluation_groups: u64::from(evaluation.real_evaluation),
+                    real_evaluations: u64::from(evaluation.real_evaluation),
+                    memo_deliveries: u64::from(evaluation.memo_delivery),
+                    delivered_frames: evaluation.delivered_frames,
+                    max_evaluation_turn_ms,
+                    total_evaluation_turn_ms,
+                    max_memo_delivery_turn_ms,
+                    total_memo_delivery_turn_ms,
+                });
         }
         crate::spike_trace::eval(
             &evaluation.subscription_id,
@@ -29984,10 +30350,56 @@ impl LocalSnapback {
         let enqueue = self.enqueue_subscription_durable(&subscription, payload);
         if enqueue.overflowed_now {
             let _ = self.raise_connection_overflow(&subscription.connection_id, frame_version);
+            // @ref LLP 0200#25-cancellation-fairness-and-bounded-staleness —
+            // refresh transport refusal is the terminal capacity escape.
+            self.retire_scheduler_subscription(subscription_id, None, "refresh_transport_overflow");
         }
         self.live_delivery.total_deliveries += 1;
         self.live_delivery.last_deliveries += 1;
         Ok(())
+    }
+
+    fn retire_scheduler_subscription(
+        &mut self,
+        subscription_id: &str,
+        diagnostic_code: Option<&'static str>,
+        cause: &'static str,
+    ) -> bool {
+        let Some(subscription) = self.subscriptions.remove(subscription_id) else {
+            self.runtime_cost.retire_subscription(subscription_id);
+            return false;
+        };
+        self.runtime_cost.retire_subscription(subscription_id);
+        self.pending_live_fanout
+            .evaluation_memo
+            .retire_subscription(subscription_id);
+        self.pending_live_fanout.entries.remove(subscription_id);
+        self.live_evaluation_timeout_streaks.remove(subscription_id);
+        if let Some(coalescer) = &self.live_coalescer {
+            coalescer.retire_subscription(subscription_id);
+        }
+        subscription.observation.finish(500, diagnostic_code, cause);
+        self.refresh_auth_scoped_live_connections();
+        self.refresh_cron_active();
+        true
+    }
+
+    // @ref LLP 0267#73-query-and-live-re-evaluation-visibility-extends-1-adds-delivery —
+    // the closed terminal query-cost refusal retires the row; diagnostic-only
+    // query-cost reports leave the subscription live.
+    fn retire_terminal_query_cost_quarantine(
+        &mut self,
+        subscription_id: &str,
+        diagnostic_code: Option<&str>,
+    ) -> bool {
+        if diagnostic_code != Some("SNAPBACK_QUERY_COST_LIVE_TURN_REFUSED") {
+            return false;
+        }
+        self.retire_scheduler_subscription(
+            subscription_id,
+            Some("SNAPBACK_QUERY_COST_LIVE_TURN_REFUSED"),
+            "query_cost_terminal_quarantine",
+        )
     }
 
     fn run_authority_restoration_turn(
@@ -30013,6 +30425,11 @@ impl LocalSnapback {
                 )
             })?;
         let restored_authorization = floor.authorization.clone();
+        if let Some(evaluation) = self.current_live_evaluation.as_mut()
+            && evaluation.subscription_id == subscription.id
+        {
+            evaluation.real_evaluation = true;
+        }
         let query = match self.invoke_authorization_resolution(&subscription, floor, admission) {
             Ok(query) => query,
             Err(failure) => {
@@ -30080,7 +30497,12 @@ impl LocalSnapback {
             })),
         ]);
         if consecutive == 1 {
-            if self.subscriptions.contains_key(subscription_id) {
+            if let Some(subscription) = self.subscriptions.get(subscription_id) {
+                let runtime_plan_identity = self
+                    .functions
+                    .function(&subscription.function)
+                    .and_then(|function| runtime_cost_plan_identity(function, self.db.schema()));
+                let runtime_wave_seq = self.runtime_cost.reserve_wave_seq();
                 self.pending_live_fanout.push(
                     subscription_id.to_owned(),
                     PendingLiveFanout {
@@ -30090,6 +30512,12 @@ impl LocalSnapback {
                         force_replace: true,
                         frames: 1,
                         coverage_through: frame_version,
+                        covered_versions: None,
+                        rerun_cause: LiveRerunCauseV1::Refresh,
+                        coalesced: true,
+                        reclassifies_as_refresh: true,
+                        runtime_wave_seq,
+                        runtime_plan_identity,
                         first_deferred_at: Instant::now(),
                         trace_commit_versions: Vec::new(),
                         trace_queued_ms: crate::spike_trace::timestamp_ms(),
@@ -30099,12 +30527,14 @@ impl LocalSnapback {
                 if let Some(coalescer) = &self.live_coalescer {
                     coalescer.request_flush();
                 }
+                self.runtime_cost.refresh_degradation(subscription_id);
             }
             return;
         }
         let Some(subscription) = self.subscriptions.remove(subscription_id) else {
             return;
         };
+        self.runtime_cost.retire_subscription(subscription_id);
         self.pending_live_fanout
             .evaluation_memo
             .retire_subscription(subscription_id);
@@ -31310,11 +31740,26 @@ impl LocalSnapback {
                     .iter()
                     .map(|subscription| subscription.id.clone()),
             );
+            let mut runtime_wave_seqs = BTreeMap::new();
             for subscription in &subscriptions {
+                let plan_identity = self
+                    .functions
+                    .function(&subscription.function)
+                    .and_then(|function| runtime_cost_plan_identity(function, self.db.schema()));
+                let wave_key = (subscription.function.clone(), plan_identity.clone());
+                let runtime_wave_seq = if let Some(seq) = runtime_wave_seqs.get(&wave_key) {
+                    *seq
+                } else {
+                    let seq = self.runtime_cost.reserve_wave_seq();
+                    runtime_wave_seqs.insert(wave_key, seq);
+                    seq
+                };
                 self.enqueue_authority_restoration(
                     subscription.id.clone(),
                     min_commit_version,
                     authorization.membership_declarations.clone(),
+                    runtime_wave_seq,
+                    plan_identity,
                 );
             }
             return Ok(handled);
@@ -31440,6 +31885,7 @@ impl LocalSnapback {
             .collect::<BTreeSet<_>>();
         for (subscription, payload) in subscriptions.iter().zip(payloads) {
             self.subscriptions.remove(&subscription.id);
+            self.runtime_cost.retire_subscription(&subscription.id);
             self.pending_live_fanout
                 .evaluation_memo
                 .retire_subscription(&subscription.id);
@@ -31638,6 +32084,11 @@ impl LocalSnapback {
                 rollup_graph_node_decisions(&match_decision.graph_nodes),
             );
             if match_outcome == LiveMatchOutcome::Skip {
+                if let Some(evaluation) = self.current_live_evaluation.as_mut()
+                    && evaluation.subscription_id == subscription.id
+                {
+                    evaluation.matcher_proved_coverage = true;
+                }
                 skipped += 1;
                 matcher_stats.skip = matcher_stats.skip.saturating_add(1);
                 crate::spike_trace::matcher_decision(
@@ -31819,6 +32270,11 @@ impl LocalSnapback {
                         continue;
                     }
                     Some(DeltaFanout::NoChange) => {
+                        if let Some(evaluation) = self.current_live_evaluation.as_mut()
+                            && evaluation.subscription_id == subscription.id
+                        {
+                            evaluation.matcher_proved_coverage = true;
+                        }
                         self.live_delivery.total_skipped += 1;
                         self.live_delivery.last_skipped += 1;
                         if scheduler_watermarks
@@ -31856,6 +32312,11 @@ impl LocalSnapback {
             }
 
             let query = if subscription.authorization.is_some() {
+                if let Some(evaluation) = self.current_live_evaluation.as_mut()
+                    && evaluation.subscription_id == subscription.id
+                {
+                    evaluation.real_evaluation = true;
+                }
                 let floor = self
                     .auth_invalidation
                     .as_ref()
@@ -32037,6 +32498,12 @@ impl LocalSnapback {
             } else {
                 self.rerun_asset_record_subscription(&subscription, admission, frame_version)
             };
+            if disposition == Some(false)
+                && let Some(evaluation) = self.current_live_evaluation.as_mut()
+                && evaluation.subscription_id == subscription.id
+            {
+                evaluation.matcher_proved_coverage = true;
+            }
             if disposition == Some(false)
                 && scheduler_watermarks
                 && let Err(error) = self.enqueue_convergence_watermark(
@@ -32236,6 +32703,11 @@ impl LocalSnapback {
         // resubscribe does not by itself discharge the obligation. Suppress
         // old-authority ordinary data until an accepted resolution closes it.
         if self.subscription_has_pending_quarantine(subscription) {
+            if let Some(evaluation) = self.current_live_evaluation.as_mut()
+                && evaluation.subscription_id == subscription.id
+            {
+                evaluation.authority_gate_discarded = true;
+            }
             return Ok(Some(DeltaFanout::Discarded));
         }
         // @ref LLP 0053#negative-deltas-are-obligations-positive-deltas-are-best-effort — a removal on an auth-scoped result takes the full obligation-backed snapshot path.
@@ -32756,9 +33228,29 @@ impl LocalSnapback {
         }
 
         if self.live_coalescer.is_some() {
+            let mut runtime_wave_seqs = BTreeMap::new();
             for (subscription, scope, epoch) in stale {
                 resynced.insert(subscription.id.clone());
-                self.enqueue_permission_resync(subscription.id, scope, epoch, frame_version);
+                let plan_identity = self
+                    .functions
+                    .function(&subscription.function)
+                    .and_then(|function| runtime_cost_plan_identity(function, self.db.schema()));
+                let wave_key = (subscription.function.clone(), plan_identity.clone());
+                let runtime_wave_seq = if let Some(seq) = runtime_wave_seqs.get(&wave_key) {
+                    *seq
+                } else {
+                    let seq = self.runtime_cost.reserve_wave_seq();
+                    runtime_wave_seqs.insert(wave_key, seq);
+                    seq
+                };
+                self.enqueue_permission_resync(
+                    subscription.id,
+                    scope,
+                    epoch,
+                    frame_version,
+                    runtime_wave_seq,
+                    plan_identity,
+                );
             }
             return Ok(resynced);
         }
@@ -32805,10 +33297,18 @@ impl LocalSnapback {
             let enqueue = self.enqueue_subscription_durable(&subscription, payload);
             if enqueue.overflowed_now {
                 let _ = self.raise_connection_overflow(&subscription.connection_id, frame_version);
+                // @ref LLP 0200#25-cancellation-fairness-and-bounded-staleness —
+                // the inline refresh transport has the same terminal capacity
+                // escape as the scheduled refresh transport.
+                self.retire_scheduler_subscription(
+                    &subscription.id,
+                    None,
+                    "refresh_transport_overflow",
+                );
             }
             self.live_delivery.total_deliveries += 1;
             self.live_delivery.last_deliveries += 1;
-            resynced.insert(subscription.id);
+            resynced.insert(subscription.id.clone());
         }
         Ok(resynced)
     }

@@ -30555,6 +30555,7 @@ async fn invoke_mutation(
     let ring = runtime.recent_invocations.clone();
     let started_at = crate::host_ops::iso8601_utc_ms(now_millis());
     let started = Instant::now();
+    let dispatched_at_ms = now_millis();
     let mut network_basis = crate::network_profile::MutationEgressBasis::ResultReady;
     let mut trace_client_mutation_id = None;
     // @ref LLP 0200#21-settlement-is-decoupled-from-subscriber-work — the
@@ -30692,6 +30693,12 @@ async fn invoke_mutation(
                     )
                     .and_then(|(result, receipt, network_basis, capture)| {
                         let committed_at_ms = now_millis().max(executed_at_ms.saturating_add(1));
+                        snapback.record_server_mutation_phases(
+                            &conformance_name,
+                            Some(authorized_at_ms.saturating_sub(dispatched_at_ms) as f64),
+                            Some(executed_at_ms.saturating_sub(authorized_at_ms) as f64),
+                            Some(committed_at_ms.saturating_sub(executed_at_ms) as f64),
+                        );
                         let facts = if result.is_ok() {
                             facts_authority.validate_admission("mutation generation facts")?;
                             snapback.function_invocation_facts(facts_mode)?
