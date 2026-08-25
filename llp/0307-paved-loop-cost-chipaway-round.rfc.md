@@ -1,12 +1,19 @@
 # LLP 0307: Paved-loop cost chip-away round
 
 **Type:** RFC
-**Status:** Accepted
+**Status:** Implemented
 **Systems:** Agent experience, Developer experience, CLI, Local server
 lifecycle, Code generation, React/Expo, Live queries, Ephemeral state,
 Offline sync, Diagnostics, Guide, Benchmarks, Testing
 **Author:** Claude / Charlie Cheever
 **Date:** 2026-08-24
+**Revised:** 2026-08-24 (status: Implemented — lane D landed `2d8d468a0`
+completing Track E1's integration slice with observational isolation and
+honest evidence semantics; the §7.7 integrated-fixture remainder is
+re-opened as its own ticket rather than overclaimed. Every track of the
+round is now executed or explicitly routed; the packed 200k replay
+qualification runs post-landing and the S2/S3 conditionals plus the
+Familiar-offline S3 unit remain the round's declared open tails.)
 **Revised:** 2026-08-24 (implementation record, end of day: the round is
 executed. Track T — T1 closed (CI/Metro watch, `d850372c8`; root cause was
 `CI=1` disabling Metro's watcher, not the alias bytes), T2 closed
