@@ -75,11 +75,13 @@ shipped without `x-snapback-auth-client-protocol: 1`; the default React
 scaffold correctly refused it with
 `SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED` and `snapback run` exited 3.
 
-The retry now matches the first-party client's `anonymous-public` request
-shape: it sends the v1 auth-client offer with an args-only body and sends no
-admin token, bearer, lease, or `userId`. The native fixture now installs a
-settled sessions deployment plus session activation readiness, proves the
-public command succeeds, and preserves the protected-query
+The retry matches only the first-party client's `anonymous-public` authority
+posture: it sends the v1 auth-client offer with an args-only body and sends no
+admin token, bearer, lease, or `userId`. The client also sends `read_set` and,
+for generated references, `expectedGeneration`; the retry does not claim that
+complete request shape. The native fixture now installs a settled sessions
+deployment plus session activation readiness, proves the public command
+succeeds, and preserves the protected-query
 `SNAPBACK_AUTH_REQUIRED`/zero-handler-execution negative. A packaged CLI test
 also executes the exact public command shape from both the repository-root
 `README.md` and the published package's `packages/snapback-cli/README.md`

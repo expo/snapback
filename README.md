@@ -227,8 +227,11 @@ user in its implementation. In particular, a query that dereferences
 `SNAPBACK_AUTH_USER_MISSING`.
 
 `snapback run --user <id> ...` is the explicit client-asserted identity form
-for an `auth: { mode: 'dev' }` backend; sessions mode deliberately rejects it.
-Use the mint plus `createExternalSessionClient` path there instead.
+for an `auth: { mode: 'dev' }` backend. Against a sessions target, that host-op
+path fails at the scoped secret-read boundary with
+`SNAPBACK_ADMIN_SECRET_READ_REQUIRED` (exit 5); it does not reach the app
+route's `SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED` refusal. Use
+`snapback session mint` plus `createExternalSessionClient` there instead.
 
 Every snippet in [`guide/`](./guide/index.md) marked `source=` is a verbatim
 excerpt of a file CI executes end to end; `scripts/check-guide.mjs` fails the

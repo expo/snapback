@@ -95,7 +95,8 @@ authoritative: public queries run, while authenticated queries refuse with
 `snapback session mint --ready-file <path> --email <address>` followed by
 `createExternalSessionClient(baseUrl, { bearerToken })` in trusted server/test
 code. `--user` is the client-asserted dev-mode posture; do not use it against a
-sessions target.
+sessions target. This behavior resolves the
+[sessions-target public-query refusal](repo:issues/closed/20260824-snapback-run-sessions-target-public-query-refusal.md).
 
 ## Generated inventory
 
