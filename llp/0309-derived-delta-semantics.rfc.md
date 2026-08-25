@@ -338,6 +338,25 @@ do not define it, and nothing here claims replica applicability.
 Stage A/B are independently valuable: B is a correctness audit of
 shipped lanes on its own, with the reference evaluator as its oracle.
 
+**Commissioning gate (author ruling, 2026-08-25).** Stage A is not
+commissioned now. The review loop repriced it honestly — a typed
+semantics, a reference evaluator, state ledgers against two
+precedents, and a multi-axis oracle are a real project, and the
+second consumer is conditional — so commissioning binds to whichever
+trigger fires first:
+
+- **(a) The next G3 ladder rungs are commissioned.** The semantics
+  then amortizes across rungs 2..n instead of competing with a single
+  hand-written rung, and Stage A is a candidate path to the
+  certified-evaluator condition (LLP 0056) that currently pins the
+  semi-join rung to replace.
+- **(b) LLP 0190 D3 takes up local maintenance of retained facts.**
+  The cross-runtime drift argument then stops being hypothetical.
+
+Until a trigger fires, this document stands as the decision record
+for how the work is done when it is done; if neither trigger ever
+fires, the honest terminal status is `Shelved`, at no further cost.
+
 ## Boundaries (unchanged by this RFC)
 
 - LLP 0209 §7's admission posture, fallback conjunction,
@@ -380,6 +399,14 @@ shipped lanes on its own, with the reference evaluator as its oracle.
 
 ## Revision history
 
+- **r5 (2026-08-25, UNREVIEWED, author-directed).** Folded the
+  author's ruling as the D5 commissioning gate: Stage A starts only
+  when one of two named triggers fires (next G3 rungs commissioned, or
+  LLP 0190 D3 local maintenance), with `Shelved` as the honest
+  terminal if neither ever does. Removed the document's
+  `llp/current/` link in the same landing (the archive operation —
+  work parked until a trigger fires; the doc itself stays `Review`).
+  No design content changed.
 - **r4 (2026-08-25, UNREVIEWED).** Post-convergence non-material fixes
   from round 3 (loop converged dual-READY on r3): Motivation's
   post-image sentence deferred to D1.1's carrier rule (both families'

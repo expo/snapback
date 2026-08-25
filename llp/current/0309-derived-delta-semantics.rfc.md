@@ -1,1 +1,0 @@
-../0309-derived-delta-semantics.rfc.md
