@@ -1,1 +1,0 @@
-{"v":"snapback.replay-status.v1","checkpointCadenceMs":1000,"receiptsFile":"/Users/ccheever/projects/snapback/.claude/worktrees/sbs0824-s1-replay/packages/snapback-cli/.s1-replay-scratch/pilot/none/receipts.jsonl","updatedAt":1787614664923,"state":"complete","settled":200,"failed":0,"total":200,"lastSeq":199,"pid":51070,"diagnostic":null}

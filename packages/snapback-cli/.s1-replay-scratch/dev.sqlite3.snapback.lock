@@ -1,8 +1,0 @@
-{
-  "pid": 33376,
-  "db_path": "/Users/ccheever/projects/snapback/.claude/worktrees/sbs0824-s1-replay/packages/snapback-cli/.s1-replay-scratch/dev.sqlite3",
-  "host": "127.0.0.1",
-  "port": 49417,
-  "url": "http://127.0.0.1:49417",
-  "started_at_ms": 1787614529277
-}

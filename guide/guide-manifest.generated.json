@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:58ed409a87adbee7b30474588e573389902f4ce5b040ef819ac55b901a91ce83"
+    "sourceDigest": "sha256:22e2cf44c02a3a6ebef3cdd4afbf6bb8fb20e1c0f29acc08fcfb9266b65a10a0"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -3019,7 +3019,7 @@
       "examples": [],
       "reviewed": "2026-08-22",
       "reviewedAuthoritiesDigest": "sha256:154bc326462f267c6f6d195331c41d00e044d73a16951c55fe1e96f39c5e06e0",
-      "sha256": "2f56335d8b7cb7047579de5cbc34a024ce5999ae59a456821b52158139a0a948",
+      "sha256": "6f9eb81f245c85a4a705434dff44254bc0e6459f5eeda97bc8e4afa947b507cd",
       "snippets": []
     },
     "clients.app-cli": {
@@ -6021,7 +6021,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:593185832b648c1faadaa4c3fe664e44ccaf65c25d1dacf21f4115f765696fcc",
-      "sha256": "1786373d04e2d893a31de315c0623f6d22eb693eb6c140aa82391dababef6a67",
+      "sha256": "7a5c06d401ab1df3f3c32f1d134b76ebbcaef35a716355a8dd1b531cccafe611",
       "snippets": []
     },
     "reference.api.expo.snapback.cli.verify": {
@@ -13702,8 +13702,8 @@
       "path": "guide/reference/diagnostics-registry.json",
       "title": "Build-bound diagnostic code registry",
       "mediaType": "application/json",
-      "bytes": 2799974,
-      "sha256": "dca8816e73ba61a7debe6a28138d54b2e9fac76a81f315b54bc6929d7f2896f6",
+      "bytes": 2799530,
+      "sha256": "0ac100901b80104e30face1a667ff1c6204fed4da291b6d97fe2cf71fbf31101",
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
       "projections": {
@@ -13712,9 +13712,9 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v1",
-      "sourceDigest": "sha256:1f2158bcd6ae94ea8fe4970f4bdce9e100131bce8696e80cb304bd98248852a6",
+      "sourceDigest": "sha256:07ba678169ac59cf0ebed83706e0322f10dc7249300188b2314c354550555f6e",
       "codes": 3675,
-      "emittingSites": 12898
+      "emittingSites": 12895
     }
   },
   "capabilities": {
@@ -13825,6 +13825,7 @@
       "sync.offline-js-arm",
       "sync.offline-js-arm-sessions",
       "testing.acceptance",
+      "testing.headless-replay",
       "testing.large-fixtures"
     ],
     "gaps": [
@@ -13845,8 +13846,7 @@
       "operating.agent-safe-storage",
       "operating.declaration-conformance",
       "sync.offline-js-arm-protected",
-      "sync.settlement-bounded-skew",
-      "testing.headless-replay"
+      "sync.settlement-bounded-skew"
     ]
   },
   "surfaces": {
@@ -13858,16 +13858,16 @@
       "path": "guide/guide-flat.generated.md",
       "servedPath": "/_snapback/guide/flat.md",
       "uri": "snapback-guide://flat",
-      "bytes": 3946567,
-      "sha256": "5c321a16ac839253d26c98e82b90abeccb8a6cb8bd35402deec71bcbbc8cd57c"
+      "bytes": 3946449,
+      "sha256": "ea37114900977e714569b5ce62e6b1b7b39aeee569688579cf0346b901ca4bb4"
     },
     "sections": {
       "meta": {
         "path": "guide/guide-flat.meta.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.meta.generated.md",
         "uri": "snapback-guide://flat/meta",
-        "bytes": 177788,
-        "sha256": "817e42a43a6beed6285516af8f9c24334021cd6bb15841c4bc3f950d894bb44a"
+        "bytes": 177670,
+        "sha256": "776dc18557dce04b558e16a7ca059cb5e7466cf721dae26ac5eb480ee8057ac7"
       },
       "auth": {
         "path": "guide/guide-flat.auth.generated.md",
@@ -13937,7 +13937,7 @@
         "servedPath": "/_snapback/guide/guide-flat.reference.generated.md",
         "uri": "snapback-guide://flat/reference",
         "bytes": 2221854,
-        "sha256": "127dbeee5ab4e6870e707741eea371908779546dc07b5a3f39764fd5f18391bc"
+        "sha256": "76d78e98487b71132d8827e588232a75ce362e7e4505cc3441c14575f9ec91d4"
       },
       "start": {
         "path": "guide/guide-flat.start.generated.md",
@@ -13962,5 +13962,5 @@
       }
     }
   },
-  "contentHash": "58ed409a87adbee7b30474588e573389902f4ce5b040ef819ac55b901a91ce83"
+  "contentHash": "22e2cf44c02a3a6ebef3cdd4afbf6bb8fb20e1c0f29acc08fcfb9266b65a10a0"
 }

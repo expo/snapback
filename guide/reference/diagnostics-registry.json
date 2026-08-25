@@ -2,15 +2,15 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:1f2158bcd6ae94ea8fe4970f4bdce9e100131bce8696e80cb304bd98248852a6"
+    "sourceDigest": "sha256:07ba678169ac59cf0ebed83706e0322f10dc7249300188b2314c354550555f6e"
   },
   "limits": {
     "lookupBytes": 16384
   },
   "counts": {
     "codes": 3675,
-    "sourceFiles": 619,
-    "emittingSites": 12898,
+    "sourceFiles": 612,
+    "emittingSites": 12895,
     "httpClassified": 1730,
     "guideAnchored": 466
   },
@@ -4466,11 +4466,6 @@
           "file": "packages/snapback-app-cli/index.mjs",
           "line": 285,
           "column": 14
-        },
-        {
-          "file": "packages/snapback-cli/.s1-replay-scratch/pilot/run-pilot.mjs",
-          "line": 29,
-          "column": 49
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
@@ -88022,16 +88017,6 @@
           "file": "packages/snapback-acceptance/replay.mjs",
           "line": 964,
           "column": 34
-        },
-        {
-          "file": "packages/snapback-cli/.s1-replay-scratch/pilot/run-pilot.mjs",
-          "line": 18,
-          "column": 28
-        },
-        {
-          "file": "packages/snapback-cli/.s1-replay-scratch/pilot/run-pilot.mjs",
-          "line": 19,
-          "column": 17
         },
         {
           "file": "packages/snapback-cli/index.mjs",
