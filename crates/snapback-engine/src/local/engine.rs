@@ -5603,19 +5603,21 @@ impl LocalSnapback {
         if catalog_ready {
             self.seed_auth_session_clock_floor(provider)?;
         }
-        let projection = if catalog_ready {
-            self.db.admitted_session_projection_snapshot()?
-        } else {
-            self.db.admitted_stream_projection_snapshot()?
-        };
-        Ok(Arc::new(
-            crate::auth::coordinator::AuthCoordinator::from_admitted_snapshot(
-                projection,
+        Ok(Arc::new(if catalog_ready {
+            crate::auth::coordinator::AuthCoordinator::from_session_database(
+                &mut self.db,
                 self.admission.clone(),
                 provider.now_ms(),
                 provider.monotonic_now(),
-            )?,
-        ))
+            )?
+        } else {
+            crate::auth::coordinator::AuthCoordinator::from_stream_database(
+                &mut self.db,
+                self.admission.clone(),
+                provider.now_ms(),
+                provider.monotonic_now(),
+            )?
+        }))
     }
 
     /// Build the stream-only coordinator required by every server graph,
@@ -5628,21 +5630,14 @@ impl LocalSnapback {
         &mut self,
     ) -> SnapbackResult<Arc<crate::auth::coordinator::AuthCoordinator>> {
         self.db.ensure_authorization_stream_incarnation()?;
-        let projection = self.db.admitted_stream_projection_snapshot()?;
         Ok(Arc::new(
-            crate::auth::coordinator::AuthCoordinator::from_admitted_snapshot(
-                projection,
+            crate::auth::coordinator::AuthCoordinator::from_stream_database(
+                &mut self.db,
                 self.admission.clone(),
                 now_millis(),
                 Instant::now(),
             )?,
         ))
-    }
-
-    pub fn admitted_stream_projection_snapshot(
-        &mut self,
-    ) -> SnapbackResult<snapback_sync::auth::session_projection::AdmittedProjectionSnapshot> {
-        self.db.admitted_stream_projection_snapshot()
     }
 
     pub fn advance_auth_session_clock_floor_for_due_batch(
@@ -5707,7 +5702,6 @@ impl LocalSnapback {
     pub fn register_oauth_client(
         &mut self,
         authority: &AdmissionLease,
-        mode: crate::manifest::AgentsMode,
         invitation: Option<&crate::auth::crypto::CreationInvitation>,
         display_name: Option<String>,
         integration_facts: crate::storage::auth_integrations::IntegrationRegistrationFacts,
@@ -5723,7 +5717,6 @@ impl LocalSnapback {
         #[cfg(test)]
         run_after_admission_effect_guard_hook(AdmissionEffectSite::OAuthDynamicRegistration);
         let result = self.db.register_agent_principal_with_class(
-            mode,
             invitation,
             display_name,
             None,
@@ -6560,7 +6553,6 @@ impl LocalSnapback {
     pub fn register_agent_principal(
         &mut self,
         effect: &AdmissionEffectGuard<'_>,
-        mode: crate::manifest::AgentsMode,
         invitation: Option<&crate::auth::crypto::CreationInvitation>,
         display_name: Option<String>,
         operator_contact: Option<String>,
@@ -6572,7 +6564,6 @@ impl LocalSnapback {
     ) -> SnapbackResult<crate::storage::auth_agent_credentials::IssuedAgentCredential> {
         let _ = effect;
         self.db.register_agent_principal_with_class(
-            mode,
             invitation,
             display_name,
             operator_contact,
@@ -9646,12 +9637,8 @@ impl LocalSnapback {
             .synchronize_mode_state(&state)
             .expect("bind unit-test admission graph");
 
-        let snapshot = self
-            .db
-            .admitted_session_projection_snapshot()
-            .expect("snapshot unit-test authority catalog");
-        let coordinator = crate::auth::coordinator::AuthCoordinator::from_admitted_snapshot(
-            snapshot,
+        let coordinator = crate::auth::coordinator::AuthCoordinator::from_session_database(
+            &mut self.db,
             self.admission.clone(),
             now_ms,
             Instant::now(),
@@ -10701,10 +10688,9 @@ impl LocalSnapback {
         // its minimal stream-only coordinator and premark it before entering
         // the direct Local/SQLite scope; finalization likewise happens only
         // after that scope and every committed after-Local effect have ended.
-        let projection = self.db.admitted_stream_projection_snapshot()?;
         let coordinator = Arc::new(
-            crate::auth::coordinator::AuthCoordinator::from_admitted_snapshot(
-                projection,
+            crate::auth::coordinator::AuthCoordinator::from_stream_database(
+                &mut self.db,
                 self.admission.clone(),
                 now_millis(),
                 Instant::now(),
@@ -23469,23 +23455,6 @@ impl LocalSnapback {
     /// or mutating live/obligation state. The query runs only after the exact
     /// connection act commits, so pending subscriptions cannot miss mutation
     /// fanout between preparation and publication.
-    #[allow(dead_code)]
-    pub(crate) fn prepare_subscribe_live_for_transport(
-        &mut self,
-        name: String,
-        input: LiveSubscribeInput,
-        authority: PreparedAuthority,
-        invalidation: LiveInvalidationAdmission,
-    ) -> SnapbackResult<PreparedLiveSubscribe> {
-        self.prepare_subscribe_live_for_transport_generation(
-            name,
-            input,
-            authority,
-            invalidation,
-            None,
-        )
-    }
-
     pub fn prepare_subscribe_live_for_transport_generation(
         &mut self,
         name: String,

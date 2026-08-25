@@ -77,31 +77,6 @@ pub struct ProjectionSource {
     pub superseded_tokens: Vec<ProjectionTokenRow>,
 }
 
-/// Kernel-minted snapshot admitted for construction of the process session
-/// projection. The source remains opaque so higher layers cannot author rows
-/// and then ask the coordinator to treat them as durable authority.
-pub struct AdmittedProjectionSnapshot {
-    database_binding: crate::storage::DatabaseBinding,
-    source: ProjectionSource,
-}
-
-impl AdmittedProjectionSnapshot {
-    pub(crate) fn new(
-        database_binding: crate::storage::DatabaseBinding,
-        source: ProjectionSource,
-    ) -> Self {
-        Self {
-            database_binding,
-            source,
-        }
-    }
-
-    #[doc(hidden)]
-    pub fn into_parts(self) -> (crate::storage::DatabaseBinding, ProjectionSource) {
-        (self.database_binding, self.source)
-    }
-}
-
 impl fmt::Debug for ProjectionSource {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str("ProjectionSource([REDACTED])")

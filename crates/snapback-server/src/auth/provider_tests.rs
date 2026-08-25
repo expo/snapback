@@ -5,31 +5,25 @@ use crate::auth::keyring::{
     AUTH_KEY_ROTATION_AGE_MS, AUTH_RETIRED_KEY_MINIMUM_AGE_MS, AuthKeyringStore,
 };
 use crate::auth::lease::*;
-use crate::auth::lifecycle::KeyringGcResult;
-use crate::auth::mailbox::{CaptureMailbox, CaptureMailboxEntry};
-use crate::auth::session_projection::ProjectedSessionInsert;
 use crate::auth::throttle::*;
 use crate::auth::wire::*;
 use crate::contract_types::*;
 use crate::storage::auth::AuthTransactionAttempt;
 use crate::storage::{LocalDatabase, ServingDatabase};
-use std::collections::hash_map::RandomState;
-use std::hash::{BuildHasher, Hasher as _};
 use std::sync::Arc;
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::auth::admission::AdmissionController;
     use crate::auth::coordinator::{
         AuthCoordinator, CommittedRevocationTarget, IssuanceFinish, PasswordChangeFinish,
         RotationFinish,
     };
     use crate::auth::identity_core::{AssuranceKind, PasswordSecret};
     use crate::auth::sender_proof::{SenderIssuanceCommitment, VerifiedSenderIssuance};
-    use crate::auth::session_projection::{
-        ProjectedTokenResolution, SessionProjection, TerminalAuthorityDisposition,
-    };
+    use crate::auth::session_projection::TerminalAuthorityDisposition;
     use base64::Engine;
     use base64::engine::general_purpose::URL_SAFE_NO_PAD;
     use serde_json::Value;
@@ -475,15 +469,15 @@ mod tests {
             )
             .expect("auth provider"),
         );
-        let projection = SessionProjection::rebuild_with_fresh_startup_id(
-            database
-                .session_projection_source()
-                .expect("projection source"),
-            now_ms,
-            provider.monotonic_now(),
-        )
-        .expect("session projection");
-        let coordinator = Arc::new(AuthCoordinator::new(projection).expect("coordinator"));
+        let coordinator = Arc::new(
+            AuthCoordinator::from_local_session_database(
+                &mut database,
+                AdmissionController::new(0, true).expect("test admission controller"),
+                now_ms,
+                provider.monotonic_now(),
+            )
+            .expect("database-bound coordinator"),
+        );
         (provider, database, coordinator)
     }
 
@@ -632,25 +626,18 @@ mod tests {
         bearer: &str,
         now_ms: u64,
     ) -> RevocationReason {
-        let source = database
-            .session_projection_source()
-            .expect("restart projection source");
         let monotonic_now = Instant::now();
-        let projection =
-            SessionProjection::rebuild_with_fresh_startup_id(source, now_ms, monotonic_now)
-                .expect("restart projection");
-        let digest = TokenDigest::from_token_hash(
-            &SessionBearer::parse(bearer)
-                .expect("test bearer")
-                .token_hash(),
-        );
-        match projection
-            .resolve_token(&digest, now_ms, monotonic_now)
+        let coordinator = AuthCoordinator::from_local_session_database(
+            database,
+            AdmissionController::new(0, true).expect("test admission controller"),
+            now_ms,
+            monotonic_now,
+        )
+        .expect("restart database-bound coordinator");
+        coordinator
+            .terminal_reason_for_bearer_for_test(bearer, now_ms, monotonic_now)
             .expect("restart token resolution")
-        {
-            ProjectedTokenResolution::Terminal { reason } => reason,
-            resolution => panic!("expected terminal restart resolution, got {resolution:?}"),
-        }
+            .expect("restart bearer must be terminal")
     }
 
     fn provider_database_with_random(
@@ -3466,15 +3453,15 @@ mod tests {
 
         // Pull the test-only fixture session into the same memory-only
         // projection before exercising exact displacement finalization.
-        let projection = SessionProjection::rebuild_with_fresh_startup_id(
-            database
-                .session_projection_source()
-                .expect("projection source"),
-            now_ms + 2,
-            provider.monotonic_now(),
-        )
-        .expect("rebuilt projection");
-        let coordinator = Arc::new(AuthCoordinator::new(projection).expect("coordinator"));
+        let coordinator = Arc::new(
+            AuthCoordinator::from_local_session_database(
+                &mut database,
+                AdmissionController::new(0, true).expect("test admission controller"),
+                now_ms + 2,
+                provider.monotonic_now(),
+            )
+            .expect("rebuilt database-bound coordinator"),
+        );
         let preparation = provider
             .prepare_password_set(
                 &database,
@@ -3603,15 +3590,15 @@ mod tests {
         let guest = database
             .insert_typed_guest_session_for_test(now_ms + 60_000, now_ms, provider.random.as_ref())
             .expect("guest fixture");
-        let projection = SessionProjection::rebuild_with_fresh_startup_id(
-            database
-                .session_projection_source()
-                .expect("guest projection source"),
-            now_ms,
-            provider.monotonic_now(),
-        )
-        .expect("guest projection");
-        let coordinator = Arc::new(AuthCoordinator::new(projection).expect("coordinator"));
+        let coordinator = Arc::new(
+            AuthCoordinator::from_local_session_database(
+                &mut database,
+                AdmissionController::new(0, true).expect("test admission controller"),
+                now_ms,
+                provider.monotonic_now(),
+            )
+            .expect("guest database-bound coordinator"),
+        );
         let claim = provider
             .plan_guest_claim_password(
                 &database,

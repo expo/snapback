@@ -249,6 +249,12 @@ fn durable_database_image(snapback: &LocalSnapback) -> Vec<u8> {
 }
 
 fn capability_link_fixture() -> (LocalSnapback, AdmissionController) {
+    capability_link_fixture_with_agents_mode(AgentsMode::Disabled)
+}
+
+fn capability_link_fixture_with_agents_mode(
+    agents_mode: AgentsMode,
+) -> (LocalSnapback, AdmissionController) {
     let mut snapback = LocalSnapback::memory().expect("capability-link fence database");
     let deployment = sessions_deployment();
     let manifest = SchemaManifest {
@@ -258,10 +264,7 @@ fn capability_link_fixture() -> (LocalSnapback, AdmissionController) {
         inputs_hash: Some(deployment.inputs_hash.clone()),
         auth: Some(AuthManifest {
             mode: AuthMode::Sessions,
-            agents: Some(AgentsManifest::explicit(
-                AgentsMode::Disabled,
-                InvitedBy::Operators,
-            )),
+            agents: Some(AgentsManifest::explicit(agents_mode, InvitedBy::Operators)),
             password_identifier_mode: None,
             password_minimum_length: None,
         }),
@@ -1046,7 +1049,7 @@ fn admitted_registered_writer_gap_refuses_retired_epoch_without_persisting_the_g
 
 #[test]
 fn oauth_dynamic_registration_refuses_retired_epoch_and_holds_the_guard_through_commit() {
-    let (mut snapback, controller) = capability_link_fixture();
+    let (mut snapback, controller) = capability_link_fixture_with_agents_mode(AgentsMode::Open);
     let random = FenceRandom::new();
     let admission = controller
         .admit_for_mode(AuthMode::Sessions)
@@ -1060,7 +1063,6 @@ fn oauth_dynamic_registration_refuses_retired_epoch_and_holds_the_guard_through_
     let error = snapback
         .register_oauth_client(
             &admission,
-            AgentsMode::Open,
             None,
             Some("retired OAuth registration".to_owned()),
             crate::storage::auth_integrations::IntegrationRegistrationFacts {
@@ -1090,7 +1092,6 @@ fn oauth_dynamic_registration_refuses_retired_epoch_and_holds_the_guard_through_
     let issued = snapback
         .register_oauth_client(
             &admission,
-            AgentsMode::Open,
             None,
             Some("guarded OAuth registration".to_owned()),
             crate::storage::auth_integrations::IntegrationRegistrationFacts {

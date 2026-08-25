@@ -76,8 +76,9 @@ use crate::local::{
     EnsureAppExplicitInput, EnsureAppMode, EnsureAppRequest, EnsureAppResponse, EphemeralApi,
     FunctionRunResult, HostOperationParentV1, InspectState, LiveInvalidationAdmission,
     LiveResumeInput, LiveSubscribeRequest, LiveUnsubscribeInput, LocalSnapback,
-    MaintenanceOperation, StagedAction, StagedAppAction, StagedConfigVerify, StagedNestedMutation,
-    live_stream_text, live_stream_text_with_server_observed,
+    MaintenanceOperation, PreparedLiveSubscribePlan, StagedAction, StagedAppAction,
+    StagedConfigVerify, StagedLocalLiveEffect, StagedNestedMutation, live_stream_text,
+    live_stream_text_with_server_observed,
 };
 use crate::manifest::{
     ActionReturnValue, ActionStep, AgentsManifest, AgentsMode, ArtifactGeneration, AuthInput,
@@ -6142,6 +6143,7 @@ struct PreparedConnectionAct {
     ephemeral_authority_instance: Option<String>,
     hosted_ephemeral_authority_required: bool,
     dev_identity_witnessed: bool,
+    route_authority: Option<PreparedAuthority>,
 }
 
 impl PreparedConnectionOpenAuthority {
@@ -6205,6 +6207,41 @@ impl PreparedConnectionAct {
 
     fn effect_fence(&self) -> crate::ephemeral::ConnectionEffectFence {
         self.bound.effect_fence(&self.grant_id)
+    }
+
+    /// Stage a live subscription only from the facts retained by this exact
+    /// verified connection act. The body connection id authenticated the
+    /// middleware lookup, but it is not forwarded as an independent subject.
+    ///
+    /// @ref LLP 0303#the-governing-principle — the
+    /// live authority, connection id, invalidation descriptor, and effect
+    /// fence are one act-derived tuple at the production transport boundary.
+    fn prepare_live_subscribe(
+        &self,
+        snapback: &mut LocalSnapback,
+        name: String,
+        mut input: crate::local::LiveSubscribeInput,
+        expected_generation: Option<ArtifactGeneration>,
+    ) -> SnapbackResult<StagedLocalLiveEffect<PreparedLiveSubscribePlan>> {
+        input.connection_id.clone_from(&self.connection_id);
+        let authority = self.route_authority.clone().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_INVOCATION_AUTHORITY_INVALID",
+                "auth",
+                "live subscribe requires the authority derived for its exact connection act",
+            )
+        })?;
+        let invalidation = match self.authorization_invalidation.clone() {
+            Some(connection) => LiveInvalidationAdmission::new(connection),
+            None => LiveInvalidationAdmission::without_invalidation(self.effect_fence()),
+        };
+        snapback.prepare_subscribe_live_for_transport_generation(
+            name,
+            input,
+            authority,
+            invalidation,
+            expected_generation,
+        )
     }
 
     /// Reserve the exact stream/session (and, when applicable, finite-service)
@@ -8589,6 +8626,7 @@ impl ConnectionRegistry {
             ephemeral_authority_instance,
             hosted_ephemeral_authority_required,
             dev_identity_witnessed,
+            route_authority: None,
         })
     }
 
@@ -8669,6 +8707,7 @@ impl ConnectionRegistry {
                 ephemeral_authority_instance: record.ephemeral_authority_instance.clone(),
                 hosted_ephemeral_authority_required: record.hosted_ephemeral_authority_required,
                 dev_identity_witnessed: record.dev_identity_witnessed,
+                route_authority: None,
             }
         };
         prepared
@@ -16575,6 +16614,9 @@ async fn enforce_registered_route_policy_inner(
             prepared_authority.map(|authority| authority.with_caller_attribution(attribution));
     }
     if let Some(authority) = prepared_authority.as_ref() {
+        if let Some(connection_act) = prepared_connection_act.as_mut() {
+            connection_act.route_authority = Some(authority.clone());
+        }
         request.extensions_mut().insert(authority.clone());
     }
     if let Some(link) = resolved_capability_link {
@@ -17007,7 +17049,11 @@ fn require_agent_routes_available(runtime: &AppState) -> Result<Arc<AuthProvider
     installed_auth_provider(runtime)
 }
 
-async fn require_agent_registration_mode(
+fn require_agent_registration_provider(runtime: &AppState) -> Result<Arc<AuthProvider>, ApiError> {
+    require_agent_routes_available(runtime)
+}
+
+async fn require_agent_invitation_policy(
     runtime: &AppState,
 ) -> Result<(Arc<AuthProvider>, AgentsManifest), ApiError> {
     let provider = require_agent_routes_available(runtime)?;
@@ -17179,7 +17225,7 @@ async fn auth_agent_invitation(
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Json<AgentInvitationSecretResponse>, ApiError> {
     let (user_id, _) = require_grant_session(&authority)?;
-    let (provider, policy) = require_agent_registration_mode(&runtime).await?;
+    let (provider, policy) = require_agent_invitation_policy(&runtime).await?;
     if policy.mode != AgentsMode::Invited || policy.invited_by != crate::manifest::InvitedBy::Users
     {
         return Err(SnapbackError::error(
@@ -17370,7 +17416,7 @@ async fn auth_agent_register(
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Json<AgentCredentialSecretResponse>, ApiError> {
     reject_agent_route_authorization_header(&headers)?;
-    let (provider, policy) = require_agent_registration_mode(&runtime).await?;
+    let provider = require_agent_registration_provider(&runtime)?;
     let request: AgentRegistrationRequest = parse_auth_json(&headers, body)?;
     let invitation = request
         .invitation
@@ -17382,7 +17428,6 @@ async fn auth_agent_register(
         let _effect = route_admission.effect_guard("agent registration transaction")?;
         snapback.register_agent_principal(
             &_effect,
-            policy.mode,
             invitation.as_ref(),
             request.display_name,
             request.operator_contact,
@@ -31672,25 +31717,19 @@ async fn manual_retry_authorization_invalidation(
 
 async fn subscribe_live(
     State(runtime): State<AppState>,
-    Extension(authority): Extension<PreparedAuthority>,
     Extension(connection_act): Extension<PreparedConnectionAct>,
     Extension(admission): Extension<AdmissionLease>,
     Path(name): Path<String>,
     input: Result<Json<LiveSubscribeRequest>, JsonRejection>,
 ) -> Result<Response, ApiError> {
     let Json(request) = input.map_err(ApiError::from_json_rejection)?;
-    let input = request.input;
-    let invalidation = match connection_act.authorization_invalidation.clone() {
-        Some(connection) => LiveInvalidationAdmission::new(connection),
-        None => LiveInvalidationAdmission::without_invalidation(connection_act.effect_fence()),
-    };
-    let connection_id = input.connection_id.clone();
+    let connection_id = connection_act.connection_id.clone();
+    let staging_act = connection_act.clone();
     let staged = with_snapback(&runtime.snapback, move |snapback| {
-        snapback.prepare_subscribe_live_for_transport_generation(
+        staging_act.prepare_live_subscribe(
+            snapback,
             name,
-            input,
-            authority,
-            invalidation,
+            request.input,
             request.expected_generation,
         )
     })

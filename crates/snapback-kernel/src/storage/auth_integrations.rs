@@ -1543,6 +1543,15 @@ mod tests {
 
     fn api_manifest() -> SchemaManifest {
         let mut manifest: SchemaManifest = serde_json::from_value(json!({ "tables": [] })).unwrap();
+        manifest.auth = Some(crate::manifest::AuthManifest {
+            mode: crate::manifest::AuthMode::Sessions,
+            agents: Some(crate::manifest::AgentsManifest::explicit(
+                AgentsMode::Open,
+                crate::manifest::InvitedBy::Operators,
+            )),
+            password_identifier_mode: None,
+            password_minimum_length: None,
+        });
         manifest.api = Some(crate::contract_types::ApiManifest {
             enabled: true,
             ..Default::default()
@@ -1577,11 +1586,13 @@ mod tests {
     fn ready_database() -> LocalDatabase {
         let mut db = LocalDatabase::memory().unwrap();
         db.activate_current_auth_catalog().unwrap();
+        let manifest = api_manifest();
         db.with_auth_transaction(|tx| {
-            activate_manifest_in(tx, &api_manifest())?;
-            crate::storage::declared_clients::activate_manifest_in(tx, &api_manifest())
+            activate_manifest_in(tx, &manifest)?;
+            crate::storage::declared_clients::activate_manifest_in(tx, &manifest)
         })
         .unwrap();
+        db.replace_active_schema(manifest);
         db
     }
 
@@ -1608,7 +1619,6 @@ mod tests {
         random: &dyn RandomSource,
     ) -> crate::storage::auth_agent_credentials::IssuedAgentCredential {
         db.register_agent_principal_with_class(
-            AgentsMode::Open,
             None,
             Some("Example Integration".to_owned()),
             Some("ops@example.test".to_owned()),
@@ -2388,6 +2398,13 @@ mod tests {
     fn invited_integration_records_inviter_without_seating_an_owner() {
         let random = CounterRandom::new();
         let mut db = ready_database();
+        let mut invited_manifest = api_manifest();
+        invited_manifest.auth.as_mut().unwrap().agents =
+            Some(crate::manifest::AgentsManifest::explicit(
+                AgentsMode::Invited,
+                crate::manifest::InvitedBy::Users,
+            ));
+        db.replace_active_schema(invited_manifest);
         seed_human(&db, "user-a");
         let invitation = CreationInvitation::generate(&random).unwrap();
         db.conn
@@ -2403,7 +2420,6 @@ mod tests {
             .unwrap();
         let issued = db
             .register_agent_principal_with_class(
-                AgentsMode::Invited,
                 Some(&invitation),
                 Some("Invited Integration".to_owned()),
                 None,

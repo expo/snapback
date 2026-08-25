@@ -1761,6 +1761,40 @@ impl LocalDatabase {
         self.attempt_auth_transaction_guarded(operation, || Ok(()))
     }
 
+    /// Registration-policy sibling of [`Self::attempt_auth_transaction`].
+    /// The manifest snapshot is borrowed only after the SQLite transaction
+    /// has begun, so policy selection and every registration read/write share
+    /// one literal transaction scope.
+    pub(super) fn attempt_auth_transaction_with_schema<T>(
+        &mut self,
+        operation: impl FnOnce(&Transaction<'_>, &crate::manifest::SchemaManifest) -> SnapbackResult<T>,
+    ) -> AuthTransactionAttempt<T> {
+        let tx = match self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+        {
+            Ok(tx) => tx,
+            Err(error) => return AuthTransactionAttempt::RolledBack(error.into()),
+        };
+        if let Err(error) = require_ready_on(&tx) {
+            return rollback_auth_transaction(tx, error);
+        }
+        debug_assert!(
+            !tx.is_autocommit(),
+            "registration policy must be sampled inside an active SQLite transaction"
+        );
+        let output = match operation(&tx, &self.schema) {
+            Ok(output) => output,
+            Err(error) => return rollback_auth_transaction(tx, error),
+        };
+        #[cfg(any(test, feature = "test-support"))]
+        super::observe_durable_commit_for_test();
+        match tx.commit() {
+            Ok(()) => AuthTransactionAttempt::Committed(output),
+            Err(error) => AuthTransactionAttempt::CommitUncertain(error.into()),
+        }
+    }
+
     /// Commit-certainty-preserving sibling of `with_auth_transaction_guarded`.
     /// A refused commit guard is a proven rollback; an SQLite commit error
     /// after guard acquisition retains the ordinary ambiguous outcome.

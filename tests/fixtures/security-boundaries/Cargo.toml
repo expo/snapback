@@ -189,6 +189,32 @@ name = "shared-serving-database-deref-unmediated-insert"
 path = "src/bin/shared_serving_database_deref_unmediated_insert.rs"
 
 [[bin]]
+name = "obtain-admitted-projection-snapshot"
+path = "src/bin/obtain_admitted_projection_snapshot.rs"
+
+[[bin]]
+name = "rebuild-session-projection-from-raw-source"
+path = "src/bin/rebuild_session_projection_from_raw_source.rs"
+
+[[bin]]
+name = "supply-agent-registration-mode"
+path = "src/bin/supply_agent_registration_mode.rs"
+
+[[bin]]
+name = "compose-agent-registration-partials"
+path = "src/bin/compose_agent_registration_partials.rs"
+
+[[bin]]
+# F283 remains open. Keep its witness bins for the future closure, but leave
+# them deliberately unregistered in the rejection-only attacks.v1.json.
+name = "prepare-live-subscribe-from-parts"
+path = "src/bin/prepare_live_subscribe_from_parts.rs"
+
+[[bin]]
+name = "prepare-live-subscribe-from-parts-via-server"
+path = "src/bin/prepare_live_subscribe_from_parts_via_server.rs"
+
+[[bin]]
 name = "clone-secret-read-operator"
 path = "src/bin/clone_secret_read_operator.rs"
 

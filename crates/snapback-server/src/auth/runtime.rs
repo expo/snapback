@@ -24,16 +24,15 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 
+#[cfg(test)]
+use super::admission::AdmissionController;
 use super::coordinator::AuthCoordinator;
 use super::keyring::{AuthKeyringStore, KeyringError};
 use super::lifecycle::AUTH_GC_INTERVAL;
 use super::provider::{
     AuthGcPass, AuthProvider, AuthProviderReadiness, ProviderError, ProviderResult,
 };
-use super::session_projection::{
-    AuthorizationStreamRecord, DueExpiryFinalization, ExpiredSession, ProjectionSource,
-    SessionProjection,
-};
+use super::session_projection::{DueExpiryFinalization, ExpiredSession};
 use crate::contract_types::AuthProviderProfile;
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 use crate::local::LocalSnapback;
@@ -1214,16 +1213,15 @@ mod tests {
             .remainder_auth_database_mut()
             .ensure_authorization_stream_incarnation()
             .unwrap();
-        let projection = SessionProjection::rebuild_with_fresh_startup_id(
-            snapback
-                .remainder_auth_database_mut()
-                .session_projection_source()
-                .unwrap(),
-            provider.now_ms(),
-            provider.monotonic_now(),
-        )
-        .unwrap();
-        let coordinator = Arc::new(AuthCoordinator::new(projection).unwrap());
+        let coordinator = Arc::new(
+            AuthCoordinator::from_local_session_database(
+                snapback.remainder_auth_database_mut(),
+                AdmissionController::new(0, true).expect("test admission controller"),
+                provider.now_ms(),
+                provider.monotonic_now(),
+            )
+            .unwrap(),
+        );
         let state = Arc::new(Mutex::new(snapback));
         let outer = state.clone().lock_owned().await;
 
@@ -1336,16 +1334,15 @@ mod tests {
             .remainder_auth_database_mut()
             .ensure_authorization_stream_incarnation()
             .unwrap();
-        let projection = SessionProjection::rebuild_with_fresh_startup_id(
-            snapback
-                .remainder_auth_database_mut()
-                .session_projection_source()
-                .unwrap(),
-            provider.now_ms(),
-            provider.monotonic_now(),
-        )
-        .unwrap();
-        let coordinator = Arc::new(AuthCoordinator::new(projection).unwrap());
+        let coordinator = Arc::new(
+            AuthCoordinator::from_local_session_database(
+                snapback.remainder_auth_database_mut(),
+                AdmissionController::new(0, true).expect("test admission controller"),
+                provider.now_ms(),
+                provider.monotonic_now(),
+            )
+            .unwrap(),
+        );
         coordinator
             .resolve_required_bearer(&bearer_text, provider.now_ms(), provider.monotonic_now())
             .expect("predecessor session begins live");
@@ -1443,16 +1440,15 @@ mod tests {
             )
             .unwrap(),
         );
-        let projection = SessionProjection::rebuild_with_fresh_startup_id(
-            snapback
-                .remainder_auth_database_mut()
-                .session_projection_source()
-                .unwrap(),
-            provider.now_ms(),
-            provider.monotonic_now(),
-        )
-        .unwrap();
-        let coordinator = Arc::new(AuthCoordinator::new(projection).unwrap());
+        let coordinator = Arc::new(
+            AuthCoordinator::from_local_session_database(
+                snapback.remainder_auth_database_mut(),
+                AdmissionController::new(0, true).expect("test admission controller"),
+                provider.now_ms(),
+                provider.monotonic_now(),
+            )
+            .unwrap(),
+        );
         let state = Arc::new(Mutex::new(snapback));
         clock.set(retention_ms + 1);
         run_periodic_gc_pass(
@@ -1489,16 +1485,15 @@ mod tests {
             .remainder_auth_database_mut()
             .ensure_authorization_stream_incarnation()
             .unwrap();
-        let projection = SessionProjection::rebuild_with_fresh_startup_id(
-            snapback
-                .remainder_auth_database_mut()
-                .session_projection_source()
-                .unwrap(),
-            provider.now_ms(),
-            provider.monotonic_now(),
-        )
-        .unwrap();
-        let coordinator = Arc::new(AuthCoordinator::new(projection).unwrap());
+        let coordinator = Arc::new(
+            AuthCoordinator::from_local_session_database(
+                snapback.remainder_auth_database_mut(),
+                AdmissionController::new(0, true).expect("test admission controller"),
+                provider.now_ms(),
+                provider.monotonic_now(),
+            )
+            .unwrap(),
+        );
         let state = Arc::new(Mutex::new(snapback));
         let mut worker =
             spawn_auth_expiry_worker(state, coordinator, provider, AuthExpiryTerminalSink::noop())

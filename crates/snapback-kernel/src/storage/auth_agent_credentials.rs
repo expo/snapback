@@ -203,7 +203,7 @@ impl LocalDatabase {
     /// Create the first live credential for an existing, active agent. The
     /// identity subject is the stable credential id; rotations update the
     /// secret and generation without changing it.
-    pub fn issue_initial_agent_credential(
+    pub(crate) fn issue_initial_agent_credential(
         &mut self,
         user_id: &str,
         now_ms: u64,
@@ -3769,16 +3769,5 @@ impl super::ServingDatabase {
         deadline: &ServiceAuthorityDeadlineTerminal,
     ) -> SnapbackResult<()> {
         self.db.terminalize_expired_service_authority(deadline)
-    }
-}
-impl super::ServingDatabase {
-    pub fn issue_initial_agent_credential(
-        &mut self,
-        user_id: &str,
-        now_ms: u64,
-        random: &dyn RandomSource,
-    ) -> SnapbackResult<IssuedAgentCredential> {
-        self.db
-            .issue_initial_agent_credential(user_id, now_ms, random)
     }
 }

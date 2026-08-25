@@ -4412,6 +4412,7 @@ impl LocalDatabase {
     #[cfg(any(test, feature = "test-support"))]
     pub(super) fn auth_insert_activation_live_grant_for_test(
         &mut self,
+        agent_user_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<()> {
         self.with_auth_transaction(|tx| {
@@ -4426,9 +4427,10 @@ impl LocalDatabase {
                    id, actor_user_id, effective_user_id, scopes, created_at_ms,
                    expires_at_ms, revoked_at_ms, created_by, request_id,
                    consent_digest, last_used_at_ms
-                 ) VALUES('activation-grant', 'activation-agent', 'activation-owner', ?1,
-                          ?2, ?3, NULL, 'test', NULL, NULL, ?2)",
+                 ) VALUES('activation-grant', ?1, 'activation-owner', ?2,
+                          ?3, ?4, NULL, 'test', NULL, NULL, ?3)",
                 params![
+                    agent_user_id,
                     r#"[{"fn":"fn:listItems","kind":"liveQuery","basis":0,"authorityCreating":false},{"fn":"fn:unrelatedLive","kind":"liveQuery","basis":0,"authorityCreating":false}]"#,
                     now_ms as i64,
                     now_ms.saturating_add(60_000) as i64,
@@ -4745,6 +4747,7 @@ impl LocalDatabase {
     #[cfg(any(test, feature = "test-support"))]
     pub(super) fn auth_insert_query_carrier_grant_for_test(
         &mut self,
+        agent_user_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<()> {
         self.with_auth_transaction(|tx| {
@@ -4754,10 +4757,11 @@ impl LocalDatabase {
                    expires_at_ms, revoked_at_ms, created_by, request_id,
                    consent_digest, last_used_at_ms
                  ) VALUES('018f0d90-7b32-7a22-8c33-445566778899',
-                          '018f0d90-7b31-7a22-8c33-445566778899',
-                          '018f0d90-7b30-7a22-8c33-445566778899', ?1, ?2, ?3,
-                          NULL, 'test', NULL, NULL, ?2)",
+                          ?1,
+                          '018f0d90-7b30-7a22-8c33-445566778899', ?2, ?3, ?4,
+                          NULL, 'test', NULL, NULL, ?3)",
                 params![
+                    agent_user_id,
                     r#"[{"fn":"fn:allowed","kind":"query","basis":0,"authorityCreating":false},{"fn":"fn:liveItems","kind":"liveQuery","basis":0,"authorityCreating":false},{"fn":"fn:queuedWrite","kind":"mutation","basis":0,"authorityCreating":false}]"#,
                     now_ms as i64,
                     (now_ms + 60_000) as i64,
@@ -4793,6 +4797,7 @@ impl LocalDatabase {
     #[cfg(any(test, feature = "test-support"))]
     pub(super) fn auth_insert_live_carrier_grant_for_test(
         &mut self,
+        agent_user_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<()> {
         self.with_auth_transaction(|tx| {
@@ -4802,10 +4807,11 @@ impl LocalDatabase {
                    expires_at_ms, revoked_at_ms, created_by, request_id,
                    consent_digest, last_used_at_ms
                  ) VALUES('018f0d90-7b32-7a22-8c33-445566778899',
-                          '018f0d90-7b31-7a22-8c33-445566778899',
-                          '018f0d90-7b30-7a22-8c33-445566778899', ?1, ?2, ?3,
-                          NULL, 'test', NULL, NULL, ?2)",
+                          ?1,
+                          '018f0d90-7b30-7a22-8c33-445566778899', ?2, ?3, ?4,
+                          NULL, 'test', NULL, NULL, ?3)",
                 params![
+                    agent_user_id,
                     r#"[{"fn":"fn:liveItems","kind":"liveQuery","basis":0,"authorityCreating":false}]"#,
                     now_ms as i64,
                     (now_ms + 60 * 60 * 1_000) as i64,
@@ -4891,6 +4897,7 @@ impl LocalDatabase {
     #[cfg(any(test, feature = "test-support"))]
     pub(super) fn auth_insert_agent_token_route_fixtures_for_test(
         &mut self,
+        agent_user_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<()> {
         self.with_auth_transaction(|tx| {
@@ -4901,18 +4908,28 @@ impl LocalDatabase {
                    id, actor_user_id, effective_user_id, scopes, created_at_ms,
                    expires_at_ms, revoked_at_ms, created_by, request_id,
                    consent_digest, last_used_at_ms
-                 ) VALUES('route-grant', 'route-agent', 'grant-user', ?1, ?2, ?3,
-                          NULL, 'test', 'route-pairing', NULL, ?2)",
-                params![scopes, now_ms as i64, (now_ms + 60_000) as i64],
+                 ) VALUES('route-grant', ?1, 'grant-user', ?2, ?3, ?4,
+                          NULL, 'test', 'route-pairing', NULL, ?3)",
+                params![
+                    agent_user_id,
+                    scopes,
+                    now_ms as i64,
+                    (now_ms + 60_000) as i64
+                ],
             )?;
             tx.execute(
                 "INSERT INTO _auth_pairing_requests(
                    id, code_hash, minted_by_user_id, agent_user_id,
                    requested_scopes, state, attempts, created_at_ms,
                    expires_at_ms, consumed_at_ms, grant_id
-                 ) VALUES('route-pairing', zeroblob(32), 'grant-user', 'route-agent',
-                          ?1, 'approved', 0, ?2, ?3, ?2, 'route-grant')",
-                params![scopes, now_ms as i64, (now_ms + 60_000) as i64],
+                 ) VALUES('route-pairing', zeroblob(32), 'grant-user', ?1,
+                          ?2, 'approved', 0, ?3, ?4, ?3, 'route-grant')",
+                params![
+                    agent_user_id,
+                    scopes,
+                    now_ms as i64,
+                    (now_ms + 60_000) as i64
+                ],
             )?;
             tx.execute(
                 "INSERT INTO _auth_pairing_requests(
@@ -4921,9 +4938,14 @@ impl LocalDatabase {
                    expires_at_ms, consumed_at_ms, grant_id
                  ) VALUES('route-pending',
                           X'0101010101010101010101010101010101010101010101010101010101010101',
-                          'grant-user', 'route-agent',
-                          ?1, 'pending', 0, ?2, ?3, NULL, NULL)",
-                params![scopes, now_ms as i64, (now_ms + 60_000) as i64],
+                          'grant-user', ?1,
+                          ?2, 'pending', 0, ?3, ?4, NULL, NULL)",
+                params![
+                    agent_user_id,
+                    scopes,
+                    now_ms as i64,
+                    (now_ms + 60_000) as i64
+                ],
             )?;
             Ok(())
         })
@@ -4932,6 +4954,7 @@ impl LocalDatabase {
     #[cfg(any(test, feature = "test-support"))]
     pub(super) fn auth_insert_bulk_route_grants_for_test(
         &mut self,
+        agent_user_id: &str,
         owner_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<()> {
@@ -4945,10 +4968,11 @@ impl LocalDatabase {
                        id, actor_user_id, effective_user_id, scopes,
                        created_at_ms, expires_at_ms, revoked_at_ms,
                        created_by, request_id, consent_digest, last_used_at_ms
-                     ) VALUES(?1, 'bulk-route-agent', ?2, ?3, ?4, ?5,
-                              NULL, 'test', ?6, NULL, ?4)",
+                     ) VALUES(?1, ?2, ?3, ?4, ?5, ?6,
+                              NULL, 'test', ?7, NULL, ?5)",
                     params![
                         grant_id,
+                        agent_user_id,
                         owner_id,
                         r#"[{"fn":"fn:listItems","kind":"query","basis":0,"authorityCreating":false}]"#,
                         now_ms as i64,
@@ -5678,9 +5702,13 @@ impl<'a> AuthCatalogKernel<'a> {
     }
 
     #[cfg(any(test, feature = "test-support"))]
-    pub fn insert_activation_live_grant_for_test(&mut self, now_ms: u64) -> SnapbackResult<()> {
+    pub fn insert_activation_live_grant_for_test(
+        &mut self,
+        agent_user_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
         self.write_db()
-            .auth_insert_activation_live_grant_for_test(now_ms)
+            .auth_insert_activation_live_grant_for_test(agent_user_id, now_ms)
     }
 
     #[cfg(any(test, feature = "test-support"))]
@@ -5792,9 +5820,13 @@ impl<'a> AuthCatalogKernel<'a> {
     }
 
     #[cfg(any(test, feature = "test-support"))]
-    pub fn insert_query_carrier_grant_for_test(&mut self, now_ms: u64) -> SnapbackResult<()> {
+    pub fn insert_query_carrier_grant_for_test(
+        &mut self,
+        agent_user_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
         self.write_db()
-            .auth_insert_query_carrier_grant_for_test(now_ms)
+            .auth_insert_query_carrier_grant_for_test(agent_user_id, now_ms)
     }
 
     #[cfg(any(test, feature = "test-support"))]
@@ -5807,9 +5839,13 @@ impl<'a> AuthCatalogKernel<'a> {
     }
 
     #[cfg(any(test, feature = "test-support"))]
-    pub fn insert_live_carrier_grant_for_test(&mut self, now_ms: u64) -> SnapbackResult<()> {
+    pub fn insert_live_carrier_grant_for_test(
+        &mut self,
+        agent_user_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
         self.write_db()
-            .auth_insert_live_carrier_grant_for_test(now_ms)
+            .auth_insert_live_carrier_grant_for_test(agent_user_id, now_ms)
     }
 
     #[cfg(any(test, feature = "test-support"))]
@@ -5849,20 +5885,22 @@ impl<'a> AuthCatalogKernel<'a> {
     #[cfg(any(test, feature = "test-support"))]
     pub fn insert_agent_token_route_fixtures_for_test(
         &mut self,
+        agent_user_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<()> {
         self.write_db()
-            .auth_insert_agent_token_route_fixtures_for_test(now_ms)
+            .auth_insert_agent_token_route_fixtures_for_test(agent_user_id, now_ms)
     }
 
     #[cfg(any(test, feature = "test-support"))]
     pub fn insert_bulk_route_grants_for_test(
         &mut self,
+        agent_user_id: &str,
         owner_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<()> {
         self.write_db()
-            .auth_insert_bulk_route_grants_for_test(owner_id, now_ms)
+            .auth_insert_bulk_route_grants_for_test(agent_user_id, owner_id, now_ms)
     }
 
     #[cfg(any(test, feature = "test-support"))]

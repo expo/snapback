@@ -22,8 +22,8 @@ use super::session_projection::{
     AUTH_LOCK_RANK_TOPOLOGY, AuthorityWorkDrain, BoundConnectionSessionIdentity, DueExpiryBatch,
     DueExpiryFinalization, FencedPublication, FinalizedRotationPublicationCut, MutationTicket,
     PendingMutationKind, ProjectedBoundSessionResolution, ProjectedConnectionTokenResolution,
-    ProjectedSessionAuthority, ProjectedTokenResolution, RankedMutexGuard, SessionProjection,
-    ranked_mutex_lock,
+    ProjectedSessionAuthority, ProjectedTokenResolution, ProjectionSource, RankedMutexGuard,
+    SessionProjection, ranked_mutex_lock,
 };
 use crate::contract_types::{
     AuthorizationStreamIncarnation, RevocationReason, ServerProfile, TokenDigest,
@@ -43,6 +43,20 @@ pub struct AuthCoordinator {
     rehearsal_live_authority: crate::auth::rehearsal::RehearsalLiveAuthorityRegistry,
     #[cfg(any(test, feature = "test-support"))]
     fail_next_finalize: std::sync::atomic::AtomicBool,
+}
+
+/// Opaque, correlated input for a database-bound coordinator reconstruction.
+/// Its fields remain private so a dependent crate cannot pair caller-authored
+/// projection rows with an unrelated database identity.
+///
+/// @ref LLP 0303#the-governing-principle — source and database identity stay
+///   one non-dismantlable value across the outer-lock handoff.
+pub struct PreparedLocalSessionCoordinator {
+    database_binding: crate::storage::DatabaseBinding,
+    source: ProjectionSource,
+    admission: AdmissionController,
+    epoch_now_ms: u64,
+    monotonic_now: Instant,
 }
 
 struct CoordinatorTopology {
@@ -556,16 +570,20 @@ impl PreparedBearerAuthority {
 }
 
 impl AuthCoordinator {
-    /// Construct from a kernel-minted durable snapshot. The snapshot is
-    /// opaque outside the kernel, so callers cannot author projection rows and
-    /// self-assert session authority.
-    pub fn from_admitted_snapshot(
-        snapshot: super::session_projection::AdmittedProjectionSnapshot,
+    /// Construct from a complete catalog and binding read from the same
+    /// serving database receiver. There is no portable admitted snapshot to
+    /// dismantle or relocate between databases.
+    ///
+    /// @ref LLP 0303#the-governing-principle — derive both the reconstructed
+    /// session subjects and their database provenance at the consuming cut.
+    pub fn from_session_database(
+        database: &mut crate::storage::ServingDatabase,
         admission: AdmissionController,
         epoch_now_ms: u64,
         monotonic_now: Instant,
     ) -> SnapbackResult<Self> {
-        let (database_binding, source) = snapshot.into_parts();
+        let database_binding = database.binding();
+        let source = database.session_projection_source()?;
         Self::new_inner(
             SessionProjection::rebuild_with_fresh_startup_id(source, epoch_now_ms, monotonic_now)?,
             admission,
@@ -573,8 +591,81 @@ impl AuthCoordinator {
         )
     }
 
-    #[cfg(feature = "test-support")]
-    pub fn new(projection: SessionProjection) -> SnapbackResult<Self> {
+    /// Construct the stream-only projection from one serving database
+    /// receiver. This is the catalog-absent/direct-reset sibling of
+    /// [`Self::from_session_database`].
+    pub fn from_stream_database(
+        database: &mut crate::storage::ServingDatabase,
+        admission: AdmissionController,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<Self> {
+        let database_binding = database.binding();
+        let source = database.stream_projection_source()?;
+        Self::new_inner(
+            SessionProjection::rebuild_with_fresh_startup_id(source, epoch_now_ms, monotonic_now)?,
+            admission,
+            Some(database_binding),
+        )
+    }
+
+    /// Local-database sibling used by database-bound embedders and tests that
+    /// have not adopted a serving commit-authority graph. Source and binding
+    /// still derive from the same receiver.
+    pub fn from_local_session_database(
+        database: &mut crate::storage::LocalDatabase,
+        admission: AdmissionController,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<Self> {
+        Self::from_prepared_local_session_database(Self::prepare_from_local_session_database(
+            database,
+            admission,
+            epoch_now_ms,
+            monotonic_now,
+        )?)
+    }
+
+    /// Capture the correlated projection source and database binding while a
+    /// caller owns the database, without entering any auth lock. This supports
+    /// the required LocalSnapback-before-auth lock order: finalize the opaque
+    /// preparation only after releasing the outer engine write scope.
+    ///
+    /// @ref LLP 0059#locking-and-linearization — projection leaf locks are
+    ///   entered only after the outer LocalSnapback write scope is released.
+    pub fn prepare_from_local_session_database(
+        database: &mut crate::storage::LocalDatabase,
+        admission: AdmissionController,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<PreparedLocalSessionCoordinator> {
+        Ok(PreparedLocalSessionCoordinator {
+            database_binding: database.binding(),
+            source: database.session_projection_source()?,
+            admission,
+            epoch_now_ms,
+            monotonic_now,
+        })
+    }
+
+    /// Finish an opaque database-derived preparation after its database owner
+    /// has released any outer engine write scope. Callers cannot replace the
+    /// captured source or its correlated binding.
+    pub fn from_prepared_local_session_database(
+        prepared: PreparedLocalSessionCoordinator,
+    ) -> SnapbackResult<Self> {
+        Self::new_inner(
+            SessionProjection::rebuild_with_fresh_startup_id(
+                prepared.source,
+                prepared.epoch_now_ms,
+                prepared.monotonic_now,
+            )?,
+            prepared.admission,
+            Some(prepared.database_binding),
+        )
+    }
+
+    pub(crate) fn new(projection: SessionProjection) -> SnapbackResult<Self> {
         Self::new_inner(projection, AdmissionController::new(0, true)?, None)
     }
 
@@ -586,9 +677,26 @@ impl AuthCoordinator {
         Self::new_inner(projection, admission, None)
     }
 
-    #[cfg(not(feature = "test-support"))]
-    pub(crate) fn new(projection: SessionProjection) -> SnapbackResult<Self> {
-        Self::new_inner(projection, AdmissionController::new(0, true)?, None)
+    /// Read-only test observation for proving that a database-bound rebuild
+    /// preserved an exact durable terminal cause. This cannot construct,
+    /// replace, or detach projection state.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn terminal_reason_for_bearer_for_test(
+        &self,
+        bearer: &str,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<Option<RevocationReason>> {
+        let bearer = SessionBearer::parse_any_version(bearer).map_err(|_| auth_required())?;
+        let digest = TokenDigest::from_token_hash(&bearer.token_hash());
+        let topology = self.lock_topology()?;
+        match topology
+            .projection
+            .resolve_token(&digest, epoch_now_ms, monotonic_now)?
+        {
+            ProjectedTokenResolution::Terminal { reason } => Ok(Some(reason)),
+            _ => Ok(None),
+        }
     }
 
     fn new_inner(
@@ -2419,12 +2527,9 @@ mod tests {
             .expect("mint database-backed session fixture stream")
             .as_str()
             .to_owned();
-        let snapshot = database
-            .admitted_session_projection_snapshot()
-            .expect("mint admitted database-backed session snapshot");
         fixture.coordinator = Arc::new(
-            AuthCoordinator::from_admitted_snapshot(
-                snapshot,
+            AuthCoordinator::from_local_session_database(
+                database,
                 fixture.admission.clone(),
                 100,
                 fixture.monotonic_start,

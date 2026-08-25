@@ -201,7 +201,7 @@ pub(super) async fn oauth_register(
             StatusCode::BAD_REQUEST,
         );
     }
-    let (provider, policy) = match require_agent_registration_mode(&runtime).await {
+    let provider = match require_agent_registration_provider(&runtime) {
         Ok(value) => value,
         Err(error) => return error.into_response(),
     };
@@ -246,7 +246,6 @@ pub(super) async fn oauth_register(
     let issued = with_snapback(&runtime.snapback, move |snapback| {
         snapback.register_oauth_client(
             &route_admission,
-            policy.mode,
             invitation.as_ref(),
             client_name,
             crate::storage::auth_integrations::IntegrationRegistrationFacts {

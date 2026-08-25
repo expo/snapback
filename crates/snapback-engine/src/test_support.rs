@@ -13,9 +13,7 @@ use crate::auth::invocation::{InvocationGate, InvocationSource, PreparedAuthorit
 use crate::contract_types::ServerProfile;
 use crate::diagnostic::SnapbackResult;
 use crate::local::LocalSnapback;
-use crate::local::{
-    LiveInvalidationAdmission, LiveSubscribeInput, LiveSubscribeOutput, PreparedLiveSubscribe,
-};
+use crate::local::{LiveInvalidationAdmission, LiveSubscribeInput, LiveSubscribeOutput};
 use crate::manifest::{
     AssetAcceptPolicy, AssetAccessPolicy, AssetDeliveryPolicy, AssetImagePolicy, AssetImageVariant,
     AssetLocationPolicy, AssetUploadIntentDefinition, AuthInput, FunctionManifest, FunctionRuntime,
@@ -138,17 +136,6 @@ pub fn asset_move_finalize_witness(
     attempt_id: &str,
 ) -> SnapbackResult<()> {
     snapback.asset_move_finalize_witness_for_test(attempt_id)
-}
-
-pub fn prepare_subscribe_live_for_transport(
-    snapback: &mut LocalSnapback,
-    name: String,
-    input: LiveSubscribeInput,
-    authority: PreparedAuthority,
-    invalidation: LiveInvalidationAdmission,
-) -> SnapbackResult<PreparedLiveSubscribe> {
-    snapback.require_host_plan_for_test_support(&name)?;
-    snapback.prepare_subscribe_live_for_transport(name, input, authority, invalidation)
 }
 
 /// Subscribe through a prepared authority, restricted to declarative plans.

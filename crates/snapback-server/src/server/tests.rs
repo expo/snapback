@@ -439,9 +439,7 @@ use crate::auth::deployment::{
     HostedOperatorSurface, HostedServingAuthority, SessionInvalidation,
     SharedAuthenticationThrottleConfig,
 };
-use crate::auth::invalidation::{
-    AuthorizationInvalidationConnection, IssuerId, LiveInvalidationIssuer, QueryNamespace,
-};
+use crate::auth::invalidation::QueryNamespace;
 use crate::auth::invocation::{
     InvocationGate, InvocationSource, ResolvedAppAuthority, WireAuthorityFields,
 };
@@ -470,9 +468,7 @@ use crate::contract_types::{
 };
 use crate::cron::CronRunOutcome;
 use crate::diagnostic::SnapbackError;
-use crate::local::{
-    EnsureAppMode, LiveInvalidationAdmission, LiveSubscribeInput, LocalSnapback, StagedAction,
-};
+use crate::local::{EnsureAppMode, LiveSubscribeInput, LocalSnapback, StagedAction};
 use crate::manifest::{
     ActionPlan, ActionReturnValue, ActionStep, AgentsManifest, AgentsMode, ApiAskBilling,
     ApiAskBudgets, ApiAskManifest, ApiAskModelManifest, ApiAskPerPrincipalDayBudget,
@@ -7829,41 +7825,36 @@ async fn finite_authority_matrix_fixture_with_functions(
     let fixture_functions = functions.clone();
     let state = tokio::task::spawn_blocking(move || {
         let _sanction = crate::exec_guard::BlockingSanction::acquire();
-        sessions_activation_server_fixture_with(fixture_functions, Some(fixture_clock))
+        sessions_activation_server_fixture_with_agents(
+            fixture_functions,
+            Some(fixture_clock),
+            Some(agent_policy(AgentsMode::Open, InvitedBy::Operators)),
+        )
     })
     .await
     .expect("construct finite-authority matrix fixture off async workers");
     let provider = state.auth_provider.clone().expect("matrix auth provider");
     let effective_user_id = "018f0d90-7b30-7a22-8c33-445566778899".to_owned();
-    let agent_user_id = "018f0d90-7b31-7a22-8c33-445566778899".to_owned();
     let grant_id = "018f0d90-7b32-7a22-8c33-445566778899".to_owned();
     let setup_effective_user_id = effective_user_id.clone();
-    let setup_agent_user_id = agent_user_id.clone();
     let setup_grant_id = grant_id.clone();
-    let (credential, token, token_id, token_expires_at_ms) =
+    let (agent_user_id, credential, token, token_id, token_expires_at_ms) =
         with_snapback(&state.snapback, move |snapback| {
             let db = snapback.remainder_auth_database_mut();
             db.reconcile_auth_scope_bases(&functions)?;
             db.auth_catalog()
                 .insert_human_user_for_test(&setup_effective_user_id, start_ms)?;
-            db.create_agent_principal(
-                &setup_agent_user_id,
-                start_ms,
-                &crate::storage::auth_agents::AgentRegistration {
-                    display_name: None,
-                    operator_contact: None,
-                    registration_provenance: "finite-authority-matrix".to_owned(),
-                    owner_user_id: Some(setup_effective_user_id.clone()),
-                },
-            )?;
-            let credential = db.issue_initial_agent_credential(
-                &setup_agent_user_id,
+            let credential = db.register_agent_principal(
+                None,
+                Some("Finite Authority Agent".to_owned()),
+                None,
+                ServerProfile::Test,
                 start_ms,
                 provider.agent_random_source(),
             )?;
             db.auth_catalog().insert_finite_authority_grant_for_test(
                 &setup_grant_id,
-                &setup_agent_user_id,
+                &credential.user_id,
                 &setup_effective_user_id,
                 start_ms,
             )?;
@@ -7875,6 +7866,7 @@ async fn finite_authority_matrix_fixture_with_functions(
                 provider.agent_random_source(),
             )?;
             Ok::<_, SnapbackError>((
+                credential.user_id,
                 credential.secret.expose_secret().to_owned(),
                 issued.secret.expose_secret().to_owned(),
                 issued.token_id,
@@ -9691,7 +9683,7 @@ async fn service_terminal_gate_does_not_hold_local_while_staged_work_drains() {
         .expect("connection token")
         .to_owned();
     let (epoch_now_ms, monotonic_now) = super::auth_runtime_now(&fixture.state);
-    let connection_act = fixture
+    let mut connection_act = fixture
         .state
         .connections
         .prepare_act(
@@ -9723,13 +9715,13 @@ async fn service_terminal_gate_does_not_hold_local_while_staged_work_drains() {
     .expect("prepare staged service authority")
     .with_fenced_publication(connection_act.bound.publication().clone())
     .with_service_publication(service_publication.clone());
+    connection_act.route_authority = Some(authority);
     let effect_fence = connection_act.effect_fence();
+    let staging_act = connection_act.clone();
     let staged = with_snapback(&fixture.state.snapback, {
         let connection_id = connection_id.clone();
-        let invalidation = connection_act.authorization_invalidation.clone();
-        let effect_fence = effect_fence.clone();
         move |snapback| {
-            snapback_engine::test_support::prepare_subscribe_live_for_transport(
+            staging_act.prepare_live_subscribe(
                 snapback,
                 "liveItems".to_owned(),
                 LiveSubscribeInput {
@@ -9743,11 +9735,7 @@ async fn service_terminal_gate_does_not_hold_local_while_staged_work_drains() {
                     supersedes: None,
                     resume_from_token: None,
                 },
-                authority,
-                snapback_engine::test_support::live_invalidation_admission(
-                    invalidation.expect("negotiated invalidation descriptor"),
-                    true,
-                ),
+                None,
             )
         }
     })
@@ -16884,44 +16872,43 @@ async fn scoped_token_carrier_is_resolved_only_for_granted_current_function_scop
         )))
     }
 
-    let state = sessions_activation_server_fixture_async().await;
+    let state = sessions_activation_server_fixture_with_agents_async(agent_policy(
+        AgentsMode::Open,
+        InvitedBy::Operators,
+    ))
+    .await;
     let provider = state.auth_provider.clone().unwrap();
     let now_ms = provider.now_ms();
-    let (token, agent_credential) = with_snapback(&state.snapback, move |snapback| {
-        let db = snapback.remainder_auth_database_mut();
-        db.auth_catalog()
-            .insert_query_carrier_prerequisites_for_test(now_ms)?;
-        db.create_agent_principal(
-            "018f0d90-7b31-7a22-8c33-445566778899",
-            now_ms,
-            &crate::storage::auth_agents::AgentRegistration {
-                display_name: None,
-                operator_contact: None,
-                registration_provenance: "carrier-test".to_owned(),
-                owner_user_id: Some("018f0d90-7b30-7a22-8c33-445566778899".to_owned()),
-            },
-        )?;
-        let credential = db.issue_initial_agent_credential(
-            "018f0d90-7b31-7a22-8c33-445566778899",
-            now_ms,
-            provider.agent_random_source(),
-        )?;
-        db.auth_catalog()
-            .insert_query_carrier_grant_for_test(now_ms)?;
-        let issued = db.mint_scoped_token(
-            &credential.secret,
-            "018f0d90-7b32-7a22-8c33-445566778899",
-            None,
-            now_ms,
-            provider.agent_random_source(),
-        )?;
-        Ok::<_, SnapbackError>((
-            issued.secret.expose_secret().to_owned(),
-            credential.secret.expose_secret().to_owned(),
-        ))
-    })
-    .await
-    .unwrap();
+    let (agent_user_id, token, agent_credential) =
+        with_snapback(&state.snapback, move |snapback| {
+            let db = snapback.remainder_auth_database_mut();
+            db.auth_catalog()
+                .insert_query_carrier_prerequisites_for_test(now_ms)?;
+            let credential = db.register_agent_principal(
+                None,
+                Some("Carrier Test Agent".to_owned()),
+                None,
+                ServerProfile::Test,
+                now_ms,
+                provider.agent_random_source(),
+            )?;
+            db.auth_catalog()
+                .insert_query_carrier_grant_for_test(&credential.user_id, now_ms)?;
+            let issued = db.mint_scoped_token(
+                &credential.secret,
+                "018f0d90-7b32-7a22-8c33-445566778899",
+                None,
+                now_ms,
+                provider.agent_random_source(),
+            )?;
+            Ok::<_, SnapbackError>((
+                credential.user_id,
+                issued.secret.expose_secret().to_owned(),
+                credential.secret.expose_secret().to_owned(),
+            ))
+        })
+        .await
+        .unwrap();
 
     let connection_router = super::app(state.clone());
     let handshake = connection_router
@@ -17012,7 +16999,7 @@ async fn scoped_token_carrier_is_resolved_only_for_granted_current_function_scop
     assert_eq!(
         queued["attribution"],
         json!({
-            "actorUserId": "018f0d90-7b31-7a22-8c33-445566778899",
+            "actorUserId": agent_user_id,
             "effectiveUserId": "018f0d90-7b30-7a22-8c33-445566778899",
             "grantId": "018f0d90-7b32-7a22-8c33-445566778899",
             "dryRun": false
@@ -17150,10 +17137,7 @@ async fn scoped_token_carrier_is_resolved_only_for_granted_current_function_scop
     let projection = response_json(allowed).await;
     assert_eq!(projection["userId"], "018f0d90-7b30-7a22-8c33-445566778899");
     assert_eq!(projection["kind"], "human");
-    assert_eq!(
-        projection["actor"]["userId"],
-        "018f0d90-7b31-7a22-8c33-445566778899"
-    );
+    assert_eq!(projection["actor"]["userId"], agent_user_id);
     assert_eq!(
         projection["actor"]["grantId"],
         "018f0d90-7b32-7a22-8c33-445566778899"
@@ -17161,7 +17145,7 @@ async fn scoped_token_carrier_is_resolved_only_for_granted_current_function_scop
     assert_eq!(
         projection["attribution"],
         json!({
-            "actorUserId": "018f0d90-7b31-7a22-8c33-445566778899",
+            "actorUserId": agent_user_id,
             "effectiveUserId": "018f0d90-7b30-7a22-8c33-445566778899",
             "grantId": "018f0d90-7b32-7a22-8c33-445566778899",
             "dryRun": false
@@ -17400,47 +17384,45 @@ async fn live_attribution_is_immutable_across_renewal_and_regenerated_after_rota
     }
 
     let effective_user_id = "018f0d90-7b30-7a22-8c33-445566778899";
-    let agent_user_id = "018f0d90-7b31-7a22-8c33-445566778899";
     let grant_id = "018f0d90-7b32-7a22-8c33-445566778899";
-    let state = sessions_activation_server_fixture_async().await;
+    let state = sessions_activation_server_fixture_with_agents_async(agent_policy(
+        AgentsMode::Open,
+        InvitedBy::Operators,
+    ))
+    .await;
     let provider = state.auth_provider.clone().unwrap();
     let now_ms = provider.now_ms();
     let seed_provider = provider.clone();
-    let (token, agent_credential) = with_snapback(&state.snapback, move |snapback| {
-        let db = snapback.remainder_auth_database_mut();
-        db.auth_catalog()
-            .insert_live_carrier_prerequisites_for_test(now_ms)?;
-        db.create_agent_principal(
-            "018f0d90-7b31-7a22-8c33-445566778899",
-            now_ms,
-            &crate::storage::auth_agents::AgentRegistration {
-                display_name: None,
-                operator_contact: None,
-                registration_provenance: "live-attribution-test".to_owned(),
-                owner_user_id: Some("018f0d90-7b30-7a22-8c33-445566778899".to_owned()),
-            },
-        )?;
-        let credential = db.issue_initial_agent_credential(
-            "018f0d90-7b31-7a22-8c33-445566778899",
-            now_ms,
-            seed_provider.agent_random_source(),
-        )?;
-        db.auth_catalog()
-            .insert_live_carrier_grant_for_test(now_ms)?;
-        let issued = db.mint_scoped_token(
-            &credential.secret,
-            "018f0d90-7b32-7a22-8c33-445566778899",
-            None,
-            now_ms,
-            seed_provider.agent_random_source(),
-        )?;
-        Ok::<_, SnapbackError>((
-            issued.secret.expose_secret().to_owned(),
-            credential.secret.expose_secret().to_owned(),
-        ))
-    })
-    .await
-    .unwrap();
+    let (agent_user_id, token, agent_credential) =
+        with_snapback(&state.snapback, move |snapback| {
+            let db = snapback.remainder_auth_database_mut();
+            db.auth_catalog()
+                .insert_live_carrier_prerequisites_for_test(now_ms)?;
+            let credential = db.register_agent_principal(
+                None,
+                Some("Live Attribution Agent".to_owned()),
+                None,
+                ServerProfile::Test,
+                now_ms,
+                seed_provider.agent_random_source(),
+            )?;
+            db.auth_catalog()
+                .insert_live_carrier_grant_for_test(&credential.user_id, now_ms)?;
+            let issued = db.mint_scoped_token(
+                &credential.secret,
+                "018f0d90-7b32-7a22-8c33-445566778899",
+                None,
+                now_ms,
+                seed_provider.agent_random_source(),
+            )?;
+            Ok::<_, SnapbackError>((
+                credential.user_id,
+                issued.secret.expose_secret().to_owned(),
+                credential.secret.expose_secret().to_owned(),
+            ))
+        })
+        .await
+        .unwrap();
     let router = super::app(state.clone());
     let expected_attribution = json!({
         "actorUserId": agent_user_id,
@@ -17496,7 +17478,7 @@ async fn live_attribution_is_immutable_across_renewal_and_regenerated_after_rota
         snapback
             .remainder_auth_database_mut()
             .auth_catalog()
-            .set_agent_credential_rotated_at_for_test(agent_user_id, 0)
+            .set_agent_credential_rotated_at_for_test(&agent_user_id, 0)
     })
     .await
     .unwrap();
@@ -19427,24 +19409,22 @@ async fn guest_entry_authorizes_claims_reaps_and_refuses_policy_or_input_failure
         .auth_provider
         .clone()
         .expect("installed auth provider");
-    let source = with_snapback(&state.snapback, |snapback| {
-        snapback
-            .remainder_auth_database_mut()
-            .session_projection_source()
-    })
-    .await
-    .expect("read projection source after guest reaping");
-    let rebuilt =
-        crate::auth::session_projection::SessionProjection::rebuild_with_fresh_startup_id(
-            source,
+    let admission = state.auth_admission_controller();
+    let rebuild_preparation = with_snapback(&state.snapback, move |snapback| {
+        crate::auth::coordinator::AuthCoordinator::prepare_from_local_session_database(
+            snapback.remainder_auth_database_mut(),
+            admission,
             provider.now_ms(),
             provider.monotonic_now(),
         )
-        .expect("rebuild projection after guest reaping");
-    state.auth_coordinator = Some(Arc::new(
-        crate::auth::coordinator::AuthCoordinator::new(rebuilt)
-            .expect("install rebuilt auth coordinator"),
-    ));
+    })
+    .await
+    .expect("prepare database-bound coordinator rebuild after guest reaping");
+    let rebuilt = crate::auth::coordinator::AuthCoordinator::from_prepared_local_session_database(
+        rebuild_preparation,
+    )
+    .expect("finish database-bound coordinator rebuild after releasing the engine write scope");
+    state.auth_coordinator = Some(Arc::new(rebuilt));
     let refused = app(state.clone())
         .clone()
         .oneshot(session_auth_http_request(
@@ -22059,31 +22039,28 @@ async fn deactivated_agent_cannot_re_register_or_reuse_its_credential() {
 
 #[tokio::test]
 async fn agent_token_route_accepts_exactly_one_target_and_returns_complete_receipts() {
-    let state = sessions_activation_server_fixture_async().await;
+    let state = sessions_activation_server_fixture_with_agents_async(agent_policy(
+        AgentsMode::Open,
+        InvitedBy::Operators,
+    ))
+    .await;
     let provider = state.auth_provider.clone().unwrap();
     let now_ms = provider.now_ms();
-    let credential = with_snapback(&state.snapback, move |snapback| {
+    let (agent_user_id, credential) = with_snapback(&state.snapback, move |snapback| {
         let db = snapback.remainder_auth_database_mut();
         db.auth_catalog()
             .insert_human_user_for_test("grant-user", now_ms)?;
-        db.create_agent_principal(
-            "route-agent",
-            now_ms,
-            &crate::storage::auth_agents::AgentRegistration {
-                display_name: Some("Route Agent".to_owned()),
-                operator_contact: None,
-                registration_provenance: "route-test".to_owned(),
-                owner_user_id: Some("grant-user".to_owned()),
-            },
-        )?;
-        let issued = db.issue_initial_agent_credential(
-            "route-agent",
+        let issued = db.register_agent_principal(
+            None,
+            Some("Route Agent".to_owned()),
+            None,
+            ServerProfile::Test,
             now_ms,
             provider.agent_random_source(),
         )?;
         db.auth_catalog()
-            .insert_agent_token_route_fixtures_for_test(now_ms)?;
-        Ok::<_, SnapbackError>(issued.secret.expose_secret().to_owned())
+            .insert_agent_token_route_fixtures_for_test(&issued.user_id, now_ms)?;
+        Ok::<_, SnapbackError>((issued.user_id, issued.secret.expose_secret().to_owned()))
     })
     .await
     .unwrap();
@@ -22107,7 +22084,7 @@ async fn agent_token_route_accepts_exactly_one_target_and_returns_complete_recei
     let ordinary = response_json(ordinary).await;
     assert_eq!(ordinary_status, StatusCode::OK, "{ordinary}");
     assert_eq!(ordinary["grantId"], "route-grant");
-    assert_eq!(ordinary["actorUserId"], "route-agent");
+    assert_eq!(ordinary["actorUserId"], agent_user_id);
     assert_eq!(ordinary["effectiveUserId"], "grant-user");
     assert_eq!(ordinary["grantExpiresAtMs"], now_ms + 60_000);
     assert!(
@@ -22376,11 +22353,11 @@ async fn agent_token_route_accepts_exactly_one_target_and_returns_complete_recei
         );
     }
 
-    with_snapback(&state.snapback, |snapback| {
+    with_snapback(&state.snapback, move |snapback| {
         snapback
             .remainder_auth_database_mut()
             .auth_catalog()
-            .set_agent_credential_rotated_at_for_test("route-agent", 0)
+            .set_agent_credential_rotated_at_for_test(&agent_user_id, 0)
     })
     .await
     .unwrap();
@@ -22426,7 +22403,11 @@ async fn agent_token_route_accepts_exactly_one_target_and_returns_complete_recei
 /// and reveals nothing to a different signed-in user.
 #[tokio::test]
 async fn bulk_grant_revocation_is_owner_scoped_idempotent_and_no_store_over_http() {
-    let state = sessions_activation_server_fixture_async().await;
+    let state = sessions_activation_server_fixture_with_agents_async(agent_policy(
+        AgentsMode::Open,
+        InvitedBy::Operators,
+    ))
+    .await;
     let owner = mint_test_credential(&state, "bulk-owner@example.com").await;
     let stranger = mint_test_credential(&state, "bulk-stranger@example.com").await;
     let owner_id = owner["session"]["userId"].as_str().unwrap().to_owned();
@@ -22435,26 +22416,28 @@ async fn bulk_grant_revocation_is_owner_scoped_idempotent_and_no_store_over_http
     let provider = state.auth_provider.clone().unwrap();
     let now_ms = provider.now_ms();
     let owner_id_for_setup = owner_id.clone();
-    with_snapback(&state.snapback, move |snapback| {
+    let agent_user_id = with_snapback(&state.snapback, move |snapback| {
         let db = snapback.remainder_auth_database_mut();
-        db.create_agent_principal(
-            "bulk-route-agent",
+        let issued = db.register_agent_principal(
+            None,
+            Some("Bulk Route Agent".to_owned()),
+            None,
+            ServerProfile::Test,
             now_ms,
-            &crate::storage::auth_agents::AgentRegistration {
-                display_name: Some("Bulk Route Agent".to_owned()),
-                operator_contact: None,
-                registration_provenance: "bulk-route-test".to_owned(),
-                owner_user_id: Some(owner_id_for_setup.clone()),
-            },
+            provider.agent_random_source(),
         )?;
-        db.auth_catalog()
-            .insert_bulk_route_grants_for_test(&owner_id_for_setup, now_ms)
+        db.auth_catalog().insert_bulk_route_grants_for_test(
+            &issued.user_id,
+            &owner_id_for_setup,
+            now_ms,
+        )?;
+        Ok::<_, SnapbackError>(issued.user_id)
     })
     .await
     .unwrap();
     let router = app(state);
 
-    let request = |method: &'static str, uri: &'static str, bearer: &str| {
+    let request = |method: &'static str, uri: &str, bearer: &str| {
         let mut request = auth_http_request(method, uri, Vec::new(), false, None, None);
         offer_auth_client_protocol(&mut request);
         request.headers_mut().insert(
@@ -22468,7 +22451,7 @@ async fn bulk_grant_revocation_is_owner_scoped_idempotent_and_no_store_over_http
         .clone()
         .oneshot(request(
             "DELETE",
-            "/auth/grants/by-actor/bulk-route-agent",
+            &format!("/auth/grants/by-actor/{agent_user_id}"),
             &stranger_bearer,
         ))
         .await
@@ -22502,7 +22485,7 @@ async fn bulk_grant_revocation_is_owner_scoped_idempotent_and_no_store_over_http
             .clone()
             .oneshot(request(
                 "DELETE",
-                "/auth/grants/by-actor/bulk-route-agent",
+                &format!("/auth/grants/by-actor/{agent_user_id}"),
                 &owner_bearer,
             ))
             .await
@@ -22539,7 +22522,11 @@ async fn bulk_grant_revocation_is_owner_scoped_idempotent_and_no_store_over_http
 /// ordinary consent remains frictionless.
 #[tokio::test]
 async fn grant_step_up_is_domain_separated_target_bound_and_single_effect() {
-    let state = sessions_activation_server_fixture_async().await;
+    let state = sessions_activation_server_fixture_with_agents_async(agent_policy(
+        AgentsMode::Open,
+        InvitedBy::Operators,
+    ))
+    .await;
     let provider = state.auth_provider.clone().unwrap();
     let credential = mint_test_credential(&state, "step-up@example.com").await;
     let bearer = credential["token"].as_str().unwrap().to_owned();
@@ -22552,23 +22539,15 @@ async fn grant_step_up_is_domain_separated_target_bound_and_single_effect() {
         let user_id = user_id.clone();
         move |snapback| {
             let db = snapback.remainder_auth_database_mut();
-            db.create_agent_principal(
-                "step-up-agent",
+            let issued = db.register_agent_principal(
+                None,
+                Some("Step-up Agent".to_owned()),
+                None,
+                ServerProfile::Test,
                 now_ms,
-                &crate::storage::auth_agents::AgentRegistration {
-                    display_name: Some("Step-up Agent".to_owned()),
-                    operator_contact: None,
-                    registration_provenance: "step-up-route-test".to_owned(),
-                    owner_user_id: Some(user_id.clone()),
-                },
+                provider.agent_random_source(),
             )?;
-            let agent_credential = db
-                .issue_initial_agent_credential(
-                    "step-up-agent",
-                    now_ms,
-                    provider.agent_random_source(),
-                )?
-                .secret;
+            let agent_credential = issued.secret;
             db.auth_catalog().insert_step_up_scope_bases_for_test()?;
 
             let mut present = |function_id: &str,
@@ -34239,7 +34218,7 @@ async fn committed_live_stage_finalize_outlives_request_cancellation_and_retains
             Some(crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION),
         ))
         .expect("open managed staged connection");
-    let connection_act = state
+    let mut connection_act = state
         .connections
         .prepare_act(
             &opened.grant.connection_id,
@@ -34264,40 +34243,41 @@ async fn committed_live_stage_finalize_outlives_request_cancellation_and_retains
     )
     .expect("prepare staged live authority")
     .with_fenced_publication(connection_act.bound.publication().clone());
+    connection_act.route_authority = Some(authority);
     let connection_id = opened.grant.connection_id.clone();
     let effect_fence = connection_act.effect_fence();
-    let staged = with_snapback(&state.snapback, {
-        let connection_id = connection_id.clone();
-        let invalidation = connection_act.authorization_invalidation.clone();
-        let effect_fence = effect_fence.clone();
-        move |snapback| {
-            snapback_engine::test_support::prepare_subscribe_live_for_transport(
-                snapback,
-                "listItems".to_owned(),
-                LiveSubscribeInput {
-                    connection_id,
-                    input: HandlerInput::default(),
-                    authorization_namespace: Some(QueryNamespace {
-                        client_store_id: "owned_finalize_store".to_owned(),
-                        query_key: "listItems:{}".to_owned(),
-                        query_instance_id: 9_001,
-                    }),
-                    supersedes: None,
-                    resume_from_token: None,
-                },
-                authority,
-                snapback_engine::test_support::live_invalidation_admission(
-                    invalidation.expect("negotiated invalidation descriptor"),
-                    true,
-                ),
-            )
-        }
+    let staging_act = connection_act.clone();
+    let staged = with_snapback(&state.snapback, move |snapback| {
+        staging_act.prepare_live_subscribe(
+            snapback,
+            "listItems".to_owned(),
+            LiveSubscribeInput {
+                connection_id: "wire-selected-other-connection".to_owned(),
+                input: HandlerInput::default(),
+                authorization_namespace: Some(QueryNamespace {
+                    client_store_id: "owned_finalize_store".to_owned(),
+                    query_key: "listItems:{}".to_owned(),
+                    query_instance_id: 9_001,
+                }),
+                supersedes: None,
+                resume_from_token: None,
+            },
+            None,
+        )
     })
     .await
     .expect("reserve Local stage without running the query");
     let authority_work = connection_act
         .reserve_authority_work(epoch_now_ms, monotonic_now)
         .expect("reserve retained authority work");
+    assert_eq!(
+        staged
+            .try_commit("wire-selected-other-connection", &effect_fence)
+            .expect_err("the wire connection id is not retained by the stage")
+            .diagnostic
+            .code,
+        "SNAPBACK_LIVE_STAGE_BINDING_MISMATCH"
+    );
     let committed_stage = staged.clone();
     connection_act
         .try_act(&state.connections, epoch_now_ms, monotonic_now, || {
@@ -34438,7 +34418,7 @@ async fn refused_connection_act_abandons_staged_subscribe_without_publication() 
             Some(crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION),
         ))
         .expect("open managed staged connection");
-    let connection_act = state
+    let mut connection_act = state
         .connections
         .prepare_act(
             &opened.grant.connection_id,
@@ -34461,6 +34441,7 @@ async fn refused_connection_act_abandons_staged_subscribe_without_publication() 
     )
     .expect("prepare staged live authority")
     .with_fenced_publication(connection_act.bound.publication().clone());
+    connection_act.route_authority = Some(authority);
 
     // Stage preparation still succeeds, but the exact act must observe
     // that retirement removed this grant before invoking its closure.
@@ -34470,7 +34451,6 @@ async fn refused_connection_act_abandons_staged_subscribe_without_publication() 
         .expect("retire the prepared grant before the route act");
     let error = super::subscribe_live(
         State(state.clone()),
-        Extension(authority),
         Extension(connection_act),
         Extension(admission),
         axum::extract::Path("listItems".to_owned()),

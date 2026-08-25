@@ -15614,6 +15614,28 @@ fn sessions_activation_pair(
     (schema, functions)
 }
 
+fn enable_open_agent_registration(schema: &mut SchemaManifest) {
+    match schema.auth.as_mut() {
+        Some(auth) => {
+            auth.agents = Some(crate::manifest::AgentsManifest::explicit(
+                crate::manifest::AgentsMode::Open,
+                crate::manifest::InvitedBy::Operators,
+            ));
+        }
+        None => {
+            schema.auth = Some(crate::manifest::AuthManifest {
+                mode: AuthMode::Dev,
+                agents: Some(crate::manifest::AgentsManifest::explicit(
+                    crate::manifest::AgentsMode::Open,
+                    crate::manifest::InvitedBy::Operators,
+                )),
+                password_identifier_mode: None,
+                password_minimum_length: None,
+            });
+        }
+    }
+}
+
 // @ref LLP 0081#4-execution-journaling-and-crash-recovery — no
 //   pre-publication baseline replays through the raised floor: under a
 //   successor-only publication an offline mutation whose read baseline
@@ -17179,22 +17201,18 @@ fn scoped_live_authority(snapback: &mut LocalSnapback) -> PreparedAuthority {
         db.auth_catalog()
             .insert_human_user_for_test("activation-owner", now_ms)
             .expect("create activation owner");
-        db.create_agent_principal(
-            "activation-agent",
-            now_ms,
-            &crate::storage::auth_agents::AgentRegistration {
-                display_name: Some("Activation agent".to_owned()),
-                operator_contact: None,
-                registration_provenance: r#"{"source":"activation-test"}"#.to_owned(),
-                owner_user_id: Some("activation-owner".to_owned()),
-            },
-        )
-        .expect("create activation agent");
         let credential = db
-            .issue_initial_agent_credential("activation-agent", now_ms, &random)
-            .expect("issue activation credential");
+            .register_agent_principal(
+                None,
+                Some("Activation agent".to_owned()),
+                None,
+                ServerProfile::Test,
+                now_ms,
+                &random,
+            )
+            .expect("atomically register activation agent");
         db.auth_catalog()
-            .insert_activation_live_grant_for_test(now_ms)
+            .insert_activation_live_grant_for_test(&credential.user_id, now_ms)
             .expect("create activation grant");
         db.mint_scoped_token(
             &credential.secret,
@@ -17240,7 +17258,8 @@ fn scoped_live_authority(snapback: &mut LocalSnapback) -> PreparedAuthority {
 
 #[test]
 fn retained_service_live_revalidates_only_its_matched_grant_entry() {
-    let (schema, mut predecessor_functions) = sessions_activation_pair('b', false);
+    let (mut schema, mut predecessor_functions) = sessions_activation_pair('b', false);
+    enable_open_agent_registration(&mut schema);
     predecessor_functions
         .functions
         .push(FunctionDefinition::new(
@@ -17746,7 +17765,8 @@ fn same_mode_activation_with_live_subscriber_survives_after_local_owner_retentio
 
 #[test]
 fn same_mode_activation_terminally_deletes_live_service_scope_tombstones() {
-    let (schema, predecessor_functions) = sessions_activation_pair('b', false);
+    let (mut schema, predecessor_functions) = sessions_activation_pair('b', false);
+    enable_open_agent_registration(&mut schema);
     let mut snapback = settled_sessions_activation_snapback(schema, predecessor_functions);
     let connection = install_test_invalidation(&mut snapback);
     let authority = scoped_live_authority(&mut snapback);
@@ -30932,7 +30952,6 @@ fn oauth_consent_ownership_fixture() -> (LocalSnapback, String, String) {
         .expect("install OAuth scope bases");
     let integration = database
         .register_agent_principal_with_class(
-            crate::manifest::AgentsMode::Open,
             None,
             Some(OAUTH_INTEGRATION_DISPLAY_NAME.to_owned()),
             Some("ops@example.test".to_owned()),
@@ -32324,9 +32343,6 @@ const DENY_EFFECT_MS: u64 = 2_000;
 const DENY_LOWER_USER: &str = "usr_00000000000000000000000000";
 const DENY_MIDDLE_USER: &str = "usr_00000000000000000000000001";
 const DENY_UPPER_USER: &str = "usr_00000000000000000000000002";
-const DENY_AGENT_USER: &str = "usr_00000000000000000000000003";
-const DENY_AGENT_OWNER_USER: &str = "usr_00000000000000000000000004";
-const DENY_PAIRING_AGENT_USER: &str = "usr_00000000000000000000000005";
 const DENY_USERS: [&str; 3] = [DENY_LOWER_USER, DENY_MIDDLE_USER, DENY_UPPER_USER];
 const AUTH_CLOCK_META_KEY_FOR_DENY_TESTS: &str = "auth_invalidation_clock_high_water_ms_v1";
 const DENIAL_SCOPES_JSON: &str =
@@ -32473,10 +32489,14 @@ struct GrantDenialFixture {
 
 impl GrantDenialFixture {
     fn new() -> Self {
-        use crate::storage::auth_agents::AgentRegistration;
         use crate::storage::auth_grants::{GrantScopeRequest, ScopedFunctionKind};
 
         let mut snapback = LocalSnapback::memory().expect("grant denial memory fixture");
+        let mut schema = SchemaManifest::default();
+        enable_open_agent_registration(&mut schema);
+        snapback
+            .apply_schema(schema)
+            .expect("install open agent registration policy");
         let random = CounterRandom::new();
         let pairing_requests = {
             let database = snapback.auth_database_mut();
@@ -32489,25 +32509,17 @@ impl GrantDenialFixture {
                     .insert_human_user_for_test(user_id, DENY_FIXTURE_MS)
                     .expect("create grant denial fixture user");
             }
-            database
-                .auth_catalog()
-                .insert_human_user_for_test(DENY_AGENT_OWNER_USER, DENY_FIXTURE_MS)
-                .expect("create grant denial fixture agent owner");
-            database
-                .create_agent_principal(
-                    DENY_PAIRING_AGENT_USER,
-                    DENY_FIXTURE_MS,
-                    &AgentRegistration {
-                        display_name: Some("Grant Denial Agent".to_owned()),
-                        operator_contact: None,
-                        registration_provenance: "grant-denial-derivation-test".to_owned(),
-                        owner_user_id: Some(DENY_AGENT_OWNER_USER.to_owned()),
-                    },
-                )
-                .expect("create grant denial agent");
             let credential = database
-                .issue_initial_agent_credential(DENY_PAIRING_AGENT_USER, DENY_FIXTURE_MS, &random)
-                .expect("issue grant denial agent credential");
+                .register_agent_principal(
+                    None,
+                    Some("Grant Denial Agent".to_owned()),
+                    None,
+                    ServerProfile::Test,
+                    DENY_FIXTURE_MS,
+                    &random,
+                )
+                .expect("atomically register grant denial agent");
+            let agent_user_id = credential.user_id.clone();
             database
                 .reconcile_auth_scope_bases(&denial_scope_manifest())
                 .expect("install grant denial scope basis");
@@ -32536,7 +32548,7 @@ impl GrantDenialFixture {
                             request_id: pairing.request_id,
                             code_hash,
                             minted_by_user_id: user_id.to_owned(),
-                            agent_user_id: Some(DENY_PAIRING_AGENT_USER.to_owned()),
+                            agent_user_id: Some(agent_user_id.clone()),
                             requested_scopes: Some(DENIAL_SCOPES_JSON.to_owned()),
                             state: "pending".to_owned(),
                             attempts: 0,
@@ -32705,7 +32717,6 @@ impl OAuthDenialFixture {
                 .expect("install OAuth denial scope bases");
             let integration = database
                 .register_agent_principal_with_class(
-                    crate::manifest::AgentsMode::Open,
                     None,
                     Some("OAuth Denial Integration".to_owned()),
                     Some("ops@example.test".to_owned()),
@@ -32883,6 +32894,7 @@ fn oauth_denial_derives_subject_and_preserves_every_other_durable_request() {
 
 struct GrantRevocationFixture {
     snapback: LocalSnapback,
+    agent_user_id: String,
     grant_ids: BTreeMap<&'static str, Vec<String>>,
     tokens:
         BTreeMap<&'static str, Vec<crate::storage::auth_grants::GrantRevocationTokenRowForTest>>,
@@ -32897,8 +32909,6 @@ struct GrantRevocationWatchFixture {
 
 impl GrantRevocationFixture {
     fn new(grants_per_user: usize) -> Self {
-        use crate::storage::auth_agents::AgentRegistration;
-
         let (mut schema, mut functions) = sessions_activation_pair('d', false);
         schema.auth.as_mut().expect("sessions auth manifest").agents =
             Some(crate::manifest::AgentsManifest::explicit(
@@ -32951,7 +32961,7 @@ impl GrantRevocationFixture {
         functions.functions.push(revocation_query);
         let mut snapback = settled_sessions_activation_snapback(schema, functions);
         let random = CounterRandom::new();
-        let (grant_ids, tokens, watches) = {
+        let (agent_user_id, grant_ids, tokens, watches) = {
             let database = snapback.auth_database_mut();
             database
                 .activate_current_auth_catalog()
@@ -32962,21 +32972,17 @@ impl GrantRevocationFixture {
                     .insert_human_user_for_test(user_id, DENY_FIXTURE_MS)
                     .expect("create grant revocation fixture user");
             }
-            database
-                .create_agent_principal(
-                    DENY_AGENT_USER,
-                    DENY_FIXTURE_MS,
-                    &AgentRegistration {
-                        display_name: Some("Grant Revocation Agent".to_owned()),
-                        operator_contact: None,
-                        registration_provenance: "grant-revocation-derivation-test".to_owned(),
-                        owner_user_id: Some(DENY_MIDDLE_USER.to_owned()),
-                    },
-                )
-                .expect("create grant revocation agent");
             let credential = database
-                .issue_initial_agent_credential(DENY_AGENT_USER, DENY_FIXTURE_MS, &random)
-                .expect("issue grant revocation agent credential");
+                .register_agent_principal(
+                    None,
+                    Some("Grant Revocation Agent".to_owned()),
+                    None,
+                    ServerProfile::Test,
+                    DENY_FIXTURE_MS,
+                    &random,
+                )
+                .expect("atomically register grant revocation agent");
+            let agent_user_id = credential.user_id.clone();
             database
                 .reconcile_auth_scope_bases(&denial_scope_manifest())
                 .expect("install grant revocation scope basis");
@@ -32995,7 +33001,7 @@ impl GrantRevocationFixture {
                         .auth_catalog()
                         .insert_finite_authority_grant_for_test(
                             &grant_id,
-                            DENY_AGENT_USER,
+                            &agent_user_id,
                             user_id,
                             DENY_FIXTURE_MS,
                         )
@@ -33071,10 +33077,11 @@ impl GrantRevocationFixture {
                 )
                 .expect("seed unrelated active grant revocation watch");
             watches.push(unrelated);
-            (grant_ids, tokens, watches)
+            (agent_user_id, grant_ids, tokens, watches)
         };
         Self {
             snapback,
+            agent_user_id,
             grant_ids,
             tokens,
             watches,
@@ -33124,7 +33131,7 @@ impl GrantRevocationFixture {
                     .enumerate()
                     .map(move |(index, grant_id)| GrantRevocationGrantRowForTest {
                         grant_id: grant_id.clone(),
-                        actor_user_id: DENY_AGENT_USER.to_owned(),
+                        actor_user_id: self.agent_user_id.clone(),
                         effective_user_id: Some(user_id.to_owned()),
                         scopes: GRANT_REVOCATION_SCOPES_JSON.to_owned(),
                         created_at_ms: DENY_FIXTURE_MS,
@@ -33308,7 +33315,7 @@ async fn genuine_management_authority_cannot_revoke_grants_in_a_second_engine_gr
         let result = if bulk {
             match target.snapback.plan_bulk_grant_revocation_service_terminal(
                 &authority,
-                DENY_AGENT_USER,
+                &target.agent_user_id,
                 DENY_EFFECT_MS,
             ) {
                 Ok(plan) => {
@@ -33321,7 +33328,7 @@ async fn genuine_management_authority_cannot_revoke_grants_in_a_second_engine_gr
                             .snapback
                             .revoke_grants_by_actor_for_user(
                                 &authority,
-                                DENY_AGENT_USER,
+                                &target.agent_user_id,
                                 DENY_EFFECT_MS,
                             )
                             .map(|_| ())
@@ -33427,7 +33434,7 @@ async fn bulk_grant_revocation_derives_subject_and_preserves_foreign_durable_aut
         let result = with_service_authority_terminal_gate(terminal_gate, || {
             fixture.snapback.revoke_grants_by_actor_for_user(
                 &authority,
-                DENY_AGENT_USER,
+                &fixture.agent_user_id,
                 DENY_EFFECT_MS,
             )
         });
@@ -33454,11 +33461,10 @@ async fn bulk_grant_revocation_derives_subject_and_preserves_foreign_durable_aut
 
 #[test]
 fn grant_approval_derives_exact_user_and_session_from_management_authority() {
-    use crate::storage::auth_agents::AgentRegistration;
     use crate::storage::auth_grants::{
-        ExactGrantScope, GrantApproval, GrantApprovalDurableRowsForTest,
+        AgentOwnershipAssumption, ExactGrantScope, GrantApproval, GrantApprovalDurableRowsForTest,
         GrantApprovalGrantRowForTest, GrantApprovalMetaRowForTest, GrantApprovalPairingRowForTest,
-        GrantScopeRequest, PairingPresentation, ScopedFunctionKind,
+        GrantScopeRequest, PairingPresentation, PendingGrantRequest, ScopedFunctionKind,
     };
 
     const NOW_MS: u64 = 2_000;
@@ -33467,8 +33473,6 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
     const AUTH_CLOCK_META_KEY: &str = "auth_invalidation_clock_high_water_ms_v1";
     const EXPECTED_SCOPES_JSON: &str =
         r#"[{"fn":"fn:grantApprovalRead","kind":"query","basis":0,"authorityCreating":false}]"#;
-    const AGENT_REGISTRATION_PROVENANCE: &str = "grant-approval-authority-test";
-    const OTHER_OWNER_AGENT_WARNING: &str = "You do not own this agent. Its owner can re-credential it and use memberships or roles that this grant creates for the agent.";
     const FIRST_GRANTOR: &str = "usr_00000000000000000000000011";
     // PreparedAuthority remains caller-constructible, so successful cases
     // form a non-functional claim matrix: the same user and authority instance
@@ -33480,11 +33484,6 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
     const SECOND_GRANTOR: &str = "usr_00000000000000000000000014";
     const SHARED_AUTHORITY_INSTANCE: &str = "aut_00000000000000000000000011";
     const SECOND_AUTHORITY_INSTANCE: &str = "aut_00000000000000000000000012";
-    const FIRST_AGENT_OWNER: &str = "usr_00000000000000000000000030";
-    const SECOND_AGENT_OWNER: &str = "usr_00000000000000000000000031";
-    const FIRST_AGENT: &str = "usr_00000000000000000000000032";
-    const SECOND_AGENT: &str = "usr_00000000000000000000000033";
-
     struct Fixture {
         snapback: LocalSnapback,
         lower_request_id: String,
@@ -33492,13 +33491,19 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
         second_grantor_request_id: String,
         upper_request_id: String,
         pairing_rows: Vec<GrantApprovalPairingRowForTest>,
+        pending_requests: BTreeMap<String, PendingGrantRequest>,
     }
 
     impl Fixture {
         fn new() -> Self {
             let mut snapback = LocalSnapback::memory().expect("grant approval memory fixture");
+            let mut schema = SchemaManifest::default();
+            enable_open_agent_registration(&mut schema);
+            snapback
+                .apply_schema(schema)
+                .expect("install open agent registration policy");
             let random = CounterRandom::new();
-            let pairing_rows = {
+            let (pairing_rows, pending_requests) = {
                 let database = snapback.auth_database_mut();
                 database
                     .activate_current_auth_catalog()
@@ -33506,8 +33511,6 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                 for user_id in [
                     "usr_00000000000000000000000010",
                     FIRST_GRANTOR,
-                    FIRST_AGENT_OWNER,
-                    SECOND_AGENT_OWNER,
                     SECOND_GRANTOR,
                     "usr_00000000000000000000000013",
                 ] {
@@ -33516,29 +33519,28 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                         .insert_human_user_for_test(user_id, 1_000)
                         .expect("create grantor fixture user");
                 }
-                for (agent, owner) in [
-                    (FIRST_AGENT, FIRST_AGENT_OWNER),
-                    (SECOND_AGENT, SECOND_AGENT_OWNER),
-                ] {
-                    database
-                        .create_agent_principal(
-                            agent,
-                            1_000,
-                            &AgentRegistration {
-                                display_name: Some(format!("Grant Approval Agent {agent}")),
-                                operator_contact: None,
-                                registration_provenance: AGENT_REGISTRATION_PROVENANCE.to_owned(),
-                                owner_user_id: Some(owner.to_owned()),
-                            },
-                        )
-                        .expect("create grant approval agent");
-                }
                 let first_credential = database
-                    .issue_initial_agent_credential(FIRST_AGENT, 1_001, &random)
-                    .expect("issue first grant approval agent credential");
+                    .register_agent_principal(
+                        None,
+                        Some("Grant Approval Agent A".to_owned()),
+                        None,
+                        ServerProfile::Test,
+                        1_001,
+                        &random,
+                    )
+                    .expect("atomically register first grant approval agent");
                 let second_credential = database
-                    .issue_initial_agent_credential(SECOND_AGENT, 1_002, &random)
-                    .expect("issue second grant approval agent credential");
+                    .register_agent_principal(
+                        None,
+                        Some("Grant Approval Agent B".to_owned()),
+                        None,
+                        ServerProfile::Test,
+                        1_002,
+                        &random,
+                    )
+                    .expect("atomically register second grant approval agent");
+                let first_agent = first_credential.user_id.clone();
+                let second_agent = second_credential.user_id.clone();
                 let function_runtime = FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
                     table_visibility: None,
                     table: "unused".to_owned(),
@@ -33562,14 +33564,22 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                 [
                     (
                         "usr_00000000000000000000000010",
-                        FIRST_AGENT,
+                        first_agent.as_str(),
                         &first_credential.secret,
                     ),
-                    (FIRST_GRANTOR, FIRST_AGENT, &first_credential.secret),
-                    (SECOND_GRANTOR, SECOND_AGENT, &second_credential.secret),
+                    (
+                        FIRST_GRANTOR,
+                        first_agent.as_str(),
+                        &first_credential.secret,
+                    ),
+                    (
+                        SECOND_GRANTOR,
+                        second_agent.as_str(),
+                        &second_credential.secret,
+                    ),
                     (
                         "usr_00000000000000000000000013",
-                        FIRST_AGENT,
+                        first_agent.as_str(),
                         &first_credential.secret,
                     ),
                 ]
@@ -33581,7 +33591,7 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                         .mint_pairing_code(user_id, minted_at_ms, &random)
                         .expect("mint grant approval pairing code");
                     let code_hash = pairing.secret.token_hash().as_bytes().to_vec();
-                    let presentation = database
+                    let pending = match database
                         .present_pairing_code(
                             credential,
                             &pairing.request_id,
@@ -33592,24 +33602,36 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                             }],
                             minted_at_ms + 1,
                         )
-                        .expect("present grant approval pairing code");
-                    assert!(matches!(presentation, PairingPresentation::Created(_)));
-                    GrantApprovalPairingRowForTest {
-                        request_id: pairing.request_id,
-                        code_hash,
-                        minted_by_user_id: user_id.to_owned(),
-                        agent_user_id: Some(agent_user_id.to_owned()),
-                        requested_scopes: Some(EXPECTED_SCOPES_JSON.to_owned()),
-                        state: "pending".to_owned(),
-                        attempts: 0,
-                        created_at_ms: minted_at_ms,
-                        expires_at_ms: pairing.expires_at_ms,
-                        consumed_at_ms: Some(minted_at_ms + 1),
-                        grant_id: None,
-                    }
+                        .expect("present grant approval pairing code")
+                    {
+                        PairingPresentation::Created(pending) => pending,
+                        PairingPresentation::Existing(_) => {
+                            panic!("fresh pairing presentation must create a request")
+                        }
+                    };
+                    (
+                        GrantApprovalPairingRowForTest {
+                            request_id: pairing.request_id,
+                            code_hash,
+                            minted_by_user_id: user_id.to_owned(),
+                            agent_user_id: Some(agent_user_id.to_owned()),
+                            requested_scopes: Some(EXPECTED_SCOPES_JSON.to_owned()),
+                            state: "pending".to_owned(),
+                            attempts: 0,
+                            created_at_ms: minted_at_ms,
+                            expires_at_ms: pairing.expires_at_ms,
+                            consumed_at_ms: Some(minted_at_ms + 1),
+                            grant_id: None,
+                        },
+                        pending,
+                    )
                 })
-                .collect::<Vec<_>>()
+                .unzip::<_, _, Vec<_>, Vec<_>>()
             };
+            let pending_requests = pending_requests
+                .into_iter()
+                .map(|pending| (pending.request_id.clone(), pending))
+                .collect();
             let [
                 lower_request_id,
                 first_grantor_request_id,
@@ -33628,6 +33650,7 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                 second_grantor_request_id,
                 upper_request_id,
                 pairing_rows,
+                pending_requests,
             }
         }
 
@@ -33645,7 +33668,7 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
         }
     }
 
-    fn expected_consent_digest(agent_user_id: &str, expires_at_ms: u64) -> [u8; 32] {
+    fn expected_consent_digest(request: &PendingGrantRequest, expires_at_ms: u64) -> [u8; 32] {
         use sha2::Digest as _;
 
         #[derive(serde::Serialize)]
@@ -33662,15 +33685,14 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
         #[serde(rename_all = "camelCase")]
         struct ExpectedConsent<'a> {
             agent_user_id: &'a str,
-            display_name: &'a str,
+            display_name: Option<&'a str>,
             registration_provenance: &'a str,
-            owner_assumption: &'a str,
-            owner_assumption_warning: &'a str,
+            owner_assumption: AgentOwnershipAssumption,
+            owner_assumption_warning: Option<&'a str>,
             scopes: &'a [ExpectedScope<'a>],
             expires_at_ms: u64,
         }
 
-        let display_name = format!("Grant Approval Agent {agent_user_id}");
         let scopes = [ExpectedScope {
             function_id: "fn:grantApprovalRead",
             kind: "query",
@@ -33678,11 +33700,11 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
             authority_creating: false,
         }];
         let encoded = serde_json::to_vec(&ExpectedConsent {
-            agent_user_id,
-            display_name: &display_name,
-            registration_provenance: AGENT_REGISTRATION_PROVENANCE,
-            owner_assumption: "ownedByAnotherUser",
-            owner_assumption_warning: OTHER_OWNER_AGENT_WARNING,
+            agent_user_id: &request.agent_user_id,
+            display_name: request.agent_display_name.as_deref(),
+            registration_provenance: &request.registration_provenance,
+            owner_assumption: request.owner_assumption,
+            owner_assumption_warning: request.owner_assumption_warning.as_deref(),
             scopes: &scopes,
             expires_at_ms,
         })
@@ -33734,13 +33756,6 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                 _ => SHARED_AUTHORITY_INSTANCE,
             }
         }
-
-        fn expected_agent(self) -> &'static str {
-            match self {
-                Self::SameSessionSecondUser | Self::SecondExact => SECOND_AGENT,
-                _ => FIRST_AGENT,
-            }
-        }
     }
 
     struct Observation {
@@ -33748,6 +33763,7 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
         approval: Result<crate::storage::auth_grants::ApprovedGrant, String>,
         rows: GrantApprovalDurableRowsForTest,
         pending_rows: Vec<GrantApprovalPairingRowForTest>,
+        pending_request: PendingGrantRequest,
         selected_request_id: String,
     }
 
@@ -33849,12 +33865,18 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
             })
             .map_err(|error| error.diagnostic.code);
         let pending_rows = fixture.pending_rows();
+        let pending_request = fixture
+            .pending_requests
+            .get(&selected_request_id)
+            .expect("selected pending request facts")
+            .clone();
         let rows = fixture.rows();
         Observation {
             case,
             approval,
             rows,
             pending_rows,
+            pending_request,
             selected_request_id,
         }
     })
@@ -33922,13 +33944,14 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                     basis: 0,
                     authority_creating: false,
                 }];
-                let expected_consent_digest = expected_consent_digest(
-                    observation.case.expected_agent(),
-                    expected_expires_at_ms,
-                );
+                let expected_consent_digest =
+                    expected_consent_digest(&observation.pending_request, expected_expires_at_ms);
                 assert!(grant.grant_id.starts_with("grt_"));
                 assert_eq!(grant.request_id, observation.selected_request_id);
-                assert_eq!(grant.actor_user_id, observation.case.expected_agent());
+                assert_eq!(
+                    grant.actor_user_id,
+                    observation.pending_request.agent_user_id
+                );
                 assert_eq!(grant.effective_user_id, observation.case.expected_grantor());
                 assert_eq!(grant.scopes.as_slice(), expected_scopes.as_slice());
                 assert!(grant.expires_at_ms > expected_created_at_ms);
@@ -33946,7 +33969,7 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                     observation.rows.grants,
                     vec![GrantApprovalGrantRowForTest {
                         grant_id: grant.grant_id,
-                        actor_user_id: observation.case.expected_agent().to_owned(),
+                        actor_user_id: observation.pending_request.agent_user_id,
                         effective_user_id: observation.case.expected_grantor().to_owned(),
                         scopes: EXPECTED_SCOPES_JSON.to_owned(),
                         created_at_ms: expected_created_at_ms,
@@ -33974,7 +33997,8 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
 
 #[test]
 fn grant_revocation_planners_select_only_the_session_users_exact_token_set() {
-    let (schema, functions) = sessions_activation_pair('b', false);
+    let (mut schema, functions) = sessions_activation_pair('b', false);
+    enable_open_agent_registration(&mut schema);
     let mut snapback = settled_sessions_activation_snapback(schema, functions);
     let now_ms = 1_000;
     let function_runtime = FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
@@ -33998,7 +34022,7 @@ fn grant_revocation_planners_select_only_the_session_users_exact_token_set() {
         .collect(),
         ..FunctionManifest::default()
     };
-    let (lower_token_id, caller_token_id, upper_token_id) = {
+    let (lower_token_id, caller_token_id, upper_token_id, agent_user_id) = {
         let random = CounterRandom::new();
         let database = snapback.auth_database_mut();
         database
@@ -34016,26 +34040,22 @@ fn grant_revocation_planners_select_only_the_session_users_exact_token_set() {
             .auth_catalog()
             .insert_human_user_for_test("usr_00000000000000000000000013", now_ms)
             .expect("create lexically upper effective user");
-        database
-            .create_agent_principal(
-                "usr_00000000000000000000000034",
-                now_ms,
-                &crate::storage::auth_agents::AgentRegistration {
-                    display_name: Some("Shared Agent".to_owned()),
-                    operator_contact: None,
-                    registration_provenance: "grant-revocation-planner-test".to_owned(),
-                    owner_user_id: Some("usr_00000000000000000000000011".to_owned()),
-                },
-            )
-            .expect("create caller's agent");
         let credential = database
-            .issue_initial_agent_credential("usr_00000000000000000000000034", now_ms, &random)
-            .expect("issue agent credential");
+            .register_agent_principal(
+                None,
+                Some("Shared Agent".to_owned()),
+                None,
+                ServerProfile::Test,
+                now_ms,
+                &random,
+            )
+            .expect("atomically register caller's agent");
+        let agent_user_id = credential.user_id.clone();
         database
             .auth_catalog()
             .insert_finite_authority_grant_for_test(
                 "grant-lower",
-                "usr_00000000000000000000000034",
+                &agent_user_id,
                 "usr_00000000000000000000000010",
                 now_ms,
             )
@@ -34044,7 +34064,7 @@ fn grant_revocation_planners_select_only_the_session_users_exact_token_set() {
             .auth_catalog()
             .insert_finite_authority_grant_for_test(
                 "grant-caller",
-                "usr_00000000000000000000000034",
+                &agent_user_id,
                 "usr_00000000000000000000000011",
                 now_ms,
             )
@@ -34053,7 +34073,7 @@ fn grant_revocation_planners_select_only_the_session_users_exact_token_set() {
             .auth_catalog()
             .insert_finite_authority_grant_for_test(
                 "grant-upper",
-                "usr_00000000000000000000000034",
+                &agent_user_id,
                 "usr_00000000000000000000000013",
                 now_ms,
             )
@@ -34088,7 +34108,12 @@ fn grant_revocation_planners_select_only_the_session_users_exact_token_set() {
             )
             .expect("mint lexically upper user's grant token")
             .token_id;
-        (lower_token_id, caller_token_id, upper_token_id)
+        (
+            lower_token_id,
+            caller_token_id,
+            upper_token_id,
+            agent_user_id,
+        )
     };
     let authority = test_live_session_authority(
         &mut snapback,
@@ -34132,11 +34157,7 @@ fn grant_revocation_planners_select_only_the_session_users_exact_token_set() {
     assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_REQUIRED");
 
     let bulk = snapback
-        .plan_bulk_grant_revocation_service_terminal(
-            &authority,
-            "usr_00000000000000000000000034",
-            now_ms,
-        )
+        .plan_bulk_grant_revocation_service_terminal(&authority, &agent_user_id, now_ms)
         .expect("bulk planning selects the caller's grants");
     let planned_tokens = bulk.token_ids().iter().cloned().collect::<BTreeSet<_>>();
     let expected_positive_tokens = BTreeSet::from([caller_token_id]);
@@ -37768,6 +37789,22 @@ fn detached_mutation_binds_schema_and_app_generation_across_reload() {
     assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
 }
 
+fn prepare_live_subscribe_for_test(
+    snapback: &mut LocalSnapback,
+    name: String,
+    input: LiveSubscribeInput,
+    authority: PreparedAuthority,
+    invalidation: LiveInvalidationAdmission,
+) -> SnapbackResult<PreparedLiveSubscribe> {
+    snapback.prepare_subscribe_live_for_transport_generation(
+        name,
+        input,
+        authority,
+        invalidation,
+        None,
+    )
+}
+
 #[test]
 fn staged_subscribe_queries_after_the_exact_act_cut() {
     let mut snapback = live_limit_snapback();
@@ -37775,18 +37812,18 @@ fn staged_subscribe_queries_after_the_exact_act_cut() {
         "stage-query-incarnation",
         "stage-query-grant",
     );
-    let staged = snapback
-        .prepare_subscribe_live_for_transport(
-            "listItems".to_owned(),
-            live_limit_input("stage-query", json!({})),
-            test_dev_authority(InvocationSource::LiveInitialQuery),
-            LiveInvalidationAdmission {
-                connection: None,
-                effect_fence: Some(fence.clone()),
-                session_mode: false,
-            },
-        )
-        .expect("reserve subscribe without querying");
+    let staged = prepare_live_subscribe_for_test(
+        &mut snapback,
+        "listItems".to_owned(),
+        live_limit_input("stage-query", json!({})),
+        test_dev_authority(InvocationSource::LiveInitialQuery),
+        LiveInvalidationAdmission {
+            connection: None,
+            effect_fence: Some(fence.clone()),
+            session_mode: false,
+        },
+    )
+    .expect("reserve subscribe without querying");
     assert!(snapback.subscriptions.is_empty());
 
     snapback
@@ -37823,7 +37860,8 @@ fn staged_live_effect_binding_terminal_and_one_shot_lifecycle() {
         "stage-life-other-grant",
     );
     let prepare = |snapback: &mut LocalSnapback, connection_id: &str| {
-        snapback.prepare_subscribe_live_for_transport(
+        prepare_live_subscribe_for_test(
+            snapback,
             "listItems".to_owned(),
             live_limit_input(connection_id, json!({})),
             test_dev_authority(InvocationSource::LiveInitialQuery),
@@ -37937,25 +37975,10 @@ fn staged_live_effects_reserve_capacity_and_subscription_targets() {
     let mut stages = Vec::new();
     for index in 0..MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION {
         stages.push(
-            snapback
-                .prepare_subscribe_live_for_transport(
-                    "listItems".to_owned(),
-                    live_limit_input("stage-capacity", json!({ "index": index })),
-                    test_dev_authority(InvocationSource::LiveInitialQuery),
-                    LiveInvalidationAdmission {
-                        connection: None,
-                        effect_fence: Some(fence.clone()),
-                        session_mode: false,
-                    },
-                )
-                .expect("pending subscription consumes one slot"),
-        );
-    }
-    assert_eq!(
-        snapback
-            .prepare_subscribe_live_for_transport(
+            prepare_live_subscribe_for_test(
+                &mut snapback,
                 "listItems".to_owned(),
-                live_limit_input("stage-capacity", json!({ "overflow": true })),
+                live_limit_input("stage-capacity", json!({ "index": index })),
                 test_dev_authority(InvocationSource::LiveInitialQuery),
                 LiveInvalidationAdmission {
                     connection: None,
@@ -37963,9 +37986,24 @@ fn staged_live_effects_reserve_capacity_and_subscription_targets() {
                     session_mode: false,
                 },
             )
-            .expect_err("pending stages count against per-connection capacity")
-            .diagnostic
-            .code,
+            .expect("pending subscription consumes one slot"),
+        );
+    }
+    assert_eq!(
+        prepare_live_subscribe_for_test(
+            &mut snapback,
+            "listItems".to_owned(),
+            live_limit_input("stage-capacity", json!({ "overflow": true })),
+            test_dev_authority(InvocationSource::LiveInitialQuery),
+            LiveInvalidationAdmission {
+                connection: None,
+                effect_fence: Some(fence.clone()),
+                session_mode: false,
+            },
+        )
+        .expect_err("pending stages count against per-connection capacity")
+        .diagnostic
+        .code,
         "SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT"
     );
     for stage in &stages {
@@ -42388,8 +42426,6 @@ const P3_PROBE_FORGED_USER: &str = "018f0d90-7b11-7a22-8c33-445566770092";
 const P3_PROBE_IDENTITY: &str = "018f0d90-7b11-7a22-8c33-445566770093";
 const P3_PROBE_SESSION: &str = "018f0d90-7b11-7a22-8c33-445566770094";
 const P3_PROBE_AUTHORITY_INSTANCE: &str = "018f0d90-7b11-7a22-8c33-445566770095";
-const P3_PROBE_FORGED_AUTHORITY_INSTANCE: &str = "018f0d90-7b11-7a22-8c33-445566770096";
-const P3_PROBE_STARTUP: &str = "018f0d90-7b11-7a22-8c33-445566770097";
 
 fn p3_probe_artifacts() -> (SchemaManifest, FunctionManifest) {
     let (mut schema, mut functions) = sessions_activation_pair('9', false);
@@ -42563,12 +42599,8 @@ fn f091_verified_bound_carrier_refuses_a_cloned_database_graph() {
         .expect("read database A authorization incarnation")
         .as_str()
         .to_owned();
-    let snapshot = database_a
-        .auth_database_mut()
-        .admitted_session_projection_snapshot()
-        .expect("mint database A projection snapshot");
-    let coordinator = crate::auth::coordinator::AuthCoordinator::from_admitted_snapshot(
-        snapshot,
+    let coordinator = crate::auth::coordinator::AuthCoordinator::from_local_session_database(
+        database_a.auth_database_mut(),
         database_a.admission.clone(),
         now_ms,
         monotonic_now,
@@ -42632,7 +42664,7 @@ fn f091_verified_bound_carrier_refuses_a_cloned_database_graph() {
 }
 
 #[test]
-fn c004_test_support_forged_projection_subject_is_refused() {
+fn c004_database_bound_projection_refuses_a_forged_subject() {
     let (_directory, mut database, _unused_clone) = p3_probe_file_engines();
     let now_ms = now_millis();
     let monotonic_now = Instant::now();
@@ -42642,47 +42674,14 @@ fn c004_test_support_forged_projection_subject_is_refused() {
         .expect("read genuine database authorization incarnation")
         .as_str()
         .to_owned();
-    let mut source = database
-        .auth_database_mut()
-        .session_projection_source()
-        .expect("read genuine public projection source");
-    let genuine_user = source
-        .sessions
-        .iter()
-        .find(|session| session.id == P3_PROBE_SESSION)
-        .expect("genuine session projection row")
-        .user_id
-        .clone();
-    source
-        .users
-        .iter_mut()
-        .find(|user| user.id == genuine_user)
-        .expect("genuine projection user")
-        .id = P3_PROBE_FORGED_USER.to_owned();
-    source
-        .identities
-        .iter_mut()
-        .find(|identity| identity.id == P3_PROBE_IDENTITY)
-        .expect("genuine projection identity")
-        .user_id = P3_PROBE_FORGED_USER.to_owned();
-    let forged_session = source
-        .sessions
-        .iter_mut()
-        .find(|session| session.id == P3_PROBE_SESSION)
-        .expect("genuine session to rewrite");
-    forged_session.user_id = P3_PROBE_FORGED_USER.to_owned();
-    forged_session.authority_instance_id = P3_PROBE_FORGED_AUTHORITY_INSTANCE.to_owned();
-
-    let projection = crate::auth::session_projection::SessionProjection::rebuild(
-        source,
-        P3_PROBE_STARTUP,
+    let coordinator = crate::auth::coordinator::AuthCoordinator::from_local_session_database(
+        database.auth_database_mut(),
+        database.admission.clone(),
         now_ms,
         monotonic_now,
     )
-    .expect("rebuild the caller-authored forged projection");
-    let coordinator = crate::auth::coordinator::AuthCoordinator::new(projection)
-        .expect("construct the test-support-public forged coordinator");
-    let crate::auth::coordinator::BoundSessionResolution::Current(carrier) = coordinator
+    .expect("construct only from the database-bound projection source");
+    let resolution = coordinator
         .resolve_bound_connection_session(
             &incarnation,
             P3_PROBE_SESSION,
@@ -42692,38 +42691,16 @@ fn c004_test_support_forged_projection_subject_is_refused() {
             now_ms,
             monotonic_now,
         )
-        .expect("resolve caller-authored subject from forged projection")
-    else {
-        panic!("forged projection session must resolve current")
-    };
-    let error = database
-        .prepare_bearer_authority(
-            carrier,
-            InvocationSource::HttpMutation,
-            AuthMode::Sessions,
-            ServerProfile::Test,
-            database
-                .admission
-                .admit_for_mode(AuthMode::Sessions)
-                .expect("genuine database Sessions admission"),
-            &WireAuthorityFields::default(),
-            now_ms,
-        )
-        .expect_err("forged projection subject cannot join the genuine database graph");
-    assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_POLICY_UNAVAILABLE");
-    let rows = p3_probe_rows(&database);
-    let durable_user = database
-        .auth_database_mut()
-        .session_projection_source()
-        .expect("reread genuine durable projection")
-        .sessions
-        .into_iter()
-        .find(|session| session.id == P3_PROBE_SESSION)
-        .expect("durable genuine session remains")
-        .user_id;
+        .expect("a forged subject is a normal closed resolution");
 
-    assert_eq!(durable_user, P3_PROBE_REAL_USER);
-    assert!(rows.is_empty());
+    assert!(
+        !matches!(
+            resolution,
+            crate::auth::coordinator::BoundSessionResolution::Current(_)
+        ),
+        "the database-bound constructor must not admit a caller-authored subject"
+    );
+    assert!(p3_probe_rows(&database).is_empty());
 }
 
 #[test]

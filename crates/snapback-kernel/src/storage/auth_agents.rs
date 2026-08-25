@@ -68,7 +68,7 @@ impl LocalDatabase {
     ///
     /// @ref LLP 0055#principal-kinds — an agent created from a user's session
     ///   records that user as owner; `registration_provenance` is immutable.
-    pub fn create_agent_principal(
+    pub(crate) fn create_agent_principal(
         &mut self,
         user_id: &str,
         created_at_ms: u64,
@@ -92,7 +92,6 @@ impl LocalDatabase {
     #[allow(clippy::too_many_arguments)] // Stable registration boundary; regrouping is out of scope here.
     pub fn register_agent_principal(
         &mut self,
-        mode: AgentsMode,
         invitation: Option<&CreationInvitation>,
         display_name: Option<String>,
         operator_contact: Option<String>,
@@ -101,7 +100,6 @@ impl LocalDatabase {
         random: &dyn RandomSource,
     ) -> SnapbackResult<IssuedAgentCredential> {
         self.register_agent_principal_with_class(
-            mode,
             invitation,
             display_name,
             operator_contact,
@@ -121,7 +119,6 @@ impl LocalDatabase {
     #[allow(clippy::too_many_arguments)]
     pub fn register_agent_principal_with_class(
         &mut self,
-        mode: AgentsMode,
         invitation: Option<&CreationInvitation>,
         display_name: Option<String>,
         operator_contact: Option<String>,
@@ -131,23 +128,26 @@ impl LocalDatabase {
         now_ms: u64,
         random: &dyn RandomSource,
     ) -> SnapbackResult<IssuedAgentCredential> {
-        if mode == AgentsMode::Disabled {
-            return Err(agent_registration_disabled());
-        }
-        if (mode == AgentsMode::Open) != invitation.is_none() {
-            return Err(if mode == AgentsMode::Invited {
-                agent_invitation_required()
-            } else {
-                agent_invitation_unexpected()
-            });
-        }
-
         let user_id = crate::ids::mint(crate::ids::Kind::User)?;
         let credential_id = crate::ids::mint_time_ordered(crate::ids::Kind::AgentCredential);
         let identity_id = crate::ids::mint_time_ordered(crate::ids::Kind::AgentIdentity);
         let mut body_outcome = None;
         let mut consumed_invitation_id = None;
-        let attempt = self.attempt_auth_transaction(|tx| {
+        let attempt = self.attempt_auth_transaction_with_schema(|tx, schema| {
+            // @ref LLP 0303#the-governing-principle — the database borrows
+            // its current manifest only after beginning the same transaction
+            // that validates/consumes invitations and creates the principal.
+            let mode = schema.effective_agents_manifest().mode;
+            if mode == AgentsMode::Disabled {
+                return Err(agent_registration_disabled());
+            }
+            if (mode == AgentsMode::Open) != invitation.is_none() {
+                return Err(if mode == AgentsMode::Invited {
+                    agent_invitation_required()
+                } else {
+                    agent_invitation_unexpected()
+                });
+            }
             advance_agent_clock_on(tx, now_ms)?;
             let (ordinary_owner_user_id, invitation_id, source, inviter) = match invitation {
                 Some(invitation) => {
@@ -1623,7 +1623,6 @@ impl super::ServingDatabase {
     #[allow(clippy::too_many_arguments)]
     pub fn register_agent_principal_with_class(
         &mut self,
-        mode: AgentsMode,
         invitation: Option<&CreationInvitation>,
         display_name: Option<String>,
         operator_contact: Option<String>,
@@ -1634,7 +1633,6 @@ impl super::ServingDatabase {
         random: &dyn RandomSource,
     ) -> SnapbackResult<IssuedAgentCredential> {
         self.db.register_agent_principal_with_class(
-            mode,
             invitation,
             display_name,
             operator_contact,
@@ -1679,15 +1677,6 @@ impl super::ServingDatabase {
     }
 }
 impl super::ServingDatabase {
-    pub fn create_agent_principal(
-        &mut self,
-        user_id: &str,
-        created_at_ms: u64,
-        registration: &AgentRegistration,
-    ) -> SnapbackResult<()> {
-        self.db
-            .create_agent_principal(user_id, created_at_ms, registration)
-    }
     pub fn deactivate_agent(
         &mut self,
         user_id: &str,

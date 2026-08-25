@@ -1,8 +1,8 @@
 //! Detached authorization-stream projection and leaf-fence model.
 //!
-//! This module deliberately has no server or provider call-site wiring. A
-//! caller first obtains one storage snapshot, builds and validates the whole
-//! projection here, and only then publishes it behind the item-5 coordinator.
+//! This module deliberately has no server or provider call-site wiring. The
+//! coordinator's fixed database constructors obtain one storage snapshot,
+//! build and validate the whole projection here, and only then publish it.
 //!
 //! @ref LLP 0059#server-authority-model — the process projection contains
 //! only durable identifiers, token digests, deadlines, and shared fences.
@@ -21,9 +21,8 @@ pub use snapback_auth::auth::lock_rank::{
     ranked_mutex_lock, ranked_mutex_lock_unpoisoned,
 };
 pub use snapback_kernel::auth::session_projection::{
-    AUTHORIZATION_STREAM_META_KEY, AdmittedProjectionSnapshot, AuthorizationStreamRecord,
-    ProjectionIdentityRow, ProjectionSessionRow, ProjectionSource, ProjectionTokenRow,
-    ProjectionUserRow,
+    AUTHORIZATION_STREAM_META_KEY, AuthorizationStreamRecord, ProjectionIdentityRow,
+    ProjectionSessionRow, ProjectionSource, ProjectionTokenRow, ProjectionUserRow,
 };
 pub use snapback_types::auth::session_projection::{ProjectedSessionInsert, TERMINAL_CLOSE_GRACE};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
@@ -899,7 +898,16 @@ pub struct SessionProjection {
 impl SessionProjection {
     /// Build from a complete detached source. Nothing externally reachable is
     /// mutated if any validation fails.
-    pub fn rebuild(
+    pub(crate) fn rebuild(
+        source: ProjectionSource,
+        projection_startup_id: &str,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<Self> {
+        Self::rebuild_inner(source, projection_startup_id, epoch_now_ms, monotonic_now)
+    }
+
+    fn rebuild_inner(
         source: ProjectionSource,
         projection_startup_id: &str,
         epoch_now_ms: u64,
@@ -1150,7 +1158,7 @@ impl SessionProjection {
         Ok(projection)
     }
 
-    pub fn rebuild_with_fresh_startup_id(
+    pub(crate) fn rebuild_with_fresh_startup_id(
         source: ProjectionSource,
         epoch_now_ms: u64,
         monotonic_now: Instant,
