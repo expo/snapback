@@ -83,3 +83,49 @@ provisional rather than as data.
 Read-only, static inspection at `85d272010`, with the ref rechecked as unchanged at the end. No
 files written, no builds run, no commits made. Traced definitions and production callers directly,
 including changes after the earlier P4 verification's `5cae72b2b` baseline.
+
+---
+
+## Confirmation (2026-08-25): the remaining eight are genuine
+
+The spot-check that refuted F280 stated its own limit — one of four sampled was wrong, so the other
+eight TRUE-DUPLICATE calls were provisional. Those eight have now been audited individually.
+
+| Row | Canonical | Result |
+|---|---|---|
+| F002 | F073 | TRUE-DUPLICATE |
+| F014 | F011 | TRUE-DUPLICATE |
+| F019 | F022 | TRUE-DUPLICATE |
+| F078 | F082 | TRUE-DUPLICATE |
+| F095 | F094 | TRUE-DUPLICATE |
+| F161 | F240 | TRUE-DUPLICATE |
+| F162 | F237 | TRUE-DUPLICATE |
+| F312 | F306 | TRUE-DUPLICATE |
+
+**Eight of eight genuine. No siblings, no unclear.** Every row reaches its effect only by executing
+its named canonical implementation; no call direction is reversed, endpoint visibilities match, and
+the apparent alternate routes do not bypass the canonical.
+
+Two were checked with specific extra scrutiny. **F095 → F094**: F094 is one of only four rows in the
+strict family whose root is currently sound, and its leaf defect is public *dismantling* rather than
+construction — the dismantling fix does reach F095. **F312 → F306**: confirmed against `origin/main`
+rather than the lane's uncommitted state; F312 is purely a handle-forwarding surface, and replacing
+F306 with an opaque `AuthenticatedHostedTarget` removes raw incarnation/nonce combination from both
+the direct and F312-mediated paths.
+
+## The final arithmetic
+
+| | Rows |
+|---|---:|
+| P1-SHIP + P2-POLICY + P3-LOW | 92 |
+| P4 siblings (28 + F280) | 29 |
+| F190, F191 — not actually resolved | 2 |
+| **Actionable** | **123** |
+| P4 true duplicates (close with canonical) | 11 |
+| **Total enumerated** | **134** |
+
+**The count is now stable, and every classification in the inventory has been audited** — P2 by
+decision grouping, P3 by adversarial design and then by execution, P4 twice, the RESOLVED pair, and
+the P1-SHIP set. Seven corrections were needed to get here; this is the first audit that changed
+nothing.
+
