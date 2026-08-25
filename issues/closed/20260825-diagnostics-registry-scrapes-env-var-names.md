@@ -45,16 +45,16 @@ Tokens ending in `_` are never complete codes. Ambiguous real emitters,
 synthetic dynamic emissions, reference-only sites, and deliberate reservations
 have separate explicit markers.
 
-The fail-first fixture has 61 raw substrings and 17 retained occurrences across
+The fail-first fixture has 67 raw substrings and 17 retained occurrences across
 16 emitting names. It covers generated JavaScript, multiline Rust SQL, escaped
 poison, severity prefixes, Rust print/log macros, a commented environment
 access, match arms, `matches!`, code catalogues, prefix checks, a trailing-
 underscore family token, dual-role names, and the explicit emission,
 synthetic-emission, reference-only, and reservation markers.
 
-The final registry publishes 3,512 diagnostic codes / 10,478 emitting sites /
-one reserved site and a separate environment vocabulary of 171 names / 348
-sites (255 reads, 16 indirect reads, 13 declarations, 25 table entries, 39
+The final registry publishes 3,521 diagnostic codes / 10,501 emitting sites /
+two reserved sites and a separate environment vocabulary of 177 names / 356
+sites (264 reads, 16 indirect reads, 13 declarations, 22 table entries, 41
 mentions). `SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE` is absent from the diagnostic
 registry, Guide diagnostic projection, and `SnapbackDiagnosticCode`, but remains
 in the environment registry and `SnapbackEnvironmentVariable`;
@@ -64,7 +64,8 @@ The production inventory now includes all 14 JavaScript modules under
 `targets/cloudflare/src/`. The six round-4 review codes are restored with real
 target emitting sites; they are not reference vocabulary. The four dynamic
 `validate_artifact_header` stale-artifact codes have normal synthetic-emission
-sites, and only `SNAPBACK_IBEX_CLI_UNAVAILABLE` remains reserved.
+sites. `SNAPBACK_IBEX_CLI_UNAVAILABLE` and the retired
+`SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED` remain reserved.
 
 The three publication-authority names retain their original validation text and
 are environment-only: their reads and message mentions remain, but their

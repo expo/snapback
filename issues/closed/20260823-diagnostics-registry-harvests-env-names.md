@@ -102,12 +102,17 @@ appears in its diagnostic sites. Ordinary comments remain excluded. The
 site for a real dynamically assembled spelling. The four concrete
 `validate_artifact_header` stale-artifact spellings use that marker, while
 `diagnostics-registry: reserved` now retains only the retired
-`SNAPBACK_IBEX_CLI_UNAVAILABLE` spelling; reservations do not count as
-emissions. The HTTP-only
+`SNAPBACK_IBEX_CLI_UNAVAILABLE` spelling and the retired
+`SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED` seed-lane refusal;
+reservations do not count as emissions. An audit of all 92 non-environment
+removals found no other retired diagnostic: the remaining names are active
+catalogue/reference vocabulary, protocol and format constants, fixture names,
+wildcard fragments, or other non-diagnostic identifiers. The lifecycle
+registry names none of the 92. The HTTP-only
 `NON_DIAGNOSTIC_SNAPBACK_LITERALS` table remains separate because it includes
 legitimate non-HTTP diagnostics and is not a safe public-registry denylist.
 
-The companion fixture now has 61 raw `SNAPBACK_*` substrings and retains 17
+The companion fixture now has 67 raw `SNAPBACK_*` substrings and retains 17
 emitting occurrences across 16 names. Its fail-first runs proved all classifier
 repairs: generated JavaScript and multiline Rust SQL were absent while match
 arms, `matches!`, code catalogues, prefix checks, and a trailing-underscore
@@ -119,10 +124,33 @@ print/log macros as an emission when the token is followed by `:` or whitespace,
 treats `startsWith`/`starts_with`/`contains`/`endsWith` operands as references,
 and never recognizes a token ending in `_` as a complete code.
 
-Final regeneration produces 3,512 diagnostic codes, 10,478 emitting sites, and
-one reserved site from 629 production source files. The environment section
-contains 171 variables across 348 sites: 255 reads, 16 indirect reads, 13
-declarations, 25 table entries, and 39 message mentions. Excluding the
+Package production sources now derive from each package manifest's shipped
+`files`/`exports`/entry points, plus package ship-tool entry points and their
+local module closure; target-local operator carriers derive from all
+`targets/*` JavaScript outside tests, fixtures, and examples. That adds eleven
+active diagnostic spellings:
+`SNAPBACK_APP_DESCRIPTOR_UNAVAILABLE`,
+`SNAPBACK_AUTH_CUSTODY_BACKUP_RULES_CONFLICT`,
+`SNAPBACK_CONFIG_APPLY_PENDING`, `SNAPBACK_CONFIG_DEADLINE_EXCEEDED`,
+`SNAPBACK_CONFIG_STATUS_UNKNOWN`, `SNAPBACK_CONNECTION_GRANT_LIMIT`,
+`SNAPBACK_EXPO_DESCRIPTOR_PATH_INVALID`,
+`SNAPBACK_EXPO_PROJECT_ROOT_REQUIRED`, `SNAPBACK_HANDLER_INVALID_CHARACTER`,
+`SNAPBACK_TEXT_DECODER_INSTALL_FAILED`, and
+`SNAPBACK_WRANGLER_PRECHECK_FAILED`.
+
+The worker-binding repair moves six names into the environment vocabulary:
+`SNAPBACK_ACCEPTED_SOCKET_LIMIT`, `SNAPBACK_LEGACY_PROOF_SOCKET_LIMIT`,
+`SNAPBACK_SOCKETS_PER_CONNECTION_LIMIT`, `SNAPBACK_SUBSCRIPTION_ARGS_BYTES`,
+`SNAPBACK_SUBSCRIPTION_GLOBAL_LIMIT`, and
+`SNAPBACK_SUBSCRIPTION_PER_CONNECTION_LIMIT`. The accepted, legacy-proof,
+global-subscription, and connection-grant dual-role names keep only their
+actual `kitError`, `requestDiagnostic`, or `code:` emitting sites in the
+diagnostic vocabulary.
+
+Final regeneration produces 3,521 diagnostic codes, 10,501 emitting sites, and
+two reserved sites from 637 production source files. The environment section
+contains 177 variables across 356 sites: 264 reads, 16 indirect reads, 13
+declarations, 22 table entries, and 41 message mentions. Excluding the
 comment-only `SNAPBACK_ADMIN_TOKEN` pseudo-read removes one bad read; restoring
 the three original publication-authority validation strings contributes three
 real message mentions.

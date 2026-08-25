@@ -18,6 +18,25 @@ const injectedTrace = environment.SNAPBACK_FIXTURE_JS_INJECTED_TRACE;
 const helperTrace = env('SNAPBACK_FIXTURE_JS_HELPER_TRACE');
 function requiredEnvironment(name) { return process.env[name]; }
 const indirectHelperTrace = requiredEnvironment('SNAPBACK_FIXTURE_JS_INDIRECT_HELPER');
+class FixtureWorkerEnvironment {
+  testingBoundedLimit(binding) { return this.env[binding]; }
+  testingOptionalLimit(binding) { return this.env?.[binding]; }
+  testingInjectedLimit(binding) { return env[binding]; }
+  testingInjectedOptionalLimit(binding) { return env?.[binding]; }
+  testingArrowLimit = (binding) => this.env[binding];
+  testingBareArrowLimit = binding => this.env[binding];
+
+  limits() {
+    return [
+      this.testingBoundedLimit('SNAPBACK_FIXTURE_WORKER_BINDING'),
+      this.testingOptionalLimit('SNAPBACK_FIXTURE_WORKER_OPTIONAL_BINDING'),
+      this.testingInjectedLimit('SNAPBACK_FIXTURE_INJECTED_BINDING'),
+      this.testingInjectedOptionalLimit('SNAPBACK_FIXTURE_INJECTED_OPTIONAL_BINDING'),
+      this.testingArrowLimit('SNAPBACK_FIXTURE_WORKER_ARROW_BINDING'),
+      this.testingBareArrowLimit('SNAPBACK_FIXTURE_WORKER_BARE_ARROW_BINDING'),
+    ];
+  }
+}
 const boundTrace = env?.SNAPBACK_FIXTURE_JS_BOUND_OPTIONAL_TRACE;
 const childEnv = { SNAPBACK_FIXTURE_JS_OBJECT_KEY: '1' };
 const FIXTURE_ENVIRONMENT_NAMES = Object.freeze({

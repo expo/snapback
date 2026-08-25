@@ -12,6 +12,7 @@ import {
   selectDriftProneGates,
   validateSelectionReceipt,
 } from '../scripts/select-local-proof.mjs';
+import { DIAGNOSTICS_PRODUCTION_ROOTS } from '../scripts/diagnostics-registry-source.mjs';
 
 const root = new URL('..', import.meta.url).pathname;
 const context = loadSelectionContext();
@@ -159,6 +160,7 @@ test('scripts test subjects select their bound fixture gates', () => {
 
   for (const diagnosticsRegistrySubject of [
     'scripts/diagnostics-registry-source.mjs',
+    'scripts/generate-diagnostics-registry.mjs',
     'scripts/generate-diagnostics-registry.test.mjs',
   ]) {
     includesAll(select([diagnosticsRegistrySubject]), [
@@ -292,6 +294,29 @@ test('docs-only pushes still select the always-run migration drift gates', () =>
     selectDriftProneGates(['README.md'], context).selectedDriftProneGates,
     ['path-migration-stragglers', 'workspace-graph'],
   );
+});
+
+test('diagnostic production sources select registry fixtures and Guide drift', () => {
+  const guideTriggerPrefixes = context.policy.driftProneGates.guide.triggerRules.prefixes;
+  for (const rootPrefix of DIAGNOSTICS_PRODUCTION_ROOTS) {
+    includesAll(select([`${rootPrefix}diagnostics-registry-source.mjs`]), [
+      'diagnostics-registry-fixtures',
+    ]);
+    assert(guideTriggerPrefixes.includes(rootPrefix), `${rootPrefix} Guide drift coverage`);
+  }
+
+  for (const source of [
+    'targets/cloudflare/src/coordinator.js',
+    'crates/snapback-kernel/src/live_matcher.rs',
+    'crates/snapback-types/src/manifest/mod.rs',
+    'crates/snapback-server/src/server/api_error.rs',
+  ]) {
+    includesAll(select([source]), ['diagnostics-registry-fixtures']);
+    assert(
+      selectDriftProneGates([source], context).selectedDriftProneGates.includes('guide'),
+      `${source} must select Guide drift`,
+    );
+  }
 });
 
 test('known-red LLP 0284 product gates stay scheduled while their evasion harness stays always-on', () => {

@@ -289,6 +289,7 @@ pub(super) fn validate_versioned_seed_request(
             // stamping, and the same-transaction activation scan enforces
             // vocabulary, axes, uniqueness, referential integrity, and
             // lastHolder eligibility. The first-landing
+            // diagnostics-registry: reserved
             // SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED narrowing is
             // retired (dated 0109 amendment, 2026-08-01); unknown tables
             // still refuse here.

@@ -52,7 +52,7 @@ test('diagnostic source classifier excludes environment reads per site and retai
     '../tests/fixtures/diagnostics-registry/non-emitting-reference-sites.txt',
   ), 'utf8');
 
-  assert.equal([...fixture.matchAll(/SNAPBACK_[A-Z0-9_]+/gu)].length, 61);
+  assert.equal([...fixture.matchAll(/SNAPBACK_[A-Z0-9_]+/gu)].length, 67);
 
   const sourceOptions = { ordinaryMultiline: true };
   assert.deepEqual(
@@ -140,6 +140,26 @@ test('diagnostic source classifier excludes environment reads per site and retai
     [],
   );
 
+  const workerBindingNames = [
+    'SNAPBACK_FIXTURE_WORKER_BINDING',
+    'SNAPBACK_FIXTURE_WORKER_OPTIONAL_BINDING',
+    'SNAPBACK_FIXTURE_INJECTED_BINDING',
+    'SNAPBACK_FIXTURE_INJECTED_OPTIONAL_BINDING',
+    'SNAPBACK_FIXTURE_WORKER_ARROW_BINDING',
+    'SNAPBACK_FIXTURE_WORKER_BARE_ARROW_BINDING',
+  ];
+  assert.deepEqual(
+    environmentVariableSites(fixture, sourceOptions)
+      .filter(({ match }) => workerBindingNames.includes(match[0]))
+      .map(({ match, kind }) => ({ name: match[0], kind })),
+    workerBindingNames.map((name) => ({ name, kind: 'read' })),
+  );
+  assert.deepEqual(
+    diagnosticSourceSites(fixture, sourceOptions)
+      .filter(({ match }) => workerBindingNames.includes(match[0])),
+    [],
+  );
+
   const nonEmittingMessageNames = new Set([
     'SNAPBACK_FIXTURE_JS_MESSAGE_ENV',
     'SNAPBACK_FIXTURE_PREFIXED_ENV',
@@ -217,6 +237,57 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     );
   assert.equal(demandMismatchSites.length, 1);
   assert.equal(demandMismatchSites[0].kind, undefined);
+  assert.equal(registry.diagnostics.SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE, undefined);
+  assert.ok(registry.environment.SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE);
+
+  for (const binding of [
+    'SNAPBACK_SUBSCRIPTION_PER_CONNECTION_LIMIT',
+    'SNAPBACK_SUBSCRIPTION_ARGS_BYTES',
+    'SNAPBACK_SOCKETS_PER_CONNECTION_LIMIT',
+  ]) {
+    assert.equal(registry.diagnostics[binding], undefined, `${binding} is not a diagnostic`);
+    assert.ok(registry.environment[binding], `${binding} is an environment variable`);
+  }
+
+  const acceptedSocketDiagnosticSites = registry.diagnostics
+    .SNAPBACK_ACCEPTED_SOCKET_LIMIT.sites.filter(
+      (site) => site.file === 'targets/cloudflare/src/coordinator.js',
+    );
+  assert.equal(acceptedSocketDiagnosticSites.length, 2);
+  const coordinator = readFileSync(resolve(
+    import.meta.dirname,
+    '../targets/cloudflare/src/coordinator.js',
+  ), 'utf8').split('\n');
+  assert.ok(acceptedSocketDiagnosticSites.every((site) => (
+    /\b(?:kitError|requestDiagnostic)\s*\(/u.test(
+      coordinator.slice(Math.max(0, site.line - 3), site.line).join('\n'),
+    )
+  )));
+  assert.equal(
+    registry.environment.SNAPBACK_ACCEPTED_SOCKET_LIMIT.sites.filter(
+      (site) => site.file === 'targets/cloudflare/src/coordinator.js',
+    ).length,
+    1,
+  );
+
+  for (const [file, code] of [
+    ['packages/snapback-harness/allowlist-install.js', 'SNAPBACK_TEXT_DECODER_INSTALL_FAILED'],
+    ['packages/snapback-expo/config-plugin.cjs', 'SNAPBACK_EXPO_DESCRIPTOR_PATH_INVALID'],
+    ['targets/cloudflare/config-set.mjs', 'SNAPBACK_CONFIG_DEADLINE_EXCEEDED'],
+    ['targets/cloudflare/locked-wrangler.mjs', 'SNAPBACK_WRANGLER_PRECHECK_FAILED'],
+  ]) {
+    assert.ok(
+      registry.diagnostics[code]?.sites.some((site) => site.file === file),
+      `${code} must retain its shipped source ${file}`,
+    );
+  }
+
+  assert.deepEqual(
+    registry.diagnostics.SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED.sites
+      .filter((site) => site.kind === 'reserved')
+      .map(({ file, kind }) => ({ file, kind })),
+    [{ file: 'crates/snapback-kernel/src/storage/schema_seed.rs', kind: 'reserved' }],
+  );
 
   assert.deepEqual(
     Object.keys(registry.diagnostics).filter((code) => code.endsWith('_')),

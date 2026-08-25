@@ -1,4 +1,26 @@
 export const DIAGNOSTIC_CODE_PATTERN = /(?<![A-Z0-9_])SNAPBACK_[A-Z0-9_]*[A-Z0-9](?![A-Z0-9_])/gu;
+export const DIAGNOSTICS_RUST_PRODUCTION_ROOTS = Object.freeze([
+  'crates/snapback/src/',
+  'crates/snapback-kernel/src/',
+  'crates/snapback-types/src/',
+  'crates/snapback-auth/src/',
+  'crates/snapback-activation/src/',
+  'crates/snapback-runtime/src/',
+  'crates/snapback-services/src/',
+  'crates/snapback-sync/src/',
+  'crates/snapback-engine/src/',
+  'crates/snapback-conformance/src/',
+  'crates/snapback-harness/src/',
+  'crates/snapback-tools/src/',
+  'crates/snapback-server/src/',
+  'crates/snapback-cli/src/',
+]);
+export const DIAGNOSTICS_PRODUCTION_ROOTS = Object.freeze([
+  ...DIAGNOSTICS_RUST_PRODUCTION_ROOTS,
+  'packages/',
+  'targets/',
+  'clients/swift/',
+]);
 const REFERENCE_ONLY_MARKER = 'diagnostics-registry: reference-only';
 const RESERVED_MARKER = 'diagnostics-registry: reserved';
 const EMISSION_MARKER = 'diagnostics-registry: emission';
@@ -161,19 +183,46 @@ function matchingBrace(source, open) {
 
 function environmentHelperNames(source) {
   const helpers = new Set();
-  const declarations = [
+  const blockDeclarations = [
     ...source.matchAll(/\bfunction\s+([A-Za-z_$][\w$]*)\s*\(\s*([A-Za-z_$][\w$]*)[^)]*\)\s*\{/gu),
     ...source.matchAll(/\bfn\s+([a-z_][a-z0-9_]*)\s*\(\s*([a-z_][a-z0-9_]*)[^)]*\)\s*[^{}]*\{/gu),
+    // JavaScript class/object concise methods, including async methods. The
+    // declaration must start at a statement boundary so calls followed by a
+    // callback block are not mistaken for helper definitions.
+    ...source.matchAll(/(?:^|[;{}]\s*|\n\s*)(?:async\s+)?([A-Za-z_$][\w$]*)\s*\(\s*([A-Za-z_$][\w$]*)[^)]*\)\s*\{/gmu),
+    // Class fields and object properties whose value is a block-bodied arrow.
+    ...source.matchAll(/(?:^|[;{},]\s*|\n\s*)(?:static\s+)?([A-Za-z_$][\w$]*)\s*(?:=|:)\s*(?:async\s*)?\(\s*([A-Za-z_$][\w$]*)[^)]*\)\s*=>\s*\{/gmu),
+    ...source.matchAll(/(?:^|[;{},]\s*|\n\s*)(?:static\s+)?([A-Za-z_$][\w$]*)\s*(?:=|:)\s*(?:async\s+)?([A-Za-z_$][\w$]*)\s*=>\s*\{/gmu),
   ];
-  for (const declaration of declarations) {
+  for (const declaration of blockDeclarations) {
     const open = declaration.index + declaration[0].lastIndexOf('{');
     const body = source.slice(open, matchingBrace(source, open) + 1);
     const parameter = escapeRegExp(declaration[2]);
     const dynamicRead = new RegExp(
-      `(?:process\\.env(?:\\?\\.)?\\[\\s*${parameter}\\s*\\]|(?:std::)?env::(?:var|var_os)\\(\\s*${parameter}\\s*\\))`,
+      `(?:process\\.env(?:\\?\\.)?\\[\\s*${parameter}\\s*\\]|(?:this\\.)?(?:env|environment)(?:\\?\\.)?\\[\\s*${parameter}\\s*\\]|(?:std::)?env::(?:var|var_os)\\(\\s*${parameter}\\s*\\))`,
       'u',
     );
     if (dynamicRead.test(body)) helpers.add(declaration[1]);
+  }
+  for (const declaration of source.matchAll(
+    /(?:^|[;{},]\s*|\n\s*)(?:static\s+)?([A-Za-z_$][\w$]*)\s*(?:=|:)\s*(?:async\s*)?\(\s*([A-Za-z_$][\w$]*)[^)]*\)\s*=>\s*([^;\n]+)/gmu,
+  )) {
+    const parameter = escapeRegExp(declaration[2]);
+    const dynamicRead = new RegExp(
+      `(?:process\\.env(?:\\?\\.)?\\[\\s*${parameter}\\s*\\]|(?:this\\.)?(?:env|environment)(?:\\?\\.)?\\[\\s*${parameter}\\s*\\])`,
+      'u',
+    );
+    if (dynamicRead.test(declaration[3])) helpers.add(declaration[1]);
+  }
+  for (const declaration of source.matchAll(
+    /(?:^|[;{},]\s*|\n\s*)(?:static\s+)?([A-Za-z_$][\w$]*)\s*(?:=|:)\s*(?:async\s+)?([A-Za-z_$][\w$]*)\s*=>\s*([^;\n]+)/gmu,
+  )) {
+    const parameter = escapeRegExp(declaration[2]);
+    const dynamicRead = new RegExp(
+      `(?:process\\.env(?:\\?\\.)?\\[\\s*${parameter}\\s*\\]|(?:this\\.)?(?:env|environment)(?:\\?\\.)?\\[\\s*${parameter}\\s*\\])`,
+      'u',
+    );
+    if (dynamicRead.test(declaration[3])) helpers.add(declaration[1]);
   }
   return helpers;
 }
@@ -305,6 +354,7 @@ function isExplicitDiagnosticCodePosition(source, offset) {
     || /\bnew\s+Error\s*\(\s*["'`]$/u.test(before)
     || /\b(?:code|diagnosticCode|diagnostic_code|errorCode|error_code)\s*:\s*["'`]$/u.test(before)
     || /\.code\s*=\s*["'`]$/u.test(before)
+    || /\b(?:kitError|requestDiagnostic)\s*\(\s*\d{3}\s*,\s*["'`]$/u.test(before)
     || /\b(?:diagnosticError|codedError|verifyError|codegenError|conformanceDiagnostic|graph_serving_error|__snapbackFail|__snapbackFamiliarFail|snapbackError)\s*\(\s*["'`]$/u.test(before)
     || /\b(?:SnapbackError|Diagnostic)::(?:error|warning|info|new)\s*\(\s*["'`]$/u.test(before)
   );

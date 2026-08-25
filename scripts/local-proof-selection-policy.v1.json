@@ -376,6 +376,17 @@
         ],
         "prefixes": [
           "clients/swift/",
+          "crates/snapback-activation/src/",
+          "crates/snapback-auth/src/",
+          "crates/snapback-conformance/src/",
+          "crates/snapback-engine/src/",
+          "crates/snapback-harness/src/",
+          "crates/snapback-kernel/src/",
+          "crates/snapback-server/src/",
+          "crates/snapback-services/src/",
+          "crates/snapback-sync/src/",
+          "crates/snapback-tools/src/",
+          "crates/snapback-types/src/",
           "guide/",
           "packages/",
           "scripts/check-guide",
@@ -383,7 +394,8 @@
           "scripts/guide-",
           "crates/snapback-cli/src/",
           "crates/snapback/src/",
-          "crates/snapback-runtime/src/"
+          "crates/snapback-runtime/src/",
+          "targets/"
         ]
       },
       "regenerateCommand": "node scripts/generate-guide-manifest.mjs",
@@ -674,6 +686,19 @@
     }
   },
   "additivePathRules": [
+    {
+      "id": "diagnostics-production-sources",
+      "groups": [
+        "diagnostics-registry"
+      ],
+      "suffixes": [
+        ".cjs",
+        ".js",
+        ".mjs",
+        ".rs",
+        ".swift"
+      ]
+    },
     {
       "id": "rust-sources",
       "groups": [
@@ -1009,6 +1034,7 @@
       ],
       "files": [
         "scripts/diagnostics-registry-source.mjs",
+        "scripts/generate-diagnostics-registry.mjs",
         "scripts/generate-diagnostics-registry.test.mjs"
       ]
     },
@@ -1177,6 +1203,12 @@
         "diary-identity",
         "drift-prone-gate-fixtures",
         "local-proof-inventory"
+      ]
+    },
+    "diagnostics-registry": {
+      "lane": "fast",
+      "gates": [
+        "diagnostics-registry-fixtures"
       ]
     },
     "guide": {

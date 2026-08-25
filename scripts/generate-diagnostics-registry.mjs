@@ -37,6 +37,7 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   DIAGNOSTIC_CODE_PATTERN as CODE_PATTERN,
+  DIAGNOSTICS_RUST_PRODUCTION_ROOTS,
   diagnosticSourceSites,
   environmentVariableSites,
 } from './diagnostics-registry-source.mjs';
@@ -92,39 +93,21 @@ const diagnosticCatalogPaths = [
   'packages/snapback-codegen/handler-runtime-profile.mjs',
 ];
 
-const rustProductionRoots = [
-  {
-    path: 'crates/snapback/src',
-    // @ref LLP 0199#sequencing-guidance-not-a-schedule — these files inherit
-    // `#[cfg(test)]` from their parent modules; a filesystem walk does not.
-    accept: (path) => !/^crates\/snapback\/src\/(?:local|server|storage)\/tests\.rs$/u.test(path),
-  },
-  {
-    path: 'crates/snapback-kernel/src',
-    // The carve moved the storage test module with its production owner.
-    // Keep that explicit cfg(test) file out of the production site count.
-    accept: (path) => path !== 'crates/snapback-kernel/src/storage/tests.rs',
-  },
-  { path: 'crates/snapback-types/src', accept: () => true },
-  { path: 'crates/snapback-auth/src', accept: () => true },
-  { path: 'crates/snapback-activation/src', accept: () => true },
-  { path: 'crates/snapback-runtime/src', accept: () => true },
-  { path: 'crates/snapback-services/src', accept: () => true },
-  { path: 'crates/snapback-sync/src', accept: () => true },
-  { path: 'crates/snapback-engine/src', accept: () => true },
-  { path: 'crates/snapback-conformance/src', accept: () => true },
-  { path: 'crates/snapback-harness/src', accept: () => true },
-  { path: 'crates/snapback-tools/src', accept: () => true },
-  {
-    path: 'crates/snapback-server/src',
-    // The upward/private integration suite remains owned by the remainder.
-    accept: (path) => path !== 'crates/snapback-server/src/server/tests.rs',
-  },
-  {
-    path: 'crates/snapback-cli/src',
-    accept: (path) => path !== 'crates/snapback-cli/src/cli/tests.rs',
-  },
-];
+function acceptRustProductionPath(path) {
+  // @ref LLP 0199#sequencing-guidance-not-a-schedule — these files inherit
+  // `#[cfg(test)]` from their parent modules; a filesystem walk does not.
+  if (/^crates\/snapback\/src\/(?:local|server|storage)\/tests\.rs$/u.test(path)) return false;
+  // The carved owners keep explicit cfg(test) modules in their source trees.
+  return ![
+    'crates/snapback-kernel/src/storage/tests.rs',
+    'crates/snapback-server/src/server/tests.rs',
+    'crates/snapback-cli/src/cli/tests.rs',
+  ].includes(path);
+}
+
+const rustProductionRoots = DIAGNOSTICS_RUST_PRODUCTION_ROOTS.map((path) => (
+  { path: path.replace(/\/$/u, ''), accept: acceptRustProductionPath }
+));
 
 function assertEveryCarvedRustRootIsInventoried(paths) {
   const carvedRoots = readdirSync(join(root, 'crates'))
@@ -154,26 +137,121 @@ const rustProductionPaths = rustProductionRoots.flatMap(({ path: crateRoot, acce
 ));
 assertEveryCarvedRustRootIsInventoried(rustProductionPaths);
 
+function manifestTargets(value) {
+  if (typeof value === 'string') return [value];
+  if (Array.isArray(value)) return value.flatMap(manifestTargets);
+  if (value !== null && typeof value === 'object') {
+    return Object.values(value).flatMap(manifestTargets);
+  }
+  return [];
+}
+
+function packageEntryMatches(path, entry) {
+  const normalized = entry.replace(/^\.\//u, '').replace(/\/$/u, '');
+  return path === normalized || path.startsWith(`${normalized}/`);
+}
+
+function packageScriptTargets(scripts) {
+  return ['prepare', 'prepack', 'postpack'].flatMap((name) => (
+    typeof scripts?.[name] === 'string' ? [scripts[name]] : []
+  )).flatMap((command) => (
+    [...command.matchAll(/(?:^|\s)(\.?[A-Za-z0-9_./-]+\.(?:cjs|js|mjs))(?=\s|$)/gu)]
+      .map((match) => match[1])
+  ));
+}
+
+function isExcludedProductionJavaScript(path) {
+  return (
+    /(?:^|\/)(?:test|tests|fixtures?|examples?)(?:\/|$)/u.test(path)
+    || /(?:^|\.)(?:test|fixture|example)\.(?:cjs|js|mjs)$/u.test(path)
+  );
+}
+
+function localModuleSpecifiers(source) {
+  return [
+    ...source.matchAll(/\b(?:from\s+|import\s*\(\s*|require\s*\(\s*)["'](\.[^"']+)["']/gu),
+  ].map((match) => match[1]);
+}
+
+function shippedPackageProductionPaths() {
+  return readdirSync(join(root, 'packages')).sort().flatMap((name) => {
+    const packageRoot = join(root, 'packages', name);
+    const manifestPath = join(packageRoot, 'package.json');
+    if (!existsSync(manifestPath) || !statSync(packageRoot).isDirectory()) return [];
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    const declaredFiles = Array.isArray(manifest.files) ? manifest.files : null;
+    const explicitTargets = manifestTargets([
+      manifest.exports,
+      manifest.main,
+      manifest.module,
+      manifest.bin,
+    ]).filter((path) => path.startsWith('./'));
+    const shippedEntries = [...new Set([
+      ...(declaredFiles ?? []),
+      ...explicitTargets,
+      ...packageScriptTargets(manifest.scripts),
+    ])];
+    const candidates = walk(packageRoot, (repoPath) => {
+      if (!/\.(?:cjs|js|mjs)$/u.test(repoPath)) return false;
+      if (isExcludedProductionJavaScript(repoPath)) return false;
+      if (diagnosticCatalogPaths.includes(repoPath)) return false;
+      return true;
+    });
+    if (declaredFiles === null) return candidates;
+    const candidateByPackagePath = new Map(candidates.map((repoPath) => (
+      [relative(packageRoot, join(root, repoPath)).replaceAll('\\', '/'), repoPath]
+    )));
+    const selected = new Set([...candidateByPackagePath].flatMap(([packagePath, repoPath]) => (
+      shippedEntries.some((entry) => packageEntryMatches(packagePath, entry))
+        ? [repoPath]
+        : []
+    )));
+    const queue = [...selected];
+    for (let index = 0; index < queue.length; index += 1) {
+      const repoPath = queue[index];
+      const packagePath = relative(packageRoot, join(root, repoPath)).replaceAll('\\', '/');
+      const source = readFileSync(join(root, repoPath), 'utf8');
+      for (const specifier of localModuleSpecifiers(source)) {
+        const unresolved = relative(
+          packageRoot,
+          resolve(packageRoot, dirname(packagePath), specifier),
+        ).replaceAll('\\', '/');
+        const dependency = [
+          unresolved,
+          `${unresolved}.js`,
+          `${unresolved}.cjs`,
+          `${unresolved}.mjs`,
+          `${unresolved}/index.js`,
+          `${unresolved}/index.cjs`,
+          `${unresolved}/index.mjs`,
+        ].map((path) => candidateByPackagePath.get(path)).find(Boolean);
+        if (dependency !== undefined && !selected.has(dependency)) {
+          selected.add(dependency);
+          queue.push(dependency);
+        }
+      }
+    }
+    return [...selected].sort();
+  });
+}
+
+const packageProductionPaths = shippedPackageProductionPaths();
+const targetProductionPaths = walk(join(root, 'targets'), (path) => (
+  /\.(?:cjs|js|mjs)$/u.test(path)
+  && !isExcludedProductionJavaScript(path)
+));
+
 const productionPaths = [
   // @ref LLP 0276#phases — diagnostics move with their owning contract
   // modules, so the source-complete registry must scan each carved Rust root.
   ...rustProductionPaths,
-  ...walk(join(root, 'packages'), (path) => (
-    path.endsWith('.mjs')
-    && !/(?:^|\.)test\.mjs$/u.test(path)
-    && !/(?:^|\.)fixture\.mjs$/u.test(path)
-    && !diagnosticCatalogPaths.includes(path)
-  )),
-  ...walk(join(root, 'targets/cloudflare/src'), (path) => (
-    (path.endsWith('.js') || path.endsWith('.mjs'))
-    && !/(?:^|\.)test\.(?:mjs|js)$/u.test(path)
-    && !/(?:^|\.)fixture\.(?:mjs|js)$/u.test(path)
-  )),
-  // Embedded byte-for-byte by both handler runtimes: production JavaScript,
-  // despite the non-module extension.
-  'packages/snapback-harness/ctx-bootstrap.js',
+  // Package manifests are the shipment authority. Packages without a `files`
+  // allowlist use npm's default package-tree inclusion posture.
+  ...packageProductionPaths,
+  // Target-local operator carriers ship outside package manifests.
+  ...targetProductionPaths,
   ...walk(join(root, 'clients/swift'), (path) => path.endsWith('.swift') && path.includes('/Sources/')),
-].sort();
+].sort().filter((path, index, paths) => path !== paths[index - 1]);
 
 function lineAndColumn(source, offset) {
   const before = source.slice(0, offset);
