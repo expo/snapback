@@ -1,6 +1,6 @@
 # Remote-service artifact schema tests depended on review caches
 
-**Status:** Open · **Opened:** 2026-08-25 (found during the DK-7 path-escape fix)
+**Status:** Closed (2026-08-25) — the named test red is resolved; the `gitPinnedCheckout` custody contradiction is tracked in `issues/20260825-remote-service-git-pinned-custody-contract.md`
 
 `cargo test -p snapback --test artifact_schemas_v0 remote_service_publication_is_closed_digest_bound_and_host_private`
 failed according to checkout-local generated state: an existing checkout could
