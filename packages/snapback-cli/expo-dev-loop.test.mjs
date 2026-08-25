@@ -817,12 +817,42 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
   );
   await reloadOperation.acknowledged;
   if (failMetroReload) {
-    const reload = await reloadOperation.completion;
+    const stopOperation = openControlCommand(
+      controlSocket,
+      controlCommand(controlSocket, 'stop-children', 'stop-after-failed-reload'),
+    );
+    await stopOperation.acknowledged;
+    child.stdin.write(`${JSON.stringify({
+      schemaVersion: 'snapback.dev-command.v1',
+      verb: 'restart',
+      requestId: 'stdin-restart-after-stop',
+    })}\n`);
+    const [reload, stop, stdinStopping] = await Promise.all([
+      reloadOperation.completion,
+      stopOperation.completion,
+      eventually(
+        () => events.find((event) => event.control?.diagnostics?.some(
+          (diagnostic) => diagnostic.code === 'SNAPBACK_DEV_CONTROL_STOPPING',
+        )),
+        { label: 'stdin lifecycle refusal after stop acknowledgement' },
+      ),
+    ]);
     assert.equal(reload.length, 2);
     assert.equal(reload[1].ok, false);
     assert.equal(
       reload[1].diagnostics?.[0]?.code ?? reload[1].result?.diagnostics?.[0]?.code,
       'SNAPBACK_EXPO_METRO_RELOAD_FAILED',
+    );
+    assert.equal(stop.length, 2, 'queued stop must receive its settled result after reload failure');
+    assert.equal(stop[0].state, 'acknowledged');
+    assert.equal(stop[1].state, 'result');
+    assert.equal(stop[1].ok, true);
+    assert.equal(stop[1].result.state, 'children-stopped');
+    assert.equal(stdinStopping.control.ok, false);
+    assert.equal(
+      events.some((event) => event.backend?.requestId === 'stdin-restart-after-stop'),
+      false,
+      'stdin restart after the stop acknowledgement must not spawn a backend',
     );
     const exit = await Promise.race([
       new Promise((resolveExit) => child.once('exit', (code, signal) => resolveExit({ code, signal }))),
@@ -973,6 +1003,11 @@ async function runControlSocketSuite() {
   const controlFixture = fixture('app', { sessions: true, root: controlRoot });
   const controlRange = await reserveFreeRange(8);
   try {
+    const ignoredStdinFixture = fixture('ignored-stdin-app', { sessions: true, root: controlRoot });
+    const ignoredStdinRange = await reserveFreeRange(8);
+    await runCliSupervisor(ignoredStdinFixture, 'web', [
+      '--port-range', `${ignoredStdinRange.lo}-${ignoredStdinRange.hi}`,
+    ]);
     const controlRun = await runCliSupervisor(controlFixture, 'web', [
       '--port-range', `${controlRange.lo}-${controlRange.hi}`,
     ], { assertConcurrentStdinSocketReload: true });
@@ -985,7 +1020,7 @@ async function runControlSocketSuite() {
       assertStdinReload: true,
       failMetroReload: true,
     });
-    console.log('expo-dev-loop.test.mjs: /dev/null socket concurrency, reload failure, stdin, refusals, and cleanup pass');
+    console.log('expo-dev-loop.test.mjs: default /dev/null control, socket concurrency, reload failure, stdin stopping latch, refusals, and cleanup pass');
   } finally {
     rmSync(controlRoot, { recursive: true, force: true });
   }

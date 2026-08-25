@@ -9,6 +9,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { createConnection } from 'node:net';
@@ -214,9 +215,10 @@ function publishSupervisorDescriptor(root, holder) {
   }, null, 2)}\n`, { mode: 0o600 });
 }
 
-async function assertRefusal(action, code) {
+async function assertRefusal(action, code, inspect = () => {}) {
   await assert.rejects(action, (error) => {
     assert.equal(error?.diagnostic?.code ?? error?.code, code);
+    inspect(error);
     return true;
   });
 }
@@ -336,6 +338,11 @@ try {
   });
   assert.equal(unpublishedOwnerState.path, unpublishedHolder.descriptor.path);
   await killHolder(unpublishedHolder);
+  assert.deepEqual(
+    JSON.parse(readFileSync(unpublishedOwnerStatePath, 'utf8')),
+    unpublishedOwnerState,
+    'pre-descriptor death must retain the pre-publication bound owner marker',
+  );
   assert.equal(
     existsSync(unpublishedHolder.descriptor.path),
     true,
@@ -363,21 +370,29 @@ try {
   const missingRecordHolder = await startHolder(missingRecordRoot, 'unit-missing-record-owner');
   await killHolder(missingRecordHolder);
   rmSync(join(missingRecordRoot, 'dev-control.owner.json'));
-  const missingRecordSuccessor = await startDevControlSocket(
-    testOptions(missingRecordRoot, 'unit-missing-record-successor'),
+  await assertRefusal(
+    () => startDevControlSocket(
+      testOptions(missingRecordRoot, 'unit-missing-record-successor'),
+    ),
+    'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
+    (error) => assert.match(error.diagnostic.details.recovery, /--ready-file/u),
   );
-  await missingRecordSuccessor.close();
-  console.log('dead same-uid endpoint: absent owner record remains reclaimable');
+  rmSync(missingRecordHolder.descriptor.path, { force: true });
+  console.log('dead same-uid endpoint: absent owner record refuses automatic reclamation');
 
   const corruptRecordRoot = makeRoot('o');
   const corruptRecordHolder = await startHolder(corruptRecordRoot, 'unit-corrupt-record-owner');
   await killHolder(corruptRecordHolder);
   writeFileSync(join(corruptRecordRoot, 'dev-control.owner.json'), '{not-json\n', { mode: 0o600 });
-  const corruptRecordSuccessor = await startDevControlSocket(
-    testOptions(corruptRecordRoot, 'unit-corrupt-record-successor'),
+  await assertRefusal(
+    () => startDevControlSocket(
+      testOptions(corruptRecordRoot, 'unit-corrupt-record-successor'),
+    ),
+    'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
+    (error) => assert.match(error.diagnostic.details.recovery, /--ready-file/u),
   );
-  await corruptRecordSuccessor.close();
-  console.log('dead same-uid endpoint: corrupt owner record remains reclaimable');
+  rmSync(corruptRecordHolder.descriptor.path, { force: true });
+  console.log('dead same-uid endpoint: corrupt owner record refuses automatic reclamation');
 
   const mismatchRecordRoot = makeRoot('d');
   const mismatchRecordHolder = await startHolder(mismatchRecordRoot, 'unit-mismatch-record-owner');
@@ -576,23 +591,46 @@ try {
 
   const looseDirectoryRoot = makeRoot('modes');
   chmodSync(looseDirectoryRoot, 0o755);
-  let looseDirectoryError = null;
-  let looseDirectoryControl = null;
-  try {
-    looseDirectoryControl = await startDevControlSocket(
-      testOptions(looseDirectoryRoot, 'unit-loose-directory-owner'),
-    );
-  } catch (error) {
-    looseDirectoryError = error;
-  }
-  if (looseDirectoryControl !== null) await looseDirectoryControl.close();
-  assert.equal(
-    looseDirectoryError?.diagnostic?.code,
-    'SNAPBACK_DEV_CONTROL_OTHER_UID',
-    'the socket state directory must deny all group/other search permissions',
-  );
+  const looseDirectoryNotices = [];
+  const looseDirectoryReadyFile = join(looseDirectoryRoot, 'dev.ready.json');
+  const looseDirectoryControl = await startDevControlSocket(testOptions(
+    looseDirectoryRoot,
+    'unit-loose-directory-owner',
+    { onUnavailable: (diagnostic) => looseDirectoryNotices.push(diagnostic) },
+  ));
+  assert.equal(looseDirectoryControl, null);
+  assert.equal(looseDirectoryNotices[0].code, 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE');
+  assert.equal(looseDirectoryNotices[0].severity, 'warning');
+  assert.equal(looseDirectoryNotices[0].details.path, looseDirectoryRoot);
+  assert.equal(looseDirectoryNotices[0].details.readyFile, looseDirectoryReadyFile);
+  assert.match(looseDirectoryNotices[0].details.recovery, /--ready-file/u);
+  assert.equal(looseDirectoryNotices[0].message.includes(looseDirectoryRoot), true);
+  assert.match(looseDirectoryNotices[0].message, /--ready-file/u);
+  assert.equal(existsSync(join(looseDirectoryRoot, 'dev-control.sock')), false);
   chmodSync(looseDirectoryRoot, 0o700);
-  console.log('state directory: group/other permission bits refuse endpoint publication');
+  console.log('non-owner-only state directory: stdin-only fallback remains live');
+
+  const symlinkDirectoryTarget = makeRoot('symlink-target');
+  const symlinkDirectoryRoot = join(scratchRoot, 'symlink-state');
+  symlinkSync(symlinkDirectoryTarget, symlinkDirectoryRoot, 'dir');
+  const symlinkDirectoryNotices = [];
+  const symlinkDirectoryControl = await startDevControlSocket(testOptions(
+    symlinkDirectoryRoot,
+    'unit-symlink-directory-owner',
+    { onUnavailable: (diagnostic) => symlinkDirectoryNotices.push(diagnostic) },
+  ));
+  assert.equal(symlinkDirectoryControl, null);
+  assert.equal(symlinkDirectoryNotices[0].code, 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE');
+  assert.equal(symlinkDirectoryNotices[0].details.path, symlinkDirectoryRoot);
+  assert.equal(
+    symlinkDirectoryNotices[0].details.readyFile,
+    join(symlinkDirectoryRoot, 'dev.ready.json'),
+  );
+  assert.match(symlinkDirectoryNotices[0].details.recovery, /--ready-file/u);
+  assert.equal(symlinkDirectoryNotices[0].message.includes(symlinkDirectoryRoot), true);
+  assert.match(symlinkDirectoryNotices[0].message, /--ready-file/u);
+  assert.equal(existsSync(join(symlinkDirectoryRoot, 'dev-control.sock')), false);
+  console.log('symlinked state directory: stdin-only fallback remains live');
 
   const connectionRoot = makeRoot('c');
   const connectionControl = await startDevControlSocket(testOptions(

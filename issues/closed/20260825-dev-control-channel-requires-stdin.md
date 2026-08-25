@@ -36,36 +36,46 @@ endpoint mode `0600`, registers its exact inode with the instance cleanup
 lease, and removes it on shutdown or owner death. A same-UID dead leftover is
 reclaimed under the directory lock only after a bounded `connect()` returns
 `ECONNREFUSED`, the inode remains unchanged, and a present valid owner record
-matches its inode/incarnation. An absent or unreadable/corrupt record remains
-reclaimable after the same-UID/dead/inode proof because the owner may have
-crashed before publication; a present valid mismatch, probe timeout, live
-listener, and other-UID endpoint all refuse. The reaper's deletion rule remains
-the separate stricter exact cleanup-lease inode/incarnation match. No FIFO or
-client `recook` verb was added. The Guide classifies the artifacts as transient
+matches its inode/incarnation. The bound record is published before the
+well-known endpoint, so an absent or unreadable/corrupt record and a present
+valid mismatch all refuse with `SNAPBACK_DEV_CONTROL_FOREIGN_OWNER`; recovery
+requires the operator to inspect and explicitly remove both artifacts or choose
+a different owner-only `--ready-file` directory. Probe timeout, a live listener,
+and an other-UID endpoint also refuse. The reaper's deletion rule remains the
+separate stricter exact cleanup-lease inode/incarnation match. No FIFO or client
+`recook` verb was added. The Guide classifies the artifacts as transient
 instance-local state and names the owner-only state directory plus descriptor
 as the cross-UID gate; AF_UNIX inode mode is not trusted on Darwin and the
-command's JSON UID remains advisory.
+command's JSON UID remains advisory. A non-owner-only or symlinked state
+directory now emits `SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE` and keeps the
+packaged supervisor alive with stdin-only control.
 
-The focused `expo-dev-loop.test.mjs --control-socket-only` regression launches
-the CLI with stdin ignored, overlaps acknowledged `reload-metro` with
-`stop-children`, asserts both settled results, both Metro PIDs gone, and the
-planned port free. It also proves stale/foreign/other-UID requests return one
-result and no acknowledgement; injects replacement-Metro launch failure and
-asserts critical owner exit; and launches once with a pipe to prove
-`snapback.dev-command.v1` `reload` still succeeds on stdin. Before the first
-implementation it failed with `actual undefined`, expected
-`snapback.dev-control.v1`; before the review fixes the overlap returned only
-the reload acknowledgement and no settled result.
+The focused `expo-dev-loop.test.mjs --control-socket-only` regression includes
+a default-options launch with stdin ignored that acknowledges and settles
+`reload-metro`. It overlaps acknowledged `reload-metro` with `stop-children`,
+asserts both settled results, all Metro PIDs gone, and the planned port free.
+It also proves stale/foreign/other-UID requests return one result and no
+acknowledgement; queues `stop-children` behind an injected replacement-Metro
+launch failure and requires the stop result before critical owner exit; and
+submits stdin `restart` after the stop acknowledgement to prove the shared
+stopping latch refuses it without spawning a backend. A pipe-backed launch
+also proves `snapback.dev-command.v1` `reload` remains available. Before the
+first implementation the suite failed with `actual undefined`, expected
+`snapback.dev-control.v1`; before the review fixes the successful overlap
+returned only the reload acknowledgement and no settled result; before the
+round-4 fix the failed-reload overlap timed out waiting for
+`stop-after-failed-reload`.
 
 `expo-dev-control.test.mjs` binds a socket in a child, kills the holder with
-`SIGKILL`, and proves a relaunch reclaims the exact stale endpoint. It separately
-proves live-owner and simulated other-UID refusal, EOF and idle-deadline cleanup,
-and cleanup-lease reaping after owner death. The native-backed focused suite
-and cleanup-lease reaping after owner death. Round-3 review coverage adds
-absent/corrupt/matching/mismatched owner records, a bounded-probe timeout,
-owner-only state-directory enforcement, death while replacing stale
-`.dc-lock` through `.dc-reclaim`, and death after private socket bind but before
-activation. The live suite concurrently submits stdin and socket
-`reload-metro` and proves both channels share the same queue and stopping
-latch. The native-backed focused suite and this JS-only unit suite both passed
-in the review-fix lane.
+`SIGKILL`, and proves a relaunch reclaims the exact stale endpoint only when its
+bound owner marker matches. It separately proves missing/corrupt/mismatched
+owner-state refusal with operator-explicit recovery, live-owner and simulated
+other-UID refusal, owner-directory stdin-only degradation, EOF and idle-deadline
+cleanup, and cleanup-lease reaping after owner death. The crash before
+`expo-supervisor.json` publication reclaims through the already-published bound
+marker. Further coverage includes a bounded-probe timeout, death while replacing
+stale `.dc-lock` through `.dc-reclaim`, and death after private socket bind but
+before activation. The live suite concurrently submits stdin and socket
+`reload-metro`, while the failed-reload case submits stdin `restart` after the
+stop acknowledgement; the implementation routes all four lifecycle-mutating
+stdin verbs through that same queue and stopping latch.

@@ -99,7 +99,11 @@ also requested and checked as `0600`, but Darwin may not enforce AF_UNIX inode
 mode bits. Directory search permission plus the owner-only descriptor is the
 cross-UID kernel gate. The UID repeated in command JSON is an advisory
 descriptor-consistency check, not a peer-credential check. The instance cleanup
-lease removes the exact socket inode on ordinary shutdown or owner death.
+lease removes the exact socket inode on ordinary shutdown or owner death. If the
+`--ready-file` directory is not a same-UID owner-only real directory, the
+supervisor emits `SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE`, omits the endpoint,
+and continues with stdin-only control; choose another `--ready-file` path to
+restore the socket channel.
 
 This is transient instance-local state: do not copy it with the database or
 treat a leftover endpoint as durable owner authority. Each request must repeat
@@ -113,13 +117,14 @@ the descriptor's `ownerPid`, `ownerUid`, `ownerIncarnationId`, and
 One connection carries one newline-delimited request. A valid verb first
 returns `snapback.dev-control-ack.v1` with the same request id, then a
 `snapback.dev-control-result.v1` after the operation settles. All acknowledged
-socket verbs and packaged-stdin `reload-metro` requests share one serialized
-lane. Once `stop-children` is acknowledged, new work on either channel refuses
-with `SNAPBACK_DEV_CONTROL_STOPPING`; every earlier acknowledged request is
-allowed to send its result before the endpoint closes. Wait for the result
-before claiming the operation took effect. A client that reaches EOF before
-its newline, or stays incomplete for five seconds, is closed without retaining
-a half-open connection.
+socket verbs and packaged-stdin lifecycle mutations (`reload`, `restart`,
+`dev-fresh`, and `reload-metro`) share one serialized lane. Once
+`stop-children` is acknowledged, new work on either channel refuses with
+`SNAPBACK_DEV_CONTROL_STOPPING`; every earlier acknowledged request is allowed
+to send its result before the endpoint closes. Wait for the result before
+claiming the operation took effect. A client that reaches EOF before its
+newline, or stays incomplete for five seconds, is closed without retaining a
+half-open connection.
 
 The socket's closed verb set is:
 
@@ -136,14 +141,19 @@ owner. On relaunch, the lifecycle owner itself may reclaim a leftover only
 under the state-directory lock when all of these hold: the endpoint is
 same-UID; a bounded `connect()` probe returns `ECONNREFUSED` (timeout or any
 other result is “not proven dead”); and the inode remains unchanged throughout
-the check. The persisted `dev-control.owner.json` may be absent or
-unreadable/corrupt (including a crash before publication); otherwise a present,
-valid record must bind that exact inode and a self-consistent owner incarnation.
-A valid record naming another inode or incarnation refuses as foreign. This
-owner recovery is not client authority. The detached reaper uses a separate,
-stricter deletion predicate: its cleanup lease must match the exact socket
-inode and incarnation. A client must never unlink or replace an endpoint to
-bypass a refusal.
+the check. The persisted `dev-control.owner.json` must be present, readable,
+valid, and bind that exact inode and a self-consistent owner incarnation. The
+owner publishes this bound marker before it hard-links the well-known endpoint,
+so a public endpoint with an absent or corrupt marker is not legitimate crash
+residue; it refuses as `SNAPBACK_DEV_CONTROL_FOREIGN_OWNER`, just like a valid
+record naming another inode or incarnation. Recovery is operator-explicit:
+inspect ownership and remove both artifacts, or relaunch with `--ready-file` in
+a different owner-only state directory. A pre-publication crash may leave the
+marker and private socket for the cleanup lease, but cannot leave a markerless
+public endpoint. This owner recovery is not client authority. The detached
+reaper uses a separate, stricter deletion predicate: its cleanup lease must
+match the exact socket inode and incarnation. A client must never unlink or
+replace an endpoint to bypass a refusal.
 
 Interactive humans keep the existing stdin channel: TTY keys remain
 `s`/`r`/`R`/`f`/`q`, and non-TTY

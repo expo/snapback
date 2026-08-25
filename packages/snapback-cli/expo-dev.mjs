@@ -292,7 +292,18 @@ function readControlOwnerState(path, endpointPath) {
 
 function assertControlOwnerStateAllowsReclaim(ownerStatePath, path, endpoint) {
   const ownerState = readControlOwnerState(ownerStatePath, path);
-  if (ownerState.status !== 'valid') return;
+  if (ownerState.status !== 'valid') {
+    throw diagnosticError(
+      'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
+      `the persisted dev control owner record is ${ownerState.status}; automatic reclamation is refused`,
+      {
+        path,
+        ownerStatePath,
+        ownerStateStatus: ownerState.status,
+        recovery: `inspect the endpoint owner, then explicitly remove both ${path} and ${ownerStatePath}; or relaunch with --ready-file in a different owner-only state directory`,
+      },
+    );
+  }
   const { state } = ownerState;
   if (state.phase === 'bound'
       && state.ownerUid === endpoint.uid
@@ -470,16 +481,23 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
   const getuid = Object.hasOwn(dependencies, 'getuid')
     ? dependencies.getuid
     : process.getuid;
-  if (platform === 'win32' || typeof getuid !== 'function') {
+  const readyFile = resolve(options.readyFile);
+  const unavailable = (details) => {
+    const message = typeof details.path === 'string'
+      ? `owner-bound dev control is unavailable for state directory ${details.path}; continuing with stdin control only; choose an owner-only directory with --ready-file`
+      : 'owner-bound dev control is unavailable; continuing with stdin control only';
     const diagnostic = devControlDiagnostic(
       'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
-      'owner-bound dev control is unavailable; continuing with stdin control only',
-      { platform },
+      message,
+      details,
     );
     options.onUnavailable?.(Object.freeze({ ...diagnostic, severity: 'warning' }));
     return null;
+  };
+  if (platform === 'win32' || typeof getuid !== 'function') {
+    return unavailable({ platform, readyFile });
   }
-  const path = join(dirname(resolve(options.readyFile)), DEV_CONTROL_SOCKET_BASENAME);
+  const path = join(dirname(readyFile), DEV_CONTROL_SOCKET_BASENAME);
   const ownerStatePath = join(dirname(path), DEV_CONTROL_OWNER_STATE_BASENAME);
   const ownerUid = getuid();
   const ownerPid = process.pid;
@@ -501,21 +519,30 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
   const writeAcknowledgement = dependencies.writeAcknowledgement
     ?? ((socket, payload) => socket.write(payload));
   const dispatcher = dependencies.dispatcher ?? createDevControlDispatcher(options.verbs);
-  const stateDirectory = lstatSync(dirname(path));
+  const stateDirectoryPath = dirname(path);
+  let stateDirectory;
+  try {
+    stateDirectory = lstatSync(stateDirectoryPath);
+  } catch (error) {
+    return unavailable({
+      path: stateDirectoryPath,
+      readyFile,
+      cause: error?.code ?? error?.message ?? String(error),
+      recovery: 'choose a same-uid owner-only non-symlink state directory with --ready-file <path>',
+    });
+  }
   if (!stateDirectory.isDirectory()
       || stateDirectory.isSymbolicLink()
       || stateDirectory.uid !== ownerUid
       || (stateDirectory.mode & 0o077) !== 0) {
-    throw diagnosticError(
-      'SNAPBACK_DEV_CONTROL_OTHER_UID',
-      'the dev owner state directory must be a same-uid owner-only non-symlink directory',
-      {
-        path: dirname(path),
-        expectedUid: ownerUid,
-        observedUid: stateDirectory.uid,
-        observedMode: stateDirectory.mode & 0o777,
-      },
-    );
+    return unavailable({
+      path: stateDirectoryPath,
+      readyFile,
+      expectedUid: ownerUid,
+      observedUid: stateDirectory.uid,
+      observedMode: stateDirectory.mode & 0o777,
+      recovery: 'choose a same-uid owner-only non-symlink state directory with --ready-file <path>',
+    });
   }
 
   const sockets = new Set();
@@ -772,8 +799,16 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
         startedAt: options.startedAt,
       });
       await new Promise((resolveListen, rejectListen) => {
+        const previousUmask = process.umask(0o177);
+        let umaskRestored = false;
+        const restoreUmask = () => {
+          if (umaskRestored) return;
+          umaskRestored = true;
+          process.umask(previousUmask);
+        };
         const onError = (cause) => {
           server.off('listening', onListening);
+          restoreUmask();
           rejectListen(diagnosticError(
             'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
             `the dev control socket could not bind at ${path}: ${cause.message}`,
@@ -782,18 +817,18 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
         };
         const onListening = () => {
           server.off('error', onError);
+          restoreUmask();
           resolveListen();
         };
         server.once('error', onError);
         server.once('listening', onListening);
-        const previousUmask = process.umask(0o177);
         try {
           // @ref LLP 0310.000#track-e--owner-bound-control-socket — bind at a
           // private name first; the owner marker is durable before the exact
           // inode is hard-linked into the well-known 0600 endpoint.
           server.listen(pendingPath);
-        } finally {
-          process.umask(previousUmask);
+        } catch (cause) {
+          onError(cause);
         }
       });
       chmodSync(pendingPath, 0o600);
@@ -876,6 +911,9 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
       await dependencies.afterEndpointPublish?.({ path, descriptor });
     } catch (error) {
       server.close();
+      if (endpoint === null && pendingPath !== null) {
+        rmSync(pendingPath, { force: true });
+      }
       for (const resource of [cleanupResource, pendingCleanupResource]) {
         releaseCleanupResource(resource);
       }
@@ -3192,8 +3230,10 @@ export async function runExpoDev(options = {}) {
   let nativeCheckoutLaunch = null;
   let listeners = Object.freeze([]);
   let closed = false;
+  let childClosePromise = null;
   let closePromise = null;
   let closeSupervisor = null;
+  let closeSupervisorChildren = null;
   let parentLease = null;
   let cleanupLease = null;
   let bindingPublisher = null;
@@ -3228,17 +3268,14 @@ export async function runExpoDev(options = {}) {
   // origin and its admin/impersonation carriers are known.
   let sharedAuthBroker = null;
   let sharedAuthProjection = sharedDevelopmentAuthProjection(null, null);
-  const close = ({ preserveControlSocket = false } = {}) => {
-    if (closePromise !== null) return closePromise;
+  const closeChildren = () => {
+    if (childClosePromise !== null) return childClosePromise;
     // Latch closure before any cleanup yield. A launch that resumes after a
     // placeholder/port wait observes this bit before it can spawn a child.
     closed = true;
     controlDispatcher?.stopAccepting();
-    closePromise = (async () => {
+    childClosePromise = (async () => {
       const failures = [];
-      if (!preserveControlSocket) {
-        try { await controlSocketHandle?.close?.(); } catch (error) { failures.push(error); }
-      }
       try { parentLease?.close?.(); } catch (error) { failures.push(error); }
       parentLease = null;
       try { bindingPublisher?.close?.(); } catch (error) { failures.push(error); }
@@ -3281,6 +3318,23 @@ export async function runExpoDev(options = {}) {
         portForwards: forwarding?.installed?.length ?? 0,
       } });
       if (failures.length > 0) {
+        throw new AggregateError(failures, 'Expo supervisor cleanup failed');
+      }
+      return closedEvent;
+    })();
+    return childClosePromise;
+  };
+  closeSupervisorChildren = closeChildren;
+  const close = () => {
+    if (closePromise !== null) return closePromise;
+    const children = closeChildren();
+    closePromise = (async () => {
+      let closedEvent = null;
+      const failures = [];
+      try { closedEvent = await children; } catch (error) { failures.push(error); }
+      try { await controlSocketHandle?.close?.(); } catch (error) { failures.push(error); }
+      if (failures.length === 1) throw failures[0];
+      if (failures.length > 1) {
         throw new AggregateError(failures, 'Expo supervisor cleanup failed');
       }
       return closedEvent;
@@ -4146,7 +4200,10 @@ export async function runExpoDev(options = {}) {
       }
     };
     const stopChildrenVerb = async ({ requestId } = {}) => {
-      const closedEvent = await closeSupervisor({ preserveControlSocket: true });
+      // Child teardown is the control-lane operation. Endpoint shutdown is
+      // triggered by the stop reply path only after this result flushes, so
+      // stop-children never awaits the dispatcher lane that is executing it.
+      const closedEvent = await closeSupervisorChildren();
       return Object.freeze({
         schemaVersion: EXPO_DEV_EVENT_FORMAT,
         ok: true,
@@ -4157,12 +4214,18 @@ export async function runExpoDev(options = {}) {
       });
     };
     controlDispatcher = createDevControlDispatcher({
+      reload: (context) => dev.verbs.reload(context),
+      restart: (context) => dev.verbs.restart(context),
+      'dev-fresh': (context) => dev.verbs['dev-fresh'](context),
       'reload-metro': reloadMetroVerb,
       'stop-children': stopChildrenVerb,
     });
-    const serializedReloadMetroVerb = (context = {}) => (
-      controlDispatcher.enqueue('reload-metro', context)
-    );
+    const serializedLifecycleVerbs = Object.freeze(Object.fromEntries(
+      ['reload', 'restart', 'dev-fresh', 'reload-metro'].map((verb) => [
+        verb,
+        (context = {}) => controlDispatcher.enqueue(verb, context),
+      ]),
+    ));
     if (options.controlSocket === true) {
       controlSocketHandle = await startDevControlSocketWithDependencies({
         readyFile: dev.readyFile,
@@ -4302,7 +4365,7 @@ export async function runExpoDev(options = {}) {
       get portPlan() { return portPlan; },
       get listeners() { return listeners; },
       get controlSocket() { return controlSocketHandle?.descriptor ?? null; },
-      verbs: Object.freeze({ ...dev.verbs, 'reload-metro': serializedReloadMetroVerb }),
+      verbs: Object.freeze({ ...dev.verbs, ...serializedLifecycleVerbs }),
       async replaceAuthority(email) {
         if (closed) {
           throw diagnosticError('SNAPBACK_EXPO_SUPERVISOR_CLOSED', 'the Expo supervisor is closed');
