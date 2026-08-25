@@ -89,9 +89,10 @@ pub use room_authority::{
     AuthorizationReservationCancellation, DurableAuthorizationPermit,
     ManagedAuthorizationReservationScope, NonAuthorizingRoomAuthority, OutboxFrameDisposition,
     PendingRoomReauthorization, RealtimePublicationHandoff, RealtimePublicationPermit,
-    RealtimePublicationValidity, RoomAuthorityOperationGuard, RoomAuthorityPermit,
-    RoomAuthorityResync, RoomCreationAdmission, RoomReauthorizationAdmission,
-    RoomRetirementAdmission,
+    RealtimePublicationValidity, ResolvedRoomReauthorizationBatch,
+    ResolvedRoomSubscriberReauthorization, RoomAuthorityOperationGuard, RoomAuthorityPermit,
+    RoomAuthorityResync, RoomCreationAdmission, RoomReauthorizationCompletion,
+    RoomReauthorizationSubscriber, RoomRetirementAdmission,
 };
 use room_authority::{PreparedAuthorizationCommit, take_managed_authorization_reservation};
 

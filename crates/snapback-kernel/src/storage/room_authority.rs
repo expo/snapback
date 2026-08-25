@@ -10,9 +10,9 @@ use super::{
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::ephemeral::{
-    AccessPolicy, DurableMessage, EphemeralCollection, EphemeralError, EphemeralErrorCode,
-    EphemeralMessage, RealtimeEnvelope, ResyncReason, RoomId, Scope,
-    validate_collection_definitions,
+    AccessPolicy, AuthContext, ConnectionEffectFence, ConnectionId, DurableMessage,
+    EphemeralCollection, EphemeralError, EphemeralErrorCode, EphemeralMessage, RealtimeEnvelope,
+    ResyncReason, RoomId, Scope, validate_collection_definitions,
 };
 use crate::manifest::{PORTABLE_STORAGE_VERSION_MAX, SchemaManifest};
 use crate::process_bound_identity::ProcessBoundIdentity;
@@ -256,10 +256,176 @@ impl AuthorizationParticipantActivation {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct PendingRoomReauthorization {
-    pub room: RoomId,
-    pub obligation: RoomAuthorityResync,
+    root: Arc<RoomAuthorityRegistry>,
+    room: RoomId,
+    obligation: RoomAuthorityResync,
+    collection: EphemeralCollection,
+}
+
+impl PendingRoomReauthorization {
+    pub fn room(&self) -> &RoomId {
+        &self.room
+    }
+
+    pub fn obligation(&self) -> &RoomAuthorityResync {
+        &self.obligation
+    }
+}
+
+/// One exact snapshotted subscriber paired with the independently refreshed
+/// connection authority that the database permission projection must decide.
+pub struct RoomReauthorizationSubscriber {
+    connection_id: ConnectionId,
+    effect_fence: Option<ConnectionEffectFence>,
+    fresh_authority: Option<AuthContext>,
+}
+
+impl RoomReauthorizationSubscriber {
+    pub fn new(
+        connection_id: ConnectionId,
+        effect_fence: Option<ConnectionEffectFence>,
+        fresh_authority: Option<AuthContext>,
+    ) -> Self {
+        Self {
+            connection_id,
+            effect_fence,
+            fresh_authority,
+        }
+    }
+}
+
+/// A database-derived decision for one exact pending subscriber. The fields
+/// and constructor remain kernel-private, so a caller can inspect but cannot
+/// synthesize a decision that completion will accept.
+pub struct ResolvedRoomSubscriberReauthorization {
+    connection_id: ConnectionId,
+    expected_effect_fence: Option<ConnectionEffectFence>,
+    authorized_auth: Option<AuthContext>,
+}
+
+impl ResolvedRoomSubscriberReauthorization {
+    pub fn connection_id(&self) -> &ConnectionId {
+        &self.connection_id
+    }
+
+    pub fn expected_effect_fence(&self) -> Option<&ConnectionEffectFence> {
+        self.expected_effect_fence.as_ref()
+    }
+
+    pub fn authorized_auth(&self) -> Option<&AuthContext> {
+        self.authorized_auth.as_ref()
+    }
+}
+
+/// The only carrier admitted to protected-room reauthorization completion.
+/// It is rooted in the exact room-authority registry and contains only
+/// database-derived subscriber decisions. It deliberately implements neither
+/// `Clone` nor serialization.
+///
+/// @ref LLP 0303#corollary--the-artifact-must-carry-provenance-not-just-type —
+/// instance provenance travels with the fact instead of being supplied beside
+/// it at completion.
+pub struct ResolvedRoomReauthorizationBatch {
+    root: Arc<RoomAuthorityRegistry>,
+    room: RoomId,
+    generation: u64,
+    resolutions: Vec<ResolvedRoomSubscriberReauthorization>,
+}
+
+impl ResolvedRoomReauthorizationBatch {
+    pub fn room(&self) -> &RoomId {
+        &self.room
+    }
+
+    pub fn generation(&self) -> u64 {
+        self.generation
+    }
+}
+
+impl super::ServingDatabase {
+    /// Resolve every snapshotted room subscriber against this exact serving
+    /// database and return a registry-bound completion carrier.
+    ///
+    /// @ref LLP 0303#the-governing-principle — authorization outcomes are
+    /// derived at the database owner instead of accepted from the caller.
+    pub fn resolve_room_reauthorization(
+        &self,
+        pending: PendingRoomReauthorization,
+        subscribers: Vec<RoomReauthorizationSubscriber>,
+    ) -> SnapbackResult<ResolvedRoomReauthorizationBatch> {
+        if !pending.root.binding_matches(&self.binding()) {
+            return Err(participant_database_mismatch());
+        }
+        let projection = pending
+            .collection
+            .permission_backing
+            .as_ref()
+            .ok_or_else(|| {
+                projection_unavailable(
+                    "pending protected room lacks its durable permissionBacking projection",
+                )
+            })?;
+        let mut resolutions = Vec::with_capacity(subscribers.len());
+        for subscriber in subscribers {
+            let authorized_auth = match subscriber.fresh_authority {
+                Some(fresh) => {
+                    let Some(user_id) = fresh.user_id.as_deref() else {
+                        resolutions.push(ResolvedRoomSubscriberReauthorization {
+                            connection_id: subscriber.connection_id,
+                            expected_effect_fence: subscriber.effect_fence,
+                            authorized_auth: None,
+                        });
+                        continue;
+                    };
+                    let scope_fields = projection
+                        .scope_fields
+                        .iter()
+                        .map(|(scope_field, table_field)| {
+                            pending
+                                .room
+                                .scope
+                                .get(scope_field)
+                                .map(|value| (table_field.clone(), value.to_owned()))
+                                .ok_or_else(|| {
+                                    SnapbackError::error(
+                                        "SNAPBACK_EPHEMERAL_INVALID_SCOPE",
+                                        "ephemeral",
+                                        "room scope does not satisfy its permissionBacking projection",
+                                    )
+                                })
+                        })
+                        .collect::<SnapbackResult<Vec<_>>>()?;
+                    let granted = self.room_permission_projection_granted(
+                        &projection.table,
+                        &projection.subject_field,
+                        user_id,
+                        &scope_fields,
+                        projection.role_field.as_deref(),
+                        projection.allowed_roles.as_deref(),
+                        pending.obligation.min_commit_version,
+                    )?;
+                    granted.then(|| {
+                        pending
+                            .collection
+                            .grant_projected_room_permission(fresh, &pending.room.scope)
+                    })
+                }
+                None => None,
+            };
+            resolutions.push(ResolvedRoomSubscriberReauthorization {
+                connection_id: subscriber.connection_id,
+                expected_effect_fence: subscriber.effect_fence,
+                authorized_auth,
+            });
+        }
+        Ok(ResolvedRoomReauthorizationBatch {
+            root: pending.root,
+            room: pending.room,
+            generation: pending.obligation.room_authority_generation,
+            resolutions,
+        })
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
@@ -922,12 +1088,19 @@ impl AuthorizationCommitParticipant {
             .filter_map(|(room, control)| {
                 (control.pending_tickets.is_empty() && !control.retired)
                     .then(|| {
+                        let collection = state
+                            .protected_collections
+                            .iter()
+                            .find(|collection| collection.name == room.collection)?
+                            .clone();
                         control
                             .resync
                             .clone()
                             .map(|obligation| PendingRoomReauthorization {
+                                root: self.registry.clone(),
                                 room: room.clone(),
                                 obligation,
+                                collection,
                             })
                     })
                     .flatten()
@@ -976,7 +1149,7 @@ impl AuthorizationCommitParticipant {
         })
     }
 
-    pub fn begin_room_reauthorization_admission(
+    fn begin_room_reauthorization_admission(
         &self,
         room: &RoomId,
         generation: u64,
@@ -996,6 +1169,28 @@ impl AuthorizationCommitParticipant {
             state,
             room: room.clone(),
             generation,
+        })
+    }
+
+    /// Consume a database-derived batch and open the finite quiescence leaf
+    /// only when it belongs to this exact registry instance and generation.
+    pub fn begin_room_reauthorization_completion(
+        &self,
+        batch: ResolvedRoomReauthorizationBatch,
+    ) -> Result<RoomReauthorizationCompletion<'_>, EphemeralError> {
+        if !Arc::ptr_eq(&self.registry, &batch.root) {
+            return Err(authority_pending_error());
+        }
+        let ResolvedRoomReauthorizationBatch {
+            root: _,
+            room,
+            generation,
+            resolutions,
+        } = batch;
+        let admission = self.begin_room_reauthorization_admission(&room, generation)?;
+        Ok(RoomReauthorizationCompletion {
+            admission,
+            resolutions,
         })
     }
 }
@@ -1095,13 +1290,12 @@ impl NonAuthorizingRoomAuthority {
         self.participant.begin_room_retirement_admission(room)
     }
 
-    pub fn begin_room_reauthorization_admission(
+    pub fn begin_room_reauthorization_completion(
         &self,
-        room: &RoomId,
-        generation: u64,
-    ) -> Result<RoomReauthorizationAdmission<'_>, EphemeralError> {
+        batch: ResolvedRoomReauthorizationBatch,
+    ) -> Result<RoomReauthorizationCompletion<'_>, EphemeralError> {
         self.participant
-            .begin_room_reauthorization_admission(room, generation)
+            .begin_room_reauthorization_completion(batch)
     }
 }
 
@@ -1832,14 +2026,14 @@ impl RoomRetirementAdmission<'_> {
     }
 }
 
-pub struct RoomReauthorizationAdmission<'a> {
+struct RoomReauthorizationAdmission<'a> {
     state: MutexGuard<'a, RoomAuthorityRegistryState>,
     room: RoomId,
     generation: u64,
 }
 
 impl RoomReauthorizationAdmission<'_> {
-    pub fn complete_exact(mut self) {
+    fn complete_exact(mut self) {
         if let Some(control) = self.state.rooms.get_mut(&self.room) {
             if control.generation == self.generation
                 && control
@@ -1852,7 +2046,7 @@ impl RoomReauthorizationAdmission<'_> {
         }
     }
 
-    pub fn remove_missing_room(mut self) {
+    fn remove_missing_room(mut self) {
         let should_remove = self.state.rooms.get(&self.room).is_some_and(|control| {
             control.generation == self.generation
                 && control.pending_tickets.is_empty()
@@ -1861,6 +2055,36 @@ impl RoomReauthorizationAdmission<'_> {
         if should_remove {
             self.state.rooms.remove(&self.room);
         }
+    }
+}
+
+/// A finite quiescent completion cut holding the database-derived decisions.
+/// Construction consumes a [`ResolvedRoomReauthorizationBatch`] and is
+/// confined to its exact registry root.
+pub struct RoomReauthorizationCompletion<'a> {
+    admission: RoomReauthorizationAdmission<'a>,
+    resolutions: Vec<ResolvedRoomSubscriberReauthorization>,
+}
+
+impl RoomReauthorizationCompletion<'_> {
+    pub fn room(&self) -> &RoomId {
+        &self.admission.room
+    }
+
+    pub fn generation(&self) -> u64 {
+        self.admission.generation
+    }
+
+    pub fn resolutions(&self) -> &[ResolvedRoomSubscriberReauthorization] {
+        &self.resolutions
+    }
+
+    pub fn complete_exact(self) {
+        self.admission.complete_exact();
+    }
+
+    pub fn remove_missing_room(self) {
+        self.admission.remove_missing_room();
     }
 }
 

@@ -46,8 +46,8 @@ use crate::diagnostic::{
 use crate::ephemeral::{
     AuthContext, CollectionEnsureOutcome, DeleteRequest, DeliveryNotifier, EphemeralCollection,
     EphemeralDiagnostics, EphemeralMessage, LocalEphemeralBackend, PublishOutcome, PublishRequest,
-    RealtimeEnvelope, RealtimePublicationPermit, RoomPermissionProjection,
-    RoomSubscriberResolution, SubscribeRequest, validate_collection_definitions,
+    RealtimeEnvelope, RealtimePublicationPermit, ResolvedRoomReauthorizationBatch,
+    RoomPermissionProjection, SubscribeRequest, validate_collection_definitions,
     validate_collection_permission_backing,
 };
 use crate::live_matcher::{
@@ -3291,12 +3291,9 @@ impl EphemeralApi {
 
     pub fn complete_room_reauthorization(
         &self,
-        room_id: &crate::ephemeral::RoomId,
-        room_authority_generation: u64,
-        resolutions: Vec<crate::ephemeral::RoomSubscriberResolution>,
+        batch: ResolvedRoomReauthorizationBatch,
     ) -> SnapbackResult<bool> {
-        self.store
-            .complete_room_reauthorization(room_id, room_authority_generation, resolutions)
+        self.store.complete_room_reauthorization(batch)
     }
 
     /// The delivery notifier the WebSocket task registers with (L8).
@@ -29214,19 +29211,14 @@ impl LocalSnapback {
         let mut completed = 0_usize;
         for room in pending {
             let fresh = room
-                .subscribers
+                .subscribers()
                 .iter()
                 .map(|subscriber| {
-                    resolve_connection(&subscriber.connection_id, &subscriber.previous_auth)
+                    resolve_connection(subscriber.connection_id(), subscriber.previous_auth())
                 })
                 .collect::<SnapbackResult<Vec<_>>>()?;
-            let room_id = room.room.clone();
-            let generation = room.obligation.room_authority_generation;
-            let resolutions = self.resolve_pending_ephemeral_room_permissions(room, fresh)?;
-            if self
-                .ephemeral
-                .complete_room_reauthorization(&room_id, generation, resolutions)?
-            {
+            let batch = self.resolve_pending_ephemeral_room_permissions(room, fresh)?;
+            if self.ephemeral.complete_room_reauthorization(batch)? {
                 completed = completed.saturating_add(1);
             }
         }
@@ -29237,60 +29229,8 @@ impl LocalSnapback {
         &self,
         room: crate::ephemeral::PendingRoomReauthorization,
         fresh_authorities: Vec<Option<AuthContext>>,
-    ) -> SnapbackResult<Vec<RoomSubscriberResolution>> {
-        if room.subscribers.len() != fresh_authorities.len() {
-            return Err(SnapbackError::error(
-                "SNAPBACK_EPHEMERAL_REAUTHORIZATION_INCOMPLETE",
-                "ephemeral",
-                "room permission phase requires one authority result per snapshotted subscriber",
-            ));
-        }
-        let collection = self
-            .ephemeral
-            .collection_definition(&room.room.collection)
-            .ok_or_else(|| {
-                SnapbackError::error(
-                    "SNAPBACK_EPHEMERAL_UNKNOWN_COLLECTION",
-                    "ephemeral",
-                    "pending room collection is no longer loaded",
-                )
-            })?;
-        let projection = collection.permission_backing.as_ref().ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
-                "auth",
-                "pending protected room lacks its durable permissionBacking projection",
-            )
-        })?;
-        let mut resolutions = Vec::with_capacity(room.subscribers.len());
-        for (subscriber, fresh) in room.subscribers.into_iter().zip(fresh_authorities) {
-            let Some(fresh) = fresh else {
-                resolutions.push(RoomSubscriberResolution::Denied {
-                    connection_id: subscriber.connection_id,
-                    expected_effect_fence: subscriber.effect_fence,
-                });
-                continue;
-            };
-            let granted = self.room_permission_projection_granted(
-                projection,
-                &room.room.scope,
-                &fresh,
-                room.obligation.min_commit_version,
-            )?;
-            if granted {
-                resolutions.push(RoomSubscriberResolution::Authorized {
-                    connection_id: subscriber.connection_id,
-                    expected_effect_fence: subscriber.effect_fence,
-                    auth: collection.grant_projected_room_permission(fresh, &room.room.scope),
-                });
-            } else {
-                resolutions.push(RoomSubscriberResolution::Denied {
-                    connection_id: subscriber.connection_id,
-                    expected_effect_fence: subscriber.effect_fence,
-                });
-            }
-        }
-        Ok(resolutions)
+    ) -> SnapbackResult<ResolvedRoomReauthorizationBatch> {
+        room.resolve_with_database(&self.db, fresh_authorities)
     }
 
     fn room_permission_projection_granted(
