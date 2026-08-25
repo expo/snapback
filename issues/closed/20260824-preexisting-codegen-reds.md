@@ -67,11 +67,16 @@ coverage and fixes the separate Expo carrier diagnostic race.
 - The graph binding resolver treated every `ExportDeclaration` as though it
   had a `moduleSpecifier`. Commit `9653d21d2` fixed that red on this lane's
   base by adding the missing guard and retaining the local `resolveLocal` walk.
-  This lane adds a dedicated Familiar-profile regression whose function module
-  imports `query` and resolves a `v` builder site through an authored
-  specifier-less re-export. Temporarily restoring the unguarded call makes that
-  regression fail with the original `Cannot read properties of undefined
-  (reading 'kind')` stack.
+  This lane adds a dedicated owned-graph regression
+  (`owned graph builders resolve through a specifier-less re-export` in
+  `application-auth-bootstrap.test.mjs`): an explicit-profile fixture whose
+  `functions.mjs` imports `defineGraphQuery` through `items-builders.mjs`, which
+  re-exports it with a specifier-less `export { defineGraphQuery }`, and runs
+  `generateInProcess` with an injected `graph_query_v1` manifest so the builder
+  must actually resolve (not merely avoid the crash). Familiar-profile coverage
+  of the same resolver path is `familiar-dev-loop.test.mjs`. Temporarily
+  restoring the unguarded call makes the regression fail with the original
+  `Cannot read properties of undefined (reading 'kind')` stack.
 - Git history shows that the JS codegen input closure moved during the LLP 0209
   G0 B2 rounds after the Rust-owned membership manifest fixture was last
   generated. The fixture side was stale. Commit `3523efec6` had already
@@ -83,13 +88,17 @@ coverage and fixes the separate Expo carrier diagnostic race.
   reported only `Expo web carrier exited … before readiness`, omitting the
   missing-readiness detail. Round 1 combined child status with that detail when
   no file exists. Round 2 consumes and validates an existing descriptor first,
-  then lets the dead supervisor fail at the later lifecycle check. Deterministic
-  regressions cover both exit-before-publication and publish-then-exit.
+  so a published-then-dead supervisor is not reported as "did not write
+  structured readiness"; the dead child then fails at the existing `waitForHttp`
+  check. A unit test drives `waitForExpoSupervisorWebReadiness` directly with an
+  already-exited child (covering the exit-before-publication message and the
+  existing-descriptor branch); the later lifecycle failure is existing code, not
+  newly asserted.
 
 Verification evidence:
 
 - `application-auth-bootstrap.test.mjs`: 9 passed, 0 failed, including the new
-  Familiar re-export fixture.
+  owned-graph specifier-less re-export fixture.
 - `authoring-validation.test.mjs`: 1 passed, 0 failed; the generated manifest
   remains equal to the Rust-owned fixture digest.
 - `familiar-dev-loop.test.mjs`: 1 passed, 0 failed with the qualified shared

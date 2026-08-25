@@ -108,8 +108,9 @@ resolution. Red 4 was already fixed as recorded above.
 
 The third inherited red, `familiar-dev-loop` failing in codegen while reading
 TypeScript node `kind`, was already fixed on this lane's base by the
-`ExportDeclaration.moduleSpecifier` guard in `9653d21d2`. This lane adds a
-dedicated Familiar-profile specifier-less re-export regression on the function
-builder graph and confirms the dev loop passes with the lane's qualified shared
-runtime. This ticket stays open for its separately owned framework-drift and
+`ExportDeclaration.moduleSpecifier` guard in `9653d21d2`. This lane adds an
+owned-graph specifier-less re-export regression on the function builder graph
+(`defineGraphQuery` through a specifier-less barrel, resolved via
+`generateInProcess`) and confirms `familiar-dev-loop.test.mjs` passes with the
+lane's qualified shared runtime. This ticket stays open for its separately owned framework-drift and
 application-auth-fixtures reds.
