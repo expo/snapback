@@ -2822,8 +2822,8 @@ examples: [demos/browser-auth, demos/zerobugs/control]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-16
-reviewed-authorities-digest: sha256:f2306d9477abd4af9d9e81a0fd94f5a9f71f3280544cb4626ea2b93c669116f6
+reviewed: 2026-08-24
+reviewed-authorities-digest: sha256:12089a8cc4382df31b08a6200055e0b94b6871e10ded37491b52f814996b8365
 ---
 
 # Bind a principal to your app's user identity
@@ -2880,12 +2880,18 @@ Whichever way you populate it, the table itself is the same shape: one row
 per principal, uniquely indexed on **every** side so the mapping cannot fan
 out. The Zerobugs control's declaration:
 
+The `public-read` line below is a frozen-control compatibility declaration,
+not the recommended privacy posture for a new binding table. It preserves the
+LLP 0182/0183 parity instrument's existing handler-authorized behavior while
+the [honest-narrowest migration remains an author decision](repo:issues/20260824-zerobugs-control-honest-narrowest-visibility.md).
+
 ```js source=demos/zerobugs/control/snapback/schema.mjs
 export const identityBinding = defineTable({
   principal: v.principal(),
   userID: v.id('user'),
   sourceUserID: v.string(),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_principal', ['principal'], { unique: true })
   .index('by_user', ['userID'], { unique: true })
   .index('by_source_user_id', ['sourceUserID'], { unique: true });
@@ -2904,8 +2910,9 @@ on, and the external string is what a provider lookup or an audit trail needs.
 Do not declare this table under `verifiedProvisioning` and then try to write it
 from an application handler: the declaration seals the table, but there is no
 host-invoked inside writer yet. Until that platform lane lands, use Pattern A
-or the acceptance-only Pattern B below on an undeclared table, with their
-trusted-writer and reachability constraints intact.
+or the acceptance-only Pattern B below on a table without a
+`verifiedProvisioning` identity-binding declaration, with their trusted-writer
+and reachability constraints intact.
 
 After creation, every protected handler resolves only
 `principal → binding → app row`; it does not repeat a claim lookup.

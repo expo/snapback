@@ -7,6 +7,10 @@ import { defineSchema, defineTable, v } from '@expo/snapback-codegen/define';
 // @ref LLP 0183#d1--comparator-manifest-and-current-surface-control — the
 // current-surface control keeps source demand exact while making every
 // Snapback-specific representation choice explicit and countable.
+// LLP 0231's explicit table-policy requirement postdates this frozen control.
+// Public-read preserves instrument fidelity: the source-faithful handler
+// boundaries stay unchanged. Honest-narrowest declarations require an author
+// decision tracked in issues/20260824-zerobugs-control-honest-narrowest-visibility.md.
 
 export const user = defineTable({
   id: v.string(),
@@ -20,6 +24,7 @@ export const user = defineTable({
   githubID: v.integer(),
   email: v.optional(v.string()),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_source_id', ['id'], { unique: true })
   .index('by_github_id', ['githubID'], { unique: true })
   .index('by_login', ['login'], { unique: true })
@@ -34,6 +39,7 @@ export const project = defineTable({
   markURL: v.optional(v.string()),
   logoURL: v.optional(v.string()),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_source_id', ['id'], { unique: true })
   .index('by_lower_case_name', ['lowerCaseName'], { unique: true })
   .sync();
@@ -53,6 +59,7 @@ export const issue = defineTable({
   // by fixture ingestion and every authoritative write.
   visibility: v.string(),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_source_id', ['id'], { unique: true })
   .index('by_source_id_project', ['id', 'projectID'], { unique: true })
   .index('by_short_id', ['shortID'])
@@ -72,6 +79,7 @@ export const viewState = defineTable({
   userID: v.id('user'),
   viewed: v.number(),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_user_issue', ['userID', 'issueID'], { unique: true })
   .index('by_issue_user', ['issueID', 'userID'], { unique: true })
   .sync();
@@ -83,6 +91,7 @@ export const comment = defineTable({
   body: v.string(),
   creatorID: v.id('user'),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_source_id', ['id'], { unique: true })
   .index('by_issue', ['issueID'])
   .index('by_issue_created', ['issueID', 'created', 'id'])
@@ -93,6 +102,7 @@ export const label = defineTable({
   name: v.string(),
   projectID: v.id('project'),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_source_id', ['id'], { unique: true })
   .index('by_source_id_project', ['id', 'projectID'], { unique: true })
   .index('by_project_name', ['projectID', 'name'], { unique: true })
@@ -103,6 +113,7 @@ export const issueLabel = defineTable({
   issueID: v.id('issue'),
   projectID: v.id('project'),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_label_issue', ['labelID', 'issueID'], { unique: true })
   .index('by_issue', ['issueID'])
   .index('by_issue_label', ['issueID', 'labelID'], { unique: true })
@@ -116,6 +127,7 @@ export const emoji = defineTable({
   creatorID: v.id('user'),
   created: v.number(),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_source_id', ['id'], { unique: true })
   .index('by_created', ['created'])
   .index('by_subject', ['subjectID'])
@@ -127,6 +139,7 @@ export const userPref = defineTable({
   userID: v.id('user'),
   value: v.string(),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_key_user', ['key', 'userID'], { unique: true })
   .index('by_user_key', ['userID', 'key'], { unique: true })
   .sync();
@@ -137,6 +150,7 @@ export const issueNotifications = defineTable({
   subscribed: v.boolean(),
   created: v.number(),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_user_issue', ['userID', 'issueID'], { unique: true })
   .index('by_issue_user', ['issueID', 'userID'], { unique: true })
   .sync();
@@ -151,6 +165,7 @@ export const identityBinding = defineTable({
   userID: v.id('user'),
   sourceUserID: v.string(),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_principal', ['principal'], { unique: true })
   .index('by_user', ['userID'], { unique: true })
   .index('by_source_user_id', ['sourceUserID'], { unique: true });
@@ -166,7 +181,9 @@ export const identityBinding = defineTable({
 export const authorityProbeMembers = defineTable({
   userId: v.principal(),
   role: v.string(),
-}).membership({
+})
+  .visibility({ kind: 'public-read' })
+  .membership({
   principal: 'userId',
   role: 'role',
   roles: ['member'],
@@ -185,7 +202,9 @@ export const authorityProbeMembers = defineTable({
 // permission-backing.
 export const authorityProbeState = defineTable({
   userId: v.principal(),
-}).index('by_user_id', ['userId'], {unique: true});
+})
+  .visibility({ kind: 'public-read' })
+  .index('by_user_id', ['userId'], {unique: true});
 
 // W-READMODEL: one row per (project,user) that participates as an issue
 // creator, issue assignee, or non-rocibot crew picker candidate. The booleans
@@ -198,6 +217,7 @@ export const projectUserRead = defineTable({
   isAssignee: v.boolean(),
   isCrew: v.boolean(),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_project_user', ['projectID', 'userID'], { unique: true })
   .index('by_project_creator', ['projectID', 'isCreator', 'userID'])
   .index('by_project_assignee', ['projectID', 'isAssignee', 'userID'])
@@ -219,6 +239,7 @@ export const issueListRead = defineTable({
   modified: v.number(),
   created: v.number(),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_issue', ['issueID'], { unique: true })
   .index('by_source_issue_id', ['sourceIssueID'], { unique: true })
   .index('by_project_modified', ['projectID', 'modified', 'sourceIssueID'])
@@ -243,6 +264,7 @@ export const issueLabelRead = defineTable({
   issueID: v.id('issue'),
   labelID: v.id('label'),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_issue_label', ['issueID', 'labelID'], { unique: true })
   .index('by_project_label_issue', ['projectID', 'labelID', 'issueID'], { unique: true })
   .index('by_project_issue_label', ['projectID', 'issueID', 'labelID'], { unique: true });
@@ -260,6 +282,7 @@ export const issueSearchDocument = defineTable({
   description: v.string(),
   commentText: v.string(),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_issue', ['issueID'], { unique: true })
   .index('by_source_issue_id', ['sourceIssueID'], { unique: true })
   .index('by_project_visibility_issue', ['projectID', 'visibility', 'sourceIssueID']);
@@ -272,6 +295,7 @@ export const searchEpoch = defineTable({
   visibility: v.string(),
   epoch: v.integer(),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_project_visibility', ['projectID', 'visibility'], { unique: true })
   .index('by_visibility_project', ['visibility', 'projectID'], { unique: true })
   .sync();
@@ -291,6 +315,7 @@ export const fixtureIngestLedger = defineTable({
   batchDigest: v.string(),
   committedIds: v.string(),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_fixture_overlay_table_batch', [
     'fixtureId',
     'overlayDigest',
@@ -323,6 +348,7 @@ export const notificationIntent = defineTable({
   discordEligible: v.boolean(),
   state: v.string(),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_idempotency_key', ['idempotencyKey'], { unique: true })
   .index('by_issue_created', ['issueID', 'created', 'idempotencyKey'])
   .index('by_state_created', ['state', 'created', 'idempotencyKey']);
@@ -342,6 +368,7 @@ export const notificationAttempt = defineTable({
   providerReceiptID: v.optional(v.string()),
   ambiguous: v.boolean(),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_intent_channel_recipient_attempt', [
     'intentID',
     'channel',
@@ -359,6 +386,7 @@ export const unsubscribeTokenUse = defineTable({
   issueID: v.id('issue'),
   usedAt: v.number(),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_token_digest', ['tokenDigest'], { unique: true })
   .index('by_user_issue', ['userID', 'issueID', 'usedAt']);
 
@@ -380,6 +408,7 @@ export const assetAttachment = defineTable({
   size: v.integer(),
   created: v.number(),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_key', ['key'], { unique: true })
   .index('by_owner_created', ['owner', 'created', 'key'])
   .assetSharing({ kind: 'public-read' });
