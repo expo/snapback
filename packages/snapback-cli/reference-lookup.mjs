@@ -120,6 +120,40 @@ function budgetedDiagnostic(query, diagnostic, identity, slice, budget) {
   return result;
 }
 
+function budgetedEnvironment(query, environment, identity, slice, budget) {
+  const complete = {
+    schemaVersion: 'snapback.guide-symbol-lookup.v1',
+    ok: true,
+    query,
+    match: 'environment',
+    identity,
+    environment,
+    truncation: null,
+  };
+  if (Buffer.byteLength(JSON.stringify(complete)) <= budget) return complete;
+  const sites = Array.isArray(environment.sites) ? environment.sites : [];
+  const pageSize = 24;
+  const start = (slice - 1) * pageSize;
+  const visible = sites.slice(start, start + pageSize);
+  const hasMore = start + pageSize < sites.length;
+  const result = {
+    ...complete,
+    match: 'environment-slice',
+    environment: { ...environment, sites: visible },
+    truncation: {
+      truncated: true,
+      slice,
+      elided: [`environment sites outside ${start + 1}-${Math.min(start + pageSize, sites.length)} of ${sites.length}`],
+      nextSlice: hasMore ? slice + 1 : null,
+      nextCommand: hasMore ? `snapback guide ${query} --slice ${slice + 1}` : null,
+    },
+  };
+  if (Buffer.byteLength(JSON.stringify(result)) > budget) {
+    throw new Error(`SNAPBACK_GUIDE_LOOKUP_BUDGET_EXCEEDED: environment slice ${query} exceeds ${budget} bytes`);
+  }
+  return result;
+}
+
 function memberMatch(symbol, query) {
   const prefix = `${symbol.name}.`;
   if (!query.startsWith(prefix)) return null;
@@ -246,6 +280,19 @@ function budgetedModule(query, symbols, identity, slice, budget) {
         },
   };
   if (Buffer.byteLength(JSON.stringify(result)) > budget) {
+    result.symbols = visible.map((symbol) => ({
+      identity: symbol.identity,
+      originIdentity: symbol.originIdentity,
+      name: symbol.name,
+      module: symbol.module,
+      kind: symbol.kind,
+      runtime: symbol.runtime,
+      anchor: symbol.anchor,
+      source: symbol.source,
+      lifecycle: symbol.lifecycle,
+    }));
+  }
+  if (Buffer.byteLength(JSON.stringify(result)) > budget) {
     throw new Error(`SNAPBACK_GUIDE_LOOKUP_BUDGET_EXCEEDED: module slice ${query} exceeds ${budget} bytes`);
   }
   return result;
@@ -273,6 +320,15 @@ export function lookupGuideReference(argv, options = {}) {
           Object.entries(diagnostics.diagnostics[query]).filter(([key]) => key !== 'sites'),
         );
     return budgetedDiagnostic(query, diagnostic, identity, slice, budget);
+  }
+  if (diagnostics.environment?.[query]) {
+    return budgetedEnvironment(
+      query,
+      diagnostics.environment[query],
+      identity,
+      slice,
+      budget,
+    );
   }
   const byIdentity = new Map(registry.symbols.map((symbol) => [symbol.identity, symbol]));
   const matchedIds = registry.lookup.exact[query] ?? [];
@@ -315,6 +371,17 @@ export function formatGuideReferenceLookup(result) {
       for (const [heading, sites] of siteGroups) {
         if (sites.length) lines.push('', heading, ...sites.map((site) => `- ${site.file}:${site.line}:${site.column}`));
       }
+    }
+  } else if (result.environment) {
+    lines.push('environment variable');
+    if (result.environment.sites?.length) {
+      lines.push(
+        '',
+        'Environment sites:',
+        ...result.environment.sites.map((site) => (
+          `- ${site.kind}: ${site.file}:${site.line}:${site.column}`
+        )),
+      );
     }
   } else if (result.member) {
     lines.push(`${result.symbol.module} · ${result.symbol.kind}`, '', result.member.signature);

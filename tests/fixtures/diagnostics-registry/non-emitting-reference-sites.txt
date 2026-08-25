@@ -73,6 +73,8 @@ if ('SNAPBACK_FIXTURE_JS_REVERSE_REFERENCE' !== error.code) recover();
 switch (error.code) { case 'SNAPBACK_FIXTURE_JS_CASE_REFERENCE': recover(); }
 if (error.code.startsWith('SNAPBACK_FIXTURE_JS_PREFIX')) recover();
 if (error.code.endsWith('SNAPBACK_FIXTURE_JS_SUFFIX')) recover();
+if (codes.includes('SNAPBACK_FIXTURE_JS_INCLUDES_REFERENCE')) recover();
+if (message.indexOf('SNAPBACK_FIXTURE_JS_INDEX_OF_REFERENCE') >= 0) recover();
 if error.code.starts_with("SNAPBACK_FIXTURE_RUST_PREFIX") { recover(); }
 if error.code.contains("SNAPBACK_FIXTURE_RUST_CONTAINS") { recover(); }
 if (error.code.startsWith('SNAPBACK_FIXTURE_TRAILING_PREFIX_')) recover();
@@ -84,6 +86,7 @@ const FIXTURE_DIAGNOSTIC_CATALOG = new Set([
   'SNAPBACK_FIXTURE_CATALOG_REFERENCE',
   'SNAPBACK_FIXTURE_CATALOG_SECOND_REFERENCE',
 ]);
+const fixtureMetadata = { codes: ['SNAPBACK_FIXTURE_SINGLETON_METADATA_REFERENCE'] };
 const FIXTURE_RECEIVED_CODES = new Set([
   'SNAPBACK_FIXTURE_RECEIVED_PROTOCOL',
   'SNAPBACK_FIXTURE_RECEIVED_PROTOCOL_SECOND',

@@ -63,6 +63,19 @@ const internalDiagnostic = lookupGuideReference(
 );
 assert.ok(internalDiagnostic.diagnostic.sites.length > 0);
 
+const environment = lookupGuideReference(
+  ['SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE'],
+  { projectRoot: root },
+);
+assert.equal(environment.match, 'environment');
+assert.equal(environment.environment.name, 'SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE');
+assert.deepEqual(
+  environment.environment.sites.map(({ file, kind }) => ({ file, kind })),
+  [{ file: 'crates/snapback-kernel/src/live_matcher.rs', kind: 'read' }],
+);
+assert.match(environment.identity.diagnosticsSourceDigest, /^sha256:[0-9a-f]{64}$/u);
+assert.ok(Buffer.byteLength(JSON.stringify(environment)) <= 16_384);
+
 const large = lookupGuideReference(['SnapbackClient'], { projectRoot: root });
 assert.equal(large.match, 'symbol-slice');
 assert.equal(large.truncation.truncated, true);
@@ -91,4 +104,21 @@ assert.equal(cliResult.schemaVersion, 'snapback.guide-search.v1');
 assert.equal(cliResult.mode, 'exact-symbol');
 assert.equal(cliResult.query, 'SnapbackClient.query');
 assert.equal(cliResult.result.match, 'member');
-console.log('reference-lookup.test.mjs: exact diagnostic/member, bounded symbol/module, identity, and fallback pass');
+
+output.length = 0;
+try {
+  console.log = (...values) => output.push(values.join(' '));
+  assert.equal(await runCli(
+    ['guide', 'SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE', '--json'],
+    { projectRoot: root },
+  ), 0);
+} finally {
+  console.log = originalLog;
+}
+const environmentCliResult = JSON.parse(output.join('\n'));
+assert.equal(environmentCliResult.result.match, 'environment');
+assert.equal(
+  environmentCliResult.result.environment.name,
+  'SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE',
+);
+console.log('reference-lookup.test.mjs: exact diagnostic/environment/member, bounded symbol/module, identity, and fallback pass');

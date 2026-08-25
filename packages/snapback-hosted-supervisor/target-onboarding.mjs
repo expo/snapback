@@ -351,6 +351,13 @@ async function ensureTargetTigrisRole(rootCredentials, config, role, actions) {
     : null;
   if (predecessorPolicyArn) policyArn = null;
   if (Boolean(accessKeyId) !== Boolean(secretAccessKey)) {
+    // diagnostics-registry: emission SNAPBACK_HOSTED_TARGET_TIGRIS_ARTIFACT_PARTIAL
+    // diagnostics-registry: emission SNAPBACK_HOSTED_TARGET_TIGRIS_AUDIT_PARTIAL
+    // diagnostics-registry: emission SNAPBACK_HOSTED_TARGET_TIGRIS_BACKUP_PARTIAL
+    // diagnostics-registry: emission SNAPBACK_HOSTED_TARGET_TIGRIS_CLEANUP_PARTIAL
+    // diagnostics-registry: emission SNAPBACK_HOSTED_TARGET_TIGRIS_LOGS_PARTIAL
+    // The control-state role still interpolates a hyphen and therefore produces
+    // an unregisterable spelling pending the role-code compatibility ticket.
     throw new Error(`SNAPBACK_HOSTED_TARGET_TIGRIS_${roleStem.toUpperCase()}_PARTIAL`);
   }
   let created = false;

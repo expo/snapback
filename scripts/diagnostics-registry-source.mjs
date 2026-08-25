@@ -646,7 +646,7 @@ function isComparisonOrPrefixCheck(source, offset, code) {
     (/(?:===|!==|==|!=)\s*["'`]$/u.test(before) && /^["'`]/u.test(after))
     || (/["'`]$/u.test(before) && /^["'`]\s*(?:===|!==|==|!=)/u.test(after))
     || (/\bcase\s+["'`]$/u.test(before) && /^["'`]\s*:/u.test(after))
-    || (/\.(?:startsWith|starts_with|contains|endsWith)\s*\(\s*["'`]$/u.test(before)
+    || (/\.(?:startsWith|starts_with|contains|endsWith|includes|indexOf)\s*\(\s*["'`]$/u.test(before)
       && /^["'`]\s*\)/u.test(after))
   );
 }
@@ -694,6 +694,23 @@ function isRustMatchesReference(source, offset) {
   return /\bmatches!\s*\([^;{}]*$/su.test(before);
 }
 
+function isCatalogueLiteralContext(source, open) {
+  const prefix = source.slice(Math.max(0, open - 2048), open);
+  const wrappers = String.raw`(?:(?:Object\.freeze|new\s+Set)\s*\(\s*)?`;
+  const catalogueName = String.raw`(?:codes|allowlist|denylist|catalog(?:ue)?|[A-Za-z_$][\w$]*(?:_CODES|_ALLOWLIST|_DENYLIST|_CATALOG(?:UE)?))`;
+  return (
+    new RegExp(`${catalogueName}\\s*:\\s*${wrappers}$`, 'iu').test(prefix)
+    || new RegExp(
+      String.raw`\b(?:const|let|var)\s+${catalogueName}\s*=\s*${wrappers}$`,
+      'iu',
+    ).test(prefix)
+    || new RegExp(
+      String.raw`\b(?:pub\s+)?(?:const|static)\s+${catalogueName}\s*:[^=]{0,256}=\s*&?${wrappers}$`,
+      'iu',
+    ).test(prefix)
+  );
+}
+
 function isCodeReferenceCatalogue(source, offset) {
   const open = source.lastIndexOf('[', offset);
   if (open === -1 || offset - open > 8192) return false;
@@ -703,13 +720,14 @@ function isCodeReferenceCatalogue(source, offset) {
   const quotedCodes = [...contents.matchAll(
     /(?:r#*)?["']SNAPBACK_[A-Z0-9_]+["']/gu,
   )];
-  if (quotedCodes.length < 2) return false;
+  if (quotedCodes.length === 0) return false;
   const remainder = contents
     .replace(/\/\/[^\n]*(?:\n|$)/gu, '')
     .replace(/\/\*[\s\S]*?\*\//gu, '')
     .replace(/(?:r#*)?["']SNAPBACK_[A-Z0-9_]+["']/gu, '')
     .replace(/[\s,]/gu, '');
-  return remainder.length === 0;
+  if (remainder.length !== 0) return false;
+  return quotedCodes.length >= 2 || isCatalogueLiteralContext(source, open);
 }
 
 function hasReceivedMembershipConsumer(source, open, close) {

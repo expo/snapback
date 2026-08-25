@@ -253,6 +253,10 @@ const shippedClientProtocolRoots = Object.freeze([
 const targetProductionPaths = walk(join(root, 'targets'), (path) => (
   /\.(?:cjs|js|mjs)$/u.test(path)
   && !isExcludedProductionJavaScript(path)
+  // Target app bundles are reference/application fixtures, not framework or
+  // operator carriers; their app-authored diagnostic vocabulary is not part
+  // of the production Snapback registry.
+  && !/^targets\/[^/]+\/app\//u.test(path)
 ));
 
 const productionPaths = [

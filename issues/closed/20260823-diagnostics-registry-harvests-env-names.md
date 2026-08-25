@@ -61,12 +61,13 @@ environment SNAPBACK_X` marker contribute write sites. The generated
 diagnostics registry, symbol registry, and Guide projections share one generated
 authority.
 
-The final comparison with merge-base `e370bb8f7` finds 224 removed names: 147
-are now environment variables and 77 are not in the environment section.
-Twelve names re-enter the public union relative to the earlier review
+The final comparison with merge-base `e370bb8f7` finds 223 removed names: 147
+are now environment variables and 76 are not in the environment section.
+Thirteen names re-enter the public union relative to the earlier review
 checkpoint: the client-protocol vocabulary
 `SNAPBACK_AUTH_SESSION_REVOKED`, `SNAPBACK_AUTH_FAMILY_REVOKED`, and
-`SNAPBACK_CLIENT_UPGRADE_REQUIRED` as `received` sites, plus the eight
+`SNAPBACK_CLIENT_UPGRADE_REQUIRED`, plus the wire-compatible caller-error
+vocabulary `SNAPBACK_INVALID_FLOAT`, as `received` sites, plus the eight
 HTTP-table-only names already listed and
 `SNAPBACK_BRANCH_CAPTURE_ONLY_MISSING` as nine explicit `reserved` sites. The
 non-environment group contains constants, protocol/version symbols, receipt
@@ -83,7 +84,9 @@ definition, familiar, job, poison, and LAN-warning codes.
 
 Round 4 inventories all 14 production JavaScript modules under
 `targets/cloudflare/src/`, excluding test and fixture trees under the same walk
-rule as other production JavaScript. This restores seven names that existed in
+rule as other production JavaScript. The three `targets/cloudflare/app/`
+application/reference bundles are also excluded because their app-authored
+vocabulary is not a framework or operator diagnostic source. This restores seven names that existed in
 the merge-base registry and were lost earlier in the lane:
 `SNAPBACK_ACTION_STREAM_CANCELLED`, `SNAPBACK_ACTION_REPLAY_DIVERGED`,
 `SNAPBACK_CONNECTION_SESSION_REPLACED`,
@@ -129,28 +132,31 @@ HTTP-table-only spellings: `SNAPBACK_AUTH_MODE_CHANGED`,
 HTTP-only arms are deletion candidates for the Rust-capable follow-up
 `issues/20260825-http-table-only-diagnostic-reservations.md`.
 `SNAPBACK_SHUTDOWN_CHECKPOINT_TIMEOUT_MS` stays in that Rust table as a match
-reference but is environment-only and is not reserved. An audit of all 77
+reference but is environment-only and is not reserved. An audit of all 76
 non-environment removals initially missed this ninth retired diagnostic; after
 reserving `SNAPBACK_BRANCH_CAPTURE_ONLY_MISSING`, the remaining names are active
 catalogue/reference vocabulary, protocol and format constants, fixture names,
 wildcard fragments, or other non-diagnostic identifiers. The lifecycle registry
-names none of the 77. The HTTP-only
+names none of the 76. The HTTP-only
 `NON_DIAGNOSTIC_SNAPBACK_LITERALS` table remains separate because it includes
 legitimate non-HTTP diagnostics and is not a safe public-registry denylist.
 
 Closed code-literal Sets/arrays in shipped client packages now contribute
 `received` sites when they flow to a `.has(code)` or `.includes(code)` dispatch
 membership test; ambiguous tables use the explicit `diagnostics-registry:
-received` marker. This keeps 82 received names across 92 sites in the public
+received` marker. The wire-compatible `CALLER_ERROR_CODES` table additionally
+marks `SNAPBACK_INVALID_FLOAT` as received. This keeps 83 received names across
+93 sites in the public
 diagnostic union without mislabelling them as emissions. The three round-6
 client-protocol restorations named above are received-only.
 
-The companion fixture now has 82 raw `SNAPBACK_*` substrings and retains 17
+The companion fixture now has 85 raw `SNAPBACK_*` substrings and retains 17
 emitting occurrences across 16 names plus two received-protocol occurrences.
 Its fail-first runs proved all classifier
 repairs: generated JavaScript and multiline Rust SQL were absent while match
-arms, `matches!`, code catalogues, prefix checks, and a trailing-underscore
-family token were falsely present; the exact production
+arms, `matches!`, code catalogues (including singleton `codes:` metadata),
+prefix and JavaScript membership checks, and a trailing-underscore family
+token were falsely present; the exact production
 `eprintln!("SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH field={field}")` line and
 the `println!`, `tracing::*!`, `log::*!`, and synthetic-marker rows were absent.
 The environment half additionally pins multiline block-comment exclusion,
@@ -178,10 +184,11 @@ active diagnostic spellings:
 `SNAPBACK_WRANGLER_PRECHECK_FAILED`.
 
 The hosted Tigris partial-credential loop retains its original private helper
-and dynamic runtime template. The registry cannot claim the six possible role
-spellings as literal codes, and this lane does not change the thrown-message
-compatibility surface or export the IAM-mutating helper. The separately scoped
-private-helper compatibility proposal is
+and dynamic runtime template. Explicit dynamic-emission markers register the
+five grammar-valid finite spellings without changing runtime strings. The
+`control-state` role still produces the unregisterable hyphenated spelling;
+this lane does not change that thrown-message compatibility surface or export
+the IAM-mutating helper. The separately scoped private-helper compatibility proposal is
 `issues/20260825-hosted-target-tigris-role-code-spelling.md`.
 
 The worker-binding repair moves six names into the environment vocabulary:
@@ -193,15 +200,16 @@ global-subscription, and connection-grant dual-role names keep only their
 actual `kitError`, `requestDiagnostic`, or `code:` emitting sites in the
 diagnostic vocabulary.
 
-Final regeneration produces 3,531 diagnostic codes, 10,269 emitting sites, 92
-received sites, and 11 reserved sites from 637 production source files. The
+Final regeneration produces 3,537 diagnostic codes, 10,257 emitting sites, 93
+received sites, and 11 reserved sites from 634 production source files. The
 environment section contains 181 variables across 359 sites: 256 reads, 17
 writes, 3 removes, 16 indirect reads, 14 declarations, 12 table entries, and 41
 message mentions. The full Rust match-arm scan removes false `api_error.rs`
 emission sites from 234 names; the file had 237 ordinary emission sites before
 the repair and retains only three real producer sites across two names.
-`SNAPBACK_INVALID_FLOAT` consequently leaves the union, while
-`SNAPBACK_ARG_MISSING` now starts at its real `value_expr.rs:138` producer.
+`SNAPBACK_INVALID_FLOAT` remains in the union as received caller-error wire
+vocabulary, while `SNAPBACK_ARG_MISSING` retains its real `value_expr.rs`
+producer without freezing that source's line number in the test.
 Excluding the comment-only `SNAPBACK_ADMIN_TOKEN` pseudo-read and a falsely
 enclosed `SNAPBACK_ADMIN_TOKEN` table entry removes the remaining bad sites;
 the three target mTLS staging names add real writes.
@@ -256,12 +264,12 @@ Captured output:
 {
   "mergeBase": "e370bb8f789007cffae1f4d80c4feabdedc81cb5",
   "counts": {
-    "codes": 3531,
-    "sourceFiles": 637,
-    "emittingSites": 10269,
-    "receivedSites": 92,
+    "codes": 3537,
+    "sourceFiles": 634,
+    "emittingSites": 10257,
+    "receivedSites": 93,
     "reservedSites": 11,
-    "httpClassified": 1708,
+    "httpClassified": 1709,
     "guideAnchored": 427,
     "environmentVariables": 181,
     "environmentSites": 359
@@ -276,12 +284,12 @@ Captured output:
     "indirect-read": 16
   },
   "mergeBaseRemovals": {
-    "total": 224,
+    "total": 223,
     "environment": 147,
-    "other": 77
+    "other": 76
   },
-  "fixtureRawTokens": 82,
-  "receivedCodes": 82,
+  "fixtureRawTokens": 85,
+  "receivedCodes": 83,
   "httpReservations": 9
 }
 ```

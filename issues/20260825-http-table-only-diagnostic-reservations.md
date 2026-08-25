@@ -26,6 +26,13 @@ diagnostic vocabulary. It is an environment-only shutdown tuning input; its
 HTTP arm remains a non-emitting match reference in this JS-only lane, while the
 real emitted diagnostic is `SNAPBACK_SHUTDOWN_WAL_CHECKPOINT_INCOMPLETE`.
 
+`SNAPBACK_INVALID_FLOAT` also remains in the HTTP table, but it is not a
+deletion candidate. The server accepts it as closed caller-error vocabulary on
+the error-tracking wire through `CALLER_ERROR_CODES`; the diagnostics registry
+therefore retains its `crates/snapback-types/src/error_tracking.rs` site as
+`received`. It also remains governed by `schemas/operation-class.v1.json` and
+LLP 0154's closed classifier vocabulary.
+
 ## Follow-up
 
 Confirm each code has no live producer, protocol obligation, persisted-record
@@ -33,3 +40,5 @@ compatibility requirement, or Guide contract. If all nine are dead, delete
 their match arms in a Rust-capable lane and remove the adjacent
 `diagnostics-registry: reserved SNAPBACK_X` comments in the same change. Regenerate the
 diagnostics registry, symbol registry, and Guide projections afterwards.
+Do not remove `SNAPBACK_INVALID_FLOAT` without a separately reviewed wire and
+observability compatibility change.

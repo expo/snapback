@@ -25,6 +25,12 @@ accepts arbitrary provider actions would widen LLP 0111's closed
 role→verb→resource authority matrix, and changing the thrown message is a
 runtime compatibility change outside the environment-classification repair.
 
+The registry now records the five grammar-valid finite spellings (`artifact`,
+`audit`, `backup`, `cleanup`, and `logs`) with explicit dynamic-emission
+markers while leaving the runtime template unchanged. The `control-state`
+role still produces the unregisterable hyphenated spelling and remains the
+compatibility change owned by this ticket.
+
 ## Proposed compatibility change
 
 Keep `ensureTargetTigrisRole` private and keep every provider action derived

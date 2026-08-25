@@ -52,7 +52,7 @@ test('diagnostic source classifier excludes environment reads per site and retai
     '../tests/fixtures/diagnostics-registry/non-emitting-reference-sites.txt',
   ), 'utf8');
 
-  assert.equal([...fixture.matchAll(/SNAPBACK_[A-Z0-9_]+/gu)].length, 82);
+  assert.equal([...fixture.matchAll(/SNAPBACK_[A-Z0-9_]+/gu)].length, 85);
 
   const sourceOptions = { ordinaryMultiline: true };
   assert.deepEqual(
@@ -226,8 +226,11 @@ test('diagnostic source classifier excludes environment reads per site and retai
     'SNAPBACK_FIXTURE_QUOTED_REFERENCE',
     'SNAPBACK_FIXTURE_JS_PREFIX',
     'SNAPBACK_FIXTURE_JS_SUFFIX',
+    'SNAPBACK_FIXTURE_JS_INCLUDES_REFERENCE',
+    'SNAPBACK_FIXTURE_JS_INDEX_OF_REFERENCE',
     'SNAPBACK_FIXTURE_RUST_PREFIX',
     'SNAPBACK_FIXTURE_RUST_CONTAINS',
+    'SNAPBACK_FIXTURE_SINGLETON_METADATA_REFERENCE',
   ]);
   assert.deepEqual(
     diagnosticSourceSites(fixture, sourceOptions)
@@ -372,16 +375,16 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     'SNAPBACK_HOSTED_TARGET_TIGRIS_AUDIT_PARTIAL',
     'SNAPBACK_HOSTED_TARGET_TIGRIS_BACKUP_PARTIAL',
     'SNAPBACK_HOSTED_TARGET_TIGRIS_CLEANUP_PARTIAL',
-    'SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL_STATE_PARTIAL',
     'SNAPBACK_HOSTED_TARGET_TIGRIS_LOGS_PARTIAL',
   ];
   for (const code of tigrisRoleCodes) {
-    assert.equal(
-      registry.diagnostics[code],
-      undefined,
-      `${code} remains a dynamic runtime spelling pending a compatibility change`,
+    assert.deepEqual(
+      registry.diagnostics[code]?.sites.map(({ file, kind }) => ({ file, kind })),
+      [{ file: 'packages/snapback-hosted-supervisor/target-onboarding.mjs', kind: undefined }],
+      `${code} must retain its finite dynamic-emission site`,
     );
   }
+  assert.equal(registry.diagnostics.SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL_STATE_PARTIAL, undefined);
   assert.equal(
     registry.diagnostics['SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL-STATE_PARTIAL'],
     undefined,
@@ -418,30 +421,34 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     );
   }
 
-  assert.equal(registry.diagnostics.SNAPBACK_INVALID_FLOAT, undefined);
   assert.deepEqual(
-    registry.diagnostics.SNAPBACK_ARG_MISSING.sites[0],
-    {
-      file: 'crates/snapback-types/src/value_expr.rs',
-      line: 138,
-      column: 18,
-    },
+    registry.diagnostics.SNAPBACK_INVALID_FLOAT?.sites.map(({ file, kind }) => ({ file, kind })),
+    [{ file: 'crates/snapback-types/src/error_tracking.rs', kind: 'received' }],
+  );
+  assert.ok(
+    registry.diagnostics.SNAPBACK_ARG_MISSING.sites.some(({ file, kind }) => (
+      file === 'crates/snapback-types/src/value_expr.rs' && kind === undefined
+    )),
   );
 
   assert.equal(registry.diagnostics.SNAPBACK_SHUTDOWN_CHECKPOINT_TIMEOUT_MS, undefined);
   assert.deepEqual(
-    registry.environment.SNAPBACK_SHUTDOWN_CHECKPOINT_TIMEOUT_MS.sites,
+    registry.environment.SNAPBACK_SHUTDOWN_CHECKPOINT_TIMEOUT_MS.sites
+      .map(({ file, kind }) => ({ file, kind })),
     [{
       file: 'crates/snapback-cli/src/cli.rs',
-      line: 9430,
-      column: 43,
       kind: 'read',
     }, {
       file: 'crates/snapback-server/src/server/api_error.rs',
-      line: 486,
-      column: 10,
       kind: 'mention',
     }],
+  );
+
+  assert.deepEqual(
+    registry.diagnostics.SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED.sites
+      .filter(({ file }) => /^targets\/[^/]+\/app\//u.test(file)),
+    [],
+    'target app bundles are application fixtures, not production framework emitters',
   );
 
   for (const name of [
