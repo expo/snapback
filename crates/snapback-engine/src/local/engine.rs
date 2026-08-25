@@ -12,13 +12,11 @@ use crate::auth::invalidation::{
     RetryEpisode, RetryEpisodeKey, RetryReservation, RetryReservationKind, ScopeId,
     ScopeRetirement, ScopeRetirementCandidate,
 };
-#[cfg(test)]
-use crate::auth::invocation::install_classified_admission_hook_for_test;
 use crate::auth::invocation::{
     AuthorizedEffectCommitGuard, AuthorizedEffectReservation, AuthorizedEffectReservationError,
     CallerAuthorityTerminalCause, FunctionAttribution, HandlerAuthProjection, InvocationGate,
     InvocationSource, PreparedAuthority, PreparedInvocation, ResolvedAppAuthority,
-    ResolvedServiceSubject, RetainedLiveAuthority, WireAuthorityFields, descriptor_for_authority,
+    RetainedLiveAuthority, WireAuthorityFields, descriptor_for_authority,
 };
 use crate::auth::lease::{
     AuthorizedLease, AuthorizedLeaseConfig, AuthorizedLeaseData, AuthorizedLeaseIssue,
@@ -27,9 +25,8 @@ use crate::auth::lease::{
 use crate::auth::mode::{
     AuthModeStateRecord, DeploymentIdentity, STARTUP_ARTIFACT_FORMAT_VERSION, StartupArtifacts,
 };
-use crate::auth::service_authority_contract::{
-    ServiceAuthorityActResolution, ServiceAuthorityDisposition,
-};
+use crate::auth::service_authority_contract::ServiceAuthorityDisposition;
+use crate::auth::service_fence::ServiceAuthorityActResolution;
 use crate::completeness::{
     AuthorizationWitnessRecordExt as _, CursorEndExt as _, PageSetManifestExt as _,
 };
@@ -3579,29 +3576,36 @@ impl ManagedWebsocketWitness {
     }
 }
 
-#[derive(Clone, Debug)]
+/// @ref LLP 0303#the-governing-principle — a terminal plan is the exact
+/// engine-derived subject and is consumed when its gate is acquired.
+#[derive(Debug)]
 pub struct ExpiredServiceAuthorityPlan {
-    deadline: crate::auth::service_authority_contract::ServiceAuthorityDeadlineTerminal,
+    deadline: crate::auth::service_fence::ServiceAuthorityDeadlineTerminal,
     terminal: ServiceAuthorityTerminalPlan,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct ServiceAuthorityTerminalPlan {
     registry: crate::auth::service_fence::ServiceAuthorityFenceRegistry,
-    token_ids: Vec<String>,
-    disposition: ServiceAuthorityDisposition,
+    durable: snapback_kernel::auth::service_fence::DurablyPlannedServiceAuthorityTerminal,
+}
+
+#[derive(Debug)]
+pub struct ExpiredServiceAuthorityCommit {
+    deadline: crate::auth::service_fence::ServiceAuthorityDeadlineTerminal,
+    gate: crate::auth::service_fence::ServiceAuthorityTerminalGate,
 }
 
 impl ServiceAuthorityTerminalPlan {
     pub fn token_ids(&self) -> &[String] {
-        &self.token_ids
+        self.durable.token_ids()
     }
 
     pub async fn acquire_gate(
-        &self,
+        self,
     ) -> SnapbackResult<crate::auth::service_fence::ServiceAuthorityTerminalGate> {
         self.registry
-            .acquire_terminal_gate(&self.token_ids, self.disposition)
+            .acquire_planned_terminal_gate(self.durable)
             .await
     }
 }
@@ -3671,14 +3675,7 @@ impl std::fmt::Debug for AskSpendReservation {
     }
 }
 
-/// Durable scoped-token resolution plus its exact process-local fence. Both
-/// halves stay opaque so an adapter cannot synthesize `System` or substitute
-/// service identity strings at authority preparation.
-#[derive(Clone, Debug)]
-pub struct ResolvedServiceAuthority {
-    subject: ResolvedServiceSubject,
-    publication: crate::auth::service_fence::ServiceAuthorityPublication,
-}
+pub use crate::auth::invocation::ResolvedServiceAuthority;
 
 /// Engine-owned approval preparation retaining the management authority and
 /// the exact database-bound pending row selected for its derived approver.
@@ -3745,16 +3742,6 @@ impl ApprovedEffectDispatch {
     }
 }
 
-impl ResolvedServiceAuthority {
-    pub fn resolved(&self) -> &ResolvedAppAuthority {
-        self.subject.resolved()
-    }
-
-    pub fn publication(&self) -> &crate::auth::service_fence::ServiceAuthorityPublication {
-        &self.publication
-    }
-}
-
 fn effect_original_authority_mismatch() -> SnapbackError {
     SnapbackError::error(
         "SNAPBACK_EFFECT_BINDING_STALE",
@@ -3765,7 +3752,7 @@ fn effect_original_authority_mismatch() -> SnapbackError {
 
 impl ExpiredServiceAuthorityPlan {
     pub fn token_id(&self) -> &str {
-        &self.deadline.token_id
+        self.deadline.token_id()
     }
 
     pub fn token_ids(&self) -> &[String] {
@@ -3773,17 +3760,17 @@ impl ExpiredServiceAuthorityPlan {
     }
 
     pub fn disposition(&self) -> ServiceAuthorityDisposition {
-        self.deadline.disposition
+        self.deadline.disposition()
     }
 
     pub fn close_by(&self) -> Instant {
-        self.deadline.close_by
+        self.deadline.close_by()
     }
 
-    pub async fn acquire_gate(
-        &self,
-    ) -> SnapbackResult<crate::auth::service_fence::ServiceAuthorityTerminalGate> {
-        self.terminal.acquire_gate().await
+    pub async fn acquire_gate(self) -> SnapbackResult<ExpiredServiceAuthorityCommit> {
+        let Self { deadline, terminal } = self;
+        let gate = terminal.acquire_gate().await?;
+        Ok(ExpiredServiceAuthorityCommit { deadline, gate })
     }
 }
 
@@ -5832,6 +5819,25 @@ impl LocalSnapback {
         )
     }
 
+    pub fn plan_oauth_scoped_token_service_terminal(
+        &self,
+        code: &str,
+        client_id: &str,
+        redirect_uri: &str,
+        verifier: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
+        self.db
+            .plan_oauth_scoped_token_service_terminal(
+                code,
+                client_id,
+                redirect_uri,
+                verifier,
+                now_ms,
+            )
+            .map(|durable| self.service_authority_terminal_plan(durable))
+    }
+
     pub fn oauth_bundle_names_for_grant(&self, grant_id: &str) -> SnapbackResult<Vec<String>> {
         self.db.oauth_bundle_names_for_grant(grant_id)
     }
@@ -5844,6 +5850,17 @@ impl LocalSnapback {
     ) -> SnapbackResult<crate::storage::auth_grants::GrantRevocation> {
         self.db
             .oauth_revoke_scoped_token(token, revoke_grant, now_ms)
+    }
+
+    pub fn plan_oauth_revoke_service_terminal(
+        &self,
+        token: &crate::auth::crypto::ScopedToken,
+        revoke_grant: bool,
+        now_ms: u64,
+    ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
+        self.db
+            .plan_oauth_revoke_service_terminal(token, revoke_grant, now_ms)
+            .map(|durable| self.service_authority_terminal_plan(durable))
     }
 
     pub fn pending_effects_for_approver(
@@ -5995,20 +6012,17 @@ impl LocalSnapback {
         monotonic_now: Instant,
         provider: Arc<crate::auth::provider::AuthProvider>,
     ) -> SnapbackResult<ResolvedServiceAuthority> {
-        let resolved = self
+        let durable = self
             .db
             .resolve_prepared_pending_effect_service_authority(retained, now_ms)?;
-        let publication = self
+        let registered = self
             .service_authority_fences
-            .register(resolved.service_authority_witness(), now_ms, monotonic_now)?
+            .register_resolved(durable, now_ms, monotonic_now)?
             .with_provider_clock(provider);
-        Ok(ResolvedServiceAuthority {
-            subject: ResolvedServiceSubject::from_scoped_token(
-                resolved,
-                self.admission.lease_origin(),
-            )?,
-            publication,
-        })
+        Ok(ResolvedServiceAuthority::from_registered(
+            registered,
+            self.admission.lease_origin(),
+        ))
     }
 
     fn effect_caller_attribution(
@@ -6217,18 +6231,15 @@ impl LocalSnapback {
         monotonic_now: Instant,
         provider: Arc<crate::auth::provider::AuthProvider>,
     ) -> SnapbackResult<ResolvedServiceAuthority> {
-        let resolved = self.db.resolve_scoped_token(token, now_ms)?;
-        let publication = self
+        let durable = self.db.resolve_scoped_token(token, now_ms)?;
+        let registered = self
             .service_authority_fences
-            .register(resolved.service_authority_witness(), now_ms, monotonic_now)?
+            .register_resolved(durable, now_ms, monotonic_now)?
             .with_provider_clock(provider);
-        Ok(ResolvedServiceAuthority {
-            subject: ResolvedServiceSubject::from_scoped_token(
-                resolved,
-                self.admission.lease_origin(),
-            )?,
-            publication,
-        })
+        Ok(ResolvedServiceAuthority::from_registered(
+            registered,
+            self.admission.lease_origin(),
+        ))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -6795,24 +6806,12 @@ impl LocalSnapback {
 
     fn service_authority_terminal_plan(
         &self,
-        token_ids: Vec<String>,
-        disposition: ServiceAuthorityDisposition,
+        durable: snapback_kernel::auth::service_fence::DurablyPlannedServiceAuthorityTerminal,
     ) -> ServiceAuthorityTerminalPlan {
         ServiceAuthorityTerminalPlan {
             registry: self.service_authority_fences.clone(),
-            token_ids,
-            disposition,
+            durable,
         }
-    }
-
-    #[cfg(any(test, feature = "test-support"))]
-    #[doc(hidden)]
-    pub fn service_authority_terminal_plan_for_test(
-        &self,
-        token_ids: Vec<String>,
-        disposition: ServiceAuthorityDisposition,
-    ) -> ServiceAuthorityTerminalPlan {
-        self.service_authority_terminal_plan(token_ids, disposition)
     }
 
     pub fn plan_grant_revocation_service_terminal(
@@ -6826,12 +6825,7 @@ impl LocalSnapback {
             self.require_agent_grant_management_session(authority, "grant revocation planning")?;
         self.db
             .plan_grant_revocation_service_terminal(user_id, grant_id, now_ms)
-            .map(|token_ids| {
-                self.service_authority_terminal_plan(
-                    token_ids,
-                    ServiceAuthorityDisposition::DurableDelete,
-                )
-            })
+            .map(|durable| self.service_authority_terminal_plan(durable))
     }
 
     /// @ref LLP 0303#the-governing-principle — derive the revocation subject from the prepared authority.
@@ -6858,12 +6852,7 @@ impl LocalSnapback {
             .require_agent_grant_management_session(authority, "bulk grant revocation planning")?;
         self.db
             .plan_bulk_grant_revocation_service_terminal(user_id, actor_id, now_ms)
-            .map(|token_ids| {
-                self.service_authority_terminal_plan(
-                    token_ids,
-                    ServiceAuthorityDisposition::DurableDelete,
-                )
-            })
+            .map(|durable| self.service_authority_terminal_plan(durable))
     }
 
     /// @ref LLP 0303#the-governing-principle — derive the bulk-revocation subject from the prepared authority.
@@ -6887,12 +6876,7 @@ impl LocalSnapback {
     ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
         self.db
             .plan_agent_credential_rotation_service_terminal(credential, now_ms)
-            .map(|token_ids| {
-                self.service_authority_terminal_plan(
-                    token_ids,
-                    ServiceAuthorityDisposition::DurableDelete,
-                )
-            })
+            .map(|durable| self.service_authority_terminal_plan(durable))
     }
 
     pub fn rotate_agent_credential(
@@ -6912,12 +6896,7 @@ impl LocalSnapback {
     ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
         self.db
             .plan_scoped_token_service_terminal(credential, grant_id, now_ms)
-            .map(|token_ids| {
-                self.service_authority_terminal_plan(
-                    token_ids,
-                    ServiceAuthorityDisposition::Carrier,
-                )
-            })
+            .map(|durable| self.service_authority_terminal_plan(durable))
     }
 
     pub fn plan_pairing_scoped_token_service_terminal(
@@ -6928,12 +6907,7 @@ impl LocalSnapback {
     ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
         self.db
             .plan_pairing_scoped_token_service_terminal(credential, pairing_request_id, now_ms)
-            .map(|token_ids| {
-                self.service_authority_terminal_plan(
-                    token_ids,
-                    ServiceAuthorityDisposition::Carrier,
-                )
-            })
+            .map(|durable| self.service_authority_terminal_plan(durable))
     }
 
     pub fn mint_scoped_token(
@@ -6969,12 +6943,9 @@ impl LocalSnapback {
         &self,
         token: &crate::auth::crypto::ScopedToken,
     ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
-        self.db.plan_scoped_token_release(token).map(|token_id| {
-            self.service_authority_terminal_plan(
-                vec![token_id],
-                ServiceAuthorityDisposition::Carrier,
-            )
-        })
+        self.db
+            .plan_scoped_token_release(token)
+            .map(|durable| self.service_authority_terminal_plan(durable))
     }
 
     pub fn release_scoped_token(
@@ -6992,12 +6963,7 @@ impl LocalSnapback {
     ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
         self.db
             .plan_agent_credential_family_service_terminal(credential, now_ms)
-            .map(|token_ids| {
-                self.service_authority_terminal_plan(
-                    token_ids,
-                    ServiceAuthorityDisposition::DurableDelete,
-                )
-            })
+            .map(|durable| self.service_authority_terminal_plan(durable))
     }
 
     pub fn revoke_agent_credential_family(
@@ -7015,12 +6981,7 @@ impl LocalSnapback {
     ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
         self.db
             .plan_integration_credential_family_service_terminal(credential, now_ms)
-            .map(|token_ids| {
-                self.service_authority_terminal_plan(
-                    token_ids,
-                    ServiceAuthorityDisposition::DurableDelete,
-                )
-            })
+            .map(|durable| self.service_authority_terminal_plan(durable))
     }
 
     pub fn retire_integration_credential_family(
@@ -7042,9 +7003,9 @@ impl LocalSnapback {
         else {
             return Ok(None);
         };
-        let token_ids = self.db.plan_expired_service_authority_terminal(&deadline)?;
+        let durable = self.db.plan_expired_service_authority_terminal(&deadline)?;
         Ok(Some(ExpiredServiceAuthorityPlan {
-            terminal: self.service_authority_terminal_plan(token_ids, deadline.disposition),
+            terminal: self.service_authority_terminal_plan(durable),
             deadline,
         }))
     }
@@ -7058,19 +7019,21 @@ impl LocalSnapback {
         let Some(deadline) = publication.expired_deadline_terminal(now_ms, monotonic_now)? else {
             return Ok(None);
         };
-        let token_ids = self.db.plan_expired_service_authority_terminal(&deadline)?;
+        let durable = self.db.plan_expired_service_authority_terminal(&deadline)?;
         Ok(Some(ExpiredServiceAuthorityPlan {
-            terminal: self.service_authority_terminal_plan(token_ids, deadline.disposition),
+            terminal: self.service_authority_terminal_plan(durable),
             deadline,
         }))
     }
 
     pub fn commit_expired_service_authority(
         &mut self,
-        plan: &ExpiredServiceAuthorityPlan,
+        commit: ExpiredServiceAuthorityCommit,
     ) -> SnapbackResult<()> {
-        self.db
-            .terminalize_expired_service_authority(&plan.deadline)
+        let ExpiredServiceAuthorityCommit { deadline, gate } = commit;
+        crate::auth::service_fence::with_service_authority_terminal_gate(gate, || {
+            self.db.terminalize_expired_service_authority(&deadline)
+        })
     }
 
     pub fn auth_rehearsal_window_for_contact(
@@ -7336,12 +7299,7 @@ impl LocalSnapback {
         self.validate_operator_authority(operator, authority)?;
         self.db
             .plan_integration_principal_service_terminal(principal_user_id)
-            .map(|token_ids| {
-                self.service_authority_terminal_plan(
-                    token_ids,
-                    ServiceAuthorityDisposition::DurableDelete,
-                )
-            })
+            .map(|durable| self.service_authority_terminal_plan(durable))
     }
 
     pub fn retire_integration_principal(
@@ -9538,15 +9496,15 @@ impl LocalSnapback {
         _now_ms: u64,
         stream_publication: crate::auth::session_projection::FencedPublication,
     ) -> SnapbackResult<PreparedAuthority> {
-        self.require_owned_authority_admission(&admission)?;
-        resolution
-            .subject
-            .prepare(source, active_mode, profile, admission, wire)
-            .map(|authority| {
-                authority
-                    .with_fenced_publication(stream_publication)
-                    .with_service_publication(resolution.publication)
-            })
+        resolution.prepare(
+            &self.db.binding(),
+            source,
+            active_mode,
+            profile,
+            admission,
+            wire,
+            Some(stream_publication),
+        )
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -9560,11 +9518,15 @@ impl LocalSnapback {
         wire: &WireAuthorityFields,
         _now_ms: u64,
     ) -> SnapbackResult<PreparedAuthority> {
-        self.require_owned_authority_admission(&admission)?;
-        resolution
-            .subject
-            .prepare(source, active_mode, profile, admission, wire)
-            .map(|authority| authority.with_service_publication(resolution.publication))
+        resolution.prepare(
+            &self.db.binding(),
+            source,
+            active_mode,
+            profile,
+            admission,
+            wire,
+            None,
+        )
     }
 
     /// Unit-test session fixture that still traverses protected catalog,
@@ -9754,6 +9716,42 @@ impl LocalSnapback {
             base: NEXT_SERVICE_FIXTURE_RANDOM.fetch_add(1_024, Ordering::SeqCst),
             next: AtomicU64::new(0),
         };
+        let original_schema = self.db.schema().clone();
+        let mut registration_schema = original_schema.clone();
+        let mut registration_auth =
+            registration_schema
+                .auth
+                .unwrap_or(crate::manifest::AuthManifest {
+                    mode: registration_schema.effective_auth_mode(),
+                    agents: None,
+                    password_identifier_mode: None,
+                    password_minimum_length: None,
+                });
+        registration_auth.agents = Some(crate::manifest::AgentsManifest::explicit(
+            crate::manifest::AgentsMode::Open,
+            crate::manifest::InvitedBy::Operators,
+        ));
+        registration_schema.auth = Some(registration_auth);
+        self.db
+            .schema_seed()
+            .apply_schema(registration_schema)
+            .expect("temporarily enable production agent registration for the unit-test fixture");
+        let credential_result = self.db.register_agent_principal_with_class(
+            None,
+            Some(actor_user_id.to_owned()),
+            None,
+            crate::storage::auth_integrations::AgentRegistrationClass::Agent,
+            crate::storage::auth_integrations::IntegrationRegistrationFacts::default(),
+            ServerProfile::Test,
+            now_ms,
+            &random,
+        );
+        self.db
+            .schema_seed()
+            .apply_schema(original_schema)
+            .expect("restore the unit-test app schema after agent registration");
+        let credential = credential_result.expect("register unit-test service principal");
+        let actor_user_id = credential.user_id.clone();
         let token = {
             let db = self.db.auth_database_mut();
             if let Some(effective_user_id) = effective_user_id {
@@ -9761,26 +9759,11 @@ impl LocalSnapback {
                     .insert_human_user_for_test(effective_user_id, now_ms)
                     .expect("insert unit-test effective user");
             }
-            db.create_agent_principal(
-                actor_user_id,
-                now_ms,
-                &crate::storage::auth_agents::AgentRegistration {
-                    display_name: Some("Authority provenance fixture".to_owned()),
-                    operator_contact: None,
-                    registration_provenance: r#"{"source":"authority-provenance-unit-test"}"#
-                        .to_owned(),
-                    owner_user_id: effective_user_id.map(str::to_owned),
-                },
-            )
-            .expect("insert unit-test service principal");
-            let credential = db
-                .issue_initial_agent_credential(actor_user_id, now_ms, &random)
-                .expect("issue unit-test service credential");
             let grant_id = format!("grant-{actor_user_id}");
             db.auth_catalog()
                 .insert_exact_grant_for_test(
                     &grant_id,
-                    actor_user_id,
+                    &actor_user_id,
                     effective_user_id,
                     &scopes,
                     now_ms,
@@ -9796,22 +9779,16 @@ impl LocalSnapback {
             )
             .expect("mint unit-test scoped token")
         };
-        let resolved = self
+        let durable = self
             .db
             .resolve_scoped_token(&token.secret, now_ms)
             .expect("resolve unit-test scoped token");
-        let publication = self
+        let registered = self
             .service_authority_fences
-            .register(resolved.service_authority_witness(), now_ms, Instant::now())
+            .register_resolved(durable, now_ms, Instant::now())
             .expect("register unit-test service publication");
-        let resolution = ResolvedServiceAuthority {
-            subject: ResolvedServiceSubject::from_scoped_token(
-                resolved,
-                self.admission.lease_origin(),
-            )
-            .expect("bind unit-test service authority graph"),
-            publication,
-        };
+        let resolution =
+            ResolvedServiceAuthority::from_registered(registered, self.admission.lease_origin());
         let admission = self
             .admission
             .admit_for_mode(AuthMode::Sessions)
@@ -28833,9 +28810,7 @@ impl LocalSnapback {
         asset_store_config: AssetStoreConfig,
     ) -> SnapbackResult<Self> {
         let service_authority_fences =
-            crate::auth::service_fence::ServiceAuthorityFenceRegistry::default();
-        let service_commit_interlock = service_authority_fences.kernel_commit_interlock(&db);
-        db.install_service_authority_commit_interlock(service_commit_interlock)?;
+            crate::auth::service_fence::ServiceAuthorityFenceRegistry::from_database(&db);
         // LocalSnapback is the auth-capable embedding boundary. Complete the
         // explicit stream migration here, before the instance can disappear
         // behind a managed server mutex; managed authorization writes may then

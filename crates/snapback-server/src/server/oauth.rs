@@ -664,29 +664,55 @@ pub(super) async fn oauth_token(
         Err(error) => return error.into_response(),
     };
     let now_ms = provider.now_ms();
-    let issued = with_snapback(&runtime.snapback, move |snapback| {
-        snapback.mint_scoped_token_for_oauth_code(
-            &form.code,
-            &form.client_id,
-            &form.redirect_uri,
-            &form.code_verifier,
+    let planned_code = form.code.clone();
+    let planned_client_id = form.client_id.clone();
+    let planned_redirect_uri = form.redirect_uri.clone();
+    let planned_verifier = form.code_verifier.clone();
+    let terminal = with_snapback(&runtime.snapback, move |snapback| {
+        snapback.plan_oauth_scoped_token_service_terminal(
+            &planned_code,
+            &planned_client_id,
+            &planned_redirect_uri,
+            &planned_verifier,
             now_ms,
-            provider.agent_random_source(),
         )
     })
     .await;
-    let issued = match issued {
-        Ok(issued) => issued,
+    let terminal = match terminal {
+        Ok(terminal) => terminal,
         Err(error) => return oauth_snapback_error_response(error),
     };
-    if !issued.evicted_token_ids.is_empty() {
-        let token_ids = issued.evicted_token_ids.clone();
-        let lifecycle = runtime.auth_terminal_lifecycle.clone();
-        let close_by = terminal_close_by(Instant::now());
-        crate::exec_guard::run_or_defer_after_local(move || {
-            lifecycle.evict_service_tokens(&token_ids, close_by)
-        });
-    }
+    let service_terminal_gate = match terminal.acquire_gate().await {
+        Ok(gate) => gate,
+        Err(error) => return oauth_snapback_error_response(error),
+    };
+    let snapback = runtime.snapback.clone();
+    let lifecycle = runtime.auth_terminal_lifecycle.clone();
+    let transaction = spawn_owned_auth_transaction(async move {
+        with_snapback(&snapback, move |snapback| {
+            let issued = with_service_authority_terminal_gate(service_terminal_gate, || {
+                snapback.mint_scoped_token_for_oauth_code(
+                    &form.code,
+                    &form.client_id,
+                    &form.redirect_uri,
+                    &form.code_verifier,
+                    now_ms,
+                    provider.agent_random_source(),
+                )
+            })?;
+            let token_ids = issued.evicted_token_ids.clone();
+            let close_by = terminal_close_by(Instant::now());
+            crate::exec_guard::run_or_defer_after_local(move || {
+                lifecycle.evict_service_tokens(&token_ids, close_by)
+            });
+            Ok::<_, SnapbackError>(issued)
+        })
+        .await
+    });
+    let issued = match await_owned_auth_transaction(transaction).await {
+        Ok(Ok(issued)) => issued,
+        Ok(Err(error)) | Err(error) => return oauth_snapback_error_response(error),
+    };
     let grant_id = issued.grant_id.clone();
     let scope = with_snapback(&runtime.snapback, move |snapback| {
         snapback.oauth_bundle_names_for_grant(&grant_id)
@@ -746,6 +772,10 @@ pub(super) async fn oauth_revoke(
             StatusCode::BAD_REQUEST,
         );
     }
+    let token_for_plan = match ScopedToken::parse(&form.token) {
+        Ok(token) => token,
+        Err(_) => return StatusCode::OK.into_response(),
+    };
     let token = match ScopedToken::parse(&form.token) {
         Ok(token) => token,
         Err(_) => return StatusCode::OK.into_response(),
@@ -754,24 +784,48 @@ pub(super) async fn oauth_revoke(
         Ok(provider) => provider,
         Err(_) => return StatusCode::OK.into_response(),
     };
-    let result = with_snapback(&runtime.snapback, move |snapback| {
-        snapback.oauth_revoke_scoped_token(
-            &token,
-            form.revoke_grant.unwrap_or(false),
-            provider.now_ms(),
-        )
+    let revoke_grant = form.revoke_grant.unwrap_or(false);
+    let now_ms = provider.now_ms();
+    let terminal = with_snapback(&runtime.snapback, move |snapback| {
+        snapback.plan_oauth_revoke_service_terminal(&token_for_plan, revoke_grant, now_ms)
     })
     .await;
-    if let Ok(revocation) = result
-        && !revocation.token_ids.is_empty()
-    {
-        let lifecycle = runtime.auth_terminal_lifecycle.clone();
-        let close_by = terminal_close_by(Instant::now());
-        crate::exec_guard::run_or_defer_after_local(move || {
-            lifecycle.terminate_service_tokens(&revocation.token_ids, close_by)
-        });
+    let Ok(terminal) = terminal else {
+        return StatusCode::OK.into_response();
+    };
+    let Ok(service_terminal_gate) = terminal.acquire_gate().await else {
+        return StatusCode::OK.into_response();
+    };
+    let snapback = runtime.snapback.clone();
+    let lifecycle = runtime.auth_terminal_lifecycle.clone();
+    let transaction = spawn_owned_auth_transaction(async move {
+        with_snapback(&snapback, move |snapback| {
+            let revocation = with_service_authority_terminal_gate(service_terminal_gate, || {
+                snapback.oauth_revoke_scoped_token(&token, revoke_grant, now_ms)
+            })?;
+            let terminal_token_ids = revocation.token_ids.clone();
+            let close_by = terminal_close_by(Instant::now());
+            crate::exec_guard::run_or_defer_after_local(move || {
+                if revoke_grant {
+                    lifecycle.terminate_service_tokens(&terminal_token_ids, close_by);
+                } else {
+                    lifecycle.evict_service_tokens(&terminal_token_ids, close_by);
+                }
+            });
+            Ok::<_, SnapbackError>(revocation)
+        })
+        .await
+    });
+    oauth_revoke_transaction_response(await_owned_auth_transaction(transaction).await)
+}
+
+fn oauth_revoke_transaction_response<T>(
+    result: Result<Result<T, SnapbackError>, SnapbackError>,
+) -> Response {
+    match result {
+        Ok(Ok(_)) => StatusCode::OK.into_response(),
+        Ok(Err(error)) | Err(error) => oauth_snapback_error_response(error),
     }
-    StatusCode::OK.into_response()
 }
 
 #[cfg(test)]
@@ -787,5 +841,16 @@ mod tests {
         ));
 
         assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
+    }
+
+    #[test]
+    fn revoke_transaction_failure_is_not_reported_as_success() {
+        let response = oauth_revoke_transaction_response::<()>(Ok(Err(SnapbackError::error(
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+            "auth",
+            "the in-transaction terminal subject changed",
+        ))));
+
+        assert_ne!(response.status(), StatusCode::OK);
     }
 }

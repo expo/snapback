@@ -1637,10 +1637,10 @@ pub struct LocalDatabase {
     // replicator owns every checkpoint while the lane is enabled.
     replication_checkpoint_owner: bool,
     authorization_interlock: AuthorizationInterlockState,
-    /// One process registry belongs to this database instance. Every AppState
-    /// clone borrows this same registry, so constructing another router cannot
-    /// replace the interlock beneath already-running service publications.
-    service_authority_fences: Option<crate::auth::service_fence::ServiceAuthorityCommitInterlock>,
+    /// The concrete service-authority fence graph belongs to this database.
+    /// Storage prepares and settles it directly; no consumer-supplied callback
+    /// can replace the terminalization semantics.
+    service_authority_fences: crate::auth::service_fence::ServiceAuthorityFenceRegistry,
     app_state_graph_claimed: bool,
     /// Active maintained-projection plans (LLP 0080 §5), installed by
     /// function-manifest activation after validation. Every mutation path
@@ -1773,6 +1773,213 @@ impl ServingDatabase {
 
     pub fn binding(&self) -> DatabaseBinding {
         self.authority.binding()
+    }
+
+    /// Borrow the sole database-owned service fence graph. Clones retain the
+    /// same identity and state; callers cannot construct or install another.
+    pub fn service_authority_fence_registry(
+        &self,
+    ) -> crate::auth::service_fence::ServiceAuthorityFenceRegistry {
+        self.db.service_authority_fences.clone()
+    }
+
+    fn planned_service_authority_terminal(
+        &self,
+        token_ids: Vec<String>,
+        disposition: crate::auth::service_authority_contract::ServiceAuthorityDisposition,
+    ) -> crate::auth::service_fence::DurablyPlannedServiceAuthorityTerminal {
+        crate::auth::service_fence::DurablyPlannedServiceAuthorityTerminal::new(
+            self.binding(),
+            token_ids,
+            disposition,
+        )
+    }
+
+    pub fn plan_grant_revocation_service_terminal(
+        &self,
+        effective_user_id: &str,
+        grant_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::auth::service_fence::DurablyPlannedServiceAuthorityTerminal> {
+        self.db
+            .plan_grant_revocation_service_terminal(effective_user_id, grant_id, now_ms)
+            .map(|token_ids| {
+                self.planned_service_authority_terminal(
+                    token_ids,
+                    crate::auth::service_authority_contract::ServiceAuthorityDisposition::DurableDelete,
+                )
+            })
+    }
+
+    pub fn plan_bulk_grant_revocation_service_terminal(
+        &self,
+        effective_user_id: &str,
+        actor_user_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::auth::service_fence::DurablyPlannedServiceAuthorityTerminal> {
+        self.db
+            .plan_bulk_grant_revocation_service_terminal(
+                effective_user_id,
+                actor_user_id,
+                now_ms,
+            )
+            .map(|token_ids| {
+                self.planned_service_authority_terminal(
+                    token_ids,
+                    crate::auth::service_authority_contract::ServiceAuthorityDisposition::DurableDelete,
+                )
+            })
+    }
+
+    pub fn plan_agent_credential_rotation_service_terminal(
+        &self,
+        credential: &crate::auth::crypto::AgentCredential,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::auth::service_fence::DurablyPlannedServiceAuthorityTerminal> {
+        self.db
+            .plan_agent_credential_rotation_service_terminal(credential, now_ms)
+            .map(|token_ids| {
+                self.planned_service_authority_terminal(
+                    token_ids,
+                    crate::auth::service_authority_contract::ServiceAuthorityDisposition::DurableDelete,
+                )
+            })
+    }
+
+    pub fn plan_scoped_token_service_terminal(
+        &self,
+        credential: &crate::auth::crypto::AgentCredential,
+        grant_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::auth::service_fence::DurablyPlannedServiceAuthorityTerminal> {
+        self.db
+            .plan_scoped_token_service_terminal(credential, grant_id, now_ms)
+            .map(|token_ids| {
+                self.planned_service_authority_terminal(
+                    token_ids,
+                    crate::auth::service_authority_contract::ServiceAuthorityDisposition::Carrier,
+                )
+            })
+    }
+
+    pub fn plan_pairing_scoped_token_service_terminal(
+        &self,
+        credential: &crate::auth::crypto::AgentCredential,
+        pairing_request_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::auth::service_fence::DurablyPlannedServiceAuthorityTerminal> {
+        self.db
+            .plan_pairing_scoped_token_service_terminal(credential, pairing_request_id, now_ms)
+            .map(|token_ids| {
+                self.planned_service_authority_terminal(
+                    token_ids,
+                    crate::auth::service_authority_contract::ServiceAuthorityDisposition::Carrier,
+                )
+            })
+    }
+
+    pub fn plan_scoped_token_release(
+        &self,
+        token: &crate::auth::crypto::ScopedToken,
+    ) -> SnapbackResult<crate::auth::service_fence::DurablyPlannedServiceAuthorityTerminal> {
+        self.db.plan_scoped_token_release(token).map(|token_id| {
+            self.planned_service_authority_terminal(
+                vec![token_id],
+                crate::auth::service_authority_contract::ServiceAuthorityDisposition::Carrier,
+            )
+        })
+    }
+
+    pub fn plan_oauth_scoped_token_service_terminal(
+        &self,
+        code: &str,
+        client_id: &str,
+        redirect_uri: &str,
+        verifier: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::auth::service_fence::DurablyPlannedServiceAuthorityTerminal> {
+        self.db
+            .plan_oauth_scoped_token_service_terminal(
+                code,
+                client_id,
+                redirect_uri,
+                verifier,
+                now_ms,
+            )
+            .map(|token_ids| {
+                self.planned_service_authority_terminal(
+                    token_ids,
+                    crate::auth::service_authority_contract::ServiceAuthorityDisposition::Carrier,
+                )
+            })
+    }
+
+    pub fn plan_oauth_revoke_service_terminal(
+        &self,
+        token: &crate::auth::crypto::ScopedToken,
+        revoke_grant: bool,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::auth::service_fence::DurablyPlannedServiceAuthorityTerminal> {
+        self.db
+            .plan_oauth_revoke_service_terminal(token, revoke_grant, now_ms)
+            .map(|(token_ids, disposition)| {
+                self.planned_service_authority_terminal(token_ids, disposition)
+            })
+    }
+
+    pub fn plan_agent_credential_family_service_terminal(
+        &self,
+        credential: &crate::auth::crypto::AgentCredential,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::auth::service_fence::DurablyPlannedServiceAuthorityTerminal> {
+        self.db
+            .plan_agent_credential_family_service_terminal(credential, now_ms)
+            .map(|token_ids| {
+                self.planned_service_authority_terminal(
+                    token_ids,
+                    crate::auth::service_authority_contract::ServiceAuthorityDisposition::DurableDelete,
+                )
+            })
+    }
+
+    pub fn plan_integration_credential_family_service_terminal(
+        &self,
+        credential: &crate::auth::crypto::AgentCredential,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::auth::service_fence::DurablyPlannedServiceAuthorityTerminal> {
+        self.db
+            .plan_integration_credential_family_service_terminal(credential, now_ms)
+            .map(|token_ids| {
+                self.planned_service_authority_terminal(
+                    token_ids,
+                    crate::auth::service_authority_contract::ServiceAuthorityDisposition::DurableDelete,
+                )
+            })
+    }
+
+    pub fn plan_integration_principal_service_terminal(
+        &self,
+        principal_user_id: &str,
+    ) -> SnapbackResult<crate::auth::service_fence::DurablyPlannedServiceAuthorityTerminal> {
+        self.db
+            .plan_integration_principal_service_terminal(principal_user_id)
+            .map(|token_ids| {
+                self.planned_service_authority_terminal(
+                    token_ids,
+                    crate::auth::service_authority_contract::ServiceAuthorityDisposition::DurableDelete,
+                )
+            })
+    }
+
+    pub fn plan_expired_service_authority_terminal(
+        &self,
+        deadline: &crate::auth::service_fence::ServiceAuthorityDeadlineTerminal,
+    ) -> SnapbackResult<crate::auth::service_fence::DurablyPlannedServiceAuthorityTerminal> {
+        self.db
+            .plan_expired_service_authority_terminal(deadline)
+            .map(|token_ids| {
+                self.planned_service_authority_terminal(token_ids, deadline.disposition())
+            })
     }
 
     /// Delegate only database identity, never the kernel's root commit
@@ -2026,37 +2233,6 @@ impl ServingDatabase {
         self.db
             .make_authentication_throttle_unavailable_for_test()
             .map_err(Into::into)
-    }
-
-    pub fn install_service_authority_commit_interlock(
-        &mut self,
-        interlock: crate::auth::service_fence::ServiceAuthorityCommitInterlock,
-    ) -> SnapbackResult<()> {
-        let binding = self.binding();
-        self.db
-            .install_service_authority_commit_interlock(&binding, interlock)
-    }
-
-    #[doc(hidden)]
-    pub fn service_authority_terminal_factory(
-        &self,
-    ) -> crate::auth::service_fence::ServiceAuthorityTerminalFactory {
-        self.authority.service_authority_terminal_factory()
-    }
-
-    #[doc(hidden)]
-    pub fn service_authority_commit_interlock(
-        &self,
-        prepare: impl Fn(
-            &[String],
-            crate::auth::service_authority_contract::ServiceAuthorityDisposition,
-        )
-            -> SnapbackResult<crate::auth::service_fence::PreparedServiceAuthorityTerminal>
-        + Send
-        + Sync
-        + 'static,
-    ) -> crate::auth::service_fence::ServiceAuthorityCommitInterlock {
-        self.authority.service_authority_commit_interlock(prepare)
     }
 
     /// Take the sole concrete room-authority participant for this database.
@@ -3039,9 +3215,14 @@ impl LocalDatabase {
     pub fn memory() -> SnapbackResult<Self> {
         let conn = Connection::open_in_memory()?;
         let mode_inspection = auth_mode::inspect_for_open(&conn)?;
+        let commit_authority_identity = Arc::new(());
+        let service_authority_fences =
+            crate::auth::service_fence::ServiceAuthorityFenceRegistry::new(DatabaseBinding(
+                commit_authority_identity.clone(),
+            ));
         let mut db = Self {
             conn,
-            commit_authority_identity: Arc::new(()),
+            commit_authority_identity,
             commit_authority_key: memory_commit_authority_key(),
             commit_authority_claimed: false,
             invalidation_boot_owner_id: Uuid::new_v4().hyphenated().to_string(),
@@ -3058,7 +3239,7 @@ impl LocalDatabase {
             ),
             replication_checkpoint_owner: false,
             authorization_interlock: AuthorizationInterlockState::Disabled,
-            service_authority_fences: None,
+            service_authority_fences,
             app_state_graph_claimed: false,
             projections: Arc::new(Vec::new()),
             order_field_bounds: Arc::new(BTreeMap::new()),
@@ -3073,13 +3254,6 @@ impl LocalDatabase {
         db.writer_authority.set_schema(&db.schema)?;
         db.refresh_writer_authority_manifest()?;
         db.writer_authority.install(&db.conn)?;
-        #[cfg(test)]
-        {
-            db.service_authority_fences =
-                Some(crate::auth::service_fence::kernel_test_commit_interlock(
-                    &db.commit_authority_identity,
-                ));
-        }
         Ok(db)
     }
 
@@ -3114,9 +3288,14 @@ impl LocalDatabase {
         if let Some(manifest) = &stored_schema {
             validate_schema(manifest)?;
         }
+        let commit_authority_identity = Arc::new(());
+        let service_authority_fences =
+            crate::auth::service_fence::ServiceAuthorityFenceRegistry::new(DatabaseBinding(
+                commit_authority_identity.clone(),
+            ));
         let mut db = Self {
             conn,
-            commit_authority_identity: Arc::new(()),
+            commit_authority_identity,
             commit_authority_key,
             commit_authority_claimed: false,
             invalidation_boot_owner_id: Uuid::new_v4().hyphenated().to_string(),
@@ -3133,7 +3312,7 @@ impl LocalDatabase {
             ),
             replication_checkpoint_owner: crate::replication::configured_from_env(),
             authorization_interlock: AuthorizationInterlockState::Disabled,
-            service_authority_fences: None,
+            service_authority_fences,
             app_state_graph_claimed: false,
             projections: Arc::new(Vec::new()),
             order_field_bounds: Arc::new(BTreeMap::new()),
@@ -3175,13 +3354,6 @@ impl LocalDatabase {
         db.writer_authority.set_schema(&db.schema)?;
         db.refresh_writer_authority_manifest()?;
         db.writer_authority.install(&db.conn)?;
-        #[cfg(test)]
-        {
-            db.service_authority_fences =
-                Some(crate::auth::service_fence::kernel_test_commit_interlock(
-                    &db.commit_authority_identity,
-                ));
-        }
         // The pool is created after configure/create_infra so readers open an
         // existing WAL database with the infra tables committed.
         let reader_pool_binding = db.binding();
@@ -3364,10 +3536,14 @@ impl LocalDatabase {
             let backup = rusqlite::backup::Backup::new(&self.conn, &mut conn)?;
             backup.run_to_completion(128, std::time::Duration::from_millis(1), None)?;
         }
-        #[allow(unused_mut)]
+        let commit_authority_identity = Arc::new(());
+        let service_authority_fences =
+            crate::auth::service_fence::ServiceAuthorityFenceRegistry::new(DatabaseBinding(
+                commit_authority_identity.clone(),
+            ));
         let mut restored = Self {
             conn,
-            commit_authority_identity: Arc::new(()),
+            commit_authority_identity,
             commit_authority_key: memory_commit_authority_key(),
             commit_authority_claimed: false,
             invalidation_boot_owner_id: Uuid::new_v4().hyphenated().to_string(),
@@ -3384,7 +3560,7 @@ impl LocalDatabase {
             ),
             replication_checkpoint_owner: false,
             authorization_interlock: AuthorizationInterlockState::Disabled,
-            service_authority_fences: None,
+            service_authority_fences,
             app_state_graph_claimed: false,
             projections: Arc::new(Vec::new()),
             order_field_bounds: self.order_field_bounds.clone(),
@@ -3393,13 +3569,6 @@ impl LocalDatabase {
         restored
             .invalidation_boot_reservation_authority
             .install(&restored.conn)?;
-        #[cfg(test)]
-        {
-            restored.service_authority_fences =
-                Some(crate::auth::service_fence::kernel_test_commit_interlock(
-                    &restored.commit_authority_identity,
-                ));
-        }
         validate_sequence_activation(
             &restored.conn,
             &restored.schema,
@@ -3558,19 +3727,20 @@ impl LocalDatabase {
         )
     }
 
-    pub fn install_service_authority_commit_interlock(
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn install_recording_service_authority_terminals(
         &mut self,
         binding: &DatabaseBinding,
-        interlock: crate::auth::service_fence::ServiceAuthorityCommitInterlock,
+        recording: &crate::auth::service_fence::RecordingServiceAuthorityCommitInterlock,
     ) -> SnapbackResult<()> {
-        if !binding.matches(&self.binding()) || !interlock.is_for(&self.commit_authority_identity) {
+        if !binding.matches(&self.binding()) {
             return Err(SnapbackError::error(
                 "SNAPBACK_KERNEL_COMMIT_AUTHORITY_INVALID",
                 "storage",
-                "service interlock authority belongs to another database",
+                "service terminal recorder authority belongs to another database",
             ));
         }
-        self.service_authority_fences = Some(interlock);
+        self.service_authority_fences.install_recording(recording);
         Ok(())
     }
 

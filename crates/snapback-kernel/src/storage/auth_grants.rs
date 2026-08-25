@@ -15,7 +15,9 @@ use crate::auth::crypto::{AgentCredential, PairingCode, RandomSource};
 use crate::auth::crypto::{StepUpConsumption, StepUpProof, step_up_required_error};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::FunctionKind;
-use crate::storage::auth::{AuthTransactionAttempt, ServiceAuthTransactionAttempt};
+use crate::storage::auth::{
+    AuthTransactionAttempt, ServiceAuthTransactionAttempt, ServiceAuthorityTerminalOperation,
+};
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -1425,8 +1427,11 @@ impl LocalDatabase {
         self.observe_agent_authorization_clock(now_ms)?;
         let mut body_outcome = None;
         let attempt = self.attempt_auth_transaction_with_service_terminal(
-            crate::auth::service_authority_contract::ServiceAuthorityDisposition::DurableDelete,
-            |tx| planned_grant_revocation_token_ids(tx, effective_user_id, grant_id, now_ms),
+            ServiceAuthorityTerminalOperation::GrantRevocation {
+                effective_user_id,
+                grant_id,
+                now_ms,
+            },
             |tx| {
                 require_agent_clock_on(tx, now_ms)?;
                 let revoked_at_ms = tx
@@ -1517,14 +1522,10 @@ impl LocalDatabase {
         self.observe_agent_authorization_clock(now_ms)?;
         let mut body_outcome = None;
         let attempt = self.attempt_auth_transaction_with_service_terminal(
-            crate::auth::service_authority_contract::ServiceAuthorityDisposition::DurableDelete,
-            |tx| {
-                planned_bulk_grant_revocation_token_ids(
-                    tx,
-                    effective_user_id,
-                    actor_user_id,
-                    now_ms,
-                )
+            ServiceAuthorityTerminalOperation::BulkGrantRevocation {
+                effective_user_id,
+                actor_user_id,
+                now_ms,
             },
             |tx| {
                 require_agent_clock_on(tx, now_ms)?;
@@ -1624,7 +1625,7 @@ impl LocalDatabase {
     }
 }
 
-fn planned_grant_revocation_token_ids(
+pub(super) fn planned_grant_revocation_token_ids(
     connection: &Connection,
     effective_user_id: &str,
     grant_id: &str,
@@ -1652,7 +1653,7 @@ fn planned_grant_revocation_token_ids(
         .collect::<Result<Vec<_>, _>>()?)
 }
 
-fn planned_bulk_grant_revocation_token_ids(
+pub(super) fn planned_bulk_grant_revocation_token_ids(
     connection: &Connection,
     effective_user_id: &str,
     actor_user_id: &str,

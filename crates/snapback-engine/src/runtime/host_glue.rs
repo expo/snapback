@@ -12360,9 +12360,16 @@ mod direct_human_projection_tests {
         let delegated = run(service(Some("user-1")));
         assert_eq!(delegated[0]["direct"], false);
         assert_eq!(delegated[0]["auth"]["kind"], "human");
+        let delegated_actor = delegated[0]["auth"]["actor"]
+            .as_object()
+            .expect("delegated authority exposes its durable actor");
+        let delegated_actor_id = delegated_actor["userId"]
+            .as_str()
+            .expect("durable actor has a user id");
+        assert_eq!(delegated_actor["kind"], "agent");
         assert_eq!(
-            delegated[0]["auth"]["actor"],
-            json!({"userId": "agent-1", "kind": "agent", "grantId": "grant-agent-1"})
+            delegated_actor["grantId"],
+            format!("grant-{delegated_actor_id}")
         );
         assert_eq!(delegated[0]["actorPrototypeIsNull"], true);
         assert_eq!(delegated[0]["actorFrozen"], true);

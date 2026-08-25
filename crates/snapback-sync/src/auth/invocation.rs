@@ -13,12 +13,12 @@ use crate::auth::descriptor::{
     validate_descriptor_values,
 };
 use crate::auth::identity_core::AuthClaimsProjection;
-use crate::auth::service_authority_contract::{
-    ServiceAuthorityActResolution, ServiceAuthorityDeadlineTerminal, ServiceAuthorityDisposition,
-};
+use crate::auth::service_authority_contract::ServiceAuthorityDisposition;
+use crate::auth::service_fence::ServiceAuthorityDeadlineTerminal;
 use crate::auth::service_fence::{
-    RetainedServiceAuthorityGuard, ServiceAuthorityExternalEffectPermit,
-    ServiceAuthorityPublication, ServiceAuthorityWorkPermit, ServiceAuthorityWorkReservationError,
+    RetainedServiceAuthorityGuard, ServiceAuthorityActResolution,
+    ServiceAuthorityExternalEffectPermit, ServiceAuthorityPublication, ServiceAuthorityWorkPermit,
+    ServiceAuthorityWorkReservationError,
 };
 use crate::auth::session_projection::{
     FencedAuthorityWorkPermit, FencedAuthorityWorkReservationError, FencedPublication,
@@ -950,6 +950,73 @@ impl ResolvedAppAuthority {
             ),
             Self::Anonymous | Self::AdminBypass { .. } | Self::System => AuthInput::default(),
         }
+    }
+}
+
+/// Exact database-bound service resolution paired with the publication
+/// registered from that same durable carrier. There is no parts constructor:
+/// callers can inspect the derived authority but preparation consumes this
+/// coherent value and installs its publication internally.
+#[derive(Clone, Debug)]
+pub struct ResolvedServiceAuthority {
+    database_binding: crate::storage::DatabaseBinding,
+    resolved: ResolvedAppAuthority,
+    publication: ServiceAuthorityPublication,
+}
+
+impl ResolvedServiceAuthority {
+    pub fn from_registered(
+        registered: crate::auth::service_fence::RegisteredServiceAuthority,
+        admission_origin: crate::auth::admission::AdmissionLeaseOrigin,
+    ) -> Self {
+        let (database_binding, resolved, publication) = registered.into_parts();
+        Self {
+            database_binding,
+            resolved: ResolvedAppAuthority::from_scoped_token(resolved, admission_origin),
+            publication,
+        }
+    }
+
+    pub fn resolved(&self) -> &ResolvedAppAuthority {
+        &self.resolved
+    }
+
+    pub fn publication(&self) -> &ServiceAuthorityPublication {
+        &self.publication
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn prepare(
+        self,
+        expected_database: &crate::storage::DatabaseBinding,
+        source: InvocationSource,
+        active_mode: AuthMode,
+        profile: ServerProfile,
+        admission: AdmissionLease,
+        wire: &WireAuthorityFields,
+        stream_publication: Option<FencedPublication>,
+    ) -> SnapbackResult<PreparedAuthority> {
+        if &self.database_binding != expected_database {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "the durable service authority belongs to another database",
+            ));
+        }
+        let authority = InvocationGate::prepare_admitted_authority(
+            source,
+            active_mode,
+            profile,
+            admission,
+            wire,
+            self.resolved,
+            None,
+        )?
+        .with_service_publication(self.publication);
+        Ok(match stream_publication {
+            Some(publication) => authority.with_fenced_publication(publication),
+            None => authority,
+        })
     }
 }
 
@@ -2233,7 +2300,7 @@ impl PreparedAuthority {
         (self.publication.as_ref(), self.service_publication.as_ref())
     }
 
-    pub fn with_service_publication(mut self, publication: ServiceAuthorityPublication) -> Self {
+    fn with_service_publication(mut self, publication: ServiceAuthorityPublication) -> Self {
         self.service_publication = Some(publication);
         self
     }

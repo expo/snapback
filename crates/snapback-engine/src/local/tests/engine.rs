@@ -17223,26 +17223,20 @@ fn scoped_live_authority(snapback: &mut LocalSnapback) -> PreparedAuthority {
         )
         .expect("mint activation token")
     };
-    let resolved = snapback
+    let durable = snapback
         .db
         .resolve_scoped_token(&token.secret, now_ms)
         .expect("resolve activation token through its serving database");
-    let service_publication = snapback
+    let registered = snapback
         .service_authority_fences
-        .register(resolved.service_authority_witness(), now_ms, Instant::now())
+        .register_resolved(durable, now_ms, Instant::now())
         .expect("register activation token fence");
+    let resolution =
+        ResolvedServiceAuthority::from_registered(registered, snapback.admission.lease_origin());
     let admission = snapback
         .admission
         .admit_for_mode(AuthMode::Sessions)
         .expect("admit service live owner");
-    let resolution = ResolvedServiceAuthority {
-        subject: crate::auth::invocation::ResolvedServiceSubject::from_scoped_token(
-            resolved,
-            snapback.admission.lease_origin(),
-        )
-        .expect("bind activation service subject to its engine graph"),
-        publication: service_publication,
-    };
     snapback
         .prepare_connection_service_authority(
             resolution,
@@ -17253,7 +17247,7 @@ fn scoped_live_authority(snapback: &mut LocalSnapback) -> PreparedAuthority {
             &WireAuthorityFields::default(),
             now_ms,
         )
-        .expect("prepare service live authority")
+        .expect("prepare database-bound service live authority")
 }
 
 #[test]
@@ -27904,8 +27898,8 @@ fn guarded_snapback() -> LocalSnapback {
     snapback
 }
 
-#[test]
-fn managed_action_staging_preserves_terminal_service_loss_after_repeated_policy_check() {
+#[tokio::test]
+async fn managed_action_staging_preserves_committed_terminal_service_loss() {
     let mut snapback = guarded_snapback();
     let step = ActionStep::RunMutation {
         name: "hostInsert".to_owned(),
@@ -27986,27 +27980,28 @@ fn managed_action_staging_preserves_terminal_service_loss_after_repeated_policy_
         now_ms,
         now_ms + 60_000,
     );
-    let registry = snapback.service_authority_fences.clone();
     let ResolvedAppAuthority::ServicePrincipal(subject) = service_authority.resolved() else {
         panic!("resolved service fixture must project service authority");
     };
-    let token_id = subject.token_id().to_owned();
+    assert!(!subject.token_id().is_empty());
+    let terminal = snapback
+        .plan_expired_service_authority(
+            &service_authority,
+            now_ms + 60_000,
+            Instant::now() + std::time::Duration::from_secs(60),
+        )
+        .expect("plan the fixture's durable expiry")
+        .expect("the fixture is expired at its exact deadline");
     action.invocation = InvocationGate::prepare_function(service_authority, &function)
         .expect("prepare managed classified service action");
 
-    // The covered-identity lane returns Ok(None) in this fixture. Retire the
-    // scoped service after action staging plus the child's two function-policy
-    // checks; the next observer is the classified persistence check inside the
-    // legacy recorded-mutation staging pipeline.
-    let retire = registry.clone();
-    install_classified_admission_hook_for_test(2, move || {
-        retire
-            .commit_terminal_for_test(
-                &[token_id.clone()],
-                ServiceAuthorityDisposition::DurableDelete,
-            )
-            .expect("retire scoped service before classified persistence");
-    });
+    let terminal = terminal
+        .acquire_gate()
+        .await
+        .expect("acquire the database-derived expiry gate");
+    snapback
+        .commit_expired_service_authority(terminal)
+        .expect("commit the durable expiry before classified persistence");
     let error = match snapback.stage_managed_host_plan_action_step_classified(
         &action,
         &step,
@@ -28019,7 +28014,7 @@ fn managed_action_staging_preserves_terminal_service_loss_after_repeated_policy_
         error,
         AuthorizedEffectReservationError::Terminal(
             CallerAuthorityTerminalCause::ScopedServiceRetired {
-                disposition: ServiceAuthorityDisposition::DurableDelete,
+                disposition: ServiceAuthorityDisposition::Carrier,
                 ..
             }
         )
@@ -29980,19 +29975,13 @@ fn service_mutation_authority(
     )
     .expect("parse registered replay token secret");
     let now_ms = now_millis();
-    let resolved = snapback.db.resolve_scoped_token(&token, now_ms)?;
-    let publication = snapback.service_authority_fences.register(
-        resolved.service_authority_witness(),
-        now_ms,
-        Instant::now(),
-    )?;
-    let resolution = ResolvedServiceAuthority {
-        subject: crate::auth::invocation::ResolvedServiceSubject::from_scoped_token(
-            resolved,
-            snapback.admission.lease_origin(),
-        )?,
-        publication,
-    };
+    let durable = snapback.db.resolve_scoped_token(&token, now_ms)?;
+    let registered =
+        snapback
+            .service_authority_fences
+            .register_resolved(durable, now_ms, Instant::now())?;
+    let resolution =
+        ResolvedServiceAuthority::from_registered(registered, snapback.admission.lease_origin());
     let admission = snapback.admission.admit_for_mode(AuthMode::Sessions)?;
     snapback.prepare_connection_service_authority(
         resolution,
@@ -30020,13 +30009,29 @@ fn service_subject_rejects_a_foreign_database_admission_graph() {
         .db
         .resolve_scoped_token(&token, now_millis())
         .expect("resolve token through producer serving database");
-    let consumer = LocalSnapback::memory().expect("independent authority consumer database");
+    let mut consumer = LocalSnapback::memory().expect("independent authority consumer database");
 
-    let error = crate::auth::invocation::ResolvedServiceSubject::from_scoped_token(
-        resolved,
-        consumer.admission.lease_origin(),
-    )
-    .expect_err("a foreign database admission graph cannot adopt the subject");
+    let registered = producer
+        .service_authority_fences
+        .register_resolved(resolved, now_millis(), Instant::now())
+        .expect("register through the producer database fence");
+    let resolution =
+        ResolvedServiceAuthority::from_registered(registered, consumer.admission.lease_origin());
+    let admission = consumer
+        .admission
+        .admit_dev()
+        .expect("admit the independent consumer graph");
+    let error = consumer
+        .prepare_connection_service_authority(
+            resolution,
+            InvocationSource::HttpMutation,
+            AuthMode::Dev,
+            ServerProfile::Test,
+            admission,
+            &WireAuthorityFields::default(),
+            now_millis(),
+        )
+        .expect_err("a foreign database admission graph cannot adopt the subject");
     assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_POLICY_UNAVAILABLE");
 }
 
@@ -30432,6 +30437,47 @@ fn service_queued_replay_survives_token_churn_and_refuses_durable_axis_drift() {
             .total,
         1
     );
+}
+
+#[test]
+fn reconstructed_service_authority_refuses_a_second_engine() {
+    let mut producing = guarded_snapback();
+    install_service_replay_auth(&mut producing);
+    let durable = producing
+        .auth_database_mut()
+        .resolve_retained_service_authority_carrier(
+            crate::storage::auth_agent_credentials::RetainedServiceAuthority {
+                actor_user_id: "agent-a",
+                credential_id: "credential-a",
+                credential_generation: 1,
+                grant_id: "grant-a",
+                token_id: "token-a",
+                effective_user_id: Some("user-a"),
+            },
+            now_millis(),
+        )
+        .expect("durably resolve producing service authority");
+    let registered = producing
+        .service_authority_fences
+        .register_resolved(durable, now_millis(), Instant::now())
+        .expect("register producing service fence");
+    let resolution =
+        ResolvedServiceAuthority::from_registered(registered, producing.admission.lease_origin());
+
+    let mut second = guarded_snapback();
+    install_service_replay_auth(&mut second);
+    let error = second
+        .prepare_connection_service_authority(
+            resolution,
+            InvocationSource::HttpMutation,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            managed_session_admission(),
+            &WireAuthorityFields::default(),
+            now_millis(),
+        )
+        .expect_err("a reconstructed output cannot travel to a second engine");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_POLICY_UNAVAILABLE");
 }
 
 // Authority-table fixture setup stays on the specialized auth-catalog path.
@@ -33077,23 +33123,6 @@ impl GrantRevocationFixture {
             .expect("single grant revocation target")
     }
 
-    fn terminal_token_ids(&self, user_id: &str, bulk: bool) -> Vec<String> {
-        let rows = self
-            .tokens
-            .get(user_id)
-            .expect("grant revocation terminal tokens");
-        if bulk {
-            rows.iter().map(|row| row.token_id.clone()).collect()
-        } else {
-            vec![
-                rows.first()
-                    .expect("single grant revocation token")
-                    .token_id
-                    .clone(),
-            ]
-        }
-    }
-
     fn expected_rows(
         &self,
         case: DenySubjectCase,
@@ -33236,7 +33265,12 @@ impl GrantRevocationFixture {
         GrantRevocationDurableRowsForTest {
             authorization_clock: GrantApprovalMetaRowForTest {
                 key: AUTH_CLOCK_META_KEY_FOR_DENY_TESTS.to_owned(),
-                value: deny_case_expected_clock(case).to_string(),
+                value: if accepted {
+                    DENY_EFFECT_MS
+                } else {
+                    DENY_FIXTURE_MS
+                }
+                .to_string(),
             },
             grants,
             tokens,
@@ -33258,6 +33292,26 @@ fn assert_grant_revocation_observations(
 ) {
     assert_eq!(actual.len(), expected.len());
     for (actual_case, expected_case) in actual.iter().zip(expected) {
+        assert_eq!(
+            actual_case.outcome, expected_case.outcome,
+            "case {} outcome",
+            actual_case.case
+        );
+        assert_eq!(
+            actual_case.rows.authorization_clock, expected_case.rows.authorization_clock,
+            "case {} authorization clock",
+            actual_case.case
+        );
+        assert_eq!(
+            actual_case.rows.grants, expected_case.rows.grants,
+            "case {} grants",
+            actual_case.case
+        );
+        assert_eq!(
+            actual_case.rows.tokens, expected_case.rows.tokens,
+            "case {} tokens",
+            actual_case.case
+        );
         assert_eq!(
             actual_case.rows.watches.len(),
             expected_case.rows.watches.len()
@@ -33353,7 +33407,6 @@ async fn genuine_management_authority_cannot_revoke_grants_in_a_second_engine_gr
 
 #[tokio::test]
 async fn single_grant_revocation_derives_subject_and_preserves_foreign_durable_authority() {
-    use crate::auth::service_authority_contract::ServiceAuthorityDisposition;
     use crate::auth::service_fence::with_service_authority_terminal_gate;
 
     let mut actual = Vec::new();
@@ -33362,19 +33415,24 @@ async fn single_grant_revocation_derives_subject_and_preserves_foreign_durable_a
         let mut fixture = GrantRevocationFixture::new(1);
         let authority = denial_management_authority(&mut fixture.snapback, case);
         let grant_id = fixture.first_grant_id(case.target_user).to_owned();
-        let terminal_plan = fixture.snapback.service_authority_terminal_plan_for_test(
-            fixture.terminal_token_ids(case.target_user, false),
-            ServiceAuthorityDisposition::DurableDelete,
-        );
-        let terminal_gate = terminal_plan
-            .acquire_gate()
-            .await
-            .expect("acquire single grant revocation terminal gate");
-        let result = with_service_authority_terminal_gate(terminal_gate, || {
-            fixture
-                .snapback
-                .revoke_grant_for_user(&authority, &grant_id, DENY_EFFECT_MS)
-        });
+        let result = match fixture.snapback.plan_grant_revocation_service_terminal(
+            &authority,
+            &grant_id,
+            DENY_EFFECT_MS,
+        ) {
+            Ok(terminal_plan) => {
+                let terminal_gate = terminal_plan
+                    .acquire_gate()
+                    .await
+                    .expect("acquire single grant revocation terminal gate");
+                with_service_authority_terminal_gate(terminal_gate, || {
+                    fixture
+                        .snapback
+                        .revoke_grant_for_user(&authority, &grant_id, DENY_EFFECT_MS)
+                })
+            }
+            Err(error) => Err(error),
+        };
         actual.push(GrantRevocationObservation {
             case: case.name,
             outcome: result
@@ -33397,7 +33455,6 @@ async fn single_grant_revocation_derives_subject_and_preserves_foreign_durable_a
 
 #[tokio::test]
 async fn bulk_grant_revocation_derives_subject_and_preserves_foreign_durable_authority() {
-    use crate::auth::service_authority_contract::ServiceAuthorityDisposition;
     use crate::auth::service_fence::with_service_authority_terminal_gate;
 
     let mut actual = Vec::new();
@@ -33405,21 +33462,28 @@ async fn bulk_grant_revocation_derives_subject_and_preserves_foreign_durable_aut
     for case in deny_subject_cases() {
         let mut fixture = GrantRevocationFixture::new(2);
         let authority = denial_management_authority(&mut fixture.snapback, case);
-        let terminal_plan = fixture.snapback.service_authority_terminal_plan_for_test(
-            fixture.terminal_token_ids(case.target_user, true),
-            ServiceAuthorityDisposition::DurableDelete,
-        );
-        let terminal_gate = terminal_plan
-            .acquire_gate()
-            .await
-            .expect("acquire bulk grant revocation terminal gate");
-        let result = with_service_authority_terminal_gate(terminal_gate, || {
-            fixture.snapback.revoke_grants_by_actor_for_user(
+        let result = match fixture
+            .snapback
+            .plan_bulk_grant_revocation_service_terminal(
                 &authority,
                 &fixture.agent_user_id,
                 DENY_EFFECT_MS,
-            )
-        });
+            ) {
+            Ok(terminal_plan) => {
+                let terminal_gate = terminal_plan
+                    .acquire_gate()
+                    .await
+                    .expect("acquire bulk grant revocation terminal gate");
+                with_service_authority_terminal_gate(terminal_gate, || {
+                    fixture.snapback.revoke_grants_by_actor_for_user(
+                        &authority,
+                        "agent-revocation-shared",
+                        DENY_EFFECT_MS,
+                    )
+                })
+            }
+            Err(error) => Err(error),
+        };
         actual.push(GrantRevocationObservation {
             case: case.name,
             outcome: result
@@ -33431,11 +33495,15 @@ async fn bulk_grant_revocation_derives_subject_and_preserves_foreign_durable_aut
                 .grant_revocation_durable_rows_for_test()
                 .expect("read bulk grant revocation durable rows"),
         });
+        let derived_case = DenySubjectCase {
+            target_user: case.authority_user,
+            ..case
+        };
         expected.push(GrantRevocationObservation {
             case: case.name,
-            outcome: deny_case_expected_outcome(case, "SNAPBACK_AUTH_POLICY_UNAVAILABLE")
+            outcome: deny_case_expected_outcome(derived_case, "SNAPBACK_AUTH_POLICY_UNAVAILABLE")
                 .to_owned(),
-            rows: fixture.expected_rows(case, true),
+            rows: fixture.expected_rows(derived_case, true),
         });
     }
     assert_grant_revocation_observations(&actual, &expected);
@@ -42584,9 +42652,10 @@ fn f091_verified_bound_carrier_refuses_a_cloned_database_graph() {
         .expect("read database A authorization incarnation")
         .as_str()
         .to_owned();
+    let admission = database_a.admission.clone();
     let coordinator = crate::auth::coordinator::AuthCoordinator::from_local_session_database(
         database_a.auth_database_mut(),
-        database_a.admission.clone(),
+        admission,
         now_ms,
         monotonic_now,
     )
@@ -42659,9 +42728,10 @@ fn c004_database_bound_projection_refuses_a_forged_subject() {
         .expect("read genuine database authorization incarnation")
         .as_str()
         .to_owned();
+    let admission = database.admission.clone();
     let coordinator = crate::auth::coordinator::AuthCoordinator::from_local_session_database(
         database.auth_database_mut(),
-        database.admission.clone(),
+        admission,
         now_ms,
         monotonic_now,
     )

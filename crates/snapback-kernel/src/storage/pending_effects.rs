@@ -1872,12 +1872,17 @@ impl super::ServingDatabase {
         &mut self,
         retained: &RetainedEffectServiceAuthority<'_>,
         now_ms: u64,
-    ) -> SnapbackResult<crate::storage::auth_agent_credentials::ResolvedScopedToken> {
-        let mut resolved = self
+    ) -> SnapbackResult<crate::storage::auth_agent_credentials::DurablyResolvedServiceAuthority>
+    {
+        let resolved = self
             .db
             .resolve_prepared_pending_effect_service_authority(retained, now_ms)?;
-        resolved.bind_serving_database(self.binding());
-        Ok(resolved)
+        Ok(
+            crate::storage::auth_agent_credentials::DurablyResolvedServiceAuthority::new(
+                self.binding(),
+                resolved,
+            ),
+        )
     }
 
     pub fn pending_effect(&mut self, id: &str, now_ms: u64) -> SnapbackResult<PendingEffectRecord> {

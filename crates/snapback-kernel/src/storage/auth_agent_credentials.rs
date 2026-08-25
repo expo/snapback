@@ -13,12 +13,12 @@ use super::auth_grants::{ExactGrantScope, current_grant_scopes_on};
 use super::auth_invalidation::{AUTH_CLOCK_META_KEY, strict_meta_u64, write_meta_u64};
 use super::{LocalDatabase, MAX_AUTHORIZATION_EPOCH, new_id};
 use crate::auth::crypto::{AgentCredential, RandomSource, ScopedToken};
-use crate::auth::service_authority_contract::{
-    ServiceAuthorityDeadlineTerminal, ServiceAuthorityDisposition, ServiceAuthorityWitness,
-};
+use crate::auth::service_authority_contract::ServiceAuthorityDisposition;
+use crate::auth::service_fence::ServiceAuthorityDeadlineTerminal;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::storage::auth::{
     AuthCatalogState, AuthTransactionAttempt, ServiceAuthTransactionAttempt,
+    ServiceAuthorityTerminalOperation,
 };
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use serde_json::Value;
@@ -147,26 +147,43 @@ impl ResolvedScopedToken {
     pub fn integration_status(&self) -> Option<super::auth_integrations::IntegrationStatus> {
         self.integration_status
     }
+}
 
-    /// Project this kernel-owned token into the leaf-owned fence witness.
-    ///
-    /// The kernel owns `ResolvedScopedToken`, so it owns the conversion into
-    /// the shared shape; callers reach it by method, which keeps them from
-    /// naming the leaf module just to build a witness.
-    ///
-    /// @ref LLP 0225#1-ownership-map — kernel→leaf is the allowed direction
-    ///   for this projection; the sync engine keeps the fence behavior.
-    pub fn service_authority_witness(&self) -> ServiceAuthorityWitness {
-        ServiceAuthorityWitness {
-            token_id: self.token_id.clone(),
-            grant_id: self.grant_id.clone(),
-            actor_user_id: self.actor_user_id.clone(),
-            effective_user_id: self.effective_user_id.clone(),
-            credential_id: self.credential_id.clone(),
-            credential_generation: self.credential_generation,
-            expires_at_ms: self.expires_at_ms,
-            grant_expires_at_ms: self.grant_expires_at_ms,
+/// A scoped-token resolution that retains the exact database which proved it.
+/// Callers may inspect or consume the value, but only the kernel can construct
+/// one from a successful durable lookup.
+///
+/// @ref LLP 0303#corollary--the-artifact-must-carry-provenance-not-just-type —
+/// service-fence registration derives its witness from this database-bound
+/// carrier instead of accepting caller-assembled identity fields.
+#[derive(Debug)]
+pub struct DurablyResolvedServiceAuthority {
+    database_binding: crate::storage::DatabaseBinding,
+    resolved: ResolvedScopedToken,
+}
+
+impl DurablyResolvedServiceAuthority {
+    pub(crate) fn new(
+        database_binding: crate::storage::DatabaseBinding,
+        mut resolved: ResolvedScopedToken,
+    ) -> Self {
+        resolved.bind_serving_database(database_binding.clone());
+        Self {
+            database_binding,
+            resolved,
         }
+    }
+
+    pub fn database_binding(&self) -> &crate::storage::DatabaseBinding {
+        &self.database_binding
+    }
+
+    pub fn resolved(&self) -> &ResolvedScopedToken {
+        &self.resolved
+    }
+
+    pub fn into_parts(self) -> (crate::storage::DatabaseBinding, ResolvedScopedToken) {
+        (self.database_binding, self.resolved)
     }
 }
 
@@ -290,8 +307,7 @@ impl LocalDatabase {
         let predecessor_hash = credential.token_hash();
         let mut body_outcome = None;
         let attempt = self.attempt_auth_transaction_with_service_terminal(
-            crate::auth::service_authority_contract::ServiceAuthorityDisposition::DurableDelete,
-            |tx| planned_agent_credential_rotation_token_ids(tx, credential, now_ms),
+            ServiceAuthorityTerminalOperation::AgentCredentialRotation { credential, now_ms },
             |tx| {
                 require_agent_clock_on(tx, now_ms)?;
                 sweep_credential_family_on(tx, now_ms)?;
@@ -424,8 +440,10 @@ impl LocalDatabase {
         let manifest = self.schema.clone();
         let mut body_outcome = None;
         let attempt = self.attempt_auth_transaction_with_service_terminal(
-            crate::auth::service_authority_contract::ServiceAuthorityDisposition::DurableDelete,
-            |tx| planned_agent_credential_family_token_ids(tx, attributable, now_ms),
+            ServiceAuthorityTerminalOperation::AgentCredentialFamilyRevocation {
+                attributable,
+                now_ms,
+            },
             |tx| {
                 require_agent_clock_on(tx, now_ms)?;
                 sweep_credential_family_on(tx, now_ms)?;
@@ -539,13 +557,9 @@ impl LocalDatabase {
         let manifest = self.schema.clone();
         let mut body_outcome = None;
         let attempt = self.attempt_auth_transaction_with_service_terminal(
-            crate::auth::service_authority_contract::ServiceAuthorityDisposition::DurableDelete,
-            |tx| {
-                require_agent_clock_on(tx, now_ms)?;
-                let row = credential_row_by_hash(tx, hash.as_bytes())?
-                    .ok_or_else(agent_credential_invalid)?;
-                super::auth_integrations::require_record_on(tx, &row.user_id)?;
-                token_ids_for_user(tx, &row.user_id)
+            ServiceAuthorityTerminalOperation::IntegrationCredentialFamilyRetirement {
+                attributable,
+                now_ms,
             },
             |tx| {
                 require_agent_clock_on(tx, now_ms)?;
@@ -586,11 +600,9 @@ impl LocalDatabase {
         let principal_user_id = principal_user_id.to_owned();
         let mut body_outcome = None;
         let attempt = self.attempt_auth_transaction_with_service_terminal(
-            crate::auth::service_authority_contract::ServiceAuthorityDisposition::DurableDelete,
-            |tx| {
-                require_agent_clock_on(tx, now_ms)?;
-                super::auth_integrations::require_record_on(tx, &principal_user_id)?;
-                token_ids_for_user(tx, &principal_user_id)
+            ServiceAuthorityTerminalOperation::IntegrationPrincipalRetirement {
+                principal_user_id: &principal_user_id,
+                now_ms,
             },
             |tx| {
                 require_agent_clock_on(tx, now_ms)?;
@@ -655,20 +667,7 @@ impl LocalDatabase {
         let hash = token.token_hash();
         let mut body_outcome = None;
         let attempt = self.attempt_auth_transaction_with_service_terminal(
-            crate::auth::service_authority_contract::ServiceAuthorityDisposition::Carrier,
-            |tx| {
-                let token_id = tx
-                    .query_row(
-                        "SELECT id FROM _auth_grant_tokens WHERE token_hash = ?1",
-                        params![hash.as_bytes()],
-                        |row| row.get(0),
-                    )
-                    .optional()?
-                    .ok_or_else(|| {
-                        scoped_token_invalid(ScopedTokenAuthorityDisposition::Carrier)
-                    })?;
-                Ok(vec![token_id])
-            },
+            ServiceAuthorityTerminalOperation::ScopedTokenRelease { token },
             |tx| {
                 require_agent_clock_on(tx, now_ms)?;
                 let row: Option<(String, bool)> = tx
@@ -740,6 +739,37 @@ impl LocalDatabase {
         }
     }
 
+    pub fn plan_oauth_scoped_token_service_terminal(
+        &self,
+        code: &str,
+        client_id: &str,
+        redirect_uri: &str,
+        verifier: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<Vec<String>> {
+        self.with_auth_read(|connection| {
+            planned_oauth_scoped_token_terminal_token_ids(
+                connection,
+                code,
+                client_id,
+                redirect_uri,
+                verifier,
+                now_ms,
+            )
+        })
+    }
+
+    pub fn plan_oauth_revoke_service_terminal(
+        &self,
+        token: &ScopedToken,
+        revoke_grant: bool,
+        now_ms: u64,
+    ) -> SnapbackResult<(Vec<String>, ServiceAuthorityDisposition)> {
+        self.with_auth_read(|connection| {
+            planned_oauth_revoke_terminal(connection, token, revoke_grant, now_ms)
+        })
+    }
+
     pub fn oauth_revoke_scoped_token(
         &mut self,
         token: &ScopedToken,
@@ -748,58 +778,130 @@ impl LocalDatabase {
     ) -> SnapbackResult<super::auth_grants::GrantRevocation> {
         self.observe_agent_authorization_clock(now_ms)?;
         let hash = token.token_hash();
-        self.with_auth_transaction(|tx| {
-            require_agent_clock_on(tx, now_ms)?;
-            let row = tx
-                .query_row(
-                    "SELECT t.id, t.grant_id, g.actor_user_id, g.effective_user_id
-                     FROM _auth_grant_tokens AS t
-                     JOIN _auth_grants AS g ON g.id = t.grant_id
-                     WHERE t.token_hash = ?1",
-                    params![hash.as_bytes()],
-                    |row| {
-                        Ok((
-                            row.get::<_, String>(0)?,
-                            row.get::<_, String>(1)?,
-                            row.get::<_, String>(2)?,
-                            row.get::<_, Option<String>>(3)?,
-                        ))
-                    },
-                )
-                .optional()?
-                .ok_or_else(|| scoped_token_invalid(ScopedTokenAuthorityDisposition::Carrier))?;
-            tx.execute(
-                "UPDATE _auth_grant_tokens SET revoked_at_ms = COALESCE(revoked_at_ms, ?1)
-                 WHERE id = ?2",
-                params![now_ms as i64, row.0],
-            )?;
-            if !revoke_grant {
-                return Ok(super::auth_grants::GrantRevocation {
+        let mut body_outcome = None;
+        let attempt = self.attempt_auth_transaction_with_service_terminal(
+            ServiceAuthorityTerminalOperation::OAuthScopedTokenRevoke {
+                token,
+                revoke_grant,
+                now_ms,
+            },
+            |tx| {
+                require_agent_clock_on(tx, now_ms)?;
+                let row = tx
+                    .query_row(
+                        "SELECT t.id, t.grant_id, g.actor_user_id, g.effective_user_id
+                         FROM _auth_grant_tokens AS t
+                         JOIN _auth_grants AS g ON g.id = t.grant_id
+                         WHERE t.token_hash = ?1",
+                        params![hash.as_bytes()],
+                        |row| {
+                            Ok((
+                                row.get::<_, String>(0)?,
+                                row.get::<_, String>(1)?,
+                                row.get::<_, String>(2)?,
+                                row.get::<_, Option<String>>(3)?,
+                            ))
+                        },
+                    )
+                    .optional()?
+                    .ok_or_else(|| {
+                        scoped_token_invalid(ScopedTokenAuthorityDisposition::Carrier)
+                    })?;
+                tx.execute(
+                    "UPDATE _auth_grant_tokens SET revoked_at_ms = COALESCE(revoked_at_ms, ?1)
+                     WHERE id = ?2",
+                    params![now_ms as i64, row.0],
+                )?;
+                if !revoke_grant {
+                    body_outcome = Some(super::auth_grants::GrantRevocation {
+                        grant_id: row.1,
+                        token_ids: vec![row.0],
+                    });
+                    return Ok(());
+                }
+                if row.3.is_none()
+                    || super::auth_integrations::record_for_principal_on(tx, &row.2)?.is_none()
+                {
+                    return Err(super::auth_integrations::oauth_grant_invalid());
+                }
+                let token_ids = collect_token_ids(
+                    tx,
+                    "SELECT id FROM _auth_grant_tokens WHERE grant_id = ?1 ORDER BY id",
+                    params![row.1],
+                )?;
+                tx.execute(
+                    "UPDATE _auth_grant_tokens SET revoked_at_ms = COALESCE(revoked_at_ms, ?1)
+                     WHERE grant_id = ?2",
+                    params![now_ms as i64, row.1],
+                )?;
+                tx.execute(
+                    "UPDATE _auth_grants SET revoked_at_ms = COALESCE(revoked_at_ms, ?1)
+                     WHERE id = ?2 AND actor_user_id = ?3 AND effective_user_id IS NOT NULL",
+                    params![now_ms as i64, row.1, row.2],
+                )?;
+                body_outcome = Some(super::auth_grants::GrantRevocation {
                     grant_id: row.1,
-                    token_ids: vec![row.0],
+                    token_ids,
                 });
+                Ok(())
+            },
+        );
+        match attempt {
+            ServiceAuthTransactionAttempt::Committed(()) => {
+                body_outcome.ok_or_else(agent_lifecycle_commit_uncertain)
             }
-            if row.3.is_none()
-                || super::auth_integrations::record_for_principal_on(tx, &row.2)?.is_none()
-            {
-                return Err(super::auth_integrations::oauth_grant_invalid());
+            ServiceAuthTransactionAttempt::RolledBack(error) => Err(error),
+            ServiceAuthTransactionAttempt::CommitUncertain { error, terminal } => {
+                let expected = body_outcome
+                    .as_ref()
+                    .ok_or_else(agent_lifecycle_commit_uncertain)?;
+                let (grant_revoked, token_states) = self.with_auth_read(|connection| {
+                    let grant_revoked = connection
+                        .query_row(
+                            "SELECT revoked_at_ms IS NOT NULL FROM _auth_grants WHERE id = ?1",
+                            params![expected.grant_id],
+                            |row| row.get::<_, bool>(0),
+                        )
+                        .optional()?;
+                    let token_states = expected
+                        .token_ids
+                        .iter()
+                        .map(|token_id| {
+                            connection
+                                .query_row(
+                                    "SELECT revoked_at_ms IS NOT NULL
+                                     FROM _auth_grant_tokens WHERE id = ?1",
+                                    params![token_id],
+                                    |row| row.get::<_, bool>(0),
+                                )
+                                .optional()
+                        })
+                        .collect::<Result<Vec<_>, _>>()?;
+                    Ok((grant_revoked, token_states))
+                })?;
+                let tokens_revoked = token_states.iter().all(|state| *state == Some(true));
+                let tokens_live = token_states.iter().all(|state| *state == Some(false));
+                let committed = if revoke_grant {
+                    grant_revoked == Some(true) && tokens_revoked
+                } else {
+                    tokens_revoked
+                };
+                let rolled_back = if revoke_grant {
+                    grant_revoked == Some(false) && tokens_live
+                } else {
+                    tokens_live
+                };
+                if committed {
+                    self.reconcile_ambiguous_service_terminal(terminal, true)?;
+                    return body_outcome.ok_or_else(agent_lifecycle_commit_uncertain);
+                }
+                if rolled_back {
+                    self.reconcile_ambiguous_service_terminal(terminal, false)?;
+                    return Err(error);
+                }
+                Err(agent_lifecycle_commit_uncertain())
             }
-            let token_ids = live_token_ids_for_grant(tx, &row.1, now_ms)?;
-            tx.execute(
-                "UPDATE _auth_grant_tokens SET revoked_at_ms = COALESCE(revoked_at_ms, ?1)
-                 WHERE grant_id = ?2",
-                params![now_ms as i64, row.1],
-            )?;
-            tx.execute(
-                "UPDATE _auth_grants SET revoked_at_ms = COALESCE(revoked_at_ms, ?1)
-                 WHERE id = ?2 AND actor_user_id = ?3 AND effective_user_id IS NOT NULL",
-                params![now_ms as i64, row.1, row.2],
-            )?;
-            Ok(super::auth_grants::GrantRevocation {
-                grant_id: row.1,
-                token_ids,
-            })
-        })
+        }
     }
 
     /// Exchange one facade authorization code for the same short-lived,
@@ -826,99 +928,117 @@ impl LocalDatabase {
         let token_hash = secret.token_hash();
         let token_id = crate::ids::mint_time_ordered(crate::ids::Kind::AgentToken);
         let mut body_outcome = None;
-        let attempt = self.attempt_auth_transaction(|tx| {
-            require_agent_clock_on(tx, now_ms)?;
-            let authorization = super::auth_integrations::consume_oauth_authorization_code_on(
-                tx,
+        let attempt = self.attempt_auth_transaction_with_service_terminal(
+            ServiceAuthorityTerminalOperation::OAuthScopedTokenMint {
                 code,
                 client_id,
                 redirect_uri,
                 verifier,
                 now_ms,
-            )?;
-            require_agent_active_on(tx, &authorization.principal_user_id)?;
-            super::auth_integrations::require_installation_grant_if_integration_on(
-                tx,
-                &authorization.principal_user_id,
-                &authorization.grant_id,
-            )?;
-            let resolved = tx.query_row(
-                "SELECT id, generation FROM _auth_agent_credentials
-                 WHERE user_id = ?1 AND revoked_at_ms IS NULL",
-                params![authorization.principal_user_id],
-                |row| {
-                    let generation = row.get::<_, i64>(1)?;
-                    Ok((row.get::<_, String>(0)?, generation))
-                },
-            )?;
-            if resolved.1 <= 0 {
-                return Err(agent_credential_state_corrupt());
-            }
-            let grant = require_live_grant_for_actor(
-                tx,
-                &authorization.grant_id,
-                &authorization.principal_user_id,
-                now_ms,
-            )?;
-            let expires_at_ms = grant.expires_at_ms.map_or(expires_at_ms, |grant_expiry| {
-                expires_at_ms.min(grant_expiry)
-            });
-            let mut live = live_token_ids_for_grant(tx, &authorization.grant_id, now_ms)?;
-            let mut evicted_token_ids = Vec::new();
-            while live.len() as u64 >= SCOPED_TOKEN_LIVE_CAP {
-                let evicted = live.remove(0);
-                tx.execute(
-                    "UPDATE _auth_grant_tokens SET revoked_at_ms = ?1
-                     WHERE id = ?2 AND revoked_at_ms IS NULL",
-                    params![now_ms as i64, evicted],
+            },
+            |tx| {
+                require_agent_clock_on(tx, now_ms)?;
+                let authorization = super::auth_integrations::consume_oauth_authorization_code_on(
+                    tx,
+                    code,
+                    client_id,
+                    redirect_uri,
+                    verifier,
+                    now_ms,
                 )?;
-                evicted_token_ids.push(evicted);
-            }
-            tx.execute(
-                "INSERT INTO _auth_grant_tokens(
-                   id, token_hash, grant_id, credential_id,
-                   credential_generation, created_at_ms, expires_at_ms, revoked_at_ms
-                 ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, NULL)",
-                params![
-                    token_id,
-                    token_hash.as_bytes(),
-                    authorization.grant_id,
-                    resolved.0,
-                    resolved.1,
-                    now_ms as i64,
-                    expires_at_ms as i64,
-                ],
-            )?;
-            coalesce_credential_use(tx, &resolved.0, now_ms)?;
-            body_outcome = Some(IssuedScopedToken {
-                token_id: token_id.clone(),
-                grant_id: authorization.grant_id,
-                actor_user_id: authorization.principal_user_id,
-                effective_user_id: grant.effective_user_id,
-                credential_id: resolved.0,
-                credential_generation: resolved.1 as u64,
-                expires_at_ms,
-                grant_expires_at_ms: grant.expires_at_ms,
-                scopes: grant.scopes,
-                evicted_token_ids,
-                secret,
-            });
-            Ok(())
-        });
+                require_agent_active_on(tx, &authorization.principal_user_id)?;
+                super::auth_integrations::require_installation_grant_if_integration_on(
+                    tx,
+                    &authorization.principal_user_id,
+                    &authorization.grant_id,
+                )?;
+                let resolved = tx.query_row(
+                    "SELECT id, generation FROM _auth_agent_credentials
+                     WHERE user_id = ?1 AND revoked_at_ms IS NULL",
+                    params![authorization.principal_user_id],
+                    |row| {
+                        let generation = row.get::<_, i64>(1)?;
+                        Ok((row.get::<_, String>(0)?, generation))
+                    },
+                )?;
+                if resolved.1 <= 0 {
+                    return Err(agent_credential_state_corrupt());
+                }
+                let grant = require_live_grant_for_actor(
+                    tx,
+                    &authorization.grant_id,
+                    &authorization.principal_user_id,
+                    now_ms,
+                )?;
+                let expires_at_ms = grant.expires_at_ms.map_or(expires_at_ms, |grant_expiry| {
+                    expires_at_ms.min(grant_expiry)
+                });
+                let mut live = live_token_ids_for_grant(tx, &authorization.grant_id, now_ms)?;
+                let mut evicted_token_ids = Vec::new();
+                while live.len() as u64 >= SCOPED_TOKEN_LIVE_CAP {
+                    let evicted = live.remove(0);
+                    tx.execute(
+                        "UPDATE _auth_grant_tokens SET revoked_at_ms = ?1
+                         WHERE id = ?2 AND revoked_at_ms IS NULL",
+                        params![now_ms as i64, evicted],
+                    )?;
+                    evicted_token_ids.push(evicted);
+                }
+                tx.execute(
+                    "INSERT INTO _auth_grant_tokens(
+                       id, token_hash, grant_id, credential_id,
+                       credential_generation, created_at_ms, expires_at_ms, revoked_at_ms
+                     ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, NULL)",
+                    params![
+                        token_id,
+                        token_hash.as_bytes(),
+                        authorization.grant_id,
+                        resolved.0,
+                        resolved.1,
+                        now_ms as i64,
+                        expires_at_ms as i64,
+                    ],
+                )?;
+                coalesce_credential_use(tx, &resolved.0, now_ms)?;
+                body_outcome = Some(IssuedScopedToken {
+                    token_id: token_id.clone(),
+                    grant_id: authorization.grant_id,
+                    actor_user_id: authorization.principal_user_id,
+                    effective_user_id: grant.effective_user_id,
+                    credential_id: resolved.0,
+                    credential_generation: resolved.1 as u64,
+                    expires_at_ms,
+                    grant_expires_at_ms: grant.expires_at_ms,
+                    scopes: grant.scopes,
+                    evicted_token_ids,
+                    secret,
+                });
+                Ok(())
+            },
+        );
         match attempt {
-            AuthTransactionAttempt::Committed(()) => {
+            ServiceAuthTransactionAttempt::Committed(()) => {
                 body_outcome.ok_or_else(agent_lifecycle_commit_uncertain)
             }
-            AuthTransactionAttempt::RolledBack(error) => Err(error),
-            AuthTransactionAttempt::CommitUncertain(_) => {
+            ServiceAuthTransactionAttempt::RolledBack(error) => Err(error),
+            ServiceAuthTransactionAttempt::CommitUncertain { error, terminal } => {
                 let expected = body_outcome
                     .as_ref()
                     .ok_or_else(agent_lifecycle_commit_uncertain)?;
-                self.with_auth_read(|connection| {
+                let successor = self.with_auth_read(|connection| {
                     reconcile_issued_scoped_token(connection, expected)
-                })
-                .map_err(|_| agent_lifecycle_commit_uncertain())?;
-                body_outcome.ok_or_else(agent_lifecycle_commit_uncertain)
+                });
+                if successor.is_ok() {
+                    self.reconcile_ambiguous_service_terminal(terminal, true)?;
+                    return body_outcome.ok_or_else(agent_lifecycle_commit_uncertain);
+                }
+                if self.with_auth_read(|connection| {
+                    issued_scoped_token_is_predecessor(connection, expected)
+                })? {
+                    self.reconcile_ambiguous_service_terminal(terminal, false)?;
+                    return Err(error);
+                }
+                Err(agent_lifecycle_commit_uncertain())
             }
         }
     }
@@ -948,8 +1068,11 @@ impl LocalDatabase {
         let token_id = crate::ids::mint_time_ordered(crate::ids::Kind::AgentToken);
         let mut body_outcome = None;
         let attempt = self.attempt_auth_transaction_with_service_terminal(
-            crate::auth::service_authority_contract::ServiceAuthorityDisposition::Carrier,
-            |tx| planned_scoped_token_terminal_token_ids(tx, credential, grant_id, now_ms),
+            ServiceAuthorityTerminalOperation::ScopedTokenMint {
+                credential,
+                grant_id,
+                now_ms,
+            },
             |tx| {
                 require_agent_clock_on(tx, now_ms)?;
                 let resolved = live_credential_by_hash(tx, credential.token_hash().as_bytes())?
@@ -1076,8 +1199,11 @@ impl LocalDatabase {
         let token_id = format!("{pairing_request_id}:{}", new_id());
         let mut body_outcome = None;
         let attempt = self.attempt_auth_transaction_with_service_terminal(
-            crate::auth::service_authority_contract::ServiceAuthorityDisposition::Carrier,
-            |tx| planned_pairing_terminal_token_ids(tx, credential, pairing_request_id, now_ms),
+            ServiceAuthorityTerminalOperation::PairingScopedTokenMint {
+                credential,
+                pairing_request_id,
+                now_ms,
+            },
             |tx| {
                 require_agent_clock_on(tx, now_ms)?;
                 let resolved = live_credential_by_hash(tx, credential.token_hash().as_bytes())?
@@ -1408,6 +1534,30 @@ impl LocalDatabase {
         })
     }
 
+    pub fn resolve_scoped_service_authority(
+        &mut self,
+        token: &ScopedToken,
+        now_ms: u64,
+    ) -> SnapbackResult<DurablyResolvedServiceAuthority> {
+        let resolved = self.resolve_scoped_token(token, now_ms)?;
+        Ok(DurablyResolvedServiceAuthority::new(
+            self.binding(),
+            resolved,
+        ))
+    }
+
+    pub fn resolve_retained_service_authority_carrier(
+        &mut self,
+        authority: RetainedServiceAuthority<'_>,
+        now_ms: u64,
+    ) -> SnapbackResult<DurablyResolvedServiceAuthority> {
+        let resolved = self.resolve_retained_service_authority(authority, now_ms)?;
+        Ok(DurablyResolvedServiceAuthority::new(
+            self.binding(),
+            resolved,
+        ))
+    }
+
     /// Exact read-only twin for an invocation that already owns the app lock.
     /// The resolving auth path advanced the durable clock floor; this seam
     /// avoids a second write transaction immediately before an app effect.
@@ -1459,6 +1609,13 @@ impl LocalDatabase {
         &self,
         deadline: &ServiceAuthorityDeadlineTerminal,
     ) -> SnapbackResult<Vec<String>> {
+        if deadline.database_binding() != &self.binding() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "the expiry terminal belongs to another database",
+            ));
+        }
         self.with_auth_read(|connection| {
             planned_expired_service_authority_token_ids(connection, deadline)
         })
@@ -1472,10 +1629,16 @@ impl LocalDatabase {
         &mut self,
         deadline: &ServiceAuthorityDeadlineTerminal,
     ) -> SnapbackResult<()> {
-        let disposition = deadline.disposition;
+        if deadline.database_binding() != &self.binding() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "the expiry terminal belongs to another database",
+            ));
+        }
+        let disposition = deadline.disposition();
         let attempt = self.attempt_auth_transaction_with_service_terminal(
-            disposition,
-            |tx| planned_expired_service_authority_token_ids(tx, deadline),
+            ServiceAuthorityTerminalOperation::ExpiredServiceAuthority { deadline },
             |tx| {
                 match disposition {
                     ServiceAuthorityDisposition::Carrier => {
@@ -1484,9 +1647,9 @@ impl LocalDatabase {
                          SET revoked_at_ms = COALESCE(revoked_at_ms, ?1)
                          WHERE id = ?2 AND grant_id = ?3",
                             params![
-                                deadline.deadline_ms as i64,
-                                deadline.token_id,
-                                deadline.grant_id,
+                                deadline.deadline_ms() as i64,
+                                deadline.token_id(),
+                                deadline.grant_id(),
                             ],
                         )?;
                     }
@@ -1495,13 +1658,13 @@ impl LocalDatabase {
                             "UPDATE _auth_grant_tokens
                          SET revoked_at_ms = COALESCE(revoked_at_ms, ?1)
                          WHERE grant_id = ?2",
-                            params![deadline.deadline_ms as i64, deadline.grant_id],
+                            params![deadline.deadline_ms() as i64, deadline.grant_id()],
                         )?;
                         tx.execute(
                             "UPDATE _auth_grants
                          SET revoked_at_ms = COALESCE(revoked_at_ms, ?1)
                          WHERE id = ?2",
-                            params![deadline.deadline_ms as i64, deadline.grant_id],
+                            params![deadline.deadline_ms() as i64, deadline.grant_id()],
                         )?;
                     }
                 }
@@ -1517,7 +1680,7 @@ impl LocalDatabase {
                         .query_row(
                             "SELECT revoked_at_ms IS NOT NULL FROM _auth_grant_tokens
                              WHERE id = ?1 AND grant_id = ?2",
-                            params![deadline.token_id, deadline.grant_id],
+                            params![deadline.token_id(), deadline.grant_id()],
                             |row| row.get::<_, bool>(0),
                         )
                         .optional()?
@@ -1525,7 +1688,7 @@ impl LocalDatabase {
                     ServiceAuthorityDisposition::DurableDelete => Ok(connection
                         .query_row(
                             "SELECT revoked_at_ms IS NOT NULL FROM _auth_grants WHERE id = ?1",
-                            params![deadline.grant_id],
+                            params![deadline.grant_id()],
                             |row| row.get::<_, bool>(0),
                         )
                         .optional()?
@@ -1539,7 +1702,7 @@ impl LocalDatabase {
                         .query_row(
                             "SELECT revoked_at_ms IS NULL FROM _auth_grant_tokens
                              WHERE id = ?1 AND grant_id = ?2",
-                            params![deadline.token_id, deadline.grant_id],
+                            params![deadline.token_id(), deadline.grant_id()],
                             |row| row.get::<_, bool>(0),
                         )
                         .optional()?
@@ -1547,7 +1710,7 @@ impl LocalDatabase {
                     ServiceAuthorityDisposition::DurableDelete => Ok(connection
                         .query_row(
                             "SELECT revoked_at_ms IS NULL FROM _auth_grants WHERE id = ?1",
-                            params![deadline.grant_id],
+                            params![deadline.grant_id()],
                             |row| row.get::<_, bool>(0),
                         )
                         .optional()?
@@ -1924,7 +2087,136 @@ fn live_token_ids_for_grant(
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
 }
 
-fn planned_agent_credential_rotation_token_ids(
+pub(super) fn planned_integration_credential_family_token_ids(
+    connection: &Connection,
+    attributable: &AgentCredential,
+    now_ms: u64,
+) -> SnapbackResult<Vec<String>> {
+    require_agent_clock_on(connection, now_ms)?;
+    let hash = attributable.token_hash();
+    let row = credential_row_by_hash(connection, hash.as_bytes())?
+        .ok_or_else(agent_credential_invalid)?;
+    super::auth_integrations::require_record_on(connection, &row.user_id)?;
+    token_ids_for_user(connection, &row.user_id)
+}
+
+pub(super) fn planned_integration_principal_token_ids(
+    connection: &Connection,
+    principal_user_id: &str,
+    now_ms: u64,
+) -> SnapbackResult<Vec<String>> {
+    require_agent_clock_on(connection, now_ms)?;
+    super::auth_integrations::require_record_on(connection, principal_user_id)?;
+    token_ids_for_user(connection, principal_user_id)
+}
+
+pub(super) fn planned_scoped_token_release_token_ids(
+    connection: &Connection,
+    token: &ScopedToken,
+) -> SnapbackResult<Vec<String>> {
+    let hash = token.token_hash();
+    connection
+        .query_row(
+            "SELECT id FROM _auth_grant_tokens WHERE token_hash = ?1",
+            params![hash.as_bytes()],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()?
+        .map(|token_id| vec![token_id])
+        .ok_or_else(|| scoped_token_invalid(ScopedTokenAuthorityDisposition::Carrier))
+}
+
+pub(super) fn planned_oauth_scoped_token_terminal_token_ids(
+    connection: &Connection,
+    code: &str,
+    client_id: &str,
+    redirect_uri: &str,
+    verifier: &str,
+    now_ms: u64,
+) -> SnapbackResult<Vec<String>> {
+    require_agent_clock_on(connection, now_ms)?;
+    let authorization = super::auth_integrations::resolve_oauth_authorization_code_on(
+        connection,
+        code,
+        client_id,
+        redirect_uri,
+        verifier,
+        now_ms,
+    )?;
+    require_agent_active_on(connection, &authorization.principal_user_id)?;
+    super::auth_integrations::require_installation_grant_if_integration_on(
+        connection,
+        &authorization.principal_user_id,
+        &authorization.grant_id,
+    )?;
+    let credential_is_live = connection
+        .query_row(
+            "SELECT 1 FROM _auth_agent_credentials
+             WHERE user_id = ?1 AND revoked_at_ms IS NULL AND generation > 0",
+            params![authorization.principal_user_id],
+            |_| Ok(()),
+        )
+        .optional()?
+        .is_some();
+    if !credential_is_live {
+        return Err(agent_credential_invalid());
+    }
+    require_live_grant_for_actor(
+        connection,
+        &authorization.grant_id,
+        &authorization.principal_user_id,
+        now_ms,
+    )?;
+    let live = live_token_ids_for_grant(connection, &authorization.grant_id, now_ms)?;
+    let evict_count = live
+        .len()
+        .saturating_sub(SCOPED_TOKEN_LIVE_CAP as usize - 1);
+    Ok(live.into_iter().take(evict_count).collect())
+}
+
+pub(super) fn planned_oauth_revoke_terminal(
+    connection: &Connection,
+    token: &ScopedToken,
+    revoke_grant: bool,
+    now_ms: u64,
+) -> SnapbackResult<(Vec<String>, ServiceAuthorityDisposition)> {
+    require_agent_clock_on(connection, now_ms)?;
+    let hash = token.token_hash();
+    let row = connection
+        .query_row(
+            "SELECT t.id, t.grant_id, g.actor_user_id, g.effective_user_id
+             FROM _auth_grant_tokens AS t
+             JOIN _auth_grants AS g ON g.id = t.grant_id
+             WHERE t.token_hash = ?1",
+            params![hash.as_bytes()],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, Option<String>>(3)?,
+                ))
+            },
+        )
+        .optional()?
+        .ok_or_else(|| scoped_token_invalid(ScopedTokenAuthorityDisposition::Carrier))?;
+    if !revoke_grant {
+        return Ok((vec![row.0], ServiceAuthorityDisposition::Carrier));
+    }
+    if row.3.is_none()
+        || super::auth_integrations::record_for_principal_on(connection, &row.2)?.is_none()
+    {
+        return Err(super::auth_integrations::oauth_grant_invalid());
+    }
+    let token_ids = collect_token_ids(
+        connection,
+        "SELECT id FROM _auth_grant_tokens WHERE grant_id = ?1 ORDER BY id",
+        params![row.1],
+    )?;
+    Ok((token_ids, ServiceAuthorityDisposition::DurableDelete))
+}
+
+pub(super) fn planned_agent_credential_rotation_token_ids(
     connection: &Connection,
     credential: &AgentCredential,
     now_ms: u64,
@@ -1938,7 +2230,7 @@ fn planned_agent_credential_rotation_token_ids(
     token_ids_for_credential(connection, &row.id)
 }
 
-fn planned_agent_credential_family_token_ids(
+pub(super) fn planned_agent_credential_family_token_ids(
     connection: &Connection,
     attributable: &AgentCredential,
     now_ms: u64,
@@ -1950,7 +2242,7 @@ fn planned_agent_credential_family_token_ids(
     token_ids_for_user(connection, &row.user_id)
 }
 
-fn planned_scoped_token_terminal_token_ids(
+pub(super) fn planned_scoped_token_terminal_token_ids(
     connection: &Connection,
     credential: &AgentCredential,
     grant_id: &str,
@@ -1973,7 +2265,7 @@ fn planned_scoped_token_terminal_token_ids(
     Ok(live.into_iter().take(evict_count).collect())
 }
 
-fn planned_pairing_terminal_token_ids(
+pub(super) fn planned_pairing_terminal_token_ids(
     connection: &Connection,
     credential: &AgentCredential,
     pairing_request_id: &str,
@@ -2038,16 +2330,16 @@ fn planned_pairing_terminal_token_ids(
     Ok(terminal)
 }
 
-fn planned_expired_service_authority_token_ids(
+pub(super) fn planned_expired_service_authority_token_ids(
     connection: &Connection,
     deadline: &ServiceAuthorityDeadlineTerminal,
 ) -> SnapbackResult<Vec<String>> {
-    match deadline.disposition {
-        ServiceAuthorityDisposition::Carrier => Ok(vec![deadline.token_id.clone()]),
+    match deadline.disposition() {
+        ServiceAuthorityDisposition::Carrier => Ok(vec![deadline.token_id().to_owned()]),
         ServiceAuthorityDisposition::DurableDelete => collect_token_ids(
             connection,
             "SELECT id FROM _auth_grant_tokens WHERE grant_id = ?1 ORDER BY id",
-            params![deadline.grant_id],
+            params![deadline.grant_id()],
         ),
     }
 }
@@ -3174,11 +3466,8 @@ mod tests {
         let authority = db
             .claim_kernel_commit_authority()
             .expect("kernel authority");
-        db.install_service_authority_commit_interlock(
-            &authority.binding(),
-            interlock.bind(&authority),
-        )
-        .expect("bind recording service terminal interlock");
+        db.install_recording_service_authority_terminals(&authority.binding(), &interlock)
+            .expect("bind recording service terminal interlock");
 
         let released = db.release_scoped_token(&issued.secret, 1_001).unwrap();
         assert_eq!(released.token_id, issued.token_id);
@@ -3452,25 +3741,30 @@ mod tests {
             let issued = db
                 .mint_scoped_token(&credential, "grant-a", Some(10), 1_000, &random)
                 .unwrap();
-            let resolved = db.resolve_scoped_token(&issued.secret, 1_001).unwrap();
             let monotonic = std::time::Instant::now();
+            let durable = db
+                .resolve_scoped_service_authority(&issued.secret, 1_001)
+                .unwrap();
+            let resolved = durable.resolved().clone();
+            let publication = db
+                .service_authority_fences
+                .register_resolved(&durable, 1_001, monotonic)
+                .expect("register exact durable service authority");
             let interlock =
                 crate::auth::service_fence::RecordingServiceAuthorityCommitInterlock::default();
             let authority = db
                 .claim_kernel_commit_authority()
                 .expect("kernel authority");
-            db.install_service_authority_commit_interlock(
-                &authority.binding(),
-                interlock.bind(&authority),
-            )
-            .expect("bind service terminal interlock");
-            let deadline = ServiceAuthorityDeadlineTerminal {
-                token_id: resolved.token_id.clone(),
-                grant_id: resolved.grant_id.clone(),
-                deadline_ms: resolved.expires_at_ms,
-                disposition: ServiceAuthorityDisposition::Carrier,
-                close_by: monotonic + std::time::Duration::from_millis(9),
-            };
+            db.install_recording_service_authority_terminals(&authority.binding(), &interlock)
+                .expect("bind service terminal interlock");
+            let deadline = publication
+                .expired_deadline_terminal(
+                    resolved.expires_at_ms,
+                    monotonic + std::time::Duration::from_millis(9),
+                    std::time::Duration::from_millis(9),
+                )
+                .expect("derive exact durable expiry subject")
+                .expect("token deadline is due");
             db.terminalize_expired_service_authority(&deadline)
                 .expect("persist expiry and settle exact fence");
             assert_eq!(
@@ -3691,6 +3985,7 @@ impl super::ServingDatabase {
         self.db
             .oauth_revoke_scoped_token(token, revoke_grant, now_ms)
     }
+
     pub fn mint_scoped_token_for_oauth_code(
         &mut self,
         code: &str,
@@ -3740,10 +4035,8 @@ impl super::ServingDatabase {
         &mut self,
         token: &ScopedToken,
         now_ms: u64,
-    ) -> SnapbackResult<ResolvedScopedToken> {
-        let mut resolved = self.db.resolve_scoped_token(token, now_ms)?;
-        resolved.bind_serving_database(self.binding());
-        Ok(resolved)
+    ) -> SnapbackResult<DurablyResolvedServiceAuthority> {
+        self.db.resolve_scoped_service_authority(token, now_ms)
     }
     pub fn retained_service_authority_is_live(
         &mut self,
@@ -3757,12 +4050,9 @@ impl super::ServingDatabase {
         &mut self,
         authority: RetainedServiceAuthority<'_>,
         now_ms: u64,
-    ) -> SnapbackResult<ResolvedScopedToken> {
-        let mut resolved = self
-            .db
-            .resolve_retained_service_authority(authority, now_ms)?;
-        resolved.bind_serving_database(self.binding());
-        Ok(resolved)
+    ) -> SnapbackResult<DurablyResolvedServiceAuthority> {
+        self.db
+            .resolve_retained_service_authority_carrier(authority, now_ms)
     }
     pub fn terminalize_expired_service_authority(
         &mut self,

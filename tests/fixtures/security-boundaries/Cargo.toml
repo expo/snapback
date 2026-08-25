@@ -76,6 +76,50 @@ name = "service-interlock-factory"
 path = "src/bin/service_interlock_factory.rs"
 
 [[bin]]
+name = "forge-service-terminal-receipt"
+path = "src/bin/forge_service_terminal_receipt.rs"
+
+[[bin]]
+name = "clone-service-terminal-plan"
+path = "src/bin/clone_service_terminal_plan.rs"
+
+[[bin]]
+name = "drop-service-terminal-gate"
+path = "src/bin/drop_service_terminal_gate.rs"
+
+[[bin]]
+name = "split-expired-service-terminal"
+path = "src/bin/split_expired_service_terminal.rs"
+
+[[bin]]
+name = "forge-service-authority-deadline-terminal"
+path = "src/bin/forge_service_authority_deadline_terminal.rs"
+
+[[bin]]
+name = "substitute-service-publication"
+path = "src/bin/substitute_service_publication.rs"
+
+[[bin]]
+name = "synthetic-resolved-service-authority"
+path = "src/bin/synthetic_resolved_service_authority.rs"
+
+[[bin]]
+name = "arbitrary-service-terminal-plan"
+path = "src/bin/arbitrary_service_terminal_plan.rs"
+
+[[bin]]
+name = "supply-service-terminal-subject"
+path = "src/bin/supply_service_terminal_subject.rs"
+
+[[bin]]
+name = "forge-service-authority-witness"
+path = "src/bin/forge_service_authority_witness.rs"
+
+[[bin]]
+name = "register-service-authority-witness"
+path = "src/bin/register_service_authority_witness.rs"
+
+[[bin]]
 name = "services-rusqlite-reexport"
 path = "src/bin/services_rusqlite_reexport.rs"
 

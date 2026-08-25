@@ -454,11 +454,9 @@ use crate::auth::provider::{
     AUTH_SESSION_SLIDING_WINDOW_MS, AUTH_SESSION_SUPERSESSION_GRACE_MS,
     AUTH_SESSION_USE_COALESCE_MS, AuthClock, AuthProvider,
 };
-use crate::auth::service_authority_contract::{
-    ServiceAuthorityActResolution, ServiceAuthorityDeadlineTerminal, ServiceAuthorityDisposition,
-};
+use crate::auth::service_authority_contract::ServiceAuthorityDisposition;
 use crate::auth::service_fence::{
-    ServiceAuthorityFenceRegistry, with_service_authority_terminal_gate,
+    ServiceAuthorityActResolution, with_service_authority_terminal_gate,
 };
 use crate::contract_types::{
     AuthAbuseBudgetPolicyManifestV1, AuthBudgetProfilesManifestV1, AuthBudgetTermsManifestV1,
@@ -6544,18 +6542,86 @@ async fn oauth_metadata_and_full_authorization_code_journey_are_enabled_only_and
     .await
     .unwrap();
 
-    let revoked = router
+    let opened = router
         .clone()
-        .oneshot(oauth_protocol_request(
-            "POST",
-            "/auth/oauth/revoke",
-            Some("application/x-www-form-urlencoded"),
-            format!("token={access_token}&token_type_hint=access_token"),
-            None,
+        .oneshot(connection_open_request(
+            Some(&access_token),
+            json!({
+                "connectionId": "oauth-revoke-terminal-drain",
+                "authInvalidationProtocol": 1,
+            }),
         ))
         .await
-        .unwrap();
+        .expect("open OAuth service connection before revocation");
+    assert_eq!(opened.status(), StatusCode::OK);
+    let opened = response_json(opened).await;
+    let connection_id = opened["connectionId"]
+        .as_str()
+        .expect("OAuth connection id");
+    let service_publication = {
+        let registry = state.connections.lock();
+        let record = registry
+            .grants
+            .get(connection_id)
+            .expect("OAuth connection grant");
+        let BoundGrantAuthority::ServicePrincipal {
+            service_publication,
+            ..
+        } = &record.authority
+        else {
+            panic!("OAuth token must retain a service publication")
+        };
+        service_publication.clone()
+    };
+    let (epoch_now_ms, monotonic_now) = super::auth_runtime_now(&state);
+    let predecessor = service_publication
+        .begin_authority_work(epoch_now_ms, monotonic_now)
+        .expect("retain an OAuth predecessor before revocation");
+    let revoke_router = router.clone();
+    let revoke_token = access_token.clone();
+    let revoked = tokio::spawn(async move {
+        revoke_router
+            .oneshot(oauth_protocol_request(
+                "POST",
+                "/auth/oauth/revoke",
+                Some("application/x-www-form-urlencoded"),
+                format!("token={revoke_token}&token_type_hint=access_token"),
+                None,
+            ))
+            .await
+            .expect("OAuth revoke response")
+    });
+    tokio::time::timeout(Duration::from_secs(2), async {
+        loop {
+            if service_publication
+                .resolve_act(epoch_now_ms, monotonic_now)
+                .is_ok_and(|resolution| resolution == ServiceAuthorityActResolution::Unavailable)
+            {
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("OAuth revoke must premark its exact live publication");
+    assert!(
+        !revoked.is_finished(),
+        "OAuth revoke must drain the predecessor before its durable write"
+    );
+    drop(predecessor);
+    let revoked = tokio::time::timeout(Duration::from_secs(5), revoked)
+        .await
+        .expect("OAuth revoke must finish after its predecessor drains")
+        .expect("OAuth revoke task");
     assert_eq!(revoked.status(), StatusCode::OK);
+    assert_eq!(
+        service_publication
+            .resolve_act(epoch_now_ms, monotonic_now)
+            .expect("resolve committed OAuth terminal publication"),
+        ServiceAuthorityActResolution::Terminal(ServiceAuthorityDisposition::Carrier),
+        "OAuth revoke must publish its transaction-produced carrier terminal"
+    );
+
     let refused = router
         .oneshot(oauth_protocol_request(
             "POST",
@@ -8193,19 +8259,52 @@ async fn commit_finite_authority_matrix_ending(
             .expect("commit real principal deactivation");
         }
         FiniteAuthorityMatrixEnding::TokenExpiry => {
-            fixture.clock.set(fixture.token_expires_at_ms);
-            let deadline = ServiceAuthorityDeadlineTerminal {
-                token_id: fixture.token_id.clone(),
-                grant_id: fixture.grant_id.clone(),
-                deadline_ms: fixture.token_expires_at_ms,
-                disposition: ServiceAuthorityDisposition::Carrier,
-                close_by: fixture.clock.monotonic_at(fixture.token_expires_at_ms)
-                    + crate::auth::session_projection::TERMINAL_CLOSE_GRACE,
+            let opened = fixture
+                .router
+                .clone()
+                .oneshot(connection_open_request(
+                    Some(&fixture.token),
+                    json!({
+                        "connectionId": "matrix-expiry-terminal-plan",
+                        "authInvalidationProtocol": 1,
+                    }),
+                ))
+                .await
+                .expect("open exact publication for token-expiry terminal");
+            assert_eq!(opened.status(), StatusCode::OK);
+            let opened = response_json(opened).await;
+            let connection_id = opened["connectionId"]
+                .as_str()
+                .expect("expiry-plan connection id");
+            let publication = {
+                let registry = fixture.state.connections.lock();
+                let record = registry
+                    .grants
+                    .get(connection_id)
+                    .expect("expiry-plan connection grant");
+                let BoundGrantAuthority::ServicePrincipal {
+                    service_publication,
+                    ..
+                } = &record.authority
+                else {
+                    panic!("scoped token must retain a service publication")
+                };
+                service_publication.clone()
             };
+            fixture.clock.set(fixture.token_expires_at_ms);
+            let (epoch_now_ms, monotonic_now) = super::auth_runtime_now(&fixture.state);
+            let plan = with_snapback(&fixture.state.snapback, move |snapback| {
+                snapback.plan_expired_service_publication(&publication, epoch_now_ms, monotonic_now)
+            })
+            .await
+            .expect("plan exact token-expiry terminal")
+            .expect("token deadline is due");
+            let commit = plan
+                .acquire_gate()
+                .await
+                .expect("acquire exact token-expiry gate");
             with_snapback(&fixture.state.snapback, move |snapback| {
-                snapback
-                    .remainder_auth_database_mut()
-                    .terminalize_expired_service_authority(&deadline)
+                snapback.commit_expired_service_authority(commit)
             })
             .await
             .expect("commit real token-expiry terminal transaction");
@@ -8671,15 +8770,11 @@ async fn t3_exact_child_reservation_wins_then_terminal_drains() {
             let service_terminal_plan = match caller {
                 DetachedNestedMutationCaller::Session => None,
                 DetachedNestedMutationCaller::ScopedService => {
-                    let token_id = fixture.token_id.clone();
+                    let token = crate::auth::crypto::ScopedToken::parse(&fixture.token)
+                        .expect("parse reservation-wins scoped token");
                     Some(
                         with_snapback(&fixture.state.snapback, move |snapback| {
-                            Ok::<_, SnapbackError>(
-                                snapback.service_authority_terminal_plan_for_test(
-                                    vec![token_id],
-                                    ServiceAuthorityDisposition::DurableDelete,
-                                ),
-                            )
+                            snapback.plan_scoped_token_release(&token)
                         })
                         .await
                         .expect("prepare reservation-wins service terminal plan"),
@@ -8725,8 +8820,8 @@ async fn t3_exact_child_reservation_wins_then_terminal_drains() {
                     assert_eq!(response.status(), StatusCode::NO_CONTENT);
                 }),
                 DetachedNestedMutationCaller::ScopedService => {
-                    let effective_user_id = fixture.effective_user_id.clone();
-                    let grant_id = fixture.grant_id.clone();
+                    let token = crate::auth::crypto::ScopedToken::parse(&fixture.token)
+                        .expect("parse reservation-wins scoped token");
                     let token_id = fixture.token_id.clone();
                     let now_ms = fixture.start_ms + 1;
                     fixture.clock.set(now_ms);
@@ -8739,14 +8834,12 @@ async fn t3_exact_child_reservation_wins_then_terminal_drains() {
                             .expect("reservation-wins exact service terminal gate");
                         let revoked = with_snapback(&terminal_state.snapback, move |snapback| {
                             with_service_authority_terminal_gate(service_terminal_gate, || {
-                                snapback
-                                    .remainder_auth_database_mut()
-                                    .revoke_grant_for_user(&effective_user_id, &grant_id, now_ms)
+                                snapback.release_scoped_token(&token, now_ms)
                             })
                         })
                         .await
                         .expect("reservation-wins grant revocation");
-                        assert_eq!(revoked.token_ids, vec![token_id]);
+                        assert_eq!(revoked.token_id, token_id);
                     })
                 }
             };
@@ -9750,20 +9843,29 @@ async fn service_terminal_gate_does_not_hold_local_while_staged_work_drains() {
         .service_publication()
         .expect("service connection retains its exact publication")
         .clone();
-
+    let service_route_authority = connection_act
+        .service_route_authority
+        .clone()
+        .expect("service connection retains its database-bound route authority");
     let admission = test_route_admission(&fixture.state).0;
-    let authority = InvocationGate::prepare_admitted_subjectless_authority(
-        InvocationSource::LiveInitialQuery,
-        AuthMode::Sessions,
-        fixture.state.server.profile,
-        admission.clone(),
-        &WireAuthorityFields::default(),
-        connection_act.resolved.clone(),
-        test_session_claims_for(&connection_act.resolved),
-    )
-    .expect("prepare staged service authority")
-    .with_fenced_publication(connection_act.bound.publication().clone())
-    .with_service_publication(service_publication.clone());
+    let authority_admission = admission.clone();
+    let authority = with_snapback(&fixture.state.snapback, {
+        let profile = fixture.state.server.profile;
+        move |snapback| {
+            snapback.prepare_connection_service_authority(
+                service_route_authority,
+                InvocationSource::LiveInitialQuery,
+                AuthMode::Sessions,
+                profile,
+                authority_admission,
+                &WireAuthorityFields::default(),
+                epoch_now_ms,
+            )
+        }
+    })
+    .await
+    .expect("prepare staged database-bound service authority")
+    .with_fenced_publication(connection_act.bound.publication().clone());
     connection_act.route_authority = Some(authority);
     let effect_fence = connection_act.effect_fence();
     let staging_act = connection_act.clone();
@@ -29534,6 +29636,17 @@ fn generation_test_manifest() -> FunctionManifest {
         }
 }
 
+fn finite_authority_held_action_functions() -> FunctionManifest {
+    let mut functions = finite_authority_matrix_functions();
+    functions.functions.extend(
+        generation_test_manifest()
+            .functions
+            .into_iter()
+            .filter(|function| function.name == "heldAction"),
+    );
+    functions
+}
+
 fn stage_held_action(state: &SharedSnapback) -> Box<crate::local::DetachedIbexAction> {
     let mut snapback = state.try_lock().expect("test owns instance lock");
     match snapback
@@ -30977,23 +31090,21 @@ async fn service_principal_terminalization_fences_stream_open_and_discards_late_
         let _ = socket.write_all(b"6\r\nlate-1\r\n0\r\n\r\n");
     });
 
-    // Resolve a real protected-catalog scoped token through the same serving
-    // database and admission graph used by the host under test.
-    let state = sessions_activation_server_fixture_async().await;
-    let (authority, token_id, credential_id, registry) = resolve_test_service_authority(
-        &state,
+    // Build the authority only through durable scoped-token resolution and
+    // database-bound registration. The test must not rely on a detached
+    // registry or a synthetic publication.
+    let fixture =
+        finite_authority_matrix_fixture_with_functions(finite_authority_held_action_functions())
+            .await;
+    let authority = prepared_test_service_route_authority(
+        &fixture.state,
         InvocationSource::HttpAction,
-        vec![crate::storage::auth_grants::ExactGrantScope {
-            function_id: "fn:heldAction".to_owned(),
-            kind: crate::storage::auth_grants::ScopedFunctionKind::Action,
-            basis: 0,
-            authority_creating: false,
-        }],
-        "service-stream-fence",
+        &fixture.token,
     )
     .await;
-    let staged = stage_held_action(&state.snapback);
-    let mut host = held_action_host(state.snapback.clone(), &staged);
+    let state = fixture.state.snapback.clone();
+    let staged = stage_held_action(&state);
+    let mut host = held_action_host(state.clone(), &staged);
     host.deadline = Instant::now() + Duration::from_secs(10);
     host.authority = authority;
     let stream_runner_host = host.authority.stream_runner_host(host.abandoned.clone());
@@ -31002,7 +31113,7 @@ async fn service_principal_terminalization_fences_stream_open_and_discards_late_
     host.stream_runner_host = stream_runner_host;
     host.output_stream_function_id = Some("heldAction".to_owned());
     host.output_stream_initiator = Some(crate::stream_attempt::StreamInitiator::ServiceCredential(
-        credential_id,
+        fixture.credential.clone(),
     ));
     host.initialize_output_stream()
         .expect("scoped-service streaming action opens its durable attempt");
@@ -31010,6 +31121,7 @@ async fn service_principal_terminalization_fences_stream_open_and_discards_late_
         .output_stream_attempt
         .clone()
         .expect("output attempt token");
+    let terminal_runtime = tokio::runtime::Handle::current();
 
     let (opened, discarded) = tokio::task::block_in_place(|| {
         let opened = host
@@ -31030,56 +31142,84 @@ async fn service_principal_terminalization_fences_stream_open_and_discards_late_
 
         // Terminalize the service authority 200 ms into the ~900 ms
         // stall, while the second pull is already blocked awaiting bytes.
-        let terminal_registry = registry.clone();
-        let terminal_token_id = token_id.clone();
-        let terminal = std::thread::spawn(move || {
-            std::thread::sleep(Duration::from_millis(200));
-            let runtime = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .expect("terminal runtime");
-            runtime.block_on(async {
-                let gate = terminal_registry
-                    .acquire_terminal_gate(
-                        std::slice::from_ref(&terminal_token_id),
-                        ServiceAuthorityDisposition::DurableDelete,
-                    )
+        let terminal_state = state.clone();
+        let terminal_token = fixture.token.clone();
+        let terminal_now_ms = fixture.start_ms + 1;
+        let (terminal_tx, terminal_rx) = std::sync::mpsc::sync_channel(1);
+        terminal_runtime.spawn(async move {
+            tokio::time::sleep(Duration::from_millis(200)).await;
+            let result = async {
+                let token_for_plan = crate::auth::crypto::ScopedToken::parse(&terminal_token)
+                    .expect("parse service-fence terminal plan token");
+                let plan = with_snapback(&terminal_state, move |snapback| {
+                    snapback.plan_scoped_token_release(&token_for_plan)
+                })
+                .await
+                .expect("plan exact scoped-token release");
+                let gate = plan
+                    .acquire_gate()
                     .await
                     .expect("close and drain service domain");
-                with_service_authority_terminal_gate(gate, || {
-                    terminal_registry.commit_terminal_for_test(
-                        std::slice::from_ref(&terminal_token_id),
-                        ServiceAuthorityDisposition::DurableDelete,
-                    )
+                let token = crate::auth::crypto::ScopedToken::parse(&terminal_token)
+                    .expect("parse service-fence terminal token");
+                with_snapback(&terminal_state, move |snapback| {
+                    with_service_authority_terminal_gate(gate, || {
+                        snapback.release_scoped_token(&token, terminal_now_ms)
+                    })
                 })
-                .expect("adopt and commit terminal gate");
-            });
+                .await
+            }
+            .await;
+            terminal_tx
+                .send(result)
+                .expect("report service-fence terminal result");
         });
         let discarded = host
             .read_response_stream(&opened.stream_id)
             .expect_err("late bytes must be discarded after terminalization");
-        terminal.join().expect("terminal thread joins");
+        terminal_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("terminal task completes")
+            .expect("commit exact scoped-token release");
         (opened, discarded)
     });
     assert_eq!(
         discarded.diagnostic.code, "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
-        "the service tier's exact authority refusal must surface"
+        "the exact durable terminal must reject late bytes with the typed carrier refusal"
+    );
+    assert!(
+        host.closed_response_streams.contains(&opened.stream_id),
+        "the fail-closed read must discard late bytes and close the cursor"
+    );
+
+    // The next cut remains typed and latched for stream settlement.
+    let refused = tokio::task::block_in_place(|| {
+        host.open_response_stream(ActionStreamRequest {
+            url: format!("http://{address}/service-fence-2"),
+            method: "GET".to_owned(),
+            headers: BTreeMap::new(),
+            body: None,
+            idempotency_key: None,
+            attempt_token: None,
+            secret_slots: Vec::new(),
+        })
+        .expect_err("terminalized authority cannot open a stream")
+    });
+    assert_eq!(
+        refused.diagnostic.code,
+        "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID"
     );
     assert!(
         matches!(
             host.terminal_latch.cause(),
             Some(crate::local::ActionTerminalCause::CallerAuthority(
                 crate::auth::invocation::CallerAuthorityTerminalCause::ScopedServiceRetired {
-                    disposition: ServiceAuthorityDisposition::DurableDelete,
+                    disposition: ServiceAuthorityDisposition::Carrier,
                     ..
                 }
             ))
         ),
         "the real per-read service fence must latch its typed caller subtype"
-    );
-    assert!(
-        host.closed_response_streams.contains(&opened.stream_id),
-        "the discarding read must close the cursor"
     );
 
     // Exercise the same provider-settlement/fallback sequence as the worker.
@@ -31119,24 +31259,6 @@ async fn service_principal_terminalization_fences_stream_open_and_discards_late_
         crate::stream_attempt::StreamAttemptSettledBy::Terminalizer
     );
 
-    // A new open under the terminalized authority is refused at the
-    // pre-open leg with the same code.
-    let refused = tokio::task::block_in_place(|| {
-        host.open_response_stream(ActionStreamRequest {
-            url: format!("http://{address}/service-fence-2"),
-            method: "GET".to_owned(),
-            headers: BTreeMap::new(),
-            body: None,
-            idempotency_key: None,
-            attempt_token: None,
-            secret_slots: Vec::new(),
-        })
-        .expect_err("terminalized authority cannot open a stream")
-    });
-    assert_eq!(
-        refused.diagnostic.code,
-        "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID"
-    );
     registry.release_invocation(&host.stream_runner);
     upstream.join().expect("service fence fixture joins");
 }
@@ -31150,29 +31272,17 @@ async fn scoped_service_retirement_eventually_latches_cancelled_before_child_com
     // covered_host_child_identity_classified is not reached. The scoped
     // service retires after output initialization and no assertion here pins
     // the classified staging observer, whose coverage remains inspection-only.
-    let functions = generation_test_manifest();
-    let nested_function_id = functions
-        .functions
-        .iter()
-        .find(|function| function.name == "hostPlanWrite")
-        .expect("pre-reservation nested mutation declaration")
-        .id
-        .clone();
-    let state = sessions_activation_server_fixture_async().await;
-    let (authority, token_id, credential_id, registry) = resolve_test_service_authority(
-        &state,
+    let functions = finite_authority_held_action_functions();
+    let fixture = finite_authority_matrix_fixture_with_functions(functions).await;
+    let authority = prepared_test_service_route_authority(
+        &fixture.state,
         InvocationSource::HttpAction,
-        vec![crate::storage::auth_grants::ExactGrantScope {
-            function_id: nested_function_id,
-            kind: crate::storage::auth_grants::ScopedFunctionKind::Mutation,
-            basis: 0,
-            authority_creating: false,
-        }],
-        "pre-reservation-service-fence",
+        &fixture.token,
     )
     .await;
-    let staged = stage_held_action(&state.snapback);
-    let mut host = held_action_host(state.snapback.clone(), &staged);
+    let state = fixture.state.snapback.clone();
+    let staged = stage_held_action(&state);
+    let mut host = held_action_host(state.clone(), &staged);
     host.authority = authority;
     let stream_runner_host = host.authority.stream_runner_host(host.abandoned.clone());
     host.commit_gate = stream_runner_host.runner().commit_gate();
@@ -31180,7 +31290,7 @@ async fn scoped_service_retirement_eventually_latches_cancelled_before_child_com
     host.stream_runner_host = stream_runner_host;
     host.output_stream_function_id = Some("heldAction".to_owned());
     host.output_stream_initiator = Some(crate::stream_attempt::StreamInitiator::ServiceCredential(
-        credential_id,
+        fixture.credential.clone(),
     ));
     host.initialize_output_stream()
         .expect("pre-reservation action initializes its durable output attempt");
@@ -31189,23 +31299,35 @@ async fn scoped_service_retirement_eventually_latches_cancelled_before_child_com
         .clone()
         .expect("pre-reservation output attempt token");
 
-    let gate = registry
-        .acquire_terminal_gate(
-            std::slice::from_ref(&token_id),
-            ServiceAuthorityDisposition::DurableDelete,
-        )
+    let token_for_plan = crate::auth::crypto::ScopedToken::parse(&fixture.token)
+        .expect("parse pre-reservation plan token");
+    let plan = with_snapback(&state, move |snapback| {
+        snapback.plan_scoped_token_release(&token_for_plan)
+    })
+    .await
+    .expect("plan exact pre-reservation scoped-token release");
+    let gate = plan
+        .acquire_gate()
         .await
         .expect("close and drain pre-reservation service domain");
-    with_service_authority_terminal_gate(gate, || {
-        registry.commit_terminal_for_test(
-            std::slice::from_ref(&token_id),
-            ServiceAuthorityDisposition::DurableDelete,
-        )
+    let token = crate::auth::crypto::ScopedToken::parse(&fixture.token)
+        .expect("parse pre-reservation terminal token");
+    with_snapback(&state, move |snapback| {
+        with_service_authority_terminal_gate(gate, || {
+            snapback.release_scoped_token(&token, fixture.start_ms + 1)
+        })
     })
+    .await
     .expect("commit pre-reservation service terminal");
 
     let refused = host
-        .run_mutation("hostPlanWrite", HandlerInput::default())
+        .run_mutation(
+            "queuedWrite",
+            HandlerInput {
+                args: json!({ "value": "must-not-commit-after-service-retirement" }),
+                ..HandlerInput::default()
+            },
+        )
         .expect_err("pre-reservation staging observes retired scoped service");
     assert_eq!(
         refused.diagnostic.code,
@@ -31215,7 +31337,7 @@ async fn scoped_service_retirement_eventually_latches_cancelled_before_child_com
         host.terminal_latch.cause(),
         Some(crate::local::ActionTerminalCause::CallerAuthority(
             crate::auth::invocation::CallerAuthorityTerminalCause::ScopedServiceRetired {
-                disposition: ServiceAuthorityDisposition::DurableDelete,
+                disposition: ServiceAuthorityDisposition::Carrier,
                 ..
             }
         ))
@@ -32149,50 +32271,52 @@ async fn stream_attempt_control_plane_settles_verbatim_through_the_real_action_p
 
 #[tokio::test]
 async fn detached_action_host_closes_begin_to_native_initiated_revocation_race() {
-    let mut snapback = LocalSnapback::memory().expect("external effect host fixture");
-    snapback.load_functions(generation_test_manifest());
-    let state = Arc::new(Mutex::new(snapback));
+    let fixture =
+        finite_authority_matrix_fixture_with_functions(finite_authority_held_action_functions())
+            .await;
+    let authority = prepared_test_service_route_authority(
+        &fixture.state,
+        InvocationSource::HttpAction,
+        &fixture.token,
+    )
+    .await;
+    let probe_authority = authority.clone();
+    let state = fixture.state.snapback.clone();
     let staged = stage_held_action(&state);
-    let registry = ServiceAuthorityFenceRegistry::default();
-    let monotonic = Instant::now();
-    let epoch_now_ms = super::now_millis();
-    let publication = registry
-        .synthetic_publication_for_test(
-            "token-action",
-            epoch_now_ms,
-            epoch_now_ms + 60_000,
-            monotonic,
-        )
-        .expect("register action service fence");
-    let mut host = held_action_host(state, &staged);
-    host.authority = host
-        .authority
-        .clone()
-        .with_service_publication(publication.clone());
+    let mut host = held_action_host(state.clone(), &staged);
+    host.authority = authority;
 
     host.validate_host_call("action.externalEffectBegin")
         .expect("reserve exact native-enqueue cut");
-    let terminal_registry = registry.clone();
+    let terminal_state = state.clone();
+    let terminal_token = fixture.token.clone();
+    let terminal_now_ms = fixture.start_ms + 1;
     let terminal = tokio::spawn(async move {
-        let gate = terminal_registry
-            .acquire_terminal_gate(
-                &["token-action".to_owned()],
-                ServiceAuthorityDisposition::DurableDelete,
-            )
+        let token_for_plan = crate::auth::crypto::ScopedToken::parse(&terminal_token)
+            .expect("parse external-effect terminal plan token");
+        let plan = with_snapback(&terminal_state, move |snapback| {
+            snapback.plan_scoped_token_release(&token_for_plan)
+        })
+        .await
+        .expect("plan exact external-effect scoped-token release");
+        let gate = plan
+            .acquire_gate()
             .await
             .expect("close and drain service domain");
-        with_service_authority_terminal_gate(gate, || {
-            terminal_registry.commit_terminal_for_test(
-                &["token-action".to_owned()],
-                ServiceAuthorityDisposition::DurableDelete,
-            )
+        let token = crate::auth::crypto::ScopedToken::parse(&terminal_token)
+            .expect("parse external-effect terminal token");
+        with_snapback(&terminal_state, move |snapback| {
+            with_service_authority_terminal_gate(gate, || {
+                snapback.release_scoped_token(&token, terminal_now_ms)
+            })
         })
-        .expect("adopt and commit exact terminal gate after native initiation closes");
+        .await
+        .expect("commit exact terminal after native initiation closes");
     });
     tokio::time::timeout(Duration::from_secs(1), async {
         loop {
-            match publication.begin_external_effect(epoch_now_ms + 1, monotonic) {
-                Ok(extra) => extra.initiated(),
+            match probe_authority.reserve_authorized_effect("external effect premark probe") {
+                Ok(extra) => drop(extra),
                 Err(_) => break,
             }
             tokio::task::yield_now().await;
@@ -35129,15 +35253,17 @@ async fn service_token_terminalization_is_carrier_exact_within_one_durable_grant
             .is_none(),
         "sibling token on the same durable grant remains live"
     );
-    let second_act = state
+    let (epoch_now_ms, monotonic_now) = super::auth_runtime_now(&fixture.state);
+    let second_act = fixture
+        .state
         .connections
         .prepare_act(
             &second.grant.connection_id,
             Some(&second.grant.connection_token),
-            None,
-            true,
-            super::now_millis(),
-            Instant::now(),
+            fixture.state.auth_coordinator.as_deref(),
+            false,
+            epoch_now_ms,
+            monotonic_now,
         )
         .expect("sibling carrier remains current");
     assert!(matches!(
@@ -35164,7 +35290,11 @@ async fn service_token_terminalization_is_carrier_exact_within_one_durable_grant
         expired.authority_disposition,
         crate::live_wire::LiveAuthorityDisposition::Carrier
     );
-    state.connections.lock().assert_grant_indexes_consistent();
+    fixture
+        .state
+        .connections
+        .lock()
+        .assert_grant_indexes_consistent();
 }
 
 /// The live-stream deadline observer owns the same all-token fanout as the
@@ -35726,85 +35856,6 @@ async fn prepared_test_service_route_authority(
     })
     .await
     .expect("prepare authorized-effect service authority")
-}
-
-async fn resolve_test_service_authority(
-    state: &AppState,
-    source: InvocationSource,
-    scopes: Vec<crate::storage::auth_grants::ExactGrantScope>,
-    provenance: &str,
-) -> (
-    PreparedAuthority,
-    String,
-    String,
-    ServiceAuthorityFenceRegistry,
-) {
-    with_snapback(&state.snapback, |snapback| {
-        let diagnostics = snapback.load_functions(generation_test_manifest());
-        assert!(
-            diagnostics.iter().all(|diagnostic| {
-                diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error
-            }),
-            "service authority fixture functions load: {diagnostics:?}"
-        );
-    })
-    .await;
-    let provider = state.auth_provider.clone().expect("test service provider");
-    let now_ms = provider.now_ms();
-    let actor_user_id = crate::ids::mint(crate::ids::Kind::User).expect("test service actor");
-    let effective_user_id =
-        crate::ids::mint(crate::ids::Kind::User).expect("test service effective user");
-    let grant_id = crate::ids::mint(crate::ids::Kind::Grant).expect("test service grant");
-    let provenance = provenance.to_owned();
-    let seed_provider = provider.clone();
-    let (bearer, token_id) = with_snapback(&state.snapback, move |snapback| {
-        let db = snapback.remainder_auth_database_mut();
-        db.auth_catalog()
-            .insert_human_user_for_test(&effective_user_id, now_ms)?;
-        db.create_agent_principal(
-            &actor_user_id,
-            now_ms,
-            &crate::storage::auth_agents::AgentRegistration {
-                display_name: None,
-                operator_contact: None,
-                registration_provenance: provenance,
-                owner_user_id: Some(effective_user_id.clone()),
-            },
-        )?;
-        let credential = db.issue_initial_agent_credential(
-            &actor_user_id,
-            now_ms,
-            seed_provider.agent_random_source(),
-        )?;
-        db.auth_catalog().insert_exact_grant_for_test(
-            &grant_id,
-            &actor_user_id,
-            Some(&effective_user_id),
-            &scopes,
-            now_ms,
-            now_ms + 60_000,
-        )?;
-        let issued = db.mint_scoped_token(
-            &credential.secret,
-            &grant_id,
-            Some(60_000),
-            now_ms,
-            seed_provider.agent_random_source(),
-        )?;
-        Ok::<_, SnapbackError>((issued.secret.expose_secret().to_owned(), issued.token_id))
-    })
-    .await
-    .expect("seed genuine test service authority");
-    let authority = prepared_test_service_route_authority(state, source, &bearer).await;
-    let credential_id = match authority.resolved() {
-        ResolvedAppAuthority::ServicePrincipal(subject) => subject.credential_id().to_owned(),
-        _ => panic!("scoped-token resolver must produce service authority"),
-    };
-    let registry = with_snapback(&state.snapback, |snapback| {
-        snapback.service_authority_fences_for_test()
-    })
-    .await;
-    (authority, token_id, credential_id, registry)
 }
 
 async fn mode_only_migration_target_response(
@@ -42203,47 +42254,37 @@ async fn assert_commit_capsule_logout_completes(
 }
 
 struct CommitCapsuleTerminalFixture {
-    publication: crate::auth::service_fence::ServiceAuthorityPublication,
-    monotonic: Instant,
+    retained: Arc<AtomicBool>,
+}
+
+#[derive(Debug)]
+struct CommitCapsuleCustodyGate {
+    retained: Arc<AtomicBool>,
+}
+
+impl Drop for CommitCapsuleCustodyGate {
+    fn drop(&mut self) {
+        self.retained.store(false, Ordering::SeqCst);
+    }
 }
 
 impl CommitCapsuleTerminalFixture {
-    async fn new() -> (
-        Self,
-        crate::auth::service_fence::ServiceAuthorityTerminalGate,
-    ) {
-        let registry = ServiceAuthorityFenceRegistry::default();
-        let monotonic = Instant::now();
-        let publication = registry
-            .synthetic_publication_for_test("capsule-token", 100, 10_000, monotonic)
-            .expect("register commit capsule service publication");
-        let gate = registry
-            .acquire_terminal_gate(
-                &["capsule-token".to_owned()],
-                ServiceAuthorityDisposition::DurableDelete,
-            )
-            .await
-            .expect("acquire real service terminal gate for commit capsule");
-        let fixture = Self {
-            publication,
-            monotonic,
+    async fn new() -> (Self, CommitCapsuleCustodyGate) {
+        let retained = Arc::new(AtomicBool::new(true));
+        let gate = CommitCapsuleCustodyGate {
+            retained: retained.clone(),
         };
+        let fixture = Self { retained };
         assert!(fixture.is_fail_closed());
         (fixture, gate)
     }
 
     fn is_fail_closed(&self) -> bool {
-        matches!(
-            self.publication.resolve_act(101, self.monotonic),
-            Ok(ServiceAuthorityActResolution::Unavailable)
-        )
+        self.retained.load(Ordering::SeqCst)
     }
 
     fn assert_reopened(&self) {
-        assert!(matches!(
-            self.publication.resolve_act(101, self.monotonic),
-            Ok(ServiceAuthorityActResolution::Current(_))
-        ));
+        assert!(!self.retained.load(Ordering::SeqCst));
     }
 }
 
@@ -42264,8 +42305,7 @@ struct CommitCapsuleUncertain<Gate> {
     _gate: Arc<StdMutex<Option<Gate>>>,
 }
 
-type CommitCapsuleTerminalUncertain =
-    CommitCapsuleUncertain<crate::auth::service_fence::ServiceAuthorityTerminalGate>;
+type CommitCapsuleTerminalUncertain = CommitCapsuleUncertain<CommitCapsuleCustodyGate>;
 
 struct CommitCapsulePending<'connection, Gate> {
     pending: Option<crate::storage::commit_capsule_prototype::PrototypePending<'connection>>,

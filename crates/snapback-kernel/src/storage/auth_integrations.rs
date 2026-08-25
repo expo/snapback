@@ -765,8 +765,8 @@ fn oauth_bundle_scope_requests(
     Ok(requested.into_iter().collect())
 }
 
-pub(super) fn consume_oauth_authorization_code_on(
-    tx: &Transaction<'_>,
+pub(super) fn resolve_oauth_authorization_code_on(
+    connection: &Connection,
     raw_code: &str,
     client_id: &str,
     redirect_uri: &str,
@@ -775,7 +775,7 @@ pub(super) fn consume_oauth_authorization_code_on(
 ) -> SnapbackResult<ConsumedOAuthAuthorization> {
     validate_pkce_verifier(verifier)?;
     let presented_hash: [u8; 32] = Sha256::digest(raw_code.as_bytes()).into();
-    let row = tx
+    let row = connection
         .query_row(
             "SELECT client_id, principal_user_id, redirect_uri, code_challenge,
                     status, code_hash, grant_id, code_expires_at_ms
@@ -814,7 +814,30 @@ pub(super) fn consume_oauth_authorization_code_on(
         return Err(oauth_grant_invalid());
     }
     let grant_id = row.6.ok_or_else(oauth_state_corrupt)?;
-    oauth_client_on(tx, client_id)?;
+    oauth_client_on(connection, client_id)?;
+    Ok(ConsumedOAuthAuthorization {
+        grant_id,
+        principal_user_id: row.1,
+    })
+}
+
+pub(super) fn consume_oauth_authorization_code_on(
+    tx: &Transaction<'_>,
+    raw_code: &str,
+    client_id: &str,
+    redirect_uri: &str,
+    verifier: &str,
+    now_ms: u64,
+) -> SnapbackResult<ConsumedOAuthAuthorization> {
+    let authorization = resolve_oauth_authorization_code_on(
+        tx,
+        raw_code,
+        client_id,
+        redirect_uri,
+        verifier,
+        now_ms,
+    )?;
+    let presented_hash: [u8; 32] = Sha256::digest(raw_code.as_bytes()).into();
     let changed = tx.execute(
         "UPDATE _snapback_oauth_authorizations
          SET status = 'exchanged', consumed_at_ms = ?1
@@ -825,10 +848,7 @@ pub(super) fn consume_oauth_authorization_code_on(
     if changed != 1 {
         return Err(oauth_grant_invalid());
     }
-    Ok(ConsumedOAuthAuthorization {
-        grant_id,
-        principal_user_id: row.1,
-    })
+    Ok(authorization)
 }
 
 impl LocalDatabase {
@@ -1519,12 +1539,17 @@ fn oauth_pairing_request_cap() -> SnapbackError {
 mod tests {
     use super::*;
     use crate::auth::crypto::{CreationInvitation, CryptoError, RandomSource};
+    use crate::auth::service_authority_contract::ServiceAuthorityDisposition;
+    use crate::auth::service_fence::{
+        DurablyPlannedServiceAuthorityTerminal, with_service_authority_terminal_gate,
+    };
     use crate::contract_types::ServerProfile;
     use crate::manifest::AgentsMode;
     use crate::storage::auth_agents::AgentRegistration;
-    use crate::storage::auth_grants::PAIRING_CEREMONY_LIVE_CAP_PER_USER;
+    use crate::storage::auth_grants::{GrantApproval, PAIRING_CEREMONY_LIVE_CAP_PER_USER};
     use serde_json::json;
     use std::sync::atomic::{AtomicU8, Ordering};
+    use std::time::Instant;
 
     struct CounterRandom(AtomicU8);
 
@@ -1986,6 +2011,13 @@ mod tests {
             .issue_oauth_authorization_code("user-oauth", &begun.request_id, 1_003, &random)
             .expect("issue short authorization code");
         let raw_code = issued.code.expose_secret().to_owned();
+        let interlock =
+            crate::auth::service_fence::RecordingServiceAuthorityCommitInterlock::default();
+        let authority = db
+            .claim_kernel_commit_authority()
+            .expect("kernel authority");
+        db.install_recording_service_authority_terminals(&authority.binding(), &interlock)
+            .expect("record OAuth terminal receipts");
 
         let wrong = db
             .mint_scoped_token_for_oauth_code(
@@ -2073,7 +2105,22 @@ mod tests {
             .oauth_revoke_scoped_token(&token.secret, true, 61_011)
             .expect("possession can revoke the carrier and installation grant");
         assert_eq!(revocation.grant_id, grant_id);
+        assert_eq!(revocation.token_ids, vec![token.token_id.clone()]);
         assert!(db.integration_grant_revoked_for_test(&grant_id).unwrap());
+        assert_eq!(
+            interlock.plans(),
+            vec![
+                (Vec::new(), ServiceAuthorityDisposition::Carrier),
+                (
+                    vec![token.token_id],
+                    ServiceAuthorityDisposition::DurableDelete,
+                ),
+            ],
+            "successful OAuth mint and revoke settle their transaction-derived subjects"
+        );
+        assert_eq!(interlock.committed(), 2);
+        assert_eq!(interlock.rolled_back(), 0);
+        assert_eq!(interlock.ambiguous(), 0);
     }
 
     #[test]
@@ -2276,6 +2323,142 @@ mod tests {
             revoked_exchange.diagnostic.code,
             "SNAPBACK_AUTH_INTEGRATION_REVOKED"
         );
+    }
+
+    #[test]
+    fn grant_wide_oauth_revoke_recovers_when_a_concurrent_mint_expands_its_subject() {
+        let random = CounterRandom::new();
+        let mut db = oauth_ready_database();
+        seed_human(&db, "user-oauth");
+        let integration = register_integration(&mut db, &random);
+        let record = db
+            .integration_record_if_present(&integration.user_id)
+            .unwrap()
+            .unwrap();
+        let verifier = "v".repeat(43);
+        let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
+        let begun = db
+            .begin_oauth_authorization(
+                "user-oauth",
+                &record.integration_id,
+                "https://example.test/callback",
+                &["read".to_owned()],
+                &challenge,
+                None,
+                1_001,
+                &random,
+            )
+            .unwrap();
+        let grant_id = match db
+            .approve_grant_request(
+                "user-oauth",
+                "session-oauth",
+                &begun.request_id,
+                None,
+                None,
+                1_002,
+            )
+            .unwrap()
+        {
+            GrantApproval::Created(grant) | GrantApproval::Existing(grant) => grant.grant_id,
+        };
+        let code = db
+            .issue_oauth_authorization_code("user-oauth", &begun.request_id, 1_003, &random)
+            .unwrap()
+            .code
+            .expose_secret()
+            .to_owned();
+        let token_a = db
+            .mint_scoped_token(&integration.secret, &grant_id, Some(10_000), 1_004, &random)
+            .expect("mint predecessor token A below the live-token cap");
+        let durable_a = db
+            .resolve_scoped_service_authority(&token_a.secret, 1_005)
+            .expect("resolve predecessor token A");
+        let publication_a = db
+            .service_authority_fences
+            .register_resolved(&durable_a, 1_005, Instant::now())
+            .expect("publish predecessor token A");
+
+        let (stale_ids, stale_disposition) = db
+            .plan_oauth_revoke_service_terminal(&token_a.secret, true, 1_006)
+            .expect("plan grant-wide revoke before the concurrent mint");
+        assert_eq!(stale_ids, vec![token_a.token_id.clone()]);
+        let stale_gate = db
+            .service_authority_fences
+            .acquire_planned_terminal_gate(DurablyPlannedServiceAuthorityTerminal::new(
+                db.binding(),
+                stale_ids,
+                stale_disposition,
+            ))
+            .expect("install stale exact gate A");
+
+        let token_b = db
+            .mint_scoped_token_for_oauth_code(
+                &code,
+                &record.integration_id,
+                "https://example.test/callback",
+                &verifier,
+                1_007,
+                &random,
+            )
+            .expect("concurrent OAuth mint inserts token B while gate A is installed");
+        let mismatch = with_service_authority_terminal_gate(stale_gate, || {
+            db.oauth_revoke_scoped_token(&token_a.secret, true, 1_008)
+        })
+        .expect_err("the transaction-derived A+B subject must refuse stale gate A");
+        assert_eq!(mismatch.diagnostic.code, "SNAPBACK_AUTH_POLICY_UNAVAILABLE");
+        let recovered_a = publication_a
+            .snapshot()
+            .expect("the mismatch restores predecessor A");
+        assert_eq!(recovered_a.pending(), None);
+        assert_eq!(recovered_a.terminal(), None);
+        drop(
+            publication_a
+                .begin_work()
+                .expect("the mismatch restores predecessor A work"),
+        );
+        db.resolve_scoped_token(&token_a.secret, 1_008)
+            .expect("mismatch rolls back without revoking A");
+        db.resolve_scoped_token(&token_b.secret, 1_008)
+            .expect("mismatch does not revoke concurrent token B");
+
+        let durable_b = db
+            .resolve_scoped_service_authority(&token_b.secret, 1_008)
+            .expect("resolve concurrent token B for the retry fence");
+        let publication_b = db
+            .service_authority_fences
+            .register_resolved(&durable_b, 1_008, Instant::now())
+            .expect("publish concurrent token B");
+        let (retry_ids, retry_disposition) = db
+            .plan_oauth_revoke_service_terminal(&token_a.secret, true, 1_009)
+            .expect("re-plan grant-wide revoke after the concurrent mint");
+        assert_eq!(
+            retry_ids
+                .iter()
+                .cloned()
+                .collect::<std::collections::BTreeSet<_>>(),
+            std::collections::BTreeSet::from([token_a.token_id.clone(), token_b.token_id.clone(),])
+        );
+        let retry_gate = db
+            .service_authority_fences
+            .acquire_planned_terminal_gate(DurablyPlannedServiceAuthorityTerminal::new(
+                db.binding(),
+                retry_ids,
+                retry_disposition,
+            ))
+            .expect("the recovered A+B retry acquires without a restart");
+        with_service_authority_terminal_gate(retry_gate, || {
+            db.oauth_revoke_scoped_token(&token_a.secret, true, 1_009)
+        })
+        .expect("the exact A+B retry commits");
+        for publication in [publication_a, publication_b] {
+            let snapshot = publication.snapshot().unwrap();
+            assert_eq!(snapshot.pending(), None);
+            assert_eq!(
+                snapshot.terminal(),
+                Some(ServiceAuthorityDisposition::DurableDelete)
+            );
+        }
     }
 
     #[test]

@@ -41,12 +41,10 @@ use crate::auth::sender_proof::{
     admit_sender_constrained_bound_request, admit_sender_constrained_request,
     sender_authority_unavailable_rejection, verify_sender_issuance_proof,
 };
-use crate::auth::service_authority_contract::{
-    ServiceAuthorityActResolution, ServiceAuthorityDisposition,
-};
+use crate::auth::service_authority_contract::ServiceAuthorityDisposition;
 use crate::auth::service_fence::{
-    ServiceAuthorityExternalEffectPermit, ServiceAuthorityPublication, ServiceAuthorityWorkPermit,
-    with_service_authority_terminal_gate,
+    ServiceAuthorityActResolution, ServiceAuthorityExternalEffectPermit,
+    ServiceAuthorityPublication, ServiceAuthorityWorkPermit, with_service_authority_terminal_gate,
 };
 use crate::auth::session_projection::{
     AUTH_LOCK_RANK_CONNECTION_REGISTRY, FencedAuthorityWorkPermit, FencedPublication,
@@ -16563,7 +16561,7 @@ async fn enforce_registered_route_policy_inner(
             }
         }
     };
-    let mut prepared_authority = prepared_authority.map(|authority| {
+    let prepared_authority = prepared_authority.map(|authority| -> SnapbackResult<_> {
         let bound = prepared_connection_act
             .as_ref()
             .map(|prepared| &prepared.bound)
@@ -16576,11 +16574,31 @@ async fn enforce_registered_route_policy_inner(
             Some(bound) => authority.with_fenced_publication(bound.publication().clone()),
             None => authority,
         };
-        match bound.and_then(BoundGrantAuthority::service_publication) {
-            Some(publication) => authority.with_service_publication(publication.clone()),
-            None => authority,
+        if bound
+            .and_then(BoundGrantAuthority::service_publication)
+            .is_some()
+            && !authority.has_service_publication()
+        {
+            Err(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "connection service authority is missing its database-bound publication",
+            ))
+        } else {
+            Ok(authority)
         }
     });
+    let mut prepared_authority = match prepared_authority.transpose() {
+        Ok(authority) => authority,
+        Err(error) => {
+            return finish_registered_response(
+                response_policy,
+                ApiError::from(error).into_response(),
+                route_admission.as_ref(),
+                None,
+            );
+        }
+    };
     // Every successfully authenticated connection-scoped HTTP act is a
     // client-originated poll-lane signal. The WebSocket upgrade is excluded:
     // its exact generation is registered only after the upgrade succeeds, so
@@ -17227,10 +17245,9 @@ async fn auth_step_up_request(
         StepUpRequest::EffectApproval { effect_id } => {
             effect_step_up_binding(&authority, effect_id)?
         }
-        StepUpRequest::PasswordSet {} => password_set_step_up_binding(
-            &authority,
-            InvocationSource::AgentGrantManagement,
-        )?,
+        StepUpRequest::PasswordSet {} => {
+            password_set_step_up_binding(&authority, InvocationSource::AgentGrantManagement)?
+        }
     };
     let admission = provider.admit().await;
     let now_ms = provider.now_ms();
@@ -18311,14 +18328,11 @@ async fn persist_expired_service_authority_owned(
     };
     let terminal_token_ids = plan.token_ids().to_vec();
     let terminal_close_by = plan.close_by();
-    let service_terminal_gate = plan.acquire_gate().await?;
+    let expired_commit = plan.acquire_gate().await?;
     let transaction = spawn_owned_auth_transaction(async move {
         with_snapback(&snapback, {
-            let plan = plan.clone();
             move |snapback| {
-                with_service_authority_terminal_gate(service_terminal_gate, || {
-                    snapback.commit_expired_service_authority(&plan)
-                })?;
+                snapback.commit_expired_service_authority(expired_commit)?;
                 crate::exec_guard::run_or_defer_after_local(move || {
                     let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime_clock);
                     let disposition = match lifecycle_authority
@@ -20051,10 +20065,7 @@ async fn auth_password_change(
             }
         }
         PasswordChangeRequest::Set(request) => {
-            let binding = password_set_step_up_binding(
-                &authority,
-                InvocationSource::AuthRefresh,
-            )?;
+            let binding = password_set_step_up_binding(&authority, InvocationSource::AuthRefresh)?;
             let admission = provider.admit().await;
             let challenge_id = request.step_up.challenge_id.clone();
             let (admission, coordination) = with_snapback(&runtime.snapback, move |snapback| {
@@ -33239,7 +33250,6 @@ async fn observe_service_connection_terminal_once(
         ) {
             return Err(injected_live_service_terminal_failure("gate"));
         }
-        let service_terminal_gate = plan.acquire_gate().await?;
         #[cfg(test)]
         let inject_transaction_failure = take_test_live_service_terminal_failure(
             plan.token_id(),
@@ -33250,10 +33260,11 @@ async fn observe_service_connection_terminal_once(
             plan.token_id(),
             TestLiveServiceTerminalFailure::OwnedTaskPanic,
         );
+        let expired_commit = plan.acquire_gate().await?;
         let transaction = spawn_owned_auth_transaction(async move {
             #[cfg(test)]
             if inject_transaction_failure {
-                drop(service_terminal_gate);
+                drop(expired_commit);
                 return Err(injected_live_service_terminal_failure("transaction"));
             }
             #[cfg(test)]
@@ -33261,11 +33272,8 @@ async fn observe_service_connection_terminal_once(
                 panic!("injected live service terminal owned-task panic");
             }
             with_snapback(&snapback, {
-                let plan = plan.clone();
                 move |snapback| {
-                    with_service_authority_terminal_gate(service_terminal_gate, || {
-                        snapback.commit_expired_service_authority(&plan)
-                    })?;
+                    snapback.commit_expired_service_authority(expired_commit)?;
                     crate::exec_guard::run_or_defer_after_local(move || {
                         let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime_clock);
                         let disposition = match service_publication

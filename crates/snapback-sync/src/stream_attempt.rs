@@ -1660,21 +1660,6 @@ mod tests {
             .stream_attempt_origin()
     }
 
-    fn service_caller_origin(resolved: ResolvedAppAuthority) -> PreparedStreamAttemptOrigin {
-        let registry = crate::auth::service_fence::ServiceAuthorityFenceRegistry::default();
-        let monotonic_now = std::time::Instant::now();
-        let publication = registry
-            .synthetic_publication_for_test("token-a", 1, 10_000, monotonic_now)
-            .expect("register service publication");
-        prepared_authority(
-            crate::auth::invocation::InvocationSource::HttpAction,
-            AuthMode::Sessions,
-            resolved,
-        )
-        .with_service_publication(publication)
-        .stream_attempt_origin()
-    }
-
     fn session_authority() -> ResolvedAppAuthority {
         crate::auth::invocation::test_session_authority(
             "user-a",

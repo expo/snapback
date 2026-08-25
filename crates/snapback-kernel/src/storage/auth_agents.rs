@@ -15,10 +15,12 @@
 //!   would leave a protected resource with no eligible holder.
 
 use super::LocalDatabase;
-use super::auth::{AuthTransactionAttempt, ServiceAuthTransactionAttempt};
+use super::auth::{
+    AuthTransactionAttempt, ServiceAuthTransactionAttempt, ServiceAuthorityTerminalOperation,
+};
 use super::auth_agent_credentials::{
     IssuedAgentCredential, advance_agent_clock_on, issue_initial_agent_credential_on,
-    reconcile_issued_agent_credential, require_agent_clock_on, token_ids_for_user,
+    reconcile_issued_agent_credential, require_agent_clock_on,
 };
 use crate::auth::crypto::{CreationInvitation, RandomSource};
 use crate::auth::crypto::{StepUpConsumption, StepUpProof, step_up_required_error};
@@ -450,11 +452,7 @@ impl LocalDatabase {
     ) -> SnapbackResult<()> {
         self.observe_agent_authorization_clock(now_ms)?;
         let attempt = self.attempt_auth_transaction_with_service_terminal(
-            crate::auth::service_authority_contract::ServiceAuthorityDisposition::DurableDelete,
-            |tx| {
-                require_agent_clock_on(tx, now_ms)?;
-                token_ids_for_user(tx, user_id)
-            },
+            ServiceAuthorityTerminalOperation::AgentDeactivation { user_id, now_ms },
             |tx| {
                 require_agent_clock_on(tx, now_ms)?;
                 let existing: Option<(String, Option<i64>)> = tx

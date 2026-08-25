@@ -406,6 +406,234 @@ pub enum ServiceAuthTransactionAttempt<T> {
     },
 }
 
+/// Closed durable operation family for finite service-authority endings.
+///
+/// The caller selects an operation and supplies only that operation's durable
+/// lookup inputs. The exact token set and disposition are derived by this
+/// module from the transaction before the first write; no generic callback can
+/// assert the subject carried by the terminal receipt.
+///
+/// @ref LLP 0303#the-governing-principle — receipt subjects come from the
+/// transaction's operation-specific durable resolution, not caller-supplied
+/// token ids or dispositions.
+pub(super) enum ServiceAuthorityTerminalOperation<'a> {
+    AgentCredentialRotation {
+        credential: &'a crate::auth::crypto::AgentCredential,
+        now_ms: u64,
+    },
+    AgentCredentialFamilyRevocation {
+        attributable: &'a crate::auth::crypto::AgentCredential,
+        now_ms: u64,
+    },
+    IntegrationCredentialFamilyRetirement {
+        attributable: &'a crate::auth::crypto::AgentCredential,
+        now_ms: u64,
+    },
+    IntegrationPrincipalRetirement {
+        principal_user_id: &'a str,
+        now_ms: u64,
+    },
+    ScopedTokenRelease {
+        token: &'a crate::auth::crypto::ScopedToken,
+    },
+    ScopedTokenMint {
+        credential: &'a crate::auth::crypto::AgentCredential,
+        grant_id: &'a str,
+        now_ms: u64,
+    },
+    PairingScopedTokenMint {
+        credential: &'a crate::auth::crypto::AgentCredential,
+        pairing_request_id: &'a str,
+        now_ms: u64,
+    },
+    OAuthScopedTokenMint {
+        code: &'a str,
+        client_id: &'a str,
+        redirect_uri: &'a str,
+        verifier: &'a str,
+        now_ms: u64,
+    },
+    OAuthScopedTokenRevoke {
+        token: &'a crate::auth::crypto::ScopedToken,
+        revoke_grant: bool,
+        now_ms: u64,
+    },
+    ExpiredServiceAuthority {
+        deadline: &'a crate::auth::service_fence::ServiceAuthorityDeadlineTerminal,
+    },
+    GrantRevocation {
+        effective_user_id: &'a str,
+        grant_id: &'a str,
+        now_ms: u64,
+    },
+    BulkGrantRevocation {
+        effective_user_id: &'a str,
+        actor_user_id: &'a str,
+        now_ms: u64,
+    },
+    AgentDeactivation {
+        user_id: &'a str,
+        now_ms: u64,
+    },
+}
+
+impl ServiceAuthorityTerminalOperation<'_> {
+    fn derive_subject(
+        &self,
+        transaction: &Transaction<'_>,
+    ) -> SnapbackResult<(
+        Vec<String>,
+        crate::auth::service_authority_contract::ServiceAuthorityDisposition,
+    )> {
+        use crate::auth::service_authority_contract::ServiceAuthorityDisposition;
+
+        let derived = match self {
+            Self::AgentCredentialRotation { credential, now_ms } => (
+                super::auth_agent_credentials::planned_agent_credential_rotation_token_ids(
+                    transaction,
+                    credential,
+                    *now_ms,
+                )?,
+                ServiceAuthorityDisposition::DurableDelete,
+            ),
+            Self::AgentCredentialFamilyRevocation {
+                attributable,
+                now_ms,
+            } => (
+                super::auth_agent_credentials::planned_agent_credential_family_token_ids(
+                    transaction,
+                    attributable,
+                    *now_ms,
+                )?,
+                ServiceAuthorityDisposition::DurableDelete,
+            ),
+            Self::IntegrationCredentialFamilyRetirement {
+                attributable,
+                now_ms,
+            } => (
+                super::auth_agent_credentials::planned_integration_credential_family_token_ids(
+                    transaction,
+                    attributable,
+                    *now_ms,
+                )?,
+                ServiceAuthorityDisposition::DurableDelete,
+            ),
+            Self::IntegrationPrincipalRetirement {
+                principal_user_id,
+                now_ms,
+            } => (
+                super::auth_agent_credentials::planned_integration_principal_token_ids(
+                    transaction,
+                    principal_user_id,
+                    *now_ms,
+                )?,
+                ServiceAuthorityDisposition::DurableDelete,
+            ),
+            Self::ScopedTokenRelease { token } => (
+                super::auth_agent_credentials::planned_scoped_token_release_token_ids(
+                    transaction,
+                    token,
+                )?,
+                ServiceAuthorityDisposition::Carrier,
+            ),
+            Self::ScopedTokenMint {
+                credential,
+                grant_id,
+                now_ms,
+            } => (
+                super::auth_agent_credentials::planned_scoped_token_terminal_token_ids(
+                    transaction,
+                    credential,
+                    grant_id,
+                    *now_ms,
+                )?,
+                ServiceAuthorityDisposition::Carrier,
+            ),
+            Self::PairingScopedTokenMint {
+                credential,
+                pairing_request_id,
+                now_ms,
+            } => (
+                super::auth_agent_credentials::planned_pairing_terminal_token_ids(
+                    transaction,
+                    credential,
+                    pairing_request_id,
+                    *now_ms,
+                )?,
+                ServiceAuthorityDisposition::Carrier,
+            ),
+            Self::OAuthScopedTokenMint {
+                code,
+                client_id,
+                redirect_uri,
+                verifier,
+                now_ms,
+            } => (
+                super::auth_agent_credentials::planned_oauth_scoped_token_terminal_token_ids(
+                    transaction,
+                    code,
+                    client_id,
+                    redirect_uri,
+                    verifier,
+                    *now_ms,
+                )?,
+                ServiceAuthorityDisposition::Carrier,
+            ),
+            Self::OAuthScopedTokenRevoke {
+                token,
+                revoke_grant,
+                now_ms,
+            } => super::auth_agent_credentials::planned_oauth_revoke_terminal(
+                transaction,
+                token,
+                *revoke_grant,
+                *now_ms,
+            )?,
+            Self::ExpiredServiceAuthority { deadline } => (
+                super::auth_agent_credentials::planned_expired_service_authority_token_ids(
+                    transaction,
+                    deadline,
+                )?,
+                deadline.disposition(),
+            ),
+            Self::GrantRevocation {
+                effective_user_id,
+                grant_id,
+                now_ms,
+            } => (
+                super::auth_grants::planned_grant_revocation_token_ids(
+                    transaction,
+                    effective_user_id,
+                    grant_id,
+                    *now_ms,
+                )?,
+                ServiceAuthorityDisposition::DurableDelete,
+            ),
+            Self::BulkGrantRevocation {
+                effective_user_id,
+                actor_user_id,
+                now_ms,
+            } => (
+                super::auth_grants::planned_bulk_grant_revocation_token_ids(
+                    transaction,
+                    effective_user_id,
+                    actor_user_id,
+                    *now_ms,
+                )?,
+                ServiceAuthorityDisposition::DurableDelete,
+            ),
+            Self::AgentDeactivation { user_id, now_ms } => {
+                super::auth_agent_credentials::require_agent_clock_on(transaction, *now_ms)?;
+                (
+                    super::auth_agent_credentials::token_ids_for_user(transaction, user_id)?,
+                    ServiceAuthorityDisposition::DurableDelete,
+                )
+            }
+        };
+        Ok(derived)
+    }
+}
+
 struct ExpectedTable {
     name: &'static str,
     sql: &'static str,
@@ -1833,20 +2061,21 @@ impl LocalDatabase {
     }
 
     /// Commit a durable service-authority ending through the process-local
-    /// token-fence interlock. `plan` is a read-only immutable affected-id
-    /// phase: its exact token fences are blocked before `operation` may write.
+    /// token-fence interlock. The closed `terminal` operation derives its
+    /// immutable affected-id phase from this transaction: its exact token
+    /// fences are blocked before `operation` may write.
     /// A body failure therefore already owns the exact ticket needed to stay
     /// fail-closed if SQLite cannot prove rollback, without quarantining
     /// unrelated service authorities.
     ///
     /// @ref LLP 0059#finite-service-authority-fence — exact affected ids are
     /// planned read-only and premarked before the first durable ending write.
-    pub(crate) fn attempt_auth_transaction_with_service_terminal<T>(
+    pub(super) fn attempt_auth_transaction_with_service_terminal<T>(
         &mut self,
-        disposition: crate::auth::service_authority_contract::ServiceAuthorityDisposition,
-        plan: impl FnOnce(&Transaction<'_>) -> SnapbackResult<Vec<String>>,
+        terminal: ServiceAuthorityTerminalOperation<'_>,
         operation: impl FnOnce(&Transaction<'_>) -> SnapbackResult<T>,
     ) -> ServiceAuthTransactionAttempt<T> {
+        let database_binding = self.binding();
         let tx = match self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)
@@ -1857,21 +2086,16 @@ impl LocalDatabase {
         if let Err(error) = require_ready_on(&tx) {
             return rollback_unprepared_service_auth_transaction(tx, error);
         }
-        let token_ids = match plan(&tx) {
-            Ok(token_ids) => token_ids,
+        let (token_ids, disposition) = match terminal.derive_subject(&tx) {
+            Ok(subject) => subject,
             Err(error) => return rollback_unprepared_service_auth_transaction(tx, error),
         };
-        let Some(interlock) = self.service_authority_fences.as_ref() else {
-            return rollback_unprepared_service_auth_transaction(
-                tx,
-                SnapbackError::error(
-                    "SNAPBACK_SERVICE_AUTHORITY_UNAVAILABLE",
-                    "auth",
-                    "service-authority commit interlock is not installed",
-                ),
-            );
-        };
-        let mut prepared = match interlock.prepare_terminal(&token_ids, disposition) {
+        let receipt = crate::auth::service_fence::ServiceAuthorityTerminalReceipt::new(
+            database_binding,
+            token_ids,
+            disposition,
+        );
+        let mut prepared = match self.service_authority_fences.prepare_terminal(receipt) {
             Ok(prepared) => prepared,
             Err(error) => return rollback_unprepared_service_auth_transaction(tx, error),
         };
@@ -3831,24 +4055,23 @@ mod tests {
     }
 
     #[test]
-    fn service_rollback_uncertainty_carries_the_exact_planned_terminal() {
+    fn service_rollback_uncertainty_carries_the_transaction_derived_terminal() {
         let mut db = catalog_database();
         let interlock =
             crate::auth::service_fence::RecordingServiceAuthorityCommitInterlock::default();
         let authority = db
             .claim_kernel_commit_authority()
             .expect("kernel authority");
-        db.install_service_authority_commit_interlock(
-            &authority.binding(),
-            interlock.bind(&authority),
-        )
-        .expect("bind service terminal interlock");
+        db.install_recording_service_authority_terminals(&authority.binding(), &interlock)
+            .expect("bind service terminal interlock");
 
         inject_service_rollback_uncertainty_for_test();
         let attempt: ServiceAuthTransactionAttempt<()> = db
             .attempt_auth_transaction_with_service_terminal(
-                crate::auth::service_authority_contract::ServiceAuthorityDisposition::Carrier,
-                |_tx| Ok(vec!["token-exact".to_owned()]),
+                ServiceAuthorityTerminalOperation::AgentDeactivation {
+                    user_id: "missing-agent-with-no-token-subject",
+                    now_ms: 0,
+                },
                 |tx| {
                     tx.execute(
                         "INSERT INTO _snapback_meta(key, value) VALUES('service-test', 'written')",
@@ -3867,8 +4090,8 @@ mod tests {
         assert_eq!(
             interlock.plans(),
             vec![(
-                vec!["token-exact".to_owned()],
-                crate::auth::service_authority_contract::ServiceAuthorityDisposition::Carrier,
+                Vec::new(),
+                crate::auth::service_authority_contract::ServiceAuthorityDisposition::DurableDelete,
             )]
         );
         assert_eq!(interlock.ambiguous(), 1);
