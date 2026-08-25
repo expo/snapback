@@ -21,7 +21,7 @@
   "paths": {
     "committedRunRoot": "benchmarks/runs/2026-08-23-r2-published-0125",
     "privateExecutionRoot": "/Users/ccheever/bench-matrix-20260823-r2",
-    "instrumentRoot": "/Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260825-v10",
+    "instrumentRoot": "/Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260825-v11",
     "exactPinnedCheckout": "/Users/ccheever/bench-matrix-20260817/exact-pinned"
   },
   "machines": {
@@ -70,7 +70,7 @@
       "meteringRoot": {
         "kind": "directory",
         "path": "benchmarks/tools/social-messenger/metering",
-      "sha256": "sha256:ac4427fbb11cf24f52f45ece92c01d9586604850cf1c25e732afc9d83fb314a0"
+        "sha256": "sha256:bea9493548ec289eed6437bb32dc3a255b49699714bbec3e8f446d11f598371d"
       },
       "files": [
         {
@@ -219,7 +219,7 @@
       "manifestPath": "benchmarks/instrument.manifest.json",
       "semanticSnapshotRevision": "e8048d8238b3abe1fe3d6553bd12f334affbf88f",
       "instrumentPin": "social-messenger@0.3.3-m8",
-    "manifestSha256": "1515e93d3f141b7dc87607e521b50c8dcfa8112b6050e4dd8950945abbaf2039",
+      "manifestSha256": "22befa512fd04f09a219981dcfd9912888052b2e3ffd20621a377cb3cf32d42a",
       "fixtureVersion": "0.2.0-m8",
       "schemaVersion": "0.3.0-m8",
       "uiVersion": "0.3.1-m8",
@@ -310,7 +310,7 @@
         {
           "date": "2026-08-25",
           "reason": "dual-review hardening for next-campaign milestone attribution, disposition identity, and terminal telemetry custody",
-          "commits": ["c57b3cdf4"],
+          "commits": ["c57b3cdf4", "1f9566aa9"],
           "sourceRevisionFrom": "09c46df751ab02e797a21c84bafb96e35591c55c",
           "productionDriverSha256From": "61931aeca07f67b569127d75ae256b5cce372ce335dbde4530f8934303f10559",
           "productionDriverSha256To": "81630e615e18b1a674d0f36a80456fe5fdbfa2d1e657db7c0ef4c1429c67ff0d",
@@ -321,13 +321,13 @@
           "observationsSha256From": "27b37159ae35a24ba458bca3cf2b29a8eead6e231031750a3f6360aa98d7cdd0",
           "observationsSha256To": "e47988444970f56662cee5bf9181012091e18918fac38a0493a9b48665ee0a17",
           "validatePlanSha256From": "e598cd89cd3f88dbe1336318e82112cb95c02e9d780a10ab267735366e812a57",
-          "validatePlanSha256To": "0305ee37ea888ab366ec51bd4ba0d9af4c6375b1f6d2599e519691adc47dabd0",
+          "validatePlanSha256To": "a6ce13b4293b1459396518d8ddbf8fcf6c3a3122701a66318eac55b6e4620eac",
           "meteringRootSha256From": "789dfcf036ff9dadb73d82591870a2a61945488410caed7e5fa76ab62061dc59",
-          "meteringRootSha256To": "ac4427fbb11cf24f52f45ece92c01d9586604850cf1c25e732afc9d83fb314a0",
+          "meteringRootSha256To": "bea9493548ec289eed6437bb32dc3a255b49699714bbec3e8f446d11f598371d",
           "instrumentManifestSha256From": "1ae3e6fc5fe853e328053b01bfc339eb0231906c9a0b6cd511ec117d92eaa4fe",
-          "instrumentManifestSha256To": "1515e93d3f141b7dc87607e521b50c8dcfa8112b6050e4dd8950945abbaf2039",
+          "instrumentManifestSha256To": "22befa512fd04f09a219981dcfd9912888052b2e3ffd20621a377cb3cf32d42a",
           "materializedRootFrom": "/Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260825-v9",
-          "materializedRootTo": "/Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260825-v10",
+          "materializedRootTo": "/Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260825-v11",
           "semantics": "future milestones fail immediately on queued observation refusal; failure dispositions bind committed cell and attempt identity; terminal telemetry requires controller source and pre-finalization time"
         }
       ],

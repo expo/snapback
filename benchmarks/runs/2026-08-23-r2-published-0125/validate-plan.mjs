@@ -406,8 +406,10 @@ if (
   dualReviewHardeningMigration.date !== '2026-08-25'
   || dualReviewHardeningMigration.reason !== 'dual-review hardening for next-campaign milestone attribution, disposition identity, and terminal telemetry custody'
   || !Array.isArray(dualReviewHardeningMigration.commits)
-  || dualReviewHardeningMigration.commits.length !== 1
-  || !/^[0-9a-f]{9,40}$/u.test(dualReviewHardeningMigration.commits[0])
+  || JSON.stringify(dualReviewHardeningMigration.commits) !== JSON.stringify([
+    'c57b3cdf4',
+    '1f9566aa9',
+  ])
   || dualReviewHardeningMigration.sourceRevisionFrom !== '09c46df751ab02e797a21c84bafb96e35591c55c'
   || dualReviewHardeningMigration.productionDriverSha256From !== '61931aeca07f67b569127d75ae256b5cce372ce335dbde4530f8934303f10559'
   || dualReviewHardeningMigration.productionDriverSha256To !== repositorySha256(
@@ -445,7 +447,7 @@ try {
   execFileSync('git', [
     'cat-file',
     '-e',
-    `${dualReviewHardeningMigration.commits[0]}^{commit}`,
+    `${dualReviewHardeningMigration.commits.at(-1)}^{commit}`,
   ], { cwd: repositoryRoot });
 } catch {
   fail('dual-review hardening migration does not name a real landed implementation commit');
