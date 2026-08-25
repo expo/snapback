@@ -44,9 +44,11 @@ node scripts/check-workspace-graph.mjs
 node --test tests/workspace_graph_v1.mjs
 ```
 
-This JS-only lane did not run Cargo or edit the Rust file.
+At filing time this JS-only lane had not run Cargo or edited the Rust file; the
+resolution below records the later branch-local mechanical expansion in
+`crates/snapback-engine/src/local/tests/engine.rs`.
 
-## Resolution
+## Resolution (2026-08-25)
 
 Resolved on `origin/main` by `5c39b4df1`
 (`fix(cli): resolve cli-delegated-verb-help-resolution`), whose
