@@ -74,6 +74,10 @@ What *is* reachable, and what the next decision should be about:
 
 **Recommendation for the author:** treat class discovery and the ratchet as the headline measures,
 keep rows as the ledger, and make an explicit scope decision about the 85 — whether they are all
-required, or whether the P1 set plus the scanner-visible surface is the actual goal. That decision
-has been raised twice and remains open
-(`issues/20260824-are-lanes-being-held-past-the-ruling.md`).
+required, or whether the P1 set plus the scanner-visible surface is the actual goal. That separate
+all-85-rows question has been raised twice and remains open.
+
+**2026-08-25 ruling note:** Scoped landing is ruled: Q05 and Q10 may land with their pre-existing
+bypasses ticketed and named explicitly **NOT closed**; deny, Q12, Q43, Q14, and Q04 stay blocked.
+The separate question above — whether all 85 rows are required — remains open. See
+`issues/closed/20260824-are-lanes-being-held-past-the-ruling.md`.

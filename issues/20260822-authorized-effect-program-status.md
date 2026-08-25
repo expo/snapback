@@ -333,8 +333,9 @@ mid-file and its middle findings are **unread, not cleared**.
 
 Exceptions are flows that are cross-principal **by design** — effect approval and detached-action
 sinks — each carrying an explicit binding rather than a relaxation. Challenge sends are
-rate-limited rather than authorized. Q13 (who is billed) and Q23 (dev-mode impersonation) are
-approved only in their correlation half; the product policy in each remains open.
+rate-limited rather than authorized. At this 2026-08-24 status update, Q13 (who is billed) and Q23
+(dev-mode impersonation) were approved only in their correlation half and both product policies
+remained open; the Q23 statement is superseded by the 2026-08-25 ruling note below.
 
 **2026-08-25 ruling note:** Q23 no longer remains open. The author selected **owner-bound**
 development impersonation: `DevImpersonation` may act only as the app owner or users within a

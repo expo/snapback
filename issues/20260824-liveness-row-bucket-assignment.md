@@ -220,6 +220,11 @@ Ranking is primarily rows resolved per decision. Ties put live-authority or dura
 | 44 | Q44 | 1: F122 | **When may claims be supplied for a session authority, and must they be derived from the exact resolved session and generation?** Production claims are obtained by `engine:8090` before authority preparation. |
 | 45 | Q45 | 1: F129 | **Who may set durable caller/approver attribution for whose authority, and must it derive from the exact prepared authority/effect?** Attribution is assembled at `server.rs:16460` and `server/effects.rs:191`. |
 
+**2026-08-25 Q23 ruling note:** The author selected **owner-bound** development impersonation;
+unrestricted and fixture-bound impersonation are rejected. Implementation is assigned to the
+`q23-owner-bound` lane. See LLP 0303 §Product decisions — Q13 open, Q23 ruled. This inventory ticket
+remains open.
+
 ## P3-LOW — 17
 
 These are structurally bounded in current production code. I did not infer “impossible” merely from being unable to find an abusive caller.

@@ -59,7 +59,8 @@ The document repairs itself without guessing:
 - **Q39** is classified later in the same document as an external effect that precedes proof of
   ownership by design, i.e. rate-limit rather than authorize.
 - **Q36** is ranked for implementation later in the same document with a DERIVE disposition.
-- **Q23**'s product dimension is listed as still open, so it cannot be in a settled strict set.
+- **Q23**'s product dimension was still open in LLP 0303 revision (m), so it could not be in that
+  settled strict set; the 2026-08-25 ruling update below supersedes that historical state.
 - **Q25, Q27, Q30, Q45** are cross-principal flows whose implementation plans retain exact
   *relation* verification rather than derivation. Q25 asks directly whether "their exact
   pending-request relation" must be the authorization; Q45 concerns caller/approver attribution

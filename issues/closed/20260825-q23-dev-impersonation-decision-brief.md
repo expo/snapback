@@ -3,7 +3,7 @@
 **Status:** Closed — author ruled 2026-08-25
 **Systems:** Auth, Engine, Kernel
 **Date:** 2026-08-25
-**Related:** LLP 0303 (Q23, "still open — approved in part only"),
+**Related:** LLP 0303 §Product decisions — Q13 open, Q23 ruled,
   `issues/20260824-q04-membership-writer-route-enumeration.md`
 
 ## Why this is on the critical path now

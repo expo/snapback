@@ -6,7 +6,7 @@
 **Author:** Claude (Opus 5), commissioned by Charlie Cheever (author ruling
 2026-08-24, in session supervising LLP 0283 F-1)
 **Date:** 2026-08-24
-**Revised:** 2026-08-25 (q — Q23 owner-bound; scoped landings)
+**Revised:** 2026-08-25 (s — Q23 owner-bound; scoped landings)
 **Related:** LLP 0283, LLP 0298, LLP 0285, LLP 0274,
 `issues/20260824-liveness-row-bucket-assignment.md`,
 `issues/20260824-entitlement-predicates-for-the-live-sites.md`
@@ -524,7 +524,7 @@ This follows from the projection rule in
 writes cannot see that path's mutation. When adding a per-path test, project the columns **that
 path** writes, not the columns the previously-fixed path wrote.
 
-### Enumerate the effect's siblings, not the entry point's
+### (q) Enumerate the effect's siblings, not the entry point's
 
 Revision (n) made sibling enumeration a deliverable of the fix. Two independent reviewers of the same
 commit then disagreed about whether a row was closed, and the disagreement located a gap in that rule.
@@ -562,7 +562,7 @@ A corollary for signature-based tooling: the privilege ratchet read the same 107
 both of these compositions were live. **A flat ratchet is not evidence**; it counts declared paths, and
 a composition declares nothing new.
 
-### Monotonic prevents lowering; the ceiling is absorbing
+### (r) Monotonic prevents lowering; the ceiling is absorbing
 
 Four lanes this cycle were defeated by the same move, and it is not the one the fixes were designed
 against. Each introduced durable monotone state to make an authority single-use, correctly refused
@@ -618,7 +618,9 @@ namespace, or lease field must be produced by whatever verified it, not asserted
 > questions" over printed ranges containing **41** identifiers. The ranges wrongly included Q23,
 > Q25, Q27, Q30, Q39 and Q45, and omitted Q36. The document repairs itself: Q39 is classified below
 > as an external effect that precedes proof of ownership by design; Q36 is ranked for
-> implementation below with a DERIVE disposition; Q23's product dimension is listed as still open;
+> implementation below with a DERIVE disposition; Q23's product dimension was still open in
+> revision (m) and was ruled owner-bound on 2026-08-25 (see
+> §Product decisions — Q13 open, Q23 ruled);
 > and Q25, Q27, Q30 and Q45 are cross-principal flows whose plans retain exact *relation*
 > verification rather than derivation. The ranges above are the repaired set and total exactly 37.
 > The defect mattered: a label and its own enumeration disagreed by four, and every downstream

@@ -61,7 +61,10 @@ Product decisions, not correlation rulings:
 - Q13: F203 and C014. Billing principal selection remains open.
 - Q23: F146. Dev-mode impersonation policy remains open.
 
-No product choice is made here.
+**2026-08-25 ruling note:** Q23 is now owner-bound; see LLP 0303 §Product decisions — Q13 open,
+Q23 ruled. Implementation is assigned to the `q23-owner-bound` lane; this planning ticket stays open.
+
+The original index made no product choice.
 
 ## Fixture discipline
 
