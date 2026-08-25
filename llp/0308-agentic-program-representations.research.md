@@ -8,9 +8,9 @@ Storage, Handler runtime, Agent experience
 **Date:** 2026-08-24
 **Revised:** 2026-08-25
 **Related:** LLP 0000, LLP 0008, LLP 0020, LLP 0051, LLP 0068, LLP 0080,
-LLP 0082, LLP 0108, LLP 0146, LLP 0155, LLP 0173, LLP 0186, LLP 0190,
+LLP 0082, LLP 0108, LLP 0146, LLP 0155, LLP 0186, LLP 0190, LLP 0203,
 LLP 0209, LLP 0234, LLP 0237, LLP 0241, LLP 0252, LLP 0264, LLP 0270,
-LLP 0274, LLP 0276, LLP 0304
+LLP 0274, LLP 0276, LLP 0304, LLP 0307
 
 ## Summary
 
@@ -35,8 +35,8 @@ retained alternatives (e-graphs / equality saturation) and correctness by
 deterministic validator.
 
 **Finding in one line: Snapback already implements a substantial part of
-the representation thesis — the closed-IR, contract, and placement
-layers — deliberately and in shipped Rust; what it lacks is retained
+the representation thesis — the closed-IR substrate, the contract layer,
+and the placement layer — deliberately and in shipped Rust; what it lacks is retained
 implementation families and any generation-time equivalence gate, and the
 useful imports are not a new language but four mechanisms:** (1)
 *derived* incremental maintenance for the closed query IR (DBSP-style),
@@ -82,10 +82,13 @@ The conversation's load-bearing claims, in the form relevant to Snapback:
 
 ## Findings
 
-### F1. Snapback already implements the representation thesis's closed-IR, contract, and placement layers
+### F1. Snapback already implements the thesis's substrate, contract, and placement layers
 
-Three of the source's layers did not need importing; they are the house
-design, stated in the corpus and enforced in code:
+Of the source's three layers (contract / implementation family /
+schedule), the contract and schedule layers — and the canonical-graph
+substrate beneath them — did not need importing; they are the house
+design, stated in the corpus and enforced in code. The implementation-
+family layer is the one that is absent (see the remainder map below):
 
 - **Programs as closed, analyzable data.** LLP 0051's `ValueExpr` /
   mutation-plan IR: "one evaluator serves every consumer — mutation
@@ -155,7 +158,10 @@ are the reactive domain.
 
 What Snapback does *not* have is uniformity. There are roughly five
 separate representations with separate identity, analysis, and precision
-machinery: ~13 `HandlerPlan` arms, the `ValueExpr` mutation IR, the
+machinery: ~13 `HandlerPlan` arms (the enum in
+`crates/snapback-types/src/manifest/types.rs`), the `ValueExpr` mutation
+IR (`crates/snapback-types/src/value_expr.rs`, whose pinned bounds F4
+cites), the
 `graph_query_v1` IR, the table policy carriers (read and write carriers
 in Rust; the write-side *derivation* in JavaScript codegen), and the
 migration-intent IR. (The migration-intent IR is deliberately out of
@@ -170,10 +176,13 @@ handler VM. The cliff is real but narrower than "everything falls off":
 execution, cold retention `rqsEligible`, delta eligibility) are
 plan-only, while **invalidation precision is not binary** — the matcher
 consults captured runtime read dependencies *before* any
-runtime-specific fallback, for opaque handlers too (point reads and
-serialized query predicates match precisely; LLP 0020's capture
-mechanism), and the authored `reads:` table-granular key plus a
-per-principal skip is the fallback when captures cannot decide.
+runtime-specific fallback, for opaque handlers too (captured point reads
+give exact positive wakes, and captured serialized query predicates can
+prove disjointness; LLP 0020's capture mechanism), and the authored
+`reads:` table-granular key plus a per-principal skip is the fallback
+when captures cannot decide. (Authored `writes:` play no role in this
+fallback — the matcher consults the read-set summary only; write
+declarations matter to conformance and the census, not invalidation.)
 Separately, **declaration conformance already ships**: LLP 0146 D1
 defines per-invocation declaration/observation reports with opt-in
 strict enforcement (`crates/snapback-kernel/src/conformance.rs`). LLP
@@ -188,7 +197,7 @@ Lane-by-lane, for the opaque handler:
 |---|---|---|
 | Plan admission | plan-only, static | opaque = no plan, by design |
 | Invalidation | captures first, then declared-`reads:` fallback | fallback is table-granular; captures prove disjointness only where captured |
-| Declaration conformance | LLP 0146 D1 reports; strict opt-in | strict not default; one observation ≠ completeness proof |
+| Declaration conformance | LLP 0146 D1 reports; strict opt-in by ruling | over-declaration judgeable only in aggregate (D2 coverage); one observation ≠ completeness proof |
 | Local exec / retention | plan-only (closed-inputs proof required) | opaque never eligible |
 | Delta eligibility | plan-only, shape-guarded | opaque always re-run |
 
@@ -255,14 +264,21 @@ The static-admission cliff in F2 bundles high-value lanes behind "author
 wrote a plan." Two separable products would soften it; conflating them
 was a defect in this document's first revision.
 
-**(a) Declaration conformance — strengthen what ships.** Authored
-`reads:`/`writes:` are trusted for the invalidation fallback, but they
-are not unverified: LLP 0146 D1's per-invocation observation reports and
-opt-in strict enforcement exist in Rust today. The import is narrow:
-move strict enforcement toward the default and state its honest limit —
-a per-invocation observation catches over- and under-declaration on
-observed paths; it is not a completeness proof over all inputs. Owner:
-LLP 0146.
+**(a) Declaration conformance — finish what ships, inside its ruling.**
+Authored `reads:` are trusted for the invalidation fallback, but
+declarations are not unverified: LLP 0146 D1's per-invocation
+declaration/observation reports and opt-in strict enforcement
+(`SNAPBACK_HANDLER_UNDECLARED_READ`/`_WRITE`, refused at load on
+targets that cannot enforce it) exist in Rust today. Two constraints
+are ratified and this document proposes changing neither: strict mode
+is **per-app opt-in, not default** (author ruling recorded in LLP 0146;
+a default change would be an explicit 0146 amendment carrying target
+scope, compatibility, and non-enforcing-target handling), and a
+per-invocation report's unwitnessed declarations are **data, not a
+verdict** — over-declaration is only judgeable in aggregate. The narrow
+import is therefore the aggregate rung LLP 0146 already names: D2
+coverage over accumulated invocation reports, which is where
+over-/under-declaration verdicts legitimately live. Owner: LLP 0146.
 
 **(b) Plan derivation — advisory first, sound checker before any lane
 flip.** Let codegen (or an agent pass) attempt to derive an equivalent
@@ -298,15 +314,23 @@ Accepted Spec — already specifies the successor carriers
 (`TableWritePostureV2`, `FunctionWritePolicyV2`,
 `WriteExecutionAuthorityV1`), a closed dispatcher, and an
 exact-versus-opaque write-operation census. The governance comparator
-already compares canonical policy bodies, not handler ASTs; and the
-write-site scanner has improved past §S0's dated self-diagnosis (it
-follows named helper chains and marks unresolved alias/computed paths
-opaque), though its residual soundness still needs an audit.
+already compares canonical policy bodies, not handler ASTs. The
+write-site scanner has improved past parts of §S0's self-diagnosis (it
+follows named helper chains, including top-level function-valued helper
+bindings), but it retains **live exact-empty false negatives** that
+conflict with 0274's requirement that escaped contexts, computed
+members, and unresolved call graphs become opaque absent proof: a
+context alias (`const alias = ctx; alias.db.insert(...)`) or a computed
+member (`ctx[key].insert(...)`) currently produces neither a site nor
+an opaque marker, and mutable `let`/`var` helper bindings are accepted
+as exact without reassignment analysis. §S0's diagnosis is narrowed,
+not retired.
 
 The import therefore narrows to: **implement 0274's accepted design**,
 with the genuinely hard part being the census — classifying every write
-site exactly or opaquely, soundly — plus the scanner soundness audit
-that decides how much of the census can be exact. Moving the derivation
+site exactly or opaquely, soundly — and the scanner soundness audit
+that decides how much of the census can be exact, starting from the
+named holes above. Moving the derivation
 itself from JavaScript codegen into Rust is *not* pending on some future
 window: LLP 0276 is Accepted and structurally realized, and deliberately
 retains no-build JavaScript tooling; relocating policy derivation would
@@ -322,11 +346,13 @@ The conversation's sharpest observation about parallelism: agents get
 their leverage *between* candidate programs — a thousand candidate
 patches share nearly all their nodes, so validation should be paid per
 changed frontier, with content-addressing as the sharing mechanism.
-Snapback content-addresses coarsely and validates monolithically: the
-codegen cache is keyed by the complete `inputsHash`, publication
+Snapback's *validation path* is keyed coarsely and runs monolithically:
+the codegen cache is keyed by the complete `inputsHash`, publication
 verifies and replaces the complete generated graph, and
 `NormalizedApplicationDefinitionV1` has whole-definition identities
-while operations are ordinary array entries.
+while operations are ordinary array entries. (Fine-grained identities —
+per-operation `implementationHash`, envelope-member digests — exist;
+no validation pass consumes them incrementally.)
 
 This document's first revision said the change "needs no new theory —
 only cache keys the artifacts already define." That understated it. Safe
@@ -424,16 +450,24 @@ already satisfied.
 
 ## Prior art
 
-External: DBSP (Budiu, Chajed, McSherry, Ryzhyk, Tannen — automatic
-incremental view maintenance for rich query languages; Feldera) and
-differential dataflow (McSherry et al.; Materialize) for I1 — noting
+External: DBSP (Budiu, Chajed, McSherry, Ryzhyk, Tannen, VLDB 2023,
+<https://www.vldb.org/pvldb/vol16/p1601-budiu.pdf>; Feldera) and
+differential dataflow (McSherry, Murray, Isaacs, Isard, CIDR 2013,
+<https://www.cidrdb.org/cidr2013/Papers/CIDR13_Paper111.pdf>;
+Materialize) for I1 — noting
 DBSP incrementalizes a query algebra and supplies none of the
-Snapback-specific replica or authority protocols; Alive2 (Lopes et al.)
+Snapback-specific replica or authority protocols; Alive2 (Lopes,
+Menendez, Nagarakatte, Regehr, PLDI 2021,
+<https://web.ist.utl.pt/nuno.lopes/pubs/alive2-pldi21.pdf>)
 for I2 strictly as the **generation/acceptance division of labor**
 (Alive2 itself is a formal refinement checker over IR semantics — the
 opposite of differential testing, which is why §I2 separates the
-advisory rung from sound promotion); egg (Willsey et al.) and egglog
-(Zhang et al.) for the deferred item; Halide's algorithm/schedule
+advisory rung from sound promotion); egg (Willsey et al., POPL 2021,
+<https://dl.acm.org/doi/10.1145/3434304>) and egglog (Zhang et al.,
+PLDI 2023, <https://dl.acm.org/doi/10.1145/3591239>) for the deferred
+item; Halide (Ragan-Kelley et al., PLDI 2013,
+<https://dl.acm.org/doi/10.1145/2491956.2462176>) and its
+algorithm/schedule
 separation for the *placement* framing the client admission classifier
 embodies — placement, not Halide's compute schedule; cost-model
 extraction stays with the deferred e-graph item.
@@ -469,6 +503,19 @@ discussion (grep-verified).
 
 ## Revision history
 
+- **r3 (2026-08-25).** Response to round-2 delta reviews (grok READY;
+  codex NOT READY with two IN-DELTA MATERIALs, zero pre-existing).
+  I2(a) rewritten inside LLP 0146's ratified rulings: strict mode stays
+  per-app opt-in (default change = explicit 0146 amendment), the
+  strengthening import is aggregate D2 coverage, per-invocation
+  unwitnessed declarations are data not verdicts, and authored `writes:`
+  removed from the invalidation-fallback grouping. I3's scanner status
+  corrected to name the live exact-empty false negatives (context
+  aliases, computed members, mutable helper bindings) instead of
+  claiming unresolved paths go opaque. Also: F1 layer-count wording,
+  point-read capture wording (exact positive wakes, not disjointness),
+  I4 coarse-keying scoped to the validation path, numeric claims pinned
+  to artifacts, stable prior-art links, Related-header hygiene.
 - **r2 (2026-08-25).** Response to round-1 super-refine reviews (codex,
   grok — both NOT READY). Added F1's remainder map; reclassified LLP
   0270's comparator as runtime divergence detection, not

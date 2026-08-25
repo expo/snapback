@@ -65,3 +65,40 @@ This is a useful research mapping: it correctly relocates value away from a new 
 
 ## Verdict
 NOT READY
+
+## Round 2 — 2026-08-25 (delta round on r2)
+
+- Reviewer: `grok-4.6` @ xhigh, headless, terminal ban, no repository
+  access; received r2 in full, the r1→r2 unified diff, and its own
+  round-1 review only (cross-family blindness preserved).
+- Revision under review: r2, target sha256/16 `f56cde3cca4dd3a4`
+  (commit `bf3943a80`). Prompt sha256/16 `f449609fbe3b8f69`.
+- Run: launched 2026-08-25T07:08:06Z, exit 0, empty stderr; body
+  below is the complete stdout, verbatim (including the reviewer's two
+  leading narration sentences about reading the offloaded prompt).
+
+### Review body (verbatim)
+
+The full prompt was offloaded; I’ll read it first so the review is based on the complete r1→r2 material.The offload cut off mid-document; I’ll read the remainder so the delta review covers all of r2.## Round-1 disposition check
+
+1. **F1 over-identification / 0270 as speculate-then-check — DISPOSED.** Remainder map states the missing layers (implementation families, generation-time gate, subgraph-level diagnostics); 0270 is reclassified as runtime divergence detection of the same admitted IR, not an Alive2-style split.
+2. **I1 three-fronts-one-derivation — DISPOSED.** Scope is two consumers (0209 G3-B, 0190 D3); replica continuity and 0190 custody contracts are explicit non-products; 0082 is F1 precedent; the “high on three-fronts” claim is gone; OQ1 no longer assumes one spec owns all three.
+3. **I2 closes the declaration gap / silent lane promotion — DISPOSED.** Declaration conformance and plan derivation are separate products; promotion needs a named sound checker, residual risk, and non-silent failure; differential testing is a pre-filter; I3 no longer inherits the overclaim.
+4. **I1–I4 ranking vs payoff/stakes — DISPOSED.** Architectural-leverage numbering is distinguished from do-now order (I4 probe + I1 spike, then I3-with-0274, I1 spec, I2 last).
+5. **Source idea 6 undispositioned — DISPOSED.** F3 now records partial satisfaction (refusal/ledger/conformance reasons), an unmet remainder (conflicting subgraph + repairs), an owner line, and an explicit “not already satisfied.”
+
+## MATERIAL concerns
+
+None.
+
+## Non-material observations
+
+1. **IN-DELTA.** F1’s lead sentence still counts “three of the source’s layers” as closed-IR + contract + placement. The source’s three layers are contract / implementation family / schedule; closed IR is substrate, not the missing family layer. The remainder map prevents the r1 misread.
+2. **IN-DELTA.** The leverage criterion (“how much of F2’s fragmentation map each import unifies”) is looser than I1’s actual product (one algebra, two consumers) and than I3’s reduced form (implement already-accepted 0274). The I1 body and the do-now list are what a program should follow.
+3. **IN-DELTA.** Several r2 factual reversals are citation-grounded but unverifiable here (`FunctionWritePolicyV1` / 0274 successor carriers, 0146 D1 in `conformance.rs`, 0276 “structurally realized,” 0241 sub-identity diff vs atomic activation, 0307 closed, scanner past §S0). They are internally consistent; a consumer should check those artifacts rather than treat this document as the proof.
+4. **IN-DELTA.** Related-header hygiene: LLP 0203 and LLP 0307 appear in the body and are absent from Related; LLP 0173 remains in Related with no body cite after the I2 rewrite.
+5. **IN-DELTA.** Do-now’s “I1 scope spike” is unnamed (OQ1 vs a prototype). That is implementation-phase, not a scoping defect.
+6. **PRE-EXISTING.** Numeric color (`~13` `HandlerPlan` arms, `MAX_PLAN_STEPS = 64`) is still unpinned to a counted artifact.
+
+## Verdict
+READY

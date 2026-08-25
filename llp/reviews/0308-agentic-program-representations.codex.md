@@ -76,3 +76,40 @@ LLP 0308 identifies real opportunities and accurately describes much of Snapback
 ## Verdict
 
 NOT READY
+## Round 2 — 2026-08-25 (delta round on r2)
+
+- Reviewer: codex `gpt-5.6-sol` @ ultra (verified in run log),
+  read-only in capsule-r2 (capsule-r1 lineage + r2 overlay; zero 0308
+  review artifacts, verified); received the r1→r2 diff and its own
+  round-1 review only.
+- Revision under review: r2, target sha256/16 `f56cde3cca4dd3a4`
+  (commit `bf3943a80`). Instructions sha256/16 `10c5aed8781a6c64`.
+- Launch 1 (07:04Z) was killed by the environment mid-run with no final
+  output — voided, not counted. Launch 2: started 2026-08-25T07:21:49Z, exit 0.
+  Body below is the complete final message of launch 2, verbatim.
+
+### Review body (verbatim)
+
+## Round-1 disposition check
+
+1. **DISPOSED** — I2 now keeps derivation advisory until a sound refinement checker exists and limits differential testing to pre-filtering/qualification, consistent with [Alive2’s SMT-based refinement model](https://web.ist.utl.pt/nuno.lopes/pubs.php?id=alive2-pldi21).
+2. **PARTIALLY DISPOSED** — F2’s capture ordering, lane matrix, and shipped conformance baseline are corrected, but revised I2(a) introduces the material errors below.
+3. **DISPOSED** — I1 now limits shared derivation to matcher deltas and local materialization while separating replica continuity and LLP 0190 custody/authority, consistent with [DBSP’s query-IVM scope](https://www.vldb.org/pvldb/vol16/p1601-budiu.pdf); DK-3 is restored.
+4. **PARTIALLY DISPOSED** — The carrier, LLP 0274 status, governance-comparator, and LLP 0276 corrections are accurate, but the revised scanner ground truth remains materially false.
+5. **DISPOSED** — Current code confirms the whole-`inputsHash` cache, complete-graph publication, whole-definition identities, LLP 0241 atomicity, and corrected LLP 0186/0307 ownership.
+
+## MATERIAL concerns
+
+1. **IN-DELTA — I2(a) contradicts the ratified declaration-conformance contract.** LLP 0308:258–265 presents moving strict enforcement toward default as a narrow strengthening, but LLP 0146:516–531 and 1282–1288 explicitly rule that strict mode remains per-app opt-in and off for newly generated apps; `manifest/types.rs:661–674,714–730` implements that default. The Cloudflare target still refuses the flag because it cannot enforce it (`targets/cloudflare/src/target-admission.js:10–29`). The same paragraph incorrectly calls per-invocation `extraReads`/`extraWrites` over-declaration findings, although LLP 0146:459–515 and `conformance.rs:74–80` reserve that verdict for aggregate coverage, and it falsely groups authored `writes:` into the live-invalidation fallback, which consults only `read_set_summary` (`live_matcher.rs:1721–1742`). Either preserve the accepted opt-in policy and recommend aggregate coverage, or explicitly propose an LLP 0146 amendment with target scope, compatibility, and non-enforcing-target handling.
+
+2. **IN-DELTA — I3’s scanner correction erases live exact-empty false negatives.** LLP 0308:302–304 says unresolved alias/computed paths become opaque and calls LLP 0274 §S0’s exact-empty diagnosis dated. In current code, context tracking covers only directly named handler parameters and direct `ctx.db` shapes (`write-policy.mjs:193–203,341–361,449–476`). Consequently, forms such as `const alias = ctx; alias.db.insert(...)` or `ctx[key].insert(...)` produce neither a site nor `opaque`; the empty census then passes through `buildWritePolicyChecks` (`:948–1028`). Mutable top-level `let`/`var` helpers are also accepted as exact without reassignment analysis (`write-policy.test.mjs:394–415`). This conflicts with Accepted LLP 0274:1365–1383, which requires escaped contexts, computed members, indirect helpers, and unresolved call graphs to become opaque absent a sound proof. The status analysis must identify these current holes rather than asserting they are closed.
+
+## Non-material observations
+
+1. **IN-DELTA** — F2’s “point reads … match precisely” should mean exact positive wakes only: a point-only capture cannot prove general disjointness and falls back when no captured query exists (`live_matcher.rs:2910–2951`).
+2. **IN-DELTA** — “Snapback content-addresses coarsely” should be scoped to the validation cache; fine per-operation `implementationHash` and envelope-member digests already exist.
+3. **PRE-EXISTING** — The prior-art section still lacks stable primary-source links; the separate LLP 0252 ownership correction is fixed.
+
+## Verdict
+
+NOT READY

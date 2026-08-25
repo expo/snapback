@@ -60,3 +60,39 @@ Status transition applied at loop start (the one authorized transition):
   baseline, I3 stale ground truth, I4 ownership/feasibility.
 - Round 1 outcome: both families NOT READY → orchestrator revision (r2),
   then a round-2 delta round.
+
+## Round 2 record (persisted before launch)
+
+- Round: 2, **delta round** (LLP 0010.001 §Delta rounds) on r2.
+- Revision under review: r2, target sha256/16 `f56cde3cca4dd3a4`,
+  commit `bf3943a80`. r1→r2 delta enumerated by the unified diff
+  (632 lines) supplied to both reviewers plus the document's
+  Revision-history r2 bullet.
+- Growth disclosure: r2 is 487 lines vs r1's 368 (+32.3% net), over the
+  ~20% guidance; the growth is reviewer-mandated additions (F2 lane
+  matrix, F1 remainder map, idea-6 disposition, revision history).
+  Trim-at-acceptance proposed (compress revision history + prior art)
+  rather than cutting fold content mid-loop.
+- Topology: unchanged. Each family receives its OWN round-1 review for
+  disposition checking plus the diff; cross-family blindness preserved
+  (structural: capsule-r2 is a clone of capsule-r1 — which predates all
+  0308 artifacts — with only the r2 document overlaid; verified zero
+  `llp/reviews/0308*` entries).
+- Delta-round rules given to both: per-concern IN-DELTA vs PRE-EXISTING
+  classification mandatory; round-1 disposition check section required.
+- Instruction hashes (sha256/16): codex `10c5aed8781a6c64`; grok prompt
+  `f449609fbe3b8f69`.
+- Runtimes: unchanged (codex gpt-5.6-sol @ ultra read-only in
+  capsule-r2; grok-4.6 @ xhigh headless, terminal ban, no repo access).
+
+### Round 2 receipts (running)
+
+- grok-4.6 @ xhigh: launched 07:08:06Z, received ~07:12Z, exit 0, empty
+  stderr, complete well-formed delta review. All five of its round-1
+  MATERIALs: DISPOSED. New MATERIAL concerns: none. Verdict: **READY**
+  on r2 `f56cde3cca4dd3a4`.
+- codex gpt-5.6-sol @ ultra, launch 1: started 07:04Z, **killed by the
+  environment mid-run** (no final output produced). Recorded as a voided
+  launch per protocol — not counted as a review. Relaunched with
+  identical instructions (`10c5aed8781a6c64`) and the identical
+  capsule-r2; target unchanged, round remains valid.
