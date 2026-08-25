@@ -1,7 +1,8 @@
 # snapback run refuses public zero-arg queries against a sessions target
 
-**Status:** Open
+**Status:** Resolved
 **Opened:** 2026-08-24
+**Resolved:** 2026-08-25
 **Systems:** CLI, Auth
 **Related:** LLP 0307 (Track Q-a probe, published-0.1.26 finding 4),
 `benchmarks/runs/2026-08-24-qa-ports-probe-0126/record.md`
@@ -35,3 +36,17 @@ runnable with zero ceremony.
   sessions-target dev server, or its refusal names the sessions
   situation and the exact working alternative.
 - Covered by a CLI test against a sessions-mode fixture.
+
+## Resolution
+
+`snapback run` no longer serializes an absent `--user` as `userId: null`.
+It first preserves the established administrative host-op projection; when a
+sessions query reaches that projection's scoped secret-read boundary, the CLI
+retries through the ordinary anonymous `/query/{name}` route. That route's
+served-manifest and function-auth gates remain authoritative, so declared
+public queries run with no session ceremony while protected queries still
+refuse through the sessions app-auth path.
+
+The native CLI integration fixture runs a declared-public Ibex query against a
+sessions-policy server and asserts the anonymous query result. The complete
+`host_ops_v0` integration file passes all 15 tests.

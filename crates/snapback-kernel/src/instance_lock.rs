@@ -474,7 +474,7 @@ impl TargetInstanceReservation {
         if created {
             lock_file.set_permissions(std::fs::Permissions::from_mode(0o600))?;
         }
-        validate_target_reservation_file(&lock_file)?;
+        validate_target_reservation_file_candidate(&lock_file)?;
         let lock_metadata = lock_file.metadata()?;
         let lock_identity = (lock_metadata.dev(), lock_metadata.ino());
         let mut created_cleanup = created.then(|| CreatedReservationCleanup {
@@ -483,14 +483,9 @@ impl TargetInstanceReservation {
             identity: lock_identity,
             armed: true,
         });
-        let strict_path_file = crate::secure_file::open_strict_owner_only(&lock_path)
-            .context("target-instance reservation is not strictly owner-only")?;
-        let strict_path_metadata = strict_path_file.metadata()?;
-        anyhow::ensure!(
-            (strict_path_metadata.dev(), strict_path_metadata.ino()) == lock_identity,
-            "target-instance reservation path does not name the opened inode"
-        );
 
+        // @ref LLP 0057#restore — the persistent reservation distinguishes a
+        // live owner from an unlocked stale entry before offering any repair.
         if let Err(error) = platform::try_lock_exclusive(&lock_file) {
             if error.kind() == io::ErrorKind::WouldBlock {
                 return Err(anyhow!(
@@ -501,6 +496,22 @@ impl TargetInstanceReservation {
             }
             return Err(error).context("failed to lock target-instance reservation");
         }
+
+        if target_reservation_is_pre_rework_0644(&lock_file)? {
+            return Err(anyhow!(
+                "SNAPBACK_TARGET_INSTANCE_RESERVATION_STALE: target-instance reservation is a stale pre-rework 0644 file with no live owner:\n  lock: {}\nRemove exactly this stale reservation and retry:\n  rm -- {}",
+                lock_path.display(),
+                shell_single_quote_path(&lock_path),
+            ));
+        }
+        validate_target_reservation_file(&lock_file)?;
+        let strict_path_file = crate::secure_file::open_strict_owner_only(&lock_path)
+            .context("target-instance reservation is not strictly owner-only")?;
+        let strict_path_metadata = strict_path_file.metadata()?;
+        anyhow::ensure!(
+            (strict_path_metadata.dev(), strict_path_metadata.ino()) == lock_identity,
+            "target-instance reservation path does not name the opened inode"
+        );
 
         let expected_target_hex = os_path_hex(&target_instance);
         if created {
@@ -938,6 +949,38 @@ fn validate_target_reservation_file(file: &File) -> anyhow::Result<()> {
         "target-instance reservation must be one owner-only regular-file link"
     );
     Ok(())
+}
+
+#[cfg(any(target_vendor = "apple", target_os = "linux"))]
+fn validate_target_reservation_file_candidate(file: &File) -> anyhow::Result<()> {
+    use std::os::unix::fs::{MetadataExt as _, PermissionsExt as _};
+
+    let metadata = file.metadata()?;
+    let mode = metadata.permissions().mode() & 0o777;
+    anyhow::ensure!(
+        metadata.file_type().is_file()
+            && metadata.uid() == unsafe { libc::geteuid() }
+            && matches!(mode, 0o600 | 0o644)
+            && metadata.nlink() == 1,
+        "target-instance reservation must be one owner-only regular-file link"
+    );
+    Ok(())
+}
+
+#[cfg(any(target_vendor = "apple", target_os = "linux"))]
+fn target_reservation_is_pre_rework_0644(file: &File) -> anyhow::Result<bool> {
+    use std::os::unix::fs::{MetadataExt as _, PermissionsExt as _};
+
+    let metadata = file.metadata()?;
+    Ok(metadata.file_type().is_file()
+        && metadata.uid() == unsafe { libc::geteuid() }
+        && metadata.permissions().mode() & 0o777 == 0o644
+        && metadata.nlink() == 1)
+}
+
+#[cfg(any(target_vendor = "apple", target_os = "linux"))]
+fn shell_single_quote_path(path: &Path) -> String {
+    format!("'{}'", path.to_string_lossy().replace('\'', "'\"'\"'"))
 }
 
 fn read_target_reservation_record(file: &mut File) -> anyhow::Result<TargetReservationRecord> {
@@ -1513,6 +1556,70 @@ mod tests {
         assert!(lock_path.is_file(), "stale lock entries are never unlinked");
         TargetInstanceReservation::acquire(&db_path).expect("closed stale record can be reused");
         assert!(!db_path.parent().unwrap().exists());
+    }
+
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    #[test]
+    fn pre_rework_reservation_distinguishes_stale_from_live_owner() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let stale_root = tempfile::tempdir().unwrap();
+        let stale_db = stale_root.path().join("stale").join("snapback.db");
+        let stale_lock = target_reservation_path_for_database(&stale_db).unwrap();
+        std::fs::write(&stale_lock, b"pre-rework reservation\n").unwrap();
+        std::fs::set_permissions(&stale_lock, std::fs::Permissions::from_mode(0o644)).unwrap();
+
+        let stale_error = TargetInstanceReservation::acquire(&stale_db)
+            .expect_err("an unlocked pre-rework reservation must be actionable");
+        let stale_message = format!("{stale_error:#}");
+        assert!(
+            stale_message.contains("SNAPBACK_TARGET_INSTANCE_RESERVATION_STALE"),
+            "stale refusal must be coded: {stale_message}"
+        );
+        assert!(
+            stale_message.contains("stale pre-rework 0644 file with no live owner"),
+            "stale refusal must name the diagnosed lifecycle state: {stale_message}"
+        );
+        assert!(
+            stale_message.contains(&format!(
+                "rm -- {}",
+                super::shell_single_quote_path(
+                    &std::fs::canonicalize(stale_root.path())
+                        .unwrap()
+                        .join(stale_lock.file_name().unwrap())
+                )
+            )),
+            "stale refusal must give the exact removal command: {stale_message}"
+        );
+        assert_eq!(
+            std::fs::metadata(&stale_lock).unwrap().permissions().mode() & 0o777,
+            0o644,
+            "diagnosis must not mutate the legacy reservation"
+        );
+
+        let live_root = tempfile::tempdir().unwrap();
+        let live_db = live_root.path().join("live").join("snapback.db");
+        let live_lock = target_reservation_path_for_database(&live_db).unwrap();
+        std::fs::write(&live_lock, b"pre-rework live reservation\n").unwrap();
+        std::fs::set_permissions(&live_lock, std::fs::Permissions::from_mode(0o644)).unwrap();
+        let live_owner = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&live_lock)
+            .unwrap();
+        super::platform::try_lock_exclusive(&live_owner).unwrap();
+
+        let live_error = TargetInstanceReservation::acquire(&live_db)
+            .expect_err("a live owner must continue to refuse hard");
+        let live_message = format!("{live_error:#}");
+        assert!(
+            live_message.contains("already reserved by another process"),
+            "live-owner refusal changed unexpectedly: {live_message}"
+        );
+        assert!(
+            !live_message.contains("SNAPBACK_TARGET_INSTANCE_RESERVATION_STALE"),
+            "a live owner must never be described as stale: {live_message}"
+        );
     }
 
     #[cfg(any(target_vendor = "apple", target_os = "linux"))]

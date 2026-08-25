@@ -20,8 +20,14 @@ use snapback::admin_impersonation::{
     IMPERSONATION_CAPABILITY_HEADER, ImpersonationCapabilityRegistry,
 };
 use snapback::auth::crypto::OsRandom;
+use snapback::diagnostic::DiagnosticSeverity;
 use snapback::host_ops::{HostOpsRequest, HostReadyDescriptor, execute_host_op};
 use snapback::local::LocalSnapback;
+use snapback::manifest::{
+    AuthRequirement, FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime,
+    IbexModule,
+};
+use snapback::server::PolicyAuthMode;
 use snapback_server::test_support::axum::body::{Body, to_bytes};
 use snapback_server::test_support::axum::http::{Request, StatusCode, header};
 use std::fs;
@@ -79,6 +85,92 @@ fn wait_for_cli_ready(
         );
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
+}
+
+/// A sessions target treats the absence of client authority as anonymous.
+/// The native CLI must therefore omit `userId`, not serialize `--user`'s
+/// absent value as the explicitly forbidden JSON null.
+// @ref LLP 0058#session-mode-body-closure — every legacy authority field,
+// populated or null, is rejected before the host operation runs.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn snapback_run_public_query_is_anonymous_on_sessions_target() {
+    let mut snapback = LocalSnapback::memory().expect("sessions CLI fixture");
+    let mut public_query = FunctionDefinition::new(
+        "publicStatus",
+        FunctionKind::Query,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: "globalThis.__snapbackHandlers = { publicStatus() { return [{ visibility: 'public' }]; } };"
+                .to_owned(),
+            export: "publicStatus".to_owned(),
+        }),
+    );
+    public_query.auth_requirement = Some(AuthRequirement::Public);
+    let diagnostics = snapback.load_functions(FunctionManifest {
+        functions: vec![public_query],
+        ..FunctionManifest::default()
+    });
+    assert!(
+        diagnostics.iter().all(|diagnostic| !matches!(
+            &diagnostic.severity,
+            DiagnosticSeverity::Error | DiagnosticSeverity::Fatal
+        )),
+        "sessions CLI fixture functions must load: {diagnostics:?}"
+    );
+
+    let std_listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = std_listener.local_addr().unwrap();
+    let mut context = ServerContext::from_bound_listener(&std_listener).unwrap();
+    context.profile = ServerProfile::Test;
+    context.admin_token = Some("sessions-public-cli-admin".to_owned());
+    std_listener.set_nonblocking(true).unwrap();
+    let listener = tokio::net::TcpListener::from_std(std_listener).unwrap();
+    let state = test_app_state_from_snapback(snapback, context)
+        .with_policy_auth_mode(PolicyAuthMode::Sessions);
+    let server = tokio::spawn(async move {
+        snapback::server::app(state)
+            .bind(listener)
+            .expect("bind sessions CLI fixture")
+            .serve()
+            .await
+            .expect("serve sessions CLI fixture");
+    });
+
+    let output = tokio::task::spawn_blocking(move || {
+        std::process::Command::new(env!("CARGO_BIN_EXE_snapback"))
+            .args([
+                "run",
+                "--url",
+                &format!("http://{address}"),
+                "--token",
+                "sessions-public-cli-admin",
+                "publicStatus",
+            ])
+            .env_remove("SNAPBACK_ADMIN_TOKEN")
+            .output()
+            .expect("run native CLI against sessions fixture")
+    })
+    .await
+    .unwrap();
+    server.abort();
+
+    assert!(
+        output.status.success(),
+        "snapback run stderr: {}\nstdout: {}",
+        String::from_utf8_lossy(&output.stderr),
+        String::from_utf8_lossy(&output.stdout),
+    );
+    let envelope: Value = serde_json::from_slice(&output.stdout).expect("CLI query result");
+    assert_eq!(
+        envelope["rows"][0]["visibility"], "public",
+        "public sessions invocation must use the anonymous query route: {envelope}"
+    );
+    assert_ne!(
+        envelope["diagnostics"]
+            .as_array()
+            .and_then(|diagnostics| diagnostics.first())
+            .and_then(|diagnostic| diagnostic["code"].as_str()),
+        Some("SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED")
+    );
 }
 
 /// @ref LLP 0184#2-derived-ownership-not-a-second-registry — the native CLI
