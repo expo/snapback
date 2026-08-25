@@ -473,7 +473,7 @@ test('reviewed engine compatibility globs stay bound to their exact files', () =
   assert.doesNotThrow(() => validateEngineDefinitionDenylist(artifact, [
     {
       path: join(repositoryRoot, 'crates/snapback-engine/src/local.rs'),
-      source: 'pub use runtime_cost::*;',
+      source: 'mod runtime_cost;\npub use runtime_cost::*;',
     },
     {
       path: join(repositoryRoot, 'crates/snapback-engine/src/local/engine.rs'),
@@ -513,6 +513,62 @@ test('reviewed runtime_cost globs cannot be rebound at their canonical path', ()
       source,
     );
   }
+  assert.throws(
+    () => validateEngineDefinitionDenylist(artifact, [{
+      path: join(repositoryRoot, 'crates/snapback-engine/src/other.rs'),
+      source: 'mod runtime_cost;',
+    }]),
+    /may not shadow reviewed glob binding runtime_cost/u,
+  );
+});
+
+test('reviewed local glob roots cannot be rebound', () => {
+  for (const { path, source } of [
+    {
+      path: join(repositoryRoot, 'crates/snapback-engine/src/local/engine.rs'),
+      source: 'use foreign_bridge as config_types;\npub use config_types::*;\n#[derive(JsonSchema)] struct Harmless;',
+    },
+    {
+      path: join(repositoryRoot, 'crates/snapback-engine/src/local.rs'),
+      source: 'use foreign_bridge::{payload as engine};\npub use engine::*;',
+    },
+  ]) {
+    assert.throws(
+      () => validateEngineDefinitionDenylist(artifact, [{ path, source }]),
+      /may not alias reviewed glob binding (?:config_types|engine)/u,
+      source,
+    );
+  }
+});
+
+test('reviewed crate-qualified glob roots cannot be rebound', () => {
+  const canonicalPath = join(repositoryRoot, 'crates/snapback-engine/src/lib.rs');
+  for (const source of [
+    'extern crate foreign_bridge as snapback_kernel;\npub use snapback_kernel::assets::*;',
+    'use foreign_bridge::{payload as snapback_types};\npub use snapback_types::instance_fork::*;',
+  ]) {
+    assert.throws(
+      () => validateEngineDefinitionDenylist(artifact, [{ path: canonicalPath, source }]),
+      /may not (?:alias or shadow|alias) reviewed glob binding snapback_(?:kernel|types)/u,
+      source,
+    );
+  }
+});
+
+test('a crate-root alias cannot poison a reviewed glob in another file', () => {
+  assert.throws(
+    () => validateEngineDefinitionDenylist(artifact, [
+      {
+        path: join(repositoryRoot, 'crates/snapback-engine/src/local.rs'),
+        source: 'pub use runtime_cost::*;',
+      },
+      {
+        path: join(repositoryRoot, 'crates/snapback-engine/src/lib.rs'),
+        source: 'extern crate foreign_bridge as runtime_cost;',
+      },
+    ]),
+    /may not alias or shadow reviewed glob binding runtime_cost/u,
+  );
 });
 
 test('comment and literal examples do not count as engine definitions', () => {
@@ -577,6 +633,18 @@ test('the engine cannot rename an external proc-macro dependency to runtime_cost
     () => validateArtifactAndMetadata(artifact, value, workspaceManifestSource),
     /may not rename foreign-macros to trusted macro crate binding runtime_cost/u,
   );
+});
+
+test('the engine cannot rename dependencies over any reviewed glob root class', () => {
+  for (const binding of ['config_types', 'engine', 'snapback_kernel']) {
+    const value = metadata('snapback-engine', ['foreign-bridge']);
+    packageNamed(value, 'snapback-engine').dependencies[0].rename = binding;
+    assert.throws(
+      () => validateArtifactAndMetadata(artifact, value, workspaceManifestSource),
+      new RegExp(`may not rename foreign-bridge to trusted macro crate binding ${binding}`, 'u'),
+      binding,
+    );
+  }
 });
 
 test('the engine cannot hyphen-rename a dependency over a trusted crate binding', () => {
