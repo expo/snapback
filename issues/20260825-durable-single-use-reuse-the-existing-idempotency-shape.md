@@ -177,3 +177,27 @@ concept but in two adjacent questions this document should have asked more loudl
 2. **When is it read?** If only at acquisition, live handles outlive it.
 
 Both are now in LLP 0303 revision (k). Add them to the four properties above when using this shape.
+
+### Singleton keys and per-operation keys behave differently under revision (k)
+
+Worth separating, because the acquisition-vs-use flaw does not apply uniformly.
+
+- **Q43 used a singleton key** — one `auth_invalidation_boot_issuance_v1` record describing the
+  currently-live boot issuance. A long-lived handle validated against it at acquisition keeps working
+  after the record moves on, which is exactly the cross-process replay that blocked it. Singleton
+  keys describe *current state*, so anything holding a reference to "the current one" can go stale.
+
+- **Q03 used a per-operation key** — `auth_commit_consumed:<operation-id>`, one row per operation.
+  A per-operation record describes *a specific event that happened*, not a state that can be
+  superseded. There is no later value for a stale handle to be out of step with, because the row for
+  operation X never becomes the row for operation Y.
+
+So revision (k) bites hardest on singleton-key designs. That is not a licence to skip the question
+for per-operation keys — a handle could still cache "I checked operation X" and be reused for
+operation Y — but the failure requires a different mistake, and the cross-process test that broke Q43
+would not break Q03 for the same reason.
+
+**Stated as a structural hypothesis, not a verdict.** It was reached by reading the key shapes, and
+reading has been wrong repeatedly in this programme; the reviews will settle whether each lane is
+actually exposed. Recorded because it predicts *which* lanes to worry about, which is useful even if
+an individual call turns out wrong.
