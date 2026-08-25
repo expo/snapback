@@ -497,6 +497,19 @@ function normalizeFailure(error, fallbackCode = 'SNAPBACK_STARTER_ACCEPTANCE_FAI
 function bindSupervisedApp(app, ready, offeredCapabilities = [], supervisorGeneration = null) {
   assert(plainObject(app?.identity), 'bindingFor requires a generated app descriptor');
   const now = Date.now();
+  const offered = new Set([
+    ...(app.capabilities?.required ?? []),
+    ...offeredCapabilities,
+  ]);
+  // @ref LLP 0258#d1-generate-one-non-secret-bootstrap-policy — acceptance's
+  // synthetic supervised binding must project the same mechanism offer as the
+  // real supervisor before the ordinary bootstrap intersects policy with it.
+  if (app.authBootstrap?.entryMechanisms?.includes('password-v1')) {
+    offered.add('auth.passwords');
+  }
+  if (app.authBootstrap?.entryMechanisms?.includes('guest-v1')) {
+    offered.add('auth.guest-sessions');
+  }
   return Object.freeze({
     format: 'snapback.app-binding.v1',
     source: 'supervised-dev',
@@ -509,10 +522,7 @@ function bindSupervisedApp(app, ready, offeredCapabilities = [], supervisorGener
       routing: 'loopback',
     }),
     capabilities: Object.freeze({
-      offered: Object.freeze([...new Set([
-        ...(app.capabilities?.required ?? []),
-        ...offeredCapabilities,
-      ])].sort()),
+      offered: Object.freeze([...offered].sort()),
     }),
     provenance: Object.freeze({
       supervisorGeneration: supervisorGeneration

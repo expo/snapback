@@ -3083,11 +3083,10 @@ await build({
     );
     run('npm', ['run', 'typecheck'], { cwd: chatRoot });
     run('npm', ['run', 'test:static'], { cwd: chatRoot });
-    assertStarterAcceptanceReceipt(
-      run('npm', ['test'], { cwd: chatRoot, timeout: 180_000 }),
-      `${label} default test`,
-      chatRoot,
-    );
+    // @ref LLP 0275#d6-treat-template-cold-install-closure-as-a-release-requirement
+    // — qualify the packed scaffold through its advertised done-oracle, not
+    // only the raw acceptance implementation that the oracle composes.
+    run('npm', ['run', 'prove'], { cwd: chatRoot, timeout: 180_000 });
     const appSource = readFileSync(join(chatRoot, 'App.tsx'), 'utf8');
     const chatScreenSource = readFileSync(
       join(chatRoot, 'src', 'screens', 'chat-screen.tsx'),
