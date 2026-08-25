@@ -1024,10 +1024,10 @@ async function main() {
         if (!/Connecting for live updates|Offline/.test(note ?? '')) throw new Error(`honest status note missing: ${note}`);
         const timing = await offlinePage.eval('window.allAboard?.startupTiming ?? null');
         if (timing?.backendConnectedMs !== null) throw new Error(`backend unexpectedly attached: ${JSON.stringify(timing)}`);
-        const bootChromeVisible = await offlinePage.eval(
-          `(() => { const el = document.getElementById('boot-status'); return el ? getComputedStyle(el).display !== 'none' : false; })()`,
+        const bootChrome = await offlinePage.eval(
+          `(() => { const el = document.getElementById('boot-status'); return el ? { visible: getComputedStyle(el).display !== 'none', text: el.textContent } : { visible: false, text: null }; })()`,
         );
-        if (bootChromeVisible) throw new Error('blocking boot chrome shown instead of the board');
+        if (bootChrome.visible) throw new Error(`blocking boot chrome shown instead of the board: ${bootChrome.text}`);
         return { stationName, heroMinutes, badge, note };
         } finally {
           await isolated.close();
