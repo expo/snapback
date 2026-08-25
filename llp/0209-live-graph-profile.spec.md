@@ -5,7 +5,9 @@
 **Systems:** Live queries, Relational queries, Schema, Auth, Performance, Client SDK
 **Author:** Claude Fable 5 (commissioned by the LLP 0191 author rulings, Charlie Cheever, 2026-08-08)
 **Date:** 2026-08-09
-**Revised:** 2026-08-24 (v0.10 — G3-A memoization landed; see the §9 dated note; prior v0.9 — G2-B rounds 1–2 make range traversal identity
+**Revised:** 2026-08-25 (v0.11 — G3 rung 1 delta lanes landed; P-B partial
+measurement; publication-readiness record; prior v0.10 — G3-A memoization
+landed; see the §9 dated notes; prior v0.9 — G2-B rounds 1–2 make range traversal identity
 and semantic-provenance registration/completeness attestation explicit; G2-A landed (the
 corpus-proven graph evaluator, series ending `e486f4827`) and the LLP 0268 exit extension landed
 (`a11054ca4`): the G0 exit is re-recorded with six 0268 §7 labels SATISFIED
@@ -3059,6 +3061,11 @@ The verbatim exit draft that the B3 lane produced and both review families check
 
 ### LLP 0209 v0.6 G0 exit note — orchestrator draft
 
+> **Historical snapshot.** This embedded draft is byte-preserved as the G0
+> exit record. Its "no evaluator" rows and unsatisfied-broadcast dispositions
+> describe 2026-08-23 state; the current disposition is the v0.9/v0.11 dated
+> notes at the end of §9.
+
 **Draft date:** 2026-08-23  
 **Contract:** LLP 0209 v0.5  
 **Stage A evidence:** `50c1b610d` through converged record `77ed8394d`  
@@ -3335,6 +3342,86 @@ or identities.
   LLP 0190's owner at that point, not before; until ruled, no §7 delta
   is claimed replica-applicable.
 
+### v0.11 — G3 rung 1 delta lanes; the measurement tail to its honest boundary; the publication-readiness record (dated note, 2026-08-25)
+
+**G3 rung 1** (the commission's G3-B arm) landed as `7d1f32b5c` (delta lanes,
+ported over the landed G3-A memoization) + `9cc18af16` (fix round:
+receiver-local delivery negotiation, default-on convergence sampling,
+deferral-aware bounds runner) + `3683b4cd4` (hermeticity root cause: the
+order-dependent memo-test red was the production five-second coalescer
+`max_hold` overload fallback under parallel libtest, not shared state; corpus
+schedulers now use a `cfg(test/test-support)` unbounded-hold coalescer).
+Substance, per §7's rung vocabulary: per-delivery eligibility restricted to
+provably representable rung-1 shapes (root-window scalar updates
+position-unchanged + equality-to-one child updates for retained parents;
+everything else — order-key movement across boundaries, take/window changes,
+label/completeness transitions, to-many/semi-join/principal/through effects,
+authority-lane frames — stays on the replace lane); patches computed from
+retained-row diffs, never commit `changed_fields`; physical `GraphRowKeyV1`
+keys; the DK-3-extending `snapback.graph-live-delta.v1` wire negotiation
+(replace-compatible; receiver-local — a memo hit can never transplant the
+producer's negotiation onto a legacy receiver); an authoritative
+per-subscription server-held window ledger; and the patch-applied convergence
+oracle (byte-equal against fresh evaluation at the same tuple; debug builds
+check every delivery; release samples first-4 + deterministic 1-in-64;
+`SNAPBACK_GRAPH_DELTA_CONVERGENCE=0/1` opts out/forces; a served-path failure
+force-replaces and counts — fail-honest). The port superseded the pre-port
+series' ledger-in-memo-key design in favor of G3-A's compatibility-
+preconditioned reuse. Corpus-side D2-H3 at N=1 normal fixture
+(`tests/conformance/graph/delta-dispositions.v1.json`, deterministic ×2):
+17 cases, 3 delta-eligible (`issueSummary`, the corpus-only rung-1 scalar
+shape) at frame bytes 98,034 vs 504,423 replace and eval cost 1,038 vs 9,309;
+the three array-bearing graphs remain all-replace; zero convergence failures.
+Records: `llp/reviews/0209-g3-rung1.{codex,grok,run}.md`.
+
+**P-B (the G3-C measurement battery)** ran to its commissioned fallback
+boundary (`tests/conformance/graph/MEASUREMENT-REPORT.v1.md`, landed
+`f9ce31bd2`): `large-seed42-v1` regenerated from the pinned upstream
+generator and verified byte-exact (16/16 shard sha256 against the receipt);
+the independent loader recomputation reproduced the fixture-wide comment
+maximum 27; `issueDetail.n2.maxChildrenPerParent` (27 ≤ 1,024) and
+`maxWindowPages` (1) leave provisional; no declared bound violated. The hot
+A/B arms are N=0 (the SQLite online-backup clone never progresses —
+`issues/20260825-hot-baseline-sqlite-backup-blocked.md`) and all three
+max-bearing large served registrations refused with
+`SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH`
+(`issues/20260825-graph-demand-identity-mismatch-large-fixture.md`), so
+**D2-H2 stays qualified only at its v0.9 N=1 corpus scope, D2-H3's hot-shape
+material-reduction clause is NOT ESTABLISHED, the large serialized/work/group
+maxima remain provisional, and LLP 0268 B1 stays gated** on the same three
+PARTIAL labels plus `issues/20260824-g0-bcast-bounds-large-hot-observations.md`.
+No unavailable metric was recorded as zero.
+
+**Publication readiness (P-C).** Verdict: **no graph capability can honestly
+publish today** under LLP 0183 §D2's gate; what exists is an experimental,
+test-support-declared, kill-switched local evaluator/scheduler passing the
+committed normal/policy corpus for the three structural Zerobugs graphs plus
+the corpus-only `issueSummary`. Row matrix against the §D2 publication
+sentence (evidence pointers in the P-C record and the corpus files):
+
+| §D2 row | Verdict |
+|---|---|
+| Pinned project restriction | PARTIAL — root predicate exercised; single-project fixture proves no cross-project exclusion |
+| Role visibility | COVERED — hidden-row non-interference + crew arm evaluator-executed |
+| Open filter | GAP — `listContext.open` null in every case |
+| Creator filter | GAP — never a root filter |
+| Assignee filter | GAP — never a root filter |
+| All-label filter | PARTIAL — admission checked; every frozen `selectedLabelIDs` is `[]` |
+| Search filter | GAP by design — D6-gated; refusal + defense-in-depth proven |
+| Selectable orders | PARTIAL — fixed `modified desc` only |
+| Two-way windows | PARTIAL — forward executes; backward frozen/metadata-only |
+| Private overlays | PARTIAL — non-interference + one positive `viewState`; no notification positive, no full matrix |
+| List relations | PARTIAL — core hydration executes; ordered-through refused |
+| Detail relations | PARTIAL — core branches execute; ordered-through + rich branches refused/excluded |
+| Every claimed target | PARTIAL; **zero publishable targets** — test-support declaration, test-only class-2 seam, local Rust harness only |
+
+Gap tickets: `issues/20260825-llp0209-d2-filter-order-matrix.md`,
+`…-d2-two-way-windows-executable.md`, `…-d2-private-overlay-matrix.md`,
+`…-d2-full-relation-shapes.md`, `…-d6-search-membership-certificates.md`;
+the production class-2 resolver seam stays with
+`tests/conformance/graph/0268-COMPLETION-DRAFT.md`. This note authorizes no
+capability flip.
+
 ### v0.10 — G3-A: memoization landed (dated note, 2026-08-24)
 
 **G3-A** (commission `issues/20260824-llp0209-g3-commission.md`, deliverable 1)
@@ -3360,7 +3447,8 @@ live in the G3-A-labeled artifact
 G2-C evidence is byte-untouched. A W5 runtime-cost integration conflict was
 resolved at rebase by keeping both retirement paths (runtime-cost + the
 stats-carrying memo helper). Records: `llp/reviews/0209-g3-a.{codex,grok}.md`.
-G3-B (delta rules) and G3-C (measurement/record) remain.
+*(Superseded sequencing line: G3-B landed as G3 rung 1 and G3-C ran to its
+fallback boundary — see the v0.11 dated note above.)*
 
 ### v0.9 — the G2 program record (dated note, 2026-08-25)
 
@@ -3432,6 +3520,11 @@ longer prover or corpus structure.
 
 ## Revision history
 
+- **v0.11 (2026-08-25).** G3 rung 1 delta lanes landed (`7d1f32b5c` +
+  `9cc18af16` + `3683b4cd4`); P-B to its fallback boundary (fixture verified,
+  two bounds confirmed, hot/large blocked and ticketed); the P-C
+  publication-readiness matrix — zero publishable targets, no capability
+  flip; 0268 B1 stays gated; records `llp/reviews/0209-g3-rung1.*`.
 - **v0.10 (2026-08-24).** G3-A landed (`69e5fee9d`+`6a370fdc7`): §6
   memoization with review-forced first-page/empty-ledger sharing restriction,
   authority-context retirement, full retained-payload byte accounting, and the

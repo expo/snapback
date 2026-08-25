@@ -265,7 +265,7 @@ graphs. Application code does not collect broad source sets, join them in JS,
 apply authorization after collection, sort an implicit prefix, or maintain a
 parallel handwritten result type.
 
-The owner Spec should investigate a finite acyclic profile with:
+LLP 0209 owns this brief. Its Spec defines a finite acyclic profile with:
 
 - one bounded root window with portable filters, stable multi-field order,
   explicit tie-breaker, keyset cursor, and `take`;
@@ -303,7 +303,10 @@ protection; LLP 0170 continues to govern.
 The first capability can publish only when the pinned project restriction,
 role visibility, open/creator/assignee/all-label/search filters, selectable
 orders, two-way windows, private overlays, list relations, and detail relations
-pass one conformance corpus on every claimed target.
+pass one conformance corpus on every claimed target. (Current status: the
+LLP 0209 §9 v0.11 publication-readiness matrix — zero publishable targets as
+of 2026-08-25; search remains D6-gated; the test-support declaration is not a
+claimed target.)
 
 ## D3 — staged projected facts and local graph evaluation
 
