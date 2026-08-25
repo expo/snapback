@@ -3139,6 +3139,17 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   assert.equal(typeof supervisorDiscovery.supervisor.startTime, 'string');
   assert.equal(typeof supervisorDiscovery.metro.startTime, 'string');
   assert.equal(supervisorDiscovery.metro.origin, supervisor.metroOrigin);
+  // The supervisor is the only process that can see whether the shared
+  // development broker is being served, so the descriptor records its
+  // projection for a separate `snapback auth status` to read. This fixture
+  // declares no provider, so the recorded answer is that there is no broker —
+  // stated, not left silent.
+  assert.equal(
+    supervisorDiscovery.sharedAuth.format,
+    'snapback.shared-development-auth-projection.v1',
+  );
+  assert.equal(supervisorDiscovery.sharedAuth.available, false);
+  assert.equal(supervisorDiscovery.sharedAuth.reason, 'no-broker');
   assert.equal(supervisor.applicationReady.formatVersion, 'snapback.application-ready.v1');
   assert.equal(supervisor.applicationReady.admissionPosture, 'explicit-list');
   assert.deepEqual(supervisorDiscovery.applicationReady, supervisor.applicationReady);

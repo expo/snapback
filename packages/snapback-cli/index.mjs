@@ -7424,6 +7424,13 @@ function printResult(result, json) {
       if (provider.nextAction !== null) console.log(`  Next: ${provider.nextAction}`);
     }
     if (result.providers.length === 0) console.log('No provider is declared. Run snapback auth enable apple google.');
+    // Whether the shared development broker is being served decides every
+    // shared-profile readiness above, so say what was observed rather than
+    // leaving it to --json.
+    const shared = result.sharedDevelopment;
+    if (shared.available) console.log(`Shared broker: serving at ${shared.origin}.`);
+    else if (shared.asserted) console.log('Shared broker: asserted by --shared-available; this command observed none.');
+    else console.log(`Shared broker: none observed (${shared.observed}).`);
     for (const nonclaim of result.nonclaims) console.log(`Note: ${nonclaim}`);
   }
   else if (result.ok !== false && result.schemaVersion === 'snapback.auth-enable.v1') {
@@ -8670,7 +8677,9 @@ export async function runCli(argv, options = {}) {
       ...(backendFlag === null ? {} : { backendDirectory: backendFlag }),
       deployment,
       platform,
-      sharedAvailable,
+      // Absent, the flag asserts nothing: status observes the supervisor
+      // instead of assuming the shared broker is unavailable.
+      ...(sharedAvailable ? { sharedAvailable: true } : {}),
       cwd: options.cwd ?? process.cwd(),
     });
     printResult(result, json);

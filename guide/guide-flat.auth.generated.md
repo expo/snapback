@@ -1778,6 +1778,36 @@ Adapter, configuration readiness, the profile generation, and one next action
 per provider. It never claims native readiness, because the CLI cannot observe
 an installed build.
 
+It does observe the shared broker. That broker is mounted by the Expo
+supervisor — `snapback dev --expo` — and not by the backend server, so a plain
+`snapback dev` answers `SNAPBACK_ROUTE_UNKNOWN` on the shared auth routes. The
+supervisor records whether it is serving the broker in its own discovery
+descriptor, `.snapback/expo-supervisor.json`, and status reads that back behind
+a liveness check on the supervisor process:
+
+```
+$ snapback auth status                       # no supervisor
+apple: app-owned-native (application, blocked)
+  Next: Start snapback dev --expo, or run snapback auth configure apple.
+
+$ snapback dev --expo &
+$ snapback auth status                       # supervisor serving the broker
+apple: snapback-shared-browser (rehearsal, ready)
+google: snapback-shared-browser (rehearsal, ready)
+```
+
+Every uncertainty resolves to unavailable: a descriptor left behind by a
+crashed supervisor, a supervisor that started without the broker, and a
+deployment profile that refuses the shared profile all report `blocked` on
+`SNAPBACK_AUTH_PROVIDER_SHARED_UNAVAILABLE` rather than name a broker that
+would answer nothing. Which of those it saw is in the JSON as
+`sharedDevelopment`.
+
+`--shared-available` remains, and now means only what it says — an assertion
+from a caller who knows about a broker this project directory cannot see, such
+as one served by another process. It overrides the observation; it does not
+replace it, and the observed answer is still reported.
+
 ### Resolution is frozen for one attempt
 
 The Adapter is resolved once, before the attempt starts. If it returns

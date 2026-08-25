@@ -5042,6 +5042,13 @@ export async function runExpoDev(options = {}) {
       exchangeOrigin: bootstrap.origin,
       controlPath: SUPERVISED_CONTROL_PATH,
       controlSocket: controlSocketHandle?.descriptor ?? null,
+      // @ref LLP 0151#shared-development-browser-adapter — the supervisor is
+      // the only process that knows whether the shared broker exists and
+      // whether deployment state admits it. Recording the projection here lets
+      // a separate process read that fact instead of guessing from the
+      // presence of a dev readiness file, which plain `snapback dev` writes
+      // without ever serving the broker.
+      sharedAuth: sharedAuthProjection,
       metro: metroReadiness,
       ...(metroAttestation === null ? {} : {
         attestation: {
