@@ -184,3 +184,14 @@ only, enumerated there; no recommendation changed.
 Accepted). Proposed next step to the author: rule on acceptance with
 the trim, and pick up the doc's own do-now items (the I4 measurement
 probe and the I1 scope spike) if the direction is wanted.
+
+### Post-landing note (2026-08-25)
+
+Landing to main rebased the loop's commits over concurrent work
+(landed range `cbed38216..3149b965f`), so the per-round worktree commit
+ids cited above (`e4ecd5d7e99`, `bf3943a80`, `6583d3e07`) are
+pre-rebase and historical. Revision identity binds to the target
+content hashes, which rebase does not change: r1 `5a90abcfd8bb9049`,
+r2 `f56cde3cca4dd3a4`, r3 `d9f306d0d91582b0` (the revision the final
+dual-READY verdicts bind to). The landed commits carry the same
+per-revision file contents.
