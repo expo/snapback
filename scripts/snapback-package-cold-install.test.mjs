@@ -100,7 +100,7 @@ test('React cold-install fixture broadly typechecks generated TypeScript without
 test('packed Expo chat qualification runs the template done-oracle', () => {
   const harness = readFileSync(script, 'utf8');
   const start = harness.indexOf('const provePackedExpoChatScaffold');
-  const end = harness.indexOf('\n  };', start);
+  const end = harness.indexOf('\n\n  if (proveExpoChatScaffold) {', start);
   assert.notEqual(start, -1);
   assert.notEqual(end, -1);
   const expoQualification = harness.slice(start, end);

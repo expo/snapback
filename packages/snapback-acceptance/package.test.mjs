@@ -191,6 +191,26 @@ test('packed Expo guest lifecycle, binding offer, and bootstrap admission agree'
           // the acceptance projection fails specifically on guest admission.
           offeredCapabilities: ['auth.passwords'],
         });
+        const bindingWithoutGuestProjection = Object.freeze({
+          ...binding,
+          capabilities: Object.freeze({
+            offered: Object.freeze(binding.capabilities.offered.filter(
+              (capability) => capability !== 'auth.guest-sessions',
+            )),
+          }),
+        });
+        await assert.rejects(
+          createSnapbackAppClient({
+            app,
+            binding: bindingWithoutGuestProjection,
+            platform: Object.freeze({ kind: 'memory', cryptoObject: webcrypto }),
+            rqsStore: null,
+          }),
+          (error) => error?.code === 'SNAPBACK_AUTH_BOOTSTRAP_MECHANISM_UNAVAILABLE'
+            && error?.diagnostic?.details?.mechanism === 'guest-v1'
+            && error?.diagnostic?.details?.missingCapability === 'auth.guest-sessions',
+        );
+        assert.equal(transportRequests, 0);
         for (const entry of shippedEntries) {
           assert(app.authBootstrap.entryMechanisms.includes(entry.mechanism));
           assert(binding.capabilities.offered.includes(entry.targetCapability));
@@ -217,8 +237,10 @@ test('packed Expo guest lifecycle, binding offer, and bootstrap admission agree'
 
   const originalFetch = globalThis.fetch;
   const priorRqsSetting = process.env.SNAPBACK_CLIENT_RQS_STORE;
+  let transportRequests = 0;
   process.env.SNAPBACK_CLIENT_RQS_STORE = 'off';
   globalThis.fetch = async (url) => {
+    transportRequests += 1;
     assert.equal(new URL(url).pathname, '/auth/session');
     return Response.json({
       protocolVersion: 1,

@@ -77,8 +77,13 @@ source guard prevents regression to raw-only acceptance.
 Verification:
 
 - Fresh scaffold, installed with the packed fixed acceptance package and this
-  checkout's qualified runtime: `fresh scaffold prove: 13/13 paths observed;
-  status=passed; profile=passed`.
+  checkout's qualified runtime, after the scaffold's declared `generate`
+  stage: `fresh scaffold prove: 13/13 paths observed; status=passed;
+  profile=passed`. A bare `prove` on a cache-less tree still fail-closes with
+  `SNAPBACK_CODEGEN_CACHE_INVALID`; that pre-existing property was not the
+  guest-bootstrap red. The README's documented first-hour order and the packed
+  cold-install qualification both run `generate` before `prove`; this fix does
+  not fold generation into the done-oracle.
 - `node --test --test-concurrency=1 packages/snapback-acceptance/package.test.mjs`:
   29 tests passed, 0 failed.
 - `node --test scripts/snapback-package-cold-install.test.mjs`: 46 tests
