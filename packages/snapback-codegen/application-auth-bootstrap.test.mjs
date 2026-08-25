@@ -462,16 +462,9 @@ test('familiar defaults durable custody and refuses the weaker grade before publ
     committedProjections: [],
     authoringProfile: 'snapback-familiar-ts-v1',
   }));
-  // The graph builder-site walk shares Familiar's module graph. Keep a local,
-  // specifier-less re-export in that graph so ExportDeclaration.moduleSpecifier
-  // remains optional while defineSchema still resolves to the owned builder.
-  writeFileSync(join(root, 'schema-builders.ts'), `
-import { defineSchema, defineTable, v } from './generated/server';
-export { defineSchema, defineTable, v };
-`);
   const writeFamiliarSchema = (custody = undefined) => writeFileSync(join(root, 'schema.ts'), `
 import { defineAuth } from '${defineUrl}';
-import { defineSchema, defineTable, v } from './schema-builders';
+import { defineSchema, defineTable, v } from './generated/server';
 const authProgram = defineAuth(${authProgram({ custody })});
 export default defineSchema({
   items: defineTable({ ownerId: v.principal(), title: v.string() })
@@ -499,6 +492,51 @@ export const read = query({
   assert(refused.diagnostics.some(
     ({ code }) => code === 'SNAPBACK_AUTH_PROGRAM_INVALID',
   ));
+});
+
+test('familiar function builders resolve through a specifier-less re-export', async () => {
+  const root = fixture('snapback-familiar-function-re-export-');
+  writeFileSync(join(root, 'codegen.policy.json'), JSON.stringify({
+    schemaVersion: 'snapback.codegen-policy.v1',
+    committedProjections: [],
+    authoringProfile: 'snapback-familiar-ts-v1',
+  }));
+  writeFileSync(join(root, 'schema.ts'), `
+import { defineSchema, defineTable, v } from './generated/server';
+export default defineSchema({
+  items: defineTable({ ownerId: v.principal(), title: v.string() })
+    .visibility({ kind: 'owner', field: 'ownerId' }),
+}, { auth: { mode: 'sessions' } });
+`);
+  writeFileSync(join(root, 'items-builders.ts'), `
+import { query, v } from './generated/server';
+export { query, v };
+`);
+  // The asset declaration classifies items.ts as a Familiar function module
+  // without adding an inline-handler transform. The validator builder site
+  // then forces the graph resolver through items-builders.ts's local export.
+  writeFileSync(join(root, 'items.ts'), `
+import { defineAssetUpload } from './generated/server';
+import { query, v } from './items-builders';
+const builderSite = v.string();
+export const attachment = defineAssetUpload({
+  auth: 'authenticated',
+  accept: { mediaTypes: ['application/pdf'], maxBytes: 1_000_000 },
+  delivery: { kind: 'private-strict' },
+  access: { read: 'via-references' },
+  source: 'authorize.mjs',
+  exportName: 'authorize',
+});
+`);
+  writeFileSync(join(root, 'authorize.mjs'), `
+globalThis.__snapbackHandlers = {
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+};
+`);
+
+  const generated = await generate(root);
+  assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
+  assert.equal(generated.functionManifest.assetUploadIntents.length, 1);
 });
 
 test('a normalized mechanism outside the policy enum is a typed codegen refusal', async () => {

@@ -60,39 +60,44 @@ should name the exit path it now takes.
 
 ## Resolution (2026-08-25)
 
-The three reds had distinct immediate triggers but one shared lifecycle: main
-continued moving after the ticket captured them.
+The two codegen reds were already fixed on this lane's base as main continued
+moving after the ticket captured them. This lane adds focused regression
+coverage and fixes the separate Expo carrier diagnostic race.
 
 - The graph binding resolver treated every `ExportDeclaration` as though it
-  had a `moduleSpecifier`. Commit `9653d21d2` had already added the missing
-  guard and retained the local `resolveLocal` walk before this lane branched.
-  This lane added a Familiar-profile regression whose schema imports
-  `defineSchema` through an authored specifier-less re-export. Temporarily
-  restoring the unguarded call made that regression fail with the original
-  `Cannot read properties of undefined (reading 'kind')` stack.
+  had a `moduleSpecifier`. Commit `9653d21d2` fixed that red on this lane's
+  base by adding the missing guard and retaining the local `resolveLocal` walk.
+  This lane adds a dedicated Familiar-profile regression whose function module
+  imports `query` and resolves a `v` builder site through an authored
+  specifier-less re-export. Temporarily restoring the unguarded call makes that
+  regression fail with the original `Cannot read properties of undefined
+  (reading 'kind')` stack.
 - Git history shows that the JS codegen input closure moved during the LLP 0209
   G0 B2 rounds after the Rust-owned membership manifest fixture was last
   generated. The fixture side was stale. Commit `3523efec6` had already
   regenerated `crates/snapback-sync/fixtures/codegen-membership-schema-manifest.json`
-  from codegen and updated both digest constants before this lane branched;
-  the parity test is green at this lane's base and after its changes.
-- The Expo carrier's readiness timeout raced the supervised child exit. Both
-  outcomes were true, but the child-exit branch discarded the more actionable
-  missing structured-readiness fact. The carrier now reports the child status
-  and the exact readiness path together, with a deterministic regression for
-  the exit-before-publication branch.
+  from codegen and updated both digest constants, fixing that red before this
+  lane branched; the lane retains regression coverage confirming the parity
+  test stays green.
+- The Expo carrier's readiness poll raced the supervised child exit. The base
+  correctly combined child status with missing-readiness detail when no file
+  existed, but falsely reported the same absence when the child published and
+  exited inside one polling interval. This lane consumes and validates an
+  existing descriptor first, then lets the dead supervisor fail at the later
+  lifecycle check. Deterministic regressions cover both exit-before-publication
+  and publish-then-exit.
 
 Verification evidence:
 
-- `application-auth-bootstrap.test.mjs`: 8 passed, 0 failed, including the new
+- `application-auth-bootstrap.test.mjs`: 9 passed, 0 failed, including the new
   Familiar re-export fixture.
 - `authoring-validation.test.mjs`: 1 passed, 0 failed; the generated manifest
   remains equal to the Rust-owned fixture digest.
 - `familiar-dev-loop.test.mjs`: 1 passed, 0 failed with the qualified shared
   runtime selected by its real absolute path.
 - `carrier-kit.test.mjs`: passed under the repository's Node 24.18.0 runtime,
-  including the deterministic child-exit readiness diagnostic.
-- `ref-check --verbose`: 311 LLP docs, 6,563 refs, 0 errors, 0 unchecked.
+  including both deterministic child-exit readiness races.
+- `ref-check --verbose`: 311 LLP docs, 6,617 refs, 0 errors, 0 unchecked.
 
 The full Expo loop proceeds through the fixed carrier-timeout cell, then remains
 red on the separately owned temporary-fixture `@expo/snapback-client`
