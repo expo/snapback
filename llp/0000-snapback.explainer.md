@@ -6,6 +6,9 @@
 **Role:** Root
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
+**Revised:** 2026-08-25 (LLP v2 overlay adoption: `llp/current/` is the
+declared working set and `llp/foundation/` is the kernel; documents keep
+their path for life and `Tombstoned` is a status, not a directory)
 **Revised:** 2026-08-13 (ratification ledger records the optimistic-landing
 author ruling governed by LLP 0232 and LLP 0189)
 **Revised:** 2026-08-03 (author promotion after the dual-family super-refine loops: LLP 0159 and LLP 0161 move Draft → Active, LLP 0160 is Accepted — its gap ledger becomes the migration-experience program, with its OQ6/OQ7 conform-or-amend rulings still open); 2026-08-03 (Program D closeout: the local Phase-1 observability
@@ -36,6 +39,13 @@ follow-on design and every line of code is expected to respect. It reflects the
 founder's stated direction for the project as of the date above. Treat the
 direction here as active; treat subsystem details as boundary-level guidance
 until follow-on LLPs turn them into implementation specs.
+
+The corpus is flat under `llp/`. `llp/foundation/` links the kernel documents
+from which the design could be recreated; `llp/current/` links the declared
+working set. A document keeps its path for its whole life — `Tombstoned` and
+`Superseded` are header statuses, not directories. `reviews/`, `current/`, and
+`foundation/` are reserved names. Orient from `foundation/`, then `current/`,
+then the `@ref`s in scope.
 
 ## Source and ratification
 

@@ -233,6 +233,10 @@ function validateManifest(manifest) {
   for (const id of ['llp-tombstones', 'closed-issues', 'demo-diaries', 'llp-reviews', 'target-review-artifacts']) {
     expect(immutableIds.has(id), `missing immutable provenance exception ${id}`);
   }
+  const tombstoneRule = (manifest?.exceptions?.immutableProvenanceCategories ?? [])
+    .find((entry) => entry.id === 'llp-tombstones');
+  expect(tombstoneRule?.llpStatus === 'Tombstoned', 'llp-tombstones must exempt Tombstoned-status documents');
+  expect(!tombstoneRule?.prefix, 'llp-tombstones must not use a path prefix (path is not lifecycle)');
   expect((manifest?.exceptions?.namedNegativeFixtures ?? []).length === 3, 'namedNegativeFixtures must preserve the three live fixture categories');
   const topLevelFixtureRule = (manifest?.exceptions?.namedNegativeFixtures ?? [])
     .find((entry) => entry.id === 'top-level-test-fixture-builders');
@@ -609,11 +613,31 @@ function projectionFiles(manifest, epochIndex) {
   return files;
 }
 
+function llpHeaderStatus(repositoryPath) {
+  if (!repositoryPath.startsWith('llp/') || !repositoryPath.endsWith('.md')) return null;
+  if (
+    repositoryPath.startsWith('llp/current/')
+    || repositoryPath.startsWith('llp/foundation/')
+    || repositoryPath.startsWith('llp/reviews/')
+  ) {
+    return null;
+  }
+  const abs = join(ROOT, repositoryPath);
+  if (!existsSync(abs) || !statSync(abs).isFile()) return null;
+  const header = readFileSync(abs, 'utf8').split('\n').slice(0, 40).join('\n');
+  const match = header.match(/\*\*Status:\*\*\s*(\S+)/u);
+  return match ? match[1] : null;
+}
+
 function matchesRule(repositoryPath, rule) {
   if (rule.file && repositoryPath === rule.file) return true;
   if (rule.files && rule.files.includes(repositoryPath)) return true;
   if (rule.prefix && repositoryPath.startsWith(rule.prefix)) return true;
   if (rule.pattern && new RegExp(rule.pattern, 'u').test(repositoryPath)) return true;
+  if (rule.llpStatus) {
+    const status = llpHeaderStatus(repositoryPath);
+    return Boolean(status) && status.toLowerCase() === String(rule.llpStatus).toLowerCase();
+  }
   return false;
 }
 

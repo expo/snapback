@@ -273,7 +273,7 @@
     "immutableProvenanceCategories": [
       {
         "id": "llp-tombstones",
-        "prefix": "llp/tombstones/"
+        "llpStatus": "Tombstoned"
       },
       {
         "id": "closed-issues",

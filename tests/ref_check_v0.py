@@ -80,5 +80,96 @@ class RefCheckScanPolicyTest(unittest.TestCase):
             self.assertEqual(file_count, 1)  # the LLP document only
 
 
+def write_llp(root, name, *, doc_type="Explainer", status="Draft", body="## Contract\n"):
+    os.makedirs(os.path.join(root, "llp"), exist_ok=True)
+    path = os.path.join(root, "llp", name)
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write(
+            f"# Fixture\n\n"
+            f"**Type:** {doc_type}\n"
+            f"**Status:** {status}\n"
+            f"**Systems:** Testing\n"
+            f"**Author:** Test\n"
+            f"**Date:** 2026-08-25\n\n"
+            f"{body}"
+        )
+    return path
+
+
+class RefCheckLlpV2Test(unittest.TestCase):
+    def test_overlay_relative_symlink_and_path_file_are_accepted(self):
+        with tempfile.TemporaryDirectory() as root:
+            write_llp(root, "0000-fixture.explainer.md", status="Active")
+            os.makedirs(os.path.join(root, "llp", "foundation"))
+            os.makedirs(os.path.join(root, "llp", "current"))
+            os.symlink(
+                "../0000-fixture.explainer.md",
+                os.path.join(root, "llp", "foundation", "0000-fixture.explainer.md"),
+            )
+            with open(
+                os.path.join(root, "llp", "current", "0000-fixture.explainer.md"),
+                "w",
+                encoding="utf-8",
+            ) as handle:
+                handle.write("../0000-fixture.explainer.md\n")
+            report, _, _, doc_count = ref_check.check(root)
+            self.assertEqual(report.errors, [])
+            self.assertEqual(doc_count, 1)
+
+    def test_foundation_rejects_non_active_and_tombstoned_overlay_membership(self):
+        with tempfile.TemporaryDirectory() as root:
+            write_llp(root, "0000-fixture.explainer.md", status="Draft")
+            write_llp(root, "0001-old.rfc.md", status="Tombstoned", doc_type="RFC")
+            os.makedirs(os.path.join(root, "llp", "foundation"))
+            os.makedirs(os.path.join(root, "llp", "current"))
+            os.symlink(
+                "../0000-fixture.explainer.md",
+                os.path.join(root, "llp", "foundation", "0000-fixture.explainer.md"),
+            )
+            os.symlink(
+                "../0001-old.rfc.md",
+                os.path.join(root, "llp", "current", "0001-old.rfc.md"),
+            )
+            report, _, _, _ = ref_check.check(root)
+            self.assertTrue(any("foundation entries must be Active" in error for error in report.errors))
+            self.assertTrue(any("Tombstoned LLP 0001 may not appear" in error for error in report.errors))
+
+    def test_sub_llp_requires_parent_and_dotted_refs_resolve(self):
+        with tempfile.TemporaryDirectory() as root:
+            write_llp(root, "0000-fixture.explainer.md", status="Active")
+            write_llp(
+                root,
+                "0000.000-child.spec.md",
+                doc_type="Spec",
+                status="Draft",
+                body="## Tokens\n",
+            )
+            os.makedirs(os.path.join(root, "src"))
+            with open(os.path.join(root, "src", "app.js"), "w", encoding="utf-8") as handle:
+                handle.write(f"// {REF} LLP 0000.000#tokens — dotted child\n")
+                handle.write(f"// {REF} LLP 0011.00 — malformed child\n")
+            report, _, ref_count, doc_count = ref_check.check(root)
+            self.assertEqual(doc_count, 2)
+            self.assertEqual(ref_count, 2)
+            self.assertFalse(any("no parent" in error for error in report.errors))
+            self.assertTrue(any("malformed LLP target" in error for error in report.errors))
+
+            write_llp(root, "0012.000-orphan.spec.md", doc_type="Spec")
+            report, _, _, _ = ref_check.check(root)
+            self.assertTrue(any("sub-LLP 0012.000 has no parent" in error for error in report.errors))
+
+    def test_overlay_directory_does_not_duplicate_numbers(self):
+        with tempfile.TemporaryDirectory() as root:
+            write_llp(root, "0000-fixture.explainer.md", status="Active")
+            os.makedirs(os.path.join(root, "llp", "foundation"))
+            os.symlink(
+                "../0000-fixture.explainer.md",
+                os.path.join(root, "llp", "foundation", "0000-fixture.explainer.md"),
+            )
+            report, _, _, doc_count = ref_check.check(root)
+            self.assertEqual(report.errors, [])
+            self.assertEqual(doc_count, 1)
+
+
 if __name__ == "__main__":
     unittest.main()

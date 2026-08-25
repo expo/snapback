@@ -15,20 +15,31 @@ keeps its own LLP corpus under [`llp/`](./llp/).
 ## LLP documents
 
 - LLP documents live in `llp/` and follow the numbering convention
-  `NNNN-slug.type.md`, for example `0001-storage-decision.rfc.md`.
+  `NNNN(.NNN)*-slug.type.md`, for example `0001-storage-decision.rfc.md` or
+  `0011.000-session-tokens.spec.md`. Sub-LLPs nest by dotted number; numbers
+  are never reused, and a document is never renamed to re-parent it.
+- `llp/current/` and `llp/foundation/` hold relative links only (symlinks, or
+  regular files containing the relative path on checkouts without symlink
+  support). `current/` is the declared working set: link a new or in-progress
+  LLP there and remove the link when the work is done — that is the archive
+  operation. `foundation/` is the kernel from which the design could be
+  recreated; promote into it by folding settled decisions into a living
+  `Active` document, then linking it. Orient by reading `foundation/`, then
+  `current/`, then the `@ref`s in scope.
 - The project root LLP is
   [`llp/0000-snapback.explainer.md`](./llp/0000-snapback.explainer.md).
 - When creating a new LLP, use the next available number and include the
   standard metadata header: `Type`, `Status`, `Systems`, `Author`, `Date`,
-  `Revised`, and `Related`.
+  `Revised`, and `Related`. `llp-create` links new documents into
+  `llp/current/`.
 - Standard types: **RFC**, **Spec**, **Decision**, **Plan**, **Explainer**,
   **Principles**, **Guide**, **Issue**, and **Research**.
 - Proposal statuses for RFCs, Specs, and Plans are **Draft**, **Review**,
   **Accepted**, **Implemented**, **Superseded**, **Shelved**, and
   **Withdrawn**. Explanatory documents usually use **Draft** or **Active**.
-- LLP documents are living documents. Update them when the system evolves; move
-  historical-but-useful documents to `llp/tombstones/` and mark them
-  `Tombstoned`.
+- LLP documents are living documents. Update them when the system evolves;
+  mark wrong or replaced ones `Tombstoned`/`Superseded` in the header (files
+  never move). Don't leave stale docs unmarked.
 
 ## @ref annotations
 
@@ -93,9 +104,9 @@ context pack of the constraints the change must respect.
 
 Skills: orient = context before coding · create = author one LLP · review =
 LLP 0005 loop, scaled to stakes · adopt = set up LLP in any repo,
-install/update the skills · maintain = drift / pre-PR / reconcile / retire
-checks · super-refine = dual-model refine-until-ready · ship = tasks done end
-to end.
+install/update the skills · maintain = drift / pre-PR / reconcile / retire /
+curate (promote → archive → realign, LLP 0011.000) · super-refine =
+dual-model refine-until-ready · ship = tasks done end to end.
 <!-- END LLP SKILLS MANAGED BLOCK -->
 
 Project skills are aggregated under `skills/` and mirrored into each agent's

@@ -138,7 +138,8 @@ and delivery limits.
 ## First slice as shipped (2026-07-31; absorbed 2026-08-01)
 
 This section is normative for the implemented surface. It absorbs the dated
-2026-07-31 amendment note (now a tombstone pointer under `llp/tombstones/`)
+2026-07-31 amendment note (now a tombstone pointer at
+`llp/0070-durable-background-work.amendment-2026-07-31-first-slice.md`)
 and reconciles it against everything that landed through 2026-08-01. The
 slice landed as e25ab2a3 (`crates/snapback/src/jobs.rs`, storage/runtime/server wiring,
 codegen jobs authoring) and was completed by the 01ddd8e2 job-status

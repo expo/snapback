@@ -8,6 +8,9 @@
 **Related:** LLP 0000, LLP 0002, LLP 0010, LLP 0037, LLP 0041, LLP 0053,
 LLP 0059, LLP 0061, LLP 0141, LLP 0189, LLP 0199, LLP 0225, LLP 0232,
 LLP 0259, LLP 0285
+**Revised:** 2026-08-25 (LLP v2: the straggler-gate `llp-tombstones`
+exemption is Tombstoned-status documents, not the `llp/tombstones/` path —
+path is not lifecycle.)
 **Revised:** 2026-08-21 (the generated-source amendment is retired after the
 embedded Guide moved from generated Rust expressions to one inert binary
 artifact consumed and parsed by committed server code; the declared generated
@@ -693,10 +696,10 @@ Consequences:
   manifest is itself checked by a **deterministic straggler gate**: named
   search projections (scripts, workflow YAML, policy JSON, Cargo manifests,
   guide `source=` paths) with an explicit exception contract — exempt by
-  category are `llp/tombstones/`, `issues/closed/`, `diaries/`, explicitly
-  marked historical sections, and named negative fixtures; **active
-  normative text in `llp/` and open `issues/` is checked**, and there is no
-  accumulating ad-hoc allowlist.
+  category are Tombstoned-status LLP documents, `issues/closed/`, `diaries/`,
+  explicitly marked historical sections, and named negative fixtures;
+  **active normative text in `llp/` and open `issues/` is checked**, and
+  there is no accumulating ad-hoc allowlist.
 - **Phase 1 — skeleton (freeze day 1).** A **path-only commit series**: `git
   mv src crates/snapback/src` (plus `build.rs`, root `tests/*.rs`) with no
   semantic edits, applying the manifest's path updates in the same series —

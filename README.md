@@ -381,7 +381,7 @@ snapback/
 ├── benchmarks/      # competitive-authoring instrument
 ├── scripts/         # proof engine, gates, release, bootstrap
 ├── guide/           # the agent-first product guide (150 pages)
-├── llp/             # design corpus (280 numbered documents + reviews)
+├── llp/             # design corpus (numbered documents + reviews + overlays)
 ├── issues/          # filesystem tickets (open + closed/)
 ├── diaries/         # demo build diaries (113)
 ├── admin-ui/        # the browser admin console (own lockfile)
@@ -511,6 +511,8 @@ vendored Ibex pin. Root `npm install` is rejected. Upgrade procedures are in
 Snapback is designed in the open as a corpus of **Linked Literate Programming**
 documents. The workflow itself lives at <https://github.com/ccheever/llp>; this
 repository keeps its own corpus under [`llp/`](./llp/).
+[`llp/foundation/`](./llp/foundation/) links the kernel;
+[`llp/current/`](./llp/current/) links the declared working set.
 
 **Before you write code:**
 
