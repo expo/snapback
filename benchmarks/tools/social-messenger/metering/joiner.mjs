@@ -10,6 +10,7 @@ import { timestampMillis } from "./jsonl.mjs";
 import { withEventDiagnostic } from "./finalization-diagnostics.mjs";
 import {
   CURRENT_INSTRUMENT_PIN,
+  CURRENT_TYPING_OBSERVATION_BOUNDARY_VERSION,
   OBSERVATION_VERSION,
   isAfterTerminalHarnessTelemetry,
   projectMilestoneObservability,
@@ -347,6 +348,7 @@ export function joinUsageToMilestones({
   }
   return {
     instrumentVersion: CURRENT_INSTRUMENT_PIN,
+    typingObservationBoundaryVersion: CURRENT_TYPING_OBSERVATION_BOUNDARY_VERSION,
     observabilityProtocol: OBSERVATION_VERSION,
     source: channel.source ?? null,
     available: phaseUsageAvailable,

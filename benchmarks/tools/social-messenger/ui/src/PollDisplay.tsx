@@ -3,11 +3,15 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { palette, radii, spacing, typeScale } from './tokens';
 
 export interface PollDisplayOption {
+  /** Stable option identity used by structural choreography selectors. */
+  id: string;
   label: string;
   /** Current vote count for this option. */
   count: number;
   /** Whether the viewer's current vote is this option. */
   mine?: boolean;
+  /** Whether this viewer has an offline vote intent waiting to settle. */
+  pending?: boolean;
 }
 
 export interface PollDisplayProps {
@@ -50,9 +54,10 @@ export function PollDisplay({
           <Pressable
             accessibilityLabel={`${option.label}, ${option.count} ${option.count === 1 ? 'vote' : 'votes'}${option.mine ? ', your vote' : ''}`}
             accessibilityRole="button"
-            accessibilityState={{ selected: !!option.mine, disabled }}
+            accessibilityState={{ selected: !!option.mine, disabled, busy: !!option.pending }}
+            accessibilityValue={{ text: option.id }}
             disabled={disabled}
-            key={index}
+            key={option.id}
             onPress={() => onVote(index)}
             style={[styles.option, option.mine && { borderColor: accentColor }]}
             testID="sm-poll-option"
@@ -69,14 +74,22 @@ export function PollDisplay({
                 {option.mine ? '● ' : ''}
                 {option.label}
               </Text>
-              <Text style={styles.tally} testID="sm-poll-tally">
+              <Text
+                accessibilityValue={{ text: String(option.count) }}
+                style={styles.tally}
+                testID="sm-poll-tally"
+              >
                 {option.count}
               </Text>
             </View>
           </Pressable>
         );
       })}
-      <Text style={styles.total} testID="sm-poll-total">
+      <Text
+        accessibilityValue={{ text: String(total) }}
+        style={styles.total}
+        testID="sm-poll-total"
+      >
         {total} {total === 1 ? 'vote' : 'votes'}
       </Text>
     </View>

@@ -147,6 +147,101 @@ This ticket remains open: the broader LLP 0281 media/receipt/avatar/membership,
 selector-isolation/layout, setup-identity, and generated-report acceptance is
 outside this R2 start-blocking slice and is not claimed complete here.
 
+## Implementation update — 2026-08-25 (E4 instrument remainder)
+
+This lane preserves the 2026-08-23 delivery rather than reimplementing it. That
+earlier delivery already supplied the additive D0.6 semantic-action/recovery/
+restart/suite-wait/host-load/API-interruption observations, hash-bound
+suite-status custody and early linkage refusal, `social-messenger@0.3.3-m8` /
+choreography `0.3.3-m8`, the migration/static-vocabulary checks, the production
+controller's exact plan-pin refusal, owner-scoped waits, current-record markers,
+receipt validation, and record lifecycle.
+
+E4 implements the remaining instrument surfaces within LLP 0307's ruled scope:
+
+- The coordinated kit is UI `0.3.2-m8`. Composer attachment/media semantics,
+  exact actor/chat identity, sent/delivered/read/pending receipt states, group
+  aggregate and add/promote/remove/leave controls, removed-member history/live
+  cutoff, explicit profile heading/feed navigation, and poll option/tally/
+  pending state are frozen in `CONTRACT.md` and source-tested.
+- M2 image/video composition and two-client delivery, M3 sender/avatar/receipt/
+  group-membership checks, and a fresh-session M7 live plus offline-reconcile
+  poll segment are implemented. `all` remains exactly one continuous
+  M1–M6/M8 session; M7 refuses a mixed invocation. No session-shape change or
+  M7 handoff self-containment enters this bump.
+- The typing measurement now records synthetic typing-action wall separately;
+  render and expiry clocks start immediately before the final keystroke action.
+  Broad text-regex selectors were removed where structural identity exists.
+  Failed best-of-three attempts restore online/base-route state and retry only
+  their owning assertion; a focused test proves the earlier assertion is not
+  rerun.
+- Every startup/final red uses the bounded application/platform/setup/instrument
+  taxonomy on its first outcome line. Failed choreography prints one compact
+  structured miss; raw receipt JSONL stays on disk. Missing suite status or
+  setup identity refuses before Playwright, browser, receipt, or observation
+  creation.
+- `social-messenger.setup-identity.v1` records separate hash-verified qualified
+  binary and wrapper claims/nonclaims, backend version, workspace/hosted/packed
+  package closure, verified prepack closure for packed artifacts, declared
+  Node/Bun/npm/Playwright/browser toolchain (including an exact loaded
+  Playwright-version match), and host identity. Choreography
+  summaries embed both the setup and its source digest; the run driver copies
+  one consistent setup into the structured run record.
+- Detached scale observation consumes only a bounded atomically replaced status
+  record and has no process-control or raw-log-tail authority. A second helper
+  generates run and diary mechanical blocks from one source-record digest while
+  leaving qualitative diary narrative separate.
+- The frozen manifest now carries the UI, choreography, record-extension,
+  metering, and observability closure. No new `SNAPBACK_*` diagnostic code was
+  introduced.
+
+### E4 independent-review fix round — 2026-08-25
+
+The dual-family review found four material defects in that first E4 cut. The
+fix round moves the instrument and choreography to `0.3.4-m8` while leaving UI
+at `0.3.2-m8`:
+
+- M7's three retained live attempts now use Alice/option-A,
+  Alice/option-B, and Bob/option-A; the offline assertion uses Bob/option-B.
+  Every assertion therefore starts from an unused user/option pair even though
+  retry resets preserve backend state, matching the brief's idempotent
+  set-state semantics.
+- Typing receipts, assertion metadata, M3 summaries, and run records stamp
+  observation boundary `v2`. Schema and semantic validation reject an absent
+  or mismatched current stamp and reject v2 on retained `0.3.3-m8` records;
+  pre-bump records remain valid as implicit v1 only under their own pin.
+- Removed-member live cutoff no longer relies on a 500 ms sleep. After the
+  post-removal group message, a subsequent direct-message marker must reach a
+  second Dave page under the ordinary assertion timeout before the still-open
+  removed-group page is inspected for leakage and retained history.
+- Required `dm-live-messages` is separate again. Avatar identity is checked
+  only if the app mounts the kit's conditional `sm-convo-sender-avatar` node,
+  so the default no-avatar 1:1 layout stays conforming. `CONTRACT.md` also now
+  identifies `sm-compose-file` as an optional app-shell-owned web input and
+  the RN kit's `sm-compose-attach` as the sufficient chooser fallback.
+
+The self-test fixture grows an actual two-option, one-vote-per-user,
+changeable/idempotent poll backend and runs fresh M7 with application state
+retained across all attempts. A static branch guard prevents live DM and
+conditional avatar proof from being merged again; full M3 browser calibration
+still belongs to the clean control lane below.
+
+Focused verification is green: UI source tests `2/2` plus TypeScript; startup,
+setup identity, retry isolation, and M7 receipt-schema tests `8/8`;
+observability tests `3/3`; lane setup/schema/manifest/plan pin `11/11`; and the
+focused current metering/linkage paths `2/2`. On a browser-capable fleet host,
+the instrument self-test passes with 10 observed assertions, missing
+suite/setup refusals, M1/M7/M8 green, retained idempotent vote state, the
+DM/avatar split guard, and one bounded classified deliberate-failure miss.
+`./ref-check --verbose` reports 0 errors and 0 unchecked references.
+
+This ticket remains **Open**. The implementation checklist is present, but the
+acceptance evidence is not complete: a clean control lane still must exercise
+the new M2 media, M3 typing/avatar/receipt/group-lifecycle, and fresh M7 poll
+paths end to end; force each non-setup outcome class and a timing-sensitive
+retry on that lane; and retain the LLP 0281 W9 two-browser/native-host proofs.
+Those proofs, rather than code presence alone, are the condition for closure.
+
 ## Acceptance
 
 One versioned kit/choreography release carries a migration note and static

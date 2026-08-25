@@ -105,6 +105,7 @@ const REQUIRED_INSTRUMENT_ARTIFACTS = Object.freeze({
   runRecordExtensionSchema: 'file',
   recordValidator: 'file',
   meteringRoot: 'directory',
+  observabilityRoot: 'directory',
 });
 
 function byteLength(value) {

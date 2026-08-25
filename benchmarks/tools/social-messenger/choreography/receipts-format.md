@@ -1,16 +1,18 @@
 # Social-messenger choreography receipts
 
-Version `0.3.3-m8` writes newline-delimited JSON to `receipts.jsonl`. The same
-objects are written to stdout with the literal prefix `STRUCTURED RECEIPT ` so
-an outer run harness can separate proof records from ordinary process output.
-Each line validates independently against `receipts.schema.json`.
+Version `0.3.4-m8` writes newline-delimited JSON to `receipts.jsonl`. Raw
+receipt objects stay on disk and are not echoed to an agent's stdout. A failed
+assertion emits one bounded `STRUCTURED CHOREOGRAPHY MISS` with its outcome
+class, stable identity, compact attempt errors, and the retained JSONL paths.
+Each on-disk line validates independently against `receipts.schema.json`.
 
 ## Assertion receipts
 
 Every browser check emits one `type: "assertion"` object. Its stable identity
 is `(segment, assertion)`. The required proof fields are:
 
-- `segment`: one of `m1` through `m6`, or `m8`.
+- `segment`: one of `m1` through `m8`; M7 is accepted only in its own
+  fresh-session invocation.
 - `assertion`: the stable choreography assertion name.
 - `implemented`: whether this harness version actually attempted the check.
 - `required`: whether leaving this assertion unimplemented blocks the segment.
@@ -18,6 +20,11 @@ is `(segment, assertion)`. The required proof fields are:
 - `pass`: boolean for an attempted check and `null` for an explicit skip.
 - `timings`: every attempt, including errors and all three timing attempts.
 - `bestOf`: `1` for ordinary checks and `3` for timing-sensitive checks.
+- `outcomeClass`: `null` when passed; otherwise `application`, `platform`,
+  `setup`, or `instrument`.
+- `typingObservationBoundaryVersion`: required as `v2` on the M3 typing
+  assertion and repeated in `details` as assertion metadata. A mismatch or
+  omission is schema-invalid.
 
 Every timing has both `durationMs` (complete check-attempt wall) and
 `settlementWaitMs` (the union of actual locator, predicate, and page-event
@@ -27,17 +34,21 @@ choreography wait observations are derived from `settlementWaitMs`, not from
 whole-attempt duration. The suite producer records its own settlement waits in
 the production lane-controller stream; choreography does not claim them.
 
-An unsupported check is not omitted and never passes. It has
-`implemented:false`, `status:"skipped"`, `pass:null`, an empty `timings` array,
-and a non-empty `details.reason`. A required skip blocks choreography green; an
-optional skip remains visible without being reported as a failed attempt.
+The coordinated media/receipt/avatar/membership bump has no structural-skip
+catalog. The schema retains explicit skipped receipts for compatibility, but
+missing new semantics fail the owning application assertion.
 
 For `bestOf:3`, the harness always runs all three attempts. The assertion passes
 when at least one attempt passes, and `details.selectedAttempt` identifies the
 fastest passing attempt by total `durationMs`; all attempts remain in the
-receipt. Metric-specific durations such as `visibleMs` and `expiresMs` remain
-under each attempt's `metrics` object. This is best-of-three flake control, not
-permission to discard measurements.
+receipt. M3 typing records `typingActionMs` separately from
+`finalKeystrokeActionMs`, `visibleAfterLastKeystrokeMs`, and
+`expiresAfterLastKeystrokeMs`; render and expiry clocks start immediately
+before the final synthetic keystroke. Both the assertion receipt and M3
+segment summary stamp `typingObservationBoundaryVersion:"v2"`. This is best-of-three
+flake control, not permission to discard measurements. Before a retry, the
+harness restores every participating context online and resets each page to an
+unpoisoned base route; unaffected assertions are not rerun.
 
 For M3's `quoted-reply-excerpt-and-jump` assertion, each attempt's existing
 `timing.note` records the `sm-convo-quote-preview` jump selector.
@@ -50,8 +61,10 @@ outer run harness:
 
 ```json
 {
+  "version": "0.3.4-m8",
   "type": "segment-summary",
   "segment": "m3",
+  "typingObservationBoundaryVersion": "v2",
   "assertion": "__segment__",
   "implemented": false,
   "required": true,
@@ -87,7 +100,16 @@ outer run harness:
     "pass": false
   },
   "green": false,
-  "nonGreenCause": "required-unimplemented"
+  "nonGreenCause": "choreography-failed",
+  "outcomeClass": "application",
+  "setupIdentity": {
+    "path": "/retained/setup-identity.json",
+    "sha256": "sha256:..."
+  },
+  "setup": {
+    "schemaVersion": "social-messenger.setup-identity.v1",
+    "instrumentPin": "social-messenger@0.3.4-m8"
+  }
 }
 ```
 
@@ -97,14 +119,14 @@ The normative aggregation is:
    required assertion remains unimplemented. Optional skips therefore stay
    explicit without becoming silent failed attempts.
 2. `externalPass` is true when every external leg required for web green passes.
-   In `0.3.3-m8` there are no such legs. M6's `ios-simulator-m6` and M8's
+   In `0.3.4-m8` there are no such legs. M6's `ios-simulator-m6` and M8's
    `ios-simulator-m8` statuses are recorded in their matching summaries under
    `supplementalExternal` with `requiredForGreen:false`; they are distinct
    native/O4 artifacts governed by `simulator.md`.
 3. `choreography.pass` (and the summary's top-level `pass`) is
    `browserPass && externalPass === true`.
 4. `green` is true only when `suite.pass === true && choreography.pass === true`.
-   Version `0.3.3-m8` refuses missing or partial suite-status linkage before
+   Version `0.3.4-m8` refuses missing or partial suite-status linkage before
    creating receipts or starting a browser, so emitted `suite.pass` is always
    boolean.
 5. `nonGreenCause` is the closed recording convention for a non-green
@@ -116,12 +138,20 @@ The normative aggregation is:
    - `choreography-failed` — an implemented assertion failed.
    - `suite-failed` — suite evidence is `pass:false`.
    - `instrument` — non-green for an instrument defect other than missing
-     suite linkage, which `0.3.3-m8` refuses before startup.
+     suite linkage, which `0.3.4-m8` refuses before startup.
 
    Lanes MUST copy `nonGreenCause` from this summary into the run record.
    Do not invent labels such as "functionally green". `green` stays a
    boolean; `capability-failure` remains the brief's cap-exhausted
    milestone status, not a synonym for instrument-caused non-green.
+6. `outcomeClass` is the first-line ownership taxonomy. Every segment and
+   startup refusal first emits a compact `CHOREOGRAPHY OUTCOME` line. A suite
+   with `pass:false` must supply its class; a browser assertion defaults to
+   application unless an explicit platform/setup/instrument error owns it.
+7. `setupIdentity` hash-binds the retained input while `setup` embeds its
+   validated qualified-binary/wrapper, package/prepack, toolchain, backend,
+   and host fields. The outer run composer copies one identical setup from the
+   selected segment summaries into `socialMessenger.setup`.
 
 The required suite-status input is an object keyed by milestone. Every selected
 milestone must be present:
@@ -129,7 +159,7 @@ milestone must be present:
 ```json
 {
   "m1": { "pass": true, "receipt": "acceptance/m1.json" },
-  "m2": { "pass": false, "receipt": "acceptance/m2.json" },
+  "m2": { "pass": false, "receipt": "acceptance/m2.json", "outcomeClass": "application" },
   "m8": { "pass": true, "receipt": "acceptance/m8.json" }
 }
 ```
@@ -154,11 +184,24 @@ bump: it removes the legacy `sm-convo-quote` jump fallback, so an M3
 selection, while a `0.3.1-m8` receipt may have recorded the reply-bubble-
 scoped fallback.
 
-`0.3.3-m8` keeps `0.3.2-m8` selector semantics and makes suite-status linkage
-startup-refusing. It coordinates the additive LLP 0295 D0.6 run-record
+`0.3.3-m8` kept `0.3.2-m8` selector semantics and made suite-status linkage
+and structured setup identity startup-refusing. It coordinates the additive
+LLP 0295 D0.6 run-record
 observability fields without changing `extensionVersion: 2`; the W2 token
 meter now joins typed, hash-verified observation sidecars beside its native
 usage stream. Its timing records distinguish complete attempt wall from actual
 settlement wait. A missing-linkage `0.3.2-m8` receipt remains governed by its
-matching schema and may carry `suite.pass:null`; `0.3.3-m8` never emits that
-state.
+matching schema and may carry `suite.pass:null`; `0.3.3-m8` never emitted that
+state. It also carried the additive LLP 0295 D0.6 observability fields.
+
+`0.3.4-m8` carries the LLP 0281 remainder and is a material observation-
+boundary bump. Its M3 typing receipt and assertion metadata must both say
+`v2`; its M3 summary and run record repeat that value. A retained `0.3.3-m8`
+typing receipt with no boundary field is valid only as implicit v1 under that
+old version, and an explicit v2 stamp on the old version is rejected. Current
+receipt streams may not mix `0.3.3-m8` lines into a `0.3.4-m8` run, so v1 and
+v2 observations never silently aggregate. The same bump splits required live
+DM delivery from conditional DM-avatar identity, uses a delivery-progress
+witness for removed-member cutoff, and makes every retained M7 vote attempt a
+distinct user/option intent. LLP 0201's continuous M1–M6/M8 session shape is
+unchanged.

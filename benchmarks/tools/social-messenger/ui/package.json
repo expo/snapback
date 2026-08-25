@@ -1,6 +1,6 @@
 {
   "name": "@snapback-bench/social-ui",
-  "version": "0.3.1-m8",
+  "version": "0.3.2-m8",
   "private": true,
   "description": "Purely presentational UI kit for the social-messenger (Clique) benchmark. LLP 0201 D6.",
   "main": "index.ts",

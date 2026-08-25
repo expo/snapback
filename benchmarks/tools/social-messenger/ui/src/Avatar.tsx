@@ -13,6 +13,8 @@ export interface AvatarProps {
   color?: string;
   /** Extra (non-contract) testID. Default `sm-avatar`. */
   testID?: string;
+  /** Stable actor identity exposed semantically to automation (usually a handle). */
+  identity?: string;
 }
 
 function initials(label: string): string {
@@ -31,12 +33,14 @@ export function Avatar({
   size = 40,
   color = palette.surfaceStrong,
   testID = 'sm-avatar',
+  identity,
 }: AvatarProps): React.JSX.Element {
   const frame = { width: size, height: size, borderRadius: size / 2 };
   if (uri) {
     return (
       <Image
         accessibilityLabel={`Avatar for ${label}`}
+        {...(identity ? { accessibilityValue: { text: identity } } : {})}
         source={{ uri }}
         style={[styles.image, frame]}
         testID={testID}
@@ -46,6 +50,7 @@ export function Avatar({
   return (
     <View
       accessibilityLabel={`Avatar for ${label}`}
+      {...(identity ? { accessibilityValue: { text: identity } } : {})}
       style={[styles.fallback, frame, { backgroundColor: color }]}
       testID={testID}
     >

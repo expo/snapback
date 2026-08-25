@@ -59,6 +59,7 @@ export function ReceiptTicks({
   return (
     <Text
       accessibilityLabel={label}
+      accessibilityValue={{ text: label }}
       style={{ color: glyphColor, fontSize: size, letterSpacing: -2 }}
       testID={testID}
     >

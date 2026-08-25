@@ -65,8 +65,18 @@ export function Composer({
       {attachments && attachments.length > 0 ? (
         <View style={styles.attachments}>
           {attachments.map((att, index) => (
-            <View key={`${att.uri}-${index}`} style={styles.attachment}>
-              <Image source={{ uri: att.uri }} style={styles.attachmentImage} />
+            <View
+              accessibilityLabel={`${att.kind} attachment ${index + 1}`}
+              accessibilityValue={{ text: att.kind }}
+              key={`${att.uri}-${index}`}
+              style={styles.attachment}
+              testID="sm-compose-attachment"
+            >
+              <Image
+                source={{ uri: att.uri }}
+                style={styles.attachmentImage}
+                testID="sm-compose-attachment-media"
+              />
               {att.kind === 'video' ? (
                 <View pointerEvents="none" style={styles.attachmentOverlay}>
                   <Text style={styles.attachmentPlay}>▶</Text>

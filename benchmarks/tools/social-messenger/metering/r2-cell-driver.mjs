@@ -23,7 +23,10 @@ import {
 import { validateCoverageManifestBytes } from "./coverage-manifest.mjs";
 import { parseJsonLines } from "./jsonl.mjs";
 import { suiteReceiptVerdict } from "./manifest.mjs";
-import { CURRENT_INSTRUMENT_PIN } from "./observations.mjs";
+import {
+  CURRENT_INSTRUMENT_PIN,
+  CURRENT_TYPING_OBSERVATION_BOUNDARY_VERSION,
+} from "./observations.mjs";
 import { scrubR2NodeLoaderEnvironment } from "./r2-execution-environment.mjs";
 
 // @ref LLP 0295#r2-load-isolated-calibration-rerun — each preregistered cell
@@ -77,11 +80,16 @@ function renderPrompt(config, cellRoot) {
     const signal = join(config.repositoryRoot, "benchmarks/tools/social-messenger/metering/r2-cell-signal.mjs");
     const appendix = `
 
-## Observation-controller handoff (instrument 0.3.3-m8)
+## Observation-controller handoff (instrument 0.3.4-m8)
 
 The external lane controller owns the authoring clock and is already running.
 For each milestone, run the suite and choreography with their required typed
-observation outputs, then make this your final command for that milestone:
+observation outputs and the same retained \`setup-identity.json\`, then make this
+your final command for that milestone. Choreography refuses before browser or
+receipt startup unless both \`--suite-status suite-status.json\` and
+\`--setup-identity setup-identity.json\` are present. The setup file must use
+\`social-messenger.setup-identity.v1\` and distinguish qualified binary from
+wrapper, package/prepack closure, declared toolchains, backend, and host.
 
   node ${JSON.stringify(signal)} --root ${JSON.stringify(cellRoot)} --milestone M1 \\
     --status green --terminal-reason green \\
@@ -160,6 +168,7 @@ function recordBase(
     socialMessenger: {
       extensionVersion: 2,
       instrumentVersion: CURRENT_INSTRUMENT_PIN,
+      typingObservationBoundaryVersion: CURRENT_TYPING_OBSERVATION_BOUNDARY_VERSION,
       orientation: {
         schemaVersion: "benchmark-orientation.v1",
         laneKind: "snapback-web-clique",
@@ -913,6 +922,16 @@ async function writeTerminalArtifacts(state, error) {
   base.socialMessenger.coverageManifest = coverage === null
     ? { path: "coverage-manifest.json", sha256: null, validated: false }
     : { path: "coverage-manifest.json", sha256: coverage.sha256, validated: true };
+  const retainedSetups = receipts
+    .map((receipt) => receipt.summary?.setup)
+    .filter((setup) => setup !== undefined);
+  if (retainedSetups.length > 0) {
+    const canonicalSetup = JSON.stringify(retainedSetups[0]);
+    if (retainedSetups.some((setup) => JSON.stringify(setup) !== canonicalSetup)) {
+      throw new Error("choreography summaries disagree on structured setup identity");
+    }
+    base.socialMessenger.setup = retainedSetups[0];
+  }
   base.correctionLoops = state.correctionLoops;
   await writeFile(join(state.root, "record-base.json"), `${JSON.stringify(base, null, 2)}\n`);
   const manifestStampedAt = new Date().toISOString();

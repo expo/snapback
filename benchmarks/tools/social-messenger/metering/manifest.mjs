@@ -35,7 +35,7 @@ import { validateJsonSchema } from "../../lib/json-schema.mjs";
 const MANIFEST_VERSION = "social-messenger-metering-manifest.v1";
 const SHA256 = /^sha256:[a-f0-9]{64}$/u;
 const MILESTONE = /^M[1-8]$/u;
-const CURRENT_CHOREOGRAPHY_VERSION = "0.3.3-m8";
+const CURRENT_CHOREOGRAPHY_VERSION = "0.3.4-m8";
 const R2_DRIVER_V1_TERMINAL_RULE = R2_CODEX_SETTLED_TERMINAL_RULE;
 const R2_DRIVER_V1_CLOCK_EVIDENCE =
   "controller and native CLI use the same host clock; 5s covers receipt-to-final-sample handoff";
@@ -705,11 +705,11 @@ async function loadSuiteStatusLinkage(
       (candidate) => candidate.version === CURRENT_CHOREOGRAPHY_VERSION,
     );
     if (currentAttestations.length > 1) {
-      throw new Error(`suite-status ${segment} has duplicate 0.3.3-m8 attestations`);
+      throw new Error(`suite-status ${segment} has duplicate 0.3.4-m8 attestations`);
     }
     const current = currentAttestations[0] ?? null;
     if (current === null && boundaries[milestone].status === "green") {
-      throw new Error(`suite-status ${segment} lacks a 0.3.3-m8 refusal-time attestation`);
+      throw new Error(`suite-status ${segment} lacks a 0.3.4-m8 refusal-time attestation`);
     }
     if (current !== null && current.suitePass !== status.pass) {
       throw new Error(

@@ -2,7 +2,7 @@
 
 Presentational UI kit for the **social-messenger** canonical
 benchmark (app name: **Clique**). Version: see [`VERSION`](./VERSION)
-(`0.3.1-m8`; the P3 freeze bumps to `1.0.0` and pins hashes in the
+(`0.3.2-m8`; the P3 freeze bumps to `1.0.0` and pins hashes in the
 brief). Governing design: LLP 0201 D6
 (`llp/0201-social-messenger-canonical-benchmark.plan.md`);
 coordination pins: `benchmarks/tools/social-messenger/CONTRACT.md`;
@@ -91,14 +91,17 @@ npm install
 npm test
 ```
 
-The suite checks contract-ID defaults and typechecks the package. `react`,
+The suite checks contract-ID defaults, semantic observability tokens, and
+typechecks the package. `react`,
 `react-native`, and `@types/react` are devDependencies for typechecking only;
 at runtime they are peers supplied by the lane's app.
 
 ## Versioning
 
 `VERSION`, `package.json`, and the brief's pinned kit version move together.
-`0.3.1-m8` migrates the pressable quoted excerpt to
+`0.3.2-m8` adds structural media, actor identity, semantic receipt,
+membership, profile-layout, and poll-state vocabulary for the coordinated
+instrument-observability bump. `0.3.1-m8` migrates the pressable quoted excerpt to
 `sm-convo-quote-preview`, reserving `sm-convo-quote` for the lane-owned
 per-message Reply action. `0.3.0-m8` added the M8 Insights and Trending
 surfaces; `0.2.0-p2` added the accessible state consumed by the hardened

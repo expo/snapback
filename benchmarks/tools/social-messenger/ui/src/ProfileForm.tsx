@@ -25,6 +25,8 @@ interface ProfileViewBase {
   followingCount: number;
   /** Tap the profile's link URL (e.g. Linking.openURL). */
   onPressLink?: (url: string) => void;
+  /** Return to the feed from a profile without relying on screen folklore. */
+  onPressFeed?: () => void;
   testID?: string;
 }
 
@@ -183,6 +185,7 @@ function ViewProfile(
     followerCount,
     followingCount,
     onPressLink,
+    onPressFeed,
     testID = 'sm-profile',
   } = props;
   return (
@@ -218,7 +221,9 @@ function ViewProfile(
           )}
         </View>
       </View>
-      <Text style={styles.displayName}>{displayName}</Text>
+      <Text accessibilityRole="header" style={styles.displayName} testID="sm-profile-heading">
+        {displayName}
+      </Text>
       <Text style={styles.handle}>@{handle}</Text>
       {bio ? <Text style={styles.bio}>{renderLinkifiedText(bio, onPressLink)}</Text> : null}
       <View style={styles.metaRow}>
@@ -242,6 +247,17 @@ function ViewProfile(
           <Text style={styles.countNumber}>{followingCount}</Text> Following
         </Text>
       </View>
+      {onPressFeed ? (
+        <Pressable
+          accessibilityLabel="Back to feed"
+          accessibilityRole="button"
+          onPress={onPressFeed}
+          style={styles.feedNavigation}
+          testID="sm-profile-nav-feed"
+        >
+          <Text style={styles.feedNavigationText}>Back to feed</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -313,6 +329,14 @@ const styles = StyleSheet.create({
   countNumber: {
     color: palette.text,
     fontWeight: '700',
+  },
+  feedNavigation: {
+    alignSelf: 'flex-start',
+    marginTop: spacing.md,
+  },
+  feedNavigationText: {
+    ...typeScale.footnote,
+    color: palette.link,
   },
   editAvatar: {
     alignItems: 'center',

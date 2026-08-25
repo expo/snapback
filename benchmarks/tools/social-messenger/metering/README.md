@@ -38,7 +38,7 @@ timestamp, no later than the driver-stamped terminal; a non-green receipt
 conflicts.
 At record-write time the loader re-reads every `suiteStatus` receipt path,
 requires a regular file, hashes its current bytes, and compares that digest to
-the `0.3.3-m8` segment-summary digest captured during choreography's startup
+the `0.3.4-m8` segment-summary digest captured during choreography's startup
 refusal check. A missing, replaced, or edited receipt refuses the record.
 The production driver also rolls each green milestone's refusal-time verdict
 and receipt identity into the final aggregate `suite-status.json`. A later
@@ -187,7 +187,7 @@ projections. Aggregate-only claims and decorative hashes therefore fail.
 The production `lane-controller.mjs` constructs `ObservationWriter` and
 `LaneObservationHarness` for the complete cell. It can consume the frozen R2
 `harness-config.json` directly with `--harness-config ... --cell ...`; startup
-refuses unless that plan pins `social-messenger@0.3.3-m8`. For every attempted
+refuses unless that plan pins `social-messenger@0.3.4-m8`. For every attempted
 milestone, `startMilestone()` starts interval `os.loadavg()` sampling. Every
 other custody claim is explicit in the driver contract: absent claim options
 produce non-claims, and an external suite/choreography producer may supply its
@@ -263,11 +263,12 @@ retain explicit non-claims.
 Every attempted milestone receives all six fields. A block is either
 `{"claimed":true,...}` with retained evidence or
 `{"claimed":false,"reason":"..."}`. Missing fields are invalid on the
-`0.3.3-m8` instrument. A semantic-action or recovery-episode non-claim makes
+`0.3.4-m8` instrument. A semantic-action or recovery-episode non-claim makes
 the correction-action target ineligible; phase gaps, other coverage gaps,
 host-load contamination, and API interruptions likewise make the overall
 efficiency scorecard ineligible while preserving product-debugging value.
-The joiner stamps `instrumentVersion: "social-messenger@0.3.3-m8"`;
+The joiner stamps `instrumentVersion: "social-messenger@0.3.4-m8"` and
+`typingObservationBoundaryVersion: "v2"`;
 `instrumentVersion` is unconditional for every plan record, and current schema
 validation requires that pin, the exact orientation pin, the current
 observability protocol, suite linkage, and the complete claimed-or-non-claimed

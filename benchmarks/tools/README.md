@@ -48,7 +48,7 @@ node benchmarks/tools/lane-setup.mjs setup \
   --instrument-root /path/to/run/instrument \
   --profile snapback-explicit-v1 \
   --backend-pin '@expo/snapback-*@0.1.24' \
-  --instrument-pin social-messenger@0.3.3-m8 \
+  --instrument-pin social-messenger@0.3.4-m8 \
   --skill snapback-authoring \
   --skill-body snapback-authoring=/path/to/published-consumer/SKILL.md
 ```

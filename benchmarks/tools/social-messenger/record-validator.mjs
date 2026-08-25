@@ -23,6 +23,7 @@ import { joinUsageToMilestones } from "./metering/joiner.mjs";
 import { composeRunRecord } from "./metering/record-composer.mjs";
 import {
   CURRENT_INSTRUMENT_PIN,
+  CURRENT_TYPING_OBSERVATION_BOUNDARY_VERSION,
   OBSERVABILITY_BLOCKS,
   OBSERVATION_VERSION,
   observationLaneRunIdMatches,
@@ -38,7 +39,8 @@ const ATTEMPTED_STATUSES = new Set([
   "aborted",
 ]);
 const SHA256 = /^sha256:[a-f0-9]{64}$/u;
-const CURRENT_CHOREOGRAPHY_VERSION = "0.3.3-m8";
+const CURRENT_CHOREOGRAPHY_VERSION = "0.3.4-m8";
+const PREVIOUS_INSTRUMENT_PIN = "social-messenger@0.3.3-m8";
 const RECEIPT_SCHEMA = JSON.parse(readFileSync(
   new URL("./choreography/receipts.schema.json", import.meta.url),
   "utf8",
@@ -922,6 +924,12 @@ function loadSuiteReceiptAttestations(errors, extension, artifactRoot, currentIn
         );
         continue;
       }
+      if (record.version !== CURRENT_CHOREOGRAPHY_VERSION) {
+        errors.push(
+          `${receiptPath}/version: current instrument requires ${CURRENT_CHOREOGRAPHY_VERSION}; received ${record.version ?? "none"}`,
+        );
+        continue;
+      }
       for (const [timingIndex, timing] of (record.timings ?? []).entries()) {
         if (timing.settlementWaitMs > timing.durationMs) {
           errors.push(
@@ -1020,7 +1028,7 @@ function validateSuiteStatusLinkage(errors, extension, artifactRoot, currentInst
         || (requiredAttestations === 1 && attestations.length !== 1)
       ) {
         errors.push(
-          `${path}: expected ${requiredAttestations === 1 ? "exactly one" : "at most one"} hash-verified 0.3.3-m8 segment-summary, received ${attestations.length}`,
+          `${path}: expected ${requiredAttestations === 1 ? "exactly one" : "at most one"} hash-verified 0.3.4-m8 segment-summary, received ${attestations.length}`,
         );
       } else if (attestations.length === 1) {
         const attestation = attestations[0];
@@ -1047,7 +1055,7 @@ function validateSuiteStatusLinkage(errors, extension, artifactRoot, currentInst
               > Date.parse(milestoneRecord.authoring?.terminalAt)
           )
         ) {
-          errors.push(`${path}: green milestone lacks a matching first-green 0.3.3-m8 segment-summary`);
+          errors.push(`${path}: green milestone lacks a matching first-green 0.3.4-m8 segment-summary`);
         }
       }
     }
@@ -1122,9 +1130,11 @@ export function validateSocialMessengerRecordSemantics(record, { artifactRoot = 
   const errors = [];
   const extension = record?.socialMessenger;
   if (extension === null || typeof extension !== "object") return errors;
+  const physicalCurrentIdentity = physicalCurrentR2Identity(artifactRoot);
   const currentInstrument = extension.instrumentVersion === CURRENT_INSTRUMENT_PIN
-    || physicalCurrentR2Identity(artifactRoot);
-  const currentProtocolMarker = extension.observabilityProtocol === OBSERVATION_VERSION;
+    || (physicalCurrentIdentity && extension.instrumentVersion !== PREVIOUS_INSTRUMENT_PIN);
+  const currentProtocolMarker = extension.observabilityProtocol === OBSERVATION_VERSION
+    && extension.instrumentVersion !== PREVIOUS_INSTRUMENT_PIN;
   const currentOrientationMarker = (
     extension.orientation?.instrument?.pin === CURRENT_INSTRUMENT_PIN
     || extension.orientation?.instrument?.versions?.choreography === CURRENT_CHOREOGRAPHY_VERSION
@@ -1132,6 +1142,15 @@ export function validateSocialMessengerRecordSemantics(record, { artifactRoot = 
   if (!currentInstrument && (currentProtocolMarker || currentOrientationMarker)) {
     errors.push(
       `$/socialMessenger/instrumentVersion: current observability/orientation markers require ${CURRENT_INSTRUMENT_PIN}`,
+    );
+  }
+  if (
+    currentInstrument
+    && extension.typingObservationBoundaryVersion
+      !== CURRENT_TYPING_OBSERVATION_BOUNDARY_VERSION
+  ) {
+    errors.push(
+      `$/socialMessenger/typingObservationBoundaryVersion: ${CURRENT_INSTRUMENT_PIN} requires ${CURRENT_TYPING_OBSERVATION_BOUNDARY_VERSION}`,
     );
   }
 
