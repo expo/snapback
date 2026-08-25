@@ -2368,21 +2368,37 @@ function gapReviewTicketMarker(rowId) {
   return `**Routing signature:** \`gap-review:${rowId}\``;
 }
 
+function gapReviewTicketSlug(rowId) {
+  return rowId.replace(/[^a-z0-9]+/gu, '-').replace(/^-|-$/gu, '');
+}
+
 function findOpenGapReviewTicket(ticketRoot, rowId) {
   if (!existsSync(ticketRoot)) return null;
   const marker = gapReviewTicketMarker(rowId);
+  const filenameSuffix = `-guide-gap-review-expired-${gapReviewTicketSlug(rowId)}.md`;
   for (const name of readdirSync(ticketRoot).sort()) {
     const path = join(ticketRoot, name);
     if (!name.endsWith('.md') || !lstatSync(path).isFile()) continue;
-    if (readFileSync(path, 'utf8').includes(marker)) return path;
+    const body = readFileSync(path, 'utf8');
+    if (body.includes(marker)) return { path, markerPresent: true };
+    if (name.endsWith(filenameSuffix)) return { path, markerPresent: false };
   }
   return null;
+}
+
+function restoreGapReviewTicketMarker(path, rowId) {
+  const marker = gapReviewTicketMarker(rowId);
+  const body = readFileSync(path, 'utf8');
+  if (body.includes(marker)) return false;
+  const withMarker = body.replace(/^(\*\*Date:\*\*[^\n]*\n)/mu, `$1${marker}\n`);
+  writeFileSync(path, withMarker === body ? `${marker}\n${body}` : withMarker);
+  return true;
 }
 
 function fileGapReviewTicket({ ticketRoot, row, headRevision, date }) {
   if (!/^\d{4}-\d{2}-\d{2}$/u.test(date)) fail(`invalid ticket date ${date}`);
   const compactDate = date.replaceAll('-', '');
-  const rowSlug = row.id.replace(/[^a-z0-9]+/gu, '-').replace(/^-|-$/gu, '');
+  const rowSlug = gapReviewTicketSlug(row.id);
   const path = join(ticketRoot, `${compactDate}-guide-gap-review-expired-${rowSlug}.md`);
   if (existsSync(path)) return { path, filed: false };
   const body = `# guide-gap: review expired for \`${row.id}\`
@@ -2420,6 +2436,7 @@ pointer as appropriate, record the outcome here, and move this ticket to
 // @ref LLP 0232#d-6-advisory-fix-forward-routing — one stable row signature
 // retains one open repair ticket until the owner resolves it.
 function routeExpiredGapReviews({ root, ticketRoot, revision, date }) {
+  if (!/^\d{4}-\d{2}-\d{2}$/u.test(date)) fail(`invalid ticket date ${date}`);
   const paths = gitPaths(root, [
     'ls-tree', '-r', '--name-only', '-z', revision, '--', CAPABILITIES_PATH,
   ]);
@@ -2435,9 +2452,12 @@ function routeExpiredGapReviews({ root, ticketRoot, revision, date }) {
     );
     const existing = findOpenGapReviewTicket(ticketRoot, row.id);
     if (existing) {
+      const restored = existing.markerPresent
+        ? false
+        : restoreGapReviewTicketMarker(existing.path, row.id);
       console.error(
-        `[snapback-drift-backstop] existing open GAP review ticket ${relative(root, existing)}; `
-          + 'not filing a duplicate',
+        `[snapback-drift-backstop] existing open GAP review ticket ${relative(root, existing.path)}; `
+          + `${restored ? 'restored routing signature; ' : ''}not filing a duplicate`,
       );
       continue;
     }
@@ -2473,9 +2493,10 @@ export function runBackstop({
     if (!registered.includes(gateId)) fail(`unknown drift-prone gate ${gateId}`);
   }
   const ticketRoot = safeIssuesRoot(root, issuesDir);
-  mkdirSync(ticketRoot, { recursive: true });
   const ticketDate = env.SNAPBACK_DRIFT_TICKET_DATE ?? DEFAULT_TICKET_DATE();
+  let gapReviewRoutingFailed = false;
   try {
+    mkdirSync(ticketRoot, { recursive: true });
     routeExpiredGapReviews({
       root,
       ticketRoot,
@@ -2483,8 +2504,9 @@ export function runBackstop({
       date: ticketDate,
     });
   } catch (error) {
+    gapReviewRoutingFailed = true;
     console.error(
-      '[snapback-drift-backstop] WARNING GAP review routing failed; '
+      '[snapback-drift-backstop] INFRASTRUCTURE ERROR GAP review routing failed; '
         + `continuing with frozen-record gates: ${error?.message ?? error}`,
     );
   }
@@ -2620,7 +2642,7 @@ export function runBackstop({
     console.error(`[snapback-drift-backstop] FILED ${relative(root, ticket)}`);
   }
   writeInfrastructureStreaks(root, infrastructureStreaks);
-  if (infrastructureFailures > 0) return 2;
+  if (gapReviewRoutingFailed || infrastructureFailures > 0) return 2;
   return failures === 0 ? 0 : 1;
 }
 

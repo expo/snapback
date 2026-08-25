@@ -28,6 +28,7 @@ import {
   listGuidePages,
   markdownAnchorPlan,
   parseFrontmatter,
+  replaceMarkdownInlineLinks,
   repoRoot,
   validateFrontmatter,
 } from './guide-lib.mjs';
@@ -245,34 +246,31 @@ function renderInline(value, resolveLink) {
   rendered = rendered.replace(/`([^`\n]+)`/gu, (_match, code) =>
     storeInline(tokens, `<code>${code}</code>`));
 
-  rendered = rendered.replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+&quot;[^&]*&quot;)?\)/gu,
-    (_match, alt, target) => {
+  rendered = replaceMarkdownInlineLinks(rendered, ({ image, label, target }) => {
+    if (image) {
       const resolved = resolveLink(target, { asset: true });
       if (resolved.kind === 'forbidden-external-asset') {
         fail(`external network asset is forbidden in ${target}`);
       }
       if (resolved.kind !== 'internal') {
-        return storeInline(tokens, `<span class="missing-asset">${alt}</span>`);
+        return storeInline(tokens, `<span class="missing-asset">${label}</span>`);
       }
       return storeInline(tokens,
-        `<img src="${escapeAttribute(resolved.href)}" alt="${escapeAttribute(alt)}" loading="lazy">`);
-    });
-
-  rendered = rendered.replace(/\[([^\]]+)\]\(([^)\s]+)(?:\s+&quot;[^&]*&quot;)?\)/gu,
-    (_match, label, target) => {
-      const resolved = resolveLink(target);
-      if (resolved.kind === 'source-only') {
-        return storeInline(tokens,
-          `<span class="source-reference" title="Repository source path: ${escapeAttribute(resolved.label)}">${label}</span>`);
-      }
-      if (resolved.kind === 'missing') {
-        return storeInline(tokens,
-          `<span class="broken-reference" title="Unresolved source target: ${escapeAttribute(resolved.label)}">${label}</span>`);
-      }
-      const external = resolved.kind === 'external' ? ' rel="noreferrer"' : '';
+        `<img src="${escapeAttribute(resolved.href)}" alt="${escapeAttribute(label)}" loading="lazy">`);
+    }
+    const resolved = resolveLink(target);
+    if (resolved.kind === 'source-only') {
       return storeInline(tokens,
-        `<a href="${escapeAttribute(resolved.href)}"${external}>${label}</a>`);
-    });
+        `<span class="source-reference" title="Repository source path: ${escapeAttribute(resolved.label)}">${label}</span>`);
+    }
+    if (resolved.kind === 'missing') {
+      return storeInline(tokens,
+        `<span class="broken-reference" title="Unresolved source target: ${escapeAttribute(resolved.label)}">${label}</span>`);
+    }
+    const external = resolved.kind === 'external' ? ' rel="noreferrer"' : '';
+    return storeInline(tokens,
+      `<a href="${escapeAttribute(resolved.href)}"${external}>${label}</a>`);
+  });
 
   rendered = rendered.replace(/&lt;(https?:\/\/[^&\s]+)&gt;/gu, (_match, href) =>
     storeInline(tokens, `<a href="${escapeAttribute(href)}" rel="noreferrer">${escapeHtml(href)}</a>`));

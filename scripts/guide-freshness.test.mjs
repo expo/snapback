@@ -5,6 +5,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -19,6 +20,7 @@ import {
   checkFreshness,
   checkLinks,
   isRecordedBenchmarkEventsTranscript,
+  markdownInlineLinks,
   parseFrontmatter,
 } from './guide-lib.mjs';
 import {
@@ -93,13 +95,45 @@ test('guide links resolve rendered heading anchors with docs-site slug identity'
   assert.deepEqual(errors, [
     `${sourcePath}: relative link resolves to missing anchor #missing-heading in ${targetPath}`,
   ]);
+  assert.deepEqual(
+    markdownInlineLinks('[Exact](repo(exact):guide/index.md "sibling corpus")'),
+    [{
+      image: false,
+      label: 'Exact',
+      target: 'repo(exact):guide/index.md',
+      title: 'sibling corpus',
+    }],
+  );
+});
+
+test('guide links with renderer-supported titles still validate their anchors', (t) => {
+  const { root } = fixture(t);
+  const sourcePath = 'guide/source.md';
+  const targetPath = 'guide/target.md';
+  const source = '[titled](./target.md#missing-heading "context")\n';
+  const target = '# Present heading\n';
+  writeFileSync(join(root, sourcePath), source);
+  writeFileSync(join(root, targetPath), target);
+
+  const errors = [];
+  checkLinks(root, new Map([[sourcePath, source], [targetPath, target]]), errors, []);
+
+  assert.deepEqual(errors, [
+    `${sourcePath}: relative link resolves to missing anchor #missing-heading in ${targetPath}`,
+  ]);
 });
 
 test('GAP review dates warn while closed and missing issue pointers fail', (t) => {
   const { root } = fixture(t);
   mkdirSync(join(root, 'issues/closed'), { recursive: true });
+  mkdirSync(join(root, 'issues/foo'));
+  mkdirSync(join(root, 'issues/not-a-file.md'));
+  writeFileSync(join(root, 'README.md'), '# Outside issues\n');
   writeFileSync(join(root, 'issues/open-gap.md'), '# Open gap\n');
   writeFileSync(join(root, 'issues/closed/closed-gap.md'), '# Closed gap\n');
+  symlinkSync('closed/closed-gap.md', join(root, 'issues/closed-alias.md'));
+  symlinkSync('../README.md', join(root, 'issues/outside-alias.md'));
+  symlinkSync('open-gap.md', join(root, 'issues/open-alias.md'));
   const capabilities = new Map([
     ['expired', {
       id: 'expired',
@@ -121,6 +155,30 @@ test('GAP review dates warn while closed and missing issue pointers fail', (t) =
       id: 'missing',
       page: 'GAP (owner: Owner E, review: 2026-09-30; issue: issues/missing-gap.md)',
     }],
+    ['outside-traversal', {
+      id: 'outside-traversal',
+      page: 'GAP (owner: Owner F, review: 2026-09-30; issue: issues/../README.md)',
+    }],
+    ['closed-traversal', {
+      id: 'closed-traversal',
+      page: 'GAP (owner: Owner G, review: 2026-09-30; issue: issues/foo/../closed/closed-gap.md)',
+    }],
+    ['not-a-file', {
+      id: 'not-a-file',
+      page: 'GAP (owner: Owner H, review: 2026-09-30; issue: issues/not-a-file.md)',
+    }],
+    ['closed-alias', {
+      id: 'closed-alias',
+      page: 'GAP (owner: Owner I, review: 2026-09-30; issue: issues/closed-alias.md)',
+    }],
+    ['outside-alias', {
+      id: 'outside-alias',
+      page: 'GAP (owner: Owner J, review: 2026-09-30; issue: issues/outside-alias.md)',
+    }],
+    ['open-alias', {
+      id: 'open-alias',
+      page: 'GAP (owner: Owner K, review: 2026-09-30; issue: issues/open-alias.md)',
+    }],
   ]);
   const errors = [];
   const warnings = [];
@@ -130,6 +188,12 @@ test('GAP review dates warn while closed and missing issue pointers fail', (t) =
   assert.deepEqual(errors, [
     "guide/capabilities.md: GAP row 'closed' points at closed issue issues/closed/closed-gap.md",
     "guide/capabilities.md: GAP row 'missing' points at missing issue issues/missing-gap.md",
+    "guide/capabilities.md: GAP row 'outside-traversal' has unsafe issue pointer issues/../README.md: '.' and '..' path segments are forbidden",
+    "guide/capabilities.md: GAP row 'closed-traversal' has unsafe issue pointer issues/foo/../closed/closed-gap.md: '.' and '..' path segments are forbidden",
+    "guide/capabilities.md: GAP row 'not-a-file' issue pointer is not a regular file: issues/not-a-file.md",
+    "guide/capabilities.md: GAP row 'closed-alias' points at closed issue issues/closed-alias.md",
+    "guide/capabilities.md: GAP row 'outside-alias' issue pointer resolves outside canonical issues/: issues/outside-alias.md",
+    "guide/capabilities.md: GAP row 'open-alias' issue pointer is not a regular file: issues/open-alias.md",
   ]);
   assert.equal(warnings.length, 2);
   assert.match(warnings[0], /GAP REVIEW WARNING: row 'expired' expired on 2026-08-23; owner: Owner A; pointer: issues\/open-gap\.md/u);

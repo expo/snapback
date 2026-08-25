@@ -1387,17 +1387,16 @@ test('backstop GAP review routing survives marker-stripped reruns and routing er
       '',
     ].join('\n'));
     const revision = commitAll(repo, 'test: expired GAP review fixture');
-    const env = {
-      ...process.env,
-      SNAPBACK_DRIFT_TICKET_DATE: '2026-08-25',
-    };
-    const runOnce = () => capturePrePush(() => runBackstop({
+    const runOnce = (date = '2026-08-25') => capturePrePush(() => runBackstop({
       head: revision,
       gate: 'guide',
       issuesDir: 'issues',
       root: repo,
       context: fixtureOutcomeContext(),
-      env,
+      env: {
+        ...process.env,
+        SNAPBACK_DRIFT_TICKET_DATE: date,
+      },
     }));
 
     const first = runOnce();
@@ -1414,7 +1413,7 @@ test('backstop GAP review routing survives marker-stripped reruns and routing er
       filedBody.replace(/^\*\*Routing signature:\*\* `gap-review:backend\.expired`\n/mu, ''),
     );
 
-    const second = runOnce();
+    const second = runOnce('2026-08-26');
     const routingFailure = capturePrePush(() => runBackstop({
       head: revision,
       gate: 'guide',
@@ -1422,7 +1421,7 @@ test('backstop GAP review routing survives marker-stripped reruns and routing er
       root: repo,
       context: fixtureOutcomeContext(),
       env: {
-        ...env,
+        ...process.env,
         SNAPBACK_DRIFT_TICKET_DATE: 'not-a-date',
       },
     }));
@@ -1431,15 +1430,15 @@ test('backstop GAP review routing survives marker-stripped reruns and routing er
 
     assert.equal(first.status, 0, first.output);
     assert.equal(second.status, 0, second.output);
-    assert.equal(routingFailure.status, 0, routingFailure.output);
+    assert.equal(routingFailure.status, 2, routingFailure.output);
     assert.match(first.output, /GAP REVIEW EXPIRED backend\.expired; owner: Fixture Owner; pointer: issues\/guide-gap-tracker\.md/u);
     assert.match(first.output, /FILED issues\/20260825-guide-gap-review-expired-backend-expired\.md/u);
-    assert.match(second.output, /existing GAP review ticket .*; treating it as already filed/u);
-    assert.match(routingFailure.output, /WARNING GAP review routing failed; continuing with frozen-record gates: SNAPBACK_DRIFT_GATE_INVALID: invalid ticket date not-a-date/u);
+    assert.match(second.output, /existing open GAP review ticket .*; restored routing signature; not filing a duplicate/u);
+    assert.match(routingFailure.output, /INFRASTRUCTURE ERROR GAP review routing failed; continuing with frozen-record gates: SNAPBACK_DRIFT_GATE_INVALID: invalid ticket date not-a-date/u);
     assert.match(routingFailure.output, /PASS guide/u);
     assert.deepEqual(tickets, ['20260825-guide-gap-review-expired-backend-expired.md']);
     const body = readFileSync(join(repo, 'issues', tickets[0]), 'utf8');
-    assert.doesNotMatch(body, /\*\*Routing signature:\*\*/u);
+    assert.match(body, /\*\*Routing signature:\*\* `gap-review:backend\.expired`/u);
     assert.match(body, /\*\*Owner:\*\* Fixture Owner/u);
     assert.match(body, /\*\*Gap pointer:\*\* `issues\/guide-gap-tracker\.md`/u);
   } finally {

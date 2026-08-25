@@ -9,9 +9,10 @@ import {
   readFileSync,
   readlinkSync,
   readdirSync,
+  realpathSync,
   statSync,
 } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 export const GUIDE_DIR = 'guide';
 export const MANIFEST_PATH = join(GUIDE_DIR, 'guide-manifest.generated.json');
@@ -159,6 +160,37 @@ export function markdownAnchorPlan(body) {
 
 export function markdownAnchors(body) {
   return markdownAnchorPlan(body).anchors;
+}
+
+// The renderer operates after HTML escaping, while source validation operates
+// on authored Markdown. Accept both spellings of a double-quoted title so the
+// two consumers share one link grammar instead of maintaining parallel regexes.
+const MARKDOWN_INLINE_LINK_PATTERN = /(!?)\[([^\]]*)\]\(((?:repo\([^)]+\):)?[^)\s]+)(?:\s+(?:"([^"\n]*)"|&quot;([^&\n]*)&quot;))?\)/gu;
+
+export function markdownInlineLinks(value) {
+  return [...value.matchAll(MARKDOWN_INLINE_LINK_PATTERN)]
+    .filter((match) => match[1] === '!' || match[2].length > 0)
+    .map((match) => ({
+      image: match[1] === '!',
+      label: match[2],
+      target: match[3],
+      title: match[4] ?? match[5] ?? null,
+    }));
+}
+
+export function replaceMarkdownInlineLinks(value, replacer) {
+  return value.replace(
+    MARKDOWN_INLINE_LINK_PATTERN,
+    (match, imagePrefix, label, target, rawTitle, escapedTitle) => {
+      if (imagePrefix !== '!' && label.length === 0) return match;
+      return replacer({
+        image: imagePrefix === '!',
+        label,
+        target,
+        title: rawTitle ?? escapedTitle ?? null,
+      });
+    },
+  );
 }
 
 export function repoRoot() {
@@ -630,8 +662,7 @@ export function checkLinks(root, pageBodies, errors, warnings) {
   };
   for (const [path, body] of pageBodies) {
     const outgoing = [];
-    for (const m of body.matchAll(/\]\(((?:repo\([^)]+\):)?[^)\s]+)\)/g)) {
-      const target = m[1];
+    for (const { target } of markdownInlineLinks(body)) {
       if (/^(https?:|mailto:)/.test(target)) continue;
       if (target.startsWith('#')) {
         checkAnchor(path, path, target.slice(1), 'same-page link');
@@ -827,6 +858,61 @@ function gapRowDetails(capability) {
   };
 }
 
+function isWithinDirectory(directory, candidate) {
+  const rel = relative(directory, candidate);
+  return rel === '' || (!isAbsolute(rel) && rel !== '..' && !rel.startsWith(`..${sep}`));
+}
+
+function checkGapIssuePointer(root, gap, errors) {
+  const segments = gap.pointer.split('/');
+  if (segments.includes('.') || segments.includes('..')) {
+    errors.push(
+      `${CAPABILITIES_PATH}: GAP row '${gap.id}' has unsafe issue pointer ${gap.pointer}: `
+        + "'.' and '..' path segments are forbidden",
+    );
+    return;
+  }
+
+  const issuesRoot = resolve(root, 'issues');
+  const closedRoot = resolve(issuesRoot, 'closed');
+  const target = resolve(root, gap.pointer);
+  if (!isWithinDirectory(issuesRoot, target)) {
+    errors.push(
+      `${CAPABILITIES_PATH}: GAP row '${gap.id}' issue pointer resolves outside issues/: ${gap.pointer}`,
+    );
+    return;
+  }
+  if (isWithinDirectory(closedRoot, target)) {
+    errors.push(`${CAPABILITIES_PATH}: GAP row '${gap.id}' points at closed issue ${gap.pointer}`);
+    return;
+  }
+  if (!existsSync(target)) {
+    errors.push(`${CAPABILITIES_PATH}: GAP row '${gap.id}' points at missing issue ${gap.pointer}`);
+    return;
+  }
+
+  const canonicalIssuesRoot = realpathSync(issuesRoot);
+  const canonicalTarget = realpathSync(target);
+  if (!isWithinDirectory(canonicalIssuesRoot, canonicalTarget)) {
+    errors.push(
+      `${CAPABILITIES_PATH}: GAP row '${gap.id}' issue pointer resolves outside canonical issues/: ${gap.pointer}`,
+    );
+    return;
+  }
+  if (existsSync(closedRoot)) {
+    const canonicalClosedRoot = realpathSync(closedRoot);
+    if (isWithinDirectory(canonicalClosedRoot, canonicalTarget)) {
+      errors.push(`${CAPABILITIES_PATH}: GAP row '${gap.id}' points at closed issue ${gap.pointer}`);
+      return;
+    }
+  }
+  if (!lstatSync(target).isFile()) {
+    errors.push(
+      `${CAPABILITIES_PATH}: GAP row '${gap.id}' issue pointer is not a regular file: ${gap.pointer}`,
+    );
+  }
+}
+
 export function capabilityGapRowsFromText(text) {
   const lines = text.split('\n');
   const start = lines.findIndex((line) => line.startsWith('## Capabilities'));
@@ -855,10 +941,8 @@ export function checkCapabilityGapRows(
     }
     if (!gap.pointer) {
       errors.push(`${CAPABILITIES_PATH}: GAP row '${gap.id}' must carry an issues/*.md link`);
-    } else if (gap.pointer.startsWith('issues/closed/')) {
-      errors.push(`${CAPABILITIES_PATH}: GAP row '${gap.id}' points at closed issue ${gap.pointer}`);
-    } else if (!existsSync(join(root, gap.pointer))) {
-      errors.push(`${CAPABILITIES_PATH}: GAP row '${gap.id}' points at missing issue ${gap.pointer}`);
+    } else {
+      checkGapIssuePointer(root, gap, errors);
     }
     if (!gap.reviewDate || !gap.owner || !gap.pointer) continue;
     const reviewDay = Date.parse(`${gap.reviewDate}T00:00:00Z`) / 86_400_000;

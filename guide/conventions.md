@@ -10,7 +10,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:c6d3196396cbda2d9c03c521c99d57d9cf8100686ce08c48146f5dde15776f08
+reviewed-authorities-digest: sha256:636aab1ee1ab3ffe0712f132f100f289ddd4c3ccae1af57e168e6a1af68d6b82
 ---
 
 # Guide conventions

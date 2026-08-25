@@ -1,6 +1,6 @@
 # Guide GAP review dates keep turning main red, and two point at closed issues
 
-Status: Open — preventive; one row fires 2026-08-24
+Status: Resolved 2026-08-25
 Created: 2026-08-22
 Related: guide/capabilities.md, scripts/check-inventories.mjs, LLP 0061
 

@@ -1,6 +1,6 @@
 # ref-check crashes repo-wide on one malformed LLP header
 
-Status: open
+Status: Resolved 2026-08-25
 Date: 2026-08-24
 Systems: tooling
 Related: LLP 0303
