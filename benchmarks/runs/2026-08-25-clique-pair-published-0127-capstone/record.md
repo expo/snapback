@@ -43,9 +43,18 @@ replay and inter-milestone overhead.
 
 | | M1 | M2 | M3 | M4 | M5 | M6 | M8 | Scale | M7 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| wall (s) | 1,075 | 2,107 | 1,927 | 290 | 828 | 1,182 | pending | pending | pending |
-| correction loops | 8 | 8 | 5 | 1 | 4 | 6 | pending | pending | pending |
-| output tokens | 28,835 | 36,377 | 40,064 | 7,683 | 19,153 | 22,430 | pending | pending | pending |
+| wall (s) | 1,075 | 2,107 | 1,927 | 290 | 828 | 1,182 | 2,330 | pending | pending |
+| correction loops | 8 | 8 | 5 | 1 | 4 | 6 | 9 | pending | pending |
+| output tokens | 28,835 | 36,377 | 40,064 | 7,683 | 19,153 | 22,430 | 21,230 | pending | pending |
+
+Continuous build phase (M1–M6+M8) complete: 9,739 s wall (2:42:19) across
+the seven milestones, 41 correction loops, ~176k output tokens attributed
+to milestone windows (219k session-total including inter-milestone work).
+M8 first green at 814 s; the 2,330 s total includes nine choreography
+rounds. One `SNAPBACK_VERIFY_CLI_FAILED` at the end of M8: the scaffold's
+verify config expects a named acceptance export while the lane ships the
+required CLI entrypoint — instrument suite/choreography unaffected
+(findings candidate).
 
 M6 native gate: recorded non-gating (Linux, no iOS simulator — same
 convention as the concurrent grok-0127 run). M6 evidence includes a
