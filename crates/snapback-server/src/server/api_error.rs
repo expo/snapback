@@ -332,7 +332,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_AGENT_POLICY_MODE_INVALID"
         | "SNAPBACK_API_AUTH_MODE_INVALID"
         | "SNAPBACK_API_AUTH_REQUIREMENT_LOOSENED"
-        // diagnostics-registry: reserved
+        // diagnostics-registry: reserved SNAPBACK_API_BUDGETS_UNAVAILABLE
         | "SNAPBACK_API_BUDGETS_UNAVAILABLE"
         | "SNAPBACK_API_COMPATIBILITY_BASELINE_UNAVAILABLE"
         | "SNAPBACK_API_EXPOSURE_COMPILATION_INVALID"
@@ -461,7 +461,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_GUEST_CLAIM_COLLISION"
         | "SNAPBACK_AUTH_IDENTITY_COLLISION"
         | "SNAPBACK_AUTH_LAST_AUTHENTICATOR"
-        // diagnostics-registry: reserved
+        // diagnostics-registry: reserved SNAPBACK_AUTH_MODE_CHANGED
         | "SNAPBACK_AUTH_MODE_CHANGED"
         | "SNAPBACK_AUTH_PASSWORD_ALREADY_SET"
         | "SNAPBACK_AUTH_PASSWORD_EXISTS"
@@ -616,7 +616,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // no v1 read path surfaces it, but its reviewed status is a conflict
         // with the durable terminal row.
         | "SNAPBACK_ACTION_STREAM_CANCELLED"
-        // diagnostics-registry: reserved
+        // diagnostics-registry: reserved SNAPBACK_OPERATION_CANCELLED
         | "SNAPBACK_OPERATION_CANCELLED"
         | "SNAPBACK_OPERATION_IDENTITY_HORIZON_PASSED"
         | "SNAPBACK_OPERATION_STORED_REFUSAL"
@@ -717,7 +717,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // (forbidden) from "needs the configured token" (unauthorized).
         "SNAPBACK_ADMIN_DISABLED"
         | "SNAPBACK_ADMIN_SECRET_READ_SCOPE_DENIED"
-        // diagnostics-registry: reserved
+        // diagnostics-registry: reserved SNAPBACK_ADMIN_SECRET_READ_MINT_DENIED
         | "SNAPBACK_ADMIN_SECRET_READ_MINT_DENIED"
         | "SNAPBACK_ADMIN_SECRET_READ_PROOF_INVALID"
         | "SNAPBACK_ADMIN_SECRET_READ_PROOF_REQUIRED"
@@ -1400,7 +1400,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTHORITY_PROFILE_REQUIRED"
         | "SNAPBACK_AUTHORITY_PROFILE_ROSTER_INVALID"
         | "SNAPBACK_CUSTOM_AUTHORIZATION_MANIFEST_INVALID"
-        // diagnostics-registry: reserved
+        // diagnostics-registry: reserved SNAPBACK_AUTHORITY_ROSTER_CURSOR_INVALID
         | "SNAPBACK_AUTHORITY_ROSTER_CURSOR_INVALID"
         | "SNAPBACK_AUTHORITY_ROSTER_PAGE_INVALID"
         | "SNAPBACK_AUTHORITY_TRANSFER_OWNER_TARGET_INACTIVE"
@@ -1536,7 +1536,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_SCHEMA_PERMISSION_FIELD_UNKNOWN"
         | "SNAPBACK_SCHEMA_PARSE_FAILED"
         | "SNAPBACK_SCHEMA_SYSTEM_FIELD"
-        // diagnostics-registry: reserved
+        // diagnostics-registry: reserved SNAPBACK_SCHEMA_UNIQUE_INDEX_OPTIONAL_FIELD
         | "SNAPBACK_SCHEMA_UNIQUE_INDEX_OPTIONAL_FIELD"
         | "SNAPBACK_STALE_FUNCTION_ARTIFACT_KIND"
         | "SNAPBACK_STALE_FUNCTION_ARTIFACT_VERSION"
@@ -1544,7 +1544,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION"
         | "SNAPBACK_SYSTEM_FIELD_WRITE"
         | "SNAPBACK_TIMESTAMP_OUT_OF_RANGE"
-        // diagnostics-registry: reserved
+        // diagnostics-registry: reserved SNAPBACK_UNSUPPORTED_BLOB
         | "SNAPBACK_UNSUPPORTED_BLOB"
         | "SNAPBACK_VALUE_EXPR_AUTHORITATIVE_ONLY"
         | "SNAPBACK_V8_COMPAT_CONFIG_INVALID"
@@ -1663,7 +1663,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_OPERATION_WRITER_EXCLUDED"
         | "SNAPBACK_OPERATION_WRITER_IDENTITY_MISMATCH"
         | "SNAPBACK_OPERATION_WRITE_AUTHORITY_INVALID"
-        // diagnostics-registry: reserved
+        // diagnostics-registry: reserved SNAPBACK_PROMOTION_EFFECT_INTENT_MISSING
         | "SNAPBACK_PROMOTION_EFFECT_INTENT_MISSING"
         | "SNAPBACK_PROTECTED_ERASURE_REGISTRY_CORRUPT"
         | "SNAPBACK_PROTECTED_ERASURE_TEST_CRASH_CUT"
@@ -1686,7 +1686,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // @ref LLP 0165#contract-summary-normative-details-per-llp-0162-4-6 —
         // checkpoint byte/WAL bounds and proof/publication failures follow the
         // same reviewed resource-versus-invariant split.
-        // diagnostics-registry: reserved
+        // diagnostics-registry: reserved SNAPBACK_BRANCH_CAPTURE_ONLY_MISSING
         "SNAPBACK_BRANCH_CAPTURE_ONLY_MISSING"
         | "SNAPBACK_BRANCH_LIMIT_INVALID"
         | "SNAPBACK_BRANCH_OPERATION_INVALID"

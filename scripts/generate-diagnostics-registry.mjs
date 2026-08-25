@@ -11,20 +11,20 @@
 // declarations/tables, message references, comments, comparisons, Rust match
 // patterns, prefix checks, and code catalogues are excluded per site. Tokens
 // ending in `_` are incomplete family prefixes, never codes. For a real emitter
-// the syntax cannot prove, put `diagnostics-registry: emission` in a comment on
-// that line or the immediately preceding line. When a dynamic emitter never
-// contains the complete spelling, put `diagnostics-registry: emission
-// SNAPBACK_X` at that exact site; it is recorded as an ordinary emission. For
+// the syntax cannot prove, put `diagnostics-registry: emission SNAPBACK_X` in a
+// comment on that line or the immediately preceding line. When a dynamic
+// emitter never contains the complete spelling, put that same named marker at
+// the exact site; it is recorded as an ordinary emission. For
 // a reference-only site whose syntax is otherwise ambiguous, put
 // `diagnostics-registry: reference-only` in a comment on that line or the
 // immediately preceding line; never mark a line that also emits. To reserve a
 // spelling whose concrete emitter is dynamic, or a retired spelling in the
-// stable vocabulary, use `diagnostics-registry: reserved` at that exact site;
+// stable vocabulary, use `diagnostics-registry: reserved SNAPBACK_X` there;
 // reservations are published with their own site kind and do not count as
 // emissions. Closed code-literal Sets/arrays in shipped client packages count
 // as `received` vocabulary when the table flows to a `.has(code)` or
 // `.includes(code)` dispatch membership test. Ambiguous receive tables use
-// `diagnostics-registry: received` on the literal line instead.
+// `diagnostics-registry: received SNAPBACK_X` on the literal line instead.
 // @ref LLP 0193#program — D1's complete source inventory is the substrate for
 // exact error lookup and typed client diagnostics.
 

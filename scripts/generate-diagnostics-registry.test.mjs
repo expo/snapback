@@ -396,8 +396,8 @@ test('generated registry retains target emitters and dynamic artifact-header emi
 
 test('diagnostic source classifier retains explicit historical reservations', () => {
   const source = [
-    '// diagnostics-registry: reserved',
-    '// `SNAPBACK_FIXTURE_RETIRED` is retained for historical records.',
+    '// diagnostics-registry: reserved SNAPBACK_FIXTURE_RETIRED',
+    "const historicalCodes = ['SNAPBACK_FIXTURE_RETIRED', 'SNAPBACK_FIXTURE_UNRELATED'];",
   ].join('\n');
 
   assert.deepEqual(
@@ -408,7 +408,7 @@ test('diagnostic source classifier retains explicit historical reservations', ()
 
 test('diagnostic source classifier retains explicitly marked received vocabulary', () => {
   const source = [
-    '// diagnostics-registry: received',
+    '// diagnostics-registry: received SNAPBACK_FIXTURE_AMBIGUOUS_RECEIVED',
     "const ambiguousReceivedCode = 'SNAPBACK_FIXTURE_AMBIGUOUS_RECEIVED';",
   ].join('\n');
 

@@ -95,7 +95,7 @@ impl RuntimeManager {
     }
 }
 
-// diagnostics-registry: reserved
+// diagnostics-registry: reserved SNAPBACK_IBEX_CLI_UNAVAILABLE
 // `SNAPBACK_IBEX_CLI_UNAVAILABLE` is retired as a produced diagnostic: external
 // Ibex CLI absence is now reported only as a runtime capability fact, and no
 // currently supported operation requires that executable. The code itself stays

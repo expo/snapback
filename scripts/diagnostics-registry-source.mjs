@@ -1,3 +1,6 @@
+// @ref LLP 0193#program — source-site classification keeps environment names,
+// protocol vocabulary, reservations, and real emissions distinct in D1's
+// complete inventory instead of relying on a raw SNAPBACK_* token sweep.
 export const DIAGNOSTIC_CODE_PATTERN = /(?<![A-Z0-9_])SNAPBACK_[A-Z0-9_]*[A-Z0-9](?![A-Z0-9_])/gu;
 export const DIAGNOSTICS_RUST_PRODUCTION_ROOTS = Object.freeze([
   'crates/snapback/src/',
@@ -32,28 +35,63 @@ function lineBounds(source, offset) {
   return { start, end: nextNewline === -1 ? source.length : nextNewline };
 }
 
-function hasSiteMarker(source, offset, marker) {
+function lineHasNamedSiteMarker(source, bounds, marker, code) {
+  const markerPattern = new RegExp(
+    `${escapeRegExp(marker)}\\s+${escapeRegExp(code)}(?![A-Z0-9_])`,
+    'u',
+  );
+  return source.slice(bounds.start, bounds.end).match(markerPattern);
+}
+
+function lineContainsCode(source, bounds, code) {
+  return new RegExp(
+    `(?<![A-Z0-9_])${escapeRegExp(code)}(?![A-Z0-9_])`,
+    'u',
+  ).test(source.slice(bounds.start, bounds.end));
+}
+
+function hasSiteMarker(source, offset, marker, code) {
   const current = lineBounds(source, offset);
-  if (source.slice(current.start, current.end).includes(marker)) return true;
+  const currentMarker = lineHasNamedSiteMarker(source, current, marker, code);
+  if (currentMarker !== null) {
+    const markerCodeOffset = current.start + currentMarker.index
+      + currentMarker[0].lastIndexOf(code);
+    const next = current.end === source.length
+      ? null
+      : lineBounds(source, current.end + 1);
+    // A preceding marker names its target. Do not also publish the marker's
+    // comment token when the named spelling occurs on the immediately next
+    // line; the next-line site is the one retained in the registry.
+    if (
+      offset === markerCodeOffset
+      && next !== null
+      && lineContainsCode(source, next, code)
+    ) return false;
+    return true;
+  }
   if (current.start === 0) return false;
   const previous = lineBounds(source, current.start - 1);
-  return source.slice(previous.start, previous.end).includes(marker);
+  return lineHasNamedSiteMarker(source, previous, marker, code) !== null;
 }
 
 function hasReferenceOnlyMarker(source, offset) {
-  return hasSiteMarker(source, offset, REFERENCE_ONLY_MARKER);
+  const current = lineBounds(source, offset);
+  if (source.slice(current.start, current.end).includes(REFERENCE_ONLY_MARKER)) return true;
+  if (current.start === 0) return false;
+  const previous = lineBounds(source, current.start - 1);
+  return source.slice(previous.start, previous.end).includes(REFERENCE_ONLY_MARKER);
 }
 
-function hasReservedMarker(source, offset) {
-  return hasSiteMarker(source, offset, RESERVED_MARKER);
+function hasReservedMarker(source, offset, code) {
+  return hasSiteMarker(source, offset, RESERVED_MARKER, code);
 }
 
-function hasReceivedMarker(source, offset) {
-  return hasSiteMarker(source, offset, RECEIVED_MARKER);
+function hasReceivedMarker(source, offset, code) {
+  return hasSiteMarker(source, offset, RECEIVED_MARKER, code);
 }
 
-function hasEmissionMarker(source, offset) {
-  return hasSiteMarker(source, offset, EMISSION_MARKER);
+function hasEmissionMarker(source, offset, code) {
+  return hasSiteMarker(source, offset, EMISSION_MARKER, code);
 }
 
 function escapeRegExp(value) {
@@ -593,9 +631,17 @@ function isComparisonOrPrefixCheck(source, offset, code) {
 }
 
 function isRustMatchArmPattern(source, offset, code) {
-  const after = source.slice(offset + code.length, offset + code.length + 8192);
+  // Named marker payloads replace the former bare marker without changing the
+  // surrounding Rust match arm. Remove only those payloads before enforcing
+  // the established scan bound so marker specificity cannot reclassify a
+  // neighboring arm that happened to sit near the boundary.
+  const after = source.slice(offset + code.length, offset + code.length + 16384)
+    .replace(
+      /(diagnostics-registry: (?:reserved|emission|received))\s+SNAPBACK_[A-Z0-9_]+/gu,
+      '$1',
+    );
   const arrow = after.indexOf('=>');
-  if (arrow === -1) return false;
+  if (arrow === -1 || arrow > 8192) return false;
   const patternTail = after.slice(0, arrow)
     .replace(/\/\/[^\n]*(?:\n|$)/gu, '')
     .replace(/\/\*[\s\S]*?\*\//gu, '');
@@ -678,9 +724,9 @@ function isReferencePosition(source, offset, code) {
 
 function diagnosticSiteKind(source, match, analysis, environmentNames) {
   const offset = match.index;
-  if (hasReservedMarker(source, offset)) return 'reserved';
-  if (hasEmissionMarker(source, offset)) return 'emission';
-  if (hasReceivedMarker(source, offset)) return 'received';
+  if (hasReservedMarker(source, offset, match[0])) return 'reserved';
+  if (hasEmissionMarker(source, offset, match[0])) return 'emission';
+  if (hasReceivedMarker(source, offset, match[0])) return 'received';
   if (isCommentReference(offset, analysis.literals.comments)) return null;
   if (
     hasReferenceOnlyMarker(source, offset)

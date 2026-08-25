@@ -45,7 +45,7 @@ Tokens ending in `_` are never complete codes. Ambiguous real emitters,
 synthetic dynamic emissions, reference-only sites, received protocol
 vocabulary, and deliberate reservations have separate explicit markers.
 
-The fail-first fixture has 70 raw substrings and 17 retained occurrences across
+The fail-first fixture has 78 raw substrings and 17 retained occurrences across
 16 emitting names plus two received-protocol occurrences. It covers generated
 JavaScript, multiline Rust SQL, escaped poison, severity prefixes, Rust
 print/log macros, a commented environment access, match arms, `matches!`, code
@@ -53,10 +53,11 @@ catalogues, prefix checks, a trailing-underscore family token, dual-role names,
 and the explicit emission,
 synthetic-emission, reference-only, received, and reservation markers.
 
-The final registry publishes 3,537 diagnostic codes / 10,507 emitting sites /
-92 received sites / 10 reserved sites and a separate environment vocabulary of
-178 names / 357 sites (264 reads, 16 indirect reads, 14 declarations, 22 table
-entries, 41 mentions). `SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE` is absent from the diagnostic
+The final registry publishes 3,538 diagnostic codes / 10,509 emitting sites /
+92 received sites / 11 reserved sites and a separate environment vocabulary of
+178 names / 357 sites (256 reads, 14 writes, 3 removes, 16 indirect reads, 14
+declarations, 13 table entries, 41 mentions).
+`SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE` is absent from the diagnostic
 registry, Guide diagnostic projection, and `SnapbackDiagnosticCode`, but remains
 in the environment registry and `SnapbackEnvironmentVariable`;
 `SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH` remains a diagnostic. Opaque constant
@@ -69,12 +70,13 @@ The production inventory now includes all 14 JavaScript modules under
 target emitting sites; they are not reference vocabulary. The four dynamic
 `validate_artifact_header` stale-artifact codes have normal synthetic-emission
 sites. `SNAPBACK_IBEX_CLI_UNAVAILABLE`, the retired
-`SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED`, and the eight HTTP-table-only
+`SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED`, and the nine HTTP-table-only
 names recorded in `issues/20260825-http-table-only-diagnostic-reservations.md`
 remain reserved. The hosted Tigris loop now publishes all six literal role
 codes; `control-state` uses normalized
 `SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL_STATE_PARTIAL` instead of the invalid
-hyphenated dynamic spelling.
+hyphenated dynamic spelling. That one-time message spelling change is an
+incompatibility for consumers matching the old text.
 
 Shipped-client closed code tables that feed `.has(code)` or `.includes(code)`
 dispatch tests now contribute `received` sites rather than disappearing as
@@ -85,9 +87,20 @@ in `SnapbackDiagnosticCode` as received-only protocol vocabulary.
 The three publication-authority names retain their original validation text and
 are environment-only: their reads and message mentions remain, but their
 validation messages are not diagnostic emissions. The
-canonical 20260823 ticket records the final merge-base comparison: 224 removed
-names (144 environment and 80 non-environment), down from the round-6 review
-checkpoint's 235 (144 + 91) because three received protocol names and eight
-HTTP reservations re-entered the union. It also records the restored Cloudflare
+canonical 20260823 ticket records the final merge-base comparison: 223 removed
+names (144 environment and 79 non-environment); three received protocol names
+and nine HTTP reservations re-entered the union relative to the earlier review
+checkpoint. It also records the restored Cloudflare
 emitters, the corrected comment-site count, and why the HTTP-specific Rust
 exclusion list is not a public-registry denylist.
+
+The canonical ticket includes the runnable final-registry measurement script.
+Its captured output for this resolution is:
+
+```text
+codes=3538 emittingSites=10509 receivedSites=92 reservedSites=11
+environmentVariables=178 environmentSites=357
+environmentKinds: read=256 write=14 remove=3 indirect-read=16 declaration=14 table-entry=13 mention=41
+mergeBaseRemovals: total=223 environment=144 other=79
+fixtureRawTokens=78 receivedCodes=82 httpReservations=9
+```

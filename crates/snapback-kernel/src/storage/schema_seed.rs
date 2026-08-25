@@ -290,7 +290,7 @@ pub(super) fn validate_versioned_seed_request(
             // vocabulary, axes, uniqueness, referential integrity, and
             // lastHolder eligibility.
             //
-            // diagnostics-registry: reserved
+            // diagnostics-registry: reserved SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED
             // SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED
             //
             // The first-landing narrowing is retired (dated 0109 amendment,

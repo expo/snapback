@@ -26,5 +26,5 @@ lane:
 Confirm each code has no live producer, protocol obligation, persisted-record
 compatibility requirement, or Guide contract. If all nine are dead, delete
 their match arms in a Rust-capable lane and remove the adjacent
-`diagnostics-registry: reserved` comments in the same change. Regenerate the
+`diagnostics-registry: reserved SNAPBACK_X` comments in the same change. Regenerate the
 diagnostics registry, symbol registry, and Guide projections afterwards.

@@ -121,8 +121,8 @@ tracing::warn!("SNAPBACK_FIXTURE_TRACING whitespace-delimited detail");
 log::error!("SNAPBACK_FIXTURE_LOG whitespace-delimited detail");
 const quotedReference = "documentation names 'SNAPBACK_FIXTURE_QUOTED_REFERENCE' only";
 
-// diagnostics-registry: emission
-eprintln!("WARNING SNAPBACK_FIXTURE_MARKED_EMISSION: local transport is cleartext");
+// diagnostics-registry: emission SNAPBACK_FIXTURE_MARKED_EMISSION
+emitMarkedDiagnostic();
 
 // diagnostics-registry: emission SNAPBACK_FIXTURE_SYNTHETIC_DYNAMIC
 

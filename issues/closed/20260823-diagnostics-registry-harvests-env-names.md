@@ -38,7 +38,7 @@ whole code or a leading `CODE:` message; `WARNING`, `ERROR`, or `INFO` may
 precede that leading code. A nested quoted token counts only when its enclosing
 string is demonstrably generated executable source that constructs or assigns a
 diagnostic, SQL that writes an explicit diagnostic/error-code column, or an
-escaped poison message. `diagnostics-registry: emission` covers a real site
+escaped poison message. `diagnostics-registry: emission SNAPBACK_X` covers a real site
 whose syntax cannot prove that fact. Rust match patterns, `matches!`, equality
 comparisons, all-code arrays/sets, comments, and marked reference-only sites do
 not emit.
@@ -58,14 +58,14 @@ The machine registry's separate `environment` section records `read`,
 diagnostics registry, symbol registry, and Guide projections share one generated
 authority.
 
-The final round-6 comparison with merge-base `e370bb8f7` finds 224 removed
-names: 144 are now environment variables and 80 are not in the environment
-section. The review checkpoint before this round measured 235 removals (144
-environment and 91 non-environment). Eleven names re-enter the public union in
-this round: the client-protocol vocabulary
+The final comparison with merge-base `e370bb8f7` finds 223 removed names: 144
+are now environment variables and 79 are not in the environment section.
+Twelve names re-enter the public union relative to the earlier review
+checkpoint: the client-protocol vocabulary
 `SNAPBACK_AUTH_SESSION_REVOKED`, `SNAPBACK_AUTH_FAMILY_REVOKED`, and
 `SNAPBACK_CLIENT_UPGRADE_REQUIRED` as `received` sites, plus the eight
-HTTP-table-only names listed below as explicit `reserved` sites. The
+HTTP-table-only names already listed and
+`SNAPBACK_BRANCH_CAPTURE_ONLY_MISSING` as nine explicit `reserved` sites. The
 non-environment group contains constants, protocol/version symbols, receipt
 labels, wildcard/identifier fragments, test/reference vocabulary,
 secret-staging keys, and incomplete family prefixes rather than diagnostics.
@@ -111,7 +111,7 @@ appears in its diagnostic sites. Ordinary comments remain excluded. The
 `diagnostics-registry: emission SNAPBACK_X` marker records a normal emitting
 site for a real dynamically assembled spelling. The four concrete
 `validate_artifact_header` stale-artifact spellings use that marker, while
-`diagnostics-registry: reserved` retains the retired
+`diagnostics-registry: reserved SNAPBACK_X` retains the retired
 `SNAPBACK_IBEX_CLI_UNAVAILABLE` spelling, the retired
 `SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED` seed-lane refusal, and nine
 HTTP-table-only spellings: `SNAPBACK_AUTH_MODE_CHANGED`,
@@ -123,12 +123,12 @@ HTTP-table-only spellings: `SNAPBACK_AUTH_MODE_CHANGED`,
 `SNAPBACK_SCHEMA_UNIQUE_INDEX_OPTIONAL_FIELD`, and
 `SNAPBACK_UNSUPPORTED_BLOB`. Reservations do not count as emissions. The nine
 HTTP-only arms are deletion candidates for the Rust-capable follow-up
-`issues/20260825-http-table-only-diagnostic-reservations.md`. An audit of all 80
+`issues/20260825-http-table-only-diagnostic-reservations.md`. An audit of all 79
 non-environment removals initially missed this ninth retired diagnostic; after
 reserving `SNAPBACK_BRANCH_CAPTURE_ONLY_MISSING`, the remaining names are active
 catalogue/reference vocabulary, protocol and format constants, fixture names,
 wildcard fragments, or other non-diagnostic identifiers. The lifecycle registry
-names none of the 80. The HTTP-only
+names none of the 79. The HTTP-only
 `NON_DIAGNOSTIC_SNAPBACK_LITERALS` table remains separate because it includes
 legitimate non-HTTP diagnostics and is not a safe public-registry denylist.
 
@@ -173,7 +173,9 @@ The hosted Tigris partial-credential loop now uses an explicit six-role literal
 mapping. Its `control-state` refusal spelling changes from the invalid dynamic
 `SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL-STATE_PARTIAL` form to the normalized
 `SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL_STATE_PARTIAL`; the other five roles keep
-the same runtime spelling. All six literals are registered emissions.
+the same runtime spelling. This one-time message spelling change is an
+incompatibility for consumers matching the old text. All six literals are
+registered emissions.
 
 The worker-binding repair moves six names into the environment vocabulary:
 `SNAPBACK_ACCEPTED_SOCKET_LIMIT`, `SNAPBACK_LEGACY_PROOF_SOCKET_LIMIT`,
@@ -184,10 +186,91 @@ global-subscription, and connection-grant dual-role names keep only their
 actual `kitError`, `requestDiagnostic`, or `code:` emitting sites in the
 diagnostic vocabulary.
 
-Final regeneration produces 3,537 diagnostic codes, 10,507 emitting sites, 92
-received sites, and 10 reserved sites from 637 production source files. The
-environment section contains 178 variables across 357 sites: 264 reads, 16
-indirect reads, 14 declarations, 22 table entries, and 41 message mentions. Excluding the
+Final regeneration produces 3,538 diagnostic codes, 10,509 emitting sites, 92
+received sites, and 11 reserved sites from 637 production source files. The
+environment section contains 178 variables across 357 sites: 256 reads, 14
+writes, 3 removes, 16 indirect reads, 14 declarations, 13 table entries, and 41
+message mentions. Excluding the
 comment-only `SNAPBACK_ADMIN_TOKEN` pseudo-read removes one bad read; restoring
 the three original publication-authority validation strings contributes three
 real message mentions.
+
+The final numbers above were computed from the generated registry, not copied
+from an earlier review. This is the exact measurement script:
+
+```js
+const { execFileSync } = require('node:child_process');
+const { readFileSync } = require('node:fs');
+const registryPath = 'guide/reference/diagnostics-registry.json';
+const registry = JSON.parse(readFileSync(registryPath, 'utf8'));
+const mergeBase = 'e370bb8f789007cffae1f4d80c4feabdedc81cb5';
+const base = JSON.parse(execFileSync('git', ['show', `${mergeBase}:${registryPath}`], {
+  encoding: 'utf8', maxBuffer: 16 * 1024 * 1024,
+}));
+const environmentKinds = {};
+for (const record of Object.values(registry.environment)) {
+  for (const site of record.sites) {
+    environmentKinds[site.kind] = (environmentKinds[site.kind] ?? 0) + 1;
+  }
+}
+const removed = Object.keys(base.diagnostics)
+  .filter((code) => !(code in registry.diagnostics));
+const environmentRemovals = removed.filter((code) => code in registry.environment);
+const fixture = readFileSync(
+  'tests/fixtures/diagnostics-registry/non-emitting-reference-sites.txt', 'utf8',
+);
+console.log(JSON.stringify({
+  mergeBase,
+  counts: registry.counts,
+  environmentKinds,
+  mergeBaseRemovals: {
+    total: removed.length,
+    environment: environmentRemovals.length,
+    other: removed.length - environmentRemovals.length,
+  },
+  fixtureRawTokens: [...fixture.matchAll(/SNAPBACK_[A-Z0-9_]+/gu)].length,
+  receivedCodes: Object.values(registry.diagnostics).filter((record) => (
+    record.sites.some((site) => site.kind === 'received')
+  )).length,
+  httpReservations: Object.values(registry.diagnostics).filter((record) => (
+    record.sites.some((site) => site.kind === 'reserved'
+      && site.file === 'crates/snapback-server/src/server/api_error.rs')
+  )).length,
+}, null, 2));
+```
+
+Captured output:
+
+```json
+{
+  "mergeBase": "e370bb8f789007cffae1f4d80c4feabdedc81cb5",
+  "counts": {
+    "codes": 3538,
+    "sourceFiles": 637,
+    "emittingSites": 10509,
+    "receivedSites": 92,
+    "reservedSites": 11,
+    "httpClassified": 1709,
+    "guideAnchored": 427,
+    "environmentVariables": 178,
+    "environmentSites": 357
+  },
+  "environmentKinds": {
+    "read": 256,
+    "mention": 41,
+    "declaration": 14,
+    "remove": 3,
+    "write": 14,
+    "table-entry": 13,
+    "indirect-read": 16
+  },
+  "mergeBaseRemovals": {
+    "total": 223,
+    "environment": 144,
+    "other": 79
+  },
+  "fixtureRawTokens": 78,
+  "receivedCodes": 82,
+  "httpReservations": 9
+}
+```
