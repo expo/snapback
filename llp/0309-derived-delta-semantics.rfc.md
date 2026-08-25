@@ -83,7 +83,8 @@ more: the graph evaluator's retained state carries complete row
 instances, per-node rows, child indexes, exists results, continuation
 state, proofs, and query outputs, and the delta lanes additionally
 perform authorized storage reads and compare full old and new rows —
-change events deliver post-images, not remove-plus-add pairs. Stage A's
+and image direction is carrier-dependent (D1.1 is the carrier rule),
+not the remove-plus-add pairing a Z-set assumes. Stage A's
 job is to make the state contract explicit per operator (§D1.3), with
 both precedents as input — not to pretend captures alone suffice. What
 the derivation buys is that state requirements become *derived
@@ -125,8 +126,10 @@ incremental form `∂O` with an explicit type:
   the mapping from delta carriers onto it.
 - **Composite nodes decompose; every input gets a change term.** The
   elementary operators are unary or binary; binary forms type `Δin` as
-  a product (or two unary arms plus a both-change arm), each arm using
-  retained state of the other side. Composite node kinds are covered by
+  a product (or two unary arms plus a both-change arm) — the unary
+  arms use retained state of the other side, the both-change arm uses
+  both deltas, and directly typed n-ary forms likewise owe their
+  interaction terms (the defining equivalence property enforces this). Composite node kinds are covered by
   **syntax-directed decomposition into elementary operators** — a
   principal-bound relation may consume parent, optional binding, and
   target relations; a through-edge semi-join consumes parent, through,
@@ -136,10 +139,14 @@ incremental form `∂O` with an explicit type:
 - `∂O` is **partial by design**: the defining property
   `O(S + ΔS) = O(S) + ∂O(S, ΔS)` (in each carrier's composition) is
   required only on maintain verdicts; `FALLBACK(reason)` is a
-  first-class outcome and maps to `live_replace` — the honest default,
-  unchanged.
-- Image direction is carrier-dependent: inserts and updates deliver
-  post-images; deletes may deliver the pre-image or no row at all.
+  first-class outcome. For the server consumer it maps to
+  `live_replace` — the honest default, unchanged; other consumers
+  handle it per §D3.2.
+- Image direction is carrier-dependent, and the rule is scoped to the
+  admitted application-row carriers: inserts and updates deliver
+  post-images; deletes may deliver the pre-image or no row at all
+  (other production change kinds can carry no row and are out of
+  scope for maintain verdicts).
   Where a form needs an image the carrier does not supply (an interior
   ordered row's prior sort key, for example), the state contract must
   supply it — retained state or an authorized point read — or the form
@@ -167,8 +174,11 @@ a separate derived bucket; the linear rows are the one-liners. Stage A
 must additionally run a **closure check**: every `GraphNodeV1` variant
 and every `TableVisibilityV1` arm maps to a **decomposition** into
 table rows (or a named refusal) that covers all of its semantic
-components — rows are elementary operators, and composite node kinds
-map to compositions, never "one row per variant."
+components. "Elementary" describes Stage A's corrected inventory, not
+today's hypothesis rows (some of which are still composite); a
+directly typed n-ary row that supplies every input's change term is an
+admissible decomposition target — what is inadmissible is treating a
+composite as covered without accounting for each component.
 
 #### D1.3 The state contract
 
@@ -265,8 +275,10 @@ do not define it, and nothing here claims replica applicability.
 1. **Reference evaluator + vectors (the derivation artifact).** Stage A
    ships the operator semantics as an executable reference evaluator
    over the delta carriers, plus per-operator conformance vectors
-   (state, change batch, expected delta or FALLBACK, **and expected
-   next state** — forms return `state_O'`, so vectors pin it) under
+   (state, change batch, expected delta or FALLBACK; maintain vectors
+   additionally pin **expected next state**, since forms return
+   `state_O'` only on maintain — a FALLBACK vector pins the verdict
+   and reason, with state rebuilt by the replace path) under
    `tests/conformance/` in the house pattern — three-valued-logic and
    boundary edge cases included. The reference evaluator is the
    drift-prevention mechanism (the honest analogue of LLP 0051's
@@ -280,7 +292,9 @@ do not define it, and nothing here claims replica applicability.
    only success bytes), **and** the shipped maintenance obligations
    beyond them: bounded/authorized read effects, proof updates and
    composition, window-ledger transitions, and stale-capture
-   replacement/continuity. Each of those axes is either inside the
+   replacement/continuity (capture freshness — not the replica
+   continuity protocol, which stays OQ-6 and outside Stage B). Each of
+   those axes is either inside the
    derivation/equivalence contract or explicitly excluded and
    protected by its own mandatory acceptance gate — never silently out
    of scope. The decision rule: **shipped behavior is the
@@ -331,8 +345,11 @@ shipped lanes on its own, with the reference evaluator as its oracle.
   search-membership exclusion.
 - Wire kinds, delivery negotiation, sampling, and the shipped
   per-event force-replace mismatch response (§D4.3).
-- The capture vocabulary and retained-state shapes, except through
-  0209's ordinary amendment path where a state ledger shows a gap.
+- The capture vocabulary, except through 0209's ordinary amendment
+  path where a state ledger shows a gap. (Evaluator-internal
+  retained-state additions are not profile surface and follow D1.3's
+  third path — ordinary landing discipline, no capture amendment; this
+  boundary does not forbid them.)
 - The replica continuity contract (stays LLP 0209 OQ-6).
 - Anything about opaque JavaScript: derivation applies to the closed
   algebra only.
@@ -363,6 +380,17 @@ shipped lanes on its own, with the reference evaluator as its oracle.
 
 ## Revision history
 
+- **r4 (2026-08-25, UNREVIEWED).** Post-convergence non-material fixes
+  from round 3 (loop converged dual-READY on r3): Motivation's
+  post-image sentence deferred to D1.1's carrier rule (both families'
+  finding); image rule scoped to admitted application-row carriers;
+  closure check admits directly typed n-ary rows and scopes
+  "elementary" to Stage A's corrected inventory; both-change/n-ary
+  interaction-term wording; FALLBACK→`live_replace` scoped to the
+  server consumer; maintain-only next-state in vectors (FALLBACK
+  vectors pin verdict + reason); stale-capture oracle axis
+  distinguished from the OQ-6 replica protocol; Boundaries aligned
+  with D1.3's three-way resolution rule. No decision changed.
 - **r3 (2026-08-25).** Response to round-2 delta reviews (grok READY;
   codex NOT READY with two IN-DELTA MATERIALs, zero pre-existing).
   D1.1: composite node kinds now covered by syntax-directed

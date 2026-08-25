@@ -105,3 +105,74 @@ transition): `Draft` → `Review`, commit `4b713da15`.
   pre-existing text. Delta-convergence condition on pre-existing text
   met; the in-delta fixes take the one further delta round the rule
   allows — round 3 (budget 3/3).
+
+## Round 3 record (persisted before launch)
+
+- Round: 3 of 3, **delta round** on r2→r3.
+- Revision under review: r3, target sha256/16 `9afb39a63b380c41`,
+  worktree commit `18eb7f709`. Delta enumerated by the r2→r3 unified
+  diff (166 lines) plus the Revision-history r3 bullet.
+- Growth disclosure: r3 is 401 lines (+62.3% net over r1's 247; +14.2%
+  over r2). Every r3 addition is reviewer-mandated (n-ary
+  decomposition, oracle axes, ledger scope, changelog).
+  Trim-at-acceptance proposal stands (compress Revision history at
+  acceptance).
+- Topology unchanged; each family receives its OWN round-2 review plus
+  the diff. Disclosed: the r3 Revision-history section names both
+  families' round-2 verdicts (inherent to the target carrying its
+  history); review bodies remain sealed (capsule c0309-r3 =
+  c0309-r2 lineage + r3 overlay; verified zero `llp/reviews/0309*`
+  entries).
+- Delta-round rules: per-concern IN-DELTA vs PRE-EXISTING mandatory;
+  round-2 disposition check required.
+- Instruction hashes (sha256/16): codex `8b1d391112f0cc1a`; grok
+  prompt `65a8dccbd05e229e`.
+- Runtimes unchanged.
+
+### Round 3 receipts (final)
+
+- grok-4.6 @ xhigh: launched 10:03Z, received ~10:09Z, exit 0, empty
+  stderr. All six round-2 items: DISPOSED. New MATERIALs: none (5
+  IN-DELTA non-material observations). Verdict: **READY** on r3.
+- codex gpt-5.6-sol @ ultra (effort verified): exit 0. Both round-2
+  IN-DELTA MATERIALs: **DISPOSED**, with source citations confirming
+  the folds match graph.rs / graph_evaluator.rs / local engine
+  behavior. New MATERIALs: none (6 IN-DELTA + 1 PRE-EXISTING
+  non-material). Verdict: **READY** on r3.
+
+## Close-out — CONVERGED 2026-08-25
+
+**Convergence: dual-READY on one revision.** Both families' final
+verdicts bind to **r3, target sha256/16 `9afb39a63b380c41`** (worktree
+commit `18eb7f709` at review time; landing may rebase commit ids —
+revision identity binds to the content hash). Rounds used: 3 of 3.
+Launches: grok 3/3 clean; codex 3/3 clean (no voids this loop).
+
+**A later unreviewed revision exists:** r4 (this landing), labeled
+UNREVIEWED in the document's revision history — non-material fixes
+only, enumerated there; no decision changed.
+
+**Non-material remainder ledger (nothing summarized away):**
+- FOLDED in r4: Motivation post-image vs carrier rule (grok r3 #4 =
+  codex r3 #7, the one cross-family repeat); image scope to admitted
+  application-row carriers (codex r3 #6); closure check admits n-ary
+  rows / "elementary" scoped (grok r3 #1, codex r3 #1); both-change
+  and n-ary interaction wording (codex r3 #2); FALLBACK mapping scoped
+  to the server consumer (codex r3 #4); maintain-only next-state in
+  vectors (grok r3 #3, codex r3 #3); stale-capture axis vs OQ-6
+  clause (grok r3 #5); Boundaries vs D1.3 three-way rule (grok r3 #2,
+  codex r3 #5).
+- RECORDED, not folded: grok's standing consumer rule (r2 #7) — the
+  document's inventories of capture fields and G3 retained state are
+  leads for Stage A's ledger, not the ledger; a consuming program
+  checks the artifacts.
+- Growth: final 429 lines vs r1's 247 (+73%). Every post-r1 addition
+  was reviewer-mandated (carrier contract, state ledger, oracle axes,
+  decision rule) plus the mandatory changelog. Trim-at-acceptance
+  proposed: compress Revision history at acceptance; the normative
+  sections stay.
+
+**Recommendation.** The document stays `Review` (this loop never sets
+Accepted). Proposed next step to the author: rule on acceptance (with
+the trim), then OQ-1 (home of the Stage A operator semantics) is the
+first implementation-facing decision.

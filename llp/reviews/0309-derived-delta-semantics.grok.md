@@ -95,3 +95,40 @@ None.
 
 ## Verdict
 READY
+
+## Round 3 — 2026-08-25 (delta round on r2→r3)
+
+- Reviewer: `grok-4.6` @ xhigh, headless, terminal ban, no repository
+  access; received r3 in full, the r2→r3 unified diff, and its own
+  round-2 review only (cross-family blindness preserved).
+- Revision under review: r3, target sha256/16 `9afb39a63b380c41`
+  (worktree commit `18eb7f709`). Prompt sha256/16 `65a8dccbd05e229e`.
+- Run: launched 2026-08-25T10:05:49Z, exit 0, empty stderr; body
+  below is the complete stdout, verbatim (including the leading
+  narration sentence).
+
+### Review body (verbatim)
+
+The review prompt was truncated, so I’ll load the offloaded full request first and write the delta review from that complete r2 review, r2→r3 diff, and r3 document.## Round-2 disposition check
+
+1. **DISPOSED.** Binary forms type `Δin` as a product (or two unary arms plus a both-change arm); n-ary forms owe a change term for every input.
+2. **DISPOSED.** Stateful count is six, nested assembly is a separate derived bucket, and the closure check is decomposition coverage rather than one row per variant.
+3. **DISPOSED.** D2 pins on a `FALLBACK` *verdict* from an admitted form on the change at hand, not on an operator class.
+4. **DISPOSED.** D4.1 vectors include expected next state because forms return `state_O'`.
+5. **DISPOSED.** D1.3 adds evaluator-internal retained-state addition as a third resolution path, distinct from capture amendment.
+6. **DISPOSED.** Class (c) records are shipped-lane-only and must not become per-kind exceptions in new rungs.
+
+## MATERIAL concerns
+
+None.
+
+## Non-material observations
+
+1. **IN-DELTA.** D1.1 allows Stage A to type an n-ary form directly (one form, a change term per input). The D1.2 closure check then says table rows are elementary operators and composite node kinds map to compositions, never “one row per variant.” An n-ary principal-bound or through-edge form would satisfy D1.1 and fail that slogan. The load-bearing rule is already “every input has a change term”; the closure check should admit a single n-ary row that supplies those terms, not only a unary/binary decomposition.
+2. **IN-DELTA.** D1.3 now resolves a missing or wrong-grain entry by capture amendment, by evaluator-internal retained-state addition (not profile surface), or by `FALLBACK`-pin. Boundaries still says capture vocabulary *and retained-state shapes* change only through 0209’s amendment path. Align Boundaries with the three-way D1.3 rule so internal retained-state growth is not listed as forbidden.
+3. **IN-DELTA.** D4.1 requires expected next state on every vector, but the D1.1 type returns `state_O'` only on the maintain arm. `FALLBACK` has no next-state component (and replace may rebuild state rather than leave it). Restrict the next-state slot to maintain verdicts, or say explicitly what a `FALLBACK` vector pins.
+4. **IN-DELTA.** Motivation still says change events deliver post-images; D1.1 now says deletes may carry a pre-image or no row. Leave the G3 precedent as a lead and let D1.1 be the carrier rule, or qualify the Motivation sentence so the two are not read as competing facts.
+5. **IN-DELTA.** D4.2’s “stale-capture replacement/continuity” axis sits next to an explicit non-consumer (replica continuity, OQ-6). One clause that this axis is capture-freshness/replacement, not the replica protocol, would keep the new oracle from being read as pulling OQ-6 into Stage B.
+
+## Verdict
+READY

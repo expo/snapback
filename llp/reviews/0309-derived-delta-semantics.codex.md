@@ -117,3 +117,39 @@ NOT READY
 ## Verdict
 
 NOT READY
+## Round 3 — 2026-08-25 (delta round on r2→r3)
+
+- Reviewer: codex `gpt-5.6-sol` @ ultra (verified in run log),
+  read-only in capsule c0309-r3 (c0309-r2 lineage + r3 overlay; zero
+  0309 review artifacts, verified); received the r2→r3 diff and its
+  own round-2 review only.
+- Revision under review: r3, target sha256/16 `9afb39a63b380c41`
+  (worktree commit `18eb7f709`). Instructions sha256/16
+  `8b1d391112f0cc1a`.
+- Run: launched 2026-08-25T10:05:46Z, exit 0. Body below is the
+  complete final message, verbatim.
+
+### Review body (verbatim)
+
+## Round-2 disposition check
+
+1. **DISPOSED.** D1.1 now requires syntax-directed decomposition or directly typed n-ary forms covering every input, while the closure check covers every semantic component (`llp/0309-derived-delta-semantics.rfc.md:126-135,167-171`), matching the three-relation shapes in `graph.rs:254-280,938-990`.
+2. **DISPOSED.** D1.3 and D4 now include outer serving state, expected next state, authorized read effects, proofs, window ledgers, and capture continuity—either within equivalence or behind a mandatory gate (`llp/0309-derived-delta-semantics.rfc.md:175-190,265-295`), matching `graph_evaluator.rs:3600-3877` and `local/engine.rs:33917-34168`.
+
+## MATERIAL concerns
+
+None.
+
+## Non-material observations
+
+1. **[IN-DELTA]** The closure paragraph calls table rows elementary, but `PrincipalBound` and through-table `ExistsSemiJoin` remain composite hypothesis rows (`llp/0309-derived-delta-semantics.rfc.md:157-171`). Clarify that “elementary” describes Stage A’s corrected inventory.
+2. **[IN-DELTA]** The cross-change wording is imprecise: a binary both-change arm uses both deltas, not retained opposite-side state, while direct n-ary forms also need interaction terms or an equivalent whole-product formula (`:126-138`). The defining equivalence property already enforces this.
+3. **[IN-DELTA]** D4.1 appears to require expected next state for `FALLBACK` vectors, although the declared form returns `state_O'` only on maintain outcomes (`:113-115,265-270`). Limit that requirement or type fallback-state transitions explicitly.
+4. **[IN-DELTA]** D1/D2 still map `FALLBACK` categorically to `live_replace`, while D3.2 makes handling consumer-specific (`:136-140,203-206,251-256`). Scope the earlier mapping to the server consumer.
+5. **[IN-DELTA]** D1.3’s internal retained-state path is ambiguous against the boundary requiring retained-state changes through LLP 0209’s amendment path (`:186-190,334-335`). Clarify that “no capture amendment” does not waive any required retained-state amendment.
+6. **[IN-DELTA]** The revised image claim remains broader than the shared carrier: synthetic production updates can carry `row: None` (`local/engine.rs:14861-14866,20515-20520`). Scope it to the admitted application-row carriers.
+7. **[PRE-EXISTING]** The Motivation still categorically says change events deliver post-images (`llp/0309-derived-delta-semantics.rfc.md:86`), contradicting the later carrier-dependent correction.
+
+## Verdict
+
+READY
