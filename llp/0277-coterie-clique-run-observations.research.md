@@ -267,9 +267,9 @@ current-row (not incarnation) authority, terminal removal, write scoping, and
 first-class negative fixtures
 (`issues/closed/20260817-ephemeral-membership-permission-backing.md`).
 Role narrowing subsequently closed on 2026-08-21
-(`issues/closed/20260817-ephemeral-membership-role-narrowing.md`). Residuals are
-the overlay's missing terminal Error arm
-(`issues/20260817-ephemeral-overlay-missing-error-arm.md`). Coterie's own
+(`issues/closed/20260817-ephemeral-membership-role-narrowing.md`). The overlay's
+terminal Error arm subsequently closed in landing `2f5762869`
+(`issues/closed/20260817-ephemeral-overlay-missing-error-arm.md`). Coterie's own
 adoption closed on 2026-08-24: its schema now separates a canonical current
 `membership()` relation from incarnation history, and M3 typing uses that
 relation for both `allow.members` directions
@@ -675,7 +675,7 @@ such as "P14 cost 12% of tokens" would be invented.
 | Exact/Contract generator, envelope, mock, dev-loop program | LLP 0279 (new Plan) + tickets |
 | Cross-system write seams (signup, persona replacement, sign-out, attach residue) | LLP 0280 (new RFC); composition surface LLP 0258 |
 | Benchmark instrument observability and outcome classification | LLP 0281 (new Plan) under LLP 0201/0266 |
-| Ephemeral role narrowing, overlay Error arm, Coterie typing adoption | closed role/adoption records + `issues/20260817-ephemeral-overlay-missing-error-arm.md` |
+| Ephemeral role narrowing, overlay Error arm, Coterie typing adoption | closed records under `issues/closed/20260817-ephemeral-membership-role-narrowing.md`, `issues/closed/20260817-ephemeral-overlay-missing-error-arm.md`, and `issues/closed/20260817-coterie-typing-allow-members-adoption.md` |
 | Published 0.1.24 cross-cutting authoring/lifecycle/efficiency program | LLP 0295 (new Plan), with mechanisms retained by their subsystem owners |
 | Clique Explicit/Familiar historical register and prior rerun protocol | LLP 0236; superseding matrix evidence is in this amendment and LLP 0295 |
 | Media/codec admission facts | Review LLP 0305 under LLP 0044; LLP 0269 graduation obligations; `issues/20260817-upload-intent-codec-duration-admission-facts.md` |

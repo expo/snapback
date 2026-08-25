@@ -591,13 +591,27 @@ test('Coterie Snapback M3 backend', { timeout: 1_800_000 }, async (t) => {
       }, 'the survivor did not receive Carol\'s AuthRevoked removal', 20_000);
 
       const terminalChangeCount = formerWriterResults.length;
-      await formerObserver.publish(typingValue(alice), { ttlMs: 5_000 });
+      const survivorFrameStart = formerObserverFrames.length;
+      const survivorPublishedAt = Date.now();
+      const survivorPublished = await formerObserver.publish(
+        typingValue(alice),
+        { ttlMs: 5_000 },
+      );
       await eventually(async () => {
         await formerObserver.drain();
-        assert(formerObserver.currentEntries().some(
-          (entry) => entry.value.userId === 'alice',
-        ));
-      }, 'the survivor did not receive a post-revocation typing frame', 20_000);
+        const survivorUpsert = formerObserverFrames
+          .slice(survivorFrameStart)
+          .map(ephemeralMessage)
+          .find((message) => (
+            message?.Upsert?.entry?.key === survivorPublished.key
+            && message.Upsert.room?.scope?.conversationId === formerConversation
+          ));
+        assert(survivorUpsert, 'the survivor did not receive Alice\'s raw post-revocation Upsert');
+      }, 'the survivor did not receive a raw post-revocation typing frame', 4_000);
+      assert(
+        Date.now() - survivorPublishedAt < 5_000,
+        'raw survivor delivery exceeded the five-second lease',
+      );
       assert.deepEqual(
         await formerWriter.drain(),
         [],

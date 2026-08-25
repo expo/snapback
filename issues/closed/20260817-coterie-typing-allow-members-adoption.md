@@ -47,6 +47,14 @@ creation, member addition, removal, and leave update both projections
 atomically; product-level admin promotion leaves the canonical access seat
 unchanged.
 
+This adoption is a documented **DESTRUCTIVE-WITH-RESEED** transition. It does
+not backfill `conversationCurrentMembers`: every disposable Coterie database,
+including one already created from the pre-typing M3 schema, must be reset and
+then installed through `seed-m3.mjs`. The existing-conversation fixture paths
+may otherwise return `matched` without reconstructing the canonical seats. A
+future preserved-data deployment must use a separately reviewed migration and
+explicit canonical-membership backfill before activating this schema.
+
 The `typing` ephemeral collection uses connection-owned entries, an explicit
 5,000 ms lease, and `allow.members('conversationCurrentMembers')` for both
 publish and subscribe. Omitting `roles` selects the declaration's complete
@@ -65,13 +73,16 @@ declaration products are byte-identical to `origin/main`.
 Verification:
 
 - Coterie M3 backend acceptance with both runtime/server binaries — 14/14
-  named M3 subtests (the Node summary also counts the parent harness and the
-  standalone receipt-envelope test)
-- Coterie Snapback adapter integration with both binaries — 1/1 integration
-  test, 104 assertions
+  named M3 subtests; the Node summary printed 16/16 total tests after counting
+  the parent harness and standalone receipt-envelope test
+- Coterie Snapback adapter integration with both binaries — the M3 live tails,
+  fresh raw survivor frame, removed-overlay non-delivery, M2 live proof, and
+  formal M1/M2/M3 conformance all passed; Bun then printed 97 assertions before
+  the explicitly configured, stale-stamped server timed out in the unrelated
+  post-conformance `setAvatar` profile-stream tail
 - shared Coterie Snapback provider proof — 30/30, zero skipped claims
 - shared Coterie memory provider proof — 30/30, zero skipped claims
-- Coterie Snapback adapter unit tests — 14/14, 176 assertions
+- Coterie Snapback adapter unit tests — 15/15, 179 assertions
 - Coterie Snapback codegen — 13 tables, 39 operations, one ephemeral collection
 - `./ref-check --verbose`
 

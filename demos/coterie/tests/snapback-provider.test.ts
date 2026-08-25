@@ -268,6 +268,35 @@ test('setRepost delegates directly to the bounded backend mutation for overflowi
   }]);
 });
 
+test('sendMessage returns its committed result when post-commit typing withdrawal fails', async () => {
+  let mutationCalls = 0;
+  let withdrawalCalls = 0;
+  const backend = {
+    async mutate() {
+      mutationCalls += 1;
+      return { status: 'settled', result: 'message-committed-once' };
+    },
+  } as unknown as Parameters<
+    typeof coterieSnapbackTestInternals.sendMessageThroughBackend
+  >[0];
+
+  await expect(coterieSnapbackTestInternals.sendMessageThroughBackend(
+    backend,
+    {
+      conversationId: 'conversation-1' as Parameters<
+        typeof coterieSnapbackTestInternals.sendMessageThroughBackend
+      >[1]['conversationId'],
+      body: 'Committed exactly once.',
+    },
+    async () => {
+      withdrawalCalls += 1;
+      throw new Error('ephemeral delete failed after durable commit');
+    },
+  )).resolves.toEqual({ id: 'message-committed-once' });
+  expect(mutationCalls).toBe(1);
+  expect(withdrawalCalls).toBe(1);
+});
+
 test('createPost validation preserves the frozen media vocabulary', () => {
   expect(coterieSnapbackTestInternals.normalizedCreatePostInput({
     body: '  hello  ',

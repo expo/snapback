@@ -320,6 +320,14 @@ interface BackendTypingValue {
 type BackendTypingEntry = EphemeralEntry<BackendTypingValue>;
 type M3BackendRow = BackendChatRow | BackendChatMessageRow | BackendTypingEntry;
 
+type TypingOverlay = EphemeralOverlay<
+  { conversationId: string },
+  BackendTypingValue
+> & {
+  msUntilEarliestExpiry(): number;
+  pruneExpired(): void;
+};
+
 interface TypingPublisher {
   connectionId: string;
   conversationId: GeneratedDataModel['conversations']['_id'];
@@ -998,6 +1006,29 @@ async function setRepostThroughBackend(
   });
 }
 
+async function sendMessageThroughBackend(
+  client: SnapbackClient,
+  args: {
+    conversationId: GeneratedDataModel['conversations']['_id'];
+    body: string;
+    quotedMessageId?: GeneratedDataModel['messages']['_id'];
+  },
+  withdrawTyping: () => Promise<void>,
+): Promise<{ id: string }> {
+  const outcome = await client.mutate(api.sendMessage, { args });
+  if (outcome.status !== 'settled') {
+    throw new NamedProviderError(
+      'SnapbackProviderError',
+      'sendMessage was queued even though the Coterie adapter disables offline mutation replay.',
+    );
+  }
+  // The durable mutation is already committed. Ephemeral withdrawal is a
+  // best-effort presentation tail and cannot turn that success into a retryable
+  // failure (and therefore a duplicate durable message).
+  void withdrawTyping().catch(() => {});
+  return { id: outcome.result };
+}
+
 function normalizedCreatePostInput(args: Record<string, unknown>): {
   body: string;
   imageRefs: string[];
@@ -1137,6 +1168,7 @@ export const coterieSnapbackTestInternals = Object.freeze({
   encodeFeedCursor,
   assertM3LiveWindow,
   normalizedCreatePostInput,
+  sendMessageThroughBackend,
   setRepostThroughBackend,
   sniffPostMediaType,
   sniffAvatarMediaType,
@@ -2335,54 +2367,120 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
     publishError: (error: unknown) => void,
   ): Promise<LiveHandle> {
     const scope = { conversationId };
-    const overlay = await this.#client.subscribeEphemeral(api.ephemeral.typing, {
-      connectionId,
-      scope,
-    });
+    let overlay: TypingOverlay | null = null;
+    let overlayOff: (() => void) | null = null;
     let active = true;
     let terminal = false;
+    let terminalDiagnostic: unknown = null;
+    let generation = 0;
     let expiryTimer: ReturnType<typeof setTimeout> | null = null;
     const clearExpiry = () => {
       if (expiryTimer !== null) clearTimeout(expiryTimer);
       expiryTimer = null;
     };
-    const scheduleExpiry = () => {
+    const scheduleExpiry = (expectedGeneration = generation) => {
       clearExpiry();
-      if (!active || terminal) return;
-      const entries = overlay.currentEntries();
-      if (entries.length === 0) return;
-      const nextExpiry = Math.min(...entries.map((entry) => entry.expiresAtMs));
+      const currentOverlay = overlay;
+      if (!currentOverlay || !active || terminal || expectedGeneration !== generation) return;
+      // @ref LLP 0013#ttl-and-leases — server wall-clock deadlines are
+      // translated by the overlay into a client-local monotonic delay.
+      const delayMs = currentOverlay.msUntilEarliestExpiry();
+      if (!Number.isFinite(delayMs)) return;
       expiryTimer = setTimeout(() => {
         expiryTimer = null;
-        if (!active || terminal) return;
-        void publishRows(overlay.currentEntries()).then(scheduleExpiry);
-      }, Math.max(0, nextExpiry - Date.now()));
+        if (
+          overlay !== currentOverlay
+          || !active
+          || terminal
+          || expectedGeneration !== generation
+        ) return;
+        currentOverlay.pruneExpired();
+        void publishRows(currentOverlay.currentEntries())
+          .then(() => scheduleExpiry(expectedGeneration));
+      }, Math.max(0, delayMs));
+      expiryTimer.unref?.();
     };
-    const off = overlay.onChange((result) => {
-      if (!active) return;
-      if (result === 'terminal_error') {
-        terminal = true;
-        clearExpiry();
-        publishError(overlay.terminalDiagnostic);
+
+    const startGeneration = async (publishSuccessor: boolean): Promise<void> => {
+      if (!active || terminal) return;
+      const expectedGeneration = ++generation;
+      clearExpiry();
+      overlayOff?.();
+      overlayOff = null;
+      overlay?.dispose();
+      overlay = null;
+      let next: TypingOverlay;
+      try {
+        next = await this.#client.subscribeEphemeral(api.ephemeral.typing, {
+          connectionId,
+          scope,
+        }) as TypingOverlay;
+      } catch (error) {
+        if (!active || terminal || expectedGeneration !== generation) return;
+        if (publishSuccessor) {
+          publishError(error);
+          return;
+        }
+        throw error;
+      }
+      if (!active || terminal || expectedGeneration !== generation) {
+        next.dispose();
         return;
       }
-      void publishRows(overlay.currentEntries()).then(scheduleExpiry);
-    });
-    scheduleExpiry();
+      overlay = next;
+      overlayOff = next.onChange((result) => {
+        if (!active || terminal || expectedGeneration !== generation || overlay !== next) return;
+        if (result === 'terminal_error') {
+          terminal = true;
+          terminalDiagnostic = next.terminalDiagnostic;
+          clearExpiry();
+          publishError(terminalDiagnostic);
+          return;
+        }
+        if (
+          result === 'needs_resync'
+          || result === 'authority_changed'
+          || result === 'authority_missing'
+        ) {
+          // @ref LLP 0107#resync-authority-and-lifecycle — continuity loss
+          // retires this overlay generation and establishes a fresh snapshot
+          // on one fenced successor before publishing ready rows again.
+          void startGeneration(true);
+          return;
+        }
+        void publishRows(next.currentEntries())
+          .then(() => scheduleExpiry(expectedGeneration));
+      });
+      // onChange replays terminal/resync state synchronously for a poisoned
+      // overlay. Do not project that retired generation as ready-empty.
+      if (
+        !active
+        || terminal
+        || expectedGeneration !== generation
+        || overlay !== next
+      ) return;
+      if (publishSuccessor) await publishRows(next.currentEntries());
+      scheduleExpiry(expectedGeneration);
+    };
+
+    await startGeneration(false);
     return {
       get rows() {
-        return overlay.currentEntries();
+        return overlay?.currentEntries() ?? [];
       },
       get terminalDiagnostic() {
-        return overlay.terminalDiagnostic;
+        return terminalDiagnostic;
       },
       connection: 'live',
       dispose: async () => {
         if (!active) return;
         active = false;
+        generation += 1;
         clearExpiry();
-        off();
-        overlay.dispose();
+        overlayOff?.();
+        overlayOff = null;
+        overlay?.dispose();
+        overlay = null;
         await unsubscribeTyping(this.#client, connectionId, conversationId).catch(() => {});
       },
     };
@@ -2791,21 +2889,15 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
           'QuotedMessageInvalidError',
           'Quoted message must exist in this conversation.',
         ) as GeneratedDataModel['messages']['_id'];
-    const outcome = await this.#client.mutate(api.sendMessage, {
-      args: {
+    return sendMessageThroughBackend(
+      this.#client,
+      {
         conversationId,
         body: String(args.body ?? ''),
         ...(quotedMessageId ? { quotedMessageId } : {}),
       },
-    });
-    if (outcome.status !== 'settled') {
-      throw new NamedProviderError(
-        'SnapbackProviderError',
-        'sendMessage was queued even though the Coterie adapter disables offline mutation replay.',
-      );
-    }
-    await this.#clearTyping(conversationId);
-    return { id: outcome.result };
+      () => this.#clearTyping(conversationId),
+    );
   }
 
   async #setTyping(args: Record<string, unknown>): Promise<void> {

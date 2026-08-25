@@ -514,18 +514,24 @@ COTERIE_PROVIDER=snapback bun run dev
 
 The M3 backend adds the required `conversations.chatPageKey` field plus five
 required `conversationMembers` projections: `chatPageKey`, `unreadCount`,
-`receiptCount`, `deliveredThroughSequence`, and `readThroughSequence`. Coterie
-has no populated production store: the dev lane is disposable and the
-acceptance stores are memory or test scratch. Following the disposable-data
-path in `guide/backend/migrations.md`, this transition is declared
-**DESTRUCTIVE-WITH-RESEED** rather than presented as a preservation migration.
+`receiptCount`, `deliveredThroughSequence`, and `readThroughSequence`. The M3
+typing adoption then adds `conversationCurrentMembers`, the canonical current
+access relation used by `allow.members`. It deliberately does not ship a
+membership backfill. Coterie has no populated production store: the dev lane is
+disposable and the acceptance stores are memory or test scratch. Following the
+disposable-data path in `guide/backend/migrations.md`, both transitions are
+declared **DESTRUCTIVE-WITH-RESEED** rather than presented as preservation
+migrations.
 
 Delete only the disposable Coterie dev database named by the `--db` argument,
 start the current schema, then run `seed-m3.mjs`; it composes `seed-m2.mjs`,
 which composes `seed-m1.mjs`. If any store later contains data that must be
 preserved, this declaration no longer applies: use the reviewed `snapback
 migrate` loop with explicit required-field backfills before activating the
-schema.
+schema. This reset is mandatory even for a database already created from the
+pre-typing M3 schema: its fixture conversations can reseed as `matched` while
+lacking `conversationCurrentMembers` seats, and the idempotent fixture paths are
+not a canonical-membership backfill.
 
 The shared headless provider-proof runner selects steps from
 `listProviderClaims@1`. The Snapback lane runs its 15 claimed M1+M2+M3

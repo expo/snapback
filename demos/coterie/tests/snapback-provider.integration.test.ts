@@ -96,6 +96,8 @@ type InstrumentedTypingOverlay = EphemeralOverlay<
   { conversationId: string },
   BackendTypingValue
 > & {
+  readonly ephemeralAuthorityInstance: string | null;
+  readonly room: Record<string, unknown> | null;
   apply(input: unknown): string;
 };
 
@@ -103,12 +105,19 @@ type TypingOverlayCapture = {
   connectionId: string;
   overlay: InstrumentedTypingOverlay;
   frames: unknown[];
+  rawFrames: unknown[];
+  publishes: Array<{
+    value: BackendTypingValue;
+    outcome: { key?: string; [member: string]: unknown };
+  }>;
 };
 
 type CapturedEphemeralMessage = {
-  Remove?: {
-    key: string;
-    reason: string;
+  Upsert?: {
+    entry: {
+      key: string;
+      value: unknown;
+    };
     room?: { scope?: Record<string, string> };
   };
 };
@@ -126,6 +135,8 @@ function ephemeralMessage(frame: unknown): CapturedEphemeralMessage | undefined 
 
 function instrumentTypingOverlays(captures: TypingOverlayCapture[]): () => void {
   const original = SnapbackClient.prototype.subscribeEphemeral;
+  const rawByClient = new WeakMap<SnapbackClient, Map<string, unknown[]>>();
+  const unregisterRawConsumers = new Set<() => void>();
   Reflect.set(
     SnapbackClient.prototype,
     'subscribeEphemeral',
@@ -136,41 +147,84 @@ function instrumentTypingOverlays(captures: TypingOverlayCapture[]): () => void 
       if (reference?.name !== 'typing' || typeof options?.connectionId !== 'string') {
         return overlay;
       }
+      let rawByConnection = rawByClient.get(this);
+      if (!rawByConnection) {
+        rawByConnection = new Map();
+        rawByClient.set(this, rawByConnection);
+      }
+      let rawFrames = rawByConnection.get(options.connectionId);
+      if (!rawFrames) {
+        rawFrames = [];
+        rawByConnection.set(options.connectionId, rawFrames);
+        const unregister = this.registerEphemeralConsumer(
+          options.connectionId,
+          (frame) => rawFrames!.push(frame),
+        );
+        unregisterRawConsumers.add(unregister);
+      }
       const capture: TypingOverlayCapture = {
         connectionId: options.connectionId,
         overlay,
         frames: [],
+        rawFrames,
+        publishes: [],
       };
       const apply = overlay.apply.bind(overlay);
       overlay.apply = (input: unknown) => {
         capture.frames.push(input);
         return apply(input);
       };
+      const publish = overlay.publish.bind(overlay);
+      overlay.publish = async (value, publishOptions) => {
+        const outcome = await publish(value, publishOptions);
+        capture.publishes.push({ value, outcome });
+        return outcome;
+      };
       captures.push(capture);
       return overlay;
     },
   );
   return () => {
+    for (const unregister of unregisterRawConsumers) unregister();
+    unregisterRawConsumers.clear();
     Reflect.set(SnapbackClient.prototype, 'subscribeEphemeral', original);
   };
 }
 
 async function waitForTypingFrame(
   captures: readonly TypingOverlayCapture[],
-  predicate: (capture: TypingOverlayCapture, message: CapturedEphemeralMessage) => boolean,
+  predicate: (
+    capture: TypingOverlayCapture,
+    message: CapturedEphemeralMessage,
+    frameIndex: number,
+  ) => boolean,
   timeoutMs = 4_000,
 ): Promise<{ capture: TypingOverlayCapture; message: CapturedEphemeralMessage }> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     for (const capture of captures) {
-      for (const frame of capture.frames) {
+      for (const [frameIndex, frame] of capture.rawFrames.entries()) {
         const message = ephemeralMessage(frame);
-        if (message && predicate(capture, message)) return { capture, message };
+        if (message && predicate(capture, message, frameIndex)) return { capture, message };
       }
     }
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 10));
   }
   throw new Error('timed out waiting for captured typing frame');
+}
+
+async function waitForTypingOverlay(
+  captures: readonly TypingOverlayCapture[],
+  predicate: (capture: TypingOverlayCapture) => boolean,
+  timeoutMs = 4_000,
+): Promise<TypingOverlayCapture> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const capture = captures.find(predicate);
+    if (capture) return capture;
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 10));
+  }
+  throw new Error('timed out waiting for replacement typing overlay');
 }
 
 type Chat = {
@@ -409,6 +463,24 @@ integrationTest(
       );
       subscriptions.add(clientATyping);
       await clientATyping.next((rows) => rows.length === 0);
+      const initialTypingCapture = typingOverlayCaptures.find((capture) => (
+        capture.connectionId.includes('-observeTyping-')
+        && capture.overlay.room?.scope != null
+        && (capture.overlay.room.scope as Record<string, unknown>).conversationId === dm.chatId
+      ));
+      expect(initialTypingCapture).toBeDefined();
+      expect(initialTypingCapture!.overlay.apply({
+        ephemeralAuthorityInstance: initialTypingCapture!.overlay.ephemeralAuthorityInstance,
+        ResyncRequired: { room: initialTypingCapture!.overlay.room },
+      })).toBe('needs_resync');
+      const successorTypingCapture = await waitForTypingOverlay(
+        typingOverlayCaptures,
+        (capture) => (
+          capture !== initialTypingCapture
+          && capture.connectionId === initialTypingCapture!.connectionId
+        ),
+      );
+      expect(successorTypingCapture.overlay.terminalDiagnostic).toBeNull();
       const bobTypingVisible = clientATyping.nextFuture(
         (rows) => rows.some((row) => row.userId === 'bob'),
         2_000,
@@ -645,6 +717,23 @@ integrationTest(
         aliceMappedTyping.next((rows) => rows.length === 0),
         carolMappedTyping.next((rows) => rows.length === 0),
       ]);
+      const carolProviderPartition = (
+        clientM3Carol as unknown as { partitionId(): string }
+      ).partitionId();
+      const carolTypingConnectionPrefix = `${carolProviderPartition}-observeTyping-`;
+      const removedTypingCapture = await waitForTypingOverlay(
+        typingOverlayCaptures.slice(mappedTypingCaptureStart),
+        (capture) => capture.connectionId.startsWith(carolTypingConnectionPrefix),
+      );
+      const aliceProviderPartition = (
+        clientA as unknown as { partitionId(): string }
+      ).partitionId();
+      const survivorTypingCapture = await waitForTypingOverlay(
+        typingOverlayCaptures.slice(mappedTypingCaptureStart),
+        (capture) => capture.connectionId.startsWith(
+          `${aliceProviderPartition}-observeTyping-`,
+        ),
+      );
       const carolTypingVisible = aliceMappedTyping.nextFuture((rows) => (
         rows.some((row) => row.userId === 'carol')
       )).catch((error) => {
@@ -659,8 +748,6 @@ integrationTest(
         chatId: mappedGroup.chatId,
         userId: 'carol',
       }));
-      const carolTypingEntryKey = carolTypingRows.find((row) => row.userId === 'carol')?.id;
-      expect(carolTypingEntryKey).toBeDefined();
       mutationValue(
         await clientA.mutate('promoteAdmin', { chatId: mappedGroup.chatId, userId: 'bob' }),
         'promoteAdmin operation matrix',
@@ -674,10 +761,25 @@ integrationTest(
         await clientM3B.mutate('setTyping', { chatId: mappedGroup.chatId, active: true }),
         'promoted admin retains typing membership',
       );
-      expect(await promotedAdminTypingVisible).toContainEqual(expect.objectContaining({
+      const promotedAdminTypingRows = await promotedAdminTypingVisible;
+      expect(promotedAdminTypingRows).toContainEqual(expect.objectContaining({
         chatId: mappedGroup.chatId,
         userId: 'bob',
       }));
+      const bobTypingEntryKey = promotedAdminTypingRows.find((row) => row.userId === 'bob')?.id;
+      expect(bobTypingEntryKey).toBeDefined();
+      const bobProviderPartition = (
+        clientM3B as unknown as { partitionId(): string }
+      ).partitionId();
+      const bobPublisherCapture = await waitForTypingOverlay(
+        typingOverlayCaptures.slice(mappedTypingCaptureStart),
+        (capture) => (
+          capture.connectionId.startsWith(`${bobProviderPartition}-typing-publish-`)
+          && capture.overlay.room?.scope != null
+          && (capture.overlay.room.scope as Record<string, unknown>).conversationId
+            === mappedGroup.chatId
+        ),
+      );
       const carolTypingTerminal = carolMappedTyping.nextFutureCell((cell) => (
         cell.status === 'error'
       ));
@@ -698,33 +800,12 @@ integrationTest(
           message: 'Conversation membership is required.',
         },
       });
-      const mappedTypingCaptures = typingOverlayCaptures.slice(mappedTypingCaptureStart);
-      const removedTypingCapture = mappedTypingCaptures.find((capture) => (
-        capture.connectionId.includes('-observeTyping-')
-        && capture.overlay.terminalDiagnostic?.details?.reason === 'AuthRevoked'
-      ));
-      expect(removedTypingCapture).toBeDefined();
-      const { capture: survivorTypingCapture, message: survivorRemoval } = await waitForTypingFrame(
-        mappedTypingCaptures,
-        (capture, message) => (
-          capture.connectionId.includes('-observeTyping-')
-          && capture.overlay.terminalDiagnostic == null
-          && message.Remove?.key === carolTypingEntryKey
-          && message.Remove?.reason === 'AuthRevoked'
-          && message.Remove.room?.scope?.conversationId === mappedGroup.chatId
-        ),
-      );
-      expect(survivorRemoval.Remove).toMatchObject({
-        key: carolTypingEntryKey,
-        reason: 'AuthRevoked',
-        room: { scope: { conversationId: mappedGroup.chatId } },
-      });
       expect(survivorTypingCapture.overlay.terminalDiagnostic).toBeNull();
       expect(await carolTypingRemoved).not.toContainEqual(expect.objectContaining({
         userId: 'carol',
       }));
       const carolTerminalCellCount = carolMappedTyping.cells.length;
-      const carolTerminalFrameCount = removedTypingCapture!.frames.length;
+      const carolTerminalFrameCount = removedTypingCapture.frames.length;
       expect(await clientM3Carol.mutate('setTyping', {
         chatId: mappedGroup.chatId,
         active: true,
@@ -735,18 +816,41 @@ integrationTest(
           message: 'Conversation membership is required.',
         },
       });
+      const survivorFrameStart = survivorTypingCapture.rawFrames.length;
+      const survivorPublishStart = bobPublisherCapture.publishes.length;
+      const survivorPublishedAt = Date.now();
       const survivorPostRevocationTyping = aliceMappedTyping.nextFuture((rows) => (
-        !rows.some((row) => row.userId === 'bob')
+        rows.some((row) => row.userId === 'bob')
       )).catch((error) => {
         throw new Error('timed out waiting for survivor typing after revocation', { cause: error });
       });
       mutationValue(
-        await clientM3B.mutate('setTyping', { chatId: mappedGroup.chatId, active: false }),
-        'survivor clears typing after Carol removal',
+        await clientM3B.mutate('setTyping', { chatId: mappedGroup.chatId, active: true }),
+        'survivor publishes fresh typing after Carol removal',
       );
-      await survivorPostRevocationTyping;
-      expect(await removedTypingCapture!.overlay.drain()).toEqual([]);
-      expect(removedTypingCapture!.frames).toHaveLength(carolTerminalFrameCount);
+      const freshSurvivorPublish = bobPublisherCapture.publishes
+        .slice(survivorPublishStart)
+        .find((publish) => publish.value.userId === 'bob');
+      expect(freshSurvivorPublish?.outcome.key).toBeDefined();
+      const { message: survivorUpsert } = await waitForTypingFrame(
+        [survivorTypingCapture],
+        (_capture, message, frameIndex) => (
+          frameIndex >= survivorFrameStart
+          && message.Upsert?.entry.key === freshSurvivorPublish!.outcome.key
+          && message.Upsert.room?.scope?.conversationId === mappedGroup.chatId
+        ),
+        4_000,
+      );
+      expect(survivorUpsert.Upsert).toMatchObject({
+        entry: { key: freshSurvivorPublish!.outcome.key },
+        room: { scope: { conversationId: mappedGroup.chatId } },
+      });
+      expect(Date.now() - survivorPublishedAt).toBeLessThan(5_000);
+      expect(await survivorPostRevocationTyping).toContainEqual(expect.objectContaining({
+        userId: 'bob',
+      }));
+      expect(await removedTypingCapture.overlay.drain()).toEqual([]);
+      expect(removedTypingCapture.frames).toHaveLength(carolTerminalFrameCount);
       expect(carolMappedTyping.cells).toHaveLength(carolTerminalCellCount);
       await clientAM3Chats.next((rows) => rows.some((chat) => (
         chat.id === mappedGroup.chatId && !chat.memberIds.includes('carol')

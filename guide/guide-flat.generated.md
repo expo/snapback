@@ -13745,7 +13745,7 @@ function milestoneRefusal(name: string): NamedProviderError {
   const milestone = milestoneForOperation(name) ?? 'M2/M3/M4/M5/M8';
   return new NamedProviderError(
     'SnapbackMilestoneUnsupportedError',
-    `snapback provider claims M1+M2+M3-minus-typing plus provider discovery only; ${name} is outside that claim — LLP 0266 D7 (${milestone})`,
+    `snapback provider claims M1+M2+M3 plus provider discovery only; ${name} is outside that claim — LLP 0266 D7 (${milestone})`,
   );
 }
 ```
