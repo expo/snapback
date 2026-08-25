@@ -732,11 +732,16 @@ function assertExpoSupervisorReadinessUnchanged(readiness, confirmed, context) {
   }
 }
 
+// @ref LLP 0181#web-browser — report missing structured readiness only when
+// no descriptor exists; a published descriptor remains authoritative input.
 async function waitForExpoSupervisorWebReadiness(path, timeoutMs, child) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (child.exitCode !== null || child.signalCode !== null) {
-      throw new Error(`Expo web carrier exited ${child.exitCode ?? child.signalCode} before readiness`);
+      if (existsSync(path)) return readExpoSupervisorWebReadiness(path, child);
+      throw new Error(
+        `Expo web carrier exited ${child.exitCode ?? child.signalCode} before readiness; did not write structured readiness ${path}`,
+      );
     }
     if (existsSync(path)) return readExpoSupervisorWebReadiness(path, child);
     await new Promise((resolveWait) => setTimeout(resolveWait, 100));
@@ -1615,3 +1620,7 @@ export async function runTemplateCarrierCli(configValue, argv, options = {}) {
   console.log(JSON.stringify(result, null, parsed.json ? 2 : 0));
   return 0;
 }
+
+export const __test = Object.freeze({
+  waitForExpoSupervisorWebReadiness,
+});

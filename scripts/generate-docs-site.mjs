@@ -26,7 +26,9 @@ import {
   buildFlatGuide,
   checkPublishedClosure,
   listGuidePages,
+  markdownAnchorPlan,
   parseFrontmatter,
+  replaceMarkdownInlineLinks,
   repoRoot,
   validateFrontmatter,
 } from './guide-lib.mjs';
@@ -68,32 +70,6 @@ function escapeHtml(value) {
 
 function escapeAttribute(value) {
   return escapeHtml(value).replaceAll('`', '&#96;');
-}
-
-function plainInlineText(value) {
-  return value
-    .replace(/`([^`]*)`/gu, '$1')
-    .replace(/!\[([^\]]*)\]\([^)]*\)/gu, '$1')
-    .replace(/\[([^\]]+)\]\([^)]*\)/gu, '$1')
-    .replace(/[*_~]/gu, '')
-    .trim();
-}
-
-// GitHub-compatible enough for the Guide's authored heading fragments. The
-// LLP 0194 symbol identities do not depend on this heuristic: their explicit
-// <a id="symbol-…"> anchors pass through byte-for-byte and are checked against
-// the canonical registry below.
-function headingSlug(value, seen) {
-  const base = plainInlineText(value)
-    .normalize('NFKC')
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s_-]/gu, '')
-    .trim()
-    .replace(/\s+/gu, '-');
-  const stem = base || 'section';
-  const count = seen.get(stem) ?? 0;
-  seen.set(stem, count + 1);
-  return count === 0 ? stem : `${stem}-${count}`;
 }
 
 function normalizeBasePath(raw) {
@@ -270,34 +246,31 @@ function renderInline(value, resolveLink) {
   rendered = rendered.replace(/`([^`\n]+)`/gu, (_match, code) =>
     storeInline(tokens, `<code>${code}</code>`));
 
-  rendered = rendered.replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+&quot;[^&]*&quot;)?\)/gu,
-    (_match, alt, target) => {
+  rendered = replaceMarkdownInlineLinks(rendered, ({ image, label, target }) => {
+    if (image) {
       const resolved = resolveLink(target, { asset: true });
       if (resolved.kind === 'forbidden-external-asset') {
         fail(`external network asset is forbidden in ${target}`);
       }
       if (resolved.kind !== 'internal') {
-        return storeInline(tokens, `<span class="missing-asset">${alt}</span>`);
+        return storeInline(tokens, `<span class="missing-asset">${label}</span>`);
       }
       return storeInline(tokens,
-        `<img src="${escapeAttribute(resolved.href)}" alt="${escapeAttribute(alt)}" loading="lazy">`);
-    });
-
-  rendered = rendered.replace(/\[([^\]]+)\]\(([^)\s]+)(?:\s+&quot;[^&]*&quot;)?\)/gu,
-    (_match, label, target) => {
-      const resolved = resolveLink(target);
-      if (resolved.kind === 'source-only') {
-        return storeInline(tokens,
-          `<span class="source-reference" title="Repository source path: ${escapeAttribute(resolved.label)}">${label}</span>`);
-      }
-      if (resolved.kind === 'missing') {
-        return storeInline(tokens,
-          `<span class="broken-reference" title="Unresolved source target: ${escapeAttribute(resolved.label)}">${label}</span>`);
-      }
-      const external = resolved.kind === 'external' ? ' rel="noreferrer"' : '';
+        `<img src="${escapeAttribute(resolved.href)}" alt="${escapeAttribute(label)}" loading="lazy">`);
+    }
+    const resolved = resolveLink(target);
+    if (resolved.kind === 'source-only') {
       return storeInline(tokens,
-        `<a href="${escapeAttribute(resolved.href)}"${external}>${label}</a>`);
-    });
+        `<span class="source-reference" title="Repository source path: ${escapeAttribute(resolved.label)}">${label}</span>`);
+    }
+    if (resolved.kind === 'missing') {
+      return storeInline(tokens,
+        `<span class="broken-reference" title="Unresolved source target: ${escapeAttribute(resolved.label)}">${label}</span>`);
+    }
+    const external = resolved.kind === 'external' ? ' rel="noreferrer"' : '';
+    return storeInline(tokens,
+      `<a href="${escapeAttribute(resolved.href)}"${external}>${label}</a>`);
+  });
 
   rendered = rendered.replace(/&lt;(https?:\/\/[^&\s]+)&gt;/gu, (_match, href) =>
     storeInline(tokens, `<a href="${escapeAttribute(href)}" rel="noreferrer">${escapeHtml(href)}</a>`));
@@ -419,9 +392,11 @@ function isBlockStart(lines, index) {
 function renderMarkdown(body, { sourcePath, routesBySource, closureVersion, basePath }) {
   const lines = body.replaceAll('\r\n', '\n').split('\n');
   const resolveLink = makeLinkResolver({ routesBySource, sourcePath, basePath });
-  const seenHeadings = new Map();
   const html = [];
-  const anchors = new Set();
+  const { anchors, directAnchors, duplicateAnchors } = markdownAnchorPlan(body);
+  if (duplicateAnchors.size > 0) {
+    fail(`${sourcePath}: duplicate rendered anchor #${[...duplicateAnchors][0]}`);
+  }
   const fenceLabels = [];
   let i = 0;
 
@@ -450,9 +425,8 @@ function renderMarkdown(body, { sourcePath, routesBySource, closureVersion, base
     const heading = /^(#{1,6})\s+(.+)$/u.exec(line);
     if (heading) {
       const level = heading[1].length;
-      const id = headingSlug(heading[2], seenHeadings);
-      if (anchors.has(id)) fail(`${sourcePath}: duplicate rendered anchor #${id}`);
-      anchors.add(id);
+      const id = directAnchors.get(i)?.id;
+      if (!id) fail(`${sourcePath}: missing shared anchor identity for heading`);
       html.push(`<h${level} id="${escapeAttribute(id)}">${renderInline(heading[2], resolveLink)}<a class="heading-link" href="#${escapeAttribute(id)}" aria-label="Link to this section">#</a></h${level}>`);
       i += 1;
       continue;
@@ -460,9 +434,8 @@ function renderMarkdown(body, { sourcePath, routesBySource, closureVersion, base
 
     const explicitAnchor = /^<a\s+id="([^"]+)"\s*><\/a>\s*$/u.exec(line);
     if (explicitAnchor) {
-      const id = explicitAnchor[1];
-      if (anchors.has(id)) fail(`${sourcePath}: duplicate explicit anchor #${id}`);
-      anchors.add(id);
+      const id = directAnchors.get(i)?.id;
+      if (!id) fail(`${sourcePath}: missing shared anchor identity for explicit anchor`);
       html.push(`<a id="${escapeAttribute(id)}" class="identity-anchor" aria-hidden="true"></a>`);
       i += 1;
       continue;
@@ -533,10 +506,6 @@ function renderMarkdown(body, { sourcePath, routesBySource, closureVersion, base
         basePath,
       });
       html.push(`<blockquote${className}>${renderedQuote.html}</blockquote>`);
-      for (const id of renderedQuote.anchors) {
-        if (anchors.has(id)) fail(`${sourcePath}: duplicate anchor #${id} inside blockquote`);
-        anchors.add(id);
-      }
       fenceLabels.push(...renderedQuote.fenceLabels);
       continue;
     }

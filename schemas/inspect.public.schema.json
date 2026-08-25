@@ -5162,18 +5162,21 @@
           ]
         },
         "authorityCreating": {
+          "description": "Omission is the canonical zero-value encoding and means `false`.",
           "type": "boolean"
         },
         "authorityIndependent": {
           "type": "boolean"
         },
         "authorityProfileDependence": {
+          "description": "Omission is the canonical zero-value encoding and means `[]`.",
           "items": {
             "$ref": "#/$defs/AuthorityProfileIdentityV1"
           },
           "type": "array"
         },
         "authorizationDependence": {
+          "description": "Omission is the canonical zero-value encoding and means `[]`.",
           "items": {
             "$ref": "#/$defs/AuthorizationInputDimension"
           },
@@ -5240,7 +5243,7 @@
           "type": "array"
         },
         "publicInline": {
-          "description": "LLP 0092 §0C.3 disclosure fact — already disclosed by the behavior it\nauthorizes, so it rides the public projection.",
+          "description": "LLP 0092 §0C.3 disclosure fact — already disclosed by the behavior it\nauthorizes, so it rides the public projection. Omission is the\ncanonical zero-value encoding and means `false`.",
           "type": "boolean"
         },
         "readSetSummary": {
@@ -5262,6 +5265,7 @@
           ]
         },
         "retainable": {
+          "description": "Omission is the canonical zero-value encoding and means `false`.",
           "type": "boolean"
         },
         "retentionClass": {
@@ -5271,19 +5275,21 @@
           ]
         },
         "rqsEligible": {
-          "description": "LLP 0092 §0C.2 derived predicate — never authored; clients key the\nalias-key promotion check and token expectations on it.",
+          "description": "LLP 0092 §0C.2 derived predicate — never authored; clients key the\nalias-key promotion check and token expectations on it. Omission is the\ncanonical zero-value encoding and means `false`.",
           "type": "boolean"
         },
         "runtime": {
           "$ref": "#/$defs/PublicFunctionRuntime"
         },
         "sequences": {
+          "description": "Omission is the canonical zero-value encoding and means `[]`.",
           "items": {
             "$ref": "#/$defs/SequenceDeclaration"
           },
           "type": "array"
         },
         "stream": {
+          "description": "Omission is the canonical zero-value encoding and means `false`.",
           "type": "boolean"
         },
         "syncabilityClass": {
@@ -5306,17 +5312,9 @@
         "id",
         "name",
         "kind",
-        "stream",
-        "sequences",
         "resultContract",
         "requiredCapabilities",
         "authorityIndependent",
-        "publicInline",
-        "rqsEligible",
-        "authorityCreating",
-        "retainable",
-        "authorizationDependence",
-        "authorityProfileDependence",
         "readSetSummary",
         "writeSetSummary",
         "permissionEpochBumps",

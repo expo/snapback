@@ -1,0 +1,411 @@
+{
+  "schemaVersion": "snapback.r2-harness-config.v1",
+  "runId": "2026-08-25-clique-pair-published-0127-capstone",
+  "status": "serial-per-cell-admission",
+  "noBenchmarkCellStarted": true,
+  "governing": [
+    "LLP 0307 capstone charter",
+    "LLP 0201#d1--the-app-and-why-this-app",
+    "LLP 0201#d2--quantitative-instrument",
+    "LLP 0201#d3--independent-quality-gate",
+    "LLP 0295#r2-load-isolated-calibration-rerun",
+    "LLP 0295#d06--efficiency-instrument-and-target-registration"
+  ],
+  "paths": {
+    "committedRunRoot": "benchmarks/runs/2026-08-25-clique-pair-published-0127-capstone",
+    "privateExecutionRoot": "/home/ccheever/capstone-0127-20260825",
+    "instrumentRoot": "/home/ccheever/capstone-0127-20260825/instrument",
+    "campaignNodeModules": "/home/ccheever/capstone-0127-20260825/node_modules"
+  },
+  "machines": {
+    "expo-build-450b": {
+      "id": "expo-build-450b",
+      "hostname": "expo-build-450b",
+      "machineName": "Hetzner build host",
+      "hardwareModel": null,
+      "chip": "AMD Ryzen 5 3600",
+      "platform": "linux",
+      "osDistribution": "Ubuntu 24.04",
+      "release": null,
+      "arch": "x64",
+      "physicalCpuCount": 6,
+      "logicalCpuCount": 12,
+      "memoryBytes": null,
+      "memoryGiB": 125,
+      "node": {
+        "path": "/home/ccheever/.local/node-v24.18.0-linux-x64/bin/node",
+        "version": "v24.18.0",
+        "sha256": null,
+        "bytes": null,
+        "verificationStatus": "UNVERIFIED: exact executable bytes require a read-only probe on expo-build-450b"
+      },
+      "identityNotes": [
+        "No serial number or UUID is retained.",
+        "Linux exposes no macOS hardware-model sysctl equivalent; hardwareModel is intentionally null.",
+        "Kernel release, exact os.totalmem() bytes, and Node executable bytes were not available to the authoring-only local session."
+      ]
+    }
+  },
+  "harnesses": {
+    "codex-sol": {
+      "binary": "/home/ccheever/.local/bin/codex",
+      "observedVersion": "0.149.0",
+      "baselineVersion": "0.149.0",
+      "versionFlag": "same-harness-version-parity:0.149.0=0.149.0",
+      "versionRuling": "CHARTER RULING: Codex 0.149.0 exactly matches the published-0.1.25 baseline harness version.",
+      "model": "gpt-5.6-sol",
+      "effort": "high",
+      "permissionMode": "dangerously-bypass-approvals-and-sandbox",
+      "outputFormat": "jsonl",
+      "promptDelivery": "stdin",
+      "tokensSource": "codex-rollout-token-count",
+      "argvTemplate": [
+        "exec",
+        "--dangerously-bypass-approvals-and-sandbox",
+        "--json",
+        "--model",
+        "gpt-5.6-sol",
+        "-c",
+        "model_reasoning_effort=\"high\"",
+        "-"
+      ]
+    }
+  },
+  "pins": {
+    "snapback0127": {
+      "version": "0.1.27",
+      "distTag": "latest",
+      "closureId": "fastpath-0-1-27-98681377721e",
+      "publicationStatus": "npm latest published",
+      "packages": {
+        "@expo/snapback": "0.1.27",
+        "@expo/snapback-acceptance": "0.1.27",
+        "@expo/snapback-app-cli": "0.1.27",
+        "@expo/snapback-cli": "0.1.27",
+        "@expo/snapback-client": "0.1.27",
+        "@expo/snapback-codegen": "0.1.27",
+        "@expo/snapback-contract": "0.1.27",
+        "@expo/snapback-expo": "0.1.27",
+        "@expo/snapback-expo-custody": "0.1.27",
+        "@expo/snapback-react": "0.1.27",
+        "@expo/snapback-runtime-darwin-arm64": "0.1.27",
+        "@expo/snapback-runtime-linux-x64": "0.1.27",
+        "@expo/snapback-vite": "0.1.27",
+        "create-snapback-app": "0.1.27"
+      }
+    },
+    "snapback0125": {
+      "compatibilityAliasOf": "snapback0127",
+      "version": "0.1.27",
+      "closureId": "fastpath-0-1-27-98681377721e",
+      "reason": "UNVERIFIED COMPATIBILITY: current r2-cell-driver.mjs reads the legacy snapback0125 config key directly"
+    },
+    "instrument": {
+      "manifestPath": "benchmarks/instrument.manifest.json",
+      "semanticSnapshotRevision": "97a5fba1c",
+      "instrumentPin": "social-messenger@0.3.4-m8",
+      "manifestSha256": "cb90c7ebe2997c305222e94d6d4b1b378b34cb747171b268d6cbf41f95ea7cac",
+      "fixtureVersion": "0.2.0-m8",
+      "schemaVersion": "0.3.0-m8",
+      "uiVersion": "0.3.2-m8",
+      "choreographyVersion": "0.3.4-m8",
+      "typingObservationBoundaryVersion": "v2",
+      "d06MeteringOverlay": {
+        "revision": "c56cb359e43f94131b3d559d9a54c366c2dfda84",
+        "recordSchema": "benchmarks/schema/social-messenger/run-record.schema.json",
+        "recordSchemaSha256": "3403455e98fad656125ea2ab0993f780bdb112849fb127bd8bcfcbcf6f2b8a64",
+        "extensionSchemaSha256": "4e93fdd6e563b738d9d7067fd413373c8e22fcda894dea9462bb9da67b3546bb",
+        "recordValidatorSha256": "540cacf0e39c06abc4dc0b4a6277a023c466763aa809c58e48d14e7048ad5b34",
+        "meterSha256": "d19aa6764c513af489e43b00ef15f8560d347dc84998254d1cceb4bf9e4d5a62",
+        "laneSetupSha256": "0d2a14b6fca22c00d621a8f1f3345accfcb597aa2d3b7b45ae2a0984022e880b",
+        "laneControllerSha256": "5577be1d08b9e59f699984f10aea73bcd6b973565a23d8cfffe5479bbc368df8",
+        "productionDriverSha256": "081b96926a7d5e36797353558534eef70588acceea6a0e55b9c274429004d450",
+        "signalSha256": "f2f835538bc92cd5ea2af0098e43ca0e97cf3934101c713f6c13ede55066a712",
+        "manifestLoaderSha256": "5b1949890da3b590ba944f890bc5df3ad56129cc50601c54ae1901fc98043b50",
+        "joinerSha256": "3516b9af074d786342e14445026f5c0eeeee38263bc40c07958fb9d507d72038",
+        "observationsSha256": "89032eafe7816c3664df28d0e82262ead328a655866db529481d1b0aeec1407e",
+        "codexNativeEvidenceSha256": "d510466a1dbf897ce4091a4ccb59fc5d31dbd50be7652e5f63ec22a1306fc744",
+        "recordComposerSha256": "f182d49c2cd2139471c1e27fcbee90d49afa6d36549d42363e887ad1c871da11",
+        "admissionToolSha256": "d05a4a7ca12c0012cf889e482b9c24e1089ef8d715d69d16cd74f8513ecaba5b",
+        "finalizedCellValidatorSha256": "cce9a149c421801e0badea8b7bc04518df12e9280d5f7ed664d246fca7baadb2",
+        "hostLockSha256": "55a4c8cb77d13658f7e5a4aae73c3aefd1826408124e4cc60bb70d972f57a6fb",
+        "finalizeExistingSha256": "2fa7f63a8fd155090b6d8751aad5cfc3d386c3d4d9fd05595b50b3cfb4434cb3",
+        "instrumentMaterializerSha256": "1ac7cd354d22e67c4b1eb19d96ac395a0ab62e0ecd3506bdf13844952c65306a"
+      }
+    }
+  },
+  "controller": {
+    "entrypoint": "benchmarks/tools/social-messenger/metering/lane-controller.mjs",
+    "driver": "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs",
+    "signal": "benchmarks/tools/social-messenger/metering/r2-cell-signal.mjs",
+    "admission": "benchmarks/tools/social-messenger/metering/r2-cell-admission.mjs",
+    "finalizeExisting": "benchmarks/tools/social-messenger/metering/r2-finalize-existing.mjs",
+    "materializeInstrument": "benchmarks/tools/materialize-instrument.mjs",
+    "commandTemplate": [
+      "/home/ccheever/.local/node-v24.18.0-linux-x64/bin/node",
+      "benchmarks/tools/social-messenger/metering/lane-controller.mjs",
+      "--harness-config",
+      "benchmarks/runs/2026-08-25-clique-pair-published-0127-capstone/harness-config.json",
+      "--cell",
+      "{cellId}",
+      "--driver",
+      "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs",
+      "--admission",
+      "benchmarks/runs/2026-08-25-clique-pair-published-0127-capstone/admissions/{cellId}.json"
+    ]
+  },
+  "execution": {
+    "serial": true,
+    "maxConcurrentCells": 1,
+    "sourceClosure": {
+      "version": "snapback.r2-executing-source-closure.v1",
+      "meteringRoot": {
+        "kind": "directory",
+        "path": "benchmarks/tools/social-messenger/metering",
+        "sha256": "sha256:a4ceb33a0b40040d96a2356afdb8a640be2322a937a5dcbdfae8940bf7853bf5"
+      },
+      "files": [
+        {
+          "kind": "file",
+          "path": "benchmarks/schema/run-record.schema.json",
+          "sha256": "sha256:d8bd58dd94ec5726cd543fa72ea37dedf7a0226287ff5606fe295320a2651654"
+        },
+        {
+          "kind": "file",
+          "path": "benchmarks/schema/social-messenger/run-record-extension.schema.json",
+          "sha256": "sha256:4e93fdd6e563b738d9d7067fd413373c8e22fcda894dea9462bb9da67b3546bb"
+        },
+        {
+          "kind": "file",
+          "path": "benchmarks/schema/social-messenger/run-record.schema.json",
+          "sha256": "sha256:3403455e98fad656125ea2ab0993f780bdb112849fb127bd8bcfcbcf6f2b8a64"
+        },
+        {
+          "kind": "file",
+          "path": "benchmarks/tools/lane-setup.mjs",
+          "sha256": "sha256:0d2a14b6fca22c00d621a8f1f3345accfcb597aa2d3b7b45ae2a0984022e880b"
+        },
+        {
+          "kind": "file",
+          "path": "benchmarks/tools/lib/json-schema.mjs",
+          "sha256": "sha256:7b882f6147e6efde88bc41f4dbc6806e712fb54c2e1b47a214a5d59e96f02660"
+        },
+        {
+          "kind": "file",
+          "path": "benchmarks/tools/social-messenger/choreography/receipts.schema.json",
+          "sha256": "sha256:5d1033b49be1efee3a1c122bbea39f352fc158f2ccc4c424262d679488b31126"
+        },
+        {
+          "kind": "file",
+          "path": "benchmarks/tools/social-messenger/record-validator.mjs",
+          "sha256": "sha256:540cacf0e39c06abc4dc0b4a6277a023c466763aa809c58e48d14e7048ad5b34"
+        }
+      ]
+    },
+    "environment": {
+      "version": "snapback.r2-execution-environment.v1",
+      "inheritedNodeLoaderHooks": "forbidden-and-absent",
+      "forbiddenVariables": [
+        "DYLD_FALLBACK_FRAMEWORK_PATH",
+        "DYLD_FALLBACK_LIBRARY_PATH",
+        "DYLD_FRAMEWORK_PATH",
+        "DYLD_INSERT_LIBRARIES",
+        "DYLD_LIBRARY_PATH",
+        "LD_PRELOAD",
+        "NODE_COMPILE_CACHE",
+        "NODE_OPTIONS",
+        "NODE_PATH",
+        "NODE_PRESERVE_SYMLINKS",
+        "NODE_REPL_EXTERNAL_MODULE"
+      ],
+      "nativeHarnessEnvironment": "scrub-forbidden-variables"
+    },
+    "coldContextPerCell": true,
+    "reuseAcrossCells": [],
+    "milestones": [
+      "M1",
+      "M2",
+      "M3",
+      "M4",
+      "M5",
+      "M6",
+      "M8",
+      "M7"
+    ],
+    "sessionShape": {
+      "continuous": ["M1", "M2", "M3", "M4", "M5", "M6", "M8"],
+      "fresh": ["M7"],
+      "m7FreshSessionRequired": true,
+      "m7BackendState": "fresh-starter-only-pre-replay"
+    },
+    "perMilestoneWallSafetyLimitSeconds": 14400,
+    "exclusiveHostLock": {
+      "version": "snapback.r2-exclusive-host-lock.v1",
+      "path": "/home/ccheever/capstone-0127-20260825/locks/2026-08-25-clique-pair-published-0127-capstone.host.lock",
+      "staleRecovery": "explicit-only; never authorizes a rerun of existing private evidence"
+    },
+    "loadIsolation": {
+      "policies": {
+        "expo-build-450b-ryzen5-3600-loadavg-10-approved": {
+          "policyId": "expo-build-450b-ryzen5-3600-loadavg-10-approved",
+          "allowedHostId": "expo-build-450b",
+          "status": "chartered",
+          "ruling": "Loadavg-1/loadavg-5/loadavg-15 <= 10.00 with three consecutive one-minute passing samples before admission.",
+          "sampleEverySeconds": 60,
+          "metrics": ["loadavg1", "loadavg5", "loadavg15"],
+          "ceilingInclusive": {
+            "loadavg1": 10.0,
+            "loadavg5": 10.0,
+            "loadavg15": 10.0
+          },
+          "preStartConsecutivePassingSamples": 3,
+          "breachRule": "The first sample above any ceiling sets host-load-contamination for that cell.",
+          "onBreach": "Continue only for product findings; efficiencyScorecardEligible=false.",
+          "nextCellRule": "Exclusive host lock held; prior campaign process tree closed; every registered campaign port unbound; three consecutive passing samples."
+        }
+      }
+    },
+    "contaminationVocabulary": {
+      "hostLoad": "host-load-contamination",
+      "api": "api-interruption",
+      "clean": "none"
+    },
+    "apiInterruptionRule": "Record every provider/API failure window from first failed request through the first successful replacement request; any nonempty window makes the cell scorecard-ineligible.",
+    "suiteStatus": {
+      "required": true,
+      "mustBeHashBound": true,
+      "greenRequiresSuiteAndChoreography": true,
+      "startupRefusalRequired": true,
+      "currentImplementationStatus": "implemented-required"
+    }
+  },
+  "recording": {
+    "recordSchema": "benchmarks/schema/social-messenger/run-record.schema.json",
+    "checkedValidator": "benchmarks/tools/social-messenger/record-validator.mjs",
+    "currentSchemaCoverage": [
+      "harness-native milestone usage",
+      "terminal boundary and first-green proof",
+      "orientation and first-product-edit snapshot",
+      "semantic actions and dispositions",
+      "failure-to-recovery episodes",
+      "restart and reseed counts",
+      "browser assertion attempts and wait wall",
+      "host-load windows",
+      "API-interruption windows",
+      "structured setup and suite-status linkage",
+      "hash linkage for required sidecars",
+      "validated complete record.json on success or failure"
+    ],
+    "requiredBeforeFirstEdit": [
+      "orientation bytes",
+      "selected skills",
+      "native token prefix"
+    ],
+    "eligibilityRule": "Missing per-phase usage or orientation evidence, host-load-contamination, or api-interruption makes only the efficiency scorecard ineligible."
+  },
+  "cellOrder": [
+    "capstone-clique-explicit-sol-high",
+    "capstone-clique-familiar-sol-high"
+  ],
+  "cells": [
+    {
+      "id": "capstone-clique-explicit-sol-high",
+      "harness": "codex-sol",
+      "model": "gpt-5.6-sol",
+      "effort": "high",
+      "app": "Clique",
+      "clientStack": "Expo Router web",
+      "profile": "explicit",
+      "promptFile": "prompts/clique-explicit.md",
+      "ports": [48400, 48459],
+      "m7Ports": [48600, 48659],
+      "pins": ["snapback0127", "instrument"],
+      "allowedHostId": "expo-build-450b",
+      "loadCeilingId": "expo-build-450b-ryzen5-3600-loadavg-10-approved",
+      "controllerCommand": [
+        "/home/ccheever/.local/node-v24.18.0-linux-x64/bin/node",
+        "benchmarks/tools/social-messenger/metering/lane-controller.mjs",
+        "--harness-config",
+        "benchmarks/runs/2026-08-25-clique-pair-published-0127-capstone/harness-config.json",
+        "--cell",
+        "capstone-clique-explicit-sol-high",
+        "--driver",
+        "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs",
+        "--admission",
+        "benchmarks/runs/2026-08-25-clique-pair-published-0127-capstone/admissions/capstone-clique-explicit-sol-high.json"
+      ],
+      "admissionArtifact": "admissions/capstone-clique-explicit-sol-high.json",
+      "meteringPolicy": {
+        "adapter": "codex",
+        "capFamily": "gpt-frontier",
+        "nativeCounts": "required"
+      }
+    },
+    {
+      "id": "capstone-clique-familiar-sol-high",
+      "harness": "codex-sol",
+      "model": "gpt-5.6-sol",
+      "effort": "high",
+      "app": "Clique",
+      "clientStack": "Expo Router web",
+      "profile": "familiar",
+      "promptFile": "prompts/clique-familiar.md",
+      "ports": [48460, 48519],
+      "m7Ports": [48660, 48719],
+      "pins": ["snapback0127", "instrument"],
+      "allowedHostId": "expo-build-450b",
+      "loadCeilingId": "expo-build-450b-ryzen5-3600-loadavg-10-approved",
+      "controllerCommand": [
+        "/home/ccheever/.local/node-v24.18.0-linux-x64/bin/node",
+        "benchmarks/tools/social-messenger/metering/lane-controller.mjs",
+        "--harness-config",
+        "benchmarks/runs/2026-08-25-clique-pair-published-0127-capstone/harness-config.json",
+        "--cell",
+        "capstone-clique-familiar-sol-high",
+        "--driver",
+        "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs",
+        "--admission",
+        "benchmarks/runs/2026-08-25-clique-pair-published-0127-capstone/admissions/capstone-clique-familiar-sol-high.json"
+      ],
+      "admissionArtifact": "admissions/capstone-clique-familiar-sol-high.json",
+      "meteringPolicy": {
+        "adapter": "codex",
+        "capFamily": "gpt-frontier",
+        "nativeCounts": "required"
+      }
+    }
+  ],
+  "deviations": {
+    "hostOs": {
+      "baselineRestriction": "R2 admitted Codex/Grok only on the registered Mac16,11 Darwin host.",
+      "capstoneRuling": "Use expo-build-450b, Linux x86-64, AMD Ryzen 5 3600, 125 GiB, under the same load ceiling and three-sample rule.",
+      "comparisonBoundary": "Hardware/OS posture is recorded; only the chartered 0.1.25 same-host comparison is in scope."
+    },
+    "sessionShape": {
+      "baseline": "The 0.1.25 pair paid orientation once in one continuous pair session.",
+      "capstone": "Two serial per-arm cells; each requires one continuous M1-M6+M8 session and one fresh M7 session.",
+      "comparisonBoundary": "Per-cell figures are primary. Summed pair comparisons are secondary and carry the doubled-orientation caveat."
+    },
+    "typingBoundary": {
+      "baseline": "0.1.25 M3 observations are implicit boundary v1.",
+      "capstone": "Instrument 0.3.4-m8 stamps typingObservationBoundaryVersion v2.",
+      "comparisonBoundary": "Do not compare M3 typing-path measurements across v1 and v2."
+    },
+    "codexVersion": {
+      "baseline": "0.149.0",
+      "capstone": "0.149.0",
+      "disposition": "exact harness-version parity; no same-harness version-change flag"
+    }
+  },
+  "inheritedFrozenPromptDiscrepancies": [
+    "The R2 prompt text says effort=xhigh. It remains unchanged because the charter permits exactly three prompt deltas; launch authority is this config's effort=high and model_reasoning_effort=\"high\" argv."
+  ],
+  "preflightBlockers": [
+    "UNVERIFIED: expo-build-450b Node SHA-256/byte size, kernel release, and exact os.totalmem() bytes were unavailable without touching the host; nulls are intentional, not evidence.",
+    "BLOCKED: r2-cell-admission.mjs uses macOS sysctl probes and exact hard-coded host fields, so it cannot admit this Linux machine as configured.",
+    "BLOCKED: admission/finalization replay committed state through Git, but the declared host execution tree has no .git metadata.",
+    "BLOCKED: r2-cell-driver.mjs currently emits runScope=reduced, appends an M1-M3-only handoff, launches one native session, and cannot create the charter-required fresh M7 session or meter it separately.",
+    "BLOCKED: the current admission allCampaignPorts() reads only cell.ports and therefore does not probe the configured m7Ports blocks.",
+    "BLOCKED: there is no non-scored capstone admission/controller dry-run path that exercises this config without consuming a one-attempt cell."
+  ]
+}

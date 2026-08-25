@@ -1019,6 +1019,15 @@ export function applyRestoreActivationPlan(planId: string, options: ControlPlane
 export const __deploymentTest: {
   canonicalJson(value: unknown): string;
   sha256(bytes: string | Uint8Array): string;
+  readFileDescriptorSafeHarness(
+    path: string,
+    code: string,
+    options?: {
+      readonly maximumBytes?: number;
+      readonly ownerOnly?: boolean;
+      readonly ownerUid?: number | null;
+    },
+  ): Uint8Array;
   closedKeySchemaBindings: readonly Readonly<{
     name: string;
     keys: readonly string[];

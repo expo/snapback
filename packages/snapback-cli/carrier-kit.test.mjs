@@ -16,6 +16,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import {
+  __test as carrierKitTest,
   defineTemplateCarrierConfig,
   runTemplateCarrierCli,
 } from './carrier-kit.mjs';
@@ -547,6 +548,58 @@ try {
   );
   rmSync(staleDescriptor, { force: true });
 
+  const publishedReadiness = join(root, 'published-after-exit.json');
+  writeFileSync(publishedReadiness, JSON.stringify({
+    schemaVersion: 'snapback.expo-supervisor.v1',
+    formatVersion: 1,
+    state: 'ready',
+    correlationId: 'carrier-test-published-after-exit',
+    supervisorGeneration: 'carrier-test-published-after-exit-generation',
+    pid: 4242,
+    supervisor: { pid: 4242, startTime: 'published-supervisor-start' },
+    platform: 'web',
+    connectCarrier: 'supervisor-rendezvous',
+    metro: {
+      pid: 4343,
+      startTime: 'published-metro-start',
+      origin: 'http://127.0.0.1:4101',
+      upstreamOrigin: 'http://127.0.0.1:4102',
+    },
+    attestation: {
+      path: '/_snapback/expo/v1/web-attestation/published-after-exit',
+      nonce: 'published-after-exit-' + 'x'.repeat(32),
+    },
+    listeners: [
+      {
+        owner: 'metro',
+        pid: 4343,
+        startTime: 'published-metro-start',
+        host: '127.0.0.1',
+        port: 4102,
+        loopback: true,
+      },
+      {
+        owner: 'metro-front',
+        pid: 4242,
+        startTime: 'published-supervisor-start',
+        host: '127.0.0.1',
+        port: 4101,
+        loopback: true,
+      },
+    ],
+  }), { mode: 0o600 });
+  chmodSync(publishedReadiness, 0o600);
+  const published = await carrierKitTest.waitForExpoSupervisorWebReadiness(
+    publishedReadiness,
+    1_000,
+    { pid: 4242, exitCode: 0, signalCode: null },
+  );
+  assert.equal(
+    published.origin,
+    'http://127.0.0.1:4101',
+    'an existing descriptor is authoritative even when the child has already exited',
+  );
+
   const successArtifacts = join(root, 'success-artifacts');
   const successConfig = config('success');
   assert.equal(successConfig.carriers['web-browser'].origin, undefined);
@@ -625,7 +678,7 @@ try {
     runTemplateCarrierCli(config('leader-sigkill'), [
       'web-browser', '--browser', browser, '--artifacts', killedCliArtifacts,
     ], { root }),
-    /exited .* before readiness/u,
+    /exited .* before readiness; did not write structured readiness/u,
   );
   const killedCliPids = JSON.parse(readFileSync(join(killedCliArtifacts, 'descendant-pids.json')));
   await eventually(() => killedCliPids.every((pid) => !pidAlive(pid)), 'pre-descriptor SIGKILL descendants');

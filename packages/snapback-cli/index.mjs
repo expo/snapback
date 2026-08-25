@@ -86,6 +86,7 @@ import {
   verifyRemoteDrillPlan,
   verifyRestoreReceipt,
 } from './deployment-control.mjs';
+import { readFileDescriptorSafe } from './file-custody.mjs';
 import {
   createRuntimeRecoveryRecord,
   inspectRuntimeBinary,
@@ -3674,6 +3675,11 @@ function canonicalFilesystemPath(path) {
   }
 }
 
+function canonicalFileCarrierPath(path) {
+  const absolute = resolve(path);
+  return join(canonicalFilesystemPath(dirname(absolute)), basename(absolute));
+}
+
 export function readReadyDescriptor(path) {
   let value;
   try {
@@ -4593,56 +4599,65 @@ function refineGeneratedArtifactFailure(error, {
   return mismatch;
 }
 
+const MAX_ADMIN_TOKEN_FILE_BYTES = 4 * 1024;
+// HTTP field values admit HTAB, visible ASCII, and obs-text. Everything else
+// is also unsafe to hand across the environment/header carrier boundary.
+const INVALID_ADMIN_TOKEN_CARRIER_VALUE = /[^\t\x20-\x7e\x80-\xff]/u;
+
+function readOwnerOnlyAdminTokenFile(path) {
+  const absolute = resolve(path);
+  let bytes;
+  try {
+    bytes = readFileDescriptorSafe(
+      absolute,
+      'SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID',
+      {
+        maximumBytes: MAX_ADMIN_TOKEN_FILE_BYTES,
+        ownerOnly: true,
+        makeFailure: (code, message, details) => diagnosticError(code, message, details),
+      },
+    );
+  } catch (cause) {
+    if (cause?.code === 'SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID') throw cause;
+    throw diagnosticError(
+      'SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID',
+      'the admin-token carrier could not be read safely',
+      { path: absolute },
+    );
+  }
+  const text = bytes.toString('utf8');
+  const token = text.endsWith('\r\n')
+    ? text.slice(0, -2)
+    : (text.endsWith('\n') ? text.slice(0, -1) : text);
+  if (!token) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID',
+      'the admin-token carrier is empty',
+      { path: absolute },
+    );
+  }
+  if (INVALID_ADMIN_TOKEN_CARRIER_VALUE.test(token)) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID',
+      'the admin-token carrier contains characters that cannot be used safely',
+      { path: absolute },
+    );
+  }
+  return token;
+}
+
 export function managedAdminToken(descriptor, database) {
   const declared = descriptor?.adminTokenFile;
   if (typeof declared !== 'string') return null;
-  const expected = canonicalFilesystemPath(`${resolve(database)}.admin-token`);
-  if (canonicalFilesystemPath(declared) !== expected) {
+  const expected = canonicalFileCarrierPath(`${resolve(database)}.admin-token`);
+  if (canonicalFileCarrierPath(declared) !== expected) {
     throw diagnosticError(
       'SNAPBACK_DEV_SERVER_TARGET_MISMATCH',
       'the readiness descriptor names an unexpected admin-token carrier',
       { expectedAdminTokenFile: expected, observedAdminTokenFile: resolve(declared) },
     );
   }
-  let metadata;
-  try {
-    metadata = lstatSync(expected);
-  } catch (cause) {
-    const error = diagnosticError(
-      'SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID',
-      'the managed database admin-token carrier is missing or unreadable',
-      { path: expected },
-    );
-    error.cause = cause;
-    throw error;
-  }
-  if (!metadata.isFile() || metadata.isSymbolicLink() || (metadata.mode & 0o077) !== 0) {
-    // The refusal names the failed inode predicate — observed type and mode
-    // — without disclosing contents, so an operator can repair the artifact
-    // from the diagnostic alone
-    // (issues/20260729-external-package-lifecycle-gaps.md).
-    const failedPredicates = [
-      ...(metadata.isFile() ? [] : ['not-a-regular-file']),
-      ...(metadata.isSymbolicLink() ? ['symbolic-link'] : []),
-      ...((metadata.mode & 0o077) !== 0 ? ['group-or-other-permission-bits'] : []),
-    ];
-    throw diagnosticError(
-      'SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID',
-      'the managed database admin-token carrier must be an owner-only regular '
-        + `file: observed mode ${(metadata.mode & 0o7777).toString(8).padStart(4, '0')} `
-        + `failed [${failedPredicates.join(', ')}]`,
-      {
-        path: expected,
-        observedMode: (metadata.mode & 0o7777).toString(8).padStart(4, '0'),
-        failedPredicates,
-      },
-    );
-  }
-  const token = readFileSync(expected, 'utf8').trim();
-  if (!token) {
-    throw diagnosticError('SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID', 'the managed database admin-token carrier is empty', { path: expected });
-  }
-  return token;
+  return readOwnerOnlyAdminTokenFile(expected);
 }
 
 const DEFAULT_DEV_SESSION_EMAIL = 'snapback-dev@localhost.invalid';
@@ -7146,11 +7161,11 @@ export function attachDevControlChannel({ verbs, stop, onEvent, stdin = process.
 }
 
 function takeFlag(args, name, fallback = null) {
-  const index = args.indexOf(name);
+  const index = args.findIndex((argument) => argument === name || argument.startsWith(`${name}=`));
   if (index === -1) return fallback;
-  const value = args[index + 1];
-  if (!value || value.startsWith('--')) throw diagnosticError('SNAPBACK_CLI_ARGUMENT_INVALID', `${name} requires a value`);
-  args.splice(index, 2);
+  const value = args[index] === name ? args[index + 1] : args[index].slice(name.length + 1);
+  if (!value || (args[index] === name && value.startsWith('--'))) throw diagnosticError('SNAPBACK_CLI_ARGUMENT_INVALID', `${name} requires a value`);
+  args.splice(index, args[index] === name ? 2 : 1);
   return value;
 }
 
@@ -7611,10 +7626,27 @@ function resolvePackagedHelpName(command, args = []) {
   return command === 'auth' && match === 'auth' ? null : match;
 }
 
+function longestRegisteredNativeCommandPath(options, requestedPath) {
+  const structured = nativeCommandInventory(options);
+  if (!structured.ok) return requestedPath;
+  const resolved = [];
+  let command = structured.inventory.root;
+  for (const part of requestedPath) {
+    const next = command.subcommands?.find((entry) => entry.name === part);
+    if (next === undefined) break;
+    resolved.push(part);
+    command = next;
+  }
+  return resolved.length > 0 ? resolved : requestedPath;
+}
+
 function nativeHelp(options, commandPath = null) {
   try {
     const runtime = resolveRuntimeBinary(options);
-    const result = spawnSync(runtime.binary, commandPath === null ? ['--help'] : [...commandPath, '--help'], {
+    const resolvedCommandPath = commandPath === null
+      ? null
+      : longestRegisteredNativeCommandPath(options, commandPath);
+    const result = spawnSync(runtime.binary, resolvedCommandPath === null ? ['--help'] : [...resolvedCommandPath, '--help'], {
       encoding: 'utf8',
       env: runtimeSpawnEnvironment(runtime.binary, options.env),
     });
@@ -7623,9 +7655,10 @@ function nativeHelp(options, commandPath = null) {
       ok: result.status === 0,
       text: `${result.stdout ?? ''}${result.stderr ?? ''}`.trim(),
       exitCode: result.status ?? 1,
+      commandPath: resolvedCommandPath,
     };
   } catch (error) {
-    return { ok: false, text: `native help unavailable: ${error.message}`, exitCode: 1 };
+    return { ok: false, text: `native help unavailable: ${error.message}`, exitCode: 1, commandPath };
   }
 }
 
@@ -7675,6 +7708,11 @@ function printCliHelp(command, { json, options, nativeCommandPath = null }) {
   if (nativeCommandPath !== null) {
     const native = nativeHelp(options, nativeCommandPath);
     if (native.text) console.log(native.text);
+    if (native.commandPath?.join(' ') === 'auth password unlock') {
+      console.log('');
+      console.log('Wrapper credential carrier:');
+      console.log('      --admin-token-file <path>  Read the admin token from an owner-only regular file and pass it to the native verb through SNAPBACK_ADMIN_TOKEN');
+    }
     // A natively owned command can still have package-owned verbs (`snapback
     // auth enable|configure|status`). Native help cannot know about them, so
     // name them here rather than leaving them undiscoverable.
@@ -9405,6 +9443,16 @@ export async function runCli(argv, options = {}) {
       ...options,
     });
   }
+  let adminTokenFile = null;
+  if (command === 'auth' && args[0] === 'password' && args[1] === 'unlock') {
+    adminTokenFile = takeFlag(args, '--admin-token-file');
+    if (adminTokenFile !== null && args.some((argument) => argument === '--token' || argument.startsWith('--token='))) {
+      throw diagnosticError(
+        'SNAPBACK_CLI_ARGUMENT_INVALID',
+        '--admin-token-file and --token are mutually exclusive admin-token carriers',
+      );
+    }
+  }
   const runtime = resolveRuntimeBinary(options);
   // @ref LLP 0194#design — a cold install with no checkout registry delegates
   // exact Guide lookup to the embedded native registry without losing JSON mode.
@@ -9412,6 +9460,11 @@ export async function runCli(argv, options = {}) {
     ? []
     : [command, ...args, ...(command === 'guide' && json ? ['--json'] : [])];
   const delegatedEnvironment = runtimeSpawnEnvironment(runtime.binary, options.env);
+  if (adminTokenFile !== null) {
+    delegatedEnvironment.SNAPBACK_ADMIN_TOKEN = readOwnerOnlyAdminTokenFile(
+      resolve(options.cwd ?? process.cwd(), adminTokenFile),
+    );
+  }
   if (command === 'start') {
     // @ref LLP 0301#2-origin-admission--the-path-split-implemented — direct
     // native start must not inherit lifecycle posture.

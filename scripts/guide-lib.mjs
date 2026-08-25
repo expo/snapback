@@ -9,9 +9,10 @@ import {
   readFileSync,
   readlinkSync,
   readdirSync,
+  realpathSync,
   statSync,
 } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 export const GUIDE_DIR = 'guide';
 export const MANIFEST_PATH = join(GUIDE_DIR, 'guide-manifest.generated.json');
@@ -78,6 +79,119 @@ const MIN_ROUTE_PATHS = 50;
 const MIN_HOST_OPS = 10;
 const REVIEWED_AUTHORITIES_DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/;
 const GIT_AUTHORITY_MAX_BUFFER = 64 * 1024 * 1024;
+const GAP_REVIEW_WARNING_DAYS = 7;
+
+function plainInlineText(value) {
+  return value
+    .replace(/`([^`]*)`/gu, '$1')
+    .replace(/!\[([^\]]*)\]\([^)]*\)/gu, '$1')
+    .replace(/\[([^\]]+)\]\([^)]*\)/gu, '$1')
+    .replace(/[*_~]/gu, '')
+    .trim();
+}
+
+// Shared with the docs-site renderer so source validation and rendered-site
+// validation assign byte-identical identities to authored headings.
+export function headingSlug(value, seen = new Map()) {
+  const base = plainInlineText(value)
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s_-]/gu, '')
+    .trim()
+    .replace(/\s+/gu, '-');
+  const stem = base || 'section';
+  const count = seen.get(stem) ?? 0;
+  seen.set(stem, count + 1);
+  return count === 0 ? stem : `${stem}-${count}`;
+}
+
+function collectMarkdownAnchors(body, state, directAnchors) {
+  const lines = body.replaceAll('\r\n', '\n').split('\n');
+  const seenHeadings = new Map();
+  const register = (index, kind, id) => {
+    if (state.anchors.has(id)) state.duplicateAnchors.add(id);
+    state.anchors.add(id);
+    directAnchors?.set(index, { kind, id });
+  };
+  let index = 0;
+  while (index < lines.length) {
+    const line = lines[index];
+    if (/^```([^\s`]*)\s*(.*)$/u.test(line)) {
+      index += 1;
+      while (index < lines.length && lines[index] !== '```') index += 1;
+      if (index < lines.length) index += 1;
+      continue;
+    }
+    const heading = /^(#{1,6})\s+(.+)$/u.exec(line);
+    if (heading) {
+      register(index, 'heading', headingSlug(heading[2], seenHeadings));
+      index += 1;
+      continue;
+    }
+    const explicit = /^<a\s+id="([^"]+)"\s*><\/a>\s*$/u.exec(line);
+    if (explicit) {
+      register(index, 'explicit', explicit[1]);
+      index += 1;
+      continue;
+    }
+    if (line.startsWith('>')) {
+      const quote = [];
+      while (index < lines.length && lines[index].startsWith('>')) {
+        quote.push(lines[index].replace(/^> ?/u, ''));
+        index += 1;
+      }
+      collectMarkdownAnchors(quote.join('\n'), state);
+      continue;
+    }
+    index += 1;
+  }
+}
+
+// The docs-site renderer handles blockquotes as nested Markdown documents, so
+// anchor discovery must recurse through the same shape. Both the source link
+// checker and renderer consume this collector to keep their anchor inventories
+// identical.
+export function markdownAnchorPlan(body) {
+  const state = { anchors: new Set(), duplicateAnchors: new Set() };
+  const directAnchors = new Map();
+  collectMarkdownAnchors(body, state, directAnchors);
+  return { ...state, directAnchors };
+}
+
+export function markdownAnchors(body) {
+  return markdownAnchorPlan(body).anchors;
+}
+
+// The renderer operates after HTML escaping, while source validation operates
+// on authored Markdown. Accept both spellings of a double-quoted title so the
+// two consumers share one link grammar instead of maintaining parallel regexes.
+const MARKDOWN_INLINE_LINK_PATTERN = /(!?)\[([^\]]*)\]\(((?:repo\([^)]+\):)?[^)\s]+)(?:\s+(?:"([^"\n]*)"|&quot;([^&\n]*)&quot;))?\)/gu;
+
+export function markdownInlineLinks(value) {
+  return [...value.matchAll(MARKDOWN_INLINE_LINK_PATTERN)]
+    .filter((match) => match[1] === '!' || match[2].length > 0)
+    .map((match) => ({
+      image: match[1] === '!',
+      label: match[2],
+      target: match[3],
+      title: match[4] ?? match[5] ?? null,
+    }));
+}
+
+export function replaceMarkdownInlineLinks(value, replacer) {
+  return value.replace(
+    MARKDOWN_INLINE_LINK_PATTERN,
+    (match, imagePrefix, label, target, rawTitle, escapedTitle) => {
+      if (imagePrefix !== '!' && label.length === 0) return match;
+      return replacer({
+        image: imagePrefix === '!',
+        label,
+        target,
+        title: rawTitle ?? escapedTitle ?? null,
+      });
+    },
+  );
+}
 
 export function repoRoot() {
   return resolve(dirname(new URL(import.meta.url).pathname), '..');
@@ -530,11 +644,30 @@ export function checkSnippets(root, pageBodies, errors) {
 
 export function checkLinks(root, pageBodies, errors, warnings) {
   const graph = new Map();
+  const anchorsByPath = new Map(
+    [...pageBodies].map(([path, body]) => [path, markdownAnchors(body)]),
+  );
+  const checkAnchor = (sourcePath, targetPath, rawFragment, label) => {
+    if (!rawFragment || !anchorsByPath.has(targetPath)) return;
+    let fragment;
+    try {
+      fragment = decodeURIComponent(rawFragment);
+    } catch {
+      errors.push(`${sourcePath}: ${label} has malformed encoded anchor #${rawFragment} in ${targetPath}`);
+      return;
+    }
+    if (!anchorsByPath.get(targetPath).has(fragment)) {
+      errors.push(`${sourcePath}: ${label} resolves to missing anchor #${fragment} in ${targetPath}`);
+    }
+  };
   for (const [path, body] of pageBodies) {
     const outgoing = [];
-    for (const m of body.matchAll(/\]\(((?:repo\([^)]+\):)?[^)\s]+)\)/g)) {
-      const target = m[1];
-      if (/^(https?:|mailto:|#)/.test(target)) continue;
+    for (const { target } of markdownInlineLinks(body)) {
+      if (/^(https?:|mailto:)/.test(target)) continue;
+      if (target.startsWith('#')) {
+        checkAnchor(path, path, target.slice(1), 'same-page link');
+        continue;
+      }
       const crossRepo = /^repo\(([a-z0-9][a-z0-9._-]*)\):(.+)$/.exec(target);
       if (crossRepo) {
         const [, repository, repoPathWithAnchor] = crossRepo;
@@ -551,15 +684,20 @@ export function checkLinks(root, pageBodies, errors, warnings) {
         continue;
       }
       if (target.startsWith('repo:')) {
-        const p = join(root, target.slice('repo:'.length).split('#')[0]);
+        const [repoPath, fragment] = target.slice('repo:'.length).split('#', 2);
+        const p = join(root, repoPath);
         if (!existsSync(p)) errors.push(`${path}: repo: reference does not exist: ${target}`);
+        else checkAnchor(path, repoPath, fragment, 'repo: reference');
         continue;
       }
-      const resolved = resolve(root, dirname(path), target.split('#')[0]);
+      const [relativePath, fragment] = target.split('#', 2);
+      const resolved = resolve(root, dirname(path), relativePath);
       if (!existsSync(resolved)) {
         errors.push(`${path}: relative link does not resolve: ${target}`);
       } else if (resolved.endsWith('.md') && relative(root, resolved).startsWith(GUIDE_DIR)) {
-        outgoing.push(relative(root, resolved));
+        const targetPath = relative(root, resolved);
+        outgoing.push(targetPath);
+        checkAnchor(path, targetPath, fragment, 'relative link');
       }
     }
     graph.set(path, outgoing);
@@ -706,9 +844,132 @@ export function extractHostOps(root, errors) {
   return ops;
 }
 
-export function checkCapabilityIndex(root, index, pageInfo, errors) {
+function gapRowDetails(capability) {
+  if (!capability.page.startsWith('GAP')) return null;
+  const review = capability.page.match(
+    /owner:\s*([^,)]+),\s*review:\s*(\d{4}-\d{2}-\d{2})/u,
+  );
+  const pointer = capability.page.match(/\bissues\/[A-Za-z0-9._/-]+\.md\b/u)?.[0] ?? null;
+  return {
+    id: capability.id,
+    owner: review?.[1].trim() ?? null,
+    reviewDate: review?.[2] ?? null,
+    pointer,
+  };
+}
+
+function isWithinDirectory(directory, candidate) {
+  const rel = relative(directory, candidate);
+  return rel === '' || (!isAbsolute(rel) && rel !== '..' && !rel.startsWith(`..${sep}`));
+}
+
+function checkGapIssuePointer(root, gap, errors) {
+  const segments = gap.pointer.split('/');
+  if (segments.includes('.') || segments.includes('..')) {
+    errors.push(
+      `${CAPABILITIES_PATH}: GAP row '${gap.id}' has unsafe issue pointer ${gap.pointer}: `
+        + "'.' and '..' path segments are forbidden",
+    );
+    return;
+  }
+
+  const issuesRoot = resolve(root, 'issues');
+  const closedRoot = resolve(issuesRoot, 'closed');
+  const target = resolve(root, gap.pointer);
+  if (!isWithinDirectory(issuesRoot, target)) {
+    errors.push(
+      `${CAPABILITIES_PATH}: GAP row '${gap.id}' issue pointer resolves outside issues/: ${gap.pointer}`,
+    );
+    return;
+  }
+  if (isWithinDirectory(closedRoot, target)) {
+    errors.push(`${CAPABILITIES_PATH}: GAP row '${gap.id}' points at closed issue ${gap.pointer}`);
+    return;
+  }
+  if (!existsSync(target)) {
+    errors.push(`${CAPABILITIES_PATH}: GAP row '${gap.id}' points at missing issue ${gap.pointer}`);
+    return;
+  }
+
+  const canonicalIssuesRoot = realpathSync(issuesRoot);
+  const canonicalTarget = realpathSync(target);
+  if (!isWithinDirectory(canonicalIssuesRoot, canonicalTarget)) {
+    errors.push(
+      `${CAPABILITIES_PATH}: GAP row '${gap.id}' issue pointer resolves outside canonical issues/: ${gap.pointer}`,
+    );
+    return;
+  }
+  if (existsSync(closedRoot)) {
+    const canonicalClosedRoot = realpathSync(closedRoot);
+    if (isWithinDirectory(canonicalClosedRoot, canonicalTarget)) {
+      errors.push(`${CAPABILITIES_PATH}: GAP row '${gap.id}' points at closed issue ${gap.pointer}`);
+      return;
+    }
+  }
+  if (!lstatSync(target).isFile()) {
+    errors.push(
+      `${CAPABILITIES_PATH}: GAP row '${gap.id}' issue pointer is not a regular file: ${gap.pointer}`,
+    );
+  }
+}
+
+export function capabilityGapRowsFromText(text) {
+  const lines = text.split('\n');
+  const start = lines.findIndex((line) => line.startsWith('## Capabilities'));
+  return parseTable(lines, start)
+    .filter((row) => row.length === 8 && row[7].startsWith('GAP'))
+    .map(([id, what, aliases, targets, maturity, witness, authorities, page]) => (
+      gapRowDetails({ id, what, aliases, targets, maturity, witness, authorities, page })
+    ));
+}
+
+export function checkCapabilityGapRows(
+  root,
+  capabilities,
+  errors,
+  warnings,
+  { today = new Date().toISOString().slice(0, 10) } = {},
+) {
+  const todayDay = Date.parse(`${today}T00:00:00Z`) / 86_400_000;
+  for (const capability of capabilities.values()) {
+    const gap = gapRowDetails(capability);
+    if (!gap) continue;
+    if (!gap.owner || !gap.reviewDate) {
+      errors.push(
+        `${CAPABILITIES_PATH}: GAP row '${gap.id}' must carry (owner: X, review: YYYY-MM-DD)`,
+      );
+    }
+    if (!gap.pointer) {
+      errors.push(`${CAPABILITIES_PATH}: GAP row '${gap.id}' must carry an issues/*.md link`);
+    } else {
+      checkGapIssuePointer(root, gap, errors);
+    }
+    if (!gap.reviewDate || !gap.owner || !gap.pointer) continue;
+    const reviewDay = Date.parse(`${gap.reviewDate}T00:00:00Z`) / 86_400_000;
+    const daysUntilReview = reviewDay - todayDay;
+    if (daysUntilReview < 0) {
+      warnings.push(
+        `GAP REVIEW WARNING: row '${gap.id}' expired on ${gap.reviewDate}; `
+          + `owner: ${gap.owner}; pointer: ${gap.pointer}`,
+      );
+    } else if (daysUntilReview <= GAP_REVIEW_WARNING_DAYS) {
+      warnings.push(
+        `GAP REVIEW WARNING: row '${gap.id}' expires within 7 days on ${gap.reviewDate}; `
+          + `owner: ${gap.owner}; pointer: ${gap.pointer}`,
+      );
+    }
+  }
+}
+
+export function checkCapabilityIndex(
+  root,
+  index,
+  pageInfo,
+  errors,
+  warnings = [],
+  gapReviewOptions = {},
+) {
   const { capabilities, routeMap, hostOpMap } = index;
-  const today = new Date().toISOString().slice(0, 10);
   const claimedBy = new Map();
   for (const [path, info] of pageInfo) {
     for (const cap of info.frontmatter?.capabilities ?? []) {
@@ -717,21 +978,12 @@ export function checkCapabilityIndex(root, index, pageInfo, errors) {
       claimedBy.get(cap).push({ path, info });
     }
   }
+  // @ref LLP 0061#2-the-capability-index-registry-lite-with-witnesses —
+  // every honest GAP has durable issue custody, not only an owner/date.
+  checkCapabilityGapRows(root, capabilities, errors, warnings, gapReviewOptions);
   for (const cap of capabilities.values()) {
     const gap = cap.page.startsWith('GAP');
-    if (gap) {
-      // @ref LLP 0061#2-the-capability-index-registry-lite-with-witnesses —
-      // every honest GAP has durable issue custody, not only an owner/date.
-      const m = cap.page.match(/owner:\s*([^,)]+),\s*review:\s*(\d{4}-\d{2}-\d{2})/);
-      if (!m) {
-        errors.push(`${CAPABILITIES_PATH}: GAP row '${cap.id}' must carry (owner: X, review: YYYY-MM-DD)`);
-      } else if (m[2] < today) {
-        errors.push(`${CAPABILITIES_PATH}: GAP row '${cap.id}' review date ${m[2]} has expired`);
-      }
-      if (!/\bissues\/[A-Za-z0-9._/-]+\.md\b/.test(cap.page)) {
-        errors.push(`${CAPABILITIES_PATH}: GAP row '${cap.id}' must carry an issues/*.md link`);
-      }
-    } else {
+    if (!gap) {
       const pagePath = join(GUIDE_DIR, cap.page);
       if (!pageInfo.has(pagePath)) {
         errors.push(`${CAPABILITIES_PATH}: '${cap.id}' points at missing page ${cap.page}`);
@@ -1113,6 +1365,7 @@ export function loadCorpus(root) {
 export function auditGuideManifestInventory({
   root = repoRoot(),
   readGeneratedFile = (path) => readFileSync(join(root, path), 'utf8'),
+  gapReviewOptions = {},
 } = {}) {
   const registryErrors = [];
   try {
@@ -1130,14 +1383,21 @@ export function auditGuideManifestInventory({
     const detail = `${error.stdout ?? ''}${error.stderr ?? ''}`.trim();
     registryErrors.push(`reference-registry inventory failed${detail ? `: ${detail}` : ''}`);
   }
-  const { errors, pagePaths, pageInfo, pageBodies } = loadCorpus(root);
+  const { errors, warnings, pagePaths, pageInfo, pageBodies } = loadCorpus(root);
   errors.push(...registryErrors);
   const snippetRecords = checkSnippets(root, pageBodies, errors);
   const index = parseCapabilityIndex(root, errors);
-  const surfaces = checkCapabilityIndex(root, index, pageInfo, errors);
+  const surfaces = checkCapabilityIndex(
+    root,
+    index,
+    pageInfo,
+    errors,
+    warnings,
+    gapReviewOptions,
+  );
   checkPublishedClosure(root, pageInfo, pageBodies, errors);
   if (errors.length > 0) {
-    return { errors, stale: [], pageCount: pagePaths.length, snippetCount: 0 };
+    return { errors, warnings, stale: [], pageCount: pagePaths.length, snippetCount: 0 };
   }
 
   const expected = buildManifest(root, pageInfo, snippetRecords, index, surfaces);
@@ -1172,6 +1432,7 @@ export function auditGuideManifestInventory({
   }
   return {
     errors,
+    warnings,
     stale,
     pageCount: pagePaths.length,
     snippetCount: [...snippetRecords.values()].flat().length,

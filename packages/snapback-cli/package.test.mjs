@@ -750,6 +750,7 @@ console.log(JSON.stringify({
   assert.equal(scaffold.ok, true);
   assertScaffoldedAuthoringSkill(project, scaffold);
   const manifest = JSON.parse(readFileSync(join(project, 'package.json'), 'utf8'));
+  assert.equal(manifest.dependencies['@expo/snapback-acceptance'], SCAFFOLD_PIN);
   assert.equal(manifest.dependencies['@expo/snapback-cli'], SCAFFOLD_PIN);
   assert.equal(manifest.scripts.test, 'node acceptance.mjs');
   assert.equal(manifest.scripts['test:static'], 'node acceptance.static.mjs');
@@ -790,9 +791,9 @@ console.log(JSON.stringify({
   assert.equal(todoStatic.status, 0, todoStatic.stderr);
   assertCarrierSelfCheck(project, ['headless']);
   const todoAcceptanceSource = readFileSync(join(project, 'acceptance.mjs'), 'utf8');
-  assert.match(todoAcceptanceSource, /snapback\.starter-acceptance\.v1/u);
-  assert.match(todoAcceptanceSource, /client\.query\(api\.listTodos/u);
-  assert.match(todoAcceptanceSource, /client\.mutate\(api\.createTodo/u);
+  assert.match(todoAcceptanceSource, /from '@expo\/snapback-acceptance'/u);
+  assert.match(todoAcceptanceSource, /sessionClient\.query\(api\.listTodos/u);
+  assert.match(todoAcceptanceSource, /sessionClient\.mutate\(api\.createTodo/u);
 
   const reactProject = join(root, 'react-starter');
   const reactScaffold = scaffoldApp(reactProject, { template: 'react' });
@@ -913,8 +914,15 @@ console.log(JSON.stringify({
   assert.equal(generatedMedia.summary.counts.degradedResults, 0);
   const mediaFunctions = JSON.parse(readFileSync(join(mediaProject, 'snapback', 'generated', 'functions.manifest.json'), 'utf8'));
   assert.deepEqual(mediaFunctions.assetUploadIntents.map(({ exportedName }) => exportedName).sort(), ['feedPhotoUpload', 'privatePhotoUpload']);
-  const mediaDescriptor = await import(join(mediaProject, 'snapback', 'generated', 'api.mjs'));
-  assert.ok(mediaDescriptor.app.commands?.publishEntry, 'the media template generates its upload-and-attach command');
+  // Generated API modules now import their declared consumer package; this
+  // scaffold/generate fixture intentionally does not install dependencies.
+  // Read the same generated descriptor bytes so module-resolution drift cannot
+  // mask the command-shape assertion that this test owns.
+  const mediaDescriptor = JSON.parse(readFileSync(
+    join(mediaProject, 'snapback', 'generated', 'app.descriptor.json'),
+    'utf8',
+  ));
+  assert.ok(mediaDescriptor.commands?.publishEntry, 'the media template generates its upload-and-attach command');
   assert.match(readFileSync(join(mediaProject, 'App.tsx'), 'utf8'), /onEndReached=\{loadOlder\}/u);
   const mediaStatic = spawnSync(process.execPath, ['acceptance.static.mjs'], { cwd: mediaProject, encoding: 'utf8' });
   assert.equal(mediaStatic.status, 0, mediaStatic.stderr);
@@ -973,9 +981,8 @@ console.log(JSON.stringify({
     0,
     `the untouched expo-chat starter must generate without degraded-result advisories: ${JSON.stringify(generatedChat.summary.degradedResults)}`,
   );
-  const chatDescriptor = await import(join(chatProject, 'snapback', 'generated', 'api.mjs'));
   assert.ok(
-    chatDescriptor.app.surfaces?.conversation,
+    generatedChat.appDescriptor.surfaces?.conversation,
     'the expo-chat starter must generate the LLP 0179 conversation surface',
   );
   assert.match(readFileSync(join(chatProject, 'App.tsx'), 'utf8'), /SnapbackExpoProvider/);

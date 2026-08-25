@@ -36,8 +36,10 @@ Publication is not gated on F-1 alone:
 1. **Sealed assembly identity** — the canonical assembler rejects its own newly built binary.
 2. **LLP 0276 Phase 4 / F-3 disposition** — every red needs signature continuity and an
    explicit disposition; ~29 items, 7-20 engineer-days.
-3. **Cold-clone qualification** — 33/34; offline boot shows blocking chrome rather than an
-   honestly labelled board.
+3. **Cold-clone qualification** — the offline half is repaired locally by `1ddb98597` plus
+   the transport-provenance adapter follow-up (focused browser witness 34/34). The separate
+   first-paint budget regression and full cold-clone rerun remain outstanding
+   ([cold-clone issue](./20260824-all-aboard-cold-clone-two-regressions.md)).
 4. ~~**Handler-sandbox scope**~~ — **RESOLVED by author ruling 2026-08-20.** The next
    npm closures do not assert adversarial-handler containment, so the five findings are
    not publication blockers for pre-public-release closures. **The release claim must
@@ -137,7 +139,10 @@ Overall F-1 is still a **large-to-extra-large, multi-engineer-week security prog
 
 2. **LLP 0276 Phase 4/F-3 disposition is a release gate.** The complete battery has now run; 36 pre-existing reds collapse to roughly 29 items. Not every red must be fixed, but every signature needs continuity and an explicit disposition, while the current claim-relevant set must be green ([F-3 issue:42–49](/Users/ccheever/lanes/docs/issues/20260820-f3-bucket-b-pre-existing-reds.md:42)). The repository’s estimate is 7–12 engineer-days if auth/outbox issues converge, 12–20 otherwise ([lines 19–29](/Users/ccheever/lanes/docs/issues/20260820-f3-bucket-b-pre-existing-reds.md:19)).
 
-3. **Cold-clone qualification is not green yet.** The registry-package build passes, but browser acceptance is 33/34 because offline boot shows blocking chrome rather than an honestly labelled board ([cold-clone issue:8–21](/Users/ccheever/lanes/docs/issues/20260820-all-aboard-offline-boot-chrome.md:8)).
+3. **Cold-clone qualification is not green yet.** The offline-boot half is repaired locally by
+   `1ddb98597` plus the transport-provenance adapter follow-up, and the focused browser witness
+   passes 34/34. The first-paint budget regression and full cold-clone rerun remain outstanding
+   ([cold-clone issue](./20260824-all-aboard-cold-clone-two-regressions.md)).
 
 4. **Handler-sandbox publication scope needs an explicit decision.** Five live findings prevent treating application JavaScript as an adversarial principal, and the issue requires a two-engine qualification gate before app-use or publication claims ([handler issue:19–40](/Users/ccheever/lanes/docs/issues/20260820-handler-sandbox-triage-and-scheduling.md:19), [lines 193–210](/Users/ccheever/lanes/docs/issues/20260820-handler-sandbox-triage-and-scheduling.md:193)). If the next closure claims hostile-handler containment, these block it independently of F-1.
 

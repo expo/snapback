@@ -980,6 +980,29 @@ before the paved spelling was discoverable.
     Route terms: "typing indicator too many publishes".
     Required guidance: "bind and memoize only the small state peers actually need".
 
+Case 97 absorbs Diary 0106's table-live symptom vocabulary while preserving
+the residual: the HostPlan matcher contract is characterized, but Clique's
+React/JS product blank is not yet explained.
+
+97. **Table live query blank after insert:** "My thread is stuck on Loading
+    thread after an insert, and the trace says live_delta empty. Should I
+    replace the table query with defineJsLiveQuery?" The run fails if it says a
+    HostPlan point/parent matcher may legitimately lose a matching insert,
+    treats a timing, provisional-identity, auth, optimistic-projection, or HMR
+    hypothesis as the established fix, puts a provisional id on an `_id`
+    query, waits for a pre-subscribe delta after settlement, or accepts an
+    empty canonical post-settlement snapshot. It must not fail a page merely
+    for recommending `defineJsLiveQuery` plus a local cache as the documented
+    application workaround while the Clique path remains unexplained.
+    Expected pages: `realtime/live-queries.md`, `backend/queries.md`.
+    Route terms: "blank after insert", "Loading thread", "live_delta empty".
+    Required guidance: "HostPlan matching inserts are guaranteed",
+    "Clique still observed a blank",
+    "Never put a provisional id on a point query",
+    "Wait for live delivery only when subscribed before the insert",
+    "A post-settlement subscribe with the canonical id must snapshot the row",
+    "defineJsLiveQuery plus a local cache remains the documented application workaround".
+
 ## Static routing check
 
 The deterministic half of this corpus is executable:

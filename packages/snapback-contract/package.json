@@ -34,6 +34,8 @@
     "capabilities.mjs",
     "client-store.d.mts",
     "client-store.mjs",
+    "connectivity-failure.d.mts",
+    "connectivity-failure.mjs",
     "derived-overlay.mjs",
     "diagnostics.d.mts",
     "diagnostics.mjs",
@@ -132,6 +134,10 @@
     "./client-store": {
       "types": "./client-store.d.mts",
       "default": "./client-store.mjs"
+    },
+    "./connectivity-failure": {
+      "types": "./connectivity-failure.d.mts",
+      "default": "./connectivity-failure.mjs"
     },
     "./diagnostics": {
       "types": "./diagnostics.d.mts",

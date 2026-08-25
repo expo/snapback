@@ -6,15 +6,20 @@ import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Ajv2020 from "ajv/dist/2020.js";
 import {
   aggregateChoreography,
   classifyNonGreenCause,
+  classifyOutcome,
   UNIMPLEMENTED_ASSERTIONS,
 } from "./choreography.mjs";
 import { parseObservationJsonLines } from "../metering/observations.mjs";
+
+const REQUIRE = createRequire(import.meta.url);
+const PLAYWRIGHT_VERSION = REQUIRE("playwright/package.json").version;
 
 // @ref LLP 0201#d2--quantitative-instrument — calibrate the fail-closed
 // suite-plus-choreography green contract with two isolated browser contexts.
@@ -29,6 +34,8 @@ const posts = [
 let likes = new Map();
 let messages = [];
 let messageOrder = 0;
+const pollOptionIds = ["m7-option-a", "m7-option-b"];
+const pollVotes = new Map();
 
 function resetM8State() {
   likes = new Map();
@@ -54,11 +61,8 @@ if (
 if (aggregateChoreography([passed, implementedFailure]).browserPass) {
   throw new Error("implemented failed assertion incorrectly allowed choreography green");
 }
-if (
-  UNIMPLEMENTED_ASSERTIONS.some((item) => item.required) ||
-  UNIMPLEMENTED_ASSERTIONS.some((item) => !["m2", "m3"].includes(item.segment))
-) {
-  throw new Error("unimplemented catalog must stay optional and confined to m2/m3");
+if (UNIMPLEMENTED_ASSERTIONS.length !== 0) {
+  throw new Error("the observability bump must not retain structural skips");
 }
 const causeCases = [
   [{ green: true, suitePass: true, browserPass: true, requiredUnimplemented: 0 }, null],
@@ -92,6 +96,14 @@ assert.throws(
   }),
   /suitePass must be boolean/u,
 );
+for (const [input, expected] of [
+  [{ green: true, suitePass: true, suiteOutcomeClass: null, assertionReceipts: [] }, null],
+  [{ green: false, suitePass: false, suiteOutcomeClass: "platform", assertionReceipts: [] }, "platform"],
+  [{ green: false, suitePass: true, suiteOutcomeClass: null, assertionReceipts: [{ status: "failed", outcomeClass: "application" }] }, "application"],
+  [{ green: false, suitePass: true, suiteOutcomeClass: null, assertionReceipts: [{ status: "failed", outcomeClass: "instrument" }] }, "instrument"],
+]) {
+  assert.equal(classifyOutcome(input), expected);
+}
 
 function json(response, status, value) {
   response.writeHead(status, { "content-type": "application/json" });
@@ -136,7 +148,7 @@ function home() {
   stopPoll();
   root.innerHTML = '<button ' + tid('sm-feed-tab-following') + '>Following</button>' +
     '<button ' + tid('sm-feed-tab-global') + '>Global</button>' +
-    '<button ' + tid('sm-chats-item') + '><span>' + counterpart() + '</span>' +
+    '<button ' + tid('sm-chats-item') + ' aria-valuetext="dm:' + counterpart().toLowerCase() + '"><span>' + counterpart() + '</span>' +
     '<span id="unread"></span></button>';
   root.querySelector('[data-testid=sm-feed-tab-global]').onclick = () => go('/global');
   root.querySelector('[data-testid=sm-chats-item]').onclick = () => go('/conversation/dm');
@@ -166,7 +178,8 @@ async function globalFeed() {
     const feed = document.querySelector('#feed');
     if (!feed) return;
     feed.innerHTML = values.map((post) =>
-      '<article ' + tid('sm-feed-item') + '><strong>' + esc(post.authorName) + '</strong>' +
+      '<article ' + tid('sm-feed-item') + '><span ' + tid('sm-feed-author-avatar') +
+      ' aria-valuetext="' + esc(post.author) + '"></span><strong>' + esc(post.authorName) + '</strong>' +
       '<p>' + esc(post.text) + '</p><button ' + tid('sm-post-like') +
       ' data-post-id="' + esc(post.id) + '" aria-pressed="' + post.liked + '"' +
       ' aria-label="' + (post.liked ? 'Unlike' : 'Like') + ' post, ' + post.likeCount +
@@ -209,8 +222,9 @@ async function profile(handle) {
   const update = async () => {
     const response = await fetch('/api/profile?handle=' + encodeURIComponent(handle));
     const value = await response.json();
-    root.innerHTML = '<section ' + tid('sm-profile') + '><h1>' + value.displayName +
-      '</h1><p>' + value.bio + '</p></section>';
+    root.innerHTML = '<section ' + tid('sm-profile') + '><h1 ' + tid('sm-profile-heading') + '>' + value.displayName +
+      '</h1><p>' + value.bio + '</p><button ' + tid('sm-profile-nav-feed') + '>Feed</button></section>';
+    root.querySelector('[data-testid=sm-profile-nav-feed]').onclick = () => go('/');
   };
   await update();
   poll = setInterval(update, 50);
@@ -241,6 +255,63 @@ function pendingKey() { return 'pending-messages-' + session(); }
 function pendingMessages() { return JSON.parse(localStorage.getItem(pendingKey()) || '[]'); }
 function storePending(values) { localStorage.setItem(pendingKey(), JSON.stringify(values)); }
 
+function pendingVoteKey() { return 'pending-poll-vote-' + session(); }
+function pendingVote() { return localStorage.getItem(pendingVoteKey()); }
+
+async function syncPoll() {
+  if (syncing || !location.pathname.startsWith('/conversation/group/')) return;
+  syncing = true;
+  try {
+    const queued = pendingVote();
+    if (queued) {
+      const response = await fetch('/api/poll', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ actor: session(), optionId: queued }),
+      });
+      if (response.ok) localStorage.removeItem(pendingVoteKey());
+    }
+    const response = await fetch('/api/poll');
+    const value = await response.json();
+    const options = document.querySelector('#poll-options');
+    if (!options) return;
+    options.innerHTML = value.options.map((option) => {
+      const isPending = pendingVote() === option.id;
+      return '<button ' + tid('sm-poll-option') + ' aria-valuetext="' + esc(option.id) +
+        '" aria-busy="' + isPending + '" data-pending="' + isPending + '">' +
+        esc(option.id) + ' <span ' + tid('sm-poll-tally') + ' aria-valuetext="' +
+        option.tally + '">' + option.tally + '</span></button>';
+    }).join('');
+    document.querySelector('#poll-total').setAttribute('aria-valuetext', String(value.total));
+    document.querySelector('#poll-total').textContent = String(value.total);
+    for (const button of options.querySelectorAll('[data-testid=sm-poll-option]')) {
+      button.onclick = async () => {
+        localStorage.setItem(pendingVoteKey(), button.getAttribute('aria-valuetext'));
+        await syncPoll();
+      };
+    }
+  } catch {
+    const queued = pendingVote();
+    if (queued) {
+      const option = [...document.querySelectorAll('[data-testid=sm-poll-option]')]
+        .find((candidate) => candidate.getAttribute('aria-valuetext') === queued);
+      if (option) {
+        option.setAttribute('aria-busy', 'true');
+        option.setAttribute('data-pending', 'true');
+      }
+    }
+  } finally {
+    syncing = false;
+  }
+}
+
+function groupConversation() {
+  stopPoll();
+  root.innerHTML = '<section id="poll-options"></section><span id="poll-total" ' +
+    tid('sm-poll-total') + ' aria-valuetext="0">0</span><input ' + tid('sm-convo-input') + '>';
+  syncPoll();
+  poll = setInterval(syncPoll, 30);
+}
+
 function renderConversationMessages() {
   const target = document.querySelector('#messages');
   if (!target) return;
@@ -252,8 +323,9 @@ function renderConversationMessages() {
   );
   target.innerHTML = combined.map((message) =>
     '<article ' + tid('sm-convo-bubble') + ' data-message-id="' + esc(message.id) + '">' +
+    '<span ' + tid('sm-convo-sender-avatar') + ' aria-valuetext="' + esc(message.sender) + '"></span>' +
     '<span>' + esc(message.sender) + ': ' + esc(message.text) + '</span> ' +
-    '<span ' + tid('sm-convo-receipt') + ' aria-label="' + esc(message.state) + '">' +
+    '<span ' + tid('sm-convo-receipt') + ' aria-valuetext="' + esc(message.state) + '">' +
     esc(message.state) + '</span></article>'
   ).join('');
 }
@@ -329,6 +401,7 @@ function render() {
   if (path === '/global') return globalFeed();
   if (path === '/insights') return insights(false);
   if (path === '/insights-stale') return insights(true);
+  if (path.startsWith('/conversation/group/')) return groupConversation();
   if (path.startsWith('/conversation/')) return conversation();
   if (path.startsWith('/profile/')) return profile(path.slice('/profile/'.length));
   return home();
@@ -407,6 +480,21 @@ const server = createServer(async (request, response) => {
       };
     }));
   }
+  if (url.pathname === "/api/poll" && request.method === "POST") {
+    const value = await body(request);
+    if (!pollOptionIds.includes(value.optionId) || !["alice", "bob"].includes(value.actor)) {
+      return json(response, 400, { error: "invalid vote" });
+    }
+    pollVotes.set(value.actor, value.optionId);
+    return json(response, 200, { accepted: true });
+  }
+  if (url.pathname === "/api/poll") {
+    const options = pollOptionIds.map((id) => ({
+      id,
+      tally: [...pollVotes.values()].filter((optionId) => optionId === id).length,
+    }));
+    return json(response, 200, { options, total: pollVotes.size });
+  }
   if (url.pathname === "/api/unread") {
     const persona = url.searchParams.get("persona") ?? "";
     const count = messages.filter(
@@ -439,13 +527,20 @@ try {
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("self-test server has no port");
   const m1SuiteReceipt = join(scratch, "m1-calibration-suite.json");
+  const m7SuiteReceipt = join(scratch, "m7-calibration-suite.json");
   const m8SuiteReceipt = join(scratch, "m8-calibration-suite.json");
   const suiteStatus = join(scratch, "suite-status.json");
   const receipts = join(scratch, "receipts.jsonl");
+  const m7Receipts = join(scratch, "m7-receipts.jsonl");
   const simulatorStatus = join(scratch, "simulator-status.json");
+  const setupIdentity = join(scratch, "setup-identity.json");
   await writeFile(
     m1SuiteReceipt,
     `${JSON.stringify({ kind: "choreography-calibration-suite", segment: "m1", pass: true })}\n`,
+  );
+  await writeFile(
+    m7SuiteReceipt,
+    `${JSON.stringify({ kind: "choreography-calibration-suite", segment: "m7", pass: true })}\n`,
   );
   await writeFile(
     m8SuiteReceipt,
@@ -455,6 +550,7 @@ try {
     suiteStatus,
     `${JSON.stringify({
       m1: { pass: true, receipt: "m1-calibration-suite.json" },
+      m7: { pass: true, receipt: "m7-calibration-suite.json" },
       m8: { pass: true, receipt: "m8-calibration-suite.json" },
     })}\n`,
   );
@@ -468,6 +564,31 @@ try {
         reason: "calibration deliberately records absent native evidence",
       },
     })}\n`,
+  );
+  await writeFile(
+    setupIdentity,
+    `${JSON.stringify({
+      schemaVersion: "social-messenger.setup-identity.v1",
+      instrumentPin: "social-messenger@0.3.4-m8",
+      backend: { kind: "external", version: "choreography-calibration.v1" },
+      runtime: {
+        qualifiedBinary: { claimed: false, reason: "calibration HTTP app has no Snapback binary" },
+        wrapper: { claimed: false, reason: "calibration launches the app in-process" },
+      },
+      packageClosure: {
+        mode: "workspace",
+        prepack: "not-applicable",
+        artifacts: [{ name: "choreography-calibration", version: "0.3.4-m8", sha256: null }],
+      },
+      toolchain: {
+        node: { path: process.execPath, version: process.version },
+        bun: "not-used",
+        npm: "not-used",
+        playwright: PLAYWRIGHT_VERSION,
+        browser: "chromium",
+      },
+      host: { id: "local-calibration", platform: process.platform, arch: process.arch },
+    }, null, 2)}\n`,
   );
 
   const chrome = process.env.CHOREO_BROWSER_EXECUTABLE ?? null;
@@ -532,6 +653,30 @@ try {
       `partial suite linkage did not refuse before receipt startup: ${JSON.stringify(partialLinkage)}`,
     );
   }
+  const missingSetup = await run(
+    process.execPath,
+    [
+      new URL("./choreography.mjs", import.meta.url).pathname,
+      "m1",
+      "--suite-status",
+      suiteStatus,
+      "--receipts",
+      refusedReceipts,
+    ],
+    {
+      cwd: new URL(".", import.meta.url).pathname,
+      env: runEnvironment,
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
+  if (
+    missingSetup.status !== 2
+    || !missingSetup.stderr.startsWith('CHOREOGRAPHY OUTCOME {"schemaVersion":"social-messenger.choreography-outcome.v1","outcomeClass":"setup"')
+    || !missingSetup.stderr.includes("setup-identity startup refusal")
+    || existsSync(refusedReceipts)
+  ) {
+    throw new Error(`missing setup identity did not refuse before receipt startup: ${JSON.stringify(missingSetup)}`);
+  }
   const danglingSuiteStatus = join(scratch, "dangling-suite-status.json");
   await writeFile(
     danglingSuiteStatus,
@@ -569,6 +714,8 @@ try {
       "m1,m8",
       "--suite-status",
       suiteStatus,
+      "--setup-identity",
+      setupIdentity,
       "--receipts",
       receipts,
       "--simulator-status",
@@ -587,14 +734,43 @@ try {
       `choreography self-test failed (${result.status ?? result.signal})\n${result.stdout}\n${result.stderr}`,
     );
   }
-  const records = (await readFile(receipts, "utf8"))
-    .trim()
-    .split("\n")
-    .map((line) => JSON.parse(line));
-  const observationRecords = parseObservationJsonLines(
-    await readFile(`${receipts}.observations.jsonl`, "utf8"),
-    "choreography self-test observations",
+  const m7Result = await run(
+    process.execPath,
+    [
+      new URL("./choreography.mjs", import.meta.url).pathname,
+      "m7",
+      "--suite-status",
+      suiteStatus,
+      "--setup-identity",
+      setupIdentity,
+      "--receipts",
+      m7Receipts,
+      "--timeout",
+      "5000",
+    ],
+    {
+      cwd: new URL(".", import.meta.url).pathname,
+      env: runEnvironment,
+      stdio: ["ignore", "pipe", "pipe"],
+    },
   );
+  if (m7Result.status !== 0) {
+    throw new Error(
+      `M7 idempotent-vote calibration failed (${m7Result.status ?? m7Result.signal})\n${m7Result.stdout}\n${m7Result.stderr}`,
+    );
+  }
+  const records = (await Promise.all([receipts, m7Receipts].map(async (path) =>
+    (await readFile(path, "utf8"))
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line)),
+  ))).flat();
+  const observationRecords = (await Promise.all(
+    [receipts, m7Receipts].map(async (path) => parseObservationJsonLines(
+      await readFile(`${path}.observations.jsonl`, "utf8"),
+      "choreography self-test observations",
+    )),
+  )).flat();
   const schema = JSON.parse(
     await readFile(new URL("./receipts.schema.json", import.meta.url), "utf8"),
   );
@@ -622,17 +798,25 @@ try {
       `choreography uses test IDs absent from CONTRACT.md: ${unregisteredIds.join(", ")}`,
     );
   }
-  const implementedFalseCount = [...choreographySource.matchAll(/implemented:\s*false/g)].length;
-  if (implementedFalseCount !== 1) {
-    throw new Error(
-      `expected a single implemented:false assignment (emitUnimplemented), found ${implementedFalseCount}`,
-    );
+  if (choreographySource.includes("emitUnimplemented(")) {
+    throw new Error("observability bump retained an unimplemented-emission path");
   }
-  for (const spec of UNIMPLEMENTED_ASSERTIONS) {
-    const call = `emitUnimplemented(ctx, "${spec.segment}", "${spec.assertion}")`;
-    if (!choreographySource.includes(call)) {
-      throw new Error(`unimplemented ${spec.segment}/${spec.assertion} is not emitted`);
-    }
+  if (/new RegExp|filter\(\{\s*hasText:\s*\//u.test(choreographySource)) {
+    throw new Error("choreography retained a broad regex selector where structural identity is required");
+  }
+  if (
+    !choreographySource.includes('const CONTINUOUS_SEGMENTS = ["m1", "m2", "m3", "m4", "m5", "m6", "m8"]')
+    || !choreographySource.includes('const SEGMENTS = [...CONTINUOUS_SEGMENTS, "m7"]')
+    || !choreographySource.includes("m7 is a fresh-session segment")
+  ) {
+    throw new Error("M7 fresh-session isolation is not explicit in the runner");
+  }
+  if (
+    !choreographySource.includes('"dm-live-messages"')
+    || !choreographySource.includes('"sender-avatar-identity-when-rendered"')
+    || !choreographySource.includes("implemented: avatarRendered")
+  ) {
+    throw new Error("required live DM delivery and conditional avatar identity were merged again");
   }
 
   const skippedSample = {
@@ -654,6 +838,60 @@ try {
       reason: "calibration sample for explicit unsupported-state receipts",
     },
   };
+  const currentTypingReceipt = {
+    version: "0.3.4-m8",
+    runId: "00000000-0000-4000-8000-000000000010",
+    recordedAt: "2026-08-25T00:00:00.000Z",
+    type: "assertion",
+    segment: "m3",
+    assertion: "typing-indicator-within-2s-expires-within-5s",
+    implemented: true,
+    required: true,
+    status: "passed",
+    pass: true,
+    timings: [1, 2, 3].map((attempt) => ({
+      attempt,
+      pass: true,
+      startedAt: "2026-08-25T00:00:00.000Z",
+      durationMs: 1,
+      settlementWaitMs: 1,
+      metrics: {
+        visibleAfterLastKeystrokeMs: 1,
+        expiresAfterLastKeystrokeMs: 1,
+      },
+    })),
+    bestOf: 3,
+    details: {
+      selection: "fastest passing attempt; all three retained",
+      selectedAttempt: 1,
+      reason: null,
+      typingObservationBoundaryVersion: "v2",
+    },
+    typingObservationBoundaryVersion: "v2",
+  };
+  if (!validate(currentTypingReceipt)) {
+    throw new Error(`current v2 typing receipt was rejected: ${JSON.stringify(validate.errors)}`);
+  }
+  const missingTypingBoundary = structuredClone(currentTypingReceipt);
+  delete missingTypingBoundary.typingObservationBoundaryVersion;
+  delete missingTypingBoundary.details.typingObservationBoundaryVersion;
+  if (validate(missingTypingBoundary)) {
+    throw new Error("current typing receipt omitted its observation-boundary version");
+  }
+  const mismatchedTypingBoundary = structuredClone(currentTypingReceipt);
+  mismatchedTypingBoundary.details.typingObservationBoundaryVersion = "v1";
+  if (validate(mismatchedTypingBoundary)) {
+    throw new Error("current typing receipt accepted mismatched assertion metadata");
+  }
+  const retainedV1TypingReceipt = structuredClone(missingTypingBoundary);
+  retainedV1TypingReceipt.version = "0.3.3-m8";
+  if (!validate(retainedV1TypingReceipt)) {
+    throw new Error(`retained implicit-v1 typing receipt was rejected: ${JSON.stringify(validate.errors)}`);
+  }
+  retainedV1TypingReceipt.typingObservationBoundaryVersion = "v2";
+  if (validate(retainedV1TypingReceipt)) {
+    throw new Error("retained pre-bump typing receipt accepted a v2 boundary stamp");
+  }
   const legacySummaryWithoutCause = {
     version: "0.3.3-m8",
     runId: "00000000-0000-4000-8000-000000000001",
@@ -760,12 +998,18 @@ try {
   const m8Summary = records.find(
     (record) => record.type === "segment-summary" && record.segment === "m8",
   );
+  const m7Summary = records.find(
+    (record) => record.type === "segment-summary" && record.segment === "m7",
+  );
   if (
     !m1Summary?.green ||
     m1Summary.status !== "passed" ||
     m1Summary.assertions.failed !== 0 ||
     m1Summary.assertions.requiredUnimplemented !== 0 ||
     m1Summary.nonGreenCause !== null ||
+    !m7Summary?.green ||
+    m7Summary.assertions.total !== 2 ||
+    m7Summary.assertions.failed !== 0 ||
     !m8Summary?.green ||
     m8Summary.status !== "passed" ||
     m8Summary.assertions.total !== 5 ||
@@ -774,8 +1018,15 @@ try {
     m8Summary.nonGreenCause !== null
   ) {
     throw new Error(
-      `self-test did not produce honest M1/M8 green: ${JSON.stringify({ m1Summary, m8Summary })}`,
+      `self-test did not produce honest M1/M7/M8 green: ${JSON.stringify({ m1Summary, m7Summary, m8Summary })}`,
     );
+  }
+  if (
+    pollVotes.get("alice") !== "m7-option-b"
+    || pollVotes.get("bob") !== "m7-option-b"
+    || pollVotes.size !== 2
+  ) {
+    throw new Error(`M7 calibration did not preserve idempotent one-vote-per-user state: ${JSON.stringify([...pollVotes])}`);
   }
   const m8Supplemental = m8Summary.choreography.supplementalExternal;
   if (
@@ -796,7 +1047,7 @@ try {
   ) {
     throw new Error(`suite receipt digest was not bound at refusal time: ${JSON.stringify(m1Summary.suite)}`);
   }
-  for (const milestone of ["M1", "M8"]) {
+  for (const milestone of ["M1", "M7", "M8"]) {
     const events = observationRecords.filter((event) => event.milestone === milestone);
     if (
       !events.some((event) => (
@@ -848,6 +1099,8 @@ try {
       "m8",
       "--suite-status",
       suiteStatus,
+      "--setup-identity",
+      setupIdentity,
       "--adapter",
       failingAdapter,
       "--receipts",
@@ -865,6 +1118,17 @@ try {
     throw new Error(
       `deliberately stale M8 Insights did not fail closed (${failingResult.status ?? failingResult.signal})\n${failingResult.stdout}\n${failingResult.stderr}`,
     );
+  }
+  const missLines = failingResult.stdout
+    .split(/\r?\n/u)
+    .filter((line) => line.startsWith("STRUCTURED CHOREOGRAPHY MISS "));
+  if (
+    missLines.length !== 1
+    || missLines[0].length > 1_200
+    || failingResult.stdout.includes("STRUCTURED RECEIPT ")
+    || !missLines[0].includes('"outcomeClass":"application"')
+  ) {
+    throw new Error(`deliberate failure did not emit one bounded classified miss: ${failingResult.stdout}`);
   }
   const failingRecords = (await readFile(failingReceipts, "utf8"))
     .trim()
@@ -892,7 +1156,7 @@ try {
   }
 
   process.stdout.write(
-    `social-messenger choreography self-test: PASS (${records.filter((record) => record.type === "assertion").length} assertions, suite linkage startup-refused when missing, m1+m8 green; deliberate m8 failure rejected)\n`,
+    `social-messenger choreography self-test: PASS (${records.filter((record) => record.type === "assertion").length} assertions, suite/setup startup refusals, m1+m7+m8 green with idempotent retained vote state; DM/avatar split guarded; one compact deliberate-failure miss)\n`,
   );
 } finally {
   await new Promise((resolvePromise) => server.close(resolvePromise));

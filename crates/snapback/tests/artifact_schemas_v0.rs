@@ -77,8 +77,9 @@ use snapback::local::{
 use snapback::manifest::{
     ArtifactGeneration, AuthInput, AuthorityDescriptor, CLIENT_MUTATION_ACK_MAX_IDS,
     CTX_ANSWER_LEDGER_MAX_IDS, CapabilityManifest, CapabilityManifestLocalExt as _,
-    ConfigEntryDefinition, CronJobDefinition, CronSchedule, FunctionManifest, HandlerInput,
-    MutationAcknowledgementRequest, MutationAcknowledgementResponse, MutationPlan, MutationRequest,
+    ConfigEntryDefinition, CronJobDefinition, CronSchedule, FunctionDefinition, FunctionKind,
+    FunctionManifest, FunctionRuntime, HandlerInput, IbexModule, MutationAcknowledgementRequest,
+    MutationAcknowledgementResponse, MutationPlan, MutationRequest, PublicFunctionManifest,
     REPLAY_OPAQUE_ID_MAX_BYTES, REPLAY_OPAQUE_ID_PATTERN, SNAPBACK_SCHEMA_VERSION, SchemaManifest,
     SchemaManifestValidationExt as _, SettlementLane, SourceSpan,
     TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
@@ -570,6 +571,74 @@ fn assert_rejects(file: &str, value: &Value) {
         !validator.is_valid(value),
         "an out-of-contract value unexpectedly validates against {file}: {value}"
     );
+}
+
+#[test]
+fn serializer_produced_zero_value_envelope_validates_against_committed_schema() {
+    let function = FunctionDefinition::new(
+        "zeroFacts",
+        FunctionKind::Query,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: "globalThis.__snapbackHandlers = {};".to_owned(),
+            export: "zeroFacts".to_owned(),
+        }),
+    );
+    let projection = PublicFunctionManifest::from(FunctionManifest {
+        schema_version: "snapback.v1".to_owned(),
+        app_id: "serializer-fixture".to_owned(),
+        bundle_hash: Some("bundle-fixture".to_owned()),
+        inputs_hash: Some("inputs-fixture".to_owned()),
+        functions: vec![function],
+        ..FunctionManifest::default()
+    });
+    let args_schema = json!({ "properties": {}, "type": "object" });
+    let args_canonical =
+        snapback::api_envelope::canonicalize(&args_schema).expect("canonicalize operation schema");
+    let declaration = "export declare const zeroFacts: unknown;\n".to_owned();
+    let members = snapback::api_envelope::ApiEnvelopeMembersV1 {
+        operations: std::collections::BTreeMap::from([(
+            "fn:zeroFacts".to_owned(),
+            snapback::api_envelope::ApiEnvelopeOperationV1 {
+                name: "zeroFacts".to_owned(),
+                args_schema,
+            },
+        )]),
+        declarations: snapback::api_envelope::ApiEnvelopeDeclarationsV1 {
+            app_bindings: declaration.clone(),
+        },
+        member_digests: std::collections::BTreeMap::from([
+            (
+                snapback::api_envelope::operation_member_key("fn:zeroFacts"),
+                snapback::api_envelope::member_digest(&args_canonical),
+            ),
+            (
+                snapback::api_envelope::DECLARATION_MEMBER_KEY.to_owned(),
+                snapback::api_envelope::member_digest(&declaration),
+            ),
+        ]),
+    };
+
+    let composed = snapback::api_envelope::compose_api_envelope(&projection, &members, "sessions")
+        .expect("the Rust serializer composes its own envelope");
+    let envelope: Value =
+        serde_json::from_str(&composed.canonical).expect("serializer-produced envelope is JSON");
+    let function = &envelope["functions"]["functions"][0];
+    for field in [
+        "stream",
+        "sequences",
+        "publicInline",
+        "rqsEligible",
+        "authorityCreating",
+        "retainable",
+        "authorizationDependence",
+        "authorityProfileDependence",
+    ] {
+        assert!(
+            function.get(field).is_none(),
+            "the serializer must preserve its zero-value omission for {field}"
+        );
+    }
+    assert_validates("api.envelope.schema.json", &envelope);
 }
 
 #[test]

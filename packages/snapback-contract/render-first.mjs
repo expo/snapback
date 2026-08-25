@@ -31,6 +31,7 @@
 // partial-exports object and receives these functions before callers construct
 // a render-first surface.
 import * as snapbackContract from './index.mjs';
+import { isConnectivityFailureError } from './connectivity-failure.mjs';
 
 const disposedError = () => {
   const error = new Error('Render-first Snapback Contract surface was disposed before attach.');
@@ -267,13 +268,26 @@ export function createDeferredContractLinks({ queries = [], mutations = [], ephe
 }
 
 // Backoff policy: same shape All Aboard shipped with (1s doubling to a 15s
-// cap). Transient failures (server down, network) retry forever while the app
-// keeps presenting its bundled data; a structured contract diagnostic (stale
-// generated artifacts) is a build defect, not an outage — it rejects
-// `attached` immediately and does not retry. The app still paints: honest
-// failure surfaces beat a blocking boot screen either way (ENG-23727).
+// cap). Proven transport-connectivity failures retry forever while the app
+// keeps presenting its bundled data. Anything that produced an HTTP response,
+// or otherwise lacks connectivity provenance, is terminal — diagnostic codes
+// alone never opt an error into retry. The app still paints: honest failure
+// surfaces beat a blocking boot screen either way (ENG-23727).
 const RENDER_FIRST_BASE_DELAY_MS = 1_000;
 const RENDER_FIRST_MAX_DELAY_MS = 15_000;
+const QUERY_OFFLINE_UNAVAILABLE = 'SNAPBACK_QUERY_OFFLINE_UNAVAILABLE';
+
+// @ref LLP 0034#107-render-first-surface-mode-2026-07-09-eng-23736 — the Full
+// client turns a proven live-subscribe dispatch failure into this typed D4
+// refusal while retaining the dispatch provenance on its direct cause. This
+// adapter-only recognition must not widen the shared outbox classifier.
+const isRenderFirstConnectivityFailureError = (error) => (
+  isConnectivityFailureError(error)
+  || (
+    error?.code === QUERY_OFFLINE_UNAVAILABLE
+    && error?.cause?.fetchDispatchFailed === true
+  )
+);
 
 export function createRenderFirstSnapbackContractSurface(options = {}) {
   const {
@@ -374,7 +388,7 @@ export function createRenderFirstSnapbackContractSurface(options = {}) {
         return;
       } catch (error) {
         if (disposed) return;
-        if (error && typeof error === 'object' && error.diagnostic) {
+        if (!isRenderFirstConnectivityFailureError(error)) {
           rejectAttached(error);
           return;
         }

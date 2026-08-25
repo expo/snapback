@@ -55,3 +55,13 @@ execution counter remains zero. The retry predicate remains intentionally
 broad because the ordinary `/query/{name}` route is the fail-closed function
 auth gate; it cannot mint admin or session authority. The complete
 `host_ops_v0` integration file passes all 15 tests.
+
+## Follow-up (2026-08-25)
+
+The native `snapback run` request body now has a direct serialization unit
+test: no `--user` omits `userId`, while an explicit user still serializes the
+same `userId` string. Request construction uses a typed serializable carrier
+whose optional field is guarded by `skip_serializing_if = "Option::is_none"`,
+so a future refactor cannot silently restore explicit null body authority.
+The regression was confirmed fail-first with `userId: null` (`1 failed`, exit
+101), then passed with the omission guard (`1 passed`, exit 0).

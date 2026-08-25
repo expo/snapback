@@ -6,6 +6,7 @@ import importlib.util
 import os
 import tempfile
 import unittest
+from unittest import mock
 
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -97,6 +98,44 @@ def write_llp(root, name, *, doc_type="Explainer", status="Draft", body="## Cont
 
 
 class RefCheckLlpV2Test(unittest.TestCase):
+    def test_plain_text_status_is_reported_as_missing_metadata(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = write_llp(root, "0000-fixture.explainer.md")
+            with open(path, encoding="utf-8") as handle:
+                source = handle.read()
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write(source.replace("**Status:** Draft", "Status: Draft"))
+
+            report, _, _, doc_count = ref_check.check(root)
+
+            self.assertEqual(doc_count, 1)
+            self.assertIn(
+                "llp/0000-fixture.explainer.md: missing required metadata field **Status:**",
+                report.errors,
+            )
+
+    def test_one_unparseable_document_does_not_abort_the_corpus(self):
+        with tempfile.TemporaryDirectory() as root:
+            write_llp(root, "0000-bad.explainer.md", body="## Force parser failure\n")
+            write_llp(root, "0001-good.explainer.md")
+            original_md_headings = ref_check.md_headings
+
+            def fail_one_document(text):
+                if "Force parser failure" in text:
+                    raise ValueError("fixture parser failure")
+                return original_md_headings(text)
+
+            with mock.patch.object(ref_check, "md_headings", side_effect=fail_one_document):
+                report, _, _, doc_count = ref_check.check(root)
+
+            self.assertEqual(doc_count, 1)
+            self.assertTrue(any(
+                error.startswith("llp/0000-bad.explainer.md: could not parse LLP document")
+                and "fixture parser failure" in error
+                for error in report.errors
+            ))
+            self.assertFalse(any("0001-good" in error for error in report.errors))
+
     def test_overlay_relative_symlink_and_path_file_are_accepted(self):
         with tempfile.TemporaryDirectory() as root:
             write_llp(root, "0000-fixture.explainer.md", status="Active")

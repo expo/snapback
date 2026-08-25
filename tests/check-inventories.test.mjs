@@ -14,7 +14,10 @@ import { fileURLToPath } from 'node:url';
 
 import { generatedPublicationPathsOnDisk } from '../scripts/check-agent-safe-publication.mjs';
 import { auditDemoCatalog } from '../scripts/demo-catalog.mjs';
-import { runInventoryChecks } from '../scripts/check-inventories.mjs';
+import {
+  printInventoryCheckResult,
+  runInventoryChecks,
+} from '../scripts/check-inventories.mjs';
 import { auditScriptsTestInventory } from '../scripts/check-scripts-test-inventory.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -23,6 +26,29 @@ function write(path, value) {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, value);
 }
+
+test('check-inventories prints due GAP review warnings and remains green', () => {
+  // Pin the calendar boundary so this remains a stable integration fixture
+  // while still running the repository's real check-inventories audit path.
+  const result = runInventoryChecks({
+    root,
+    guideOptions: { gapReviewOptions: { today: '2026-08-25' } },
+  });
+  const stdout = [];
+  const stderr = [];
+  const status = printInventoryCheckResult(result, {
+    stdout: { write: (value) => stdout.push(value) },
+    stderr: { write: (value) => stderr.push(value) },
+  });
+  const output = `${stdout.join('')}${stderr.join('')}`;
+
+  assert.equal(status, 0, output);
+  assert.match(
+    output,
+    /\[check-inventories\] GAP REVIEW WARNING: row 'backend\.structured-stored-fields' expires within 7 days on 2026-08-25; owner: LLP 0115 CV-4b; pointer: issues\/20260727-backend-bakeoff-improvement-program\.md/u,
+  );
+  assert.match(output, /\[check-inventories\] PASS:/u);
+});
 
 test('fast inventory checker catches synthetic drift in every inventory class', () => {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-inventory-drift-'));

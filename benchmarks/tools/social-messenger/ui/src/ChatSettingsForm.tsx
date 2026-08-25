@@ -50,6 +50,9 @@ export interface ChatSettingsFormProps {
   onRemoveMember?: (id: string) => void;
   onPromoteMember?: (id: string) => void;
   onPressAddMember?: () => void;
+  /** Optional structurally-addressable candidates for an inline add-member control. */
+  addableMembers?: readonly ChatMemberItem[];
+  onAddMember?: (id: string) => void;
   onPressLeave?: () => void;
   /** Server-side rejection to surface (e.g. non-admin rename refused). */
   errorText?: string;
@@ -90,6 +93,8 @@ export function ChatSettingsForm({
   onRemoveMember,
   onPromoteMember,
   onPressAddMember,
+  addableMembers,
+  onAddMember,
   onPressLeave,
   errorText,
   testID = 'sm-chatsettings',
@@ -219,7 +224,13 @@ export function ChatSettingsForm({
             {members.length} {members.length === 1 ? 'member' : 'members'}
           </Text>
           {members.map((member) => (
-            <View key={member.id} style={styles.memberRow} testID="sm-chatsettings-member">
+            <View
+              accessibilityLabel={`Member ${member.name}`}
+              accessibilityValue={{ text: `${member.id}:${member.admin ? 'admin' : 'member'}` }}
+              key={member.id}
+              style={styles.memberRow}
+              testID="sm-chatsettings-member"
+            >
               <Pressable
                 accessibilityLabel={`Member ${member.name}`}
                 accessibilityRole="button"
@@ -266,6 +277,23 @@ export function ChatSettingsForm({
             >
               <Text style={styles.addMemberText}>＋ Add member</Text>
             </Pressable>
+          ) : null}
+          {canEdit && onAddMember && addableMembers && addableMembers.length > 0 ? (
+            <View style={styles.addCandidates}>
+              {addableMembers.map((member) => (
+                <Pressable
+                  accessibilityLabel={`Add ${member.name}`}
+                  accessibilityRole="button"
+                  accessibilityValue={{ text: member.id }}
+                  key={member.id}
+                  onPress={() => onAddMember(member.id)}
+                  style={styles.addMember}
+                  testID="sm-chatsettings-member-candidate"
+                >
+                  <Text style={styles.addMemberText}>＋ {member.name}</Text>
+                </Pressable>
+              ))}
+            </View>
           ) : null}
         </View>
       ) : null}
@@ -425,6 +453,9 @@ const styles = StyleSheet.create({
   },
   addMember: {
     paddingVertical: spacing.sm,
+  },
+  addCandidates: {
+    gap: spacing.xs,
   },
   addMemberText: {
     ...typeScale.body,

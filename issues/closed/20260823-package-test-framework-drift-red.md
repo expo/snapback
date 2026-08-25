@@ -104,3 +104,68 @@ the template moved the sessions data leg to `sessionClient.query(...)`.
 
 Red 3 remains owned by the separate codegen lane and is not part of this
 resolution. Red 4 was already fixed as recorded above.
+## Note (2026-08-25)
+
+The third inherited red, `familiar-dev-loop` failing in codegen while reading
+TypeScript node `kind`, was already fixed on this lane's base by the
+`ExportDeclaration.moduleSpecifier` guard in `9653d21d2`. This lane adds an
+owned-graph specifier-less re-export regression on the function builder graph
+(`defineGraphQuery` through a specifier-less barrel, resolved via
+`generateInProcess`) and confirms `familiar-dev-loop.test.mjs` passes with the
+lane's qualified shared runtime. (The framework-drift and application-auth-fixtures reds
+were resolved separately; see the Resolution above.)
+
+## Follow-up (2026-08-25 — `package-test-todo` lane)
+
+The next package-suite abort was receiver-spelling drift. The todo acceptance
+had moved its sessions data legs from `client.*` to `sessionClient.*`, while
+`package.test.mjs` still required `client.query(api.listTodos` and
+`client.mutate(api.createTodo`. The assertions now require the exact
+session-bound receiver and still name both generated operations, so the guard
+continues to prove the query and mutation the starter claims.
+
+The packed `prove` red was a second, independent acceptance-document drift.
+The todo starter was the lone first-party template still hand-authoring the
+legacy five-check `snapback.starter-acceptance.v1` receipt with
+`queryFunctionId`/`mutationFunctionId` keys. The verifier correctly requires
+the registered path ids `list-todos` and `create-todo`, so it reported both
+`SNAPBACK_VERIFY_COVERAGE_PATH_INCOMPLETE` diagnostics and
+`SNAPBACK_VERIFY_STARTER_ACCEPTANCE_FAILED`. Todo now uses the public
+`@expo/snapback-acceptance` declaration/runner like the other starters, derives
+its verify profile from that same declaration, and keeps the session-bound
+query, mutation, and observation assertions in application source. The shared
+runner's `bindingFor(app)` projection mints a supervised-dev loopback binding
+from `ready.serverUrl` without weakening session custody. A new checkout-local
+fresh scaffold passed `npm run prove` against the lane's prebuilt runtime: all
+five verifier stages and `todo-contract-live` passed.
+
+Template portfolio qualification now runs each packed scaffold's `prove` after
+generate and static acceptance. Its independent unit guard also carries the
+four Vite typecheck inputs (`@types/node`, `types`, `lib`, and the Vite client
+reference) for both Vite templates plus the CRUD
+`adminClient.liveQuery(api.projectDetail` spelling requested by the templates
+review.
+
+Continuing the sequential package suite exposed two more test-fixture drifts:
+the media and Expo-chat blocks dynamically imported generated API modules from
+no-install temporary scaffolds after those modules began importing their
+declared `@expo/snapback-client` dependency. Those assertions now inspect the
+same structured generated descriptors rather than requiring an undeclared
+fixture install, preserving the command/surface guards.
+
+The suite then reached a genuine product defect and the lane stopped as
+required. `buildRelease` rejects freshly generated application manifests at
+`snapback.v1` against the canonical target-level capability manifest at
+`snapback.v0`, reproducing independently as
+`SNAPBACK_DEPLOY_GENERATED_IDENTITY_MISMATCH`. The open follow-up is
+`issues/20260825-build-release-capability-schema-identity-mismatch.md`; release
+code was not changed in this lane.
+
+Final scoped evidence: the independent template-qualification test passed 4/4;
+todo static coherence passed; the package-test inventory passed with 354
+declared test files; and `ref-check --verbose` reported 311 LLP docs, 6,567
+refs, 12,179 files, and zero errors/unchecked refs. The final long package run
+reported 0 pass / 1 fail at the open release-build defect above. A defensive
+whole-inventory run also reported the unrelated inherited `guide-manifest` red
+for missing generated demo/Contract snippet sources; this lane did not touch
+those guide or demo surfaces.

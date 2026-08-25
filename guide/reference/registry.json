@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-symbol-registry.v1",
   "generatedBy": "scripts/generate-symbol-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:f2c3a9be1e7453bd9fdebb82e29147d2dfb66ca945b54fdbfaeda3f7b387dbc6",
+    "sourceDigest": "sha256:e1849f74944a9e3b1ce2a8bd2bb1652b6952217ebdf679a6ef162c8811d64aed",
     "publishedClosureVersion": "0.1.27",
     "packageVersions": {
       "@expo/snapback-cli": "0.1.27",
@@ -66525,21 +66525,21 @@
       "overloads": [],
       "members": [],
       "documentation": {
-        "text": "Connectivity classification shared by the M2 queue path and the offline\nbinding-receipt path: transport provenance (the fetch dispatch itself\nrejected — no HTTP status, diagnostic, or receipt), independent of the\nrejection's constructor; caller aborts/timeouts excluded.",
+        "text": "Connectivity classification shared by the M2 queue path and the offline\nbinding-receipt path: transport provenance (the fetch dispatch itself\nrejected — no HTTP status or receipt, and no diagnostic except the stamped\n`SNAPBACK_CLIENT_REFUSED` transport wrapper), independent of the rejection's\nconstructor; caller aborts/timeouts excluded.",
         "tags": []
       },
       "source": {
         "file": "packages/snapback-client/outbox-shared.d.mts",
-        "line": 159,
+        "line": 160,
         "column": 1,
-        "endLine": 159
+        "endLine": 160
       },
       "sources": [
         {
           "file": "packages/snapback-client/outbox-shared.d.mts",
-          "line": 159,
+          "line": 160,
           "column": 1,
-          "endLine": 159
+          "endLine": 160
         }
       ],
       "publicDeclaration": {

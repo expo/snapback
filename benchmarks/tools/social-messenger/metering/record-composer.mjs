@@ -156,6 +156,7 @@ export function composeRunRecord({ base, patch, expectedMilestones = [] }) {
   record.socialMessenger = {
     ...record.socialMessenger,
     instrumentVersion: patch.instrumentVersion,
+    typingObservationBoundaryVersion: patch.typingObservationBoundaryVersion,
     observabilityProtocol: patch.observabilityProtocol,
     milestones,
     termination: terminatedEarly

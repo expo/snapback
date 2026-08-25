@@ -58,12 +58,16 @@ Scheme `sm-<area>-<element>`:
 `sm-auth-email`, `sm-auth-password`, `sm-auth-submit`,
 `sm-settings-logout`,
 `sm-feed-tab-following`, `sm-feed-tab-global`, `sm-feed-item`,
+`sm-feed-author`, `sm-feed-author-avatar`, `sm-feed-media`,
 `sm-post-like`, `sm-post-repost`, `sm-post-reply`,
-`sm-compose-input`, `sm-compose-submit`,
+`sm-compose-input`, `sm-compose-submit`, `sm-compose-file`,
+`sm-compose-attach`, `sm-compose-attachment`, `sm-compose-attachment-media`,
 `sm-profile-follow`, `sm-profile-edit`, `sm-profile-save`, `sm-profile`,
+`sm-profile-heading`, `sm-profile-nav-feed`,
 `sm-profile-field-displayname`, `sm-profile-field-bio`,
 `sm-chats-item`, `sm-chats-unread`, `sm-convo-input`, `sm-convo-send`,
 `sm-convo-bubble`, `sm-convo-typing`, `sm-convo-receipt`,
+`sm-convo-sender-avatar`,
 `sm-convo-reaction`, `sm-convo-reaction-chip`, `sm-convo-react`,
 `sm-convo-quote`, `sm-convo-quote-preview`, `sm-convo-file`,
 `sm-convo-attach`, `sm-convo-media`,
@@ -72,9 +76,30 @@ Scheme `sm-<area>-<element>`:
 `sm-convo-error`, `sm-media-viewer-image`, `sm-media-viewer-video`,
 `sm-media-viewer-close`, `sm-chatsettings-color`,
 `sm-chatsettings-background`, `sm-chatsettings-background-preview`,
-`sm-chatsettings-disappearing`, `sm-search-input`, `sm-search-result`,
+`sm-chatsettings-disappearing`, `sm-chatsettings-member`,
+`sm-chatsettings-member-add`, `sm-chatsettings-member-candidate`,
+`sm-chatsettings-member-promote`, `sm-chatsettings-member-remove`,
+`sm-chatsettings-leave`, `sm-search-input`, `sm-search-result`,
 `sm-search-offline`,
-`sm-poll-option`, `sm-poll-tally`.
+`sm-poll-option`, `sm-poll-tally`, `sm-poll-total`.
+
+`sm-chats-item` exposes an exact stable `accessibilityValue.text` such as
+`dm:bob` or `group:design-gang`; choreography must not identify a direct chat
+from its display text.
+
+Identity values are lowercase fixture handles. `sm-feed-author-avatar` and,
+when the lane mounts it, `sm-convo-sender-avatar` expose the author/sender
+handle. The shared `MessageBubble` mounts the sender-avatar node only for
+`!isMine && showSender`; the default 1:1 layout leaves `showSender` false.
+Receipt values are
+exactly `pending`, `sent`, `delivered`, or `read`. Member rows expose
+`<handle>:member` or `<handle>:admin`; candidates expose `<handle>`. Poll
+options expose their stable option id and tally/total nodes expose decimal
+counts. These values, not visible copy or glyphs, are the choreography API.
+`sm-feed-repost-attribution` exposes the reposting actor handle through the
+same accessible value channel.
+`sm-feed-media` exposes `image` or `video`; video is a contracted poster/play
+surface because the pure React Native kit intentionally does not own a player.
 
 ### M8 UI-kit additions
 
@@ -112,8 +137,33 @@ The P2 choreography hardening also freezes these accessible-state semantics:
   `data-value`, a native form value, or accessible value text. The values are
   `off`, `24h`, and `7d` (the fixture's shortened-window profile changes
   duration, not the option values).
-- `sm-convo-file` is a file input; `sm-convo-attach` is the file-chooser
-  fallback. `sm-convo-media` contains the real rendered `img` or `video`.
+- `sm-convo-file` is an optional app-shell-owned web file input;
+  `sm-convo-attach` is the cross-platform kit-owned file-chooser trigger and
+  is sufficient when it opens a chooser. `sm-convo-media` contains the real
+  rendered `img` or `video`.
+- `sm-compose-file` is the optional app-shell-owned web post-composer file
+  input. The React Native kit intentionally cannot own an HTML input and
+  instead mounts `sm-compose-attach`, which is sufficient when it opens a
+  chooser. Each `sm-compose-attachment` exposes `image` or
+  `video` as its semantic value, and `sm-feed-media` contains the real
+  rendered `img` or `video` observed by the other client.
+- `sm-feed-author-avatar` and any rendered `sm-convo-sender-avatar` expose the
+  stable actor identity as accessible value text. The latter is conditional
+  on the chosen bubble layout; absence on a default 1:1 bubble is not a
+  product failure. Display-name text and image glyphs are not identity
+  evidence.
+- `sm-convo-receipt` exposes exactly `pending`, `sent`, `delivered`, or `read`
+  as accessible value text. Group messages expose the already-aggregated
+  slowest-recipient state through the same token.
+- Each `sm-chatsettings-member` exposes `<actor-id>:<member|admin>` as its
+  accessible value. Candidate/add/promote/remove/leave controls use the
+  registered IDs above; the lane remains responsible for server authority.
+- Every profile view exposes `sm-profile-heading` and
+  `sm-profile-nav-feed`. The first is the display-name heading independent of
+  component order; the second returns to a surface containing feed tabs.
+- Every `sm-poll-option` exposes its stable option ID as accessible value,
+  selected/busy state as semantic accessibility state, and a child
+  `sm-poll-tally` whose accessible value is the decimal count.
 - `sm-convo-react`, `sm-convo-edit`, and `sm-convo-delete` are the message
   actions; reaction choices use `sm-convo-reaction`, and visible aggregate
   chips use `sm-convo-reaction-chip`.
@@ -121,18 +171,28 @@ The P2 choreography hardening also freezes these accessible-state semantics:
   `sm-convo-quote-preview` is the separately pressable quoted excerpt that
   reveals its source message.
 - View-once uses `sm-convo-viewonce-toggle`, `sm-convo-viewonce`, the media
-  viewer IDs, and a consumed/denied accessible state or `sm-convo-error`.
+  viewer IDs, exact `unopened`/`opened` accessible values, and
+  `sm-convo-error` for server refusal.
 
 ## Versioning
 
-The choreography subdirectory is `0.3.3-m8` and the UI kit remains
-`0.3.1-m8`. The `0.3.3-m8` migration requires suite-status linkage before
+The choreography subdirectory is `0.3.4-m8` and the UI kit is
+`0.3.2-m8`. The coordinated `0.3.3-m8` instrument migration required
+suite-status and setup-identity linkage before
 startup and adds the hash-linked D0.6 run-record observations while retaining
 the W2 native-usage channel and extension version; the meter additionally
 hash-verifies typed observation and suite-status sidecars. The earlier patch series separates
-the per-message Reply action from the quoted-excerpt jump selector, including
-migration of the kit's quoted-excerpt default. The choreography's P2 hardening
-history is retained in its README. Other P1 artifacts remain at their existing
+the per-message Reply action from the quoted-excerpt jump selector. UI
+`0.3.2-m8` adds the media, actor, receipt, membership, profile-layout, and M7
+poll semantic vocabulary without adding data-layer assumptions. The
+choreography's P2 hardening
+history is retained in its README. Choreography `0.3.4-m8` is the material
+typing-boundary correction: it stamps M3 boundary v2 in assertion metadata,
+receipts, and run records; retained `0.3.3-m8` observations remain v1 and are
+not comparable or aggregatable with v2. It also separates required live DM
+delivery from conditional avatar identity, makes removed-member cutoff wait
+for an ordered progress witness, and assigns distinct actor/option vote pairs
+across all M7 retry attempts. Other P1 artifacts remain at their existing
 pre-freeze versions.
 The P3 freeze bumps the complete instrument to `1.0.0` and pins hashes in the
 brief.

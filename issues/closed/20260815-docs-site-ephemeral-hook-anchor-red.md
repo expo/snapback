@@ -27,3 +27,18 @@ heading), then re-run `node scripts/generate-docs-site.mjs` to confirm the
 site validates. Consider teaching the guide link checker to resolve
 in-corpus heading anchors so this class fails at `check-guide` time instead
 of at site-publish time.
+
+## Resolution (2026-08-25)
+
+Commit `ee34395b5` renamed “Find the React hook from ephemeral vocabulary” to
+“Stop publishing when activity goes idle” while adding the activity-presence
+helper; the two inbound fragments were not retargeted. Both links now point to
+the current heading.
+
+The docs-site heading slugger is now shared from `scripts/guide-lib.mjs`, and
+`checkLinks` resolves same-page and in-corpus Markdown fragments against the
+actual rendered heading/explicit-anchor set. The fail-first unit case proved
+the old checker accepted a missing fragment. Enabling the check also surfaced
+two older supervised-Expo links whose target heading gained an “Appendix”
+prefix; both were trivially retargeted. Guide manifests, section/whole flats,
+reference projections, and the diagnostics registry were regenerated.

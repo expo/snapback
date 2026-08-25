@@ -6,6 +6,8 @@ import { palette, radii, spacing, typeScale } from './tokens';
 
 export interface FeedCardProps {
   authorName: string;
+  /** Stable author identity exposed on the avatar (usually the handle). */
+  authorIdentity?: string;
   /** Handle without the leading @ (the kit renders the @). */
   authorHandle?: string;
   authorAvatarUri?: string;
@@ -20,6 +22,8 @@ export interface FeedCardProps {
   videoPosterUri?: string;
   /** "Reposted by {display name}" attribution line (brief M2). */
   repostedByName?: string;
+  /** Stable identity of the reposting actor. */
+  repostedByIdentity?: string;
   likeCount: number;
   /** Whether the viewer has liked this post. */
   liked: boolean;
@@ -50,6 +54,7 @@ function mediaBlock(props: FeedCardProps): React.JSX.Element | null {
       <Pressable
         accessibilityLabel="Video"
         accessibilityRole="imagebutton"
+        accessibilityValue={{ text: 'video' }}
         onPress={onPressMedia}
         style={styles.media}
         testID="sm-feed-media"
@@ -71,6 +76,7 @@ function mediaBlock(props: FeedCardProps): React.JSX.Element | null {
       <Pressable
         accessibilityLabel={`${imageUris.length} ${imageUris.length === 1 ? 'image' : 'images'}`}
         accessibilityRole="imagebutton"
+        accessibilityValue={{ text: 'image' }}
         onPress={onPressMedia}
         style={[styles.media, styles.imageGrid]}
         testID="sm-feed-media"
@@ -132,11 +138,13 @@ function Action({
 export function FeedCard(props: FeedCardProps): React.JSX.Element {
   const {
     authorName,
+    authorIdentity,
     authorHandle,
     authorAvatarUri,
     timestamp,
     text,
     repostedByName,
+    repostedByIdentity,
     likeCount,
     liked,
     repostCount,
@@ -159,13 +167,23 @@ export function FeedCard(props: FeedCardProps): React.JSX.Element {
       testID={testID}
     >
       {repostedByName ? (
-        <Text style={styles.repostAttribution} testID="sm-feed-repost-attribution">
+        <Text
+          accessibilityValue={repostedByIdentity ? { text: repostedByIdentity } : undefined}
+          style={styles.repostAttribution}
+          testID="sm-feed-repost-attribution"
+        >
           ↻ Reposted by {repostedByName}
         </Text>
       ) : null}
       <View style={styles.row}>
         <Pressable accessibilityRole="button" onPress={onPressAuthor} testID="sm-feed-author">
-          <Avatar label={authorName} size={40} {...(authorAvatarUri ? { uri: authorAvatarUri } : {})} />
+          <Avatar
+            identity={authorIdentity ?? authorHandle}
+            label={authorName}
+            size={40}
+            testID="sm-feed-author-avatar"
+            {...(authorAvatarUri ? { uri: authorAvatarUri } : {})}
+          />
         </Pressable>
         <View style={styles.body}>
           <View style={styles.headerRow}>

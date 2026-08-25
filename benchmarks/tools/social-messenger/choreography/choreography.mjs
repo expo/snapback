@@ -14,12 +14,17 @@ import {
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { performance } from "node:perf_hooks";
+import { createRequire } from "node:module";
 
 import { ObservationWriter } from "../metering/observations.mjs";
+import { loadSetupIdentity, verifySetupToolchain } from "./setup-identity.mjs";
 
-const VERSION = "0.3.3-m8";
+const VERSION = "0.3.4-m8";
+const TYPING_OBSERVATION_BOUNDARY_VERSION = "v2";
+const REQUIRE = createRequire(import.meta.url);
 const SETTLEMENT_WAITS = new AsyncLocalStorage();
-const SEGMENTS = ["m1", "m2", "m3", "m4", "m5", "m6", "m8"];
+const CONTINUOUS_SEGMENTS = ["m1", "m2", "m3", "m4", "m5", "m6", "m8"];
+const SEGMENTS = [...CONTINUOUS_SEGMENTS, "m7"];
 const SIMULATOR_IDS = {
   m6: "ios-simulator-m6",
   m8: "ios-simulator-m8",
@@ -39,6 +44,9 @@ const DEFAULT_ADAPTER = {
     settings: "/settings",
     search: "/search",
     insights: "/insights",
+    conversation: "/conversation/{handle}",
+    groupConversation: "/conversation/group/{group}",
+    groupSettings: "/conversation/group/{group}/settings",
   },
   fixtures: {
     directory: DEFAULT_FIXTURES_DIR,
@@ -48,6 +56,9 @@ const DEFAULT_ADAPTER = {
     groupTitle: "Weekend Plans",
     searchToken: "coffee",
     searchExpected: "Coffee after work?",
+    pollOptionId: "m7-option-a",
+    pollAlternateOptionId: "m7-option-b",
+    addedMemberHandle: "dave",
   },
   disappearing: {
     optionValue: "24h",
@@ -65,15 +76,25 @@ const CONTRACT_TEST_IDS = new Set([
   "sm-feed-tab-following",
   "sm-feed-tab-global",
   "sm-feed-item",
+  "sm-feed-author",
+  "sm-feed-author-avatar",
+  "sm-feed-media",
+  "sm-feed-repost-attribution",
   "sm-post-like",
   "sm-post-repost",
   "sm-post-reply",
   "sm-compose-input",
   "sm-compose-submit",
+  "sm-compose-file",
+  "sm-compose-attach",
+  "sm-compose-attachment",
+  "sm-compose-attachment-media",
   "sm-profile-follow",
   "sm-profile-edit",
   "sm-profile-save",
   "sm-profile",
+  "sm-profile-heading",
+  "sm-profile-nav-feed",
   "sm-profile-field-displayname",
   "sm-profile-field-bio",
   "sm-chats-item",
@@ -83,6 +104,7 @@ const CONTRACT_TEST_IDS = new Set([
   "sm-convo-bubble",
   "sm-convo-typing",
   "sm-convo-receipt",
+  "sm-convo-sender-avatar",
   "sm-convo-reaction",
   "sm-convo-reaction-chip",
   "sm-convo-react",
@@ -105,89 +127,27 @@ const CONTRACT_TEST_IDS = new Set([
   "sm-chatsettings-background",
   "sm-chatsettings-background-preview",
   "sm-chatsettings-disappearing",
+  "sm-chatsettings-member",
+  "sm-chatsettings-member-add",
+  "sm-chatsettings-member-candidate",
+  "sm-chatsettings-member-promote",
+  "sm-chatsettings-member-remove",
+  "sm-chatsettings-leave",
   "sm-search-input",
   "sm-search-result",
   "sm-search-offline",
   "sm-insights-total-likes-received",
   "sm-poll-option",
   "sm-poll-tally",
+  "sm-poll-total",
 ]);
 
-// Checks the frozen contract cannot drive honestly. Every entry is optional;
-// a required unimplemented assertion is a structural green ceiling.
-export const UNIMPLEMENTED_ASSERTIONS = Object.freeze([
-  {
-    segment: "m2",
-    assertion: "feed-image-post-live-update",
-    required: false,
-    bestOf: 3,
-    reason:
-      "The frozen contract exposes no compose media-picker test ID; sm-compose-input is text-only, so image-post live delivery cannot be driven honestly.",
-  },
-  {
-    segment: "m2",
-    assertion: "feed-video-post-live-update",
-    required: false,
-    bestOf: 3,
-    reason:
-      "The frozen contract exposes no compose media-picker test ID; sm-compose-input is text-only, so video-post live delivery cannot be driven honestly.",
-  },
-  {
-    segment: "m3",
-    assertion: "dm-live-messages-and-sender-avatar",
-    required: false,
-    bestOf: 3,
-    reason:
-      "The frozen contract exposes no sender-avatar test ID. Live DM text is asserted separately by dm-live-messages via sm-convo-bubble; glyph or <img> inference is forbidden.",
-  },
-  {
-    segment: "m3",
-    assertion: "receipt-sent-delivered-read-transitions",
-    required: false,
-    bestOf: 3,
-    reason:
-      "sm-convo-receipt identifies the element, but the contract does not pin an accessible sent/delivered/read state token; glyph/color inference is forbidden.",
-  },
-  {
-    segment: "m3",
-    assertion: "group-receipt-waits-for-slowest-member",
-    required: false,
-    bestOf: 3,
-    reason:
-      "The frozen contract exposes no group-member lifecycle controls or a semantic aggregate-receipt state token.",
-  },
-  {
-    segment: "m3",
-    assertion: "removed-member-live-cutoff-and-retained-history",
-    required: false,
-    bestOf: 3,
-    reason:
-      "The frozen contract exposes no group-member add/remove controls; cutoff and retained-history cannot be driven honestly.",
-  },
-]);
-
-function unimplementedSpec(segment, assertion) {
-  const spec = UNIMPLEMENTED_ASSERTIONS.find(
-    (item) => item.segment === segment && item.assertion === assertion,
-  );
-  if (!spec) {
-    throw new Error(`no unimplemented assertion spec for ${segment}/${assertion}`);
-  }
-  return spec;
-}
-
-async function emitUnimplemented(ctx, segment, assertion) {
-  const spec = unimplementedSpec(segment, assertion);
-  return ctx.check(segment, assertion, {
-    implemented: false,
-    required: spec.required,
-    bestOf: spec.bestOf ?? 1,
-    reason: spec.reason,
-  });
-}
+export const UNIMPLEMENTED_ASSERTIONS = Object.freeze([]);
 
 function usage() {
-  return `Usage: node choreography.mjs [all|m1|m2|m3|m4|m5|m6|m8|m1,m3,...] [options]
+  return `Usage: node choreography.mjs [all|m1|m2|m3|m4|m5|m6|m8|m1,m3,...|m7] [options]
+  --setup-identity <path>
+                         required structured setup identity
 
 Options:
   --browser <name>       chromium, firefox, or webkit (default: chromium)
@@ -219,10 +179,13 @@ function takeValue(argv, index, flag) {
 }
 
 function parseSegments(value) {
-  if (!value || value === "all") return [...SEGMENTS];
+  if (!value || value === "all") return [...CONTINUOUS_SEGMENTS];
   const requested = value.split(",").filter(Boolean);
   if (requested.length === 0 || requested.some((item) => !SEGMENTS.includes(item))) {
     throw new Error(`invalid segment selection: ${value}`);
+  }
+  if (requested.includes("m7") && requested.length !== 1) {
+    throw new Error("m7 is a fresh-session segment and cannot share a choreography invocation");
   }
   return [...new Set(requested)];
 }
@@ -235,6 +198,7 @@ function parseArgs(argv) {
     observationsPath: process.env.CHOREO_OBSERVATIONS ?? null,
     laneRunId: process.env.CHOREO_LANE_RUN_ID ?? null,
     suiteStatusPath: process.env.CHOREO_SUITE_STATUS ?? null,
+    setupIdentityPath: process.env.CHOREO_SETUP_IDENTITY ?? null,
     adapterPath: process.env.CHOREO_ADAPTER ?? null,
     simulatorStatusPath: process.env.CHOREO_SIMULATOR_STATUS ?? null,
     timeoutMs: Number(process.env.CHOREO_TIMEOUT_MS ?? 10_000),
@@ -262,6 +226,9 @@ function parseArgs(argv) {
       index += 1;
     } else if (arg === "--suite-status") {
       options.suiteStatusPath = takeValue(argv, index, arg);
+      index += 1;
+    } else if (arg === "--setup-identity") {
+      options.setupIdentityPath = takeValue(argv, index, arg);
       index += 1;
     } else if (arg === "--adapter") {
       options.adapterPath = takeValue(argv, index, arg);
@@ -299,6 +266,7 @@ function parseArgs(argv) {
   if (options.suiteStatusPath) {
     options.suiteStatusPath = resolve(options.suiteStatusPath);
   }
+  if (options.setupIdentityPath) options.setupIdentityPath = resolve(options.setupIdentityPath);
   if (options.adapterPath) options.adapterPath = resolve(options.adapterPath);
   if (options.simulatorStatusPath) {
     options.simulatorStatusPath = resolve(options.simulatorStatusPath);
@@ -318,6 +286,33 @@ function errorText(error) {
   return text.replaceAll(/\s+/g, " ").slice(0, 600);
 }
 
+function writeOutcomeLine(stream, value) {
+  stream.write(`CHOREOGRAPHY OUTCOME ${JSON.stringify({
+    schemaVersion: "social-messenger.choreography-outcome.v1",
+    ...value,
+  })}\n`);
+}
+
+const OUTCOME_CLASSES = new Set(["application", "platform", "setup", "instrument"]);
+
+function errorOutcomeClass(error, fallback = "application") {
+  const value = error && typeof error === "object" ? error.outcomeClass : null;
+  return OUTCOME_CLASSES.has(value) ? value : fallback;
+}
+
+export function classifyOutcome({ green, suitePass, suiteOutcomeClass, assertionReceipts }) {
+  if (green) return null;
+  if (suitePass === false) return suiteOutcomeClass;
+  const classes = assertionReceipts
+    .filter((receipt) => receipt.status === "failed")
+    .map((receipt) => receipt.outcomeClass)
+    .filter((value) => OUTCOME_CLASSES.has(value));
+  for (const value of ["instrument", "setup", "platform", "application"]) {
+    if (classes.includes(value)) return value;
+  }
+  return "instrument";
+}
+
 function rounded(value) {
   return Math.round(value * 10) / 10;
 }
@@ -333,7 +328,6 @@ async function createReceiptWriter(path, runId) {
       ...receipt,
     };
     const line = JSON.stringify(complete);
-    process.stdout.write(`STRUCTURED RECEIPT ${line}\n`);
     await appendFile(path, `${line}\n`, "utf8");
     return complete;
   };
@@ -347,7 +341,7 @@ async function loadSuiteStatuses(path, requiredSegments) {
   }
   const parsed = JSON.parse(await readFile(path, "utf8"));
   if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
-    throw new Error("suite-status input must be an object keyed by m1..m6 or m8");
+    throw new Error("suite-status input must be an object keyed by m1..m8");
   }
   for (const [segment, status] of Object.entries(parsed)) {
     if (!SEGMENTS.includes(segment)) {
@@ -365,6 +359,12 @@ async function loadSuiteStatuses(path, requiredSegments) {
     }
     if (status.pass && (typeof status.receipt !== "string" || status.receipt.length === 0)) {
       throw new Error(`suite-status ${segment}.receipt must name evidence when pass is true`);
+    }
+    if (!status.pass && !OUTCOME_CLASSES.has(status.outcomeClass)) {
+      throw new Error(`suite-status ${segment}.outcomeClass is required when pass is false`);
+    }
+    if (status.pass && status.outcomeClass != null) {
+      throw new Error(`suite-status ${segment}.outcomeClass must be absent when pass is true`);
     }
     let receiptSha256 = null;
     if (typeof status.receipt === "string" && status.receipt.length > 0) {
@@ -397,7 +397,7 @@ async function loadSuiteStatuses(path, requiredSegments) {
         .update(await readFile(canonicalReceiptPath))
         .digest("hex")}`;
     }
-    parsed[segment] = { ...status, receiptSha256 };
+    parsed[segment] = { ...status, outcomeClass: status.outcomeClass ?? null, receiptSha256 };
   }
   for (const segment of requiredSegments) {
     if (!Object.hasOwn(parsed, segment)) {
@@ -441,10 +441,23 @@ async function loadAdapter(path) {
       throw new Error(`lane adapter routes.${name} must be an absolute URL path`);
     }
   }
-  for (const name of ["image", "background", "video", "groupTitle", "searchToken", "searchExpected"]) {
+  for (const name of [
+    "image",
+    "background",
+    "video",
+    "groupTitle",
+    "searchToken",
+    "searchExpected",
+    "pollOptionId",
+    "pollAlternateOptionId",
+    "addedMemberHandle",
+  ]) {
     if (typeof adapter.fixtures[name] !== "string" || adapter.fixtures[name].length === 0) {
       throw new Error(`lane adapter fixtures.${name} must be a non-empty string`);
     }
+  }
+  if (adapter.fixtures.pollOptionId === adapter.fixtures.pollAlternateOptionId) {
+    throw new Error("lane adapter poll option fixture IDs must be distinct");
   }
   if (
     typeof adapter.disappearing.optionValue !== "string" ||
@@ -556,13 +569,24 @@ async function loadSimulatorStatuses(path) {
   return statuses;
 }
 
-function createCheckRunner(emit, observations) {
+export function createCheckRunner(emit, observations, { receiptPath, observationsPath }) {
   const bySegment = new Map();
+  let resetAttempt = async () => {};
+
+  function setResetAttempt(value) {
+    resetAttempt = value;
+  }
 
   async function check(
     segment,
     assertion,
-    { bestOf = 1, implemented = true, required = true, reason = null } = {},
+    {
+      bestOf = 1,
+      implemented = true,
+      required = true,
+      reason = null,
+      typingObservationBoundaryVersion = null,
+    } = {},
     attemptFn = null,
   ) {
     if (![1, 3].includes(bestOf)) {
@@ -607,14 +631,26 @@ function createCheckRunner(emit, observations) {
             settlementWaitMs: mergedIntervalDuration(settlementIntervals),
             metrics: {},
             error: errorText(error),
+            outcomeClass: errorOutcomeClass(error),
           });
         }
+        if (!timings.at(-1).pass && attempt < bestOf) await resetAttempt();
       }
     }
 
     successful.sort((left, right) => left.timing.durationMs - right.timing.durationMs);
     const selected = successful[0] ?? null;
     const status = !implemented ? "skipped" : selected ? "passed" : "failed";
+    const failedClasses = timings
+      .filter((timing) => !timing.pass)
+      .map((timing) => timing.outcomeClass)
+      .filter(Boolean);
+    const assertionOutcomeClass = status === "passed"
+      ? null
+      : status === "skipped"
+        ? "instrument"
+        : ["instrument", "setup", "platform", "application"]
+            .find((value) => failedClasses.includes(value)) ?? "application";
     const receipt = await emit({
       type: "assertion",
       segment,
@@ -623,14 +659,38 @@ function createCheckRunner(emit, observations) {
       required,
       status,
       pass: implemented ? selected !== null : null,
+      outcomeClass: assertionOutcomeClass,
       timings,
       bestOf,
       details: {
         selection: bestOf === 3 ? "fastest passing attempt; all three retained" : "only attempt",
         selectedAttempt: selected?.timing.attempt ?? null,
         reason,
+        ...(typingObservationBoundaryVersion === null
+          ? {}
+          : { typingObservationBoundaryVersion }),
       },
+      ...(typingObservationBoundaryVersion === null
+        ? {}
+        : { typingObservationBoundaryVersion }),
     });
+    if (status === "failed") {
+      const miss = {
+        schemaVersion: "social-messenger.choreography-miss.v1",
+        outcomeClass: assertionOutcomeClass,
+        segment,
+        assertion,
+        attempts: timings.map((timing) => ({
+          attempt: timing.attempt,
+          durationMs: timing.durationMs,
+          settlementWaitMs: timing.settlementWaitMs,
+          error: (timing.error ?? "assertion returned pass:false").slice(0, 120),
+        })),
+        receipts: receiptPath.slice(-120),
+        observations: observationsPath.slice(-120),
+      };
+      process.stdout.write(`STRUCTURED CHOREOGRAPHY MISS ${JSON.stringify(miss)}\n`);
+    }
     for (const timing of timings) {
       await observations.assertionWait(segment.toUpperCase(), {
         owner: "choreography",
@@ -646,7 +706,7 @@ function createCheckRunner(emit, observations) {
     return { ...receipt, data: selected?.data };
   }
 
-  return { check, bySegment };
+  return { check, bySegment, setResetAttempt };
 }
 
 function mergedIntervalDuration(intervals) {
@@ -723,6 +783,32 @@ async function observableState(locator) {
       .map((name) => element.getAttribute(name) ?? "")
       .join("|");
     return `${element.textContent ?? ""}|${attributes}`.replace(/\s+/g, " ").trim();
+  });
+}
+
+async function semanticValue(locator) {
+  return locator.evaluate((element) =>
+    element.getAttribute("aria-valuetext")
+    ?? element.getAttribute("data-value")
+    ?? element.getAttribute("data-state")
+    ?? element.getAttribute("aria-label")
+    ?? "",
+  );
+}
+
+async function locatorWithSemanticValue(locator, expected, timeoutMs, description) {
+  return settlementWait(async () => {
+    const started = performance.now();
+    while (performance.now() - started <= timeoutMs) {
+      for (let index = 0; index < (await locator.count()); index += 1) {
+        const candidate = locator.nth(index);
+        if (await candidate.isVisible() && (await semanticValue(candidate)) === expected) {
+          return candidate;
+        }
+      }
+      await new Promise((resolvePromise) => setTimeout(resolvePromise, 50));
+    }
+    throw new Error(`${description} did not expose semantic value ${expected} within ${timeoutMs}ms`);
   });
 }
 
@@ -825,29 +911,32 @@ async function openFollowingFeed(page, timeoutMs, { requireItem = true } = {}) {
   }
 }
 
-function isViewerRepostAttribution(text, viewer = "bob") {
-  return new RegExp(`reposted\\s+by\\s+${viewer}`, "i").test(text);
+async function feedProjectionState(page, postText, viewer = "bob") {
+  const cards = testId(page, "sm-feed-item").filter({ hasText: postText });
+  let direct = false;
+  let viewerRepost = false;
+  let total = 0;
+  for (let index = 0; index < (await cards.count()); index += 1) {
+    const card = cards.nth(index);
+    if (!(await card.isVisible())) continue;
+    total += 1;
+    const attribution = testId(card, "sm-feed-repost-attribution");
+    if ((await attribution.count()) === 0) {
+      direct = true;
+    } else if ((await semanticValue(attribution.first())) === viewer) {
+      viewerRepost = true;
+    }
+  }
+  return { direct, viewerRepost, total };
 }
 
-function hasDirectFollowProjection(texts, postText, viewer = "bob") {
-  return texts.some((text) => text.includes(postText) && !isViewerRepostAttribution(text, viewer));
-}
-
-function hasViewerRepostAttribution(texts, postText, viewer = "bob") {
-  return texts.some((text) => text.includes(postText) && isViewerRepostAttribution(text, viewer));
-}
-
-async function feedItemTexts(page) {
-  return visibleTexts(testId(page, "sm-feed-item"));
-}
-
-async function waitForFeedPredicate(page, tabId, predicate, timeoutMs, description) {
+async function waitForFeedProjection(page, tabId, postText, predicate, timeoutMs, description) {
   await clickVisible(testId(page, tabId), timeoutMs);
   return waitForValue(
     testId(page, "sm-feed-item"),
     async () => {
-      const texts = await feedItemTexts(page);
-      return { matched: predicate(texts), value: texts };
+      const value = await feedProjectionState(page, postText);
+      return { matched: predicate(value), value };
     },
     timeoutMs,
     description,
@@ -868,24 +957,53 @@ async function composeTextPost(page, text, timeoutMs) {
   return card;
 }
 
-async function openConversation(page, counterpart, timeoutMs) {
-  const chat = testId(page, "sm-chats-item")
-    .filter({ hasText: new RegExp(counterpart, "i") })
-    .first();
-  await waitForLocator(chat, { state: "visible", timeout: timeoutMs });
-  await chat.click();
-  await waitForLocator(testId(page, "sm-convo-input"), { state: "visible", timeout: timeoutMs });
+async function composeMediaPost(ctx, kind, attempt) {
+  await Promise.all([
+    openGlobalFeed(ctx.alicePage, ctx.timeoutMs),
+    openGlobalFeed(ctx.bobPage, ctx.timeoutMs),
+  ]);
+  const caption = `choreo-${ctx.runId}-m2-${kind}-${attempt}`;
+  await setFileThroughControl(
+    ctx.alicePage,
+    "sm-compose-file",
+    "sm-compose-attach",
+    fixturePath(ctx, kind),
+    ctx.timeoutMs,
+  );
+  const attachment = await locatorWithSemanticValue(
+    testId(ctx.alicePage, "sm-compose-attachment"),
+    kind,
+    ctx.timeoutMs,
+    `composer ${kind} attachment`,
+  );
+  await waitForLoadedMedia(testId(attachment, "sm-compose-attachment-media"), "image", ctx.timeoutMs);
+  await testId(ctx.alicePage, "sm-compose-input").fill(caption);
+  const started = performance.now();
+  await testId(ctx.alicePage, "sm-compose-submit").click();
+  const remoteCard = testId(ctx.bobPage, "sm-feed-item").filter({ hasText: caption }).first();
+  await waitForLocator(remoteCard, { state: "visible", timeout: ctx.timeoutMs });
+  const remoteMedia = await locatorWithSemanticValue(
+    testId(remoteCard, "sm-feed-media"),
+    kind,
+    ctx.timeoutMs,
+    `remote ${kind} feed media`,
+  );
+  if (kind === "image") await waitForLoadedMedia(remoteMedia, "image", ctx.timeoutMs);
+  return {
+    metrics: { visibleMs: rounded(performance.now() - started) },
+    note: `structural ${kind} attachment and two-client feed delivery`,
+  };
 }
 
 async function openConversationFromAnySurface(ctx, page, counterpart) {
-  if (await testId(page, "sm-convo-input").isVisible()) return;
-  if (!(await testId(page, "sm-chats-item").first().isVisible())) {
-    await page.goto(ctx.baseUrl, {
-      waitUntil: "domcontentloaded",
-      timeout: ctx.timeoutMs,
-    });
-  }
-  await openConversation(page, counterpart, ctx.timeoutMs);
+  await page.goto(routeUrl(ctx, "conversation", { handle: counterpart.toLowerCase() }), {
+    waitUntil: "domcontentloaded",
+    timeout: ctx.timeoutMs,
+  });
+  await waitForLocator(testId(page, "sm-convo-input"), {
+    state: "visible",
+    timeout: ctx.timeoutMs,
+  });
 }
 
 async function openAliceBobConversation(ctx) {
@@ -893,6 +1011,28 @@ async function openAliceBobConversation(ctx) {
     openConversationFromAnySurface(ctx, ctx.alicePage, "Bob"),
     openConversationFromAnySurface(ctx, ctx.bobPage, "Alice"),
   ]);
+}
+
+async function openGroupConversation(ctx, page) {
+  await page.goto(
+    routeUrl(ctx, "groupConversation", { group: ctx.adapter.fixtures.groupTitle }),
+    { waitUntil: "domcontentloaded", timeout: ctx.timeoutMs },
+  );
+  await waitForLocator(testId(page, "sm-convo-input"), {
+    state: "visible",
+    timeout: ctx.timeoutMs,
+  });
+}
+
+async function openGroupSettings(ctx, page) {
+  await page.goto(
+    routeUrl(ctx, "groupSettings", { group: ctx.adapter.fixtures.groupTitle }),
+    { waitUntil: "domcontentloaded", timeout: ctx.timeoutMs },
+  );
+  await waitForLocator(testId(page, "sm-chatsettings-member").first(), {
+    state: "visible",
+    timeout: ctx.timeoutMs,
+  });
 }
 
 async function sendConversationText(page, text, timeoutMs) {
@@ -1050,9 +1190,18 @@ async function m1(ctx) {
         ctx.timeoutMs,
         "Bob's live Alice profile",
       );
+      const heading = testId(ctx.bobPage, "sm-profile-heading");
+      await waitForLocator(heading, { state: "visible", timeout: ctx.timeoutMs });
+      if ((await heading.innerText()).trim() !== displayName) {
+        throw new Error("profile heading did not expose the live display name structurally");
+      }
+      await waitForLocator(testId(ctx.bobPage, "sm-profile-nav-feed"), {
+        state: "visible",
+        timeout: ctx.timeoutMs,
+      });
       return {
         metrics: { visibleMs: rounded(performance.now() - started) },
-        note: `other client observed display name and bio in ${visible.elapsedMs}ms`,
+        note: `other client observed display name, bio, heading, and feed navigation in ${visible.elapsedMs}ms`,
       };
     },
   );
@@ -1126,8 +1275,18 @@ async function m2(ctx) {
     },
   );
 
-  await emitUnimplemented(ctx, "m2", "feed-image-post-live-update");
-  await emitUnimplemented(ctx, "m2", "feed-video-post-live-update");
+  await ctx.check(
+    "m2",
+    "feed-image-post-live-update",
+    { bestOf: 3 },
+    (attempt) => composeMediaPost(ctx, "image", attempt),
+  );
+  await ctx.check(
+    "m2",
+    "feed-video-post-live-update",
+    { bestOf: 3 },
+    (attempt) => composeMediaPost(ctx, "video", attempt),
+  );
 
   await ctx.check(
     "m2",
@@ -1144,46 +1303,51 @@ async function m2(ctx) {
         { state: "visible", timeout: ctx.timeoutMs },
       );
 
-      const before = await waitForFeedPredicate(
+      const before = await waitForFeedProjection(
         ctx.bobPage,
         "sm-feed-tab-following",
+        postText,
         () => true,
         ctx.timeoutMs,
         "Bob's Following feed",
       );
-      const beforeHas = hasDirectFollowProjection(before.value, postText);
+      const beforeHas = before.value.direct;
 
       const started = performance.now();
       await toggleFollow(ctx, ctx.bobPage, "alice");
-      await waitForFeedPredicate(
+      await waitForFeedProjection(
         ctx.bobPage,
         "sm-feed-tab-following",
-        (texts) => hasDirectFollowProjection(texts, postText) !== beforeHas,
+        postText,
+        (value) => value.direct !== beforeHas,
         ctx.timeoutMs,
         "Bob's Following projection after follow toggle",
       );
       const followVisibleMs = rounded(performance.now() - started);
 
-      await waitForFeedPredicate(
+      await waitForFeedProjection(
         ctx.bobPage,
         "sm-feed-tab-global",
-        (texts) => texts.some((text) => text.includes(postText)),
+        postText,
+        (value) => value.total > 0,
         ctx.timeoutMs,
         "Alice's post remains in Global after follow toggle",
       );
 
       await toggleFollow(ctx, ctx.bobPage, "alice");
-      const restored = await waitForFeedPredicate(
+      const restored = await waitForFeedProjection(
         ctx.bobPage,
         "sm-feed-tab-following",
-        (texts) => hasDirectFollowProjection(texts, postText) === beforeHas,
+        postText,
+        (value) => value.direct === beforeHas,
         ctx.timeoutMs,
         "Bob's Following projection after unfollow toggle",
       );
-      await waitForFeedPredicate(
+      await waitForFeedProjection(
         ctx.bobPage,
         "sm-feed-tab-global",
-        (texts) => texts.some((text) => text.includes(postText)),
+        postText,
+        (value) => value.total > 0,
         ctx.timeoutMs,
         "Alice's post remains in Global after unfollow toggle",
       );
@@ -1200,10 +1364,7 @@ async function m2(ctx) {
   await ctx.check("m2", "feed-author-avatar-and-display-name", {}, async () => {
     if (!livePost.data?.postText) throw new Error("live-post prerequisite did not yield a post");
     await openProfile(ctx, ctx.alicePage, "alice");
-    const displayName = (await testId(ctx.alicePage, "sm-profile").innerText())
-      .split("\n")
-      .map((line) => line.trim())
-      .find((line) => line.length > 0);
+    const displayName = (await testId(ctx.alicePage, "sm-profile-heading").innerText()).trim();
     if (!displayName) {
       throw new Error("Alice's profile did not expose a display name");
     }
@@ -1218,8 +1379,14 @@ async function m2(ctx) {
         `feed item did not render author display name ${JSON.stringify(displayName)}`,
       );
     }
+    await locatorWithSemanticValue(
+      testId(card, "sm-feed-author-avatar"),
+      "alice",
+      ctx.timeoutMs,
+      "Alice feed-author avatar",
+    );
     return {
-      note: "avatar not asserted: the frozen contract has no feed-avatar test ID; display-name text on sm-feed-item is the contracted observation",
+      note: "structural profile heading plus exact feed-author avatar identity",
     };
   });
 
@@ -1293,10 +1460,12 @@ async function m2(ctx) {
         ctx.timeoutMs,
         "attributed repost in Alice's feed",
       );
-      const texts = await aliceMatches.allInnerTexts();
-      if (!texts.some((text) => /reposted by\s+bob/i.test(text))) {
-        throw new Error("repost appeared without observable 'reposted by Bob' attribution");
-      }
+      await locatorWithSemanticValue(
+        testId(aliceMatches, "sm-feed-repost-attribution"),
+        "bob",
+        ctx.timeoutMs,
+        "Bob repost attribution",
+      );
       await repost.click();
       const removed = await waitForCount(
         aliceMatches,
@@ -1322,28 +1491,31 @@ async function m2(ctx) {
       const postText = `choreo-${ctx.runId}-m2-reproj-${attempt}`;
       await composeTextPost(ctx.alicePage, postText, ctx.timeoutMs);
 
-      const followingBefore = await waitForFeedPredicate(
+      const followingBefore = await waitForFeedProjection(
         ctx.bobPage,
         "sm-feed-tab-following",
+        postText,
         () => true,
         ctx.timeoutMs,
         "Bob's Following feed before follow-edge setup",
       );
-      if (hasDirectFollowProjection(followingBefore.value, postText)) {
+      if (followingBefore.value.direct) {
         await toggleFollow(ctx, ctx.bobPage, "alice");
-        await waitForFeedPredicate(
+        await waitForFeedProjection(
           ctx.bobPage,
           "sm-feed-tab-following",
-          (texts) => !hasDirectFollowProjection(texts, postText),
+          postText,
+          (value) => !value.direct,
           ctx.timeoutMs,
           "Alice original removed from Following so Bob is unfollowed",
         );
       }
 
-      await waitForFeedPredicate(
+      await waitForFeedProjection(
         ctx.bobPage,
         "sm-feed-tab-global",
-        (texts) => texts.some((text) => text.includes(postText)),
+        postText,
+        (value) => value.total > 0,
         ctx.timeoutMs,
         "unfollowed author's original remains in Global",
       );
@@ -1352,14 +1524,15 @@ async function m2(ctx) {
       const bobCard = testId(ctx.bobPage, "sm-feed-item").filter({ hasText: postText }).first();
       await clickVisible(testId(bobCard, "sm-post-repost"), ctx.timeoutMs);
 
-      const afterRepost = await waitForFeedPredicate(
+      const afterRepost = await waitForFeedProjection(
         ctx.bobPage,
         "sm-feed-tab-following",
-        (texts) => hasViewerRepostAttribution(texts, postText),
+        postText,
+        (value) => value.viewerRepost,
         ctx.timeoutMs,
         "viewer-repost of unfollowed author in Following",
       );
-      if (hasDirectFollowProjection(afterRepost.value, postText)) {
+      if (afterRepost.value.direct) {
         throw new Error(
           "viewer-repost of an unfollowed author was counted as a direct follow-projection hit",
         );
@@ -1367,10 +1540,11 @@ async function m2(ctx) {
 
       const started = performance.now();
       await toggleFollow(ctx, ctx.bobPage, "alice");
-      await waitForFeedPredicate(
+      await waitForFeedProjection(
         ctx.bobPage,
         "sm-feed-tab-following",
-        (texts) => hasDirectFollowProjection(texts, postText),
+        postText,
+        (value) => value.direct,
         ctx.timeoutMs,
         "followed author's original via the follow edge",
       );
@@ -1447,7 +1621,7 @@ async function m2(ctx) {
 }
 
 async function m3(ctx) {
-  await ctx.check(
+  const liveDm = await ctx.check(
     "m3",
     "dm-live-messages",
     { bestOf: 3 },
@@ -1456,12 +1630,10 @@ async function m3(ctx) {
       const outbound = `choreo-${ctx.runId}-m3-live-${attempt}`;
       const started = performance.now();
       await sendConversationText(ctx.alicePage, outbound, ctx.timeoutMs);
-      await waitForLocator(
-        testId(ctx.bobPage, "sm-convo-bubble")
-          .filter({ hasText: outbound })
-          .last(),
-        { state: "visible", timeout: ctx.timeoutMs },
-      );
+      const bobBubble = testId(ctx.bobPage, "sm-convo-bubble")
+        .filter({ hasText: outbound })
+        .last();
+      await waitForLocator(bobBubble, { state: "visible", timeout: ctx.timeoutMs });
       const visibleMs = rounded(performance.now() - started);
       const reply = `choreo-${ctx.runId}-m3-live-reply-${attempt}`;
       await sendConversationText(ctx.bobPage, reply, ctx.timeoutMs);
@@ -1473,42 +1645,240 @@ async function m3(ctx) {
       );
       return {
         metrics: { visibleMs },
-        note: "live DM text via sm-convo-bubble; sender avatar is not asserted",
+        data: { outbound },
+        note: "required bidirectional live DM text delivery",
       };
     },
   );
-  await emitUnimplemented(ctx, "m3", "dm-live-messages-and-sender-avatar");
+  const avatarBubble = liveDm.data?.outbound
+    ? testId(ctx.bobPage, "sm-convo-bubble").filter({ hasText: liveDm.data.outbound }).last()
+    : null;
+  const avatar = avatarBubble === null
+    ? null
+    : testId(avatarBubble, "sm-convo-sender-avatar");
+  const avatarRendered = avatar !== null && (await avatar.count()) > 0;
+  await ctx.check(
+    "m3",
+    "sender-avatar-identity-when-rendered",
+    {
+      implemented: avatarRendered,
+      required: false,
+      reason: avatarRendered
+        ? null
+        : "The kit does not render sender avatars in the default 1:1 layout; identity is checked only when the app opts into that node.",
+    },
+    avatarRendered
+      ? async () => {
+          await locatorWithSemanticValue(
+            avatar,
+            "alice",
+            ctx.timeoutMs,
+            "Alice sender avatar",
+          );
+          return { note: "exact sender identity on an app-rendered avatar node" };
+        }
+      : null,
+  );
   await ctx.check(
     "m3",
     "typing-indicator-within-2s-expires-within-5s",
-    { bestOf: 3 },
+    {
+      bestOf: 3,
+      typingObservationBoundaryVersion: TYPING_OBSERVATION_BOUNDARY_VERSION,
+    },
     async (attempt) => {
       await openAliceBobConversation(ctx);
       const bobInput = testId(ctx.bobPage, "sm-convo-input");
       const aliceIndicator = testId(ctx.alicePage, "sm-convo-typing");
       await bobInput.fill("");
       await waitForLocator(aliceIndicator, { state: "hidden", timeout: 5_000 });
-      const typingStartedAt = performance.now();
-      await bobInput.pressSequentially(`typing-${ctx.runId}-${attempt}`, { delay: 25 });
+      const typingText = `typing-${ctx.runId}-${attempt}`;
+      const typingActionStartedAt = performance.now();
+      await bobInput.pressSequentially(typingText.slice(0, -1), { delay: 25 });
+      // v2 boundary: the delivery clock begins at the final keystroke action,
+      // not before the whole synthetic typing sequence and not after its
+      // resulting render may already have happened.
       const lastKeystrokeAt = performance.now();
+      await bobInput.press(typingText.at(-1));
+      const lastKeystrokeSettledAt = performance.now();
       await waitForLocator(aliceIndicator, { state: "visible", timeout: 2_000 });
-      const visibleMs = rounded(performance.now() - typingStartedAt);
+      const visibleAfterLastKeystrokeMs = rounded(performance.now() - lastKeystrokeAt);
       const remainingExpiryMs = Math.max(
         1,
         Math.floor(5_000 - (performance.now() - lastKeystrokeAt)),
       );
       await waitForLocator(aliceIndicator, { state: "hidden", timeout: remainingExpiryMs });
-      const expiresMs = rounded(performance.now() - lastKeystrokeAt);
-      if (visibleMs > 2_000 || expiresMs > 5_000) {
-        throw new Error(`typing timing missed ceiling: visible=${visibleMs}ms expires=${expiresMs}ms`);
+      const expiresAfterLastKeystrokeMs = rounded(performance.now() - lastKeystrokeAt);
+      if (visibleAfterLastKeystrokeMs > 2_000 || expiresAfterLastKeystrokeMs > 5_000) {
+        throw new Error(
+          `typing timing missed ceiling: render=${visibleAfterLastKeystrokeMs}ms expires=${expiresAfterLastKeystrokeMs}ms`,
+        );
       }
-      return { metrics: { visibleMs, expiresMs } };
+      return {
+        metrics: {
+          typingActionMs: rounded(lastKeystrokeSettledAt - typingActionStartedAt),
+          finalKeystrokeActionMs: rounded(lastKeystrokeSettledAt - lastKeystrokeAt),
+          visibleAfterLastKeystrokeMs,
+          expiresAfterLastKeystrokeMs,
+        },
+        note: "typing action time is separate from post-keystroke render and expiry clocks",
+      };
     },
   );
 
-  await emitUnimplemented(ctx, "m3", "receipt-sent-delivered-read-transitions");
-  await emitUnimplemented(ctx, "m3", "group-receipt-waits-for-slowest-member");
-  await emitUnimplemented(ctx, "m3", "removed-member-live-cutoff-and-retained-history");
+  await ctx.check("m3", "receipt-sent-delivered-read-transitions", {}, async () => {
+    await openConversationFromAnySurface(ctx, ctx.alicePage, "Bob");
+    await ctx.bobPage.goto(ctx.baseUrl, {
+      waitUntil: "domcontentloaded",
+      timeout: ctx.timeoutMs,
+    });
+    await setContextsOffline([ctx.bobContext], true);
+    try {
+      const text = `choreo-${ctx.runId}-m3-receipt`;
+      const bubble = await sendConversationText(ctx.alicePage, text, ctx.timeoutMs);
+      const receipt = testId(bubble, "sm-convo-receipt");
+      await locatorWithSemanticValue(receipt, "sent", ctx.timeoutMs, "sent receipt");
+      await setContextsOffline([ctx.bobContext], false);
+      await locatorWithSemanticValue(receipt, "delivered", ctx.timeoutMs, "delivered receipt");
+      await openConversationFromAnySurface(ctx, ctx.bobPage, "Alice");
+      await waitForLocator(
+        testId(ctx.bobPage, "sm-convo-bubble").filter({ hasText: text }).last(),
+        { state: "visible", timeout: ctx.timeoutMs },
+      );
+      await locatorWithSemanticValue(receipt, "read", ctx.timeoutMs, "read receipt");
+      return { note: "exact semantic sent/delivered/read tokens; no glyph matching" };
+    } finally {
+      await setContextsOffline([ctx.bobContext], false);
+    }
+  });
+
+  await ctx.check("m3", "group-receipt-waits-for-slowest-member", {}, async () => {
+    if (!ctx.carolPage) throw new Error("Carol's context is required for group receipt checks");
+    await Promise.all([
+      openGroupConversation(ctx, ctx.alicePage),
+      openGroupConversation(ctx, ctx.bobPage),
+    ]);
+    await ctx.carolPage.goto(ctx.baseUrl, {
+      waitUntil: "domcontentloaded",
+      timeout: ctx.timeoutMs,
+    });
+    const text = `choreo-${ctx.runId}-m3-group-receipt`;
+    const bubble = await sendConversationText(ctx.alicePage, text, ctx.timeoutMs);
+    await waitForLocator(
+      testId(ctx.bobPage, "sm-convo-bubble").filter({ hasText: text }).last(),
+      { state: "visible", timeout: ctx.timeoutMs },
+    );
+    const receipt = testId(bubble, "sm-convo-receipt");
+    await locatorWithSemanticValue(receipt, "delivered", ctx.timeoutMs, "group delivered receipt");
+    await openGroupConversation(ctx, ctx.carolPage);
+    await waitForLocator(
+      testId(ctx.carolPage, "sm-convo-bubble").filter({ hasText: text }).last(),
+      { state: "visible", timeout: ctx.timeoutMs },
+    );
+    await locatorWithSemanticValue(receipt, "read", ctx.timeoutMs, "group aggregate read receipt");
+    return { note: "group read remains delivered until the slowest retained member reads" };
+  });
+
+  await ctx.check("m3", "member-add-promote-remove-leave-and-live-cutoff", {}, async () => {
+    if (!ctx.davePage) throw new Error("Dave's context is required for membership checks");
+    const handle = ctx.adapter.fixtures.addedMemberHandle;
+    await openGroupSettings(ctx, ctx.alicePage);
+    await clickVisible(testId(ctx.alicePage, "sm-chatsettings-member-add"), ctx.timeoutMs);
+    const candidate = await locatorWithSemanticValue(
+      testId(ctx.alicePage, "sm-chatsettings-member-candidate"),
+      handle,
+      ctx.timeoutMs,
+      "addable group member",
+    );
+    await candidate.click();
+    let member = await locatorWithSemanticValue(
+      testId(ctx.alicePage, "sm-chatsettings-member"),
+      `${handle}:member`,
+      ctx.timeoutMs,
+      "added group member",
+    );
+    await clickVisible(testId(member, "sm-chatsettings-member-promote"), ctx.timeoutMs);
+    member = await locatorWithSemanticValue(
+      testId(ctx.alicePage, "sm-chatsettings-member"),
+      `${handle}:admin`,
+      ctx.timeoutMs,
+      "promoted group member",
+    );
+    await openGroupConversation(ctx, ctx.alicePage);
+    await openGroupConversation(ctx, ctx.davePage);
+    const retained = `choreo-${ctx.runId}-m3-before-remove`;
+    await sendConversationText(ctx.alicePage, retained, ctx.timeoutMs);
+    await waitForLocator(
+      testId(ctx.davePage, "sm-convo-bubble").filter({ hasText: retained }).last(),
+      { state: "visible", timeout: ctx.timeoutMs },
+    );
+    await openGroupSettings(ctx, ctx.alicePage);
+    member = await locatorWithSemanticValue(
+      testId(ctx.alicePage, "sm-chatsettings-member"),
+      `${handle}:admin`,
+      ctx.timeoutMs,
+      "member selected for removal",
+    );
+    await clickVisible(testId(member, "sm-chatsettings-member-remove"), ctx.timeoutMs);
+    const afterRemoval = `choreo-${ctx.runId}-m3-after-remove`;
+    await openGroupConversation(ctx, ctx.alicePage);
+    await sendConversationText(ctx.alicePage, afterRemoval, ctx.timeoutMs);
+    const progressMarker = `choreo-${ctx.runId}-m3-cutoff-progress`;
+    const daveProgressPage = await ctx.daveContext.newPage();
+    try {
+      await Promise.all([
+        openConversationFromAnySurface(ctx, ctx.alicePage, "Dave"),
+        openConversationFromAnySurface(ctx, daveProgressPage, "Alice"),
+      ]);
+      await sendConversationText(ctx.alicePage, progressMarker, ctx.timeoutMs);
+      await waitForLocator(
+        testId(daveProgressPage, "sm-convo-bubble").filter({ hasText: progressMarker }).last(),
+        { state: "visible", timeout: ctx.timeoutMs },
+      );
+    } finally {
+      await daveProgressPage.close();
+    }
+    if ((await testId(ctx.davePage, "sm-convo-bubble").filter({ hasText: afterRemoval }).count()) > 0) {
+      throw new Error("removed member received a new live group message");
+    }
+    if ((await testId(ctx.davePage, "sm-convo-bubble").filter({ hasText: retained }).count()) !== 1) {
+      throw new Error("removed member lost or duplicated retained group history");
+    }
+
+    await openGroupSettings(ctx, ctx.alicePage);
+    await clickVisible(testId(ctx.alicePage, "sm-chatsettings-member-add"), ctx.timeoutMs);
+    const readd = await locatorWithSemanticValue(
+      testId(ctx.alicePage, "sm-chatsettings-member-candidate"),
+      handle,
+      ctx.timeoutMs,
+      "member candidate after removal",
+    );
+    await readd.click();
+    await locatorWithSemanticValue(
+      testId(ctx.alicePage, "sm-chatsettings-member"),
+      `${handle}:member`,
+      ctx.timeoutMs,
+      "re-added group member",
+    );
+    await openGroupSettings(ctx, ctx.davePage);
+    await clickVisible(testId(ctx.davePage, "sm-chatsettings-leave"), ctx.timeoutMs);
+    await openGroupSettings(ctx, ctx.alicePage);
+    await waitForValue(
+      testId(ctx.alicePage, "sm-chatsettings-member"),
+      async (rows) => {
+        const values = [];
+        for (let index = 0; index < (await rows.count()); index += 1) {
+          values.push(await semanticValue(rows.nth(index)));
+        }
+        return { matched: !values.some((value) => value.startsWith(`${handle}:`)), value: values };
+      },
+      ctx.timeoutMs,
+      "voluntary member leave",
+    );
+    return {
+      note: "live cutoff is checked only after a subsequent direct-message progress marker reaches the removed member",
+    };
+  });
 
   await ctx.check(
     "m3",
@@ -1749,10 +2119,9 @@ async function selectControlOption(locator, value, timeoutMs) {
 async function m5(ctx) {
   await ctx.check("m5", "chat-color-background-sync", {}, async () => {
     if (!ctx.carolPage) throw new Error("Carol's context is required for chat customization");
-    const groupTitle = ctx.adapter.fixtures.groupTitle;
     await Promise.all([
-      openConversation(ctx.alicePage, groupTitle, ctx.timeoutMs),
-      openConversation(ctx.carolPage, groupTitle, ctx.timeoutMs),
+      openGroupConversation(ctx, ctx.alicePage),
+      openGroupConversation(ctx, ctx.carolPage),
     ]);
     await Promise.all([
       clickVisible(testId(ctx.alicePage, "sm-convo-settings"), ctx.timeoutMs),
@@ -1836,14 +2205,9 @@ async function m5(ctx) {
       await clickVisible(testId(ctx.bobPage, "sm-media-viewer-close"), ctx.timeoutMs);
       await affordance.click().catch(() => {});
       const denied = testId(ctx.bobPage, "sm-convo-error");
-      const state = await observableState(affordance).catch(() => "");
-      if (!/opened|viewed|denied|consumed/i.test(state)) {
-        await waitForLocator(
-          denied
-            .filter({ hasText: /opened|viewed|denied|consumed/i })
-            .first(),
-          { state: "visible", timeout: ctx.timeoutMs },
-        );
+      const state = await semanticValue(affordance).catch(() => "");
+      if (state !== "opened") {
+        await waitForLocator(denied.first(), { state: "visible", timeout: ctx.timeoutMs });
       }
       if ((await viewer.count()) > 0 && (await viewer.isVisible())) {
         throw new Error("view-once media rendered on the second open");
@@ -1917,8 +2281,8 @@ async function m5(ctx) {
       );
       await Promise.all([reopenPersona(ctx, "alice"), reopenPersona(ctx, "bob")]);
       await Promise.all([
-        openConversation(ctx.alicePage, "Bob", ctx.timeoutMs),
-        openConversation(ctx.bobPage, "Alice", ctx.timeoutMs),
+        openConversationFromAnySurface(ctx, ctx.alicePage, "Bob"),
+        openConversationFromAnySurface(ctx, ctx.bobPage, "Alice"),
       ]);
       const visible = await Promise.all([
         visibleTexts(testId(ctx.alicePage, "sm-convo-bubble").filter({ hasText: text })),
@@ -1950,8 +2314,8 @@ async function m6(ctx) {
         for (const bubble of [firstBubble, secondBubble]) {
           const receipt = testId(bubble, "sm-convo-receipt");
           await waitForLocator(receipt, { state: "visible", timeout: ctx.timeoutMs });
-          const state = await observableState(receipt);
-          if (!/\bpending\b/i.test(state)) {
+          const state = await semanticValue(receipt);
+          if (state !== "pending") {
             throw new Error(`offline message did not expose a pending state: ${state}`);
           }
         }
@@ -1977,8 +2341,8 @@ async function m6(ctx) {
         await waitForValue(
           receipt,
           async (target) => {
-            const value = await observableState(target);
-            return { matched: /\bread\b/i.test(value), value };
+            const value = await semanticValue(target);
+            return { matched: value === "read", value };
           },
           ctx.timeoutMs,
           "normal read receipt after offline flush",
@@ -1987,6 +2351,115 @@ async function m6(ctx) {
       return { metrics: { flushMs } };
     },
   );
+}
+
+async function pollOption(page, optionId, timeoutMs) {
+  return locatorWithSemanticValue(
+    testId(page, "sm-poll-option"),
+    optionId,
+    timeoutMs,
+    `poll option ${optionId}`,
+  );
+}
+
+async function pollTally(option) {
+  const value = await semanticValue(testId(option, "sm-poll-tally"));
+  const numeric = Number(value);
+  if (!Number.isInteger(numeric) || numeric < 0) {
+    throw new Error(`poll tally must expose a non-negative integer semantic value; received ${value}`);
+  }
+  return numeric;
+}
+
+// M7 is intentionally a fresh-session choreography segment. It is never
+// included in CONTINUOUS_SEGMENTS and parseSegments refuses a mixed M7 run.
+async function m7(ctx) {
+  const liveVoteAttempts = [
+    { actor: "alice", observer: "bob", optionFixture: "pollOptionId" },
+    { actor: "alice", observer: "bob", optionFixture: "pollAlternateOptionId" },
+    { actor: "bob", observer: "alice", optionFixture: "pollOptionId" },
+  ];
+  await ctx.check("m7", "m7-a02-live-poll-tallies", { bestOf: 3 }, async (attempt) => {
+    await Promise.all([
+      openGroupConversation(ctx, ctx.alicePage),
+      openGroupConversation(ctx, ctx.bobPage),
+    ]);
+    const vote = liveVoteAttempts[attempt - 1];
+    const optionId = ctx.adapter.fixtures[vote.optionFixture];
+    const actorPage = ctx[`${vote.actor}Page`];
+    const observerPage = ctx[`${vote.observer}Page`];
+    const actorOption = await pollOption(actorPage, optionId, ctx.timeoutMs);
+    const observerOption = await pollOption(observerPage, optionId, ctx.timeoutMs);
+    const before = await pollTally(observerOption);
+    const started = performance.now();
+    await actorOption.click();
+    const changed = await waitForValue(
+      testId(observerOption, "sm-poll-tally"),
+      async () => {
+        const value = await pollTally(observerOption);
+        return { matched: value === before + 1, value };
+      },
+      ctx.timeoutMs,
+      "other-client poll tally",
+    );
+    const totalValue = Number(await semanticValue(testId(observerPage, "sm-poll-total")));
+    if (!Number.isInteger(totalValue) || totalValue < changed.value) {
+      throw new Error("poll total did not expose a coherent structural count");
+    }
+    return {
+      metrics: { visibleMs: rounded(performance.now() - started) },
+      note: `${vote.actor}/${optionId} is unique across all retained best-of-three attempts`,
+    };
+  });
+
+  await ctx.check("m7", "m7-a05-offline-vote-reconciles", {}, async () => {
+    await Promise.all([
+      openGroupConversation(ctx, ctx.alicePage),
+      openGroupConversation(ctx, ctx.bobPage),
+    ]);
+    const optionId = ctx.adapter.fixtures.pollAlternateOptionId;
+    const actorOption = await pollOption(ctx.bobPage, optionId, ctx.timeoutMs);
+    const observerOption = await pollOption(ctx.alicePage, optionId, ctx.timeoutMs);
+    const before = await pollTally(observerOption);
+    await setContextsOffline([ctx.bobContext], true);
+    try {
+      await actorOption.click();
+      await waitForValue(
+        actorOption,
+        async (target) => {
+          const busy = await target.getAttribute("aria-busy");
+          const pending = await target.getAttribute("data-pending");
+          return { matched: busy === "true" || pending === "true", value: { busy, pending } };
+        },
+        ctx.timeoutMs,
+        "offline pending vote",
+      );
+    } finally {
+      await setContextsOffline([ctx.bobContext], false);
+    }
+    await waitForValue(
+      testId(observerOption, "sm-poll-tally"),
+      async () => {
+        const value = await pollTally(observerOption);
+        return { matched: value === before + 1, value };
+      },
+      ctx.timeoutMs,
+      "reconciled offline poll vote",
+    );
+    await waitForValue(
+      actorOption,
+      async (target) => {
+        const busy = await target.getAttribute("aria-busy");
+        const pending = await target.getAttribute("data-pending");
+        return { matched: busy !== "true" && pending !== "true", value: { busy, pending } };
+      },
+      ctx.timeoutMs,
+      "settled offline poll vote",
+    );
+    return {
+      note: "Bob/alternate-option is distinct from every live-attempt pair; pending clears only after reconciliation",
+    };
+  });
 }
 
 async function findLikesReceivedStat(page, timeoutMs) {
@@ -2020,9 +2493,6 @@ async function toggleSelection(locator) {
       if (["true", "1", "liked"].includes(value)) return true;
       if (["false", "0", "unliked"].includes(value)) return false;
     }
-    const label = `${element.getAttribute("aria-label") ?? ""} ${element.textContent ?? ""}`;
-    if (/\bunlike\b/iu.test(label)) return true;
-    if (/\blike\b/iu.test(label)) return false;
     return null;
   });
 }
@@ -2032,7 +2502,9 @@ async function findUnlikedAlicePost(page, timeoutMs) {
   await waitForLocator(cards.first(), { state: "visible", timeout: timeoutMs });
   for (let index = 0; index < (await cards.count()); index += 1) {
     const card = cards.nth(index);
-    if (!(await card.isVisible()) || !/alice/iu.test(await card.innerText())) continue;
+    if (!(await card.isVisible())) continue;
+    const author = testId(card, "sm-feed-author-avatar");
+    if ((await author.count()) === 0 || (await semanticValue(author.first())) !== "alice") continue;
     const like = testId(card, "sm-post-like");
     if ((await like.count()) === 0 || !(await like.first().isVisible())) continue;
     const selected = await toggleSelection(like.first());
@@ -2115,12 +2587,18 @@ async function m8(ctx) {
         timeout: ctx.timeoutMs,
       }),
     ]);
-    const alice1Chat = testId(ctx.alicePage, "sm-chats-item")
-      .filter({ hasText: /bob/iu })
-      .first();
-    const alice2Chat = testId(ctx.alice2Page, "sm-chats-item")
-      .filter({ hasText: /bob/iu })
-      .first();
+    const alice1Chat = await locatorWithSemanticValue(
+      testId(ctx.alicePage, "sm-chats-item"),
+      "dm:bob",
+      ctx.timeoutMs,
+      "Alice first-context Bob DM row",
+    );
+    const alice2Chat = await locatorWithSemanticValue(
+      testId(ctx.alice2Page, "sm-chats-item"),
+      "dm:bob",
+      ctx.timeoutMs,
+      "Alice second-context Bob DM row",
+    );
     await Promise.all([
       waitForLocator(alice1Chat, { state: "visible", timeout: ctx.timeoutMs }),
       waitForLocator(alice2Chat, { state: "visible", timeout: ctx.timeoutMs }),
@@ -2168,8 +2646,8 @@ async function m8(ctx) {
         for (const bubble of [firstBubble, secondBubble]) {
           const receipt = testId(bubble, "sm-convo-receipt");
           await waitForLocator(receipt, { state: "visible", timeout: ctx.timeoutMs });
-          const state = await observableState(receipt);
-          if (!/\bpending\b/iu.test(state)) {
+          const state = await semanticValue(receipt);
+          if (state !== "pending") {
             throw new Error(`warm-offline message did not expose pending state: ${state}`);
           }
         }
@@ -2241,8 +2719,8 @@ async function m8(ctx) {
         waitForValue(
           receipt,
           async (target) => {
-            const value = await observableState(target);
-            return { matched: /\bread\b/iu.test(value), value };
+            const value = await semanticValue(target);
+            return { matched: value === "read", value };
           },
           ctx.timeoutMs,
           "normal read receipt after dual-offline flush",
@@ -2259,7 +2737,7 @@ async function m8(ctx) {
   });
 }
 
-const SEGMENT_FUNCTIONS = { m1, m2, m3, m4, m5, m6, m8 };
+const SEGMENT_FUNCTIONS = { m1, m2, m3, m4, m5, m6, m7, m8 };
 
 // @ref LLP 0201#d2--quantitative-instrument — milestone green is the
 // fail-closed conjunction of suite evidence and the full choreography segment.
@@ -2314,6 +2792,8 @@ async function emitSegmentSummary({
   durationMs,
   suiteStatus,
   simulatorStatuses,
+  setupIdentity,
+  setup,
 }) {
   const { counts, browserPass, reason } = aggregateChoreography(assertionReceipts);
   const requiredExternal = [];
@@ -2324,6 +2804,7 @@ async function emitSegmentSummary({
     pass: suiteStatus.pass,
     receipt: suiteStatus.receipt ?? null,
     receiptSha256: suiteStatus.receiptSha256 ?? null,
+    outcomeClass: suiteStatus.outcomeClass ?? null,
   };
   const green = suite.pass === true && choreographyPass;
   const nonGreenCause = classifyNonGreenCause({
@@ -2332,7 +2813,13 @@ async function emitSegmentSummary({
     browserPass,
     requiredUnimplemented: counts.requiredUnimplemented,
   });
-  return emit({
+  const outcomeClass = classifyOutcome({
+    green,
+    suitePass: suite.pass,
+    suiteOutcomeClass: suite.outcomeClass,
+    assertionReceipts,
+  });
+  const payload = {
     type: "segment-summary",
     segment,
     assertion: "__segment__",
@@ -2376,7 +2863,21 @@ async function emitSegmentSummary({
     },
     green,
     nonGreenCause,
+    outcomeClass,
+    setupIdentity,
+    setup,
+    ...(segment === "m3"
+      ? { typingObservationBoundaryVersion: TYPING_OBSERVATION_BOUNDARY_VERSION }
+      : {}),
+  };
+  writeOutcomeLine(process.stdout, {
+    outcomeClass,
+    phase: "segment-summary",
+    segment,
+    green,
+    nonGreenCause,
   });
+  return emit(payload);
 }
 
 async function main() {
@@ -2384,6 +2885,12 @@ async function main() {
   try {
     options = parseArgs(process.argv.slice(2));
   } catch (error) {
+    writeOutcomeLine(process.stderr, {
+      outcomeClass: "setup",
+      phase: "startup",
+      green: false,
+      reason: errorText(error),
+    });
     process.stderr.write(`${errorText(error)}\n\n${usage()}\n`);
     process.exitCode = 2;
     return;
@@ -2403,7 +2910,30 @@ async function main() {
       options.segments,
     );
   } catch (error) {
+    writeOutcomeLine(process.stderr, {
+      outcomeClass: "setup",
+      phase: "startup",
+      green: false,
+      reason: errorText(error),
+    });
     process.stderr.write(`suite-status startup refusal: ${errorText(error)}\n`);
+    process.exitCode = 2;
+    return;
+  }
+
+  let setupIdentity;
+  try {
+    setupIdentity = await loadSetupIdentity(options.setupIdentityPath, {
+      browser: options.browser,
+    });
+  } catch (error) {
+    writeOutcomeLine(process.stderr, {
+      outcomeClass: "setup",
+      phase: "startup",
+      green: false,
+      reason: errorText(error),
+    });
+    process.stderr.write(`setup-identity startup refusal: ${errorText(error)}\n`);
     process.exitCode = 2;
     return;
   }
@@ -2413,31 +2943,82 @@ async function main() {
   const alicePassword = process.env.CHOREO_ALICE_PASSWORD ?? sharedPassword;
   const bobPassword = process.env.CHOREO_BOB_PASSWORD ?? sharedPassword;
   const carolPassword = process.env.CHOREO_CAROL_PASSWORD ?? sharedPassword;
+  const davePassword = process.env.CHOREO_DAVE_PASSWORD ?? sharedPassword;
   if (
     !baseUrl ||
     !alicePassword ||
     !bobPassword ||
-    (options.segments.includes("m5") && !carolPassword)
+    ((options.segments.includes("m3") || options.segments.includes("m5")) && !carolPassword)
+    || (options.segments.includes("m3") && !davePassword)
   ) {
+    writeOutcomeLine(process.stderr, {
+      outcomeClass: "setup",
+      phase: "startup",
+      green: false,
+      reason: "base URL or required persona password is absent",
+    });
     process.stderr.write(`CHOREO_BASE_URL and persona password environment variables are required.\n\n${usage()}\n`);
     process.exitCode = 2;
     return;
   }
 
-  const adapter = await loadAdapter(options.adapterPath);
-  const simulatorStatuses = await loadSimulatorStatuses(options.simulatorStatusPath);
-
-  let playwright;
+  let adapter;
+  let simulatorStatuses;
   try {
-    playwright = await import("playwright");
+    adapter = await loadAdapter(options.adapterPath);
+    simulatorStatuses = await loadSimulatorStatuses(options.simulatorStatusPath);
   } catch (error) {
-    process.stderr.write(
-      `Playwright is unavailable. Provision package.json dependencies before running the harness: ${errorText(error)}\n`,
-    );
+    writeOutcomeLine(process.stderr, {
+      outcomeClass: "setup",
+      phase: "startup",
+      green: false,
+      reason: errorText(error),
+    });
+    process.stderr.write(`runner-input startup refusal: ${errorText(error)}\n`);
     process.exitCode = 2;
     return;
   }
 
+  let playwright;
+  try {
+    playwright = await import("playwright");
+    const playwrightVersion = REQUIRE("playwright/package.json").version;
+    verifySetupToolchain(setupIdentity.value, {
+      browser: options.browser,
+      playwrightVersion,
+    });
+  } catch (error) {
+    writeOutcomeLine(process.stderr, {
+      outcomeClass: "setup",
+      phase: "startup",
+      green: false,
+      reason: errorText(error),
+    });
+    process.stderr.write(`Playwright/setup startup refusal: ${errorText(error)}\n`);
+    process.exitCode = 2;
+    return;
+  }
+
+  const browserType = playwright[options.browser];
+  let browser;
+  try {
+    browser = await browserType.launch({
+      headless: !options.headed,
+      ...(process.env.CHOREO_BROWSER_EXECUTABLE
+        ? { executablePath: process.env.CHOREO_BROWSER_EXECUTABLE }
+        : {}),
+    });
+  } catch (error) {
+    writeOutcomeLine(process.stderr, {
+      outcomeClass: "setup",
+      phase: "startup",
+      green: false,
+      reason: errorText(error),
+    });
+    process.stderr.write(`browser startup refusal: ${errorText(error)}\n`);
+    process.exitCode = 2;
+    return;
+  }
   const runId = randomUUID();
   const emit = await createReceiptWriter(options.receiptsPath, runId);
   const observations = new ObservationWriter({
@@ -2445,21 +3026,21 @@ async function main() {
     laneRunId: options.laneRunId,
   });
   await observations.initialize();
-  const { check, bySegment } = createCheckRunner(emit, observations);
-  const browserType = playwright[options.browser];
-  const browser = await browserType.launch({
-    headless: !options.headed,
-    ...(process.env.CHOREO_BROWSER_EXECUTABLE
-      ? { executablePath: process.env.CHOREO_BROWSER_EXECUTABLE }
-      : {}),
+  const { check, bySegment, setResetAttempt } = createCheckRunner(emit, observations, {
+    receiptPath: options.receiptsPath,
+    observationsPath: options.observationsPath,
   });
   const aliceContext = await browser.newContext();
   const bobContext = await browser.newContext();
-  const carolContext = options.segments.includes("m5") ? await browser.newContext() : null;
+  const carolContext = options.segments.some((segment) => ["m3", "m5"].includes(segment))
+    ? await browser.newContext()
+    : null;
+  const daveContext = options.segments.includes("m3") ? await browser.newContext() : null;
   const alice2Context = options.segments.includes("m8") ? await browser.newContext() : null;
   const alicePage = await aliceContext.newPage();
   const bobPage = await bobContext.newPage();
   const carolPage = carolContext ? await carolContext.newPage() : null;
+  const davePage = daveContext ? await daveContext.newPage() : null;
   const alice2Page = alice2Context ? await alice2Context.newPage() : null;
   const summaries = [];
   const personas = {
@@ -2475,6 +3056,10 @@ async function main() {
       email: process.env.CHOREO_CAROL_EMAIL ?? "carol@example.com",
       password: carolPassword,
     },
+    dave: {
+      email: process.env.CHOREO_DAVE_EMAIL ?? "dave@example.com",
+      password: davePassword,
+    },
   };
 
   try {
@@ -2483,6 +3068,7 @@ async function main() {
       login(bobPage, baseUrl, personas.bob, options.timeoutMs),
     ];
     if (carolPage) loginTasks.push(login(carolPage, baseUrl, personas.carol, options.timeoutMs));
+    if (davePage) loginTasks.push(login(davePage, baseUrl, personas.dave, options.timeoutMs));
     if (alice2Page) loginTasks.push(login(alice2Page, baseUrl, personas.alice, options.timeoutMs));
     await Promise.all(loginTasks);
 
@@ -2495,13 +3081,38 @@ async function main() {
       aliceContext,
       bobContext,
       carolContext,
+      daveContext,
       alice2Context,
       alicePage,
       bobPage,
       carolPage,
+      davePage,
       alice2Page,
       check,
     };
+    setResetAttempt(async () => {
+      const contexts = [
+        context.aliceContext,
+        context.bobContext,
+        context.carolContext,
+        context.daveContext,
+        context.alice2Context,
+      ].filter(Boolean);
+      await setContextsOffline(contexts, false);
+      const pages = [
+        context.alicePage,
+        context.bobPage,
+        context.carolPage,
+        context.davePage,
+        context.alice2Page,
+      ].filter((page) => page && !page.isClosed());
+      const results = await Promise.allSettled(pages.map((page) => page.goto(baseUrl, {
+        waitUntil: "domcontentloaded",
+        timeout: options.timeoutMs,
+      })));
+      const failed = results.find((result) => result.status === "rejected");
+      if (failed) throw failed.reason;
+    });
 
     for (const segment of options.segments) {
       const started = performance.now();
@@ -2516,16 +3127,26 @@ async function main() {
         durationMs: performance.now() - started,
         suiteStatus: suiteStatuses[segment],
         simulatorStatuses,
+        setupIdentity: setupIdentity.descriptor,
+        setup: setupIdentity.value,
       });
       summaries.push(summary);
       if (segment !== options.segments.at(-1)) {
         const resets = [
-          alicePage.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: options.timeoutMs }),
-          bobPage.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: options.timeoutMs }),
+          context.alicePage.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: options.timeoutMs }),
+          context.bobPage.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: options.timeoutMs }),
         ];
         if (carolPage) {
           resets.push(
             carolPage.goto(baseUrl, {
+              waitUntil: "domcontentloaded",
+              timeout: options.timeoutMs,
+            }),
+          );
+        }
+        if (davePage) {
+          resets.push(
+            context.davePage.goto(baseUrl, {
               waitUntil: "domcontentloaded",
               timeout: options.timeoutMs,
             }),
@@ -2544,7 +3165,7 @@ async function main() {
     }
   } finally {
     await Promise.allSettled(
-      [aliceContext, bobContext, carolContext, alice2Context]
+      [aliceContext, bobContext, carolContext, daveContext, alice2Context]
         .filter(Boolean)
         .map((context) => context.close()),
     );
@@ -2556,6 +3177,12 @@ async function main() {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((error) => {
+    writeOutcomeLine(process.stderr, {
+      outcomeClass: errorOutcomeClass(error, "instrument"),
+      phase: "fatal",
+      green: false,
+      reason: errorText(error),
+    });
     process.stderr.write(`choreography fatal: ${errorText(error)}\n`);
     process.exitCode = 2;
   });

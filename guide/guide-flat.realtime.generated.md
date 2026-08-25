@@ -9,13 +9,13 @@ id: realtime.live-queries
 order: 1
 audience: agent-first
 capabilities: [realtime.live-queries, realtime.durable-push]
-authorities: [llp/0008-local-first-sync-and-realtime.rfc.md, llp/0222-connected-client-predicate.rfc.md, llp/0004-application-data-api.rfc.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, crates/snapback-sync/src/connected_clients.rs, packages/snapback-codegen/define.mjs, packages/snapback-contract/keyed-provider.mjs, packages/snapback-client/index.mjs]
+authorities: [llp/0008-local-first-sync-and-realtime.rfc.md, llp/0222-connected-client-predicate.rfc.md, llp/0004-application-data-api.rfc.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, crates/snapback-sync/src/connected_clients.rs, packages/snapback-codegen/define.mjs, packages/snapback-contract/keyed-provider.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/index.mjs]
 examples: [demos/todo/tests/acceptance/headless.mjs, demos/_kit/tests/live-delta-e2e.mjs, demos/all-aboard/surfaces/react/src/main.tsx, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/party-wall]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-10
-reviewed-authorities-digest: sha256:ef28a5c77a4f8ce99097778b64321a8f5a669a35989a730e590fcf315b41ff75
+reviewed: 2026-08-25
+reviewed-authorities-digest: sha256:c383b6a529c23ecdfb650b27fe18fa9ca5f9378b15491b59e084f02fbfdd300b
 ---
 
 # Live queries
@@ -110,6 +110,61 @@ after the commit is durable, and skipped subscriptions converge via a
 rows-free `current_as_of` watermark. Wait on delivery (as above) rather
 than asserting immediately after `mutate` resolves.
 
+## Matching inserts in point and parent queries
+
+**HostPlan matching inserts are guaranteed.** A subscribed point filter such
+as `eq('_id', arg('id'))` or parent list such as
+`eq('parentId', arg('parentId'))` must keep every matching row. The server may
+publish an incremental Add or conservatively re-run and `live_replace`; the
+result must not be empty merely because a sibling row was inserted. Ordered
+lists and a populated `limit: 1` point result take the replacement lane.
+
+These are matcher characterization results, not a faithful replay of every
+application boundary in Diary 0106. The engine cases run a `writePost`-shaped
+child insert plus parent `replyCount` patch and cover the populated point,
+ordered parent, pre-insert, and post-insert subscription cuts. The real-socket
+kit case uses a second client, keeps a `SnapbackProvisionalId`/outbox identity
+distinct from the canonical row id, records the raw Add operations, and
+observes `snapshot` before `live_delta`.
+
+**Clique still observed a blank.** Its React thread used `postById` and
+`repliesForPost` around a JS `writePost`, then recovered after switching to
+`defineJsLiveQuery` plus a local cache. The available diary is an application
+observation, not the original wire/probe trace, so the HostPlan
+characterizations do not rule the matcher out for that observed product path.
+Keep these three create-and-navigate cuts separate:
+
+1. **Never put a provisional id on a point query.** A
+   `SnapbackProvisionalId` identifies durable optimistic/outbox intent, not a
+   row. Keep it in the optimistic-create projection. Use the canonical
+   `Id<Table>` from settlement or its logical-mint mapping for `_id` filters.
+2. **Wait for live delivery only when subscribed before the insert.** Mutation
+   settlement does not await subscriber convergence; an already-open handle
+   can still hold its empty pre-insert snapshot until its Add or replacement
+   arrives.
+3. **A post-settlement subscribe with the canonical id must snapshot the row.**
+   It cannot receive the earlier delta because it did not exist then. If its
+   authoritative initial snapshot is empty, that is a defect—do not wait for a
+   future live frame to repair it.
+
+For `blank after insert`, `Loading thread`, or `live_delta empty`, capture the
+query args and canonical/provisional identity at each render, the mutation
+settlement and subscription ids/versions, raw `snapshot`/`live_delta`/
+`live_replace` frames, authorization boundary events, and React mount/remount
+state. Mutation timing, provisional identity, authorization blanking,
+optimistic-create projection, and HMR/remount are diagnostic hypotheses, not
+the established fix.
+
+While the faithful trace remains open, `defineJsLiveQuery` plus a local cache
+remains the documented application workaround for the Clique symptom. It
+changes the server lane to handler re-run/replacement and changes application
+cache timing; its success is useful mitigation, not proof of which boundary
+caused the blank and not disproven physics. For new code without the symptom,
+the ordinary selection rule still applies: keep `defineLiveQuery` when the
+table plan expresses the read, and choose JS for bounded logic or computed
+results the declarative and relational carriers cannot express. See
+[Queries](../backend/queries.md#choose-declarative-or-javascript-execution).
+
 Key options: `transport: 'stream'` for durable WebSocket push (`'poll'` is
 the default, cadence `pollCadenceMs`, with `fallbackToPoll` when a stream
 can't be established), `onUpdate(rows, meta)`, `onConnectionChange`,
@@ -184,10 +239,11 @@ hand. A missing or non-exact contract does not make the live query unloadable:
 the server honestly takes the full re-query plus `live_replace` path instead.
 
 When an apparently analyzable query receives replacements, check all of the
-conservative boundaries together: ordered or limited queries, membership-gated
-queries, generated standard patterns, opaque handlers, and manifests without
-the exact schema-derived document contract are replace-only. This fallback is
-intentional and correctness-preserving, not evidence that durable push failed.
+conservative boundaries together: ordered queries, limited windows once their
+held membership reaches the cap, membership-gated queries, generated standard
+patterns, opaque handlers, and manifests without the exact schema-derived
+document contract are replace-only. This fallback is intentional and
+correctness-preserving, not evidence that durable push failed.
 
 The kit's end-to-end delta witness
 (`demos/_kit/tests/live-delta-e2e.mjs`) drives all of this over a real
@@ -198,7 +254,7 @@ socket. Its subscription records every delivered `meta.kind`:
     connectionId: 'delta_conn',
     userId: ADA,
     transport: 'stream',
-    stream: { heartbeatIntervalMs: 200, freshnessBudgetMs: 800, reconnectBaseDelayMs: 100, reconnectMaxDelayMs: 400 },
+    stream: FAST_STREAM,
     onUpdate: rec.onUpdate,
   });
 ```

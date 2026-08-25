@@ -332,13 +332,14 @@ for (const path of [
 const viteSource = templateSource('packages/snapback-cli/templates/react/src/main.tsx');
 assert.match(viteSource, /url:\s*import\.meta\.env\.VITE_SNAPBACK_URL/u);
 assert.doesNotMatch(viteSource, /createSnapbackDevAppBinding/u);
-assert.match(
-  templateSource('packages/snapback-cli/templates/todo-contract/acceptance.mjs'),
-  /createSnapbackAppClient\s*\(\s*\{[\s\S]*?app,[\s\S]*?url:\s*process\.env\.SNAPBACK_URL,[\s\S]*?streamless:\s*true,/u,
+const todoAcceptanceSource = templateSource(
+  'packages/snapback-cli/templates/todo-contract/acceptance.mjs',
 );
+assert.match(todoAcceptanceSource, /async journey\(\{[\s\S]*?\bbindingFor\b/u);
+assert.match(todoAcceptanceSource, /const binding = bindingFor\(app,\s*\{/u);
 assert.match(
-  templateSource('packages/snapback-cli/templates/todo-contract/acceptance.mjs'),
-  /new SnapbackClient\(ready\.serverUrl,/u,
+  todoAcceptanceSource,
+  /createSnapbackAppClient\s*\(\s*\{[\s\S]*?app,[\s\S]*?binding,[\s\S]*?streamless:\s*true,/u,
 );
 const reactImplementation = templateSource('packages/snapback-react/implementation.mjs');
 assert.match(reactImplementation, /appClient,[\s\S]*?app,[\s\S]*?binding,[\s\S]*?url,[\s\S]*?platform,/u);

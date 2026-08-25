@@ -302,9 +302,9 @@ setRouteEstimateTransport(async (args) => {
 // tables are empty) via the `connect` hook, then the generated Contract
 // surface with live push (LLP 0034 D1). Transient failures (server down,
 // network) retry on capped backoff while the board keeps showing scheduled
-// departures under an honest note; a structured contract diagnostic (stale
-// generated artifacts) is a build defect, not an outage, and fails loudly
-// instead of retrying forever.
+// departures under an honest note. The adapter keys that decision on client
+// transport provenance across both connect and live subscription setup;
+// answered HTTP failures and other terminal defects fail loudly.
 let provisioned: string[] = [];
 const renderFirst = createRenderFirstSnapbackContractSurface({
   runtime: contractRuntime,

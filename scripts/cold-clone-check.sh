@@ -116,6 +116,35 @@ detect_chrome() {
     log "using Chrome: $CHROME_BIN"
 }
 
+print_acceptance_report() {
+    local report_path="$1"
+    local report
+    report="$(sed -n '/^--- machine-readable report ---$/,$p' "$report_path")"
+    if [ -n "$report" ]; then
+        printf '[cold-clone] machine-readable acceptance report:\n' >&2
+        printf '%s\n' "$report" >&2
+    else
+        printf '[cold-clone] machine-readable acceptance report unavailable (marker missing)\n' >&2
+    fi
+}
+
+fail_acceptance() {
+    local report_path="$1"
+    shift
+    print_acceptance_report "$report_path"
+    fail "$@"
+}
+
+# A fail-only probe for the reporting branch. It deliberately cannot produce a
+# passing cold-clone verdict and lets the report contract be tested without the
+# expensive clone/build/runtime setup.
+if [ -n "${SNAPBACK_COLD_CLONE_REPORT_PROBE_LOG:-}" ]; then
+    [ -r "$SNAPBACK_COLD_CLONE_REPORT_PROBE_LOG" ] \
+        || fail "report probe log is not readable: $SNAPBACK_COLD_CLONE_REPORT_PROBE_LOG"
+    fail_acceptance "$SNAPBACK_COLD_CLONE_REPORT_PROBE_LOG" \
+        "injected browser acceptance failure (report probe)"
+fi
+
 for tool in git node bun cargo; do
     command -v "$tool" >/dev/null 2>&1 || fail "required tool missing: $tool"
 done
@@ -247,7 +276,8 @@ set -e
 step_timer_end "browser acceptance"
 
 if grep -q 'SNAPBACK_CAPABILITY_EXACT_MISSING' "$ACCEPT_LOG"; then
-    fail "acceptance reported SNAPBACK_CAPABILITY_EXACT_MISSING — the cold-clone lane must never skip for missing Exact packages"
+    fail_acceptance "$ACCEPT_LOG" \
+        "acceptance reported SNAPBACK_CAPABILITY_EXACT_MISSING — the cold-clone lane must never skip for missing Exact packages"
 fi
 if [ "$acceptance_status" -ne 0 ]; then
     if [ "${CI:-}" = "true" ]; then
@@ -257,7 +287,8 @@ if [ "$acceptance_status" -ne 0 ]; then
             | cut -c 1-500 >&2 \
             || true
     fi
-    fail "browser acceptance exited $acceptance_status; full output: $ACCEPT_LOG"
+    fail_acceptance "$ACCEPT_LOG" \
+        "browser acceptance exited $acceptance_status; full output: $ACCEPT_LOG"
 fi
 
 # Independent count gate: trust the harness summary line
@@ -265,17 +296,21 @@ fi
 # exit code — zero checks or a truncated run must not pass. The title's
 # parens are escaped for ERE.
 summary_line="$(grep -E '^(PASS|FAIL) all-aboard browser \(Phase 1\)' "$ACCEPT_LOG" | tail -1 || true)"
-[ -n "$summary_line" ] || fail "no harness summary line found in acceptance output"
+[ -n "$summary_line" ] \
+    || fail_acceptance "$ACCEPT_LOG" "no harness summary line found in acceptance output"
 counts="$(printf '%s\n' "$summary_line" | grep -oE '[0-9]+/[0-9]+$' || true)"
-[ -n "$counts" ] || fail "harness summary carries no check counts: '$summary_line'"
+[ -n "$counts" ] \
+    || fail_acceptance "$ACCEPT_LOG" "harness summary carries no check counts: '$summary_line'"
 passed="${counts%/*}"
 total="${counts#*/}"
 case "$summary_line" in
     PASS*) : ;;
-    *) fail "harness summary is not a PASS: '$summary_line'" ;;
+    *) fail_acceptance "$ACCEPT_LOG" "harness summary is not a PASS: '$summary_line'" ;;
 esac
-[ "$passed" -eq "$total" ] || fail "only $passed/$total checks passed"
-[ "$passed" -ge "$MIN_CHECKS" ] || fail "ran $passed checks; expected at least $MIN_CHECKS"
+[ "$passed" -eq "$total" ] \
+    || fail_acceptance "$ACCEPT_LOG" "only $passed/$total checks passed"
+[ "$passed" -ge "$MIN_CHECKS" ] \
+    || fail_acceptance "$ACCEPT_LOG" "ran $passed checks; expected at least $MIN_CHECKS"
 log "step 2 OK: $passed/$total checks passed"
 
 banner "Verdict"

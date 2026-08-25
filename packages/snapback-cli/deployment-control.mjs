@@ -10,7 +10,6 @@ import {
   constants,
   chmodSync,
   existsSync,
-  fstatSync,
   fsyncSync,
   linkSync,
   lstatSync,
@@ -24,6 +23,8 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
+
+import { readFileDescriptorSafe as readFileDescriptorSafeInternal } from './file-custody.mjs';
 
 const TARGET_KEYS = [
   'schemaVersion', 'targetId', 'projectId', 'environmentId', 'deploymentId',
@@ -518,36 +519,15 @@ function assertSecureFile(path, code = 'SNAPBACK_CONTROL_STORE_UNSAFE') {
   }
 }
 
+// @ref LLP 0017#security-defaults — owner-only credential carriers are
+// opened once without following links, validated on that descriptor, and
+// bounded-read before the same descriptor is revalidated.
 function readFileDescriptorSafe(path, code, options = {}) {
-  const maximumBytes = options.maximumBytes ?? MAX_CONTROL_FILE_BYTES;
-  let descriptor;
-  try {
-    descriptor = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW);
-    const before = fstatSync(descriptor);
-    const expectedUid = typeof process.getuid === 'function' ? process.getuid() : before.uid;
-    if (!before.isFile() || before.nlink !== 1 || before.size > maximumBytes
-        || (options.ownerOnly === true
-          && (before.uid !== expectedUid || (before.mode & 0o077) !== 0))) {
-      throw fail(code, options.ownerOnly === true
-        ? 'artifact must be a bounded, regular, single-link, owner-only file'
-        : 'artifact must be a bounded, regular, single-link file', { path });
-    }
-    const bytes = readFileSync(descriptor);
-    const after = fstatSync(descriptor);
-    if (before.dev !== after.dev || before.ino !== after.ino
-        || before.nlink !== after.nlink || before.size !== after.size
-        || before.mtimeMs !== after.mtimeMs || bytes.byteLength !== after.size) {
-      throw fail(code, 'artifact changed while it was being read', { path });
-    }
-    return bytes;
-  } catch (cause) {
-    if (cause?.code?.startsWith?.('SNAPBACK_')) throw cause;
-    const error = fail(code, 'artifact does not exist or cannot be opened safely', { path });
-    error.cause = cause;
-    throw error;
-  } finally {
-    if (descriptor !== undefined) closeSync(descriptor);
-  }
+  return readFileDescriptorSafeInternal(path, code, {
+    ...options,
+    maximumBytes: options.maximumBytes ?? MAX_CONTROL_FILE_BYTES,
+    makeFailure: (failureCode, message, details) => fail(failureCode, message, details),
+  });
 }
 
 function readBoundedJson(path, code) {
@@ -3700,6 +3680,9 @@ export function applyDeployPlan(planId, options = {}) {
 export const __deploymentTest = {
   canonicalJson,
   sha256,
+  readFileDescriptorSafeHarness(path, code, options = {}) {
+    return readFileDescriptorSafe(path, code, options);
+  },
   closedKeySchemaBindings: CLOSED_KEY_SCHEMA_BINDINGS,
   nonSchemaKeySets: NON_SCHEMA_KEY_SETS,
   createBackupPlanHarness(options = {}) {

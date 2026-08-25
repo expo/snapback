@@ -105,6 +105,11 @@ const REQUIRED_INSTRUMENT_ARTIFACTS = Object.freeze({
   runRecordExtensionSchema: 'file',
   recordValidator: 'file',
   meteringRoot: 'directory',
+  observabilityRoot: 'directory',
+  // tools/lib is imported by the choreography (setup-identity.mjs reaches
+  // ../../lib/json-schema.mjs), so a materialized snapshot without it cannot
+  // run the self-test — discovered on the first from-snapshot execution.
+  toolsLibRoot: 'directory',
 });
 
 function byteLength(value) {

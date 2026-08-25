@@ -25,6 +25,23 @@
     {
       "if": {
         "properties": {
+          "instrumentVersion": {
+            "const": "social-messenger@0.3.3-m8"
+          }
+        },
+        "required": ["instrumentVersion"]
+      },
+      "then": {
+        "properties": {
+          "typingObservationBoundaryVersion": {
+            "const": "v1"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
           "runScope": {
             "const": "full"
           }
@@ -54,7 +71,7 @@
       "if": {
         "properties": {
           "instrumentVersion": {
-            "const": "social-messenger@0.3.3-m8"
+            "const": "social-messenger@0.3.4-m8"
           }
         },
         "required": [
@@ -64,23 +81,34 @@
       "then": {
         "required": [
           "instrumentVersion",
+          "typingObservationBoundaryVersion",
           "orientation",
           "observabilityProtocol",
           "efficiencyScorecardEligibility",
           "suiteStatusLinkage"
         ],
         "properties": {
+          "typingObservationBoundaryVersion": {
+            "const": "v2"
+          },
+          "setup": {
+            "properties": {
+              "instrumentPin": {
+                "const": "social-messenger@0.3.4-m8"
+              }
+            }
+          },
           "orientation": {
             "properties": {
               "instrument": {
                 "properties": {
                   "pin": {
-                    "const": "social-messenger@0.3.3-m8"
+                    "const": "social-messenger@0.3.4-m8"
                   },
                   "versions": {
                     "properties": {
                       "choreography": {
-                        "const": "0.3.3-m8"
+                        "const": "0.3.4-m8"
                       }
                     },
                     "required": [
@@ -158,7 +186,10 @@
         ],
         "properties": {
           "instrumentVersion": {
-            "const": "social-messenger@0.3.3-m8"
+            "enum": [
+              "social-messenger@0.3.3-m8",
+              "social-messenger@0.3.4-m8"
+            ]
           }
         }
       }
@@ -195,6 +226,73 @@
         "properties": {
           "instrumentVersion": {
             "const": "social-messenger@0.3.3-m8"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "orientation": {
+            "properties": {
+              "instrument": {
+                "properties": {
+                  "pin": {
+                    "const": "social-messenger@0.3.4-m8"
+                  }
+                },
+                "required": ["pin"]
+              }
+            },
+            "required": ["instrument"]
+          }
+        },
+        "required": ["orientation"]
+      },
+      "then": {
+        "required": ["instrumentVersion", "typingObservationBoundaryVersion"],
+        "properties": {
+          "instrumentVersion": {
+            "const": "social-messenger@0.3.4-m8"
+          },
+          "typingObservationBoundaryVersion": {
+            "const": "v2"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "orientation": {
+            "properties": {
+              "instrument": {
+                "properties": {
+                  "versions": {
+                    "properties": {
+                      "choreography": {
+                        "const": "0.3.4-m8"
+                      }
+                    },
+                    "required": ["choreography"]
+                  }
+                },
+                "required": ["versions"]
+              }
+            },
+            "required": ["instrument"]
+          }
+        },
+        "required": ["orientation"]
+      },
+      "then": {
+        "required": ["instrumentVersion", "typingObservationBoundaryVersion"],
+        "properties": {
+          "instrumentVersion": {
+            "const": "social-messenger@0.3.4-m8"
+          },
+          "typingObservationBoundaryVersion": {
+            "const": "v2"
           }
         }
       }
@@ -251,13 +349,22 @@
     "instrumentVersion": {
       "enum": [
         "social-messenger@0.3.2-m8",
-        "social-messenger@0.3.3-m8"
+        "social-messenger@0.3.3-m8",
+        "social-messenger@0.3.4-m8"
       ],
-      "description": "Unconditional identity binding for every plan record. Current R2 records use 0.3.3-m8; retained legacy records must identify 0.3.2-m8 explicitly, so deleting or downgrading only the optional orientation/protocol markers cannot select legacy validation."
+      "description": "Unconditional identity binding for every plan record. Current records use 0.3.4-m8; retained 0.3.2-m8 and 0.3.3-m8 records remain identified by their own pins and never aggregate with current typing-boundary-v2 records."
+    },
+    "typingObservationBoundaryVersion": {
+      "enum": ["v1", "v2"],
+      "description": "M3 typing observation boundary. Current 0.3.4-m8 records require v2; retained pre-bump records may omit this field and are interpreted only under their own instrument version."
     },
     "observabilityProtocol": {
       "const": "social-messenger-observation.v1",
-      "description": "Typed event/projection protocol used by the current 0.3.3-m8 instrument. Older version-2 records omit it; current records may not omit observability blocks silently."
+      "description": "Typed event/projection protocol used by the 0.3.3-m8 and 0.3.4-m8 instruments. Older version-2 records omit it; current records may not omit observability blocks silently."
+    },
+    "setup": {
+      "$ref": "#/$defs/setupIdentity",
+      "description": "Structured setup copied mechanically from the hash-bound choreography summary: qualified binary and wrapper claims, package/prepack closure, declared toolchain versions, and host identity. Retained pre-bump 0.3.3 records may omit it."
     },
     "efficiencyScorecardEligibility": {
       "type": "object",
@@ -1789,6 +1896,128 @@
     }
   },
   "$defs": {
+    "setupArtifactClaim": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["claimed", "path", "sha256"],
+          "additionalProperties": false,
+          "properties": {
+            "claimed": { "const": true },
+            "path": { "type": "string", "minLength": 1 },
+            "sha256": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["claimed", "reason"],
+          "additionalProperties": false,
+          "properties": {
+            "claimed": { "const": false },
+            "reason": { "type": "string", "minLength": 1 }
+          }
+        }
+      ]
+    },
+    "setupIdentity": {
+      "type": "object",
+      "required": ["schemaVersion", "instrumentPin", "backend", "runtime", "packageClosure", "toolchain", "host"],
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": { "const": "social-messenger.setup-identity.v1" },
+        "instrumentPin": {
+          "enum": ["social-messenger@0.3.3-m8", "social-messenger@0.3.4-m8"]
+        },
+        "backend": {
+          "type": "object",
+          "required": ["kind", "version"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "enum": ["snapback", "external"] },
+            "version": { "type": "string", "minLength": 1 }
+          }
+        },
+        "runtime": {
+          "type": "object",
+          "required": ["qualifiedBinary", "wrapper"],
+          "additionalProperties": false,
+          "properties": {
+            "qualifiedBinary": { "$ref": "#/$defs/setupArtifactClaim" },
+            "wrapper": { "$ref": "#/$defs/setupArtifactClaim" }
+          }
+        },
+        "packageClosure": {
+          "type": "object",
+          "required": ["mode", "prepack", "artifacts"],
+          "additionalProperties": false,
+          "properties": {
+            "mode": { "enum": ["packed", "workspace", "hosted"] },
+            "prepack": { "enum": ["verified", "not-applicable"] },
+            "artifacts": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": ["name", "version", "sha256"],
+                "additionalProperties": false,
+                "properties": {
+                  "name": { "type": "string", "minLength": 1 },
+                  "version": { "type": "string", "minLength": 1 },
+                  "sha256": { "type": ["string", "null"], "pattern": "^sha256:[a-f0-9]{64}$" }
+                }
+              }
+            }
+          },
+          "allOf": [
+            {
+              "if": { "properties": { "mode": { "const": "packed" } }, "required": ["mode"] },
+              "then": {
+                "properties": {
+                  "prepack": { "const": "verified" },
+                  "artifacts": {
+                    "items": {
+                      "properties": {
+                        "sha256": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "toolchain": {
+          "type": "object",
+          "required": ["node", "bun", "npm", "playwright", "browser"],
+          "additionalProperties": false,
+          "properties": {
+            "node": {
+              "type": "object",
+              "required": ["path", "version"],
+              "additionalProperties": false,
+              "properties": {
+                "path": { "type": "string", "minLength": 1 },
+                "version": { "type": "string", "minLength": 1 }
+              }
+            },
+            "bun": { "type": "string", "minLength": 1 },
+            "npm": { "type": "string", "minLength": 1 },
+            "playwright": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$" },
+            "browser": { "enum": ["chromium", "firefox", "webkit"] }
+          }
+        },
+        "host": {
+          "type": "object",
+          "required": ["id", "platform", "arch"],
+          "additionalProperties": false,
+          "properties": {
+            "id": { "type": "string", "minLength": 1 },
+            "platform": { "type": "string", "minLength": 1 },
+            "arch": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
     "hashedArtifact": {
       "type": "object",
       "required": [

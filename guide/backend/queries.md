@@ -4,13 +4,13 @@ id: backend.queries
 order: 1
 audience: agent-first
 capabilities: [backend.functions, backend.query-semantics, backend.batch-reads]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0174-authoring-incidents-at-security-fences.research.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0245-infer-show-freeze-declarations.rfc.md, llp/0248-bounded-batch-reads.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/n-plus-one-advisory.mjs, packages/snapback-codegen/n-plus-one-advisory.test.mjs, packages/snapback-codegen/result-contracts.mjs, packages/snapback-codegen/ctx.d.mts, packages/snapback-codegen/authoring-validation.test.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-harness/envelope.test.mjs, schemas/capability.manifest.local-dev-sqlite-ibex.json, crates/snapback-engine/src/manifest.rs, crates/snapback-engine/src/runtime.rs, crates/snapback-kernel/src/storage.rs, crates/snapback-types/src/result_contract.rs, crates/snapback/tests/local_v0.rs, demos/signal-desk/snapback/functions.mjs]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0008-local-first-sync-and-realtime.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0174-authoring-incidents-at-security-fences.research.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0245-infer-show-freeze-declarations.rfc.md, llp/0248-bounded-batch-reads.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/n-plus-one-advisory.mjs, packages/snapback-codegen/n-plus-one-advisory.test.mjs, packages/snapback-codegen/result-contracts.mjs, packages/snapback-codegen/ctx.d.mts, packages/snapback-codegen/authoring-validation.test.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-harness/envelope.test.mjs, packages/snapback-client/index.d.mts, schemas/capability.manifest.local-dev-sqlite-ibex.json, crates/snapback-engine/src/manifest.rs, crates/snapback-engine/src/runtime.rs, crates/snapback-kernel/src/storage.rs, crates/snapback-types/src/result_contract.rs, crates/snapback/tests/local_v0.rs, demos/signal-desk/snapback/functions.mjs]
 examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-22
-reviewed-authorities-digest: sha256:f08ac0e15a7123d0eedffca1258c4f90b542a9b36ab388023760b0c981c61565
+reviewed: 2026-08-25
+reviewed-authorities-digest: sha256:1070c66f2dd1c631160d60ebfd0cde4399572cf90d1bc048ce64215542ef3131
 ---
 
 # Queries
@@ -74,6 +74,32 @@ Use the declarative form when the plan vocabulary expresses the query. Use a
 JS handler for bounded logic the plan cannot express. Both styles return the
 same public query envelope and must use declared indexes for author-facing
 lookup paths.
+
+For live reads, that is also the selection rule: use `defineLiveQuery` for an
+exact one-table point or list query whose filters and ordering fit the
+declarative plan. Use `defineRelationalQuery` for its supported joins, and use
+`defineJsLiveQuery` only when the bounded read or computed result is not
+expressible by those declarative carriers. Delta versus full replacement is a
+server delivery choice; both are required to preserve the same authoritative
+result membership.
+
+After a create, **use the canonical row id returned at settlement** when a
+route opens an `_id` point query. A provisional optimistic identity is not a
+row address and must not be cast to `Id<Table>`; keep it inside the
+[optimistic-create projection](../recipes/optimistic-create.md) until its
+logical mint settles. Wait for delivery only if the subscription already
+existed before the insert; a subscription opened after settlement with the
+canonical id must receive the row in its initial snapshot.
+
+There is one documented diagnostic exception to the ordinary selection rule.
+Diary 0106's Clique thread still blanked on table `postById` /
+`repliesForPost` reads even though HostPlan matcher characterizations pass.
+Until a faithful React/JS/wire trace explains that product path,
+`defineJsLiveQuery` plus a local cache remains the application workaround that
+restored Clique. Treat it as mitigation, not proof that timing, provisional
+identity, authorization, optimistic projection, or HMR is the cause. The
+residual warning and trace checklist are in
+[live queries](../realtime/live-queries.md#matching-inserts-in-point-and-parent-queries).
 
 Indexes name authored table fields only. `_id`, `_version`, `_createdAt`, and
 `_updatedAt` are legal filter/order leaves but are rejected inside

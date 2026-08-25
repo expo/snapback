@@ -54,7 +54,7 @@ function setupOptions(run, overrides = {}) {
     profile: 'snapback-explicit-v1',
     milestones: ['M1', 'M2', 'M3'],
     backendPin: '@expo/snapback-*@0.1.24',
-    instrumentPin: 'social-messenger@0.3.3-m8',
+    instrumentPin: 'social-messenger@0.3.4-m8',
     selectedSkills: ['snapback-authoring'],
     skillCarriers: [{ skillId: 'snapback-authoring', path: run.skillPath }],
     ...overrides,
@@ -73,12 +73,12 @@ test('lane setup verifies the frozen manifest and never falls back to live sourc
   const run = provisionRun();
   const artifacts = resolveInstrumentArtifacts({
     instrumentRoot: run.instrumentRoot,
-    instrumentPin: 'social-messenger@0.3.3-m8',
+    instrumentPin: 'social-messenger@0.3.4-m8',
   });
   assert.deepEqual(artifacts.manifest.versions, {
     schema: '0.3.0-m8',
-    ui: '0.3.1-m8',
-    choreography: '0.3.3-m8',
+    ui: '0.3.2-m8',
+    choreography: '0.3.4-m8',
   });
   assert.equal(artifacts.assertions.logicalPath, 'schema/social-messenger/assertions.json');
   assert.equal(
@@ -86,6 +86,7 @@ test('lane setup verifies the frozen manifest and never falls back to live sourc
     'schema/social-messenger/run-record-extension.schema.json',
   );
   assert.equal(artifacts.meteringRoot.logicalPath, 'tools/social-messenger/metering');
+  assert.equal(artifacts.observabilityRoot.logicalPath, 'tools/social-messenger/observability');
 
   rmSync(join(run.instrumentRoot, 'schema/social-messenger/assertions.json'));
   assert.throws(
@@ -109,6 +110,10 @@ test('lane setup verifies the frozen manifest and never falls back to live sourc
     () => generateLaneSetup(setupOptions(digestRun)),
     /artifact brief digest mismatch/,
   );
+});
+
+test('lane setup refuses a plan pin different from social-messenger@0.3.4-m8', () => {
+  const run = provisionRun();
   assert.throws(
     () => resolveInstrumentArtifacts({
       instrumentRoot: run.instrumentRoot,
@@ -138,7 +143,7 @@ test('lane setup emits deterministic bounded steering with the full skill body i
   assert.equal(skillCarrier.deduplicated, false);
   assert.equal(first.orientation.artifacts.length, 3);
   assert.equal(first.orientation.laneKind, 'snapback-web-clique');
-  assert.equal(first.orientation.instrument.pin, 'social-messenger@0.3.3-m8');
+  assert.equal(first.orientation.instrument.pin, 'social-messenger@0.3.4-m8');
 
   const agents = before[AGENTS_FILE];
   assert.match(agents, /Web-only Expo Router Clique benchmark/);

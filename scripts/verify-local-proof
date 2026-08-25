@@ -483,6 +483,9 @@ run app-api-md-fixtures -- node --test scripts/generate-app-api-md.test.mjs
 # the All Aboard `headsgn` typo at compile time.
 run contract-meta --requires generated-artifacts -- node scripts/check-contract-meta.mjs
 run contract-meta-fixtures --requires contract-meta -- node scripts/check-contract-meta.test.mjs
+# The fail-only injection stops before install/build/runtime setup, so the
+# expensive cold-clone lane's failure-report contract stays cheaply executable.
+run cold-clone-report-probe-fixtures -- node --test scripts/cold-clone-report-probe.test.mjs
 # @ref LLP 0010#ci-and-review-gates — establish the exact compiler/runtime
 # identities before any native producer.
 run toolchain-authority -- node scripts/check-toolchain-authority.mjs

@@ -2297,3 +2297,79 @@ Evidence: the required registry production build passed, and
 `scripts/cold-clone-check.sh` completed its frozen registry install,
 production build, and all 34 browser checks (`34/34`, 92s). That is the exit
 witness for the closed production-runtime ticket.
+
+## 2026-08-25 — unreachable boot stays board-first, and cold-clone failures speak
+
+The F-3 cold-clone witness found a regression in a promise this diary had
+already treated as settled: blocking the backend still painted the bundled
+schedule board, but it also raised the fixed-position `boot-status` error over
+that board. The browser client wraps a bare transport failure as the structured
+`SNAPBACK_CLIENT_REFUSED` diagnostic. All Aboard's render-first adapter quite
+reasonably treats diagnostics as terminal build defects, so the generic
+transport wrapper accidentally took the hard-failure path instead of the
+retry path.
+
+The app now narrows that boundary at its health/ensure preflight: only the
+generic client transport refusal is rethrown as an ordinary retryable error.
+Specific Contract diagnostics keep their loud terminal behavior. The existing
+offline acceptance now records the boot-chrome text when it regresses and
+passes with a numeric scheduled departure, the `SCHEDULE` badge, and
+`Offline — showing scheduled departures`; the online boot path remains green.
+
+Snapback's bundled deterministic schedule plus the read-only backend host
+projection made the product fix pleasantly small. The sharp edge was that
+"has a diagnostic" had come to mean both "typed build refusal" and "fetch did
+not reach a server" at the adapter seam. A Convex- or Supabase-style client
+would usually expose transport state separately, but the app would still need
+the same product decision about retained/default data and honest labeling.
+Exact remained neutral here: its pending Contract bindings continued to mount
+and render the schedule correctly throughout.
+
+The other half of the issue was observability. `scripts/cold-clone-check.sh`
+already retained the full browser log, but on failure it normally emitted only
+the temporary pathname. It now prints the machine-readable report section
+before exiting. A fail-only report probe exercises that branch without running
+the expensive clone/build/runtime sequence; an injected one-check failure
+printed its JSON and exited 1. This is straightforward shell plumbing, but it
+turns an opaque remote failure into evidence that survives the temp directory.
+
+Verification: fail-first browser acceptance reproduced the sole failure at
+`33/34` with `Boot failed: SNAPBACK_CLIENT_REFUSED: Failed to fetch`; after the
+fix the same suite passed `34/34`. The targeted cold-clone report probe printed
+the injected machine-readable JSON and exited 1. The full cold-clone sequence
+was not rerun in this JS-only lane; the F-3 witness remains recorded precisely
+in the resolved ticket.
+
+## 2026-08-25 — offline retry ownership moves into render-first
+
+Review found that the first offline repair made the right product visible for
+the wrong architectural reason. `SNAPBACK_CLIENT_REFUSED` is the client's
+fallback diagnostic for any otherwise-uncoded exception, so stripping that
+code in All Aboard's `connect` hook could also turn malformed protocol data
+into an endless Offline state. It missed the second establishment seam too: a
+transport failure during Contract surface creation or live subscribe still
+terminated attachment and repainted the boot chrome.
+
+The retry decision now lives in the render-first Contract adapter and uses the
+client's transport provenance rule. Fetch-dispatch failures retry from either
+the app preflight or live-subscribe construction; a code-only
+`SNAPBACK_CLIENT_REFUSED` stays terminal. An HTTP response is also terminal,
+including a 502 HTML response labeled `SNAPBACK_HTTP_ERROR`: the transport did
+answer, so replaying behind Offline would hide an ambiguous proxy/server or
+protocol defect. The classifier moved into the lower Contract package and the
+client's existing `outbox-shared` export now points to that one implementation,
+avoiding a client↔Contract package cycle.
+
+Snapback felt better after the boundary correction: the app now expresses only
+its product preflight, while the reusable adapter owns retry across every way
+attachment can fail. Exact remained neutral again; pending bindings continued
+to render the bundled board. Compared with Convex or Supabase, the useful
+difference is not a branded error code but an explicit no-Response provenance
+fact that prevents server answers from being mistaken for outages.
+
+The cold-clone report injection is now an inventoried Node test rather than a
+manual assertion. It proves exit 1 plus marker/JSON forwarding and separately
+proves the missing-marker message, without entering the expensive install,
+build, or browser phases. The focused 34-check browser suite is the local
+offline witness; the full cold-clone rerun and the separate first-paint budget
+failure remain outstanding.

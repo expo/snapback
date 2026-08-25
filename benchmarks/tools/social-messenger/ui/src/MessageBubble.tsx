@@ -32,6 +32,8 @@ export interface MessageBubbleProps {
   viewOnceOpened?: boolean;
   /** Sender display name (rendered for others' messages in groups). */
   senderName?: string;
+  /** Stable sender identity exposed on the avatar (usually the handle). */
+  senderIdentity?: string;
   senderAvatarUri?: string;
   /** Show sender name + avatar (group conversations). Default false. */
   showSender?: boolean;
@@ -73,6 +75,7 @@ function mediaBlock(props: MessageBubbleProps): React.JSX.Element | null {
       <Pressable
         accessibilityLabel={viewOnceOpened ? 'View-once photo, already opened' : 'View-once photo'}
         accessibilityRole="button"
+        accessibilityValue={{ text: viewOnceOpened ? 'opened' : 'unopened' }}
         disabled={!!viewOnceOpened}
         onPress={onPressMedia}
         style={styles.viewOnce}
@@ -120,6 +123,7 @@ export function MessageBubble(props: MessageBubbleProps): React.JSX.Element {
     isMine,
     text,
     senderName,
+    senderIdentity,
     senderAvatarUri,
     showSender = false,
     timestamp,
@@ -147,7 +151,13 @@ export function MessageBubble(props: MessageBubbleProps): React.JSX.Element {
     <View style={[styles.row, isMine ? styles.rowMine : styles.rowTheirs]}>
       {!isMine && showSender ? (
         <View style={styles.avatarSlot}>
-          <Avatar label={senderName ?? '?'} size={28} {...(senderAvatarUri ? { uri: senderAvatarUri } : {})} />
+          <Avatar
+            identity={senderIdentity}
+            label={senderName ?? '?'}
+            size={28}
+            testID="sm-convo-sender-avatar"
+            {...(senderAvatarUri ? { uri: senderAvatarUri } : {})}
+          />
         </View>
       ) : null}
       <View style={styles.stack}>

@@ -20,6 +20,8 @@ export interface ChatListRowProps {
   onPress: () => void;
   /** Contract testID. Default `sm-chats-item`. */
   testID?: string;
+  /** Stable lane identity, e.g. `dm:bob` or `group:design-gang`. */
+  identity: string;
 }
 
 /** One row in the chats list. Purely presentational. */
@@ -33,16 +35,19 @@ export function ChatListRow({
   accentColor,
   onPress,
   testID = 'sm-chats-item',
+  identity,
 }: ChatListRowProps): React.JSX.Element {
   return (
     <Pressable
       accessibilityLabel={`Chat with ${title}`}
       accessibilityRole="button"
+      accessibilityValue={{ text: identity }}
       onPress={onPress}
       style={styles.row}
       testID={testID}
     >
       <Avatar
+        identity={identity}
         label={title}
         size={44}
         {...(avatarUri ? { uri: avatarUri } : {})}

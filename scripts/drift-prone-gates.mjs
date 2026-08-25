@@ -41,6 +41,10 @@ import {
   selectGate,
 } from './select-local-proof.mjs';
 import { validateInapplicabilityRecord } from './check-local-proof-gates.mjs';
+import {
+  CAPABILITIES_PATH,
+  capabilityGapRowsFromText,
+} from './guide-lib.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const ZERO_SHA = /^0{40}$/u;
@@ -2360,6 +2364,120 @@ export function runBatteryBackstop({
   return batteryRed ? 1 : 0;
 }
 
+function gapReviewTicketMarker(rowId) {
+  return `**Routing signature:** \`gap-review:${rowId}\``;
+}
+
+function gapReviewTicketSlug(rowId) {
+  return rowId.replace(/[^a-z0-9]+/gu, '-').replace(/^-|-$/gu, '');
+}
+
+function findOpenGapReviewTicket(ticketRoot, rowId) {
+  if (!existsSync(ticketRoot)) return null;
+  const marker = gapReviewTicketMarker(rowId);
+  const filenameSuffix = `-guide-gap-review-expired-${gapReviewTicketSlug(rowId)}.md`;
+  for (const name of readdirSync(ticketRoot).sort()) {
+    const path = join(ticketRoot, name);
+    if (!name.endsWith('.md') || !lstatSync(path).isFile()) continue;
+    const body = readFileSync(path, 'utf8');
+    if (body.includes(marker)) return { path, markerPresent: true };
+    if (name.endsWith(filenameSuffix)) return { path, markerPresent: false };
+  }
+  return null;
+}
+
+function restoreGapReviewTicketMarker(path, rowId) {
+  const marker = gapReviewTicketMarker(rowId);
+  const body = readFileSync(path, 'utf8');
+  if (body.includes(marker)) return false;
+  const withMarker = body.replace(/^(\*\*Date:\*\*[^\n]*\n)/mu, `$1${marker}\n`);
+  writeFileSync(path, withMarker === body ? `${marker}\n${body}` : withMarker);
+  return true;
+}
+
+function fileGapReviewTicket({ ticketRoot, row, headRevision, date }) {
+  if (!/^\d{4}-\d{2}-\d{2}$/u.test(date)) fail(`invalid ticket date ${date}`);
+  const compactDate = date.replaceAll('-', '');
+  const rowSlug = gapReviewTicketSlug(row.id);
+  const path = join(ticketRoot, `${compactDate}-guide-gap-review-expired-${rowSlug}.md`);
+  if (existsSync(path)) return { path, filed: false };
+  const body = `# guide-gap: review expired for \`${row.id}\`
+
+**Status:** Open
+**Systems:** Guide, Documentation, Capability registry
+**Date:** ${date}
+${gapReviewTicketMarker(row.id)}
+**GAP review row:** \`${row.id}\`
+**Review date:** ${row.reviewDate}
+**Owner:** ${row.owner}
+**Gap pointer:** \`${row.pointer}\`
+**Detected at:** \`${headRevision}\`
+**Related:** LLP 0061 §3, LLP 0232 §D-6
+
+## Summary
+
+The scheduled drift backstop found that the capability-index GAP row
+\`${row.id}\` passed its review date. Calendar expiry is advisory at push time;
+this owner-routed ticket is the durable review prompt. It is keyed by the row id
+and remains idempotent while open.
+
+## Resolve
+
+Re-examine the GAP with its named owner. Update or remove the row and its filing
+pointer as appropriate, record the outcome here, and move this ticket to
+\`issues/closed/\`.
+`;
+  writeFileSync(path, body);
+  return { path, filed: true };
+}
+
+// @ref LLP 0061#3-verification-snippets-that-ran — calendar expiry warns at
+// push time and becomes owner-routed scheduled work rather than a gate red.
+// @ref LLP 0232#d-6-advisory-fix-forward-routing — one stable row signature
+// retains one open repair ticket until the owner resolves it.
+function routeExpiredGapReviews({ root, ticketRoot, revision, date }) {
+  if (!/^\d{4}-\d{2}-\d{2}$/u.test(date)) fail(`invalid ticket date ${date}`);
+  const paths = gitPaths(root, [
+    'ls-tree', '-r', '--name-only', '-z', revision, '--', CAPABILITIES_PATH,
+  ]);
+  if (!paths.includes(CAPABILITIES_PATH)) return;
+  const rows = capabilityGapRowsFromText(
+    git(root, ['show', `${revision}:${CAPABILITIES_PATH}`]),
+  );
+  for (const row of rows) {
+    if (!row.reviewDate || !row.owner || !row.pointer || row.reviewDate >= date) continue;
+    console.error(
+      `[snapback-drift-backstop] GAP REVIEW EXPIRED ${row.id}; `
+        + `owner: ${row.owner}; pointer: ${row.pointer}`,
+    );
+    const existing = findOpenGapReviewTicket(ticketRoot, row.id);
+    if (existing) {
+      const restored = existing.markerPresent
+        ? false
+        : restoreGapReviewTicketMarker(existing.path, row.id);
+      console.error(
+        `[snapback-drift-backstop] existing open GAP review ticket ${relative(root, existing.path)}; `
+          + `${restored ? 'restored routing signature; ' : ''}not filing a duplicate`,
+      );
+      continue;
+    }
+    const { path: ticket, filed } = fileGapReviewTicket({
+      ticketRoot,
+      row,
+      headRevision: revision,
+      date,
+    });
+    if (filed) {
+      console.error(`[snapback-drift-backstop] FILED ${relative(root, ticket)}`);
+    } else {
+      console.error(
+        `[snapback-drift-backstop] existing GAP review ticket ${relative(root, ticket)}; `
+          + 'treating it as already filed',
+      );
+    }
+  }
+}
+
 export function runBackstop({
   head,
   gate = null,
@@ -2375,7 +2493,23 @@ export function runBackstop({
     if (!registered.includes(gateId)) fail(`unknown drift-prone gate ${gateId}`);
   }
   const ticketRoot = safeIssuesRoot(root, issuesDir);
-  mkdirSync(ticketRoot, { recursive: true });
+  const ticketDate = env.SNAPBACK_DRIFT_TICKET_DATE ?? DEFAULT_TICKET_DATE();
+  let gapReviewRoutingFailed = false;
+  try {
+    mkdirSync(ticketRoot, { recursive: true });
+    routeExpiredGapReviews({
+      root,
+      ticketRoot,
+      revision,
+      date: ticketDate,
+    });
+  } catch (error) {
+    gapReviewRoutingFailed = true;
+    console.error(
+      '[snapback-drift-backstop] INFRASTRUCTURE ERROR GAP review routing failed; '
+        + `continuing with frozen-record gates: ${error?.message ?? error}`,
+    );
+  }
   const infrastructureStreaks = readInfrastructureStreaks(root);
   let failures = 0;
   let infrastructureFailures = 0;
@@ -2508,7 +2642,7 @@ export function runBackstop({
     console.error(`[snapback-drift-backstop] FILED ${relative(root, ticket)}`);
   }
   writeInfrastructureStreaks(root, infrastructureStreaks);
-  if (infrastructureFailures > 0) return 2;
+  if (gapReviewRoutingFailed || infrastructureFailures > 0) return 2;
   return failures === 0 ? 0 : 1;
 }
 

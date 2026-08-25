@@ -26434,6 +26434,346 @@ fn standard_pattern_live_is_conservative_and_recorded() {
     );
 }
 
+const TABLE_LIVE_CHARACTERIZATION_CHILD_ID: &str = "post_reply";
+const TABLE_LIVE_CHARACTERIZATION_PARENT_ID: &str = "post_parent";
+const TABLE_LIVE_CHARACTERIZATION_CONNECTION: &str = "table-live-characterization";
+
+fn table_live_matcher_characterization_fixture() -> LocalSnapback {
+    use crate::manifest::{FieldManifest, FieldType, OrderDirection, OrderExpr, TableManifest};
+
+    let schema = SchemaManifest {
+        tables: vec![TableManifest {
+            name: "posts".to_owned(),
+            fields: vec![
+                FieldManifest {
+                    name: "title".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "parentId".to_owned(),
+                    field_type: FieldType::String,
+                    optional: true,
+                },
+                FieldManifest {
+                    name: "replyCount".to_owned(),
+                    field_type: FieldType::Integer,
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "createdAt".to_owned(),
+                    field_type: FieldType::Integer,
+                    optional: false,
+                },
+            ],
+            indexes: Vec::new(),
+            syncable: true,
+            permission_backing: false,
+            permission_fields: None,
+            search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
+            search_live_limits: None,
+            membership: None,
+            authority_profile: None,
+            asset_sharing: None,
+            visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
+            history: None,
+        }],
+        ..SchemaManifest::default()
+    };
+    let query = |name: &str, filters: Vec<FilterExpr>, order: Vec<OrderExpr>, limit| {
+        let mut function = FunctionDefinition::new(
+            name,
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table_visibility: None,
+                table: "posts".to_owned(),
+                filters,
+                membership_filters: Vec::new(),
+                order,
+                limit,
+                indexed_by: None,
+            })),
+        );
+        install_schema_documents_contract(&mut function, &schema, "posts");
+        function
+    };
+    let point_filter = || FilterExpr {
+        field: "_id".to_owned(),
+        op: FilterOp::Eq,
+        value: ValueExpr::Arg("id".to_owned()),
+    };
+    let parent_filter = || FilterExpr {
+        field: "parentId".to_owned(),
+        op: FilterOp::Eq,
+        value: ValueExpr::Arg("parentId".to_owned()),
+    };
+    let point = query("postById", vec![point_filter()], Vec::new(), Some(1));
+    let unordered_replies = query(
+        "repliesForPostUnordered",
+        vec![parent_filter()],
+        Vec::new(),
+        None,
+    );
+    let ordered_replies = query(
+        "repliesForPost",
+        vec![parent_filter()],
+        vec![OrderExpr {
+            field: "createdAt".to_owned(),
+            direction: OrderDirection::Asc,
+            max_encoded_bytes: None,
+        }],
+        None,
+    );
+    let write_post = FunctionDefinition::new(
+        "writePost",
+        FunctionKind::Mutation,
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
+            steps: vec![
+                MutationStep::Insert {
+                    table: "posts".to_owned(),
+                    values: BTreeMap::from([
+                        ("title".to_owned(), ValueExpr::Arg("title".to_owned())),
+                        ("parentId".to_owned(), ValueExpr::Arg("parentId".to_owned())),
+                        ("replyCount".to_owned(), ValueExpr::Literal(json!(0))),
+                        (
+                            "createdAt".to_owned(),
+                            ValueExpr::Arg("createdAt".to_owned()),
+                        ),
+                    ]),
+                    bind_id_as: Some("postId".to_owned()),
+                },
+                MutationStep::Patch {
+                    table: "posts".to_owned(),
+                    id: ValueExpr::Arg("parentId".to_owned()),
+                    values: BTreeMap::from([(
+                        "replyCount".to_owned(),
+                        ValueExpr::Arg("nextReplyCount".to_owned()),
+                    )]),
+                },
+            ],
+            return_value: Some(ReturnValue::Binding("postId".to_owned())),
+        })),
+    );
+
+    let mut snapback = LocalSnapback::memory().expect("memory table-live fixture");
+    snapback
+        .apply_schema(schema)
+        .expect("apply table-live schema");
+    let diagnostics = snapback.load_functions(FunctionManifest {
+        functions: vec![point, unordered_replies, ordered_replies, write_post],
+        acknowledged_experimental_capabilities: vec!["result_contract_v1".to_owned()],
+        ..FunctionManifest::default()
+    });
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error),
+        "table-live fixture must activate: {diagnostics:?}"
+    );
+    let parent = json!({
+        "_id": TABLE_LIVE_CHARACTERIZATION_PARENT_ID,
+        "title": "parent",
+        "replyCount": 0,
+        "createdAt": 1,
+    })
+    .as_object()
+    .cloned()
+    .expect("parent seed row");
+    snapback
+        .seed(SeedData {
+            tables: BTreeMap::from([("posts".to_owned(), vec![parent])]),
+        })
+        .expect("seed table-live parent");
+    snapback
+}
+
+fn table_live_matcher_characterization_subscribe(
+    snapback: &mut LocalSnapback,
+    name: &str,
+    args: Value,
+) -> LiveSubscribeOutput {
+    snapback
+        .subscribe_live(
+            name,
+            LiveSubscribeInput {
+                connection_id: TABLE_LIVE_CHARACTERIZATION_CONNECTION.to_owned(),
+                input: HandlerInput {
+                    args,
+                    ..HandlerInput::default()
+                },
+                authorization_namespace: None,
+                supersedes: None,
+                resume_from_token: None,
+            },
+        )
+        .expect("subscribe table-live characterization")
+}
+
+fn table_live_matcher_characterization_write_post(snapback: &mut LocalSnapback) -> Value {
+    snapback
+        .invoke_mutation(
+            "writePost",
+            HandlerInput {
+                args: json!({
+                    "title": "reply",
+                    "parentId": TABLE_LIVE_CHARACTERIZATION_PARENT_ID,
+                    "nextReplyCount": 1,
+                    "createdAt": 2,
+                }),
+                ctx_ledger: Some(CtxAnswerLedger {
+                    version: ctx_ledger_version(),
+                    ids: vec![TABLE_LIVE_CHARACTERIZATION_CHILD_ID.to_owned()],
+                    now: 1_785_758_400_000,
+                    auth_fingerprint: None,
+                }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("write child post and patch parent")
+        .result
+}
+
+// CHARACTERIZATION TEST (matcher): this is the matching-insert characterization (Diary 0106's populated-parent cut is covered below)
+// "same engine, later `invoke_mutation`" case. The mutation inserts the
+// client-chosen child and patches its parent. Both empty
+// memberships must advance through one Add.
+//
+// @ref LLP 0008#reactivity-and-read-sets — matching inserts cannot be skipped
+//   or removed from an already-subscribed exact table query.
+#[test]
+fn table_live_matcher_characterization_matching_insert_adds_to_point_and_parent() {
+    let mut snapback = table_live_matcher_characterization_fixture();
+    let point_snapshot = table_live_matcher_characterization_subscribe(
+        &mut snapback,
+        "postById",
+        json!({ "id": TABLE_LIVE_CHARACTERIZATION_CHILD_ID }),
+    );
+    let parent_snapshot = table_live_matcher_characterization_subscribe(
+        &mut snapback,
+        "repliesForPostUnordered",
+        json!({ "parentId": TABLE_LIVE_CHARACTERIZATION_PARENT_ID }),
+    );
+    assert!(
+        point_snapshot
+            .snapshot
+            .expect("point snapshot")
+            .rows
+            .is_empty()
+    );
+    assert!(
+        parent_snapshot
+            .snapshot
+            .expect("parent snapshot")
+            .rows
+            .is_empty()
+    );
+
+    assert_eq!(
+        table_live_matcher_characterization_write_post(&mut snapback),
+        json!(TABLE_LIVE_CHARACTERIZATION_CHILD_ID),
+    );
+
+    let envelopes = rqs_drained_envelopes(&mut snapback, TABLE_LIVE_CHARACTERIZATION_CONNECTION);
+    assert_eq!(envelopes.len(), 2, "one delivery for each subscription");
+    for function in ["postById", "repliesForPostUnordered"] {
+        let envelope = envelopes
+            .iter()
+            .find(|envelope| envelope["function"] == function)
+            .unwrap_or_else(|| panic!("{function} delivery missing: {envelopes:?}"));
+        assert_eq!(envelope["kind"], "live_delta");
+        assert_eq!(envelope["ops"].as_array().expect("delta ops").len(), 1);
+        assert_eq!(envelope["ops"][0]["op"], "add");
+        assert_eq!(
+            envelope["ops"][0]["id"],
+            TABLE_LIVE_CHARACTERIZATION_CHILD_ID,
+        );
+        assert_eq!(
+            envelope["ops"][0]["row"]["parentId"],
+            TABLE_LIVE_CHARACTERIZATION_PARENT_ID,
+        );
+    }
+}
+
+// CHARACTERIZATION TEST (matcher): the Diary 0106 write shape updates a
+// populated `_id` + limit-1 point query and inserts into an ordered parent
+// list. Both conservative replacements must remain populated.
+#[test]
+fn table_live_matcher_characterization_populated_point_and_ordered_parent_replace() {
+    let mut snapback = table_live_matcher_characterization_fixture();
+    let point_snapshot = table_live_matcher_characterization_subscribe(
+        &mut snapback,
+        "postById",
+        json!({ "id": TABLE_LIVE_CHARACTERIZATION_PARENT_ID }),
+    )
+    .snapshot
+    .expect("populated point snapshot");
+    assert_eq!(point_snapshot.rows.len(), 1);
+    assert_eq!(point_snapshot.rows[0]["replyCount"], 0);
+    let replies_snapshot = table_live_matcher_characterization_subscribe(
+        &mut snapback,
+        "repliesForPost",
+        json!({ "parentId": TABLE_LIVE_CHARACTERIZATION_PARENT_ID }),
+    )
+    .snapshot
+    .expect("ordered replies snapshot");
+    assert!(replies_snapshot.rows.is_empty());
+
+    table_live_matcher_characterization_write_post(&mut snapback);
+    let envelopes = rqs_drained_envelopes(&mut snapback, TABLE_LIVE_CHARACTERIZATION_CONNECTION);
+    assert_eq!(envelopes.len(), 2, "point and ordered list each replace");
+    let point = envelopes
+        .iter()
+        .find(|envelope| envelope["function"] == "postById")
+        .unwrap_or_else(|| panic!("point replacement missing: {envelopes:?}"));
+    assert_eq!(point["kind"], "live_replace");
+    assert_eq!(point["rows"].as_array().expect("point rows").len(), 1);
+    assert_eq!(
+        point["rows"][0]["_id"],
+        TABLE_LIVE_CHARACTERIZATION_PARENT_ID
+    );
+    assert_eq!(point["rows"][0]["replyCount"], 1);
+
+    let replies = envelopes
+        .iter()
+        .find(|envelope| envelope["function"] == "repliesForPost")
+        .unwrap_or_else(|| panic!("ordered replies replacement missing: {envelopes:?}"));
+    assert_eq!(replies["kind"], "live_replace");
+    assert_eq!(replies["rows"].as_array().expect("reply rows").len(), 1);
+    assert_eq!(
+        replies["rows"][0]["_id"],
+        TABLE_LIVE_CHARACTERIZATION_CHILD_ID,
+    );
+}
+
+// CHARACTERIZATION TEST (matcher): a point subscription established after
+// settlement with the canonical id receives the row in its initial snapshot;
+// there is no earlier live delivery to await.
+#[test]
+fn table_live_matcher_characterization_post_insert_canonical_point_snapshots_row() {
+    let mut snapback = table_live_matcher_characterization_fixture();
+    let canonical_id = table_live_matcher_characterization_write_post(&mut snapback);
+    assert_eq!(canonical_id, json!(TABLE_LIVE_CHARACTERIZATION_CHILD_ID));
+
+    let snapshot = table_live_matcher_characterization_subscribe(
+        &mut snapback,
+        "postById",
+        json!({ "id": canonical_id }),
+    )
+    .snapshot
+    .expect("post-settlement point snapshot");
+    assert_eq!(snapshot.rows.len(), 1);
+    assert_eq!(
+        snapshot.rows[0]["_id"],
+        TABLE_LIVE_CHARACTERIZATION_CHILD_ID,
+    );
+    assert_eq!(
+        snapshot.rows[0]["parentId"],
+        TABLE_LIVE_CHARACTERIZATION_PARENT_ID,
+    );
+}
+
 // @ref LLP 0065#3-common-pattern-contracts — the Sessions-auth-mode
 //   matrix: with real session identities (not the dev lane, which
 //   canonicalizes sessions away), a keyset cursor minted under one
@@ -30843,35 +31183,30 @@ fn run_oauth_consent_begin_case(case: OAuthConsentBeginCase) {
     assert_eq!(after, expected, "{} accepted durable snapshot", case.name());
 }
 
-macro_rules! oauth_consent_begin_case_test {
-    ($name:ident, $case:expr) => {
-        #[test]
-        fn $name() {
-            run_oauth_consent_begin_case($case);
-        }
-    };
+#[test]
+fn oauth_consent_request_derives_the_durable_user_from_authority_first_exact() {
+    run_oauth_consent_begin_case(OAuthConsentBeginCase::FirstExact);
 }
 
-oauth_consent_begin_case_test!(
-    oauth_consent_request_derives_the_durable_user_from_authority_first_exact,
-    OAuthConsentBeginCase::FirstExact
-);
-oauth_consent_begin_case_test!(
-    oauth_consent_request_derives_the_durable_user_from_authority_second_exact,
-    OAuthConsentBeginCase::SecondExact
-);
-oauth_consent_begin_case_test!(
-    oauth_consent_request_derives_the_durable_user_from_authority_third_exact,
-    OAuthConsentBeginCase::ThirdExact
-);
-oauth_consent_begin_case_test!(
-    oauth_consent_request_derives_the_durable_user_from_authority_wrong_source,
-    OAuthConsentBeginCase::WrongSource
-);
-oauth_consent_begin_case_test!(
-    oauth_consent_request_derives_the_durable_user_from_authority_absent_user,
-    OAuthConsentBeginCase::AbsentUser
-);
+#[test]
+fn oauth_consent_request_derives_the_durable_user_from_authority_second_exact() {
+    run_oauth_consent_begin_case(OAuthConsentBeginCase::SecondExact);
+}
+
+#[test]
+fn oauth_consent_request_derives_the_durable_user_from_authority_third_exact() {
+    run_oauth_consent_begin_case(OAuthConsentBeginCase::ThirdExact);
+}
+
+#[test]
+fn oauth_consent_request_derives_the_durable_user_from_authority_wrong_source() {
+    run_oauth_consent_begin_case(OAuthConsentBeginCase::WrongSource);
+}
+
+#[test]
+fn oauth_consent_request_derives_the_durable_user_from_authority_absent_user() {
+    run_oauth_consent_begin_case(OAuthConsentBeginCase::AbsentUser);
+}
 
 const OAUTH_APPROVAL_REQUESTED_AT_MS: u64 = 1_000;
 const OAUTH_APPROVAL_APPROVED_AT_MS: u64 = 2_000;
@@ -31272,105 +31607,149 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user_wrong_sour
     );
 }
 
-macro_rules! oauth_consent_approval_case_test {
-    ($name:ident, $authority:expr, $attempt:expr) => {
-        #[test]
-        fn $name() {
-            run_oauth_consent_approval_case($authority, $attempt);
-        }
-    };
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_n_foreign_lower() {
+    run_oauth_consent_approval_case(
+        OAUTH_APPROVAL_L_SHAPE[0],
+        OAuthApprovalAttempt::ForeignLower,
+    );
 }
 
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_n_foreign_lower,
-    OAUTH_APPROVAL_L_SHAPE[0],
-    OAuthApprovalAttempt::ForeignLower
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_n_foreign_other_authority,
-    OAUTH_APPROVAL_L_SHAPE[0],
-    OAuthApprovalAttempt::ForeignOtherAuthority
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_n_foreign_upper,
-    OAUTH_APPROVAL_L_SHAPE[0],
-    OAuthApprovalAttempt::ForeignUpper
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_n_target,
-    OAUTH_APPROVAL_L_SHAPE[0],
-    OAuthApprovalAttempt::Target
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_n_selector_below_all,
-    OAUTH_APPROVAL_L_SHAPE[0],
-    OAuthApprovalAttempt::SelectorBelowAll
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_n_selector_above_all,
-    OAUTH_APPROVAL_L_SHAPE[0],
-    OAuthApprovalAttempt::SelectorAboveAll
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_m_foreign_lower,
-    OAUTH_APPROVAL_L_SHAPE[1],
-    OAuthApprovalAttempt::ForeignLower
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_m_foreign_other_authority,
-    OAUTH_APPROVAL_L_SHAPE[1],
-    OAuthApprovalAttempt::ForeignOtherAuthority
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_m_foreign_upper,
-    OAUTH_APPROVAL_L_SHAPE[1],
-    OAuthApprovalAttempt::ForeignUpper
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_m_target,
-    OAUTH_APPROVAL_L_SHAPE[1],
-    OAuthApprovalAttempt::Target
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_m_selector_below_all,
-    OAUTH_APPROVAL_L_SHAPE[1],
-    OAuthApprovalAttempt::SelectorBelowAll
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_m_selector_above_all,
-    OAUTH_APPROVAL_L_SHAPE[1],
-    OAuthApprovalAttempt::SelectorAboveAll
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_n_session_m_foreign_lower,
-    OAUTH_APPROVAL_L_SHAPE[2],
-    OAuthApprovalAttempt::ForeignLower
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_n_session_m_foreign_other_authority,
-    OAUTH_APPROVAL_L_SHAPE[2],
-    OAuthApprovalAttempt::ForeignOtherAuthority
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_n_session_m_foreign_upper,
-    OAUTH_APPROVAL_L_SHAPE[2],
-    OAuthApprovalAttempt::ForeignUpper
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_n_session_m_target,
-    OAUTH_APPROVAL_L_SHAPE[2],
-    OAuthApprovalAttempt::Target
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_n_session_m_selector_below_all,
-    OAUTH_APPROVAL_L_SHAPE[2],
-    OAuthApprovalAttempt::SelectorBelowAll
-);
-oauth_consent_approval_case_test!(
-    oauth_consent_approval_refuses_requests_outside_the_authority_user_n_session_m_selector_above_all,
-    OAUTH_APPROVAL_L_SHAPE[2],
-    OAuthApprovalAttempt::SelectorAboveAll
-);
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_n_foreign_other_authority()
+{
+    run_oauth_consent_approval_case(
+        OAUTH_APPROVAL_L_SHAPE[0],
+        OAuthApprovalAttempt::ForeignOtherAuthority,
+    );
+}
+
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_n_foreign_upper() {
+    run_oauth_consent_approval_case(
+        OAUTH_APPROVAL_L_SHAPE[0],
+        OAuthApprovalAttempt::ForeignUpper,
+    );
+}
+
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_n_target() {
+    run_oauth_consent_approval_case(OAUTH_APPROVAL_L_SHAPE[0], OAuthApprovalAttempt::Target);
+}
+
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_n_selector_below_all()
+{
+    run_oauth_consent_approval_case(
+        OAUTH_APPROVAL_L_SHAPE[0],
+        OAuthApprovalAttempt::SelectorBelowAll,
+    );
+}
+
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_n_selector_above_all()
+{
+    run_oauth_consent_approval_case(
+        OAUTH_APPROVAL_L_SHAPE[0],
+        OAuthApprovalAttempt::SelectorAboveAll,
+    );
+}
+
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_m_foreign_lower() {
+    run_oauth_consent_approval_case(
+        OAUTH_APPROVAL_L_SHAPE[1],
+        OAuthApprovalAttempt::ForeignLower,
+    );
+}
+
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_m_foreign_other_authority()
+{
+    run_oauth_consent_approval_case(
+        OAUTH_APPROVAL_L_SHAPE[1],
+        OAuthApprovalAttempt::ForeignOtherAuthority,
+    );
+}
+
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_m_foreign_upper() {
+    run_oauth_consent_approval_case(
+        OAUTH_APPROVAL_L_SHAPE[1],
+        OAuthApprovalAttempt::ForeignUpper,
+    );
+}
+
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_m_target() {
+    run_oauth_consent_approval_case(OAUTH_APPROVAL_L_SHAPE[1], OAuthApprovalAttempt::Target);
+}
+
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_m_selector_below_all()
+{
+    run_oauth_consent_approval_case(
+        OAUTH_APPROVAL_L_SHAPE[1],
+        OAuthApprovalAttempt::SelectorBelowAll,
+    );
+}
+
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_m_session_m_selector_above_all()
+{
+    run_oauth_consent_approval_case(
+        OAUTH_APPROVAL_L_SHAPE[1],
+        OAuthApprovalAttempt::SelectorAboveAll,
+    );
+}
+
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_n_session_m_foreign_lower() {
+    run_oauth_consent_approval_case(
+        OAUTH_APPROVAL_L_SHAPE[2],
+        OAuthApprovalAttempt::ForeignLower,
+    );
+}
+
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_n_session_m_foreign_other_authority()
+{
+    run_oauth_consent_approval_case(
+        OAUTH_APPROVAL_L_SHAPE[2],
+        OAuthApprovalAttempt::ForeignOtherAuthority,
+    );
+}
+
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_n_session_m_foreign_upper() {
+    run_oauth_consent_approval_case(
+        OAUTH_APPROVAL_L_SHAPE[2],
+        OAuthApprovalAttempt::ForeignUpper,
+    );
+}
+
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_n_session_m_target() {
+    run_oauth_consent_approval_case(OAUTH_APPROVAL_L_SHAPE[2], OAuthApprovalAttempt::Target);
+}
+
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_n_session_m_selector_below_all()
+{
+    run_oauth_consent_approval_case(
+        OAUTH_APPROVAL_L_SHAPE[2],
+        OAuthApprovalAttempt::SelectorBelowAll,
+    );
+}
+
+#[test]
+fn oauth_consent_approval_refuses_requests_outside_the_authority_user_n_session_m_selector_above_all()
+{
+    run_oauth_consent_approval_case(
+        OAUTH_APPROVAL_L_SHAPE[2],
+        OAuthApprovalAttempt::SelectorAboveAll,
+    );
+}
 
 #[test]
 fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {

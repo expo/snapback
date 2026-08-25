@@ -7,6 +7,9 @@ Authorization, Runtime readiness, Packaging, Templates, Verification,
 Developer experience, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-17
+**Revised:** 2026-08-25 (D9's runner inventory now includes Todo as the fifth
+first-party live acceptance; this records the shared-runner migration already
+present in the Todo starter without changing proof authority.)
 **Revised:** 2026-08-25 (D6's concrete React/Vite template typecheck gap is
 closed for both packaged Vite templates; broader cold-install closure remains
 owned by the first-use ceremony budget harness.)
@@ -469,12 +472,13 @@ Two guardrails bind the ruling:
 
 #### Harness inventory and ownership split
 
-The four first-party live acceptances contain the following split. Static
+The five first-party live acceptances contain the following split. Static
 source/generated coherence checks remain separate `acceptance.static.mjs`
 tests; this runner does not turn source grep into live journey evidence.
 
 | Template | Recurring platform-owned machinery moved to the package | Application-owned journey and evidence intent retained in source |
 | --- | --- | --- |
+| Todo Contract | isolated temp database and ready file; `snapback dev` supervision; application-ready wait; app-binding projection; bounded steps, cleanup, and receipt projection | password signup and session-bound client custody; `listTodos` query; `createTodo` changed-count and follow-up observation assertions |
 | React | isolated temp database and ready file; `snapback dev` supervision; bounded stdout/stderr and lifecycle events; application-ready wait; polling deadline; cleanup and receipt projection | browser auth bootstrap expectations; signup/recovery, reload, authenticated-entry refusal, and sign-out assertions; todo query, generated React binding, mutation settlement, and live observation |
 | CRUD dashboard | isolated lifecycle/readiness; first-call no-retry rule; failure normalization; subscription/process/temp cleanup; identity and receipt projection | relational directory shape; create-project result; live detail update; delete observation |
 | Media feed | the same lifecycle/readiness/cleanup machinery plus ordinary-session minting | retained-page ordering and boundary stability; typed upload and attachment; live feed observation; thumbnail/display delivery assertions |
@@ -800,3 +804,7 @@ be implemented before improving its own golden path.
   independent bounded last-chance controller so callback reserve exhaustion
   cannot suppress its once-only managed-child termination on either external
   abort or overall timeout.
+- 2026-08-25 r8: runner-inventory reconciliation — added Todo Contract as the
+  fifth first-party live acceptance after its migration to the shared public
+  runner, retaining its password/session, query, mutation, and observation
+  assertions in application source.
