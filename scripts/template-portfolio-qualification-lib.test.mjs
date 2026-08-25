@@ -56,6 +56,22 @@ test('every registered template exposes a manifest-derived cold-agent glossary',
   const todo = fixture('todo-contract');
   assert.match(todo.readme, /Migration: `test:live` was removed/u);
   assert.doesNotMatch(todo.instructions, /Migration: `test:live` was removed/u);
+
+  for (const name of ['react', 'crud-dashboard']) {
+    const template = fixture(name);
+    assert.equal(template.manifest.devDependencies['@types/node'], '^25.0.0');
+    const tsconfig = JSON.parse(readFileSync(resolve(CLI_ROOT, 'templates', name, 'tsconfig.json'), 'utf8'));
+    assert.deepEqual(tsconfig.compilerOptions.types, ['node']);
+    assert.deepEqual(tsconfig.compilerOptions.lib, ['ESNext', 'DOM', 'DOM.Iterable']);
+    assert.match(
+      readFileSync(resolve(CLI_ROOT, 'templates', name, 'src', 'snapback-dev.d.ts'), 'utf8'),
+      /<reference types="vite\/client" \/>/u,
+    );
+  }
+  assert.match(
+    readFileSync(resolve(CLI_ROOT, 'templates', 'crud-dashboard', 'acceptance.mjs'), 'utf8'),
+    /adminClient\.liveQuery\(api\.projectDetail/u,
+  );
 });
 
 test('missing scripts, changed command classes, and documentation drift fail closed', () => {

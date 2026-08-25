@@ -362,12 +362,18 @@ function qualifyOneTemplate({
     env: { ...process.env, CI: '1' },
     timeout: 180_000,
   });
+  run('npm', ['run', 'prove'], {
+    cwd: project,
+    env: { ...process.env, CI: '1' },
+    timeout: 300_000,
+  });
   return Object.freeze({
     id: name,
     status: 'passed',
     scaffolded: true,
     generated: true,
     staticAcceptance: true,
+    proof: true,
     installedPackages: collectInstalledSnapbackPackages(project),
   });
 }

@@ -15,12 +15,19 @@ assert.equal(packageManifest.scripts['test:live'], undefined);
 assert.equal(packageManifest.scripts['carry:headless'], 'node carrier.mjs headless');
 assert.match(agentInstructions, /carry:headless/);
 assert.match(carrierSource, /headless:\s*\{\}/);
-assert.match(runtimeAcceptance, /'wait', '--ready-file', readyFile/);
-assert.match(runtimeAcceptance, /'--level', 'application', '--timeout-ms', '60000'/);
-assert.match(runtimeAcceptance, /applicationReadyObserved: true/);
-assert.match(runtimeAcceptance, /firstQueryRetries: 0/);
-assert.match(runtimeAcceptance, /createSnapbackAppClient\s*\(\s*\{[\s\S]*?app,[\s\S]*?url:\s*process\.env\.SNAPBACK_URL,[\s\S]*?streamless:\s*true,/u);
-assert.match(runtimeAcceptance, /new SnapbackClient\(ready\.serverUrl,/u);
-assert.doesNotMatch(runtimeAcceptance, /new SnapbackClient\(process\.env\.SNAPBACK_URL/u);
-assert.doesNotMatch(runtimeAcceptance, /generated-and-loaded/);
+assert.match(runtimeAcceptance, /from '@expo\/snapback-acceptance'/);
+assert.match(runtimeAcceptance, /defineStarterAcceptance/);
+assert.match(runtimeAcceptance, /runStarterAcceptanceIfMain/);
+assert.doesNotMatch(
+  runtimeAcceptance,
+  /snapback\.starter-acceptance\.v1|expectedCheckCount|executedCheckCount|projectStarterAcceptanceReceipt|JSON\.stringify\s*\(\s*(?:receipt\b|outcome\b|\{[\s\S]{0,256}?(?:schemaVersion|checks|operations|cleanup|lifecycle)\s*:)/u,
+);
+assert.match(runtimeAcceptance, /bindingFor\(app,/);
+assert.match(runtimeAcceptance, /createSnapbackAppClient\s*\(\s*\{[\s\S]*?app,[\s\S]*?binding,[\s\S]*?streamless:\s*true,/u);
+assert.match(runtimeAcceptance, /operation:\s*api\.listTodos/);
+assert.match(runtimeAcceptance, /operation:\s*api\.createTodo/);
+assert.match(runtimeAcceptance, /step\(paths\.listTodos/);
+assert.match(runtimeAcceptance, /step\(paths\.createTodo/);
+assert.match(runtimeAcceptance, /sessionClient\.query\(api\.listTodos/);
+assert.match(runtimeAcceptance, /sessionClient\.mutate\(api\.createTodo/);
 console.log('todo-contract static coherence: generated package surface is coherent');
