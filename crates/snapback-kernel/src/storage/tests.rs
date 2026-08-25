@@ -1,6 +1,69 @@
 use super::*;
 
 #[test]
+fn headless_replay_retained_row_overhead_bounds_every_settlement_shape() {
+    // The public result may be as small as null while the retained carrier is
+    // the complete private MutationOutput. Exercise the maximum carrier so
+    // the assertion remains conservative for every smaller public result.
+    let maximum_output = format!(
+        "\"{}\"",
+        "o".repeat(CLIENT_MUTATION_MAX_RESULT_BYTES as usize - 2),
+    );
+    let maximum_function = "f".repeat(HEADLESS_REPLAY_MAX_FUNCTION_NAME_BYTES);
+    let maximum_opaque_id = "r".repeat(crate::manifest::REPLAY_OPAQUE_ID_MAX_BYTES);
+    let digest = format!("sha256:{}", "d".repeat(64));
+    let maximum_authority = format!(
+        "a{}",
+        "u".repeat(crate::manifest::REPLAY_OPAQUE_ID_MAX_BYTES - 1,)
+    );
+    let media_seal = serde_json::to_string(&SettlementProjectionSealV1 {
+        result_contract_hash: digest.clone(),
+        media_projection_profile_hash: digest.clone(),
+        settlement_id: digest.clone(),
+        settlement_store_scope_id: maximum_authority.clone(),
+        settlement_record_sequence: SEQUENCE_MAX_SAFE_INTEGER,
+        settlement_digest: digest.clone(),
+    })
+    .expect("media settlement seal");
+
+    for (format, seal) in [
+        (LEGACY_SETTLEMENT_FORMAT_V1, None),
+        (PLAIN_SETTLEMENT_FORMAT_V1, None),
+        (MEDIA_SETTLEMENT_FORMAT_V1, Some(media_seal.as_str())),
+    ] {
+        let retained = logical_client_mutation_retained_row_bytes_v4(
+            &maximum_opaque_id,
+            &maximum_function,
+            &digest,
+            Some(&maximum_authority),
+            &digest,
+            None, // storeless headless replay cannot mint operation issuance
+            &maximum_output,
+            Some(format),
+            SqlValue::Integer(SEQUENCE_MAX_SAFE_INTEGER as i64),
+            seal,
+        )
+        .expect("valid retained row charge");
+        let smallest_public_result_bytes = serde_json::to_vec(&Value::Null)
+            .expect("public result JSON")
+            .len() as u64;
+        assert!(
+            retained <= smallest_public_result_bytes + HEADLESS_REPLAY_RETAINED_ROW_OVERHEAD_BYTES,
+            "{format} retained {retained} exceeds result + replay overhead {}",
+            HEADLESS_REPLAY_RETAINED_ROW_OVERHEAD_BYTES,
+        );
+    }
+
+    // These exact values are mirrored by the v1 JavaScript preflight. Keep the
+    // cross-language constants parity-locked until preflight can read live
+    // diagnostic values from the target.
+    assert_eq!(CLIENT_MUTATION_MAX_RESULT_BYTES, 65_536);
+    assert_eq!(CLIENT_MUTATION_MAX_RECORDS_PER_AUTH, 1_024);
+    assert_eq!(CLIENT_MUTATION_MAX_BYTES_PER_AUTH, 8 * 1_024 * 1_024);
+    assert_eq!(HEADLESS_REPLAY_RETAINED_ROW_OVERHEAD_BYTES, 131_072);
+}
+
+#[test]
 fn buffered_document_result_uses_authoritative_committed_system_fields() {
     let mut db = LocalDatabase::memory().expect("document-result database");
     db.schema_seed()

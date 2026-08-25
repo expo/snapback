@@ -62,6 +62,42 @@ inspection, cleanup callbacks, and lifecycle stop all receive an
 `AbortSignal`. Callbacks may ignore their signal only if their work is already
 synchronously bounded; spawned or asynchronous work must stop on abort.
 
+## Ordered headless replay
+
+For deterministic fixtures larger than the seed-effect ceiling, use the same
+root package surface rather than creating a transport adapter:
+
+```js
+import {defineReplay, runReplay} from '@expo/snapback-acceptance';
+
+const replay = defineReplay({
+  readyFile: '.snapback/dev.ready.json',
+  api: './snapback/generated/api.mjs',
+  actions: './fixtures/scale-log.jsonl',
+  actors: {mint: {}},
+  transportCustody: 'minted',
+  receiptsFile: '.snapback/replay-receipts.jsonl',
+  statusFile: '.snapback/replay-status.json',
+});
+
+const {receipt, exitCode} = await runReplay(replay, {resume: false});
+```
+
+Actions are ordered JSONL records shaped as `{seq, actor, fn, args, intent?}`.
+The runner settles each mutation before the next, maintains a bounded actor
+client pool, never registers live queries, and owns write-ahead receipts,
+acknowledgement, disposal, and resume. Keep the receipts and owner-only minted
+session sidecar together. Use `readReplayStatus(statusFile)` to supervise a
+detached run without holding the worker process in the caller.
+
+The WAL persists the mapper-resolved function and arguments before send, so
+resume does not rerun a mapper or `ctx.query` for an attempted action. Generated
+mutation-IR references refuse in v1 with
+`SNAPBACK_REPLAY_GENERATED_IR_UNSUPPORTED` because the public client cannot yet
+re-send their exact prepared speculative identity. `bearerFor` also reports the
+`SNAPBACK_REPLAY_BEARER_RETENTION_UNKNOWN` advisory: its pre-existing retained
+settlements are outside replay preflight's visibility.
+
 ## Extend or eject
 
 The supported extension surface is the root export only. There are three

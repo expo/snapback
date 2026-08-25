@@ -19,7 +19,9 @@
   "files": [
     "README.md",
     "index.d.mts",
-    "index.mjs"
+    "index.mjs",
+    "replay.mjs",
+    "replay-worker.mjs"
   ],
   "exports": {
     ".": {
@@ -39,6 +41,6 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node --test package.test.mjs --test-concurrency=1"
+    "test": "node --test package.test.mjs --test-concurrency=1 && node --test replay.test.mjs --test-concurrency=1"
   }
 }

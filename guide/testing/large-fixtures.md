@@ -3,14 +3,14 @@ title: Loading large deterministic fixtures
 id: testing.large-fixtures
 order: 3
 audience: agent-first
-capabilities: [testing.large-fixtures]
-authorities: [llp/0109-versioned-seed-evolution.spec.md, llp/0183-zerobugs-quality-surface.rfc.md, demos/zerobugs/control/scripts/load-fixture.mts, demos/zerobugs/control/snapback/functions.mjs, demos/zero-bakeoff/apps/fleet-observatory/snapback/functions.mjs, crates/snapback-kernel/src/seed_identity.rs, crates/snapback-kernel/src/storage.rs]
+capabilities: [testing.large-fixtures, testing.headless-replay]
+authorities: [llp/0109-versioned-seed-evolution.spec.md, llp/0183-zerobugs-quality-surface.rfc.md, llp/0307.000-headless-replay-surface.spec.md, packages/snapback-acceptance/replay.mjs, demos/zerobugs/control/scripts/load-fixture.mts, demos/zerobugs/control/snapback/functions.mjs, demos/zero-bakeoff/apps/fleet-observatory/snapback/functions.mjs, crates/snapback-kernel/src/seed_identity.rs, crates/snapback-kernel/src/storage.rs]
 examples: [demos/zerobugs/control, demos/zero-bakeoff/apps/fleet-observatory]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-07
-reviewed-authorities-digest: sha256:5742dae5187b91cc2e253e1b98308576566793436f851c2b776a78b53ec1c471
+reviewed: 2026-08-24
+reviewed-authorities-digest: sha256:05ade0a59515ce3e0885e36dcd6e410f70ffa0e82391ca2ef81c719107c82c7a
 ---
 
 # Loading large deterministic fixtures
@@ -26,10 +26,18 @@ mutation has the same order of ceiling: at most **1,024 buffered writes**
 (`SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED`; see
 [bound and resume bulk work](../backend/mutations.md#bound-and-resume-bulk-work)).
 Both ceilings are deliberate. When an acceptance suite needs a deterministic
-fixture bigger than that — thousands of rows across many tables — do not
-fight the seed protocol. Load through an **app-authored, acceptance-only
-batch-ingest mutation**, driven in bounded batches by a loader script, and
-verify the loaded state by content digest.
+fixture bigger than that — thousands of ordered actions across many actors —
+do not fight the seed protocol. Use `defineReplay` from
+`@expo/snapback-acceptance`, or the thin `snapback replay` CLI, to drive a
+JSONL action log through the generated mutation API. Replay is sequential,
+keeps a small actor-client pool, stores crash-safe receipts, resumes without
+re-running terminal actions, and owns retained-settlement acknowledgement.
+
+Reserve an **app-authored, acceptance-only batch-ingest mutation** for the
+special case where fixture installation itself must be a gated bootstrap
+window, or one logical action naturally expands to hundreds of writes. Keep
+each such action within the ≤900-row headroom described below; replay cannot
+shrink an over-ceiling mutation handler.
 
 This page distills the paved shape from two CI-exercised sources: the minimal
 loader in the fleet-observatory bakeoff app
@@ -42,7 +50,33 @@ compiled-plan/handler/digest pipeline runs under the demo's
 `bun run test:fixture` suite and whose live path runs in its `test:lane*:live`
 acceptance lanes).
 
-## Declare a batch-ingest mutation
+## General bulk path: headless replay
+
+Each JSONL line is `{seq, actor, fn, args, intent?}`. The function is a
+generated mutation reference; `intent` names the bounded settlement projection
+available to later mapper steps as `ctx.settled(intent)`. Start a local target,
+then run:
+
+```sh
+snapback replay snapback --actions fixtures/scale-log.jsonl \
+  --ready-file .snapback/dev.ready.json --custody minted --json
+```
+
+Use `--custody none` only when receipt-level at-most-once delivery is enough.
+Keep the receipts and owner-only session-custody sidecar together; after a dead
+runner, rerun the same command with `--resume`. For the full packed 100k proof,
+run `node scripts/prove-packed-headless-replay-100k.mjs --ready-file … --api …
+--actions …`.
+
+The dispatch WAL stores the mapper-resolved function and arguments, so resume
+does not rerun mapper reads for an attempted action. Generated mutation-IR
+references currently refuse before dispatch with
+`SNAPBACK_REPLAY_GENERATED_IR_UNSUPPORTED`; their speculative identities need
+a future public exact-retry carrier. A custom `bearerFor` also receives
+`SNAPBACK_REPLAY_BEARER_RETENTION_UNKNOWN`, because replay cannot see retained
+settlements that authority owned before the run.
+
+## Bootstrap-window exception: declare a batch-ingest mutation
 
 The minimal shape is one JS mutation that takes a table name and a bounded
 array of rows, refuses anything outside its closed table set, and returns a
@@ -221,7 +255,8 @@ first differing row — determinism is the whole point of the fixture.
 
 - **Do not fight `SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED` by chaining seeds or
   reset-installs.** The versioned-seed protocol is fixture *identity*, not
-  bulk transport; over-ceiling fixtures belong to bounded ordinary mutations.
+  bulk transport; use headless replay, with a gated batch mutation only for
+  the bootstrap-window exception.
 - **Do not size batches at the 1,024 ceiling.** The ceiling counts expanded
   writes (maintained projections, membership commands), not just your rows;
   ≤900 direct rows is the proven headroom.

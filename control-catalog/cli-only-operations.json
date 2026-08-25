@@ -135,6 +135,34 @@
    ]
   },
   {
+   "operation": "cli.packaged.replay",
+   "packagedCommand": "replay",
+   "title": "Run or supervise ordered headless replay",
+   "intents": [
+    "load a large deterministic fixture",
+    "resume a headless mutation replay",
+    "watch replay status"
+   ],
+   "guide": "testing/large-fixtures.md#general-bulk-path-headless-replay",
+   "policy": {
+    "authority": "operator",
+    "effect": "provisioning",
+    "responseSensitivity": "OperatorMetadata"
+   },
+   "behavior": {
+    "readOnly": false,
+    "destructive": false,
+    "idempotent": false,
+    "openWorld": true,
+    "persistsAcrossRestart": true
+   },
+   "mcpDeferralReason": "Replay owns local action, receipt, and session-custody files plus a long-running worker; MCP exposes no equivalent filesystem-custody workflow.",
+   "sources": [
+    "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.replay",
+    "packages/snapback-acceptance/replay.mjs"
+   ]
+  },
+  {
    "operation": "cli.packaged.reset",
    "packagedCommand": "reset",
    "title": "Reset a managed development target",

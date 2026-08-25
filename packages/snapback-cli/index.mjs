@@ -31,6 +31,11 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { SnapbackClient } from '@expo/snapback-client';
 import {
+  defineReplay,
+  readReplayStatus,
+  runReplay,
+} from '@expo/snapback-acceptance';
+import {
   applyDeclarationSuggestion,
   DECLARATION_SUGGESTION_REASON_CODES,
   formatCodegenSummary,
@@ -7168,6 +7173,12 @@ export const PACKAGED_CLI_COMMANDS = Object.freeze([
     recovery: 'Repair the emitted source/artifact diagnostic, then rerun generation.',
   },
   {
+    name: 'replay', usage: 'snapback replay [<backend-dir>] --actions <file.jsonl> [--api <generated/api.mjs>] [--ready-file <path>] [--receipts <file>] [--custody minted|none] [--resume] [--detach] [--status] [--status-file <path>] [--json]',
+    description: 'Run or watch an ordered, resumable, headless mutation replay through the generated application API.', lifecycle: 'one-shot runner; --detach starts a long-running process group and returns after the child fences the WAL; --status is read-only',
+    output: 'snapback.replay-receipt.v1 or snapback.replay-status.v1; --json emits exactly one stdout document', exits: '0 completed/started or readable live/complete status; 1 refusal, failed/dead status, or unsafe preflight',
+    recovery: 'Use --status while detached; use --resume only for a dead runner, preserving the receipts and session-custody sidecars.',
+  },
+  {
     name: 'reset', usage: 'snapback reset [<backend-dir>] --dev-fresh [--db <path>] [--ready-file <path>] [--email <address>] [--json]',
     description: 'One-shot dev-fresh reset of the canonical managed dev target: validate ownership, remove the whole store, re-apply seed, coordinate session re-mint, and report readiness. All other reset forms delegate to the native app.reset.',
     lifecycle: 'one-shot',
@@ -8093,6 +8104,83 @@ export async function runCli(argv, options = {}) {
     });
     printResult(result, json);
     return result.ok ? 0 : 1;
+  }
+  if (command === 'replay') {
+    const actions = takeFlag(args, '--actions');
+    const apiFlag = takeFlag(args, '--api');
+    const readyFileFlag = takeFlag(args, '--ready-file');
+    const receiptsFlag = takeFlag(args, '--receipts');
+    const custody = takeFlag(args, '--custody', 'minted');
+    const statusFileFlag = takeFlag(args, '--status-file');
+    const resume = takeBooleanFlag(args, '--resume');
+    const detach = takeBooleanFlag(args, '--detach');
+    const statusOnly = takeBooleanFlag(args, '--status');
+    if (args.some((argument) => argument.startsWith('-'))) {
+      throw diagnosticError(
+        'SNAPBACK_CLI_ARGUMENT_INVALID',
+        `usage: ${PACKAGED_CLI_COMMAND_BY_NAME.get('replay').usage}`,
+        { args },
+      );
+    }
+    const cliCwd = options.cwd ?? process.cwd();
+    const backendDirectory = resolve(cliCwd, args.shift() ?? 'snapback');
+    if (args.length > 0 || !['minted', 'none'].includes(custody)) {
+      throw diagnosticError(
+        'SNAPBACK_CLI_ARGUMENT_INVALID',
+        `usage: ${PACKAGED_CLI_COMMAND_BY_NAME.get('replay').usage}`,
+        { args, custody },
+      );
+    }
+    const projectRoot = dirname(backendDirectory);
+    const statusFile = resolve(cliCwd, statusFileFlag ?? join(projectRoot, '.snapback', 'replay-status.json'));
+    if (statusOnly) {
+      if (actions !== null || apiFlag !== null || receiptsFlag !== null || resume || detach) {
+        throw diagnosticError(
+          'SNAPBACK_CLI_ARGUMENT_INVALID',
+          'snapback replay --status accepts only [<backend-dir>] [--status-file <path>] [--json]',
+        );
+      }
+      const status = readReplayStatus(statusFile);
+      if (json) console.log(JSON.stringify(status, null, 2));
+      else {
+        console.log(`${status.state}: ${status.settled}/${status.total ?? '?'} settled (pid ${status.pid})`);
+        if (status.recovery) console.log(`Recovery: ${status.recovery}`);
+      }
+      return ['failed', 'dead'].includes(status.state) ? 1 : 0;
+    }
+    if (actions === null) {
+      throw diagnosticError(
+        'SNAPBACK_CLI_ARGUMENT_INVALID',
+        `usage: ${PACKAGED_CLI_COMMAND_BY_NAME.get('replay').usage}`,
+      );
+    }
+    const definition = defineReplay({
+      readyFile: resolve(cliCwd, readyFileFlag ?? join(projectRoot, '.snapback', 'dev.ready.json')),
+      api: resolve(cliCwd, apiFlag ?? join(backendDirectory, 'generated', 'api.mjs')),
+      actions: resolve(cliCwd, actions),
+      actors: { mint: {} },
+      transportCustody: custody,
+      receiptsFile: resolve(cliCwd, receiptsFlag ?? join(projectRoot, '.snapback', 'replay-receipts.jsonl')),
+      statusFile,
+    });
+    const result = await runReplay(definition, {
+      resume,
+      detach,
+      ...(json || detach ? {} : {
+        onPreflight(report) {
+          console.log('Replay ceilings:');
+          for (const ceiling of report.ceilings) console.log(`  ${ceiling.code}: ${JSON.stringify(ceiling)}`);
+        },
+      }),
+    });
+    if (json) console.log(JSON.stringify(result.receipt, null, 2));
+    else if (result.receipt.status === 'detached') {
+      console.log(`Replay detached as pid ${result.receipt.pid}; status: ${result.receipt.statusFile}`);
+    } else {
+      console.log(`Replay ${result.receipt.status}: ${result.receipt.actions?.settled ?? 0}/${result.receipt.actions?.total ?? '?'} settled`);
+      if (result.receipt.diagnostic) console.error(JSON.stringify(result.receipt.diagnostic, null, 2));
+    }
+    return result.exitCode;
   }
   // @ref LLP 0151#setup-and-status — the provider setup verbs are package-owned
   // because they edit app source and read generated artifacts. Every other

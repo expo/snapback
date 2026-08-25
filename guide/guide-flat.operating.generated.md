@@ -91,16 +91,16 @@ documentation absence never appears as success.
 ## Generated inventory
 
 <!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
-The embedded build catalog contains **155 operations** at digest `sha256:4d32b5d0d12dca59777972e5ab9c9a4838ba80f35f5f0f6cac70593cc935d054`. The counts and inventory below are generated; do not edit them by hand.
+The embedded build catalog contains **156 operations** at digest `sha256:9cb4837ed97a4812f82f9699f99471e7eb8a655f06fb2f260db1338824787369`. The counts and inventory below are generated; do not edit them by hand.
 
 | Axis | Value | Count |
 | --- | --- | ---: |
 | surfaceAccess | `apiOnly` | 54 |
-| surfaceAccess | `cliOnly` | 53 |
+| surfaceAccess | `cliOnly` | 54 |
 | surfaceAccess | `mcpOnly` | 2 |
 | surfaceAccess | `native` | 42 |
 | surfaceAccess | `none` | 4 |
-| operability | `direct` | 116 |
+| operability | `direct` | 117 |
 | operability | `internal` | 11 |
 | operability | `mediated` | 7 |
 | operability | `unavailable` | 21 |
@@ -188,6 +188,7 @@ The embedded build catalog contains **155 operations** at digest `sha256:4d32b5d
 | `cli.packaged.logs` | `cliOnly` | `direct` | `shipped` | snapback logs | — | deploying/releases.md#query-bounded-logs-and-authenticated-inspection |
 | `cli.packaged.mcpControl` | `cliOnly` | `direct` | `shipped` | snapback mcp-control | — | operating/agent-controls.md#native-resource-availability |
 | `cli.packaged.new` | `cliOnly` | `direct` | `shipped` | snapback new | — | getting-started/the-authoring-loop.md |
+| `cli.packaged.replay` | `cliOnly` | `direct` | `shipped` | snapback replay | — | testing/large-fixtures.md#general-bulk-path-headless-replay |
 | `cli.packaged.reset` | `cliOnly` | `direct` | `shipped` | snapback reset | — | backend/versioned-seeds.md#expect-the-reset-blast-radius-on-connected-clients |
 | `cli.packaged.restore` | `cliOnly` | `direct` | `shipped` | snapback restore | — | deploying/releases.md#restore-into-an-isolated-destination-then-activate-explicitly |
 | `cli.packaged.runtimeQualify` | `cliOnly` | `direct` | `shipped` | snapback runtime-qualify | — | operating/diagnostics.md#report-the-runtimes-own-readiness-identity |

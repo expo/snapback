@@ -294,3 +294,180 @@ export function validatePassingStarterReceipt(
 export function starterConformanceProjection(
   paths: readonly StarterVerifyRegistrationPath[],
 ): readonly Readonly<Record<string, unknown>>[];
+
+export interface ReplayAction {
+  readonly seq: number;
+  readonly actor: string;
+  readonly fn?: string | GeneratedOperationReference;
+  readonly args?: Readonly<Record<string, unknown>>;
+  readonly intent?: string;
+  readonly [key: string]: unknown;
+}
+
+export interface ReplayQueryOptions {
+  readonly args?: Readonly<Record<string, unknown>>;
+  readonly pageSize?: number;
+  readonly cursorKey?: string;
+  readonly pageSizeKey?: string;
+}
+
+export interface ReplayMapperContext {
+  readonly action: ReplayAction;
+  settled(intent: string): unknown | null;
+  query(
+    reference: string | GeneratedOperationReference,
+    options?: ReplayQueryOptions,
+  ): Promise<Readonly<{
+    rows: readonly unknown[];
+    pages: number;
+    version: number | null;
+  }>>;
+}
+
+export interface ReplayDefinition {
+  readonly schemaVersion: 'snapback.replay-definition.v1';
+  readonly readyFile: string;
+  readonly api: string | Readonly<Record<string, unknown>>;
+  readonly actions: string | AsyncIterable<ReplayAction>;
+  readonly actors: Readonly<{
+    kind: 'mint';
+    emailFor: ((actor: string) => string | Promise<string>) | string | null;
+  }> | Readonly<{
+    kind: 'bearer';
+    bearerFor: ((actor: string) => string | Promise<string>) | string;
+  }>;
+  readonly clientPool: number;
+  readonly transportCustody: 'minted' | 'none';
+  readonly acknowledgeEvery: number;
+  readonly acknowledgeBytes: number;
+  readonly receiptsFile: string;
+  readonly statusFile: string;
+  readonly sessionCustodyFile: string;
+  readonly settlementProjectionBytes: number;
+  readonly checkpointCadenceMs: number;
+  readonly mapper: ((context: ReplayMapperContext) => ReplayAction | Promise<ReplayAction>) | string | null;
+  readonly settlementProjection:
+    | ((result: unknown, action: ReplayAction, outcome: unknown) => unknown | Promise<unknown>)
+    | string
+    | null;
+  readonly idempotent: boolean | ((action: ReplayAction) => boolean | Promise<boolean>) | string;
+}
+
+export interface ReplayPreflightReceipt {
+  readonly schemaVersion: 'snapback.replay-preflight.v1';
+  readonly actions: number;
+  readonly resumeEligible: boolean;
+  readonly acknowledgeWindow: Readonly<{
+    count: number;
+    bytes: number;
+    maximumSettlementCharge: number;
+  }>;
+  readonly custody: Readonly<{
+    requested: 'minted' | 'none';
+    generatedIrReferences: number;
+    deferredMapperActions: number;
+  }>;
+  readonly authorityComposition: Readonly<{
+    actors: number;
+    authFingerprints: number;
+    largestAliasedActorCount: number;
+    windowComposition: 'per-auth-fingerprint';
+  }> | null;
+  readonly advisories: readonly Readonly<{ code: string; message: string }>[];
+  readonly ceilings: readonly Readonly<Record<string, unknown>>[];
+  readonly unsafe: readonly string[];
+}
+
+export interface ReplayReceipt {
+  readonly schemaVersion: 'snapback.replay-receipt.v1';
+  readonly status: 'passed' | 'failed' | 'detached';
+  readonly actions?: Readonly<{
+    settled: number;
+    failed: number;
+    skipped: number;
+    acknowledged: number;
+    duplicatePossible: number;
+    lastSeq: number | null;
+    total: number | null;
+  }>;
+  readonly preflight?: ReplayPreflightReceipt | null;
+  readonly custody?: Readonly<Record<string, unknown>>;
+  readonly pool?: Readonly<Record<string, unknown>>;
+  readonly acknowledgement?: Readonly<Record<string, unknown>>;
+  readonly receiptsFile: string;
+  readonly receiptsDigest?: string;
+  readonly statusFile: string;
+  readonly pid?: number;
+  readonly diagnostic?: Readonly<Record<string, unknown>> | null;
+  readonly finishedAt?: number;
+}
+
+export interface ReplayStatus {
+  readonly v: 'snapback.replay-status.v1';
+  readonly state: 'starting' | 'running' | 'stalled' | 'dead' | 'complete' | 'failed' | 'stopped';
+  readonly settled: number;
+  readonly failed: number;
+  readonly total: number | null;
+  readonly lastSeq: number | null;
+  readonly pid: number;
+  readonly receiptsFile: string;
+  readonly statusFile: string;
+  readonly updatedAt: number;
+  readonly checkpointCadenceMs: number;
+  readonly recovery?: 'resume' | 'wait-or-signal';
+  readonly diagnostic?: Readonly<Record<string, unknown>> | null;
+}
+
+export const REPLAY_DEFINITION_VERSION: 'snapback.replay-definition.v1';
+export const REPLAY_RECEIPT_VERSION: 'snapback.replay-receipt.v1';
+export const REPLAY_STATUS_VERSION: 'snapback.replay-status.v1';
+export const REPLAY_DISPATCH_CARRIER_MAX_BYTES: 1048576;
+export const REPLAY_RETAINED_ROW_OVERHEAD_BYTES: 131072;
+export const REPLAY_CEILINGS: Readonly<{
+  retainedMutationRecordsPerAuthority: 1024;
+  retainedMutationBytesPerAuthority: 8388608;
+  retainedMutationResultBytes: 65536;
+  queryTakeRows: 1024;
+  bufferedMutationWrites: 1024;
+  seedEffects: 1024;
+}>;
+
+export function defineReplay(options: {
+  readonly readyFile: string | URL;
+  readonly api: string | URL | Readonly<Record<string, unknown>>;
+  readonly actions: string | URL | AsyncIterable<ReplayAction>;
+  readonly actors?: Readonly<{
+    mint: Readonly<{
+      emailFor?: ((actor: string) => string | Promise<string>) | string | URL;
+    }>;
+  }> | Readonly<{
+    bearerFor: ((actor: string) => string | Promise<string>) | string | URL;
+  }>;
+  readonly clientPool?: number;
+  readonly transportCustody?: 'minted' | 'none';
+  readonly acknowledgeEvery?: number;
+  readonly acknowledgeBytes?: number;
+  readonly receiptsFile?: string | URL;
+  readonly statusFile?: string | URL;
+  readonly sessionCustodyFile?: string | URL;
+  readonly settlementProjectionBytes?: number;
+  readonly checkpointCadenceMs?: number;
+  readonly mapper?: ((context: ReplayMapperContext) => ReplayAction | Promise<ReplayAction>) | string | URL;
+  readonly settlementProjection?:
+    | ((result: unknown, action: ReplayAction, outcome: unknown) => unknown | Promise<unknown>)
+    | string
+    | URL;
+  readonly idempotent?: boolean | ((action: ReplayAction) => boolean | Promise<boolean>) | string | URL;
+}): ReplayDefinition;
+
+export function runReplay(
+  definition: ReplayDefinition,
+  options?: Readonly<{
+    resume?: boolean | Readonly<{ ambiguous: 'reexecute' }>;
+    detach?: boolean;
+    signal?: AbortSignal;
+    onPreflight?: (receipt: ReplayPreflightReceipt) => void | Promise<void>;
+  }>,
+): Promise<Readonly<{ receipt: ReplayReceipt; exitCode: 0 | 1 }>>;
+
+export function readReplayStatus(statusFile: string | URL): ReplayStatus;

@@ -10528,6 +10528,99 @@ async fn settlement_acknowledgement_uses_prepared_authority_not_body_identity() 
 }
 
 #[tokio::test]
+async fn sessions_bearer_can_acknowledge_without_legacy_body_auth_and_drop_retention() {
+    let state = sessions_activation_server_fixture_async().await;
+    let credential = mint_test_credential(&state, "sessions-ack-wire@example.test").await;
+    let bearer = credential["token"]
+        .as_str()
+        .expect("session bearer")
+        .to_owned();
+    let router = app(state);
+
+    let handshake = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/auth/session")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer}"))
+                .header("x-snapback-auth-client-protocol", "1")
+                .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
+                .header("x-snapback-authority-descriptor-protocol", "1")
+                .body(Body::empty())
+                .expect("sessions ACK handshake request"),
+        )
+        .await
+        .expect("sessions ACK handshake response");
+    assert_eq!(handshake.status(), StatusCode::OK);
+    let authority_descriptor = response_json(handshake).await["authorityDescriptor"].clone();
+    let mutation_id = format!("cm_sessions_ack_wire_{}", Uuid::new_v4().simple());
+    let mutation_body = || {
+        serde_json::to_vec(&json!({
+            "args": { "value": "sessions-ack-wire" },
+            "clientMutationId": mutation_id,
+            "authorityDescriptor": authority_descriptor,
+        }))
+        .expect("serialize sessions ACK mutation")
+    };
+    let request = |uri: &str, body: Vec<u8>| {
+        let mut request = session_auth_http_request(uri, body, &bearer);
+        request.headers_mut().insert(
+            HeaderName::from_static("x-snapback-authority-descriptor-protocol"),
+            HeaderValue::from_static("1"),
+        );
+        request
+    };
+
+    let first = router
+        .clone()
+        .oneshot(request("/mutation/queuedWrite", mutation_body()))
+        .await
+        .expect("sessions ACK seed mutation response");
+    let first_status = first.status();
+    let first = response_json(first).await;
+    assert_eq!(first_status, StatusCode::OK, "seed mutation: {first}");
+
+    // Session-mode client transport strips body auth; the bearer header is the
+    // canonical authority carrier admitted by LLP 0058.
+    let acknowledged = router
+        .clone()
+        .oneshot(request(
+            "/client-mutations/acknowledge",
+            serde_json::to_vec(&json!({
+                "authorityDescriptor": authority_descriptor,
+                "clientMutationIds": [mutation_id],
+            }))
+            .expect("serialize sessions ACK without body auth"),
+        ))
+        .await
+        .expect("sessions ACK response");
+    let acknowledged_status = acknowledged.status();
+    let acknowledged = response_json(acknowledged).await;
+    assert_eq!(
+        acknowledged_status,
+        StatusCode::OK,
+        "session-header ACK must reach the handler: {acknowledged}"
+    );
+    assert_eq!(acknowledged["acknowledged"], json!(1));
+
+    let after_gc = router
+        .oneshot(request("/mutation/queuedWrite", mutation_body()))
+        .await
+        .expect("post-ACK mutation response");
+    let after_gc_status = after_gc.status();
+    let after_gc = response_json(after_gc).await;
+    assert_eq!(
+        after_gc_status,
+        StatusCode::OK,
+        "post-ACK mutation: {after_gc}"
+    );
+    assert_ne!(
+        after_gc["version"], first["version"],
+        "reusing the exact id after ACK must execute anew, proving retention was dropped"
+    );
+}
+
+#[tokio::test]
 async fn auth_session_dev_is_closed_no_store_and_rejects_credentials() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
     let state = state

@@ -56,7 +56,7 @@ export const PACKAGE_TEST_INVENTORIES = [
     packageDir: 'packages/snapback-acceptance',
     testDir: '.',
     suffix: '.test.mjs',
-    expectedFiles: ['package.test.mjs'],
+    expectedFiles: ['package.test.mjs', 'replay.test.mjs'],
   },
   {
     id: '@expo/snapback-cli',
@@ -99,6 +99,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'port-plan.test.mjs',
       'reset-dev-fresh.test.mjs',
       'reference-lookup.test.mjs',
+      'replay-cli.test.mjs',
       'scaffold-skill-budget.test.mjs',
       'sessions-dev-loop.test.mjs',
       'shared-development-auth.test.mjs',
@@ -597,7 +598,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 351,
+  expectedTotal = 353,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1116,6 +1117,8 @@ export function checkPackageTestInventories(options = {}) {
 // 349 -> 351 (2026-08-24, LLP 0307 Lane F): @expo/snapback-vite gains the
 // stale-descriptor tri-state re-emit proof and @expo/snapback-codegen gains
 // the target-capability authoring parity gate.
+// 351 -> 353 (2026-08-24, LLP 0307.000 Lane S1): @expo/snapback-acceptance
+// gains the replay suite and @expo/snapback-cli the replay verb suite.
 // LLP 0300 nine-row acceptance traceability (0301 §8 set-level table):
 // 1 cold bring-up -> templates/*/acceptance.mjs + declared-dev-episode.test.mjs;
 // 2 two principals -> declared-dev-episode.test.mjs; 3 forwards/tunnel/rebinding

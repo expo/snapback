@@ -11275,6 +11275,12 @@ pub struct MutationRequest {
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct MutationAcknowledgementRequest {
+    /// Legacy dev-mode body authority. Session-mode clients authenticate with
+    /// the bearer header and deliberately omit this field; the shared
+    /// authority gate still rejects any body `auth` presence under sessions.
+    // @ref LLP 0058#session-mode-body-closure — sessions use the admitted
+    // header authority while legacy dev requests retain their body carrier.
+    #[serde(default)]
     pub auth: AuthInput,
     /// Optional exact authority cohort for durable client ACK custody. When
     /// present it is compared before any settlement GC.

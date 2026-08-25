@@ -1,11 +1,11 @@
 {
   "schemaVersion": "snapback.control-catalog.v1",
-  "catalogDigest": "sha256:4d32b5d0d12dca59777972e5ab9c9a4838ba80f35f5f0f6cac70593cc935d054",
+  "catalogDigest": "sha256:9cb4837ed97a4812f82f9699f99471e7eb8a655f06fb2f260db1338824787369",
   "buildIdentity": {
-    "sourceCommit": "a6202eee2ba25831179a20063284c4025876880a",
+    "sourceCommit": "d467c46dc3994acdbe2827afec67774d84367c93",
     "dirty": true
   },
-  "generatedAtCommit": "a6202eee2ba25831179a20063284c4025876880a",
+  "generatedAtCommit": "d467c46dc3994acdbe2827afec67774d84367c93",
   "entries": [
     {
       "operation": "acceptance.run",
@@ -4640,6 +4640,60 @@
       ],
       "sources": [
         "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.new"
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
+    },
+    {
+      "operation": "cli.packaged.replay",
+      "title": "Run or supervise ordered headless replay",
+      "intents": [
+        "load a large deterministic fixture",
+        "resume a headless mutation replay",
+        "watch replay status"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "Replay owns local action, receipt, and session-custody files plus a long-running worker; MCP exposes no equivalent filesystem-custody workflow.",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "effect": "provisioning",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": true,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback replay",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "testing/large-fixtures.md#general-bulk-path-headless-replay",
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.replay",
+        "packages/snapback-acceptance/replay.mjs"
       ],
       "remediation": {
         "carrier": "diagnostic.details.remediationSet",

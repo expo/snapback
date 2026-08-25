@@ -57,7 +57,13 @@
   "description": "Standalone authenticated settlement acknowledgement. It lives outside the\n`/mutation/{name}` namespace so an application may still declare a\nmutation named `acknowledge` (or `ack`) without a route collision.",
   "properties": {
     "auth": {
-      "$ref": "#/$defs/AuthInput"
+      "$ref": "#/$defs/AuthInput",
+      "default": {
+        "principal": null,
+        "session_id": null,
+        "user_id": null
+      },
+      "description": "Legacy dev-mode body authority. Session-mode clients authenticate with\nthe bearer header and deliberately omit this field; the shared\nauthority gate still rejects any body `auth` presence under sessions."
     },
     "authorityDescriptor": {
       "anyOf": [
@@ -82,7 +88,6 @@
     }
   },
   "required": [
-    "auth",
     "clientMutationIds"
   ],
   "title": "MutationAcknowledgementRequest",

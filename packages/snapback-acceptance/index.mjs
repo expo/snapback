@@ -5,6 +5,18 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+export {
+  REPLAY_CEILINGS,
+  REPLAY_DEFINITION_VERSION,
+  REPLAY_DISPATCH_CARRIER_MAX_BYTES,
+  REPLAY_RECEIPT_VERSION,
+  REPLAY_RETAINED_ROW_OVERHEAD_BYTES,
+  REPLAY_STATUS_VERSION,
+  defineReplay,
+  readReplayStatus,
+  runReplay,
+} from './replay.mjs';
+
 // @ref LLP 0275#d9-public-starter-acceptance-runner-author-ruling-2026-08-22
 // — platform lifecycle and receipt compatibility live here; app assertions
 // remain inside the bounded callbacks supplied by each acceptance source.

@@ -1,0 +1,128 @@
+{
+  "appId": "app",
+  "authMode": "sessions",
+  "authorityProfiles": [],
+  "authorizationTables": [],
+  "elevatedReadSites": [],
+  "fieldPolicies": [],
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:c52fb5934fafc037b4486b6880d801fbecf69c7fa735728a0223d8d2d170e19c",
+  "operations": [
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "rows"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-admitted-handler-graph",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "inline",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "apply",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "rows",
+        "tables": [
+          "rows"
+        ]
+      }
+    }
+  ],
+  "quarantines": [],
+  "schemaVersion": "snapback.authorization-review.v2",
+  "sectionSchemas": {
+    "fieldPolicies": "snapback.authorization-review.field-policies.reserved.v1",
+    "maskedFieldUses": "snapback.authorization-review.masked-field-uses.reserved.v1",
+    "tablePolicyTransitions": "snapback.authorization-review.table-policy-transitions.v1",
+    "visibilityOverrides": "snapback.authorization-review.visibility-overrides.v1",
+    "writePolicyChecks": "snapback.authorization-review.write-policy-checks.v2"
+  },
+  "tablePolicies": [
+    {
+      "origin": "declared",
+      "policy": {
+        "kind": "public-read"
+      },
+      "table": "rows"
+    }
+  ],
+  "tablePolicyTransitions": [],
+  "visibilityOverrides": [],
+  "writePolicyChecks": [
+    {
+      "absentDisposition": "not-applicable",
+      "absentDispositionDigest": null,
+      "authoritativeChecks": [
+        "pre-0264-runtime-behavior"
+      ],
+      "authorityTableClass": "ordinary",
+      "declarationOrigin": "declared",
+      "declaredTableCeiling": null,
+      "genericWriteDisposition": "migration-pending",
+      "id": "sha256:a983cbe3cbfa5f4aa2e2edc7c4c8ce251b6c5ae062faa50736d06df5457b4a2c",
+      "operation": "apply",
+      "ownerField": null,
+      "ownerFieldResolution": "not-applicable",
+      "ownerInputDisposition": "not-applicable",
+      "policyDigest": "sha256:b26fa8031778bc8a926af7da0c6e4d46d90a986a5cb6b0f836bae6527ce9dced",
+      "policyKind": "public-read",
+      "preflightChecks": [
+        "target-policy",
+        "authority-table-class"
+      ],
+      "principalSource": "not-applicable",
+      "resultEgress": "separate-phase-not-covered",
+      "runtimeClass": "javascript-handler",
+      "siteId": "sha256:4318927f086cd13bce3df54fe5e158f65cf3a3287025d0ae6ca41eba4bf9fe2a",
+      "siteResolution": "exact-static",
+      "sourceEvidence": {
+        "column": 33,
+        "kind": "static-inline",
+        "line": 12,
+        "path": "functions.mjs"
+      },
+      "surface": "ctx-db",
+      "table": "rows",
+      "tableResolution": "exact",
+      "uniqueConflictDisposition": {
+        "constraints": [],
+        "kind": "not-applicable"
+      },
+      "writeElevation": "unavailable",
+      "writeForm": "insert",
+      "writeFormCeiling": null
+    }
+  ]
+}

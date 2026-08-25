@@ -1,0 +1,88 @@
+{
+  "artifactKind": "providerIntrospection",
+  "capabilities": {
+    "claims": {
+      "branchableFixtures": false,
+      "derivedOptimisticOverlays": false,
+      "forceStates": true,
+      "headlessBoot": true,
+      "initialSnapshot": true,
+      "localReplica": false,
+      "offlineReplay": false,
+      "optimisticMutations": false,
+      "rowSyncState": true,
+      "serverRunnableQueries": true,
+      "subscriptions": true
+    },
+    "receipts": {
+      "mutation": true,
+      "subscription": true
+    }
+  },
+  "operations": {
+    "actions": [],
+    "ephemeral": [],
+    "mutations": [
+      {
+        "arguments": {
+          "fields": {
+            "persona": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "seq": {
+              "name": "number",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "seq",
+            "persona"
+          ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:9dc4340f413fa3d85d1019be26f8a148bd5144d67985131f9505feb57d0b01c8",
+          "implementationHash": "sha256:d746ef5ebe58a52ad7dd8c85be60942e4954122a7d94bfce3d935bd6ae7fe57d",
+          "result": {
+            "kind": "value",
+            "value": {
+              "kind": "id",
+              "table": "rows"
+            }
+          },
+          "resultHash": "sha256:d6d3a2023e87d3e5b9a8207291a321f8466b460ce3235d1387c51a4d765163d1",
+          "revision": "snapback.result-contract.v1"
+        },
+        "effects": {
+          "invalidates": [
+            "rows"
+          ],
+          "writes": [
+            "rows"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "apply",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      }
+    ],
+    "queries": []
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v1"
+  },
+  "schemaVersion": "provider-introspection.v1",
+  "source": {
+    "authoredSourceHash": "sha256:863747a895762ef88f87792b6c58a68ee1b7ba3fcf3c8cbf936fd78e1a688c83",
+    "implementationHash": "snapback.v1:sessions:function:sha256:d3a02418c9e3871a057b71bc6307e06fd7957d46066eda6c51c923f6ce35ef4e",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:c52fb5934fafc037b4486b6880d801fbecf69c7fa735728a0223d8d2d170e19c",
+    "schemaHash": "snapback.v1:sessions:schema:sha256:5becca6492719e6f69f7fd8d957e249da565c92cf2d6b98e86cf6b37beb9d740"
+  }
+}

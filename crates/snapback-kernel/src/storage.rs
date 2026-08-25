@@ -637,6 +637,19 @@ pub const CLIENT_MUTATION_MAX_RECORDS_PER_AUTH: u64 = 1_024;
 /// Per-auth retained results are capped at 128 maximum-sized outputs (8 MiB).
 pub const CLIENT_MUTATION_MAX_BYTES_PER_AUTH: u64 = 128 * CLIENT_MUTATION_MAX_RESULT_BYTES;
 
+/// Public-result-independent allowance used by the headless replay ACK byte
+/// window. A retained row may carry the complete private MutationOutput JSON
+/// (itself capped by CLIENT_MUTATION_MAX_RESULT_BYTES) plus bounded identity,
+/// format, sequence, and media-seal fields. Replay additionally admits
+/// function names of at most 4 KiB. The parity test exercises every settlement
+/// format and proves the resulting row is no larger than public result bytes
+/// plus this deliberately conservative two-output-budget allowance.
+///
+/// @ref LLP 0307.000#d3-transport-identity-custody — the headless helper must
+/// charge a proven conservative retained-row bound before acknowledging.
+pub const HEADLESS_REPLAY_RETAINED_ROW_OVERHEAD_BYTES: u64 = 2 * CLIENT_MUTATION_MAX_RESULT_BYTES;
+pub const HEADLESS_REPLAY_MAX_FUNCTION_NAME_BYTES: usize = 4_096;
+
 #[derive(Clone, Copy)]
 struct ClientMutationRetentionLimits {
     records: u64,
