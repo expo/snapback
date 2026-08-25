@@ -76,3 +76,29 @@ bounded and reported.
 - A current-commit **published** smoke cannot run before publication — the staged closure is `0.1.0`
   and the registry returns E404 for `@expo/snapback-cli@0.1.0`. As an environment control, the
   published `0.1.27` ancestor passes `scripts/published-closure-boot-smoke.mjs --version 0.1.27`.
+
+## Resolution (2026-08-25)
+
+The unversioned seed is a legitimate compatibility input for the `todo-contract` fixture. The
+ordering bug was earlier: doctor started an empty dev-mode runtime, provisioned the generated
+sessions deployment after bind (which correctly staged the mode change and closed app-data
+admission), then attempted that legacy seed before the required sessions restart.
+
+Doctor now gives a sessions deployment to the runtime's cold-start artifact carrier and waits up
+to 15 seconds for the runtime ready file. That file is written only after pre-bind auth activation,
+so it is the actual readiness signal rather than a retry heuristic. The bundle-load diagnostic
+reports the requested mode, readiness signal, bound, and carrier choice. Doctor skips the redundant
+post-bind schema/function provision, loads the legacy seed after readiness, and performs its query,
+mutation, and live checks through a temporary real session. Cleanup now closes session custody
+before stopping the runtime and tolerates the documented transient recursive-removal race.
+
+The deterministic regression wraps the native runtime and injects
+`SNAPBACK_AUTH_MODE_PENDING` if a legacy seed reset arrives without the sessions startup carrier.
+Before the production change it failed with one failed test and
+`SNAPBACK_DEV_SERVER_SEED_FAILED` wrapping the injected `SNAPBACK_AUTH_MODE_PENDING`; after the
+change it passes. A fresh `todo-contract` debug reproduction exits 0 and reports
+`SNAPBACK_DOCTOR_BUNDLE_LOAD_OK` with `signal: runtime-ready-file`, followed by query, mutation,
+live, and shutdown OK diagnostics. `node scripts/check-inventories.mjs` passes with 354 package
+tests, 29 script tests, 31 demos/catalog entries, 487 publication leaves, and 157 guide pages/1871
+snippets. The F-3 packed witness is recorded in the follow-up note below after running from the
+clean resolution commit.

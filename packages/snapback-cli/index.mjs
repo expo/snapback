@@ -27,7 +27,7 @@ import { tmpdir } from 'node:os';
 import { createConnection, createServer as createNetServer } from 'node:net';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { createInterface } from 'node:readline';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 
 import { SnapbackClient } from '@expo/snapback-client';
 import {
@@ -709,7 +709,10 @@ export async function doctor(options = {}) {
   const stateRoot = join(projectRoot, '.snapback');
   const readyFile = join(stateRoot, 'doctor.ready.json');
   const database = join(stateRoot, 'doctor.sqlite3');
+  const startupArtifacts = join(stateRoot, 'doctor.startup-artifacts.json');
   let child = null;
+  let client = null;
+  let authCoordinator = null;
   let live = null;
   let failure = null;
   try {
@@ -723,43 +726,99 @@ export async function doctor(options = {}) {
       );
     }
     mkdirSync(stateRoot, { recursive: true });
+    const schemaPath = resolveGeneratedArtifact(
+      join(backendRoot, 'generated'),
+      'schema.manifest.json',
+    );
+    const functionsPath = resolveGeneratedArtifact(
+      join(backendRoot, 'generated'),
+      'functions.manifest.json',
+    );
+    const schema = JSON.parse(readFileSync(schemaPath, 'utf8'));
+    const functions = JSON.parse(readFileSync(functionsPath, 'utf8'));
+    const requestedMode = schema?.auth?.mode ?? 'dev';
+    const needsStartupActivation = requestedMode === 'sessions';
+    if (needsStartupActivation) {
+      // @ref LLP 0058#cold-startup-artifact-carrier — a sessions deployment
+      // activates before listener bind; readiness then proves the seed reset
+      // cannot race the staged dev-to-sessions transition.
+      writeFileSync(startupArtifacts, `${JSON.stringify({
+        formatVersion: 1,
+        schema,
+        functions,
+      })}\n`, { mode: 0o600 });
+    }
     const childEnvironment = runtimeSpawnEnvironment(runtime.binary, options.env);
     // @ref LLP 0301#2-origin-admission--the-path-split-implemented — the
     // posture is lifecycle-owner input, never ambient.
     delete childEnvironment.SNAPBACK_DEV_ADMISSION_POSTURE;
-    child = spawn(runtime.binary, ['start', '--ready-file', readyFile, '--db', database], {
+    child = spawn(runtime.binary, [
+      'start', '--ready-file', readyFile, '--db', database,
+      ...(needsStartupActivation ? ['--startup-artifacts', startupArtifacts] : []),
+    ], {
       cwd: projectRoot,
       env: childEnvironment,
       stdio: ['ignore', 'ignore', 'ignore'],
     });
+    const readyTimeoutMs = options.readyTimeoutMs ?? 15_000;
     const descriptor = validateDevTarget(
-      await waitForReady(readyFile, child, options.readyTimeoutMs ?? 15_000),
+      await waitForReady(readyFile, child, readyTimeoutMs),
       { readyFile, database },
     );
+    const activationReadiness = {
+      requestedMode,
+      signal: 'runtime-ready-file',
+      timeoutMs: readyTimeoutMs,
+      startupCarrier: needsStartupActivation,
+    };
     const adminToken = managedAdminToken(descriptor, database);
     await loadGenerated(runtime.binary, projectRoot, backendRoot, readyFile, adminToken, {
       seed: true,
       database,
+      skipSchemaFunctions: needsStartupActivation,
       env: options.env,
     });
     checks.push(doctorDiagnostic(
       'SNAPBACK_DOCTOR_BUNDLE_LOAD_OK',
       'runtime',
       'the disposable server created its VM and loaded the generated bundle',
+      { activationReadiness },
     ));
 
-    const apiModule = await import(`${pathToFileURL(join(backendRoot, 'generated', 'api.mjs')).href}?doctor=${Date.now()}`);
-    const api = apiModule.default;
-    const devIdentityCapability = resolveDevIdentityCapabilityForCli(descriptor, {
-      readyFile,
-      database,
-    });
-    const client = new SnapbackClient(descriptor.serverUrl, {
+    const devIdentityCapability = requestedMode === 'dev'
+      ? resolveDevIdentityCapabilityForCli(descriptor, {
+          readyFile,
+          database,
+        })
+      : null;
+    authCoordinator = requestedMode === 'sessions'
+      ? new AuthCoordinator({
+          appId: schema.appId,
+          storage: createMemoryAuthCustodyStorage(),
+          broadcastChannelFactory: null,
+          hintStorage: null,
+        })
+      : null;
+    client = new SnapbackClient(descriptor.serverUrl, {
       adminToken,
-      devIdentityCapability,
+      ...(devIdentityCapability ? { devIdentityCapability } : {}),
+      ...(authCoordinator ? {
+        authCoordinator,
+        rqsStore: null,
+        offlineQueue: false,
+      } : {}),
     });
     const userId = 'user_doctor';
-    const before = await client.query(api.listTodos, { userId });
+    if (authCoordinator) {
+      await client.authPasswordSignup({
+        email: `doctor-${randomUUID()}@example.invalid`,
+        password: `snapback-doctor-${randomUUID()}`,
+      });
+    }
+    const before = await client.query(
+      'listTodos',
+      requestedMode === 'dev' ? { userId } : undefined,
+    );
     if (!Array.isArray(before.rows)) {
       throw diagnosticError('SNAPBACK_DOCTOR_QUERY_FAILED', 'the disposable query returned no rows array');
     }
@@ -770,8 +829,8 @@ export async function doctor(options = {}) {
       { version: before.version, rowCount: before.rows.length },
     ));
 
-    const mutation = await client.mutate(api.createTodo, {
-      userId,
+    const mutation = await client.mutate('createTodo', {
+      ...(requestedMode === 'dev' ? { userId } : {}),
       args: { title: 'Snapback doctor vertical slice' },
       clientMutationId: `doctor-${process.pid}-${Date.now()}`,
     });
@@ -789,7 +848,10 @@ export async function doctor(options = {}) {
       { version: mutation.version },
     ));
 
-    live = await client.liveQuery(api.listTodos, { connectionId: 'doctor', userId });
+    live = await client.liveQuery('listTodos', {
+      connectionId: 'doctor',
+      ...(requestedMode === 'dev' ? { userId } : {}),
+    });
     if (!live.rows.some((row) => row.title === 'Snapback doctor vertical slice')) {
       throw diagnosticError('SNAPBACK_DOCTOR_LIVE_FAILED', 'the disposable live snapshot omitted the committed row');
     }
@@ -817,6 +879,17 @@ export async function doctor(options = {}) {
         { message: error?.message ?? String(error) },
       );
     }
+    try {
+      await client?.closeAuth();
+      await authCoordinator?.close();
+    } catch (error) {
+      failure ??= doctorDiagnostic(
+        'SNAPBACK_DOCTOR_CLEANUP_FAILED',
+        'auth',
+        'the disposable doctor auth coordinator did not close cleanly',
+        { message: error?.message ?? String(error) },
+      );
+    }
     if (child?.exitCode === null) {
       const stop = native(runtime.binary, ['stop', '--ready-file', readyFile], {
         cwd: projectRoot,
@@ -841,7 +914,12 @@ export async function doctor(options = {}) {
       }
     }
     try {
-      rmSync(scratch, { recursive: true, force: true });
+      rmSync(scratch, {
+        recursive: true,
+        force: true,
+        maxRetries: 5,
+        retryDelay: 50,
+      });
     } catch (error) {
       failure ??= doctorDiagnostic(
         'SNAPBACK_DOCTOR_CLEANUP_FAILED',

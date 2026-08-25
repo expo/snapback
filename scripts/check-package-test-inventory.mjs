@@ -79,6 +79,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'dev-loop.test.mjs',
       'dev-port-range.test.mjs',
       'dev-session.test.mjs',
+      'doctor-seed-transition.test.mjs',
       'expo-bootstrap-exchange.test.mjs',
       'expo-dev-identity-checkout.test.mjs',
       'expo-device-forwarding.test.mjs',
@@ -599,7 +600,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 354,
+  expectedTotal = 355,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1122,6 +1123,8 @@ export function checkPackageTestInventories(options = {}) {
 // gains the replay suite and @expo/snapback-cli the replay verb suite.
 // 353 -> 354 (2026-08-25, LLP 0307 Lane S3): @expo/snapback-codegen gains
 // the packed offline-replay authoring and client-admission closure proof.
+// 354 -> 355 (2026-08-25, doctor auth-mode race): @expo/snapback-cli gains
+// the deterministic startup-activation-before-seed regression.
 // LLP 0300 nine-row acceptance traceability (0301 §8 set-level table):
 // 1 cold bring-up -> templates/*/acceptance.mjs + declared-dev-episode.test.mjs;
 // 2 two principals -> declared-dev-episode.test.mjs; 3 forwards/tunnel/rebinding
