@@ -94,6 +94,12 @@ export interface DevControlSocketDescriptor {
   readonly ownerIncarnationId: string;
   readonly ownerStartTime: string;
   readonly lifecycleReceipt: `sha256:${string}`;
+  readonly endpoint: Readonly<{
+    readonly uid: number;
+    readonly mode: number;
+    readonly device: string;
+    readonly inode: string;
+  }>;
   readonly verbs: readonly ['reload-metro', 'stop-children'];
 }
 
@@ -108,6 +114,9 @@ export function startDevControlSocket(options: Readonly<{
   ownerIncarnationId: string;
   ownerStartTime: string;
   startedAt: string;
+  cleanupLease?: Readonly<Record<string, unknown>> | null;
+  /** Test-only override; production uses a five-second incomplete-client deadline. */
+  connectionIdleTimeoutMs?: number;
   verbs: Readonly<{
     'reload-metro': (context: Readonly<{ requestId: string }>) => unknown | Promise<unknown>;
     'stop-children': (context: Readonly<{ requestId: string }>) => unknown | Promise<unknown>;

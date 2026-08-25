@@ -92,6 +92,18 @@ const port = Number(process.env.SNAPBACK_EXPO_METRO_PORT);
 const origin = process.env.EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN;
 const backendOrigin = process.env.EXPO_PUBLIC_SNAPBACK_URL;
 const generatedRoot = process.env.SNAPBACK_EXPO_TEST_GENERATED_ROOT;
+const launchCountFile = process.env.SNAPBACK_EXPO_TEST_METRO_LAUNCH_COUNT_FILE;
+let launchCount = 1;
+if (launchCountFile) {
+  launchCount = existsSync(launchCountFile)
+    ? Number(readFileSync(launchCountFile, 'utf8')) + 1
+    : 1;
+  writeFileSync(launchCountFile, String(launchCount));
+}
+if (process.env.SNAPBACK_EXPO_TEST_METRO_FAIL_AFTER_FIRST === '1' && launchCount > 1) {
+  process.stderr.write('injected replacement Metro launch failure\\n');
+  process.exit(86);
+}
 const ci = String(process.env.CI ?? '').trim().toLowerCase();
 const watching = !['1', 'true'].includes(ci);
 const pollGeneratedAlias = process.env.SNAPBACK_EXPO_TEST_POLL_GENERATED === '1';
@@ -176,6 +188,8 @@ const server = createServer((request, response) => {
   response.setHeader('content-type', 'application/json');
   response.end(JSON.stringify({ ok: true, hmr: request.url === '/hmr' }));
 });
+const launchDelayMs = Number(process.env.SNAPBACK_EXPO_TEST_METRO_START_DELAY_MS ?? 0);
+if (launchDelayMs > 0) await new Promise((resolveDelay) => setTimeout(resolveDelay, launchDelayMs));
 server.listen(port, '127.0.0.1', () => {
   console.log(JSON.stringify({ event: 'metro-ready', host: '127.0.0.1', port }));
 });
@@ -616,8 +630,14 @@ function controlCommand(controlSocket, verb, requestId, overrides = {}) {
   };
 }
 
-async function sendControlCommand(controlSocket, command) {
-  return await new Promise((resolveMessages, rejectMessages) => {
+function openControlCommand(controlSocket, command) {
+  let resolveAcknowledged;
+  let rejectAcknowledged;
+  const acknowledged = new Promise((resolveAck, rejectAck) => {
+    resolveAcknowledged = resolveAck;
+    rejectAcknowledged = rejectAck;
+  });
+  const completion = new Promise((resolveMessages, rejectMessages) => {
     const messages = [];
     let buffer = '';
     const socket = createConnection(controlSocket.path);
@@ -635,17 +655,33 @@ async function sendControlCommand(controlSocket, command) {
         if (!line) continue;
         const message = JSON.parse(line);
         messages.push(message);
+        if (message.schemaVersion === 'snapback.dev-control-ack.v1') {
+          resolveAcknowledged(message);
+        }
         if (message.schemaVersion === 'snapback.dev-control-result.v1') {
           socket.end();
         }
       }
     });
-    socket.once('error', rejectMessages);
+    socket.once('error', (error) => {
+      rejectAcknowledged(error);
+      rejectMessages(error);
+    });
     socket.once('close', () => resolveMessages(messages));
   });
+  return Object.freeze({ acknowledged, completion });
 }
 
-async function runCliSupervisor(target, platform = 'ios', portArgs = []) {
+async function sendControlCommand(controlSocket, command) {
+  const operation = openControlCommand(controlSocket, command);
+  void operation.acknowledged.catch(() => {});
+  return await operation.completion;
+}
+
+async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
+  assertStdinReload = false,
+  failMetroReload = false,
+} = {}) {
   const cli = join(packageRoot, 'cli.mjs');
   const events = [];
   let stdoutBuffer = '';
@@ -671,8 +707,13 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = []) {
       SNAPBACK_EXPO_TEST_SOURCE_MAP: target.sourceMap,
       SNAPBACK_EXPO_TEST_ENV: target.metroEnv,
       SNAPBACK_EXPO_TEST_GENERATED_ROOT: target.generatedRoot,
+      SNAPBACK_EXPO_TEST_METRO_START_DELAY_MS: '250',
+      ...(failMetroReload ? {
+        SNAPBACK_EXPO_TEST_METRO_LAUNCH_COUNT_FILE: join(target.stateRoot, 'metro-launch-count'),
+        SNAPBACK_EXPO_TEST_METRO_FAIL_AFTER_FIRST: '1',
+      } : {}),
     },
-    stdio: ['ignore', 'pipe', 'pipe'],
+    stdio: [assertStdinReload ? 'pipe' : 'ignore', 'pipe', 'pipe'],
   });
   cliChildren.push(child);
   child.stdout.setEncoding('utf8');
@@ -718,12 +759,29 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = []) {
   assert.equal(endpointStat.mode & 0o777, 0o600);
   if (typeof process.getuid === 'function') assert.equal(endpointStat.uid, process.getuid());
 
+  if (assertStdinReload) {
+    child.stdin.write(`${JSON.stringify({
+      schemaVersion: 'snapback.dev-command.v1',
+      verb: 'reload',
+      requestId: 'stdin-reload-1',
+    })}\n`);
+    const stdinReloadEvent = await eventually(
+      () => events.find((event) => (
+        event.backend?.verb === 'reload' && event.backend?.requestId === 'stdin-reload-1'
+      )),
+      { label: 'JSON stdin reload result' },
+    );
+    const stdinReload = stdinReloadEvent.backend;
+    assert.equal(stdinReload.ok, true, JSON.stringify(stdinReload));
+  }
+
   const stale = await sendControlCommand(
     controlSocket,
     controlCommand(controlSocket, 'reload-metro', 'stale-1', {
       lifecycleReceipt: 'sha256:stale-lifecycle-receipt',
     }),
   );
+  assert.equal(stale.length, 1, 'a stale lifecycle request must not receive an acknowledgement');
   assert.equal(stale.at(-1).diagnostics[0].code, 'SNAPBACK_DEV_CONTROL_STALE_INCARNATION');
   const foreign = await sendControlCommand(
     controlSocket,
@@ -731,6 +789,7 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = []) {
       owner: { incarnationId: 'supervisor-foreign-owner' },
     }),
   );
+  assert.equal(foreign.length, 1, 'a foreign owner request must not receive an acknowledgement');
   assert.equal(foreign.at(-1).diagnostics[0].code, 'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER');
   const otherUid = await sendControlCommand(
     controlSocket,
@@ -738,6 +797,7 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = []) {
       owner: { uid: controlSocket.ownerUid + 1 },
     }),
   );
+  assert.equal(otherUid.length, 1, 'an other-uid request must not receive an acknowledgement');
   assert.equal(otherUid.at(-1).diagnostics[0].code, 'SNAPBACK_DEV_CONTROL_OTHER_UID');
   const unknown = await sendControlCommand(
     controlSocket,
@@ -747,10 +807,48 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = []) {
   assert.equal(unknown[0].diagnostics[0].code, 'SNAPBACK_DEV_COMMAND_UNKNOWN_VERB');
 
   const metroPidBefore = supervisorDescriptor.metro.pid;
-  const reload = await sendControlCommand(
+  const reloadOperation = openControlCommand(
     controlSocket,
     controlCommand(controlSocket, 'reload-metro', 'reload-1'),
   );
+  await reloadOperation.acknowledged;
+  if (failMetroReload) {
+    const reload = await reloadOperation.completion;
+    assert.equal(reload.length, 2);
+    assert.equal(reload[1].ok, false);
+    assert.equal(
+      reload[1].diagnostics?.[0]?.code ?? reload[1].result?.diagnostics?.[0]?.code,
+      'SNAPBACK_EXPO_METRO_RELOAD_FAILED',
+    );
+    const exit = await Promise.race([
+      new Promise((resolveExit) => child.once('exit', (code, signal) => resolveExit({ code, signal }))),
+      new Promise((_, rejectExit) => setTimeout(
+        () => rejectExit(new Error('irrecoverable Metro reload failure left a silent bundler-less owner')),
+        15_000,
+      )),
+    ]);
+    assert.equal(exit.code, 1, stderr || stdoutBuffer);
+    assert.equal(exit.signal, null, stderr || stdoutBuffer);
+    await eventually(() => !processGroupAlive(metroPidBefore), { label: 'failed-reload Metro cleanup' });
+    await eventually(() => !existsSync(controlSocket.path), { label: 'failed-reload socket cleanup' });
+    return { events, readyEvent, listenerEvent, bearer: exchange.authority.token };
+  }
+
+  const stopOperation = openControlCommand(
+    controlSocket,
+    controlCommand(controlSocket, 'stop-children', 'stop-1'),
+  );
+  await stopOperation.acknowledged;
+  const stopping = await sendControlCommand(
+    controlSocket,
+    controlCommand(controlSocket, 'reload-metro', 'stopping-1'),
+  );
+  assert.equal(stopping.length, 1, 'work arriving after stop begins must not be acknowledged');
+  assert.equal(stopping[0].diagnostics[0].code, 'SNAPBACK_DEV_CONTROL_STOPPING');
+  const [reload, stop] = await Promise.all([
+    reloadOperation.completion,
+    stopOperation.completion,
+  ]);
   assert.deepEqual(
     reload.map(({ schemaVersion, state, requestId, verb }) => ({ schemaVersion, state, requestId, verb })),
     [
@@ -772,12 +870,6 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = []) {
   assert.equal(reload[1].result.state, 'metro-reloaded');
   assert.equal(reload[1].result.previousPid, metroPidBefore);
   assert.notEqual(reload[1].result.pid, metroPidBefore);
-  assert.equal((await fetch(`${readyEvent.metro.origin}/control-reload`)).ok, true);
-
-  const stop = await sendControlCommand(
-    controlSocket,
-    controlCommand(controlSocket, 'stop-children', 'stop-1'),
-  );
   assert.equal(stop[0].state, 'acknowledged');
   assert.equal(stop[0].requestId, 'stop-1');
   assert.equal(stop[1].state, 'result');
@@ -797,6 +889,15 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = []) {
   assert(events.some((event) => event.schemaVersion === 'snapback.expo-dev.v1'
     && event.state === 'closed'));
   assert.equal(existsSync(controlSocket.path), false);
+  await eventually(() => !processGroupAlive(metroPidBefore), { label: 'pre-reload Metro cleanup' });
+  await eventually(() => !processGroupAlive(reload[1].result.pid), { label: 'replacement Metro cleanup' });
+  const metroProcessPort = Number(new URL(readyEvent.metro.upstreamOrigin).port);
+  const portProbe = createNetServer();
+  await new Promise((resolveListen, rejectListen) => {
+    portProbe.once('error', rejectListen);
+    portProbe.listen(metroProcessPort, '127.0.0.1', resolveListen);
+  });
+  await new Promise((resolveClose) => portProbe.close(resolveClose));
   return { events, readyEvent, listenerEvent, bearer: exchange.authority.token };
 }
 
@@ -840,7 +941,15 @@ try {
         '--port-range', `${controlRange.lo}-${controlRange.hi}`,
       ]);
       assert.equal(controlRun.readyEvent.platform, 'web');
-      console.log('expo-dev-loop.test.mjs: /dev/null control socket reload/refusals/ack/cleanup slice pass');
+      const failureFixture = fixture('failure-app', { sessions: true, root: controlRoot });
+      const failureRange = await reserveFreeRange(8);
+      await runCliSupervisor(failureFixture, 'web', [
+        '--port-range', `${failureRange.lo}-${failureRange.hi}`,
+      ], {
+        assertStdinReload: true,
+        failMetroReload: true,
+      });
+      console.log('expo-dev-loop.test.mjs: /dev/null socket concurrency, reload failure, stdin, refusals, and cleanup pass');
     } finally {
       rmSync(controlRoot, { recursive: true, force: true });
     }

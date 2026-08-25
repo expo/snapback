@@ -357,8 +357,8 @@ export function reserveCleanupPath(lease, path, {
   leaseUnique = false,
 } = {}) {
   if (lease === null || process.platform === 'win32') return null;
-  if (!isAbsolute(path) || !['file', 'browser-profile'].includes(type)) {
-    throw new Error('cleanup path lease requires an absolute file or browser-profile path');
+  if (!isAbsolute(path) || !['file', 'socket', 'browser-profile'].includes(type)) {
+    throw new Error('cleanup path lease requires an absolute file, socket, or browser-profile path');
   }
   if (type === 'browser-profile') {
     const resolved = resolve(path);
@@ -374,7 +374,7 @@ export function reserveCleanupPath(lease, path, {
   writeOwnerOnlyJson(resource, {
     schemaVersion: CLEANUP_RESOURCE_FORMAT,
     kind: 'path',
-    state: type === 'file' && !leaseUnique ? 'reserved' : 'active',
+    state: ['file', 'socket'].includes(type) && !leaseUnique ? 'reserved' : 'active',
     label,
     runId: lease.runId,
     reservationOwner: {
@@ -432,6 +432,39 @@ export function activateCleanupPath(resource, { runIdField, runId } = {}) {
     activatedAt: new Date().toISOString(),
   });
   return Object.freeze({ ...fileIdentity });
+}
+
+export function activateCleanupSocketPath(resource, { ownerIncarnationId } = {}) {
+  if (resource === null || resource === undefined) return null;
+  if (typeof ownerIncarnationId !== 'string' || ownerIncarnationId.length === 0) {
+    throw new Error('cleanup socket activation requires an owner incarnation id');
+  }
+  const record = readJson(resource.path);
+  if (record?.schemaVersion !== CLEANUP_RESOURCE_FORMAT
+      || record.kind !== 'path'
+      || record.runId !== resource.lease.runId
+      || record.pathType !== 'socket'
+      || record.state !== 'reserved'
+      || record.leaseUnique === true) {
+    throw new Error('cleanup socket reservation is not bindable');
+  }
+  const observed = lstatSync(record.path);
+  if (!observed.isSocket() || observed.isSymbolicLink()) {
+    throw new Error('cleanup socket identity requires a unix socket, not a link');
+  }
+  const socketIdentity = {
+    device: String(observed.dev),
+    inode: String(observed.ino),
+    uid: observed.uid,
+    ownerIncarnationId,
+  };
+  writeOwnerOnlyJson(resource.path, {
+    ...record,
+    state: 'active',
+    socketIdentity,
+    activatedAt: new Date().toISOString(),
+  });
+  return Object.freeze({ ...socketIdentity });
 }
 
 export function releaseCleanupResource(resource) {
@@ -889,6 +922,28 @@ function cleanupExactPath(resource) {
     } catch {
       // Missing, replaced, malformed, or concurrently changing means the old
       // lease is discharged. Never delete through ambiguity.
+      return false;
+    }
+  }
+  if (resource.pathType === 'socket') {
+    if (resource.state !== 'active') return false;
+    const identity = resource.socketIdentity;
+    if (typeof identity?.device !== 'string'
+        || typeof identity?.inode !== 'string'
+        || !Number.isSafeInteger(identity?.uid)
+        || typeof identity?.ownerIncarnationId !== 'string'
+        || identity.ownerIncarnationId.length === 0) return false;
+    try {
+      const observed = lstatSync(resource.path);
+      if (!observed.isSocket()
+          || observed.isSymbolicLink()
+          || String(observed.dev) !== identity.device
+          || String(observed.ino) !== identity.inode
+          || observed.uid !== identity.uid) return false;
+      rmSync(resource.path, { force: true });
+      return true;
+    } catch {
+      // Missing, replaced, or concurrently changing discharges this lease.
       return false;
     }
   }

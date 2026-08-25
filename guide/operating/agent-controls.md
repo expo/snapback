@@ -4,13 +4,13 @@ id: operating.agent-controls
 order: 1
 audience: agent-first
 capabilities: [operating.agent-controls]
-authorities: [llp/0184-agent-accessible-control-plane.rfc.md, llp/0031-server-route-taxonomy.spec.md, llp/0042-agent-mcp-surface.rfc.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, crates/snapback-server/src/control_catalog.rs, crates/snapback-cli/src/cli.rs, packages/snapback-cli/mcp-control.mjs, packages/snapback-client/index.mjs]
+authorities: [llp/0184-agent-accessible-control-plane.rfc.md, llp/0031-server-route-taxonomy.spec.md, llp/0042-agent-mcp-surface.rfc.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, crates/snapback-server/src/control_catalog.rs, crates/snapback-cli/src/cli.rs, packages/snapback-cli/expo-dev.mjs, packages/snapback-cli/mcp-control.mjs, packages/snapback-client/index.mjs]
 examples: []
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:03b9df8b8507e75ab0d5c3001950f2fb5df4c44f2f94bf8869213868c103d05b
+reviewed-authorities-digest: sha256:c6f055b8850cc49ee1f314336d29eb906bc70fadafe3c48d8e4f5e4ef9f90912
 ---
 
 # Discover agent controls
@@ -92,10 +92,15 @@ the `controlSocket` field in `.snapback/expo-supervisor.json` or the final
 `snapback.expo-dev.v1` readiness event. Do not guess a path or signal a process
 by name.
 
-The socket is mode `0600`, owned by the supervisor UID, and removed during
-clean shutdown. It is transient instance-local state: do not copy it with the
-database or treat a leftover endpoint as durable owner authority. Each request
-must repeat the descriptor's `ownerPid`, `ownerUid`, `ownerIncarnationId`, and
+The socket is mode `0600`, owned by the supervisor UID, and registered with
+the instance cleanup lease so ordinary shutdown and owner death remove its
+exact inode. The filesystem mode is the kernel-enforced client gate. The UID
+repeated in command JSON is an advisory descriptor-consistency check, not a
+peer-credential check and not a substitute for mode `0600`.
+
+This is transient instance-local state: do not copy it with the database or
+treat a leftover endpoint as durable owner authority. Each request must repeat
+the descriptor's `ownerPid`, `ownerUid`, `ownerIncarnationId`, and
 `lifecycleReceipt`:
 
 ```json fragment reason="illustrative descriptor-bound control request"
@@ -104,8 +109,13 @@ must repeat the descriptor's `ownerPid`, `ownerUid`, `ownerIncarnationId`, and
 
 One connection carries one newline-delimited request. A valid verb first
 returns `snapback.dev-control-ack.v1` with the same request id, then a
-`snapback.dev-control-result.v1` after the operation settles. Wait for the
-result before claiming the operation took effect.
+`snapback.dev-control-result.v1` after the operation settles. All acknowledged
+verbs share one serialized lane. Once `stop-children` is acknowledged, new
+work refuses with `SNAPBACK_DEV_CONTROL_STOPPING`; every earlier acknowledged
+request is allowed to send its result before the endpoint closes. Wait for the
+result before claiming the operation took effect. A client that reaches EOF
+before its newline, or stays incomplete for five seconds, is closed without
+retaining a half-open connection.
 
 The socket's closed verb set is:
 
@@ -117,8 +127,12 @@ The socket's closed verb set is:
 An endpoint or request naming another UID, owner incarnation, or lifecycle
 receipt refuses with `SNAPBACK_DEV_CONTROL_OTHER_UID`,
 `SNAPBACK_DEV_CONTROL_FOREIGN_OWNER`, or
-`SNAPBACK_DEV_CONTROL_STALE_INCARNATION`. Never unlink and replace an endpoint
-to bypass one of these refusals.
+`SNAPBACK_DEV_CONTROL_STALE_INCARNATION`. A live listener is always a foreign
+owner. On relaunch, the lifecycle owner itself may reclaim a dead leftover
+only when connecting returns `ECONNREFUSED`, the inode is same-UID and
+unchanged, and the prior supervisor descriptor binds that exact inode and
+incarnation. That owner recovery is not client authority. A client must never
+unlink or replace an endpoint to bypass a refusal.
 
 Interactive humans keep the existing stdin channel: TTY keys remain
 `s`/`r`/`R`/`f`/`q`, and non-TTY

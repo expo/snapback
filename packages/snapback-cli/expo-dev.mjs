@@ -16,7 +16,7 @@ import {
   createServer as createHttpServer,
   request as createHttpRequest,
 } from 'node:http';
-import { createServer as createNetServer } from 'node:net';
+import { createConnection as createNetConnection, createServer as createNetServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { pipeline } from 'node:stream/promises';
@@ -32,6 +32,7 @@ import {
 import {
   CLEANUP_LEASE_DIRECTORY_ENV,
   activateCleanupPath,
+  activateCleanupSocketPath,
   cleanupLeasedPath,
   openCarrierCleanupLease,
   releaseCleanupResource,
@@ -200,7 +201,146 @@ function observedControlEndpoint(path) {
   });
 }
 
-export async function startDevControlSocket(options) {
+function sameControlEndpoint(left, right) {
+  return left.uid === right.uid
+    && left.device === right.device
+    && left.inode === right.inode;
+}
+
+function probeDevControlEndpoint(path) {
+  return new Promise((resolveProbe, rejectProbe) => {
+    const socket = createNetConnection(path);
+    let settled = false;
+    const finish = (outcome, error = null) => {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      if (error === null) resolveProbe(outcome);
+      else rejectProbe(error);
+    };
+    socket.once('connect', () => finish('live'));
+    socket.once('error', (error) => {
+      if (error?.code === 'ECONNREFUSED') finish('dead');
+      else finish(null, error);
+    });
+  });
+}
+
+function matchesStaleControlDescriptor({ readyFile, path, ownerUid, endpoint }) {
+  const descriptorPath = join(dirname(resolve(readyFile)), 'expo-supervisor.json');
+  try {
+    const descriptorMetadata = lstatSync(descriptorPath);
+    if (!descriptorMetadata.isFile()
+        || descriptorMetadata.isSymbolicLink()
+        || descriptorMetadata.uid !== ownerUid) return false;
+    const supervisor = JSON.parse(readFileSync(descriptorPath, 'utf8'));
+    const control = supervisor?.controlSocket;
+    if (supervisor?.schemaVersion !== EXPO_SUPERVISOR_DESCRIPTOR_FORMAT
+        || typeof supervisor.startedAt !== 'string'
+        || supervisor.supervisorGeneration !== control?.ownerIncarnationId
+        || supervisor.supervisor?.pid !== control?.ownerPid
+        || supervisor.supervisor?.startTime !== control?.ownerStartTime
+        || control?.schemaVersion !== DEV_CONTROL_SOCKET_FORMAT
+        || resolve(control.path ?? '') !== path
+        || control.ownerUid !== ownerUid
+        || control.endpoint?.uid !== endpoint.uid
+        || control.endpoint?.device !== endpoint.device
+        || control.endpoint?.inode !== endpoint.inode) return false;
+    return control.lifecycleReceipt === controlLifecycleReceipt({
+      readyFile,
+      ownerPid: control.ownerPid,
+      ownerUid: control.ownerUid,
+      ownerIncarnationId: control.ownerIncarnationId,
+      ownerStartTime: control.ownerStartTime,
+      startedAt: supervisor.startedAt,
+    });
+  } catch {
+    return false;
+  }
+}
+
+async function reclaimDeadControlEndpoint({
+  readyFile,
+  path,
+  ownerUid,
+  observeEndpoint,
+  probeEndpoint,
+}) {
+  let endpoint;
+  try {
+    endpoint = observeEndpoint(path);
+  } catch (error) {
+    if (error?.code === 'ENOENT') return null;
+    throw error;
+  }
+  if (endpoint.uid !== ownerUid) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_CONTROL_OTHER_UID',
+      'the dev control socket path belongs to another uid',
+      { path, expectedUid: ownerUid, observedUid: endpoint.uid },
+    );
+  }
+  let occupancy;
+  try {
+    occupancy = await probeEndpoint(path);
+  } catch (error) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
+      'the occupied dev control endpoint could not be proven dead',
+      { path, cause: error?.code ?? error?.message ?? String(error) },
+    );
+  }
+  if (occupancy === 'live'
+      || !matchesStaleControlDescriptor({ readyFile, path, ownerUid, endpoint })) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
+      'the dev control socket path is already occupied by another endpoint',
+      { path, expectedUid: ownerUid, observedUid: endpoint.uid },
+    );
+  }
+  let current;
+  try {
+    current = observeEndpoint(path);
+  } catch (error) {
+    if (error?.code === 'ENOENT') return null;
+    throw error;
+  }
+  if (!sameControlEndpoint(current, endpoint)) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
+      'the dead dev control endpoint changed before owner reclamation',
+      { path },
+    );
+  }
+  rmSync(path);
+  return endpoint;
+}
+
+function flushControlResult(socket, encodedResult, timeoutMs = 1_000) {
+  if (socket.destroyed) return Promise.resolve(false);
+  return new Promise((resolveFlush) => {
+    let settled = false;
+    const finish = (flushed) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      socket.off('close', onClose);
+      socket.off('error', onError);
+      resolveFlush(flushed);
+    };
+    const onClose = () => finish(false);
+    const onError = () => finish(false);
+    const timeout = setTimeout(() => {
+      socket.destroy();
+      finish(false);
+    }, timeoutMs);
+    socket.once('close', onClose);
+    socket.once('error', onError);
+    socket.end(encodedResult, () => finish(true));
+  });
+}
+
+async function startDevControlSocketWithDependencies(options, dependencies = {}) {
   if (process.platform === 'win32' || typeof process.getuid !== 'function') {
     throw diagnosticError(
       'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
@@ -211,6 +351,8 @@ export async function startDevControlSocket(options) {
   const path = join(dirname(resolve(options.readyFile)), DEV_CONTROL_SOCKET_BASENAME);
   const ownerUid = process.getuid();
   const ownerPid = process.pid;
+  const observeEndpoint = dependencies.observeEndpoint ?? observedControlEndpoint;
+  const probeEndpoint = dependencies.probeEndpoint ?? probeDevControlEndpoint;
   const stateDirectory = lstatSync(dirname(path));
   if (!stateDirectory.isDirectory() || stateDirectory.isSymbolicLink() || stateDirectory.uid !== ownerUid) {
     throw diagnosticError(
@@ -219,25 +361,29 @@ export async function startDevControlSocket(options) {
       { path: dirname(path), expectedUid: ownerUid, observedUid: stateDirectory.uid },
     );
   }
-  if (existsSync(path)) {
-    const observed = lstatSync(path);
-    const code = observed.uid === ownerUid
-      ? 'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER'
-      : 'SNAPBACK_DEV_CONTROL_OTHER_UID';
-    throw diagnosticError(
-      code,
-      'the dev control socket path is already occupied by another endpoint',
-      { path, expectedUid: ownerUid, observedUid: observed.uid },
-    );
-  }
+  await reclaimDeadControlEndpoint({
+    readyFile: options.readyFile,
+    path,
+    ownerUid,
+    observeEndpoint,
+    probeEndpoint,
+  });
 
   const sockets = new Set();
   let closed = false;
+  let stopping = false;
   let closePromise = null;
   let controlSocket = null;
-  const server = createNetServer({ allowHalfOpen: true }, (socket) => {
+  let controlChain = Promise.resolve();
+  let cleanupResource = reserveCleanupPath(options.cleanupLease ?? null, path, {
+    type: 'socket',
+    label: 'Expo dev control socket',
+  });
+  let endpoint = null;
+  const server = createNetServer({ allowHalfOpen: false }, (socket) => {
     sockets.add(socket);
     socket.setEncoding('utf8');
+    socket.setTimeout(options.connectionIdleTimeoutMs ?? 5_000);
     let buffer = '';
     let handled = false;
     socket.on('close', () => sockets.delete(socket));
@@ -245,12 +391,16 @@ export async function startDevControlSocket(options) {
     // still settling. That abandons only its reply; it must not crash the
     // lifecycle owner or cancel an operation already acknowledged.
     socket.on('error', () => sockets.delete(socket));
+    socket.on('timeout', () => socket.destroy());
+    socket.on('end', () => {
+      if (!handled) socket.end();
+    });
     socket.on('data', (chunk) => {
       if (handled) return;
       buffer += chunk;
       if (Buffer.byteLength(buffer) > DEV_CONTROL_COMMAND_LIMIT_BYTES) {
         handled = true;
-        socket.end(`${JSON.stringify(devControlResult({
+        void flushControlResult(socket, `${JSON.stringify(devControlResult({
           ok: false,
           diagnostic: devControlDiagnostic(
             'SNAPBACK_DEV_COMMAND_INVALID',
@@ -268,7 +418,7 @@ export async function startDevControlSocket(options) {
         try {
           command = JSON.parse(line);
         } catch {
-          socket.end(`${JSON.stringify(devControlResult({
+          void flushControlResult(socket, `${JSON.stringify(devControlResult({
             ok: false,
             diagnostic: devControlDiagnostic(
               'SNAPBACK_DEV_COMMAND_INVALID',
@@ -279,9 +429,9 @@ export async function startDevControlSocket(options) {
         }
         let endpoint;
         try {
-          endpoint = observedControlEndpoint(path);
+          endpoint = observeEndpoint(path);
         } catch (error) {
-          socket.end(`${JSON.stringify(devControlResult({
+          void flushControlResult(socket, `${JSON.stringify(devControlResult({
             requestId: typeof command?.requestId === 'string' ? command.requestId : null,
             verb: typeof command?.verb === 'string' ? command.verb : null,
             ok: false,
@@ -293,12 +443,40 @@ export async function startDevControlSocket(options) {
           }))}\n`);
           return;
         }
+        if (controlSocket === null) {
+          void flushControlResult(socket, `${JSON.stringify(devControlResult({
+            requestId: typeof command?.requestId === 'string' ? command.requestId : null,
+            verb: typeof command?.verb === 'string' ? command.verb : null,
+            ok: false,
+            diagnostic: devControlDiagnostic(
+              'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
+              'the dev control owner has not finished binding its lifecycle receipt',
+              { path },
+            ),
+          }))}\n`);
+          return;
+        }
         const validation = validateDevControlCommand(command, controlSocket, endpoint);
         if (validation?.schemaVersion === DEV_CONTROL_RESULT_FORMAT) {
-          socket.end(`${JSON.stringify(validation)}\n`);
+          void flushControlResult(socket, `${JSON.stringify(validation)}\n`);
           return;
         }
         const { requestId, verb } = validation;
+        if (stopping || closed) {
+          void flushControlResult(socket, `${JSON.stringify(devControlResult({
+            requestId,
+            verb,
+            ok: false,
+            diagnostic: devControlDiagnostic(
+              'SNAPBACK_DEV_CONTROL_STOPPING',
+              'the dev control owner is stopping and will not acknowledge new work',
+              { verb },
+            ),
+          }))}\n`);
+          return;
+        }
+        if (verb === 'stop-children') stopping = true;
+        socket.setTimeout(0);
         socket.write(`${JSON.stringify({
           schemaVersion: DEV_CONTROL_ACK_FORMAT,
           ok: true,
@@ -308,83 +486,89 @@ export async function startDevControlSocket(options) {
           ownerIncarnationId: controlSocket.ownerIncarnationId,
           lifecycleReceipt: controlSocket.lifecycleReceipt,
         })}\n`);
-        let result;
-        try {
-          result = await options.verbs[verb]({ requestId });
-        } catch (error) {
-          socket.end(`${JSON.stringify(devControlResult({
-            requestId,
-            verb,
-            ok: false,
-            diagnostic: error?.diagnostic ?? devControlDiagnostic(
-              error?.code ?? 'SNAPBACK_DEV_COMMAND_FAILED',
-              error?.message ?? `dev control verb ${verb} failed`,
-              { verb },
-            ),
-          }))}\n`);
-          return;
-        }
-        const encodedResult = `${JSON.stringify(devControlResult({
-          requestId,
-          verb,
-          ok: result?.ok !== false,
-          result,
-        }))}\n`;
-        if (verb !== 'stop-children') {
-          socket.end(encodedResult);
-          return;
-        }
-        // The owner has already reclaimed its children. Give the result a
-        // bounded chance to flush, then close the transient endpoint and let
-        // the packaged CLI exit even if the caller abandoned the connection.
-        await new Promise((resolveFlush) => {
-          let settled = false;
-          const finish = () => {
-            if (settled) return;
-            settled = true;
-            clearTimeout(timeout);
-            resolveFlush();
-          };
-          const timeout = setTimeout(finish, 1_000);
-          socket.once('close', finish);
-          socket.end(encodedResult, finish);
+        const run = controlChain.then(async () => {
+          let encodedResult;
+          try {
+            // @ref LLP 0310.000#track-e--owner-bound-control-socket — every
+            // acknowledged owner verb shares one serialized dispatch lane.
+            const result = await options.verbs[verb]({ requestId });
+            encodedResult = `${JSON.stringify(devControlResult({
+              requestId,
+              verb,
+              ok: result?.ok !== false,
+              result,
+            }))}\n`;
+          } catch (error) {
+            encodedResult = `${JSON.stringify(devControlResult({
+              requestId,
+              verb,
+              ok: false,
+              diagnostic: error?.diagnostic ?? devControlDiagnostic(
+                error?.code ?? 'SNAPBACK_DEV_COMMAND_FAILED',
+                error?.message ?? `dev control verb ${verb} failed`,
+                { verb },
+              ),
+            }))}\n`;
+          }
+          await flushControlResult(socket, encodedResult);
         });
-        await close();
-        options.onStopComplete?.();
+        controlChain = run.then(() => undefined, () => undefined);
+        if (verb === 'stop-children') {
+          void run.finally(() => {
+            void close().then(
+              () => options.onStopComplete?.(),
+              () => options.onStopComplete?.(),
+            );
+          });
+        }
       })();
     });
   });
-  await new Promise((resolveListen, rejectListen) => {
-    const onError = (cause) => {
-      server.off('listening', onListening);
-      rejectListen(diagnosticError(
-        'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
-        `the dev control socket could not bind at ${path}: ${cause.message}`,
-        { path, cause: cause.code ?? cause.message },
-      ));
-    };
-    const onListening = () => {
-      server.off('error', onError);
-      resolveListen();
-    };
-    server.once('error', onError);
-    server.once('listening', onListening);
-    // Unix-domain endpoints inherit the process umask at bind time. Make the
-    // endpoint owner-only from its first visible instant, before the explicit
-    // chmod and identity check below close the final mode assertion.
-    const previousUmask = process.umask(0o177);
-    try {
-      server.listen(path);
-    } finally {
-      process.umask(previousUmask);
-    }
-  });
+  try {
+    await new Promise((resolveListen, rejectListen) => {
+      const onError = (cause) => {
+        server.off('listening', onListening);
+        rejectListen(diagnosticError(
+          'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
+          `the dev control socket could not bind at ${path}: ${cause.message}`,
+          { path, cause: cause.code ?? cause.message },
+        ));
+      };
+      const onListening = () => {
+        server.off('error', onError);
+        resolveListen();
+      };
+      server.once('error', onError);
+      server.once('listening', onListening);
+      // Unix-domain endpoints inherit the process umask at bind time. Make the
+      // endpoint owner-only from its first visible instant, before the explicit
+      // chmod and identity check below close the final mode assertion.
+      const previousUmask = process.umask(0o177);
+      try {
+        // @ref LLP 0310.000#track-e--owner-bound-control-socket — the owner
+        // binds one 0600 Unix endpoint beside its lifecycle receipt.
+        server.listen(path);
+      } finally {
+        process.umask(previousUmask);
+      }
+    });
+  } catch (error) {
+    releaseCleanupResource(cleanupResource);
+    cleanupResource = null;
+    throw error;
+  }
   // @ref LLP 0262#d1-the-dev-identity-capability — local development custody
   // is owner-only and uid-bound; the socket follows the same 0600 discipline.
   chmodSync(path, 0o600);
-  const endpoint = observedControlEndpoint(path);
+  endpoint = observeEndpoint(path);
   if (endpoint.uid !== ownerUid || endpoint.mode !== 0o600) {
     server.close();
+    releaseCleanupResource(cleanupResource);
+    cleanupResource = null;
+    try {
+      const current = observeEndpoint(path);
+      if (sameControlEndpoint(current, endpoint)) rmSync(path, { force: true });
+    } catch { /* missing or replaced */ }
     throw diagnosticError(
       'SNAPBACK_DEV_CONTROL_OTHER_UID',
       'the dev control socket did not acquire owner-only uid/mode custody',
@@ -406,31 +590,51 @@ export async function startDevControlSocket(options) {
       ownerStartTime: options.ownerStartTime,
       startedAt: options.startedAt,
     }),
+    endpoint,
     verbs: DEV_CONTROL_VERBS,
   });
   controlSocket = Object.freeze({
     ...descriptor,
     endpoint,
   });
+  try {
+    activateCleanupSocketPath(cleanupResource, {
+      ownerIncarnationId: options.ownerIncarnationId,
+    });
+  } catch (error) {
+    server.close();
+    releaseCleanupResource(cleanupResource);
+    cleanupResource = null;
+    try {
+      const current = observeEndpoint(path);
+      if (sameControlEndpoint(current, endpoint)) rmSync(path, { force: true });
+    } catch { /* missing or replaced */ }
+    throw error;
+  }
   const close = () => {
     if (closePromise !== null) return closePromise;
-    closePromise = new Promise((resolveClose) => {
-      closed = true;
+    closed = true;
+    stopping = true;
+    closePromise = (async () => {
+      let resolveServerClose;
+      const serverClose = new Promise((resolveClose) => { resolveServerClose = resolveClose; });
+      if (server.listening) server.close(resolveServerClose);
+      else resolveServerClose();
+      await controlChain;
       for (const socket of sockets) socket.destroy();
-      server.close(() => resolveClose());
-      if (!server.listening) resolveClose();
-    }).finally(() => {
+      await serverClose;
+    })().finally(() => {
       // @ref LLP 0192#d-1-the-durable-state-registry — this socket is
       // transient instance-local state, not a durable member. Remove only the
       // exact endpoint this owner bound; a replacement is never deleted.
-      try {
-        const observed = observedControlEndpoint(path);
-        if (observed.device === endpoint.device && observed.inode === endpoint.inode) {
-          rmSync(path, { force: true });
-        }
-      } catch {
-        // Missing or replaced endpoints are permanently discharged.
+      if (cleanupResource !== null) cleanupLeasedPath(cleanupResource);
+      else {
+        try {
+          const observed = observeEndpoint(path);
+          if (sameControlEndpoint(observed, endpoint)) rmSync(path, { force: true });
+        } catch { /* Missing or replaced endpoints are permanently discharged. */ }
       }
+      cleanupResource = null;
     });
     return closePromise;
   };
@@ -439,6 +643,10 @@ export async function startDevControlSocket(options) {
     get closed() { return closed; },
     close,
   });
+}
+
+export async function startDevControlSocket(options) {
+  return startDevControlSocketWithDependencies(options);
 }
 
 export function expoSupervisorChildEnvironment(env = process.env) {
@@ -2568,6 +2776,7 @@ function startMetro({
   env,
   emit,
   onExit,
+  onStarted,
   cleanupLease = null,
 }) {
   const resolved = resolveExpoMetroCommand(command, port, platform);
@@ -2581,6 +2790,7 @@ function startMetro({
     env: expoMetroChildEnvironment({ env, bootstrapOrigin, backendOrigin, port }),
     stdio: ['ignore', 'pipe', 'pipe'],
   });
+  onStarted?.(Object.freeze({ child }));
   const logs = [];
   const forward = (stream, streamName) => {
     let buffer = '';
@@ -2708,6 +2918,8 @@ export async function runExpoDev(options = {}) {
   let dev = null;
   let bootstrap = null;
   let metro = null;
+  let metroLaunching = null;
+  let metroLaunchPromise = null;
   let metroFront = null;
   let metroPlaceholder = null;
   let forwarding = null;
@@ -2758,8 +2970,10 @@ export async function runExpoDev(options = {}) {
   let sharedAuthProjection = sharedDevelopmentAuthProjection(null, null);
   const close = ({ preserveControlSocket = false } = {}) => {
     if (closePromise !== null) return closePromise;
+    // Latch closure before any cleanup yield. A launch that resumes after a
+    // placeholder/port wait observes this bit before it can spawn a child.
+    closed = true;
     closePromise = (async () => {
-      closed = true;
       const failures = [];
       if (!preserveControlSocket) {
         try { await controlSocketHandle?.close?.(); } catch (error) { failures.push(error); }
@@ -2784,7 +2998,12 @@ export async function runExpoDev(options = {}) {
       metroFront = null;
       try { await metroPlaceholder?.close?.(); } catch (error) { failures.push(error); }
       metroPlaceholder = null;
-      try { await stopProcessGroup(metro?.child, { processGroup: true }); } catch (error) { failures.push(error); }
+      const metroHandles = [...new Set([metroLaunching, metro].filter(Boolean))];
+      for (const handle of metroHandles) {
+        try { await stopProcessGroup(handle.child, { processGroup: true }); } catch (error) { failures.push(error); }
+      }
+      metro = null;
+      metroLaunching = null;
       metroAttestation = null;
       try { await bootstrap?.close?.(); } catch (error) { failures.push(error); }
       try { await dev?.close?.(); } catch (error) { failures.push(error); }
@@ -2796,7 +3015,7 @@ export async function runExpoDev(options = {}) {
       abortListener = null;
       const closedEvent = emit({ ok: failures.length === 0, state: 'closed', reclaimed: {
         backend: dev?.managed === true,
-        metro: metro !== null,
+        metro: metroHandles.length > 0,
         bootstrap: bootstrap !== null,
         portForwards: forwarding?.installed?.length ?? 0,
       } });
@@ -2974,36 +3193,57 @@ export async function runExpoDev(options = {}) {
     });
     const launchMetro = async (backendOrigin) => {
       if (metro !== null) return metro;
-      assertStartupActive();
-      const placeholder = metroPlaceholder;
-      metroPlaceholder = null;
-      await placeholder?.close?.();
-      assertStartupActive();
-      const startedMetro = startMetro({
-        command: options.metroCommand,
-        directory: expoDirectory,
-        port: metroProcessPort,
-        platform,
-        bootstrapOrigin: bootstrap.origin,
-        backendOrigin: platform === 'web' ? backendOrigin : undefined,
-        env: childEnv,
-        emit,
-        cleanupLease,
-        onExit(code, signal, cause) {
-          if (!closed && !metroReloading && metro?.child === startedMetro.child) {
-            const error = diagnosticError(
-              'SNAPBACK_EXPO_METRO_EXITED',
-              cause
-                ? 'Expo/Metro could not be started'
-                : 'Expo/Metro exited while supervised development was active',
-              { code, signal, ...(cause ? { cause: cause.code ?? cause.message } : {}) },
-            );
-            reportCriticalExit(error);
-          }
-        },
-      });
-      metro = startedMetro;
-      return metro;
+      if (metroLaunchPromise !== null) return metroLaunchPromise;
+      const launch = (async () => {
+        assertStartupActive();
+        const placeholder = metroPlaceholder;
+        metroPlaceholder = null;
+        await placeholder?.close?.();
+        assertStartupActive();
+        const startedMetro = startMetro({
+          command: options.metroCommand,
+          directory: expoDirectory,
+          port: metroProcessPort,
+          platform,
+          bootstrapOrigin: bootstrap.origin,
+          backendOrigin: platform === 'web' ? backendOrigin : undefined,
+          env: childEnv,
+          emit,
+          cleanupLease,
+          onStarted(handle) {
+            metroLaunching = handle;
+          },
+          onExit(code, signal, cause) {
+            if (!closed && !metroReloading && metro?.child === startedMetro.child) {
+              const error = diagnosticError(
+                'SNAPBACK_EXPO_METRO_EXITED',
+                cause
+                  ? 'Expo/Metro could not be started'
+                  : 'Expo/Metro exited while supervised development was active',
+                { code, signal, ...(cause ? { cause: cause.code ?? cause.message } : {}) },
+              );
+              reportCriticalExit(error);
+            }
+          },
+        });
+        metroLaunching = startedMetro;
+        if (closed) {
+          await stopProcessGroup(startedMetro.child, { processGroup: true });
+          throw diagnosticError(
+            'SNAPBACK_EXPO_SUPERVISOR_CLOSED',
+            'the Expo supervisor closed while Metro was launching',
+          );
+        }
+        metro = startedMetro;
+        metroLaunching = null;
+        return metro;
+      })();
+      metroLaunchPromise = launch;
+      try {
+        return await launch;
+      } finally {
+        if (metroLaunchPromise === launch) metroLaunchPromise = null;
+      }
     };
     assertStartupActive();
     dev = await runDev({
@@ -3567,79 +3807,82 @@ export async function runExpoDev(options = {}) {
       writeFileSync(supervisorDescriptorFile, `${JSON.stringify({ ...current, ...fields }, null, 2)}\n`);
       chmodSync(supervisorDescriptorFile, 0o600);
     };
-    let metroControlChain = Promise.resolve();
-    const reloadMetroVerb = ({ requestId } = {}) => {
-      const run = metroControlChain.then(async () => {
-        if (closed || metro === null) {
-          return Object.freeze({
-            schemaVersion: EXPO_DEV_EVENT_FORMAT,
-            ok: false,
-            state: 'metro-reload-failed',
-            verb: 'reload-metro',
-            ...(requestId === undefined ? {} : { requestId }),
-            diagnostics: [devControlDiagnostic(
-              'SNAPBACK_EXPO_SUPERVISOR_CLOSED',
-              'the Expo supervisor has no live Metro child to reload',
-            )],
-          });
-        }
-        const previousMetro = metro;
-        const previousPid = previousMetro.child.pid;
-        metroReloading = true;
-        try {
+    const reloadMetroVerb = async ({ requestId } = {}) => {
+      if (closed) {
+        return Object.freeze({
+          schemaVersion: EXPO_DEV_EVENT_FORMAT,
+          ok: false,
+          state: 'metro-reload-failed',
+          verb: 'reload-metro',
+          ...(requestId === undefined ? {} : { requestId }),
+          diagnostics: [devControlDiagnostic(
+            'SNAPBACK_EXPO_SUPERVISOR_CLOSED',
+            'the Expo supervisor is closed and cannot reload Metro',
+          )],
+        });
+      }
+      const previousMetro = metro;
+      const previousPid = previousMetro?.child.pid ?? null;
+      metroReloading = true;
+      try {
+        if (previousMetro !== null) {
           await stopProcessGroup(previousMetro.child, { processGroup: true });
           if (metro === previousMetro) metro = null;
-          const restartedMetro = await launchMetro();
-          listeners = await waitForListenerInventory({
-            backendPid,
-            metroPid: restartedMetro.child.pid,
-            metroProcess: restartedMetro.child,
-            webFrontPort: metroFront?.port ?? null,
-            expected: expectedListeners,
-            timeoutMs: options.metroReadyTimeoutMs ?? 30_000,
-          });
-          const identity = processIdentity(restartedMetro.child.pid, processTable());
-          if (identity === null) {
-            throw diagnosticError(
-              'SNAPBACK_EXPO_METRO_RELOAD_FAILED',
-              'the replacement Metro process disappeared before its identity was recorded',
-            );
-          }
-          metroReadiness = Object.freeze({
-            pid: restartedMetro.child.pid,
-            startTime: identity.startTime,
-            origin: appOrigin(route.appHost, metroPort),
-            upstreamOrigin: appOrigin(LOOPBACK_HOST, metroProcessPort),
-          });
-          updateSupervisorDescriptor({ metro: metroReadiness, listeners });
-          return emit({
-            ok: true,
-            state: 'metro-reloaded',
-            verb: 'reload-metro',
-            ...(requestId === undefined ? {} : { requestId }),
-            previousPid,
-            pid: restartedMetro.child.pid,
-            metro: metroReadiness,
-            listeners,
-          });
-        } catch (error) {
-          return emit({
-            ok: false,
-            state: 'metro-reload-failed',
-            verb: 'reload-metro',
-            ...(requestId === undefined ? {} : { requestId }),
-            previousPid,
-            diagnostics: [error?.diagnostic ?? devControlDiagnostic(
-              error?.code ?? 'SNAPBACK_EXPO_METRO_RELOAD_FAILED',
-              error?.message ?? 'the replacement Metro process did not become ready',
-            )],
-          });
-        } finally {
-          metroReloading = false;
         }
-      });
-      metroControlChain = run.then(() => undefined, () => undefined);
-      return run;
+        const restartedMetro = await launchMetro(backendRoute.origin);
+        listeners = await waitForListenerInventory({
+          backendPid,
+          metroPid: restartedMetro.child.pid,
+          metroProcess: restartedMetro.child,
+          webFrontPort: metroFront?.port ?? null,
+          expected: expectedListeners,
+          timeoutMs: options.metroReadyTimeoutMs ?? 30_000,
+        });
+        const identity = processIdentity(restartedMetro.child.pid, processTable());
+        if (identity === null) {
+          throw diagnosticError(
+            'SNAPBACK_EXPO_METRO_RELOAD_FAILED',
+            'the replacement Metro process disappeared before its identity was recorded',
+          );
+        }
+        metroReadiness = Object.freeze({
+          pid: restartedMetro.child.pid,
+          startTime: identity.startTime,
+          origin: appOrigin(route.appHost, metroPort),
+          upstreamOrigin: appOrigin(LOOPBACK_HOST, metroProcessPort),
+        });
+        updateSupervisorDescriptor({ metro: metroReadiness, listeners });
+        return emit({
+          ok: true,
+          state: 'metro-reloaded',
+          verb: 'reload-metro',
+          ...(requestId === undefined ? {} : { requestId }),
+          previousPid,
+          pid: restartedMetro.child.pid,
+          metro: metroReadiness,
+          listeners,
+        });
+      } catch (error) {
+        const reloadError = error?.diagnostic?.code === 'SNAPBACK_EXPO_METRO_RELOAD_FAILED'
+          ? error
+          : diagnosticError(
+            'SNAPBACK_EXPO_METRO_RELOAD_FAILED',
+            error?.message ?? 'the replacement Metro process did not become ready',
+            { cause: error?.diagnostic?.code ?? error?.code ?? error?.message ?? String(error) },
+          );
+        const failure = emit({
+          ok: false,
+          state: 'metro-reload-failed',
+          verb: 'reload-metro',
+          ...(requestId === undefined ? {} : { requestId }),
+          previousPid,
+          diagnostics: [reloadError.diagnostic],
+        });
+        if (!closed) reportCriticalExit(reloadError);
+        return failure;
+      } finally {
+        metroReloading = false;
+      }
     };
     const stopChildrenVerb = async ({ requestId } = {}) => {
       const closedEvent = await closeSupervisor({ preserveControlSocket: true });
@@ -3658,6 +3901,7 @@ export async function runExpoDev(options = {}) {
         ownerIncarnationId: generation,
         ownerStartTime: supervisorProcessIdentity.startTime,
         startedAt,
+        cleanupLease,
         verbs: {
           'reload-metro': reloadMetroVerb,
           'stop-children': stopChildrenVerb,
@@ -3832,5 +4076,6 @@ export async function runExpoDev(options = {}) {
 export const __test = Object.freeze({
   allocateSupervisorPortCandidates,
   bindPlannedSupervisorListeners,
+  startDevControlSocketWithDependencies,
   startMetroWebFront,
 });

@@ -32,18 +32,27 @@ development. `snapback dev --expo --json` now publishes an owner-bound
 `.snapback/dev-control.sock` descriptor, admits only `reload-metro` and
 `stop-children`, emits request-id-correlated acknowledgement and settled-result
 records, enforces owner UID/incarnation/lifecycle-receipt checks, creates the
-endpoint mode `0600`, and removes it on shutdown. The existing stdin channel is
-unchanged; no FIFO or client `recook` verb was added. The Guide classifies the
-socket as transient instance-local state and documents the descriptor and
-protocol.
+endpoint mode `0600`, registers its exact inode with the instance cleanup
+lease, and removes it on shutdown or owner death. A same-UID dead leftover is
+reclaimed only after `ECONNREFUSED` plus an exact persisted inode/incarnation
+match; live and other-UID endpoints refuse. No FIFO or client `recook` verb was
+added. The Guide classifies the socket as transient instance-local state,
+distinguishes owner recovery from client hijack, and documents that mode
+`0600` is the kernel gate while the command's JSON UID is advisory.
 
 The focused `expo-dev-loop.test.mjs --control-socket-only` regression launches
-the CLI with stdin ignored and asserts Metro PID replacement plus reachability,
-stale/foreign/other-UID refusals, the closed verb set, acknowledgement/result
-ordering, `stop-children`, mode, and cleanup. Before implementation it failed
-with `actual undefined`, `expected 'snapback.dev-control.v1'`. Direct post-fix
-JS probes exercised socket mode, asynchronous acknowledgement/result ordering,
-stale refusal, stop-result flushing, endpoint cleanup, and retained TTY stdin
-keys. A final run of the native-backed focused regression and the existing dev
-loop was not possible in this lane because the mandated
-`target/debug/snapback` symlink became dangling; no Cargo fallback was run.
+the CLI with stdin ignored, overlaps acknowledged `reload-metro` with
+`stop-children`, asserts both settled results, both Metro PIDs gone, and the
+planned port free. It also proves stale/foreign/other-UID requests return one
+result and no acknowledgement; injects replacement-Metro launch failure and
+asserts critical owner exit; and launches once with a pipe to prove
+`snapback.dev-command.v1` `reload` still succeeds on stdin. Before the first
+implementation it failed with `actual undefined`, expected
+`snapback.dev-control.v1`; before the review fixes the overlap returned only
+the reload acknowledgement and no settled result.
+
+`expo-dev-control.test.mjs` binds a socket in a child, kills the holder with
+`SIGKILL`, and proves a relaunch reclaims the exact stale endpoint. It separately
+proves live-owner and simulated other-UID refusal, EOF and idle-deadline cleanup,
+and cleanup-lease reaping after owner death. The native-backed focused suite
+and this JS-only unit suite both passed in the review-fix lane.

@@ -85,6 +85,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'dev-session.test.mjs',
       'doctor-seed-transition.test.mjs',
       'expo-bootstrap-exchange.test.mjs',
+      'expo-dev-control.test.mjs',
       'expo-dev-identity-checkout.test.mjs',
       'expo-device-forwarding.test.mjs',
       'expo-dev-loop.test.mjs',
@@ -605,7 +606,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 360,
+  expectedTotal = 361,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1151,6 +1152,8 @@ export function checkPackageTestInventories(options = {}) {
 // 358 -> 360 (integration: origin/main added maintained tests since the guide-gaps base)
 // activity-presence characterization of shipped behavior that the Guide relies
 // on joins the package test command and canonical gating inventory.
+// 360 -> 361 (2026-08-25, LLP 0310.000 Track E): @expo/snapback-cli gains the
+// owner-bound dev-control socket occupancy, EOF/deadline, and cleanup-lease suite.
 // LLP 0300 nine-row acceptance traceability (0301 §8 set-level table):
 // 1 cold bring-up -> templates/*/acceptance.mjs + declared-dev-episode.test.mjs;
 // 2 two principals -> declared-dev-episode.test.mjs; 3 forwards/tunnel/rebinding
