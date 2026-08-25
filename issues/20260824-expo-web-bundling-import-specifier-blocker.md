@@ -55,3 +55,11 @@ scaffold; reproduces deterministically.
 - A closure/template acceptance step fails if web bundling fails.
 - The injection seam for `resolveExpoSharedBrowserModules` remains
   testable.
+
+## Landing note (2026-08-24)
+
+The source fix and the qualification-gap repair landed as `ed05f9b88`
+(lane I, dual-READY review): Metro-safe literal-target dispatcher, packed
+fixture now transforms the adapter, template gate performs a real web
+export. This ticket stays open solely for its published-package acceptance
+item — verify on the next npm closure (0.1.27) and then close.
