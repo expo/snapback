@@ -148,7 +148,7 @@ sha256sum /home/ccheever/capstone-0127-20260825/instrument/instrument.manifest.j
 ```
 
 For this authored revision, the expected manifest digest is
-`7ebcd18f6f638683af8fc8891b49f14e3f4429dd75daa0f2ccce2c7905081885`.
+`cb90c7ebe2997c305222e94d6d4b1b378b34cb747171b268d6cbf41f95ea7cac`.
 Any separately authorized tooling revision must replace this digest and the
 corresponding config pin before execution.
 The materializer re-resolves every manifest artifact, rejects symlinks, and

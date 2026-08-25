@@ -104,7 +104,7 @@
       "manifestPath": "benchmarks/instrument.manifest.json",
       "semanticSnapshotRevision": "97a5fba1c",
       "instrumentPin": "social-messenger@0.3.4-m8",
-      "manifestSha256": "7ebcd18f6f638683af8fc8891b49f14e3f4429dd75daa0f2ccce2c7905081885",
+      "manifestSha256": "cb90c7ebe2997c305222e94d6d4b1b378b34cb747171b268d6cbf41f95ea7cac",
       "fixtureVersion": "0.2.0-m8",
       "schemaVersion": "0.3.0-m8",
       "uiVersion": "0.3.2-m8",

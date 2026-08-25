@@ -52,6 +52,11 @@
       "path": "tools/social-messenger/choreography",
       "sha256": "b8e871f39cc94baa7c1475ceae6c983c7d38a5d56f9b96bd4ba48672ffef539a"
     },
+    "toolsLibRoot": {
+      "kind": "directory",
+      "path": "tools/lib",
+      "sha256": "eeb5fce768a974502e028d3ba794be7c2b0331b54dc431876b1b2108ee45bf91"
+    },
     "choreographyVersion": {
       "kind": "file",
       "path": "tools/social-messenger/choreography/VERSION",
