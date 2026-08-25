@@ -6,6 +6,9 @@ client diagnostic still required
 **Date:** 2026-08-20/21
 **Reopened:** 2026-08-21 — independent review showed Wanted #4 was not met;
 the inspect-only overload diagnostic is not an application-visible warning
+**Reopened:** 2026-08-25 — fix-round review showed the five-second client
+timer can fire after partial publication and during healthy, within-capacity
+convergence; the synthetic unit test did not exercise the real publish path
 **Evidence:** Diary 0105 M2; frozen Clique `0.3.2-m8` two-client choreography
 on local commit `708e2e5c5348b5bb863cd7120afbafad9db99e9a`
 
@@ -193,7 +196,35 @@ suspended UI observation. LLP 0200 §2.5 calls the stale marker future protocol
 surface, so the classification harness cannot truthfully claim that exit by
 observing the server's existing overload fact after a miss.
 
+## Fix-round correction (2026-08-25)
+
+The five-second warning did not meet Wanted #4. Each subscription can publish
+its authoritative rows as soon as that subscription's delivery callback runs,
+so one reference can become visible while its siblings still hold the prior
+revision, before a commit-relative five-second timer fires. The unit test
+instead held every reference stale, fired the timer, and appended a synthetic
+inconsistency marker afterward; that callback ordering was not evidence about
+the real publication path.
+
+The threshold also did not distinguish overload from healthy convergence.
+LLP 0200 §2.5 bounds *delivery start* at `max_hold` plus one in-flight turn and
+allows end-to-end convergence to extend by a `max_eval_turn` plus transport
+while demand remains within capacity. A healthy subscription can therefore be
+uncovered at exactly five seconds. The timer producer, its diagnostic code,
+and the synthetic tests were retracted in this fix round rather than ship a
+false-positive warning or preserve an invalid closure claim.
+
+Wanted #4 remains open. A future solution must either observe and warn at the
+actual pre-publication boundary without treating ordinary independent
+publication as overload, add an application-visible protocol state that
+distinguishes owed/overloaded work, or deliberately gate a defined atomic
+composition surface. It must include a real-path regression that records the
+diagnostic before the first partial UI publication and a protocol-compliant
+within-capacity control that stays silent.
+
 ### Verification record
+
+#### 2026-08-21 classification
 
 - `scripts/bootstrap-ibex-runtime` — passed on the final rerun by reusing the
   exact-current-revision, digest-bound readiness receipt. An earlier
