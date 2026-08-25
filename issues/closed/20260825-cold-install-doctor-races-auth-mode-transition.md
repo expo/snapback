@@ -123,3 +123,5 @@ checked-in starter acceptance returned incomplete registered-path evidence:
 `SNAPBACK_VERIFY_STARTER_ACCEPTANCE_FAILED`. No cold-install receipt was minted. That acceptance
 fixture/proof mismatch is outside this ticket; the one-attempt bound was honored and the witness was
 not rerun.
+
+**Coverage note (2026-08-25, supervisor):** the packed F-3 witness was run at `eaab3919c`, before the generated-binding restore in `fdbc629e5`; the packaged doctor path after that restore is covered by `node --test packages/snapback-cli/doctor-seed-transition.test.mjs` (generated `api.mjs` import, stale-binding refusal), not by a re-run packed witness.
