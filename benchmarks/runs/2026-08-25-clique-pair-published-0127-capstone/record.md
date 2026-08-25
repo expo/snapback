@@ -70,6 +70,25 @@ reset trap (restructured to a synchronous durable queue with ordered
 reconnect flush) and offline presence writes tripping the Expo error
 overlay.
 
+#### Cell-1 scale replay episode (interim)
+
+Attempt 1 (separate clock, epoch 1787676941): serial settlement via the
+durable client-mutation path, push/digest disabled by the server-pinned
+runtime flag. Failed closed at action 8,927/167,157 with
+`SNAPBACK_CLIENT_MUTATION_RETENTION_FULL` — the builder's adapter submitted
+durable ids without acknowledging consumed results, filling the
+per-fingerprint ack-window retention (the LLP 0307.000 fail-closed
+contract, landed this round). The coded diagnostic named the exact remedy
+("acknowledge consumed results before submitting another durable id").
+**Recovery: 10 minutes end to end** — diagnosis, adapter fix
+(authority-bound settlement acknowledgement batches), fresh attempt-2
+backend, starter base re-seeded green, replay resumed on a new attempt
+clock (epoch 1787677553); attempt 2 passed the attempt-1 failure point
+within minutes at ~17 actions/s, zero failures. Builder attribution:
+`agent-error` (honest — the ack contract is documented). Contrast target:
+the 0.1.25 baseline's scale phase consumed 11,314 s of babysitting across
+restart festivals.
+
 ### Cell 2 — capstone-clique-familiar-sol-high
 
 pending (auto-launches when cell 1 finalizes)
