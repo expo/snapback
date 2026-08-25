@@ -8,6 +8,8 @@
 **Systems:** Local persistent store, Capability publication, Generated records, Pre-push gates
 **Date:** 2026-08-11
 **Drift gate:** `local-store-publication`
+**Failure signature:** `sha256:1da031ef72fa44cf8665d2c49e56176f5968da09536dc39dee9152e78876c21f`
+**Last observed:** `ddbd581eb77b7cb468b9b5764422b3a178438278`
 **Related:** LLP 0232 D-2; LLP 0189 D-4; `issues/20260811-record-inventory-summary.md`
 
 ## Problem
