@@ -1,7 +1,7 @@
 # LLP 0308: Agentic program representations and Snapback's IR stack
 
 **Type:** Research
-**Status:** Draft
+**Status:** Review
 **Systems:** Live queries, Offline sync, Authorization, Code generation,
 Storage, Handler runtime, Agent experience
 **Author:** Claude Fable / Charlie Cheever
