@@ -1,0 +1,215 @@
+{
+  "format": "snapback.graph-served-observations.large-hot.v1",
+  "derivedAt": "2026-08-25",
+  "fixture": {
+    "id": "large-seed42-v1",
+    "path": "demos/zerobugs/fixtures-local/large-seed42-v1",
+    "receipt": "demos/zerobugs/manifest/large-seed42-v1.receipt.json",
+    "receiptDigest": "sha256:d9dfd4fde488a388502773f569e829746f66826ae0f9f47263d36eef7d625a8a",
+    "overallDigest": "sha256:7514938a88bb1b8d77fee15f2cf7a50aa1030be2ebee344c473ef4d263a21c94",
+    "overlayContentDigest": "sha256:39d7758a5a5809abf9fa3b3c6b966ecdf43dd9f5c6cc8b3977a94c17dd4efd73",
+    "workingSetIssueIDsDigest": "sha256:7e3ee7d659ad10e69f4ff681b091980d30525b62991ab4548c547e5240b9e464",
+    "load": {
+      "rows": 5549113,
+      "batches": 6176,
+      "replayedBatches": 0,
+      "elapsedMs": 6324152,
+      "gateChecksPassed": 14,
+      "gateChecksTotal": 14
+    }
+  },
+  "generator": {
+    "repository": "https://github.com/rocicorp/mono",
+    "path": "apps/zbugs/scripts/generate-synthetic.ts",
+    "pinCommit": "25c2c7308d3eb674d2d895022c9da11ef0c742fb",
+    "sha256": "770b93d43545d64edd5e855075caed31580244fd960eed209229ba2463e685e7",
+    "seed": 42,
+    "shardSize": 500000,
+    "frozenDate": "2026-08-05T00:00:00.000Z",
+    "node": "v24.18.0",
+    "historicalReceiptNode": "v25.9.0"
+  },
+  "shardDigestVerification": {
+    "expected": 16,
+    "present": 16,
+    "exactMatches": 16,
+    "missing": 0,
+    "unexpected": 0,
+    "mismatches": 0
+  },
+  "fixtureMaxima": {
+    "commentsPerIssue": {
+      "rows": 2527886,
+      "issueGroups": 716884,
+      "maximum": 27,
+      "issuesAtMaximum": 16,
+      "issueIDsAtMaximumDigest": "sha256:504e089d0438e71e9aff56a3e9f30f53202a2edb3b43398027b2f6c9145c125a"
+    },
+    "labelsPerIssue": {
+      "rows": 2000370,
+      "issueGroups": 1000000,
+      "maximum": 3,
+      "issuesAtMaximum": 333707,
+      "issueIDsAtMaximumDigest": "sha256:2e867aa11b46bfaa9e0ec479a5a0ebd355d13b8f395a8b30fba0e2ae6fd91c43"
+    },
+    "servedWorkingSet": {
+      "issues": 1000,
+      "commentsPerIssue": {
+        "maximum": 25,
+        "issuesAtMaximum": 1,
+        "sourceIssueID": "TsnGX0RZcxhAWyNeva4VR",
+        "issueIDsAtMaximumDigest": "sha256:de895f26778220b8552d5786201adcb5faa02743cdab0dee4af4db254acd227e"
+      },
+      "labelsPerIssue": {
+        "maximum": 3,
+        "issuesAtMaximum": 330,
+        "issueIDsAtMaximumDigest": "sha256:a7ec32c9d45fd4ffa7da9bc4b05d34809152d4c50f5d81598d4f2cb7393eb91e"
+      }
+    },
+    "largestProject": {
+      "sourceProjectID": "OfAwqxYz9GbQfkkFpNpkT",
+      "issues": 99943,
+      "projectsAtMaximum": 1,
+      "projectIDsAtMaximumDigest": "sha256:6db526bdf596772af1853f592661c9814a83fd6601fe6e63d2b9e210768577cd"
+    }
+  },
+  "environment": {
+    "largeHost": {
+      "hostname": "Charlies-MacBook-Pro-2.local",
+      "hardware": "Apple M1 Max, 10 CPUs, 64 GiB RAM",
+      "os": "macOS 26.6 (25G72)",
+      "measurementBinarySha256": "sha256:4f4097fd0ff8a847553b23068c97bb20336f695ac09aa25e627581c4d22e5662",
+      "corpusSha256": "sha256:3262fce8d2f017a6a314f8cc4c5cfd73ee5d5fdbfa13da907f2737d5d5308d6c",
+      "databaseBytes": 9157623808,
+      "sharedLoadCaveat": "Fresh redispatch load averages were high and variable: the one-minute average ranged from 33.05 to 55.63 and the 15-minute average from 108.35 to 118.86 across attempt boundaries. Latency values are descriptive only."
+    },
+    "controlHost": {
+      "hostname": "Charlies-MacBook-Pro-M5Max-Black.local",
+      "hardware": "Apple M5 Max, 128 GiB RAM",
+      "os": "macOS 26.6.2 (25G83)",
+      "node": "v24.18.0"
+    }
+  },
+  "profiles": {
+    "large": {
+      "status": "blocked",
+      "classification": "N=0 max-bearing served observations; deterministic fixture maxima remain valid",
+      "latencyPosture": "testRuntimeMs, load averages, and excluded-diagnostic establishmentMs are descriptive measurements only, never frozen expectations",
+      "N": 0,
+      "graphs": [],
+      "maxBearingAttempts": [
+        {
+          "query": "issueListV2",
+          "N": 0,
+          "input": {
+            "sourceProjectID": "OfAwqxYz9GbQfkkFpNpkT",
+            "projectIssues": 99943,
+            "rootTake": 1024
+          },
+          "diagnosticCode": "SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH",
+          "diagnosticStage": "graph dependency registration",
+          "testRuntimeMs": 36700,
+          "loadAveragesAtStart": [51.93, 102.01, 118.86],
+          "loadAveragesAtEnd": [52.77, 95.63, 115.73]
+        },
+        {
+          "query": "issueDetail",
+          "N": 0,
+          "input": {
+            "sourceIssueID": "TsnGX0RZcxhAWyNeva4VR",
+            "workingSetComments": 25
+          },
+          "diagnosticCode": "SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH",
+          "diagnosticStage": "graph dependency registration",
+          "testRuntimeMs": 28450,
+          "loadAveragesAtStart": [55.63, 94.81, 115.2],
+          "loadAveragesAtEnd": [43.35, 88.01, 112.03]
+        },
+        {
+          "query": "listIssueByID",
+          "N": 0,
+          "input": {
+            "sourceIssueID": "TsnGX0RZcxhAWyNeva4VR",
+            "workingSetComments": 25
+          },
+          "diagnosticCode": "SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH",
+          "diagnosticStage": "graph dependency registration",
+          "testRuntimeMs": 24150,
+          "loadAveragesAtStart": [41.7, 86.17, 111.09],
+          "loadAveragesAtEnd": [33.05, 80.58, 108.35]
+        }
+      ],
+      "excludedDiagnosticObservations": [
+        {
+          "reason": "The globally maximum 27-comment issue is outside the loader's 1,000-issue served projection, so this successful empty point lookup is not a max-bearing result observation.",
+          "sourceArtifactSha256": "sha256:cecf4e9a707309a7662ae2824f365c984f92ea17a6be992660d7c003ad9a3953",
+          "query": "listIssueByID",
+          "graphPlanHash": "sha256:25f4e4680f4c7eae9c675c2c06adcbf23cce5fdbdc16bcb0bf830986268a6dfb",
+          "sourceIssueID": "oAMDrWzUjYBIRhM6n2TA2",
+          "resultBytes": 2,
+          "resultRows": 0,
+          "dependencyBytes": 2423,
+          "retainedGroupStateBytes": 13877,
+          "groupCount": 1,
+          "subscriberFanout": 1,
+          "establishmentMs": 37.231874999999995,
+          "measurementRefreshFrameBytes": 0,
+          "structuralWork": {
+            "rootRowsByNode": [{"nodeId": "n0", "observed": 0}],
+            "examinedEntriesByNode": [
+              {"nodeId": "n0", "observed": 0},
+              {"nodeId": "n1", "observed": 0},
+              {"nodeId": "n2", "observed": 0},
+              {"nodeId": "n3", "observed": 0},
+              {"nodeId": "n4", "observed": 0},
+              {"nodeId": "n5", "observed": 0}
+            ],
+            "relationshipLookupsByNode": [
+              {"nodeId": "n1", "observed": 0},
+              {"nodeId": "n2", "observed": 0},
+              {"nodeId": "n3", "observed": 0},
+              {"nodeId": "n4", "observed": 0},
+              {"nodeId": "n5", "observed": 1}
+            ],
+            "maxFanoutByNode": [
+              {"nodeId": "n2", "observed": 0},
+              {"nodeId": "n4", "observed": 0}
+            ],
+            "argumentItemsByArgument": [
+              {"argumentId": "a0", "observed": 0},
+              {"argumentId": "a1", "observed": 1}
+            ],
+            "argumentItems": 1,
+            "argumentExpansionByNode": [{"nodeId": "n4", "observed": 0}]
+          },
+          "windowLedgers": [
+            {
+              "nodeId": "n0",
+              "pages": 1,
+              "rootRows": 0,
+              "scannedRows": 0,
+              "resultRows": 0,
+              "resultBytes": 2,
+              "indexRanges": 2
+            }
+          ]
+        }
+      ]
+    },
+    "hot": {
+      "status": "blocked",
+      "classification": "N=0; canonical clone prerequisite did not complete",
+      "N": 0,
+      "reason": "The redispatch independently repeated the commissioned sqlite3 online backup from the read-only canonical hot fixture. It ran for more than five minutes while the destination remained 0 bytes plus a 512-byte rollback journal, reproducing the two attempts preserved by the killed run.",
+      "sourceDatabaseBytes": 9156440064,
+      "sourcePort": 4290,
+      "sourceServerUntouched": true,
+      "cloneAttempts": {
+        "preservedKilledRun": 2,
+        "redispatch": 1,
+        "total": 3
+      }
+    }
+  },
+  "contentDigest": "sha256:0e2505ba25ace346c16560c123dd062a9731ea1c373dbe27d77654db2b815d9a"
+}

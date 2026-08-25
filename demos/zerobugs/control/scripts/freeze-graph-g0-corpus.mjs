@@ -30,6 +30,7 @@ const PROVER_DISPOSITIONS_PATH = join(GRAPH_ROOT, 'broadcast-prover-dispositions
 const PAIRED_FIXTURES_PATH = join(GRAPH_ROOT, 'paired-world-fixtures.v1.json');
 const RUNTIME_CAPTURES_PATH = join(GRAPH_ROOT, 'runtime-captures.g2-b.v1.json');
 const SERVED_OBSERVATIONS_PATH = join(GRAPH_ROOT, 'served-observations.g2-c.v1.json');
+const PB_SERVED_OBSERVATIONS_PATH = join(GRAPH_ROOT, 'served-observations.large-hot.v1.json');
 const ZERO_HASH = `sha256:${'0'.repeat(64)}`;
 const GRAPH_CORPUS_AUTHORIZATION_INCARNATION = '01890f3c-9d5b-7000-8000-000000000001';
 const GRAPH_CORPUS_DATA_VERSION_STREAM = '01890f3c-9d5b-7000-8000-000000000002';
@@ -2109,6 +2110,282 @@ function applyServedMeasurements(bounds, carriers) {
   };
 }
 
+function applyPbServedMeasurements(bounds, carriers) {
+  if (!existsSync(PB_SERVED_OBSERVATIONS_PATH)) return;
+  const artifact = readJson(PB_SERVED_OBSERVATIONS_PATH);
+  if (artifact.format !== 'snapback.graph-served-observations.large-hot.v1') return;
+  const withoutDigest = structuredClone(artifact);
+  delete withoutDigest.contentDigest;
+  assert.equal(
+    artifact.contentDigest,
+    digestBytes(canonical(withoutDigest)),
+    'P-B served-observation content digest',
+  );
+  assert(
+    ['measured', 'blocked'].includes(artifact.profiles.large.status),
+    'P-B large profile has a closed measurement status',
+  );
+  assert.equal(artifact.profiles.hot.status, 'blocked');
+  const observedByQuery = new Map(artifact.profiles.large.graphs.map(row => [row.query, row]));
+  const measuredQueries = ['issueListV2', 'issueDetail', 'listIssueByID'];
+  const evidence = (declared, observed) => ({
+    declared, observed,
+    disposition: observed <= declared ? 'fit' : 'violation',
+  });
+  const confirm = (record, measured) => {
+    if (record?.provisional !== true) return;
+    record.provisional = false;
+    record.derivation = `${record.derivation}; confirmed by large-seed42-v1: ${measured}`;
+  };
+
+  assert.equal(
+    artifact.fixtureMaxima.commentsPerIssue.maximum,
+    27,
+    'P-B fixture-wide comment maximum',
+  );
+  assert.equal(
+    artifact.fixtureMaxima.labelsPerIssue.maximum,
+    3,
+    'P-B fixture-wide label maximum',
+  );
+  bounds.fixtures.documentedPerIssueDistribution.comments.exactSeed42Maximum = 27;
+  bounds.fixtures.documentedPerIssueDistribution.comments.measurement = {
+    fixture: 'large-seed42-v1',
+    rows: artifact.fixtureMaxima.commentsPerIssue.rows,
+    issueGroups: artifact.fixtureMaxima.commentsPerIssue.issueGroups,
+    issuesAtMaximum: artifact.fixtureMaxima.commentsPerIssue.issuesAtMaximum,
+    issueIDsAtMaximumDigest: artifact.fixtureMaxima.commentsPerIssue.issueIDsAtMaximumDigest,
+  };
+  bounds.fixtures.documentedPerIssueDistribution.labels.measurement = {
+    fixture: 'large-seed42-v1',
+    rows: artifact.fixtureMaxima.labelsPerIssue.rows,
+    issueGroups: artifact.fixtureMaxima.labelsPerIssue.issueGroups,
+    issuesAtMaximum: artifact.fixtureMaxima.labelsPerIssue.issuesAtMaximum,
+    issueIDsAtMaximumDigest: artifact.fixtureMaxima.labelsPerIssue.issueIDsAtMaximumDigest,
+  };
+  const detailCommentNode = bounds.queries.issueDetail.derivationTable.graph.nodes
+    .find(node => node.nodeId === 'n2');
+  assert(detailCommentNode, 'issueDetail comment derivation exists');
+  detailCommentNode.fields.maxChildrenPerParent.derivation =
+    'the control refuses the collection at exactly 1,024 comments; the byte-exact large seed-42 fixture maximum is 27';
+  detailCommentNode.fields.maxWindowPages.derivation =
+    'ceil(exact large seed-42 maxCommentsPerIssue 27 / declared maxChildrenPerParent 1,024) = 1';
+  confirm(
+    detailCommentNode.fields.maxChildrenPerParent,
+    `${artifact.fixtureMaxima.commentsPerIssue.maximum} fixture-wide comments per issue`,
+  );
+  confirm(
+    detailCommentNode.fields.maxWindowPages,
+    `${artifact.fixtureMaxima.commentsPerIssue.maximum} comments per issue; maxWindowPages=1`,
+  );
+
+  if (artifact.profiles.large.status === 'blocked') {
+    assert.equal(artifact.profiles.large.graphs.length, 0);
+    assert.deepEqual(
+      artifact.profiles.large.maxBearingAttempts.map(row => row.query).sort(),
+      measuredQueries.toSorted(),
+    );
+    assert(
+      artifact.profiles.large.maxBearingAttempts.every(row => (
+        row.N === 0 && row.diagnosticCode === 'SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH'
+      )),
+      'all P-B max-bearing large attempts are explicitly blocked at graph attestation',
+    );
+    bounds.largeFixtureSpotCheck = {
+      status: 'completed-byte-exact-served-maxima-blocked',
+      path: 'demos/zerobugs/fixtures-local/large-seed42-v1',
+      shardDigestVerification: artifact.shardDigestVerification,
+      source: 'tests/conformance/graph/served-observations.large-hot.v1.json',
+      command: LARGE_SPOT_CHECK_COMMAND,
+    };
+    bounds.servedMeasurement = {
+      status: 'normal-fixture-validated-large-maxima-blocked-hot-blocked',
+      sources: [
+        'tests/conformance/graph/served-observations.g2-c.v1.json',
+        'tests/conformance/graph/served-observations.large-hot.v1.json',
+      ],
+      scope: 'large-seed42-v1 fixture and working-set maxima are byte-exact, but all three max-bearing served observations refused at graph dependency attestation; hot canonical clone is also blocked, so result/work/group/latency ceilings remain provisional',
+    };
+    return;
+  }
+
+  for (const query of measuredQueries) {
+    const carrier = carriers[query];
+    const observation = observedByQuery.get(query);
+    assert(observation, `P-B large observation exists for ${query}`);
+    assert.equal(observation.graphPlanHash, carrier.planHash, `${query} P-B graph plan`);
+    const declaration = carrier.normalizedPlan.queryCost;
+    const structural = observation.structuralWork;
+    const examined = new Map(structural.examinedEntriesByNode.map(row => [row.nodeId, row.observed]));
+    const relationships = new Map(structural.relationshipLookupsByNode.map(row => [row.nodeId, row.observed]));
+    const fanout = new Map(structural.maxFanoutByNode.map(row => [row.nodeId, row.observed]));
+    const expansion = new Map(structural.argumentExpansionByNode.map(row => [row.nodeId, row.observed]));
+    const windowsByNode = new Map(observation.windowLedgers.map(window => [window.nodeId, window]));
+    const rootWindow = windowsByNode.get(carrier.normalizedPlan.rootNodeId);
+    assert(rootWindow, `${query} P-B observation lacks its root window ledger`);
+    const totals = {
+      maxWindowPages: observation.windowLedgers.reduce((sum, row) => sum + row.pages, 0),
+      maxWindowRootRows: observation.windowLedgers.reduce((sum, row) => sum + row.rootRows, 0),
+      maxWindowScannedRows: observation.windowLedgers.reduce((sum, row) => sum + row.scannedRows, 0),
+      maxWindowResultRows: observation.windowLedgers.reduce((sum, row) => sum + row.resultRows, 0),
+      maxWindowResultBytes: observation.windowLedgers.reduce((sum, row) => sum + row.resultBytes, 0),
+      maxWindowIndexRanges: observation.windowLedgers.reduce((sum, row) => sum + row.indexRanges, 0),
+    };
+    const scannedRows = [...examined.values()].reduce((sum, value) => sum + value, 0);
+    const indexRanges = rootWindow.indexRanges;
+    const row = bounds.queries[query];
+    const nodeEvidence = declaration.graph.nodes.map(node => {
+      const window = windowsByNode.get(node.nodeId);
+      return {
+        nodeId: node.nodeId,
+        maxExaminedEntriesPerExecution: evidence(
+          node.maxExaminedEntriesPerExecution,
+          examined.get(node.nodeId) ?? 0,
+        ),
+        ...(node.maxRelationshipLookupsPerExecution === undefined ? {} : {
+          maxRelationshipLookupsPerExecution: evidence(
+            node.maxRelationshipLookupsPerExecution,
+            relationships.get(node.nodeId) ?? 0,
+          ),
+        }),
+        ...(node.maxChildrenPerParent === undefined ? {} : {
+          maxChildrenPerParent: evidence(
+            node.maxChildrenPerParent,
+            query === 'issueDetail' && node.nodeId === 'n2'
+              ? artifact.fixtureMaxima.commentsPerIssue.maximum
+              : query === 'issueListV2' && node.nodeId === 'n2'
+                ? artifact.fixtureMaxima.labelsPerIssue.maximum
+                : fanout.get(node.nodeId) ?? 0,
+          ),
+        }),
+        ...(node.maxArgumentExpansion === undefined ? {} : {
+          maxArgumentExpansion: evidence(
+            node.maxArgumentExpansion,
+            expansion.get(node.nodeId) ?? 0,
+          ),
+        }),
+        ...(node.maxWindowScannedRows === undefined ? {} : {
+          maxWindowScannedRows: evidence(node.maxWindowScannedRows, window.scannedRows),
+        }),
+        ...(node.maxWindowIndexRanges === undefined ? {} : {
+          maxWindowIndexRanges: evidence(node.maxWindowIndexRanges, window.indexRanges),
+        }),
+      };
+    });
+    const servedLargeMeasurement = {
+      format: 'snapback.graph-bound-observation.pb.v1',
+      source: 'tests/conformance/graph/served-observations.large-hot.v1.json',
+      fixture: 'large-seed42-v1',
+      graphPlanHash: observation.graphPlanHash,
+      result: {
+        maxResultRows: evidence(declaration.maxResultRows, observation.resultRows),
+        maxResultBytes: evidence(declaration.maxResultBytes, observation.resultBytes),
+      },
+      queryCost: {
+        maxScannedRows: evidence(declaration.maxScannedRows, scannedRows),
+        maxIndexRanges: evidence(declaration.maxIndexRanges, indexRanges),
+      },
+      nodes: nodeEvidence,
+      windowRollup: Object.fromEntries(Object.entries(totals).map(([field, observed]) => (
+        [field, evidence(declaration.graph.windowRollup[field], observed)]
+      ))),
+      servingGroups: {
+        groupCount: observation.groupCount,
+        subscriberFanout: observation.subscriberFanout,
+        dependencyBytes: observation.dependencyBytes,
+        resultBytes: observation.resultBytes,
+        retainedGroupStateBytes: observation.groupStateBytes,
+      },
+    };
+    const dispositions = [
+      ...Object.values(servedLargeMeasurement.result),
+      ...Object.values(servedLargeMeasurement.queryCost),
+      ...servedLargeMeasurement.nodes.flatMap(node => (
+        Object.values(node).filter(value => value && typeof value === 'object' && 'disposition' in value)
+      )),
+      ...Object.values(servedLargeMeasurement.windowRollup),
+    ];
+    assert(
+      dispositions.every(item => item.disposition === 'fit'),
+      `${query} P-B large work exceeds a declared bound`,
+    );
+
+    const summary = `${observation.resultRows} result rows, ${observation.resultBytes} result bytes, ${scannedRows} scanned rows, and ${indexRanges} root-window index ranges`;
+    row.physical.observationPosture = 'normal and large fixtures measured through admitted serving; hot-recent-v1 is blocked and remains provisional';
+    row.physical.servedLargeMeasurement = servedLargeMeasurement;
+    confirm(row.logical.maxResultRows, `${observation.resultRows} result rows`);
+    confirm(row.logical.maxResultBytes, `${observation.resultBytes} serialized result bytes`);
+    confirm(row.logical.maxPageResultBytes, `${observation.resultBytes} serialized page/result bytes`);
+    confirm(row.physical.maxScannedRows, `${scannedRows} scanned rows`);
+    confirm(row.physical.maxIndexRanges, `${indexRanges} root-window index ranges`);
+    for (const [index, node] of row.physical.nodeLedger.entries()) {
+      const measured = servedLargeMeasurement.nodes[index];
+      confirm(node, Object.entries(measured)
+        .filter(([, value]) => value && typeof value === 'object' && 'observed' in value)
+        .map(([field, value]) => `${field}=${value.observed}`)
+        .join(', '));
+    }
+    confirm(row.physical.windowRollup, Object.entries(totals).map(([field, value]) => `${field}=${value}`).join(', '));
+
+    for (const field of ['maxScannedRows', 'maxIndexRanges', 'maxResultRows', 'maxResultBytes']) {
+      const measured = field === 'maxScannedRows' ? scannedRows
+        : field === 'maxIndexRanges' ? indexRanges
+          : field === 'maxResultRows' ? observation.resultRows
+            : observation.resultBytes;
+      confirm(row.derivationTable.queryCost[field], `${field}=${measured}`);
+    }
+    for (const [index, node] of row.derivationTable.graph.nodes.entries()) {
+      const measured = servedLargeMeasurement.nodes[index];
+      for (const [field, record] of Object.entries(node.fields)) {
+        const fixtureMaximum = query === 'issueDetail' && node.nodeId === 'n2'
+          ? `${artifact.fixtureMaxima.commentsPerIssue.maximum} comments per issue`
+          : query === 'issueListV2' && node.nodeId === 'n2'
+            ? `${artifact.fixtureMaxima.labelsPerIssue.maximum} labels per issue`
+            : null;
+        const observed = measured[field]?.observed
+          ?? (field === 'maxRootRowsPerPage' ? windowsByNode.get(node.nodeId)?.rootRows : undefined)
+          ?? (field.startsWith('maxWindow') ? windowsByNode.get(node.nodeId)?.[
+            ({
+              maxWindowPages: 'pages', maxWindowRootRows: 'rootRows',
+              maxWindowScannedRows: 'scannedRows', maxWindowResultRows: 'resultRows',
+              maxWindowResultBytes: 'resultBytes', maxWindowIndexRanges: 'indexRanges',
+            })[field]
+          ] : undefined);
+        confirm(
+          record,
+          `${fixtureMaximum ? `${fixtureMaximum}; ` : ''}${field}=${observed ?? 'served-fit'}`,
+        );
+      }
+    }
+    confirm(row.derivationTable.graph.maxPageResultBytes, `maxPageResultBytes=${observation.resultBytes}`);
+    for (const [field, record] of Object.entries(row.derivationTable.graph.windowRollup)) {
+      confirm(record, `${field}=${totals[field]}`);
+    }
+    bounds.oracleMeasurements[query].largeResultBytes = observation.resultBytes;
+    bounds.oracleMeasurements[query].largeResultRows = observation.resultRows;
+    bounds.oracleMeasurements[query].maxBytes = Math.max(
+      bounds.oracleMeasurements[query].normalResultBytes,
+      observation.resultBytes,
+    );
+  }
+
+  bounds.largeFixtureSpotCheck = {
+    status: 'completed-byte-exact-and-served',
+    path: 'demos/zerobugs/fixtures-local/large-seed42-v1',
+    shardDigestVerification: artifact.shardDigestVerification,
+    source: 'tests/conformance/graph/served-observations.large-hot.v1.json',
+    command: LARGE_SPOT_CHECK_COMMAND,
+  };
+  bounds.servedMeasurement = {
+    status: 'normal-and-large-fixture-validated-hot-blocked',
+    sources: [
+      'tests/conformance/graph/served-observations.g2-c.v1.json',
+      'tests/conformance/graph/served-observations.large-hot.v1.json',
+    ],
+    scope: 'N=1 deterministic serving-shape observation for each of the three original graphs on large-seed42-v1; canonical hot-baseline clone blocked, so issueSummary and latency/operational ceilings remain provisional',
+  };
+}
+
 async function main() {
   assert.equal(process.versions.node, '24.18.0', 'freeze requires paid-for Node 24.18.0');
   assert(requestedFixtures.includes('normal-seed-v1'), 'normal-seed-v1 is mandatory');
@@ -3067,6 +3344,7 @@ async function main() {
   };
   const bounds = boundDerivation(carriers, measurements, tables);
   applyServedMeasurements(bounds, carriers);
+  applyPbServedMeasurements(bounds, carriers);
   bounds.contentDigest = digestBytes(canonical(bounds));
   // Bound derivation shares normalized carrier objects with the corpus and
   // may normalize/sort nested arrays. Bind the bytes only after that pass.

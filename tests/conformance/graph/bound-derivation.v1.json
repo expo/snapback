@@ -23,12 +23,26 @@
     "documentedPerIssueDistribution": {
       "labels": {
         "method": "uniform integer draw in the closed interval 1..3",
-        "maximum": 3
+        "maximum": 3,
+        "measurement": {
+          "fixture": "large-seed42-v1",
+          "rows": 2000370,
+          "issueGroups": 1000000,
+          "issuesAtMaximum": 333707,
+          "issueIDsAtMaximumDigest": "sha256:2e867aa11b46bfaa9e0ec479a5a0ebd355d13b8f395a8b30fba0e2ae6fd91c43"
+        }
       },
       "comments": {
         "method": "floor of a seeded exponential draw; the distribution has no finite per-issue ceiling",
         "obtainableReceiptCeiling": 2527886,
-        "exactSeed42Maximum": "requires the preserved CSV shards"
+        "exactSeed42Maximum": 27,
+        "measurement": {
+          "fixture": "large-seed42-v1",
+          "rows": 2527886,
+          "issueGroups": 716884,
+          "issuesAtMaximum": 16,
+          "issueIDsAtMaximumDigest": "sha256:504e089d0438e71e9aff56a3e9f30f53202a2edb3b43398027b2f6c9145c125a"
+        }
       },
       "hotWorkingSet": {
         "method": "manifest-defined greatest-project interval truncated to W",
@@ -1036,8 +1050,8 @@
               "fields": {
                 "maxChildrenPerParent": {
                   "value": 1024,
-                  "derivation": "the control refuses the collection at exactly 1,024 comments; normal maximum is 21, while the documented floored-exponential generator has no finite per-issue ceiling and the receipt supplies only the 2,527,886-row absolute ceiling",
-                  "provisional": true,
+                  "derivation": "the control refuses the collection at exactly 1,024 comments; the byte-exact large seed-42 fixture maximum is 27; confirmed by large-seed42-v1: 27 fixture-wide comments per issue",
+                  "provisional": false,
                   "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
                 },
                 "maxExaminedEntriesPerExecution": {
@@ -1056,8 +1070,8 @@
                 },
                 "maxWindowPages": {
                   "value": 1,
-                  "derivation": "ceil(normal maxCommentsPerIssue 21 / declared maxChildrenPerParent 1,024) = 1; the large seed-42 per-issue maximum remains unverified",
-                  "provisional": true,
+                  "derivation": "ceil(exact large seed-42 maxCommentsPerIssue 27 / declared maxChildrenPerParent 1,024) = 1; confirmed by large-seed42-v1: 27 comments per issue; maxWindowPages=1",
+                  "provisional": false,
                   "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
                 },
                 "maxWindowResultBytes": {
@@ -2124,14 +2138,26 @@
     }
   },
   "largeFixtureSpotCheck": {
-    "status": "available-requires-zb5-rerun",
+    "status": "completed-byte-exact-served-maxima-blocked",
     "path": "demos/zerobugs/fixtures-local/large-seed42-v1",
+    "shardDigestVerification": {
+      "expected": 16,
+      "present": 16,
+      "exactMatches": 16,
+      "missing": 0,
+      "unexpected": 0,
+      "mismatches": 0
+    },
+    "source": "tests/conformance/graph/served-observations.large-hot.v1.json",
     "command": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
   },
   "servedMeasurement": {
-    "status": "normal-fixture-validated",
-    "source": "tests/conformance/graph/served-observations.g2-c.v1.json",
-    "scope": "N=1 deterministic normal fixture per graph; large/hot claims remain gated on recorded rerun commands"
+    "status": "normal-fixture-validated-large-maxima-blocked-hot-blocked",
+    "sources": [
+      "tests/conformance/graph/served-observations.g2-c.v1.json",
+      "tests/conformance/graph/served-observations.large-hot.v1.json"
+    ],
+    "scope": "large-seed42-v1 fixture and working-set maxima are byte-exact, but all three max-bearing served observations refused at graph dependency attestation; hot canonical clone is also blocked, so result/work/group/latency ceilings remain provisional"
   },
-  "contentDigest": "sha256:e47917df6b0e674ea969e0d5d12295a049a6ee80c0a1756d36b4be27afaacda2"
+  "contentDigest": "sha256:4bc770c50ca2395799c9dc3b79055595307f86db73450a86116c49f021664294"
 }

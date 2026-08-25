@@ -14,3 +14,5 @@ the exact rerun commands are pinned in
 `bound-derivation.v1.json` (zb5 gates). Also carried here: the production
 class-2 authority-resolver seam follow-up (capability declaration stays
 test-support-only until it exists; `0268-COMPLETION-DRAFT.md:41`).
+
+- 2026-08-25 (P-B): deterministic shape inputs delivered (largest project 99,943 issues; working set 1,000; global maxima 27/3; working-set maxima 25/3; frozen in `served-observations.large-hot.v1.json`). Max-bearing large observations blocked by `issues/20260825-graph-demand-identity-mismatch-large-fixture.md`; all hot arms blocked by `issues/20260825-hot-baseline-sqlite-backup-blocked.md`. Ticket stays open; LLP 0268 B1 stays gated.
