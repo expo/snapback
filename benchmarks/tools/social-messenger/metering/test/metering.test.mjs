@@ -2768,6 +2768,7 @@ async function makeFinalizeExistingFixture({
     ROOT,
   ), "utf8"));
   const sourceCell = structuredClone(sourceConfig.cells.find((cell) => cell.id === cellId));
+  delete sourceCell.disposition;
   const dispositionCell = dispositionPrefix
       ? {
         id: "consumed-cell",
