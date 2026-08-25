@@ -312,13 +312,9 @@ impl StepUpProofAdmission {
     {
         let identifier = self.proof.address.as_str();
         super::database_plan::plan(move |database| {
-            self._admission.provider.prepare_password_set(
-                database,
-                acting,
-                identifier,
-                now_ms,
-                custody,
-            )
+            self._admission
+                .provider
+                .prepare_password_set(database, acting, identifier, now_ms, custody)
         })
     }
 }
@@ -2450,13 +2446,8 @@ impl AuthProvider {
         recovery_key: &[u8; 32],
         custody: PasswordIssuanceCustody,
     ) -> SnapbackResult<ProviderSessionIssuancePlan> {
-        let preparation = self.prepare_password_set(
-            database,
-            acting,
-            identifier,
-            now_ms,
-            custody,
-        )?;
+        let preparation =
+            self.prepare_password_set(database, acting, identifier, now_ms, custody)?;
         self.finish_password_set(
             preparation,
             step_up,

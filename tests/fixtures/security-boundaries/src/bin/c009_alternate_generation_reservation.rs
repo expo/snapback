@@ -11,6 +11,7 @@ fn attempt_live_route(
     authority: PreparedAuthority,
     effect_fence: ConnectionEffectFence,
 ) {
+    // @attack
     let issuer = LiveInvalidationIssuer::new(AuthenticatedBootIssuer {
         issuer_id: IssuerId {
         authorization_incarnation: "0197f862-f196-7bb2-b3f0-2a67185dfd17".to_owned(),
@@ -21,7 +22,6 @@ fn attempt_live_route(
         mac: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_owned(),
     })
     .unwrap();
-    // @attack
     let connection = issuer.reserve_connection(effect_fence).unwrap();
     let invalidation = LiveInvalidationAdmission::new(connection);
     let _ = snapback.prepare_resume_live_for_transport(

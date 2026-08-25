@@ -14,11 +14,14 @@ autobins = false
 serde_json = "1"
 snapback-kernel = { path = "../../../crates/snapback-kernel" }
 snapback-auth = { path = "../../../crates/snapback-auth" }
-snapback-activation = { path = "../../../crates/snapback-activation" }
 snapback-services = { path = "../../../crates/snapback-services" }
 snapback-engine = { path = "../../../crates/snapback-engine" }
-snapback-server = { path = "../../../crates/snapback-server" }
 snapback-sync = { path = "../../../crates/snapback-sync" }
+
+# The closed activation/server alias expressions and the server secret-read
+# expressions remain under src/bin as retained negative witnesses. They are
+# deliberately not Cargo targets: the privilege scanner certifies both crates
+# as empty, so LLP 0284 I-12 forbids mounting either as a fixture dependency.
 
 [[bin]]
 name = "claim-kernel-commit-authority"
@@ -31,14 +34,6 @@ path = "src/bin/claim_via_auth_reexport.rs"
 [[bin]]
 name = "claim-via-engine-reexport"
 path = "src/bin/claim_via_engine_reexport.rs"
-
-[[bin]]
-name = "claim-via-activation-reexport"
-path = "src/bin/claim_via_activation_reexport.rs"
-
-[[bin]]
-name = "claim-via-server-reexport"
-path = "src/bin/claim_via_server_reexport.rs"
 
 [[bin]]
 name = "admit-system-push"

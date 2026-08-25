@@ -13481,12 +13481,11 @@ impl LocalSnapback {
                 "the graph corpus scheduler did not reserve its exact frozen stream identities",
             ));
         }
-        let connection = binding.prepare_connection(
-            crate::ephemeral::ConnectionEffectFence::anonymous(
+        let connection =
+            binding.prepare_connection(crate::ephemeral::ConnectionEffectFence::anonymous(
                 authorization.incarnation.clone(),
                 "graph-corpus-grant",
-            ),
-        )?;
+            ))?;
         if connection.version_stream() != data_version_stream {
             return Err(SnapbackError::error(
                 "SNAPBACK_TEST_FIXTURE_INVALID",

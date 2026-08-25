@@ -174,18 +174,33 @@ and the current commit reopens it and reserves sequence 2.
 
 ## Verification record
 
-- `cargo test -p snapback --test auth_invalidation_boot_replay_v1 -- --nocapture`: 8 passed,
-  1 helper ignored. The same-name function attack committed sequence 2 and retired the live issuer;
-  the unconfigured raw-DML case remained refused; the legacy projection graduated successfully.
-- Cross-version helper run: `PRE_CHANGE_CREATED sequence=1`, then
-  `CURRENT_UPGRADED sequence=2` against the same file.
+- After rebasing onto `origin/main`,
+  `cargo test -p snapback --test auth_invalidation_boot_replay_v1 -- --nocapture` passed 8 tests
+  with 1 cross-process helper ignored. The same-name function attack committed sequence 2 and
+  retired the live issuer; the unconfigured raw-DML case remained refused; the legacy projection
+  graduated successfully.
+- The retained round-5 upgrade evidence covers five database shapes: an `abee210f1` sequence-1
+  database reopening and reserving 2; a database from `23a46716b` doing the same; a sequence-free
+  older database starting at 1; a partial infrastructure state with the reservation table already
+  present; and open-migrate-exit-before-first-use followed by reopen and reservation 2.
 - `cargo check --workspace --all-features`: passed, covering the additive union as well as the
   already-run default focused test.
-- The activation and server hostile-consumer fixtures each reject their former storage mount with
-  `E0603`.
-- `node scripts/check-inventories.mjs`: passed after regenerating the diagnostic and Guide
-  projections. `./ref-check --verbose`: passed with 0 errors and 0 unchecked references.
-- The complete security-boundary sweep still reports its 12 previously tracked expected-red
-  inventory/attack rows; the two re-export witnesses changed here pass individually. The full Guide
-  check has one unrelated existing raw-client asset-accessor failure in a committed benchmark run;
-  all other 21 Guide checks pass.
+- The activation and server hostile expressions both reached `E0603` at their former `storage`
+  mounts. Their source witnesses remain in the fixture tree but are deliberately unregistered: the
+  privilege scanner certifies both crates as empty, so mounting them as fixture dependencies would
+  itself violate LLP 0284 I-12's empty-surface invariant.
+- `node scripts/check-security-boundaries.mjs` measured exactly 12 violations, matching the reviewed
+  `origin/main` baseline, with no activation/server empty-surface violation: 2 missing seed-command
+  inventory witnesses and 10 expected-red attacks (`admit-system-push`,
+  `admit-protected-record-erasure`, `admit-pending-effect-creation`,
+  `admit-pending-effect-refusal`, `service-interlock-factory`, `services-rusqlite-reexport`,
+  `obtain-promotion-contention-reservation`, `obtain-ask-spend-reservation`,
+  `forge-membership-writer-admin`, and `construct-authorization-view`).
+- After regenerating the diagnostic, symbol, and Guide projections,
+  `node scripts/check-inventories.mjs` passed (356 package tests, 31 script tests, 31 demos, 487
+  publication leaves, and 157 Guide pages / 1,872 snippets). `./ref-check --verbose` passed with 0
+  errors and 0 unchecked references.
+- The rebased immutable-transcript input is effective:
+  `node scripts/check-guide-asset-client-example.mjs` passed its packed runtime, typecheck, and
+  raw-client sweep with 13 allowlisted files. `node scripts/check-guide.mjs` then passed all 22
+  checks; there is no benchmark-transcript raw-client failure in the integrated measurement.

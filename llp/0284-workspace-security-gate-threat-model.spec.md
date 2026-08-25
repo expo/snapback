@@ -6,8 +6,9 @@
 **Author:** Grok 4.6 (xAI) — independent of the LLP 0276 implementer lane; commissioned by LLP 0283 F-2
 **Date:** 2026-08-19
 **Revised:** 2026-08-25 (narrows the activation and server storage imports to
-crate visibility; their compiler witnesses now require `E0603` at the attempted
-module mount rather than relying on a later private factory refusal.)
+crate visibility; their retained hostile expressions produce `E0603` at the
+attempted module mount, but I-12 excludes the now scanner-empty crates from the
+registered fixture dependency/mount inventory.)
 **Revised:** 2026-08-21 (closes the embedded Guide generated-API exception:
 `build.rs` emits one versioned length-prefixed binary artifact, committed code
 consumes it only with `include_bytes!` and parses inert bytes into lazy public
@@ -1029,9 +1030,11 @@ re-export.
 
 Inventory comparison is bidirectional: mounts absent from dependency keys,
 privilege-bearing dependency keys absent from mounts, and privilege-bearing
-scanner crates absent from either side all fail. The activation and server
-storage-mount witnesses now prove that their crate-private aliases reject at
-the mount. `snapback-sync` therefore has
+scanner crates absent from either side all fail. Once the activation and server
+storage aliases became crate-private, the scanner certified both crates empty;
+I-12 therefore removes them from the registered dependency/mount inventory.
+Their hostile source expressions remain beside the fixture and are spot-checked
+at `E0603`, but are not Cargo targets. `snapback-sync` therefore has
 an explicit compiler witness through
 `LocalEphemeralBackend::reserve_authorization_commit`; merely depending on it
 is not coverage.
@@ -1245,8 +1248,8 @@ The current exact expected-red inventory is maintained in
 | `claim-kernel-commit-authority` | `LocalDatabase::memory()?.claim_kernel_commit_authority()` | `snapback-kernel` | default | compiles | error at `claim_kernel_commit_authority` | the claim call |
 | `claim-via-auth-reexport` | same via `snapback_auth::storage::LocalDatabase` | `snapback-auth` | default | compiles | unresolved `storage` or private claim | the claim call |
 | `claim-via-engine-reexport` | same via `snapback_engine::storage::LocalDatabase` | `snapback-engine` | default | compiles | same | the claim call |
-| `claim-via-activation-reexport` | same via attempted `snapback_activation::storage` mount | `snapback-activation` | default | compiles | `E0603` at the crate-private alias | the storage mount |
-| `claim-via-server-reexport` | same via attempted `snapback_server::storage` mount | `snapback-server` | default | compiles | `E0603` at the crate-private alias | the storage mount |
+| `claim-via-activation-reexport` (retained source, unregistered under I-12) | same via attempted `snapback_activation::storage` mount | no fixture mount after scanner-empty closure | default | compiles before closure | `E0603` at the crate-private alias | the storage mount |
+| `claim-via-server-reexport` (retained source, unregistered under I-12) | same via attempted `snapback_server::storage` mount | no fixture mount after scanner-empty closure | default | compiles before closure | `E0603` at the crate-private alias | the storage mount |
 | `admit-system-push` | claim, then `authority.admit_system_push()` | `snapback-kernel` | default | compiles | fails at claim or at `admit_system_push` | the `admit_system_push` call (if claim is the only failure, the `@attack` is the claim; do not hide admit behind a compiling claim) |
 | `admit-protected-record-erasure` | claim, then `admit_protected_record_erasure(...)` with arbitrary strings | `snapback-kernel` | default | compiles | error at admit or claim | the admit call |
 | `admit-pending-effect-creation` | claim, then `admit_pending_effect_creation(...)` and `db.create_pending_effect(cmd)` | `snapback-kernel` | default | compiles | error at admit or create | the admit call |

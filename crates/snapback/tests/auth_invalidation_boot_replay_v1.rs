@@ -5,13 +5,15 @@ use snapback::auth::invalidation::{
 };
 use snapback::auth::keyring::AuthKeyringStore;
 use snapback::auth::provider::{AuthProvider, AuthProviderProfile};
-use snapback::local::LocalSnapback;
+use snapback::ephemeral::ConnectionEffectFence;
+use snapback::local::{EngineInvalidationBinding, LocalSnapback};
 use snapback_kernel::storage::{LocalDatabase, ServingDatabase};
 use std::fs;
 use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -83,6 +85,21 @@ fn invalidation_provider() -> AuthProvider {
         .load_or_mint_initial(1, &OsRandom)
         .expect("mint invalidation protocol key");
     AuthProvider::new(AuthProviderProfile::Test, keyring).expect("construct invalidation provider")
+}
+
+fn invalidation_effect_fence(issuer: &EngineInvalidationBinding) -> ConnectionEffectFence {
+    static NEXT_GRANT: AtomicU64 = AtomicU64::new(1);
+    let incarnation = issuer
+        .authorization_expectation()
+        .expect("installed issuer authorization expectation")
+        .incarnation;
+    ConnectionEffectFence::anonymous(
+        incarnation,
+        format!(
+            "q43-invalidation-grant-{}",
+            NEXT_GRANT.fetch_add(1, Ordering::Relaxed)
+        ),
+    )
 }
 
 fn live_issuer_at_path(path: &Path) -> LiveInvalidationIssuer {
@@ -258,16 +275,16 @@ fn second_full_install_is_durably_refused_while_first_registry_remains_live() {
     assert_boot_projection_matches_epoch(&path);
 
     let still_live = first
-        .prepare_connection()
+        .prepare_connection(invalidation_effect_fence(&first))
         .expect("the first registry remains the only live identifier issuer");
-    assert_eq!(still_live.issuer_id.boot_sequence, 1);
-    assert_eq!(still_live.connection_generation, 1);
-    assert!(still_live.issuer_retirement.is_none());
+    assert_eq!(still_live.issuer_id().boot_sequence, 1);
+    assert_eq!(still_live.connection_generation(), 1);
+    assert!(still_live.issuer_retirement().is_none());
     assert_eq!(
         snapback
             .auth_invalidation_expectation_for_test()
             .expect("engine retained its first registry"),
-        still_live.authorization
+        still_live.authorization().clone()
     );
 }
 
@@ -382,11 +399,12 @@ fn auth_invalidation_boot_cross_process_actor() {
                 .install_authenticated_auth_invalidation(&invalidation_provider(), None)
                 .expect("process A installs boot sequence 1");
             let first_connection = issuer
-                .prepare_connection()
+                .prepare_connection(invalidation_effect_fence(&issuer))
                 .expect("process A issues its initial connection");
             println!(
                 "FULL_HOLDING sequence={} connection_generation={}",
-                first_connection.issuer_id.boot_sequence, first_connection.connection_generation
+                first_connection.issuer_id().boot_sequence,
+                first_connection.connection_generation()
             );
             std::io::stdout()
                 .flush()
@@ -402,10 +420,11 @@ fn auth_invalidation_boot_cross_process_actor() {
             );
             assert_boot_projection_matches_epoch(&database);
 
-            let refused = match issuer.prepare_connection() {
+            let refused = match issuer.prepare_connection(invalidation_effect_fence(&issuer)) {
                 Ok(connection) => panic!(
                     "FULL_STILL_LIVE sequence={} connection_generation={}",
-                    connection.issuer_id.boot_sequence, connection.connection_generation
+                    connection.issuer_id().boot_sequence,
+                    connection.connection_generation()
                 ),
                 Err(error) => error,
             };
@@ -440,7 +459,7 @@ fn auth_invalidation_boot_cross_process_actor() {
                 .install_authenticated_auth_invalidation(&invalidation_provider(), None)
                 .expect("process B installs boot sequence 2");
             let connection = issuer
-                .prepare_connection()
+                .prepare_connection(invalidation_effect_fence(&issuer))
                 .expect("process B issues from boot sequence 2");
             let state = durable_boot_state(&database);
             assert_eq!(state.0, "2");
@@ -453,7 +472,9 @@ fn auth_invalidation_boot_cross_process_actor() {
             write_boot_state(&successor_state, &state);
             println!(
                 "FULL_ISSUED sequence={} issuer_sequence={} connection_generation={}",
-                state.0, connection.issuer_id.boot_sequence, connection.connection_generation
+                state.0,
+                connection.issuer_id().boot_sequence,
+                connection.connection_generation()
             );
             std::io::stdout()
                 .flush()
@@ -492,7 +513,7 @@ fn auth_invalidation_boot_cross_process_actor() {
                 .join()
                 .expect("join authentic process B installer");
             let connection = issuer
-                .prepare_connection()
+                .prepare_connection(invalidation_effect_fence(&issuer))
                 .expect("process B issues from authentic boot sequence 2");
             let state = durable_boot_state(&database);
             assert_eq!(state.0, "2");
@@ -502,7 +523,7 @@ fn auth_invalidation_boot_cross_process_actor() {
                 "TOCTOU_SUCCESSOR sequence={} epoch_sequence={} connection_generation={}",
                 state.0,
                 durable_boot_epoch(&database).0,
-                connection.connection_generation
+                connection.connection_generation()
             );
             std::io::stdout()
                 .flush()
@@ -600,9 +621,9 @@ fn point_of_use_check_serializes_the_durable_read_decision_and_allocation() {
         .install_authenticated_auth_invalidation(&invalidation_provider(), None)
         .expect("process A installs boot 1");
     let first = issuer
-        .prepare_connection()
+        .prepare_connection(invalidation_effect_fence(&issuer))
         .expect("process A allocates generation 1");
-    assert_eq!(first.connection_generation, 1);
+    assert_eq!(first.connection_generation(), 1);
 
     let executable = std::env::current_exe().expect("resolve dependent-crate test executable");
     let mut successor = Command::new(executable)
@@ -632,7 +653,7 @@ fn point_of_use_check_serializes_the_durable_read_decision_and_allocation() {
     });
     let started = Instant::now();
     let refused = issuer
-        .prepare_connection()
+        .prepare_connection(invalidation_effect_fence(&issuer))
         .expect_err("process A must read B's committed successor before allocating");
     let elapsed = started.elapsed();
     releaser.join().expect("join timed writer release");
@@ -673,9 +694,9 @@ fn unconfigured_raw_dml_does_not_accidentally_advance_the_boot_epoch() {
         .install_authenticated_auth_invalidation(&invalidation_provider(), None)
         .expect("install legitimate boot-1 issuer");
     let first = issuer
-        .prepare_connection()
+        .prepare_connection(invalidation_effect_fence(&issuer))
         .expect("allocate boot-1 connection generation 1");
-    assert_eq!(first.connection_generation, 1);
+    assert_eq!(first.connection_generation(), 1);
     let before = durable_boot_state(&database);
     let before_epoch = durable_boot_epoch(&database);
     let before_reservation = durable_boot_reservation(&database);
@@ -746,18 +767,18 @@ fn unconfigured_raw_dml_does_not_accidentally_advance_the_boot_epoch() {
     assert_eq!(durable_boot_reservation(&database), before_reservation);
 
     let still_live = issuer
-        .prepare_connection()
+        .prepare_connection(invalidation_effect_fence(&issuer))
         .expect("legitimate boot-1 issuer remains current after refused raw DML");
-    assert_eq!(still_live.issuer_id.boot_sequence, 1);
-    assert_eq!(still_live.connection_generation, 2);
+    assert_eq!(still_live.issuer_id().boot_sequence, 1);
+    assert_eq!(still_live.connection_generation(), 2);
     assert_boot_projection_matches_epoch(&database);
     println!(
         "RAW_DML_REFUSED epoch={} reservation={} durable_sequence={} legitimate_boot={} legitimate_generation={}",
         epoch_forgery,
         reservation_forgery,
         before.0,
-        still_live.issuer_id.boot_sequence,
-        still_live.connection_generation
+        still_live.issuer_id().boot_sequence,
+        still_live.connection_generation()
     );
 }
 
@@ -770,10 +791,10 @@ fn raw_connection_owner_can_shadow_the_reservation_function_and_retire_the_live_
         .install_authenticated_auth_invalidation(&invalidation_provider(), None)
         .expect("install legitimate issuer");
     let first = issuer
-        .prepare_connection()
+        .prepare_connection(invalidation_effect_fence(&issuer))
         .expect("allocate legitimate generation 1");
-    assert_eq!(first.issuer_id.boot_sequence, 1);
-    assert_eq!(first.connection_generation, 1);
+    assert_eq!(first.issuer_id().boot_sequence, 1);
+    assert_eq!(first.connection_generation(), 1);
 
     let before_epoch = durable_boot_epoch(&database);
     let attacker_sequence = before_epoch.0 + 1;
@@ -846,7 +867,7 @@ fn raw_connection_owner_can_shadow_the_reservation_function_and_retire_the_live_
     assert_boot_projection_matches_epoch(&database);
     assert_eq!(durable_boot_epoch(&database).0, attacker_sequence);
     let refusal = issuer
-        .prepare_connection()
+        .prepare_connection(invalidation_effect_fence(&issuer))
         .expect_err("the hostile advance retires the legitimate live issuer");
     assert_retired(&refusal);
     println!(
@@ -896,9 +917,9 @@ fn canonical_projection_replay_does_not_resurrect_a_retired_issuer() {
         .install_authenticated_auth_invalidation(&invalidation_provider(), None)
         .expect("process A installs poison holding issuer");
     let first = issuer
-        .prepare_connection()
+        .prepare_connection(invalidation_effect_fence(&issuer))
         .expect("process A allocates poison generation 1");
-    assert_eq!(first.connection_generation, 1);
+    assert_eq!(first.connection_generation(), 1);
     let holding = durable_boot_state(&database);
     let holding_epoch = durable_boot_epoch(&database);
     println!(
@@ -917,7 +938,7 @@ fn canonical_projection_replay_does_not_resurrect_a_retired_issuer() {
         successor_rows.0, successor_rows.1
     );
     let first_refusal = issuer
-        .prepare_connection()
+        .prepare_connection(invalidation_effect_fence(&issuer))
         .expect_err("retired issuer must first refuse against successor rows");
     assert_retired(&first_refusal);
 
@@ -979,7 +1000,7 @@ fn canonical_projection_replay_does_not_resurrect_a_retired_issuer() {
     assert_ne!(holding_epoch, successor_epoch);
 
     let replay_refusal = issuer
-        .prepare_connection()
+        .prepare_connection(invalidation_effect_fence(&issuer))
         .expect_err("restored compatibility rows must not resurrect boot 1");
     assert_retired(&replay_refusal);
     let replayed = durable_boot_state(&database);
