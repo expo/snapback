@@ -100,6 +100,7 @@ const coveredByFiles = (filesList, relativeTarget) => {
 };
 
 const packages = [];
+const authoredConsumerFixtures = [];
 for (const dirName of readdirSync(PACKAGES_DIR).sort()) {
   const manifestPath = path.join(PACKAGES_DIR, dirName, 'package.json');
   if (!existsSync(manifestPath)) continue;
@@ -108,7 +109,12 @@ for (const dirName of readdirSync(PACKAGES_DIR).sort()) {
     console.log(`${LABEL} skip ${manifest.name} (private: true — not published)`);
     continue;
   }
-  packages.push({ dirName, dir: path.join(PACKAGES_DIR, dirName), manifest });
+  const dir = path.join(PACKAGES_DIR, dirName);
+  packages.push({ dirName, dir, manifest });
+  for (const name of readdirSync(dir).sort()) {
+    if (!name.endsWith('.export-types.fixture.mts')) continue;
+    authoredConsumerFixtures.push({ packageName: manifest.name, file: path.join(dir, name) });
+  }
 }
 
 // --- Phase 1: static export-map audit.
@@ -215,6 +221,14 @@ if (failures.length === 0) {
     );
     const fixturePath = path.join(fixtureDir, 'imports.mts');
     writeFileSync(fixturePath, `// Generated consumer fixture: every published subpath, resolved as an\n// installed consumer resolves it.\n${imports.join('\n')}\nexport {};\n`);
+    const authoredFixturePaths = authoredConsumerFixtures.map(({ packageName, file }, index) => {
+      const fixturePath = path.join(fixtureDir, `authored-${index}.mts`);
+      writeFileSync(
+        fixturePath,
+        `// Copied from ${packageName}/${path.basename(file)}.\n${readFileSync(file, 'utf8')}`,
+      );
+      return fixturePath;
+    });
     try {
       execFileSync(tscBin, [
         '--noEmit',
@@ -224,8 +238,9 @@ if (failures.length === 0) {
         '--moduleResolution', 'nodenext',
         '--lib', 'es2022,dom',
         fixturePath,
+        ...authoredFixturePaths,
       ], { cwd: fixtureDir, stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8' });
-      console.log(`${LABEL} fixture compile ok: ${sweep.length} subpaths across ${packages.length} packages`);
+      console.log(`${LABEL} fixture compile ok: ${sweep.length} subpaths and ${authoredFixturePaths.length} authored fixtures across ${packages.length} packages`);
     } catch (error) {
       fail(`consumer fixture failed to compile:\n${error.stdout ?? ''}${error.stderr ?? ''}`);
     }

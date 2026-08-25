@@ -100,6 +100,33 @@ export interface BootstrapExchangeHandle {
   close(): Promise<void>;
 }
 
+export type BootstrapExchangeAdmittedAuthorityOrigins =
+  | readonly string[]
+  | (() => readonly string[]);
+
+export interface BootstrapExchangeSharedAuthRequest extends AsyncIterable<Uint8Array> {
+  readonly method?: string;
+  readonly url?: string;
+  readonly headers: Readonly<Record<string, string | readonly string[] | undefined>>;
+}
+
+export interface BootstrapExchangeSharedAuthResponse {
+  statusCode: number;
+  setHeader(name: string, value: string | number | readonly string[]): this;
+  removeHeader(name: string): void;
+  writeHead(
+    statusCode: number,
+    headers?: Readonly<Record<string, string | number | readonly string[]>>,
+  ): this;
+  end(chunk?: string | Uint8Array): void;
+}
+
+export type BootstrapExchangeSharedAuthHandler = (
+  request: BootstrapExchangeSharedAuthRequest,
+  response: BootstrapExchangeSharedAuthResponse,
+  url: URL,
+) => boolean | Promise<boolean>;
+
 export interface DevIdentityCheckoutRegistry {
   issue(input?: Readonly<{ platform?: string; device?: unknown }>): string | null;
   redeem(presented: unknown): string | null;
@@ -116,10 +143,12 @@ export function createDevIdentityCheckoutRegistry(options: Readonly<{
 export function startBootstrapExchange(
   getPayload: (request: Readonly<{ requestAuthority: boolean }>) => unknown | null | Promise<unknown | null>,
   options?: Readonly<{
+    admittedAuthorityOrigins?: BootstrapExchangeAdmittedAuthorityOrigins;
     onControl?: (
       request: BootstrapExchangeControlRequest,
     ) => BootstrapExchangeControlResult | Promise<BootstrapExchangeControlResult>;
     onDevIdentityCheckout?: (nonce: unknown) => string | null | Promise<string | null>;
+    onSharedAuth?: BootstrapExchangeSharedAuthHandler;
     port?: number;
   }>,
 ): Promise<BootstrapExchangeHandle>;
@@ -452,9 +481,11 @@ export const __test: Readonly<{
     plan: DevPortPlan;
     platform: ExpoDevicePlatform;
     attestation: Readonly<{ serve(request: unknown, response: unknown): boolean }>;
+    admittedAuthorityOrigins?: BootstrapExchangeAdmittedAuthorityOrigins;
     getBootstrapPayload: () => unknown | Promise<unknown>;
     onControl?: (request: BootstrapExchangeControlRequest) => BootstrapExchangeControlResult | Promise<BootstrapExchangeControlResult>;
     onDevIdentityCheckout?: (nonce: unknown) => string | null | Promise<string | null>;
+    onSharedAuth?: BootstrapExchangeSharedAuthHandler;
     onReservation?: (owner: ExpoSupervisorPortOwner, reservation: ExpoSupervisorReservation) => void;
     afterOwnerBound?: (
       owner: ExpoSupervisorPortOwner,

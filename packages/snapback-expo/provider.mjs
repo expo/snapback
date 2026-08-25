@@ -351,8 +351,11 @@ function errorState(error, correlationId) {
 export const defaultSnapbackExpoEnvironment = createSupervisedExpoEnvironment();
 
 // @ref LLP 0181#provider — the controller exposes exactly the RFC boot-state
-// union. Binding, authority, and client preparation are distinct stages; no
-// missing authority path is converted to anonymous success.
+// union. Binding, authority, and client preparation remain distinct stages.
+// @ref LLP 0300#p4--the-dev-session-becomes-explicit — first-party web without
+// explicit supervised adoption may settle anonymous-ready.
+// @ref LLP 0258#d7-bootstrap-state-is-construction-truth-not-auth-truth — that
+// anonymous-ready state reports completed construction, not authenticated truth.
 // @ref LLP 0176#one-owner-many-projections — client preparation and React
 // provider construction call the existing package owners instead of creating
 // an Expo cache, sync transport, or auth model.
@@ -504,6 +507,14 @@ export function createSnapbackExpoBoot(options = {}) {
           preparation,
         })
       : bootstrap;
+  };
+
+  const subscribeApplicationBootstrap = () => {
+    bootstrapUnsubscribe?.();
+    bootstrapUnsubscribe = applicationClient.subscribeBootstrap(() => {
+      if (disposed || preparation === null || admittedBindingFacts === null) return;
+      publish(projectApplicationBootstrap());
+    });
   };
 
   const run = async () => {
@@ -709,10 +720,7 @@ export function createSnapbackExpoBoot(options = {}) {
           },
         });
         admittedBindingFacts = publicBindingFacts(admittedBinding);
-        bootstrapUnsubscribe = applicationClient.subscribeBootstrap(() => {
-          if (disposed || preparation === null || admittedBindingFacts === null) return;
-          publish(projectApplicationBootstrap());
-        });
+        subscribeApplicationBootstrap();
         publish(projectApplicationBootstrap());
         return state;
       }
@@ -861,12 +869,31 @@ export function createSnapbackExpoBoot(options = {}) {
                 applicationClientInputForBinding(refreshedBinding),
                 () => {},
               ), (lateProjection) => lateProjection?.dispose?.());
-              if (reboundProjection !== applicationClient) {
-                await awaitBoundary(reboundProjection?.dispose?.());
+              const predecessorProjection = applicationClient;
+              let retainReboundProjection = reboundProjection === predecessorProjection;
+              try {
+                if (!retainReboundProjection) {
+                  const refreshedBindingFacts = publicBindingFacts(refreshedBinding);
+                  bootstrapUnsubscribe?.();
+                  bootstrapUnsubscribe = null;
+                  await awaitBoundary(predecessorProjection.dispose());
+                  applicationClient = reboundProjection;
+                  retainReboundProjection = true;
+                  admittedBinding = refreshedBinding;
+                  admittedBindingAdmission = resolution.admission ?? {};
+                  admittedBindingFacts = refreshedBindingFacts;
+                  subscribeApplicationBootstrap();
+                }
+              } finally {
+                if (!retainReboundProjection) {
+                  try { await reboundProjection?.dispose?.(); } catch { /* retain the rebind refusal */ }
+                }
               }
-              admittedBinding = refreshedBinding;
-              admittedBindingAdmission = resolution.admission ?? {};
-              admittedBindingFacts = publicBindingFacts(admittedBinding);
+              if (reboundProjection === predecessorProjection) {
+                admittedBinding = refreshedBinding;
+                admittedBindingAdmission = resolution.admission ?? {};
+                admittedBindingFacts = publicBindingFacts(admittedBinding);
+              }
               publish(projectApplicationBootstrap());
               return state;
             }

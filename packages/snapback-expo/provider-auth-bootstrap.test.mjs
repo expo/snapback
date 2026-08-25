@@ -584,15 +584,30 @@ const defaultRefreshEnvironment = Object.freeze({
     return defaultRefreshBaseEnvironment.resolveBinding(input);
   },
 });
-let defaultRefreshClientConstructions = 0;
+const defaultRefreshClients = [];
 const defaultRefreshBoot = createSnapbackExpoBoot({
   app: protectedApp,
   environment: defaultRefreshEnvironment,
   async createApplicationClient(input, observer) {
-    defaultRefreshClientConstructions += 1;
-    const appClient = await createSnapbackAppClientWithBootstrapObserver(input, observer);
-    appClient.client.prepareReactBinding = async () => ({ source: 'deployment' });
-    return appClient;
+    const delegate = await createSnapbackAppClientWithBootstrapObserver(input, observer);
+    delegate.client.prepareReactBinding = async () => ({ source: 'deployment' });
+    const record = {
+      binding: structuredClone(input.binding),
+      disposed: false,
+      projection: null,
+    };
+    record.projection = Object.freeze({
+      client: delegate.client,
+      auth: delegate.auth,
+      bootstrapState: () => delegate.bootstrapState(),
+      subscribeBootstrap: (listener) => delegate.subscribeBootstrap(listener),
+      async dispose() {
+        record.disposed = true;
+        await delegate.dispose();
+      },
+    });
+    defaultRefreshClients.push(record);
+    return record.projection;
   },
   createProvider: fakeReactProvider,
   bindLifecycle: () => Object.freeze({ dispose() {}, async settled() {} }),
@@ -600,10 +615,32 @@ const defaultRefreshBoot = createSnapbackExpoBoot({
 const defaultRefreshReady = await defaultRefreshBoot.start();
 assert.equal(defaultRefreshReady.status, 'ready', JSON.stringify(defaultRefreshReady));
 assert.equal(defaultRefreshBindingResolutions, 1);
-assert.equal(defaultRefreshClientConstructions, 1);
+assert.equal(defaultRefreshClients.length, 1);
+const defaultRefreshPredecessor = defaultRefreshBoot.appClient();
+const defaultRefreshBinding = structuredClone(liveBinding);
+defaultRefreshBinding.provenance.issuedAt = new Date(Date.now() - 20 * 60_000).toISOString();
+defaultRefreshBinding.provenance.expiresAt = new Date(Date.now() + 40 * 60_000).toISOString();
+defaultRefreshSupervisor.binding = defaultRefreshBinding;
 assert.equal((await defaultRefreshBoot.refreshAuthority()).status, 'ready');
 assert.equal(defaultRefreshBindingResolutions, 2, 'refresh re-resolves and re-admits the binding');
-assert.equal(defaultRefreshClientConstructions, 2, 'refresh rebinds the existing app-client owner');
+assert.equal(defaultRefreshClients.length, 2, 'refresh constructs a successor app-client projection');
+assert.equal(
+  defaultRefreshBoot.appClient() === defaultRefreshClients[1].projection,
+  true,
+  'refresh retains the successor app-client projection',
+);
+assert.notEqual(defaultRefreshBoot.appClient(), defaultRefreshPredecessor);
+assert.deepEqual(
+  defaultRefreshClients[1].binding.target,
+  defaultRefreshBinding.target,
+  'the successor client binding target matches the refreshed admission',
+);
+assert.equal(
+  defaultRefreshClients[0].disposed,
+  true,
+  'refresh disposes the predecessor app-client projection',
+);
+assert.equal(defaultRefreshClients[1].disposed, false, 'the successor remains live after refresh');
 assert.deepEqual(
   defaultRefreshSupervisor.events,
   [],
