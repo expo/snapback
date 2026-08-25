@@ -2000,6 +2000,23 @@ const isRedirectResponse = (res) => (
   res?.type === 'opaqueredirect' || REDIRECT_STATUSES.has(res?.status)
 );
 
+const isEffectProducingRequest = (method, path) => {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(String(method).toUpperCase())) return false;
+  const route = String(path ?? '');
+  return (
+    route.startsWith('/mutation/')
+    || route.startsWith('/action/')
+    || route.startsWith('/client-mutations/')
+    || route.startsWith('/app/')
+    || route.startsWith('/_snapback/')
+    || route.startsWith('/auth/')
+    || route.startsWith('/connection/')
+    || route.startsWith('/live/')
+    || route.startsWith('/ephemeral/')
+    || (route.startsWith('/query/') && route.endsWith('/authorized-lease'))
+  );
+};
+
 const normalizedIngressLimits = (overrides) => {
   if (overrides === null || overrides === undefined) return DEFAULT_INGRESS_LIMIT_BYTES;
   const limits = { ...DEFAULT_INGRESS_LIMIT_BYTES };
@@ -7208,12 +7225,12 @@ export class SnapbackClient {
     // default follows redirects and a 307/308 would replay a secret to
     // whatever URL a proxy, misconfiguration, or hostile target names.
     // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 —
-    // effect-producing requests also refuse redirects: a redirected mutation
-    // was never admitted against the second origin's settlement ledger.
+    // effect-producing routes also refuse redirects: a redirected mutation
+    // was never admitted against the second origin's settlement ledger. A
+    // credential-free ordinary query POST retains the platform's historical
+    // redirect behavior because it carries neither authority nor an effect.
     const credentialed = requestSecrets.size > 0;
-    const effectProducing = !['GET', 'HEAD', 'OPTIONS'].includes(
-      String(method).toUpperCase(),
-    );
+    const effectProducing = isEffectProducingRequest(method, path);
     let res;
     let text;
     try {
@@ -10525,7 +10542,10 @@ export class SnapbackClient {
   /// Reconcile the complete custody matrix in one store transition before a
   /// client observation or drain. An unsettled/terminal fence leaves bytes
   /// untouched and returns an inadmissible result.
-  async #reconcileQueueCustody(store, { required = false } = {}) {
+  async #reconcileQueueCustody(
+    store,
+    { required = false, authorizationDispatchOwned = false } = {},
+  ) {
     if (!this.authorityFence) {
       return { settled: true, authority: null, result: null };
     }
@@ -10565,6 +10585,7 @@ export class SnapbackClient {
     try {
       const result = await this.#applyQueueCustodyReconciliation(store, authority, {
         expectedAuthorityGeneration,
+        authorizationDispatchOwned,
       });
       return { settled: true, authority, result };
     } catch (error) {
@@ -10576,7 +10597,11 @@ export class SnapbackClient {
   async #applyQueueCustodyReconciliation(
     store,
     authority,
-    { validateCurrent = true, expectedAuthorityGeneration = null } = {},
+    {
+      validateCurrent = true,
+      expectedAuthorityGeneration = null,
+      authorizationDispatchOwned = false,
+    } = {},
   ) {
     let beforeRecords = [];
     try { beforeRecords = await store.outboxRecords(); } catch { /* transition remains authoritative */ }
@@ -10589,9 +10614,14 @@ export class SnapbackClient {
       authority.custody,
       expectedAuthorityGeneration,
     );
-    const result = typeof store.withOutboxAuthorizationDispatch === 'function'
-      ? await store.withOutboxAuthorizationDispatch(commit)
-      : await commit();
+    let result;
+    if (authorizationDispatchOwned) {
+      result = await commit();
+    } else if (typeof store.withOutboxAuthorizationDispatch === 'function') {
+      result = await store.withOutboxAuthorizationDispatch(commit);
+    } else {
+      result = await commit();
+    }
     if (
       !result
       || (validateCurrent && this.authorityFence.isCurrent?.(authority.capture) !== true)
@@ -12693,6 +12723,7 @@ export class SnapbackClient {
     let replayCapabilityFact = null;
     let replayCapabilityRequestSequence = null;
     let replayOperationTarget = replayTransportTarget;
+    let knownReplayAppId = null;
     if (queuedBeforeCustody.length > 0) {
       // The check precedes every queue-state reconciliation and mutation
       // transport: a target without the ledger cannot double-apply an old
@@ -12713,7 +12744,7 @@ export class SnapbackClient {
       replayCapabilityFact = capability;
       replayCapabilityRequestSequence = capability.inspectionRequestSequence;
       replayOperationTarget = capability.operationTarget ?? replayTransportTarget;
-      const knownReplayAppId = replayOperationTarget.artifactGeneration?.appId
+      knownReplayAppId = replayOperationTarget.artifactGeneration?.appId
         ?? this.__inspectionAppId
         ?? (this.__offlineMutationReplayCapability === null
           ? null
@@ -12846,37 +12877,6 @@ export class SnapbackClient {
       record = prepared.record;
       let preparationFence = prepared.fence;
       let replayAuthority = null;
-      if (record.custody !== undefined && record.custody !== null) {
-        // Re-attest at every submission slot. Reconciliation normally handled
-        // either mismatch at the drain head; these comparisons are the
-        // belt-and-braces transport gate for authority changes during a drain.
-        // @ref LLP 0043#js-arm-sessions-custody-queue--recorded-design-2026-08-03-commissioned-at-author-sitting-2--ratified-2026-08-04-author-sitting-3-implementation-authorized-as-a-lane — never transmit a
-        //   record under an authority other than its enqueue authority.
-        const custody = await this.#reconcileQueueCustody(store);
-        if (!custody.settled || custody.authority === null) {
-          const code = custody.error?.diagnostic?.code ?? custody.error?.code ?? 'unsettled';
-          replayStop.value = Object.freeze({
-            kind: 'paused',
-            reason: `custody-unavailable:${code}`,
-          });
-          stopped = true;
-          break;
-        }
-        replayAuthority = custody.authority;
-        if (!samePrincipalScope(record.principalScope, replayAuthority.principalScope)) {
-          continue;
-        }
-        if (
-          record.authorityDescriptor?.authorityInstanceId
-          !== replayAuthority.authorityDescriptor.authorityInstanceId
-        ) {
-          continue;
-        }
-        const currentPrepared = await store.outboxPrepareSubmission(record.id);
-        if (currentPrepared?.status !== 'ready' || !currentPrepared.record) continue;
-        record = currentPrepared.record;
-        preparationFence = currentPrepared.fence;
-      }
       let authorizationDispatchRelease = null;
       let authorizationDispatchSettlement = Promise.resolve();
       const releaseAuthorizationDispatch = () => {
@@ -12905,14 +12905,60 @@ export class SnapbackClient {
         this.#assertOfflineMutationOperationTargetCurrent(replayOperationTarget);
         throw offlineQueueSettlementLedgerError({ reason: 'inspection-superseded' });
       };
+      const assertReplayRecordTargetCurrent = (candidate) => {
+        const error = offlineMutationReplayTargetBindingError(
+          candidate,
+          replayOperationTarget,
+          knownReplayAppId,
+        );
+        if (error !== null) throw error;
+      };
       let authorizationDispatchFence = null;
       try {
         if (!shouldContinue()) {
           stopped = true;
           break;
         }
+        await ensureAuthorizationDispatch();
+        // The pending set can grow after the drain's first snapshot. Validate
+        // the exact prepared record while holding the same dispatch fence that
+        // owns custody reconciliation, range issuance, stamping, and POST.
+        assertReplayRecordTargetCurrent(record);
+        if (record.custody !== undefined && record.custody !== null) {
+          // Re-attest at every submission slot. Reconciliation normally handled
+          // either mismatch at the drain head; these comparisons are the
+          // belt-and-braces transport gate for authority changes during a drain.
+          // @ref LLP 0043#js-arm-sessions-custody-queue--recorded-design-2026-08-03-commissioned-at-author-sitting-2--ratified-2026-08-04-author-sitting-3-implementation-authorized-as-a-lane — never transmit a
+          //   record under an authority other than its enqueue authority.
+          const custody = await this.#reconcileQueueCustody(store, {
+            authorizationDispatchOwned: true,
+          });
+          if (!custody.settled || custody.authority === null) {
+            const code = custody.error?.diagnostic?.code ?? custody.error?.code ?? 'unsettled';
+            replayStop.value = Object.freeze({
+              kind: 'paused',
+              reason: `custody-unavailable:${code}`,
+            });
+            stopped = true;
+            break;
+          }
+          replayAuthority = custody.authority;
+          if (!samePrincipalScope(record.principalScope, replayAuthority.principalScope)) {
+            continue;
+          }
+          if (
+            record.authorityDescriptor?.authorityInstanceId
+            !== replayAuthority.authorityDescriptor.authorityInstanceId
+          ) {
+            continue;
+          }
+          const currentPrepared = await store.outboxPrepareSubmission(record.id);
+          if (currentPrepared?.status !== 'ready' || !currentPrepared.record) continue;
+          record = currentPrepared.record;
+          preparationFence = currentPrepared.fence;
+          assertReplayRecordTargetCurrent(record);
+        }
         if (this.__operationIdentityProtocol === 1 && record.operationIssuance === null) {
-          await ensureAuthorizationDispatch();
           // Currency and operation-range transport share one authorization-
           // dispatch ownership interval. A peer negative wins before the range
           // endpoint can mint identity for superseded replay authority.
@@ -13029,6 +13075,19 @@ export class SnapbackClient {
               // The shared-fact read precedes the dispatched stamp and runs under
               // the same lock retained through range assignment and settlement.
               await assertReplayCapabilityCurrent();
+              const preparedForDispatch = await store.outboxPrepareSubmission(record.id);
+              if (preparedForDispatch?.status !== 'ready' || !preparedForDispatch.record) {
+                const error = new Error(
+                  `SNAPBACK_OUTBOX_SUBMISSION_NOT_READY: replay record is ${preparedForDispatch?.status ?? 'missing'}`,
+                );
+                error.code = preparedForDispatch?.status === 'authorization-suspended'
+                  ? 'SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED'
+                  : preparedForDispatch?.status === 'authorization-stale'
+                    ? 'SNAPBACK_OUTBOX_AUTHORIZATION_STALE'
+                    : 'SNAPBACK_OUTBOX_SUBMISSION_NOT_READY';
+                throw error;
+              }
+              assertReplayRecordTargetCurrent(preparedForDispatch.record);
               const submission = await store.outboxPrepareSubmission(
                 record.id,
                 { markDispatched: true },
@@ -13208,6 +13267,25 @@ export class SnapbackClient {
           replayStop.value = Object.freeze({
             kind: 'paused',
             reason: 'replay-paused:capability-superseded',
+          });
+          stopped = true;
+          break;
+        }
+        if (
+          error?.code === 'SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH'
+          || error?.code === 'SNAPBACK_OUTBOX_REPLAY_TARGET_MISSING'
+        ) {
+          this.#recordOutboxDiagnostic({
+            code: error.code,
+            mutation: record.function,
+            clientMutationId: record.id,
+            ...error.diagnostic.details,
+          });
+          replayStop.value = Object.freeze({
+            kind: 'paused',
+            reason: error.code === 'SNAPBACK_OUTBOX_REPLAY_TARGET_MISSING'
+              ? 'replay-paused:enqueue-target-missing'
+              : 'replay-paused:enqueue-target-mismatch',
           });
           stopped = true;
           break;

@@ -2409,29 +2409,32 @@ test('capability inspection refuses redirects instead of borrowing another origi
   assert.deepEqual(await store.outboxRecords(), []);
 });
 
-test('anonymous query POSTs refuse redirects instead of relying on proxy rewrites', async (t) => {
+test('credential-free query POSTs retain ordinary redirect behavior', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const client = new InspectingSnapbackClient('https://query-post-redirect.example', {
     rqsStore: null,
     __outboxDrainLifecycle: false,
   });
   let queryPosts = 0;
-  globalThis.fetch = async (url, init) => {
+  let followedQueryPosts = 0;
+  globalThis.fetch = async (url, init = {}) => {
     assert.equal(new URL(url).pathname, '/query/listThings');
     assert.equal(init.method, 'POST');
-    assert.equal(init.redirect, 'manual', 'anonymous query POSTs use the conservative method policy');
     queryPosts += 1;
-    return new Response(null, {
-      status: 302,
-      headers: { location: 'https://query-post-redirect.example/query/listThings/' },
-    });
+    if (init.redirect === 'manual') {
+      return new Response(null, {
+        status: 302,
+        headers: { location: 'https://query-post-redirect.example/query/listThings/' },
+      });
+    }
+    followedQueryPosts += 1;
+    return Response.json({ result: { followed: true }, version: 1 });
   };
 
-  await assert.rejects(
-    () => client.query('listThings'),
-    (error) => error?.code === 'SNAPBACK_REDIRECT_REFUSED',
-  );
-  assert.equal(queryPosts, 1, 'the redirected query is not followed');
+  const result = await client.query('listThings');
+  assert.deepEqual(result, { result: { followed: true }, version: 1 });
+  assert.equal(queryPosts, 1, 'the credential-free query starts one request');
+  assert.equal(followedQueryPosts, 1, 'the platform remains free to follow the query redirect');
   await client.close();
 });
 
@@ -4153,6 +4156,85 @@ test('cross-target relaunch refuses the persisted enqueue target before POST', a
     );
   } finally {
     await replayClient.close();
+    await store.close();
+  }
+});
+
+test('a cross-target record injected into the second pending snapshot stays pending', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const originA = 'https://mid-drain-target-a.example';
+  const originB = 'https://mid-drain-target-b.example';
+  const generation = { ...TEST_ARTIFACT_GENERATION, appId: 'mid-drain-target-app' };
+  const targetAProfile = 'mid-drain-target-a';
+  const targetBProfile = 'mid-drain-target-b';
+  const targetAId = 'cm-mid-drain-target-a';
+  const targetBIds = ['cm-mid-drain-target-b-1', 'cm-mid-drain-target-b-2'];
+  for (const id of targetBIds) {
+    await store.outboxEnqueue({
+      id,
+      function: 'createThing',
+      ...currentOutboxTarget({
+        origin: originB,
+        targetProfileId: targetBProfile,
+        generation,
+      }),
+      args: { title: id },
+    });
+  }
+
+  const outboxPending = store.outboxPending.bind(store);
+  let pendingReads = 0;
+  store.outboxPending = async (...args) => {
+    pendingReads += 1;
+    if (pendingReads === 2) {
+      await store.outboxEnqueue({
+        id: targetAId,
+        function: 'createThing',
+        ...currentOutboxTarget({
+          origin: originA,
+          targetProfileId: targetAProfile,
+          generation,
+        }),
+        args: { title: targetAId },
+      });
+    }
+    return outboxPending(...args);
+  };
+
+  const mutationPosts = [];
+  globalThis.fetch = async (url, init = {}) => {
+    if (new URL(url).pathname === '/inspect') {
+      return Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId: targetBProfile,
+        generation,
+      }));
+    }
+    mutationPosts.push(JSON.parse(init.body).clientMutationId);
+    return Response.json({ result: { replayed: true }, version: mutationPosts.length });
+  };
+  const client = new InspectingSnapbackClient(originB, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  try {
+    const replay = await client.replayQueuedMutations();
+    assert.equal(replay.replayed, 2, 'the target-B records replay normally');
+    assert.equal(replay.stopped, true, 'the cross-target record pauses the drain');
+    assert.equal(replay.remaining, 1, 'only the cross-target record remains');
+    assert.deepEqual(mutationPosts, targetBIds, 'no POST starts for the target-A record');
+    assert.deepEqual(
+      (await outboxPending()).map((record) => record.id),
+      [targetAId],
+      'the target-A record remains pending',
+    );
+    assert.equal(
+      client.outboxDiagnostics.at(-1)?.code,
+      'SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH',
+    );
+  } finally {
+    await client.close();
     await store.close();
   }
 });

@@ -495,3 +495,71 @@ were not regenerated. Integration regeneration will add
 `SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH`, and
 `SNAPBACK_OUTBOX_REPLAY_TARGET_MISSING` to the union from their ordinary
 literal `diagnosticError(...)` emitting sites.
+
+### Round-13 review closure (2026-08-25)
+
+Replay no longer treats the first `outboxPending()` snapshot as complete. Each
+prepared record is validated against the pinned replay target while the
+authorization-dispatch fence is held, before custody reconciliation,
+operation-identity range issuance, dispatch stamping, or mutation transport.
+A target-A record inserted before the second pending snapshot of a target-B
+drain therefore pauses as pending with no POST, after the two target-B records
+replay normally. Custody reconciliation can reuse an already-owned dispatch
+interval so this ordering does not recursively acquire the store lock.
+
+The round-9 all-non-read redirect posture is superseded. Manual redirect
+refusal now covers explicit effect-producing routes, capability inspection,
+and requests carrying bearer/admin/session/lease or other secret-classified
+credentials. Credential-free ordinary query POSTs again retain the platform's
+redirect behavior, including existing proxy and trailing-slash rewrites.
+Inspection, foreground mutation, replay, and the real-server bearer/admin
+coverage remain redirect-terminal. The public-dashboard pending-intent
+bystander now closes its client rather than only its exposed store.
+
+The watched pre-fix regressions failed together with:
+
+```text
+✖ credential-free query POSTs retain ordinary redirect behavior
+Error [SnapbackDiagnosticError]: SNAPBACK_REDIRECT_REFUSED: redirects on credential-carrying or effect-producing requests are terminal
+✖ a cross-target record injected into the second pending snapshot stays pending
+AssertionError [ERR_ASSERTION]: the target-B records replay normally
+3 !== 2
+ℹ pass 0
+ℹ fail 2
+```
+
+The exact required five-run command produced:
+
+```text
+ℹ pass 128
+ℹ fail 0
+ℹ pass 128
+ℹ fail 0
+ℹ pass 128
+ℹ fail 0
+ℹ pass 128
+ℹ fail 0
+ℹ pass 128
+ℹ fail 0
+```
+
+`authority-transition-conformance.test.mjs` reports `tests 9`, `pass 9`,
+`fail 0`. The focused redirect/per-record run reports `tests 5`, `pass 5`,
+`fail 0`; `app-data.test.mjs` also reports its façade redirect-terminal and
+credential-free redirect coverage passing. The public-dashboard witnesses
+report `PASS public-dashboard / offline-local-first (JS arm) — 9/9` and
+`PASS public-dashboard / headless — 6/6`, with `cleanupErrors: []` in both
+machine-readable reports. Both used the explicitly configured binary stamped
+at `a97e75286` and reported the expected checkout stamp mismatch.
+
+The first symbol-registry check found the projections stale after the client
+line changes. `node scripts/generate-symbol-registry.mjs` refreshed its 57
+Markdown projections, and the required check then reports `[symbol-registry]
+ok — 56 modules, 1455 symbols, runtime parity exact`. The guide manifest and
+flat projections were refreshed through the guide library without invoking
+the diagnostics generator; `check-guide` therefore returns to the accepted
+single diagnostics-registry red (`21 passed, 1 failed`).
+`./ref-check --verbose` reports `311 LLP docs, 6645 refs in 12504 files, 0
+errors, 0 unchecked`; `git diff --check` produces no output. The diagnostics
+registry, its Markdown projection, and the generated diagnostic-code union
+remain byte-identical to round-12 HEAD and were not regenerated.

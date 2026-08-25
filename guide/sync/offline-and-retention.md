@@ -260,13 +260,13 @@ proof of the same contracts. The headless witness proves:
   coordinate with it, await
   `client.whenOfflineMutationReplayCapabilitySettled()`; application code must
   not poll the RQS store's internal capability metadata.
-- **POST redirects are deliberately terminal, including for queries.** The JS
-  client uses `redirect: 'manual'` for every non-GET/HEAD/OPTIONS request and
-  maps every redirect response to `SNAPBACK_REDIRECT_REFUSED`. That includes
-  credential-free query POSTs: configure proxies and trailing-slash routing to
-  serve the canonical POST path directly rather than relying on 301/302
-  rewrites. This method-conservative rule keeps mutation/replay and any future
-  effect-producing POST from silently crossing transport authority.
+- **Credentialed and effect-producing redirects are terminal.** The JS client
+  maps redirects for mutation/replay, identity-range, capability inspection,
+  and any request carrying a bearer, lease, session, admin token, or other
+  secret-classified credential to `SNAPBACK_REDIRECT_REFUSED`. Credential-free
+  ordinary query POSTs retain the platform's redirect behavior, preserving
+  existing proxy and trailing-slash rewrites without carrying transport
+  authority or an effect across the second hop.
 - **Per-record sessions and agent custody.** A settled authority fence adds
   the exact server-issued `authorityDescriptor`, server-proven
   `principalScope`, and durable fence lineage to the queued record; no bearer,

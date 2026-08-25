@@ -270,7 +270,7 @@ await runAcceptance(suite, async () => {
         await handle.settled?.();
       }
     } finally {
-      await bystander.rqsStore?.close?.();
+      await bystander.close();
     }
   });
 

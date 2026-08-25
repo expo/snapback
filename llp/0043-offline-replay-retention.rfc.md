@@ -5,6 +5,13 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
+**Revised:** 2026-08-25 (round-13 replay/redirect correction: every prepared
+replay record is checked against the durable enqueue target while the
+authorization-dispatch fence is held, before custody reconciliation, range
+issuance, dispatch stamping, or mutation transport. Manual redirect refusal is
+narrowed to credentialed, capability-inspection, and effect-producing
+requests; credential-free ordinary query POSTs retain their historical
+redirect behavior.)
 **Revised:** 2026-08-25 (durable enqueue-target binding: additive outbox
 record schema v2 persists canonical origin, target profile, and generated
 artifact generation or string-reference app identity. Replay compares the
@@ -27,8 +34,8 @@ ambiguous response. An unreserved IndexedDB follower answer carries only its
 observed revision into takeover and is dropped if shared state advanced; it
 never mints a takeover request sequence, while a committed takeover answer
 stamps the allocator's existing high-water as the durable order floor. The
-conservative redirect policy
-explicitly includes anonymous query POSTs.)
+redirect posture recorded at this checkpoint is superseded by the narrower
+round-13 rule above.)
 **Revised:** 2026-08-25 (`queue: 'auto'` capability-evidence correction: each
 `/inspect` attempts to reserve a store-writer-owned request sequence before
 transport, with the broker-unavailable fallback narrowed above;
@@ -487,14 +494,15 @@ adopt target-bound intent, but neither ordinary replay nor the current
 sidecar-adoption checks infer that authority; target adoption is out of scope
 for this amendment.
 
-All mutation/replay POSTs, and all other effect-producing HTTP methods, use
-manual redirect handling. The JS client deliberately applies that posture
-method-conservatively to every non-GET/HEAD/OPTIONS request, including
-anonymous query POSTs: its shared route helper does not infer effect semantics
-from a path before transport. A 301/302/307/308 (or other redirect response)
-is an answered `SNAPBACK_REDIRECT_REFUSED`, never a connectivity failure and
-never a queue/replay trigger; deployments must expose the canonical POST path
-instead of relying on proxy or trailing-slash rewrites.
+All mutation/replay POSTs, other effect-producing requests, capability
+inspection, and any request carrying a bearer, lease, session, admin token, or
+other secret-classified credential use manual redirect handling. A
+301/302/307/308 (or other redirect response) on those requests is an answered
+`SNAPBACK_REDIRECT_REFUSED`, never a connectivity failure and never a
+queue/replay trigger. Credential-free ordinary query POSTs retain the
+platform's previous redirect behavior so existing proxy and trailing-slash
+rewrites continue to work; they carry neither transport authority nor an
+effect across the second hop.
 
 Ordinary query success and every retained/stale-to-current live transition
 schedule the same in-flight-deduplicated observation. Applications may await
