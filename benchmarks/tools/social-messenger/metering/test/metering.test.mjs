@@ -2768,8 +2768,9 @@ async function makeFinalizeExistingFixture({
   ), "utf8"));
   const sourceCell = structuredClone(sourceConfig.cells.find((cell) => cell.id === cellId));
   const dispositionCell = dispositionPrefix
-    ? {
+      ? {
         id: "consumed-cell",
+        ports: [49_900, 49_919],
         disposition: {
           kind: "driver-failure-report",
           path: "BLOCKED-consumed-cell-driver-failure.md",
