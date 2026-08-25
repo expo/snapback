@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:6cff6fea9662ef786525bc074a5f9e534352dd15284e47ebff37d67b03fd5b96
+reviewed-authorities-digest: sha256:45c4beb95d66c26e287a312684e3cf4f774232921063046395d600b67302daee
 ---
 
 # The headless client
