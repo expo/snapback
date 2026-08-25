@@ -5,7 +5,13 @@ Date: 2026-08-24
 Systems: snapback-auth, snapback-sync, snapback-engine, snapback-kernel, snapback-server
 Related: issues/20260824-liveness-factory-triage-and-count-correction.md,
   issues/20260824-p1-ship-rows-enumerated.md,
-  issues/20260824-authority-minting-factory-inventory.md
+  issues/20260824-authority-minting-factory-inventory.md,
+  issues/20260825-p3-low-top-six-execution.md
+
+> **Execution correction (2026-08-25):** the P3 assignments below are historical reasoning, not
+> closure verdicts. Watched attacks falsified F091, C004, F089, C009, F286, and F288. Use
+> `issues/20260825-p3-low-top-six-execution.md` for their executed reclassification; no unexecuted
+> structural bound retires a row.
 
 ## Why this document exists
 

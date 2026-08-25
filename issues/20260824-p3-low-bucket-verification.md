@@ -1,10 +1,19 @@
-# The P3-LOW bucket does not survive review: 8 confirmed, 9 mis-bucketed
+# Superseded P3-LOW reasoning review: execution is required
 
-Status: open
+Status: superseded by issues/20260825-p3-low-top-six-execution.md
 Date: 2026-08-24
 Systems: snapback-auth, snapback-sync, snapback-engine, snapback-kernel, snapback-server
 Related: issues/20260824-liveness-row-bucket-assignment.md, LLP 0303,
-  issues/20260824-assertion-provenance-is-the-recurring-test-defect.md
+  issues/20260824-assertion-provenance-is-the-recurring-test-defect.md,
+  issues/20260825-p3-low-top-six-execution.md
+
+## Execution supersession — 2026-08-25
+
+This document is a reasoning review, not closure evidence. The watched execution in the related
+2026-08-25 issue falsified all six attempted bounds, including this document's `CONFIRMED-P3`
+verdicts for F089, F091, and C004. Its old counts and ticket-ready closure reasons must not be used
+to retire rows. The five remaining reasoned bounds (F006, F096, F242, F243, F287) also remain open
+until execution reaches their assertions.
 
 ## Why this was checked
 

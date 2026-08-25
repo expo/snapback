@@ -41648,3 +41648,834 @@ fn public_capture_only_carrier_derives_transitive_predecessors_and_refuses_plain
         "SNAPBACK_PROMOTION_PROVISIONAL_REPRESENTATION_REQUIRED"
     );
 }
+
+// Executable P3-LOW falsification probes recorded in
+// issues/20260825-p3-low-top-six-execution.md. These are characterization
+// tests: a passing test records what current main actually permits, including
+// behavior that requires reclassification rather than a silently strengthened
+// assertion.
+const P3_PROBE_REAL_USER: &str = "018f0d90-7b11-7a22-8c33-445566770091";
+const P3_PROBE_FORGED_USER: &str = "018f0d90-7b11-7a22-8c33-445566770092";
+const P3_PROBE_IDENTITY: &str = "018f0d90-7b11-7a22-8c33-445566770093";
+const P3_PROBE_SESSION: &str = "018f0d90-7b11-7a22-8c33-445566770094";
+const P3_PROBE_AUTHORITY_INSTANCE: &str = "018f0d90-7b11-7a22-8c33-445566770095";
+const P3_PROBE_FORGED_AUTHORITY_INSTANCE: &str = "018f0d90-7b11-7a22-8c33-445566770096";
+const P3_PROBE_STARTUP: &str = "018f0d90-7b11-7a22-8c33-445566770097";
+
+fn p3_probe_artifacts() -> (SchemaManifest, FunctionManifest) {
+    let (mut schema, mut functions) = sessions_activation_pair('9', false);
+    schema.tables.push(TableManifest {
+        name: "probeRows".to_owned(),
+        fields: vec![
+            FieldManifest {
+                name: "lane".to_owned(),
+                field_type: FieldType::String,
+                optional: false,
+            },
+            FieldManifest {
+                name: "sessionId".to_owned(),
+                field_type: FieldType::String,
+                optional: false,
+            },
+            FieldManifest {
+                name: "authUser".to_owned(),
+                field_type: FieldType::Principal,
+                optional: false,
+            },
+        ],
+        indexes: Vec::new(),
+        syncable: true,
+        permission_backing: false,
+        permission_fields: None,
+        search_indexes: Vec::new(),
+        vector_indexes: Vec::new(),
+        search_live_limits: None,
+        membership: None,
+        authority_profile: None,
+        asset_sharing: None,
+        visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
+        history: None,
+    });
+    let mut values = BTreeMap::new();
+    values.insert("lane".to_owned(), ValueExpr::Arg("lane".to_owned()));
+    values.insert(
+        "sessionId".to_owned(),
+        ValueExpr::Arg("sessionId".to_owned()),
+    );
+    values.insert("authUser".to_owned(), ValueExpr::AuthUserId);
+    let mut record = FunctionDefinition::new(
+        "recordProbe",
+        FunctionKind::Mutation,
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
+            steps: vec![MutationStep::Insert {
+                table: "probeRows".to_owned(),
+                values,
+                bind_id_as: None,
+            }],
+            return_value: Some(ReturnValue::ChangedCount),
+        })),
+    );
+    record.auth_requirement = Some(crate::manifest::AuthRequirement::Authenticated);
+    functions.functions.push(record);
+    (schema, functions)
+}
+
+fn p3_probe_file_engines() -> (tempfile::TempDir, LocalSnapback, LocalSnapback) {
+    let (schema, functions) = p3_probe_artifacts();
+    let directory = tempfile::tempdir().expect("P3 probe directory");
+    let directory_a = directory.path().join("a");
+    let directory_b = directory.path().join("b");
+    std::fs::create_dir(&directory_a).expect("create P3 database A directory");
+    std::fs::create_dir(&directory_b).expect("create P3 database B directory");
+    let path_a = directory_a.join("probe.sqlite3");
+    let path_b = directory_b.join("probe.sqlite3");
+
+    let mut seed = LocalSnapback::open(&path_a).expect("open seed P3 database A");
+    let prepared = seed
+        .prepare_auth_provision(
+            EnsureAppMode::Sessions,
+            Some(schema),
+            Some(functions.clone()),
+            Some(crate::manifest::SeedData {
+                tables: BTreeMap::from([(
+                    "items".to_owned(),
+                    vec![serde_json::Map::from_iter([(
+                        "value".to_owned(),
+                        json!("predecessor-visible"),
+                    )])],
+                )]),
+            }),
+        )
+        .expect("preflight initial P3 sessions pair");
+    let (_, pending) = seed
+        .commit_auth_provision(prepared, "test")
+        .expect("stage initial P3 sessions pair");
+    assert_eq!(
+        pending.mode_state,
+        crate::auth::mode::AuthModeStatus::PendingRestart
+    );
+    let readiness = AuthProgramReadiness::new(true, true, true, true, true, true, true);
+    let settled = seed
+        .auth_database_mut()
+        .consume_sessions_auth_mode_with_functions(&readiness, &functions)
+        .expect("consume initial P3 sessions pair");
+    seed.synchronize_auth_mode_admission(&settled)
+        .expect("publish settled P3 sessions admission");
+    seed.auth_database_mut()
+        .auth_catalog()
+        .insert_email_session_for_test(
+            P3_PROBE_REAL_USER,
+            P3_PROBE_IDENTITY,
+            P3_PROBE_SESSION,
+            P3_PROBE_AUTHORITY_INSTANCE,
+            "p3-real@example.test",
+            &[0x91; 32],
+            1,
+            1,
+            4_000_000_000_000,
+            4_000_000_000_000,
+        )
+        .expect("insert the genuine durable P3 probe session");
+    drop(seed);
+    std::fs::copy(&path_a, &path_b).expect("clone settled database A into database B");
+
+    let mut database_a = LocalSnapback::open(path_a).expect("open cloned P3 database A");
+    let mut database_b = LocalSnapback::open(path_b).expect("open cloned P3 database B");
+    for (label, database) in [("A", &mut database_a), ("B", &mut database_b)] {
+        let diagnostics = database.load_functions(functions.clone());
+        assert!(
+            diagnostics.iter().all(|diagnostic| !matches!(
+                diagnostic.severity,
+                crate::diagnostic::DiagnosticSeverity::Error
+                    | crate::diagnostic::DiagnosticSeverity::Fatal
+            )),
+            "P3 database {label} function load failed: {diagnostics:?}"
+        );
+    }
+    (directory, database_a, database_b)
+}
+
+fn p3_record_probe(
+    snapback: &mut LocalSnapback,
+    authority: PreparedAuthority,
+    lane: &str,
+) -> crate::diagnostic::SnapbackResult<MutationOutput> {
+    snapback.invoke_mutation_with_authority(
+        "recordProbe",
+        HandlerInput {
+            args: json!({
+                "lane": lane,
+                "sessionId": P3_PROBE_SESSION,
+            }),
+            ..HandlerInput::default()
+        },
+        authority,
+    )
+}
+
+fn p3_probe_rows(snapback: &LocalSnapback) -> Vec<Value> {
+    snapback
+        .db
+        .query_reads_read()
+        .scan_table("probeRows", 10, 0)
+        .expect("read durable P3 probe rows")
+        .rows
+}
+
+#[test]
+fn f091_verified_bound_carrier_replays_into_two_cloned_databases() {
+    let (_directory, mut database_a, mut database_b) = p3_probe_file_engines();
+    let now_ms = now_millis();
+    let monotonic_now = Instant::now();
+    let incarnation = database_a
+        .auth_database_mut()
+        .ensure_authorization_stream_incarnation()
+        .expect("read database A authorization incarnation")
+        .as_str()
+        .to_owned();
+    let snapshot = database_a
+        .auth_database_mut()
+        .admitted_session_projection_snapshot()
+        .expect("mint database A projection snapshot");
+    let coordinator = crate::auth::coordinator::AuthCoordinator::from_admitted_snapshot(
+        snapshot,
+        now_ms,
+        monotonic_now,
+    )
+    .expect("build database A coordinator");
+    let crate::auth::coordinator::BoundSessionResolution::Current(carrier) = coordinator
+        .resolve_bound_connection_session(
+            &incarnation,
+            P3_PROBE_SESSION,
+            P3_PROBE_REAL_USER,
+            "email-code",
+            1,
+            now_ms,
+            monotonic_now,
+        )
+        .expect("resolve the exact durable session in database A")
+    else {
+        panic!("database A exact session must resolve current")
+    };
+
+    let authority_a = database_a
+        .prepare_bearer_authority(
+            carrier.clone(),
+            InvocationSource::HttpMutation,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            database_a
+                .admission
+                .admit_for_mode(AuthMode::Sessions)
+                .expect("database A Sessions admission"),
+            &WireAuthorityFields::default(),
+            now_ms,
+        )
+        .expect("prepare cloned carrier against database A");
+    let authority_b = database_b
+        .prepare_bearer_authority(
+            carrier,
+            InvocationSource::HttpMutation,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            database_b
+                .admission
+                .admit_for_mode(AuthMode::Sessions)
+                .expect("database B Sessions admission"),
+            &WireAuthorityFields::default(),
+            now_ms,
+        )
+        .expect("prepare original carrier against database B");
+    let output_a = p3_record_probe(&mut database_a, authority_a, "A")
+        .expect("publish authenticated mutation in database A");
+    let output_b = p3_record_probe(&mut database_b, authority_b, "B")
+        .expect("publish authenticated mutation in database B");
+    let rows_a = p3_probe_rows(&database_a);
+    let rows_b = p3_probe_rows(&database_b);
+
+    assert_eq!(output_a.changed_count, 1);
+    assert_eq!(output_b.changed_count, 1);
+    assert_eq!(rows_a.len(), 1);
+    assert_eq!(rows_b.len(), 1);
+    assert_eq!(rows_a[0]["lane"], "A");
+    assert_eq!(rows_b[0]["lane"], "B");
+    assert_eq!(rows_a[0]["sessionId"], P3_PROBE_SESSION);
+    assert_eq!(rows_b[0]["sessionId"], P3_PROBE_SESSION);
+    assert_eq!(rows_a[0]["authUser"], P3_PROBE_REAL_USER);
+    assert_eq!(rows_b[0]["authUser"], P3_PROBE_REAL_USER);
+}
+
+#[test]
+fn c004_test_support_forged_projection_subject_commits_app_mutation() {
+    let (_directory, mut database, _unused_clone) = p3_probe_file_engines();
+    let now_ms = now_millis();
+    let monotonic_now = Instant::now();
+    let incarnation = database
+        .auth_database_mut()
+        .ensure_authorization_stream_incarnation()
+        .expect("read genuine database authorization incarnation")
+        .as_str()
+        .to_owned();
+    let mut source = database
+        .auth_database_mut()
+        .session_projection_source()
+        .expect("read genuine public projection source");
+    let genuine_user = source
+        .sessions
+        .iter()
+        .find(|session| session.id == P3_PROBE_SESSION)
+        .expect("genuine session projection row")
+        .user_id
+        .clone();
+    source
+        .users
+        .iter_mut()
+        .find(|user| user.id == genuine_user)
+        .expect("genuine projection user")
+        .id = P3_PROBE_FORGED_USER.to_owned();
+    source
+        .identities
+        .iter_mut()
+        .find(|identity| identity.id == P3_PROBE_IDENTITY)
+        .expect("genuine projection identity")
+        .user_id = P3_PROBE_FORGED_USER.to_owned();
+    let forged_session = source
+        .sessions
+        .iter_mut()
+        .find(|session| session.id == P3_PROBE_SESSION)
+        .expect("genuine session to rewrite");
+    forged_session.user_id = P3_PROBE_FORGED_USER.to_owned();
+    forged_session.authority_instance_id = P3_PROBE_FORGED_AUTHORITY_INSTANCE.to_owned();
+
+    let projection = crate::auth::session_projection::SessionProjection::rebuild(
+        source,
+        P3_PROBE_STARTUP,
+        now_ms,
+        monotonic_now,
+    )
+    .expect("rebuild the caller-authored forged projection");
+    let coordinator = crate::auth::coordinator::AuthCoordinator::new(projection)
+        .expect("construct the test-support-public forged coordinator");
+    let crate::auth::coordinator::BoundSessionResolution::Current(carrier) = coordinator
+        .resolve_bound_connection_session(
+            &incarnation,
+            P3_PROBE_SESSION,
+            P3_PROBE_FORGED_USER,
+            "email-code",
+            1,
+            now_ms,
+            monotonic_now,
+        )
+        .expect("resolve caller-authored subject from forged projection")
+    else {
+        panic!("forged projection session must resolve current")
+    };
+    let authority = database
+        .prepare_bearer_authority(
+            carrier,
+            InvocationSource::HttpMutation,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            database
+                .admission
+                .admit_for_mode(AuthMode::Sessions)
+                .expect("genuine database Sessions admission"),
+            &WireAuthorityFields::default(),
+            now_ms,
+        )
+        .expect("prepare forged subject against genuine database claims");
+    let output = p3_record_probe(&mut database, authority, "forged")
+        .expect("commit mutation under forged projection subject");
+    let rows = p3_probe_rows(&database);
+    let durable_user = database
+        .auth_database_mut()
+        .session_projection_source()
+        .expect("reread genuine durable projection")
+        .sessions
+        .into_iter()
+        .find(|session| session.id == P3_PROBE_SESSION)
+        .expect("durable genuine session remains")
+        .user_id;
+
+    assert_eq!(output.changed_count, 1);
+    assert_eq!(durable_user, P3_PROBE_REAL_USER);
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0]["lane"], "forged");
+    assert_eq!(rows[0]["authUser"], P3_PROBE_FORGED_USER);
+    assert_eq!(rows[0]["sessionId"], P3_PROBE_SESSION);
+}
+
+#[test]
+fn f089_public_retry_registry_output_persists_through_test_support_sink() {
+    let key = RetryEpisodeKey {
+        authority_subject: "sha256:p3-f089-authority".to_owned(),
+        client_store_id: "p3-f089-store".to_owned(),
+        query_key: "p3-f089-query:{}".to_owned(),
+    };
+    let witness = CompositeWitness {
+        authorization: crate::storage::AuthorizationVersion {
+            incarnation: "018f0d90-7b11-7a22-8c33-445566770089".to_owned(),
+            epoch: 0,
+        },
+        data: Some(DataWitness {
+            version_stream: "p3-f089-stream".to_owned(),
+            min_commit_version: 0,
+        }),
+    };
+    let mut registry = crate::auth::invalidation::RetryEpisodeRegistry::default();
+    let reservation = registry
+        .reserve(key.clone(), witness, 4_242, RetryReservationKind::Initial)
+        .expect("reserve caller-authored public retry episode");
+    assert!(matches!(reservation, RetryReservation::Reserved(_)));
+    let episodes = registry.episodes().clone();
+
+    let directory = tempfile::tempdir().expect("F089 database directory");
+    let path = directory.path().join("f089.sqlite3");
+    let mut database = LocalDatabase::open(&path).expect("open F089 database");
+    database
+        .seed_invalidation_retry_episodes_for_test(&episodes, 4_242)
+        .expect("feed public registry output into durable test-support sink");
+    drop(database);
+    let mut reopened = LocalDatabase::open(&path).expect("reopen F089 database");
+    let persisted = reopened
+        .invalidation_retry_episodes_for_test()
+        .expect("load production persisted retry registry after reopen");
+    let durable_count = reopened
+        .invalidation_retry_episode_count()
+        .expect("read durable retry episode table count");
+
+    assert_eq!(durable_count, 1);
+    let persisted_episode = persisted
+        .get(&key)
+        .expect("caller-authored F089 episode survives reopen");
+    assert_eq!(persisted_episode.attempts_reserved, 1);
+    assert_eq!(persisted_episode.first_attempt_reserved_at_ms, 4_242);
+}
+
+#[test]
+fn c009_forged_connection_generation_reaches_durable_manual_retry() {
+    let mut snapback = live_limit_snapback();
+    let schema = snapback.db.schema().clone();
+    let function = snapback
+        .functions
+        .functions
+        .iter_mut()
+        .find(|function| function.name == "listItemsByValue")
+        .expect("value-filtered live fixture");
+    install_schema_documents_contract(function, &schema, "items");
+    snapback
+        .invoke_mutation(
+            "insertItem",
+            HandlerInput {
+                args: json!({ "value": "retained" }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("seed C009 retained row");
+
+    let genuine = install_test_invalidation(&mut snapback);
+    let mut forged = genuine.clone();
+    forged.connection_generation = genuine.connection_generation + 10_000;
+    let fence =
+        crate::ephemeral::ConnectionEffectFence::anonymous("p3-c009-incarnation", "p3-c009-grant");
+    let subscribed = snapback
+        .subscribe_live_prepared_with_invalidation(
+            "listItemsByValue",
+            LiveSubscribeInput {
+                connection_id: "p3-c009-a".to_owned(),
+                input: HandlerInput {
+                    args: json!({ "value": "retained" }),
+                    ..HandlerInput::default()
+                },
+                authorization_namespace: Some(test_authorization_namespace(9_009)),
+                supersedes: None,
+                resume_from_token: None,
+            },
+            test_session_authority(InvocationSource::LiveInitialQuery),
+            LiveInvalidationAdmission {
+                session_mode: true,
+                connection: Some(genuine),
+                effect_fence: Some(fence.clone()),
+            },
+        )
+        .expect("install exact A-owned C009 subscription");
+
+    let staged = snapback
+        .prepare_resume_live_for_transport(
+            "listItemsByValue".to_owned(),
+            LiveResumeInput {
+                subscription_id: subscribed.subscription_id.clone(),
+                connection_id: "p3-c009-a".to_owned(),
+                auth: AuthInput::default(),
+                recorded_permission_epochs: subscribed.permission_epochs.clone(),
+            },
+            test_session_authority(InvocationSource::LiveResume),
+            LiveInvalidationAdmission {
+                session_mode: true,
+                connection: Some(forged.clone()),
+                effect_fence: Some(fence.clone()),
+            },
+        )
+        .expect("stage C009 forged-generation resume");
+    staged
+        .try_commit("p3-c009-a", &fence)
+        .expect("commit C009 exact connection act");
+    let resume = snapback
+        .finalize_resume_live_for_transport(&staged)
+        .expect("finalize C009 forged-generation resume");
+    let installed_scope = snapback
+        .subscriptions
+        .get(&subscribed.subscription_id)
+        .and_then(|subscription| subscription.authorization.as_ref())
+        .map(|authorization| authorization.scope_id.clone())
+        .expect("C009 forged scope installed on retained subscription");
+
+    snapback
+        .subscriptions
+        .get_mut(&subscribed.subscription_id)
+        .expect("C009 retained subscription")
+        .input
+        .args = json!({});
+    let failed_resume = snapback
+        .resume_live_prepared_with_invalidation(
+            "listItemsByValue",
+            LiveResumeInput {
+                subscription_id: subscribed.subscription_id.clone(),
+                connection_id: "p3-c009-a".to_owned(),
+                auth: AuthInput::default(),
+                recorded_permission_epochs: subscribed.permission_epochs,
+            },
+            test_session_authority(InvocationSource::LiveResume),
+            LiveInvalidationAdmission {
+                session_mode: true,
+                connection: Some(forged.clone()),
+                effect_fence: Some(fence),
+            },
+        )
+        .expect_err("invalid retained input must reach C009 retry failure");
+    let manual_retry = snapback
+        .manual_retry_authorization_invalidation(
+            AuthorizationInvalidationManualRetryInput {
+                connection_id: "p3-c009-a".to_owned(),
+                subscription_id: subscribed.subscription_id,
+                manual_retry_id: "p3-c009-forged-manual-retry".to_owned(),
+            },
+            forged,
+            test_session_authority(InvocationSource::InvalidationAcknowledgement),
+        )
+        .expect("C009 forged-generation manual retry reaches an ordinary outcome");
+    let durable_count = snapback
+        .auth_database_mut()
+        .invalidation_retry_episode_count()
+        .expect("read C009 durable retry episode count");
+    let persisted = snapback
+        .auth_database_mut()
+        .invalidation_retry_episodes_for_test()
+        .expect("read C009 durable retry episodes");
+
+    assert!(matches!(
+        resume.output.authorization_scope,
+        Some(ScopeId::Subscription {
+            connection_generation: 10_001,
+            ..
+        })
+    ));
+    assert!(matches!(
+        installed_scope,
+        ScopeId::Subscription {
+            connection_generation: 10_001,
+            ..
+        }
+    ));
+    assert_eq!(failed_resume.diagnostic.code, "SNAPBACK_ARG_MISSING");
+    assert_eq!(manual_retry.outcome, "exhausted");
+    assert_eq!(durable_count, 1);
+    let persisted_episode = persisted
+        .values()
+        .next()
+        .expect("C009 forged scope creates one durable retry episode");
+    assert_eq!(
+        persisted_episode.manual_retry_id.as_deref(),
+        Some("p3-c009-forged-manual-retry")
+    );
+}
+
+fn p3_connection_last_seen(snapback: &LocalSnapback, connection_id: &str) -> Option<u64> {
+    snapback
+        .connections_last_seen
+        .lock()
+        .get(connection_id)
+        .copied()
+}
+
+#[test]
+fn f286_victim_connection_is_touched_and_foreign_obligation_is_discharged() {
+    let mut snapback = live_limit_snapback();
+    snapback
+        .invoke_mutation(
+            "insertItem",
+            HandlerInput {
+                args: json!({ "value": "visible" }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("seed F286 visible row");
+    let row_id = snapback
+        .invoke_query("listItems", HandlerInput::default())
+        .expect("read F286 visible row")
+        .rows[0]["_id"]
+        .as_str()
+        .expect("F286 row id")
+        .to_owned();
+
+    let descriptor_a = install_test_invalidation(&mut snapback);
+    let descriptor_b = {
+        let state = snapback
+            .auth_invalidation
+            .as_ref()
+            .expect("F286 installed invalidation state");
+        let mut descriptor = descriptor_a;
+        descriptor.connection_generation = state
+            .issuer
+            .reserve_connection_generation()
+            .expect("reserve genuine F286 connection B generation");
+        descriptor
+    };
+    let fence_b = crate::ephemeral::ConnectionEffectFence::anonymous(
+        "p3-f286-b-incarnation",
+        "p3-f286-b-grant",
+    );
+    let subscribed = snapback
+        .subscribe_live_prepared_with_invalidation(
+            "listItems",
+            LiveSubscribeInput {
+                connection_id: "p3-f286-b".to_owned(),
+                input: HandlerInput::default(),
+                authorization_namespace: Some(test_authorization_namespace(9_286)),
+                supersedes: None,
+                resume_from_token: None,
+            },
+            test_session_authority(InvocationSource::LiveInitialQuery),
+            LiveInvalidationAdmission {
+                session_mode: true,
+                connection: Some(descriptor_b.clone()),
+                effect_fence: Some(fence_b.clone()),
+            },
+        )
+        .expect("install F286 B-owned subscription");
+    let scope_b = subscribed
+        .authorization_scope
+        .clone()
+        .expect("F286 B-owned authorization scope");
+    invoke_test_session_mutation(
+        &mut snapback,
+        "deleteItem",
+        HandlerInput {
+            args: json!({ "id": row_id }),
+            ..HandlerInput::default()
+        },
+    )
+    .expect("raise F286 B obligation");
+    let admission = managed_session_admission();
+    let frames = snapback
+        .authorization_invalidation_frames("p3-f286-b", &admission)
+        .expect("resolve F286 B obligation");
+    let frame = frames
+        .iter()
+        .filter_map(|frame| serde_json::from_slice::<Value>(&frame.payload).ok())
+        .find(|frame| frame["kind"] == "authorization_invalidation")
+        .expect("F286 B invalidation frame");
+    let ack_token_b = frame["resolution"]["ackToken"]
+        .as_str()
+        .expect("F286 B ACK token")
+        .to_owned();
+
+    snapback.connections_last_seen.touch("p3-f286-a", 1);
+    let invalid = snapback
+        .prepare_authorization_invalidation_ack_for_transport(
+            AuthorizationInvalidationAckInput {
+                connection_id: "p3-f286-a".to_owned(),
+                ack_token: "p3-f286-invalid-token".to_owned(),
+            },
+            descriptor_b.clone(),
+            admission.clone(),
+            fence_b.clone(),
+        )
+        .expect("stage F286 invalid foreign ACK");
+    invalid
+        .try_commit("p3-f286-a", &fence_b)
+        .expect("commit F286 invalid foreign ACK stage");
+    let invalid_output = snapback
+        .finalize_authorization_invalidation_ack_for_transport(&invalid)
+        .expect("F286 invalid token reaches an ordinary stale outcome");
+    let invalid_last_seen_a = p3_connection_last_seen(&snapback, "p3-f286-a")
+        .expect("F286 victim A remains tracked after invalid ACK");
+    let pending_after_invalid = snapback
+        .auth_invalidation
+        .as_ref()
+        .expect("F286 state after invalid ACK")
+        .obligations
+        .pending(&scope_b)
+        .cloned();
+
+    snapback.connections_last_seen.touch("p3-f286-a", 1);
+    let valid = snapback
+        .prepare_authorization_invalidation_ack_for_transport(
+            AuthorizationInvalidationAckInput {
+                connection_id: "p3-f286-a".to_owned(),
+                ack_token: ack_token_b,
+            },
+            descriptor_b,
+            admission,
+            fence_b.clone(),
+        )
+        .expect("stage F286 valid foreign ACK");
+    valid
+        .try_commit("p3-f286-a", &fence_b)
+        .expect("commit F286 valid foreign ACK stage");
+    let valid_output = snapback
+        .finalize_authorization_invalidation_ack_for_transport(&valid)
+        .expect("F286 valid B ACK finalizes through victim A input");
+    let valid_last_seen_a = p3_connection_last_seen(&snapback, "p3-f286-a")
+        .expect("F286 victim A remains tracked after valid ACK");
+    let pending_after_valid = snapback
+        .auth_invalidation
+        .as_ref()
+        .expect("F286 state after valid ACK")
+        .obligations
+        .pending(&scope_b)
+        .cloned();
+
+    assert_eq!(invalid_output.outcome, "stale");
+    assert!(invalid_last_seen_a > 1);
+    assert!(pending_after_invalid.is_some());
+    assert_eq!(valid_output.outcome, "discharged");
+    assert!(valid_last_seen_a > 1);
+    assert!(pending_after_valid.is_none());
+}
+
+#[test]
+fn f288_victim_connection_and_forged_generation_repoint_owned_subscription() {
+    let mut snapback = live_limit_snapback();
+    let genuine = install_test_invalidation(&mut snapback);
+    let mut forged = genuine.clone();
+    forged.connection_generation = genuine.connection_generation + 20_000;
+    let fence_b = crate::ephemeral::ConnectionEffectFence::anonymous(
+        "p3-f288-b-incarnation",
+        "p3-f288-b-grant",
+    );
+    let subscribed = snapback
+        .subscribe_live_prepared_with_invalidation(
+            "listItems",
+            LiveSubscribeInput {
+                connection_id: "p3-f288-b".to_owned(),
+                input: HandlerInput::default(),
+                authorization_namespace: Some(test_authorization_namespace(9_288)),
+                supersedes: None,
+                resume_from_token: None,
+            },
+            test_session_authority(InvocationSource::LiveInitialQuery),
+            LiveInvalidationAdmission {
+                session_mode: true,
+                connection: Some(genuine),
+                effect_fence: Some(fence_b.clone()),
+            },
+        )
+        .expect("install F288 B-owned subscription");
+
+    snapback.connections_last_seen.touch("p3-f288-a", 1);
+    let invalid = snapback
+        .prepare_resume_live_for_transport(
+            "listItems".to_owned(),
+            LiveResumeInput {
+                subscription_id: "p3-f288-missing".to_owned(),
+                connection_id: "p3-f288-a".to_owned(),
+                auth: AuthInput::default(),
+                recorded_permission_epochs: BTreeMap::new(),
+            },
+            test_session_authority(InvocationSource::LiveResume),
+            LiveInvalidationAdmission {
+                session_mode: true,
+                connection: Some(forged.clone()),
+                effect_fence: Some(fence_b.clone()),
+            },
+        )
+        .expect("stage F288 invalid-subscription resume");
+    invalid
+        .try_commit("p3-f288-a", &fence_b)
+        .expect("commit F288 invalid-subscription stage");
+    let invalid_error = snapback
+        .finalize_resume_live_for_transport(&invalid)
+        .expect_err("F288 missing subscription rejects after touching A");
+    let invalid_last_seen_a = p3_connection_last_seen(&snapback, "p3-f288-a")
+        .expect("F288 victim A tracked after invalid subscription");
+
+    snapback.connections_last_seen.touch("p3-f288-a", 1);
+    let valid = snapback
+        .prepare_resume_live_for_transport(
+            "listItems".to_owned(),
+            LiveResumeInput {
+                subscription_id: subscribed.subscription_id.clone(),
+                connection_id: "p3-f288-a".to_owned(),
+                auth: AuthInput::default(),
+                recorded_permission_epochs: subscribed.permission_epochs,
+            },
+            test_session_authority(InvocationSource::LiveResume),
+            LiveInvalidationAdmission {
+                session_mode: true,
+                connection: Some(forged.clone()),
+                effect_fence: Some(fence_b.clone()),
+            },
+        )
+        .expect("stage F288 victim/owned-subscription composition");
+    valid
+        .try_commit("p3-f288-a", &fence_b)
+        .expect("commit F288 victim/owned-subscription stage");
+    let valid_output = snapback
+        .finalize_resume_live_for_transport(&valid)
+        .expect("F288 victim input and forged descriptor finalize");
+    let stored = snapback
+        .subscriptions
+        .get(&subscribed.subscription_id)
+        .expect("F288 retained subscription after resume");
+    let stored_connection = stored.connection_id.clone();
+    let stored_scope = stored
+        .authorization
+        .as_ref()
+        .map(|authorization| authorization.scope_id.clone())
+        .expect("F288 forged authorization scope retained");
+    let pending_forged_scope = snapback
+        .auth_invalidation
+        .as_ref()
+        .expect("F288 invalidation state")
+        .obligations
+        .pending(&stored_scope)
+        .cloned();
+    let valid_last_seen_a = p3_connection_last_seen(&snapback, "p3-f288-a")
+        .expect("F288 victim A tracked after valid resume");
+
+    assert_eq!(
+        invalid_error.diagnostic.code,
+        "SNAPBACK_AUTH_RESNAPSHOT_REQUIRED"
+    );
+    assert!(invalid_last_seen_a > 1);
+    assert!(matches!(
+        valid_output.output.authorization_scope,
+        Some(ScopeId::Subscription {
+            connection_generation: 20_001,
+            ..
+        })
+    ));
+    assert_eq!(forged.connection_generation, 20_001);
+    assert_eq!(stored_connection, "p3-f288-a");
+    assert!(matches!(
+        stored_scope,
+        ScopeId::Subscription {
+            connection_generation: 20_001,
+            ..
+        }
+    ));
+    assert!(pending_forged_scope.is_some());
+    assert!(valid_last_seen_a > 1);
+}
