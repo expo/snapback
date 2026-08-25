@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:a5a9dcce73c02af6baa1390e14d8c2f6b8d61aee18c35e28b42b784c88a33140"
+    "sourceDigest": "sha256:2f6da9715847b4c24925e39b86753c140fe0cb068cdae181eea1d1039050a8e6"
   },
   "limits": {
     "lookupBytes": 16384
@@ -36952,7 +36952,7 @@
         },
         {
           "file": "packages/snapback-contract/connectivity-failure.mjs",
-          "line": 17,
+          "line": 19,
           "column": 37
         }
       ],

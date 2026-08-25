@@ -3,6 +3,8 @@
 // @ref LLP 0034#107-render-first-surface-mode-2026-07-09-eng-23736 — only
 //   proven connectivity loss retries behind render-first UI; answered HTTP
 //   failures and other diagnostics remain terminal at this adapter boundary.
+// @ref LLP 0043#milestone-2-queued-mutation-replay — answered failures never
+//   enter the offline mutation outbox.
 
 // The signal is `fetchDispatchFailed`: the client stamps it exactly where
 // fetch dispatch rejects and no Response exists. WHATWG runtimes use a

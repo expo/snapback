@@ -302,6 +302,29 @@ const makeRuntime = ({ subscriptionDisposeError = null } = {}) => {
   handle.dispose();
 }
 
+// --- offline-unavailable without fetch-dispatch provenance is terminal ---
+{
+  const offlineUnavailable = queryOfflineUnavailableFailure('live subscribe failed');
+  delete offlineUnavailable.cause.fetchDispatchFailed;
+  assert.equal(offlineUnavailable.code, 'SNAPBACK_QUERY_OFFLINE_UNAVAILABLE');
+  assert.equal(offlineUnavailable.cause.fetchDispatchFailed, undefined);
+  const client = makeClient({ liveFailures: 1, liveFailure: offlineUnavailable });
+  const retries = [];
+  const handle = createRenderFirstSnapbackContractSurface({
+    runtime: makeRuntime(),
+    client,
+    userId: 'u1',
+    manifest: makeManifest(),
+    liveQueries: ['alpha'],
+    retryBaseDelayMs: 1,
+    onRetry: (...args) => retries.push(args),
+  });
+  await assert.rejects(handle.attached, (error) => error === offlineUnavailable);
+  assert.equal(client.state.liveQueryCalls, 1);
+  assert.equal(retries.length, 0);
+  handle.dispose();
+}
+
 // --- retry hooks are observational: throwing cannot strand attachment ---
 {
   const client = makeClient({ failures: 1 });

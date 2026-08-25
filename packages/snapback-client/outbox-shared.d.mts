@@ -154,6 +154,7 @@ export declare const pendingAcknowledgementsFor: (
 
 /** Connectivity classification shared by the M2 queue path and the offline
  * binding-receipt path: transport provenance (the fetch dispatch itself
- * rejected — no HTTP status, diagnostic, or receipt), independent of the
- * rejection's constructor; caller aborts/timeouts excluded. */
+ * rejected — no HTTP status or receipt, and no diagnostic except the stamped
+ * `SNAPBACK_CLIENT_REFUSED` transport wrapper), independent of the rejection's
+ * constructor; caller aborts/timeouts excluded. */
 export declare function isConnectivityFailureError(error: unknown): boolean;
