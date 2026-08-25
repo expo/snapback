@@ -524,6 +524,44 @@ This follows from the projection rule in
 writes cannot see that path's mutation. When adding a per-path test, project the columns **that
 path** writes, not the columns the previously-fixed path wrote.
 
+### Enumerate the effect's siblings, not the entry point's
+
+Revision (n) made sibling enumeration a deliverable of the fix. Two independent reviewers of the same
+commit then disagreed about whether a row was closed, and the disagreement located a gap in that rule.
+
+One reviewer enumerated **every mint factory** for the effect — engine raw, engine guarded, kernel,
+serving, HTTP — found each one properly bound, and declared the row closed. That enumeration was
+complete and correct for what it covered. The second reviewer ignored factories entirely and defeated
+the row by **composition**: a public row-producer, `insert_email_session_for_test`, binds a generated
+bearer hash to a caller-named subject, and that bearer is then accepted by the public raw mint, which
+returns the plaintext secret. The repository already composed those two APIs in an existing test.
+
+Both reviewers were competent; one asked the narrower question. So:
+
+> Enumerating the sibling **entry points** of a fixed function is not enumerating the siblings of the
+> **effect**. The question is not "what else calls this?" but "what else produces this?" — including a
+> pair of public calls where neither alone produces it.
+
+This is the same shape as
+`issues/20260825-production-equivalent-is-not-a-clearing-rule.md`, where 166 items were cleared by a
+rule that evaluated each helper in isolation: a claim that holds for one thing and fails for a pair.
+It also recurs as the *partial APIs compose* finding against agent registration, where
+`create_agent_principal` and `issue_initial_agent_credential` are individually harmless and jointly
+produce the whole controlled state.
+
+Two practical consequences:
+
+- A row's enumeration must include the **producers of every input** the fixed path trusts, not only the
+  alternate callers of the fixed path. A caller-plantable session row is an authority-producing API
+  even though its name says `insert`.
+- **Look in the existing tests first.** Twice now the proof of a live composition was already written
+  in this repository as a fixture — an existing test that composes two public APIs is evidence the
+  composition is reachable, and it is cheaper to find than to derive.
+
+A corollary for signature-based tooling: the privilege ratchet read the same 107 on both trees while
+both of these compositions were live. **A flat ratchet is not evidence**; it counts declared paths, and
+a composition declares nothing new.
+
 ## Approved dispositions
 
 **Strict — derive from the authority (37 questions).** Q01–Q05, Q07–Q12, Q14–Q22, Q24,
