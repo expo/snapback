@@ -399,6 +399,10 @@ fires, the honest terminal status is `Shelved`, at no further cost.
 
 ## Revision history
 
+- **current/ link restored (2026-08-25, author direction).** The
+  document returns to the declared working set (`llp/current/`) while
+  the D5 commissioning gate stands unchanged — current, but parked:
+  Stage A still starts only on one of the two named triggers.
 - **r5 (2026-08-25, UNREVIEWED, author-directed).** Folded the
   author's ruling as the D5 commissioning gate: Stage A starts only
   when one of two named triggers fires (next G3 rungs commissioned, or
