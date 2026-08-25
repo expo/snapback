@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:8fcbd6a0f042ce7013f06f812ba6fe81289f9b3f0faf3dd87957a45c52767d66"
+    "sourceDigest": "sha256:401a6a032864cb4a8ed6d07e4989721f824cd5bb4adf166aa6d14192dd69a6da"
   },
   "limits": {
     "lookupBytes": 16384
@@ -33220,12 +33220,12 @@
       "sites": [
         {
           "file": "packages/snapback-cli/carrier-kit.mjs",
-          "line": 999,
+          "line": 1004,
           "column": 17
         },
         {
           "file": "packages/snapback-cli/carrier-kit.mjs",
-          "line": 1011,
+          "line": 1016,
           "column": 58
         }
       ],
