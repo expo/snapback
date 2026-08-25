@@ -607,7 +607,7 @@
       "allowedHostId": "mac-mini-durand",
       "loadCeilingId": "mac16-11-m4-pro-12core-loadavg-10-approved-20260824",
       "baseline": {"wallSeconds": 7002, "outputTokens": 196650},
-      "disposition": {"kind": "driver-failure-report", "path": "BLOCKED-grok-coterie-familiar-observation-window-finalization.md", "sha256": "sha256:cf75cd6259873179afdfd8773037190d400aa0b511b68a917a891aff55609aa0"},
+      "disposition": {"kind": "driver-failure-report", "path": "BLOCKED-grok-coterie-familiar-observation-window-finalization.md", "sha256": "sha256:c550b69b296767acf25fe42b685374b12acdad01922f66c9899642323fb0a3a3"},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "grok-coterie-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/grok-coterie-familiar.json"],
       "admissionArtifact": "admissions/grok-coterie-familiar.json",
       "meteringPolicy": {"adapter": "unavailable", "capFamily": "grok-advisory", "nativeCounts": "registered-unavailable", "unavailableReason": "advisory-family-no-approved-native-per-turn-adapter"}

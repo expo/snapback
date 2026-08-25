@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-25
 **Cell:** `grok-coterie-familiar`
-**Disposition:** one admitted attempt consumed; controller finalization failed; no rerun and no no-launch finalizer invoked
+**Disposition:** one admitted attempt consumed; controller finalization failed; no rerun; registered no-launch finalizer later refused on live campaign process evidence before rejoining observations
 **Source revision:** `4890eb48555042dd6eee5ffa116039d3fe9107c4`
 
 ## Exact cause
@@ -87,6 +87,34 @@ rewritten after the controller failure.
 
 ## Disposition
 
-Blocked on the observation-window finalization refusal above. The only honest
-next step is a separately authorized retained-evidence investigation; this
-FINAL-cell conductor stops here and makes no product or harness change.
+The original sequence-142 refusal is repaired by the v6-to-v9 instrument
+migration landed at `b86cd6e2d87dd79ab5287c6b936e832c203b5017`. Its real-evidence
+regression accepts only pure harness telemetry (`block-claim` and
+`host-load-sample`) after the semantic authoring terminal; the retained Opus
+Coterie Familiar semantic-action precedent remains a fail-closed negative
+fixture.
+
+## Registered retained-finalization refusal after the repair
+
+At `2026-08-25T08:09:47Z`, the registered `finalize-existing` tool was invoked
+with `--publish` from committed v9 bytes and the required clean Node-loader
+environment. It did not launch or rerun a benchmark cell. The live quiet probe
+refused before the observation join:
+
+```text
+stage=unclassified source="none" streamLine=none eventOrdinal=none eventType="unknown" cause="R2_ADMISSION_PROCESS: campaign process evidence remains active (51076)" rawPayloadExcerpt="<not event-scoped>"
+```
+
+PID 51076 was the retained cell's own Snapback runtime, listening on
+`127.0.0.1:42140` with working directory
+`/Users/ccheever/bench-matrix-20260823-r2/cells/grok-coterie-familiar`:
+
+```text
+/Users/ccheever/bench-matrix-20260823-r2/cells/grok-coterie-familiar/node_modules/@expo/snapback-runtime-darwin-arm64/bin/snapback start --ready-file /Users/ccheever/bench-matrix-20260823-r2/cells/grok-coterie-familiar/.snapback/dev.ready.json --db /Users/ccheever/bench-matrix-20260823-r2/cells/grok-coterie-familiar/.snapback/dev.sqlite3 --port 42140 --startup-artifacts /Users/ccheever/bench-matrix-20260823-r2/cells/grok-coterie-familiar/.snapback/startup-artifacts.json
+```
+
+The process was not killed or altered. The finalizer wrote no `metering.json`,
+`record.json`, `publication-manifest.json`, or `publication-transaction.json`;
+the committed cell slot remains `not-started`. No scorecard eligibility can be
+set without a valid record. The cell remains blocked on this exact live-process
+refusal, and no record was forced.
