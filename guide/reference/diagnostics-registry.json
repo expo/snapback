@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:43daa3cb06db918836820f634b019ecb05dda0c7451aebfece53c6b9457ca970"
+    "sourceDigest": "sha256:174f9c2ed638afb16bc4d08038e2f6c0658f149d33a0fb719e88b5d25661f509"
   },
   "limits": {
     "lookupBytes": 16384
@@ -7275,8 +7275,7 @@
       "guideAnchor": "/_snapback/guide/clients/react-expo.md#diagnose-a-binding-identity-mismatch",
       "guideAnchors": [
         "/_snapback/guide/clients/react-expo.md#diagnose-a-binding-identity-mismatch",
-        "/_snapback/guide/clients/react-expo.md#start-the-url-first-development-loop",
-        "/_snapback/guide/retrieval-eval.md#seed-intents"
+        "/_snapback/guide/clients/react-expo.md#start-the-url-first-development-loop"
       ]
     },
     "SNAPBACK_APP_BINDING_INTEGRITY_INVALID": {
@@ -10111,8 +10110,7 @@
         "/_snapback/guide/backend/declarative-plans.md#refuse-from-a-plan-elseerror-and-guard",
         "/_snapback/guide/backend/mutations.md#debug-snapbackhandlerfailed-under-the-dev-supervisor",
         "/_snapback/guide/backend/mutations.md#decide-what-deserves-a-code",
-        "/_snapback/guide/clients/react.md#show-stable-application-errors-through-rollback",
-        "/_snapback/guide/retrieval-eval.md#seed-intents"
+        "/_snapback/guide/clients/react.md#show-stable-application-errors-through-rollback"
       ]
     },
     "SNAPBACK_APP_SESSION_BEARER": {
@@ -10195,8 +10193,7 @@
       "guideAnchor": "/_snapback/guide/backend/trusted-runtime-values.md#keep-generated-fields-out-of-operation-arguments",
       "guideAnchors": [
         "/_snapback/guide/backend/trusted-runtime-values.md#keep-generated-fields-out-of-operation-arguments",
-        "/_snapback/guide/clients/headless.md#call-ordinary-functions",
-        "/_snapback/guide/retrieval-eval.md#seed-intents"
+        "/_snapback/guide/clients/headless.md#call-ordinary-functions"
       ]
     },
     "SNAPBACK_ARG_MISSING": {
@@ -12157,8 +12154,7 @@
       "httpStatusClass": "4xx",
       "guideAnchor": "/_snapback/guide/backend/assets.md#svg-why-the-image-intent-refuses-it-and-the-safe-adapter",
       "guideAnchors": [
-        "/_snapback/guide/backend/assets.md#svg-why-the-image-intent-refuses-it-and-the-safe-adapter",
-        "/_snapback/guide/retrieval-eval.md#seed-intents"
+        "/_snapback/guide/backend/assets.md#svg-why-the-image-intent-refuses-it-and-the-safe-adapter"
       ]
     },
     "SNAPBACK_ASSET_NOT_READY": {
@@ -19401,11 +19397,10 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": "/_snapback/guide/retrieval-eval.md#seed-intents",
+      "guideAnchor": "/_snapback/guide/testing/acceptance.md#recover-from-snapbackauthcustodydurableunavailable",
       "guideAnchors": [
-        "/_snapback/guide/retrieval-eval.md#seed-intents",
-        "/_snapback/guide/start/expo-chat.md#posture",
-        "/_snapback/guide/testing/acceptance.md#select-a-durable-capable-client-platform"
+        "/_snapback/guide/testing/acceptance.md#recover-from-snapbackauthcustodydurableunavailable",
+        "/_snapback/guide/start/expo-chat.md#posture"
       ]
     },
     "SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION": {
@@ -20601,8 +20596,7 @@
       "guideAnchor": "/_snapback/guide/auth/passwords.md#claim-a-guest-with-a-password",
       "guideAnchors": [
         "/_snapback/guide/auth/passwords.md#claim-a-guest-with-a-password",
-        "/_snapback/guide/auth/sessions-and-principals.md#enter-as-a-claimable-guest",
-        "/_snapback/guide/retrieval-eval.md#seed-intents"
+        "/_snapback/guide/auth/sessions-and-principals.md#enter-as-a-claimable-guest"
       ]
     },
     "SNAPBACK_AUTH_GUEST_CLAIM_UNAVAILABLE": {
@@ -24397,8 +24391,7 @@
       "guideAnchors": [
         "/_snapback/guide/clients/contract-adapter.md#refuse-unqualified-milestones-and-translate-errors-deliberately",
         "/_snapback/guide/recipes/sessions-fixture-install.md#anti-patterns",
-        "/_snapback/guide/recipes/sessions-fixture-install.md#sign-up-first-on-existence-sign-in-and-prove-the-whole-fixture",
-        "/_snapback/guide/retrieval-eval.md#seed-intents"
+        "/_snapback/guide/recipes/sessions-fixture-install.md#sign-up-first-on-existence-sign-in-and-prove-the-whole-fixture"
       ]
     },
     "SNAPBACK_AUTH_PASSWORD_HASH_UNAVAILABLE": {
@@ -26580,8 +26573,7 @@
       "guideAnchors": [
         "/_snapback/guide/capabilities.md#capabilities",
         "/_snapback/guide/operating/backup-and-copy.md#back-up-copy-and-move-a-store",
-        "/_snapback/guide/operating/backup-and-copy.md#diagnose-a-bad-copy",
-        "/_snapback/guide/retrieval-eval.md#seed-intents"
+        "/_snapback/guide/operating/backup-and-copy.md#diagnose-a-bad-copy"
       ]
     },
     "SNAPBACK_AUTH_PROVIDER_UNDECLARED": {
@@ -27868,8 +27860,7 @@
       "httpStatusClass": "4xx",
       "guideAnchor": "/_snapback/guide/operating/host-ops.md#mint-a-session-over-http",
       "guideAnchors": [
-        "/_snapback/guide/operating/host-ops.md#mint-a-session-over-http",
-        "/_snapback/guide/retrieval-eval.md#seed-intents"
+        "/_snapback/guide/operating/host-ops.md#mint-a-session-over-http"
       ]
     },
     "SNAPBACK_AUTH_REQUIRED": {
@@ -28390,8 +28381,7 @@
         "/_snapback/guide/backend/mutations.md#anti-patterns",
         "/_snapback/guide/backend/mutations.md#preserve-invariants-with-read-sets",
         "/_snapback/guide/clients/headless.md#call-ordinary-functions",
-        "/_snapback/guide/clients/swift.md#construct-a-client",
-        "/_snapback/guide/retrieval-eval.md#seed-intents"
+        "/_snapback/guide/clients/swift.md#construct-a-client"
       ]
     },
     "SNAPBACK_AUTH_RESNAPSHOT_REQUIRED": {
@@ -29729,9 +29719,7 @@
       "httpStatusClass": "4xx",
       "guideAnchor": "/_snapback/guide/auth/sessions-and-principals.md#recover-from-snapbackauthstaleresult",
       "guideAnchors": [
-        "/_snapback/guide/auth/sessions-and-principals.md#recover-from-snapbackauthstaleresult",
-        "/_snapback/guide/retrieval-eval.md#seed-intents",
-        "/_snapback/guide/sync/offline-and-retention.md#retained-asset-references-do-not-retain-image-bytes"
+        "/_snapback/guide/auth/sessions-and-principals.md#recover-from-snapbackauthstaleresult"
       ]
     },
     "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH": {
@@ -29967,8 +29955,7 @@
       "guideAnchor": "/_snapback/guide/clients/headless.md#construct-one-client-per-backend-and-custody-context",
       "guideAnchors": [
         "/_snapback/guide/clients/headless.md#construct-one-client-per-backend-and-custody-context",
-        "/_snapback/guide/recipes/multi-persona-clients.md#read-the-implicit-reuse-warning",
-        "/_snapback/guide/retrieval-eval.md#seed-intents"
+        "/_snapback/guide/recipes/multi-persona-clients.md#read-the-implicit-reuse-warning"
       ]
     },
     "SNAPBACK_AUTH_STREAM_INCARNATION_CORRUPT": {
@@ -38601,8 +38588,7 @@
       "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#diagnostic-attribution",
       "guideAnchors": [
         "/_snapback/guide/backend/handler-runtime.md#diagnostic-attribution",
-        "/_snapback/guide/capabilities.md#capabilities",
-        "/_snapback/guide/retrieval-eval.md#seed-intents"
+        "/_snapback/guide/capabilities.md#capabilities"
       ]
     },
     "SNAPBACK_CODEGEN_DEFINITION_NUMBER_INVALID": {
@@ -38715,8 +38701,7 @@
       "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#diagnostic-attribution",
       "guideAnchors": [
         "/_snapback/guide/backend/handler-runtime.md#diagnostic-attribution",
-        "/_snapback/guide/capabilities.md#capabilities",
-        "/_snapback/guide/retrieval-eval.md#seed-intents"
+        "/_snapback/guide/capabilities.md#capabilities"
       ]
     },
     "SNAPBACK_CODEGEN_EFFECT_CEILING_FAILED": {
@@ -42458,8 +42443,7 @@
       "httpStatusClass": null,
       "guideAnchor": "/_snapback/guide/clients/contract-adapter.md#boot-one-surface-one-idempotent-ensure",
       "guideAnchors": [
-        "/_snapback/guide/clients/contract-adapter.md#boot-one-surface-one-idempotent-ensure",
-        "/_snapback/guide/retrieval-eval.md#seed-intents"
+        "/_snapback/guide/clients/contract-adapter.md#boot-one-surface-one-idempotent-ensure"
       ]
     },
     "SNAPBACK_CONTRACT_INNER_MUTATION_QUEUED": {
@@ -45932,8 +45916,7 @@
       "httpStatusClass": null,
       "guideAnchor": "/_snapback/guide/clients/react-expo.md#know-what-the-supervisor-owns",
       "guideAnchors": [
-        "/_snapback/guide/clients/react-expo.md#know-what-the-supervisor-owns",
-        "/_snapback/guide/retrieval-eval.md#seed-intents"
+        "/_snapback/guide/clients/react-expo.md#know-what-the-supervisor-owns"
       ]
     },
     "SNAPBACK_DEV_EXTERNAL_URL_REQUIRED": {
@@ -58061,8 +58044,7 @@
         "/_snapback/guide/backend/mutations.md#refuse-with-a-declared-code-not-a-bare-throw",
         "/_snapback/guide/backend/queries.md#refuse-with-a-declared-application-code",
         "/_snapback/guide/clients/react.md#anti-patterns",
-        "/_snapback/guide/clients/react.md#show-stable-application-errors-through-rollback",
-        "/_snapback/guide/retrieval-eval.md#seed-intents"
+        "/_snapback/guide/clients/react.md#show-stable-application-errors-through-rollback"
       ]
     },
     "SNAPBACK_HANDLER_HARNESS_INIT_FAILED": {
@@ -61500,7 +61482,6 @@
       "guideAnchor": "/_snapback/guide/recipes/auth-transition-writes.md#declare-only-genuine-housekeeping",
       "guideAnchors": [
         "/_snapback/guide/recipes/auth-transition-writes.md#declare-only-genuine-housekeeping",
-        "/_snapback/guide/retrieval-eval.md#seed-intents",
         "/_snapback/guide/sync/offline-and-retention.md#equivalent-work-diagnostics"
       ]
     },
@@ -75288,8 +75269,7 @@
         "/_snapback/guide/index.md#recipes",
         "/_snapback/guide/recipes/auth-transition-writes.md#fence-non-queueable-gestures",
         "/_snapback/guide/recipes/auth-transition-writes.md#recipe-writes-during-authentication-transitions",
-        "/_snapback/guide/recipes/auth-transition-writes.md#what-proves-this-contract",
-        "/_snapback/guide/retrieval-eval.md#seed-intents"
+        "/_snapback/guide/recipes/auth-transition-writes.md#what-proves-this-contract"
       ]
     },
     "SNAPBACK_OUTBOX_DRAIN_BARRIER_REFUSED": {
@@ -80586,8 +80566,7 @@
       "guideAnchors": [
         "/_snapback/guide/backend/queries.md#builder-bounds-and-their-refusal-codes",
         "/_snapback/guide/capabilities.md#capabilities",
-        "/_snapback/guide/recipes/chunked-semijoin-feed.md#reserve-cursor-and-visibility-bindings-before-sizing-a-chunk",
-        "/_snapback/guide/retrieval-eval.md#seed-intents"
+        "/_snapback/guide/recipes/chunked-semijoin-feed.md#reserve-cursor-and-visibility-bindings-before-sizing-a-chunk"
       ]
     },
     "SNAPBACK_QUERY_KEYSET_INVALID": {
@@ -82479,8 +82458,7 @@
       "httpStatusClass": null,
       "guideAnchor": "/_snapback/guide/recipes/activity-presence.md#keep-presence-values-stable",
       "guideAnchors": [
-        "/_snapback/guide/recipes/activity-presence.md#keep-presence-values-stable",
-        "/_snapback/guide/retrieval-eval.md#seed-intents"
+        "/_snapback/guide/recipes/activity-presence.md#keep-presence-values-stable"
       ]
     },
     "SNAPBACK_REACT_PRESENCE_VALUE_CONFLICT": {
@@ -87641,11 +87619,9 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": "/_snapback/guide/retrieval-eval.md#seed-intents",
+      "guideAnchor": "/_snapback/guide/sync/offline-and-retention.md#retain-public-viewer-facts-by-argument-not-authority",
       "guideAnchors": [
-        "/_snapback/guide/retrieval-eval.md#seed-intents",
-        "/_snapback/guide/sync/offline-and-retention.md#retain-public-viewer-facts-by-argument-not-authority",
-        "/_snapback/guide/sync/offline-and-retention.md#retained-asset-references-do-not-retain-image-bytes"
+        "/_snapback/guide/sync/offline-and-retention.md#retain-public-viewer-facts-by-argument-not-authority"
       ]
     },
     "SNAPBACK_RETENTION_OWNER_AUTHORITY_UNAVAILABLE": {
@@ -90958,7 +90934,6 @@
       "guideAnchor": "/_snapback/guide/backend/versioned-seeds.md#interpret-refusals",
       "guideAnchors": [
         "/_snapback/guide/backend/versioned-seeds.md#interpret-refusals",
-        "/_snapback/guide/retrieval-eval.md#seed-intents",
         "/_snapback/guide/testing/large-fixtures.md#anti-patterns",
         "/_snapback/guide/testing/large-fixtures.md#loading-large-deterministic-fixtures"
       ]
@@ -95530,7 +95505,6 @@
       "guideAnchors": [
         "/_snapback/guide/clients/react-expo.md#know-what-the-supervisor-owns",
         "/_snapback/guide/clients/react-expo.md#reproduce-a-supervised-cold-boot-with-bare-metro",
-        "/_snapback/guide/retrieval-eval.md#seed-intents",
         "/_snapback/guide/sync/offline-and-retention.md#retained-asset-references-do-not-retain-image-bytes"
       ]
     },

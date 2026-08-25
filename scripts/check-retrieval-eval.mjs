@@ -6,8 +6,11 @@
 // agent a lexical path to an expected page: the term appears in
 // guide/capabilities.md's Aliases column on a row pointing at an expected
 // page, or in an expected page's title, a heading, or the body. It also
-// cross-checks (3) that every Rosetta record alias
-// (guide/rosetta/records/*.json) is mirrored as a seed-case route term.
+// checks (3) required guidance against each named page while rejecting stale
+// guidance across the page set, (4) that every Rosetta record alias
+// (guide/rosetta/records/*.json) is mirrored as a seed-case route term, and
+// (5) that every route term containing a SNAPBACK_* code carries an exact
+// diagnostic target pin.
 // It does NOT run agents: actual cold-agent navigation within the
 // ~15-tool-use budget stays the manual/W1-instrument protocol.
 // @ref LLP 0186#amendment-2026-08-06-w2-rosetta-section--worked-example-tier — alias-tier terms must be mirrored as retrieval-eval seed cases.
@@ -84,6 +87,9 @@ function parseSeedCases(text, errors) {
     seed.expectedPages = [...seed.text.slice(pagesAt, termsAt).matchAll(/`([^`]+)`/g)]
       .map((m) => m[1]);
     seed.terms = [...seed.text.slice(termsAt, termsEnd).matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+    seed.routeDiagnosticCodes = [...new Set(
+      seed.terms.flatMap((term) => [...term.matchAll(/\bSNAPBACK_[A-Z0-9_]+\b/gu)].map((m) => m[0])),
+    )];
     seed.requiredGuidance = requiredAt === -1
       ? []
       : [...seed.text.slice(requiredAt, markerEnd(requiredAt, [rejectedAt, exactDiagnosticAt])).matchAll(/"([^"]+)"/g)]
@@ -101,6 +107,19 @@ function parseSeedCases(text, errors) {
       } else {
         seed.exactDiagnosticTarget = { code: exact[1], anchor: exact[2] };
       }
+    }
+    if (seed.routeDiagnosticCodes.length > 0 && !seed.exactDiagnosticTarget) {
+      errors.push(
+        `${who}: route term diagnostic ${seed.routeDiagnosticCodes.join(', ')} requires an `
+        + '"Exact diagnostic target:" marker',
+      );
+    } else if (
+      seed.exactDiagnosticTarget
+      && !seed.routeDiagnosticCodes.includes(seed.exactDiagnosticTarget.code)
+    ) {
+      errors.push(
+        `${who}: exact diagnostic target ${seed.exactDiagnosticTarget.code} is not present in Route terms`,
+      );
     }
     if (seed.expectedPages.length === 0) errors.push(`${who}: "Expected pages:" lists no backticked pages`);
     if (seed.terms.length === 0) errors.push(`${who}: "Route terms:" lists no quoted terms`);
@@ -218,6 +237,20 @@ function main() {
           `${EVAL_PAGE}: case ${seed.number} (${seed.label}) is missing required guidance `
           + `"${guidance}" from its expected page(s)`,
         );
+      }
+    }
+    if ((seed.requiredGuidance ?? []).length > 0) {
+      for (const page of seed.expectedPages) {
+        const normalizedPageText = normalizeGuidance(pageTexts.get(page)?.body ?? '');
+        const pageHasRequiredGuidance = seed.requiredGuidance.some(
+          (guidance) => normalizedPageText.includes(normalizeGuidance(guidance)),
+        );
+        if (!pageHasRequiredGuidance) {
+          errors.push(
+            `${EVAL_PAGE}: case ${seed.number} (${seed.label}) expected page guide/${page} `
+            + 'contains none of the case\'s required guidance',
+          );
+        }
       }
     }
     for (const guidance of seed.rejectedGuidance ?? []) {

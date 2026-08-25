@@ -93,6 +93,8 @@ fixed in the guide, must add a seed case here that would have caught it.
    admission.
    Expected pages: `clients/react-expo.md`.
    Route terms: "SNAPBACK_APP_BINDING_IDENTITY_MISMATCH", "expo".
+   Exact diagnostic target: `SNAPBACK_APP_BINDING_IDENTITY_MISMATCH` ->
+   `/_snapback/guide/clients/react-expo.md#diagnose-a-binding-identity-mismatch`.
 
 9. **Asset rendering:** "My uploaded image renders as an empty `<Image>` on
    a sessions-mode server." (The replicated 2026-08-06 rematch-bakeoff miss:
@@ -163,6 +165,8 @@ Lane 1 misses, absorbed 2026-08-07).
     Expected pages: `testing/large-fixtures.md`.
     Route terms: "SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED", "large fixture",
     "seed ceiling".
+    Exact diagnostic target: `SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED` ->
+    `/_snapback/guide/backend/versioned-seeds.md#interpret-refusals`.
 
 16. **Domain errors and optimistic create:** "Show 'card is locked' copy when
     a mutation is rejected, and optimistically create a row whose ID the
@@ -187,6 +191,8 @@ Case 17 is an absorption seed from the 2026-08-07 three-lane measurement
     shape table).
     Route terms: "retention", "args-filtered", "retainable",
     "SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE".
+    Exact diagnostic target: `SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE` ->
+    `/_snapback/guide/sync/offline-and-retention.md#retain-public-viewer-facts-by-argument-not-authority`.
 
 Cases 18–20 are absorption seeds from the 2026-08-08 Zerobugs-control guide-gap
 tickets (declared refusals, principal↔app-identity binding, SVG assets).
@@ -201,6 +207,8 @@ tickets (declared refusals, principal↔app-identity binding, SVG assets).
     Expected pages: `backend/mutations.md`.
     Route terms: "declared refusal", "ctx.refuse", "SNAPBACK_APP_REFUSAL",
     "appCode".
+    Exact diagnostic target: `SNAPBACK_APP_REFUSAL` ->
+    `/_snapback/guide/backend/declarative-plans.md#anti-patterns`.
 
 19. **Principal to app identity:** "My app has its own users table with OAuth
     ids — how do I connect Snapback's `ctx.auth.userId` to it?" The run fails
@@ -218,6 +226,8 @@ tickets (declared refusals, principal↔app-identity binding, SVG assets).
     Expected pages: `backend/assets.md`.
     Route terms: "SVG", "image/svg+xml",
     "SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED", "nosniff".
+    Exact diagnostic target: `SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED` ->
+    `/_snapback/guide/backend/assets.md#svg-why-the-image-intent-refuses-it-and-the-safe-adapter`.
 
 Case 21 is an absorption seed from the 2026-08-07 zerobugs `zb5-hot` `v4`
 attempt (`issues/closed/20260808-sessions-store-copy-needs-auth-keyring-sibling.md`):
@@ -232,6 +242,8 @@ store copy, and nothing in the guide named the sibling.
     Expected pages: `operating/backup-and-copy.md`.
     Route terms: "backup", "copy database", "clone database",
     "auth-keyring.json", "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE".
+    Exact diagnostic target: `SNAPBACK_AUTH_PROVIDER_UNAVAILABLE` ->
+    `/_snapback/guide/capabilities.md#capabilities`.
 
 Case 22 absorbs the replicated mutation-authoring miss recorded in
 `issues/closed/20260808-ctx-db-verbs-undocumented.md`.
@@ -254,6 +266,8 @@ Case 23 absorbs the repeated headless-call-shape miss recorded in
     Expected pages: `clients/headless.md`.
     Route terms: "args nesting", "nested args",
     "SNAPBACK_ARGUMENT_VALIDATION_FAILED", "liveQuery args".
+    Exact diagnostic target: `SNAPBACK_ARGUMENT_VALIDATION_FAILED` ->
+    `/_snapback/guide/backend/trusted-runtime-values.md#keep-generated-fields-out-of-operation-arguments`.
 
 Case 24 absorbs the repeated verifier-config source-reading detour recorded in
 `issues/closed/20260808-verify-config-authoring-guide-anchor.md`.
@@ -366,6 +380,8 @@ composition, packaged codegen, and existing-app composition.
     Expected pages: `backend/jobs.md`.
     Route terms: "retryable by design", "SNAPBACK_AUTH_RESERVATION_STALE",
     "dead-letter", "DLQ", "succeeded after retry".
+    Exact diagnostic target: `SNAPBACK_AUTH_RESERVATION_STALE` ->
+    `/_snapback/guide/backend/jobs.md#budget-retries-for-expected-contention`.
 
 33. **Expo durable-store registration:** "Register Expo file persistence in a
     universal iOS/Android/web app without white-screening web." The run fails
@@ -448,6 +464,8 @@ itself.
     Expected pages: `operating/host-ops.md`, `auth/native-apps.md`.
     Route terms: "auth.mintSession", "session mint HTTP",
     "SNAPBACK_AUTH_REQUEST_INVALID", "identity broker".
+    Exact diagnostic target: `SNAPBACK_AUTH_REQUEST_INVALID` ->
+    `/_snapback/guide/operating/host-ops.md#mint-a-session-over-http`.
 
 Case 42 absorbs the supervised Expo-web launcher-boundary miss recorded in
 `issues/closed/20260809-guide-gap-supervised-expo-web-launcher-boundary.md`.
@@ -461,6 +479,8 @@ Case 42 absorbs the supervised Expo-web launcher-boundary miss recorded in
     Expected pages: `clients/react-expo.md`.
     Route terms: "--expo-platform web", "--client-command",
     "SNAPBACK_DEV_EXPO_SUPERVISOR_BYPASSED", "custom broker origin".
+    Exact diagnostic target: `SNAPBACK_DEV_EXPO_SUPERVISOR_BYPASSED` ->
+    `/_snapback/guide/clients/react-expo.md#know-what-the-supervisor-owns`.
 
 Cases 43–46 absorb the Diary 0074 pointing-room guide-gap tickets, fixed
 2026-08-10 — the replicated instances of the sophisticated-variant-only
@@ -507,6 +527,8 @@ ordinary variant was unsupported and built host glue around a paved path.
     Expected pages: `clients/contract-adapter.md`.
     Route terms: "keyedQueryScopes",
     "SNAPBACK_CONTRACT_EPHEMERAL_UNSUPPORTED", "forceEphemeralState".
+    Exact diagnostic target: `SNAPBACK_CONTRACT_EPHEMERAL_UNSUPPORTED` ->
+    `/_snapback/guide/clients/contract-adapter.md#boot-one-surface-one-idempotent-ensure`.
 
 Case 47 absorbs the npm-only generated-typecheck gap recorded in
 `issues/closed/20260811-guide-gap-npm-generated-contract-typecheck.md`.
@@ -563,6 +585,8 @@ restriction profile.
     Expected pages: `backend/handler-runtime.md`.
     Route terms: "SNAPBACK_CODEGEN_DEFINITION_NOT_EXPORTED",
     "unexported top-level operation", "definition path".
+    Exact diagnostic target: `SNAPBACK_CODEGEN_DEFINITION_NOT_EXPORTED` ->
+    `/_snapback/guide/backend/handler-runtime.md#diagnostic-attribution`.
 
 52. **Unserializable definition value:** "Generation reports
     `SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE`; how do I find the bad
@@ -571,6 +595,8 @@ restriction profile.
     Expected pages: `backend/handler-runtime.md`.
     Route terms: "SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE",
     "nested property path", "definition path".
+    Exact diagnostic target: `SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE` ->
+    `/_snapback/guide/backend/handler-runtime.md#diagnostic-attribution`.
 
 53. **Declaration suggestions:** "How do I get Snapback to write my result
     contract?" The run fails if the plan invents bounds or table identity,
@@ -624,6 +650,8 @@ installation and inverse provider-neutral Contract adaptation.
     Expected pages: `recipes/sessions-fixture-install.md`.
     Route terms: "install sessions fixtures", "fixture-source digest",
     "SNAPBACK_AUTH_PASSWORD_EXISTS", "matched repeat".
+    Exact diagnostic target: `SNAPBACK_AUTH_PASSWORD_EXISTS` ->
+    `/_snapback/guide/clients/contract-adapter.md#refuse-unqualified-milestones-and-translate-errors-deliberately`.
 
 58. **Frozen provider-neutral Contract adapter:** "Implement an already-frozen
     provider-neutral `ContractDataProvider` over Snapback without changing the
@@ -670,6 +698,8 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
     Route terms: "SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED", "eager route-entry receipt", "background writes during auth transitions", "authorization-suspended foreground".
     Required guidance: "declare `{ key, idempotent: true, successorValid: true }` only for latest-wins housekeeping", "`blockedReason: auth-barrier` means zero transport", "foreground admission is independent of suspended housekeeping", "observe `SNAPBACK_HOUSEKEEPING_SUPERSEDED` through mutation status".
     Rejected guidance: "mark foreground gestures as housekeeping", "retry on a timer while auth changes".
+    Exact diagnostic target: `SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED` ->
+    `/_snapback/guide/clients/headless.md#enter-and-leave-session-authority`.
 
 62. **Presence heartbeat versus bound value:** "My typing indicator is stuck
     and presence is not expiring under the five-second ceiling. I passed
@@ -884,7 +914,10 @@ miss and binds it to the runtime warning rather than prose alone.
     Expected pages: `recipes/multi-persona-clients.md`, `clients/headless.md`.
     Route terms: "second client same user", "multiple clients same session",
     "personas share login", "SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE".
-    Required guidance: "one stable explicit storagePartition per persona or worker".
+    Required guidance: "one stable explicit storagePartition per persona or worker",
+    "storagePartition".
+    Exact diagnostic target: `SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE` ->
+    `/_snapback/guide/clients/headless.md#construct-one-client-per-backend-and-custody-context`.
 
 Cases 88–89 absorb the Coterie membership-feed miss recorded in Diary 0086
 and LLP 0277 F3. Their route terms preserve the run's wrong vocabulary so an
@@ -901,6 +934,8 @@ or assuming LLP 0278 D3 shipped.
     "SNAPBACK_QUERY_IN_ITEMS_EXCEEDED".
     Required guidance: "at most 499 actor IDs per chunk",
     "LLP 0278 D3 remains design-only".
+    Exact diagnostic target: `SNAPBACK_QUERY_IN_ITEMS_EXCEEDED` ->
+    `/_snapback/guide/backend/queries.md#builder-bounds-and-their-refusal-codes`.
 
 89. **Force the membership-feed chunk seam:** "Prove a membership feed's
     top 20 merge across multiple actor chunks without creating 500 fixture
@@ -942,7 +977,7 @@ Case 92 absorbs the first-party guest-session entry closure from LLP 0294 W6.1.
     existing password identity.
     Expected pages: `auth/sessions-and-principals.md`, `auth/passwords.md`.
     Route terms: "enterAsGuest", "claimGuestWithPassword", "guest entry".
-    Required guidance: "A caller never supplies the principal id, session id, expiry, or cleanup policy", "An existing password identity refuses".
+    Required guidance: "A caller never supplies the principal id, session id, expiry, or cleanup policy", "An existing password identity refuses", "SNAPBACK_AUTH_GUEST_CLAIM_COLLISION".
 
 Cases 93–96 absorb the 2026-08-24 Familiar auth-entrypoint and volatile
 activity-presence guide gaps. Their route terms preserve the vocabulary used
@@ -1001,7 +1036,8 @@ React/JS product blank is not yet explained.
     "Never put a provisional id on a point query",
     "Wait for live delivery only when subscribed before the insert",
     "A post-settlement subscribe with the canonical id must snapshot the row",
-    "defineJsLiveQuery plus a local cache remains the documented application workaround".
+    "defineJsLiveQuery plus a local cache remains the documented application workaround",
+    "defineJsLiveQuery plus a local cache".
 
 Cases 98–101 absorb the published 0.1.27 Clique guide misses recorded in LLP
 0310. Their route terms preserve the failed lookup and the wrong package,
@@ -1012,7 +1048,7 @@ platform, and generated-directory assumptions from that run.
     The run fails if it creates the legacy directory or symlink, or teaches two
     watcher-visible paths for one generated graph.
     Expected pages: `backend/familiar-profile.md`, `start/expo-chat.md`.
-    Route terms: "_generated compatibility alias", "generated directory spelling".
+    Route terms: "refused alias", "generated directory spelling".
     Required guidance: "The `_generated/` spelling is a refused alias".
 
 99. **Stale auth result lookup:** "A mutation reports
@@ -1034,6 +1070,7 @@ platform, and generated-directory assumptions from that run.
      Route terms: "URL-first activity presence", "SnapbackExpoLifecycleContext".
      Required guidance: "URL-first web imports `useSnapbackActivityPresence` from `@expo/snapback-react`",
      "The `@expo/snapback-expo` facade hook is for `SnapbackExpoProvider` only".
+     Rejected guidance: "In Expo, import `useSnapbackActivityPresence` from `@expo/snapback-expo`".
 
 101. **Durable custody in Node acceptance:** "Run expo-chat acceptance with
      durable-required custody from Node."
@@ -1041,9 +1078,11 @@ platform, and generated-directory assumptions from that run.
      in-memory server database as the problem, or invents a second custody
      store instead of using the template helper.
      Expected pages: `start/expo-chat.md`, `testing/acceptance.md`.
-     Route terms: "durable custody Node memory", "SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE".
+     Route terms: "durable-required", "SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE".
      Required guidance: "Node `memory` refuses durable custody with `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`",
      "`expo-web` with `fake-indexeddb`".
+     Exact diagnostic target: `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE` ->
+     `/_snapback/guide/testing/acceptance.md#recover-from-snapbackauthcustodydurableunavailable`.
 
 ## Static routing check
 
@@ -1053,10 +1092,13 @@ The deterministic half of this corpus is executable:
 verifies, on every guide check, that (1) each case's expected pages exist,
 (2) each case has at least one lexical route — a route term found in the
 capability index's Aliases column on a row pointing at an expected page,
-or in an expected page's title, a heading, or its body — (3) optional required
-guidance is present and rejected guidance absent from those pages, and (4) every
-Rosetta record alias (`guide/rosetta/records/*.json`) is mirrored as a
-seed-case route term, per the LLP 0186 W2 amendment.
+or in an expected page's title, a heading, or its body — (3) every named page
+contains at least one optional required-guidance phrase, every required phrase
+appears somewhere in the named page set, and rejected guidance is absent from
+that set, (4) every Rosetta record alias
+(`guide/rosetta/records/*.json`) is mirrored as a seed-case route term, per the
+LLP 0186 W2 amendment, and (5) any seed case whose route terms include a
+`SNAPBACK_*` code pins that code's exact primary Guide target.
 
 What it does **not** prove: that a cold agent actually navigates to the
 page within the ~15-tool-use budget, plans with the paved technique, or

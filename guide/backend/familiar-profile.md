@@ -456,6 +456,7 @@ For URL-first Expo web using `SnapbackProvider`, import
 expects that provider's `SnapbackExpoLifecycleContext` and adds AppState
 withdrawal. These are two context-appropriate exports of the same presence
 feature, not a third hook to invent.
+Search vocabulary: URL-first activity presence.
 
 Here is the shortest coherent application loop, rather than six disconnected
 reference exercises:

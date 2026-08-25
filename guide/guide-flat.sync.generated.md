@@ -206,8 +206,7 @@ proof of the same contracts. The headless witness proves:
   authority-independent live queries first, marked
   `freshness: 'retained'`, then settles to `'current'` on reconnect
   (LLP 0090 Channel B). Non-`rqsEligible` queries are NOT retainable: the
-  handle's `retention` fact names the refusal
-  (`SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE`) instead of silently acting
+  handle's `retention` fact names the refusal instead of silently acting
   local-first. Protected/auth-scoped and opaque queries still report
   `SNAPBACK_RETENTION_NOT_RETAINABLE` when the generated lease shape or
   negotiated sessions/lease protocols are absent. With those proofs present,
@@ -253,8 +252,9 @@ proof of the same contracts. The headless witness proves:
   authoritative snapshot (full resync first — LLP 0008 §Mutation Replay),
   the client drains the queue in sequence order; the server's settlement
   ledger returns the original result on duplicate delivery. (A content-refused
-  replay is dropped and marked failed, visible in `outboxRecords()`;
-  `SNAPBACK_AUTH_STALE_RESULT` instead becomes terminal `stranded` custody. The
+  replay is dropped and marked failed, visible in `outboxRecords()`; a
+  [stale auth result](../auth/sessions-and-principals.md#recover-from-snapbackauthstaleresult)
+  instead becomes terminal `stranded` custody. The
   store transition and the client wiring that maps a server refusal onto it
   are covered by `packages/snapback-client/outbox-store.test.mjs`; the
   ordered drain itself is proven end-to-end in the browser carrier by the

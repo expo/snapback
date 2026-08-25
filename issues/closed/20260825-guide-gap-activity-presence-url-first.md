@@ -23,10 +23,11 @@ The Expo facade hook is for `SnapbackExpoProvider` only.
 
 ## Resolution (2026-08-25)
 
-Resolved the documentation slice of LLP 0310.000 Track D (in review). The
-Familiar profile, ephemeral-state page, and activity-presence recipe now bind
-the hook import to the provider: URL-first `SnapbackProvider` trees use
-`@expo/snapback-react`; the `@expo/snapback-expo` facade is for
-`SnapbackExpoProvider`. Retrieval case 100 and `check-guide` verify that guide
-wording. The Track D generation-fence product change was not implemented or
-tested in this lane.
+Resolved the documentation slice. The Familiar profile, ephemeral-state page,
+and activity-presence recipe bind the hook import to the provider: URL-first
+`SnapbackProvider` trees use `@expo/snapback-react`; the
+`@expo/snapback-expo` facade is for `SnapbackExpoProvider`. Retrieval case 100
+now routes the preserved "URL-first activity presence" vocabulary, requires
+guidance on every named page, and rejects the old unconditional Expo-facade
+import. The generation-fence product change was not implemented or tested in
+this lane.

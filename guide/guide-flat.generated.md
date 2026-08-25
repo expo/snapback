@@ -1242,6 +1242,8 @@ fixed in the guide, must add a seed case here that would have caught it.
    admission.
    Expected pages: `clients/react-expo.md`.
    Route terms: "SNAPBACK_APP_BINDING_IDENTITY_MISMATCH", "expo".
+   Exact diagnostic target: `SNAPBACK_APP_BINDING_IDENTITY_MISMATCH` ->
+   `/_snapback/guide/clients/react-expo.md#diagnose-a-binding-identity-mismatch`.
 
 9. **Asset rendering:** "My uploaded image renders as an empty `<Image>` on
    a sessions-mode server." (The replicated 2026-08-06 rematch-bakeoff miss:
@@ -1312,6 +1314,8 @@ Lane 1 misses, absorbed 2026-08-07).
     Expected pages: `testing/large-fixtures.md`.
     Route terms: "SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED", "large fixture",
     "seed ceiling".
+    Exact diagnostic target: `SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED` ->
+    `/_snapback/guide/backend/versioned-seeds.md#interpret-refusals`.
 
 16. **Domain errors and optimistic create:** "Show 'card is locked' copy when
     a mutation is rejected, and optimistically create a row whose ID the
@@ -1336,6 +1340,8 @@ Case 17 is an absorption seed from the 2026-08-07 three-lane measurement
     shape table).
     Route terms: "retention", "args-filtered", "retainable",
     "SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE".
+    Exact diagnostic target: `SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE` ->
+    `/_snapback/guide/sync/offline-and-retention.md#retain-public-viewer-facts-by-argument-not-authority`.
 
 Cases 18–20 are absorption seeds from the 2026-08-08 Zerobugs-control guide-gap
 tickets (declared refusals, principal↔app-identity binding, SVG assets).
@@ -1350,6 +1356,8 @@ tickets (declared refusals, principal↔app-identity binding, SVG assets).
     Expected pages: `backend/mutations.md`.
     Route terms: "declared refusal", "ctx.refuse", "SNAPBACK_APP_REFUSAL",
     "appCode".
+    Exact diagnostic target: `SNAPBACK_APP_REFUSAL` ->
+    `/_snapback/guide/backend/declarative-plans.md#anti-patterns`.
 
 19. **Principal to app identity:** "My app has its own users table with OAuth
     ids — how do I connect Snapback's `ctx.auth.userId` to it?" The run fails
@@ -1367,6 +1375,8 @@ tickets (declared refusals, principal↔app-identity binding, SVG assets).
     Expected pages: `backend/assets.md`.
     Route terms: "SVG", "image/svg+xml",
     "SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED", "nosniff".
+    Exact diagnostic target: `SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED` ->
+    `/_snapback/guide/backend/assets.md#svg-why-the-image-intent-refuses-it-and-the-safe-adapter`.
 
 Case 21 is an absorption seed from the 2026-08-07 zerobugs `zb5-hot` `v4`
 attempt (`issues/closed/20260808-sessions-store-copy-needs-auth-keyring-sibling.md`):
@@ -1381,6 +1391,8 @@ store copy, and nothing in the guide named the sibling.
     Expected pages: `operating/backup-and-copy.md`.
     Route terms: "backup", "copy database", "clone database",
     "auth-keyring.json", "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE".
+    Exact diagnostic target: `SNAPBACK_AUTH_PROVIDER_UNAVAILABLE` ->
+    `/_snapback/guide/capabilities.md#capabilities`.
 
 Case 22 absorbs the replicated mutation-authoring miss recorded in
 `issues/closed/20260808-ctx-db-verbs-undocumented.md`.
@@ -1403,6 +1415,8 @@ Case 23 absorbs the repeated headless-call-shape miss recorded in
     Expected pages: `clients/headless.md`.
     Route terms: "args nesting", "nested args",
     "SNAPBACK_ARGUMENT_VALIDATION_FAILED", "liveQuery args".
+    Exact diagnostic target: `SNAPBACK_ARGUMENT_VALIDATION_FAILED` ->
+    `/_snapback/guide/backend/trusted-runtime-values.md#keep-generated-fields-out-of-operation-arguments`.
 
 Case 24 absorbs the repeated verifier-config source-reading detour recorded in
 `issues/closed/20260808-verify-config-authoring-guide-anchor.md`.
@@ -1515,6 +1529,8 @@ composition, packaged codegen, and existing-app composition.
     Expected pages: `backend/jobs.md`.
     Route terms: "retryable by design", "SNAPBACK_AUTH_RESERVATION_STALE",
     "dead-letter", "DLQ", "succeeded after retry".
+    Exact diagnostic target: `SNAPBACK_AUTH_RESERVATION_STALE` ->
+    `/_snapback/guide/backend/jobs.md#budget-retries-for-expected-contention`.
 
 33. **Expo durable-store registration:** "Register Expo file persistence in a
     universal iOS/Android/web app without white-screening web." The run fails
@@ -1597,6 +1613,8 @@ itself.
     Expected pages: `operating/host-ops.md`, `auth/native-apps.md`.
     Route terms: "auth.mintSession", "session mint HTTP",
     "SNAPBACK_AUTH_REQUEST_INVALID", "identity broker".
+    Exact diagnostic target: `SNAPBACK_AUTH_REQUEST_INVALID` ->
+    `/_snapback/guide/operating/host-ops.md#mint-a-session-over-http`.
 
 Case 42 absorbs the supervised Expo-web launcher-boundary miss recorded in
 `issues/closed/20260809-guide-gap-supervised-expo-web-launcher-boundary.md`.
@@ -1610,6 +1628,8 @@ Case 42 absorbs the supervised Expo-web launcher-boundary miss recorded in
     Expected pages: `clients/react-expo.md`.
     Route terms: "--expo-platform web", "--client-command",
     "SNAPBACK_DEV_EXPO_SUPERVISOR_BYPASSED", "custom broker origin".
+    Exact diagnostic target: `SNAPBACK_DEV_EXPO_SUPERVISOR_BYPASSED` ->
+    `/_snapback/guide/clients/react-expo.md#know-what-the-supervisor-owns`.
 
 Cases 43–46 absorb the Diary 0074 pointing-room guide-gap tickets, fixed
 2026-08-10 — the replicated instances of the sophisticated-variant-only
@@ -1656,6 +1676,8 @@ ordinary variant was unsupported and built host glue around a paved path.
     Expected pages: `clients/contract-adapter.md`.
     Route terms: "keyedQueryScopes",
     "SNAPBACK_CONTRACT_EPHEMERAL_UNSUPPORTED", "forceEphemeralState".
+    Exact diagnostic target: `SNAPBACK_CONTRACT_EPHEMERAL_UNSUPPORTED` ->
+    `/_snapback/guide/clients/contract-adapter.md#boot-one-surface-one-idempotent-ensure`.
 
 Case 47 absorbs the npm-only generated-typecheck gap recorded in
 `issues/closed/20260811-guide-gap-npm-generated-contract-typecheck.md`.
@@ -1712,6 +1734,8 @@ restriction profile.
     Expected pages: `backend/handler-runtime.md`.
     Route terms: "SNAPBACK_CODEGEN_DEFINITION_NOT_EXPORTED",
     "unexported top-level operation", "definition path".
+    Exact diagnostic target: `SNAPBACK_CODEGEN_DEFINITION_NOT_EXPORTED` ->
+    `/_snapback/guide/backend/handler-runtime.md#diagnostic-attribution`.
 
 52. **Unserializable definition value:** "Generation reports
     `SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE`; how do I find the bad
@@ -1720,6 +1744,8 @@ restriction profile.
     Expected pages: `backend/handler-runtime.md`.
     Route terms: "SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE",
     "nested property path", "definition path".
+    Exact diagnostic target: `SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE` ->
+    `/_snapback/guide/backend/handler-runtime.md#diagnostic-attribution`.
 
 53. **Declaration suggestions:** "How do I get Snapback to write my result
     contract?" The run fails if the plan invents bounds or table identity,
@@ -1773,6 +1799,8 @@ installation and inverse provider-neutral Contract adaptation.
     Expected pages: `recipes/sessions-fixture-install.md`.
     Route terms: "install sessions fixtures", "fixture-source digest",
     "SNAPBACK_AUTH_PASSWORD_EXISTS", "matched repeat".
+    Exact diagnostic target: `SNAPBACK_AUTH_PASSWORD_EXISTS` ->
+    `/_snapback/guide/clients/contract-adapter.md#refuse-unqualified-milestones-and-translate-errors-deliberately`.
 
 58. **Frozen provider-neutral Contract adapter:** "Implement an already-frozen
     provider-neutral `ContractDataProvider` over Snapback without changing the
@@ -1819,6 +1847,8 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
     Route terms: "SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED", "eager route-entry receipt", "background writes during auth transitions", "authorization-suspended foreground".
     Required guidance: "declare `{ key, idempotent: true, successorValid: true }` only for latest-wins housekeeping", "`blockedReason: auth-barrier` means zero transport", "foreground admission is independent of suspended housekeeping", "observe `SNAPBACK_HOUSEKEEPING_SUPERSEDED` through mutation status".
     Rejected guidance: "mark foreground gestures as housekeeping", "retry on a timer while auth changes".
+    Exact diagnostic target: `SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED` ->
+    `/_snapback/guide/clients/headless.md#enter-and-leave-session-authority`.
 
 62. **Presence heartbeat versus bound value:** "My typing indicator is stuck
     and presence is not expiring under the five-second ceiling. I passed
@@ -2033,7 +2063,10 @@ miss and binds it to the runtime warning rather than prose alone.
     Expected pages: `recipes/multi-persona-clients.md`, `clients/headless.md`.
     Route terms: "second client same user", "multiple clients same session",
     "personas share login", "SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE".
-    Required guidance: "one stable explicit storagePartition per persona or worker".
+    Required guidance: "one stable explicit storagePartition per persona or worker",
+    "storagePartition".
+    Exact diagnostic target: `SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE` ->
+    `/_snapback/guide/clients/headless.md#construct-one-client-per-backend-and-custody-context`.
 
 Cases 88–89 absorb the Coterie membership-feed miss recorded in Diary 0086
 and LLP 0277 F3. Their route terms preserve the run's wrong vocabulary so an
@@ -2050,6 +2083,8 @@ or assuming LLP 0278 D3 shipped.
     "SNAPBACK_QUERY_IN_ITEMS_EXCEEDED".
     Required guidance: "at most 499 actor IDs per chunk",
     "LLP 0278 D3 remains design-only".
+    Exact diagnostic target: `SNAPBACK_QUERY_IN_ITEMS_EXCEEDED` ->
+    `/_snapback/guide/backend/queries.md#builder-bounds-and-their-refusal-codes`.
 
 89. **Force the membership-feed chunk seam:** "Prove a membership feed's
     top 20 merge across multiple actor chunks without creating 500 fixture
@@ -2091,7 +2126,7 @@ Case 92 absorbs the first-party guest-session entry closure from LLP 0294 W6.1.
     existing password identity.
     Expected pages: `auth/sessions-and-principals.md`, `auth/passwords.md`.
     Route terms: "enterAsGuest", "claimGuestWithPassword", "guest entry".
-    Required guidance: "A caller never supplies the principal id, session id, expiry, or cleanup policy", "An existing password identity refuses".
+    Required guidance: "A caller never supplies the principal id, session id, expiry, or cleanup policy", "An existing password identity refuses", "SNAPBACK_AUTH_GUEST_CLAIM_COLLISION".
 
 Cases 93–96 absorb the 2026-08-24 Familiar auth-entrypoint and volatile
 activity-presence guide gaps. Their route terms preserve the vocabulary used
@@ -2150,7 +2185,8 @@ React/JS product blank is not yet explained.
     "Never put a provisional id on a point query",
     "Wait for live delivery only when subscribed before the insert",
     "A post-settlement subscribe with the canonical id must snapshot the row",
-    "defineJsLiveQuery plus a local cache remains the documented application workaround".
+    "defineJsLiveQuery plus a local cache remains the documented application workaround",
+    "defineJsLiveQuery plus a local cache".
 
 Cases 98–101 absorb the published 0.1.27 Clique guide misses recorded in LLP
 0310. Their route terms preserve the failed lookup and the wrong package,
@@ -2161,7 +2197,7 @@ platform, and generated-directory assumptions from that run.
     The run fails if it creates the legacy directory or symlink, or teaches two
     watcher-visible paths for one generated graph.
     Expected pages: `backend/familiar-profile.md`, `start/expo-chat.md`.
-    Route terms: "_generated compatibility alias", "generated directory spelling".
+    Route terms: "refused alias", "generated directory spelling".
     Required guidance: "The `_generated/` spelling is a refused alias".
 
 99. **Stale auth result lookup:** "A mutation reports
@@ -2183,6 +2219,7 @@ platform, and generated-directory assumptions from that run.
      Route terms: "URL-first activity presence", "SnapbackExpoLifecycleContext".
      Required guidance: "URL-first web imports `useSnapbackActivityPresence` from `@expo/snapback-react`",
      "The `@expo/snapback-expo` facade hook is for `SnapbackExpoProvider` only".
+     Rejected guidance: "In Expo, import `useSnapbackActivityPresence` from `@expo/snapback-expo`".
 
 101. **Durable custody in Node acceptance:** "Run expo-chat acceptance with
      durable-required custody from Node."
@@ -2190,9 +2227,11 @@ platform, and generated-directory assumptions from that run.
      in-memory server database as the problem, or invents a second custody
      store instead of using the template helper.
      Expected pages: `start/expo-chat.md`, `testing/acceptance.md`.
-     Route terms: "durable custody Node memory", "SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE".
+     Route terms: "durable-required", "SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE".
      Required guidance: "Node `memory` refuses durable custody with `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`",
      "`expo-web` with `fake-indexeddb`".
+     Exact diagnostic target: `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE` ->
+     `/_snapback/guide/testing/acceptance.md#recover-from-snapbackauthcustodydurableunavailable`.
 
 ## Static routing check
 
@@ -2202,10 +2241,13 @@ The deterministic half of this corpus is executable:
 verifies, on every guide check, that (1) each case's expected pages exist,
 (2) each case has at least one lexical route — a route term found in the
 capability index's Aliases column on a row pointing at an expected page,
-or in an expected page's title, a heading, or its body — (3) optional required
-guidance is present and rejected guidance absent from those pages, and (4) every
-Rosetta record alias (`guide/rosetta/records/*.json`) is mirrored as a
-seed-case route term, per the LLP 0186 W2 amendment.
+or in an expected page's title, a heading, or its body — (3) every named page
+contains at least one optional required-guidance phrase, every required phrase
+appears somewhere in the named page set, and rejected guidance is absent from
+that set, (4) every Rosetta record alias
+(`guide/rosetta/records/*.json`) is mirrored as a seed-case route term, per the
+LLP 0186 W2 amendment, and (5) any seed case whose route terms include a
+`SNAPBACK_*` code pins that code's exact primary Guide target.
 
 What it does **not** prove: that a cold agent actually navigates to the
 page within the ~15-tool-use budget, plans with the paved technique, or
@@ -2257,13 +2299,13 @@ id: auth.sessions-and-principals
 order: 1
 audience: agent-first
 capabilities: [auth.sessions, auth.guest-sessions, auth.browser-session-custody, auth.scoped-queries]
-authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0172-explicit-function-authorization.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, packages/snapback-codegen/index.mjs, crates/snapback-server/src/admin.rs, crates/snapback-types/src/auth/mode.rs, crates/snapback-auth/src/auth/provider.rs, crates/snapback-auth/src/dev_identity.rs, crates/snapback-engine/src/host_ops.rs, crates/snapback-server/src/server.rs, crates/snapback-cli/src/cli.rs, packages/snapback-cli/expo-dev.mjs, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/unrecognized-authority-recovery.test.mjs, packages/snapback-contract/index.mjs, packages/snapback-vite/lifecycle.mjs, packages/snapback-vite/proxy.mjs, demos/_kit/as-user.mjs, demos/_kit/server-process.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0172-explicit-function-authorization.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, packages/snapback-codegen/index.mjs, crates/snapback-server/src/admin.rs, crates/snapback-types/src/auth/mode.rs, crates/snapback-auth/src/auth/provider.rs, crates/snapback-auth/src/dev_identity.rs, crates/snapback-engine/src/host_ops.rs, crates/snapback-engine/src/runtime/host_glue.rs, crates/snapback-kernel/src/storage/settlement.rs, crates/snapback-kernel/src/operation_ledger.rs, crates/snapback-server/src/server.rs, crates/snapback-cli/src/cli.rs, packages/snapback-cli/expo-dev.mjs, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/unrecognized-authority-recovery.test.mjs, packages/snapback-contract/index.mjs, packages/snapback-vite/lifecycle.mjs, packages/snapback-vite/proxy.mjs, demos/_kit/as-user.mjs, demos/_kit/server-process.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/browser-auth, demos/card-game, demos/party-wall, packages/snapback-client/auth-identity-types.fixture.ts]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:ea2d439df09714b73c6dc51986b5c67a8f3e500a19589519851d436249625b03
+reviewed-authorities-digest: sha256:c8fafbe4dca37a6cfc1ab35ec945eb5eb212dd7fa5e1c6c1456ab5d85f865b98
 ---
 
 # Sessions and principals
@@ -2494,6 +2536,8 @@ deliberately delayed, uniform, empty response, so it cannot be used to probe
 which bearers are live.
 
 ## Recover from `SNAPBACK_AUTH_STALE_RESULT`
+
+Search vocabulary: stale auth result.
 
 This refusal means a client mutation identity or replay ledger is already
 bound to different resolved authority facts. The server will not disclose or
@@ -8530,6 +8574,7 @@ For URL-first Expo web using `SnapbackProvider`, import
 expects that provider's `SnapbackExpoLifecycleContext` and adds AppState
 withdrawal. These are two context-appropriate exports of the same presence
 feature, not a third hook to invent.
+Search vocabulary: URL-first activity presence.
 
 Here is the shortest coherent application loop, rather than six disconnected
 reference exercises:
@@ -30351,7 +30396,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:59f8913a2ea8eb14d70fa5605e9a81189b51c1fe66a08e052164327510417fe5
+reviewed-authorities-digest: sha256:eddf9c528ce95b7dd2caf10a19f239049a7fdad9db050146481a3cb4a35b3ad4
 ---
 
 <!-- Generated by scripts/generate-diagnostics-registry.mjs. Never hand-edit. -->
@@ -31013,7 +31058,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-custody-cas-stale"></a>`SNAPBACK_AUTH_CUSTODY_CAS_STALE` | auth | — | — | `packages/snapback-client/agent-authority.mjs:1210` | 10 |
 | <a id="diagnostic-snapback-auth-custody-corrupt"></a>`SNAPBACK_AUTH_CUSTODY_CORRUPT` | auth | — | — | `packages/snapback-client/agent-authority.mjs:108` | 14 |
 | <a id="diagnostic-snapback-auth-custody-counter-exhausted"></a>`SNAPBACK_AUTH_CUSTODY_COUNTER_EXHAUSTED` | auth | — | — | `packages/snapback-client/agent-authority.mjs:117` | 5 |
-| <a id="diagnostic-snapback-auth-custody-durable-unavailable"></a>`SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE` | auth | — | [guide](../retrieval-eval.md#seed-intents) | `packages/snapback-client/app-client.mjs:843` | 7 |
+| <a id="diagnostic-snapback-auth-custody-durable-unavailable"></a>`SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE` | auth | — | [guide](../testing/acceptance.md#recover-from-snapbackauthcustodydurableunavailable) | `packages/snapback-client/app-client.mjs:843` | 7 |
 | <a id="diagnostic-snapback-auth-custody-format-version"></a>`SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION` | auth | — | — | `packages/snapback-client/app-client.mjs:3` | 15 |
 | <a id="diagnostic-snapback-auth-custody-lock-lost"></a>`SNAPBACK_AUTH_CUSTODY_LOCK_LOST` | auth | — | — | `packages/snapback-client/agent-authority.mjs:1104` | 10 |
 | <a id="diagnostic-snapback-auth-custody-lock-unavailable"></a>`SNAPBACK_AUTH_CUSTODY_LOCK_UNAVAILABLE` | auth | — | — | `packages/snapback-client/agent-authority.mjs:1084` | 9 |
@@ -33498,7 +33543,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-retained-identity-incomplete"></a>`SNAPBACK_RETAINED_IDENTITY_INCOMPLETE` | contract | — | — | `packages/snapback-contract/index.mjs:1276` | 1 |
 | <a id="diagnostic-snapback-retained-query-stale"></a>`SNAPBACK_RETAINED_QUERY_STALE` | contract | — | — | `packages/snapback-contract/index.mjs:2180` | 1 |
 | <a id="diagnostic-snapback-retention-not-retainable"></a>`SNAPBACK_RETENTION_NOT_RETAINABLE` | client | — | [guide](../sync/offline-and-retention.md#retain-public-viewer-facts-by-argument-not-authority) | `packages/snapback-client/index.mjs:17807` | 2 |
-| <a id="diagnostic-snapback-retention-not-rqs-eligible"></a>`SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE` | client | — | [guide](../retrieval-eval.md#seed-intents) | `packages/snapback-client/index.mjs:17823` | 1 |
+| <a id="diagnostic-snapback-retention-not-rqs-eligible"></a>`SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE` | client | — | [guide](../sync/offline-and-retention.md#retain-public-viewer-facts-by-argument-not-authority) | `packages/snapback-client/index.mjs:17823` | 1 |
 | <a id="diagnostic-snapback-retention-owner-authority-unavailable"></a>`SNAPBACK_RETENTION_OWNER_AUTHORITY_UNAVAILABLE` | client | — | — | `packages/snapback-client/index.mjs:17796` | 1 |
 | <a id="diagnostic-snapback-retention-store-disabled"></a>`SNAPBACK_RETENTION_STORE_DISABLED` | client | — | [guide](../sync/offline-and-retention.md#retain-public-viewer-facts-by-argument-not-authority) | `packages/snapback-client/index.mjs:17180` | 1 |
 | <a id="diagnostic-snapback-rollback-plan-invalid"></a>`SNAPBACK_ROLLBACK_PLAN_INVALID` | cli | — | — | `packages/snapback-cli/deployment-control.mjs:2863` | 3 |
@@ -73599,7 +73644,7 @@ Metro must not inherit `CI=1` (it disables watching).
 
 `snapback/generated/` is codegen-owned: regenerate, commit
 `generated/artifacts.json`, never hand-edit outputs.
-`_generated/` is a refused alias; use only `generated/`.
+The `_generated/` spelling is a refused alias; use only `generated/`.
 
 ## Posture
 
@@ -73610,10 +73655,10 @@ Metro must not inherit `CI=1` (it disables watching).
   URL-first dev mints no ambient session; multi-browser proofs sign up or sign
   in separately in each context instead of adopting the supervised mint.
 - **Custody: `volatile-explicit`.** Native restart returns anonymous.
-  `durable-required` needs a durable-capable platform: Node `memory` refuses
-  with `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`. For headless proof, reuse
-  the [existing `expo-web` + `fake-indexeddb` helper](repo:packages/snapback-cli/templates/expo-chat/acceptance.mjs),
-  never a second store.
+  `durable-required` needs durable storage. Node `memory` refuses durable
+  custody with `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`. Reuse this
+  [`expo-web` with `fake-indexeddb` helper](repo:packages/snapback-cli/templates/expo-chat/acceptance.mjs);
+  never add a second store.
 - **Security caveat — client-supplied `senderId` is a demo convenience,
   never a boundary.** The seeded **TEST PERSONA** control passes the active
   persona's id as `senderId`/`userId` so demos work. In a real app, derive
@@ -73983,8 +74028,7 @@ proof of the same contracts. The headless witness proves:
   authority-independent live queries first, marked
   `freshness: 'retained'`, then settles to `'current'` on reconnect
   (LLP 0090 Channel B). Non-`rqsEligible` queries are NOT retainable: the
-  handle's `retention` fact names the refusal
-  (`SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE`) instead of silently acting
+  handle's `retention` fact names the refusal instead of silently acting
   local-first. Protected/auth-scoped and opaque queries still report
   `SNAPBACK_RETENTION_NOT_RETAINABLE` when the generated lease shape or
   negotiated sessions/lease protocols are absent. With those proofs present,
@@ -74030,8 +74074,9 @@ proof of the same contracts. The headless witness proves:
   authoritative snapshot (full resync first — LLP 0008 §Mutation Replay),
   the client drains the queue in sequence order; the server's settlement
   ledger returns the original result on duplicate delivery. (A content-refused
-  replay is dropped and marked failed, visible in `outboxRecords()`;
-  `SNAPBACK_AUTH_STALE_RESULT` instead becomes terminal `stranded` custody. The
+  replay is dropped and marked failed, visible in `outboxRecords()`; a
+  [stale auth result](../auth/sessions-and-principals.md#recover-from-snapbackauthstaleresult)
+  instead becomes terminal `stranded` custody. The
   store transition and the client wiring that maps a server refusal onto it
   are covered by `packages/snapback-client/outbox-store.test.mjs`; the
   ordered drain itself is proven end-to-end in the browser carrier by the
@@ -74928,7 +74973,7 @@ Assertion helpers: `assert`, `assertEqual`, and
 stable codes, never message text. `requireBunRuntime(label)` guards suites
 that must run under bun.
 
-## Select a durable-capable client platform
+## Recover from `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`
 
 Client custody is independent of the server database choice. A server may use
 `--memory`, but Node's client platform named `memory` is volatile. Node

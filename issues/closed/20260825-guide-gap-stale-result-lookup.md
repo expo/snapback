@@ -19,8 +19,11 @@ Add a retrieval check so this code cannot silently retarget.
 
 ## Resolution (2026-08-25)
 
-Resolved the LLP 0310.000 G1 guide work (in review). The auth guide now
-describes `SNAPBACK_AUTH_STALE_RESULT`, the generated diagnostic registry
-targets that section, and retrieval case 99 pins the exact generated anchor.
-The diagnostics-registry check, guide check, and direct lookup demonstration
-verify the route; they do not exercise a live stale-result mutation.
+Resolved the guide work. The auth guide describes
+`SNAPBACK_AUTH_STALE_RESULT`; the incidental offline-queue mention now links
+to that teaching section without assigning the code to the surrounding
+asset-retention heading; and retrieval-eval evidence is excluded from
+diagnostic target selection. Retrieval case 99 pins the exact generated
+anchor, and the CLI lookup test asserts the complete user-visible anchor list,
+not only its primary member. These checks do not exercise a live stale-result
+mutation.

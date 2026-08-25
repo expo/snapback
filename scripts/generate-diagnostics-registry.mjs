@@ -278,14 +278,15 @@ function headingSlug(text) {
 function guideAnchors() {
   const anchors = new Map();
   const headingAnchors = new Map();
-  // @ref LLP 0223#tickets — eval-run transcripts are retained evidence of
-  // the retrieval protocol, not retrieval targets: a code mentioned in a
-  // transcript must not capture (or alphabetically demote) the guide anchor
-  // an agent is routed to when the code fires.
+  // @ref LLP 0223#tickets — retrieval-eval seeds and eval-run transcripts are
+  // retained evidence of the retrieval protocol, not retrieval targets: a
+  // code mentioned in either must not capture (or alphabetically demote) the
+  // guide anchor an agent is routed to when the code fires.
   const paths = walk(join(root, 'guide'), (path) => (
     path.endsWith('.md')
     && !/^guide\/guide-flat(?:\.[a-z0-9-]+)?\.generated\.md$/.test(path)
     && !path.startsWith('guide/reference/')
+    && path !== 'guide/retrieval-eval.md'
     && !path.startsWith('guide/eval-runs/')
   ));
   for (const path of paths) {

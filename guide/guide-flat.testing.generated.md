@@ -82,7 +82,7 @@ Assertion helpers: `assert`, `assertEqual`, and
 stable codes, never message text. `requireBunRuntime(label)` guards suites
 that must run under bun.
 
-## Select a durable-capable client platform
+## Recover from `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`
 
 Client custody is independent of the server database choice. A server may use
 `--memory`, but Node's client platform named `memory` is volatile. Node

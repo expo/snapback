@@ -307,7 +307,7 @@ Metro must not inherit `CI=1` (it disables watching).
 
 `snapback/generated/` is codegen-owned: regenerate, commit
 `generated/artifacts.json`, never hand-edit outputs.
-`_generated/` is a refused alias; use only `generated/`.
+The `_generated/` spelling is a refused alias; use only `generated/`.
 
 ## Posture
 
@@ -318,10 +318,10 @@ Metro must not inherit `CI=1` (it disables watching).
   URL-first dev mints no ambient session; multi-browser proofs sign up or sign
   in separately in each context instead of adopting the supervised mint.
 - **Custody: `volatile-explicit`.** Native restart returns anonymous.
-  `durable-required` needs a durable-capable platform: Node `memory` refuses
-  with `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`. For headless proof, reuse
-  the [existing `expo-web` + `fake-indexeddb` helper](repo:packages/snapback-cli/templates/expo-chat/acceptance.mjs),
-  never a second store.
+  `durable-required` needs durable storage. Node `memory` refuses durable
+  custody with `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`. Reuse this
+  [`expo-web` with `fake-indexeddb` helper](repo:packages/snapback-cli/templates/expo-chat/acceptance.mjs);
+  never add a second store.
 - **Security caveat — client-supplied `senderId` is a demo convenience,
   never a boundary.** The seeded **TEST PERSONA** control passes the active
   persona's id as `senderId`/`userId` so demos work. In a real app, derive

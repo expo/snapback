@@ -19,9 +19,11 @@ Point at the existing acceptance helper. Do not invent a second store.
 
 ## Resolution (2026-08-25)
 
-Resolved the LLP 0310.000 P8 guide ticket (in review), whose product boundary
-keeps durable custody out of Node `memory`. The expo-chat start packet and
-acceptance guide now state the `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`
-refusal and point to the existing `expo-web` plus `fake-indexeddb` acceptance
-helper. Retrieval case 101 and `check-guide` verify that guidance. This lane
-did not add or exercise another custody store.
+Resolved the guide ticket while preserving the product boundary that keeps
+durable custody out of Node `memory`. The expo-chat start packet and acceptance
+guide state the `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE` refusal and point
+to the existing `expo-web` plus `fake-indexeddb` acceptance helper. The
+acceptance page now owns the diagnostic's teaching heading; retrieval case 101
+replaces the dead wrong guess with the pages' existing `durable-required`
+vocabulary and pins that target. The per-page check verifies both pages. This
+lane did not add or exercise another custody store.

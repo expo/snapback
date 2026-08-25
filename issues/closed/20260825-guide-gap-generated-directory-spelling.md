@@ -20,8 +20,10 @@ old path. Keep a one-line note that `_generated/` is a refused alias.
 
 ## Resolution (2026-08-25)
 
-Resolved the LLP 0310.000 G1 guide work (in review). The Familiar profile,
-expo-chat start packet, and four Clique-facing source briefs now use
-`generated/` and state that `_generated/` is a refused alias. Retrieval case
-98 and `check-guide` verify that both guide pages carry that guidance. This
-resolution changes documentation only; it does not make a new codegen claim.
+Resolved the guide work. The Familiar profile, expo-chat start packet, and
+four Clique-facing source briefs use `generated/` and state that
+`_generated/` is a refused alias. Retrieval case 98 replaces the dead wrong
+guess with the teaching pages' existing "refused alias" vocabulary, and the
+per-page guidance check verifies that both named guide pages retain the
+correction. This resolution changes documentation only; it does not make a
+new codegen claim.
