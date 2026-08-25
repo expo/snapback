@@ -10,7 +10,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:b7ac0cb1035d78e01ef7e1a01dc100451d19ed8d7841fbdde9d866559c366df1
+reviewed-authorities-digest: sha256:618b1f3684f3287ede366e0a617fc708ba31b9d7bc2261a9c1a111fc8b1fa90c
 ---
 
 # Retrieval eval protocol
@@ -1079,17 +1079,18 @@ platform, and generated-directory assumptions from that run.
 100. **URL-first activity presence import:** "Which package exports activity
      presence for URL-first Expo web with SnapbackProvider?"
      The run fails if it omits the paved React import, claims the Expo facade
-     expects `SnapbackExpoLifecycleContext`, or claims the facade works under a
-     bare provider.
+     expects `SnapbackExpoLifecycleContext`, presents the facade as the paved
+     bare-provider contract, or hides the shipped facade behavior and its
+     ticketed immediate-withdrawal tradeoff.
      Expected pages: `backend/familiar-profile.md`, `realtime/ephemeral-state.md`, `recipes/activity-presence.md`.
      Route terms: "URL-first activity presence", "useSnapbackActivityPresence".
      Required guidance per page:
      `backend/familiar-profile.md`: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`", "Under a bare `SnapbackProvider`, the React hook has no AppState-driven background withdrawal", "typing intent expires by the presence deadline rather than being withdrawn immediately".
-     `realtime/ephemeral-state.md`: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`", "The React hook under a bare `SnapbackProvider` has no AppState-driven background withdrawal", "typing intent expires by the presence deadline rather than being withdrawn immediately".
+     `realtime/ephemeral-state.md`: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`", "The React hook under a bare `SnapbackProvider` has no AppState-driven background withdrawal", "typing intent expires by the presence deadline rather than being withdrawn immediately", "The shipped facade currently also mounts under a bare `SnapbackProvider`", "That composition is not the paved contract under LLP 0310.000 Ruling 3", "immediate background withdrawal on web today".
      `recipes/activity-presence.md`: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`", "Under a bare `SnapbackProvider`, the React hook has no AppState-driven background withdrawal", "typing intent expires by the presence deadline rather than being withdrawn immediately".
      Rejected guidance: "expects SnapbackExpoLifecycleContext",
-     "works under a bare provider", "works under a bare `SnapbackProvider`",
-     "The Expo facade also works under a bare `SnapbackProvider`".
+     "Use the `@expo/snapback-expo` facade under a bare `SnapbackProvider`; that is the paved choice",
+     "The Expo facade is the supported bare-provider contract".
 
 101. **Durable custody in Node and Expo Native acceptance:** "Run expo-chat
      acceptance with durable-required custody from Node or Expo Native."

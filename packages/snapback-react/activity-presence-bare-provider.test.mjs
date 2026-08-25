@@ -12,6 +12,18 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 let publishCalls = 0;
 let deleteCalls = 0;
+let observedAppState = 'active';
+const appStateListeners = new Set();
+const appState = Object.freeze({
+  addEventListener(type, listener) {
+    assert.equal(type, 'change');
+    appStateListeners.add(listener);
+    return Object.freeze({ remove: () => appStateListeners.delete(listener) });
+  },
+  transition(nextState) {
+    for (const listener of appStateListeners) listener(nextState);
+  },
+});
 const presenceSnapshot = Object.freeze({
   status: 'ready',
   entries: Object.freeze([]),
@@ -60,8 +72,18 @@ function Probe() {
   activity = useSnapbackActivityPresence(typing, {
     scope: { roomId: 'room-one' },
     value: () => ({ name: 'Ada' }),
-    idleMs: 60_000,
+    idleMs: 250,
   });
+  return null;
+}
+
+function HostAppStateProbe() {
+  React.useEffect(() => {
+    const subscription = appState.addEventListener('change', (nextState) => {
+      observedAppState = nextState;
+    });
+    return () => subscription.remove();
+  }, []);
   return null;
 }
 
@@ -71,23 +93,61 @@ await act(async () => {
   renderer = TestRenderer.create(React.createElement(
     SnapbackProvider,
     { provider },
-    React.createElement(Probe),
+    React.createElement(React.Fragment, null,
+      React.createElement(Probe),
+      React.createElement(HostAppStateProbe),
+    ),
   ));
   await flush();
 });
 
 assert.equal(activity.active, false);
-act(() => activity.touch());
+const touchedAt = Date.now();
+const originalSetTimeout = globalThis.setTimeout;
+const originalClearTimeout = globalThis.clearTimeout;
+let idleTimer = null;
+globalThis.setTimeout = (callback, delay) => {
+  idleTimer = { callback, delay, cleared: false, unref() {} };
+  return idleTimer;
+};
+globalThis.clearTimeout = (timer) => { timer.cleared = true; };
+try {
+  act(() => activity.touch());
+} finally {
+  globalThis.setTimeout = originalSetTimeout;
+  globalThis.clearTimeout = originalClearTimeout;
+}
 await act(async () => { await flush(); });
 assert.equal(activity.active, true);
 assert.equal(publishCalls, 1, 'the React hook publishes under a bare SnapbackProvider');
+assert.equal(idleTimer?.delay, 250, 'touch arms only the activity deadline');
 
 await act(async () => {
-  await activity.withdraw();
+  appState.transition('background');
   await flush();
 });
-assert.equal(activity.active, false);
-assert.equal(deleteCalls, 1, 'the React hook withdraws under a bare SnapbackProvider');
-await act(async () => { renderer.unmount(); });
+assert.equal(observedAppState, 'background', 'the host tree observed the AppState transition');
+assert.equal(activity.active, true, 'background does not disarm the bare-provider React hook');
+assert.equal(deleteCalls, 0, 'background does not withdraw the bare-provider React hook');
+assert.equal(idleTimer.cleared, false, 'background leaves deadline-only expiry armed');
 
-console.log('activity-presence-bare-provider.test.mjs: React hook works under bare SnapbackProvider');
+const originalNow = Date.now;
+Date.now = () => touchedAt + 1_000;
+try {
+  await act(async () => {
+    idleTimer.callback();
+    await flush();
+  });
+} finally {
+  Date.now = originalNow;
+}
+assert.equal(activity.active, false, 'the activity deadline disarms the React hook');
+assert.equal(deleteCalls, 1, 'the activity deadline withdraws the React hook');
+
+assert.equal(appStateListeners.size, 1, 'only the host probe observes AppState');
+await act(async () => {
+  renderer.unmount();
+});
+assert.equal(appStateListeners.size, 0, 'host AppState observation cleans up on unmount');
+
+console.log('activity-presence-bare-provider.test.mjs: bare-provider React hook publishes and uses deadline-only background expiry');

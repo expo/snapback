@@ -44,3 +44,16 @@ Resolve the documents and product in one of two directions:
    unless a separately designed lifecycle mechanism closes that limitation.
 
 This guide lane does not choose between the two or amend either LLP.
+
+## Round-8 guide-lane resolution
+
+The lane keeps
+[`activity-presence-bare-provider.test.mjs`](../packages/snapback-react/activity-presence-bare-provider.test.mjs)
+as the executable proof of the React-side tradeoff documented by the Guide.
+The test mounts the React hook under a bare `SnapbackProvider`, publishes on
+`touch()`, emits a simulated AppState background transition observed by the
+same React tree, and proves that the transition neither withdraws nor disarms
+the intent. It then fires the captured activity deadline and proves that the
+deadline performs the withdrawal. This proof does not decide whether the
+facade's shipped bare-provider fallback should remain supported; the owner
+decision above remains open.
