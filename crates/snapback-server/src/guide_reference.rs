@@ -417,21 +417,57 @@ fn budgeted_module(
             "exactSymbolCommand": "snapback guide <ExactSymbolName>",
         })
     };
-    let result = json!({
-        "schemaVersion": LOOKUP_SCHEMA_VERSION,
-        "ok": true,
-        "query": query,
-        "match": "module-slice",
-        "identity": identity,
-        "module": query,
-        "symbols": visible,
-        "truncation": truncation,
-    });
-    anyhow::ensure!(
-        encoded_len(&result)? <= budget,
-        "SNAPBACK_GUIDE_LOOKUP_BUDGET_EXCEEDED: module slice {query} exceeds {budget} bytes"
-    );
-    Ok(result)
+    // Slice addressing stays a fixed 12-symbol stride; when a rich page busts
+    // the byte budget, trailing symbols are elided by name within this slice
+    // (still reachable through the exact-symbol command) instead of failing
+    // the lookup or shifting later slices.
+    let mut visible = visible;
+    let mut truncation = truncation;
+    let mut budget_elided: Vec<String> = Vec::new();
+    loop {
+        let result = json!({
+            "schemaVersion": LOOKUP_SCHEMA_VERSION,
+            "ok": true,
+            "query": query,
+            "match": "module-slice",
+            "identity": identity,
+            "module": query,
+            "symbols": visible,
+            "truncation": truncation,
+        });
+        if encoded_len(&result)? <= budget {
+            return Ok(result);
+        }
+        anyhow::ensure!(
+            visible.len() > 1,
+            "SNAPBACK_GUIDE_LOOKUP_BUDGET_EXCEEDED: module slice {query} exceeds {budget} bytes"
+        );
+        let dropped = visible.pop().expect("non-empty page");
+        budget_elided.push(
+            dropped
+                .get("name")
+                .and_then(Value::as_str)
+                .unwrap_or("<unnamed>")
+                .to_string(),
+        );
+        let mut t = if truncation.is_null() {
+            json!({
+                "truncated": true,
+                "slice": slice,
+                "elided": Vec::<String>::new(),
+                "nextSlice": Value::Null,
+                "nextCommand": Value::Null,
+                "exactSymbolCommand": "snapback guide <ExactSymbolName>",
+            })
+        } else {
+            truncation.clone()
+        };
+        t["budgetElided"] = json!({
+            "symbols": budget_elided.clone(),
+            "reason": format!("page over the {budget}-byte lookup budget; fetch each by exact name"),
+        });
+        truncation = t;
+    }
 }
 
 /// Return `None` for a non-exact query so callers can preserve Markdown

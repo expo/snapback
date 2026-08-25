@@ -24966,6 +24966,10 @@ fn workspace_production_snapback_literals() -> BTreeSet<String> {
 // helper constructors, embedded runtime source, and macros.
 const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
     (
+        "SNAPBACK_RUNTIME_COST_RECORDER",
+        "LLP 0267 §7.1 dev-on posture environment flag supplied by managed snapback dev; it is not an HTTP diagnostic",
+    ),
+    (
         "SNAPBACK_GRAPH_QUALIFICATION_DERIVATION_MISSING",
         "LLP 0209 qualification-runner failure vocabulary; it is not an HTTP diagnostic",
     ),
