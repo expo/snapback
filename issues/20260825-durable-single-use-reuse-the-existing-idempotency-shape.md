@@ -138,3 +138,42 @@ replayed deliberately — is the shape to copy.
 
 None of the three added a genuinely new privilege-surface violation: each measures 105 against a
 `main` at 107, with zero new entries once line-number churn is normalised away.
+
+---
+
+## Reviews of the four: two findings, and one lane that did it by reusing
+
+The first two reviews of these implementations both found holes, and **neither was about whether the
+ledger existed**. Both were about where the boundary sat relative to the check.
+
+**Q14 — the key can be poisoned.** Its table stored only `envelope_sha256`, with a
+caller-constructible commit carrier crossing a public boundary. Pre-seeding the canonical digest made
+a **later genuine signed envelope refused as already replayed**. That is property 2 of the shape above
+— a separately stored request digest — and its absence converts a security control into an
+availability attack. It also had no retention (property 3).
+
+**Q43 — the handle outlives the record.** Two processes, one SQLite file: A installed boot sequence 1
+and stayed alive, B installed sequence 2, and A then issued another connection from sequence 1. The
+ledger was written and read correctly; the durable check ran at handle **acquisition**. Recorded as
+LLP 0303 revision (k): *a durable record consulted only at acquisition is a cache.*
+
+**Q12 — reused rather than invented, and that is the model.** Its report named
+`auth_stream_incarnation_v1` and `authorization_epoch_v1`, and its diff adds **neither** — because
+both already exist on `main` (`crates/snapback-kernel/src/auth/session_projection.rs`,
+`.../storage/auth_identity.rs`, `.../storage/auth_stream.rs`). It bound its staging facts to durable
+state the repository already maintained, in the same transaction as activation and destruction.
+
+That is what this document asked for and it is worth naming, because it looked like a discrepancy on
+first inspection: a lane whose durable-state diff is *empty of new identifiers* may have done the
+best available thing rather than the wrong one. Check whether the identifiers pre-exist before
+treating their absence as a defect.
+
+### The pattern is validated, with a caveat
+
+Four lanes produced four working ledgers with atomic writes. The failures were not in the ledger
+concept but in two adjacent questions this document should have asked more loudly:
+
+1. **Who else can write the key?** If a caller can seed it, the guard is a lockout weapon.
+2. **When is it read?** If only at acquisition, live handles outlive it.
+
+Both are now in LLP 0303 revision (k). Add them to the four properties above when using this shape.
