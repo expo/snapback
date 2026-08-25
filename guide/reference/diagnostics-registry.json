@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:c1d9d69fd708ed1d058615e98eaf8c442f23f59d9ca9da3fb796ed27cc3dd312"
+    "sourceDigest": "sha256:56960e836bcf61d8b152b84eba22f645ccdf1139da2152238c74fa9911cd7c93"
   },
   "limits": {
     "lookupBytes": 16384
@@ -4766,7 +4766,7 @@
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 12970,
+          "line": 12980,
           "column": 44
         },
         {
@@ -4796,7 +4796,7 @@
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 12960,
+          "line": 12970,
           "column": 14
         },
         {
@@ -11672,7 +11672,7 @@
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 14763,
+          "line": 14773,
           "column": 14
         }
       ],
@@ -11707,7 +11707,7 @@
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 14750,
+          "line": 14760,
           "column": 14
         }
       ],
@@ -11847,7 +11847,7 @@
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 14784,
+          "line": 14794,
           "column": 14
         }
       ],
@@ -29491,12 +29491,12 @@
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 11348,
+          "line": 11358,
           "column": 19
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 11460,
+          "line": 11470,
           "column": 14
         },
         {
@@ -43767,7 +43767,7 @@
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 11450,
+          "line": 11460,
           "column": 14
         },
         {
@@ -43832,12 +43832,12 @@
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 11365,
+          "line": 11375,
           "column": 26
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 11434,
+          "line": 11444,
           "column": 14
         },
         {
@@ -43917,7 +43917,7 @@
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 11424,
+          "line": 11434,
           "column": 14
         },
         {
@@ -47394,7 +47394,7 @@
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 13174,
+          "line": 13184,
           "column": 14
         },
         {
@@ -51646,7 +51646,7 @@
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 13129,
+          "line": 13139,
           "column": 14
         },
         {
@@ -51678,7 +51678,7 @@
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 13137,
+          "line": 13147,
           "column": 14
         },
         {
@@ -54114,12 +54114,12 @@
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 13054,
+          "line": 13064,
           "column": 14
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 14836,
+          "line": 14846,
           "column": 14
         }
       ],
@@ -54624,7 +54624,7 @@
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 14114,
+          "line": 14124,
           "column": 14
         }
       ],
@@ -54649,7 +54649,7 @@
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 13024,
+          "line": 13034,
           "column": 14
         }
       ],
@@ -56969,17 +56969,17 @@
       "sites": [
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 14312,
+          "line": 14322,
           "column": 30
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 14345,
+          "line": 14355,
           "column": 34
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 14356,
+          "line": 14366,
           "column": 30
         }
       ],
@@ -58294,22 +58294,22 @@
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 13189,
+          "line": 13199,
           "column": 14
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 13204,
+          "line": 13214,
           "column": 14
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 13231,
+          "line": 13241,
           "column": 14
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 13268,
+          "line": 13278,
           "column": 14
         },
         {
@@ -67414,7 +67414,7 @@
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 14879,
+          "line": 14889,
           "column": 14
         },
         {
@@ -70316,7 +70316,7 @@
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 12579,
+          "line": 12589,
           "column": 10
         }
       ],
@@ -83243,12 +83243,12 @@
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 14377,
+          "line": 14387,
           "column": 29
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 14381,
+          "line": 14391,
           "column": 24
         },
         {
@@ -87619,17 +87619,17 @@
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 14171,
+          "line": 14181,
           "column": 26
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 14212,
+          "line": 14222,
           "column": 43
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 14223,
+          "line": 14233,
           "column": 38
         },
         {
@@ -89305,7 +89305,7 @@
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 11675,
+          "line": 11685,
           "column": 25
         },
         {
@@ -91117,27 +91117,27 @@
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 14447,
+          "line": 14457,
           "column": 14
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 14472,
+          "line": 14482,
           "column": 18
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 14499,
+          "line": 14509,
           "column": 18
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 14512,
+          "line": 14522,
           "column": 14
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 14530,
+          "line": 14540,
           "column": 14
         },
         {
@@ -91254,12 +91254,12 @@
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 14429,
+          "line": 14439,
           "column": 14
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 14551,
+          "line": 14561,
           "column": 14
         },
         {
@@ -91424,12 +91424,12 @@
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 11676,
+          "line": 11686,
           "column": 25
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 14068,
+          "line": 14078,
           "column": 29
         }
       ],
@@ -91686,12 +91686,12 @@
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 13862,
+          "line": 13872,
           "column": 14
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 14025,
+          "line": 14035,
           "column": 14
         }
       ],
@@ -91967,22 +91967,22 @@
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 13829,
+          "line": 13839,
           "column": 14
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 13844,
+          "line": 13854,
           "column": 18
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 14044,
+          "line": 14054,
           "column": 14
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 14094,
+          "line": 14104,
           "column": 14
         }
       ],
@@ -92044,7 +92044,7 @@
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 13907,
+          "line": 13917,
           "column": 14
         }
       ],
@@ -99425,7 +99425,7 @@
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 11400,
+          "line": 11410,
           "column": 10
         },
         {
@@ -100080,7 +100080,7 @@
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 10588,
+          "line": 10598,
           "column": 14
         },
         {
@@ -100254,12 +100254,7 @@
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 13357,
-          "column": 14
-        },
-        {
-          "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 13409,
+          "line": 13367,
           "column": 14
         },
         {
@@ -100269,7 +100264,12 @@
         },
         {
           "file": "crates/snapback-types/src/manifest/types.rs",
-          "line": 13430,
+          "line": 13429,
+          "column": 14
+        },
+        {
+          "file": "crates/snapback-types/src/manifest/types.rs",
+          "line": 13440,
           "column": 14
         },
         {

@@ -8,27 +8,30 @@ fixture repair; verified against the tree at `2dfb176d6`.
 
 ## Incompatibility
 
-`schemas/api.envelope.schema.json` lists `stream`, `authorityProfileDependence`,
-**and** `authorizationDependence` as `required` on function entries
-(`required` block near line 864), but the Rust projection omits each at its
-zero value:
+`schemas/api.envelope.schema.json` lists `stream`, `sequences`, `publicInline`,
+`rqsEligible`, `authorityCreating`, `retainable`, `authorityProfileDependence`,
+**and** `authorizationDependence` as `required` on function entries (`required`
+block near line 864), but the Rust projection omits each at its zero value:
 
-- `crates/snapback-types/src/manifest/types.rs:9383` —
+- `crates/snapback-types/src/manifest/types.rs:9393` —
   `#[serde(skip_serializing_if = "is_false")] pub stream: bool`
-- `types.rs:9434` — `authorityProfileDependence`,
+- `types.rs:~9459` — `authorityProfileDependence`,
   `skip_serializing_if = "Vec::is_empty"`
-- `types.rs:~9428` — `authorizationDependence`,
+- `types.rs:~9452` — `authorizationDependence`,
   `skip_serializing_if = "Vec::is_empty"` (predates the two above — this is a
   systemic pattern, not a one-commit slip)
+- `types.rs:9409` — `sequences`, `skip_serializing_if = "Vec::is_empty"`
+- `types.rs:9431-9446` — `publicInline`, `rqsEligible`, `authorityCreating`, and
+  `retainable`, each with `skip_serializing_if = "is_false"`
 
 The server serializes that projection directly
 (`crates/snapback-types/src/api_envelope.rs:1025`), so an ordinary envelope
-whose function has `stream: false` or an empty dependence array does not
-validate against the committed schema. `scripts/generate-app-api-md.mjs:359`
-rejects schema-invalid envelopes, so the `--server` path fails against a real
-backend serving such functions. The fixture suite passes only because its
-fixtures write the fields explicitly — correct against the schema as
-committed, but not the production encoding.
+whose function has any of those false booleans or empty arrays does not validate
+against the committed schema. `scripts/generate-app-api-md.mjs:359` rejects
+schema-invalid envelopes, so the `--server` path fails against a real backend
+serving such functions. The fixture suite passes only because its fixtures
+write the fields explicitly — correct against the schema as committed, but not
+the production encoding.
 
 ## Fix directions (owner: the program that evolved the schema — `stream` via
 `96059e6ed`, `authorityProfileDependence` via `14e1fa014` / LLP 0240 R1)
@@ -36,7 +39,7 @@ committed, but not the production encoding.
 1. **Always serialize the zero values** — drop the `skip_serializing_if`
    attributes for required fields (additive wire change, keeps the schema's
    "always present" contract); or
-2. **Make the three properties optional in the schema** with documented
+2. **Make all eight properties optional in the schema** with documented
    omitted-means-zero semantics, and regenerate the schema chain.
 
 Either way, add a conformance case that validates a *serializer-produced*
@@ -46,12 +49,13 @@ drift apart silently again.
 ## Resolution (2026-08-25)
 
 The schema was generated from `PublicFunctionDefinition`, but schemars treated
-the three serde-omitted zero-value fields as required. The Rust source now
+all eight serde-omitted zero-value fields as required. The Rust source now
 declares their schema defaults and documents the wire interpretation: omitted
-`stream` means `false`, while omitted `authorizationDependence` and
-`authorityProfileDependence` mean `[]`. Regenerating the schema removes those
-properties from `required` without changing serialized envelopes or their
-digests.
+`stream`, `publicInline`, `rqsEligible`, `authorityCreating`, and `retainable`
+mean `false`; omitted `sequences`, `authorizationDependence`, and
+`authorityProfileDependence` mean `[]`. Regenerating the schema removes all
+eight properties from `required` without changing serialized envelopes or
+their digests.
 
 Rust conformance coverage now constructs and serializes a zero-value function,
 composes a real API envelope, confirms the fields are absent, and validates it

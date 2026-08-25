@@ -1941,7 +1941,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-graph-unbounded-expansion"></a>`SNAPBACK_GRAPH_UNBOUNDED_EXPANSION` | codegen | 400 | — | `crates/snapback-server/src/server/api_error.rs:162` | 10 |
 | <a id="diagnostic-snapback-graph-unknown-field"></a>`SNAPBACK_GRAPH_UNKNOWN_FIELD` | codegen | 400 | — | `crates/snapback-server/src/server/api_error.rs:158` | 44 |
 | <a id="diagnostic-snapback-graph-window-vector-invalid"></a>`SNAPBACK_GRAPH_WINDOW_VECTOR_INVALID` | codegen | 400 | — | `crates/snapback-engine/src/graph_evaluator.rs:805` | 7 |
-| <a id="diagnostic-snapback-guard-failed"></a>`SNAPBACK_GUARD_FAILED` | server | — | — | `crates/snapback-types/src/manifest/types.rs:14312` | 3 |
+| <a id="diagnostic-snapback-guard-failed"></a>`SNAPBACK_GUARD_FAILED` | server | — | — | `crates/snapback-types/src/manifest/types.rs:14322` | 3 |
 | <a id="diagnostic-snapback-guide-identity-mismatch"></a>`SNAPBACK_GUIDE_IDENTITY_MISMATCH` | guide | — | — | `packages/snapback-admin-client/index.mjs:343` | 2 |
 | <a id="diagnostic-snapback-guide-identity-missing"></a>`SNAPBACK_GUIDE_IDENTITY_MISSING` | guide | — | — | `packages/snapback-admin-client/index.mjs:331` | 1 |
 | <a id="diagnostic-snapback-guide-lookup-budget-exceeded"></a>`SNAPBACK_GUIDE_LOOKUP_BUDGET_EXCEEDED` | guide | 500 | — | `crates/snapback-server/src/guide_reference.rs:167` | 8 |

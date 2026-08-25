@@ -26,18 +26,10 @@ function functionDefinition(id, name, kind, authRequirement) {
     name,
     exportedName: null,
     kind,
-    stream: false,
-    sequences: [],
     resultContract: { kind: 'unknown' },
     requiredCapabilities: [],
     authRequirement,
     authorityIndependent: false,
-    publicInline: false,
-    rqsEligible: false,
-    authorityCreating: false,
-    retainable: false,
-    authorizationDependence: [],
-    authorityProfileDependence: [],
     syncabilityClass: null,
     readSetSummary: {},
     writeSetSummary: {},
@@ -369,25 +361,16 @@ test('a malformed envelope is a typed nonzero refusal', async () => {
 });
 
 test('--server fetches discovery then its content-addressed envelope', async () => {
-  const serverEnvelope = structuredClone(envelope);
-  serverEnvelope.functions.functions = serverEnvelope.functions.functions.map((definition) => {
-    const zeroValueProjection = { ...definition };
-    delete zeroValueProjection.stream;
-    delete zeroValueProjection.authorizationDependence;
-    delete zeroValueProjection.authorityProfileDependence;
-    return zeroValueProjection;
-  });
-  const serverDiscovery = fixtureDiscovery(serverEnvelope);
   const paths = [];
   const server = createServer((request, response) => {
     paths.push(request.url);
     response.writeHead(200, { 'content-type': 'application/json' });
     if (request.url === '/app-api/current') {
-      response.end(JSON.stringify(serverDiscovery));
+      response.end(JSON.stringify(discovery));
       return;
     }
-    if (request.url === `/app-api/envelope/${serverDiscovery.envelope.sha256}`) {
-      response.end(JSON.stringify(serverEnvelope));
+    if (request.url === `/app-api/envelope/${discovery.envelope.sha256}`) {
+      response.end(JSON.stringify(envelope));
       return;
     }
     response.statusCode = 404;
@@ -430,7 +413,7 @@ test('--server fetches discovery then its content-addressed envelope', async () 
   }
   assert.deepEqual(paths, [
     '/app-api/current',
-    `/app-api/envelope/${serverDiscovery.envelope.sha256}`,
+    `/app-api/envelope/${discovery.envelope.sha256}`,
   ]);
   assert.match(markdown, /Generation tuple: .*"schemaHash":"schema-fixture"/u);
   assert.match(markdown, /The envelope is the authority/u);

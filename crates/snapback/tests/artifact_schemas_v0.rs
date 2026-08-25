@@ -81,8 +81,7 @@ use snapback::manifest::{
     FunctionManifest, FunctionRuntime, HandlerInput, IbexModule, MutationAcknowledgementRequest,
     MutationAcknowledgementResponse, MutationPlan, MutationRequest, PublicFunctionManifest,
     REPLAY_OPAQUE_ID_MAX_BYTES, REPLAY_OPAQUE_ID_PATTERN, SNAPBACK_SCHEMA_VERSION, SchemaManifest,
-    SchemaManifestValidationExt as _, SequenceDeclaration, SequenceScopeAccess, SettlementLane,
-    SourceSpan,
+    SchemaManifestValidationExt as _, SettlementLane, SourceSpan,
     TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
 };
 use snapback::result_transform::{
@@ -584,7 +583,7 @@ fn serializer_produced_zero_value_envelope_validates_against_committed_schema() 
             export: "zeroFacts".to_owned(),
         }),
     );
-    let mut projection = PublicFunctionManifest::from(FunctionManifest {
+    let projection = PublicFunctionManifest::from(FunctionManifest {
         schema_version: "snapback.v1".to_owned(),
         app_id: "serializer-fixture".to_owned(),
         bundle_hash: Some("bundle-fixture".to_owned()),
@@ -592,19 +591,9 @@ fn serializer_produced_zero_value_envelope_validates_against_committed_schema() 
         functions: vec![function],
         ..FunctionManifest::default()
     });
-    let projected = &mut projection.functions[0];
-    projected.sequences = vec![SequenceDeclaration {
-        name: "fixtureSequence".to_owned(),
-        scope_table: "fixtureScopes".to_owned(),
-        scope_access: SequenceScopeAccess::Public("public.v1".to_owned()),
-    }];
-    projected.public_inline = true;
-    projected.rqs_eligible = true;
-    projected.authority_creating = true;
-    projected.retainable = true;
     let args_schema = json!({ "properties": {}, "type": "object" });
-    let args_canonical = snapback::api_envelope::canonicalize(&args_schema)
-        .expect("canonicalize operation schema");
+    let args_canonical =
+        snapback::api_envelope::canonicalize(&args_schema).expect("canonicalize operation schema");
     let declaration = "export declare const zeroFacts: unknown;\n".to_owned();
     let members = snapback::api_envelope::ApiEnvelopeMembersV1 {
         operations: std::collections::BTreeMap::from([(
@@ -629,17 +618,18 @@ fn serializer_produced_zero_value_envelope_validates_against_committed_schema() 
         ]),
     };
 
-    let composed = snapback::api_envelope::compose_api_envelope(
-        &projection,
-        &members,
-        "sessions",
-    )
-    .expect("the Rust serializer composes its own envelope");
-    let envelope: Value = serde_json::from_str(&composed.canonical)
-        .expect("serializer-produced envelope is JSON");
+    let composed = snapback::api_envelope::compose_api_envelope(&projection, &members, "sessions")
+        .expect("the Rust serializer composes its own envelope");
+    let envelope: Value =
+        serde_json::from_str(&composed.canonical).expect("serializer-produced envelope is JSON");
     let function = &envelope["functions"]["functions"][0];
     for field in [
         "stream",
+        "sequences",
+        "publicInline",
+        "rqsEligible",
+        "authorityCreating",
+        "retainable",
         "authorizationDependence",
         "authorityProfileDependence",
     ] {

@@ -9405,7 +9405,9 @@ pub struct PublicFunctionDefinition {
     pub args_contract: Option<FunctionArgsContract>,
     #[serde(rename = "boundedSkew", skip_serializing_if = "Option::is_none")]
     pub bounded_skew: Option<BoundedSkewDeclaration>,
+    /// Omission is the canonical zero-value encoding and means `[]`.
     #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[schemars(default)]
     pub sequences: Vec<SequenceDeclaration>,
     // @ref LLP 0107#optimistic-mutation-projection — the browser verifies
     // the deployed descriptor as well as its hash before admitting an
@@ -9424,16 +9426,24 @@ pub struct PublicFunctionDefinition {
     #[serde(rename = "authorityIndependent")]
     pub authority_independent: bool,
     /// LLP 0092 §0C.3 disclosure fact — already disclosed by the behavior it
-    /// authorizes, so it rides the public projection.
+    /// authorizes, so it rides the public projection. Omission is the
+    /// canonical zero-value encoding and means `false`.
     #[serde(rename = "publicInline", skip_serializing_if = "is_false")]
+    #[schemars(default)]
     pub public_inline: bool,
     /// LLP 0092 §0C.2 derived predicate — never authored; clients key the
-    /// alias-key promotion check and token expectations on it.
+    /// alias-key promotion check and token expectations on it. Omission is the
+    /// canonical zero-value encoding and means `false`.
     #[serde(rename = "rqsEligible", skip_serializing_if = "is_false")]
+    #[schemars(default)]
     pub rqs_eligible: bool,
+    /// Omission is the canonical zero-value encoding and means `false`.
     #[serde(rename = "authorityCreating", skip_serializing_if = "is_false")]
+    #[schemars(default)]
     pub authority_creating: bool,
+    /// Omission is the canonical zero-value encoding and means `false`.
     #[serde(skip_serializing_if = "is_false")]
+    #[schemars(default)]
     pub retainable: bool,
     #[serde(rename = "retentionClass", skip_serializing_if = "Option::is_none")]
     pub retention_class: Option<String>,
@@ -14885,6 +14895,17 @@ mod media_ref_manifest_tests {
 mod public_projection_schema_tests {
     use super::*;
 
+    const SERIALIZER_OMITTED_ZERO_FIELDS: &[&str] = &[
+        "stream",
+        "sequences",
+        "publicInline",
+        "rqsEligible",
+        "authorityCreating",
+        "retainable",
+        "authorizationDependence",
+        "authorityProfileDependence",
+    ];
+
     #[test]
     fn public_projection_schema_accepts_omitted_zero_value_function_facts() {
         let function = FunctionDefinition::new(
@@ -14897,11 +14918,7 @@ mod public_projection_schema_tests {
         );
         let public = serde_json::to_value(PublicFunctionDefinition::from(function))
             .expect("serialize public function projection");
-        for field in [
-            "stream",
-            "authorizationDependence",
-            "authorityProfileDependence",
-        ] {
+        for field in SERIALIZER_OMITTED_ZERO_FIELDS {
             assert!(
                 public.get(field).is_none(),
                 "the zero-value public projection must omit {field}"
@@ -14913,11 +14930,7 @@ mod public_projection_schema_tests {
         let required = schema["required"]
             .as_array()
             .expect("public function required fields");
-        for field in [
-            "stream",
-            "authorizationDependence",
-            "authorityProfileDependence",
-        ] {
+        for field in SERIALIZER_OMITTED_ZERO_FIELDS {
             assert!(
                 !required.iter().any(|required| required == field),
                 "the schema must treat omitted {field} as its zero value"
