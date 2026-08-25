@@ -332,9 +332,8 @@ if (
   || dispositionMigration.reason !== 'two-host R2 execution requires disposition-complete admission independent of plan order'
   || JSON.stringify(dispositionMigration.commits) !== JSON.stringify(['1cb5a2307'])
   || dispositionMigration.admissionToolSha256From !== '1531082d27a08e699515b08fd1ae5ea863efe20dff6bb48ad3b7fc85e37ce861'
-  || dispositionMigration.admissionToolSha256To !== repositorySha256(
-    overlayHashes.admissionToolSha256,
-  )
+  || dispositionMigration.admissionToolSha256To
+    !== dualReviewHardeningMigration.admissionToolSha256From
   || dispositionMigration.validatePlanSha256From !== '4acd162d5f99c9648ba0fa7709615c74fbce3c8f32bbb6d2369b2941ae68214d'
   || dispositionMigration.validatePlanSha256To !== '908544533fcda8d5488129c077c518e9e1270cac7e59580a758090fbf3373308'
   || !recoveryInstrumentMigrated
@@ -346,9 +345,8 @@ if (
   || suiteStatusMigration.reason !== 'suite-status finalization must preserve hash-bound green verdicts across later milestone suite rollover'
   || JSON.stringify(suiteStatusMigration.commits) !== JSON.stringify(['f489b8e28', '4890eb485'])
   || suiteStatusMigration.productionDriverSha256From !== 'de0163b2a5621e70cec038089ed2b3abeca3ec82e85904c9faa286c124e81135'
-  || suiteStatusMigration.productionDriverSha256To !== repositorySha256(
-    overlayHashes.productionDriverSha256,
-  )
+  || suiteStatusMigration.productionDriverSha256To
+    !== dualReviewHardeningMigration.productionDriverSha256From
   || suiteStatusMigration.manifestLoaderSha256From !== 'd21925146a888cda3f24d19bdf9c3e0994ed87d7ac88c5fc485a92a46f5ee530'
   || suiteStatusMigration.manifestLoaderSha256To !== repositorySha256(
     overlayHashes.manifestLoaderSha256,
@@ -377,13 +375,11 @@ if (
   || boundaryTelemetryMigration.sourceRevisionFrom !== '4890eb48555042dd6eee5ffa116039d3fe9107c4'
   || boundaryTelemetryMigration.harnessConfigSha256From !== 'd3f2959a03e1c63c914039a5f9f29ad69455918a1bb32e2de994f29786c464d3'
   || boundaryTelemetryMigration.joinerSha256From !== '6cdb9a603b4d436c12a61cef7f882a9b0dc99948b043f18e7fe22b9bf5137fcd'
-  || boundaryTelemetryMigration.joinerSha256To !== repositorySha256(
-    overlayHashes.joinerSha256,
-  )
+  || boundaryTelemetryMigration.joinerSha256To
+    !== dualReviewHardeningMigration.joinerSha256From
   || boundaryTelemetryMigration.observationsSha256From !== '1de845b90a135a138bc7d9aed40a80a0d2d5c64d2928a27caf31874408d76c8a'
-  || boundaryTelemetryMigration.observationsSha256To !== repositorySha256(
-    overlayHashes.observationsSha256,
-  )
+  || boundaryTelemetryMigration.observationsSha256To
+    !== dualReviewHardeningMigration.observationsSha256From
   || boundaryTelemetryMigration.finalizeExistingSha256From !== 'cf9848906ed653a8ebd667f7c17cf79b4e2651c3a995c98872a6bb3d93d1a4d7'
   || boundaryTelemetryMigration.finalizeExistingSha256To !== repositorySha256(
     overlayHashes.finalizeExistingSha256,
@@ -445,14 +441,21 @@ if (
 ) {
   fail('instrument migration does not bind the dual-review hardening implementation');
 }
-try {
-  execFileSync('git', [
-    'cat-file',
-    '-e',
-    `${dualReviewHardeningMigration.commits.at(-1)}^{commit}`,
-  ], { cwd: repositoryRoot });
-} catch {
-  fail('dual-review hardening migration does not name a real landed implementation commit');
+for (const [index, migration] of instrumentMigrations.entries()) {
+  if (
+    !Array.isArray(migration.commits)
+    || migration.commits.length === 0
+    || migration.commits.some((commit) => !/^[0-9a-f]{9,40}$/u.test(commit))
+  ) {
+    fail(`instrument migration ${index} does not name real implementation commits`);
+  }
+  for (const commit of migration.commits) {
+    try {
+      execFileSync('git', ['cat-file', '-e', `${commit}^{commit}`], { cwd: repositoryRoot });
+    } catch {
+      fail(`instrument migration ${index} commit is not available: ${commit}`);
+    }
+  }
 }
 
 for (const field of ['entrypoint', 'driver', 'signal', 'admission', 'finalizeExisting', 'materializeInstrument']) {
