@@ -60,3 +60,12 @@ LLP 0190 D3); the replica continuity contract (LLP 0209 OQ-6).
 
 - 2026-08-25 — Opened. RFC 0309 Accepted, OQ-1 ruled (sub-Spec),
   trigger (a) fired, all by author direction in the same session.
+- 2026-08-25 — Plan step 1 done: `0309.000` authored (r1 grounded
+  in a three-way code inventory at `232a82504`).
+- 2026-08-25 — Plan step 2 done: super-refine **CONVERGED
+  dual-READY on r6** (content hash `e65ea68f33cb02ef`, commit
+  `a15eda9c0`; 6 rounds, 6/6 launches per family, freeze held from
+  r3; records `llp/reviews/0309.000-operator-delta-semantics.*`).
+  r7 = unreviewed obligation-register bookkeeping. Spec stays
+  `Review` pending author acceptance. Proceeding to plan step 3
+  (implementation via /sbs-orchestrate).
