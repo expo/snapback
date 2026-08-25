@@ -79,6 +79,35 @@ has 257 lines, and the milestone stream has three lines. `metering.json` and
 `record.json` do not exist, so there is no record to validate or publish and no
 replacement record was fabricated.
 
+## Retained-evidence re-finalization refusal (2026-08-24)
+
+After the receipt-identity repair in `f489b8e28`, the registered no-launch
+finalizer was invoked with `--publish`. It refused before lock acquisition or
+any derived/private/publication write:
+
+```text
+stage=unclassified source="none" streamLine=none eventOrdinal=none eventType="unknown" cause="R2_FINALIZE_REFUSAL: private evidence is not the exact registered one-attempt capsule" rawPayloadExcerpt="<not event-scoped>"
+```
+
+The exact mismatch is that this attempt is a v5 capsule but the registered
+finalizer requires the live configuration and execution closure to equal the
+admitted bytes:
+
+| Binding | Admitted v5 | Live v6 |
+| --- | --- | --- |
+| `harness-config.json` SHA-256 | `af6ef2c74ad53988d979200505b682dbac9590d4f356a71d68c03ca19aea579b` | `be2e55b504560d8113b80c549312cf4683655f3011c681cbe4be33a900ed8299` |
+| instrument manifest SHA-256 | `13d5fe72dfdf5f401b1e81452f1668af071fb83093cdb92aed1941db61ddff3d` | `2f87099eb13640f632ee76483c6c414f03f8671174c7ac52098c858292d540ae` |
+| production driver SHA-256 | `de0163b2a5621e70cec038089ed2b3abeca3ec82e85904c9faa286c124e81135` | `61931aeca07f67b569127d75ae256b5cce372ce335dbde4530f8934303f10559` |
+| metering source-closure SHA-256 | `b8b56bc3f29cf689b7401f58eec4c77583a52c66bb2ec638b055bad552363c9e` | `c1e875f6c992da33a79c26ec686de78b8daa58aab1f63f96e7ab72d142a6d5b4` |
+
+`instrumentMigrations[2]` records that v5-to-v6 transition for live campaign
+configuration, but `r2-finalize-existing.mjs` has no registered cross-version
+retained-attempt migration and intentionally rejects this identity change.
+Rewriting the capsule to v6 would destroy its admitted provenance, so no record
+was forced. `metering.json`, `record.json`, `publication-manifest.json`, and
+`publication-transaction.json` remain absent; scorecard eligibility cannot be
+assigned without a validator-clean record.
+
 ## Closure
 
 The controller and Grok process closed. No listener remains on the registered

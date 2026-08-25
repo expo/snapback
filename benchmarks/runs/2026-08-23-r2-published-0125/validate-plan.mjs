@@ -150,12 +150,17 @@ if (
 const recovery = readJson(recoveryDescriptor.path);
 const recoveryWithoutIntegrity = structuredClone(recovery);
 delete recoveryWithoutIntegrity.integrity;
-const dispositionMigration = config.pins.instrument.instrumentMigrations?.at(-1);
+const instrumentMigrations = config.pins.instrument.instrumentMigrations;
+const dispositionMigration = instrumentMigrations?.[1];
+const suiteStatusMigration = instrumentMigrations?.[2];
 const recoveryInstrumentMigrated = dispositionMigration?.instrumentManifestSha256From
     === recovery.resumeInstrument.sha256?.replace(/^sha256:/u, '')
-  && dispositionMigration.instrumentManifestSha256To === config.pins.instrument.manifestSha256
+  && dispositionMigration.instrumentManifestSha256To
+    === suiteStatusMigration?.instrumentManifestSha256From
+  && suiteStatusMigration.instrumentManifestSha256To === config.pins.instrument.manifestSha256
   && dispositionMigration.materializedRootFrom === recovery.resumeInstrument.materializedRoot
-  && dispositionMigration.materializedRootTo === config.paths.instrumentRoot;
+  && dispositionMigration.materializedRootTo === suiteStatusMigration.materializedRootFrom
+  && suiteStatusMigration.materializedRootTo === config.paths.instrumentRoot;
 if (
   recovery.version !== recoveryDescriptor.version
   || recovery.completedCell !== config.cellOrder[0]
@@ -298,7 +303,8 @@ for (const [field, path] of Object.entries(overlayHashes)) {
   }
 }
 if (
-  !Array.isArray(config.pins.instrument.instrumentMigrations)
+  !Array.isArray(instrumentMigrations)
+  || instrumentMigrations.length !== 3
   || dispositionMigration?.date !== '2026-08-24'
   || dispositionMigration.reason !== 'two-host R2 execution requires disposition-complete admission independent of plan order'
   || dispositionMigration.commits?.includes('scoped-review-pending') !== true
@@ -306,12 +312,35 @@ if (
   || dispositionMigration.admissionToolSha256To !== repositorySha256(
     overlayHashes.admissionToolSha256,
   )
-  || dispositionMigration.validatePlanSha256To !== repositorySha256(
-    'benchmarks/runs/2026-08-23-r2-published-0125/validate-plan.mjs',
-  )
+  || dispositionMigration.validatePlanSha256From !== '4acd162d5f99c9648ba0fa7709615c74fbce3c8f32bbb6d2369b2941ae68214d'
+  || dispositionMigration.validatePlanSha256To !== '908544533fcda8d5488129c077c518e9e1270cac7e59580a758090fbf3373308'
   || !recoveryInstrumentMigrated
 ) {
   fail('instrument migration does not bind the disposition-complete admission implementation');
+}
+if (
+  suiteStatusMigration.date !== '2026-08-24'
+  || suiteStatusMigration.reason !== 'suite-status finalization must preserve hash-bound green verdicts across later milestone suite rollover'
+  || suiteStatusMigration.commits?.includes('scoped-review-pending') !== true
+  || suiteStatusMigration.productionDriverSha256From !== 'de0163b2a5621e70cec038089ed2b3abeca3ec82e85904c9faa286c124e81135'
+  || suiteStatusMigration.productionDriverSha256To !== repositorySha256(
+    overlayHashes.productionDriverSha256,
+  )
+  || suiteStatusMigration.manifestLoaderSha256From !== 'd21925146a888cda3f24d19bdf9c3e0994ed87d7ac88c5fc485a92a46f5ee530'
+  || suiteStatusMigration.manifestLoaderSha256To !== repositorySha256(
+    overlayHashes.manifestLoaderSha256,
+  )
+  || suiteStatusMigration.meteringRootSha256From !== 'b8b56bc3f29cf689b7401f58eec4c77583a52c66bb2ec638b055bad552363c9e'
+  || suiteStatusMigration.meteringRootSha256To
+    !== config.execution.sourceClosure.meteringRoot.sha256.replace(/^sha256:/u, '')
+  || suiteStatusMigration.instrumentManifestSha256From
+    !== dispositionMigration.instrumentManifestSha256To
+  || suiteStatusMigration.instrumentManifestSha256To !== config.pins.instrument.manifestSha256
+  || suiteStatusMigration.materializedRootFrom !== dispositionMigration.materializedRootTo
+  || suiteStatusMigration.materializedRootTo !== config.paths.instrumentRoot
+  || suiteStatusMigration.semantics !== 'unchanged receipt verdict plus identical refusal-time SHA-256 may restore an unbound aggregate rollover; verdict flips and receipt identity changes still fail closed'
+) {
+  fail('instrument migration does not bind the suite-status receipt-identity implementation');
 }
 
 for (const field of ['entrypoint', 'driver', 'signal', 'admission', 'finalizeExisting', 'materializeInstrument']) {

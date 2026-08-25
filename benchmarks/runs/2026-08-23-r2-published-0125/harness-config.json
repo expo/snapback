@@ -530,7 +530,7 @@
       "allowedHostId": "mac-mini-durand",
       "loadCeilingId": "mac16-11-m4-pro-12core-loadavg-10-approved-20260824",
       "baseline": {"wallSeconds": 4336, "outputTokens": 141020},
-      "disposition": {"kind": "driver-failure-report", "path": "BLOCKED-grok-clique-explicit-suite-status-finalization.md", "sha256": "sha256:bb8d4c1b7367f891e8206cc34fd777c37a1a0319395d1f4ffe7fe6bdea0bcf8c"},
+      "disposition": {"kind": "driver-failure-report", "path": "BLOCKED-grok-clique-explicit-suite-status-finalization.md", "sha256": "sha256:10c505e7f566454b452218947e8fe11e654f059cd4169f282e6af87e60c763c2"},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "grok-clique-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/grok-clique-explicit.json"],
       "admissionArtifact": "admissions/grok-clique-explicit.json",
       "meteringPolicy": {"adapter": "unavailable", "capFamily": "grok-advisory", "nativeCounts": "registered-unavailable", "unavailableReason": "advisory-family-no-approved-native-per-turn-adapter"}
@@ -549,7 +549,7 @@
       "allowedHostId": "mac-mini-durand",
       "loadCeilingId": "mac16-11-m4-pro-12core-loadavg-10-approved-20260824",
       "baseline": {"wallSeconds": 19346, "outputTokens": 188471, "contamination": ["host-load-contamination"]},
-      "disposition": {"kind": "driver-failure-report", "path": "BLOCKED-grok-clique-familiar-suite-status-finalization.md", "sha256": "sha256:5134e05f9a5482ea2f652df041252f1e0771504e80ca468a1a6b238db7327669"},
+      "disposition": {"kind": "driver-failure-report", "path": "BLOCKED-grok-clique-familiar-suite-status-finalization.md", "sha256": "sha256:a7a261c654c61a864b61d5ae2154a02508c84984ed105600610f436e21d644e2"},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "grok-clique-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/grok-clique-familiar.json"],
       "admissionArtifact": "admissions/grok-clique-familiar.json",
       "meteringPolicy": {"adapter": "unavailable", "capFamily": "grok-advisory", "nativeCounts": "registered-unavailable", "unavailableReason": "advisory-family-no-approved-native-per-turn-adapter"}
@@ -568,7 +568,7 @@
       "allowedHostId": "mac-mini-durand",
       "loadCeilingId": "mac16-11-m4-pro-12core-loadavg-10-approved-20260824",
       "baseline": {"wallSeconds": 7664, "outputTokens": 263396},
-      "disposition": {"kind": "driver-failure-report", "path": "BLOCKED-grok-coterie-explicit-suite-status-finalization.md", "sha256": "sha256:581cd351f6df907712dad0057f83b9167707781ad021aeaf4ced32cac9d110d8"},
+      "disposition": {"kind": "driver-failure-report", "path": "BLOCKED-grok-coterie-explicit-suite-status-finalization.md", "sha256": "sha256:04ac0d5483c840f3e5acb1b90ac497d5f6c8ff66d8acced0683b3f9e4bbce014"},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "grok-coterie-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/grok-coterie-explicit.json"],
       "admissionArtifact": "admissions/grok-coterie-explicit.json",
       "meteringPolicy": {"adapter": "unavailable", "capFamily": "grok-advisory", "nativeCounts": "registered-unavailable", "unavailableReason": "advisory-family-no-approved-native-per-turn-adapter"}
