@@ -69,7 +69,11 @@ import {
   verifyAdmissionArtifact,
 } from "../r2-cell-admission.mjs";
 import { finalizeExisting } from "../r2-finalize-existing.mjs";
-import { reconcileSuiteStatuses } from "../r2-cell-driver.mjs";
+import {
+  r2CellDriverTestHooks,
+  reconcileSuiteStatuses,
+  runMilestone as runProductionDriverMilestone,
+} from "../r2-cell-driver.mjs";
 import { validateFinalizedCellSlot } from "../r2-finalized-cell.mjs";
 import {
   acquireExclusiveHostLock,
@@ -86,6 +90,7 @@ import {
   OBSERVATION_VERSION,
   ObservationWriter,
   LaneObservationHarness,
+  isAfterTerminalHarnessTelemetry,
   isAfterTerminalHarnessTelemetryType,
   parseObservationJsonLines,
   projectMilestoneObservability,
@@ -329,7 +334,7 @@ test("usage after the final terminal boundary fails closed instead of disappeari
   }), /completes after the final M1 usage settlement/u);
 });
 
-test("retained post-terminal harness telemetry is accepted while semantic actions fail closed", async () => {
+test("retained post-terminal harness telemetry is source- and finalization-bound", async () => {
   const telemetry = await fixtureJson(
     "real-grok-coterie-familiar-after-boundary-telemetry.json",
   );
@@ -341,6 +346,22 @@ test("retained post-terminal harness telemetry is accepted while semantic action
   assert.equal(isAfterTerminalHarnessTelemetryType("semantic-action"), false);
   assert.equal(isAfterTerminalHarnessTelemetryType("future-unregistered-type"), false);
 
+  const laneRunId = telemetry.event.laneRunId;
+  const laneControllerSourceId = `${laneRunId}-lane-controller`;
+  const driverFinalizedAt = "2026-08-25T05:11:18.000Z";
+  const provenance = {
+    laneRunId,
+    driver: { stampedAt: driverFinalizedAt },
+  };
+  assert.equal(isAfterTerminalHarnessTelemetry({
+    event: {
+      ...telemetry.event,
+      evidenceSourceId: laneControllerSourceId,
+    },
+    laneControllerSourceId,
+    driverFinalizedAt,
+  }), true);
+
   const result = joinUsageToMilestones({
     channel: {
       source: "advisory-family-no-approved-native-per-turn-adapter",
@@ -351,16 +372,17 @@ test("retained post-terminal harness telemetry is accepted while semantic action
     observations: {
       events: [telemetry.claim, telemetry.event].map((event) => ({
         ...event,
-        evidenceSourceId: "retained-grok-coterie-familiar-controller",
+        evidenceSourceId: laneControllerSourceId,
         evidencePath: telemetry.source.path,
         evidenceLine: event.sequence,
       })),
       evidence: [{
-        sourceId: "retained-grok-coterie-familiar-controller",
+        sourceId: laneControllerSourceId,
         path: telemetry.source.path,
         sha256: telemetry.source.sha256,
       }],
     },
+    provenance,
   });
   assert.equal(result.milestones.M1.hostLoad.sampleCount, 1);
 
@@ -380,7 +402,64 @@ test("retained post-terminal harness telemetry is accepted while semantic action
       }],
       evidence: [],
     },
+    provenance: {
+      laneRunId: semantic.event.laneRunId,
+      driver: { stampedAt: "2026-08-25T06:00:00.000Z" },
+    },
   }), /M1 observation semantic-action is after its terminal boundary/u);
+
+  for (const event of [
+    {
+      ...telemetry.event,
+      type: "api-request",
+      provider: "grok-46",
+      operation: "native-harness-turn",
+      requestId: "late-api",
+      outcome: "success",
+      retryOf: null,
+    },
+    {
+      ...telemetry.event,
+      type: "lifecycle",
+      action: "restart",
+      destructive: false,
+    },
+    { ...telemetry.event, type: "future-unregistered-type" },
+  ]) {
+    assert.throws(() => joinUsageToMilestones({
+      channel: {
+        source: "advisory-family-no-approved-native-per-turn-adapter",
+        unavailableReason: "advisory-family-no-approved-native-per-turn-adapter",
+        turns: null,
+      },
+      boundaries: { M1: telemetry.boundary },
+      observations: {
+        events: [{ ...event, evidenceSourceId: laneControllerSourceId }],
+        evidence: [],
+      },
+      provenance,
+    }), new RegExp(`M1 observation ${event.type} is after its terminal boundary`, "u"));
+  }
+
+  for (const event of [
+    { ...telemetry.event, evidenceSourceId: "wrong-source" },
+    {
+      ...telemetry.event,
+      at: "2026-08-25T05:11:19.000Z",
+      evidenceSourceId: laneControllerSourceId,
+    },
+  ]) {
+    assert.throws(() => joinUsageToMilestones({
+      channel: {
+        source: "advisory-family-no-approved-native-per-turn-adapter",
+        unavailableReason: "advisory-family-no-approved-native-per-turn-adapter",
+        turns: null,
+      },
+      boundaries: { M1: telemetry.boundary },
+      observations: { events: [event], evidence: [] },
+      provenance,
+    }), /M1 observation host-load-sample is after its terminal boundary/u);
+  }
 });
 
 test("recorded clock-skew bounds reject ambiguous timestamp joins", async () => {
@@ -1700,6 +1779,109 @@ test("production driver import and preflight failures precede the attempt/privat
   }
 });
 
+test("production driver classifies source-inspection retries and surfaces queued refusal at its milestone", async () => {
+  const semanticActions = [];
+  const recoveryEpisodes = [];
+  const nativeState = {
+    config: { cell: { harness: "claude-opus5" } },
+    controls: {
+      semanticAction: async (event) => { semanticActions.push(event); },
+      recoveryEpisode: async (event) => { recoveryEpisodes.push(event); },
+      reseed: async (_options, operation) => operation(),
+      restart: async (operation) => operation(),
+      apiRequest: async (_fields, operation) => operation(),
+    },
+    currentMilestone: "M1",
+    observationQueue: Promise.resolve(),
+    actionSequence: 0,
+    episodeSequence: 0,
+    apiSequence: 0,
+    lastFailedApiRequest: null,
+    pendingEpisodes: new Map(),
+    pendingNativeTools: new Map(),
+    seenNativeActions: new Set(),
+    correctionLoops: [],
+  };
+  const command = "cat node_modules/@expo/snapback-react/index.mjs";
+  r2CellDriverTestHooks.handleNativeRecord(nativeState, {
+    id: "source-inspection-failure",
+    command,
+    exit_code: 1,
+  });
+  await nativeState.observationQueue;
+  r2CellDriverTestHooks.handleNativeRecord(nativeState, {
+    id: "source-inspection-retry",
+    command,
+    exit_code: 0,
+  });
+  await nativeState.observationQueue;
+  assert.equal(semanticActions[0].actionClass, "source-inspection");
+  assert.equal(semanticActions[0].binaryExcavation, true);
+  assert.equal(semanticActions[1].actionClass, "retry");
+  assert.equal(semanticActions[1].retriedClass, "source-inspection");
+  assert.equal(semanticActions[1].binaryExcavation, false);
+  assert.equal(recoveryEpisodes[0].episodeId, semanticActions[1].episodeId);
+
+  const temp = await realpath(await mkdtemp(join(tmpdir(), "r2-driver-observation-refusal-")));
+  const laneRunId = "fixture-run/driver-observation-refusal";
+  const controls = {
+    semanticAction: async () => {
+      throw new TypeError("semantic-action.binaryExcavation requires source-inspection");
+    },
+    recoveryEpisode: async () => {},
+    reseed: async (_options, operation) => operation(),
+    restart: async (operation) => operation(),
+    apiRequest: async (_fields, operation) => operation(),
+  };
+  const state = {
+    ...nativeState,
+    config: { laneRunId, cell: { harness: "claude-opus5" }, milestones: ["M1", "M2", "M3"] },
+    root: temp,
+    child: {},
+    controls,
+    currentMilestone: "M2",
+    observationQueue: Promise.resolve(),
+    observationFailure: null,
+    pendingEpisodes: new Map(),
+    pendingNativeTools: new Map(),
+    seenNativeActions: new Set(),
+    observationSources: [],
+  };
+  try {
+    await Promise.all([
+      mkdir(join(temp, "gates"), { recursive: true }),
+      mkdir(join(temp, "events"), { recursive: true }),
+    ]);
+    await writeFile(join(temp, "events", "cell-milestones.jsonl"), `${JSON.stringify({
+      milestone: "M2",
+      status: "aborted",
+      terminalReason: "abort",
+      recordedAt: "2026-08-25T12:00:00.000Z",
+    })}\n`);
+    r2CellDriverTestHooks.installState(laneRunId, state);
+    r2CellDriverTestHooks.handleNativeRecord(state, {
+      id: "queued-schema-refusal",
+      command,
+      exit_code: 0,
+    });
+    await assert.rejects(
+      runProductionDriverMilestone({
+        milestone: "M2",
+        controls,
+        config: state.config,
+      }),
+      (error) => {
+        assert.match(error.message, /M2 observation stream failed: semantic-action\.binaryExcavation requires source-inspection/u);
+        assert.match(error.cause.message, /binaryExcavation requires source-inspection/u);
+        return true;
+      },
+    );
+  } finally {
+    r2CellDriverTestHooks.removeState(laneRunId);
+    await rm(temp, { recursive: true, force: true });
+  }
+});
+
 test("controller re-probes actual process and port quiet after driver preflight and before attempt creation", async () => {
   const temp = await realpath(await mkdtemp(join(tmpdir(), "r2-second-quiet-probe-")));
   const configDirectory = join(temp, "private", "cells", "cell-1");
@@ -1941,11 +2123,57 @@ test("admission requires a landed disposition for every attempted non-target slo
       cells: [{ id: "attempted" }, { id: "target" }],
       paths: { committedRunRoot: "run", privateExecutionRoot: join(temp, "private") },
     };
+    const committed = new Map();
+    const commit = (logical) => {
+      committed.set(logical, readFileSync(join(temp, logical)));
+    };
     const gitRead = (args) => {
       if (args[0] === "rev-parse") return "fixture-head";
-      return readFileSync(join(temp, args[1].split(":").slice(1).join(":")));
+      const logical = args[1].split(":").slice(1).join(":");
+      if (!committed.has(logical)) throw new Error(`not committed: ${logical}`);
+      return committed.get(logical);
     };
-    return { temp, harnessConfig, gitRead };
+    const installDisposition = async ({
+      reportExists = true,
+      reportCommitted = true,
+      reportHash = null,
+      identity = true,
+    } = {}) => {
+      const reportPath = "BLOCKED-attempted-driver-failure.md";
+      const report = "# Driver failure for `attempted`\n\nDisposition: consumed; do not rerun.\n";
+      const artifactPath = "admissions/attempted.json";
+      const artifact = "{\"cellId\":\"attempted\"}\n";
+      await mkdir(join(temp, "run", "admissions"), { recursive: true });
+      await writeFile(join(temp, "run", artifactPath), artifact);
+      commit(`run/${artifactPath}`);
+      if (reportExists) {
+        await writeFile(join(temp, "run", reportPath), report);
+        if (reportCommitted) commit(`run/${reportPath}`);
+      }
+      harnessConfig.cells[0].disposition = {
+        kind: "driver-failure-report",
+        path: reportPath,
+        sha256: reportHash ?? sha256(report),
+      };
+      if (identity) {
+        const identityReport = `${JSON.stringify({
+          version: "snapback.r2-failure-dispositions.v1",
+          dispositions: [{
+            cellId: "attempted",
+            report: { path: reportPath, sha256: sha256(report) },
+            disposedArtifact: {
+              kind: "admission",
+              path: artifactPath,
+              sha256: sha256(artifact),
+            },
+          }],
+        }, null, 2)}\n`;
+        await writeFile(join(temp, "run", "failure-dispositions.json"), identityReport);
+        commit("run/failure-dispositions.json");
+      }
+      return reportPath;
+    };
+    return { temp, harnessConfig, gitRead, installDisposition };
   };
 
   await context.test("attempted but dispositionless", async () => {
@@ -1956,23 +2184,16 @@ test("admission requires a landed disposition for every attempted non-target slo
         cellId: "target",
         repositoryRoot: fixture.temp,
         gitRead: fixture.gitRead,
-      }), /R2_ADMISSION_PRISTINE: later slot attempted is not pristine/u);
+      }), /R2_ADMISSION_PRISTINE: slot attempted is genuinely not pristine/u);
     } finally {
       await rm(fixture.temp, { recursive: true, force: true });
     }
   });
 
-  await context.test("committed driver-failure report", async () => {
+  await context.test("committed structurally bound driver-failure report", async () => {
     const fixture = await makeFixture();
     try {
-      const reportPath = "BLOCKED-attempted-driver-failure.md";
-      const report = "# Driver failure for `attempted`\n\nDisposition: consumed; do not rerun.\n";
-      await writeFile(join(fixture.temp, "run", reportPath), report);
-      fixture.harnessConfig.cells[0].disposition = {
-        kind: "driver-failure-report",
-        path: reportPath,
-        sha256: sha256(report),
-      };
+      const reportPath = await fixture.installDisposition();
       const state = await inspectCommittedSeriality({
         harnessConfig: fixture.harnessConfig,
         cellId: "target",
@@ -1985,6 +2206,28 @@ test("admission requires a landed disposition for every attempted non-target slo
       await rm(fixture.temp, { recursive: true, force: true });
     }
   });
+
+  for (const [name, options, diagnostic] of [
+    ["missing report", { reportExists: false }, /R2_ADMISSION_DISPOSITION_MISSING/u],
+    ["report hash mismatch", { reportHash: `sha256:${"0".repeat(64)}` }, /R2_ADMISSION_DISPOSITION_HASH_MISMATCH/u],
+    ["uncommitted report bytes", { reportCommitted: false }, /R2_ADMISSION_DISPOSITION_UNCOMMITTED/u],
+    ["mere cell mention without structural identity", { identity: false }, /R2_ADMISSION_DISPOSITION_WEAK_IDENTITY/u],
+  ]) {
+    await context.test(name, async () => {
+      const fixture = await makeFixture();
+      try {
+        await fixture.installDisposition(options);
+        await assert.rejects(inspectCommittedSeriality({
+          harnessConfig: fixture.harnessConfig,
+          cellId: "target",
+          repositoryRoot: fixture.temp,
+          gitRead: fixture.gitRead,
+        }), diagnostic);
+      } finally {
+        await rm(fixture.temp, { recursive: true, force: true });
+      }
+    });
+  }
 });
 
 test("admission validates every finalized disposition and rejects stray target artifacts", async (context) => {
@@ -2507,7 +2750,10 @@ test("executing source closure refuses dirty imported dependency and schema byte
   }
 });
 
-async function makeFinalizeExistingFixture({ targetOutsideRepository = false } = {}) {
+async function makeFinalizeExistingFixture({
+  targetOutsideRepository = false,
+  dispositionPrefix = false,
+} = {}) {
   const temp = await realpath(await mkdtemp(join(tmpdir(), "r2-finalize-existing-")));
   const registeredRunRoot = await mkdtemp(join(ROOT_PATH, "benchmarks/runs/.r2-finalize-existing-"));
   const publicationRunRoot = targetOutsideRepository ? join(temp, "escaped-run") : registeredRunRoot;
@@ -2521,8 +2767,18 @@ async function makeFinalizeExistingFixture({ targetOutsideRepository = false } =
     ROOT,
   ), "utf8"));
   const sourceCell = structuredClone(sourceConfig.cells.find((cell) => cell.id === cellId));
-  sourceConfig.cells = [sourceCell];
-  sourceConfig.cellOrder = [cellId];
+  const dispositionCell = dispositionPrefix
+    ? {
+        id: "consumed-cell",
+        disposition: {
+          kind: "driver-failure-report",
+          path: "BLOCKED-consumed-cell-driver-failure.md",
+          sha256: sha256("# Consumed fixture cell\n"),
+        },
+      }
+    : null;
+  sourceConfig.cells = dispositionCell === null ? [sourceCell] : [dispositionCell, sourceCell];
+  sourceConfig.cellOrder = sourceConfig.cells.map((cell) => cell.id);
   sourceConfig.paths.committedRunRoot = targetOutsideRepository
     ? publicationRunRoot
     : relative(ROOT_PATH, registeredRunRoot);
@@ -2558,6 +2814,49 @@ async function makeFinalizeExistingFixture({ targetOutsideRepository = false } =
     mkdir(targetCell, { recursive: true }),
     mkdir(join(temp, "private")),
   ]);
+  let landedDisposition;
+  if (dispositionCell !== null) {
+    const report = "# Consumed fixture cell\n";
+    const disposedArtifact = "{\"cellId\":\"consumed-cell\"}\n";
+    const disposedPath = "admissions/consumed-cell.json";
+    landedDisposition = {
+      cellId: dispositionCell.id,
+      kind: dispositionCell.disposition.kind,
+      path: dispositionCell.disposition.path,
+      sha256: dispositionCell.disposition.sha256,
+    };
+    await Promise.all([
+      mkdir(join(publicationRunRoot, "cells", dispositionCell.id), { recursive: true }),
+      writeFile(join(publicationRunRoot, dispositionCell.disposition.path), report),
+      writeFile(join(publicationRunRoot, disposedPath), disposedArtifact),
+    ]);
+    await writeFile(
+      join(publicationRunRoot, "cells", dispositionCell.id, "cell.json"),
+      `${JSON.stringify({
+        schemaVersion: "snapback.r2-cell-slot.v1",
+        cellId: dispositionCell.id,
+        status: "not-started",
+      }, null, 2)}\n`,
+    );
+    await writeFile(
+      join(publicationRunRoot, "failure-dispositions.json"),
+      `${JSON.stringify({
+        version: "snapback.r2-failure-dispositions.v1",
+        dispositions: [{
+          cellId: dispositionCell.id,
+          report: {
+            path: dispositionCell.disposition.path,
+            sha256: dispositionCell.disposition.sha256,
+          },
+          disposedArtifact: {
+            kind: "admission",
+            path: disposedPath,
+            sha256: sha256(disposedArtifact),
+          },
+        }],
+      }, null, 2)}\n`,
+    );
+  }
   const configBytes = Buffer.from(`${JSON.stringify(sourceConfig, null, 2)}\n`);
   await writeFile(configPath, configBytes);
   const execution = configuredExecutionBinding({
@@ -2593,9 +2892,10 @@ async function makeFinalizeExistingFixture({ targetOutsideRepository = false } =
   const ownerBytes = Buffer.from(`${JSON.stringify(owner, null, 2)}\n`);
   const seriality = {
     gitHead: "fixture-head",
-    committedPrefix: [],
-    requestedIndex: 0,
+    committedPrefix: landedDisposition === undefined ? [] : [landedDisposition.cellId],
+    requestedIndex: landedDisposition === undefined ? 0 : 1,
     laterPristine: [],
+    ...(landedDisposition === undefined ? {} : { landedDispositions: [landedDisposition] }),
     privateCellState: "absent",
   };
   const artifact = {
@@ -2752,6 +3052,10 @@ async function makeFinalizeExistingFixture({ targetOutsideRepository = false } =
     repositoryRoot: ROOT_PATH,
     assertCommittedConfig: () => {},
     inspectSeriality: async () => ({ ...seriality, privateCellState: "retained-for-finalization" }),
+    gitRead: (args) => {
+      if (args[0] === "rev-parse") return "fixture-head";
+      return readFileSync(resolve(ROOT_PATH, args[1].split(":").slice(1).join(":")));
+    },
     probeLaunchQuiet: async () => ({ ok: true }),
     currentHostIdentity: () => observedHost,
   };
@@ -2858,6 +3162,30 @@ test("finalize-existing publishes the complete provenance graph and resumes ever
     });
     assert.deepEqual(await readFile(join(fixture.privateCell, "metering.json")), expectedMetering);
     assert.deepEqual(await readFile(join(fixture.privateCell, "record.json")), expectedRecord);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test("finalize-existing exercises real seriality inspection through a committed disposition", async () => {
+  const fixture = await makeFinalizeExistingFixture({ dispositionPrefix: true });
+  try {
+    await writeAttemptFailure(
+      fixture.privateCell,
+      new Error("production-shaped-disposition-prefix-finalization"),
+      "record-finalization",
+    );
+    const dependencies = { ...fixture.dependencies };
+    delete dependencies.inspectSeriality;
+    const result = await finalizeExisting({
+      harnessConfigPath: fixture.configPath,
+      cellId: fixture.cellId,
+      publish: false,
+      reservedBy: "real-seriality-disposition-path-test",
+      dependencies,
+    });
+    assert.equal(result.published, false);
+    assert.equal(result.ok, true);
   } finally {
     await fixture.cleanup();
   }

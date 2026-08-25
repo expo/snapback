@@ -289,6 +289,16 @@ function queueObservation(state, operation) {
   state.observationQueue = state.observationQueue.then(guarded, guarded);
 }
 
+async function drainObservationQueue(state, milestone) {
+  await state.observationQueue;
+  if (state.observationFailure) {
+    throw new Error(
+      `${milestone} observation stream failed: ${state.observationFailure.message}`,
+      { cause: state.observationFailure },
+    );
+  }
+}
+
 function queueStreamWrite(state, operation) {
   state.streamWriteQueue = state.streamWriteQueue.then(operation, operation);
 }
@@ -1101,7 +1111,10 @@ export async function runMilestone({ milestone, controls, config }) {
       });
     }
   }
-  await state.observationQueue;
+  // Attribute a queued schema/writer refusal to the milestone whose native
+  // observation caused it. Waiting until finalize() would let a later
+  // milestone run and misattribute the failure to the last attempted one.
+  await drainObservationQueue(state, milestone);
   if (marker.status === "green" && (!marker.suiteObservations || !marker.choreographyObservations)) {
     throw new Error(`${milestone} green signal lacks suite/choreography observation sidecars`);
   }
@@ -1136,3 +1149,13 @@ export function observationSources({ config }) {
   const state = states.get(config.laneRunId);
   return state?.observationSources ?? [];
 }
+
+export const r2CellDriverTestHooks = Object.freeze({
+  handleNativeRecord,
+  installState(laneRunId, state) {
+    states.set(laneRunId, state);
+  },
+  removeState(laneRunId) {
+    states.delete(laneRunId);
+  },
+});

@@ -148,6 +148,25 @@ export function isAfterTerminalHarnessTelemetryType(type) {
   return AFTER_TERMINAL_HARNESS_TELEMETRY_TYPES.has(type);
 }
 
+export function isAfterTerminalHarnessTelemetry({
+  event,
+  laneControllerSourceId,
+  driverFinalizedAt,
+}) {
+  if (
+    !isAfterTerminalHarnessTelemetryType(event?.type)
+    || typeof laneControllerSourceId !== "string"
+    || event?.evidenceSourceId !== laneControllerSourceId
+  ) {
+    return false;
+  }
+  const eventAt = Date.parse(event.at);
+  const finalizedAt = Date.parse(driverFinalizedAt);
+  return Number.isFinite(eventAt)
+    && Number.isFinite(finalizedAt)
+    && eventAt <= finalizedAt;
+}
+
 function requiredString(value, label) {
   if (typeof value !== "string" || value.length === 0) {
     throw new TypeError(`${label} must be a non-empty string`);

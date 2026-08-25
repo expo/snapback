@@ -271,6 +271,9 @@ function validateLandedDispositionReport({
   repositoryRoot,
   gitRead,
 }) {
+  const dispositionFailure = (kind, detail) => {
+    throw new Error(`R2_ADMISSION_DISPOSITION_${kind}: ${cellId} ${detail}`);
+  };
   if (
     descriptor?.kind !== "driver-failure-report"
     || typeof descriptor.path !== "string"
@@ -281,31 +284,108 @@ function validateLandedDispositionReport({
     || !descriptor.path.endsWith(".md")
     || !SHA256.test(descriptor.sha256 ?? "")
   ) {
-    throw new Error(`R2_ADMISSION_PRISTINE: later slot ${cellId} is not pristine`);
+    dispositionFailure("WEAK_IDENTITY", "has no structurally valid failure-report descriptor");
   }
   const reportPath = resolve(committedRoot, descriptor.path);
   if (!inside(committedRoot, reportPath)) {
-    throw new Error(`R2_ADMISSION_PRISTINE: later slot ${cellId} is not pristine`);
+    dispositionFailure("WEAK_IDENTITY", "failure-report path escapes the committed run root");
   }
   let bytes;
   try {
     bytes = readRegular(reportPath, `disposition report for ${cellId}`);
   } catch {
-    throw new Error(`R2_ADMISSION_PRISTINE: later slot ${cellId} is not pristine`);
+    dispositionFailure("MISSING", `failure report ${descriptor.path} is missing`);
   }
-  if (digest(bytes) !== descriptor.sha256 || !bytes.toString("utf8").includes(`\`${cellId}\``)) {
-    throw new Error(`R2_ADMISSION_PRISTINE: later slot ${cellId} is not pristine`);
+  if (digest(bytes) !== descriptor.sha256) {
+    dispositionFailure("HASH_MISMATCH", `failure report ${descriptor.path} does not match its registered hash`);
   }
   const logical = relative(repositoryRoot, reportPath).split(sep).join("/");
   let committed;
   try {
     committed = gitRead(["show", `HEAD:${logical}`], repositoryRoot);
   } catch {
-    throw new Error(`R2_ADMISSION_PRISTINE: later slot ${cellId} is not pristine`);
+    dispositionFailure("UNCOMMITTED", `failure report ${descriptor.path} is not committed at HEAD`);
   }
   const committedBytes = Buffer.isBuffer(committed) ? committed : Buffer.from(committed);
   if (!committedBytes.equals(bytes)) {
-    throw new Error(`R2_ADMISSION_PRISTINE: later slot ${cellId} is not pristine`);
+    dispositionFailure("UNCOMMITTED", `failure report ${descriptor.path} differs from committed HEAD bytes`);
+  }
+
+  const identityPath = resolve(committedRoot, "failure-dispositions.json");
+  let identityBytes;
+  try {
+    identityBytes = readRegular(identityPath, "failure disposition identity report");
+  } catch {
+    dispositionFailure("WEAK_IDENTITY", "has no committed machine-readable disposition identity");
+  }
+  const identityLogical = relative(repositoryRoot, identityPath).split(sep).join("/");
+  let committedIdentity;
+  try {
+    committedIdentity = gitRead(["show", `HEAD:${identityLogical}`], repositoryRoot);
+  } catch {
+    dispositionFailure("UNCOMMITTED", "machine-readable disposition identity is not committed at HEAD");
+  }
+  const committedIdentityBytes = Buffer.isBuffer(committedIdentity)
+    ? committedIdentity
+    : Buffer.from(committedIdentity);
+  if (!committedIdentityBytes.equals(identityBytes)) {
+    dispositionFailure("UNCOMMITTED", "machine-readable disposition identity differs from committed HEAD bytes");
+  }
+  let identityReport;
+  try {
+    identityReport = JSON.parse(identityBytes.toString("utf8"));
+  } catch {
+    dispositionFailure("WEAK_IDENTITY", "machine-readable disposition identity is not valid JSON");
+  }
+  const identity = identityReport?.version === "snapback.r2-failure-dispositions.v1"
+    && Array.isArray(identityReport.dispositions)
+    ? identityReport.dispositions.find((candidate) => candidate?.cellId === cellId)
+    : null;
+  const disposedArtifact = identity?.disposedArtifact;
+  if (
+    identity?.report?.path !== descriptor.path
+    || identity.report.sha256 !== descriptor.sha256
+    || !["admission", "attempt"].includes(disposedArtifact?.kind)
+    || typeof disposedArtifact.path !== "string"
+    || disposedArtifact.path.length === 0
+    || !SHA256.test(disposedArtifact.sha256 ?? "")
+  ) {
+    dispositionFailure(
+      "WEAK_IDENTITY",
+      "failure report merely mentions the cell without binding its report and admission/attempt identity",
+    );
+  }
+  const disposedPath = resolve(committedRoot, disposedArtifact.path);
+  if (!inside(committedRoot, disposedPath)) {
+    dispositionFailure("WEAK_IDENTITY", "disposed admission/attempt path escapes the committed run root");
+  }
+  let disposedBytes;
+  try {
+    disposedBytes = readRegular(disposedPath, `disposed ${disposedArtifact.kind} for ${cellId}`);
+  } catch {
+    dispositionFailure("MISSING", `disposed ${disposedArtifact.kind} ${disposedArtifact.path} is missing`);
+  }
+  if (digest(disposedBytes) !== disposedArtifact.sha256) {
+    dispositionFailure(
+      "HASH_MISMATCH",
+      `disposed ${disposedArtifact.kind} ${disposedArtifact.path} does not match its registered hash`,
+    );
+  }
+  const disposedLogical = relative(repositoryRoot, disposedPath).split(sep).join("/");
+  let committedDisposed;
+  try {
+    committedDisposed = gitRead(["show", `HEAD:${disposedLogical}`], repositoryRoot);
+  } catch {
+    dispositionFailure("UNCOMMITTED", `disposed ${disposedArtifact.kind} ${disposedArtifact.path} is not committed at HEAD`);
+  }
+  const committedDisposedBytes = Buffer.isBuffer(committedDisposed)
+    ? committedDisposed
+    : Buffer.from(committedDisposed);
+  if (!committedDisposedBytes.equals(disposedBytes)) {
+    dispositionFailure(
+      "UNCOMMITTED",
+      `disposed ${disposedArtifact.kind} ${disposedArtifact.path} differs from committed HEAD bytes`,
+    );
   }
   return { cellId, kind: descriptor.kind, path: descriptor.path, sha256: descriptor.sha256 };
 }
@@ -366,7 +446,7 @@ export async function inspectCommittedDispositions({
         gitRead,
       }));
     } else {
-      throw new Error(`R2_ADMISSION_PRISTINE: later slot ${id} is not pristine`);
+      throw new Error(`R2_ADMISSION_PRISTINE: slot ${id} is genuinely not pristine`);
     }
   }
   return { landedDispositions, pristineCells };

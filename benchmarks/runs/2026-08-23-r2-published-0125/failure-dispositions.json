@@ -1,0 +1,125 @@
+{
+  "version": "snapback.r2-failure-dispositions.v1",
+  "dispositions": [
+    {
+      "cellId": "sol-coterie-explicit",
+      "report": {
+        "path": "BLOCKED-sol-coterie-explicit-driver-observation.md",
+        "sha256": "sha256:5a3c7857892157c9bebac145b4be3b40e4e5213c4c48e5c187a8920dce22027c"
+      },
+      "disposedArtifact": {
+        "kind": "admission",
+        "path": "cells/sol-coterie-explicit/admission-samples.jsonl",
+        "sha256": "sha256:af6b9febc606eadfd2bd89a363f2aa5a09432221f0707c898d1d23ec5583176f"
+      }
+    },
+    {
+      "cellId": "sol-coterie-familiar",
+      "report": {
+        "path": "BLOCKED-sol-coterie-familiar-admission-seriality-finalization.md",
+        "sha256": "sha256:d170ce12989fb5da25aa99d271b1c1b51e965560d216bdf7834352543acec43c"
+      },
+      "disposedArtifact": {
+        "kind": "admission",
+        "path": "admissions/sol-coterie-familiar.json",
+        "sha256": "sha256:0ec6af1b5a61413864bf4c30408a79ca87b9df731d0d7c39e41973fb7611c886"
+      }
+    },
+    {
+      "cellId": "grok-clique-explicit",
+      "report": {
+        "path": "BLOCKED-grok-clique-explicit-suite-status-finalization.md",
+        "sha256": "sha256:10c505e7f566454b452218947e8fe11e654f059cd4169f282e6af87e60c763c2"
+      },
+      "disposedArtifact": {
+        "kind": "admission",
+        "path": "admissions/grok-clique-explicit.json",
+        "sha256": "sha256:387b38dd1226218953cb956324e227ccea8394cf2c1709287ecbd64b97b7f5b9"
+      }
+    },
+    {
+      "cellId": "grok-clique-familiar",
+      "report": {
+        "path": "BLOCKED-grok-clique-familiar-suite-status-finalization.md",
+        "sha256": "sha256:a7a261c654c61a864b61d5ae2154a02508c84984ed105600610f436e21d644e2"
+      },
+      "disposedArtifact": {
+        "kind": "admission",
+        "path": "admissions/grok-clique-familiar.json",
+        "sha256": "sha256:a7f6fe8527ce82a86b30187762622f4ed873b38e3462913e9e6457703d4ae4ed"
+      }
+    },
+    {
+      "cellId": "grok-coterie-explicit",
+      "report": {
+        "path": "BLOCKED-grok-coterie-explicit-suite-status-finalization.md",
+        "sha256": "sha256:04ac0d5483c840f3e5acb1b90ac497d5f6c8ff66d8acced0683b3f9e4bbce014"
+      },
+      "disposedArtifact": {
+        "kind": "admission",
+        "path": "admissions/grok-coterie-explicit.json",
+        "sha256": "sha256:99bd53666593db832ef46fd563bb27a4cf66c55184eb1f4839546dd19fe40e87"
+      }
+    },
+    {
+      "cellId": "grok-coterie-familiar",
+      "report": {
+        "path": "BLOCKED-grok-coterie-familiar-observation-window-finalization.md",
+        "sha256": "sha256:e5a67017e9d12a6f7fa5cfe19db1c7b361ae979d2d7af72b8ced621fd078fa09"
+      },
+      "disposedArtifact": {
+        "kind": "admission",
+        "path": "admissions/grok-coterie-familiar.json",
+        "sha256": "sha256:1994f2ec3d6ac179ba68892aa3d31ec669e60d8f3c7291a918f8c81b99122c30"
+      }
+    },
+    {
+      "cellId": "opus-clique-explicit",
+      "report": {
+        "path": "BLOCKED-charlies-macbook-pro-2-driver-finalization.md",
+        "sha256": "sha256:5f1338efe1cf227455f53eaaa776dfa5f0dc5602a42a738bf726d34dc7defb17"
+      },
+      "disposedArtifact": {
+        "kind": "admission",
+        "path": "cells/opus-clique-explicit/admission.json",
+        "sha256": "sha256:5f3c89a6c515318695451f5a59aec32286a8932e1da519dfe07e0ad57290f09b"
+      }
+    },
+    {
+      "cellId": "opus-clique-familiar",
+      "report": {
+        "path": "BLOCKED-charlies-macbook-pro-2-opus-clique-familiar-driver-observation.md",
+        "sha256": "sha256:3e2ecd66a86c99f5ad68bc8d8ecbdba186f88d4226e62580d543009bff8f6544"
+      },
+      "disposedArtifact": {
+        "kind": "admission",
+        "path": "cells/opus-clique-familiar/admission-samples-launch.jsonl",
+        "sha256": "sha256:6d76385148b30b6e775f7daaf6692f1bfa1ac79548547bc6b1a809c4bb14fa73"
+      }
+    },
+    {
+      "cellId": "opus-coterie-explicit",
+      "report": {
+        "path": "BLOCKED-charlies-macbook-pro-2-opus-coterie-explicit-driver-observation.md",
+        "sha256": "sha256:6247e31c50537e877714854022973c049ee18efc198092c44000fe054adcc0ff"
+      },
+      "disposedArtifact": {
+        "kind": "admission",
+        "path": "cells/opus-coterie-explicit/admission-samples.jsonl",
+        "sha256": "sha256:48bd7ca2133412731f91aa29f893e09e6c28f5ea8799f333aec12ae8cd8b2966"
+      }
+    },
+    {
+      "cellId": "opus-coterie-familiar",
+      "report": {
+        "path": "BLOCKED-charlies-macbook-pro-2-opus-coterie-familiar-finalization.md",
+        "sha256": "sha256:b3093dcfabfefd38bbcf061e8d4973cc15220cdc3596aceee687d538a6bd3e93"
+      },
+      "disposedArtifact": {
+        "kind": "admission",
+        "path": "cells/opus-coterie-familiar/admission-samples.jsonl",
+        "sha256": "sha256:c6c6eda45a85940b673ad82da1fe5a17a2da967b34584c39220294b040aacb2e"
+      }
+    }
+  ]
+}

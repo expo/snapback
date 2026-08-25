@@ -11,7 +11,7 @@ import { withEventDiagnostic } from "./finalization-diagnostics.mjs";
 import {
   CURRENT_INSTRUMENT_PIN,
   OBSERVATION_VERSION,
-  isAfterTerminalHarnessTelemetryType,
+  isAfterTerminalHarnessTelemetry,
   projectMilestoneObservability,
   scorecardEligibility,
 } from "./observations.mjs";
@@ -201,6 +201,10 @@ export function joinUsageToMilestones({
   const observationEvents = observations?.events ?? [];
   const observationEvidence = observations?.evidence ?? [];
   const observationWindowExceptions = observations?.windowExceptions ?? [];
+  const laneControllerSourceId = typeof provenance?.laneRunId === "string"
+    ? `${provenance.laneRunId}-lane-controller`
+    : null;
+  const driverFinalizedAt = provenance?.driver?.stampedAt ?? null;
   const attemptedMilestones = new Set(ordered.map((item) => item.milestone));
   const outsideAttempt = observationEvents.find(
     (event) => !attemptedMilestones.has(event.milestone),
@@ -229,7 +233,11 @@ export function joinUsageToMilestones({
       if (
         eventAt > upper + maxClockSkewMs
         && !retainedExactException
-        && !isAfterTerminalHarnessTelemetryType(event.type)
+        && !isAfterTerminalHarnessTelemetry({
+          event,
+          laneControllerSourceId,
+          driverFinalizedAt,
+        })
       ) {
         throw new Error(
           `${event.milestone} observation ${event.type} is after its terminal boundary`,
