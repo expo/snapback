@@ -235,6 +235,7 @@
           },
           "assuranceRequirements": {},
           "custody": "volatile-explicit",
+          "externalSessionEntry": true,
           "guestPolicy": {
             "claiming": [
               "emailCode",
@@ -266,6 +267,19 @@
               "kind": "password",
               "provider": "builtIn",
               "recovery": "recoveryCodes"
+            }
+          },
+          "providers": {
+            "apple": {
+              "credentials": "auto",
+              "kind": "apple",
+              "provider": "apple"
+            },
+            "google": {
+              "credentials": "auto",
+              "kind": "oidc",
+              "preset": "google",
+              "provider": "google"
             }
           },
           "recoveryPolicy": {
@@ -2568,7 +2582,7 @@
     "authoringProfile",
     "appId"
   ],
-  "normalizedContractId": "sha256:19f6a2da8593562d751b4cb4800ab8477fddce36ff0e4cc127eedca721109935",
-  "normalizedSchemaId": "sha256:aa69cb8fd35f33328e9b6c3bca1d9bb71dadd82eae1f29980ecf59d0ba947c90",
+  "normalizedContractId": "sha256:fb5dd558735e35ac2b0db1fbcc298c60d92faa041e77afa640cc92599f10c849",
+  "normalizedSchemaId": "sha256:cde5e91ce99b65fb1e36d531793661a5f5e961bc2bc1e36f946e817e8c8ae9cc",
   "schemaVersion": "snapback.normalized-application-definition.v1"
 }

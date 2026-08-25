@@ -20,6 +20,7 @@ import {
   createSnapbackExpoBoot,
   createSupervisedExpoEnvironment,
 } from '@expo/snapback-expo';
+import { createSharedBrowserAdapter } from '@expo/snapback-expo/shared-browser-adapter';
 import {
   createSnapbackReactProvider,
   observeSnapbackSurface,
@@ -162,6 +163,122 @@ process.once('SIGINT', stop);
   return details;
 }
 
+// The external user agent, headlessly. `expo-web-browser` opens the
+// supervisor's authorization page and returns the callback URL it lands on;
+// here the same two HTTP steps run without a browser. Everything else — the
+// broker, the Adapter, the resolved provider entry, and the session the
+// coordinator issues — is the shipped code path.
+async function headlessAuthSession(authorizationUrl, returnTo, signal) {
+  const page = await fetch(authorizationUrl, { signal });
+  assert.equal(page.status, 200);
+  assert.match(await page.text(), /Snapback development sign-in/u);
+  const transaction = new URL(authorizationUrl).searchParams.get('transaction');
+  const origin = new URL(authorizationUrl).origin;
+  const completed = await fetch(
+    `${origin}/v1/shared/complete?transaction=${encodeURIComponent(transaction)}`,
+    { method: 'POST', redirect: 'manual', signal },
+  );
+  assert.equal(completed.status, 303);
+  const callback = completed.headers.get('location');
+  assert.equal(callback.startsWith(returnTo), true);
+  return { type: 'success', url: callback };
+}
+
+// @ref LLP 0151#shared-development-browser-adapter — provider sign-in with no
+// provider credentials. The supervisor mounts the broker under `--expo`,
+// records that fact in its own discovery descriptor, and issues a hermetic
+// rehearsal identity: nothing here contacts Apple or Google, and the ordinary
+// coordinator still issues and owns the session.
+async function runSharedProviderSignIn({ stateRoot, signal }) {
+  const supervisedReadyFile = join(stateRoot, 'provider.ready.json');
+  const supervisedDatabase = join(stateRoot, 'provider.sqlite3');
+  const supervisorDescriptor = join(stateRoot, 'expo-supervisor.json');
+  const metroScript = join(stateRoot, 'headless-metro.mjs');
+  const events = [];
+  let supervisor = null;
+  let providerClient = null;
+  let details = null;
+  try {
+    supervisor = await runExpoDev({
+      backendDirectory: join(root, 'snapback'),
+      projectRoot: root,
+      expoDirectory: root,
+      readyFile: supervisedReadyFile,
+      database: supervisedDatabase,
+      platform: 'ios',
+      email: 'shared-provider@expo-chat.test',
+      metroCommand: { command: process.execPath, args: [metroScript] },
+      serverStdio: ['ignore', 'ignore', 'ignore'],
+      signal,
+      onEvent(event) { events.push(event); },
+    });
+    assert.equal(supervisor.state, 'ready');
+    const readiness = events.find((event) => event.state === 'ready');
+    assert(readiness, 'the supervised provider path must observe the readiness event');
+
+    // The supervisor is the only process that can see the broker, so it records
+    // the projection rather than leaving a separate reader to guess.
+    const descriptor = JSON.parse(readFileSync(supervisorDescriptor, 'utf8'));
+    const projection = descriptor.sharedAuth;
+    assert.equal(projection.format, 'snapback.shared-development-auth-projection.v1');
+    assert.equal(projection.available, true);
+    assert.equal(projection.identityRealm, 'rehearsal');
+    // The broker answers on the origin the client already discovers, not on the
+    // backend server's.
+    assert.equal(projection.origin, readiness.bootstrap.origin);
+    assert.notEqual(projection.origin, readiness.backend.origin);
+    const returnTo = projection.returnTargets.find((target) => target.startsWith('http://127.0.0.1'));
+    assert.equal(typeof returnTo, 'string');
+
+    const adapter = createSharedBrowserAdapter({
+      projection,
+      appId: app.authBootstrap.appId,
+      openAuthSession: (authorizationUrl, target) => headlessAuthSession(authorizationUrl, target, signal),
+      createUrl: () => returnTo,
+    });
+    providerClient = await createSnapbackAppClient({
+      app,
+      binding: readiness.binding,
+      platform: Object.freeze({
+        kind: 'expo-web',
+        indexedDB: new IDBFactory(),
+        cryptoObject: webcrypto,
+        databaseName: `snapback-expo-chat-provider-${process.pid}`,
+      }),
+      authProviders: {
+        context: { deployment: 'development', platform: 'web', sharedAvailable: true },
+        adapters: { 'snapback-shared-browser': adapter },
+      },
+    });
+    for (const provider of ['apple', 'google']) {
+      const entry = providerClient.auth.providerEntry(provider);
+      assert.equal(entry.adapter, 'snapback-shared-browser');
+      assert.equal(entry.identityRealm, 'rehearsal');
+      assert.equal(entry.readiness, 'ready');
+    }
+    assert.equal(providerClient.auth.currentPrincipal().status, 'anonymous');
+    await providerClient.auth.signIn({ provider: 'apple' });
+    const principal = providerClient.auth.currentPrincipal();
+    assert.equal(principal.status, 'authenticated');
+    assert.equal(typeof principal.userId, 'string');
+    // No provider token and no session credential crossed a URL, and the
+    // rehearsal identity never becomes an Apple or Google account.
+    assert.equal(JSON.stringify(principal).includes('apple.com'), false);
+    details = {
+      provider: 'apple',
+      adapter: 'snapback-shared-browser',
+      identityRealm: projection.identityRealm,
+      brokerOrigin: projection.origin,
+      userLimit: projection.userLimit,
+    };
+  } finally {
+    await providerClient?.dispose();
+    await supervisor?.close();
+  }
+  assert.equal(existsSync(supervisorDescriptor), false);
+  return details;
+}
+
 export const acceptance = defineStarterAcceptance({
   acceptanceFile: import.meta.url,
   appRoot: import.meta.dirname,
@@ -170,6 +287,13 @@ export const acceptance = defineStarterAcceptance({
   paths: {
     zeroConfig: {
       id: 'zero-config-supervised-connect',
+      kind: 'success',
+      targetProfileId: 'local-dev-sqlite-ibex',
+      operation: null,
+      timeoutMs: 120_000,
+    },
+    sharedProviderSignIn: {
+      id: 'shared-provider-sign-in',
       kind: 'success',
       targetProfileId: 'local-dev-sqlite-ibex',
       operation: null,
@@ -254,6 +378,11 @@ export const acceptance = defineStarterAcceptance({
     await context.step(
       context.paths.zeroConfig,
       (signal) => runZeroConfigSupervisedConnect({ ...context, signal }),
+      { timeoutMs: 120_000 },
+    );
+    await context.step(
+      context.paths.sharedProviderSignIn,
+      (signal) => runSharedProviderSignIn({ ...context, signal }),
       { timeoutMs: 120_000 },
     );
   },

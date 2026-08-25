@@ -23,6 +23,7 @@ import { dirname, join, resolve } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 
 import {
+  canonicalFileCarrierPath,
   diagnosticError,
   managedAdminToken,
   readApplicationReadyReceipt,
@@ -3326,10 +3327,16 @@ function expoSharedAuthDeploymentProfile(env) {
 
 // The mechanical `<ready-file>.impersonation` sibling, and only that path. A
 // descriptor naming anything else is a refusal rather than a file read.
+//
+// The server pins the ready file's real directory before publishing, so the
+// advertised sibling comes back symlink-resolved while the caller's own
+// ready-file argument may not be — every macOS temporary directory is reached
+// through a symlink. Compare what the paths name, the way the admin-token
+// carrier already does, rather than how they were spelled.
 function readSupervisedImpersonationCapability(descriptor, readyFile) {
   const advertised = descriptor?.impersonationCapabilityFile;
-  const expected = `${resolve(readyFile)}.impersonation`;
-  if (typeof advertised !== 'string' || resolve(advertised) !== expected) {
+  const expected = canonicalFileCarrierPath(`${resolve(readyFile)}.impersonation`);
+  if (typeof advertised !== 'string' || canonicalFileCarrierPath(advertised) !== expected) {
     throw diagnosticError(
       'SNAPBACK_DEV_IMPERSONATION_CAPABILITY_UNAVAILABLE',
       'the readiness descriptor names no mechanical impersonation capability sibling',
@@ -5163,6 +5170,7 @@ export const __test = Object.freeze({
   bindPlannedSupervisorListeners,
   probeDevControlEndpoint,
   publishSupervisorDescriptorAtomically,
+  readSupervisedImpersonationCapability,
   requiredDevControlChannelDiagnostic,
   startDevControlSocketWithDependencies,
   startMetroWebFront,

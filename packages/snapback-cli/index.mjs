@@ -3684,7 +3684,11 @@ function canonicalFilesystemPath(path) {
   }
 }
 
-function canonicalFileCarrierPath(path) {
+// The path a carrier file actually names: its directory resolved through every
+// symlink, plus its own basename. Two spellings of one file compare equal, and
+// a file in a different directory never does — which a lexical `resolve` alone
+// cannot tell apart on any host whose temporary directory is a symlink.
+export function canonicalFileCarrierPath(path) {
   const absolute = resolve(path);
   return join(canonicalFilesystemPath(dirname(absolute)), basename(absolute));
 }
