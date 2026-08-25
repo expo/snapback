@@ -1,8 +1,9 @@
 # Capstone record — Clique pair vs published 0.1.27 (manual shape)
 
-**Status:** IN PROGRESS — cell 1 (Explicit) executing; this skeleton carries
-the frozen baseline column and fills as cells finalize. Numbers marked
-`pending` are not claims.
+**Status:** COMPLETE 2026-08-25 — both cells terminal (Explicit: full
+journey green including scale and scored fresh M7; Familiar: honest abort
+at M3 on a real leak caught by the strengthened instrument), comparison
+written below. N=1 per cell; observations, not scorecard claims.
 
 ## Configuration
 
@@ -146,17 +147,116 @@ Baseline Explicit M7: first green 1,076 s, report wall 1,871 s, input
 25,397,088 · output 61,649 — the capstone M7 was slower to first green,
 faster to complete, and cheaper on both token axes.
 
-### Cell 2 — capstone-clique-familiar-sol-high
+### Cell 2 — capstone-clique-familiar-sol-high (terminal: aborted at M3)
 
-launched 2026-08-25 (launcher: three-sample admission window, then detached
-builder on ports 48460–48519 / M7 48660–48719); rows fill as milestones
-green.
+Launched epoch 1787692710 after a passing admission window; session ended
+1787700002 (2:01:32). Honest terminal per the milestone status vocabulary:
+
+| | M1 | M2 | M3 | M4–M8, M7 |
+|---|---:|---:|---:|---|
+| wall (s) | 1,562 | 896 | 4,379 | blocked-by-M3 |
+| status | green | green | **aborted** | not run |
+
+Session tokens (single codex session, verified by workdir): input
+54,198,988 (cached 53,463,552) · output 151,262 · reasoning 32,630.
+29 correction loops, 31 attributed errors, all evidenced.
+
+**The abort is the run's top product finding.** M3's suite passed 7/7, but
+the frozen choreography's `member-add-promote-remove-leave-and-live-cutoff`
+failed repeatably: **the removed member's already-open client still
+observed the post-removal group message** — a real delivery leak past a
+membership revocation. This is precisely the assertion the `0.3.4-m8`
+instrument strengthened (E4 fix round) from a fixed 500 ms sleep to a
+delivery-progress-bounded window. The 0.1.25 baseline's Familiar arm went
+M3-green under the old weak assertion — that green is now suspect as a
+plausible false green on this same behavior. After 4,379 s (73 min) of
+attempts the builder recorded `aborted` and honored dependency blocking:
+M4/M5/M6/M8 and fresh M7 never ran, the derived scale log was
+sha256-verified but not replayed, and all servers were stopped cleanly.
+Filed as `issues/20260825-familiar-removed-member-live-cutoff-leak.md`.
+
+**Deviation — cross-session host contention:** from ≈21:20Z (inside cell
+2's window, before M3 started), another fleet session launched two codex
+lanes (`mdesign`, `rowfam`, ~140k combined output tokens) on this host
+despite the claim marker. Cell 2's M3 wall may be load-inflated; the abort
+itself was a correctness failure, not a timeout, and is unaffected.
 
 ## Comparison vs baseline
 
-pending — written after both cells finalize. Scope per the charter: per-arm
-per-milestone walls/loops/tokens (session-shape caveat: two fresh per-arm
-sessions here vs the baseline's single pair session — orientation is paid
-twice), scale-replay wall and babysitting, restart counts, M7 fresh-session
-cost, against the LLP 0295 registered target dimensions (as observations —
-these N=1 cells are not scorecard-eligible per the amendment).
+Both cells terminal; N=1 per cell — observations against the LLP 0295
+registered target dimensions, not scorecard claims (per the amendment).
+
+### Explicit arm (complete vs complete)
+
+| | M1 | M2 | M3 | M4 | M5 | M6 | M8 | Scale | Fresh M7 |
+|---|---:|---:|---:|---:|---:|---:|---:|---|---:|
+| 0.1.25 baseline (s) | 2,183 | 380 | 1,468 | 268 | 1,420 | 143 | 408 | green + 11,314 s babysitting | 1,871 |
+| 0.1.27 capstone (s) | 1,075 | 2,107 | 1,927 | 290 | 828 | 1,182 | 2,330 | green + 0 replay interventions | 1,606 |
+
+- **M1 (the first-hour metric): −51%** (1,075 vs 2,183) — the round's
+  template/bootstrap/ports work targeted exactly this. Familiar M1: −24%
+  (1,562 vs 2,069). Registered target was ≥30% lower median; the Explicit
+  observation clears it, Familiar approaches it.
+- **Scale babysitting (the 11,314 s metric): eliminated as a mode.** Same
+  167,157/167,157 green, but the failure model changed shape: instead of
+  restart festivals under live supervision, two fail-closed coded stops
+  (`SNAPBACK_CLIENT_MUTATION_RETENTION_FULL` → 10-minute recovery;
+  a checkpoint-caught derived-state bug → ~35-minute fix) followed by a
+  2:47:20 fully-unattended run at ~17–25 actions/s. The replay surface's
+  semantics (durable ids, batched acks, settled-prefix resume — LLP
+  0307.000, landed this round) carried the recovery both times.
+- **Fresh M7: better on every axis but first-green** — wall 1,606 vs
+  1,871 s, output 58.4k vs 61.6k, input 16.9M vs 25.4M (first green
+  1,412 vs 1,076 s).
+- Build milestones M2–M8 ran slower in aggregate than baseline (9,739 vs
+  6,270 s summed) — three shape reasons, all visible in the per-milestone
+  data the baseline lacked: the `0.3.4-m8` instrument asserts more and
+  asserts harder (typing v2, progress-bounded cutoff, split DM proofs; M8
+  needed nine choreography rounds), M2 absorbed a video byte-limit design
+  saga, and M6 absorbed the offline-semantics work the baseline's weaker
+  instrument never exercised. Typing paths are v1↔v2 and never compared
+  (ruling 3).
+- Session totals (shape-caveated): output 331,430 (incl. non-scored
+  in-process M7 and both scale fixes) vs 287,079 (excl. M7, no scale
+  fixes). Not like-for-like; the per-milestone rows above are the
+  comparison surface.
+
+### Familiar arm (aborted-at-M3 vs partial baseline)
+
+The baseline Familiar arm completed its milestones but failed scale
+(capability-failure at 2,620/167,157). The capstone Familiar arm fails
+earlier — M3 choreography — and for a more valuable reason: the
+strengthened cutoff assertion caught a real removed-member delivery leak
+that the baseline's assertion could not have caught. One arm's green
+became honest red; that is the instrument doing what LLP 0281 commissioned.
+
+### Verdict on the capstone question
+
+The round moved the cost profile where it aimed: first-green M1 halved on
+Explicit, the scale phase's babysitting mode replaced by bounded coded
+recoveries with an unattended replay, M7 cheaper, and every failure in the
+pair now lands as an attributed, evidenced, fail-closed stop instead of a
+festival. The costs that grew are measurement-honesty costs: a stricter
+instrument that asserts more (and, in Familiar's case, refuses a green the
+old instrument would likely have granted). The top product findings feed
+forward: the removed-member live-cutoff leak (Familiar, new ticket), the
+clock-dependent-visibility authoring friction, dev-overlay interference
+with offline testing, expiry-only counter decrement, and the
+verify-config/CLI-entrypoint mismatch.
+
+### S2 conditional (LLP 0307 papercut item), dispositioned
+
+Zero demand signal for a live latency timeline in any of the five
+diaries/essays across both arms and the fresh M7 — no builder asked for
+it, and none pulled the W5 runtime-cost diagnostics in anger either. S2
+stays shelved; revisit only if a future pin's diaries ask.
+
+### Instrument ticket disposition
+
+`issues/20260821-clique-instrument-observability-version-bump.md` gains
+this run as real-lane evidence: typing boundary v2 stamped end-to-end, the
+standalone fresh-M7 choreography green, the strengthened cutoff assertion
+firing on a real leak, and green/aborted/blocked outcome classes exercised
+naturally. The ticket's remaining closure conditions (dedicated clean
+control lane with forced outcome classes; LLP 0281 W9 two-browser/native
+proofs) stay open.

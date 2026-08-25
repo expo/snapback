@@ -251,3 +251,16 @@ without rerunning unaffected checks. Missing setup/linkage refuses before the
 authoring clock. LLP 0281's recurring structural skips are either required and
 observable or explicitly retained as scoped nonclaims—never silent optional
 folklore.
+
+## Capstone real-lane evidence (2026-08-25)
+
+The `2026-08-25-clique-pair-published-0127-capstone` run exercised the
+`0.3.4-m8` instrument end-to-end on real lanes: typing boundary v2 stamped
+through receipts in both arms; the standalone fresh-session M7 choreography
+green (Explicit); the strengthened removed-member cutoff assertion firing
+on a real delivery leak (Familiar,
+`issues/20260825-familiar-removed-member-live-cutoff-leak.md`); and
+green/aborted/blocked outcome classes exercised naturally. Remaining for
+closure: the dedicated clean control lane with forced non-setup outcome
+classes and a timing-sensitive retry, and the LLP 0281 W9
+two-browser/native-host proofs.
