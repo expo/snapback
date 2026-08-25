@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:3b7b51ca7826ff57456abc537a0157ae1ac82f94c135de9b7c4e4c83d8df791e"
+    "sourceDigest": "sha256:01eeba58b7d1e19cfda14054e9f73b536f99810e136f6d65ac0b540ad1db65bb"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -6019,8 +6019,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:00b52e6904f8aa8854e4aacc7e6180f7813f705e539d5de3b536a168fe5f3771",
-      "sha256": "e10b09068b2fa502b72287d8d050a297966a51f6be754b2ae5fae06bd0c18655",
+      "reviewedAuthoritiesDigest": "sha256:0e2923927c50ddfeed56f61bde076ea2c09a300022654cf35a48d7876530df26",
+      "sha256": "2e83dc79f8661e63348255ed9c3672560137d5e77379dd1ad4d133863dcd1a2f",
       "snippets": []
     },
     "reference.api.expo.snapback.cli.verify": {
@@ -13858,7 +13858,7 @@
       "servedPath": "/_snapback/guide/flat.md",
       "uri": "snapback-guide://flat",
       "bytes": 3944900,
-      "sha256": "f795237a451e710ac9afead738a0ea5f43e058126e8bb3cf75407bf874498d59"
+      "sha256": "ef8af6948af035769d1b627d4f55a8b8bd2e27b278ccf5e643e7776752bc5a15"
     },
     "sections": {
       "meta": {
@@ -13936,7 +13936,7 @@
         "servedPath": "/_snapback/guide/guide-flat.reference.generated.md",
         "uri": "snapback-guide://flat/reference",
         "bytes": 2220865,
-        "sha256": "6f6026c5faf791eb40462a844ccbec41716f4bb3a60563f1b31887b973eaeb2e"
+        "sha256": "d268c0dd5e73b3005cfc6f1368d995854c7611919d05886341aac62a9561f82d"
       },
       "start": {
         "path": "guide/guide-flat.start.generated.md",
@@ -13961,5 +13961,5 @@
       }
     }
   },
-  "contentHash": "3b7b51ca7826ff57456abc537a0157ae1ac82f94c135de9b7c4e4c83d8df791e"
+  "contentHash": "01eeba58b7d1e19cfda14054e9f73b536f99810e136f6d65ac0b540ad1db65bb"
 }
