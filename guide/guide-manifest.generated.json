@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:4e241c176d7f6cf83127f2f67821dd20dbb7f866b783079e772c023153094b5d"
+    "sourceDigest": "sha256:36b9af61f4008312a80f8a9030859acc02b51dad2b3d272e4b87a51f603df518"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -4214,14 +4214,16 @@
         "llp/0184-agent-accessible-control-plane.rfc.md",
         "llp/0031-server-route-taxonomy.spec.md",
         "llp/0042-agent-mcp-surface.rfc.md",
+        "llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md",
         "crates/snapback-server/src/control_catalog.rs",
         "crates/snapback-cli/src/cli.rs",
-        "packages/snapback-cli/mcp-control.mjs"
+        "packages/snapback-cli/mcp-control.mjs",
+        "packages/snapback-client/index.mjs"
       ],
       "examples": [],
-      "reviewed": "2026-08-06",
-      "reviewedAuthoritiesDigest": "sha256:75f5b707ea9db54c16456455dbb49bbe5b8e4d5217ecb69f6cc061b87d64e04e",
-      "sha256": "d3cab3266fd50213900528e9db3228e769b636c944c0bcd75e62b5438e34e673",
+      "reviewed": "2026-08-25",
+      "reviewedAuthoritiesDigest": "sha256:03b9df8b8507e75ab0d5c3001950f2fb5df4c44f2f94bf8869213868c103d05b",
+      "sha256": "3cd6e5409b1db0d4ded31ca44d1d1574a94e08a66485db00e35f6c9af41ff1d7",
       "snippets": []
     },
     "operating.backup-and-copy": {
@@ -6023,7 +6025,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:d85cc2ddb9360da887b5802bd436e5d9801f637f8e20d71c0d6b0096674c11b8",
-      "sha256": "4f3367a66cfe270b432f6116455674ae8613659fad64267d1b73e894086b0797",
+      "sha256": "9a1b5c3bfb9a4e3111521d5c6f6a29fe02e91d0b3a46c14de9e86f019d6e7c12",
       "snippets": []
     },
     "reference.api.expo.snapback.cli.verify": {
@@ -13704,8 +13706,8 @@
       "path": "guide/reference/diagnostics-registry.json",
       "title": "Build-bound diagnostic code registry",
       "mediaType": "application/json",
-      "bytes": 2804281,
-      "sha256": "3b5027fd484e37975a38dc03a34050a61ca6dc21cde4f13327852c96b756a720",
+      "bytes": 2804373,
+      "sha256": "95e9b170ab38676574f4f17139c5ca0a85d1615987f34be2e94239aadc4839d0",
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
       "projections": {
@@ -13714,7 +13716,7 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v1",
-      "sourceDigest": "sha256:13aea3a979cd1fa4602b83b21597997b9a3e062915ef3cb5a56b3a6fbc96cb43",
+      "sourceDigest": "sha256:eb725a35fbaeefab006aab6bdb26dbe20c5d0cc8c7fcb3e7f17114c9ae7cd4c0",
       "codes": 3674,
       "emittingSites": 12933
     }
@@ -13860,8 +13862,8 @@
       "path": "guide/guide-flat.generated.md",
       "servedPath": "/_snapback/guide/flat.md",
       "uri": "snapback-guide://flat",
-      "bytes": 3954136,
-      "sha256": "a1983a7b2f77fb8b683b41b4150310f32dedfe92a7a387fe3a846bf75484a152"
+      "bytes": 3955200,
+      "sha256": "05e4c49deec7fde89019b92141060db678487f03555d8ebbda671d331fd28351"
     },
     "sections": {
       "meta": {
@@ -13910,8 +13912,8 @@
         "path": "guide/guide-flat.operating.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.operating.generated.md",
         "uri": "snapback-guide://flat/operating",
-        "bytes": 179762,
-        "sha256": "ac144b2a7ced08f354c981858b533672b524d3ad7510ca15ecae6901e80b79eb"
+        "bytes": 180826,
+        "sha256": "5c7ba0cd8b80749e975dd3b48e6103d95816a7ba7160ab45643629eb4f8b5c8b"
       },
       "protocol": {
         "path": "guide/guide-flat.protocol.generated.md",
@@ -13939,7 +13941,7 @@
         "servedPath": "/_snapback/guide/guide-flat.reference.generated.md",
         "uri": "snapback-guide://flat/reference",
         "bytes": 2222913,
-        "sha256": "8301eb1e9eaa9bd3769697d5b57e0f11a5d055c76b781c70a5d742d0aac79a2d"
+        "sha256": "2a37d185efcbb3b10f0f0242fcc9082395008de6c7952ea9fd8cd37edd8f5bad"
       },
       "start": {
         "path": "guide/guide-flat.start.generated.md",
@@ -13964,5 +13966,5 @@
       }
     }
   },
-  "contentHash": "4e241c176d7f6cf83127f2f67821dd20dbb7f866b783079e772c023153094b5d"
+  "contentHash": "36b9af61f4008312a80f8a9030859acc02b51dad2b3d272e4b87a51f603df518"
 }
