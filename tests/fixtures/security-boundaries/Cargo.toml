@@ -17,11 +17,11 @@ snapback-auth = { path = "../../../crates/snapback-auth" }
 snapback-services = { path = "../../../crates/snapback-services" }
 snapback-engine = { path = "../../../crates/snapback-engine" }
 snapback-sync = { path = "../../../crates/snapback-sync" }
-snapback-server = { path = "../../../crates/snapback-server" }
 
-# The closed activation alias expressions remain retained negative witnesses.
-# `snapback-server` is mounted because its public secret-read operator and
-# registry are privilege seeds even though its storage alias is crate-private.
+# The closed activation/server alias expressions and the server secret-read
+# expressions remain under src/bin as retained negative witnesses. They are
+# deliberately not Cargo targets: the privilege scanner certifies both crates
+# as empty, so LLP 0284 I-12 forbids mounting either as a fixture dependency.
 
 [[bin]]
 name = "claim-kernel-commit-authority"
@@ -52,12 +52,8 @@ name = "admit-pending-effect-creation"
 path = "src/bin/admit_pending_effect_creation.rs"
 
 [[bin]]
-name = "admit-pending-effect-approval"
-path = "src/bin/admit_pending_effect_approval.rs"
-
-[[bin]]
-name = "admit-pending-effect-denial"
-path = "src/bin/admit_pending_effect_denial.rs"
+name = "admit-pending-effect-decision"
+path = "src/bin/admit_pending_effect_decision.rs"
 
 [[bin]]
 name = "admit-pending-effect-settlement"
@@ -338,24 +334,8 @@ name = "sign-scope-retirement-directly"
 path = "src/bin/sign_scope_retirement_directly.rs"
 
 [[bin]]
-name = "cross-engine-recorded-mutation-authority"
-path = "src/bin/cross_engine_recorded_mutation_authority.rs"
-
-[[bin]]
-name = "independent-authority-stream-descriptor"
-path = "src/bin/independent_authority_stream_descriptor.rs"
-
-[[bin]]
-name = "resolved-only-authority-descriptor"
-path = "src/bin/resolved_only_authority_descriptor.rs"
-
-[[bin]]
-name = "generation-recorded-mutation-authority"
-path = "src/bin/generation_recorded_mutation_authority.rs"
-
-[[bin]]
-name = "wire-descriptor-trust"
-path = "src/bin/wire_descriptor_trust.rs"
+name = "supply-room-reauthorization-results"
+path = "src/bin/supply_room_reauthorization_results.rs"
 
 # F145 and F272 remain OPEN. Keep their dependent spellings source-visible,
 # but do not register them in the rejection-only attacks.v1.json until an

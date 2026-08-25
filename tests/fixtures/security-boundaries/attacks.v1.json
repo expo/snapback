@@ -1,8 +1,8 @@
 {
   "schemaVersion": "snapback.security-boundary-attacks.v1",
   "rowCoverage": {
-    "unmappedAttackCount": 68,
-    "unmappedAttackIdsSha256": "220f90b3b6aba886d3b85648b0cedac8b91c3d5bb3a9068fd0313b7df111a772",
+    "unmappedAttackCount": 69,
+    "unmappedAttackIdsSha256": "d41f9146b3955b878e14db553ac657bbe59836d519ea36e2ff907f41cde17087",
     "unmappedReason": "Pinned legacy debt from issues/20260826-authorization-denominator-and-seam-map.md; any new omission or mapping changes this digest and fails row-corpus inventory."
   },
   "attacks": [
@@ -1265,6 +1265,18 @@
       ],
       "expectedCode": "E0061",
       "row": "F082"
+    },
+    {
+      "id": "supply-room-reauthorization-results",
+      "bin": "supply-room-reauthorization-results",
+      "source": "src/bin/supply_room_reauthorization_results.rs",
+      "mount": "snapback-sync",
+      "featureSets": [
+        [],
+        [
+          "snapback-sync/test-support"
+        ]
+      ]
     }
   ]
 }

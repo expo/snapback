@@ -22970,12 +22970,12 @@ pub fn spawn_maintenance_worker(runtime: AppState) -> JoinHandle<()> {
             let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
             let mut resolved_rooms = Vec::new();
             for room in ephemeral.pending_room_reauthorizations() {
-                let mut fresh_authorities = Vec::with_capacity(room.subscribers.len());
+                let mut fresh_authorities = Vec::with_capacity(room.subscribers().len());
                 let mut replaced = false;
-                for subscriber in &room.subscribers {
+                for subscriber in room.subscribers() {
                     match connections.resolve_room_connection_authority(
-                        &subscriber.connection_id,
-                        subscriber.effect_fence.as_ref(),
+                        subscriber.connection_id(),
+                        subscriber.effect_fence(),
                         coordinator.as_deref(),
                         epoch_now_ms,
                         monotonic_now,
@@ -22984,7 +22984,7 @@ pub fn spawn_maintenance_worker(runtime: AppState) -> JoinHandle<()> {
                             fresh_authorities.push(None);
                         }
                         Ok(ResolvedRoomConnectionAuthority::Current { auth, effect_fence })
-                            if subscriber.effect_fence.as_ref() == Some(&effect_fence) =>
+                            if subscriber.effect_fence() == Some(&effect_fence) =>
                         {
                             fresh_authorities.push(auth);
                         }
@@ -23010,12 +23010,10 @@ pub fn spawn_maintenance_worker(runtime: AppState) -> JoinHandle<()> {
                 }
                 let mut planned = Vec::new();
                 for (room, fresh_authorities) in resolved_rooms {
-                    let room_id = room.room.clone();
-                    let generation = room.obligation.room_authority_generation;
                     match snapback
                         .resolve_pending_ephemeral_room_permissions(room, fresh_authorities)
                     {
-                        Ok(resolutions) => planned.push((room_id, generation, resolutions)),
+                        Ok(batch) => planned.push(batch),
                         Err(error) => snapback.record_maintenance_error(
                             MaintenanceOperation::PermissionResolution,
                             &error,
@@ -23041,8 +23039,8 @@ pub fn spawn_maintenance_worker(runtime: AppState) -> JoinHandle<()> {
                 planned
             })
             .await;
-            for (room_id, generation, resolutions) in planned {
-                let _ = ephemeral.complete_room_reauthorization(&room_id, generation, resolutions);
+            for batch in planned {
+                let _ = ephemeral.complete_room_reauthorization(batch);
             }
             if run_maintenance {
                 // Provider outages and malformed responses deliberately leave

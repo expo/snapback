@@ -965,7 +965,10 @@ fn codegen_membership_role_downgrade_kicks_and_scrubs_the_room_subscriber() {
     assert_eq!(committed.changed_count, 1);
     let pending = ephemeral.pending_room_reauthorizations();
     assert_eq!(pending.len(), 1);
-    assert_eq!(pending[0].obligation.min_commit_version, committed.version);
+    assert_eq!(
+        pending[0].obligation().min_commit_version,
+        committed.version
+    );
 
     let pre_reauthorization_a = drain_through_test_sink(&ephemeral, "codegen-member-a");
     let pre_reauthorization_b = drain_through_test_sink(&ephemeral, "codegen-owner-b");
@@ -1190,18 +1193,18 @@ fn card_game_kick_composes_durable_and_room_authority_boundaries() {
         .pending_room_reauthorizations();
     assert_eq!(pending.len(), 1, "one protected game room is pending");
     assert_eq!(
-        pending[0].room.scope,
+        pending[0].room().scope,
         room_scope(),
         "the exact delete selector must not suspend the unrelated game room"
     );
-    assert_eq!(pending[0].obligation.min_commit_version, kick.version);
+    assert_eq!(pending[0].obligation().min_commit_version, kick.version);
     let expectation = fixture
         .snapback
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
         .auth_invalidation_expectation_for_test()
         .expect("installed authorization expectation");
-    assert_eq!(pending[0].obligation.authorization, expectation);
+    assert_eq!(pending[0].obligation().authorization, expectation);
 
     let frames_a = fixture.drain_composed_delivery(CONNECTION_A, USER_A);
     let frames_b = fixture.drain_composed_delivery(CONNECTION_B, USER_B);
@@ -1414,8 +1417,8 @@ fn lost_commit_ack_proves_successor_and_finalizes_the_exact_room_ticket() {
         .ephemeral
         .pending_room_reauthorizations();
     assert_eq!(pending.len(), 1);
-    assert_eq!(pending[0].room.scope, room_scope());
-    assert_eq!(pending[0].obligation.min_commit_version, kick.version);
+    assert_eq!(pending[0].room().scope, room_scope());
+    assert_eq!(pending[0].obligation().min_commit_version, kick.version);
     let denied = fixture
         .snapback
         .lock()

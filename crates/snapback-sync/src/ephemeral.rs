@@ -15,10 +15,13 @@ use crate::storage::{
     AuthorizationCommitReservation, AuthorizationCommitWitness, AuthorizationExpectationView,
     AuthorizationOutboxAdmission, AuthorizationReservationCancellation, AuthorizationVersion,
     NonAuthorizingRoomAuthority, OutboxFrameDisposition, RealtimePublicationValidity,
-    RoomAuthorityOperationGuard, RoomCreationAdmission, RoomReauthorizationAdmission,
-    RoomRetirementAdmission, ServingDatabase,
+    RoomAuthorityOperationGuard, RoomCreationAdmission, RoomReauthorizationCompletion,
+    RoomReauthorizationSubscriber, RoomRetirementAdmission, ServingDatabase,
 };
-pub use crate::storage::{RealtimePublicationPermit, RoomAuthorityPermit, RoomAuthorityResync};
+pub use crate::storage::{
+    RealtimePublicationPermit, ResolvedRoomReauthorizationBatch, RoomAuthorityPermit,
+    RoomAuthorityResync,
+};
 pub use snapback_types::ephemeral::*;
 
 /// Recover from lock poisoning the way the rest of the codebase does: room and
@@ -3145,32 +3148,74 @@ impl EventCounters {
 type SharedRoom = Arc<StdMutex<RoomState>>;
 type SharedOutbox = Arc<StdMutex<OutboundQueue>>;
 
-#[derive(Clone, Debug)]
 pub struct RoomSubscriberReauthorization {
-    pub connection_id: ConnectionId,
+    connection_id: ConnectionId,
     #[cfg(any(test, feature = "test-support"))]
-    pub previous_auth: AuthContext,
-    pub effect_fence: Option<ConnectionEffectFence>,
+    previous_auth: AuthContext,
+    effect_fence: Option<ConnectionEffectFence>,
 }
 
-#[derive(Clone, Debug)]
+impl RoomSubscriberReauthorization {
+    pub fn connection_id(&self) -> &ConnectionId {
+        &self.connection_id
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn previous_auth(&self) -> &AuthContext {
+        &self.previous_auth
+    }
+
+    pub fn effect_fence(&self) -> Option<&ConnectionEffectFence> {
+        self.effect_fence.as_ref()
+    }
+}
+
 pub struct PendingRoomReauthorization {
-    pub room: RoomId,
-    pub obligation: RoomAuthorityResync,
-    pub subscribers: Vec<RoomSubscriberReauthorization>,
+    authority: crate::storage::PendingRoomReauthorization,
+    subscribers: Vec<RoomSubscriberReauthorization>,
 }
 
-#[derive(Clone, Debug)]
-pub enum RoomSubscriberResolution {
-    Authorized {
-        connection_id: ConnectionId,
-        expected_effect_fence: Option<ConnectionEffectFence>,
-        auth: AuthContext,
-    },
-    Denied {
-        connection_id: ConnectionId,
-        expected_effect_fence: Option<ConnectionEffectFence>,
-    },
+impl PendingRoomReauthorization {
+    pub fn room(&self) -> &RoomId {
+        self.authority.room()
+    }
+
+    pub fn obligation(&self) -> &RoomAuthorityResync {
+        self.authority.obligation()
+    }
+
+    pub fn subscribers(&self) -> &[RoomSubscriberReauthorization] {
+        &self.subscribers
+    }
+
+    /// Consume the exact pending snapshot and have the matching serving
+    /// database derive every authorization outcome.
+    pub fn resolve_with_database(
+        self,
+        database: &ServingDatabase,
+        fresh_authorities: Vec<Option<AuthContext>>,
+    ) -> SnapbackResult<ResolvedRoomReauthorizationBatch> {
+        if self.subscribers.len() != fresh_authorities.len() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_EPHEMERAL_REAUTHORIZATION_INCOMPLETE",
+                "ephemeral",
+                "room permission phase requires one authority result per snapshotted subscriber",
+            ));
+        }
+        let subscribers = self
+            .subscribers
+            .into_iter()
+            .zip(fresh_authorities)
+            .map(|(subscriber, fresh_authority)| {
+                RoomReauthorizationSubscriber::new(
+                    subscriber.connection_id,
+                    subscriber.effect_fence,
+                    fresh_authority,
+                )
+            })
+            .collect();
+        database.resolve_room_reauthorization(self.authority, subscribers)
+    }
 }
 
 fn authority_pending_error() -> EphemeralError {
@@ -3298,18 +3343,13 @@ impl RoomAuthority {
         }
     }
 
-    fn begin_room_reauthorization_admission(
+    fn begin_room_reauthorization_completion(
         &self,
-        room: &RoomId,
-        generation: u64,
-    ) -> Result<RoomReauthorizationAdmission<'_>, EphemeralError> {
+        batch: ResolvedRoomReauthorizationBatch,
+    ) -> Result<RoomReauthorizationCompletion<'_>, EphemeralError> {
         match self {
-            Self::Bound(participant) => {
-                participant.begin_room_reauthorization_admission(room, generation)
-            }
-            Self::Unbound(authority) => {
-                authority.begin_room_reauthorization_admission(room, generation)
-            }
+            Self::Bound(participant) => participant.begin_room_reauthorization_completion(batch),
+            Self::Unbound(authority) => authority.begin_room_reauthorization_completion(batch),
         }
     }
 
@@ -3793,11 +3833,10 @@ impl LocalEphemeralBackend {
         pending
             .into_iter()
             .filter_map(|pending| {
-                let room = rooms.get(&pending.room)?;
+                let room = rooms.get(pending.room())?;
                 let room = lock(room);
                 Some(PendingRoomReauthorization {
-                    room: pending.room,
-                    obligation: pending.obligation,
+                    authority: pending,
                     subscribers: room
                         .subscribers
                         .iter()
@@ -3817,26 +3856,27 @@ impl LocalEphemeralBackend {
 
     pub fn complete_room_reauthorization(
         &self,
-        room_id: &RoomId,
-        room_authority_generation: u64,
-        resolutions: Vec<RoomSubscriberResolution>,
+        batch: ResolvedRoomReauthorizationBatch,
     ) -> SnapbackResult<bool> {
         // Reauthorization may remove entries and, at generation exhaustion,
         // retire the whole room and publish an epoch boundary. Serialize that
         // producer with definition/reset wipes so neither can clear the
         // other's terminal marker after missing the already-removed room.
         let _lifecycle = self.lifecycle_read("ephemeral room reauthorization completion");
-        let admission = match self
+        let completion = match self
             .shared
             .room_authority
-            .begin_room_reauthorization_admission(room_id, room_authority_generation)
+            .begin_room_reauthorization_completion(batch)
         {
-            Ok(admission) => admission,
+            Ok(completion) => completion,
             Err(_) => return Ok(false),
         };
+        let room_id = completion.room().clone();
+        let room_authority_generation = completion.generation();
+        let resolutions = completion.resolutions();
         let rooms = lock(&self.shared.rooms);
-        let Some(room_arc) = rooms.get(room_id).cloned() else {
-            admission.remove_missing_room();
+        let Some(room_arc) = rooms.get(&room_id).cloned() else {
+            completion.remove_missing_room();
             return Ok(true);
         };
         let mut room = lock(&room_arc);
@@ -3849,16 +3889,11 @@ impl LocalEphemeralBackend {
             .collect::<BTreeSet<_>>();
         let resolved = resolutions
             .iter()
-            .map(|resolution| match resolution {
-                RoomSubscriberResolution::Authorized {
-                    connection_id,
-                    expected_effect_fence,
-                    ..
-                }
-                | RoomSubscriberResolution::Denied {
-                    connection_id,
-                    expected_effect_fence,
-                } => (connection_id.clone(), expected_effect_fence.clone()),
+            .map(|resolution| {
+                (
+                    resolution.connection_id().clone(),
+                    resolution.expected_effect_fence().cloned(),
+                )
             })
             .collect::<BTreeSet<_>>();
         if expected != resolved || resolved.len() != resolutions.len() {
@@ -3871,12 +3906,8 @@ impl LocalEphemeralBackend {
 
         let denied = resolutions
             .iter()
-            .filter_map(|resolution| match resolution {
-                RoomSubscriberResolution::Denied { connection_id, .. } => {
-                    Some(connection_id.clone())
-                }
-                RoomSubscriberResolution::Authorized { .. } => None,
-            })
+            .filter(|resolution| resolution.authorized_auth().is_none())
+            .map(|resolution| resolution.connection_id().clone())
             .collect::<BTreeSet<_>>();
         let retiring_owners = room
             .owner_connections
@@ -3898,8 +3929,8 @@ impl LocalEphemeralBackend {
             room.retired = true;
             drop(room);
             drop(rooms);
-            drop(admission);
-            self.retire_generation_exhausted_room(room_id);
+            drop(completion);
+            self.retire_generation_exhausted_room(&room_id);
             return Err(SnapbackError::error(
                 error.code.diagnostic_code(),
                 "ephemeral",
@@ -3909,49 +3940,40 @@ impl LocalEphemeralBackend {
 
         let mut denied_outboxes = Vec::new();
         let mut denied_connections = Vec::new();
-        for resolution in &resolutions {
-            match resolution {
-                RoomSubscriberResolution::Authorized {
-                    connection_id,
-                    expected_effect_fence: _,
-                    auth,
-                } => {
-                    let previous_retained_bytes = room
-                        .subscribers
-                        .get(connection_id)
-                        .expect("resolution set equals current subscribers")
-                        .retained_bytes;
-                    let retained_bytes = retained_subscriber_bytes(connection_id)
-                        .saturating_add(retained_auth_context_bytes(auth));
-                    room.retained_bytes = room
-                        .retained_bytes
-                        .saturating_sub(previous_retained_bytes)
-                        .saturating_add(retained_bytes);
-                    let subscriber = room
-                        .subscribers
-                        .get_mut(connection_id)
-                        .expect("resolution set equals current subscribers");
-                    subscriber.auth = auth.clone();
-                    subscriber.retained_bytes = retained_bytes;
-                }
-                RoomSubscriberResolution::Denied {
-                    connection_id,
-                    expected_effect_fence: _,
-                } => {
-                    let subscriber = room
-                        .subscribers
-                        .remove(connection_id)
-                        .expect("resolution set equals current subscribers");
-                    room.retained_bytes = room
-                        .retained_bytes
-                        .saturating_sub(subscriber.retained_bytes);
-                    denied_outboxes.push((
-                        connection_id.clone(),
-                        subscriber.outbox,
-                        subscriber.effect_fence,
-                    ));
-                    denied_connections.push(connection_id.clone());
-                }
+        for resolution in resolutions {
+            let connection_id = resolution.connection_id();
+            if let Some(auth) = resolution.authorized_auth() {
+                let previous_retained_bytes = room
+                    .subscribers
+                    .get(connection_id)
+                    .expect("resolution set equals current subscribers")
+                    .retained_bytes;
+                let retained_bytes = retained_subscriber_bytes(connection_id)
+                    .saturating_add(retained_auth_context_bytes(auth));
+                room.retained_bytes = room
+                    .retained_bytes
+                    .saturating_sub(previous_retained_bytes)
+                    .saturating_add(retained_bytes);
+                let subscriber = room
+                    .subscribers
+                    .get_mut(connection_id)
+                    .expect("resolution set equals current subscribers");
+                subscriber.auth = auth.clone();
+                subscriber.retained_bytes = retained_bytes;
+            } else {
+                let subscriber = room
+                    .subscribers
+                    .remove(connection_id)
+                    .expect("resolution set equals current subscribers");
+                room.retained_bytes = room
+                    .retained_bytes
+                    .saturating_sub(subscriber.retained_bytes);
+                denied_outboxes.push((
+                    connection_id.clone(),
+                    subscriber.outbox,
+                    subscriber.effect_fence,
+                ));
+                denied_connections.push(connection_id.clone());
             }
         }
 
@@ -3990,7 +4012,7 @@ impl LocalEphemeralBackend {
             for key in keys {
                 if let Some(removal) = remove_entry_locked(
                     &mut room,
-                    room_id,
+                    &room_id,
                     &key,
                     RemoveReason::AuthRevoked,
                     room_authority_generation,
@@ -4058,16 +4080,16 @@ impl LocalEphemeralBackend {
             wakees.insert(connection_id);
         }
 
-        admission.complete_exact();
+        completion.complete_exact();
         drop(room);
         drop(rooms);
         for connection_id in &denied_connections {
-            self.unindex_connection_room_if_unused(connection_id, room_id);
+            self.unindex_connection_room_if_unused(connection_id, &room_id);
         }
         self.shared
             .delivery
             .wake_many(&wakees.into_iter().collect::<Vec<_>>());
-        self.prune_room_if_empty(room_id);
+        self.prune_room_if_empty(&room_id);
         Ok(true)
     }
 
@@ -6437,8 +6459,8 @@ impl LocalEphemeralBackend {
         let rooms = lock(&self.shared.rooms);
         let mut wakees = BTreeSet::new();
         for pending in pending {
-            let room_id = pending.room;
-            let resync = pending.obligation;
+            let room_id = pending.room().clone();
+            let resync = pending.obligation();
             let Some(room_arc) = rooms.get(&room_id) else {
                 continue;
             };
