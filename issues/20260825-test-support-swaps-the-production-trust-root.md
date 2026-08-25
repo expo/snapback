@@ -8,6 +8,23 @@ Related: llp/0303-subject-authority-correlation-policy.decision.md,
   issues/20260825-the-critical-path-is-the-shared-surface-not-the-rows.md,
   issues/20260825-production-equivalent-is-not-a-clearing-rule.md
 
+> **CORRECTION (2026-08-25, same day).** The file paths and line numbers below describe the **q14 lane
+> worktree**, not `origin/main`. Verified directly against `origin/main`:
+> `crates/snapback-kernel/src/auth/invalidation_issuer.rs` and
+> `crates/snapback-auth/tests/hosted_admission_replay.rs` **do not exist**, and
+> `crates/snapback-kernel/src/auth/hosted_edge.rs:36` is watermark initialization, not a trust-root
+> substitution. The executed `build-identity` result was real, but real *in that lane* — the review ran
+> inside it, and the lane's own commits created those files. I generalised a lane-local finding into a
+> repository-wide claim without checking, which is the error, not the review's.
+>
+> **The class is nonetheless real on `origin/main`, in a broader form.** An independent read-only
+> analysis found the same self-certifying shape in the shipped hosted path: configuration carries the
+> Ed25519 key (`crates/snapback-auth/src/auth/hosted_edge.rs:215`, `:229`) and the server verifies the
+> envelope **with that same configured key** (`crates/snapback-server/src/admin.rs:211`, `:219`,
+> `:220`). That is a caller/operator-supplied key verified against itself, which is the defect this
+> ticket is about — so the ticket stands, with that as its `origin/main` citation and the material
+> below read as the lane-local instance that surfaced it.
+
 ## The finding
 
 `crates/snapback-kernel/src/auth/hosted_edge.rs:36` substitutes a deterministic test root for the
