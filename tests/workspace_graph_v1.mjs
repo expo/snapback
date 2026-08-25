@@ -469,14 +469,31 @@ test('reviewed engine derives remain bound to their canonical imports', () => {
   }]));
 });
 
-test('reviewed engine compatibility globs stay exact', () => {
-  assert.doesNotThrow(() => validateEngineDefinitionDenylist(artifact, [{
-    path: '/fixture/engine.rs',
-    source: [
-      'use super::runtime_cost::*;',
-      'pub use runtime_cost::*;',
-    ].join('\n'),
-  }]));
+test('reviewed engine compatibility globs stay bound to their exact files', () => {
+  assert.doesNotThrow(() => validateEngineDefinitionDenylist(artifact, [
+    {
+      path: join(repositoryRoot, 'crates/snapback-engine/src/local.rs'),
+      source: 'pub use runtime_cost::*;',
+    },
+    {
+      path: join(repositoryRoot, 'crates/snapback-engine/src/local/engine.rs'),
+      source: 'use super::runtime_cost::*;',
+    },
+  ]));
+
+  for (const source of [
+    'use super::runtime_cost::*;',
+    'pub use runtime_cost::*;',
+  ]) {
+    assert.throws(
+      () => validateEngineDefinitionDenylist(artifact, [{
+        path: join(repositoryRoot, 'crates/snapback-engine/src/other.rs'),
+        source,
+      }]),
+      /unreviewed glob/u,
+      source,
+    );
+  }
 });
 
 test('comment and literal examples do not count as engine definitions', () => {
@@ -531,6 +548,15 @@ test('the engine cannot rename a dependency over a trusted macro crate binding',
   assert.throws(
     () => validateArtifactAndMetadata(artifact, value, workspaceManifestSource),
     /may not rename foreign-macros to trusted macro crate binding serde/u,
+  );
+});
+
+test('the engine cannot rename an external proc-macro dependency to runtime_cost', () => {
+  const value = metadata('snapback-engine', ['foreign-macros']);
+  packageNamed(value, 'snapback-engine').dependencies[0].rename = 'runtime_cost';
+  assert.throws(
+    () => validateArtifactAndMetadata(artifact, value, workspaceManifestSource),
+    /may not rename foreign-macros to trusted macro crate binding runtime_cost/u,
   );
 });
 

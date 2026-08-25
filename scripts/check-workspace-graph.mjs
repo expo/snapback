@@ -132,38 +132,58 @@ const CANONICAL_ENGINE_IMPORTS = new Map([
   ['rusqlite', 'snapback_services::test_support'],
 ]);
 // A glob can import a macro, derive, or attribute without naming it in the
-// engine source. Keep the compatibility globs that already compose reviewed
-// lower-owner and local modules, but fail closed on every other root.
-const SAFE_ENGINE_GLOB_IMPORTS = new Set([
-  'capabilities::*',
-  'config_types::*',
-  'crate::host_ops_contract::*',
-  'engine::*',
-  'engine::generation_host::*',
-  'generation_host::*',
-  'host_glue::*',
-  'snapback_kernel::assets::*',
-  'snapback_kernel::assets_cut::*',
-  'snapback_kernel::assets_store::*',
-  'snapback_kernel::control_catalog::*',
-  'snapback_kernel::instance_fork::*',
-  'snapback_kernel::storage::jobs::*',
-  'snapback_runtime::runtime::*',
-  'snapback_services::assets::*',
-  'snapback_services::assets_cut::*',
-  'snapback_services::assets_store::*',
-  'snapback_services::cron::*',
-  'snapback_services::instance_fork::*',
-  'snapback_services::telemetry::*',
-  'snapback_types::instance_fork::*',
-  'snapback_types::manifest::*',
-  'snapback_types::push::*',
-  'snapback_types::runtime::*',
-  'runtime_cost::*',
-  'super::*',
-  'super::runtime_cost::*',
-]);
+// engine source. Bind every reviewed compatibility glob to its exact file so
+// the same spelling cannot silently authorize a different module or crate.
+const SAFE_ENGINE_GLOB_IMPORTS = [
+  { file: 'crates/snapback-engine/src/ask.rs', glob: 'super::*' },
+  { file: 'crates/snapback-engine/src/control_catalog.rs', glob: 'snapback_kernel::control_catalog::*' },
+  { file: 'crates/snapback-engine/src/graph_evaluator.rs', glob: 'super::*' },
+  { file: 'crates/snapback-engine/src/host_ops.rs', glob: 'crate::host_ops_contract::*' },
+  { file: 'crates/snapback-engine/src/host_ops.rs', glob: 'super::*' },
+  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_kernel::assets::*' },
+  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_kernel::assets_cut::*' },
+  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_kernel::assets_store::*' },
+  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_kernel::instance_fork::*' },
+  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_kernel::storage::jobs::*' },
+  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_services::assets::*' },
+  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_services::assets_cut::*' },
+  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_services::assets_store::*' },
+  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_services::cron::*' },
+  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_services::instance_fork::*' },
+  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_services::telemetry::*' },
+  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_types::instance_fork::*' },
+  { file: 'crates/snapback-engine/src/local/admission_fence_tests.rs', glob: 'super::*' },
+  { file: 'crates/snapback-engine/src/local/auth_room_kick_acceptance.rs', glob: 'super::*' },
+  { file: 'crates/snapback-engine/src/local/engine.rs', glob: 'config_types::*' },
+  { file: 'crates/snapback-engine/src/local/engine.rs', glob: 'generation_host::*' },
+  { file: 'crates/snapback-engine/src/local/engine.rs', glob: 'super::runtime_cost::*' },
+  { file: 'crates/snapback-engine/src/local/generation_host.rs', glob: 'super::*' },
+  { file: 'crates/snapback-engine/src/local/inspection.rs', glob: 'super::*' },
+  { file: 'crates/snapback-engine/src/local/runtime_cost.rs', glob: 'super::*' },
+  { file: 'crates/snapback-engine/src/local/tests.rs', glob: 'engine::*' },
+  { file: 'crates/snapback-engine/src/local/tests.rs', glob: 'super::*' },
+  { file: 'crates/snapback-engine/src/local/tests/engine.rs', glob: 'super::*' },
+  { file: 'crates/snapback-engine/src/local/tests/generation_activation.rs', glob: 'super::*' },
+  { file: 'crates/snapback-engine/src/local.rs', glob: 'engine::*' },
+  { file: 'crates/snapback-engine/src/local.rs', glob: 'engine::generation_host::*' },
+  { file: 'crates/snapback-engine/src/local.rs', glob: 'runtime_cost::*' },
+  { file: 'crates/snapback-engine/src/manifest/capabilities.rs', glob: 'super::*' },
+  { file: 'crates/snapback-engine/src/manifest/types_remainder_tests.rs', glob: 'super::*' },
+  { file: 'crates/snapback-engine/src/manifest.rs', glob: 'capabilities::*' },
+  { file: 'crates/snapback-engine/src/manifest.rs', glob: 'snapback_types::manifest::*' },
+  { file: 'crates/snapback-engine/src/push/authority_tests.rs', glob: 'super::*' },
+  { file: 'crates/snapback-engine/src/push/tests.rs', glob: 'super::*' },
+  { file: 'crates/snapback-engine/src/push.rs', glob: 'snapback_types::push::*' },
+  { file: 'crates/snapback-engine/src/runtime/host_glue.rs', glob: 'snapback_runtime::runtime::*' },
+  { file: 'crates/snapback-engine/src/runtime/host_glue.rs', glob: 'snapback_types::runtime::*' },
+  { file: 'crates/snapback-engine/src/runtime/host_glue.rs', glob: 'super::*' },
+  { file: 'crates/snapback-engine/src/runtime.rs', glob: 'host_glue::*' },
+  { file: 'crates/snapback-engine/src/runtime.rs', glob: 'snapback_runtime::runtime::*' },
+  { file: 'crates/snapback-engine/src/runtime.rs', glob: 'snapback_types::runtime::*' },
+  { file: 'crates/snapback-engine/src/test_support.rs', glob: 'super::*' },
+];
 const TRUSTED_ENGINE_CRATE_BINDINGS = new Set([
+  'runtime_cost',
   'rusqlite',
   'schemars',
   'serde',
@@ -809,6 +829,7 @@ function validateEngineDefinitionInputs(files) {
     }
 
     const masked = maskRustAttributes(maskRustCommentsAndLiterals(file.source));
+    const repositoryFile = relative(ROOT, file.path).split(sep).join('/');
     for (const externMatch of masked.matchAll(/(?:^|[;{}])\s*(?:pub(?:\s*\([^)]*\))?\s+)?extern\s+crate\s+(?:r#)?([A-Za-z_][A-Za-z0-9_]*)(?:\s+as\s+(?:r#)?([A-Za-z_][A-Za-z0-9_]*))?\s*;/gmu)) {
       const binding = externMatch[2] ?? externMatch[1];
       assert(
@@ -821,8 +842,10 @@ function validateEngineDefinitionInputs(files) {
       if (/(?:^|[,:{])\s*\*/u.test(useSpec)) {
         const normalizedUseSpec = useSpec.replace(/\s+/gu, '');
         assert(
-          SAFE_ENGINE_GLOB_IMPORTS.has(normalizedUseSpec),
-          `snapback-engine may not import an unreviewed glob ${normalizedUseSpec}: ${relative(ROOT, file.path).split(sep).join('/')}`,
+          SAFE_ENGINE_GLOB_IMPORTS.some(({ file: reviewedFile, glob }) => (
+            reviewedFile === repositoryFile && glob === normalizedUseSpec
+          )),
+          `snapback-engine may not import an unreviewed glob ${normalizedUseSpec}: ${repositoryFile}`,
         );
       }
       for (const alias of useSpec.matchAll(/\bas\s+(?:r#)?([A-Za-z_][A-Za-z0-9_]*)/gu)) {

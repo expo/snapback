@@ -3,7 +3,7 @@
 **Status:** Open
 **Opened:** 2026-08-25
 **Systems:** Rust core, Auth, Testing, Tooling
-**Related:** LLP 0284 §3 and §6
+**Related:** LLP 0276#crates--the-rust-workspace
 
 ## Summary
 
@@ -27,7 +27,9 @@ Commit `711a77bd8a` introduced two `macro_rules!` definitions in
 `scripts/check-workspace-graph.mjs` deliberately rejects item-generating macro
 definitions throughout `snapback-engine`; unlike reviewed derives, imports,
 and macro invocations, this rule has no manifest allowlist. Suppressing the
-path in the JS checker would weaken the LLP 0284 fail-closed boundary.
+path in the JS checker would weaken LLP 0276's engine-definition denylist.
+The Rust-side hardening would spell the local import as
+`self::runtime_cost::*`; this ticket does not change Rust.
 
 ## Required Rust change
 
