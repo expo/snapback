@@ -13,3 +13,7 @@ This lane now freezes nine generated static-plan variants through the canonical 
 The matrix exposed and this lane fixed the served dependency attester's stale parent-population invariant after a non-empty semi-join: subsequent sibling facts are now checked against only retained parents. Descending oracle rows remain normalized by the pinned physical `_id ASC` tie rule and retain the raw control-oracle digest/order plus the existing deviation-ticket pointer; the D1 oracle itself is unchanged.
 
 No requested axis was inexpressible and no admission refusal remains. The six P-C rows named in this ticket now have executable evaluator+served evidence. Remaining work is review/orchestrator closure and post-landing reconciliation of LLP 0209's explicitly dated v0.11 publication-readiness table; search, two-way windows, overlays, full relation shapes, and production class-2 publication readiness remain owned by their separate P-C tickets and are not broadened by this lane.
+
+## Resolution (2026-08-25)
+
+Closed by the C1 lane (series ending `bfb45a821`): nine generated static-plan matrix variants (project/open/creator/assignee/all-label/combined/created+modified orders), paired hidden-row worlds and live replacement per axis, four both-label decoys making each conjunct independently load-bearing, tie fixtures with physical/logical id order inverted, direction-independent normalization dispositions, and the predicate-only-scoped semi-join attestation fix. Dual-family READY (grok r1, codex r3); records `llp/reviews/0209-c1-filter-order-matrix.*`.
