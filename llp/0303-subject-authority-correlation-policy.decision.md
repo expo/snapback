@@ -6,7 +6,7 @@
 **Author:** Claude (Opus 5), commissioned by Charlie Cheever (author ruling
 2026-08-24, in session supervising LLP 0283 F-1)
 **Date:** 2026-08-24
-**Revised:** 2026-08-25 (m — the strict enumeration listed 41 identifiers under a 37 label)
+**Revised:** 2026-08-25 (n — enumerate the siblings, or the review will)
 **Related:** LLP 0283, LLP 0298, LLP 0285, LLP 0274,
 `issues/20260824-liveness-row-bucket-assignment.md`,
 `issues/20260824-entitlement-predicates-for-the-live-sites.md`
@@ -388,6 +388,45 @@ Note the interaction with revision (k): together they say a durable guard must b
 resource on every use**, not cached at acquisition (k) and not initialised per handle (this). Both
 failures look like correct code in isolation, and both were found only by opening a second handle or
 a second process.
+
+### Enumerate the siblings, or the review will
+
+Seven consecutive lanes in this programme produced a fix that was **correct where it was aimed** and
+was then defeated by an adjacent path the fix did not reach. Not a flawed mechanism — an unreached
+one. The pattern is consistent enough to stop treating as bad luck.
+
+The clearest instance. A lane derived the authorization interlock from durable storage and did it
+well: an executable review confirmed second, third and separate-process handles all refused; that
+staging rereads the durable fact and preparation rereads it *inside the same SQLite transaction*
+before commit, with an IMMEDIATE transaction serialising the writer so no TOCTOU window exists; that
+32 no-ops consumed nothing; and that no `From`/`Into`, serde, builder, clone or extraction route
+relocated the carrier. Then:
+
+```
+identity_reap_guests_default_tombstone(9)
+  result=Ok(GuestReapBatch { reaped: 1, ... })
+  before_epoch=1   after_epoch=2
+```
+
+That operation never enters the mechanism at all. It takes a plain auth transaction with an **empty
+commit guard** and advances the durable epoch directly. The guard was real; this path simply was not
+behind it.
+
+> **A fix that is not accompanied by an enumeration of its siblings is not finished, it is
+> untested.** Whoever writes the fix must enumerate every path that reaches the same durable effect
+> and say which ones now go through the new mechanism and which do not — including the ones that
+> came back clean.
+
+This inverts where the enumeration happens. Today it is a *review finding*: the implementer fixes the
+named path, the reviewer hunts the siblings, and the lane spends another round. Making it a
+**deliverable of the fix** costs the implementer one pass over the call graph — which it must do
+anyway to be confident — and removes the most common reason these lanes fail.
+
+Two practical notes, both learned the same way. `#[doc(hidden)]` is not a capability boundary; read
+it as `pub` when enumerating. And an enumeration that finds an uncovered sibling but declines to
+report it *because no executed witness exists yet* has still found it — the honest form is to name
+it as unproven and close it anyway, rather than let its absence from the findings list read as
+absence from the surface.
 
 This is the same family as the constructor/setter case above: a derivation that holds at one instant
 and is undone afterwards. Setters undo it by assignment; combinators undo it by rewrapping; recycling
