@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-symbol-registry.v1",
   "generatedBy": "scripts/generate-symbol-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:11aaba74208a560fbf36144c6c3d453da364a474199f426da7e5aebf210977ac",
+    "sourceDigest": "sha256:8632d01b8c0d1bdd9831f2005cd8c61a58e8be407a7bc41f1d40367ebf37e24a",
     "publishedClosureVersion": "0.1.27",
     "packageVersions": {
       "@expo/snapback-cli": "0.1.27",
@@ -136983,7 +136983,7 @@
       "module": "@expo/snapback-client",
       "name": "AuthPasswordSetStepUpV1.identityId",
       "lifecycle": {
-        "removedIn": "0.1.27"
+        "removedIn": "0.1.28"
       }
     },
     {

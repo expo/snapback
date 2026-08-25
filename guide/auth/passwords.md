@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:cbc7fe004611f2e8b7ef525e8f4c67052df33e37fafc38d943c69744d1bb5ea7
+reviewed-authorities-digest: sha256:bb6b12280dbde746d9fb9eb9a2136bd93c26839e5ea8e21d449daa9ed90c33bd
 ---
 
 # Email and password
@@ -436,10 +436,10 @@ First-password set issues a new local-password session for the same user. The
 client adopts that successor through its fenced authority-transition path, not
 ordinary change's same-session bearer rotation.
 
-<!-- since: 0.1.27 unreleased -->
+<!-- since: 0.1.28 unreleased -->
 > **Unreleased.** This identity-free password-set helper is newer than the
-> latest published `@expo/snapback-client` (`0.1.26`). Build from source until
-> `0.1.27` is published.
+> latest published `@expo/snapback-client` (`0.1.27`). Build from source until
+> `0.1.28` is published.
 
 Use `authStepUpRequest({ operation: 'passwordSet' })`, deliver the code to the
 human, then submit that challenge and code to `authPasswordSet`:

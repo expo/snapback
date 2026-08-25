@@ -50,7 +50,8 @@ proof, adopts the same-user successor session through the fenced authority
 transition, and projects the returned recovery codes. The guide documents and
 CI-transcludes the working client shape and correct
 `POST /auth/step-up/request` route. The published `identityId` type member has
-an authored `0.1.27` lifecycle removal fact.
+an authored `0.1.28` lifecycle removal fact (`0.1.27` was published from
+main while this fix was in review and still carries the member).
 
 Fail-first evidence: the focused server test received HTTP 400 instead of 200
 for the identity-free mint, and the client test failed because

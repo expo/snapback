@@ -482,7 +482,7 @@
     },
     {
       "identity": "npm:@expo/snapback-client#AuthPasswordSetStepUpV1.identityId",
-      "removedIn": "0.1.27"
+      "removedIn": "0.1.28"
     }
   ]
 }
