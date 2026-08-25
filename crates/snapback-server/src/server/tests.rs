@@ -20666,6 +20666,15 @@ async fn password_change_closed_union_rotates_and_requires_step_up_for_first_set
     let set_email = "set-first-password@example.com";
     let email_credential = password_test_email_exchange(&router, &provider, set_email).await;
     let email_bearer = email_credential["token"].as_str().unwrap().to_owned();
+    let email_session_id = email_credential["session"]["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let email_authority_instance_id =
+        email_credential["authorityDescriptor"]["authorityInstanceId"]
+            .as_str()
+            .unwrap()
+            .to_owned();
     let sibling_email = "set-first-password-sibling@example.com";
     let sibling_fixture_bearer = email_bearer.clone();
     let sibling_identity_id = with_snapback(&state.snapback, move |snapback| {
@@ -20782,6 +20791,16 @@ async fn password_change_closed_union_rotates_and_requires_step_up_for_first_set
     let set = response_json(set).await;
     assert_eq!(set_status, StatusCode::OK, "{set}");
     assert_password_credential_shape(&set, true);
+    assert_ne!(
+        set["session"]["id"].as_str(),
+        Some(email_session_id.as_str()),
+        "first-password set must replace the email-code predecessor session"
+    );
+    assert_ne!(
+        set["authorityDescriptor"]["authorityInstanceId"].as_str(),
+        Some(email_authority_instance_id.as_str()),
+        "first-password set must issue a fresh authority instance"
+    );
     let password_subject_counts = with_snapback(&state.snapback, move |snapback| {
         let database = snapback.remainder_auth_database_mut();
         Ok::<_, crate::diagnostic::SnapbackError>((

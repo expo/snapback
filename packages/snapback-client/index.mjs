@@ -6959,7 +6959,12 @@ export class SnapbackClient {
       if (res.ok && successfulResponseFacts) {
         return { status: res.status, emptyBody: false, readFailed: true };
       }
-      throw sanitizeTransportError(error, requestSecrets);
+      const transportError = sanitizeTransportError(error, requestSecrets);
+      // Preserve the known HTTP outcome so callers whose successful response
+      // commits an authority transition can distinguish a 2xx body-read
+      // failure from a request that never received a committed success.
+      transportError.status = res.status;
+      throw transportError;
     }
     // Logout needs to distinguish exact empty 204 from a malformed successful
     // response without ever carrying the successful body past this boundary.
@@ -8112,29 +8117,36 @@ export class SnapbackClient {
     const capture = this.authCoordinator.capture();
     const predecessor = this.authCoordinator.credentialFor(capture);
     if (predecessor.authority.kind !== 'session') throw staleAuthorityError();
-    const raw = await this.#trackedFetchJson(
-      'POST',
-      path,
-      body,
-      this.#authOfferHeaders(true, predecessor.bearer),
-      { forbiddenSecrets: [predecessor.bearer, ...forbiddenSecrets] },
-    );
     let response;
+    let receivedSuccessfulResponse = false;
     try {
+      const raw = await this.#trackedFetchJson(
+        'POST',
+        path,
+        body,
+        this.#authOfferHeaders(true, predecessor.bearer),
+        { forbiddenSecrets: [predecessor.bearer, ...forbiddenSecrets] },
+      );
+      receivedSuccessfulResponse = true;
       response = this.#validateCredentialResponseWithRecoveryCodes(
         raw,
         [predecessor.bearer, ...forbiddenSecrets],
       );
     } catch (error) {
-      // The password-set commit already terminalized this exact predecessor.
-      // Even a success body that fails closed-shape validation must not leave
-      // its dead bearer in custody; a concurrent authority remains untouched.
-      // @ref LLP 0059#coordinator-interface — malformed committed successes may
-      // clear only the exact predecessor captured before the request.
-      await this.authCoordinator.compareAndClear(
-        capture,
-        'password_set_invalid_successor',
-      );
+      const committedSuccess = receivedSuccessfulResponse
+        || (Number.isInteger(error?.status) && error.status >= 200 && error.status < 300);
+      if (committedSuccess) {
+        // The password-set commit already terminalized this exact predecessor.
+        // Even a success body that cannot be read, parsed, or validated must
+        // not leave its dead bearer in custody; a concurrent authority remains
+        // untouched. Non-2xx and dispatch failures did not commit and retain it.
+        // @ref LLP 0059#coordinator-interface — malformed committed successes
+        // may clear only the exact predecessor captured before the request.
+        await this.authCoordinator.compareAndClear(
+          capture,
+          'password_set_invalid_successor',
+        );
+      }
       throw error;
     }
     const successorAuthority = credentialAuthority(

@@ -474,7 +474,7 @@ test('password set submits identity-free step-up and recaptures after concurrent
   }
 });
 
-test('password set clears predecessor custody for every invalid HTTP 200 response', async () => {
+test('password set clears custody for invalid HTTP 200 responses but not non-2xx failures', async () => {
   const fixture = makeFixture();
   try {
     await enterEmailCodeSession(fixture);
@@ -531,6 +531,50 @@ test('password set clears predecessor custody for every invalid HTTP 200 respons
     ).bearer, null);
   } finally {
     await malformed.close();
+  }
+
+  const nonJson = makeFixture();
+  try {
+    await enterEmailCodeSession(nonJson);
+    nonJson.respond('/auth/password/change', ({ authorization }) => {
+      assert.equal(authorization, `Bearer ${EMAIL_BEARER}`);
+      return new Response('committed but malformed', { status: 200 });
+    });
+    await assert.rejects(
+      nonJson.client.authPasswordSet({
+        newPassword: NEW_PASSWORD,
+        stepUp: { challengeId: 'step-up-challenge', code: '123456' },
+      }),
+      (error) => error?.code === 'SNAPBACK_RESPONSE_NOT_JSON',
+    );
+    assert.equal(nonJson.coordinator.authority.kind, 'anonymous');
+    assert.equal(nonJson.coordinator.credentialFor(
+      nonJson.coordinator.capture(),
+    ).bearer, null);
+  } finally {
+    await nonJson.close();
+  }
+
+  const failed = makeFixture();
+  try {
+    await enterEmailCodeSession(failed);
+    failed.respond('/auth/password/change', ({ authorization }) => {
+      assert.equal(authorization, `Bearer ${EMAIL_BEARER}`);
+      return new Response('upstream unavailable', { status: 503 });
+    });
+    await assert.rejects(
+      failed.client.authPasswordSet({
+        newPassword: NEW_PASSWORD,
+        stepUp: { challengeId: 'step-up-challenge', code: '123456' },
+      }),
+      (error) => error?.code === 'SNAPBACK_HTTP_ERROR' && error?.status === 503,
+    );
+    assert.equal(failed.coordinator.authority.kind, 'session');
+    assert.equal(failed.coordinator.credentialFor(
+      failed.coordinator.capture(),
+    ).bearer, EMAIL_BEARER);
+  } finally {
+    await failed.close();
   }
 });
 

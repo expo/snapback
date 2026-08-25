@@ -5,6 +5,9 @@
 **Systems:** Auth, Server, CLI, Client protocol, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-10
+**Revised:** 2026-08-25 (m — password-set step-up target wording aligned with
+the session-bound `StepUpBinding`; the server derives the email-code identity
+from that session)
 **Revised:** 2026-08-25 (l — first-password set is documented as replacing
 the email-code predecessor with a new local-password session; password change
 alone rotates the acting session in place)
@@ -315,14 +318,14 @@ every later refresh with no new column and no DTO change.
   closed password-set entry in the existing operation-tagged step-up enum,
   bound to the exact session generation, authority instance, operation, and
   server-derived target as the existing step-up consumers are — the **target
-  is the exact `'email-code'` identity that issued the authenticated
-  session**, never a caller-supplied identity selector (LLP 0303), so a
-  multi-email principal's set is unambiguous and a single-email principal's
-  is exact. The proof is acquired end-to-end through
-  `POST /auth/step-up/request` with `{ operation: 'passwordSet' }` (or the
-  client's `authStepUpRequest` projection); one-active-challenge rules apply,
-  and the set call consumes it via `stepUp`. A stolen bearer alone can neither
-  rotate nor create the credential. Set on an address whose `'password'`
+  is the exact authenticated session id**, never a caller-supplied identity
+  selector (LLP 0303); the server derives the exact `'email-code'` identity
+  that issued that session, so a multi-email principal's set is unambiguous
+  and a single-email principal's is exact. The proof is acquired end-to-end
+  through `POST /auth/step-up/request` with `{ operation: 'passwordSet' }` (or
+  the client's `authStepUpRequest` projection); one-active-challenge rules
+  apply, and the set call consumes it via `stepUp`. A stolen bearer alone can
+  neither rotate nor create the credential. Set on an address whose `'password'`
   identity belongs to a *different* principal **displaces** that identity
   and its credential — email proof outranks an unverified squat.
   Displacement is a **first-class session-terminal operation**, not a bare
