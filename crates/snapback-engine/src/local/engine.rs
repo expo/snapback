@@ -5281,7 +5281,7 @@ impl LocalSnapback {
         now_ms: u64,
         random: &dyn crate::auth::crypto::RandomSource,
     ) -> SnapbackResult<crate::storage::auth_integrations::BegunOAuthAuthorization> {
-        let authority_user_id = Self::require_agent_grant_management_session(
+        let (authority_user_id, _) = Self::require_agent_grant_management_session(
             authority,
             "OAuth consent request authorization",
         )?;
@@ -5317,13 +5317,10 @@ impl LocalSnapback {
         step_up_proof: Option<&crate::auth::crypto::StepUpProof>,
         now_ms: u64,
     ) -> SnapbackResult<crate::storage::auth_grants::GrantApproval> {
-        let effective_user_id = Self::require_agent_grant_management_session(
+        let (effective_user_id, session_id) = Self::require_agent_grant_management_session(
             authority,
             "OAuth consent approval authorization",
         )?;
-        let ResolvedAppAuthority::Session { session_id, .. } = authority.resolved() else {
-            unreachable!("grant-management authority must resolve to a session");
-        };
         let _effect = authority.effect_guard("OAuth consent approval transaction")?;
         self.db.approve_grant_request(
             effective_user_id,
@@ -5342,7 +5339,7 @@ impl LocalSnapback {
         now_ms: u64,
         random: &dyn crate::auth::crypto::RandomSource,
     ) -> SnapbackResult<crate::storage::auth_integrations::IssuedOAuthAuthorization> {
-        let consenting_user_id = Self::require_agent_grant_management_session(
+        let (consenting_user_id, _) = Self::require_agent_grant_management_session(
             authority,
             "OAuth authorization-code issuance authorization",
         )?;

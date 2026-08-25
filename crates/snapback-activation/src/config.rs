@@ -1053,10 +1053,10 @@ mod tests {
             app_refusal_tracking: None,
         });
 
-        let redacted = redactor.redact_error(error);
+        let mut redacted = redactor.redact_error(error);
         assert_eq!(redacted.diagnostic.details["message"], "[REDACTED]");
         let carrier = &redacted
-            .private_failure_context()
+            .private_failure_context_mut()
             .expect("private failure context survives redaction")
             .carriers[0];
         assert_eq!(carrier.message.as_deref(), Some("vendor echoed [REDACTED]"));
