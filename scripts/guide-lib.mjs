@@ -104,26 +104,61 @@ export function headingSlug(value, seen = new Map()) {
   return count === 0 ? stem : `${stem}-${count}`;
 }
 
-export function markdownAnchors(body) {
-  const anchors = new Set();
-  const seenHeadings = new Map();
+function collectMarkdownAnchors(body, state, directAnchors) {
   const lines = body.replaceAll('\r\n', '\n').split('\n');
-  let fenced = false;
-  for (const line of lines) {
-    if (/^```/u.test(line)) {
-      fenced = !fenced;
+  const seenHeadings = new Map();
+  const register = (index, kind, id) => {
+    if (state.anchors.has(id)) state.duplicateAnchors.add(id);
+    state.anchors.add(id);
+    directAnchors?.set(index, { kind, id });
+  };
+  let index = 0;
+  while (index < lines.length) {
+    const line = lines[index];
+    if (/^```([^\s`]*)\s*(.*)$/u.test(line)) {
+      index += 1;
+      while (index < lines.length && lines[index] !== '```') index += 1;
+      if (index < lines.length) index += 1;
       continue;
     }
-    if (fenced) continue;
     const heading = /^(#{1,6})\s+(.+)$/u.exec(line);
     if (heading) {
-      anchors.add(headingSlug(heading[2], seenHeadings));
+      register(index, 'heading', headingSlug(heading[2], seenHeadings));
+      index += 1;
       continue;
     }
     const explicit = /^<a\s+id="([^"]+)"\s*><\/a>\s*$/u.exec(line);
-    if (explicit) anchors.add(explicit[1]);
+    if (explicit) {
+      register(index, 'explicit', explicit[1]);
+      index += 1;
+      continue;
+    }
+    if (line.startsWith('>')) {
+      const quote = [];
+      while (index < lines.length && lines[index].startsWith('>')) {
+        quote.push(lines[index].replace(/^> ?/u, ''));
+        index += 1;
+      }
+      collectMarkdownAnchors(quote.join('\n'), state);
+      continue;
+    }
+    index += 1;
   }
-  return anchors;
+}
+
+// The docs-site renderer handles blockquotes as nested Markdown documents, so
+// anchor discovery must recurse through the same shape. Both the source link
+// checker and renderer consume this collector to keep their anchor inventories
+// identical.
+export function markdownAnchorPlan(body) {
+  const state = { anchors: new Set(), duplicateAnchors: new Set() };
+  const directAnchors = new Map();
+  collectMarkdownAnchors(body, state, directAnchors);
+  return { ...state, directAnchors };
+}
+
+export function markdownAnchors(body) {
+  return markdownAnchorPlan(body).anchors;
 }
 
 export function repoRoot() {
@@ -842,7 +877,14 @@ export function checkCapabilityGapRows(
   }
 }
 
-export function checkCapabilityIndex(root, index, pageInfo, errors, warnings = []) {
+export function checkCapabilityIndex(
+  root,
+  index,
+  pageInfo,
+  errors,
+  warnings = [],
+  gapReviewOptions = {},
+) {
   const { capabilities, routeMap, hostOpMap } = index;
   const claimedBy = new Map();
   for (const [path, info] of pageInfo) {
@@ -854,7 +896,7 @@ export function checkCapabilityIndex(root, index, pageInfo, errors, warnings = [
   }
   // @ref LLP 0061#2-the-capability-index-registry-lite-with-witnesses —
   // every honest GAP has durable issue custody, not only an owner/date.
-  checkCapabilityGapRows(root, capabilities, errors, warnings);
+  checkCapabilityGapRows(root, capabilities, errors, warnings, gapReviewOptions);
   for (const cap of capabilities.values()) {
     const gap = cap.page.startsWith('GAP');
     if (!gap) {
@@ -1239,6 +1281,7 @@ export function loadCorpus(root) {
 export function auditGuideManifestInventory({
   root = repoRoot(),
   readGeneratedFile = (path) => readFileSync(join(root, path), 'utf8'),
+  gapReviewOptions = {},
 } = {}) {
   const registryErrors = [];
   try {
@@ -1256,14 +1299,21 @@ export function auditGuideManifestInventory({
     const detail = `${error.stdout ?? ''}${error.stderr ?? ''}`.trim();
     registryErrors.push(`reference-registry inventory failed${detail ? `: ${detail}` : ''}`);
   }
-  const { errors, pagePaths, pageInfo, pageBodies } = loadCorpus(root);
+  const { errors, warnings, pagePaths, pageInfo, pageBodies } = loadCorpus(root);
   errors.push(...registryErrors);
   const snippetRecords = checkSnippets(root, pageBodies, errors);
   const index = parseCapabilityIndex(root, errors);
-  const surfaces = checkCapabilityIndex(root, index, pageInfo, errors);
+  const surfaces = checkCapabilityIndex(
+    root,
+    index,
+    pageInfo,
+    errors,
+    warnings,
+    gapReviewOptions,
+  );
   checkPublishedClosure(root, pageInfo, pageBodies, errors);
   if (errors.length > 0) {
-    return { errors, stale: [], pageCount: pagePaths.length, snippetCount: 0 };
+    return { errors, warnings, stale: [], pageCount: pagePaths.length, snippetCount: 0 };
   }
 
   const expected = buildManifest(root, pageInfo, snippetRecords, index, surfaces);
@@ -1298,6 +1348,7 @@ export function auditGuideManifestInventory({
   }
   return {
     errors,
+    warnings,
     stale,
     pageCount: pagePaths.length,
     snippetCount: [...snippetRecords.values()].flat().length,

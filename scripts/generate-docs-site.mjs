@@ -25,8 +25,8 @@ import {
   SYMBOL_REGISTRY_PATH,
   buildFlatGuide,
   checkPublishedClosure,
-  headingSlug,
   listGuidePages,
+  markdownAnchorPlan,
   parseFrontmatter,
   repoRoot,
   validateFrontmatter,
@@ -394,9 +394,11 @@ function isBlockStart(lines, index) {
 function renderMarkdown(body, { sourcePath, routesBySource, closureVersion, basePath }) {
   const lines = body.replaceAll('\r\n', '\n').split('\n');
   const resolveLink = makeLinkResolver({ routesBySource, sourcePath, basePath });
-  const seenHeadings = new Map();
   const html = [];
-  const anchors = new Set();
+  const { anchors, directAnchors, duplicateAnchors } = markdownAnchorPlan(body);
+  if (duplicateAnchors.size > 0) {
+    fail(`${sourcePath}: duplicate rendered anchor #${[...duplicateAnchors][0]}`);
+  }
   const fenceLabels = [];
   let i = 0;
 
@@ -425,9 +427,8 @@ function renderMarkdown(body, { sourcePath, routesBySource, closureVersion, base
     const heading = /^(#{1,6})\s+(.+)$/u.exec(line);
     if (heading) {
       const level = heading[1].length;
-      const id = headingSlug(heading[2], seenHeadings);
-      if (anchors.has(id)) fail(`${sourcePath}: duplicate rendered anchor #${id}`);
-      anchors.add(id);
+      const id = directAnchors.get(i)?.id;
+      if (!id) fail(`${sourcePath}: missing shared anchor identity for heading`);
       html.push(`<h${level} id="${escapeAttribute(id)}">${renderInline(heading[2], resolveLink)}<a class="heading-link" href="#${escapeAttribute(id)}" aria-label="Link to this section">#</a></h${level}>`);
       i += 1;
       continue;
@@ -435,9 +436,8 @@ function renderMarkdown(body, { sourcePath, routesBySource, closureVersion, base
 
     const explicitAnchor = /^<a\s+id="([^"]+)"\s*><\/a>\s*$/u.exec(line);
     if (explicitAnchor) {
-      const id = explicitAnchor[1];
-      if (anchors.has(id)) fail(`${sourcePath}: duplicate explicit anchor #${id}`);
-      anchors.add(id);
+      const id = directAnchors.get(i)?.id;
+      if (!id) fail(`${sourcePath}: missing shared anchor identity for explicit anchor`);
       html.push(`<a id="${escapeAttribute(id)}" class="identity-anchor" aria-hidden="true"></a>`);
       i += 1;
       continue;
@@ -508,10 +508,6 @@ function renderMarkdown(body, { sourcePath, routesBySource, closureVersion, base
         basePath,
       });
       html.push(`<blockquote${className}>${renderedQuote.html}</blockquote>`);
-      for (const id of renderedQuote.anchors) {
-        if (anchors.has(id)) fail(`${sourcePath}: duplicate anchor #${id} inside blockquote`);
-        anchors.add(id);
-      }
       fenceLabels.push(...renderedQuote.fenceLabels);
       continue;
     }

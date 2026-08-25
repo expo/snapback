@@ -71,6 +71,8 @@ test('guide links resolve rendered heading anchors with docs-site slug identity'
     '[formatted](./target.md#a-marked-heading)',
     '[duplicate](./target.md#repeat-1)',
     '[explicit](./target.md#stable-explicit)',
+    '[quoted heading](./target.md#quoted-heading)',
+    '[quoted explicit](./target.md#quoted-explicit)',
     '[broken](./target.md#missing-heading)',
   ].join('\n');
   const target = [
@@ -78,6 +80,9 @@ test('guide links resolve rendered heading anchors with docs-site slug identity'
     '## Repeat',
     '## Repeat',
     '<a id="stable-explicit"></a>',
+    '> ## Quoted heading',
+    '>',
+    '> <a id="quoted-explicit"></a>',
   ].join('\n');
   writeFileSync(join(root, sourcePath), source);
   writeFileSync(join(root, targetPath), target);

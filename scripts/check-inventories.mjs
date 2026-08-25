@@ -53,6 +53,7 @@ export function runInventoryChecks({
   guideOptions = {},
 } = {}) {
   const failures = [];
+  const warnings = [];
   const counts = {};
 
   try {
@@ -173,6 +174,7 @@ export function runInventoryChecks({
     });
     counts.guidePages = audit.pageCount;
     counts.guideSnippets = audit.snippetCount;
+    warnings.push(...audit.warnings);
     if (audit.errors.length > 0 || audit.stale.length > 0) {
       const lines = audit.errors.map((error) => `  guide source error: ${error}`);
       pushList(lines, 'stale generated artifact', audit.stale);
@@ -192,10 +194,13 @@ export function runInventoryChecks({
     });
   }
 
-  return { failures, counts };
+  return { failures, warnings, counts };
 }
 
 export function printInventoryCheckResult(result, output = process) {
+  for (const warning of result.warnings ?? []) {
+    output.stdout.write(`[check-inventories] ${warning}\n`);
+  }
   if (result.failures.length === 0) {
     output.stdout.write(
       `[check-inventories] PASS: ${result.counts.packageTests} package tests; `
