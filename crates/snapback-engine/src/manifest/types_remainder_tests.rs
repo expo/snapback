@@ -263,6 +263,14 @@ fn capability_maturity_promotions_hold_and_admission_stays_fail_closed() {
     );
     let experimental = BTreeMap::from([
         (
+            TargetCapabilityId::AuthGuestSessions,
+            CapabilityMaturity::Experimental,
+        ),
+        (
+            TargetCapabilityId::AuthPasswords,
+            CapabilityMaturity::Experimental,
+        ),
+        (
             TargetCapabilityId::BoundedChildrenV1,
             CapabilityMaturity::Experimental,
         ),
