@@ -1,0 +1,85 @@
+{
+  "schemaVersion": "snapback.row-attacks.v1",
+  "featureCells": [
+    {
+      "id": "production",
+      "features": [],
+      "description": "Dependency defaults disabled; only snapback-engine/engine-owner is enabled; no test-support."
+    },
+    {
+      "id": "additive-test-support",
+      "features": ["additive"],
+      "description": "Unifies test-support across snapback-auth, snapback-engine, snapback-kernel, snapback-sync, and snapback-types."
+    }
+  ],
+  "attacks": [
+    {
+      "row": "F157",
+      "bin": "f157",
+      "source": "src/attacks/f157.rs",
+      "expected": "CLOSED",
+      "note": "OPEN at the 18bcaf3b2 baseline; now CLOSED in both cells because engine B rejects engine A's session carrier with SNAPBACK_AUTH_POLICY_UNAVAILABLE."
+    },
+    {
+      "row": "F170",
+      "bin": "f170",
+      "source": "src/attacks/f170.rs",
+      "expected": "OPEN",
+      "note": "Still OPEN in both cells after the producer-binding fix: a second public AdmissionController supplies a lease that issues a credential and registers a durable OAuth client."
+    },
+    {
+      "row": "F171",
+      "bin": "f171",
+      "source": "src/attacks/f171.rs",
+      "expected": "CLOSED",
+      "note": "OPEN at the 18bcaf3b2 baseline; now CLOSED in both cells because the foreign authority producer is rejected with SNAPBACK_AUTH_POLICY_UNAVAILABLE before OAuth consent begins."
+    },
+    {
+      "row": "F172",
+      "bin": "f172",
+      "source": "src/attacks/f172.rs",
+      "expected": "CLOSED",
+      "note": "OPEN at the 18bcaf3b2 baseline; now CLOSED in both cells because the foreign authority producer is rejected with SNAPBACK_AUTH_POLICY_UNAVAILABLE before grant approval."
+    },
+    {
+      "row": "F173",
+      "bin": "f173",
+      "source": "src/attacks/f173.rs",
+      "expected": "CLOSED",
+      "note": "OPEN at the 18bcaf3b2 baseline; now CLOSED in both cells because the foreign authority producer is rejected with SNAPBACK_AUTH_POLICY_UNAVAILABLE before authorization-code issuance."
+    },
+    {
+      "row": "F175",
+      "bin": "f175",
+      "source": "src/attacks/f175.rs",
+      "expected": "CLOSED",
+      "note": "OPEN at the 18bcaf3b2 baseline; now CLOSED in both cells: production rejects engine A's service carrier with SNAPBACK_AUTH_POLICY_UNAVAILABLE, while additive test support no longer exposes synthetic_for_test."
+    },
+    {
+      "row": "F188",
+      "bin": "f188",
+      "source": "src/attacks/f188.rs",
+      "expected": "CLOSED",
+      "note": "OPEN at the 18bcaf3b2 baseline; now CLOSED in both cells because the foreign authority producer is rejected with SNAPBACK_AUTH_POLICY_UNAVAILABLE before pending-grant approval."
+    },
+    {
+      "row": "F190",
+      "bin": "f190",
+      "source": "src/attacks/f190.rs",
+      "expected": "CLOSED",
+      "note": "OPEN at the 18bcaf3b2 baseline; now CLOSED in both cells because the foreign authority producer is rejected with SNAPBACK_AUTH_POLICY_UNAVAILABLE before single-grant revocation."
+    },
+    {
+      "row": "F191",
+      "bin": "f191",
+      "source": "src/attacks/f191.rs",
+      "expected": "CLOSED",
+      "note": "OPEN at the 18bcaf3b2 baseline; now CLOSED in both cells because the foreign authority producer is rejected with SNAPBACK_AUTH_POLICY_UNAVAILABLE before bulk-grant revocation."
+    }
+  ],
+  "negativeRoutes": {
+    "bin": "negative-routes",
+    "source": "src/bin/negative_routes.rs",
+    "expectedExpressions": 15
+  }
+}
