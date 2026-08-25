@@ -77,6 +77,7 @@ import {
   inspectTarget,
   listBackups,
   queryControlLogs,
+  readFileDescriptorSafe,
   sealHostedAdmissionEnvelope,
   showTarget,
   validateTargetDescriptor,
@@ -3674,6 +3675,11 @@ function canonicalFilesystemPath(path) {
   }
 }
 
+function canonicalFileCarrierPath(path) {
+  const absolute = resolve(path);
+  return join(canonicalFilesystemPath(dirname(absolute)), basename(absolute));
+}
+
 export function readReadyDescriptor(path) {
   let value;
   try {
@@ -4593,56 +4599,34 @@ function refineGeneratedArtifactFailure(error, {
   return mismatch;
 }
 
+const MAX_ADMIN_TOKEN_FILE_BYTES = 4 * 1024;
+const MAX_DEV_IDENTITY_FILE_BYTES = 512;
+
 function readOwnerOnlyAdminTokenFile(path) {
   const absolute = resolve(path);
-  let metadata;
+  let bytes;
   try {
-    metadata = lstatSync(absolute);
+    bytes = readFileDescriptorSafe(
+      absolute,
+      'SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID',
+      { maximumBytes: MAX_ADMIN_TOKEN_FILE_BYTES, ownerOnly: true },
+    );
   } catch (cause) {
     const error = diagnosticError(
       'SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID',
-      'the admin-token carrier is missing or unreadable',
+      cause?.message ?? 'the admin-token carrier could not be read safely',
       { path: absolute },
     );
     error.cause = cause;
     throw error;
   }
-  if (!metadata.isFile() || metadata.isSymbolicLink() || (metadata.mode & 0o077) !== 0) {
-    // The refusal names the failed inode predicate — observed type and mode
-    // — without disclosing contents, so an operator can repair the artifact
-    // from the diagnostic alone
-    // (issues/20260729-external-package-lifecycle-gaps.md).
-    const failedPredicates = [
-      ...(metadata.isFile() ? [] : ['not-a-regular-file']),
-      ...(metadata.isSymbolicLink() ? ['symbolic-link'] : []),
-      ...((metadata.mode & 0o077) !== 0 ? ['group-or-other-permission-bits'] : []),
-    ];
+  const token = bytes.toString('utf8').trim();
+  if (!token) {
     throw diagnosticError(
       'SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID',
-      'the admin-token carrier must be an owner-only regular '
-        + `file: observed mode ${(metadata.mode & 0o7777).toString(8).padStart(4, '0')} `
-        + `failed [${failedPredicates.join(', ')}]`,
-      {
-        path: absolute,
-        observedMode: (metadata.mode & 0o7777).toString(8).padStart(4, '0'),
-        failedPredicates,
-      },
-    );
-  }
-  let token;
-  try {
-    token = readFileSync(absolute, 'utf8').trim();
-  } catch (cause) {
-    const error = diagnosticError(
-      'SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID',
-      'the admin-token carrier is missing or unreadable',
+      'the admin-token carrier is empty',
       { path: absolute },
     );
-    error.cause = cause;
-    throw error;
-  }
-  if (!token) {
-    throw diagnosticError('SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID', 'the admin-token carrier is empty', { path: absolute });
   }
   return token;
 }
@@ -4650,8 +4634,8 @@ function readOwnerOnlyAdminTokenFile(path) {
 export function managedAdminToken(descriptor, database) {
   const declared = descriptor?.adminTokenFile;
   if (typeof declared !== 'string') return null;
-  const expected = canonicalFilesystemPath(`${resolve(database)}.admin-token`);
-  if (canonicalFilesystemPath(declared) !== expected) {
+  const expected = canonicalFileCarrierPath(`${resolve(database)}.admin-token`);
+  if (canonicalFileCarrierPath(declared) !== expected) {
     throw diagnosticError(
       'SNAPBACK_DEV_SERVER_TARGET_MISMATCH',
       'the readiness descriptor names an unexpected admin-token carrier',
@@ -4788,19 +4772,14 @@ export function managedDevIdentityCapability(descriptor, context = {}) {
   const declared = descriptor?.devIdentityCapabilityFile;
   const expected = expectedDevIdentityCapabilityPath(descriptor, context);
   if (typeof declared !== 'string' || expected === null) return null;
-  if (canonicalFilesystemPath(declared) !== canonicalFilesystemPath(expected)) return null;
-  let metadata;
-  try {
-    metadata = lstatSync(expected);
-  } catch {
-    return null;
-  }
-  if (!metadata.isFile() || metadata.isSymbolicLink() || (metadata.mode & 0o077) !== 0) {
-    return null;
-  }
+  if (canonicalFileCarrierPath(declared) !== canonicalFileCarrierPath(expected)) return null;
   let capability;
   try {
-    capability = readFileSync(expected, 'utf8').trim();
+    capability = readFileDescriptorSafe(
+      expected,
+      'SNAPBACK_DEV_IDENTITY_FILE_INVALID',
+      { maximumBytes: MAX_DEV_IDENTITY_FILE_BYTES, ownerOnly: true },
+    ).toString('utf8').trim();
   } catch {
     return null;
   }

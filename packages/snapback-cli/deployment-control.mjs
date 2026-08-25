@@ -17,6 +17,7 @@ import {
   mkdirSync,
   openSync,
   readFileSync,
+  readSync,
   readdirSync,
   realpathSync,
   renameSync,
@@ -518,25 +519,59 @@ function assertSecureFile(path, code = 'SNAPBACK_CONTROL_STORE_UNSAFE') {
   }
 }
 
-function readFileDescriptorSafe(path, code, options = {}) {
+// @ref LLP 0017#security-defaults — owner-only credential carriers are
+// opened once without following links, validated on that descriptor, and
+// bounded-read before the same descriptor is revalidated.
+export function readFileDescriptorSafe(path, code, options = {}) {
   const maximumBytes = options.maximumBytes ?? MAX_CONTROL_FILE_BYTES;
   let descriptor;
   try {
+    if (!Number.isSafeInteger(maximumBytes) || maximumBytes < 0) {
+      throw fail(code, 'artifact byte bound must be a non-negative safe integer', { path });
+    }
+    if (!Number.isInteger(constants.O_NOFOLLOW)) {
+      throw fail(code, 'artifact cannot be opened safely on this platform', { path });
+    }
     descriptor = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW);
     const before = fstatSync(descriptor);
-    const expectedUid = typeof process.getuid === 'function' ? process.getuid() : before.uid;
+    const expectedUid = typeof process.getuid === 'function' ? process.getuid() : null;
     if (!before.isFile() || before.nlink !== 1 || before.size > maximumBytes
         || (options.ownerOnly === true
-          && (before.uid !== expectedUid || (before.mode & 0o077) !== 0))) {
+          && (expectedUid === null || before.uid !== expectedUid || (before.mode & 0o077) !== 0))) {
       throw fail(code, options.ownerOnly === true
         ? 'artifact must be a bounded, regular, single-link, owner-only file'
         : 'artifact must be a bounded, regular, single-link file', { path });
     }
-    const bytes = readFileSync(descriptor);
+    const bounded = Buffer.allocUnsafe(before.size + 1);
+    let consumed = 0;
+    while (consumed < bounded.byteLength) {
+      const count = readSync(
+        descriptor,
+        bounded,
+        consumed,
+        bounded.byteLength - consumed,
+        null,
+      );
+      if (count === 0) break;
+      consumed += count;
+    }
+    if (consumed > maximumBytes) {
+      throw fail(code, 'artifact exceeds its byte bound', { path });
+    }
+    const bytes = bounded.subarray(0, consumed);
     const after = fstatSync(descriptor);
+    if (!after.isFile() || after.nlink !== 1 || after.size > maximumBytes
+        || (options.ownerOnly === true
+          && (expectedUid === null || after.uid !== expectedUid || (after.mode & 0o077) !== 0))) {
+      throw fail(code, options.ownerOnly === true
+        ? 'artifact must remain a bounded, regular, single-link, owner-only file'
+        : 'artifact must remain a bounded, regular, single-link file', { path });
+    }
     if (before.dev !== after.dev || before.ino !== after.ino
         || before.nlink !== after.nlink || before.size !== after.size
-        || before.mtimeMs !== after.mtimeMs || bytes.byteLength !== after.size) {
+        || before.uid !== after.uid || before.mode !== after.mode
+        || before.mtimeMs !== after.mtimeMs || before.ctimeMs !== after.ctimeMs
+        || bytes.byteLength !== after.size) {
       throw fail(code, 'artifact changed while it was being read', { path });
     }
     return bytes;

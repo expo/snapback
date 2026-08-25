@@ -65,6 +65,7 @@ export const PACKAGE_TEST_INVENTORIES = [
     suffix: '.test.mjs',
     expectedFiles: [
       'adapters/fly-machines-vm-driver.test.mjs',
+      'admin-token-file-custody.test.mjs',
       'agent-setup.test.mjs',
       'application-auth-fixtures.test.mjs',
       'application-ready.test.mjs',
@@ -600,7 +601,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 355,
+  expectedTotal = 356,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1125,6 +1126,8 @@ export function checkPackageTestInventories(options = {}) {
 // the packed offline-replay authoring and client-admission closure proof.
 // 354 -> 355 (2026-08-25, doctor auth-mode race): @expo/snapback-cli gains
 // the deterministic startup-activation-before-seed regression.
+// 355 -> 356 (2026-08-25, admin token file custody): @expo/snapback-cli gains
+// the admin-token file custody substitution/owner/hard-link/size suite.
 // LLP 0300 nine-row acceptance traceability (0301 §8 set-level table):
 // 1 cold bring-up -> templates/*/acceptance.mjs + declared-dev-episode.test.mjs;
 // 2 two principals -> declared-dev-episode.test.mjs; 3 forwards/tunnel/rebinding
