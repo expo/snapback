@@ -1,4 +1,4 @@
-# remote_service_publication_is_closed_digest_bound_and_host_private depends on review caches
+# Remote-service artifact schema tests depended on review caches
 
 **Status:** Open · **Opened:** 2026-08-25 (found during the DK-7 path-escape fix)
 
@@ -34,13 +34,25 @@ The generated roots in this test have per-leaf custody:
 ## Resolution of the test red (2026-08-25)
 
 `artifact_schemas_v0.rs` now copies each backend into an isolated temporary
-location and runs codegen only there. It compares every committed review leaf
-read-only with the fresh output and fails with
+location and runs codegen only there. It derives the byte-comparison set from
+the committed `artifacts.json`: the declared `review-manifest` leaf plus only
+the `files` entries carrying `consumer-committed` custody. It compares those
+committed review leaves read-only with the fresh output and fails with
 `SNAPBACK_TEST_COMMITTED_GENERATED_ARTIFACT_DRIFT`, naming
 `scripts/check-generated-artifacts`, when committed bytes disagree. The DK-7
-schema/parse checks and the remote publication closure checks consume the temp
-cache leaves. No test replaces an in-repository `generated*` tree, so sibling
-test binaries cannot observe an atomic-publication rename window there.
+schema/parse checks consume `schema.manifest.json`, `functions.manifest.json`,
+and `capability.manifest.json` from the temporary generation; cache-only
+schema/function manifests are never read from the repository.
+
+The remote-service test is now named
+`remote_service_fresh_cache_closure_matches_committed_review_leaves_and_is_host_private`.
+Its fresh profile's `schemaManifest` and `functionManifest` digests are checked
+against the committed copies of those two consumer projections. The remaining
+digest checks describe only the isolated fresh cache closure. The two DK-7 demo
+test names likewise say that they validate/parse fresh manifests and separately
+match committed review leaves. No test replaces an in-repository `generated*`
+tree, so sibling test binaries cannot observe an atomic-publication rename
+window there.
 
 No digest or generated artifact was hand-edited.
 
@@ -59,11 +71,37 @@ make the git-pinned delivery promise true. Follow-up:
 
 ## Verification
 
-- `cargo test -p snapback --test artifact_schemas_v0` twice — 39 passed, 0
-  failed on both runs; `git status --porcelain` was empty before and after.
-- `./scripts/check-generated-artifacts` — review manifests, ignored caches, and
-  committed projections are current.
-- `./ref-check --verbose` — 311 LLP docs, 7255 refs, 0 errors, 0 unchecked.
+Before the final two runs, 1,307 ignored, regenerable cache leaves were deleted:
+all 1,272 leaves under the 29 `demos/*/snapback/generated*` roots, plus the 35
+leaves under `demos/all-aboard/tests/egress-probe/generated`. The same leaves
+were deleted again after `check-generated-artifacts` recreated them. The exact
+ignored-leaf queries returned no paths both before run 1 and after run 2.
+
+With `CARGO_BUILD_JOBS=8` and `CARGO_INCREMENTAL=0`, the literal whole-file
+summaries were:
+
+```text
+test result: ok. 39 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 23.59s
+test result: ok. 39 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 21.18s
+```
+
+The requested ordinary status snapshot was identical before and after the two
+runs:
+
+```text
+$ git status --porcelain
+ M crates/snapback/tests/artifact_schemas_v0.rs
+```
+
+`git status --porcelain --ignored -- demos` was intentionally nonempty in both
+snapshots: it reported pre-existing `.snapback/` caches, old
+`.artifact-schemas-*` temporary directories, and the separate
+`browser-local-first/snapback-sessions/generated` cache. It reported none of
+the deleted `demos/*/snapback/generated*` leaves or the egress-probe generated
+leaves.
+
+- `./scripts/check-generated-artifacts` — `[check-generated-artifacts] ok: review manifests, ignored caches, and committed projections are current`
+- `./ref-check --verbose` — `ref-check: ok — 311 LLP docs, 6971 refs in 14563 files, 0 errors, 0 unchecked`
 - `git diff --check` — clean.
 
 The additional `node scripts/check-inventories.mjs` audit still reaches the

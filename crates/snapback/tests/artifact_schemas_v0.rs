@@ -2896,8 +2896,11 @@ fn data_tier_publication_validates_against_committed_schemas() {
     }
 }
 
+/// The ignored remote-service closure is regenerated in isolation. Its
+/// schema/function references must still bind the committed review leaves;
+/// the other digest checks cover only the fresh cache closure.
 #[test]
-fn remote_service_publication_is_closed_digest_bound_and_host_private() {
+fn remote_service_fresh_cache_closure_matches_committed_review_leaves_and_is_host_private() {
     let materialized = materialize_remote_service_publication();
     let root = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."));
     assert_committed_review_artifacts_match_fresh_generation(&materialized);
@@ -2950,8 +2953,7 @@ fn remote_service_publication_is_closed_digest_bound_and_host_private() {
     assert!(!auth.credential_policy.value_in_environment);
     assert!(!auth.credential_policy.value_in_info_plist);
 
-    let verify_ref = |reference: &PublishedArtifactRef| {
-        let path = materialized.resolve_publication_reference(&root, &reference.path);
+    let verify_ref_at = |reference: &PublishedArtifactRef, path: PathBuf| {
         let bytes =
             fs::read(&path).unwrap_or_else(|_| panic!("missing published ref {}", reference.path));
         let actual = format!("sha256:{:x}", Sha256::digest(bytes));
@@ -2961,23 +2963,35 @@ fn remote_service_publication_is_closed_digest_bound_and_host_private() {
             reference.path
         );
     };
-    verify_ref(&profile.server_capability_manifest);
-    verify_ref(&profile.auth_capability_manifest);
-    verify_ref(&profile.data_capability_manifest);
-    verify_ref(&profile.data_tier.profile);
-    verify_ref(&profile.data_tier.corpus_manifest);
-    verify_ref(&data.schema_manifest);
-    verify_ref(&data.function_manifest);
-    verify_ref(&data.capability_manifest);
+    let verify_fresh_ref = |reference: &PublishedArtifactRef| {
+        verify_ref_at(
+            reference,
+            materialized.resolve_fresh_publication_reference(&root, &reference.path),
+        );
+    };
+    let verify_committed_review_ref = |reference: &PublishedArtifactRef| {
+        verify_ref_at(
+            reference,
+            materialized.resolve_committed_publication_reference(&root, &reference.path),
+        );
+    };
+    verify_fresh_ref(&profile.server_capability_manifest);
+    verify_fresh_ref(&profile.auth_capability_manifest);
+    verify_fresh_ref(&profile.data_capability_manifest);
+    verify_fresh_ref(&profile.data_tier.profile);
+    verify_fresh_ref(&profile.data_tier.corpus_manifest);
+    verify_committed_review_ref(&data.schema_manifest);
+    verify_committed_review_ref(&data.function_manifest);
+    verify_fresh_ref(&data.capability_manifest);
     for reference in data.wire_schemas.values() {
-        verify_ref(reference);
+        verify_fresh_ref(reference);
     }
     for operation in &data.operations {
-        verify_ref(&operation.arguments_schema);
-        verify_ref(&operation.request_schema);
-        verify_ref(&operation.response_schema);
-        verify_ref(&operation.receipt_schema);
-        verify_ref(&operation.error_schema);
+        verify_fresh_ref(&operation.arguments_schema);
+        verify_fresh_ref(&operation.request_schema);
+        verify_fresh_ref(&operation.response_schema);
+        verify_fresh_ref(&operation.receipt_schema);
+        verify_fresh_ref(&operation.error_schema);
     }
 
     let operation_names = data
@@ -3654,13 +3668,25 @@ struct MaterializedBackend {
     generated: PathBuf,
 }
 
+const REMOTE_SERVICE_GENERATED_PREFIX: &str = "demos/todo-v2/snapback/generated-remote-service/";
+
 impl MaterializedBackend {
-    fn resolve_publication_reference(&self, repo: &Path, reference: &str) -> PathBuf {
-        const REMOTE_GENERATED: &str = "demos/todo-v2/snapback/generated-remote-service/";
-        reference.strip_prefix(REMOTE_GENERATED).map_or_else(
-            || repo.join(reference),
-            |relative| self.generated.join(relative),
-        )
+    fn resolve_fresh_publication_reference(&self, repo: &Path, reference: &str) -> PathBuf {
+        reference
+            .strip_prefix(REMOTE_SERVICE_GENERATED_PREFIX)
+            .map_or_else(
+                || repo.join(reference),
+                |relative| self.generated.join(relative),
+            )
+    }
+
+    fn resolve_committed_publication_reference(&self, repo: &Path, reference: &str) -> PathBuf {
+        reference
+            .strip_prefix(REMOTE_SERVICE_GENERATED_PREFIX)
+            .map_or_else(
+                || repo.join(reference),
+                |relative| self.committed_generated.join(relative),
+            )
     }
 }
 
@@ -3946,22 +3972,26 @@ fn assert_json_validates_against_schema(
 
 fn assert_committed_review_artifacts_match_fresh_generation(materialized: &MaterializedBackend) {
     let committed_index_path = materialized.committed_generated.join("artifacts.json");
-    let fresh_index_path = materialized.generated.join("artifacts.json");
     assert_json_validates_against_schema(
         &committed_index_path,
         &repo_root().join("packages/snapback-codegen/review-manifest.schema.json"),
         "SNAPBACK_TEST_COMMITTED_GENERATED_ARTIFACT_SCHEMA_INVALID",
     );
 
-    let fresh_index = read_json_file(&fresh_index_path);
+    let committed_index = read_json_file(&committed_index_path);
+    let review_manifest = &committed_index["reviewManifest"];
+    assert_eq!(
+        review_manifest["custody"], "review-manifest",
+        "validated committed artifacts.json must declare review-manifest custody"
+    );
     let mut committed_leaves = vec![
-        "artifacts.json",
-        "schema.manifest.json",
-        "functions.manifest.json",
+        review_manifest["path"]
+            .as_str()
+            .expect("committed review-manifest artifact path"),
     ];
-    for leaf in fresh_index["files"]
+    for leaf in committed_index["files"]
         .as_array()
-        .expect("fresh artifacts.json files")
+        .expect("committed artifacts.json files")
         .iter()
         .filter(|file| file["custody"] == "consumer-committed")
         .map(|file| {
@@ -3997,19 +4027,27 @@ fn assert_committed_review_artifacts_match_fresh_generation(materialized: &Mater
         ("schema.manifest.json", "schema.manifest.schema.json"),
         ("functions.manifest.json", "functions.manifest.schema.json"),
     ] {
-        let committed_path = materialized.committed_generated.join(leaf);
+        let fresh_path = materialized.generated.join(leaf);
         assert_json_validates_against_schema(
-            &committed_path,
+            &fresh_path,
             &schemas_dir().join(schema),
-            "SNAPBACK_TEST_COMMITTED_GENERATED_ARTIFACT_SCHEMA_INVALID",
+            "SNAPBACK_TEST_FRESH_GENERATED_ARTIFACT_SCHEMA_INVALID",
         );
+        if committed_leaves.contains(&leaf) {
+            let committed_path = materialized.committed_generated.join(leaf);
+            assert_json_validates_against_schema(
+                &committed_path,
+                &schemas_dir().join(schema),
+                "SNAPBACK_TEST_COMMITTED_GENERATED_ARTIFACT_SCHEMA_INVALID",
+            );
+        }
     }
 }
 
-/// Demo-artifact gate: every registered generated demo manifest validates
-/// against the Rust-derived schema (the codegen output it is meant to describe).
+/// Demo-artifact gate: every freshly generated registered demo manifest
+/// validates against the Rust-derived schema it is meant to describe.
 #[test]
-fn dk7_committed_demo_manifests_validate_against_schemas() {
+fn dk7_fresh_demo_manifests_validate_and_match_committed_review_leaves() {
     let materialized = materialize_dk7_demo_manifests();
     for backend in &materialized {
         assert_committed_review_artifacts_match_fresh_generation(backend);
@@ -4047,10 +4085,10 @@ fn dk7_committed_demo_manifests_validate_against_schemas() {
     }
 }
 
-/// The committed demo manifests also parse back through the runtime structs and
-/// pass their artifact-header validation — the schema and the parser agree.
+/// The freshly generated demo manifests also parse back through the runtime
+/// structs and pass their artifact-header validation — the schema and parser agree.
 #[test]
-fn dk7_committed_demo_manifests_parse_through_runtime_structs() {
+fn dk7_fresh_demo_manifests_parse_and_match_committed_review_leaves() {
     let materialized = materialize_dk7_demo_manifests();
     for backend in &materialized {
         assert_committed_review_artifacts_match_fresh_generation(backend);
