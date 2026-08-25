@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-25
 **Cell:** `grok-coterie-familiar`
-**Disposition:** one admitted attempt consumed; controller finalization failed; no rerun; registered no-launch finalizer later refused on live campaign process evidence before rejoining observations
+**Disposition:** one admitted attempt consumed; controller finalization failed; no rerun; after the stale campaign process was cleared, the registered no-launch finalizer refused because the private evidence is not the exact registered one-attempt capsule
 **Source revision:** `4890eb48555042dd6eee5ffa116039d3fe9107c4`
 
 ## Exact cause
@@ -118,3 +118,27 @@ The process was not killed or altered. The finalizer wrote no `metering.json`,
 the committed cell slot remains `not-started`. No scorecard eligibility can be
 set without a valid record. The cell remains blocked on this exact live-process
 refusal, and no record was forced.
+
+## Registered retained-finalization refusal after process-tree clearance
+
+The orchestrator subsequently killed PID 51076 and cleared the cell's process
+tree. Immediately before the registered flow was invoked again, PID 51076 was
+absent and no process was listening on port 42140.
+
+At `2026-08-25T08:33:06Z`, the registered `finalize-existing` tool was invoked
+once with `--publish`, operator `r2-fix8`, committed v9 bytes, and every
+registered Node loader/preload environment variable removed. It did not launch
+or rerun a benchmark cell. The finalizer refused with this exact diagnostic:
+
+```text
+stage=unclassified source="none" streamLine=none eventOrdinal=none eventType="unknown" cause="R2_FINALIZE_REFUSAL: private evidence is not the exact registered one-attempt capsule" rawPayloadExcerpt="<not event-scoped>"
+```
+
+The refusal occurred before any derived or publication artifact was written.
+`metering.json`, `record.json`, `publication-manifest.json`, and
+`publication-transaction.json` remain absent, and the committed cell slot
+remains `not-started`. Because there is no validator-clean record, no record
+eligibility field can be set. Independently, this cell's registered
+`nativeCounts: registered-unavailable` metering policy makes it ineligible for
+the efficiency scorecard under the standing missing-metering ruling. No record
+or eligibility evidence was fabricated or forced.
