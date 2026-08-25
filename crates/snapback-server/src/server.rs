@@ -29342,17 +29342,10 @@ async fn commit_watch_management_capsule(
             let attempt = final_cut.commit(reservation, pending);
             finish_watch_management_attempt(snapback, attempt)
         },
-        |snapback, _intent, intended| {
-            snapback
-                .reconcile_watch_management(intended)
-                .map(|witness| {
-                    witness.map(|witness| {
-                        witness.map(|committed| {
-                            snapback.observe_watch_management_commit(&committed);
-                            committed.record
-                        })
-                    })
-                })
+        |snapback, _intent, intended| snapback.reconcile_watch_management(intended),
+        |snapback, committed| {
+            snapback.observe_watch_management_commit(&committed);
+            Ok(committed.record)
         },
         uncertain_retention,
     )

@@ -442,11 +442,7 @@ mod tests {
 
         let witness = exact_reconciliation(&mut db, &decoy)
             .expect("query decoy exact rows")
-            .expect("decoy exact rows exist")
-            .map(|_| PrototypeValue {
-                operation_id: target.operation_id.as_ref().to_owned(),
-                response: target.response.clone(),
-            });
+            .expect("decoy exact rows exist");
         let authority = CommitCapsuleAuthority {
             binding: db.binding(),
         };

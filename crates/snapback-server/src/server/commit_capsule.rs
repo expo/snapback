@@ -757,7 +757,7 @@ enum BlockingCapsuleResult<T> {
     Panicked(Box<dyn Any + Send>),
 }
 
-pub(crate) async fn with_bounded_commit_capsule<T, Intent, Gate, Uncertain>(
+pub(crate) async fn with_bounded_commit_capsule<T, Reconciled, Intent, Gate, Uncertain>(
     destination: CommitCapsuleDestination,
     spec: CommitCapsuleSpec,
     terminal_gate: Gate,
@@ -775,13 +775,18 @@ pub(crate) async fn with_bounded_commit_capsule<T, Intent, Gate, Uncertain>(
         &mut CommitCapsuleTransaction<'_>,
         &Intent,
         &Uncertain,
-    ) -> SnapbackResult<Option<crate::storage::ExactCommitRows<Intent, T>>>
+    ) -> SnapbackResult<
+        Option<crate::storage::ExactCommitRows<Intent, Reconciled>>,
+    > + Send
+    + 'static,
+    finish_reconciled: impl FnOnce(&mut CommitCapsuleTransaction<'_>, Reconciled) -> SnapbackResult<T>
     + Send
     + 'static,
     uncertain_retention: CommitUncertainRetention<Uncertain>,
 ) -> CommitCapsuleOutcome<T>
 where
     T: Send + 'static,
+    Reconciled: Send + 'static,
     Intent: crate::storage::CommitCapsuleIntent + Send + 'static,
     Gate: Send + 'static,
     Uncertain: Send + 'static,
@@ -886,39 +891,37 @@ where
                         // and cannot settle or drop the ambiguity carrier.
                         drop(reservation);
                         let reconciliation = catch_unwind(AssertUnwindSafe(|| {
-                            reconcile(
+                            let witness = reconcile(
                                 &mut transaction,
                                 &intent,
                                 final_cut.reconciliation_carrier(),
-                            )
+                            )?;
+                            let Some(witness) = witness else {
+                                return Ok(None);
+                            };
+                            // @ref LLP 0303#the-governing-principle — validate
+                            // the authority-derived exact-row subject before
+                            // any caller-specific observation or translation.
+                            let reconciled = witness.into_value_for(
+                                &final_cut.commit_authority,
+                                &final_cut.intent,
+                            )?;
+                            finish_reconciled(&mut transaction, reconciled).map(Some)
                         }));
                         match reconciliation {
                             Err(payload) => {
                                 final_cut.retain_panic_uncertain();
                                 BlockingCapsuleResult::Panicked(payload)
                             }
-                            Ok(Ok(Some(witness))) => match witness
-                                .into_value_for(&final_cut.commit_authority, &final_cut.intent)
-                            {
-                                Ok(value) => {
-                                    final_cut.discard_reconciled_carrier();
-                                    BlockingCapsuleResult::Complete(
-                                        CommitCapsuleOutcome::Committed {
-                                            value,
-                                            reconciled: true,
-                                        },
-                                    )
-                                }
-                                Err(cause) => {
-                                    final_cut.retain_panic_uncertain();
-                                    BlockingCapsuleResult::Complete(
-                                        CommitCapsuleOutcome::Uncertain(commit_uncertain(
-                                            spec.uncertain_diagnostic,
-                                            cause,
-                                        )),
-                                    )
-                                }
-                            },
+                            Ok(Ok(Some(value))) => {
+                                final_cut.discard_reconciled_carrier();
+                                BlockingCapsuleResult::Complete(
+                                    CommitCapsuleOutcome::Committed {
+                                        value,
+                                        reconciled: true,
+                                    },
+                                )
+                            }
                             Ok(Ok(None)) => {
                                 final_cut.retain_panic_uncertain();
                                 BlockingCapsuleResult::Complete(CommitCapsuleOutcome::Uncertain(

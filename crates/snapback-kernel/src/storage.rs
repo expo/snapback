@@ -1003,14 +1003,6 @@ impl<I: CommitCapsuleIntent, T> ExactCommitRows<I, T> {
         }
         Ok(self.value)
     }
-
-    pub fn map<U>(self, map: impl FnOnce(T) -> U) -> ExactCommitRows<I, U> {
-        ExactCommitRows {
-            binding: self.binding,
-            intent: self.intent,
-            value: map(self.value),
-        }
-    }
 }
 
 /// Take-once kernel authority for asserting commit facts for one database.

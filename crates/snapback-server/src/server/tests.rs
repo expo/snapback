@@ -42374,7 +42374,6 @@ struct CommitCapsuleHooks {
     panic_retain: bool,
     commit_guard_failure: Option<SnapbackError>,
     reconcile_as: Option<crate::storage::commit_capsule_prototype::PrototypeIntent>,
-    reconcile_map_to: Option<crate::storage::commit_capsule_prototype::PrototypeIntent>,
     reuse_final_cut: bool,
 }
 
@@ -42393,7 +42392,6 @@ async fn run_commit_capsule_prototype<Gate: Send + 'static>(
     let reconcile_barrier = hooks.reconcile.clone();
     let panic_reconcile = hooks.panic_reconcile;
     let reconcile_as = hooks.reconcile_as.clone();
-    let reconcile_map_to = hooks.reconcile_map_to.clone();
     let retain_barrier = hooks.retain.clone();
     let panic_retain = hooks.panic_retain;
     let reservation_pause_id = hooks.reservation_pause_id.clone();
@@ -42506,23 +42504,9 @@ async fn run_commit_capsule_prototype<Gate: Send + 'static>(
             if panic_reconcile {
                 panic!("injected bounded commit capsule panic during reconciliation")
             }
-            local
-                .reconcile_prototype(reconcile_as.as_ref().unwrap_or(intent))
-                .map(|witness| {
-                    witness.map(|witness| {
-                        if let Some(target) = reconcile_map_to {
-                            witness.map(|_| {
-                                crate::storage::commit_capsule_prototype::PrototypeValue {
-                                    operation_id: target.operation_id.as_ref().to_owned(),
-                                    response: target.response,
-                                }
-                            })
-                        } else {
-                            witness
-                        }
-                    })
-                })
+            local.reconcile_prototype(reconcile_as.as_ref().unwrap_or(intent))
         },
+        |_local, value| Ok(value),
         uncertain_retention,
     )
     .await
@@ -42709,7 +42693,7 @@ async fn bounded_commit_capsule_rejects_authority_against_a_wholly_replaced_dest
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn bounded_commit_capsule_map_preserves_unequal_operation_identity() {
+async fn bounded_commit_capsule_rejects_unequal_operation_identity() {
     let _registry_test_guard = lock_commit_capsule_registry_tests().await;
     let database = CommitCapsulePrototypeDatabase::new().await;
     let decoy = commit_capsule_intent("lying-reconciliation-decoy");
@@ -42751,13 +42735,10 @@ async fn bounded_commit_capsule_map_preserves_unequal_operation_identity() {
         intent.clone(),
         CommitCapsuleInjection::CommitErrorRowsAbsent,
         CommitCapsuleHooks {
-            // This queries a decoy with a different operation identifier and
-            // maps its value to a target-shaped value. It proves only that an
-            // unequal identifier survives `map`. It does not prove rejection
-            // when semantically different intents share the same identifier;
-            // `into_value_for` accepts that replay today.
+            // This queries a decoy with a different operation identifier. The
+            // witness retains its complete producer and intended-row identity
+            // and exposes no content-replacement combinator.
             reconcile_as: Some(decoy),
-            reconcile_map_to: Some(intent.clone()),
             ..CommitCapsuleHooks::default()
         },
         caller.expected_guard(),

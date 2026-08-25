@@ -310,7 +310,8 @@ incorporates 0199's OQ3 ruling and the implemented 2026-08-09 follow-up.
    authority, and Rust closures may capture that authority and reach the public
    watch staging/commit pair without `FinalCommitCut`. The exact-row witness is
    kernel-minted and retains an opaque database-producer plus canonical
-   intended-row fingerprint through `map`. The final cut derives the matching
+   intended-row fingerprint. It exposes no combinator that can preserve that
+   carrier while replacing its contents. The final cut derives the matching
    intent instance from its already-bound database authority instead of
    accepting a raw intent at witness consumption. Caller-constructible
    operation identifiers remain idempotency lookup keys, not reconciliation
@@ -1500,4 +1501,6 @@ so slices can follow product priorities.
   and retains that instance when it receives its bound authority and intent;
   witness consumption no longer accepts a raw caller intent. Equal operation
   IDs with different intended rows and witnesses from another database are
-  refused, while same-semantic retries after database reopen remain valid.
+  refused, while same-semantic retries after database reopen remain valid. The
+  public `ExactCommitRows::map` content-replacement combinator is removed, so a
+  retained correlation cannot be attached to caller-replaced contents.
