@@ -112,5 +112,5 @@ TypeScript node `kind`, was already fixed on this lane's base by the
 owned-graph specifier-less re-export regression on the function builder graph
 (`defineGraphQuery` through a specifier-less barrel, resolved via
 `generateInProcess`) and confirms `familiar-dev-loop.test.mjs` passes with the
-lane's qualified shared runtime. This ticket stays open for its separately owned framework-drift and
-application-auth-fixtures reds.
+lane's qualified shared runtime. (The framework-drift and application-auth-fixtures reds
+were resolved separately; see the Resolution above.)
