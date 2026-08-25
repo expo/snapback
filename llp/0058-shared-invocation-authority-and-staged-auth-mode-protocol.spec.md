@@ -17,6 +17,11 @@ for the same origin, with exact artifact-generation matching required for
 generated mutation references (string-named mutations carry no generation),
 while every answered manifest or HTTP refusal replaces it. Cached evidence is
 enqueue-only and never licenses a foreground mutation attempt.)
+**Revised:** 2026-08-25 (offline replay pinned-target clarification: one
+immutable operation target binds capability inspection/fact origin, durable
+admission, identity-range issuance, and mutation POST. Target repointing is a
+coded pre-fetch refusal; replay checks capability currency under the shared
+dispatch lock before either range transport or the dispatched stamp.)
 **Revised:** 2026-08-25 (offline replay client-consumption clarification: the
 store writer sequences inspections at dispatch and compare-and-commits answers
 against the shared fact generation; no-response failures do not advance the
@@ -483,22 +488,18 @@ paired function manifest, and carries the application requirement in
 `AppDescriptorV1.capabilities.required`. It still resolves the union of
 schema, function, and cron requirements against the selected Rust-owned
 target manifest before any generated output is published.
-
 The four vocabularies and their authorities are:
-
 | Vocabulary layer | Positive authority | Negative disposition |
 | --- | --- | --- |
 | schema input | the closed codegen authorable-id set contains `offline_mutation_replay` | unknown ids refuse |
 | generated target facts | the selected target manifest positively lists the id because its atomic settlement ledger is registered | `not-supported` |
 | binding offers | the supervised local SQLite issuer consumes that exact positive target fact and lists the id in `AppBindingV1.capabilities.offered` | `not-offered` |
 | client admission | live `/inspect` positively lists the id before durable enqueue or drain | `not-admitted`; explicit queue/replay refuses typed before transport |
-
 An authored requirement is never authority for the third row. The supervisor
 must not copy `offline_mutation_replay` into an offer unless the selected
 manifest is `local-dev-sqlite-ibex` and positively supports it. Conversely,
 that positive fact plus the generated application requirement makes the local
 offer explicit and lets ordinary `AppBindingV1` admission prove the match.
-
 When the selected target lacks support, codegen refuses
 `SNAPBACK_CAPABILITY_UNSUPPORTED` before creating or replacing output. Its
 diagnostic details and message report the four-layer state exactly as
@@ -510,6 +511,17 @@ target, LLP 0043's independent live-inspection fence remains authoritative:
 transport and creates no queue record. Thus schema admission, artifact facts,
 binding admission, and client safety fail closed independently while sharing
 one capability id.
+The client applies LLP 0043's pinned-target rule to this fact: each foreground
+mutation and replay cycle captures an immutable transport base URL and
+canonical origin before inspection, then completes the target with the
+positive fact's target profile and artifact generation. Inspection, fact
+recording, enqueue admission, identity-range issuance, and mutation POST all
+use that same target. The final transport fence refuses
+`SNAPBACK_CLIENT_OPERATION_TARGET_CHANGED` before fetch if the mutable client
+target was repointed. Replay reads the shared fact under its
+authorization-dispatch lock before an uncovered record requests a range and
+again before marking a submission dispatched, so superseded capability sends
+neither range nor mutation transport and leaves no false dispatch stamp.
 
 ### Capability maturity
 

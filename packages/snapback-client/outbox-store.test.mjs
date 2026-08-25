@@ -428,6 +428,33 @@ async function exerciseOutboxContract(store, { label }) {
     committedCapabilityFact,
     `${label}: reads target-bound offline replay capability evidence`,
   );
+  const olderObservation = await store.beginOfflineMutationReplayCapabilityObservation();
+  const newerObservation = await store.beginOfflineMutationReplayCapabilityObservation();
+  const newerCapabilityFact = await store.commitOfflineMutationReplayCapabilityFact(
+    capabilityFact,
+    newerObservation,
+  );
+  assert.equal(
+    newerCapabilityFact.requestSequence,
+    newerObservation.requestSequence,
+    `${label}: the newer capability compare commits its reserved order`,
+  );
+  const rejectedCapabilityFact = await store.commitOfflineMutationReplayCapabilityFact({
+    ...capabilityFact,
+    supported: false,
+    reason: 'stale-answer',
+    targetProfileId: 'cloudflare-do-sqlite-v8',
+  }, olderObservation);
+  assert.equal(
+    rejectedCapabilityFact,
+    false,
+    `${label}: a stale capability compare is reported as not committed`,
+  );
+  assert.deepEqual(
+    await store.readOfflineMutationReplayCapabilityFact(),
+    newerCapabilityFact,
+    `${label}: the rejected capability compare leaves the current fact unchanged`,
+  );
   assert.equal(
     typeof store.outboxPrepareSubmission,
     'function',
@@ -782,40 +809,6 @@ test('memory arm carries the outbox contract', async () => {
   const store = createMemoryRqsResumeStore();
   await exerciseOutboxContract(store, { label: 'memory' });
   assert.deepEqual(store.durability(), { implementation: 'memory', durable: false });
-  await store.close();
-});
-
-test('rejected capability fact compare reports not committed', async () => {
-  const store = createMemoryRqsResumeStore();
-  const olderObservation = await store.beginOfflineMutationReplayCapabilityObservation();
-  const newerObservation = await store.beginOfflineMutationReplayCapabilityObservation();
-  const positive = {
-    schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
-    origin: 'https://rejected-capability-compare.example',
-    supported: true,
-    reason: null,
-    targetProfileId: 'local-dev-sqlite-ibex',
-    artifactGeneration: TEST_ARTIFACT_GENERATION,
-  };
-  const committed = await store.commitOfflineMutationReplayCapabilityFact(
-    positive,
-    newerObservation,
-  );
-  assert.equal(committed.storeRevision, 1);
-  assert.equal(committed.requestSequence, newerObservation.requestSequence);
-
-  const rejected = await store.commitOfflineMutationReplayCapabilityFact({
-    ...positive,
-    supported: false,
-    reason: 'stale-answer',
-    targetProfileId: 'cloudflare-do-sqlite-v8',
-  }, olderObservation);
-  assert.equal(rejected, false, 'a stale compare is reported as not committed');
-  assert.deepEqual(
-    await store.readOfflineMutationReplayCapabilityFact(),
-    committed,
-    'the rejected compare leaves the current fact unchanged',
-  );
   await store.close();
 });
 
@@ -3878,6 +3871,68 @@ test('capability re-read after submission preparation is the final mutation tran
   }
 });
 
+test('foreground mutation refuses a baseUrl repoint after target inspection', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const originA = 'https://pinned-foreground-a.example';
+  const originB = 'https://pinned-foreground-b.example';
+  const client = new InspectingSnapbackClient(originA, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  const clientMutationId = 'cm-pinned-foreground-target';
+  let originAPosts = 0;
+  let originBPosts = 0;
+  globalThis.fetch = async (url) => {
+    const target = new URL(url);
+    if (target.pathname === '/inspect') {
+      assert.equal(target.origin, originA, 'inspection uses the mutation-start target');
+      return Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId: 'local-dev-sqlite-ibex',
+      }));
+    }
+    if (target.origin === originA) originAPosts += 1;
+    if (target.origin === originB) originBPosts += 1;
+    throw new TypeError('the repointed mutation transport is ambiguous');
+  };
+  const readCapabilityFact = store.readOfflineMutationReplayCapabilityFact.bind(store);
+  let repointOnCapabilityRead = false;
+  store.readOfflineMutationReplayCapabilityFact = async () => {
+    const fact = await readCapabilityFact();
+    if (repointOnCapabilityRead) client.baseUrl = originB;
+    return fact;
+  };
+  const prepareSubmission = store.outboxPrepareSubmission.bind(store);
+  store.outboxPrepareSubmission = async (...args) => {
+    repointOnCapabilityRead = true;
+    return prepareSubmission(...args);
+  };
+
+  try {
+    await assert.rejects(
+      () => client.mutate('createThing', {
+        args: { title: 'never dispatch under the successor target' },
+        clientMutationId,
+      }),
+      (error) => (
+        error?.code === 'SNAPBACK_CLIENT_OPERATION_TARGET_CHANGED'
+        && error?.diagnostic?.details?.reason === 'operation-target-changed'
+      ),
+    );
+    assert.equal(originAPosts, 0, 'the refused mutation issues no POST to target A');
+    assert.equal(originBPosts, 0, 'the refused mutation issues no POST to target B');
+    assert.deepEqual(
+      await store.outboxRecords(),
+      [],
+      'target repointing retires the pre-dispatch record admitted for A',
+    );
+  } finally {
+    await client.close();
+    await store.close();
+  }
+});
+
 test('replay capability re-read after submission preparation is the final transport fence', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
@@ -3911,17 +3966,18 @@ test('replay capability re-read after submission preparation is the final transp
     mutationPosts += 1;
     return Response.json({ result: { committed: true }, version: 1 });
   };
-  const prepareSubmission = store.outboxPrepareSubmission.bind(store);
+  const withAuthorizationDispatch = store.withOutboxAuthorizationDispatch.bind(store);
   let injectedNegative = false;
-  store.outboxPrepareSubmission = async (id, options) => {
-    const prepared = await prepareSubmission(id, options);
-    if (options?.markDispatched === true && !injectedNegative) {
-      injectedNegative = true;
-      inspectionSupported = false;
-      await replacingClient.inspect();
-    }
-    return prepared;
-  };
+  store.withOutboxAuthorizationDispatch = (operation, options) => (
+    withAuthorizationDispatch(async () => {
+      if (!injectedNegative) {
+        injectedNegative = true;
+        inspectionSupported = false;
+        await replacingClient.inspect();
+      }
+      return operation();
+    }, options)
+  );
 
   try {
     const replay = await client.replayQueuedMutations();
@@ -3937,6 +3993,179 @@ test('replay capability re-read after submission preparation is the final transp
       (await store.outboxPending()).map((record) => record.id),
       [clientMutationId],
       'pre-dispatch replay supersession keeps the record pending',
+    );
+    assert.equal(
+      (await store.outboxPending())[0].timing.dispatchedAtMs,
+      null,
+      'a capability-refused replay is never stamped as dispatched',
+    );
+  } finally {
+    await replacingClient.close();
+    await client.close();
+    await store.close();
+  }
+});
+
+test('replay refuses a baseUrl repoint between drain inspection and POST', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const originA = 'https://pinned-replay-a.example';
+  const originB = 'https://pinned-replay-b.example';
+  const clientMutationId = 'cm-pinned-replay-target';
+  await store.outboxEnqueue({
+    id: clientMutationId,
+    function: 'createThing',
+    args: { title: 'keep replay on its inspected target' },
+  });
+  const client = new InspectingSnapbackClient(originA, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  let originAPosts = 0;
+  let originBPosts = 0;
+  globalThis.fetch = async (url) => {
+    const target = new URL(url);
+    if (target.pathname === '/inspect') {
+      assert.equal(target.origin, originA, 'drain inspection uses the replay-start target');
+      return Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId: 'local-dev-sqlite-ibex',
+      }));
+    }
+    if (target.origin === originA) originAPosts += 1;
+    if (target.origin === originB) originBPosts += 1;
+    throw new TypeError('the repointed replay transport is ambiguous');
+  };
+  const readCapabilityFact = store.readOfflineMutationReplayCapabilityFact.bind(store);
+  let repointOnCapabilityRead = false;
+  store.readOfflineMutationReplayCapabilityFact = async () => {
+    const fact = await readCapabilityFact();
+    if (repointOnCapabilityRead) client.baseUrl = originB;
+    return fact;
+  };
+  const withAuthorizationDispatch = store.withOutboxAuthorizationDispatch.bind(store);
+  store.withOutboxAuthorizationDispatch = (operation, options) => (
+    withAuthorizationDispatch(async () => {
+      repointOnCapabilityRead = true;
+      return operation();
+    }, options)
+  );
+
+  try {
+    const replay = await client.replayQueuedMutations();
+    assert.equal(replay.replayed, 0, 'the repointed replay never settles');
+    assert.equal(replay.stopped, true, 'the target-change refusal pauses replay');
+    assert.equal(originAPosts, 0, 'the refused replay issues no POST to target A');
+    assert.equal(originBPosts, 0, 'the refused replay issues no POST to target B');
+    const [retained] = await store.outboxPending();
+    assert.equal(retained.id, clientMutationId);
+    assert.equal(
+      retained.timing.dispatchedAtMs,
+      null,
+      'the target-refused replay is never stamped as dispatched',
+    );
+    assert.equal(
+      client.outboxDiagnostics.at(-1)?.code,
+      'SNAPBACK_CLIENT_OPERATION_TARGET_CHANGED',
+      'the replay target refusal is observable through the diagnostics surface',
+    );
+  } finally {
+    await client.close();
+    await store.close();
+  }
+});
+
+test('replay checks peer capability currency under the dispatch lock before range refresh', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const origin = 'https://replay-range-capability-lock.example';
+  const clientMutationId = 'cm-replay-range-capability-lock';
+  await store.outboxEnqueue({
+    id: clientMutationId,
+    function: 'createThing',
+    args: { title: 'peer negative precedes range transport' },
+    userId: 'user-a',
+  });
+  const client = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    operationIdentityProtocol: 1,
+    __outboxDrainLifecycle: false,
+  });
+  const replacingClient = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  let negativeEnabled = false;
+  let rangePosts = 0;
+  let mutationPosts = 0;
+  const issuedAtMs = Date.now();
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+    if (path === '/inspect') {
+      return Response.json(offlineReplayInspection({
+        supported: !negativeEnabled,
+        targetProfileId: negativeEnabled
+          ? 'cloudflare-do-sqlite-v8'
+          : 'local-dev-sqlite-ibex',
+      }));
+    }
+    if (path === '/client-mutations/identity-range') {
+      rangePosts += 1;
+      return Response.json({
+        schemaVersion: 1,
+        range: {
+          schemaVersion: 1,
+          audience: 'audience-replay-range-capability-lock',
+          authorityInstanceId: 'authority-replay-range-capability-lock',
+          epochId: 'epoch-replay-range-capability-lock',
+          epochSequence: 0,
+          rangeStart: 0,
+          rangeEndExclusive: 256,
+          issuedAtMs,
+          expiresAtMs: issuedAtMs + 60_000,
+          authorityAuthenticatorDigest: `sha256:${'c'.repeat(64)}`,
+        },
+      });
+    }
+    mutationPosts += 1;
+    return Response.json({ result: { committed: true }, version: 1 });
+  };
+  const withAuthorizationDispatch = store.withOutboxAuthorizationDispatch.bind(store);
+  const readStoreMeta = store.readStoreMeta.bind(store);
+  let insideAuthorizationDispatch = false;
+  let injectedNegative = false;
+  store.withOutboxAuthorizationDispatch = (operation, options) => (
+    withAuthorizationDispatch(async () => {
+      insideAuthorizationDispatch = true;
+      try {
+        return await operation();
+      } finally {
+        insideAuthorizationDispatch = false;
+      }
+    }, options)
+  );
+  store.readStoreMeta = async () => {
+    const meta = await readStoreMeta();
+    if (insideAuthorizationDispatch && !injectedNegative) {
+      injectedNegative = true;
+      negativeEnabled = true;
+      await replacingClient.inspect();
+    }
+    return meta;
+  };
+
+  try {
+    const replay = await client.replayQueuedMutations();
+    assert.equal(rangePosts, 0, 'a peer negative prevents identity-range transport');
+    assert.equal(mutationPosts, 0, 'the superseded replay issues no mutation POST');
+    assert.equal(replay.replayed, 0);
+    assert.equal(replay.stopped, true);
+    const [retained] = await store.outboxPending();
+    assert.equal(retained.operationIssuance, null, 'superseded replay remains uncovered');
+    assert.equal(
+      retained.timing.dispatchedAtMs,
+      null,
+      'range-skipped replay is never stamped as dispatched',
     );
   } finally {
     await replacingClient.close();

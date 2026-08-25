@@ -367,3 +367,60 @@ LLP 0043's enqueue-only cached evidence and final replay fact-read rules, LLP
 and LLP 0090's close/relaunch acceptance claim; no LLP edit or new decision is
 needed. `./ref-check --verbose` reports `311 LLP docs, 6641 refs in 12503
 files, 0 errors, 0 unchecked`; `git diff --check` produces no output.
+
+### Round-11 review closure (2026-08-25)
+
+The client now enforces the **pinned-target rule** for every foreground
+mutation and replay cycle. It captures one immutable normalized transport base
+URL and canonical origin before capability inspection, then completes that
+operation target with the positive fact's target profile and artifact
+generation. Inspection, fact recording, enqueue admission, operation-identity
+range issuance, request signing, and mutation transport use that same target.
+The transport-start fence compares the client's current target with the pin
+and surfaces `SNAPBACK_CLIENT_OPERATION_TARGET_CHANGED` before `fetch` if the
+client was repointed. Foreground pre-dispatch custody for the old target is
+retired; replay custody remains pending; neither path sends a POST to the
+successor origin.
+
+Replay now acquires the authorization-dispatch lock and re-reads the shared
+capability fact immediately before refreshing an uncovered record's operation
+identity range. A peer negative therefore starts zero range POSTs. The final
+replay fact read also precedes the dispatched form of
+`outboxPrepareSubmission`, so a capability-refused replay is not stamped as
+dispatched. The stale capability compare assertion now lives in
+`exerciseOutboxContract`, covering memory, IndexedDB, SQLite, and file stores
+instead of only the memory carrier.
+
+Round-11 fail-first evidence from the four production regressions:
+
+- foreground target repoint: `AssertionError [ERR_ASSERTION]: Missing expected
+  rejection.`;
+- replay supersession stamp: `AssertionError [ERR_ASSERTION]: a
+  capability-refused replay is never stamped as dispatched` (actual timestamp,
+  expected `null`);
+- replay target repoint: `AssertionError [ERR_ASSERTION]: the refused replay
+  issues no POST to target B`, `1 !== 0`;
+- replay range currency: `AssertionError [ERR_ASSERTION]: a peer negative
+  prevents identity-range transport`, `1 !== 0`.
+
+Round-11 verification updates the combined client/conformance command to
+`tests 132`, `pass 132`, `fail 0`. One immediately preceding full run exposed
+the pre-existing file-store writer-election race at `writerStore.isWriter()`
+(`false !== true`); the isolated test then passed and the complete requested
+command passed on rerun. The public-dashboard witnesses are `PASS
+public-dashboard / offline-local-first (JS arm) — 9/9` and `PASS
+public-dashboard / headless — 6/6`; both used the explicitly configured binary
+stamped at `f446d966b` and reported the expected checkout stamp mismatch.
+`node scripts/generate-symbol-registry.mjs --check` reports
+`[symbol-registry] ok — 56 modules, 1455 symbols, runtime parity exact`.
+
+The diagnostics registry JSON, diagnostics Markdown, and generated diagnostic
+code union were restored to exact merge-base bytes; the diagnostics generator
+was not retained as part of the final projection pass. The lane's real public
+`whenOfflineMutationReplayCapabilitySettled()` export still requires the
+symbol registry and its 57 Markdown projections, followed by the guide
+manifest and flat projections, so those were regenerated from the restored
+diagnostic bytes. Integration remains responsible for the final diagnostics
+emitting-site regeneration.
+`./ref-check --verbose` reports `311 LLP docs, 6642 refs in 12503 files, 0
+errors, 0 unchecked`; `git diff --check` produces no output.

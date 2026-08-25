@@ -3092,6 +3092,80 @@ const canonicalServerOrigin = (baseUrl) => {
   try { return new URL(baseUrl).origin; } catch { return baseUrl; }
 };
 
+const normalizedOperationBaseUrl = (baseUrl) => String(baseUrl).replace(/\/$/u, '');
+
+const pinOfflineMutationTransportTarget = (baseUrl, artifactGeneration = null) => {
+  // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 — the
+  // pinned-target rule binds inspection, custody, identity issuance, and POST
+  // transport to one immutable operation target.
+  const pinnedBaseUrl = normalizedOperationBaseUrl(baseUrl);
+  return Object.freeze({
+    baseUrl: pinnedBaseUrl,
+    origin: canonicalServerOrigin(pinnedBaseUrl),
+    targetProfileId: null,
+    artifactGeneration,
+  });
+};
+
+const completeOfflineMutationOperationTarget = (transportTarget, fact) => {
+  const normalized = normalizeOfflineMutationReplayCapabilityFact(fact);
+  if (
+    normalized === null
+    || canonicalServerOrigin(normalized.origin) !== transportTarget.origin
+    || (
+      transportTarget.artifactGeneration !== null
+      && (
+        normalized.artifactGeneration === null
+        || !sameArtifactGeneration(
+          normalized.artifactGeneration,
+          transportTarget.artifactGeneration,
+        )
+      )
+    )
+  ) return null;
+  return Object.freeze({
+    baseUrl: transportTarget.baseUrl,
+    origin: transportTarget.origin,
+    targetProfileId: normalized.targetProfileId,
+    artifactGeneration: normalized.artifactGeneration,
+  });
+};
+
+const offlineMutationOperationTargetMatchesFact = (target, fact) => (
+  target !== null
+  && fact !== null
+  && canonicalServerOrigin(fact.origin) === target.origin
+  && fact.targetProfileId === target.targetProfileId
+  && (
+    target.artifactGeneration === null
+      ? fact.artifactGeneration === null
+      : fact.artifactGeneration !== null
+        && sameArtifactGeneration(target.artifactGeneration, fact.artifactGeneration)
+  )
+);
+
+const OPERATION_TARGET_CHANGED = 'SNAPBACK_CLIENT_OPERATION_TARGET_CHANGED';
+
+const offlineMutationOperationTargetChangedError = (target, currentBaseUrl) => {
+  const current = normalizedOperationBaseUrl(currentBaseUrl);
+  const message = 'the client target changed after mutation/replay admission; transport was refused';
+  const diagnostic = Object.freeze({
+    schemaVersion: 'snapback.client-diagnostic.v1',
+    code: OPERATION_TARGET_CHANGED,
+    severity: 'error',
+    subsystem: 'outbox',
+    message,
+    details: Object.freeze({
+      reason: 'operation-target-changed',
+      pinnedOrigin: target.origin,
+      currentOrigin: canonicalServerOrigin(current),
+      targetProfileId: target.targetProfileId,
+      artifactGeneration: target.artifactGeneration,
+    }),
+  });
+  return new SnapbackDiagnosticError(diagnostic, { message });
+};
+
 const offlineMutationReplayCapabilityFactFromInspection = (inspection, origin) => {
   // Local `/inspect` nests the manifest in PublicInspect; the Cloudflare
   // proof serves that same manifest directly at `/inspect` and `/capability`.
@@ -5318,6 +5392,7 @@ export class SnapbackClient {
       accessToken = null,
       includeAuthorization = true,
       credential: preparedCredential = null,
+      transportBaseUrl = this.baseUrl,
     } = {},
   ) {
     const credential = preparedCredential
@@ -5328,7 +5403,7 @@ export class SnapbackClient {
       privateKey: sender.privateKey,
       publicJwk: sender.publicJwk,
       method,
-      canonicalExternalUri: canonicalSenderExternalUri(this.baseUrl, path),
+      canonicalExternalUri: canonicalSenderExternalUri(transportBaseUrl, path),
       accessToken: proofAccessToken,
       nonce: sender.nonce.value,
       issuedAtSeconds: Math.floor(Date.now() / 1_000),
@@ -6365,7 +6440,12 @@ export class SnapbackClient {
     ephemeralRetryAuthorityCapture = null,
     ephemeralRetryExternalBearer = undefined,
     ephemeralRetryExternalTransportGeneration = null,
+    transportBaseUrl = null,
+    pinnedOperationTarget = null,
   } = {}) {
+    const requestBaseUrl = transportBaseUrl === null
+      ? normalizedOperationBaseUrl(this.baseUrl)
+      : normalizedOperationBaseUrl(transportBaseUrl);
     this.#assertAuthCountersAvailable();
     if (authAdmissionReference !== null) {
       // @ref LLP 0059#participant-contract — bind one-shot admission to the
@@ -6597,6 +6677,7 @@ export class SnapbackClient {
           accessToken: connectionGrantToken,
           includeAuthorization: connectionGrantToken === null,
           credential: serializedPrepared?.credential ?? null,
+          transportBaseUrl: requestBaseUrl,
         });
         Object.assign(merged, senderAttempt.headers);
         }
@@ -6630,6 +6711,15 @@ export class SnapbackClient {
           // pending-authority retry remains the predecessor operation, so it
           // must refuse before the only transport-entry cut.
           assertEphemeralRetryAuthorityCurrent();
+          if (
+            pinnedOperationTarget !== null
+            && normalizedOperationBaseUrl(this.baseUrl) !== pinnedOperationTarget.baseUrl
+          ) {
+            throw offlineMutationOperationTargetChangedError(
+              pinnedOperationTarget,
+              this.baseUrl,
+            );
+          }
           let requestTask = null;
           if (this.authorityFence && capture) {
             // Start the actual fetch synchronously inside the final durable
@@ -6649,6 +6739,7 @@ export class SnapbackClient {
                   {
                     ...senderFetchOptions,
                     rejectRedirects,
+                    transportBaseUrl: requestBaseUrl,
                     onFetchInvoked: () => { fetchInvoked = true; },
                   },
                 );
@@ -6665,6 +6756,7 @@ export class SnapbackClient {
               {
                 ...senderFetchOptions,
                 rejectRedirects,
+                transportBaseUrl: requestBaseUrl,
                 onFetchInvoked: () => { fetchInvoked = true; },
               },
             );
@@ -6737,6 +6829,8 @@ export class SnapbackClient {
           ephemeralRetryAuthorityCapture,
           ephemeralRetryExternalBearer,
           ephemeralRetryExternalTransportGeneration,
+          transportBaseUrl: requestBaseUrl,
+          pinnedOperationTarget,
         });
       }
       if (
@@ -6773,6 +6867,8 @@ export class SnapbackClient {
             ephemeralRetryAuthorityCapture,
             ephemeralRetryExternalBearer,
             ephemeralRetryExternalTransportGeneration,
+            transportBaseUrl: requestBaseUrl,
+            pinnedOperationTarget,
           });
         } finally {
           this.__authModePendingRetryDepth -= 1;
@@ -6846,6 +6942,8 @@ export class SnapbackClient {
             ephemeralRetryAuthorityCapture: retryAuthorityCapture,
             ephemeralRetryExternalBearer: retryExternalBearer,
             ephemeralRetryExternalTransportGeneration: retryExternalTransportGeneration,
+            transportBaseUrl: requestBaseUrl,
+            pinnedOperationTarget,
           });
         } finally {
           this.__ephemeralAuthorityPendingRetryDepth -= 1;
@@ -6899,6 +6997,8 @@ export class SnapbackClient {
             ephemeralRetryAuthorityCapture,
             ephemeralRetryExternalBearer,
             ephemeralRetryExternalTransportGeneration,
+            transportBaseUrl: requestBaseUrl,
+            pinnedOperationTarget,
           });
         }
         try { await this.#familyAlarmWithBearer(bearerUsed); } catch { /* named stolen-successor residual */ }
@@ -6995,6 +7095,7 @@ export class SnapbackClient {
       onFetchInvoked = null,
       forbiddenSecrets = [],
       rejectRedirects = false,
+      transportBaseUrl = this.baseUrl,
     } = {},
   ) {
     let declaredDevOperation = null;
@@ -7037,7 +7138,7 @@ export class SnapbackClient {
     let text;
     try {
       onFetchInvoked?.();
-      res = await fetch(`${this.baseUrl}${path}`, {
+      res = await fetch(`${transportBaseUrl}${path}`, {
         method,
         headers: Object.keys(merged).length > 0 ? merged : undefined,
         body: body === undefined ? undefined : JSON.stringify(body),
@@ -7244,13 +7345,25 @@ export class SnapbackClient {
     });
   }
 
-  async #currentOfflineMutationReplayCapabilityFact() {
+  #isOfflineMutationOperationTargetCurrent(operationTarget) {
+    return operationTarget === null
+      || normalizedOperationBaseUrl(this.baseUrl) === operationTarget.baseUrl;
+  }
+
+  #assertOfflineMutationOperationTargetCurrent(operationTarget) {
+    if (!this.#isOfflineMutationOperationTargetCurrent(operationTarget)) {
+      throw offlineMutationOperationTargetChangedError(operationTarget, this.baseUrl);
+    }
+  }
+
+  async #currentOfflineMutationReplayCapabilityFact(operationTarget = null) {
+    const targetOrigin = operationTarget?.origin ?? canonicalServerOrigin(this.baseUrl);
     let fact = normalizeOfflineMutationReplayCapabilityFact(
       this.__offlineMutationReplayCapabilityLocalOverride,
     );
     if (
       fact !== null
-      && canonicalServerOrigin(fact.origin) !== canonicalServerOrigin(this.baseUrl)
+      && canonicalServerOrigin(fact.origin) !== targetOrigin
     ) {
       this.__offlineMutationReplayCapabilityLocalOverride = null;
       this.__offlineMutationReplayCapabilityLocalOverrideRequestSequence = null;
@@ -7259,7 +7372,7 @@ export class SnapbackClient {
       );
       if (
         observed !== null
-        && canonicalServerOrigin(observed.origin) !== canonicalServerOrigin(this.baseUrl)
+        && canonicalServerOrigin(observed.origin) !== targetOrigin
       ) {
         this.__observedOfflineMutationReplayCapability = null;
       }
@@ -7274,6 +7387,7 @@ export class SnapbackClient {
           await store.readOfflineMutationReplayCapabilityFact(),
         );
       } catch { fact = null; }
+      if (fact !== null && canonicalServerOrigin(fact.origin) !== targetOrigin) fact = null;
       this.__observedOfflineMutationReplayCapability = fact;
       return fact;
     }
@@ -7281,17 +7395,31 @@ export class SnapbackClient {
       this.__observedOfflineMutationReplayCapability,
     );
     return fact !== null
-      && canonicalServerOrigin(fact.origin) === canonicalServerOrigin(this.baseUrl)
+      && canonicalServerOrigin(fact.origin) === targetOrigin
       ? fact
       : null;
   }
 
-  async #isOfflineMutationReplayCapabilityFactCurrent(fact, requestSequence = null) {
+  async #isOfflineMutationReplayCapabilityFactCurrent(
+    fact,
+    requestSequence = null,
+    operationTarget = null,
+  ) {
+    if (!this.#isOfflineMutationOperationTargetCurrent(operationTarget)) return false;
     if (this.__offlineMutationReplayCapability !== null) return true;
     const expected = normalizeOfflineMutationReplayCapabilityFact(fact);
     if (expected === null) return false;
-    const current = await this.#currentOfflineMutationReplayCapabilityFact();
+    if (
+      operationTarget !== null
+      && !offlineMutationOperationTargetMatchesFact(operationTarget, expected)
+    ) return false;
+    const current = await this.#currentOfflineMutationReplayCapabilityFact(operationTarget);
+    if (!this.#isOfflineMutationOperationTargetCurrent(operationTarget)) return false;
     if (current === null) return false;
+    if (
+      operationTarget !== null
+      && !offlineMutationOperationTargetMatchesFact(operationTarget, current)
+    ) return false;
     // Fact revisions order observations, but a newer positive with the same
     // complete target identity continues the predecessor's authority. Only a
     // negative or an origin/profile/artifact-generation change supersedes it.
@@ -7321,8 +7449,10 @@ export class SnapbackClient {
       );
   }
 
-  async #inspectWithOfflineMutationReplayCapabilitySequence() {
-    const origin = canonicalServerOrigin(this.baseUrl);
+  async #inspectWithOfflineMutationReplayCapabilitySequence(
+    transportTarget = pinOfflineMutationTransportTarget(this.baseUrl),
+  ) {
+    const origin = transportTarget.origin;
     const observation = await this.#beginOfflineMutationReplayCapabilityObservation();
     let inspection;
     try {
@@ -7331,7 +7461,10 @@ export class SnapbackClient {
         '/inspect',
         undefined,
         this.#authOfferHeaders(false),
-        { rejectRedirects: true },
+        {
+          rejectRedirects: true,
+          transportBaseUrl: transportTarget.baseUrl,
+        },
       );
     } catch (cause) {
       // An HTTP answer is current target evidence even when it is a refusal
@@ -7341,6 +7474,7 @@ export class SnapbackClient {
         await this.#recordOfflineMutationReplayCapabilityFact(
           offlineMutationReplayCapabilityFactFromAnsweredError(cause, origin),
           observation,
+          transportTarget,
         );
       }
       throw cause;
@@ -7348,6 +7482,7 @@ export class SnapbackClient {
     const fact = await this.#recordOfflineMutationReplayCapabilityFact(
       offlineMutationReplayCapabilityFactFromInspection(inspection, origin),
       observation,
+      transportTarget,
     );
     return Object.freeze({
       inspection,
@@ -7365,11 +7500,15 @@ export class SnapbackClient {
   // @ref LLP 0058#target-capability-registry-amendment--offline-mutation-replay-2026-08-12 —
   // a missing capability gap is never positive support; inspect the closed
   // supportedCapabilities set on both local and Cloudflare payload shapes.
-  async #recordOfflineMutationReplayCapabilityFact(fact, observation) {
+  async #recordOfflineMutationReplayCapabilityFact(fact, observation, transportTarget = null) {
     const normalized = normalizeOfflineMutationReplayCapabilityFact(fact);
     if (normalized === null) return null;
+    if (
+      transportTarget !== null
+      && canonicalServerOrigin(normalized.origin) !== transportTarget.origin
+    ) return null;
     if (this.__clientClosed) {
-      return (await this.#currentOfflineMutationReplayCapabilityFact()) ?? normalized;
+      return (await this.#currentOfflineMutationReplayCapabilityFact(transportTarget)) ?? normalized;
     }
     const requestSequence = observation?.requestSequence;
     if (
@@ -7377,7 +7516,7 @@ export class SnapbackClient {
       || requestSequence < 1
       || requestSequence < this.__offlineMutationReplayCapabilityLastAnsweredRequestSequence
     ) {
-      return (await this.#currentOfflineMutationReplayCapabilityFact()) ?? normalized;
+      return (await this.#currentOfflineMutationReplayCapabilityFact(transportTarget)) ?? normalized;
     }
     // Connectivity failures never reach this cut. An answered request owns
     // the local high-water from dispatch time, not from response arrival.
@@ -7399,12 +7538,12 @@ export class SnapbackClient {
     }
     const commit = async () => {
       if (this.__clientClosed) {
-        return (await this.#currentOfflineMutationReplayCapabilityFact()) ?? normalized;
+        return (await this.#currentOfflineMutationReplayCapabilityFact(transportTarget)) ?? normalized;
       }
       if (
         requestSequence < this.__offlineMutationReplayCapabilityLastAnsweredRequestSequence
       ) {
-        return (await this.#currentOfflineMutationReplayCapabilityFact()) ?? normalized;
+        return (await this.#currentOfflineMutationReplayCapabilityFact(transportTarget)) ?? normalized;
       }
       let store = null;
       try { store = this.#offlineQueueStore(false); } catch { store = null; }
@@ -7453,11 +7592,11 @@ export class SnapbackClient {
     return task;
   }
 
-  async #cachedOfflineMutationReplayCapabilityFact(expectedGeneration) {
-    const fact = await this.#currentOfflineMutationReplayCapabilityFact();
+  async #cachedOfflineMutationReplayCapabilityFact(expectedGeneration, transportTarget) {
+    const fact = await this.#currentOfflineMutationReplayCapabilityFact(transportTarget);
     if (
       fact?.supported !== true
-      || fact.origin !== canonicalServerOrigin(this.baseUrl)
+      || canonicalServerOrigin(fact.origin) !== transportTarget.origin
       // Generated references must equal every artifact identity component.
       // String-named mutations carry no generation, so their cached boundary
       // is the canonical origin rather than an invented operation witness.
@@ -7475,7 +7614,10 @@ export class SnapbackClient {
   async #offlineMutationReplayCapabilityFact({
     allowCachedForEnqueue = false,
     expectedGeneration = null,
+    operationTarget = null,
   } = {}) {
+    const transportTarget = operationTarget
+      ?? pinOfflineMutationTransportTarget(this.baseUrl, expectedGeneration);
     if (this.__offlineMutationReplayCapability !== null) {
       return Object.freeze({
         supported: this.__offlineMutationReplayCapability,
@@ -7483,6 +7625,7 @@ export class SnapbackClient {
         targetProfileId: null,
         evidence: 'configured',
         inspectionRequestSequence: null,
+        operationTarget: transportTarget,
       });
     }
     let inspection;
@@ -7490,7 +7633,7 @@ export class SnapbackClient {
     let inspectionRequestSequence;
     try {
       ({ inspection, fact, inspectionRequestSequence } = await (
-        this.#inspectWithOfflineMutationReplayCapabilitySequence()
+        this.#inspectWithOfflineMutationReplayCapabilitySequence(transportTarget)
       ));
     } catch (cause) {
       // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 —
@@ -7500,12 +7643,22 @@ export class SnapbackClient {
       if (allowCachedForEnqueue && isConnectivityFailureError(cause)) {
         const cached = await this.#cachedOfflineMutationReplayCapabilityFact(
           expectedGeneration,
+          transportTarget,
         );
         if (cached !== null) {
+          const completedTarget = completeOfflineMutationOperationTarget(
+            transportTarget,
+            cached,
+          );
+          if (completedTarget === null) throw offlineQueueSettlementLedgerError({
+            reason: 'target-identity-mismatch',
+            targetProfileId: cached.targetProfileId,
+          });
           return Object.freeze({
             ...cached,
             evidence: 'cached',
             inspectionRequestSequence: null,
+            operationTarget: completedTarget,
           });
         }
       }
@@ -7517,6 +7670,7 @@ export class SnapbackClient {
         targetProfileId: null,
         cause,
         inspectionRequestSequence: null,
+        operationTarget: transportTarget,
       });
     }
     if (
@@ -7533,9 +7687,26 @@ export class SnapbackClient {
         reason: 'target-identity-mismatch',
         evidence: 'fresh',
         inspectionRequestSequence,
+        operationTarget: transportTarget,
       });
     }
-    return Object.freeze({ ...fact, evidence: 'fresh', inspectionRequestSequence });
+    const completedTarget = completeOfflineMutationOperationTarget(transportTarget, fact);
+    if (completedTarget === null) {
+      return Object.freeze({
+        ...fact,
+        supported: false,
+        reason: 'target-identity-mismatch',
+        evidence: 'fresh',
+        inspectionRequestSequence,
+        operationTarget: transportTarget,
+      });
+    }
+    return Object.freeze({
+      ...fact,
+      evidence: 'fresh',
+      inspectionRequestSequence,
+      operationTarget: completedTarget,
+    });
   }
 
   async #observeOfflineMutationReplayCapabilityFromLifecycle({ force = false } = {}) {
@@ -7603,8 +7774,8 @@ export class SnapbackClient {
     return this.__offlineMutationReplayLifecycleSettlement;
   }
 
-  async #requireOfflineMutationReplayCapability() {
-    const fact = await this.#offlineMutationReplayCapabilityFact();
+  async #requireOfflineMutationReplayCapability(operationTarget = null) {
+    const fact = await this.#offlineMutationReplayCapabilityFact({ operationTarget });
     if (!fact.supported) throw offlineQueueSettlementLedgerError(fact);
     return fact;
   }
@@ -11252,6 +11423,7 @@ export class SnapbackClient {
     userId,
     authorityDescriptor,
     authorityCapture,
+    operationTarget,
   ) {
     const previousRange = await store.outboxOperationIdentityRange(authorityCohortKey);
     const body = {
@@ -11266,7 +11438,11 @@ export class SnapbackClient {
       '/client-mutations/identity-range',
       body,
       undefined,
-      { expectedAuthorityCapture: authorityCapture },
+      {
+        expectedAuthorityCapture: authorityCapture,
+        transportBaseUrl: operationTarget.baseUrl,
+        pinnedOperationTarget: operationTarget,
+      },
     );
     if (response?.schemaVersion !== 1 || !response.range) {
       const error = new Error(
@@ -11290,9 +11466,11 @@ export class SnapbackClient {
       functionId = record.function,
       queueReasonClass = 'connectivity',
       beforeEnqueue = null,
+      operationTarget = null,
     } = {},
   ) {
     try {
+      this.#assertOfflineMutationOperationTargetCurrent(operationTarget);
       let authority = null;
       if (this.authorityFence && !alreadyCommitted) {
         try {
@@ -11311,6 +11489,7 @@ export class SnapbackClient {
       if (typeof beforeEnqueue === 'function' && await beforeEnqueue() !== true) {
         return null;
       }
+      this.#assertOfflineMutationOperationTargetCurrent(operationTarget);
       let stored;
       if (alreadyCommitted) {
         stored = (await store.outboxRecords()).find((candidate) => candidate?.id === record.id);
@@ -12370,6 +12549,7 @@ export class SnapbackClient {
     shouldReplayRecord = () => true,
     replayLane = 'foreground',
   } = {}) {
+    const replayTransportTarget = pinOfflineMutationTransportTarget(this.baseUrl);
     const thisClient = this;
     const replayStop = {
       set value(value) {
@@ -12432,6 +12612,7 @@ export class SnapbackClient {
     }
     let replayCapabilityFact = null;
     let replayCapabilityRequestSequence = null;
+    let replayOperationTarget = replayTransportTarget;
     if (queuedBeforeCustody.length > 0) {
       // The check precedes every queue-state reconciliation and mutation
       // transport: a target without the ledger cannot double-apply an old
@@ -12446,9 +12627,12 @@ export class SnapbackClient {
           stopped: true,
         };
       }
-      const capability = await this.#requireOfflineMutationReplayCapability();
+      const capability = await this.#requireOfflineMutationReplayCapability(
+        replayTransportTarget,
+      );
       replayCapabilityFact = capability;
       replayCapabilityRequestSequence = capability.inspectionRequestSequence;
+      replayOperationTarget = capability.operationTarget ?? replayTransportTarget;
     }
     if (!shouldContinue()) {
       const remaining = (await store.outboxRecords()).filter(isUnresolvedOutboxRecord).length;
@@ -12585,6 +12769,24 @@ export class SnapbackClient {
         authorizationDispatchSettlement.catch(() => {});
         return authorizationDispatchSettlement;
       };
+      const ensureAuthorizationDispatch = async () => {
+        if (authorizationDispatchRelease === null) {
+          authorizationDispatchRelease = await acquireOutboxAuthorizationDispatch(
+            store,
+            record.dispatchLane ?? 'foreground',
+          );
+        }
+      };
+      const assertReplayCapabilityCurrent = async () => {
+        const current = await this.#isOfflineMutationReplayCapabilityFactCurrent(
+          replayCapabilityFact,
+          replayCapabilityRequestSequence,
+          replayOperationTarget,
+        );
+        if (current) return;
+        this.#assertOfflineMutationOperationTargetCurrent(replayOperationTarget);
+        throw offlineQueueSettlementLedgerError({ reason: 'inspection-superseded' });
+      };
       let authorizationDispatchFence = null;
       try {
         if (!shouldContinue()) {
@@ -12592,6 +12794,11 @@ export class SnapbackClient {
           break;
         }
         if (this.__operationIdentityProtocol === 1 && record.operationIssuance === null) {
+          await ensureAuthorizationDispatch();
+          // Currency and operation-range transport share one authorization-
+          // dispatch ownership interval. A peer negative wins before the range
+          // endpoint can mint identity for superseded replay authority.
+          await assertReplayCapabilityCurrent();
           const clientAudienceId = (await store.readStoreMeta())?.clientStoreId;
           if (typeof clientAudienceId !== 'string' || !SNAPBACK_OPAQUE_ID.test(clientAudienceId)) {
             const error = new Error(
@@ -12638,6 +12845,10 @@ export class SnapbackClient {
             stopped = true;
             break;
           }
+          // Range preparation may await shared store/auth state after the
+          // lock-entry check. Re-read currency at the exact pre-transport cut
+          // so a peer negative cannot license identity issuance in that gap.
+          await assertReplayCapabilityCurrent();
           const range = await this.#refreshOperationIdentityRange(
             store,
             authorityCohortKey,
@@ -12645,6 +12856,7 @@ export class SnapbackClient {
             record.userId,
             replayAuthorityDescriptor,
             replayAuthority?.capture ?? null,
+            replayOperationTarget,
           );
           record = await store.outboxAssignOperationIdentity(
             record.id,
@@ -12675,61 +12887,53 @@ export class SnapbackClient {
         const settlement = await this.#mutate(
           outboxReplayReference(record),
           {
-          args: record.args,
-          userId: record.userId ?? undefined,
-          readSet: record.readSet ?? [],
-          correlation: record.correlation ?? null,
-          clientMutationId: record.id,
-          authorityDescriptor: record.authorityDescriptor ?? null,
-          ctxLedger: record.ctxLedger ?? null,
-          settlementLane: record.settlementLane ?? 'replay-accept',
-          settlementIdentity: record.settlementIdentity ?? null,
-          settlementClaims: record.settlementClaims ?? null,
-          boundedSkew: record.boundedSkew ?? null,
-          mediaCommand: record.mediaCommand ?? null,
-          operationIssuance: record.operationIssuance ?? null,
-          operationCoverageDisposition: record.operationCoverageDisposition ?? null,
-          optimisticOperation: record.optimisticOperation ?? null,
-          authorityCapture: replayAuthority?.capture ?? null,
-          queue: false,
-          __authorizationDispatchOwnership: OUTBOX_AUTHORIZATION_DISPATCH_OWNERSHIP,
-          __beforeTransportDispatch: async () => {
-            authorizationDispatchRelease = await acquireOutboxAuthorizationDispatch(
-              store,
-              record.dispatchLane ?? 'foreground',
-            );
-            const submission = await store.outboxPrepareSubmission(
-              record.id,
-              { markDispatched: true },
-            );
-            if (submission?.status !== 'ready' || !submission.record) {
-              const error = new Error(
-                `SNAPBACK_OUTBOX_SUBMISSION_NOT_READY: replay record is ${submission?.status ?? 'missing'}`,
+            args: record.args,
+            userId: record.userId ?? undefined,
+            readSet: record.readSet ?? [],
+            correlation: record.correlation ?? null,
+            clientMutationId: record.id,
+            authorityDescriptor: record.authorityDescriptor ?? null,
+            ctxLedger: record.ctxLedger ?? null,
+            settlementLane: record.settlementLane ?? 'replay-accept',
+            settlementIdentity: record.settlementIdentity ?? null,
+            settlementClaims: record.settlementClaims ?? null,
+            boundedSkew: record.boundedSkew ?? null,
+            mediaCommand: record.mediaCommand ?? null,
+            operationIssuance: record.operationIssuance ?? null,
+            operationCoverageDisposition: record.operationCoverageDisposition ?? null,
+            optimisticOperation: record.optimisticOperation ?? null,
+            authorityCapture: replayAuthority?.capture ?? null,
+            queue: false,
+            __operationTarget: replayOperationTarget,
+            __authorizationDispatchOwnership: OUTBOX_AUTHORIZATION_DISPATCH_OWNERSHIP,
+            __beforeTransportDispatch: async () => {
+              await ensureAuthorizationDispatch();
+              // The shared-fact read precedes the dispatched stamp and runs under
+              // the same lock retained through range assignment and settlement.
+              await assertReplayCapabilityCurrent();
+              const submission = await store.outboxPrepareSubmission(
+                record.id,
+                { markDispatched: true },
               );
-              error.code = submission?.status === 'authorization-suspended'
-                ? 'SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED'
-                : submission?.status === 'authorization-stale'
-                  ? 'SNAPBACK_OUTBOX_AUTHORIZATION_STALE'
-                  : 'SNAPBACK_OUTBOX_SUBMISSION_NOT_READY';
-              throw error;
-            }
-            record = submission.record;
-            authorizationDispatchFence = submission.fence;
-            if (!await this.#isOfflineMutationReplayCapabilityFactCurrent(
-              replayCapabilityFact,
-              replayCapabilityRequestSequence,
-            )) {
-              // Replay owns the same final transport-start fence as foreground:
-              // the shared fact read runs under the dispatch lock and after
-              // submission preparation, immediately before fetch.
-              throw offlineQueueSettlementLedgerError({ reason: 'inspection-superseded' });
-            }
-          },
-          __onTransportFailure: async (error) => {
-            if (requestFailureReentersAuthorityTransport(error)) {
-              await releaseAuthorizationDispatch();
-            }
-          },
+              if (submission?.status !== 'ready' || !submission.record) {
+                const error = new Error(
+                  `SNAPBACK_OUTBOX_SUBMISSION_NOT_READY: replay record is ${submission?.status ?? 'missing'}`,
+                );
+                error.code = submission?.status === 'authorization-suspended'
+                  ? 'SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED'
+                  : submission?.status === 'authorization-stale'
+                    ? 'SNAPBACK_OUTBOX_AUTHORIZATION_STALE'
+                    : 'SNAPBACK_OUTBOX_SUBMISSION_NOT_READY';
+                throw error;
+              }
+              record = submission.record;
+              authorizationDispatchFence = submission.fence;
+            },
+            __onTransportFailure: async (error) => {
+              if (requestFailureReentersAuthorityTransport(error)) {
+                await releaseAuthorizationDispatch();
+              }
+            },
           },
           // @ref LLP 0247#d1-contract-directed-optional-omission — durable
           // outbox arguments crossed normalization before enqueue; replaying
@@ -12873,7 +13077,16 @@ export class SnapbackClient {
           });
           break;
         }
-        if (error?.code === OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED) {
+        if (
+          error?.code === OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED
+          || error?.code === OPERATION_TARGET_CHANGED
+        ) {
+          this.#recordOutboxDiagnostic({
+            code: error.code,
+            mutation: record.function,
+            clientMutationId: record.id,
+            reason: error?.diagnostic?.details?.reason ?? 'inspection-superseded',
+          });
           replayStop.value = Object.freeze({
             kind: 'paused',
             reason: 'replay-paused:capability-superseded',
@@ -13210,6 +13423,9 @@ export class SnapbackClient {
     mediaCommand = null,
     __beforeTransportDispatch = null,
     __onTransportFailure = null,
+    // Internal mutation/replay target pin. The public entry captures it once;
+    // replay supplies the target finalized by its fresh capability inspection.
+    __operationTarget = null,
     // Internal replay marks that its callback already owns the shared
     // authorization-dispatch gate through durable disposition.
     __authorizationDispatchOwnership = null,
@@ -13244,6 +13460,25 @@ export class SnapbackClient {
     }
     args = argumentsAlreadyNormalized ? args : validateGeneratedArguments(ref, args, name);
     const generation = expectedGeneration(ref);
+    let operationTarget = __operationTarget
+      ?? pinOfflineMutationTransportTarget(this.baseUrl, generation);
+    if (
+      typeof operationTarget?.baseUrl !== 'string'
+      || typeof operationTarget?.origin !== 'string'
+      || !(operationTarget.targetProfileId === null
+        || typeof operationTarget.targetProfileId === 'string')
+      || !(operationTarget.artifactGeneration === null
+        || typeof operationTarget.artifactGeneration === 'object')
+    ) {
+      throw new TypeError('internal mutation operation target is invalid');
+    }
+    if (
+      generation !== null
+      && operationTarget.artifactGeneration !== null
+      && !sameArtifactGeneration(generation, operationTarget.artifactGeneration)
+    ) {
+      throw offlineQueueSettlementLedgerError({ reason: 'target-identity-mismatch' });
+    }
     if (
       housekeeping !== null
       && (
@@ -13268,11 +13503,12 @@ export class SnapbackClient {
         : this.#offlineQueueStore(false);
       let capability = null;
       if (queue === true) {
-        capability = await this.#requireOfflineMutationReplayCapability();
+        capability = await this.#requireOfflineMutationReplayCapability(operationTarget);
       } else if (queue === 'auto' && store !== null) {
         capability = await this.#offlineMutationReplayCapabilityFact({
           allowCachedForEnqueue: true,
           expectedGeneration: generation,
+          operationTarget,
         });
         if (capability.supported !== true) queue = false;
       } else if (queue === 'auto') {
@@ -13289,11 +13525,13 @@ export class SnapbackClient {
         });
       }
       store ??= this.#offlineQueueStore(true);
+      operationTarget = capability.operationTarget ?? operationTarget;
       clientMutationId ??= createClientMutationId();
       const queueFence = outboxAuthorizationFenceFrom(await store.outboxAuthorizationStatus());
       const capabilityIsCurrent = () => this.#isOfflineMutationReplayCapabilityFactCurrent(
         capability,
         capability?.inspectionRequestSequence ?? null,
+        operationTarget,
       );
       if (!await capabilityIsCurrent()) {
         throw offlineQueueSettlementLedgerError({ reason: 'inspection-superseded' });
@@ -13391,11 +13629,12 @@ export class SnapbackClient {
       // Preserve the existing local-custody error ordering: an explicit queue
       // request with no durable store fails locally before any target probe.
       this.#offlineQueueStore(true);
-      const capability = await this.#requireOfflineMutationReplayCapability();
+      const capability = await this.#requireOfflineMutationReplayCapability(operationTarget);
       queueCapabilityVerified = true;
       queueCapabilityEvidence = 'fresh';
       queueCapabilityFact = capability;
       queueCapabilityRequestSequence = capability.inspectionRequestSequence;
+      operationTarget = capability.operationTarget ?? operationTarget;
     } else if (
       queue === 'auto'
       && this.#offlineQueueStore(false) !== null
@@ -13403,12 +13642,14 @@ export class SnapbackClient {
       const capability = await this.#offlineMutationReplayCapabilityFact({
         allowCachedForEnqueue: true,
         expectedGeneration: generation,
+        operationTarget,
       });
       if (capability.supported) {
         queueCapabilityVerified = true;
         queueCapabilityEvidence = capability.evidence ?? 'fresh';
         queueCapabilityFact = capability;
         queueCapabilityRequestSequence = capability.inspectionRequestSequence;
+        operationTarget = capability.operationTarget ?? operationTarget;
         if (queueCapabilityEvidence === 'cached' && clientMutationId === null) {
           clientMutationId = createClientMutationId();
         }
@@ -13492,6 +13733,7 @@ export class SnapbackClient {
       && !await this.#isOfflineMutationReplayCapabilityFactCurrent(
         queueCapabilityFact,
         queueCapabilityRequestSequence,
+        operationTarget,
       )
     ) {
       if (queue === true) {
@@ -13805,15 +14047,27 @@ export class SnapbackClient {
     };
     const revalidateQueueCapability = async ({ retireRecord = false } = {}) => {
       if (queueCapabilityVerified !== true) return false;
-      if (await this.#isOfflineMutationReplayCapabilityFactCurrent(
+      const operationTargetChanged = !this.#isOfflineMutationOperationTargetCurrent(
+        operationTarget,
+      );
+      const capabilityCurrent = !operationTargetChanged
+        && await this.#isOfflineMutationReplayCapabilityFactCurrent(
         queueCapabilityFact,
         queueCapabilityRequestSequence,
-      )) return true;
+        operationTarget,
+      );
+      if (capabilityCurrent) return true;
       if (retireRecord) await retireSupersededCapabilityRecord();
       queueCapabilityVerified = false;
       queueCapabilityEvidence = null;
       queueCapabilityFact = null;
       queueCapabilityRequestSequence = null;
+      if (
+        operationTargetChanged
+        || !this.#isOfflineMutationOperationTargetCurrent(operationTarget)
+      ) {
+        throw offlineMutationOperationTargetChangedError(operationTarget, this.baseUrl);
+      }
       return false;
     };
     const finalizeQueuedDisposition = async (queued, { retireRecord = false } = {}) => {
@@ -13891,6 +14145,7 @@ export class SnapbackClient {
                 userId,
                 body.authorityDescriptor,
                 queueAuthority?.capture ?? authorityCapture,
+                operationTarget,
               );
               stored = await queueStore.outboxAssignOperationIdentity(
                 stored.id,
@@ -14080,6 +14335,7 @@ export class SnapbackClient {
             functionId,
             queueReasonClass: 'no-attempt-policy',
             beforeEnqueue: () => revalidateQueueCapability({ retireRecord: true }),
+            operationTarget,
           })
         : null;
       if (queued === null) {
@@ -14197,12 +14453,20 @@ export class SnapbackClient {
             onTransportFailure: async (error) => {
               await __onTransportFailure?.(error);
               if (
+                (error?.diagnostic?.code ?? error?.code) === OPERATION_TARGET_CHANGED
+                && durableOnlineRecord
+              ) {
+                await retireSupersededCapabilityRecord();
+              }
+              if (
                 !durableOnlineRecord
                 || requestFailureReentersAuthorityTransport(error)
               ) {
                 await releaseAuthorizationDispatch();
               }
             },
+            transportBaseUrl: operationTarget.baseUrl,
+            pinnedOperationTarget: operationTarget,
           },
         );
         if (json?.receipt) {
@@ -14446,6 +14710,7 @@ export class SnapbackClient {
                 functionId,
                 queueReasonClass: this.#connectivityQueueReasonClass(error),
                 beforeEnqueue: () => revalidateQueueCapability(),
+                operationTarget,
               },
             );
             if (queued) {

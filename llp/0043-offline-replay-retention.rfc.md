@@ -5,6 +5,12 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
+**Revised:** 2026-08-25 (pinned-target rule: each foreground mutation and
+replay cycle captures one immutable transport base URL and canonical origin
+before inspection, then completes that target with the positive fact's target
+profile and artifact generation. Inspection, fact recording, durable enqueue,
+operation-identity issuance, and mutation transport use that target; a client
+repoint at the transport-start fence refuses before fetch.)
 **Revised:** 2026-08-25 (capability-fact currency and dispatch-safety
 clarification: a newer positive continues an observed positive's authority
 when canonical origin, target profile, and complete artifact generation are
@@ -440,6 +446,25 @@ identity could duplicate an already-committed effect; that record still needs
 a fresh positive before replay and cannot be made replayable retroactively by
 the ambiguous response itself. Replay performs the same shared re-read
 immediately before each POST.
+
+The **pinned-target rule** makes that currency check operationally meaningful.
+At the start of each foreground mutation or replay cycle, the client snapshots
+one immutable normalized transport base URL and canonical origin. A positive
+capability fact completes that operation target with its target profile and
+complete artifact generation. The client threads the same target through
+inspection, fact recording, durable enqueue admission, operation-identity
+range issuance, and the mutation POST URL; those steps never retarget from a
+later mutable client configuration. At the transport-start fence, after the
+final shared-fact read and before `fetch`, the current client target must still
+equal the pin. A mismatch refuses with
+`SNAPBACK_CLIENT_OPERATION_TARGET_CHANGED`: foreground pre-dispatch custody is
+retired, replay custody remains pending, and neither path sends to the
+successor target. Replay performs its fact read before marking the record
+dispatched, so capability supersession cannot stamp a record whose transport
+never started. For an uncovered replay record, that same read runs under the
+authorization-dispatch lock immediately before any operation-identity range
+request; a peer negative therefore skips both range issuance and mutation
+transport.
 
 All mutation/replay POSTs, and all other effect-producing HTTP methods, use
 manual redirect handling. The JS client deliberately applies that posture
