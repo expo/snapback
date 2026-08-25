@@ -1,0 +1,65 @@
+{
+  "format": "snapback.graph-served-observations.g3-a.v1",
+  "version": 1,
+  "servingGate": {
+    "targetCapability": "graph_query_v1",
+    "killSwitchControl": "SNAPBACK_GRAPH_EXEC_DISABLED=1"
+  },
+  "measurementScope": {
+    "fixture": "normal-seed-v1",
+    "fixtureRuns": 1,
+    "memoShape": "root-first-page-empty-prior-window-ledgers",
+    "caveat": "N=1 deterministic normal-fixture shape evidence; no magnitude, variance, large-fixture, hot-fixture, or publication claim"
+  },
+  "normalServingGroupMeasurements": [
+    {
+      "format": "snapback.graph-g0-exit-observation.v1",
+      "fixture": "normal-seed-v1",
+      "graphPlanHash": "sha256:17d314bfadbb58edf5185df72d2e66cbe99571e1d6f97f784cbf746be9285f20",
+      "groupCount": 1,
+      "subscriberFanout": 1,
+      "groups": [
+        {
+          "groupOrdinal": 0,
+          "resultBytes": 436163,
+          "dependencyBytes": 2754464,
+          "groupStateBytes": 6296770
+        }
+      ],
+      "measurementSource": "served-retained-live-evaluation-memo"
+    },
+    {
+      "format": "snapback.graph-g0-exit-observation.v1",
+      "fixture": "normal-seed-v1",
+      "graphPlanHash": "sha256:25f4e4680f4c7eae9c675c2c06adcbf23cce5fdbdc16bcb0bf830986268a6dfb",
+      "groupCount": 1,
+      "subscriberFanout": 1,
+      "groups": [
+        {
+          "groupOrdinal": 0,
+          "resultBytes": 6479,
+          "dependencyBytes": 9647,
+          "groupStateBytes": 35534
+        }
+      ],
+      "measurementSource": "served-retained-live-evaluation-memo"
+    },
+    {
+      "format": "snapback.graph-g0-exit-observation.v1",
+      "fixture": "normal-seed-v1",
+      "graphPlanHash": "sha256:d4425b76b047783be76990f73e92087daf371b38bd6a935755be1a6801056a04",
+      "groupCount": 1,
+      "subscriberFanout": 1,
+      "groups": [
+        {
+          "groupOrdinal": 0,
+          "resultBytes": 20261,
+          "dependencyBytes": 16672,
+          "groupStateBytes": 64381
+        }
+      ],
+      "measurementSource": "served-retained-live-evaluation-memo"
+    }
+  ],
+  "contentDigest": "sha256:bb62ac4e6415adefe1bfe0fd2cb3a607a65f0d635092b009fcdcd942bd55c1a8"
+}

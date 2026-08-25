@@ -65779,7 +65779,7 @@
           "groupOrdinal": 0,
           "resultBytes": 436163,
           "dependencyBytes": 2754464,
-          "groupStateBytes": 3194719
+          "groupStateBytes": 3192038
         }
       ]
     },
@@ -65794,7 +65794,7 @@
           "groupOrdinal": 0,
           "resultBytes": 20261,
           "dependencyBytes": 16672,
-          "groupStateBytes": 41206
+          "groupStateBytes": 38512
         }
       ]
     },
@@ -65809,7 +65809,7 @@
           "groupOrdinal": 0,
           "resultBytes": 6479,
           "dependencyBytes": 9647,
-          "groupStateBytes": 20224
+          "groupStateBytes": 17488
         }
       ]
     }
@@ -148855,5 +148855,5 @@
     "large-seed42-v1",
     "hot-recent-v1"
   ],
-  "contentDigest": "sha256:34e9b39fd552f788c81188d4ac406f613ea9bf2e1f4315b42cd5ef4a1699afa2"
+  "contentDigest": "sha256:7607c12189050290374c2bef7ce6bebf61276f0ae354d488e3dd73348e1ea546"
 }

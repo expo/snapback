@@ -3687,45 +3687,52 @@ fn live_evaluation_memo_kill_switch_restores_one_execution_per_subscription() {
 
 #[test]
 fn live_evaluation_memo_estimator_matches_serialized_lengths() {
-    let invocation = QueryInvocation {
-        output: QueryOutput {
-            version: 42,
-            rows: vec![json!({
-                "id": "row-1",
-                "label": "escaped \"quote\" and snowman ☃",
-                "enabled": true,
-            })],
-            cursor: Some("cursor/with spaces".to_owned()),
-        },
-        read_dependencies: vec![CapturedReadDependency {
-            graph: None,
-            kind: CapturedReadKind::Query,
-            table: Some("items".to_owned()),
-            id: None,
-            version: Some(42),
-            predicate: Some(json!({ "field": "enabled", "eq": true })),
-            rows: vec!["row-1".to_owned()],
-            field: Some("label".to_owned()),
-            value: Some(json!("escaped \"quote\" and snowman ☃")),
-            order: Some(json!({ "field": "label", "direction": "asc" })),
-            limit: Some(10),
-            result_count: Some(1),
-            boundary: Some(json!({ "after": "row-0" })),
-        }],
-        graph_serving: None,
-    };
-    let serialized_bytes = serde_json::to_vec(&invocation.output)
-        .expect("representative query output serializes")
-        .len()
-        .saturating_add(
-            serde_json::to_vec(&invocation.read_dependencies)
-                .expect("representative read dependencies serialize")
-                .len(),
-        );
+    let snapback = graph_serving_fixture();
+    let invocation = snapback
+        .invoke_query_with_dependencies_from_source(
+            "graphIssues",
+            graph_serving_live_input("graph-estimator").input,
+            InvocationSource::LocalQuery,
+        )
+        .expect("representative graph-serving invocation");
+    let registration = invocation
+        .graph_serving
+        .as_ref()
+        .expect("graph invocation retains its serving registration");
+    let serialized_bytes = serialized_json_estimated_bytes(&invocation.output)
+        .saturating_add(serialized_json_estimated_bytes(
+            &invocation.read_dependencies,
+        ))
+        .saturating_add(registration.dependencies.retained_payload_estimated_bytes())
+        .saturating_add(serialized_json_estimated_bytes(&registration.matcher_input))
+        .saturating_add(serialized_json_estimated_bytes(
+            &registration.structural_work,
+        ))
+        .saturating_add(serialized_json_estimated_bytes(
+            &registration.window_ledgers,
+        ))
+        .saturating_add(serialized_json_estimated_bytes(
+            &registration.materialization,
+        ))
+        .saturating_add(serialized_json_estimated_bytes(&registration.partition))
+        .saturating_add(serialized_json_estimated_bytes(
+            &registration.authorization_version,
+        ))
+        .saturating_add(serialized_json_estimated_bytes(
+            &registration.evaluation_cut,
+        ))
+        .saturating_add(serialized_json_estimated_bytes(
+            &registration.memo_eligible_first_page,
+        ));
 
     assert_eq!(
         query_invocation_estimated_bytes(&invocation),
         serialized_bytes
+    );
+    assert!(
+        registration.dependencies.retained_payload_estimated_bytes()
+            >= serialized_json_estimated_bytes(&invocation.read_dependencies),
+        "the attested registration charges its second dependency-vector copy",
     );
 }
 

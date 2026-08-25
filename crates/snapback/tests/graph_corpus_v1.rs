@@ -50,6 +50,7 @@ const PAIRED_FIXTURES_FILE: &str = "tests/conformance/graph/paired-world-fixture
 const RUNTIME_CAPTURES_FILE: &str = "tests/conformance/graph/runtime-captures.g2-b.v1.json";
 const MATCH_DISPOSITIONS_FILE: &str = "tests/conformance/graph/match-dispositions.v1.json";
 const SERVED_OBSERVATIONS_FILE: &str = "tests/conformance/graph/served-observations.g2-c.v1.json";
+const MEMO_OBSERVATIONS_FILE: &str = "tests/conformance/graph/served-observations.g3-a.v1.json";
 const GRAPH_CORPUS_AUTHORIZATION_INCARNATION: &str = "01890f3c-9d5b-7000-8000-000000000001";
 const GRAPH_CORPUS_DATA_VERSION_STREAM: &str = "01890f3c-9d5b-7000-8000-000000000002";
 const GRAPH_CORPUS_AUTHORITY_TABLE: &str = "graphSchedulerAuthority";
@@ -1130,6 +1131,81 @@ fn graph_scheduler_memo_fixture(
     (snapback, name.clone(), call, authority, connection)
 }
 
+fn graph_scheduler_continuation_memo_fixture(
+    corpus: &Value,
+) -> (
+    LocalSnapback,
+    String,
+    Value,
+    GraphEvaluationAuthorityV1,
+    snapback::auth::invalidation::AuthorizationInvalidationConnection,
+) {
+    let case = corpus["cases"]
+        .as_array()
+        .expect("graph cases")
+        .iter()
+        .find(|case| case["caseKind"] == "authorityTransition")
+        .expect("authority scheduler case");
+    let call = case["invocations"]["before"].clone();
+    let authorization: snapback_types::storage::AuthorizationVersion =
+        serde_json::from_value(call["authorizationVersion"].clone())
+            .expect("continuation authorization version");
+    let mut snapback = graph_store(corpus, None);
+    snapback.declare_graph_query_v1_capability();
+    let mut carriers = served_graph_carriers(&snapback, corpus);
+    let carrier = carriers
+        .iter_mut()
+        .find(|(_, carrier, _)| carrier.plan_hash.as_str() == call["planHash"].as_str().unwrap())
+        .expect("continuation memo carrier");
+    let mut plan = serde_json::to_value(&carrier.1.normalized_plan).unwrap();
+    double_window_budget(&mut plan, "n0");
+    for field in [
+        "maxWindowPages",
+        "maxWindowRootRows",
+        "maxWindowScannedRows",
+        "maxWindowResultRows",
+        "maxWindowResultBytes",
+        "maxWindowIndexRanges",
+    ] {
+        let value = plan["queryCost"]["graph"]["windowRollup"][field]
+            .as_u64()
+            .unwrap_or_else(|| panic!("missing rollup {field}"));
+        plan["queryCost"]["graph"]["windowRollup"][field] =
+            json!(value.checked_mul(2).expect("test window rollup doubles"));
+    }
+    let plan: GraphQueryPlanV1 = serde_json::from_value(plan).unwrap();
+    let rebuilt = graph_plan_identity_v1(&plan).expect("continuation memo plan identity");
+    carrier.1 = rebuilt.clone();
+    carrier.2.runtime = FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(rebuilt));
+    let name = carrier.0.clone();
+    let diagnostics = snapback.load_functions(served_graph_manifest(corpus, &carriers));
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error),
+        "continuation memo graph manifest diagnostics: {diagnostics:?}",
+    );
+    let principal = call["partition"]["class3"]["principalDataScope"]["userId"]
+        .as_str()
+        .expect("continuation memo principal");
+    let authority = corpus_authority(corpus, principal);
+    snapback.install_graph_serving_authority_context_for_test(
+        &name,
+        GraphServingAuthorityContextV1 {
+            evaluation: authority.clone(),
+            class2: serde_json::from_value(call["partition"]["class2"].clone())
+                .expect("continuation memo class-2 inputs"),
+        },
+    );
+    let connection = configure_graph_corpus_scheduler(
+        &mut snapback,
+        authorization,
+        GRAPH_CORPUS_DATA_VERSION_STREAM,
+    )
+    .expect("configure graph continuation scheduler");
+    (snapback, name, call, authority, connection)
+}
+
 fn graph_scheduler_memo_input(
     call: &Value,
     authority: &GraphEvaluationAuthorityV1,
@@ -1481,6 +1557,9 @@ fn graph_scheduler_case_same_key_memoizes_one_turn_and_delivers_three() {
         N as u64,
         "delivery remains one scheduler turn per subscription",
     );
+    // `evaluationsExecuted` counts production-path turns only. Debug-build
+    // convergence oracles run an additional fresh evaluation per hit without
+    // incrementing this counter.
     assert_eq!(
         after.live_evaluation.evaluations_executed - before.live_evaluation.evaluations_executed,
         1,
@@ -1539,6 +1618,218 @@ fn graph_scheduler_case_same_key_memoizes_one_turn_and_delivers_three() {
     assert_eq!(
         entries[0]["authorityPartitionHash"],
         observation["partitionHash"]
+    );
+}
+
+#[test]
+fn graph_scheduler_case_continuation_and_first_page_preserve_each_ledger_lineage() {
+    let corpus = graph_corpus();
+    let (mut snapback, name, call, authority, connection) =
+        graph_scheduler_continuation_memo_fixture(&corpus);
+    let connection_id = "g3-a-window-lineages";
+    let first = subscribe_graph_corpus_case(
+        &mut snapback,
+        &name,
+        graph_scheduler_memo_input(&call, &authority, connection_id, 1, None),
+        connection.clone(),
+    )
+    .expect("subscribe first page before continuation");
+    let first_ledgers = snapback
+        .graph_serving_observation_for_test(&first.subscription_id)
+        .expect("first-page graph observation")["windowLedgers"]
+        .clone();
+    assert!(
+        first_ledgers
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|ledger| ledger["pages"] == 1)
+    );
+
+    let mut continuation_input =
+        graph_scheduler_memo_input(&call, &authority, connection_id, 1, None);
+    continuation_input.input.args[snapback_engine::graph_evaluator::GRAPH_SERVING_DEMAND_ARG]["priorWindowLedgers"] =
+        first_ledgers.clone();
+    continuation_input.supersedes = Some(first.subscription_id);
+    let continuation =
+        subscribe_graph_corpus_case(&mut snapback, &name, continuation_input, connection.clone())
+            .expect("advance the retained graph to its continuation");
+    let continuation_ledgers = snapback
+        .graph_serving_observation_for_test(&continuation.subscription_id)
+        .expect("continuation graph observation")["windowLedgers"]
+        .clone();
+    assert_eq!(
+        continuation_ledgers[0]["pages"], 2,
+        "the continued subscription advances its root ledger",
+    );
+
+    let before = snapback
+        .inspect_core()
+        .expect("inspect before lineage isolation");
+    assert!(
+        refresh_graph_corpus_scheduler(&mut snapback, Some(&continuation.subscription_id)).unwrap(),
+    );
+    assert!(
+        graph_corpus_memo_entries(&snapback)
+            .as_array()
+            .unwrap()
+            .is_empty(),
+        "a continuation evaluation must not seed the memo",
+    );
+
+    let sibling = subscribe_graph_corpus_case(
+        &mut snapback,
+        &name,
+        graph_scheduler_memo_input(&call, &authority, connection_id, 2, None),
+        connection,
+    )
+    .expect("subscribe same-key first-page sibling");
+    let sibling_first_ledgers = snapback
+        .graph_serving_observation_for_test(&sibling.subscription_id)
+        .expect("sibling first-page observation")["windowLedgers"]
+        .clone();
+    assert!(refresh_graph_corpus_scheduler(&mut snapback, Some(&sibling.subscription_id)).unwrap(),);
+    assert!(
+        refresh_graph_corpus_scheduler(&mut snapback, Some(&continuation.subscription_id)).unwrap(),
+    );
+
+    let after = snapback
+        .inspect_core()
+        .expect("inspect after lineage isolation");
+    assert_eq!(
+        after.live_evaluation.evaluations_executed - before.live_evaluation.evaluations_executed,
+        3,
+        "both continuation turns and the sibling first page evaluate fresh",
+    );
+    assert_eq!(
+        after.live_evaluation.memo_misses - before.live_evaluation.memo_misses,
+        1,
+        "only the memo-eligible first-page sibling constructs a miss",
+    );
+    assert_eq!(
+        after.live_evaluation.memo_hits - before.live_evaluation.memo_hits,
+        0
+    );
+    assert_eq!(
+        snapback
+            .graph_serving_observation_for_test(&continuation.subscription_id)
+            .expect("continued subscription remains retained")["windowLedgers"],
+        continuation_ledgers,
+        "the continued subscription preserves its own cumulative ledger",
+    );
+    assert_eq!(
+        snapback
+            .graph_serving_observation_for_test(&sibling.subscription_id)
+            .expect("sibling subscription remains retained")["windowLedgers"],
+        sibling_first_ledgers,
+        "the sibling preserves its independent first-page ledger",
+    );
+    let entries = graph_corpus_memo_entries(&snapback);
+    assert_eq!(entries.as_array().unwrap().len(), 1);
+    assert_eq!(entries[0]["holders"], json!([sibling.subscription_id]));
+}
+
+#[test]
+fn graph_scheduler_case_authority_context_replacement_retires_same_partition_memo() {
+    let corpus = graph_corpus();
+    let (mut snapback, name, call, authority_a, connection) = graph_scheduler_memo_fixture(&corpus);
+    let connection_id = "g3-a-authority-context-replacement";
+    let subscription = subscribe_graph_corpus_case(
+        &mut snapback,
+        &name,
+        graph_scheduler_memo_input(&call, &authority_a, connection_id, 1, None),
+        connection,
+    )
+    .expect("subscribe authority-context graph");
+    let rows_a = subscription
+        .snapshot
+        .as_ref()
+        .expect("authority A initial snapshot")
+        .rows
+        .clone();
+    let partition_a = snapback
+        .graph_serving_observation_for_test(&subscription.subscription_id)
+        .expect("authority A graph observation")["partitionHash"]
+        .clone();
+    assert!(
+        refresh_graph_corpus_scheduler(&mut snapback, Some(&subscription.subscription_id)).unwrap(),
+    );
+    assert_eq!(
+        graph_corpus_memo_entries(&snapback)
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    let _ = drain_graph_scheduler_snapshots(&mut snapback, connection_id);
+    let before = snapback
+        .inspect_core()
+        .expect("inspect before authority-context replacement");
+
+    let mut authority_b = authority_a;
+    for declaration in ["issue", "issueListRead"] {
+        authority_b
+            .permission_values_by_table
+            .get_mut(declaration)
+            .unwrap_or_else(|| panic!("authority context carries {declaration}"))
+            .allowed_values = vec![json!("internal"), json!("public")];
+    }
+    let unchanged_class2 = serde_json::from_value(call["partition"]["class2"].clone())
+        .expect("unchanged class-2 inputs");
+    snapback.install_graph_serving_authority_context_for_test(
+        &name,
+        GraphServingAuthorityContextV1 {
+            evaluation: authority_b,
+            class2: unchanged_class2,
+        },
+    );
+    assert!(
+        graph_corpus_memo_entries(&snapback)
+            .as_array()
+            .unwrap()
+            .is_empty(),
+        "context replacement retires the authority-A entry immediately",
+    );
+
+    assert!(
+        refresh_graph_corpus_scheduler(&mut snapback, Some(&subscription.subscription_id)).unwrap(),
+    );
+    let after = snapback
+        .inspect_core()
+        .expect("inspect after authority-context replacement");
+    assert_eq!(
+        after.live_evaluation.evaluations_executed - before.live_evaluation.evaluations_executed,
+        1,
+    );
+    assert_eq!(
+        after.live_evaluation.memo_misses - before.live_evaluation.memo_misses,
+        1,
+    );
+    assert_eq!(
+        after.live_evaluation.memo_hits - before.live_evaluation.memo_hits,
+        0
+    );
+    assert!(
+        after.live_evaluation.memo_retirements > before.live_evaluation.memo_retirements,
+        "installing authority B records retirement of authority A",
+    );
+    let snapshots = drain_graph_scheduler_snapshots(&mut snapback, connection_id);
+    assert_eq!(snapshots.len(), 1);
+    let rows_b = snapshots[0]["snapshot"]["rows"]
+        .as_array()
+        .expect("authority B rows")
+        .clone();
+    assert_ne!(
+        rows_b, rows_a,
+        "changed permission values change the served rows"
+    );
+    assert!(!rows_b.is_empty(), "authority B admits the internal issue");
+    assert_eq!(
+        snapback
+            .graph_serving_observation_for_test(&subscription.subscription_id)
+            .expect("authority B graph observation")["partitionHash"],
+        partition_a,
+        "byte-identical class-2 inputs keep the partition identity unchanged",
     );
 }
 
@@ -1837,12 +2128,127 @@ fn graph_scheduler_case_tiny_budget_evicts_oldest_and_reevaluates() {
     assert_ne!(delivered[0], delivered[1]);
 }
 
+#[test]
+fn graph_scheduler_case_tiny_byte_budget_evicts_and_refuses_oversize_results() {
+    let corpus = graph_corpus();
+    let (mut snapback, name, call, authority, connection) = graph_scheduler_memo_fixture(&corpus);
+    let connection_id = "g3-a-byte-eviction";
+    let subscriptions = (0..3)
+        .map(|ordinal| {
+            subscribe_graph_corpus_case(
+                &mut snapback,
+                &name,
+                graph_scheduler_memo_input(&call, &authority, connection_id, ordinal + 1, None),
+                connection.clone(),
+            )
+            .expect("subscribe byte-eviction graph observer")
+            .subscription_id
+        })
+        .collect::<Vec<_>>();
+    assert!(refresh_graph_corpus_scheduler(&mut snapback, Some(&subscriptions[0])).unwrap());
+    let seeded = graph_corpus_memo_entries(&snapback);
+    let one_entry_bytes = seeded[0]["estimatedBytes"]
+        .as_u64()
+        .expect("graph entry exposes its complete byte charge") as usize;
+    assert!(one_entry_bytes > 0);
+    set_graph_corpus_memo_limits(&mut snapback, usize::MAX, one_entry_bytes);
+    let before = snapback
+        .inspect_core()
+        .expect("inspect before graph byte eviction");
+
+    assert!(refresh_graph_corpus_scheduler(&mut snapback, Some(&subscriptions[1])).unwrap());
+    assert!(
+        graph_corpus_memo_entries(&snapback)
+            .as_array()
+            .unwrap()
+            .is_empty(),
+        "adding a second holder crosses the byte budget and evicts the entry",
+    );
+    assert!(refresh_graph_corpus_scheduler(&mut snapback, Some(&subscriptions[2])).unwrap());
+
+    let after = snapback
+        .inspect_core()
+        .expect("inspect after graph byte eviction");
+    assert_eq!(
+        after.live_evaluation.evaluations_executed - before.live_evaluation.evaluations_executed,
+        1,
+    );
+    assert_eq!(
+        after.live_evaluation.memo_hits - before.live_evaluation.memo_hits,
+        1
+    );
+    assert_eq!(
+        after.live_evaluation.memo_misses - before.live_evaluation.memo_misses,
+        1
+    );
+    assert!(after.live_evaluation.memo_evictions > before.live_evaluation.memo_evictions);
+    assert_eq!(
+        graph_corpus_memo_entries(&snapback)[0]["holders"],
+        json!([subscriptions[2].clone()]),
+    );
+
+    let (mut oversize, name, call, authority, connection) = graph_scheduler_memo_fixture(&corpus);
+    let oversize_connection_id = "g3-a-byte-oversize";
+    let oversize_subscriptions = (0..2)
+        .map(|ordinal| {
+            subscribe_graph_corpus_case(
+                &mut oversize,
+                &name,
+                graph_scheduler_memo_input(
+                    &call,
+                    &authority,
+                    oversize_connection_id,
+                    ordinal + 1,
+                    None,
+                ),
+                connection.clone(),
+            )
+            .expect("subscribe oversize graph observer")
+            .subscription_id
+        })
+        .collect::<Vec<_>>();
+    set_graph_corpus_memo_limits(&mut oversize, usize::MAX, 1);
+    let before = oversize
+        .inspect_core()
+        .expect("inspect before graph oversize refusals");
+    for subscription_id in &oversize_subscriptions {
+        assert!(refresh_graph_corpus_scheduler(&mut oversize, Some(subscription_id)).unwrap());
+    }
+    let after = oversize
+        .inspect_core()
+        .expect("inspect after graph oversize refusals");
+    assert_eq!(
+        after.live_evaluation.evaluations_executed - before.live_evaluation.evaluations_executed,
+        2,
+    );
+    assert_eq!(
+        after.live_evaluation.memo_hits - before.live_evaluation.memo_hits,
+        0
+    );
+    assert_eq!(
+        after.live_evaluation.memo_misses - before.live_evaluation.memo_misses,
+        2
+    );
+    assert_eq!(
+        after.live_evaluation.memo_oversize_refusals
+            - before.live_evaluation.memo_oversize_refusals,
+        2,
+    );
+    assert!(
+        graph_corpus_memo_entries(&oversize)
+            .as_array()
+            .unwrap()
+            .is_empty(),
+        "oversize graph entries are refused before retention",
+    );
+}
+
 /// Establish all three normal-fixture corpus graphs through the same
 /// admitted function-manifest, live-subscription, evaluator, and attested
 /// registration path used by serving. The frozen commit shapes are then
 /// replayed against those served registrations without publishing synthetic
 /// deliveries, keeping D2-H2 measurement separate from scheduler effects.
-fn served_graph_execution_artifacts(corpus: &Value) -> (Value, Value) {
+fn served_graph_execution_artifacts(corpus: &Value) -> (Value, Value, Value) {
     let mut snapback = graph_store(corpus, None);
     snapback.declare_graph_query_v1_capability();
 
@@ -1968,7 +2374,7 @@ fn served_graph_execution_artifacts(corpus: &Value) -> (Value, Value) {
         subscriptions.push((name.clone(), carrier.clone(), established.subscription_id));
     }
 
-    let mut normal_group_measurements = measure_graph_serving_groups(&mut snapback)
+    let mut memo_group_measurements = measure_graph_serving_groups(&mut snapback)
         .expect("measure actual normal-fixture serving groups")
         .as_array()
         .expect("serving group measurement array")
@@ -1999,17 +2405,38 @@ fn served_graph_execution_artifacts(corpus: &Value) -> (Value, Value) {
             })
         })
         .collect::<Vec<_>>();
+    memo_group_measurements.sort_by(|left, right| {
+        left["graphPlanHash"]
+            .as_str()
+            .cmp(&right["graphPlanHash"].as_str())
+    });
+    assert_eq!(memo_group_measurements.len(), 3);
+    for measurement in &memo_group_measurements {
+        assert_eq!(measurement["groupCount"], 1);
+        assert_eq!(measurement["subscriberFanout"], 1);
+        assert_eq!(measurement["groups"].as_array().unwrap().len(), 1);
+    }
+    let mut normal_group_measurements = corpus["g0ExitObservations"]
+        .as_array()
+        .expect("sealed G2-C group observations")
+        .iter()
+        .cloned()
+        .map(|mut measurement| {
+            measurement
+                .as_object_mut()
+                .expect("G2-C group observation object")
+                .insert(
+                    "measurementSource".to_owned(),
+                    json!("served-retained-live-evaluation-memo"),
+                );
+            measurement
+        })
+        .collect::<Vec<_>>();
     normal_group_measurements.sort_by(|left, right| {
         left["graphPlanHash"]
             .as_str()
             .cmp(&right["graphPlanHash"].as_str())
     });
-    assert_eq!(normal_group_measurements.len(), 3);
-    for measurement in &normal_group_measurements {
-        assert_eq!(measurement["groupCount"], 1);
-        assert_eq!(measurement["subscriberFanout"], 1);
-        assert_eq!(measurement["groups"].as_array().unwrap().len(), 1);
-    }
 
     let scheduler_cases = corpus["cases"]
         .as_array()
@@ -2113,6 +2540,21 @@ fn served_graph_execution_artifacts(corpus: &Value) -> (Value, Value) {
             },
             "replays":replays,
             "summary":summary,
+        })),
+        content_digest(json!({
+            "format":"snapback.graph-served-observations.g3-a.v1",
+            "version":1,
+            "servingGate":{
+                "targetCapability":"graph_query_v1",
+                "killSwitchControl":"SNAPBACK_GRAPH_EXEC_DISABLED=1",
+            },
+            "measurementScope":{
+                "fixture":"normal-seed-v1",
+                "fixtureRuns":1,
+                "memoShape":"root-first-page-empty-prior-window-ledgers",
+                "caveat":"N=1 deterministic normal-fixture shape evidence; no magnitude, variance, large-fixture, hot-fixture, or publication claim",
+            },
+            "normalServingGroupMeasurements":memo_group_measurements,
         })),
     )
 }
@@ -4998,17 +5440,24 @@ fn graph_runtime_captures_register_and_match_replays_are_frozen() {
 /// a live subscription, evaluates and registers its captures, and finally
 /// consumes the frozen commit-shape replay through that served registration.
 ///
-/// Run with `SNAPBACK_FREEZE_GRAPH_G2_C=1` to re-freeze the two measurement
-/// artifacts after inspecting the generated diff. A normal run is read-only.
+/// Run with `SNAPBACK_FREEZE_GRAPH_G2_C=1` to re-freeze the two sealed G2-C
+/// artifacts or `SNAPBACK_FREEZE_GRAPH_G3_A=1` to re-freeze the memo-era
+/// group-state artifact after inspecting the generated diff. A normal run is
+/// read-only.
 ///
 /// @ref LLP 0209#9-sequencing-and-measurement-what-lands-first-and-how-it-is-measured — G2-C discharges serving, structural-work,
 /// and D2-H2 evidence without changing the opaque default path.
 #[test]
 fn graph_served_corpus_executes_and_records_structural_work_and_d2_h2() {
-    let (observations, dispositions) = served_graph_execution_artifacts(&graph_corpus());
+    let (observations, dispositions, memo_observations) =
+        served_graph_execution_artifacts(&graph_corpus());
     if std::env::var_os("SNAPBACK_FREEZE_GRAPH_G2_C").is_some() {
         write_frozen_json(SERVED_OBSERVATIONS_FILE, &observations);
         write_frozen_json(MATCH_DISPOSITIONS_FILE, &dispositions);
+        return;
+    }
+    if std::env::var_os("SNAPBACK_FREEZE_GRAPH_G3_A").is_some() {
+        write_frozen_json(MEMO_OBSERVATIONS_FILE, &memo_observations);
         return;
     }
     assert_eq!(
@@ -5020,6 +5469,11 @@ fn graph_served_corpus_executes_and_records_structural_work_and_d2_h2() {
         load_json(MATCH_DISPOSITIONS_FILE),
         dispositions,
         "served matcher disposition ledger is stale",
+    );
+    assert_eq!(
+        load_json(MEMO_OBSERVATIONS_FILE),
+        memo_observations,
+        "served graph memo observation artifact is stale",
     );
 }
 

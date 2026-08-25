@@ -4737,6 +4737,7 @@ struct GraphServingRegistration {
     partition: crate::manifest::GraphAuthorityPartitionIdentityV1,
     authorization_version: crate::storage::AuthorizationVersion,
     evaluation_cut: crate::manifest::GraphEvaluationCutV1,
+    memo_eligible_first_page: bool,
 }
 
 impl QueryInvocation {
@@ -4770,10 +4771,43 @@ fn serialized_json_estimated_bytes(value: &impl Serialize) -> usize {
     serde_json::to_writer(&mut counter, value).map_or(usize::MAX, |()| counter.bytes)
 }
 
+fn graph_serving_registration_estimated_bytes(registration: &GraphServingRegistration) -> usize {
+    registration
+        .dependencies
+        .retained_payload_estimated_bytes()
+        .saturating_add(serialized_json_estimated_bytes(&registration.matcher_input))
+        .saturating_add(serialized_json_estimated_bytes(
+            &registration.structural_work,
+        ))
+        .saturating_add(serialized_json_estimated_bytes(
+            &registration.window_ledgers,
+        ))
+        .saturating_add(serialized_json_estimated_bytes(
+            &registration.materialization,
+        ))
+        .saturating_add(serialized_json_estimated_bytes(&registration.partition))
+        .saturating_add(serialized_json_estimated_bytes(
+            &registration.authorization_version,
+        ))
+        .saturating_add(serialized_json_estimated_bytes(
+            &registration.evaluation_cut,
+        ))
+        .saturating_add(serialized_json_estimated_bytes(
+            &registration.memo_eligible_first_page,
+        ))
+}
+
 fn query_invocation_estimated_bytes(invocation: &QueryInvocation) -> usize {
-    serialized_json_estimated_bytes(&invocation.output).saturating_add(
-        serialized_json_estimated_bytes(&invocation.read_dependencies),
-    )
+    serialized_json_estimated_bytes(&invocation.output)
+        .saturating_add(serialized_json_estimated_bytes(
+            &invocation.read_dependencies,
+        ))
+        .saturating_add(
+            invocation
+                .graph_serving
+                .as_ref()
+                .map_or(0, graph_serving_registration_estimated_bytes),
+        )
 }
 
 /// First phase of an authorized retained snapshot. It crosses the app-lock
@@ -8415,6 +8449,13 @@ impl LocalSnapback {
         let FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier)) = &function.runtime else {
             return None;
         };
+        if !subscription
+            .graph_serving
+            .as_ref()
+            .is_some_and(|registration| registration.memo_eligible_first_page)
+        {
+            return None;
+        }
         if !self.graph_query_v1_target_declared.load(Ordering::Acquire) {
             return None;
         }
@@ -8424,6 +8465,9 @@ impl LocalSnapback {
             .ok()?;
         let input = prepared.canonicalize_input(subscription.input.clone());
         let (input, demand) = graph_serving_demand(input).ok()?;
+        if !graph_demand_is_root_first_page(&carrier.normalized_plan, &demand) {
+            return None;
+        }
         crate::args_contract::validate_function_args(function, &input.args).ok()?;
         let cut_version = self.current_live_evaluation.as_ref()?.cut_version;
         let db = DbRead::Live(&self.db);
@@ -8469,7 +8513,8 @@ impl LocalSnapback {
         result: &QueryInvocation,
     ) -> Option<GraphLiveEvaluationMemoKey> {
         let graph = result.graph_serving.as_ref()?;
-        if result.output.version != graph.evaluation_cut.0
+        if !graph.memo_eligible_first_page
+            || result.output.version != graph.evaluation_cut.0
             || graph.dependencies.materialization_hash()
                 != &graph.materialization.materialization_hash
             || graph.dependencies.partition_hash() != &graph.partition.partition_hash
@@ -8513,6 +8558,10 @@ impl LocalSnapback {
             fresh_graph.authorization_version
         );
         debug_assert_eq!(cached_graph.evaluation_cut, fresh_graph.evaluation_cut);
+        debug_assert_eq!(
+            cached_graph.memo_eligible_first_page,
+            fresh_graph.memo_eligible_first_page
+        );
         debug_assert_eq!(cached_graph.structural_work, fresh_graph.structural_work);
         debug_assert_eq!(cached_graph.window_ledgers, fresh_graph.window_ledgers);
         debug_assert_eq!(
@@ -12487,7 +12536,7 @@ impl LocalSnapback {
 
     #[cfg(any(test, feature = "test-support"))]
     pub fn install_graph_serving_authority_context_for_test(
-        &self,
+        &mut self,
         function: impl Into<String>,
         context: GraphServingAuthorityContextV1,
     ) {
@@ -12495,6 +12544,14 @@ impl LocalSnapback {
             .write()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .insert(function.into(), context);
+        // The evaluation context contains authority inputs that are not part
+        // of the graph partition key. Replacing it is therefore an authority
+        // change and retires every graph memo holder before another lookup.
+        let retirements = self
+            .pending_live_fanout
+            .evaluation_memo
+            .retire_graph_entries();
+        self.record_live_evaluation_memo_retirements(retirements);
     }
 
     /// Reconstruct the installed-schema-owned result contract used by graph
@@ -12811,6 +12868,12 @@ impl LocalSnapback {
                 ));
             }
             let frame_version = self.db.versions_read().current_version()?;
+            let runtime_plan_identity = self
+                .subscriptions
+                .get(subscription_id)
+                .and_then(|subscription| self.functions.function(&subscription.function))
+                .and_then(|function| runtime_cost_plan_identity(function, self.db.schema()));
+            let runtime_wave_seq = self.runtime_cost.reserve_wave_seq();
             self.push_pending_live_fanout(
                 subscription_id.to_owned(),
                 PendingLiveFanout {
@@ -12820,6 +12883,12 @@ impl LocalSnapback {
                     force_replace: true,
                     frames: 1,
                     coverage_through: frame_version,
+                    covered_versions: None,
+                    rerun_cause: LiveRerunCauseV1::Refresh,
+                    coalesced: true,
+                    reclassifies_as_refresh: true,
+                    runtime_wave_seq,
+                    runtime_plan_identity,
                     first_deferred_at: Instant::now(),
                     trace_commit_versions: Vec::new(),
                     trace_queued_ms: crate::spike_trace::timestamp_ms(),
@@ -12866,6 +12935,7 @@ impl LocalSnapback {
                         "evaluationCut":key.evaluation_cut,
                         "function":key.function,
                         "holders":entry.holders,
+                        "estimatedBytes":entry.estimated_bytes,
                     }))
                 })
                 .collect(),
@@ -30812,6 +30882,10 @@ impl LocalSnapback {
         if !control.begin_publication() {
             return Ok(());
         }
+        // A permission resync clears the client's retained result. Retire any
+        // memo holder at the same boundary so a future graph dependency kind
+        // cannot leave reusable bytes behind on this defensive lane.
+        self.retire_live_evaluation_memo_subscription(subscription_id);
         let payload = serde_json::to_vec(&LiveEnvelope::ResyncRequired {
             network_profile: None,
             reason: "permission_epoch_changed".to_owned(),
@@ -40306,6 +40380,17 @@ fn graph_serving_demand(
     Ok((input, demand))
 }
 
+fn graph_demand_is_root_first_page(
+    plan: &crate::manifest::GraphQueryPlanV1,
+    demand: &crate::graph_evaluator::GraphServingDemandV1,
+) -> bool {
+    demand.prior_window_ledgers.is_empty()
+        && plan.nodes.first().is_some_and(|node| {
+            matches!(node, crate::manifest::GraphNodeV1::RootWindow { .. })
+                && node.node_id() == demand.advanced_node_id
+        })
+}
+
 fn graph_matcher_input(
     plan: &crate::manifest::GraphQueryPlanV1,
     input: &HandlerInput,
@@ -41751,6 +41836,11 @@ fn execute_query_invocation(
             // attests its captures, and hands the registration to the existing
             // live turn/frame machinery.
             let demand = graph_demand.as_ref().expect("graph arm parsed its demand");
+            // @ref LLP 0209#6 — graph sharing is deliberately restricted to
+            // the same-first-page fanout shape. Continuations keep their
+            // per-subscription ledger lineages and never seed a shared entry.
+            let memo_eligible_first_page =
+                graph_demand_is_root_first_page(&carrier.normalized_plan, demand);
             let cursor_authority = cursor_authority.ok_or_else(|| {
                 graph_serving_error(
                     "SNAPBACK_GRAPH_MATERIALIZATION_INVALID",
@@ -41866,6 +41956,7 @@ fn execute_query_invocation(
                     partition,
                     authorization_version: request.authorization_version,
                     evaluation_cut: request.evaluation_cut,
+                    memo_eligible_first_page,
                 }),
             })
         }

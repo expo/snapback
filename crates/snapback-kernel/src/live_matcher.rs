@@ -163,6 +163,45 @@ impl RegisteredGraphSubscriptionDependenciesV1 {
     pub fn partition_hash(&self) -> &Sha256V1 {
         &self.partition_hash
     }
+
+    /// Estimated bytes for the complete retained registration payload. The
+    /// registration owns its own read and attachment vectors in addition to
+    /// the evaluator-facing copies retained by the engine, so both copies
+    /// must participate in the memo's byte budget.
+    pub fn retained_payload_estimated_bytes(&self) -> usize {
+        #[derive(Default)]
+        struct ByteCounter {
+            bytes: usize,
+        }
+
+        impl std::io::Write for ByteCounter {
+            fn write(&mut self, buffer: &[u8]) -> std::io::Result<usize> {
+                self.bytes = self.bytes.saturating_add(buffer.len());
+                Ok(buffer.len())
+            }
+
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+
+        let mut counter = ByteCounter::default();
+        serde_json::to_writer(
+            &mut counter,
+            &(
+                &self.graph_plan_hash,
+                &self.instance_hash,
+                &self.materialization_hash,
+                &self.partition_hash,
+                &self.normalized_node_ids,
+                &self.per_node_capture_cardinalities,
+                &self.parent_key_closure,
+                &self.reads,
+                &self.attachments,
+            ),
+        )
+        .map_or(usize::MAX, |()| counter.bytes)
+    }
 }
 
 struct GraphRegistrationFact<'a> {
