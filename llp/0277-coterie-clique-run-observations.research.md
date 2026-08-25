@@ -8,6 +8,9 @@ Memberships, Code generation, Runtime, Client integration, Exact/Contract
 integration, Diagnostics, Guide, Testing
 **Author:** Claude (Fable 5) / Charlie Cheever
 **Date:** 2026-08-17
+**Revised:** 2026-08-25 (Coterie's final M3 typing recovery round closes
+pre-listener continuity replay and terminal publisher reuse, and adds
+executable expiry, survivor-witness, and destructive-reset discriminators)
 **Revised:** 2026-08-24 (F8 design routing moves from LLP 0269's storage Plan
 to dedicated Review LLP 0305 under LLP 0044; implementation and the Coterie
 evidence rerun remain open)
@@ -274,6 +277,18 @@ adoption closed on 2026-08-24: its schema now separates a canonical current
 `membership()` relation from incarnation history, and M3 typing uses that
 relation for both `allow.members` directions
 (`issues/closed/20260817-coterie-typing-allow-members-adoption.md`).
+
+The 2026-08-25 scope-disciplined recovery follow-up closes two client edges
+found by the final dual-family review. Buffered `needs_resync`,
+`authority_changed`, and `authority_missing` states are level-triggered to a
+listener attached after `subscribeEphemeral` returns, so Coterie's
+generation-fenced observer always starts a successor. A terminal cached typing
+publisher is retired both when its terminal event arrives and before reuse;
+after a removed member is re-added, `setTyping` creates a fresh authorized
+publisher while the removed observer generation stays closed. Executable
+guards now distinguish monotonic expiry from a backward wall-clock mutant,
+reject stale-index/key/room survivor-witness mutants, and require explicit
+destructive-reset confirmation before the M3 installer sends any request.
 
 ### F6. Authorization census blind spot for helper-mediated writes — historical, now closed
 

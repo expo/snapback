@@ -297,6 +297,23 @@ test('sendMessage returns its committed result when post-commit typing withdrawa
   expect(withdrawalCalls).toBe(1);
 });
 
+test('typing expiry remains monotonic across a backward wall-clock jump', () => {
+  const originalNow = Date.now;
+  const wallDeadline = originalNow() + 5_000;
+  try {
+    Date.now = () => wallDeadline - 65_000;
+    const legacyWallDelay = wallDeadline - Date.now();
+    const monotonicDelay = coterieSnapbackTestInternals.typingExpiryDelay({
+      msUntilEarliestExpiry: () => 4_750,
+    });
+    expect(legacyWallDelay).toBe(65_000);
+    expect(monotonicDelay).toBe(4_750);
+    expect(monotonicDelay).not.toBe(legacyWallDelay);
+  } finally {
+    Date.now = originalNow;
+  }
+});
+
 test('createPost validation preserves the frozen media vocabulary', () => {
   expect(coterieSnapbackTestInternals.normalizedCreatePostInput({
     body: '  hello  ',

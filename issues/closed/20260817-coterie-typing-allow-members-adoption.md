@@ -64,6 +64,21 @@ lease on send/leave/auth loss, and reuses login/profile-stream identity on the
 latency-critical publish path. The shared provider proof's two former
 `skipped-by-claim` typing steps are required green steps.
 
+The final 2026-08-25 recovery review also closes the two late-generation
+edges. The headless overlay retains and synchronously replays buffered
+`needs_resync`, `authority_changed`, and `authority_missing` results to the
+first late listener. Coterie's cached publisher retires on `terminal_error`
+and refuses to reuse any terminal overlay; the adapter integration removes
+Carol, re-adds her, proves a successor `setTyping({ active: true })`, and keeps
+the removed observer generation silent. The M3 installer now refuses before
+network work unless its caller explicitly confirms the destructive reset, so
+the reset/reseed adoption boundary is executable rather than documentary.
+
+Non-vacuity is pinned separately: the expiry unit moves wall time backward and
+distinguishes the monotonic delay from `expiresAtMs - Date.now()`, while the M5
+acceptance witness rejects pre-publication-index, wrong-key, and wrong-room
+mutants before accepting the fresh survivor `Upsert`.
+
 Coterie's backend acceptance carries anonymous, authenticated non-member, and
 former-member observer and writer denials. Existing incarnation churn,
 receipt, unread/rejoin, quote/privacy, message-envelope, and chat-envelope
@@ -85,5 +100,31 @@ Verification:
 - Coterie Snapback adapter unit tests — 15/15, 179 assertions
 - Coterie Snapback codegen — 13 tables, 39 operations, one ephemeral collection
 - `./ref-check --verbose`
+
+Final recovery verification (2026-08-25):
+
+- rebuilt and freshly handler-VM-qualified the explicitly requested
+  `/Users/ccheever/projects/snapback/target/debug/snapback` at clean commit
+  `e5fb30577ad7770d4279ec3c26177745b98da470`
+- the single Coterie M3 backend acceptance run passed 16/16, including the
+  executable reset/reseed guard and M5 negative mutants
+- the combined adapter integration/unit run passed the pre-listener recovery,
+  Carol removal/re-add successor publisher, removed-generation silence, M2
+  live proof, and formal M1/M2/M3 conformance; Bun recorded 16 unit tests green
+  and 283 assertions before the same unrelated post-conformance `listProfiles`
+  delivery timeout. The fresh binary rules out the old stamp as the complete
+  explanation, but the failing `attachMyAvatar` path remains profile-only and
+  outside this typing/membership landing; profile behavior is unchanged
+- headless hosted-ephemeral recovery passed; the standalone Coterie adapter
+  unit suite passed 16/16 with 182 assertions, including the backward-clock
+  discriminator
+- diagnostics, symbol, and guide-manifest generator checks passed;
+  `check-inventories` passed. `check-guide` passed its diagnostics, symbols,
+  manifest, flat projections, corpus, links, and 15 other gates, with only the
+  inherited benchmark raw-asset-accessor gate red
+- `ref-check` passed with 0 errors; the full seven-file Exact v8 declaration
+  and generated product set is byte-identical to `origin/main`
+- the Coterie TypeScript check reached only the inherited external Exact
+  `shape-validation.ts:67` missing-return error
 
 Landing SHA: TBD

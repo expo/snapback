@@ -422,7 +422,11 @@ integrationTest(
         startupArtifacts: carrier,
         serverBinary: stagedRuntime,
       });
-      await installM3Fixtures({ baseUrl: server.baseUrl, runId: 'provider-integration' });
+      await installM3Fixtures({
+        baseUrl: server.baseUrl,
+        runId: 'provider-integration',
+        destructiveResetConfirmed: true,
+      });
 
       const clientA = provider();
       const clientB = provider();
@@ -855,6 +859,34 @@ integrationTest(
       await clientAM3Chats.next((rows) => rows.some((chat) => (
         chat.id === mappedGroup.chatId && !chat.memberIds.includes('carol')
       )));
+      const carolReaddedTypingVisible = aliceMappedTyping.nextFuture((rows) => (
+        rows.some((row) => row.userId === 'carol')
+      )).catch((error) => {
+        throw new Error('timed out waiting for re-added Carol typing', { cause: error });
+      });
+      mutationValue(
+        await clientA.mutate('addMember', {
+          chatId: mappedGroup.chatId,
+          userId: 'carol',
+        }),
+        're-add Carol after terminal typing removal',
+      );
+      await clientAM3Chats.next((rows) => rows.some((chat) => (
+        chat.id === mappedGroup.chatId && chat.memberIds.includes('carol')
+      )));
+      mutationValue(
+        await clientM3Carol.mutate('setTyping', {
+          chatId: mappedGroup.chatId,
+          active: true,
+        }),
+        're-added Carol uses a successor typing publisher',
+      );
+      expect(await carolReaddedTypingVisible).toContainEqual(expect.objectContaining({
+        chatId: mappedGroup.chatId,
+        userId: 'carol',
+      }));
+      expect(removedTypingCapture.frames).toHaveLength(carolTerminalFrameCount);
+      expect(carolMappedTyping.cells).toHaveLength(carolTerminalCellCount);
       mutationValue(
         await clientM3B.mutate('leaveChat', { chatId: mappedGroup.chatId }),
         'leaveChat operation matrix',

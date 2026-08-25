@@ -332,6 +332,7 @@ interface TypingPublisher {
   connectionId: string;
   conversationId: GeneratedDataModel['conversations']['_id'];
   overlay: EphemeralOverlay<{ conversationId: string }, BackendTypingValue>;
+  offChange: () => void;
 }
 
 interface FeedCursorPayload {
@@ -769,6 +770,12 @@ function validateLoginInput(args: Record<string, unknown>): { email: string; pas
   return { email, password };
 }
 
+function typingExpiryDelay(
+  overlay: Pick<TypingOverlay, 'msUntilEarliestExpiry'>,
+): number {
+  return overlay.msUntilEarliestExpiry();
+}
+
 function validatePassword(value: unknown): string {
   const password = String(value ?? '');
   if ([...password].length < 8) {
@@ -1172,6 +1179,7 @@ export const coterieSnapbackTestInternals = Object.freeze({
   setRepostThroughBackend,
   sniffPostMediaType,
   sniffAvatarMediaType,
+  typingExpiryDelay,
   validateLoginInput,
 });
 
@@ -2384,7 +2392,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
       if (!currentOverlay || !active || terminal || expectedGeneration !== generation) return;
       // @ref LLP 0013#ttl-and-leases — server wall-clock deadlines are
       // translated by the overlay into a client-local monotonic delay.
-      const delayMs = currentOverlay.msUntilEarliestExpiry();
+      const delayMs = typingExpiryDelay(currentOverlay);
       if (!Number.isFinite(delayMs)) return;
       expiryTimer = setTimeout(() => {
         expiryTimer = null;
@@ -2923,7 +2931,10 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
   ): Promise<TypingPublisher> {
     const key = String(conversationId);
     const existing = this.#typingPublishers.get(key);
-    if (existing) return existing;
+    if (existing) {
+      if (existing.overlay.terminalDiagnostic === null) return existing;
+      await this.#retireTypingPublisher(conversationId);
+    }
     const connectionId = `${this.#instanceId}-typing-publish-${++this.#typingConnectionSequence}`;
     const overlay = await this.#client.subscribeEphemeral(api.ephemeral.typing, {
       connectionId,
@@ -2933,10 +2944,25 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
     if (raced) {
       overlay.dispose();
       await unsubscribeTyping(this.#client, connectionId, conversationId).catch(() => {});
+      if (raced.overlay.terminalDiagnostic !== null) {
+        await this.#retireTypingPublisher(conversationId);
+        return this.#typingPublisher(conversationId);
+      }
       return raced;
     }
-    const publisher: TypingPublisher = { connectionId, conversationId, overlay };
+    const publisher: TypingPublisher = {
+      connectionId,
+      conversationId,
+      overlay,
+      offChange: () => {},
+    };
     this.#typingPublishers.set(key, publisher);
+    publisher.offChange = overlay.onChange((result) => {
+      if (
+        result === 'terminal_error'
+        && this.#typingPublishers.get(key) === publisher
+      ) void this.#retireTypingPublisher(conversationId);
+    });
     return publisher;
   }
 
@@ -2952,6 +2978,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
     const publisher = this.#typingPublishers.get(key);
     if (!publisher) return;
     this.#typingPublishers.delete(key);
+    publisher.offChange();
     publisher.overlay.dispose();
     await unsubscribeTyping(
       this.#client,

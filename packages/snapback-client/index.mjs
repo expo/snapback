@@ -19812,6 +19812,11 @@ export class EphemeralOverlay {
     // through a fresh subscribe instead of reopening this object with a
     // delayed Snapshot.
     this.__connectionContinuityLost = false;
+    // Any continuity-loss result is level-triggered until an authoritative
+    // snapshot restores this overlay (connection-wide loss never restores this
+    // generation). subscribeEphemeral can consume buffered frames before it
+    // returns, so the app's first listener must still see the exact reason.
+    this.__continuityLossResult = null;
     this.room = null; // captured from OUR subscribe snapshot (room identity)
     this.authorityCapture = null;
     this.__preSnapshotEnvelopes = [];
@@ -19850,6 +19855,7 @@ export class EphemeralOverlay {
     this.highWaterVersion = 0;
     this.needsResync = true;
     this.__connectionContinuityLost = true;
+    this.__continuityLossResult = 'needs_resync';
     if (this.__preSnapshotEnvelopes !== null) {
       this.__preSnapshotEnvelopes.length = 0;
       this.__preSnapshotOverflowed = true;
@@ -19951,9 +19957,9 @@ export class EphemeralOverlay {
     // while the initial snapshot response is in flight, before Contract has
     // attached its change listener; replay the closed state so that late
     // attachment still replaces this overlay through a fresh subscribe.
-    if (this.__connectionContinuityLost) {
+    if (this.__continuityLossResult !== null) {
       try {
-        listener('needs_resync', this);
+        listener(this.__continuityLossResult, this);
       } catch {
         // Observer errors never poison the overlay's recovery path.
       }
@@ -20041,6 +20047,7 @@ export class EphemeralOverlay {
       this.highWaterVersion = 0;
       this.needsResync = true;
       this.__connectionContinuityLost = true;
+      this.__continuityLossResult = 'needs_resync';
       this.#notifyChange('needs_resync');
       return 'needs_resync';
     }
@@ -20059,7 +20066,8 @@ export class EphemeralOverlay {
       this.tombstones.clear();
       this.highWaterVersion = 0;
       this.needsResync = true;
-      this.#notifyChange('needs_resync');
+      this.__continuityLossResult = 'authority_missing';
+      this.#notifyChange('authority_missing');
       return 'authority_missing';
     }
     if (typeof authority === 'string' && authority.length > 0) {
@@ -20074,7 +20082,8 @@ export class EphemeralOverlay {
           this.tombstones.clear();
           this.highWaterVersion = 0;
           this.needsResync = true;
-          this.#notifyChange('needs_resync');
+          this.__continuityLossResult = 'authority_changed';
+          this.#notifyChange('authority_changed');
           return 'authority_changed';
         }
         this.__retiredEphemeralAuthorities.add(this.ephemeralAuthorityInstance);
@@ -20111,6 +20120,8 @@ export class EphemeralOverlay {
         this.entries.clear();
         this.tombstones.clear();
         this.needsResync = true;
+        this.__continuityLossResult = 'needs_resync';
+        this.#notifyChange('needs_resync');
         return 'needs_resync';
       }
       if (this.scopeEpoch !== null) {
@@ -20134,6 +20145,7 @@ export class EphemeralOverlay {
         );
       }
       this.needsResync = false;
+      this.__continuityLossResult = null;
       // Ephemeral one-version story (LLP 0034 §3.1): entry versions are valid
       // WITHIN a scopeEpoch; an epoch bump is a resubscription boundary and
       // is receipted as such. The first snapshot is the establishment.
@@ -20162,6 +20174,8 @@ export class EphemeralOverlay {
       );
       if (this.scopeEpoch !== entry.scopeEpoch) {
         this.needsResync = true;
+        this.__continuityLossResult = 'needs_resync';
+        this.#notifyChange('needs_resync');
         return 'needs_resync';
       }
       if (
@@ -20178,6 +20192,8 @@ export class EphemeralOverlay {
       const remove = message.Remove;
       if (this.scopeEpoch !== remove.scope_epoch) {
         this.needsResync = true;
+        this.__continuityLossResult = 'needs_resync';
+        this.#notifyChange('needs_resync');
         return 'needs_resync';
       }
       if (remove.entry_version <= this.highWaterVersion) return 'ignored_stale';
@@ -20204,6 +20220,7 @@ export class EphemeralOverlay {
       this.tombstones.clear();
       this.highWaterVersion = 0;
       this.needsResync = true;
+      this.__continuityLossResult = 'needs_resync';
       this.#notifyChange('needs_resync');
       return 'needs_resync';
     }

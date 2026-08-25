@@ -504,7 +504,9 @@ interactive development but does not have to precede acceptance:
 
 ```bash
 export COTERIE_SNAPBACK_URL=http://127.0.0.1:<printed-port>
-node demos/coterie/snapback/seed-m3.mjs --url "$COTERIE_SNAPBACK_URL"
+node demos/coterie/snapback/seed-m3.mjs \
+  --url "$COTERIE_SNAPBACK_URL" \
+  --destructive-reset-confirmed
 
 cd demos/coterie
 COTERIE_PROVIDER=snapback bun run dev
@@ -531,7 +533,10 @@ migrate` loop with explicit required-field backfills before activating the
 schema. This reset is mandatory even for a database already created from the
 pre-typing M3 schema: its fixture conversations can reseed as `matched` while
 lacking `conversationCurrentMembers` seats, and the idempotent fixture paths are
-not a canonical-membership backfill.
+not a canonical-membership backfill. The installer enforces this adoption
+boundary: programmatic callers must pass `destructiveResetConfirmed: true`,
+and the CLI requires `--destructive-reset-confirmed`; an unconfirmed run
+refuses before making any request.
 
 The shared headless provider-proof runner selects steps from
 `listProviderClaims@1`. The Snapback lane runs its 15 claimed M1+M2+M3

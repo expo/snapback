@@ -101,9 +101,20 @@ function quotedFixtureId(action) {
   return token.slice('quote='.length);
 }
 
-export async function installM3Fixtures({ baseUrl, runId = 'install' }) {
+export async function installM3Fixtures({
+  baseUrl,
+  runId = 'install',
+  destructiveResetConfirmed = false,
+}) {
   if (typeof baseUrl !== 'string' || !baseUrl.startsWith('http')) {
     throw new TypeError('installM3Fixtures requires a Snapback baseUrl');
+  }
+  if (destructiveResetConfirmed !== true) {
+    const error = new Error(
+      'COTERIE_M3_RESET_RESEED_CONFIRMATION_REQUIRED: reset the disposable Coterie database before installing M3 fixtures, then pass destructiveResetConfirmed: true',
+    );
+    error.code = 'COTERIE_M3_RESET_RESEED_CONFIRMATION_REQUIRED';
+    throw error;
   }
   const m2 = await installM2Fixtures({ baseUrl, runId: `m3-${runId}` });
   const clients = new Map();
@@ -248,11 +259,16 @@ function cliBaseUrl(argv) {
 const invokedPath = process.argv[1] ? pathToFileURL(resolve(process.argv[1])).href : null;
 if (invokedPath === import.meta.url) {
   const baseUrl = cliBaseUrl(process.argv.slice(2));
-  if (!baseUrl) {
-    process.stderr.write('usage: node demos/coterie/snapback/seed-m3.mjs --url http://127.0.0.1:<port>\n');
+  const destructiveResetConfirmed = process.argv.includes('--destructive-reset-confirmed');
+  if (!baseUrl || !destructiveResetConfirmed) {
+    process.stderr.write('usage: node demos/coterie/snapback/seed-m3.mjs --url http://127.0.0.1:<port> --destructive-reset-confirmed\n');
     process.exitCode = 2;
   } else {
-    const report = await installM3Fixtures({ baseUrl, runId: `cli-${Date.now()}` });
+    const report = await installM3Fixtures({
+      baseUrl,
+      runId: `cli-${Date.now()}`,
+      destructiveResetConfirmed,
+    });
     process.stdout.write(`${JSON.stringify({ ok: true, ...report })}\n`);
   }
 }

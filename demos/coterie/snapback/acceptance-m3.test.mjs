@@ -77,6 +77,17 @@ function ephemeralMessage(frame) {
   return frame?.message ?? frame;
 }
 
+function isFreshSurvivorTypingUpsert(
+  frame,
+  frameIndex,
+  { startIndex, key, conversationId },
+) {
+  const message = ephemeralMessage(frame);
+  return frameIndex >= startIndex
+    && message?.Upsert?.entry?.key === key
+    && message.Upsert.room?.scope?.conversationId === conversationId;
+}
+
 async function releaseTyping(client, overlay, connectionId, conversationId) {
   overlay.dispose();
   await client.unsubscribeEphemeral(api.ephemeral.typing, {
@@ -164,8 +175,21 @@ test('Coterie Snapback M3 backend', { timeout: 1_800_000 }, async (t) => {
     serverBinary: stagedRuntime,
   });
 
-  const firstSeed = await installM3Fixtures({ baseUrl: server.baseUrl, runId: 'first' });
-  const secondSeed = await installM3Fixtures({ baseUrl: server.baseUrl, runId: 'second' });
+  await assert.rejects(
+    installM3Fixtures({ baseUrl: server.baseUrl, runId: 'unconfirmed-adoption' }),
+    (error) => error?.code === 'COTERIE_M3_RESET_RESEED_CONFIRMATION_REQUIRED',
+    'M3 fixture adoption must refuse without an explicit destructive reset/reseed confirmation',
+  );
+  const firstSeed = await installM3Fixtures({
+    baseUrl: server.baseUrl,
+    runId: 'first',
+    destructiveResetConfirmed: true,
+  });
+  const secondSeed = await installM3Fixtures({
+    baseUrl: server.baseUrl,
+    runId: 'second',
+    destructiveResetConfirmed: true,
+  });
   const personas = JSON.parse(readFileSync(
     join(fixtureRoot, 'personas.json'),
     'utf8',
@@ -599,15 +623,52 @@ test('Coterie Snapback M3 backend', { timeout: 1_800_000 }, async (t) => {
       );
       await eventually(async () => {
         await formerObserver.drain();
-        const survivorUpsert = formerObserverFrames
-          .slice(survivorFrameStart)
-          .map(ephemeralMessage)
-          .find((message) => (
-            message?.Upsert?.entry?.key === survivorPublished.key
-            && message.Upsert.room?.scope?.conversationId === formerConversation
-          ));
+        const survivorFrame = formerObserverFrames.find((frame, frameIndex) => (
+          isFreshSurvivorTypingUpsert(frame, frameIndex, {
+            startIndex: survivorFrameStart,
+            key: survivorPublished.key,
+            conversationId: formerConversation,
+          })
+        ));
+        const survivorUpsert = ephemeralMessage(survivorFrame);
         assert(survivorUpsert, 'the survivor did not receive Alice\'s raw post-revocation Upsert');
       }, 'the survivor did not receive a raw post-revocation typing frame', 4_000);
+      const survivorFrameIndex = formerObserverFrames.findIndex((frame, frameIndex) => (
+        isFreshSurvivorTypingUpsert(frame, frameIndex, {
+          startIndex: survivorFrameStart,
+          key: survivorPublished.key,
+          conversationId: formerConversation,
+        })
+      ));
+      const survivorFrame = formerObserverFrames[survivorFrameIndex];
+      assert(survivorFrameIndex >= survivorFrameStart);
+      assert.equal(
+        isFreshSurvivorTypingUpsert(survivorFrame, survivorFrameStart - 1, {
+          startIndex: survivorFrameStart,
+          key: survivorPublished.key,
+          conversationId: formerConversation,
+        }),
+        false,
+        'the M5 witness rejects a pre-publication frame-index mutant',
+      );
+      assert.equal(
+        isFreshSurvivorTypingUpsert(survivorFrame, survivorFrameIndex, {
+          startIndex: survivorFrameStart,
+          key: `${survivorPublished.key}-mutant`,
+          conversationId: formerConversation,
+        }),
+        false,
+        'the M5 witness rejects a wrong-entry-key mutant',
+      );
+      assert.equal(
+        isFreshSurvivorTypingUpsert(survivorFrame, survivorFrameIndex, {
+          startIndex: survivorFrameStart,
+          key: survivorPublished.key,
+          conversationId: `${formerConversation}-mutant`,
+        }),
+        false,
+        'the M5 witness rejects a wrong-room mutant',
+      );
       assert(
         Date.now() - survivorPublishedAt < 5_000,
         'raw survivor delivery exceeded the five-second lease',

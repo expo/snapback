@@ -958,6 +958,7 @@ async function main() {
       await installM3Fixtures({
         baseUrl: resolveCoterieSnapbackUrl(),
         runId: `accept-${Date.now()}`,
+        destructiveResetConfirmed: true,
       });
     }
     const { contractIds, alice, bob, carol } = await loadAuthorities();

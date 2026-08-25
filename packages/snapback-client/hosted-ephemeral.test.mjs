@@ -198,6 +198,91 @@ try {
   offScoped();
   scopedOverlay.dispose();
 
+  // subscribeEphemeral replays frames buffered during the subscribe response
+  // before returning the overlay. Every continuity-loss shape is therefore
+  // level-triggered for the first listener, not only connection-wide poison.
+  for (const { expected, buffered } of [
+    {
+      expected: 'needs_resync',
+      buffered: {
+        ephemeralAuthorityInstance: 'authority-buffered',
+        ResyncRequired: {
+          room: {
+            collection: 'presence',
+            scope: { roomId: 'lobby' },
+            routing_key: '6:roomId=5:lobby',
+          },
+        },
+      },
+    },
+    {
+      expected: 'authority_changed',
+      buffered: {
+        ephemeralAuthorityInstance: 'authority-successor',
+        Upsert: {
+          room: {
+            collection: 'presence',
+            scope: { roomId: 'lobby' },
+            routing_key: '6:roomId=5:lobby',
+          },
+          entry: {
+            key: 'successor',
+            value: { online: true },
+            received_at_ms: 1,
+            expires_at_ms: 2,
+            scope_epoch: 1,
+            entry_version: 1,
+          },
+        },
+      },
+    },
+    {
+      expected: 'authority_missing',
+      buffered: {
+        Upsert: {
+          room: {
+            collection: 'presence',
+            scope: { roomId: 'lobby' },
+            routing_key: '6:roomId=5:lobby',
+          },
+          entry: {
+            key: 'missing-authority',
+            value: { online: true },
+            received_at_ms: 1,
+            expires_at_ms: 2,
+            scope_epoch: 1,
+            entry_version: 1,
+          },
+        },
+      },
+    },
+  ]) {
+    let deliverBuffered = null;
+    const bufferedClient = {
+      ...fakeClient,
+      registerEphemeralConsumer: (_connectionId, listener) => {
+        deliverBuffered = listener;
+        return () => {};
+      },
+    };
+    const bufferedOverlay = new EphemeralOverlay(bufferedClient, 'presence', {
+      connectionId: `buffered-${expected}`,
+      scope: { roomId: 'lobby' },
+      permissions: [],
+    });
+    deliverBuffered(buffered);
+    assert.equal(
+      bufferedOverlay.applyInitialSnapshot(snapshot('authority-buffered')),
+      'applied',
+    );
+    assert.equal(bufferedOverlay.needsResync, true, `${expected} poisons the buffered overlay`);
+    const lateChanges = [];
+    const offBuffered = bufferedOverlay.onChange((result) => lateChanges.push(result));
+    assert.deepEqual(lateChanges, [expected], `${expected} replays to the first late listener`);
+    offBuffered();
+    bufferedOverlay.dispose();
+  }
+
   const terminalChanges = [];
   const offTerminal = overlay.onChange((result, changed) => {
     if (result === 'terminal_error') {
