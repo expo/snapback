@@ -234,9 +234,13 @@ export function compareAndVersionOfflineMutationReplayCapabilityFact(
     : 0;
   const currentGenerationWasObserved =
     preparedObservation.observedStoreRevision === currentStoreRevision;
-  const requestIsNewerThanAnsweredFact =
+  const requestIsStrictlyNewerThanStampedFloor =
     preparedObservation.requestSequence > currentRequestSequence;
-  if (!currentGenerationWasObserved && !requestIsNewerThanAnsweredFact) {
+  if (preparedObservation.observedStoreRevision < currentStoreRevision) {
+    if (!requestIsStrictlyNewerThanStampedFloor) {
+      return { fact: currentFact, committed: false };
+    }
+  } else if (!currentGenerationWasObserved && !requestIsStrictlyNewerThanStampedFloor) {
     return { fact: currentFact, committed: false };
   }
   if (currentStoreRevision === Number.MAX_SAFE_INTEGER) return null;

@@ -888,10 +888,11 @@ export function createIndexedDbRqsResumeStore({
       if (pending.observation !== null) {
         await commitOfflineReplayCapabilityAsWriter(pending.fact, pending.observation);
       } else {
+        // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 —
         // This follower answer never reserved a request sequence. Preserve
-        // only the revision it actually observed and compare-and-commit on
-        // takeover; a newer shared answer wins, and takeover mints no sequence
-        // that could make the stale local answer appear newer.
+        // the revision it actually observed and stamp the allocator's existing
+        // high-water on takeover. This mints no sequence, but gives later
+        // delayed reservations a durable order floor to compare against.
         const db = await database();
         const tx = db.transaction([STORE_META], 'readwrite');
         const txStore = tx.objectStore(STORE_META);
@@ -918,11 +919,13 @@ export function createIndexedDbRqsResumeStore({
         const replacementFact = structuredClone(pending.fact);
         delete replacementFact.storeRevision;
         delete replacementFact.requestSequence;
+        const requestSequenceFloor =
+          current.generationCounters.offlineReplayCapabilityRequestHighWater;
         if (
-          Number.isSafeInteger(currentFact?.requestSequence)
-          && currentFact.requestSequence >= 1
+          Number.isSafeInteger(requestSequenceFloor)
+          && requestSequenceFloor >= 1
         ) {
-          replacementFact.requestSequence = currentFact.requestSequence;
+          replacementFact.requestSequence = requestSequenceFloor;
         }
         replacementFact.storeRevision = currentStoreRevision + 1;
         const replacement = prepareStoreMeta({
@@ -1597,6 +1600,7 @@ export function createIndexedDbRqsResumeStore({
     },
 
     async commitOfflineMutationReplayCapabilityFact(fact, observation = null) {
+      if (closed) return false;
       const unreservedObservation = prepareUnreservedOfflineReplayCapabilityObservation(
         observation,
       );

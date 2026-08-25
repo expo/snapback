@@ -13,7 +13,9 @@ Supersession before dispatch retires custody and refuses the POST, while
 supersession after dispatch preserves the pending recovery identity through an
 ambiguous response. An unreserved IndexedDB follower answer carries only its
 observed revision into takeover and is dropped if shared state advanced; it
-never mints a takeover request sequence. The conservative redirect policy
+never mints a takeover request sequence, while a committed takeover answer
+stamps the allocator's existing high-water as the durable order floor. The
+conservative redirect policy
 explicitly includes anonymous query POSTs.)
 **Revised:** 2026-08-25 (`queue: 'auto'` capability-evidence correction: each
 `/inspect` attempts to reserve a store-writer-owned request sequence before
@@ -408,16 +410,21 @@ that wins for that observer. The unreserved answer captures the shared fact
 revision observed before its HTTP request but no request sequence. On writer
 takeover it compare-and-commits only if that exact revision remains current;
 if a writer committed a newer answer, the pending shared replacement is
-dropped and no takeover sequence is minted, while the observing client's
+dropped and no takeover sequence is minted. When the exact-revision commit
+wins, the replacement fact stamps the allocator's existing request high-water
+without allocating another sequence. That stamp is an order floor: a delayed
+reserved answer that observed an older revision may commit only when its
+request sequence is strictly newer than the floor. The observing client's
 local override may remain fail-closed. A later answered positive from the same
 canonical target clears the override; repointing the client to another
-canonical origin drops it. The Node file store routes peer replacement to an
-in-process writer. It makes no cross-process broker claim: a follower in
-another process cannot replace the writer's bytes and therefore fails closed
-locally instead of reusing the predecessor positive. Cached evidence never
-licenses a foreground POST; if enqueue custody belongs to another writer, the
-client propagates `SNAPBACK_OUTBOX_NOT_WRITER` and leaves that writer's record
-untouched.
+canonical origin drops it. A closed client refuses any late capability answer
+instead of brokering it to the successor writer. The Node file store routes
+peer replacement to an in-process writer. It makes no cross-process broker
+claim: a follower in another process cannot replace the writer's bytes and
+therefore fails closed locally instead of reusing the predecessor positive.
+Cached evidence never licenses a foreground POST; if enqueue custody belongs
+to another writer, the client propagates `SNAPBACK_OUTBOX_NOT_WRITER` and
+leaves that writer's record untouched.
 
 Capability validity is a compare-and-read fence. Admission re-reads the shared
 fact and revision immediately before durable enqueue; foreground transport

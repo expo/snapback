@@ -310,6 +310,15 @@ const createBroadcastHub = () => {
   };
 };
 
+const createGatedBroadcastFactory = (hub, mayPost) => () => {
+  const channel = hub.factory();
+  const postMessage = channel.postMessage.bind(channel);
+  channel.postMessage = (data) => {
+    if (mayPost()) postMessage(data);
+  };
+  return channel;
+};
+
 const createDurableTestStore = (options = undefined) => {
   const store = createMemoryRqsResumeStore(options);
   store.durability = () => ({ implementation: 'memory-test-double', durable: true });
@@ -2794,7 +2803,7 @@ test('broker-unavailable peer negative stays fail-closed before and after Indexe
   assert.equal(
     takeoverNegative.requestSequence,
     durablePredecessor.requestSequence,
-    'an unreserved answer reuses the observed sequence instead of minting one on takeover',
+    'an unreserved answer stamps the existing allocator floor without minting on takeover',
   );
   assert.equal(takeoverNegative.storeRevision, durablePredecessor.storeRevision + 1);
   mutationCalls = 0;
@@ -2937,6 +2946,162 @@ test('unreserved follower negative cannot overwrite a newer positive after write
   await followerClient.close();
   await writerClient.close();
   await followerStore.close();
+});
+
+test('allocator-floor takeover negative defeats a delayed reserved positive after writer death', async () => {
+  const indexedDB = new IDBFactory();
+  const lockManager = createContendedLockManager();
+  const broadcastHub = createBroadcastHub();
+  let takeoverMayPost = false;
+  const common = {
+    indexedDB,
+    lockManager,
+    databaseName: 'outbox-capability-takeover-order-floor',
+    outboxNormalizationTimeoutMs: 50,
+  };
+  const writerStore = createIndexedDbRqsResumeStore({
+    ...common,
+    broadcastChannelFactory: () => broadcastHub.factory(),
+  });
+  const takeoverStore = createIndexedDbRqsResumeStore({
+    ...common,
+    broadcastChannelFactory: createGatedBroadcastFactory(
+      broadcastHub,
+      () => takeoverMayPost,
+    ),
+  });
+  const delayedStore = createIndexedDbRqsResumeStore({
+    ...common,
+    broadcastChannelFactory: () => broadcastHub.factory(),
+  });
+  await Promise.all([
+    writerStore.whenLockSettled(),
+    takeoverStore.whenLockSettled(),
+    delayedStore.whenLockSettled(),
+  ]);
+  try {
+    assert.equal(writerStore.isWriter(), true);
+    assert.equal(takeoverStore.isWriter(), false);
+    assert.equal(delayedStore.isWriter(), false);
+    const origin = 'https://takeover-order-floor.example';
+    const positive = {
+      schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
+      origin,
+      supported: true,
+      reason: null,
+      targetProfileId: 'local-dev-sqlite-ibex',
+      artifactGeneration: TEST_ARTIFACT_GENERATION,
+    };
+    const firstObservation = await writerStore
+      .beginOfflineMutationReplayCapabilityObservation();
+    await writerStore.commitOfflineMutationReplayCapabilityFact(
+      positive,
+      firstObservation,
+    );
+    const delayedPositiveObservation = await delayedStore
+      .beginOfflineMutationReplayCapabilityObservation();
+    assert.equal(delayedPositiveObservation.requestSequence, 2);
+    assert.equal(delayedPositiveObservation.observedStoreRevision, 1);
+
+    const takeoverNegativeObservation = await takeoverStore
+      .beginOfflineMutationReplayCapabilityObservation();
+    assert.equal(
+      Object.hasOwn(takeoverNegativeObservation, 'requestSequence'),
+      false,
+      'the future takeover writer answered without reserving another sequence',
+    );
+    assert.equal(takeoverNegativeObservation.observedStoreRevision, 1);
+    await takeoverStore.commitOfflineMutationReplayCapabilityFact({
+      ...positive,
+      supported: false,
+      reason: 'not-advertised',
+      targetProfileId: 'cloudflare-do-sqlite-v8',
+    }, takeoverNegativeObservation);
+
+    await writerStore.close();
+    const handoffDeadline = Date.now() + 5_000;
+    while (!takeoverStore.isWriter()) {
+      if (Date.now() > handoffDeadline) throw new Error('timed out waiting for writer handoff');
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    const takeoverNegative = await waitForOfflineReplayCapabilityFact(
+      takeoverStore,
+      (fact) => fact.supported === false,
+      'the takeover negative to become durable',
+    );
+    takeoverMayPost = true;
+
+    await delayedStore.commitOfflineMutationReplayCapabilityFact(
+      positive,
+      delayedPositiveObservation,
+    );
+    const finalFact = await takeoverStore.readOfflineMutationReplayCapabilityFact();
+    assert.equal(
+      finalFact.supported,
+      false,
+      'the stale reserved positive cannot overwrite the takeover negative',
+    );
+    assert.equal(
+      takeoverNegative.requestSequence,
+      2,
+      'the unreserved takeover answer stamps the allocator request high-water',
+    );
+    assert.deepEqual(finalFact, takeoverNegative);
+  } finally {
+    await delayedStore.close();
+    await takeoverStore.close();
+    await writerStore.close();
+  }
+});
+
+test('closed IndexedDB client refuses a late capability answer', async () => {
+  const indexedDB = new IDBFactory();
+  const lockManager = createContendedLockManager();
+  const broadcastHub = createBroadcastHub();
+  const options = {
+    indexedDB,
+    lockManager,
+    databaseName: 'outbox-capability-closed-late-answer',
+    broadcastChannelFactory: () => broadcastHub.factory(),
+  };
+  const writerStore = createIndexedDbRqsResumeStore(options);
+  const delayedStore = createIndexedDbRqsResumeStore(options);
+  await Promise.all([writerStore.whenLockSettled(), delayedStore.whenLockSettled()]);
+  try {
+    const origin = 'https://closed-late-answer.example';
+    const positive = {
+      schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
+      origin,
+      supported: true,
+      reason: null,
+      targetProfileId: 'local-dev-sqlite-ibex',
+      artifactGeneration: TEST_ARTIFACT_GENERATION,
+    };
+    const firstObservation = await writerStore
+      .beginOfflineMutationReplayCapabilityObservation();
+    await writerStore.commitOfflineMutationReplayCapabilityFact(
+      positive,
+      firstObservation,
+    );
+    const delayedObservation = await delayedStore
+      .beginOfflineMutationReplayCapabilityObservation();
+    await delayedStore.close();
+    const refused = await delayedStore.commitOfflineMutationReplayCapabilityFact({
+      ...positive,
+      supported: false,
+      reason: 'late-closed-answer',
+      targetProfileId: 'cloudflare-do-sqlite-v8',
+    }, delayedObservation);
+    assert.equal(refused, false, 'close() is a terminal capability-commit fence');
+    assert.deepEqual(
+      await writerStore.readOfflineMutationReplayCapabilityFact(),
+      { ...positive, requestSequence: 1, storeRevision: 1 },
+      'a closed client cannot broker its delayed answer to the live writer',
+    );
+  } finally {
+    await delayedStore.close();
+    await writerStore.close();
+  }
 });
 
 test('repointing a client drops a local negative override from the previous origin', async (t) => {
@@ -3545,6 +3710,138 @@ test('a newer identical positive preserves admitted custody through an ambiguous
   );
   await client.close();
   await store.close();
+});
+
+test('post-loss capability supersession preserves the original pending mutation identity', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const origin = 'https://post-loss-capability-supersession.example';
+  const client = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  const replacingClient = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  const clientMutationId = 'cm-post-loss-capability-supersession';
+  let mutationPosts = 0;
+  let mutationTransportLost = false;
+  let negativeEnabled = false;
+  let negativeCommitted = false;
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+    if (path === '/inspect') {
+      return Response.json(offlineReplayInspection({
+        supported: !negativeEnabled,
+        targetProfileId: negativeEnabled
+          ? 'cloudflare-do-sqlite-v8'
+          : 'local-dev-sqlite-ibex',
+      }));
+    }
+    mutationPosts += 1;
+    mutationTransportLost = true;
+    negativeEnabled = true;
+    throw new TypeError('mutation response lost after transport start');
+  };
+  const readOutboxRecords = store.outboxRecords.bind(store);
+  store.outboxRecords = async () => {
+    if (mutationTransportLost && !negativeCommitted) {
+      negativeCommitted = true;
+      await replacingClient.inspect();
+    }
+    return readOutboxRecords();
+  };
+
+  try {
+    await assert.rejects(
+      () => client.mutate('createThing', {
+        args: { title: 'retain exactly-once identity after lost POST' },
+        clientMutationId,
+      }),
+      (error) => isConnectivityFailureError(error),
+    );
+    assert.equal(mutationPosts, 1, 'no POST follows the original ambiguous attempt');
+    assert.equal(
+      (await store.readOfflineMutationReplayCapabilityFact()).supported,
+      false,
+      'the replacing negative lands during connectivity fallback',
+    );
+    assert.deepEqual(
+      (await store.outboxPending()).map((record) => record.id),
+      [clientMutationId],
+      'the original clientMutationId remains pending after transport starts',
+    );
+  } finally {
+    await replacingClient.close();
+    await client.close();
+    await store.close();
+  }
+});
+
+test('capability re-read after submission preparation is the final mutation transport fence', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const origin = 'https://post-prepare-capability-fence.example';
+  const client = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  const replacingClient = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  const clientMutationId = 'cm-post-prepare-capability-fence';
+  let inspectionSupported = true;
+  let mutationPosts = 0;
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+    if (path === '/inspect') {
+      return Response.json(offlineReplayInspection({
+        supported: inspectionSupported,
+        targetProfileId: inspectionSupported
+          ? 'local-dev-sqlite-ibex'
+          : 'cloudflare-do-sqlite-v8',
+      }));
+    }
+    mutationPosts += 1;
+    return Response.json({ result: { committed: true }, version: 1 });
+  };
+  const prepareSubmission = store.outboxPrepareSubmission.bind(store);
+  let injectedNegative = false;
+  store.outboxPrepareSubmission = async (...args) => {
+    if (!injectedNegative) {
+      injectedNegative = true;
+      inspectionSupported = false;
+      await replacingClient.inspect();
+    }
+    return prepareSubmission(...args);
+  };
+
+  try {
+    await assert.rejects(
+      () => client.mutate('createThing', {
+        args: { title: 'negative committed during submission preparation' },
+        clientMutationId,
+      }),
+      (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
+    );
+    assert.equal(mutationPosts, 0, 'submission preparation cannot precede the final fact read');
+    assert.equal(
+      (await store.readOfflineMutationReplayCapabilityFact()).supported,
+      false,
+      'the shared capability fact is negative at the transport fence',
+    );
+    assert.deepEqual(
+      await store.outboxRecords(),
+      [],
+      'pre-dispatch supersession retires the admitted record',
+    );
+  } finally {
+    await replacingClient.close();
+    await client.close();
+    await store.close();
+  }
 });
 
 test('a 502 lifecycle answer is in-flight deduplication only and a later read recovers positive support', async (t) => {

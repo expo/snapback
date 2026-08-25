@@ -11285,16 +11285,18 @@ export class SnapbackClient {
         this.#recordRuntimeCostOutboxEnqueue(stored, functionId);
       }
       if (typeof beforeEnqueue === 'function' && await beforeEnqueue() !== true) {
-        const insertionOwnership = outboxInsertionOwnershipFrom(stored);
-        if (
-          insertionOwnership !== null
-          && typeof store.outboxDiscardPendingInsertion === 'function'
-        ) {
-          await store.outboxDiscardPendingInsertion(
-            stored.id,
-            insertionOwnership.sequence,
-            outboxAuthorizationFenceFrom(stored),
-          );
+        if (!alreadyCommitted) {
+          const insertionOwnership = outboxInsertionOwnershipFrom(stored);
+          if (
+            insertionOwnership !== null
+            && typeof store.outboxDiscardPendingInsertion === 'function'
+          ) {
+            await store.outboxDiscardPendingInsertion(
+              stored.id,
+              insertionOwnership.sequence,
+              outboxAuthorizationFenceFrom(stored),
+            );
+          }
         }
         return null;
       }
@@ -14017,15 +14019,6 @@ export class SnapbackClient {
             authAdmissionOperation: 'mutation',
             beforeTransportDispatch: async () => {
               await __beforeTransportDispatch?.();
-              const capabilityGuardedDispatch = durableOnlineRecord;
-              if (
-                capabilityGuardedDispatch
-                && !await revalidateQueueCapability({ retireRecord: true })
-              ) {
-                // Retirement linearizes before fetch dispatch. Once the
-                // durable identity is gone, no foreground POST may reuse it.
-                throw capabilitySupersededError();
-              }
               if (
                 preparationAuthorityCapture !== null
                 && !this.isAuthorityCaptureCurrent(preparationAuthorityCapture)
@@ -14065,6 +14058,15 @@ export class SnapbackClient {
                   durableOnlineStoredRecord = prepared.record;
                   authorizationDispatchFence = prepared.fence;
                 }
+              }
+              if (
+                durableOnlineRecord
+                && !await revalidateQueueCapability({ retireRecord: true })
+              ) {
+                // The capability read is the final serialized transport-start
+                // fence: it runs under the dispatch lock and after submission
+                // preparation, while retirement is still provably pre-fetch.
+                throw capabilitySupersededError();
               }
               if (ephemeralOptimisticRecord) {
                 this.#markEphemeralOptimisticDispatched(clientMutationId);
@@ -14322,13 +14324,21 @@ export class SnapbackClient {
                 alreadyCommitted: durableOnlineRecord,
                 functionId,
                 queueReasonClass: this.#connectivityQueueReasonClass(error),
-                beforeEnqueue: () => revalidateQueueCapability({ retireRecord: true }),
+                beforeEnqueue: () => revalidateQueueCapability(),
               },
             );
             if (queued) {
               return generatedMutation === null
                 ? queued
                 : { ...queued, operationHash: generatedMutation.operationHash };
+            }
+            if (durableOnlineRecord) {
+              // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 —
+              // Transport already started under this durable identity. A
+              // fallback fence may refuse queued presentation, but it cannot
+              // turn an ambiguous effect into terminal failure or erase the
+              // only settlement key that makes recovery exactly-once.
+              throw error;
             }
           }
           if (durableOnlineRecord && isAuthorityFenceUnsettledError(error)) {

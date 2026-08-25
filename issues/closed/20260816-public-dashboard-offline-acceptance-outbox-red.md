@@ -196,5 +196,54 @@ routes + 51 host-ops joined, 94 warnings`; the sole failure is the deliberately
 unregenerated diagnostics registry owned by integration, while the symbol,
 manifest/MCP, and flat-projection checks pass. `./ref-check --verbose` reports
 `311 LLP docs, 6639 refs in 12503 files, 0 errors, 0 unchecked`, and `git diff
---check` produces no output. The diagnostics registry and Markdown projection
-remain byte-identical to this lane's starting commit.
+--check` produces no output. The branch carries an intermediate diagnostics
+registry/Markdown regeneration from earlier lane work, and integration still
+owns the final rewrite after its emitting-site changes; those bytes are not
+claimed to match this lane's starting commit.
+
+### Round-8 review closure (2026-08-25)
+
+The post-transport fallback no longer carries retirement authority. Once the
+durable foreground record exists and `fetch` has been invoked, capability
+supersession can refuse queued presentation but cannot discard or mark failed
+the original `clientMutationId`; an ambiguous response leaves that record
+pending for exactly-once recovery. Before transport starts, the capability
+fact re-read now runs under the authorization-dispatch lock, after
+`outboxPrepareSubmission()`, as the final serialized fence immediately before
+the fetch cut.
+
+An unreserved IndexedDB negative that wins after writer death now stamps the
+allocator's existing request high-water without minting a sequence. A reserved
+answer that observed an older store revision must carry a sequence strictly
+newer than that stamped floor to commit. `close()` is terminal for capability
+answers, so a closed client cannot broker a delayed response into the successor
+writer.
+
+Round-8 fail-first evidence captured against the pre-fix production helpers:
+
+- the post-loss supersession regression failed with `the original
+  clientMutationId remains pending after transport starts`, actual `[]` versus
+  expected `['cm-post-loss-capability-supersession']`;
+- the post-prepare transport-fence regression failed with `Missing expected
+  rejection.` after the mutation POST settled;
+- the takeover-order regression failed with `the stale reserved positive
+  cannot overwrite the takeover negative` and `true !== false`;
+- the closed-client regression failed with `SNAPBACK_RQS_STORE_CLOSED: RQS
+  resume store is closed` after the late answer had already reached the live
+  writer path.
+
+Round-8 focused verification updates the client suite to `tests 114`, `pass
+114`, `fail 0`. The public-dashboard witnesses remain `PASS public-dashboard /
+offline-local-first (JS arm) — 9/9` and `PASS public-dashboard / headless —
+6/6`; both used the explicitly configured binary stamped at `f446d966b` and
+reported the expected checkout stamp mismatch. The symbol registry was
+regenerated with its 57 Markdown projections, followed by the guide manifest
+and flat projections without running the diagnostics generator;
+`node scripts/generate-symbol-registry.mjs --check` reports `56 modules, 1455
+symbols, runtime parity exact`. `node scripts/check-guide.mjs` reports `21
+passed, 1 failed, 0 skipped, 0 preconditions; 157 pages, 1872 snippets, 174
+routes + 51 host-ops joined, 94 warnings`; the sole failure remains the
+deliberately unregenerated diagnostics registry/Markdown projection. The
+branch carries their earlier intermediate regeneration, and integration owns
+the final emitting-site rewrite. `./ref-check --verbose` and `git diff --check`
+are rerun at the final commit boundary.
