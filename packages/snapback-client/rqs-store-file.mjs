@@ -808,6 +808,7 @@ export function createFileRqsResumeStore({
       fact,
       preparedObservation,
     );
+    if (versioned?.committed === false) return false;
     const replacement = versioned === null ? null : prepareStoreMeta({
       ...workingMeta,
       offlineMutationReplayCapabilityFact: versioned.fact,

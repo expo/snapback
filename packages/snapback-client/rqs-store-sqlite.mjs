@@ -691,6 +691,7 @@ export async function createSqliteRqsResumeStore({
           fact,
           preparedObservation,
         );
+        if (versioned?.committed === false) return false;
         const replacement = versioned === null ? null : prepareStoreMeta({
           ...workingMeta,
           offlineMutationReplayCapabilityFact: versioned.fact,

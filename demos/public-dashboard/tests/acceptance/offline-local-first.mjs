@@ -108,7 +108,7 @@ const openClient = () => {
 };
 const closeClient = async (client) => {
   trackedClients.delete(client);
-  try { await client.rqsStore?.close?.(); } catch { /* teardown */ }
+  await client.close();
 };
 cleanups.push(async () => {
   for (const client of [...trackedClients]) await closeClient(client);

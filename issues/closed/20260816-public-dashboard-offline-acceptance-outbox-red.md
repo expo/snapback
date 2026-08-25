@@ -309,3 +309,61 @@ guide generator's coupled diagnostics invocation was reverted, then the
 symbol/manifest/flat projections were generated against the restored
 diagnostics bytes. `./ref-check --verbose` reports `311 LLP docs, 6641 refs in
 12503 files, 0 errors, 0 unchecked`; `git diff --check` produces no output.
+
+### Round-10 review closure (2026-08-25)
+
+Replay now takes the capability fact read at the same serialized
+transport-start cut as foreground delivery: after acquiring the shared
+authorization-dispatch lock and after `outboxPrepareSubmission()` marks and
+returns the exact record, immediately before `fetch`. A negative committed
+from inside replay preparation therefore starts zero mutation POSTs and leaves
+the original record pending.
+
+Cached enqueue-only evidence no longer starts operation-identity range
+transport. The automatic path durably enqueues an explicitly uncovered record
+with zero non-inspection transport; replay first obtains a fresh positive
+capability answer, then acquires and durably assigns the range before sending
+the mutation once. The configured test-only capability seam retains its
+existing direct range behavior; production cached evidence is the only
+deferred class.
+
+All four RQS store carriers now return `false` when the versioned capability
+fact compare reports `committed: false`; they do not rewrite the current fact
+or let callers mistake its returned bytes for a successful replacement. The
+public-dashboard acceptance's `closeClient()` now awaits `client.close()` and
+lets teardown failures fail the acceptance, so its close-and-relaunch claim is
+exercised through the client lifecycle rather than by closing only the exposed
+store.
+
+Round-10 fail-first evidence from the three new regressions:
+
+- replay preparation failed `replay preparation cannot precede the final fact
+  read` with `1 !== 0`, proving one mutation POST started after the injected
+  negative;
+- cached identity enqueue failed `cached evidence licenses no identity-range
+  POST` with `1 !== 0`;
+- the rejected compare failed `a stale compare is reported as not committed`:
+  actual was the current positive fact (request sequence 2, store revision 1),
+  expected `false`.
+
+Round-10 verification runs the requested client/conformance command at `tests
+130`, `pass 130`, `fail 0`. The public-dashboard witnesses are `PASS
+public-dashboard / offline-local-first (JS arm) — 9/9` and `PASS
+public-dashboard / headless — 6/6`; both used the explicitly configured binary
+stamped at `f446d966b` and reported the expected checkout stamp mismatch. The
+offline report records `cleanupErrors: []`, including the now-awaited client
+teardown.
+
+The symbol registry and its 57 Markdown projections were regenerated, followed
+by the guide manifest and flat projections without running the diagnostics
+generator. `node scripts/generate-symbol-registry.mjs --check` reports `56
+modules, 1455 symbols, runtime parity exact`. `node scripts/check-guide.mjs`
+reports `21 passed, 1 failed, 0 skipped, 0 preconditions; 157 pages, 1872
+snippets, 174 routes + 51 host-ops joined, 94 warnings`; the sole accepted red
+is the deliberately unregenerated diagnostics registry and Markdown
+projection. The affected-scope LLP audit found the implementation aligned with
+LLP 0043's enqueue-only cached evidence and final replay fact-read rules, LLP
+0218's pre-transport drain fence, LLP 0166's writer-owned compare-and-commit,
+and LLP 0090's close/relaunch acceptance claim; no LLP edit or new decision is
+needed. `./ref-check --verbose` reports `311 LLP docs, 6641 refs in 12503
+files, 0 errors, 0 unchecked`; `git diff --check` produces no output.

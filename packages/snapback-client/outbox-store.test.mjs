@@ -785,6 +785,40 @@ test('memory arm carries the outbox contract', async () => {
   await store.close();
 });
 
+test('rejected capability fact compare reports not committed', async () => {
+  const store = createMemoryRqsResumeStore();
+  const olderObservation = await store.beginOfflineMutationReplayCapabilityObservation();
+  const newerObservation = await store.beginOfflineMutationReplayCapabilityObservation();
+  const positive = {
+    schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
+    origin: 'https://rejected-capability-compare.example',
+    supported: true,
+    reason: null,
+    targetProfileId: 'local-dev-sqlite-ibex',
+    artifactGeneration: TEST_ARTIFACT_GENERATION,
+  };
+  const committed = await store.commitOfflineMutationReplayCapabilityFact(
+    positive,
+    newerObservation,
+  );
+  assert.equal(committed.storeRevision, 1);
+  assert.equal(committed.requestSequence, newerObservation.requestSequence);
+
+  const rejected = await store.commitOfflineMutationReplayCapabilityFact({
+    ...positive,
+    supported: false,
+    reason: 'stale-answer',
+    targetProfileId: 'cloudflare-do-sqlite-v8',
+  }, olderObservation);
+  assert.equal(rejected, false, 'a stale compare is reported as not committed');
+  assert.deepEqual(
+    await store.readOfflineMutationReplayCapabilityFact(),
+    committed,
+    'the rejected compare leaves the current fact unchanged',
+  );
+  await store.close();
+});
+
 test('memory arm carries every shared authorization-fence compare-and-commit', async () => {
   const store = createMemoryRqsResumeStore();
   await exerciseOutboxAuthorizationFenceCompareAndCommit(store, { label: 'memory' });
@@ -3844,6 +3878,73 @@ test('capability re-read after submission preparation is the final mutation tran
   }
 });
 
+test('replay capability re-read after submission preparation is the final transport fence', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const origin = 'https://replay-post-prepare-capability-fence.example';
+  const client = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  const replacingClient = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  const clientMutationId = 'cm-replay-post-prepare-capability-fence';
+  await store.outboxEnqueue({
+    id: clientMutationId,
+    function: 'createThing',
+    args: { title: 'negative committed during replay submission preparation' },
+  });
+  let inspectionSupported = true;
+  let mutationPosts = 0;
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+    if (path === '/inspect') {
+      return Response.json(offlineReplayInspection({
+        supported: inspectionSupported,
+        targetProfileId: inspectionSupported
+          ? 'local-dev-sqlite-ibex'
+          : 'cloudflare-do-sqlite-v8',
+      }));
+    }
+    mutationPosts += 1;
+    return Response.json({ result: { committed: true }, version: 1 });
+  };
+  const prepareSubmission = store.outboxPrepareSubmission.bind(store);
+  let injectedNegative = false;
+  store.outboxPrepareSubmission = async (id, options) => {
+    const prepared = await prepareSubmission(id, options);
+    if (options?.markDispatched === true && !injectedNegative) {
+      injectedNegative = true;
+      inspectionSupported = false;
+      await replacingClient.inspect();
+    }
+    return prepared;
+  };
+
+  try {
+    const replay = await client.replayQueuedMutations();
+    assert.equal(mutationPosts, 0, 'replay preparation cannot precede the final fact read');
+    assert.equal(replay.replayed, 0, 'the superseded replay never settles');
+    assert.equal(replay.stopped, true, 'the replay pauses on superseded capability support');
+    assert.equal(
+      (await store.readOfflineMutationReplayCapabilityFact()).supported,
+      false,
+      'the shared capability fact is negative at the replay transport fence',
+    );
+    assert.deepEqual(
+      (await store.outboxPending()).map((record) => record.id),
+      [clientMutationId],
+      'pre-dispatch replay supersession keeps the record pending',
+    );
+  } finally {
+    await replacingClient.close();
+    await client.close();
+    await store.close();
+  }
+});
+
 test('operation-range transport loss revalidates capability before queued relinquishment', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
@@ -4666,6 +4767,89 @@ test('sidecar adoption keeps identity-divergent intent pending for rollback', as
   const [retained] = await store.outboxRecords();
   assert.equal(retained.status, 'pending');
   assert.equal(retained.id, 'cm-sidecar-identity-divergence');
+});
+
+test('cached enqueue defers operation identity range transport until fresh-gated replay', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const origin = 'https://cached-operation-range.example';
+  await store.commitOfflineMutationReplayCapabilityFact({
+    schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
+    origin,
+    supported: true,
+    reason: null,
+    targetProfileId: 'local-dev-sqlite-ibex',
+    artifactGeneration: TEST_ARTIFACT_GENERATION,
+  });
+  const client = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    operationIdentityProtocol: 1,
+    __outboxDrainLifecycle: false,
+  });
+  let rangePosts = 0;
+  let mutationPosts = 0;
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+    if (path === '/inspect') throw new TypeError('offline capability re-probe');
+    if (path === '/client-mutations/identity-range') rangePosts += 1;
+    else mutationPosts += 1;
+    throw new TypeError(`offline ${path}`);
+  };
+
+  const queued = await client.mutate('createThing', {
+    args: { title: 'cached identity evidence is enqueue-only' },
+    userId: 'user-a',
+    clientMutationId: 'cm-cached-operation-range',
+  });
+  assert.equal(queued.status, 'queued');
+  assert.equal(rangePosts, 0, 'cached evidence licenses no identity-range POST');
+  assert.equal(mutationPosts, 0, 'cached evidence licenses no mutation POST');
+  const [uncovered] = await store.outboxPending();
+  assert.equal(uncovered.operationIssuance, null);
+  assert.equal(
+    uncovered.operationCoverageDisposition,
+    'uncovered-range-exhausted',
+    'the cached path retains an explicitly uncovered pending record',
+  );
+
+  const issuedAtMs = Date.now();
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+    if (path === '/inspect') {
+      return Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId: 'local-dev-sqlite-ibex',
+      }));
+    }
+    if (path === '/client-mutations/identity-range') {
+      rangePosts += 1;
+      return Response.json({
+        schemaVersion: 1,
+        range: {
+          schemaVersion: 1,
+          audience: 'audience-cached-replay',
+          authorityInstanceId: 'authority-cached-replay',
+          epochId: 'epoch-cached-replay',
+          epochSequence: 0,
+          rangeStart: 0,
+          rangeEndExclusive: 256,
+          issuedAtMs,
+          expiresAtMs: issuedAtMs + 60_000,
+          authorityAuthenticatorDigest: `sha256:${'b'.repeat(64)}`,
+        },
+      });
+    }
+    mutationPosts += 1;
+    return Response.json({ result: { ok: true }, version: 1 });
+  };
+
+  const replay = await client.replayQueuedMutations();
+  assert.equal(replay.replayed, 1);
+  assert.equal(rangePosts, 1, 'fresh-gated replay acquires exactly one identity range');
+  assert.equal(mutationPosts, 1, 'fresh-gated replay sends the mutation exactly once');
+  assert.equal((await store.outboxRecords())[0].status, 'settled');
+  await client.close();
+  await store.close();
 });
 
 test('opt-in client range transport allocates before first mutation and reuses one retry carrier', async (t) => {

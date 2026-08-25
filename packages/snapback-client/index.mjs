@@ -12694,12 +12694,6 @@ export class SnapbackClient {
           queue: false,
           __authorizationDispatchOwnership: OUTBOX_AUTHORIZATION_DISPATCH_OWNERSHIP,
           __beforeTransportDispatch: async () => {
-            if (!await this.#isOfflineMutationReplayCapabilityFactCurrent(
-              replayCapabilityFact,
-              replayCapabilityRequestSequence,
-            )) {
-              throw offlineQueueSettlementLedgerError({ reason: 'inspection-superseded' });
-            }
             authorizationDispatchRelease = await acquireOutboxAuthorizationDispatch(
               store,
               record.dispatchLane ?? 'foreground',
@@ -12721,6 +12715,15 @@ export class SnapbackClient {
             }
             record = submission.record;
             authorizationDispatchFence = submission.fence;
+            if (!await this.#isOfflineMutationReplayCapabilityFactCurrent(
+              replayCapabilityFact,
+              replayCapabilityRequestSequence,
+            )) {
+              // Replay owns the same final transport-start fence as foreground:
+              // the shared fact read runs under the dispatch lock and after
+              // submission preparation, immediately before fetch.
+              throw offlineQueueSettlementLedgerError({ reason: 'inspection-superseded' });
+            }
           },
           __onTransportFailure: async (error) => {
             if (requestFailureReentersAuthorityTransport(error)) {
@@ -13875,7 +13878,10 @@ export class SnapbackClient {
             return storedDispatchDisposition(stored);
           }
           claimForegroundOwnership(stored);
-          if (stored.operationIssuance === null) {
+          if (
+            stored.operationIssuance === null
+            && queueCapabilityEvidence !== 'cached'
+          ) {
             let range;
             try {
               range = await this.#refreshOperationIdentityRange(
@@ -13974,16 +13980,18 @@ export class SnapbackClient {
               throw error;
             }
           }
-          if (!stored?.operationIssuance) {
+          if (queueCapabilityEvidence !== 'cached' && !stored?.operationIssuance) {
             const error = new Error(
               'SNAPBACK_OPERATION_RANGE_EXHAUSTED: refreshed range supplied no operation identity',
             );
             error.code = 'SNAPBACK_OPERATION_RANGE_EXHAUSTED';
             throw error;
           }
-          body.operationIssuance = stored.operationIssuance;
-          durableMutationRecord.operationIssuance = stored.operationIssuance;
-          durableMutationRecord.operationCoverageDisposition = stored.operationCoverageDisposition;
+          if (stored?.operationIssuance) {
+            body.operationIssuance = stored.operationIssuance;
+            durableMutationRecord.operationIssuance = stored.operationIssuance;
+            durableMutationRecord.operationCoverageDisposition = stored.operationCoverageDisposition;
+          }
         } else {
           const stored = await enqueueDurably((queueFence) => (
             queueStore.outboxEnqueue(durableMutationRecord, queueFence)

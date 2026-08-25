@@ -836,6 +836,10 @@ export function createIndexedDbRqsResumeStore({
       fact,
       preparedObservation,
     );
+    if (versioned?.committed === false) {
+      await transactionDone(tx);
+      return false;
+    }
     const replacement = versioned === null ? null : prepareStoreMeta({
       ...workingMeta,
       offlineMutationReplayCapabilityFact: versioned.fact,

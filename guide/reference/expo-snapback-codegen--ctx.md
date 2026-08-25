@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:1e1c4ff7aed26166cd34868e1ae41286272f989b6953
 # @expo/snapback-codegen/ctx
 
 Build-bound public API projection for `@expo/snapback-codegen/ctx`. Canonical registry identity:
-`sha256:3e833fc62d72641d4e0d23317ad98379328477cc11351074618ab097bf4749a8`.
+`sha256:ff43c6636673986b6c65af6c7d001a22f55ab4fa18b0bb779aad94f0c37f715b`.
 This package subpath is type-only; runtime export parity is not applicable.
 
 [Compact reference index](./index.md) · [machine-readable registry](./registry.json)
