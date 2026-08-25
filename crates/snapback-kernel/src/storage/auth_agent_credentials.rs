@@ -2754,6 +2754,15 @@ mod tests {
     use crate::storage::auth_agents::AgentRegistration;
     use std::sync::atomic::{AtomicU8, Ordering};
 
+    static AGENT_LIFECYCLE_COMMIT_UNCERTAINTY_TEST_LOCK: std::sync::Mutex<()> =
+        std::sync::Mutex::new(());
+
+    fn serialize_agent_lifecycle_commit_uncertainty_tests() -> std::sync::MutexGuard<'static, ()> {
+        AGENT_LIFECYCLE_COMMIT_UNCERTAINTY_TEST_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
     struct CounterRandom(AtomicU8);
 
     struct FixedRandom(u8);
@@ -3157,6 +3166,7 @@ mod tests {
 
     #[test]
     fn scoped_token_release_reconciles_a_lost_commit_acknowledgement() {
+        let _uncertainty_test_guard = serialize_agent_lifecycle_commit_uncertainty_tests();
         let (mut db, issued) = scoped_token_fixture(10_000);
         let uncertainty =
             inject_next_agent_lifecycle_commit_uncertain("release-scoped-token", &issued.token_id);
@@ -3455,6 +3465,7 @@ mod tests {
 
     #[test]
     fn lost_commit_acknowledgements_reconcile_rotation_mint_and_family_revocation() {
+        let _uncertainty_test_guard = serialize_agent_lifecycle_commit_uncertainty_tests();
         let random = CounterRandom::new();
         let mut db = ready();
         let issued = db

@@ -71,6 +71,9 @@ Fail-first evidence:
 
 - `cargo test -p snapback-kernel exact_scoped_token_release_consumes_terminal_transaction_and_is_idempotent`:
   `FAILED. 0 passed; 1 failed; 846 filtered out` because the interlock observed no consumed gate.
+- `cargo test -p snapback-kernel scoped_token_release_reconciles_a_lost_commit_acknowledgement`:
+  `FAILED. 0 passed; 1 failed; 847 filtered out` via `uncertainty.consumed()` because the release
+  cut did not consume the selected commit-uncertainty injection.
 - `cargo test -p snapback-server token_release_consumes_terminal_gate_and_commits_durable_revocation`:
   `FAILED. 0 passed; 1 failed; 598 filtered out` because the retained publication remained
   `Current` instead of `Terminal(Carrier)`.
@@ -87,6 +90,36 @@ Verification after the fix:
 - `./ref-check --verbose`: `311 LLP docs, 7176 refs in 15414 files, 0 errors, 0 unchecked`.
 - `node scripts/check-inventories.mjs`: `PASS: 353 package tests; 29 scripts tests; 31 demos/31
   catalog entries; 487 publication leaves; 157 guide pages/1871 snippets`.
+
+Round-2 test-isolation verification:
+
+- `cargo test -p snapback-kernel commit_acknowledgement -- --test-threads=3` ten times:
+
+  ```text
+  run 01: test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 845 filtered out; finished in 0.17s
+  run 02: test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 845 filtered out; finished in 0.19s
+  run 03: test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 845 filtered out; finished in 0.19s
+  run 04: test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 845 filtered out; finished in 0.17s
+  run 05: test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 845 filtered out; finished in 0.18s
+  run 06: test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 845 filtered out; finished in 0.17s
+  run 07: test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 845 filtered out; finished in 0.17s
+  run 08: test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 845 filtered out; finished in 0.17s
+  run 09: test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 845 filtered out; finished in 0.17s
+  run 10: test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 845 filtered out; finished in 0.17s
+  stress summary: 10/10 ok
+  ```
+
+- `cargo test -p snapback-kernel scoped_token_release`: `test result: ok. 2 passed; 0 failed; 0
+  ignored; 0 measured; 846 filtered out; finished in 0.10s`.
+- `./ref-check --verbose`: `ref-check: ok — 311 LLP docs, 7176 refs in 15414 files, 0 errors,
+  0 unchecked`.
+- `node scripts/check-inventories.mjs`: `[check-inventories] PASS: 353 package tests; 29 scripts
+  tests; 31 demos/31 catalog entries; 487 publication leaves; 157 guide pages/1871 snippets`.
+- `node scripts/check-guide.mjs`: `[guide-check] FAILED — 21 passed, 1 failed, 0 skipped, 0
+  preconditions; 157 pages, 1871 snippets, 174 routes + 51 host-ops joined, 94 warnings`. The sole
+  failure is the known inherited benchmark-transcript accessor check:
+  `unallowlisted raw-client asset accessor in benchmarks/runs/2026-08-23-r2-published-0125/cells/opus-clique-explicit/events/harness.stdout.jsonl; use createAssetClient(client)`.
+- `git diff --check`: clean (no output).
 
 This landing enforces the durable Carrier terminal cut only for
 `/auth/agents/token/release`. It does not claim closure of the wider authorization or
