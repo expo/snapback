@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {
+  existsSync,
   mkdtempSync,
   realpathSync,
   rmSync,
@@ -14,6 +15,7 @@ import {
   resolveExpoMetroCommand,
 } from './expo-dev.mjs';
 import { runCli } from './index.mjs';
+import { CLEANUP_LEASE_DIRECTORY_ENV } from './process-teardown.mjs';
 
 const watchCapableDirectory = '/snapback/project';
 
@@ -205,6 +207,7 @@ async function captureDevAdvisory(argv, env) {
   };
   let runDevCalled = false;
   let runExpoDevCalled = false;
+  let packagedCleanupLeaseDirectory = null;
   try {
     const code = await runCli(argv, {
       env,
@@ -213,13 +216,28 @@ async function captureDevAdvisory(argv, env) {
         order.push('runDev');
         return { ok: true, close: async () => {} };
       },
-      async runExpoDev() {
+      async runExpoDev(options) {
         runExpoDevCalled = true;
         order.push('runExpoDev');
+        packagedCleanupLeaseDirectory = options.env?.[CLEANUP_LEASE_DIRECTORY_ENV] ?? null;
+        assert.equal(
+          packagedCleanupLeaseDirectory === null
+            ? false
+            : existsSync(packagedCleanupLeaseDirectory),
+          true,
+          'the packaged Expo CLI must establish its cleanup lease before runExpoDev',
+        );
         return { ok: false, diagnostics: [] };
       },
     });
-    return { code, order, lines, runDevCalled, runExpoDevCalled };
+    return {
+      code,
+      order,
+      lines,
+      runDevCalled,
+      runExpoDevCalled,
+      packagedCleanupLeaseDirectory,
+    };
   } finally {
     console.error = originalError;
   }
@@ -273,6 +291,7 @@ async function captureDevAdvisory(argv, env) {
   const captured = await captureDevAdvisory(['dev', 'snapback', '--expo'], { CI: '1' });
   assert.equal(captured.runExpoDevCalled, true);
   assert.deepEqual(captured.order, ['runExpoDev']);
+  assert.equal(existsSync(captured.packagedCleanupLeaseDirectory), false);
   assert.equal(
     captured.lines.some((line) => line.includes('SNAPBACK_EXPO_METRO_WATCH_INERT')),
     false,

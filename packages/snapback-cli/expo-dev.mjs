@@ -3,6 +3,7 @@ import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypt
 import {
   chmodSync,
   existsSync,
+  linkSync,
   lstatSync,
   mkdirSync,
   mkdtempSync,
@@ -39,6 +40,7 @@ import {
   reserveCleanupPath,
   spawnLeasedProcess,
   stopProcessGroup,
+  withCleanupPathLock,
 } from './process-teardown.mjs';
 import { createSupervisedBindingPublisher } from './expo-binding-refresh.mjs';
 import {
@@ -72,6 +74,8 @@ const EXPO_GO_IOS_BUNDLE_IDENTIFIER = 'host.exp.Exponent';
 const EXPO_GO_ANDROID_COMPONENT_PREFIX = 'host.exp.exponent/';
 const EXPO_APP_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*$/u;
 const DEV_CONTROL_SOCKET_BASENAME = 'dev-control.sock';
+const DEV_CONTROL_OWNER_STATE_BASENAME = 'dev-control.owner.json';
+const DEV_CONTROL_OWNER_STATE_FORMAT = 'snapback.dev-control-owner.v1';
 const DEV_CONTROL_COMMAND_LIMIT_BYTES = 16 * 1024;
 const DEV_CONTROL_VERBS = Object.freeze(['reload-metro', 'stop-children']);
 
@@ -102,6 +106,21 @@ function controlLifecycleReceipt(input) {
     startedAt: input.startedAt,
   })).digest('hex');
   return `sha256:${digest}`;
+}
+
+function writeOwnerOnlyJsonAtomic(path, value) {
+  const temporary = `${path}.${process.pid}.${randomUUID()}.tmp`;
+  writeFileSync(temporary, `${JSON.stringify(value, null, 2)}\n`, {
+    flag: 'wx',
+    mode: 0o600,
+  });
+  chmodSync(temporary, 0o600);
+  renameSync(temporary, path);
+  const metadata = lstatSync(path);
+  return Object.freeze({
+    device: String(metadata.dev),
+    inode: String(metadata.ino),
+  });
 }
 
 function validateDevControlCommand(command, controlSocket, endpoint) {
@@ -226,45 +245,12 @@ function probeDevControlEndpoint(path) {
   });
 }
 
-function matchesStaleControlDescriptor({ readyFile, path, ownerUid, endpoint }) {
-  const descriptorPath = join(dirname(resolve(readyFile)), 'expo-supervisor.json');
-  try {
-    const descriptorMetadata = lstatSync(descriptorPath);
-    if (!descriptorMetadata.isFile()
-        || descriptorMetadata.isSymbolicLink()
-        || descriptorMetadata.uid !== ownerUid) return false;
-    const supervisor = JSON.parse(readFileSync(descriptorPath, 'utf8'));
-    const control = supervisor?.controlSocket;
-    if (supervisor?.schemaVersion !== EXPO_SUPERVISOR_DESCRIPTOR_FORMAT
-        || typeof supervisor.startedAt !== 'string'
-        || supervisor.supervisorGeneration !== control?.ownerIncarnationId
-        || supervisor.supervisor?.pid !== control?.ownerPid
-        || supervisor.supervisor?.startTime !== control?.ownerStartTime
-        || control?.schemaVersion !== DEV_CONTROL_SOCKET_FORMAT
-        || resolve(control.path ?? '') !== path
-        || control.ownerUid !== ownerUid
-        || control.endpoint?.uid !== endpoint.uid
-        || control.endpoint?.device !== endpoint.device
-        || control.endpoint?.inode !== endpoint.inode) return false;
-    return control.lifecycleReceipt === controlLifecycleReceipt({
-      readyFile,
-      ownerPid: control.ownerPid,
-      ownerUid: control.ownerUid,
-      ownerIncarnationId: control.ownerIncarnationId,
-      ownerStartTime: control.ownerStartTime,
-      startedAt: supervisor.startedAt,
-    });
-  } catch {
-    return false;
-  }
-}
-
 async function reclaimDeadControlEndpoint({
-  readyFile,
   path,
   ownerUid,
   observeEndpoint,
   probeEndpoint,
+  beforeUnlink,
 }) {
   let endpoint;
   try {
@@ -290,8 +276,7 @@ async function reclaimDeadControlEndpoint({
       { path, cause: error?.code ?? error?.message ?? String(error) },
     );
   }
-  if (occupancy === 'live'
-      || !matchesStaleControlDescriptor({ readyFile, path, ownerUid, endpoint })) {
+  if (occupancy === 'live') {
     throw diagnosticError(
       'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
       'the dev control socket path is already occupied by another endpoint',
@@ -312,8 +297,48 @@ async function reclaimDeadControlEndpoint({
       { path },
     );
   }
+  await beforeUnlink?.({ endpoint });
+  try {
+    current = observeEndpoint(path);
+  } catch (error) {
+    if (error?.code === 'ENOENT') return endpoint;
+    throw error;
+  }
+  if (!sameControlEndpoint(current, endpoint)) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
+      'the dead dev control endpoint changed before owner reclamation',
+      { path },
+    );
+  }
+  // Recheck and unlink are adjacent while the shared pathname lock is held.
   rmSync(path);
   return endpoint;
+}
+
+function cleanupControlOwnerStateMarker(path, identity, ownerIncarnationId, endpoint) {
+  if (identity === null) return false;
+  try {
+    const before = lstatSync(path);
+    if (!before.isFile()
+        || before.isSymbolicLink()
+        || String(before.dev) !== identity.device
+        || String(before.ino) !== identity.inode) return false;
+    const state = JSON.parse(readFileSync(path, 'utf8'));
+    const after = lstatSync(path);
+    if (before.dev !== after.dev || before.ino !== after.ino
+        || state?.schemaVersion !== DEV_CONTROL_OWNER_STATE_FORMAT
+        || state.ownerIncarnationId !== ownerIncarnationId) return false;
+    if (endpoint === null ? state.endpoint !== null : (
+      state.endpoint?.device !== endpoint.device
+      || state.endpoint?.inode !== endpoint.inode
+      || state.endpoint?.uid !== endpoint.uid
+    )) return false;
+    rmSync(path);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function flushControlResult(socket, encodedResult, timeoutMs = 1_000) {
@@ -341,18 +366,36 @@ function flushControlResult(socket, encodedResult, timeoutMs = 1_000) {
 }
 
 async function startDevControlSocketWithDependencies(options, dependencies = {}) {
-  if (process.platform === 'win32' || typeof process.getuid !== 'function') {
-    throw diagnosticError(
+  const platform = dependencies.platform ?? process.platform;
+  const getuid = Object.hasOwn(dependencies, 'getuid')
+    ? dependencies.getuid
+    : process.getuid;
+  if (platform === 'win32' || typeof getuid !== 'function') {
+    const diagnostic = devControlDiagnostic(
       'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
-      'the owner-bound dev control channel requires unix domain sockets and uid custody',
-      { platform: process.platform },
+      'owner-bound dev control is unavailable; continuing with stdin control only',
+      { platform },
     );
+    options.onUnavailable?.(Object.freeze({ ...diagnostic, severity: 'warning' }));
+    return null;
   }
   const path = join(dirname(resolve(options.readyFile)), DEV_CONTROL_SOCKET_BASENAME);
-  const ownerUid = process.getuid();
+  const ownerStatePath = join(dirname(path), DEV_CONTROL_OWNER_STATE_BASENAME);
+  const ownerUid = getuid();
   const ownerPid = process.pid;
+  const lifecycleReceipt = controlLifecycleReceipt({
+    readyFile: options.readyFile,
+    ownerPid,
+    ownerUid,
+    ownerIncarnationId: options.ownerIncarnationId,
+    ownerStartTime: options.ownerStartTime,
+    startedAt: options.startedAt,
+  });
   const observeEndpoint = dependencies.observeEndpoint ?? observedControlEndpoint;
   const probeEndpoint = dependencies.probeEndpoint ?? probeDevControlEndpoint;
+  const withPathLock = dependencies.withPathLock ?? withCleanupPathLock;
+  const writeAcknowledgement = dependencies.writeAcknowledgement
+    ?? ((socket, payload) => socket.write(payload));
   const stateDirectory = lstatSync(dirname(path));
   if (!stateDirectory.isDirectory() || stateDirectory.isSymbolicLink() || stateDirectory.uid !== ownerUid) {
     throw diagnosticError(
@@ -361,13 +404,6 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
       { path: dirname(path), expectedUid: ownerUid, observedUid: stateDirectory.uid },
     );
   }
-  await reclaimDeadControlEndpoint({
-    readyFile: options.readyFile,
-    path,
-    ownerUid,
-    observeEndpoint,
-    probeEndpoint,
-  });
 
   const sockets = new Set();
   let closed = false;
@@ -375,11 +411,13 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
   let closePromise = null;
   let controlSocket = null;
   let controlChain = Promise.resolve();
-  let cleanupResource = reserveCleanupPath(options.cleanupLease ?? null, path, {
-    type: 'socket',
-    label: 'Expo dev control socket',
-  });
+  let cleanupResource = null;
+  let pendingCleanupResource = null;
   let endpoint = null;
+  let descriptor = null;
+  let ownerStateIdentity = null;
+  let pendingPath = null;
+  let close = async () => {};
   const server = createNetServer({ allowHalfOpen: false }, (socket) => {
     sockets.add(socket);
     socket.setEncoding('utf8');
@@ -413,7 +451,7 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
       if (newline === -1) return;
       handled = true;
       const line = buffer.slice(0, newline);
-      void (async () => {
+      const handleCommand = async () => {
         let command;
         try {
           command = JSON.parse(line);
@@ -475,17 +513,9 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
           }))}\n`);
           return;
         }
-        if (verb === 'stop-children') stopping = true;
-        socket.setTimeout(0);
-        socket.write(`${JSON.stringify({
-          schemaVersion: DEV_CONTROL_ACK_FORMAT,
-          ok: true,
-          state: 'acknowledged',
-          requestId,
-          verb,
-          ownerIncarnationId: controlSocket.ownerIncarnationId,
-          lifecycleReceipt: controlSocket.lifecycleReceipt,
-        })}\n`);
+        // Queue the accepted work before touching the reply socket. A peer may
+        // FIN or reset immediately after its command; that abandons only the
+        // acknowledgement/result, never the already-admitted owner verb.
         const run = controlChain.then(async () => {
           let encodedResult;
           try {
@@ -513,6 +543,21 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
           await flushControlResult(socket, encodedResult);
         });
         controlChain = run.then(() => undefined, () => undefined);
+        if (verb === 'stop-children') stopping = true;
+        socket.setTimeout(0);
+        try {
+          writeAcknowledgement(socket, `${JSON.stringify({
+            schemaVersion: DEV_CONTROL_ACK_FORMAT,
+            ok: true,
+            state: 'acknowledged',
+            requestId,
+            verb,
+            ownerIncarnationId: controlSocket.ownerIncarnationId,
+            lifecycleReceipt: controlSocket.lifecycleReceipt,
+          })}\n`);
+        } catch {
+          socket.destroy();
+        }
         if (verb === 'stop-children') {
           void run.finally(() => {
             void close().then(
@@ -521,97 +566,12 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
             );
           });
         }
-      })();
-    });
-  });
-  try {
-    await new Promise((resolveListen, rejectListen) => {
-      const onError = (cause) => {
-        server.off('listening', onListening);
-        rejectListen(diagnosticError(
-          'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
-          `the dev control socket could not bind at ${path}: ${cause.message}`,
-          { path, cause: cause.code ?? cause.message },
-        ));
       };
-      const onListening = () => {
-        server.off('error', onError);
-        resolveListen();
-      };
-      server.once('error', onError);
-      server.once('listening', onListening);
-      // Unix-domain endpoints inherit the process umask at bind time. Make the
-      // endpoint owner-only from its first visible instant, before the explicit
-      // chmod and identity check below close the final mode assertion.
-      const previousUmask = process.umask(0o177);
-      try {
-        // @ref LLP 0310.000#track-e--owner-bound-control-socket — the owner
-        // binds one 0600 Unix endpoint beside its lifecycle receipt.
-        server.listen(path);
-      } finally {
-        process.umask(previousUmask);
-      }
+      void handleCommand().catch(() => socket.destroy());
     });
-  } catch (error) {
-    releaseCleanupResource(cleanupResource);
-    cleanupResource = null;
-    throw error;
-  }
-  // @ref LLP 0262#d1-the-dev-identity-capability — local development custody
-  // is owner-only and uid-bound; the socket follows the same 0600 discipline.
-  chmodSync(path, 0o600);
-  endpoint = observeEndpoint(path);
-  if (endpoint.uid !== ownerUid || endpoint.mode !== 0o600) {
-    server.close();
-    releaseCleanupResource(cleanupResource);
-    cleanupResource = null;
-    try {
-      const current = observeEndpoint(path);
-      if (sameControlEndpoint(current, endpoint)) rmSync(path, { force: true });
-    } catch { /* missing or replaced */ }
-    throw diagnosticError(
-      'SNAPBACK_DEV_CONTROL_OTHER_UID',
-      'the dev control socket did not acquire owner-only uid/mode custody',
-      { path, expectedUid: ownerUid, observedUid: endpoint.uid, observedMode: endpoint.mode },
-    );
-  }
-  const descriptor = Object.freeze({
-    schemaVersion: DEV_CONTROL_SOCKET_FORMAT,
-    path,
-    ownerPid,
-    ownerUid,
-    ownerIncarnationId: options.ownerIncarnationId,
-    ownerStartTime: options.ownerStartTime,
-    lifecycleReceipt: controlLifecycleReceipt({
-      readyFile: options.readyFile,
-      ownerPid,
-      ownerUid,
-      ownerIncarnationId: options.ownerIncarnationId,
-      ownerStartTime: options.ownerStartTime,
-      startedAt: options.startedAt,
-    }),
-    endpoint,
-    verbs: DEV_CONTROL_VERBS,
   });
-  controlSocket = Object.freeze({
-    ...descriptor,
-    endpoint,
-  });
-  try {
-    activateCleanupSocketPath(cleanupResource, {
-      ownerIncarnationId: options.ownerIncarnationId,
-    });
-  } catch (error) {
-    server.close();
-    releaseCleanupResource(cleanupResource);
-    cleanupResource = null;
-    try {
-      const current = observeEndpoint(path);
-      if (sameControlEndpoint(current, endpoint)) rmSync(path, { force: true });
-    } catch { /* missing or replaced */ }
-    throw error;
-  }
-  const close = () => {
+
+  close = () => {
     if (closePromise !== null) return closePromise;
     closed = true;
     stopping = true;
@@ -623,21 +583,186 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
       await controlChain;
       for (const socket of sockets) socket.destroy();
       await serverClose;
-    })().finally(() => {
+    })().finally(async () => {
       // @ref LLP 0192#d-1-the-durable-state-registry — this socket is
       // transient instance-local state, not a durable member. Remove only the
       // exact endpoint this owner bound; a replacement is never deleted.
-      if (cleanupResource !== null) cleanupLeasedPath(cleanupResource);
-      else {
+      if (cleanupResource !== null) await cleanupLeasedPath(cleanupResource);
+      else await withPathLock(path, async () => {
         try {
           const observed = observeEndpoint(path);
-          if (sameControlEndpoint(observed, endpoint)) rmSync(path, { force: true });
+          if (sameControlEndpoint(observed, endpoint)) {
+            const current = observeEndpoint(path);
+            if (sameControlEndpoint(current, endpoint)) rmSync(path);
+          }
         } catch { /* Missing or replaced endpoints are permanently discharged. */ }
-      }
+        cleanupControlOwnerStateMarker(
+          ownerStatePath,
+          ownerStateIdentity,
+          options.ownerIncarnationId,
+          endpoint,
+        );
+      });
       cleanupResource = null;
     });
     return closePromise;
   };
+
+  await withPathLock(path, async () => {
+    try {
+      await reclaimDeadControlEndpoint({
+        path,
+        ownerUid,
+        observeEndpoint,
+        probeEndpoint,
+        beforeUnlink: dependencies.beforeReclaimUnlink,
+      });
+      cleanupResource = reserveCleanupPath(options.cleanupLease ?? null, path, {
+        type: 'socket',
+        label: 'Expo dev control socket',
+      });
+      // Darwin's sockaddr_un path is short; keep the private basename no
+      // longer than the well-known endpoint while retaining random custody.
+      pendingPath = join(dirname(path), `.dc-${randomBytes(4).toString('hex')}`);
+      pendingCleanupResource = reserveCleanupPath(options.cleanupLease ?? null, pendingPath, {
+        type: 'socket',
+        label: 'Expo pending dev control socket',
+      });
+      // Persist the incarnation before binding even the unadvertised private
+      // name. The exact inode replaces this binding-phase marker below before
+      // the well-known endpoint becomes visible.
+      ownerStateIdentity = writeOwnerOnlyJsonAtomic(ownerStatePath, {
+        schemaVersion: DEV_CONTROL_OWNER_STATE_FORMAT,
+        phase: 'binding',
+        path,
+        ownerPid,
+        ownerUid,
+        ownerIncarnationId: options.ownerIncarnationId,
+        ownerStartTime: options.ownerStartTime,
+        lifecycleReceipt,
+        endpoint: null,
+        startedAt: options.startedAt,
+      });
+      await new Promise((resolveListen, rejectListen) => {
+        const onError = (cause) => {
+          server.off('listening', onListening);
+          rejectListen(diagnosticError(
+            'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
+            `the dev control socket could not bind at ${path}: ${cause.message}`,
+            { path, cause: cause.code ?? cause.message },
+          ));
+        };
+        const onListening = () => {
+          server.off('error', onError);
+          resolveListen();
+        };
+        server.once('error', onError);
+        server.once('listening', onListening);
+        const previousUmask = process.umask(0o177);
+        try {
+          // @ref LLP 0310.000#track-e--owner-bound-control-socket — bind at a
+          // private name first; the owner marker is durable before the exact
+          // inode is hard-linked into the well-known 0600 endpoint.
+          server.listen(pendingPath);
+        } finally {
+          process.umask(previousUmask);
+        }
+      });
+      chmodSync(pendingPath, 0o600);
+      endpoint = observeEndpoint(pendingPath);
+      if (endpoint.uid !== ownerUid || endpoint.mode !== 0o600) {
+        throw diagnosticError(
+          'SNAPBACK_DEV_CONTROL_OTHER_UID',
+          'the dev control socket did not acquire owner-only uid/mode custody',
+          { path, expectedUid: ownerUid, observedUid: endpoint.uid, observedMode: endpoint.mode },
+        );
+      }
+      descriptor = Object.freeze({
+        schemaVersion: DEV_CONTROL_SOCKET_FORMAT,
+        path,
+        ownerPid,
+        ownerUid,
+        ownerIncarnationId: options.ownerIncarnationId,
+        ownerStartTime: options.ownerStartTime,
+        lifecycleReceipt,
+        endpoint,
+        verbs: DEV_CONTROL_VERBS,
+      });
+      controlSocket = descriptor;
+      activateCleanupSocketPath(pendingCleanupResource, {
+        ownerIncarnationId: options.ownerIncarnationId,
+        socketIdentity: endpoint,
+      });
+      ownerStateIdentity = writeOwnerOnlyJsonAtomic(ownerStatePath, {
+        schemaVersion: DEV_CONTROL_OWNER_STATE_FORMAT,
+        phase: 'bound',
+        path,
+        ownerPid,
+        ownerUid,
+        ownerIncarnationId: options.ownerIncarnationId,
+        ownerStartTime: options.ownerStartTime,
+        lifecycleReceipt,
+        endpoint,
+        startedAt: options.startedAt,
+      });
+      // The final cleanup identity is active before the well-known name can be
+      // observed. A SIGKILL on either side of publication remains reclaimable.
+      activateCleanupSocketPath(cleanupResource, {
+        ownerIncarnationId: options.ownerIncarnationId,
+        socketIdentity: endpoint,
+        ownerStatePath,
+      });
+      await dependencies.beforeEndpointPublish?.({
+        path,
+        pendingPath,
+        ownerStatePath,
+        descriptor,
+      });
+      try {
+        linkSync(pendingPath, path);
+      } catch (cause) {
+        throw diagnosticError(
+          'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
+          'the dev control socket path became occupied before publication',
+          { path, cause: cause?.code ?? cause?.message ?? String(cause) },
+        );
+      }
+      rmSync(pendingPath);
+      releaseCleanupResource(pendingCleanupResource);
+      pendingCleanupResource = null;
+      pendingPath = null;
+      const published = observeEndpoint(path);
+      if (!sameControlEndpoint(published, endpoint)) {
+        throw diagnosticError(
+          'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
+          'the published dev control endpoint does not match its owner state',
+          { path },
+        );
+      }
+      await dependencies.afterEndpointPublish?.({ path, descriptor });
+    } catch (error) {
+      server.close();
+      for (const resource of [cleanupResource, pendingCleanupResource]) {
+        releaseCleanupResource(resource);
+      }
+      cleanupResource = null;
+      pendingCleanupResource = null;
+      for (const candidate of [path, pendingPath]) {
+        if (candidate === null) continue;
+        try {
+          const current = observeEndpoint(candidate);
+          if (endpoint !== null && sameControlEndpoint(current, endpoint)) rmSync(candidate);
+        } catch { /* absent or replaced */ }
+      }
+      cleanupControlOwnerStateMarker(
+        ownerStatePath,
+        ownerStateIdentity,
+        options.ownerIncarnationId,
+        endpoint,
+      );
+      throw error;
+    }
+  });
   return Object.freeze({
     descriptor,
     get closed() { return closed; },
@@ -2988,7 +3113,7 @@ export async function runExpoDev(options = {}) {
         if (path === null) continue;
         try {
           if (resource === null) rmSync(path, { force: true });
-          else cleanupLeasedPath(resource);
+          else await cleanupLeasedPath(resource);
         } catch (error) { failures.push(error); }
       }
       supervisorDescriptorCleanupResource = null;
@@ -3907,6 +4032,14 @@ export async function runExpoDev(options = {}) {
           'stop-children': stopChildrenVerb,
         },
         onStopComplete: options.onControlStop,
+        onUnavailable(diagnostic) {
+          emit({
+            ok: true,
+            state: 'control-socket-unavailable',
+            notice: diagnostic.message,
+            diagnostics: [diagnostic],
+          });
+        },
       });
     }
     const finalReadiness = {

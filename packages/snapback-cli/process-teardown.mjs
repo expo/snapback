@@ -2,13 +2,16 @@ import { spawn, spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import {
   chmodSync,
+  closeSync,
   existsSync,
   lstatSync,
   mkdtempSync,
+  openSync,
   readFileSync,
   readdirSync,
   renameSync,
   rmSync,
+  writeSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -23,7 +26,9 @@ const CLEANUP_LEASE_PREFIX = 'snapback-carrier-cleanup-';
 const CLEANUP_RESOURCE_PREFIX = 'resource-';
 const PROCESS_LEASE_MARKER_ENV = 'SNAPBACK_CARRIER_PROCESS_LEASE_MARKER';
 const PROCESS_LEASE_RUN_ID_ENV = 'SNAPBACK_CARRIER_PROCESS_LEASE_RUN_ID';
+const CLEANUP_PATH_LOCK_FORMAT = 'snapback.cleanup-path-lock.v1';
 const PENDING_PROCESS_CONFIRM_MS = 1_000;
+const CLEANUP_PATH_LOCK_TIMEOUT_MS = 5_000;
 const MODULE_PATH = fileURLToPath(import.meta.url);
 const LEASED_PROCESS_STATE = new WeakMap();
 
@@ -164,6 +169,143 @@ function writeOwnerOnlyJson(path, value) {
 
 function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
+}
+
+function writeExclusiveOwnerRecord(path, value) {
+  let descriptor = null;
+  try {
+    descriptor = openSync(path, 'wx', 0o600);
+    writeSync(descriptor, `${JSON.stringify(value)}\n`);
+    closeSync(descriptor);
+    descriptor = null;
+  } finally {
+    if (descriptor !== null) closeSync(descriptor);
+  }
+}
+
+function cleanupPathLockOwner() {
+  const identity = processIdentity(process.pid);
+  if (identity === null) throw new Error('cleanup path lock could not identify its owner');
+  return Object.freeze({
+    schemaVersion: CLEANUP_PATH_LOCK_FORMAT,
+    pid: identity.pid,
+    startTime: identity.startTime,
+    command: identity.command,
+    token: randomUUID(),
+    acquiredAt: new Date().toISOString(),
+  });
+}
+
+function validCleanupPathLockOwner(owner) {
+  return owner?.schemaVersion === CLEANUP_PATH_LOCK_FORMAT
+    && Number.isSafeInteger(owner.pid)
+    && typeof owner.startTime === 'string'
+    && typeof owner.command === 'string'
+    && typeof owner.token === 'string'
+    && owner.token.length > 0;
+}
+
+function releaseCleanupPathLock(lockFile, owner) {
+  try {
+    const current = readJson(lockFile);
+    if (validCleanupPathLockOwner(current) && current.token === owner.token) {
+      rmSync(lockFile);
+    }
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error;
+  }
+}
+
+async function acquireCleanupPathLock(path, timeoutMs = CLEANUP_PATH_LOCK_TIMEOUT_MS) {
+  const lockDirectory = dirname(resolve(path));
+  // Keep lock basenames shorter than dev-control.sock: Darwin's sockaddr_un
+  // parents can already sit near their path limit, and stale-lock recovery
+  // must remain available there too. One directory lock also serializes the
+  // private prepublication name with the well-known endpoint.
+  const lockFile = join(lockDirectory, '.dc-lock');
+  const reclaimFile = join(lockDirectory, '.dc-reclaim');
+  const owner = cleanupPathLockOwner();
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    try {
+      writeExclusiveOwnerRecord(lockFile, owner);
+      return Object.freeze({ lockFile, owner });
+    } catch (error) {
+      if (error?.code !== 'EEXIST') throw error;
+    }
+
+    let observedBytes = null;
+    let observedOwner = null;
+    try {
+      observedBytes = readFileSync(lockFile, 'utf8');
+      observedOwner = JSON.parse(observedBytes);
+    } catch { /* An unreadable lock is reclaimable only under the O_EXCL reclaimer. */ }
+    if (validCleanupPathLockOwner(observedOwner) && liveIdentity(observedOwner)) {
+      if (Date.now() >= deadline) {
+        throw Object.assign(new Error(`timed out waiting for cleanup path lock ${lockFile}`), {
+          code: 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
+        });
+      }
+      await new Promise((resolveWait) => setTimeout(resolveWait, 10));
+      continue;
+    }
+
+    let ownsReclaim = false;
+    const reclaimOwner = cleanupPathLockOwner();
+    try {
+      writeExclusiveOwnerRecord(reclaimFile, reclaimOwner);
+      ownsReclaim = true;
+    } catch (error) {
+      if (error?.code !== 'EEXIST') throw error;
+      let incumbent = null;
+      try { incumbent = readJson(reclaimFile); } catch { /* malformed is not silently stolen */ }
+      if (!validCleanupPathLockOwner(incumbent) || !liveIdentity(incumbent)) {
+        throw Object.assign(
+          new Error(`cleanup path lock reclamation was interrupted at ${reclaimFile}`),
+          { code: 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE' },
+        );
+      }
+      if (Date.now() >= deadline) {
+        throw Object.assign(new Error(`timed out waiting for cleanup path lock ${lockFile}`), {
+          code: 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
+        });
+      }
+      await new Promise((resolveWait) => setTimeout(resolveWait, 10));
+      continue;
+    }
+
+    const replacementFile = join(lockDirectory, `.dc-${owner.token.slice(0, 8)}`);
+    try {
+      let currentBytes = null;
+      try { currentBytes = readFileSync(lockFile, 'utf8'); } catch (error) {
+        if (error?.code !== 'ENOENT') throw error;
+      }
+      if (currentBytes !== observedBytes || observedBytes === null) continue;
+      writeExclusiveOwnerRecord(replacementFile, owner);
+      if (readFileSync(lockFile, 'utf8') !== observedBytes) continue;
+      // The reclaimer is O_EXCL-serialized, and rename replaces the stale lock
+      // atomically. There is no unlink gap in which a new live lock can appear.
+      renameSync(replacementFile, lockFile);
+      return Object.freeze({ lockFile, owner });
+    } finally {
+      rmSync(replacementFile, { force: true });
+      if (ownsReclaim) releaseCleanupPathLock(reclaimFile, reclaimOwner);
+    }
+  }
+}
+
+// Socket bind/reclaim and detached-reaper deletion share this exact lock. The
+// callback may wait (for listen or a test barrier); a killed holder is recovered
+// through the lock's PID/start-time-bound atomic replacement path above.
+// @ref LLP 0310.000#track-e--owner-bound-control-socket — the owner endpoint's
+// reclaim, bind, and reaper deletion are one serialized ownership transition.
+export async function withCleanupPathLock(path, action, { timeoutMs } = {}) {
+  const lock = await acquireCleanupPathLock(path, timeoutMs);
+  try {
+    return await action();
+  } finally {
+    releaseCleanupPathLock(lock.lockFile, lock.owner);
+  }
 }
 
 function assertLeaseDirectory(directory) {
@@ -434,7 +576,46 @@ export function activateCleanupPath(resource, { runIdField, runId } = {}) {
   return Object.freeze({ ...fileIdentity });
 }
 
-export function activateCleanupSocketPath(resource, { ownerIncarnationId } = {}) {
+function observedSocketIdentity(path) {
+  const observed = lstatSync(path);
+  if (!observed.isSocket() || observed.isSymbolicLink()) {
+    throw new Error('cleanup socket identity requires a unix socket, not a link');
+  }
+  return {
+    device: String(observed.dev),
+    inode: String(observed.ino),
+    uid: observed.uid,
+  };
+}
+
+function observedOwnerStateIdentity(path, ownerIncarnationId, socketIdentity) {
+  if (!isAbsolute(path)) throw new Error('cleanup socket owner state path must be absolute');
+  const before = lstatSync(path);
+  if (!before.isFile() || before.isSymbolicLink()) {
+    throw new Error('cleanup socket owner state requires a regular non-link file');
+  }
+  const state = readJson(path);
+  const after = lstatSync(path);
+  if (before.dev !== after.dev || before.ino !== after.ino
+      || state?.ownerIncarnationId !== ownerIncarnationId
+      || state?.endpoint?.device !== socketIdentity.device
+      || state?.endpoint?.inode !== socketIdentity.inode
+      || state?.endpoint?.uid !== socketIdentity.uid) {
+    throw new Error('cleanup socket owner state changed while it was being bound');
+  }
+  return {
+    path,
+    device: String(after.dev),
+    inode: String(after.ino),
+    ownerIncarnationId,
+  };
+}
+
+export function activateCleanupSocketPath(resource, {
+  ownerIncarnationId,
+  socketIdentity: suppliedSocketIdentity = null,
+  ownerStatePath = null,
+} = {}) {
   if (resource === null || resource === undefined) return null;
   if (typeof ownerIncarnationId !== 'string' || ownerIncarnationId.length === 0) {
     throw new Error('cleanup socket activation requires an owner incarnation id');
@@ -448,20 +629,23 @@ export function activateCleanupSocketPath(resource, { ownerIncarnationId } = {})
       || record.leaseUnique === true) {
     throw new Error('cleanup socket reservation is not bindable');
   }
-  const observed = lstatSync(record.path);
-  if (!observed.isSocket() || observed.isSymbolicLink()) {
-    throw new Error('cleanup socket identity requires a unix socket, not a link');
+  const socketIdentity = suppliedSocketIdentity === null
+    ? observedSocketIdentity(record.path)
+    : { ...suppliedSocketIdentity };
+  if (typeof socketIdentity.device !== 'string'
+      || typeof socketIdentity.inode !== 'string'
+      || !Number.isSafeInteger(socketIdentity.uid)) {
+    throw new Error('cleanup socket activation requires an exact socket identity');
   }
-  const socketIdentity = {
-    device: String(observed.dev),
-    inode: String(observed.ino),
-    uid: observed.uid,
-    ownerIncarnationId,
-  };
+  socketIdentity.ownerIncarnationId = ownerIncarnationId;
+  const ownerStateIdentity = ownerStatePath === null
+    ? null
+    : observedOwnerStateIdentity(ownerStatePath, ownerIncarnationId, socketIdentity);
   writeOwnerOnlyJson(resource.path, {
     ...record,
     state: 'active',
     socketIdentity,
+    ...(ownerStateIdentity === null ? {} : { ownerStateIdentity }),
     activatedAt: new Date().toISOString(),
   });
   return Object.freeze({ ...socketIdentity });
@@ -898,7 +1082,33 @@ async function cleanupProcessGroup(pgid, leader) {
   await stopGuardedProcessGroup(pgid, leader, 1_000, 2_000);
 }
 
-function cleanupExactPath(resource) {
+function cleanupSocketOwnerState(resource) {
+  const identity = resource.ownerStateIdentity;
+  if (typeof identity?.path !== 'string'
+      || typeof identity.device !== 'string'
+      || typeof identity.inode !== 'string'
+      || typeof identity.ownerIncarnationId !== 'string') return false;
+  try {
+    const before = lstatSync(identity.path);
+    if (!before.isFile()
+        || before.isSymbolicLink()
+        || String(before.dev) !== identity.device
+        || String(before.ino) !== identity.inode) return false;
+    const state = readJson(identity.path);
+    const after = lstatSync(identity.path);
+    if (before.dev !== after.dev || before.ino !== after.ino
+        || state?.ownerIncarnationId !== identity.ownerIncarnationId
+        || state?.endpoint?.device !== resource.socketIdentity?.device
+        || state?.endpoint?.inode !== resource.socketIdentity?.inode
+        || state?.endpoint?.uid !== resource.socketIdentity?.uid) return false;
+    rmSync(identity.path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function cleanupExactPath(resource, dependencies = {}) {
   if (resource.pathType === 'file') {
     if (resource.state !== 'active') return false;
     if (resource.leaseUnique === true) {
@@ -933,19 +1143,36 @@ function cleanupExactPath(resource) {
         || !Number.isSafeInteger(identity?.uid)
         || typeof identity?.ownerIncarnationId !== 'string'
         || identity.ownerIncarnationId.length === 0) return false;
-    try {
-      const observed = lstatSync(resource.path);
-      if (!observed.isSocket()
-          || observed.isSymbolicLink()
-          || String(observed.dev) !== identity.device
-          || String(observed.ino) !== identity.inode
-          || observed.uid !== identity.uid) return false;
-      rmSync(resource.path, { force: true });
-      return true;
-    } catch {
-      // Missing, replaced, or concurrently changing discharges this lease.
-      return false;
-    }
+    return (dependencies.withPathLock ?? withCleanupPathLock)(resource.path, async () => {
+      let observed = null;
+      try {
+        observed = lstatSync(resource.path);
+      } catch (error) {
+        if (error?.code !== 'ENOENT') throw error;
+      }
+      const exact = observed !== null
+        && observed.isSocket()
+        && !observed.isSymbolicLink()
+        && String(observed.dev) === identity.device
+        && String(observed.ino) === identity.inode
+        && observed.uid === identity.uid;
+      if (exact) {
+        await dependencies.beforeSocketUnlink?.({ resource, observed });
+        // The shared lock excludes every conforming bind/reaper. Re-observe
+        // immediately before pathname deletion so a queued successor can
+        // never have its newly bound inode removed by this stale lease.
+        const current = lstatSync(resource.path);
+        if (current.isSocket()
+            && !current.isSymbolicLink()
+            && String(current.dev) === identity.device
+            && String(current.ino) === identity.inode
+            && current.uid === identity.uid) {
+          rmSync(resource.path);
+        }
+      }
+      const markerRemoved = cleanupSocketOwnerState(resource);
+      return exact || markerRemoved;
+    });
   }
   const resolved = resolve(resource.path);
   if (resource.pathType !== 'browser-profile'
@@ -957,7 +1184,7 @@ function cleanupExactPath(resource) {
   return true;
 }
 
-export function cleanupLeasedPath(resource) {
+export async function cleanupLeasedPath(resource) {
   if (resource === null || resource === undefined) return false;
   let removed = false;
   try {
@@ -965,7 +1192,7 @@ export function cleanupLeasedPath(resource) {
     if (record?.schemaVersion !== CLEANUP_RESOURCE_FORMAT
         || record.kind !== 'path'
         || record.runId !== resource.lease.runId) return false;
-    removed = cleanupExactPath(record);
+    removed = await cleanupExactPath(record);
     return removed;
   } finally {
     // Replacement/ambiguity is a permanent discharge, not a reason to retry
@@ -1013,7 +1240,7 @@ async function cleanupResource(path, resource, {
       return false;
     }
   } else if (resource.kind === 'path' && resource.state === 'active') {
-    cleanupExactPath(resource);
+    await cleanupExactPath(resource);
   }
   pendingAbsentSince.delete(path);
   rmSync(path, { force: true });
@@ -1143,6 +1370,7 @@ function registerCleanupLeaseProcess(path) {
 }
 
 export const __test = Object.freeze({
+  cleanupExactPath,
   stopGuardedProcessGroup,
 });
 

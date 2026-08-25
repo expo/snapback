@@ -5,6 +5,7 @@ import {
   lstatSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -19,6 +20,7 @@ import {
   startDevControlSocket,
 } from './expo-dev.mjs';
 import {
+  __test as teardownTest,
   CLEANUP_LEASE_DIRECTORY_ENV,
   closeCarrierCleanupLease,
   createCarrierCleanupLease,
@@ -158,12 +160,93 @@ async function assertIncompleteClientCloses(path, { idle = false } = {}) {
   });
 }
 
+function stopChildrenCommand(control, requestId) {
+  return {
+    schemaVersion: 'snapback.dev-control-command.v1',
+    requestId,
+    verb: 'stop-children',
+    owner: {
+      pid: control.descriptor.ownerPid,
+      uid: control.descriptor.ownerUid,
+      incarnationId: control.descriptor.ownerIncarnationId,
+    },
+    lifecycleReceipt: control.descriptor.lifecycleReceipt,
+  };
+}
+
+async function sendControlFin(control, command) {
+  await new Promise((resolveSent, rejectSent) => {
+    const socket = createConnection(control.descriptor.path);
+    socket.once('connect', () => {
+      socket.end(`${JSON.stringify(command)}\n`, resolveSent);
+    });
+    socket.once('error', rejectSent);
+  });
+}
+
+function deferred() {
+  let resolvePromise;
+  const promise = new Promise((resolve) => { resolvePromise = resolve; });
+  return { promise, resolve: resolvePromise };
+}
+
 try {
   const makeRoot = (name) => {
     const root = join(scratchRoot, name);
     mkdirSync(root);
     return root;
   };
+  const packageManifest = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8'));
+  assert.match(
+    packageManifest.scripts.test,
+    /node expo-dev-loop\.test\.mjs/u,
+    'the package suite must run the Expo lifecycle witness',
+  );
+  assert.match(
+    readFileSync(join(packageRoot, 'expo-dev-loop.test.mjs'), 'utf8'),
+    /else \{\s*\/\/ The package-default suite owns the E1 no-TTY witness too;[\s\S]*?await runControlSocketSuite\(\);/u,
+    'the default Expo lifecycle suite must retain the no-TTY E1 control-socket witness',
+  );
+
+  const uidlessRoot = makeRoot('n');
+  const unavailableNotices = [];
+  const uidlessControl = await expoDevTest.startDevControlSocketWithDependencies(
+    testOptions(uidlessRoot, 'unit-uidless-owner', {
+      onUnavailable: (diagnostic) => unavailableNotices.push(diagnostic),
+    }),
+    { getuid: undefined },
+  );
+  assert.equal(uidlessControl, null);
+  assert.equal(unavailableNotices.length, 1);
+  assert.equal(unavailableNotices[0].code, 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE');
+  assert.equal(unavailableNotices[0].severity, 'warning');
+  assert.equal(existsSync(join(uidlessRoot, 'dev-control.sock')), false);
+  console.log('uid custody unavailable: stdin-only fallback remains live');
+
+  const unpublishedRoot = makeRoot('p');
+  const unpublishedHolder = await startHolder(unpublishedRoot, 'unit-unpublished-owner');
+  const unpublishedEndpoint = { ...unpublishedHolder.descriptor.endpoint };
+  const unpublishedOwnerStatePath = join(unpublishedRoot, 'dev-control.owner.json');
+  const unpublishedOwnerState = JSON.parse(readFileSync(unpublishedOwnerStatePath, 'utf8'));
+  const unpublishedOwnerStateMetadata = lstatSync(unpublishedOwnerStatePath);
+  assert.equal(unpublishedOwnerStateMetadata.mode & 0o777, 0o600);
+  assert.equal(unpublishedOwnerState.phase, 'bound');
+  assert.equal(unpublishedOwnerState.ownerIncarnationId, 'unit-unpublished-owner');
+  assert.deepEqual(unpublishedOwnerState.endpoint, unpublishedEndpoint);
+  assert.equal(unpublishedOwnerState.path, unpublishedHolder.descriptor.path);
+  await killHolder(unpublishedHolder);
+  assert.equal(
+    existsSync(unpublishedHolder.descriptor.path),
+    true,
+    'SIGKILL before expo-supervisor.json publication must leave the kernel socket inode',
+  );
+  const unpublishedSuccessor = await startDevControlSocket(
+    testOptions(unpublishedRoot, 'unit-unpublished-successor'),
+  );
+  assert.notEqual(unpublishedSuccessor.descriptor.endpoint.inode, unpublishedEndpoint.inode);
+  await unpublishedSuccessor.close();
+  console.log('pre-descriptor owner death: prepublished inode/incarnation reclaimed and rebound');
+
   const staleRoot = makeRoot('s');
   const staleHolder = await startHolder(staleRoot, 'unit-stale-owner');
   publishSupervisorDescriptor(staleRoot, staleHolder);
@@ -174,6 +257,95 @@ try {
   assert.notEqual(relaunched.descriptor.endpoint.inode, staleEndpoint.inode);
   await relaunched.close();
   console.log('dead same-uid endpoint: exact stale inode/incarnation reclaimed and rebound');
+
+  const contenderRoot = makeRoot('q');
+  const contenderHolder = await startHolder(contenderRoot, 'unit-contender-stale');
+  await killHolder(contenderHolder);
+  const firstAtUnlink = deferred();
+  const releaseFirst = deferred();
+  let secondReachedUnlink = false;
+  const firstContender = expoDevTest.startDevControlSocketWithDependencies(
+    testOptions(contenderRoot, 'unit-contender-first'),
+    {
+      async beforeReclaimUnlink() {
+        firstAtUnlink.resolve();
+        await releaseFirst.promise;
+      },
+    },
+  );
+  await firstAtUnlink.promise;
+  const secondContender = expoDevTest.startDevControlSocketWithDependencies(
+    testOptions(contenderRoot, 'unit-contender-second'),
+    {
+      beforeReclaimUnlink() { secondReachedUnlink = true; },
+    },
+  );
+  await new Promise((resolveWait) => setTimeout(resolveWait, 75));
+  assert.equal(
+    secondReachedUnlink,
+    false,
+    'a second reclaimer must wait outside the first recheck/unlink/bind lock',
+  );
+  releaseFirst.resolve();
+  const contenderResults = await Promise.allSettled([firstContender, secondContender]);
+  const contenderWinner = contenderResults.find((result) => result.status === 'fulfilled');
+  const contenderLoser = contenderResults.find((result) => result.status === 'rejected');
+  assert(contenderWinner, 'one serialized contender must bind the successor endpoint');
+  assert.equal(
+    contenderLoser?.reason?.diagnostic?.code,
+    'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
+  );
+  assert.equal(existsSync(contenderWinner.value.descriptor.path), true);
+  await contenderWinner.value.close();
+  console.log('two reclaimers: shared lock serializes recheck, unlink, and successor bind');
+
+  const reaperRaceRoot = makeRoot('x');
+  const reaperRaceHolder = await startHolder(reaperRaceRoot, 'unit-reaper-stale');
+  const reaperRaceStatePath = join(reaperRaceRoot, 'dev-control.owner.json');
+  const reaperRaceStateMetadata = lstatSync(reaperRaceStatePath);
+  const staleReaperResource = {
+    state: 'active',
+    pathType: 'socket',
+    path: reaperRaceHolder.descriptor.path,
+    socketIdentity: {
+      ...reaperRaceHolder.descriptor.endpoint,
+      ownerIncarnationId: reaperRaceHolder.descriptor.ownerIncarnationId,
+    },
+    ownerStateIdentity: {
+      path: reaperRaceStatePath,
+      device: String(reaperRaceStateMetadata.dev),
+      inode: String(reaperRaceStateMetadata.ino),
+      ownerIncarnationId: reaperRaceHolder.descriptor.ownerIncarnationId,
+    },
+  };
+  await killHolder(reaperRaceHolder);
+  const successorPublished = deferred();
+  const releaseSuccessor = deferred();
+  const racingSuccessorPromise = expoDevTest.startDevControlSocketWithDependencies(
+    testOptions(reaperRaceRoot, 'unit-reaper-successor'),
+    {
+      async afterEndpointPublish() {
+        successorPublished.resolve();
+        await releaseSuccessor.promise;
+      },
+    },
+  );
+  await successorPublished.promise;
+  let reaperSettled = false;
+  const racingReaper = teardownTest.cleanupExactPath(staleReaperResource)
+    .finally(() => { reaperSettled = true; });
+  await new Promise((resolveWait) => setTimeout(resolveWait, 75));
+  assert.equal(reaperSettled, false, 'the stale reaper must wait for successor publication');
+  releaseSuccessor.resolve();
+  const racingSuccessor = await racingSuccessorPromise;
+  assert.equal(await racingReaper, false, 'the stale lease must discharge on the successor inode');
+  assert.equal(existsSync(racingSuccessor.descriptor.path), true);
+  assert.equal(
+    String(lstatSync(racingSuccessor.descriptor.path).ino),
+    racingSuccessor.descriptor.endpoint.inode,
+  );
+  await racingSuccessor.close();
+  console.log('reaper versus bind: stale deletion waits and preserves the successor inode');
 
   const liveRoot = makeRoot('l');
   const liveHolder = await startHolder(liveRoot, 'unit-live-owner');
@@ -220,6 +392,36 @@ try {
   await assertIncompleteClientCloses(connectionControl.descriptor.path, { idle: true });
   await connectionControl.close();
   console.log('incomplete clients: EOF and idle deadline both release the connection');
+
+  const finRoot = makeRoot('f');
+  const stopQueued = deferred();
+  const finControl = await expoDevTest.startDevControlSocketWithDependencies(
+    testOptions(
+      finRoot,
+      'unit-fin-owner',
+      {
+        verbs: {
+          'reload-metro': async () => ({ ok: true }),
+          'stop-children': async () => {
+            stopQueued.resolve();
+            return { ok: true };
+          },
+        },
+      },
+    ),
+    {
+      writeAcknowledgement(socket) {
+        socket.destroy();
+        throw new Error('simulated peer reset before acknowledgement');
+      },
+    },
+  );
+  await sendControlFin(finControl, stopChildrenCommand(finControl, 'fin-stop'));
+  await eventually(() => stopQueued.promise.then(() => true), {
+    label: 'FIN-disconnected stop-children dispatch',
+  });
+  await eventually(() => finControl.closed, { label: 'FIN-disconnected control close' });
+  console.log('stop-children FIN: work is queued before acknowledgement and completes');
 
   const leasedRoot = makeRoot('r');
   const cleanupLease = await createCarrierCleanupLease();

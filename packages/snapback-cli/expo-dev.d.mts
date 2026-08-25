@@ -122,7 +122,14 @@ export function startDevControlSocket(options: Readonly<{
     'stop-children': (context: Readonly<{ requestId: string }>) => unknown | Promise<unknown>;
   }>;
   onStopComplete?: () => void;
-}>): Promise<DevControlSocketHandle>;
+  onUnavailable?: (diagnostic: Readonly<{
+    code: 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE';
+    severity: 'warning';
+    subsystem: 'cli';
+    message: string;
+    details: Readonly<Record<string, unknown>>;
+  }>) => void;
+}>): Promise<DevControlSocketHandle | null>;
 
 export function admittedBrowserExchangeOrigin(originHeader: unknown): string | null;
 

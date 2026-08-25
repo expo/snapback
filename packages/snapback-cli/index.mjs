@@ -124,7 +124,13 @@ import {
   runHostedRead,
   submitHostedOperatorRequest,
 } from './hosted-control.mjs';
-import { spawnLeasedProcess, stopProcessGroup } from './process-teardown.mjs';
+import {
+  CLEANUP_LEASE_DIRECTORY_ENV,
+  closeCarrierCleanupLease,
+  createCarrierCleanupLease,
+  spawnLeasedProcess,
+  stopProcessGroup,
+} from './process-teardown.mjs';
 import { validateAdminConsoleSnapshot } from './admin-snapshot.mjs';
 import {
   devPortPlanOwner,
@@ -7405,6 +7411,7 @@ export const PACKAGED_CLI_COMMANDS = Object.freeze([
       'Supervised Expo iOS: snapback dev snapback --expo --expo-platform ios (ios is the default).',
       'Supervised Expo Android: snapback dev snapback --expo --expo-platform android.',
       'Supervised Expo web: snapback dev snapback --expo --expo-platform web.',
+      'Supervised Expo also publishes an owner-bound 0600 Unix endpoint at expo-supervisor.json#controlSocket for non-TTY reload-metro and stop-children automation; stdin control remains available.',
       'Every owned listener uses the stable 4287-4387 range by default; use --port/--client-port/--bootstrap-port for strict pins or --port-range for a constrained lane.',
       'Native dev-identity checkout is default-off and requires the application development client\'s own bundle/component and URL scheme; Expo Go is refused.',
       '--expo owns the bootstrap environment; --client-command is a generic child and does not install the supervised Expo bootstrap.',
@@ -9159,6 +9166,16 @@ export async function runCli(argv, options = {}) {
       let detachInput = () => {};
       let stopping = false;
       let closePromise = null;
+      let carrierCleanupLease = null;
+      let carrierCleanupClosePromise = null;
+      const closePackagedCarrierCleanupLease = () => {
+        if (carrierCleanupClosePromise !== null) return carrierCleanupClosePromise;
+        if (carrierCleanupLease === null) return Promise.resolve();
+        const lease = carrierCleanupLease;
+        carrierCleanupLease = null;
+        carrierCleanupClosePromise = closeCarrierCleanupLease(lease);
+        return carrierCleanupClosePromise;
+      };
       let resolveStop;
       let rejectStop;
       const stopped = new Promise((resolveStopped, rejectStopped) => {
@@ -9171,13 +9188,20 @@ export async function runCli(argv, options = {}) {
         stopping = true;
         detachInput();
         closePromise = (async () => {
+          const failures = [];
           try {
             await result?.close?.();
-            if (failure) rejectStop(failure);
-            else resolveStop();
-          } catch (error) {
-            rejectStop(error);
-          }
+          } catch (error) { failures.push(error); }
+          try {
+            await closePackagedCarrierCleanupLease();
+          } catch (error) { failures.push(error); }
+          if (failure !== null) rejectStop(failure);
+          else if (failures.length === 1) rejectStop(failures[0]);
+          else if (failures.length > 1) rejectStop(new AggregateError(
+            failures,
+            'packaged Expo supervisor cleanup failed',
+          ));
+          else resolveStop();
         })();
         return closePromise;
       };
@@ -9208,8 +9232,19 @@ export async function runCli(argv, options = {}) {
       if (options.signal?.aborted) externalAbort();
       else options.signal?.addEventListener('abort', externalAbort, { once: true });
       try {
+        // @ref LLP 0181#web-browser — the installed CLI is itself the carrier.
+        // Establish its detached cleanup reaper before runExpoDev can bind the
+        // owner-control endpoint or start any supervised child.
+        carrierCleanupLease = await createCarrierCleanupLease();
+        const expoEnvironment = {
+          ...(options.env ?? process.env),
+          ...(carrierCleanupLease === null ? {} : {
+            [CLEANUP_LEASE_DIRECTORY_ENV]: carrierCleanupLease.directory,
+          }),
+        };
         result = await runExpoDev({
           ...options,
+          env: expoEnvironment,
           backendDirectory,
           attach,
           devOptions: {
@@ -9278,6 +9313,7 @@ export async function runCli(argv, options = {}) {
       } finally {
         options.signal?.removeEventListener('abort', externalAbort);
         for (const [signal, handler] of handlers) process.off(signal, handler);
+        await closePackagedCarrierCleanupLease();
       }
     }
     // A restart replaces the managed child, so unexpected-exit detection goes

@@ -49,6 +49,12 @@ assert.equal(
   `${VERIFY_RECEIPT_SCHEMA_VERSION} receipt`,
   'verify help must bind its output claim to the exported receipt schema constant',
 );
+const devHelp = PACKAGED_CLI_COMMANDS.find(({ name }) => name === 'dev');
+assert.match(
+  devHelp.details.join('\n'),
+  /owner-bound 0600 Unix endpoint at expo-supervisor\.json#controlSocket/u,
+  'dev help must expose the non-TTY owner control carrier',
+);
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'snapback-cli-help-')));
 try {

@@ -1332,7 +1332,7 @@ async function runWebCarrier({
       supervisorRemovedReadiness = !existsSync(structuredReadinessPath);
       try {
         if (readinessLease === null) rmSync(structuredReadinessPath, { force: true });
-        else cleanupLeasedPath(readinessLease);
+        else await cleanupLeasedPath(readinessLease);
         readinessFileRemoved = !existsSync(structuredReadinessPath);
       } catch (error) { cleanupFailures.push(error); }
     }

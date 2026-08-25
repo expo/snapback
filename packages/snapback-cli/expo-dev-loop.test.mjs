@@ -931,29 +931,36 @@ function assertGrepAbsent(label, files, bearers) {
   }
 }
 
+async function runControlSocketSuite() {
+  const controlRoot = mkdtempSync('/tmp/sbctl-');
+  const controlFixture = fixture('app', { sessions: true, root: controlRoot });
+  const controlRange = await reserveFreeRange(8);
+  try {
+    const controlRun = await runCliSupervisor(controlFixture, 'web', [
+      '--port-range', `${controlRange.lo}-${controlRange.hi}`,
+    ]);
+    assert.equal(controlRun.readyEvent.platform, 'web');
+    const failureFixture = fixture('failure-app', { sessions: true, root: controlRoot });
+    const failureRange = await reserveFreeRange(8);
+    await runCliSupervisor(failureFixture, 'web', [
+      '--port-range', `${failureRange.lo}-${failureRange.hi}`,
+    ], {
+      assertStdinReload: true,
+      failMetroReload: true,
+    });
+    console.log('expo-dev-loop.test.mjs: /dev/null socket concurrency, reload failure, stdin, refusals, and cleanup pass');
+  } finally {
+    rmSync(controlRoot, { recursive: true, force: true });
+  }
+}
+
 try {
   if (controlSocketOnly) {
-    const controlRoot = mkdtempSync('/tmp/sbctl-');
-    const controlFixture = fixture('app', { sessions: true, root: controlRoot });
-    const controlRange = await reserveFreeRange(8);
-    try {
-      const controlRun = await runCliSupervisor(controlFixture, 'web', [
-        '--port-range', `${controlRange.lo}-${controlRange.hi}`,
-      ]);
-      assert.equal(controlRun.readyEvent.platform, 'web');
-      const failureFixture = fixture('failure-app', { sessions: true, root: controlRoot });
-      const failureRange = await reserveFreeRange(8);
-      await runCliSupervisor(failureFixture, 'web', [
-        '--port-range', `${failureRange.lo}-${failureRange.hi}`,
-      ], {
-        assertStdinReload: true,
-        failMetroReload: true,
-      });
-      console.log('expo-dev-loop.test.mjs: /dev/null socket concurrency, reload failure, stdin, refusals, and cleanup pass');
-    } finally {
-      rmSync(controlRoot, { recursive: true, force: true });
-    }
+    await runControlSocketSuite();
   } else {
+  // The package-default suite owns the E1 no-TTY witness too; CI cannot green
+  // by running only the broader lifecycle cases below.
+  await runControlSocketSuite();
   let largeUpstreamCancelled = false;
   let largeUpstreamBytes = 0;
   const largeUpstreamTotal = 16 * 1024 * 1024;
