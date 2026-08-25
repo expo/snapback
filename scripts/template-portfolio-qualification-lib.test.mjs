@@ -117,6 +117,64 @@ test('template qualification runs generate, static acceptance, and prove in orde
   }
 });
 
+test('template qualification does not forward source-checkout package authority overrides', () => {
+  const temporary = mkdtempSync(join(tmpdir(), 'snapback-template-qualification-env-unit-'));
+  const calls = [];
+  try {
+    const result = qualifyOneTemplate({
+      name: 'stub-template',
+      cli: '/stub/snapback',
+      mode: 'registry',
+      registry: 'https://registry.npmjs.org',
+      tarballs: null,
+      temporary,
+      environment: {
+        PATH: '/qualification/bin',
+        SNAPBACK_RUNTIME_BINARY: '/source/target/release/snapback',
+        SNAPBACK_SERVER_BINARY: '/source/target/debug/snapback',
+        SNAPBACK_BINARY: '/source/target/debug/snapback',
+        SNAPBACK_APP_BOUND_SERVER_BINARY: '/source/app-bound/snapback',
+        SNAPBACK_ADMIN_DIST: '/source/admin-ui/dist',
+        SNAPBACK_IBEX_CHECKOUT: '/source/vendor/ibex',
+        SNAPBACK_IBEX_HERMES_FRAMEWORK: '/source/hermesvm.framework',
+        SNAPBACK_PREPARED_RUNTIME_BINARY: '/source/prepared/snapback',
+        SNAPBACK_RUNTIME_SOURCE_BINARY: '/source/runtime/snapback',
+        SNAPBACK_RUNTIME_LINUX_X64_SOURCE_BINARY: '/source/runtime-linux/snapback',
+        SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT: '/source/receipt.json',
+        SNAPBACK_ALLOW_MISSING_STORE_RECEIPTS: '1',
+        DYLD_FRAMEWORK_PATH: '/source/frameworks',
+        LD_LIBRARY_PATH: '/source/lib',
+      },
+      runCommand(command, args, options) {
+        calls.push({ command, args: [...args], env: { ...options.env } });
+        if (args[0] === 'new') {
+          mkdirSync(args[1], { recursive: true });
+          writeFileSync(
+            join(args[1], 'package.json'),
+            `${JSON.stringify({ name: 'stub-template', version: '1.0.0' }, null, 2)}\n`,
+          );
+        }
+      },
+    });
+
+    assert.equal(result.status, 'passed');
+    const prove = calls.find(({ command, args }) => (
+      command === 'npm' && args[0] === 'run' && args[1] === 'prove'
+    ));
+    assert.ok(prove);
+    assert.equal(prove.env.PATH, '/qualification/bin');
+    assert.equal(prove.env.CI, '1');
+    assert.equal(
+      Object.keys(prove.env).some((key) => key.startsWith('SNAPBACK_')),
+      false,
+    );
+    assert.equal(Object.hasOwn(prove.env, 'DYLD_FRAMEWORK_PATH'), false);
+    assert.equal(Object.hasOwn(prove.env, 'LD_LIBRARY_PATH'), false);
+  } finally {
+    rmSync(temporary, { recursive: true, force: true });
+  }
+});
+
 test('missing scripts, changed command classes, and documentation drift fail closed', () => {
   const current = fixture('react');
   assert.throws(

@@ -161,7 +161,7 @@ required. `buildRelease` rejects freshly generated application manifests at
 `issues/20260825-build-release-capability-schema-identity-mismatch.md`; release
 code was not changed in this lane.
 
-Final scoped evidence: the independent template-qualification test passed 2/2;
+Final scoped evidence: the independent template-qualification test passed 4/4;
 todo static coherence passed; the package-test inventory passed with 354
 declared test files; and `ref-check --verbose` reported 311 LLP docs, 6,567
 refs, 12,179 files, and zero errors/unchecked refs. The final long package run

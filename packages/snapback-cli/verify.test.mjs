@@ -1143,7 +1143,6 @@ for (const [template, expectedPathIds, expectedBaselinePathIds] of [
 ]) {
   const scratch = mkdtempSync(join(tmpdir(), `snapback-${template}-verify-config-`));
   const scaffold = join(scratch, template);
-  const sharedDeclaration = template !== 'todo-contract';
   try {
     mkdirSync(scaffold, { recursive: true });
     cpSync(
@@ -1158,39 +1157,30 @@ for (const [template, expectedPathIds, expectedBaselinePathIds] of [
       new URL(`./templates/${template}/carrier.mjs`, import.meta.url),
       join(scaffold, 'carrier.mjs'),
     );
-    if (sharedDeclaration) {
-      cpSync(
-        new URL(`./templates/${template}/snapback/generated`, import.meta.url),
-        join(scaffold, 'snapback', 'generated'),
-        { recursive: true },
-      );
-      mkdirSync(join(scaffold, 'node_modules', '@expo'), { recursive: true });
-      for (const packageName of [
-        'snapback-acceptance',
-        'snapback-cli',
-        'snapback-client',
-        'snapback-expo',
-        'snapback-react',
-      ]) {
-        symlinkSync(
-          resolve(dirname(thisFile), '..', packageName),
-          join(scaffold, 'node_modules', '@expo', packageName),
-          process.platform === 'win32' ? 'junction' : 'dir',
-        );
-      }
+    cpSync(
+      new URL(`./templates/${template}/snapback/generated`, import.meta.url),
+      join(scaffold, 'snapback', 'generated'),
+      { recursive: true },
+    );
+    mkdirSync(join(scaffold, 'node_modules', '@expo'), { recursive: true });
+    for (const packageName of [
+      'snapback-acceptance',
+      'snapback-cli',
+      'snapback-client',
+      'snapback-expo',
+      'snapback-react',
+    ]) {
       symlinkSync(
-        resolve(dirname(thisFile), '..', '..', 'node_modules', 'fake-indexeddb'),
-        join(scaffold, 'node_modules', 'fake-indexeddb'),
-        process.platform === 'win32' ? 'junction' : 'dir',
-      );
-    } else {
-      mkdirSync(join(scaffold, 'node_modules', '@expo'), { recursive: true });
-      symlinkSync(
-        dirname(thisFile),
-        join(scaffold, 'node_modules', '@expo', 'snapback-cli'),
+        resolve(dirname(thisFile), '..', packageName),
+        join(scaffold, 'node_modules', '@expo', packageName),
         process.platform === 'win32' ? 'junction' : 'dir',
       );
     }
+    symlinkSync(
+      resolve(dirname(thisFile), '..', '..', 'node_modules', 'fake-indexeddb'),
+      join(scaffold, 'node_modules', 'fake-indexeddb'),
+      process.platform === 'win32' ? 'junction' : 'dir',
+    );
     const templateConfig = await loadVerifyConfig(join(scaffold, 'snapback.verify.config.mjs'));
     assert.equal(templateConfig.profiles.length, 1);
     assert.deepEqual(
@@ -1201,15 +1191,13 @@ for (const [template, expectedPathIds, expectedBaselinePathIds] of [
       templateConfig.profiles[0].coverageCapability.baselinePathIds,
       expectedBaselinePathIds,
     );
-    assert.equal(templateConfig.profiles[0].testFiles.length, sharedDeclaration ? 4 : 3);
+    assert.equal(templateConfig.profiles[0].testFiles.length, 4);
     assert.ok(templateConfig.profiles[0].testFiles.some((file) => /acceptance\.mjs$/u.test(file)));
     assert.ok(templateConfig.profiles[0].testFiles.some((file) => /carrier\.mjs$/u.test(file)));
     assert.ok(templateConfig.profiles[0].testFiles.some((file) => /carrier-kit\.mjs$/u.test(file)));
-    if (sharedDeclaration) {
-      assert.ok(templateConfig.profiles[0].testFiles.some(
-        (file) => /snapback-acceptance\/index\.mjs$/u.test(file),
-      ));
-    }
+    assert.ok(templateConfig.profiles[0].testFiles.some(
+      (file) => /snapback-acceptance\/index\.mjs$/u.test(file),
+    ));
     cases += 1;
   } finally {
     rmSync(scratch, { recursive: true, force: true });

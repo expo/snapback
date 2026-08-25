@@ -183,6 +183,21 @@ function run(command, args, {
   return capture ? result.stdout : '';
 }
 
+function qualificationChildEnvironment(environment = process.env, overrides = {}) {
+  const clean = {};
+  for (const [key, value] of Object.entries(environment)) {
+    if (
+      key.startsWith('SNAPBACK_')
+      || key.startsWith('DYLD_')
+      || key === 'LD_LIBRARY_PATH'
+    ) {
+      continue;
+    }
+    clean[key] = value;
+  }
+  return { ...clean, ...overrides };
+}
+
 function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
 }
@@ -250,13 +265,12 @@ function installBootstrap({ mode, stagedDir, registry, version, temporary }) {
     return coldInstallStagedPackageClosure({
       stagedDir,
       appDir: bootstrap,
-      environment: {
-        ...process.env,
+      environment: qualificationChildEnvironment(process.env, {
         CI: '1',
         npm_config_audit: 'false',
         npm_config_fund: 'false',
         npm_config_cache: join(temporary, 'npm-cache-bootstrap'),
-      },
+      }),
       timeoutMs: 600_000,
     }).then((installed) => ({ bootstrap, installed }));
   }
@@ -270,11 +284,10 @@ function installBootstrap({ mode, stagedDir, registry, version, temporary }) {
     `@expo/snapback-cli@${version}`,
   ], {
     cwd: bootstrap,
-    env: {
-      ...process.env,
+    env: qualificationChildEnvironment(process.env, {
       CI: '1',
       npm_config_cache: join(temporary, 'npm-cache-bootstrap'),
-    },
+    }),
   });
   return Promise.resolve({ bootstrap, installed: null });
 }
@@ -318,12 +331,13 @@ export function qualifyOneTemplate({
   tarballs,
   temporary,
   runCommand = run,
+  environment = process.env,
 }) {
   const project = join(temporary, 'templates', name);
   mkdirSync(dirname(project), { recursive: true });
   runCommand(cli, ['new', project, '--template', name, '--json'], {
     cwd: temporary,
-    env: { ...process.env, CI: '1' },
+    env: qualificationChildEnvironment(environment, { CI: '1' }),
     timeout: 60_000,
   });
   const manifestPath = join(project, 'package.json');
@@ -343,30 +357,32 @@ export function qualifyOneTemplate({
   ];
   runCommand('npm', installArguments, {
     cwd: project,
-    env: {
-      ...process.env,
+    env: qualificationChildEnvironment(environment, {
       CI: '1',
       npm_config_cache: join(temporary, `npm-cache-${name}`),
-    },
+    }),
   });
   const scaffoldCli = join(project, 'node_modules', '.bin', 'snapback');
   runCommand(scaffoldCli, ['generate', 'snapback', '--json'], {
     cwd: project,
-    env: {
-      ...process.env,
+    env: qualificationChildEnvironment(environment, {
       CI: '1',
       ...(mode === 'staged' ? { npm_config_offline: 'true' } : {}),
-    },
+    }),
     timeout: 180_000,
   });
   runCommand('npm', ['run', 'test:static'], {
     cwd: project,
-    env: { ...process.env, CI: '1' },
+    env: qualificationChildEnvironment(environment, { CI: '1' }),
     timeout: 180_000,
   });
   runCommand('npm', ['run', 'prove'], {
     cwd: project,
-    env: { ...process.env, CI: '1' },
+    // @ref LLP 0275#d6-treat-template-cold-install-closure-as-a-release-requirement
+    // — the packed proof receives no contributor/source authority. Its
+    // runtime, admin snapshot, and readiness evidence must resolve from the
+    // materialized package closure.
+    env: qualificationChildEnvironment(environment, { CI: '1' }),
     timeout: 300_000,
   });
   return Object.freeze({
