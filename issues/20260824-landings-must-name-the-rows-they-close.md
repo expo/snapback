@@ -52,9 +52,36 @@ This costs a line per landing and makes the count a `git log` query instead of a
 exercise. It also forces the author to state which row they believe they closed, which is exactly
 the claim a reviewer should be checking.
 
-## Retrospective
+## Retrospective: what the OAuth landing actually closed
 
-The rows closed by the OAuth landing should be reconstructed and recorded, either as an amendment to
-the bucket assignment or as a note here. Until that is done, this document is the honest statement of
-the count: **the number of landed rows is not precisely known**, and the credible range is small —
-the three landed before the OAuth lane plus whatever that lane closed.
+Reconstructed here rather than left owed, since the whole point of this ticket is that the count
+should be knowable.
+
+The bucket assignment defines the OAuth consent rows as:
+
+| Row | Site | Condition |
+|---|---|---|
+| F170 | `engine:5059` | OAuth-specific wrapper around the same decision as F182 (a duplicate) |
+| F171 | `engine:5099` | Session authority, source `AgentGrantManagement`, `authority.user_id == consenting_user_id` |
+| F172 | `engine:5137` | Exact authority user and session equal `effective_user_id`/`session_id` |
+| F173 | `engine:5157` | `authority.user_id == consenting_user_id`, request storage-verified for that user |
+
+On `main` after the landing:
+
+- `require_agent_grant_management_session` now has **7** call sites in `engine.rs`, up from 4,
+  including one binding `(consenting_user_id, _)` and one binding `(effective_user_id, session_id)` —
+  the shapes F171/F173 and F172 respectively describe.
+- `consenting_user_id` appears **0** times in `crates/snapback-server/src/server/oauth.rs`, so the
+  server no longer supplies it.
+- Exactly **one** `consenting_user_id: &str` parameter remains in `engine.rs`, at line 5357 — inside
+  **`deny_oauth_authorization`**.
+
+That last fact is the useful one. The surviving parameter is precisely the deny path, which belongs
+to a separate, still-unlanded lane. So the approve/consent side is derived and the deny side is not,
+which is exactly the asymmetry that lane exists to close and independently corroborates that these
+rows moved together.
+
+**Assessment:** the OAuth landing closes **F171, F172 and F173**, with **F170** following as the
+duplicate wrapper. Stated as an assessment rather than a fact, because it is reconstructed from
+call-site shapes rather than from a claim the landing made — which is the entire failure this ticket
+is about. A `Closes-rows:` trailer would have made it a lookup.
