@@ -980,6 +980,22 @@ before the paved spelling was discoverable.
     Route terms: "typing indicator too many publishes".
     Required guidance: "bind and memoize only the small state peers actually need".
 
+Case 97 absorbs Diary 0106's table-live symptom vocabulary and routes it to
+the verified delivery rule instead of preserving the JS workaround as product
+physics.
+
+97. **Table live query blank after insert:** "My thread is stuck on Loading
+    thread after an insert, and the trace says live_delta empty. Should I
+    replace the table query with defineJsLiveQuery?" The run fails if it says
+    declarative point/parent filters may legitimately lose a matching insert,
+    uses JS as the correctness workaround, treats mutation settlement as live
+    delivery, or passes an optimistic provisional id to an `_id` query.
+    Expected pages: `realtime/live-queries.md`, `backend/queries.md`.
+    Route terms: "blank after insert", "Loading thread", "live_delta empty".
+    Required guidance: "A subscribed table query must not go blank after a matching insert",
+    "Mutation settlement and live delivery are separate events",
+    "Use the canonical row id returned at settlement".
+
 ## Static routing check
 
 The deterministic half of this corpus is executable:

@@ -26434,6 +26434,194 @@ fn standard_pattern_live_is_conservative_and_recorded() {
     );
 }
 
+// A minimized version of Diary 0106's reported blank: both subscriptions
+// exist before a different caller inserts the client-chosen row id. The point
+// and parent-list memberships must each advance through one Add, and their
+// fresh snapshots must agree with those deltas.
+//
+// @ref LLP 0008#reactivity-and-read-sets — matching inserts cannot be skipped
+//   or removed from an already-subscribed exact table query.
+#[test]
+fn table_live_point_and_parent_filters_keep_matching_insert() {
+    use crate::manifest::{FieldManifest, FieldType, TableManifest};
+
+    const ROW_ID: &str = "d5_live_query_client_mint";
+    const PARENT_ID: &str = "thread_parent";
+
+    let schema = SchemaManifest {
+        tables: vec![TableManifest {
+            name: "todos".to_owned(),
+            fields: vec![
+                FieldManifest {
+                    name: "title".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "parentId".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+            ],
+            indexes: Vec::new(),
+            syncable: true,
+            permission_backing: false,
+            permission_fields: None,
+            search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
+            search_live_limits: None,
+            membership: None,
+            authority_profile: None,
+            asset_sharing: None,
+            visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
+            history: None,
+        }],
+        ..SchemaManifest::default()
+    };
+    let mut point = FunctionDefinition::new(
+        "todoById",
+        FunctionKind::LiveQuery,
+        FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table_visibility: None,
+            table: "todos".to_owned(),
+            filters: vec![FilterExpr {
+                field: "_id".to_owned(),
+                op: FilterOp::Eq,
+                value: ValueExpr::Arg("id".to_owned()),
+            }],
+            membership_filters: Vec::new(),
+            order: Vec::new(),
+            limit: Some(1),
+            indexed_by: None,
+        })),
+    );
+    install_schema_documents_contract(&mut point, &schema, "todos");
+    let mut children = FunctionDefinition::new(
+        "todosByParent",
+        FunctionKind::LiveQuery,
+        FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table_visibility: None,
+            table: "todos".to_owned(),
+            filters: vec![FilterExpr {
+                field: "parentId".to_owned(),
+                op: FilterOp::Eq,
+                value: ValueExpr::Arg("parentId".to_owned()),
+            }],
+            membership_filters: Vec::new(),
+            order: Vec::new(),
+            limit: None,
+            indexed_by: None,
+        })),
+    );
+    install_schema_documents_contract(&mut children, &schema, "todos");
+    let insert = FunctionDefinition::new(
+        "createChild",
+        FunctionKind::Mutation,
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
+            steps: vec![MutationStep::Insert {
+                table: "todos".to_owned(),
+                values: BTreeMap::from([
+                    ("title".to_owned(), ValueExpr::Arg("title".to_owned())),
+                    (
+                        "parentId".to_owned(),
+                        ValueExpr::Arg("parentId".to_owned()),
+                    ),
+                ]),
+                bind_id_as: Some("todoId".to_owned()),
+            }],
+            return_value: Some(ReturnValue::Binding("todoId".to_owned())),
+        })),
+    );
+
+    let mut snapback = LocalSnapback::memory().expect("memory filtered-live fixture");
+    snapback
+        .apply_schema(schema)
+        .expect("apply filtered-live schema");
+    let diagnostics = snapback.load_functions(FunctionManifest {
+        functions: vec![point, children, insert],
+        acknowledged_experimental_capabilities: vec!["result_contract_v1".to_owned()],
+        ..FunctionManifest::default()
+    });
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error),
+        "filtered-live fixture must activate: {diagnostics:?}"
+    );
+
+    let subscribe = |snapback: &mut LocalSnapback, name: &str, args: Value| {
+        snapback
+            .subscribe_live(
+                name,
+                LiveSubscribeInput {
+                    connection_id: "filtered-live-subscriber".to_owned(),
+                    input: HandlerInput {
+                        args,
+                        ..HandlerInput::default()
+                    },
+                    authorization_namespace: None,
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+            )
+            .expect("subscribe filtered-live query")
+    };
+    let point_snapshot = subscribe(&mut snapback, "todoById", json!({ "id": ROW_ID }));
+    let parent_snapshot = subscribe(
+        &mut snapback,
+        "todosByParent",
+        json!({ "parentId": PARENT_ID }),
+    );
+    assert!(point_snapshot.snapshot.expect("point snapshot").rows.is_empty());
+    assert!(
+        parent_snapshot
+            .snapshot
+            .expect("parent snapshot")
+            .rows
+            .is_empty()
+    );
+
+    let output = snapback
+        .invoke_mutation(
+            "createChild",
+            HandlerInput {
+                args: json!({ "title": "reply", "parentId": PARENT_ID }),
+                ctx_ledger: Some(CtxAnswerLedger {
+                    version: ctx_ledger_version(),
+                    ids: vec![ROW_ID.to_owned()],
+                    now: 1_785_758_400_000,
+                    auth_fingerprint: None,
+                }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("insert matching child");
+    assert_eq!(output.result, json!(ROW_ID));
+
+    let envelopes = rqs_drained_envelopes(&mut snapback, "filtered-live-subscriber");
+    assert_eq!(envelopes.len(), 2, "one delivery for each subscription");
+    for function in ["todoById", "todosByParent"] {
+        let envelope = envelopes
+            .iter()
+            .find(|envelope| envelope["function"] == function)
+            .unwrap_or_else(|| panic!("{function} delivery missing: {envelopes:?}"));
+        assert_eq!(envelope["kind"], "live_delta");
+        assert_eq!(envelope["ops"].as_array().expect("delta ops").len(), 1);
+        assert_eq!(envelope["ops"][0]["op"], "add");
+        assert_eq!(envelope["ops"][0]["id"], ROW_ID);
+    }
+
+    let point_fresh = subscribe(&mut snapback, "todoById", json!({ "id": ROW_ID }));
+    let parent_fresh = subscribe(
+        &mut snapback,
+        "todosByParent",
+        json!({ "parentId": PARENT_ID }),
+    );
+    assert_eq!(point_fresh.snapshot.expect("fresh point").rows.len(), 1);
+    assert_eq!(parent_fresh.snapshot.expect("fresh parent").rows.len(), 1);
+}
+
 // @ref LLP 0065#3-common-pattern-contracts — the Sessions-auth-mode
 //   matrix: with real session identities (not the dev lane, which
 //   canonicalizes sessions away), a keyset cursor minted under one

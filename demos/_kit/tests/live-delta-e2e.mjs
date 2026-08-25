@@ -32,6 +32,7 @@ const schema = {
       fields: [
         { name: 'title', field_type: 'String', optional: false },
         { name: 'userId', field_type: 'String', optional: false },
+        { name: 'parentId', field_type: 'String', optional: true },
       ],
       indexes: [],
       syncable: true,
@@ -71,6 +72,35 @@ const hostQuery = (name, order) => {
   };
 };
 
+const filteredHostQuery = (name, filters, limit = null) => {
+  const runtime = {
+    HostPlan: {
+      Query: {
+        table: 'todos',
+        filters,
+        order: [],
+        limit,
+        indexed_by: null,
+      },
+    },
+  };
+  const resultContract = effectiveResultContract({
+    def: null,
+    functionKind: 'LiveQuery',
+    runtime,
+    tables: Object.fromEntries(schema.tables.map((table) => [table.name, table])),
+  });
+  return {
+    id: `live-delta-e2e:${name}`,
+    name,
+    kind: 'LiveQuery',
+    runtime,
+    resultContract,
+    resultContractHash: resultContractHash(resultContract),
+    requiredCapabilities: ['result_contract_v1'],
+  };
+};
+
 const functions = {
   artifactKind: 'functionManifest',
   schemaVersion: 'snapback.v0',
@@ -80,6 +110,15 @@ const functions = {
   acknowledgedExperimentalCapabilities: ['result_contract_v1'],
   functions: [
     hostQuery('listMine', []),
+    filteredHostQuery(
+      'todoById',
+      [{ field: '_id', op: 'Eq', value: { Arg: 'id' } }],
+      1,
+    ),
+    filteredHostQuery(
+      'todosByParent',
+      [{ field: 'parentId', op: 'Eq', value: { Arg: 'parentId' } }],
+    ),
     {
       id: 'live-delta-e2e:createTodo',
       name: 'createTodo',
@@ -92,6 +131,31 @@ const functions = {
                 Insert: {
                   table: 'todos',
                   values: { title: { Arg: 'title' }, userId: { Arg: 'userId' } },
+                  bind_id_as: 'id',
+                },
+              },
+            ],
+            return_value: { Binding: 'id' },
+          },
+        },
+      },
+    },
+    {
+      id: 'live-delta-e2e:createChild',
+      name: 'createChild',
+      kind: 'Mutation',
+      runtime: {
+        HostPlan: {
+          Mutation: {
+            steps: [
+              {
+                Insert: {
+                  table: 'todos',
+                  values: {
+                    title: { Arg: 'title' },
+                    userId: { Arg: 'userId' },
+                    parentId: { Arg: 'parentId' },
+                  },
                   bind_id_as: 'id',
                 },
               },
@@ -210,6 +274,68 @@ try {
     });
   } finally {
     handle.dispose();
+  }
+
+  const subscriber = new SnapbackClient(server.baseUrl, server.clientOptions);
+  const pointRec = recorder();
+  const parentRec = recorder();
+  const clientMintedId = 'd5_live_query_client_mint';
+  const parentId = 'thread_parent';
+  const pointHandle = await subscriber.liveQuery('todoById', {
+    args: { id: clientMintedId },
+    connectionId: 'delta_point_subscriber',
+    userId: ADA,
+    transport: 'stream',
+    stream: { heartbeatIntervalMs: 200, freshnessBudgetMs: 800, reconnectBaseDelayMs: 100, reconnectMaxDelayMs: 400 },
+    onUpdate: pointRec.onUpdate,
+  });
+  const parentHandle = await subscriber.liveQuery('todosByParent', {
+    args: { parentId },
+    connectionId: 'delta_parent_subscriber',
+    userId: ADA,
+    transport: 'stream',
+    stream: { heartbeatIntervalMs: 200, freshnessBudgetMs: 800, reconnectBaseDelayMs: 100, reconnectMaxDelayMs: 400 },
+    onUpdate: parentRec.onUpdate,
+  });
+
+  try {
+    await suite.check('subscribed point and parent filters receive a different client\'s matching insert', async () => {
+      assertEqual(pointHandle.rows, [], 'point snapshot starts empty before the client-minted id exists');
+      assertEqual(parentHandle.rows, [], 'parent-list snapshot starts empty before the child exists');
+
+      const created = await db.mutate('createChild', {
+        args: { title: 'reply', userId: ADA, parentId },
+        userId: ADA,
+        ctxLedger: { version: 1, ids: [clientMintedId], now: 1_785_758_400_000 },
+      });
+      assertEqual(created.result, clientMintedId, 'the accepted replay ledger preserves the client-minted id');
+      await pointRec.waitFor(
+        () => pointHandle.rows.some((row) => row._id === clientMintedId),
+        'point insert delivered',
+      );
+      await parentRec.waitFor(
+        () => parentHandle.rows.some((row) => row._id === clientMintedId),
+        'parent-list insert delivered',
+      );
+      assertEqual(pointHandle.rows.map((row) => row._id), [clientMintedId], 'point result keeps the inserted row');
+      assertEqual(parentHandle.rows.map((row) => row._id), [clientMintedId], 'parent result keeps the inserted child');
+      assert(
+        pointRec.updates.some((update) => update.kind === 'live_delta'),
+        `point insert should use live_delta; saw ${pointRec.updates.map((update) => update.kind)}`,
+      );
+      assert(
+        parentRec.updates.some((update) => update.kind === 'live_delta'),
+        `parent insert should use live_delta; saw ${parentRec.updates.map((update) => update.kind)}`,
+      );
+      return {
+        id: clientMintedId,
+        pointKinds: pointRec.updates.map((update) => update.kind),
+        parentKinds: parentRec.updates.map((update) => update.kind),
+      };
+    });
+  } finally {
+    pointHandle.dispose();
+    parentHandle.dispose();
   }
 
   const report = suite.finish();

@@ -105,6 +105,54 @@ after the commit is durable, and skipped subscriptions converge via a
 rows-free `current_as_of` watermark. Wait on delivery (as above) rather
 than asserting immediately after `mutate` resolves.
 
+## Matching inserts in point and parent queries
+
+**A subscribed table query must not go blank after a matching insert.** This
+includes a point filter such as `eq('_id', arg('id'))` and a list filter such
+as `eq('parentId', arg('parentId'))`, even when another client registered the
+subscription before the row existed. The server may publish an incremental
+Add or conservatively re-run and replace the result; either delivery contains
+the inserted matching row. An unrelated same-table insert leaves existing
+membership unchanged.
+
+The real-socket regression in `demos/_kit/tests/live-delta-e2e.mjs` subscribes
+both shapes before inserting a replay-accepted client-chosen `_id` from a
+different client. Both callbacks observe `snapshot` then `live_delta`, and
+both held results contain the row. The engine test
+`table_live_point_and_parent_filters_keep_matching_insert` independently
+asserts the two Add operations and fresh-snapshot parity.
+
+The failing-then-fixed create flow is:
+
+```text
+Racy:    await mutate(create); render(handle.rows[0] ?? "Loading thread")
+Correct: const id = (await mutate(create)).result; wait until handle.rows contains id; render the row
+```
+
+The first line can render the empty pre-insert snapshot because settlement
+does not await subscriber delivery. The second uses the settled canonical id
+and makes the live frame—not the mutation response—the rendering boundary.
+
+If a create-and-navigate screen still renders “Loading thread” or reports
+`live_delta empty`, check these boundaries before changing the backend query:
+
+- **Mutation settlement and live delivery are separate events.** Wait for the
+  subscribed result (or inspect the handle's delivery state); do not render a
+  settled mutation as proof that its live frame has already arrived.
+- **Use the canonical row id returned at settlement.** A
+  `SnapbackProvisionalId` from optimistic presentation is deliberately not a
+  canonical `_id`; keep it inside the optimistic-create projection until the
+  logical-mint mapping settles.
+- Check authorization blanking and connection/HMR lifecycle events. Those can
+  clear or replace a handle, whereas an ordinary matching Insert cannot emit a
+  Remove from the table incrementalizer.
+
+Switching the same one-table filter to `defineJsLiveQuery` changes it to a
+handler re-run/replace lane, but is not the correctness repair for this
+symptom. Keep `defineLiveQuery` when the table plan expresses the read; choose
+JS for bounded logic or computed results the declarative and relational
+carriers cannot express. See [Queries](../backend/queries.md#choose-declarative-or-javascript-execution).
+
 Key options: `transport: 'stream'` for durable WebSocket push (`'poll'` is
 the default, cadence `pollCadenceMs`, with `fallbackToPoll` when a stream
 can't be established), `onUpdate(rows, meta)`, `onConnectionChange`,
@@ -179,10 +227,11 @@ hand. A missing or non-exact contract does not make the live query unloadable:
 the server honestly takes the full re-query plus `live_replace` path instead.
 
 When an apparently analyzable query receives replacements, check all of the
-conservative boundaries together: ordered or limited queries, membership-gated
-queries, generated standard patterns, opaque handlers, and manifests without
-the exact schema-derived document contract are replace-only. This fallback is
-intentional and correctness-preserving, not evidence that durable push failed.
+conservative boundaries together: ordered queries, limited windows once their
+held membership reaches the cap, membership-gated queries, generated standard
+patterns, opaque handlers, and manifests without the exact schema-derived
+document contract are replace-only. This fallback is intentional and
+correctness-preserving, not evidence that durable push failed.
 
 The kit's end-to-end delta witness
 (`demos/_kit/tests/live-delta-e2e.mjs`) drives all of this over a real

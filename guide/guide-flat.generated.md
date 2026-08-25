@@ -74,7 +74,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | backend.vector-search | Experimental bounded exact k-NN on declared fixed-width binary64 vector fields: pinned `dot`/`l2sq` arithmetic; public/owner visibility partitions; exact equality filters; stored fields; synchronous SQLite maintenance; digest-recheck quarantine. Nonclaims: ANN, embedding computation, live/paginated/offline search, hosted targets, PostgreSQL, sensitive fields. | vector, embeddings, similarity, semantic search, RAG, exact k-NN | local | shipped | schemas/capability.manifest.local-dev-sqlite-ibex.json (`vector_search_v1` + `vectorSearch`) + `defineVectorQuery` in packages/snapback-codegen/define.mjs | llp/0132, llp/0073 | backend/vector-search.md |
 | backend.cron | Scheduled execution | schedule, cron list, cron status, cron tick, run cron now, force tick | local | shipped | route /_snapback/api/cron | llp/0028 | backend/cron.md |
 | backend.jobs-one-off | Experimental LLP 0070 one-off durable work: transaction `ctx.jobs.enqueue`, default queue, delayed availability, fenced claims, append-only attempts, job rows, bounded enqueue/confirmed-mutation facts, generated status live query, injected-clock drain, and secret-read-leased admin inspect. `jobs_one_off_v1` stays experimental; no durable-background-work class while LLP 0070 is pre-Accepted. | one-off jobs, runAfter, scheduler, durable work, enqueue, background jobs, job status, retryable by design, dead-letter, DLQ, succeeded after retry, secret-read lease, job drain, drain jobs | local | partial | route /_snapback/api/jobs/drain | llp/0070, llp/0121, llp/0115 | backend/jobs.md |
-| realtime.live-queries | Subscribe to a query; snapshot + replace/delta updates. Actions can query the advisory 15-second connected-client predicate. | subscription, realtime, connected client, hasFreshClient | local | shipped | route /live/{name}/subscribe + capability manifest `connectedClientPredicate` semanticsVersion 2 | llp/0008, llp/0222 | realtime/live-queries.md |
+| realtime.live-queries | Subscribe to a query; snapshot + replace/delta updates. Actions can query the advisory 15-second connected-client predicate. | subscription, realtime, connected client, hasFreshClient, blank after insert, Loading thread, live_delta empty | local | shipped | route /live/{name}/subscribe + capability manifest `connectedClientPredicate` semanticsVersion 2 | llp/0008, llp/0222 | realtime/live-queries.md |
 | realtime.durable-push | Durable WebSocket push lane; connection axis | websocket, stream, push, connection state, connection disconnect, disconnect client, force disconnect | local | shipped | route /live/{connection_id}/stream | llp/0008, llp/0034 | realtime/live-queries.md |
 | realtime.ephemeral | Typed ephemeral rooms/React presence: typing, cursors, TTL, activity/Expo withdrawal, 1s delivery budget. Membership-backed rooms enforce current active-role subscribe/publish, exclude pending roles, admit explicit role subsets, and invalidate removal or allowed-to-disallowed downgrade (source-current; unreleased after 0.1.23). | presence, cursors, ephemeral, allow.members, role narrowing, downgrade kick, useSnapbackPresence, useSnapbackActivityPresence, typing indicator, Supabase Presence, Supabase Broadcast | local | shipped | route /ephemeral/publish + demos/messaging-snapback/tests/acceptance/headless.mjs (Sessions outsider and downgrade) + crates/snapback-engine/src/local/auth_room_kick_acceptance.rs (pending-role and omitted-artifact denial) | llp/0013, llp/0056, llp/0107, llp/0114, llp/0247, llp/0257 | realtime/ephemeral-state.md |
 | realtime.snapshot-bundles | RQS bundles: one-commit route snapshots with resume; register mode arms live owners. Structured args admit nested `routeParam()`. Experimental local mixed routes register only live children; legacy adoption stays prove-or-fresh. `publicInline` powers Channel A. Cloudflare read ships; register/mixed are deferred. | bundle, preload, resumable snapshot, RQS, mixed route, publicInline, routeParam, query context | local, cloudflare | partial | route /app/bundle + schemas/capability.manifest.local-dev-sqlite-ibex.json (`mixed_bundle_boot_v2`) | llp/0090, llp/0092, llp/0157, llp/0166 | realtime/snapshot-bundles.md |
@@ -2128,6 +2128,22 @@ before the paved spelling was discoverable.
     Expected pages: `recipes/activity-presence.md`.
     Route terms: "typing indicator too many publishes".
     Required guidance: "bind and memoize only the small state peers actually need".
+
+Case 97 absorbs Diary 0106's table-live symptom vocabulary and routes it to
+the verified delivery rule instead of preserving the JS workaround as product
+physics.
+
+97. **Table live query blank after insert:** "My thread is stuck on Loading
+    thread after an insert, and the trace says live_delta empty. Should I
+    replace the table query with defineJsLiveQuery?" The run fails if it says
+    declarative point/parent filters may legitimately lose a matching insert,
+    uses JS as the correctness workaround, treats mutation settlement as live
+    delivery, or passes an optimistic provisional id to an `_id` query.
+    Expected pages: `realtime/live-queries.md`, `backend/queries.md`.
+    Route terms: "blank after insert", "Loading thread", "live_delta empty".
+    Required guidance: "A subscribed table query must not go blank after a matching insert",
+    "Mutation settlement and live delivery are separate events",
+    "Use the canonical row id returned at settlement".
 
 ## Static routing check
 
@@ -5788,6 +5804,22 @@ Use the declarative form when the plan vocabulary expresses the query. Use a
 JS handler for bounded logic the plan cannot express. Both styles return the
 same public query envelope and must use declared indexes for author-facing
 lookup paths.
+
+For live reads, that is also the selection rule: use `defineLiveQuery` for an
+exact one-table point or list query whose filters and ordering fit the
+declarative plan. Use `defineRelationalQuery` for its supported joins, and use
+`defineJsLiveQuery` only when the bounded read or computed result is not
+expressible by those declarative carriers. Delta versus full replacement is a
+server delivery choice, not a reason to switch definitions; both preserve the
+same authoritative result membership.
+
+After a create, **use the canonical row id returned at settlement** when a
+route opens an `_id` point query. A provisional optimistic identity is not a
+row address and must not be cast to `Id<Table>`; keep it inside the
+[optimistic-create projection](../recipes/optimistic-create.md) until its
+logical mint settles. Also remember that mutation settlement and live delivery
+are separate events. The exact point/parent insert behavior and the wait rule
+are covered in [live queries](../realtime/live-queries.md#matching-inserts-in-point-and-parent-queries).
 
 Indexes name authored table fields only. `_id`, `_version`, `_createdAt`, and
 `_updatedAt` are legal filter/order leaves but are rejected inside
@@ -24067,6 +24099,54 @@ after the commit is durable, and skipped subscriptions converge via a
 rows-free `current_as_of` watermark. Wait on delivery (as above) rather
 than asserting immediately after `mutate` resolves.
 
+## Matching inserts in point and parent queries
+
+**A subscribed table query must not go blank after a matching insert.** This
+includes a point filter such as `eq('_id', arg('id'))` and a list filter such
+as `eq('parentId', arg('parentId'))`, even when another client registered the
+subscription before the row existed. The server may publish an incremental
+Add or conservatively re-run and replace the result; either delivery contains
+the inserted matching row. An unrelated same-table insert leaves existing
+membership unchanged.
+
+The real-socket regression in `demos/_kit/tests/live-delta-e2e.mjs` subscribes
+both shapes before inserting a replay-accepted client-chosen `_id` from a
+different client. Both callbacks observe `snapshot` then `live_delta`, and
+both held results contain the row. The engine test
+`table_live_point_and_parent_filters_keep_matching_insert` independently
+asserts the two Add operations and fresh-snapshot parity.
+
+The failing-then-fixed create flow is:
+
+```text
+Racy:    await mutate(create); render(handle.rows[0] ?? "Loading thread")
+Correct: const id = (await mutate(create)).result; wait until handle.rows contains id; render the row
+```
+
+The first line can render the empty pre-insert snapshot because settlement
+does not await subscriber delivery. The second uses the settled canonical id
+and makes the live frame—not the mutation response—the rendering boundary.
+
+If a create-and-navigate screen still renders “Loading thread” or reports
+`live_delta empty`, check these boundaries before changing the backend query:
+
+- **Mutation settlement and live delivery are separate events.** Wait for the
+  subscribed result (or inspect the handle's delivery state); do not render a
+  settled mutation as proof that its live frame has already arrived.
+- **Use the canonical row id returned at settlement.** A
+  `SnapbackProvisionalId` from optimistic presentation is deliberately not a
+  canonical `_id`; keep it inside the optimistic-create projection until the
+  logical-mint mapping settles.
+- Check authorization blanking and connection/HMR lifecycle events. Those can
+  clear or replace a handle, whereas an ordinary matching Insert cannot emit a
+  Remove from the table incrementalizer.
+
+Switching the same one-table filter to `defineJsLiveQuery` changes it to a
+handler re-run/replace lane, but is not the correctness repair for this
+symptom. Keep `defineLiveQuery` when the table plan expresses the read; choose
+JS for bounded logic or computed results the declarative and relational
+carriers cannot express. See [Queries](../backend/queries.md#choose-declarative-or-javascript-execution).
+
 Key options: `transport: 'stream'` for durable WebSocket push (`'poll'` is
 the default, cadence `pollCadenceMs`, with `fallbackToPoll` when a stream
 can't be established), `onUpdate(rows, meta)`, `onConnectionChange`,
@@ -24141,10 +24221,11 @@ hand. A missing or non-exact contract does not make the live query unloadable:
 the server honestly takes the full re-query plus `live_replace` path instead.
 
 When an apparently analyzable query receives replacements, check all of the
-conservative boundaries together: ordered or limited queries, membership-gated
-queries, generated standard patterns, opaque handlers, and manifests without
-the exact schema-derived document contract are replace-only. This fallback is
-intentional and correctness-preserving, not evidence that durable push failed.
+conservative boundaries together: ordered queries, limited windows once their
+held membership reaches the cap, membership-gated queries, generated standard
+patterns, opaque handlers, and manifests without the exact schema-derived
+document contract are replace-only. This fallback is intentional and
+correctness-preserving, not evidence that durable push failed.
 
 The kit's end-to-end delta witness
 (`demos/_kit/tests/live-delta-e2e.mjs`) drives all of this over a real
