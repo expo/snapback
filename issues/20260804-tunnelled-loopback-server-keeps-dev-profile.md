@@ -105,9 +105,11 @@ source at `80aa7b8a5`:
   (admin token, impersonation/agent-destroy/rehearsal capabilities,
   secret-read proof) on `secure_file`/`owner_only_file`.
 
-## Dated note — 2026-08-25 (stage 2 expanded; enforce remains gated)
+## Historical dated note — 2026-08-25 (superseded by the evidence correction below)
 
-LLP 0262's D1–D6 implementation state is now audited in the RFC. Stage 2 names
+The claims in this historical note are superseded and are retained only to
+preserve the ticket's chronology. LLP 0262's D1–D6 implementation state is now
+audited in the RFC. Stage 2 names
 the committed enforcement flip `2026-08-25/LLP-0262-stage-3` in the
 once-per-boot missing-capability warning, and bare-loopback admin reads now
 warn once per server boot, including the real claim-exchange redemption path.

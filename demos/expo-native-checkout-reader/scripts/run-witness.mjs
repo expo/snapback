@@ -21,9 +21,6 @@ const scriptRoot = dirname(fileURLToPath(import.meta.url));
 const witnessRoot = resolve(scriptRoot, '..');
 const appRoot = join(witnessRoot, 'app');
 const repoRoot = resolve(witnessRoot, '..', '..');
-const { chromium } = await import(pathToFileURL(
-  join(appRoot, 'node_modules', 'playwright-core', 'index.mjs'),
-).href);
 const stateRoot = join(witnessRoot, '.state');
 const iosBundleIdentifier = 'dev.snapback.checkoutwitness';
 const androidComponent = 'dev.snapback.checkoutwitness/.MainActivity';
@@ -52,6 +49,12 @@ if (platform === 'android' && !androidSerial) {
 }
 if (platform === 'web' && !existsSync(browserBinary)) {
   throw new Error(`--browser is not an existing browser executable: ${browserBinary}`);
+}
+let chromium = null;
+if (platform === 'web') {
+  ({ chromium } = await import(pathToFileURL(
+    join(appRoot, 'node_modules', 'playwright-core', 'index.mjs'),
+  ).href));
 }
 
 const runId = `${platform}-${new Date().toISOString().replace(/[:.]/gu, '-')}`;

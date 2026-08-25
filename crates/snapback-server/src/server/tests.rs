@@ -1274,11 +1274,22 @@ async fn fronted_unset_profile_serves_with_production_refusal_and_no_warning() {
     );
     assert_eq!(context.profile, ServerProfile::Prod);
     let warning_witness = context.clone();
+    let (dev_identity_registry, _dev_identity_capability) = dev_identity_capability_fixture();
     let state = AppState::try_from_snapback(
         LocalSnapback::memory().expect("fronted production test instance"),
         context,
     )
-    .expect("fronted production app state");
+    .expect("fronted production app state")
+    .with_dev_identity_capabilities(dev_identity_registry);
+    let mint_refusal =
+        crate::admin::require_operation_profile(&state.server, "auth.mintSession", false)
+            .expect_err("fronted unset production must refuse dev session minting");
+    let mint_refusal = mint_refusal.into_response();
+    assert_eq!(mint_refusal.status(), StatusCode::FORBIDDEN);
+    assert_eq!(
+        response_json(mint_refusal).await["diagnostic"]["code"],
+        "SNAPBACK_PROFILE_FORBIDS"
+    );
     let response = super::app(state)
         .oneshot(
             Request::builder()

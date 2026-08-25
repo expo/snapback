@@ -155,6 +155,7 @@ export default function App() {
           if (
             hookInstalledBeforeApplicationModule
             || capability !== null
+            || observed.checkoutHeaderPresented !== false
             || observed.devIdentityHeaderPresented
             || !observed.sessionBearerPresented
             || !Array.isArray(result?.rows)
@@ -175,6 +176,7 @@ export default function App() {
             status: 'passed',
             hookInstalledBeforeApplicationModule,
             checkoutCapabilityAbsent: true,
+            checkoutHeaderPresented: observed.checkoutHeaderPresented,
             devIdentityHeaderPresented: observed.devIdentityHeaderPresented,
             sessionBearerPresented: observed.sessionBearerPresented,
             queryAccepted: true,

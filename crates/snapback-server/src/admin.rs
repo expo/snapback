@@ -4484,7 +4484,7 @@ fn authorize_admin_access(
                 (ctx.admin_token.as_deref(), provided.as_deref()),
                 (Some(configured), Some(candidate)) if token_eq(configured, candidate)
             );
-            if !write && ctx.loopback && !verified_master {
+            if !write && ctx.listener_transport_loopback() == Some(true) && !verified_master {
                 ctx.emit_bare_loopback_admin_read_warning_once();
             }
             Ok(())
@@ -6963,7 +6963,32 @@ mod tests {
         use axum::http::Request;
         use tower::ServiceExt as _;
 
-        let mut context = ServerContext::detached();
+        let mut embedded_context = ServerContext::detached();
+        embedded_context.profile = ServerProfile::Dev;
+        let embedded_warning_witness = embedded_context.clone();
+        let embedded_state =
+            AppState::try_from_snapback(LocalSnapback::memory().unwrap(), embedded_context)
+                .expect("embedded warning-negative app state");
+        let embedded_response = crate::server::app(embedded_state)
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/_snapback/api/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("embedded AdminRead response");
+        assert_eq!(embedded_response.status(), StatusCode::OK);
+        assert!(
+            !embedded_warning_witness.bare_loopback_admin_read_warning_was_emitted(),
+            "a detached embedded router retains its non-served D3 posture"
+        );
+
+        let listener = std::net::TcpListener::bind("127.0.0.1:0")
+            .expect("bind claim-warning loopback listener");
+        let mut context = ServerContext::from_bound_listener(&listener)
+            .expect("establish claim-warning listener transport");
         context.profile = ServerProfile::Dev;
         context.admin_token = Some("claim-warning-admin".to_owned());
         let warning_witness = context.clone();

@@ -10,6 +10,9 @@ a strengthened rerun; and **physical Android USB — NOT YET**. The retained
 `android-2026-08-25T14-54-18-163Z` native receipts predate the fail-sensitive,
 server-observed checks and must not be treated as D2 evidence. The strengthened
 Expo-web evidence is `web-2026-08-25T16-03-15-778Z`.
+Their run summaries therefore carry the explicit machine-readable
+`"d2Evidence": false` flag: a passed row status records only that the older
+witness's own checks passed, never that the retained run satisfies D2.
 
 The strengthened Expo-web/Chrome receipt records a nonempty sessions-authorized
 mutation/query. Native summaries bind the selected device class and enumerate
