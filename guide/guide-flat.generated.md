@@ -2129,21 +2129,28 @@ before the paved spelling was discoverable.
     Route terms: "typing indicator too many publishes".
     Required guidance: "bind and memoize only the small state peers actually need".
 
-Case 97 absorbs Diary 0106's table-live symptom vocabulary and routes it to
-the verified delivery rule instead of preserving the JS workaround as product
-physics.
+Case 97 absorbs Diary 0106's table-live symptom vocabulary while preserving
+the residual: the HostPlan matcher contract is characterized, but Clique's
+React/JS product blank is not yet explained.
 
 97. **Table live query blank after insert:** "My thread is stuck on Loading
     thread after an insert, and the trace says live_delta empty. Should I
-    replace the table query with defineJsLiveQuery?" The run fails if it says
-    declarative point/parent filters may legitimately lose a matching insert,
-    uses JS as the correctness workaround, treats mutation settlement as live
-    delivery, or passes an optimistic provisional id to an `_id` query.
+    replace the table query with defineJsLiveQuery?" The run fails if it says a
+    HostPlan point/parent matcher may legitimately lose a matching insert,
+    treats a timing, provisional-identity, auth, optimistic-projection, or HMR
+    hypothesis as the established fix, puts a provisional id on an `_id`
+    query, waits for a pre-subscribe delta after settlement, or accepts an
+    empty canonical post-settlement snapshot. It must not fail a page merely
+    for recommending `defineJsLiveQuery` plus a local cache as the documented
+    application workaround while the Clique path remains unexplained.
     Expected pages: `realtime/live-queries.md`, `backend/queries.md`.
     Route terms: "blank after insert", "Loading thread", "live_delta empty".
-    Required guidance: "A subscribed table query must not go blank after a matching insert",
-    "Mutation settlement and live delivery are separate events",
-    "Use the canonical row id returned at settlement".
+    Required guidance: "HostPlan matching inserts are guaranteed",
+    "Clique still observed a blank",
+    "Never put a provisional id on a point query",
+    "Wait for live delivery only when subscribed before the insert",
+    "A post-settlement subscribe with the canonical id must snapshot the row",
+    "defineJsLiveQuery plus a local cache remains the documented application workaround".
 
 ## Static routing check
 
@@ -5810,16 +5817,26 @@ exact one-table point or list query whose filters and ordering fit the
 declarative plan. Use `defineRelationalQuery` for its supported joins, and use
 `defineJsLiveQuery` only when the bounded read or computed result is not
 expressible by those declarative carriers. Delta versus full replacement is a
-server delivery choice, not a reason to switch definitions; both preserve the
-same authoritative result membership.
+server delivery choice; both are required to preserve the same authoritative
+result membership.
 
 After a create, **use the canonical row id returned at settlement** when a
 route opens an `_id` point query. A provisional optimistic identity is not a
 row address and must not be cast to `Id<Table>`; keep it inside the
 [optimistic-create projection](../recipes/optimistic-create.md) until its
-logical mint settles. Also remember that mutation settlement and live delivery
-are separate events. The exact point/parent insert behavior and the wait rule
-are covered in [live queries](../realtime/live-queries.md#matching-inserts-in-point-and-parent-queries).
+logical mint settles. Wait for delivery only if the subscription already
+existed before the insert; a subscription opened after settlement with the
+canonical id must receive the row in its initial snapshot.
+
+There is one documented diagnostic exception to the ordinary selection rule.
+Diary 0106's Clique thread still blanked on table `postById` /
+`repliesForPost` reads even though HostPlan matcher characterizations pass.
+Until a faithful React/JS/wire trace explains that product path,
+`defineJsLiveQuery` plus a local cache remains the application workaround that
+restored Clique. Treat it as mitigation, not proof that timing, provisional
+identity, authorization, optimistic projection, or HMR is the cause. The
+residual warning and trace checklist are in
+[live queries](../realtime/live-queries.md#matching-inserts-in-point-and-parent-queries).
 
 Indexes name authored table fields only. `_id`, `_version`, `_createdAt`, and
 `_updatedAt` are legal filter/order leaves but are rejected inside
@@ -24101,51 +24118,58 @@ than asserting immediately after `mutate` resolves.
 
 ## Matching inserts in point and parent queries
 
-**A subscribed table query must not go blank after a matching insert.** This
-includes a point filter such as `eq('_id', arg('id'))` and a list filter such
-as `eq('parentId', arg('parentId'))`, even when another client registered the
-subscription before the row existed. The server may publish an incremental
-Add or conservatively re-run and replace the result; either delivery contains
-the inserted matching row. An unrelated same-table insert leaves existing
-membership unchanged.
+**HostPlan matching inserts are guaranteed.** A subscribed point filter such
+as `eq('_id', arg('id'))` or parent list such as
+`eq('parentId', arg('parentId'))` must keep every matching row. The server may
+publish an incremental Add or conservatively re-run and `live_replace`; the
+result must not be empty merely because a sibling row was inserted. Ordered
+lists and a populated `limit: 1` point result take the replacement lane.
 
-The real-socket regression in `demos/_kit/tests/live-delta-e2e.mjs` subscribes
-both shapes before inserting a replay-accepted client-chosen `_id` from a
-different client. Both callbacks observe `snapshot` then `live_delta`, and
-both held results contain the row. The engine test
-`table_live_point_and_parent_filters_keep_matching_insert` independently
-asserts the two Add operations and fresh-snapshot parity.
+These are matcher characterization results, not a faithful replay of every
+application boundary in Diary 0106. The engine cases run a `writePost`-shaped
+child insert plus parent `replyCount` patch and cover the populated point,
+ordered parent, pre-insert, and post-insert subscription cuts. The real-socket
+kit case uses a second client, keeps a `SnapbackProvisionalId`/outbox identity
+distinct from the canonical row id, records the raw Add operations, and
+observes `snapshot` before `live_delta`.
 
-The failing-then-fixed create flow is:
+**Clique still observed a blank.** Its React thread used `postById` and
+`repliesForPost` around a JS `writePost`, then recovered after switching to
+`defineJsLiveQuery` plus a local cache. The available diary is an application
+observation, not the original wire/probe trace, so the HostPlan
+characterizations do not rule the matcher out for that observed product path.
+Keep these three create-and-navigate cuts separate:
 
-```text
-Racy:    await mutate(create); render(handle.rows[0] ?? "Loading thread")
-Correct: const id = (await mutate(create)).result; wait until handle.rows contains id; render the row
-```
+1. **Never put a provisional id on a point query.** A
+   `SnapbackProvisionalId` identifies durable optimistic/outbox intent, not a
+   row. Keep it in the optimistic-create projection. Use the canonical
+   `Id<Table>` from settlement or its logical-mint mapping for `_id` filters.
+2. **Wait for live delivery only when subscribed before the insert.** Mutation
+   settlement does not await subscriber convergence; an already-open handle
+   can still hold its empty pre-insert snapshot until its Add or replacement
+   arrives.
+3. **A post-settlement subscribe with the canonical id must snapshot the row.**
+   It cannot receive the earlier delta because it did not exist then. If its
+   authoritative initial snapshot is empty, that is a defect—do not wait for a
+   future live frame to repair it.
 
-The first line can render the empty pre-insert snapshot because settlement
-does not await subscriber delivery. The second uses the settled canonical id
-and makes the live frame—not the mutation response—the rendering boundary.
+For `blank after insert`, `Loading thread`, or `live_delta empty`, capture the
+query args and canonical/provisional identity at each render, the mutation
+settlement and subscription ids/versions, raw `snapshot`/`live_delta`/
+`live_replace` frames, authorization boundary events, and React mount/remount
+state. Mutation timing, provisional identity, authorization blanking,
+optimistic-create projection, and HMR/remount are diagnostic hypotheses, not
+the established fix.
 
-If a create-and-navigate screen still renders “Loading thread” or reports
-`live_delta empty`, check these boundaries before changing the backend query:
-
-- **Mutation settlement and live delivery are separate events.** Wait for the
-  subscribed result (or inspect the handle's delivery state); do not render a
-  settled mutation as proof that its live frame has already arrived.
-- **Use the canonical row id returned at settlement.** A
-  `SnapbackProvisionalId` from optimistic presentation is deliberately not a
-  canonical `_id`; keep it inside the optimistic-create projection until the
-  logical-mint mapping settles.
-- Check authorization blanking and connection/HMR lifecycle events. Those can
-  clear or replace a handle, whereas an ordinary matching Insert cannot emit a
-  Remove from the table incrementalizer.
-
-Switching the same one-table filter to `defineJsLiveQuery` changes it to a
-handler re-run/replace lane, but is not the correctness repair for this
-symptom. Keep `defineLiveQuery` when the table plan expresses the read; choose
-JS for bounded logic or computed results the declarative and relational
-carriers cannot express. See [Queries](../backend/queries.md#choose-declarative-or-javascript-execution).
+While the faithful trace remains open, `defineJsLiveQuery` plus a local cache
+remains the documented application workaround for the Clique symptom. It
+changes the server lane to handler re-run/replacement and changes application
+cache timing; its success is useful mitigation, not proof of which boundary
+caused the blank and not disproven physics. For new code without the symptom,
+the ordinary selection rule still applies: keep `defineLiveQuery` when the
+table plan expresses the read, and choose JS for bounded logic or computed
+results the declarative and relational carriers cannot express. See
+[Queries](../backend/queries.md#choose-declarative-or-javascript-execution).
 
 Key options: `transport: 'stream'` for durable WebSocket push (`'poll'` is
 the default, cadence `pollCadenceMs`, with `fallbackToPoll` when a stream
@@ -24236,7 +24260,7 @@ socket. Its subscription records every delivered `meta.kind`:
     connectionId: 'delta_conn',
     userId: ADA,
     transport: 'stream',
-    stream: { heartbeatIntervalMs: 200, freshnessBudgetMs: 800, reconnectBaseDelayMs: 100, reconnectMaxDelayMs: 400 },
+    stream: FAST_STREAM,
     onUpdate: rec.onUpdate,
   });
 ```

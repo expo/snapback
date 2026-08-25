@@ -107,51 +107,58 @@ than asserting immediately after `mutate` resolves.
 
 ## Matching inserts in point and parent queries
 
-**A subscribed table query must not go blank after a matching insert.** This
-includes a point filter such as `eq('_id', arg('id'))` and a list filter such
-as `eq('parentId', arg('parentId'))`, even when another client registered the
-subscription before the row existed. The server may publish an incremental
-Add or conservatively re-run and replace the result; either delivery contains
-the inserted matching row. An unrelated same-table insert leaves existing
-membership unchanged.
+**HostPlan matching inserts are guaranteed.** A subscribed point filter such
+as `eq('_id', arg('id'))` or parent list such as
+`eq('parentId', arg('parentId'))` must keep every matching row. The server may
+publish an incremental Add or conservatively re-run and `live_replace`; the
+result must not be empty merely because a sibling row was inserted. Ordered
+lists and a populated `limit: 1` point result take the replacement lane.
 
-The real-socket regression in `demos/_kit/tests/live-delta-e2e.mjs` subscribes
-both shapes before inserting a replay-accepted client-chosen `_id` from a
-different client. Both callbacks observe `snapshot` then `live_delta`, and
-both held results contain the row. The engine test
-`table_live_point_and_parent_filters_keep_matching_insert` independently
-asserts the two Add operations and fresh-snapshot parity.
+These are matcher characterization results, not a faithful replay of every
+application boundary in Diary 0106. The engine cases run a `writePost`-shaped
+child insert plus parent `replyCount` patch and cover the populated point,
+ordered parent, pre-insert, and post-insert subscription cuts. The real-socket
+kit case uses a second client, keeps a `SnapbackProvisionalId`/outbox identity
+distinct from the canonical row id, records the raw Add operations, and
+observes `snapshot` before `live_delta`.
 
-The failing-then-fixed create flow is:
+**Clique still observed a blank.** Its React thread used `postById` and
+`repliesForPost` around a JS `writePost`, then recovered after switching to
+`defineJsLiveQuery` plus a local cache. The available diary is an application
+observation, not the original wire/probe trace, so the HostPlan
+characterizations do not rule the matcher out for that observed product path.
+Keep these three create-and-navigate cuts separate:
 
-```text
-Racy:    await mutate(create); render(handle.rows[0] ?? "Loading thread")
-Correct: const id = (await mutate(create)).result; wait until handle.rows contains id; render the row
-```
+1. **Never put a provisional id on a point query.** A
+   `SnapbackProvisionalId` identifies durable optimistic/outbox intent, not a
+   row. Keep it in the optimistic-create projection. Use the canonical
+   `Id<Table>` from settlement or its logical-mint mapping for `_id` filters.
+2. **Wait for live delivery only when subscribed before the insert.** Mutation
+   settlement does not await subscriber convergence; an already-open handle
+   can still hold its empty pre-insert snapshot until its Add or replacement
+   arrives.
+3. **A post-settlement subscribe with the canonical id must snapshot the row.**
+   It cannot receive the earlier delta because it did not exist then. If its
+   authoritative initial snapshot is empty, that is a defect—do not wait for a
+   future live frame to repair it.
 
-The first line can render the empty pre-insert snapshot because settlement
-does not await subscriber delivery. The second uses the settled canonical id
-and makes the live frame—not the mutation response—the rendering boundary.
+For `blank after insert`, `Loading thread`, or `live_delta empty`, capture the
+query args and canonical/provisional identity at each render, the mutation
+settlement and subscription ids/versions, raw `snapshot`/`live_delta`/
+`live_replace` frames, authorization boundary events, and React mount/remount
+state. Mutation timing, provisional identity, authorization blanking,
+optimistic-create projection, and HMR/remount are diagnostic hypotheses, not
+the established fix.
 
-If a create-and-navigate screen still renders “Loading thread” or reports
-`live_delta empty`, check these boundaries before changing the backend query:
-
-- **Mutation settlement and live delivery are separate events.** Wait for the
-  subscribed result (or inspect the handle's delivery state); do not render a
-  settled mutation as proof that its live frame has already arrived.
-- **Use the canonical row id returned at settlement.** A
-  `SnapbackProvisionalId` from optimistic presentation is deliberately not a
-  canonical `_id`; keep it inside the optimistic-create projection until the
-  logical-mint mapping settles.
-- Check authorization blanking and connection/HMR lifecycle events. Those can
-  clear or replace a handle, whereas an ordinary matching Insert cannot emit a
-  Remove from the table incrementalizer.
-
-Switching the same one-table filter to `defineJsLiveQuery` changes it to a
-handler re-run/replace lane, but is not the correctness repair for this
-symptom. Keep `defineLiveQuery` when the table plan expresses the read; choose
-JS for bounded logic or computed results the declarative and relational
-carriers cannot express. See [Queries](../backend/queries.md#choose-declarative-or-javascript-execution).
+While the faithful trace remains open, `defineJsLiveQuery` plus a local cache
+remains the documented application workaround for the Clique symptom. It
+changes the server lane to handler re-run/replacement and changes application
+cache timing; its success is useful mitigation, not proof of which boundary
+caused the blank and not disproven physics. For new code without the symptom,
+the ordinary selection rule still applies: keep `defineLiveQuery` when the
+table plan expresses the read, and choose JS for bounded logic or computed
+results the declarative and relational carriers cannot express. See
+[Queries](../backend/queries.md#choose-declarative-or-javascript-execution).
 
 Key options: `transport: 'stream'` for durable WebSocket push (`'poll'` is
 the default, cadence `pollCadenceMs`, with `fallbackToPoll` when a stream
@@ -242,7 +249,7 @@ socket. Its subscription records every delivered `meta.kind`:
     connectionId: 'delta_conn',
     userId: ADA,
     transport: 'stream',
-    stream: { heartbeatIntervalMs: 200, freshnessBudgetMs: 800, reconnectBaseDelayMs: 100, reconnectMaxDelayMs: 400 },
+    stream: FAST_STREAM,
     onUpdate: rec.onUpdate,
   });
 ```

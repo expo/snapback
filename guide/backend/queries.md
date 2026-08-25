@@ -80,16 +80,26 @@ exact one-table point or list query whose filters and ordering fit the
 declarative plan. Use `defineRelationalQuery` for its supported joins, and use
 `defineJsLiveQuery` only when the bounded read or computed result is not
 expressible by those declarative carriers. Delta versus full replacement is a
-server delivery choice, not a reason to switch definitions; both preserve the
-same authoritative result membership.
+server delivery choice; both are required to preserve the same authoritative
+result membership.
 
 After a create, **use the canonical row id returned at settlement** when a
 route opens an `_id` point query. A provisional optimistic identity is not a
 row address and must not be cast to `Id<Table>`; keep it inside the
 [optimistic-create projection](../recipes/optimistic-create.md) until its
-logical mint settles. Also remember that mutation settlement and live delivery
-are separate events. The exact point/parent insert behavior and the wait rule
-are covered in [live queries](../realtime/live-queries.md#matching-inserts-in-point-and-parent-queries).
+logical mint settles. Wait for delivery only if the subscription already
+existed before the insert; a subscription opened after settlement with the
+canonical id must receive the row in its initial snapshot.
+
+There is one documented diagnostic exception to the ordinary selection rule.
+Diary 0106's Clique thread still blanked on table `postById` /
+`repliesForPost` reads even though HostPlan matcher characterizations pass.
+Until a faithful React/JS/wire trace explains that product path,
+`defineJsLiveQuery` plus a local cache remains the application workaround that
+restored Clique. Treat it as mitigation, not proof that timing, provisional
+identity, authorization, optimistic projection, or HMR is the cause. The
+residual warning and trace checklist are in
+[live queries](../realtime/live-queries.md#matching-inserts-in-point-and-parent-queries).
 
 Indexes name authored table fields only. `_id`, `_version`, `_createdAt`, and
 `_updatedAt` are legal filter/order leaves but are rejected inside
