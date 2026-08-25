@@ -134,26 +134,26 @@ const CANONICAL_ENGINE_IMPORTS = new Map([
   ['rusqlite', 'snapback_services::test_support'],
 ]);
 // A glob can import a macro, derive, or attribute without naming it in the
-// engine source. Bind every reviewed compatibility glob to its exact file so
-// the same spelling cannot silently authorize a different module or crate.
+// engine source. Bind every reviewed compatibility-glob occurrence to its
+// exact file and lexical module ancestry; repeated entries pin the count.
 const SAFE_ENGINE_GLOB_IMPORTS = [
-  { file: 'crates/snapback-engine/src/ask.rs', glob: 'super::*', root: 'crate' },
+  { file: 'crates/snapback-engine/src/ask.rs', glob: 'super::*', modules: ['tests'], root: 'crate' },
   { file: 'crates/snapback-engine/src/control_catalog.rs', glob: 'snapback_kernel::control_catalog::*', root: 'snapback_kernel' },
-  { file: 'crates/snapback-engine/src/graph_evaluator.rs', glob: 'super::*', root: 'crate' },
+  { file: 'crates/snapback-engine/src/graph_evaluator.rs', glob: 'super::*', modules: ['tests'], root: 'crate' },
   { file: 'crates/snapback-engine/src/host_ops.rs', glob: 'crate::host_ops_contract::*', root: 'host_ops_contract' },
-  { file: 'crates/snapback-engine/src/host_ops.rs', glob: 'super::*', root: 'crate' },
-  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_kernel::assets::*', root: 'snapback_kernel' },
-  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_kernel::assets_cut::*', root: 'snapback_kernel' },
-  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_kernel::assets_store::*', root: 'snapback_kernel' },
-  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_kernel::instance_fork::*', root: 'snapback_kernel' },
-  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_kernel::storage::jobs::*', root: 'snapback_kernel' },
-  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_services::assets::*', root: 'snapback_services' },
-  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_services::assets_cut::*', root: 'snapback_services' },
-  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_services::assets_store::*', root: 'snapback_services' },
-  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_services::cron::*', root: 'snapback_services' },
-  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_services::instance_fork::*', root: 'snapback_services' },
-  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_services::telemetry::*', root: 'snapback_services' },
-  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_types::instance_fork::*', root: 'snapback_types' },
+  { file: 'crates/snapback-engine/src/host_ops.rs', glob: 'super::*', modules: ['tests'], root: 'crate' },
+  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_kernel::assets::*', modules: ['assets'], root: 'snapback_kernel' },
+  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_kernel::assets_cut::*', modules: ['assets_cut'], root: 'snapback_kernel' },
+  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_kernel::assets_store::*', modules: ['assets_store'], root: 'snapback_kernel' },
+  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_kernel::instance_fork::*', modules: ['instance_fork'], root: 'snapback_kernel' },
+  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_kernel::storage::jobs::*', modules: ['jobs'], root: 'snapback_kernel' },
+  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_services::assets::*', modules: ['assets'], root: 'snapback_services' },
+  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_services::assets_cut::*', modules: ['assets_cut'], root: 'snapback_services' },
+  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_services::assets_store::*', modules: ['assets_store'], root: 'snapback_services' },
+  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_services::cron::*', modules: ['cron'], root: 'snapback_services' },
+  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_services::instance_fork::*', modules: ['instance_fork'], root: 'snapback_services' },
+  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_services::telemetry::*', modules: ['telemetry'], root: 'snapback_services' },
+  { file: 'crates/snapback-engine/src/lib.rs', glob: 'snapback_types::instance_fork::*', modules: ['instance_fork'], root: 'snapback_types' },
   { file: 'crates/snapback-engine/src/local/admission_fence_tests.rs', glob: 'super::*', root: 'engine' },
   { file: 'crates/snapback-engine/src/local/auth_room_kick_acceptance.rs', glob: 'super::*', root: 'engine' },
   { file: 'crates/snapback-engine/src/local/engine.rs', glob: 'config_types::*', root: 'config_types' },
@@ -161,7 +161,7 @@ const SAFE_ENGINE_GLOB_IMPORTS = [
   { file: 'crates/snapback-engine/src/local/engine.rs', glob: 'super::runtime_cost::*', root: 'runtime_cost' },
   { file: 'crates/snapback-engine/src/local/generation_host.rs', glob: 'super::*', root: 'engine' },
   { file: 'crates/snapback-engine/src/local/inspection.rs', glob: 'super::*', root: 'engine' },
-  { file: 'crates/snapback-engine/src/local/runtime_cost.rs', glob: 'super::*', root: 'local' },
+  { file: 'crates/snapback-engine/src/local/runtime_cost.rs', glob: 'super::*', modules: ['tests'], root: 'local' },
   { file: 'crates/snapback-engine/src/local/tests.rs', glob: 'engine::*', root: 'engine' },
   { file: 'crates/snapback-engine/src/local/tests.rs', glob: 'super::*', root: 'engine' },
   { file: 'crates/snapback-engine/src/local/tests/engine.rs', glob: 'super::*', root: 'tests' },
@@ -170,6 +170,8 @@ const SAFE_ENGINE_GLOB_IMPORTS = [
   { file: 'crates/snapback-engine/src/local.rs', glob: 'engine::generation_host::*', root: 'engine' },
   { file: 'crates/snapback-engine/src/local.rs', glob: 'runtime_cost::*', root: 'runtime_cost' },
   { file: 'crates/snapback-engine/src/manifest/capabilities.rs', glob: 'super::*', root: 'manifest' },
+  { file: 'crates/snapback-engine/src/manifest/capabilities.rs', glob: 'super::*', modules: ['agent_safe_capability_tests'], root: 'manifest' },
+  { file: 'crates/snapback-engine/src/manifest/capabilities.rs', glob: 'super::*', modules: ['untrusted_code_profile_tests'], root: 'manifest' },
   { file: 'crates/snapback-engine/src/manifest/types_remainder_tests.rs', glob: 'super::*', root: 'manifest' },
   { file: 'crates/snapback-engine/src/manifest.rs', glob: 'capabilities::*', root: 'capabilities' },
   { file: 'crates/snapback-engine/src/manifest.rs', glob: 'snapback_types::manifest::*', root: 'snapback_types' },
@@ -178,12 +180,12 @@ const SAFE_ENGINE_GLOB_IMPORTS = [
   { file: 'crates/snapback-engine/src/push.rs', glob: 'snapback_types::push::*', root: 'snapback_types' },
   { file: 'crates/snapback-engine/src/runtime/host_glue.rs', glob: 'snapback_runtime::runtime::*', root: 'snapback_runtime' },
   { file: 'crates/snapback-engine/src/runtime/host_glue.rs', glob: 'snapback_types::runtime::*', root: 'snapback_types' },
-  { file: 'crates/snapback-engine/src/runtime/host_glue.rs', glob: 'super::*', root: 'runtime' },
+  { file: 'crates/snapback-engine/src/runtime/host_glue.rs', glob: 'super::*', modules: ['media_provenance_tests'], root: 'runtime' },
   { file: 'crates/snapback-engine/src/runtime.rs', glob: 'host_glue::*', root: 'host_glue' },
   { file: 'crates/snapback-engine/src/runtime.rs', glob: 'snapback_runtime::runtime::*', root: 'snapback_runtime' },
   { file: 'crates/snapback-engine/src/runtime.rs', glob: 'snapback_types::runtime::*', root: 'snapback_types' },
-  { file: 'crates/snapback-engine/src/test_support.rs', glob: 'super::*', root: 'crate' },
-];
+  { file: 'crates/snapback-engine/src/test_support.rs', glob: 'super::*', modules: ['tests'], root: 'crate' },
+].map((entry) => ({ ...entry, modules: entry.modules ?? [] }));
 // Every reviewed glob-bearing module has one exact parent declaration. Besides
 // protecting the names used in glob paths, this prevents a source containing a
 // relative `super::*` from being remounted under a different parent.
@@ -919,19 +921,62 @@ function rustModuleDeclarations(source, attributes) {
   return declarations;
 }
 
-function conventionalModuleTarget(declaration) {
-  const declarationPath = resolve(ROOT, declaration.file);
-  const sourceName = basename(declarationPath);
+function rustInlineModuleAncestries(masked, declarations, positions) {
+  const requested = new Map();
+  positions.forEach((position, index) => {
+    const indexes = requested.get(position) ?? [];
+    indexes.push(index);
+    requested.set(position, indexes);
+  });
+  const inlineModuleOpenings = new Map(
+    declarations
+      .filter(({ openingBrace }) => openingBrace !== undefined)
+      .map(({ binding, openingBrace }) => [openingBrace, binding]),
+  );
+  const ancestries = Array.from({ length: positions.length });
+  const braceStack = [];
+  const inlineModules = [];
+  for (let index = 0; index <= masked.length; index += 1) {
+    for (const requestedIndex of requested.get(index) ?? []) {
+      ancestries[requestedIndex] = [...inlineModules];
+    }
+    if (masked[index] === '{') {
+      const inlineModule = inlineModuleOpenings.get(index);
+      braceStack.push(inlineModule ?? null);
+      if (inlineModule !== undefined) inlineModules.push(inlineModule);
+    } else if (masked[index] === '}') {
+      const inlineModule = braceStack.pop();
+      if (inlineModule !== null && inlineModule !== undefined) inlineModules.pop();
+    }
+  }
+  assert(
+    ancestries.every((ancestry) => ancestry !== undefined),
+    'snapback-engine could not resolve a Rust use statement lexical module ancestry',
+  );
+  return ancestries;
+}
+
+function conventionalModuleCandidates(filePath, declaration) {
+  const sourceName = basename(filePath);
   const sourceModule = sourceName.endsWith('.rs')
     ? sourceName.slice(0, -3)
     : sourceName;
-  const base = ['lib', 'main', 'mod'].includes(sourceModule)
-    ? dirname(declarationPath)
-    : resolve(dirname(declarationPath), sourceModule);
-  const candidates = [
-    resolve(base, `${declaration.binding}.rs`),
-    resolve(base, declaration.binding, 'mod.rs'),
-  ].filter((candidate) => canonicalRegularFileExists(
+  const sourceModuleDirectory = ['lib', 'main', 'mod'].includes(sourceModule)
+    ? dirname(filePath)
+    : resolve(dirname(filePath), sourceModule);
+  const moduleDirectory = resolve(sourceModuleDirectory, ...declaration.inlineModules);
+  return [
+    resolve(moduleDirectory, `${declaration.binding}.rs`),
+    resolve(moduleDirectory, declaration.binding, 'mod.rs'),
+  ];
+}
+
+function conventionalModuleTarget(declaration) {
+  const declarationPath = resolve(ROOT, declaration.file);
+  const candidates = conventionalModuleCandidates(declarationPath, {
+    ...declaration,
+    inlineModules: [],
+  }).filter((candidate) => canonicalRegularFileExists(
     resolve(ROOT, 'crates/snapback-engine/src'),
     relative(resolve(ROOT, 'crates/snapback-engine/src'), candidate).split(sep).join('/'),
   ));
@@ -954,6 +999,10 @@ function reviewedEngineModuleTargets() {
 function rustPathModuleTarget(filePath, declaration) {
   assert(typeof declaration.path === 'string', 'Rust path-module target requires one path');
   return resolve(dirname(filePath), ...declaration.inlineModules, declaration.path);
+}
+
+function engineGlobObservationKey(file, lexicalModules, glob) {
+  return JSON.stringify([file, lexicalModules, glob]);
 }
 
 function directUseChild(useSpec, parent, binding) {
@@ -1070,7 +1119,7 @@ function rustUseTreeIntroductions(useSpec) {
   return introductions;
 }
 
-function validateEngineDefinitionInputs(files) {
+function validateEngineDefinitionInputs(files, completeGlobInventory) {
   const engineRoot = realpathSync(resolve(ROOT, 'crates/snapback-engine/src'));
   const reviewedModuleTargets = reviewedEngineModuleTargets();
   assert(
@@ -1138,6 +1187,12 @@ function validateEngineDefinitionInputs(files) {
     const masked = maskRustAttributes(maskRustCommentsAndLiterals(file.source));
     const repositoryFile = relative(ROOT, file.path).split(sep).join('/');
     const moduleDeclarations = rustModuleDeclarations(file.source, attributes);
+    for (const declaration of moduleDeclarations) {
+      assert(
+        declaration.path !== AMBIGUOUS_MODULE_PATH,
+        `snapback-engine module declaration has multiple #[path] attributes: ${repositoryFile}`,
+      );
+    }
     const exactReviewedDeclarations = new Set();
     const missingReviewedDeclarations = [];
     const reviewedDeclarationsForFile = REVIEWED_ENGINE_MODULE_DECLARATIONS.filter(
@@ -1154,21 +1209,27 @@ function validateEngineDefinitionInputs(files) {
       else missingReviewedDeclarations.push(reviewedDeclaration.binding);
     }
     for (const declaration of moduleDeclarations) {
-      if (typeof declaration.path !== 'string') continue;
-      const target = rustPathModuleTarget(file.path, declaration);
-      const targetRelative = relative(engineRoot, target);
-      assert(
-        targetRelative.length > 0
-          && targetRelative !== '..'
-          && !targetRelative.startsWith(`..${sep}`)
-          && canonicalRegularFileExists(engineRoot, targetRelative.split(sep).join('/')),
-        `engine #[path] must resolve to a real file inside snapback-engine/src using its Rust module scope: ${declaration.path}`,
-      );
-      const targetOrigin = reviewedModuleTargets.get(target);
-      assert(
-        !targetOrigin || exactReviewedDeclarations.has(declaration),
-        `snapback-engine #[path] may not remount reviewed module origin ${relative(ROOT, target).split(sep).join('/')}: ${repositoryFile}`,
-      );
+      if (declaration.openingBrace !== undefined) continue;
+      const targets = typeof declaration.path === 'string'
+        ? [rustPathModuleTarget(file.path, declaration)]
+        : conventionalModuleCandidates(file.path, declaration);
+      if (typeof declaration.path === 'string') {
+        const targetRelative = relative(engineRoot, targets[0]);
+        assert(
+          targetRelative.length > 0
+            && targetRelative !== '..'
+            && !targetRelative.startsWith(`..${sep}`)
+            && canonicalRegularFileExists(engineRoot, targetRelative.split(sep).join('/')),
+          `engine #[path] must resolve to a real file inside snapback-engine/src using its Rust module scope: ${declaration.path}`,
+        );
+      }
+      for (const target of targets) {
+        const targetOrigin = reviewedModuleTargets.get(target);
+        assert(
+          !targetOrigin || exactReviewedDeclarations.has(declaration),
+          `snapback-engine ${typeof declaration.path === 'string' ? '#[path]' : 'conventional module'} may not remount reviewed module origin ${relative(ROOT, target).split(sep).join('/')}: ${repositoryFile}`,
+        );
+      }
     }
     const reviewedDeclarationsMasked = masked.split('');
     for (const declaration of exactReviewedDeclarations) {
@@ -1189,20 +1250,52 @@ function validateEngineDefinitionInputs(files) {
         `snapback-engine may not alias an extern crate to trusted macro binding ${binding}: ${relative(ROOT, file.path).split(sep).join('/')}`,
       );
     }
-    for (const useMatch of masked.matchAll(new RegExp(
-      String.raw`(?:^|[;{}])\s*${OPTIONAL_RUST_VISIBILITY}use\s+([^;]+);`,
+    const useMatches = [...masked.matchAll(new RegExp(
+      String.raw`(^|[;{}])(\s*)(${OPTIONAL_RUST_VISIBILITY})use\s+([^;]+);`,
       'gmu',
-    ))) {
-      const useSpec = useMatch[1];
+    ))].map((match) => ({
+      start: match.index + match[1].length + match[2].length,
+      useSpec: match[4],
+    }));
+    const useAncestries = rustInlineModuleAncestries(
+      masked,
+      moduleDeclarations,
+      useMatches.map(({ start }) => start),
+    );
+    const observedGlobOccurrences = useMatches.flatMap(({ useSpec }, index) => {
+      if (!/(?:^|[,:{])\s*\*/u.test(useSpec)) return [];
+      return [engineGlobObservationKey(
+        repositoryFile,
+        useAncestries[index],
+        useSpec.replace(/\s+/gu, ''),
+      )];
+    }).sort();
+    const reviewedGlobOccurrences = SAFE_ENGINE_GLOB_IMPORTS
+      .filter(({ file: reviewedFile }) => reviewedFile === repositoryFile)
+      .map(({ file: reviewedFile, glob, modules }) => engineGlobObservationKey(reviewedFile, modules, glob))
+      .sort();
+    const reviewedGlobCounts = new Map();
+    for (const occurrence of reviewedGlobOccurrences) {
+      reviewedGlobCounts.set(occurrence, (reviewedGlobCounts.get(occurrence) ?? 0) + 1);
+    }
+    for (const occurrence of observedGlobOccurrences) {
+      const remaining = reviewedGlobCounts.get(occurrence) ?? 0;
+      assert(
+        remaining > 0,
+        `snapback-engine reviewed engine glob occurrences drifted in lexical module scope or count: ${repositoryFile}`,
+      );
+      reviewedGlobCounts.set(occurrence, remaining - 1);
+    }
+    if (completeGlobInventory || file.complete === true) {
+      assert(
+        JSON.stringify(observedGlobOccurrences) === JSON.stringify(reviewedGlobOccurrences),
+        `snapback-engine reviewed engine glob occurrences drifted in lexical module scope or count: ${repositoryFile}`,
+      );
+    }
+    for (const { useSpec } of useMatches) {
       const introductions = rustUseTreeIntroductions(useSpec);
       if (/(?:^|[,:{])\s*\*/u.test(useSpec)) {
-        const normalizedUseSpec = useSpec.replace(/\s+/gu, '');
-        assert(
-          SAFE_ENGINE_GLOB_IMPORTS.some(({ file: reviewedFile, glob }) => (
-            reviewedFile === repositoryFile && glob === normalizedUseSpec
-          )),
-          `snapback-engine may not import an unreviewed glob ${normalizedUseSpec}: ${repositoryFile}`,
-        );
+        continue;
       }
       for (const { binding, path, aliased } of introductions) {
         if (PROTECTED_ENGINE_GLOB_BINDINGS.has(binding)) {
@@ -1266,12 +1359,14 @@ function validateEngineDefinitionInputs(files) {
   }
 }
 
-export function validateEngineDefinitionDenylist(artifact, files = rustSourceFiles(resolve(ROOT, 'crates/snapback-engine/src'))) {
+export function validateEngineDefinitionDenylist(artifact, files) {
   assert(
     JSON.stringify(artifact.engineDefinitionDenylist) === JSON.stringify(EXPECTED_ENGINE_DEFINITION_DENYLIST),
     'engine definition denylist drifted from the Phase 2 flip predicate',
   );
-  validateEngineDefinitionInputs(files);
+  const completeGlobInventory = files === undefined;
+  const engineFiles = files ?? rustSourceFiles(resolve(ROOT, 'crates/snapback-engine/src'));
+  validateEngineDefinitionInputs(engineFiles, completeGlobInventory);
   for (const entry of artifact.engineDefinitionDenylist) {
     const declaration = String.raw`(?:`
       + String.raw`(?:(?:const|async|unsafe|safe|default)\s+|extern(?:\s+"[^"]*")?\s+)*fn`
@@ -1281,7 +1376,7 @@ export function validateEngineDefinitionDenylist(artifact, files = rustSourceFil
       String.raw`(?:^|[;{}(\[])\s*${OPTIONAL_RUST_VISIBILITY}${declaration}\s+(?:r#)?${entry.symbol}\b`,
       'mu',
     );
-    for (const file of files) {
+    for (const file of engineFiles) {
       assert(
         !pattern.test(maskRustAttributes(maskRustCommentsAndLiterals(file.source))),
         `snapback-engine defines forbidden ${entry.kind} ${entry.symbol} in ${relative(ROOT, file.path).split(sep).join('/')}`,

@@ -53,3 +53,9 @@ Resolved on `origin/main` by `5c39b4df1`
 `cli-carrier-usage` changes replaced both OAuth test-generating macros with
 explicit test functions. Verification on main with
 `git grep macro_rules crates/snapback-engine` returned no matches.
+
+The no-rebase `sbs/0825-main-hygiene` worktree predates that main commit, so
+its workspace-graph hardening follow-up applies only the same two mechanical
+macro-to-explicit-test expansions locally. This does not change production
+OAuth behavior; it lets the fail-closed checker verify this worktree's real
+Rust tree without carrying an exception for the inherited macros.

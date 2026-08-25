@@ -40,6 +40,11 @@ const moduleCount = rustPaths.filter(
     || generatedSourceHomePrefixes.some((prefix) => path.startsWith(prefix)),
 ).length;
 
+function canonicalEngineFixture(path) {
+  const filePath = join(repositoryRoot, 'crates/snapback-engine/src', path);
+  return { complete: true, path: filePath, source: readFileSync(filePath, 'utf8') };
+}
+
 function metadata(name = 'snapback', dependencies = []) {
   const names = new Set(artifact.crates.map((entry) => entry.name));
   names.add(name);
@@ -458,7 +463,7 @@ test('definition-producing engine includes and macros fail closed', () => {
   ]) {
     assert.throws(
       () => validateEngineDefinitionDenylist(artifact, [{ path: '/fixture/engine.rs', source }]),
-      /engine #\[path\] escapes|unreviewed macro|unreviewed attribute|unreviewed derive|unreviewed glob|cfg_attr may not hide|may not define item-generating macros|may not alias a trusted macro binding|may not import trusted macro binding|may not alias an extern crate|may not shadow a trusted macro crate binding/u,
+      /engine #\[path\] escapes|unreviewed macro|unreviewed attribute|unreviewed derive|reviewed engine glob occurrences drifted|cfg_attr may not hide|may not define item-generating macros|may not alias a trusted macro binding|may not import trusted macro binding|may not alias an extern crate|may not shadow a trusted macro crate binding/u,
       source,
     );
   }
@@ -514,27 +519,8 @@ for (const { name, path, source, expected } of [
 
 test('reviewed engine compatibility globs stay bound to their exact files', () => {
   assert.doesNotThrow(() => validateEngineDefinitionDenylist(artifact, [
-    {
-      path: join(repositoryRoot, 'crates/snapback-engine/src/local.rs'),
-      source: [
-        '#[path = "local/engine.rs"] mod engine;',
-        '#[path = "local/runtime_cost.rs"] mod runtime_cost;',
-        'pub use runtime_cost::*;',
-      ].join('\n'),
-    },
-    {
-      path: join(repositoryRoot, 'crates/snapback-engine/src/local/engine.rs'),
-      source: [
-        '#[path = "generation_host.rs"] pub(super) mod generation_host;',
-        '#[path = "inspection.rs"] mod inspection;',
-        '#[path = "auth_room_kick_acceptance.rs"] mod auth_room_kick_acceptance;',
-        '#[path = "admission_fence_tests.rs"] mod admission_fence_tests;',
-        '#[path = "tests.rs"] pub(crate) mod tests;',
-        'use snapback_types::local::config_types;',
-        'pub use config_types::*;',
-        'use super::runtime_cost::*;',
-      ].join('\n'),
-    },
+    canonicalEngineFixture('local.rs'),
+    canonicalEngineFixture('local/engine.rs'),
   ]));
 
   for (const source of [
@@ -546,10 +532,17 @@ test('reviewed engine compatibility globs stay bound to their exact files', () =
         path: join(repositoryRoot, 'crates/snapback-engine/src/other.rs'),
         source,
       }]),
-      /unreviewed glob/u,
+      /reviewed engine glob occurrences drifted/u,
       source,
     );
   }
+
+  const inspection = canonicalEngineFixture('local/inspection.rs');
+  inspection.source += '\nmod nested { use super::*; }\n';
+  assert.throws(
+    () => validateEngineDefinitionDenylist(artifact, [inspection]),
+    /reviewed engine glob occurrences drifted/u,
+  );
 });
 
 test('reviewed runtime_cost globs cannot be rebound at their canonical path', () => {
@@ -585,7 +578,7 @@ test('reviewed runtime_cost globs cannot be rebound at their canonical path', ()
       path: canonicalPath,
       source: '#[path = "ask.rs"] #[path = "local/runtime_cost.rs"] mod runtime_cost;\npub use runtime_cost::*;',
     }]),
-    /may not shadow reviewed glob binding runtime_cost/u,
+    /module declaration has multiple #\[path\] attributes/u,
   );
   assert.throws(
     () => validateEngineDefinitionDenylist(artifact, [{
@@ -596,14 +589,24 @@ test('reviewed runtime_cost globs cannot be rebound at their canonical path', ()
   );
 });
 
-test('reviewed null-path glob roots reject ambiguous path declarations', () => {
-  assert.throws(
-    () => validateEngineDefinitionDenylist(artifact, [{
-      path: join(repositoryRoot, 'crates/snapback-engine/src/manifest.rs'),
-      source: '#[path = "ask.rs"] #[path = "manifest/capabilities.rs"] mod capabilities;\npub use capabilities::*;',
-    }]),
-    /may not shadow reviewed glob binding capabilities/u,
-  );
+test('ambiguous #[path] declarations fail closed before remount analysis', () => {
+  const spellings = new Map([
+    ['duplicate adjacent', '#[path = "manifest/capabilities.rs"]\n#[path = "ask.rs"]\nmod sneaky;'],
+    ['glued', '#[path = "manifest/capabilities.rs"]#[path = "ask.rs"] mod sneaky;'],
+    ['duplicate same path', '#[path = "manifest/capabilities.rs"]\n#[path = "manifest/capabilities.rs"]\nmod sneaky;'],
+  ]);
+  const accepted = [];
+  for (const [name, spelling] of spellings) {
+    const fixture = canonicalEngineFixture('lib.rs');
+    fixture.source += `\n${spelling}\n`;
+    try {
+      validateEngineDefinitionDenylist(artifact, [fixture]);
+      accepted.push(name);
+    } catch (error) {
+      assert.match(error.message, /module declaration has multiple #\[path\] attributes/u, name);
+    }
+  }
+  assert.deepEqual(accepted, []);
 });
 
 test('reviewed crate-root module globs preserve their absent path attributes', () => {
@@ -624,19 +627,20 @@ test('reviewed crate-root module globs preserve their absent path attributes', (
 });
 
 test('reviewed module declarations must remain at their exact lexical scope', () => {
-  const canonicalPath = join(repositoryRoot, 'crates/snapback-engine/src/local.rs');
+  const fixture = canonicalEngineFixture('local.rs');
+  assert.doesNotThrow(() => validateEngineDefinitionDenylist(artifact, [fixture]));
+  fixture.source = fixture.source.replace(
+    '#[path = "local/runtime_cost.rs"]\nmod runtime_cost;',
+    [
+      'const _: () = {',
+      '    #[path = "local/runtime_cost.rs"]',
+      '    mod runtime_cost;',
+      '};',
+    ].join('\n'),
+  );
   assert.throws(
-    () => validateEngineDefinitionDenylist(artifact, [{
-      path: canonicalPath,
-      source: [
-        '#[path = "local/engine.rs"] mod engine;',
-        'mod wrapper {',
-        '  #[path = "local/runtime_cost.rs"] mod runtime_cost;',
-        '  pub use runtime_cost::*;',
-        '}',
-      ].join('\n'),
-    }]),
-    /must resolve to a real file inside snapback-engine\/src using its Rust module scope/u,
+    () => validateEngineDefinitionDenylist(artifact, [fixture]),
+    /(?:reviewed module declaration runtime_cost is missing at its canonical scope|#\[path\] may not remount reviewed module origin)/u,
   );
 });
 
@@ -657,6 +661,13 @@ test('reviewed module origin files cannot be remounted through another path modu
       target,
     );
   }
+
+  const local = canonicalEngineFixture('local.rs');
+  local.source += '\nmod inspection;\n';
+  assert.throws(
+    () => validateEngineDefinitionDenylist(artifact, [local]),
+    /conventional module may not remount reviewed module origin/u,
+  );
 });
 
 test('remounting an origin does not substitute for its missing canonical declaration', () => {
@@ -702,7 +713,7 @@ test('reviewed crate-qualified glob roots cannot be rebound', () => {
   ]) {
     assert.throws(
       () => validateEngineDefinitionDenylist(artifact, [{ path: canonicalPath, source }]),
-      /may not (?:alias or shadow|alias) reviewed glob binding snapback_(?:kernel|types)/u,
+      /(?:may not (?:alias or shadow|alias) reviewed glob binding snapback_(?:kernel|types)|reviewed engine glob occurrences drifted)/u,
       source,
     );
   }
