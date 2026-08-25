@@ -5,6 +5,12 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
+**Revised:** 2026-08-25 (round-16 target/custody correction: drain and
+observation paths no longer reconcile whole-queue custody; replay reconciles
+only the target-fenced record at its submission slot; optional
+`ledgerIncarnation` plumbing is ready, but real reset quarantine remains
+pending the server field tracked in
+`issues/20260825-inspect-exposes-ledger-incarnation.md`)
 **Revised:** 2026-08-25 (round-15 custody-order correction: shared capability
 currency and each persisted enqueue target pass before any custody write;
 reconciliation is limited to the already-validated record, so a valid prefix
@@ -542,6 +548,42 @@ capability because `_snapback_client_mutations` settles the id in the
 application-write transaction. The Cloudflare coordinator does not own that
 ledger and continues to report `offline_mutation_replay` as a gap, so its JS
 clients fail loudly instead of accepting at-least-once replay corruption.
+
+The custody write boundary is record-scoped. The platform drain's `runCycle()`
+performs no whole-queue custody reconciliation after capability inspection.
+For each selected foreground or housekeeping record, `#replayOutboxOnce`
+re-reads capability currency, compares the complete persisted enqueue target,
+and only then calls `#reconcileQueueCustody(..., { recordIds: [id] })` under
+the authorization-dispatch gate. It re-reads that exact durable record after
+the scoped transaction; a record no longer pending, or still not sendable
+under the current principal/authority instance, stops the lane rather than
+letting a successor pass it. A stable target mismatch consumes already-latched
+drain wakeups and stays paused until a later real custody/target event, so the
+default drain cannot hot-loop the refused head.
+
+Observation and recovery pre-reads are non-mutating: `outboxStatus()`,
+`mutationStatus()`, `quarantinedMutations()`, `settledMutations()`,
+`createOptimisticMutationView()`, and
+`acknowledgeResultGoneMutations()` do not reconcile whole-queue custody.
+Explicit authority-transition and app-directed recovery operations retain
+their separately governed custody writes; merely observing a sidecar-adopted
+queue can never strand a record before its persisted target fence runs.
+
+The additive enqueue-target identity also recognizes an opaque
+`ledgerIncarnation` whenever inspection provides it. The client persists the
+field in both the replay-capability fact and record `enqueueTarget`, and exact
+inequality fences custody and POST like the other target axes. Compatibility
+is deliberately fail-open only when either the predecessor or current server
+omits the field. As of 2026-08-25 public `GET /inspect` exposes no store or
+settlement-ledger incarnation: `storage.version` is a mutable data revision,
+while `targetProfileId`, the artifact hashes/app id, and
+`capabilityManifest.runtimeFacts` remain unchanged across the relevant reset.
+Therefore an `app.reset` can still delete `_snapback_client_mutations` without
+giving the JS client a changed replay-target axis. The same-origin,
+same-artifact reset case is **not closed** until the server publishes
+`ledgerIncarnation` and the real reset/zero-POST regression runs; the Rust-side
+work and acceptance test are tracked in
+`issues/20260825-inspect-exposes-ledger-incarnation.md`.
 
 Every newly written server settlement also stores a nullable authoritative
 version beside the legacy settlement cursor. A non-null value — including

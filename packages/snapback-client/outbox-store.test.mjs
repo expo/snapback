@@ -373,8 +373,10 @@ const offlineReplayInspection = ({
   supported,
   targetProfileId,
   generation = TEST_ARTIFACT_GENERATION,
+  ledgerIncarnation = null,
 }) => ({
   targetProfileId,
+  ...(ledgerIncarnation === null ? {} : { ledgerIncarnation }),
   schema: {
     schemaVersion: generation.schemaVersion,
     appId: generation.appId,
@@ -395,12 +397,14 @@ const currentOutboxTarget = ({
   targetProfileId = 'local-dev-sqlite-ibex',
   generation = TEST_ARTIFACT_GENERATION,
   generated = false,
+  ledgerIncarnation = null,
 }) => ({
   outboxRecordSchemaVersion: 2,
   enqueueTarget: {
     schemaVersion: 'snapback.outbox-enqueue-target.v1',
     canonicalOrigin: origin,
     targetProfileId,
+    ...(ledgerIncarnation === null ? {} : { ledgerIncarnation }),
     artifactIdentity: generated
       ? { kind: 'generated', generation }
       : { kind: 'app', appId: generation.appId },
@@ -711,6 +715,17 @@ async function exerciseOutboxContract(store, { label }) {
   const scopedPreservedBefore = structuredClone(
     (await store.outboxRecords())
       .find((record) => record.id === 'cm-custody-scoped-preserved'),
+  );
+  await assert.rejects(
+    store.outboxReconcileCustodyRecords(
+      [],
+      predecessorScope,
+      predecessorDescriptor,
+      { authorityEpoch: 2, authorityKey: 'authority-key-scoped-successor' },
+      await currentAuthorityGeneration(store),
+    ),
+    (error) => error.code === 'SNAPBACK_OUTBOX_RECORD_INVALID',
+    `${label}: an empty scoped reconciliation set is invalid`,
   );
   const scoped = await store.outboxReconcileCustodyRecords(
     ['cm-custody-scoped-selected'],
@@ -4232,6 +4247,72 @@ test('cross-target relaunch refuses the persisted enqueue target before POST', a
   }
 });
 
+test('provided ledgerIncarnation fences same-origin same-artifact reset replay before POST', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const origin = 'https://same-target-reset.example';
+  const targetProfileId = 'same-target-reset-profile';
+  const clientMutationId = 'cm-same-target-ledger-reset';
+  let ledgerIncarnation = 'ledger-incarnation-before-reset';
+  let resetMutationPosts = 0;
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+    if (path === '/inspect') {
+      return Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId,
+        ledgerIncarnation,
+      }));
+    }
+    if (ledgerIncarnation === 'ledger-incarnation-before-reset') {
+      throw new TypeError('mutation response lost before reset');
+    }
+    resetMutationPosts += 1;
+    return Response.json({ result: { appliedAgain: true }, version: 1 });
+  };
+
+  const enqueueClient = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  const queued = await enqueueClient.mutate('createThing', {
+    clientMutationId,
+    args: { title: 'must not apply after ledger reset' },
+  });
+  assert.equal(queued.status, 'queued');
+  const beforeReset = structuredClone((await store.outboxRecords())[0]);
+  assert.equal(beforeReset.enqueueTarget.ledgerIncarnation, ledgerIncarnation);
+  assert.equal(
+    (await store.readOfflineMutationReplayCapabilityFact()).ledgerIncarnation,
+    ledgerIncarnation,
+  );
+  await enqueueClient.close();
+
+  ledgerIncarnation = 'ledger-incarnation-after-reset';
+  const replayClient = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  try {
+    const replay = await replayClient.replayQueuedMutations();
+    assert.equal(replay.replayed, 0);
+    assert.equal(replay.stopped, true);
+    assert.equal(resetMutationPosts, 0, 'a changed ledger incarnation permits zero POSTs');
+    assert.deepEqual(
+      (await store.outboxRecords())[0],
+      beforeReset,
+      'the pre-reset record remains byte-identical and pending',
+    );
+    assert.equal(
+      replayClient.outboxDiagnostics.at(-1)?.code,
+      'SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH',
+    );
+  } finally {
+    await replayClient.close();
+    await store.close();
+  }
+});
+
 test('an initial mixed-target snapshot replays its valid prefix before pausing', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
@@ -4293,7 +4374,7 @@ test('an initial mixed-target snapshot replays its valid prefix before pausing',
   }
 });
 
-test('session-fenced target mismatch precedes authority-instance custody reconciliation', async (t) => {
+test('default drain keeps a session-fenced target mismatch ahead of custody reconciliation', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
   const coordinator = createSuccessorCoordinator();
@@ -4330,6 +4411,14 @@ test('session-fenced target mismatch precedes authority-instance custody reconci
         targetProfileId: targetBProfile,
       }));
     }
+    if (path === '/connection/open') {
+      const connectionId = JSON.parse(init.body).connectionId;
+      return Response.json({
+        connectionId,
+        connectionToken: `sct_${connectionId}`,
+        wireVersion: 'snapback.v1',
+      });
+    }
     const body = JSON.parse(init.body);
     mutationPosts.push(body.clientMutationId);
     return Response.json({
@@ -4343,7 +4432,6 @@ test('session-fenced target mismatch precedes authority-instance custody reconci
     authClientProtocol: 1,
     authorityDescriptorProtocol: 1,
     rqsStore: store,
-    __outboxDrainLifecycle: false,
   });
   try {
     const capture = await settleSuccessorCoordinator(coordinator);
@@ -5563,10 +5651,12 @@ test('sidecar adoption target mismatch precedes authority-instance custody recon
     assert.equal(receipt.remaining, 1);
     assert.equal(receipt.stopped, true);
     assert.equal(mutationPosts, 0, 'adoption sends zero POSTs for the target-A record');
+    const status = await candidate.outboxStatus();
+    assert.equal(status.pending, 1, 'outboxStatus observes the adopted target-A record read-only');
     assert.deepEqual(
       (await store.outboxRecords())[0],
       before,
-      'adoption leaves the target-A record byte-identical and pending',
+      'adoption and outboxStatus leave the target-A record byte-identical and pending',
     );
     assert.equal(
       candidate.outboxDiagnostics.at(-1)?.code,
@@ -5678,6 +5768,11 @@ test('sidecar adoption keeps identity-divergent intent pending for rollback', as
   await store.outboxEnqueue({
     id: 'cm-sidecar-identity-divergence',
     function: 'createThing',
+    ...currentOutboxTarget({
+      origin: 'http://127.0.0.1:41005',
+      targetProfileId: null,
+      generated: true,
+    }),
     args: { title: 'different identity' },
     expectedGeneration: TEST_ARTIFACT_GENERATION,
     argumentSchema: TEST_CREATE_THING_ARGUMENT_SCHEMA,

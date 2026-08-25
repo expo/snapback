@@ -173,8 +173,16 @@ const normalizeOutboxEnqueueTarget = (value) => {
     || typeof value.canonicalOrigin !== 'string'
     || value.canonicalOrigin.length === 0
     || !(value.targetProfileId === null || typeof value.targetProfileId === 'string')
+    || !(
+      value.ledgerIncarnation === undefined
+      || value.ledgerIncarnation === null
+      || (typeof value.ledgerIncarnation === 'string' && value.ledgerIncarnation.length > 0)
+    )
     || !plainRecord(value.artifactIdentity)
   ) return null;
+  const ledgerIncarnation = typeof value.ledgerIncarnation === 'string'
+    ? value.ledgerIncarnation
+    : null;
   const artifactIdentity = value.artifactIdentity;
   if (
     artifactIdentity.kind === 'app'
@@ -186,6 +194,7 @@ const normalizeOutboxEnqueueTarget = (value) => {
       schemaVersion: OUTBOX_ENQUEUE_TARGET_SCHEMA_VERSION,
       canonicalOrigin: value.canonicalOrigin,
       targetProfileId: value.targetProfileId,
+      ...(ledgerIncarnation === null ? {} : { ledgerIncarnation }),
       artifactIdentity: { kind: 'app', appId: artifactIdentity.appId },
     };
   }
@@ -204,6 +213,7 @@ const normalizeOutboxEnqueueTarget = (value) => {
     schemaVersion: OUTBOX_ENQUEUE_TARGET_SCHEMA_VERSION,
     canonicalOrigin: value.canonicalOrigin,
     targetProfileId: value.targetProfileId,
+    ...(ledgerIncarnation === null ? {} : { ledgerIncarnation }),
     artifactIdentity: {
       kind: 'generated',
       generation: Object.fromEntries(
@@ -1650,6 +1660,7 @@ export const outboxOps = {
     if (eligibleRecordIds !== null) {
       if (
         !Array.isArray(eligibleRecordIds)
+        || eligibleRecordIds.length === 0
         || eligibleRecordIds.some((id) => typeof id !== 'string' || id.length === 0)
       ) {
         throw invalidOutboxRecord(

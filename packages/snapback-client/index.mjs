@@ -3124,14 +3124,26 @@ const pinOfflineMutationTransportTarget = (baseUrl, artifactGeneration = null) =
     origin: canonicalServerOrigin(pinnedBaseUrl),
     targetProfileId: null,
     artifactGeneration,
+    ledgerIncarnation: null,
   });
 };
+
+// Reset incarnation is an additive server fact. Older targets omit it, so
+// absence stays fail-open for compatibility; once both sides provide it,
+// equality is part of replay target identity.
+const sameOptionalLedgerIncarnation = (left, right) => (
+  left === null || right === null || left === right
+);
 
 const completeOfflineMutationOperationTarget = (transportTarget, fact) => {
   const normalized = normalizeOfflineMutationReplayCapabilityFact(fact);
   if (
     normalized === null
     || canonicalServerOrigin(normalized.origin) !== transportTarget.origin
+    || !sameOptionalLedgerIncarnation(
+      transportTarget.ledgerIncarnation ?? null,
+      normalized.ledgerIncarnation ?? null,
+    )
     || (
       transportTarget.artifactGeneration !== null
       && (
@@ -3148,6 +3160,7 @@ const completeOfflineMutationOperationTarget = (transportTarget, fact) => {
     origin: transportTarget.origin,
     targetProfileId: normalized.targetProfileId,
     artifactGeneration: normalized.artifactGeneration,
+    ledgerIncarnation: normalized.ledgerIncarnation ?? null,
   });
 };
 
@@ -3156,6 +3169,10 @@ const offlineMutationOperationTargetMatchesFact = (target, fact) => (
   && fact !== null
   && canonicalServerOrigin(fact.origin) === target.origin
   && fact.targetProfileId === target.targetProfileId
+  && sameOptionalLedgerIncarnation(
+    target.ledgerIncarnation ?? null,
+    fact.ledgerIncarnation ?? null,
+  )
   && (
     target.artifactGeneration === null
       ? fact.artifactGeneration === null
@@ -3178,6 +3195,7 @@ const offlineMutationOperationTargetChangedError = (target, currentBaseUrl) => {
       currentOrigin: canonicalServerOrigin(current),
       targetProfileId: target.targetProfileId,
       artifactGeneration: target.artifactGeneration,
+      ledgerIncarnation: target.ledgerIncarnation ?? null,
     },
   );
 };
@@ -3208,6 +3226,10 @@ const offlineMutationOutboxEnqueueTarget = (
     schemaVersion: OUTBOX_ENQUEUE_TARGET_SCHEMA_VERSION,
     canonicalOrigin: canonicalServerOrigin(operationTarget.origin),
     targetProfileId: operationTarget.targetProfileId,
+    ...(operationTarget.ledgerIncarnation === null
+      || operationTarget.ledgerIncarnation === undefined
+      ? {}
+      : { ledgerIncarnation: operationTarget.ledgerIncarnation }),
     artifactIdentity: Object.freeze(artifactIdentity),
   });
 };
@@ -3232,6 +3254,10 @@ const offlineMutationReplayTargetBindingError = (record, replayTarget, knownAppI
   }
   const persisted = record.enqueueTarget;
   const currentAppId = replayTarget.artifactGeneration?.appId ?? knownAppId;
+  const ledgerIncarnationMatches = sameOptionalLedgerIncarnation(
+    persisted.ledgerIncarnation ?? null,
+    replayTarget.ledgerIncarnation ?? null,
+  );
   const artifactMatches = persisted.artifactIdentity?.kind === 'generated'
     ? replayTarget.artifactGeneration !== null
       && sameArtifactGeneration(
@@ -3244,11 +3270,12 @@ const offlineMutationReplayTargetBindingError = (record, replayTarget, knownAppI
   if (
     canonicalServerOrigin(persisted.canonicalOrigin) === replayTarget.origin
     && persisted.targetProfileId === replayTarget.targetProfileId
+    && ledgerIncarnationMatches
     && artifactMatches
   ) return null;
   return diagnosticError(
     'SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH',
-    'the durable outbox record belongs to a different canonical origin, target profile, or application artifact; replay is refused',
+    'the durable outbox record belongs to a different canonical origin, target profile, application artifact, or settlement-ledger incarnation; replay is refused',
     {
       reason: 'enqueue-target-mismatch',
       clientMutationId: record.id,
@@ -3257,6 +3284,7 @@ const offlineMutationReplayTargetBindingError = (record, replayTarget, knownAppI
         canonicalOrigin: replayTarget.origin,
         targetProfileId: replayTarget.targetProfileId,
         artifactGeneration: replayTarget.artifactGeneration,
+        ledgerIncarnation: replayTarget.ledgerIncarnation ?? null,
         appId: currentAppId ?? null,
       },
     },
@@ -3275,6 +3303,13 @@ const offlineMutationReplayCapabilityFactFromInspection = (inspection, origin) =
       : null;
   const supported = Array.isArray(manifest?.supportedCapabilities)
     && manifest.supportedCapabilities.includes(OFFLINE_MUTATION_REPLAY_CAPABILITY);
+  const ledgerIncarnation = typeof inspection?.ledgerIncarnation === 'string'
+    && inspection.ledgerIncarnation.length > 0
+    ? inspection.ledgerIncarnation
+    : typeof manifest?.ledgerIncarnation === 'string'
+      && manifest.ledgerIncarnation.length > 0
+      ? manifest.ledgerIncarnation
+      : null;
   return Object.freeze({
     schemaVersion: OFFLINE_MUTATION_REPLAY_CAPABILITY_FACT_V1,
     origin,
@@ -3282,6 +3317,7 @@ const offlineMutationReplayCapabilityFactFromInspection = (inspection, origin) =
     reason: supported ? null : 'not-advertised',
     targetProfileId,
     artifactGeneration: artifactGenerationFromInspection(inspection),
+    ...(ledgerIncarnation === null ? {} : { ledgerIncarnation }),
   });
 };
 
@@ -3306,6 +3342,11 @@ const normalizeOfflineMutationReplayCapabilityFact = (value) => {
     || typeof value.supported !== 'boolean'
     || !(value.reason === null || typeof value.reason === 'string')
     || !(value.targetProfileId === null || typeof value.targetProfileId === 'string')
+    || !(
+      value.ledgerIncarnation === undefined
+      || value.ledgerIncarnation === null
+      || (typeof value.ledgerIncarnation === 'string' && value.ledgerIncarnation.length > 0)
+    )
     || !(
       value.storeRevision === undefined
       || (Number.isSafeInteger(value.storeRevision) && value.storeRevision >= 1)
@@ -3333,6 +3374,9 @@ const normalizeOfflineMutationReplayCapabilityFact = (value) => {
     reason: value.reason,
     targetProfileId: value.targetProfileId,
     artifactGeneration,
+    ...(typeof value.ledgerIncarnation === 'string'
+      ? { ledgerIncarnation: value.ledgerIncarnation }
+      : {}),
     ...(value.requestSequence === undefined
       ? {}
       : { requestSequence: value.requestSequence }),
@@ -3347,6 +3391,10 @@ const samePositiveOfflineMutationReplayAuthority = (left, right) => (
   && right?.supported === true
   && canonicalServerOrigin(left.origin) === canonicalServerOrigin(right.origin)
   && left.targetProfileId === right.targetProfileId
+  && sameOptionalLedgerIncarnation(
+    left.ledgerIncarnation ?? null,
+    right.ledgerIncarnation ?? null,
+  )
   && (
     left.artifactGeneration === null
       ? right.artifactGeneration === null
@@ -7522,7 +7570,8 @@ export class SnapbackClient {
     ) return false;
     // Fact revisions order observations, but a newer positive with the same
     // complete target identity continues the predecessor's authority. Only a
-    // negative or an origin/profile/artifact-generation change supersedes it.
+    // negative or an origin/profile/artifact-generation/ledger-incarnation
+    // change supersedes it.
     if (samePositiveOfflineMutationReplayAuthority(expected, current)) return true;
     if (expected.storeRevision !== undefined) {
       return current.storeRevision === expected.storeRevision
@@ -7538,6 +7587,10 @@ export class SnapbackClient {
       && current.supported === expected.supported
       && current.reason === expected.reason
       && current.targetProfileId === expected.targetProfileId
+      && sameOptionalLedgerIncarnation(
+        current.ledgerIncarnation ?? null,
+        expected.ledgerIncarnation ?? null,
+      )
       && (
         current.artifactGeneration === null
           ? expected.artifactGeneration === null
@@ -8400,7 +8453,6 @@ export class SnapbackClient {
     connected = false,
   } = {}) {
     const outboxStore = this.#offlineQueueStore(true);
-    await this.#reconcileQueueCustody(outboxStore, { required: true });
     return this.__storeRuntimeInvoke('createOptimisticMutationView', outboxStore, {
       authoritativeRows,
       connected,
@@ -10869,9 +10921,6 @@ export class SnapbackClient {
       && authorityTransition.transitionOwner === 'auth-coordinator'
     ) blockedReason = 'auth-barrier';
     try {
-      const custody = await this.#reconcileQueueCustody(store);
-      if (!custody.settled && blockedReason === null) blockedReason = 'custody-unsettled';
-      if (!custody.settled) throw custody.error;
       const records = typeof store.outboxRecords === 'function'
         ? await store.outboxRecords()
         : await store.outboxPending();
@@ -10949,9 +10998,6 @@ export class SnapbackClient {
     if (!store || typeof store.outboxRecords !== 'function') {
       return Object.freeze({ status: 'unknown', timing: mutationTiming() });
     }
-    const notWriter = typeof store.isWriter === 'function' && store.isWriter() !== true;
-    const custody = await this.#reconcileQueueCustody(store);
-    if (!custody.settled && !notWriter) return Object.freeze({ status: 'unknown', timing: mutationTiming() });
     let record;
     try {
       record = (await store.outboxRecords())
@@ -11045,7 +11091,6 @@ export class SnapbackClient {
     }
     const ids = [...new Set(clientMutationIds)];
     const store = this.#offlineQueueStore(true);
-    await this.#reconcileQueueCustody(store, { required: true });
     const records = new Map((await store.outboxRecords()).map((record) => [record?.id, record]));
     const invalid = ids.find((id) => records.get(id)?.status !== 'result-gone');
     if (invalid !== undefined) {
@@ -11087,8 +11132,6 @@ export class SnapbackClient {
   async quarantinedMutations() {
     const store = this.#offlineQueueStore();
     if (!store) return [];
-    const custody = await this.#reconcileQueueCustody(store);
-    if (!custody.settled) return [];
     return (await store.outboxRecords())
       .filter((record) => record?.status === 'quarantined')
       .map((record) => Object.freeze({
@@ -11379,7 +11422,6 @@ export class SnapbackClient {
   async settledMutations({ userId = null } = {}) {
     const store = this.#offlineQueueStore();
     if (!store || typeof store.outboxRecords !== 'function') return [];
-    await this.#reconcileQueueCustody(store, { required: true });
     const cohort = await this.#currentSettlementRecoveryCohort(userId);
     return (await store.outboxRecords())
       .filter((record) => record?.status === 'settled')
@@ -12357,18 +12399,6 @@ export class SnapbackClient {
         return lastOutcome;
       }
 
-      const custodyWakeGeneration = this.__outboxCustodyWakeGeneration;
-      const custody = await this.#reconcileQueueCustody(store);
-      if (!running) return lastOutcome;
-      if (!custody.settled) {
-        const code = custody.error?.diagnostic?.code ?? custody.error?.code ?? 'unsettled';
-        pause(`custody-unavailable:${code}`);
-        if (this.__outboxCustodyWakeGeneration !== custodyWakeGeneration) {
-          requestCycle('custody-settled-during-pause');
-        }
-        return lastOutcome;
-      }
-
       lastAttemptAtMs = now();
       publish('waiting-barrier', null, null);
       try {
@@ -12450,7 +12480,19 @@ export class SnapbackClient {
         return lastOutcome;
       }
       if (disposition?.kind === 'paused') {
-        pause(replayStopReason('replay-paused'));
+        const reason = replayStopReason('replay-paused');
+        const targetFenceRefusal = (
+          reason === 'replay-paused:enqueue-target-mismatch'
+          || reason === 'replay-paused:enqueue-target-missing'
+        );
+        if (targetFenceRefusal) {
+          // A durable target fence is a stable level until the application
+          // explicitly changes custody. Replay bookkeeping notifications from
+          // a valid prefix must not immediately hot-loop the same refused head.
+          replayWakePending = false;
+        }
+        pause(reason);
+        if (targetFenceRefusal) requested = false;
         return lastOutcome;
       }
       if (disposition?.kind === 'terminal') {
@@ -12876,15 +12918,30 @@ export class SnapbackClient {
           break;
         }
         replayAuthority = custody.authority;
-        if (replayAuthority !== null) {
+        const reconciledRecord = (await store.outboxRecords())
+          .find((candidate) => candidate?.id === record.id) ?? null;
+        if (
+          reconciledRecord === null
+          || (
+            reconciledRecord.status !== 'pending'
+            && reconciledRecord.status !== 'failed'
+          )
+        ) {
+          stopped = true;
+          break;
+        }
+        record = reconciledRecord;
+        if (record.status === 'pending' && replayAuthority !== null) {
           if (!samePrincipalScope(record.principalScope, replayAuthority.principalScope)) {
-            continue;
+            stopped = true;
+            break;
           }
           if (
             record.authorityDescriptor?.authorityInstanceId
             !== replayAuthority.authorityDescriptor.authorityInstanceId
           ) {
-            continue;
+            stopped = true;
+            break;
           }
         }
         // Re-read after the scoped custody transaction at the actual
@@ -13650,6 +13707,12 @@ export class SnapbackClient {
         || typeof operationTarget.targetProfileId === 'string')
       || !(operationTarget.artifactGeneration === null
         || typeof operationTarget.artifactGeneration === 'object')
+      || !(operationTarget.ledgerIncarnation === null
+        || operationTarget.ledgerIncarnation === undefined
+        || (
+          typeof operationTarget.ledgerIncarnation === 'string'
+          && operationTarget.ledgerIncarnation.length > 0
+        ))
     ) {
       throw new TypeError('internal mutation operation target is invalid');
     }
