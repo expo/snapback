@@ -201,3 +201,47 @@ would not break Q03 for the same reason.
 reading has been wrong repeatedly in this programme; the reviews will settle whether each lane is
 actually exposed. Recorded because it predicts *which* lanes to worry about, which is useful even if
 an individual call turns out wrong.
+
+---
+
+## Property 5, which the four above do not cover: a no-op must not consume
+
+Found on the third ledger review, and it is the most serious of the ledger findings because it is
+**remotely reachable without credentials**.
+
+A reviewer repeated `plan_family_alarm("malformed-N")` → `commit_planned_family_alarm` **32 times**
+from a dependent crate:
+
+```
+32 requests, 32 permanent consumption rows, ZERO auth effects, no retention, no GC
+```
+
+Every attempt returned `Committed(Noop)` — it did nothing — and still wrote a permanent row. The
+server exposes that malformed-bearer path. So a caller **with no valid bearer at all** can inflate
+the ledger indefinitely.
+
+> **Write the consumption record only when the effect actually happened.** A ledger that records
+> attempts rather than effects is an unauthenticated growth vector, because attempting is free and
+> the guard is what makes it permanent.
+
+This is distinct from retention (property 3) and both are needed. Retention bounds how long rows
+live; this bounds which rows are written at all. Retention alone still lets an attacker sustain
+unbounded pressure up to the retention window; refusing to consume on no-op removes the vector.
+
+It is also a place where the guard's own security property creates the availability risk — the row
+is permanent *because* it must be, so the discipline has to be about not creating it. Check this
+explicitly for every ledger: enumerate the outcomes that write a record, and confirm each one
+corresponds to a real durable effect.
+
+### Where each lane stood after review
+
+| Lane | Key shape | Atomicity | Findings |
+|---|---|---|---|
+| Q14 | new table, digest PK | correct | poisonable key (no request digest); no retention |
+| Q43 | singleton | correct | acquisition-vs-use, cross-process |
+| Q03 | per-operation | correct | no-op consumes; no request digest; no retention |
+| Q12 | reused existing keys | correct | review pending |
+
+**All four got atomicity right, and none of the findings was about the ledger concept.** They were
+about which outcomes write, who can write the key, when it is read, and how long rows live — the
+four questions around the edge of the mechanism rather than the mechanism itself.
