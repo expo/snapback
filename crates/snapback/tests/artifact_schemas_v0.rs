@@ -2964,6 +2964,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
                     row: None,
                 },
             ],
+            graph: None,
             resume: None,
         },
         LiveEnvelope::CurrentAsOf {

@@ -51,16 +51,17 @@ use crate::ephemeral::{
     validate_collection_permission_backing,
 };
 use crate::live_matcher::{
-    GraphNodeDecisionStatsV1, LiveDeltaKind, LiveDeltaOutcome, LiveMatchOutcome,
-    compute_live_delta, live_subscription_match_decision,
-    live_subscription_match_decision_with_graph_registration, live_subscription_match_outcome,
-    query_dependencies_from_plan, rollup_graph_node_decisions,
+    GraphNodeDecisionLedgerV1, GraphNodeDecisionStatsV1, GraphNodeMatchDispositionV1,
+    LiveDeltaKind, LiveDeltaOutcome, LiveMatchDecisionV1, LiveMatchOutcome, compute_live_delta,
+    live_subscription_match_decision, live_subscription_match_decision_with_graph_registration,
+    live_subscription_match_outcome, query_dependencies_from_plan, rollup_graph_node_decisions,
 };
 use crate::live_wire::{
     AuthorizationInvalidationSnapshot, LiveDeltaOpKind, LiveDeltaWireOp, LiveEnvelope,
-    LiveSocketServerFrame, MutationReceiptOutcome, Receipt, ResumeFromToken, ResumeMeta,
-    ResumeWire, SettlementClaim, SettlementClaimDisposition, SettlementIdMapDisposition,
-    SettlementIdMapEntry, SubscriptionReceiptEvent,
+    LiveGraphDeltaProofTupleV1, LiveGraphDeltaWireV1, LiveSocketServerFrame,
+    MutationReceiptOutcome, Receipt, ResumeFromToken, ResumeMeta, ResumeWire, SettlementClaim,
+    SettlementClaimDisposition, SettlementIdMapDisposition, SettlementIdMapEntry,
+    SubscriptionReceiptEvent,
 };
 use crate::manifest::{
     ActionPlan, ActionReturnValue, ActionStep, ArtifactGeneration, AuthInput, AuthMode,
@@ -157,6 +158,10 @@ fn live_evaluation_memo_disabled(value: Option<&str>) -> bool {
 
 fn graph_execution_disabled(value: Option<&str>) -> bool {
     value == Some("1")
+}
+
+fn graph_delta_disabled(value: Option<&str>) -> bool {
+    matches!(value, Some("1") | Some("true"))
 }
 
 /// Hard retained durable-live ceilings for the canonical local server. These
@@ -1035,15 +1040,19 @@ impl LiveEvaluationMemo {
         }
     }
 
-    fn get(
+    fn get_if(
         &mut self,
         key: &LiveEvaluationMemoKey,
         subscription_id: &str,
+        reusable: impl FnOnce(&QueryInvocation) -> bool,
     ) -> Option<(QueryInvocation, u64)> {
         if self.disabled {
             return None;
         }
         let entry = self.entries.get_mut(key)?;
+        if !reusable(&entry.result) {
+            return None;
+        }
         let result = entry.result.clone();
         #[cfg(test)]
         {
@@ -1492,6 +1501,18 @@ pub struct LiveEvaluationStats {
     pub last_turn_duration_ms: f64,
     pub delivered_frames_by_wire_kind: BTreeMap<String, u64>,
     pub delivered_bytes: u64,
+    #[serde(default)]
+    pub graph_delta_deliveries: u64,
+    #[serde(default)]
+    pub graph_delta_replace_fallbacks: u64,
+    #[serde(default)]
+    pub graph_delta_frame_bytes: u64,
+    #[serde(default)]
+    pub graph_delta_evaluation_cost: u64,
+    #[serde(default)]
+    pub graph_delta_convergence_checks: u64,
+    #[serde(default)]
+    pub graph_delta_convergence_failures: u64,
 }
 
 /// Commit-ack to caller-settlement decomposition for applied mutations.
@@ -3851,6 +3872,11 @@ pub struct LocalSnapback {
     /// Construction is conservative; a target owner must explicitly declare
     /// this capability, independently of the execution kill switch.
     graph_query_v1_target_declared: Arc<AtomicBool>,
+    /// Test-support forces the qualification oracle for every emitted graph
+    /// delta. Served targets opt in through the environment gate instead.
+    graph_delta_convergence_all: bool,
+    #[cfg(any(test, feature = "test-support"))]
+    graph_delta_force_convergence_failure: bool,
     /// Target-owned class-2/evaluator facts. The production map starts empty;
     /// its test-support installer cannot be reached from handler input.
     graph_serving_authority_contexts: Arc<RwLock<BTreeMap<String, GraphServingAuthorityContextV1>>>,
@@ -4811,6 +4837,27 @@ struct GraphServingRegistration {
     authorization_version: crate::storage::AuthorizationVersion,
     evaluation_cut: crate::manifest::GraphEvaluationCutV1,
     memo_eligible_first_page: bool,
+    plan: crate::manifest::GraphQueryPlanV1,
+    request: crate::graph_evaluator::GraphEvaluationRequestV1,
+    evaluation: crate::graph_evaluator::GraphEvaluationOutputV1,
+    delta_enabled: bool,
+    delta_requires_replace: bool,
+    last_delta_delivery: Option<GraphDeltaDeliveryObservationV1>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GraphDeltaDeliveryObservationV1 {
+    lane: String,
+    matched_node_ids: Vec<String>,
+    frame_bytes: u64,
+    evaluation_cost: u64,
+    delta_frame_bytes: Option<u64>,
+    delta_evaluation_cost: Option<u64>,
+    replace_frame_bytes: Option<u64>,
+    replace_evaluation_cost: Option<u64>,
+    convergence_checked: bool,
+    convergence_matched: bool,
 }
 
 impl QueryInvocation {
@@ -8852,6 +8899,7 @@ impl LocalSnapback {
     fn live_evaluation_memo_key(
         &mut self,
         subscription: &LiveSubscription,
+        input: &HandlerInput,
         authority: &PreparedAuthority,
     ) -> Option<LiveEvaluationMemoKey> {
         if self.pending_live_fanout.evaluation_memo.disabled {
@@ -8913,7 +8961,7 @@ impl LocalSnapback {
             read_set: _,
             correlation: _,
             ctx_ledger,
-        } = &subscription.input;
+        } = input;
         if ctx_ledger.is_some() {
             return None;
         }
@@ -8962,12 +9010,31 @@ impl LocalSnapback {
         // Generation admission is a per-subscription gate, not part of the
         // evaluation turn, and therefore still runs on a memo hit.
         self.validate_expected_generation(&authority, subscription.expected_generation.as_ref())?;
-        let key = self.live_evaluation_memo_key(subscription, &authority);
+        let input = live_subscription_rerun_input(subscription)?;
+        let key = self.live_evaluation_memo_key(subscription, &input, &authority);
         if let Some(key) = key.as_ref()
-            && let Some((cached, evictions)) = self
-                .pending_live_fanout
-                .evaluation_memo
-                .get(key, &subscription.id)
+            && let Some((cached, evictions)) =
+                self.pending_live_fanout
+                    .evaluation_memo
+                    .get_if(key, &subscription.id, |cached| match key {
+                        LiveEvaluationMemoKey::Graph(_) => {
+                            cached.graph_serving.as_ref().is_some_and(|graph| {
+                                subscription
+                                    .graph_serving
+                                    .as_ref()
+                                    .is_some_and(|registration| {
+                                        // The ledger is deliberately not memo identity:
+                                        // equal authority partitions must remain shareable.
+                                        // It is nevertheless a reuse precondition so a
+                                        // shared full evaluation can never transplant one
+                                        // subscription's advanced lineage into another.
+                                        graph.request.prior_window_ledgers
+                                            == registration.window_ledgers
+                                    })
+                            })
+                        }
+                        LiveEvaluationMemoKey::Opaque(_) => true,
+                    })
         {
             #[cfg(debug_assertions)]
             if matches!(key, LiveEvaluationMemoKey::Graph(_)) {
@@ -8975,12 +9042,18 @@ impl LocalSnapback {
                 // DK-3's convergence pattern: every debug memo hit is checked
                 // against a fresh owner evaluation, while release builds skip
                 // the evaluation turn exactly as the mechanism requires.
-                let fresh = self.invoke_query_with_dependencies_prepared_generation(
+                let mut fresh = self.invoke_query_with_dependencies_prepared_generation(
                     &subscription.function,
-                    subscription.input.clone(),
+                    input.clone(),
                     authority,
                     subscription.expected_generation.as_ref(),
                 )?;
+                if let Some(graph) = fresh.graph_serving.as_mut() {
+                    // Eligibility describes the subscription's immutable
+                    // root-first-page shape, not the owner-injected ledger in
+                    // this particular rerun input.
+                    graph.memo_eligible_first_page = true;
+                }
                 Self::debug_assert_graph_live_evaluation_memo_convergence(&cached, &fresh);
             }
             // @ref LLP 0209#6 — a hit skips only the query invocation. The
@@ -9010,16 +9083,28 @@ impl LocalSnapback {
             evaluation.real_evaluation = true;
         }
 
-        let result = if is_reserved_live_function(&subscription.function) {
-            self.reserved_live_invocation(&authority, &subscription.function, &subscription.input)
+        let mut result = if is_reserved_live_function(&subscription.function) {
+            self.reserved_live_invocation(&authority, &subscription.function, &input)
         } else {
             self.invoke_query_with_dependencies_prepared_generation(
                 &subscription.function,
-                subscription.input.clone(),
+                input,
                 authority,
                 subscription.expected_generation.as_ref(),
             )
         }?;
+
+        if let Some(graph) = result.graph_serving.as_mut() {
+            // Eligibility belongs to the subscription's immutable demand, so
+            // preserve it even when a transient cut/authority condition made
+            // this particular rerun ineligible to build a memo key. The next
+            // settled turn may share again; `get_if` separately requires
+            // exact prior-ledger compatibility.
+            graph.memo_eligible_first_page = subscription
+                .graph_serving
+                .as_ref()
+                .is_some_and(|registration| registration.memo_eligible_first_page);
+        }
 
         let turn_is_publishable = self
             .current_live_evaluation
@@ -9027,7 +9112,8 @@ impl LocalSnapback {
             .is_some_and(|evaluation| !evaluation.control.is_abandoned());
         let insertion_key = match (key, result.graph_serving.as_ref()) {
             (Some(LiveEvaluationMemoKey::Graph(expected)), Some(_)) => {
-                Self::graph_live_evaluation_memo_key_from_result(&result)
+                let actual = Self::graph_live_evaluation_memo_key_from_result(&result);
+                actual
                     .filter(|actual| actual == &expected)
                     .map(LiveEvaluationMemoKey::Graph)
             }
@@ -12813,6 +12899,21 @@ impl LocalSnapback {
             .store(true, Ordering::Release);
     }
 
+    /// Make every graph delta run the fresh-evaluation convergence oracle.
+    /// The frozen corpus uses this deterministic seam; production
+    /// qualification uses `SNAPBACK_GRAPH_DELTA_CONVERGENCE=1`.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn require_graph_delta_convergence_for_test(&mut self) {
+        self.graph_delta_convergence_all = true;
+    }
+
+    /// Exercise the fail-honest served-path branch without corrupting stored
+    /// graph state or weakening the byte/proof comparator itself.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn force_graph_delta_convergence_failure_for_test(&mut self) {
+        self.graph_delta_force_convergence_failure = true;
+    }
+
     #[cfg(any(test, feature = "test-support"))]
     pub fn install_graph_serving_authority_context_for_test(
         &mut self,
@@ -12878,6 +12979,13 @@ impl LocalSnapback {
             "partition": graph.partition.preimage,
             "authorizationVersion": graph.authorization_version,
             "evaluationCut": graph.evaluation_cut,
+            "orderedRootIds": graph.evaluation.ordered_root_ids,
+            "orderedRootKeys": graph.evaluation.ordered_root_keys,
+            "resultBytes": graph.evaluation.result_bytes,
+            "label": graph.evaluation.label,
+            "nodeCompleteness": graph.evaluation.node_completeness,
+            "graphCompleteness": graph.evaluation.graph_completeness,
+            "deltaDelivery": graph.last_delta_delivery,
         }))
     }
 
@@ -22905,6 +23013,7 @@ impl LocalSnapback {
                 function: name.to_owned(),
                 version: head_version,
                 ops,
+                graph: None,
                 resume: Some(
                     fresh_resume
                         .take()
@@ -24020,12 +24129,13 @@ impl LocalSnapback {
                 &subscription.authority,
                 authority.admission_lease().clone(),
             )?;
+            let rerun_input = live_subscription_rerun_input(&subscription)?;
             let query = if is_reserved_live_function(&subscription.function) {
-                self.reserved_live_invocation(&rerun, &subscription.function, &subscription.input)?
+                self.reserved_live_invocation(&rerun, &subscription.function, &rerun_input)?
             } else {
                 self.invoke_query_with_dependencies_prepared(
                     &subscription.function,
-                    subscription.input.clone(),
+                    rerun_input,
                     rerun,
                 )?
             };
@@ -28486,6 +28596,9 @@ impl LocalSnapback {
             hosted_serving_present: false,
             network_profile_startup_activated: false,
             graph_query_v1_target_declared: Arc::new(AtomicBool::new(false)),
+            graph_delta_convergence_all: false,
+            #[cfg(any(test, feature = "test-support"))]
+            graph_delta_force_convergence_failure: false,
             graph_serving_authority_contexts: Arc::new(RwLock::new(BTreeMap::new())),
             app_state_graph_identity: Arc::new(()),
             operator_authority_identity: Arc::new(()),
@@ -32788,7 +32901,13 @@ impl LocalSnapback {
         let scheduler_watermarks = self.live_coalescer.is_some() && turn_control.is_some();
         let mut skipped = 0u64;
         let mut watermark_skips = Vec::new();
-        let mut affected: Vec<(LiveSubscription, Option<QueryPlan>, LiveMatchOutcome)> = Vec::new();
+        let mut affected: Vec<(
+            LiveSubscription,
+            Option<QueryPlan>,
+            LiveMatchOutcome,
+            Vec<GraphNodeDecisionLedgerV1>,
+            bool,
+        )> = Vec::new();
         let commit_versions = if crate::spike_trace::enabled() {
             self.current_live_evaluation
                 .as_ref()
@@ -32873,6 +32992,10 @@ impl LocalSnapback {
                 continue;
             }
             let match_decision = match subscription.graph_serving.as_ref() {
+                Some(graph) if graph.delta_requires_replace => LiveMatchDecisionV1 {
+                    outcome: LiveMatchOutcome::ConservativeFallback,
+                    graph_nodes: Vec::new(),
+                },
                 Some(graph) => live_subscription_match_decision_with_graph_registration(
                     function,
                     &graph.matcher_input,
@@ -32887,6 +33010,7 @@ impl LocalSnapback {
                 ),
             };
             let match_outcome = match_decision.outcome;
+            let graph_node_decisions = match_decision.graph_nodes.clone();
             merge_graph_node_matcher_stats(
                 &mut matcher_stats.graph_nodes,
                 rollup_graph_node_decisions(&match_decision.graph_nodes),
@@ -32968,11 +33092,37 @@ impl LocalSnapback {
                 }
                 _ => None,
             };
+            let graph_delta = subscription.graph_serving.as_ref().is_some_and(|graph| {
+                graph.delta_enabled
+                    && !graph.delta_requires_replace
+                    && subscription.authorization.is_none()
+                    && !changes.is_empty()
+                    && !force_replace.contains(&subscription.id)
+                    && match_outcome == LiveMatchOutcome::Match
+                    && !graph_delta_disabled(
+                        std::env::var("SNAPBACK_GRAPH_DELTA_DISABLED")
+                            .ok()
+                            .as_deref(),
+                    )
+                    && graph_node_decisions
+                        .iter()
+                        .any(|node| node.disposition == GraphNodeMatchDispositionV1::Match)
+                    && graph_node_decisions
+                        .iter()
+                        .filter(|node| node.disposition == GraphNodeMatchDispositionV1::Match)
+                        .all(|node| {
+                            matches!(
+                                node.node_kind,
+                                crate::manifest::GraphNodeKindV1::RootWindow
+                                    | crate::manifest::GraphNodeKindV1::EqualityToOne
+                            )
+                        })
+            });
             let (decision, lane) = if match_outcome == LiveMatchOutcome::ConservativeFallback {
                 matcher_stats.conservative_fallback =
                     matcher_stats.conservative_fallback.saturating_add(1);
                 ("conservative-fallback", Some("replace"))
-            } else if delta_plan.is_some() {
+            } else if delta_plan.is_some() || graph_delta {
                 matcher_stats.match_delta = matcher_stats.match_delta.saturating_add(1);
                 ("match-delta", Some("delta"))
             } else {
@@ -32987,7 +33137,13 @@ impl LocalSnapback {
                 lane,
                 "selected",
             );
-            affected.push((subscription.clone(), delta_plan, match_outcome));
+            affected.push((
+                subscription.clone(),
+                delta_plan,
+                match_outcome,
+                graph_node_decisions,
+                graph_delta,
+            ));
         }
         self.record_live_evaluation_memo_retirements(matcher_memo_retirements);
         self.live_matcher_stats.match_replace = self
@@ -33036,7 +33192,7 @@ impl LocalSnapback {
                 );
             }
         }
-        for (subscription, delta_plan, _match_outcome) in affected {
+        for (subscription, delta_plan, _match_outcome, graph_nodes, graph_delta) in affected {
             if let Err(error) =
                 self.prepare_live_rerun_authority(&subscription.authority, admission.clone())
             {
@@ -33122,7 +33278,71 @@ impl LocalSnapback {
                 }
             }
 
-            let query = if subscription.authorization.is_some() {
+            if graph_delta {
+                let delta = match self.try_graph_delta_fanout(
+                    &subscription,
+                    &graph_nodes,
+                    changes,
+                    frame_version,
+                    admission,
+                    turn_control,
+                ) {
+                    Ok(delta) => delta,
+                    Err(error) => {
+                        self.fail_subscription_fanout(
+                            &subscription,
+                            "live_delta_publication_failed",
+                            error,
+                            Some(frame_version),
+                            admission,
+                        );
+                        continue;
+                    }
+                };
+                match delta {
+                    Some(DeltaFanout::Delivered) => {
+                        self.live_delivery.total_deliveries += 1;
+                        self.live_delivery.last_deliveries += 1;
+                        continue;
+                    }
+                    Some(DeltaFanout::NoChange) => {
+                        self.live_delivery.total_skipped += 1;
+                        self.live_delivery.last_skipped += 1;
+                        if scheduler_watermarks
+                            && let Err(error) = self.enqueue_convergence_watermark(
+                                &subscription,
+                                frame_version,
+                                admission,
+                                &mut resume_mint_cache,
+                                turn_control.expect("scheduler watermark requires turn control"),
+                            )
+                        {
+                            self.fail_subscription_fanout(
+                                &subscription,
+                                "live_watermark_failed",
+                                error,
+                                Some(frame_version),
+                                admission,
+                            );
+                        }
+                        continue;
+                    }
+                    Some(DeltaFanout::Discarded) => continue,
+                    Some(DeltaFanout::Failed(error)) => {
+                        self.fail_subscription_fanout(
+                            &subscription,
+                            "live_delta_failed",
+                            error,
+                            Some(frame_version),
+                            admission,
+                        );
+                        continue;
+                    }
+                    None => {}
+                }
+            }
+
+            let mut query = if subscription.authorization.is_some() {
                 if let Some(evaluation) = self.current_live_evaluation.as_mut()
                     && evaluation.subscription_id == subscription.id
                 {
@@ -33255,6 +33475,34 @@ impl LocalSnapback {
                     continue;
                 }
             };
+            if let Some(graph) = query.graph_serving.as_mut()
+                && subscription
+                    .graph_serving
+                    .as_ref()
+                    .is_some_and(|prior| prior.delta_enabled)
+            {
+                let matched_node_ids = graph_nodes
+                    .iter()
+                    .filter(|node| node.disposition == GraphNodeMatchDispositionV1::Match)
+                    .map(|node| node.node_id.clone())
+                    .collect::<Vec<_>>();
+                graph.last_delta_delivery = Some(GraphDeltaDeliveryObservationV1 {
+                    lane: "replace".to_owned(),
+                    matched_node_ids,
+                    frame_bytes: payload.len() as u64,
+                    evaluation_cost: graph.structural_work.evaluation_cost(),
+                    delta_frame_bytes: None,
+                    delta_evaluation_cost: None,
+                    replace_frame_bytes: Some(payload.len() as u64),
+                    replace_evaluation_cost: Some(graph.structural_work.evaluation_cost()),
+                    convergence_checked: false,
+                    convergence_matched: false,
+                });
+                self.live_evaluation_stats.graph_delta_replace_fallbacks = self
+                    .live_evaluation_stats
+                    .graph_delta_replace_fallbacks
+                    .saturating_add(1);
+            }
             let _publication = match admission.effect_guard("live replacement publication") {
                 Ok(publication) => publication,
                 Err(error) => {
@@ -33457,6 +33705,260 @@ impl LocalSnapback {
         minted
     }
 
+    /// Try the LLP 0209 rung-1 graph extension of DK-3. The matcher has
+    /// already proven which normalized nodes intersect this commit; the
+    /// evaluator performs only their captured root-range or parent-point
+    /// sub-reads. Any proof, label, authority, or shape uncertainty returns
+    /// `None` to the unchanged replace lane.
+    ///
+    /// @ref LLP 0209#7-rung-4--incremental-maintenance-for-admitted-shapes-extending-dk-3 — graph deltas are conjunctive across matched node kinds.
+    /// @ref LLP 0200#23-latest-value-delivery-absorbed-from-llp-0008-now-load-bearing — the resulting frame rides the existing per-subscription latest-value FIFO.
+    #[allow(clippy::too_many_arguments)]
+    fn try_graph_delta_fanout(
+        &mut self,
+        subscription: &LiveSubscription,
+        graph_nodes: &[GraphNodeDecisionLedgerV1],
+        changes: &[ChangedRow],
+        frame_version: u64,
+        admission: &AdmissionLease,
+        turn_control: Option<&crate::live_coalesce::LiveEvaluationControl>,
+    ) -> SnapbackResult<Option<DeltaFanout>> {
+        let Some(registration) = subscription.graph_serving.as_ref() else {
+            return Ok(None);
+        };
+        if !registration.delta_enabled
+            || registration.delta_requires_replace
+            || subscription.authorization.is_some()
+        {
+            return Ok(None);
+        }
+        let matched_node_ids = graph_nodes
+            .iter()
+            .filter(|node| node.disposition == GraphNodeMatchDispositionV1::Match)
+            .map(|node| node.node_id.clone())
+            .collect::<Vec<_>>();
+        if matched_node_ids.is_empty() {
+            return Ok(None);
+        }
+        let convergence_enabled = self.graph_delta_convergence_all
+            || std::env::var("SNAPBACK_GRAPH_DELTA_CONVERGENCE")
+                .ok()
+                .is_some_and(|value| matches!(value.as_str(), "1" | "true"));
+        let plan = registration.plan.clone();
+        let prior = registration.evaluation.clone();
+        let mut request = registration.request.clone();
+        request.prior_window_ledgers = prior.window_ledgers.clone();
+        let (delta, fresh, applied_result) =
+            self.db.query_reads_read().with_pinned_read_view(|read| {
+                let evaluation_cut = read.current_version()?;
+                let (authorization_version, _) = read.membership_cursor_custody_snapshot()?;
+                if evaluation_cut != frame_version
+                    || authorization_version != registration.authorization_version
+                {
+                    return Ok((None, None, None));
+                }
+                request.evaluation_cut = crate::manifest::GraphEvaluationCutV1(evaluation_cut);
+                request.authorization_version = authorization_version;
+                let delta = crate::graph_evaluator::evaluate_graph_delta_on(
+                    read.reborrow(),
+                    &plan,
+                    &request,
+                    &prior,
+                    changes,
+                    &matched_node_ids,
+                )?;
+                let applied_result = if convergence_enabled {
+                    delta.as_ref().map(|delta| {
+                        crate::graph_evaluator::apply_graph_delta_to_result(
+                            &plan,
+                            prior.result_bytes.as_deref().unwrap_or_default(),
+                            &prior.ordered_root_keys,
+                            &delta.ops,
+                            &delta.output.ordered_root_keys,
+                        )
+                    })
+                } else {
+                    None
+                };
+                let fresh = if convergence_enabled && delta.is_some() {
+                    Some(crate::graph_evaluator::evaluate_graph_query_on(
+                        read, &plan, &request,
+                    )?)
+                } else {
+                    None
+                };
+                Ok((delta, fresh, applied_result))
+            })?;
+        let Some(delta) = delta else {
+            return Ok(None);
+        };
+        #[cfg(any(test, feature = "test-support"))]
+        let convergence_failure_forced = self.graph_delta_force_convergence_failure;
+        #[cfg(not(any(test, feature = "test-support")))]
+        let convergence_failure_forced = false;
+        let convergence_matched = !convergence_failure_forced
+            && fresh.as_ref().is_none_or(|fresh| {
+                applied_result
+                    .as_ref()
+                    .is_some_and(|applied| applied.as_ref().ok() == fresh.result_bytes.as_ref())
+                    && delta.output.ordered_root_keys == fresh.ordered_root_keys
+                    && delta.output.result_length == fresh.result_length
+                    && delta.output.label == fresh.label
+                    && delta.output.node_completeness == fresh.node_completeness
+                    && delta.output.graph_completeness == fresh.graph_completeness
+                    && delta.output.refusal_reason == fresh.refusal_reason
+            });
+        if fresh.is_some() {
+            self.live_evaluation_stats.graph_delta_convergence_checks = self
+                .live_evaluation_stats
+                .graph_delta_convergence_checks
+                .saturating_add(1);
+        }
+        if !convergence_matched {
+            self.live_evaluation_stats.graph_delta_convergence_failures = self
+                .live_evaluation_stats
+                .graph_delta_convergence_failures
+                .saturating_add(1);
+            // Fail honest: the caller immediately executes the ordinary
+            // fresh replace lane. No delta bytes cross publication.
+            return Ok(None);
+        }
+        if delta.ops.is_empty() {
+            return Ok(Some(DeltaFanout::NoChange));
+        }
+        if turn_control.is_some_and(|control| !control.begin_publication()) {
+            return Ok(Some(DeltaFanout::NoChange));
+        }
+        let result_bytes = delta
+            .output
+            .result_bytes
+            .as_deref()
+            .expect("successful graph delta has result bytes");
+        use sha2::Digest as _;
+        let result_digest = format!("sha256:{:x}", sha2::Sha256::digest(result_bytes.as_bytes()));
+        let node_completeness = delta
+            .node_proof_updates
+            .iter()
+            .map(serde_json::to_value)
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|error| {
+                SnapbackError::error(
+                    "SNAPBACK_LIVE_DELTA_SERIALIZE_FAILED",
+                    "realtime",
+                    "graph delta completeness could not be serialized",
+                )
+                .with_details(json!({"error":error.to_string()}))
+            })?;
+        let graph_completeness =
+            serde_json::to_value(&delta.output.graph_completeness).map_err(|error| {
+                SnapbackError::error(
+                    "SNAPBACK_LIVE_DELTA_SERIALIZE_FAILED",
+                    "realtime",
+                    "graph delta composition proof could not be serialized",
+                )
+                .with_details(json!({"error":error.to_string()}))
+            })?;
+        let graph_wire = LiveGraphDeltaWireV1 {
+            format: "snapback.graph-live-delta.v1".to_owned(),
+            ops: delta.ops.clone(),
+            ordered_root_keys: delta.output.ordered_root_keys.clone(),
+            proof_tuple: LiveGraphDeltaProofTupleV1 {
+                materialization_hash: request.materialization_hash.as_str().to_owned(),
+                partition_hash: request.partition_hash.as_str().to_owned(),
+                authorization_version: serde_json::to_value(&request.authorization_version)
+                    .map_err(|error| {
+                        SnapbackError::error(
+                            "SNAPBACK_LIVE_DELTA_SERIALIZE_FAILED",
+                            "realtime",
+                            "graph delta authorization version could not be serialized",
+                        )
+                        .with_details(json!({"error":error.to_string()}))
+                    })?,
+                evaluation_cut: request.evaluation_cut.0,
+            },
+            node_completeness,
+            graph_completeness,
+            result_digest,
+        };
+        let payload = serde_json::to_vec(&LiveEnvelope::LiveDelta {
+            network_profile: None,
+            subscription_id: subscription.id.clone(),
+            function: subscription.function.clone(),
+            version: request.evaluation_cut.0,
+            ops: Vec::new(),
+            graph: Some(graph_wire),
+            resume: None,
+        })
+        .map_err(|error| {
+            SnapbackError::error(
+                "SNAPBACK_LIVE_DELTA_SERIALIZE_FAILED",
+                "realtime",
+                "graph live delta could not be serialized",
+            )
+            .with_details(json!({"error":error.to_string()}))
+        })?;
+        let replace_measurement = fresh.as_ref().and_then(|fresh| {
+            let rows = serde_json::from_str::<Vec<Value>>(fresh.result_bytes.as_deref()?).ok()?;
+            let frame = serde_json::to_vec(&LiveEnvelope::LiveReplace {
+                network_profile: None,
+                subscription_id: subscription.id.clone(),
+                function: subscription.function.clone(),
+                version: request.evaluation_cut.0,
+                rows,
+                resume: None,
+            })
+            .ok()?;
+            Some((frame.len() as u64, fresh.structural_work.evaluation_cost()))
+        });
+        let observation = GraphDeltaDeliveryObservationV1 {
+            lane: "delta".to_owned(),
+            matched_node_ids,
+            frame_bytes: payload.len() as u64,
+            evaluation_cost: delta.evaluation_cost,
+            delta_frame_bytes: Some(payload.len() as u64),
+            delta_evaluation_cost: Some(delta.evaluation_cost),
+            replace_frame_bytes: replace_measurement.map(|value| value.0),
+            replace_evaluation_cost: replace_measurement.map(|value| value.1),
+            convergence_checked: fresh.is_some(),
+            convergence_matched,
+        };
+        let enqueue = {
+            let _publication = admission.effect_guard("graph live delta publication")?;
+            if let Some(stored) = self.subscriptions.get_mut(&subscription.id)
+                && let Some(graph) = stored.graph_serving.as_mut()
+            {
+                graph.structural_work = delta.output.structural_work.clone();
+                graph.window_ledgers = delta.output.window_ledgers.clone();
+                graph.authorization_version = request.authorization_version.clone();
+                graph.evaluation_cut = request.evaluation_cut;
+                graph.request = request;
+                graph.evaluation = delta.output;
+                // The attested capture belongs to the predecessor snapshot.
+                // Until a fresh replace rebuilds it, no later matcher skip is
+                // permitted against that stale evidence.
+                graph.delta_requires_replace = true;
+                graph.last_delta_delivery = Some(observation.clone());
+            }
+            self.enqueue_subscription_durable(subscription, payload)
+        };
+        self.live_evaluation_stats.graph_delta_deliveries = self
+            .live_evaluation_stats
+            .graph_delta_deliveries
+            .saturating_add(1);
+        self.live_evaluation_stats.graph_delta_frame_bytes = self
+            .live_evaluation_stats
+            .graph_delta_frame_bytes
+            .saturating_add(observation.frame_bytes);
+        self.live_evaluation_stats.graph_delta_evaluation_cost = self
+            .live_evaluation_stats
+            .graph_delta_evaluation_cost
+            .saturating_add(observation.evaluation_cost);
+        if enqueue.overflowed_now {
+            self.raise_connection_overflow(&subscription.connection_id, frame_version)?;
+        }
+        Ok(Some(DeltaFanout::Delivered))
+    }
+
     /// Try the DK-3 op-log delta fast path for one affected subscription.
     ///
     /// Returns `None` if the subscription is not delta-eligible; otherwise the
@@ -33597,6 +34099,7 @@ impl LocalSnapback {
             function: subscription.function.clone(),
             version: frame_version,
             ops: wire_ops,
+            graph: None,
             resume,
         }) {
             Ok(payload) => payload,
@@ -40594,6 +41097,51 @@ fn graph_serving_error(code: &str, message: impl Into<String>) -> SnapbackError 
     SnapbackError::error(code, "query", message.into())
 }
 
+/// Rebuild the internal graph demand for every retained-subscription rerun
+/// from the server-held cumulative ledger. The original subscribe input is
+/// immutable client demand and therefore cannot own later lineage state.
+/// Installing the ledger before memo-key construction also prevents a memo
+/// hit from importing another subscription's cumulative totals.
+///
+/// @ref LLP 0209#24-plan-instance-and-contextual-materialization-identity —
+///   one authenticated per-node ledger lineage survives delta, replacement,
+///   refresh, and resume-resnapshot evaluation without rotating identity.
+fn live_subscription_rerun_input(subscription: &LiveSubscription) -> SnapbackResult<HandlerInput> {
+    let mut input = subscription.input.clone();
+    let Some(graph) = subscription.graph_serving.as_ref() else {
+        return Ok(input);
+    };
+    let args = input.args.as_object_mut().ok_or_else(|| {
+        graph_serving_error(
+            "SNAPBACK_GRAPH_DEMAND_INVALID",
+            "retained graph query arguments must remain an object",
+        )
+    })?;
+    let encoded = args
+        .get_mut(crate::graph_evaluator::GRAPH_SERVING_DEMAND_ARG)
+        .ok_or_else(|| {
+            graph_serving_error(
+                "SNAPBACK_GRAPH_DEMAND_REQUIRED",
+                "retained graph query lost its graph demand carrier",
+            )
+        })?;
+    let mut demand: crate::graph_evaluator::GraphServingDemandV1 =
+        serde_json::from_value(encoded.clone()).map_err(|error| {
+            graph_serving_error(
+                "SNAPBACK_GRAPH_DEMAND_INVALID",
+                format!("retained graph demand carrier is invalid: {error}"),
+            )
+        })?;
+    demand.prior_window_ledgers = graph.window_ledgers.clone();
+    *encoded = serde_json::to_value(demand).map_err(|error| {
+        graph_serving_error(
+            "SNAPBACK_GRAPH_DEMAND_INVALID",
+            format!("retained graph demand carrier could not be rebuilt: {error}"),
+        )
+    })?;
+    Ok(input)
+}
+
 fn graph_serving_demand(
     mut input: HandlerInput,
 ) -> SnapbackResult<(HandlerInput, crate::graph_evaluator::GraphServingDemandV1)> {
@@ -42217,13 +42765,19 @@ fn execute_query_invocation(
                 graph_serving: Some(GraphServingRegistration {
                     dependencies,
                     matcher_input,
-                    structural_work: evaluated.structural_work,
-                    window_ledgers: evaluated.window_ledgers,
+                    structural_work: evaluated.structural_work.clone(),
+                    window_ledgers: evaluated.window_ledgers.clone(),
                     materialization,
                     partition,
-                    authorization_version: request.authorization_version,
+                    authorization_version: request.authorization_version.clone(),
                     evaluation_cut: request.evaluation_cut,
                     memo_eligible_first_page,
+                    plan: carrier.normalized_plan.clone(),
+                    request,
+                    evaluation: evaluated,
+                    delta_enabled: demand.requests_rung1_delta(),
+                    delta_requires_replace: false,
+                    last_delta_delivery: None,
                 }),
             })
         }

@@ -27,10 +27,10 @@ use snapback_engine::graph_evaluator::{
     GraphPermissionValuesV1, GraphWindowLedgerV1,
 };
 use snapback_engine::test_support::{
-    configure_graph_corpus_scheduler, graph_corpus_authorization_frames, graph_corpus_memo_entries,
-    invoke_graph_corpus_mutation, measure_graph_serving_groups, refresh_graph_corpus_scheduler,
-    set_graph_corpus_memo_limits, subscribe_graph_corpus_case,
-    subscribe_graph_corpus_partition_case,
+    apply_graph_delta_to_result_for_test, configure_graph_corpus_scheduler,
+    graph_corpus_authorization_frames, graph_corpus_memo_entries, invoke_graph_corpus_mutation,
+    measure_graph_serving_groups, refresh_graph_corpus_scheduler, set_graph_corpus_memo_limits,
+    subscribe_graph_corpus_case, subscribe_graph_corpus_partition_case,
 };
 use snapback_kernel::storage::{ChangeOp, ChangedRow};
 use snapback_sync::graph_captured_read::{
@@ -39,6 +39,7 @@ use snapback_sync::graph_captured_read::{
     register_graph_subscription_dependencies,
 };
 use snapback_types::diagnostic::DiagnosticSeverity;
+use snapback_types::live_wire::{LiveDeltaOpKind, LiveEnvelope, LiveGraphDeltaWireOpV1};
 use snapback_types::storage::{CapturedReadDependency, CapturedReadKind};
 
 const CORPUS_FILE: &str = "tests/conformance/graph/corpus.v1.json";
@@ -59,6 +60,18 @@ const GRAPH_CORPUS_AUTHORITY_MUTATION: &str = "graphCorpusAuthorityTransition";
 const GRAPH_CORPUS_MIXED_MUTATION: &str = "graphCorpusMixedCommit";
 const GRAPH_CORPUS_MATCHING_DATA_MUTATION: &str = "graphCorpusMatchingDataCommit";
 const GRAPH_CORPUS_DISJOINT_DATA_MUTATION: &str = "graphCorpusDisjointDataCommit";
+const GRAPH_CORPUS_PATCH_ISSUE: &str = "graphCorpusPatchIssue";
+const GRAPH_CORPUS_PATCH_ISSUE_TWO_FIELDS: &str = "graphCorpusPatchIssueTwoFields";
+const GRAPH_CORPUS_PATCH_ISSUE_ORDER: &str = "graphCorpusPatchIssueOrder";
+const GRAPH_CORPUS_PATCH_ISSUE_ASSIGNEE: &str = "graphCorpusPatchIssueAssignee";
+const GRAPH_CORPUS_PATCH_ISSUE_LIST_ORDER: &str = "graphCorpusPatchIssueListOrder";
+const GRAPH_CORPUS_PATCH_ISSUE_LABEL_READ: &str = "graphCorpusPatchIssueLabelRead";
+const GRAPH_CORPUS_PATCH_COMMENT: &str = "graphCorpusPatchComment";
+const GRAPH_CORPUS_PATCH_CREATOR: &str = "graphCorpusPatchCreator";
+const GRAPH_CORPUS_PATCH_ASSIGNEE_USER: &str = "graphCorpusPatchAssigneeUser";
+const GRAPH_CORPUS_PATCH_LABEL: &str = "graphCorpusPatchLabel";
+const GRAPH_CORPUS_ADD_MEMBERSHIP: &str = "graphCorpusAddMembership";
+const DELTA_DISPOSITIONS_FILE: &str = "tests/conformance/graph/delta-dispositions.v1.json";
 const OWNER_SCOPE_DOMAIN: &str = "snapback:g0-corpus-authority-scope:v1:";
 const CORPUS_SCHEMA_HASH: &str =
     "sha256:1111111111111111111111111111111111111111111111111111111111111111";
@@ -199,7 +212,14 @@ fn corpus_seed_tables(corpus: &Value) -> BTreeMap<String, Vec<Map<String, Value>
 
 fn graph_index_manifest(table: &str) -> Vec<IndexManifest> {
     let indexes: &[(&str, &[&str], bool)] = match table {
-        "issue" => &[("by_source_id", &["id"], true)],
+        "issue" => &[
+            ("by_source_id", &["id"], true),
+            (
+                "by_project_modified",
+                &["projectID", "modified", "id"],
+                false,
+            ),
+        ],
         "comment" => &[("by_issue_created", &["issueID", "created", "id"], false)],
         "issueListRead" => &[
             ("by_source_issue_id", &["sourceIssueID"], true),
@@ -244,6 +264,360 @@ fn inferred_field_type(values: impl Iterator<Item = Value>) -> FieldType {
         FieldType::Real
     } else {
         FieldType::Json
+    }
+}
+
+mod pb_measurement {
+    use super::*;
+    use std::time::Instant;
+
+    const DETAIL_SOURCE: &str = "oAMDrWzUjYBIRhM6n2TA2";
+
+    fn invocation<'a>(corpus: &'a Value, carrier: &GraphQueryCarrierV1) -> &'a Value {
+        &corpus["g0ExitObservationEvidence"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|row| row["graphPlanHash"] == carrier.plan_hash.as_str())
+            .unwrap()["invocation"]
+    }
+
+    fn install(
+        snapback: &mut LocalSnapback,
+        corpus: &Value,
+    ) -> Vec<(String, GraphQueryCarrierV1, FunctionDefinition)> {
+        snapback.declare_graph_query_v1_capability();
+        let carriers = served_graph_carriers(snapback, corpus);
+        let mut manifest = served_graph_manifest(corpus, &carriers);
+        manifest.app_id = snapback.inspect_core().unwrap().schema.app_id;
+        let diagnostics = snapback.load_functions(manifest);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|row| row.severity != DiagnosticSeverity::Error),
+            "P-B manifest diagnostics: {diagnostics:#?}"
+        );
+        carriers
+    }
+
+    fn hot_rows(snapback: &LocalSnapback) -> Vec<Value> {
+        let scan = snapback.scan_table("issueListRead", 2_000, 0).unwrap();
+        assert_eq!(scan.rows.len(), scan.total);
+        scan.rows
+    }
+
+    fn issue_by_source(snapback: &LocalSnapback, source: &str) -> Value {
+        let mut offset = 0;
+        loop {
+            let scan = snapback.scan_table("issue", 20_000, offset).unwrap();
+            if let Some(row) = scan
+                .rows
+                .iter()
+                .find(|row| row["id"].as_str() == Some(source))
+            {
+                return row.clone();
+            }
+            offset += scan.rows.len();
+            assert!(!scan.rows.is_empty() && offset < scan.total);
+        }
+    }
+
+    fn issue_outside_project(snapback: &LocalSnapback, project: &str) -> Option<Value> {
+        let mut offset = 0;
+        loop {
+            let scan = snapback.scan_table("issue", 20_000, offset).unwrap();
+            if let Some(row) = scan
+                .rows
+                .iter()
+                .find(|row| row["projectID"].as_str() != Some(project))
+            {
+                return Some(row.clone());
+            }
+            offset += scan.rows.len();
+            if scan.rows.is_empty() || offset >= scan.total {
+                return None;
+            }
+        }
+    }
+
+    fn call_for(
+        corpus: &Value,
+        carrier: &GraphQueryCarrierV1,
+        query: &str,
+        project: &str,
+        source_issue: &str,
+        physical_issue: &str,
+    ) -> Value {
+        let mut call = invocation(corpus, carrier).clone();
+        match query {
+            "issueListV2" | "issueSummary" => call["args"]["projectID"] = json!(project),
+            "issueDetail" => {
+                call["args"]["sourceIssueID"] = json!(source_issue);
+                for ledger in call["windows"].as_array_mut().unwrap() {
+                    if ledger["nodeId"] == "n2" {
+                        for interval in ledger["intervals"].as_array_mut().unwrap() {
+                            interval["parentKey"] = json!({"table":"issue","id":physical_issue});
+                        }
+                    }
+                }
+            }
+            "listIssueByID" => call["args"]["sourceIssueID"] = json!(source_issue),
+            _ => panic!("unsupported P-B query {query}"),
+        }
+        call
+    }
+
+    fn subscribe(
+        snapback: &mut LocalSnapback,
+        corpus: &Value,
+        query: &str,
+        call: &Value,
+        observers: usize,
+    ) -> (String, Vec<String>, Vec<f64>) {
+        let authority = corpus_authority(corpus, corpus_invocation_principal(call));
+        snapback.install_graph_serving_authority_context_for_test(
+            query,
+            GraphServingAuthorityContextV1 {
+                evaluation: authority.clone(),
+                class2: serde_json::from_value(call["partition"]["class2"].clone()).unwrap(),
+            },
+        );
+        let mut args = call["args"].as_object().unwrap().clone();
+        args.insert(
+            snapback_engine::graph_evaluator::GRAPH_SERVING_DEMAND_ARG.to_owned(),
+            json!({
+                "format":"snapback.graph-serving-demand.v1",
+                "windows":call["windows"],
+                "advancedNodeId":call["advancedNodeId"],
+                "priorWindowLedgers":[],
+                "deltaFormat":"snapback.graph-live-delta.v1"
+            }),
+        );
+        let connection = format!("pb-{query}");
+        let input = HandlerInput {
+            args: Value::Object(args),
+            auth: authority.auth,
+            read_set: vec![],
+            correlation: None,
+            ctx_ledger: None,
+        };
+        let mut ids = Vec::new();
+        let mut elapsed = Vec::new();
+        for _ in 0..observers {
+            let started = Instant::now();
+            let established = snapback
+                .subscribe_live(
+                    query,
+                    LiveSubscribeInput {
+                        connection_id: connection.clone(),
+                        input: input.clone(),
+                        authorization_namespace: None,
+                        supersedes: None,
+                        resume_from_token: None,
+                    },
+                )
+                .unwrap();
+            elapsed.push(started.elapsed().as_secs_f64() * 1_000.0);
+            assert!(established.snapshot.is_some());
+            ids.push(established.subscription_id);
+        }
+        assert!(snapback.drain_live_stream(&connection).is_empty());
+        (connection, ids, elapsed)
+    }
+
+    fn measurement(measurements: &Value, carrier: &GraphQueryCarrierV1) -> Value {
+        measurements
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|row| row["graphPlanHash"] == carrier.plan_hash.as_str())
+            .unwrap()
+            .clone()
+    }
+
+    fn observe(
+        mut snapback: LocalSnapback,
+        corpus: &Value,
+        carriers: &[(String, GraphQueryCarrierV1, FunctionDefinition)],
+    ) -> Value {
+        let hot = hot_rows(&snapback)
+            .into_iter()
+            .find(|row| row["visibility"] == "public")
+            .unwrap();
+        let project = hot["projectID"].as_str().unwrap();
+        let source = std::env::var("SNAPBACK_PB_DETAIL_SOURCE_ID")
+            .unwrap_or_else(|_| DETAIL_SOURCE.to_owned());
+        let detail = issue_by_source(&snapback, &source);
+        let physical = detail["_id"].as_str().unwrap();
+        let mut graphs = Vec::new();
+        let requested_query = std::env::var("SNAPBACK_PB_QUERY").ok();
+        for query in [
+            "issueListV2",
+            "issueDetail",
+            "listIssueByID",
+            "issueSummary",
+        ]
+        .into_iter()
+        .filter(|query| requested_query.as_deref().is_none_or(|only| only == *query))
+        {
+            let carrier = &carriers.iter().find(|row| row.0 == query).unwrap().1;
+            let call = call_for(corpus, carrier, query, project, &source, physical);
+            let observers = std::env::var("SNAPBACK_PB_OBSERVERS")
+                .ok()
+                .and_then(|value| value.parse().ok())
+                .unwrap_or(1);
+            let (connection, ids, establishment_ms) =
+                subscribe(&mut snapback, corpus, query, &call, observers);
+            let observation = snapback
+                .graph_serving_observation_for_test(&ids[0])
+                .unwrap();
+            let result_bytes = observation["resultBytes"].as_str().unwrap();
+            let result_value: Value = serde_json::from_str(result_bytes).unwrap();
+            let result_rows = result_value.as_array().map_or(1, Vec::len);
+            let measurements = measure_graph_serving_groups(&mut snapback).unwrap();
+            let served = measurement(&measurements, carrier);
+            let group = &served["groups"][0];
+            let frames = snapback.drain_live_stream(&connection);
+            graphs.push(json!({
+                "query":query,
+                "graphPlanHash":carrier.plan_hash,
+                "sourceIssueID":if matches!(query, "issueDetail" | "listIssueByID") { json!(source) } else { Value::Null },
+                "resultBytes":result_bytes.len(),
+                "resultRows":result_rows,
+                "dependencyBytes":group["dependencyBytes"],
+                "groupStateBytes":group["retainedGroupStateBytes"],
+                "groupCount":served["groupCount"],
+                "subscriberFanout":served["subscriberFanout"],
+                "structuralWork":observation["structuralWork"],
+                "windowLedgers":observation["windowLedgers"],
+                "establishmentMs":establishment_ms,
+                "measurementRefreshFrameBytes":frames.iter().map(String::len).sum::<usize>(),
+                "servedMeasurement":served
+            }));
+        }
+        json!({
+            "format":"snapback.graph-pb-observations.v1",
+            "profile":std::env::var("SNAPBACK_PB_PROFILE").unwrap_or_else(|_| "large-hot-clone".into()),
+            "graphs":graphs,
+        })
+    }
+
+    fn hot_trial(
+        mut snapback: LocalSnapback,
+        corpus: &Value,
+        carriers: &[(String, GraphQueryCarrierV1, FunctionDefinition)],
+    ) -> Value {
+        let query = "issueSummary";
+        let carrier = &carriers.iter().find(|row| row.0 == query).unwrap().1;
+        let rows = hot_rows(&snapback);
+        let hot = rows
+            .iter()
+            .find(|row| row["visibility"] == "public")
+            .unwrap();
+        let project = hot["projectID"].as_str().unwrap();
+        let seed_source = hot["sourceIssueID"].as_str().unwrap();
+        let seed_target = hot["issueID"].as_str().unwrap();
+        let call = call_for(corpus, carrier, query, project, seed_source, seed_target);
+        let observers = std::env::var("SNAPBACK_PB_OBSERVERS")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(6);
+        let (connection, ids, establishment_ms) =
+            subscribe(&mut snapback, corpus, query, &call, observers);
+        let initial_observation = snapback
+            .graph_serving_observation_for_test(&ids[0])
+            .unwrap();
+        let initial_result: Value =
+            serde_json::from_str(initial_observation["resultBytes"].as_str().unwrap()).unwrap();
+        let source = initial_result[0]["issueId"].as_str().unwrap();
+        let target_row = issue_by_source(&snapback, source);
+        let target = target_row["_id"].as_str().unwrap();
+        let title_before = target_row["title"].clone();
+        let disjoint = issue_outside_project(&snapback, project);
+        let _ = snapback.drain_live_stream(&connection);
+        let before = snapback.inspect_core().unwrap();
+        let disjoint_frames = if let Some(disjoint) = disjoint {
+            invoke_graph_corpus_mutation(
+                &mut snapback,
+                GRAPH_CORPUS_PATCH_ISSUE,
+                HandlerInput {
+                    args: json!({"rowID":disjoint["_id"],"value":"P-B disjoint patch"}),
+                    ..HandlerInput::default()
+                },
+            )
+            .unwrap();
+            let _ = snapback.flush_pending_live_fanout();
+            snapback.drain_live_stream(&connection)
+        } else {
+            Vec::new()
+        };
+        let after_disjoint = snapback.inspect_core().unwrap();
+        let started = Instant::now();
+        invoke_graph_corpus_mutation(
+            &mut snapback,
+            GRAPH_CORPUS_PATCH_ISSUE,
+            HandlerInput {
+                args: json!({"rowID":target,"value":"P-B hot scalar patch"}),
+                ..HandlerInput::default()
+            },
+        )
+        .unwrap();
+        let _ = snapback.flush_pending_live_fanout();
+        let frames = snapback.drain_live_stream(&connection);
+        let settle_ms = started.elapsed().as_secs_f64() * 1_000.0;
+        let after = snapback.inspect_core().unwrap();
+        let title_after = issue_by_source(&snapback, source)["title"].clone();
+        let observation = snapback
+            .graph_serving_observation_for_test(&ids[0])
+            .unwrap();
+        json!({
+            "format":"snapback.graph-pb-hot-trial.v1",
+            "arm":std::env::var("SNAPBACK_PB_ARM").unwrap_or_else(|_| "unlabeled".into()),
+            "graphPlanHash":carrier.plan_hash,"targetSourceIssueID":source,
+            "targetPhysicalIssueID":target,"targetTitleBefore":title_before,
+            "targetTitleAfter":title_after,
+            "observers":observers,"groupCount":1,
+            "subscriberFanout":observers,
+            "resultBytes":initial_observation["resultBytes"].as_str().map(str::len),
+            "dependencyBytes":serde_json::to_vec(&initial_observation["capturedDependencies"]).unwrap().len(),
+            "groupStateBytes":Value::Null,"establishmentMs":establishment_ms,
+            "settleMs":settle_ms,
+            "frames":{"count":frames.len(),"bytesDelivered":frames.iter().map(String::len).sum::<usize>(),
+                "wireKinds":frames.iter().map(|frame| serde_json::from_str::<Value>(frame).unwrap()["kind"].clone()).collect::<Vec<_>>()},
+            "disjoint":{"available":disjoint_frames.len() == 0 && after_disjoint.live_matcher.skip > before.live_matcher.skip,
+                "frameCount":disjoint_frames.len(),
+                "evaluationsExecutedBefore":before.live_evaluation.evaluations_executed,
+                "evaluationsExecutedAfter":after_disjoint.live_evaluation.evaluations_executed},
+            "deltaDelivery":observation["deltaDelivery"],
+            "before":{"matcher":before.live_matcher,"evaluation":before.live_evaluation},
+            "afterDisjoint":{"matcher":after_disjoint.live_matcher,"evaluation":after_disjoint.live_evaluation},
+            "after":{"matcher":after.live_matcher,"evaluation":after.live_evaluation},
+            "servedMeasurement":Value::Null
+        })
+    }
+
+    #[test]
+    fn pb_measure_loaded_zerobugs_clone() {
+        let corpus = graph_corpus();
+        let mut snapback = if let Ok(database) = std::env::var("SNAPBACK_PB_MEASURE_DB") {
+            LocalSnapback::open(database).unwrap()
+        } else if std::env::var("SNAPBACK_PB_SMOKE").as_deref() == Ok("1") {
+            graph_store(&corpus, None)
+        } else {
+            return;
+        };
+        let carriers = install(&mut snapback, &corpus);
+        let value = match std::env::var("SNAPBACK_PB_MODE").as_deref() {
+            Ok("observe") => observe(snapback, &corpus, &carriers),
+            Ok("hot-trial") => hot_trial(snapback, &corpus, &carriers),
+            mode => panic!("invalid SNAPBACK_PB_MODE {mode:?}"),
+        };
+        let path = std::env::var("SNAPBACK_PB_OUTPUT").unwrap();
+        std::fs::write(
+            path,
+            format!("{}\n", serde_json::to_string_pretty(&value).unwrap()),
+        )
+        .unwrap();
     }
 }
 
@@ -416,16 +790,27 @@ fn corpus_authority(corpus: &Value, principal: &str) -> GraphEvaluationAuthority
     }
 }
 
+fn corpus_invocation_principal(call: &Value) -> &str {
+    call["partition"]["class3"]["principalDataScope"]["userId"]
+        .as_str()
+        .or_else(|| call["corpusAuthorityPrincipal"].as_str())
+        .unwrap_or("principal_ordinary")
+}
+
 fn evaluation_request(
     corpus: &Value,
     call: &Value,
     materialization: &GraphMaterializationIdentityV1,
     partition: &GraphAuthorityPartitionIdentityV1,
 ) -> GraphEvaluationRequestV1 {
-    let authority = call["partition"]["class3"]["principalDataScope"]["userId"]
-        .as_str()
-        .map(|principal| corpus_authority(corpus, principal))
-        .unwrap_or_default();
+    let authority = if call["partition"]["class2"]
+        .as_array()
+        .is_some_and(|inputs| !inputs.is_empty())
+    {
+        corpus_authority(corpus, corpus_invocation_principal(call))
+    } else {
+        GraphEvaluationAuthorityV1::default()
+    };
     GraphEvaluationRequestV1 {
         args: call["args"].clone(),
         windows: serde_json::from_value(call["windows"].clone()).unwrap(),
@@ -962,18 +1347,24 @@ fn served_graph_carriers(
 }
 
 fn graph_corpus_scheduler_mutations(corpus: &Value) -> Vec<FunctionDefinition> {
-    let tables = corpus_seed_tables(corpus);
-    let disjoint_issue_id = tables["issue"]
+    let seed_tables = corpus_seed_tables(corpus);
+    let disjoint_issue_id = seed_tables["issue"]
         .iter()
         .find(|row| row["id"] == "zbav1_internal_issue")
         .and_then(|row| row["_id"].as_str())
         .expect("scheduler mixed-commit issue row")
         .to_owned();
-    let matching_issue_id = tables["issue"]
+    let matching_issue_id = seed_tables["issue"]
         .iter()
         .find(|row| row["id"] == "SZ8UieCHMznEsf_Q6EybI")
         .and_then(|row| row["_id"].as_str())
         .expect("scheduler matcher-wake issue row")
+        .to_owned();
+    let membership_row_id = seed_tables["issueListRead"]
+        .iter()
+        .min_by_key(|row| row["modified"].as_u64().expect("numeric modified"))
+        .and_then(|row| row["_id"].as_str())
+        .expect("membership-add row outside the initial root window")
         .to_owned();
     let authority_patch = || MutationStep::Patch {
         table: GRAPH_CORPUS_AUTHORITY_TABLE.to_owned(),
@@ -1033,13 +1424,87 @@ fn graph_corpus_scheduler_mutations(corpus: &Value) -> Vec<FunctionDefinition> {
             owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Patch {
                 table: "issue".to_owned(),
-                id: ValueExpr::Literal(json!(disjoint_issue_id)),
+                id: ValueExpr::Literal(json!(disjoint_issue_id.clone())),
                 values: BTreeMap::from([("title".to_owned(), ValueExpr::Arg("title".to_owned()))]),
             }],
             return_value: None,
         })),
     );
-    vec![authority, mixed, matching_data, disjoint_data]
+    let patch = |name: &str, table: &str, field: &str| {
+        FunctionDefinition::new(
+            name,
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                owner_write_checks: Vec::new(),
+                steps: vec![MutationStep::Patch {
+                    table: table.to_owned(),
+                    id: ValueExpr::Arg("rowID".to_owned()),
+                    values: BTreeMap::from([(
+                        field.to_owned(),
+                        ValueExpr::Arg("value".to_owned()),
+                    )]),
+                }],
+                return_value: None,
+            })),
+        )
+    };
+    let patch_issue_two_fields = FunctionDefinition::new(
+        GRAPH_CORPUS_PATCH_ISSUE_TWO_FIELDS,
+        FunctionKind::Mutation,
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
+            steps: vec![MutationStep::Patch {
+                table: "issue".to_owned(),
+                id: ValueExpr::Arg("rowID".to_owned()),
+                values: BTreeMap::from([
+                    ("title".to_owned(), ValueExpr::Arg("title".to_owned())),
+                    ("open".to_owned(), ValueExpr::Arg("open".to_owned())),
+                ]),
+            }],
+            return_value: None,
+        })),
+    );
+    let add_membership = FunctionDefinition::new(
+        GRAPH_CORPUS_ADD_MEMBERSHIP,
+        FunctionKind::Mutation,
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
+            steps: vec![MutationStep::Patch {
+                table: "issueListRead".to_owned(),
+                id: ValueExpr::Literal(json!(membership_row_id)),
+                values: BTreeMap::from([(
+                    "modified".to_owned(),
+                    ValueExpr::Literal(json!(1_800_000_000_000_u64)),
+                )]),
+            }],
+            return_value: None,
+        })),
+    );
+    vec![
+        authority,
+        mixed,
+        matching_data,
+        disjoint_data,
+        patch(GRAPH_CORPUS_PATCH_ISSUE, "issue", "title"),
+        patch_issue_two_fields,
+        patch(GRAPH_CORPUS_PATCH_ISSUE_ORDER, "issue", "modified"),
+        patch(GRAPH_CORPUS_PATCH_ISSUE_ASSIGNEE, "issue", "assigneeID"),
+        patch(
+            GRAPH_CORPUS_PATCH_ISSUE_LIST_ORDER,
+            "issueListRead",
+            "modified",
+        ),
+        patch(
+            GRAPH_CORPUS_PATCH_ISSUE_LABEL_READ,
+            "issueLabelRead",
+            "labelID",
+        ),
+        patch(GRAPH_CORPUS_PATCH_COMMENT, "comment", "body"),
+        patch(GRAPH_CORPUS_PATCH_CREATOR, "user", "login"),
+        patch(GRAPH_CORPUS_PATCH_ASSIGNEE_USER, "user", "login"),
+        patch(GRAPH_CORPUS_PATCH_LABEL, "label", "name"),
+        add_membership,
+    ]
 }
 
 fn served_graph_manifest(
@@ -1070,8 +1535,12 @@ fn scheduler_invocation_from_observation(call: &Value, observation: &Value) -> V
         "args": call["args"],
         "windows": call["windows"],
         "advancedNodeId": call["advancedNodeId"],
-        "materialization": observation["materialization"],
-        "partition": observation["partition"],
+        // This scheduler arm widens only the test carrier's cumulative bounds
+        // so its authority restoration can perform multiple reruns. Preserve
+        // the corpus invocation identity; the observation assertions below
+        // independently bind the served widened carrier to its own identity.
+        "materialization": call["materialization"],
+        "partition": call["partition"],
         "authorizationVersion": observation["authorizationVersion"],
         "evaluationCut": observation["evaluationCut"],
     })
@@ -1098,7 +1567,17 @@ fn graph_scheduler_memo_fixture(
             .expect("scheduler authorization version");
     let mut snapback = graph_store(corpus, None);
     snapback.declare_graph_query_v1_capability();
-    let carriers = served_graph_carriers(&snapback, corpus);
+    let mut carriers = served_graph_carriers(&snapback, corpus);
+    let (name, carrier, definition) = carriers
+        .iter_mut()
+        .find(|(_, carrier, _)| carrier.plan_hash.as_str() == call["planHash"].as_str().unwrap())
+        .expect("scheduler memo carrier");
+    // Main's memo corpus repeatedly fresh-evaluates one root-first-page
+    // subscription shape. The ported authoritative ledger now charges those
+    // reruns, so this memo-only fixture must admit the exercised lineage.
+    ensure_graph_window_pages(carrier, 8);
+    definition.runtime = FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier.clone()));
+    let name = name.clone();
     let diagnostics = snapback.load_functions(served_graph_manifest(corpus, &carriers));
     assert!(
         diagnostics
@@ -1106,16 +1585,12 @@ fn graph_scheduler_memo_fixture(
             .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error),
         "scheduler memo graph manifest diagnostics: {diagnostics:?}",
     );
-    let (name, _, _) = carriers
-        .iter()
-        .find(|(_, carrier, _)| carrier.plan_hash.as_str() == call["planHash"].as_str().unwrap())
-        .expect("scheduler memo carrier");
     let principal = call["partition"]["class3"]["principalDataScope"]["userId"]
         .as_str()
         .expect("scheduler memo principal");
     let authority = corpus_authority(corpus, principal);
     snapback.install_graph_serving_authority_context_for_test(
-        name,
+        &name,
         GraphServingAuthorityContextV1 {
             evaluation: authority.clone(),
             class2: serde_json::from_value(call["partition"]["class2"].clone())
@@ -1128,7 +1603,7 @@ fn graph_scheduler_memo_fixture(
         GRAPH_CORPUS_DATA_VERSION_STREAM,
     )
     .expect("configure graph memo scheduler");
-    (snapback, name.clone(), call, authority, connection)
+    (snapback, name, call, authority, connection)
 }
 
 fn graph_scheduler_continuation_memo_fixture(
@@ -1157,26 +1632,8 @@ fn graph_scheduler_continuation_memo_fixture(
         .iter_mut()
         .find(|(_, carrier, _)| carrier.plan_hash.as_str() == call["planHash"].as_str().unwrap())
         .expect("continuation memo carrier");
-    let mut plan = serde_json::to_value(&carrier.1.normalized_plan).unwrap();
-    double_window_budget(&mut plan, "n0");
-    for field in [
-        "maxWindowPages",
-        "maxWindowRootRows",
-        "maxWindowScannedRows",
-        "maxWindowResultRows",
-        "maxWindowResultBytes",
-        "maxWindowIndexRanges",
-    ] {
-        let value = plan["queryCost"]["graph"]["windowRollup"][field]
-            .as_u64()
-            .unwrap_or_else(|| panic!("missing rollup {field}"));
-        plan["queryCost"]["graph"]["windowRollup"][field] =
-            json!(value.checked_mul(2).expect("test window rollup doubles"));
-    }
-    let plan: GraphQueryPlanV1 = serde_json::from_value(plan).unwrap();
-    let rebuilt = graph_plan_identity_v1(&plan).expect("continuation memo plan identity");
-    carrier.1 = rebuilt.clone();
-    carrier.2.runtime = FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(rebuilt));
+    ensure_graph_window_pages(&mut carrier.1, 8);
+    carrier.2.runtime = FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier.1.clone()));
     let name = carrier.0.clone();
     let diagnostics = snapback.load_functions(served_graph_manifest(corpus, &carriers));
     assert!(
@@ -1260,7 +1717,22 @@ fn execute_served_scheduler_case(corpus: &Value, case: &Value) -> Value {
 
     let mut snapback = graph_store(corpus, None);
     snapback.declare_graph_query_v1_capability();
-    let carriers = served_graph_carriers(&snapback, corpus);
+    let mut carriers = served_graph_carriers(&snapback, corpus);
+    let (name, widened_plan_hash) = {
+        let (name, carrier, definition) = carriers
+            .iter_mut()
+            .find(|(_, carrier, _)| {
+                carrier.plan_hash.as_str() == before["planHash"].as_str().unwrap()
+            })
+            .expect("scheduler carrier");
+        // Authority scheduling is the subject of this corpus arm. Provision
+        // the scheduler restoration and level-triggered projection reruns
+        // beyond establishment; the dedicated served ledger regression owns
+        // maxWindowPages refusal behavior.
+        ensure_graph_window_pages(carrier, 8);
+        definition.runtime = FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier.clone()));
+        (name.clone(), carrier.plan_hash.clone())
+    };
     let diagnostics = snapback.load_functions(served_graph_manifest(corpus, &carriers));
     assert!(
         diagnostics
@@ -1268,16 +1740,12 @@ fn execute_served_scheduler_case(corpus: &Value, case: &Value) -> Value {
             .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error),
         "scheduler graph manifest diagnostics: {diagnostics:?}",
     );
-    let (name, _carrier, _) = carriers
-        .iter()
-        .find(|(_, carrier, _)| carrier.plan_hash.as_str() == before["planHash"].as_str().unwrap())
-        .expect("scheduler carrier");
     let principal = before["partition"]["class3"]["principalDataScope"]["userId"]
         .as_str()
         .unwrap_or("principal_ordinary");
     let authority = corpus_authority(corpus, principal);
     snapback.install_graph_serving_authority_context_for_test(
-        name,
+        &name,
         GraphServingAuthorityContextV1 {
             evaluation: authority.clone(),
             class2: serde_json::from_value(before["partition"]["class2"].clone())
@@ -1303,7 +1771,7 @@ fn execute_served_scheduler_case(corpus: &Value, case: &Value) -> Value {
     );
     let established = subscribe_graph_corpus_case(
         &mut snapback,
-        name,
+        &name,
         LiveSubscribeInput {
             connection_id: connection_id.clone(),
             input: HandlerInput {
@@ -1355,6 +1823,10 @@ fn execute_served_scheduler_case(corpus: &Value, case: &Value) -> Value {
         .inspect_core()
         .expect("inspect scheduler memo before transition")
         .live_evaluation;
+    assert_eq!(
+        before_observation["partition"]["graphPlanHash"],
+        widened_plan_hash.as_str(),
+    );
 
     let (mutation, mutation_args) = if case["caseKind"] == "mixedCommit" {
         (
@@ -1710,20 +2182,33 @@ fn graph_scheduler_case_continuation_and_first_page_preserve_each_ledger_lineage
         after.live_evaluation.memo_hits - before.live_evaluation.memo_hits,
         0
     );
-    assert_eq!(
-        snapback
-            .graph_serving_observation_for_test(&continuation.subscription_id)
-            .expect("continued subscription remains retained")["windowLedgers"],
-        continuation_ledgers,
-        "the continued subscription preserves its own cumulative ledger",
-    );
-    assert_eq!(
-        snapback
-            .graph_serving_observation_for_test(&sibling.subscription_id)
-            .expect("sibling subscription remains retained")["windowLedgers"],
-        sibling_first_ledgers,
-        "the sibling preserves its independent first-page ledger",
-    );
+    let continued = snapback
+        .graph_serving_observation_for_test(&continuation.subscription_id)
+        .expect("continued subscription remains retained")["windowLedgers"]
+        .clone();
+    let sibling_after = snapback
+        .graph_serving_observation_for_test(&sibling.subscription_id)
+        .expect("sibling subscription remains retained")["windowLedgers"]
+        .clone();
+    for field in [
+        "pages",
+        "rootRows",
+        "scannedRows",
+        "resultRows",
+        "resultBytes",
+        "indexRanges",
+    ] {
+        assert_eq!(
+            continued[0][field].as_u64().unwrap(),
+            continuation_ledgers[0][field].as_u64().unwrap() * 2,
+            "the explicit continuation owns both later refresh charges for {field}",
+        );
+        assert_eq!(
+            sibling_after[0][field].as_u64().unwrap(),
+            sibling_first_ledgers[0][field].as_u64().unwrap() * 2,
+            "the first-page sibling owns only its own refresh charge for {field}",
+        );
+    }
     let entries = graph_corpus_memo_entries(&snapback);
     assert_eq!(entries.as_array().unwrap().len(), 1);
     assert_eq!(entries[0]["holders"], json!([sibling.subscription_id]));
@@ -2243,11 +2728,106 @@ fn graph_scheduler_case_tiny_byte_budget_evicts_and_refuses_oversize_results() {
     );
 }
 
-/// Establish all three normal-fixture corpus graphs through the same
+/// Establish all four normal-fixture corpus graphs through the same
 /// admitted function-manifest, live-subscription, evaluator, and attested
 /// registration path used by serving. The frozen commit shapes are then
 /// replayed against those served registrations without publishing synthetic
 /// deliveries, keeping D2-H2 measurement separate from scheduler effects.
+fn measure_widened_served_graph_groups(
+    corpus: &Value,
+    original_carriers: &[(String, GraphQueryCarrierV1, FunctionDefinition)],
+) -> Value {
+    let mut snapback = graph_store(corpus, None);
+    snapback.declare_graph_query_v1_capability();
+    let mut carriers = served_graph_carriers(&snapback, corpus);
+    let mut original_hash_by_widened_hash = BTreeMap::new();
+    for (name, carrier, definition) in &mut carriers {
+        let original_hash = original_carriers
+            .iter()
+            .find(|(original_name, _, _)| original_name == name)
+            .expect("original measurement carrier")
+            .1
+            .plan_hash
+            .clone();
+        ensure_graph_window_pages(carrier, 2);
+        definition.runtime = FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier.clone()));
+        original_hash_by_widened_hash.insert(carrier.plan_hash.clone(), original_hash);
+    }
+    let diagnostics = snapback.load_functions(served_graph_manifest(corpus, &carriers));
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error),
+        "widened group-measurement manifest diagnostics: {diagnostics:?}",
+    );
+    for evidence in corpus["g0ExitObservationEvidence"]
+        .as_array()
+        .expect("G0 exit evidence")
+    {
+        let original_hash = evidence["graphPlanHash"].as_str().unwrap();
+        let name = original_carriers
+            .iter()
+            .find(|(_, carrier, _)| carrier.plan_hash.as_str() == original_hash)
+            .expect("original measurement query")
+            .0
+            .clone();
+        let call = &evidence["invocation"];
+        let authority = corpus_authority(corpus, corpus_invocation_principal(call));
+        snapback.install_graph_serving_authority_context_for_test(
+            &name,
+            GraphServingAuthorityContextV1 {
+                evaluation: authority.clone(),
+                class2: serde_json::from_value(call["partition"]["class2"].clone())
+                    .expect("measurement class-2 inputs"),
+            },
+        );
+        let mut args = call["args"].as_object().expect("measurement args").clone();
+        args.insert(
+            snapback_engine::graph_evaluator::GRAPH_SERVING_DEMAND_ARG.to_owned(),
+            json!({
+                "format":"snapback.graph-serving-demand.v1",
+                "windows":call["windows"],
+                "advancedNodeId":call["advancedNodeId"],
+                "priorWindowLedgers":[],
+            }),
+        );
+        snapback
+            .subscribe_live(
+                &name,
+                LiveSubscribeInput {
+                    connection_id: format!("g2-c-group-measurement-{name}"),
+                    input: HandlerInput {
+                        args: Value::Object(args),
+                        auth: authority.auth,
+                        read_set: Vec::new(),
+                        correlation: None,
+                        ctx_ledger: None,
+                    },
+                    authorization_namespace: None,
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+            )
+            .unwrap_or_else(|error| panic!("serve widened group {name}: {error:?}"));
+    }
+    let mut measurements = measure_graph_serving_groups(&mut snapback)
+        .expect("measure widened normal-fixture serving groups");
+    for measurement in measurements
+        .as_array_mut()
+        .expect("serving group measurement array")
+    {
+        let widened_hash: Sha256V1 = serde_json::from_value(measurement["graphPlanHash"].clone())
+            .expect("widened measurement plan hash");
+        measurement["graphPlanHash"] = serde_json::to_value(
+            original_hash_by_widened_hash
+                .get(&widened_hash)
+                .expect("original hash for widened measurement"),
+        )
+        .unwrap();
+    }
+    measurements
+}
+
 fn served_graph_execution_artifacts(corpus: &Value) -> (Value, Value, Value) {
     let mut snapback = graph_store(corpus, None);
     snapback.declare_graph_query_v1_capability();
@@ -2273,9 +2853,7 @@ fn served_graph_execution_artifacts(corpus: &Value) -> (Value, Value, Value) {
             .find(|(_, carrier, _)| carrier.plan_hash.as_str() == plan_hash)
             .unwrap_or_else(|| panic!("served carrier for {plan_hash}"));
         let call = &evidence["invocation"];
-        let principal = call["partition"]["class3"]["principalDataScope"]["userId"]
-            .as_str()
-            .unwrap_or("principal_ordinary");
+        let principal = corpus_invocation_principal(call);
         let authority = corpus_authority(corpus, principal);
         snapback.install_graph_serving_authority_context_for_test(
             name,
@@ -2374,8 +2952,7 @@ fn served_graph_execution_artifacts(corpus: &Value) -> (Value, Value, Value) {
         subscriptions.push((name.clone(), carrier.clone(), established.subscription_id));
     }
 
-    let mut memo_group_measurements = measure_graph_serving_groups(&mut snapback)
-        .expect("measure actual normal-fixture serving groups")
+    let mut normal_group_measurements = measure_widened_served_graph_groups(corpus, &carriers)
         .as_array()
         .expect("serving group measurement array")
         .iter()
@@ -2405,38 +2982,23 @@ fn served_graph_execution_artifacts(corpus: &Value) -> (Value, Value, Value) {
             })
         })
         .collect::<Vec<_>>();
-    memo_group_measurements.sort_by(|left, right| {
-        left["graphPlanHash"]
-            .as_str()
-            .cmp(&right["graphPlanHash"].as_str())
-    });
-    assert_eq!(memo_group_measurements.len(), 3);
-    for measurement in &memo_group_measurements {
-        assert_eq!(measurement["groupCount"], 1);
-        assert_eq!(measurement["subscriberFanout"], 1);
-        assert_eq!(measurement["groups"].as_array().unwrap().len(), 1);
-    }
-    let mut normal_group_measurements = corpus["g0ExitObservations"]
-        .as_array()
-        .expect("sealed G2-C group observations")
-        .iter()
-        .cloned()
-        .map(|mut measurement| {
-            measurement
-                .as_object_mut()
-                .expect("G2-C group observation object")
-                .insert(
-                    "measurementSource".to_owned(),
-                    json!("served-retained-live-evaluation-memo"),
-                );
-            measurement
-        })
-        .collect::<Vec<_>>();
     normal_group_measurements.sort_by(|left, right| {
         left["graphPlanHash"]
             .as_str()
             .cmp(&right["graphPlanHash"].as_str())
     });
+    assert_eq!(normal_group_measurements.len(), 4);
+    for measurement in &normal_group_measurements {
+        assert_eq!(measurement["groupCount"], 1);
+        assert_eq!(measurement["subscriberFanout"], 1);
+        assert_eq!(measurement["groups"].as_array().unwrap().len(), 1);
+    }
+
+    // The authoritative ledger makes every retained rerun cumulative. Reuse
+    // the widened served fixture above for G3-A too: it still measures the
+    // real memo entry, while admitting the one owner-injected prior page used
+    // to produce it instead of silently resetting the subscription lineage.
+    let memo_group_measurements = normal_group_measurements.clone();
 
     let scheduler_cases = corpus["cases"]
         .as_array()
@@ -2551,12 +3113,874 @@ fn served_graph_execution_artifacts(corpus: &Value) -> (Value, Value, Value) {
             "measurementScope":{
                 "fixture":"normal-seed-v1",
                 "fixtureRuns":1,
-                "memoShape":"root-first-page-empty-prior-window-ledgers",
+                "memoShape":"root-first-page-owner-held-compatible-prior-window-ledgers",
                 "caveat":"N=1 deterministic normal-fixture shape evidence; no magnitude, variance, large-fixture, hot-fixture, or publication claim",
             },
             "normalServingGroupMeasurements":memo_group_measurements,
         })),
     )
+}
+
+fn apply_graph_delta_witness(
+    initial_rows: &[Value],
+    initial_root_keys: &[Value],
+    plan: &GraphQueryPlanV1,
+    frame: &Value,
+) -> Vec<Value> {
+    let mut by_key = initial_root_keys
+        .iter()
+        .zip(initial_rows)
+        .map(|(key, row)| {
+            (
+                serde_json::from_value::<GraphRowKeyV1>(key.clone())
+                    .expect("initial physical root key"),
+                row.clone(),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    for operation in frame["graph"]["ops"]
+        .as_array()
+        .expect("graph delta operations")
+    {
+        let node_id = operation["nodeId"].as_str().expect("graph delta node id");
+        let root_key = serde_json::from_value::<GraphRowKeyV1>(operation["rootKey"].clone())
+            .expect("graph delta physical root key");
+        match operation["op"].as_str().expect("graph delta op") {
+            "update" => {
+                let projected = by_key
+                    .get_mut(&root_key)
+                    .expect("retained projected graph root");
+                patch_projected_node(
+                    plan.nodes
+                        .last()
+                        .and_then(|node| match node {
+                            GraphNodeV1::ClosedProjection { object, .. } => Some(object),
+                            _ => None,
+                        })
+                        .expect("closed graph projection"),
+                    projected,
+                    node_id,
+                    &operation["row"],
+                );
+            }
+            other => panic!("unknown graph delta operation {other}"),
+        }
+    }
+    frame["graph"]["orderedRootKeys"]
+        .as_array()
+        .expect("graph delta root order")
+        .iter()
+        .map(|key| {
+            let key = serde_json::from_value::<GraphRowKeyV1>(key.clone())
+                .expect("ordered physical graph root key");
+            by_key.get(&key).cloned().expect("ordered graph root row")
+        })
+        .collect()
+}
+
+fn patch_projected_node(
+    projection: &GraphProjectionObjectV1,
+    projected: &mut Value,
+    node_id: &str,
+    row: &Value,
+) {
+    let output = projected
+        .as_object_mut()
+        .expect("projected graph object for node patch");
+    for field in &projection.fields {
+        match &field.value {
+            GraphProjectionValueV1::Field {
+                node_id: source_node_id,
+                field: source_field,
+            } if source_node_id == node_id && row.get(source_field).is_some() => {
+                output.insert(
+                    field.name.clone(),
+                    row.get(source_field).cloned().expect("present patch field"),
+                );
+            }
+            GraphProjectionValueV1::Object { object, .. } => {
+                if let Some(value) = output.get_mut(&field.name)
+                    && value.is_object()
+                {
+                    patch_projected_node(object, value, node_id, row);
+                }
+            }
+            GraphProjectionValueV1::Array { item, .. } => {
+                if let Some(values) = output.get_mut(&field.name).and_then(Value::as_array_mut) {
+                    for value in values {
+                        patch_projected_node(item, value, node_id, row);
+                    }
+                }
+            }
+            GraphProjectionValueV1::Field { .. }
+            | GraphProjectionValueV1::Literal { .. }
+            | GraphProjectionValueV1::Exists { .. } => {}
+        }
+    }
+}
+
+fn assert_scalar_only_projection(projection: &GraphProjectionObjectV1) {
+    for field in &projection.fields {
+        match &field.value {
+            GraphProjectionValueV1::Field { .. } | GraphProjectionValueV1::Literal { .. } => {}
+            GraphProjectionValueV1::Object { object, .. } => {
+                assert_scalar_only_projection(object);
+            }
+            GraphProjectionValueV1::Array { .. } | GraphProjectionValueV1::Exists { .. } => {
+                panic!("scalar-only graph projection contains a collection or semi-join leaf")
+            }
+        }
+    }
+}
+
+fn apply_graph_proof_witness(before: &Value, frame: &Value) -> Vec<Value> {
+    let tuple = frame["graph"]["proofTuple"]
+        .as_object()
+        .expect("graph delta proof tuple");
+    let mut proofs = before["nodeCompleteness"]
+        .as_array()
+        .expect("predecessor node completeness")
+        .clone();
+    for proof in &mut proofs {
+        let body = proof["proof"]
+            .as_object_mut()
+            .expect("node completeness proof body");
+        for field in [
+            "materializationHash",
+            "partitionHash",
+            "authorizationVersion",
+            "evaluationCut",
+        ] {
+            body.insert(field.to_owned(), tuple[field].clone());
+        }
+    }
+    for update in frame["graph"]["nodeCompleteness"]
+        .as_array()
+        .expect("graph delta node-proof updates")
+    {
+        let node_id = update["nodeId"].as_str().expect("proof update node id");
+        let existing = proofs
+            .iter_mut()
+            .find(|proof| proof["nodeId"] == node_id)
+            .expect("proof update names retained node");
+        *existing = update.clone();
+    }
+    proofs
+}
+
+fn execute_graph_delta_case(corpus: &Value, case: &Value) -> Value {
+    execute_graph_delta_case_with_failure(corpus, case, false).0
+}
+
+fn ensure_graph_window_pages(carrier: &mut GraphQueryCarrierV1, minimum_pages: u64) {
+    let plan = &mut carrier.normalized_plan;
+    for cost in &mut plan.query_cost.graph.nodes {
+        let Some(old_pages) = cost.max_window_pages else {
+            continue;
+        };
+        let max_pages = old_pages.max(minimum_pages);
+        let rescale = |total: u64| {
+            assert_eq!(
+                total % old_pages,
+                0,
+                "cumulative graph bound is a whole per-page product",
+            );
+            (total / old_pages)
+                .checked_mul(max_pages)
+                .expect("test cumulative window bound fits")
+        };
+        cost.max_window_pages = Some(max_pages);
+        cost.max_window_root_rows = Some(rescale(cost.max_window_root_rows.unwrap()));
+        cost.max_window_scanned_rows = Some(rescale(cost.max_window_scanned_rows.unwrap()));
+        cost.max_window_result_rows = Some(rescale(cost.max_window_result_rows.unwrap()));
+        cost.max_window_result_bytes = Some(rescale(cost.max_window_result_bytes.unwrap()));
+        cost.max_window_index_ranges = Some(rescale(cost.max_window_index_ranges.unwrap()));
+    }
+    let mut rollup = GraphWindowRollupV1::default();
+    for cost in plan
+        .query_cost
+        .graph
+        .nodes
+        .iter()
+        .filter(|cost| cost.max_window_pages.is_some())
+    {
+        rollup.max_window_pages = rollup
+            .max_window_pages
+            .checked_add(cost.max_window_pages.unwrap())
+            .expect("test page rollup fits");
+        rollup.max_window_root_rows = rollup
+            .max_window_root_rows
+            .checked_add(cost.max_window_root_rows.unwrap())
+            .expect("test root-row rollup fits");
+        rollup.max_window_scanned_rows = rollup
+            .max_window_scanned_rows
+            .checked_add(cost.max_window_scanned_rows.unwrap())
+            .expect("test scan rollup fits");
+        rollup.max_window_result_rows = rollup
+            .max_window_result_rows
+            .checked_add(cost.max_window_result_rows.unwrap())
+            .expect("test result-row rollup fits");
+        rollup.max_window_result_bytes = rollup
+            .max_window_result_bytes
+            .checked_add(cost.max_window_result_bytes.unwrap())
+            .expect("test result-byte rollup fits");
+        rollup.max_window_index_ranges = rollup
+            .max_window_index_ranges
+            .checked_add(cost.max_window_index_ranges.unwrap())
+            .expect("test range rollup fits");
+    }
+    plan.query_cost.graph.window_rollup = rollup;
+    *carrier = graph_plan_identity_v1(plan).expect("rescaled graph plan stays admitted");
+}
+
+fn serve_issue_summary_window_ledgers(
+    corpus: &Value,
+    max_pages: u64,
+    subscription_count: usize,
+) -> (LocalSnapback, String, Vec<String>) {
+    let mut snapback = graph_store(corpus, None);
+    snapback.declare_graph_query_v1_capability();
+    snapback.require_graph_delta_convergence_for_test();
+    let mut carriers = served_graph_carriers(&snapback, corpus);
+    let (_, carrier, definition) = carriers
+        .iter_mut()
+        .find(|(name, _, _)| name == "issueSummary")
+        .expect("issueSummary served carrier");
+    let original_plan_hash = carrier.plan_hash.clone();
+    let call = corpus["g0ExitObservationEvidence"]
+        .as_array()
+        .expect("G0 exit evidence")
+        .iter()
+        .find(|evidence| evidence["graphPlanHash"] == original_plan_hash.as_str())
+        .expect("issueSummary served invocation")["invocation"]
+        .clone();
+    ensure_graph_window_pages(carrier, max_pages);
+    definition.runtime = FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier.clone()));
+    let diagnostics = snapback.load_functions(served_graph_manifest(corpus, &carriers));
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error),
+        "window-ledger graph manifest diagnostics: {diagnostics:?}",
+    );
+    let authority = corpus_authority(corpus, corpus_invocation_principal(&call));
+    snapback.install_graph_serving_authority_context_for_test(
+        "issueSummary",
+        GraphServingAuthorityContextV1 {
+            evaluation: authority.clone(),
+            class2: serde_json::from_value(call["partition"]["class2"].clone())
+                .expect("issueSummary class-2 inputs"),
+        },
+    );
+    let mut args = call["args"]
+        .as_object()
+        .expect("issueSummary graph args")
+        .clone();
+    args.insert(
+        snapback_engine::graph_evaluator::GRAPH_SERVING_DEMAND_ARG.to_owned(),
+        json!({
+            "format":"snapback.graph-serving-demand.v1",
+            "windows":call["windows"],
+            "advancedNodeId":call["advancedNodeId"],
+            "priorWindowLedgers":[],
+            "deltaFormat":"snapback.graph-live-delta.v1",
+        }),
+    );
+    let connection_id = format!("g3-window-ledger-{max_pages}");
+    let input = HandlerInput {
+        args: Value::Object(args),
+        auth: authority.auth,
+        read_set: Vec::new(),
+        correlation: None,
+        ctx_ledger: None,
+    };
+    let subscription_ids = (0..subscription_count)
+        .map(|_| {
+            let established = snapback
+                .subscribe_live(
+                    "issueSummary",
+                    LiveSubscribeInput {
+                        connection_id: connection_id.clone(),
+                        input: input.clone(),
+                        authorization_namespace: None,
+                        supersedes: None,
+                        resume_from_token: None,
+                    },
+                )
+                .expect("serve issueSummary window-ledger snapshot");
+            assert!(established.snapshot.is_some(), "initial snapshot is served");
+            established.subscription_id
+        })
+        .collect::<Vec<_>>();
+    assert!(snapback.drain_live_stream(&connection_id).is_empty());
+    (snapback, connection_id, subscription_ids)
+}
+
+fn serve_issue_summary_window_ledger(
+    corpus: &Value,
+    max_pages: u64,
+) -> (LocalSnapback, String, String) {
+    let (snapback, connection_id, mut subscription_ids) =
+        serve_issue_summary_window_ledgers(corpus, max_pages, 1);
+    (
+        snapback,
+        connection_id,
+        subscription_ids.pop().expect("one served subscription"),
+    )
+}
+
+fn served_root_window_ledger(snapback: &LocalSnapback, subscription_id: &str) -> Value {
+    snapback
+        .graph_serving_observation_for_test(subscription_id)
+        .expect("served graph observation")["windowLedgers"]
+        .as_array()
+        .expect("served window ledgers")
+        .iter()
+        .find(|ledger| ledger["nodeId"] == "n0")
+        .expect("served root window ledger")
+        .clone()
+}
+
+fn patch_issue_summary_title(snapback: &mut LocalSnapback, value: &str) {
+    invoke_graph_corpus_mutation(
+        snapback,
+        GRAPH_CORPUS_PATCH_ISSUE,
+        HandlerInput {
+            args: json!({
+                "rowID":"issue_ded0c2976675c34f4756035d",
+                "value":value,
+            }),
+            ..HandlerInput::default()
+        },
+    )
+    .expect("commit issueSummary title update");
+}
+
+fn execute_graph_delta_case_with_failure(
+    corpus: &Value,
+    case: &Value,
+    force_convergence_failure: bool,
+) -> (Value, Value) {
+    let query = case["query"].as_str().expect("delta case query");
+    let mut snapback = graph_store(corpus, None);
+    snapback.declare_graph_query_v1_capability();
+    snapback.require_graph_delta_convergence_for_test();
+    if force_convergence_failure {
+        snapback.force_graph_delta_convergence_failure_for_test();
+    }
+    let mut carriers = served_graph_carriers(&snapback, corpus);
+    let original_plan_hash = carriers
+        .iter()
+        .find(|(name, _, _)| name == query)
+        .expect("delta case carrier")
+        .1
+        .plan_hash
+        .clone();
+    let call = corpus["g0ExitObservationEvidence"]
+        .as_array()
+        .expect("G0 exit evidence")
+        .iter()
+        .find(|evidence| evidence["graphPlanHash"] == original_plan_hash.as_str())
+        .expect("delta case invocation")["invocation"]
+        .clone();
+    let (_, carrier, definition) = carriers
+        .iter_mut()
+        .find(|(name, _, _)| name == query)
+        .expect("delta case carrier");
+    // Lane classification is the subject of this harness. Give it one rerun
+    // beyond establishment; the dedicated served bound test below owns the
+    // refusal behavior at maxWindowPages.
+    ensure_graph_window_pages(carrier, 2);
+    definition.runtime = FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier.clone()));
+    let diagnostics = snapback.load_functions(served_graph_manifest(corpus, &carriers));
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error),
+        "graph delta manifest diagnostics: {diagnostics:?}",
+    );
+    let (_, carrier, _) = carriers
+        .iter()
+        .find(|(name, _, _)| name == query)
+        .expect("delta case carrier");
+    let principal = corpus_invocation_principal(&call);
+    let authority = corpus_authority(corpus, principal);
+    snapback.install_graph_serving_authority_context_for_test(
+        query,
+        GraphServingAuthorityContextV1 {
+            evaluation: authority.clone(),
+            class2: serde_json::from_value(call["partition"]["class2"].clone())
+                .expect("delta class-2 inputs"),
+        },
+    );
+    let mut args = call["args"].as_object().expect("delta graph args").clone();
+    args.insert(
+        snapback_engine::graph_evaluator::GRAPH_SERVING_DEMAND_ARG.to_owned(),
+        json!({
+            "format":"snapback.graph-serving-demand.v1",
+            "windows":call["windows"],
+            "advancedNodeId":call["advancedNodeId"],
+            "priorWindowLedgers":[],
+            "deltaFormat":"snapback.graph-live-delta.v1",
+        }),
+    );
+    let connection_id = format!("g3-delta-{query}-{}", case["shape"].as_str().unwrap());
+    let established = snapback
+        .subscribe_live(
+            query,
+            LiveSubscribeInput {
+                connection_id: connection_id.clone(),
+                input: HandlerInput {
+                    args: Value::Object(args),
+                    auth: authority.auth,
+                    read_set: Vec::new(),
+                    correlation: None,
+                    ctx_ledger: None,
+                },
+                authorization_namespace: None,
+                supersedes: None,
+                resume_from_token: None,
+            },
+        )
+        .unwrap_or_else(|error| panic!("establish graph delta case {query}: {error:?}"));
+    let initial_rows = established
+        .snapshot
+        .expect("graph delta initial snapshot")
+        .rows;
+    let before = snapback
+        .graph_serving_observation_for_test(&established.subscription_id)
+        .expect("graph delta predecessor observation");
+    assert!(snapback.drain_live_stream(&connection_id).is_empty());
+    invoke_graph_corpus_mutation(
+        &mut snapback,
+        case["mutation"].as_str().expect("delta mutation"),
+        HandlerInput {
+            args: case["args"].clone(),
+            ..HandlerInput::default()
+        },
+    )
+    .unwrap_or_else(|error| panic!("commit graph delta case {query}: {error:?}"));
+    let frames = snapback
+        .drain_live_stream(&connection_id)
+        .into_iter()
+        .map(|frame| serde_json::from_str::<Value>(&frame).expect("graph delta frame JSON"))
+        .collect::<Vec<_>>();
+    assert_eq!(frames.len(), 1, "one graph content frame: {frames:#?}");
+    let frame = &frames[0];
+    let after = snapback
+        .graph_serving_observation_for_test(&established.subscription_id)
+        .expect("graph delta successor observation");
+    let (lane, client_result_bytes) = if frame["kind"] == "live_delta" {
+        assert_eq!(frame["ops"], json!([]));
+        assert_eq!(frame["graph"]["format"], "snapback.graph-live-delta.v1");
+        let applied = apply_graph_delta_witness(
+            &initial_rows,
+            before["orderedRootKeys"]
+                .as_array()
+                .expect("predecessor ordered physical root keys"),
+            &carrier.normalized_plan,
+            frame,
+        );
+        let applied_result_bytes =
+            serde_json::to_string(&applied).expect("applied graph delta bytes");
+        assert_eq!(
+            applied_result_bytes,
+            after["resultBytes"]
+                .as_str()
+                .expect("successor result bytes"),
+            "the replace-compatible test consumer must converge byte-for-byte",
+        );
+        assert_eq!(
+            frame["graph"]["resultDigest"],
+            format!(
+                "sha256:{:x}",
+                Sha256::digest(applied_result_bytes.as_bytes())
+            ),
+        );
+        assert_eq!(
+            Value::Array(apply_graph_proof_witness(&before, frame)),
+            after["nodeCompleteness"],
+        );
+        assert_eq!(
+            frame["graph"]["graphCompleteness"],
+            after["graphCompleteness"],
+        );
+        ("delta", applied_result_bytes)
+    } else {
+        assert_eq!(
+            frame["kind"], "live_replace",
+            "delta case {} emitted an unexpected frame: {frame:#?}",
+            case["id"],
+        );
+        (
+            "replace",
+            serde_json::to_string(frame["rows"].as_array().expect("replace rows"))
+                .expect("replace result bytes"),
+        )
+    };
+    let oracle_matched = client_result_bytes
+        == after["resultBytes"]
+            .as_str()
+            .expect("fresh successor result bytes");
+    assert!(
+        oracle_matched,
+        "patch/replace-applied client view must equal the fresh evaluation"
+    );
+    assert_eq!(
+        lane,
+        if force_convergence_failure {
+            "replace"
+        } else {
+            case["expectedLane"].as_str().unwrap()
+        },
+        "delta case {} disposition; frame={frame:#?}; observation={after:#?}",
+        case["id"],
+    );
+    let delivery = after["deltaDelivery"].clone();
+    assert_eq!(delivery["lane"], lane);
+    let delta_ops = if lane == "delta" {
+        let operations = frame["graph"]["ops"].as_array().expect("delta operations");
+        if case["id"] == "issue-summary-two-field-coalesced-patch" {
+            assert_eq!(operations.len(), 1, "two fields coalesce into one row op");
+            assert_eq!(operations[0]["row"]["title"], case["args"]["title"]);
+            assert_eq!(operations[0]["row"]["open"], case["args"]["open"]);
+        }
+        Value::Array(
+            operations
+                .iter()
+                .cloned()
+                .map(|mut operation| {
+                    if let Some(row) = operation["row"].as_object_mut() {
+                        // Storage timestamps are deliberately wall-clock
+                        // values. Freeze the retained application-field diff
+                        // and physical identities, not nondeterministic system
+                        // bookkeeping.
+                        row.retain(|field, _| !field.starts_with('_'));
+                    }
+                    operation
+                })
+                .collect(),
+        )
+    } else {
+        Value::Null
+    };
+    let disposition = json!({
+        "id":case["id"],
+        "query":query,
+        "shape":case["shape"],
+        "eligibility":case["eligibility"],
+        "lane":lane,
+        "matchedNodeIds":delivery["matchedNodeIds"],
+        "frameBytes":delivery["frameBytes"],
+        "evaluationCost":delivery["evaluationCost"],
+        "deltaFrameBytes":delivery["deltaFrameBytes"],
+        "deltaEvaluationCost":delivery["deltaEvaluationCost"],
+        "deltaOps":delta_ops,
+        "replaceFrameBytes":delivery["replaceFrameBytes"],
+        "replaceEvaluationCost":delivery["replaceEvaluationCost"],
+        "convergenceChecked":delivery["convergenceChecked"],
+        "convergenceMatched":delivery["convergenceMatched"],
+        "oracleChecked":true,
+        "oracleMatched":oracle_matched,
+    });
+    let stats = serde_json::to_value(
+        snapback
+            .inspect_core()
+            .expect("inspect graph delta stats")
+            .live_evaluation,
+    )
+    .expect("serialize graph delta stats");
+    (disposition, stats)
+}
+
+fn structural_work_cost_from_observation(observation: &Value) -> u64 {
+    ["examinedEntriesByNode", "relationshipLookupsByNode"]
+        .into_iter()
+        .flat_map(|field| {
+            observation["structuralWork"][field]
+                .as_array()
+                .expect("graph structural-work vector")
+        })
+        .map(|row| row["observed"].as_u64().expect("observed graph work"))
+        .sum()
+}
+
+/// A demand/window change creates a new graph instance, so it cannot enter
+/// retained-row delta maintenance. Exercise that boundary through an explicit
+/// same-connection supersession and meter the replacement snapshot with the
+/// same wire envelope and evaluator cost units as commit-triggered delivery.
+fn execute_graph_window_change_case(corpus: &Value, case: &Value) -> Value {
+    let query = case["query"].as_str().expect("window-change query");
+    let mut snapback = graph_store(corpus, None);
+    snapback.declare_graph_query_v1_capability();
+    let carriers = served_graph_carriers(&snapback, corpus);
+    let diagnostics = snapback.load_functions(served_graph_manifest(corpus, &carriers));
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error),
+        "graph window-change manifest diagnostics: {diagnostics:?}",
+    );
+    let (_, carrier, _) = carriers
+        .iter()
+        .find(|(name, _, _)| name == query)
+        .expect("window-change carrier");
+    let evidence = corpus["g0ExitObservationEvidence"]
+        .as_array()
+        .expect("G0 exit evidence")
+        .iter()
+        .find(|evidence| evidence["graphPlanHash"] == carrier.plan_hash.as_str())
+        .expect("window-change invocation");
+    let call = &evidence["invocation"];
+    let principal = corpus_invocation_principal(call);
+    let authority = corpus_authority(corpus, principal);
+    snapback.install_graph_serving_authority_context_for_test(
+        query,
+        GraphServingAuthorityContextV1 {
+            evaluation: authority.clone(),
+            class2: serde_json::from_value(call["partition"]["class2"].clone())
+                .expect("window-change class-2 inputs"),
+        },
+    );
+
+    let demand_args = |windows: Value| {
+        let mut args = call["args"]
+            .as_object()
+            .expect("window-change graph args")
+            .clone();
+        args.insert(
+            snapback_engine::graph_evaluator::GRAPH_SERVING_DEMAND_ARG.to_owned(),
+            json!({
+                "format":"snapback.graph-serving-demand.v1",
+                "windows":windows,
+                "advancedNodeId":call["advancedNodeId"],
+                "priorWindowLedgers":[],
+                "deltaFormat":"snapback.graph-live-delta.v1",
+            }),
+        );
+        Value::Object(args)
+    };
+    let connection_id = "g3-delta-issueSummary-take-window-change".to_owned();
+    let established = snapback
+        .subscribe_live(
+            query,
+            LiveSubscribeInput {
+                connection_id: connection_id.clone(),
+                input: HandlerInput {
+                    args: demand_args(call["windows"].clone()),
+                    auth: authority.auth.clone(),
+                    read_set: Vec::new(),
+                    correlation: None,
+                    ctx_ledger: None,
+                },
+                authorization_namespace: None,
+                supersedes: None,
+                resume_from_token: None,
+            },
+        )
+        .expect("establish issueSummary before window change");
+    assert_eq!(
+        established
+            .snapshot
+            .as_ref()
+            .expect("initial issueSummary snapshot")
+            .rows
+            .len(),
+        517,
+        "the frozen replay starts with the complete take=1024 window",
+    );
+    assert!(snapback.drain_live_stream(&connection_id).is_empty());
+
+    let mut changed_windows = call["windows"].clone();
+    changed_windows[0]["intervals"][0]["window"]["take"] = json!(1);
+    let replacement = snapback
+        .subscribe_live(
+            query,
+            LiveSubscribeInput {
+                connection_id: connection_id.clone(),
+                input: HandlerInput {
+                    args: demand_args(changed_windows),
+                    auth: authority.auth,
+                    read_set: Vec::new(),
+                    correlation: None,
+                    ctx_ledger: None,
+                },
+                authorization_namespace: None,
+                supersedes: Some(established.subscription_id),
+                resume_from_token: None,
+            },
+        )
+        .expect("replace issueSummary for changed window");
+    assert!(
+        replacement.superseded.is_some(),
+        "the old graph instance is superseded"
+    );
+    let snapshot = replacement
+        .snapshot
+        .expect("changed window returns a replacement snapshot");
+    assert_eq!(snapshot.rows.len(), 1, "the replacement applies take=1");
+    let after = snapback
+        .graph_serving_observation_for_test(&replacement.subscription_id)
+        .expect("changed-window serving observation");
+    let client_result_bytes =
+        serde_json::to_string(&snapshot.rows).expect("changed-window result bytes");
+    let oracle_matched = client_result_bytes
+        == after["resultBytes"]
+            .as_str()
+            .expect("changed-window evaluator result bytes");
+    assert!(
+        oracle_matched,
+        "replacement snapshot must equal fresh evaluation"
+    );
+    let frame_bytes = serde_json::to_vec(&LiveEnvelope::LiveReplace {
+        network_profile: None,
+        subscription_id: replacement.subscription_id,
+        function: query.to_owned(),
+        version: snapshot.version,
+        rows: snapshot.rows,
+        resume: None,
+    })
+    .expect("changed-window replacement frame")
+    .len() as u64;
+    let evaluation_cost = structural_work_cost_from_observation(&after);
+    json!({
+        "id":case["id"],
+        "query":query,
+        "shape":case["shape"],
+        "eligibility":case["eligibility"],
+        "lane":"replace",
+        "matchedNodeIds":[],
+        "frameBytes":frame_bytes,
+        "evaluationCost":evaluation_cost,
+        "deltaFrameBytes":null,
+        "deltaEvaluationCost":null,
+        "deltaOps":null,
+        "replaceFrameBytes":frame_bytes,
+        "replaceEvaluationCost":evaluation_cost,
+        "convergenceChecked":false,
+        "convergenceMatched":false,
+        "oracleChecked":true,
+        "oracleMatched":oracle_matched,
+        "dispositionBasis":"take/window change creates a new graph instance; explicit supersession returns a replacement snapshot",
+        "windowTake":{"before":1024,"after":1},
+    })
+}
+
+fn graph_delta_disposition_artifact(corpus: &Value) -> Value {
+    let cases = vec![
+        json!({"id":"issue-list-child-update","query":"issueListV2","shape":"equality-to-one-child-with-sibling-array","eligibility":"ineligible","expectedLane":"replace","mutation":GRAPH_CORPUS_PATCH_ISSUE,"args":{"rowID":"issue_33999fea163c421dc30f2bbb","value":"G3 issueListV2 retained child update"}}),
+        json!({"id":"issue-list-to-many-update","query":"issueListV2","shape":"to-many-child-update","eligibility":"ineligible","expectedLane":"replace","mutation":GRAPH_CORPUS_PATCH_ISSUE_LABEL_READ,"args":{"rowID":"issueLabelRead_89fee73d0fb9a7dbb44c2f42","value":"label_f433ea7a1e0d16c17fd0e8b4"}}),
+        json!({"id":"issue-detail-root-update","query":"issueDetail","shape":"root-update-with-sibling-array","eligibility":"ineligible","expectedLane":"replace","mutation":GRAPH_CORPUS_PATCH_ISSUE,"args":{"rowID":"issue_da43a7cfca272ba1c3f411ee","value":"G3 issueDetail root update in place"}}),
+        json!({"id":"issue-detail-to-many-update","query":"issueDetail","shape":"to-many-child-update","eligibility":"ineligible","expectedLane":"replace","mutation":GRAPH_CORPUS_PATCH_COMMENT,"args":{"rowID":"comment_c390407f429dd9c72db13062","value":"G3 to-many comment replacement witness"}}),
+        json!({"id":"list-by-id-child-update","query":"listIssueByID","shape":"equality-to-one-child-with-sibling-array","eligibility":"ineligible","expectedLane":"replace","mutation":GRAPH_CORPUS_PATCH_ISSUE,"args":{"rowID":"issue_da43a7cfca272ba1c3f411ee","value":"G3 listIssueByID retained child update"}}),
+        json!({"id":"list-by-id-to-many-update","query":"listIssueByID","shape":"to-many-child-update","eligibility":"ineligible","expectedLane":"replace","mutation":GRAPH_CORPUS_PATCH_ISSUE_LABEL_READ,"args":{"rowID":"issueLabelRead_218338e94f97000dcc5e2a02","value":"label_f433ea7a1e0d16c17fd0e8b4"}}),
+        json!({"id":"issue-detail-sibling-array-corruption","query":"issueDetail","shape":"equality-child-below-to-many-sibling-array-corruption","eligibility":"ineligible","expectedLane":"replace","mutation":GRAPH_CORPUS_PATCH_LABEL,"args":{"rowID":"label_a8bf0091490f728ca1d433a8","value":"G3 one label only"}}),
+        json!({"id":"issue-list-in-window-reorder","query":"issueListV2","shape":"root-window-in-window-reorder","eligibility":"ineligible","expectedLane":"replace","mutation":GRAPH_CORPUS_PATCH_ISSUE_LIST_ORDER,"args":{"rowID":"issueListRead_00c0991548f2f2652d6c5157","value":1900000000000_u64}}),
+        json!({"id":"issue-list-membership-add","query":"issueListV2","shape":"root-window-membership-add","eligibility":"ineligible","expectedLane":"replace","mutation":GRAPH_CORPUS_ADD_MEMBERSHIP,"args":{}}),
+        json!({"id":"issue-detail-creator-user-change","query":"issueDetail","shape":"equality-to-one-creator-with-sibling-arrays","eligibility":"ineligible","expectedLane":"replace","mutation":GRAPH_CORPUS_PATCH_CREATOR,"args":{"rowID":"user_885982503097c2548c6cba45","value":"g3-creator-change"}}),
+        json!({"id":"list-by-id-two-field-coalesced-patch","query":"listIssueByID","shape":"equality-to-one-two-field-coalesced-patch-with-sibling-array","eligibility":"ineligible","expectedLane":"replace","mutation":GRAPH_CORPUS_PATCH_ISSUE_TWO_FIELDS,"args":{"rowID":"issue_da43a7cfca272ba1c3f411ee","title":"G3 coalesced title","open":true}}),
+        json!({"id":"issue-summary-root-scalar-update","query":"issueSummary","shape":"root-row-scalar-update-position-unchanged","eligibility":"eligible","expectedLane":"delta","mutation":GRAPH_CORPUS_PATCH_ISSUE,"args":{"rowID":"issue_ded0c2976675c34f4756035d","value":"G3 issueSummary retained root scalar update"}}),
+        json!({"id":"issue-summary-assignee-user-rename","query":"issueSummary","shape":"equality-to-one-assignee-scalar-update","eligibility":"eligible","expectedLane":"delta","mutation":GRAPH_CORPUS_PATCH_ASSIGNEE_USER,"args":{"rowID":"user_47a7fdef09689e6736359a9c","value":"g3-assignee-rename"}}),
+        json!({"id":"issue-summary-two-field-coalesced-patch","query":"issueSummary","shape":"root-row-two-field-coalesced-patch","eligibility":"eligible","expectedLane":"delta","mutation":GRAPH_CORPUS_PATCH_ISSUE_TWO_FIELDS,"args":{"rowID":"issue_ded0c2976675c34f4756035d","title":"G3 issueSummary coalesced title","open":false}}),
+        json!({"id":"issue-summary-order-key-move","query":"issueSummary","shape":"root-window-order-key-move","eligibility":"ineligible","expectedLane":"replace","mutation":GRAPH_CORPUS_PATCH_ISSUE_ORDER,"args":{"rowID":"issue_ded0c2976675c34f4756035d","value":1_u64}}),
+        json!({"id":"issue-summary-assignee-repoint","query":"issueSummary","shape":"equality-to-one-assignee-repoint","eligibility":"ineligible","expectedLane":"replace","mutation":GRAPH_CORPUS_PATCH_ISSUE_ASSIGNEE,"args":{"rowID":"issue_ded0c2976675c34f4756035d","value":"user_804808a3aa5ef7440e34bd42"}}),
+        json!({"id":"issue-summary-take-window-change","query":"issueSummary","shape":"root-window-take-change","eligibility":"ineligible","expectedLane":"replace","windowChange":true}),
+    ];
+    let dispositions = cases
+        .iter()
+        .map(|case| {
+            if case["windowChange"] == true {
+                execute_graph_window_change_case(corpus, case)
+            } else {
+                execute_graph_delta_case(corpus, case)
+            }
+        })
+        .collect::<Vec<_>>();
+    let eligible = dispositions
+        .iter()
+        .filter(|row| row["eligibility"] == "eligible")
+        .collect::<Vec<_>>();
+    assert_eq!(
+        eligible.len(),
+        3,
+        "issueSummary admits exactly three delta shapes"
+    );
+    assert!(eligible.iter().all(|row| {
+        row["query"] == "issueSummary"
+            && row["lane"] == "delta"
+            && row["convergenceChecked"] == true
+            && row["convergenceMatched"] == true
+    }));
+    assert!(
+        dispositions
+            .iter()
+            .filter(|row| {
+                matches!(
+                    row["query"].as_str(),
+                    Some("issueListV2" | "issueDetail" | "listIssueByID")
+                )
+            })
+            .all(|row| row["lane"] == "replace")
+    );
+    assert_eq!(
+        dispositions
+            .iter()
+            .filter(|row| row["query"] == "issueSummary" && row["lane"] == "replace")
+            .count(),
+        3,
+        "order movement, relationship re-point, and window change must replace",
+    );
+    let delta_frame_bytes = eligible
+        .iter()
+        .map(|row| row["deltaFrameBytes"].as_u64().unwrap())
+        .sum::<u64>();
+    let replace_frame_bytes = eligible
+        .iter()
+        .map(|row| row["replaceFrameBytes"].as_u64().unwrap())
+        .sum::<u64>();
+    let delta_evaluation_cost = eligible
+        .iter()
+        .map(|row| row["deltaEvaluationCost"].as_u64().unwrap())
+        .sum::<u64>();
+    let replace_evaluation_cost = eligible
+        .iter()
+        .map(|row| row["replaceEvaluationCost"].as_u64().unwrap())
+        .sum::<u64>();
+    if !eligible.is_empty() {
+        assert!(delta_frame_bytes < replace_frame_bytes);
+        assert!(delta_evaluation_cost < replace_evaluation_cost);
+    }
+    assert!(
+        dispositions
+            .iter()
+            .all(|row| row["oracleChecked"] == true && row["oracleMatched"] == true)
+    );
+    content_digest(json!({
+        "format":"snapback.graph-delta-dispositions.v1",
+        "version":1,
+        "measurementScope":{
+            "fixture":"normal-seed-v1",
+            "graphs":4,
+            "commitShapes":dispositions.len(),
+            "determinismRuns":2,
+            "evaluationCostUnit":"examined index entries + relationship point lookups",
+            "caveat":"N=1 deterministic normal-fixture evidence for the scalar-only issueSummary admitted shape; the original three array-bearing graphs remain all-replace and no hot-arm throughput claim is made",
+        },
+        "dispositions":dispositions,
+        "corpusSideD2H3":{
+            "eligibleDeliveries":eligible.len(),
+            "deltaFrameBytes":delta_frame_bytes,
+            "replaceFrameBytes":replace_frame_bytes,
+            "frameBytesSaved":replace_frame_bytes.saturating_sub(delta_frame_bytes),
+            "deltaEvaluationCost":delta_evaluation_cost,
+            "replaceEvaluationCost":replace_evaluation_cost,
+            "evaluationCostSaved":replace_evaluation_cost.saturating_sub(delta_evaluation_cost),
+        },
+        "convergence":{
+            "shadowCheckedDeliveries":eligible.len(),
+            "failures":0,
+        },
+    }))
 }
 
 fn write_frozen_json(relative: &str, value: &Value) {
@@ -2819,9 +4243,11 @@ fn validate_corpus_invocation_with_disposition(
         partition_preimage.graph_plan_hash, carrier.plan_hash,
         "partition preimage binds the exact plan",
     );
-    assert!(
+    assert_eq!(
         partition_preimage.class3.is_some(),
-        "the three corpus graphs all roll up principal-scoped nodes as partition-of-one",
+        carrier.normalized_plan.authority_partition_rule.class3
+            == GraphClass3PartitionV1::PartitionOfOne,
+        "the corpus partition carries class-3 identity exactly when the admitted plan requires it",
     );
     assert!(
         !partition_preimage.class2.is_empty(),
@@ -2831,9 +4257,7 @@ fn validate_corpus_invocation_with_disposition(
         corpus_authority_owner()["scopeHashDomain"],
         OWNER_SCOPE_DOMAIN,
     );
-    let principal = call["partition"]["class3"]["principalDataScope"]["userId"]
-        .as_str()
-        .expect("partition-of-one carries the owner-issued principal");
+    let principal = corpus_invocation_principal(call);
     let declared_class2 = carrier
         .normalized_plan
         .authority_partition_rule
@@ -3485,9 +4909,10 @@ fn default_targets_require_explicit_graph_capability_declaration() {
     assert_eq!(error.diagnostic.code, "SNAPBACK_CAPABILITY_UNSUPPORTED");
 }
 
-/// The three corpus-owned declarations are real generated graph carriers.
+/// The four corpus-owned declarations are real generated graph carriers.
 /// Rust reconstructs their normalized identities and every frozen oracle byte
-/// digest; the opaque envelopes are evidence, never a graph execution claim.
+/// digest. The original three opaque envelopes remain evidence; issueSummary
+/// is evaluator-authoritative and independently computed inside the freezer.
 #[test]
 fn zerobugs_declarations_admit_with_host_identities() {
     let corpus = graph_corpus();
@@ -3507,7 +4932,12 @@ fn zerobugs_declarations_admit_with_host_identities() {
         .collect::<BTreeSet<_>>();
     assert_eq!(
         names,
-        BTreeSet::from(["issueDetail", "issueListV2", "listIssueByID"])
+        BTreeSet::from([
+            "issueDetail",
+            "issueListV2",
+            "issueSummary",
+            "listIssueByID",
+        ])
     );
     for query in corpus_queries(&corpus) {
         let carrier: GraphQueryCarrierV1 =
@@ -3519,7 +4949,19 @@ fn zerobugs_declarations_admit_with_host_identities() {
             query["query"],
         );
         assert_eq!(query["disposition"]["structuralDeclaration"], "admitted");
-        assert_eq!(query["disposition"]["fullOracleRows"], "refused");
+        if query["query"] == "issueSummary" {
+            assert_eq!(
+                query["disposition"]["fullOracleRows"],
+                "evaluator-authoritative-cross-checked-by-corpus-internal-js"
+            );
+            assert!(query["disposition"]["reason"].is_null());
+            assert_eq!(
+                query["fieldMap"]["oracleAuthority"],
+                "corpus-internal-independent-js-over-fixture-rows"
+            );
+        } else {
+            assert_eq!(query["disposition"]["fullOracleRows"], "refused");
+        }
         let nodes = query["carrier"]["normalizedPlan"]["nodes"]
             .as_array()
             .expect("normalized nodes");
@@ -3549,12 +4991,53 @@ fn zerobugs_declarations_admit_with_host_identities() {
                 root["order"],
                 json!([{"field":"sourceIssueID","direction":"Asc"}]),
             ),
+            "issueSummary" => {
+                assert_eq!(root["table"], "issue");
+                assert_eq!(
+                    root["order"],
+                    json!([
+                        {"field":"modified","direction":"Desc"},
+                        {"field":"id","direction":"Desc"}
+                    ]),
+                );
+                assert!(nodes.iter().all(|node| matches!(
+                    node["kind"].as_str(),
+                    Some("root-window" | "equality-to-one" | "closed-projection")
+                )));
+                assert!(nodes.iter().all(|node| node["kind"] != "principal-bound"));
+                assert_eq!(
+                    query["carrier"]["normalizedPlan"]["authorityPartitionRule"]["class3"],
+                    "none"
+                );
+                let projection = carrier
+                    .normalized_plan
+                    .nodes
+                    .iter()
+                    .find_map(|node| match node {
+                        GraphNodeV1::ClosedProjection { object, .. } => Some(object),
+                        _ => None,
+                    })
+                    .expect("issueSummary closed projection");
+                assert_scalar_only_projection(projection);
+            }
             _ => unreachable!(),
         }
     }
 
     let oracle_cases = corpus["oracleCases"].as_array().expect("oracle cases");
-    assert_eq!(oracle_cases.len(), 8);
+    assert_eq!(oracle_cases.len(), 9);
+    let summary_oracle = oracle_cases
+        .iter()
+        .find(|case| case["query"] == "issueSummary")
+        .expect("issueSummary corpus-internal oracle case");
+    assert_eq!(
+        summary_oracle["oracle"]["authority"],
+        "corpus-internal-independent-js-over-fixture-rows"
+    );
+    assert_eq!(
+        summary_oracle["declaredGraph"]["expected"]["basis"],
+        "corpus-internal independent JS fixture computation; serving authority is the evaluator"
+    );
     let labels = load_json("demos/zerobugs/control/fixtures/normal-seed-v1/label.json");
     let physical_by_source = labels
         .as_array()
@@ -4010,7 +5493,7 @@ fn oracle_field_maps_and_refusals_are_closed() {
     }
 }
 
-/// Seven corpus-local present/absent fixture pairs differ only by named,
+/// Eight corpus-local present/absent fixture pairs differ only by named,
 /// wholly hidden slices and exact-match every oracle/result/proof observation.
 #[test]
 fn paired_worlds() {
@@ -4031,9 +5514,9 @@ fn paired_worlds() {
         .iter()
         .filter(|case| case["caseKind"] == "pairedWorld")
         .collect::<Vec<_>>();
-    assert_eq!(cases.len(), 7, "seven exact hidden-row graph-channel pairs");
+    assert_eq!(cases.len(), 8, "eight exact hidden-row graph-channel pairs");
     let fixture_pairs = fixtures["pairs"].as_array().expect("fixture pairs");
-    assert_eq!(fixture_pairs.len(), 7);
+    assert_eq!(fixture_pairs.len(), 8);
     let mut covered_classes = BTreeSet::new();
     let mut covered_queries = BTreeSet::new();
     let mut broadcast_hidden_axes = BTreeSet::new();
@@ -4215,7 +5698,13 @@ fn paired_worlds() {
     }
     assert_eq!(
         covered_queries,
-        BTreeSet::from(["issueDetail", "issueListV2", "listIssueByID", "publicRooms"])
+        BTreeSet::from([
+            "issueDetail",
+            "issueListV2",
+            "issueSummary",
+            "listIssueByID",
+            "publicRooms",
+        ])
     );
     assert_eq!(
         broadcast_hidden_axes,
@@ -4242,7 +5731,7 @@ fn paired_worlds() {
         .collect::<BTreeSet<_>>();
     assert_eq!(
         covered_classes, declared_classes,
-        "hidden pairs cover every declared authority class across the three graphs",
+        "hidden pairs cover every declared authority class across the corpus graphs",
     );
 }
 
@@ -5380,7 +6869,7 @@ fn graph_registration_refuses_semantically_forged_provenance() {
 fn graph_runtime_captures_register_and_match_replays_are_frozen() {
     let corpus = graph_corpus();
     let runs = normal_graph_evaluations(&corpus);
-    assert_eq!(runs.len(), 3, "all three Zerobugs graphs evaluate");
+    assert_eq!(runs.len(), 4, "all four Zerobugs corpus graphs evaluate");
     assert!(runs.iter().all(|(_, _, _, registered)| {
         registered
             .reads()
@@ -5475,6 +6964,398 @@ fn graph_served_corpus_executes_and_records_structural_work_and_d2_h2() {
         memo_observations,
         "served graph memo observation artifact is stale",
     );
+}
+
+/// G3 rung 1 replays the commissioned update and must-replace regressions
+/// through the Zerobugs served graphs. Every delivery is applied to the prior
+/// client view and compared with a same-cut fresh evaluation. The complete
+/// artifact is generated twice before a freeze or read-only comparison.
+///
+/// Run with `SNAPBACK_FREEZE_GRAPH_G3=1` to regenerate after inspecting the
+/// deterministic pair.
+///
+/// @ref LLP 0209#4-completeness-vocabulary — every delta is shadow-checked for byte, label, and proof convergence.
+/// @ref LLP 0209#9-sequencing-and-measurement-what-lands-first-and-how-it-is-measured — D2-H3 is frozen as corpus evidence, not fabricated hot-arm evidence.
+#[test]
+fn graph_delta_dispositions_are_frozen_and_convergent() {
+    let corpus = graph_corpus();
+    let first = graph_delta_disposition_artifact(&corpus);
+    let second = graph_delta_disposition_artifact(&corpus);
+    assert_eq!(
+        first, second,
+        "graph delta dispositions must be deterministic ×2"
+    );
+    if std::env::var_os("SNAPBACK_FREEZE_GRAPH_G3").is_some() {
+        write_frozen_json(DELTA_DISPOSITIONS_FILE, &first);
+        return;
+    }
+    assert_eq!(
+        load_json(DELTA_DISPOSITIONS_FILE),
+        first,
+        "graph delta disposition artifact is stale",
+    );
+}
+
+/// @ref LLP 0209#24-plan-instance-and-contextual-materialization-identity —
+/// the served subscription owns one cumulative ledger lineage across a delta
+/// and the mandatory fresh replacement that follows it.
+#[test]
+fn served_window_ledger_accumulates_snapshot_delta_forced_replacement() {
+    let corpus = graph_corpus();
+    let (mut snapback, connection_id, subscription_id) =
+        serve_issue_summary_window_ledger(&corpus, 3);
+    let snapshot = served_root_window_ledger(&snapback, &subscription_id);
+    assert_eq!(snapshot["pages"], 1);
+
+    patch_issue_summary_title(&mut snapback, "G3 cumulative ledger delta");
+    let delta_frames = snapback
+        .drain_live_stream(&connection_id)
+        .into_iter()
+        .map(|frame| serde_json::from_str::<Value>(&frame).expect("delta frame JSON"))
+        .collect::<Vec<_>>();
+    assert_eq!(delta_frames.len(), 1, "one eligible delta frame");
+    assert_eq!(delta_frames[0]["kind"], "live_delta");
+    let delta = served_root_window_ledger(&snapback, &subscription_id);
+    assert_eq!(delta["pages"], 2);
+
+    patch_issue_summary_title(&mut snapback, "G3 cumulative ledger replacement");
+    let replacement_frames = snapback
+        .drain_live_stream(&connection_id)
+        .into_iter()
+        .map(|frame| serde_json::from_str::<Value>(&frame).expect("replacement frame JSON"))
+        .collect::<Vec<_>>();
+    assert_eq!(replacement_frames.len(), 1, "one forced replacement frame");
+    assert_eq!(replacement_frames[0]["kind"], "live_replace");
+    let replacement = served_root_window_ledger(&snapback, &subscription_id);
+    assert_eq!(replacement["pages"], 3);
+
+    for field in [
+        "pages",
+        "rootRows",
+        "scannedRows",
+        "resultRows",
+        "resultBytes",
+        "indexRanges",
+    ] {
+        assert!(
+            snapshot[field].as_u64().unwrap() < delta[field].as_u64().unwrap()
+                && delta[field].as_u64().unwrap() < replacement[field].as_u64().unwrap(),
+            "{field} must accumulate monotonically across 1 -> 2 -> 3: snapshot={snapshot:#?}, delta={delta:#?}, replacement={replacement:#?}",
+        );
+    }
+}
+
+/// A graph memo entry owns only the shared fresh evaluation. The delta lane
+/// remains subscription-local, and a cached replacement is reusable only
+/// while the receiving lineage presents the same authoritative prior ledger.
+///
+/// @ref LLP 0209#6 — authority-partition memo identity excludes window-ledger lineage.
+/// @ref LLP 0209#7-rung-4--incremental-maintenance-for-admitted-shapes-extending-dk-3 — delta convergence is checked against a fresh evaluation.
+#[test]
+fn graph_delta_same_partition_subscriptions_converge_with_independent_ledgers_and_shared_replace_memo()
+ {
+    let corpus = graph_corpus();
+    let (mut snapback, connection_id, subscriptions) =
+        serve_issue_summary_window_ledgers(&corpus, 4, 2);
+    assert_eq!(subscriptions.len(), 2);
+    assert!(subscriptions.iter().all(|subscription_id| {
+        served_root_window_ledger(&snapback, subscription_id)["pages"] == json!(1)
+    }));
+
+    let before_delta = snapback
+        .inspect_core()
+        .expect("inspect before shared-partition delta")
+        .live_evaluation;
+    patch_issue_summary_title(&mut snapback, "G3 memo x delta convergence");
+    let delta_frames = snapback
+        .drain_live_stream(&connection_id)
+        .into_iter()
+        .map(|frame| serde_json::from_str::<Value>(&frame).expect("delta frame JSON"))
+        .collect::<Vec<_>>();
+    assert_eq!(delta_frames.len(), subscriptions.len());
+    assert!(
+        delta_frames
+            .iter()
+            .all(|frame| frame["kind"] == "live_delta")
+    );
+    let after_delta = snapback
+        .inspect_core()
+        .expect("inspect after shared-partition delta")
+        .live_evaluation;
+    assert_eq!(
+        after_delta.graph_delta_deliveries - before_delta.graph_delta_deliveries,
+        2,
+    );
+    assert_eq!(
+        after_delta.graph_delta_convergence_checks - before_delta.graph_delta_convergence_checks,
+        2,
+    );
+    assert_eq!(
+        after_delta.graph_delta_convergence_failures
+            - before_delta.graph_delta_convergence_failures,
+        0,
+    );
+    assert_eq!(
+        after_delta.evaluations_executed - before_delta.evaluations_executed,
+        0,
+        "delta sub-reads and fresh convergence oracles do not enter the full-evaluation memo path",
+    );
+    for subscription_id in &subscriptions {
+        let observation = snapback
+            .graph_serving_observation_for_test(subscription_id)
+            .expect("delta successor observation");
+        assert_eq!(observation["windowLedgers"][0]["pages"], 2);
+        assert_eq!(observation["deltaDelivery"]["convergenceChecked"], true);
+        assert_eq!(observation["deltaDelivery"]["convergenceMatched"], true);
+        let frame = delta_frames
+            .iter()
+            .find(|frame| frame["subscription_id"] == *subscription_id)
+            .expect("each subscription received its own delta frame");
+        assert_eq!(
+            frame["graph"]["resultDigest"],
+            format!(
+                "sha256:{:x}",
+                Sha256::digest(observation["resultBytes"].as_str().unwrap().as_bytes())
+            ),
+        );
+    }
+
+    let before_replace = snapback
+        .inspect_core()
+        .expect("inspect before shared fresh replacement")
+        .live_evaluation;
+    assert!(refresh_graph_corpus_scheduler(&mut snapback, None).unwrap());
+    let replace_frames = snapback
+        .drain_live_stream(&connection_id)
+        .into_iter()
+        .map(|frame| serde_json::from_str::<Value>(&frame).expect("replace frame JSON"))
+        .collect::<Vec<_>>();
+    assert_eq!(replace_frames.len(), subscriptions.len());
+    assert!(
+        replace_frames
+            .iter()
+            .all(|frame| frame["kind"] == "live_replace")
+    );
+    let after_replace = snapback
+        .inspect_core()
+        .expect("inspect after shared fresh replacement")
+        .live_evaluation;
+    assert_eq!(
+        after_replace.evaluations_executed - before_replace.evaluations_executed,
+        1,
+    );
+    assert_eq!(after_replace.memo_misses - before_replace.memo_misses, 1);
+    assert_eq!(after_replace.memo_hits - before_replace.memo_hits, 1);
+    assert!(subscriptions.iter().all(|subscription_id| {
+        served_root_window_ledger(&snapback, subscription_id)["pages"] == json!(3)
+    }));
+
+    let before_isolated_refresh = snapback
+        .inspect_core()
+        .expect("inspect before isolated lineage refresh")
+        .live_evaluation;
+    assert!(
+        refresh_graph_corpus_scheduler(&mut snapback, Some(&subscriptions[0])).unwrap(),
+        "one lineage refreshes independently",
+    );
+    let isolated_frames = snapback
+        .drain_live_stream(&connection_id)
+        .into_iter()
+        .map(|frame| serde_json::from_str::<Value>(&frame).expect("isolated replace frame JSON"))
+        .collect::<Vec<_>>();
+    assert_eq!(isolated_frames.len(), 1);
+    assert_eq!(isolated_frames[0]["subscription_id"], subscriptions[0]);
+    assert_eq!(isolated_frames[0]["kind"], "live_replace");
+    assert_eq!(
+        served_root_window_ledger(&snapback, &subscriptions[0])["pages"],
+        4,
+    );
+    assert_eq!(
+        served_root_window_ledger(&snapback, &subscriptions[1])["pages"],
+        3,
+        "refreshing one holder cannot advance its memo sibling's ledger",
+    );
+    let after_isolated_refresh = snapback
+        .inspect_core()
+        .expect("inspect after isolated lineage refresh")
+        .live_evaluation;
+    assert_eq!(
+        after_isolated_refresh.evaluations_executed - before_isolated_refresh.evaluations_executed,
+        1,
+        "a cached entry with a different prior ledger is a miss",
+    );
+    assert_eq!(
+        after_isolated_refresh.memo_hits - before_isolated_refresh.memo_hits,
+        0,
+    );
+    assert_eq!(
+        after_isolated_refresh.memo_misses - before_isolated_refresh.memo_misses,
+        1,
+    );
+
+    let before_sibling_refresh = after_isolated_refresh;
+    assert!(refresh_graph_corpus_scheduler(&mut snapback, Some(&subscriptions[1])).unwrap());
+    let sibling_frames = snapback
+        .drain_live_stream(&connection_id)
+        .into_iter()
+        .map(|frame| serde_json::from_str::<Value>(&frame).expect("sibling replace frame JSON"))
+        .collect::<Vec<_>>();
+    assert_eq!(sibling_frames.len(), 1);
+    assert_eq!(sibling_frames[0]["subscription_id"], subscriptions[1]);
+    assert_eq!(sibling_frames[0]["kind"], "live_replace");
+    assert_eq!(
+        served_root_window_ledger(&snapback, &subscriptions[1])["pages"],
+        4,
+    );
+    let after_sibling_refresh = snapback
+        .inspect_core()
+        .expect("inspect after sibling lineage refresh")
+        .live_evaluation;
+    assert_eq!(
+        after_sibling_refresh.evaluations_executed - before_sibling_refresh.evaluations_executed,
+        0,
+    );
+    assert_eq!(
+        after_sibling_refresh.memo_hits - before_sibling_refresh.memo_hits,
+        1,
+        "the sibling may share the fresh result once its own ledger presents the compatible prior",
+    );
+}
+
+/// @ref LLP 0267#5-llp-0209-g0-bounds-and-guardrails-are-one-system —
+/// a served replacement after the second published page refuses at the
+/// lineage's `maxWindowPages` bound instead of resetting to page one.
+#[test]
+fn served_window_ledger_refuses_forced_replacement_past_max_pages() {
+    let corpus = graph_corpus();
+    let (mut snapback, connection_id, subscription_id) =
+        serve_issue_summary_window_ledger(&corpus, 2);
+    assert_eq!(
+        served_root_window_ledger(&snapback, &subscription_id)["pages"],
+        1,
+    );
+
+    patch_issue_summary_title(&mut snapback, "G3 bounded ledger delta");
+    let delta_frames = snapback
+        .drain_live_stream(&connection_id)
+        .into_iter()
+        .map(|frame| serde_json::from_str::<Value>(&frame).expect("delta frame JSON"))
+        .collect::<Vec<_>>();
+    assert_eq!(delta_frames.len(), 1, "one eligible delta frame");
+    assert_eq!(delta_frames[0]["kind"], "live_delta");
+    let at_bound = served_root_window_ledger(&snapback, &subscription_id);
+    assert_eq!(at_bound["pages"], 2);
+
+    patch_issue_summary_title(&mut snapback, "G3 bounded ledger replacement");
+    let refusal_frames = snapback
+        .drain_live_stream(&connection_id)
+        .into_iter()
+        .map(|frame| serde_json::from_str::<Value>(&frame).expect("refusal frame JSON"))
+        .collect::<Vec<_>>();
+    assert_eq!(refusal_frames.len(), 1, "one resnapshot refusal signal");
+    assert_eq!(refusal_frames[0]["kind"], "resync_required");
+    assert_eq!(refusal_frames[0]["reason"], "live_refresh_failed");
+    assert_eq!(
+        served_root_window_ledger(&snapback, &subscription_id),
+        at_bound,
+        "the refused third page must not rotate or advance retained lineage state",
+    );
+    let diagnostics = snapback
+        .inspect_core()
+        .expect("inspect bound refusal")
+        .recent_diagnostics;
+    assert!(diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == "SNAPBACK_QUERY_COST_BOUND_EXCEEDED"
+            && diagnostic.details["reason"] == "live_refresh_failed"
+    }));
+}
+
+#[test]
+fn graph_delta_oracle_applies_physical_ops_and_rejects_an_incomplete_patch() {
+    let corpus = graph_corpus();
+    let carrier: GraphQueryCarrierV1 = serde_json::from_value(
+        corpus_queries(&corpus)
+            .find(|query| query["query"] == "listIssueByID")
+            .expect("listIssueByID carrier")["carrier"]
+            .clone(),
+    )
+    .unwrap();
+    let original_plan = carrier.normalized_plan;
+    let root_key = GraphRowKeyV1 {
+        table: "issueListRead".to_owned(),
+        id: "issueListRead_physical".to_owned(),
+    };
+    let operation = LiveGraphDeltaWireOpV1 {
+        op: LiveDeltaOpKind::Update,
+        node_id: "n1".to_owned(),
+        root_key: root_key.clone(),
+        key: GraphRowKeyV1 {
+            table: "issue".to_owned(),
+            id: "issue_physical".to_owned(),
+        },
+        position: 0,
+        row: Some(json!({
+            "title":"after",
+            "open":true,
+            "_version":8,
+            "_updatedAt":101,
+        })),
+    };
+    let previous = serde_json::to_string(&json!([{
+        "issue":{"title":"before","open":false},
+        "labels":[{"label":{"name":"one"}},{"label":{"name":"two"}}],
+    }]))
+    .unwrap();
+
+    assert!(
+        apply_graph_delta_to_result_for_test(
+            &original_plan,
+            &previous,
+            std::slice::from_ref(&root_key),
+            std::slice::from_ref(&operation),
+            std::slice::from_ref(&root_key),
+        )
+        .is_err(),
+        "a sibling-array projection is never patch-applied",
+    );
+
+    let mut eligible_plan = original_plan;
+    let GraphNodeV1::ClosedProjection { object, .. } = eligible_plan.nodes.last_mut().unwrap()
+    else {
+        panic!("terminal graph projection")
+    };
+    object
+        .fields
+        .retain(|field| !matches!(field.value, GraphProjectionValueV1::Array { .. }));
+    let eligible_previous = serde_json::to_string(&json!([{
+        "issue":{"title":"before","open":false},
+    }]))
+    .unwrap();
+    let applied = apply_graph_delta_to_result_for_test(
+        &eligible_plan,
+        &eligible_previous,
+        std::slice::from_ref(&root_key),
+        std::slice::from_ref(&operation),
+        std::slice::from_ref(&root_key),
+    )
+    .unwrap();
+    let fresh = serde_json::to_string(&json!([{
+        "issue":{"title":"after","open":true},
+    }]))
+    .unwrap();
+    assert_eq!(applied, fresh);
+
+    let mut incomplete = operation;
+    incomplete.row = Some(json!({"title":"after","_version":8,"_updatedAt":101}));
+    let incomplete_applied = apply_graph_delta_to_result_for_test(
+        &eligible_plan,
+        &eligible_previous,
+        std::slice::from_ref(&root_key),
+        std::slice::from_ref(&incomplete),
+        std::slice::from_ref(&root_key),
+    )
+    .unwrap();
+    assert_ne!(incomplete_applied, fresh);
 }
 
 /// @ref LLP 0209#9-sequencing-and-measurement-what-lands-first-and-how-it-is-measured — executable graph corpus entries run
@@ -6384,7 +8265,7 @@ fn broadcast_inputs_complete() {
     let observations = corpus["g0ExitObservations"]
         .as_array()
         .expect("observations");
-    assert_eq!(observations.len(), 3);
+    assert_eq!(observations.len(), 4);
     let served_measurements = load_json(SERVED_OBSERVATIONS_FILE)["normalServingGroupMeasurements"]
         .as_array()
         .expect("actual served group measurements")
@@ -6392,7 +8273,7 @@ fn broadcast_inputs_complete() {
     let evidence_rows = corpus["g0ExitObservationEvidence"]
         .as_array()
         .expect("normal observation evidence");
-    assert_eq!(evidence_rows.len(), 3);
+    assert_eq!(evidence_rows.len(), 4);
     for observation in observations {
         assert_exact_object_keys(
             observation,
@@ -6495,7 +8376,7 @@ fn broadcast_inputs_complete() {
     let gaps = corpus["g0ExitObservationGaps"]
         .as_array()
         .expect("large/hot gap table");
-    assert_eq!(gaps.len(), 6);
+    assert_eq!(gaps.len(), 8);
     for gap in gaps {
         assert_eq!(gap["status"], "NOT SATISFIED");
         assert!(gap["missingCarrier"].as_str().is_some());

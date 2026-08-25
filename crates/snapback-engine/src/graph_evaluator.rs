@@ -5,10 +5,11 @@
 //! and capture contracts used by the frozen corpus.
 
 use crate::diagnostic::{SnapbackError, SnapbackResult};
+use crate::live_wire::{LiveDeltaOpKind, LiveGraphDeltaWireOpV1};
 use crate::manifest::{
     AuthInput, FilterExpr, FilterOp, GraphAuthorityClassV1, GraphCapturedDependencyV1,
     GraphCapturedReadAttachmentV1, GraphCapturedReadV1, GraphChildPageV1, GraphCompletenessLabelV1,
-    GraphCompositionProofV1, GraphDataNodeKindV1, GraphEvaluationCutV1,
+    GraphCompositionProofV1, GraphDataNodeKindV1, GraphEdgeV1, GraphEvaluationCutV1,
     GraphEvaluationTimeRefusalReasonV1, GraphExistsModeV1, GraphIntervalEndV1, GraphLiteralPageV1,
     GraphMaterializedRefusalReasonV1, GraphNodeCompletenessProofClassV1,
     GraphNodeCompletenessProofV1, GraphNodeKindV1, GraphNodeV1, GraphNodeWindowIdentityV1,
@@ -17,7 +18,7 @@ use crate::manifest::{
     OrderExpr, QueryPlan, Sha256V1, TableVisibilityV1, ValueExpr, graph_instance_identity_v1,
     graph_plan_identity_v1, validate_graph_arguments_v1, validate_graph_window_vector_v1,
 };
-use crate::storage::{CapturedReadDependency, CapturedReadKind, DbRead};
+use crate::storage::{CapturedReadDependency, CapturedReadKind, ChangeOp, ChangedRow, DbRead};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
@@ -40,6 +41,16 @@ pub struct GraphServingDemandV1 {
     pub advanced_node_id: String,
     #[serde(default)]
     pub prior_window_ledgers: Vec<GraphWindowLedgerV1>,
+    /// Additive DK-3 negotiation. Absent or unknown values keep graph
+    /// subscriptions replace-compatible.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delta_format: Option<String>,
+}
+
+impl GraphServingDemandV1 {
+    pub(crate) fn requests_rung1_delta(&self) -> bool {
+        self.delta_format.as_deref() == Some("snapback.graph-live-delta.v1")
+    }
 }
 
 /// Authorization inputs already resolved by the engine's authority boundary.
@@ -163,6 +174,11 @@ pub struct GraphEvaluationOutputV1 {
     #[serde(deserialize_with = "deserialize_required_option")]
     pub result_bytes: Option<String>,
     pub ordered_root_ids: Vec<String>,
+    /// Physical root keys retained by the serving owner. The serialized G2
+    /// evaluator contract keeps its application-id observation unchanged;
+    /// graph delta identity never consumes that observation.
+    #[serde(skip)]
+    pub(crate) ordered_root_keys: Vec<GraphRowKeyV1>,
     pub result_length: u64,
     pub node_completeness: Vec<NodeCompletenessV1>,
     pub graph_completeness: GraphCompletenessV1,
@@ -185,6 +201,38 @@ pub struct GraphEvaluationOutputV1 {
     /// intentionally omitted from serialized evaluation results/inspection.
     #[serde(skip)]
     pub captured_query_outputs: Vec<crate::live_matcher::GraphCapturedQueryOutputV1>,
+    /// Materialized normalized rows retained only by the live serving owner.
+    /// It never crosses inspection or wire seams.
+    #[serde(skip)]
+    pub(crate) retained_state: Option<RetainedEvaluationState>,
+}
+
+#[derive(Clone, Default)]
+pub(crate) struct RetainedEvaluationState(EvaluationState);
+
+impl std::fmt::Debug for RetainedEvaluationState {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("RetainedEvaluationState(..)")
+    }
+}
+
+impl PartialEq for RetainedEvaluationState {
+    fn eq(&self, _other: &Self) -> bool {
+        // This field is intentionally outside the serialized evaluator
+        // contract; equality of GraphEvaluationOutputV1 concerns only that
+        // public contract.
+        true
+    }
+}
+
+/// Successful rung-1 incremental evaluation. The output has the same result,
+/// label, and proof contract as a fresh evaluation at `request`'s tuple;
+/// `structural_work` charges only the bounded sub-reads used for this delta.
+pub(crate) struct GraphDeltaEvaluationV1 {
+    pub output: GraphEvaluationOutputV1,
+    pub ops: Vec<LiveGraphDeltaWireOpV1>,
+    pub node_proof_updates: Vec<NodeCompletenessV1>,
+    pub evaluation_cost: u64,
 }
 
 fn deserialize_required_option<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
@@ -195,7 +243,7 @@ where
     Option::<T>::deserialize(deserializer)
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct Work {
     root: BTreeMap<String, u64>,
     examined: BTreeMap<String, u64>,
@@ -207,6 +255,20 @@ struct Work {
 }
 
 impl Work {
+    fn absorb(&mut self, other: &Self) {
+        fn add(target: &mut BTreeMap<String, u64>, source: &BTreeMap<String, u64>) {
+            for (key, value) in source {
+                let next = target.get(key).copied().unwrap_or(0).saturating_add(*value);
+                target.insert(key.clone(), next);
+            }
+        }
+        add(&mut self.root, &other.root);
+        add(&mut self.examined, &other.examined);
+        add(&mut self.lookups, &other.lookups);
+        add(&mut self.fanout, &other.fanout);
+        add(&mut self.ranges, &other.ranges);
+    }
+
     fn prepare(
         &mut self,
         plan: &GraphQueryPlanV1,
@@ -365,12 +427,23 @@ impl Work {
     }
 }
 
+impl StructuralWorkV1 {
+    /// Corpus-stable scalar used by D2-H3. Examined index entries and
+    /// relationship point lookups are the evaluator work charged by the
+    /// existing graph ledger; result bytes remain a separate wire metric.
+    pub fn evaluation_cost(&self) -> u64 {
+        self.examined_entries_by_node
+            .iter()
+            .chain(self.relationship_lookups_by_node.iter())
+            .fold(0_u64, |sum, row| sum.saturating_add(row.observed))
+    }
+}
+
 #[derive(Clone)]
 struct RowInstance {
     row: Value,
     key: GraphRowKeyV1,
     root_key: GraphRowKeyV1,
-    root_id: String,
 }
 
 #[derive(Clone)]
@@ -379,8 +452,8 @@ struct GraphCaptureContext {
     instance_hash: Sha256V1,
 }
 
-#[derive(Default)]
-struct EvaluationState {
+#[derive(Clone, Default)]
+pub(crate) struct EvaluationState {
     roots: Vec<RowInstance>,
     by_node: BTreeMap<String, Vec<RowInstance>>,
     children: BTreeMap<(String, String, String), Vec<RowInstance>>,
@@ -1130,7 +1203,6 @@ fn evaluate_root(
         .map(|row| {
             let key = row_key(table, &row)?;
             Ok(RowInstance {
-                root_id: application_id(&row)?,
                 root_key: key.clone(),
                 key,
                 row,
@@ -1305,7 +1377,6 @@ fn evaluate_to_one(
                     key: row_key(table, &row)?,
                     row,
                     root_key: parent.root_key.clone(),
-                    root_id: parent.root_id.clone(),
                 })
             })
             .collect::<SnapbackResult<Vec<_>>>()?;
@@ -1505,7 +1576,6 @@ fn evaluate_to_many(
                     key: row_key(table, &row)?,
                     row,
                     root_key: parent.root_key.clone(),
-                    root_id: parent.root_id.clone(),
                 })
             })
             .collect::<SnapbackResult<Vec<_>>>()?;
@@ -2195,7 +2265,6 @@ fn evaluate_principal(
                         key: row_key(table, &row)?,
                         row,
                         root_key: parent.root_key.clone(),
-                        root_id: parent.root_id.clone(),
                     })
                 })
                 .collect::<SnapbackResult<Vec<_>>>()?;
@@ -2770,6 +2839,7 @@ fn refused_output(
         label: GraphCompletenessLabelV1::Refused,
         result_bytes: None,
         ordered_root_ids: Vec::new(),
+        ordered_root_keys: Vec::new(),
         result_length: 0,
         node_completeness: node_proofs,
         graph_completeness: graph,
@@ -2780,6 +2850,7 @@ fn refused_output(
         captured_reads: state.captured_reads.clone(),
         capture_attachments: state.capture_attachments.clone(),
         captured_query_outputs: state.captured_query_outputs.clone(),
+        retained_state: None,
     })
 }
 
@@ -2972,7 +3043,12 @@ pub(crate) fn evaluate_graph_query_on(
         let ordered_root_ids = state
             .roots
             .iter()
-            .map(|root| root.root_id.clone())
+            .map(|root| application_id(&root.row))
+            .collect::<SnapbackResult<Vec<_>>>()?;
+        let ordered_root_keys = state
+            .roots
+            .iter()
+            .map(|root| root.root_key.clone())
             .collect::<Vec<_>>();
         let window_ledgers = next_ledgers(
             plan,
@@ -2988,11 +3064,13 @@ pub(crate) fn evaluate_graph_query_on(
                 "graph window lineage exceeded an admitted bound",
             )
         })?;
+        let retained_state = state.clone();
         Ok(GraphEvaluationOutputV1 {
             kind: "result".to_owned(),
             label,
             result_bytes: Some(result_bytes),
             ordered_root_ids,
+            ordered_root_keys,
             result_length,
             node_completeness: state.node_proofs.clone(),
             graph_completeness,
@@ -3002,6 +3080,7 @@ pub(crate) fn evaluate_graph_query_on(
             captured_reads: state.captured_reads.clone(),
             capture_attachments: state.capture_attachments.clone(),
             captured_query_outputs: state.captured_query_outputs.clone(),
+            retained_state: Some(RetainedEvaluationState(retained_state)),
         })
     })();
     match evaluation {
@@ -3014,6 +3093,788 @@ pub(crate) fn evaluate_graph_query_on(
             }
         }
     }
+}
+
+fn replace_node_proof(proofs: &mut Vec<NodeCompletenessV1>, replacement: NodeCompletenessV1) {
+    if let Some(slot) = proofs
+        .iter_mut()
+        .find(|proof| proof.node_id == replacement.node_id)
+    {
+        *slot = replacement;
+    } else {
+        proofs.push(replacement);
+    }
+}
+
+fn projection_contains_array(object: &GraphProjectionObjectV1) -> bool {
+    object.fields.iter().any(|field| match &field.value {
+        GraphProjectionValueV1::Array { .. } => true,
+        GraphProjectionValueV1::Object { object, .. } => projection_contains_array(object),
+        GraphProjectionValueV1::Field { .. }
+        | GraphProjectionValueV1::Literal { .. }
+        | GraphProjectionValueV1::Exists { .. } => false,
+    })
+}
+
+fn rung1_node_path_is_eligible(plan: &GraphQueryPlanV1, node_id: &str) -> bool {
+    let mut cursor = Some(node_id);
+    while let Some(current) = cursor {
+        let Some(node) = plan.nodes.iter().find(|node| node.node_id() == current) else {
+            return false;
+        };
+        match node {
+            GraphNodeV1::RootWindow { .. } => return current == plan.root_node_id,
+            GraphNodeV1::EqualityToOne { parent_node_id, .. } => {
+                cursor = Some(parent_node_id);
+            }
+            GraphNodeV1::BoundedToMany { .. }
+            | GraphNodeV1::ExistsSemiJoin { .. }
+            | GraphNodeV1::PrincipalBound { .. }
+            | GraphNodeV1::SearchMembership { .. }
+            | GraphNodeV1::ClosedProjection { .. } => return false,
+        }
+    }
+    false
+}
+
+fn rung1_delta_shape_is_eligible(plan: &GraphQueryPlanV1, matched: &BTreeSet<&str>) -> bool {
+    let Some(GraphNodeV1::ClosedProjection { object, .. }) = plan.nodes.last() else {
+        return false;
+    };
+    !projection_contains_array(object)
+        && matched
+            .iter()
+            .all(|node_id| rung1_node_path_is_eligible(plan, node_id))
+}
+
+fn descendant_join_may_have_changed(
+    plan: &GraphQueryPlanV1,
+    node_id: &str,
+    changes: &[ChangedRow],
+) -> bool {
+    let join_fields = plan
+        .nodes
+        .iter()
+        .filter(|node| node.parent_node_id() == Some(node_id))
+        .flat_map(|node| match node {
+            GraphNodeV1::EqualityToOne { join_on, .. }
+            | GraphNodeV1::BoundedToMany { join_on, .. } => join_on
+                .iter()
+                .map(|join| join.root_field.as_str())
+                .collect::<Vec<_>>(),
+            GraphNodeV1::PrincipalBound { parent_join, .. } => parent_join
+                .iter()
+                .map(|join| join.root_field.as_str())
+                .collect::<Vec<_>>(),
+            GraphNodeV1::ExistsSemiJoin { edge, .. } => match edge {
+                GraphEdgeV1::Direct(edge) => edge
+                    .join_on
+                    .iter()
+                    .map(|join| join.root_field.as_str())
+                    .collect(),
+                GraphEdgeV1::Through(edge) => edge
+                    .parent_join
+                    .iter()
+                    .map(|join| join.root_field.as_str())
+                    .collect(),
+            },
+            GraphNodeV1::SearchMembership { .. }
+            | GraphNodeV1::RootWindow { .. }
+            | GraphNodeV1::ClosedProjection { .. } => Vec::new(),
+        })
+        .collect::<BTreeSet<_>>();
+    !join_fields.is_empty()
+        && changes.iter().any(|change| {
+            change.changed_fields.is_empty()
+                || change
+                    .changed_fields
+                    .iter()
+                    .any(|field| join_fields.contains(field.as_str()))
+        })
+}
+
+fn affected_to_one_parents(
+    state: &EvaluationState,
+    parent_node_id: &str,
+    node_id: &str,
+    join_on: &[crate::manifest::JoinEquality],
+    table: &str,
+    changes: &[ChangedRow],
+) -> SnapbackResult<Vec<RowInstance>> {
+    let relevant = changes
+        .iter()
+        .filter(|change| change.table == table)
+        .collect::<Vec<_>>();
+    let mut parents = Vec::new();
+    for parent in parent_instances(state, parent_node_id) {
+        let parent_id = storage_id(&parent.row)?;
+        let old_child_ids = state
+            .children
+            .get(&(
+                parent_node_id.to_owned(),
+                parent_id.to_owned(),
+                node_id.to_owned(),
+            ))
+            .into_iter()
+            .flatten()
+            .filter_map(|child| storage_id(&child.row).ok())
+            .collect::<BTreeSet<_>>();
+        let affected = relevant.iter().any(|change| {
+            old_child_ids.contains(change.id.as_str())
+                || change.row.as_ref().is_some_and(|row| {
+                    join_on.iter().all(|join| {
+                        parent.row.get(&join.root_field).unwrap_or(&Value::Null)
+                            == row.get(&join.joined_field).unwrap_or(&Value::Null)
+                    })
+                })
+        });
+        if affected {
+            parents.push(parent.clone());
+        }
+    }
+    Ok(parents)
+}
+
+fn rebuild_to_one_proof(
+    request: &GraphEvaluationRequestV1,
+    state: &EvaluationState,
+    node: &GraphNodeV1,
+) -> SnapbackResult<Option<NodeCompletenessV1>> {
+    let GraphNodeV1::EqualityToOne {
+        node_id,
+        parent_node_id,
+        presence,
+        ..
+    } = node
+    else {
+        unreachable!()
+    };
+    let mut rows = Vec::new();
+    for parent in parent_instances(state, parent_node_id) {
+        let found = !children(state, parent_node_id, &parent.row, node_id).is_empty();
+        if !found && *presence == GraphToOnePresenceV1::Required {
+            return Ok(None);
+        }
+        rows.push(json!({"parentKey":parent.key,"found":found}));
+    }
+    sort_parent_proof_rows(&mut rows);
+    proof_entry(
+        node_id,
+        node_kind(node),
+        GraphCompletenessLabelV1::Complete,
+        GraphNodeCompletenessProofClassV1::UniquePoint,
+        merge_json(
+            tuple_json(request),
+            json!({"kind":"equality-to-one","label":"complete","rows":rows}),
+        ),
+    )
+    .map(Some)
+}
+
+fn project_retained_result(
+    plan: &GraphQueryPlanV1,
+    state: &EvaluationState,
+) -> SnapbackResult<Vec<Value>> {
+    let projection = plan.nodes.last().ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
+            "query",
+            "graph plan has no projection",
+        )
+    })?;
+    let GraphNodeV1::ClosedProjection { object, .. } = projection else {
+        return Err(SnapbackError::error(
+            "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
+            "query",
+            "graph plan projection is not last",
+        ));
+    };
+    let root_node_id = plan
+        .nodes
+        .first()
+        .map(GraphNodeV1::node_id)
+        .unwrap_or_default();
+    state
+        .roots
+        .iter()
+        .map(|root| {
+            let mut scope = BTreeMap::new();
+            scope.insert(root_node_id.to_owned(), root.row.clone());
+            project_object(object, state, &scope)
+        })
+        .collect()
+}
+
+fn retained_row_patch(previous: &Value, current: &Value) -> SnapbackResult<Value> {
+    let previous = previous.as_object().ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
+            "query",
+            "retained graph row is not an object",
+        )
+    })?;
+    let current = current.as_object().ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
+            "query",
+            "fresh graph row is not an object",
+        )
+    })?;
+    let fields = previous
+        .keys()
+        .chain(current.keys())
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    Ok(Value::Object(
+        fields
+            .into_iter()
+            .filter(|field| previous.get(field) != current.get(field))
+            .map(|field| {
+                let value = current
+                    .get(&field)
+                    .map(graph_transport_value)
+                    .unwrap_or(Value::Null);
+                (field, value)
+            })
+            .collect(),
+    ))
+}
+
+fn apply_projected_node_patch(
+    projection: &GraphProjectionObjectV1,
+    projected: &mut Value,
+    node_id: &str,
+    row_patch: &Value,
+) -> SnapbackResult<()> {
+    let output = projected.as_object_mut().ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
+            "query",
+            "retained projected graph row is not an object",
+        )
+    })?;
+    for field in &projection.fields {
+        match &field.value {
+            GraphProjectionValueV1::Field {
+                node_id: source_node_id,
+                field: source_field,
+            } if source_node_id == node_id => {
+                if let Some(value) = row_patch.get(source_field) {
+                    output.insert(field.name.clone(), value.clone());
+                }
+            }
+            GraphProjectionValueV1::Object { object, .. } => {
+                if let Some(value) = output.get_mut(&field.name)
+                    && !value.is_null()
+                {
+                    apply_projected_node_patch(object, value, node_id, row_patch)?;
+                }
+            }
+            GraphProjectionValueV1::Array { .. } => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
+                    "query",
+                    "rung-1 graph patch encountered an ineligible array projection",
+                ));
+            }
+            GraphProjectionValueV1::Field { .. }
+            | GraphProjectionValueV1::Literal { .. }
+            | GraphProjectionValueV1::Exists { .. } => {}
+        }
+    }
+    Ok(())
+}
+
+/// Apply the exact emitted graph operations to the previously delivered
+/// projected result. The convergence oracle compares these bytes—not the
+/// evaluator's maintained side state—to a fresh same-cut evaluation.
+pub(crate) fn apply_graph_delta_to_result(
+    plan: &GraphQueryPlanV1,
+    previous_result_bytes: &str,
+    previous_root_keys: &[GraphRowKeyV1],
+    ops: &[LiveGraphDeltaWireOpV1],
+    ordered_root_keys: &[GraphRowKeyV1],
+) -> SnapbackResult<String> {
+    let rows = serde_json::from_str::<Vec<Value>>(previous_result_bytes).map_err(|error| {
+        SnapbackError::error(
+            "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
+            "query",
+            format!("retained graph result bytes are invalid: {error}"),
+        )
+    })?;
+    if rows.len() != previous_root_keys.len() {
+        return Err(SnapbackError::error(
+            "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
+            "query",
+            "retained graph result and physical root-key vector disagree",
+        ));
+    }
+    if previous_root_keys != ordered_root_keys {
+        return Err(SnapbackError::error(
+            "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
+            "query",
+            "rung-1 graph patch changed root membership or order",
+        ));
+    }
+    let Some(GraphNodeV1::ClosedProjection { object, .. }) = plan.nodes.last() else {
+        return Err(SnapbackError::error(
+            "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
+            "query",
+            "graph plan has no terminal projection",
+        ));
+    };
+    if projection_contains_array(object) {
+        return Err(SnapbackError::error(
+            "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
+            "query",
+            "rung-1 graph patch cannot apply an array projection",
+        ));
+    }
+    let mut by_root = previous_root_keys
+        .iter()
+        .cloned()
+        .zip(rows)
+        .collect::<BTreeMap<_, _>>();
+    if by_root.len() != previous_root_keys.len() {
+        return Err(SnapbackError::error(
+            "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
+            "query",
+            "retained graph physical root keys are not unique",
+        ));
+    }
+    for operation in ops {
+        let node = plan
+            .nodes
+            .iter()
+            .find(|node| node.node_id() == operation.node_id);
+        let node_table = node.and_then(|node| match node {
+            GraphNodeV1::RootWindow { table, .. } | GraphNodeV1::EqualityToOne { table, .. } => {
+                Some(table.as_str())
+            }
+            _ => None,
+        });
+        let root_table = plan.nodes.first().and_then(|node| match node {
+            GraphNodeV1::RootWindow { table, .. } => Some(table.as_str()),
+            _ => None,
+        });
+        if operation.op != LiveDeltaOpKind::Update
+            || !rung1_node_path_is_eligible(plan, &operation.node_id)
+            || node_table != Some(operation.key.table.as_str())
+            || root_table != Some(operation.root_key.table.as_str())
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
+                "query",
+                "wire operation is outside the commissioned rung-1 update lane",
+            ));
+        }
+        let expected_position = ordered_root_keys
+            .iter()
+            .position(|key| key == &operation.root_key)
+            .map(|position| position as u64);
+        if expected_position != Some(operation.position) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
+                "query",
+                "wire operation root position is not physically keyed",
+            ));
+        }
+        let projected = by_root.get_mut(&operation.root_key).ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
+                "query",
+                "wire operation names an undelivered physical root row",
+            )
+        })?;
+        let patch = operation.row.as_ref().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
+                "query",
+                "wire update omitted its retained-row diff",
+            )
+        })?;
+        apply_projected_node_patch(object, projected, &operation.node_id, patch)?;
+    }
+    let applied = ordered_root_keys
+        .iter()
+        .map(|key| {
+            by_root.get(key).cloned().ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
+                    "query",
+                    "post-apply physical root order names a missing row",
+                )
+            })
+        })
+        .collect::<SnapbackResult<Vec<_>>>()?;
+    serde_json::to_string(&applied).map_err(|error| {
+        SnapbackError::error(
+            "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
+            "query",
+            error.to_string(),
+        )
+    })
+}
+
+fn graph_delta_ops(
+    plan: &GraphQueryPlanV1,
+    prior: &EvaluationState,
+    current: &EvaluationState,
+    matched: &BTreeSet<&str>,
+) -> SnapbackResult<Vec<LiveGraphDeltaWireOpV1>> {
+    let current_positions = current
+        .roots
+        .iter()
+        .enumerate()
+        .map(|(position, row)| (row.root_key.clone(), position as u64))
+        .collect::<BTreeMap<_, _>>();
+    let mut ops = Vec::new();
+    for node in &plan.nodes {
+        let node_id = node.node_id();
+        if !matched.contains(node_id) {
+            continue;
+        }
+        let prior_rows = prior
+            .by_node
+            .get(node_id)
+            .into_iter()
+            .flatten()
+            .map(|row| ((row.root_key.clone(), row.key.clone()), row))
+            .collect::<BTreeMap<_, _>>();
+        let current_rows = current
+            .by_node
+            .get(node_id)
+            .into_iter()
+            .flatten()
+            .map(|row| ((row.root_key.clone(), row.key.clone()), row))
+            .collect::<BTreeMap<_, _>>();
+        let identities = prior_rows
+            .keys()
+            .chain(current_rows.keys())
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        for identity in identities {
+            let old = prior_rows.get(&identity).copied();
+            let new = current_rows.get(&identity).copied();
+            let (Some(old), Some(new)) = (old, new) else {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
+                    "query",
+                    "rung-1 update changed physical row membership",
+                ));
+            };
+            if old.row == new.row {
+                continue;
+            }
+            let row = retained_row_patch(&old.row, &new.row)?;
+            let position = current_positions
+                .get(&new.root_key)
+                .copied()
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
+                        "query",
+                        "rung-1 update lost its physical root position",
+                    )
+                })?;
+            ops.push(LiveGraphDeltaWireOpV1 {
+                op: LiveDeltaOpKind::Update,
+                node_id: node_id.to_owned(),
+                root_key: new.root_key.clone(),
+                key: new.key.clone(),
+                position,
+                row: Some(row),
+            });
+        }
+    }
+    Ok(ops)
+}
+
+/// Incrementally maintain only LLP 0209 rung-1 nodes. `matched_node_ids` must
+/// come from the per-node attested matcher; any inability to prove an exact
+/// root range or retained-parent point update closes to `Ok(None)`.
+///
+/// @ref LLP 0209#7-rung-4--incremental-maintenance-for-admitted-shapes-extending-dk-3 — root windows are boundary-aware and equality-to-one edges are row-keyed patches.
+/// @ref LLP 0209#4-completeness-vocabulary — the maintained result carries the fresh label and tuple-bound proofs.
+pub(crate) fn evaluate_graph_delta_on(
+    read: DbRead<'_>,
+    plan: &GraphQueryPlanV1,
+    request: &GraphEvaluationRequestV1,
+    prior: &GraphEvaluationOutputV1,
+    changes: &[ChangedRow],
+    matched_node_ids: &[String],
+) -> SnapbackResult<Option<GraphDeltaEvaluationV1>> {
+    let Some(RetainedEvaluationState(mut state)) = prior.retained_state.clone() else {
+        return Ok(None);
+    };
+    let prior_state = state.clone();
+    if prior.refusal_reason.is_some() || matched_node_ids.is_empty() {
+        return Ok(None);
+    }
+    let matched = matched_node_ids
+        .iter()
+        .map(String::as_str)
+        .collect::<BTreeSet<_>>();
+    if !rung1_delta_shape_is_eligible(plan, &matched) {
+        return Ok(None);
+    }
+    validate_demand(plan, request, &supplied_parent_sets(request))?;
+    let input = input_for(plan, request)?;
+    let mut delta_work = Work::default();
+    delta_work.prepare(plan, request)?;
+    let mut proofs = state
+        .node_proofs
+        .iter()
+        .filter(|proof| proof.node_kind != GraphNodeKindV1::ClosedProjection)
+        .cloned()
+        .collect::<Vec<_>>();
+    for proof in &mut proofs {
+        proof.proof = merge_json(proof.proof.clone(), tuple_json(request));
+    }
+    let root_node_id = plan
+        .nodes
+        .first()
+        .map(GraphNodeV1::node_id)
+        .unwrap_or_default()
+        .to_owned();
+
+    if matched.contains(root_node_id.as_str()) {
+        let root_node = plan.nodes.first().expect("admitted graph root");
+        let GraphNodeV1::RootWindow { table, .. } = root_node else {
+            return Ok(None);
+        };
+        let old_keys = state
+            .roots
+            .iter()
+            .map(|row| row.root_key.clone())
+            .collect::<Vec<_>>();
+        let old_key_set = old_keys.iter().cloned().collect::<BTreeSet<_>>();
+        let root_changes = changes
+            .iter()
+            .filter(|change| change.table == *table)
+            .collect::<Vec<_>>();
+        if root_changes.is_empty()
+            || root_changes.iter().any(|change| {
+                change.op != ChangeOp::Update
+                    || !old_key_set.contains(&GraphRowKeyV1 {
+                        table: table.clone(),
+                        id: change.id.clone(),
+                    })
+            })
+        {
+            return Ok(None);
+        }
+        let mut fresh_root = EvaluationState::default();
+        fresh_root.work.prepare(plan, request)?;
+        evaluate_root(&read, plan, request, &input, &mut fresh_root, root_node)?;
+        let new_keys = fresh_root
+            .roots
+            .iter()
+            .map(|row| row.root_key.clone())
+            .collect::<Vec<_>>();
+        let old_proof = proofs
+            .iter()
+            .find(|proof| proof.node_id == root_node_id)
+            .expect("retained graph root proof");
+        let fresh_proof = fresh_root
+            .node_proofs
+            .first()
+            .expect("fresh graph root proof")
+            .clone();
+        // The commissioned root lane is update-in-place only. Exact physical
+        // membership and position must remain identical; additions, removals,
+        // boundary displacement, and in-window reorder all replace.
+        if old_keys != new_keys || old_proof.label != fresh_proof.label {
+            return Ok(None);
+        }
+        if descendant_join_may_have_changed(plan, &root_node_id, changes) {
+            return Ok(None);
+        }
+        state.roots = fresh_root.roots.clone();
+        state
+            .by_node
+            .insert(root_node_id.clone(), fresh_root.roots.clone());
+        delta_work.absorb(&fresh_root.work);
+        replace_node_proof(&mut proofs, fresh_proof);
+    }
+
+    for node in &plan.nodes {
+        let GraphNodeV1::EqualityToOne {
+            node_id,
+            parent_node_id,
+            table,
+            join_on,
+            ..
+        } = node
+        else {
+            continue;
+        };
+        if !matched.contains(node_id.as_str()) {
+            continue;
+        }
+        let node_changes = changes
+            .iter()
+            .filter(|change| change.table == *table)
+            .cloned()
+            .collect::<Vec<_>>();
+        if node_changes.is_empty()
+            || node_changes
+                .iter()
+                .any(|change| change.op != ChangeOp::Update)
+            || descendant_join_may_have_changed(plan, node_id, &node_changes)
+        {
+            return Ok(None);
+        }
+        let parents =
+            affected_to_one_parents(&state, parent_node_id, node_id, join_on, table, changes)?;
+        if parents.is_empty() {
+            return Ok(None);
+        }
+        let mut point = EvaluationState::default();
+        point.work.prepare(plan, request)?;
+        point
+            .by_node
+            .insert(parent_node_id.clone(), parents.clone());
+        evaluate_to_one(&read, request, &input, &mut point, node)?;
+        if point.materialized_refusal.is_some() {
+            return Ok(None);
+        }
+        let mut replaced_child_keys = BTreeSet::new();
+        for parent in &parents {
+            let parent_id = storage_id(&parent.row)?;
+            let key = (
+                parent_node_id.clone(),
+                parent_id.to_owned(),
+                node_id.clone(),
+            );
+            let old = state.children.get(&key).cloned().unwrap_or_default();
+            let new = point.children.get(&key).cloned().unwrap_or_default();
+            let old_keys = old.iter().map(|row| row.key.clone()).collect::<Vec<_>>();
+            let new_keys = new.iter().map(|row| row.key.clone()).collect::<Vec<_>>();
+            // Rung 1 maintains updates for retained parents. Optional edge
+            // entry/exit and child identity replacement remain replace-only.
+            if old_keys != new_keys {
+                return Ok(None);
+            }
+            replaced_child_keys.extend(
+                old.into_iter()
+                    .map(|row| (row.root_key.clone(), row.key.clone())),
+            );
+            state.children.insert(key, new);
+        }
+        let rows = state.by_node.entry(node_id.clone()).or_default();
+        rows.retain(|row| !replaced_child_keys.contains(&(row.root_key.clone(), row.key.clone())));
+        rows.extend(point.by_node.get(node_id).cloned().unwrap_or_default());
+        delta_work.absorb(&point.work);
+        let Some(proof) = rebuild_to_one_proof(request, &state, node)? else {
+            // A required-edge miss is data in the evaluation-time register;
+            // the incremental lane falls back without surfacing a host Err.
+            return Ok(None);
+        };
+        replace_node_proof(&mut proofs, proof);
+    }
+
+    let rows = project_retained_result(plan, &state)?;
+    let result_bytes = serde_json::to_string(&rows).map_err(|error| {
+        SnapbackError::error(
+            "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
+            "query",
+            error.to_string(),
+        )
+    })?;
+    let (label, proof_class, composition_proof) = composition(plan, request, &proofs, None)?;
+    if label != prior.label {
+        return Ok(None);
+    }
+    let projection = plan.nodes.last().expect("admitted graph projection");
+    proofs.push(proof_entry(
+        projection.node_id(),
+        node_kind(projection),
+        label,
+        GraphNodeCompletenessProofClassV1::ProjectionComposition,
+        merge_json(
+            tuple_json(request),
+            json!({
+                "kind":"closed-projection",
+                "label":label,
+                "composition":composition_proof,
+            }),
+        ),
+    )?);
+    state.node_proofs = proofs.clone();
+    state.work = delta_work.clone();
+    let structural_work = delta_work.observation(plan);
+    if !enforce_execution_bounds(plan, &state, rows.len() as u64, result_bytes.len() as u64) {
+        return Ok(None);
+    }
+    let mut ledger_request = request.clone();
+    ledger_request.prior_window_ledgers = prior.window_ledgers.clone();
+    let Some(window_ledgers) = next_ledgers(
+        plan,
+        &ledger_request,
+        &state,
+        rows.len() as u64,
+        result_bytes.len() as u64,
+    ) else {
+        return Ok(None);
+    };
+    let new_root_ids = state
+        .roots
+        .iter()
+        .map(|root| application_id(&root.row))
+        .collect::<SnapbackResult<Vec<_>>>()?;
+    let new_root_keys = state
+        .roots
+        .iter()
+        .map(|root| root.root_key.clone())
+        .collect::<Vec<_>>();
+    let ops = graph_delta_ops(plan, &prior_state, &state, &matched)?;
+    let mut predecessor_proofs = prior.node_completeness.clone();
+    for proof in &mut predecessor_proofs {
+        proof.proof = merge_json(proof.proof.clone(), tuple_json(request));
+    }
+    let node_proof_updates = proofs
+        .iter()
+        .filter(|proof| {
+            predecessor_proofs
+                .iter()
+                .find(|prior| prior.node_id == proof.node_id)
+                != Some(*proof)
+        })
+        .cloned()
+        .collect();
+    let evaluation_cost = structural_work.evaluation_cost();
+    let output = GraphEvaluationOutputV1 {
+        kind: "result".to_owned(),
+        label,
+        result_bytes: Some(result_bytes),
+        ordered_root_ids: new_root_ids,
+        ordered_root_keys: new_root_keys,
+        result_length: rows.len() as u64,
+        node_completeness: proofs,
+        graph_completeness: GraphCompletenessV1 {
+            materialization_hash: request.materialization_hash.clone(),
+            partition_hash: request.partition_hash.clone(),
+            authorization_version: request.authorization_version.clone(),
+            evaluation_cut: request.evaluation_cut,
+            label,
+            proof_class,
+            proof: composition_proof,
+        },
+        refusal_reason: None,
+        structural_work,
+        window_ledgers,
+        captured_reads: prior.captured_reads.clone(),
+        capture_attachments: prior.capture_attachments.clone(),
+        captured_query_outputs: prior.captured_query_outputs.clone(),
+        retained_state: Some(RetainedEvaluationState(state)),
+    };
+    Ok(Some(GraphDeltaEvaluationV1 {
+        output,
+        ops,
+        node_proof_updates,
+        evaluation_cost,
+    }))
 }
 
 #[cfg(test)]
@@ -3046,5 +3907,34 @@ mod tests {
         assert_eq!(filters[1].value, ValueExpr::Arg("a2".to_owned()));
         assert_eq!(filters[2].op, FilterOp::In);
         assert_eq!(filters[2].value, ValueExpr::Literal(json!(["unchanged"])));
+    }
+
+    #[test]
+    fn retained_row_patch_diffs_evaluated_rows_including_system_fields() {
+        let previous = json!({
+            "_id":"row_physical",
+            "_version":7,
+            "_updatedAt":100,
+            "title":"before",
+            "open":false,
+            "removed":"old",
+        });
+        let current = json!({
+            "_id":"row_physical",
+            "_version":8,
+            "_updatedAt":101,
+            "title":"after",
+            "open":true,
+        });
+        assert_eq!(
+            retained_row_patch(&previous, &current).unwrap(),
+            json!({
+                "_version":8,
+                "_updatedAt":101,
+                "title":"after",
+                "open":true,
+                "removed":null,
+            })
+        );
     }
 }

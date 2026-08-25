@@ -5089,6 +5089,54 @@
       ],
       "type": "object"
     },
+    "EquivalentWorkInspect": {
+      "description": "Bounded, value-free mutation no-op counters (LLP 0267 §§7.5-7.7).",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "evictedKeys": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "keyCapacity": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "noopCommits": {
+          "items": {
+            "$ref": "#/$defs/NoopCommitFact"
+          },
+          "type": "array"
+        },
+        "otherKeys": {
+          "$ref": "#/$defs/EquivalentWorkOtherKeys"
+        }
+      },
+      "required": [
+        "enabled",
+        "keyCapacity",
+        "noopCommits",
+        "otherKeys",
+        "evictedKeys"
+      ],
+      "type": "object"
+    },
+    "EquivalentWorkOtherKeys": {
+      "properties": {
+        "noopCommits": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "noopCommits"
+      ],
+      "type": "object"
+    },
     "ExpoPushSeamFactsV1": {
       "additionalProperties": false,
       "description": "Machine-readable honesty and operating bounds for LLP 0143's local Expo\nprovider seam. These are target facts, not app-supplied declarations.",
@@ -5191,54 +5239,6 @@
         "pacingClass",
         "adaptivePacing",
         "neverClaims"
-      ],
-      "type": "object"
-    },
-    "EquivalentWorkInspect": {
-      "description": "Bounded, value-free mutation no-op counters (LLP 0267 §§7.5-7.7).",
-      "properties": {
-        "enabled": {
-          "type": "boolean"
-        },
-        "evictedKeys": {
-          "format": "uint64",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "keyCapacity": {
-          "format": "uint",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "noopCommits": {
-          "items": {
-            "$ref": "#/$defs/NoopCommitFact"
-          },
-          "type": "array"
-        },
-        "otherKeys": {
-          "$ref": "#/$defs/EquivalentWorkOtherKeys"
-        }
-      },
-      "required": [
-        "enabled",
-        "keyCapacity",
-        "noopCommits",
-        "otherKeys",
-        "evictedKeys"
-      ],
-      "type": "object"
-    },
-    "EquivalentWorkOtherKeys": {
-      "properties": {
-        "noopCommits": {
-          "format": "uint64",
-          "minimum": 0,
-          "type": "integer"
-        }
-      },
-      "required": [
-        "noopCommits"
       ],
       "type": "object"
     },
@@ -8978,6 +8978,42 @@
         },
         "evaluationsStarted": {
           "description": "Per-subscription scheduler turns, including matcher skips and memo hits.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "graphDeltaConvergenceChecks": {
+          "default": 0,
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "graphDeltaConvergenceFailures": {
+          "default": 0,
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "graphDeltaDeliveries": {
+          "default": 0,
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "graphDeltaEvaluationCost": {
+          "default": 0,
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "graphDeltaFrameBytes": {
+          "default": 0,
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "graphDeltaReplaceFallbacks": {
+          "default": 0,
           "format": "uint64",
           "minimum": 0,
           "type": "integer"

@@ -1,1 +1,1 @@
-export { issueListV2, issueDetail, listIssueByID } from './queries.mjs';
+export { issueListV2, issueDetail, issueSummary, listIssueByID } from './queries.mjs';

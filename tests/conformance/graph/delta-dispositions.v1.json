@@ -1,0 +1,459 @@
+{
+  "format": "snapback.graph-delta-dispositions.v1",
+  "version": 1,
+  "measurementScope": {
+    "fixture": "normal-seed-v1",
+    "graphs": 4,
+    "commitShapes": 17,
+    "determinismRuns": 2,
+    "evaluationCostUnit": "examined index entries + relationship point lookups",
+    "caveat": "N=1 deterministic normal-fixture evidence for the scalar-only issueSummary admitted shape; the original three array-bearing graphs remain all-replace and no hot-arm throughput claim is made"
+  },
+  "dispositions": [
+    {
+      "id": "issue-list-child-update",
+      "query": "issueListV2",
+      "shape": "equality-to-one-child-with-sibling-array",
+      "eligibility": "ineligible",
+      "lane": "replace",
+      "matchedNodeIds": [
+        "n1"
+      ],
+      "frameBytes": 436282,
+      "evaluationCost": 4391,
+      "deltaFrameBytes": null,
+      "deltaEvaluationCost": null,
+      "deltaOps": null,
+      "replaceFrameBytes": 436282,
+      "replaceEvaluationCost": 4391,
+      "convergenceChecked": false,
+      "convergenceMatched": false,
+      "oracleChecked": true,
+      "oracleMatched": true
+    },
+    {
+      "id": "issue-list-to-many-update",
+      "query": "issueListV2",
+      "shape": "to-many-child-update",
+      "eligibility": "ineligible",
+      "lane": "replace",
+      "matchedNodeIds": [
+        "n2",
+        "n4"
+      ],
+      "frameBytes": 436274,
+      "evaluationCost": 4391,
+      "deltaFrameBytes": null,
+      "deltaEvaluationCost": null,
+      "deltaOps": null,
+      "replaceFrameBytes": 436274,
+      "replaceEvaluationCost": 4391,
+      "convergenceChecked": false,
+      "convergenceMatched": false,
+      "oracleChecked": true,
+      "oracleMatched": true
+    },
+    {
+      "id": "issue-detail-root-update",
+      "query": "issueDetail",
+      "shape": "root-update-with-sibling-array",
+      "eligibility": "ineligible",
+      "lane": "replace",
+      "matchedNodeIds": [
+        "n0"
+      ],
+      "frameBytes": 20390,
+      "evaluationCost": 41,
+      "deltaFrameBytes": null,
+      "deltaEvaluationCost": null,
+      "deltaOps": null,
+      "replaceFrameBytes": 20390,
+      "replaceEvaluationCost": 41,
+      "convergenceChecked": false,
+      "convergenceMatched": false,
+      "oracleChecked": true,
+      "oracleMatched": true
+    },
+    {
+      "id": "issue-detail-to-many-update",
+      "query": "issueDetail",
+      "shape": "to-many-child-update",
+      "eligibility": "ineligible",
+      "lane": "replace",
+      "matchedNodeIds": [
+        "n2"
+      ],
+      "frameBytes": 20212,
+      "evaluationCost": 41,
+      "deltaFrameBytes": null,
+      "deltaEvaluationCost": null,
+      "deltaOps": null,
+      "replaceFrameBytes": 20212,
+      "replaceEvaluationCost": 41,
+      "convergenceChecked": false,
+      "convergenceMatched": false,
+      "oracleChecked": true,
+      "oracleMatched": true
+    },
+    {
+      "id": "list-by-id-child-update",
+      "query": "listIssueByID",
+      "shape": "equality-to-one-child-with-sibling-array",
+      "eligibility": "ineligible",
+      "lane": "replace",
+      "matchedNodeIds": [
+        "n1"
+      ],
+      "frameBytes": 6613,
+      "evaluationCost": 13,
+      "deltaFrameBytes": null,
+      "deltaEvaluationCost": null,
+      "deltaOps": null,
+      "replaceFrameBytes": 6613,
+      "replaceEvaluationCost": 13,
+      "convergenceChecked": false,
+      "convergenceMatched": false,
+      "oracleChecked": true,
+      "oracleMatched": true
+    },
+    {
+      "id": "list-by-id-to-many-update",
+      "query": "listIssueByID",
+      "shape": "to-many-child-update",
+      "eligibility": "ineligible",
+      "lane": "replace",
+      "matchedNodeIds": [
+        "n2",
+        "n4"
+      ],
+      "frameBytes": 6595,
+      "evaluationCost": 13,
+      "deltaFrameBytes": null,
+      "deltaEvaluationCost": null,
+      "deltaOps": null,
+      "replaceFrameBytes": 6595,
+      "replaceEvaluationCost": 13,
+      "convergenceChecked": false,
+      "convergenceMatched": false,
+      "oracleChecked": true,
+      "oracleMatched": true
+    },
+    {
+      "id": "issue-detail-sibling-array-corruption",
+      "query": "issueDetail",
+      "shape": "equality-child-below-to-many-sibling-array-corruption",
+      "eligibility": "ineligible",
+      "lane": "replace",
+      "matchedNodeIds": [
+        "n5"
+      ],
+      "frameBytes": 20390,
+      "evaluationCost": 41,
+      "deltaFrameBytes": null,
+      "deltaEvaluationCost": null,
+      "deltaOps": null,
+      "replaceFrameBytes": 20390,
+      "replaceEvaluationCost": 41,
+      "convergenceChecked": false,
+      "convergenceMatched": false,
+      "oracleChecked": true,
+      "oracleMatched": true
+    },
+    {
+      "id": "issue-list-in-window-reorder",
+      "query": "issueListV2",
+      "shape": "root-window-in-window-reorder",
+      "eligibility": "ineligible",
+      "lane": "replace",
+      "matchedNodeIds": [
+        "n0"
+      ],
+      "frameBytes": 436282,
+      "evaluationCost": 4391,
+      "deltaFrameBytes": null,
+      "deltaEvaluationCost": null,
+      "deltaOps": null,
+      "replaceFrameBytes": 436282,
+      "replaceEvaluationCost": 4391,
+      "convergenceChecked": false,
+      "convergenceMatched": false,
+      "oracleChecked": true,
+      "oracleMatched": true
+    },
+    {
+      "id": "issue-list-membership-add",
+      "query": "issueListV2",
+      "shape": "root-window-membership-add",
+      "eligibility": "ineligible",
+      "lane": "replace",
+      "matchedNodeIds": [
+        "n0"
+      ],
+      "frameBytes": 436282,
+      "evaluationCost": 4391,
+      "deltaFrameBytes": null,
+      "deltaEvaluationCost": null,
+      "deltaOps": null,
+      "replaceFrameBytes": 436282,
+      "replaceEvaluationCost": 4391,
+      "convergenceChecked": false,
+      "convergenceMatched": false,
+      "oracleChecked": true,
+      "oracleMatched": true
+    },
+    {
+      "id": "issue-detail-creator-user-change",
+      "query": "issueDetail",
+      "shape": "equality-to-one-creator-with-sibling-arrays",
+      "eligibility": "ineligible",
+      "lane": "replace",
+      "matchedNodeIds": [
+        "n3"
+      ],
+      "frameBytes": 20391,
+      "evaluationCost": 41,
+      "deltaFrameBytes": null,
+      "deltaEvaluationCost": null,
+      "deltaOps": null,
+      "replaceFrameBytes": 20391,
+      "replaceEvaluationCost": 41,
+      "convergenceChecked": false,
+      "convergenceMatched": false,
+      "oracleChecked": true,
+      "oracleMatched": true
+    },
+    {
+      "id": "list-by-id-two-field-coalesced-patch",
+      "query": "listIssueByID",
+      "shape": "equality-to-one-two-field-coalesced-patch-with-sibling-array",
+      "eligibility": "ineligible",
+      "lane": "replace",
+      "matchedNodeIds": [
+        "n1"
+      ],
+      "frameBytes": 6592,
+      "evaluationCost": 13,
+      "deltaFrameBytes": null,
+      "deltaEvaluationCost": null,
+      "deltaOps": null,
+      "replaceFrameBytes": 6592,
+      "replaceEvaluationCost": 13,
+      "convergenceChecked": false,
+      "convergenceMatched": false,
+      "oracleChecked": true,
+      "oracleMatched": true
+    },
+    {
+      "id": "issue-summary-root-scalar-update",
+      "query": "issueSummary",
+      "shape": "root-row-scalar-update-position-unchanged",
+      "eligibility": "eligible",
+      "lane": "delta",
+      "matchedNodeIds": [
+        "n0"
+      ],
+      "frameBytes": 32604,
+      "evaluationCost": 517,
+      "deltaFrameBytes": 32604,
+      "deltaEvaluationCost": 517,
+      "deltaOps": [
+        {
+          "op": "update",
+          "nodeId": "n0",
+          "rootKey": {
+            "table": "issue",
+            "id": "issue_ded0c2976675c34f4756035d"
+          },
+          "key": {
+            "table": "issue",
+            "id": "issue_ded0c2976675c34f4756035d"
+          },
+          "position": 0,
+          "row": {
+            "title": "G3 issueSummary retained root scalar update"
+          }
+        }
+      ],
+      "replaceFrameBytes": 168143,
+      "replaceEvaluationCost": 3103,
+      "convergenceChecked": true,
+      "convergenceMatched": true,
+      "oracleChecked": true,
+      "oracleMatched": true
+    },
+    {
+      "id": "issue-summary-assignee-user-rename",
+      "query": "issueSummary",
+      "shape": "equality-to-one-assignee-scalar-update",
+      "eligibility": "eligible",
+      "lane": "delta",
+      "matchedNodeIds": [
+        "n1",
+        "n2"
+      ],
+      "frameBytes": 32825,
+      "evaluationCost": 4,
+      "deltaFrameBytes": 32825,
+      "deltaEvaluationCost": 4,
+      "deltaOps": [
+        {
+          "op": "update",
+          "nodeId": "n1",
+          "rootKey": {
+            "table": "issue",
+            "id": "issue_ded0c2976675c34f4756035d"
+          },
+          "key": {
+            "table": "user",
+            "id": "user_47a7fdef09689e6736359a9c"
+          },
+          "position": 0,
+          "row": {
+            "login": "g3-assignee-rename"
+          }
+        },
+        {
+          "op": "update",
+          "nodeId": "n2",
+          "rootKey": {
+            "table": "issue",
+            "id": "issue_97c16190c2c2ed0cb533c78c"
+          },
+          "key": {
+            "table": "user",
+            "id": "user_47a7fdef09689e6736359a9c"
+          },
+          "position": 246,
+          "row": {
+            "login": "g3-assignee-rename"
+          }
+        }
+      ],
+      "replaceFrameBytes": 168148,
+      "replaceEvaluationCost": 3103,
+      "convergenceChecked": true,
+      "convergenceMatched": true,
+      "oracleChecked": true,
+      "oracleMatched": true
+    },
+    {
+      "id": "issue-summary-two-field-coalesced-patch",
+      "query": "issueSummary",
+      "shape": "root-row-two-field-coalesced-patch",
+      "eligibility": "eligible",
+      "lane": "delta",
+      "matchedNodeIds": [
+        "n0"
+      ],
+      "frameBytes": 32605,
+      "evaluationCost": 517,
+      "deltaFrameBytes": 32605,
+      "deltaEvaluationCost": 517,
+      "deltaOps": [
+        {
+          "op": "update",
+          "nodeId": "n0",
+          "rootKey": {
+            "table": "issue",
+            "id": "issue_ded0c2976675c34f4756035d"
+          },
+          "key": {
+            "table": "issue",
+            "id": "issue_ded0c2976675c34f4756035d"
+          },
+          "position": 0,
+          "row": {
+            "open": false,
+            "title": "G3 issueSummary coalesced title"
+          }
+        }
+      ],
+      "replaceFrameBytes": 168132,
+      "replaceEvaluationCost": 3103,
+      "convergenceChecked": true,
+      "convergenceMatched": true,
+      "oracleChecked": true,
+      "oracleMatched": true
+    },
+    {
+      "id": "issue-summary-order-key-move",
+      "query": "issueSummary",
+      "shape": "root-window-order-key-move",
+      "eligibility": "ineligible",
+      "lane": "replace",
+      "matchedNodeIds": [
+        "n0"
+      ],
+      "frameBytes": 168122,
+      "evaluationCost": 3103,
+      "deltaFrameBytes": null,
+      "deltaEvaluationCost": null,
+      "deltaOps": null,
+      "replaceFrameBytes": 168122,
+      "replaceEvaluationCost": 3103,
+      "convergenceChecked": false,
+      "convergenceMatched": false,
+      "oracleChecked": true,
+      "oracleMatched": true
+    },
+    {
+      "id": "issue-summary-assignee-repoint",
+      "query": "issueSummary",
+      "shape": "equality-to-one-assignee-repoint",
+      "eligibility": "ineligible",
+      "lane": "replace",
+      "matchedNodeIds": [
+        "n0"
+      ],
+      "frameBytes": 168132,
+      "evaluationCost": 3103,
+      "deltaFrameBytes": null,
+      "deltaEvaluationCost": null,
+      "deltaOps": null,
+      "replaceFrameBytes": 168132,
+      "replaceEvaluationCost": 3103,
+      "convergenceChecked": false,
+      "convergenceMatched": false,
+      "oracleChecked": true,
+      "oracleMatched": true
+    },
+    {
+      "id": "issue-summary-take-window-change",
+      "query": "issueSummary",
+      "shape": "root-window-take-change",
+      "eligibility": "ineligible",
+      "lane": "replace",
+      "matchedNodeIds": [],
+      "frameBytes": 483,
+      "evaluationCost": 8,
+      "deltaFrameBytes": null,
+      "deltaEvaluationCost": null,
+      "deltaOps": null,
+      "replaceFrameBytes": 483,
+      "replaceEvaluationCost": 8,
+      "convergenceChecked": false,
+      "convergenceMatched": false,
+      "oracleChecked": true,
+      "oracleMatched": true,
+      "dispositionBasis": "take/window change creates a new graph instance; explicit supersession returns a replacement snapshot",
+      "windowTake": {
+        "before": 1024,
+        "after": 1
+      }
+    }
+  ],
+  "corpusSideD2H3": {
+    "eligibleDeliveries": 3,
+    "deltaFrameBytes": 98034,
+    "replaceFrameBytes": 504423,
+    "frameBytesSaved": 406389,
+    "deltaEvaluationCost": 1038,
+    "replaceEvaluationCost": 9309,
+    "evaluationCostSaved": 8271
+  },
+  "convergence": {
+    "shadowCheckedDeliveries": 3,
+    "failures": 0
+  },
+  "contentDigest": "sha256:61783b12fa6a24ce915e1c6a24c549cfef9923b30768becadac99e5b228f98b8"
+}

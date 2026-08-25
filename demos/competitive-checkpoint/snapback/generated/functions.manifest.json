@@ -7,7 +7,7 @@
   "artifactKind": "functionManifest",
   "authoredSourceHash": "sha256:ae022cf5e372070874f099d4915753b843d02914541ddafdfa4226c1c4bb9430",
   "authoringProfile": "snapback-explicit-v1",
-  "bundleHash": "sha256:eaa7efb443a3a912",
+  "bundleHash": "sha256:08bdcf0ca309b4aa",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -2855,7 +2855,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "00ddb797476d0062280afa349549bf8528a8e06a09a5a65f3a8608658fb92b04",
+  "inputsHash": "46db7b8c7ce1aa07ebffb9daa44448fde2700658fb17c600f399053242551135",
   "projections": [
     {
       "fanOutLimit": 64,

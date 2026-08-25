@@ -1076,6 +1076,34 @@ fn graph_serving_sessions_fixture() -> LocalSnapback {
     let dev = graph_serving_fixture();
     let mut schema = dev.db.schema().clone();
     let mut functions = dev.functions.clone();
+    let graph = functions
+        .functions
+        .iter_mut()
+        .find(|function| function.name == "graphIssues")
+        .expect("sessions graph function");
+    let plan = graph_plan_mut(graph);
+    let root_cost = plan
+        .query_cost
+        .graph
+        .nodes
+        .iter_mut()
+        .find(|cost| cost.node_id == "n0")
+        .expect("sessions graph root cost");
+    // The scheduler case exercises establishment plus authority restoration,
+    // not the cumulative-window refusal owned by the served G3 regression.
+    root_cost.max_window_pages = Some(4);
+    root_cost.max_window_root_rows = Some(8);
+    root_cost.max_window_scanned_rows = Some(12);
+    root_cost.max_window_result_rows = Some(8);
+    root_cost.max_window_result_bytes = Some(400);
+    root_cost.max_window_index_ranges = Some(4);
+    plan.query_cost.graph.window_rollup.max_window_pages = 4;
+    plan.query_cost.graph.window_rollup.max_window_root_rows = 8;
+    plan.query_cost.graph.window_rollup.max_window_scanned_rows = 12;
+    plan.query_cost.graph.window_rollup.max_window_result_rows = 8;
+    plan.query_cost.graph.window_rollup.max_window_result_bytes = 400;
+    plan.query_cost.graph.window_rollup.max_window_index_ranges = 4;
+    refresh_graph_plan_identity(graph);
     let (identity_schema, identity_functions) = auth_artifact_pair(AuthMode::Sessions, 'c');
     schema.schema_version = identity_schema.schema_version;
     schema.auth = identity_schema.auth;

@@ -196,6 +196,82 @@ export const issueDetail = graph.defineGraphQuery({
   broadcast: { classification: 'query-shaped' },
 });
 
+// The narrowest LLP 0209 §7 admitted delta shape. Unlike the three control-
+// oracle graphs, this corpus-only declaration deliberately contains no array,
+// to-many, semi-join, principal-bound, or through node. Its serving oracle is
+// the evaluator; the freezer independently recomputes the same scalar rows
+// from fixture tables without adding a control handler.
+export const issueSummary = graph.defineGraphQuery({
+  nodes: [
+    {
+      nodeId: 'summaryRoot', kind: 'root-window', edgeName: '$root', authorityClass: 2,
+      table: issue,
+      filters: [{ field: 'projectID', op: 'Eq', value: graph.arg('projectID') }],
+      accessIndex: 'by_project_modified',
+      order: [graph.desc('modified'), graph.desc('id')],
+    },
+    {
+      nodeId: 'summaryProject', kind: 'equality-to-one', edgeName: 'project',
+      authorityClass: 2, parentNodeId: 'summaryRoot', table: project,
+      joinOn: [{ rootField: 'projectID', joinedField: '_id' }],
+      accessIndex: 'by_id', presence: 'required',
+    },
+    {
+      nodeId: 'summaryAssignee', kind: 'equality-to-one', edgeName: 'assignee',
+      authorityClass: 2, parentNodeId: 'summaryRoot', table: user,
+      joinOn: [{ rootField: 'assigneeID', joinedField: '_id' }],
+      accessIndex: 'by_id', presence: 'optional',
+    },
+    {
+      nodeId: 'summaryCreator', kind: 'equality-to-one', edgeName: 'creator',
+      authorityClass: 2, parentNodeId: 'summaryRoot', table: user,
+      joinOn: [{ rootField: 'creatorID', joinedField: '_id' }],
+      accessIndex: 'by_id', presence: 'required',
+    },
+  ],
+  projection: {
+    nodeId: 'summaryResult', edgeName: '$result', authorityClass: 2,
+    object: { scopeNodeId: 'summaryRoot', fields: [
+      { name: 'issueId', value: { kind: 'field', nodeId: 'summaryRoot', field: 'id' } },
+      { name: 'issueShortID', value: { kind: 'field', nodeId: 'summaryRoot', field: 'shortID' } },
+      { name: 'issueTitle', value: { kind: 'field', nodeId: 'summaryRoot', field: 'title' } },
+      { name: 'issueOpen', value: { kind: 'field', nodeId: 'summaryRoot', field: 'open' } },
+      { name: 'issueModified', value: { kind: 'field', nodeId: 'summaryRoot', field: 'modified' } },
+      { name: 'issueCreated', value: { kind: 'field', nodeId: 'summaryRoot', field: 'created' } },
+      { name: 'project', value: { kind: 'object', nodeId: 'summaryProject', object: { scopeNodeId: 'summaryRoot', fields: [
+        { name: 'id', value: { kind: 'field', nodeId: 'summaryProject', field: 'id' } },
+        { name: 'name', value: { kind: 'field', nodeId: 'summaryProject', field: 'name' } },
+      ] } } },
+      { name: 'assignee', value: { kind: 'object', nodeId: 'summaryAssignee', object: { scopeNodeId: 'summaryRoot', fields: [
+        { name: 'id', value: { kind: 'field', nodeId: 'summaryAssignee', field: 'id' } },
+        { name: 'login', value: { kind: 'field', nodeId: 'summaryAssignee', field: 'login' } },
+      ] } } },
+      { name: 'creator', value: { kind: 'object', nodeId: 'summaryCreator', object: { scopeNodeId: 'summaryRoot', fields: [
+        { name: 'id', value: { kind: 'field', nodeId: 'summaryCreator', field: 'id' } },
+        { name: 'login', value: { kind: 'field', nodeId: 'summaryCreator', field: 'login' } },
+      ] } } },
+    ] },
+  },
+  args: { projectID: graph.v.string({ maxBytes: 128 }) },
+  bounds: {
+    maxScannedRows: 4_097, maxIndexRanges: 3_073, maxResultRows: 1_024,
+    maxResultBytes: 8_388_608, maxEvaluationTurnMs: 1_000, maxObservers: 1_024,
+    maxDistinctEvaluationGroups: 1_024, maxEstimatedLiveFanoutMs: 5_000,
+  },
+  queryCost: { graph: {
+    nodes: [
+      { nodeId: 'summaryRoot', maxRootRowsPerPage: 1_024, maxExaminedEntriesPerExecution: 1_025, maxWindowPages: 2, maxWindowRootRows: 2_048, maxWindowScannedRows: 8_194, maxWindowResultRows: 2_048, maxWindowResultBytes: 16_777_216, maxWindowIndexRanges: 6_146 },
+      { nodeId: 'summaryProject', maxExaminedEntriesPerExecution: 1_024, maxRelationshipLookupsPerExecution: 1_024 },
+      { nodeId: 'summaryAssignee', maxExaminedEntriesPerExecution: 1_024, maxRelationshipLookupsPerExecution: 1_024 },
+      { nodeId: 'summaryCreator', maxExaminedEntriesPerExecution: 1_024, maxRelationshipLookupsPerExecution: 1_024 },
+    ],
+    arguments: [], maxArgumentItems: 1, maxPageResultBytes: 8_388_608,
+    windowRollup: { maxWindowPages: 2, maxWindowRootRows: 2_048, maxWindowScannedRows: 8_194, maxWindowResultRows: 2_048, maxWindowResultBytes: 16_777_216, maxWindowIndexRanges: 6_146 },
+    maxMaintainedWritesPerMutation: 0,
+  } },
+  broadcast: { classification: 'query-shaped' },
+});
+
 export const listIssueByID = graph.defineGraphQuery({
   nodes: [
     { nodeId: 'pointRoot', kind: 'root-window', edgeName: '$root', authorityClass: 2, table: issueListRead, filters: [{ field: 'sourceIssueID', op: 'Eq', value: graph.arg('sourceIssueID') }], accessIndex: 'by_source_issue_id', order: [graph.asc('sourceIssueID')] },

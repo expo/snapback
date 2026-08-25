@@ -4188,6 +4188,42 @@
           "minimum": 0,
           "type": "integer"
         },
+        "graphDeltaConvergenceChecks": {
+          "default": 0,
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "graphDeltaConvergenceFailures": {
+          "default": 0,
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "graphDeltaDeliveries": {
+          "default": 0,
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "graphDeltaEvaluationCost": {
+          "default": 0,
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "graphDeltaFrameBytes": {
+          "default": 0,
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "graphDeltaReplaceFallbacks": {
+          "default": 0,
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
         "lastTurnDurationMs": {
           "format": "double",
           "type": "number"

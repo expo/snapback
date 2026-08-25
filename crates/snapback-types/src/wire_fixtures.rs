@@ -112,6 +112,7 @@ fn delta_envelope() -> LiveEnvelope {
                 row: None,
             },
         ],
+        graph: None,
         resume: None,
     }
 }

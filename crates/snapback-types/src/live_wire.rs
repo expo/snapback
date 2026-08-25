@@ -33,7 +33,7 @@ use crate::diagnostic::Diagnostic;
 use crate::ephemeral::{
     DeleteRequest, EphemeralMessage, PublishRequest, RealtimeEnvelope, SubscribeRequest,
 };
-use crate::manifest::SettlementLane;
+use crate::manifest::{GraphRowKeyV1, SettlementLane};
 
 /// A durable-lane fan-out envelope: what a live-query subscriber receives,
 /// unwrapped, on the WebSocket (and wrapped in [`RealtimeEnvelope::Durable`]
@@ -82,6 +82,13 @@ pub enum LiveEnvelope {
         #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
         version: u64,
         ops: Vec<LiveDeltaWireOp>,
+        /// Optional node-scoped graph delta. Graph subscriptions negotiate
+        /// this additive extension in their graph demand; subscriptions that
+        /// do not opt in remain on `live_replace`.
+        ///
+        /// @ref LLP 0209#7-rung-4--incremental-maintenance-for-admitted-shapes-extending-dk-3 — graph IVM extends DK-3 without changing the legacy row-op contract.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        graph: Option<LiveGraphDeltaWireV1>,
         /// Refreshed resume token for `rqsEligible` subscriptions — an
         /// ignorable optional addition (old decoders drop it; LLP 0091 §0B.2).
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -296,6 +303,63 @@ pub struct MembershipWitnessEntry {
 pub struct LiveDeltaWireOp {
     pub op: LiveDeltaOpKind,
     pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub row: Option<Value>,
+}
+
+/// The rung-1 graph extension carried inside a `live_delta` envelope.
+///
+/// `ops` patch fields projected from retained graph rows while retaining the
+/// normalized node that proved each patch. Completeness records and the result digest
+/// describe the post-apply result at the envelope's exact evaluation tuple.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct LiveGraphDeltaWireV1 {
+    pub format: String,
+    pub ops: Vec<LiveGraphDeltaWireOpV1>,
+    /// Physical root-row identities in post-apply window order. Rung 1 never
+    /// uses an application/source id as retained or wire key material.
+    pub ordered_root_keys: Vec<GraphRowKeyV1>,
+    /// The identity tuple advances every retained node proof without
+    /// retransmitting its potentially large parent/range evidence. Entries in
+    /// `node_completeness` replace only proofs whose non-tuple body changed.
+    pub proof_tuple: LiveGraphDeltaProofTupleV1,
+    pub node_completeness: Vec<Value>,
+    pub graph_completeness: Value,
+    #[schemars(pattern(r"^sha256:[0-9a-f]{64}$"))]
+    pub result_digest: String,
+}
+
+/// The LLP 0209 identity carried by every graph completeness claim. The
+/// authorization version stays JSON-shaped here because the wire crate does
+/// not own the graph evaluator's closed authority-version type.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct LiveGraphDeltaProofTupleV1 {
+    #[schemars(pattern(r"^sha256:[0-9a-f]{64}$"))]
+    pub materialization_hash: String,
+    #[schemars(pattern(r"^sha256:[0-9a-f]{64}$"))]
+    pub partition_hash: String,
+    pub authorization_version: Value,
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
+    pub evaluation_cut: u64,
+}
+
+/// One node-scoped retained-row update. Rung 1 emits only `update`; the shared
+/// op enum's add/remove variants are rejected by the graph client-view oracle.
+/// `row` is the full old-versus-new field diff, including system fields, and
+/// `position` is the proven unchanged root-window position.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct LiveGraphDeltaWireOpV1 {
+    pub op: LiveDeltaOpKind,
+    pub node_id: String,
+    /// Physical root row containing the changed node row.
+    pub root_key: GraphRowKeyV1,
+    /// Physical identity of the changed node row.
+    pub key: GraphRowKeyV1,
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
+    pub position: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub row: Option<Value>,
 }
@@ -878,6 +942,7 @@ mod tests {
                     row: None,
                 },
             ],
+            graph: None,
             resume: None,
         };
         assert_eq!(

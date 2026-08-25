@@ -46,7 +46,7 @@
         "total",
         "user"
       ],
-      "largeCsvAvailable": false
+      "largeCsvAvailable": true
     }
   },
   "oracleMeasurements": {
@@ -63,6 +63,13 @@
       "mappedResultDigest": "sha256:3c9376a566186db13c096228213bf38cf41634c68b0b8f500547078b8b14637a",
       "rawOracleEnvelopeBytes": 26549,
       "oracleDigest": "sha256:7bb0b07afc67af3b26612714f3a60a7127129efc58941a242331c643f81671ee"
+    },
+    "issueSummary": {
+      "normalResultBytes": 168014,
+      "maxBytes": 168014,
+      "mappedResultDigest": "sha256:c040bf8e07ab4092031cf296304eadcf5e9131c483585e11d021371872042a05",
+      "rawOracleEnvelopeBytes": 168288,
+      "oracleDigest": "sha256:c0e40e594ac009b4fd0ee64f1dde216ab5ff8627f2a0f67f358b38e0445ae6cb"
     },
     "listIssueByID": {
       "normalResultBytes": 6479,
@@ -608,7 +615,7 @@
         },
         "maxArgumentItems": {
           "value": 1,
-          "derivation": "one bounded scalar source issue id"
+          "derivation": "one bounded scalar argument × H=1"
         },
         "maxPageResultBytes": {
           "value": 8388608,
@@ -1214,6 +1221,425 @@
         }
       }
     },
+    "issueSummary": {
+      "declarationPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+      "logical": {
+        "maxResultRows": {
+          "value": 1024,
+          "derivation": "normal crew-visible filtered page maximum 517 and manifest-defined hot W 1,000; H=1.024 over hot => portable page boundary 1,024",
+          "provisional": true,
+          "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v11 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-hot.mjs"
+        },
+        "maxResultBytes": {
+          "value": 8388608,
+          "derivation": "normal serialized mapped-result maximum 168014 bytes × H=8388608/168014 => 8388608; large/hot result-byte maxima await zb5",
+          "provisional": true,
+          "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+        },
+        "maxArgumentItems": {
+          "value": 1,
+          "derivation": "one bounded scalar argument × H=1"
+        },
+        "maxPageResultBytes": {
+          "value": 8388608,
+          "derivation": "same provisional per-result byte ceiling; one root page is one result frame",
+          "provisional": true,
+          "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+        },
+        "maxMaintainedWritesPerMutation": {
+          "value": 0,
+          "derivation": "G0 declares no graph maintenance or write path"
+        }
+      },
+      "physical": {
+        "observationPosture": "normal fixture measured through admitted serving; large/hot ceilings remain provisional",
+        "maxScannedRows": {
+          "value": 4097,
+          "derivation": "Σ analytical node examined-entry formulas = 4097; normal served observation validates the ceiling; large/hot inputs remain provisional",
+          "provisional": true,
+          "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+        },
+        "maxIndexRanges": {
+          "value": 3073,
+          "derivation": "Σ analytical access-path consultations = 3073; normal served observation validates the ceiling; large/hot inputs remain provisional",
+          "provisional": true,
+          "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+        },
+        "nodeLedger": [
+          {
+            "maxExaminedEntriesPerExecution": 1025,
+            "maxRootRowsPerPage": 1024,
+            "maxWindowIndexRanges": 6146,
+            "maxWindowPages": 2,
+            "maxWindowResultBytes": 16777216,
+            "maxWindowResultRows": 2048,
+            "maxWindowRootRows": 2048,
+            "maxWindowScannedRows": 8194,
+            "nodeId": "n0",
+            "derivation": "P(node) × kind formula; bounded-to-many charges cap+1, to-one charges P, principal-bound charges P×2 when binding is present",
+            "provisional": true,
+            "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+          },
+          {
+            "maxExaminedEntriesPerExecution": 1024,
+            "maxRelationshipLookupsPerExecution": 1024,
+            "nodeId": "n1",
+            "derivation": "P(node) × kind formula; bounded-to-many charges cap+1, to-one charges P, principal-bound charges P×2 when binding is present",
+            "provisional": true,
+            "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+          },
+          {
+            "maxExaminedEntriesPerExecution": 1024,
+            "maxRelationshipLookupsPerExecution": 1024,
+            "nodeId": "n2",
+            "derivation": "P(node) × kind formula; bounded-to-many charges cap+1, to-one charges P, principal-bound charges P×2 when binding is present",
+            "provisional": true,
+            "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+          },
+          {
+            "maxExaminedEntriesPerExecution": 1024,
+            "maxRelationshipLookupsPerExecution": 1024,
+            "nodeId": "n3",
+            "derivation": "P(node) × kind formula; bounded-to-many charges cap+1, to-one charges P, principal-bound charges P×2 when binding is present",
+            "provisional": true,
+            "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+          }
+        ],
+        "windowRollup": {
+          "maxWindowIndexRanges": 6146,
+          "maxWindowPages": 2,
+          "maxWindowResultBytes": 16777216,
+          "maxWindowResultRows": 2048,
+          "maxWindowRootRows": 2048,
+          "maxWindowScannedRows": 8194,
+          "derivation": "sum of each demand-paged node lineage; list filtered-interval and whole-result byte inputs remain provisional",
+          "provisional": true,
+          "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+        },
+        "servedNormalMeasurement": {
+          "format": "snapback.graph-bound-observation.g2-c.v1",
+          "source": "tests/conformance/graph/served-observations.g2-c.v1.json",
+          "fixture": "normal-seed-v1",
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "queryCost": {
+            "maxScannedRows": {
+              "declared": 4097,
+              "observed": 1552,
+              "disposition": "fit"
+            },
+            "maxIndexRanges": {
+              "declared": 3073,
+              "observed": 1036,
+              "disposition": "fit"
+            }
+          },
+          "nodes": [
+            {
+              "nodeId": "n0",
+              "maxExaminedEntriesPerExecution": {
+                "declared": 1025,
+                "observed": 517,
+                "disposition": "fit"
+              },
+              "maxWindowScannedRows": {
+                "declared": 8194,
+                "observed": 1552,
+                "disposition": "fit"
+              },
+              "maxWindowIndexRanges": {
+                "declared": 6146,
+                "observed": 1036,
+                "disposition": "fit"
+              }
+            },
+            {
+              "nodeId": "n1",
+              "maxExaminedEntriesPerExecution": {
+                "declared": 1024,
+                "observed": 1,
+                "disposition": "fit"
+              },
+              "maxRelationshipLookupsPerExecution": {
+                "declared": 1024,
+                "observed": 517,
+                "disposition": "fit"
+              }
+            },
+            {
+              "nodeId": "n2",
+              "maxExaminedEntriesPerExecution": {
+                "declared": 1024,
+                "observed": 517,
+                "disposition": "fit"
+              },
+              "maxRelationshipLookupsPerExecution": {
+                "declared": 1024,
+                "observed": 517,
+                "disposition": "fit"
+              }
+            },
+            {
+              "nodeId": "n3",
+              "maxExaminedEntriesPerExecution": {
+                "declared": 1024,
+                "observed": 517,
+                "disposition": "fit"
+              },
+              "maxRelationshipLookupsPerExecution": {
+                "declared": 1024,
+                "observed": 517,
+                "disposition": "fit"
+              }
+            }
+          ],
+          "windowRollup": {
+            "maxWindowPages": {
+              "declared": 2,
+              "observed": 1,
+              "disposition": "fit"
+            },
+            "maxWindowRootRows": {
+              "declared": 2048,
+              "observed": 517,
+              "disposition": "fit"
+            },
+            "maxWindowScannedRows": {
+              "declared": 8194,
+              "observed": 1552,
+              "disposition": "fit"
+            },
+            "maxWindowResultRows": {
+              "declared": 2048,
+              "observed": 517,
+              "disposition": "fit"
+            },
+            "maxWindowResultBytes": {
+              "declared": 16777216,
+              "observed": 168014,
+              "disposition": "fit"
+            },
+            "maxWindowIndexRanges": {
+              "declared": 6146,
+              "observed": 1036,
+              "disposition": "fit"
+            }
+          }
+        }
+      },
+      "derivationTable": {
+        "queryCost": {
+          "maxScannedRows": {
+            "value": 4097,
+            "derivation": "checked sum of every node maxExaminedEntriesPerExecution [G2 measures]",
+            "provisional": true,
+            "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+          },
+          "maxIndexRanges": {
+            "value": 3073,
+            "derivation": "checked sum of every point/range/principal consultation [G2 measures]",
+            "provisional": true,
+            "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+          },
+          "maxResultRows": {
+            "value": 1024,
+            "derivation": "one declared page at the 1,024 hot-root boundary",
+            "provisional": true,
+            "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v11 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-hot.mjs"
+          },
+          "maxResultBytes": {
+            "value": 8388608,
+            "derivation": "normal mapped-result maximum 168014 bytes × exact rational H=8388608/168014",
+            "provisional": true,
+            "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+          },
+          "maxEvaluationTurnMs": {
+            "value": 1000,
+            "derivation": "conservative G0 operational guardrail maxEvaluationTurnMs=1000; large/hot maximum and graph-executor observation are unavailable",
+            "provisional": true,
+            "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+          },
+          "maxObservers": {
+            "value": 1024,
+            "derivation": "conservative G0 operational guardrail maxObservers=1024; large/hot maximum and graph-executor observation are unavailable",
+            "provisional": true,
+            "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+          },
+          "maxDistinctEvaluationGroups": {
+            "value": 1024,
+            "derivation": "conservative G0 operational guardrail maxDistinctEvaluationGroups=1024; large/hot maximum and graph-executor observation are unavailable",
+            "provisional": true,
+            "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+          },
+          "maxEstimatedLiveFanoutMs": {
+            "value": 5000,
+            "derivation": "conservative G0 operational guardrail maxEstimatedLiveFanoutMs=5000; large/hot maximum and graph-executor observation are unavailable",
+            "provisional": true,
+            "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+          }
+        },
+        "graph": {
+          "nodes": [
+            {
+              "nodeId": "n0",
+              "fields": {
+                "maxExaminedEntriesPerExecution": {
+                  "value": 1025,
+                  "derivation": "analytical [G2 measures]: P(node) × node-kind entries formula, including cap+1 for bounded ranges",
+                  "provisional": true,
+                  "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+                },
+                "maxRootRowsPerPage": {
+                  "value": 1024,
+                  "derivation": "hot-recent-v1 defines W as 1,000 filtered roots; retain the portable 1,024 boundary (H=1.024)",
+                  "provisional": true,
+                  "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v11 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-hot.mjs"
+                },
+                "maxWindowIndexRanges": {
+                  "value": 6146,
+                  "derivation": "analytical [G2 measures]: maxWindowPages × induced-subtree access-path consultations",
+                  "provisional": true,
+                  "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+                },
+                "maxWindowPages": {
+                  "value": 2,
+                  "derivation": "one initial filtered interval page plus one retained-diff maintenance replay = 2; each page covers max(normal crew-visible project 517, manifest-defined hot W 1,000) under the portable 1,024 boundary, while the large selected-project maximum awaits zb5",
+                  "provisional": true,
+                  "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+                },
+                "maxWindowResultBytes": {
+                  "value": 16777216,
+                  "derivation": "maxWindowPages × provisional maxPageResultBytes; conservative whole-result recharge per lineage",
+                  "provisional": true,
+                  "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+                },
+                "maxWindowResultRows": {
+                  "value": 2048,
+                  "derivation": "maxWindowPages × whole-result top-level row ceiling for the filtered list interval",
+                  "provisional": true,
+                  "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+                },
+                "maxWindowRootRows": {
+                  "value": 2048,
+                  "derivation": "maxWindowPages × maxRootRowsPerPage for the filtered list interval; child lineage is exactly zero",
+                  "provisional": true,
+                  "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+                },
+                "maxWindowScannedRows": {
+                  "value": 8194,
+                  "derivation": "analytical [G2 measures]: maxWindowPages × induced-subtree per-page examined entries",
+                  "provisional": true,
+                  "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+                }
+              }
+            },
+            {
+              "nodeId": "n1",
+              "fields": {
+                "maxExaminedEntriesPerExecution": {
+                  "value": 1024,
+                  "derivation": "analytical [G2 measures]: P(node) × node-kind entries formula, including cap+1 for bounded ranges",
+                  "provisional": true,
+                  "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+                },
+                "maxRelationshipLookupsPerExecution": {
+                  "value": 1024,
+                  "derivation": "analytical [G2 measures]: attempted parent population × distinct argument expansion/consultations",
+                  "provisional": true,
+                  "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+                }
+              }
+            },
+            {
+              "nodeId": "n2",
+              "fields": {
+                "maxExaminedEntriesPerExecution": {
+                  "value": 1024,
+                  "derivation": "analytical [G2 measures]: P(node) × node-kind entries formula, including cap+1 for bounded ranges",
+                  "provisional": true,
+                  "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+                },
+                "maxRelationshipLookupsPerExecution": {
+                  "value": 1024,
+                  "derivation": "analytical [G2 measures]: attempted parent population × distinct argument expansion/consultations",
+                  "provisional": true,
+                  "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+                }
+              }
+            },
+            {
+              "nodeId": "n3",
+              "fields": {
+                "maxExaminedEntriesPerExecution": {
+                  "value": 1024,
+                  "derivation": "analytical [G2 measures]: P(node) × node-kind entries formula, including cap+1 for bounded ranges",
+                  "provisional": true,
+                  "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+                },
+                "maxRelationshipLookupsPerExecution": {
+                  "value": 1024,
+                  "derivation": "analytical [G2 measures]: attempted parent population × distinct argument expansion/consultations",
+                  "provisional": true,
+                  "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+                }
+              }
+            }
+          ],
+          "arguments": [],
+          "maxArgumentItems": {
+            "value": 1,
+            "derivation": "one scalar argument × H=1"
+          },
+          "maxPageResultBytes": {
+            "value": 8388608,
+            "derivation": "normal mapped-result maximum 168014 bytes × exact rational H=8388608/168014",
+            "provisional": true,
+            "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+          },
+          "windowRollup": {
+            "maxWindowIndexRanges": {
+              "value": 6146,
+              "derivation": "checked sum of demand-lineage maxWindowIndexRanges values = 6146 [G2 measures]",
+              "provisional": true,
+              "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+            },
+            "maxWindowPages": {
+              "value": 2,
+              "derivation": "checked sum of demand-lineage maxWindowPages values = 2",
+              "provisional": true,
+              "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+            },
+            "maxWindowResultBytes": {
+              "value": 16777216,
+              "derivation": "checked sum of demand-lineage maxWindowResultBytes values = 16777216",
+              "provisional": true,
+              "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+            },
+            "maxWindowResultRows": {
+              "value": 2048,
+              "derivation": "checked sum of demand-lineage maxWindowResultRows values = 2048",
+              "provisional": true,
+              "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+            },
+            "maxWindowRootRows": {
+              "value": 2048,
+              "derivation": "checked sum of demand-lineage maxWindowRootRows values = 2048",
+              "provisional": true,
+              "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+            },
+            "maxWindowScannedRows": {
+              "value": 8194,
+              "derivation": "checked sum of demand-lineage maxWindowScannedRows values = 8194 [G2 measures]",
+              "provisional": true,
+              "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+            }
+          },
+          "maxMaintainedWritesPerMutation": {
+            "value": 0,
+            "derivation": "G0 owns no graph-maintained writes; exact declaration and observation are zero"
+          }
+        }
+      }
+    },
     "listIssueByID": {
       "declarationPlanHash": "sha256:25f4e4680f4c7eae9c675c2c06adcbf23cce5fdbdc16bcb0bf830986268a6dfb",
       "logical": {
@@ -1698,8 +2124,8 @@
     }
   },
   "largeFixtureSpotCheck": {
-    "status": "deferred-to-zb5-gate-rerun",
-    "reason": "receipt is present but local CSV fixture is absent",
+    "status": "available-requires-zb5-rerun",
+    "path": "demos/zerobugs/fixtures-local/large-seed42-v1",
     "command": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
   },
   "servedMeasurement": {
@@ -1707,5 +2133,5 @@
     "source": "tests/conformance/graph/served-observations.g2-c.v1.json",
     "scope": "N=1 deterministic normal fixture per graph; large/hot claims remain gated on recorded rerun commands"
   },
-  "contentDigest": "sha256:17c02a494533b5d3812fbad730e6fbb6d20f3a57f1a8ff990e9a49f546e23d58"
+  "contentDigest": "sha256:e47917df6b0e674ea969e0d5d12295a049a6ee80c0a1756d36b4be27afaacda2"
 }

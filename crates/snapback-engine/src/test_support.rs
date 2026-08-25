@@ -19,8 +19,24 @@ use crate::local::{
 use crate::manifest::{
     AssetAcceptPolicy, AssetAccessPolicy, AssetDeliveryPolicy, AssetImagePolicy, AssetImageVariant,
     AssetLocationPolicy, AssetUploadIntentDefinition, AuthInput, FunctionManifest, FunctionRuntime,
-    HandlerInput, IbexModule,
+    GraphQueryPlanV1, GraphRowKeyV1, HandlerInput, IbexModule,
 };
+
+pub fn apply_graph_delta_to_result_for_test(
+    plan: &GraphQueryPlanV1,
+    previous_result_bytes: &str,
+    previous_root_keys: &[GraphRowKeyV1],
+    ops: &[crate::live_wire::LiveGraphDeltaWireOpV1],
+    ordered_root_keys: &[GraphRowKeyV1],
+) -> SnapbackResult<String> {
+    crate::graph_evaluator::apply_graph_delta_to_result(
+        plan,
+        previous_result_bytes,
+        previous_root_keys,
+        ops,
+        ordered_root_keys,
+    )
+}
 
 const ASSET_INTENT_SOURCE: &str = r#"
 globalThis.__snapbackHandlers = {

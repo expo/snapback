@@ -88,6 +88,23 @@
       ],
       "type": "object"
     },
+    "GraphRowKeyV1": {
+      "additionalProperties": false,
+      "description": "Physical storage identity used by demand windows and completeness proofs.\n\n@ref LLP 0209#4-completeness-vocabulary — the id is always the row's\nphysical `_id`; application/source identities remain ordinary row fields.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "table": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "table",
+        "id"
+      ],
+      "type": "object"
+    },
     "InvalidationDisposition": {
       "enum": [
         "retain",
@@ -142,6 +159,114 @@
       "required": [
         "op",
         "id"
+      ],
+      "type": "object"
+    },
+    "LiveGraphDeltaProofTupleV1": {
+      "additionalProperties": false,
+      "description": "The LLP 0209 identity carried by every graph completeness claim. The\nauthorization version stays JSON-shaped here because the wire crate does\nnot own the graph evaluator's closed authority-version type.",
+      "properties": {
+        "authorizationVersion": true,
+        "evaluationCut": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "materializationHash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "partitionHash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "materializationHash",
+        "partitionHash",
+        "authorizationVersion",
+        "evaluationCut"
+      ],
+      "type": "object"
+    },
+    "LiveGraphDeltaWireOpV1": {
+      "additionalProperties": false,
+      "description": "One node-scoped retained-row update. Rung 1 emits only `update`; the shared\nop enum's add/remove variants are rejected by the graph client-view oracle.\n`row` is the full old-versus-new field diff, including system fields, and\n`position` is the proven unchanged root-window position.",
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/GraphRowKeyV1",
+          "description": "Physical identity of the changed node row."
+        },
+        "nodeId": {
+          "type": "string"
+        },
+        "op": {
+          "$ref": "#/$defs/LiveDeltaOpKind"
+        },
+        "position": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "rootKey": {
+          "$ref": "#/$defs/GraphRowKeyV1",
+          "description": "Physical root row containing the changed node row."
+        },
+        "row": true
+      },
+      "required": [
+        "op",
+        "nodeId",
+        "rootKey",
+        "key",
+        "position"
+      ],
+      "type": "object"
+    },
+    "LiveGraphDeltaWireV1": {
+      "additionalProperties": false,
+      "description": "The rung-1 graph extension carried inside a `live_delta` envelope.\n\n`ops` patch fields projected from retained graph rows while retaining the\nnormalized node that proved each patch. Completeness records and the result digest\ndescribe the post-apply result at the envelope's exact evaluation tuple.",
+      "properties": {
+        "format": {
+          "type": "string"
+        },
+        "graphCompleteness": true,
+        "nodeCompleteness": {
+          "items": true,
+          "type": "array"
+        },
+        "ops": {
+          "items": {
+            "$ref": "#/$defs/LiveGraphDeltaWireOpV1"
+          },
+          "type": "array"
+        },
+        "orderedRootKeys": {
+          "description": "Physical root-row identities in post-apply window order. Rung 1 never\nuses an application/source id as retained or wire key material.",
+          "items": {
+            "$ref": "#/$defs/GraphRowKeyV1"
+          },
+          "type": "array"
+        },
+        "proofTuple": {
+          "$ref": "#/$defs/LiveGraphDeltaProofTupleV1",
+          "description": "The identity tuple advances every retained node proof without\nretransmitting its potentially large parent/range evidence. Entries in\n`node_completeness` replace only proofs whose non-tuple body changed."
+        },
+        "resultDigest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "format",
+        "ops",
+        "orderedRootKeys",
+        "proofTuple",
+        "nodeCompleteness",
+        "graphCompleteness",
+        "resultDigest"
       ],
       "type": "object"
     },
@@ -470,6 +595,17 @@
       "properties": {
         "function": {
           "type": "string"
+        },
+        "graph": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LiveGraphDeltaWireV1"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional node-scoped graph delta. Graph subscriptions negotiate\nthis additive extension in their graph demand; subscriptions that\ndo not opt in remain on `live_replace`.\n\n@ref LLP 0209#7-rung-4--incremental-maintenance-for-admitted-shapes-extending-dk-3 — graph IVM extends DK-3 without changing the legacy row-op contract."
         },
         "kind": {
           "const": "live_delta",

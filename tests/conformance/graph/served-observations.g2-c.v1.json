@@ -256,6 +256,82 @@
       }
     },
     {
+      "query": "issueSummary",
+      "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+      "fixture": "normal-seed-v1",
+      "structuralWork": {
+        "rootRowsByNode": [
+          {
+            "nodeId": "n0",
+            "observed": 517
+          }
+        ],
+        "examinedEntriesByNode": [
+          {
+            "nodeId": "n0",
+            "observed": 517
+          },
+          {
+            "nodeId": "n1",
+            "observed": 1
+          },
+          {
+            "nodeId": "n2",
+            "observed": 517
+          },
+          {
+            "nodeId": "n3",
+            "observed": 517
+          }
+        ],
+        "relationshipLookupsByNode": [
+          {
+            "nodeId": "n1",
+            "observed": 517
+          },
+          {
+            "nodeId": "n2",
+            "observed": 517
+          },
+          {
+            "nodeId": "n3",
+            "observed": 517
+          }
+        ],
+        "maxFanoutByNode": [],
+        "argumentItemsByArgument": [
+          {
+            "argumentId": "a0",
+            "observed": 1
+          }
+        ],
+        "argumentItems": 1,
+        "argumentExpansionByNode": []
+      },
+      "windowLedgers": [
+        {
+          "nodeId": "n0",
+          "pages": 1,
+          "rootRows": 517,
+          "scannedRows": 1552,
+          "resultRows": 517,
+          "resultBytes": 168014,
+          "indexRanges": 1036
+        }
+      ],
+      "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+      "captureRegistration": {
+        "source": "served-evaluator-attested",
+        "capturedDependencyCount": 1553,
+        "byNodeKind": {
+          "closed-projection": 1,
+          "equality-to-one": 1551,
+          "root-window": 1
+        },
+        "oracleComparison": "exact after normalizing only the rotating authority-partition identity"
+      }
+    },
+    {
       "query": "listIssueByID",
       "graphPlanHash": "sha256:25f4e4680f4c7eae9c675c2c06adcbf23cce5fdbdc16bcb0bf830986268a6dfb",
       "fixture": "normal-seed-v1",
@@ -381,7 +457,7 @@
           "groupOrdinal": 0,
           "resultBytes": 436163,
           "dependencyBytes": 2754464,
-          "groupStateBytes": 3192038
+          "groupStateBytes": 6296772
         }
       ],
       "measurementSource": "served-retained-live-evaluation-memo"
@@ -397,7 +473,23 @@
           "groupOrdinal": 0,
           "resultBytes": 6479,
           "dependencyBytes": 9647,
-          "groupStateBytes": 17488
+          "groupStateBytes": 35537
+        }
+      ],
+      "measurementSource": "served-retained-live-evaluation-memo"
+    },
+    {
+      "format": "snapback.graph-g0-exit-observation.v1",
+      "fixture": "normal-seed-v1",
+      "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+      "groupCount": 1,
+      "subscriberFanout": 1,
+      "groups": [
+        {
+          "groupOrdinal": 0,
+          "resultBytes": 168014,
+          "dependencyBytes": 1301411,
+          "groupStateBytes": 2951912
         }
       ],
       "measurementSource": "served-retained-live-evaluation-memo"
@@ -413,7 +505,7 @@
           "groupOrdinal": 0,
           "resultBytes": 20261,
           "dependencyBytes": 16672,
-          "groupStateBytes": 38512
+          "groupStateBytes": 64381
         }
       ],
       "measurementSource": "served-retained-live-evaluation-memo"
@@ -984,5 +1076,5 @@
       ]
     }
   ],
-  "contentDigest": "sha256:5b50018d90acb58afcb75122b71906c291723268e5ffe8c9f85e0ca01c5bcc8f"
+  "contentDigest": "sha256:2fd8b9be8da62f7314bec99edcab143077122a0be48cbf01ab99292047204e9b"
 }

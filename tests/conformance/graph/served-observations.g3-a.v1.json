@@ -8,7 +8,7 @@
   "measurementScope": {
     "fixture": "normal-seed-v1",
     "fixtureRuns": 1,
-    "memoShape": "root-first-page-empty-prior-window-ledgers",
+    "memoShape": "root-first-page-owner-held-compatible-prior-window-ledgers",
     "caveat": "N=1 deterministic normal-fixture shape evidence; no magnitude, variance, large-fixture, hot-fixture, or publication claim"
   },
   "normalServingGroupMeasurements": [
@@ -23,7 +23,7 @@
           "groupOrdinal": 0,
           "resultBytes": 436163,
           "dependencyBytes": 2754464,
-          "groupStateBytes": 6296770
+          "groupStateBytes": 6296772
         }
       ],
       "measurementSource": "served-retained-live-evaluation-memo"
@@ -39,7 +39,23 @@
           "groupOrdinal": 0,
           "resultBytes": 6479,
           "dependencyBytes": 9647,
-          "groupStateBytes": 35534
+          "groupStateBytes": 35537
+        }
+      ],
+      "measurementSource": "served-retained-live-evaluation-memo"
+    },
+    {
+      "format": "snapback.graph-g0-exit-observation.v1",
+      "fixture": "normal-seed-v1",
+      "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+      "groupCount": 1,
+      "subscriberFanout": 1,
+      "groups": [
+        {
+          "groupOrdinal": 0,
+          "resultBytes": 168014,
+          "dependencyBytes": 1301411,
+          "groupStateBytes": 2951912
         }
       ],
       "measurementSource": "served-retained-live-evaluation-memo"
@@ -61,5 +77,5 @@
       "measurementSource": "served-retained-live-evaluation-memo"
     }
   ],
-  "contentDigest": "sha256:bb62ac4e6415adefe1bfe0fd2cb3a607a65f0d635092b009fcdcd942bd55c1a8"
+  "contentDigest": "sha256:e407fe9db7dabd5f239aec998de0cc49e25e0b924d5375a31c44148d2f3c19cf"
 }

@@ -84,7 +84,7 @@
       ]
     }
   },
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:9d0e68c7ed73bf0ba192328f8b0623739c3e9b90ce9f4c25001c84426d5a7aa3",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:8891a17d38769844c02058638e63df13c867474badbce8ca0cee34634e161b2a",
   "mutationSettlement": {
     "dispatch": "mutate() resolves to settled or queued dispatch; queued means durably recorded for delivery, not settled",
     "dispositions": [
@@ -445,6 +445,17 @@
           "value": []
         },
         {
+          "derivation": "normalized-defineAuth:providers",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "shared auth extension"
+          },
+          "field": "providers",
+          "optional": true,
+          "semanticIdentityEffect": "rotates-semanticId",
+          "value": null
+        },
+        {
           "derivation": "normalized-functions:authRequirement+normalized-schema:table.visibility",
           "familiarDisposition": {
             "disposition": 1,
@@ -547,8 +558,10 @@
           "semanticIdentityEffect": "included-in-normalized-auth-program"
         },
         {
-          "bootstrapProjection": [],
-          "disposition": "semantic-source-no-bootstrap-field",
+          "bootstrapProjection": [
+            "providers"
+          ],
+          "disposition": "bootstrap-source",
           "familiarDisposition": {
             "disposition": 1,
             "route": "shared auth extension"
@@ -695,6 +708,16 @@
           "state": "error"
         },
         {
+          "class": "rqs-store-custody-incompatible",
+          "codes": [
+            "SNAPBACK_AUTH_BOOTSTRAP_RQS_STORE_INCOMPATIBLE"
+          ],
+          "remediations": [
+            "disposeAndReconstruct"
+          ],
+          "state": "error"
+        },
+        {
           "class": "live-policy-rotation",
           "codes": [
             "SNAPBACK_AUTH_BOOTSTRAP_POLICY_ROTATION"
@@ -723,6 +746,18 @@
           ],
           "remediations": [
             "retryAuthBootstrap"
+          ],
+          "state": "error"
+        },
+        {
+          "class": "custody-digest-unavailable",
+          "codes": [
+            "SNAPBACK_AUTH_BOOTSTRAP_DIGEST_MODULE_UNAVAILABLE",
+            "SNAPBACK_AUTH_BOOTSTRAP_DIGEST_FAILED"
+          ],
+          "remediations": [
+            "retryAuthBootstrap",
+            "selectSupportedPlatform"
           ],
           "state": "error"
         },

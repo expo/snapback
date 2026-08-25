@@ -25184,6 +25184,14 @@ const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
         "environment variable disabling same-principal live-evaluation memoization as the D2-H1 control arm (LLP 0209 G1)",
     ),
     (
+        "SNAPBACK_GRAPH_DELTA_DISABLED",
+        "environment variable disabling the LLP 0209 G3 graph-delta delivery lane for its replace-lane control arm; never an HTTP diagnostic",
+    ),
+    (
+        "SNAPBACK_GRAPH_DELTA_CONVERGENCE",
+        "environment variable enabling the LLP 0209 G3 served-path shadow convergence assertion; never an HTTP diagnostic",
+    ),
+    (
         "SNAPBACK_SPIKE_TRACE",
         "environment variable enabling the measurement-only A/B trace (LLP 0200 §3); never an HTTP diagnostic",
     ),

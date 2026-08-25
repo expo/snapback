@@ -1,6 +1,7 @@
 import { defineSchema, defineTable, v } from '@expo/snapback-codegen/define';
 
-// Corpus-owned mirror of the Zerobugs control tables touched by the three G0
+// Corpus-owned mirror of the Zerobugs control tables touched by the four
+// corpus graphs.
 // declarations. The field and index names intentionally match the control.
 // Issue reads are public only when the row says so; internal rows require a
 // crew principal in the still-authoritative opaque handlers. The visibility

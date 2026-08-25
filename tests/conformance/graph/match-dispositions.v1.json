@@ -16,17 +16,17 @@
   "measurementScope": {
     "fixture": "normal-seed-v1",
     "fixtureRuns": 1,
-    "graphs": 3,
+    "graphs": 4,
     "commitShapes": 9,
-    "graphCommitReplays": 27,
-    "nodeDecisions": 216,
+    "graphCommitReplays": 36,
+    "nodeDecisions": 261,
     "totals": {
-      "skip": 200,
+      "skip": 245,
       "match": 16,
       "conservativeFallback": 0
     },
-    "nodeDisjointSkipRate": "200/216",
-    "conservativeFallbackRate": "0/216",
+    "nodeDisjointSkipRate": "245/261",
+    "conservativeFallbackRate": "0/261",
     "caveat": "N=1 deterministic normal-fixture shape evidence; no magnitude, variance, large-fixture, hot-fixture, or publication claim"
   },
   "replays": [
@@ -330,6 +330,96 @@
     },
     {
       "commit": "issue-edit-in-project",
+      "query": "issueSummary",
+      "overallDisposition": "skip",
+      "nodes": [
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n0",
+          "nodeKind": "root-window",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 519,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n1",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 519,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n2",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1551,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n3",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1551,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n4",
+          "nodeKind": "closed-projection",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "projection-only"
+        }
+      ]
+    },
+    {
+      "commit": "issue-edit-in-project",
       "query": "listIssueByID",
       "overallDisposition": "skip",
       "nodes": [
@@ -738,6 +828,96 @@
           "nodeId": "n9",
           "nodeKind": "closed-projection",
           "authorityClass": 3,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "projection-only"
+        }
+      ]
+    },
+    {
+      "commit": "issue-edit-out-of-project",
+      "query": "issueSummary",
+      "overallDisposition": "skip",
+      "nodes": [
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n0",
+          "nodeKind": "root-window",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 519,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n1",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 519,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n2",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1551,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n3",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1551,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n4",
+          "nodeKind": "closed-projection",
+          "authorityClass": 2,
           "captureComplete": true,
           "dependencyKinds": [
             "graphNode"
@@ -1159,6 +1339,96 @@
           "nodeId": "n9",
           "nodeKind": "closed-projection",
           "authorityClass": 3,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "projection-only"
+        }
+      ]
+    },
+    {
+      "commit": "label-edge-add",
+      "query": "issueSummary",
+      "overallDisposition": "skip",
+      "nodes": [
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n0",
+          "nodeKind": "root-window",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 519,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n1",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 519,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n2",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1551,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n3",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1551,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n4",
+          "nodeKind": "closed-projection",
+          "authorityClass": 2,
           "captureComplete": true,
           "dependencyKinds": [
             "graphNode"
@@ -1580,6 +1850,96 @@
           "nodeId": "n9",
           "nodeKind": "closed-projection",
           "authorityClass": 3,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "projection-only"
+        }
+      ]
+    },
+    {
+      "commit": "label-edge-remove",
+      "query": "issueSummary",
+      "overallDisposition": "skip",
+      "nodes": [
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n0",
+          "nodeKind": "root-window",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 519,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n1",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 519,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n2",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1551,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n3",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1551,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n4",
+          "nodeKind": "closed-projection",
+          "authorityClass": 2,
           "captureComplete": true,
           "dependencyKinds": [
             "graphNode"
@@ -2001,6 +2361,96 @@
           "nodeId": "n9",
           "nodeKind": "closed-projection",
           "authorityClass": 3,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "projection-only"
+        }
+      ]
+    },
+    {
+      "commit": "comment-add",
+      "query": "issueSummary",
+      "overallDisposition": "skip",
+      "nodes": [
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n0",
+          "nodeKind": "root-window",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 519,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n1",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 519,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n2",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1551,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n3",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1551,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n4",
+          "nodeKind": "closed-projection",
+          "authorityClass": 2,
           "captureComplete": true,
           "dependencyKinds": [
             "graphNode"
@@ -2422,6 +2872,96 @@
           "nodeId": "n9",
           "nodeKind": "closed-projection",
           "authorityClass": 3,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "projection-only"
+        }
+      ]
+    },
+    {
+      "commit": "view-state-write-self",
+      "query": "issueSummary",
+      "overallDisposition": "skip",
+      "nodes": [
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n0",
+          "nodeKind": "root-window",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 519,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n1",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 519,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n2",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1551,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n3",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1551,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n4",
+          "nodeKind": "closed-projection",
+          "authorityClass": 2,
           "captureComplete": true,
           "dependencyKinds": [
             "graphNode"
@@ -2843,6 +3383,96 @@
           "nodeId": "n9",
           "nodeKind": "closed-projection",
           "authorityClass": 3,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "projection-only"
+        }
+      ]
+    },
+    {
+      "commit": "view-state-write-other",
+      "query": "issueSummary",
+      "overallDisposition": "skip",
+      "nodes": [
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n0",
+          "nodeKind": "root-window",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 519,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n1",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 519,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n2",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1551,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n3",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1551,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n4",
+          "nodeKind": "closed-projection",
+          "authorityClass": 2,
           "captureComplete": true,
           "dependencyKinds": [
             "graphNode"
@@ -3264,6 +3894,96 @@
           "nodeId": "n9",
           "nodeKind": "closed-projection",
           "authorityClass": 3,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "projection-only"
+        }
+      ]
+    },
+    {
+      "commit": "selected-label-membership-change",
+      "query": "issueSummary",
+      "overallDisposition": "skip",
+      "nodes": [
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n0",
+          "nodeKind": "root-window",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 519,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n1",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 519,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n2",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1551,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n3",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1551,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n4",
+          "nodeKind": "closed-projection",
+          "authorityClass": 2,
           "captureComplete": true,
           "dependencyKinds": [
             "graphNode"
@@ -3685,6 +4405,96 @@
           "nodeId": "n9",
           "nodeKind": "closed-projection",
           "authorityClass": 3,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "projection-only"
+        }
+      ]
+    },
+    {
+      "commit": "ledger-multi-row-multi-table",
+      "query": "issueSummary",
+      "overallDisposition": "skip",
+      "nodes": [
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n0",
+          "nodeKind": "root-window",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 519,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n1",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 519,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n2",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1551,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n3",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1551,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5bc44a6aad6a2f31485b48838557cc0728178f9784b4133f6c8f7b99a448d564",
+          "instanceHash": "sha256:f13b2797f6bac3d080df6838a9fd982d94d26b10fdc17a9fd809399ab36d2625",
+          "nodeId": "n4",
+          "nodeKind": "closed-projection",
+          "authorityClass": 2,
           "captureComplete": true,
           "dependencyKinds": [
             "graphNode"
@@ -3823,13 +4633,13 @@
   "summary": [
     {
       "nodeKind": "root-window",
-      "skip": 25,
+      "skip": 34,
       "match": 2,
       "conservativeFallback": 0
     },
     {
       "nodeKind": "equality-to-one",
-      "skip": 72,
+      "skip": 99,
       "match": 0,
       "conservativeFallback": 0
     },
@@ -3859,10 +4669,10 @@
     },
     {
       "nodeKind": "closed-projection",
-      "skip": 27,
+      "skip": 36,
       "match": 0,
       "conservativeFallback": 0
     }
   ],
-  "contentDigest": "sha256:043b1f92ca8f8147d08c2aa22dd366b5d6c731ef97d3ab12495d192106387310"
+  "contentDigest": "sha256:5082621b340c40d5ac871a0f407e68e0cd6141fc09d8ba4b213765f4a22876d7"
 }

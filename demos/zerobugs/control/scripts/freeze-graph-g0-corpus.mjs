@@ -272,7 +272,9 @@ async function codegenDeclarations() {
   const generated = await generateInProcess(backend, {}, { capabilityManifest: capability });
   assert.equal(generated.ok, true, `graph declarations must codegen: ${JSON.stringify(generated.diagnostics)}`);
   const manifest = readJson(join(backend, 'generated/functions.manifest.json'));
-  const carriers = Object.fromEntries(['issueListV2', 'issueDetail', 'listIssueByID'].map(name => {
+  const carriers = Object.fromEntries([
+    'issueListV2', 'issueDetail', 'issueSummary', 'listIssueByID',
+  ].map(name => {
     const fn = manifest.functions.find(candidate => candidate.name === name);
     assert(fn, `generated graph declaration ${name}`);
     return [name, fn.runtime.HostPlan.GraphQuery];
@@ -350,6 +352,48 @@ const childCompleteTranslations = [
 function fieldMap(query, carrier) {
   const nodes = carrier.normalizedPlan.nodes;
   const root = nodes.find(node => node.kind === 'root-window').nodeId;
+  if (query === 'issueSummary') return {
+    query,
+    oracleAuthority: 'corpus-internal-independent-js-over-fixture-rows',
+    rows: {
+      graphProjectionPaths: [
+        '$.issueId', '$.issueShortID', '$.issueTitle', '$.issueOpen',
+        '$.issueModified', '$.issueCreated', '$.project.id', '$.project.name',
+        '$.assignee.id', '$.assignee.login', '$.creator.id', '$.creator.login',
+      ],
+      oracleFields: [
+        'items[*].issueId', 'items[*].issueShortID', 'items[*].issueTitle',
+        'items[*].issueOpen', 'items[*].issueModified', 'items[*].issueCreated',
+        'items[*].project.id', 'items[*].project.name', 'items[*].assignee.id',
+        'items[*].assignee.login', 'items[*].creator.id', 'items[*].creator.login',
+      ],
+      comparison: 'exact-declared-rows',
+    },
+    order: {
+      graphNodeId: root, oracleFields: ['items[*].issueId'],
+      comparison: 'exact-id-order',
+    },
+    nodeCompleteness: [],
+    outerStatusReason: {
+      oracleStatusField: 'status', oracleReasonField: 'reason',
+      oracleCursorField: 'cursor', oracleRowsField: 'items',
+      comparison: 'translated-label', translations: [complete],
+    },
+    continuation: [{
+      graphNodeId: root, oracleHasMoreField: 'hasMore',
+      oracleCursorField: 'cursor', comparison: 'same-next-page-rows',
+    }],
+    excluded: [
+      {
+        oracleField: 'oracleAuthority',
+        reason: 'corpus-internal provenance label, not a projected result leaf',
+      },
+      {
+        oracleField: 'computation',
+        reason: 'corpus-internal independent-computation description, not a projected result leaf',
+      },
+    ],
+  };
   const labels = nodes.find(node => node.edgeName === 'labels').nodeId;
   if (query === 'issueListV2') return {
     query,
@@ -605,10 +649,14 @@ function expectedFromOracle(query, result, map, options = {}) {
   const detailValue = options.detailValue ?? envelope.value;
   const rows = query === 'issueDetail'
     ? mapDetailRows(detailValue, options.labelRows)
-    : mapListRows(items, options.labelRows);
+    : query === 'issueSummary'
+      ? deepClone(items)
+      : mapListRows(items, options.labelRows);
   const orderedRootIds = query === 'issueDetail'
     ? (envelope.value === null ? [] : [envelope.value.issue.id])
-    : items.map(item => item.issue.id);
+    : query === 'issueSummary'
+      ? items.map(item => item.issueId)
+      : items.map(item => item.issue.id);
   const nodeCompleteness = [];
   if (query === 'issueDetail') {
     const labelsMap = map.nodeCompleteness.find(entry => entry.oracleStatusField === 'value.labelsCompleteness');
@@ -632,7 +680,7 @@ function expectedFromOracle(query, result, map, options = {}) {
         )}],
       });
     }
-  } else {
+  } else if (query !== 'issueSummary') {
     const labelsMap = map.nodeCompleteness[0];
     nodeCompleteness.push({
       graphNodeId: labelsMap.graphNodeId,
@@ -682,7 +730,9 @@ function expectedFromOracle(query, result, map, options = {}) {
   });
   const resultBytes = JSON.stringify(rows);
   return {
-    basis: 'oracle-mapped-target; admitted structural declaration is not executed at G0',
+    basis: query === 'issueSummary'
+      ? 'corpus-internal independent JS fixture computation; serving authority is the evaluator'
+      : 'oracle-mapped-target; admitted structural declaration is not executed at G0',
     kind: 'result', label: graphCompleteness,
     resultBytes, digest: digestBytes(resultBytes), orderedRootIds,
     resultLength: rows.length, nodeCompleteness, outerStatusReason,
@@ -748,9 +798,22 @@ function invocation(
     argsDigest: domainHash('snapback:materialization-args:v1:', args), windows,
   };
   const instanceHash = domainHash('snapback:graph-instance:v1:', instancePreimage);
+  const class3 = carrier.normalizedPlan.authorityPartitionRule.class3 === 'partition-of-one'
+    ? {
+        format: 'snapback.authority-partition.v1',
+        principalDataScope: {
+          authMode: 'sessions', userId: principal,
+          authorizationStreamIncarnation: 'g0-corpus-stream-v1',
+        },
+        authorityInstanceId: `g0-authority-${principal}`,
+        authFingerprint: domainHash('snapback:g0-corpus-auth-fingerprint:v1:', {principal}),
+        tenantId: null, providerId: 'g0-corpus-provider', delegation: null,
+      }
+    : null;
   return {
     planHash: carrier.planHash, args, windows,
     advancedNodeId: windowOptions.advancedNodeId ?? carrier.normalizedPlan.rootNodeId,
+    ...(class3 === null ? {corpusAuthorityPrincipal: principal} : {}),
     materialization: {
       format: 'snapback.graph-materialization.v1', appId: 'zerobugs-graph-g0-corpus',
       databaseId: 'g0-corpus-fixtures-v1', deploymentId: 'g0-stage-b',
@@ -768,16 +831,7 @@ function invocation(
       format: 'snapback.graph-authority-partition.v1',
       graphPlanHash: carrier.planHash,
       class2: resolvedClass2Inputs(carrier, args, principal),
-      class3: {
-        format: 'snapback.authority-partition.v1',
-        principalDataScope: {
-          authMode: 'sessions', userId: principal,
-          authorizationStreamIncarnation: 'g0-corpus-stream-v1',
-        },
-        authorityInstanceId: `g0-authority-${principal}`,
-        authFingerprint: domainHash('snapback:g0-corpus-auth-fingerprint:v1:', {principal}),
-        tenantId: null, providerId: 'g0-corpus-provider', delegation: null,
-      },
+      class3,
     },
     authorizationVersion: { incarnation: 'g0-corpus-authorization-v1', epoch },
     evaluationCut: 1,
@@ -1057,6 +1111,54 @@ function graphSortRows(rows, order, direction = 'forward') {
     // for backward traversal.
     return graphCompareValue(left._id, right._id);
   });
+}
+
+function evaluateIssueSummaryCorpusInternal(tables, args, allowedVisibility, take = 1_024) {
+  // Corpus-internal oracle only. This intentionally does not import, invoke,
+  // or add a Zerobugs serving-control function. The Rust evaluator remains
+  // authoritative; this independent JS computation catches fixture/edge/
+  // projection mistakes in the frozen expectation.
+  const roots = graphSortRows(
+    tables.issue.filter(row => (
+      row.projectID === args.projectID && allowedVisibility.includes(row.visibility)
+    )),
+    [{field: 'modified', direction: 'Desc'}, {field: 'id', direction: 'Desc'}],
+  );
+  const selected = roots.slice(0, take);
+  const byProject = new Map(tables.project.map(row => [row._id, row]));
+  const byUser = new Map(tables.user.map(row => [row._id, row]));
+  const items = selected.map(issueRow => {
+    const projectRow = byProject.get(issueRow.projectID);
+    const creatorRow = byUser.get(issueRow.creatorID);
+    const assigneeRow = issueRow.assigneeID === null || issueRow.assigneeID === undefined
+      ? null
+      : byUser.get(issueRow.assigneeID);
+    assert(projectRow, `${issueRow._id} resolves its required project edge`);
+    assert(creatorRow, `${issueRow._id} resolves its required creator edge`);
+    assert(
+      issueRow.assigneeID === null || issueRow.assigneeID === undefined || assigneeRow,
+      `${issueRow._id} resolves its optional assignee edge when present`,
+    );
+    return {
+      issueId: issueRow.id,
+      issueShortID: issueRow.shortID,
+      issueTitle: issueRow.title,
+      issueOpen: issueRow.open,
+      issueModified: issueRow.modified,
+      issueCreated: issueRow.created,
+      project: {id: projectRow.id, name: projectRow.name},
+      assignee: assigneeRow === null
+        ? null
+        : {id: assigneeRow.id, login: assigneeRow.login},
+      creator: {id: creatorRow.id, login: creatorRow.login},
+    };
+  });
+  assert(roots.length <= take, 'normal issueSummary fixture is a complete root window');
+  return [{
+    status: 'complete', reason: null, items, hasMore: false, cursor: null,
+    oracleAuthority: 'corpus-internal-independent-js-over-fixture-rows',
+    computation: 'issue/project/user fixture rows; project filter; visibility policy; modified DESC, id DESC, physical _id ASC tie',
+  }];
 }
 
 function graphPhysicalKey(node, row) {
@@ -1476,6 +1578,18 @@ function attachFrozenExecutionWork(cases) {
   };
   for (const testCase of cases) {
     let work = byId[testCase.id];
+    if (testCase.id === 'g0-pair-issue-summary-corpus-internal-oracle') {
+      const resultBytes = testCase.expect.resultBytes;
+      work = frozenExecutionWork(
+        517,
+        [517, 1, 517, 517],
+        [517, 517, 517],
+        [],
+        [1],
+        [],
+        [ledger('n0', 1, 517, 1_552, 517, Buffer.byteLength(resultBytes), 1_036)],
+      );
+    }
     const broadcastResult = testCase.caseKind === 'audienceParity'
       ? testCase.expect?.allowedDelivery
       : testCase.query === 'publicRooms' ? testCase.expect : null;
@@ -1789,6 +1903,8 @@ function boundDerivation(carriers, measurements, tables) {
   for (const [query, carrier] of Object.entries(carriers)) {
     const plan = carrier.normalizedPlan;
     const logical = plan.queryCost.graph;
+    const isWindowList = query === 'issueListV2' || query === 'issueSummary';
+    const hasOnlyScalarArgument = query === 'issueDetail' || query === 'issueSummary';
     const wrapFields = (record, reason) => Object.fromEntries(Object.entries(record).map(
       ([field, value]) => {
         const detail = reason(field, value);
@@ -1808,25 +1924,26 @@ function boundDerivation(carriers, measurements, tables) {
       if (field === 'maxChildrenPerParent' && value === 1_024) return provisional('the control refuses the collection at exactly 1,024 comments; normal maximum is 21, while the documented floored-exponential generator has no finite per-issue ceiling and the receipt supplies only the 2,527,886-row absolute ceiling');
       if (field === 'maxArgumentExpansion' && value === 16) return 'maximum selected-label collection length 16 × H=1';
       if (field === 'maxWindowPages' && query === 'issueListV2') return provisional('ceil(max currently obtainable filtered interval max(normal project 516, manifest-defined hot W 1,000) / 1,024) = 1; the large selected-project full interval is not the whole-table 1,000,000-row receipt count and awaits zb5');
+      if (field === 'maxWindowPages' && query === 'issueSummary') return provisional('one initial filtered interval page plus one retained-diff maintenance replay = 2; each page covers max(normal crew-visible project 517, manifest-defined hot W 1,000) under the portable 1,024 boundary, while the large selected-project maximum awaits zb5');
       if (field === 'maxWindowPages' && query === 'issueDetail' && node?.maxRootRowsPerPage === undefined) return provisional('ceil(normal maxCommentsPerIssue 21 / declared maxChildrenPerParent 1,024) = 1; the large seed-42 per-issue maximum remains unverified');
       if (field === 'maxWindowPages') return 'one exhaustive point/root interval at the declared page size';
-      if (field === 'maxWindowRootRows') return query === 'issueListV2'
+      if (field === 'maxWindowRootRows') return isWindowList
         ? provisional('maxWindowPages × maxRootRowsPerPage for the filtered list interval; child lineage is exactly zero')
         : 'maxWindowPages × maxRootRowsPerPage for the root; child lineage is exactly zero';
-      if (field === 'maxWindowResultRows') return query === 'issueListV2'
+      if (field === 'maxWindowResultRows') return isWindowList
         ? provisional('maxWindowPages × whole-result top-level row ceiling for the filtered list interval')
         : 'maxWindowPages × whole-result top-level row ceiling (one for point/child lineage)';
       if (field === 'maxWindowResultBytes') return provisional('maxWindowPages × provisional maxPageResultBytes; conservative whole-result recharge per lineage');
-      if (field === 'maxExaminedEntriesPerExecution') return (query === 'issueListV2' || value >= 1_025)
+      if (field === 'maxExaminedEntriesPerExecution') return (isWindowList || value >= 1_025)
         ? provisional('analytical [G2 measures]: P(node) × node-kind entries formula, including cap+1 for bounded ranges')
         : 'analytical [G2 measures]: P(node) × node-kind entries formula, including cap+1 for bounded ranges';
-      if (field === 'maxRelationshipLookupsPerExecution') return query === 'issueListV2'
+      if (field === 'maxRelationshipLookupsPerExecution') return isWindowList
         ? provisional('analytical [G2 measures]: attempted parent population × distinct argument expansion/consultations')
         : 'analytical [G2 measures]: attempted parent population × distinct argument expansion/consultations';
-      if (field === 'maxWindowScannedRows') return (query === 'issueListV2' || value >= 1_025)
+      if (field === 'maxWindowScannedRows') return (isWindowList || value >= 1_025)
         ? provisional('analytical [G2 measures]: maxWindowPages × induced-subtree per-page examined entries')
         : 'analytical [G2 measures]: maxWindowPages × induced-subtree per-page examined entries';
-      if (field === 'maxWindowIndexRanges') return query === 'issueListV2'
+      if (field === 'maxWindowIndexRanges') return isWindowList
         ? provisional('analytical [G2 measures]: maxWindowPages × induced-subtree access-path consultations')
         : 'analytical [G2 measures]: maxWindowPages × induced-subtree access-path consultations';
       return `closed declaration value ${value}, derived from the normalized plan and fixture maxima`;
@@ -1834,9 +1951,9 @@ function boundDerivation(carriers, measurements, tables) {
     queryRows[query] = {
       declarationPlanHash: carrier.planHash,
       logical: {
-        maxResultRows: { value: plan.queryCost.maxResultRows, ...(query === 'issueListV2' ? provisional('normal filtered page maximum 516 and manifest-defined hot W 1,000; H=1.024 over hot => portable page boundary 1,024', HOT_SPOT_CHECK_COMMAND) : {derivation: 'point/detail root maximum 1 × H=1'}) },
+        maxResultRows: { value: plan.queryCost.maxResultRows, ...(query === 'issueListV2' ? provisional('normal filtered page maximum 516 and manifest-defined hot W 1,000; H=1.024 over hot => portable page boundary 1,024', HOT_SPOT_CHECK_COMMAND) : query === 'issueSummary' ? provisional('normal crew-visible filtered page maximum 517 and manifest-defined hot W 1,000; H=1.024 over hot => portable page boundary 1,024', HOT_SPOT_CHECK_COMMAND) : {derivation: 'point/detail root maximum 1 × H=1'}) },
         maxResultBytes: { value: plan.queryCost.maxResultBytes, ...provisional(`normal serialized mapped-result maximum ${measurements[query].maxBytes} bytes × H=${plan.queryCost.maxResultBytes}/${measurements[query].maxBytes} => ${plan.queryCost.maxResultBytes}; large/hot result-byte maxima await zb5`) },
-        maxArgumentItems: { value: logical.maxArgumentItems, derivation: query === 'issueDetail' ? 'one bounded scalar source issue id' : 'one bounded scalar plus max 16 selected label ids' },
+        maxArgumentItems: { value: logical.maxArgumentItems, derivation: hasOnlyScalarArgument ? 'one bounded scalar argument × H=1' : 'one bounded scalar plus max 16 selected label ids' },
         maxPageResultBytes: { value: logical.maxPageResultBytes, ...provisional('same provisional per-result byte ceiling; one root page is one result frame') },
         maxMaintainedWritesPerMutation: { value: 0, derivation: 'G0 declares no graph maintenance or write path' },
       },
@@ -1864,7 +1981,7 @@ function boundDerivation(carriers, measurements, tables) {
         }, (field, value) => {
           if (field === 'maxScannedRows') return provisional('checked sum of every node maxExaminedEntriesPerExecution [G2 measures]');
           if (field === 'maxIndexRanges') return provisional('checked sum of every point/range/principal consultation [G2 measures]');
-          if (field === 'maxResultRows') return query === 'issueListV2' ? provisional('one declared page at the 1,024 hot-root boundary', HOT_SPOT_CHECK_COMMAND) : 'one point/detail root';
+          if (field === 'maxResultRows') return isWindowList ? provisional('one declared page at the 1,024 hot-root boundary', HOT_SPOT_CHECK_COMMAND) : 'one point/detail root';
           if (field === 'maxResultBytes') return provisional(`normal mapped-result maximum ${measurements[query].maxBytes} bytes × exact rational H=${value}/${measurements[query].maxBytes}`);
           return provisional(`conservative G0 operational guardrail ${field}=${value}; large/hot maximum and graph-executor observation are unavailable`);
         }),
@@ -1880,7 +1997,7 @@ function boundDerivation(carriers, measurements, tables) {
             argumentId: argument.argumentId,
             fields: { maxItems: { value: argument.maxItems, derivation: 'maximum selected-label collection cardinality 16 × H=1, within the authored contract' } },
           })),
-          maxArgumentItems: { value: logical.maxArgumentItems, derivation: query === 'issueDetail' ? 'one scalar argument × H=1' : 'one scalar plus 16 selected-label items × H=1' },
+          maxArgumentItems: { value: logical.maxArgumentItems, derivation: hasOnlyScalarArgument ? 'one scalar argument × H=1' : 'one scalar plus 16 selected-label items × H=1' },
           maxPageResultBytes: { value: logical.maxPageResultBytes, ...provisional(`normal mapped-result maximum ${measurements[query].maxBytes} bytes × exact rational H=${logical.maxPageResultBytes}/${measurements[query].maxBytes}`) },
           windowRollup: wrapFields(logical.windowRollup, (field, value) => provisional(`checked sum of demand-lineage ${field} values = ${value}${field.includes('Scanned') || field.includes('IndexRanges') ? ' [G2 measures]' : ''}`)),
           maxMaintainedWritesPerMutation: { value: logical.maxMaintainedWritesPerMutation, derivation: 'G0 owns no graph-maintained writes; exact declaration and observation are zero' },
@@ -2014,6 +2131,7 @@ async function main() {
   const broadcastFixture = readJson(join(BROADCAST_DECLARATION_ROOT, 'data.v1.json'));
   const tables = loadTables();
   const ordinaryPrincipal = 'principal_ordinary';
+  const crewPrincipal = 'principal_crew';
   installBinding(tables, ordinaryPrincipal, fixture.actorBindings['ordinary-user']);
   const context = mockContext(tables, ordinaryPrincipal);
   const listArgs = { listContext: defaultListContext(), limit: 1_023, start: null, dir: 'forward', inclusive: false };
@@ -2038,19 +2156,52 @@ async function main() {
   const detail = await handlers.issueDetail(context, detailArgs);
   const pointArgs = { listContext: defaultListContext(), idField: 'id', idValue: publicIssue.id };
   const point = await handlers.listIssueByID(context, pointArgs);
-  const oracleValues = { issueListV2: list, issueDetail: detail, listIssueByID: point };
+  const summaryArgs = {projectID: publicIssue.projectID};
+  const summary = evaluateIssueSummaryCorpusInternal(
+    tables, summaryArgs, ['internal', 'public'],
+  );
+  assert.equal(summary[0].items.length, 517, 'crew-visible issueSummary freezes all normal project roots');
+  assert.equal(
+    summary[0].items.filter(row => row.assignee !== null).length,
+    1,
+    'issueSummary freezes the normal fixture\'s one real assignee edge',
+  );
+  const oracleValues = {
+    issueListV2: list,
+    issueDetail: detail,
+    issueSummary: summary,
+    listIssueByID: point,
+  };
   const fieldMaps = Object.fromEntries(Object.entries(carriers).map(
     ([query, carrier]) => [query, fieldMap(query, carrier)],
   ));
   const normalCases = Object.entries(oracleValues).map(([query, result]) => ({
     id: `${query}-normal`, query, fixture: 'normal-seed-v1',
-    invocation: query === 'issueListV2' ? listArgs : query === 'issueDetail' ? detailArgs : pointArgs,
-    oracle: { resultBytes: JSON.stringify(result), digest: digestBytes(JSON.stringify(result)) },
+    invocation: query === 'issueListV2'
+      ? listArgs
+      : query === 'issueDetail'
+        ? detailArgs
+        : query === 'issueSummary'
+          ? summaryArgs
+          : pointArgs,
+    oracle: {
+      resultBytes: JSON.stringify(result),
+      digest: digestBytes(JSON.stringify(result)),
+      authority: query === 'issueSummary'
+        ? 'corpus-internal-independent-js-over-fixture-rows'
+        : 'zerobugs-serving-control-opaque-handler',
+    },
     fieldMap: fieldMaps[query],
     declaredGraph: {
       planHash: carriers[query].planHash,
-      resultDisposition: query === 'issueListV2' ? 'admitted-non-search-graph-order-shape' : 'admitted-fixed-id-structural-shape',
-      fullOracleRows: 'refused',
+      resultDisposition: query === 'issueListV2'
+        ? 'admitted-non-search-graph-order-shape'
+        : query === 'issueSummary'
+          ? 'admitted-scalar-only-root-window-plus-equality-to-one-shape'
+          : 'admitted-fixed-id-structural-shape',
+      fullOracleRows: query === 'issueSummary'
+        ? 'evaluator-authoritative-cross-checked-by-corpus-internal-js'
+        : 'refused',
       expected: expectedFromOracle(query, result, fieldMaps[query], {labelRows: tables.label}),
     },
   }));
@@ -2220,7 +2371,6 @@ async function main() {
   const internalIssue = tables.issue.find(row => row.id === 'zbav1_internal_issue');
   const internalListRow = tables.issueListRead.find(row => row.sourceIssueID === internalIssue.id);
   const otherUserID = fixture.actorBindings['crew-admin'].userID;
-  const crewPrincipal = 'principal_crew';
   corpusAuthorityOwner = buildAuthorityOwner(tables, fixture);
   for (const assertion of corpusAuthorityOwner.equivalenceAssertions) {
     const carrier = carriers[assertion.query];
@@ -2293,16 +2443,38 @@ async function main() {
       principal: ordinaryPrincipal,
       channel: 'other-principal view-state row beside a hydrated point result',
     },
+    {
+      id: 'g0-pair-issue-summary-corpus-internal-oracle', query: 'issueSummary',
+      table: 'issueLabelRead',
+      presentTables: deepClone(tables),
+      absentTables: {
+        ...deepClone(tables),
+        issueLabelRead: tables.issueLabelRead.slice(1),
+      },
+      rowIds: [tables.issueLabelRead[0]._id], handlerArgs: summaryArgs,
+      graphArgs: summaryArgs, principal: crewPrincipal, coveredNodeIds: [],
+      windowOptions: {rootTake: 1_024},
+      channel: 'corpus-internal independent JS computation ignores a table absent from the admitted scalar graph',
+      oracleAuthority: 'corpus-internal-independent-js-over-fixture-rows; evaluator-is-serving-authority',
+    },
   ];
   const pairedWorlds = [];
   const frozenPairs = [];
   for (const definition of pairDefinitions) {
-    const presentResult = await handlers[definition.query](
-      mockContext(definition.presentTables, definition.principal), definition.handlerArgs,
-    );
-    const absentResult = await handlers[definition.query](
-      mockContext(definition.absentTables, definition.principal), definition.handlerArgs,
-    );
+    const presentResult = definition.query === 'issueSummary'
+      ? evaluateIssueSummaryCorpusInternal(
+          definition.presentTables, definition.handlerArgs, ['internal', 'public'],
+        )
+      : await handlers[definition.query](
+          mockContext(definition.presentTables, definition.principal), definition.handlerArgs,
+        );
+    const absentResult = definition.query === 'issueSummary'
+      ? evaluateIssueSummaryCorpusInternal(
+          definition.absentTables, definition.handlerArgs, ['internal', 'public'],
+        )
+      : await handlers[definition.query](
+          mockContext(definition.absentTables, definition.principal), definition.handlerArgs,
+        );
     assert.deepEqual(absentResult, presentResult, `${definition.id} hidden slice is observationally absent`);
     const mapped = expectedFromOracle(
       definition.query, presentResult, fieldMaps[definition.query], {labelRows: tables.label},
@@ -2341,7 +2513,13 @@ async function main() {
         present: {fixture: present.identity, fixtureDigest: present.fixtureDigest, hiddenSlice: [{table: definition.table, rowIds: definition.rowIds}]},
         absent: {fixture: absent.identity, fixtureDigest: absent.fixtureDigest, hiddenSlice: []},
       },
-      oracleEvidence: {presentDigest: digestBytes(JSON.stringify(presentResult)), absentDigest: digestBytes(JSON.stringify(absentResult))},
+      oracleEvidence: {
+        presentDigest: digestBytes(JSON.stringify(presentResult)),
+        absentDigest: digestBytes(JSON.stringify(absentResult)),
+        ...(definition.oracleAuthority === undefined
+          ? {}
+          : {authority: definition.oracleAuthority}),
+      },
       expect: completeResult(
         carriers[definition.query], call, definition.presentTables,
         mapped.resultBytes, mapped.orderedRootIds,
@@ -2777,14 +2955,17 @@ async function main() {
   const observationGraphArgs = {
     issueListV2: {projectID: internalIssue.projectID, selectedLabelIDs: []},
     issueDetail: {sourceIssueID: publicIssue.id},
+    issueSummary: summaryArgs,
     listIssueByID: {sourceIssueID: publicIssue.id, selectedLabelIDs: []},
   };
   for (const [query, carrier] of Object.entries(carriers)) {
     const normalCase = normalCases.find(caseRow => caseRow.query === query);
     const call = invocation(
-      carrier, observationGraphArgs[query], ordinaryPrincipal, 0, query,
+      carrier, observationGraphArgs[query],
+      query === 'issueSummary' ? crewPrincipal : ordinaryPrincipal,
+      0, query,
       query === 'issueDetail' ? [{table: 'issue', id: publicIssue._id}] : [],
-      query === 'issueListV2' ? {rootTake: 1_024} : {},
+      query === 'issueListV2' || query === 'issueSummary' ? {rootTake: 1_024} : {},
     );
     const resultBytes = normalCase.declaredGraph.expected.resultBytes;
     const capturedDependencies = capturedDependencyVector(
@@ -2829,11 +3010,11 @@ async function main() {
     }
   }
   if (checkOnly) {
-    assert.equal(g0ExitObservations.length, 3, 'all normal G0 exit observations must come from the actual served group path');
+    assert.equal(g0ExitObservations.length, 4, 'all normal G0 exit observations must come from the actual served group path');
   }
   const corpus = {
     format: 'snapback.graph-conformance-corpus.v1', version: 1,
-    description: 'Completed G2 corpus: opaque G0 oracle evidence, served evaluator paired worlds and allowed activation, class-1 exact-audience and scope-mismatch cases, executable G2-C authority-transition and mixed-commit scheduler cases, one evaluation-time refusal, and structural admission refusals.',
+    description: 'Completed G2 corpus plus the G3 scalar-only issueSummary shape: opaque G0 control-oracle evidence for the original three graphs, an evaluator-authoritative issueSummary cross-checked by corpus-internal independent JS fixture computation, served evaluator paired worlds and allowed activation, class-1 exact-audience and scope-mismatch cases, executable G2-C authority-transition and mixed-commit scheduler cases, one evaluation-time refusal, and structural admission refusals.',
     fixtures: {
       normal: 'demos/zerobugs/control/fixtures/normal-seed-v1',
       policyExtension: 'demos/zerobugs/control/fixtures/policy-extension-v1.json',
@@ -2852,9 +3033,16 @@ async function main() {
     queries: Object.entries(carriers).map(([query, carrier]) => ({
       query, carrier, fieldMap: fieldMaps[query],
       disposition: {
-        structuralDeclaration: 'admitted', fullOracleRows: 'refused',
-        reason: refusals[query],
-        detail: query === 'issueListV2' ? 'non-search graph-order shape admitted; search membership refused' : 'fixed-id structural shape admitted; name-ordered through-shape remains refused while mapped label arrays use labelID graph order',
+        structuralDeclaration: 'admitted',
+        fullOracleRows: query === 'issueSummary'
+          ? 'evaluator-authoritative-cross-checked-by-corpus-internal-js'
+          : 'refused',
+        reason: refusals[query] ?? null,
+        detail: query === 'issueListV2'
+          ? 'non-search graph-order shape admitted; search membership refused'
+          : query === 'issueSummary'
+            ? 'corpus-only scalar root-window plus equality-to-one shape; no serving-control function; independent JS fixture computation cross-checks evaluator-authoritative rows'
+            : 'fixed-id structural shape admitted; name-ordered through-shape remains refused while mapped label arrays use labelID graph order',
       },
     })),
     authorityOwner: corpusAuthorityOwner,
@@ -2898,7 +3086,7 @@ async function main() {
     writeFileSync(PAIRED_FIXTURES_PATH, pretty(pairedFixtureCorpus));
   }
   console.log(`graph-g0-digests: corpus=${corpus.contentDigest} bounds=${bounds.contentDigest} pending=${pendingCorpus.contentDigest} dispositions=${proverDispositions.contentDigest} paired=${pairedFixtureCorpus.contentDigest}`);
-  console.log(`graph-g0-oracle-freeze: PASS normal-seed-v1 queries=3 oracleCases=${oracleCases.length} pairedWorlds=${pairedWorlds.length} allowDeny=${allowDenyCases.length} refusals=${refusalCases.length} corpusDigest=${corpus.contentDigest} boundsDigest=${bounds.contentDigest}`);
+  console.log(`graph-g0-oracle-freeze: PASS normal-seed-v1 queries=4 oracleCases=${oracleCases.length} pairedWorlds=${pairedWorlds.length} allowDeny=${allowDenyCases.length} refusals=${refusalCases.length} corpusDigest=${corpus.contentDigest} boundsDigest=${bounds.contentDigest}`);
   if (!existsSync(LARGE_ROOT)) console.log('graph-g0-large-spot-check: DEFERRED receipt-only; rerun zb5 command recorded in bound-derivation.v1.json');
 }
 
