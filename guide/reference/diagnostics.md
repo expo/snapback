@@ -19,7 +19,7 @@ reviewed-authorities-digest: sha256:00b52e6904f8aa8854e4aacc7e6180f7813f705e539d
 
 This build-bound registry is generated from production Rust, JavaScript, and Swift sources. Use `snapback guide SNAPBACK_*` for an exact, bounded lookup before searching prose.
 
-**3,670 stable codes** from 612 production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site.
+**3,671 stable codes** from 612 production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site.
 
 | Code | Subsystem | HTTP | Guide | First emitting site | Sites |
 | --- | --- | ---: | --- | --- | ---: |
@@ -1906,11 +1906,12 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-graph-broadcast-separation-unprovable"></a>`SNAPBACK_GRAPH_BROADCAST_SEPARATION_UNPROVABLE` | codegen | 400 | — | `crates/snapback-server/src/server/api_error.rs:174` | 5 |
 | <a id="diagnostic-snapback-graph-client-ast-forbidden"></a>`SNAPBACK_GRAPH_CLIENT_AST_FORBIDDEN` | codegen | 400 | — | `crates/snapback-server/src/server/api_error.rs:151` | 6 |
 | <a id="diagnostic-snapback-graph-code-forbidden"></a>`SNAPBACK_GRAPH_CODE_FORBIDDEN` | codegen | 400 | — | `crates/snapback-server/src/server/api_error.rs:152` | 12 |
-| <a id="diagnostic-snapback-graph-cursor-unbound"></a>`SNAPBACK_GRAPH_CURSOR_UNBOUND` | server | 400 | — | `crates/snapback-engine/src/graph_evaluator.rs:2635` | 5 |
+| <a id="diagnostic-snapback-graph-cursor-unbound"></a>`SNAPBACK_GRAPH_CURSOR_UNBOUND` | server | 400 | — | `crates/snapback-engine/src/graph_evaluator.rs:2655` | 5 |
 | <a id="diagnostic-snapback-graph-cycle"></a>`SNAPBACK_GRAPH_CYCLE` | codegen | 400 | — | `crates/snapback-server/src/server/api_error.rs:161` | 6 |
 | <a id="diagnostic-snapback-graph-delta-convergence"></a>`SNAPBACK_GRAPH_DELTA_CONVERGENCE` | server | — | — | `crates/snapback-engine/src/local/engine.rs:169` | 2 |
 | <a id="diagnostic-snapback-graph-delta-disabled"></a>`SNAPBACK_GRAPH_DELTA_DISABLED` | server | — | — | `crates/snapback-engine/src/local/engine.rs:33310` | 1 |
-| <a id="diagnostic-snapback-graph-demand-identity-mismatch"></a>`SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH` | server | 400 | — | `crates/snapback-engine/src/graph_evaluator.rs:1112` | 5 |
+| <a id="diagnostic-snapback-graph-demand-identity-mismatch"></a>`SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH` | server | 400 | — | `crates/snapback-engine/src/graph_evaluator.rs:1112` | 6 |
+| <a id="diagnostic-snapback-graph-demand-identity-trace"></a>`SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE` | server | — | — | `crates/snapback-kernel/src/live_matcher.rs:214` | 1 |
 | <a id="diagnostic-snapback-graph-demand-invalid"></a>`SNAPBACK_GRAPH_DEMAND_INVALID` | server | 400 | — | `crates/snapback-engine/src/local/engine.rs:41345` | 7 |
 | <a id="diagnostic-snapback-graph-demand-required"></a>`SNAPBACK_GRAPH_DEMAND_REQUIRED` | server | 400 | — | `crates/snapback-engine/src/local/engine.rs:41353` | 3 |
 | <a id="diagnostic-snapback-graph-dynamic-construction"></a>`SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION` | codegen | 400 | — | `crates/snapback-server/src/server/api_error.rs:154` | 20 |
@@ -1926,7 +1927,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-graph-principal-binding-unprovable"></a>`SNAPBACK_GRAPH_PRINCIPAL_BINDING_UNPROVABLE` | server | 400 | — | `crates/snapback-server/src/server/api_error.rs:170` | 2 |
 | <a id="diagnostic-snapback-graph-projection-count-invalid"></a>`SNAPBACK_GRAPH_PROJECTION_COUNT_INVALID` | codegen | 400 | — | `crates/snapback-server/src/server/api_error.rs:156` | 5 |
 | <a id="diagnostic-snapback-graph-projection-open"></a>`SNAPBACK_GRAPH_PROJECTION_OPEN` | codegen | 400 | — | `crates/snapback-server/src/server/api_error.rs:169` | 7 |
-| <a id="diagnostic-snapback-graph-projection-scope-invalid"></a>`SNAPBACK_GRAPH_PROJECTION_SCOPE_INVALID` | codegen | 400 | — | `crates/snapback-engine/src/graph_evaluator.rs:2366` | 6 |
+| <a id="diagnostic-snapback-graph-projection-scope-invalid"></a>`SNAPBACK_GRAPH_PROJECTION_SCOPE_INVALID` | codegen | 400 | — | `crates/snapback-engine/src/graph_evaluator.rs:2386` | 6 |
 | <a id="diagnostic-snapback-graph-qualification-corpus-mismatch"></a>`SNAPBACK_GRAPH_QUALIFICATION_CORPUS_MISMATCH` | server | 400 | — | `crates/snapback-server/src/server/api_error.rs:191` | 2 |
 | <a id="diagnostic-snapback-graph-qualification-derivation-missing"></a>`SNAPBACK_GRAPH_QUALIFICATION_DERIVATION_MISSING` | server | 400 | — | `crates/snapback-server/src/server/api_error.rs:192` | 2 |
 | <a id="diagnostic-snapback-graph-recursion-forbidden"></a>`SNAPBACK_GRAPH_RECURSION_FORBIDDEN` | codegen | 400 | — | `crates/snapback-server/src/server/api_error.rs:153` | 6 |
@@ -2856,7 +2857,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-push-session-stale"></a>`SNAPBACK_PUSH_SESSION_STALE` | server | 401 | — | `crates/snapback-kernel/src/push.rs:3064` | 4 |
 | <a id="diagnostic-snapback-push-token-invalid"></a>`SNAPBACK_PUSH_TOKEN_INVALID` | client | 400 | — | `crates/snapback-kernel/src/push.rs:3371` | 6 |
 | <a id="diagnostic-snapback-push-token-scope-collision"></a>`SNAPBACK_PUSH_TOKEN_SCOPE_COLLISION` | server | 409 | — | `crates/snapback-kernel/src/push.rs:3083` | 3 |
-| <a id="diagnostic-snapback-query-cost-bound-exceeded"></a>`SNAPBACK_QUERY_COST_BOUND_EXCEEDED` | queries | — | — | `crates/snapback-engine/src/graph_evaluator.rs:2873` | 5 |
+| <a id="diagnostic-snapback-query-cost-bound-exceeded"></a>`SNAPBACK_QUERY_COST_BOUND_EXCEEDED` | queries | — | — | `crates/snapback-engine/src/graph_evaluator.rs:2893` | 5 |
 | <a id="diagnostic-snapback-query-cost-client-unsupported"></a>`SNAPBACK_QUERY_COST_CLIENT_UNSUPPORTED` | queries | 400 | — | `crates/snapback-server/src/server/api_error.rs:195` | 3 |
 | <a id="diagnostic-snapback-query-cost-evidence-required"></a>`SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED` | queries | — | — | `crates/snapback-engine/src/graph_evaluator.rs:644` | 35 |
 | <a id="diagnostic-snapback-query-cost-index-required"></a>`SNAPBACK_QUERY_COST_INDEX_REQUIRED` | queries | — | — | `crates/snapback-engine/src/graph_evaluator.rs:1819` | 3 |

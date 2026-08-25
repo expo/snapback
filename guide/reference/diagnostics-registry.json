@@ -2,15 +2,15 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:8706007495d197f2a1f7b0eab0582b6409dd31b8f7001d257e3eb5545b3e98d0"
+    "sourceDigest": "sha256:7a2e2bf2360019ae032af9b2b67a100e50a6cacc199ed5d63b7f1768b923ce74"
   },
   "limits": {
     "lookupBytes": 16384
   },
   "counts": {
-    "codes": 3670,
+    "codes": 3671,
     "sourceFiles": 612,
-    "emittingSites": 12913,
+    "emittingSites": 12915,
     "httpClassified": 1730,
     "guideAnchored": 466
   },
@@ -34669,12 +34669,12 @@
         },
         {
           "file": "crates/snapback-kernel/src/live_matcher.rs",
-          "line": 1493,
+          "line": 1521,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/live_matcher.rs",
-          "line": 1555,
+          "line": 1583,
           "column": 18
         },
         {
@@ -55504,12 +55504,12 @@
       "sites": [
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 2635,
+          "line": 2655,
           "column": 14
         },
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 2651,
+          "line": 2671,
           "column": 14
         },
         {
@@ -55623,6 +55623,11 @@
           "column": 18
         },
         {
+          "file": "crates/snapback-kernel/src/live_matcher.rs",
+          "line": 215,
+          "column": 20
+        },
+        {
           "file": "crates/snapback-server/src/server/api_error.rs",
           "line": 185,
           "column": 12
@@ -55640,6 +55645,21 @@
       ],
       "httpStatus": 400,
       "httpStatusClass": "4xx",
+      "guideAnchor": null,
+      "guideAnchors": []
+    },
+    "SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE": {
+      "code": "SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE",
+      "subsystem": "server",
+      "sites": [
+        {
+          "file": "crates/snapback-kernel/src/live_matcher.rs",
+          "line": 214,
+          "column": 26
+        }
+      ],
+      "httpStatus": null,
+      "httpStatusClass": null,
       "guideAnchor": null,
       "guideAnchors": []
     },
@@ -56214,17 +56234,17 @@
       "sites": [
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 2366,
-          "column": 26
-        },
-        {
-          "file": "crates/snapback-engine/src/graph_evaluator.rs",
           "line": 2386,
           "column": 26
         },
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 2402,
+          "line": 2406,
+          "column": 26
+        },
+        {
+          "file": "crates/snapback-engine/src/graph_evaluator.rs",
+          "line": 2422,
           "column": 26
         },
         {
@@ -79716,17 +79736,17 @@
       "sites": [
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 2873,
+          "line": 2893,
           "column": 23
         },
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 3005,
+          "line": 3025,
           "column": 18
         },
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 3062,
+          "line": 3082,
           "column": 18
         },
         {
@@ -79796,147 +79816,147 @@
         },
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 2428,
+          "line": 2448,
           "column": 14
         },
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 2495,
+          "line": 2515,
           "column": 99
         },
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 2536,
+          "line": 2556,
           "column": 14
         },
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 2808,
+          "line": 2828,
           "column": 18
         },
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 2952,
+          "line": 2972,
           "column": 26
         },
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 2969,
+          "line": 2989,
           "column": 18
         },
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 2979,
+          "line": 2999,
           "column": 18
         },
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 2997,
+          "line": 3017,
           "column": 18
         },
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 3280,
+          "line": 3300,
           "column": 14
         },
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 3287,
+          "line": 3307,
           "column": 14
         },
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 3311,
+          "line": 3331,
           "column": 14
         },
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 3318,
+          "line": 3338,
           "column": 14
         },
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 3351,
+          "line": 3371,
           "column": 14
         },
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 3375,
+          "line": 3395,
           "column": 22
         },
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 3400,
+          "line": 3420,
           "column": 14
         },
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 3407,
+          "line": 3427,
           "column": 14
         },
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 3414,
+          "line": 3434,
           "column": 14
         },
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 3421,
+          "line": 3441,
           "column": 14
         },
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 3428,
+          "line": 3448,
           "column": 14
         },
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 3440,
+          "line": 3460,
           "column": 14
         },
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 3466,
+          "line": 3486,
           "column": 18
         },
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 3477,
+          "line": 3497,
           "column": 18
         },
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 3484,
+          "line": 3504,
           "column": 18
         },
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 3491,
+          "line": 3511,
           "column": 18
         },
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 3503,
+          "line": 3523,
           "column": 22
         },
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 3512,
+          "line": 3532,
           "column": 14
         },
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 3561,
+          "line": 3581,
           "column": 22
         },
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 3575,
+          "line": 3595,
           "column": 26
         },
         {
           "file": "crates/snapback-engine/src/graph_evaluator.rs",
-          "line": 3780,
+          "line": 3800,
           "column": 14
         },
         {
@@ -97558,7 +97578,7 @@
         },
         {
           "file": "packages/snapback-codegen/write-policy.mjs",
-          "line": 759,
+          "line": 777,
           "column": 19
         },
         {
@@ -97643,7 +97663,7 @@
         },
         {
           "file": "packages/snapback-codegen/write-policy.mjs",
-          "line": 800,
+          "line": 818,
           "column": 19
         },
         {
@@ -97693,7 +97713,7 @@
         },
         {
           "file": "packages/snapback-codegen/write-policy.mjs",
-          "line": 793,
+          "line": 811,
           "column": 21
         },
         {
@@ -97723,7 +97743,7 @@
         },
         {
           "file": "packages/snapback-codegen/write-policy.mjs",
-          "line": 775,
+          "line": 793,
           "column": 19
         },
         {
@@ -97848,27 +97868,27 @@
         },
         {
           "file": "packages/snapback-codegen/write-policy.mjs",
-          "line": 785,
+          "line": 803,
           "column": 19
         },
         {
           "file": "packages/snapback-codegen/write-policy.mjs",
-          "line": 838,
+          "line": 856,
           "column": 19
         },
         {
           "file": "packages/snapback-codegen/write-policy.mjs",
-          "line": 849,
+          "line": 867,
           "column": 19
         },
         {
           "file": "packages/snapback-codegen/write-policy.mjs",
-          "line": 921,
+          "line": 939,
           "column": 25
         },
         {
           "file": "packages/snapback-codegen/write-policy.mjs",
-          "line": 994,
+          "line": 1012,
           "column": 27
         },
         {
@@ -97903,7 +97923,7 @@
         },
         {
           "file": "packages/snapback-codegen/write-policy.mjs",
-          "line": 765,
+          "line": 783,
           "column": 19
         },
         {
@@ -97938,17 +97958,17 @@
         },
         {
           "file": "packages/snapback-codegen/write-policy.mjs",
-          "line": 807,
+          "line": 825,
           "column": 19
         },
         {
           "file": "packages/snapback-codegen/write-policy.mjs",
-          "line": 814,
+          "line": 832,
           "column": 21
         },
         {
           "file": "packages/snapback-codegen/write-policy.mjs",
-          "line": 892,
+          "line": 910,
           "column": 23
         }
       ],
