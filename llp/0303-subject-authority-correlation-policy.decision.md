@@ -6,7 +6,7 @@
 **Author:** Claude (Opus 5), commissioned by Charlie Cheever (author ruling
 2026-08-24, in session supervising LLP 0283 F-1)
 **Date:** 2026-08-24
-**Revised:** 2026-08-24 (h — removing a constructor is not removing the capability)
+**Revised:** 2026-08-24 (i — re-runnable producers and generic seams)
 **Related:** LLP 0283, LLP 0298, LLP 0285, LLP 0274,
 `issues/20260824-liveness-row-bucket-assignment.md`,
 `issues/20260824-entitlement-predicates-for-the-live-sites.md`
@@ -248,6 +248,36 @@ own right: if a caller can name the database, they can manufacture whatever that
 measurement — `commit_*_for_test` 2 → 0, `&mut LocalDatabase` parameters 1 → 0, `from_exact` 1 → 0 —
 and all of those were true. The measurements were correct and the conclusion drawn from them was
 wrong, because *symbol removed* is not *capability removed*. Verify the capability, not the symbol.
+
+### Two corollaries, both found by removing the obvious thing first
+
+A lane did the right thing twice — deleted `Clone` from its artifact, and deleted an artifact type
+outright — and a reviewer defeated both from an external dependent crate.
+
+**Single-use is a property of the pipeline, not of the artifact.** `verify_admission_envelope_prebind`
+took the envelope **by reference** and cloned it internally into each result. So the reviewer called
+the *verifier* twice on one envelope and installed both results: both installs succeeded, both
+databases held `(id, epoch, floor) = (1, 4, 9)`, and the two authorities had distinct allocations.
+
+> Removing `Clone` from an artifact is irrelevant when its **producer** can be re-run to mint another.
+> Ask where single-use is enforced across the whole chain — envelope → verifier → artifact → install
+> — and enforce it at the first step that can be repeated, by consuming the input or by recording
+> that it has been consumed.
+
+**Deleting a type does not delete its seam.** The same lane removed `AuthenticatedHostedTarget`, and
+a public generic `derive_from_authenticated_hosted_target_at` remained, handing **the four raw target
+fields to caller code** and returning an arbitrary `T`. A dependent returned an owned value, cloned
+it, and combined it with attacker-chosen incarnation and nonce. The consumer took `&self`, so it was
+repeatable.
+
+> A callback that hands out a value's parts **is** that value, with extra steps. Deleting the struct
+> changes the spelling, not the surface. Either the derivation happens inside the crate and returns
+> something the caller cannot decompose, or the parts must carry producing-instance identity that the
+> consumer verifies.
+
+Both corollaries share a shape with the constructor case above: the lane closed the route named in
+the finding, and the capability persisted one step upstream or one level of indirection away. When
+answering any of these findings, state where the capability now lives, not merely what was deleted.
 
 This is the same family as the constructor/setter case above: a derivation that holds at one instant
 and is undone afterwards. Setters undo it by assignment; combinators undo it by rewrapping; recycling
