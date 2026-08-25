@@ -48,5 +48,10 @@ public queries run with no session ceremony while protected queries still
 refuse through the sessions app-auth path.
 
 The native CLI integration fixture runs a declared-public Ibex query against a
-sessions-policy server and asserts the anonymous query result. The complete
+sessions-policy server and asserts the anonymous query result. It then invokes
+an authenticated query through the same retry path and proves both that the
+app route returns `SNAPBACK_AUTH_REQUIRED` and that the protected handler's
+execution counter remains zero. The retry predicate remains intentionally
+broad because the ordinary `/query/{name}` route is the fail-closed function
+auth gate; it cannot mint admin or session authority. The complete
 `host_ops_v0` integration file passes all 15 tests.

@@ -36,13 +36,21 @@ stale-descriptor tri-state pattern of the fixed-port probe).
 
 Target reservation acquisition now tries the OS-exclusive lock before
 classifying an existing pre-rework file. An unlocked, same-owner, single-link
-regular 0644 reservation emits
-`SNAPBACK_TARGET_INSTANCE_RESERVATION_STALE`, names the exact lock path, and
-gives a shell-quoted `rm -- '<path>'` remediation without mutating the file.
+regular 0644 reservation is recovered while its probed file descriptor still
+holds the exclusive lock. Recovery re-stats the directory entry and requires
+the same device/inode identity before unlinking it, syncs the parent directory,
+then emits `SNAPBACK_TARGET_INSTANCE_RESERVATION_STALE`, names the exact lock
+path, and asks the caller to retry the same command. It does not emit an
+identity-blind `rm` instruction. If the pathname has disappeared or now names a
+replacement reservation, recovery refuses and leaves the replacement intact.
 A 0644 reservation whose lock is held by a live owner keeps the prior hard
 "already reserved by another process" refusal and is never called stale.
 
-The instance-lock lifecycle suite covers both branches and passes all 12
-tests. The new diagnostic is registered in the generated diagnostic registry,
-Markdown projection, typed client code vocabulary, and regenerated Guide
-artifacts.
+The instance-lock lifecycle suite covers stale self-removal, a live legacy
+owner, and pathname replacement by a new live owner. A CLI-level test carries
+the typed stale failure through the real startup context and
+`project_cli_failure`, proving the projected diagnostic is
+`SNAPBACK_TARGET_INSTANCE_RESERVATION_STALE` rather than
+`SNAPBACK_CLI_FAILED`. The generated diagnostic registry, Markdown projection,
+typed client code vocabulary, symbol projections, and Guide aggregates include
+the code.

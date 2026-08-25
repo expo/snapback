@@ -89,24 +89,54 @@ fn wait_for_cli_ready(
 
 /// A sessions target treats the absence of client authority as anonymous.
 /// The native CLI must therefore omit `userId`, not serialize `--user`'s
-/// absent value as the explicitly forbidden JSON null.
+/// absent value as the explicitly forbidden JSON null. The app-route retry
+/// must still enforce an authenticated function before its handler executes.
 // @ref LLP 0058#session-mode-body-closure — every legacy authority field,
 // populated or null, is rejected before the host operation runs.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn snapback_run_public_query_is_anonymous_on_sessions_target() {
+async fn snapback_run_sessions_retry_runs_public_and_refuses_protected_query() {
     let mut snapback = LocalSnapback::memory().expect("sessions CLI fixture");
+    let source = r#"
+let protectedExecutions = 0;
+globalThis.__snapbackHandlers = {
+  publicStatus() { return [{ visibility: 'public' }]; },
+  protectedStatus() {
+    protectedExecutions += 1;
+    return [{ marker: 'PROTECTED_HANDLER_EXECUTED' }];
+  },
+  protectedExecutionProbe() { return [{ protectedExecutions }]; },
+};
+"#
+    .to_owned();
     let mut public_query = FunctionDefinition::new(
         "publicStatus",
         FunctionKind::Query,
         FunctionRuntime::IbexModule(IbexModule {
-            source: "globalThis.__snapbackHandlers = { publicStatus() { return [{ visibility: 'public' }]; } };"
-                .to_owned(),
+            source: source.clone(),
             export: "publicStatus".to_owned(),
         }),
     );
     public_query.auth_requirement = Some(AuthRequirement::Public);
+    let mut protected_query = FunctionDefinition::new(
+        "protectedStatus",
+        FunctionKind::Query,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: source.clone(),
+            export: "protectedStatus".to_owned(),
+        }),
+    );
+    protected_query.auth_requirement = Some(AuthRequirement::Authenticated);
+    let mut execution_probe = FunctionDefinition::new(
+        "protectedExecutionProbe",
+        FunctionKind::Query,
+        FunctionRuntime::IbexModule(IbexModule {
+            source,
+            export: "protectedExecutionProbe".to_owned(),
+        }),
+    );
+    execution_probe.auth_requirement = Some(AuthRequirement::Public);
     let diagnostics = snapback.load_functions(FunctionManifest {
-        functions: vec![public_query],
+        functions: vec![public_query, protected_query, execution_probe],
         ..FunctionManifest::default()
     });
     assert!(
@@ -135,41 +165,78 @@ async fn snapback_run_public_query_is_anonymous_on_sessions_target() {
             .expect("serve sessions CLI fixture");
     });
 
-    let output = tokio::task::spawn_blocking(move || {
-        std::process::Command::new(env!("CARGO_BIN_EXE_snapback"))
-            .args([
-                "run",
-                "--url",
-                &format!("http://{address}"),
-                "--token",
-                "sessions-public-cli-admin",
-                "publicStatus",
-            ])
-            .env_remove("SNAPBACK_ADMIN_TOKEN")
-            .output()
-            .expect("run native CLI against sessions fixture")
+    let (public_output, protected_output, probe_output) = tokio::task::spawn_blocking(move || {
+        let run = |function: &str| {
+            std::process::Command::new(env!("CARGO_BIN_EXE_snapback"))
+                .args([
+                    "run",
+                    "--url",
+                    &format!("http://{address}"),
+                    "--token",
+                    "sessions-public-cli-admin",
+                    function,
+                ])
+                .env_remove("SNAPBACK_ADMIN_TOKEN")
+                .output()
+                .expect("run native CLI against sessions fixture")
+        };
+        (
+            run("publicStatus"),
+            run("protectedStatus"),
+            run("protectedExecutionProbe"),
+        )
     })
     .await
     .unwrap();
     server.abort();
 
     assert!(
-        output.status.success(),
+        public_output.status.success(),
         "snapback run stderr: {}\nstdout: {}",
-        String::from_utf8_lossy(&output.stderr),
-        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&public_output.stderr),
+        String::from_utf8_lossy(&public_output.stdout),
     );
-    let envelope: Value = serde_json::from_slice(&output.stdout).expect("CLI query result");
+    let envelope: Value = serde_json::from_slice(&public_output.stdout).expect("CLI query result");
     assert_eq!(
         envelope["rows"][0]["visibility"], "public",
         "public sessions invocation must use the anonymous query route: {envelope}"
     );
-    assert_ne!(
-        envelope["diagnostics"]
-            .as_array()
-            .and_then(|diagnostics| diagnostics.first())
-            .and_then(|diagnostic| diagnostic["code"].as_str()),
-        Some("SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED")
+    assert!(
+        envelope.get("diagnostic").is_none(),
+        "the successful anonymous query must not carry a refusal: {envelope}"
+    );
+
+    assert!(
+        !protected_output.status.success(),
+        "an authenticated query must remain closed to snapback run's anonymous retry"
+    );
+    let protected: Value = serde_json::from_slice(&protected_output.stdout)
+        .expect("protected CLI refusal must remain structured JSON");
+    assert_eq!(
+        protected["diagnostic"]["code"], "SNAPBACK_AUTH_REQUIRED",
+        "the app route must refuse the anonymous retry at the function gate: {protected}"
+    );
+    let protected_process_output = format!(
+        "{}\n{}",
+        String::from_utf8_lossy(&protected_output.stdout),
+        String::from_utf8_lossy(&protected_output.stderr)
+    );
+    assert!(
+        !protected_process_output.contains("PROTECTED_HANDLER_EXECUTED"),
+        "the protected handler marker must not escape: {protected_process_output}"
+    );
+
+    assert!(
+        probe_output.status.success(),
+        "execution probe stderr: {}\nstdout: {}",
+        String::from_utf8_lossy(&probe_output.stderr),
+        String::from_utf8_lossy(&probe_output.stdout),
+    );
+    let probe: Value =
+        serde_json::from_slice(&probe_output.stdout).expect("protected execution probe result");
+    assert_eq!(
+        probe["rows"][0]["protectedExecutions"], 0,
+        "the authenticated handler must not execute on the anonymous retry path: {probe}"
     );
 }
 

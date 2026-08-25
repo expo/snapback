@@ -5258,6 +5258,40 @@ fn database_path_is_absolute_after_parent_creation() {
 
 #[cfg(any(target_vendor = "apple", target_os = "linux"))]
 #[test]
+fn stale_startup_reservation_reaches_the_projected_cli_diagnostic() {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let dir = tempfile::tempdir().unwrap();
+    let db_path = dir.path().join("stale-instance").join("snapback.db");
+    let lock_path = crate::instance_lock::target_reservation_path_for_database(&db_path).unwrap();
+    std::fs::write(&lock_path, b"pre-rework reservation\n").unwrap();
+    std::fs::set_permissions(&lock_path, std::fs::Permissions::from_mode(0o644)).unwrap();
+
+    let error = prepare_database_path_for_startup(&db_path)
+        .expect_err("startup must report the recovered legacy reservation");
+    assert!(
+        format!("{error:#}")
+            .starts_with("database target could not be reserved and pinned before startup"),
+        "the projection witness must include the real startup context wrapper: {error:#}"
+    );
+    let (_exit, envelope) = super::project_cli_failure(&error);
+    assert_eq!(
+        envelope["diagnostics"][0]["code"], "SNAPBACK_TARGET_INSTANCE_RESERVATION_STALE",
+        "the real projected failure must preserve the typed stale code: {envelope}"
+    );
+    assert_ne!(envelope["diagnostics"][0]["code"], "SNAPBACK_CLI_FAILED");
+    assert!(
+        !lock_path.exists(),
+        "the projected diagnostic follows identity-checked stale removal"
+    );
+    assert!(
+        !db_path.parent().unwrap().exists(),
+        "stale recovery must still precede target-instance creation"
+    );
+}
+
+#[cfg(any(target_vendor = "apple", target_os = "linux"))]
+#[test]
 fn startup_creation_participates_in_the_restore_target_reservation() {
     let dir = tempfile::tempdir().unwrap();
     let db_path = dir.path().join("new-instance").join("snapback.db");
