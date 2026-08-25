@@ -304,7 +304,8 @@ Unchanged: bearer custody (incl. native SecureStore custody, LLP
 release/hosted binding admission, LLP 0299's landed allocation behavior —
 owners, pins, ranges, env equivalents, holder-naming refusals, `portPlan`
 provenance — and the supervised path's code, batteries, and Android
-polish.
+polish **apart from ordinary-session issuance and adoption**: P4 changes
+supervised Expo web to on-demand issuance with explicit provider adoption.
 
 Amended in LLP 0299 (dated amendment notes there, not a tombstone): the
 canonical-path scope banner (plain profile is canonical; multi-owner

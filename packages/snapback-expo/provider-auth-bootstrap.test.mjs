@@ -26,6 +26,7 @@ import {
   useSnapbackQuery,
 } from '@expo/snapback-react';
 import { useSnapbackProviderClient } from '../snapback-react/implementation.mjs';
+import { startBootstrapExchange } from '../snapback-cli/expo-dev.mjs';
 import {
   SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV,
   SUPERVISED_DEV_IDENTITY_CHECKOUT_HEADER,
@@ -322,6 +323,7 @@ function installAuthServer() {
     throw new Error(`unexpected Expo auth request: ${path}`);
   };
   return {
+    fetchImplementation: originalFetch,
     requests,
     revokedBearers,
     setFunctionManifest(value) { servedFunctions = value; },
@@ -355,6 +357,9 @@ function environmentFor(platform, supervisor) {
   return Object.freeze({
     format: 'snapback.expo-environment.v1',
     appState: appStateSource(),
+    resolveNativeAuthCustodyOperatingSystem: async () => (
+      ['browser', 'expo-web'].includes(platform?.kind) ? 'web' : 'ios'
+    ),
     resolveAppClientPlatform: async () => platform,
     resolveBinding: async () => ({
       binding: currentBinding(),
@@ -403,6 +408,93 @@ protectedApp.api.queries.listTodos.authRequirement = 'authenticated';
 const protectedFunctions = structuredClone(functionManifest);
 protectedFunctions.functions.find(({ name }) => name === 'listTodos').authRequirement = 'authenticated';
 server.setFunctionManifest(protectedFunctions);
+
+// Regression: runtime posture, not the selected custody platform, decides
+// whether supervised adoption is a default. Expo web without IndexedDB uses
+// explicit volatile custody (`kind: "memory"`) but must still boot anonymous
+// so password entry remains reachable and no authority request is made.
+const noIndexedDbWebApp = structuredClone(protectedApp);
+noIndexedDbWebApp.authBootstrap.custody = 'volatile-explicit';
+const noIndexedDbWebBinding = structuredClone(binding);
+noIndexedDbWebBinding.provenance.issuedAt = new Date(Date.now() - 30 * 60_000).toISOString();
+noIndexedDbWebBinding.provenance.expiresAt = new Date(Date.now() + 30 * 60_000).toISOString();
+const noIndexedDbWebSupervisor = {
+  bearer: SUPERVISED_BEARER,
+  binding: noIndexedDbWebBinding,
+  events: [],
+  diagnostics: [],
+};
+const {
+  resolveNativeAuthCustodyOperatingSystem: _noIndexedDbRuntimeOverride,
+  resolveAppClientPlatform: _noIndexedDbPlatformOverride,
+  ...noIndexedDbWebEnvironment
+} = environmentFor(Object.freeze({ kind: 'memory', cryptoObject: webcrypto }), noIndexedDbWebSupervisor);
+const previousWebDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
+assert.equal(globalThis.indexedDB, undefined, 'the regression requires IndexedDB to be absent');
+Object.defineProperty(globalThis, 'document', {
+  configurable: true,
+  enumerable: true,
+  value: Object.freeze({}),
+});
+const noIndexedDbWebProjection = { boot: null, principal: null };
+function NoIndexedDbWebPasswordProjection() {
+  noIndexedDbWebProjection.boot = useSnapbackExpoBootState();
+  noIndexedDbWebProjection.principal = useSnapbackCurrentPrincipal();
+  return noIndexedDbWebProjection.principal?.status === 'anonymous'
+    ? React.createElement('password-form', { testID: 'no-indexeddb-web-password-form' })
+    : null;
+}
+let noIndexedDbWebRenderer;
+await act(async () => {
+  noIndexedDbWebRenderer = TestRenderer.create(React.createElement(
+    SnapbackExpoProvider,
+    {
+      app: noIndexedDbWebApp,
+      environment: Object.freeze(noIndexedDbWebEnvironment),
+      rqsStore: null,
+      outboxDrain: 'manual',
+      fallback(state) {
+        noIndexedDbWebProjection.boot = state;
+        return null;
+      },
+    },
+    React.createElement(NoIndexedDbWebPasswordProjection),
+  ));
+});
+await settleReactUntil(
+  () => noIndexedDbWebProjection.boot?.status === 'ready'
+    && noIndexedDbWebProjection.principal !== null,
+  () => `the no-IndexedDB Expo web provider must settle: ${JSON.stringify({
+    boot: noIndexedDbWebProjection.boot,
+    events: noIndexedDbWebSupervisor.events,
+    diagnostics: noIndexedDbWebSupervisor.diagnostics,
+  })}`,
+);
+assert.equal(
+  noIndexedDbWebProjection.principal.status,
+  'anonymous',
+  `Expo web without IndexedDB must not adopt from its memory custody platform: ${JSON.stringify({
+    custody: noIndexedDbWebProjection.boot?.custody,
+    events: noIndexedDbWebSupervisor.events,
+  })}`,
+);
+assert.equal(
+  noIndexedDbWebRenderer.root.findAllByProps({ testID: 'no-indexeddb-web-password-form' }).length,
+  1,
+  'Expo web without IndexedDB exposes password entry',
+);
+assert.deepEqual(
+  noIndexedDbWebSupervisor.events,
+  [],
+  'Expo web without IndexedDB makes no supervised authority request',
+);
+await act(async () => {
+  noIndexedDbWebRenderer.unmount();
+  await new Promise((resolve) => setImmediate(resolve));
+});
+if (previousWebDocument === undefined) delete globalThis.document;
+else Object.defineProperty(globalThis, 'document', previousWebDocument);
+
 const previousLiveNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
 delete process.env.SNAPBACK_CLIENT_RQS_STORE;
 Object.defineProperty(globalThis, 'navigator', {
@@ -898,25 +990,47 @@ await act(async () => {
 // real revocation edge: once logout ends the bearer, any attempted reuse gets
 // SNAPBACK_AUTH_SESSION_EXPIRED. Keep a protected query mounted across that
 // transition and require the real React provider to expose password entry.
-const adoptedSignoutCustody = createMemoryAuthCustodyStorage();
 const adoptedSignoutPlatform = Object.freeze({
-  kind: 'expo-native',
+  kind: 'expo-web',
+  indexedDB: new IDBFactory(),
+  lockManager: Object.freeze({ request: (_name, _options, operation) => operation() }),
   cryptoObject: webcrypto,
-  authCustodyStorage: Object.freeze({
-    ownerKeyCapability: adoptedSignoutCustody.ownerKeyCapability,
-    withOwnership: adoptedSignoutCustody.withOwnership,
-    platformGrade: async () => Object.freeze({
-      grade: 'single-runtime',
-      mechanism: 'provider-adopted-signout-native-fixture',
-    }),
-  }),
+  databaseName: 'snapback-expo-auth-bootstrap-adopted-signout-web',
 });
 const adoptedSignoutSupervisor = {
-  bearer: SUPERVISED_SIGNOUT_BEARER,
-  binding: liveBinding,
   events: [],
   diagnostics: [],
 };
+let adoptedSignoutExchange;
+adoptedSignoutExchange = await startBootstrapExchange(({ requestAuthority }) => {
+  adoptedSignoutSupervisor.events.push(requestAuthority ? 'mint' : 'binding');
+  return Object.freeze({
+    format: SUPERVISED_EXCHANGE_FORMAT,
+    correlationId: 'provider-adopted-signout-web',
+    binding: liveBinding,
+    authority: requestAuthority
+      ? Object.freeze({
+          status: 'ready',
+          tokenType: 'Bearer',
+          token: SUPERVISED_SIGNOUT_BEARER,
+        })
+      : Object.freeze({ status: 'unavailable' }),
+  });
+}, {
+  admittedAuthorityOrigins: () => [adoptedSignoutExchange.origin],
+});
+const adoptedSignoutEnvironment = Object.freeze({
+  ...createSupervisedExpoEnvironment({
+    exchangeOrigin: adoptedSignoutExchange.origin,
+    fetch: server.fetchImplementation,
+    appState: appStateSource(),
+    bindingCache: null,
+    runtimePlatform: 'web',
+    onDiagnostic(value) { adoptedSignoutSupervisor.diagnostics.push(value); },
+  }),
+  resolveNativeAuthCustodyOperatingSystem: async () => 'web',
+  resolveAppClientPlatform: async () => adoptedSignoutPlatform,
+});
 const adoptedSignoutProjection = { auth: null, principal: null, query: null, boot: null };
 function AdoptedSignoutProjection() {
   adoptedSignoutProjection.auth = useSnapbackAuth();
@@ -932,8 +1046,9 @@ await act(async () => {
     SnapbackExpoProvider,
     {
       app: protectedApp,
-      environment: environmentFor(adoptedSignoutPlatform, adoptedSignoutSupervisor),
+      environment: adoptedSignoutEnvironment,
       adoptSupervisedSession: true,
+      rqsStore: null,
       outboxDrain: 'manual',
       fallback(state) {
         adoptedSignoutProjection.boot = state;
@@ -968,6 +1083,15 @@ await settleReactUntil(
   })}`,
 );
 assert.equal(server.revokedBearers.has(SUPERVISED_SIGNOUT_BEARER), true);
+const revokedBearerReuse = await fetch(`${liveBinding.target.origin}/auth/session`, {
+  headers: { authorization: `Bearer ${SUPERVISED_SIGNOUT_BEARER}` },
+});
+assert.equal(revokedBearerReuse.status, 401, 'the ended supervised bearer is unusable');
+assert.equal(
+  (await revokedBearerReuse.json()).code,
+  'SNAPBACK_AUTH_SESSION_EXPIRED',
+  'the route gate reports the ordinary ended-session diagnostic',
+);
 assert.equal(
   adoptedSignoutSupervisor.diagnostics.some(
     ({ code }) => code === 'SNAPBACK_AUTH_SESSION_EXPIRED',
@@ -978,6 +1102,7 @@ await act(async () => {
   adoptedSignoutRenderer.unmount();
   await new Promise((resolve) => setImmediate(resolve));
 });
+await adoptedSignoutExchange.close();
 globalThis.WebSocket = originalWebSocket;
 if (previousLiveNavigator === undefined) delete globalThis.navigator;
 else Object.defineProperty(globalThis, 'navigator', previousLiveNavigator);
@@ -1263,7 +1388,11 @@ try {
 }
 
 assert.deepEqual(supervisor.events, ['boot', 'refresh', 'refresh', 'refresh', 'refresh']);
-assert.deepEqual(adoptedSignoutSupervisor.events, ['boot']);
+assert.deepEqual(
+  adoptedSignoutSupervisor.events,
+  ['binding', 'binding', 'mint'],
+  'the real exchange performs one on-demand mint for the explicit web adoption',
+);
 assert.deepEqual(anonymousSupervisor.events, ['boot', 'refresh']);
 assert.deepEqual(supervisor.diagnostics, []);
 assert.deepEqual(adoptedSignoutSupervisor.diagnostics, []);
@@ -1288,4 +1417,4 @@ server.restore();
 if (priorRqs === undefined) delete process.env.SNAPBACK_CLIENT_RQS_STORE;
 else process.env.SNAPBACK_CLIENT_RQS_STORE = priorRqs;
 
-console.log('provider-auth-bootstrap.test.mjs: anonymous real-provider refresh handoff/resubscribe, password-session refresh preservation, revoked-route reuse refusal, explicit supervised adoption/signOut, native client-option forwarding, and redeem-refusal adoption pass');
+console.log('provider-auth-bootstrap.test.mjs: no-IndexedDB web default, anonymous real-provider refresh handoff/resubscribe, password-session refresh preservation, revoked-route reuse refusal, real supervised-web provider adoption/signOut with mounted query, native client-option forwarding, and redeem-refusal adoption pass');

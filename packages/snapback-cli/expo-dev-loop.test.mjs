@@ -981,6 +981,7 @@ try {
   let unsettledWebPlatformResolutions = 0;
   const unsettledWebEnvironment = Object.freeze({
     ...unsettledWebBaseEnvironment,
+    resolveNativeAuthCustodyOperatingSystem() { return 'web'; },
     resolveAppClientPlatform() {
       unsettledWebPlatformResolutions += 1;
       return Object.freeze({
@@ -1035,6 +1036,7 @@ try {
       appState: appStateHarness(),
       runtimePlatform: 'native',
     }),
+    resolveNativeAuthCustodyOperatingSystem() { return 'ios'; },
     resolveAppClientPlatform() {
       return Object.freeze({ kind: 'memory', cryptoObject: webcrypto });
     },
@@ -1374,6 +1376,7 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
       },
       onDiagnostic(diagnostic) { applicationDiagnostics.push(diagnostic); },
     }),
+    resolveNativeAuthCustodyOperatingSystem() { return 'web'; },
     resolveAppClientPlatform() {
       return Object.freeze({
         kind: 'expo-web',
@@ -1946,6 +1949,7 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
       runtimePlatform: 'native',
       clientOptions: { rqsStore: null, offlineQueue: false },
     }),
+    resolveNativeAuthCustodyOperatingSystem() { return 'ios'; },
     resolveAppClientPlatform() {
       return Object.freeze({ kind: 'memory', cryptoObject: webcrypto });
     },
