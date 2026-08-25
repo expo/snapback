@@ -22962,44 +22962,11 @@ pub fn spawn_maintenance_worker(runtime: AppState) -> JoinHandle<()> {
             // retry instead of silently consuming the only cleanup witness.
             retired_cleanup_retries =
                 join_retired_connection_cleanup_batch(cleanup_tasks, &runtime.telemetry).await;
-            // Resolve connection grants before entering the database owner.
-            // A room obligation remains pending if any readable id was
-            // replaced between snapshot and resolution; the next tick starts
-            // again from the replacement's exact effect fence.
-            let coordinator = runtime.auth_coordinator.clone();
-            let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-            let mut resolved_rooms = Vec::new();
-            for room in ephemeral.pending_room_reauthorizations() {
-                let mut fresh_authorities = Vec::with_capacity(room.subscribers().len());
-                let mut replaced = false;
-                for subscriber in room.subscribers() {
-                    match connections.resolve_room_connection_authority(
-                        subscriber.connection_id(),
-                        subscriber.effect_fence(),
-                        coordinator.as_deref(),
-                        epoch_now_ms,
-                        monotonic_now,
-                    ) {
-                        Ok(ResolvedRoomConnectionAuthority::Absent) => {
-                            fresh_authorities.push(None);
-                        }
-                        Ok(ResolvedRoomConnectionAuthority::Current { auth, effect_fence })
-                            if subscriber.effect_fence() == Some(&effect_fence) =>
-                        {
-                            fresh_authorities.push(auth);
-                        }
-                        Ok(ResolvedRoomConnectionAuthority::Current { .. })
-                        | Ok(ResolvedRoomConnectionAuthority::Replaced)
-                        | Err(_) => {
-                            replaced = true;
-                            break;
-                        }
-                    }
-                }
-                if !replaced {
-                    resolved_rooms.push((room, fresh_authorities));
-                }
-            }
+            // Pending enumeration privately captures each installed
+            // subscriber identity. Resolution happens at the database owner;
+            // completion rechecks the exact effect fence and leaves a replaced
+            // snapshot pending for the next tick.
+            let pending_rooms = ephemeral.pending_room_reauthorizations();
 
             // The permission query and journal prune are rusqlite work — off
             // the async worker (L7). No registry/coordinator lock is acquired
@@ -23009,10 +22976,8 @@ pub fn spawn_maintenance_worker(runtime: AppState) -> JoinHandle<()> {
                     snapback.record_reaped_connections(reaped_connections);
                 }
                 let mut planned = Vec::new();
-                for (room, fresh_authorities) in resolved_rooms {
-                    match snapback
-                        .resolve_pending_ephemeral_room_permissions(room, fresh_authorities)
-                    {
+                for room in pending_rooms {
+                    match snapback.resolve_pending_ephemeral_room_permissions(room) {
                         Ok(batch) => planned.push(batch),
                         Err(error) => snapback.record_maintenance_error(
                             MaintenanceOperation::PermissionResolution,

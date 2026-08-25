@@ -853,10 +853,7 @@ fn codegen_membership_allowed_role_change_preserves_the_live_subscriber() {
     let before_reauthorization = drain_through_test_sink(&ephemeral, "codegen-member-a");
     assert_auth_changed(&before_reauthorization, 2);
     let completed = snapback
-        .reauthorize_pending_ephemeral_rooms(|connection_id, previous| {
-            assert_eq!(connection_id, "codegen-member-a");
-            Ok(Some(previous.clone()))
-        })
+        .reauthorize_pending_ephemeral_rooms()
         .expect("the admitted owner role reauthorizes the existing subscriber");
     assert_eq!(completed, 1);
     assert_eq!(
@@ -988,13 +985,7 @@ fn codegen_membership_role_downgrade_kicks_and_scrubs_the_room_subscriber() {
     }
 
     let completed = snapback
-        .reauthorize_pending_ephemeral_rooms(|connection_id, previous| {
-            assert!(matches!(
-                connection_id,
-                "codegen-member-a" | "codegen-owner-b"
-            ));
-            Ok(Some(previous.clone()))
-        })
+        .reauthorize_pending_ephemeral_rooms()
         .expect("the committed role change is re-read through the emitted projection");
     assert_eq!(completed, 1);
     assert_eq!(
@@ -1282,10 +1273,7 @@ fn card_game_kick_composes_durable_and_room_authority_boundaries() {
         .snapback
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
-        .reauthorize_pending_ephemeral_rooms(|connection_id, previous| {
-            assert!(matches!(connection_id, CONNECTION_A | CONNECTION_B));
-            Ok(Some(previous.clone()))
-        })
+        .reauthorize_pending_ephemeral_rooms()
         .expect("fresh durable membership reauthorizes the room");
     assert_eq!(completed, 1);
 
