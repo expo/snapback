@@ -4,11 +4,11 @@ use crate::manifest::{
     GraphCapturedDependencyV1, GraphCapturedReadAttachmentV1, GraphCapturedReadV1,
     GraphChildPageV1, GraphDemandTimeRefusalReasonV1, GraphDirectionV1, GraphEdgeV1,
     GraphExistsModeV1, GraphIntervalEndV1, GraphMaterializationIdentityV1, GraphNodeKindV1,
-    GraphNodeV1, GraphNodeWindowIdentityV1, GraphQueryCarrierV1, GraphRowKeyV1, HandlerInput,
-    HandlerPlan, OrderDirection, OrderExpr, QueryOutput, QueryPlan, SchemaManifest, Sha256V1,
-    TableVisibilityV1, ValueExpr, effective_query_limit, graph_authority_partition_identity_v1,
-    graph_instance_identity_v1, graph_materialization_identity_v1, graph_plan_identity_v1,
-    validate_graph_captured_read_v1,
+    GraphNodeV1, GraphNodeWindowIdentityV1, GraphProjectionObjectV1, GraphProjectionValueV1,
+    GraphQueryCarrierV1, GraphRowKeyV1, HandlerInput, HandlerPlan, OrderDirection, OrderExpr,
+    QueryOutput, QueryPlan, SchemaManifest, Sha256V1, TableVisibilityV1, ValueExpr,
+    effective_query_limit, graph_authority_partition_identity_v1, graph_instance_identity_v1,
+    graph_materialization_identity_v1, graph_plan_identity_v1, validate_graph_captured_read_v1,
 };
 use crate::storage::{CapturedReadDependency, CapturedReadKind, ChangeOp, ChangedRow, DbRead};
 use schemars::JsonSchema;
@@ -820,6 +820,22 @@ fn attest_membership_fact(
     })
 }
 
+fn registration_projection_references_exists(
+    object: &GraphProjectionObjectV1,
+    node_id: &str,
+) -> bool {
+    object.fields.iter().any(|field| match &field.value {
+        GraphProjectionValueV1::Exists {
+            node_id: projected_node,
+        } => projected_node == node_id,
+        GraphProjectionValueV1::Object { object, .. }
+        | GraphProjectionValueV1::Array { item: object, .. } => {
+            registration_projection_references_exists(object, node_id)
+        }
+        GraphProjectionValueV1::Field { .. } | GraphProjectionValueV1::Literal { .. } => false,
+    })
+}
+
 #[allow(clippy::too_many_arguments)]
 fn attest_principal_facts(
     demand: &GraphSubscriptionRegistrationDemandV1,
@@ -1261,6 +1277,7 @@ fn attest_registration_semantics(
                 }
             }
             GraphNodeV1::ExistsSemiJoin {
+                node_id,
                 mode,
                 edge,
                 filters,
@@ -1308,8 +1325,20 @@ fn attest_registration_semantics(
                 }
                 // @ref LLP 0209#51-captured-vocabulary-by-normalized-node — a
                 // predicate-only semi-join narrows the immediate parent
-                // population before later sibling captures are attested.
-                outputs.insert(parent_node_id.clone(), retained_parents);
+                // population before later sibling captures are attested; a
+                // projected existence bit leaves that population intact.
+                let projected_as_existence =
+                    carrier
+                        .normalized_plan
+                        .nodes
+                        .last()
+                        .is_some_and(|projection| {
+                            matches!(projection, GraphNodeV1::ClosedProjection { object, .. }
+                            if registration_projection_references_exists(object, node_id))
+                        });
+                if !projected_as_existence {
+                    outputs.insert(parent_node_id.clone(), retained_parents);
+                }
             }
             GraphNodeV1::PrincipalBound {
                 table,

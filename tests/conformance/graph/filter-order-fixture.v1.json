@@ -25,9 +25,41 @@
         "sourceName": "matrix-beta"
       }
     ],
+    "tieBreakRows": [
+      {
+        "physicalID": "issue_matrix_a",
+        "sourceID": "matrix-b"
+      },
+      {
+        "physicalID": "issue_matrix_b",
+        "sourceID": "matrix-a"
+      }
+    ],
+    "combinedFilterDecoys": [
+      {
+        "conjunct": "open",
+        "physicalID": "issue_matrix_decoy_open",
+        "sourceID": "matrix-decoy-open"
+      },
+      {
+        "conjunct": "creator",
+        "physicalID": "issue_matrix_decoy_creator",
+        "sourceID": "matrix-decoy-creator"
+      },
+      {
+        "conjunct": "assignee",
+        "physicalID": "issue_matrix_decoy_assignee",
+        "sourceID": "matrix-decoy-assignee"
+      },
+      {
+        "conjunct": "project",
+        "physicalID": "issue_matrix_zero_decoy",
+        "sourceID": "matrix-zero-decoy"
+      }
+    ],
     "liveIssue": {
       "physicalID": "issue_matrix_a",
-      "sourceID": "matrix-a"
+      "sourceID": "matrix-b"
     },
     "crossProjectDecoy": {
       "physicalID": "issue_matrix_zero_decoy",
@@ -85,7 +117,7 @@
         "issue": [
           {
             "_id": "issue_matrix_a",
-            "id": "matrix-a",
+            "id": "matrix-b",
             "shortID": 9000,
             "title": "Matrix a issue",
             "open": true,
@@ -99,7 +131,7 @@
           },
           {
             "_id": "issue_matrix_b",
-            "id": "matrix-b",
+            "id": "matrix-a",
             "shortID": 9001,
             "title": "Matrix b issue",
             "open": true,
@@ -152,9 +184,51 @@
             "visibility": "public"
           },
           {
+            "_id": "issue_matrix_decoy_open",
+            "id": "matrix-decoy-open",
+            "shortID": 9005,
+            "title": "Matrix decoy_open issue",
+            "open": false,
+            "modified": 1960000000000,
+            "created": 1890000000000,
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_188a39cce5c928cdcac022e3",
+            "assigneeID": "user_b8222266f94aa6b36a6b5999",
+            "description": "Filter/order matrix fixture row decoy_open",
+            "visibility": "public"
+          },
+          {
+            "_id": "issue_matrix_decoy_creator",
+            "id": "matrix-decoy-creator",
+            "shortID": 9006,
+            "title": "Matrix decoy_creator issue",
+            "open": true,
+            "modified": 1950000000000,
+            "created": 1880000000000,
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_37617f38bd751da58ed19276",
+            "assigneeID": "user_b8222266f94aa6b36a6b5999",
+            "description": "Filter/order matrix fixture row decoy_creator",
+            "visibility": "public"
+          },
+          {
+            "_id": "issue_matrix_decoy_assignee",
+            "id": "matrix-decoy-assignee",
+            "shortID": 9007,
+            "title": "Matrix decoy_assignee issue",
+            "open": true,
+            "modified": 1940000000000,
+            "created": 1870000000000,
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_188a39cce5c928cdcac022e3",
+            "assigneeID": "user_37617f38bd751da58ed19276",
+            "description": "Filter/order matrix fixture row decoy_assignee",
+            "visibility": "public"
+          },
+          {
             "_id": "issue_matrix_hidden",
             "id": "matrix-hidden",
-            "shortID": 9005,
+            "shortID": 9008,
             "title": "Matrix hidden issue",
             "open": true,
             "modified": 2000000000000,
@@ -168,7 +242,7 @@
           {
             "_id": "issue_matrix_zero_decoy",
             "id": "matrix-zero-decoy",
-            "shortID": 9006,
+            "shortID": 9009,
             "title": "Matrix zero_decoy issue",
             "open": true,
             "modified": 2000000000000,
@@ -184,7 +258,7 @@
           {
             "_id": "issueListRead_matrix_a",
             "issueID": "issue_matrix_a",
-            "sourceIssueID": "matrix-a",
+            "sourceIssueID": "matrix-b",
             "projectID": "project_matrix_filter_order",
             "creatorID": "user_188a39cce5c928cdcac022e3",
             "assigneeID": "user_b8222266f94aa6b36a6b5999",
@@ -196,7 +270,7 @@
           {
             "_id": "issueListRead_matrix_b",
             "issueID": "issue_matrix_b",
-            "sourceIssueID": "matrix-b",
+            "sourceIssueID": "matrix-a",
             "projectID": "project_matrix_filter_order",
             "creatorID": "user_188a39cce5c928cdcac022e3",
             "assigneeID": "user_b8222266f94aa6b36a6b5999",
@@ -238,6 +312,42 @@
             "visibility": "public",
             "modified": 1970000000000,
             "created": 1900000000000
+          },
+          {
+            "_id": "issueListRead_matrix_decoy_open",
+            "issueID": "issue_matrix_decoy_open",
+            "sourceIssueID": "matrix-decoy-open",
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_188a39cce5c928cdcac022e3",
+            "assigneeID": "user_b8222266f94aa6b36a6b5999",
+            "open": false,
+            "visibility": "public",
+            "modified": 1960000000000,
+            "created": 1890000000000
+          },
+          {
+            "_id": "issueListRead_matrix_decoy_creator",
+            "issueID": "issue_matrix_decoy_creator",
+            "sourceIssueID": "matrix-decoy-creator",
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_37617f38bd751da58ed19276",
+            "assigneeID": "user_b8222266f94aa6b36a6b5999",
+            "open": true,
+            "visibility": "public",
+            "modified": 1950000000000,
+            "created": 1880000000000
+          },
+          {
+            "_id": "issueListRead_matrix_decoy_assignee",
+            "issueID": "issue_matrix_decoy_assignee",
+            "sourceIssueID": "matrix-decoy-assignee",
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_188a39cce5c928cdcac022e3",
+            "assigneeID": "user_37617f38bd751da58ed19276",
+            "open": true,
+            "visibility": "public",
+            "modified": 1940000000000,
+            "created": 1870000000000
           },
           {
             "_id": "issueListRead_matrix_hidden",
@@ -302,6 +412,42 @@
             "labelID": "label_matrix_beta"
           },
           {
+            "_id": "issueLabelRead_matrix_decoy_open_0",
+            "projectID": "project_matrix_filter_order",
+            "issueID": "issue_matrix_decoy_open",
+            "labelID": "label_matrix_alpha"
+          },
+          {
+            "_id": "issueLabelRead_matrix_decoy_open_1",
+            "projectID": "project_matrix_filter_order",
+            "issueID": "issue_matrix_decoy_open",
+            "labelID": "label_matrix_beta"
+          },
+          {
+            "_id": "issueLabelRead_matrix_decoy_creator_0",
+            "projectID": "project_matrix_filter_order",
+            "issueID": "issue_matrix_decoy_creator",
+            "labelID": "label_matrix_alpha"
+          },
+          {
+            "_id": "issueLabelRead_matrix_decoy_creator_1",
+            "projectID": "project_matrix_filter_order",
+            "issueID": "issue_matrix_decoy_creator",
+            "labelID": "label_matrix_beta"
+          },
+          {
+            "_id": "issueLabelRead_matrix_decoy_assignee_0",
+            "projectID": "project_matrix_filter_order",
+            "issueID": "issue_matrix_decoy_assignee",
+            "labelID": "label_matrix_alpha"
+          },
+          {
+            "_id": "issueLabelRead_matrix_decoy_assignee_1",
+            "projectID": "project_matrix_filter_order",
+            "issueID": "issue_matrix_decoy_assignee",
+            "labelID": "label_matrix_beta"
+          },
+          {
             "_id": "issueLabelRead_matrix_hidden_0",
             "projectID": "project_matrix_filter_order",
             "issueID": "issue_matrix_hidden",
@@ -311,6 +457,18 @@
             "_id": "issueLabelRead_matrix_hidden_1",
             "projectID": "project_matrix_filter_order",
             "issueID": "issue_matrix_hidden",
+            "labelID": "label_matrix_beta"
+          },
+          {
+            "_id": "issueLabelRead_matrix_zero_decoy_0",
+            "projectID": "project_babdfa87a3230f74c50296e0",
+            "issueID": "issue_matrix_zero_decoy",
+            "labelID": "label_matrix_alpha"
+          },
+          {
+            "_id": "issueLabelRead_matrix_zero_decoy_1",
+            "projectID": "project_babdfa87a3230f74c50296e0",
+            "issueID": "issue_matrix_zero_decoy",
             "labelID": "label_matrix_beta"
           }
         ],
@@ -352,7 +510,7 @@
         "issue": [
           {
             "_id": "issue_matrix_a",
-            "id": "matrix-a",
+            "id": "matrix-b",
             "shortID": 9000,
             "title": "Matrix a issue",
             "open": true,
@@ -366,7 +524,7 @@
           },
           {
             "_id": "issue_matrix_b",
-            "id": "matrix-b",
+            "id": "matrix-a",
             "shortID": 9001,
             "title": "Matrix b issue",
             "open": true,
@@ -419,9 +577,51 @@
             "visibility": "public"
           },
           {
+            "_id": "issue_matrix_decoy_open",
+            "id": "matrix-decoy-open",
+            "shortID": 9005,
+            "title": "Matrix decoy_open issue",
+            "open": false,
+            "modified": 1960000000000,
+            "created": 1890000000000,
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_188a39cce5c928cdcac022e3",
+            "assigneeID": "user_b8222266f94aa6b36a6b5999",
+            "description": "Filter/order matrix fixture row decoy_open",
+            "visibility": "public"
+          },
+          {
+            "_id": "issue_matrix_decoy_creator",
+            "id": "matrix-decoy-creator",
+            "shortID": 9006,
+            "title": "Matrix decoy_creator issue",
+            "open": true,
+            "modified": 1950000000000,
+            "created": 1880000000000,
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_37617f38bd751da58ed19276",
+            "assigneeID": "user_b8222266f94aa6b36a6b5999",
+            "description": "Filter/order matrix fixture row decoy_creator",
+            "visibility": "public"
+          },
+          {
+            "_id": "issue_matrix_decoy_assignee",
+            "id": "matrix-decoy-assignee",
+            "shortID": 9007,
+            "title": "Matrix decoy_assignee issue",
+            "open": true,
+            "modified": 1940000000000,
+            "created": 1870000000000,
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_188a39cce5c928cdcac022e3",
+            "assigneeID": "user_37617f38bd751da58ed19276",
+            "description": "Filter/order matrix fixture row decoy_assignee",
+            "visibility": "public"
+          },
+          {
             "_id": "issue_matrix_zero_decoy",
             "id": "matrix-zero-decoy",
-            "shortID": 9006,
+            "shortID": 9009,
             "title": "Matrix zero_decoy issue",
             "open": true,
             "modified": 2000000000000,
@@ -437,7 +637,7 @@
           {
             "_id": "issueListRead_matrix_a",
             "issueID": "issue_matrix_a",
-            "sourceIssueID": "matrix-a",
+            "sourceIssueID": "matrix-b",
             "projectID": "project_matrix_filter_order",
             "creatorID": "user_188a39cce5c928cdcac022e3",
             "assigneeID": "user_b8222266f94aa6b36a6b5999",
@@ -449,7 +649,7 @@
           {
             "_id": "issueListRead_matrix_b",
             "issueID": "issue_matrix_b",
-            "sourceIssueID": "matrix-b",
+            "sourceIssueID": "matrix-a",
             "projectID": "project_matrix_filter_order",
             "creatorID": "user_188a39cce5c928cdcac022e3",
             "assigneeID": "user_b8222266f94aa6b36a6b5999",
@@ -491,6 +691,42 @@
             "visibility": "public",
             "modified": 1970000000000,
             "created": 1900000000000
+          },
+          {
+            "_id": "issueListRead_matrix_decoy_open",
+            "issueID": "issue_matrix_decoy_open",
+            "sourceIssueID": "matrix-decoy-open",
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_188a39cce5c928cdcac022e3",
+            "assigneeID": "user_b8222266f94aa6b36a6b5999",
+            "open": false,
+            "visibility": "public",
+            "modified": 1960000000000,
+            "created": 1890000000000
+          },
+          {
+            "_id": "issueListRead_matrix_decoy_creator",
+            "issueID": "issue_matrix_decoy_creator",
+            "sourceIssueID": "matrix-decoy-creator",
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_37617f38bd751da58ed19276",
+            "assigneeID": "user_b8222266f94aa6b36a6b5999",
+            "open": true,
+            "visibility": "public",
+            "modified": 1950000000000,
+            "created": 1880000000000
+          },
+          {
+            "_id": "issueListRead_matrix_decoy_assignee",
+            "issueID": "issue_matrix_decoy_assignee",
+            "sourceIssueID": "matrix-decoy-assignee",
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_188a39cce5c928cdcac022e3",
+            "assigneeID": "user_37617f38bd751da58ed19276",
+            "open": true,
+            "visibility": "public",
+            "modified": 1940000000000,
+            "created": 1870000000000
           },
           {
             "_id": "issueListRead_matrix_zero_decoy",
@@ -541,6 +777,54 @@
             "projectID": "project_matrix_filter_order",
             "issueID": "issue_matrix_d",
             "labelID": "label_matrix_beta"
+          },
+          {
+            "_id": "issueLabelRead_matrix_decoy_open_0",
+            "projectID": "project_matrix_filter_order",
+            "issueID": "issue_matrix_decoy_open",
+            "labelID": "label_matrix_alpha"
+          },
+          {
+            "_id": "issueLabelRead_matrix_decoy_open_1",
+            "projectID": "project_matrix_filter_order",
+            "issueID": "issue_matrix_decoy_open",
+            "labelID": "label_matrix_beta"
+          },
+          {
+            "_id": "issueLabelRead_matrix_decoy_creator_0",
+            "projectID": "project_matrix_filter_order",
+            "issueID": "issue_matrix_decoy_creator",
+            "labelID": "label_matrix_alpha"
+          },
+          {
+            "_id": "issueLabelRead_matrix_decoy_creator_1",
+            "projectID": "project_matrix_filter_order",
+            "issueID": "issue_matrix_decoy_creator",
+            "labelID": "label_matrix_beta"
+          },
+          {
+            "_id": "issueLabelRead_matrix_decoy_assignee_0",
+            "projectID": "project_matrix_filter_order",
+            "issueID": "issue_matrix_decoy_assignee",
+            "labelID": "label_matrix_alpha"
+          },
+          {
+            "_id": "issueLabelRead_matrix_decoy_assignee_1",
+            "projectID": "project_matrix_filter_order",
+            "issueID": "issue_matrix_decoy_assignee",
+            "labelID": "label_matrix_beta"
+          },
+          {
+            "_id": "issueLabelRead_matrix_zero_decoy_0",
+            "projectID": "project_babdfa87a3230f74c50296e0",
+            "issueID": "issue_matrix_zero_decoy",
+            "labelID": "label_matrix_alpha"
+          },
+          {
+            "_id": "issueLabelRead_matrix_zero_decoy_1",
+            "projectID": "project_babdfa87a3230f74c50296e0",
+            "issueID": "issue_matrix_zero_decoy",
+            "labelID": "label_matrix_beta"
           }
         ],
         "searchEpoch": [
@@ -554,5 +838,5 @@
       }
     }
   },
-  "contentDigest": "sha256:2ea9358ce0737d47ffc0dbdec54d27f06250707cdd20f637646dcadbcdd37528"
+  "contentDigest": "sha256:765264196ee83ac90ed1b9400ce3f508441c0b89408e9d006116bc5346a94e8a"
 }

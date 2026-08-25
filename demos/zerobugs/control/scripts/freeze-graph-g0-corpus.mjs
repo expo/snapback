@@ -285,13 +285,13 @@ function filterOrderMatrixFixture(baseTables) {
   ];
   const issueDefinitions = [
     {
-      suffix: 'a', projectID: project._id, open: true,
+      suffix: 'a', sourceSuffix: 'b', projectID: project._id, open: true,
       creatorID: creator._id, assigneeID: assignee._id,
       modified: 2_000_000_000_000, created: 1_900_000_000_000,
       visibility: 'public', labelIDs: labels.map(label => label._id),
     },
     {
-      suffix: 'b', projectID: project._id, open: true,
+      suffix: 'b', sourceSuffix: 'a', projectID: project._id, open: true,
       creatorID: creator._id, assigneeID: assignee._id,
       modified: 2_000_000_000_000, created: 1_900_000_000_000,
       visibility: 'public', labelIDs: labels.map(label => label._id),
@@ -315,21 +315,39 @@ function filterOrderMatrixFixture(baseTables) {
       visibility: 'public', labelIDs: [],
     },
     {
+      suffix: 'decoy_open', violates: 'open', projectID: project._id, open: false,
+      creatorID: creator._id, assigneeID: assignee._id,
+      modified: 1_960_000_000_000, created: 1_890_000_000_000,
+      visibility: 'public', labelIDs: labels.map(label => label._id),
+    },
+    {
+      suffix: 'decoy_creator', violates: 'creator', projectID: project._id, open: true,
+      creatorID: creatorOther._id, assigneeID: assignee._id,
+      modified: 1_950_000_000_000, created: 1_880_000_000_000,
+      visibility: 'public', labelIDs: labels.map(label => label._id),
+    },
+    {
+      suffix: 'decoy_assignee', violates: 'assignee', projectID: project._id, open: true,
+      creatorID: creator._id, assigneeID: creatorOther._id,
+      modified: 1_940_000_000_000, created: 1_870_000_000_000,
+      visibility: 'public', labelIDs: labels.map(label => label._id),
+    },
+    {
       suffix: 'hidden', projectID: project._id, open: true,
       creatorID: creator._id, assigneeID: assignee._id,
       modified: 2_000_000_000_000, created: 1_900_000_000_000,
       visibility: 'internal', labelIDs: labels.map(label => label._id),
     },
     {
-      suffix: 'zero_decoy', projectID: zero._id, open: true,
+      suffix: 'zero_decoy', violates: 'project', projectID: zero._id, open: true,
       creatorID: creator._id, assigneeID: assignee._id,
       modified: 2_000_000_000_000, created: 1_900_000_000_000,
-      visibility: 'public', labelIDs: [],
+      visibility: 'public', labelIDs: labels.map(label => label._id),
     },
   ];
   const issues = issueDefinitions.map((definition, index) => ({
     _id: `issue_matrix_${definition.suffix}`,
-    id: `matrix-${definition.suffix.replaceAll('_', '-')}`,
+    id: `matrix-${(definition.sourceSuffix ?? definition.suffix).replaceAll('_', '-')}`,
     shortID: 9_000 + index,
     title: `Matrix ${definition.suffix} issue`,
     open: definition.open,
@@ -391,7 +409,18 @@ function filterOrderMatrixFixture(baseTables) {
       selectedLabels: labels.map(label => ({
         physicalID: label._id, sourceName: label.name,
       })),
-      liveIssue: {physicalID: 'issue_matrix_a', sourceID: 'matrix-a'},
+      tieBreakRows: ['a', 'b'].map(suffix => {
+        const row = issues.find(issue => issue._id === `issue_matrix_${suffix}`);
+        return {physicalID: row._id, sourceID: row.id};
+      }),
+      combinedFilterDecoys: issueDefinitions.flatMap((definition, index) => (
+        definition.violates === undefined ? [] : [{
+          conjunct: definition.violates,
+          physicalID: issues[index]._id,
+          sourceID: issues[index].id,
+        }]
+      )),
+      liveIssue: {physicalID: 'issue_matrix_a', sourceID: 'matrix-b'},
       crossProjectDecoy: {
         physicalID: 'issue_matrix_zero_decoy', sourceID: 'matrix-zero-decoy',
         projectID: zero._id,
@@ -403,6 +432,34 @@ function filterOrderMatrixFixture(baseTables) {
       absent: {additions: absentAdditions},
     },
   };
+  const [firstTie, secondTie] = fixture.bindings.tieBreakRows;
+  assert.equal(
+    Math.sign(firstTie.physicalID.localeCompare(secondTie.physicalID)),
+    -Math.sign(firstTie.sourceID.localeCompare(secondTie.sourceID)),
+    'matrix tied rows reverse logical source order relative to physical id order',
+  );
+  for (const decoy of fixture.bindings.combinedFilterDecoys) {
+    const issueIndex = issues.findIndex(issue => issue._id === decoy.physicalID);
+    const issue = issues[issueIndex];
+    const definition = issueDefinitions[issueIndex];
+    const conjuncts = {
+      project: issue.projectID === project._id,
+      open: issue.open === true,
+      creator: issue.creatorID === creator._id,
+      assignee: issue.assigneeID === assignee._id,
+    };
+    assert.equal(issue.visibility, 'public', `${decoy.conjunct} decoy is public`);
+    assert.deepEqual(
+      definition.labelIDs, labels.map(label => label._id),
+      `${decoy.conjunct} decoy carries both selected labels`,
+    );
+    for (const [conjunct, matches] of Object.entries(conjuncts)) {
+      assert.equal(
+        matches, conjunct !== decoy.conjunct,
+        `${decoy.conjunct} decoy violates exactly the ${decoy.conjunct} root conjunct`,
+      );
+    }
+  }
   fixture.contentDigest = digestBytes(canonical(fixture));
   return fixture;
 }
@@ -1722,46 +1779,46 @@ async function freezeFilterOrderMatrix({
       id: 'pc-mixed-project-modified-asc',
       query: 'issueListMatrixProjectModifiedAsc',
       family: 'project-order', axes: ['project', 'modified-asc'],
-      sortField: 'modified', sortDirection: 'asc', expectedRows: 5,
+      sortField: 'modified', sortDirection: 'asc', expectedRows: 8,
     },
     {
       id: 'pc-mixed-project-modified-desc',
       query: 'issueListMatrixProjectModifiedDesc',
       family: 'project-order', axes: ['project', 'modified-desc'],
-      sortField: 'modified', sortDirection: 'desc', expectedRows: 5,
+      sortField: 'modified', sortDirection: 'desc', expectedRows: 8,
     },
     {
       id: 'pc-mixed-project-created-asc',
       query: 'issueListMatrixProjectCreatedAsc',
       family: 'project-order', axes: ['project', 'created-asc'],
-      sortField: 'created', sortDirection: 'asc', expectedRows: 5,
+      sortField: 'created', sortDirection: 'asc', expectedRows: 8,
     },
     {
       id: 'pc-mixed-project-created-desc',
       query: 'issueListMatrixProjectCreatedDesc',
       family: 'project-order', axes: ['project', 'created-desc'],
-      sortField: 'created', sortDirection: 'desc', expectedRows: 5,
+      sortField: 'created', sortDirection: 'desc', expectedRows: 8,
     },
     {
       id: 'pc-open-filter', query: 'issueListMatrixOpen',
       family: 'open', axes: ['open'], sortField: 'modified', sortDirection: 'desc',
-      graphFilters: {open: true}, oracleFilters: {open: true}, expectedRows: 3,
+      graphFilters: {open: true}, oracleFilters: {open: true}, expectedRows: 5,
     },
     {
       id: 'pc-creator-filter', query: 'issueListMatrixCreator',
       family: 'creator', axes: ['creator'], sortField: 'modified', sortDirection: 'desc',
-      graphFilters: {creatorID}, oracleFilters: {creator}, expectedRows: 3,
+      graphFilters: {creatorID}, oracleFilters: {creator}, expectedRows: 5,
     },
     {
       id: 'pc-assignee-filter', query: 'issueListMatrixAssignee',
       family: 'assignee', axes: ['assignee'], sortField: 'modified', sortDirection: 'desc',
-      graphFilters: {assigneeID}, oracleFilters: {assignee}, expectedRows: 3,
+      graphFilters: {assigneeID}, oracleFilters: {assignee}, expectedRows: 5,
     },
     {
       id: 'pc-all-selected-labels-filter', query: 'issueListMatrixLabelsAll',
       family: 'all-label', axes: ['all-selected-labels'],
       sortField: 'modified', sortDirection: 'desc',
-      graphLabels: selectedLabelIDs, oracleFilters: {labels: selectedLabelNames}, expectedRows: 2,
+      graphLabels: selectedLabelIDs, oracleFilters: {labels: selectedLabelNames}, expectedRows: 5,
     },
     {
       id: 'pc-combined-filter', query: 'issueListMatrixCombined',
@@ -1807,6 +1864,15 @@ async function freezeFilterOrderMatrix({
         raw[0].items.every(item => item.issue.id !== fixture.bindings.crossProjectDecoy.sourceID),
         `${definition.id} excludes the cross-project decoy`,
       );
+      const activeConjuncts = new Set(['project', ...definition.axes]);
+      const returnedSourceIDs = new Set(raw[0].items.map(item => item.issue.id));
+      for (const decoy of fixture.bindings.combinedFilterDecoys) {
+        assert.equal(
+          returnedSourceIDs.has(decoy.sourceID),
+          !activeConjuncts.has(decoy.conjunct),
+          `${definition.id} makes the ${decoy.conjunct} conjunct load-bearing`,
+        );
+      }
       const normalized = normalizeListOrderForGraph(
         raw, worldTables, definition.sortField, definition.sortDirection,
       );
@@ -1928,6 +1994,11 @@ async function freezeFilterOrderMatrix({
       },
     });
   }
+  assert.notDeepEqual(
+    cases.find(testCase => testCase.id === 'pc-all-selected-labels-filter').expect.initial,
+    cases.find(testCase => testCase.id === 'pc-combined-filter').expect.initial,
+    'combined filters freeze a different result from the all-label-only case',
+  );
   return {
     format: 'snapback.graph-filter-order-matrix.v1', version: 1,
     fixture: 'tests/conformance/graph/filter-order-fixture.v1.json',

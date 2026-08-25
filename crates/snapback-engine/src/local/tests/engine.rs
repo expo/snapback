@@ -902,6 +902,123 @@ fn graph_query_v1_forged_engine_invocation_requires_target_declaration() {
 }
 
 fn graph_serving_fixture() -> LocalSnapback {
+    graph_serving_fixture_with_graph(graph_test_function())
+}
+
+fn graph_projected_exists_then_sibling_function() -> FunctionDefinition {
+    let mut function = graph_test_function();
+    {
+        let plan = graph_plan_mut(&mut function);
+        let mut projection = plan.nodes.pop().expect("graph projection");
+        let crate::manifest::GraphNodeV1::ClosedProjection {
+            node_id, object, ..
+        } = &mut projection
+        else {
+            unreachable!()
+        };
+        *node_id = "n3".to_owned();
+        *object = serde_json::from_value(json!({
+            "scopeNodeId":"n0",
+            "fields":[
+                {
+                    "name":"matchesTitle",
+                    "value":{"kind":"exists","nodeId":"n1"}
+                },
+                {
+                    "name":"sibling",
+                    "value":{
+                        "kind":"object",
+                        "nodeId":"n2",
+                        "object":{
+                            "scopeNodeId":"n0",
+                            "fields":[{
+                                "name":"title",
+                                "value":{"kind":"field","nodeId":"n2","field":"title"}
+                            }]
+                        }
+                    }
+                }
+            ]
+        }))
+        .expect("projected-existence regression projection");
+        let exists = serde_json::from_value(json!({
+            "nodeId":"n1", "kind":"exists-semi-join", "edgeName":"matchesTitle",
+            "authority":{"declaredClass":1,"proof":null}, "parentNodeId":"n0",
+            "mode":"exists",
+            "edge":{
+                "table":"issues", "visibility":{"kind":"public-read"},
+                "joinOn":[{"rootField":"_id","joinedField":"_id"}],
+                "accessIndex":"by_id"
+            },
+            "filters":[{"field":"title","op":"Eq","value":{"Literal":"one"}}]
+        }))
+        .expect("projected-existence regression semi-join");
+        let sibling = serde_json::from_value(json!({
+            "nodeId":"n2", "kind":"equality-to-one", "edgeName":"sibling",
+            "authority":{"declaredClass":1,"proof":null}, "parentNodeId":"n0",
+            "table":"issues", "visibility":{"kind":"public-read"},
+            "joinOn":[{"rootField":"_id","joinedField":"_id"}],
+            "accessIndex":"by_id", "presence":"required"
+        }))
+        .expect("projected-existence regression sibling");
+        plan.nodes.extend([exists, sibling, projection]);
+
+        plan.query_cost.max_scanned_rows = 7;
+        plan.query_cost.max_index_ranges = 5;
+        plan.query_cost.max_result_bytes = 256;
+        plan.query_cost.graph.max_page_result_bytes = 256;
+        plan.query_cost.graph.nodes[0].max_window_scanned_rows = Some(14);
+        plan.query_cost.graph.nodes[0].max_window_result_bytes = Some(512);
+        plan.query_cost.graph.nodes[0].max_window_index_ranges = Some(10);
+        plan.query_cost.graph.nodes.extend([
+            crate::manifest::GraphNodeCostV1 {
+                node_id: "n1".to_owned(),
+                max_root_rows_per_page: None,
+                max_examined_entries_per_execution: 2,
+                max_relationship_lookups_per_execution: Some(2),
+                max_children_per_parent: Some(1),
+                max_argument_expansion: None,
+                max_window_pages: None,
+                max_window_root_rows: None,
+                max_window_scanned_rows: None,
+                max_window_result_rows: None,
+                max_window_result_bytes: None,
+                max_window_index_ranges: None,
+            },
+            crate::manifest::GraphNodeCostV1 {
+                node_id: "n2".to_owned(),
+                max_root_rows_per_page: None,
+                max_examined_entries_per_execution: 2,
+                max_relationship_lookups_per_execution: Some(2),
+                max_children_per_parent: None,
+                max_argument_expansion: None,
+                max_window_pages: None,
+                max_window_root_rows: None,
+                max_window_scanned_rows: None,
+                max_window_result_rows: None,
+                max_window_result_bytes: None,
+                max_window_index_ranges: None,
+            },
+        ]);
+        plan.query_cost.graph.window_rollup.max_window_scanned_rows = 14;
+        plan.query_cost.graph.window_rollup.max_window_result_bytes = 512;
+        plan.query_cost.graph.window_rollup.max_window_index_ranges = 10;
+    }
+
+    let result_contract =
+        reify_graph_result_contract(graph_plan_mut(&mut function), &graph_test_schema())
+            .expect("projected-existence result contract");
+    let result_hash = crate::manifest::result_contract_hash(&result_contract)
+        .expect("projected-existence result contract hash");
+    graph_plan_mut(&mut function).result_contract_hash =
+        crate::manifest::Sha256V1::new(result_hash.clone()).unwrap();
+    function.result_contract = result_contract;
+    function.result_contract_hash = Some(result_hash);
+    refresh_graph_plan_identity(&mut function);
+    function
+}
+
+fn graph_serving_fixture_with_graph(mut graph: FunctionDefinition) -> LocalSnapback {
     let mut schema = graph_test_schema();
     schema.app_id = "graph-serving-g2-c".to_owned();
     schema.schema_hash = Some("graph-serving-schema-v1".to_owned());
@@ -935,7 +1052,6 @@ fn graph_serving_fixture() -> LocalSnapback {
         history: None,
     });
 
-    let mut graph = graph_test_function();
     graph.id = "graph-serving-g2-c:graphIssues".to_owned();
     graph.implementation_hash = Some(format!("sha256:{}", "1".repeat(64)));
     graph.args_contract = Some(FunctionArgsContract::default());
@@ -1070,6 +1186,31 @@ fn graph_serving_fixture() -> LocalSnapback {
         .expect("graph serving seed"))
         .expect("seed graph serving rows");
     snapback
+}
+
+/// Frozen served-path regression for the distinction between a predicate-only
+/// semi-join and a projected existence bit followed by a sibling relation.
+///
+/// @ref LLP 0209#51-captured-vocabulary-by-normalized-node — registration
+/// attests later sibling facts against the evaluator's unchanged parent set.
+#[test]
+fn graph_projected_existence_preserves_later_sibling_registration_population() {
+    let mut snapback =
+        graph_serving_fixture_with_graph(graph_projected_exists_then_sibling_function());
+    install_live_memo_scheduler(&mut snapback);
+    let established = snapback
+        .subscribe_live(
+            "graphIssues",
+            graph_serving_live_input("projected-existence-sibling"),
+        )
+        .expect("projected existence with a later sibling establishes through serving");
+    assert_eq!(
+        established.snapshot.expect("served snapshot").rows,
+        vec![
+            json!({"matchesTitle":false,"sibling":{"title":"two"}}),
+            json!({"matchesTitle":true,"sibling":{"title":"one"}}),
+        ],
+    );
 }
 
 fn graph_serving_sessions_fixture() -> LocalSnapback {
