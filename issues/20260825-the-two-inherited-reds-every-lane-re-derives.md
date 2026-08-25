@@ -39,6 +39,14 @@ Typical shape: `snapback-server` **597–600 passed, 1 failed** at the asserted 
 
 Under LLP 0232 this is scheduled fix-forward work, not a landing veto.
 
+> **Qualification added 2026-08-25, same day.** A later reviewer reproduced the server failure
+> (599 passed / 1 frozen-digest failure) but found that **its todo manifest input differs from current
+> `origin/main`**, and therefore judged the inherited attribution *not established*. The failure
+> reproduces; that it is the *same* red does not yet follow. Treat Red 1 as a known signature to
+> recognise, not as a settled attribution — and when citing it, check the manifest input rather than
+> only the failure name. Red 2's attribution is unaffected; it was confirmed by comparing failure
+> *names*, not just counts.
+
 ## Red 2 — engine `/proc/self/fd` SQLite image capture
 
 **Exactly 22 failures**, all at the same `/proc/self/fd/*` SQLite-open error, several in
