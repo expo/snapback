@@ -128,9 +128,29 @@ NOT include M7 or the two scale-defect fix loops, so raw totals are not
 shape-identical; the comparison section will use the per-milestone
 attribution.
 
+#### Cell-1 scored fresh-session M7 (GREEN)
+
+Launched epoch 1787690822 as a genuinely fresh codex session (handoff-only
+context, sealed pre-M7 package); exited 1787692435. **Wall 1,606 s (26:46),
+first green 1,412 s (23:32).** Tokens: input 16,931,263 (cached
+16,657,920) · output 58,355 · reasoning 17,700. All gates green: M1–M6/M8
+regressions, M7 acceptance, frozen standalone M7 choreography (live +
+offline idempotent voting — the E4-hardened paths), migration intactness
+across all eight personas against the retained pre-migration export; all
+recorded servers stopped. Candid gaps recorded by the agent: the original
+handoff snapshot file was overwritten before an independent byte-compare
+(the retained-export compare stands as the migration evidence), and
+wall-clock-only message expiry does not autonomously decrement the
+maintained counters while cron is disabled (product finding).
+Baseline Explicit M7: first green 1,076 s, report wall 1,871 s, input
+25,397,088 · output 61,649 — the capstone M7 was slower to first green,
+faster to complete, and cheaper on both token axes.
+
 ### Cell 2 — capstone-clique-familiar-sol-high
 
-pending (launches after the scored fresh M7 completes)
+launched 2026-08-25 (launcher: three-sample admission window, then detached
+builder on ports 48460–48519 / M7 48660–48719); rows fill as milestones
+green.
 
 ## Comparison vs baseline
 
