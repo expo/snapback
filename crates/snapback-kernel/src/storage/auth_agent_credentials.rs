@@ -2480,15 +2480,60 @@ fn map_live_credential_constraint(error: rusqlite::Error) -> SnapbackError {
 }
 
 #[cfg(any(test, feature = "test-support"))]
-static INJECT_AGENT_LIFECYCLE_COMMIT_UNCERTAIN: std::sync::Mutex<Option<(String, String)>> =
-    std::sync::Mutex::new(None);
+static INJECT_AGENT_LIFECYCLE_COMMIT_UNCERTAIN: std::sync::Mutex<
+    Option<(
+        String,
+        String,
+        std::sync::Arc<std::sync::atomic::AtomicBool>,
+    )>,
+> = std::sync::Mutex::new(None);
 
 #[cfg(any(test, feature = "test-support"))]
-pub fn inject_next_agent_lifecycle_commit_uncertain(operation: &str, key: &str) {
+#[doc(hidden)]
+pub struct AgentLifecycleCommitUncertaintyProbeForTest {
+    consumed: std::sync::Arc<std::sync::atomic::AtomicBool>,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+impl AgentLifecycleCommitUncertaintyProbeForTest {
+    #[doc(hidden)]
+    pub fn consumed(&self) -> bool {
+        self.consumed.load(std::sync::atomic::Ordering::Acquire)
+    }
+}
+
+#[cfg(any(test, feature = "test-support"))]
+pub fn inject_next_agent_lifecycle_commit_uncertain(
+    operation: &str,
+    key: &str,
+) -> AgentLifecycleCommitUncertaintyProbeForTest {
+    let consumed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     *INJECT_AGENT_LIFECYCLE_COMMIT_UNCERTAIN
         .lock()
         .expect("agent lifecycle commit uncertainty injector lock") =
-        Some((operation.to_owned(), key.to_owned()));
+        Some((operation.to_owned(), key.to_owned(), consumed.clone()));
+    AgentLifecycleCommitUncertaintyProbeForTest { consumed }
+}
+
+#[cfg(any(test, feature = "test-support"))]
+fn consume_agent_lifecycle_commit_uncertainty_for_test(operation: &str, key: &str) -> bool {
+    let consumed = {
+        let mut target = INJECT_AGENT_LIFECYCLE_COMMIT_UNCERTAIN
+            .lock()
+            .expect("agent lifecycle commit uncertainty injector lock");
+        target
+            .as_ref()
+            .is_some_and(|(target_operation, target_key, _)| {
+                target_operation == operation && target_key == key
+            })
+            .then(|| target.take().expect("matched uncertainty injection").2)
+    };
+    if let Some(consumed) = consumed {
+        consumed.store(true, std::sync::atomic::Ordering::Release);
+        true
+    } else {
+        false
+    }
 }
 
 fn inject_agent_lifecycle_commit_uncertainty<T>(
@@ -2498,20 +2543,7 @@ fn inject_agent_lifecycle_commit_uncertainty<T>(
 ) -> AuthTransactionAttempt<T> {
     #[cfg(any(test, feature = "test-support"))]
     {
-        let should_inject = {
-            let mut target = INJECT_AGENT_LIFECYCLE_COMMIT_UNCERTAIN
-                .lock()
-                .expect("agent lifecycle commit uncertainty injector lock");
-            if target
-                .as_ref()
-                .is_some_and(|(operation, key)| operation == _operation && key == _key)
-            {
-                target.take();
-                true
-            } else {
-                false
-            }
-        };
+        let should_inject = consume_agent_lifecycle_commit_uncertainty_for_test(_operation, _key);
         if should_inject {
             return match attempt {
                 AuthTransactionAttempt::Committed(_) => {
@@ -2535,20 +2567,7 @@ fn inject_agent_lifecycle_service_commit_uncertainty<T>(
 ) -> ServiceAuthTransactionAttempt<T> {
     #[cfg(any(test, feature = "test-support"))]
     {
-        let should_inject = {
-            let mut target = INJECT_AGENT_LIFECYCLE_COMMIT_UNCERTAIN
-                .lock()
-                .expect("agent lifecycle commit uncertainty injector lock");
-            if target
-                .as_ref()
-                .is_some_and(|(operation, key)| operation == _operation && key == _key)
-            {
-                target.take();
-                true
-            } else {
-                false
-            }
-        };
+        let should_inject = consume_agent_lifecycle_commit_uncertainty_for_test(_operation, _key);
         if should_inject {
             return match attempt {
                 ServiceAuthTransactionAttempt::Committed(_) => {
@@ -3139,11 +3158,16 @@ mod tests {
     #[test]
     fn scoped_token_release_reconciles_a_lost_commit_acknowledgement() {
         let (mut db, issued) = scoped_token_fixture(10_000);
-        inject_next_agent_lifecycle_commit_uncertain("release-scoped-token", &issued.token_id);
+        let uncertainty =
+            inject_next_agent_lifecycle_commit_uncertain("release-scoped-token", &issued.token_id);
 
         let released = db
             .release_scoped_token(&issued.secret, 1_001)
             .expect("the exact durable successor reconciles the lost acknowledgement");
+        assert!(
+            uncertainty.consumed(),
+            "the release cut must consume the selected commit-uncertainty injection"
+        );
         assert_eq!(released.token_id, issued.token_id);
         assert!(released.newly_revoked);
         assert_eq!(
