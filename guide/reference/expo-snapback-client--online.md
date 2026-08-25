@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:30f21e79381b598794030263ea465664695b49857d32
 # @expo/snapback-client/online
 
 Build-bound public API projection for `@expo/snapback-client/online`. Canonical registry identity:
-`sha256:e1849f74944a9e3b1ce2a8bd2bb1652b6952217ebdf679a6ef162c8811d64aed`.
+`sha256:8b4bbafbe123e8a122c41a4a99accb6af19fcc999b5aa0552cced23e8ecb9138`.
 Runtime parity condition:
 `import` → `packages/snapback-client/online.mjs`.
 
@@ -38,7 +38,7 @@ Symbols: 4 total; 3 runtime values; 1 type-only.
 
 Stable identity: `npm:@expo/snapback-client/online#bindSnapbackAppLifecycle`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:2329`
+Source: `packages/snapback-client/index.d.mts:2341`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function bindSnapbackAppLifecycle(
@@ -59,7 +59,7 @@ export function bindSnapbackAppLifecycle(
 
 Stable identity: `npm:@expo/snapback-client/online#createExternalSessionClient`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:2325`
+Source: `packages/snapback-client/index.d.mts:2337`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function createExternalSessionClient(
@@ -73,7 +73,7 @@ export function createExternalSessionClient(
 
 Stable identity: `npm:@expo/snapback-client/online#SnapbackClient`
 Kind: `runtime-class`
-Source: `packages/snapback-client/index.d.mts:1819`
+Source: `packages/snapback-client/index.d.mts:1820`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export class SnapbackClient {
@@ -529,6 +529,17 @@ export class SnapbackClient {
       readonly permissions?: readonly string[];
     },
   ): Promise<EphemeralOverlay<EphemeralScope<Ref>, EphemeralValue<Ref>>>;
+  unsubscribeEphemeral<
+    Ref extends string | SnapbackEphemeralReference<string, unknown, unknown>,
+  >(
+    ref: Ref,
+    options: {
+      readonly connectionId: string;
+      readonly scope?: EphemeralScope<Ref>;
+      readonly userId?: string;
+      readonly permissions?: readonly string[];
+    },
+  ): Promise<unknown>;
   registerEphemeralRepublisher<
     Ref extends string | SnapbackEphemeralReference<string, unknown, unknown>,
   >(
@@ -666,6 +677,7 @@ Members and overload groups:
 - `subscribeLive` — method; 1 signature
 - `unsubscribeLive` — method; 1 signature
 - `subscribeEphemeral` — method; 1 signature
+- `unsubscribeEphemeral` — method; 1 signature
 - `registerEphemeralRepublisher` — method; 1 signature
 - `publishEphemeral` — method; 1 signature
 - `deleteEphemeral` — method; 1 signature
@@ -677,7 +689,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/online#SnapbackClientOptions`
 Kind: `type-interface`
-Source: `packages/snapback-client/index.d.mts:1248`
+Source: `packages/snapback-client/index.d.mts:1249`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface SnapbackClientOptions {

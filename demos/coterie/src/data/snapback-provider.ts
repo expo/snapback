@@ -395,6 +395,133 @@ async function unsubscribeTyping(
   });
 }
 
+async function createTypingLiveHandle(
+  client: SnapbackClient,
+  conversationId: GeneratedDataModel['conversations']['_id'],
+  connectionId: string,
+  publishRows: (rows: readonly unknown[] | null) => Promise<void>,
+  publishError: (error: unknown) => void,
+): Promise<LiveHandle> {
+  const scope = { conversationId };
+  let overlay: TypingOverlay | null = null;
+  let overlayOff: (() => void) | null = null;
+  let active = true;
+  let terminal = false;
+  let terminalDiagnostic: unknown = null;
+  let generation = 0;
+  let expiryTimer: ReturnType<typeof setTimeout> | null = null;
+  const clearExpiry = () => {
+    if (expiryTimer !== null) clearTimeout(expiryTimer);
+    expiryTimer = null;
+  };
+  const scheduleExpiry = (expectedGeneration = generation) => {
+    clearExpiry();
+    const currentOverlay = overlay;
+    if (!currentOverlay || !active || terminal || expectedGeneration !== generation) return;
+    // @ref LLP 0013#ttl-and-leases — server wall-clock deadlines are
+    // translated by the overlay into a client-local monotonic delay.
+    const delayMs = typingExpiryDelay(currentOverlay);
+    if (!Number.isFinite(delayMs)) return;
+    expiryTimer = setTimeout(() => {
+      expiryTimer = null;
+      if (
+        overlay !== currentOverlay
+        || !active
+        || terminal
+        || expectedGeneration !== generation
+      ) return;
+      currentOverlay.pruneExpired();
+      void publishRows(currentOverlay.currentEntries())
+        .then(() => scheduleExpiry(expectedGeneration));
+    }, Math.max(0, delayMs));
+    expiryTimer.unref?.();
+  };
+
+  const startGeneration = async (publishSuccessor: boolean): Promise<void> => {
+    if (!active || terminal) return;
+    const expectedGeneration = ++generation;
+    clearExpiry();
+    overlayOff?.();
+    overlayOff = null;
+    overlay?.dispose();
+    overlay = null;
+    let next: TypingOverlay;
+    try {
+      next = await client.subscribeEphemeral(api.ephemeral.typing, {
+        connectionId,
+        scope,
+      }) as TypingOverlay;
+    } catch (error) {
+      if (!active || terminal || expectedGeneration !== generation) return;
+      if (publishSuccessor) {
+        publishError(error);
+        return;
+      }
+      throw error;
+    }
+    if (!active || terminal || expectedGeneration !== generation) {
+      next.dispose();
+      return;
+    }
+    overlay = next;
+    overlayOff = next.onChange((result) => {
+      if (!active || terminal || expectedGeneration !== generation || overlay !== next) return;
+      if (result === 'terminal_error') {
+        terminal = true;
+        terminalDiagnostic = next.terminalDiagnostic;
+        clearExpiry();
+        publishError(terminalDiagnostic);
+        return;
+      }
+      if (
+        result === 'needs_resync'
+        || result === 'authority_changed'
+        || result === 'authority_missing'
+      ) {
+        // @ref LLP 0107#resync-authority-and-lifecycle — continuity loss
+        // retires this overlay generation and establishes a fresh snapshot
+        // on one fenced successor before publishing ready rows again.
+        void startGeneration(true);
+        return;
+      }
+      void publishRows(next.currentEntries())
+        .then(() => scheduleExpiry(expectedGeneration));
+    });
+    // onChange replays terminal/resync state synchronously for a poisoned
+    // overlay. Do not project that retired generation as ready-empty.
+    if (
+      !active
+      || terminal
+      || expectedGeneration !== generation
+      || overlay !== next
+    ) return;
+    if (publishSuccessor) await publishRows(next.currentEntries());
+    scheduleExpiry(expectedGeneration);
+  };
+
+  await startGeneration(false);
+  return {
+    get rows() {
+      return overlay?.currentEntries() ?? [];
+    },
+    get terminalDiagnostic() {
+      return terminalDiagnostic;
+    },
+    connection: 'live',
+    dispose: async () => {
+      if (!active) return;
+      active = false;
+      generation += 1;
+      clearExpiry();
+      overlayOff?.();
+      overlayOff = null;
+      overlay?.dispose();
+      overlay = null;
+      await unsubscribeTyping(client, connectionId, conversationId).catch(() => {});
+    },
+  };
+}
+
 export function resolveCoterieSnapbackUrl(explicit?: string): string {
   const configured = explicit ?? environmentValue('COTERIE_SNAPBACK_URL');
   if (!configured) {
@@ -1170,6 +1297,7 @@ async function clearCapturedAuthorityAndReconcile(
 export const coterieSnapbackTestInternals = Object.freeze({
   coterieAvatarUrlForRef,
   clearCapturedAuthorityAndReconcile,
+  createTypingLiveHandle,
   decodeFeedCursor,
   declaredError,
   encodeFeedCursor,
@@ -1179,7 +1307,6 @@ export const coterieSnapbackTestInternals = Object.freeze({
   setRepostThroughBackend,
   sniffPostMediaType,
   sniffAvatarMediaType,
-  typingExpiryDelay,
   validateLoginInput,
 });
 
@@ -2374,124 +2501,13 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
     publishRows: (rows: readonly unknown[] | null) => Promise<void>,
     publishError: (error: unknown) => void,
   ): Promise<LiveHandle> {
-    const scope = { conversationId };
-    let overlay: TypingOverlay | null = null;
-    let overlayOff: (() => void) | null = null;
-    let active = true;
-    let terminal = false;
-    let terminalDiagnostic: unknown = null;
-    let generation = 0;
-    let expiryTimer: ReturnType<typeof setTimeout> | null = null;
-    const clearExpiry = () => {
-      if (expiryTimer !== null) clearTimeout(expiryTimer);
-      expiryTimer = null;
-    };
-    const scheduleExpiry = (expectedGeneration = generation) => {
-      clearExpiry();
-      const currentOverlay = overlay;
-      if (!currentOverlay || !active || terminal || expectedGeneration !== generation) return;
-      // @ref LLP 0013#ttl-and-leases — server wall-clock deadlines are
-      // translated by the overlay into a client-local monotonic delay.
-      const delayMs = typingExpiryDelay(currentOverlay);
-      if (!Number.isFinite(delayMs)) return;
-      expiryTimer = setTimeout(() => {
-        expiryTimer = null;
-        if (
-          overlay !== currentOverlay
-          || !active
-          || terminal
-          || expectedGeneration !== generation
-        ) return;
-        currentOverlay.pruneExpired();
-        void publishRows(currentOverlay.currentEntries())
-          .then(() => scheduleExpiry(expectedGeneration));
-      }, Math.max(0, delayMs));
-      expiryTimer.unref?.();
-    };
-
-    const startGeneration = async (publishSuccessor: boolean): Promise<void> => {
-      if (!active || terminal) return;
-      const expectedGeneration = ++generation;
-      clearExpiry();
-      overlayOff?.();
-      overlayOff = null;
-      overlay?.dispose();
-      overlay = null;
-      let next: TypingOverlay;
-      try {
-        next = await this.#client.subscribeEphemeral(api.ephemeral.typing, {
-          connectionId,
-          scope,
-        }) as TypingOverlay;
-      } catch (error) {
-        if (!active || terminal || expectedGeneration !== generation) return;
-        if (publishSuccessor) {
-          publishError(error);
-          return;
-        }
-        throw error;
-      }
-      if (!active || terminal || expectedGeneration !== generation) {
-        next.dispose();
-        return;
-      }
-      overlay = next;
-      overlayOff = next.onChange((result) => {
-        if (!active || terminal || expectedGeneration !== generation || overlay !== next) return;
-        if (result === 'terminal_error') {
-          terminal = true;
-          terminalDiagnostic = next.terminalDiagnostic;
-          clearExpiry();
-          publishError(terminalDiagnostic);
-          return;
-        }
-        if (
-          result === 'needs_resync'
-          || result === 'authority_changed'
-          || result === 'authority_missing'
-        ) {
-          // @ref LLP 0107#resync-authority-and-lifecycle — continuity loss
-          // retires this overlay generation and establishes a fresh snapshot
-          // on one fenced successor before publishing ready rows again.
-          void startGeneration(true);
-          return;
-        }
-        void publishRows(next.currentEntries())
-          .then(() => scheduleExpiry(expectedGeneration));
-      });
-      // onChange replays terminal/resync state synchronously for a poisoned
-      // overlay. Do not project that retired generation as ready-empty.
-      if (
-        !active
-        || terminal
-        || expectedGeneration !== generation
-        || overlay !== next
-      ) return;
-      if (publishSuccessor) await publishRows(next.currentEntries());
-      scheduleExpiry(expectedGeneration);
-    };
-
-    await startGeneration(false);
-    return {
-      get rows() {
-        return overlay?.currentEntries() ?? [];
-      },
-      get terminalDiagnostic() {
-        return terminalDiagnostic;
-      },
-      connection: 'live',
-      dispose: async () => {
-        if (!active) return;
-        active = false;
-        generation += 1;
-        clearExpiry();
-        overlayOff?.();
-        overlayOff = null;
-        overlay?.dispose();
-        overlay = null;
-        await unsubscribeTyping(this.#client, connectionId, conversationId).catch(() => {});
-      },
-    };
+    return createTypingLiveHandle(
+      this.#client,
+      conversationId,
+      connectionId,
+      publishRows,
+      publishError,
+    );
   }
 
   #projectM2Rows<T>(subscription: M2Subscription<T>, rows: readonly unknown[]): T {

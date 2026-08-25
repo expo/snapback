@@ -127,4 +127,4 @@ Final recovery verification (2026-08-25):
 - the Coterie TypeScript check reached only the inherited external Exact
   `shape-validation.ts:67` missing-return error
 
-Landing SHA: TBD
+Landing SHA: 7eeae982c0de4b569cc5396936f343f784870c86

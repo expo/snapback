@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:a87740453cf981126f963f30f8821ca4d4b5715c0356
 # @expo/snapback-client/vector-search
 
 Build-bound public API projection for `@expo/snapback-client/vector-search`. Canonical registry identity:
-`sha256:e1849f74944a9e3b1ce2a8bd2bb1652b6952217ebdf679a6ef162c8811d64aed`.
+`sha256:8b4bbafbe123e8a122c41a4a99accb6af19fcc999b5aa0552cced23e8ecb9138`.
 Runtime parity condition:
 `import` → `packages/snapback-client/vector-search.mjs`.
 
@@ -39,7 +39,7 @@ Symbols: 5 total; 1 runtime values; 4 type-only.
 
 Stable identity: `npm:@expo/snapback-client/vector-search#SnapbackClient`
 Kind: `runtime-class`
-Source: `packages/snapback-client/index.d.mts:1819`
+Source: `packages/snapback-client/index.d.mts:1820`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export class SnapbackClient {
@@ -495,6 +495,17 @@ export class SnapbackClient {
       readonly permissions?: readonly string[];
     },
   ): Promise<EphemeralOverlay<EphemeralScope<Ref>, EphemeralValue<Ref>>>;
+  unsubscribeEphemeral<
+    Ref extends string | SnapbackEphemeralReference<string, unknown, unknown>,
+  >(
+    ref: Ref,
+    options: {
+      readonly connectionId: string;
+      readonly scope?: EphemeralScope<Ref>;
+      readonly userId?: string;
+      readonly permissions?: readonly string[];
+    },
+  ): Promise<unknown>;
   registerEphemeralRepublisher<
     Ref extends string | SnapbackEphemeralReference<string, unknown, unknown>,
   >(
@@ -632,6 +643,7 @@ Members and overload groups:
 - `subscribeLive` — method; 1 signature
 - `unsubscribeLive` — method; 1 signature
 - `subscribeEphemeral` — method; 1 signature
+- `unsubscribeEphemeral` — method; 1 signature
 - `registerEphemeralRepublisher` — method; 1 signature
 - `publishEphemeral` — method; 1 signature
 - `deleteEphemeral` — method; 1 signature

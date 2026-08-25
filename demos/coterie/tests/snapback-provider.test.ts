@@ -297,21 +297,62 @@ test('sendMessage returns its committed result when post-commit typing withdrawa
   expect(withdrawalCalls).toBe(1);
 });
 
-test('typing expiry remains monotonic across a backward wall-clock jump', () => {
+test('production typing expiry remains monotonic across a backward wall-clock jump', async () => {
   const originalNow = Date.now;
-  const wallDeadline = originalNow() + 5_000;
+  const wallNow = originalNow();
+  let entries: readonly unknown[] = [{ expiresAtMs: wallNow + 25 }];
+  let pruneCalls = 0;
+  let disposed = false;
+  let resolveExpiry!: (rows: readonly unknown[]) => void;
+  const expired = new Promise<readonly unknown[]>((resolve) => {
+    resolveExpiry = resolve;
+  });
+  const overlay = {
+    terminalDiagnostic: null,
+    currentEntries: () => entries,
+    msUntilEarliestExpiry: () => entries.length === 0 ? Number.POSITIVE_INFINITY : 25,
+    pruneExpired: () => {
+      pruneCalls += 1;
+      entries = [];
+    },
+    onChange: () => () => {},
+    dispose: () => { disposed = true; },
+  };
+  const client = {
+    subscribeEphemeral: async () => overlay,
+    unsubscribeEphemeral: async () => {},
+  } as unknown as Parameters<
+    typeof coterieSnapbackTestInternals.createTypingLiveHandle
+  >[0];
+  let handle: Awaited<ReturnType<
+    typeof coterieSnapbackTestInternals.createTypingLiveHandle
+  >> | null = null;
+  let timeout: ReturnType<typeof setTimeout> | null = null;
   try {
-    Date.now = () => wallDeadline - 65_000;
-    const legacyWallDelay = wallDeadline - Date.now();
-    const monotonicDelay = coterieSnapbackTestInternals.typingExpiryDelay({
-      msUntilEarliestExpiry: () => 4_750,
+    Date.now = () => wallNow - 60_000;
+    handle = await coterieSnapbackTestInternals.createTypingLiveHandle(
+      client,
+      'conversation-1' as Parameters<
+        typeof coterieSnapbackTestInternals.createTypingLiveHandle
+      >[1],
+      'typing-expiry-production-path',
+      async (rows) => { resolveExpiry(rows ?? []); },
+      (error) => { throw error; },
+    );
+    const timedOut = new Promise<never>((_resolve, reject) => {
+      timeout = setTimeout(
+        () => reject(new Error('production expiry timer followed the backward wall clock')),
+        250,
+      );
     });
-    expect(legacyWallDelay).toBe(65_000);
-    expect(monotonicDelay).toBe(4_750);
-    expect(monotonicDelay).not.toBe(legacyWallDelay);
+    await expect(Promise.race([expired, timedOut])).resolves.toEqual([]);
+    expect(pruneCalls).toBe(1);
   } finally {
     Date.now = originalNow;
+    if (timeout !== null) clearTimeout(timeout);
+    await handle?.dispose();
   }
+  expect(disposed).toBe(true);
 });
 
 test('createPost validation preserves the frozen media vocabulary', () => {
