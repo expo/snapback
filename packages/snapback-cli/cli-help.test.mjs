@@ -59,7 +59,7 @@ if [ "$1" = "--help" ]; then
   exit 0
 fi
 if [ "$1" = "command-inventory" ]; then
-  printf '%s\n' '{"schemaVersion":"snapback.native-command-inventory.v1","ok":true,"root":{"name":"snapback","path":["snapback"],"arguments":[],"subcommands":[{"name":"start","path":["snapback","start"],"arguments":[],"subcommands":[]},{"name":"admin","path":["snapback","admin"],"arguments":[],"subcommands":[]}]}}'
+  printf '%s\n' '{"schemaVersion":"snapback.native-command-inventory.v1","ok":true,"root":{"name":"snapback","path":["snapback"],"arguments":[],"subcommands":[{"name":"start","path":["snapback","start"],"arguments":[],"subcommands":[]},{"name":"admin","path":["snapback","admin"],"arguments":[],"subcommands":[]},{"name":"auth","path":["snapback","auth"],"arguments":[],"subcommands":[{"name":"password","path":["snapback","auth","password"],"arguments":[],"subcommands":[{"name":"reset","path":["snapback","auth","password","reset"],"arguments":[],"subcommands":[]},{"name":"unlock","path":["snapback","auth","password","unlock"],"arguments":[],"subcommands":[]}]}]}]}}'
   exit 0
 fi
 if [ "$2" = "--help" ]; then
@@ -68,6 +68,23 @@ if [ "$2" = "--help" ]; then
 fi
 if [ "$1" = "auth" ] && [ "$2" = "password" ] && [ "$3" = "--help" ]; then
   printf '%s\\n' 'Native help for auth password' 'Usage: snapback auth password <command>'
+  exit 0
+fi
+if [ "$1" = "auth" ] && [ "$2" = "password" ] && [ "$3" = "reset" ] && [ "$4" = "--help" ]; then
+  printf '%s\\n' 'Native help for auth password reset' 'Usage: snapback auth password reset [OPTIONS]'
+  exit 0
+fi
+if [ "$1" = "auth" ] && [ "$2" = "password" ] && [ "$3" = "unlock" ] && [ "$4" = "--help" ]; then
+  printf '%s\\n' 'Native help for auth password unlock' 'Usage: snapback auth password unlock [OPTIONS]'
+  exit 0
+fi
+if [ "$1" = "auth" ] && [ "$2" = "password" ] && [ "$3" = "unlock" ]; then
+  if [ "$SNAPBACK_ADMIN_TOKEN" != "file-admin-token" ]; then
+    printf '%s\\n' 'unlock did not receive the file-carried admin token' >&2
+    exit 96
+  fi
+  shift 3
+  printf 'DELEGATED %s\\n' "$*"
   exit 0
 fi
 printf '%s\\n' 'EXECUTED' >&2
@@ -170,6 +187,54 @@ exit 97
   assert.match(nativeAuthHelp.stdout, /Native help for auth password/);
   assert.doesNotMatch(nativeAuthHelp.stdout, /Mint one explicit ordinary development session/u);
 
+  const nativeResetHelp = spawnSync(
+    process.execPath,
+    [cli, 'auth', 'password', 'reset', '--url', 'http://ignored.test', '--help'],
+    { encoding: 'utf8', env },
+  );
+  assert.equal(nativeResetHelp.status, 0, nativeResetHelp.stderr);
+  assert.match(nativeResetHelp.stdout, /Native help for auth password reset/);
+  assert.doesNotMatch(nativeResetHelp.stdout, /Native help for auth password$/mu);
+
+  const nativeUnlockHelp = spawnSync(
+    process.execPath,
+    [cli, 'help', 'auth', 'password', 'unlock', '--admin-token-file', 'ignored'],
+    { encoding: 'utf8', env },
+  );
+  assert.equal(nativeUnlockHelp.status, 0, nativeUnlockHelp.stderr);
+  assert.match(nativeUnlockHelp.stdout, /Native help for auth password unlock/);
+  assert.match(nativeUnlockHelp.stdout, /--admin-token-file <path>/u);
+  assert.doesNotMatch(nativeUnlockHelp.stdout, /Native help for auth password$/mu);
+
+  const adminTokenFile = join(root, 'admin-token');
+  writeFileSync(adminTokenFile, 'file-admin-token\n', { mode: 0o600 });
+  const delegatedUnlock = spawnSync(
+    process.execPath,
+    [
+      cli, 'auth', 'password', 'unlock',
+      '--url', 'http://snapback.test',
+      '--email', 'locked@example.test',
+      '--admin-token-file', adminTokenFile,
+    ],
+    {
+      encoding: 'utf8',
+      env: { ...env, SNAPBACK_ADMIN_TOKEN: 'planted-wrong-token' },
+    },
+  );
+  assert.equal(delegatedUnlock.status, 0, delegatedUnlock.stderr);
+  assert.match(delegatedUnlock.stdout, /DELEGATED --url http:\/\/snapback\.test --email locked@example\.test/u);
+  assert.doesNotMatch(`${delegatedUnlock.stdout}\n${delegatedUnlock.stderr}`, /file-admin-token|admin-token-file/u);
+
+  chmodSync(adminTokenFile, 0o644);
+  const permissiveTokenFile = spawnSync(
+    process.execPath,
+    [cli, 'auth', 'password', 'unlock', '--url', 'http://snapback.test', '--email', 'locked@example.test', '--admin-token-file', adminTokenFile],
+    { encoding: 'utf8', env },
+  );
+  assert.equal(permissiveTokenFile.status, 1);
+  assert.equal(JSON.parse(permissiveTokenFile.stderr).diagnostics[0].code, 'SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID');
+  assert.doesNotMatch(permissiveTokenFile.stderr, /file-admin-token/u);
+
   const guideHelp = spawnSync(process.execPath, [cli, 'guide', '--help'], { encoding: 'utf8', env });
   assert.equal(guideHelp.status, 0, guideHelp.stderr);
   assert.match(guideHelp.stdout, /^Usage: snapback guide <ExactSymbolName\|module> \[--slice <n>\] \[--json\]$/m);
@@ -203,7 +268,7 @@ exit 97
   assert.equal(rootJsonHelp.status, 0, rootJsonHelp.stderr);
   const rootJson = JSON.parse(rootJsonHelp.stdout);
   assert.equal(rootJson.nativeInventory.schemaVersion, 'snapback.native-command-inventory.v1');
-  assert.deepEqual(rootJson.nativeCommands.map(({ name }) => name), ['start', 'admin']);
+  assert.deepEqual(rootJson.nativeCommands.map(({ name }) => name), ['start', 'admin', 'auth']);
 
   // A held-open stdin must not make help wait for input. spawnSync above
   // covers the ordinary closed-input probe; the help path never inspects TTY

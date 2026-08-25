@@ -4593,25 +4593,16 @@ function refineGeneratedArtifactFailure(error, {
   return mismatch;
 }
 
-export function managedAdminToken(descriptor, database) {
-  const declared = descriptor?.adminTokenFile;
-  if (typeof declared !== 'string') return null;
-  const expected = canonicalFilesystemPath(`${resolve(database)}.admin-token`);
-  if (canonicalFilesystemPath(declared) !== expected) {
-    throw diagnosticError(
-      'SNAPBACK_DEV_SERVER_TARGET_MISMATCH',
-      'the readiness descriptor names an unexpected admin-token carrier',
-      { expectedAdminTokenFile: expected, observedAdminTokenFile: resolve(declared) },
-    );
-  }
+function readOwnerOnlyAdminTokenFile(path) {
+  const absolute = resolve(path);
   let metadata;
   try {
-    metadata = lstatSync(expected);
+    metadata = lstatSync(absolute);
   } catch (cause) {
     const error = diagnosticError(
       'SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID',
-      'the managed database admin-token carrier is missing or unreadable',
-      { path: expected },
+      'the admin-token carrier is missing or unreadable',
+      { path: absolute },
     );
     error.cause = cause;
     throw error;
@@ -4628,21 +4619,46 @@ export function managedAdminToken(descriptor, database) {
     ];
     throw diagnosticError(
       'SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID',
-      'the managed database admin-token carrier must be an owner-only regular '
+      'the admin-token carrier must be an owner-only regular '
         + `file: observed mode ${(metadata.mode & 0o7777).toString(8).padStart(4, '0')} `
         + `failed [${failedPredicates.join(', ')}]`,
       {
-        path: expected,
+        path: absolute,
         observedMode: (metadata.mode & 0o7777).toString(8).padStart(4, '0'),
         failedPredicates,
       },
     );
   }
-  const token = readFileSync(expected, 'utf8').trim();
+  let token;
+  try {
+    token = readFileSync(absolute, 'utf8').trim();
+  } catch (cause) {
+    const error = diagnosticError(
+      'SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID',
+      'the admin-token carrier is missing or unreadable',
+      { path: absolute },
+    );
+    error.cause = cause;
+    throw error;
+  }
   if (!token) {
-    throw diagnosticError('SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID', 'the managed database admin-token carrier is empty', { path: expected });
+    throw diagnosticError('SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID', 'the admin-token carrier is empty', { path: absolute });
   }
   return token;
+}
+
+export function managedAdminToken(descriptor, database) {
+  const declared = descriptor?.adminTokenFile;
+  if (typeof declared !== 'string') return null;
+  const expected = canonicalFilesystemPath(`${resolve(database)}.admin-token`);
+  if (canonicalFilesystemPath(declared) !== expected) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_SERVER_TARGET_MISMATCH',
+      'the readiness descriptor names an unexpected admin-token carrier',
+      { expectedAdminTokenFile: expected, observedAdminTokenFile: resolve(declared) },
+    );
+  }
+  return readOwnerOnlyAdminTokenFile(expected);
 }
 
 const DEFAULT_DEV_SESSION_EMAIL = 'snapback-dev@localhost.invalid';
@@ -7611,10 +7627,27 @@ function resolvePackagedHelpName(command, args = []) {
   return command === 'auth' && match === 'auth' ? null : match;
 }
 
+function longestRegisteredNativeCommandPath(options, requestedPath) {
+  const structured = nativeCommandInventory(options);
+  if (!structured.ok) return requestedPath;
+  const resolved = [];
+  let command = structured.inventory.root;
+  for (const part of requestedPath) {
+    const next = command.subcommands?.find((entry) => entry.name === part);
+    if (next === undefined) break;
+    resolved.push(part);
+    command = next;
+  }
+  return resolved.length > 0 ? resolved : requestedPath;
+}
+
 function nativeHelp(options, commandPath = null) {
   try {
     const runtime = resolveRuntimeBinary(options);
-    const result = spawnSync(runtime.binary, commandPath === null ? ['--help'] : [...commandPath, '--help'], {
+    const resolvedCommandPath = commandPath === null
+      ? null
+      : longestRegisteredNativeCommandPath(options, commandPath);
+    const result = spawnSync(runtime.binary, resolvedCommandPath === null ? ['--help'] : [...resolvedCommandPath, '--help'], {
       encoding: 'utf8',
       env: runtimeSpawnEnvironment(runtime.binary, options.env),
     });
@@ -7623,9 +7656,10 @@ function nativeHelp(options, commandPath = null) {
       ok: result.status === 0,
       text: `${result.stdout ?? ''}${result.stderr ?? ''}`.trim(),
       exitCode: result.status ?? 1,
+      commandPath: resolvedCommandPath,
     };
   } catch (error) {
-    return { ok: false, text: `native help unavailable: ${error.message}`, exitCode: 1 };
+    return { ok: false, text: `native help unavailable: ${error.message}`, exitCode: 1, commandPath };
   }
 }
 
@@ -7675,6 +7709,11 @@ function printCliHelp(command, { json, options, nativeCommandPath = null }) {
   if (nativeCommandPath !== null) {
     const native = nativeHelp(options, nativeCommandPath);
     if (native.text) console.log(native.text);
+    if (native.commandPath?.join(' ') === 'auth password unlock') {
+      console.log('');
+      console.log('Wrapper credential carrier:');
+      console.log('      --admin-token-file <path>  Read the admin token from an owner-only regular file and pass it to the native verb through SNAPBACK_ADMIN_TOKEN');
+    }
     // A natively owned command can still have package-owned verbs (`snapback
     // auth enable|configure|status`). Native help cannot know about them, so
     // name them here rather than leaving them undiscoverable.
@@ -9405,6 +9444,16 @@ export async function runCli(argv, options = {}) {
       ...options,
     });
   }
+  let adminTokenFile = null;
+  if (command === 'auth' && args[0] === 'password' && args[1] === 'unlock') {
+    adminTokenFile = takeFlag(args, '--admin-token-file');
+    if (adminTokenFile !== null && args.some((argument) => argument === '--token' || argument.startsWith('--token='))) {
+      throw diagnosticError(
+        'SNAPBACK_CLI_ARGUMENT_INVALID',
+        '--admin-token-file and --token are mutually exclusive admin-token carriers',
+      );
+    }
+  }
   const runtime = resolveRuntimeBinary(options);
   // @ref LLP 0194#design — a cold install with no checkout registry delegates
   // exact Guide lookup to the embedded native registry without losing JSON mode.
@@ -9412,6 +9461,11 @@ export async function runCli(argv, options = {}) {
     ? []
     : [command, ...args, ...(command === 'guide' && json ? ['--json'] : [])];
   const delegatedEnvironment = runtimeSpawnEnvironment(runtime.binary, options.env);
+  if (adminTokenFile !== null) {
+    delegatedEnvironment.SNAPBACK_ADMIN_TOKEN = readOwnerOnlyAdminTokenFile(
+      resolve(options.cwd ?? process.cwd(), adminTokenFile),
+    );
+  }
   if (command === 'start') {
     // @ref LLP 0301#2-origin-admission--the-path-split-implemented — direct
     // native start must not inherit lifecycle posture.
