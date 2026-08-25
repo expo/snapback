@@ -2721,6 +2721,37 @@ mod tests {
             .unwrap()
     }
 
+    fn install_room_resync(fixture: &ReadyFixture) -> RoomId {
+        let collection = protected_collection().permission_backed_by(
+            crate::ephemeral::RoomPermissionProjection {
+                table: "memberships".to_owned(),
+                subject_field: "userId".to_owned(),
+                scope_fields: BTreeMap::from([("boardId".to_owned(), "boardId".to_owned())]),
+                role_field: None,
+                allowed_roles: None,
+            },
+        );
+        fixture
+            .participant
+            .replace_protected_room_catalog(&[collection])
+            .unwrap();
+        let room = protected_room();
+        drop(fixture.participant.begin_protected_room_act(&room).unwrap());
+        let witness = witness(successor(&fixture.authorization));
+        let prepared = bind_all_rooms(fixture, &witness);
+        let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+        prepared.finalize_committed(7).unwrap();
+        let after_local = scope.take_after_local_batch();
+        drop(scope);
+        let outcome = fixture
+            .participant
+            .committed_outcome(&witness, 7)
+            .expect("known commit has one exact outcome");
+        fixture.view.project_committed(&outcome).unwrap();
+        crate::exec_guard::run_after_local_batch(after_local).unwrap();
+        room
+    }
+
     #[test]
     fn activation_requires_the_kernel_initialized_snapshot() {
         let local = LocalDatabase::memory().unwrap();
@@ -3157,6 +3188,72 @@ mod tests {
         assert_eq!(
             state.rooms[&room].resync.as_ref().unwrap().authorization,
             witness.version
+        );
+    }
+
+    #[test]
+    fn reauthorization_batch_refuses_another_root_and_remains_retryable() {
+        let source = ready_fixture();
+        let target = ready_fixture();
+        install_room_resync(&source);
+        install_room_resync(&target);
+
+        let wrong_database_pending = source.participant.pending_reauthorizations().pop().unwrap();
+        let mismatch = match target
+            .database
+            .resolve_room_reauthorization(wrong_database_pending, Vec::new())
+        {
+            Err(error) => error,
+            Ok(_) => panic!("a different database resolved the source root"),
+        };
+        assert_eq!(
+            mismatch.diagnostic.code,
+            "SNAPBACK_AUTH_PARTICIPANT_DATABASE_MISMATCH"
+        );
+        assert_eq!(source.participant.pending_reauthorizations().len(), 1);
+
+        let wrong_root_batch = source
+            .database
+            .resolve_room_reauthorization(
+                source.participant.pending_reauthorizations().pop().unwrap(),
+                Vec::new(),
+            )
+            .unwrap();
+        assert!(
+            target
+                .participant
+                .begin_room_reauthorization_completion(wrong_root_batch)
+                .is_err(),
+            "a live generation on another registry is not interchangeable"
+        );
+        assert_eq!(source.participant.pending_reauthorizations().len(), 1);
+
+        let exact_batch = source
+            .database
+            .resolve_room_reauthorization(
+                source.participant.pending_reauthorizations().pop().unwrap(),
+                Vec::new(),
+            )
+            .unwrap();
+        let stale_duplicate = source
+            .database
+            .resolve_room_reauthorization(
+                source.participant.pending_reauthorizations().pop().unwrap(),
+                Vec::new(),
+            )
+            .unwrap();
+        source
+            .participant
+            .begin_room_reauthorization_completion(exact_batch)
+            .expect("the exact root and generation admit completion")
+            .complete_exact();
+        assert!(source.participant.pending_reauthorizations().is_empty());
+        assert!(
+            source
+                .participant
+                .begin_room_reauthorization_completion(stale_duplicate)
+                .is_err(),
+            "clearing the level-triggered fact makes a duplicate batch stale"
         );
     }
 
