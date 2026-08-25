@@ -11696,6 +11696,10 @@ pub struct SupportedArtifactAuthPair {
     Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, schemars::JsonSchema,
 )]
 pub enum TargetCapabilityId {
+    #[serde(rename = "auth.guest-sessions")]
+    AuthGuestSessions,
+    #[serde(rename = "auth.passwords")]
+    AuthPasswords,
     #[serde(rename = "auth.sessions.v1")]
     AuthSessionsV1,
     #[serde(rename = "bounded_response_stream_v1")]

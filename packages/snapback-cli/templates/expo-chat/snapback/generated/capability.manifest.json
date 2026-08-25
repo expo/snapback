@@ -254,6 +254,8 @@
     "assets.media-collection.v1": "experimental",
     "assets.media-command.v1": "experimental",
     "assets.media-ref-projection.v1": "experimental",
+    "auth.guest-sessions": "experimental",
+    "auth.passwords": "experimental",
     "bounded_batch_reads_v1": "experimental",
     "bounded_children_v1": "experimental",
     "inline_handler_v1": "experimental",
@@ -508,6 +510,8 @@
     "sessions"
   ],
   "supportedCapabilities": [
+    "auth.guest-sessions",
+    "auth.passwords",
     "auth.sessions.v1",
     "bounded_children_v1",
     "bounded_batch_reads_v1",

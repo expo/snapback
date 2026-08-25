@@ -114,6 +114,7 @@ assert.match(runtimeAcceptance, /runExpoDev/);
 assert.match(runtimeAcceptance, /createSnapbackExpoBoot/);
 assert.match(runtimeAcceptance, /createSnapbackAppClient/);
 assert.match(runtimeAcceptance, /createSessionClient/);
+assert.doesNotMatch(runtimeAcceptance, /offeredCapabilities/u);
 assert.doesNotMatch(runtimeAcceptance, /new SnapbackClient|AuthCoordinator|adoptAuthority/u);
 for (const operation of [
   'conversations',

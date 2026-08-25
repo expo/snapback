@@ -5,6 +5,8 @@ use super::*;
 /// turn assertions into target authority.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct TargetCapabilityFacts {
+    pub auth_guest_sessions_registered: bool,
+    pub auth_passwords_registered: bool,
     pub bounded_children_v1_registered: bool,
     pub bounded_batch_reads_v1_registered: bool,
     pub snapshot_batch_v1_registered: bool,
@@ -67,7 +69,9 @@ impl AuthProtocols {
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 45] = [
+    pub const ALL: [Self; 47] = [
+        Self::AuthGuestSessions,
+        Self::AuthPasswords,
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::BoundedChildrenV1,
@@ -117,6 +121,8 @@ impl TargetCapabilityId {
 
     pub const fn as_str(self) -> &'static str {
         match self {
+            Self::AuthGuestSessions => "auth.guest-sessions",
+            Self::AuthPasswords => "auth.passwords",
             Self::AuthSessionsV1 => "auth.sessions.v1",
             Self::BoundedResponseStreamV1 => "bounded_response_stream_v1",
             Self::BoundedChildrenV1 => "bounded_children_v1",
@@ -190,7 +196,9 @@ impl TargetCapabilityId {
         // for every registered id. Artifacts that still acknowledge a
         // promoted id are unaffected (stable acknowledgment is a no-op).
         match self {
-            Self::BoundedChildrenV1
+            Self::AuthGuestSessions
+            | Self::AuthPasswords
+            | Self::BoundedChildrenV1
             | Self::BoundedBatchReadsV1
             | Self::InlineHandlerV1
             // LLP 0070 is Draft: `jobs_one_off_v1` stays experimental until
@@ -280,6 +288,22 @@ impl TargetCapabilityId {
         facts: TargetCapabilityFacts,
     ) -> bool {
         match self {
+            // @ref LLP 0258#d1-generate-one-non-secret-bootstrap-policy —
+            // application entryMechanisms are only an allowlist. Positive
+            // support for the corresponding entry surface comes from the
+            // exact local target's registered handler plus the admitted
+            // Sessions tuple, and every other target remains support-false.
+            Self::AuthGuestSessions | Self::AuthPasswords => {
+                manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
+                    && match self {
+                        Self::AuthGuestSessions => facts.auth_guest_sessions_registered,
+                        Self::AuthPasswords => facts.auth_passwords_registered,
+                        _ => unreachable!(),
+                    }
+                    && facts.paired_v1_parser_registered
+                    && facts.shared_invocation_gate_registered
+                    && facts.staged_mode_registered
+            }
             Self::AuthSessionsV1 => {
                 facts.paired_v1_parser_registered
                     && facts.shared_invocation_gate_registered

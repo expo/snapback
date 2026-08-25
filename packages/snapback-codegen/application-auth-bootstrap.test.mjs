@@ -15,7 +15,7 @@ import Ajv2020 from 'ajv/dist/2020.js';
 import { validateAppDescriptorV1 } from './app-descriptor.mjs';
 import { enumerateAppDescriptorV1 } from './app-inspection.mjs';
 import { defineAuth } from './define.mjs';
-import { generate } from './index.mjs';
+import { generate, generateInProcess } from './index.mjs';
 
 const packageRoot = dirname(fileURLToPath(import.meta.url));
 const defineUrl = pathToFileURL(join(packageRoot, 'define.mjs')).href;
@@ -226,6 +226,41 @@ test('entry mechanisms are closed, canonical, and admit enabled guest policy', a
     code === 'CODEGEN_MODULE_EVALUATION_FAILED'
       && message.endsWith('enabled defineAuth guestPolicy requires a declared guest mechanism')
   )), JSON.stringify(refused.diagnostics));
+});
+
+test('generated guest entry refuses a target catalog without guest capability evidence', async () => {
+  const root = fixture();
+  writeExplicit(root, {
+    program: authProgram({
+      mechanisms: "guest: { kind: 'guest' }",
+      guestPolicy: `{ enabled: true, claiming: [], reaping: {
+        afterMs: 604800000,
+        cleanup: { kind: 'declarative', default: 'tombstone', tables: {
+          items: { principalField: 'ownerId', onReap: 'tombstone' },
+        } },
+      } }`,
+    }),
+  });
+  const olderTarget = JSON.parse(readFileSync(join(
+    packageRoot,
+    '../../schemas/capability.manifest.local-dev-sqlite-ibex.json',
+  ), 'utf8'));
+  olderTarget.supportedCapabilities = olderTarget.supportedCapabilities.filter(
+    (capability) => capability !== 'auth.guest-sessions',
+  );
+  delete olderTarget.capabilityMaturity?.['auth.guest-sessions'];
+
+  const refused = await generateInProcess(root, {}, { capabilityManifest: olderTarget });
+  assert.equal(refused.ok, false);
+  assert(refused.diagnostics.some(({ code, capability }) => (
+    code === 'SNAPBACK_CAPABILITY_UNSUPPORTED'
+      && capability === 'auth.guest-sessions'
+  )), JSON.stringify(refused.diagnostics));
+  assert.equal(
+    Object.hasOwn(refused, 'appDescriptor'),
+    false,
+    'target capability refusal occurs before generated app publication',
+  );
 });
 
 test('external entry is opt-in and custody defaults without target inference', async () => {

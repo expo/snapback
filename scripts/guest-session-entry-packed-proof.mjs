@@ -11,13 +11,51 @@ const moduleRoot = process.env.SNAPBACK_GUEST_ENTRY_MODULE_ROOT;
 assert.ok(moduleRoot, 'SNAPBACK_GUEST_ENTRY_MODULE_ROOT is required');
 const packed = (path) => import(pathToFileURL(resolve(moduleRoot, path)).href);
 const { createSnapbackAppClient } = await packed('@expo/snapback-client/app-client.mjs');
+const {
+  defineStarterAcceptance,
+  runStarterAcceptance,
+} = await packed('@expo/snapback-acceptance/index.mjs');
 const reactArm = await packed('@expo/snapback-react/index.mjs');
 const expoArm = await packed('@expo/snapback-expo/index.mjs');
 const packedExpoScaffold = JSON.parse(readFileSync(resolve(
   moduleRoot,
   '@expo/snapback-cli/templates/expo-chat/snapback/generated/app.descriptor.json',
 ), 'utf8'));
+const packedExpoArtifacts = JSON.parse(readFileSync(resolve(
+  moduleRoot,
+  '@expo/snapback-cli/templates/expo-chat/snapback/generated/artifacts.json',
+), 'utf8'));
+const packedExpoCapabilityManifest = JSON.parse(readFileSync(resolve(
+  moduleRoot,
+  '@expo/snapback-cli/templates/expo-chat/snapback/generated/capability.manifest.json',
+), 'utf8'));
+const packedExpoLifecycle = JSON.parse(readFileSync(resolve(
+  moduleRoot,
+  '@expo/snapback-cli/templates/expo-chat/snapback/generated/client-lifecycle.v1.json',
+), 'utf8'));
+const packedGuestEntry = packedExpoLifecycle.rows.authEntryMechanisms.entries.find(
+  ({ mechanism }) => mechanism === 'guest-v1',
+);
 assert.equal(packedExpoScaffold.authBootstrap?.entryMechanisms?.includes('guest-v1'), true);
+assert.equal(packedGuestEntry?.configured, true);
+assert.equal(packedGuestEntry?.targetCapability, 'auth.guest-sessions');
+assert.equal(
+  packedExpoCapabilityManifest.supportedCapabilities.includes('auth.guest-sessions'),
+  true,
+  'packed local target capability evidence admits guest sessions',
+);
+assert.equal(
+  packedExpoCapabilityManifest.supportedCapabilities.includes('auth.passwords'),
+  true,
+  'packed local target capability evidence admits password entry',
+);
+
+const packedTargetCapabilitiesByPort = new Map([
+  ['4989', Object.freeze([...packedExpoCapabilityManifest.supportedCapabilities])],
+  ['4990', Object.freeze(packedExpoCapabilityManifest.supportedCapabilities.filter(
+    (capability) => capability !== 'auth.guest-sessions',
+  ))],
+]);
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const APP_ID = '018f0d90-ab20-7a22-8c33-445566778899';
@@ -141,7 +179,23 @@ const credential = (token, sessionId, authorityInstanceId, provider, codes = nul
 };
 
 globalThis.fetch = async (url, init = {}) => {
-  const path = new URL(url).pathname;
+  const parsedUrl = new URL(url);
+  const path = parsedUrl.pathname;
+  const packedTargetCapabilities = packedTargetCapabilitiesByPort.get(parsedUrl.port) ?? null;
+  const packedTemplateTarget = packedTargetCapabilities !== null;
+  const targetIdentity = packedTemplateTarget
+    ? {
+        appId: packedExpoScaffold.identity.app,
+        schemaHash: packedExpoScaffold.identity.schema,
+        bundleHash: packedExpoScaffold.identity.functions,
+        inputsHash: packedExpoArtifacts.inputsHash,
+      }
+    : {
+        appId: APP_ID,
+        schemaHash: `snapback.v1:sessions:schema:sha256:${'1'.repeat(64)}`,
+        bundleHash: `snapback.v1:sessions:function:sha256:${'2'.repeat(64)}`,
+        inputsHash: `snapback.v1:sessions:inputs:sha256:${'4'.repeat(64)}`,
+      };
   const headers = new Headers(init.headers);
   const bearer = headers.get('authorization')?.replace(/^Bearer /u, '') ?? null;
   const body = init.body === undefined ? undefined : JSON.parse(init.body);
@@ -153,19 +207,19 @@ globalThis.fetch = async (url, init = {}) => {
       functions: {
         artifactKind: 'functionManifest',
         schemaVersion: 'snapback.v1',
-        appId: APP_ID,
-        bundleHash: `snapback.v1:sessions:function:sha256:${'2'.repeat(64)}`,
+        appId: targetIdentity.appId,
+        bundleHash: targetIdentity.bundleHash,
         functions: [],
       },
       schema: {
-        schemaHash: `snapback.v1:sessions:schema:sha256:${'1'.repeat(64)}`,
+        schemaHash: targetIdentity.schemaHash,
         ephemeralCollections: [],
       },
       capabilityManifest: {
         artifactKind: 'capabilityManifest',
         schemaVersion: 'snapback.v1',
         targetProfileId: 'local-dev-sqlite-ibex',
-        supportedCapabilities: [],
+        supportedCapabilities: packedTargetCapabilities ?? [],
       },
     });
   }
@@ -206,10 +260,10 @@ globalThis.fetch = async (url, init = {}) => {
       deploymentIdentity: {
         schemaVersion: 'snapback.v1',
         authMode: 'sessions',
-        appId: APP_ID,
-        schemaHash: `snapback.v1:sessions:schema:sha256:${'1'.repeat(64)}`,
-        bundleHash: `snapback.v1:sessions:function:sha256:${'2'.repeat(64)}`,
-        inputsHash: `snapback.v1:sessions:inputs:sha256:${'4'.repeat(64)}`,
+        appId: targetIdentity.appId,
+        schemaHash: targetIdentity.schemaHash,
+        bundleHash: targetIdentity.bundleHash,
+        inputsHash: targetIdentity.inputsHash,
       },
       authorizedLease: null,
     });
@@ -273,6 +327,166 @@ let expoBoot;
 let expoRestartBoot;
 let renderer;
 try {
+  // @ref LLP 0295#program-invariant-vertical-paved-path-coherence — bind the
+  // packed template's generated guest declaration to the acceptance binding
+  // projection and the real packed client bootstrap admission in one fixture.
+  const verticalAcceptance = defineStarterAcceptance({
+    acceptanceFile: import.meta.url,
+    appRoot: moduleRoot,
+    artifacts: packedExpoArtifacts,
+    stepTimeoutMs: 2_000,
+    overallTimeoutMs: 5_000,
+    cleanupTimeoutMs: 1_000,
+    paths: {
+      guestBootstrap: {
+        id: 'packed-expo-guest-bootstrap-coherence',
+        kind: 'success',
+        targetProfileId: 'local-dev-sqlite-ibex',
+        operation: packedExpoScaffold.api.queries.users,
+      },
+    },
+    async journey({ bindingFor, defer, paths, step }) {
+      let acceptedClient = null;
+      defer(async () => acceptedClient?.dispose());
+      await step(paths.guestBootstrap, async () => {
+        const acceptedBinding = bindingFor(packedExpoScaffold, {
+          supervisorGeneration: 'packed-expo-guest-bootstrap-coherence',
+        });
+        assert.equal(
+          acceptedBinding.capabilities.offered.includes(packedGuestEntry.targetCapability),
+          true,
+          'acceptance binding projects the generated guest target capability',
+        );
+        acceptedClient = await createSnapbackAppClient({
+          app: packedExpoScaffold,
+          binding: acceptedBinding,
+          platform: Object.freeze({ kind: 'memory', cryptoObject: webcrypto }),
+        });
+        assert.equal(acceptedClient.bootstrapState().status, 'ready');
+        return {
+          mechanism: packedGuestEntry.mechanism,
+          targetCapability: packedGuestEntry.targetCapability,
+          bootstrap: 'admitted',
+        };
+      });
+    },
+  });
+  const inspectionClient = (origin) => Object.freeze({
+    async inspect({ signal } = {}) {
+      const response = await fetch(`${origin}/inspect`, { signal });
+      assert.equal(response.ok, true);
+      return response.json();
+    },
+    async dispose() {},
+  });
+  const verticalLifecycle = (origin, events) => Object.freeze({
+    schemaVersion: 'snapback.starter-lifecycle-adapter.v1',
+    async start() {
+      events.push('start');
+      return Object.freeze({
+        ready: Object.freeze({ ready: true, serverUrl: origin }),
+        loadedIdentity: Object.freeze({
+          appId: packedExpoArtifacts.appId,
+          bundleHash: packedExpoArtifacts.bundleHash,
+        }),
+        adminClient: inspectionClient(origin),
+        health: () => Object.freeze({ running: true }),
+      });
+    },
+    async stop() {
+      events.push('stop');
+      return Object.freeze({ exited: true });
+    },
+  });
+  const verticalEvents = [];
+  const vertical = await runStarterAcceptance(verticalAcceptance, {
+    lifecycle: verticalLifecycle('http://127.0.0.1:4989', verticalEvents),
+    emit: false,
+  });
+  assert.equal(vertical.exitCode, 0, JSON.stringify(vertical.receipt));
+  assert.equal(vertical.receipt.status, 'passed');
+  assert.equal(vertical.receipt.expectedCheckCount, 1);
+  assert.equal(vertical.receipt.executedCheckCount, 1);
+  assert.deepEqual(verticalEvents, ['start', 'stop']);
+
+  // @ref LLP 0258#d1-generate-one-non-secret-bootstrap-policy — the
+  // application can allow guest-v1 while an older target honestly omits the
+  // corresponding capability; the binding must omit the offer and bootstrap
+  // must refuse before any auth request.
+  const missingGuestAcceptance = defineStarterAcceptance({
+    acceptanceFile: import.meta.url,
+    appRoot: moduleRoot,
+    artifacts: packedExpoArtifacts,
+    stepTimeoutMs: 2_000,
+    overallTimeoutMs: 5_000,
+    cleanupTimeoutMs: 1_000,
+    paths: {
+      guestBootstrapRefusal: {
+        id: 'packed-expo-missing-guest-capability-refusal',
+        kind: 'failure',
+        targetProfileId: 'local-dev-sqlite-ibex',
+        operation: packedExpoScaffold.api.queries.users,
+      },
+    },
+    async journey({ bindingFor, paths, step }) {
+      await step(paths.guestBootstrapRefusal, async () => {
+        const refusedBinding = bindingFor(packedExpoScaffold, {
+          offeredCapabilities: [packedGuestEntry.targetCapability],
+          supervisorGeneration: 'packed-expo-missing-guest-capability-refusal',
+        });
+        assert.equal(
+          refusedBinding.capabilities.offered.includes('auth.application-bootstrap.v1'),
+          true,
+          'the acceptance package supplies its supervisor-owned bootstrap capability',
+        );
+        assert.equal(
+          refusedBinding.capabilities.offered.includes(packedGuestEntry.targetCapability),
+          false,
+          'an application request cannot manufacture a capability absent from target evidence',
+        );
+        const requestCountBeforeBootstrap = requests.length;
+        let refusal = null;
+        await assert.rejects(
+          () => createSnapbackAppClient({
+            app: packedExpoScaffold,
+            binding: refusedBinding,
+            platform: Object.freeze({ kind: 'memory', cryptoObject: webcrypto }),
+          }),
+          (error) => {
+            refusal = error;
+            return error?.code === 'SNAPBACK_AUTH_BOOTSTRAP_MECHANISM_UNAVAILABLE'
+              && error?.diagnostic?.details?.mechanism === 'guest-v1'
+              && error?.diagnostic?.details?.missingCapability === 'auth.guest-sessions';
+          },
+        );
+        assert.equal(
+          requests.length,
+          requestCountBeforeBootstrap,
+          'missing guest target capability refuses before auth network work',
+        );
+        return {
+          code: refusal.code,
+          mechanism: refusal.diagnostic.details.mechanism,
+          missingCapability: refusal.diagnostic.details.missingCapability,
+          networkRequests: 0,
+        };
+      });
+    },
+  });
+  const refusalEvents = [];
+  const missingGuest = await runStarterAcceptance(missingGuestAcceptance, {
+    lifecycle: verticalLifecycle('http://127.0.0.1:4990', refusalEvents),
+    emit: false,
+  });
+  assert.equal(missingGuest.exitCode, 0, JSON.stringify(missingGuest.receipt));
+  assert.equal(missingGuest.receipt.status, 'passed');
+  assert.equal(missingGuest.receipt.expectedCheckCount, 1);
+  assert.equal(missingGuest.receipt.executedCheckCount, 1);
+  assert.deepEqual(refusalEvents, ['start', 'stop']);
+  console.log(
+    'packed Expo guest bootstrap coherence: target-evidenced offer and missing-guest pre-I/O refusal pass 2/2',
+  );
+
   first = await createSnapbackAppClient(durableInput);
   const entered = await first.auth.enterAsGuest();
   assert.equal(entered.session.userId, USER);

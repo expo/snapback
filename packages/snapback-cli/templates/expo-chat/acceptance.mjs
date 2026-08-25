@@ -275,7 +275,6 @@ export const acceptance = defineStarterAcceptance({
     });
 
     const binding = bindingFor(app, {
-      offeredCapabilities: ['auth.passwords'],
       supervisorGeneration: `expo-chat-acceptance-${app.identity.descriptor}`,
     });
     const platform = Object.freeze({

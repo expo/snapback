@@ -1423,6 +1423,8 @@
       "oneOf": [
         {
           "enum": [
+            "auth.guest-sessions",
+            "auth.passwords",
             "auth.sessions.v1",
             "bounded_response_stream_v1",
             "bounded_children_v1",

@@ -65,6 +65,9 @@ const STARTER_ACCEPTANCE_RECEIPT_KEYS = Object.freeze([
 const STARTER_ACCEPTANCE_MAX_INVALID_PATHS = 64;
 const STARTER_ACCEPTANCE_MAX_OPERATION_PATHS = 16;
 const STARTER_ACCEPTANCE_MAX_REMEDIATION_ID_CHARS = 256;
+const STARTER_SUPERVISOR_CAPABILITIES = Object.freeze([
+  'auth.application-bootstrap.v1',
+]);
 const GENERATION_KEYS = Object.freeze([
   'schemaVersion',
   'appId',
@@ -494,9 +497,40 @@ function normalizeFailure(error, fallbackCode = 'SNAPBACK_STARTER_ACCEPTANCE_FAI
   });
 }
 
-function bindSupervisedApp(app, ready, offeredCapabilities = [], supervisorGeneration = null) {
+function bindSupervisedApp(
+  app,
+  ready,
+  targetCapabilities = [],
+  requestedCapabilities = [],
+  supervisorGeneration = null,
+) {
   assert(plainObject(app?.identity), 'bindingFor requires a generated app descriptor');
   const now = Date.now();
+  const requested = new Set([
+    ...(app.capabilities?.required ?? []),
+    ...requestedCapabilities,
+  ]);
+  // @ref LLP 0258#d1-generate-one-non-secret-bootstrap-policy — generated
+  // entry mechanisms are an application allowlist, never target evidence.
+  // The acceptance-owned issuer intersects that policy with the capability
+  // manifest observed from the served target plus package-owned supervisor
+  // facts; caller requests cannot manufacture an offer.
+  // @ref LLP 0295#program-invariant-vertical-paved-path-coherence — keep the
+  // generated policy, inspected target, binding offer, and client admission in
+  // one vertical seam instead of asking templates to transcribe capabilities.
+  if (app.authBootstrap?.entryMechanisms?.includes('password-v1')) {
+    requested.add('auth.passwords');
+  }
+  if (app.authBootstrap?.entryMechanisms?.includes('guest-v1')) {
+    requested.add('auth.guest-sessions');
+  }
+  const admitted = new Set([
+    ...targetCapabilities,
+    ...STARTER_SUPERVISOR_CAPABILITIES,
+  ]);
+  const offered = [...requested]
+    .filter((capability) => admitted.has(capability))
+    .sort();
   return Object.freeze({
     format: 'snapback.app-binding.v1',
     source: 'supervised-dev',
@@ -509,10 +543,7 @@ function bindSupervisedApp(app, ready, offeredCapabilities = [], supervisorGener
       routing: 'loopback',
     }),
     capabilities: Object.freeze({
-      offered: Object.freeze([...new Set([
-        ...(app.capabilities?.required ?? []),
-        ...offeredCapabilities,
-      ])].sort()),
+      offered: Object.freeze(offered),
     }),
     provenance: Object.freeze({
       supervisorGeneration: supervisorGeneration
@@ -541,7 +572,15 @@ async function inspectClient(client, signal) {
 
 async function defaultLoadedIdentity(lifecycleState, signal) {
   if (lifecycleState.loadedIdentity !== undefined && lifecycleState.loadedIdentity !== null) {
-    return { loadedIdentity: lifecycleState.loadedIdentity, adminClient: lifecycleState.adminClient ?? null };
+    const selectedAdminClient = lifecycleState.adminClient ?? null;
+    const inspected = selectedAdminClient === null
+      ? null
+      : await inspectClient(selectedAdminClient, signal);
+    return {
+      loadedIdentity: lifecycleState.loadedIdentity,
+      adminClient: selectedAdminClient,
+      targetCapabilities: targetCapabilitiesFromInspection(inspected),
+    };
   }
   if (lifecycleState.adminClient !== undefined && lifecycleState.adminClient !== null) {
     const inspected = await inspectClient(lifecycleState.adminClient, signal);
@@ -551,6 +590,7 @@ async function defaultLoadedIdentity(lifecycleState, signal) {
         bundleHash: inspected.functions?.bundleHash,
       },
       adminClient: lifecycleState.adminClient,
+      targetCapabilities: targetCapabilitiesFromInspection(inspected),
     };
   }
   const { SnapbackClient } = await import('@expo/snapback-client');
@@ -569,7 +609,18 @@ async function defaultLoadedIdentity(lifecycleState, signal) {
       bundleHash: inspected.functions?.bundleHash,
     },
     adminClient,
+    targetCapabilities: targetCapabilitiesFromInspection(inspected),
   };
+}
+
+function targetCapabilitiesFromInspection(inspection) {
+  const supported = inspection?.capabilityManifest?.supportedCapabilities;
+  if (!Array.isArray(supported)) return Object.freeze([]);
+  assert(
+    supported.every((capability) => typeof capability === 'string' && capability.length > 0),
+    'target inspection capabilityManifest.supportedCapabilities must contain non-empty strings',
+  );
+  return Object.freeze([...new Set(supported)].sort());
 }
 
 async function spawnSessionMint(lifecycleState, appRoot, environment, email, signal, timeoutMs) {
@@ -709,6 +760,7 @@ export async function runStarterAcceptance(definition, options = {}) {
   const sessionClients = [];
   let lifecycleState = null;
   let adminClient = null;
+  let targetCapabilities = Object.freeze([]);
   let loadedIdentity = null;
   let applicationReadyObserved = false;
   let failure = null;
@@ -841,6 +893,7 @@ export async function runStarterAcceptance(definition, options = {}) {
       return bindSupervisedApp(
         app,
         lifecycleState.ready,
+        targetCapabilities,
         bindingOptions.offeredCapabilities ?? [],
         bindingOptions.supervisorGeneration ?? null,
       );
@@ -884,7 +937,7 @@ export async function runStarterAcceptance(definition, options = {}) {
     );
     assert.equal(lifecycleState?.ready?.ready, true, 'lifecycle did not return a ready application');
     applicationReadyObserved = true;
-    ({ loadedIdentity, adminClient } = await withTimeout(
+    ({ loadedIdentity, adminClient, targetCapabilities } = await withTimeout(
       (inspectionSignal) => defaultLoadedIdentity(lifecycleState, inspectionSignal),
       Math.min(definition.stepTimeoutMs, remaining(executionDeadline)),
       'SNAPBACK_STARTER_ACCEPTANCE_CLIENT_INSPECTION_TIMEOUT',

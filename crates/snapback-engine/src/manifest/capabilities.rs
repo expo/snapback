@@ -1286,6 +1286,8 @@ impl TargetCapabilityFactsExt for TargetCapabilityFacts {
         // mandatory local row; LLP 0109 remains Review, so registry maturity
         // stays experimental until the author accepts the contract.
         Self {
+            auth_guest_sessions_registered: true,
+            auth_passwords_registered: true,
             asset_lifecycle_local_fs_registered: true,
             media_ref_projection_v1_registered: true,
             media_collection_v1_registered: true,

@@ -97,6 +97,7 @@ export interface StarterStepOptions {
 }
 
 export interface StarterSupervisedBindingOptions {
+  /** Additional policy requests; only capabilities admitted by inspected target or supervisor evidence can be offered. */
   readonly offeredCapabilities?: readonly string[];
   readonly supervisorGeneration?: string;
 }

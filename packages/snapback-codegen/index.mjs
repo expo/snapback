@@ -1098,6 +1098,16 @@ const TARGET_CAPABILITY_IDS = new Set([
 // closed through reviewed exceptions, never by silently treating every
 // runtime capability id as a schema-authorable requirement.
 const INTENTIONALLY_NON_AUTHORABLE_TARGET_CAPABILITIES = new Map([
+  ['auth.guest-sessions', Object.freeze({
+    reason: 'guest entry is derived from the normalized auth program and generated bootstrap policy rather than a free-form schema requirement',
+    bindingOffers: 'target-evidence-intersection',
+    clientAdmission: 'auth-bootstrap-policy-derived',
+  })],
+  ['auth.passwords', Object.freeze({
+    reason: 'password entry is derived from the normalized auth program and generated bootstrap policy rather than a free-form schema requirement',
+    bindingOffers: 'target-evidence-intersection',
+    clientAdmission: 'auth-bootstrap-policy-derived',
+  })],
   ['asset_image_finalization_v1', Object.freeze({
     reason: 'image finalization is derived from typed asset intent policy so its target preflight cannot be bypassed by a free-form schema requirement',
     bindingOffers: 'feature-derived-only',
@@ -1153,6 +1163,8 @@ const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
   'agent_safe_derived_deployment_fork_v1',
   'agent_safe_storage_v1',
   'args_contract_v1',
+  'auth.guest-sessions',
+  'auth.passwords',
   'asset_image_finalization_v1',
   'asset_image_pipeline_v1',
   'asset_lifecycle_v1',
@@ -1986,7 +1998,9 @@ export function targetArtifactAuthProblems(manifest, version, authMode, required
   }
 
   for (const capability of required) {
-    if (!TARGET_CAPABILITY_IDS.has(capability) || !supported.has(capability)) {
+    const registeredTargetCapability = TARGET_CAPABILITY_IDS.has(capability)
+      || INTENTIONALLY_NON_AUTHORABLE_TARGET_CAPABILITIES.has(capability);
+    if (!registeredTargetCapability || !supported.has(capability)) {
       problems.push({
         code: 'SNAPBACK_CAPABILITY_UNSUPPORTED',
         message: capabilityUnsupportedMessage(
@@ -7943,6 +7957,27 @@ async function generateInProcessLocked({
     tables,
     err,
   });
+  // @ref LLP 0258#d1-generate-one-non-secret-bootstrap-policy — generated
+  // entryMechanisms are the application allowlist; their target capabilities
+  // remain derived (not free-form authorable) and generation intersects that
+  // policy with the selected Rust-owned target catalog before publication.
+  const applicationAuthTargetCapabilities = [
+    ...(applicationAuthBootstrap?.entryMechanisms?.includes('guest-v1')
+      ? ['auth.guest-sessions']
+      : []),
+    ...(applicationAuthBootstrap?.entryMechanisms?.includes('password-v1')
+      ? ['auth.passwords']
+      : []),
+  ];
+  if (applicationAuthTargetCapabilities.length > 0) {
+    validateTargetArtifactAuthSupport(
+      canonicalCapability.manifest,
+      artifactVersion,
+      authMode,
+      applicationAuthTargetCapabilities,
+      err,
+    );
+  }
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
   }
