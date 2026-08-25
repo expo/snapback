@@ -403,11 +403,11 @@ if (
   || dualReviewHardeningMigration.reason !== 'dual-review hardening for next-campaign milestone attribution, disposition identity, and terminal telemetry custody'
   || !Array.isArray(dualReviewHardeningMigration.commits)
   || JSON.stringify(dualReviewHardeningMigration.commits) !== JSON.stringify([
-    '5ed6d4542',
-    '97ffd8e53',
-    'd0bc4aa67',
-    'adfa325e5',
-    '6bb68d9ca',
+    '6739c9a3f',
+    '5235d5384',
+    '23b16750f',
+    '20606047d',
+    '445af99cd',
   ])
   || dualReviewHardeningMigration.sourceRevisionFrom !== '09c46df751ab02e797a21c84bafb96e35591c55c'
   || dualReviewHardeningMigration.productionDriverSha256From !== '61931aeca07f67b569127d75ae256b5cce372ce335dbde4530f8934303f10559'

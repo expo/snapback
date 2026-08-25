@@ -21,7 +21,7 @@
   "paths": {
     "committedRunRoot": "benchmarks/runs/2026-08-23-r2-published-0125",
     "privateExecutionRoot": "/Users/ccheever/bench-matrix-20260823-r2",
-    "instrumentRoot": "/Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260825-v15",
+    "instrumentRoot": "/Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260825-v16",
     "exactPinnedCheckout": "/Users/ccheever/bench-matrix-20260817/exact-pinned"
   },
   "machines": {
@@ -310,7 +310,7 @@
         {
           "date": "2026-08-25",
           "reason": "dual-review hardening for next-campaign milestone attribution, disposition identity, and terminal telemetry custody",
-          "commits": ["5ed6d4542", "97ffd8e53", "d0bc4aa67", "adfa325e5", "6bb68d9ca"],
+          "commits": ["6739c9a3f", "5235d5384", "23b16750f", "20606047d", "445af99cd"],
           "sourceRevisionFrom": "09c46df751ab02e797a21c84bafb96e35591c55c",
           "productionDriverSha256From": "61931aeca07f67b569127d75ae256b5cce372ce335dbde4530f8934303f10559",
           "productionDriverSha256To": "81630e615e18b1a674d0f36a80456fe5fdbfa2d1e657db7c0ef4c1429c67ff0d",
@@ -321,13 +321,13 @@
           "observationsSha256From": "27b37159ae35a24ba458bca3cf2b29a8eead6e231031750a3f6360aa98d7cdd0",
           "observationsSha256To": "e47988444970f56662cee5bf9181012091e18918fac38a0493a9b48665ee0a17",
           "validatePlanSha256From": "e598cd89cd3f88dbe1336318e82112cb95c02e9d780a10ab267735366e812a57",
-          "validatePlanSha256To": "3a39ef206dc8d34c1520ff5de6afc493a1c52c0cd2d0dd0a94f7ffbfd60ad311",
+          "validatePlanSha256To": "4440502b58fe5556873429141494052e5adb03ecc6d369d5c07db9c7f30e6bbd",
           "meteringRootSha256From": "789dfcf036ff9dadb73d82591870a2a61945488410caed7e5fa76ab62061dc59",
           "meteringRootSha256To": "c9fb1263280a48a67ec1ad39e760b694a85c1939c2daf093b258fa93b87cbb6d",
           "instrumentManifestSha256From": "1ae3e6fc5fe853e328053b01bfc339eb0231906c9a0b6cd511ec117d92eaa4fe",
           "instrumentManifestSha256To": "2a94a0c627cbd4505620cd833a2b6a02ff8bc7eb8dc9d08c0a5dff87f14afcad",
           "materializedRootFrom": "/Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260825-v9",
-          "materializedRootTo": "/Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260825-v15",
+          "materializedRootTo": "/Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260825-v16",
           "semantics": "future milestones fail immediately on queued observation refusal; failure dispositions bind committed cell and attempt identity; terminal telemetry requires controller source and pre-finalization time"
         }
       ],
