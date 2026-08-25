@@ -105,9 +105,9 @@ redemption, and raw HTTP isolation instead of treating “the app launched” as
 the security claim. No Guide-gap ticket was filed because these were carrier
 implementation and acceptance-harness defects, not missing author guidance.
 
-## Progress — 2026-08-25 (Expo web witnessed; iOS simulator carrier-only / pre-fail-sensitive, NOT YET)
+## Progress — 2026-08-25 (Expo web isolation witnessed; D2 NOT YET; iOS simulator carrier-only / pre-fail-sensitive, NOT YET)
 
-The real Expo web bundle now passes in Chrome under
+The real Expo web bundle now passes its sessions/isolation checks in Chrome under
 `demos/expo-native-checkout-reader/receipts/web-2026-08-25T14-49-42-653Z/`.
 It keeps the ordinary session path working while proving that the native hook,
 checkout capability, and dev-identity header are absent; direct custom-header
@@ -142,10 +142,21 @@ headerless request now produces `false` and fails the positive assertion.
 The fixture also mutates a session-owned row before querying and requires at
 least one result. The existing iOS and Android-emulator receipts predate the
 server-observed check, so they are retained as narrower carrier/negative-path
-evidence while their D2 rows return to **NOT YET** until rerun. The real
-Expo-web bundle was rerun again under
-`demos/expo-native-checkout-reader/receipts/web-2026-08-25T19-34-11-484Z/`.
-Its harness-derived D2 predicate records the server's capability witness, one
-sessions-authorized row, and `checkoutHeaderPresented: false` while preserving
-browser custody isolation. This was acceptance-test honesty rather
-than missing app-author guidance; no Guide-gap ticket was filed.
+evidence while their D2 rows return to **NOT YET** until rerun. The next
+Expo-web run under
+`demos/expo-native-checkout-reader/receipts/web-2026-08-25T19-34-11-484Z/`
+was not an honest shipped-topology witness: its Playwright harness read the
+owner-only sidecar and intercepted `/connection/open` to inject the capability.
+That made the server witness true while the shipped Expo-web binding still
+connected directly. The receipt is retained as superseded non-D2 evidence.
+
+Removing the interceptor and rerunning the real bundle produced
+`demos/expo-native-checkout-reader/receipts/web-2026-08-25T20-16-02-195Z/`.
+This is an **isolation witness only**: the session seeded and read one row,
+`serverDevIdentityCapabilityWitnessed`, `checkoutHeaderPresented`, and
+`devIdentityHeaderPresented` were all false, invalid assertions were refused,
+and `d2Evidence` is false. Expo web therefore returns to **NOT YET** for D2.
+If a future positive stamp is required, it belongs on the shipped Vite/proxy
+relay with unconditional overwrite, not in test interception. This was
+acceptance-test honesty rather than missing app-author guidance; no Guide-gap
+ticket was filed.

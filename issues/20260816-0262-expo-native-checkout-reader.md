@@ -131,17 +131,28 @@ fail-sensitive proof that the native client delivered it.
 The app now reads the server's post-verification
 `devIdentityCapabilityWitnessed` connection-grant fact after the real client
 transport, seeds a row for the supervised session user, and requires at least
-one returned row. The old receipts are retained honestly. The strengthened
-real-browser Expo-web rerun passes under `web-2026-08-25T19-34-11-484Z/`
-with `serverDevIdentityCapabilityWitnessed: true`, `rowCount: 1`,
-`checkoutHeaderPresented: false`, and harness-written `d2Evidence: true`.
-Stage 3 is blocked by exactly three missing D2 witnesses: **iOS simulator —
+one returned row. The old receipts are retained honestly. Review found that
+the `web-2026-08-25T19-34-11-484Z/` run used a Playwright interceptor to read
+the owner-only sidecar and stamp `/connection/open`, a carrier absent from the
+shipped Expo-web binding. That run is now explicitly non-D2. The replacement
+real-browser run under `web-2026-08-25T20-16-02-195Z/` uses the shipped direct
+binding and is an **isolation witness only**:
+`serverDevIdentityCapabilityWitnessed: false`, `checkoutHeaderPresented:
+false`, `devIdentityHeaderPresented: false`, `rowCount: 1`, and `d2Evidence:
+false`, with both invalid-assertion refusals preserved.
+
+Stage 3 is blocked by exactly four missing D2 witnesses: **iOS simulator —
 NOT YET**, pending a strengthened rerun; **Android emulator — NOT YET**, pending
-a strengthened rerun; and **physical Android USB — NOT YET**. The retained
+a strengthened rerun; **physical Android USB — NOT YET**; and **Expo web — NOT
+YET, isolation witness only**. The retained
 `ios-2026-08-25T15-06-51-734Z` and
 `android-2026-08-25T14-54-18-163Z` native receipts predate the fail-sensitive,
-server-observed checks and must not be treated as D2 evidence. The strengthened
-Expo-web evidence is `web-2026-08-25T19-34-11-484Z`.
+server-observed checks and must not be treated as D2 evidence.
+
+If a positive Expo-web stamp is ever required, the remaining work is to drive
+the app through the shipped Vite/proxy relay and prove its unconditional
+overwrite of any client-supplied dev-identity header. This ticket does not
+implement that topology now.
 
 Neither simulator nor emulator was rerun during this correction. Physical
 Android USB remains an explicit nonclaim until a USB device is available.

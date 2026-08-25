@@ -1,6 +1,8 @@
 {
+  "d2Evidence": false,
   "status": "passed",
-  "d2Evidence": true,
+  "shippedTopology": false,
+  "qualification": "superseded-harness-interceptor",
   "receiptRows": [
     "web-session-isolation"
   ],

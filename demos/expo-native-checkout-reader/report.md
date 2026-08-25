@@ -1,6 +1,6 @@
 # Expo dev-identity checkout witness report
 
-Implementation and a strengthened Expo-web receipt are present. Retained
+Implementation and an honest Expo-web isolation receipt are present. Retained
 iOS-simulator and Android-emulator receipts predate the fail-sensitive server
 observation and no longer qualify their D2 rows. Use these commands to refresh
 a machine-runnable native row or to obtain the still-missing physical Android
@@ -74,10 +74,11 @@ per-serial reverse route for its value-free receipt sink.
 - Android emulator carrier and rotation/refusal evidence is retained in
   `receipts/android-2026-08-25T14-54-18-163Z/`, but the D2 row is **NOT YET**
   for the same reason.
-- Expo web ordinary-session mutation/query and isolation/refusal: passed with
-  `serverDevIdentityCapabilityWitnessed: true`, `rowCount: 1`,
-  `checkoutHeaderPresented: false`, and `d2Evidence: true` in
-  `receipts/web-2026-08-25T19-34-11-484Z/`.
+- Expo web D2: **NOT YET — isolation witness only**. Ordinary-session
+  mutation/query and isolation/refusal passed with
+  `serverDevIdentityCapabilityWitnessed: false`, `rowCount: 1`,
+  `checkoutHeaderPresented: false`, `devIdentityHeaderPresented: false`, and
+  `d2Evidence: false` in `receipts/web-2026-08-25T20-16-02-195Z/`.
 - Android physical USB native reader and rotation replacement (explicit
   nonclaim until hardware is available).
 - Replay refusal, unspent post-rotation refusal, the narrow server-side

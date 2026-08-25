@@ -92,9 +92,7 @@ function projectAppReceipt(report) {
 
 function appReceiptCarriesD2Evidence(report, receiptPlatform) {
   if (receiptPlatform === 'web') {
-    return report.serverDevIdentityCapabilityWitnessed === true
-      && report.rowCount >= 1
-      && report.checkoutHeaderPresented === false;
+    return false;
   }
   return report.serverDevIdentityCapabilityWitnessed === true
     && report.rowCount >= 1
@@ -254,41 +252,6 @@ try {
     browserConnection = await chromium.connectOverCDP(browserLifecycle.ws);
     const page = browserConnection.contexts().flatMap((context) => context.pages())[0];
     if (!page) throw new Error('Expo web Chrome launch did not expose a page');
-    const readyDescriptor = JSON.parse(readFileSync(readyFile, 'utf8'));
-    let webRelayCapability = readFileSync(
-      readyDescriptor.devIdentityCapabilityFile,
-      'utf8',
-    ).trim();
-    secretValues.add(webRelayCapability);
-    await page.route(
-      `${supervisor.binding.target.origin}/connection/open`,
-      async (route) => {
-        const request = route.request();
-        const requestHeaders = await request.allHeaders();
-        if (requestHeaders['x-snapback-dev-identity'] !== undefined) {
-          await route.continue();
-          return;
-        }
-        const forwardedHeaders = { ...requestHeaders };
-        delete forwardedHeaders.host;
-        delete forwardedHeaders['content-length'];
-        forwardedHeaders['x-snapback-dev-identity'] = webRelayCapability;
-        const forwarded = await fetch(request.url(), {
-          method: request.method(),
-          headers: forwardedHeaders,
-          body: request.postDataBuffer() ?? undefined,
-        });
-        const responseHeaders = Object.fromEntries(forwarded.headers.entries());
-        delete responseHeaders['content-encoding'];
-        delete responseHeaders['content-length'];
-        delete responseHeaders['transfer-encoding'];
-        await route.fulfill({
-          status: forwarded.status,
-          headers: responseHeaders,
-          body: Buffer.from(await forwarded.arrayBuffer()),
-        });
-      },
-    );
     await page.goto(supervisor.metroOrigin, { waitUntil: 'domcontentloaded' });
     const webReport = await waitFor(
       () => appReports.find((report) => report.row === 'web-session-isolation'),
@@ -315,15 +278,14 @@ try {
       hostDirectRefusalCode: hostDirectRefusalBody.diagnostic?.code ?? null,
     });
     writeReceipt('run-summary', {
-      status: webReport.status === 'passed' && hostRefusalPassed ? 'passed' : 'failed',
       d2Evidence,
+      status: webReport.status === 'passed' && hostRefusalPassed ? 'passed' : 'failed',
       receiptRows: ['web-session-isolation'],
       device: { class: 'browser' },
     });
-    if (webReport.status !== 'passed' || !hostRefusalPassed || !d2Evidence) {
+    if (webReport.status !== 'passed' || !hostRefusalPassed || d2Evidence) {
       throw new Error(`Expo web witness failed with ${webReport.code ?? 'UNKNOWN'}`);
     }
-    webRelayCapability = null;
   } else {
   await waitFor(
     () => capturedLaunches.length >= commandsPerLaunch,
@@ -488,8 +450,8 @@ try {
   const nativePassed = nativeStatuses.every((status) => status === 'passed');
   const d2Evidence = firstAppD2Evidence && replacementD2Evidence;
   writeReceipt('run-summary', {
-    status: nativePassed ? 'passed' : 'failed',
     d2Evidence,
+    status: nativePassed ? 'passed' : 'failed',
     receiptRows: [
       `${platform}-native-reader`,
       `${platform}-rotation-replacement`,

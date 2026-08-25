@@ -1,6 +1,6 @@
 {
-  "status": "passed",
   "d2Evidence": false,
+  "status": "passed",
   "receiptRows": [
     "ios-native-reader",
     "ios-rotation-replacement",

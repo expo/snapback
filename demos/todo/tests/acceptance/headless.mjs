@@ -62,13 +62,31 @@ try {
     );
     const open = (headers = {}) => fetch(`${server.baseUrl}/connection/open`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', ...headers },
+      headers: {
+        'content-type': 'application/json',
+        'x-snapback-auth-client-protocol': '1',
+        ...headers,
+      },
       body: '{}',
     });
     const accepted = await open({
       'x-snapback-dev-identity': server.devIdentityCapability,
     });
     assertEqual(accepted.status, 200, 'current boot capability was not admitted');
+    const acceptedBody = await accepted.json();
+    assertEqual(
+      acceptedBody.devIdentityCapabilityWitnessed,
+      true,
+      'current boot capability was admitted without a server witness',
+    );
+    const headerless = await open();
+    assertEqual(headerless.status, 200, 'stage-2 headerless control was not admitted');
+    const headerlessBody = await headerless.json();
+    assertEqual(
+      headerlessBody.devIdentityCapabilityWitnessed,
+      false,
+      'headerless control did not expose an unwitnessed server verdict',
+    );
     const refused = await open({
       'x-snapback-dev-identity': 'sbdev_headless_wrong_boot',
     });
@@ -78,6 +96,9 @@ try {
     return {
       carrier: 'ready-descriptor-sidecar',
       acceptedStatus: accepted.status,
+      acceptedCapabilityWitnessed: acceptedBody.devIdentityCapabilityWitnessed,
+      headerlessStatus: headerless.status,
+      headerlessCapabilityWitnessed: headerlessBody.devIdentityCapabilityWitnessed,
       refusedStatus: refused.status,
       refusalCode: refusal.diagnostic.code,
     };

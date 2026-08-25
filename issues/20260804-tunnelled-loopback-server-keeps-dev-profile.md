@@ -142,13 +142,21 @@ open until the outstanding USB witness lands and the author-gated flip is made.
 
 ## Dated note — 2026-08-25 (native D2 evidence correction)
 
-Stage 3 is blocked by exactly three missing D2 witnesses: **iOS simulator —
+Stage 3 is blocked by exactly four missing D2 witnesses: **iOS simulator —
 NOT YET**, pending a strengthened rerun; **Android emulator — NOT YET**, pending
-a strengthened rerun; and **physical Android USB — NOT YET**. The retained
+a strengthened rerun; **physical Android USB — NOT YET**; and **Expo web — NOT
+YET, isolation witness only**. The retained
 `ios-2026-08-25T15-06-51-734Z` and
 `android-2026-08-25T14-54-18-163Z` native receipts predate the fail-sensitive,
-server-observed checks and must not be treated as D2 evidence. The strengthened
-Expo-web evidence is `web-2026-08-25T19-34-11-484Z`.
+server-observed checks and must not be treated as D2 evidence. The honest
+Expo-web replacement receipt is `web-2026-08-25T20-16-02-195Z`: it proves
+sessions without custody and isolation/refusal with `d2Evidence: false`.
+
+The superseded `web-2026-08-25T19-34-11-484Z` receipt used a harness-only
+Playwright interceptor, not the shipped Expo-web binding. If a positive web
+stamp becomes required, it must be witnessed through the shipped Vite/proxy
+relay with unconditional overwrite; that remaining work is not implemented
+here.
 
 This note supersedes the earlier claim above that the simulator and emulator
 were witnessed and that only physical USB blocked stage 3. No native witness

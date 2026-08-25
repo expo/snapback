@@ -163,7 +163,7 @@ export default function App() {
             || capability !== null
             || observed.checkoutHeaderPresented !== false
             || observed.devIdentityHeaderPresented
-            || !observed.serverDevIdentityCapabilityWitnessed
+            || observed.serverDevIdentityCapabilityWitnessed
             || !observed.sessionBearerPresented
             || !Array.isArray(result?.rows)
             || result.rows.length < 1
