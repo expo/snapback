@@ -69,6 +69,7 @@ import {
   verifyAdmissionArtifact,
 } from "../r2-cell-admission.mjs";
 import { finalizeExisting } from "../r2-finalize-existing.mjs";
+import { reconcileSuiteStatuses } from "../r2-cell-driver.mjs";
 import { validateFinalizedCellSlot } from "../r2-finalized-cell.mjs";
 import {
   acquireExclusiveHostLock,
@@ -951,6 +952,50 @@ test("meter binds suite-status bytes to receipts at record-write time", async (t
     loadMeteringManifest(manifestPath),
     /receipt changed after choreography refusal-check time/u,
   );
+});
+
+test("real Grok suite rollover re-verifies unchanged identity and rejects a verdict flip", async (t) => {
+  for (const fixtureName of [
+    "real-grok-clique-explicit-suite-finalization.json",
+    "real-grok-clique-familiar-suite-finalization.json",
+  ]) {
+    const fixture = await fixtureJson(fixtureName);
+    const root = await realpath(await mkdtemp(join(tmpdir(), "grok-suite-finalization-")));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    await mkdir(dirname(join(root, fixture.suiteReceipt.path)), { recursive: true });
+    await writeFile(join(root, fixture.suiteStatus.path), fixture.suiteStatus.text);
+    await writeFile(join(root, fixture.suiteReceipt.path), fixture.suiteReceipt.text);
+    assert.equal(sha256(fixture.suiteStatus.text), fixture.suiteStatus.sha256);
+    assert.equal(sha256(fixture.suiteReceipt.text), fixture.suiteReceipt.sha256);
+
+    // Re-touching identical bytes changes file custody time, not verdict identity.
+    await writeFile(join(root, fixture.suiteReceipt.path), fixture.suiteReceipt.text);
+    const input = JSON.parse(fixture.suiteStatus.text);
+    const options = {
+      root,
+      markers: [{ milestone: "M1", status: "green" }],
+      receipts: [{ milestone: "M1", summary: fixture.choreographySummary }],
+      statuses: input,
+    };
+    const reconciled = await reconcileSuiteStatuses(options);
+    assert.deepEqual(reconciled.m1, {
+      pass: true,
+      receipt: fixture.suiteReceipt.path,
+    });
+
+    const flipped = JSON.parse(fixture.suiteReceipt.text);
+    if (typeof flipped.pass === "boolean") flipped.pass = false;
+    else flipped.results[0].pass = false;
+    await writeFile(
+      join(root, fixture.suiteReceipt.path),
+      `${JSON.stringify(flipped, null, 2)}\n`,
+    );
+    await assert.rejects(
+      reconcileSuiteStatuses(options),
+      /verdict changed after choreography refusal-check: refusal-time=true retained-receipt=false/u,
+      `${fixture.sourceCell} must fail closed when the retained verdict flips`,
+    );
+  }
 });
 
 test("lane observation harness samples load and records lifecycle and API retries", async (t) => {

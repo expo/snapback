@@ -40,6 +40,14 @@ At record-write time the loader re-reads every `suiteStatus` receipt path,
 requires a regular file, hashes its current bytes, and compares that digest to
 the `0.3.3-m8` segment-summary digest captured during choreography's startup
 refusal check. A missing, replaced, or edited receipt refuses the record.
+The production driver also rolls each green milestone's refusal-time verdict
+and receipt identity into the final aggregate `suite-status.json`. A later
+milestone suite may replace that aggregate file with only its own entry; an
+absent entry or unbound `{ "pass": false, "receipt": null }` placeholder is
+therefore restored only when the original receipt still carries the same
+verdict and SHA-256 captured by choreography. A receipt verdict flip or any
+identity change still refuses finalization, with both verdicts named when they
+differ. File timestamps and write ordering are not evidence.
 The emitted `meteringProvenance` block retains all identities, hashes, and clock
 evidence.
 

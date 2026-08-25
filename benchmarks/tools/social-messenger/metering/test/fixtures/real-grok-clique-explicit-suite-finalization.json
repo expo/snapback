@@ -1,0 +1,30 @@
+{
+  "fixtureVersion": "social-messenger.real-suite-finalization.v1",
+  "sourceCell": "grok-clique-explicit",
+  "suiteStatus": {
+    "path": "suite-status.json",
+    "sha256": "sha256:8799d1d5cf3557301331f16703a0030cd57ce4d3cb965a2301fbaa7de71ada82",
+    "text": "{\n  \"m3\": {\n    \"pass\": true,\n    \"receipt\": \"receipts/m3-suite-receipt.json\"\n  },\n  \"m1\": {\n    \"pass\": false,\n    \"receipt\": null\n  },\n  \"m2\": {\n    \"pass\": false,\n    \"receipt\": null\n  }\n}\n"
+  },
+  "suiteReceipt": {
+    "path": "receipts/m1-suite-receipt.json",
+    "sha256": "sha256:2d45ee0ea6a496139953aadaeb12b9e2588e6b5918e0892eadaccb0f08a81e2d",
+    "text": "{\n  \"milestone\": \"M1\",\n  \"pass\": true,\n  \"failures\": [],\n  \"at\": \"2026-08-24T23:08:37.990Z\"\n}"
+  },
+  "choreographySummary": {
+    "version": "0.3.3-m8",
+    "runId": "ff1b8f58-727c-48e5-a641-f83f7668a0bd",
+    "recordedAt": "2026-08-24T23:11:36.733Z",
+    "type": "segment-summary",
+    "segment": "m1",
+    "suite": {
+      "pass": true,
+      "receipt": "receipts/m1-suite-receipt.json",
+      "receiptSha256": "sha256:2d45ee0ea6a496139953aadaeb12b9e2588e6b5918e0892eadaccb0f08a81e2d"
+    },
+    "choreography": {
+      "pass": true
+    },
+    "green": true
+  }
+}

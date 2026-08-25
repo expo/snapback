@@ -21,7 +21,7 @@
   "paths": {
     "committedRunRoot": "benchmarks/runs/2026-08-23-r2-published-0125",
     "privateExecutionRoot": "/Users/ccheever/bench-matrix-20260823-r2",
-    "instrumentRoot": "/Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260824-v5",
+    "instrumentRoot": "/Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260824-v6",
     "exactPinnedCheckout": "/Users/ccheever/bench-matrix-20260817/exact-pinned"
   },
   "machines": {
@@ -70,7 +70,7 @@
       "meteringRoot": {
         "kind": "directory",
         "path": "benchmarks/tools/social-messenger/metering",
-      "sha256": "sha256:b8b56bc3f29cf689b7401f58eec4c77583a52c66bb2ec638b055bad552363c9e"
+      "sha256": "sha256:c1e875f6c992da33a79c26ec686de78b8daa58aab1f63f96e7ab72d142a6d5b4"
       },
       "files": [
         {
@@ -219,14 +219,14 @@
       "manifestPath": "benchmarks/instrument.manifest.json",
       "semanticSnapshotRevision": "e8048d8238b3abe1fe3d6553bd12f334affbf88f",
       "instrumentPin": "social-messenger@0.3.3-m8",
-    "manifestSha256": "13d5fe72dfdf5f401b1e81452f1668af071fb83093cdb92aed1941db61ddff3d",
+    "manifestSha256": "2f87099eb13640f632ee76483c6c414f03f8671174c7ac52098c858292d540ae",
       "fixtureVersion": "0.2.0-m8",
       "schemaVersion": "0.3.0-m8",
       "uiVersion": "0.3.1-m8",
       "choreographyVersion": "0.3.3-m8",
       "d06MeteringOverlay": {
-      "revision": "final-blocker-remediation-after-a5147ca6c4509ff0074fe32c3d43a5e9a68e5bae-scoped-review-pending-no-campaign-cell-rerun",
-        "status": "scoped-review-pending-final-blocker-remediation-no-campaign-cell-rerun",
+      "revision": "suite-status-finalization-scoped-review-pending-no-campaign-cell-rerun",
+        "status": "scoped-review-pending-suite-status-finalization-no-campaign-cell-rerun",
         "recordSchema": "benchmarks/schema/social-messenger/run-record.schema.json",
         "recordSchemaSha256": "3403455e98fad656125ea2ab0993f780bdb112849fb127bd8bcfcbcf6f2b8a64",
       "extensionSchemaSha256": "5d8a6f41d1f02d7fe8df4ef761bb7cd921d2fa2c711e938c553c903689e14c4b",
@@ -234,9 +234,9 @@
         "meterSha256": "d19aa6764c513af489e43b00ef15f8560d347dc84998254d1cceb4bf9e4d5a62",
         "laneSetupSha256": "b46ddce548b4415dfd791eb32c97eba581adb0d9794da557f314fd2b34c9e71f",
       "laneControllerSha256": "5577be1d08b9e59f699984f10aea73bcd6b973565a23d8cfffe5479bbc368df8",
-      "productionDriverSha256": "de0163b2a5621e70cec038089ed2b3abeca3ec82e85904c9faa286c124e81135",
+      "productionDriverSha256": "61931aeca07f67b569127d75ae256b5cce372ce335dbde4530f8934303f10559",
         "signalSha256": "f2f835538bc92cd5ea2af0098e43ca0e97cf3934101c713f6c13ede55066a712",
-      "manifestLoaderSha256": "d21925146a888cda3f24d19bdf9c3e0994ed87d7ac88c5fc485a92a46f5ee530",
+      "manifestLoaderSha256": "4af14ab4e413df1abc2b7f463ec739644c0be0f692193633669fecc382631dc7",
       "joinerSha256": "6cdb9a603b4d436c12a61cef7f882a9b0dc99948b043f18e7fe22b9bf5137fcd",
         "observationsSha256": "1de845b90a135a138bc7d9aed40a80a0d2d5c64d2928a27caf31874408d76c8a",
         "codexAdapterSha256": "4c420019dd003737a4b1c7d2ca6103678a80258290b85a206e67cd500628920b",
@@ -270,6 +270,22 @@
           "materializedRootFrom": "/Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260824-v4",
           "materializedRootTo": "/Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260824-v5",
           "semantics": "target remains pristine; every other attempted slot requires a validator-clean record or committed hash-bound driver-failure report"
+        },
+        {
+          "date": "2026-08-24",
+          "reason": "suite-status finalization must preserve hash-bound green verdicts across later milestone suite rollover",
+          "commits": ["scoped-review-pending"],
+          "productionDriverSha256From": "de0163b2a5621e70cec038089ed2b3abeca3ec82e85904c9faa286c124e81135",
+          "productionDriverSha256To": "61931aeca07f67b569127d75ae256b5cce372ce335dbde4530f8934303f10559",
+          "manifestLoaderSha256From": "d21925146a888cda3f24d19bdf9c3e0994ed87d7ac88c5fc485a92a46f5ee530",
+          "manifestLoaderSha256To": "4af14ab4e413df1abc2b7f463ec739644c0be0f692193633669fecc382631dc7",
+          "meteringRootSha256From": "b8b56bc3f29cf689b7401f58eec4c77583a52c66bb2ec638b055bad552363c9e",
+          "meteringRootSha256To": "c1e875f6c992da33a79c26ec686de78b8daa58aab1f63f96e7ab72d142a6d5b4",
+          "instrumentManifestSha256From": "13d5fe72dfdf5f401b1e81452f1668af071fb83093cdb92aed1941db61ddff3d",
+          "instrumentManifestSha256To": "2f87099eb13640f632ee76483c6c414f03f8671174c7ac52098c858292d540ae",
+          "materializedRootFrom": "/Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260824-v5",
+          "materializedRootTo": "/Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260824-v6",
+          "semantics": "unchanged receipt verdict plus identical refusal-time SHA-256 may restore an unbound aggregate rollover; verdict flips and receipt identity changes still fail closed"
         }
       ],
       "observabilityBump": {

@@ -92,6 +92,35 @@ function digest(text) {
   return `sha256:${createHash("sha256").update(text).digest("hex")}`;
 }
 
+export function suiteReceiptVerdict(contents, milestone, label = "suite receipt") {
+  let receipt;
+  try {
+    receipt = JSON.parse(Buffer.isBuffer(contents) ? contents.toString("utf8") : contents);
+  } catch (error) {
+    throw new Error(`${label} must contain JSON verdict evidence: ${error.message}`);
+  }
+  if (!receipt || Array.isArray(receipt) || typeof receipt !== "object") {
+    throw new TypeError(`${label} must contain a JSON object`);
+  }
+  if (
+    receipt.milestone !== undefined
+    && String(receipt.milestone).toUpperCase() !== milestone
+  ) {
+    throw new Error(
+      `${label} milestone identity differs: expected ${milestone}, received ${receipt.milestone}`,
+    );
+  }
+  if (typeof receipt.pass === "boolean") return receipt.pass;
+  if (
+    Array.isArray(receipt.results)
+    && receipt.results.length > 0
+    && receipt.results.every((result) => typeof result?.pass === "boolean")
+  ) {
+    return receipt.results.every((result) => result.pass === true);
+  }
+  throw new Error(`${label} lacks a boolean pass verdict or boolean results verdicts`);
+}
+
 async function readArtifact(manifestDirectory, artifact, label) {
   if (artifact === null || typeof artifact !== "object" || Array.isArray(artifact)) {
     throw new TypeError(`${label} must be an artifact object`);
@@ -632,6 +661,8 @@ async function loadSuiteStatusLinkage(
       throw new Error(`suite-status ${segment}.receipt must name evidence when pass is true`);
     }
     let receiptArtifact = null;
+    let receiptVerdict = null;
+    let receiptVerdictError = null;
     if (typeof status.receipt === "string" && status.receipt.length > 0) {
       if (isAbsolute(status.receipt)) {
         throw new Error(`suite-status ${segment}.receipt must be relative to the suite-status file`);
@@ -656,6 +687,15 @@ async function loadSuiteStatusLinkage(
         path: logicalRelative(manifestDirectory, receiptPath),
         sha256: digest(receiptContents),
       };
+      try {
+        receiptVerdict = suiteReceiptVerdict(
+          receiptContents,
+          milestone,
+          `suite-status ${segment}.receipt`,
+        );
+      } catch (error) {
+        receiptVerdictError = error;
+      }
     } else if (status.receipt !== null && status.receipt !== undefined) {
       throw new TypeError(`suite-status ${segment}.receipt must be string or null`);
     }
@@ -672,7 +712,9 @@ async function loadSuiteStatusLinkage(
       throw new Error(`suite-status ${segment} lacks a 0.3.3-m8 refusal-time attestation`);
     }
     if (current !== null && current.suitePass !== status.pass) {
-      throw new Error(`suite-status ${segment}.pass changed after choreography refusal-check time`);
+      throw new Error(
+        `suite-status ${segment} verdict changed after choreography refusal-check: refusal-time=${current.suitePass} final=${status.pass}`,
+      );
     }
     if (current !== null && (current.suiteReceipt ?? null) !== (status.receipt ?? null)) {
       throw new Error(`suite-status ${segment}.receipt path changed after choreography refusal-check time`);
@@ -682,7 +724,18 @@ async function loadSuiteStatusLinkage(
       && receiptArtifact !== null
       && current.suiteReceiptSha256 !== receiptArtifact.sha256
     ) {
+      if (receiptVerdict !== null && current.suitePass !== receiptVerdict) {
+        throw new Error(
+          `suite-status ${segment} verdict changed after choreography refusal-check: refusal-time=${current.suitePass} retained-receipt=${receiptVerdict}`,
+        );
+      }
       throw new Error(`suite-status ${segment}.receipt changed after choreography refusal-check time`);
+    }
+    if (receiptVerdictError !== null) throw receiptVerdictError;
+    if (current !== null && receiptVerdict !== null && current.suitePass !== receiptVerdict) {
+      throw new Error(
+        `suite-status ${segment} verdict changed after choreography refusal-check: refusal-time=${current.suitePass} retained-receipt=${receiptVerdict}`,
+      );
     }
     milestones.push({ milestone, pass: status.pass, receipt: receiptArtifact });
   }

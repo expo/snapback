@@ -1,0 +1,30 @@
+{
+  "fixtureVersion": "social-messenger.real-suite-finalization.v1",
+  "sourceCell": "grok-clique-familiar",
+  "suiteStatus": {
+    "path": "suite-status.json",
+    "sha256": "sha256:39aa45efcbb93ec752fc8af320bb7d45e57800f02e83094a88c478c7d44f0af3",
+    "text": "{\n  \"m3\": {\n    \"pass\": true,\n    \"receipt\": \"receipts/m3-suite.json\"\n  },\n  \"m1\": {\n    \"pass\": false,\n    \"receipt\": null\n  },\n  \"m2\": {\n    \"pass\": false,\n    \"receipt\": null\n  }\n}\n"
+  },
+  "suiteReceipt": {
+    "path": "receipts/m1-suite.json",
+    "sha256": "sha256:9bc49325837b109d85e636e385610bae745b52204365918a6219517ed84a09b4",
+    "text": "{\n  \"milestone\": \"m1\",\n  \"results\": [\n    {\n      \"id\": \"m1-a01\",\n      \"pass\": true\n    },\n    {\n      \"id\": \"m1-a02\",\n      \"pass\": true\n    },\n    {\n      \"id\": \"m1-a04\",\n      \"pass\": true\n    },\n    {\n      \"id\": \"m1-a03\",\n      \"pass\": true\n    },\n    {\n      \"id\": \"m1-a08\",\n      \"pass\": true\n    },\n    {\n      \"id\": \"m1-a10\",\n      \"pass\": true\n    },\n    {\n      \"id\": \"m1-a11\",\n      \"pass\": true\n    }\n  ]\n}\n"
+  },
+  "choreographySummary": {
+    "version": "0.3.3-m8",
+    "runId": "83ea30ee-cf22-4e76-adb5-1d59c0e45760",
+    "recordedAt": "2026-08-25T00:59:24.875Z",
+    "type": "segment-summary",
+    "segment": "m1",
+    "suite": {
+      "pass": true,
+      "receipt": "receipts/m1-suite.json",
+      "receiptSha256": "sha256:9bc49325837b109d85e636e385610bae745b52204365918a6219517ed84a09b4"
+    },
+    "choreography": {
+      "pass": true
+    },
+    "green": true
+  }
+}

@@ -22,6 +22,7 @@ import {
 } from "./codex-native-evidence.mjs";
 import { validateCoverageManifestBytes } from "./coverage-manifest.mjs";
 import { parseJsonLines } from "./jsonl.mjs";
+import { suiteReceiptVerdict } from "./manifest.mjs";
 import { CURRENT_INSTRUMENT_PIN } from "./observations.mjs";
 import { scrubR2NodeLoaderEnvironment } from "./r2-execution-environment.mjs";
 
@@ -531,6 +532,102 @@ async function retainedDescriptor(root, path) {
   return { path: logicalPath(root, absolute), sha256: sha256Prefixed(bytes) };
 }
 
+async function refusalTimeSuiteStatus(root, suiteStatusPath, marker, receipt) {
+  const segment = marker.milestone.toLowerCase();
+  const suite = receipt?.summary?.suite;
+  if (
+    typeof suite?.pass !== "boolean"
+    || typeof suite?.receipt !== "string"
+    || suite.receipt.length === 0
+    || typeof suite?.receiptSha256 !== "string"
+  ) {
+    throw new Error(`${marker.milestone} choreography summary lacks suite verdict identity`);
+  }
+  const absolute = resolve(dirname(resolve(root, suiteStatusPath)), suite.receipt);
+  const bytes = await readFile(absolute);
+  const artifact = {
+    path: logicalPath(root, absolute),
+    sha256: sha256Prefixed(bytes),
+  };
+  let verdict = null;
+  let verdictError = null;
+  try {
+    verdict = suiteReceiptVerdict(bytes, marker.milestone, `suite-status ${segment}.receipt`);
+  } catch (error) {
+    verdictError = error;
+  }
+  if (verdict !== null && verdict !== suite.pass) {
+    throw new Error(
+      `suite-status ${segment} verdict changed after choreography refusal-check: refusal-time=${suite.pass} retained-receipt=${verdict}`,
+    );
+  }
+  if (artifact.sha256 !== suite.receiptSha256) {
+    throw new Error(
+      `suite-status ${segment}.receipt identity changed after choreography refusal-check: refusal-time=${suite.receiptSha256} final=${artifact.sha256}`,
+    );
+  }
+  if (verdictError !== null) throw verdictError;
+  return { pass: suite.pass, receipt: suite.receipt };
+}
+
+// @ref LLP 0201#d2--quantitative-instrument — a green boundary is bound to
+// the suite verdict and receipt hash captured by choreography. Later suite
+// runs may replace the aggregate status file, but cannot replace that identity.
+export async function reconcileSuiteStatuses({
+  root,
+  suiteStatusPath = "suite-status.json",
+  markers,
+  receipts,
+  statuses,
+}) {
+  if (!statuses || Array.isArray(statuses) || typeof statuses !== "object") {
+    throw new TypeError("suite-status must contain an object keyed by milestone");
+  }
+  const reconciled = structuredClone(statuses);
+  const byMilestone = new Map(receipts.map((receipt) => [receipt.milestone, receipt]));
+  for (const marker of markers) {
+    const segment = marker.milestone.toLowerCase();
+    if (marker.status !== "green") {
+      reconciled[segment] = { pass: false, receipt: null };
+      continue;
+    }
+    const bound = await refusalTimeSuiteStatus(
+      root,
+      suiteStatusPath,
+      marker,
+      byMilestone.get(marker.milestone),
+    );
+    if (bound.pass !== true) {
+      throw new Error(
+        `suite-status ${segment} verdict conflicts with green terminal: terminal=true refusal-time=${bound.pass}`,
+      );
+    }
+    const final = reconciled[segment];
+    if (final !== undefined) {
+      if (!final || typeof final !== "object" || typeof final.pass !== "boolean") {
+        throw new Error(`suite-status ${segment} lacks a boolean final verdict`);
+      }
+      const unboundRollover = final.pass === false
+        && (final.receipt === null || final.receipt === undefined);
+      if (!unboundRollover && final.pass !== bound.pass) {
+        throw new Error(
+          `suite-status ${segment} verdict changed after choreography refusal-check: refusal-time=${bound.pass} final=${final.pass}`,
+        );
+      }
+      if (
+        !unboundRollover
+        && (final.receipt ?? null) !== bound.receipt
+      ) {
+        throw new Error(
+          `suite-status ${segment}.receipt path changed after choreography refusal-check: refusal-time=${bound.receipt} final=${final.receipt ?? null}`,
+        );
+      }
+    }
+    reconciled[segment] = bound;
+  }
+  return reconciled;
+}
+
 async function receiptDescriptor(state, marker) {
   if (!marker.choreographyReceipt) return null;
   const artifact = await retainedDescriptor(state.root, marker.choreographyReceipt);
@@ -778,13 +875,13 @@ async function writeTerminalArtifacts(state, error) {
   } catch {
     statuses = {};
   }
-  for (const marker of markers) {
-    if (marker.status !== "green") {
-      statuses[marker.milestone.toLowerCase()] = { pass: false, receipt: null };
-    } else if (!statuses[marker.milestone.toLowerCase()]) {
-      statuses[marker.milestone.toLowerCase()] = { pass: false, receipt: null };
-    }
-  }
+  statuses = await reconcileSuiteStatuses({
+    root: state.root,
+    suiteStatusPath,
+    markers,
+    receipts,
+    statuses,
+  });
   await writeFile(join(state.root, suiteStatusPath), `${JSON.stringify(statuses, null, 2)}\n`);
   const base = JSON.parse(await readFile(join(state.root, "record-base.json"), "utf8"));
   let coverage = null;

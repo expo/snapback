@@ -62,3 +62,21 @@ episode never received a retained closure event; its line SHA-256 is
 The versioned admission preserves the correction action but downgrades the
 incomplete recovery block to an explicit non-claim; it never synthesizes an
 episode.
+
+`real-grok-clique-explicit-suite-finalization.json` and
+`real-grok-clique-familiar-suite-finalization.json` are minimized projections
+from the two consecutive retained 2026-08-24 Grok R2 cells at
+`/Users/ccheever/bench-matrix-20260823-r2/cells/`. Each fixture preserves the
+exact final `suite-status.json` bytes and SHA-256, the exact M1 suite-receipt
+bytes and SHA-256, and the refusal-time suite identity fields from the exact M1
+`0.3.3-m8` choreography segment summary. The explicit cell's final status and
+suite-receipt SHA-256 values are respectively
+`8799d1d5cf3557301331f16703a0030cd57ce4d3cb965a2301fbaa7de71ada82`
+and `2d45ee0ea6a496139953aadaeb12b9e2588e6b5918e0892eadaccb0f08a81e2d`;
+the familiar cell's are
+`39aa45efcbb93ec752fc8af320bb7d45e57800f02e83094a88c478c7d44f0af3`
+and `9bc49325837b109d85e636e385610bae745b52204365918a6219517ed84a09b4`.
+Application code, prompts, model output, credentials, and unrelated receipt
+fields are omitted. In both cells the final aggregate carried unbound false
+M1/M2 placeholders, while the retained M1 receipt verdict remained green and
+its bytes exactly matched the choreography-captured identity.
