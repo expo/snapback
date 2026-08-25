@@ -1,6 +1,6 @@
 # `package.test.mjs` asserts a `client.liveQuery` receiver the crud-dashboard scaffold no longer writes
 
-Status: open
+Status: closed
 Filed: 2026-08-24
 Area: packages/snapback-cli (scaffold templates, packaged qualification)
 
@@ -37,3 +37,17 @@ or the declarative path entry the scaffold now emits — and reconcile the other
 The assertion exists to keep the CRUD template demonstrating a live query
 rather than a one-shot read, so prefer restoring an explicit live-query
 observation in the scaffolded acceptance document over relaxing the regex.
+
+## Resolution (2026-08-25)
+
+The shared starter-acceptance migration renamed the journey parameter to
+`adminClient` while preserving the explicit
+`adminClient.liveQuery(api.projectDetail, ...)` subscription, mutation, poll,
+and deletion observation. The product document was already authoritative and
+correct; only the packaged qualification regex still expected the retired
+lowercase `client` receiver.
+
+The qualification now asserts the idiomatic shared-runner spelling
+`adminClient.liveQuery(api.projectDetail`, so it continues to fail if the
+template regresses to a one-shot query. A freshly scaffolded CRUD dashboard
+passed the focused source assertion and its own clean-install typecheck.

@@ -679,6 +679,17 @@ console.log(JSON.stringify({
   const reactManifest = JSON.parse(readFileSync(join(reactProject, 'package.json'), 'utf8'));
   assert.equal(reactManifest.dependencies['@expo/snapback-acceptance'], SCAFFOLD_PIN);
   assert.match(reactManifest.dependencies['@expo/snapback-react'], /^\^\d+\.\d+\.\d+/);
+  // @ref LLP 0275#d6-treat-template-cold-install-closure-as-a-release-requirement —
+  // Vite templates carry the ambient Node and browser libraries their own
+  // clean-scaffold typecheck consumes.
+  assert.equal(reactManifest.devDependencies['@types/node'], '^25.0.0');
+  const reactTsconfig = JSON.parse(readFileSync(join(reactProject, 'tsconfig.json'), 'utf8'));
+  assert.deepEqual(reactTsconfig.compilerOptions.types, ['node']);
+  assert.deepEqual(reactTsconfig.compilerOptions.lib, ['ESNext', 'DOM', 'DOM.Iterable']);
+  assert.match(
+    readFileSync(join(reactProject, 'src', 'snapback-dev.d.ts'), 'utf8'),
+    /<reference types="vite\/client" \/>/u,
+  );
   assert.equal(reactManifest.scripts.test, 'node acceptance.mjs');
   assert.equal(reactManifest.scripts['test:static'], 'node acceptance.static.mjs');
   assert.equal(reactManifest.scripts['test:live'], undefined);
@@ -728,6 +739,14 @@ console.log(JSON.stringify({
   const crudManifest = JSON.parse(readFileSync(join(crudProject, 'package.json'), 'utf8'));
   assert.equal(crudManifest.dependencies['@expo/snapback-acceptance'], SCAFFOLD_PIN);
   assert.match(crudManifest.dependencies['@expo/snapback-react'], /^\^\d+\.\d+\.\d+/);
+  assert.equal(crudManifest.devDependencies['@types/node'], '^25.0.0');
+  const crudTsconfig = JSON.parse(readFileSync(join(crudProject, 'tsconfig.json'), 'utf8'));
+  assert.deepEqual(crudTsconfig.compilerOptions.types, ['node']);
+  assert.deepEqual(crudTsconfig.compilerOptions.lib, ['ESNext', 'DOM', 'DOM.Iterable']);
+  assert.match(
+    readFileSync(join(crudProject, 'src', 'snapback-dev.d.ts'), 'utf8'),
+    /<reference types="vite\/client" \/>/u,
+  );
   assert.equal(crudManifest.scripts.test, 'node acceptance.mjs');
   assert.equal(crudManifest.scripts['test:static'], 'node acceptance.static.mjs');
   assert.equal(crudManifest.scripts['test:live'], undefined);
@@ -747,7 +766,10 @@ console.log(JSON.stringify({
   const crudStatic = spawnSync(process.execPath, ['acceptance.static.mjs'], { cwd: crudProject, encoding: 'utf8' });
   assert.equal(crudStatic.status, 0, crudStatic.stderr);
   assertCarrierSelfCheck(crudProject, ['headless', 'web-browser']);
-  assert.match(readFileSync(join(crudProject, 'acceptance.mjs'), 'utf8'), /client\.liveQuery\(api\.projectDetail/u);
+  assert.match(
+    readFileSync(join(crudProject, 'acceptance.mjs'), 'utf8'),
+    /adminClient\.liveQuery\(api\.projectDetail/u,
+  );
 
   const mediaProject = join(root, 'media-feed');
   const mediaScaffold = scaffoldApp(mediaProject, { template: 'media-feed' });

@@ -1,6 +1,6 @@
 # crud-dashboard start packet script glossary disagrees with its template `package.json`
 
-Status: open
+Status: closed
 Filed: 2026-08-24
 Area: packages/snapback-cli (scaffold templates), guide/start
 
@@ -42,3 +42,18 @@ Bring the glossary in `guide/start/crud-dashboard.md` back into agreement with
 the scripts in the template `package.json` — whichever side main intended to
 move. LLP 0294 §4 governs: every scaffold carries one short script glossary
 generated or checked from the manifest.
+
+## Resolution (2026-08-25)
+
+Git history shows that the compact start packet was intentional: commit
+`6281457ab9` introduced the budgeted glossary and `fdd61c54c0` deliberately
+shortened its carrier projection to ``carry:*`` while adding the two-process
+development wording. The stale side was the earlier byte-for-byte glossary
+comparison, not the template manifest or its `dev:client` script.
+
+Current main had already replaced that comparison with a manifest-aware check:
+the compact wildcard is accepted only when it covers every declared carrier,
+and individually named carriers must exist in `package.json`. No guide content
+or regenerated projection changed in this lane. The existing regression test
+was rerun and `node scripts/check-first-read.mjs --check` confirmed that all
+five start-packet projections and digests remain synchronized.

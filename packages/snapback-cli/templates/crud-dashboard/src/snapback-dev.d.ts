@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 declare module 'virtual:snapback/dev' {
   export const snapbackBasePath: string;
   export const snapbackDevState: Readonly<{
