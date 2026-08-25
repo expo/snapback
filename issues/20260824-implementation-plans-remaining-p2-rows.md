@@ -964,6 +964,13 @@ Every executable row uses at least four cases A–D. No timestamp, index, label,
 
 **Fixture:** To be specified by the selected product policy. Do not write an acceptance matrix that implicitly chooses unrestricted, owner-bound, or fixture-bound behavior.
 
+**2026-08-25 ruling note:** The product-policy wait is over. The author selected **owner-bound**:
+when development mode is genuinely active, `DevImpersonation` may act only as the app owner or users
+within a project the developer administers. Unrestricted and fixture-bound impersonation are
+rejected. `local_dev_only` must become environment-derived, while deployed-environment impossibility
+remains unchanged. See LLP 0303 §Product decisions — Q13 open, Q23 ruled. Implementation is assigned
+to the separate `q23-owner-bound` lane; this planning ticket remains open.
+
 ---
 
 ## Q24 — agent/integration registration

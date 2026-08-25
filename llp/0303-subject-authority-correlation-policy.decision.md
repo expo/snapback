@@ -6,7 +6,7 @@
 **Author:** Claude (Opus 5), commissioned by Charlie Cheever (author ruling
 2026-08-24, in session supervising LLP 0283 F-1)
 **Date:** 2026-08-24
-**Revised:** 2026-08-25 (p — the fix inherits the defect; the guard test rarely tries the live route)
+**Revised:** 2026-08-25 (q — Q23 owner-bound; scoped landings)
 **Related:** LLP 0283, LLP 0298, LLP 0285, LLP 0274,
 `issues/20260824-liveness-row-bucket-assignment.md`,
 `issues/20260824-entitlement-predicates-for-the-live-sites.md`
@@ -643,25 +643,42 @@ namespace, or lease field must be produced by whatever verified it, not asserted
 3. **Q10 with Q04** — self-asserted `authority_creating` consent in two places; the escalation
    primitive that turns one foothold into every privilege.
 
-## Still open — approved in part only
+## Product decisions — Q13 open, Q23 ruled
 
-Two questions were flagged as product decisions and remain open in their product dimension. The
-ruling approves the *correlation* half of each; it does not choose the policy.
+Two questions were flagged as product decisions. The 2026-08-24 ruling approved the *correlation*
+half of each without choosing the policy. Q13 remains open; Q23 was ruled on 2026-08-25.
 
 - **Q13 — who is billed.** Approved: whichever party is charged, it must be **derived** from the
   prepared authority rather than supplied. Open: whether the payer is the resolved principal or an
   explicit billing relationship that may differ from the actor.
-- **Q23 — development-mode impersonation.** Approved: it must be **impossible, and tested as
-  impossible**, for development mode to be active in a deployed environment. Open: whether
-  in-development impersonation is unrestricted, owner-bound, or fixture-bound.
+- **Q23 — development-mode impersonation.** Author ruling 2026-08-25:
 
-Do not treat either as settled by this ruling.
+  > **owner-bound**. When development mode is genuinely active, `DevImpersonation` may act only as
+  > principals the developer already controls — the app owner, or users within a project the
+  > developer administers. Unrestricted impersonation is rejected; fixture-bound is rejected.
+  > Unchanged: dev mode must remain impossible, and tested as impossible, in a deployed environment.
+  > Corollary the author accepted from the brief: `local_dev_only` must become environment-derived
+  > rather than value-asserted (a caller-supplied bool alongside the identity it authorizes is the
+  > same defect the ruling addresses).
+
+Do not treat Q13 as settled. Q23 is settled and its implementation is dispatched separately in the
+`q23-owner-bound` lane.
 
 ## Claim discipline this ruling does NOT grant
 
 Implementing these does not license a structural-property, fence, or closure claim. Three
 PROPERTY claims in this program were published and withdrawn as false. Each landing states what
 it enforces, scoped to the functions and routes it changed.
+
+Author ruling 2026-08-25 — scoped landing:
+
+> **scoped landing**. A lane lands when its OWN changed routes derive correctly and its tests meet
+> the unchanged evidence bar (watched fail-first, exact accepted/refused sets, durable readbacks,
+> mutation review). A pre-existing bypass on `main` that the lane never touched does not block the
+> lane: it is filed as its own `issues/` ticket and named in the landing as explicitly NOT closed. A
+> lane defeated through surface it authored stays blocked. Under this rule Q05 and Q10 may land now
+> with their pre-existing routes ticketed; deny, Q12, Q43, Q14, Q04 remain blocked. No landing may
+> make a structural-property, fence, or closure claim beyond its changed routes.
 
 Evidence bar, from what earlier rounds cost: every test watched failing first and quoted verbatim;
 exact accepted/refused sets asserted; **durable rows read back and asserted**, because a test that

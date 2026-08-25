@@ -336,6 +336,13 @@ sinks — each carrying an explicit binding rather than a relaxation. Challenge 
 rate-limited rather than authorized. Q13 (who is billed) and Q23 (dev-mode impersonation) are
 approved only in their correlation half; the product policy in each remains open.
 
+**2026-08-25 ruling note:** Q23 no longer remains open. The author selected **owner-bound**
+development impersonation: `DevImpersonation` may act only as the app owner or users within a
+project the developer administers. Unrestricted and fixture-bound impersonation are rejected;
+`local_dev_only` must become environment-derived. See LLP 0303 §Product decisions — Q13 open, Q23
+ruled and the closed Q23 decision brief. Implementation proceeds in the separate
+`q23-owner-bound` lane; this note does not close this program-status ticket.
+
 ### The sequencing was wrong and is corrected
 
 Authority provenance (Q08/Q09/Q11) is a **prerequisite for every other row**, not a peer.

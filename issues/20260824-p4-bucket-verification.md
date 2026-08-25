@@ -161,3 +161,11 @@ First, the criterion must be applied to the complete reachable graph, not the de
 Second, a P4 closure is a statement about current consequence, not a statement that the authority/subject API is well designed. If an authority is only live-checked and its subject remains independently supplied, the row is fragile even when its current result has no effect. Such a genuine no-effect row should be tagged `P4-FRAGILE` and reclassified immediately if a durable or outbound consumer is added.
 
 The criterion itself is therefore sound. The original proxy—“duplicates another row”—is not. On the inspected tree, **40 of 40 duplicate rows reach effects, so the entire assigned P4 bucket must be reopened.**
+
+## Ruling note — 2026-08-25
+
+Q23's product policy is no longer partly open. The author selected **owner-bound** development
+impersonation, rejected unrestricted and fixture-bound impersonation, and required `local_dev_only`
+to become environment-derived. F121/F211 implementation is unblocked in the separate
+`q23-owner-bound` lane; deployed-environment impossibility remains unchanged. See LLP 0303 §Product
+decisions — Q13 open, Q23 ruled. This verification ticket remains open.

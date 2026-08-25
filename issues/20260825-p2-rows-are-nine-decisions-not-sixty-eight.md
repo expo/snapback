@@ -79,3 +79,12 @@ Performed read-only against `142a4644b8ff22166ce7629e6dc47fed58e61842`. The sand
 refused the analysis's `git fetch` (it would have written `.git/FETCH_HEAD`), so the analysis states
 it cannot certify that commit was still the remote tip, and scopes its findings to that named
 object. That is the right disclosure to make and is recorded here rather than papered over.
+
+## Ruling update — 2026-08-25
+
+Q23 is no longer author-blocked. The author selected **owner-bound** development impersonation:
+`DevImpersonation` may act only as the app owner or users within a project the developer
+administers; unrestricted and fixture-bound impersonation are rejected. `local_dev_only` must become
+environment-derived. This unblocks the Q23 implementation lane `q23-owner-bound`; Q13 remains the
+one open product decision in this accounting. See LLP 0303 §Product decisions — Q13 open, Q23
+ruled. This accounting ticket remains open.

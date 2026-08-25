@@ -1,6 +1,6 @@
 # Are lanes being blocked by routes the ruling does not scope them to?
 
-**Status:** Open — needs an author decision
+**Status:** Closed — author ruled 2026-08-25
 **Systems:** Auth, Sync, Kernel, Engine
 **Date:** 2026-08-24
 **Related:** LLP 0303, `issues/20260824-sealed-trait-does-not-seal-its-database-parameter.md`,
@@ -72,3 +72,20 @@ given landing is answerable for.
 **This needs an author decision.** It is not a supervisor's call to make: it changes what "a row is
 done" means, and getting it wrong in the permissive direction re-creates exactly the false-claim
 failure this program was convened to fix.
+
+## Resolution (2026-08-25)
+
+The author ruled:
+
+> **scoped landing**. A lane lands when its OWN changed routes derive correctly and its tests meet
+> the unchanged evidence bar (watched fail-first, exact accepted/refused sets, durable readbacks,
+> mutation review). A pre-existing bypass on `main` that the lane never touched does not block the
+> lane: it is filed as its own `issues/` ticket and named in the landing as explicitly NOT closed. A
+> lane defeated through surface it authored stays blocked. Under this rule Q05 and Q10 may land now
+> with their pre-existing routes ticketed; deny, Q12, Q43, Q14, Q04 remain blocked. No landing may
+> make a structural-property, fence, or closure claim beyond its changed routes.
+
+This unblocks Q05 and Q10 for scoped landing with their pre-existing bypasses ticketed and named as
+explicitly NOT closed. It does not unblock deny, Q12, Q43, Q14, or Q04. The unchanged evidence bar
+still applies. The durable decision is recorded in LLP 0303 §Claim discipline this ruling does NOT
+grant.

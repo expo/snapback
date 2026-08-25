@@ -1,6 +1,6 @@
 # Q23 — development-mode impersonation: decision brief
 
-**Status:** Open — needs an author decision
+**Status:** Closed — author ruled 2026-08-25
 **Systems:** Auth, Engine, Kernel
 **Date:** 2026-08-25
 **Related:** LLP 0303 (Q23, "still open — approved in part only"),
@@ -81,3 +81,21 @@ exists to fix.
 `local_dev_only` must become environment-derived rather than value-asserted. A boolean the caller
 supplies alongside the identity it authorises is the same defect this whole ruling is about — an
 authority validated for liveness while the subject rides alongside it.
+
+## Resolution (2026-08-25)
+
+The author ruled:
+
+> **owner-bound**. When development mode is genuinely active, `DevImpersonation` may act only as
+> principals the developer already controls — the app owner, or users within a project the
+> developer administers. Unrestricted impersonation is rejected; fixture-bound is rejected.
+> Unchanged: dev mode must remain impossible, and tested as impossible, in a deployed environment.
+> Corollary the author accepted from the brief: `local_dev_only` must become environment-derived
+> rather than value-asserted (a caller-supplied bool alongside the identity it authorizes is the
+> same defect the ruling addresses).
+
+This resolves Q23's product-policy blocker and unblocks its implementation. The follow-up is the
+separate `q23-owner-bound` lane; it must make `local_dev_only` environment-derived and retain the
+deployed-environment impossibility proof. Q04 is not unblocked for landing: the separate scoped-
+landing ruling keeps it blocked because it was defeated through surface it authored. The durable
+decision is recorded in LLP 0303 §Product decisions — Q13 open, Q23 ruled.
