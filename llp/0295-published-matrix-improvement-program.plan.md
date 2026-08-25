@@ -8,7 +8,10 @@ Ephemeral state, Memberships, Assets, Client integration, Exact/Contract
 integration, Guide, Benchmarks, Testing, Performance, Rust build
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-20
-**Revised:** 2026-08-24 (W5 fix-round evidence correction: all four source
+**Revised:** 2026-08-25 (R2 campaign closure: links the twelve-cell synthesis,
+records three validator-clean records and nine consumed cells, makes no
+scorecard comparison from the empty eligible population, and leaves the R3
+go/no-go decision with the author). 2026-08-24 (W5 fix-round evidence correction: all four source
 slices exist as a bounded local pull surface, but full LLP 0267 §7.7 acceptance
 remains open; the serialized authenticated host-operation/client join and
 incomplete-work fixture are integrated, while multiplicity and hosted/direct
@@ -964,6 +967,18 @@ actions. The one-second handoff candidate rule exists only for recovered cell
 that declares signal commands filtered skips that heuristic entirely, so a
 legitimate next-milestone process/progress event within one second is retained
 rather than guessed away.
+
+#### R2 closure — 2026-08-25
+
+R2 is closed. Its retained
+[campaign synthesis](../benchmarks/runs/2026-08-23-r2-published-0125/SYNTHESIS.md)
+records all twelve dispositions: three validator-clean records and nine
+consumed cells with `BLOCKED` reports. The eligible efficiency-scorecard
+population is empty, so the pre-registered D0.6 pre-wave comparator posture
+produces no eligible comparison and no profile, efficiency, or capability
+claim. Product findings remain separately citable at their retained milestone
+boundaries. Whether to commission R3, and on what repaired instrument and
+eligible-baseline prerequisites, is the author's go/no-go decision.
 
 ### R3. Claim-eligible wave
 
