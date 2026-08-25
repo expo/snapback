@@ -25,6 +25,11 @@
 // as `received` vocabulary when the table flows to a `.has(code)` or
 // `.includes(code)` dispatch membership test. Ambiguous receive tables use
 // `diagnostics-registry: received SNAPBACK_X` on the literal line instead.
+// Object-literal keys passed to known secret/environment writers and keys in
+// spawned-process `env: { ... }` options are environment writes. For a custom
+// writer the classifier cannot recognize, put
+// `diagnostics-registry: environment SNAPBACK_X` on the write or immediately
+// preceding line.
 // @ref LLP 0193#program — D1's complete source inventory is the substrate for
 // exact error lookup and typed client diagnostics.
 

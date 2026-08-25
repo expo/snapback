@@ -72,21 +72,6 @@ export const TARGET_TIGRIS_ROLES = Object.freeze({
   cleanup: ['s3:DeleteObject', 's3:ListBucket'],
 });
 
-export const TARGET_TIGRIS_PARTIAL_CODES = Object.freeze({
-  artifact: 'SNAPBACK_HOSTED_TARGET_TIGRIS_ARTIFACT_PARTIAL',
-  backup: 'SNAPBACK_HOSTED_TARGET_TIGRIS_BACKUP_PARTIAL',
-  'control-state': 'SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL_STATE_PARTIAL',
-  audit: 'SNAPBACK_HOSTED_TARGET_TIGRIS_AUDIT_PARTIAL',
-  logs: 'SNAPBACK_HOSTED_TARGET_TIGRIS_LOGS_PARTIAL',
-  cleanup: 'SNAPBACK_HOSTED_TARGET_TIGRIS_CLEANUP_PARTIAL',
-});
-
-export function assertTargetTigrisCredentialPair(role, accessKeyId, secretAccessKey) {
-  if (Boolean(accessKeyId) !== Boolean(secretAccessKey)) {
-    throw new Error(TARGET_TIGRIS_PARTIAL_CODES[role]);
-  }
-}
-
 const BASE_SUPERVISOR_SECRET_FILES = Object.freeze([
   ['/run/secrets/fly-read-token', 'SUPERVISOR_FLY_READ_TOKEN'],
   ['/run/secrets/fly-control-token', 'SUPERVISOR_FLY_CONTROL_TOKEN'],
@@ -350,28 +335,24 @@ export function targetRolePolicy(config, role, actions) {
   };
 }
 
-export async function ensureTargetTigrisRole(
-  rootCredentials,
-  config,
-  role,
-  actions,
-  { readCredential = keychainGet } = {},
-) {
+async function ensureTargetTigrisRole(rootCredentials, config, role, actions) {
   const roleStem = role.replaceAll(/[^a-z0-9-]/g, '-');
   const accountStem = `target-${config.targetApp}-tigris-${roleStem}`;
   const idAccount = `${accountStem}-id`;
   const secretAccount = `${accountStem}-secret`;
   const policyAccount = `${accountStem}-policy-arn`;
-  let accessKeyId = readCredential(config.keychainService, idAccount);
-  let secretAccessKey = readCredential(config.keychainService, secretAccount);
-  let policyArn = readCredential(config.keychainService, policyAccount);
+  let accessKeyId = keychainGet(config.keychainService, idAccount);
+  let secretAccessKey = keychainGet(config.keychainService, secretAccount);
+  let policyArn = keychainGet(config.keychainService, policyAccount);
   const policyVersion = role === 'cleanup' ? 'v2' : 'v1';
   const policyName = `snapback-target-${config.targetApp}-${roleStem}-${policyVersion}`;
   const predecessorPolicyArn = policyArn && !policyArn.endsWith(`/${policyName}`)
     ? policyArn
     : null;
   if (predecessorPolicyArn) policyArn = null;
-  assertTargetTigrisCredentialPair(role, accessKeyId, secretAccessKey);
+  if (Boolean(accessKeyId) !== Boolean(secretAccessKey)) {
+    throw new Error(`SNAPBACK_HOSTED_TARGET_TIGRIS_${roleStem.toUpperCase()}_PARTIAL`);
+  }
   let created = false;
   const iam = tigrisIamClient(rootCredentials);
   if (!accessKeyId) {

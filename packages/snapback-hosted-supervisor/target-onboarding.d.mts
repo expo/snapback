@@ -30,39 +30,6 @@ export type TargetTigrisRole =
 
 export const TARGET_TIGRIS_ROLES: Readonly<Record<TargetTigrisRole, readonly string[]>>;
 
-export const TARGET_TIGRIS_PARTIAL_CODES: Readonly<{
-  artifact: 'SNAPBACK_HOSTED_TARGET_TIGRIS_ARTIFACT_PARTIAL';
-  backup: 'SNAPBACK_HOSTED_TARGET_TIGRIS_BACKUP_PARTIAL';
-  'control-state': 'SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL_STATE_PARTIAL';
-  audit: 'SNAPBACK_HOSTED_TARGET_TIGRIS_AUDIT_PARTIAL';
-  logs: 'SNAPBACK_HOSTED_TARGET_TIGRIS_LOGS_PARTIAL';
-  cleanup: 'SNAPBACK_HOSTED_TARGET_TIGRIS_CLEANUP_PARTIAL';
-}>;
-
-export function assertTargetTigrisCredentialPair(
-  role: TargetTigrisRole,
-  accessKeyId: string | null | undefined,
-  secretAccessKey: string | null | undefined,
-): void;
-
-export interface TargetTigrisCredential {
-  readonly role: TargetTigrisRole;
-  readonly accessKeyId: string;
-  readonly secretAccessKey: string;
-  readonly created: boolean;
-  readonly policyRotated: boolean;
-}
-
-export function ensureTargetTigrisRole(
-  rootCredentials: Readonly<{ accessKeyId: string; secretAccessKey: string }>,
-  config: TargetOnboardingConfig,
-  role: TargetTigrisRole,
-  actions: readonly string[],
-  dependencies?: Readonly<{
-    readCredential?: (service: string, account: string) => string | null;
-  }>,
-): Promise<TargetTigrisCredential>;
-
 /** `[guestSecretFilePath, flySecretName]` projection pairs for the supervisor Machine. */
 export const TARGET_SUPERVISOR_SECRET_FILES: ReadonlyArray<readonly [string, string]>;
 

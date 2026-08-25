@@ -1,12 +1,9 @@
 import assert from 'node:assert/strict';
 
 import {
-  assertTargetTigrisCredentialPair,
   buildTargetOnboardingPlan,
-  ensureTargetTigrisRole,
   TARGET_DEFAULTS,
   TARGET_SUPERVISOR_SECRET_FILES,
-  TARGET_TIGRIS_PARTIAL_CODES,
   TARGET_TIGRIS_ROLES,
   targetRolePolicy,
 } from './target-onboarding.mjs';
@@ -38,38 +35,6 @@ assert.deepEqual(Object.keys(TARGET_TIGRIS_ROLES).sort(), [
   'control-state',
   'logs',
 ]);
-assert.deepEqual(Object.values(TARGET_TIGRIS_PARTIAL_CODES).sort(), [
-  'SNAPBACK_HOSTED_TARGET_TIGRIS_ARTIFACT_PARTIAL',
-  'SNAPBACK_HOSTED_TARGET_TIGRIS_AUDIT_PARTIAL',
-  'SNAPBACK_HOSTED_TARGET_TIGRIS_BACKUP_PARTIAL',
-  'SNAPBACK_HOSTED_TARGET_TIGRIS_CLEANUP_PARTIAL',
-  'SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL_STATE_PARTIAL',
-  'SNAPBACK_HOSTED_TARGET_TIGRIS_LOGS_PARTIAL',
-].sort());
-assert.throws(
-  () => assertTargetTigrisCredentialPair('control-state', 'present-id', null),
-  (error) => {
-    assert.equal(error.message, TARGET_TIGRIS_PARTIAL_CODES['control-state']);
-    return true;
-  },
-);
-await assert.rejects(
-  () => ensureTargetTigrisRole(
-    {},
-    TARGET_DEFAULTS,
-    'control-state',
-    TARGET_TIGRIS_ROLES['control-state'],
-    {
-      readCredential: (_service, account) => (
-        account.endsWith('-id') ? 'present-id' : null
-      ),
-    },
-  ),
-  (error) => {
-    assert.equal(error.message, TARGET_TIGRIS_PARTIAL_CODES['control-state']);
-    return true;
-  },
-);
 const artifactPolicy = targetRolePolicy(
   TARGET_DEFAULTS,
   'artifact',

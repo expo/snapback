@@ -691,12 +691,24 @@
       "groups": [
         "diagnostics-registry"
       ],
-      "suffixes": [
-        ".cjs",
-        ".js",
-        ".mjs",
-        ".rs",
-        ".swift"
+      "prefixes": [
+        "crates/snapback/src/",
+        "crates/snapback-kernel/src/",
+        "crates/snapback-types/src/",
+        "crates/snapback-auth/src/",
+        "crates/snapback-activation/src/",
+        "crates/snapback-runtime/src/",
+        "crates/snapback-services/src/",
+        "crates/snapback-sync/src/",
+        "crates/snapback-engine/src/",
+        "crates/snapback-conformance/src/",
+        "crates/snapback-harness/src/",
+        "crates/snapback-tools/src/",
+        "crates/snapback-server/src/",
+        "crates/snapback-cli/src/",
+        "packages/",
+        "targets/",
+        "clients/swift/"
       ]
     },
     {

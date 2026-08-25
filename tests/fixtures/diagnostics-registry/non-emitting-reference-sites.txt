@@ -63,6 +63,11 @@ process.env.SNAPBACK_FIXTURE_MULTILINE_COMMENTED_ENV must remain prose.
 process.env.SNAPBACK_FIXTURE_JS_WRITE = '1';
 delete process.env.SNAPBACK_FIXTURE_JS_REMOVE;
 spawnSync('snapback', [], { env: { SNAPBACK_FIXTURE_JS_SPAWN_WRITE: '1' } });
+stageSecrets(token, app, { SNAPBACK_FIXTURE_STAGE_SECRETS_WRITE: '1' });
+setSecrets({ SNAPBACK_FIXTURE_SET_SECRETS_WRITE: '1' });
+flyctl('secrets', 'set', { SNAPBACK_FIXTURE_FLYCTL_SECRETS_WRITE: '1' });
+// diagnostics-registry: environment SNAPBACK_FIXTURE_MARKED_ENV_WRITE
+opaqueEnvironmentWriter();
 if (error.code === 'SNAPBACK_FIXTURE_JS_REFERENCE') recover();
 if ('SNAPBACK_FIXTURE_JS_REVERSE_REFERENCE' !== error.code) recover();
 switch (error.code) { case 'SNAPBACK_FIXTURE_JS_CASE_REFERENCE': recover(); }

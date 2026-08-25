@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import test from 'node:test';
@@ -52,7 +52,7 @@ test('diagnostic source classifier excludes environment reads per site and retai
     '../tests/fixtures/diagnostics-registry/non-emitting-reference-sites.txt',
   ), 'utf8');
 
-  assert.equal([...fixture.matchAll(/SNAPBACK_[A-Z0-9_]+/gu)].length, 78);
+  assert.equal([...fixture.matchAll(/SNAPBACK_[A-Z0-9_]+/gu)].length, 82);
 
   const sourceOptions = { ordinaryMultiline: true };
   assert.deepEqual(
@@ -153,6 +153,10 @@ test('diagnostic source classifier excludes environment reads per site and retai
     ['SNAPBACK_FIXTURE_JS_WRITE', 'write'],
     ['SNAPBACK_FIXTURE_JS_REMOVE', 'remove'],
     ['SNAPBACK_FIXTURE_JS_SPAWN_WRITE', 'write'],
+    ['SNAPBACK_FIXTURE_STAGE_SECRETS_WRITE', 'write'],
+    ['SNAPBACK_FIXTURE_SET_SECRETS_WRITE', 'write'],
+    ['SNAPBACK_FIXTURE_FLYCTL_SECRETS_WRITE', 'write'],
+    ['SNAPBACK_FIXTURE_MARKED_ENV_WRITE', 'write'],
   ]);
   assert.deepEqual(
     environmentVariableSites(fixture, sourceOptions)
@@ -239,6 +243,27 @@ test('diagnostic source classifier excludes environment reads per site and retai
   assert.ok(!classifiedNames.includes('SNAPBACK_FIXTURE_NESTED__'));
   assert.ok(!classifiedNames.includes('SNAPBACK_FIXTURE_ORIGIN'));
   assert.ok(!classifiedNames.includes('SNAPBACK_FIXTURE_TRAILING_PREFIX_'));
+});
+
+test('Rust match-arm references scan an entire brace-bounded or-pattern', () => {
+  const firstCode = 'SNAPBACK_FIXTURE_LONG_MATCH_ARM_FIRST';
+  const longRustOrPatternFixture = [
+    'let status = match code {',
+    `  "${firstCode}"`,
+    ...Array.from({ length: 256 }, (_, index) => (
+      `  | "SNAPBACK_FIXTURE_LONG_MATCH_ARM_PADDING_${String(index).padStart(4, '0')}"`
+    )),
+    '  => StatusCode::BAD_REQUEST,',
+    '};',
+  ].join('\n');
+  assert.ok(
+    longRustOrPatternFixture.indexOf('=>') - longRustOrPatternFixture.indexOf(firstCode) > 8192,
+  );
+  assert.equal(
+    diagnosticSourceSites(longRustOrPatternFixture)
+      .some(({ match }) => match[0] === firstCode),
+    false,
+  );
 });
 
 test('generated registry retains target emitters and dynamic artifact-header emitters', () => {
@@ -351,7 +376,11 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     'SNAPBACK_HOSTED_TARGET_TIGRIS_LOGS_PARTIAL',
   ];
   for (const code of tigrisRoleCodes) {
-    assert.ok(registry.diagnostics[code], `${code} must be registered`);
+    assert.equal(
+      registry.diagnostics[code],
+      undefined,
+      `${code} remains a dynamic runtime spelling pending a compatibility change`,
+    );
   }
   assert.equal(
     registry.diagnostics['SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL-STATE_PARTIAL'],
@@ -378,7 +407,6 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     'SNAPBACK_BRANCH_CAPTURE_ONLY_MISSING',
     'SNAPBACK_PROMOTION_EFFECT_INTENT_MISSING',
     'SNAPBACK_SCHEMA_UNIQUE_INDEX_OPTIONAL_FIELD',
-    'SNAPBACK_SHUTDOWN_CHECKPOINT_TIMEOUT_MS',
     'SNAPBACK_UNSUPPORTED_BLOB',
   ]) {
     assert.ok(
@@ -387,6 +415,44 @@ test('generated registry retains target emitters and dynamic artifact-header emi
         && site.kind === 'reserved'
       )),
       `${code} must retain its HTTP-table reservation`,
+    );
+  }
+
+  assert.equal(registry.diagnostics.SNAPBACK_INVALID_FLOAT, undefined);
+  assert.deepEqual(
+    registry.diagnostics.SNAPBACK_ARG_MISSING.sites[0],
+    {
+      file: 'crates/snapback-types/src/value_expr.rs',
+      line: 138,
+      column: 18,
+    },
+  );
+
+  assert.equal(registry.diagnostics.SNAPBACK_SHUTDOWN_CHECKPOINT_TIMEOUT_MS, undefined);
+  assert.deepEqual(
+    registry.environment.SNAPBACK_SHUTDOWN_CHECKPOINT_TIMEOUT_MS.sites,
+    [{
+      file: 'crates/snapback-cli/src/cli.rs',
+      line: 9430,
+      column: 43,
+      kind: 'read',
+    }, {
+      file: 'crates/snapback-server/src/server/api_error.rs',
+      line: 486,
+      column: 10,
+      kind: 'mention',
+    }],
+  );
+
+  for (const name of [
+    'SNAPBACK_SUPERVISOR_TARGET_CLIENT_KEY',
+    'SNAPBACK_SUPERVISOR_TARGET_CLIENT_CERT',
+    'SNAPBACK_SUPERVISOR_SERVER_CA',
+  ]) {
+    assert.equal(registry.diagnostics[name], undefined, `${name} is not a diagnostic`);
+    assert.deepEqual(
+      registry.environment[name].sites.map(({ file, kind }) => ({ file, kind })),
+      [{ file: 'packages/snapback-hosted-supervisor/target-onboarding.mjs', kind: 'write' }],
     );
   }
 
@@ -438,4 +504,13 @@ test('same-line named markers retain only their target site', () => {
       [{ code, column: source.indexOf(code) + 1, kind }],
     );
   }
+});
+
+test('generated diagnostics registry projections are current', () => {
+  const generator = resolve(import.meta.dirname, 'generate-diagnostics-registry.mjs');
+  const output = execFileSync(process.execPath, [generator, '--check'], {
+    cwd: resolve(import.meta.dirname, '..'),
+    encoding: 'utf8',
+  });
+  assert.match(output, /^\[diagnostics-registry\] ok — /u);
 });

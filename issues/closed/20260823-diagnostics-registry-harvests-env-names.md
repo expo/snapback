@@ -51,25 +51,28 @@ file is still classified correctly when another file mentions it. Comment
 exclusion runs first, so the explanatory `SNAPBACK_ADMIN_TOKEN` access in
 `packages/snapback-client/app-data.mjs` is no longer published as a read.
 
-The machine registry's separate `environment` section records `read`,
-`indirect-read`, `declaration`, `table-entry`, and `mention` sites. The generated
+The machine registry's separate `environment` section records `read`, `write`,
+`remove`, `indirect-read`, `declaration`, `table-entry`, and `mention` sites.
+Known secret writers (`stageSecrets`, `setSecrets`, and Fly secret helpers),
+spawn `env: { ... }` objects, and the explicit `diagnostics-registry:
+environment SNAPBACK_X` marker contribute write sites. The generated
 `diagnostic-codes.d.mts` continues to own both `SnapbackDiagnosticCode` and
 `SnapbackEnvironmentVariable`, re-exported by `@expo/snapback-client`, so the
 diagnostics registry, symbol registry, and Guide projections share one generated
 authority.
 
-The final comparison with merge-base `e370bb8f7` finds 222 removed names: 143
-are now environment variables and 79 are not in the environment section.
-Thirteen names re-enter the public union relative to the earlier review
+The final comparison with merge-base `e370bb8f7` finds 224 removed names: 147
+are now environment variables and 77 are not in the environment section.
+Twelve names re-enter the public union relative to the earlier review
 checkpoint: the client-protocol vocabulary
 `SNAPBACK_AUTH_SESSION_REVOKED`, `SNAPBACK_AUTH_FAMILY_REVOKED`, and
 `SNAPBACK_CLIENT_UPGRADE_REQUIRED` as `received` sites, plus the eight
 HTTP-table-only names already listed and
-`SNAPBACK_BRANCH_CAPTURE_ONLY_MISSING` and
-`SNAPBACK_SHUTDOWN_CHECKPOINT_TIMEOUT_MS` as ten explicit `reserved` sites. The
+`SNAPBACK_BRANCH_CAPTURE_ONLY_MISSING` as nine explicit `reserved` sites. The
 non-environment group contains constants, protocol/version symbols, receipt
-labels, wildcard/identifier fragments, test/reference vocabulary,
-secret-staging keys, and incomplete family prefixes rather than diagnostics.
+labels, wildcard/identifier fragments, test/reference vocabulary, and
+incomplete family prefixes rather than diagnostics. The three target mTLS
+secret-staging keys are now environment writes rather than unclassified names.
 The five earlier review exemplars
 `SNAPBACK_DEV_APP_BINDING_UNAVAILABLE`,
 `SNAPBACK_FAMILIAR_HOST_EFFECT_UNSUPPORTED`,
@@ -122,15 +125,16 @@ HTTP-table-only spellings: `SNAPBACK_AUTH_MODE_CHANGED`,
 `SNAPBACK_BRANCH_CAPTURE_ONLY_MISSING`,
 `SNAPBACK_PROMOTION_EFFECT_INTENT_MISSING`,
 `SNAPBACK_SCHEMA_UNIQUE_INDEX_OPTIONAL_FIELD`,
-`SNAPBACK_SHUTDOWN_CHECKPOINT_TIMEOUT_MS`, and
-`SNAPBACK_UNSUPPORTED_BLOB`. Reservations do not count as emissions. The ten
+`SNAPBACK_UNSUPPORTED_BLOB`. Reservations do not count as emissions. The nine
 HTTP-only arms are deletion candidates for the Rust-capable follow-up
-`issues/20260825-http-table-only-diagnostic-reservations.md`. An audit of all 79
+`issues/20260825-http-table-only-diagnostic-reservations.md`.
+`SNAPBACK_SHUTDOWN_CHECKPOINT_TIMEOUT_MS` stays in that Rust table as a match
+reference but is environment-only and is not reserved. An audit of all 77
 non-environment removals initially missed this ninth retired diagnostic; after
 reserving `SNAPBACK_BRANCH_CAPTURE_ONLY_MISSING`, the remaining names are active
 catalogue/reference vocabulary, protocol and format constants, fixture names,
 wildcard fragments, or other non-diagnostic identifiers. The lifecycle registry
-names none of the 79. The HTTP-only
+names none of the 77. The HTTP-only
 `NON_DIAGNOSTIC_SNAPBACK_LITERALS` table remains separate because it includes
 legitimate non-HTTP diagnostics and is not a safe public-registry denylist.
 
@@ -141,7 +145,7 @@ received` marker. This keeps 82 received names across 92 sites in the public
 diagnostic union without mislabelling them as emissions. The three round-6
 client-protocol restorations named above are received-only.
 
-The companion fixture now has 78 raw `SNAPBACK_*` substrings and retains 17
+The companion fixture now has 82 raw `SNAPBACK_*` substrings and retains 17
 emitting occurrences across 16 names plus two received-protocol occurrences.
 Its fail-first runs proved all classifier
 repairs: generated JavaScript and multiline Rust SQL were absent while match
@@ -149,9 +153,11 @@ arms, `matches!`, code catalogues, prefix checks, and a trailing-underscore
 family token were falsely present; the exact production
 `eprintln!("SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH field={field}")` line and
 the `println!`, `tracing::*!`, `log::*!`, and synthetic-marker rows were absent.
-The environment half additionally pins multiline block-comment exclusion and
-distinct read, write, and remove roles for JavaScript and Rust process/child
-environment sites.
+The environment half additionally pins multiline block-comment exclusion,
+known/custom environment-writing helpers, and distinct read, write, and remove
+roles for JavaScript and Rust process/child environment sites. A separate
+constructed fixture places the first token of a Rust or-pattern more than 8192
+characters before its arrow.
 The final classifier treats a diagnostic-leading string argument to those Rust
 print/log macros as an emission when the token is followed by `:` or whitespace,
 treats `startsWith`/`starts_with`/`contains`/`endsWith` operands as references,
@@ -171,13 +177,12 @@ active diagnostic spellings:
 `SNAPBACK_TEXT_DECODER_INSTALL_FAILED`, and
 `SNAPBACK_WRANGLER_PRECHECK_FAILED`.
 
-The hosted Tigris partial-credential loop now uses an explicit six-role literal
-mapping. Its `control-state` refusal spelling changes from the invalid dynamic
-`SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL-STATE_PARTIAL` form to the normalized
-`SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL_STATE_PARTIAL`; the other five roles keep
-the same runtime spelling. This one-time message spelling change is an
-incompatibility for consumers matching the old text. All six literals are
-registered emissions.
+The hosted Tigris partial-credential loop retains its original private helper
+and dynamic runtime template. The registry cannot claim the six possible role
+spellings as literal codes, and this lane does not change the thrown-message
+compatibility surface or export the IAM-mutating helper. The separately scoped
+private-helper compatibility proposal is
+`issues/20260825-hosted-target-tigris-role-code-spelling.md`.
 
 The worker-binding repair moves six names into the environment vocabulary:
 `SNAPBACK_ACCEPTED_SOCKET_LIMIT`, `SNAPBACK_LEGACY_PROOF_SOCKET_LIMIT`,
@@ -188,14 +193,18 @@ global-subscription, and connection-grant dual-role names keep only their
 actual `kitError`, `requestDiagnostic`, or `code:` emitting sites in the
 diagnostic vocabulary.
 
-Final regeneration produces 3,538 diagnostic codes, 10,509 emitting sites, 92
+Final regeneration produces 3,531 diagnostic codes, 10,269 emitting sites, 92
 received sites, and 11 reserved sites from 637 production source files. The
-environment section contains 178 variables across 357 sites: 256 reads, 14
-writes, 3 removes, 16 indirect reads, 14 declarations, 13 table entries, and 41
-message mentions. Excluding the
-comment-only `SNAPBACK_ADMIN_TOKEN` pseudo-read removes one bad read; restoring
-the three original publication-authority validation strings contributes three
-real message mentions.
+environment section contains 181 variables across 359 sites: 256 reads, 17
+writes, 3 removes, 16 indirect reads, 14 declarations, 12 table entries, and 41
+message mentions. The full Rust match-arm scan removes false `api_error.rs`
+emission sites from 234 names; the file had 237 ordinary emission sites before
+the repair and retains only three real producer sites across two names.
+`SNAPBACK_INVALID_FLOAT` consequently leaves the union, while
+`SNAPBACK_ARG_MISSING` now starts at its real `value_expr.rs:138` producer.
+Excluding the comment-only `SNAPBACK_ADMIN_TOKEN` pseudo-read and a falsely
+enclosed `SNAPBACK_ADMIN_TOKEN` table entry removes the remaining bad sites;
+the three target mTLS staging names add real writes.
 
 The final numbers above were computed from the generated registry, not copied
 from an earlier review. This is the exact measurement script:
@@ -247,32 +256,32 @@ Captured output:
 {
   "mergeBase": "e370bb8f789007cffae1f4d80c4feabdedc81cb5",
   "counts": {
-    "codes": 3539,
+    "codes": 3531,
     "sourceFiles": 637,
-    "emittingSites": 10509,
+    "emittingSites": 10269,
     "receivedSites": 92,
-    "reservedSites": 12,
-    "httpClassified": 1710,
+    "reservedSites": 11,
+    "httpClassified": 1708,
     "guideAnchored": 427,
-    "environmentVariables": 178,
-    "environmentSites": 356
+    "environmentVariables": 181,
+    "environmentSites": 359
   },
   "environmentKinds": {
     "read": 256,
-    "mention": 40,
+    "mention": 41,
     "declaration": 14,
     "remove": 3,
-    "write": 14,
-    "table-entry": 13,
+    "write": 17,
+    "table-entry": 12,
     "indirect-read": 16
   },
   "mergeBaseRemovals": {
-    "total": 222,
-    "environment": 143,
-    "other": 79
+    "total": 224,
+    "environment": 147,
+    "other": 77
   },
-  "fixtureRawTokens": 78,
+  "fixtureRawTokens": 82,
   "receivedCodes": 82,
-  "httpReservations": 10
+  "httpReservations": 9
 }
 ```

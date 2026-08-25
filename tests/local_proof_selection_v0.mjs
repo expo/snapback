@@ -219,7 +219,7 @@ test('a new Rust source file selects the rustfmt gate', () => {
   assert.equal(select(['README.md']).selectedGates.includes('rustfmt'), false);
 });
 
-test('published package READMEs select only their fast funnel and its JS setup', () => {
+test('published package READMEs retain their fast funnel under production-prefix coverage', () => {
   const packageRoot = new URL('../packages/', import.meta.url);
   const publicReadmes = readdirSync(packageRoot, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
@@ -242,8 +242,8 @@ test('published package READMEs select only their fast funnel and its JS setup',
 
   const readme = select(['packages/snapback-client/README.md']);
   assert.equal(readme.selectionClass, 'FAST_ONLY');
-  assert.deepEqual(readme.selectedGroups, ['package-readme']);
-  includesAll(readme, ['package-readme-funnel']);
+  assert.deepEqual(readme.selectedGroups, ['diagnostics-registry', 'package-readme']);
+  includesAll(readme, ['diagnostics-registry-fixtures', 'package-readme-funnel']);
   assert.equal(readme.selectedGates.includes('snapback-client-package'), false);
   assert.equal(readme.requirements.javascriptDependencies, true);
   assert.equal(readme.requirements.native, false);
@@ -297,6 +297,12 @@ test('docs-only pushes still select the always-run migration drift gates', () =>
 });
 
 test('diagnostic production sources select registry fixtures and Guide drift', () => {
+  const productionRule = context.policy.additivePathRules.find(
+    ({ id }) => id === 'diagnostics-production-sources',
+  );
+  assert.deepEqual(productionRule.prefixes, DIAGNOSTICS_PRODUCTION_ROOTS);
+  assert.equal(productionRule.suffixes, undefined);
+
   const guideTriggerPrefixes = context.policy.driftProneGates.guide.triggerRules.prefixes;
   for (const rootPrefix of DIAGNOSTICS_PRODUCTION_ROOTS) {
     includesAll(select([`${rootPrefix}diagnostics-registry-source.mjs`]), [

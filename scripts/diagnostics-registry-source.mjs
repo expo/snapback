@@ -28,6 +28,7 @@ const REFERENCE_ONLY_MARKER = 'diagnostics-registry: reference-only';
 const RESERVED_MARKER = 'diagnostics-registry: reserved';
 const RECEIVED_MARKER = 'diagnostics-registry: received';
 const EMISSION_MARKER = 'diagnostics-registry: emission';
+const ENVIRONMENT_MARKER = 'diagnostics-registry: environment';
 
 function lineBounds(source, offset) {
   const start = source.lastIndexOf('\n', offset - 1) + 1;
@@ -94,6 +95,10 @@ function hasReceivedMarker(source, offset, code) {
 
 function hasEmissionMarker(source, offset, code) {
   return hasSiteMarker(source, offset, EMISSION_MARKER, code);
+}
+
+function hasEnvironmentMarker(source, offset, code) {
+  return hasSiteMarker(source, offset, ENVIRONMENT_MARKER, code);
 }
 
 function escapeRegExp(value) {
@@ -185,6 +190,22 @@ function javaScriptEnvironmentObjectKind(source, offset, code) {
       open: contextStart + property.index + property[0].lastIndexOf('{'),
     });
   }
+  for (const helper of context.matchAll(
+    /\b(?:stageSecrets|setSecrets)\s*\([^{}]*\{/gu,
+  )) {
+    candidates.push({
+      kind: 'write',
+      open: contextStart + helper.index + helper[0].lastIndexOf('{'),
+    });
+  }
+  for (const helper of context.matchAll(
+    /\bflyctl\s*\([^{}]*["']secrets["'][^{}]*\{/gu,
+  )) {
+    candidates.push({
+      kind: 'write',
+      open: contextStart + helper.index + helper[0].lastIndexOf('{'),
+    });
+  }
   for (const returned of context.matchAll(/\breturn\s*\{/gu)) {
     const open = contextStart + returned.index + returned[0].lastIndexOf('{');
     const beforeReturn = source.slice(Math.max(0, open - 4096), open);
@@ -193,14 +214,8 @@ function javaScriptEnvironmentObjectKind(source, offset, code) {
       candidates.push({ kind: 'table-entry', open });
     }
   }
-  return candidates.sort((left, right) => right.open - left.open).find(({ open }) => {
-    let depth = 0;
-    for (const character of source.slice(open, offset)) {
-      if (character === '{') depth += 1;
-      else if (character === '}') depth -= 1;
-    }
-    return depth > 0;
-  })?.kind ?? null;
+  return candidates.sort((left, right) => right.open - left.open)
+    .find(({ open }) => matchingBrace(source, open) > offset)?.kind ?? null;
 }
 
 function isEnvironmentNameTable(source, offset) {
@@ -562,6 +577,10 @@ function environmentAnalysis(source, options) {
     siteKinds.set(offset, 'read');
   }
   for (const match of matches) {
+    if (hasEnvironmentMarker(source, match.index, match[0])) {
+      siteKinds.set(match.index, 'write');
+      continue;
+    }
     // Comments are references first; `process.env.SNAPBACK_X` in explanatory
     // prose must not become an environment read site.
     if (isCommentReference(match.index, literals.comments)) {
@@ -633,18 +652,38 @@ function isComparisonOrPrefixCheck(source, offset, code) {
 }
 
 function isRustMatchArmPattern(source, offset, code) {
-  // Named marker payloads replace the former bare marker without changing the
-  // surrounding Rust match arm. Remove only those payloads before enforcing
-  // the established scan bound so marker specificity cannot reclassify a
-  // neighboring arm that happened to sit near the boundary.
-  const after = source.slice(offset + code.length, offset + code.length + 16384)
-    .replace(
-      /(diagnostics-registry: (?:reserved|emission|received))\s+SNAPBACK_[A-Z0-9_]+/gu,
-      '$1',
-    );
-  const arrow = after.indexOf('=>');
-  if (arrow === -1 || arrow > 8192) return false;
-  const patternTail = after.slice(0, arrow)
+  const start = offset + code.length;
+  let arrow = -1;
+  let braceDepth = 0;
+  for (let index = start; index < source.length; index += 1) {
+    if (source.startsWith('//', index)) {
+      const newline = source.indexOf('\n', index + 2);
+      if (newline === -1) break;
+      index = newline;
+      continue;
+    }
+    if (source.startsWith('/*', index)) {
+      const close = source.indexOf('*/', index + 2);
+      if (close === -1) break;
+      index = close + 1;
+      continue;
+    }
+    if (source[index] === '{') {
+      braceDepth += 1;
+      continue;
+    }
+    if (source[index] === '}') {
+      if (braceDepth === 0) break;
+      braceDepth -= 1;
+      continue;
+    }
+    if (braceDepth === 0 && source.startsWith('=>', index)) {
+      arrow = index;
+      break;
+    }
+  }
+  if (arrow === -1) return false;
+  const patternTail = source.slice(start, arrow)
     .replace(/\/\/[^\n]*(?:\n|$)/gu, '')
     .replace(/\/\*[\s\S]*?\*\//gu, '');
   return /^["']\s*(?:\|\s*(?:r#*)?["']SNAPBACK_[A-Z0-9_]+["']\s*)*$/u.test(patternTail);
