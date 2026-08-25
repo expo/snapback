@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:8cf8296e0b0bf0fc43db36171df0907341a7497f689fab47e41d496984eb29a1"
+    "sourceDigest": "sha256:68c7eea67f09ef216a17125c6272f332d1350c53e312c26b323d05affb0553d8"
   },
   "limits": {
     "lookupBytes": 16384
@@ -34474,17 +34474,17 @@
         },
         {
           "file": "crates/snapback-engine/src/manifest/types_remainder_tests.rs",
-          "line": 439,
-          "column": 10
-        },
-        {
-          "file": "crates/snapback-engine/src/manifest/types_remainder_tests.rs",
           "line": 447,
           "column": 10
         },
         {
           "file": "crates/snapback-engine/src/manifest/types_remainder_tests.rs",
-          "line": 486,
+          "line": 455,
+          "column": 10
+        },
+        {
+          "file": "crates/snapback-engine/src/manifest/types_remainder_tests.rs",
+          "line": 494,
           "column": 10
         },
         {
