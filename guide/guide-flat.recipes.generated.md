@@ -3857,8 +3857,10 @@ For URL-first web under a bare `SnapbackProvider`, import
 `useSnapbackActivityPresence` from `@expo/snapback-react`; that is the paved
 choice. Use the `@expo/snapback-expo` facade only in a
 `SnapbackExpoProvider` tree; there it adds AppState-driven background
-withdrawal. The React hook keeps the same activity deadline without the
-platform lifecycle listener. There is no third activity-presence hook.
+withdrawal. Under a bare `SnapbackProvider`, the React hook has no
+AppState-driven background withdrawal. If the app backgrounds, typing intent
+expires by the presence deadline rather than being withdrawn immediately.
+There is no third activity-presence hook.
 
 This is the usual cause of a “typing indicator stuck” or “presence not
 expiring” report. The heartbeat-vs-bound-value decision comes before choosing

@@ -10,7 +10,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:5e1d3ec912e9a7c2ac68119492fda4ff9ada03c2662316aa8687befd6d2d1153
+reviewed-authorities-digest: sha256:b7ac0cb1035d78e01ef7e1a01dc100451d19ed8d7841fbdde9d866559c366df1
 ---
 
 # Retrieval eval protocol
@@ -1083,7 +1083,9 @@ platform, and generated-directory assumptions from that run.
      bare provider.
      Expected pages: `backend/familiar-profile.md`, `realtime/ephemeral-state.md`, `recipes/activity-presence.md`.
      Route terms: "URL-first activity presence", "useSnapbackActivityPresence".
-     Required guidance: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`".
+     Required guidance: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`",
+     "Under a bare `SnapbackProvider`, the React hook has no AppState-driven background withdrawal",
+     "typing intent expires by the presence deadline rather than being withdrawn immediately".
      Rejected guidance: "expects SnapbackExpoLifecycleContext",
      "works under a bare provider", "works under a bare `SnapbackProvider`",
      "The Expo facade also works under a bare `SnapbackProvider`".
@@ -1113,12 +1115,12 @@ contains at least one optional required-guidance phrase, every required phrase
 appears somewhere in the named page set, and rejected guidance is absent from
 that set, (4) every Rosetta record alias
 (`guide/rosetta/records/*.json`) is mirrored as a seed-case route term, per the
-LLP 0186 W2 amendment, and (5) any seed case whose route terms include a
-`SNAPBACK_*` code either pins that code's exact primary Guide target on one of
-the case's `Expected pages` or records an explicit `shared/per-operation`
-disposition explaining why the code's global primary belongs to a different
-intent page. The exception is case-local and visible; it does not weaken or
-retarget the diagnostic registry.
+LLP 0186 W2 amendment, and (5) every `SNAPBACK_*` code extracted from a case's
+route terms has its own exact primary Guide target pin on one of the case's
+`Expected pages` or its own explicit `shared/per-operation` disposition
+explaining why that code's global primary belongs to a different intent page.
+Each exception is case-local and visible; it does not weaken or retarget the
+diagnostic registry.
 
 What it does **not** prove: that a cold agent actually navigates to the
 page within the ~15-tool-use budget, plans with the paved technique, or

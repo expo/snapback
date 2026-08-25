@@ -1,0 +1,46 @@
+# LLP 0310.000 Ruling 3 conflicts with LLP 0257 on bare-provider background withdrawal
+
+**Filed:** 2026-08-25
+**Systems:** React, React/Expo, Ephemeral state, Guide
+**Owner:** LLP 0310.000 / LLP 0257 RFC owner
+**Related:** LLP 0257 §Expo: backgrounding and resume; LLP 0310.000 Ruling 3;
+`issues/closed/20260825-guide-gap-activity-presence-url-first.md`
+
+## Conflict
+
+LLP 0257 requires the `@expo/snapback-expo` facade hook to observe AppState and
+withdraw activity presence immediately on backgrounding. Its shared-lifecycle
+source rule says a tree without an injected source falls back to the facade's
+conditional AppState resolver, explicitly including a bare
+`SnapbackProvider`; the RFC also says the facade wrapper works under that bare
+provider.
+
+LLP 0310.000 Ruling 3 instead names
+`useSnapbackActivityPresence` from `@expo/snapback-react` as the paved import
+for URL-first web and says the `@expo/snapback-expo` facade hook is for
+`SnapbackExpoProvider` trees only. The React hook deliberately has no platform
+lifecycle listener. Under a bare `SnapbackProvider`, backgrounded typing intent
+therefore expires at its activity deadline rather than being withdrawn
+immediately.
+
+The shipped facade currently follows LLP 0257. It reads the optional Expo
+lifecycle context, falls back through `resolveSnapbackExpoLifecycleSource()`
+when the context is absent, gates publication until observation is established,
+and withdraws on a non-active AppState transition. Consequently, the facade
+currently does work under a bare `SnapbackProvider`, even though Ruling 3 says
+that composition is not the paved or supported contract.
+
+## Owner decision required
+
+Resolve the documents and product in one of two directions:
+
+1. Preserve LLP 0257's immediate-withdrawal requirement under a bare provider:
+   amend Ruling 3 to support and pave the Expo facade for that composition, then
+   align the Guide and retrieval case 100.
+2. Preserve Ruling 3's package/provider boundary: amend LLP 0257's bare-provider
+   requirement and change the facade to require a `SnapbackExpoProvider` tree
+   (or otherwise refuse the unsupported composition). Keep the React import
+   paved under a bare provider and accept its deadline-only background expiry,
+   unless a separately designed lifecycle mechanism closes that limitation.
+
+This guide lane does not choose between the two or amend either LLP.

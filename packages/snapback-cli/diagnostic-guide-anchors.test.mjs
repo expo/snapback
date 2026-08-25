@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { runCli } from './index.mjs';
 import { lookupGuideReference } from './reference-lookup.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -20,6 +21,21 @@ let projectRoot = root;
 let temporaryRoot = null;
 
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
+const staleAuthGuideAnchors = [
+  '/_snapback/guide/auth/sessions-and-principals.md#recover-from-snapbackauthstaleresult',
+];
+
+async function captureCli(args) {
+  const output = [];
+  const originalLog = console.log;
+  try {
+    console.log = (...values) => output.push(values.join(' '));
+    assert.equal(await runCli(args, { projectRoot }), 0);
+  } finally {
+    console.log = originalLog;
+  }
+  return output.join('\n');
+}
 
 if (historicalRevision) {
   temporaryRoot = mkdtempSync(join(tmpdir(), 'snapback-diagnostic-anchors-'));
@@ -64,8 +80,23 @@ try {
   assert.equal(staleAuth.diagnostic.sites, undefined);
   assert.deepEqual(
     staleAuth.diagnostic.guideAnchors,
-    ['/_snapback/guide/auth/sessions-and-principals.md#recover-from-snapbackauthstaleresult'],
+    staleAuthGuideAnchors,
   );
+
+  const staleAuthJson = JSON.parse(await captureCli([
+    'guide',
+    'SNAPBACK_AUTH_STALE_RESULT',
+    '--json',
+  ]));
+  assert.deepEqual(staleAuthJson.result.diagnostic.guideAnchors, staleAuthGuideAnchors);
+
+  const staleAuthText = await captureCli(['guide', 'SNAPBACK_AUTH_STALE_RESULT']);
+  const staleAuthTextAnchors = staleAuthText.split('\n').flatMap((line) => {
+    if (line.startsWith('Guide: ')) return [line.slice('Guide: '.length)];
+    if (line.startsWith('- /_snapback/guide/')) return [line.slice(2)];
+    return [];
+  });
+  assert.deepEqual(staleAuthTextAnchors, staleAuthGuideAnchors);
 
   const capability = lookupGuideReference(
     ['SNAPBACK_CAPABILITY_UNSUPPORTED'],

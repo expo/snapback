@@ -9,8 +9,8 @@
 // checks (3) required guidance against each named page while rejecting stale
 // guidance across the page set, (4) that every Rosetta record alias
 // (guide/rosetta/records/*.json) is mirrored as a seed-case route term, and
-// (5) that every route term containing a SNAPBACK_* code either carries an
-// exact diagnostic target pin into one of the case's expected pages or an
+// (5) that every SNAPBACK_* code extracted from route terms carries its own
+// exact diagnostic target pin into one of the case's expected pages or its own
 // explicit shared/per-operation disposition explaining why no case-local
 // primary pin is honest.
 // It does NOT run agents: actual cold-agent navigation within the
@@ -34,11 +34,11 @@ const ROSETTA_DIR = 'guide/rosetta/records';
 // paths) followed by `Route terms:` (double-quoted grep vocabulary). Cases may
 // also carry `Required guidance:`, `Rejected guidance:`,
 // `Exact diagnostic target:`, and `Diagnostic pin disposition:` markers. The
-// first two bind a repaired page to semantic wording; the third binds a
-// diagnostic query to one generated registry anchor on an expected page so
-// lexical drift cannot silently retarget exact lookup. The last is the
-// explicit exception for a shared/per-operation diagnostic whose registry
-// primary intentionally belongs to a different intent page.
+// first two bind a repaired page to semantic wording; exact-target markers bind
+// diagnostic queries to generated registry anchors on expected pages so
+// lexical drift cannot silently retarget exact lookup. Disposition markers are
+// explicit per-code exceptions for shared/per-operation diagnostics whose
+// registry primaries intentionally belong to different intent pages.
 function parseSeedCases(text, errors) {
   const lines = text.split('\n');
   const start = lines.findIndex((line) => line.startsWith('## Seed intents'));
@@ -116,56 +116,46 @@ function parseSeedCases(text, errors) {
           diagnosticDispositionAt,
         ])).matchAll(/"([^"]+)"/g)]
         .map((m) => m[1]);
-    if (exactDiagnosticAt !== -1) {
-      const exact = seed.text.slice(exactDiagnosticAt).match(
-        /Exact diagnostic target:\s*`(SNAPBACK_[A-Z0-9_]+)`\s*->\s*`([^`]+)`/u,
-      );
-      if (!exact) {
-        errors.push(`${who}: malformed "Exact diagnostic target:" marker`);
-      } else {
-        seed.exactDiagnosticTarget = { code: exact[1], anchor: exact[2] };
+    const exactDiagnosticTargets = [...seed.text.matchAll(
+      /Exact diagnostic target:\s*`(SNAPBACK_[A-Z0-9_]+)`\s*->\s*`([^`]+)`/gu,
+    )].map((match) => ({ code: match[1], anchor: match[2] }));
+    const diagnosticPinDispositions = [...seed.text.matchAll(
+      /Diagnostic pin disposition:\s*`(SNAPBACK_[A-Z0-9_]+)`\s*->\s*`shared\/per-operation`\s*—\s*(\S[^\n]*)/gu,
+    )].map((match) => ({ code: match[1], reason: match[2].trim() }));
+    const exactMarkerCount = seed.text.match(/Exact diagnostic target:/gu)?.length ?? 0;
+    const dispositionMarkerCount = seed.text.match(/Diagnostic pin disposition:/gu)?.length ?? 0;
+    if (exactDiagnosticTargets.length !== exactMarkerCount) {
+      errors.push(`${who}: malformed "Exact diagnostic target:" marker`);
+    }
+    if (diagnosticPinDispositions.length !== dispositionMarkerCount) {
+      errors.push(`${who}: malformed "Diagnostic pin disposition:" marker`);
+    }
+    seed.exactDiagnosticTargets = exactDiagnosticTargets;
+    seed.diagnosticPinDispositions = diagnosticPinDispositions;
+
+    for (const { code } of exactDiagnosticTargets) {
+      if (!seed.routeDiagnosticCodes.includes(code)) {
+        errors.push(`${who}: exact diagnostic target ${code} is not present in Route terms`);
       }
     }
-    if (diagnosticDispositionAt !== -1) {
-      const disposition = seed.text.slice(diagnosticDispositionAt).match(
-        /Diagnostic pin disposition:\s*`(SNAPBACK_[A-Z0-9_]+)`\s*->\s*`shared\/per-operation`\s*—\s*(\S[^\n]*)/u,
-      );
-      if (!disposition) {
-        errors.push(`${who}: malformed "Diagnostic pin disposition:" marker`);
-      } else {
-        seed.diagnosticPinDisposition = {
-          code: disposition[1],
-          reason: disposition[2].trim(),
-        };
+    for (const { code } of diagnosticPinDispositions) {
+      if (!seed.routeDiagnosticCodes.includes(code)) {
+        errors.push(`${who}: diagnostic pin disposition ${code} is not present in Route terms`);
       }
     }
-    if (seed.exactDiagnosticTarget && seed.diagnosticPinDisposition) {
-      errors.push(`${who}: cannot carry both an exact diagnostic target and a shared/per-operation disposition`);
-    }
-    if (
-      seed.routeDiagnosticCodes.length > 0
-      && !seed.exactDiagnosticTarget
-      && !seed.diagnosticPinDisposition
-    ) {
-      errors.push(
-        `${who}: route term diagnostic ${seed.routeDiagnosticCodes.join(', ')} requires an `
-        + '"Exact diagnostic target:" or explicit "Diagnostic pin disposition:" marker',
-      );
-    } else if (
-      seed.exactDiagnosticTarget
-      && !seed.routeDiagnosticCodes.includes(seed.exactDiagnosticTarget.code)
-    ) {
-      errors.push(
-        `${who}: exact diagnostic target ${seed.exactDiagnosticTarget.code} is not present in Route terms`,
-      );
-    }
-    if (
-      seed.diagnosticPinDisposition
-      && !seed.routeDiagnosticCodes.includes(seed.diagnosticPinDisposition.code)
-    ) {
-      errors.push(
-        `${who}: diagnostic pin disposition ${seed.diagnosticPinDisposition.code} is not present in Route terms`,
-      );
+    for (const code of seed.routeDiagnosticCodes) {
+      const pinCount = exactDiagnosticTargets.filter((pin) => pin.code === code).length;
+      const dispositionCount = diagnosticPinDispositions.filter(
+        (disposition) => disposition.code === code,
+      ).length;
+      if (pinCount + dispositionCount === 0) {
+        errors.push(
+          `${who}: route term diagnostic ${code} requires its own "Exact diagnostic target:" `
+          + 'or explicit "Diagnostic pin disposition:" marker',
+        );
+      } else if (pinCount + dispositionCount > 1) {
+        errors.push(`${who}: route term diagnostic ${code} has more than one pin or disposition`);
+      }
     }
     if (seed.expectedPages.length === 0) errors.push(`${who}: "Expected pages:" lists no backticked pages`);
     if (seed.terms.length === 0) errors.push(`${who}: "Route terms:" lists no quoted terms`);
@@ -307,8 +297,7 @@ function main() {
         );
       }
     }
-    if (seed.exactDiagnosticTarget) {
-      const { code, anchor } = seed.exactDiagnosticTarget;
+    for (const { code, anchor } of seed.exactDiagnosticTargets ?? []) {
       const actual = diagnostics[code]?.guideAnchor ?? null;
       const targetPage = anchor.match(/^\/_snapback\/guide\/([^#?]+)(?:#.*)?$/u)?.[1] ?? null;
       if (targetPage === null) {
@@ -330,8 +319,8 @@ function main() {
       } else {
         reports.push(`case ${seed.number} (${seed.label}): ${code} => ${anchor}`);
       }
-    } else if (seed.diagnosticPinDisposition) {
-      const { code } = seed.diagnosticPinDisposition;
+    }
+    for (const { code } of seed.diagnosticPinDispositions ?? []) {
       const actual = diagnostics[code]?.guideAnchor ?? null;
       const targetPage = actual?.match(/^\/_snapback\/guide\/([^#?]+)(?:#.*)?$/u)?.[1] ?? null;
       if (actual === null || targetPage === null) {

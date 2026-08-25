@@ -454,8 +454,11 @@ For URL-first web under a bare `SnapbackProvider`, import
 `useSnapbackActivityPresence` from `@expo/snapback-react`; that is the paved
 choice. Use the `@expo/snapback-expo` facade only in a
 `SnapbackExpoProvider` tree; there it adds AppState-driven background
-withdrawal. The React hook keeps the same activity deadline but does not add
-platform-lifecycle withdrawal. Do not invent a third hook.
+withdrawal. Under a bare `SnapbackProvider`, the React hook has no
+AppState-driven background withdrawal. If the app backgrounds, typing intent
+expires by the presence deadline rather than being withdrawn immediately. Do
+not invent a third hook.
+
 Search vocabulary: URL-first activity presence.
 
 Here is the shortest coherent application loop, rather than six disconnected

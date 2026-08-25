@@ -43,8 +43,9 @@ For URL-first web under a bare `SnapbackProvider`, import
 choice. Use the `@expo/snapback-expo` facade only in a
 `SnapbackExpoProvider` tree; there it gates the first publication until
 AppState observation is established and withdraws on backgrounding. The React
-hook keeps the same activity deadline without the platform lifecycle listener;
-do not invent a third hook.
+hook under a bare `SnapbackProvider` has no AppState-driven background
+withdrawal. If the app backgrounds, typing intent expires by the presence
+deadline rather than being withdrawn immediately. Do not invent a third hook.
 
 The messaging demo has one deliberate direct-client exception. Its interactive
 server uses dev-mode persona assertions, while the `typing` collection also

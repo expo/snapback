@@ -24,6 +24,7 @@ Resolved the guide work. The auth guide describes
 to that teaching section without assigning the code to the surrounding
 asset-retention heading; and retrieval-eval evidence is excluded from
 diagnostic target selection. Retrieval case 99 pins the exact generated
-anchor, and the CLI lookup test asserts the complete user-visible anchor list,
-not only its primary member. These checks do not exercise a live stale-result
-mutation.
+anchor, and the focused test exercises `snapback guide
+SNAPBACK_AUTH_STALE_RESULT` in both JSON and text modes and asserts the complete
+user-visible anchor list, not only its primary member. These checks do not
+exercise a live stale-result mutation.
