@@ -407,6 +407,7 @@ if (
     '97ffd8e53',
     'd0bc4aa67',
     'adfa325e5',
+    '6bb68d9ca',
   ])
   || dualReviewHardeningMigration.sourceRevisionFrom !== '09c46df751ab02e797a21c84bafb96e35591c55c'
   || dualReviewHardeningMigration.productionDriverSha256From !== '61931aeca07f67b569127d75ae256b5cce372ce335dbde4530f8934303f10559'
