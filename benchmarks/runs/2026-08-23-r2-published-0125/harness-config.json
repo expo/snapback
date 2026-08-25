@@ -21,7 +21,7 @@
   "paths": {
     "committedRunRoot": "benchmarks/runs/2026-08-23-r2-published-0125",
     "privateExecutionRoot": "/Users/ccheever/bench-matrix-20260823-r2",
-    "instrumentRoot": "/Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260825-v9",
+    "instrumentRoot": "/Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260825-v10",
     "exactPinnedCheckout": "/Users/ccheever/bench-matrix-20260817/exact-pinned"
   },
   "machines": {
@@ -70,7 +70,7 @@
       "meteringRoot": {
         "kind": "directory",
         "path": "benchmarks/tools/social-messenger/metering",
-      "sha256": "sha256:789dfcf036ff9dadb73d82591870a2a61945488410caed7e5fa76ab62061dc59"
+      "sha256": "sha256:ac4427fbb11cf24f52f45ece92c01d9586604850cf1c25e732afc9d83fb314a0"
       },
       "files": [
         {
@@ -219,14 +219,14 @@
       "manifestPath": "benchmarks/instrument.manifest.json",
       "semanticSnapshotRevision": "e8048d8238b3abe1fe3d6553bd12f334affbf88f",
       "instrumentPin": "social-messenger@0.3.3-m8",
-    "manifestSha256": "1ae3e6fc5fe853e328053b01bfc339eb0231906c9a0b6cd511ec117d92eaa4fe",
+    "manifestSha256": "1515e93d3f141b7dc87607e521b50c8dcfa8112b6050e4dd8950945abbaf2039",
       "fixtureVersion": "0.2.0-m8",
       "schemaVersion": "0.3.0-m8",
       "uiVersion": "0.3.1-m8",
       "choreographyVersion": "0.3.3-m8",
       "d06MeteringOverlay": {
-      "revision": "post-terminal-harness-telemetry-finalization-scoped-review-pending-no-campaign-cell-rerun",
-        "status": "scoped-review-pending-post-terminal-harness-telemetry-finalization-no-campaign-cell-rerun",
+      "revision": "dual-review-instrument-hardening-for-next-campaign-no-r2-cell-rerun",
+        "status": "landed-dual-review-hardening-for-next-campaign-no-r2-cell-rerun",
         "recordSchema": "benchmarks/schema/social-messenger/run-record.schema.json",
         "recordSchemaSha256": "3403455e98fad656125ea2ab0993f780bdb112849fb127bd8bcfcbcf6f2b8a64",
       "extensionSchemaSha256": "5d8a6f41d1f02d7fe8df4ef761bb7cd921d2fa2c711e938c553c903689e14c4b",
@@ -234,15 +234,15 @@
         "meterSha256": "d19aa6764c513af489e43b00ef15f8560d347dc84998254d1cceb4bf9e4d5a62",
         "laneSetupSha256": "b46ddce548b4415dfd791eb32c97eba581adb0d9794da557f314fd2b34c9e71f",
       "laneControllerSha256": "5577be1d08b9e59f699984f10aea73bcd6b973565a23d8cfffe5479bbc368df8",
-      "productionDriverSha256": "61931aeca07f67b569127d75ae256b5cce372ce335dbde4530f8934303f10559",
+      "productionDriverSha256": "81630e615e18b1a674d0f36a80456fe5fdbfa2d1e657db7c0ef4c1429c67ff0d",
         "signalSha256": "f2f835538bc92cd5ea2af0098e43ca0e97cf3934101c713f6c13ede55066a712",
       "manifestLoaderSha256": "4af14ab4e413df1abc2b7f463ec739644c0be0f692193633669fecc382631dc7",
-      "joinerSha256": "03c61e6aceaf54ad7fb993666ca94aea5c493290f7a4e5a9744306b44ad5c3fb",
-        "observationsSha256": "27b37159ae35a24ba458bca3cf2b29a8eead6e231031750a3f6360aa98d7cdd0",
+      "joinerSha256": "e7153635bda28090a57cf8075d60e652ae911881c37bf8d385e73a415b4e5532",
+        "observationsSha256": "e47988444970f56662cee5bf9181012091e18918fac38a0493a9b48665ee0a17",
         "codexAdapterSha256": "4c420019dd003737a4b1c7d2ca6103678a80258290b85a206e67cd500628920b",
       "codexNativeEvidenceSha256": "d510466a1dbf897ce4091a4ccb59fc5d31dbd50be7652e5f63ec22a1306fc744",
       "recordComposerSha256": "66868a4513a682b411e219927752edc16b7ee0cb85bb01b11f0c5dea56a5b98e",
-      "admissionToolSha256": "b7b56f1b571bd05240002e5c68926a02507e09d4cfa67b0f5032842c9daa489d",
+      "admissionToolSha256": "d05a4a7ca12c0012cf889e482b9c24e1089ef8d715d69d16cd74f8513ecaba5b",
       "finalizedCellValidatorSha256": "cce9a149c421801e0badea8b7bc04518df12e9280d5f7ed664d246fca7baadb2",
       "hostLockSha256": "55a4c8cb77d13658f7e5a4aae73c3aefd1826408124e4cc60bb70d972f57a6fb",
       "finalizeExistingSha256": "2fa7f63a8fd155090b6d8751aad5cfc3d386c3d4d9fd05595b50b3cfb4434cb3",
@@ -252,7 +252,7 @@
         {
           "date": "2026-08-24",
           "reason": "finalizer repairs after cell-1 corrupt token_count and sidecar-identity defects",
-          "commits": ["a4ad07029", "7b828efca"],
+          "commits": ["a4ad07029", "7b828efca", "b5a141698", "e25831ec4", "9a782983d"],
           "recordValidatorSha256From": "fa1b179a617db743ec15d9d87017458e594cab070b798ccd72b5349ccf373238",
           "recordValidatorSha256To": "6083bf88cf29feac9e625093b5bc026377c644c7a963195f920cc6b17edcd727",
           "semantics": "fail-closed additions only: aggregate-total checksum, pre-validation identity canonicalization"
@@ -260,7 +260,7 @@
         {
           "date": "2026-08-24",
           "reason": "two-host R2 execution requires disposition-complete admission independent of plan order",
-          "commits": ["scoped-review-pending"],
+          "commits": ["1cb5a2307"],
           "admissionToolSha256From": "1531082d27a08e699515b08fd1ae5ea863efe20dff6bb48ad3b7fc85e37ce861",
           "admissionToolSha256To": "b7b56f1b571bd05240002e5c68926a02507e09d4cfa67b0f5032842c9daa489d",
           "validatePlanSha256From": "4acd162d5f99c9648ba0fa7709615c74fbce3c8f32bbb6d2369b2941ae68214d",
@@ -274,7 +274,7 @@
         {
           "date": "2026-08-24",
           "reason": "suite-status finalization must preserve hash-bound green verdicts across later milestone suite rollover",
-          "commits": ["scoped-review-pending"],
+          "commits": ["f489b8e28", "4890eb485"],
           "productionDriverSha256From": "de0163b2a5621e70cec038089ed2b3abeca3ec82e85904c9faa286c124e81135",
           "productionDriverSha256To": "61931aeca07f67b569127d75ae256b5cce372ce335dbde4530f8934303f10559",
           "manifestLoaderSha256From": "d21925146a888cda3f24d19bdf9c3e0994ed87d7ac88c5fc485a92a46f5ee530",
@@ -290,7 +290,7 @@
         {
           "date": "2026-08-25",
           "reason": "post-terminal pure harness telemetry must not invalidate a semantic authoring boundary",
-          "commits": ["scoped-review-pending"],
+          "commits": ["b86cd6e2d", "057ce5898", "92f21bec4"],
           "sourceRevisionFrom": "4890eb48555042dd6eee5ffa116039d3fe9107c4",
           "harnessConfigSha256From": "d3f2959a03e1c63c914039a5f9f29ad69455918a1bb32e2de994f29786c464d3",
           "joinerSha256From": "6cdb9a603b4d436c12a61cef7f882a9b0dc99948b043f18e7fe22b9bf5137fcd",
@@ -306,6 +306,29 @@
           "materializedRootFrom": "/Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260824-v6",
           "materializedRootTo": "/Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260825-v9",
           "semantics": "only block-claim and host-load-sample may drain after the authoring terminal; every semantic or unregistered observation type still fails closed"
+        },
+        {
+          "date": "2026-08-25",
+          "reason": "dual-review hardening for next-campaign milestone attribution, disposition identity, and terminal telemetry custody",
+          "commits": ["c57b3cdf4"],
+          "sourceRevisionFrom": "09c46df751ab02e797a21c84bafb96e35591c55c",
+          "productionDriverSha256From": "61931aeca07f67b569127d75ae256b5cce372ce335dbde4530f8934303f10559",
+          "productionDriverSha256To": "81630e615e18b1a674d0f36a80456fe5fdbfa2d1e657db7c0ef4c1429c67ff0d",
+          "admissionToolSha256From": "b7b56f1b571bd05240002e5c68926a02507e09d4cfa67b0f5032842c9daa489d",
+          "admissionToolSha256To": "d05a4a7ca12c0012cf889e482b9c24e1089ef8d715d69d16cd74f8513ecaba5b",
+          "joinerSha256From": "03c61e6aceaf54ad7fb993666ca94aea5c493290f7a4e5a9744306b44ad5c3fb",
+          "joinerSha256To": "e7153635bda28090a57cf8075d60e652ae911881c37bf8d385e73a415b4e5532",
+          "observationsSha256From": "27b37159ae35a24ba458bca3cf2b29a8eead6e231031750a3f6360aa98d7cdd0",
+          "observationsSha256To": "e47988444970f56662cee5bf9181012091e18918fac38a0493a9b48665ee0a17",
+          "validatePlanSha256From": "e598cd89cd3f88dbe1336318e82112cb95c02e9d780a10ab267735366e812a57",
+          "validatePlanSha256To": "0305ee37ea888ab366ec51bd4ba0d9af4c6375b1f6d2599e519691adc47dabd0",
+          "meteringRootSha256From": "789dfcf036ff9dadb73d82591870a2a61945488410caed7e5fa76ab62061dc59",
+          "meteringRootSha256To": "ac4427fbb11cf24f52f45ece92c01d9586604850cf1c25e732afc9d83fb314a0",
+          "instrumentManifestSha256From": "1ae3e6fc5fe853e328053b01bfc339eb0231906c9a0b6cd511ec117d92eaa4fe",
+          "instrumentManifestSha256To": "1515e93d3f141b7dc87607e521b50c8dcfa8112b6050e4dd8950945abbaf2039",
+          "materializedRootFrom": "/Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260825-v9",
+          "materializedRootTo": "/Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260825-v10",
+          "semantics": "future milestones fail immediately on queued observation refusal; failure dispositions bind committed cell and attempt identity; terminal telemetry requires controller source and pre-finalization time"
         }
       ],
       "observabilityBump": {
