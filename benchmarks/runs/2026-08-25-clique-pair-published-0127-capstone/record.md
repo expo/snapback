@@ -83,11 +83,26 @@ contract, landed this round). The coded diagnostic named the exact remedy
 **Recovery: 10 minutes end to end** — diagnosis, adapter fix
 (authority-bound settlement acknowledgement batches), fresh attempt-2
 backend, starter base re-seeded green, replay resumed on a new attempt
-clock (epoch 1787677553); attempt 2 passed the attempt-1 failure point
-within minutes at ~17 actions/s, zero failures. Builder attribution:
-`agent-error` (honest — the ack contract is documented). Contrast target:
-the 0.1.25 baseline's scale phase consumed 11,314 s of babysitting across
-restart festivals.
+clock (epoch 1787677553). Builder attribution: `agent-error` (honest — the
+ack contract is documented).
+
+Attempt 2 then failed closed at 24,777 on the 10% checkpoint probe: the O5
+fixture caught real derived-state drift (`busyGroupMessageCount: 0` vs the
+accumulated expectation) — a genuine app bug found by the checkpoint
+contract, not a crash. After a ~35-minute diagnosis/fix loop the builder
+resumed from the settled prefix on a continuation clock.
+
+**Final outcome: SUCCEEDED — 167,157/167,157 applied, 0 failed**
+(receipt `replay-scale.log-1787678763876.json`: pass=true, rawWallMs
+10,085,127 ≈ 2:47:20 excluding 45 s of checkpoint probes; checkpoint
+prefixes 24,777 → 88,057 → 167,157). The final continuous run was fully
+unattended with zero failures. Total scale phase ≈ 3:18:28 wall INCLUDING
+both fail-closed defect discoveries and their fixes — versus the 0.1.25
+baseline's same 167,157-green outcome inside an 18,766 s continuous wall
+with 11,314 s of live babysitting. The replay machinery itself (durable
+mutations, batched acks, settled-prefix resume — this round's LLP 0307.000
+surface semantics) required zero interventions once the adapter honored
+the ack contract.
 
 ### Cell 2 — capstone-clique-familiar-sol-high
 
