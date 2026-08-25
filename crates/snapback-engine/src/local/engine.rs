@@ -3643,6 +3643,23 @@ pub struct ConsumedCapabilityLinkUse {
     ordinal: u64,
 }
 
+/// One linear Ask reservation bound to the exact prepared request turn that
+/// created it. Settlement derives its mode guard from this retained authority;
+/// an adapter cannot substitute a second turn beside the storage reservation.
+///
+/// @ref LLP 0303#corollary--the-artifact-must-carry-provenance-not-just-type —
+/// the carrier retains both its database-bound storage token and producing turn.
+pub struct AskSpendReservation {
+    storage: crate::storage::ask_spend::AskSpendReservation,
+    turn_authority: PreparedAuthority,
+}
+
+impl std::fmt::Debug for AskSpendReservation {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("AskSpendReservation(..)")
+    }
+}
+
 /// Durable scoped-token resolution plus its exact process-local fence. Both
 /// halves stay opaque so an adapter cannot synthesize `System` or substitute
 /// service identity strings at authority preparation.
@@ -7180,7 +7197,7 @@ impl LocalSnapback {
         subject: crate::storage::ask_spend::AskSpendSubject,
         budgets: &crate::manifest::ApiAskBudgets,
     ) -> SnapbackResult<(
-        crate::storage::ask_spend::AskSpendReservation,
+        AskSpendReservation,
         crate::storage::ask_spend::AskSpendFacts,
     )> {
         #[cfg(test)]
@@ -7190,7 +7207,17 @@ impl LocalSnapback {
         let _effect = authority.effect_guard("ask spend reservation transaction")?;
         #[cfg(test)]
         run_after_admission_effect_guard_hook(AdmissionEffectSite::AskSpendReservation);
-        self.db.reserve_ask_spend(now_ms, subject, budgets)
+        self.db
+            .reserve_ask_spend(now_ms, subject, budgets)
+            .map(|(storage, facts)| {
+                (
+                    AskSpendReservation {
+                        storage,
+                        turn_authority: authority.clone(),
+                    },
+                    facts,
+                )
+            })
     }
 
     pub fn reserve_ask_spend_with_authorized_effect(
@@ -7201,7 +7228,7 @@ impl LocalSnapback {
         budgets: &crate::manifest::ApiAskBudgets,
         authorized_effect: AuthorizedEffectReservation,
     ) -> SnapbackResult<(
-        crate::storage::ask_spend::AskSpendReservation,
+        AskSpendReservation,
         crate::storage::ask_spend::AskSpendFacts,
     )> {
         authority.validate_admission("ask spend reservation transaction")?;
@@ -7209,24 +7236,36 @@ impl LocalSnapback {
             .reserve_ask_spend_guarded(now_ms, subject, budgets, || {
                 authorized_effect.commit_guard("ask spend reservation transaction")
             })
+            .map(|(storage, facts)| {
+                (
+                    AskSpendReservation {
+                        storage,
+                        turn_authority: authority.clone(),
+                    },
+                    facts,
+                )
+            })
     }
 
     pub fn settle_ask_spend(
         &mut self,
-        authority: &PreparedAuthority,
-        reservation: &crate::storage::ask_spend::AskSpendReservation,
+        reservation: AskSpendReservation,
         actual_tokens: u64,
         actual_result_bytes: u64,
     ) -> SnapbackResult<crate::storage::ask_spend::AskSpendFacts> {
+        let AskSpendReservation {
+            storage,
+            turn_authority,
+        } = reservation;
         #[cfg(test)]
         run_before_admission_effect_guard_hook(AdmissionEffectSite::AskSpendSettlement);
         // @ref LLP 0058#gate-algorithm — provider completion remains the same
         // admitted API effect, so settlement commits inside its original epoch.
-        let _effect = authority.effect_guard("ask spend settlement transaction")?;
+        let _effect = turn_authority.effect_guard("ask spend settlement transaction")?;
         #[cfg(test)]
         run_after_admission_effect_guard_hook(AdmissionEffectSite::AskSpendSettlement);
         self.db
-            .settle_ask_spend(reservation, actual_tokens, actual_result_bytes)
+            .settle_ask_spend(storage, actual_tokens, actual_result_bytes)
     }
 
     pub fn declared_client_for_admission(

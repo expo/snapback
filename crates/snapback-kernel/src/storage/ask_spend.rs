@@ -11,7 +11,7 @@
 //! @ref LLP 0204#open-questions — OQ7 adds a per-request and per-principal-day
 //! result-volume ceiling, including caller-key billing.
 
-use super::{LocalDatabase, SnapbackResult};
+use super::{DatabaseBinding, LocalDatabase, SnapbackResult};
 use crate::contract_types::ApiAskBudgets;
 use crate::diagnostic::SnapbackError;
 use crate::manifest::SchemaManifest;
@@ -45,6 +45,7 @@ pub struct AskSpendSubject {
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct AskSpendReservation {
+    database_binding: DatabaseBinding,
     day: String,
     month: String,
     subject: AskSpendSubject,
@@ -243,6 +244,7 @@ impl LocalDatabase {
             })));
         }
         let (day, month) = utc_period_keys(now_ms);
+        let database_binding = DatabaseBinding(self.commit_authority_identity.clone());
         self.with_auth_transaction_guarded(
             |tx| {
                 ensure_row(tx, &day, "principal-day", &subject.principal_key)?;
@@ -331,6 +333,7 @@ impl LocalDatabase {
                 let facts = spend_facts_on(tx, &day, &month, &subject, integration_reserved)?;
                 Ok((
                     AskSpendReservation {
+                        database_binding,
                         day,
                         month,
                         subject,
@@ -347,10 +350,18 @@ impl LocalDatabase {
 
     pub fn settle_ask_spend(
         &mut self,
-        reservation: &AskSpendReservation,
+        reservation: AskSpendReservation,
         actual_tokens: u64,
         actual_result_bytes: u64,
     ) -> SnapbackResult<AskSpendFacts> {
+        // @ref LLP 0303#corollary--the-artifact-must-carry-provenance-not-just-type —
+        // settlement accepts only the linear reservation minted by this exact database.
+        if !reservation
+            .database_binding
+            .matches(&DatabaseBinding(self.commit_authority_identity.clone()))
+        {
+            return Err(reservation_mismatch());
+        }
         if actual_tokens > reservation.reserved_tokens
             || actual_result_bytes > reservation.reserved_result_bytes
         {
@@ -446,6 +457,14 @@ fn catalog_corrupt() -> SnapbackError {
     )
 }
 
+fn reservation_mismatch() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_API_ASK_SPEND_RESERVATION_INVALID",
+        "storage",
+        "the ask spend reservation belongs to another database",
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -501,7 +520,7 @@ mod tests {
             .reserve_ask_spend(0, subject.clone(), &budgets())
             .unwrap();
         assert_eq!(admitted.principal_day_tokens, 10);
-        let settled = db.settle_ask_spend(&first, 4, 25).unwrap();
+        let settled = db.settle_ask_spend(first, 4, 25).unwrap();
         assert_eq!(settled.principal_day_tokens, 4);
         assert_eq!(settled.principal_day_result_bytes, 25);
         let (_second, admitted) = db
@@ -531,7 +550,7 @@ mod tests {
         let (first, _) = db
             .reserve_ask_spend(0, first_subject.clone(), &limits)
             .unwrap();
-        db.settle_ask_spend(&first, 7, 0).unwrap();
+        db.settle_ask_spend(first, 7, 0).unwrap();
         let next_day = 86_400_000;
         let error = db
             .reserve_ask_spend(
@@ -555,6 +574,35 @@ mod tests {
             .reserve_ask_spend(next_day, first_subject, &limits)
             .unwrap();
         assert_eq!(facts.principal_day_tokens, limits.per_request.max_tokens);
+    }
+
+    #[test]
+    fn reservation_is_bound_to_the_exact_database() {
+        let mut first = LocalDatabase::memory().unwrap();
+        first.activate_current_auth_catalog().unwrap();
+        first.conn.execute_batch(TABLE_SQL).unwrap();
+        let mut second = LocalDatabase::memory().unwrap();
+        second.activate_current_auth_catalog().unwrap();
+        second.conn.execute_batch(TABLE_SQL).unwrap();
+        let subject = AskSpendSubject {
+            principal_key: "user-1".to_owned(),
+            integration_key: None,
+        };
+        let (first_reservation, _) = first
+            .reserve_ask_spend(0, subject.clone(), &budgets())
+            .unwrap();
+        let (second_reservation, _) = second.reserve_ask_spend(0, subject, &budgets()).unwrap();
+
+        let error = second
+            .settle_ask_spend(first_reservation, 0, 0)
+            .unwrap_err();
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_API_ASK_SPEND_RESERVATION_INVALID"
+        );
+        let settled = second.settle_ask_spend(second_reservation, 4, 25).unwrap();
+        assert_eq!(settled.principal_day_tokens, 4);
+        assert_eq!(settled.principal_day_result_bytes, 25);
     }
 }
 impl super::ServingDatabase {
@@ -581,7 +629,7 @@ impl super::ServingDatabase {
     }
     pub fn settle_ask_spend(
         &mut self,
-        reservation: &AskSpendReservation,
+        reservation: AskSpendReservation,
         actual_tokens: u64,
         actual_result_bytes: u64,
     ) -> SnapbackResult<AskSpendFacts> {

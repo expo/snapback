@@ -28239,18 +28239,16 @@ async fn invoke_ask_core(
             Some(initiator) => match start_ask_stream(state, authority, initiator).await {
                 Ok(attempt) => Some(attempt),
                 Err(error) => {
-                    let settlement_authority = authority.clone();
                     let _ = with_snapback(state, move |snapback| {
-                        snapback.settle_ask_spend(&settlement_authority, &reservation, 0, 0)
+                        snapback.settle_ask_spend(reservation, 0, 0)
                     })
                     .await;
                     return ApiError::from(error).into_response();
                 }
             },
             None => {
-                let settlement_authority = authority.clone();
                 let _ = with_snapback(state, move |snapback| {
-                    snapback.settle_ask_spend(&settlement_authority, &reservation, 0, 0)
+                    snapback.settle_ask_spend(reservation, 0, 0)
                 })
                 .await;
                 return ApiError::from(ask_authority_refusal()).into_response();
@@ -28276,14 +28274,8 @@ async fn invoke_ask_core(
     let actual_bytes = outcome
         .result_bytes
         .min(catalog.budgets.result_volume.max_bytes);
-    let settlement_authority = authority.clone();
     let settled = with_snapback(state, move |snapback| {
-        snapback.settle_ask_spend(
-            &settlement_authority,
-            &reservation,
-            actual_tokens,
-            actual_bytes,
-        )
+        snapback.settle_ask_spend(reservation, actual_tokens, actual_bytes)
     })
     .await;
     let spend = match settled {

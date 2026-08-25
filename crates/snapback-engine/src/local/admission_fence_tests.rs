@@ -1156,7 +1156,7 @@ fn ask_spend_settlement_refuses_retired_epoch_and_holds_the_guard_through_commit
     let fired = retire_at_next_effect(AdmissionEffectSite::AskSpendSettlement, controller.clone());
 
     let error = snapback
-        .settle_ask_spend(&authority, &reservation, 4, 25)
+        .settle_ask_spend(reservation, 4, 25)
         .expect_err("retired admission must refuse ask spend settlement");
 
     assert_retired_refusal(&error, &fired);
@@ -1174,7 +1174,7 @@ fn ask_spend_settlement_refuses_retired_epoch_and_holds_the_guard_through_commit
     let commit_observed =
         observe_guard_through_next_commit(AdmissionEffectSite::AskSpendSettlement, controller);
     let facts = snapback
-        .settle_ask_spend(&authority, &reservation, 4, 25)
+        .settle_ask_spend(reservation, 4, 25)
         .expect("live admission guard permits ask spend settlement");
     assert_eq!(
         facts.principal_day_tokens,
