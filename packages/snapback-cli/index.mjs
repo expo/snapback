@@ -5989,7 +5989,13 @@ export async function runDev(options = {}) {
   const backendRoot = resolve(options.backendDirectory ?? 'snapback');
   const projectRoot = resolve(options.projectRoot ?? dirname(backendRoot));
   const stateRoot = join(projectRoot, '.snapback');
-  mkdirSync(stateRoot, { recursive: true });
+  mkdirSync(stateRoot, { recursive: true, mode: 0o700 });
+  const stateRootMetadata = lstatSync(stateRoot);
+  if (stateRootMetadata.isDirectory()
+      && !stateRootMetadata.isSymbolicLink()
+      && (typeof process.getuid !== 'function' || stateRootMetadata.uid === process.getuid())) {
+    chmodSync(stateRoot, 0o700);
+  }
   const readyFile = resolve(options.readyFile ?? join(stateRoot, 'dev.ready.json'));
   const applicationReadyFile = resolve(
     options.applicationReadyFile ?? `${readyFile}.application-ready`,
@@ -7101,7 +7107,7 @@ export function attachDevControlChannel({ verbs, stop, onEvent, stdin = process.
     diagnostics: [{ code, severity: 'error', subsystem: 'cli', message, ...(details ? { details } : {}) }],
   });
   const invoke = (verb, context) => {
-    Promise.resolve(verbs[verb](context)).catch((error) => {
+    Promise.resolve().then(() => verbs[verb](context)).catch((error) => {
       commandError(error.code ?? 'SNAPBACK_DEV_COMMAND_FAILED', `dev verb ${verb} failed: ${error.message}`, { verb });
     });
   };

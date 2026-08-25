@@ -7,6 +7,10 @@
 **Date:** 2026-08-08
 **Revised:** 2026-08-25 (Active: linked into `llp/foundation/` as part of the
 LLP v2 larger kernel)
+**Revised:** 2026-08-25 (owner-bound Expo dev-control socket, owner marker,
+pathname coordination markers, and private pending paths are explicitly
+InstanceLocal: transient, never copied/exported, and crash-cleaned or
+successor-reclaimed under their identity predicates)
 **Revised:** 2026-08-21 (the packaged `dev-fresh` reset now requires the
 canonical CLI-owned managed-store path, validates the database before deleting
 anything, and refuses shared-directory or symlink ambiguity)
@@ -110,6 +114,17 @@ reservation one directory up, `<db>.telemetry{,-wal,-shm,-journal}`,
 (`<ready>.admin-token`, `<ready>.secret-read-root`, `<ready>.impersonation`).
 Telemetry is deliberately local observability history, not store state; the
 copy declares the exclusion instead of pretending the history moved.
+
+The owner-bound Expo dev-control artifacts in the ready-file directory are
+also `InstanceLocal` and never enter `store export` or any database copy:
+
+| Member (default ready directory is `.snapback/`) | Transient disposition |
+| --- | --- |
+| `.snapback/dev-control.sock` | Never copied/exported. Ordinary shutdown or the detached reaper removes only the exact leased inode/incarnation; a successor may reclaim a same-UID endpoint only after its separate bounded dead-endpoint predicate. |
+| `dev-control.owner.json` | Never copied/exported. The reaper removes only the exact leased owner marker; a crash-before-publication may leave it absent or corrupt without making the dead socket durable authority. |
+| `.dc-lock` | Never copied/exported. Released by the pathname-lock holder; a dead PID/start-time holder is successor-reclaimable only after the bounded stale age. |
+| `.dc-reclaim` | Never copied/exported. Serializes stale-lock replacement; a dead PID/start-time reclaimer is itself successor-reclaimable after the same bounded stale age. |
+| `.dc-*` | Never copied/exported. Random private socket paths are reserved before bind and reaper-cleaned when their reservation owner dies; atomic lock/reclaim replacement markers are removed on completion or recovered through the same marker discipline. |
 
 **`Refuse`** — `<dir>/.<db>.in-app-branches-v1/` when non-empty (managed
 branch workspaces hold `.immutable-base` snapshots that cannot be rebuilt from

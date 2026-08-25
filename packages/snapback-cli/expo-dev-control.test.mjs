@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { EventEmitter } from 'node:events';
 import {
+  chmodSync,
   existsSync,
   lstatSync,
   mkdirSync,
@@ -24,15 +26,17 @@ import {
   CLEANUP_LEASE_DIRECTORY_ENV,
   closeCarrierCleanupLease,
   createCarrierCleanupLease,
+  withCleanupPathLock,
 } from './process-teardown.mjs';
 
 const packageRoot = dirname(fileURLToPath(import.meta.url));
 const scratchRoot = mkdtempSync(join(tmpdir(), 'sbctl-unit-'));
 const holderScript = join(scratchRoot, 'holder.mjs');
+const pathLockScript = join(scratchRoot, 'path-lock-holder.mjs');
 const holders = new Set();
 
 writeFileSync(holderScript, `
-import { startDevControlSocket } from ${JSON.stringify(pathToFileURL(join(packageRoot, 'expo-dev.mjs')).href)};
+import { __test, startDevControlSocket } from ${JSON.stringify(pathToFileURL(join(packageRoot, 'expo-dev.mjs')).href)};
 import { openCarrierCleanupLease } from ${JSON.stringify(pathToFileURL(join(packageRoot, 'process-teardown.mjs')).href)};
 
 const readyFile = process.argv[2];
@@ -41,7 +45,7 @@ const startedAt = new Date().toISOString();
 const cleanupLease = process.env.SNAPBACK_CARRIER_CLEANUP_LEASE_DIRECTORY
   ? openCarrierCleanupLease(process.env)
   : null;
-const control = await startDevControlSocket({
+const options = {
   readyFile,
   ownerIncarnationId,
   ownerStartTime: 'unit-holder-start',
@@ -51,9 +55,36 @@ const control = await startDevControlSocket({
     'reload-metro': async () => ({ ok: true }),
     'stop-children': async () => ({ ok: true }),
   },
-});
+};
+const control = process.env.SNAPBACK_TEST_STALL_PENDING_SOCKET === '1'
+  ? await __test.startDevControlSocketWithDependencies(options, {
+      async afterPendingListen(details) {
+        process.stdout.write(JSON.stringify({ state: 'pending-listened', ...details }) + '\\n');
+        await new Promise(() => {});
+      },
+    })
+  : await startDevControlSocket(options);
 process.stdout.write(JSON.stringify({ startedAt, descriptor: control.descriptor }) + '\\n');
 setInterval(() => {}, 60_000);
+`);
+
+writeFileSync(pathLockScript, `
+import { withCleanupPathLock } from ${JSON.stringify(pathToFileURL(join(packageRoot, 'process-teardown.mjs')).href)};
+
+const endpointPath = process.argv[2];
+const mode = process.argv[3];
+await withCleanupPathLock(endpointPath, async () => {
+  process.stdout.write(JSON.stringify({ state: 'lock-acquired' }) + '\\n');
+  await new Promise(() => {});
+}, {
+  timeoutMs: 10_000,
+  ...(mode === 'die-while-reclaiming' ? {
+    async afterReclaimMarkerAcquired() {
+      process.stdout.write(JSON.stringify({ state: 'reclaim-marker-acquired' }) + '\\n');
+      await new Promise(() => {});
+    },
+  } : {}),
+});
 `);
 
 async function eventually(check, { timeoutMs = 10_000, label = 'condition' } = {}) {
@@ -113,12 +144,61 @@ async function startHolder(root, ownerIncarnationId, cleanupLease = null) {
   return { child, ...published };
 }
 
+async function startPendingSocketHolder(root, ownerIncarnationId, cleanupLease) {
+  const child = spawn(process.execPath, [holderScript, join(root, 'dev.ready.json'), ownerIncarnationId], {
+    env: {
+      ...process.env,
+      [CLEANUP_LEASE_DIRECTORY_ENV]: cleanupLease.directory,
+      SNAPBACK_TEST_STALL_PENDING_SOCKET: '1',
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  holders.add(child);
+  let stdout = '';
+  let stderr = '';
+  child.stdout.setEncoding('utf8');
+  child.stderr.setEncoding('utf8');
+  child.stdout.on('data', (chunk) => { stdout += chunk; });
+  child.stderr.on('data', (chunk) => { stderr += chunk; });
+  const barrier = await eventually(() => {
+    const newline = stdout.indexOf('\n');
+    if (newline !== -1) return JSON.parse(stdout.slice(0, newline));
+    if (child.exitCode !== null || child.signalCode !== null) {
+      throw new Error(`pending-socket holder exited before its barrier: ${stderr || stdout}`);
+    }
+    return false;
+  }, { label: 'pending-socket bind barrier' });
+  return { child, barrier };
+}
+
 async function killHolder(holder) {
   if (holder.child.exitCode !== null || holder.child.signalCode !== null) return;
   const exited = new Promise((resolveExit) => holder.child.once('exit', resolveExit));
   holder.child.kill('SIGKILL');
   await exited;
   holders.delete(holder.child);
+}
+
+async function startPathLockActor(endpointPath, mode) {
+  const child = spawn(process.execPath, [pathLockScript, endpointPath, mode], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  holders.add(child);
+  let stdout = '';
+  let stderr = '';
+  child.stdout.setEncoding('utf8');
+  child.stderr.setEncoding('utf8');
+  child.stdout.on('data', (chunk) => { stdout += chunk; });
+  child.stderr.on('data', (chunk) => { stderr += chunk; });
+  const ready = await eventually(() => {
+    const newline = stdout.indexOf('\n');
+    if (newline !== -1) return JSON.parse(stdout.slice(0, newline));
+    if (child.exitCode !== null || child.signalCode !== null) {
+      throw new Error(`path-lock actor exited before its barrier: ${stderr || stdout}`);
+    }
+    return false;
+  }, { label: `${mode} path-lock barrier` });
+  return { child, ready };
 }
 
 function publishSupervisorDescriptor(root, holder) {
@@ -193,7 +273,8 @@ function deferred() {
 try {
   const makeRoot = (name) => {
     const root = join(scratchRoot, name);
-    mkdirSync(root);
+    mkdirSync(root, { mode: 0o700 });
+    chmodSync(root, 0o700);
     return root;
   };
   const packageManifest = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8'));
@@ -223,6 +304,23 @@ try {
   assert.equal(existsSync(join(uidlessRoot, 'dev-control.sock')), false);
   console.log('uid custody unavailable: stdin-only fallback remains live');
 
+  let configuredProbeTimeout = null;
+  const stalledProbeSocket = new EventEmitter();
+  stalledProbeSocket.destroy = () => {};
+  stalledProbeSocket.setTimeout = (timeoutMs, onTimeout) => {
+    configuredProbeTimeout = timeoutMs;
+    setImmediate(onTimeout);
+  };
+  await assert.rejects(
+    () => expoDevTest.probeDevControlEndpoint('/unit/stalled-control.sock', {
+      timeoutMs: 37,
+      connect: () => stalledProbeSocket,
+    }),
+    (error) => error?.code === 'ETIMEDOUT',
+  );
+  assert.equal(configuredProbeTimeout, 37);
+  console.log('occupied endpoint probe: socket timeout fails closed as not proven dead');
+
   const unpublishedRoot = makeRoot('p');
   const unpublishedHolder = await startHolder(unpublishedRoot, 'unit-unpublished-owner');
   const unpublishedEndpoint = { ...unpublishedHolder.descriptor.endpoint };
@@ -232,7 +330,10 @@ try {
   assert.equal(unpublishedOwnerStateMetadata.mode & 0o777, 0o600);
   assert.equal(unpublishedOwnerState.phase, 'bound');
   assert.equal(unpublishedOwnerState.ownerIncarnationId, 'unit-unpublished-owner');
-  assert.deepEqual(unpublishedOwnerState.endpoint, unpublishedEndpoint);
+  assert.deepEqual(unpublishedOwnerState.endpoint, {
+    ...unpublishedEndpoint,
+    ownerIncarnationId: 'unit-unpublished-owner',
+  });
   assert.equal(unpublishedOwnerState.path, unpublishedHolder.descriptor.path);
   await killHolder(unpublishedHolder);
   assert.equal(
@@ -256,7 +357,75 @@ try {
   const relaunched = await startDevControlSocket(testOptions(staleRoot, 'unit-successor-owner'));
   assert.notEqual(relaunched.descriptor.endpoint.inode, staleEndpoint.inode);
   await relaunched.close();
-  console.log('dead same-uid endpoint: exact stale inode/incarnation reclaimed and rebound');
+  console.log('dead same-uid endpoint: matching owner record reclaimed and rebound');
+
+  const missingRecordRoot = makeRoot('m');
+  const missingRecordHolder = await startHolder(missingRecordRoot, 'unit-missing-record-owner');
+  await killHolder(missingRecordHolder);
+  rmSync(join(missingRecordRoot, 'dev-control.owner.json'));
+  const missingRecordSuccessor = await startDevControlSocket(
+    testOptions(missingRecordRoot, 'unit-missing-record-successor'),
+  );
+  await missingRecordSuccessor.close();
+  console.log('dead same-uid endpoint: absent owner record remains reclaimable');
+
+  const corruptRecordRoot = makeRoot('o');
+  const corruptRecordHolder = await startHolder(corruptRecordRoot, 'unit-corrupt-record-owner');
+  await killHolder(corruptRecordHolder);
+  writeFileSync(join(corruptRecordRoot, 'dev-control.owner.json'), '{not-json\n', { mode: 0o600 });
+  const corruptRecordSuccessor = await startDevControlSocket(
+    testOptions(corruptRecordRoot, 'unit-corrupt-record-successor'),
+  );
+  await corruptRecordSuccessor.close();
+  console.log('dead same-uid endpoint: corrupt owner record remains reclaimable');
+
+  const mismatchRecordRoot = makeRoot('d');
+  const mismatchRecordHolder = await startHolder(mismatchRecordRoot, 'unit-mismatch-record-owner');
+  await killHolder(mismatchRecordHolder);
+  const mismatchRecordPath = join(mismatchRecordRoot, 'dev-control.owner.json');
+  const mismatchedRecord = JSON.parse(readFileSync(mismatchRecordPath, 'utf8'));
+  mismatchedRecord.endpoint.inode = `${mismatchedRecord.endpoint.inode}-different`;
+  writeFileSync(mismatchRecordPath, `${JSON.stringify(mismatchedRecord, null, 2)}\n`, { mode: 0o600 });
+  let mismatchedRecordError = null;
+  let mismatchedRecordControl = null;
+  try {
+    mismatchedRecordControl = await startDevControlSocket(
+      testOptions(mismatchRecordRoot, 'unit-mismatch-record-successor'),
+    );
+  } catch (error) {
+    mismatchedRecordError = error;
+  }
+  if (mismatchedRecordControl !== null) await mismatchedRecordControl.close();
+  assert.equal(
+    mismatchedRecordError?.diagnostic?.code,
+    'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
+    'a valid owner record naming another inode/incarnation must refuse reclamation',
+  );
+  rmSync(mismatchRecordHolder.descriptor.path, { force: true });
+  console.log('dead same-uid endpoint: mismatched valid owner record refuses reclamation');
+
+  const mismatchIncarnationRoot = makeRoot('i');
+  const mismatchIncarnationHolder = await startHolder(
+    mismatchIncarnationRoot,
+    'unit-mismatch-incarnation-owner',
+  );
+  await killHolder(mismatchIncarnationHolder);
+  const mismatchIncarnationPath = join(mismatchIncarnationRoot, 'dev-control.owner.json');
+  const mismatchedIncarnation = JSON.parse(readFileSync(mismatchIncarnationPath, 'utf8'));
+  mismatchedIncarnation.endpoint.ownerIncarnationId = 'unit-different-incarnation';
+  writeFileSync(
+    mismatchIncarnationPath,
+    `${JSON.stringify(mismatchedIncarnation, null, 2)}\n`,
+    { mode: 0o600 },
+  );
+  await assertRefusal(
+    () => startDevControlSocket(
+      testOptions(mismatchIncarnationRoot, 'unit-mismatch-incarnation-successor'),
+    ),
+    'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
+  );
+  rmSync(mismatchIncarnationHolder.descriptor.path, { force: true });
+  console.log('dead same-uid endpoint: mismatched valid owner incarnation refuses reclamation');
 
   const contenderRoot = makeRoot('q');
   const contenderHolder = await startHolder(contenderRoot, 'unit-contender-stale');
@@ -298,6 +467,29 @@ try {
   assert.equal(existsSync(contenderWinner.value.descriptor.path), true);
   await contenderWinner.value.close();
   console.log('two reclaimers: shared lock serializes recheck, unlink, and successor bind');
+
+  const lockRecoveryRoot = makeRoot('locks');
+  const lockRecoveryEndpoint = join(lockRecoveryRoot, 'dev-control.sock');
+  const deadLockHolder = await startPathLockActor(lockRecoveryEndpoint, 'hold-lock');
+  assert.equal(deadLockHolder.ready.state, 'lock-acquired');
+  await killHolder(deadLockHolder);
+  assert.equal(existsSync(join(lockRecoveryRoot, '.dc-lock')), true);
+  const deadReclaimer = await startPathLockActor(lockRecoveryEndpoint, 'die-while-reclaiming');
+  assert.equal(
+    deadReclaimer.ready.state,
+    'reclaim-marker-acquired',
+    'fault injection must stop after .dc-reclaim publication and before stale-lock replacement',
+  );
+  await killHolder(deadReclaimer);
+  assert.equal(existsSync(join(lockRecoveryRoot, '.dc-reclaim')), true);
+  let successorAcquired = false;
+  await withCleanupPathLock(lockRecoveryEndpoint, async () => {
+    successorAcquired = true;
+  }, { timeoutMs: 5_000 });
+  assert.equal(successorAcquired, true);
+  assert.equal(existsSync(join(lockRecoveryRoot, '.dc-lock')), false);
+  assert.equal(existsSync(join(lockRecoveryRoot, '.dc-reclaim')), false);
+  console.log('coordination markers: successor recovers after reclaimer SIGKILL');
 
   const reaperRaceRoot = makeRoot('x');
   const reaperRaceHolder = await startHolder(reaperRaceRoot, 'unit-reaper-stale');
@@ -382,6 +574,26 @@ try {
   rmSync(uidHolder.descriptor.path, { force: true });
   console.log('simulated other-uid endpoint: custody refusal precedes adoption');
 
+  const looseDirectoryRoot = makeRoot('modes');
+  chmodSync(looseDirectoryRoot, 0o755);
+  let looseDirectoryError = null;
+  let looseDirectoryControl = null;
+  try {
+    looseDirectoryControl = await startDevControlSocket(
+      testOptions(looseDirectoryRoot, 'unit-loose-directory-owner'),
+    );
+  } catch (error) {
+    looseDirectoryError = error;
+  }
+  if (looseDirectoryControl !== null) await looseDirectoryControl.close();
+  assert.equal(
+    looseDirectoryError?.diagnostic?.code,
+    'SNAPBACK_DEV_CONTROL_OTHER_UID',
+    'the socket state directory must deny all group/other search permissions',
+  );
+  chmodSync(looseDirectoryRoot, 0o700);
+  console.log('state directory: group/other permission bits refuse endpoint publication');
+
   const connectionRoot = makeRoot('c');
   const connectionControl = await startDevControlSocket(testOptions(
     connectionRoot,
@@ -436,6 +648,32 @@ try {
     await closeCarrierCleanupLease(cleanupLease);
   }
   console.log('cleanup lease: owner death reaps the exact socket inode');
+
+  const pendingLeaseRoot = makeRoot('pending');
+  const pendingCleanupLease = await createCarrierCleanupLease();
+  try {
+    const pendingHolder = await startPendingSocketHolder(
+      pendingLeaseRoot,
+      'unit-pending-owner',
+      pendingCleanupLease,
+    );
+    assert.equal(
+      pendingHolder.barrier.state,
+      'pending-listened',
+      'fault injection must stop after listen and before pending socket activation',
+    );
+    assert.equal(existsSync(pendingHolder.barrier.pendingPath), true);
+    assert.equal(existsSync(pendingHolder.barrier.ownerStatePath), true);
+    await killHolder(pendingHolder);
+    await eventually(
+      () => !existsSync(pendingHolder.barrier.pendingPath)
+        && !existsSync(pendingHolder.barrier.ownerStatePath),
+      { label: 'reserved pending socket and owner marker reap after owner SIGKILL' },
+    );
+  } finally {
+    await closeCarrierCleanupLease(pendingCleanupLease);
+  }
+  console.log('cleanup lease: bind-to-activation owner death reaps reserved pending socket and marker');
 } finally {
   await Promise.all([...holders].map(async (child) => {
     if (child.exitCode !== null || child.signalCode !== null) return;

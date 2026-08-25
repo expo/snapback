@@ -680,6 +680,7 @@ async function sendControlCommand(controlSocket, command) {
 
 async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
   assertStdinReload = false,
+  assertConcurrentStdinSocketReload = false,
   failMetroReload = false,
 } = {}) {
   const cli = join(packageRoot, 'cli.mjs');
@@ -713,7 +714,7 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
         SNAPBACK_EXPO_TEST_METRO_FAIL_AFTER_FIRST: '1',
       } : {}),
     },
-    stdio: [assertStdinReload ? 'pipe' : 'ignore', 'pipe', 'pipe'],
+    stdio: [assertStdinReload || assertConcurrentStdinSocketReload ? 'pipe' : 'ignore', 'pipe', 'pipe'],
   });
   cliChildren.push(child);
   child.stdout.setEncoding('utf8');
@@ -807,9 +808,12 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
   assert.equal(unknown[0].diagnostics[0].code, 'SNAPBACK_DEV_COMMAND_UNKNOWN_VERB');
 
   const metroPidBefore = supervisorDescriptor.metro.pid;
-  const reloadOperation = openControlCommand(
+  const intermediateMetroPids = [];
+  let reloadRequestId = 'reload-1';
+  let reloadPreviousPid = metroPidBefore;
+  let reloadOperation = openControlCommand(
     controlSocket,
-    controlCommand(controlSocket, 'reload-metro', 'reload-1'),
+    controlCommand(controlSocket, 'reload-metro', reloadRequestId),
   );
   await reloadOperation.acknowledged;
   if (failMetroReload) {
@@ -834,6 +838,38 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
     return { events, readyEvent, listenerEvent, bearer: exchange.authority.token };
   }
 
+  if (assertConcurrentStdinSocketReload) {
+    child.stdin.write(`${JSON.stringify({
+      schemaVersion: 'snapback.dev-command.v1',
+      verb: 'reload-metro',
+      requestId: 'stdin-metro-reload-1',
+    })}\n`);
+    const firstSocketReload = await reloadOperation.completion;
+    assert.equal(firstSocketReload[1].ok, true, JSON.stringify(firstSocketReload));
+    const stdinMetroReload = await eventually(
+      () => events.find((event) => (
+        event.verb === 'reload-metro'
+        && event.requestId === 'stdin-metro-reload-1'
+        && ['metro-reloaded', 'metro-reload-failed'].includes(event.state)
+      )),
+      { label: 'concurrent stdin reload-metro result' },
+    );
+    assert.equal(stdinMetroReload.ok, true, JSON.stringify(stdinMetroReload));
+    assert.equal(
+      stdinMetroReload.previousPid,
+      firstSocketReload[1].result.pid,
+      'stdin reload-metro must begin after the socket reload settles on the shared control lane',
+    );
+    intermediateMetroPids.push(firstSocketReload[1].result.pid);
+    reloadPreviousPid = stdinMetroReload.pid;
+    reloadRequestId = 'reload-stop-overlap';
+    reloadOperation = openControlCommand(
+      controlSocket,
+      controlCommand(controlSocket, 'reload-metro', reloadRequestId),
+    );
+    await reloadOperation.acknowledged;
+  }
+
   const stopOperation = openControlCommand(
     controlSocket,
     controlCommand(controlSocket, 'stop-children', 'stop-1'),
@@ -855,21 +891,21 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
       {
         schemaVersion: 'snapback.dev-control-ack.v1',
         state: 'acknowledged',
-        requestId: 'reload-1',
+        requestId: reloadRequestId,
         verb: 'reload-metro',
       },
       {
         schemaVersion: 'snapback.dev-control-result.v1',
         state: 'result',
-        requestId: 'reload-1',
+        requestId: reloadRequestId,
         verb: 'reload-metro',
       },
     ],
   );
   assert.equal(reload[1].ok, true);
   assert.equal(reload[1].result.state, 'metro-reloaded');
-  assert.equal(reload[1].result.previousPid, metroPidBefore);
-  assert.notEqual(reload[1].result.pid, metroPidBefore);
+  assert.equal(reload[1].result.previousPid, reloadPreviousPid);
+  assert.notEqual(reload[1].result.pid, reloadPreviousPid);
   assert.equal(stop[0].state, 'acknowledged');
   assert.equal(stop[0].requestId, 'stop-1');
   assert.equal(stop[1].state, 'result');
@@ -889,8 +925,9 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
   assert(events.some((event) => event.schemaVersion === 'snapback.expo-dev.v1'
     && event.state === 'closed'));
   assert.equal(existsSync(controlSocket.path), false);
-  await eventually(() => !processGroupAlive(metroPidBefore), { label: 'pre-reload Metro cleanup' });
-  await eventually(() => !processGroupAlive(reload[1].result.pid), { label: 'replacement Metro cleanup' });
+  for (const pid of [metroPidBefore, ...intermediateMetroPids, reloadPreviousPid, reload[1].result.pid]) {
+    await eventually(() => !processGroupAlive(pid), { label: `Metro cleanup for pid ${pid}` });
+  }
   const metroProcessPort = Number(new URL(readyEvent.metro.upstreamOrigin).port);
   const portProbe = createNetServer();
   await new Promise((resolveListen, rejectListen) => {
@@ -938,7 +975,7 @@ async function runControlSocketSuite() {
   try {
     const controlRun = await runCliSupervisor(controlFixture, 'web', [
       '--port-range', `${controlRange.lo}-${controlRange.hi}`,
-    ]);
+    ], { assertConcurrentStdinSocketReload: true });
     assert.equal(controlRun.readyEvent.platform, 'web');
     const failureFixture = fixture('failure-app', { sessions: true, root: controlRoot });
     const failureRange = await reserveFreeRange(8);

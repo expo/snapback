@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import {
+  chmodSync,
   createWriteStream,
   existsSync,
   lstatSync,
@@ -1579,7 +1580,13 @@ export async function runTemplateCarrierCli(configValue, argv, options = {}) {
   if (!carrier) throw new Error(`template does not support carrier ${parsed.carrier}`);
   const root = resolve(options.root ?? process.cwd());
   const artifacts = resolve(root, parsed.artifacts ?? join(config.artifactsDirectory, parsed.carrier));
-  mkdirSync(artifacts, { recursive: true });
+  mkdirSync(artifacts, { recursive: true, mode: 0o700 });
+  const artifactMetadata = lstatSync(artifacts);
+  if (artifactMetadata.isDirectory()
+      && !artifactMetadata.isSymbolicLink()
+      && (typeof process.getuid !== 'function' || artifactMetadata.uid === process.getuid())) {
+    chmodSync(artifacts, 0o700);
+  }
   const verifyReceipt = verifyScaffold(config, root);
   let directorLog;
   if (parsed.carrier === 'headless') {

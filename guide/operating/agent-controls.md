@@ -92,11 +92,14 @@ the `controlSocket` field in `.snapback/expo-supervisor.json` or the final
 `snapback.expo-dev.v1` readiness event. Do not guess a path or signal a process
 by name.
 
-The socket is mode `0600`, owned by the supervisor UID, and registered with
-the instance cleanup lease so ordinary shutdown and owner death remove its
-exact inode. The filesystem mode is the kernel-enforced client gate. The UID
-repeated in command JSON is an advisory descriptor-consistency check, not a
-peer-credential check and not a substitute for mode `0600`.
+The state directory must be a same-UID real directory with no group/other
+permission bits (normally mode `0700`); the default dev loop creates or repairs
+`.snapback/` to that posture. The descriptor is mode `0600`, and the socket is
+also requested and checked as `0600`, but Darwin may not enforce AF_UNIX inode
+mode bits. Directory search permission plus the owner-only descriptor is the
+cross-UID kernel gate. The UID repeated in command JSON is an advisory
+descriptor-consistency check, not a peer-credential check. The instance cleanup
+lease removes the exact socket inode on ordinary shutdown or owner death.
 
 This is transient instance-local state: do not copy it with the database or
 treat a leftover endpoint as durable owner authority. Each request must repeat
@@ -110,12 +113,13 @@ the descriptor's `ownerPid`, `ownerUid`, `ownerIncarnationId`, and
 One connection carries one newline-delimited request. A valid verb first
 returns `snapback.dev-control-ack.v1` with the same request id, then a
 `snapback.dev-control-result.v1` after the operation settles. All acknowledged
-verbs share one serialized lane. Once `stop-children` is acknowledged, new
-work refuses with `SNAPBACK_DEV_CONTROL_STOPPING`; every earlier acknowledged
-request is allowed to send its result before the endpoint closes. Wait for the
-result before claiming the operation took effect. A client that reaches EOF
-before its newline, or stays incomplete for five seconds, is closed without
-retaining a half-open connection.
+socket verbs and packaged-stdin `reload-metro` requests share one serialized
+lane. Once `stop-children` is acknowledged, new work on either channel refuses
+with `SNAPBACK_DEV_CONTROL_STOPPING`; every earlier acknowledged request is
+allowed to send its result before the endpoint closes. Wait for the result
+before claiming the operation took effect. A client that reaches EOF before
+its newline, or stays incomplete for five seconds, is closed without retaining
+a half-open connection.
 
 The socket's closed verb set is:
 
@@ -128,11 +132,18 @@ An endpoint or request naming another UID, owner incarnation, or lifecycle
 receipt refuses with `SNAPBACK_DEV_CONTROL_OTHER_UID`,
 `SNAPBACK_DEV_CONTROL_FOREIGN_OWNER`, or
 `SNAPBACK_DEV_CONTROL_STALE_INCARNATION`. A live listener is always a foreign
-owner. On relaunch, the lifecycle owner itself may reclaim a dead leftover
-only when connecting returns `ECONNREFUSED`, the inode is same-UID and
-unchanged, and the prior supervisor descriptor binds that exact inode and
-incarnation. That owner recovery is not client authority. A client must never
-unlink or replace an endpoint to bypass a refusal.
+owner. On relaunch, the lifecycle owner itself may reclaim a leftover only
+under the state-directory lock when all of these hold: the endpoint is
+same-UID; a bounded `connect()` probe returns `ECONNREFUSED` (timeout or any
+other result is “not proven dead”); and the inode remains unchanged throughout
+the check. The persisted `dev-control.owner.json` may be absent or
+unreadable/corrupt (including a crash before publication); otherwise a present,
+valid record must bind that exact inode and a self-consistent owner incarnation.
+A valid record naming another inode or incarnation refuses as foreign. This
+owner recovery is not client authority. The detached reaper uses a separate,
+stricter deletion predicate: its cleanup lease must match the exact socket
+inode and incarnation. A client must never unlink or replace an endpoint to
+bypass a refusal.
 
 Interactive humans keep the existing stdin channel: TTY keys remain
 `s`/`r`/`R`/`f`/`q`, and non-TTY

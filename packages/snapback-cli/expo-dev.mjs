@@ -226,9 +226,12 @@ function sameControlEndpoint(left, right) {
     && left.inode === right.inode;
 }
 
-function probeDevControlEndpoint(path) {
+function probeDevControlEndpoint(path, {
+  timeoutMs = 500,
+  connect = createNetConnection,
+} = {}) {
   return new Promise((resolveProbe, rejectProbe) => {
-    const socket = createNetConnection(path);
+    const socket = connect(path);
     let settled = false;
     const finish = (outcome, error = null) => {
       if (settled) return;
@@ -237,6 +240,10 @@ function probeDevControlEndpoint(path) {
       if (error === null) resolveProbe(outcome);
       else rejectProbe(error);
     };
+    socket.setTimeout(timeoutMs, () => finish(null, Object.assign(
+      new Error(`timed out probing occupied dev control endpoint ${path}`),
+      { code: 'ETIMEDOUT' },
+    )));
     socket.once('connect', () => finish('live'));
     socket.once('error', (error) => {
       if (error?.code === 'ECONNREFUSED') finish('dead');
@@ -245,8 +252,68 @@ function probeDevControlEndpoint(path) {
   });
 }
 
+function validControlOwnerState(state, path) {
+  return state?.schemaVersion === DEV_CONTROL_OWNER_STATE_FORMAT
+    && ['binding', 'bound'].includes(state.phase)
+    && state.path === path
+    && Number.isSafeInteger(state.ownerPid)
+    && Number.isSafeInteger(state.ownerUid)
+    && typeof state.ownerIncarnationId === 'string'
+    && state.ownerIncarnationId.length > 0
+    && typeof state.ownerStartTime === 'string'
+    && typeof state.lifecycleReceipt === 'string'
+    && typeof state.startedAt === 'string'
+    && (state.endpoint === null || (
+      typeof state.endpoint === 'object'
+      && typeof state.endpoint.device === 'string'
+      && typeof state.endpoint.inode === 'string'
+      && Number.isSafeInteger(state.endpoint.uid)
+      && typeof state.endpoint.ownerIncarnationId === 'string'
+      && state.endpoint.ownerIncarnationId.length > 0
+    ));
+}
+
+function readControlOwnerState(path, endpointPath) {
+  try {
+    const before = lstatSync(path);
+    if (!before.isFile() || before.isSymbolicLink()) return Object.freeze({ status: 'corrupt' });
+    const state = JSON.parse(readFileSync(path, 'utf8'));
+    const after = lstatSync(path);
+    if (before.dev !== after.dev || before.ino !== after.ino) {
+      return Object.freeze({ status: 'corrupt' });
+    }
+    return validControlOwnerState(state, endpointPath)
+      ? Object.freeze({ status: 'valid', state })
+      : Object.freeze({ status: 'corrupt' });
+  } catch (error) {
+    return Object.freeze({ status: error?.code === 'ENOENT' ? 'absent' : 'corrupt' });
+  }
+}
+
+function assertControlOwnerStateAllowsReclaim(ownerStatePath, path, endpoint) {
+  const ownerState = readControlOwnerState(ownerStatePath, path);
+  if (ownerState.status !== 'valid') return;
+  const { state } = ownerState;
+  if (state.phase === 'bound'
+      && state.ownerUid === endpoint.uid
+      && state.endpoint !== null
+      && state.endpoint.ownerIncarnationId === state.ownerIncarnationId
+      && sameControlEndpoint(state.endpoint, endpoint)) return;
+  throw diagnosticError(
+    'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
+    'the persisted dev control owner record names a different endpoint or incarnation',
+    {
+      path,
+      ownerStatePath,
+      observedOwnerIncarnationId: state.ownerIncarnationId,
+      observedEndpoint: state.endpoint,
+    },
+  );
+}
+
 async function reclaimDeadControlEndpoint({
   path,
+  ownerStatePath,
   ownerUid,
   observeEndpoint,
   probeEndpoint,
@@ -276,13 +343,21 @@ async function reclaimDeadControlEndpoint({
       { path, cause: error?.code ?? error?.message ?? String(error) },
     );
   }
-  if (occupancy === 'live') {
+  if (occupancy !== 'dead') {
     throw diagnosticError(
       'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
-      'the dev control socket path is already occupied by another endpoint',
-      { path, expectedUid: ownerUid, observedUid: endpoint.uid },
+      occupancy === 'live'
+        ? 'the dev control socket path is already occupied by another endpoint'
+        : 'the occupied dev control endpoint could not be proven dead',
+      {
+        path,
+        expectedUid: ownerUid,
+        observedUid: endpoint.uid,
+        ...(occupancy === 'live' ? {} : { probeOutcome: occupancy ?? null }),
+      },
     );
   }
+  assertControlOwnerStateAllowsReclaim(ownerStatePath, path, endpoint);
   let current;
   try {
     current = observeEndpoint(path);
@@ -311,6 +386,7 @@ async function reclaimDeadControlEndpoint({
       { path },
     );
   }
+  assertControlOwnerStateAllowsReclaim(ownerStatePath, path, endpoint);
   // Recheck and unlink are adjacent while the shared pathname lock is held.
   rmSync(path);
   return endpoint;
@@ -333,6 +409,7 @@ function cleanupControlOwnerStateMarker(path, identity, ownerIncarnationId, endp
       state.endpoint?.device !== endpoint.device
       || state.endpoint?.inode !== endpoint.inode
       || state.endpoint?.uid !== endpoint.uid
+      || state.endpoint?.ownerIncarnationId !== ownerIncarnationId
     )) return false;
     rmSync(path);
     return true;
@@ -365,6 +442,29 @@ function flushControlResult(socket, encodedResult, timeoutMs = 1_000) {
   });
 }
 
+function createDevControlDispatcher(verbs) {
+  let stopping = false;
+  let controlChain = Promise.resolve();
+  const enqueue = (verb, context) => {
+    if (stopping) {
+      throw diagnosticError(
+        'SNAPBACK_DEV_CONTROL_STOPPING',
+        'the dev control owner is stopping and will not acknowledge new work',
+        { verb },
+      );
+    }
+    if (verb === 'stop-children') stopping = true;
+    const run = controlChain.then(() => verbs[verb](context));
+    controlChain = run.then(() => undefined, () => undefined);
+    return run;
+  };
+  return Object.freeze({
+    enqueue,
+    stopAccepting() { stopping = true; },
+    idle() { return controlChain; },
+  });
+}
+
 async function startDevControlSocketWithDependencies(options, dependencies = {}) {
   const platform = dependencies.platform ?? process.platform;
   const getuid = Object.hasOwn(dependencies, 'getuid')
@@ -392,25 +492,37 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
     startedAt: options.startedAt,
   });
   const observeEndpoint = dependencies.observeEndpoint ?? observedControlEndpoint;
-  const probeEndpoint = dependencies.probeEndpoint ?? probeDevControlEndpoint;
+  const probeEndpoint = dependencies.probeEndpoint
+    ?? ((endpointPath) => probeDevControlEndpoint(
+      endpointPath,
+      { timeoutMs: options.endpointProbeTimeoutMs ?? 500 },
+    ));
   const withPathLock = dependencies.withPathLock ?? withCleanupPathLock;
   const writeAcknowledgement = dependencies.writeAcknowledgement
     ?? ((socket, payload) => socket.write(payload));
+  const dispatcher = dependencies.dispatcher ?? createDevControlDispatcher(options.verbs);
   const stateDirectory = lstatSync(dirname(path));
-  if (!stateDirectory.isDirectory() || stateDirectory.isSymbolicLink() || stateDirectory.uid !== ownerUid) {
+  if (!stateDirectory.isDirectory()
+      || stateDirectory.isSymbolicLink()
+      || stateDirectory.uid !== ownerUid
+      || (stateDirectory.mode & 0o077) !== 0) {
     throw diagnosticError(
       'SNAPBACK_DEV_CONTROL_OTHER_UID',
-      'the dev owner state directory must be a same-uid non-symlink directory',
-      { path: dirname(path), expectedUid: ownerUid, observedUid: stateDirectory.uid },
+      'the dev owner state directory must be a same-uid owner-only non-symlink directory',
+      {
+        path: dirname(path),
+        expectedUid: ownerUid,
+        observedUid: stateDirectory.uid,
+        observedMode: stateDirectory.mode & 0o777,
+      },
     );
   }
 
   const sockets = new Set();
+  const pendingReplies = new Set();
   let closed = false;
-  let stopping = false;
   let closePromise = null;
   let controlSocket = null;
-  let controlChain = Promise.resolve();
   let cleanupResource = null;
   let pendingCleanupResource = null;
   let endpoint = null;
@@ -500,14 +612,17 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
           return;
         }
         const { requestId, verb } = validation;
-        if (stopping || closed) {
+        let operation;
+        try {
+          operation = dispatcher.enqueue(verb, { requestId });
+        } catch (error) {
           void flushControlResult(socket, `${JSON.stringify(devControlResult({
             requestId,
             verb,
             ok: false,
-            diagnostic: devControlDiagnostic(
-              'SNAPBACK_DEV_CONTROL_STOPPING',
-              'the dev control owner is stopping and will not acknowledge new work',
+            diagnostic: error?.diagnostic ?? devControlDiagnostic(
+              error?.code ?? 'SNAPBACK_DEV_CONTROL_STOPPING',
+              error?.message ?? 'the dev control owner is stopping and will not acknowledge new work',
               { verb },
             ),
           }))}\n`);
@@ -516,20 +631,19 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
         // Queue the accepted work before touching the reply socket. A peer may
         // FIN or reset immediately after its command; that abandons only the
         // acknowledgement/result, never the already-admitted owner verb.
-        const run = controlChain.then(async () => {
-          let encodedResult;
-          try {
+        const reply = operation.then(
+          (result) => {
             // @ref LLP 0310.000#track-e--owner-bound-control-socket — every
-            // acknowledged owner verb shares one serialized dispatch lane.
-            const result = await options.verbs[verb]({ requestId });
-            encodedResult = `${JSON.stringify(devControlResult({
+            // acknowledged owner verb and packaged stdin reload share one
+            // serialized dispatch lane.
+            return `${JSON.stringify(devControlResult({
               requestId,
               verb,
               ok: result?.ok !== false,
               result,
             }))}\n`;
-          } catch (error) {
-            encodedResult = `${JSON.stringify(devControlResult({
+          },
+          (error) => `${JSON.stringify(devControlResult({
               requestId,
               verb,
               ok: false,
@@ -538,12 +652,13 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
                 error?.message ?? `dev control verb ${verb} failed`,
                 { verb },
               ),
-            }))}\n`;
-          }
-          await flushControlResult(socket, encodedResult);
-        });
-        controlChain = run.then(() => undefined, () => undefined);
-        if (verb === 'stop-children') stopping = true;
+            }))}\n`,
+        ).then((encodedResult) => flushControlResult(socket, encodedResult));
+        pendingReplies.add(reply);
+        void reply.then(
+          () => pendingReplies.delete(reply),
+          () => pendingReplies.delete(reply),
+        );
         socket.setTimeout(0);
         try {
           writeAcknowledgement(socket, `${JSON.stringify({
@@ -559,7 +674,12 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
           socket.destroy();
         }
         if (verb === 'stop-children') {
-          void run.finally(() => {
+          void reply.then(() => {
+            void close().then(
+              () => options.onStopComplete?.(),
+              () => options.onStopComplete?.(),
+            );
+          }, () => {
             void close().then(
               () => options.onStopComplete?.(),
               () => options.onStopComplete?.(),
@@ -574,13 +694,14 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
   close = () => {
     if (closePromise !== null) return closePromise;
     closed = true;
-    stopping = true;
+    dispatcher.stopAccepting();
     closePromise = (async () => {
       let resolveServerClose;
       const serverClose = new Promise((resolveClose) => { resolveServerClose = resolveClose; });
       if (server.listening) server.close(resolveServerClose);
       else resolveServerClose();
-      await controlChain;
+      await dispatcher.idle();
+      await Promise.allSettled([...pendingReplies]);
       for (const socket of sockets) socket.destroy();
       await serverClose;
     })().finally(async () => {
@@ -612,6 +733,7 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
     try {
       await reclaimDeadControlEndpoint({
         path,
+        ownerStatePath,
         ownerUid,
         observeEndpoint,
         probeEndpoint,
@@ -627,6 +749,12 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
       pendingCleanupResource = reserveCleanupPath(options.cleanupLease ?? null, pendingPath, {
         type: 'socket',
         label: 'Expo pending dev control socket',
+        pendingOwnerState: {
+          path: ownerStatePath,
+          endpointPath: path,
+          ownerIncarnationId: options.ownerIncarnationId,
+          ownerUid,
+        },
       });
       // Persist the incarnation before binding even the unadvertised private
       // name. The exact inode replaces this binding-phase marker below before
@@ -689,6 +817,12 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
         verbs: DEV_CONTROL_VERBS,
       });
       controlSocket = descriptor;
+      await dependencies.afterPendingListen?.({
+        path,
+        pendingPath,
+        ownerStatePath,
+        descriptor,
+      });
       activateCleanupSocketPath(pendingCleanupResource, {
         ownerIncarnationId: options.ownerIncarnationId,
         socketIdentity: endpoint,
@@ -702,7 +836,7 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
         ownerIncarnationId: options.ownerIncarnationId,
         ownerStartTime: options.ownerStartTime,
         lifecycleReceipt,
-        endpoint,
+        endpoint: { ...endpoint, ownerIncarnationId: options.ownerIncarnationId },
         startedAt: options.startedAt,
       });
       // The final cleanup identity is active before the well-known name can be
@@ -3071,6 +3205,7 @@ export async function runExpoDev(options = {}) {
   let supervisorDescriptorCleanupResource = null;
   let supervisorDescriptorTemporaryCleanupResource = null;
   let controlSocketHandle = null;
+  let controlDispatcher = null;
   let metroReloading = false;
   const abortSignal = options.signal ?? null;
   let abortListener = null;
@@ -3098,6 +3233,7 @@ export async function runExpoDev(options = {}) {
     // Latch closure before any cleanup yield. A launch that resumes after a
     // placeholder/port wait observes this bit before it can spawn a child.
     closed = true;
+    controlDispatcher?.stopAccepting();
     closePromise = (async () => {
       const failures = [];
       if (!preserveControlSocket) {
@@ -4020,8 +4156,15 @@ export async function runExpoDev(options = {}) {
         reclaimed: closedEvent?.reclaimed ?? null,
       });
     };
+    controlDispatcher = createDevControlDispatcher({
+      'reload-metro': reloadMetroVerb,
+      'stop-children': stopChildrenVerb,
+    });
+    const serializedReloadMetroVerb = (context = {}) => (
+      controlDispatcher.enqueue('reload-metro', context)
+    );
     if (options.controlSocket === true) {
-      controlSocketHandle = await startDevControlSocket({
+      controlSocketHandle = await startDevControlSocketWithDependencies({
         readyFile: dev.readyFile,
         ownerIncarnationId: generation,
         ownerStartTime: supervisorProcessIdentity.startTime,
@@ -4040,7 +4183,7 @@ export async function runExpoDev(options = {}) {
             diagnostics: [diagnostic],
           });
         },
-      });
+      }, { dispatcher: controlDispatcher });
     }
     const finalReadiness = {
       ok: true,
@@ -4159,7 +4302,7 @@ export async function runExpoDev(options = {}) {
       get portPlan() { return portPlan; },
       get listeners() { return listeners; },
       get controlSocket() { return controlSocketHandle?.descriptor ?? null; },
-      verbs: Object.freeze({ ...dev.verbs, 'reload-metro': reloadMetroVerb }),
+      verbs: Object.freeze({ ...dev.verbs, 'reload-metro': serializedReloadMetroVerb }),
       async replaceAuthority(email) {
         if (closed) {
           throw diagnosticError('SNAPBACK_EXPO_SUPERVISOR_CLOSED', 'the Expo supervisor is closed');
@@ -4209,6 +4352,7 @@ export async function runExpoDev(options = {}) {
 export const __test = Object.freeze({
   allocateSupervisorPortCandidates,
   bindPlannedSupervisorListeners,
+  probeDevControlEndpoint,
   startDevControlSocketWithDependencies,
   startMetroWebFront,
 });

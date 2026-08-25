@@ -27,8 +27,10 @@ const CLEANUP_RESOURCE_PREFIX = 'resource-';
 const PROCESS_LEASE_MARKER_ENV = 'SNAPBACK_CARRIER_PROCESS_LEASE_MARKER';
 const PROCESS_LEASE_RUN_ID_ENV = 'SNAPBACK_CARRIER_PROCESS_LEASE_RUN_ID';
 const CLEANUP_PATH_LOCK_FORMAT = 'snapback.cleanup-path-lock.v1';
+const DEV_CONTROL_OWNER_STATE_FORMAT = 'snapback.dev-control-owner.v1';
 const PENDING_PROCESS_CONFIRM_MS = 1_000;
 const CLEANUP_PATH_LOCK_TIMEOUT_MS = 5_000;
+const CLEANUP_PATH_MARKER_STALE_MS = 250;
 const MODULE_PATH = fileURLToPath(import.meta.url);
 const LEASED_PROCESS_STATE = new WeakMap();
 
@@ -202,7 +204,46 @@ function validCleanupPathLockOwner(owner) {
     && typeof owner.startTime === 'string'
     && typeof owner.command === 'string'
     && typeof owner.token === 'string'
-    && owner.token.length > 0;
+    && owner.token.length > 0
+    && typeof owner.acquiredAt === 'string'
+    && Number.isFinite(Date.parse(owner.acquiredAt));
+}
+
+function observeCleanupPathLockMarker(path) {
+  try {
+    const before = lstatSync(path);
+    const bytes = readFileSync(path, 'utf8');
+    const after = lstatSync(path);
+    if (before.dev !== after.dev || before.ino !== after.ino) return null;
+    let owner = null;
+    try { owner = JSON.parse(bytes); } catch { /* A killed writer may leave partial JSON. */ }
+    return Object.freeze({
+      bytes,
+      owner,
+      device: String(after.dev),
+      inode: String(after.ino),
+      modifiedAtMs: after.mtimeMs,
+    });
+  } catch (error) {
+    if (error?.code === 'ENOENT') return null;
+    throw error;
+  }
+}
+
+function sameCleanupPathLockMarker(left, right) {
+  return left !== null
+    && right !== null
+    && left.device === right.device
+    && left.inode === right.inode
+    && left.bytes === right.bytes;
+}
+
+function cleanupPathLockMarkerAge(marker, now = Date.now()) {
+  if (marker === null) return Infinity;
+  const acquiredAt = validCleanupPathLockOwner(marker.owner)
+    ? Date.parse(marker.owner.acquiredAt)
+    : marker.modifiedAtMs;
+  return Math.max(0, now - acquiredAt);
 }
 
 function releaseCleanupPathLock(lockFile, owner) {
@@ -216,7 +257,10 @@ function releaseCleanupPathLock(lockFile, owner) {
   }
 }
 
-async function acquireCleanupPathLock(path, timeoutMs = CLEANUP_PATH_LOCK_TIMEOUT_MS) {
+async function acquireCleanupPathLock(path, timeoutMs = CLEANUP_PATH_LOCK_TIMEOUT_MS, {
+  afterReclaimMarkerAcquired,
+  markerStaleMs = CLEANUP_PATH_MARKER_STALE_MS,
+} = {}) {
   const lockDirectory = dirname(resolve(path));
   // Keep lock basenames shorter than dev-control.sock: Darwin's sockaddr_un
   // parents can already sit near their path limit, and stale-lock recovery
@@ -234,15 +278,22 @@ async function acquireCleanupPathLock(path, timeoutMs = CLEANUP_PATH_LOCK_TIMEOU
       if (error?.code !== 'EEXIST') throw error;
     }
 
-    let observedBytes = null;
-    let observedOwner = null;
-    try {
-      observedBytes = readFileSync(lockFile, 'utf8');
-      observedOwner = JSON.parse(observedBytes);
-    } catch { /* An unreadable lock is reclaimable only under the O_EXCL reclaimer. */ }
+    const observedLock = observeCleanupPathLockMarker(lockFile);
+    if (observedLock === null) continue;
+    const observedBytes = observedLock.bytes;
+    const observedOwner = observedLock.owner;
     if (validCleanupPathLockOwner(observedOwner) && liveIdentity(observedOwner)) {
       if (Date.now() >= deadline) {
         throw Object.assign(new Error(`timed out waiting for cleanup path lock ${lockFile}`), {
+          code: 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
+        });
+      }
+      await new Promise((resolveWait) => setTimeout(resolveWait, 10));
+      continue;
+    }
+    if (cleanupPathLockMarkerAge(observedLock) < markerStaleMs) {
+      if (Date.now() >= deadline) {
+        throw Object.assign(new Error(`timed out waiting for stale cleanup path lock ${lockFile}`), {
           code: 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
         });
       }
@@ -257,24 +308,47 @@ async function acquireCleanupPathLock(path, timeoutMs = CLEANUP_PATH_LOCK_TIMEOU
       ownsReclaim = true;
     } catch (error) {
       if (error?.code !== 'EEXIST') throw error;
-      let incumbent = null;
-      try { incumbent = readJson(reclaimFile); } catch { /* malformed is not silently stolen */ }
-      if (!validCleanupPathLockOwner(incumbent) || !liveIdentity(incumbent)) {
-        throw Object.assign(
-          new Error(`cleanup path lock reclamation was interrupted at ${reclaimFile}`),
-          { code: 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE' },
-        );
+      const incumbent = observeCleanupPathLockMarker(reclaimFile);
+      if (incumbent === null) continue;
+      if (validCleanupPathLockOwner(incumbent.owner) && liveIdentity(incumbent.owner)) {
+        if (Date.now() >= deadline) {
+          throw Object.assign(new Error(`timed out waiting for cleanup path reclaimer ${reclaimFile}`), {
+            code: 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
+          });
+        }
+        await new Promise((resolveWait) => setTimeout(resolveWait, 10));
+        continue;
       }
-      if (Date.now() >= deadline) {
-        throw Object.assign(new Error(`timed out waiting for cleanup path lock ${lockFile}`), {
-          code: 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
-        });
+      if (cleanupPathLockMarkerAge(incumbent) < markerStaleMs) {
+        if (Date.now() >= deadline) {
+          throw Object.assign(new Error(`timed out waiting for stale cleanup path reclaimer ${reclaimFile}`), {
+            code: 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
+          });
+        }
+        await new Promise((resolveWait) => setTimeout(resolveWait, 10));
+        continue;
       }
-      await new Promise((resolveWait) => setTimeout(resolveWait, 10));
-      continue;
+      const reclaimReplacement = join(lockDirectory, `.dc-r-${reclaimOwner.token.slice(0, 8)}`);
+      try {
+        writeExclusiveOwnerRecord(reclaimReplacement, reclaimOwner);
+        const current = observeCleanupPathLockMarker(reclaimFile);
+        if (!sameCleanupPathLockMarker(current, incumbent)) continue;
+        renameSync(reclaimReplacement, reclaimFile);
+        const adopted = readJson(reclaimFile);
+        if (!validCleanupPathLockOwner(adopted) || adopted.token !== reclaimOwner.token) continue;
+        ownsReclaim = true;
+      } finally {
+        rmSync(reclaimReplacement, { force: true });
+      }
     }
 
-    const replacementFile = join(lockDirectory, `.dc-${owner.token.slice(0, 8)}`);
+    try {
+      await afterReclaimMarkerAcquired?.({ lockFile, reclaimFile });
+    } catch (error) {
+      if (ownsReclaim) releaseCleanupPathLock(reclaimFile, reclaimOwner);
+      throw error;
+    }
+    const replacementFile = join(lockDirectory, `.dc-l-${owner.token.slice(0, 8)}`);
     try {
       let currentBytes = null;
       try { currentBytes = readFileSync(lockFile, 'utf8'); } catch (error) {
@@ -299,8 +373,15 @@ async function acquireCleanupPathLock(path, timeoutMs = CLEANUP_PATH_LOCK_TIMEOU
 // through the lock's PID/start-time-bound atomic replacement path above.
 // @ref LLP 0310.000#track-e--owner-bound-control-socket — the owner endpoint's
 // reclaim, bind, and reaper deletion are one serialized ownership transition.
-export async function withCleanupPathLock(path, action, { timeoutMs } = {}) {
-  const lock = await acquireCleanupPathLock(path, timeoutMs);
+export async function withCleanupPathLock(path, action, {
+  timeoutMs,
+  afterReclaimMarkerAcquired,
+  markerStaleMs,
+} = {}) {
+  const lock = await acquireCleanupPathLock(path, timeoutMs, {
+    afterReclaimMarkerAcquired,
+    markerStaleMs,
+  });
   try {
     return await action();
   } finally {
@@ -497,6 +578,7 @@ export function reserveCleanupPath(lease, path, {
   type,
   label = 'cleanup path',
   leaseUnique = false,
+  pendingOwnerState = null,
 } = {}) {
   if (lease === null || process.platform === 'win32') return null;
   if (!isAbsolute(path) || !['file', 'socket', 'browser-profile'].includes(type)) {
@@ -508,6 +590,16 @@ export function reserveCleanupPath(lease, path, {
         || !basename(resolved).startsWith('snapback-carrier-browser-')) {
       throw new Error('recursive cleanup lease is restricted to exact carrier browser profiles');
     }
+  }
+  if (pendingOwnerState !== null && (
+    type !== 'socket'
+    || !isAbsolute(pendingOwnerState.path)
+    || !isAbsolute(pendingOwnerState.endpointPath)
+    || typeof pendingOwnerState.ownerIncarnationId !== 'string'
+    || pendingOwnerState.ownerIncarnationId.length === 0
+    || !Number.isSafeInteger(pendingOwnerState.ownerUid)
+  )) {
+    throw new Error('pending cleanup socket owner state is malformed');
   }
   assertLeaseDirectory(lease.directory);
   const owner = processIdentity(process.pid);
@@ -527,6 +619,7 @@ export function reserveCleanupPath(lease, path, {
     path,
     pathType: type,
     leaseUnique,
+    ...(pendingOwnerState === null ? {} : { pendingOwnerState }),
     createdAt: new Date().toISOString(),
   });
   return Object.freeze({ lease, path: resource });
@@ -600,7 +693,8 @@ function observedOwnerStateIdentity(path, ownerIncarnationId, socketIdentity) {
       || state?.ownerIncarnationId !== ownerIncarnationId
       || state?.endpoint?.device !== socketIdentity.device
       || state?.endpoint?.inode !== socketIdentity.inode
-      || state?.endpoint?.uid !== socketIdentity.uid) {
+      || state?.endpoint?.uid !== socketIdentity.uid
+      || state?.endpoint?.ownerIncarnationId !== ownerIncarnationId) {
     throw new Error('cleanup socket owner state changed while it was being bound');
   }
   return {
@@ -1100,12 +1194,77 @@ function cleanupSocketOwnerState(resource) {
         || state?.ownerIncarnationId !== identity.ownerIncarnationId
         || state?.endpoint?.device !== resource.socketIdentity?.device
         || state?.endpoint?.inode !== resource.socketIdentity?.inode
-        || state?.endpoint?.uid !== resource.socketIdentity?.uid) return false;
+        || state?.endpoint?.uid !== resource.socketIdentity?.uid
+        || state?.endpoint?.ownerIncarnationId !== identity.ownerIncarnationId) return false;
     rmSync(identity.path);
     return true;
   } catch {
     return false;
   }
+}
+
+function cleanupPendingSocketOwnerState(resource) {
+  const pending = resource.pendingOwnerState;
+  if (typeof pending?.path !== 'string'
+      || typeof pending.ownerIncarnationId !== 'string'
+      || !Number.isSafeInteger(pending.ownerUid)) return false;
+  try {
+    const before = lstatSync(pending.path);
+    if (!before.isFile()
+        || before.isSymbolicLink()
+        || before.uid !== pending.ownerUid) return false;
+    const state = readJson(pending.path);
+    const after = lstatSync(pending.path);
+    if (before.dev !== after.dev || before.ino !== after.ino
+        || state?.schemaVersion !== DEV_CONTROL_OWNER_STATE_FORMAT
+        || state.phase !== 'binding'
+        || state.path !== resource.pendingOwnerState.endpointPath
+        || state.ownerUid !== pending.ownerUid
+        || state.ownerIncarnationId !== pending.ownerIncarnationId
+        || state.endpoint !== null) return false;
+    rmSync(pending.path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function cleanupReservedSocketPath(resource, dependencies = {}) {
+  const pending = resource.pendingOwnerState;
+  if (typeof pending?.path !== 'string'
+      || typeof pending.endpointPath !== 'string'
+      || typeof pending.ownerIncarnationId !== 'string'
+      || !Number.isSafeInteger(pending.ownerUid)) return false;
+  return (dependencies.withPathLock ?? withCleanupPathLock)(resource.path, async () => {
+    let observed = null;
+    try {
+      const metadata = lstatSync(resource.path);
+      if (metadata.isSocket()
+          && !metadata.isSymbolicLink()
+          && metadata.uid === pending.ownerUid) {
+        observed = {
+          device: String(metadata.dev),
+          inode: String(metadata.ino),
+          uid: metadata.uid,
+        };
+      }
+    } catch (error) {
+      if (error?.code !== 'ENOENT') throw error;
+    }
+    let socketRemoved = false;
+    if (observed !== null) {
+      const current = lstatSync(resource.path);
+      if (current.isSocket()
+          && !current.isSymbolicLink()
+          && String(current.dev) === observed.device
+          && String(current.ino) === observed.inode
+          && current.uid === observed.uid) {
+        rmSync(resource.path);
+        socketRemoved = true;
+      }
+    }
+    return cleanupPendingSocketOwnerState(resource) || socketRemoved;
+  });
 }
 
 async function cleanupExactPath(resource, dependencies = {}) {
@@ -1136,6 +1295,9 @@ async function cleanupExactPath(resource, dependencies = {}) {
     }
   }
   if (resource.pathType === 'socket') {
+    if (resource.state === 'reserved') {
+      return cleanupReservedSocketPath(resource, dependencies);
+    }
     if (resource.state !== 'active') return false;
     const identity = resource.socketIdentity;
     if (typeof identity?.device !== 'string'
@@ -1171,7 +1333,8 @@ async function cleanupExactPath(resource, dependencies = {}) {
         }
       }
       const markerRemoved = cleanupSocketOwnerState(resource);
-      return exact || markerRemoved;
+      const pendingMarkerRemoved = cleanupPendingSocketOwnerState(resource);
+      return exact || markerRemoved || pendingMarkerRemoved;
     });
   }
   const resolved = resolve(resource.path);
@@ -1239,7 +1402,8 @@ async function cleanupResource(path, resource, {
       pendingAbsentSince.delete(path);
       return false;
     }
-  } else if (resource.kind === 'path' && resource.state === 'active') {
+  } else if (resource.kind === 'path'
+      && (resource.state === 'active' || resource.state === 'reserved')) {
     await cleanupExactPath(resource);
   }
   pendingAbsentSince.delete(path);
