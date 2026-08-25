@@ -482,7 +482,9 @@ export const __test: Readonly<{
     platform: ExpoDevicePlatform;
     attestation: Readonly<{ serve(request: unknown, response: unknown): boolean }>;
     admittedAuthorityOrigins?: BootstrapExchangeAdmittedAuthorityOrigins;
-    getBootstrapPayload: () => unknown | Promise<unknown>;
+    getBootstrapPayload: (
+      request: Readonly<{ requestAuthority: boolean }>,
+    ) => unknown | Promise<unknown>;
     onControl?: (request: BootstrapExchangeControlRequest) => BootstrapExchangeControlResult | Promise<BootstrapExchangeControlResult>;
     onDevIdentityCheckout?: (nonce: unknown) => string | null | Promise<string | null>;
     onSharedAuth?: BootstrapExchangeSharedAuthHandler;

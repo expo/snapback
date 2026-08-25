@@ -1925,7 +1925,15 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   // it no longer creates and discards an eager S1. The omitted-prop native
   // default performs the first and only mint on its adoption request.
   const nativeOnDemand = fixture('native-on-demand-mint', { sessions: true });
-  const nativeOnDemandRun = await startFixture(nativeOnDemand, { platform: 'ios' });
+  const nativeOnDemandRun = await startFixture(nativeOnDemand, {
+    platform: 'ios',
+    env: { EXPO_PUBLIC_SNAPBACK_URL: 'https://stale-parent.example.invalid' },
+  });
+  assert.equal(
+    JSON.parse(readFileSync(nativeOnDemand.metroEnv, 'utf8')).backendOrigin,
+    null,
+    'native Metro omits EXPO_PUBLIC_SNAPBACK_URL instead of inheriting a parent value',
+  );
   assert.equal(nativeOnDemandRun.supervisor.inspection().authorityMintCount, 0);
   const nativeOnDemandApp = JSON.parse(readFileSync(
     join(nativeOnDemand.backendRoot, 'generated', 'app.descriptor.json'),

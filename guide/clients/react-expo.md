@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:3a996361804792e7ba2955a608b744be0615758fcae884fa4764849c3a812884
+reviewed-authorities-digest: sha256:f6adde852a4d8442cc088998c497c80b43a35584cf3b48dfb113b22ada999244
 ---
 
 # React Expo Online clients

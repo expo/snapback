@@ -17,12 +17,15 @@ import {
   APPLICATION_AUTH_BOOTSTRAP_CAPABILITY,
   SnapbackExpoProvider,
   createSnapbackExpoBoot,
+  useSnapbackExpoBootState,
+  useSnapbackExpoLifecycleContext,
 } from './provider.mjs';
 import {
   useSnapbackAuth,
   useSnapbackCurrentPrincipal,
   useSnapbackQuery,
 } from '@expo/snapback-react';
+import { useSnapbackProviderClient } from '../snapback-react/implementation.mjs';
 import {
   SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV,
   SUPERVISED_DEV_IDENTITY_CHECKOUT_HEADER,
@@ -123,6 +126,7 @@ function installAuthServer() {
   const originalFetch = globalThis.fetch;
   const requests = [];
   let subscriptionSequence = 0;
+  let servedFunctions = functionManifest;
   const bearers = new Map([
     [APPLICATION_BEARER, {
       userId: USER_A,
@@ -241,20 +245,27 @@ function installAuthServer() {
     const connectionToken = headers.get('x-snapback-connection-token');
     const body = init.body === undefined ? null : JSON.parse(init.body);
     requests.push({ path, bearer, authInvalidationProtocol, connectionToken, body });
+    if (
+      revokedBearers.has(bearer)
+      && (
+        path === '/auth/session'
+        || path === '/connection/open'
+        || /^\/live\/[^/]+\/subscribe$/u.test(path)
+      )
+    ) {
+      return Response.json({
+        code: 'SNAPBACK_AUTH_SESSION_EXPIRED',
+        message: 'the ordinary session has ended',
+      }, { status: 401 });
+    }
     if (path === '/auth/session') {
-      if (revokedBearers.has(bearer)) {
-        return Response.json({
-          code: 'SNAPBACK_AUTH_SESSION_EXPIRED',
-          message: 'the ordinary session has ended',
-        }, { status: 401 });
-      }
       return Response.json(handshake(bearer, authInvalidationProtocol));
     }
     if (path === '/inspect') {
       return Response.json({
         targetProfileId: capabilityManifest.targetProfileId,
         target: 'local',
-        functions: protectedFunctions,
+        functions: servedFunctions,
         schema: schemaManifest,
         capabilityManifest,
         routeManifestHash: null,
@@ -313,6 +324,7 @@ function installAuthServer() {
   return {
     requests,
     revokedBearers,
+    setFunctionManifest(value) { servedFunctions = value; },
     restore() { globalThis.fetch = originalFetch; },
   };
 }
@@ -390,6 +402,7 @@ const protectedApp = structuredClone(app);
 protectedApp.api.queries.listTodos.authRequirement = 'authenticated';
 const protectedFunctions = structuredClone(functionManifest);
 protectedFunctions.functions.find(({ name }) => name === 'listTodos').authRequirement = 'authenticated';
+server.setFunctionManifest(protectedFunctions);
 const previousLiveNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
 delete process.env.SNAPBACK_CLIENT_RQS_STORE;
 Object.defineProperty(globalThis, 'navigator', {
@@ -478,7 +491,10 @@ function ProtectedLiveProjection() {
 }
 function LiveProjection({ showQuery = true }) {
   liveProjection.auth = useSnapbackAuth();
+  liveProjection.boot = useSnapbackExpoBootState();
   liveProjection.principal = useSnapbackCurrentPrincipal();
+  liveProjection.client = useSnapbackProviderClient();
+  liveProjection.refreshAuthority = useSnapbackExpoLifecycleContext()?.refreshAuthority ?? null;
   if (!showQuery) liveProjection.query = null;
   return React.createElement(
     React.Fragment,
@@ -572,87 +588,103 @@ const defaultRefreshSupervisor = {
   events: [],
   diagnostics: [],
 };
-const defaultRefreshBaseEnvironment = environmentFor(Object.freeze({
+const defaultRefreshEnvironment = environmentFor(Object.freeze({
   ...platform,
   databaseName: 'snapback-expo-auth-bootstrap-default-refresh',
 }), defaultRefreshSupervisor);
-let defaultRefreshBindingResolutions = 0;
-const defaultRefreshEnvironment = Object.freeze({
-  ...defaultRefreshBaseEnvironment,
-  async resolveBinding(input) {
-    defaultRefreshBindingResolutions += 1;
-    return defaultRefreshBaseEnvironment.resolveBinding(input);
-  },
+const defaultRefreshProjection = {
+  auth: null,
+  boot: null,
+  client: null,
+  disposeBoot: null,
+  principal: null,
+  query: null,
+  refreshAuthority: null,
+};
+function DefaultRefreshProjection() {
+  defaultRefreshProjection.auth = useSnapbackAuth();
+  defaultRefreshProjection.boot = useSnapbackExpoBootState();
+  defaultRefreshProjection.client = useSnapbackProviderClient();
+  defaultRefreshProjection.principal = useSnapbackCurrentPrincipal();
+  defaultRefreshProjection.query = useSnapbackQuery(app.api.queries.listTodos, {});
+  const lifecycleContext = useSnapbackExpoLifecycleContext();
+  defaultRefreshProjection.disposeBoot = lifecycleContext?.disposeBoot ?? null;
+  defaultRefreshProjection.refreshAuthority = lifecycleContext?.refreshAuthority ?? null;
+  return null;
+}
+server.setFunctionManifest(functionManifest);
+const defaultRefreshSubscriptionsBeforeMount = server.requests.filter(
+  ({ path }) => path === '/live/listTodos/subscribe',
+).length;
+let defaultRefreshRenderer;
+await act(async () => {
+  defaultRefreshRenderer = TestRenderer.create(React.createElement(
+    SnapbackExpoProvider,
+    {
+      app,
+      environment: defaultRefreshEnvironment,
+      rqsStore: null,
+      outboxDrain: 'manual',
+    },
+    React.createElement(DefaultRefreshProjection),
+  ));
 });
-const defaultRefreshClients = [];
-const defaultRefreshBoot = createSnapbackExpoBoot({
-  app: protectedApp,
-  environment: defaultRefreshEnvironment,
-  async createApplicationClient(input, observer) {
-    const delegate = await createSnapbackAppClientWithBootstrapObserver(input, observer);
-    delegate.client.prepareReactBinding = async () => ({ source: 'deployment' });
-    const record = {
-      binding: structuredClone(input.binding),
-      disposed: false,
-      projection: null,
-    };
-    record.projection = Object.freeze({
-      client: delegate.client,
-      auth: delegate.auth,
-      bootstrapState: () => delegate.bootstrapState(),
-      subscribeBootstrap: (listener) => delegate.subscribeBootstrap(listener),
-      async dispose() {
-        record.disposed = true;
-        await delegate.dispose();
-      },
-    });
-    defaultRefreshClients.push(record);
-    return record.projection;
-  },
-  createProvider: fakeReactProvider,
-  bindLifecycle: () => Object.freeze({ dispose() {}, async settled() {} }),
-});
-const defaultRefreshReady = await defaultRefreshBoot.start();
-assert.equal(defaultRefreshReady.status, 'ready', JSON.stringify(defaultRefreshReady));
-assert.equal(defaultRefreshBindingResolutions, 1);
-assert.equal(defaultRefreshClients.length, 1);
-const defaultRefreshPredecessor = defaultRefreshBoot.appClient();
+await settleReactUntil(
+  () => defaultRefreshProjection.principal?.status === 'anonymous'
+    && defaultRefreshProjection.boot?.authoritySource === 'fresh-anonymous'
+    && defaultRefreshProjection.query?.status === 'ready'
+    && typeof defaultRefreshProjection.refreshAuthority === 'function',
+  'the real anonymous Expo provider must mount a public live query before refresh',
+);
+const defaultRefreshPredecessorAuth = defaultRefreshProjection.auth;
+const defaultRefreshPredecessorClient = defaultRefreshProjection.client;
+const defaultRefreshSubscriptionsBeforeRefresh = server.requests.filter(
+  ({ path }) => path === '/live/listTodos/subscribe',
+).length;
+assert.equal(
+  defaultRefreshSubscriptionsBeforeRefresh,
+  defaultRefreshSubscriptionsBeforeMount + 1,
+  'anonymous initial render subscribes the mounted public query once',
+);
 const defaultRefreshBinding = structuredClone(liveBinding);
 defaultRefreshBinding.provenance.issuedAt = new Date(Date.now() - 20 * 60_000).toISOString();
 defaultRefreshBinding.provenance.expiresAt = new Date(Date.now() + 40 * 60_000).toISOString();
 defaultRefreshSupervisor.binding = defaultRefreshBinding;
-assert.equal((await defaultRefreshBoot.refreshAuthority()).status, 'ready');
-assert.equal(defaultRefreshBindingResolutions, 2, 'refresh re-resolves and re-admits the binding');
-assert.equal(defaultRefreshClients.length, 2, 'refresh constructs a successor app-client projection');
+await act(async () => { await defaultRefreshProjection.refreshAuthority(); });
+await settleReactUntil(
+  () => defaultRefreshProjection.auth !== defaultRefreshPredecessorAuth
+    && defaultRefreshProjection.query?.status === 'ready'
+    && server.requests.filter(({ path }) => path === '/live/listTodos/subscribe').length
+      === defaultRefreshSubscriptionsBeforeRefresh + 1,
+  'anonymous refresh must atomically render the successor provider and re-subscribe its mounted query',
+);
+assert.notEqual(
+  defaultRefreshProjection.auth,
+  defaultRefreshPredecessorAuth,
+  'anonymous refresh exposes a successor app-client projection',
+);
 assert.equal(
-  defaultRefreshBoot.appClient() === defaultRefreshClients[1].projection,
-  true,
-  'refresh retains the successor app-client projection',
+  defaultRefreshProjection.client,
+  defaultRefreshPredecessorClient,
+  'same-owner anonymous rebind retains the canonical underlying client',
 );
-assert.notEqual(defaultRefreshBoot.appClient(), defaultRefreshPredecessor);
-assert.deepEqual(
-  defaultRefreshClients[1].binding.target,
-  defaultRefreshBinding.target,
-  'the successor client binding target matches the refreshed admission',
-);
-assert.equal(
-  defaultRefreshClients[0].disposed,
-  true,
-  'refresh disposes the predecessor app-client projection',
-);
-assert.equal(defaultRefreshClients[1].disposed, false, 'the successor remains live after refresh');
 assert.deepEqual(
   defaultRefreshSupervisor.events,
   [],
   'refresh remains rebind-only when supervised adoption was not opted in',
 );
-assert.equal(defaultRefreshBoot.appClient().auth.currentPrincipal().status, 'anonymous');
-await defaultRefreshBoot.dispose();
+assert.equal(defaultRefreshProjection.principal.status, 'anonymous');
+await act(async () => {
+  defaultRefreshRenderer.unmount();
+  await defaultRefreshProjection.disposeBoot();
+});
+server.setFunctionManifest(protectedFunctions);
 
-const liveSubscriptions = () => server.requests.filter(
+const liveRequestStart = server.requests.length;
+const liveSubscriptions = () => server.requests.slice(liveRequestStart).filter(
   ({ path }) => path === '/live/listTodos/subscribe',
 );
-const liveConnectionOpens = () => server.requests.filter(
+const liveConnectionOpens = () => server.requests.slice(liveRequestStart).filter(
   ({ path }) => path === '/connection/open',
 );
 const liveTree = (showQuery = true) => React.createElement(
@@ -750,6 +782,29 @@ await settleReactUntil(
     && liveSubscriptions().length === startsBeforeSecondAuthenticatedSuccessor + 1
     && liveSocketAttempts === socketsBeforeSecondAuthenticatedSuccessor + 1,
   'authenticated successor #2 must start exactly one socket-backed stream and make the query ready',
+);
+const passwordRefreshAuth = liveProjection.auth;
+const passwordRefreshClient = liveProjection.client;
+const passwordRefreshSubscriptions = liveSubscriptions().length;
+assert.equal(liveProjection.boot.authoritySource, 'application-entry');
+const passwordRefreshBinding = structuredClone(liveBinding);
+passwordRefreshBinding.provenance.issuedAt = new Date(Date.now() - 10 * 60_000).toISOString();
+passwordRefreshBinding.provenance.expiresAt = new Date(Date.now() + 50 * 60_000).toISOString();
+liveSupervisor.binding = passwordRefreshBinding;
+await act(async () => { await liveProjection.refreshAuthority(); });
+await settleReactUntil(
+  () => liveProjection.principal?.status === 'authenticated'
+    && liveProjection.query?.status === 'ready',
+  'password-authenticated refresh must retain the settled session and mounted query',
+);
+assert.equal(liveProjection.auth, passwordRefreshAuth, 'password refresh retains the app-client projection');
+assert.equal(liveProjection.client, passwordRefreshClient, 'password refresh retains the same client');
+assert.equal(liveProjection.boot.authoritySource, 'application-entry');
+assert.equal(liveProjection.principal.userId, USER_A, 'password refresh preserves the signed-in principal');
+assert.equal(
+  liveSubscriptions().length,
+  passwordRefreshSubscriptions,
+  'password refresh does not rebuild or re-subscribe the mounted query',
 );
 assert.equal(
   startsBeforeSecondAuthenticatedSuccessor,
@@ -1233,4 +1288,4 @@ server.restore();
 if (priorRqs === undefined) delete process.env.SNAPBACK_CLIENT_RQS_STORE;
 else process.env.SNAPBACK_CLIENT_RQS_STORE = priorRqs;
 
-console.log('provider-auth-bootstrap.test.mjs: default anonymous password entry without supervisor adoption, authenticated live-query re-entry, explicit on-demand supervised adoption with safe signOut, native client-option forwarding, redeem-refusal adoption, and refresh rebind-only pass');
+console.log('provider-auth-bootstrap.test.mjs: anonymous real-provider refresh handoff/resubscribe, password-session refresh preservation, revoked-route reuse refusal, explicit supervised adoption/signOut, native client-option forwarding, and redeem-refusal adoption pass');

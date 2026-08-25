@@ -132,6 +132,9 @@ export function expoMetroChildEnvironment({ env, bootstrapOrigin, backendOrigin,
     // public and bound endpoints identical without exposing Metro on LAN.
     NODE_OPTIONS: metroNodeOptions(env?.NODE_OPTIONS),
   };
+  if (typeof backendOrigin !== 'string' || backendOrigin.length === 0) {
+    delete childEnv.EXPO_PUBLIC_SNAPBACK_URL;
+  }
   // @ref LLP 0262#d2-carriers-per-shipped-topology — the browser-visible
   // Metro environment carries only credential-free origins. The checkout
   // nonce is delivered by the native launcher, never by Metro or an

@@ -495,26 +495,92 @@ export function createSnapbackExpoBoot(options = {}) {
     }
   })();
 
-  const projectApplicationBootstrap = () => {
+  const projectApplicationBootstrapFor = (
+    candidateApplicationClient,
+    candidateBindingFacts,
+    candidatePreparation,
+  ) => {
     // @ref LLP 0258#d7-bootstrap-state-is-construction-truth-not-auth-truth — retain the
     // app owner's closed snapshot and add only LLP 0181 binding/preparation
     // facts to its ready arm.
-    const bootstrap = applicationClient.bootstrapState();
+    const bootstrap = candidateApplicationClient.bootstrapState();
     return bootstrap.status === 'ready'
       ? Object.freeze({
           ...bootstrap,
-          binding: admittedBindingFacts,
-          preparation,
+          binding: candidateBindingFacts,
+          preparation: candidatePreparation,
         })
       : bootstrap;
   };
 
-  const subscribeApplicationBootstrap = () => {
-    bootstrapUnsubscribe?.();
-    bootstrapUnsubscribe = applicationClient.subscribeBootstrap(() => {
-      if (disposed || preparation === null || admittedBindingFacts === null) return;
+  const projectApplicationBootstrap = () => projectApplicationBootstrapFor(
+    applicationClient,
+    admittedBindingFacts,
+    preparation,
+  );
+
+  const applicationBootstrapSubscription = (candidateApplicationClient) => (
+    candidateApplicationClient.subscribeBootstrap(() => {
+      if (
+        disposed
+        || candidateApplicationClient !== applicationClient
+        || preparation === null
+        || admittedBindingFacts === null
+      ) return;
       publish(projectApplicationBootstrap());
-    });
+    })
+  );
+
+  const subscribeApplicationBootstrap = () => {
+    const nextUnsubscribe = applicationBootstrapSubscription(applicationClient);
+    bootstrapUnsubscribe?.();
+    bootstrapUnsubscribe = nextUnsubscribe;
+  };
+
+  const createApplicationReactOwner = async (candidateApplicationClient) => {
+    let candidateProvider = null;
+    let candidateLifecycle = null;
+    try {
+      const prepared = await awaitBoundary(candidateApplicationClient.client.prepareReactBinding({
+        generatedManifest: app,
+        ...(environment.developmentSync === undefined
+          ? {}
+          : { developmentSync: environment.developmentSync }),
+      }));
+      const candidatePreparation = Object.freeze({ source: prepared.source ?? 'deployment' });
+      candidateProvider = createProvider(prepared, {
+        assets: createAssetClient(candidateApplicationClient.client, { fetch: expoAssetFetch }),
+        assetSourceAdapter: adaptExpoAssetSource,
+      });
+      candidateProvider.start?.();
+      const candidateLifecycleSource = lifecycleSource
+        ?? await awaitBoundary(resolveSnapbackExpoLifecycleSource(environment));
+      candidateLifecycle = bindLifecycle(candidateLifecycleSource, candidateProvider, {
+        onError(error) {
+          try { environment.onDiagnostic?.(normalizedDiagnostic(error, correlationId)); } catch { /* observational */ }
+        },
+      });
+      return Object.freeze({
+        lifecycle: candidateLifecycle,
+        lifecycleSource: candidateLifecycleSource,
+        preparation: candidatePreparation,
+        provider: candidateProvider,
+      });
+    } catch (error) {
+      try { candidateLifecycle?.dispose?.(); } catch { /* retain construction failure */ }
+      try { await candidateProvider?.dispose?.(); } catch { /* retain construction failure */ }
+      throw error;
+    }
+  };
+
+  const disposeApplicationReactOwner = async ({
+    appClient: candidateApplicationClient,
+    lifecycle: candidateLifecycle,
+    provider: candidateProvider,
+  }) => {
+    try { candidateLifecycle?.dispose?.(); } catch { /* successor already owns diagnostics */ }
+    try { await candidateProvider?.dispose?.(); } catch { /* successor already owns diagnostics */ }
+    try { await candidateApplicationClient?.dispose?.(); } catch { /* bootstrap owner retains diagnostics */ }
   };
 
   const run = async () => {
@@ -699,26 +765,11 @@ export function createSnapbackExpoBoot(options = {}) {
           }
         }
 
-        const prepared = await awaitBoundary(applicationClient.client.prepareReactBinding({
-          generatedManifest: app,
-          ...(environment.developmentSync === undefined
-            ? {}
-            : { developmentSync: environment.developmentSync }),
-        }));
-        preparation = Object.freeze({ source: prepared.source ?? 'deployment' });
-        if (disposed) return state;
-        reactProvider = createProvider(prepared, {
-          assets: createAssetClient(applicationClient.client, { fetch: expoAssetFetch }),
-          assetSourceAdapter: adaptExpoAssetSource,
-        });
-        reactProvider.start?.();
-        lifecycleSource = await awaitBoundary(resolveSnapbackExpoLifecycleSource(environment));
-        if (disposed) return state;
-        lifecycle = bindLifecycle(lifecycleSource, reactProvider, {
-          onError(error) {
-            try { environment.onDiagnostic?.(normalizedDiagnostic(error, correlationId)); } catch { /* observational */ }
-          },
-        });
+        const applicationReactOwner = await createApplicationReactOwner(applicationClient);
+        preparation = applicationReactOwner.preparation;
+        reactProvider = applicationReactOwner.provider;
+        lifecycleSource = applicationReactOwner.lifecycleSource;
+        lifecycle = applicationReactOwner.lifecycle;
         admittedBindingFacts = publicBindingFacts(admittedBinding);
         subscribeApplicationBootstrap();
         publish(projectApplicationBootstrap());
@@ -860,6 +911,24 @@ export function createSnapbackExpoBoot(options = {}) {
                 resolution.binding,
                 resolution.admission ?? {},
               ));
+              const refreshedBindingFacts = publicBindingFacts(refreshedBinding);
+              const bootstrap = applicationClient.bootstrapState();
+              const principal = applicationClient.auth.currentPrincipal();
+              // @ref LLP 0258#d5-application-authority-wins-over-ambient-development-adoption
+              // — refresh re-admits binding/transport facts without replacing a
+              // durable-restored or application-entered session. Only a settled
+              // anonymous owner may construct a successor projection.
+              if (
+                bootstrap.status !== 'ready'
+                || principal.status !== 'anonymous'
+                || ['application-entry', 'durable-restored'].includes(bootstrap.authoritySource)
+              ) {
+                admittedBinding = refreshedBinding;
+                admittedBindingAdmission = resolution.admission ?? {};
+                admittedBindingFacts = refreshedBindingFacts;
+                publish(projectApplicationBootstrap());
+                return state;
+              }
               if (applicationClientInputForBinding === null) {
                 const error = new Error('application-client binding rebind is unavailable');
                 error.code = 'SNAPBACK_EXPO_ENVIRONMENT_INVALID';
@@ -870,29 +939,56 @@ export function createSnapbackExpoBoot(options = {}) {
                 () => {},
               ), (lateProjection) => lateProjection?.dispose?.());
               const predecessorProjection = applicationClient;
+              const predecessorProvider = reactProvider;
+              const predecessorLifecycle = lifecycle;
               let retainReboundProjection = reboundProjection === predecessorProjection;
+              let reboundReactOwner = null;
+              let reboundBootstrapUnsubscribe = null;
               try {
                 if (!retainReboundProjection) {
-                  const refreshedBindingFacts = publicBindingFacts(refreshedBinding);
+                  reboundReactOwner = await createApplicationReactOwner(reboundProjection);
+                  reboundBootstrapUnsubscribe = applicationBootstrapSubscription(reboundProjection);
+                  const reboundState = projectApplicationBootstrapFor(
+                    reboundProjection,
+                    refreshedBindingFacts,
+                    reboundReactOwner.preparation,
+                  );
+                  // @ref LLP 0114#provider-construction-and-ownership — expose
+                  // the successor app-client projection, React provider, and
+                  // lifecycle as one snapshot before retiring their predecessor.
                   bootstrapUnsubscribe?.();
-                  bootstrapUnsubscribe = null;
-                  await awaitBoundary(predecessorProjection.dispose());
+                  bootstrapUnsubscribe = reboundBootstrapUnsubscribe;
                   applicationClient = reboundProjection;
-                  retainReboundProjection = true;
+                  reactProvider = reboundReactOwner.provider;
+                  lifecycle = reboundReactOwner.lifecycle;
+                  lifecycleSource = reboundReactOwner.lifecycleSource;
+                  preparation = reboundReactOwner.preparation;
                   admittedBinding = refreshedBinding;
                   admittedBindingAdmission = resolution.admission ?? {};
                   admittedBindingFacts = refreshedBindingFacts;
-                  subscribeApplicationBootstrap();
+                  retainReboundProjection = true;
+                  publish(reboundState);
+                  await disposeApplicationReactOwner({
+                    appClient: predecessorProjection,
+                    lifecycle: predecessorLifecycle,
+                    provider: predecessorProvider,
+                  });
+                  return state;
                 }
               } finally {
                 if (!retainReboundProjection) {
-                  try { await reboundProjection?.dispose?.(); } catch { /* retain the rebind refusal */ }
+                  reboundBootstrapUnsubscribe?.();
+                  await disposeApplicationReactOwner({
+                    appClient: reboundProjection,
+                    lifecycle: reboundReactOwner?.lifecycle,
+                    provider: reboundReactOwner?.provider,
+                  });
                 }
               }
               if (reboundProjection === predecessorProjection) {
                 admittedBinding = refreshedBinding;
                 admittedBindingAdmission = resolution.admission ?? {};
-                admittedBindingFacts = publicBindingFacts(admittedBinding);
+                admittedBindingFacts = refreshedBindingFacts;
               }
               publish(projectApplicationBootstrap());
               return state;
@@ -1083,6 +1179,8 @@ export function SnapbackExpoProvider(props) {
       appClient: null,
       reactProvider: null,
       lifecycleSource: null,
+      disposeBoot: null,
+      refreshAuthority: null,
     });
     return Object.freeze({
       getSnapshot: () => current,
@@ -1114,6 +1212,8 @@ export function SnapbackExpoProvider(props) {
         appClient: boot.appClient(),
         reactProvider: boot.reactProvider(),
         lifecycleSource: boot.lifecycleSource(),
+        disposeBoot: boot.dispose,
+        refreshAuthority: boot.refreshAuthority,
       }));
     };
     const unsubscribe = boot.subscribe(sync);
@@ -1129,7 +1229,12 @@ export function SnapbackExpoProvider(props) {
   const lifecycleValue = useMemo(() => Object.freeze({
     environment,
     source: active.lifecycleSource,
-  }), [environment, active.lifecycleSource]);
+    // Internal bridge used by the Expo activity/lifecycle projection and its
+    // real-provider refresh tests. It is intentionally absent from the public
+    // package facade.
+    disposeBoot: active.disposeBoot,
+    refreshAuthority: active.refreshAuthority,
+  }), [active.disposeBoot, active.lifecycleSource, active.refreshAuthority, environment]);
   const content = state.status === 'ready'
     ? React.createElement(SnapbackProvider, {
         provider: active.reactProvider,
