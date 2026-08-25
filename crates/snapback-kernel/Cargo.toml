@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish = false
+build = "build.rs"
 
 [lib]
 name = "snapback_kernel"
@@ -57,6 +58,9 @@ windows-sys = { version = "0.61.2", features = [
 
 [dev-dependencies]
 jsonschema = { version = "0.46.8", default-features = false, features = ["resolve-file"] }
+
+[build-dependencies]
+serde_json = "1.0"
 
 [lints]
 workspace = true

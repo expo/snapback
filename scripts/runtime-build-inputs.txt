@@ -35,6 +35,7 @@ crates/snapback-auth/Cargo.toml
 crates/snapback-cli/Cargo.toml
 crates/snapback-cli/build.rs
 crates/snapback-kernel/Cargo.toml
+crates/snapback-kernel/build.rs
 crates/snapback-runtime/Cargo.toml
 crates/snapback-server/Cargo.toml
 crates/snapback-server/build.rs
@@ -66,6 +67,7 @@ vendor/ibex
 guide
 brand
 schemas/http.routes.v1.json
+control-catalog/generated/control-catalog.v1.json
 packages/snapback-harness
 packages/snapback-admin-client
 tests/conformance

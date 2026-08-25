@@ -20,6 +20,7 @@ import {
   assertPublicPackageBuildIdentity,
   assertRuntimePackageBuildIdentity,
   assertRuntimePackageSourceIdentity,
+  inspectRuntimeCatalogBuildIdentity,
   installPackagedStoreQualificationReceipt,
 } from '../../scripts/runtime-package-authority.mjs';
 import { installAdminConsoleSnapshot } from '../snapback-cli/admin-snapshot.mjs';
@@ -186,6 +187,17 @@ export function prepareDarwinRuntimePackage({
     assertRuntimePackageSourceIdentity(identity);
     if (strictCleanRelease) assertRuntimePackageBuildIdentity(identity);
     if (!sourceTestStaging) assertPublicPackageBuildIdentity(identity);
+    inspectRuntimeCatalogBuildIdentity({
+      binaryPath: sourceBinary,
+      binaryIdentity: identity,
+      environment: {
+        ...environment,
+        DYLD_FRAMEWORK_PATH: [
+          dirname(sourceFramework),
+          environment.DYLD_FRAMEWORK_PATH,
+        ].filter(Boolean).join(':'),
+      },
+    });
   } catch (error) {
     throw diagnosticError(
       error,

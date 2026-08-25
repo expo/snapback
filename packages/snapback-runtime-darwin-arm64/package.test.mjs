@@ -207,10 +207,28 @@ try {
     },
     buildDistribution: 'contributor-source',
   };
-  const fixtureBinarySourceFor = (identity) => `#!/usr/bin/env node
+  const fixtureBinarySourceFor = (
+    identity,
+    catalogBuildIdentity = {
+      sourceCommit: identity.binary.gitCommit,
+      dirty: identity.binary.gitDirty,
+    },
+  ) => {
+    const catalog = {
+      schemaVersion: 'snapback.control-catalog.v1',
+      catalogDigest: `sha256:${'f'.repeat(64)}`,
+      buildIdentity: catalogBuildIdentity,
+      generatedAtCommit: sourceRevision,
+      entries: [],
+    };
+    return `#!/usr/bin/env node
 const command = process.argv[2];
 if (command === 'build-identity') {
   console.log(${JSON.stringify(JSON.stringify(identity))});
+  process.exit(0);
+}
+if (command === 'controls' && process.argv[3] === 'list' && process.argv[4] === '--json') {
+  console.log(${JSON.stringify(JSON.stringify(catalog))});
   process.exit(0);
 }
 if (command !== 'runtime-qualify') process.exit(2);
@@ -227,6 +245,7 @@ console.log(JSON.stringify({
 }));
 process.exit(ok ? 0 : 1);
 `;
+  };
   const fixtureBinarySource = fixtureBinarySourceFor(fixtureIdentity);
   mkdirSync(packageRoot, { recursive: true });
   writeFixture(sourceBinary, fixtureBinarySource);
@@ -287,6 +306,27 @@ process.exit(ok ? 0 : 1);
       args: [...preparation.args, '--strict-clean-release'],
     }),
     (error) => error.code === 'SNAPBACK_PACKAGE_CAPABILITY_ATTESTATION_REQUIRED',
+  );
+  assert.equal(
+    readFileSync(join(packageRoot, 'runtime-readiness.json'), 'utf8'),
+    sourceTestReceipt,
+  );
+  assert.equal(
+    readFileSync(join(packageRoot, 'bin', 'snapback'), 'utf8'),
+    sourceTestBinary,
+  );
+  const mismatchedCatalogIdentity = {
+    sourceCommit: 'd'.repeat(40),
+    dirty: false,
+  };
+  writeFileSync(
+    sourceBinary,
+    fixtureBinarySourceFor(debugDirtyIdentity, mismatchedCatalogIdentity),
+  );
+  chmodSync(sourceBinary, 0o755);
+  assert.throws(
+    () => prepareDarwinRuntimePackage(preparation),
+    (error) => error.code === 'SNAPBACK_RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH',
   );
   assert.equal(
     readFileSync(join(packageRoot, 'runtime-readiness.json'), 'utf8'),

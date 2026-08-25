@@ -45,6 +45,7 @@ import {
   assertStagedRuntimeStoreQualification,
 } from './publication-store-qualification-gate.mjs';
 import { verifyRuntimePackageSeal } from '../packages/snapback-cli/runtime-readiness.mjs';
+import { inspectRuntimeCatalogBuildIdentity } from './runtime-package-authority.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const publicRegistry = 'https://registry.npmjs.org';
@@ -226,8 +227,33 @@ function verifyPackedRuntimeSeal({ tarballPath, packageName, platformId }) {
         + verdict.diagnostic.message,
       );
     }
+    if (`${process.platform}-${process.arch}` === platformId) {
+      const binaryPath = join(packageRoot, 'bin', 'snapback');
+      const identity = JSON.parse(
+        execFileSync(binaryPath, ['build-identity'], { encoding: 'utf8' }),
+      );
+      inspectRuntimeCatalogBuildIdentity({
+        binaryPath,
+        binaryIdentity: identity,
+      });
+    }
   } finally {
     rmSync(extractionRoot, { recursive: true, force: true });
+  }
+}
+
+function verifyQualifiedRuntimeTarballs({ ledger, rootDirectory }) {
+  for (const [platformId, directory] of runtimePackages) {
+    const sourceName = JSON.parse(
+      readFileSync(join(root, 'packages', directory, 'package.json'), 'utf8'),
+    ).name;
+    const row = ledger.packages.find((candidate) => candidate.sourceName === sourceName);
+    if (!row) throw new Error(`qualified ledger is missing runtime package ${sourceName}`);
+    verifyPackedRuntimeSeal({
+      tarballPath: join(rootDirectory, row.tarball),
+      packageName: row.name,
+      platformId,
+    });
   }
 }
 
@@ -425,7 +451,7 @@ function stage(options) {
             platformId: runtimePlatform,
           });
         } catch (error) {
-          fail(error.message);
+          fail(error.message, 1, error.code);
         }
       }
       rows.push({
@@ -536,8 +562,12 @@ if (options.publish) {
   qualifiedRoot = dirname(options.qualifiedLedger);
   try {
     validateQualifiedTarballs({ ledger: qualifiedLedger, root: qualifiedRoot });
+    verifyQualifiedRuntimeTarballs({
+      ledger: qualifiedLedger,
+      rootDirectory: qualifiedRoot,
+    });
   } catch (error) {
-    fail(error.message);
+    fail(error.message, 1, error.code);
   }
   const records = options.platformReceipts.map((path) => {
     const bytes = readBoundedFileBytes(path, 'qualified platform receipt');

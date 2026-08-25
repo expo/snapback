@@ -11,9 +11,12 @@ import test from 'node:test';
 
 import {
   PUBLIC_PACKAGE_BUILD_DISTRIBUTION,
+  RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH_CODE,
   assertPublicPackageBuildIdentity,
+  assertRuntimeCatalogBuildIdentity,
   assertRuntimePackageBuildIdentity,
   assertRuntimePackageSourceIdentity,
+  inspectRuntimeCatalogBuildIdentity,
   installPackagedStoreQualificationReceipt,
 } from './runtime-package-authority.mjs';
 
@@ -31,6 +34,49 @@ const valid = {
 
 test('admits only a clean release binary compiled for public packaging', () => {
   assert.equal(assertPublicPackageBuildIdentity(valid), valid);
+});
+
+test('admits a control catalog minted from the enclosing binary identity', () => {
+  const catalog = {
+    schemaVersion: 'snapback.control-catalog.v1',
+    buildIdentity: {
+      sourceCommit: valid.binary.gitCommit,
+      dirty: valid.binary.gitDirty,
+    },
+  };
+  assert.deepEqual(
+    assertRuntimeCatalogBuildIdentity(valid, catalog),
+    catalog.buildIdentity,
+  );
+});
+
+test('refuses a control catalog minted from another source state', () => {
+  assert.throws(
+    () => assertRuntimeCatalogBuildIdentity(valid, {
+      schemaVersion: 'snapback.control-catalog.v1',
+      buildIdentity: { sourceCommit: 'b'.repeat(40), dirty: true },
+    }),
+    (error) => error.code === RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH_CODE,
+  );
+});
+
+test('inspects the build-bound catalog through the runtime binary', () => {
+  const catalog = {
+    schemaVersion: 'snapback.control-catalog.v1',
+    buildIdentity: {
+      sourceCommit: valid.binary.gitCommit,
+      dirty: valid.binary.gitDirty,
+    },
+  };
+  assert.deepEqual(inspectRuntimeCatalogBuildIdentity({
+    binaryPath: '/fixture/snapback',
+    binaryIdentity: valid,
+    runBinary: (command, args) => {
+      assert.equal(command, '/fixture/snapback');
+      assert.deepEqual(args, ['controls', 'list', '--json']);
+      return { status: 0, stdout: JSON.stringify(catalog), stderr: '' };
+    },
+  }), catalog.buildIdentity);
 });
 
 test('assembler strict mode admits a clean release contributor binary', () => {

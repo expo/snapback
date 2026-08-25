@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
@@ -7,6 +8,8 @@ export const PACKAGED_STORE_QUALIFICATION_RECEIPT_FILE =
   'packaged-store-qualification.receipt.json';
 export const PACKAGED_STORE_QUALIFICATION_SCHEMA_VERSION =
   'snapback.packaged-store-qualification.v1';
+export const RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH_CODE =
+  'SNAPBACK_RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH';
 
 function receiptError(code, message) {
   const error = new Error(message);
@@ -82,6 +85,69 @@ function packageIdentityError(message) {
   const error = new Error(message);
   error.code = 'SNAPBACK_PACKAGE_CAPABILITY_ATTESTATION_REQUIRED';
   return error;
+}
+
+function catalogBuildIdentityError(message) {
+  const error = new Error(message);
+  error.code = RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH_CODE;
+  return error;
+}
+
+export function assertRuntimeCatalogBuildIdentity(binaryIdentity, catalog) {
+  assertRuntimePackageSourceIdentity(binaryIdentity);
+  const catalogIdentity = catalog?.buildIdentity;
+  const binaryCommit = binaryIdentity.binary.gitCommit;
+  const binaryDirty = binaryIdentity.binary.gitDirty;
+  if (
+    catalog?.schemaVersion !== 'snapback.control-catalog.v1'
+    || !/^[0-9a-f]{40}$/u.test(catalogIdentity?.sourceCommit ?? '')
+    || typeof catalogIdentity?.dirty !== 'boolean'
+    || catalogIdentity.sourceCommit !== binaryCommit
+    || catalogIdentity.dirty !== binaryDirty
+  ) {
+    throw catalogBuildIdentityError(
+      'runtime control catalog build identity does not match the enclosing binary: '
+      + `binary=${binaryCommit}/${binaryDirty}, `
+      + `catalog=${catalogIdentity?.sourceCommit ?? 'unknown'}/${catalogIdentity?.dirty ?? 'unknown'}`,
+    );
+  }
+  return catalogIdentity;
+}
+
+// @ref LLP 0041#runtime-distribution — package manufacture must inspect the
+// exact embedded catalog before it can seal or publish the enclosing binary.
+export function inspectRuntimeCatalogBuildIdentity({
+  binaryPath,
+  binaryIdentity,
+  environment = process.env,
+  runBinary = spawnSync,
+}) {
+  const result = runBinary(binaryPath, ['controls', 'list', '--json'], {
+    encoding: 'utf8',
+    env: environment,
+    timeout: 15_000,
+  });
+  if (result.status !== 0) {
+    throw catalogBuildIdentityError(
+      'could not inspect the runtime control catalog: '
+      + (
+        result.error?.message
+        ?? result.stderr?.trim()
+        ?? result.signal
+        ?? result.status
+        ?? 'unknown failure'
+      ),
+    );
+  }
+  let catalog;
+  try {
+    catalog = JSON.parse(result.stdout);
+  } catch (error) {
+    throw catalogBuildIdentityError(
+      `runtime control catalog output was not valid JSON: ${error.message}`,
+    );
+  }
+  return assertRuntimeCatalogBuildIdentity(binaryIdentity, catalog);
 }
 
 export function assertRuntimePackageSourceIdentity(identity) {

@@ -2,6 +2,12 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+#[allow(dead_code)]
+pub struct BuildIdentityStamp {
+    pub git_commit: Option<String>,
+    pub git_dirty: Option<bool>,
+}
+
 /// Emit the git commit + dirty state provenance-sensitive binaries report.
 /// Both facts are best-effort: a build outside a git checkout (or without git)
 /// leaves the commit unset, which the runtime reports as `"unknown"`, and an
@@ -17,7 +23,7 @@ use std::process::Command;
 ///
 /// @ref LLP 0031#server-binary-identity-on-health — the build/provenance facts
 /// answering "is this MY checkout's binary?" on the ungated public /health.
-pub fn emit_build_identity() {
+pub fn emit_build_identity() -> BuildIdentityStamp {
     println!("cargo:rerun-if-env-changed=SNAPBACK_BUILD_GIT_COMMIT");
     println!("cargo:rerun-if-env-changed=SNAPBACK_BUILD_GIT_DIRTY");
     println!("cargo:rerun-if-env-changed=SNAPBACK_BUILD_DISTRIBUTION");
@@ -67,11 +73,12 @@ pub fn emit_build_identity() {
         }
     }
 
-    if let Some(commit) = resolve_git_commit(&repo_root) {
+    let git_commit = resolve_git_commit(&repo_root);
+    if let Some(commit) = &git_commit {
         println!("cargo:rustc-env=SNAPBACK_BUILD_GIT_COMMIT={commit}");
     }
 
-    let dirty = env_nonempty("SNAPBACK_BUILD_GIT_DIRTY")
+    let git_dirty = env_nonempty("SNAPBACK_BUILD_GIT_DIRTY")
         .and_then(|v| match v.as_str() {
             "true" | "1" => Some(true),
             "false" | "0" => Some(false),
@@ -104,7 +111,7 @@ pub fn emit_build_identity() {
         });
     // Only a proven-clean tree emits "false"; an unknown result stays unset and
     // the runtime defaults it to dirty (conservative: no reuse on doubt).
-    if let Some(dirty) = dirty {
+    if let Some(dirty) = git_dirty {
         println!("cargo:rustc-env=SNAPBACK_BUILD_GIT_DIRTY={dirty}");
     }
 
@@ -123,6 +130,10 @@ pub fn emit_build_identity() {
         "SNAPBACK_BUILD_DISTRIBUTION must be contributor-source or public-package"
     );
     println!("cargo:rustc-env=SNAPBACK_BUILD_DISTRIBUTION={distribution}");
+    BuildIdentityStamp {
+        git_commit,
+        git_dirty,
+    }
 }
 
 /// Resolve the explicit deterministic stamp or the checkout's current commit.

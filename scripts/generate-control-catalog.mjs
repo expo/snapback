@@ -1049,6 +1049,9 @@ try {
 }
 
 const outPath = join(ROOT, 'control-catalog/generated/control-catalog.v1.json');
+// The checked-in identity remains the compiler-run snapshot described by LLP
+// 0184. crates/snapback-kernel/build.rs replaces it only in the embedded copy
+// with the executable's shared build stamp.
 let buildIdentity = { sourceCommit, dirty };
 let generatedAtCommit = sourceCommit;
 if (CHECK_ONLY && existsSync(outPath)) {

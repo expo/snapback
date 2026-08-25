@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:130e3525d566733bc3ae0f6146bd58af5f576e94cef1e32918e9358f70e6d469"
+    "sourceDigest": "sha256:66a56cd926e76be2b2a51ae2678cb8cac2629144010c6fb75ae3e103d4034454"
   },
   "limits": {
     "lookupBytes": 16384
@@ -4736,7 +4736,7 @@
       "sites": [
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 260,
+          "line": 272,
           "column": 26
         },
         {
@@ -34075,12 +34075,12 @@
       "sites": [
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 145,
+          "line": 146,
           "column": 8
         },
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 151,
+          "line": 152,
           "column": 8
         },
         {
@@ -61383,7 +61383,7 @@
         },
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 133,
+          "line": 134,
           "column": 8
         },
         {
@@ -61453,12 +61453,12 @@
         },
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 240,
+          "line": 252,
           "column": 12
         },
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 246,
+          "line": 258,
           "column": 10
         },
         {
@@ -75598,7 +75598,7 @@
       "sites": [
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 256,
+          "line": 268,
           "column": 12
         }
       ],
@@ -75613,7 +75613,7 @@
       "sites": [
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 268,
+          "line": 280,
           "column": 10
         },
         {
@@ -75648,12 +75648,12 @@
       "sites": [
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 172,
+          "line": 173,
           "column": 8
         },
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 192,
+          "line": 204,
           "column": 8
         },
         {
@@ -88225,7 +88225,7 @@
         },
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 139,
+          "line": 140,
           "column": 8
         },
         {
@@ -88287,7 +88287,7 @@
       "sites": [
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 38,
+          "line": 39,
           "column": 15
         }
       ],
@@ -88302,7 +88302,7 @@
       "sites": [
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 42,
+          "line": 43,
           "column": 15
         }
       ],
@@ -88529,22 +88529,22 @@
         },
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 98,
+          "line": 99,
           "column": 10
         },
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 105,
+          "line": 106,
           "column": 8
         },
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 301,
+          "line": 313,
           "column": 10
         },
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 320,
+          "line": 332,
           "column": 8
         },
         {
@@ -88579,7 +88579,7 @@
       "sites": [
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 34,
+          "line": 35,
           "column": 15
         }
       ],

@@ -192,7 +192,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-agent-setup-receipt-invalid"></a>`SNAPBACK_AGENT_SETUP_RECEIPT_INVALID` | cli | — | — | `packages/snapback-cli/agent-setup.mjs:252` | 2 |
 | <a id="diagnostic-snapback-agent-setup-receipt-mismatch"></a>`SNAPBACK_AGENT_SETUP_RECEIPT_MISMATCH` | cli | — | — | `packages/snapback-cli/agent-setup.mjs:274` | 3 |
 | <a id="diagnostic-snapback-agent-setup-server-conflict"></a>`SNAPBACK_AGENT_SETUP_SERVER_CONFLICT` | cli | — | — | `packages/snapback-cli/agent-setup.mjs:232` | 2 |
-| <a id="diagnostic-snapback-allow-missing-store-receipts"></a>`SNAPBACK_ALLOW_MISSING_STORE_RECEIPTS` | runtime-darwin-arm64 | — | — | `packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs:260` | 2 |
+| <a id="diagnostic-snapback-allow-missing-store-receipts"></a>`SNAPBACK_ALLOW_MISSING_STORE_RECEIPTS` | runtime-darwin-arm64 | — | — | `packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs:272` | 2 |
 | <a id="diagnostic-snapback-api-approval-query-invalid"></a>`SNAPBACK_API_APPROVAL_QUERY_INVALID` | codegen | 400 | — | `crates/snapback-server/src/server/api_error.rs:208` | 4 |
 | <a id="diagnostic-snapback-api-approval-requires-exposure"></a>`SNAPBACK_API_APPROVAL_REQUIRES_EXPOSURE` | codegen | 400 | — | `crates/snapback-server/src/server/api_error.rs:209` | 4 |
 | <a id="diagnostic-snapback-api-ask-authority-required"></a>`SNAPBACK_API_ASK_AUTHORITY_REQUIRED` | server | 403 | [guide](../backend/external-api.md#read-only-near-data-ask) | `crates/snapback-server/src/server.rs:27692` | 2 |
@@ -1083,7 +1083,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-capability-exact-provider-conformance-missing"></a>`SNAPBACK_CAPABILITY_EXACT_PROVIDER_CONFORMANCE_MISSING` | capabilities | — | — | `packages/snapback-contract/exact-conformance.mjs:14` | 1 |
 | <a id="diagnostic-snapback-capability-exact-route-registry-missing"></a>`SNAPBACK_CAPABILITY_EXACT_ROUTE_REGISTRY_MISSING` | capabilities | — | — | `packages/snapback-contract/build-preset.mjs:142` | 1 |
 | <a id="diagnostic-snapback-capability-exact-verify-invalid"></a>`SNAPBACK_CAPABILITY_EXACT_VERIFY_INVALID` | capabilities | — | — | `packages/snapback-contract/exact-conformance.mjs:123` | 1 |
-| <a id="diagnostic-snapback-capability-ibex-hermes-missing"></a>`SNAPBACK_CAPABILITY_IBEX_HERMES_MISSING` | capabilities | — | [guide](../operating/diagnostics.md#diagnose-the-vendored-ibex-runtime-first) | `packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs:145` | 4 |
+| <a id="diagnostic-snapback-capability-ibex-hermes-missing"></a>`SNAPBACK_CAPABILITY_IBEX_HERMES_MISSING` | capabilities | — | [guide](../operating/diagnostics.md#diagnose-the-vendored-ibex-runtime-first) | `packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs:146` | 4 |
 | <a id="diagnostic-snapback-capability-link-args-contract-required"></a>`SNAPBACK_CAPABILITY_LINK_ARGS_CONTRACT_REQUIRED` | capabilities | 400 | — | `crates/snapback-server/src/server/api_error.rs:257` | 3 |
 | <a id="diagnostic-snapback-capability-link-caller-arg-denied"></a>`SNAPBACK_CAPABILITY_LINK_CALLER_ARG_DENIED` | capabilities | 403 | — | `crates/snapback-server/src/server.rs:29035` | 2 |
 | <a id="diagnostic-snapback-capability-link-catalog-corrupt"></a>`SNAPBACK_CAPABILITY_LINK_CATALOG_CORRUPT` | capabilities | 500 | — | `crates/snapback-kernel/src/storage/capability_links.rs:683` | 4 |
@@ -2699,10 +2699,10 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-packaged-store-qualification-identity-unqualified"></a>`SNAPBACK_PACKAGED_STORE_QUALIFICATION_IDENTITY_UNQUALIFIED` | server | — | — | `crates/snapback-cli/src/cli.rs:3691` | 1 |
 | <a id="diagnostic-snapback-packaged-store-qualification-mode"></a>`SNAPBACK_PACKAGED_STORE_QUALIFICATION_MODE` | server | — | — | `crates/snapback-engine/src/manifest/capabilities.rs:136` | 1 |
 | <a id="diagnostic-snapback-packaged-store-qualification-receipt"></a>`SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT` | cli | — | — | `crates/snapback-engine/src/manifest/capabilities.rs:134` | 2 |
-| <a id="diagnostic-snapback-packaged-store-qualification-receipt-file"></a>`SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_FILE` | runtime-darwin-arm64 | — | — | `packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs:256` | 1 |
-| <a id="diagnostic-snapback-packaged-store-qualification-receipt-invalid"></a>`SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_INVALID` | runtime-darwin-arm64 | — | — | `packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs:268` | 2 |
+| <a id="diagnostic-snapback-packaged-store-qualification-receipt-file"></a>`SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_FILE` | runtime-darwin-arm64 | — | — | `packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs:268` | 1 |
+| <a id="diagnostic-snapback-packaged-store-qualification-receipt-invalid"></a>`SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_INVALID` | runtime-darwin-arm64 | — | — | `packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs:280` | 2 |
 | <a id="diagnostic-snapback-packaged-store-qualification-suite-unqualified"></a>`SNAPBACK_PACKAGED_STORE_QUALIFICATION_SUITE_UNQUALIFIED` | server | — | — | `crates/snapback-cli/src/cli.rs:3692` | 1 |
-| <a id="diagnostic-snapback-package-capability-attestation-required"></a>`SNAPBACK_PACKAGE_CAPABILITY_ATTESTATION_REQUIRED` | runtime-darwin-arm64 | — | — | `packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs:172` | 3 |
+| <a id="diagnostic-snapback-package-capability-attestation-required"></a>`SNAPBACK_PACKAGE_CAPABILITY_ATTESTATION_REQUIRED` | runtime-darwin-arm64 | — | — | `packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs:173` | 3 |
 | <a id="diagnostic-snapback-page-set-invalid"></a>`SNAPBACK_PAGE_SET_INVALID` | client | — | — | `packages/snapback-client/finite-completeness-carrier.mjs:76` | 9 |
 | <a id="diagnostic-snapback-password"></a>`SNAPBACK_PASSWORD` | server | — | [guide](../auth/passwords.md#from-the-cli) | `crates/snapback-cli/src/cli.rs:1850` | 6 |
 | <a id="diagnostic-snapback-permissions-unavailable-in-action"></a>`SNAPBACK_PERMISSIONS_UNAVAILABLE_IN_ACTION` | server | 400 | — | `crates/snapback-engine/src/runtime/host_glue.rs:4792` | 3 |
@@ -3182,8 +3182,8 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-runtime-binary-missing"></a>`SNAPBACK_RUNTIME_BINARY_MISSING` | runtime | — | — | `packages/snapback-cli/index.mjs:272` | 7 |
 | <a id="diagnostic-snapback-runtime-cost-recorder"></a>`SNAPBACK_RUNTIME_COST_RECORDER` | runtime | — | [guide](../backend/query-costs.md#pull-one-local-snapshot) | `crates/snapback-server/src/admin.rs:3087` | 2 |
 | <a id="diagnostic-snapback-runtime-create-failed"></a>`SNAPBACK_RUNTIME_CREATE_FAILED` | runtime | 500 | — | `crates/snapback-runtime/src/runtime.rs:305` | 2 |
-| <a id="diagnostic-snapback-runtime-hermes-framework"></a>`SNAPBACK_RUNTIME_HERMES_FRAMEWORK` | runtime | — | — | `packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs:38` | 1 |
-| <a id="diagnostic-snapback-runtime-hermes-header"></a>`SNAPBACK_RUNTIME_HERMES_HEADER` | runtime | — | — | `packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs:42` | 1 |
+| <a id="diagnostic-snapback-runtime-hermes-framework"></a>`SNAPBACK_RUNTIME_HERMES_FRAMEWORK` | runtime | — | — | `packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs:39` | 1 |
+| <a id="diagnostic-snapback-runtime-hermes-header"></a>`SNAPBACK_RUNTIME_HERMES_HEADER` | runtime | — | — | `packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs:43` | 1 |
 | <a id="diagnostic-snapback-runtime-identity-unavailable"></a>`SNAPBACK_RUNTIME_IDENTITY_UNAVAILABLE` | runtime | — | — | `packages/snapback-cli/index.mjs:686` | 2 |
 | <a id="diagnostic-snapback-runtime-launch-ok"></a>`SNAPBACK_RUNTIME_LAUNCH_OK` | runtime | — | [guide](../operating/diagnostics.md#diagnose-the-vendored-ibex-runtime-first) | `packages/snapback-cli/index.mjs:685` | 3 |
 | <a id="diagnostic-snapback-runtime-linux-bundle-resolution-failed"></a>`SNAPBACK_RUNTIME_LINUX_BUNDLE_RESOLUTION_FAILED` | runtime | — | — | `packages/snapback-runtime-linux-x64/elf-portability.mjs:36` | 2 |
@@ -3197,7 +3197,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-runtime-linux-x64-source-revision"></a>`SNAPBACK_RUNTIME_LINUX_X64_SOURCE_REVISION` | runtime | — | — | `packages/snapback-runtime-linux-x64/prepare-runtime.mjs:158` | 1 |
 | <a id="diagnostic-snapback-runtime-package-missing"></a>`SNAPBACK_RUNTIME_PACKAGE_MISSING` | runtime | — | — | `packages/snapback-cli/index.mjs:421` | 1 |
 | <a id="diagnostic-snapback-runtime-package-qualification-failed"></a>`SNAPBACK_RUNTIME_PACKAGE_QUALIFICATION_FAILED` | runtime | — | — | `packages/snapback-cli/runtime-readiness.mjs:51` | 9 |
-| <a id="diagnostic-snapback-runtime-source-binary"></a>`SNAPBACK_RUNTIME_SOURCE_BINARY` | runtime | — | — | `packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs:34` | 1 |
+| <a id="diagnostic-snapback-runtime-source-binary"></a>`SNAPBACK_RUNTIME_SOURCE_BINARY` | runtime | — | — | `packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs:35` | 1 |
 | <a id="diagnostic-snapback-run--"></a>`SNAPBACK_RUN__` | server | — | — | `crates/snapback-engine/src/runtime/host_glue.rs:7632` | 1 |
 | <a id="diagnostic-snapback-s3-proxy-policy-child"></a>`SNAPBACK_S3_PROXY_POLICY_CHILD` | server | — | — | `crates/snapback-services/src/assets_s3.rs:865` | 1 |
 | <a id="diagnostic-snapback-s3-test-"></a>`SNAPBACK_S3_TEST_` | server | — | — | `crates/snapback-services/src/assets_s3.rs:853` | 1 |
