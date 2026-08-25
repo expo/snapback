@@ -2362,7 +2362,10 @@ fn auth_projection_http_fixture(
         .install_authenticated_auth_invalidation(&provider, None)
         .expect("install projection HTTP invalidation");
     let projection_connection = invalidation
-        .prepare_connection()
+        .prepare_connection(crate::ephemeral::ConnectionEffectFence::anonymous(
+            "projection-http-incarnation",
+            "projection-http-grant",
+        ))
         .expect("prepare projection connection");
     for query_instance_id in 0..subscription_count {
         snapback_engine::test_support::subscribe_live_host_plan_with_invalidation(
@@ -2380,8 +2383,7 @@ fn auth_projection_http_fixture(
                 resume_from_token: None,
             },
             snapback_engine::test_support::live_invalidation_admission(
-                Some(projection_connection.clone()),
-                None,
+                projection_connection.clone(),
                 true,
             ),
         )
@@ -8902,8 +8904,7 @@ async fn install_after_local_production_subscription(
             },
             subscribe_authority,
             snapback_engine::test_support::live_invalidation_admission(
-                invalidation,
-                Some(effect_fence),
+                invalidation.expect("negotiated invalidation descriptor"),
                 true,
             ),
         )
@@ -9744,8 +9745,7 @@ async fn service_terminal_gate_does_not_hold_local_while_staged_work_drains() {
                 },
                 authority,
                 snapback_engine::test_support::live_invalidation_admission(
-                    invalidation,
-                    Some(effect_fence),
+                    invalidation.expect("negotiated invalidation descriptor"),
                     true,
                 ),
             )
@@ -23491,8 +23491,7 @@ async fn sessions_live_update_stream_sends_one_frame_per_subscription_version() 
                 },
                 subscribe_authority,
                 snapback_engine::test_support::live_invalidation_admission(
-                    invalidation,
-                    Some(effect_fence),
+                    invalidation.expect("negotiated invalidation descriptor"),
                     true,
                 ),
             )
@@ -32901,18 +32900,19 @@ fn connection_registry_negotiates_exact_invalidation_v1_with_bound_authority() {
         .authorization_invalidation
         .as_ref()
         .expect("v1 descriptor");
-    assert_eq!(descriptor.protocol_version, 1);
-    assert_eq!(descriptor.connection_generation, 1);
-    assert_eq!(descriptor.authorization, expected_authorization);
-    assert!(crate::ids::is_minted_identifier(&descriptor.version_stream));
-    assert_eq!(descriptor.issuer_id.boot_sequence, 2);
+    assert_eq!(descriptor.protocol_version(), 1);
+    assert_eq!(descriptor.connection_generation(), 1);
+    assert_eq!(descriptor.authorization(), &expected_authorization);
+    assert!(crate::ids::is_minted_identifier(
+        descriptor.version_stream()
+    ));
+    assert_eq!(descriptor.issuer_id().boot_sequence, 2);
     assert_eq!(
         descriptor
-            .issuer_retirement
-            .as_ref()
+            .issuer_retirement()
             .expect("prior issuer retirement")
             .retire_through_boot_sequence,
-        descriptor.issuer_id.boot_sequence - 1
+        descriptor.issuer_id().boot_sequence - 1
     );
     let reopened = registry
         .open_prepared(ConnectionOpenAttempt::new(
@@ -34365,8 +34365,7 @@ async fn committed_live_stage_finalize_outlives_request_cancellation_and_retains
                 },
                 authority,
                 snapback_engine::test_support::live_invalidation_admission(
-                    invalidation,
-                    Some(effect_fence),
+                    invalidation.expect("negotiated invalidation descriptor"),
                     true,
                 ),
             )

@@ -500,26 +500,28 @@ fn install_invalidation(snapback: &mut LocalSnapback) -> AuthorizationInvalidati
         boot_sequence,
     )
     .expect("fresh acceptance issuer id");
-    let authenticated =
+    let authenticator =
         crate::auth::invalidation::IssuerAuthenticator::new("llp-0053-acceptance-key", [0x53; 32])
-            .expect("acceptance authenticator")
-            .authenticate(issuer_id, "local-test", "llp-0053-shapes")
-            .expect("authenticate acceptance issuer");
-    let issuer = LiveInvalidationIssuer::new(authenticated).expect("acceptance issuer");
-    let connection = AuthorizationInvalidationConnection {
-        protocol_version: crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION,
-        issuer_id: issuer.authenticated().issuer_id.clone(),
-        connection_generation: issuer
-            .reserve_connection_generation()
-            .expect("acceptance connection generation"),
-        authorization: authorization.clone(),
-        version_stream: version_stream.clone(),
-        issuer_retirement: None,
-    };
-    snapback
-        .install_auth_invalidation(issuer, authorization, version_stream)
+            .expect("acceptance authenticator");
+    let authenticated = authenticator
+        .authenticate(issuer_id, "local-test", "llp-0053-shapes")
+        .expect("authenticate acceptance issuer");
+    let issuer = LiveInvalidationIssuer::with_authenticator(
+        authenticated,
+        authenticator,
+        "local-test",
+        "llp-0053-shapes",
+    )
+    .expect("acceptance issuer");
+    let binding = snapback
+        .install_auth_invalidation(issuer, authorization.clone(), version_stream)
         .expect("install acceptance invalidation");
-    connection
+    binding
+        .prepare_connection(crate::ephemeral::ConnectionEffectFence::anonymous(
+            authorization.incarnation,
+            "llp-0053-acceptance-grant",
+        ))
+        .expect("acceptance connection reservation")
 }
 
 fn session_ids(user: &str) -> (&'static str, &'static str) {
@@ -611,11 +613,7 @@ fn subscribe(
                 resume_from_token: None,
             },
             session_authority(user, InvocationSource::LiveInitialQuery),
-            LiveInvalidationAdmission {
-                connection: Some(connection.clone()),
-                effect_fence: None,
-                session_mode: true,
-            },
+            LiveInvalidationAdmission::new(connection.clone()).with_session_mode(true),
         )
         .unwrap_or_else(|error| panic!("subscribe {function} for {user}: {error:?}"));
     assert!(output.authorization_scope.is_some());
@@ -1851,7 +1849,7 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
         json!({}),
         100,
     );
-    let restart_installed_new_issuer = restarted_connection.issuer_id != connection.issuer_id;
+    let restart_installed_new_issuer = restarted_connection.issuer_id() != connection.issuer_id();
     assert!(restart_installed_new_issuer);
     let restart_accepted_distinct_caller_supplied_query_instance =
         !pre_restart_query_instances.contains(&restarted_query.query_instance_id);

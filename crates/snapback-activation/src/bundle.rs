@@ -204,7 +204,7 @@ pub struct BundleQuerySpec {
 }
 
 /// `POST /app/bundle` response (LLP 0092 §0D.1).
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct BundleResponse {
     /// Present exactly on the mixed successor wire; absent keeps format 1
@@ -298,7 +298,7 @@ pub struct BundleAuthorization {
 }
 
 /// Register-mode connection mint (LLP 0092 §0D.1/§0D.4).
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct BundleConnection {
     #[serde(rename = "connectionId")]

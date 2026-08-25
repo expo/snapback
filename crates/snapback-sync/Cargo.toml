@@ -14,7 +14,11 @@ default = ["sync-owner"]
 sync-owner = []
 # The standard shipped binary does not enable this internal verification
 # surface; published builds must not enable it.
-test-support = ["snapback-types/test-support"]
+test-support = [
+    "snapback-auth/test-support",
+    "snapback-kernel/test-support",
+    "snapback-types/test-support",
+]
 
 [dependencies]
 base64 = "0.22"

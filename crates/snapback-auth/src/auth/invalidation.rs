@@ -105,20 +105,96 @@ pub struct AuthenticatedBootIssuer {
 /// The connection-visible negotiated expectation. The authenticated
 /// descriptor remains server-held; once startup has verified it, the client
 /// receives the exact issuer id over the authenticated connection bootstrap.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AuthorizationInvalidationConnection {
-    pub protocol_version: u32,
-    pub issuer_id: IssuerId,
+    protocol_version: u32,
+    issuer_id: IssuerId,
     #[schemars(range(min = 1, max = MAX_PROTOCOL_COUNTER))]
-    pub connection_generation: u64,
+    connection_generation: u64,
     /// Closed initial client expectation. A clean subscription with no
     /// pending projection must never invent epoch zero.
-    pub authorization: AuthorizationVersion,
-    pub version_stream: String,
+    authorization: AuthorizationVersion,
+    version_stream: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub issuer_retirement: Option<IssuerRetirement>,
+    issuer_retirement: Option<IssuerRetirement>,
+    /// Process-local identity of the exact issuer reservation history that
+    /// allocated `connection_generation`. This is deliberately not a wire
+    /// field: deserialization cannot recreate installed-issuer provenance.
+    ///
+    /// @ref LLP 0303#a-derivation-is-only-as-strong-as-its-root — connection
+    /// descriptors retain the installed reservation history, not merely its
+    /// caller-copyable generation attribute.
+    #[serde(skip)]
+    #[schemars(skip)]
+    reservation_history: Arc<AtomicU64>,
+    /// Exact connection grant/fence for which this reservation was made.
+    /// Downstream admissions derive their fence from this field instead of
+    /// accepting a second caller-selected subject.
+    #[serde(skip)]
+    #[schemars(skip)]
+    effect_fence: snapback_types::ephemeral::ConnectionEffectFence,
 }
+
+impl AuthorizationInvalidationConnection {
+    pub fn protocol_version(&self) -> u32 {
+        self.protocol_version
+    }
+
+    pub fn issuer_id(&self) -> &IssuerId {
+        &self.issuer_id
+    }
+
+    pub fn connection_generation(&self) -> u64 {
+        self.connection_generation
+    }
+
+    pub fn authorization(&self) -> &AuthorizationVersion {
+        &self.authorization
+    }
+
+    pub fn version_stream(&self) -> &str {
+        &self.version_stream
+    }
+
+    pub fn issuer_retirement(&self) -> Option<&IssuerRetirement> {
+        self.issuer_retirement.as_ref()
+    }
+
+    pub fn effect_fence(&self) -> &snapback_types::ephemeral::ConnectionEffectFence {
+        &self.effect_fence
+    }
+}
+
+impl std::fmt::Debug for AuthorizationInvalidationConnection {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("AuthorizationInvalidationConnection")
+            .field("protocol_version", &self.protocol_version)
+            .field("issuer_id", &self.issuer_id)
+            .field("connection_generation", &self.connection_generation)
+            .field("authorization", &self.authorization)
+            .field("version_stream", &self.version_stream)
+            .field("issuer_retirement", &self.issuer_retirement)
+            .field("effect_fence", &self.effect_fence)
+            .finish_non_exhaustive()
+    }
+}
+
+impl PartialEq for AuthorizationInvalidationConnection {
+    fn eq(&self, other: &Self) -> bool {
+        self.protocol_version == other.protocol_version
+            && self.issuer_id == other.issuer_id
+            && self.connection_generation == other.connection_generation
+            && self.authorization == other.authorization
+            && self.version_stream == other.version_stream
+            && self.issuer_retirement == other.issuer_retirement
+            && self.effect_fence == other.effect_fence
+            && Arc::ptr_eq(&self.reservation_history, &other.reservation_history)
+    }
+}
+
+impl Eq for AuthorizationInvalidationConnection {}
 
 /// Server-authenticated proof that one current-issuer namespace has no live or
 /// unresolved scope at or below a contiguous scope-sequence prefix. The proof
@@ -159,6 +235,31 @@ pub struct LiveInvalidationIssuer {
     version_stream: Arc<RwLock<Option<String>>>,
     next_connection_generation: Arc<AtomicU64>,
     next_scope_sequence: Arc<AtomicU64>,
+}
+
+/// Opaque proof that this exact issuer reservation history was bound to the
+/// database/registry authorization projection during installation. A shaped
+/// or authenticated-but-uninstalled issuer cannot reserve a connection
+/// descriptor because it cannot produce this capability.
+/// @ref LLP 0303#a-derivation-is-only-as-strong-as-its-root — connection
+/// provenance is the exact installed reservation history, not its generation.
+#[derive(Clone)]
+pub struct InstalledInvalidationReservation {
+    reservation_history: Arc<AtomicU64>,
+}
+
+impl InstalledInvalidationReservation {
+    pub fn owns(&self, connection: &AuthorizationInvalidationConnection) -> bool {
+        Arc::ptr_eq(&self.reservation_history, &connection.reservation_history)
+    }
+}
+
+impl std::fmt::Debug for InstalledInvalidationReservation {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("InstalledInvalidationReservation")
+            .finish_non_exhaustive()
+    }
 }
 
 struct RetirementSigner {
@@ -228,15 +329,20 @@ impl LiveInvalidationIssuer {
     pub fn bind_authorization_expectation(
         &self,
         view: AuthorizationExpectationView,
-    ) -> SnapbackResult<()> {
+    ) -> SnapbackResult<InstalledInvalidationReservation> {
         let authorization = view.current()?;
         validate_retirement_authorization(&authorization, &self.authenticated.issuer_id)?;
         let projection = view.into_issuer_projection()?;
-        self.authorization_expectation.set(projection).map_err(|_| {
-            invalidation_error(
-                "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
-                "invalidation issuer authorization expectation was already bound",
-            )
+        self.authorization_expectation
+            .set(projection)
+            .map_err(|_| {
+                invalidation_error(
+                    "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
+                    "invalidation issuer authorization expectation was already bound",
+                )
+            })?;
+        Ok(InstalledInvalidationReservation {
+            reservation_history: self.next_connection_generation.clone(),
         })
     }
 
@@ -314,12 +420,38 @@ impl LiveInvalidationIssuer {
             })
     }
 
-    pub fn reserve_connection_generation(&self) -> SnapbackResult<u64> {
-        reserve_atomic_counter(
+    /// Reserve and describe one connection directly from this issuer's exact
+    /// reservation history and the grant fence the connection will use.
+    pub fn reserve_connection(
+        &self,
+        installed: &InstalledInvalidationReservation,
+        effect_fence: snapback_types::ephemeral::ConnectionEffectFence,
+    ) -> SnapbackResult<AuthorizationInvalidationConnection> {
+        if !Arc::ptr_eq(
+            &self.next_connection_generation,
+            &installed.reservation_history,
+        ) {
+            return Err(invalidation_error(
+                "SNAPBACK_AUTH_INVALIDATION_ISSUER_UNAVAILABLE",
+                "connection reservation belongs to another installed issuer history",
+            ));
+        }
+        let issuer_retirement = self.authenticate_prior_issuer_retirement()?;
+        let connection_generation = reserve_atomic_counter(
             &self.next_connection_generation,
             "SNAPBACK_AUTH_INVALIDATION_CONNECTION_GENERATION_EXHAUSTED",
             "authorization invalidation connection generation exhausted",
-        )
+        )?;
+        Ok(AuthorizationInvalidationConnection {
+            protocol_version: AUTH_INVALIDATION_PROTOCOL_VERSION,
+            issuer_id: self.authenticated.issuer_id.clone(),
+            connection_generation,
+            authorization: self.authorization_expectation()?,
+            version_stream: self.version_stream()?,
+            issuer_retirement,
+            reservation_history: installed.reservation_history.clone(),
+            effect_fence,
+        })
     }
 
     pub fn reserve_scope_sequence(&self) -> SnapbackResult<u64> {

@@ -55,15 +55,19 @@ pub struct SignedAssetFixture {
 
 /// Construct the compatibility admission used by higher-rank transport tests.
 pub fn live_invalidation_admission(
-    connection: Option<crate::auth::invalidation::AuthorizationInvalidationConnection>,
-    effect_fence: Option<crate::ephemeral::ConnectionEffectFence>,
+    connection: crate::auth::invalidation::AuthorizationInvalidationConnection,
     session_mode: bool,
 ) -> LiveInvalidationAdmission {
-    LiveInvalidationAdmission {
-        connection,
-        effect_fence,
-        session_mode,
-    }
+    LiveInvalidationAdmission::new(connection).with_session_mode(session_mode)
+}
+
+/// Compatibility admission for tests that deliberately exercise a connection
+/// without the authorization-invalidation protocol.
+pub fn live_unscoped_invalidation_admission(
+    effect_fence: crate::ephemeral::ConnectionEffectFence,
+    session_mode: bool,
+) -> LiveInvalidationAdmission {
+    LiveInvalidationAdmission::without_invalidation(effect_fence).with_session_mode(session_mode)
 }
 
 pub fn auth_database_mut(snapback: &mut LocalSnapback) -> &mut crate::storage::LocalDatabase {

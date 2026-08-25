@@ -7,10 +7,10 @@ use crate::auth::admission::{
 use crate::auth::descriptor::require_current_descriptor;
 use crate::auth::invalidation::{
     AuthorizationInvalidationConnection, AuthorizationInvalidationProjection, CompositeWitness,
-    DataWitness, InvalidationDisposition, LiveInvalidationIssuer, ObligationExpectation,
-    ObligationRegistry, QueryNamespace, ResolutionKind, ResolutionTicket, ResyncObligation,
-    RetryEpisode, RetryEpisodeKey, RetryReservation, RetryReservationKind, ScopeId,
-    ScopeRetirement, ScopeRetirementCandidate,
+    DataWitness, InstalledInvalidationReservation, InvalidationDisposition, LiveInvalidationIssuer,
+    ObligationExpectation, ObligationRegistry, QueryNamespace, ResolutionKind, ResolutionTicket,
+    ResyncObligation, RetryEpisode, RetryEpisodeKey, RetryReservation, RetryReservationKind,
+    ScopeId, ScopeRetirement, ScopeRetirementCandidate,
 };
 #[cfg(test)]
 use crate::auth::invocation::install_classified_admission_hook_for_test;
@@ -3538,14 +3538,10 @@ pub struct ManagedWebsocketWitness {
 #[derive(Clone)]
 pub struct EngineInvalidationBinding {
     issuer: LiveInvalidationIssuer,
+    installed: InstalledInvalidationReservation,
 }
 
 impl EngineInvalidationBinding {
-    #[cfg(any(test, feature = "test-support"))]
-    pub fn from_issuer_for_test(issuer: LiveInvalidationIssuer) -> Self {
-        Self { issuer }
-    }
-
     pub fn authorization_expectation(
         &self,
     ) -> SnapbackResult<crate::storage::AuthorizationVersion> {
@@ -3554,18 +3550,10 @@ impl EngineInvalidationBinding {
 
     pub fn prepare_connection(
         &self,
+        effect_fence: crate::ephemeral::ConnectionEffectFence,
     ) -> SnapbackResult<crate::auth::invalidation::AuthorizationInvalidationConnection> {
-        let issuer_retirement = self.issuer.authenticate_prior_issuer_retirement()?;
-        Ok(
-            crate::auth::invalidation::AuthorizationInvalidationConnection {
-                protocol_version: crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION,
-                issuer_id: self.issuer.authenticated().issuer_id.clone(),
-                connection_generation: self.issuer.reserve_connection_generation()?,
-                authorization: self.issuer.authorization_expectation()?,
-                version_stream: self.issuer.version_stream()?,
-                issuer_retirement,
-            },
-        )
+        self.issuer
+            .reserve_connection(&self.installed, effect_fence)
     }
 }
 
@@ -4175,19 +4163,30 @@ pub struct FinalizeWitnessRetryTicketV1 {
 
 struct LocalInvalidationState {
     issuer: LiveInvalidationIssuer,
+    installed: InstalledInvalidationReservation,
     obligations: ObligationRegistry,
     version_stream: String,
     next_cause_sequence: u64,
 }
 
 impl LocalInvalidationState {
+    fn reserve_connection(
+        &self,
+        effect_fence: crate::ephemeral::ConnectionEffectFence,
+    ) -> SnapbackResult<AuthorizationInvalidationConnection> {
+        self.issuer
+            .reserve_connection(&self.installed, effect_fence)
+    }
+
     fn accepts_connection(&self, connection: &AuthorizationInvalidationConnection) -> bool {
         let current = &self.obligations.expectation().authorization;
-        connection.protocol_version == crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION
-            && connection.issuer_id == self.issuer.authenticated().issuer_id
-            && connection.authorization.incarnation == current.incarnation
-            && connection.authorization.epoch <= current.epoch
-            && connection.version_stream == self.version_stream
+        self.installed.owns(connection)
+            && connection.protocol_version()
+                == crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION
+            && connection.issuer_id() == &self.issuer.authenticated().issuer_id
+            && connection.authorization().incarnation == current.incarnation
+            && connection.authorization().epoch <= current.epoch
+            && connection.version_stream() == self.version_stream
     }
 
     fn reserve_cause_sequence(&mut self) -> SnapbackResult<u64> {
@@ -4604,25 +4603,40 @@ struct LiveSubscriptionAuthorization {
 /// (LLP 0031 dated amendment — the one sanctioned socketless-demand owner).
 #[derive(Clone, Debug)]
 pub struct BundleRegisterTarget {
-    pub(crate) connection_id: String,
-    pub(crate) effect_fence: crate::ephemeral::ConnectionEffectFence,
-    pub(crate) invalidation_connection: Option<AuthorizationInvalidationConnection>,
-    pub(crate) authorization_namespaces: Vec<Option<crate::auth::invalidation::QueryNamespace>>,
-    pub(crate) mixed_children: Option<Vec<crate::bundle::MixedChildAdmissionV2>>,
+    connection_id: String,
+    effect_fence: crate::ephemeral::ConnectionEffectFence,
+    invalidation_connection: Option<AuthorizationInvalidationConnection>,
+    authorization_namespaces: Vec<Option<crate::auth::invalidation::QueryNamespace>>,
+    mixed_children: Option<Vec<crate::bundle::MixedChildAdmissionV2>>,
 }
 
 impl BundleRegisterTarget {
     pub fn new(
         connection_id: String,
+        invalidation_connection: AuthorizationInvalidationConnection,
+        authorization_namespaces: Vec<Option<crate::auth::invalidation::QueryNamespace>>,
+        mixed_children: Option<Vec<crate::bundle::MixedChildAdmissionV2>>,
+    ) -> Self {
+        let effect_fence = invalidation_connection.effect_fence().clone();
+        Self {
+            connection_id,
+            effect_fence,
+            invalidation_connection: Some(invalidation_connection),
+            authorization_namespaces,
+            mixed_children,
+        }
+    }
+
+    pub fn without_invalidation(
+        connection_id: String,
         effect_fence: crate::ephemeral::ConnectionEffectFence,
-        invalidation_connection: Option<AuthorizationInvalidationConnection>,
         authorization_namespaces: Vec<Option<crate::auth::invalidation::QueryNamespace>>,
         mixed_children: Option<Vec<crate::bundle::MixedChildAdmissionV2>>,
     ) -> Self {
         Self {
             connection_id,
             effect_fence,
-            invalidation_connection,
+            invalidation_connection: None,
             authorization_namespaces,
             mixed_children,
         }
@@ -4631,27 +4645,47 @@ impl BundleRegisterTarget {
     pub fn connection_identity(&self) -> (&str, &crate::ephemeral::ConnectionEffectFence) {
         (&self.connection_id, &self.effect_fence)
     }
+
+    fn invalidation_admission(&self) -> LiveInvalidationAdmission {
+        match self.invalidation_connection.clone() {
+            Some(connection) => LiveInvalidationAdmission::new(connection),
+            None => LiveInvalidationAdmission::without_invalidation(self.effect_fence.clone()),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default)]
 pub struct LiveInvalidationAdmission {
-    pub(crate) connection: Option<AuthorizationInvalidationConnection>,
-    pub(crate) effect_fence: Option<crate::ephemeral::ConnectionEffectFence>,
+    connection: Option<AuthorizationInvalidationConnection>,
+    effect_fence: Option<crate::ephemeral::ConnectionEffectFence>,
     #[cfg(any(test, feature = "test-support"))]
     pub(crate) session_mode: bool,
 }
 
 impl LiveInvalidationAdmission {
-    pub fn new(
-        connection: Option<AuthorizationInvalidationConnection>,
-        effect_fence: crate::ephemeral::ConnectionEffectFence,
-    ) -> Self {
+    pub fn new(connection: AuthorizationInvalidationConnection) -> Self {
+        let effect_fence = connection.effect_fence().clone();
         Self {
-            connection,
+            connection: Some(connection),
             effect_fence: Some(effect_fence),
             #[cfg(any(test, feature = "test-support"))]
             session_mode: false,
         }
+    }
+
+    pub fn without_invalidation(effect_fence: crate::ephemeral::ConnectionEffectFence) -> Self {
+        Self {
+            connection: None,
+            effect_fence: Some(effect_fence),
+            #[cfg(any(test, feature = "test-support"))]
+            session_mode: false,
+        }
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub(crate) fn with_session_mode(mut self, session_mode: bool) -> Self {
+        self.session_mode = session_mode;
+        self
     }
 }
 
@@ -9820,7 +9854,7 @@ impl LocalSnapback {
         issuer: LiveInvalidationIssuer,
         authorization: crate::storage::AuthorizationVersion,
         version_stream: String,
-    ) -> SnapbackResult<()> {
+    ) -> SnapbackResult<EngineInvalidationBinding> {
         let view = self
             .ephemeral
             .authorization_expectation_view_for_install(&mut self.db)?;
@@ -9831,7 +9865,7 @@ impl LocalSnapback {
                 "kernel authorization expectation does not match the reserved boot issuer",
             ));
         }
-        issuer.bind_authorization_expectation(view)?;
+        let installed = issuer.bind_authorization_expectation(view)?;
         issuer.install_version_stream(version_stream.clone())?;
         let obligations = ObligationRegistry::new(ObligationExpectation {
             authorization,
@@ -9840,13 +9874,14 @@ impl LocalSnapback {
         })?;
         self.auth_invalidation = Some(LocalInvalidationState {
             issuer: issuer.clone(),
+            installed: installed.clone(),
             obligations,
             version_stream,
             next_cause_sequence: 1,
         });
         self.ephemeral
-            .install_authorization_issuer_and_activate(&mut self.db, issuer)?;
-        Ok(())
+            .install_authorization_issuer_and_activate(&mut self.db, issuer.clone())?;
+        Ok(EngineInvalidationBinding { issuer, installed })
     }
 
     /// Remove every process-local issuer projection after a durable reset
@@ -9908,8 +9943,7 @@ impl LocalSnapback {
             let issuer = provider
                 .authenticate_invalidation_boot_issuer(issuer_id, &target_profile_id, &app_id)
                 .map_err(crate::auth::provider::ProviderError::into_snapback_error)?;
-            self.install_auth_invalidation(issuer.clone(), authorization, version_stream)?;
-            Ok(EngineInvalidationBinding { issuer })
+            self.install_auth_invalidation(issuer, authorization, version_stream)
         })();
         if attempt.is_err() && reset_successor.is_some() {
             self.clear_auth_invalidation_projection();
@@ -13234,16 +13268,15 @@ impl LocalSnapback {
             TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
             self.db.schema().app_id.as_str(),
         )?;
-        let connection = AuthorizationInvalidationConnection {
-            protocol_version: crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION,
-            issuer_id: issuer.authenticated().issuer_id.clone(),
-            connection_generation: issuer.reserve_connection_generation()?,
-            authorization: authorization.clone(),
-            version_stream: data_version_stream.to_owned(),
-            issuer_retirement: None,
-        };
-        self.install_auth_invalidation(issuer, authorization, data_version_stream.to_owned())?;
-        Ok(connection)
+        let binding = self.install_auth_invalidation(
+            issuer,
+            authorization.clone(),
+            data_version_stream.to_owned(),
+        )?;
+        binding.prepare_connection(crate::ephemeral::ConnectionEffectFence::anonymous(
+            authorization.incarnation,
+            format!("graph-corpus-grant-{boot_sequence}"),
+        ))
     }
 
     /// Bind the real authorization stream already present in a sessions-mode
@@ -13277,16 +13310,12 @@ impl LocalSnapback {
             TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
             self.db.schema().app_id.as_str(),
         )?;
-        let connection = AuthorizationInvalidationConnection {
-            protocol_version: crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION,
-            issuer_id: issuer.authenticated().issuer_id.clone(),
-            connection_generation: issuer.reserve_connection_generation()?,
-            authorization: authorization.clone(),
-            version_stream: version_stream.clone(),
-            issuer_retirement: None,
-        };
-        self.install_auth_invalidation(issuer, authorization, version_stream)?;
-        Ok(connection)
+        let binding =
+            self.install_auth_invalidation(issuer, authorization.clone(), version_stream)?;
+        binding.prepare_connection(crate::ephemeral::ConnectionEffectFence::anonymous(
+            authorization.incarnation,
+            format!("graph-measurement-grant-{boot_sequence}"),
+        ))
     }
 
     #[cfg(any(test, feature = "test-support"))]
@@ -13332,11 +13361,7 @@ impl LocalSnapback {
                 InvocationSource::LiveInitialQuery,
                 false,
             )?,
-            LiveInvalidationAdmission {
-                session_mode: true,
-                connection: Some(connection),
-                effect_fence: None,
-            },
+            LiveInvalidationAdmission::new(connection).with_session_mode(true),
         )
     }
 
@@ -13354,11 +13379,7 @@ impl LocalSnapback {
                 InvocationSource::LiveInitialQuery,
                 true,
             )?,
-            LiveInvalidationAdmission {
-                session_mode: true,
-                connection: Some(connection),
-                effect_fence: None,
-            },
+            LiveInvalidationAdmission::new(connection).with_session_mode(true),
         )
     }
 
@@ -21610,12 +21631,7 @@ impl LocalSnapback {
                             supersedes: None,
                             resume_from_token: None,
                         };
-                        let invalidation = LiveInvalidationAdmission {
-                            connection: target.invalidation_connection.clone(),
-                            effect_fence: Some(target.effect_fence.clone()),
-                            #[cfg(any(test, feature = "test-support"))]
-                            session_mode: false,
-                        };
+                        let invalidation = target.invalidation_admission();
                         let output = snapback
                             .subscribe_live_prepared_with_invalidation(
                                 &spec.function,
@@ -21936,12 +21952,7 @@ impl LocalSnapback {
                                 resume_from_token: None,
                             },
                             child_authority,
-                            LiveInvalidationAdmission {
-                                connection: target.invalidation_connection.clone(),
-                                effect_fence: Some(target.effect_fence.clone()),
-                                #[cfg(any(test, feature = "test-support"))]
-                                session_mode: false,
-                            },
+                            target.invalidation_admission(),
                             invocation,
                         )
                         .map_err(|error| {
@@ -22540,7 +22551,7 @@ impl LocalSnapback {
                      to an auth-scoped live query",
                 )
             })?;
-            if connection.protocol_version
+            if connection.protocol_version()
                 != crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION
             {
                 return Err(SnapbackError::error(
@@ -22968,15 +22979,15 @@ impl LocalSnapback {
                     .as_mut()
                     .expect("auth-scoped admission checked installed state");
                 let scope_id = ScopeId::Subscription {
-                    issuer_id: connection.issuer_id.clone(),
+                    issuer_id: connection.issuer_id().clone(),
                     namespace: namespace.clone(),
                     scope_sequence: state.issuer.reserve_scope_sequence()?,
-                    connection_generation: connection.connection_generation,
+                    connection_generation: connection.connection_generation(),
                     subscription_id: subscription_id.clone(),
                 };
                 let connection_scope = ScopeId::Connection {
-                    issuer_id: connection.issuer_id,
-                    connection_generation: connection.connection_generation,
+                    issuer_id: connection.issuer_id().clone(),
+                    connection_generation: connection.connection_generation(),
                 };
                 let owner_continuity_id =
                     crate::ids::mint_time_ordered(crate::ids::Kind::OwnerContinuity);
@@ -23571,8 +23582,8 @@ impl LocalSnapback {
             .resolution_for_ack_token(&input.ack_token)
             .cloned();
         let outcome = state.obligations.acknowledge_subscription(
-            &connection.issuer_id,
-            connection.connection_generation,
+            connection.issuer_id(),
+            connection.connection_generation(),
             &input.ack_token,
         )?;
         if outcome == crate::auth::invalidation::AcknowledgeOutcome::Discharged
@@ -23595,18 +23606,18 @@ impl LocalSnapback {
         input: AuthorizationInvalidationAckInput,
         connection: AuthorizationInvalidationConnection,
         admission: AdmissionLease,
-        effect_fence: crate::ephemeral::ConnectionEffectFence,
     ) -> SnapbackResult<PreparedAuthorizationInvalidationAck> {
+        let effect_fence = connection.effect_fence().clone();
         self.stage_local_live_effect(
             input.connection_id.clone(),
             effect_fence,
             0,
             [format!(
                 "authorization-ack:{}:{}:{}:{}:{}",
-                connection.issuer_id.authorization_incarnation,
-                connection.issuer_id.boot_sequence,
-                connection.issuer_id.boot_nonce,
-                connection.connection_generation,
+                connection.issuer_id().authorization_incarnation,
+                connection.issuer_id().boot_sequence,
+                connection.issuer_id().boot_nonce,
+                connection.connection_generation(),
                 input.ack_token
             )],
             PreparedAuthorizationInvalidationAckPlan {
@@ -23686,8 +23697,8 @@ impl LocalSnapback {
                     issuer_id,
                     connection_generation,
                     ..
-                } if issuer_id == &connection.issuer_id
-                    && *connection_generation == connection.connection_generation
+                } if issuer_id == connection.issuer_id()
+                    && *connection_generation == connection.connection_generation()
             )
         {
             return Err(auth_resnapshot_required());
@@ -23775,7 +23786,6 @@ impl LocalSnapback {
         input: AuthorizationInvalidationManualRetryInput,
         connection: AuthorizationInvalidationConnection,
         authority: PreparedAuthority,
-        effect_fence: crate::ephemeral::ConnectionEffectFence,
     ) -> SnapbackResult<PreparedAuthorizationInvalidationManualRetry> {
         if authority.source() != InvocationSource::InvalidationAcknowledgement {
             return Err(SnapbackError::error(
@@ -23785,6 +23795,7 @@ impl LocalSnapback {
             ));
         }
         authority.validate_admission("authorization invalidation manual retry staging")?;
+        let effect_fence = connection.effect_fence().clone();
         self.stage_local_live_effect(
             input.connection_id.clone(),
             effect_fence.clone(),
@@ -23970,8 +23981,8 @@ impl LocalSnapback {
                     issuer_id,
                     connection_generation,
                     ..
-                } if issuer_id == &connection.issuer_id
-                    && *connection_generation == connection.connection_generation
+                } if issuer_id == connection.issuer_id()
+                    && *connection_generation == connection.connection_generation()
             );
             // Read the durable floor before changing retained ownership. A read
             // failure must leave the exact predecessor scope/fence untouched.
@@ -23991,15 +24002,15 @@ impl LocalSnapback {
                     .expect("resume checked installed invalidation state");
                 let previous = state.obligations.pending(&predecessor_scope).cloned();
                 let replacement = ScopeId::Subscription {
-                    issuer_id: connection.issuer_id.clone(),
+                    issuer_id: connection.issuer_id().clone(),
                     namespace: authorization.namespace.clone(),
                     scope_sequence: state.issuer.reserve_scope_sequence()?,
-                    connection_generation: connection.connection_generation,
+                    connection_generation: connection.connection_generation(),
                     subscription_id: subscription.id.clone(),
                 };
                 let connection_scope = ScopeId::Connection {
-                    issuer_id: connection.issuer_id.clone(),
-                    connection_generation: connection.connection_generation,
+                    issuer_id: connection.issuer_id().clone(),
+                    connection_generation: connection.connection_generation(),
                 };
                 let owner_continuity_id =
                     crate::ids::mint_time_ordered(crate::ids::Kind::OwnerContinuity);

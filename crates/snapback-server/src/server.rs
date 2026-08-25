@@ -7136,7 +7136,7 @@ impl ConnectionRegistryState {
 
 /// The `POST /connection/open` response: the (possibly adopted) connection id
 /// and the bearer the caller must present on every connection-scoped call.
-#[derive(Clone, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[derive(Clone, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct ConnectionGrant {
     #[serde(rename = "connectionId")]
     pub connection_id: String,
@@ -8103,7 +8103,7 @@ impl ConnectionRegistry {
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner)
                     .clone()
-                    .map(|binding| binding.prepare_connection())
+                    .map(|binding| binding.prepare_connection(bound.effect_fence(&grant_id)))
                     .transpose()?
             } else {
                 None
@@ -30153,13 +30153,20 @@ async fn app_bundle(
                                 return Err(ApiError::from(error));
                             }
                         };
-                    let target = crate::local::BundleRegisterTarget::new(
-                        opened.grant.connection_id.clone(),
-                        prepared_open.bound.effect_fence(&opened.grant_id),
-                        opened.grant.authorization_invalidation.clone(),
-                        request.authorization_namespaces.clone(),
-                        mixed_children.clone(),
-                    );
+                    let target = match opened.grant.authorization_invalidation.clone() {
+                        Some(connection) => crate::local::BundleRegisterTarget::new(
+                            opened.grant.connection_id.clone(),
+                            connection,
+                            request.authorization_namespaces.clone(),
+                            mixed_children.clone(),
+                        ),
+                        None => crate::local::BundleRegisterTarget::without_invalidation(
+                            opened.grant.connection_id.clone(),
+                            prepared_open.bound.effect_fence(&opened.grant_id),
+                            request.authorization_namespaces.clone(),
+                            mixed_children.clone(),
+                        ),
+                    };
                     let evaluated = {
                         let entry = entry.clone();
                         let params = params.clone();
@@ -30236,13 +30243,20 @@ async fn app_bundle(
                             "the pending connection is no longer installed",
                         ));
                     };
-                    let target = crate::local::BundleRegisterTarget::new(
-                        connection_id.clone(),
-                        effect_fence,
-                        invalidation_connection.clone(),
-                        request.authorization_namespaces.clone(),
-                        mixed_children.clone(),
-                    );
+                    let target = match invalidation_connection.clone() {
+                        Some(connection) => crate::local::BundleRegisterTarget::new(
+                            connection_id.clone(),
+                            connection,
+                            request.authorization_namespaces.clone(),
+                            mixed_children.clone(),
+                        ),
+                        None => crate::local::BundleRegisterTarget::without_invalidation(
+                            connection_id.clone(),
+                            effect_fence,
+                            request.authorization_namespaces.clone(),
+                            mixed_children.clone(),
+                        ),
+                    };
                     let evaluated = {
                         let entry = entry.clone();
                         let params = params.clone();
@@ -31621,7 +31635,6 @@ async fn acknowledge_authorization_invalidation(
                  authorization invalidation",
             )
         })?;
-    let effect_fence = connection_act.effect_fence();
     let connection_id = input.connection_id.clone();
     let staged_admission = admission.clone();
     let staged = with_snapback(&runtime.snapback, move |snapback| {
@@ -31629,7 +31642,6 @@ async fn acknowledge_authorization_invalidation(
             input,
             connection,
             staged_admission,
-            effect_fence,
         )
     })
     .await?;
@@ -31699,14 +31711,10 @@ async fn manual_retry_authorization_invalidation(
                  authorization invalidation",
             )
         })?;
-    let effect_fence = connection_act.effect_fence();
     let connection_id = input.connection_id.clone();
     let staged = with_snapback(&runtime.snapback, move |snapback| {
         snapback.prepare_authorization_invalidation_manual_retry_for_transport(
-            input,
-            connection,
-            authority,
-            effect_fence,
+            input, connection, authority,
         )
     })
     .await?;
@@ -31766,10 +31774,10 @@ async fn subscribe_live(
 ) -> Result<Response, ApiError> {
     let Json(request) = input.map_err(ApiError::from_json_rejection)?;
     let input = request.input;
-    let invalidation = LiveInvalidationAdmission::new(
-        connection_act.authorization_invalidation.clone(),
-        connection_act.effect_fence(),
-    );
+    let invalidation = match connection_act.authorization_invalidation.clone() {
+        Some(connection) => LiveInvalidationAdmission::new(connection),
+        None => LiveInvalidationAdmission::without_invalidation(connection_act.effect_fence()),
+    };
     let connection_id = input.connection_id.clone();
     let staged = with_snapback(&runtime.snapback, move |snapback| {
         snapback.prepare_subscribe_live_for_transport_generation(
@@ -31850,10 +31858,10 @@ async fn resume_live(
     input: Result<Json<LiveResumeInput>, JsonRejection>,
 ) -> Result<Response, ApiError> {
     let Json(input) = input.map_err(ApiError::from_json_rejection)?;
-    let invalidation = LiveInvalidationAdmission::new(
-        connection_act.authorization_invalidation.clone(),
-        connection_act.effect_fence(),
-    );
+    let invalidation = match connection_act.authorization_invalidation.clone() {
+        Some(connection) => LiveInvalidationAdmission::new(connection),
+        None => LiveInvalidationAdmission::without_invalidation(connection_act.effect_fence()),
+    };
     let connection_id = input.connection_id.clone();
     let staged = with_snapback(&runtime.snapback, move |snapback| {
         snapback.prepare_resume_live_for_transport(name, input, authority, invalidation)

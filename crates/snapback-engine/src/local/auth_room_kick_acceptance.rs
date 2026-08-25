@@ -10,9 +10,7 @@
 //! `tests/eng-24604-protected-room-kick.acceptance.md`.
 
 use super::*;
-use crate::auth::invalidation::{
-    AUTH_INVALIDATION_PROTOCOL_VERSION, IssuerAuthenticator, IssuerId,
-};
+use crate::auth::invalidation::{IssuerAuthenticator, IssuerId};
 use crate::auth::mode::{
     AuthProgramReadiness, DeploymentIdentity, FUNCTION_V1_PREFIX, INPUTS_V1_PREFIX,
     SCHEMA_V1_PREFIX,
@@ -200,11 +198,7 @@ impl KickFixture {
                 "currentMembership",
                 durable_subscribe(CONNECTION_A, "store-a", 1),
                 session_authority(InvocationSource::LiveInitialQuery, USER_A),
-                LiveInvalidationAdmission {
-                    connection: Some(connection_a.clone()),
-                    effect_fence: None,
-                    session_mode: true,
-                },
+                LiveInvalidationAdmission::new(connection_a.clone()).with_session_mode(true),
             )
             .expect("A subscribes to its durable membership");
         let durable_b = snapback
@@ -212,11 +206,7 @@ impl KickFixture {
                 "currentMembership",
                 durable_subscribe(CONNECTION_B, "store-b", 1),
                 session_authority(InvocationSource::LiveInitialQuery, USER_B),
-                LiveInvalidationAdmission {
-                    connection: Some(connection_b.clone()),
-                    effect_fence: None,
-                    session_mode: true,
-                },
+                LiveInvalidationAdmission::new(connection_b.clone()).with_session_mode(true),
             )
             .expect("B subscribes to its durable membership");
         assert_eq!(durable_a.snapshot.as_ref().unwrap().rows.len(), 1);
@@ -234,11 +224,7 @@ impl KickFixture {
                 "board",
                 board_subscribe(CONNECTION_A, "store-a", 2),
                 session_authority(InvocationSource::LiveInitialQuery, USER_A),
-                LiveInvalidationAdmission {
-                    connection: Some(connection_a),
-                    effect_fence: None,
-                    session_mode: true,
-                },
+                LiveInvalidationAdmission::new(connection_a).with_session_mode(true),
             )
             .expect("A subscribes to the durable board while a member");
         let board_b = snapback
@@ -246,11 +232,7 @@ impl KickFixture {
                 "board",
                 board_subscribe(CONNECTION_B, "store-b", 2),
                 session_authority(InvocationSource::LiveInitialQuery, USER_B),
-                LiveInvalidationAdmission {
-                    connection: Some(connection_b),
-                    effect_fence: None,
-                    session_mode: true,
-                },
+                LiveInvalidationAdmission::new(connection_b).with_session_mode(true),
             )
             .expect("B subscribes to the durable board while a member");
         for board in [&board_a, &board_b] {
@@ -2166,33 +2148,33 @@ fn install_invalidation_with_binding(
         .expect("reserve acceptance issuer");
     let issuer_id = IssuerId::fresh(authorization.incarnation.clone(), boot_sequence)
         .expect("acceptance issuer id");
-    let authenticated = IssuerAuthenticator::new("eng-24604-protocol-key", [0x46; 32])
-        .expect("acceptance authenticator")
+    let authenticator = IssuerAuthenticator::new("eng-24604-protocol-key", [0x46; 32])
+        .expect("acceptance authenticator");
+    let authenticated = authenticator
         .authenticate(issuer_id, "local-test", "card-game")
         .expect("authenticated acceptance issuer");
-    let issuer = LiveInvalidationIssuer::new(authenticated).expect("live acceptance issuer");
-    let connection = |generation| AuthorizationInvalidationConnection {
-        protocol_version: AUTH_INVALIDATION_PROTOCOL_VERSION,
-        issuer_id: issuer.authenticated().issuer_id.clone(),
-        connection_generation: generation,
-        authorization: authorization.clone(),
-        version_stream: version_stream.clone(),
-        issuer_retirement: None,
-    };
-    let connection_a = connection(
-        issuer
-            .reserve_connection_generation()
-            .expect("A connection generation"),
-    );
-    let connection_b = connection(
-        issuer
-            .reserve_connection_generation()
-            .expect("B connection generation"),
-    );
-    let binding = EngineInvalidationBinding::from_issuer_for_test(issuer.clone());
-    snapback
-        .install_auth_invalidation(issuer, authorization, version_stream)
+    let issuer = LiveInvalidationIssuer::with_authenticator(
+        authenticated,
+        authenticator,
+        "local-test",
+        "card-game",
+    )
+    .expect("live acceptance issuer");
+    let binding = snapback
+        .install_auth_invalidation(issuer, authorization.clone(), version_stream)
         .expect("install acceptance invalidation");
+    let connection_a = binding
+        .prepare_connection(crate::ephemeral::ConnectionEffectFence::anonymous(
+            authorization.incarnation.clone(),
+            "eng-24604-grant-a",
+        ))
+        .expect("A connection reservation");
+    let connection_b = binding
+        .prepare_connection(crate::ephemeral::ConnectionEffectFence::anonymous(
+            authorization.incarnation,
+            "eng-24604-grant-b",
+        ))
+        .expect("B connection reservation");
     ([connection_a, connection_b], binding)
 }
 

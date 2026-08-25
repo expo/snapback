@@ -9353,7 +9353,7 @@ mod tests {
             "test-app",
         )
         .unwrap();
-        issuer.bind_authorization_expectation(view).unwrap();
+        let _installed = issuer.bind_authorization_expectation(view).unwrap();
         issuer
             .install_version_stream(version_stream.to_owned())
             .unwrap();

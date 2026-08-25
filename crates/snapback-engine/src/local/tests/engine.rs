@@ -30687,20 +30687,15 @@ fn install_test_invalidation(snapback: &mut LocalSnapback) -> AuthorizationInval
         "test-app",
     )
     .expect("live test issuer");
-    let descriptor = AuthorizationInvalidationConnection {
-        protocol_version: crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION,
-        issuer_id: issuer.authenticated().issuer_id.clone(),
-        connection_generation: issuer
-            .reserve_connection_generation()
-            .expect("test connection generation"),
-        authorization: authorization.clone(),
-        version_stream: version_stream.clone(),
-        issuer_retirement: None,
-    };
-    snapback
-        .install_auth_invalidation(issuer, authorization, version_stream)
+    let binding = snapback
+        .install_auth_invalidation(issuer.clone(), authorization.clone(), version_stream)
         .expect("install test invalidation");
-    descriptor
+    binding
+        .prepare_connection(crate::ephemeral::ConnectionEffectFence::anonymous(
+            authorization.incarnation,
+            "engine-test-invalidation-grant",
+        ))
+        .expect("test connection reservation")
 }
 
 fn test_authorization_namespace(instance: u64) -> QueryNamespace {
@@ -38505,12 +38500,7 @@ fn terminal_topology_purge_does_not_reenter_room_or_outbox_cleanup() {
 fn changed_invalidation_generation_live_resume_keeps_exact_grant_owner() {
     let mut snapback = live_limit_snapback();
     let connection = install_test_invalidation(&mut snapback);
-    let owner_fence = crate::ephemeral::ConnectionEffectFence::session(
-        "incarnation",
-        "grant-owner",
-        "session",
-        1,
-    );
+    let owner_fence = connection.effect_fence().clone();
     let subscribed = snapback
         .subscribe_live_with_invalidation(
             "listItems",
@@ -38521,22 +38511,19 @@ fn changed_invalidation_generation_live_resume_keeps_exact_grant_owner() {
                 supersedes: None,
                 resume_from_token: None,
             },
-            LiveInvalidationAdmission {
-                connection: Some(connection.clone()),
-                effect_fence: Some(owner_fence.clone()),
-                session_mode: true,
-            },
+            LiveInvalidationAdmission::new(connection.clone()).with_session_mode(true),
         )
         .expect("predecessor subscription");
     let predecessor_scope = subscribed
         .authorization_scope
         .clone()
         .expect("auth-scoped predecessor");
-    let mut successor_connection = connection;
-    successor_connection.connection_generation = successor_connection
-        .connection_generation
-        .checked_add(1)
-        .expect("test connection generation");
+    let successor_connection = snapback
+        .auth_invalidation
+        .as_ref()
+        .expect("installed invalidation state")
+        .reserve_connection(owner_fence.clone())
+        .expect("reserve successor connection");
 
     let output = snapback
         .resume_live_prepared_with_invalidation(
@@ -38548,11 +38535,7 @@ fn changed_invalidation_generation_live_resume_keeps_exact_grant_owner() {
                 recorded_permission_epochs: subscribed.permission_epochs,
             },
             test_session_authority(InvocationSource::LiveResume),
-            LiveInvalidationAdmission {
-                connection: Some(successor_connection.clone()),
-                effect_fence: Some(owner_fence.clone()),
-                session_mode: true,
-            },
+            LiveInvalidationAdmission::new(successor_connection.clone()).with_session_mode(true),
         )
         .expect("successor resume");
     let successor_scope = output
@@ -38565,7 +38548,7 @@ fn changed_invalidation_generation_live_resume_keeps_exact_grant_owner() {
         ScopeId::Subscription {
             connection_generation,
             ..
-        } if *connection_generation == successor_connection.connection_generation
+        } if *connection_generation == successor_connection.connection_generation()
     ));
     assert_eq!(output.scope_retirements.len(), 1);
     assert_eq!(
@@ -38616,8 +38599,7 @@ fn changed_invalidation_generation_live_resume_keeps_exact_grant_owner() {
 fn changed_generation_failed_resume_rolls_back_unpublished_successor_scope() {
     let mut snapback = live_limit_snapback();
     let predecessor_connection = install_test_invalidation(&mut snapback);
-    let predecessor_fence =
-        crate::ephemeral::ConnectionEffectFence::session("incarnation", "grant-old", "session", 1);
+    let predecessor_fence = predecessor_connection.effect_fence().clone();
     let subscribed = snapback
         .subscribe_live_with_invalidation(
             "listItemsByValue",
@@ -38631,11 +38613,7 @@ fn changed_generation_failed_resume_rolls_back_unpublished_successor_scope() {
                 supersedes: None,
                 resume_from_token: None,
             },
-            LiveInvalidationAdmission {
-                connection: Some(predecessor_connection.clone()),
-                effect_fence: Some(predecessor_fence.clone()),
-                session_mode: true,
-            },
+            LiveInvalidationAdmission::new(predecessor_connection.clone()).with_session_mode(true),
         )
         .expect("predecessor subscription");
     let predecessor_scope = snapback
@@ -38654,11 +38632,12 @@ fn changed_generation_failed_resume_rolls_back_unpublished_successor_scope() {
         .expect("retained predecessor")
         .input
         .args = json!({});
-    let mut successor_connection = predecessor_connection;
-    successor_connection.connection_generation = successor_connection
-        .connection_generation
-        .checked_add(1)
-        .expect("test connection generation");
+    let successor_connection = snapback
+        .auth_invalidation
+        .as_ref()
+        .expect("installed invalidation state")
+        .reserve_connection(predecessor_fence.clone())
+        .expect("reserve successor connection");
     let resume = || LiveResumeInput {
         subscription_id: subscribed.subscription_id.clone(),
         connection_id: "resume-successor".to_owned(),
@@ -38672,11 +38651,8 @@ fn changed_generation_failed_resume_rolls_back_unpublished_successor_scope() {
                 "listItemsByValue",
                 resume(),
                 test_session_authority(InvocationSource::LiveResume),
-                LiveInvalidationAdmission {
-                    connection: Some(successor_connection.clone()),
-                    effect_fence: Some(predecessor_fence.clone()),
-                    session_mode: true,
-                },
+                LiveInvalidationAdmission::new(successor_connection.clone())
+                    .with_session_mode(true),
             )
             .expect_err("the resume-side query is deliberately invalid");
         assert!(matches!(
@@ -42665,150 +42641,139 @@ fn f089_public_retry_registry_output_persists_through_test_support_sink() {
 }
 
 #[test]
-fn c009_forged_connection_generation_reaches_durable_manual_retry() {
+fn c009_descriptor_derives_exact_fence_for_live_effect_staging() {
     let mut snapback = live_limit_snapback();
-    let schema = snapback.db.schema().clone();
-    let function = snapback
-        .functions
-        .functions
-        .iter_mut()
-        .find(|function| function.name == "listItemsByValue")
-        .expect("value-filtered live fixture");
-    install_schema_documents_contract(function, &schema, "items");
-    snapback
-        .invoke_mutation(
-            "insertItem",
-            HandlerInput {
-                args: json!({ "value": "retained" }),
-                ..HandlerInput::default()
+    let connection = install_test_invalidation(&mut snapback);
+    let exact_fence = connection.effect_fence().clone();
+    let foreign_fence = crate::ephemeral::ConnectionEffectFence::anonymous(
+        "p3-c009-foreign-incarnation",
+        "p3-c009-foreign-grant",
+    );
+    let staged = snapback
+        .prepare_authorization_invalidation_ack_for_transport(
+            AuthorizationInvalidationAckInput {
+                connection_id: "p3-c009".to_owned(),
+                ack_token: "p3-c009-token".to_owned(),
             },
+            connection.clone(),
+            managed_session_admission(),
         )
-        .expect("seed C009 retained row");
+        .expect("stage exact C009 descriptor");
+    let mismatch = staged
+        .try_commit("p3-c009", &foreign_fence)
+        .expect_err("a foreign connection fence cannot commit the descriptor's stage");
+    assert_eq!(
+        mismatch.diagnostic.code,
+        "SNAPBACK_LIVE_STAGE_BINDING_MISMATCH"
+    );
+    staged
+        .try_commit("p3-c009", &exact_fence)
+        .expect("the descriptor's exact connection fence commits");
 
+    let admission = LiveInvalidationAdmission::new(connection).with_session_mode(true);
+    assert_eq!(admission.effect_fence.as_ref(), Some(&exact_fence));
+}
+
+#[test]
+fn c009_foreign_reservation_history_is_rejected_by_live_subscribe() {
+    let mut snapback = live_limit_snapback();
     let genuine = install_test_invalidation(&mut snapback);
-    let mut forged = genuine.clone();
-    forged.connection_generation = genuine.connection_generation + 10_000;
-    let fence =
-        crate::ephemeral::ConnectionEffectFence::anonymous("p3-c009-incarnation", "p3-c009-grant");
-    let subscribed = snapback
+    let authenticated = snapback
+        .auth_invalidation
+        .as_ref()
+        .expect("installed C009 issuer")
+        .issuer
+        .authenticated()
+        .clone();
+    let authenticator =
+        crate::auth::invalidation::IssuerAuthenticator::new("test-protocol-key", [0x5a; 32])
+            .expect("C009 foreign authenticator");
+    let foreign_issuer = LiveInvalidationIssuer::with_authenticator(
+        authenticated,
+        authenticator,
+        "test-target",
+        "test-app",
+    )
+    .expect("same-facts foreign C009 issuer");
+    let view = snapback
+        .ephemeral
+        .authorization_expectation_view_for_install(&mut snapback.db)
+        .expect("C009 database-bound expectation view");
+    let foreign_installed = foreign_issuer
+        .bind_authorization_expectation(view)
+        .expect("bind foreign reservation history to the same projection");
+    foreign_issuer
+        .install_version_stream(genuine.version_stream())
+        .expect("bind the same C009 version stream");
+    let foreign = foreign_issuer
+        .reserve_connection(&foreign_installed, genuine.effect_fence().clone())
+        .expect("reserve same-facts foreign C009 descriptor");
+
+    assert_eq!(foreign.protocol_version(), genuine.protocol_version());
+    assert_eq!(foreign.issuer_id(), genuine.issuer_id());
+    assert_eq!(foreign.authorization(), genuine.authorization());
+    assert_eq!(foreign.version_stream(), genuine.version_stream());
+    assert_eq!(foreign.effect_fence(), genuine.effect_fence());
+    let subscriptions_before = snapback.subscriptions.len();
+    let error = snapback
         .subscribe_live_prepared_with_invalidation(
-            "listItemsByValue",
+            "listItems",
             LiveSubscribeInput {
-                connection_id: "p3-c009-a".to_owned(),
-                input: HandlerInput {
-                    args: json!({ "value": "retained" }),
-                    ..HandlerInput::default()
-                },
-                authorization_namespace: Some(test_authorization_namespace(9_009)),
+                connection_id: "p3-c009-foreign".to_owned(),
+                input: HandlerInput::default(),
+                authorization_namespace: Some(test_authorization_namespace(19_009)),
                 supersedes: None,
                 resume_from_token: None,
             },
             test_session_authority(InvocationSource::LiveInitialQuery),
-            LiveInvalidationAdmission {
-                session_mode: true,
-                connection: Some(genuine),
-                effect_fence: Some(fence.clone()),
-            },
+            LiveInvalidationAdmission::new(foreign.clone()).with_session_mode(true),
         )
-        .expect("install exact A-owned C009 subscription");
+        .expect_err("foreign issuer reservation history must not enter the live sink");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED"
+    );
+    assert_eq!(snapback.subscriptions.len(), subscriptions_before);
 
-    let staged = snapback
-        .prepare_resume_live_for_transport(
-            "listItemsByValue".to_owned(),
-            LiveResumeInput {
-                subscription_id: subscribed.subscription_id.clone(),
-                connection_id: "p3-c009-a".to_owned(),
-                auth: AuthInput::default(),
-                recorded_permission_epochs: subscribed.permission_epochs.clone(),
+    let subscribed = snapback
+        .subscribe_live_prepared_with_invalidation(
+            "listItems",
+            LiveSubscribeInput {
+                connection_id: "p3-c009-genuine".to_owned(),
+                input: HandlerInput::default(),
+                authorization_namespace: Some(test_authorization_namespace(29_009)),
+                supersedes: None,
+                resume_from_token: None,
             },
-            test_session_authority(InvocationSource::LiveResume),
-            LiveInvalidationAdmission {
-                session_mode: true,
-                connection: Some(forged.clone()),
-                effect_fence: Some(fence.clone()),
-            },
+            test_session_authority(InvocationSource::LiveInitialQuery),
+            LiveInvalidationAdmission::new(genuine).with_session_mode(true),
         )
-        .expect("stage C009 forged-generation resume");
-    staged
-        .try_commit("p3-c009-a", &fence)
-        .expect("commit C009 exact connection act");
-    let resume = snapback
-        .finalize_resume_live_for_transport(&staged)
-        .expect("finalize C009 forged-generation resume");
-    let installed_scope = snapback
-        .subscriptions
-        .get(&subscribed.subscription_id)
-        .and_then(|subscription| subscription.authorization.as_ref())
-        .map(|authorization| authorization.scope_id.clone())
-        .expect("C009 forged scope installed on retained subscription");
-
-    snapback
-        .subscriptions
-        .get_mut(&subscribed.subscription_id)
-        .expect("C009 retained subscription")
-        .input
-        .args = json!({});
-    let failed_resume = snapback
-        .resume_live_prepared_with_invalidation(
-            "listItemsByValue",
-            LiveResumeInput {
-                subscription_id: subscribed.subscription_id.clone(),
-                connection_id: "p3-c009-a".to_owned(),
-                auth: AuthInput::default(),
-                recorded_permission_epochs: subscribed.permission_epochs,
-            },
-            test_session_authority(InvocationSource::LiveResume),
-            LiveInvalidationAdmission {
-                session_mode: true,
-                connection: Some(forged.clone()),
-                effect_fence: Some(fence),
-            },
-        )
-        .expect_err("invalid retained input must reach C009 retry failure");
-    let manual_retry = snapback
-        .manual_retry_authorization_invalidation(
-            AuthorizationInvalidationManualRetryInput {
-                connection_id: "p3-c009-a".to_owned(),
-                subscription_id: subscribed.subscription_id,
-                manual_retry_id: "p3-c009-forged-manual-retry".to_owned(),
-            },
-            forged,
-            test_session_authority(InvocationSource::InvalidationAcknowledgement),
-        )
-        .expect("C009 forged-generation manual retry reaches an ordinary outcome");
-    let durable_count = snapback
+        .expect("install genuine C009 subscription");
+    let retry_records_before = snapback
         .auth_database_mut()
         .invalidation_retry_episode_count()
-        .expect("read C009 durable retry episode count");
-    let persisted = snapback
-        .auth_database_mut()
-        .invalidation_retry_episodes_for_test()
-        .expect("read C009 durable retry episodes");
-
-    assert!(matches!(
-        resume.output.authorization_scope,
-        Some(ScopeId::Subscription {
-            connection_generation: 10_001,
-            ..
-        })
-    ));
-    assert!(matches!(
-        installed_scope,
-        ScopeId::Subscription {
-            connection_generation: 10_001,
-            ..
-        }
-    ));
-    assert_eq!(failed_resume.diagnostic.code, "SNAPBACK_ARG_MISSING");
-    assert_eq!(manual_retry.outcome, "exhausted");
-    assert_eq!(durable_count, 1);
-    let persisted_episode = persisted
-        .values()
-        .next()
-        .expect("C009 forged scope creates one durable retry episode");
+        .expect("count C009 retry records before refusal");
+    let retry_error = snapback
+        .manual_retry_authorization_invalidation(
+            AuthorizationInvalidationManualRetryInput {
+                connection_id: "p3-c009-genuine".to_owned(),
+                subscription_id: subscribed.subscription_id,
+                manual_retry_id: "p3-c009-foreign-reservation".to_owned(),
+            },
+            foreign,
+            test_session_authority(InvocationSource::InvalidationAcknowledgement),
+        )
+        .expect_err("foreign history must refuse before durable retry reservation");
     assert_eq!(
-        persisted_episode.manual_retry_id.as_deref(),
-        Some("p3-c009-forged-manual-retry")
+        retry_error.diagnostic.code,
+        "SNAPBACK_AUTH_RESNAPSHOT_REQUIRED"
+    );
+    assert_eq!(
+        snapback
+            .auth_database_mut()
+            .invalidation_retry_episode_count()
+            .expect("count C009 retry records after refusal"),
+        retry_records_before
     );
 }
 
@@ -42840,23 +42805,17 @@ fn f286_victim_connection_is_touched_and_foreign_obligation_is_discharged() {
         .expect("F286 row id")
         .to_owned();
 
-    let descriptor_a = install_test_invalidation(&mut snapback);
-    let descriptor_b = {
-        let state = snapback
-            .auth_invalidation
-            .as_ref()
-            .expect("F286 installed invalidation state");
-        let mut descriptor = descriptor_a;
-        descriptor.connection_generation = state
-            .issuer
-            .reserve_connection_generation()
-            .expect("reserve genuine F286 connection B generation");
-        descriptor
-    };
+    let _descriptor_a = install_test_invalidation(&mut snapback);
     let fence_b = crate::ephemeral::ConnectionEffectFence::anonymous(
         "p3-f286-b-incarnation",
         "p3-f286-b-grant",
     );
+    let descriptor_b = snapback
+        .auth_invalidation
+        .as_ref()
+        .expect("F286 installed invalidation state")
+        .reserve_connection(fence_b.clone())
+        .expect("reserve genuine F286 connection B descriptor");
     let subscribed = snapback
         .subscribe_live_prepared_with_invalidation(
             "listItems",
@@ -42868,11 +42827,7 @@ fn f286_victim_connection_is_touched_and_foreign_obligation_is_discharged() {
                 resume_from_token: None,
             },
             test_session_authority(InvocationSource::LiveInitialQuery),
-            LiveInvalidationAdmission {
-                session_mode: true,
-                connection: Some(descriptor_b.clone()),
-                effect_fence: Some(fence_b.clone()),
-            },
+            LiveInvalidationAdmission::new(descriptor_b.clone()).with_session_mode(true),
         )
         .expect("install F286 B-owned subscription");
     let scope_b = subscribed
@@ -42911,7 +42866,6 @@ fn f286_victim_connection_is_touched_and_foreign_obligation_is_discharged() {
             },
             descriptor_b.clone(),
             admission.clone(),
-            fence_b.clone(),
         )
         .expect("stage F286 invalid foreign ACK");
     invalid
@@ -42939,7 +42893,6 @@ fn f286_victim_connection_is_touched_and_foreign_obligation_is_discharged() {
             },
             descriptor_b,
             admission,
-            fence_b.clone(),
         )
         .expect("stage F286 valid foreign ACK");
     valid
@@ -42967,15 +42920,20 @@ fn f286_victim_connection_is_touched_and_foreign_obligation_is_discharged() {
 }
 
 #[test]
-fn f288_victim_connection_and_forged_generation_repoint_owned_subscription() {
+fn f288_victim_connection_repoints_owned_subscription_with_issued_descriptor() {
     let mut snapback = live_limit_snapback();
-    let genuine = install_test_invalidation(&mut snapback);
-    let mut forged = genuine.clone();
-    forged.connection_generation = genuine.connection_generation + 20_000;
+    let _descriptor_a = install_test_invalidation(&mut snapback);
     let fence_b = crate::ephemeral::ConnectionEffectFence::anonymous(
         "p3-f288-b-incarnation",
         "p3-f288-b-grant",
     );
+    let descriptor_b = snapback
+        .auth_invalidation
+        .as_ref()
+        .expect("F288 installed invalidation state")
+        .reserve_connection(fence_b.clone())
+        .expect("reserve genuine F288 connection B descriptor");
+    let issued_generation = descriptor_b.connection_generation();
     let subscribed = snapback
         .subscribe_live_prepared_with_invalidation(
             "listItems",
@@ -42987,11 +42945,7 @@ fn f288_victim_connection_and_forged_generation_repoint_owned_subscription() {
                 resume_from_token: None,
             },
             test_session_authority(InvocationSource::LiveInitialQuery),
-            LiveInvalidationAdmission {
-                session_mode: true,
-                connection: Some(genuine),
-                effect_fence: Some(fence_b.clone()),
-            },
+            LiveInvalidationAdmission::new(descriptor_b.clone()).with_session_mode(true),
         )
         .expect("install F288 B-owned subscription");
 
@@ -43006,11 +42960,7 @@ fn f288_victim_connection_and_forged_generation_repoint_owned_subscription() {
                 recorded_permission_epochs: BTreeMap::new(),
             },
             test_session_authority(InvocationSource::LiveResume),
-            LiveInvalidationAdmission {
-                session_mode: true,
-                connection: Some(forged.clone()),
-                effect_fence: Some(fence_b.clone()),
-            },
+            LiveInvalidationAdmission::new(descriptor_b.clone()).with_session_mode(true),
         )
         .expect("stage F288 invalid-subscription resume");
     invalid
@@ -43033,11 +42983,7 @@ fn f288_victim_connection_and_forged_generation_repoint_owned_subscription() {
                 recorded_permission_epochs: subscribed.permission_epochs,
             },
             test_session_authority(InvocationSource::LiveResume),
-            LiveInvalidationAdmission {
-                session_mode: true,
-                connection: Some(forged.clone()),
-                effect_fence: Some(fence_b.clone()),
-            },
+            LiveInvalidationAdmission::new(descriptor_b).with_session_mode(true),
         )
         .expect("stage F288 victim/owned-subscription composition");
     valid
@@ -43074,18 +43020,17 @@ fn f288_victim_connection_and_forged_generation_repoint_owned_subscription() {
     assert!(matches!(
         valid_output.output.authorization_scope,
         Some(ScopeId::Subscription {
-            connection_generation: 20_001,
+            connection_generation,
             ..
-        })
+        }) if connection_generation == issued_generation
     ));
-    assert_eq!(forged.connection_generation, 20_001);
     assert_eq!(stored_connection, "p3-f288-a");
     assert!(matches!(
         stored_scope,
         ScopeId::Subscription {
-            connection_generation: 20_001,
+            connection_generation,
             ..
-        }
+        } if connection_generation == issued_generation
     ));
     assert!(pending_forged_scope.is_some());
     assert!(valid_last_seen_a > 1);
