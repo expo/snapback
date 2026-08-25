@@ -26635,7 +26635,7 @@ fn table_live_matcher_characterization_write_post(snapback: &mut LocalSnapback) 
         .result
 }
 
-// CHARACTERIZATION TEST (matcher): this is the Diary 0106-minimized
+// CHARACTERIZATION TEST (matcher): this is the matching-insert characterization (Diary 0106's populated-parent cut is covered below)
 // "same engine, later `invoke_mutation`" case. The mutation inserts the
 // client-chosen child and patches its parent. Both empty
 // memberships must advance through one Add.
