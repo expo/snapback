@@ -1,7 +1,7 @@
 # LLP 0309: Derived delta semantics for the closed query algebra
 
 **Type:** RFC
-**Status:** Review
+**Status:** Accepted
 **Systems:** Live queries, Offline sync, Storage
 **Author:** Claude Fable / Charlie Cheever
 **Date:** 2026-08-25
@@ -338,24 +338,26 @@ do not define it, and nothing here claims replica applicability.
 Stage A/B are independently valuable: B is a correctness audit of
 shipped lanes on its own, with the reference evaluator as its oracle.
 
-**Commissioning gate (author ruling, 2026-08-25).** Stage A is not
-commissioned now. The review loop repriced it honestly — a typed
-semantics, a reference evaluator, state ledgers against two
-precedents, and a multi-axis oracle are a real project, and the
-second consumer is conditional — so commissioning binds to whichever
-trigger fires first:
+**Commissioning gate (author ruling, 2026-08-25) — FIRED same day.**
+The gate as ruled: Stage A is not commissioned until a trigger fires —
+**(a)** the next G3 ladder rungs are commissioned (the semantics then
+amortizes across rungs 2..n instead of competing with a single
+hand-written rung, and Stage A is a candidate path to the
+certified-evaluator condition, LLP 0056, that pins the semi-join rung
+to replace), or **(b)** LLP 0190 D3 takes up local maintenance of
+retained facts (the cross-runtime drift argument stops being
+hypothetical).
 
-- **(a) The next G3 ladder rungs are commissioned.** The semantics
-  then amortizes across rungs 2..n instead of competing with a single
-  hand-written rung, and Stage A is a candidate path to the
-  certified-evaluator condition (LLP 0056) that currently pins the
-  semi-join rung to replace.
-- **(b) LLP 0190 D3 takes up local maintenance of retained facts.**
-  The cross-runtime drift argument then stops being hypothetical.
-
-Until a trigger fires, this document stands as the decision record
-for how the work is done when it is done; if neither trigger ever
-fires, the honest terminal status is `Shelved`, at no further cost.
+**Trigger (a) fired by author direction later the same day
+(2026-08-25):** the author commissioned Stage A with declared intent
+to continue the delta-lane ladder past rung 1 — the remaining §7
+shapes (window boundary displacement, bounded to-many, semi-joins
+behind their evaluator condition) are the intended Stage C
+beneficiaries. Commission ticket:
+`issues/20260825-llp0309-stage-a-commission.md`. Each Stage C rung
+individually remains demand-gated exactly as LLP 0209 §7 gates the
+expensive rung; firing the trigger commissions Stages A and B, not
+any particular rung.
 
 ## Boundaries (unchanged by this RFC)
 
@@ -375,9 +377,12 @@ fires, the honest terminal status is `Shelved`, at no further cost.
 
 ## Open questions
 
-1. **Home for the normative operator semantics.** A sub-Spec of this
-   RFC, a new LLP 0209 section, or a standalone Spec both consumers
-   cite? (Proposed: standalone; the author rules.)
+1. **Home for the normative operator semantics.** RULED (author,
+   2026-08-25): a sub-Spec of this RFC —
+   `llp/0309.000-operator-delta-semantics.spec.md`. Both consumers
+   cite it by its LLP number; sub-numbering keeps the derivation
+   methodology (this RFC) and the semantics it commissions in one
+   lineage.
 2. **Membership/semi-join support state.** The current membership
    capture's matched count is not a demonstrated per-row
    support-multiplicity representation; confirm whether existing
@@ -399,62 +404,26 @@ fires, the honest terminal status is `Shelved`, at no further cost.
 
 ## Revision history
 
-- **current/ link restored (2026-08-25, author direction).** The
-  document returns to the declared working set (`llp/current/`) while
-  the D5 commissioning gate stands unchanged — current, but parked:
-  Stage A still starts only on one of the two named triggers.
-- **r5 (2026-08-25, UNREVIEWED, author-directed).** Folded the
-  author's ruling as the D5 commissioning gate: Stage A starts only
-  when one of two named triggers fires (next G3 rungs commissioned, or
-  LLP 0190 D3 local maintenance), with `Shelved` as the honest
-  terminal if neither ever does. Removed the document's
-  `llp/current/` link in the same landing (the archive operation —
-  work parked until a trigger fires; the doc itself stays `Review`).
-  No design content changed.
-- **r4 (2026-08-25, UNREVIEWED).** Post-convergence non-material fixes
-  from round 3 (loop converged dual-READY on r3): Motivation's
-  post-image sentence deferred to D1.1's carrier rule (both families'
-  finding); image rule scoped to admitted application-row carriers;
-  closure check admits directly typed n-ary rows and scopes
-  "elementary" to Stage A's corrected inventory; both-change/n-ary
-  interaction-term wording; FALLBACK→`live_replace` scoped to the
-  server consumer; maintain-only next-state in vectors (FALLBACK
-  vectors pin verdict + reason); stale-capture oracle axis
-  distinguished from the OQ-6 replica protocol; Boundaries aligned
-  with D1.3's three-way resolution rule. No decision changed.
-- **r3 (2026-08-25).** Response to round-2 delta reviews (grok READY;
-  codex NOT READY with two IN-DELTA MATERIALs, zero pre-existing).
-  D1.1: composite node kinds now covered by syntax-directed
-  decomposition into elementary operators (principal-bound and
-  through-edge semi-joins named as three-input composites; binary
-  forms type `Δin` as a product; n-ary forms need every input's change
-  term); image-direction bullet made carrier-accurate (deletes may
-  carry pre-image or no row). Closure check redefined as decomposition
-  coverage of all semantic components, never one row per variant;
-  stateful count corrected to six. D1.3: ledger scope extended to
-  outer serving state (window ledgers, capture freshness) and a third
-  resolution path added (evaluator-internal state addition, no capture
-  amendment). D4.1 vectors pin expected next state. D4.2 oracle axes
-  extended to read effects, proofs, window ledgers, and
-  stale-capture continuity — in-contract or excluded behind a
-  mandatory gate; class (c) scoped shipped-lane-only. D2's fallback
-  phrasing fixed to the verdict, not an operator class. D3.2 mandate
-  scoped to client-side derivation with consumer-specific FALLBACK.
-- **r2 (2026-08-25).** Response to round-1 super-refine reviews (codex,
-  grok — both NOT READY). Recast the RFC as methodology + acceptance
-  criteria with Stage A owning the semantics; added the D1.1 carrier
-  contract (typed partial forms, bilinear joins, ordered-carrier
-  composition, batch atomicity, post-image reality); corrected the
-  classification table (five stateful rows; membership visibility arms
-  non-linear; principal-bound as a join; projection split into flat
-  vs. assembly) and made it explicitly hypotheses plus a closure
-  check; replaced "state = the captures" with the D1.3 state ledger
-  against both precedents (captures and G3 retained state, custody
-  classes included); made the reference evaluator the derivation
-  artifact and dropped "by construction"; added the Stage B decision
-  rule and oracle; reframed local maintenance as a conditional future
-  consumer under 0190 custody restrictions; corrected the comparator
-  description to the shipped per-event force-replace and withdrew the
-  LLP 0270 misapplication (persistent-divergence policy → OQ-5);
-  matcher/graph-delta-evaluator terminology fixed.
-- **r1 (2026-08-25).** Initial version; entered Review at loop start.
+- **Accepted (2026-08-25, author ruling).** Status `Review` →
+  `Accepted`, with the close-out's proposed trim applied: the r1–r5
+  per-round entries below are compressed here; full round-by-round
+  detail is the sealed loop record
+  (`llp/reviews/0309-derived-delta-semantics.run.md` and the
+  per-family artifacts beside it). Same ruling resolved OQ-1 (home =
+  sub-Spec `0309.000`) and fired commissioning trigger (a) — see §D5.
+- **r1–r5 (2026-08-25, compressed at acceptance).** r1 entered Review
+  at super-refine loop start. r2/r3 folded two rounds of dual-family
+  reviews (both families NOT READY on r1; codex NOT READY on r2;
+  **dual-READY on r3**, target sha256/16 `9afb39a63b380c41`): the RFC
+  was recast as methodology + acceptance criteria with Stage A owning
+  the semantics; the D1.1 carrier contract, D1.2
+  hypotheses-plus-closure-check framing, D1.3 dual-precedent state
+  ledger with custody classes, the executable reference evaluator as
+  the derivation artifact, the Stage B decision rule and multi-axis
+  oracle, the conditional-consumer reframing of local maintenance,
+  and the accurate per-event force-replace comparator description all
+  date from those rounds. r4 (UNREVIEWED) folded round-3 non-material
+  observations. r5 (UNREVIEWED, author-directed) added the D5
+  commissioning gate and archived the `current/` link; the link was
+  restored by author direction the same day, gate standing, and the
+  gate fired later that day (§D5).
