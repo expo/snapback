@@ -1,5 +1,3 @@
-use std::sync::{Arc, atomic::AtomicU64};
-
 use snapback_auth::auth::invalidation::{
     AUTH_INVALIDATION_PROTOCOL_VERSION, AuthorizationInvalidationConnection, IssuerId,
 };
@@ -7,10 +5,7 @@ use snapback_kernel::storage::AuthorizationVersion;
 use snapback_row_attack_fixtures::report_observation;
 use snapback_types::ephemeral::ConnectionEffectFence;
 
-fn forge_invalidation_connection(
-    reservation_history: Arc<AtomicU64>,
-    effect_fence: ConnectionEffectFence,
-) {
+fn forge_invalidation_connection(effect_fence: ConnectionEffectFence) {
     // @attack
     let _ = AuthorizationInvalidationConnection {
         protocol_version: AUTH_INVALIDATION_PROTOCOL_VERSION,
@@ -26,7 +21,9 @@ fn forge_invalidation_connection(
         },
         version_stream: "attacker-stream".to_owned(),
         issuer_retirement: None,
-        reservation_history,
+        // `issuer_state` holds a crate-private type that a dependent cannot name; the
+        // diverging expression keeps this a *privacy* probe rather than a type probe.
+        issuer_state: unimplemented!(),
         effect_fence,
     };
 }
