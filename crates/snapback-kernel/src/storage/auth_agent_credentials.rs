@@ -80,19 +80,74 @@ pub struct ReleasedScopedToken {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ResolvedScopedToken {
-    pub token_id: String,
-    pub grant_id: String,
-    pub actor_user_id: String,
-    pub effective_user_id: Option<String>,
-    pub credential_id: String,
-    pub credential_generation: u64,
-    pub scopes: Vec<ExactGrantScope>,
-    pub expires_at_ms: u64,
-    pub grant_expires_at_ms: Option<u64>,
-    pub integration_status: Option<super::auth_integrations::IntegrationStatus>,
+    token_id: String,
+    grant_id: String,
+    actor_user_id: String,
+    effective_user_id: Option<String>,
+    credential_id: String,
+    credential_generation: u64,
+    scopes: Vec<ExactGrantScope>,
+    expires_at_ms: u64,
+    grant_expires_at_ms: Option<u64>,
+    integration_status: Option<super::auth_integrations::IntegrationStatus>,
+    database_binding: Option<super::DatabaseBinding>,
+    /// Private proof that the protected catalog resolved every identity,
+    /// liveness, scope, integration, and deadline predicate together.
+    _resolution: ResolvedScopedTokenResolution,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ResolvedScopedTokenResolution;
+
 impl ResolvedScopedToken {
+    pub(super) fn bind_serving_database(&mut self, binding: super::DatabaseBinding) {
+        self.database_binding = Some(binding);
+    }
+
+    pub fn database_binding(&self) -> Option<&super::DatabaseBinding> {
+        self.database_binding.as_ref()
+    }
+
+    pub fn token_id(&self) -> &str {
+        &self.token_id
+    }
+
+    pub fn grant_id(&self) -> &str {
+        &self.grant_id
+    }
+
+    pub fn actor_user_id(&self) -> &str {
+        &self.actor_user_id
+    }
+
+    pub fn effective_user_id(&self) -> Option<&str> {
+        self.effective_user_id.as_deref()
+    }
+
+    pub fn credential_id(&self) -> &str {
+        &self.credential_id
+    }
+
+    pub fn credential_generation(&self) -> u64 {
+        self.credential_generation
+    }
+
+    pub fn scopes(&self) -> &[ExactGrantScope] {
+        &self.scopes
+    }
+
+    pub fn expires_at_ms(&self) -> u64 {
+        self.expires_at_ms
+    }
+
+    pub fn grant_expires_at_ms(&self) -> Option<u64> {
+        self.grant_expires_at_ms
+    }
+
+    pub fn integration_status(&self) -> Option<super::auth_integrations::IntegrationStatus> {
+        self.integration_status
+    }
+
     /// Project this kernel-owned token into the leaf-owned fence witness.
     ///
     /// The kernel owns `ResolvedScopedToken`, so it owns the conversion into
@@ -1250,6 +1305,8 @@ impl LocalDatabase {
                     .transpose()
                     .map_err(|_| agent_credential_state_corrupt())?,
                 integration_status,
+                database_binding: None,
+                _resolution: ResolvedScopedTokenResolution,
             })
         })
     }
@@ -1345,6 +1402,8 @@ impl LocalDatabase {
                     .transpose()
                     .map_err(|_| agent_credential_state_corrupt())?,
                 integration_status,
+                database_binding: None,
+                _resolution: ResolvedScopedTokenResolution,
             })
         })
     }
@@ -3682,7 +3741,9 @@ impl super::ServingDatabase {
         token: &ScopedToken,
         now_ms: u64,
     ) -> SnapbackResult<ResolvedScopedToken> {
-        self.db.resolve_scoped_token(token, now_ms)
+        let mut resolved = self.db.resolve_scoped_token(token, now_ms)?;
+        resolved.bind_serving_database(self.binding());
+        Ok(resolved)
     }
     pub fn retained_service_authority_is_live(
         &mut self,
@@ -3697,8 +3758,11 @@ impl super::ServingDatabase {
         authority: RetainedServiceAuthority<'_>,
         now_ms: u64,
     ) -> SnapbackResult<ResolvedScopedToken> {
-        self.db
-            .resolve_retained_service_authority(authority, now_ms)
+        let mut resolved = self
+            .db
+            .resolve_retained_service_authority(authority, now_ms)?;
+        resolved.bind_serving_database(self.binding());
+        Ok(resolved)
     }
     pub fn terminalize_expired_service_authority(
         &mut self,

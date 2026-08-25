@@ -219,37 +219,26 @@ fn acceptance_request(audience: &str, event_id: &str, dedupe_key: &str) -> PushS
 }
 
 fn session_authority(user_id: &str) -> crate::auth::invocation::PreparedAuthority {
-    InvocationGate::prepare_authority(
+    let mut snapback = crate::local::LocalSnapback::memory().expect("push authority fixture");
+    snapback.prepare_resolved_session_for_test(
         InvocationSource::HttpAction,
-        AuthMode::Sessions,
-        ServerProfile::Test,
+        user_id,
+        &ids::mint(Kind::Session).expect("session id"),
+        &ids::mint(Kind::AuthorityInstance).expect("authority instance id"),
         1,
-        1,
-        &WireAuthorityFields::default(),
-        ResolvedAppAuthority::Session {
-            user_id: user_id.into(),
-            session_id: ids::mint(Kind::Session).expect("session id"),
-            provider: "email-code".into(),
-            generation: 1,
-            authority_instance_id: ids::mint(Kind::AuthorityInstance)
-                .expect("authority instance id"),
-            session_not_after_ms: 4_000_000_000_000,
-            provider_not_after_ms: None,
-            rehearsal_provenance: None,
-        },
+        4_000_000_000_000,
     )
-    .expect("prepared session authority")
 }
 
 fn system_authority() -> crate::auth::invocation::PreparedAuthority {
-    InvocationGate::prepare_authority(
+    InvocationGate::prepare_admitted_subjectless_authority(
         InvocationSource::Cron,
         AuthMode::Sessions,
         ServerProfile::Test,
-        1,
-        1,
+        crate::auth::admission::AdmissionLease::unmanaged(1, 1),
         &WireAuthorityFields::default(),
         ResolvedAppAuthority::System,
+        None,
     )
     .expect("prepared system authority")
 }

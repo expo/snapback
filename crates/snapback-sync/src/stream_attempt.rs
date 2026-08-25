@@ -1676,16 +1676,16 @@ mod tests {
     }
 
     fn session_authority() -> ResolvedAppAuthority {
-        ResolvedAppAuthority::Session {
-            user_id: "user-a".to_owned(),
-            session_id: "session-a".to_owned(),
-            provider: "email-code".to_owned(),
-            generation: 1,
-            authority_instance_id: "authority-a".to_owned(),
-            session_not_after_ms: 10_000,
-            provider_not_after_ms: None,
-            rehearsal_provenance: None,
-        }
+        crate::auth::invocation::test_session_authority(
+            "user-a",
+            "session-a",
+            "email-code",
+            1,
+            "authority-a",
+            10_000,
+            None,
+            None,
+        )
     }
 
     #[test]
@@ -1707,17 +1707,17 @@ mod tests {
             "CallerAuthorized"
         );
         assert_eq!(
-            service_caller_origin(ResolvedAppAuthority::ServicePrincipal {
-                actor_user_id: "agent-a".to_owned(),
-                credential_id: "credential-a".to_owned(),
-                credential_generation: 1,
-                grant_id: "grant-a".to_owned(),
-                token_id: "token-a".to_owned(),
-                effective_user_id: Some("user-a".to_owned()),
-                scopes: Vec::new(),
-                token_expires_at_ms: 10_000,
-                integration_status: None,
-            })
+            service_caller_origin(crate::auth::invocation::test_service_authority(
+                "agent-a",
+                "credential-a",
+                1,
+                "grant-a",
+                "token-a",
+                Some("user-a".to_owned()),
+                Vec::new(),
+                10_000,
+                None,
+            ))
             .provenance_for_test(),
             "CallerAuthorized"
         );
@@ -1735,10 +1735,7 @@ mod tests {
             prepared_origin(
                 crate::auth::invocation::InvocationSource::WatchEvaluation,
                 AuthMode::Sessions,
-                ResolvedAppAuthority::RevalidatedPrincipal {
-                    user_id: "user-a".to_owned(),
-                    authority_instance_id: "authority-a".to_owned(),
-                },
+                crate::auth::invocation::test_revalidated_authority("user-a", "authority-a"),
             ),
             prepared_origin(
                 crate::auth::invocation::InvocationSource::Cron,

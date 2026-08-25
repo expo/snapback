@@ -148,14 +148,50 @@ struct ProjectedSession {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ProjectedSessionAuthority {
-    pub session_id: String,
-    pub user_id: String,
-    pub provider: String,
-    pub generation: u64,
-    pub authority_instance_id: String,
-    pub expires_at_ms: u64,
-    pub absolute_expires_at_ms: u64,
-    pub rehearsal_provenance: Option<crate::auth::rehearsal::AuthRehearsalProvenanceV1>,
+    session_id: String,
+    user_id: String,
+    provider: String,
+    generation: u64,
+    authority_instance_id: String,
+    expires_at_ms: u64,
+    absolute_expires_at_ms: u64,
+    rehearsal_provenance: Option<crate::auth::rehearsal::AuthRehearsalProvenanceV1>,
+}
+
+impl ProjectedSessionAuthority {
+    pub fn session_id(&self) -> &str {
+        &self.session_id
+    }
+
+    pub fn user_id(&self) -> &str {
+        &self.user_id
+    }
+
+    pub fn provider(&self) -> &str {
+        &self.provider
+    }
+
+    pub fn generation(&self) -> u64 {
+        self.generation
+    }
+
+    pub fn authority_instance_id(&self) -> &str {
+        &self.authority_instance_id
+    }
+
+    pub fn expires_at_ms(&self) -> u64 {
+        self.expires_at_ms
+    }
+
+    pub fn absolute_expires_at_ms(&self) -> u64 {
+        self.absolute_expires_at_ms
+    }
+
+    pub fn rehearsal_provenance(
+        &self,
+    ) -> Option<&crate::auth::rehearsal::AuthRehearsalProvenanceV1> {
+        self.rehearsal_provenance.as_ref()
+    }
 }
 
 /// Exact immutable identity copied from one stored session grant for

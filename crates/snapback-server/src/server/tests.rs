@@ -53,7 +53,7 @@ fn physical_telemetry_events_for_test(
 fn test_session_claims_for(
     authority: &ResolvedAppAuthority,
 ) -> Option<crate::auth::identity_core::AuthClaimsProjection> {
-    matches!(authority, ResolvedAppAuthority::Session { .. }).then(|| {
+    matches!(authority, ResolvedAppAuthority::Session(_)).then(|| {
         crate::auth::identity_core::AuthClaimsProjection::server_derived(Vec::new(), Vec::new())
     })
 }
@@ -5595,10 +5595,10 @@ async fn effect_approval_reprepares_original_session_with_catalog_claims() {
         .resolve_required_bearer(approver_bearer, provider.now_ms(), provider.monotonic_now())
         .expect("resolve effect approver session");
     let (resolved, publication) = prepared.into_parts();
-    let ResolvedAppAuthority::Session { session_id, .. } = &resolved else {
+    let ResolvedAppAuthority::Session(subject) = &resolved else {
         panic!("effect approver must resolve to session authority")
     };
-    let session_id = session_id.clone();
+    let session_id = subject.session_id().to_owned();
     let profile = state.server.profile;
     let claims_now_ms = provider.now_ms();
     let claims = with_snapback(&state.snapback, move |snapback| {
@@ -5608,7 +5608,7 @@ async fn effect_approval_reprepares_original_session_with_catalog_claims() {
     })
     .await
     .unwrap();
-    let management = InvocationGate::prepare_admitted_authority(
+    let management = InvocationGate::prepare_admitted_subjectless_authority(
         InvocationSource::EffectManagement,
         AuthMode::Sessions,
         state.server.profile,
@@ -8873,7 +8873,7 @@ async fn install_after_local_production_subscription(
         prepare_invalidation_session_connection_act(state, bearer, connection_id);
     state.ephemeral.touch_connection(connection_id);
     let admission = test_route_admission(state).0;
-    let subscribe_authority = InvocationGate::prepare_admitted_authority(
+    let subscribe_authority = InvocationGate::prepare_admitted_subjectless_authority(
         InvocationSource::LiveInitialQuery,
         AuthMode::Sessions,
         state.server.profile,
@@ -9711,7 +9711,7 @@ async fn service_terminal_gate_does_not_hold_local_while_staged_work_drains() {
         .clone();
 
     let admission = test_route_admission(&fixture.state).0;
-    let authority = InvocationGate::prepare_admitted_authority(
+    let authority = InvocationGate::prepare_admitted_subjectless_authority(
         InvocationSource::LiveInitialQuery,
         AuthMode::Sessions,
         fixture.state.server.profile,
@@ -10237,7 +10237,7 @@ async fn direct_outbox_http_response(
     connection_act: &super::PreparedConnectionAct,
 ) -> Result<axum::response::Response, super::ApiError> {
     let admission = test_route_admission(state).0;
-    let authority = InvocationGate::prepare_admitted_authority(
+    let authority = InvocationGate::prepare_admitted_subjectless_authority(
         InvocationSource::OutboxDrain,
         AuthMode::Sessions,
         state.server.profile,
@@ -10351,7 +10351,7 @@ fn prepared_provider_route_authority(
     let (resolved, publication) = prepared.into_parts();
     let session_claims = test_session_claims_for(&resolved);
     Extension(
-        InvocationGate::prepare_admitted_authority(
+        InvocationGate::prepare_admitted_subjectless_authority(
             source,
             AuthMode::Sessions,
             state.server.profile,
@@ -10791,7 +10791,7 @@ fn sender_issuance_durable_counts(
 async fn settlement_acknowledgement_uses_prepared_authority_not_body_identity() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
     let prepared = |user_id: &str| {
-        InvocationGate::prepare_admitted_authority(
+        InvocationGate::prepare_admitted_subjectless_authority(
             InvocationSource::MutationSettlementAcknowledgement,
             AuthMode::Dev,
             ServerProfile::Test,
@@ -23459,7 +23459,7 @@ async fn sessions_live_update_stream_sends_one_frame_per_subscription_version() 
         .expect("register exact sessions stream owner");
     let admission = test_route_admission(&state).0;
 
-    let subscribe_authority = InvocationGate::prepare_admitted_authority(
+    let subscribe_authority = InvocationGate::prepare_admitted_subjectless_authority(
         InvocationSource::LiveInitialQuery,
         AuthMode::Sessions,
         state.server.profile,
@@ -29609,31 +29609,21 @@ async fn detached_ctx_push_send_durable_reservation_returns_without_admission_re
 
 #[tokio::test]
 async fn watch_reaction_ctx_push_send_without_caller_publication_commits() {
-    let mut snapback = LocalSnapback::memory().expect("watch-reaction push state");
-    let keyring = Arc::new(AuthKeyringStore::in_memory());
-    activate_catalog(
-        snapback.remainder_auth_database_mut(),
-        keyring.as_ref(),
-        super::now_millis(),
-        &OsRandom,
-    )
-    .expect("activate watch-reaction push auth catalog");
-    let provider = Arc::new(
-        AuthProvider::new(AuthProviderProfile::Test, keyring)
-            .expect("construct watch-reaction push auth provider"),
-    );
-    let mut context = ServerContext::detached();
-    context.profile = ServerProfile::Test;
-    let state = activate_test_sessions(
-        test_app_state_from_snapback(snapback, context)
-            .with_policy_auth_mode(PolicyAuthMode::Sessions)
-            .try_with_auth_provider(provider)
-            .expect("install watch-reaction push auth provider"),
-    );
-    let watch_owner =
-        crate::ids::mint(crate::ids::Kind::User).expect("watch-reaction push owner principal");
-    with_snapback(&state.snapback, {
+    let state = sessions_activation_server_fixture_with_integrations_async().await;
+    let credential = mint_test_credential(&state, "watch-reaction-push@example.test").await;
+    let watch_owner = credential["session"]["userId"]
+        .as_str()
+        .expect("watch-reaction push owner principal")
+        .to_owned();
+    let watch_authority_instance_id = credential["session"]["id"]
+        .as_str()
+        .expect("watch-reaction push owner authority instance")
+        .to_owned();
+    let watch_id = crate::ids::mint_time_ordered(crate::ids::Kind::Watch);
+    let principal = with_snapback(&state.snapback, {
         let watch_owner = watch_owner.clone();
+        let watch_authority_instance_id = watch_authority_instance_id.clone();
+        let watch_id = watch_id.clone();
         move |snapback| {
             let declaration = immediate_push_declaration();
             let database = snapback.remainder_auth_database_mut();
@@ -29686,32 +29676,114 @@ async fn watch_reaction_ctx_push_send_without_caller_publication_commits() {
             database
                 .push_registry()
                 .install_immediate_sender_for_test(schema, &watch_owner)?;
-            let diagnostics = snapback.load_functions(generation_test_manifest());
+            let now_ms = super::now_millis();
+            database.create_watch(crate::storage::watches::CreateWatchRecord {
+                id: watch_id.clone(),
+                owner_kind: crate::watches::WatchOwnerKind::User,
+                owner_principal_id: watch_owner,
+                owner_authority_instance_id: watch_authority_instance_id,
+                authority_mode: crate::watches::WatchAuthorityMode::RevalidatePrincipal,
+                anchor_grant_id: None,
+                installation_grant_id: None,
+                anchor_effective_user_id: None,
+                anchor_scopes: Vec::new(),
+                anchor_expires_at_ms: 0,
+                query_function_id: "watch-reaction-push-query".to_owned(),
+                query_function_name: "liveItems".to_owned(),
+                query_basis: 1,
+                query_args_json: "{}".to_owned(),
+                query_args_digest: "watch-reaction-push-query-args".to_owned(),
+                read_dependencies: Vec::new(),
+                predicate_json: "{\"path\":\"/rows\",\"op\":\"exists\"}".to_owned(),
+                reaction_kind: crate::watches::WatchReactionKind::Function,
+                reaction_function_id: "watch-reaction-push-reaction".to_owned(),
+                reaction_function_name: "heldAction".to_owned(),
+                reaction_function_kind: crate::watches::WatchFunctionKind::Action,
+                reaction_basis: 1,
+                reaction_args_json: "{}".to_owned(),
+                reaction_args_digest: "watch-reaction-push-reaction-args".to_owned(),
+                webhook_url: None,
+                webhook_secret_ref: None,
+                daily_firing_budget: crate::watches::DEFAULT_DAILY_FIRING_BUDGET,
+                debounce_ms: crate::watches::DEFAULT_DEBOUNCE_MS,
+                initial_predicate_state: false,
+                now_ms,
+            })?;
+            let principal = database
+                .revalidate_watch_principal(&watch_id)?
+                .expect("active protected watch owner revalidates");
+            let mut manifest = generation_test_manifest();
+            manifest.functions.push(FunctionDefinition::new(
+                "listItems",
+                FunctionKind::Query,
+                FunctionRuntime::IbexModule(IbexModule {
+                    source: "globalThis.__snapbackHandlers = { async listItems() { return []; } };"
+                        .to_owned(),
+                    export: "listItems".to_owned(),
+                }),
+            ));
+            manifest.functions.push(FunctionDefinition::new(
+                "liveItems",
+                FunctionKind::LiveQuery,
+                FunctionRuntime::IbexModule(IbexModule {
+                    source: "globalThis.__snapbackHandlers = { async liveItems() { return []; } };"
+                        .to_owned(),
+                    export: "liveItems".to_owned(),
+                }),
+            ));
+            for function in &mut manifest.functions {
+                function.api_exposure = Some(ApiFunctionExposure::default());
+            }
+            for function in manifest
+                .functions
+                .iter_mut()
+                .filter(|function| matches!(function.name.as_str(), "listItems" | "liveItems"))
+            {
+                function.api_exposure = Some(ApiFunctionExposure {
+                    expose: true,
+                    since: None,
+                    approval: None,
+                });
+            }
+            let diagnostics = snapback.load_functions(manifest);
             assert!(
                 diagnostics.iter().all(|diagnostic| {
                     diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error
                 }),
                 "watch-reaction push functions load: {diagnostics:?}"
             );
-            Ok::<_, SnapbackError>(())
+            Ok::<_, SnapbackError>(principal)
         }
     })
     .await
     .expect("activate watch-reaction push seam and action");
 
+    let foreign_database =
+        crate::storage::LocalDatabase::memory().expect("open foreign watch-principal database");
+    let foreign_admission =
+        crate::auth::admission::AdmissionController::from_mode_state_with_database_binding(
+            &state.auth_mode_state(),
+            foreign_database.binding(),
+        )
+        .expect("build foreign watch-principal admission graph")
+        .admit_for_mode(state.auth_mode_state().active)
+        .expect("admit foreign watch-principal graph");
+    let mismatch = InvocationGate::prepare_admitted_revalidated_principal(
+        InvocationSource::WatchReaction,
+        state.server.profile,
+        foreign_admission,
+        principal.clone(),
+    )
+    .expect_err("a protected-catalog principal cannot move to another database graph");
+    assert_eq!(mismatch.diagnostic.code, "SNAPBACK_AUTH_POLICY_UNAVAILABLE");
+
     let staged = stage_held_action(&state.snapback);
     let mut host = held_action_host(state.snapback.clone(), &staged);
-    host.authority = InvocationGate::prepare_admitted_authority(
+    host.authority = InvocationGate::prepare_admitted_revalidated_principal(
         InvocationSource::WatchReaction,
-        AuthMode::Sessions,
         state.server.profile,
         test_route_admission(&state).0,
-        &WireAuthorityFields::default(),
-        ResolvedAppAuthority::RevalidatedPrincipal {
-            user_id: watch_owner,
-            authority_instance_id: "watch-reaction-push-authority".into(),
-        },
-        None,
+        principal,
     )
     .expect("prepare credential-free watch-reaction authority");
     assert!(
@@ -30806,74 +30878,23 @@ async fn service_principal_terminalization_fences_stream_open_and_discards_late_
         let _ = socket.write_all(b"6\r\nlate-1\r\n0\r\n\r\n");
     });
 
-    // A real ServicePrincipal PreparedAuthority: sessions-mode admission
-    // controller, the HttpAction source class that admits scoped-token
-    // authority, and a fence-registry publication whose witness identity
-    // the per-read revalidation must match exactly.
-    let digest = |prefix: &str, marker: char| format!("{prefix}{}", marker.to_string().repeat(64));
-    let deployment = DeploymentIdentity {
-        schema_version: "snapback.v1".to_owned(),
-        auth_mode: AuthMode::Sessions,
-        app_id: "stream-fence-test".to_owned(),
-        schema_hash: digest(SCHEMA_V1_PREFIX, '1'),
-        bundle_hash: digest(FUNCTION_V1_PREFIX, '2'),
-        inputs_hash: digest(INPUTS_V1_PREFIX, '3'),
-    };
-    let mode = AuthModeStateRecord {
-        format_version: crate::auth::mode::AUTH_MODE_FORMAT_VERSION,
-        transition_generation: 1,
-        active: AuthMode::Sessions,
-        desired: AuthMode::Sessions,
-        mode_state: AuthModeStatus::Settled,
-        app_data_availability: AppDataAvailability::Available,
-        sessions_ever_activated: true,
-        active_deployment: Some(deployment),
-        requested_deployment: None,
-        quarantine: None,
-    };
-    let controller = crate::auth::admission::AdmissionController::from_mode_state(&mode)
-        .expect("sessions admission controller");
-    let registry = ServiceAuthorityFenceRegistry::default();
-    let monotonic = Instant::now();
-    let epoch_now_ms = super::now_millis();
-    let expires_at_ms = epoch_now_ms + 60_000;
-    let publication = registry
-        .synthetic_publication_for_test(
-            "stream-fence-token",
-            epoch_now_ms,
-            expires_at_ms,
-            monotonic,
-        )
-        .expect("register service publication");
-    let authority = InvocationGate::prepare_admitted_authority(
+    // Resolve a real protected-catalog scoped token through the same serving
+    // database and admission graph used by the host under test.
+    let state = sessions_activation_server_fixture_async().await;
+    let (authority, token_id, credential_id, registry) = resolve_test_service_authority(
+        &state,
         InvocationSource::HttpAction,
-        AuthMode::Sessions,
-        ServerProfile::Test,
-        controller
-            .admit_for_mode(AuthMode::Sessions)
-            .expect("admit sessions action"),
-        &WireAuthorityFields::default(),
-        ResolvedAppAuthority::ServicePrincipal {
-            actor_user_id: "agent-a".to_owned(),
-            credential_id: "credential-a".to_owned(),
-            credential_generation: 1,
-            grant_id: "durable-grant-a".to_owned(),
-            token_id: "stream-fence-token".to_owned(),
-            effective_user_id: Some("user-a".to_owned()),
-            scopes: Vec::new(),
-            token_expires_at_ms: expires_at_ms,
-            integration_status: None,
-        },
-        None,
+        vec![crate::storage::auth_grants::ExactGrantScope {
+            function_id: "fn:heldAction".to_owned(),
+            kind: crate::storage::auth_grants::ScopedFunctionKind::Action,
+            basis: 0,
+            authority_creating: false,
+        }],
+        "service-stream-fence",
     )
-    .expect("prepare scoped-token action authority")
-    .with_service_publication(publication);
-
-    let mut snapback = LocalSnapback::memory().expect("service fence host state");
-    snapback.load_functions(generation_test_manifest());
-    let state = Arc::new(Mutex::new(snapback));
-    let staged = stage_held_action(&state);
-    let mut host = held_action_host(state, &staged);
+    .await;
+    let staged = stage_held_action(&state.snapback);
+    let mut host = held_action_host(state.snapback.clone(), &staged);
     host.deadline = Instant::now() + Duration::from_secs(10);
     host.authority = authority;
     let stream_runner_host = host.authority.stream_runner_host(host.abandoned.clone());
@@ -30882,7 +30903,7 @@ async fn service_principal_terminalization_fences_stream_open_and_discards_late_
     host.stream_runner_host = stream_runner_host;
     host.output_stream_function_id = Some("heldAction".to_owned());
     host.output_stream_initiator = Some(crate::stream_attempt::StreamInitiator::ServiceCredential(
-        "credential-a".to_owned(),
+        credential_id,
     ));
     host.initialize_output_stream()
         .expect("scoped-service streaming action opens its durable attempt");
@@ -30911,6 +30932,7 @@ async fn service_principal_terminalization_fences_stream_open_and_discards_late_
         // Terminalize the service authority 200 ms into the ~900 ms
         // stall, while the second pull is already blocked awaiting bytes.
         let terminal_registry = registry.clone();
+        let terminal_token_id = token_id.clone();
         let terminal = std::thread::spawn(move || {
             std::thread::sleep(Duration::from_millis(200));
             let runtime = tokio::runtime::Builder::new_current_thread()
@@ -30920,14 +30942,14 @@ async fn service_principal_terminalization_fences_stream_open_and_discards_late_
             runtime.block_on(async {
                 let gate = terminal_registry
                     .acquire_terminal_gate(
-                        &["stream-fence-token".to_owned()],
+                        std::slice::from_ref(&terminal_token_id),
                         ServiceAuthorityDisposition::DurableDelete,
                     )
                     .await
                     .expect("close and drain service domain");
                 with_service_authority_terminal_gate(gate, || {
                     terminal_registry.commit_terminal_for_test(
-                        &["stream-fence-token".to_owned()],
+                        std::slice::from_ref(&terminal_token_id),
                         ServiceAuthorityDisposition::DurableDelete,
                     )
                 })
@@ -31020,8 +31042,8 @@ async fn service_principal_terminalization_fences_stream_open_and_discards_late_
     upstream.join().expect("service fence fixture joins");
 }
 
-#[test]
-fn scoped_service_retirement_eventually_latches_cancelled_before_child_commit() {
+#[tokio::test]
+async fn scoped_service_retirement_eventually_latches_cancelled_before_child_commit() {
     // This fixture proves eventual pre-commit terminal latching after scoped-
     // service retirement, not which observer latches the cause. The current
     // staging observer and the later reserve_nested_effect cut can detect the
@@ -31029,34 +31051,6 @@ fn scoped_service_retirement_eventually_latches_cancelled_before_child_commit() 
     // covered_host_child_identity_classified is not reached. The scoped
     // service retires after output initialization and no assertion here pins
     // the classified staging observer, whose coverage remains inspection-only.
-    let digest = |prefix: &str, marker: char| format!("{prefix}{}", marker.to_string().repeat(64));
-    let deployment = DeploymentIdentity {
-        schema_version: "snapback.v1".to_owned(),
-        auth_mode: AuthMode::Sessions,
-        app_id: "pre-reservation-service-fence-test".to_owned(),
-        schema_hash: digest(SCHEMA_V1_PREFIX, '4'),
-        bundle_hash: digest(FUNCTION_V1_PREFIX, '5'),
-        inputs_hash: digest(INPUTS_V1_PREFIX, '6'),
-    };
-    let mode = AuthModeStateRecord {
-        format_version: crate::auth::mode::AUTH_MODE_FORMAT_VERSION,
-        transition_generation: 1,
-        active: AuthMode::Sessions,
-        desired: AuthMode::Sessions,
-        mode_state: AuthModeStatus::Settled,
-        app_data_availability: AppDataAvailability::Available,
-        sessions_ever_activated: true,
-        active_deployment: Some(deployment),
-        requested_deployment: None,
-        quarantine: None,
-    };
-    let controller = crate::auth::admission::AdmissionController::from_mode_state(&mode)
-        .expect("sessions admission controller");
-    let registry = ServiceAuthorityFenceRegistry::default();
-    let monotonic = Instant::now();
-    let epoch_now_ms = super::now_millis();
-    let expires_at_ms = epoch_now_ms + 60_000;
-    let token_id = "pre-reservation-stream-fence-token";
     let functions = generation_test_manifest();
     let nested_function_id = functions
         .functions
@@ -31065,45 +31059,21 @@ fn scoped_service_retirement_eventually_latches_cancelled_before_child_commit() 
         .expect("pre-reservation nested mutation declaration")
         .id
         .clone();
-    let publication = registry
-        .synthetic_publication_for_test(token_id, epoch_now_ms, expires_at_ms, monotonic)
-        .expect("register pre-reservation service publication");
-    let authority = InvocationGate::prepare_admitted_authority(
+    let state = sessions_activation_server_fixture_async().await;
+    let (authority, token_id, credential_id, registry) = resolve_test_service_authority(
+        &state,
         InvocationSource::HttpAction,
-        AuthMode::Sessions,
-        ServerProfile::Test,
-        controller
-            .admit_for_mode(AuthMode::Sessions)
-            .expect("admit sessions action"),
-        &WireAuthorityFields::default(),
-        ResolvedAppAuthority::ServicePrincipal {
-            actor_user_id: "agent-pre-reservation".to_owned(),
-            credential_id: "credential-pre-reservation".to_owned(),
-            credential_generation: 1,
-            grant_id: "grant-pre-reservation".to_owned(),
-            token_id: token_id.to_owned(),
-            effective_user_id: Some("user-pre-reservation".to_owned()),
-            scopes: vec![crate::auth::invocation::ResolvedGrantScope::from_exact(
-                crate::storage::auth_grants::ExactGrantScope {
-                    function_id: nested_function_id,
-                    kind: crate::storage::auth_grants::ScopedFunctionKind::Mutation,
-                    basis: 0,
-                    authority_creating: false,
-                },
-            )],
-            token_expires_at_ms: expires_at_ms,
-            integration_status: None,
-        },
-        None,
+        vec![crate::storage::auth_grants::ExactGrantScope {
+            function_id: nested_function_id,
+            kind: crate::storage::auth_grants::ScopedFunctionKind::Mutation,
+            basis: 0,
+            authority_creating: false,
+        }],
+        "pre-reservation-service-fence",
     )
-    .expect("prepare pre-reservation scoped-token action authority")
-    .with_service_publication(publication);
-
-    let mut snapback = LocalSnapback::memory().expect("pre-reservation service host state");
-    snapback.load_functions(functions);
-    let state = Arc::new(Mutex::new(snapback));
-    let staged = stage_held_action(&state);
-    let mut host = held_action_host(state, &staged);
+    .await;
+    let staged = stage_held_action(&state.snapback);
+    let mut host = held_action_host(state.snapback.clone(), &staged);
     host.authority = authority;
     let stream_runner_host = host.authority.stream_runner_host(host.abandoned.clone());
     host.commit_gate = stream_runner_host.runner().commit_gate();
@@ -31111,7 +31081,7 @@ fn scoped_service_retirement_eventually_latches_cancelled_before_child_commit() 
     host.stream_runner_host = stream_runner_host;
     host.output_stream_function_id = Some("heldAction".to_owned());
     host.output_stream_initiator = Some(crate::stream_attempt::StreamInitiator::ServiceCredential(
-        "credential-pre-reservation".to_owned(),
+        credential_id,
     ));
     host.initialize_output_stream()
         .expect("pre-reservation action initializes its durable output attempt");
@@ -31120,26 +31090,20 @@ fn scoped_service_retirement_eventually_latches_cancelled_before_child_commit() 
         .clone()
         .expect("pre-reservation output attempt token");
 
-    let runtime = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .expect("pre-reservation terminal runtime");
-    runtime.block_on(async {
-        let gate = registry
-            .acquire_terminal_gate(
-                &[token_id.to_owned()],
-                ServiceAuthorityDisposition::DurableDelete,
-            )
-            .await
-            .expect("close and drain pre-reservation service domain");
-        with_service_authority_terminal_gate(gate, || {
-            registry.commit_terminal_for_test(
-                &[token_id.to_owned()],
-                ServiceAuthorityDisposition::DurableDelete,
-            )
-        })
-        .expect("commit pre-reservation service terminal");
-    });
+    let gate = registry
+        .acquire_terminal_gate(
+            std::slice::from_ref(&token_id),
+            ServiceAuthorityDisposition::DurableDelete,
+        )
+        .await
+        .expect("close and drain pre-reservation service domain");
+    with_service_authority_terminal_gate(gate, || {
+        registry.commit_terminal_for_test(
+            std::slice::from_ref(&token_id),
+            ServiceAuthorityDisposition::DurableDelete,
+        )
+    })
+    .expect("commit pre-reservation service terminal");
 
     let refused = host
         .run_mutation("hostPlanWrite", HandlerInput::default())
@@ -32462,22 +32426,10 @@ fn synthetic_connection_authority(bound: BoundGrantAuthority) -> PreparedConnect
     let resolved = match &bound {
         BoundGrantAuthority::Anonymous { .. } => ResolvedAppAuthority::Anonymous,
         BoundGrantAuthority::ServicePrincipal { authority, .. } => authority.clone(),
-        BoundGrantAuthority::Session {
-            session_id,
-            user_id,
-            provider,
-            generation,
-            ..
-        } => ResolvedAppAuthority::Session {
-            user_id: user_id.clone(),
-            session_id: session_id.clone(),
-            provider: provider.clone(),
-            generation: *generation,
-            authority_instance_id: Uuid::now_v7().to_string(),
-            session_not_after_ms: u64::MAX,
-            provider_not_after_ms: None,
-            rehearsal_provenance: None,
-        },
+        // `open_prepared` deliberately discards this field and tests below
+        // exercise only the synthetic `BoundGrantAuthority` comparison. Do
+        // not mint a session subject merely to populate an inert fixture.
+        BoundGrantAuthority::Session { .. } => ResolvedAppAuthority::Anonymous,
     };
     PreparedConnectionOpenAuthority {
         resolved,
@@ -32574,36 +32526,6 @@ fn synthetic_session_bound(
         generation,
         deadline_ms,
         publication,
-    }
-}
-
-fn synthetic_service_bound(token_id: &str) -> BoundGrantAuthority {
-    let (authorization_stream_incarnation, publication) =
-        FencedPublication::anonymous_for_unmanaged_dev_connection();
-    let authority = ResolvedAppAuthority::ServicePrincipal {
-        actor_user_id: "agent-a".to_owned(),
-        credential_id: "credential-a".to_owned(),
-        credential_generation: 1,
-        grant_id: "durable-grant-a".to_owned(),
-        token_id: token_id.to_owned(),
-        effective_user_id: Some("user-a".to_owned()),
-        scopes: Vec::new(),
-        token_expires_at_ms: u64::MAX,
-        integration_status: None,
-    };
-    let service_publication =
-        crate::auth::service_fence::ServiceAuthorityPublication::synthetic_for_test(token_id);
-    BoundGrantAuthority::ServicePrincipal {
-        authorization_stream_incarnation,
-        route_authority: crate::local::ResolvedServiceAuthority::synthetic_for_test(
-            authority.clone(),
-            service_publication.clone(),
-        ),
-        authority,
-        token_id: token_id.to_owned(),
-        deadline_ms: u64::MAX,
-        publication,
-        service_publication,
     }
 }
 
@@ -34331,7 +34253,7 @@ async fn committed_live_stage_finalize_outlives_request_cancellation_and_retains
     assert!(connection_act.authorization_invalidation.is_some());
 
     let admission = test_route_admission(&state).0;
-    let authority = InvocationGate::prepare_admitted_authority(
+    let authority = InvocationGate::prepare_admitted_subjectless_authority(
         InvocationSource::LiveInitialQuery,
         AuthMode::Sessions,
         state.server.profile,
@@ -34528,7 +34450,7 @@ async fn refused_connection_act_abandons_staged_subscribe_without_publication() 
         )
         .expect("prepare exact staged connection act");
     let admission = test_route_admission(&state).0;
-    let authority = InvocationGate::prepare_admitted_authority(
+    let authority = InvocationGate::prepare_admitted_subjectless_authority(
         InvocationSource::LiveInitialQuery,
         AuthMode::Sessions,
         state.server.profile,
@@ -34801,8 +34723,8 @@ fn t10_source_inventory_pins_legacy_host_type_and_split_executor_routing() {
         "the source inventory requires LocalIbexActionHost's nominal legacy authority type"
     );
     assert!(
-        engine_source.contains("ResolvedAppAuthority::Session { .. }")
-            && engine_source.contains("ResolvedAppAuthority::ServicePrincipal { .. }")
+        engine_source.contains("ResolvedAppAuthority::Session(_)")
+            && engine_source.contains("ResolvedAppAuthority::ServicePrincipal(_)")
             && engine_source.contains(
                 "finite caller actions must use the managed or detached split-phase executor"
             ),
@@ -34893,20 +34815,13 @@ async fn connection_open_uses_projected_current_bearer_and_records_sliding_use()
         else {
             panic!("current bearer must mint a session grant")
         };
-        let ResolvedAppAuthority::Session {
-            session_id: projected_session_id,
-            user_id: projected_user_id,
-            provider: projected_provider,
-            generation: projected_generation,
-            ..
-        } = projected
-        else {
+        let ResolvedAppAuthority::Session(subject) = projected else {
             panic!("fixture bearer must project session authority")
         };
-        assert_eq!(session_id, &projected_session_id);
-        assert_eq!(user_id, &projected_user_id);
-        assert_eq!(provider, &projected_provider);
-        assert_eq!(*generation, projected_generation);
+        assert_eq!(session_id, subject.session_id());
+        assert_eq!(user_id, subject.user_id());
+        assert_eq!(provider, subject.provider());
+        assert_eq!(*generation, subject.generation());
         assert_eq!(*deadline_ms, after_deadline);
         assert!(!format!("{:?}", record.authority).contains(&predecessor));
         state_guard.assert_grant_indexes_consistent();
@@ -35032,23 +34947,56 @@ async fn rejected_connection_open_bodies_still_consume_session_budget() {
 
 #[tokio::test]
 async fn service_token_terminalization_is_carrier_exact_within_one_durable_grant() {
-    let state = test_detached_app_state(LocalSnapback::memory().unwrap());
-    let open = |connection_id: &str, token_id: &str| {
-        state
-            .connections
-            .open_prepared(super::ConnectionOpenAttempt::new(
-                Some(connection_id.to_owned()),
-                None,
-                true,
-                synthetic_connection_authority(synthetic_service_bound(token_id)),
-                super::now_millis(),
-                Instant::now(),
-                None,
-            ))
-            .unwrap()
-    };
-    let first = open("service-carrier-a", "token-a");
-    let second = open("service-carrier-b", "token-b");
+    let fixture = finite_authority_matrix_fixture().await;
+    let (second_bearer, second_token_id) =
+        mint_same_grant_sibling_and_set_deadline(&fixture, fixture.start_ms + 48 * 60 * 60 * 1_000)
+            .await;
+    let (epoch_now_ms, monotonic_now) = super::auth_runtime_now(&fixture.state);
+    let first_authority = super::prepare_connection_open_authority_with_scoped_token(
+        &fixture.state,
+        super::PresentedSessionBearer::Candidate(&fixture.token),
+        epoch_now_ms,
+        monotonic_now,
+        None,
+    )
+    .await
+    .expect("resolve first genuine service carrier");
+    let second_authority = super::prepare_connection_open_authority_with_scoped_token(
+        &fixture.state,
+        super::PresentedSessionBearer::Candidate(&second_bearer),
+        epoch_now_ms,
+        monotonic_now,
+        None,
+    )
+    .await
+    .expect("resolve sibling genuine service carrier");
+    let first = fixture
+        .state
+        .connections
+        .open_prepared(super::ConnectionOpenAttempt::new(
+            Some("service-carrier-a".to_owned()),
+            None,
+            true,
+            first_authority,
+            epoch_now_ms,
+            monotonic_now,
+            None,
+        ))
+        .expect("open first genuine service carrier");
+    let second = fixture
+        .state
+        .connections
+        .open_prepared(super::ConnectionOpenAttempt::new(
+            Some("service-carrier-b".to_owned()),
+            None,
+            true,
+            second_authority,
+            epoch_now_ms,
+            monotonic_now,
+            None,
+        ))
+        .expect("open sibling genuine service carrier");
+    let state = &fixture.state;
     let notifier = state.ephemeral.delivery_notifier();
     let (first_generation, first_waker) = notifier
         .register_bound(&first.grant.connection_id, first.grant_id.clone())
@@ -35058,7 +35006,7 @@ async fn service_token_terminalization_is_carrier_exact_within_one_durable_grant
         .unwrap();
 
     state.auth_terminal_lifecycle.evict_service_tokens(
-        &["token-a".to_owned()],
+        std::slice::from_ref(&fixture.token_id),
         Instant::now() + Duration::from_secs(5),
     );
     tokio::time::timeout(Duration::from_secs(1), first_waker.notified())
@@ -35090,11 +35038,12 @@ async fn service_token_terminalization_is_carrier_exact_within_one_durable_grant
         .expect("sibling carrier remains current");
     assert!(matches!(
         second_act.resolved,
-        ResolvedAppAuthority::ServicePrincipal { ref token_id, .. } if token_id == "token-b"
+        ResolvedAppAuthority::ServicePrincipal(ref subject)
+            if subject.token_id() == second_token_id
     ));
 
     state.auth_terminal_lifecycle.expire_service_tokens(
-        &["token-b".to_owned()],
+        std::slice::from_ref(&second_token_id),
         Instant::now() + Duration::from_secs(5),
     );
     tokio::time::timeout(Duration::from_secs(1), second_waker.notified())
@@ -35622,7 +35571,7 @@ fn prepared_test_session_route_authority(
         .expect("resolve authorized-effect session bearer");
     let (resolved, publication) = prepared.into_parts();
     let session_claims = test_session_claims_for(&resolved);
-    InvocationGate::prepare_admitted_authority(
+    InvocationGate::prepare_admitted_subjectless_authority(
         source,
         AuthMode::Sessions,
         state.server.profile,
@@ -35673,6 +35622,85 @@ async fn prepared_test_service_route_authority(
     })
     .await
     .expect("prepare authorized-effect service authority")
+}
+
+async fn resolve_test_service_authority(
+    state: &AppState,
+    source: InvocationSource,
+    scopes: Vec<crate::storage::auth_grants::ExactGrantScope>,
+    provenance: &str,
+) -> (
+    PreparedAuthority,
+    String,
+    String,
+    ServiceAuthorityFenceRegistry,
+) {
+    with_snapback(&state.snapback, |snapback| {
+        let diagnostics = snapback.load_functions(generation_test_manifest());
+        assert!(
+            diagnostics.iter().all(|diagnostic| {
+                diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error
+            }),
+            "service authority fixture functions load: {diagnostics:?}"
+        );
+    })
+    .await;
+    let provider = state.auth_provider.clone().expect("test service provider");
+    let now_ms = provider.now_ms();
+    let actor_user_id = crate::ids::mint(crate::ids::Kind::User).expect("test service actor");
+    let effective_user_id =
+        crate::ids::mint(crate::ids::Kind::User).expect("test service effective user");
+    let grant_id = crate::ids::mint(crate::ids::Kind::Grant).expect("test service grant");
+    let provenance = provenance.to_owned();
+    let seed_provider = provider.clone();
+    let (bearer, token_id) = with_snapback(&state.snapback, move |snapback| {
+        let db = snapback.remainder_auth_database_mut();
+        db.auth_catalog()
+            .insert_human_user_for_test(&effective_user_id, now_ms)?;
+        db.create_agent_principal(
+            &actor_user_id,
+            now_ms,
+            &crate::storage::auth_agents::AgentRegistration {
+                display_name: None,
+                operator_contact: None,
+                registration_provenance: provenance,
+                owner_user_id: Some(effective_user_id.clone()),
+            },
+        )?;
+        let credential = db.issue_initial_agent_credential(
+            &actor_user_id,
+            now_ms,
+            seed_provider.agent_random_source(),
+        )?;
+        db.auth_catalog().insert_exact_grant_for_test(
+            &grant_id,
+            &actor_user_id,
+            Some(&effective_user_id),
+            &scopes,
+            now_ms,
+            now_ms + 60_000,
+        )?;
+        let issued = db.mint_scoped_token(
+            &credential.secret,
+            &grant_id,
+            Some(60_000),
+            now_ms,
+            seed_provider.agent_random_source(),
+        )?;
+        Ok::<_, SnapbackError>((issued.secret.expose_secret().to_owned(), issued.token_id))
+    })
+    .await
+    .expect("seed genuine test service authority");
+    let authority = prepared_test_service_route_authority(state, source, &bearer).await;
+    let credential_id = match authority.resolved() {
+        ResolvedAppAuthority::ServicePrincipal(subject) => subject.credential_id().to_owned(),
+        _ => panic!("scoped-token resolver must produce service authority"),
+    };
+    let registry = with_snapback(&state.snapback, |snapback| {
+        snapback.service_authority_fences_for_test()
+    })
+    .await;
+    (authority, token_id, credential_id, registry)
 }
 
 async fn mode_only_migration_target_response(
@@ -36644,7 +36672,7 @@ async fn client_mutation_acknowledgement_service_branch_stays_mode_only() {
     .await;
     assert!(matches!(
         authority.resolved(),
-        ResolvedAppAuthority::ServicePrincipal { .. }
+        ResolvedAppAuthority::ServicePrincipal(_)
     ));
     let pause = install_test_finite_authority_pause(
         TestFiniteAuthorityPausePoint::BeforeAuthorizedEffectReservation,
@@ -40195,7 +40223,7 @@ async fn hosted_ephemeral_post_verification_errors_repeat_the_instance() {
         .auth_admission_controller()
         .admit_for_mode(AuthMode::Dev)
         .expect("admit dev ephemeral request");
-    let authority = InvocationGate::prepare_admitted_authority(
+    let authority = InvocationGate::prepare_admitted_subjectless_authority(
         InvocationSource::EphemeralPublish,
         AuthMode::Dev,
         state.server.profile,

@@ -728,7 +728,7 @@ impl LocalDatabase {
             },
             now_ms,
         )?;
-        if resolved.expires_at_ms != retained.token_expires_at_ms() {
+        if resolved.expires_at_ms() != retained.token_expires_at_ms() {
             return Err(SnapbackError::error(
                 "SNAPBACK_EFFECT_BINDING_STALE",
                 "effects",
@@ -1416,13 +1416,13 @@ mod tests {
             .expect("kernel authority after service setup");
         let mut effect_request = request(now_ms + 10, DEFAULT_TTL_MS);
         effect_request.authority = PendingEffectAuthority::ServicePrincipal {
-            actor_user_id: stored.actor_user_id,
-            credential_id: stored.credential_id,
-            credential_generation: stored.credential_generation,
-            grant_id: stored.grant_id,
-            token_id: stored.token_id,
-            effective_user_id: stored.effective_user_id,
-            token_expires_at_ms: stored.expires_at_ms,
+            actor_user_id: stored.actor_user_id().to_owned(),
+            credential_id: stored.credential_id().to_owned(),
+            credential_generation: stored.credential_generation(),
+            grant_id: stored.grant_id().to_owned(),
+            token_id: stored.token_id().to_owned(),
+            effective_user_id: stored.effective_user_id().map(str::to_owned),
+            token_expires_at_ms: stored.expires_at_ms(),
         };
         let created = db
             .create_pending_effect(authority.admit_pending_effect_creation(effect_request))
@@ -1439,7 +1439,7 @@ mod tests {
         let reconstructed = db
             .resolve_prepared_pending_effect_service_authority(&retained, now_ms + 11)
             .expect("reconstruct the stored original service authority");
-        assert_eq!(reconstructed.actor_user_id, STORED_ORIGINAL_ACTOR);
+        assert_eq!(reconstructed.actor_user_id(), STORED_ORIGINAL_ACTOR);
         let observed_clock = db
             .conn
             .query_row(
@@ -1484,15 +1484,15 @@ mod tests {
             let stored = db
                 .resolve_scoped_token(&token, now_ms + 1)
                 .expect("resolve the exact stored service authority");
-            assert!(stored.credential_generation > 0);
+            assert!(stored.credential_generation() > 0);
             let exact = PendingEffectAuthority::ServicePrincipal {
-                actor_user_id: stored.actor_user_id.clone(),
-                credential_id: stored.credential_id.clone(),
-                credential_generation: stored.credential_generation,
-                grant_id: stored.grant_id.clone(),
-                token_id: stored.token_id.clone(),
-                effective_user_id: stored.effective_user_id.clone(),
-                token_expires_at_ms: stored.expires_at_ms,
+                actor_user_id: stored.actor_user_id().to_owned(),
+                credential_id: stored.credential_id().to_owned(),
+                credential_generation: stored.credential_generation(),
+                grant_id: stored.grant_id().to_owned(),
+                token_id: stored.token_id().to_owned(),
+                effective_user_id: stored.effective_user_id().map(str::to_owned),
+                token_expires_at_ms: stored.expires_at_ms(),
             };
             let authority = db
                 .claim_kernel_commit_authority()
@@ -1677,14 +1677,10 @@ mod tests {
                 (
                     "credential-revoked",
                     "_auth_agent_credentials",
-                    stored.credential_id.as_str(),
+                    stored.credential_id(),
                 ),
-                ("grant-revoked", "_auth_grants", stored.grant_id.as_str()),
-                (
-                    "token-revoked",
-                    "_auth_grant_tokens",
-                    stored.token_id.as_str(),
-                ),
+                ("grant-revoked", "_auth_grants", stored.grant_id()),
+                ("token-revoked", "_auth_grant_tokens", stored.token_id()),
             ];
             let mut revocation_accepted = Vec::new();
             let mut revocation_refused = Vec::new();
@@ -1777,13 +1773,13 @@ mod tests {
             .expect("claim producer authority for database A");
         let mut effect_request = request(now_ms + 10, DEFAULT_TTL_MS);
         effect_request.authority = PendingEffectAuthority::ServicePrincipal {
-            actor_user_id: matching_b.actor_user_id.clone(),
-            credential_id: matching_b.credential_id.clone(),
-            credential_generation: matching_b.credential_generation,
-            grant_id: matching_b.grant_id.clone(),
-            token_id: matching_b.token_id.clone(),
-            effective_user_id: matching_b.effective_user_id.clone(),
-            token_expires_at_ms: matching_b.expires_at_ms,
+            actor_user_id: matching_b.actor_user_id().to_owned(),
+            credential_id: matching_b.credential_id().to_owned(),
+            credential_generation: matching_b.credential_generation(),
+            grant_id: matching_b.grant_id().to_owned(),
+            token_id: matching_b.token_id().to_owned(),
+            effective_user_id: matching_b.effective_user_id().map(str::to_owned),
+            token_expires_at_ms: matching_b.expires_at_ms(),
         };
         let created = database_a
             .create_pending_effect(authority_a.admit_pending_effect_creation(effect_request))
@@ -1797,10 +1793,10 @@ mod tests {
             panic!("stored service authority must produce the service borrow view")
         };
 
-        assert_eq!(matching_b.actor_user_id, retained.actor_user_id());
-        assert_eq!(matching_b.credential_id, retained.credential_id());
-        assert_eq!(matching_b.grant_id, retained.grant_id());
-        assert_eq!(matching_b.token_id, retained.token_id());
+        assert_eq!(matching_b.actor_user_id(), retained.actor_user_id());
+        assert_eq!(matching_b.credential_id(), retained.credential_id());
+        assert_eq!(matching_b.grant_id(), retained.grant_id());
+        assert_eq!(matching_b.token_id(), retained.token_id());
 
         for attempt in 1..=2 {
             let error = database_b
@@ -1877,8 +1873,11 @@ impl super::ServingDatabase {
         retained: &RetainedEffectServiceAuthority<'_>,
         now_ms: u64,
     ) -> SnapbackResult<crate::storage::auth_agent_credentials::ResolvedScopedToken> {
-        self.db
-            .resolve_prepared_pending_effect_service_authority(retained, now_ms)
+        let mut resolved = self
+            .db
+            .resolve_prepared_pending_effect_service_authority(retained, now_ms)?;
+        resolved.bind_serving_database(self.binding());
+        Ok(resolved)
     }
 
     pub fn pending_effect(&mut self, id: &str, now_ms: u64) -> SnapbackResult<PendingEffectRecord> {

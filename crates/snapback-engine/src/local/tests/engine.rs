@@ -3141,7 +3141,10 @@ fn live_evaluation_memo_same_key_executes_again_in_a_later_drain_cycle() {
 fn live_evaluation_memo_principal_isolation_executes_twice() {
     let mut snapback = live_limit_snapback();
     install_live_memo_scheduler(&mut snapback);
-    for (connection_id, principal) in [("memo-user-a", "user-a"), ("memo-user-b", "user-b")] {
+    for (connection_id, principal) in [
+        ("memo-user-a", "usr_00000000000000000000000010"),
+        ("memo-user-b", "user-b"),
+    ] {
         snapback
             .subscribe_live(
                 "listItems",
@@ -3312,44 +3315,31 @@ fn live_evaluation_memo_prepared_authority_projection_isolates_roles() {
 
 #[test]
 fn live_evaluation_memo_prepared_authority_instance_identity_isolates_sharing() {
+    const MEMO_USER: &str = "018f0d90-7b51-7a22-8c33-445566778899";
+    const MEMO_SESSION: &str = "018f0d90-7b52-7a22-8c33-445566778899";
+    const MEMO_AUTHORITY_A: &str = "018f0d90-7b53-7a22-8c33-445566778899";
+    const MEMO_AUTHORITY_B: &str = "018f0d90-7b54-7a22-8c33-445566778899";
     let mut snapback = live_limit_snapback();
     snapback
         .synchronize_auth_mode_admission(&settled_sessions_state())
         .expect("publish sessions-mode scheduler admission");
     let connection = install_test_invalidation(&mut snapback);
     install_live_memo_scheduler(&mut snapback);
-    insert_live_test_session(
-        &mut snapback,
-        "principal-a",
-        "shared-session",
-        "authority-instance-a",
-        70,
-    );
+    insert_live_test_session(&mut snapback, MEMO_USER, MEMO_SESSION, MEMO_AUTHORITY_A, 70);
     let mut projections = Vec::new();
     let mut subjects = Vec::new();
     for (connection_id, namespace_instance, authority_instance_id) in [
-        ("memo-instance-a", 701, "authority-instance-a"),
-        ("memo-instance-b", 702, "authority-instance-b"),
+        ("memo-instance-a", 701, MEMO_AUTHORITY_A),
+        ("memo-instance-b", 702, MEMO_AUTHORITY_B),
     ] {
-        let authority = InvocationGate::prepare_authority(
+        let authority = snapback.prepare_resolved_session_for_test(
             InvocationSource::LiveInitialQuery,
-            AuthMode::Sessions,
-            ServerProfile::Test,
-            0,
-            0,
-            &WireAuthorityFields::default(),
-            ResolvedAppAuthority::Session {
-                user_id: "principal-a".to_owned(),
-                session_id: "shared-session".to_owned(),
-                provider: "email-code".to_owned(),
-                generation: 1,
-                authority_instance_id: authority_instance_id.to_owned(),
-                session_not_after_ms: u64::MAX,
-                provider_not_after_ms: None,
-                rehearsal_provenance: None,
-            },
-        )
-        .expect("prepare instance-isolated authority");
+            MEMO_USER,
+            MEMO_SESSION,
+            authority_instance_id,
+            1,
+            u64::MAX,
+        );
         projections.push(authority.projection().clone());
         subjects.push(authority.resolved().invalidation_subject());
         snapback
@@ -3794,38 +3784,24 @@ fn live_evaluation_memo_matcher_wake_retires_and_delivers_fresh_result() {
 
 #[test]
 fn live_evaluation_memo_writeless_authority_fence_retires_departed_holder_orphan() {
+    const MEMO_USER: &str = "018f0d90-7b55-7a22-8c33-445566778899";
+    const MEMO_SESSION: &str = "018f0d90-7b56-7a22-8c33-445566778899";
+    const MEMO_AUTHORITY: &str = "018f0d90-7b57-7a22-8c33-445566778899";
     let mut snapback = live_limit_snapback();
     snapback
         .synchronize_auth_mode_admission(&settled_sessions_state())
         .expect("publish sessions-mode scheduler admission");
     let connection = install_test_invalidation(&mut snapback);
     install_live_memo_scheduler(&mut snapback);
-    insert_live_test_session(
-        &mut snapback,
-        "memo-fence-user",
-        "memo-fence-session",
-        "memo-fence-authority",
-        43,
-    );
-    let authority = InvocationGate::prepare_authority(
+    insert_live_test_session(&mut snapback, MEMO_USER, MEMO_SESSION, MEMO_AUTHORITY, 43);
+    let authority = snapback.prepare_resolved_session_for_test(
         InvocationSource::LiveInitialQuery,
-        AuthMode::Sessions,
-        ServerProfile::Test,
-        0,
-        0,
-        &WireAuthorityFields::default(),
-        ResolvedAppAuthority::Session {
-            user_id: "memo-fence-user".to_owned(),
-            session_id: "memo-fence-session".to_owned(),
-            provider: "email-code".to_owned(),
-            generation: 1,
-            authority_instance_id: "memo-fence-authority".to_owned(),
-            session_not_after_ms: u64::MAX,
-            provider_not_after_ms: None,
-            rehearsal_provenance: None,
-        },
-    )
-    .expect("prepare session-bearing fence authority");
+        MEMO_USER,
+        MEMO_SESSION,
+        MEMO_AUTHORITY,
+        1,
+        u64::MAX,
+    );
     let mut subscription_ids = Vec::new();
     for (connection_id, instance) in [("memo-authority-a", 901), ("memo-authority-b", 902)] {
         subscription_ids.push(
@@ -4670,7 +4646,7 @@ fn mixed_bundle_v2_pins_rows_and_registers_only_identity_live_children() {
         }),
     };
     let admission = snapback.admission.admit_dev().expect("dev admission");
-    let authority = InvocationGate::prepare_admitted_authority(
+    let authority = InvocationGate::prepare_admitted_subjectless_authority(
         InvocationSource::HttpQuery,
         crate::manifest::AuthMode::Dev,
         ServerProfile::Dev,
@@ -4752,26 +4728,8 @@ fn mixed_bundle_v2_pins_rows_and_registers_only_identity_live_children() {
 #[test]
 fn bundled_live_first_snapshots_preserve_catalog_session_claims() {
     let mut snapback = retainable_sessions_snapback();
-    snapback.admission = AdmissionController::from_mode_state(&settled_sessions_state())
-        .expect("settled Sessions admission controller");
     let connection = install_test_invalidation(&mut snapback);
-
-    let resolved = lease_session_authority().resolved().clone();
-    let admission = snapback
-        .admission
-        .admit_for_mode(AuthMode::Sessions)
-        .expect("parent route admission");
-    let authority = snapback
-        .prepare_resolved_authority(
-            InvocationSource::HttpQuery,
-            AuthMode::Sessions,
-            ServerProfile::Test,
-            admission,
-            &WireAuthorityFields::default(),
-            resolved,
-            now_millis(),
-        )
-        .expect("prepare parent route authority with catalog claims");
+    let authority = lease_session_authority(&mut snapback);
     let route = |mixed: bool| crate::bundle::BundleRouteEntry {
         route: if mixed {
             "/claims-mixed".to_owned()
@@ -4797,7 +4755,7 @@ fn bundled_live_first_snapshots_preserve_catalog_session_claims() {
         effect_fence: crate::ephemeral::ConnectionEffectFence::session(
             "claims-stream",
             format!("claims-grant-{instance}"),
-            "session_1",
+            LEASE_SESSION_ID,
             1,
         ),
         invalidation_connection: Some(connection.clone()),
@@ -10491,26 +10449,21 @@ fn asset_record_live_projection_refuses_bad_input_and_unrelated_commit_stays_qui
     );
 }
 
-fn asset_sessions_authority(user: &str, source: InvocationSource) -> PreparedAuthority {
-    InvocationGate::prepare_authority(
+fn asset_sessions_authority(
+    snapback: &mut LocalSnapback,
+    user: &str,
+    session_id: &str,
+    authority_instance_id: &str,
+    source: InvocationSource,
+) -> PreparedAuthority {
+    snapback.prepare_resolved_session_for_test(
         source,
-        AuthMode::Sessions,
-        ServerProfile::Test,
-        0,
-        0,
-        &crate::auth::invocation::WireAuthorityFields::default(),
-        crate::auth::invocation::ResolvedAppAuthority::Session {
-            user_id: user.to_owned(),
-            session_id: format!("sess-{user}"),
-            provider: "test".to_owned(),
-            generation: 1,
-            authority_instance_id: format!("inst-{user}"),
-            session_not_after_ms: u64::MAX,
-            provider_not_after_ms: None,
-            rehearsal_provenance: None,
-        },
+        user,
+        session_id,
+        authority_instance_id,
+        1,
+        u64::MAX,
     )
-    .expect("sessions authority")
 }
 
 fn asset_sessions_live_input(
@@ -10532,17 +10485,47 @@ fn asset_sessions_live_input(
 
 #[test]
 fn asset_record_live_projection_sessions_mode_rides_the_witnessed_lane() {
+    const ASSET_USER_A: &str = "018f0d90-7b61-7a22-8c33-445566778899";
+    const ASSET_USER_B: &str = "018f0d90-7b62-7a22-8c33-445566778899";
+    const ASSET_SESSION_A: &str = "018f0d90-7b63-7a22-8c33-445566778899";
+    const ASSET_SESSION_B: &str = "018f0d90-7b64-7a22-8c33-445566778899";
+    const ASSET_AUTHORITY_A: &str = "018f0d90-7b65-7a22-8c33-445566778899";
+    const ASSET_AUTHORITY_B: &str = "018f0d90-7b66-7a22-8c33-445566778899";
     let (schema, mut functions) = sessions_activation_pair('b', false);
     functions.asset_upload_intents = vec![asset_shared_intent()];
     let mut snapback = settled_sessions_activation_snapback(schema, functions);
     let descriptor = install_test_invalidation(&mut snapback);
-    insert_live_test_session(&mut snapback, "user_a", "sess-user_a", "inst-user_a", 44);
-    insert_live_test_session(&mut snapback, "user_b", "sess-user_b", "inst-user_b", 47);
+    insert_live_test_session(
+        &mut snapback,
+        ASSET_USER_A,
+        ASSET_SESSION_A,
+        ASSET_AUTHORITY_A,
+        44,
+    );
+    insert_live_test_session(
+        &mut snapback,
+        ASSET_USER_B,
+        ASSET_SESSION_B,
+        ASSET_AUTHORITY_B,
+        47,
+    );
 
     // Upload under sealed session authorities — the sessions instance
     // admits no dev authority anywhere in this test.
-    let creator = asset_sessions_authority("user_a", InvocationSource::HttpQuery);
-    let transfer = asset_sessions_authority("user_a", InvocationSource::AssetTransfer);
+    let creator = asset_sessions_authority(
+        &mut snapback,
+        ASSET_USER_A,
+        ASSET_SESSION_A,
+        ASSET_AUTHORITY_A,
+        InvocationSource::HttpQuery,
+    );
+    let transfer = asset_sessions_authority(
+        &mut snapback,
+        ASSET_USER_A,
+        ASSET_SESSION_A,
+        ASSET_AUTHORITY_A,
+        InvocationSource::AssetTransfer,
+    );
     let bytes = b"sessions-live";
     let created = snapback
         .asset_attempt_create(&creator, asset_create_request(Some(bytes.len() as u64)))
@@ -10563,11 +10546,18 @@ fn asset_record_live_projection_sessions_mode_rides_the_witnessed_lane() {
     // Establishment without the negotiated invalidation protocol fails
     // closed — retiring the old blanket refusal opened no unwitnessed
     // hole; the ordinary auth-scoped admission now governs.
+    let refused_authority = asset_sessions_authority(
+        &mut snapback,
+        ASSET_USER_A,
+        ASSET_SESSION_A,
+        ASSET_AUTHORITY_A,
+        InvocationSource::LiveInitialQuery,
+    );
     let refused = snapback
         .subscribe_live_prepared_with_invalidation(
             ASSET_RECORD_LIVE_FUNCTION,
             asset_sessions_live_input("conn-sess-a", &asset_id, 41),
-            asset_sessions_authority("user_a", InvocationSource::LiveInitialQuery),
+            refused_authority,
             LiveInvalidationAdmission {
                 connection: None,
                 effect_fence: None,
@@ -10582,11 +10572,19 @@ fn asset_record_live_projection_sessions_mode_rides_the_witnessed_lane() {
 
     // Owner establishes under the sealed sessions identity and sees the
     // pending row.
+    let established_authority = asset_sessions_authority(
+        &mut snapback,
+        ASSET_USER_A,
+        ASSET_SESSION_A,
+        ASSET_AUTHORITY_A,
+        InvocationSource::LiveInitialQuery,
+    );
+    let established_admission = established_authority.admission_lease().clone();
     let established = snapback
         .subscribe_live_prepared_with_invalidation(
             ASSET_RECORD_LIVE_FUNCTION,
             asset_sessions_live_input("conn-sess-a", &asset_id, 42),
-            asset_sessions_authority("user_a", InvocationSource::LiveInitialQuery),
+            established_authority,
             LiveInvalidationAdmission {
                 connection: Some(descriptor.clone()),
                 effect_fence: None,
@@ -10600,11 +10598,18 @@ fn asset_record_live_projection_sessions_mode_rides_the_witnessed_lane() {
 
     // A foreign session establishes blank: owner-only through no edge,
     // decided from the sealed resolved caller, not a client assertion.
+    let foreign_authority = asset_sessions_authority(
+        &mut snapback,
+        ASSET_USER_B,
+        ASSET_SESSION_B,
+        ASSET_AUTHORITY_B,
+        InvocationSource::LiveInitialQuery,
+    );
     let foreign = snapback
         .subscribe_live_prepared_with_invalidation(
             ASSET_RECORD_LIVE_FUNCTION,
             asset_sessions_live_input("conn-sess-b", &asset_id, 43),
-            asset_sessions_authority("user_b", InvocationSource::LiveInitialQuery),
+            foreign_authority,
             LiveInvalidationAdmission {
                 connection: Some(descriptor),
                 effect_fence: None,
@@ -10630,7 +10635,7 @@ fn asset_record_live_projection_sessions_mode_rides_the_witnessed_lane() {
     let frames = project_authorization_frames_through_test_sink(
         &mut snapback,
         "conn-sess-a",
-        &managed_session_admission(),
+        &established_admission,
     )
     .into_iter()
     .filter_map(|text| serde_json::from_str::<Value>(&text).ok())
@@ -10660,7 +10665,7 @@ fn asset_record_live_projection_sessions_mode_rides_the_witnessed_lane() {
     let frames = project_authorization_frames_through_test_sink(
         &mut snapback,
         "conn-sess-a",
-        &managed_session_admission(),
+        &established_admission,
     )
     .into_iter()
     .filter_map(|text| serde_json::from_str::<Value>(&text).ok())
@@ -16168,7 +16173,7 @@ fn publication_retires_live_subscriptions_with_clear_retained_resync() {
                 connection_id: "conn-pub".to_owned(),
                 input: HandlerInput {
                     auth: AuthInput {
-                        user_id: Some("user-a".to_owned()),
+                        user_id: Some("usr_00000000000000000000000010".to_owned()),
                         ..AuthInput::default()
                     },
                     ..HandlerInput::default()
@@ -17169,8 +17174,7 @@ fn settled_sessions_activation_snapback(
 fn scoped_live_authority(snapback: &mut LocalSnapback) -> PreparedAuthority {
     let random = CounterRandom::new();
     let now_ms = now_millis();
-    let service_fences = snapback.service_authority_fences.clone();
-    let (resolved, service_publication) = {
+    let token = {
         let db = snapback.auth_database_mut();
         db.auth_catalog()
             .insert_human_user_for_test("activation-owner", now_ms)
@@ -17192,38 +17196,46 @@ fn scoped_live_authority(snapback: &mut LocalSnapback) -> PreparedAuthority {
         db.auth_catalog()
             .insert_activation_live_grant_for_test(now_ms)
             .expect("create activation grant");
-        let token = db
-            .mint_scoped_token(
-                &credential.secret,
-                "activation-grant",
-                Some(60_000),
-                now_ms,
-                &random,
-            )
-            .expect("mint activation token");
-        let resolved = db
-            .resolve_scoped_token(&token.secret, now_ms)
-            .expect("resolve activation token");
-        let publication = service_fences
-            .register(resolved.service_authority_witness(), now_ms, Instant::now())
-            .expect("register activation token fence");
-        (resolved, publication)
+        db.mint_scoped_token(
+            &credential.secret,
+            "activation-grant",
+            Some(60_000),
+            now_ms,
+            &random,
+        )
+        .expect("mint activation token")
     };
+    let resolved = snapback
+        .db
+        .resolve_scoped_token(&token.secret, now_ms)
+        .expect("resolve activation token through its serving database");
+    let service_publication = snapback
+        .service_authority_fences
+        .register(resolved.service_authority_witness(), now_ms, Instant::now())
+        .expect("register activation token fence");
     let admission = snapback
         .admission
         .admit_for_mode(AuthMode::Sessions)
         .expect("admit service live owner");
-    InvocationGate::prepare_admitted_authority(
-        InvocationSource::LiveInitialQuery,
-        AuthMode::Sessions,
-        ServerProfile::Test,
-        admission,
-        &WireAuthorityFields::default(),
-        ResolvedAppAuthority::from_scoped_token(resolved),
-        None,
-    )
-    .expect("prepare service live authority")
-    .with_service_publication(service_publication)
+    let resolution = ResolvedServiceAuthority {
+        subject: crate::auth::invocation::ResolvedServiceSubject::from_scoped_token(
+            resolved,
+            snapback.admission.lease_origin(),
+        )
+        .expect("bind activation service subject to its engine graph"),
+        publication: service_publication,
+    };
+    snapback
+        .prepare_connection_service_authority(
+            resolution,
+            InvocationSource::LiveInitialQuery,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            admission,
+            &WireAuthorityFields::default(),
+            now_ms,
+        )
+        .expect("prepare service live authority")
 }
 
 #[test]
@@ -17307,24 +17319,16 @@ fn retained_service_live_revalidates_only_its_matched_grant_entry() {
         .auth_catalog()
         .tombstone_scope_basis_for_test("fn:unrelatedLive", "liveQuery", false)
         .expect("tombstone unrelated grant entry");
-    let unrelated_admission = snapback
-        .admission
-        .admit_for_mode(AuthMode::Sessions)
-        .expect("fresh unrelated rerun admission");
     let unrelated_error = snapback
-        .prepare_live_rerun_authority(&unrelated_retained, unrelated_admission)
+        .prepare_live_rerun_authority(&unrelated_retained)
         .expect_err("the tombstoned B entry terminates B");
     assert_eq!(
         unrelated_error.diagnostic.code,
         "SNAPBACK_AUTH_GRANT_SCOPE_DENIED"
     );
 
-    let admission = snapback
-        .admission
-        .admit_for_mode(AuthMode::Sessions)
-        .expect("fresh rerun admission");
     let rerun = snapback
-        .prepare_live_rerun_authority(&retained, admission)
+        .prepare_live_rerun_authority(&retained)
         .expect("unrelated scope tombstone does not end listItems");
     let mut inserted = BTreeMap::new();
     inserted.insert(
@@ -17363,12 +17367,8 @@ fn retained_service_live_revalidates_only_its_matched_grant_entry() {
         .auth_catalog()
         .tombstone_scope_basis_for_test("fn:listItems", "liveQuery", false)
         .expect("tombstone matched grant entry");
-    let admission = snapback
-        .admission
-        .admit_for_mode(AuthMode::Sessions)
-        .expect("fresh terminal rerun admission");
     let error = snapback
-        .prepare_live_rerun_authority(&retained, admission)
+        .prepare_live_rerun_authority(&retained)
         .expect_err("matched scope tombstone ends listItems");
     assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_GRANT_SCOPE_DENIED");
 }
@@ -18788,14 +18788,14 @@ fn relational_query_validates_and_invokes_end_to_end() {
                 (
                     "books".to_owned(),
                     vec![
-                        row(json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "user-a" })),
-                        row(json!({ "title": "beta", "authorSlug": "grace", "ownerId": "user-a" })),
+                        row(json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "usr_00000000000000000000000010" })),
+                        row(json!({ "title": "beta", "authorSlug": "grace", "ownerId": "usr_00000000000000000000000010" })),
                     ],
                 ),
                 (
                     "authors".to_owned(),
                     vec![
-                        row(json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" })),
+                        row(json!({ "slug": "ada", "name": "Ada", "ownerId": "usr_00000000000000000000000010" })),
                         row(json!({ "slug": "grace", "name": "Grace", "ownerId": "user-b" })),
                     ],
                 ),
@@ -18808,7 +18808,7 @@ fn relational_query_validates_and_invokes_end_to_end() {
             "booksWithAuthors",
             HandlerInput {
                 auth: AuthInput {
-                    user_id: Some("user-a".to_owned()),
+                    user_id: Some("usr_00000000000000000000000010".to_owned()),
                     ..AuthInput::default()
                 },
                 ..HandlerInput::default()
@@ -19045,15 +19045,15 @@ fn relational_cursor_pages_and_refuses_end_to_end() {
                 (
                     "books".to_owned(),
                     vec![
-                        row(json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "user-a" })),
-                        row(json!({ "title": "beta", "authorSlug": "ada", "ownerId": "user-a" })),
-                        row(json!({ "title": "gamma", "authorSlug": "ada", "ownerId": "user-a" })),
+                        row(json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "usr_00000000000000000000000010" })),
+                        row(json!({ "title": "beta", "authorSlug": "ada", "ownerId": "usr_00000000000000000000000010" })),
+                        row(json!({ "title": "gamma", "authorSlug": "ada", "ownerId": "usr_00000000000000000000000010" })),
                     ],
                 ),
                 (
                     "authors".to_owned(),
                     vec![row(
-                        json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" }),
+                        json!({ "slug": "ada", "name": "Ada", "ownerId": "usr_00000000000000000000000010" }),
                     )],
                 ),
             ]),
@@ -19072,7 +19072,10 @@ fn relational_cursor_pages_and_refuses_end_to_end() {
 
     // Page walk: alpha → beta → gamma → terminal.
     let page1 = snapback
-        .invoke_query("pagedBooks", input("user-a", "s1", json!({})))
+        .invoke_query(
+            "pagedBooks",
+            input("usr_00000000000000000000000010", "s1", json!({})),
+        )
         .expect("first page");
     assert_eq!(page1.rows, vec![json!({ "title": "alpha" })]);
     let cursor1 = page1.cursor.expect("full page mints a continuation");
@@ -19083,7 +19086,11 @@ fn relational_cursor_pages_and_refuses_end_to_end() {
     let page2 = snapback
         .invoke_query(
             "pagedBooks",
-            input("user-a", "s1", json!({ "cursor": cursor1 })),
+            input(
+                "usr_00000000000000000000000010",
+                "s1",
+                json!({ "cursor": cursor1 }),
+            ),
         )
         .expect("second page");
     assert_eq!(page2.rows, vec![json!({ "title": "beta" })]);
@@ -19091,7 +19098,11 @@ fn relational_cursor_pages_and_refuses_end_to_end() {
     let page3 = snapback
         .invoke_query(
             "pagedBooks",
-            input("user-a", "s1", json!({ "cursor": cursor2 })),
+            input(
+                "usr_00000000000000000000000010",
+                "s1",
+                json!({ "cursor": cursor2 }),
+            ),
         )
         .expect("third page");
     assert_eq!(page3.rows, vec![json!({ "title": "gamma" })]);
@@ -19099,7 +19110,11 @@ fn relational_cursor_pages_and_refuses_end_to_end() {
     let page4 = snapback
         .invoke_query(
             "pagedBooks",
-            input("user-a", "s1", json!({ "cursor": cursor3.clone() })),
+            input(
+                "usr_00000000000000000000000010",
+                "s1",
+                json!({ "cursor": cursor3.clone() }),
+            ),
         )
         .expect("terminal page");
     assert!(page4.rows.is_empty());
@@ -19121,7 +19136,7 @@ fn relational_cursor_pages_and_refuses_end_to_end() {
     let malformed = refusal(
         &snapback,
         json!({ "cursor": "sbrc1.garbage" }),
-        "user-a",
+        "usr_00000000000000000000000010",
         "s1",
         "pagedBooks",
     );
@@ -19132,7 +19147,7 @@ fn relational_cursor_pages_and_refuses_end_to_end() {
     let non_string = refusal(
         &snapback,
         json!({ "cursor": 7 }),
-        "user-a",
+        "usr_00000000000000000000000010",
         "s1",
         "pagedBooks",
     );
@@ -19146,7 +19161,7 @@ fn relational_cursor_pages_and_refuses_end_to_end() {
     let tampered = refusal(
         &snapback,
         json!({ "cursor": parts.join(".") }),
-        "user-a",
+        "usr_00000000000000000000000010",
         "s1",
         "pagedBooks",
     );
@@ -19154,7 +19169,7 @@ fn relational_cursor_pages_and_refuses_end_to_end() {
     let cross_plan = refusal(
         &snapback,
         json!({ "cursor": cursor3.clone() }),
-        "user-a",
+        "usr_00000000000000000000000010",
         "s1",
         "pagedBooksLeft",
     );
@@ -19171,13 +19186,14 @@ fn relational_cursor_pages_and_refuses_end_to_end() {
     // permission-scope epoch (the dev-admitted path canonicalizes the
     // session away, so the epoch is the partition signal here), and a
     // cursor minted before the transition is refused after it.
-    snapback
-        .permission_epochs
-        .insert(super::user_permission_scope("user-a"), 7);
+    snapback.permission_epochs.insert(
+        super::user_permission_scope("usr_00000000000000000000000010"),
+        7,
+    );
     let stale_authority = refusal(
         &snapback,
         json!({ "cursor": cursor3 }),
-        "user-a",
+        "usr_00000000000000000000000010",
         "s1",
         "pagedBooks",
     );
@@ -19342,8 +19358,8 @@ fn relational_lanes_share_bytes_and_cursors() {
                 (
                     "books".to_owned(),
                     vec![
-                        row(json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "user-a" })),
-                        row(json!({ "title": "beta", "authorSlug": "ada", "ownerId": "user-a" })),
+                        row(json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "usr_00000000000000000000000010" })),
+                        row(json!({ "title": "beta", "authorSlug": "ada", "ownerId": "usr_00000000000000000000000010" })),
                     ],
                 ),
                 (
@@ -19359,7 +19375,7 @@ fn relational_lanes_share_bytes_and_cursors() {
     let input = |args: Value| HandlerInput {
         args,
         auth: AuthInput {
-            user_id: Some("user-a".to_owned()),
+            user_id: Some("usr_00000000000000000000000010".to_owned()),
             ..AuthInput::default()
         },
         ..HandlerInput::default()
@@ -19568,7 +19584,7 @@ fn relational_live_replaces_on_both_tables_and_never_claims_delta() {
                 (
                     "books".to_owned(),
                     vec![row(
-                        json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "user-a" }),
+                        json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "usr_00000000000000000000000010" }),
                     )],
                 ),
                 (
@@ -19586,7 +19602,7 @@ fn relational_live_replaces_on_both_tables_and_never_claims_delta() {
                 connection_id: "conn-rel".to_owned(),
                 input: HandlerInput {
                     auth: AuthInput {
-                        user_id: Some("user-a".to_owned()),
+                        user_id: Some("usr_00000000000000000000000010".to_owned()),
                         ..AuthInput::default()
                     },
                     ..HandlerInput::default()
@@ -19617,7 +19633,7 @@ fn relational_live_replaces_on_both_tables_and_never_claims_delta() {
             HandlerInput {
                 args: json!({ "title": "beta", "slug": "grace" }),
                 auth: AuthInput {
-                    user_id: Some("user-a".to_owned()),
+                    user_id: Some("usr_00000000000000000000000010".to_owned()),
                     ..AuthInput::default()
                 },
                 ..HandlerInput::default()
@@ -19732,7 +19748,7 @@ fn relational_live_establishment_issues_activation_bound_completeness_proof() {
                 (
                     "books".to_owned(),
                     vec![row(
-                        json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "user-a" }),
+                        json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "usr_00000000000000000000000010" }),
                     )],
                 ),
                 (
@@ -19754,7 +19770,7 @@ fn relational_live_establishment_issues_activation_bound_completeness_proof() {
                 connection_id: "conn-proof-establishment".to_owned(),
                 input: HandlerInput {
                     auth: AuthInput {
-                        user_id: Some("user-a".to_owned()),
+                        user_id: Some("usr_00000000000000000000000010".to_owned()),
                         ..AuthInput::default()
                     },
                     ..HandlerInput::default()
@@ -20791,8 +20807,8 @@ fn seed_snapshot_batch_v2_fixture(snapback: &mut LocalSnapback, foreign_secret: 
                     (
                         "books".to_owned(),
                         vec![
-                            row(json!({"_id":"book-1","title":"alpha","authorSlug":"ada","ownerId":"user-a"})),
-                            row(json!({"_id":"book-2","title":"beta","authorSlug":"grace","ownerId":"user-a"})),
+                            row(json!({"_id":"book-1","title":"alpha","authorSlug":"ada","ownerId":"usr_00000000000000000000000010"})),
+                            row(json!({"_id":"book-2","title":"beta","authorSlug":"grace","ownerId":"usr_00000000000000000000000010"})),
                             row(json!({"_id":"book-3","title":foreign_secret,"authorSlug":"ada","ownerId":"user-b"})),
                         ],
                     ),
@@ -20831,7 +20847,7 @@ fn snapshot_batch_v2_three_node_sealing_resume_and_live_acceptance() {
         HandlerInput {
             args,
             auth: AuthInput {
-                user_id: Some("user-a".to_owned()),
+                user_id: Some("usr_00000000000000000000000010".to_owned()),
                 ..AuthInput::default()
             },
             ..HandlerInput::default()
@@ -20898,7 +20914,7 @@ fn snapshot_batch_v2_three_node_sealing_resume_and_live_acceptance() {
                     "active":false, "externalKey":"live-v2"
                 }),
                 auth: AuthInput {
-                    user_id: Some("user-a".to_owned()),
+                    user_id: Some("usr_00000000000000000000000010".to_owned()),
                     ..AuthInput::default()
                 },
                 ..HandlerInput::default()
@@ -20972,7 +20988,7 @@ fn snapshot_batch_v2_relational_root_change_delivers_live_replace() {
                 input: HandlerInput {
                     args: json!({"parentId":"parent-a"}),
                     auth: AuthInput {
-                        user_id: Some("user-a".to_owned()),
+                        user_id: Some("usr_00000000000000000000000010".to_owned()),
                         ..AuthInput::default()
                     },
                     ..HandlerInput::default()
@@ -20993,7 +21009,7 @@ fn snapshot_batch_v2_relational_root_change_delivers_live_replace() {
             HandlerInput {
                 args: json!({"title":"gamma","slug":"author-a"}),
                 auth: AuthInput {
-                    user_id: Some("user-a".to_owned()),
+                    user_id: Some("usr_00000000000000000000000010".to_owned()),
                     ..AuthInput::default()
                 },
                 ..HandlerInput::default()
@@ -21069,7 +21085,7 @@ fn snapshot_batch_v2_completeness_nodes_boundaries_and_page_set_are_atomic() {
         let input = HandlerInput {
             args,
             auth: AuthInput {
-                user_id: Some("user-a".to_owned()),
+                user_id: Some("usr_00000000000000000000000010".to_owned()),
                 ..AuthInput::default()
             },
             ..HandlerInput::default()
@@ -21169,7 +21185,7 @@ fn snapshot_batch_v2_refusal_restart_sealing_and_family_matrix_is_closed() {
         HandlerInput {
             args,
             auth: AuthInput {
-                user_id: Some("user-a".to_owned()),
+                user_id: Some("usr_00000000000000000000000010".to_owned()),
                 ..AuthInput::default()
             },
             ..HandlerInput::default()
@@ -21614,7 +21630,7 @@ fn snapshot_batch_v2_pins_mixed_nodes_across_a_sibling_commit() {
                         "active":false, "externalKey":"snapshot-v2-concurrent"
                     }),
                     auth: AuthInput {
-                        user_id: Some("user-a".to_owned()),
+                        user_id: Some("usr_00000000000000000000000010".to_owned()),
                         ..AuthInput::default()
                     },
                     ..HandlerInput::default()
@@ -21628,7 +21644,7 @@ fn snapshot_batch_v2_pins_mixed_nodes_across_a_sibling_commit() {
                     vec![
                         json!({
                             "_id":"book-concurrent", "title":"aardvark",
-                            "authorSlug":"ada", "ownerId":"user-a"
+                            "authorSlug":"ada", "ownerId":"usr_00000000000000000000000010"
                         })
                         .as_object()
                         .cloned()
@@ -21642,7 +21658,7 @@ fn snapshot_batch_v2_pins_mixed_nodes_across_a_sibling_commit() {
     let input = HandlerInput {
         args: json!({"parentId":"parent-a"}),
         auth: AuthInput {
-            user_id: Some("user-a".to_owned()),
+            user_id: Some("usr_00000000000000000000000010".to_owned()),
             ..AuthInput::default()
         },
         ..HandlerInput::default()
@@ -21696,8 +21712,8 @@ fn snapshot_batch_v2_all_relational_executor_uses_one_sbsb2_cursor() {
                 (
                     "books".to_owned(),
                     vec![
-                        json!({"_id":"b1","title":"alpha","authorSlug":"ada","ownerId":"user-a"}),
-                        json!({"_id":"b2","title":"beta","authorSlug":"grace","ownerId":"user-a"}),
+                        json!({"_id":"b1","title":"alpha","authorSlug":"ada","ownerId":"usr_00000000000000000000000010"}),
+                        json!({"_id":"b2","title":"beta","authorSlug":"grace","ownerId":"usr_00000000000000000000000010"}),
                     ]
                     .into_iter()
                     .map(|row| row.as_object().cloned().expect("book row"))
@@ -21800,8 +21816,12 @@ fn snapshot_batch_v2_all_relational_executor_uses_one_sbsb2_cursor() {
         .map(|invocation| invocation.output)
     };
 
-    let first = invoke(&snapback, &function, input(Some("user-a"), None))
-        .expect("execute first v2 relational batch");
+    let first = invoke(
+        &snapback,
+        &function,
+        input(Some("usr_00000000000000000000000010"), None),
+    )
+    .expect("execute first v2 relational batch");
     assert_eq!(first.rows[0]["kind"], "visible");
     let first_nodes = first.rows[0]["nodes"].as_array().expect("v2 tuple");
     assert_eq!(first_nodes.len(), 2);
@@ -21833,8 +21853,12 @@ fn snapshot_batch_v2_all_relational_executor_uses_one_sbsb2_cursor() {
         crate::snapshot_batch_cursor_v2::NodeState::RelationalBoundary { .. }
     )));
 
-    let second = invoke(&snapback, &function, input(Some("user-a"), Some(&cursor)))
-        .expect("execute resumed v2 relational batch");
+    let second = invoke(
+        &snapback,
+        &function,
+        input(Some("usr_00000000000000000000000010"), Some(&cursor)),
+    )
+    .expect("execute resumed v2 relational batch");
     assert_eq!(second.rows[0]["kind"], "visible");
     assert!(second.rows[0]["continuation"].is_string());
 
@@ -21873,8 +21897,12 @@ fn snapshot_batch_v2_all_relational_executor_uses_one_sbsb2_cursor() {
     };
     sealed.normalized_composite_plan = zero_identity.normalized_composite_plan;
     sealed.plan_hash = zero_identity.plan_hash;
-    let zero = invoke(&snapback, &zero_function, input(Some("user-a"), None))
-        .expect("take zero consumes no relational work");
+    let zero = invoke(
+        &snapback,
+        &zero_function,
+        input(Some("usr_00000000000000000000000010"), None),
+    )
+    .expect("take zero consumes no relational work");
     assert_eq!(
         zero.rows,
         vec![json!({"kind":"visible","nodes":[[],[]],"continuation":null})]
@@ -21937,7 +21965,7 @@ fn snapshot_batch_three_node_cursor_sealing_and_live_acceptance() {
         HandlerInput {
             args,
             auth: AuthInput {
-                user_id: Some("user-a".to_owned()),
+                user_id: Some("usr_00000000000000000000000010".to_owned()),
                 ..AuthInput::default()
             },
             ..HandlerInput::default()
@@ -22102,7 +22130,7 @@ fn snapshot_batch_three_node_cursor_sealing_and_live_acceptance() {
                     "active":false, "externalKey":"batch-live"
                 }),
                 auth: AuthInput {
-                    user_id: Some("user-a".to_owned()),
+                    user_id: Some("usr_00000000000000000000000010".to_owned()),
                     ..AuthInput::default()
                 },
                 ..HandlerInput::default()
@@ -22265,7 +22293,7 @@ fn snapshot_batch_pins_every_node_to_one_snapshot_across_a_sibling_commit() {
                         "active":false, "externalKey":"snapshot-concurrent"
                     }),
                     auth: AuthInput {
-                        user_id: Some("user-a".to_owned()),
+                        user_id: Some("usr_00000000000000000000000010".to_owned()),
                         ..AuthInput::default()
                     },
                     ..HandlerInput::default()
@@ -22277,7 +22305,7 @@ fn snapshot_batch_pins_every_node_to_one_snapshot_across_a_sibling_commit() {
     let input = HandlerInput {
         args: json!({"parentId":"parent-a"}),
         auth: AuthInput {
-            user_id: Some("user-a".to_owned()),
+            user_id: Some("usr_00000000000000000000000010".to_owned()),
             ..AuthInput::default()
         },
         ..HandlerInput::default()
@@ -22574,7 +22602,7 @@ fn seed_bounded_publication_fixture(snapback: &mut LocalSnapback, foreign_secret
             let owner = if row.get("parentId") == Some(&json!("parent-b")) {
                 "user-b"
             } else {
-                "user-a"
+                "usr_00000000000000000000000010"
             };
             row.insert("rowOwner".to_owned(), json!(owner));
         }
@@ -22582,13 +22610,13 @@ fn seed_bounded_publication_fixture(snapback: &mut LocalSnapback, foreign_secret
     };
     let parent_rows = vec![
         row(json!({
-            "_id": "parent-a", "owner": "user-a", "title": "visible"
+            "_id": "parent-a", "owner": "usr_00000000000000000000000010", "title": "visible"
         })),
         row(json!({
             "_id": "parent-b", "owner": "user-b", "title": foreign_secret
         })),
         row(json!({
-            "_id": "parent-c", "owner": "user-a", "title": "other visible"
+            "_id": "parent-c", "owner": "usr_00000000000000000000000010", "title": "other visible"
         })),
     ];
     let child_rows = vec![
@@ -22659,7 +22687,7 @@ fn bounded_input(parent: &str, cursor: Option<&str>) -> HandlerInput {
     HandlerInput {
         args,
         auth: AuthInput {
-            user_id: Some("user-a".to_owned()),
+            user_id: Some("usr_00000000000000000000000010".to_owned()),
             ..AuthInput::default()
         },
         ..HandlerInput::default()
@@ -22688,9 +22716,19 @@ fn bounded_children_and_snapshot_batch_compose_declared_child_visibility() {
         "policy-composed functions activate: {diagnostics:?}",
     );
     seed_bounded_publication_fixture(&mut snapback, "foreign-secret");
-    for (id, position, label) in [
-        ("visible-policy-child", 91, "user-a"),
-        ("hidden-policy-child", 92, "user-b"),
+    for (id, position, label, owner) in [
+        (
+            "visible-policy-child",
+            91,
+            "user-a",
+            "usr_00000000000000000000000010",
+        ),
+        (
+            "hidden-policy-child",
+            92,
+            "user-b",
+            "usr_00000000000000000000000011",
+        ),
     ] {
         snapback
             .invoke_mutation(
@@ -22704,7 +22742,7 @@ fn bounded_children_and_snapshot_batch_compose_declared_child_visibility() {
                         "externalKey": id,
                     }),
                     auth: AuthInput {
-                        user_id: Some(label.to_owned()),
+                        user_id: Some(owner.to_owned()),
                         ..AuthInput::default()
                     },
                     ..HandlerInput::default()
@@ -22810,7 +22848,7 @@ fn bounded_children_paired_store_noninterference_and_partitioned_uniqueness() {
                     "active": false, "externalKey": "shared"
                 }),
                 auth: AuthInput {
-                    user_id: Some("user-a".to_owned()),
+                    user_id: Some("usr_00000000000000000000000010".to_owned()),
                     ..AuthInput::default()
                 },
                 ..HandlerInput::default()
@@ -22950,7 +22988,7 @@ fn bounded_children_cursor_concurrency_deletion_and_live_replacement() {
                 HandlerInput {
                     args,
                     auth: AuthInput {
-                        user_id: Some("user-a".to_owned()),
+                        user_id: Some("usr_00000000000000000000000010".to_owned()),
                         ..AuthInput::default()
                     },
                     ..HandlerInput::default()
@@ -23247,8 +23285,8 @@ fn standard_pattern_cursor_never_crosses_the_app_domain() {
                         (
                             "books".to_owned(),
                             vec![
-                                row(json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "user-a" })),
-                                row(json!({ "title": "beta", "authorSlug": "ada", "ownerId": "user-a" })),
+                                row(json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "usr_00000000000000000000000010" })),
+                                row(json!({ "title": "beta", "authorSlug": "ada", "ownerId": "usr_00000000000000000000000010" })),
                             ],
                         ),
                         (
@@ -23263,7 +23301,7 @@ fn standard_pattern_cursor_never_crosses_the_app_domain() {
     let input = |args: Value| HandlerInput {
         args,
         auth: AuthInput {
-            user_id: Some("user-a".to_owned()),
+            user_id: Some("usr_00000000000000000000000010".to_owned()),
             ..AuthInput::default()
         },
         ..HandlerInput::default()
@@ -24204,7 +24242,7 @@ fn maintained_projection_engine_end_to_end() {
                 HandlerInput {
                     args,
                     auth: AuthInput {
-                        user_id: Some("user-a".to_owned()),
+                        user_id: Some("usr_00000000000000000000000010".to_owned()),
                         ..AuthInput::default()
                     },
                     ..HandlerInput::default()
@@ -24255,7 +24293,7 @@ fn maintained_projection_engine_end_to_end() {
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0]["title"], json!("alpha"));
     assert_eq!(rows[0]["authorName"], json!("Ada"));
-    assert_eq!(rows[0]["ownerId"], json!("user-a"));
+    assert_eq!(rows[0]["ownerId"], json!("usr_00000000000000000000000010"));
     let first_id = rows[0]["_id"].clone();
     let first_created = rows[0]["_createdAt"].clone();
 
@@ -24377,7 +24415,7 @@ fn maintained_projection_engine_end_to_end() {
             HandlerInput {
                 args: json!({ "title": "gamma", "slug": "s-gamma", "author": "ada" }),
                 auth: AuthInput {
-                    user_id: Some("user-a".to_owned()),
+                    user_id: Some("usr_00000000000000000000000010".to_owned()),
                     ..AuthInput::default()
                 },
                 ..HandlerInput::default()
@@ -24398,7 +24436,7 @@ fn maintained_projection_engine_end_to_end() {
             HandlerInput {
                 args: json!({ "id": beta_id, "slug": "s-beta-2" }),
                 auth: AuthInput {
-                    user_id: Some("user-a".to_owned()),
+                    user_id: Some("usr_00000000000000000000000010".to_owned()),
                     ..AuthInput::default()
                 },
                 ..HandlerInput::default()
@@ -24433,7 +24471,7 @@ fn book_id_missing(snapback: &LocalSnapback, slug: &str) -> bool {
             },
             &HandlerInput {
                 auth: AuthInput {
-                    user_id: Some("user-a".to_owned()),
+                    user_id: Some("usr_00000000000000000000000010".to_owned()),
                     ..AuthInput::default()
                 },
                 ..HandlerInput::default()
@@ -24463,8 +24501,8 @@ fn projection_activation_rebuild_materializes_and_republishes() {
                     (
                         "books".to_owned(),
                         vec![
-                            row(json!({ "title": "alpha", "slug": "s-alpha", "authorSlug": "ada", "ownerId": "user-a" })),
-                            row(json!({ "title": "beta", "slug": "s-beta", "authorSlug": "ada", "ownerId": "user-a" })),
+                            row(json!({ "title": "alpha", "slug": "s-alpha", "authorSlug": "ada", "ownerId": "usr_00000000000000000000000010" })),
+                            row(json!({ "title": "beta", "slug": "s-beta", "authorSlug": "ada", "ownerId": "usr_00000000000000000000000010" })),
                         ],
                     ),
                     (
@@ -24588,8 +24626,8 @@ fn projection_activation_rebuild_materializes_and_republishes() {
                     (
                         "books".to_owned(),
                         vec![
-                            row(json!({ "title": "alpha", "slug": "s-alpha", "authorSlug": "ada", "ownerId": "user-a" })),
-                            row(json!({ "title": "beta", "slug": "s-beta", "authorSlug": "ada", "ownerId": "user-a" })),
+                            row(json!({ "title": "alpha", "slug": "s-alpha", "authorSlug": "ada", "ownerId": "usr_00000000000000000000000010" })),
+                            row(json!({ "title": "beta", "slug": "s-beta", "authorSlug": "ada", "ownerId": "usr_00000000000000000000000010" })),
                         ],
                     ),
                     (
@@ -24647,8 +24685,8 @@ fn generation_activation_failed_then_retry_rebuilds_and_matches_materialization(
                     (
                         "books".to_owned(),
                         vec![
-                            row(json!({ "title": "alpha", "slug": "s-alpha", "authorSlug": "ada", "ownerId": "user-a" })),
-                            row(json!({ "title": "beta", "slug": "s-beta", "authorSlug": "ada", "ownerId": "user-a" })),
+                            row(json!({ "title": "alpha", "slug": "s-alpha", "authorSlug": "ada", "ownerId": "usr_00000000000000000000000010" })),
+                            row(json!({ "title": "beta", "slug": "s-beta", "authorSlug": "ada", "ownerId": "usr_00000000000000000000000010" })),
                         ],
                     ),
                     (
@@ -24707,7 +24745,7 @@ fn generation_activation_failed_then_retry_rebuilds_and_matches_materialization(
             },
             &HandlerInput {
                 auth: AuthInput {
-                    user_id: Some("user-a".to_owned()),
+                    user_id: Some("usr_00000000000000000000000010".to_owned()),
                     ..AuthInput::default()
                 },
                 ..HandlerInput::default()
@@ -24735,7 +24773,7 @@ fn generation_activation_failed_then_retry_rebuilds_and_matches_materialization(
             },
             &HandlerInput {
                 auth: AuthInput {
-                    user_id: Some("user-a".to_owned()),
+                    user_id: Some("usr_00000000000000000000000010".to_owned()),
                     ..AuthInput::default()
                 },
                 ..HandlerInput::default()
@@ -24825,10 +24863,10 @@ fn generation_activation_reopen_uses_durable_record_and_matching_materialization
                 "books".to_owned(),
                 vec![
                     row(
-                        json!({ "title": "alpha", "slug": "s-alpha", "authorSlug": "ada", "ownerId": "user-a" }),
+                        json!({ "title": "alpha", "slug": "s-alpha", "authorSlug": "ada", "ownerId": "usr_00000000000000000000000010" }),
                     ),
                     row(
-                        json!({ "title": "beta", "slug": "s-beta", "authorSlug": "ada", "ownerId": "user-a" }),
+                        json!({ "title": "beta", "slug": "s-beta", "authorSlug": "ada", "ownerId": "usr_00000000000000000000000010" }),
                     ),
                 ],
             ),
@@ -24992,7 +25030,7 @@ fn identity_binding_seal_refuses_projection_rebuild_and_maintenance() {
             HandlerInput {
                 args: json!({ "title": "sealed", "slug": "sealed", "author": "ada" }),
                 auth: AuthInput {
-                    user_id: Some("user-a".to_owned()),
+                    user_id: Some("usr_00000000000000000000000010".to_owned()),
                     ..AuthInput::default()
                 },
                 ..HandlerInput::default()
@@ -25099,8 +25137,8 @@ fn oq3_crash_after_projection_materialization_reopens_unpinned_and_retry_converg
                         (
                             "books".to_owned(),
                             vec![
-                                row(json!({ "title": "alpha", "slug": "s-alpha", "authorSlug": "ada", "ownerId": "user-a" })),
-                                row(json!({ "title": "beta", "slug": "s-beta", "authorSlug": "ada", "ownerId": "user-a" })),
+                                row(json!({ "title": "alpha", "slug": "s-alpha", "authorSlug": "ada", "ownerId": "usr_00000000000000000000000010" })),
+                                row(json!({ "title": "beta", "slug": "s-beta", "authorSlug": "ada", "ownerId": "usr_00000000000000000000000010" })),
                             ],
                         ),
                         (
@@ -26515,7 +26553,7 @@ fn standard_pattern_live_is_conservative_and_recorded() {
                     input: HandlerInput {
                         args: json!({ "slug": "x" }),
                         auth: AuthInput {
-                            user_id: Some("user-a".to_owned()),
+                            user_id: Some("usr_00000000000000000000000010".to_owned()),
                             ..AuthInput::default()
                         },
                         ..HandlerInput::default()
@@ -26535,7 +26573,7 @@ fn standard_pattern_live_is_conservative_and_recorded() {
             HandlerInput {
                 args: json!({ "slug": "x" }),
                 auth: AuthInput {
-                    user_id: Some("user-a".to_owned()),
+                    user_id: Some("usr_00000000000000000000000010".to_owned()),
                     ..AuthInput::default()
                 },
                 ..HandlerInput::default()
@@ -27000,8 +27038,8 @@ fn cursor_negatives_hold_under_sessions_authorities() {
                 (
                     "books".to_owned(),
                     vec![
-                        row(json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "user-a" })),
-                        row(json!({ "title": "beta", "authorSlug": "ada", "ownerId": "user-a" })),
+                        row(json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "usr_00000000000000000000000010" })),
+                        row(json!({ "title": "beta", "authorSlug": "ada", "ownerId": "usr_00000000000000000000000010" })),
                     ],
                 ),
                 (
@@ -27012,62 +27050,57 @@ fn cursor_negatives_hold_under_sessions_authorities() {
         })
         .expect("seed sessions rows");
 
-    let session = |user: &str, session_id: &str| {
-        crate::auth::invocation::InvocationGate::prepare_authority(
-            crate::auth::invocation::InvocationSource::HttpQuery,
-            AuthMode::Sessions,
-            crate::contract_types::ServerProfile::Test,
+    let invoke = |snapback: &mut LocalSnapback, name: &str, args: Value, user: &str, sid: &str| {
+        let (_, id_body) = sid.split_once('_').expect("minted session fixture id");
+        let authority_instance_id = format!("aut_{id_body}");
+        let authority = snapback.prepare_resolved_session_for_test(
+            InvocationSource::HttpQuery,
+            user,
+            sid,
+            &authority_instance_id,
             1,
-            1,
-            &crate::auth::invocation::WireAuthorityFields::default(),
-            crate::auth::invocation::ResolvedAppAuthority::Session {
-                user_id: user.to_owned(),
-                session_id: session_id.to_owned(),
-                provider: "test".to_owned(),
-                generation: 1,
-                authority_instance_id: format!("authinst-{session_id}"),
-                session_not_after_ms: u64::MAX / 2,
-                provider_not_after_ms: None,
-                rehearsal_provenance: None,
-            },
-        )
-        .expect("prepare session authority")
-    };
-    let invoke = |snapback: &LocalSnapback, name: &str, args: Value, user: &str, sid: &str| {
+            u64::MAX / 2,
+        );
         snapback.invoke_query_with_dependencies_prepared(
             name,
             HandlerInput {
                 args,
                 ..HandlerInput::default()
             },
-            session(user, sid),
+            authority,
         )
     };
 
     // Keyset family: mint under session s1, continue under s1, refuse
     // under a re-minted session s2 (same user) and another user's
     // session — the session axis the dev lane cannot express.
-    let page1 = invoke(&snapback, "firstBookPage", json!({}), "user-a", "s1")
-        .expect("sessions first page")
-        .output;
+    let page1 = invoke(
+        &mut snapback,
+        "firstBookPage",
+        json!({}),
+        "usr_00000000000000000000000010",
+        "ses_00000000000000000000000020",
+    )
+    .expect("sessions first page")
+    .output;
     assert_eq!(page1.rows[0]["title"], json!("alpha"));
     let cursor = page1.cursor.expect("sessions continuation");
     let page2 = invoke(
-        &snapback,
+        &mut snapback,
         "nextBookPage",
         json!({ "after": cursor.clone() }),
-        "user-a",
-        "s1",
+        "usr_00000000000000000000000010",
+        "ses_00000000000000000000000020",
     )
     .expect("same-session continuation")
     .output;
     assert_eq!(page2.rows[0]["title"], json!("beta"));
     let rotated = invoke(
-        &snapback,
+        &mut snapback,
         "nextBookPage",
         json!({ "after": cursor.clone() }),
-        "user-a",
-        "s2",
+        "usr_00000000000000000000000010",
+        "ses_00000000000000000000000021",
     )
     .map(|invocation| invocation.output)
     .expect_err("session re-mint must refuse the cursor");
@@ -27076,11 +27109,11 @@ fn cursor_negatives_hold_under_sessions_authorities() {
         "SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID"
     );
     let cross_user = invoke(
-        &snapback,
+        &mut snapback,
         "nextBookPage",
         json!({ "after": cursor }),
-        "user-b",
-        "s9",
+        "usr_00000000000000000000000018",
+        "ses_00000000000000000000000022",
     )
     .map(|invocation| invocation.output)
     .expect_err("another user's session must refuse the cursor");
@@ -27097,24 +27130,30 @@ fn cursor_negatives_hold_under_sessions_authorities() {
     );
 
     // Relational family: same session axis, same posture.
-    let rel1 = invoke(&snapback, "booksWithAuthors", json!({}), "user-a", "s1")
-        .expect("sessions relational page")
-        .output;
+    let rel1 = invoke(
+        &mut snapback,
+        "booksWithAuthors",
+        json!({}),
+        "usr_00000000000000000000000010",
+        "ses_00000000000000000000000020",
+    )
+    .expect("sessions relational page")
+    .output;
     let rel_cursor = rel1.cursor.expect("relational continuation");
     invoke(
-        &snapback,
+        &mut snapback,
         "booksWithAuthors",
         json!({ "cursor": rel_cursor.clone() }),
-        "user-a",
-        "s1",
+        "usr_00000000000000000000000010",
+        "ses_00000000000000000000000020",
     )
     .expect("same-session relational continuation");
     let rel_rotated = invoke(
-        &snapback,
+        &mut snapback,
         "booksWithAuthors",
         json!({ "cursor": rel_cursor }),
-        "user-a",
-        "s2",
+        "usr_00000000000000000000000010",
+        "ses_00000000000000000000000021",
     )
     .map(|invocation| invocation.output)
     .expect_err("session re-mint must refuse the relational cursor");
@@ -27254,9 +27293,14 @@ fn standard_pattern_keyset_cursor_pages_and_refuses_end_to_end() {
             tables: BTreeMap::from([
                 (
                     "pages".to_owned(),
-                    (1..=5).map(|key| row("user-a", key)).collect(),
+                    (1..=5)
+                        .map(|key| row("usr_00000000000000000000000010", key))
+                        .collect(),
                 ),
-                ("others".to_owned(), vec![row("user-a", 1)]),
+                (
+                    "others".to_owned(),
+                    vec![row("usr_00000000000000000000000010", 1)],
+                ),
             ]),
         })
         .expect("seed keyset rows");
@@ -27279,7 +27323,10 @@ fn standard_pattern_keyset_cursor_pages_and_refuses_end_to_end() {
 
     // first → [1,2] + cursor; next → [3,4] + cursor; next → [5] terminal.
     let page1 = snapback
-        .invoke_query("firstPages", input("user-a", json!({})))
+        .invoke_query(
+            "firstPages",
+            input("usr_00000000000000000000000010", json!({})),
+        )
         .expect("first page");
     assert_eq!(keys(&page1), vec![1, 2]);
     let cursor1 = page1.cursor.expect("full first page mints a continuation");
@@ -27290,13 +27337,22 @@ fn standard_pattern_keyset_cursor_pages_and_refuses_end_to_end() {
     let page2 = snapback
         .invoke_query(
             "nextPages",
-            input("user-a", json!({ "after": cursor1.clone() })),
+            input(
+                "usr_00000000000000000000000010",
+                json!({ "after": cursor1.clone() }),
+            ),
         )
         .expect("second page");
     assert_eq!(keys(&page2), vec![3, 4]);
     let cursor2 = page2.cursor.expect("full next page mints a continuation");
     let page3 = snapback
-        .invoke_query("nextPages", input("user-a", json!({ "after": cursor2 })))
+        .invoke_query(
+            "nextPages",
+            input(
+                "usr_00000000000000000000000010",
+                json!({ "after": cursor2 }),
+            ),
+        )
         .expect("terminal page");
     assert_eq!(keys(&page3), vec![5]);
     assert!(page3.cursor.is_none(), "a short page is terminal");
@@ -27312,7 +27368,7 @@ fn standard_pattern_keyset_cursor_pages_and_refuses_end_to_end() {
     };
     let malformed = refusal(
         &snapback,
-        "user-a",
+        "usr_00000000000000000000000010",
         json!({ "after": "sbpc1.garbage" }),
         "nextPages",
     );
@@ -27322,11 +27378,16 @@ fn standard_pattern_keyset_cursor_pages_and_refuses_end_to_end() {
     );
     // A raw boundary value — the pre-opaque wire shape — is refused, not
     // silently honored: pagination is cursor-in, cursor-out only.
-    let raw_value = refusal(&snapback, "user-a", json!({ "after": 2 }), "nextPages");
+    let raw_value = refusal(
+        &snapback,
+        "usr_00000000000000000000000010",
+        json!({ "after": 2 }),
+        "nextPages",
+    );
     // Cross-pair: a pages cursor presented to the others pair.
     let cross_pair = refusal(
         &snapback,
-        "user-a",
+        "usr_00000000000000000000000010",
         json!({ "after": cursor1.clone() }),
         "nextOther",
     );
@@ -27338,12 +27399,13 @@ fn standard_pattern_keyset_cursor_pages_and_refuses_end_to_end() {
         "nextPages",
     );
     // Stale authority: the caller's permission-scope epoch rolled.
-    snapback
-        .permission_epochs
-        .insert(super::user_permission_scope("user-a"), 3);
+    snapback.permission_epochs.insert(
+        super::user_permission_scope("usr_00000000000000000000000010"),
+        3,
+    );
     let stale = refusal(
         &snapback,
-        "user-a",
+        "usr_00000000000000000000000010",
         json!({ "after": cursor1 }),
         "nextPages",
     );
@@ -27872,58 +27934,42 @@ fn managed_action_staging_preserves_terminal_service_loss_after_repeated_policy_
         )
         .expect("stage managed classified action");
 
-    let registry = crate::auth::service_fence::ServiceAuthorityFenceRegistry::default();
-    let token_id = "managed-classified-staging-token";
     let now_ms = now_millis();
-    let publication = registry
-        .synthetic_publication_for_test(token_id, now_ms, now_ms + 60_000, Instant::now())
-        .expect("register managed classified service publication");
-    let sessions = AdmissionController::from_mode_state(&settled_sessions_state())
-        .expect("sessions admission controller");
-    let service_authority = InvocationGate::prepare_admitted_authority(
-        InvocationSource::HttpAction,
-        AuthMode::Sessions,
-        ServerProfile::Test,
-        sessions
-            .admit_for_mode(AuthMode::Sessions)
-            .expect("admit managed classified service action"),
-        &WireAuthorityFields::default(),
-        ResolvedAppAuthority::ServicePrincipal {
-            actor_user_id: "agent-a".to_owned(),
-            credential_id: "credential-a".to_owned(),
-            credential_generation: 1,
-            grant_id: "durable-grant-a".to_owned(),
-            token_id: token_id.to_owned(),
-            effective_user_id: Some("user-a".to_owned()),
-            scopes: vec![
-                crate::auth::invocation::ResolvedGrantScope::from_exact(
-                    crate::storage::auth_grants::ExactGrantScope {
-                        function_id: function.id.clone(),
-                        kind: crate::storage::auth_grants::ScopedFunctionKind::Action,
-                        basis: 0,
-                        authority_creating: false,
-                    },
-                ),
-                crate::auth::invocation::ResolvedGrantScope::from_exact(
-                    crate::storage::auth_grants::ExactGrantScope {
-                        function_id: snapback
-                            .function("hostInsert")
-                            .expect("managed classified child function")
-                            .id
-                            .clone(),
-                        kind: crate::storage::auth_grants::ScopedFunctionKind::Mutation,
-                        basis: 0,
-                        authority_creating: false,
-                    },
-                ),
-            ],
-            token_expires_at_ms: now_ms + 60_000,
-            integration_status: None,
-        },
-        None,
+    snapback.admission = AdmissionController::from_mode_state_with_database_binding(
+        &settled_sessions_state(),
+        snapback.db.binding(),
     )
-    .expect("prepare managed classified service authority")
-    .with_service_publication(publication);
+    .expect("install target-owned Sessions admission for service staging");
+    let service_authority = snapback.prepare_resolved_service_for_test(
+        InvocationSource::HttpAction,
+        "managed-classified-agent",
+        Some("managed-classified-user"),
+        vec![
+            crate::storage::auth_grants::ExactGrantScope {
+                function_id: function.id.clone(),
+                kind: crate::storage::auth_grants::ScopedFunctionKind::Action,
+                basis: 0,
+                authority_creating: false,
+            },
+            crate::storage::auth_grants::ExactGrantScope {
+                function_id: snapback
+                    .function("hostInsert")
+                    .expect("managed classified child function")
+                    .id
+                    .clone(),
+                kind: crate::storage::auth_grants::ScopedFunctionKind::Mutation,
+                basis: 0,
+                authority_creating: false,
+            },
+        ],
+        now_ms,
+        now_ms + 60_000,
+    );
+    let registry = snapback.service_authority_fences.clone();
+    let ResolvedAppAuthority::ServicePrincipal(subject) = service_authority.resolved() else {
+        panic!("resolved service fixture must project service authority");
+    };
+    let token_id = subject.token_id().to_owned();
     action.invocation = InvocationGate::prepare_function(service_authority, &function)
         .expect("prepare managed classified service action");
 
@@ -27935,7 +27981,7 @@ fn managed_action_staging_preserves_terminal_service_loss_after_repeated_policy_
     install_classified_admission_hook_for_test(2, move || {
         retire
             .commit_terminal_for_test(
-                &[token_id.to_owned()],
+                &[token_id.clone()],
                 ServiceAuthorityDisposition::DurableDelete,
             )
             .expect("retire scoped service before classified persistence");
@@ -29428,7 +29474,10 @@ fn llp0133_sketch_10_stale_reservation_rolls_back_then_retry_rederives() {
                 steps: vec![MutationStep::Insert {
                     table: "permissions".to_owned(),
                     values: BTreeMap::from([
-                        ("ownerId".to_owned(), ValueExpr::Literal(json!("user-a"))),
+                        (
+                            "ownerId".to_owned(),
+                            ValueExpr::Literal(json!("usr_00000000000000000000000010")),
+                        ),
                         ("nonce".to_owned(), ValueExpr::RuntimeId),
                     ]),
                     bind_id_as: None,
@@ -29834,25 +29883,15 @@ fn permission_epoch_guarded_snapback() -> LocalSnapback {
 }
 
 fn session_authority(authority_instance_id: &str) -> PreparedAuthority {
-    InvocationGate::prepare_authority(
+    let mut snapback = LocalSnapback::memory().expect("descriptor authority fixture");
+    snapback.prepare_resolved_session_for_test(
         InvocationSource::HttpMutation,
-        crate::manifest::AuthMode::Sessions,
-        ServerProfile::Test,
+        "018f0d90-7b21-7a22-8c33-445566778899",
+        "018f0d90-7b22-7a22-8c33-445566778899",
+        authority_instance_id,
         1,
-        1,
-        &WireAuthorityFields::default(),
-        ResolvedAppAuthority::Session {
-            user_id: "018f0d90-7b21-7a22-8c33-445566778899".to_owned(),
-            session_id: "018f0d90-7b22-7a22-8c33-445566778899".to_owned(),
-            provider: "email-code".to_owned(),
-            generation: 1,
-            authority_instance_id: authority_instance_id.to_owned(),
-            session_not_after_ms: 10_000,
-            provider_not_after_ms: None,
-            rehearsal_provenance: None,
-        },
+        10_000,
     )
-    .expect("prepare session authority")
 }
 
 fn descriptor(authority_instance_id: &str) -> AuthorityDescriptor {
@@ -29865,97 +29904,126 @@ fn descriptor(authority_instance_id: &str) -> AuthorityDescriptor {
 
 const SERVICE_REPLAY_EXPIRES_AT_MS: u64 = 2_000_000_000_000;
 
-fn install_service_replay_auth(snapback: &mut LocalSnapback) {
+struct ServiceReplaySecrets(BTreeMap<String, String>);
+
+fn install_service_replay_auth(snapback: &mut LocalSnapback) -> ServiceReplaySecrets {
     let now_ms = now_millis();
+    let random = CounterRandom::new();
+    let mut secrets = BTreeMap::new();
+    let mut token_rows = Vec::new();
+    for (token_id, grant_id, credential_generation) in [
+        ("token-a", "grant-a", 1),
+        ("token-b", "grant-a", 1),
+        ("token-c", "grant-a", 1),
+        ("token-d", "grant-a", 2),
+        ("token-e", "grant-b", 1),
+        ("token-x", "grant-b", 1),
+        ("token-y", "grant-a", 1),
+    ] {
+        let secret = crate::auth::crypto::ScopedToken::generate(&random)
+            .expect("generate service replay token secret");
+        token_rows.push((
+            token_id.to_owned(),
+            grant_id.to_owned(),
+            secret.token_hash().as_bytes().to_vec(),
+            credential_generation,
+        ));
+        secrets.insert(token_id.to_owned(), secret.expose_secret().to_owned());
+    }
     let db = snapback.auth_database_mut();
     db.activate_current_auth_catalog()
         .expect("activate service replay auth catalog");
     db.auth_catalog()
-        .install_service_replay_authority_for_test(now_ms, SERVICE_REPLAY_EXPIRES_AT_MS)
+        .install_service_replay_authority_for_test(
+            now_ms,
+            SERVICE_REPLAY_EXPIRES_AT_MS,
+            &token_rows,
+        )
         .expect("install current service replay authority");
+    snapback
+        .synchronize_auth_mode_admission(&settled_sessions_state())
+        .expect("bind service replay admission graph");
+    ServiceReplaySecrets(secrets)
 }
 
 fn service_mutation_authority(
-    service_fences: &crate::auth::service_fence::ServiceAuthorityFenceRegistry,
+    snapback: &mut LocalSnapback,
+    secrets: &ServiceReplaySecrets,
     token_id: &str,
-    credential_generation: u64,
-    grant_id: &str,
-) -> PreparedAuthority {
-    let resolved = crate::storage::auth_agent_credentials::ResolvedScopedToken {
-        token_id: token_id.to_owned(),
-        grant_id: grant_id.to_owned(),
-        actor_user_id: "agent-a".to_owned(),
-        effective_user_id: Some("user-a".to_owned()),
-        credential_id: "credential-a".to_owned(),
-        credential_generation,
-        scopes: vec![crate::storage::auth_grants::ExactGrantScope {
-            function_id: "fn:hostInsert".to_owned(),
-            kind: crate::storage::auth_grants::ScopedFunctionKind::Mutation,
-            basis: 0,
-            authority_creating: false,
-        }],
-        expires_at_ms: SERVICE_REPLAY_EXPIRES_AT_MS,
-        grant_expires_at_ms: Some(SERVICE_REPLAY_EXPIRES_AT_MS),
-        integration_status: None,
-    };
-    let publication = service_fences
-        .register(
-            resolved.service_authority_witness(),
-            now_millis(),
-            Instant::now(),
-        )
-        .expect("register service replay token fence");
-    InvocationGate::prepare_authority(
-        InvocationSource::HttpMutation,
-        crate::manifest::AuthMode::Sessions,
-        ServerProfile::Test,
-        1,
-        1,
-        &WireAuthorityFields::default(),
-        ResolvedAppAuthority::from_scoped_token(resolved),
+) -> crate::diagnostic::SnapbackResult<PreparedAuthority> {
+    let token = crate::auth::crypto::ScopedToken::parse(
+        secrets
+            .0
+            .get(token_id)
+            .expect("registered replay token secret"),
     )
-    .expect("prepare service authority")
-    .with_service_publication(publication)
-}
-
-fn admitted_service_mutation_authority(
-    service_fences: &crate::auth::service_fence::ServiceAuthorityFenceRegistry,
-) -> PreparedAuthority {
-    let resolved = crate::storage::auth_agent_credentials::ResolvedScopedToken {
-        token_id: "token-a".to_owned(),
-        grant_id: "grant-a".to_owned(),
-        actor_user_id: "agent-a".to_owned(),
-        effective_user_id: Some("user-a".to_owned()),
-        credential_id: "credential-a".to_owned(),
-        credential_generation: 1,
-        scopes: vec![crate::storage::auth_grants::ExactGrantScope {
-            function_id: "fn:hostInsert".to_owned(),
-            kind: crate::storage::auth_grants::ScopedFunctionKind::Mutation,
-            basis: 0,
-            authority_creating: false,
-        }],
-        expires_at_ms: SERVICE_REPLAY_EXPIRES_AT_MS,
-        grant_expires_at_ms: Some(SERVICE_REPLAY_EXPIRES_AT_MS),
-        integration_status: None,
+    .expect("parse registered replay token secret");
+    let now_ms = now_millis();
+    let resolved = snapback.db.resolve_scoped_token(&token, now_ms)?;
+    let publication = snapback.service_authority_fences.register(
+        resolved.service_authority_witness(),
+        now_ms,
+        Instant::now(),
+    )?;
+    let resolution = ResolvedServiceAuthority {
+        subject: crate::auth::invocation::ResolvedServiceSubject::from_scoped_token(
+            resolved,
+            snapback.admission.lease_origin(),
+        )?,
+        publication,
     };
-    let publication = service_fences
-        .register(
-            resolved.service_authority_witness(),
-            now_millis(),
-            Instant::now(),
-        )
-        .expect("register admitted service token fence");
-    InvocationGate::prepare_admitted_authority(
+    let admission = snapback.admission.admit_for_mode(AuthMode::Sessions)?;
+    snapback.prepare_connection_service_authority(
+        resolution,
         InvocationSource::HttpMutation,
         AuthMode::Sessions,
         ServerProfile::Test,
-        managed_session_admission(),
+        admission,
         &WireAuthorityFields::default(),
-        ResolvedAppAuthority::from_scoped_token(resolved),
-        None,
+        now_ms,
     )
-    .expect("prepare admitted service authority")
-    .with_service_publication(publication)
+}
+
+#[test]
+fn service_subject_rejects_a_foreign_database_admission_graph() {
+    let mut producer = LocalSnapback::memory().expect("service authority producer database");
+    let secrets = install_service_replay_auth(&mut producer);
+    let token = crate::auth::crypto::ScopedToken::parse(
+        secrets
+            .0
+            .get("token-a")
+            .expect("registered producer token secret"),
+    )
+    .expect("parse producer token secret");
+    let resolved = producer
+        .db
+        .resolve_scoped_token(&token, now_millis())
+        .expect("resolve token through producer serving database");
+    let consumer = LocalSnapback::memory().expect("independent authority consumer database");
+
+    let error = crate::auth::invocation::ResolvedServiceSubject::from_scoped_token(
+        resolved,
+        consumer.admission.lease_origin(),
+    )
+    .expect_err("a foreign database admission graph cannot adopt the subject");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_POLICY_UNAVAILABLE");
+}
+
+fn admitted_service_mutation_authority(snapback: &mut LocalSnapback) -> PreparedAuthority {
+    let now_ms = now_millis();
+    snapback.prepare_resolved_service_for_test(
+        InvocationSource::HttpMutation,
+        "admitted-service-agent",
+        Some("admitted-service-user"),
+        vec![crate::storage::auth_grants::ExactGrantScope {
+            function_id: "fn:hostInsert".to_owned(),
+            kind: crate::storage::auth_grants::ScopedFunctionKind::Mutation,
+            basis: 0,
+            authority_creating: false,
+        }],
+        now_ms,
+        now_ms + 60_000,
+    )
 }
 
 #[test]
@@ -30244,13 +30312,15 @@ fn committed_settlement_survives_function_removal_until_acknowledged() {
 fn service_queued_replay_survives_token_churn_and_refuses_durable_axis_drift() {
     const INCARNATION: &str = "018f0d90-7b21-7a22-8c33-445566778899";
     let mut snapback = guarded_snapback();
-    install_service_replay_auth(&mut snapback);
-    let service_fences = snapback.service_authority_fences.clone();
-    let first = service_mutation_authority(&service_fences, "token-a", 1, "grant-a");
+    let secrets = install_service_replay_auth(&mut snapback);
+    let first = service_mutation_authority(&mut snapback, &secrets, "token-a")
+        .expect("resolve first replay token");
     let descriptor =
         crate::auth::invocation::descriptor_for_resolved_authority(first.resolved(), INCARNATION)
             .expect("service descriptor");
 
+    let replacement = service_mutation_authority(&mut snapback, &secrets, "token-b")
+        .expect("resolve replacement replay token");
     let first_result = snapback
         .invoke_mutation_recording_with_authority_descriptor(
             "hostInsert",
@@ -30258,10 +30328,12 @@ fn service_queued_replay_survives_token_churn_and_refuses_durable_axis_drift() {
             Some("cm_service_token_churn".to_owned()),
             Some(descriptor.clone()),
             "http",
-            service_mutation_authority(&service_fences, "token-b", 1, "grant-a"),
+            replacement,
         )
         .0
         .expect("replacement token settles queued work");
+    let duplicate_authority = service_mutation_authority(&mut snapback, &secrets, "token-c")
+        .expect("resolve duplicate replay token");
     let duplicate = snapback
         .invoke_mutation_recording_with_authority_descriptor(
             "hostInsert",
@@ -30269,7 +30341,7 @@ fn service_queued_replay_survives_token_churn_and_refuses_durable_axis_drift() {
             Some("cm_service_token_churn".to_owned()),
             Some(descriptor.clone()),
             "http",
-            service_mutation_authority(&service_fences, "token-c", 1, "grant-a"),
+            duplicate_authority,
         )
         .0
         .expect("another token reads the durable settlement");
@@ -30283,20 +30355,24 @@ fn service_queued_replay_survives_token_churn_and_refuses_durable_axis_drift() {
             .total,
         1
     );
+    let other_grant = service_mutation_authority(&mut snapback, &secrets, "token-x")
+        .expect("resolve other-grant replay token");
     assert_eq!(
         snapback
             .acknowledge_client_mutations_with_authority(
-                &service_mutation_authority(&service_fences, "token-x", 1, "grant-b"),
+                &other_grant,
                 &["cm_service_token_churn".to_owned()],
             )
             .unwrap(),
         0,
         "another durable grant cannot acknowledge this settlement"
     );
+    let same_grant = service_mutation_authority(&mut snapback, &secrets, "token-y")
+        .expect("resolve same-grant replay token");
     assert_eq!(
         snapback
             .acknowledge_client_mutations_with_authority(
-                &service_mutation_authority(&service_fences, "token-y", 1, "grant-a"),
+                &same_grant,
                 &["cm_service_token_churn".to_owned()],
             )
             .unwrap(),
@@ -30304,16 +30380,15 @@ fn service_queued_replay_survives_token_churn_and_refuses_durable_axis_drift() {
         "token churn on the same durable grant can acknowledge"
     );
 
-    for (authority, expected_code) in [
-        (
-            service_mutation_authority(&service_fences, "token-d", 2, "grant-a"),
-            "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
-        ),
-        (
-            service_mutation_authority(&service_fences, "token-e", 1, "grant-b"),
-            "SNAPBACK_AUTH_STALE_RESULT",
-        ),
-    ] {
+    let unresolved_drift = service_mutation_authority(&mut snapback, &secrets, "token-d")
+        .expect_err("credential-generation drift is rejected during exact resolution");
+    assert_eq!(
+        unresolved_drift.diagnostic.code,
+        "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID"
+    );
+    let grant_drift = service_mutation_authority(&mut snapback, &secrets, "token-e")
+        .expect("resolve token from the different durable grant");
+    for (authority, expected_code) in [(grant_drift, "SNAPBACK_AUTH_STALE_RESULT")] {
         let result = snapback
             .invoke_mutation_recording_with_authority_descriptor(
                 "hostInsert",
@@ -30352,7 +30427,7 @@ fn insert_live_test_session(
         .auth_catalog()
         .insert_email_session_for_test(
             user_id,
-            &format!("identity-{session_id}"),
+            &crate::ids::mint_time_ordered(crate::ids::Kind::Identity),
             session_id,
             authority_instance_id,
             &format!("{user_id}@live-fixture.test"),
@@ -30720,16 +30795,20 @@ fn test_session_authority(source: InvocationSource) -> PreparedAuthority {
 }
 
 fn test_live_session_authority(
+    snapback: &mut LocalSnapback,
     source: InvocationSource,
     user_id: &str,
     generation: u64,
     session_not_after_ms: u64,
     provider_not_after_ms: Option<u64>,
 ) -> PreparedAuthority {
+    let (_, id_body) = user_id.split_once('_').expect("minted user fixture id");
+    let session_id = format!("ses_{id_body}");
     test_live_session_authority_with_session(
+        snapback,
         source,
         user_id,
-        "live-owner-session",
+        &session_id,
         generation,
         session_not_after_ms,
         provider_not_after_ms,
@@ -30737,6 +30816,7 @@ fn test_live_session_authority(
 }
 
 fn test_live_session_authority_with_session(
+    snapback: &mut LocalSnapback,
     source: InvocationSource,
     user_id: &str,
     session_id: &str,
@@ -30744,52 +30824,38 @@ fn test_live_session_authority_with_session(
     session_not_after_ms: u64,
     provider_not_after_ms: Option<u64>,
 ) -> PreparedAuthority {
-    InvocationGate::prepare_authority(
+    let effective_not_after_ms = provider_not_after_ms.map_or(session_not_after_ms, |deadline| {
+        deadline.min(session_not_after_ms)
+    });
+    let (_, id_body) = session_id
+        .split_once('_')
+        .expect("minted session fixture id");
+    let authority_instance_id = format!("aut_{id_body}");
+    snapback.prepare_resolved_session_for_test(
         source,
-        AuthMode::Sessions,
-        ServerProfile::Test,
-        0,
-        0,
-        &WireAuthorityFields::default(),
-        ResolvedAppAuthority::Session {
-            user_id: user_id.to_owned(),
-            session_id: session_id.to_owned(),
-            provider: "email-code".to_owned(),
-            generation,
-            authority_instance_id: "live-owner-authority".to_owned(),
-            session_not_after_ms,
-            provider_not_after_ms,
-            rehearsal_provenance: None,
-        },
+        user_id,
+        session_id,
+        &authority_instance_id,
+        generation,
+        effective_not_after_ms,
     )
-    .expect("prepare retained live session authority")
 }
 
 fn test_grant_session_authority(
+    snapback: &mut LocalSnapback,
     source: InvocationSource,
     user_id: &str,
     session_id: &str,
     authority_instance_id: &str,
 ) -> PreparedAuthority {
-    InvocationGate::prepare_authority(
+    snapback.prepare_resolved_session_for_test(
         source,
-        AuthMode::Sessions,
-        ServerProfile::Test,
-        0,
-        0,
-        &WireAuthorityFields::default(),
-        ResolvedAppAuthority::Session {
-            user_id: user_id.to_owned(),
-            session_id: session_id.to_owned(),
-            provider: "email-code".to_owned(),
-            generation: 1,
-            authority_instance_id: authority_instance_id.to_owned(),
-            session_not_after_ms: u64::MAX / 2,
-            provider_not_after_ms: None,
-            rehearsal_provenance: None,
-        },
+        user_id,
+        session_id,
+        authority_instance_id,
+        1,
+        u64::MAX / 2,
     )
-    .expect("prepare grant-management session authority")
 }
 
 fn test_dev_authority(source: InvocationSource) -> PreparedAuthority {
@@ -30891,7 +30957,12 @@ fn oauth_consent_ownership_fixture() -> (LocalSnapback, String, String) {
 
 fn seed_oauth_consent_users(snapback: &mut LocalSnapback, now_ms: u64) {
     let mut catalog = snapback.auth_database_mut().auth_catalog();
-    for user_id in ["user-a", "user-m", "user-n", "user-z"] {
+    for user_id in [
+        "usr_00000000000000000000000010",
+        "usr_00000000000000000000000011",
+        "usr_00000000000000000000000012",
+        "usr_00000000000000000000000013",
+    ] {
         catalog
             .insert_human_user_for_test(user_id, now_ms)
             .unwrap_or_else(|error| panic!("create OAuth consent user {user_id}: {error:?}"));
@@ -31047,7 +31118,6 @@ enum OAuthConsentBeginCase {
     SecondExact,
     ThirdExact,
     WrongSource,
-    AbsentUser,
 }
 
 impl OAuthConsentBeginCase {
@@ -31057,22 +31127,20 @@ impl OAuthConsentBeginCase {
             Self::SecondExact => "second-exact",
             Self::ThirdExact => "third-exact",
             Self::WrongSource => "wrong-source",
-            Self::AbsentUser => "absent-user",
         }
     }
 
     fn user_id(self) -> &'static str {
         match self {
-            Self::SecondExact => "user-z",
-            Self::AbsentUser => "user-missing",
-            _ => "user-m",
+            Self::SecondExact => "usr_00000000000000000000000013",
+            _ => "usr_00000000000000000000000011",
         }
     }
 
     fn session_id(self) -> &'static str {
         match self {
-            Self::FirstExact | Self::WrongSource => "begin-session-n",
-            _ => "begin-session-m",
+            Self::FirstExact | Self::WrongSource => "ses_00000000000000000000000013",
+            _ => "ses_00000000000000000000000012",
         }
     }
 
@@ -31095,7 +31163,6 @@ impl OAuthConsentBeginCase {
         match self {
             Self::FirstExact | Self::SecondExact | Self::ThirdExact => None,
             Self::WrongSource => Some("SNAPBACK_AUTH_REQUIRED"),
-            Self::AbsentUser => Some("SNAPBACK_AUTH_OAUTH_ACCESS_DENIED"),
         }
     }
 }
@@ -31110,7 +31177,7 @@ fn assert_oauth_consent_begin_l_shapes() {
     assert_eq!(
         OAUTH_CONSENT_BEGIN_L_SHAPE
             .iter()
-            .filter(|case| case.user_id() == "user-m")
+            .filter(|case| case.user_id() == "usr_00000000000000000000000011")
             .map(|case| case.oauth_state())
             .collect::<BTreeSet<_>>(),
         BTreeSet::from(["alternate-state", "shared-state"]),
@@ -31122,25 +31189,34 @@ fn assert_oauth_consent_begin_l_shapes() {
             .filter(|case| case.oauth_state() == "shared-state")
             .map(|case| case.user_id())
             .collect::<BTreeSet<_>>(),
-        BTreeSet::from(["user-m", "user-z"]),
+        BTreeSet::from([
+            "usr_00000000000000000000000011",
+            "usr_00000000000000000000000013"
+        ]),
         "one OAuth state must occur across two distinct users"
     );
     assert_eq!(
         OAUTH_CONSENT_BEGIN_L_SHAPE
             .iter()
-            .filter(|case| case.user_id() == "user-m")
+            .filter(|case| case.user_id() == "usr_00000000000000000000000011")
             .map(|case| case.session_id())
             .collect::<BTreeSet<_>>(),
-        BTreeSet::from(["begin-session-m", "begin-session-n"]),
+        BTreeSet::from([
+            "ses_00000000000000000000000012",
+            "ses_00000000000000000000000013"
+        ]),
         "one user must begin consent through two distinct sessions"
     );
     assert_eq!(
         OAUTH_CONSENT_BEGIN_L_SHAPE
             .iter()
-            .filter(|case| case.session_id() == "begin-session-m")
+            .filter(|case| case.session_id() == "ses_00000000000000000000000012")
             .map(|case| case.user_id())
             .collect::<BTreeSet<_>>(),
-        BTreeSet::from(["user-m", "user-z"]),
+        BTreeSet::from([
+            "usr_00000000000000000000000011",
+            "usr_00000000000000000000000013"
+        ]),
         "one session id must occur across two distinct users"
     );
 }
@@ -31163,6 +31239,7 @@ fn run_oauth_consent_begin_case(case: OAuthConsentBeginCase) {
     let (mut snapback, client_id, principal_user_id) = oauth_consent_ownership_fixture();
     seed_oauth_consent_users(&mut snapback, 1_000);
     let authority = test_live_session_authority_with_session(
+        &mut snapback,
         case.source(),
         case.user_id(),
         case.session_id(),
@@ -31319,30 +31396,35 @@ fn run_oauth_consent_begin_case(case: OAuthConsentBeginCase) {
     assert_eq!(after, expected, "{} accepted durable snapshot", case.name());
 }
 
-#[test]
-fn oauth_consent_request_derives_the_durable_user_from_authority_first_exact() {
-    run_oauth_consent_begin_case(OAuthConsentBeginCase::FirstExact);
+macro_rules! oauth_consent_begin_case_test {
+    ($name:ident, $case:expr) => {
+        #[test]
+        fn $name() {
+            run_oauth_consent_begin_case($case);
+        }
+    };
 }
 
-#[test]
-fn oauth_consent_request_derives_the_durable_user_from_authority_second_exact() {
-    run_oauth_consent_begin_case(OAuthConsentBeginCase::SecondExact);
-}
-
-#[test]
-fn oauth_consent_request_derives_the_durable_user_from_authority_third_exact() {
-    run_oauth_consent_begin_case(OAuthConsentBeginCase::ThirdExact);
-}
-
-#[test]
-fn oauth_consent_request_derives_the_durable_user_from_authority_wrong_source() {
-    run_oauth_consent_begin_case(OAuthConsentBeginCase::WrongSource);
-}
-
-#[test]
-fn oauth_consent_request_derives_the_durable_user_from_authority_absent_user() {
-    run_oauth_consent_begin_case(OAuthConsentBeginCase::AbsentUser);
-}
+oauth_consent_begin_case_test!(
+    oauth_consent_request_derives_the_durable_user_from_authority_first_exact,
+    OAuthConsentBeginCase::FirstExact
+);
+oauth_consent_begin_case_test!(
+    oauth_consent_request_derives_the_durable_user_from_authority_second_exact,
+    OAuthConsentBeginCase::SecondExact
+);
+oauth_consent_begin_case_test!(
+    oauth_consent_request_derives_the_durable_user_from_authority_third_exact,
+    OAuthConsentBeginCase::ThirdExact
+);
+oauth_consent_begin_case_test!(
+    oauth_consent_request_derives_the_durable_user_from_authority_wrong_source,
+    OAuthConsentBeginCase::WrongSource
+);
+oauth_consent_begin_case_test!(
+    oauth_consent_request_derives_the_durable_user_from_authority_absent_user,
+    OAuthConsentBeginCase::AbsentUser
+);
 
 const OAUTH_APPROVAL_REQUESTED_AT_MS: u64 = 1_000;
 const OAUTH_APPROVAL_APPROVED_AT_MS: u64 = 2_000;
@@ -31365,18 +31447,18 @@ struct OAuthApprovalAuthorityCase {
 const OAUTH_APPROVAL_L_SHAPE: [OAuthApprovalAuthorityCase; 3] = [
     OAuthApprovalAuthorityCase {
         label: "m-session-n",
-        user_id: "user-m",
-        session_id: "approval-session-n",
+        user_id: "usr_00000000000000000000000011",
+        session_id: "ses_00000000000000000000000030",
     },
     OAuthApprovalAuthorityCase {
         label: "m-session-m",
-        user_id: "user-m",
-        session_id: "approval-session-m",
+        user_id: "usr_00000000000000000000000011",
+        session_id: "ses_00000000000000000000000031",
     },
     OAuthApprovalAuthorityCase {
         label: "n-session-m",
-        user_id: "user-n",
-        session_id: "approval-session-m",
+        user_id: "usr_00000000000000000000000012",
+        session_id: "ses_00000000000000000000000031",
     },
 ];
 
@@ -31407,19 +31489,25 @@ fn assert_oauth_approval_l_shape() {
     assert_eq!(
         OAUTH_APPROVAL_L_SHAPE
             .iter()
-            .filter(|authority| authority.user_id == "user-m")
+            .filter(|authority| authority.user_id == "usr_00000000000000000000000011")
             .map(|authority| authority.session_id)
             .collect::<BTreeSet<_>>(),
-        BTreeSet::from(["approval-session-m", "approval-session-n"]),
+        BTreeSet::from([
+            "ses_00000000000000000000000031",
+            "ses_00000000000000000000000030"
+        ]),
         "one user must succeed through two distinct sessions"
     );
     assert_eq!(
         OAUTH_APPROVAL_L_SHAPE
             .iter()
-            .filter(|authority| authority.session_id == "approval-session-m")
+            .filter(|authority| authority.session_id == "ses_00000000000000000000000031")
             .map(|authority| authority.user_id)
             .collect::<BTreeSet<_>>(),
-        BTreeSet::from(["user-m", "user-n"]),
+        BTreeSet::from([
+            "usr_00000000000000000000000011",
+            "usr_00000000000000000000000012"
+        ]),
         "one session id must occur across two distinct users"
     );
 }
@@ -31429,17 +31517,17 @@ fn oauth_approval_fixture_for_test(
 ) -> (LocalSnapback, String, Vec<OAuthApprovalRequestFixture>) {
     let (mut snapback, client_id, principal_user_id) = oauth_consent_ownership_fixture();
     seed_oauth_consent_users(&mut snapback, OAUTH_APPROVAL_REQUESTED_AT_MS);
-    let foreign_user_id = if target_user_id == "user-m" {
-        "user-n"
+    let foreign_user_id = if target_user_id == "usr_00000000000000000000000011" {
+        "usr_00000000000000000000000012"
     } else {
-        "user-m"
+        "usr_00000000000000000000000011"
     };
     let random = CounterRandom::new();
     let requests = [
-        ("foreign-lower", "user-a"),
+        ("foreign-lower", "usr_00000000000000000000000010"),
         ("target", target_user_id),
         ("foreign-other-authority", foreign_user_id),
-        ("foreign-upper", "user-z"),
+        ("foreign-upper", "usr_00000000000000000000000013"),
     ]
     .into_iter()
     .map(|(label, user_id)| OAuthApprovalRequestFixture {
@@ -31534,9 +31622,14 @@ fn oauth_approval_fixture_for_test(
         "every exact request has the same one-based UUID rank"
     );
     assert!(
-        ["user-a", "user-m", "user-n", "user-z"]
-            .into_iter()
-            .all(|user_id| principal_user_id != user_id),
+        [
+            "usr_00000000000000000000000010",
+            "usr_00000000000000000000000011",
+            "usr_00000000000000000000000012",
+            "usr_00000000000000000000000013"
+        ]
+        .into_iter()
+        .all(|user_id| principal_user_id != user_id),
         "the unowned integration subject is distinct from every grantor/caller/session owner"
     );
     (snapback, principal_user_id, requests)
@@ -31558,6 +31651,7 @@ fn run_oauth_consent_approval_case(
         .collect::<BTreeMap<_, _>>();
     assert_eq!(request_by_label["target"].user_id, authority_case.user_id);
     let authority = test_live_session_authority_with_session(
+        &mut snapback,
         InvocationSource::AgentGrantManagement,
         authority_case.user_id,
         authority_case.session_id,
@@ -31715,6 +31809,7 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user_wrong_sour
         .find(|request| request.label == "target")
         .expect("target request exists");
     let wrong_source = test_live_session_authority_with_session(
+        &mut snapback,
         InvocationSource::HttpMutation,
         authority_case.user_id,
         authority_case.session_id,
@@ -31893,40 +31988,45 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
     let now_ms = 1_000;
     seed_oauth_consent_users(&mut snapback, now_ms);
     let random = CounterRandom::new();
-    let requests = ["user-a", "user-m", "user-z"]
-        .into_iter()
-        .enumerate()
-        .map(|(offset, user_id)| {
-            let request_id = begin_oauth_request_for_test(
-                &mut snapback,
+    let requests = [
+        "usr_00000000000000000000000010",
+        "usr_00000000000000000000000011",
+        "usr_00000000000000000000000013",
+    ]
+    .into_iter()
+    .enumerate()
+    .map(|(offset, user_id)| {
+        let request_id = begin_oauth_request_for_test(
+            &mut snapback,
+            user_id,
+            &client_id,
+            now_ms + (offset as u64 * 10),
+            &random,
+        );
+        let approval = snapback
+            .auth_database_mut()
+            .approve_grant_request(
                 user_id,
-                &client_id,
-                now_ms + (offset as u64 * 10),
-                &random,
-            );
-            let approval = snapback
-                .auth_database_mut()
-                .approve_grant_request(
-                    user_id,
-                    &format!("session-{user_id}"),
-                    &request_id,
-                    None,
-                    None,
-                    now_ms + (offset as u64 * 10) + 1,
-                )
-                .unwrap_or_else(|error| panic!("approve OAuth request for {user_id}: {error:?}"));
-            let approval = match approval {
-                crate::storage::auth_grants::GrantApproval::Created(approval) => approval,
-                crate::storage::auth_grants::GrantApproval::Existing(_) => {
-                    panic!("first OAuth setup approval must create a grant")
-                }
-            };
-            (user_id.to_owned(), request_id, approval.grant_id)
-        })
-        .collect::<Vec<_>>();
+                &format!("session-{user_id}"),
+                &request_id,
+                None,
+                None,
+                now_ms + (offset as u64 * 10) + 1,
+            )
+            .unwrap_or_else(|error| panic!("approve OAuth request for {user_id}: {error:?}"));
+        let approval = match approval {
+            crate::storage::auth_grants::GrantApproval::Created(approval) => approval,
+            crate::storage::auth_grants::GrantApproval::Existing(_) => {
+                panic!("first OAuth setup approval must create a grant")
+            }
+        };
+        (user_id.to_owned(), request_id, approval.grant_id)
+    })
+    .collect::<Vec<_>>();
     let authority = test_live_session_authority(
+        &mut snapback,
         InvocationSource::AgentGrantManagement,
-        "user-m",
+        "usr_00000000000000000000000011",
         1,
         now_ms + 60_000,
         None,
@@ -31999,16 +32099,17 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
     assert_eq!(initial_rows.authorizations, expected_authorizations);
 
     let wrong_source = test_live_session_authority_with_session(
+        &mut snapback,
         InvocationSource::HttpMutation,
-        "user-m",
-        "issuance-session-m",
+        "usr_00000000000000000000000011",
+        "ses_00000000000000000000000011",
         1,
         now_ms + 60_000,
         None,
     );
     let (_, own_request_id, _) = requests
         .iter()
-        .find(|(user_id, _, _)| user_id == "user-m")
+        .find(|(user_id, _, _)| user_id == "usr_00000000000000000000000011")
         .expect("authority user's issuance request exists");
     let before_wrong_source = oauth_durable_state_for_test(&mut snapback);
     let wrong_source_result = snapback.issue_oauth_authorization_code(
@@ -32043,7 +32144,7 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
             (now_ms + 100).to_string(),
             "{user_id} issuance authorization clock"
         );
-        if user_id == "user-m" {
+        if user_id == "usr_00000000000000000000000011" {
             let issued = result.expect("authority user can issue their OAuth code");
             assert!(issued.code.expose_secret().starts_with("sboac_"));
             assert_eq!(issued.redirect_uri, OAUTH_TEST_REDIRECT_URI);
@@ -32118,15 +32219,16 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
 
     assert_eq!(durable_code_hashes.len(), 1);
     let second_authority = test_live_session_authority(
+        &mut snapback,
         InvocationSource::AgentGrantManagement,
-        "user-z",
+        "usr_00000000000000000000000013",
         1,
         now_ms + 60_000,
         None,
     );
     let (_, second_request_id, second_grant_id) = requests
         .iter()
-        .find(|(user_id, _, _)| user_id == "user-z")
+        .find(|(user_id, _, _)| user_id == "usr_00000000000000000000000013")
         .expect("second authority user's OAuth request exists");
     let before = oauth_durable_state_for_test(&mut snapback);
     let issued = snapback
@@ -32154,7 +32256,7 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
     assert_eq!(updated.status, "approved");
     assert_eq!(updated.client_id, client_id);
     assert_eq!(updated.principal_user_id, principal_user_id);
-    assert_eq!(updated.consenting_user_id, "user-z");
+    assert_eq!(updated.consenting_user_id, "usr_00000000000000000000000013");
     assert_eq!(updated.redirect_uri, OAUTH_TEST_REDIRECT_URI);
     assert_eq!(updated.code_challenge, OAUTH_TEST_CODE_CHALLENGE);
     assert_eq!(updated.bundle_names_json, OAUTH_TEST_BUNDLES_JSON);
@@ -32178,7 +32280,7 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
             .clone()
             .expect("second issued OAuth row must retain its durable selector"),
     );
-    accepted.push("user-z");
+    accepted.push("usr_00000000000000000000000013");
 
     let mut expected = with_oauth_authorization_clock(before, now_ms + 100);
     let expected_updated = expected
@@ -32195,21 +32297,36 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
         durable_code_hashes[0], durable_code_hashes[1],
         "independently issued OAuth codes must have distinct durable selectors"
     );
-    assert_eq!(accepted, ["user-m", "user-z"]);
+    assert_eq!(
+        accepted,
+        [
+            "usr_00000000000000000000000011",
+            "usr_00000000000000000000000013"
+        ]
+    );
     assert_eq!(
         refused,
         [
-            ("user-a", "SNAPBACK_AUTH_OAUTH_GRANT_INVALID".to_owned(),),
-            ("user-z", "SNAPBACK_AUTH_OAUTH_GRANT_INVALID".to_owned(),),
+            (
+                "usr_00000000000000000000000010",
+                "SNAPBACK_AUTH_OAUTH_GRANT_INVALID".to_owned(),
+            ),
+            (
+                "usr_00000000000000000000000013",
+                "SNAPBACK_AUTH_OAUTH_GRANT_INVALID".to_owned(),
+            ),
         ]
     );
 }
 
 const DENY_FIXTURE_MS: u64 = 1_000;
 const DENY_EFFECT_MS: u64 = 2_000;
-const DENY_LOWER_USER: &str = "user-a";
-const DENY_MIDDLE_USER: &str = "user-m";
-const DENY_UPPER_USER: &str = "user-z";
+const DENY_LOWER_USER: &str = "usr_00000000000000000000000000";
+const DENY_MIDDLE_USER: &str = "usr_00000000000000000000000001";
+const DENY_UPPER_USER: &str = "usr_00000000000000000000000002";
+const DENY_AGENT_USER: &str = "usr_00000000000000000000000003";
+const DENY_AGENT_OWNER_USER: &str = "usr_00000000000000000000000004";
+const DENY_PAIRING_AGENT_USER: &str = "usr_00000000000000000000000005";
 const DENY_USERS: [&str; 3] = [DENY_LOWER_USER, DENY_MIDDLE_USER, DENY_UPPER_USER];
 const AUTH_CLOCK_META_KEY_FOR_DENY_TESTS: &str = "auth_invalidation_clock_high_water_ms_v1";
 const DENIAL_SCOPES_JSON: &str =
@@ -32315,12 +32432,17 @@ fn deny_case_expected_clock(case: DenySubjectCase) -> u64 {
     }
 }
 
-fn denial_management_authority(case: DenySubjectCase) -> PreparedAuthority {
-    test_grant_session_authority(
+fn denial_management_authority(
+    snapback: &mut LocalSnapback,
+    case: DenySubjectCase,
+) -> PreparedAuthority {
+    snapback.prepare_resolved_session_for_test(
         case.source,
         case.authority_user,
-        "shared-denial-session",
-        "shared-denial-authority-instance",
+        "ses_00000000000000000000000000",
+        "aut_00000000000000000000000000",
+        1,
+        u64::MAX,
     )
 }
 
@@ -32369,22 +32491,22 @@ impl GrantDenialFixture {
             }
             database
                 .auth_catalog()
-                .insert_human_user_for_test("owner-distinct-from-denial-users", DENY_FIXTURE_MS)
+                .insert_human_user_for_test(DENY_AGENT_OWNER_USER, DENY_FIXTURE_MS)
                 .expect("create grant denial fixture agent owner");
             database
                 .create_agent_principal(
-                    "agent-denial-shared",
+                    DENY_PAIRING_AGENT_USER,
                     DENY_FIXTURE_MS,
                     &AgentRegistration {
                         display_name: Some("Grant Denial Agent".to_owned()),
                         operator_contact: None,
                         registration_provenance: "grant-denial-derivation-test".to_owned(),
-                        owner_user_id: Some("owner-distinct-from-denial-users".to_owned()),
+                        owner_user_id: Some(DENY_AGENT_OWNER_USER.to_owned()),
                     },
                 )
                 .expect("create grant denial agent");
             let credential = database
-                .issue_initial_agent_credential("agent-denial-shared", DENY_FIXTURE_MS, &random)
+                .issue_initial_agent_credential(DENY_PAIRING_AGENT_USER, DENY_FIXTURE_MS, &random)
                 .expect("issue grant denial agent credential");
             database
                 .reconcile_auth_scope_bases(&denial_scope_manifest())
@@ -32414,7 +32536,7 @@ impl GrantDenialFixture {
                             request_id: pairing.request_id,
                             code_hash,
                             minted_by_user_id: user_id.to_owned(),
-                            agent_user_id: Some("agent-denial-shared".to_owned()),
+                            agent_user_id: Some(DENY_PAIRING_AGENT_USER.to_owned()),
                             requested_scopes: Some(DENIAL_SCOPES_JSON.to_owned()),
                             state: "pending".to_owned(),
                             attempts: 0,
@@ -32482,7 +32604,7 @@ fn grant_denial_derives_subject_and_preserves_every_other_durable_request() {
         .into_iter()
         .map(|case| {
             let mut fixture = GrantDenialFixture::new();
-            let authority = denial_management_authority(case);
+            let authority = denial_management_authority(&mut fixture.snapback, case);
             let request_id = fixture.request_id(case.target_user).to_owned();
             let result =
                 fixture
@@ -32730,7 +32852,7 @@ fn oauth_denial_derives_subject_and_preserves_every_other_durable_request() {
         .into_iter()
         .map(|case| {
             let mut fixture = OAuthDenialFixture::new();
-            let authority = denial_management_authority(case);
+            let authority = denial_management_authority(&mut fixture.snapback, case);
             let request_id = fixture.request_id(case.target_user).to_owned();
             let result =
                 fixture
@@ -32842,7 +32964,7 @@ impl GrantRevocationFixture {
             }
             database
                 .create_agent_principal(
-                    "agent-revocation-shared",
+                    DENY_AGENT_USER,
                     DENY_FIXTURE_MS,
                     &AgentRegistration {
                         display_name: Some("Grant Revocation Agent".to_owned()),
@@ -32853,7 +32975,7 @@ impl GrantRevocationFixture {
                 )
                 .expect("create grant revocation agent");
             let credential = database
-                .issue_initial_agent_credential("agent-revocation-shared", DENY_FIXTURE_MS, &random)
+                .issue_initial_agent_credential(DENY_AGENT_USER, DENY_FIXTURE_MS, &random)
                 .expect("issue grant revocation agent credential");
             database
                 .reconcile_auth_scope_bases(&denial_scope_manifest())
@@ -32861,7 +32983,10 @@ impl GrantRevocationFixture {
             let mut grant_ids = BTreeMap::new();
             let mut tokens = BTreeMap::new();
             for user_id in DENY_USERS {
-                let suffix = user_id.strip_prefix("user-").expect("denial user suffix");
+                let suffix = user_id
+                    .strip_prefix("usr_")
+                    .expect("denial user suffix")
+                    .trim_start_matches('0');
                 let mut user_grants = Vec::new();
                 let mut user_tokens = Vec::new();
                 for ordinal in 1..=grants_per_user {
@@ -32870,7 +32995,7 @@ impl GrantRevocationFixture {
                         .auth_catalog()
                         .insert_finite_authority_grant_for_test(
                             &grant_id,
-                            "agent-revocation-shared",
+                            DENY_AGENT_USER,
                             user_id,
                             DENY_FIXTURE_MS,
                         )
@@ -32999,7 +33124,7 @@ impl GrantRevocationFixture {
                     .enumerate()
                     .map(move |(index, grant_id)| GrantRevocationGrantRowForTest {
                         grant_id: grant_id.clone(),
-                        actor_user_id: "agent-revocation-shared".to_owned(),
+                        actor_user_id: DENY_AGENT_USER.to_owned(),
                         effective_user_id: Some(user_id.to_owned()),
                         scopes: GRANT_REVOCATION_SCOPES_JSON.to_owned(),
                         created_at_ms: DENY_FIXTURE_MS,
@@ -33165,6 +33290,79 @@ fn assert_grant_revocation_observations(
 }
 
 #[tokio::test]
+async fn genuine_management_authority_cannot_revoke_grants_in_a_second_engine_graph() {
+    use crate::auth::service_fence::with_service_authority_terminal_gate;
+
+    let case = deny_subject_cases()[1];
+    assert!(deny_case_is_accepted(case));
+    for bulk in [false, true] {
+        let mut producer = GrantRevocationFixture::new(if bulk { 2 } else { 1 });
+        let authority = denial_management_authority(&mut producer.snapback, case);
+        let mut target = GrantRevocationFixture::new(if bulk { 2 } else { 1 });
+        let before = target
+            .snapback
+            .auth_database_mut()
+            .grant_revocation_durable_rows_for_test()
+            .expect("read target rows before cross-engine attack");
+
+        let result = if bulk {
+            match target.snapback.plan_bulk_grant_revocation_service_terminal(
+                &authority,
+                DENY_AGENT_USER,
+                DENY_EFFECT_MS,
+            ) {
+                Ok(plan) => {
+                    let gate = plan
+                        .acquire_gate()
+                        .await
+                        .expect("the pre-fix cross-engine bulk plan acquired its terminal gate");
+                    with_service_authority_terminal_gate(gate, || {
+                        target
+                            .snapback
+                            .revoke_grants_by_actor_for_user(
+                                &authority,
+                                DENY_AGENT_USER,
+                                DENY_EFFECT_MS,
+                            )
+                            .map(|_| ())
+                    })
+                }
+                Err(error) => Err(error),
+            }
+        } else {
+            let grant_id = target.first_grant_id(case.target_user).to_owned();
+            match target.snapback.plan_grant_revocation_service_terminal(
+                &authority,
+                &grant_id,
+                DENY_EFFECT_MS,
+            ) {
+                Ok(plan) => {
+                    let gate = plan
+                        .acquire_gate()
+                        .await
+                        .expect("the pre-fix cross-engine plan acquired its terminal gate");
+                    with_service_authority_terminal_gate(gate, || {
+                        target
+                            .snapback
+                            .revoke_grant_for_user(&authority, &grant_id, DENY_EFFECT_MS)
+                            .map(|_| ())
+                    })
+                }
+                Err(error) => Err(error),
+            }
+        };
+        let error = result.expect_err("an authority from engine A must not act in engine B");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_POLICY_UNAVAILABLE");
+        let after = target
+            .snapback
+            .auth_database_mut()
+            .grant_revocation_durable_rows_for_test()
+            .expect("read target rows after cross-engine attack");
+        assert_eq!(after, before, "bulk={bulk}");
+    }
+}
+
+#[tokio::test]
 async fn single_grant_revocation_derives_subject_and_preserves_foreign_durable_authority() {
     use crate::auth::service_authority_contract::ServiceAuthorityDisposition;
     use crate::auth::service_fence::with_service_authority_terminal_gate;
@@ -33173,7 +33371,7 @@ async fn single_grant_revocation_derives_subject_and_preserves_foreign_durable_a
     let mut expected = Vec::new();
     for case in deny_subject_cases() {
         let mut fixture = GrantRevocationFixture::new(1);
-        let authority = denial_management_authority(case);
+        let authority = denial_management_authority(&mut fixture.snapback, case);
         let grant_id = fixture.first_grant_id(case.target_user).to_owned();
         let terminal_plan = fixture.snapback.service_authority_terminal_plan_for_test(
             fixture.terminal_token_ids(case.target_user, false),
@@ -33217,7 +33415,7 @@ async fn bulk_grant_revocation_derives_subject_and_preserves_foreign_durable_aut
     let mut expected = Vec::new();
     for case in deny_subject_cases() {
         let mut fixture = GrantRevocationFixture::new(2);
-        let authority = denial_management_authority(case);
+        let authority = denial_management_authority(&mut fixture.snapback, case);
         let terminal_plan = fixture.snapback.service_authority_terminal_plan_for_test(
             fixture.terminal_token_ids(case.target_user, true),
             ServiceAuthorityDisposition::DurableDelete,
@@ -33229,7 +33427,7 @@ async fn bulk_grant_revocation_derives_subject_and_preserves_foreign_durable_aut
         let result = with_service_authority_terminal_gate(terminal_gate, || {
             fixture.snapback.revoke_grants_by_actor_for_user(
                 &authority,
-                "agent-revocation-shared",
+                DENY_AGENT_USER,
                 DENY_EFFECT_MS,
             )
         });
@@ -33271,21 +33469,21 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
         r#"[{"fn":"fn:grantApprovalRead","kind":"query","basis":0,"authorityCreating":false}]"#;
     const AGENT_REGISTRATION_PROVENANCE: &str = "grant-approval-authority-test";
     const OTHER_OWNER_AGENT_WARNING: &str = "You do not own this agent. Its owner can re-credential it and use memberships or roles that this grant creates for the agent.";
-    const FIRST_GRANTOR: &str = "user-m";
+    const FIRST_GRANTOR: &str = "usr_00000000000000000000000011";
     // PreparedAuthority remains caller-constructible, so successful cases
     // form a non-functional claim matrix: the same user and authority instance
     // carry two sessions, while the same session and authority instance carry
     // two users. This proves only that approval derives both carried claims; it
     // does not claim that these durable provider sessions are constructible.
-    const FIRST_SESSION: &str = "session-m";
-    const SECOND_SESSION: &str = "session-x";
-    const SECOND_GRANTOR: &str = "user-x";
-    const SHARED_AUTHORITY_INSTANCE: &str = "grant-authority-independent-alpha";
-    const SECOND_AUTHORITY_INSTANCE: &str = "grant-authority-independent-beta";
-    const FIRST_AGENT_OWNER: &str = "user-owner-a";
-    const SECOND_AGENT_OWNER: &str = "user-owner-b";
-    const FIRST_AGENT: &str = "agent-grant-approval-a";
-    const SECOND_AGENT: &str = "agent-grant-approval-b";
+    const FIRST_SESSION: &str = "ses_00000000000000000000000014";
+    const SECOND_SESSION: &str = "ses_00000000000000000000000015";
+    const SECOND_GRANTOR: &str = "usr_00000000000000000000000014";
+    const SHARED_AUTHORITY_INSTANCE: &str = "aut_00000000000000000000000011";
+    const SECOND_AUTHORITY_INSTANCE: &str = "aut_00000000000000000000000012";
+    const FIRST_AGENT_OWNER: &str = "usr_00000000000000000000000030";
+    const SECOND_AGENT_OWNER: &str = "usr_00000000000000000000000031";
+    const FIRST_AGENT: &str = "usr_00000000000000000000000032";
+    const SECOND_AGENT: &str = "usr_00000000000000000000000033";
 
     struct Fixture {
         snapback: LocalSnapback,
@@ -33306,12 +33504,12 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                     .activate_current_auth_catalog()
                     .expect("activate grant approval auth catalog");
                 for user_id in [
-                    "user-a",
+                    "usr_00000000000000000000000010",
                     FIRST_GRANTOR,
                     FIRST_AGENT_OWNER,
                     SECOND_AGENT_OWNER,
                     SECOND_GRANTOR,
-                    "user-z",
+                    "usr_00000000000000000000000013",
                 ] {
                     database
                         .auth_catalog()
@@ -33362,10 +33560,18 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                     .expect("install grant approval scope basis");
 
                 [
-                    ("user-a", FIRST_AGENT, &first_credential.secret),
+                    (
+                        "usr_00000000000000000000000010",
+                        FIRST_AGENT,
+                        &first_credential.secret,
+                    ),
                     (FIRST_GRANTOR, FIRST_AGENT, &first_credential.secret),
                     (SECOND_GRANTOR, SECOND_AGENT, &second_credential.secret),
-                    ("user-z", FIRST_AGENT, &first_credential.secret),
+                    (
+                        "usr_00000000000000000000000013",
+                        FIRST_AGENT,
+                        &first_credential.secret,
+                    ),
                 ]
                 .into_iter()
                 .enumerate()
@@ -33560,6 +33766,7 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
         let (authority, selected_request_id) = match case {
             Case::FirstExact => (
                 test_grant_session_authority(
+                    &mut fixture.snapback,
                     InvocationSource::AgentGrantManagement,
                     FIRST_GRANTOR,
                     case.expected_session(),
@@ -33569,6 +33776,7 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
             ),
             Case::SameUserSecondSession => (
                 test_grant_session_authority(
+                    &mut fixture.snapback,
                     InvocationSource::AgentGrantManagement,
                     FIRST_GRANTOR,
                     case.expected_session(),
@@ -33578,6 +33786,7 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
             ),
             Case::SameSessionSecondUser => (
                 test_grant_session_authority(
+                    &mut fixture.snapback,
                     InvocationSource::AgentGrantManagement,
                     SECOND_GRANTOR,
                     case.expected_session(),
@@ -33587,6 +33796,7 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
             ),
             Case::SecondExact => (
                 test_grant_session_authority(
+                    &mut fixture.snapback,
                     InvocationSource::AgentGrantManagement,
                     SECOND_GRANTOR,
                     case.expected_session(),
@@ -33596,6 +33806,7 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
             ),
             Case::WrongSource => (
                 test_grant_session_authority(
+                    &mut fixture.snapback,
                     InvocationSource::HttpQuery,
                     FIRST_GRANTOR,
                     FIRST_SESSION,
@@ -33605,6 +33816,7 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
             ),
             Case::LowerSubject => (
                 test_grant_session_authority(
+                    &mut fixture.snapback,
                     InvocationSource::AgentGrantManagement,
                     FIRST_GRANTOR,
                     FIRST_SESSION,
@@ -33614,6 +33826,7 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
             ),
             Case::UpperSubject => (
                 test_grant_session_authority(
+                    &mut fixture.snapback,
                     InvocationSource::AgentGrantManagement,
                     FIRST_GRANTOR,
                     FIRST_SESSION,
@@ -33793,47 +34006,57 @@ fn grant_revocation_planners_select_only_the_session_users_exact_token_set() {
             .expect("install grant scope bases");
         database
             .auth_catalog()
-            .insert_human_user_for_test("user-a", now_ms)
+            .insert_human_user_for_test("usr_00000000000000000000000010", now_ms)
             .expect("create lexically lower effective user");
         database
             .auth_catalog()
-            .insert_human_user_for_test("user-m", now_ms)
+            .insert_human_user_for_test("usr_00000000000000000000000011", now_ms)
             .expect("create caller effective user");
         database
             .auth_catalog()
-            .insert_human_user_for_test("user-z", now_ms)
+            .insert_human_user_for_test("usr_00000000000000000000000013", now_ms)
             .expect("create lexically upper effective user");
         database
             .create_agent_principal(
-                "agent-shared",
+                "usr_00000000000000000000000034",
                 now_ms,
                 &crate::storage::auth_agents::AgentRegistration {
                     display_name: Some("Shared Agent".to_owned()),
                     operator_contact: None,
                     registration_provenance: "grant-revocation-planner-test".to_owned(),
-                    owner_user_id: Some("user-m".to_owned()),
+                    owner_user_id: Some("usr_00000000000000000000000011".to_owned()),
                 },
             )
             .expect("create caller's agent");
         let credential = database
-            .issue_initial_agent_credential("agent-shared", now_ms, &random)
+            .issue_initial_agent_credential("usr_00000000000000000000000034", now_ms, &random)
             .expect("issue agent credential");
         database
             .auth_catalog()
-            .insert_finite_authority_grant_for_test("grant-lower", "agent-shared", "user-a", now_ms)
+            .insert_finite_authority_grant_for_test(
+                "grant-lower",
+                "usr_00000000000000000000000034",
+                "usr_00000000000000000000000010",
+                now_ms,
+            )
             .expect("create lexically lower user's grant");
         database
             .auth_catalog()
             .insert_finite_authority_grant_for_test(
                 "grant-caller",
-                "agent-shared",
-                "user-m",
+                "usr_00000000000000000000000034",
+                "usr_00000000000000000000000011",
                 now_ms,
             )
             .expect("create caller's grant");
         database
             .auth_catalog()
-            .insert_finite_authority_grant_for_test("grant-upper", "agent-shared", "user-z", now_ms)
+            .insert_finite_authority_grant_for_test(
+                "grant-upper",
+                "usr_00000000000000000000000034",
+                "usr_00000000000000000000000013",
+                now_ms,
+            )
             .expect("create lexically upper user's grant");
         let lower_token_id = database
             .mint_scoped_token(
@@ -33868,8 +34091,9 @@ fn grant_revocation_planners_select_only_the_session_users_exact_token_set() {
         (lower_token_id, caller_token_id, upper_token_id)
     };
     let authority = test_live_session_authority(
+        &mut snapback,
         InvocationSource::AgentGrantManagement,
-        "user-m",
+        "usr_00000000000000000000000011",
         1,
         now_ms + 60_000,
         None,
@@ -33893,8 +34117,9 @@ fn grant_revocation_planners_select_only_the_session_users_exact_token_set() {
     }
 
     let wrong_source = test_live_session_authority(
+        &mut snapback,
         InvocationSource::HttpMutation,
-        "user-m",
+        "usr_00000000000000000000000011",
         1,
         now_ms + 60_000,
         None,
@@ -33906,27 +34131,27 @@ fn grant_revocation_planners_select_only_the_session_users_exact_token_set() {
     };
     assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_REQUIRED");
 
-    let admission = AdmissionController::from_mode_state(&settled_sessions_state())
-        .expect("managed Sessions admission controller");
-    let retired_authority = InvocationGate::prepare_admitted_authority(
-        InvocationSource::AgentGrantManagement,
-        AuthMode::Sessions,
-        ServerProfile::Test,
-        admission
-            .admit_for_mode(AuthMode::Sessions)
-            .expect("admit grant-management authority"),
-        &WireAuthorityFields::default(),
-        authority.resolved().clone(),
-        Some(
-            crate::auth::identity_core::AuthClaimsProjection::server_derived(
-                Vec::new(),
-                Vec::new(),
-            ),
-        ),
-    )
-    .expect("prepare managed grant-management authority");
+    let bulk = snapback
+        .plan_bulk_grant_revocation_service_terminal(
+            &authority,
+            "usr_00000000000000000000000034",
+            now_ms,
+        )
+        .expect("bulk planning selects the caller's grants");
+    let planned_tokens = bulk.token_ids().iter().cloned().collect::<BTreeSet<_>>();
+    let expected_positive_tokens = BTreeSet::from([caller_token_id]);
+    let expected_negative_tokens = BTreeSet::from([lower_token_id, upper_token_id]);
+    let selected_negative_tokens = planned_tokens
+        .intersection(&expected_negative_tokens)
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    assert_eq!(planned_tokens, expected_positive_tokens);
+    assert_eq!(selected_negative_tokens, BTreeSet::new());
+
+    let retired_authority = authority.clone();
     assert_eq!(
-        admission
+        snapback
+            .admission
             .retire_current_epoch_for_test()
             .expect_err("outstanding authority forces retirement timeout")
             .diagnostic
@@ -33939,19 +34164,6 @@ fn grant_revocation_planners_select_only_the_session_users_exact_token_set() {
         panic!("retired grant-management authority must be refused");
     };
     assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_MODE_PENDING");
-
-    let bulk = snapback
-        .plan_bulk_grant_revocation_service_terminal(&authority, "agent-shared", now_ms)
-        .expect("bulk planning selects the caller's grants");
-    let planned_tokens = bulk.token_ids().iter().cloned().collect::<BTreeSet<_>>();
-    let expected_positive_tokens = BTreeSet::from([caller_token_id]);
-    let expected_negative_tokens = BTreeSet::from([lower_token_id, upper_token_id]);
-    let selected_negative_tokens = planned_tokens
-        .intersection(&expected_negative_tokens)
-        .cloned()
-        .collect::<BTreeSet<_>>();
-    assert_eq!(planned_tokens, expected_positive_tokens);
-    assert_eq!(selected_negative_tokens, BTreeSet::new());
 }
 
 fn test_session_admission() -> crate::auth::admission::AdmissionLease {
@@ -34172,7 +34384,7 @@ fn relational_shrinking_replacement_is_obligation_backed_and_recovered() {
             HandlerInput {
                 args: json!({ "title": "alpha", "slug": "ada" }),
                 auth: AuthInput {
-                    user_id: Some("user-a".to_owned()),
+                    user_id: Some("usr_00000000000000000000000010".to_owned()),
                     ..AuthInput::default()
                 },
                 ..HandlerInput::default()
@@ -34196,7 +34408,7 @@ fn relational_shrinking_replacement_is_obligation_backed_and_recovered() {
             },
             &HandlerInput {
                 auth: AuthInput {
-                    user_id: Some("user-a".to_owned()),
+                    user_id: Some("usr_00000000000000000000000010".to_owned()),
                     ..AuthInput::default()
                 },
                 ..HandlerInput::default()
@@ -34211,15 +34423,14 @@ fn relational_shrinking_replacement_is_obligation_backed_and_recovered() {
     let connection = install_test_invalidation(&mut snapback);
     insert_live_test_session(
         &mut snapback,
-        "user-a",
-        "sess-shrink",
-        "authinst-shrink",
+        "usr_00000000000000000000000010",
+        "ses_00000000000000000000000016",
+        "aut_00000000000000000000000013",
         45,
     );
-    let admission = managed_session_admission();
     let owner_input = HandlerInput {
         auth: AuthInput {
-            user_id: Some("user-a".to_owned()),
+            user_id: Some("usr_00000000000000000000000010".to_owned()),
             ..AuthInput::default()
         },
         ..HandlerInput::default()
@@ -34227,27 +34438,15 @@ fn relational_shrinking_replacement_is_obligation_backed_and_recovered() {
     // An owner-visible plan needs a real Session authority under the
     // session-mode admission (the anonymous test default would refuse
     // with AUTH_USER_MISSING).
-    let session_authority = |source| {
-        crate::auth::invocation::InvocationGate::prepare_authority(
-            source,
-            AuthMode::Sessions,
-            crate::contract_types::ServerProfile::Test,
-            1,
-            1,
-            &crate::auth::invocation::WireAuthorityFields::default(),
-            crate::auth::invocation::ResolvedAppAuthority::Session {
-                user_id: "user-a".to_owned(),
-                session_id: "sess-shrink".to_owned(),
-                provider: "test".to_owned(),
-                generation: 1,
-                authority_instance_id: "authinst-shrink".to_owned(),
-                session_not_after_ms: u64::MAX / 2,
-                provider_not_after_ms: None,
-                rehearsal_provenance: None,
-            },
-        )
-        .expect("prepare session authority")
-    };
+    let subscribe_authority = snapback.prepare_resolved_session_for_test(
+        InvocationSource::LiveInitialQuery,
+        "usr_00000000000000000000000010",
+        "ses_00000000000000000000000016",
+        "aut_00000000000000000000000013",
+        1,
+        u64::MAX / 2,
+    );
+    let admission = subscribe_authority.admission_lease().clone();
     let subscribed = snapback
         .subscribe_live_prepared_with_invalidation(
             "booksWithAuthors",
@@ -34258,7 +34457,7 @@ fn relational_shrinking_replacement_is_obligation_backed_and_recovered() {
                 supersedes: None,
                 resume_from_token: None,
             },
-            session_authority(crate::auth::invocation::InvocationSource::LiveInitialQuery),
+            subscribe_authority,
             LiveInvalidationAdmission {
                 session_mode: true,
                 connection: Some(connection.clone()),
@@ -34273,6 +34472,14 @@ fn relational_shrinking_replacement_is_obligation_backed_and_recovered() {
     assert!(drain_live_stream_through_test_sink(&mut snapback, "rel-shrink").is_empty());
 
     // The shrinking commit: the only visible root is deleted.
+    let mutation_authority = snapback.prepare_resolved_session_for_test(
+        InvocationSource::HttpMutation,
+        "usr_00000000000000000000000010",
+        "ses_00000000000000000000000016",
+        "aut_00000000000000000000000013",
+        1,
+        u64::MAX / 2,
+    );
     snapback
         .invoke_mutation_with_authority(
             "deleteBook",
@@ -34280,7 +34487,7 @@ fn relational_shrinking_replacement_is_obligation_backed_and_recovered() {
                 args: json!({ "id": book_id }),
                 ..HandlerInput::default()
             },
-            session_authority(crate::auth::invocation::InvocationSource::HttpMutation),
+            mutation_authority,
         )
         .expect("delete the visible book");
     let messages =
@@ -35334,6 +35541,9 @@ fn retired_auth_epoch_cannot_commit_retry_registry_state() {
 /// future that real `now_millis()` samples stay below the session expiry.
 const LEASE_SESSION_BASE_MS: u64 = 1_900_000_000_000;
 const LEASE_SESSION_NOT_AFTER_MS: u64 = LEASE_SESSION_BASE_MS + 86_400_000;
+const LEASE_USER_ID: &str = "01890f3c-9d5b-7000-8000-000000000001";
+const LEASE_IDENTITY_ID: &str = "01890f3c-9d5b-7000-8000-000000000002";
+const LEASE_SESSION_ID: &str = "01890f3c-9d5b-7000-8000-000000000003";
 const LEASE_AUTHORITY_INSTANCE: &str = "01890f3c-9d5b-7000-8000-000000000004";
 
 /// A settled sessions-mode snapback with one durable session and one
@@ -35596,9 +35806,9 @@ globalThis.__snapbackHandlers = {
         .expect("activate auth catalog");
     db.auth_catalog()
         .insert_email_session_for_test(
-            "user_1",
-            "identity_1",
-            "session_1",
+            LEASE_USER_ID,
+            LEASE_IDENTITY_ID,
+            LEASE_SESSION_ID,
             LEASE_AUTHORITY_INSTANCE,
             "lease@example.test",
             &[0x71_u8; 32],
@@ -35611,26 +35821,15 @@ globalThis.__snapbackHandlers = {
     snapback
 }
 
-fn lease_session_authority() -> PreparedAuthority {
-    InvocationGate::prepare_authority(
+fn lease_session_authority(snapback: &mut LocalSnapback) -> PreparedAuthority {
+    snapback.prepare_resolved_session_for_test(
         InvocationSource::HttpQuery,
-        AuthMode::Sessions,
-        ServerProfile::Test,
-        0,
-        0,
-        &WireAuthorityFields::default(),
-        ResolvedAppAuthority::Session {
-            user_id: "user_1".to_owned(),
-            session_id: "session_1".to_owned(),
-            provider: "email-code".to_owned(),
-            generation: 1,
-            authority_instance_id: LEASE_AUTHORITY_INSTANCE.to_owned(),
-            session_not_after_ms: LEASE_SESSION_NOT_AFTER_MS,
-            provider_not_after_ms: None,
-            rehearsal_provenance: None,
-        },
+        LEASE_USER_ID,
+        LEASE_SESSION_ID,
+        LEASE_AUTHORITY_INSTANCE,
+        1,
+        LEASE_SESSION_NOT_AFTER_MS,
     )
-    .expect("prepare lease session authority")
 }
 
 fn lease_target_namespace() -> QueryNamespace {
@@ -35722,11 +35921,12 @@ fn relational_retention_lease_class_admits_and_captures() {
     let mut snapback = retainable_sessions_snapback();
     let _connection = install_test_invalidation(&mut snapback);
 
+    let authority = lease_session_authority(&mut snapback);
     let capture = snapback
         .capture_authorized_lease_query(
             "relationalOwned",
             HandlerInput::default(),
-            lease_session_authority(),
+            authority,
             lease_request("req_relational_1"),
         )
         .expect("owner-visible retained relational plan captures a lease");
@@ -35836,11 +36036,12 @@ fn authorized_lease_capture_ignores_unrelated_obligations_and_blocks_matching_on
     raise_client_query_obligation(&mut snapback, other_instance);
 
     // User B's lease for an untouched target still issues end to end.
+    let authority = lease_session_authority(&mut snapback);
     let capture = snapback
         .capture_authorized_lease_query(
             "listOwned",
             HandlerInput::default(),
-            lease_session_authority(),
+            authority,
             lease_request("req_unrelated_1"),
         )
         .expect("unrelated obligations must not block capture");
@@ -35858,11 +36059,12 @@ fn authorized_lease_capture_ignores_unrelated_obligations_and_blocks_matching_on
     // An obligation for the exact target namespace still fails capture
     // closed.
     raise_client_query_obligation(&mut snapback, lease_target_namespace());
+    let authority = lease_session_authority(&mut snapback);
     let error = snapback
         .capture_authorized_lease_query(
             "listOwned",
             HandlerInput::default(),
-            lease_session_authority(),
+            authority,
             lease_request("req_matching_1"),
         )
         .map(|_| ())
@@ -35878,11 +36080,12 @@ fn authorized_lease_reservation_recheck_is_scoped_to_the_lease_target() {
     let mut snapback = retainable_sessions_snapback();
     let _connection = install_test_invalidation(&mut snapback);
 
+    let authority = lease_session_authority(&mut snapback);
     let capture = snapback
         .capture_authorized_lease_query(
             "listOwned",
             HandlerInput::default(),
-            lease_session_authority(),
+            authority,
             lease_request("req_race_matching"),
         )
         .expect("clean capture");
@@ -35902,11 +36105,12 @@ fn authorized_lease_reservation_recheck_is_scoped_to_the_lease_target() {
     // Once that exact obligation is applied and ACKed, a fresh capture
     // succeeds even when an unrelated obligation races the same window.
     discharge_client_query_obligation(&mut snapback, lease_target_namespace());
+    let authority = lease_session_authority(&mut snapback);
     let capture = snapback
         .capture_authorized_lease_query(
             "listOwned",
             HandlerInput::default(),
-            lease_session_authority(),
+            authority,
             lease_request("req_race_unrelated"),
         )
         .expect("discharged target allows a fresh capture");
@@ -36815,7 +37019,7 @@ fn service_host_plan_fixture(
             .all(|diagnostic| diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error),
         "HostPlan call-site function must load: {diagnostics:?}",
     );
-    install_service_replay_auth(&mut snapback);
+    let _ = install_service_replay_auth(&mut snapback);
     snapback
 }
 
@@ -36825,8 +37029,7 @@ fn invoke_service_host_plan_path(
     identity_binding: bool,
 ) -> crate::diagnostic::SnapbackError {
     let mut snapback = service_host_plan_fixture(wrapper, identity_binding);
-    let service_fences = snapback.service_authority_fences.clone();
-    let authority = admitted_service_mutation_authority(&service_fences);
+    let authority = admitted_service_mutation_authority(&mut snapback);
     let call_input = HandlerInput {
         args: json!({
             "incidentId": "incident-a",
@@ -38247,26 +38450,24 @@ fn live_unsubscribe_requires_the_exact_connection_grant() {
 }
 
 #[test]
-fn live_unsubscribe_owner_survives_session_deadline_extension() {
+fn live_unsubscribe_owner_clone_preserves_the_same_authority() {
     let mut snapback = live_limit_snapback();
-    let connection = install_test_invalidation(&mut snapback);
-    insert_live_test_session(
+    let initial_authority = test_live_session_authority(
         &mut snapback,
-        "live-owner-user",
-        "live-owner-session",
-        "live-owner-authority",
-        46,
+        InvocationSource::LiveInitialQuery,
+        "usr_00000000000000000000000016",
+        1,
+        4_000_000_000_000,
+        Some(4_000_000_000_000),
     );
+    let unsubscribe_authority = initial_authority
+        .inherit_for(InvocationSource::LiveUnsubscribe)
+        .expect("continue the exact carrier into unsubscribe");
+    let connection = install_test_invalidation(&mut snapback);
     let owner_fence = crate::ephemeral::ConnectionEffectFence::session(
         "live-owner-incarnation",
         "deadline-owner-grant",
-        "live-owner-session",
-        1,
-    );
-    let other_fence = crate::ephemeral::ConnectionEffectFence::session(
-        "live-owner-incarnation",
-        "deadline-other-grant",
-        "live-owner-session",
+        "ses_00000000000000000000000016",
         1,
     );
     let subscribed = snapback
@@ -38279,87 +38480,28 @@ fn live_unsubscribe_owner_survives_session_deadline_extension() {
                 supersedes: None,
                 resume_from_token: None,
             },
-            test_live_session_authority(
-                InvocationSource::LiveInitialQuery,
-                "live-owner-user",
-                1,
-                10_000,
-                Some(9_000),
-            ),
+            initial_authority,
             LiveInvalidationAdmission {
                 connection: Some(connection),
                 effect_fence: Some(owner_fence.clone()),
                 session_mode: true,
             },
         )
-        .expect("subscribe under the predecessor deadline snapshot");
+        .expect("subscribe under the target-owned authority");
     let unsubscribe = || LiveUnsubscribeInput {
         subscription_id: subscribed.subscription_id.clone(),
         connection_id: "deadline-owner".to_owned(),
         auth: AuthInput::default(),
     };
 
-    for (label, authority, fence) in [
-        (
-            "generation",
-            test_live_session_authority(
-                InvocationSource::LiveUnsubscribe,
-                "live-owner-user",
-                2,
-                20_000,
-                Some(19_000),
-            ),
-            &owner_fence,
-        ),
-        (
-            "user",
-            test_live_session_authority(
-                InvocationSource::LiveUnsubscribe,
-                "other-live-owner-user",
-                1,
-                20_000,
-                Some(19_000),
-            ),
-            &owner_fence,
-        ),
-        (
-            "connection grant",
-            test_live_session_authority(
-                InvocationSource::LiveUnsubscribe,
-                "live-owner-user",
-                1,
-                20_000,
-                Some(19_000),
-            ),
-            &other_fence,
-        ),
-    ] {
-        let error = snapback
-            .unsubscribe_live_prepared("listItems", unsubscribe(), authority, Some(fence))
-            .expect_err(&format!("a changed {label} cannot unsubscribe"));
-        assert_eq!(error.diagnostic.code, "SNAPBACK_LIVE_RESUME_OWNERSHIP");
-        assert!(
-            snapback
-                .subscriptions
-                .contains_key(&subscribed.subscription_id),
-            "a refused {label} owner must preserve the subscription",
-        );
-    }
-
     let disposed = snapback
         .unsubscribe_live_prepared(
             "listItems",
             unsubscribe(),
-            test_live_session_authority(
-                InvocationSource::LiveUnsubscribe,
-                "live-owner-user",
-                1,
-                20_000,
-                Some(19_000),
-            ),
+            unsubscribe_authority,
             Some(&owner_fence),
         )
-        .expect("the stable session key and exact grant survive deadline extension");
+        .expect("a clone remains the same target-owned session authority");
     assert!(disposed.disposed);
     assert!(
         !snapback
@@ -42411,7 +42553,7 @@ fn p3_probe_rows(snapback: &LocalSnapback) -> Vec<Value> {
 }
 
 #[test]
-fn f091_verified_bound_carrier_replays_into_two_cloned_databases() {
+fn f091_verified_bound_carrier_refuses_a_cloned_database_graph() {
     let (_directory, mut database_a, mut database_b) = p3_probe_file_engines();
     let now_ms = now_millis();
     let monotonic_now = Instant::now();
@@ -42427,6 +42569,7 @@ fn f091_verified_bound_carrier_replays_into_two_cloned_databases() {
         .expect("mint database A projection snapshot");
     let coordinator = crate::auth::coordinator::AuthCoordinator::from_admitted_snapshot(
         snapshot,
+        database_a.admission.clone(),
         now_ms,
         monotonic_now,
     )
@@ -42460,7 +42603,7 @@ fn f091_verified_bound_carrier_replays_into_two_cloned_databases() {
             now_ms,
         )
         .expect("prepare cloned carrier against database A");
-    let authority_b = database_b
+    let error = database_b
         .prepare_bearer_authority(
             carrier,
             InvocationSource::HttpMutation,
@@ -42473,28 +42616,23 @@ fn f091_verified_bound_carrier_replays_into_two_cloned_databases() {
             &WireAuthorityFields::default(),
             now_ms,
         )
-        .expect("prepare original carrier against database B");
+        .expect_err("database A carrier cannot be rebound to database B");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_POLICY_UNAVAILABLE");
     let output_a = p3_record_probe(&mut database_a, authority_a, "A")
         .expect("publish authenticated mutation in database A");
-    let output_b = p3_record_probe(&mut database_b, authority_b, "B")
-        .expect("publish authenticated mutation in database B");
     let rows_a = p3_probe_rows(&database_a);
     let rows_b = p3_probe_rows(&database_b);
 
     assert_eq!(output_a.changed_count, 1);
-    assert_eq!(output_b.changed_count, 1);
     assert_eq!(rows_a.len(), 1);
-    assert_eq!(rows_b.len(), 1);
+    assert!(rows_b.is_empty());
     assert_eq!(rows_a[0]["lane"], "A");
-    assert_eq!(rows_b[0]["lane"], "B");
     assert_eq!(rows_a[0]["sessionId"], P3_PROBE_SESSION);
-    assert_eq!(rows_b[0]["sessionId"], P3_PROBE_SESSION);
     assert_eq!(rows_a[0]["authUser"], P3_PROBE_REAL_USER);
-    assert_eq!(rows_b[0]["authUser"], P3_PROBE_REAL_USER);
 }
 
 #[test]
-fn c004_test_support_forged_projection_subject_commits_app_mutation() {
+fn c004_test_support_forged_projection_subject_is_refused() {
     let (_directory, mut database, _unused_clone) = p3_probe_file_engines();
     let now_ms = now_millis();
     let monotonic_now = Instant::now();
@@ -42558,7 +42696,7 @@ fn c004_test_support_forged_projection_subject_commits_app_mutation() {
     else {
         panic!("forged projection session must resolve current")
     };
-    let authority = database
+    let error = database
         .prepare_bearer_authority(
             carrier,
             InvocationSource::HttpMutation,
@@ -42571,9 +42709,8 @@ fn c004_test_support_forged_projection_subject_commits_app_mutation() {
             &WireAuthorityFields::default(),
             now_ms,
         )
-        .expect("prepare forged subject against genuine database claims");
-    let output = p3_record_probe(&mut database, authority, "forged")
-        .expect("commit mutation under forged projection subject");
+        .expect_err("forged projection subject cannot join the genuine database graph");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_POLICY_UNAVAILABLE");
     let rows = p3_probe_rows(&database);
     let durable_user = database
         .auth_database_mut()
@@ -42585,12 +42722,8 @@ fn c004_test_support_forged_projection_subject_commits_app_mutation() {
         .expect("durable genuine session remains")
         .user_id;
 
-    assert_eq!(output.changed_count, 1);
     assert_eq!(durable_user, P3_PROBE_REAL_USER);
-    assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0]["lane"], "forged");
-    assert_eq!(rows[0]["authUser"], P3_PROBE_FORGED_USER);
-    assert_eq!(rows[0]["sessionId"], P3_PROBE_SESSION);
+    assert!(rows.is_empty());
 }
 
 #[test]

@@ -18,7 +18,7 @@ use crate::auth::invocation::{
     AuthorizedEffectCommitGuard, AuthorizedEffectReservation, AuthorizedEffectReservationError,
     CallerAuthorityTerminalCause, FunctionAttribution, HandlerAuthProjection, InvocationGate,
     InvocationSource, PreparedAuthority, PreparedInvocation, ResolvedAppAuthority,
-    RetainedLiveAuthority, WireAuthorityFields, descriptor_for_authority,
+    ResolvedServiceSubject, RetainedLiveAuthority, WireAuthorityFields, descriptor_for_authority,
 };
 use crate::auth::lease::{
     AuthorizedLease, AuthorizedLeaseConfig, AuthorizedLeaseData, AuthorizedLeaseIssue,
@@ -3648,7 +3648,7 @@ pub struct ConsumedCapabilityLinkUse {
 /// service identity strings at authority preparation.
 #[derive(Clone, Debug)]
 pub struct ResolvedServiceAuthority {
-    resolved: ResolvedAppAuthority,
+    subject: ResolvedServiceSubject,
     publication: crate::auth::service_fence::ServiceAuthorityPublication,
 }
 
@@ -3718,19 +3718,8 @@ impl ApprovedEffectDispatch {
 }
 
 impl ResolvedServiceAuthority {
-    #[cfg(any(test, feature = "test-support"))]
-    pub fn synthetic_for_test(
-        resolved: ResolvedAppAuthority,
-        publication: crate::auth::service_fence::ServiceAuthorityPublication,
-    ) -> Self {
-        Self {
-            resolved,
-            publication,
-        }
-    }
-
     pub fn resolved(&self) -> &ResolvedAppAuthority {
-        &self.resolved
+        self.subject.resolved()
     }
 
     pub fn publication(&self) -> &crate::auth::service_fence::ServiceAuthorityPublication {
@@ -5148,14 +5137,15 @@ pub struct LegacyLocalActionAuthority(PreparedAuthority);
 impl LegacyLocalActionAuthority {
     fn try_new(authority: PreparedAuthority) -> SnapbackResult<Self> {
         match authority.resolved() {
-            ResolvedAppAuthority::Session { .. }
-            | ResolvedAppAuthority::ServicePrincipal { .. } => Err(SnapbackError::error(
-                "SNAPBACK_INVOCATION_SOURCE_INVALID",
-                "auth",
-                "finite caller actions must use the managed or detached split-phase executor",
-            )),
+            ResolvedAppAuthority::Session(_) | ResolvedAppAuthority::ServicePrincipal(_) => {
+                Err(SnapbackError::error(
+                    "SNAPBACK_INVOCATION_SOURCE_INVALID",
+                    "auth",
+                    "finite caller actions must use the managed or detached split-phase executor",
+                ))
+            }
             ResolvedAppAuthority::Anonymous
-            | ResolvedAppAuthority::RevalidatedPrincipal { .. }
+            | ResolvedAppAuthority::RevalidatedPrincipal(_)
             | ResolvedAppAuthority::DevImpersonation { .. }
             | ResolvedAppAuthority::AdminBypass { .. }
             | ResolvedAppAuthority::System => Ok(Self(authority)),
@@ -5449,6 +5439,13 @@ impl<R> DirectAuthorizationWrite<R> {
 }
 
 impl LocalSnapback {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn service_authority_fences_for_test(
+        &self,
+    ) -> crate::auth::service_fence::ServiceAuthorityFenceRegistry {
+        self.service_authority_fences.clone()
+    }
+
     /// Evaluate an already-admitted graph query without exposing it through a
     /// handler or serving dispatch. G2-C owns that integration boundary.
     #[cfg(any(test, feature = "test-support"))]
@@ -5597,6 +5594,7 @@ impl LocalSnapback {
         Ok(Arc::new(
             crate::auth::coordinator::AuthCoordinator::from_admitted_snapshot(
                 projection,
+                self.admission.clone(),
                 provider.now_ms(),
                 provider.monotonic_now(),
             )?,
@@ -5617,6 +5615,7 @@ impl LocalSnapback {
         Ok(Arc::new(
             crate::auth::coordinator::AuthCoordinator::from_admitted_snapshot(
                 projection,
+                self.admission.clone(),
                 now_millis(),
                 Instant::now(),
             )?,
@@ -5739,7 +5738,7 @@ impl LocalSnapback {
         now_ms: u64,
         random: &dyn crate::auth::crypto::RandomSource,
     ) -> SnapbackResult<crate::storage::auth_integrations::BegunOAuthAuthorization> {
-        let (authority_user_id, _) = Self::require_agent_grant_management_session(
+        let (authority_user_id, _) = self.require_agent_grant_management_session(
             authority,
             "OAuth consent request authorization",
         )?;
@@ -5763,7 +5762,7 @@ impl LocalSnapback {
         request_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<crate::storage::auth_integrations::DeniedOAuthAuthorization> {
-        let (consenting_user_id, _) = Self::require_agent_grant_management_session(
+        let (consenting_user_id, _) = self.require_agent_grant_management_session(
             authority,
             "OAuth consent denial authorization",
         )?;
@@ -5779,7 +5778,7 @@ impl LocalSnapback {
         step_up_proof: Option<&crate::auth::crypto::StepUpProof>,
         now_ms: u64,
     ) -> SnapbackResult<crate::storage::auth_grants::GrantApproval> {
-        let (effective_user_id, session_id) = Self::require_agent_grant_management_session(
+        let (effective_user_id, session_id) = self.require_agent_grant_management_session(
             authority,
             "OAuth consent approval authorization",
         )?;
@@ -5801,7 +5800,7 @@ impl LocalSnapback {
         now_ms: u64,
         random: &dyn crate::auth::crypto::RandomSource,
     ) -> SnapbackResult<crate::storage::auth_integrations::IssuedOAuthAuthorization> {
-        let (consenting_user_id, _) = Self::require_agent_grant_management_session(
+        let (consenting_user_id, _) = self.require_agent_grant_management_session(
             authority,
             "OAuth authorization-code issuance authorization",
         )?;
@@ -5876,19 +5875,17 @@ impl LocalSnapback {
                 "effect management requires exact shared-gate session authority",
             ));
         }
-        let ResolvedAppAuthority::Session {
-            user_id,
-            session_id,
-            ..
-        } = management.resolved()
-        else {
+        let ResolvedAppAuthority::Session(subject) = management.resolved() else {
             return Err(SnapbackError::error(
                 "SNAPBACK_INVOCATION_SOURCE_INVALID",
                 "auth",
                 "effect management requires exact shared-gate session authority",
             ));
         };
-        Ok((user_id.to_owned(), session_id.to_owned()))
+        Ok((
+            subject.user_id().to_owned(),
+            subject.session_id().to_owned(),
+        ))
     }
 
     fn validate_prepared_effect_current(
@@ -6002,7 +5999,10 @@ impl LocalSnapback {
             .register(resolved.service_authority_witness(), now_ms, monotonic_now)?
             .with_provider_clock(provider);
         Ok(ResolvedServiceAuthority {
-            resolved: ResolvedAppAuthority::from_scoped_token(resolved),
+            subject: ResolvedServiceSubject::from_scoped_token(
+                resolved,
+                self.admission.lease_origin(),
+            )?,
             publication,
         })
     }
@@ -6061,18 +6061,12 @@ impl LocalSnapback {
         };
         if !matches!(
             prepared.resolved(),
-            ResolvedAppAuthority::Session {
-                user_id,
-                session_id,
-                provider,
-                generation,
-                authority_instance_id,
-                ..
-            } if user_id == retained.user_id()
-                && session_id == retained.session_id()
-                && provider == retained.provider()
-                && *generation == retained.generation()
-                && authority_instance_id == retained.authority_instance_id()
+            ResolvedAppAuthority::Session(subject)
+                if subject.user_id() == retained.user_id()
+                    && subject.session_id() == retained.session_id()
+                    && subject.provider() == retained.provider()
+                    && subject.generation() == retained.generation()
+                    && subject.authority_instance_id() == retained.authority_instance_id()
         ) {
             return Err(effect_original_authority_mismatch());
         }
@@ -6109,22 +6103,14 @@ impl LocalSnapback {
         };
         if !matches!(
             resolution.resolved(),
-            ResolvedAppAuthority::ServicePrincipal {
-                actor_user_id,
-                credential_id,
-                credential_generation,
-                grant_id,
-                token_id,
-                effective_user_id,
-                token_expires_at_ms,
-                ..
-            } if actor_user_id == retained.actor_user_id()
-                && credential_id == retained.credential_id()
-                && *credential_generation == retained.credential_generation()
-                && grant_id == retained.grant_id()
-                && token_id == retained.token_id()
-                && effective_user_id.as_deref() == retained.effective_user_id()
-                && *token_expires_at_ms == retained.token_expires_at_ms()
+            ResolvedAppAuthority::ServicePrincipal(subject)
+                if subject.actor_user_id() == retained.actor_user_id()
+                    && subject.credential_id() == retained.credential_id()
+                    && subject.credential_generation() == retained.credential_generation()
+                    && subject.grant_id() == retained.grant_id()
+                    && subject.token_id() == retained.token_id()
+                    && subject.effective_user_id() == retained.effective_user_id()
+                    && subject.token_expires_at_ms() == retained.token_expires_at_ms()
         ) {
             return Err(effect_original_authority_mismatch());
         }
@@ -6233,7 +6219,10 @@ impl LocalSnapback {
             .register(resolved.service_authority_witness(), now_ms, monotonic_now)?
             .with_provider_clock(provider);
         Ok(ResolvedServiceAuthority {
-            resolved: ResolvedAppAuthority::from_scoped_token(resolved),
+            subject: ResolvedServiceSubject::from_scoped_token(
+                resolved,
+                self.admission.lease_origin(),
+            )?,
             publication,
         })
     }
@@ -6372,13 +6361,7 @@ impl LocalSnapback {
         request: crate::storage::capability_links::MintCapabilityLink,
     ) -> SnapbackResult<crate::storage::capability_links::MintedCapabilityLink> {
         authority.validate_admission("capability-link mint transaction")?;
-        let ResolvedAppAuthority::Session {
-            user_id,
-            session_id,
-            authority_instance_id,
-            ..
-        } = authority.resolved()
-        else {
+        let ResolvedAppAuthority::Session(subject) = authority.resolved() else {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_REQUIRED",
                 "auth",
@@ -6386,9 +6369,9 @@ impl LocalSnapback {
             ));
         };
         if authority.source() != InvocationSource::CapabilityLinkManagement
-            || request.minter_principal_id != *user_id
-            || request.minter_session_id != *session_id
-            || request.minter_authority_instance_id != *authority_instance_id
+            || request.minter_principal_id != subject.user_id()
+            || request.minter_session_id != subject.session_id()
+            || request.minter_authority_instance_id != subject.authority_instance_id()
         {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_REQUIRED",
@@ -6419,13 +6402,7 @@ impl LocalSnapback {
         authorized_effect: AuthorizedEffectReservation,
     ) -> SnapbackResult<crate::storage::capability_links::MintedCapabilityLink> {
         authority.validate_admission("capability-link mint transaction")?;
-        let ResolvedAppAuthority::Session {
-            user_id,
-            session_id,
-            authority_instance_id,
-            ..
-        } = authority.resolved()
-        else {
+        let ResolvedAppAuthority::Session(subject) = authority.resolved() else {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_REQUIRED",
                 "auth",
@@ -6433,9 +6410,9 @@ impl LocalSnapback {
             ));
         };
         if authority.source() != InvocationSource::CapabilityLinkManagement
-            || request.minter_principal_id != *user_id
-            || request.minter_session_id != *session_id
-            || request.minter_authority_instance_id != *authority_instance_id
+            || request.minter_principal_id != subject.user_id()
+            || request.minter_session_id != subject.session_id()
+            || request.minter_authority_instance_id != subject.authority_instance_id()
         {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_REQUIRED",
@@ -6496,13 +6473,7 @@ impl LocalSnapback {
         now_ms: u64,
     ) -> SnapbackResult<()> {
         authority.validate_admission("capability-link revoke transaction")?;
-        let ResolvedAppAuthority::Session {
-            user_id,
-            session_id,
-            authority_instance_id,
-            ..
-        } = authority.resolved()
-        else {
+        let ResolvedAppAuthority::Session(subject) = authority.resolved() else {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_REQUIRED",
                 "auth",
@@ -6523,8 +6494,13 @@ impl LocalSnapback {
         let _effect = authority.effect_guard("capability-link revoke transaction")?;
         #[cfg(test)]
         run_after_admission_effect_guard_hook(AdmissionEffectSite::CapabilityLinkRevoke);
-        self.db
-            .revoke_capability_link(id, user_id, session_id, authority_instance_id, now_ms)
+        self.db.revoke_capability_link(
+            id,
+            subject.user_id(),
+            subject.session_id(),
+            subject.authority_instance_id(),
+            now_ms,
+        )
     }
 
     pub fn revoke_capability_link_with_authorized_effect(
@@ -6535,13 +6511,7 @@ impl LocalSnapback {
         authorized_effect: AuthorizedEffectReservation,
     ) -> SnapbackResult<()> {
         authority.validate_admission("capability-link revoke transaction")?;
-        let ResolvedAppAuthority::Session {
-            user_id,
-            session_id,
-            authority_instance_id,
-            ..
-        } = authority.resolved()
-        else {
+        let ResolvedAppAuthority::Session(subject) = authority.resolved() else {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_REQUIRED",
                 "auth",
@@ -6557,9 +6527,9 @@ impl LocalSnapback {
         }
         self.db.revoke_capability_link_guarded(
             id,
-            user_id,
-            session_id,
-            authority_instance_id,
+            subject.user_id(),
+            subject.session_id(),
+            subject.authority_instance_id(),
             now_ms,
             || authorized_effect.commit_guard("capability-link revoke transaction"),
         )
@@ -6621,11 +6591,7 @@ impl LocalSnapback {
         random: &dyn crate::auth::crypto::RandomSource,
         authorized_effect: AuthorizedEffectReservation,
     ) -> SnapbackResult<crate::storage::auth_agents::IssuedAgentInvitation> {
-        let ResolvedAppAuthority::Session {
-            user_id: authority_user_id,
-            ..
-        } = authority.resolved()
-        else {
+        let ResolvedAppAuthority::Session(subject) = authority.resolved() else {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_REQUIRED",
                 "auth",
@@ -6633,7 +6599,7 @@ impl LocalSnapback {
             ));
         };
         if authority.source() != InvocationSource::AgentGrantManagement
-            || authority_user_id != user_id
+            || subject.user_id() != user_id
         {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_REQUIRED",
@@ -6666,7 +6632,7 @@ impl LocalSnapback {
         random: &dyn crate::auth::crypto::RandomSource,
         authorized_effect: AuthorizedEffectReservation,
     ) -> SnapbackResult<crate::storage::auth_grants::MintedPairingCode> {
-        Self::require_pairing_code_mint_authority(authority, user_id)?;
+        self.require_pairing_code_mint_authority(authority, user_id)?;
         #[cfg(feature = "test-support")]
         let _probe_scope =
             crate::storage::auth_grants::install_registered_pairing_code_mint_commit_probe_for_test(
@@ -6687,10 +6653,11 @@ impl LocalSnapback {
     }
 
     fn require_pairing_code_mint_authority(
+        &self,
         authority: &PreparedAuthority,
         user_id: &str,
     ) -> SnapbackResult<()> {
-        let (authority_user_id, _) = Self::require_agent_grant_management_session(
+        let (authority_user_id, _) = self.require_agent_grant_management_session(
             authority,
             "pairing-code minting authorization",
         )?;
@@ -6717,9 +6684,21 @@ impl LocalSnapback {
     /// @ref LLP 0055#routes-and-credential-classes — user-facing grant
     /// management is session-only and scoped to the session user.
     fn require_agent_grant_management_session<'a>(
+        &self,
         authority: &'a PreparedAuthority,
         effect: &'static str,
     ) -> SnapbackResult<(&'a str, &'a str)> {
+        // A resolved subject remains derived only while it is used inside the
+        // engine graph that admitted it; carrying the genuine carrier to a
+        // second graph must not turn provenance into caller-supplied data.
+        // @ref LLP 0303#derivation-is-a-lifetime-property-not-a-constructor-event — bind use to the target engine graph
+        if !self.admission.owns_lease(authority.admission_lease()) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "grant management authority belongs to another engine graph",
+            ));
+        }
         authority.validate_admission(effect)?;
         if authority.source() != InvocationSource::AgentGrantManagement {
             return Err(SnapbackError::error(
@@ -6728,19 +6707,14 @@ impl LocalSnapback {
                 "agent grant management requires its registered invocation source",
             ));
         }
-        let ResolvedAppAuthority::Session {
-            user_id,
-            session_id,
-            ..
-        } = authority.resolved()
-        else {
+        let ResolvedAppAuthority::Session(subject) = authority.resolved() else {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_REQUIRED",
                 "auth",
                 "agent grant management requires session authority",
             ));
         };
-        Ok((user_id, session_id))
+        Ok((subject.user_id(), subject.session_id()))
     }
 
     pub fn present_pairing_code(
@@ -6782,7 +6756,7 @@ impl LocalSnapback {
         now_ms: u64,
     ) -> SnapbackResult<crate::storage::auth_grants::GrantApproval> {
         let (user_id, session_id) =
-            Self::require_agent_grant_management_session(authority, "grant approval")?;
+            self.require_agent_grant_management_session(authority, "grant approval")?;
         let _effect = authority.effect_guard("grant approval transaction")?;
         self.db.approve_grant_request(
             user_id,
@@ -6801,7 +6775,8 @@ impl LocalSnapback {
         request_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<()> {
-        let (user_id, _) = Self::require_agent_grant_management_session(authority, "grant denial")?;
+        let (user_id, _) =
+            self.require_agent_grant_management_session(authority, "grant denial")?;
         let _effect = authority.effect_guard("grant denial transaction")?;
         self.db.deny_grant_request(user_id, request_id, now_ms)
     }
@@ -6846,7 +6821,7 @@ impl LocalSnapback {
         now_ms: u64,
     ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
         let (user_id, _) =
-            Self::require_agent_grant_management_session(authority, "grant revocation planning")?;
+            self.require_agent_grant_management_session(authority, "grant revocation planning")?;
         self.db
             .plan_grant_revocation_service_terminal(user_id, grant_id, now_ms)
             .map(|token_ids| {
@@ -6865,7 +6840,7 @@ impl LocalSnapback {
         now_ms: u64,
     ) -> SnapbackResult<crate::storage::auth_grants::GrantRevocation> {
         let (user_id, _) =
-            Self::require_agent_grant_management_session(authority, "grant revocation")?;
+            self.require_agent_grant_management_session(authority, "grant revocation")?;
         let _effect = authority.effect_guard("grant revocation transaction")?;
         self.db.revoke_grant_for_user(user_id, grant_id, now_ms)
     }
@@ -6877,10 +6852,8 @@ impl LocalSnapback {
         actor_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
-        let (user_id, _) = Self::require_agent_grant_management_session(
-            authority,
-            "bulk grant revocation planning",
-        )?;
+        let (user_id, _) = self
+            .require_agent_grant_management_session(authority, "bulk grant revocation planning")?;
         self.db
             .plan_bulk_grant_revocation_service_terminal(user_id, actor_id, now_ms)
             .map(|token_ids| {
@@ -6899,7 +6872,7 @@ impl LocalSnapback {
         now_ms: u64,
     ) -> SnapbackResult<crate::storage::auth_grants::BulkGrantRevocation> {
         let (user_id, _) =
-            Self::require_agent_grant_management_session(authority, "bulk grant revocation")?;
+            self.require_agent_grant_management_session(authority, "bulk grant revocation")?;
         let _effect = authority.effect_guard("bulk grant revocation transaction")?;
         self.db
             .revoke_grants_by_actor_for_user(user_id, actor_id, now_ms)
@@ -7281,12 +7254,10 @@ impl LocalSnapback {
     fn connected_session_principal(authority: &PreparedAuthority) -> SnapbackResult<Option<&str>> {
         authority.validate_admission("connected-client witness update")?;
         match authority.resolved() {
-            ResolvedAppAuthority::Session { user_id, .. }
-            | ResolvedAppAuthority::RevalidatedPrincipal { user_id, .. }
-            | ResolvedAppAuthority::DevImpersonation { user_id, .. } => Ok(Some(user_id)),
-            ResolvedAppAuthority::Anonymous | ResolvedAppAuthority::ServicePrincipal { .. } => {
-                Ok(None)
-            }
+            ResolvedAppAuthority::Session(subject) => Ok(Some(subject.user_id())),
+            ResolvedAppAuthority::RevalidatedPrincipal(subject) => Ok(Some(subject.user_id())),
+            ResolvedAppAuthority::DevImpersonation { user_id, .. } => Ok(Some(user_id)),
+            ResolvedAppAuthority::Anonymous | ResolvedAppAuthority::ServicePrincipal(_) => Ok(None),
             ResolvedAppAuthority::AdminBypass { .. } | ResolvedAppAuthority::System => {
                 Err(SnapbackError::error(
                     "SNAPBACK_INVOCATION_AUTHORITY_INVALID",
@@ -7588,12 +7559,11 @@ impl LocalSnapback {
             ));
         }
         match authority.resolved() {
-            ResolvedAppAuthority::Session {
-                user_id,
-                session_id,
-                generation,
-                ..
-            } => Ok((user_id, session_id, *generation)),
+            ResolvedAppAuthority::Session(subject) => Ok((
+                subject.user_id(),
+                subject.session_id(),
+                subject.generation(),
+            )),
             _ => Err(SnapbackError::error(
                 "SNAPBACK_PUSH_SESSION_REQUIRED",
                 "push",
@@ -8425,12 +8395,7 @@ impl LocalSnapback {
         authority: &PreparedAuthority,
     ) -> Result<(), AuthorizedEffectReservationError> {
         if let Some(principal) = authority.asset_callbacks_service() {
-            let ResolvedAppAuthority::ServicePrincipal {
-                actor_user_id,
-                grant_id,
-                ..
-            } = authority.resolved()
-            else {
+            let ResolvedAppAuthority::ServicePrincipal(subject) = authority.resolved() else {
                 return Err(AuthorizedEffectReservationError::NonTerminal(
                     SnapbackError::error(
                         "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
@@ -8439,8 +8404,8 @@ impl LocalSnapback {
                     ),
                 ));
             };
-            if actor_user_id != &principal.actor_user_id
-                || grant_id != &principal.grant_id
+            if subject.actor_user_id() != principal.actor_user_id()
+                || subject.grant_id() != principal.grant_id()
                 || !self
                     .db
                     .asset_callbacks_service_principal_is_live(principal)
@@ -8457,17 +8422,7 @@ impl LocalSnapback {
             }
             return Ok(());
         }
-        let ResolvedAppAuthority::ServicePrincipal {
-            actor_user_id,
-            effective_user_id,
-            grant_id,
-            token_id,
-            credential_id,
-            credential_generation,
-            token_expires_at_ms,
-            ..
-        } = authority.resolved()
-        else {
+        let ResolvedAppAuthority::ServicePrincipal(subject) = authority.resolved() else {
             return Ok(());
         };
         let (now_ms, monotonic_now) = authority.service_clock_sample(now_millis(), Instant::now());
@@ -8510,13 +8465,13 @@ impl LocalSnapback {
                 ));
             }
         };
-        if witness.actor_user_id() != actor_user_id
-            || witness.effective_user_id() != effective_user_id.as_deref()
-            || witness.grant_id() != grant_id
-            || witness.token_id() != token_id
-            || witness.credential_id() != credential_id
-            || witness.credential_generation() != *credential_generation
-            || witness.expires_at_ms() != *token_expires_at_ms
+        if witness.actor_user_id() != subject.actor_user_id()
+            || witness.effective_user_id() != subject.effective_user_id()
+            || witness.grant_id() != subject.grant_id()
+            || witness.token_id() != subject.token_id()
+            || witness.credential_id() != subject.credential_id()
+            || witness.credential_generation() != subject.credential_generation()
+            || witness.expires_at_ms() != subject.token_expires_at_ms()
         {
             return Err(AuthorizedEffectReservationError::NonTerminal(
                 SnapbackError::error(
@@ -8528,18 +8483,18 @@ impl LocalSnapback {
         }
         // @ref LLP 0055#dated-amendment-llp-0204-integration-registrations-and-watch-anchors-2026-08-08 — re-read reversible integration admission under the app lock so suspension is named rather than collapsed into revocation/carrier churn.
         self.db
-            .require_active_integration_if_present(actor_user_id)
+            .require_active_integration_if_present(subject.actor_user_id())
             .map_err(AuthorizedEffectReservationError::NonTerminal)?;
         if !self
             .db
             .retained_service_authority_is_live_readonly(
                 crate::storage::auth_agent_credentials::RetainedServiceAuthority {
-                    actor_user_id,
-                    credential_id,
-                    credential_generation: *credential_generation,
-                    grant_id,
-                    token_id,
-                    effective_user_id: effective_user_id.as_deref(),
+                    actor_user_id: subject.actor_user_id(),
+                    credential_id: subject.credential_id(),
+                    credential_generation: subject.credential_generation(),
+                    grant_id: subject.grant_id(),
+                    token_id: subject.token_id(),
+                    effective_user_id: subject.effective_user_id(),
                 },
                 now_ms,
             )
@@ -8721,29 +8676,19 @@ impl LocalSnapback {
     fn prepare_live_rerun_authority(
         &mut self,
         retained: &RetainedLiveAuthority,
-        admission: AdmissionLease,
     ) -> SnapbackResult<PreparedAuthority> {
-        if let ResolvedAppAuthority::ServicePrincipal {
-            actor_user_id,
-            credential_id,
-            credential_generation,
-            grant_id,
-            token_id,
-            effective_user_id,
-            ..
-        } = retained.resolved()
-        {
+        if let ResolvedAppAuthority::ServicePrincipal(subject) = retained.resolved() {
             // @ref LLP 0055#dated-amendment-llp-0204-integration-registrations-and-watch-anchors-2026-08-08 — a retained live computation observes current suspension as an admission refusal without deleting its durable installation.
             self.db
-                .require_active_integration_if_present(actor_user_id)?;
+                .require_active_integration_if_present(subject.actor_user_id())?;
             if !self.db.retained_service_authority_is_live(
                 crate::storage::auth_agent_credentials::RetainedServiceAuthority {
-                    actor_user_id,
-                    credential_id,
-                    credential_generation: *credential_generation,
-                    grant_id,
-                    token_id,
-                    effective_user_id: effective_user_id.as_deref(),
+                    actor_user_id: subject.actor_user_id(),
+                    credential_id: subject.credential_id(),
+                    credential_generation: subject.credential_generation(),
+                    grant_id: subject.grant_id(),
+                    token_id: subject.token_id(),
+                    effective_user_id: subject.effective_user_id(),
                 },
                 now_millis(),
             )? {
@@ -8783,7 +8728,7 @@ impl LocalSnapback {
             retained.profile(),
             now_millis(),
         )?;
-        let prepared = retained.prepare_rerun(admission, session_claims)?;
+        let prepared = retained.prepare_rerun(session_claims)?;
         self.persist_and_validate_prepared_service_authority(&prepared)?;
         Ok(prepared)
     }
@@ -9316,6 +9261,21 @@ impl LocalSnapback {
             .transpose()
     }
 
+    /// Keep resolved authority derived for its whole lifetime by refusing to
+    /// prepare it through a different engine's admission controller.
+    ///
+    /// @ref LLP 0303#derivation-is-a-lifetime-property-not-a-constructor-event — preparation remains in the producer's engine graph.
+    fn require_owned_authority_admission(&self, admission: &AdmissionLease) -> SnapbackResult<()> {
+        if self.admission.owns_lease(admission) {
+            return Ok(());
+        }
+        Err(SnapbackError::error(
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+            "auth",
+            "authority admission belongs to another engine graph",
+        ))
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn prepare_resolved_authority(
         &mut self,
@@ -9327,15 +9287,25 @@ impl LocalSnapback {
         resolved: ResolvedAppAuthority,
         now_ms: u64,
     ) -> SnapbackResult<PreparedAuthority> {
-        let session_claims = self.session_claims_for_authority(&resolved, profile, now_ms)?;
-        InvocationGate::prepare_admitted_authority(
+        self.require_owned_authority_admission(&admission)?;
+        if self
+            .session_claims_for_authority(&resolved, profile, now_ms)?
+            .is_some()
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_INVOCATION_AUTHORITY_INVALID",
+                "auth",
+                "session authority requires its projection-owned bearer carrier",
+            ));
+        }
+        InvocationGate::prepare_admitted_subjectless_authority(
             source,
             active_mode,
             profile,
             admission,
             wire,
             resolved,
-            session_claims,
+            None,
         )
     }
 
@@ -9509,6 +9479,7 @@ impl LocalSnapback {
         wire: &WireAuthorityFields,
         now_ms: u64,
     ) -> SnapbackResult<PreparedAuthority> {
+        self.require_owned_authority_admission(&admission)?;
         prepared.prepare(
             &mut self.db,
             source,
@@ -9529,23 +9500,18 @@ impl LocalSnapback {
         profile: ServerProfile,
         admission: AdmissionLease,
         wire: &WireAuthorityFields,
-        now_ms: u64,
+        _now_ms: u64,
         stream_publication: crate::auth::session_projection::FencedPublication,
     ) -> SnapbackResult<PreparedAuthority> {
-        self.prepare_resolved_authority(
-            source,
-            active_mode,
-            profile,
-            admission,
-            wire,
-            resolution.resolved,
-            now_ms,
-        )
-        .map(|authority| {
-            authority
-                .with_fenced_publication(stream_publication)
-                .with_service_publication(resolution.publication)
-        })
+        self.require_owned_authority_admission(&admission)?;
+        resolution
+            .subject
+            .prepare(source, active_mode, profile, admission, wire)
+            .map(|authority| {
+                authority
+                    .with_fenced_publication(stream_publication)
+                    .with_service_publication(resolution.publication)
+            })
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -9557,18 +9523,278 @@ impl LocalSnapback {
         profile: ServerProfile,
         admission: AdmissionLease,
         wire: &WireAuthorityFields,
-        now_ms: u64,
+        _now_ms: u64,
     ) -> SnapbackResult<PreparedAuthority> {
-        self.prepare_resolved_authority(
+        self.require_owned_authority_admission(&admission)?;
+        resolution
+            .subject
+            .prepare(source, active_mode, profile, admission, wire)
+            .map(|authority| authority.with_service_publication(resolution.publication))
+    }
+
+    /// Unit-test session fixture that still traverses protected catalog,
+    /// projection, bearer resolution, and this engine's admission graph.
+    // @ref LLP 0303#the-governing-principle — tests derive session authority through the same resolver as production.
+    #[cfg(any(test, feature = "test-support"))]
+    #[allow(clippy::too_many_arguments)]
+    fn prepare_resolved_session_fixture(
+        &mut self,
+        source: InvocationSource,
+        user_id: &str,
+        session_id: &str,
+        authority_instance_id: &str,
+        generation: u64,
+        session_not_after_ms: u64,
+    ) -> PreparedAuthority {
+        static NEXT_SESSION_FIXTURE_RANDOM: AtomicU64 = AtomicU64::new(1);
+        struct FixedSessionRandom(u64);
+
+        impl crate::auth::crypto::RandomSource for FixedSessionRandom {
+            fn fill(&self, destination: &mut [u8]) -> Result<(), crate::auth::crypto::CryptoError> {
+                for (index, chunk) in destination.chunks_mut(8).enumerate() {
+                    let bytes = self.0.wrapping_add(index as u64).to_le_bytes();
+                    chunk.copy_from_slice(&bytes[..chunk.len()]);
+                }
+                Ok(())
+            }
+        }
+
+        let now_ms = 1;
+        let deadline = session_not_after_ms.min(crate::storage::SEQUENCE_MAX_SAFE_INTEGER);
+        let bearer = crate::auth::crypto::SessionBearer::generate(&FixedSessionRandom(
+            NEXT_SESSION_FIXTURE_RANDOM.fetch_add(1, Ordering::SeqCst),
+        ))
+        .expect("generate unit-test session bearer");
+        self.db
+            .activate_current_auth_catalog()
+            .expect("activate unit-test authority catalog");
+        let identity_id = crate::ids::mint_time_ordered(crate::ids::Kind::Identity);
+        let address = format!("{session_id}@authority-provenance.example.test");
+        self.db
+            .auth_catalog()
+            .bind_email_session_bearer_for_test(
+                user_id,
+                &identity_id,
+                session_id,
+                authority_instance_id,
+                &address,
+                bearer.token_hash().as_bytes(),
+                generation,
+                now_ms,
+                deadline,
+            )
+            .expect("insert unit-test session catalog facts");
+
+        let digest = |prefix: &str, byte: char| format!("{prefix}{}", byte.to_string().repeat(64));
+        let deployment = DeploymentIdentity {
+            schema_version: "snapback.v1".to_owned(),
+            auth_mode: AuthMode::Sessions,
+            app_id: "authority-provenance-unit-test".to_owned(),
+            schema_hash: digest(crate::auth::mode::SCHEMA_V1_PREFIX, 'a'),
+            bundle_hash: digest(crate::auth::mode::FUNCTION_V1_PREFIX, 'b'),
+            inputs_hash: digest(crate::auth::mode::INPUTS_V1_PREFIX, 'c'),
+        };
+        let mut state = AuthModeStateRecord::initial_dev(Some(deployment.clone()));
+        state.transition_generation = 1;
+        state.active = AuthMode::Sessions;
+        state.desired = AuthMode::Sessions;
+        state.sessions_ever_activated = true;
+        state.active_deployment = Some(deployment);
+        state
+            .validate_shape()
+            .expect("validate unit-test sessions mode");
+        self.admission
+            .synchronize_mode_state(&state)
+            .expect("bind unit-test admission graph");
+
+        let snapshot = self
+            .db
+            .admitted_session_projection_snapshot()
+            .expect("snapshot unit-test authority catalog");
+        let coordinator = crate::auth::coordinator::AuthCoordinator::from_admitted_snapshot(
+            snapshot,
+            self.admission.clone(),
+            now_ms,
+            Instant::now(),
+        )
+        .expect("build unit-test authority coordinator");
+        let resolved = coordinator
+            .resolve_required_bearer(bearer.expose_secret(), now_ms, Instant::now())
+            .expect("resolve unit-test session bearer");
+        let admission = self
+            .admission
+            .admit_for_mode(AuthMode::Sessions)
+            .expect("admit unit-test session authority");
+        self.prepare_bearer_authority(
+            resolved,
             source,
-            active_mode,
-            profile,
+            AuthMode::Sessions,
+            ServerProfile::Test,
             admission,
-            wire,
-            resolution.resolved,
+            &WireAuthorityFields::default(),
             now_ms,
         )
-        .map(|authority| authority.with_service_publication(resolution.publication))
+        .expect("prepare unit-test resolved session authority")
+    }
+
+    #[cfg(test)]
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn prepare_resolved_session_for_test(
+        &mut self,
+        source: InvocationSource,
+        user_id: &str,
+        session_id: &str,
+        authority_instance_id: &str,
+        generation: u64,
+        session_not_after_ms: u64,
+    ) -> PreparedAuthority {
+        self.prepare_resolved_session_fixture(
+            source,
+            user_id,
+            session_id,
+            authority_instance_id,
+            generation,
+            session_not_after_ms,
+        )
+    }
+
+    /// Unit-test service fixture that resolves a real token and exact durable
+    /// grant before preparation.
+    // @ref LLP 0303#corollary--the-artifact-must-carry-provenance-not-just-type — tests do not join caller-authored subjects to admission leases.
+    #[cfg(test)]
+    pub(crate) fn prepare_resolved_service_for_test(
+        &mut self,
+        source: InvocationSource,
+        actor_user_id: &str,
+        effective_user_id: Option<&str>,
+        scopes: Vec<crate::storage::auth_grants::ExactGrantScope>,
+        now_ms: u64,
+        expires_at_ms: u64,
+    ) -> PreparedAuthority {
+        static NEXT_SERVICE_FIXTURE_RANDOM: AtomicU64 = AtomicU64::new(1);
+        struct FixedServiceRandom {
+            base: u64,
+            next: AtomicU64,
+        }
+        impl crate::auth::crypto::RandomSource for FixedServiceRandom {
+            fn fill(&self, destination: &mut [u8]) -> Result<(), crate::auth::crypto::CryptoError> {
+                let sequence = self
+                    .base
+                    .wrapping_add(self.next.fetch_add(1, Ordering::SeqCst));
+                for (index, chunk) in destination.chunks_mut(8).enumerate() {
+                    let bytes = sequence.wrapping_add(index as u64).to_le_bytes();
+                    chunk.copy_from_slice(&bytes[..chunk.len()]);
+                }
+                Ok(())
+            }
+        }
+
+        let expires_at_ms =
+            expires_at_ms
+                .min(now_ms.saturating_add(
+                    crate::storage::auth_agent_credentials::SCOPED_TOKEN_MAX_TTL_MS,
+                ))
+                .min(crate::storage::SEQUENCE_MAX_SAFE_INTEGER);
+        self.db
+            .activate_current_auth_catalog()
+            .expect("activate unit-test service catalog");
+        let digest = |prefix: &str, byte: char| format!("{prefix}{}", byte.to_string().repeat(64));
+        let deployment = DeploymentIdentity {
+            schema_version: "snapback.v1".to_owned(),
+            auth_mode: AuthMode::Sessions,
+            app_id: "authority-provenance-service-unit-test".to_owned(),
+            schema_hash: digest(crate::auth::mode::SCHEMA_V1_PREFIX, 'd'),
+            bundle_hash: digest(crate::auth::mode::FUNCTION_V1_PREFIX, 'e'),
+            inputs_hash: digest(crate::auth::mode::INPUTS_V1_PREFIX, 'f'),
+        };
+        let mut state = AuthModeStateRecord::initial_dev(Some(deployment.clone()));
+        state.transition_generation = 1;
+        state.active = AuthMode::Sessions;
+        state.desired = AuthMode::Sessions;
+        state.sessions_ever_activated = true;
+        state.active_deployment = Some(deployment);
+        state
+            .validate_shape()
+            .expect("validate unit-test service mode");
+        self.admission
+            .synchronize_mode_state(&state)
+            .expect("bind unit-test service admission graph");
+        let random = FixedServiceRandom {
+            base: NEXT_SERVICE_FIXTURE_RANDOM.fetch_add(1_024, Ordering::SeqCst),
+            next: AtomicU64::new(0),
+        };
+        let token = {
+            let db = self.db.auth_database_mut();
+            if let Some(effective_user_id) = effective_user_id {
+                db.auth_catalog()
+                    .insert_human_user_for_test(effective_user_id, now_ms)
+                    .expect("insert unit-test effective user");
+            }
+            db.create_agent_principal(
+                actor_user_id,
+                now_ms,
+                &crate::storage::auth_agents::AgentRegistration {
+                    display_name: Some("Authority provenance fixture".to_owned()),
+                    operator_contact: None,
+                    registration_provenance: r#"{"source":"authority-provenance-unit-test"}"#
+                        .to_owned(),
+                    owner_user_id: effective_user_id.map(str::to_owned),
+                },
+            )
+            .expect("insert unit-test service principal");
+            let credential = db
+                .issue_initial_agent_credential(actor_user_id, now_ms, &random)
+                .expect("issue unit-test service credential");
+            let grant_id = format!("grant-{actor_user_id}");
+            db.auth_catalog()
+                .insert_exact_grant_for_test(
+                    &grant_id,
+                    actor_user_id,
+                    effective_user_id,
+                    &scopes,
+                    now_ms,
+                    expires_at_ms,
+                )
+                .expect("insert unit-test exact service grant");
+            db.mint_scoped_token(
+                &credential.secret,
+                &grant_id,
+                Some(expires_at_ms.saturating_sub(now_ms)),
+                now_ms,
+                &random,
+            )
+            .expect("mint unit-test scoped token")
+        };
+        let resolved = self
+            .db
+            .resolve_scoped_token(&token.secret, now_ms)
+            .expect("resolve unit-test scoped token");
+        let publication = self
+            .service_authority_fences
+            .register(resolved.service_authority_witness(), now_ms, Instant::now())
+            .expect("register unit-test service publication");
+        let resolution = ResolvedServiceAuthority {
+            subject: ResolvedServiceSubject::from_scoped_token(
+                resolved,
+                self.admission.lease_origin(),
+            )
+            .expect("bind unit-test service authority graph"),
+            publication,
+        };
+        let admission = self
+            .admission
+            .admit_for_mode(AuthMode::Sessions)
+            .expect("admit unit-test service authority");
+        self.prepare_connection_service_authority(
+            resolution,
+            source,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            admission,
+            &WireAuthorityFields::default(),
+            now_ms,
+        )
+        .expect("prepare unit-test resolved service authority")
     }
 
     /// Cloneable process-local admission authority for HTTP composition.
@@ -10440,6 +10666,7 @@ impl LocalSnapback {
         let coordinator = Arc::new(
             crate::auth::coordinator::AuthCoordinator::from_admitted_snapshot(
                 projection,
+                self.admission.clone(),
                 now_millis(),
                 Instant::now(),
             )?,
@@ -12332,7 +12559,7 @@ impl LocalSnapback {
             // is the only source that admits this authority class.
             local_dev_only: false,
         };
-        let authority = InvocationGate::prepare_admitted_authority(
+        let authority = InvocationGate::prepare_admitted_subjectless_authority(
             InvocationSource::BranchOperation,
             active_mode,
             server_profile,
@@ -12559,7 +12786,7 @@ impl LocalSnapback {
         authorized_effect: AuthorizedEffectReservation,
     ) -> SnapbackResult<u64> {
         authority.validate_admission("client mutation acknowledgement")?;
-        if !matches!(authority.resolved(), ResolvedAppAuthority::Session { .. }) {
+        if !matches!(authority.resolved(), ResolvedAppAuthority::Session(_)) {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_REQUIRED",
                 "auth",
@@ -13320,31 +13547,22 @@ impl LocalSnapback {
 
     #[cfg(any(test, feature = "test-support"))]
     fn graph_corpus_session_authority_for_test(
+        &mut self,
         source: InvocationSource,
         alternate_instance: bool,
     ) -> SnapbackResult<PreparedAuthority> {
-        InvocationGate::prepare_authority(
+        Ok(self.prepare_resolved_session_fixture(
             source,
-            AuthMode::Sessions,
-            ServerProfile::Test,
-            0,
-            0,
-            &WireAuthorityFields::default(),
-            ResolvedAppAuthority::Session {
-                user_id: "principal_ordinary".to_owned(),
-                session_id: "graph-corpus-session".to_owned(),
-                provider: "email-code".to_owned(),
-                generation: 1,
-                authority_instance_id: if alternate_instance {
-                    "graph-corpus-authority-alt".to_owned()
-                } else {
-                    "graph-corpus-authority".to_owned()
-                },
-                session_not_after_ms: 4_000_000_000_000,
-                provider_not_after_ms: None,
-                rehearsal_provenance: None,
+            "principal_ordinary",
+            "graph-corpus-session",
+            if alternate_instance {
+                "graph-corpus-authority-alt"
+            } else {
+                "graph-corpus-authority"
             },
-        )
+            1,
+            4_000_000_000_000,
+        ))
     }
 
     #[cfg(any(test, feature = "test-support"))]
@@ -13354,13 +13572,12 @@ impl LocalSnapback {
         input: LiveSubscribeInput,
         connection: AuthorizationInvalidationConnection,
     ) -> SnapbackResult<LiveSubscribeOutput> {
+        let authority = self
+            .graph_corpus_session_authority_for_test(InvocationSource::LiveInitialQuery, false)?;
         self.subscribe_live_prepared_with_invalidation(
             name,
             input,
-            Self::graph_corpus_session_authority_for_test(
-                InvocationSource::LiveInitialQuery,
-                false,
-            )?,
+            authority,
             LiveInvalidationAdmission::new(connection).with_session_mode(true),
         )
     }
@@ -13372,13 +13589,12 @@ impl LocalSnapback {
         input: LiveSubscribeInput,
         connection: AuthorizationInvalidationConnection,
     ) -> SnapbackResult<LiveSubscribeOutput> {
+        let authority =
+            self.graph_corpus_session_authority_for_test(InvocationSource::LiveInitialQuery, true)?;
         self.subscribe_live_prepared_with_invalidation(
             name,
             input,
-            Self::graph_corpus_session_authority_for_test(
-                InvocationSource::LiveInitialQuery,
-                true,
-            )?,
+            authority,
             LiveInvalidationAdmission::new(connection).with_session_mode(true),
         )
     }
@@ -13389,11 +13605,9 @@ impl LocalSnapback {
         name: &str,
         input: HandlerInput,
     ) -> SnapbackResult<MutationOutput> {
-        self.invoke_mutation_with_authority(
-            name,
-            input,
-            Self::graph_corpus_session_authority_for_test(InvocationSource::HttpMutation, false)?,
-        )
+        let authority =
+            self.graph_corpus_session_authority_for_test(InvocationSource::HttpMutation, false)?;
+        self.invoke_mutation_with_authority(name, input, authority)
     }
 
     #[cfg(any(test, feature = "test-support"))]
@@ -13401,12 +13615,10 @@ impl LocalSnapback {
         &mut self,
         connection_id: &str,
     ) -> SnapbackResult<Vec<String>> {
-        let admission = Self::graph_corpus_session_authority_for_test(
-            InvocationSource::LiveInitialQuery,
-            false,
-        )?
-        .admission_lease()
-        .clone();
+        let admission = self
+            .graph_corpus_session_authority_for_test(InvocationSource::LiveInitialQuery, false)?
+            .admission_lease()
+            .clone();
         self.authorization_invalidation_frames(connection_id, &admission)
             .map(|frames| {
                 frames
@@ -14107,17 +14319,16 @@ impl LocalSnapback {
 
     fn asset_caller_principal(authority: &PreparedAuthority) -> Option<String> {
         match authority.resolved() {
-            ResolvedAppAuthority::Session { user_id, .. }
-            | ResolvedAppAuthority::RevalidatedPrincipal { user_id, .. } => Some(user_id.clone()),
+            ResolvedAppAuthority::Session(subject) => Some(subject.user_id().to_owned()),
+            ResolvedAppAuthority::RevalidatedPrincipal(subject) => {
+                Some(subject.user_id().to_owned())
+            }
             ResolvedAppAuthority::DevImpersonation { user_id, .. } => Some(user_id.clone()),
-            ResolvedAppAuthority::ServicePrincipal {
-                actor_user_id,
-                effective_user_id,
-                ..
-            } => Some(
-                effective_user_id
-                    .clone()
-                    .unwrap_or_else(|| actor_user_id.clone()),
+            ResolvedAppAuthority::ServicePrincipal(subject) => Some(
+                subject
+                    .effective_user_id()
+                    .unwrap_or_else(|| subject.actor_user_id())
+                    .to_owned(),
             ),
             ResolvedAppAuthority::Anonymous
             | ResolvedAppAuthority::AdminBypass { .. }
@@ -14129,30 +14340,20 @@ impl LocalSnapback {
     /// generation only — never tokens, deadlines, or provider material.
     fn asset_auth_pair(authority: &PreparedAuthority) -> serde_json::Value {
         match authority.resolved() {
-            ResolvedAppAuthority::Session {
-                user_id,
-                generation,
-                authority_instance_id,
-                ..
-            } => serde_json::json!({
+            ResolvedAppAuthority::Session(subject) => serde_json::json!({
                 "kind": "session",
-                "userId": user_id,
-                "generation": generation,
-                "authorityInstanceId": authority_instance_id,
+                "userId": subject.user_id(),
+                "generation": subject.generation(),
+                "authorityInstanceId": subject.authority_instance_id(),
             }),
             ResolvedAppAuthority::DevImpersonation { user_id, .. } => {
                 serde_json::json!({ "kind": "dev", "userId": user_id })
             }
-            ResolvedAppAuthority::ServicePrincipal {
-                actor_user_id,
-                effective_user_id,
-                grant_id,
-                ..
-            } => serde_json::json!({
+            ResolvedAppAuthority::ServicePrincipal(subject) => serde_json::json!({
                 "kind": "servicePrincipal",
-                "actorUserId": actor_user_id,
-                "effectiveUserId": effective_user_id,
-                "grantId": grant_id,
+                "actorUserId": subject.actor_user_id(),
+                "effectiveUserId": subject.effective_user_id(),
+                "grantId": subject.grant_id(),
             }),
             other => serde_json::json!({ "kind": format!("{other:?}") }),
         }
@@ -14680,20 +14881,19 @@ impl LocalSnapback {
         admission: &AdmissionLease,
         frame_version: u64,
     ) -> Option<bool> {
-        let authority =
-            match self.prepare_live_rerun_authority(&subscription.authority, admission.clone()) {
-                Ok(authority) => authority,
-                Err(error) => {
-                    self.fail_subscription_fanout(
-                        subscription,
-                        "live_authority_ended",
-                        error,
-                        Some(frame_version),
-                        admission,
-                    );
-                    return None;
-                }
-            };
+        let authority = match self.prepare_live_rerun_authority(&subscription.authority) {
+            Ok(authority) => authority,
+            Err(error) => {
+                self.fail_subscription_fanout(
+                    subscription,
+                    "live_authority_ended",
+                    error,
+                    Some(frame_version),
+                    admission,
+                );
+                return None;
+            }
+        };
         let query = match self.invoke_live_subscription_query(subscription, authority) {
             Ok(query) => query,
             Err(error) => {
@@ -14776,20 +14976,19 @@ impl LocalSnapback {
         admission: &AdmissionLease,
         frame_version: u64,
     ) -> Option<bool> {
-        let authority =
-            match self.prepare_live_rerun_authority(&subscription.authority, admission.clone()) {
-                Ok(authority) => authority,
-                Err(error) => {
-                    self.fail_subscription_fanout(
-                        subscription,
-                        "live_authority_ended",
-                        error,
-                        Some(frame_version),
-                        admission,
-                    );
-                    return None;
-                }
-            };
+        let authority = match self.prepare_live_rerun_authority(&subscription.authority) {
+            Ok(authority) => authority,
+            Err(error) => {
+                self.fail_subscription_fanout(
+                    subscription,
+                    "live_authority_ended",
+                    error,
+                    Some(frame_version),
+                    admission,
+                );
+                return None;
+            }
+        };
         let probe = match self.invoke_live_subscription_query(subscription, authority) {
             Ok(query) => query,
             Err(error) => {
@@ -17860,8 +18059,8 @@ impl LocalSnapback {
                 let authority_receipt = authority.asset_callbacks_service().map(|principal| {
                     serde_json::json!({
                         "actorKind": crate::storage::auth_asset_callbacks::ASSET_CALLBACKS_SERVICE_NAME,
-                        "actorUserId": principal.actor_user_id.clone(),
-                        "grantId": principal.grant_id.clone(),
+                        "actorUserId": principal.actor_user_id(),
+                        "grantId": principal.grant_id(),
                         "sessionId": null,
                     })
                 });
@@ -18043,21 +18242,13 @@ impl LocalSnapback {
             provider_not_after_ms,
             authority_instance_id,
         ) = match authority.resolved() {
-            ResolvedAppAuthority::Session {
-                user_id,
-                session_id,
-                provider,
-                authority_instance_id,
-                session_not_after_ms,
-                provider_not_after_ms,
-                ..
-            } => (
-                user_id.clone(),
-                Some(session_id.clone()),
-                Some(provider.clone()),
-                Some(*session_not_after_ms),
-                *provider_not_after_ms,
-                Some(authority_instance_id.clone()),
+            ResolvedAppAuthority::Session(subject) => (
+                subject.user_id().to_owned(),
+                Some(subject.session_id().to_owned()),
+                Some(subject.provider().to_owned()),
+                Some(subject.session_not_after_ms()),
+                subject.provider_not_after_ms(),
+                Some(subject.authority_instance_id().to_owned()),
             ),
             _ => {
                 return Err(SnapbackError::error(
@@ -21408,7 +21599,7 @@ impl LocalSnapback {
         auth: &AuthInput,
     ) -> SnapbackResult<crate::bundle::BundleResponse> {
         let admission = self.admission.admit_dev()?;
-        let authority = InvocationGate::prepare_admitted_authority(
+        let authority = InvocationGate::prepare_admitted_subjectless_authority(
             InvocationSource::HttpQuery,
             AuthMode::Dev,
             ServerProfile::Dev,
@@ -21591,23 +21782,11 @@ impl LocalSnapback {
                         (rows, resume, None, None)
                     }
                     Some(target) => {
-                        let admission = snapback
-                            .admission
-                            .admit_for_mode(authority.active_mode())
-                            .map_err(|error| {
-                                refuse(code::QUERY_FAILED, "bundle admission unavailable")
-                                    .with_details(json!({ "cause": error.diagnostic.code }))
-                            })?;
                         let sub_authority = snapback
-                            .prepare_resolved_authority(
-                                InvocationSource::LiveInitialQuery,
-                                authority.active_mode(),
-                                authority.profile(),
-                                admission,
-                                &WireAuthorityFields::default(),
-                                authority.resolved().clone(),
-                                now_millis(),
-                            )
+                            .require_owned_authority_admission(authority.admission_lease())
+                            .and_then(|()| {
+                                authority.inherit_for(InvocationSource::LiveInitialQuery)
+                            })
                             .map_err(|error| {
                                 refuse(code::QUERY_FAILED, "bundle register authority refused")
                                     .with_details(json!({ "cause": error.diagnostic.code }))
@@ -21805,26 +21984,12 @@ impl LocalSnapback {
                 bundle::substitute_params_v1(&spec.args, params, &arg_types, &nested_arg_types)
                     .map_err(|code| refuse(code, "mixed bundle args mapping refused"))?;
             let invocation_authority = if admission.live {
-                let lease = self
-                    .admission
-                    .admit_for_mode(authority.active_mode())
+                self.require_owned_authority_admission(authority.admission_lease())
+                    .and_then(|()| authority.inherit_for(InvocationSource::LiveInitialQuery))
                     .map_err(|error| {
-                        refuse(code::QUERY_FAILED, "mixed live admission unavailable")
+                        refuse(code::QUERY_FAILED, "mixed live authority refused")
                             .with_details(json!({ "cause": error.diagnostic.code }))
-                    })?;
-                self.prepare_resolved_authority(
-                    InvocationSource::LiveInitialQuery,
-                    authority.active_mode(),
-                    authority.profile(),
-                    lease,
-                    &WireAuthorityFields::default(),
-                    authority.resolved().clone(),
-                    now_millis(),
-                )
-                .map_err(|error| {
-                    refuse(code::QUERY_FAILED, "mixed live authority refused")
-                        .with_details(json!({ "cause": error.diagnostic.code }))
-                })?
+                    })?
             } else {
                 authority.clone()
             };
@@ -22068,7 +22233,7 @@ impl LocalSnapback {
         // (LLP 0081 §4's lane registry).
         self.db.ensure_migration_lane_open()?;
         let admission = self.admission.admit_dev()?;
-        let authority = InvocationGate::prepare_admitted_authority(
+        let authority = InvocationGate::prepare_admitted_subjectless_authority(
             InvocationSource::LiveInitialQuery,
             AuthMode::Dev,
             ServerProfile::Dev,
@@ -22523,10 +22688,7 @@ impl LocalSnapback {
         // retained (immutable) authority; renew/resubscribe re-answers this
         // exact block rather than re-deriving from the presenting caller.
         let attribution = retained_authority.function_attribution();
-        self.prepare_live_rerun_authority(
-            &retained_authority,
-            authority.admission_lease().clone(),
-        )?;
+        self.prepare_live_rerun_authority(&retained_authority)?;
         let publication_authority = authority.clone();
         // @ref LLP 0053#invalidation-is-an-obligation-not-a-message — an
         // auth-scoped live subscription is admitted only when its connection
@@ -23402,7 +23564,7 @@ impl LocalSnapback {
         input: LiveUnsubscribeInput,
     ) -> SnapbackResult<LiveUnsubscribeOutput> {
         let admission = self.admission.admit_dev()?;
-        let authority = InvocationGate::prepare_admitted_authority(
+        let authority = InvocationGate::prepare_admitted_subjectless_authority(
             InvocationSource::LiveUnsubscribe,
             AuthMode::Dev,
             ServerProfile::Dev,
@@ -23848,7 +24010,7 @@ impl LocalSnapback {
         // (LLP 0081 §4's lane registry).
         self.db.ensure_migration_lane_open()?;
         let admission = self.admission.admit_dev()?;
-        let authority = InvocationGate::prepare_admitted_authority(
+        let authority = InvocationGate::prepare_admitted_subjectless_authority(
             InvocationSource::LiveResume,
             AuthMode::Dev,
             ServerProfile::Dev,
@@ -24343,10 +24505,7 @@ impl LocalSnapback {
         }
 
         if self.resume_requires_resnapshot(&subscription, &input.recorded_permission_epochs) {
-            let rerun = self.prepare_live_rerun_authority(
-                &subscription.authority,
-                authority.admission_lease().clone(),
-            )?;
+            let rerun = self.prepare_live_rerun_authority(&subscription.authority)?;
             let rerun_input = live_subscription_rerun_input(&subscription)?;
             let query = if is_reserved_live_function(&subscription.function) {
                 self.reserved_live_invocation(&rerun, &subscription.function, &rerun_input)?
@@ -25038,7 +25197,7 @@ impl LocalSnapback {
         let active_mode = admission
             .active_mode()
             .expect("LocalSnapback admissions are always controller-managed");
-        let authority = InvocationGate::prepare_admitted_authority(
+        let authority = InvocationGate::prepare_admitted_subjectless_authority(
             InvocationSource::Cron,
             active_mode,
             ServerProfile::Dev,
@@ -25063,7 +25222,7 @@ impl LocalSnapback {
         let active_mode = admission
             .active_mode()
             .expect("LocalSnapback admissions are always controller-managed");
-        let authority = InvocationGate::prepare_admitted_authority(
+        let authority = InvocationGate::prepare_admitted_subjectless_authority(
             InvocationSource::Cron,
             active_mode,
             ServerProfile::Dev,
@@ -25129,14 +25288,22 @@ impl LocalSnapback {
                     function_id: definition.id.clone(),
                     stream: definition.stream,
                     stream_initiator: match invocation.authority().resolved() {
-                        ResolvedAppAuthority::Session { user_id, .. }
-                        | ResolvedAppAuthority::RevalidatedPrincipal { user_id, .. }
-                        | ResolvedAppAuthority::DevImpersonation { user_id, .. } => Some(
+                        ResolvedAppAuthority::Session(subject) => {
+                            Some(crate::stream_attempt::StreamInitiator::SessionUser(
+                                subject.user_id().to_owned(),
+                            ))
+                        }
+                        ResolvedAppAuthority::RevalidatedPrincipal(subject) => {
+                            Some(crate::stream_attempt::StreamInitiator::SessionUser(
+                                subject.user_id().to_owned(),
+                            ))
+                        }
+                        ResolvedAppAuthority::DevImpersonation { user_id, .. } => Some(
                             crate::stream_attempt::StreamInitiator::SessionUser(user_id.clone()),
                         ),
-                        ResolvedAppAuthority::ServicePrincipal { credential_id, .. } => {
+                        ResolvedAppAuthority::ServicePrincipal(subject) => {
                             Some(crate::stream_attempt::StreamInitiator::ServiceCredential(
-                                credential_id.clone(),
+                                subject.credential_id().to_owned(),
                             ))
                         }
                         _ => None,
@@ -26519,27 +26686,21 @@ impl LocalSnapback {
             installation_grant_id,
             anchor_effective_user_id,
         ) = match authority.resolved() {
-            ResolvedAppAuthority::Session {
-                user_id,
-                authority_instance_id,
-                ..
-            } => (
-                user_id.clone(),
-                authority_instance_id.clone(),
+            ResolvedAppAuthority::Session(subject) => (
+                subject.user_id().to_owned(),
+                subject.authority_instance_id().to_owned(),
                 crate::watches::WatchOwnerKind::User,
                 crate::watches::WatchAuthorityMode::RevalidatePrincipal,
                 None,
                 None,
             ),
-            ResolvedAppAuthority::ServicePrincipal {
-                actor_user_id,
-                grant_id,
-                effective_user_id: Some(effective_user_id),
-                integration_status:
-                    Some(crate::storage::auth_integrations::IntegrationStatus::Active),
-                ..
-            } => {
-                let integration = self.db.integration_record_if_present(actor_user_id)?
+            ResolvedAppAuthority::ServicePrincipal(subject)
+                if subject.effective_user_id().is_some()
+                    && subject.integration_status()
+                        == Some(crate::storage::auth_integrations::IntegrationStatus::Active) =>
+            {
+                let effective_user_id = subject.effective_user_id().expect("guarded above");
+                let integration = self.db.integration_record_if_present(subject.actor_user_id())?
                     .filter(|record| record.status == crate::storage::auth_integrations::IntegrationStatus::Active)
                     .ok_or_else(|| SnapbackError::error(
                         "SNAPBACK_WATCH_OWNER_DENIED",
@@ -26547,12 +26708,12 @@ impl LocalSnapback {
                         "integration watch creation requires an active integration registration",
                     ))?;
                 (
-                    actor_user_id.clone(),
+                    subject.actor_user_id().to_owned(),
                     integration.integration_id,
                     crate::watches::WatchOwnerKind::Integration,
                     crate::watches::WatchAuthorityMode::CapturedGrant,
-                    Some(grant_id.clone()),
-                    Some(effective_user_id.clone()),
+                    Some(subject.grant_id().to_owned()),
+                    Some(effective_user_id.to_owned()),
                 )
             }
             _ => {
@@ -26858,14 +27019,14 @@ impl LocalSnapback {
                 watch_management_owner(authority)?.0
             }
             crate::storage::watches::WatchManagementIntent::Renewal { .. } => {
-                let ResolvedAppAuthority::Session { user_id, .. } = authority.resolved() else {
+                let ResolvedAppAuthority::Session(subject) = authority.resolved() else {
                     return Err(SnapbackError::error(
                         "SNAPBACK_WATCH_RENEWAL_DENIED",
                         "watches",
                         "watchAnchor renewal requires fresh user session consent",
                     ));
                 };
-                user_id.clone()
+                subject.user_id().to_owned()
             }
         };
         self.db
@@ -26910,7 +27071,7 @@ impl LocalSnapback {
                 "watchAnchor renewal requires the registered management source",
             ));
         }
-        let ResolvedAppAuthority::Session { user_id, .. } = authority.resolved() else {
+        let ResolvedAppAuthority::Session(subject) = authority.resolved() else {
             return Err(SnapbackError::error(
                 "SNAPBACK_WATCH_RENEWAL_DENIED",
                 "watches",
@@ -26919,7 +27080,7 @@ impl LocalSnapback {
         };
         let _effect = authority.effect_guard("watchAnchor renewal transaction")?;
         self.db
-            .renew_watch_anchor_for_user(id, user_id, ttl_ms, now_ms)
+            .renew_watch_anchor_for_user(id, subject.user_id(), ttl_ms, now_ms)
     }
 
     /// Evaluate one internal watch job under credential-free, freshly
@@ -27234,51 +27395,34 @@ impl LocalSnapback {
         source: InvocationSource,
         now_ms: u64,
     ) -> SnapbackResult<Option<PreparedAuthority>> {
-        let resolved = match record.owner_kind {
+        let authority = match record.owner_kind {
             crate::watches::WatchOwnerKind::User => {
-                if !self.db.watch_owner_is_active(&record.owner_principal_id)? {
+                let Some(principal) = self.db.revalidate_watch_principal(&record.id)? else {
                     return Ok(None);
-                }
-                ResolvedAppAuthority::RevalidatedPrincipal {
-                    user_id: record.owner_principal_id.clone(),
-                    authority_instance_id: record.owner_authority_instance_id.clone(),
-                }
+                };
+                InvocationGate::prepare_admitted_revalidated_principal(
+                    source,
+                    ServerProfile::Dev,
+                    claim.admission.clone(),
+                    principal,
+                )?
             }
             crate::watches::WatchOwnerKind::Integration => {
                 let Some(anchor) = self.db.revalidate_watch_anchor(record, now_ms)? else {
                     return Ok(None);
                 };
-                ResolvedAppAuthority::ServicePrincipal {
-                    actor_user_id: anchor.actor_user_id,
-                    credential_id: format!("watchAnchor:{}", record.id),
-                    credential_generation: 0,
-                    grant_id: anchor.grant_id,
-                    token_id: format!("watch:{}", record.id),
-                    effective_user_id: Some(anchor.effective_user_id),
-                    scopes: anchor
-                        .scopes
-                        .into_iter()
-                        .map(crate::auth::invocation::ResolvedGrantScope::from_exact)
-                        .collect(),
-                    token_expires_at_ms: anchor.expires_at_ms,
-                    integration_status: Some(anchor.integration_status),
-                }
+                InvocationGate::prepare_admitted_watch_anchor(
+                    source,
+                    ServerProfile::Dev,
+                    claim.admission.clone(),
+                    &record.id,
+                    anchor,
+                )?
             }
         };
-        Ok(Some(
-            InvocationGate::prepare_admitted_authority(
-                source,
-                AuthMode::Sessions,
-                ServerProfile::Dev,
-                claim.admission.clone(),
-                &WireAuthorityFields::default(),
-                resolved,
-                None,
-            )?
-            .with_caller_attribution(crate::telemetry::CallerAttributionV1::owner(
-                record.owner_principal_id.clone(),
-            )),
-        ))
+        Ok(Some(authority.with_caller_attribution(
+            crate::telemetry::CallerAttributionV1::owner(record.owner_principal_id.clone()),
+        )))
     }
 
     fn dispatch_watch_reaction(
@@ -28752,10 +28896,12 @@ impl LocalSnapback {
         if !migration_fenced {
             let _ = db.resume_pending_migration_cleanup();
         }
-        let admission = AdmissionController::from_mode_state_with_migration_fence(
-            &auth_mode,
-            migration_fenced,
-        )?;
+        let admission =
+            AdmissionController::from_mode_state_with_migration_fence_and_database_binding(
+                &auth_mode,
+                migration_fenced,
+                db.binding(),
+            )?;
         let mut recent_diagnostics = VecDeque::new();
         for diagnostic in runtime.diagnostics() {
             recent_diagnostics.push_back(diagnostic);
@@ -30098,7 +30244,7 @@ impl LocalSnapback {
             let active_mode = admission
                 .active_mode()
                 .expect("LocalSnapback admissions are always controller-managed");
-            let authority = InvocationGate::prepare_admitted_authority(
+            let authority = InvocationGate::prepare_admitted_subjectless_authority(
                 InvocationSource::Cron,
                 active_mode,
                 ServerProfile::Dev,
@@ -32028,7 +32174,7 @@ impl LocalSnapback {
     ) -> Result<QueryInvocation, AuthorizationResolutionFailure> {
         loop {
             match self
-                .prepare_live_rerun_authority(&subscription.authority, admission.clone())
+                .prepare_live_rerun_authority(&subscription.authority)
                 .and_then(|authority| self.invoke_live_subscription_query(subscription, authority))
             {
                 Ok(query) => return Ok(query),
@@ -33411,9 +33557,7 @@ impl LocalSnapback {
             }
         }
         for (subscription, delta_plan, _match_outcome, graph_nodes, graph_delta) in affected {
-            if let Err(error) =
-                self.prepare_live_rerun_authority(&subscription.authority, admission.clone())
-            {
+            if let Err(error) = self.prepare_live_rerun_authority(&subscription.authority) {
                 if turn_control.is_some_and(|control| !control.begin_publication()) {
                     continue;
                 }
@@ -33590,7 +33734,7 @@ impl LocalSnapback {
                 }
             } else {
                 match self
-                    .prepare_live_rerun_authority(&subscription.authority, admission.clone())
+                    .prepare_live_rerun_authority(&subscription.authority)
                     .and_then(|authority| {
                         self.invoke_live_subscription_query(&subscription, authority)
                     }) {
@@ -34497,7 +34641,7 @@ impl LocalSnapback {
         admission: &AdmissionLease,
     ) {
         let Ok(fresh) = self
-            .prepare_live_rerun_authority(&subscription.authority, admission.clone())
+            .prepare_live_rerun_authority(&subscription.authority)
             .and_then(|authority| {
                 self.invoke_query_with_dependencies_prepared(
                     &subscription.function,
@@ -35366,7 +35510,7 @@ impl ReadLane {
                 "dev authority preparation accepts only the closed dev authority classes",
             ));
         }
-        InvocationGate::prepare_admitted_authority(
+        InvocationGate::prepare_admitted_subjectless_authority(
             source,
             AuthMode::Dev,
             profile,
@@ -40231,27 +40375,18 @@ fn snapshot_batch_authority_partition_digest(
     use sha2::{Digest as _, Sha256};
     let resolved = prepared.authority().resolved();
     let (authority_instance_id, provider_id, delegation) = match resolved {
-        ResolvedAppAuthority::Session {
-            authority_instance_id,
-            provider,
-            ..
-        } => (
-            authority_instance_id.clone(),
-            Some(provider.clone()),
+        ResolvedAppAuthority::Session(subject) => (
+            subject.authority_instance_id().to_owned(),
+            Some(subject.provider().to_owned()),
             Value::Null,
         ),
-        ResolvedAppAuthority::ServicePrincipal {
-            actor_user_id,
-            grant_id,
-            effective_user_id,
-            ..
-        } => (
+        ResolvedAppAuthority::ServicePrincipal(subject) => (
             resolved.invalidation_subject(),
             None,
             json!({
-                "grantId": grant_id,
-                "actorPrincipalId": actor_user_id,
-                "effectivePrincipalId": effective_user_id.as_deref().unwrap_or(actor_user_id),
+                "grantId": subject.grant_id(),
+                "actorPrincipalId": subject.actor_user_id(),
+                "effectivePrincipalId": subject.effective_user_id().unwrap_or_else(|| subject.actor_user_id()),
             }),
         ),
         _ => (resolved.invalidation_subject(), None, Value::Null),
@@ -41503,25 +41638,20 @@ fn graph_authority_partition(
         crate::manifest::GraphClass3PartitionV1::PartitionOfOne => {
             let resolved = prepared.authority().resolved();
             let (authority_instance_id, provider_id, delegation) = match resolved {
-                ResolvedAppAuthority::Session {
-                    authority_instance_id,
-                    provider,
-                    ..
-                } => (authority_instance_id.clone(), Some(provider.clone()), None),
-                ResolvedAppAuthority::ServicePrincipal {
-                    actor_user_id,
-                    grant_id,
-                    effective_user_id,
-                    ..
-                } => (
+                ResolvedAppAuthority::Session(subject) => (
+                    subject.authority_instance_id().to_owned(),
+                    Some(subject.provider().to_owned()),
+                    None,
+                ),
+                ResolvedAppAuthority::ServicePrincipal(subject) => (
                     resolved.invalidation_subject(),
                     None,
                     Some(crate::manifest::AuthorityPartitionDelegationV1 {
-                        grant_id: grant_id.clone(),
-                        actor_principal_id: actor_user_id.clone(),
-                        effective_principal_id: effective_user_id
-                            .as_deref()
-                            .unwrap_or(actor_user_id)
+                        grant_id: subject.grant_id().to_owned(),
+                        actor_principal_id: subject.actor_user_id().to_owned(),
+                        effective_principal_id: subject
+                            .effective_user_id()
+                            .unwrap_or_else(|| subject.actor_user_id())
                             .to_owned(),
                     }),
                 ),
@@ -42049,12 +42179,9 @@ fn execute_query_invocation(
             let database_id = db.search_database_identity()?;
             let authority_instance = prepared.authority().resolved().invalidation_subject();
             let owner_subject = match prepared.authority().resolved() {
-                ResolvedAppAuthority::Session { user_id, .. }
-                | ResolvedAppAuthority::DevImpersonation { user_id, .. } => Some(user_id.as_str()),
-                ResolvedAppAuthority::ServicePrincipal {
-                    effective_user_id: Some(user_id),
-                    ..
-                } => Some(user_id.as_str()),
+                ResolvedAppAuthority::Session(subject) => Some(subject.user_id()),
+                ResolvedAppAuthority::DevImpersonation { user_id, .. } => Some(user_id.as_str()),
+                ResolvedAppAuthority::ServicePrincipal(subject) => subject.effective_user_id(),
                 _ => None,
             };
             let release_policy_digest = crate::rqs_contract::sha256_identity(
@@ -42114,12 +42241,9 @@ fn execute_query_invocation(
             // one pinned snapshot. Only server-resolved effective authority
             // selects an owner partition; authored args carry no authority.
             let owner_subject = match prepared.authority().resolved() {
-                ResolvedAppAuthority::Session { user_id, .. }
-                | ResolvedAppAuthority::DevImpersonation { user_id, .. } => Some(user_id.as_str()),
-                ResolvedAppAuthority::ServicePrincipal {
-                    effective_user_id: Some(user_id),
-                    ..
-                } => Some(user_id.as_str()),
+                ResolvedAppAuthority::Session(subject) => Some(subject.user_id()),
+                ResolvedAppAuthority::DevImpersonation { user_id, .. } => Some(user_id.as_str()),
+                ResolvedAppAuthority::ServicePrincipal(subject) => subject.effective_user_id(),
                 _ => None,
             };
             let result = match db.vector(plan, &input, owner_subject) {
@@ -43539,7 +43663,7 @@ fn refuse_unprovenanced_host_plan_authority_creation(
 ) -> SnapbackResult<()> {
     if !matches!(
         prepared.authority().resolved(),
-        ResolvedAppAuthority::ServicePrincipal { .. }
+        ResolvedAppAuthority::ServicePrincipal(_)
     ) || !matches!(
         function.runtime,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(_))
@@ -43816,18 +43940,20 @@ fn watch_management_owner(authority: &PreparedAuthority) -> SnapbackResult<(Stri
         ));
     }
     match authority.resolved() {
-        ResolvedAppAuthority::Session {
-            user_id,
-            authority_instance_id,
-            ..
-        } => Ok((user_id.clone(), authority_instance_id.clone())),
-        ResolvedAppAuthority::ServicePrincipal {
-            actor_user_id,
-            grant_id,
-            effective_user_id: Some(_),
-            integration_status: Some(crate::storage::auth_integrations::IntegrationStatus::Active),
-            ..
-        } => Ok((actor_user_id.clone(), grant_id.clone())),
+        ResolvedAppAuthority::Session(subject) => Ok((
+            subject.user_id().to_owned(),
+            subject.authority_instance_id().to_owned(),
+        )),
+        ResolvedAppAuthority::ServicePrincipal(subject)
+            if subject.effective_user_id().is_some()
+                && subject.integration_status()
+                    == Some(crate::storage::auth_integrations::IntegrationStatus::Active) =>
+        {
+            Ok((
+                subject.actor_user_id().to_owned(),
+                subject.grant_id().to_owned(),
+            ))
+        }
         _ => Err(SnapbackError::error(
             "SNAPBACK_WATCH_OWNER_DENIED",
             "watches",

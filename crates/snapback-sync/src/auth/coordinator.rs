@@ -6,7 +6,7 @@
 //! every topology and leaf lock released. Exact finalize or rollback then
 //! reacquires topology → stream/session in the sole permitted order.
 
-use super::admission::AdmissionLease;
+use super::admission::{AdmissionController, AdmissionLease};
 use super::crypto::SessionBearer;
 use super::invocation::{
     InvocationGate, InvocationSource, PreparedAuthority, RehearsalAuthorityBinding,
@@ -47,6 +47,7 @@ pub struct AuthCoordinator {
 
 struct CoordinatorTopology {
     projection: SessionProjection,
+    admission: AdmissionController,
     rebuild_required_sessions: BTreeSet<String>,
     global_rebuild_required: bool,
 }
@@ -520,10 +521,8 @@ impl PreparedBearerAuthority {
     pub fn matches_authority_instance_id(&self, expected: &str) -> bool {
         matches!(
             &self.authority,
-            ResolvedAppAuthority::Session {
-                authority_instance_id,
-                ..
-            } if authority_instance_id == expected
+            ResolvedAppAuthority::Session(subject)
+                if subject.authority_instance_id() == expected
         )
     }
 
@@ -562,28 +561,39 @@ impl AuthCoordinator {
     /// self-assert session authority.
     pub fn from_admitted_snapshot(
         snapshot: super::session_projection::AdmittedProjectionSnapshot,
+        admission: AdmissionController,
         epoch_now_ms: u64,
         monotonic_now: Instant,
     ) -> SnapbackResult<Self> {
         let (database_binding, source) = snapshot.into_parts();
         Self::new_inner(
             SessionProjection::rebuild_with_fresh_startup_id(source, epoch_now_ms, monotonic_now)?,
+            admission,
             Some(database_binding),
         )
     }
 
     #[cfg(feature = "test-support")]
     pub fn new(projection: SessionProjection) -> SnapbackResult<Self> {
-        Self::new_inner(projection, None)
+        Self::new_inner(projection, AdmissionController::new(0, true)?, None)
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn new_with_admission(
+        projection: SessionProjection,
+        admission: AdmissionController,
+    ) -> SnapbackResult<Self> {
+        Self::new_inner(projection, admission, None)
     }
 
     #[cfg(not(feature = "test-support"))]
     pub(crate) fn new(projection: SessionProjection) -> SnapbackResult<Self> {
-        Self::new_inner(projection, None)
+        Self::new_inner(projection, AdmissionController::new(0, true)?, None)
     }
 
     fn new_inner(
         projection: SessionProjection,
+        admission: AdmissionController,
         database_binding: Option<crate::storage::DatabaseBinding>,
     ) -> SnapbackResult<Self> {
         projection.check_invariants()?;
@@ -591,6 +601,7 @@ impl AuthCoordinator {
             database_binding,
             topology: Mutex::new(CoordinatorTopology {
                 projection,
+                admission,
                 rebuild_required_sessions: BTreeSet::new(),
                 global_rebuild_required: false,
             }),
@@ -1632,21 +1643,13 @@ impl AuthCoordinator {
             ProjectedConnectionTokenResolution::Current(authority) => {
                 let publication = topology
                     .projection
-                    .session_publication_fence(&authority.session_id, authority.generation)?;
-                let deadline_ms = authority.expires_at_ms;
+                    .session_publication_fence(authority.session_id(), authority.generation())?;
+                let deadline_ms = authority.expires_at_ms();
                 ConnectionBearerResolution::Current(PreparedConnectionSessionAuthority {
-                    authority: ResolvedAppAuthority::Session {
-                        user_id: authority.user_id,
-                        session_id: authority.session_id,
-                        provider: authority.provider,
-                        generation: authority.generation,
-                        authority_instance_id: authority.authority_instance_id,
-                        session_not_after_ms: authority
-                            .expires_at_ms
-                            .min(authority.absolute_expires_at_ms),
-                        provider_not_after_ms: None,
-                        rehearsal_provenance: authority.rehearsal_provenance,
-                    },
+                    authority: ResolvedAppAuthority::from_projected_session(
+                        authority,
+                        topology.admission.lease_origin(),
+                    ),
                     authorization_stream_incarnation: incarnation,
                     deadline_ms,
                     publication,
@@ -1654,8 +1657,8 @@ impl AuthCoordinator {
             }
             ProjectedConnectionTokenResolution::Superseded(authority) => {
                 ConnectionBearerResolution::Superseded(key(
-                    authority.session_id,
-                    authority.generation,
+                    authority.session_id().to_owned(),
+                    authority.generation(),
                 ))
             }
             ProjectedConnectionTokenResolution::Unavailable {
@@ -1700,18 +1703,10 @@ impl AuthCoordinator {
                 monotonic_now,
             )? {
                 ProjectedBoundSessionResolution::Current(authority) => {
-                    let authority = ResolvedAppAuthority::Session {
-                        user_id: authority.user_id,
-                        session_id: authority.session_id,
-                        provider: authority.provider,
-                        generation: authority.generation,
-                        authority_instance_id: authority.authority_instance_id,
-                        session_not_after_ms: authority
-                            .expires_at_ms
-                            .min(authority.absolute_expires_at_ms),
-                        provider_not_after_ms: None,
-                        rehearsal_provenance: authority.rehearsal_provenance,
-                    };
+                    let authority = ResolvedAppAuthority::from_projected_session(
+                        authority,
+                        topology.admission.lease_origin(),
+                    );
                     let publication = topology
                         .projection
                         .session_publication_fence(session_id, generation)?;
@@ -2001,26 +1996,18 @@ impl CoordinatorTopology {
     ) -> SnapbackResult<PreparedBearerAuthority> {
         if self
             .rebuild_required_sessions
-            .contains(&authority.session_id)
+            .contains(authority.session_id())
         {
             return Err(projection_unavailable());
         }
         let publication = self
             .projection
-            .session_publication_fence(&authority.session_id, authority.generation)?;
+            .session_publication_fence(authority.session_id(), authority.generation())?;
         Ok(PreparedBearerAuthority {
-            authority: ResolvedAppAuthority::Session {
-                user_id: authority.user_id,
-                session_id: authority.session_id,
-                provider: authority.provider,
-                generation: authority.generation,
-                authority_instance_id: authority.authority_instance_id,
-                session_not_after_ms: authority
-                    .expires_at_ms
-                    .min(authority.absolute_expires_at_ms),
-                provider_not_after_ms: None,
-                rehearsal_provenance: authority.rehearsal_provenance,
-            },
+            authority: ResolvedAppAuthority::from_projected_session(
+                authority,
+                self.admission.lease_origin(),
+            ),
             publication,
         })
     }
@@ -2268,6 +2255,7 @@ mod tests {
 
     struct Fixture {
         coordinator: Arc<AuthCoordinator>,
+        admission: AdmissionController,
         incarnation: String,
         user_id: String,
         session_id: String,
@@ -2365,8 +2353,13 @@ mod tests {
         let monotonic_start = Instant::now();
         let projection =
             SessionProjection::rebuild(source, &uuid_v7(6, 6), 100, monotonic_start).unwrap();
+        let admission = crate::auth::invocation::test_admission_controller(AuthMode::Sessions, 0)
+            .expect("sessions admission controller");
         Fixture {
-            coordinator: Arc::new(AuthCoordinator::new(projection).unwrap()),
+            coordinator: Arc::new(
+                AuthCoordinator::new_with_admission(projection, admission.clone()).unwrap(),
+            ),
+            admission,
             incarnation,
             user_id,
             session_id,
@@ -2430,8 +2423,13 @@ mod tests {
             .admitted_session_projection_snapshot()
             .expect("mint admitted database-backed session snapshot");
         fixture.coordinator = Arc::new(
-            AuthCoordinator::from_admitted_snapshot(snapshot, 100, fixture.monotonic_start)
-                .expect("build database-bound session coordinator"),
+            AuthCoordinator::from_admitted_snapshot(
+                snapshot,
+                fixture.admission.clone(),
+                100,
+                fixture.monotonic_start,
+            )
+            .expect("build database-bound session coordinator"),
         );
         fixture
     }
@@ -2550,12 +2548,60 @@ mod tests {
             .unwrap();
         assert!(matches!(
             authority.authority(),
-            ResolvedAppAuthority::Session {
-                authority_instance_id,
-                generation: 1,
-                ..
-            } if authority_instance_id == &fixture.authority_instance_id
+            ResolvedAppAuthority::Session(subject)
+                if subject.authority_instance_id() == fixture.authority_instance_id
+                    && subject.generation() == 1
         ));
+    }
+
+    #[test]
+    fn cloned_admission_lease_cannot_prepare_two_genuine_session_resolutions() {
+        let mut database = crate::storage::LocalDatabase::memory()
+            .expect("session authority lease fixture database");
+        let fixture = fixture_from_database(true, &mut database);
+        let mut database = crate::storage::ServingDatabase::adopt(database)
+            .expect("adopt session authority lease fixture database");
+        let second_bearer = SessionBearer::generate(&FixedRandom(8)).unwrap();
+        let first = fixture
+            .coordinator
+            .resolve_required_bearer(&fixture.bearer, 200, fixture.monotonic_start)
+            .unwrap();
+        let second = fixture
+            .coordinator
+            .resolve_required_bearer(second_bearer.expose_secret(), 200, fixture.monotonic_start)
+            .unwrap();
+        assert_ne!(
+            first.resolved().session_id(),
+            second.resolved().session_id()
+        );
+
+        let admission = fixture
+            .admission
+            .admit_for_mode(AuthMode::Sessions)
+            .unwrap();
+        first
+            .prepare(
+                &mut database,
+                InvocationSource::HttpQuery,
+                AuthMode::Sessions,
+                ServerProfile::Test,
+                admission.clone(),
+                &WireAuthorityFields::default(),
+                200,
+            )
+            .expect("the first genuine resolution claims the shared lease identity");
+        let error = second
+            .prepare(
+                &mut database,
+                InvocationSource::HttpQuery,
+                AuthMode::Sessions,
+                ServerProfile::Test,
+                admission,
+                &WireAuthorityFields::default(),
+                200,
+            )
+            .expect_err("the cloned lease cannot authorize a distinct resolved subject");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_POLICY_UNAVAILABLE");
     }
 
     #[test]
@@ -2710,10 +2756,10 @@ mod tests {
                 fixture.monotonic_start + Duration::from_millis(100),
             )
             .expect("reconstruct stored original session authority B");
-        let ResolvedAppAuthority::Session { user_id, .. } = reconstructed.authority() else {
+        let ResolvedAppAuthority::Session(subject) = reconstructed.authority() else {
             panic!("retained session reconstruction must produce session authority")
         };
-        assert_eq!(user_id, &uuid_v7(2, 2));
+        assert_eq!(subject.user_id(), uuid_v7(2, 2));
 
         let mut cases = Vec::new();
         let mut add_case =
@@ -3414,7 +3460,7 @@ mod tests {
             .unwrap();
         assert!(matches!(
             successor_two_authority.authority(),
-            ResolvedAppAuthority::Session { generation: 1, .. }
+            ResolvedAppAuthority::Session(subject) if subject.generation() == 1
         ));
         assert!(
             successor_one_outcome

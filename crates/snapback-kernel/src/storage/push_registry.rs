@@ -297,7 +297,7 @@ impl LocalDatabase {
         discriminator: u8,
     ) -> SnapbackResult<()> {
         self.with_auth_transaction(|tx| {
-            let identity_id = format!("identity-{discriminator}");
+            let identity_id = format!("idn_{discriminator:026}");
             tx.execute(
                 "INSERT OR IGNORE INTO _auth_users(id, created_at_ms) VALUES(?1, 0)",
                 params![principal_id],
@@ -315,7 +315,7 @@ impl LocalDatabase {
                 session_id,
                 principal_id,
                 &identity_id,
-                &format!("authority-{discriminator}"),
+                &format!("aut_{discriminator:026}"),
                 &[discriminator; 32],
                 0,
                 0,

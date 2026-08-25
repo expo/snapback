@@ -144,12 +144,79 @@ pub enum EvaluationDecision {
 
 #[derive(Clone, Debug)]
 pub struct WatchAnchorAuthority {
-    pub actor_user_id: String,
-    pub effective_user_id: String,
-    pub grant_id: String,
-    pub scopes: Vec<crate::storage::auth_grants::ExactGrantScope>,
-    pub expires_at_ms: u64,
-    pub integration_status: crate::storage::auth_integrations::IntegrationStatus,
+    actor_user_id: String,
+    effective_user_id: String,
+    grant_id: String,
+    scopes: Vec<crate::storage::auth_grants::ExactGrantScope>,
+    expires_at_ms: u64,
+    integration_status: crate::storage::auth_integrations::IntegrationStatus,
+    database_binding: DatabaseBinding,
+    _resolution: WatchAnchorResolution,
+}
+
+#[derive(Clone, Debug)]
+struct WatchAnchorResolution;
+
+impl WatchAnchorAuthority {
+    pub fn actor_user_id(&self) -> &str {
+        &self.actor_user_id
+    }
+
+    pub fn effective_user_id(&self) -> &str {
+        &self.effective_user_id
+    }
+
+    pub fn grant_id(&self) -> &str {
+        &self.grant_id
+    }
+
+    pub fn scopes(&self) -> &[crate::storage::auth_grants::ExactGrantScope] {
+        &self.scopes
+    }
+
+    pub fn expires_at_ms(&self) -> u64 {
+        self.expires_at_ms
+    }
+
+    pub fn integration_status(&self) -> crate::storage::auth_integrations::IntegrationStatus {
+        self.integration_status
+    }
+
+    #[doc(hidden)]
+    pub fn database_binding(&self) -> &DatabaseBinding {
+        &self.database_binding
+    }
+}
+
+/// Protected-catalog proof that a durable watch still names an active human
+/// owner. Copied watch fields cannot reconstruct this carrier.
+#[derive(Clone, Debug)]
+pub struct RevalidatedWatchPrincipal {
+    user_id: String,
+    authority_instance_id: String,
+    database_binding: DatabaseBinding,
+    _resolution: RevalidatedWatchPrincipalResolution,
+}
+
+#[derive(Clone, Debug)]
+struct RevalidatedWatchPrincipalResolution;
+
+impl RevalidatedWatchPrincipal {
+    pub fn user_id(&self) -> &str {
+        &self.user_id
+    }
+
+    pub fn authority_instance_id(&self) -> &str {
+        &self.authority_instance_id
+    }
+
+    /// Identity of the serving database whose protected catalog supplied this
+    /// principal. This is evidence for a verifier-owned join, not a public
+    /// fact-assertion capability.
+    #[doc(hidden)]
+    pub fn database_binding(&self) -> &DatabaseBinding {
+        &self.database_binding
+    }
 }
 
 /// Caller-constructed operation identifier for one watch-management attempt.
@@ -543,6 +610,32 @@ impl LocalDatabase {
         )? != 0)
     }
 
+    /// Reload and revalidate a human watch owner from the protected catalog.
+    ///
+    /// @ref LLP 0303#the-governing-principle — the principal fields come
+    /// from the same durable watch row whose owner liveness is verified; a
+    /// caller cannot staple fields from a constructed `WatchRecord` onto the
+    /// revalidation result.
+    pub fn revalidate_watch_principal(
+        &self,
+        watch_id: &str,
+    ) -> SnapbackResult<Option<RevalidatedWatchPrincipal>> {
+        let Some(record) = row_for_id_on(&self.conn, watch_id)? else {
+            return Ok(None);
+        };
+        if record.owner_kind != WatchOwnerKind::User
+            || !self.watch_owner_is_active(&record.owner_principal_id)?
+        {
+            return Ok(None);
+        }
+        Ok(Some(RevalidatedWatchPrincipal {
+            user_id: record.owner_principal_id.clone(),
+            authority_instance_id: record.owner_authority_instance_id.clone(),
+            database_binding: self.binding(),
+            _resolution: RevalidatedWatchPrincipalResolution,
+        }))
+    }
+
     /// Reload the watchAnchor, its parent installation consent, integration
     /// admission, and every exact scope basis in one protected read cut.
     ///
@@ -557,10 +650,11 @@ impl LocalDatabase {
         if record.owner_kind != WatchOwnerKind::Integration {
             return Ok(None);
         }
+        let binding = self.binding();
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let authority = revalidate_watch_anchor_on(&tx, record, now_ms)?;
+        let authority = revalidate_watch_anchor_on(&tx, record, now_ms, binding)?;
         tx.commit()?;
         Ok(authority)
     }
@@ -784,8 +878,8 @@ impl LocalDatabase {
                         "only a live integration watch's consenting user can renew its anchor",
                     ));
                 }
-                let anchor =
-                    revalidate_watch_anchor_on(&tx, &record, now_ms)?.ok_or_else(|| {
+                let anchor = revalidate_watch_anchor_on(&tx, &record, now_ms, binding.clone())?
+                    .ok_or_else(|| {
                         SnapbackError::error(
                             "SNAPBACK_WATCH_AUTHORITY_DEAD",
                             "watches",
@@ -1650,6 +1744,7 @@ fn revalidate_watch_anchor_on(
     conn: &Transaction<'_>,
     record: &WatchRecord,
     now_ms: u64,
+    database_binding: DatabaseBinding,
 ) -> SnapbackResult<Option<WatchAnchorAuthority>> {
     if record.owner_kind != WatchOwnerKind::Integration {
         return Ok(None);
@@ -1736,6 +1831,8 @@ fn revalidate_watch_anchor_on(
         scopes,
         expires_at_ms,
         integration_status: integration.status,
+        database_binding,
+        _resolution: WatchAnchorResolution,
     }))
 }
 
@@ -2897,6 +2994,12 @@ impl super::ServingDatabase {
         now_ms: u64,
     ) -> SnapbackResult<Option<WatchAnchorAuthority>> {
         self.db.revalidate_watch_anchor(record, now_ms)
+    }
+    pub fn revalidate_watch_principal(
+        &self,
+        watch_id: &str,
+    ) -> SnapbackResult<Option<RevalidatedWatchPrincipal>> {
+        self.db.revalidate_watch_principal(watch_id)
     }
     pub fn renew_watch_anchor_for_user(
         &mut self,

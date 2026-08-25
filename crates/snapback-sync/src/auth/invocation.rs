@@ -13,7 +13,6 @@ use crate::auth::descriptor::{
     validate_descriptor_values,
 };
 use crate::auth::identity_core::AuthClaimsProjection;
-use crate::auth::provider::ResolvedSession;
 use crate::auth::service_authority_contract::{
     ServiceAuthorityActResolution, ServiceAuthorityDeadlineTerminal, ServiceAuthorityDisposition,
 };
@@ -326,22 +325,7 @@ impl WireAuthorityFields {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ResolvedAppAuthority {
     Anonymous,
-    Session {
-        user_id: String,
-        session_id: String,
-        provider: String,
-        generation: u64,
-        authority_instance_id: String,
-        /// Earliest durable session deadline captured by the trusted
-        /// projection. It is server-held and never enters `ctx.auth`.
-        session_not_after_ms: u64,
-        /// Optional provider-assertion deadline when it differs from the
-        /// session's own lifetime.
-        provider_not_after_ms: Option<u64>,
-        /// Protected rehearsal lineage, absent for ordinary sessions. It is
-        /// never included in the handler projection.
-        rehearsal_provenance: Option<crate::auth::rehearsal::AuthRehearsalProvenanceV1>,
-    },
+    Session(ResolvedSessionAuthority),
     /// Credential-free durable-watch authority. The worker reconstructs this
     /// only after loading the protected watch record and revalidating the
     /// current human principal. It deliberately has no session id, provider
@@ -349,10 +333,7 @@ pub enum ResolvedAppAuthority {
     ///
     /// @ref LLP 0055#dated-amendment-llp-0204-integration-registrations-and-watch-anchors-2026-08-08 —
     /// user-owned watches use `revalidatePrincipal`, never a retained session.
-    RevalidatedPrincipal {
-        user_id: String,
-        authority_instance_id: String,
-    },
+    RevalidatedPrincipal(ResolvedRevalidatedPrincipalAuthority),
     DevImpersonation {
         user_id: String,
         roles: Vec<String>,
@@ -365,24 +346,290 @@ pub enum ResolvedAppAuthority {
     /// @ref LLP 0055#resolved-authority-serviceprincipal — carrier identity is
     ///   distinct from effective identity, and delegated authority projects
     ///   the effective user while retaining an attributable actor.
-    ServicePrincipal {
-        actor_user_id: String,
-        credential_id: String,
-        credential_generation: u64,
-        grant_id: String,
-        token_id: String,
-        effective_user_id: Option<String>,
-        scopes: Vec<ResolvedGrantScope>,
-        token_expires_at_ms: u64,
-        /// Present only for an integration registration. Fresh carrier
-        /// resolution loads this app-scoped admission fact before the shared
-        /// function-policy chokepoint runs.
-        integration_status: Option<crate::storage::auth_integrations::IntegrationStatus>,
-    },
+    ServicePrincipal(ResolvedServicePrincipalAuthority),
     AdminBypass {
         reason: String,
     },
     System,
+}
+
+/// Immutable result of one projection-owned bearer resolution. Its private
+/// fields are the lifetime boundary: callers may inspect a derived subject,
+/// but cannot construct or retarget it from copied catalog facts.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ResolvedSessionAuthority {
+    user_id: String,
+    session_id: String,
+    provider: String,
+    generation: u64,
+    authority_instance_id: String,
+    session_not_after_ms: u64,
+    provider_not_after_ms: Option<u64>,
+    rehearsal_provenance: Option<crate::auth::rehearsal::AuthRehearsalProvenanceV1>,
+    admission_origin: crate::auth::admission::AdmissionLeaseOrigin,
+}
+
+impl ResolvedSessionAuthority {
+    pub fn user_id(&self) -> &str {
+        &self.user_id
+    }
+
+    pub fn session_id(&self) -> &str {
+        &self.session_id
+    }
+
+    pub fn provider(&self) -> &str {
+        &self.provider
+    }
+
+    pub fn generation(&self) -> u64 {
+        self.generation
+    }
+
+    pub fn authority_instance_id(&self) -> &str {
+        &self.authority_instance_id
+    }
+
+    pub fn session_not_after_ms(&self) -> u64 {
+        self.session_not_after_ms
+    }
+
+    pub fn provider_not_after_ms(&self) -> Option<u64> {
+        self.provider_not_after_ms
+    }
+
+    pub fn rehearsal_provenance(
+        &self,
+    ) -> Option<&crate::auth::rehearsal::AuthRehearsalProvenanceV1> {
+        self.rehearsal_provenance.as_ref()
+    }
+}
+
+/// Immutable result of one serving-database scoped-token resolution.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ResolvedServicePrincipalAuthority {
+    actor_user_id: String,
+    credential_id: String,
+    credential_generation: u64,
+    grant_id: String,
+    token_id: String,
+    effective_user_id: Option<String>,
+    scopes: Vec<ResolvedGrantScope>,
+    token_expires_at_ms: u64,
+    integration_status: Option<crate::storage::auth_integrations::IntegrationStatus>,
+    admission_origin: crate::auth::admission::AdmissionLeaseOrigin,
+}
+
+impl ResolvedServicePrincipalAuthority {
+    pub fn actor_user_id(&self) -> &str {
+        &self.actor_user_id
+    }
+
+    pub fn credential_id(&self) -> &str {
+        &self.credential_id
+    }
+
+    pub fn credential_generation(&self) -> u64 {
+        self.credential_generation
+    }
+
+    pub fn grant_id(&self) -> &str {
+        &self.grant_id
+    }
+
+    pub fn token_id(&self) -> &str {
+        &self.token_id
+    }
+
+    pub fn effective_user_id(&self) -> Option<&str> {
+        self.effective_user_id.as_deref()
+    }
+
+    pub fn scopes(&self) -> &[ResolvedGrantScope] {
+        &self.scopes
+    }
+
+    pub fn token_expires_at_ms(&self) -> u64 {
+        self.token_expires_at_ms
+    }
+
+    pub fn integration_status(
+        &self,
+    ) -> Option<crate::storage::auth_integrations::IntegrationStatus> {
+        self.integration_status
+    }
+}
+
+/// Immutable result of protected watch-principal revalidation.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ResolvedRevalidatedPrincipalAuthority {
+    user_id: String,
+    authority_instance_id: String,
+    admission_origin: crate::auth::admission::AdmissionLeaseOrigin,
+}
+
+impl ResolvedRevalidatedPrincipalAuthority {
+    pub fn user_id(&self) -> &str {
+        &self.user_id
+    }
+
+    pub fn authority_instance_id(&self) -> &str {
+        &self.authority_instance_id
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn test_revalidated_authority(
+    user_id: impl Into<String>,
+    authority_instance_id: impl Into<String>,
+) -> ResolvedAppAuthority {
+    ResolvedAppAuthority::RevalidatedPrincipal(ResolvedRevalidatedPrincipalAuthority {
+        user_id: user_id.into(),
+        authority_instance_id: authority_instance_id.into(),
+        admission_origin: test_admission_controller(AuthMode::Sessions, 0)
+            .expect("test admission controller")
+            .lease_origin(),
+    })
+}
+
+#[cfg(test)]
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn test_session_authority(
+    user_id: impl Into<String>,
+    session_id: impl Into<String>,
+    provider: impl Into<String>,
+    generation: u64,
+    authority_instance_id: impl Into<String>,
+    session_not_after_ms: u64,
+    provider_not_after_ms: Option<u64>,
+    rehearsal_provenance: Option<crate::auth::rehearsal::AuthRehearsalProvenanceV1>,
+) -> ResolvedAppAuthority {
+    test_session_authority_with_origin(
+        user_id,
+        session_id,
+        provider,
+        generation,
+        authority_instance_id,
+        session_not_after_ms,
+        provider_not_after_ms,
+        rehearsal_provenance,
+        test_admission_controller(AuthMode::Sessions, 0)
+            .expect("test admission controller")
+            .lease_origin(),
+    )
+}
+
+#[cfg(test)]
+#[allow(clippy::too_many_arguments)]
+fn test_session_authority_with_origin(
+    user_id: impl Into<String>,
+    session_id: impl Into<String>,
+    provider: impl Into<String>,
+    generation: u64,
+    authority_instance_id: impl Into<String>,
+    session_not_after_ms: u64,
+    provider_not_after_ms: Option<u64>,
+    rehearsal_provenance: Option<crate::auth::rehearsal::AuthRehearsalProvenanceV1>,
+    admission_origin: crate::auth::admission::AdmissionLeaseOrigin,
+) -> ResolvedAppAuthority {
+    ResolvedAppAuthority::resolved_session(
+        user_id.into(),
+        session_id.into(),
+        provider.into(),
+        generation,
+        authority_instance_id.into(),
+        session_not_after_ms,
+        provider_not_after_ms,
+        rehearsal_provenance,
+        admission_origin,
+    )
+}
+
+#[cfg(test)]
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn test_service_authority(
+    actor_user_id: impl Into<String>,
+    credential_id: impl Into<String>,
+    credential_generation: u64,
+    grant_id: impl Into<String>,
+    token_id: impl Into<String>,
+    effective_user_id: Option<String>,
+    scopes: Vec<ResolvedGrantScope>,
+    token_expires_at_ms: u64,
+    integration_status: Option<crate::storage::auth_integrations::IntegrationStatus>,
+) -> ResolvedAppAuthority {
+    ResolvedAppAuthority::resolved_service_principal(
+        actor_user_id.into(),
+        credential_id.into(),
+        credential_generation,
+        grant_id.into(),
+        token_id.into(),
+        effective_user_id,
+        scopes,
+        token_expires_at_ms,
+        integration_status,
+        test_admission_controller(AuthMode::Sessions, 0)
+            .expect("test admission controller")
+            .lease_origin(),
+    )
+}
+
+/// Opaque result of one protected scoped-token/catalog verification. The raw
+/// app authority can be inspected but not extracted; preparation consumes
+/// this carrier inside the crate that owns the closed invocation gate.
+#[derive(Clone, Debug)]
+pub struct ResolvedServiceSubject {
+    resolved: ResolvedAppAuthority,
+}
+
+impl ResolvedServiceSubject {
+    #[doc(hidden)]
+    pub fn from_scoped_token(
+        token: ResolvedScopedToken,
+        admission_origin: crate::auth::admission::AdmissionLeaseOrigin,
+    ) -> SnapbackResult<Self> {
+        let binding = token.database_binding().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "the scoped-token subject was not resolved by a serving database",
+            )
+        })?;
+        if !admission_origin.matches_database_binding(binding) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "the scoped-token subject and admission lease belong to different engine authority graphs",
+            ));
+        }
+        Ok(Self {
+            resolved: ResolvedAppAuthority::from_scoped_token(token, admission_origin),
+        })
+    }
+
+    pub fn resolved(&self) -> &ResolvedAppAuthority {
+        &self.resolved
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn prepare(
+        self,
+        source: InvocationSource,
+        active_mode: AuthMode,
+        profile: ServerProfile,
+        admission: AdmissionLease,
+        wire: &WireAuthorityFields,
+    ) -> SnapbackResult<PreparedAuthority> {
+        InvocationGate::prepare_admitted_authority(
+            source,
+            active_mode,
+            profile,
+            admission,
+            wire,
+            self.resolved,
+            None,
+        )
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -423,17 +670,17 @@ impl ResolvedGrantScope {
 impl ResolvedAppAuthority {
     pub fn session_id(&self) -> Option<&str> {
         match self {
-            Self::Session { session_id, .. } => Some(session_id),
+            Self::Session(subject) => Some(subject.session_id()),
             _ => None,
         }
     }
 
     pub fn has_ask_consent_scope(&self) -> bool {
-        matches!(self, Self::Session { .. })
+        matches!(self, Self::Session(_))
             || matches!(
                 self,
-                Self::ServicePrincipal { scopes, .. }
-                    if scopes.iter().any(|scope| {
+                Self::ServicePrincipal(subject)
+                    if subject.scopes().iter().any(|scope| {
                         scope.function_id()
                             == crate::storage::auth_scope_bases::ASK_SCOPE_ID
                             && matches!(scope.kind(), FunctionKind::Query)
@@ -442,11 +689,11 @@ impl ResolvedAppAuthority {
     }
 
     pub fn has_granted_read_scope(&self) -> bool {
-        matches!(self, Self::Session { .. })
+        matches!(self, Self::Session(_))
             || matches!(
                 self,
-                Self::ServicePrincipal { scopes, .. }
-                    if scopes.iter().any(|scope| {
+                Self::ServicePrincipal(subject)
+                    if subject.scopes().iter().any(|scope| {
                         scope.function_id()
                             != crate::storage::auth_scope_bases::ASK_SCOPE_ID
                             && matches!(scope.kind(), FunctionKind::Query | FunctionKind::LiveQuery)
@@ -459,50 +706,112 @@ impl ResolvedAppAuthority {
     /// class answers `None` and the wire omits the member entirely.
     pub(crate) fn function_attribution(&self) -> Option<FunctionAttribution> {
         match self {
-            Self::ServicePrincipal {
-                actor_user_id,
-                effective_user_id,
-                grant_id,
-                ..
-            } => Some(FunctionAttribution {
-                actor_user_id: actor_user_id.clone(),
-                effective_user_id: effective_user_id.clone(),
-                grant_id: grant_id.clone(),
+            Self::ServicePrincipal(subject) => Some(FunctionAttribution {
+                actor_user_id: subject.actor_user_id().to_owned(),
+                effective_user_id: subject.effective_user_id().map(str::to_owned),
+                grant_id: subject.grant_id().to_owned(),
                 dry_run: false,
             }),
             _ => None,
         }
     }
 
-    pub fn from_session(session: ResolvedSession) -> Self {
-        Self::Session {
-            user_id: session.user_id,
-            session_id: session.session_id,
-            provider: session.provider,
-            generation: session.generation,
-            authority_instance_id: session.authority_instance_id,
-            session_not_after_ms: session.expires_at_ms.min(session.absolute_expires_at_ms),
-            provider_not_after_ms: None,
-            rehearsal_provenance: None,
-        }
-    }
-
-    pub fn from_scoped_token(token: ResolvedScopedToken) -> Self {
-        Self::ServicePrincipal {
-            actor_user_id: token.actor_user_id,
-            credential_id: token.credential_id,
-            credential_generation: token.credential_generation,
-            grant_id: token.grant_id,
-            token_id: token.token_id,
-            effective_user_id: token.effective_user_id,
-            scopes: token
-                .scopes
-                .into_iter()
+    /// Project a kernel-resolved scoped token into the admission graph that
+    /// owns its engine. Neither input is constructible from identity strings.
+    fn from_scoped_token(
+        token: ResolvedScopedToken,
+        admission_origin: crate::auth::admission::AdmissionLeaseOrigin,
+    ) -> Self {
+        Self::resolved_service_principal(
+            token.actor_user_id().to_owned(),
+            token.credential_id().to_owned(),
+            token.credential_generation(),
+            token.grant_id().to_owned(),
+            token.token_id().to_owned(),
+            token.effective_user_id().map(str::to_owned),
+            token
+                .scopes()
+                .iter()
+                .cloned()
                 .map(ResolvedGrantScope::from_exact)
                 .collect(),
-            token_expires_at_ms: token.expires_at_ms,
-            integration_status: token.integration_status,
-        }
+            token.expires_at_ms(),
+            token.integration_status(),
+            admission_origin,
+        )
+    }
+
+    /// Construct a session authority only from the projection resolver's
+    /// opaque output, preserving the exact verifier/controller graph.
+    pub(super) fn from_projected_session(
+        authority: crate::auth::session_projection::ProjectedSessionAuthority,
+        admission_origin: crate::auth::admission::AdmissionLeaseOrigin,
+    ) -> Self {
+        Self::resolved_session(
+            authority.user_id().to_owned(),
+            authority.session_id().to_owned(),
+            authority.provider().to_owned(),
+            authority.generation(),
+            authority.authority_instance_id().to_owned(),
+            authority
+                .expires_at_ms()
+                .min(authority.absolute_expires_at_ms()),
+            None,
+            authority.rehearsal_provenance().cloned(),
+            admission_origin,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn resolved_session(
+        user_id: String,
+        session_id: String,
+        provider: String,
+        generation: u64,
+        authority_instance_id: String,
+        session_not_after_ms: u64,
+        provider_not_after_ms: Option<u64>,
+        rehearsal_provenance: Option<crate::auth::rehearsal::AuthRehearsalProvenanceV1>,
+        admission_origin: crate::auth::admission::AdmissionLeaseOrigin,
+    ) -> Self {
+        Self::Session(ResolvedSessionAuthority {
+            user_id,
+            session_id,
+            provider,
+            generation,
+            authority_instance_id,
+            session_not_after_ms,
+            provider_not_after_ms,
+            rehearsal_provenance,
+            admission_origin,
+        })
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn resolved_service_principal(
+        actor_user_id: String,
+        credential_id: String,
+        credential_generation: u64,
+        grant_id: String,
+        token_id: String,
+        effective_user_id: Option<String>,
+        scopes: Vec<ResolvedGrantScope>,
+        token_expires_at_ms: u64,
+        integration_status: Option<crate::storage::auth_integrations::IntegrationStatus>,
+        admission_origin: crate::auth::admission::AdmissionLeaseOrigin,
+    ) -> Self {
+        Self::ServicePrincipal(ResolvedServicePrincipalAuthority {
+            actor_user_id,
+            credential_id,
+            credential_generation,
+            grant_id,
+            token_id,
+            effective_user_id,
+            scopes,
+            token_expires_at_ms,
+            integration_status,
+            admission_origin,
+        })
     }
 
     pub fn dev_from_auth(input: &AuthInput) -> Self {
@@ -519,10 +828,10 @@ impl ResolvedAppAuthority {
     pub fn carries_user(&self) -> bool {
         matches!(
             self,
-            Self::Session { .. }
-                | Self::RevalidatedPrincipal { .. }
+            Self::Session(_)
+                | Self::RevalidatedPrincipal(_)
                 | Self::DevImpersonation { .. }
-                | Self::ServicePrincipal { .. }
+                | Self::ServicePrincipal(_)
         )
     }
 
@@ -532,42 +841,31 @@ impl ResolvedAppAuthority {
     pub fn invalidation_subject(&self) -> String {
         match self {
             Self::Anonymous => "anonymous".to_owned(),
-            Self::Session {
-                authority_instance_id,
-                generation,
-                ..
-            } => format!(
+            Self::Session(subject) => format!(
                 "session:{}:{}:{generation}",
-                authority_instance_id.len(),
-                authority_instance_id
+                subject.authority_instance_id().len(),
+                subject.authority_instance_id(),
+                generation = subject.generation(),
             ),
-            Self::RevalidatedPrincipal {
-                user_id,
-                authority_instance_id,
-            } => format!(
+            Self::RevalidatedPrincipal(subject) => format!(
                 "watch-principal:{}:{}:{}:{}",
-                user_id.len(),
-                user_id,
-                authority_instance_id.len(),
-                authority_instance_id
+                subject.user_id().len(),
+                subject.user_id(),
+                subject.authority_instance_id().len(),
+                subject.authority_instance_id()
             ),
             Self::DevImpersonation { user_id, .. } => {
                 format!("dev:{}:{user_id}", user_id.len())
             }
-            Self::ServicePrincipal {
-                actor_user_id,
-                credential_id,
-                credential_generation,
-                grant_id,
-                ..
-            } => format!(
+            Self::ServicePrincipal(subject) => format!(
                 "service-principal:{}:{}:{}:{}:{}:{}:{credential_generation}",
-                actor_user_id.len(),
-                actor_user_id,
-                credential_id.len(),
-                credential_id,
-                grant_id.len(),
-                grant_id,
+                subject.actor_user_id().len(),
+                subject.actor_user_id(),
+                subject.credential_id().len(),
+                subject.credential_id(),
+                subject.grant_id().len(),
+                subject.grant_id(),
+                credential_generation = subject.credential_generation(),
             ),
             Self::AdminBypass { .. } => "admin-bypass".to_owned(),
             Self::System => "system".to_owned(),
@@ -577,37 +875,23 @@ impl ResolvedAppAuthority {
     pub fn key(&self) -> AuthorityKey {
         match self {
             Self::Anonymous => AuthorityKey::Anonymous,
-            Self::Session {
-                user_id,
-                session_id,
-                generation,
-                ..
-            } => AuthorityKey::Session {
-                user_id: user_id.clone(),
-                session_id: session_id.clone(),
-                generation: *generation,
+            Self::Session(subject) => AuthorityKey::Session {
+                user_id: subject.user_id().to_owned(),
+                session_id: subject.session_id().to_owned(),
+                generation: subject.generation(),
             },
-            Self::RevalidatedPrincipal {
-                user_id,
-                authority_instance_id,
-            } => AuthorityKey::RevalidatedPrincipal {
-                user_id: user_id.clone(),
-                authority_instance_id: authority_instance_id.clone(),
+            Self::RevalidatedPrincipal(subject) => AuthorityKey::RevalidatedPrincipal {
+                user_id: subject.user_id().to_owned(),
+                authority_instance_id: subject.authority_instance_id().to_owned(),
             },
             Self::DevImpersonation { user_id, .. } => AuthorityKey::DevImpersonation {
                 user_id: user_id.clone(),
             },
-            Self::ServicePrincipal {
-                actor_user_id,
-                credential_id,
-                credential_generation,
-                grant_id,
-                ..
-            } => AuthorityKey::ServicePrincipal {
-                actor_user_id: actor_user_id.clone(),
-                credential_id: credential_id.clone(),
-                credential_generation: *credential_generation,
-                grant_id: grant_id.clone(),
+            Self::ServicePrincipal(subject) => AuthorityKey::ServicePrincipal {
+                actor_user_id: subject.actor_user_id().to_owned(),
+                credential_id: subject.credential_id().to_owned(),
+                credential_generation: subject.credential_generation(),
+                grant_id: subject.grant_id().to_owned(),
             },
             Self::AdminBypass { .. } => AuthorityKey::AdminBypass,
             Self::System => AuthorityKey::System,
@@ -616,26 +900,22 @@ impl ResolvedAppAuthority {
 
     fn legacy_input(&self) -> AuthInput {
         match self {
-            Self::Session {
-                user_id,
-                session_id,
-                ..
-            } => AuthInput {
+            Self::Session(subject) => AuthInput {
                 principal: None,
-                session_id: Some(session_id.clone()),
-                user_id: Some(user_id.clone()),
+                session_id: Some(subject.session_id().to_owned()),
+                user_id: Some(subject.user_id().to_owned()),
                 ..AuthInput::default()
             }
             .with_authorization_projection(Some("human"), None, false)
-            .with_activity_provenance(Some(user_id), Some("human"), None),
-            Self::RevalidatedPrincipal { user_id, .. } => AuthInput {
+            .with_activity_provenance(Some(subject.user_id()), Some("human"), None),
+            Self::RevalidatedPrincipal(subject) => AuthInput {
                 principal: None,
                 session_id: None,
-                user_id: Some(user_id.clone()),
+                user_id: Some(subject.user_id().to_owned()),
                 ..AuthInput::default()
             }
             .with_authorization_projection(Some("human"), None, false)
-            .with_activity_provenance(Some(user_id), Some("human"), None),
+            .with_activity_provenance(Some(subject.user_id()), Some("human"), None),
             Self::DevImpersonation { user_id, .. } => AuthInput {
                 principal: None,
                 session_id: None,
@@ -643,30 +923,30 @@ impl ResolvedAppAuthority {
                 ..AuthInput::default()
             }
             .with_authorization_projection(Some("human"), None, false),
-            Self::ServicePrincipal {
-                actor_user_id,
-                effective_user_id,
-                grant_id,
-                ..
-            } => AuthInput {
+            Self::ServicePrincipal(subject) => AuthInput {
                 principal: None,
                 session_id: None,
-                user_id: Some(effective_user_id.as_ref().unwrap_or(actor_user_id).clone()),
+                user_id: Some(
+                    subject
+                        .effective_user_id()
+                        .unwrap_or(subject.actor_user_id())
+                        .to_owned(),
+                ),
                 ..AuthInput::default()
             }
             .with_authorization_projection(
-                Some(if effective_user_id.is_some() {
+                Some(if subject.effective_user_id().is_some() {
                     "human"
                 } else {
                     "agent"
                 }),
-                effective_user_id.as_ref().map(|_| "agent"),
-                effective_user_id.is_some(),
+                subject.effective_user_id().map(|_| "agent"),
+                subject.effective_user_id().is_some(),
             )
             .with_activity_provenance(
-                effective_user_id.as_ref().map(|_| actor_user_id.as_str()),
-                effective_user_id.as_ref().map(|_| "agent"),
-                effective_user_id.as_ref().map(|_| grant_id.as_str()),
+                subject.effective_user_id().map(|_| subject.actor_user_id()),
+                subject.effective_user_id().map(|_| "agent"),
+                subject.effective_user_id().map(|_| subject.grant_id()),
             ),
             Self::Anonymous | Self::AdminBypass { .. } | Self::System => AuthInput::default(),
         }
@@ -694,20 +974,19 @@ impl MembershipWriterResolvedExt for crate::storage::MembershipWriter {
     ) -> Self {
         use crate::storage::ResolvedMembershipWriter as Kernel;
         let kernel = match resolved {
-            ResolvedAppAuthority::Session { user_id, .. }
-            | ResolvedAppAuthority::RevalidatedPrincipal { user_id, .. }
-            | ResolvedAppAuthority::DevImpersonation { user_id, .. } => Kernel::User {
+            ResolvedAppAuthority::Session(subject) => Kernel::User {
+                user_id: subject.user_id().to_owned(),
+            },
+            ResolvedAppAuthority::RevalidatedPrincipal(subject) => Kernel::User {
+                user_id: subject.user_id().to_owned(),
+            },
+            ResolvedAppAuthority::DevImpersonation { user_id, .. } => Kernel::User {
                 user_id: user_id.clone(),
             },
-            ResolvedAppAuthority::ServicePrincipal {
-                actor_user_id,
-                effective_user_id,
-                grant_id,
-                ..
-            } => Kernel::ServicePrincipal {
-                actor_user_id: actor_user_id.clone(),
-                effective_user_id: effective_user_id.clone(),
-                grant_id: grant_id.clone(),
+            ResolvedAppAuthority::ServicePrincipal(subject) => Kernel::ServicePrincipal {
+                actor_user_id: subject.actor_user_id().to_owned(),
+                effective_user_id: subject.effective_user_id().map(str::to_owned),
+                grant_id: subject.grant_id().to_owned(),
             },
             ResolvedAppAuthority::System => Kernel::System,
             ResolvedAppAuthority::AdminBypass { .. } => Kernel::AdminBypass,
@@ -815,7 +1094,7 @@ impl HandlerAuthProjection {
         authority: &ResolvedAppAuthority,
         session_claims: Option<AuthClaimsProjection>,
     ) -> SnapbackResult<Self> {
-        if matches!(authority, ResolvedAppAuthority::Session { .. }) != session_claims.is_some() {
+        if matches!(authority, ResolvedAppAuthority::Session(_)) != session_claims.is_some() {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_CLAIMS_AUTHORITY_INVALID",
                 "auth",
@@ -827,24 +1106,19 @@ impl HandlerAuthProjection {
             ));
         }
         Ok(match authority {
-            ResolvedAppAuthority::Session {
-                user_id,
-                session_id,
-                provider,
-                ..
-            } => Self {
-                user_id: Some(user_id.clone()),
-                session_id: Some(session_id.clone()),
+            ResolvedAppAuthority::Session(subject) => Self {
+                user_id: Some(subject.user_id().to_owned()),
+                session_id: Some(subject.session_id().to_owned()),
                 is_authenticated: true,
-                provider: Some(provider.clone()),
+                provider: Some(subject.provider().to_owned()),
                 roles: Some(Vec::new()),
                 kind: Some("human".to_owned()),
                 actor: None,
                 actor_kind: None,
                 claims: session_claims,
             },
-            ResolvedAppAuthority::RevalidatedPrincipal { user_id, .. } => Self {
-                user_id: Some(user_id.clone()),
+            ResolvedAppAuthority::RevalidatedPrincipal(subject) => Self {
+                user_id: Some(subject.user_id().to_owned()),
                 session_id: None,
                 is_authenticated: true,
                 provider: Some("snapback-watch".to_owned()),
@@ -865,28 +1139,28 @@ impl HandlerAuthProjection {
                 actor_kind: None,
                 claims: None,
             },
-            ResolvedAppAuthority::ServicePrincipal {
-                actor_user_id,
-                grant_id,
-                effective_user_id,
-                ..
-            } => Self {
-                user_id: Some(effective_user_id.as_ref().unwrap_or(actor_user_id).clone()),
+            ResolvedAppAuthority::ServicePrincipal(subject) => Self {
+                user_id: Some(
+                    subject
+                        .effective_user_id()
+                        .unwrap_or(subject.actor_user_id())
+                        .to_owned(),
+                ),
                 session_id: None,
                 is_authenticated: true,
                 provider: Some("agent-credential".to_owned()),
                 roles: Some(Vec::new()),
-                kind: Some(if effective_user_id.is_some() {
+                kind: Some(if subject.effective_user_id().is_some() {
                     "human".to_owned()
                 } else {
                     "agent".to_owned()
                 }),
-                actor: effective_user_id
-                    .as_ref()
+                actor: subject
+                    .effective_user_id()
                     .map(|_| HandlerAuthActorProjection {
-                        user_id: actor_user_id.clone(),
+                        user_id: subject.actor_user_id().to_owned(),
                         kind: "agent".to_owned(),
-                        grant_id: grant_id.clone(),
+                        grant_id: subject.grant_id().to_owned(),
                     }),
                 actor_kind: None,
                 claims: None,
@@ -916,8 +1190,12 @@ impl HandlerAuthProjection {
     ///   — `ctx.auth.actorKind` names the service principal; no interactive
     ///   session projection is counterfeited.
     fn for_asset_callbacks(principal: &AssetCallbacksServicePrincipal) -> Self {
+        Self::for_asset_callbacks_actor(principal.actor_user_id())
+    }
+
+    fn for_asset_callbacks_actor(actor_user_id: &str) -> Self {
         Self {
-            user_id: Some(principal.actor_user_id.clone()),
+            user_id: Some(actor_user_id.to_owned()),
             session_id: None,
             is_authenticated: true,
             provider: Some("snapback-service-principal".to_owned()),
@@ -1775,6 +2053,12 @@ pub struct RetainedLiveAuthority {
     /// the exact connection grant, not the full resolution snapshot.
     owner_key: AuthorityKey,
     resolved: ResolvedAppAuthority,
+    /// The sealed producer that can acquire future counted roots for this
+    /// exact authority without accepting a lease from an unrelated caller.
+    rerun_origin: Option<crate::auth::admission::AdmissionLeaseOrigin>,
+    /// Unmanaged authority exists only on compatibility/test lanes. Keep its
+    /// original diagnostic root rather than pretending it has a producer.
+    unmanaged_rerun_admission: Option<AdmissionLease>,
     /// The one immutable grant entry that authorized this live function.
     /// Carrier validity remains grant-wide, but a sibling entry is not part of
     /// this subscription's authority and cannot terminalize it when its basis
@@ -1898,14 +2182,14 @@ impl PreparedAuthority {
     pub fn canonical_auth_input(&self) -> AuthInput {
         if let Some(principal) = &self.asset_callbacks_service {
             return AuthInput {
-                user_id: Some(principal.actor_user_id.clone()),
+                user_id: Some(principal.actor_user_id().to_owned()),
                 ..AuthInput::default()
             }
             .with_authorization_projection(Some("agent"), Some(ASSET_CALLBACKS_SERVICE_NAME), false)
             .with_activity_provenance(
-                Some(&principal.actor_user_id),
+                Some(principal.actor_user_id()),
                 Some(ASSET_CALLBACKS_SERVICE_NAME),
-                Some(&principal.grant_id),
+                Some(principal.grant_id()),
             );
         }
         self.resolved.legacy_input()
@@ -1971,8 +2255,7 @@ impl PreparedAuthority {
             )
             || !matches!(
                 self.resolved,
-                ResolvedAppAuthority::Session { .. }
-                    | ResolvedAppAuthority::ServicePrincipal { .. }
+                ResolvedAppAuthority::Session(_) | ResolvedAppAuthority::ServicePrincipal(_)
             )
         {
             return Err(SnapbackError::error(
@@ -2144,6 +2427,21 @@ impl PreparedAuthority {
             elevation_root_provenance: self.elevation_root_provenance,
             owner_key: self.resolved.key(),
             resolved: self.resolved.clone(),
+            rerun_origin: match &self.resolved {
+                ResolvedAppAuthority::Session(subject) => Some(subject.admission_origin.clone()),
+                ResolvedAppAuthority::ServicePrincipal(subject) => {
+                    Some(subject.admission_origin.clone())
+                }
+                ResolvedAppAuthority::RevalidatedPrincipal(subject) => {
+                    Some(subject.admission_origin.clone())
+                }
+                _ => self.admission.origin(),
+            },
+            unmanaged_rerun_admission: self
+                .admission
+                .origin()
+                .is_none()
+                .then(|| self.admission.clone()),
             matched_grant_scope: None,
             service_publication: self.service_publication.clone(),
             caller_attribution: self.caller_attribution.clone(),
@@ -2295,7 +2593,7 @@ impl PreparedAuthority {
 
     fn authorized_effect_stale(&self, epoch_now_ms: u64, monotonic_now: Instant) -> SnapbackError {
         match &self.resolved {
-            ResolvedAppAuthority::Session { .. } => {
+            ResolvedAppAuthority::Session(_) => {
                 let disposition = self
                     .session_terminal_reason(epoch_now_ms, monotonic_now)
                     .ok()
@@ -2316,7 +2614,7 @@ impl PreparedAuthority {
                     "authorityDisposition": disposition,
                 }))
             }
-            ResolvedAppAuthority::ServicePrincipal { .. } => {
+            ResolvedAppAuthority::ServicePrincipal(_) => {
                 let disposition =
                     match self.service_terminal_disposition(epoch_now_ms, monotonic_now) {
                         Some(ServiceAuthorityDisposition::DurableDelete) => "durableDelete",
@@ -2374,16 +2672,31 @@ impl PreparedAuthority {
     }
 
     pub fn inherit_for(&self, source: InvocationSource) -> SnapbackResult<Self> {
-        if !matches!(
-            source,
-            InvocationSource::NestedMutation | InvocationSource::LiveRerun
-        ) {
+        let same_authority_transition = matches!(
+            (self.source, source),
+            (
+                InvocationSource::HttpQuery,
+                InvocationSource::LiveInitialQuery
+            ) | (
+                InvocationSource::LiveInitialQuery,
+                InvocationSource::LiveUnsubscribe
+            )
+        );
+        if !same_authority_transition
+            && !matches!(
+                source,
+                InvocationSource::NestedMutation | InvocationSource::LiveRerun
+            )
+        {
             return Err(SnapbackError::error(
                 "SNAPBACK_INVOCATION_SOURCE_INVALID",
                 "auth",
                 "resolved invocation authority cannot be inherited by this source",
             ));
         }
+        // @ref LLP 0303#derivation-is-a-lifetime-property-not-a-constructor-event —
+        // source continuation clones the complete prepared carrier; it never
+        // accepts subject fields or a separately supplied admission lease.
         let elevation_root_provenance = match self.elevation_root_provenance {
             ElevationRootProvenance::Unbound => ElevationRootProvenance::Fenced,
             provenance => provenance,
@@ -2456,9 +2769,19 @@ impl RetainedLiveAuthority {
 
     pub fn prepare_rerun(
         &self,
-        admission: AdmissionLease,
         session_claims: Option<AuthClaimsProjection>,
     ) -> SnapbackResult<PreparedAuthority> {
+        // @ref LLP 0303#derivation-is-a-lifetime-property-not-a-constructor-event — a retained subject acquires its own fresh root; callers cannot pair it with an independent lease.
+        let admission = match &self.rerun_origin {
+            Some(origin) => origin.admit_for_mode(self.active_mode)?,
+            None => self.unmanaged_rerun_admission.clone().ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                    "auth",
+                    "retained authority has no resolution producer",
+                )
+            })?,
+        };
         let prepared = InvocationGate::prepare_admitted_authority_inner(
             InvocationSource::LiveRerun,
             self.active_mode,
@@ -2657,7 +2980,7 @@ impl PreparedInvocation {
         retained.matched_grant_scope = self.matched_grant_scope.clone();
         if matches!(
             &self.authority.resolved,
-            ResolvedAppAuthority::ServicePrincipal { .. }
+            ResolvedAppAuthority::ServicePrincipal(_)
         ) && retained.matched_grant_scope.is_none()
         {
             return Err(missing_grant_scope(&self.function_id, &self.function_kind));
@@ -2695,13 +3018,28 @@ impl InvocationGate {
         wire: &WireAuthorityFields,
         resolved: ResolvedAppAuthority,
     ) -> SnapbackResult<PreparedAuthority> {
-        let session_claims = matches!(&resolved, ResolvedAppAuthority::Session { .. })
+        let managed = match &resolved {
+            ResolvedAppAuthority::Session(subject) => {
+                Some(subject.admission_origin.admit_for_mode(active_mode)?)
+            }
+            ResolvedAppAuthority::ServicePrincipal(subject) => {
+                Some(subject.admission_origin.admit_for_mode(active_mode)?)
+            }
+            ResolvedAppAuthority::RevalidatedPrincipal(subject) => {
+                Some(subject.admission_origin.admit_for_mode(active_mode)?)
+            }
+            _ => None,
+        };
+        let session_claims = matches!(&resolved, ResolvedAppAuthority::Session(_))
             .then(|| AuthClaimsProjection::server_derived(Vec::new(), Vec::new()));
         Self::prepare_admitted_authority(
             source,
             active_mode,
             profile,
-            AdmissionLease::unmanaged(transition_generation, admission_epoch),
+            match managed {
+                Some(admission) => admission,
+                None => AdmissionLease::unmanaged(transition_generation, admission_epoch),
+            },
             wire,
             resolved,
             session_claims,
@@ -2711,7 +3049,7 @@ impl InvocationGate {
     /// Prepare authority under a counted admission lease owned by the app's
     /// process-local controller. HTTP composition must use this form; the raw
     /// generation/epoch overload exists only while that lane is being wired.
-    pub fn prepare_admitted_authority(
+    pub(crate) fn prepare_admitted_authority(
         source: InvocationSource,
         active_mode: AuthMode,
         profile: ServerProfile,
@@ -2745,6 +3083,21 @@ impl InvocationGate {
     ) -> SnapbackResult<PreparedAuthority> {
         admission.validate("invocation preparation")?;
         admission.require_mode(active_mode)?;
+        // @ref LLP 0303#corollary--the-artifact-must-carry-provenance-not-just-type — subject facts and the admission lease
+        // must share one verifier-owned graph for their entire lifetime.
+        let subject_origin = match &resolved {
+            ResolvedAppAuthority::Session(subject) => Some(&subject.admission_origin),
+            ResolvedAppAuthority::ServicePrincipal(subject) => Some(&subject.admission_origin),
+            ResolvedAppAuthority::RevalidatedPrincipal(subject) => Some(&subject.admission_origin),
+            _ => None,
+        };
+        if subject_origin.is_some_and(|origin| !origin.owns(&admission)) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "resolved authority does not match its resolution graph",
+            ));
+        }
         if active_mode == AuthMode::Sessions
             && let Some(location) = wire.first_present()
         {
@@ -2769,13 +3122,11 @@ impl InvocationGate {
         }
         let audit = match (&resolved, source) {
             (ResolvedAppAuthority::Anonymous, _) => AuthorityAuditFact::Anonymous,
-            (ResolvedAppAuthority::Session { .. }, _) => AuthorityAuditFact::Session,
-            (ResolvedAppAuthority::RevalidatedPrincipal { .. }, _) => {
+            (ResolvedAppAuthority::Session(_), _) => AuthorityAuditFact::Session,
+            (ResolvedAppAuthority::RevalidatedPrincipal(_), _) => {
                 AuthorityAuditFact::RevalidatedPrincipal
             }
-            (ResolvedAppAuthority::ServicePrincipal { .. }, _) => {
-                AuthorityAuditFact::ServicePrincipal
-            }
+            (ResolvedAppAuthority::ServicePrincipal(_), _) => AuthorityAuditFact::ServicePrincipal,
             (ResolvedAppAuthority::AdminBypass { .. }, _) => AuthorityAuditFact::AdminBypass,
             (ResolvedAppAuthority::System, _) => AuthorityAuditFact::System,
             (
@@ -2796,19 +3147,13 @@ impl InvocationGate {
         };
         let projection = HandlerAuthProjection::from_authority(&resolved, session_claims)?;
         let direct_authorization = match &resolved {
-            ResolvedAppAuthority::ServicePrincipal {
-                effective_user_id: Some(effective_user_id),
-                ..
-            } => Some(DirectAuthorizationProjection::for_effective_user(
-                effective_user_id,
-            )),
+            ResolvedAppAuthority::ServicePrincipal(subject) => subject
+                .effective_user_id()
+                .map(DirectAuthorizationProjection::for_effective_user),
             _ => None,
         };
         let rehearsal_provenance = match &resolved {
-            ResolvedAppAuthority::Session {
-                rehearsal_provenance,
-                ..
-            } => rehearsal_provenance.clone(),
+            ResolvedAppAuthority::Session(subject) => subject.rehearsal_provenance().cloned(),
             _ => None,
         };
         Ok(PreparedAuthority {
@@ -2832,6 +3177,81 @@ impl InvocationGate {
         })
     }
 
+    /// Prepare only authority classes whose identity is intentionally
+    /// caller-selected at this boundary. Subject-bearing variants are refused
+    /// and must arrive through their opaque resolver-owned carriers.
+    #[allow(clippy::too_many_arguments)]
+    pub fn prepare_admitted_subjectless_authority(
+        source: InvocationSource,
+        active_mode: AuthMode,
+        profile: ServerProfile,
+        admission: AdmissionLease,
+        wire: &WireAuthorityFields,
+        resolved: ResolvedAppAuthority,
+        session_claims: Option<AuthClaimsProjection>,
+    ) -> SnapbackResult<PreparedAuthority> {
+        if session_claims.is_some()
+            || matches!(
+                resolved,
+                ResolvedAppAuthority::Session(_)
+                    | ResolvedAppAuthority::ServicePrincipal(_)
+                    | ResolvedAppAuthority::RevalidatedPrincipal(_)
+            )
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_INVOCATION_AUTHORITY_INVALID",
+                "auth",
+                "subject authority requires its verifier-owned carrier",
+            ));
+        }
+        Self::prepare_admitted_authority(
+            source,
+            active_mode,
+            profile,
+            admission,
+            wire,
+            resolved,
+            None,
+        )
+    }
+
+    /// Prepare a human watch owner only from the protected-catalog proof that
+    /// revalidated the current principal.
+    pub fn prepare_admitted_revalidated_principal(
+        source: InvocationSource,
+        profile: ServerProfile,
+        admission: AdmissionLease,
+        principal: crate::storage::watches::RevalidatedWatchPrincipal,
+    ) -> SnapbackResult<PreparedAuthority> {
+        let admission_origin = admission.origin().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "revalidated watch authority requires a controller-managed admission",
+            )
+        })?;
+        if !admission_origin.matches_database_binding(principal.database_binding()) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "the revalidated watch principal and admission lease belong to different engine authority graphs",
+            ));
+        }
+        Self::prepare_admitted_authority(
+            source,
+            AuthMode::Sessions,
+            profile,
+            admission,
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::RevalidatedPrincipal(ResolvedRevalidatedPrincipalAuthority {
+                user_id: principal.user_id().to_owned(),
+                authority_instance_id: principal.authority_instance_id().to_owned(),
+                admission_origin,
+            }),
+            None,
+        )
+    }
+
     /// Prepare the ruled bearer-free service principal under the same closed
     /// function gate as external LLP 0055 service principals. Only the carrier
     /// validation differs: the protected catalog contains a principal and
@@ -2841,25 +3261,40 @@ impl InvocationGate {
         admission: AdmissionLease,
         principal: AssetCallbacksServicePrincipal,
     ) -> SnapbackResult<PreparedAuthority> {
+        let admission_origin = admission.origin().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "asset callback authority requires a controller-managed admission",
+            )
+        })?;
+        if !admission_origin.matches_database_binding(principal.database_binding()) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "the asset callback principal and admission lease belong to different engine authority graphs",
+            ));
+        }
         let credential_id = derived_asset_callbacks_id(
             crate::ids::Kind::AgentCredential,
-            &[&principal.actor_user_id],
+            &[principal.actor_user_id()],
         );
         let token_id = derived_asset_callbacks_id(
             crate::ids::Kind::AgentToken,
-            &[&principal.actor_user_id, &principal.grant_id],
+            &[principal.actor_user_id(), principal.grant_id()],
         );
-        let resolved = ResolvedAppAuthority::ServicePrincipal {
-            actor_user_id: principal.actor_user_id.clone(),
+        let resolved = ResolvedAppAuthority::resolved_service_principal(
+            principal.actor_user_id().to_owned(),
             credential_id,
-            credential_generation: 1,
-            grant_id: principal.grant_id.clone(),
+            1,
+            principal.grant_id().to_owned(),
             token_id,
-            effective_user_id: None,
-            scopes: vec![ResolvedGrantScope::from_exact(principal.scope.clone())],
-            token_expires_at_ms: u64::MAX,
-            integration_status: None,
-        };
+            None,
+            vec![ResolvedGrantScope::from_exact(principal.scope().clone())],
+            u64::MAX,
+            None,
+            admission_origin,
+        );
         let mut authority = Self::prepare_admitted_authority_inner(
             InvocationSource::AssetCallback,
             AuthMode::Sessions,
@@ -2873,6 +3308,57 @@ impl InvocationGate {
         authority.projection = HandlerAuthProjection::for_asset_callbacks(&principal);
         authority.asset_callbacks_service = Some(principal);
         Ok(authority)
+    }
+
+    /// Prepare an integration watch only from the exact protected-record and
+    /// grant revalidation carrier.
+    pub fn prepare_admitted_watch_anchor(
+        source: InvocationSource,
+        profile: ServerProfile,
+        admission: AdmissionLease,
+        watch_id: &str,
+        anchor: crate::storage::watches::WatchAnchorAuthority,
+    ) -> SnapbackResult<PreparedAuthority> {
+        let admission_origin = admission.origin().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "watch authority requires a controller-managed admission",
+            )
+        })?;
+        if !admission_origin.matches_database_binding(anchor.database_binding()) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "the watch anchor and admission lease belong to different engine authority graphs",
+            ));
+        }
+        let resolved = ResolvedAppAuthority::resolved_service_principal(
+            anchor.actor_user_id().to_owned(),
+            format!("watchAnchor:{watch_id}"),
+            0,
+            anchor.grant_id().to_owned(),
+            format!("watch:{watch_id}"),
+            Some(anchor.effective_user_id().to_owned()),
+            anchor
+                .scopes()
+                .iter()
+                .cloned()
+                .map(ResolvedGrantScope::from_exact)
+                .collect(),
+            anchor.expires_at_ms(),
+            Some(anchor.integration_status()),
+            admission_origin,
+        );
+        Self::prepare_admitted_authority(
+            source,
+            AuthMode::Sessions,
+            profile,
+            admission,
+            &WireAuthorityFields::default(),
+            resolved,
+            None,
+        )
     }
 
     #[cfg(any(test, feature = "test-support"))]
@@ -2988,6 +3474,38 @@ impl InvocationGate {
     }
 }
 
+#[cfg(any(test, feature = "test-support"))]
+pub(crate) fn test_admission_controller(
+    active_mode: AuthMode,
+    transition_generation: u64,
+) -> SnapbackResult<crate::auth::admission::AdmissionController> {
+    use crate::auth::mode::{
+        AUTH_MODE_FORMAT_VERSION, AppDataAvailability, AuthModeStateRecord, AuthModeStatus,
+        DeploymentIdentity,
+    };
+
+    let active_deployment = (active_mode == AuthMode::Sessions).then(|| DeploymentIdentity {
+        schema_version: "snapback.v1".to_owned(),
+        auth_mode: AuthMode::Sessions,
+        app_id: "invocation-unit-test".to_owned(),
+        schema_hash: format!("snapback.v1:sessions:schema:sha256:{}", "1".repeat(64)),
+        bundle_hash: format!("snapback.v1:sessions:function:sha256:{}", "2".repeat(64)),
+        inputs_hash: format!("snapback.v1:sessions:inputs:sha256:{}", "3".repeat(64)),
+    });
+    crate::auth::admission::AdmissionController::from_mode_state(&AuthModeStateRecord {
+        format_version: AUTH_MODE_FORMAT_VERSION,
+        transition_generation,
+        active: active_mode,
+        desired: active_mode,
+        mode_state: AuthModeStatus::Settled,
+        app_data_availability: AppDataAvailability::Available,
+        sessions_ever_activated: active_mode == AuthMode::Sessions,
+        active_deployment,
+        requested_deployment: None,
+        quarantine: None,
+    })
+}
+
 fn evaluate_function_policy(
     authority: &PreparedAuthority,
     function: &FunctionDefinition,
@@ -3019,14 +3537,9 @@ fn evaluate_function_policy_after_admission(
     }
     let mut authority_creating_consent = false;
     let mut matched_grant_scope = None;
-    if let ResolvedAppAuthority::ServicePrincipal {
-        scopes,
-        actor_user_id,
-        integration_status,
-        ..
-    } = &authority.resolved
-    {
-        let scope = scopes
+    if let ResolvedAppAuthority::ServicePrincipal(subject) = &authority.resolved {
+        let scope = subject
+            .scopes()
             .iter()
             .find(|scope| scope.function_id == function.id && scope.kind == function.kind)
             .ok_or_else(|| missing_grant_scope(&function.id, &function.kind))?;
@@ -3050,15 +3563,15 @@ fn evaluate_function_policy_after_admission(
             })));
         }
         // @ref LLP 0055#dated-amendment-llp-0204-integration-registrations-and-watch-anchors-2026-08-08 — suspended integration admission is checked beside external exposure on every invocation; it is not credential/grant revocation.
-        match integration_status {
+        match subject.integration_status() {
             Some(crate::storage::auth_integrations::IntegrationStatus::Suspended) => {
                 return Err(crate::storage::auth_integrations::integration_suspended(
-                    actor_user_id,
+                    subject.actor_user_id(),
                 ));
             }
             Some(crate::storage::auth_integrations::IntegrationStatus::Revoked) => {
                 return Err(crate::storage::auth_integrations::integration_revoked(
-                    actor_user_id,
+                    subject.actor_user_id(),
                 ));
             }
             Some(crate::storage::auth_integrations::IntegrationStatus::Active) | None => {}
@@ -3083,9 +3596,9 @@ fn evaluate_function_policy_after_admission(
     //   and is refused. A future profile may admit such principals explicitly.
     if function.standard_pattern.is_some() {
         let projects_user_subject = match &authority.resolved {
-            ResolvedAppAuthority::ServicePrincipal {
-                effective_user_id, ..
-            } => effective_user_id.is_some(),
+            ResolvedAppAuthority::ServicePrincipal(subject) => {
+                subject.effective_user_id().is_some()
+            }
             _ => true,
         };
         if !projects_user_subject {
@@ -3143,7 +3656,7 @@ fn source_allows_authority(
         ),
         AuthMode::Sessions => matches!(
             resolved,
-            ResolvedAppAuthority::Anonymous | ResolvedAppAuthority::Session { .. }
+            ResolvedAppAuthority::Anonymous | ResolvedAppAuthority::Session(_)
         ),
     };
     let admin = match mode {
@@ -3164,8 +3677,8 @@ fn source_allows_authority(
             AuthMode::Sessions => matches!(
                 resolved,
                 ResolvedAppAuthority::Anonymous
-                    | ResolvedAppAuthority::Session { .. }
-                    | ResolvedAppAuthority::ServicePrincipal { .. }
+                    | ResolvedAppAuthority::Session(_)
+                    | ResolvedAppAuthority::ServicePrincipal(_)
             ),
         },
         InvocationSource::AuthRefresh
@@ -3174,14 +3687,13 @@ fn source_allows_authority(
         | InvocationSource::CapabilityLinkManagement
         | InvocationSource::EffectManagement
         | InvocationSource::PushTokenRegistry => {
-            mode == AuthMode::Sessions && matches!(resolved, ResolvedAppAuthority::Session { .. })
+            mode == AuthMode::Sessions && matches!(resolved, ResolvedAppAuthority::Session(_))
         }
         InvocationSource::WatchManagement => {
             mode == AuthMode::Sessions
                 && matches!(
                     resolved,
-                    ResolvedAppAuthority::Session { .. }
-                        | ResolvedAppAuthority::ServicePrincipal { .. }
+                    ResolvedAppAuthority::Session(_) | ResolvedAppAuthority::ServicePrincipal(_)
                 )
         }
         InvocationSource::HttpQuery
@@ -3192,7 +3704,7 @@ fn source_allows_authority(
         | InvocationSource::HttpMcp => {
             ordinary
                 || (mode == AuthMode::Sessions
-                    && matches!(resolved, ResolvedAppAuthority::ServicePrincipal { .. }))
+                    && matches!(resolved, ResolvedAppAuthority::ServicePrincipal(_)))
         }
         InvocationSource::HttpCapabilityLink => {
             matches!(resolved, ResolvedAppAuthority::Anonymous)
@@ -3200,16 +3712,16 @@ fn source_allows_authority(
         InvocationSource::EffectExecution => {
             ordinary
                 || (mode == AuthMode::Sessions
-                    && matches!(resolved, ResolvedAppAuthority::ServicePrincipal { .. }))
+                    && matches!(resolved, ResolvedAppAuthority::ServicePrincipal(_)))
         }
         InvocationSource::WatchEvaluation | InvocationSource::WatchReaction => {
             mode == AuthMode::Sessions
-                && matches!(resolved, ResolvedAppAuthority::RevalidatedPrincipal { .. })
+                && matches!(resolved, ResolvedAppAuthority::RevalidatedPrincipal(_))
         }
         InvocationSource::ConnectionOpen => {
             ordinary
                 || (mode == AuthMode::Sessions
-                    && matches!(resolved, ResolvedAppAuthority::ServicePrincipal { .. }))
+                    && matches!(resolved, ResolvedAppAuthority::ServicePrincipal(_)))
         }
         InvocationSource::LiveInitialQuery
         | InvocationSource::MutationSettlementAcknowledgement
@@ -3223,7 +3735,7 @@ fn source_allows_authority(
         | InvocationSource::OutboxDrain => {
             ordinary
                 || (mode == AuthMode::Sessions
-                    && matches!(resolved, ResolvedAppAuthority::ServicePrincipal { .. }))
+                    && matches!(resolved, ResolvedAppAuthority::ServicePrincipal(_)))
         }
         InvocationSource::EphemeralRegister
         | InvocationSource::EphemeralPublish
@@ -3236,7 +3748,7 @@ fn source_allows_authority(
         InvocationSource::AssetCallback => match mode {
             AuthMode::Dev => ordinary,
             AuthMode::Sessions => {
-                matches!(resolved, ResolvedAppAuthority::ServicePrincipal { .. })
+                matches!(resolved, ResolvedAppAuthority::ServicePrincipal(_))
             }
         },
         InvocationSource::DirectAdminRunner
@@ -3258,7 +3770,7 @@ fn source_allows_authority(
             allow_inherited_live_rerun
                 && (ordinary
                     || (mode == AuthMode::Sessions
-                        && matches!(resolved, ResolvedAppAuthority::ServicePrincipal { .. })))
+                        && matches!(resolved, ResolvedAppAuthority::ServicePrincipal(_))))
         }
         InvocationSource::NestedMutation => false,
     }
@@ -3321,27 +3833,19 @@ pub fn descriptor_for_resolved_authority(
         )
     })?;
     let (authority_instance_id, session_generation) = match authority {
-        ResolvedAppAuthority::Session {
-            authority_instance_id,
-            generation,
-            ..
-        } => (authority_instance_id.clone(), *generation),
-        ResolvedAppAuthority::RevalidatedPrincipal {
-            authority_instance_id,
-            ..
-        } => (authority_instance_id.clone(), 0),
-        ResolvedAppAuthority::ServicePrincipal {
-            actor_user_id,
-            credential_id,
-            credential_generation,
-            grant_id,
-            ..
-        } => (
+        ResolvedAppAuthority::Session(subject) => (
+            subject.authority_instance_id().to_owned(),
+            subject.generation(),
+        ),
+        ResolvedAppAuthority::RevalidatedPrincipal(subject) => {
+            (subject.authority_instance_id().to_owned(), 0)
+        }
+        ResolvedAppAuthority::ServicePrincipal(subject) => (
             service_authority_instance_id(
-                actor_user_id,
-                credential_id,
-                *credential_generation,
-                grant_id,
+                subject.actor_user_id(),
+                subject.credential_id(),
+                subject.credential_generation(),
+                subject.grant_id(),
             ),
             0,
         ),
@@ -3406,16 +3910,16 @@ mod tests {
 
     #[test]
     fn claims_are_required_at_the_authority_projection_chokepoint() {
-        let session = ResolvedAppAuthority::Session {
-            user_id: "user-1".to_owned(),
-            session_id: "session-1".to_owned(),
-            provider: "email-code".to_owned(),
-            generation: 1,
-            authority_instance_id: "authority-1".to_owned(),
-            session_not_after_ms: 10_000,
-            provider_not_after_ms: None,
-            rehearsal_provenance: None,
-        };
+        let session = test_session_authority(
+            "user-1",
+            "session-1",
+            "email-code",
+            1,
+            "authority-1",
+            10_000,
+            None,
+            None,
+        );
         let projection = HandlerAuthProjection::from_authority(
             &session,
             Some(AuthClaimsProjection::server_derived(Vec::new(), Vec::new())),
@@ -3477,22 +3981,22 @@ mod tests {
                 0,
                 0,
                 &WireAuthorityFields::default(),
-                ResolvedAppAuthority::ServicePrincipal {
-                    actor_user_id: "integration-1".to_owned(),
-                    credential_id: "credential-1".to_owned(),
-                    credential_generation: 1,
-                    grant_id: "grant-1".to_owned(),
-                    token_id: "token-1".to_owned(),
-                    effective_user_id: Some("user-1".to_owned()),
-                    scopes: vec![ResolvedGrantScope {
+                test_service_authority(
+                    "integration-1",
+                    "credential-1",
+                    1,
+                    "grant-1",
+                    "token-1",
+                    Some("user-1".to_owned()),
+                    vec![ResolvedGrantScope {
                         function_id: function.id.clone(),
                         kind: FunctionKind::Query,
                         basis: 0,
                         authority_creating: false,
                     }],
-                    token_expires_at_ms: 10_000,
-                    integration_status: Some(status),
-                },
+                    10_000,
+                    Some(status),
+                ),
             )
             .unwrap()
         };
@@ -3647,16 +4151,16 @@ mod tests {
 
         let session = serde_json::to_value(
             HandlerAuthProjection::from_authority(
-                &ResolvedAppAuthority::Session {
-                    user_id: "user_1".to_owned(),
-                    session_id: "session_1".to_owned(),
-                    provider: "email-code".to_owned(),
-                    generation: 3,
-                    authority_instance_id: "authority_1".to_owned(),
-                    session_not_after_ms: 10_000,
-                    provider_not_after_ms: None,
-                    rehearsal_provenance: None,
-                },
+                &test_session_authority(
+                    "user_1",
+                    "session_1",
+                    "email-code",
+                    3,
+                    "authority_1",
+                    10_000,
+                    None,
+                    None,
+                ),
                 Some(AuthClaimsProjection::server_derived(Vec::new(), Vec::new())),
             )
             .unwrap(),
@@ -3677,17 +4181,17 @@ mod tests {
 
         let autonomous = serde_json::to_value(
             HandlerAuthProjection::from_authority(
-                &ResolvedAppAuthority::ServicePrincipal {
-                    actor_user_id: "agent_1".to_owned(),
-                    credential_id: "credential_1".to_owned(),
-                    credential_generation: 2,
-                    grant_id: "grant_1".to_owned(),
-                    token_id: "token_1".to_owned(),
-                    effective_user_id: None,
-                    scopes: Vec::new(),
-                    token_expires_at_ms: 20_000,
-                    integration_status: None,
-                },
+                &test_service_authority(
+                    "agent_1",
+                    "credential_1",
+                    2,
+                    "grant_1",
+                    "token_1",
+                    None,
+                    Vec::new(),
+                    20_000,
+                    None,
+                ),
                 None,
             )
             .unwrap(),
@@ -3707,17 +4211,17 @@ mod tests {
 
         let delegated = serde_json::to_value(
             HandlerAuthProjection::from_authority(
-                &ResolvedAppAuthority::ServicePrincipal {
-                    actor_user_id: "agent_1".to_owned(),
-                    credential_id: "credential_1".to_owned(),
-                    credential_generation: 2,
-                    grant_id: "grant_1".to_owned(),
-                    token_id: "token_1".to_owned(),
-                    effective_user_id: Some("user_1".to_owned()),
-                    scopes: Vec::new(),
-                    token_expires_at_ms: 20_000,
-                    integration_status: None,
-                },
+                &test_service_authority(
+                    "agent_1",
+                    "credential_1",
+                    2,
+                    "grant_1",
+                    "token_1",
+                    Some("user_1".to_owned()),
+                    Vec::new(),
+                    20_000,
+                    None,
+                ),
                 None,
             )
             .unwrap(),
@@ -3743,19 +4247,11 @@ mod tests {
 
     #[test]
     fn asset_callbacks_projection_names_the_noninteractive_actor_kind() {
-        let principal = AssetCallbacksServicePrincipal {
-            app_id: "app-test".to_owned(),
-            actor_user_id: "usr_asset_callbacks".to_owned(),
-            grant_id: "grt_asset_callbacks".to_owned(),
-            scope: ExactGrantScope {
-                function_id: "fn:onAssetReady".to_owned(),
-                kind: crate::storage::auth_grants::ScopedFunctionKind::Mutation,
-                basis: 4,
-                authority_creating: false,
-            },
-        };
         assert_eq!(
-            serde_json::to_value(HandlerAuthProjection::for_asset_callbacks(&principal)).unwrap(),
+            serde_json::to_value(HandlerAuthProjection::for_asset_callbacks_actor(
+                "usr_asset_callbacks",
+            ))
+            .unwrap(),
             json!({
                 "userId": "usr_asset_callbacks",
                 "sessionId": null,
@@ -3777,17 +4273,17 @@ mod tests {
             0,
             0,
             &WireAuthorityFields::default(),
-            ResolvedAppAuthority::ServicePrincipal {
-                actor_user_id: "agent_1".to_owned(),
-                credential_id: "credential_1".to_owned(),
-                credential_generation: 2,
-                grant_id: "grant_1".to_owned(),
-                token_id: "token_1".to_owned(),
-                effective_user_id: Some("user_1".to_owned()),
-                scopes: Vec::new(),
-                token_expires_at_ms: 20_000,
-                integration_status: None,
-            },
+            test_service_authority(
+                "agent_1",
+                "credential_1",
+                2,
+                "grant_1",
+                "token_1",
+                Some("user_1".to_owned()),
+                Vec::new(),
+                20_000,
+                None,
+            ),
         )
         .unwrap();
         assert_eq!(
@@ -3819,17 +4315,17 @@ mod tests {
             0,
             0,
             &WireAuthorityFields::default(),
-            ResolvedAppAuthority::ServicePrincipal {
-                actor_user_id: "agent_1".to_owned(),
-                credential_id: "credential_1".to_owned(),
-                credential_generation: 2,
-                grant_id: "grant_1".to_owned(),
-                token_id: "token_1".to_owned(),
-                effective_user_id: Some("user_1".to_owned()),
-                scopes: Vec::new(),
-                token_expires_at_ms: 20_000,
-                integration_status: None,
-            },
+            test_service_authority(
+                "agent_1",
+                "credential_1",
+                2,
+                "grant_1",
+                "token_1",
+                Some("user_1".to_owned()),
+                Vec::new(),
+                20_000,
+                None,
+            ),
         )
         .unwrap();
         assert_eq!(
@@ -3860,17 +4356,17 @@ mod tests {
             0,
             0,
             &WireAuthorityFields::default(),
-            ResolvedAppAuthority::ServicePrincipal {
-                actor_user_id: "agent_1".to_owned(),
-                credential_id: "credential_1".to_owned(),
-                credential_generation: 2,
-                grant_id: "grant_1".to_owned(),
-                token_id: "token_1".to_owned(),
-                effective_user_id: None,
-                scopes: Vec::new(),
-                token_expires_at_ms: 20_000,
-                integration_status: None,
-            },
+            test_service_authority(
+                "agent_1",
+                "credential_1",
+                2,
+                "grant_1",
+                "token_1",
+                None,
+                Vec::new(),
+                20_000,
+                None,
+            ),
         )
         .unwrap();
         assert!(autonomous.direct_authorization_projection().is_none());
@@ -3896,17 +4392,17 @@ mod tests {
             authority_creating: false,
         };
         let service = |effective: Option<&str>, scoped: &FunctionDefinition| {
-            ResolvedAppAuthority::ServicePrincipal {
-                actor_user_id: "agent_1".to_owned(),
-                credential_id: "credential_1".to_owned(),
-                credential_generation: 1,
-                grant_id: "grant_1".to_owned(),
-                token_id: "token_1".to_owned(),
-                effective_user_id: effective.map(str::to_owned),
-                scopes: vec![scope(scoped)],
-                token_expires_at_ms: 20_000,
-                integration_status: None,
-            }
+            test_service_authority(
+                "agent_1",
+                "credential_1",
+                1,
+                "grant_1",
+                "token_1",
+                effective.map(str::to_owned),
+                vec![scope(scoped)],
+                20_000,
+                None,
+            )
         };
         let prepare = |resolved| {
             InvocationGate::prepare_authority(
@@ -3952,16 +4448,18 @@ mod tests {
     #[test]
     fn service_principal_scope_is_checked_before_function_preparation() {
         let function = function(Some(AuthRequirement::Authenticated));
-        let service = |scopes| ResolvedAppAuthority::ServicePrincipal {
-            actor_user_id: "agent_1".to_owned(),
-            credential_id: "credential_1".to_owned(),
-            credential_generation: 1,
-            grant_id: "grant_1".to_owned(),
-            token_id: "token_1".to_owned(),
-            effective_user_id: Some("user_1".to_owned()),
-            scopes,
-            token_expires_at_ms: 20_000,
-            integration_status: None,
+        let service = |scopes| {
+            test_service_authority(
+                "agent_1",
+                "credential_1",
+                1,
+                "grant_1",
+                "token_1",
+                Some("user_1".to_owned()),
+                scopes,
+                20_000,
+                None,
+            )
         };
         let prepare = |resolved| {
             InvocationGate::prepare_authority(
@@ -4090,17 +4588,17 @@ mod tests {
             authority_creating: false,
         })
         .collect::<Vec<_>>();
-        let service = ResolvedAppAuthority::ServicePrincipal {
-            actor_user_id: "agent_1".to_owned(),
-            credential_id: "credential_1".to_owned(),
-            credential_generation: 1,
-            grant_id: "grant_1".to_owned(),
-            token_id: "token_1".to_owned(),
-            effective_user_id: Some("user_1".to_owned()),
+        let service = test_service_authority(
+            "agent_1",
+            "credential_1",
+            1,
+            "grant_1",
+            "token_1",
+            Some("user_1".to_owned()),
             scopes,
-            token_expires_at_ms: 20_000,
-            integration_status: None,
-        };
+            20_000,
+            None,
+        );
         let prepare = |source| {
             InvocationGate::prepare_authority(
                 source,
@@ -4173,16 +4671,16 @@ mod tests {
             .unwrap();
         assert_eq!(nested_authority.resolved(), outer.authority().resolved());
 
-        let session = ResolvedAppAuthority::Session {
-            user_id: "nested-user".to_owned(),
-            session_id: "nested-session".to_owned(),
-            provider: "email-code".to_owned(),
-            generation: 1,
-            authority_instance_id: "nested-authority".to_owned(),
-            session_not_after_ms: 10_000,
-            provider_not_after_ms: None,
-            rehearsal_provenance: None,
-        };
+        let session = test_session_authority(
+            "nested-user",
+            "nested-session",
+            "email-code",
+            1,
+            "nested-authority",
+            10_000,
+            None,
+            None,
+        );
         let outer = InvocationGate::prepare_function(
             InvocationGate::prepare_authority(
                 InvocationSource::HttpQuery,
@@ -4227,6 +4725,26 @@ mod tests {
     }
 
     #[test]
+    fn revalidated_principal_cannot_be_reprepared_under_a_foreign_lease() {
+        let resolved = test_revalidated_authority("user", "watch-authority");
+        let foreign = test_admission_controller(AuthMode::Sessions, 0)
+            .expect("foreign sessions admission controller");
+        let error = InvocationGate::prepare_admitted_authority(
+            InvocationSource::WatchEvaluation,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            foreign
+                .admit_for_mode(AuthMode::Sessions)
+                .expect("foreign sessions admission"),
+            &WireAuthorityFields::default(),
+            resolved,
+            None,
+        )
+        .expect_err("watch subject and lease must share one authority graph");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_POLICY_UNAVAILABLE");
+    }
+
+    #[test]
     fn config_verify_source_rejects_system_authority_in_every_mode() {
         for mode in [AuthMode::Dev, AuthMode::Sessions] {
             InvocationGate::prepare_authority(
@@ -4268,31 +4786,28 @@ mod tests {
         }
         let authority = |kind| match kind {
             Kind::Anonymous => ResolvedAppAuthority::Anonymous,
-            Kind::Session => ResolvedAppAuthority::Session {
-                user_id: "user".to_owned(),
-                session_id: "session".to_owned(),
-                provider: "email-code".to_owned(),
-                generation: 1,
-                authority_instance_id: "authority".to_owned(),
-                session_not_after_ms: 10_000,
-                provider_not_after_ms: None,
-                rehearsal_provenance: None,
-            },
-            Kind::Watch => ResolvedAppAuthority::RevalidatedPrincipal {
-                user_id: "user".to_owned(),
-                authority_instance_id: "watch-authority".to_owned(),
-            },
-            Kind::Service => ResolvedAppAuthority::ServicePrincipal {
-                actor_user_id: "agent".to_owned(),
-                credential_id: "credential".to_owned(),
-                credential_generation: 1,
-                grant_id: "grant".to_owned(),
-                token_id: "token".to_owned(),
-                effective_user_id: Some("user".to_owned()),
-                scopes: Vec::new(),
-                token_expires_at_ms: 10_000,
-                integration_status: None,
-            },
+            Kind::Session => test_session_authority(
+                "user",
+                "session",
+                "email-code",
+                1,
+                "authority",
+                10_000,
+                None,
+                None,
+            ),
+            Kind::Watch => test_revalidated_authority("user", "watch-authority"),
+            Kind::Service => test_service_authority(
+                "agent",
+                "credential",
+                1,
+                "grant",
+                "token",
+                Some("user".to_owned()),
+                Vec::new(),
+                10_000,
+                None,
+            ),
             Kind::Dev => ResolvedAppAuthority::DevImpersonation {
                 user_id: "dev".to_owned(),
                 roles: Vec::new(),
@@ -4439,7 +4954,17 @@ mod tests {
                             }
                         }
                         Err(error) => {
-                            assert_eq!(error.diagnostic.code, "SNAPBACK_INVOCATION_SOURCE_INVALID");
+                            let expected_code = if mode == AuthMode::Dev
+                                && matches!(kind, Kind::Session | Kind::Watch | Kind::Service)
+                            {
+                                "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+                            } else {
+                                "SNAPBACK_INVOCATION_SOURCE_INVALID"
+                            };
+                            assert_eq!(
+                                error.diagnostic.code, expected_code,
+                                "unexpected refusal for {source:?} in {mode:?} with {kind:?}",
+                            );
                         }
                     }
                 }
@@ -4465,16 +4990,16 @@ mod tests {
 
     #[test]
     fn sessions_live_rerun_requires_an_inherited_retained_owner() {
-        let resolved = ResolvedAppAuthority::Session {
-            user_id: "user".to_owned(),
-            session_id: "session".to_owned(),
-            provider: "email-code".to_owned(),
-            generation: 1,
-            authority_instance_id: "authority".to_owned(),
-            session_not_after_ms: 10_000,
-            provider_not_after_ms: None,
-            rehearsal_provenance: None,
-        };
+        let resolved = test_session_authority(
+            "user",
+            "session",
+            "email-code",
+            1,
+            "authority",
+            10_000,
+            None,
+            None,
+        );
         let initial = InvocationGate::prepare_authority(
             InvocationSource::LiveInitialQuery,
             AuthMode::Sessions,
@@ -4487,10 +5012,10 @@ mod tests {
         .unwrap();
         let retained = initial.retain_live_owner().unwrap();
         let rerun = retained
-            .prepare_rerun(
-                AdmissionLease::unmanaged(7, 10),
-                Some(AuthClaimsProjection::server_derived(Vec::new(), Vec::new())),
-            )
+            .prepare_rerun(Some(AuthClaimsProjection::server_derived(
+                Vec::new(),
+                Vec::new(),
+            )))
             .unwrap();
         assert_eq!(rerun.source(), InvocationSource::LiveRerun);
         assert_eq!(rerun.resolved(), &resolved);
@@ -4534,16 +5059,17 @@ mod tests {
             quarantine: None,
         };
         let controller = AdmissionController::from_mode_state(&mode).unwrap();
-        let resolved = ResolvedAppAuthority::Session {
-            user_id: "canonical-user".to_owned(),
-            session_id: "canonical-session".to_owned(),
-            provider: "email-code".to_owned(),
-            generation: 4,
-            authority_instance_id: "authority-instance".to_owned(),
-            session_not_after_ms: 10_000,
-            provider_not_after_ms: None,
-            rehearsal_provenance: None,
-        };
+        let resolved = test_session_authority_with_origin(
+            "canonical-user",
+            "canonical-session",
+            "email-code",
+            4,
+            "authority-instance",
+            10_000,
+            None,
+            None,
+            controller.lease_origin(),
+        );
         let initial = InvocationGate::prepare_admitted_authority(
             InvocationSource::LiveInitialQuery,
             AuthMode::Sessions,
@@ -4579,10 +5105,10 @@ mod tests {
             "retained owner must not retain the initial admission root"
         );
         let rerun = retained
-            .prepare_rerun(
-                controller.admit_for_mode(AuthMode::Sessions).unwrap(),
-                Some(AuthClaimsProjection::server_derived(Vec::new(), Vec::new())),
-            )
+            .prepare_rerun(Some(AuthClaimsProjection::server_derived(
+                Vec::new(),
+                Vec::new(),
+            )))
             .unwrap();
         assert_eq!(controller.snapshot().in_flight, 1);
         assert_eq!(rerun.source(), InvocationSource::LiveRerun);
@@ -4595,6 +5121,7 @@ mod tests {
         use super::super::{
             InvocationGate, InvocationSource, PreparedAuthority, ResolvedAppAuthority,
             WireAuthorityFields, descriptor_for_authority, descriptor_for_resolved_authority,
+            test_service_authority, test_session_authority,
         };
         use crate::contract_types::ServerProfile;
         use crate::manifest::AuthMode;
@@ -4616,32 +5143,32 @@ mod tests {
         }
 
         fn service(token_id: &str, generation: u64, grant_id: &str) -> ResolvedAppAuthority {
-            ResolvedAppAuthority::ServicePrincipal {
-                actor_user_id: "agent-a".to_owned(),
-                credential_id: "credential-a".to_owned(),
-                credential_generation: generation,
-                grant_id: grant_id.to_owned(),
-                token_id: token_id.to_owned(),
-                effective_user_id: Some("user-a".to_owned()),
-                scopes: Vec::new(),
-                token_expires_at_ms: 10_000,
-                integration_status: None,
-            }
+            test_service_authority(
+                "agent-a",
+                "credential-a",
+                generation,
+                grant_id,
+                token_id,
+                Some("user-a".to_owned()),
+                Vec::new(),
+                10_000,
+                None,
+            )
         }
 
         #[test]
         fn session_descriptor_uses_opaque_session_instance_and_generation() {
             let authority = prepared(
-                ResolvedAppAuthority::Session {
-                    user_id: "018f0d90-7b23-7a22-8c33-445566778899".to_owned(),
-                    session_id: "018f0d90-7b22-7a22-8c33-445566778899".to_owned(),
-                    provider: "email-code".to_owned(),
-                    generation: 7,
-                    authority_instance_id: SESSION_AUTHORITY.to_owned(),
-                    session_not_after_ms: 10_000,
-                    provider_not_after_ms: None,
-                    rehearsal_provenance: None,
-                },
+                test_session_authority(
+                    "018f0d90-7b23-7a22-8c33-445566778899",
+                    "018f0d90-7b22-7a22-8c33-445566778899",
+                    "email-code",
+                    7,
+                    SESSION_AUTHORITY,
+                    10_000,
+                    None,
+                    None,
+                ),
                 AuthMode::Sessions,
             );
             let descriptor = descriptor_for_authority(&authority, INCARNATION).unwrap();

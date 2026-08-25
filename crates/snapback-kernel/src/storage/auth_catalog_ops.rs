@@ -3887,6 +3887,69 @@ impl LocalDatabase {
 
     #[cfg(any(test, feature = "test-support"))]
     #[allow(clippy::too_many_arguments)]
+    pub(super) fn auth_bind_email_session_bearer_for_test(
+        &mut self,
+        user_id: &str,
+        identity_id: &str,
+        session_id: &str,
+        authority_instance_id: &str,
+        address: &str,
+        token_hash: &[u8],
+        generation: u64,
+        now_ms: u64,
+        expires_at_ms: u64,
+    ) -> SnapbackResult<()> {
+        self.with_auth_transaction(|transaction| {
+            let present = transaction.query_row(
+                "SELECT EXISTS(SELECT 1 FROM _auth_sessions WHERE id = ?1)",
+                params![session_id],
+                |row| row.get::<_, i64>(0),
+            )? != 0;
+            if present {
+                transaction.execute(
+                    "UPDATE _auth_sessions
+                     SET token_hash = ?1, expires_at_ms = ?2, absolute_expires_at_ms = ?2,
+                         authority_instance_id = ?3, generation = ?4
+                     WHERE id = ?5",
+                    params![
+                        token_hash,
+                        expires_at_ms as i64,
+                        authority_instance_id,
+                        generation as i64,
+                        session_id
+                    ],
+                )?;
+                return Ok(());
+            }
+            transaction.execute(
+                "INSERT OR IGNORE INTO _auth_users(id, created_at_ms) VALUES(?1, ?2)",
+                params![user_id, now_ms as i64],
+            )?;
+            insert_test_email_identity(transaction, identity_id, user_id, address, now_ms, false)?;
+            insert_test_identity_session(
+                transaction,
+                session_id,
+                user_id,
+                identity_id,
+                authority_instance_id,
+                token_hash,
+                now_ms,
+                now_ms,
+                expires_at_ms,
+                expires_at_ms,
+            )?;
+            if generation != 1 {
+                transaction.execute(
+                    "UPDATE _auth_sessions SET generation = ?1 WHERE id = ?2",
+                    params![generation as i64, session_id],
+                )?;
+            }
+            Ok(())
+        })
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn auth_insert_email_session_and_push_token_for_test(
         &mut self,
         user_id: &str,
@@ -4413,6 +4476,7 @@ impl LocalDatabase {
         &mut self,
         now_ms: u64,
         expires_at_ms: u64,
+        tokens: &[(String, String, Vec<u8>, u64)],
     ) -> SnapbackResult<()> {
         self.with_auth_transaction(|tx| {
             tx.execute(
@@ -4458,27 +4522,18 @@ impl LocalDatabase {
                     ],
                 )?;
             }
-            for (index, (token_id, grant_id)) in [
-                ("token-a", "grant-a"),
-                ("token-b", "grant-a"),
-                ("token-c", "grant-a"),
-                ("token-e", "grant-b"),
-                ("token-x", "grant-b"),
-                ("token-y", "grant-a"),
-            ]
-            .into_iter()
-            .enumerate()
-            {
+            for (token_id, grant_id, token_hash, credential_generation) in tokens {
                 tx.execute(
                     "INSERT INTO _auth_grant_tokens(
                        id, token_hash, grant_id, credential_id,
                        credential_generation, created_at_ms, expires_at_ms,
                        revoked_at_ms
-                     ) VALUES(?1, ?2, ?3, 'credential-a', 1, ?4, ?5, NULL)",
+                     ) VALUES(?1, ?2, ?3, 'credential-a', ?4, ?5, ?6, NULL)",
                     params![
                         token_id,
-                        vec![u8::try_from(index + 1).expect("small token fixture index"); 32],
+                        token_hash,
                         grant_id,
+                        credential_generation,
                         now_ms as i64,
                         expires_at_ms as i64,
                     ],
@@ -4512,6 +4567,57 @@ impl LocalDatabase {
                     r#"[{"fn":"fn:listItems","kind":"query","basis":0,"authorityCreating":false},{"fn":"fn:liveItems","kind":"liveQuery","basis":0,"authorityCreating":false},{"fn":"fn:queuedWrite","kind":"mutation","basis":0,"authorityCreating":false},{"fn":"fn:writeAction","kind":"action","basis":0,"authorityCreating":false}]"#,
                     start_ms as i64,
                     (start_ms + 48 * 60 * 60 * 1_000) as i64,
+                ],
+            )?;
+            Ok(())
+        })
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn auth_insert_exact_grant_for_test(
+        &mut self,
+        grant_id: &str,
+        actor_user_id: &str,
+        effective_user_id: Option<&str>,
+        scopes: &[super::auth_grants::ExactGrantScope],
+        now_ms: u64,
+        expires_at_ms: u64,
+    ) -> SnapbackResult<()> {
+        let scopes_json = serde_json::to_string(scopes).map_err(|error| {
+            crate::diagnostic::SnapbackError::error(
+                "SNAPBACK_AUTH_GRANT_INVALID",
+                "auth",
+                format!("could not encode exact test grant scopes: {error}"),
+            )
+        })?;
+        self.with_auth_transaction(|tx| {
+            for scope in scopes {
+                tx.execute(
+                    "INSERT OR REPLACE INTO _auth_scope_bases(
+                       function_id, kind, generation, present, authority_creating
+                     ) VALUES(?1, ?2, ?3, 1, ?4)",
+                    params![
+                        scope.function_id,
+                        scope.kind.as_str(),
+                        scope.basis as i64,
+                        i64::from(scope.authority_creating)
+                    ],
+                )?;
+            }
+            tx.execute(
+                "INSERT INTO _auth_grants(
+                   id, actor_user_id, effective_user_id, scopes, created_at_ms,
+                   expires_at_ms, revoked_at_ms, created_by, request_id,
+                   consent_digest, last_used_at_ms
+                 ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, NULL, 'test', NULL, NULL, ?5)",
+                params![
+                    grant_id,
+                    actor_user_id,
+                    effective_user_id,
+                    scopes_json,
+                    now_ms as i64,
+                    expires_at_ms as i64
                 ],
             )?;
             Ok(())
@@ -5366,6 +5472,33 @@ impl<'a> AuthCatalogKernel<'a> {
     }
 
     #[cfg(any(test, feature = "test-support"))]
+    #[allow(clippy::too_many_arguments)]
+    pub fn bind_email_session_bearer_for_test(
+        &mut self,
+        user_id: &str,
+        identity_id: &str,
+        session_id: &str,
+        authority_instance_id: &str,
+        address: &str,
+        token_hash: &[u8],
+        generation: u64,
+        now_ms: u64,
+        expires_at_ms: u64,
+    ) -> SnapbackResult<()> {
+        self.write_db().auth_bind_email_session_bearer_for_test(
+            user_id,
+            identity_id,
+            session_id,
+            authority_instance_id,
+            address,
+            token_hash,
+            generation,
+            now_ms,
+            expires_at_ms,
+        )
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
     pub fn insert_email_session_and_push_token_for_test(
         &mut self,
         user_id: &str,
@@ -5572,9 +5705,10 @@ impl<'a> AuthCatalogKernel<'a> {
         &mut self,
         now_ms: u64,
         expires_at_ms: u64,
+        tokens: &[(String, String, Vec<u8>, u64)],
     ) -> SnapbackResult<()> {
         self.write_db()
-            .auth_install_service_replay_authority_for_test(now_ms, expires_at_ms)
+            .auth_install_service_replay_authority_for_test(now_ms, expires_at_ms, tokens)
     }
 
     #[cfg(any(test, feature = "test-support"))]
@@ -5590,6 +5724,27 @@ impl<'a> AuthCatalogKernel<'a> {
             agent_user_id,
             effective_user_id,
             start_ms,
+        )
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    #[allow(clippy::too_many_arguments)]
+    pub fn insert_exact_grant_for_test(
+        &mut self,
+        grant_id: &str,
+        actor_user_id: &str,
+        effective_user_id: Option<&str>,
+        scopes: &[super::auth_grants::ExactGrantScope],
+        now_ms: u64,
+        expires_at_ms: u64,
+    ) -> SnapbackResult<()> {
+        self.write_db().auth_insert_exact_grant_for_test(
+            grant_id,
+            actor_user_id,
+            effective_user_id,
+            scopes,
+            now_ms,
+            expires_at_ms,
         )
     }
 

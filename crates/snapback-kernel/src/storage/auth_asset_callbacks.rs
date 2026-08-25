@@ -12,8 +12,8 @@
 //!   — one per-app `asset-callbacks` principal receives auditable immutable
 //!   exact-function grants from the existing service-principal vocabulary.
 
-use super::LocalDatabase;
 use super::auth_grants::{ExactGrantScope, canonical_scopes_json};
+use super::{DatabaseBinding, LocalDatabase};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use rusqlite::{OptionalExtension, params};
 
@@ -22,10 +22,38 @@ const ASSET_CALLBACKS_CREATED_BY: &str = "startup:asset-callbacks";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AssetCallbacksServicePrincipal {
-    pub app_id: String,
-    pub actor_user_id: String,
-    pub grant_id: String,
-    pub scope: ExactGrantScope,
+    app_id: String,
+    actor_user_id: String,
+    grant_id: String,
+    scope: ExactGrantScope,
+    database_binding: DatabaseBinding,
+    _resolution: AssetCallbacksResolution,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct AssetCallbacksResolution;
+
+impl AssetCallbacksServicePrincipal {
+    pub fn app_id(&self) -> &str {
+        &self.app_id
+    }
+
+    pub fn actor_user_id(&self) -> &str {
+        &self.actor_user_id
+    }
+
+    pub fn grant_id(&self) -> &str {
+        &self.grant_id
+    }
+
+    pub fn scope(&self) -> &ExactGrantScope {
+        &self.scope
+    }
+
+    #[doc(hidden)]
+    pub fn database_binding(&self) -> &DatabaseBinding {
+        &self.database_binding
+    }
 }
 
 impl LocalDatabase {
@@ -33,7 +61,7 @@ impl LocalDatabase {
     /// exactly one declared callback mutation. A different callback receives
     /// a sibling grant, so adding callbacks never widens or replaces the
     /// authority (and idempotency identity) of work already in flight.
-    pub fn ensure_asset_callbacks_service_principal(
+    pub(crate) fn ensure_asset_callbacks_service_principal(
         &mut self,
         app_id: &str,
         scope: ExactGrantScope,
@@ -51,6 +79,7 @@ impl LocalDatabase {
         let actor_candidate = crate::ids::mint(crate::ids::Kind::User)?;
         let grant_candidate = crate::ids::mint_time_ordered(crate::ids::Kind::Grant);
         let created_by = asset_callbacks_grant_creator(&scope.function_id);
+        let database_binding = self.binding();
 
         self.with_auth_transaction(|tx| {
             let mut actors = Vec::new();
@@ -150,6 +179,8 @@ impl LocalDatabase {
                 actor_user_id,
                 grant_id,
                 scope: scope.clone(),
+                database_binding,
+                _resolution: AssetCallbacksResolution,
             })
         })
     }
@@ -157,10 +188,13 @@ impl LocalDatabase {
     /// Commit-time/fresh-execution revalidation for the bearer-free runner.
     /// The exact principal, immutable grant, and current basis must all still
     /// agree; the absence of a token row is intentional, not a fallback.
-    pub fn asset_callbacks_service_principal_is_live(
+    pub(crate) fn asset_callbacks_service_principal_is_live(
         &self,
         principal: &AssetCallbacksServicePrincipal,
     ) -> SnapbackResult<bool> {
+        if !self.binding().matches(principal.database_binding()) {
+            return Ok(false);
+        }
         let expected_scopes = canonical_scopes_json(std::slice::from_ref(&principal.scope))?;
         let created_by = asset_callbacks_grant_creator(&principal.scope.function_id);
         let provenance = asset_callbacks_provenance(&principal.app_id)?;
@@ -353,5 +387,12 @@ impl super::ServingDatabase {
     ) -> SnapbackResult<AssetCallbacksServicePrincipal> {
         self.db
             .ensure_asset_callbacks_service_principal(app_id, scope, now_ms)
+    }
+
+    pub fn asset_callbacks_service_principal_is_live(
+        &self,
+        principal: &AssetCallbacksServicePrincipal,
+    ) -> SnapbackResult<bool> {
+        self.db.asset_callbacks_service_principal_is_live(principal)
     }
 }

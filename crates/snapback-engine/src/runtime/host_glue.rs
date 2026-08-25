@@ -7317,23 +7317,22 @@ fn membership_writer_from_resolved_for_test_with_consent(
     use crate::storage::{MembershipWriter, ResolvedMembershipWriter};
 
     let resolved = match resolved {
-        ResolvedAppAuthority::Session { user_id, .. }
-        | ResolvedAppAuthority::RevalidatedPrincipal { user_id, .. }
-        | ResolvedAppAuthority::DevImpersonation { user_id, .. } => {
-            ResolvedMembershipWriter::User {
-                user_id: user_id.clone(),
+        ResolvedAppAuthority::Session(subject) => ResolvedMembershipWriter::User {
+            user_id: subject.user_id().to_owned(),
+        },
+        ResolvedAppAuthority::RevalidatedPrincipal(subject) => ResolvedMembershipWriter::User {
+            user_id: subject.user_id().to_owned(),
+        },
+        ResolvedAppAuthority::DevImpersonation { user_id, .. } => ResolvedMembershipWriter::User {
+            user_id: user_id.clone(),
+        },
+        ResolvedAppAuthority::ServicePrincipal(subject) => {
+            ResolvedMembershipWriter::ServicePrincipal {
+                actor_user_id: subject.actor_user_id().to_owned(),
+                effective_user_id: subject.effective_user_id().map(str::to_owned),
+                grant_id: subject.grant_id().to_owned(),
             }
         }
-        ResolvedAppAuthority::ServicePrincipal {
-            actor_user_id,
-            effective_user_id,
-            grant_id,
-            ..
-        } => ResolvedMembershipWriter::ServicePrincipal {
-            actor_user_id: actor_user_id.clone(),
-            effective_user_id: effective_user_id.clone(),
-            grant_id: grant_id.clone(),
-        },
         ResolvedAppAuthority::System => ResolvedMembershipWriter::System,
         ResolvedAppAuthority::AdminBypass { .. } => ResolvedMembershipWriter::AdminBypass,
         ResolvedAppAuthority::Anonymous => ResolvedMembershipWriter::Anonymous,
@@ -7354,17 +7353,24 @@ fn run_service_principal_ibex_mutation_for_test(
     module: &IbexModule,
     input: HandlerInput,
 ) -> SnapbackResult<Value> {
-    let authority = crate::auth::invocation::ResolvedAppAuthority::ServicePrincipal {
-        actor_user_id: "agent-test".to_owned(),
-        credential_id: "credential-test".to_owned(),
-        credential_generation: 1,
-        grant_id: "grant-test".to_owned(),
-        token_id: "token-test".to_owned(),
-        effective_user_id: input.auth.user_id.clone(),
-        scopes: Vec::new(),
-        token_expires_at_ms: u64::MAX,
-        integration_status: None,
-    };
+    let mut authority_engine = crate::local::LocalSnapback::memory()
+        .expect("service-principal host-call authority fixture");
+    let authority = authority_engine
+        .prepare_resolved_service_for_test(
+            crate::auth::invocation::InvocationSource::HttpMutation,
+            "agent-test",
+            input.auth.user_id.as_deref(),
+            vec![crate::storage::auth_grants::ExactGrantScope {
+                function_id: "fn:service-host-call-test".to_owned(),
+                kind: crate::storage::auth_grants::ScopedFunctionKind::Mutation,
+                basis: 0,
+                authority_creating: true,
+            }],
+            1,
+            u64::MAX,
+        )
+        .resolved()
+        .clone();
     let mut invocation = IbexHostContext::new_with_projection(
         DbRead::Live(db),
         input,
@@ -10293,17 +10299,24 @@ mod membership_bridge_tests {
         authority_creating_consent: bool,
     ) -> IbexHostContext<'a> {
         let input = input();
-        let authority = ResolvedAppAuthority::ServicePrincipal {
-            actor_user_id: "agent-a".to_owned(),
-            credential_id: "credential-a".to_owned(),
-            credential_generation: 1,
-            grant_id: "grant-a".to_owned(),
-            token_id: "token-a".to_owned(),
-            effective_user_id: Some("alice".to_owned()),
-            scopes: Vec::new(),
-            token_expires_at_ms: 10_000,
-            integration_status: None,
-        };
+        let mut authority_engine =
+            crate::local::LocalSnapback::memory().expect("membership service authority fixture");
+        let authority = authority_engine
+            .prepare_resolved_service_for_test(
+                crate::auth::invocation::InvocationSource::HttpMutation,
+                "agent-a",
+                Some("alice"),
+                vec![crate::storage::auth_grants::ExactGrantScope {
+                    function_id: "fn:membership-service-test".to_owned(),
+                    kind: crate::storage::auth_grants::ScopedFunctionKind::Mutation,
+                    basis: 0,
+                    authority_creating: authority_creating_consent,
+                }],
+                1,
+                10_000,
+            )
+            .resolved()
+            .clone();
         IbexHostContext::new_with_projection(
             DbRead::Live(db),
             input,
@@ -12262,7 +12275,7 @@ mod direct_human_projection_tests {
 
     fn run(authority: ResolvedAppAuthority) -> Value {
         let db = LocalDatabase::memory().unwrap();
-        let claims = matches!(authority, ResolvedAppAuthority::Session { .. })
+        let claims = matches!(authority, ResolvedAppAuthority::Session(_))
             .then(|| AuthClaimsProjection::server_derived(Vec::new(), Vec::new()));
         let projection = HandlerAuthProjection::from_authority(&authority, claims).unwrap();
         let mut invocation = IbexHostContext::new_with_projection(
@@ -12301,31 +12314,45 @@ mod direct_human_projection_tests {
     }
 
     fn service(effective_user_id: Option<&str>) -> ResolvedAppAuthority {
-        ResolvedAppAuthority::ServicePrincipal {
-            actor_user_id: "agent-1".to_owned(),
-            credential_id: "credential-1".to_owned(),
-            credential_generation: 2,
-            grant_id: "grant-1".to_owned(),
-            token_id: "token-1".to_owned(),
-            effective_user_id: effective_user_id.map(str::to_owned),
-            scopes: Vec::new(),
-            token_expires_at_ms: 20_000,
-            integration_status: None,
-        }
+        let mut authority_engine =
+            crate::local::LocalSnapback::memory().expect("direct-human service authority fixture");
+        authority_engine
+            .prepare_resolved_service_for_test(
+                crate::auth::invocation::InvocationSource::HttpMutation,
+                "agent-1",
+                effective_user_id,
+                vec![crate::storage::auth_grants::ExactGrantScope {
+                    function_id: "fn:direct-human-test".to_owned(),
+                    kind: crate::storage::auth_grants::ScopedFunctionKind::Mutation,
+                    basis: 0,
+                    authority_creating: false,
+                }],
+                1,
+                20_000,
+            )
+            .resolved()
+            .clone()
+    }
+
+    fn session() -> ResolvedAppAuthority {
+        let mut authority_engine =
+            crate::local::LocalSnapback::memory().expect("direct-human session authority fixture");
+        authority_engine
+            .prepare_resolved_session_for_test(
+                crate::auth::invocation::InvocationSource::HttpQuery,
+                "018f0d90-7bb1-7a22-8c33-445566778899",
+                "018f0d90-7bb2-7a22-8c33-445566778899",
+                "018f0d90-7bb3-7a22-8c33-445566778899",
+                1,
+                10_000,
+            )
+            .resolved()
+            .clone()
     }
 
     #[test]
     fn handler_projection_preserves_sealed_kind_actor_and_direct_human_helper() {
-        let session = run(ResolvedAppAuthority::Session {
-            user_id: "user-1".to_owned(),
-            session_id: "session-1".to_owned(),
-            provider: "email-code".to_owned(),
-            generation: 1,
-            authority_instance_id: "authority-1".to_owned(),
-            session_not_after_ms: 10_000,
-            provider_not_after_ms: None,
-            rehearsal_provenance: None,
-        });
+        let session = run(session());
         assert_eq!(session[0]["direct"], true);
         assert_eq!(session[0]["auth"]["kind"], "human");
         assert!(session[0]["auth"].get("actor").is_none());
@@ -12335,7 +12362,7 @@ mod direct_human_projection_tests {
         assert_eq!(delegated[0]["auth"]["kind"], "human");
         assert_eq!(
             delegated[0]["auth"]["actor"],
-            json!({"userId": "agent-1", "kind": "agent", "grantId": "grant-1"})
+            json!({"userId": "agent-1", "kind": "agent", "grantId": "grant-agent-1"})
         );
         assert_eq!(delegated[0]["actorPrototypeIsNull"], true);
         assert_eq!(delegated[0]["actorFrozen"], true);

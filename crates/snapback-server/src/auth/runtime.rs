@@ -1867,7 +1867,7 @@ mod tests {
                     .resolve_required_bearer(&live, provider2.now_ms(), provider2.monotonic_now())
                     .unwrap()
                     .authority(),
-                ResolvedAppAuthority::Session { generation: 1, .. }
+                ResolvedAppAuthority::Session(subject) if subject.generation() == 1
             ),
             "a session whose deadlines are still ahead of the floor stays current"
         );
@@ -1898,7 +1898,7 @@ mod tests {
                     .resolve_required_bearer(&live, provider2.now_ms(), provider2.monotonic_now())
                     .unwrap()
                     .authority(),
-                ResolvedAppAuthority::Session { generation: 1, .. }
+                ResolvedAppAuthority::Session(subject) if subject.generation() == 1
             ),
             "the floor fails closed only for deadlines it has passed, not future ones"
         );

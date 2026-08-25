@@ -156,12 +156,87 @@ struct AdmissionInner {
     state: Mutex<AdmissionState>,
     drained: Condvar,
     changed: tokio::sync::Notify,
+    database_binding: Option<snapback_kernel::storage::DatabaseBinding>,
 }
 
 /// One app instance's process-local admission authority.
 #[derive(Clone)]
 pub struct AdmissionController {
     inner: Arc<AdmissionInner>,
+}
+
+/// Opaque identity for one resolved subject in a process-local admission
+/// graph. Clones preserve the same subject identity; callers cannot mint the
+/// inner pointer or retarget it after resolution.
+#[derive(Clone)]
+pub struct AdmissionLeaseOrigin {
+    controller: Arc<AdmissionInner>,
+    authority: Arc<()>,
+    database_binding: Option<snapback_kernel::storage::DatabaseBinding>,
+}
+
+impl fmt::Debug for AdmissionLeaseOrigin {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("AdmissionLeaseOrigin")
+            .finish_non_exhaustive()
+    }
+}
+
+impl PartialEq for AdmissionLeaseOrigin {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.controller, &other.controller)
+            && Arc::ptr_eq(&self.authority, &other.authority)
+            && self.database_binding == other.database_binding
+    }
+}
+
+impl Eq for AdmissionLeaseOrigin {}
+
+impl AdmissionLeaseOrigin {
+    /// Admit from the controller and subject identity already sealed into a
+    /// derived authority. Retained work can therefore acquire a fresh counted
+    /// root without accepting an independently supplied lease.
+    // @ref LLP 0303#derivation-is-a-lifetime-property-not-a-constructor-event — retained work rejoins only its sealed producer graph.
+    #[doc(hidden)]
+    pub fn admit_for_mode(&self, mode: AuthMode) -> SnapbackResult<AdmissionLease> {
+        AdmissionController {
+            inner: self.controller.clone(),
+        }
+        .admit_for_mode(mode)
+    }
+
+    /// Whether this subject origin belongs to the exact serving database that
+    /// verified a protected-catalog carrier.
+    #[doc(hidden)]
+    pub fn matches_database_binding(
+        &self,
+        binding: &snapback_kernel::storage::DatabaseBinding,
+    ) -> bool {
+        self.database_binding.as_ref() == Some(binding)
+    }
+
+    /// Claim this lease token for the exact subject resolution that produced
+    /// this origin. Every clone of a lease shares the same claim slot.
+    // @ref LLP 0303#corollary--the-artifact-must-carry-provenance-not-just-type — a mode-valid lease is insufficient unless the resolved subject came from the same authority graph.
+    pub fn owns(&self, lease: &AdmissionLease) -> bool {
+        if !lease
+            .token
+            .controller
+            .as_ref()
+            .is_some_and(|controller| Arc::ptr_eq(controller, &self.controller))
+        {
+            return false;
+        }
+        let mut bound = lock(&lease.token.authority_origin);
+        match bound.as_ref() {
+            Some(authority) => Arc::ptr_eq(authority, &self.authority),
+            None => {
+                *bound = Some(self.authority.clone());
+                true
+            }
+        }
+    }
 }
 
 /// Public semantic name used by server composition.
@@ -209,6 +284,17 @@ pub struct AdmissionSnapshot {
 }
 
 impl AdmissionController {
+    /// Mint a fresh subject identity inside this controller's graph. The
+    /// identity is useful only when sealed into a verifier-produced carrier.
+    #[doc(hidden)]
+    pub fn lease_origin(&self) -> AdmissionLeaseOrigin {
+        AdmissionLeaseOrigin {
+            controller: self.inner.clone(),
+            authority: Arc::new(()),
+            database_binding: self.inner.database_binding.clone(),
+        }
+    }
+
     /// Prove that a lease was minted by this exact process-local controller.
     /// Composition uses this before preparing authority off the writer lane;
     /// matching counters alone are never admission evidence.
@@ -240,11 +326,25 @@ impl AdmissionController {
     /// intentionally narrow; production composition should prefer
     /// [`Self::from_mode_state`] so the epoch binds the exact durable mode.
     pub fn new(transition_generation: u64, accepting: bool) -> SnapbackResult<Self> {
-        Self::new_for_mode(transition_generation, AuthMode::Dev, accepting)
+        Self::new_for_mode(transition_generation, AuthMode::Dev, accepting, None)
     }
 
     pub fn from_mode_state(mode: &AuthModeStateRecord) -> SnapbackResult<Self> {
         Self::from_mode_state_with_migration_fence(mode, false)
+    }
+
+    /// Construct the admission half of one exact serving-database authority
+    /// graph. The opaque binding is cloned from the already-adopted database;
+    /// callers cannot synthesize or retarget it from identity parts.
+    pub fn from_mode_state_with_database_binding(
+        mode: &AuthModeStateRecord,
+        database_binding: snapback_kernel::storage::DatabaseBinding,
+    ) -> SnapbackResult<Self> {
+        Self::from_mode_state_with_migration_fence_and_database_binding(
+            mode,
+            false,
+            database_binding,
+        )
     }
 
     /// Construction with the durable migration fence consulted: a process
@@ -260,13 +360,31 @@ impl AdmissionController {
         let accepting = mode.mode_state == AuthModeStatus::Settled
             && mode.app_data_availability == AppDataAvailability::Available
             && !migration_fenced;
-        Self::new_for_mode(mode.transition_generation, mode.active, accepting)
+        Self::new_for_mode(mode.transition_generation, mode.active, accepting, None)
+    }
+
+    pub fn from_mode_state_with_migration_fence_and_database_binding(
+        mode: &AuthModeStateRecord,
+        migration_fenced: bool,
+        database_binding: snapback_kernel::storage::DatabaseBinding,
+    ) -> SnapbackResult<Self> {
+        mode.validate_shape()?;
+        let accepting = mode.mode_state == AuthModeStatus::Settled
+            && mode.app_data_availability == AppDataAvailability::Available
+            && !migration_fenced;
+        Self::new_for_mode(
+            mode.transition_generation,
+            mode.active,
+            accepting,
+            Some(database_binding),
+        )
     }
 
     fn new_for_mode(
         transition_generation: u64,
         active_mode: AuthMode,
         accepting: bool,
+        database_binding: Option<snapback_kernel::storage::DatabaseBinding>,
     ) -> SnapbackResult<Self> {
         let epoch = next_admission_epoch()?;
         let mut epochs = BTreeMap::new();
@@ -291,6 +409,7 @@ impl AdmissionController {
                 }),
                 drained: Condvar::new(),
                 changed: tokio::sync::Notify::new(),
+                database_binding,
             }),
         })
     }
@@ -428,6 +547,7 @@ impl AdmissionController {
         Ok(AdmissionLease {
             token: Arc::new(LeaseToken {
                 controller: Some(self.inner.clone()),
+                authority_origin: Mutex::new(None),
                 transition_generation: current.transition_generation,
                 admission_epoch: epoch,
                 active_mode: Some(current.active_mode),
@@ -515,6 +635,7 @@ impl AdmissionController {
         Ok(AdmissionLease {
             token: Arc::new(LeaseToken {
                 controller: Some(self.inner.clone()),
+                authority_origin: Mutex::new(None),
                 transition_generation: current.transition_generation,
                 admission_epoch: epoch,
                 active_mode: Some(current.active_mode),
@@ -832,6 +953,9 @@ impl fmt::Debug for AdmissionLease {
 
 struct LeaseToken {
     controller: Option<Arc<AdmissionInner>>,
+    /// First subject resolution joined to this counted root. The slot is on
+    /// the shared token so cloning a lease cannot authorize a second subject.
+    authority_origin: Mutex<Option<Arc<()>>>,
     transition_generation: u64,
     admission_epoch: u64,
     active_mode: Option<AuthMode>,
@@ -866,6 +990,20 @@ impl Drop for LeaseToken {
 }
 
 impl AdmissionLease {
+    /// Mint a fresh subject identity in the controller graph that owns this
+    /// managed lease. Diagnostic/unmanaged leases have no such graph.
+    #[doc(hidden)]
+    pub fn origin(&self) -> Option<AdmissionLeaseOrigin> {
+        self.token
+            .controller
+            .as_ref()
+            .map(|controller| AdmissionLeaseOrigin {
+                controller: controller.clone(),
+                authority: Arc::new(()),
+                database_binding: controller.database_binding.clone(),
+            })
+    }
+
     /// Compatibility bridge for call sites the HTTP composition lane has not
     /// yet moved onto the app's controller. Such a lease carries the exact
     /// fields but deliberately cannot claim to participate in quiescence.
@@ -874,6 +1012,7 @@ impl AdmissionLease {
         Self {
             token: Arc::new(LeaseToken {
                 controller: None,
+                authority_origin: Mutex::new(None),
                 transition_generation,
                 admission_epoch,
                 active_mode: None,
@@ -1258,6 +1397,7 @@ impl ModeTransitionGuard {
         Ok(AdmissionLease {
             token: Arc::new(LeaseToken {
                 controller: Some(self.controller.inner.clone()),
+                authority_origin: Mutex::new(None),
                 transition_generation: epoch.transition_generation,
                 admission_epoch: self.admission_epoch,
                 active_mode: Some(epoch.active_mode),

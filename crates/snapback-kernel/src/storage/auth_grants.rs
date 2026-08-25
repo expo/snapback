@@ -3297,10 +3297,10 @@ mod tests {
             "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID"
         );
         let resolved = db.resolve_scoped_token(&replacement.secret, 7_005).unwrap();
-        assert_eq!(resolved.grant_id, replacement.grant_id);
+        assert_eq!(resolved.grant_id(), replacement.grant_id);
         assert_eq!(
             replacement.scopes,
-            serde_json::to_value(&resolved.scopes).unwrap()
+            serde_json::to_value(resolved.scopes()).unwrap()
         );
         db.conn
             .execute(
@@ -3312,7 +3312,7 @@ mod tests {
             .unwrap();
         let stale_basis = db.resolve_scoped_token(&replacement.secret, 7_005).unwrap();
         assert!(
-            stale_basis.scopes.is_empty(),
+            stale_basis.scopes().is_empty(),
             "an already-issued token cannot revive a terminally invalid scope"
         );
         assert!(

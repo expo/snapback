@@ -1074,12 +1074,8 @@ pub fn execute_host_op(
     request: HostOpsRequest,
     server_url: Option<String>,
 ) -> HostOpsResult {
-    #[cfg(not(feature = "engine-owner"))]
-    let served_routes = crate::server::route_registry()
-        .iter()
-        .map(|route| route.path)
-        .collect();
-    #[cfg(feature = "engine-owner")]
+    // Route ownership moved to snapback-server; the engine never owns a
+    // transport registry under either additive feature state.
     let served_routes = Vec::new();
     execute_host_op_with_profile(
         snapback,
