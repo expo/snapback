@@ -83,8 +83,7 @@ if [ "$1" = "auth" ] && [ "$2" = "password" ] && [ "$3" = "unlock" ]; then
     printf '%s\\n' 'unlock did not receive the file-carried admin token' >&2
     exit 96
   fi
-  shift 3
-  printf 'DELEGATED %s\\n' "$*"
+  printf 'DELEGATED_ARG <%s>\\n' "$@"
   exit 0
 fi
 printf '%s\\n' 'EXECUTED' >&2
@@ -223,22 +222,36 @@ exit 97
 
   const adminTokenFile = join(root, 'admin-token');
   writeFileSync(adminTokenFile, 'file-admin-token\n', { mode: 0o600 });
-  const delegatedUnlock = spawnSync(
-    process.execPath,
-    [
-      cli, 'auth', 'password', 'unlock',
-      '--url', 'http://snapback.test',
-      '--email', 'locked@example.test',
-      '--admin-token-file', adminTokenFile,
-    ],
-    {
-      encoding: 'utf8',
-      env: { ...env, SNAPBACK_ADMIN_TOKEN: 'planted-wrong-token' },
-    },
-  );
-  assert.equal(delegatedUnlock.status, 0, delegatedUnlock.stderr);
-  assert.match(delegatedUnlock.stdout, /DELEGATED --url http:\/\/snapback\.test --email locked@example\.test/u);
-  assert.doesNotMatch(`${delegatedUnlock.stdout}\n${delegatedUnlock.stderr}`, /file-admin-token|admin-token-file/u);
+  const expectedDelegatedArgv = [
+    'auth', 'password', 'unlock',
+    '--url', 'http://snapback.test',
+    '--email', 'locked@example.test',
+  ];
+  for (const adminTokenArguments of [
+    ['--admin-token-file', adminTokenFile],
+    [`--admin-token-file=${adminTokenFile}`],
+  ]) {
+    const delegatedUnlock = spawnSync(
+      process.execPath,
+      [
+        cli, 'auth', 'password', 'unlock',
+        '--url', 'http://snapback.test',
+        '--email', 'locked@example.test',
+        ...adminTokenArguments,
+      ],
+      {
+        encoding: 'utf8',
+        env: { ...env, SNAPBACK_ADMIN_TOKEN: 'planted-wrong-token' },
+      },
+    );
+    assert.equal(delegatedUnlock.status, 0, delegatedUnlock.stderr);
+    const delegatedArgv = [...delegatedUnlock.stdout.matchAll(/^DELEGATED_ARG <(.*)>$/gmu)]
+      .map((match) => match[1]);
+    assert.deepEqual(delegatedArgv, expectedDelegatedArgv);
+    const delegatedOutput = `${delegatedUnlock.stdout}\n${delegatedUnlock.stderr}`;
+    assert.doesNotMatch(delegatedOutput, new RegExp(adminTokenFile.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'u'));
+    assert.doesNotMatch(delegatedOutput, /file-admin-token|admin-token-file/u);
+  }
 
   chmodSync(adminTokenFile, 0o644);
   const permissiveTokenFile = spawnSync(

@@ -7161,11 +7161,11 @@ export function attachDevControlChannel({ verbs, stop, onEvent, stdin = process.
 }
 
 function takeFlag(args, name, fallback = null) {
-  const index = args.indexOf(name);
+  const index = args.findIndex((argument) => argument === name || argument.startsWith(`${name}=`));
   if (index === -1) return fallback;
-  const value = args[index + 1];
-  if (!value || value.startsWith('--')) throw diagnosticError('SNAPBACK_CLI_ARGUMENT_INVALID', `${name} requires a value`);
-  args.splice(index, 2);
+  const value = args[index] === name ? args[index + 1] : args[index].slice(name.length + 1);
+  if (!value || (args[index] === name && value.startsWith('--'))) throw diagnosticError('SNAPBACK_CLI_ARGUMENT_INVALID', `${name} requires a value`);
+  args.splice(index, args[index] === name ? 2 : 1);
   return value;
 }
 
