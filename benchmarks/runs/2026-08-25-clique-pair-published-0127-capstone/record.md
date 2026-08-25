@@ -104,9 +104,33 @@ mutations, batched acks, settled-prefix resume — this round's LLP 0307.000
 surface semantics) required zero interventions once the adapter honored
 the ack contract.
 
+#### Cell-1 session completion and the M7 session-shape deviation
+
+The continuous builder session ended at epoch 1787690682 (total ≈ 6:53
+wall from launch): continuous M1–M6+M8 green, scale green, and — a
+**protocol deviation** — the builder then ran M7 in-process (fresh backend
+and fresh scaffold on the M7 ports, but the same codex context), despite
+the prompt's fresh-session requirement. Its in-process M7 went green
+(suite 6/6, live-tally + offline-vote choreography, exact pre/post
+snapshot compare across 8 personas; self-scored B8 88/100, holistic
+84/100) and is retained as evidence but is **non-scored**: LLP 0201's
+fresh-session M7 exists to measure day-2 evolution WITHOUT builder
+context. The scored M7 runs as a genuinely fresh codex session from the
+sealed pre-M7 handoff (frozen before any M7 changes; SHA256SUMS-verified),
+launched epoch 1787690822.
+
+Cell-1 continuous-session harness totals (codex `token_count`, includes
+the in-process M7 deviation work): input 156,153,275 (cached
+154,165,504) · output 331,430 · reasoning 82,675. Baseline Explicit
+continuous totals were input 175,559,887 (cached 173,759,488) · output
+287,079 · reasoning 59,929 — but the baseline's continuous session did
+NOT include M7 or the two scale-defect fix loops, so raw totals are not
+shape-identical; the comparison section will use the per-milestone
+attribution.
+
 ### Cell 2 — capstone-clique-familiar-sol-high
 
-pending (auto-launches when cell 1 finalizes)
+pending (launches after the scored fresh M7 completes)
 
 ## Comparison vs baseline
 
