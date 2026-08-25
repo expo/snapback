@@ -3844,6 +3844,279 @@ test('capability re-read after submission preparation is the final mutation tran
   }
 });
 
+test('operation-range transport loss revalidates capability before queued relinquishment', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const origin = 'https://operation-range-capability-supersession.example';
+  const client = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    operationIdentityProtocol: 1,
+    __outboxDrainLifecycle: false,
+  });
+  const replacingClient = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  let negativeEnabled = false;
+  let announceRangeRequest;
+  const rangeRequested = new Promise((resolve) => { announceRangeRequest = resolve; });
+  let rejectRangeRequest;
+  const rangeResponse = new Promise((_, reject) => { rejectRangeRequest = reject; });
+  let mutationPosts = 0;
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+    if (path === '/inspect') {
+      return Response.json(offlineReplayInspection({
+        supported: !negativeEnabled,
+        targetProfileId: negativeEnabled
+          ? 'cloudflare-do-sqlite-v8'
+          : 'local-dev-sqlite-ibex',
+      }));
+    }
+    if (path === '/client-mutations/identity-range') {
+      announceRangeRequest();
+      return rangeResponse;
+    }
+    mutationPosts += 1;
+    throw new Error(`unexpected mutation transport ${path}`);
+  };
+
+  try {
+    const mutating = client.mutate('createThing', {
+      args: { title: 'range request loses transport after target downgrade' },
+      clientMutationId: 'cm-range-capability-supersession',
+      userId: 'user-a',
+    });
+    await rangeRequested;
+    negativeEnabled = true;
+    await replacingClient.inspect();
+    rejectRangeRequest(new TypeError('operation range request lost transport'));
+    const outcome = await mutating.then(
+      (value) => ({ value, error: null }),
+      (error) => ({ value: null, error }),
+    );
+    assert.equal(
+      outcome.error?.code,
+      'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
+      'the newer negative is surfaced instead of returning queued',
+    );
+    assert.equal(mutationPosts, 0, 'the superseded range path issues no mutation POST');
+    assert.deepEqual(
+      await store.outboxRecords(),
+      [],
+      'pre-dispatch range supersession retires the admitted durable record',
+    );
+  } finally {
+    await replacingClient.close();
+    await client.close();
+    await store.close();
+  }
+});
+
+test('durable negative capability refuses housekeeping enqueue during an auth transition', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const origin = 'https://auth-transition-housekeeping-capability.example';
+  const observation = await store.beginOfflineMutationReplayCapabilityObservation();
+  await store.commitOfflineMutationReplayCapabilityFact({
+    schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
+    origin,
+    supported: false,
+    reason: 'not-advertised',
+    targetProfileId: 'cloudflare-do-sqlite-v8',
+    artifactGeneration: TEST_ARTIFACT_GENERATION,
+  }, observation);
+  const transitionStatus = Object.freeze({
+    state: 'authenticating',
+    settled: false,
+    subscribeSafe: false,
+    ephemeralAuthorityUsable: false,
+    transitionOwner: 'auth-coordinator',
+    barrierPhase: 'commitDurable',
+    authorityEpoch: 1,
+    custodyRevision: 2,
+    closed: false,
+  });
+  const authorityFence = {
+    authority: null,
+    registerParticipant: () => null,
+    authorityTransitionStatus: () => transitionStatus,
+    subscribeAuthorityTransition(listener) {
+      listener(transitionStatus);
+      return () => {};
+    },
+  };
+  const client = new InspectingSnapbackClient(origin, {
+    authCoordinator: authorityFence,
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  let mutationPosts = 0;
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+    if (path === '/inspect') throw new TypeError('capability inspection lost transport');
+    mutationPosts += 1;
+    throw new Error(`authority barrier must not dispatch ${path}`);
+  };
+
+  try {
+    const outcome = await client.mutate('refreshCache', {
+      args: { route: '/inbox' },
+      clientMutationId: 'hk-negative-capability-auth-barrier',
+      housekeeping: { key: 'route-inbox', idempotent: true, successorValid: true },
+    }).then(
+      (value) => ({ value, error: null }),
+      (error) => ({ value: null, error }),
+    );
+    assert.equal(
+      outcome.error?.code,
+      'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
+      'queue:auto becomes online-only when the shared target fact is negative',
+    );
+    assert.equal(mutationPosts, 0, 'the refused housekeeping write issues no mutation POST');
+    assert.deepEqual(
+      await store.outboxRecords(),
+      [],
+      'the auth-transition special path cannot bypass capability admission',
+    );
+  } finally {
+    await client.close();
+    await store.close();
+  }
+});
+
+test('closing a client fences its late capability answer on an injected shared store', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const origin = 'https://closed-client-shared-capability.example';
+  const positive = {
+    schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
+    origin,
+    supported: true,
+    reason: null,
+    targetProfileId: 'local-dev-sqlite-ibex',
+    artifactGeneration: TEST_ARTIFACT_GENERATION,
+  };
+  const initialObservation = await store.beginOfflineMutationReplayCapabilityObservation();
+  await store.commitOfflineMutationReplayCapabilityFact(positive, initialObservation);
+  const commitCapabilityFact = store.commitOfflineMutationReplayCapabilityFact.bind(store);
+  let allowLateCommit;
+  const lateCommitAllowed = new Promise((resolve) => { allowLateCommit = resolve; });
+  let lateCommitStarted = false;
+  store.commitOfflineMutationReplayCapabilityFact = async (...args) => {
+    lateCommitStarted = true;
+    await lateCommitAllowed;
+    return commitCapabilityFact(...args);
+  };
+  let announceInspection;
+  const inspectionStarted = new Promise((resolve) => { announceInspection = resolve; });
+  let releaseInspection;
+  const inspectionResponse = new Promise((resolve) => { releaseInspection = resolve; });
+  globalThis.fetch = async (url) => {
+    assert.equal(new URL(url).pathname, '/inspect');
+    announceInspection();
+    return inspectionResponse;
+  };
+  const client = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  let secondClient = null;
+
+  try {
+    const inspecting = client.inspect();
+    await inspectionStarted;
+    releaseInspection(Response.json(offlineReplayInspection({
+      supported: false,
+      targetProfileId: 'cloudflare-do-sqlite-v8',
+    })));
+    await client.close();
+    const lateCommitStartedBeforeCloseResolved = lateCommitStarted;
+    allowLateCommit();
+    await inspecting;
+    const retainedFact = await store.readOfflineMutationReplayCapabilityFact();
+    assert.equal(
+      lateCommitStartedBeforeCloseResolved,
+      false,
+      'close synchronously refuses the late client answer before shared commit',
+    );
+    assert.equal(retainedFact.supported, true, 'the shared store retains its pre-close fact');
+
+    let mutationPosts = 0;
+    globalThis.fetch = async (url) => {
+      if (new URL(url).pathname !== '/inspect') mutationPosts += 1;
+      throw new TypeError('successor client is offline');
+    };
+    secondClient = new InspectingSnapbackClient(origin, {
+      rqsStore: store,
+      __outboxDrainLifecycle: false,
+    });
+    const queued = await secondClient.mutate('createThing', {
+      args: { title: 'successor observes pre-close positive' },
+      clientMutationId: 'cm-successor-pre-close-capability',
+    });
+    assert.equal(queued.status, 'queued');
+    assert.equal(mutationPosts, 0, 'cached successor enqueue performs no mutation POST');
+  } finally {
+    allowLateCommit();
+    await secondClient?.close();
+    await client.close();
+    await store.close();
+  }
+});
+
+test('successful queries retain a positive lifecycle probe instead of scheduling inspect again', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const client = new InspectingSnapbackClient('https://positive-lifecycle-probe.example', {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  let inspectCalls = 0;
+  let mutationPhase = false;
+  let mutationPosts = 0;
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+    if (path === '/query/listThings') return Response.json({ rows: [], version: 1 });
+    if (path === '/inspect') {
+      inspectCalls += 1;
+      if (mutationPhase) throw new TypeError('offline capability re-probe');
+      if (inspectCalls === 1) {
+        return Response.json(offlineReplayInspection({
+          supported: true,
+          targetProfileId: 'local-dev-sqlite-ibex',
+        }));
+      }
+      return new Response('later proxy failure', { status: 502 });
+    }
+    mutationPosts += 1;
+    throw new TypeError('offline mutation transport');
+  };
+
+  try {
+    await client.query('listThings');
+    await client.whenOfflineMutationReplayCapabilitySettled();
+    await client.query('listThings');
+    await client.whenOfflineMutationReplayCapabilitySettled();
+    assert.equal(
+      inspectCalls,
+      1,
+      'a settled positive lifecycle observation is reused across successful queries',
+    );
+
+    mutationPhase = true;
+    const queued = await client.mutate('createThing', {
+      args: { title: 'offline after repeated successful queries' },
+      clientMutationId: 'cm-positive-lifecycle-probe-reuse',
+    });
+    assert.equal(queued.status, 'queued');
+    assert.equal(mutationPosts, 0, 'the retained positive admits enqueue-only custody');
+  } finally {
+    await client.close();
+    await store.close();
+  }
+});
+
 test('a 502 lifecycle answer is in-flight deduplication only and a later read recovers positive support', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();

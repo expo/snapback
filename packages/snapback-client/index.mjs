@@ -3614,6 +3614,8 @@ export class SnapbackClient {
     this.__offlineMutationReplayCapabilityObservationTail = Promise.resolve();
     this.__offlineMutationReplayCapabilityCommitTail = Promise.resolve();
     this.__offlineMutationReplayLifecycleProbe = null;
+    this.__offlineMutationReplayLifecycleProbeOrigin = null;
+    this.__offlineMutationReplayLifecycleProbeSettled = false;
     this.__offlineMutationReplayLifecycleSettlement = Promise.resolve(null);
     if (operationIdentityProtocol !== null && operationIdentityProtocol !== 1) {
       throw new TypeError('operationIdentityProtocol must be null or 1');
@@ -7366,6 +7368,9 @@ export class SnapbackClient {
   async #recordOfflineMutationReplayCapabilityFact(fact, observation) {
     const normalized = normalizeOfflineMutationReplayCapabilityFact(fact);
     if (normalized === null) return null;
+    if (this.__clientClosed) {
+      return (await this.#currentOfflineMutationReplayCapabilityFact()) ?? normalized;
+    }
     const requestSequence = observation?.requestSequence;
     if (
       !Number.isSafeInteger(requestSequence)
@@ -7393,6 +7398,9 @@ export class SnapbackClient {
       this.__offlineMutationReplayCapabilityLocalOverrideRequestSequence = null;
     }
     const commit = async () => {
+      if (this.__clientClosed) {
+        return (await this.#currentOfflineMutationReplayCapabilityFact()) ?? normalized;
+      }
       if (
         requestSequence < this.__offlineMutationReplayCapabilityLastAnsweredRequestSequence
       ) {
@@ -7430,7 +7438,8 @@ export class SnapbackClient {
         } catch { /* the fresh answer remains usable only by its direct caller */ }
       }
       if (
-        requestSequence === this.__offlineMutationReplayCapabilityLastAnsweredRequestSequence
+        !this.__clientClosed
+        && requestSequence === this.__offlineMutationReplayCapabilityLastAnsweredRequestSequence
       ) {
         this.__observedOfflineMutationReplayCapability = normalized;
       }
@@ -7529,14 +7538,28 @@ export class SnapbackClient {
     return Object.freeze({ ...fact, evidence: 'fresh', inspectionRequestSequence });
   }
 
-  async #observeOfflineMutationReplayCapabilityFromLifecycle() {
+  async #observeOfflineMutationReplayCapabilityFromLifecycle({ force = false } = {}) {
     if (
       this.__offlineMutationReplayCapability !== null
       || this.#offlineQueueStore(false) === null
     ) return null;
+    const origin = canonicalServerOrigin(this.baseUrl);
+    if (
+      this.__offlineMutationReplayLifecycleProbe !== null
+      && (
+        this.__offlineMutationReplayLifecycleProbeOrigin !== origin
+        || (force && this.__offlineMutationReplayLifecycleProbeSettled)
+      )
+    ) {
+      this.__offlineMutationReplayLifecycleProbe = null;
+      this.__offlineMutationReplayLifecycleProbeOrigin = null;
+      this.__offlineMutationReplayLifecycleProbeSettled = false;
+    }
     if (this.__offlineMutationReplayLifecycleProbe === null) {
       const task = this.#offlineMutationReplayCapabilityFact();
       this.__offlineMutationReplayLifecycleProbe = task;
+      this.__offlineMutationReplayLifecycleProbeOrigin = origin;
+      this.__offlineMutationReplayLifecycleProbeSettled = false;
       this.__offlineMutationReplayLifecycleSettlement = task.then((fact) => Object.freeze({
         supported: fact?.supported === true,
         reason: typeof fact?.reason === 'string' ? fact.reason : null,
@@ -7544,13 +7567,28 @@ export class SnapbackClient {
           ? fact.targetProfileId
           : null,
         evidence: typeof fact?.evidence === 'string' ? fact.evidence : null,
-      }));
-      void this.__offlineMutationReplayLifecycleSettlement.catch(() => {});
-      void task.finally(() => {
+      })).then((settlement) => {
+        if (this.__offlineMutationReplayLifecycleProbe === task) {
+          this.__offlineMutationReplayLifecycleProbeSettled = true;
+          // A positive observation remains the lifecycle fact until a target
+          // change or reconnect explicitly invalidates it. A negative clears
+          // the probe so the next successful ordinary read can recover.
+          if (settlement.supported !== true) {
+            this.__offlineMutationReplayLifecycleProbe = null;
+            this.__offlineMutationReplayLifecycleProbeOrigin = null;
+            this.__offlineMutationReplayLifecycleProbeSettled = false;
+          }
+        }
+        return settlement;
+      }, (error) => {
         if (this.__offlineMutationReplayLifecycleProbe === task) {
           this.__offlineMutationReplayLifecycleProbe = null;
+          this.__offlineMutationReplayLifecycleProbeOrigin = null;
+          this.__offlineMutationReplayLifecycleProbeSettled = false;
         }
-      }).catch(() => {});
+        throw error;
+      });
+      void this.__offlineMutationReplayLifecycleSettlement.catch(() => {});
       return task;
     }
     return this.__offlineMutationReplayLifecycleProbe;
@@ -9135,6 +9173,13 @@ export class SnapbackClient {
         if (outcome.status === 'rejected') firstError ??= outcome.reason;
       }
       try { await outboxDrainSettlement; } catch (error) { firstError ??= error; }
+      // A caller-owned store outlives this client. Let a capability commit that
+      // already crossed into the store settle before close resolves; answers
+      // that reach the commit cut after the synchronous client fence are
+      // refused by #recordOfflineMutationReplayCapabilityFact instead.
+      try {
+        await this.__offlineMutationReplayCapabilityCommitTail;
+      } catch (error) { firstError ??= error; }
       this.__authControllers.clear();
       this.__liveStreamManagers?.clear?.();
       this.__connectionGrants.clear();
@@ -13210,8 +13255,26 @@ export class SnapbackClient {
     }
     const dispatchLane = housekeeping === null ? 'foreground' : 'housekeeping';
     if (dispatchLane === 'housekeeping') clientMutationId ??= createClientMutationId();
+    if (queue !== 'auto' && queue !== false && queue !== true) {
+      throw new TypeError("mutate queue option must be 'auto', true, or false");
+    }
     const transitionStatus = this.authorityTransitionStatus();
     if (dispatchLane === 'housekeeping' && transitionStatus.transitionOwner === 'auth-coordinator') {
+      let store = queue === true
+        ? this.#offlineQueueStore(true)
+        : this.#offlineQueueStore(false);
+      let capability = null;
+      if (queue === true) {
+        capability = await this.#requireOfflineMutationReplayCapability();
+      } else if (queue === 'auto' && store !== null) {
+        capability = await this.#offlineMutationReplayCapabilityFact({
+          allowCachedForEnqueue: true,
+          expectedGeneration: generation,
+        });
+        if (capability.supported !== true) queue = false;
+      } else if (queue === 'auto') {
+        queue = false;
+      }
       if (queue === false) {
         throw oneShotAuthAdmissionError({
           code: 'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
@@ -13222,9 +13285,16 @@ export class SnapbackClient {
           refKind: ref?.kind ?? null,
         });
       }
-      const store = this.#offlineQueueStore(true);
+      store ??= this.#offlineQueueStore(true);
       clientMutationId ??= createClientMutationId();
       const queueFence = outboxAuthorizationFenceFrom(await store.outboxAuthorizationStatus());
+      const capabilityIsCurrent = () => this.#isOfflineMutationReplayCapabilityFactCurrent(
+        capability,
+        capability?.inspectionRequestSequence ?? null,
+      );
+      if (!await capabilityIsCurrent()) {
+        throw offlineQueueSettlementLedgerError({ reason: 'inspection-superseded' });
+      }
       const stored = await store.outboxEnqueue({
         id: clientMutationId,
         function: name,
@@ -13242,6 +13312,37 @@ export class SnapbackClient {
         successorTargetedHousekeeping: true,
         capturedNow: Date.now(),
       }, queueFence);
+      if (!await capabilityIsCurrent()) {
+        const insertionOwnership = outboxInsertionOwnershipFrom(stored);
+        let discarded = false;
+        if (
+          insertionOwnership !== null
+          && typeof store.outboxDiscardPendingInsertion === 'function'
+        ) {
+          discarded = await store.outboxDiscardPendingInsertion(
+            stored.id,
+            insertionOwnership.sequence,
+            outboxAuthorizationFenceFrom(stored),
+          );
+        } else if (typeof store.outboxDiscard === 'function') {
+          discarded = await store.outboxDiscard(
+            stored.id,
+            outboxAuthorizationFenceFrom(stored),
+          );
+        }
+        if (discarded !== true) {
+          const current = (await store.outboxRecords())
+            .find((record) => record?.id === stored.id) ?? null;
+          if (current?.status === 'pending') {
+            const error = offlineQueueSettlementLedgerError({
+              reason: 'inspection-superseded',
+            });
+            error.outboxSettlementPersistenceFailure = true;
+            throw error;
+          }
+        }
+        throw offlineQueueSettlementLedgerError({ reason: 'inspection-superseded' });
+      }
       this.#recordRuntimeCostOutboxEnqueue(stored, functionId);
       this.#notifyOutboxListeners();
       return Object.freeze({
@@ -13258,9 +13359,6 @@ export class SnapbackClient {
       ? null
       : authenticatedOneShotAdmissionError(ref, this, 'mutation');
     if (authAdmissionError !== null) throw authAdmissionError;
-    if (queue !== 'auto' && queue !== false && queue !== true) {
-      throw new TypeError("mutate queue option must be 'auto', true, or false");
-    }
     // @ref LLP 0059#authority-identity-and-captures — foreground admission,
     // asynchronous generated preparation, and transport belong to one exact
     // authority. Internal durable replay already supplies its owned capture.
@@ -13663,7 +13761,11 @@ export class SnapbackClient {
       return error;
     };
     const retireSupersededCapabilityRecord = async () => {
-      if (!durableOnlineRecord || queueStore === null || clientMutationId === null) return;
+      if (
+        durableOnlineStoredRecord === null
+        || queueStore === null
+        || clientMutationId === null
+      ) return;
       const expectedAuthorizationFence = durableOnlineStoredRecord === null
         ? null
         : outboxAuthorizationFenceFrom(durableOnlineStoredRecord);
@@ -13710,6 +13812,12 @@ export class SnapbackClient {
       queueCapabilityFact = null;
       queueCapabilityRequestSequence = null;
       return false;
+    };
+    const finalizeQueuedDisposition = async (queued, { retireRecord = false } = {}) => {
+      if (!await revalidateQueueCapability({ retireRecord })) {
+        throw capabilitySupersededError();
+      }
+      return queued;
     };
     try {
       if (queueStore && durableMutationRecord) {
@@ -13790,6 +13898,9 @@ export class SnapbackClient {
               preparationFence = outboxAuthorizationFenceFrom(stored);
             } catch (error) {
               if (isConnectivityFailureError(error) || isOperationRangeCapacityError(error)) {
+                if (!await revalidateQueueCapability({ retireRecord: true })) {
+                  throw capabilitySupersededError();
+                }
                 const queuedDiagnostic = this.#emitQueuedRelinquishmentDiagnostic({
                   mutation: name,
                   clientMutationId: stored.id,
@@ -13813,13 +13924,13 @@ export class SnapbackClient {
                 if (generatedPresentationEnabled) {
                   await this.#refreshOptimisticMutationViews('generated-ir-queued');
                 }
-                return {
+                return await finalizeQueuedDisposition({
                   status: 'queued',
                   clientMutationId: stored.id,
                   sequence: stored.sequence,
                   presentation: this.#optimisticPresentationDisposition(stored.id),
                   operationCoverageDisposition: 'uncovered-range-exhausted',
-                };
+                }, { retireRecord: true });
               }
               if (
                 authorityErrorCode(error) === 'SNAPBACK_OUTBOX_AUTHORIZATION_STALE'
@@ -13833,13 +13944,13 @@ export class SnapbackClient {
                   ? 'authorization-suspended'
                   : 'authorization-stale';
                 this.#notifyOutboxListeners();
-                return {
+                return await finalizeQueuedDisposition({
                   status: 'queued',
                   clientMutationId: stored.id,
                   sequence: stored.sequence,
                   presentation: this.#optimisticPresentationDisposition(stored.id),
                   authorizationDisposition,
-                };
+                }, { retireRecord: true });
               }
               if (isAuthorityFenceUnsettledError(error)) {
                 await this.#reconcileQueueCustody(queueStore);
@@ -13960,6 +14071,7 @@ export class SnapbackClient {
             alreadyCommitted: true,
             functionId,
             queueReasonClass: 'no-attempt-policy',
+            beforeEnqueue: () => revalidateQueueCapability({ retireRecord: true }),
           })
         : null;
       if (queued === null) {
@@ -13967,9 +14079,10 @@ export class SnapbackClient {
           reason: 'cached-enqueue-custody-unavailable',
         });
       }
+      const finalizedQueued = await finalizeQueuedDisposition(queued, { retireRecord: true });
       return generatedMutation === null
-        ? queued
-        : { ...queued, operationHash: generatedMutation.operationHash };
+        ? finalizedQueued
+        : { ...finalizedQueued, operationHash: generatedMutation.operationHash };
     }
     let reservationRetryAuthorityCapture = queueAuthority?.capture ?? authorityCapture;
     let reservationRetryExternalBearer = null;
@@ -14185,13 +14298,13 @@ export class SnapbackClient {
             : 'authorization-stale';
           this.#notifyOutboxListeners();
           await this.#refreshOptimisticMutationViews('authorization-suspended');
-          return {
+          return await finalizeQueuedDisposition({
             status: 'queued',
             clientMutationId,
             sequence: durableOnlineStoredRecord?.sequence ?? null,
             presentation: this.#optimisticPresentationDisposition(clientMutationId),
             authorizationDisposition,
-          };
+          }, { retireRecord: mutationInspectionDispatchedAtMs === null });
         }
         if (error?.outboxSettlementPersistenceFailure === true) throw error;
         // A REJECTED mutation still produced its receipt (it rides the error
@@ -14328,9 +14441,10 @@ export class SnapbackClient {
               },
             );
             if (queued) {
+              const finalizedQueued = await finalizeQueuedDisposition(queued);
               return generatedMutation === null
-                ? queued
-                : { ...queued, operationHash: generatedMutation.operationHash };
+                ? finalizedQueued
+                : { ...finalizedQueued, operationHash: generatedMutation.operationHash };
             }
             if (durableOnlineRecord) {
               // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 —
@@ -16122,7 +16236,9 @@ export class SnapbackClient {
         // A retained/stale handle may become authoritative long after
         // liveQuery() returned. The freshness transition, rather than only
         // initial establishment, owns target-capability discovery.
-        void client.#observeOfflineMutationReplayCapabilityFromLifecycle().catch(() => {});
+        void client.#observeOfflineMutationReplayCapabilityFromLifecycle({
+          force: previous === 'retained' || previous === 'stale',
+        }).catch(() => {});
       }
     };
 
@@ -18712,6 +18828,8 @@ export class SnapbackClient {
         for (;;) {
           const demandEpochBefore = resubscribeDemandEpoch;
           await subscribeFresh();
+          void client.#observeOfflineMutationReplayCapabilityFromLifecycle({ force: true })
+            .catch(() => {});
           emitEvent('resubscribed', { reason: attemptReason });
           settleConnectionAfterSubscribe();
           if (disposed || paused || resubscribeDemandEpoch === demandEpochBefore) return true;

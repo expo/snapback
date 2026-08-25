@@ -247,3 +247,65 @@ deliberately unregenerated diagnostics registry/Markdown projection. The
 branch carries their earlier intermediate regeneration, and integration owns
 the final emitting-site rewrite. `./ref-check --verbose` and `git diff --check`
 are rerun at the final commit boundary.
+
+### Round-9 review closure (2026-08-25)
+
+Every path that presents `status: 'queued'` from foreground mutation admission
+now performs a final shared capability-fact re-read. An operation-identity
+range request is still pre-mutation transport: if a newer negative lands while
+the range request is in flight and that request then loses transport, the
+admitted durable record is retired and the capability refusal surfaces with no
+mutation POST. The auth-transition housekeeping special path now performs the
+same fresh/cached capability admission and re-reads the shared fact immediately
+before and after its durable enqueue; `queue: 'auto'` becomes online-only under
+an already-durable negative, so the barrier refuses it without a pending
+record.
+
+Client close is now the terminal capability-publication fence even for an
+injected caller-owned store. A capability answer reaching record/commit after
+`__clientClosed` cannot mutate the shared store, while `close()` awaits any
+commit that already crossed the store boundary before resolving. A successor
+client over the same injected store therefore observes the last fact committed
+before the predecessor client closed.
+
+The minor takes option (a): a settled positive lifecycle probe is retained
+across ordinary successful `query()` calls. Answered negative facts keep LLP
+0043's replacement rule and clear the retained lifecycle probe, so the next
+successful read may recover; reconnect and canonical-target change also force
+a new probe. This preserves answered-error ordering while removing the product
+path where an unrelated per-query `/inspect` 5xx could overwrite a positive
+ledger fact immediately before offline enqueue.
+
+Round-9 fail-first evidence from the four production regressions:
+
+- the in-flight range supersession returned `queued`; the refusal assertion
+  failed with actual `undefined` versus expected
+  `SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED`;
+- the auth-transition housekeeping path returned `queued`; the online-only
+  refusal assertion failed with actual `undefined` versus expected
+  `SNAPBACK_CLIENT_AUTHORITY_CLEARING`;
+- the closed-client injected-store test observed the late negative in shared
+  storage and failed `the shared store retains its pre-close fact` with
+  `false !== true`;
+- the repeated-query lifecycle test issued two inspections and failed
+  `a settled positive lifecycle observation is reused across successful
+  queries` with `2 !== 1`.
+
+Round-9 verification updates the client suite to `tests 118`, `pass 118`,
+`fail 0`; the affected authority-transition conformance suite is `tests 9`,
+`pass 9`, `fail 0`. The public-dashboard witnesses remain `PASS
+public-dashboard / offline-local-first (JS arm) — 9/9` and `PASS
+public-dashboard / headless — 6/6`; both used the explicitly configured binary
+stamped at `f446d966b` and reported the expected checkout stamp mismatch.
+`node scripts/generate-symbol-registry.mjs --check` reports
+`[symbol-registry] ok — 56 modules, 1455 symbols, runtime parity exact`.
+`node scripts/check-guide.mjs` reports `21 passed, 1 failed, 0 skipped, 0
+preconditions; 157 pages, 1872 snippets, 174 routes + 51 host-ops joined, 94
+warnings`; the sole accepted failure remains the diagnostics registry and
+Markdown projection delegated to integration. Symbol registry, guide corpus,
+manifest/MCP, and flat projections pass. The final diagnostics files remain
+the exact branch-HEAD bytes (including integration's stray union member): the
+guide generator's coupled diagnostics invocation was reverted, then the
+symbol/manifest/flat projections were generated against the restored
+diagnostics bytes. `./ref-check --verbose` reports `311 LLP docs, 6641 refs in
+12503 files, 0 errors, 0 unchecked`; `git diff --check` produces no output.
