@@ -254,7 +254,7 @@ pub(super) async fn oauth_register(
             },
             profile,
             registration_provider.now_ms(),
-            registration_provider.agent_random_source(),
+            &OsRandom,
         )
     })
     .await;
@@ -391,7 +391,7 @@ pub(super) async fn oauth_authorize_get(
             &request.code_challenge,
             request.state.as_deref(),
             provider.now_ms(),
-            provider.agent_random_source(),
+            &OsRandom,
         )
     })
     .await;
@@ -580,7 +580,7 @@ pub(super) async fn oauth_authorize_post(
             &authority,
             &request_id,
             provider.now_ms(),
-            provider.agent_random_source(),
+            &OsRandom,
         )
     })
     .await;

@@ -821,11 +821,6 @@ impl AssetWidthPrepareTicketV1 {
             prepared,
         })
     }
-
-    #[cfg(any(test, feature = "remainder-tests"))]
-    pub fn store_for_test(&self) -> std::sync::Arc<dyn crate::assets_store::AssetStore> {
-        self.store.clone()
-    }
 }
 
 impl AssetWidthPlanTicketV1 {
@@ -1380,11 +1375,6 @@ impl FinalizePrepareTicketV1 {
 
     pub fn app_id(&self) -> &str {
         &self.app_id
-    }
-
-    #[cfg(any(test, feature = "remainder-tests"))]
-    pub fn store_for_test(&self) -> std::sync::Arc<dyn crate::assets_store::AssetStore> {
-        self.store.clone()
     }
 
     pub fn prepare(&self) -> SnapbackResult<FinalizePreparationV1> {

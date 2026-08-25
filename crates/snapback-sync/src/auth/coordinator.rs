@@ -2608,7 +2608,8 @@ mod tests {
     }
 
     async fn family_alarm_fixture() -> (Fixture, ProviderRevocationPlan) {
-        let fixture = fixture().await;
+        let mut fixture = fixture().await;
+        let predecessor_bearer = fixture.bearer.clone();
         let rotation = rotation_plan(&fixture, 250);
         let commit_plan = rotation.commit_plan();
         let carrier = fixture
@@ -2622,18 +2623,20 @@ mod tests {
                 .admission
                 .commit_planned_rotation(&mut database, &commit_plan)
         };
-        assert!(matches!(
-            fixture
-                .coordinator
-                .finish_rotation(carrier, attempt)
-                .expect("finalize provider-planned rotation"),
-            RotationFinish::Committed { .. }
-        ));
+        let RotationFinish::Committed { issue, .. } = fixture
+            .coordinator
+            .finish_rotation(carrier, attempt)
+            .expect("finalize provider-planned rotation")
+        else {
+            panic!("provider-planned rotation commits");
+        };
+        fixture.bearer = issue.response().token().expose_secret().to_owned();
+        fixture.digest = TokenDigest::from_token_hash(&issue.response().token().token_hash());
         let family = {
             let database = fixture.planning_database.lock().unwrap();
             fixture
                 .admission
-                .plan_family_alarm(&database, &fixture.bearer, 251)
+                .plan_family_alarm(&database, &predecessor_bearer, 251)
                 .expect("plan family alarm from the durable predecessor")
                 .revocation_plan()
                 .expect("superseded bearer produces an actionable revocation")
@@ -3737,21 +3740,32 @@ mod tests {
     #[tokio::test]
     async fn sibling_rollback_never_reopens_a_committed_revocation_in_either_order() {
         for second_wins in [false, true] {
-            let fixture = fixture().await;
+            let (fixture, family_plan) = family_alarm_fixture().await;
+            let logout_plan = logout_plan(&fixture);
             let a = fixture
                 .coordinator
-                .premark_revocation(logout_plan(&fixture))
+                .premark_revocation(logout_plan.clone())
                 .await
                 .unwrap();
             let b = fixture
                 .coordinator
-                .premark_revocation(logout_plan(&fixture))
+                .premark_revocation(family_plan.clone())
                 .await
                 .unwrap();
-            let (winner, loser) = if second_wins { (b, a) } else { (a, b) };
+            let (winner, winner_plan, loser) = if second_wins {
+                (b, family_plan, a)
+            } else {
+                (a, logout_plan, b)
+            };
+            let committed = {
+                let mut database = fixture.planning_database.lock().unwrap();
+                fixture
+                    .admission
+                    .commit_planned_revocation(&mut database, &winner_plan, 252)
+            };
             let outcome = fixture
                 .coordinator
-                .finish_revocation(winner, committed(&fixture))
+                .finish_revocation(winner, committed)
                 .unwrap();
             assert!(matches!(outcome, RevocationFinish::Committed { .. }));
             let rollback = SnapbackError::error("TEST_ROLLBACK", "test", "known rollback");
@@ -3767,7 +3781,7 @@ mod tests {
             assert_eq!(
                 fixture
                     .coordinator
-                    .resolve_required_bearer(&fixture.bearer, 200, fixture.monotonic_start,)
+                    .resolve_required_bearer(&fixture.bearer, 252, fixture.monotonic_start,)
                     .unwrap_err()
                     .diagnostic
                     .code,
@@ -3887,38 +3901,48 @@ mod tests {
 
     #[tokio::test]
     async fn already_terminal_loser_exact_unmarks_after_sibling_finalize() {
-        let fixture = fixture().await;
+        let (fixture, family_plan) = family_alarm_fixture().await;
+        let logout_plan = logout_plan(&fixture);
         let winner = fixture
             .coordinator
-            .premark_revocation(logout_plan(&fixture))
+            .premark_revocation(family_plan.clone())
             .await
             .unwrap();
         let loser = fixture
             .coordinator
-            .premark_revocation(logout_plan(&fixture))
+            .premark_revocation(logout_plan.clone())
             .await
             .unwrap();
+        let committed_family_alarm = {
+            let mut database = fixture.planning_database.lock().unwrap();
+            fixture
+                .admission
+                .commit_planned_revocation(&mut database, &family_plan, 252)
+        };
         fixture
             .coordinator
-            .finish_revocation(winner, committed(&fixture))
+            .finish_revocation(winner, committed_family_alarm)
             .unwrap();
+        let already_terminal = {
+            let mut database = fixture.planning_database.lock().unwrap();
+            fixture
+                .admission
+                .commit_planned_revocation(&mut database, &logout_plan, 253)
+        };
         let outcome = fixture
             .coordinator
-            .finish_revocation(
-                loser,
-                AuthTransactionAttempt::Committed(PlannedRevocationCommit::AlreadyTerminal {
-                    generation: 2,
-                    reason: Some(RevocationReason::Logout),
-                }),
-            )
+            .finish_revocation(loser, already_terminal)
             .unwrap();
-        assert!(matches!(
-            outcome,
-            RevocationFinish::AlreadyTerminal {
-                generation: 2,
-                reason: Some(RevocationReason::Logout)
-            }
-        ));
+        assert!(
+            matches!(
+                &outcome,
+                RevocationFinish::AlreadyTerminal {
+                    generation: 2,
+                    reason: Some(RevocationReason::FamilyAlarm)
+                }
+            ),
+            "unexpected loser outcome: {outcome:?}"
+        );
         fixture.coordinator.check_invariants().unwrap();
     }
 

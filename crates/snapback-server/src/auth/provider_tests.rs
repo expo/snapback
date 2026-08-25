@@ -989,8 +989,7 @@ mod tests {
         let maintenance = provider.exclusive_maintenance().await;
         assert!(
             maintenance
-                .keyring()
-                .rotate_if_due(rotation_at, provider.agent_random_source())
+                .rotate_keyring_if_due(rotation_at)
                 .expect("rotate keyring")
         );
         drop(maintenance);
@@ -1182,7 +1181,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn observable_id_and_session_collisions_exhaust_exactly_three_candidates() {
+    async fn observable_challenge_id_collisions_exhaust_exactly_three_candidates() {
         let now_ms = 1_700_000_000_000;
         let random = Arc::new(CountingConstantRandom::new(0x42));
         let (provider, mut database) = provider_database_with_random(now_ms, random.clone());
@@ -1208,40 +1207,6 @@ mod tests {
             .mailbox_entry(&first.challenge_id)
             .await
             .expect("colliding request did not supersede first");
-
-        let session_random = Arc::new(CountingConstantRandom::new(0x24));
-        let (session_provider, mut session_database) =
-            provider_database_with_random(now_ms, session_random.clone());
-        mint(
-            &session_provider,
-            &mut session_database,
-            "person@example.com",
-            now_ms,
-        )
-        .await;
-        let fills_before_collision = session_random.fills();
-        let admission = session_provider
-            .admit_email("person@example.com")
-            .await
-            .expect("mint admission");
-        let mut collisions = 0;
-        for _ in 0..AUTH_MAX_COLLISION_ATTEMPTS {
-            let issuance = admission
-                .plan_mint_session(&session_database, now_ms + 1)
-                .expect("plan colliding session mint");
-            assert!(matches!(
-                admission.commit_planned_issuance(&mut session_database, &issuance.commit_plan(),),
-                AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CandidateCollision)
-            ));
-            collisions += 1;
-        }
-        assert_eq!(collisions, AUTH_MAX_COLLISION_ATTEMPTS);
-        assert_eq!(session_random.fills() - fills_before_collision, 15);
-        let sessions: i64 = session_database
-            .auth_catalog_read()
-            .session_count_for_test()
-            .expect("session count");
-        assert_eq!(sessions, 1);
     }
 
     #[tokio::test]
@@ -3412,7 +3377,7 @@ mod tests {
                 &squatter_user,
                 "other@example.com",
                 now_ms + 1,
-                provider.agent_random_source(),
+                &OsRandom,
             )
             .expect("other-identity session fixture");
         let actor = email_issue_for_test(
@@ -3598,11 +3563,7 @@ mod tests {
         let now_ms = 9_000_000;
         let (provider, mut database, _) = password_provider_database_coordinator(now_ms);
         let guest = database
-            .insert_typed_guest_session_for_test(
-                now_ms + 60_000,
-                now_ms,
-                provider.agent_random_source(),
-            )
+            .insert_typed_guest_session_for_test(now_ms + 60_000, now_ms, &OsRandom)
             .expect("guest fixture");
         let coordinator = Arc::new(
             AuthCoordinator::from_local_session_database(
@@ -3723,7 +3684,7 @@ mod tests {
         let now_ms = 10_000_000;
         let (provider, mut database, _) = password_provider_database_coordinator(now_ms);
         let guest = database
-            .identity_guest_create(now_ms + 60_000, now_ms, provider.agent_random_source())
+            .identity_guest_create(now_ms + 60_000, now_ms, &OsRandom)
             .expect("guest race fixture");
         let preparation = provider
             .prepare_guest_claim_password(

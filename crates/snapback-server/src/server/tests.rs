@@ -7948,7 +7948,6 @@ async fn finite_authority_matrix_fixture_with_functions(
     })
     .await
     .expect("construct finite-authority matrix fixture off async workers");
-    let provider = state.auth_provider.clone().expect("matrix auth provider");
     let effective_user_id = "018f0d90-7b30-7a22-8c33-445566778899".to_owned();
     let grant_id = "018f0d90-7b32-7a22-8c33-445566778899".to_owned();
     let setup_effective_user_id = effective_user_id.clone();
@@ -7978,7 +7977,7 @@ async fn finite_authority_matrix_fixture_with_functions(
                 &setup_grant_id,
                 Some(24 * 60 * 60 * 1_000),
                 start_ms,
-                provider.agent_random_source(),
+                &OsRandom,
             )?;
             Ok::<_, SnapbackError>((
                 credential.user_id,
@@ -8013,11 +8012,6 @@ async fn mint_same_grant_sibling_and_set_deadline(
     let start_ms = fixture.start_ms;
     let credential = fixture.credential.clone();
     let grant_id = fixture.grant_id.clone();
-    let provider = fixture
-        .state
-        .auth_provider
-        .clone()
-        .expect("grant-expiry provider");
     with_snapback(&fixture.state.snapback, move |snapback| {
         let credential =
             AgentCredential::parse(&credential).expect("parse grant-expiry credential");
@@ -8026,7 +8020,7 @@ async fn mint_same_grant_sibling_and_set_deadline(
             &grant_id,
             Some(24 * 60 * 60 * 1_000),
             start_ms,
-            provider.agent_random_source(),
+            &OsRandom,
         )?;
         snapback
             .remainder_auth_database_mut()
@@ -8207,11 +8201,6 @@ async fn commit_finite_authority_matrix_ending(
         }
         FiniteAuthorityMatrixEnding::CredentialRotate => {
             let credential = fixture.credential.clone();
-            let provider = fixture
-                .state
-                .auth_provider
-                .clone()
-                .expect("matrix provider");
             let token_id = fixture.token_id.clone();
             let now_ms = fixture.start_ms
                 + crate::storage::auth_agent_credentials::AGENT_CREDENTIAL_ROTATION_MIN_INTERVAL_MS;
@@ -8221,7 +8210,7 @@ async fn commit_finite_authority_matrix_ending(
                     AgentCredential::parse(&credential).expect("parse matrix agent credential");
                 snapback
                     .remainder_auth_database_mut()
-                    .rotate_agent_credential(&credential, now_ms, provider.agent_random_source())
+                    .rotate_agent_credential(&credential, now_ms, &OsRandom)
             })
             .await
             .expect("commit real credential rotation");
@@ -8313,11 +8302,6 @@ async fn commit_finite_authority_matrix_ending(
             let credential = fixture.credential.clone();
             let grant_id = fixture.grant_id.clone();
             let token_id = fixture.token_id.clone();
-            let provider = fixture
-                .state
-                .auth_provider
-                .clone()
-                .expect("matrix provider");
             let start_ms = fixture.start_ms;
             fixture
                 .clock
@@ -8332,7 +8316,7 @@ async fn commit_finite_authority_matrix_ending(
                         &grant_id,
                         Some(24 * 60 * 60 * 1_000),
                         start_ms + offset,
-                        provider.agent_random_source(),
+                        &OsRandom,
                     )?;
                     evicted.extend(issued.evicted_token_ids);
                 }
@@ -14109,9 +14093,9 @@ async fn served_http_refusals_project_typed_candidates_and_argument_contracts() 
     assert_eq!(details["candidateFunctions"][0]["kind"], "LiveQuery");
     // The todo source carries no authority profile. This is the checked-in
     // todo artifact, not a separately authored test value (re-pinned
-    // 2026-08-24 after the post-guest-entry B2 codegen fix rounds coherently
-    // regenerated the checked-in application projections).
-    assert_eq!(details["artifactHash"], "sha256:8686ea0fb93c7d18");
+    // 2026-08-25 after the checked-in application projections were
+    // coherently regenerated).
+    assert_eq!(details["artifactHash"], "sha256:2652be777fb62392");
     assert_eq!(
         details["remediationSet"]["schemaVersion"],
         "snapback.remediation-set.v1"
@@ -22756,7 +22740,6 @@ async fn grant_step_up_is_domain_separated_target_bound_and_single_effect() {
     let user_id = credential["session"]["userId"].as_str().unwrap().to_owned();
     let now_ms = provider.now_ms();
     let request_ids = with_snapback(&state.snapback, {
-        let provider = provider.clone();
         let user_id = user_id.clone();
         move |snapback| {
             let db = snapback.remainder_auth_database_mut();
@@ -22774,8 +22757,7 @@ async fn grant_step_up_is_domain_separated_target_bound_and_single_effect() {
             let mut present = |function_id: &str,
                                kind: crate::storage::auth_grants::ScopedFunctionKind|
              -> crate::diagnostic::SnapbackResult<String> {
-                let pairing =
-                    db.mint_pairing_code(&user_id, now_ms, provider.agent_random_source())?;
+                let pairing = db.mint_pairing_code(&user_id, now_ms, &OsRandom)?;
                 db.present_pairing_code(
                     &agent_credential,
                     &pairing.request_id,
@@ -36446,7 +36428,7 @@ async fn pairing_code_mint_stages_clock_and_row_under_exact_guard_before_one_com
                 &effect_authority,
                 &user_id,
                 now_ms,
-                provider.agent_random_source(),
+                &OsRandom,
                 authorized_effect,
             )
         },

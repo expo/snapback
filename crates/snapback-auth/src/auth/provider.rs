@@ -2898,13 +2898,6 @@ impl AuthProvider {
         })
     }
 
-    /// CSPRNG dependency shared with the agent-secret storage transactions.
-    /// The returned boundary can mint only typed, zeroizing secret wrappers;
-    /// callers never receive raw random bytes or provider key material.
-    pub fn agent_random_source(&self) -> &dyn RandomSource {
-        self.random.as_ref()
-    }
-
     /// Sample the wall clock clamped up to the process-local floor. The
     /// returned epoch is non-decreasing for the life of the process and never
     /// below the durable floor seeded at startup, so no auth lifetime decision
@@ -4780,6 +4773,14 @@ impl AuthMaintenanceGuard {
         &self.provider.keyring
     }
 
+    /// Rotate provider key material through the maintenance owner without
+    /// exposing its raw entropy dependency to the caller.
+    pub fn rotate_keyring_if_due(&self, now_ms: u64) -> Result<bool, super::keyring::KeyringError> {
+        self.provider
+            .keyring
+            .rotate_if_due(now_ms, self.provider.random.as_ref())
+    }
+
     /// Prepare the only fallible external half of first catalog activation.
     /// The staged-mode consume transaction installs the SQLite catalog marker;
     /// publishing a usable keyring first preserves LLP 0057's one-way ordering
@@ -5680,4 +5681,88 @@ fn minimum_alarm_deadline(started_at: Instant, jitter_ms: u64) -> ProviderResult
 
 fn _snapback<T>(result: SnapbackResult<T>) -> ProviderResult<T> {
     result.map_err(ProviderError::from)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    struct CountingConstantRandom {
+        byte: u8,
+        fills: AtomicU64,
+    }
+
+    impl CountingConstantRandom {
+        fn new(byte: u8) -> Self {
+            Self {
+                byte,
+                fills: AtomicU64::new(0),
+            }
+        }
+
+        fn fills(&self) -> u64 {
+            self.fills.load(Ordering::SeqCst)
+        }
+    }
+
+    impl RandomSource for CountingConstantRandom {
+        fn fill(&self, destination: &mut [u8]) -> Result<(), CryptoError> {
+            self.fills.fetch_add(1, Ordering::SeqCst);
+            destination.fill(self.byte);
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn session_collision_owner_exhausts_exactly_three_candidates() {
+        let now_ms = 1_700_000_000_000;
+        let mut database = LocalDatabase::memory().expect("memory database");
+        database
+            .activate_current_auth_catalog()
+            .expect("activate catalog");
+        database
+            .ensure_authorization_stream_incarnation()
+            .expect("authorization stream");
+        let keyring = Arc::new(AuthKeyringStore::in_memory());
+        keyring
+            .load_or_mint_initial(now_ms, &OsRandom)
+            .expect("initial keyring");
+        let random = Arc::new(CountingConstantRandom::new(0x24));
+        let provider = Arc::new(
+            AuthProvider::new_with_dependencies(
+                AuthProviderProfile::Test,
+                keyring,
+                random.clone(),
+                Arc::new(SystemAuthClock),
+            )
+            .expect("auth provider"),
+        );
+        let admission = provider
+            .admit_email("person@example.com")
+            .await
+            .expect("mint admission");
+        admission
+            .mint_session(&mut database, now_ms)
+            .expect("first session mint");
+
+        let fills_before_collision = random.fills();
+        let collision = admission
+            .mint_session(&mut database, now_ms + 1)
+            .expect_err("constant session ids exhaust the bounded owner retries");
+        assert_eq!(
+            collision.diagnostic().code,
+            "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE"
+        );
+        assert_eq!(random.fills() - fills_before_collision, 15);
+        assert_eq!(
+            database
+                .session_projection_source()
+                .expect("session projection source")
+                .sessions
+                .len(),
+            1,
+            "failed retries do not add a second session"
+        );
+    }
 }

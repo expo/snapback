@@ -10,8 +10,8 @@ use crate::auth::coordinator::{
     RotationFinish,
 };
 use crate::auth::crypto::{
-    AgentCredential, CreationInvitation, CredentialClass, PairingCode, ScopedToken, SessionBearer,
-    classify_credential, dispatch_credential_class,
+    AgentCredential, CreationInvitation, CredentialClass, OsRandom, PairingCode, ScopedToken,
+    SessionBearer, classify_credential, dispatch_credential_class,
 };
 use crate::auth::handshake::{
     AUTH_PROTOCOL_V1, AuthClientProtocolOffers, AuthSessionAuthority, AuthSessionAuthorityKind,
@@ -17329,7 +17329,7 @@ async fn auth_agent_invitation(
             profile,
             proof.proof(),
             effect_provider.now_ms(),
-            effect_provider.agent_random_source(),
+            &OsRandom,
             authorized_effect,
         )
     })
@@ -17414,7 +17414,7 @@ async fn auth_pairing_code(
             &effect_authority,
             &user_id,
             now_ms,
-            provider.agent_random_source(),
+            &OsRandom,
             authorized_effect,
         )
     })
@@ -17501,7 +17501,7 @@ async fn auth_agent_register(
             },
             profile,
             provider.now_ms(),
-            provider.agent_random_source(),
+            &OsRandom,
         )
     })
     .await?;
@@ -17764,11 +17764,7 @@ async fn auth_agent_rotate(
     let transaction = spawn_owned_auth_transaction(async move {
         let issued = with_snapback(&snapback, move |snapback| {
             let issued = with_service_authority_terminal_gate(service_terminal_gate, || {
-                snapback.rotate_agent_credential(
-                    &credential,
-                    now_ms,
-                    provider.agent_random_source(),
-                )
+                snapback.rotate_agent_credential(&credential, now_ms, &OsRandom)
             })?;
             let terminal_token_ids = issued.invalidated_token_ids.clone();
             let close_by = terminal_close_by(Instant::now());
@@ -17851,7 +17847,7 @@ async fn auth_agent_token(
                         &grant_id,
                         ttl_ms,
                         now_ms,
-                        provider.agent_random_source(),
+                        &OsRandom,
                     ),
                     PlannedAgentTokenRequest::Pairing {
                         credential,
@@ -17862,7 +17858,7 @@ async fn auth_agent_token(
                         &pairing_request_id,
                         ttl_ms,
                         now_ms,
-                        provider.agent_random_source(),
+                        &OsRandom,
                     ),
                 })?;
             let terminal_token_ids = issued.evicted_token_ids.clone();
@@ -18795,7 +18791,7 @@ async fn coordinated_exchange_session(
                     // @ref LLP 0077#author-decisions--2026-07-23 — decision 4: binding
                     // the sender issuance re-mints the candidate bearer in
                     // the versioned `sbs2_` spelling before premark.
-                    plan.bind_sender_issuance(commitment, provider.agent_random_source())?;
+                    plan.bind_sender_issuance(commitment, &OsRandom)?;
                 }
                 if let Some(rehearsal) = rehearsal.clone() {
                     plan.bind_rehearsal_provenance(
@@ -24368,24 +24364,21 @@ async fn execute_auth_host_operation(
                     return Ok(auth_host_result(runtime, request, server_url, Err(error)).await);
                 }
             };
-            let carrier =
-                match crate::auth::rehearsal::generate_carrier(provider.agent_random_source()) {
-                    Ok(carrier) => carrier,
-                    Err(_) => {
-                        return Ok(auth_host_result(
-                            runtime,
-                            request,
-                            server_url,
-                            Err(crate::auth::rehearsal::namespace_unavailable()),
-                        )
-                        .await);
-                    }
-                };
+            let carrier = match crate::auth::rehearsal::generate_carrier(&OsRandom) {
+                Ok(carrier) => carrier,
+                Err(_) => {
+                    return Ok(auth_host_result(
+                        runtime,
+                        request,
+                        server_url,
+                        Err(crate::auth::rehearsal::namespace_unavailable()),
+                    )
+                    .await);
+                }
+            };
             let window_namespace_candidates =
-                match crate::auth::rehearsal::generate_window_namespace_candidates(
-                    &args,
-                    provider.agent_random_source(),
-                ) {
+                match crate::auth::rehearsal::generate_window_namespace_candidates(&args, &OsRandom)
+                {
                     Ok(candidates) => candidates,
                     Err(_) => {
                         return Ok(auth_host_result(
