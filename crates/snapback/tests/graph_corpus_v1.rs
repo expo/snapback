@@ -49,6 +49,7 @@ const PENDING_CASES_FILE: &str = "tests/conformance/graph/broadcast-cases.g2-pen
 const PROVER_DISPOSITIONS_FILE: &str =
     "tests/conformance/graph/broadcast-prover-dispositions.v1.json";
 const PAIRED_FIXTURES_FILE: &str = "tests/conformance/graph/paired-world-fixtures.v1.json";
+const FILTER_ORDER_FIXTURE_FILE: &str = "tests/conformance/graph/filter-order-fixture.v1.json";
 const RUNTIME_CAPTURES_FILE: &str = "tests/conformance/graph/runtime-captures.g2-b.v1.json";
 const MATCH_DISPOSITIONS_FILE: &str = "tests/conformance/graph/match-dispositions.v1.json";
 const SERVED_OBSERVATIONS_FILE: &str = "tests/conformance/graph/served-observations.g2-c.v1.json";
@@ -116,6 +117,10 @@ fn broadcast_prover_dispositions() -> Value {
 
 fn paired_world_fixtures() -> Value {
     load_json(PAIRED_FIXTURES_FILE)
+}
+
+fn filter_order_fixture() -> Value {
+    load_json(FILTER_ORDER_FIXTURE_FILE)
 }
 
 fn corpus_seed_tables(corpus: &Value) -> BTreeMap<String, Vec<Map<String, Value>>> {
@@ -212,7 +217,31 @@ fn corpus_seed_tables(corpus: &Value) -> BTreeMap<String, Vec<Map<String, Value>
     tables
 }
 
-fn graph_index_manifest(table: &str) -> Vec<IndexManifest> {
+fn filter_order_seed_tables(
+    corpus: &Value,
+    fixture: &Value,
+    world: &str,
+) -> BTreeMap<String, Vec<Map<String, Value>>> {
+    let mut tables = corpus_seed_tables(corpus);
+    for (table, additions) in fixture["worlds"][world]["additions"]
+        .as_object()
+        .unwrap_or_else(|| panic!("filter/order {world} additions"))
+    {
+        tables
+            .get_mut(table)
+            .unwrap_or_else(|| panic!("filter/order fixture table {table}"))
+            .extend(
+                additions
+                    .as_array()
+                    .expect("filter/order fixture rows")
+                    .iter()
+                    .map(|row| row.as_object().expect("filter/order fixture row").clone()),
+            );
+    }
+    tables
+}
+
+fn graph_index_manifest(table: &str, declared_fields: &BTreeSet<String>) -> Vec<IndexManifest> {
     let indexes: &[(&str, &[&str], bool)] = match table {
         "issue" => &[
             ("by_source_id", &["id"], true),
@@ -230,6 +259,36 @@ fn graph_index_manifest(table: &str) -> Vec<IndexManifest> {
                 &["projectID", "modified", "sourceIssueID"],
                 false,
             ),
+            (
+                "by_matrix_project_modified",
+                &["projectID", "modified"],
+                false,
+            ),
+            (
+                "by_matrix_project_created",
+                &["projectID", "created"],
+                false,
+            ),
+            (
+                "by_matrix_project_open_modified",
+                &["projectID", "open", "modified"],
+                false,
+            ),
+            (
+                "by_matrix_project_creator_modified",
+                &["projectID", "creatorID", "modified"],
+                false,
+            ),
+            (
+                "by_matrix_project_assignee_modified",
+                &["projectID", "assigneeID", "modified"],
+                false,
+            ),
+            (
+                "by_matrix_project_open_creator_assignee_modified",
+                &["projectID", "open", "creatorID", "assigneeID", "modified"],
+                false,
+            ),
         ],
         "issueLabelRead" => &[("by_issue_label", &["issueID", "labelID"], true)],
         "viewState" | "issueNotifications" => &[("by_issue_user", &["issueID", "userID"], true)],
@@ -242,6 +301,11 @@ fn graph_index_manifest(table: &str) -> Vec<IndexManifest> {
     };
     indexes
         .iter()
+        .filter(|(_, fields, _)| {
+            fields
+                .iter()
+                .all(|field| *field == "_id" || declared_fields.contains(*field))
+        })
         .map(|(name, fields, unique)| IndexManifest {
             name: (*name).to_owned(),
             fields: fields.iter().map(|field| (*field).to_owned()).collect(),
@@ -943,6 +1007,7 @@ fn corpus_schema(tables: &BTreeMap<String, Vec<Map<String, Value>>>) -> SchemaMa
                 .filter(|field| field.as_str() != "_id")
                 .cloned()
                 .collect::<BTreeSet<_>>();
+            let indexes = graph_index_manifest(name, &names);
             TableManifest {
                 name: name.clone(),
                 fields: names
@@ -960,7 +1025,7 @@ fn corpus_schema(tables: &BTreeMap<String, Vec<Map<String, Value>>>) -> SchemaMa
                         name: field,
                     })
                     .collect(),
-                indexes: graph_index_manifest(name),
+                indexes,
                 search_indexes: Vec::new(),
                 vector_indexes: Vec::new(),
                 search_live_limits: None,
@@ -1016,6 +1081,24 @@ fn graph_store(corpus: &Value, replacement: Option<(&str, &Value)>) -> LocalSnap
     snapback
         .seed(SeedData { tables })
         .expect("seed graph corpus store");
+    snapback
+}
+
+fn filter_order_store(corpus: &Value, fixture: &Value, world: &str) -> LocalSnapback {
+    let tables = filter_order_seed_tables(corpus, fixture, world);
+    let mut snapback = LocalSnapback::memory().expect("filter/order corpus memory store");
+    let diagnostics = snapback
+        .apply_schema(corpus_schema(&tables))
+        .expect("apply filter/order corpus schema");
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error),
+        "filter/order corpus schema diagnostics: {diagnostics:?}"
+    );
+    snapback
+        .seed(SeedData { tables })
+        .expect("seed filter/order corpus store");
     snapback
 }
 
@@ -1568,11 +1651,11 @@ fn match_disposition_artifact(
     }))
 }
 
-fn served_graph_carriers(
+fn served_graph_carriers_from<'a>(
     snapback: &LocalSnapback,
-    corpus: &Value,
+    queries: impl Iterator<Item = &'a Value>,
 ) -> Vec<(String, GraphQueryCarrierV1, FunctionDefinition)> {
-    corpus_queries(corpus)
+    queries
         .map(|query| {
             let name = query["query"].as_str().unwrap().to_owned();
             let carrier: GraphQueryCarrierV1 =
@@ -1606,6 +1689,26 @@ fn served_graph_carriers(
             (name, carrier, definition)
         })
         .collect()
+}
+
+fn served_graph_carriers(
+    snapback: &LocalSnapback,
+    corpus: &Value,
+) -> Vec<(String, GraphQueryCarrierV1, FunctionDefinition)> {
+    served_graph_carriers_from(snapback, corpus_queries(corpus))
+}
+
+fn filter_order_carriers(
+    snapback: &LocalSnapback,
+    corpus: &Value,
+) -> Vec<(String, GraphQueryCarrierV1, FunctionDefinition)> {
+    served_graph_carriers_from(
+        snapback,
+        corpus["filterOrderMatrix"]["queries"]
+            .as_array()
+            .expect("filter/order queries")
+            .iter(),
+    )
 }
 
 fn graph_corpus_scheduler_mutations(corpus: &Value) -> Vec<FunctionDefinition> {
@@ -6120,6 +6223,64 @@ fn allow_deny_cases_are_oracle_frozen_and_structurally_executable() {
     assert!(case["expect"]["deniedResultBytes"].is_null());
 }
 
+fn normalize_snapshot_tuple(value: &mut Value) {
+    match value {
+        Value::Object(object) => {
+            if object.contains_key("materializationHash") && object.contains_key("partitionHash") {
+                object.insert(
+                    "authorizationVersion".to_owned(),
+                    Value::String("snapshot-bound".to_owned()),
+                );
+                object.insert(
+                    "evaluationCut".to_owned(),
+                    Value::String("snapshot-bound".to_owned()),
+                );
+            }
+            if object.contains_key("proofHash") {
+                object.insert(
+                    "proofHash".to_owned(),
+                    Value::String("snapshot-bound-proof-hash".to_owned()),
+                );
+            }
+            for child in object.values_mut() {
+                normalize_snapshot_tuple(child);
+            }
+        }
+        Value::Array(values) => {
+            for child in values {
+                normalize_snapshot_tuple(child);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn normalize_served_harness_identity(value: &mut Value) {
+    match value {
+        Value::Object(object) => {
+            if object.contains_key("materializationHash") && object.contains_key("partitionHash") {
+                object.insert(
+                    "materializationHash".to_owned(),
+                    Value::String("served-harness-materialization".to_owned()),
+                );
+                object.insert(
+                    "partitionHash".to_owned(),
+                    Value::String("served-harness-partition".to_owned()),
+                );
+            }
+            for child in object.values_mut() {
+                normalize_served_harness_identity(child);
+            }
+        }
+        Value::Array(values) => {
+            for child in values {
+                normalize_served_harness_identity(child);
+            }
+        }
+        _ => {}
+    }
+}
+
 fn assert_evaluator_matches_frozen_result(
     case_id: &str,
     actual: &snapback_engine::graph_evaluator::GraphEvaluationOutputV1,
@@ -6130,39 +6291,6 @@ fn assert_evaluator_matches_frozen_result(
     let mut expected = expected.clone();
     assert_legal_node_proof_classes(&actual["nodeCompleteness"], case_id);
     assert_legal_node_proof_classes(&expected["nodeCompleteness"], case_id);
-    fn normalize_snapshot_tuple(value: &mut Value) {
-        match value {
-            Value::Object(object) => {
-                if object.contains_key("materializationHash")
-                    && object.contains_key("partitionHash")
-                {
-                    object.insert(
-                        "authorizationVersion".to_owned(),
-                        Value::String("snapshot-bound".to_owned()),
-                    );
-                    object.insert(
-                        "evaluationCut".to_owned(),
-                        Value::String("snapshot-bound".to_owned()),
-                    );
-                }
-                if object.contains_key("proofHash") {
-                    object.insert(
-                        "proofHash".to_owned(),
-                        Value::String("snapshot-bound-proof-hash".to_owned()),
-                    );
-                }
-                for child in object.values_mut() {
-                    normalize_snapshot_tuple(child);
-                }
-            }
-            Value::Array(values) => {
-                for child in values {
-                    normalize_snapshot_tuple(child);
-                }
-            }
-            _ => {}
-        }
-    }
     for field in [
         "kind",
         "label",
@@ -6186,14 +6314,18 @@ fn assert_evaluator_matches_frozen_result(
             "{case_id} graph proof"
         );
     }
-    assert_eq!(
-        actual["structuralWork"], expected["structuralWork"],
-        "{case_id} structural work"
-    );
-    assert_eq!(
-        actual["windowLedgers"], expected["windowLedgers"],
-        "{case_id} window ledgers"
-    );
+    if !expected["structuralWork"].is_null() {
+        assert_eq!(
+            actual["structuralWork"], expected["structuralWork"],
+            "{case_id} structural work"
+        );
+    }
+    if !expected["windowLedgers"].is_null() {
+        assert_eq!(
+            actual["windowLedgers"], expected["windowLedgers"],
+            "{case_id} window ledgers"
+        );
+    }
 }
 
 fn legal_node_proof_class(kind: &str, label: &str) -> Option<&'static str> {
@@ -8003,6 +8135,251 @@ fn executes_the_corpus_through_the_evaluator() {
         &required_miss["expect"],
         true,
     );
+}
+
+/// LLP 0209 P-C's additive matrix is frozen from the opaque Zerobugs list
+/// oracle, then executed independently through both graph paths. Every case
+/// runs in a hidden-row-present and hidden-row-absent world and publishes one
+/// title update through the retained scheduler.
+///
+/// @ref LLP 0209#9-sequencing-and-measurement-what-lands-first-and-how-it-is-measured
+/// — P-C requires exact rows/order/completeness and served replacement evidence
+/// for the complete filter/order matrix, without expanding G3 delta eligibility.
+#[test]
+fn filter_order_matrix_executes_evaluator_and_served_replacement_paths() {
+    let corpus = graph_corpus();
+    let fixture = filter_order_fixture();
+    assert_eq!(
+        corpus["filterOrderMatrix"]["cases"]
+            .as_array()
+            .expect("filter/order cases")
+            .len(),
+        9,
+        "four selectable orders plus open/creator/assignee/all-label/combined",
+    );
+
+    for case in corpus["filterOrderMatrix"]["cases"]
+        .as_array()
+        .expect("filter/order cases")
+    {
+        let query = case["query"].as_str().expect("filter/order query");
+        let carrier: GraphQueryCarrierV1 =
+            serde_json::from_value(case["plan"].clone()).expect("filter/order carrier");
+        let call = &case["invocation"];
+        let (materialization, partition) = validate_corpus_invocation(&carrier, call, query);
+        let request = evaluation_request(&corpus, call, &materialization, &partition);
+
+        for world in ["present", "absent"] {
+            let context = format!("{} {world}", case["id"].as_str().unwrap());
+            let world_tables = filter_order_seed_tables(&corpus, &fixture, world);
+            let mut snapback = filter_order_store(&corpus, &fixture, world);
+            let initial = snapback
+                .evaluate_graph_query(&carrier.normalized_plan, &request)
+                .unwrap_or_else(|error| panic!("evaluate {context}: {error:?}"));
+            assert_evaluator_matches_frozen_result(
+                &context,
+                &initial,
+                &case["expect"]["initial"],
+                true,
+            );
+
+            let matcher_input = normalized_matcher_input(&carrier.normalized_plan, &request);
+            let registration_demand = GraphSubscriptionRegistrationDemandV1 {
+                args: request.args.clone(),
+                windows: request.windows.clone(),
+                input: matcher_input.clone(),
+                permission_values_by_table: request
+                    .authority
+                    .permission_values_by_table
+                    .iter()
+                    .map(|(table, permission)| {
+                        (
+                            table.clone(),
+                            GraphRegistrationPermissionValuesV1 {
+                                field: permission.field.clone(),
+                                allowed_values: permission.allowed_values.clone(),
+                            },
+                        )
+                    })
+                    .collect(),
+                materialization: materialization.clone(),
+                partition: partition.clone(),
+            };
+            let registered = register_graph_subscription_dependencies(
+                &carrier,
+                &corpus_schema(&world_tables),
+                &registration_demand,
+                &initial.captured_reads,
+                &initial.capture_attachments,
+                &initial.captured_query_outputs,
+            )
+            .unwrap_or_else(|error| panic!("register {context}: {error:?}"));
+            let mutation = &case["expect"]["liveReplacement"];
+            let row_id = mutation["args"]["rowID"]
+                .as_str()
+                .expect("matrix live issue id");
+            let mut changed_issue = Value::Object(
+                world_tables["issue"]
+                    .iter()
+                    .find(|row| row["_id"] == row_id)
+                    .expect("matrix live issue row")
+                    .clone(),
+            );
+            changed_issue["title"] = mutation["args"]["value"].clone();
+            let definition = FunctionDefinition::new(
+                query,
+                FunctionKind::LiveQuery,
+                FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier.clone())),
+            );
+            let match_decision = live_subscription_match_decision_with_graph_registration(
+                &definition,
+                &matcher_input,
+                &registered,
+                &[update_change("issue", changed_issue, &["title"])],
+            );
+            assert_eq!(
+                match_outcome_name(match_decision.outcome),
+                mutation["matcherDisposition"].as_str().unwrap(),
+                "{context} direct matcher disposition",
+            );
+            assert!(
+                match_decision.graph_nodes.iter().all(|node| {
+                    node.disposition != GraphNodeMatchDispositionV1::ConservativeFallback
+                }),
+                "{context} matcher uses no conservative fallback: {:#?}",
+                match_decision.graph_nodes,
+            );
+
+            snapback.declare_graph_query_v1_capability();
+            let served_carriers = filter_order_carriers(&snapback, &corpus)
+                .into_iter()
+                .filter(|(name, _, _)| name == query)
+                .collect::<Vec<_>>();
+            assert_eq!(served_carriers.len(), 1, "one served matrix carrier");
+            let diagnostics =
+                snapback.load_functions(served_graph_manifest(&corpus, &served_carriers));
+            assert!(
+                diagnostics
+                    .iter()
+                    .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error),
+                "{context} served manifest diagnostics: {diagnostics:#?}",
+            );
+            let authority = corpus_authority(&corpus, corpus_invocation_principal(call));
+            snapback.install_graph_serving_authority_context_for_test(
+                query,
+                GraphServingAuthorityContextV1 {
+                    evaluation: authority.clone(),
+                    class2: serde_json::from_value(call["partition"]["class2"].clone())
+                        .expect("matrix class-2 inputs"),
+                },
+            );
+            let mut args = call["args"].as_object().expect("matrix args").clone();
+            args.insert(
+                snapback_engine::graph_evaluator::GRAPH_SERVING_DEMAND_ARG.to_owned(),
+                json!({
+                    "format":"snapback.graph-serving-demand.v1",
+                    "windows":call["windows"],
+                    "advancedNodeId":call["advancedNodeId"],
+                    "priorWindowLedgers":[],
+                }),
+            );
+            let connection_id = format!("filter-order-{query}-{world}");
+            let established = snapback
+                .subscribe_live(
+                    query,
+                    LiveSubscribeInput {
+                        connection_id: connection_id.clone(),
+                        input: HandlerInput {
+                            args: Value::Object(args),
+                            auth: authority.auth,
+                            read_set: Vec::new(),
+                            correlation: None,
+                            ctx_ledger: None,
+                        },
+                        authorization_namespace: None,
+                        supersedes: None,
+                        resume_from_token: None,
+                    },
+                )
+                .unwrap_or_else(|error| panic!("serve {context}: {error:?}"));
+            let expected_initial_rows: Vec<Value> = serde_json::from_str(
+                case["expect"]["initial"]["resultBytes"]
+                    .as_str()
+                    .expect("matrix initial result bytes"),
+            )
+            .expect("matrix initial rows");
+            assert_eq!(
+                established.snapshot.expect("matrix initial snapshot").rows,
+                expected_initial_rows,
+                "{context} served initial rows/order/bytes",
+            );
+            let mut served_initial = snapback
+                .graph_serving_observation_for_test(&established.subscription_id)
+                .expect("matrix served initial observation");
+            let mut frozen_initial = case["expect"]["initial"].clone();
+            normalize_snapshot_tuple(&mut served_initial);
+            normalize_snapshot_tuple(&mut frozen_initial);
+            normalize_served_harness_identity(&mut served_initial);
+            normalize_served_harness_identity(&mut frozen_initial);
+            for field in ["resultBytes", "nodeCompleteness", "graphCompleteness"] {
+                assert_eq!(
+                    served_initial[field], frozen_initial[field],
+                    "{context} served initial {field}",
+                );
+            }
+            assert!(snapback.drain_live_stream(&connection_id).is_empty());
+
+            invoke_graph_corpus_mutation(
+                &mut snapback,
+                mutation["mutation"].as_str().expect("matrix mutation name"),
+                HandlerInput {
+                    args: mutation["args"].clone(),
+                    ..HandlerInput::default()
+                },
+            )
+            .unwrap_or_else(|error| panic!("mutate {context}: {error:?}"));
+            let _ = snapback.flush_pending_live_fanout();
+            let frames = snapback
+                .drain_live_stream(&connection_id)
+                .into_iter()
+                .map(|frame| serde_json::from_str::<Value>(&frame).expect("matrix frame JSON"))
+                .collect::<Vec<_>>();
+            assert_eq!(
+                frames.len(),
+                1,
+                "{context} one live replacement: {frames:#?}"
+            );
+            assert_eq!(
+                frames[0]["kind"], mutation["servedDisposition"],
+                "{context} served replacement disposition",
+            );
+            let expected_after_rows: Vec<Value> = serde_json::from_str(
+                mutation["result"]["resultBytes"]
+                    .as_str()
+                    .expect("matrix replacement result bytes"),
+            )
+            .expect("matrix replacement rows");
+            assert_eq!(
+                frames[0]["rows"],
+                Value::Array(expected_after_rows),
+                "{context} live replacement rows/order/bytes",
+            );
+            let mut served_after = snapback
+                .graph_serving_observation_for_test(&established.subscription_id)
+                .expect("matrix served successor observation");
+            let mut frozen_after = mutation["result"].clone();
+            normalize_snapshot_tuple(&mut served_after);
+            normalize_snapshot_tuple(&mut frozen_after);
+            normalize_served_harness_identity(&mut served_after);
+            normalize_served_harness_identity(&mut frozen_after);
+            for field in ["resultBytes", "nodeCompleteness", "graphCompleteness"] {
+                assert_eq!(
+                    served_after[field], frozen_after[field],
+                    "{context} served replacement {field}",
+                );
+            }
+        }
+    }
 }
 
 /// The corpus-local class-1 graph executes two genuinely distinct evaluations

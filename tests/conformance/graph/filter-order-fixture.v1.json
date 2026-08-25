@@ -1,0 +1,558 @@
+{
+  "format": "snapback.graph-filter-order-fixture.v1",
+  "version": 1,
+  "baseFixture": "demos/zerobugs/control/fixtures/normal-seed-v1",
+  "bindings": {
+    "project": {
+      "physicalID": "project_matrix_filter_order",
+      "sourceName": "Matrix"
+    },
+    "creator": {
+      "physicalID": "user_188a39cce5c928cdcac022e3",
+      "login": "aboodman"
+    },
+    "assignee": {
+      "physicalID": "user_b8222266f94aa6b36a6b5999",
+      "login": "pcorpet"
+    },
+    "selectedLabels": [
+      {
+        "physicalID": "label_matrix_alpha",
+        "sourceName": "matrix-alpha"
+      },
+      {
+        "physicalID": "label_matrix_beta",
+        "sourceName": "matrix-beta"
+      }
+    ],
+    "liveIssue": {
+      "physicalID": "issue_matrix_a",
+      "sourceID": "matrix-a"
+    },
+    "crossProjectDecoy": {
+      "physicalID": "issue_matrix_zero_decoy",
+      "sourceID": "matrix-zero-decoy",
+      "projectID": "project_babdfa87a3230f74c50296e0"
+    }
+  },
+  "hiddenSlices": [
+    {
+      "table": "issue",
+      "rowIds": [
+        "issue_matrix_hidden"
+      ]
+    },
+    {
+      "table": "issueListRead",
+      "rowIds": [
+        "issueListRead_matrix_hidden"
+      ]
+    },
+    {
+      "table": "issueLabelRead",
+      "rowIds": [
+        "issueLabelRead_matrix_hidden_0",
+        "issueLabelRead_matrix_hidden_1"
+      ]
+    }
+  ],
+  "worlds": {
+    "present": {
+      "additions": {
+        "project": [
+          {
+            "_id": "project_matrix_filter_order",
+            "id": "matrix-project-source",
+            "name": "Matrix",
+            "lowerCaseName": "matrix",
+            "supportsSearch": true
+          }
+        ],
+        "label": [
+          {
+            "_id": "label_matrix_alpha",
+            "id": "matrix-label-alpha-source",
+            "name": "matrix-alpha",
+            "projectID": "project_matrix_filter_order"
+          },
+          {
+            "_id": "label_matrix_beta",
+            "id": "matrix-label-beta-source",
+            "name": "matrix-beta",
+            "projectID": "project_matrix_filter_order"
+          }
+        ],
+        "issue": [
+          {
+            "_id": "issue_matrix_a",
+            "id": "matrix-a",
+            "shortID": 9000,
+            "title": "Matrix a issue",
+            "open": true,
+            "modified": 2000000000000,
+            "created": 1900000000000,
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_188a39cce5c928cdcac022e3",
+            "assigneeID": "user_b8222266f94aa6b36a6b5999",
+            "description": "Filter/order matrix fixture row a",
+            "visibility": "public"
+          },
+          {
+            "_id": "issue_matrix_b",
+            "id": "matrix-b",
+            "shortID": 9001,
+            "title": "Matrix b issue",
+            "open": true,
+            "modified": 2000000000000,
+            "created": 1900000000000,
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_188a39cce5c928cdcac022e3",
+            "assigneeID": "user_b8222266f94aa6b36a6b5999",
+            "description": "Filter/order matrix fixture row b",
+            "visibility": "public"
+          },
+          {
+            "_id": "issue_matrix_c",
+            "id": "matrix-c",
+            "shortID": 9002,
+            "title": "Matrix c issue",
+            "open": false,
+            "modified": 1990000000000,
+            "created": 1920000000000,
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_188a39cce5c928cdcac022e3",
+            "description": "Filter/order matrix fixture row c",
+            "visibility": "public"
+          },
+          {
+            "_id": "issue_matrix_d",
+            "id": "matrix-d",
+            "shortID": 9003,
+            "title": "Matrix d issue",
+            "open": true,
+            "modified": 1980000000000,
+            "created": 1910000000000,
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_37617f38bd751da58ed19276",
+            "assigneeID": "user_b8222266f94aa6b36a6b5999",
+            "description": "Filter/order matrix fixture row d",
+            "visibility": "public"
+          },
+          {
+            "_id": "issue_matrix_e",
+            "id": "matrix-e",
+            "shortID": 9004,
+            "title": "Matrix e issue",
+            "open": false,
+            "modified": 1970000000000,
+            "created": 1900000000000,
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_37617f38bd751da58ed19276",
+            "description": "Filter/order matrix fixture row e",
+            "visibility": "public"
+          },
+          {
+            "_id": "issue_matrix_hidden",
+            "id": "matrix-hidden",
+            "shortID": 9005,
+            "title": "Matrix hidden issue",
+            "open": true,
+            "modified": 2000000000000,
+            "created": 1900000000000,
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_188a39cce5c928cdcac022e3",
+            "assigneeID": "user_b8222266f94aa6b36a6b5999",
+            "description": "Filter/order matrix fixture row hidden",
+            "visibility": "internal"
+          },
+          {
+            "_id": "issue_matrix_zero_decoy",
+            "id": "matrix-zero-decoy",
+            "shortID": 9006,
+            "title": "Matrix zero_decoy issue",
+            "open": true,
+            "modified": 2000000000000,
+            "created": 1900000000000,
+            "projectID": "project_babdfa87a3230f74c50296e0",
+            "creatorID": "user_188a39cce5c928cdcac022e3",
+            "assigneeID": "user_b8222266f94aa6b36a6b5999",
+            "description": "Filter/order matrix fixture row zero_decoy",
+            "visibility": "public"
+          }
+        ],
+        "issueListRead": [
+          {
+            "_id": "issueListRead_matrix_a",
+            "issueID": "issue_matrix_a",
+            "sourceIssueID": "matrix-a",
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_188a39cce5c928cdcac022e3",
+            "assigneeID": "user_b8222266f94aa6b36a6b5999",
+            "open": true,
+            "visibility": "public",
+            "modified": 2000000000000,
+            "created": 1900000000000
+          },
+          {
+            "_id": "issueListRead_matrix_b",
+            "issueID": "issue_matrix_b",
+            "sourceIssueID": "matrix-b",
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_188a39cce5c928cdcac022e3",
+            "assigneeID": "user_b8222266f94aa6b36a6b5999",
+            "open": true,
+            "visibility": "public",
+            "modified": 2000000000000,
+            "created": 1900000000000
+          },
+          {
+            "_id": "issueListRead_matrix_c",
+            "issueID": "issue_matrix_c",
+            "sourceIssueID": "matrix-c",
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_188a39cce5c928cdcac022e3",
+            "open": false,
+            "visibility": "public",
+            "modified": 1990000000000,
+            "created": 1920000000000
+          },
+          {
+            "_id": "issueListRead_matrix_d",
+            "issueID": "issue_matrix_d",
+            "sourceIssueID": "matrix-d",
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_37617f38bd751da58ed19276",
+            "assigneeID": "user_b8222266f94aa6b36a6b5999",
+            "open": true,
+            "visibility": "public",
+            "modified": 1980000000000,
+            "created": 1910000000000
+          },
+          {
+            "_id": "issueListRead_matrix_e",
+            "issueID": "issue_matrix_e",
+            "sourceIssueID": "matrix-e",
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_37617f38bd751da58ed19276",
+            "open": false,
+            "visibility": "public",
+            "modified": 1970000000000,
+            "created": 1900000000000
+          },
+          {
+            "_id": "issueListRead_matrix_hidden",
+            "issueID": "issue_matrix_hidden",
+            "sourceIssueID": "matrix-hidden",
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_188a39cce5c928cdcac022e3",
+            "assigneeID": "user_b8222266f94aa6b36a6b5999",
+            "open": true,
+            "visibility": "internal",
+            "modified": 2000000000000,
+            "created": 1900000000000
+          },
+          {
+            "_id": "issueListRead_matrix_zero_decoy",
+            "issueID": "issue_matrix_zero_decoy",
+            "sourceIssueID": "matrix-zero-decoy",
+            "projectID": "project_babdfa87a3230f74c50296e0",
+            "creatorID": "user_188a39cce5c928cdcac022e3",
+            "assigneeID": "user_b8222266f94aa6b36a6b5999",
+            "open": true,
+            "visibility": "public",
+            "modified": 2000000000000,
+            "created": 1900000000000
+          }
+        ],
+        "issueLabelRead": [
+          {
+            "_id": "issueLabelRead_matrix_a_0",
+            "projectID": "project_matrix_filter_order",
+            "issueID": "issue_matrix_a",
+            "labelID": "label_matrix_alpha"
+          },
+          {
+            "_id": "issueLabelRead_matrix_a_1",
+            "projectID": "project_matrix_filter_order",
+            "issueID": "issue_matrix_a",
+            "labelID": "label_matrix_beta"
+          },
+          {
+            "_id": "issueLabelRead_matrix_b_0",
+            "projectID": "project_matrix_filter_order",
+            "issueID": "issue_matrix_b",
+            "labelID": "label_matrix_alpha"
+          },
+          {
+            "_id": "issueLabelRead_matrix_b_1",
+            "projectID": "project_matrix_filter_order",
+            "issueID": "issue_matrix_b",
+            "labelID": "label_matrix_beta"
+          },
+          {
+            "_id": "issueLabelRead_matrix_c_0",
+            "projectID": "project_matrix_filter_order",
+            "issueID": "issue_matrix_c",
+            "labelID": "label_matrix_alpha"
+          },
+          {
+            "_id": "issueLabelRead_matrix_d_0",
+            "projectID": "project_matrix_filter_order",
+            "issueID": "issue_matrix_d",
+            "labelID": "label_matrix_beta"
+          },
+          {
+            "_id": "issueLabelRead_matrix_hidden_0",
+            "projectID": "project_matrix_filter_order",
+            "issueID": "issue_matrix_hidden",
+            "labelID": "label_matrix_alpha"
+          },
+          {
+            "_id": "issueLabelRead_matrix_hidden_1",
+            "projectID": "project_matrix_filter_order",
+            "issueID": "issue_matrix_hidden",
+            "labelID": "label_matrix_beta"
+          }
+        ],
+        "searchEpoch": [
+          {
+            "_id": "searchEpoch_matrix_public",
+            "projectID": "project_matrix_filter_order",
+            "visibility": "public",
+            "epoch": 0
+          }
+        ]
+      }
+    },
+    "absent": {
+      "additions": {
+        "project": [
+          {
+            "_id": "project_matrix_filter_order",
+            "id": "matrix-project-source",
+            "name": "Matrix",
+            "lowerCaseName": "matrix",
+            "supportsSearch": true
+          }
+        ],
+        "label": [
+          {
+            "_id": "label_matrix_alpha",
+            "id": "matrix-label-alpha-source",
+            "name": "matrix-alpha",
+            "projectID": "project_matrix_filter_order"
+          },
+          {
+            "_id": "label_matrix_beta",
+            "id": "matrix-label-beta-source",
+            "name": "matrix-beta",
+            "projectID": "project_matrix_filter_order"
+          }
+        ],
+        "issue": [
+          {
+            "_id": "issue_matrix_a",
+            "id": "matrix-a",
+            "shortID": 9000,
+            "title": "Matrix a issue",
+            "open": true,
+            "modified": 2000000000000,
+            "created": 1900000000000,
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_188a39cce5c928cdcac022e3",
+            "assigneeID": "user_b8222266f94aa6b36a6b5999",
+            "description": "Filter/order matrix fixture row a",
+            "visibility": "public"
+          },
+          {
+            "_id": "issue_matrix_b",
+            "id": "matrix-b",
+            "shortID": 9001,
+            "title": "Matrix b issue",
+            "open": true,
+            "modified": 2000000000000,
+            "created": 1900000000000,
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_188a39cce5c928cdcac022e3",
+            "assigneeID": "user_b8222266f94aa6b36a6b5999",
+            "description": "Filter/order matrix fixture row b",
+            "visibility": "public"
+          },
+          {
+            "_id": "issue_matrix_c",
+            "id": "matrix-c",
+            "shortID": 9002,
+            "title": "Matrix c issue",
+            "open": false,
+            "modified": 1990000000000,
+            "created": 1920000000000,
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_188a39cce5c928cdcac022e3",
+            "description": "Filter/order matrix fixture row c",
+            "visibility": "public"
+          },
+          {
+            "_id": "issue_matrix_d",
+            "id": "matrix-d",
+            "shortID": 9003,
+            "title": "Matrix d issue",
+            "open": true,
+            "modified": 1980000000000,
+            "created": 1910000000000,
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_37617f38bd751da58ed19276",
+            "assigneeID": "user_b8222266f94aa6b36a6b5999",
+            "description": "Filter/order matrix fixture row d",
+            "visibility": "public"
+          },
+          {
+            "_id": "issue_matrix_e",
+            "id": "matrix-e",
+            "shortID": 9004,
+            "title": "Matrix e issue",
+            "open": false,
+            "modified": 1970000000000,
+            "created": 1900000000000,
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_37617f38bd751da58ed19276",
+            "description": "Filter/order matrix fixture row e",
+            "visibility": "public"
+          },
+          {
+            "_id": "issue_matrix_zero_decoy",
+            "id": "matrix-zero-decoy",
+            "shortID": 9006,
+            "title": "Matrix zero_decoy issue",
+            "open": true,
+            "modified": 2000000000000,
+            "created": 1900000000000,
+            "projectID": "project_babdfa87a3230f74c50296e0",
+            "creatorID": "user_188a39cce5c928cdcac022e3",
+            "assigneeID": "user_b8222266f94aa6b36a6b5999",
+            "description": "Filter/order matrix fixture row zero_decoy",
+            "visibility": "public"
+          }
+        ],
+        "issueListRead": [
+          {
+            "_id": "issueListRead_matrix_a",
+            "issueID": "issue_matrix_a",
+            "sourceIssueID": "matrix-a",
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_188a39cce5c928cdcac022e3",
+            "assigneeID": "user_b8222266f94aa6b36a6b5999",
+            "open": true,
+            "visibility": "public",
+            "modified": 2000000000000,
+            "created": 1900000000000
+          },
+          {
+            "_id": "issueListRead_matrix_b",
+            "issueID": "issue_matrix_b",
+            "sourceIssueID": "matrix-b",
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_188a39cce5c928cdcac022e3",
+            "assigneeID": "user_b8222266f94aa6b36a6b5999",
+            "open": true,
+            "visibility": "public",
+            "modified": 2000000000000,
+            "created": 1900000000000
+          },
+          {
+            "_id": "issueListRead_matrix_c",
+            "issueID": "issue_matrix_c",
+            "sourceIssueID": "matrix-c",
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_188a39cce5c928cdcac022e3",
+            "open": false,
+            "visibility": "public",
+            "modified": 1990000000000,
+            "created": 1920000000000
+          },
+          {
+            "_id": "issueListRead_matrix_d",
+            "issueID": "issue_matrix_d",
+            "sourceIssueID": "matrix-d",
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_37617f38bd751da58ed19276",
+            "assigneeID": "user_b8222266f94aa6b36a6b5999",
+            "open": true,
+            "visibility": "public",
+            "modified": 1980000000000,
+            "created": 1910000000000
+          },
+          {
+            "_id": "issueListRead_matrix_e",
+            "issueID": "issue_matrix_e",
+            "sourceIssueID": "matrix-e",
+            "projectID": "project_matrix_filter_order",
+            "creatorID": "user_37617f38bd751da58ed19276",
+            "open": false,
+            "visibility": "public",
+            "modified": 1970000000000,
+            "created": 1900000000000
+          },
+          {
+            "_id": "issueListRead_matrix_zero_decoy",
+            "issueID": "issue_matrix_zero_decoy",
+            "sourceIssueID": "matrix-zero-decoy",
+            "projectID": "project_babdfa87a3230f74c50296e0",
+            "creatorID": "user_188a39cce5c928cdcac022e3",
+            "assigneeID": "user_b8222266f94aa6b36a6b5999",
+            "open": true,
+            "visibility": "public",
+            "modified": 2000000000000,
+            "created": 1900000000000
+          }
+        ],
+        "issueLabelRead": [
+          {
+            "_id": "issueLabelRead_matrix_a_0",
+            "projectID": "project_matrix_filter_order",
+            "issueID": "issue_matrix_a",
+            "labelID": "label_matrix_alpha"
+          },
+          {
+            "_id": "issueLabelRead_matrix_a_1",
+            "projectID": "project_matrix_filter_order",
+            "issueID": "issue_matrix_a",
+            "labelID": "label_matrix_beta"
+          },
+          {
+            "_id": "issueLabelRead_matrix_b_0",
+            "projectID": "project_matrix_filter_order",
+            "issueID": "issue_matrix_b",
+            "labelID": "label_matrix_alpha"
+          },
+          {
+            "_id": "issueLabelRead_matrix_b_1",
+            "projectID": "project_matrix_filter_order",
+            "issueID": "issue_matrix_b",
+            "labelID": "label_matrix_beta"
+          },
+          {
+            "_id": "issueLabelRead_matrix_c_0",
+            "projectID": "project_matrix_filter_order",
+            "issueID": "issue_matrix_c",
+            "labelID": "label_matrix_alpha"
+          },
+          {
+            "_id": "issueLabelRead_matrix_d_0",
+            "projectID": "project_matrix_filter_order",
+            "issueID": "issue_matrix_d",
+            "labelID": "label_matrix_beta"
+          }
+        ],
+        "searchEpoch": [
+          {
+            "_id": "searchEpoch_matrix_public",
+            "projectID": "project_matrix_filter_order",
+            "visibility": "public",
+            "epoch": 0
+          }
+        ]
+      }
+    }
+  },
+  "contentDigest": "sha256:2ea9358ce0737d47ffc0dbdec54d27f06250707cdd20f637646dcadbcdd37528"
+}

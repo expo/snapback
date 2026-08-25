@@ -9,6 +9,7 @@ import {
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
+import { execFileSync } from 'node:child_process';
 
 // Freeze the G0 graph declarations and the opaque-handler oracle together.
 // This does not execute a graph: it codegens the declaration carrier, invokes
@@ -28,6 +29,7 @@ const BOUNDS_PATH = join(GRAPH_ROOT, 'bound-derivation.v1.json');
 const PENDING_CASES_PATH = join(GRAPH_ROOT, 'broadcast-cases.g2-pending.v1.json');
 const PROVER_DISPOSITIONS_PATH = join(GRAPH_ROOT, 'broadcast-prover-dispositions.v1.json');
 const PAIRED_FIXTURES_PATH = join(GRAPH_ROOT, 'paired-world-fixtures.v1.json');
+const FILTER_ORDER_FIXTURE_PATH = join(GRAPH_ROOT, 'filter-order-fixture.v1.json');
 const RUNTIME_CAPTURES_PATH = join(GRAPH_ROOT, 'runtime-captures.g2-b.v1.json');
 const SERVED_OBSERVATIONS_PATH = join(GRAPH_ROOT, 'served-observations.g2-c.v1.json');
 const PB_SERVED_OBSERVATIONS_PATH = join(GRAPH_ROOT, 'served-observations.large-hot.v1.json');
@@ -41,6 +43,17 @@ const FIXTURE_TABLES = [
   'user', 'project', 'label', 'issue', 'issueLabel', 'comment', 'emoji',
   'viewState', 'userPref', 'issueNotifications', 'projectUserRead',
   'issueListRead', 'issueLabelRead', 'issueSearchDocument', 'searchEpoch',
+];
+const FILTER_ORDER_QUERY_NAMES = [
+  'issueListMatrixProjectModifiedAsc',
+  'issueListMatrixProjectModifiedDesc',
+  'issueListMatrixProjectCreatedAsc',
+  'issueListMatrixProjectCreatedDesc',
+  'issueListMatrixOpen',
+  'issueListMatrixCreator',
+  'issueListMatrixAssignee',
+  'issueListMatrixLabelsAll',
+  'issueListMatrixCombined',
 ];
 
 const fixtureOptionIndex = process.argv.indexOf('--fixtures');
@@ -249,6 +262,183 @@ function defaultListContext(overrides = {}) {
   };
 }
 
+function filterOrderMatrixFixture(baseTables) {
+  const zero = baseTables.project.find(row => row.name === 'Zero');
+  const creator = baseTables.user.find(row => row.login === 'aboodman');
+  const creatorOther = baseTables.user.find(row => row.login === 'grgbkr');
+  const assignee = baseTables.user.find(row => row.login === 'pcorpet');
+  assert(zero && creator && creatorOther && assignee, 'matrix fixture bindings resolve');
+
+  const project = {
+    _id: 'project_matrix_filter_order', id: 'matrix-project-source',
+    name: 'Matrix', lowerCaseName: 'matrix', supportsSearch: true,
+  };
+  const labels = [
+    {
+      _id: 'label_matrix_alpha', id: 'matrix-label-alpha-source',
+      name: 'matrix-alpha', projectID: project._id,
+    },
+    {
+      _id: 'label_matrix_beta', id: 'matrix-label-beta-source',
+      name: 'matrix-beta', projectID: project._id,
+    },
+  ];
+  const issueDefinitions = [
+    {
+      suffix: 'a', projectID: project._id, open: true,
+      creatorID: creator._id, assigneeID: assignee._id,
+      modified: 2_000_000_000_000, created: 1_900_000_000_000,
+      visibility: 'public', labelIDs: labels.map(label => label._id),
+    },
+    {
+      suffix: 'b', projectID: project._id, open: true,
+      creatorID: creator._id, assigneeID: assignee._id,
+      modified: 2_000_000_000_000, created: 1_900_000_000_000,
+      visibility: 'public', labelIDs: labels.map(label => label._id),
+    },
+    {
+      suffix: 'c', projectID: project._id, open: false,
+      creatorID: creator._id, assigneeID: null,
+      modified: 1_990_000_000_000, created: 1_920_000_000_000,
+      visibility: 'public', labelIDs: [labels[0]._id],
+    },
+    {
+      suffix: 'd', projectID: project._id, open: true,
+      creatorID: creatorOther._id, assigneeID: assignee._id,
+      modified: 1_980_000_000_000, created: 1_910_000_000_000,
+      visibility: 'public', labelIDs: [labels[1]._id],
+    },
+    {
+      suffix: 'e', projectID: project._id, open: false,
+      creatorID: creatorOther._id, assigneeID: null,
+      modified: 1_970_000_000_000, created: 1_900_000_000_000,
+      visibility: 'public', labelIDs: [],
+    },
+    {
+      suffix: 'hidden', projectID: project._id, open: true,
+      creatorID: creator._id, assigneeID: assignee._id,
+      modified: 2_000_000_000_000, created: 1_900_000_000_000,
+      visibility: 'internal', labelIDs: labels.map(label => label._id),
+    },
+    {
+      suffix: 'zero_decoy', projectID: zero._id, open: true,
+      creatorID: creator._id, assigneeID: assignee._id,
+      modified: 2_000_000_000_000, created: 1_900_000_000_000,
+      visibility: 'public', labelIDs: [],
+    },
+  ];
+  const issues = issueDefinitions.map((definition, index) => ({
+    _id: `issue_matrix_${definition.suffix}`,
+    id: `matrix-${definition.suffix.replaceAll('_', '-')}`,
+    shortID: 9_000 + index,
+    title: `Matrix ${definition.suffix} issue`,
+    open: definition.open,
+    modified: definition.modified,
+    created: definition.created,
+    projectID: definition.projectID,
+    creatorID: definition.creatorID,
+    ...(definition.assigneeID === null ? {} : {assigneeID: definition.assigneeID}),
+    description: `Filter/order matrix fixture row ${definition.suffix}`,
+    visibility: definition.visibility,
+  }));
+  const issueListReads = issueDefinitions.map((definition, index) => ({
+    _id: `issueListRead_matrix_${definition.suffix}`,
+    issueID: issues[index]._id,
+    sourceIssueID: issues[index].id,
+    projectID: definition.projectID,
+    creatorID: definition.creatorID,
+    ...(definition.assigneeID === null ? {} : {assigneeID: definition.assigneeID}),
+    open: definition.open,
+    visibility: definition.visibility,
+    modified: definition.modified,
+    created: definition.created,
+  }));
+  const issueLabelReads = issueDefinitions.flatMap((definition, issueIndex) => (
+    definition.labelIDs.map((labelID, labelIndex) => ({
+      _id: `issueLabelRead_matrix_${definition.suffix}_${labelIndex}`,
+      projectID: definition.projectID,
+      issueID: issues[issueIndex]._id,
+      labelID,
+    }))
+  ));
+  const additions = {
+    project: [project],
+    label: labels,
+    issue: issues,
+    issueListRead: issueListReads,
+    issueLabelRead: issueLabelReads,
+    searchEpoch: [{
+      _id: 'searchEpoch_matrix_public', projectID: project._id,
+      visibility: 'public', epoch: 0,
+    }],
+  };
+  const hiddenRowIds = {
+    issue: ['issue_matrix_hidden'],
+    issueListRead: ['issueListRead_matrix_hidden'],
+    issueLabelRead: ['issueLabelRead_matrix_hidden_0', 'issueLabelRead_matrix_hidden_1'],
+  };
+  const absentAdditions = Object.fromEntries(Object.entries(additions).map(([table, rows]) => {
+    const excluded = new Set(hiddenRowIds[table] ?? []);
+    return [table, rows.filter(row => !excluded.has(row._id))];
+  }));
+  const fixture = {
+    format: 'snapback.graph-filter-order-fixture.v1', version: 1,
+    baseFixture: 'demos/zerobugs/control/fixtures/normal-seed-v1',
+    bindings: {
+      project: {physicalID: project._id, sourceName: project.name},
+      creator: {physicalID: creator._id, login: creator.login},
+      assignee: {physicalID: assignee._id, login: assignee.login},
+      selectedLabels: labels.map(label => ({
+        physicalID: label._id, sourceName: label.name,
+      })),
+      liveIssue: {physicalID: 'issue_matrix_a', sourceID: 'matrix-a'},
+      crossProjectDecoy: {
+        physicalID: 'issue_matrix_zero_decoy', sourceID: 'matrix-zero-decoy',
+        projectID: zero._id,
+      },
+    },
+    hiddenSlices: Object.entries(hiddenRowIds).map(([table, rowIds]) => ({table, rowIds})),
+    worlds: {
+      present: {additions},
+      absent: {additions: absentAdditions},
+    },
+  };
+  fixture.contentDigest = digestBytes(canonical(fixture));
+  return fixture;
+}
+
+function applyFilterOrderMatrixWorld(baseTables, fixture, world) {
+  const tables = deepClone(baseTables);
+  for (const [table, rows] of Object.entries(fixture.worlds[world].additions)) {
+    assert(Array.isArray(tables[table]), `matrix fixture table ${table}`);
+    tables[table].push(...deepClone(rows));
+  }
+  return tables;
+}
+
+function normalizeListOrderForGraph(result, tables, sortField, sortDirection) {
+  const normalized = deepClone(result);
+  const sourceToPhysical = new Map(tables.issue.map(row => [row.id, row._id]));
+  const multiplier = sortDirection === 'desc' ? -1 : 1;
+  const items = normalized[0].items;
+  const tieCounts = new Map();
+  for (const item of items) {
+    const value = item.issue[sortField];
+    tieCounts.set(value, (tieCounts.get(value) ?? 0) + 1);
+  }
+  items.sort((left, right) => {
+    const leftValue = left.issue[sortField];
+    const rightValue = right.issue[sortField];
+    if (leftValue !== rightValue) return (leftValue < rightValue ? -1 : 1) * multiplier;
+    return sourceToPhysical.get(left.issue.id).localeCompare(sourceToPhysical.get(right.issue.id));
+  });
+  return {
+    result: normalized,
+    tieGroups: [...tieCounts.values()].filter(count => count > 1).length,
+    orderedSourceIssueIDs: items.map(item => item.issue.id),
+  };
+}
+
 async function codegenDeclarations() {
   const packageDir = join(REPO_ROOT, 'packages/snapback-codegen');
   const { generateInProcess } = await import(pathToFileURL(join(packageDir, 'index.mjs')));
@@ -257,7 +447,13 @@ async function codegenDeclarations() {
   mkdirSync(join(backend, 'node_modules/@expo'), { recursive: true });
   symlinkSync(packageDir, join(backend, 'node_modules/@expo/snapback-codegen'), 'dir');
   cpSync(join(DECLARATION_ROOT, 'demo.snapback.json'), join(tempRoot, 'demo.snapback.json'));
-  for (const file of ['schema.mjs', 'queries.mjs', 'functions.mjs', 'refusal-candidates.mjs']) {
+  execFileSync(process.execPath, [
+    join(DECLARATION_ROOT, 'generate-filter-order-queries.mjs'), '--check',
+  ], {stdio: 'inherit'});
+  for (const file of [
+    'schema.mjs', 'queries.mjs', 'filter-order-queries.generated.mjs',
+    'functions.mjs', 'refusal-candidates.mjs',
+  ]) {
     cpSync(join(DECLARATION_ROOT, file), join(backend, file));
   }
   const capability = readJson(join(
@@ -278,6 +474,11 @@ async function codegenDeclarations() {
   ].map(name => {
     const fn = manifest.functions.find(candidate => candidate.name === name);
     assert(fn, `generated graph declaration ${name}`);
+    return [name, fn.runtime.HostPlan.GraphQuery];
+  }));
+  const filterOrderCarriers = Object.fromEntries(FILTER_ORDER_QUERY_NAMES.map(name => {
+    const fn = manifest.functions.find(candidate => candidate.name === name);
+    assert(fn, `generated filter/order graph declaration ${name}`);
     return [name, fn.runtime.HostPlan.GraphQuery];
   }));
   const refusalModule = await import(`${pathToFileURL(join(backend, 'refusal-candidates.mjs')).href}?freeze=${Date.now()}`);
@@ -333,7 +534,8 @@ async function codegenDeclarations() {
   rmSync(tempRoot, { recursive: true });
   rmSync(broadcastTempRoot, { recursive: true });
   return {
-    carriers, refusals, broadcastCarriers, broadcastManifest, broadcastSchema,
+    carriers, filterOrderCarriers, refusals,
+    broadcastCarriers, broadcastManifest, broadcastSchema,
   };
 }
 
@@ -1175,14 +1377,17 @@ function graphChildKey(parentNodeId, parent, childNodeId) {
   return `${parentNodeId}\u0000${parent.key.id}\u0000${childNodeId}`;
 }
 
-function frozenGraphState(carrier, call, tables, orderedRootIds) {
+function frozenGraphState(
+  carrier, call, tables, orderedRootIds, proofRootIds = orderedRootIds,
+) {
   const nodes = carrier.normalizedPlan.nodes;
   const root = nodes.find(node => node.kind === 'root-window');
   const byNode = new Map();
+  const parentsByNode = new Map();
   const childrenBy = new Map();
   const existenceBy = new Map();
   const proofEvidence = new Map();
-  const rootRows = orderedRootIds.map(id => {
+  const rootRows = proofRootIds.map(id => {
     const row = (tables[root.table] ?? []).find(candidate => graphApplicationId(candidate) === id);
     assert(row, `${root.nodeId} ordered application id ${id} resolves to a physical row`);
     return {row, key: graphPhysicalKey(root, row), rootId: id};
@@ -1195,8 +1400,10 @@ function frozenGraphState(carrier, call, tables, orderedRootIds) {
 
   const principal = call.partition.class3?.principalDataScope?.userId;
   const authority = principal === undefined ? undefined : authorityFact(principal);
+  let projectedRoots = rootRows;
   for (const node of nodes.filter(candidate => !['root-window', 'closed-projection'].includes(candidate.kind))) {
     const parents = byNode.get(node.parentNodeId) ?? [];
+    parentsByNode.set(node.nodeId, parents);
     const output = [];
     if (node.kind === 'equality-to-one') {
       const rows = [];
@@ -1240,6 +1447,7 @@ function frozenGraphState(carrier, call, tables, orderedRootIds) {
       proofEvidence.set(node.nodeId, {ranges});
     } else if (node.kind === 'exists-semi-join') {
       const rows = [];
+      const retainedParents = [];
       const argument = node.argumentId === null || node.argumentId === undefined
         ? null
         : carrier.normalizedPlan.arguments.find(candidate => candidate.argumentId === node.argumentId);
@@ -1262,10 +1470,15 @@ function frozenGraphState(carrier, call, tables, orderedRootIds) {
           });
         }
         existenceBy.set(graphChildKey(node.parentNodeId, parent, node.nodeId), found);
+        if (found) retainedParents.push(parent);
         rows.push({parentKey: parent.key, existenceBit: found});
       }
       rows.sort((left, right) => canonical(left.parentKey).localeCompare(canonical(right.parentKey)));
       proofEvidence.set(node.nodeId, {rows});
+      // Semi-joins prove every candidate parent, then filter the parent
+      // population seen by later sibling nodes and the terminal projection.
+      byNode.set(node.parentNodeId, retainedParents);
+      if (node.parentNodeId === root.nodeId) projectedRoots = retainedParents;
     } else if (node.kind === 'principal-bound') {
       const rows = [];
       const bindingFound = authority !== undefined;
@@ -1289,7 +1502,10 @@ function frozenGraphState(carrier, call, tables, orderedRootIds) {
     }
     byNode.set(node.nodeId, output);
   }
-  return {root, roots: rootRows, byNode, childrenBy, existenceBy, proofEvidence};
+  return {
+    root, roots: projectedRoots, byNode, parentsByNode,
+    childrenBy, existenceBy, proofEvidence,
+  };
 }
 
 function assertFrozenProofsMatchBytes(carrier, resultBytes, state, nodeCompleteness) {
@@ -1300,7 +1516,7 @@ function assertFrozenProofsMatchBytes(carrier, resultBytes, state, nodeCompleten
 
   for (const node of nodes.values()) {
     if (!node.parentNodeId) continue;
-    const parents = state.byNode.get(node.parentNodeId) ?? [];
+    const parents = state.parentsByNode.get(node.nodeId) ?? [];
     const evidence = proofs.get(node.nodeId)?.proof;
     const proofRows = evidence?.rows ?? evidence?.ranges ?? [];
     assert.deepEqual(
@@ -1452,14 +1668,17 @@ function exerciseProofClassSelfCheck(carrier, nodeCompleteness) {
   freezerProofSelfChecks.proofClass = true;
 }
 
-function completeResult(carrier, call, tables, resultBytes = '[]', orderedRootIds = []) {
+function completeResult(
+  carrier, call, tables, resultBytes = '[]', orderedRootIds = [],
+  proofRootIds = orderedRootIds,
+) {
   const materializationHash = domainHash('snapback:graph-materialization:v1:', call.materialization);
   const partitionHash = domainHash('snapback:graph-authority-partition:v1:', call.partition);
   const tuple = {
     materializationHash, partitionHash,
     authorizationVersion: call.authorizationVersion, evaluationCut: call.evaluationCut,
   };
-  const state = frozenGraphState(carrier, call, tables, orderedRootIds);
+  const state = frozenGraphState(carrier, call, tables, orderedRootIds, proofRootIds);
   const nodes = [];
   for (const node of carrier.normalizedPlan.nodes.filter(node => node.kind !== 'closed-projection')) {
     const evidence = state.proofEvidence.get(node.nodeId);
@@ -1484,6 +1703,238 @@ function completeResult(carrier, call, tables, resultBytes = '[]', orderedRootId
     resultLength: orderedRootIds.length, nodeCompleteness: nodes,
     graphCompleteness: { ...tuple, label: 'complete', proofClass: 'all-complete', proof: composition },
     refusalReason: null,
+  };
+}
+
+async function freezeFilterOrderMatrix({
+  baseTables, fixture, carriers, handler, principal,
+}) {
+  const selectedLabelIDs = fixture.bindings.selectedLabels.map(label => label.physicalID);
+  const selectedLabelNames = fixture.bindings.selectedLabels.map(label => label.sourceName);
+  const projectID = fixture.bindings.project.physicalID;
+  const projectName = fixture.bindings.project.sourceName;
+  const creatorID = fixture.bindings.creator.physicalID;
+  const creator = fixture.bindings.creator.login;
+  const assigneeID = fixture.bindings.assignee.physicalID;
+  const assignee = fixture.bindings.assignee.login;
+  const definitions = [
+    {
+      id: 'pc-mixed-project-modified-asc',
+      query: 'issueListMatrixProjectModifiedAsc',
+      family: 'project-order', axes: ['project', 'modified-asc'],
+      sortField: 'modified', sortDirection: 'asc', expectedRows: 5,
+    },
+    {
+      id: 'pc-mixed-project-modified-desc',
+      query: 'issueListMatrixProjectModifiedDesc',
+      family: 'project-order', axes: ['project', 'modified-desc'],
+      sortField: 'modified', sortDirection: 'desc', expectedRows: 5,
+    },
+    {
+      id: 'pc-mixed-project-created-asc',
+      query: 'issueListMatrixProjectCreatedAsc',
+      family: 'project-order', axes: ['project', 'created-asc'],
+      sortField: 'created', sortDirection: 'asc', expectedRows: 5,
+    },
+    {
+      id: 'pc-mixed-project-created-desc',
+      query: 'issueListMatrixProjectCreatedDesc',
+      family: 'project-order', axes: ['project', 'created-desc'],
+      sortField: 'created', sortDirection: 'desc', expectedRows: 5,
+    },
+    {
+      id: 'pc-open-filter', query: 'issueListMatrixOpen',
+      family: 'open', axes: ['open'], sortField: 'modified', sortDirection: 'desc',
+      graphFilters: {open: true}, oracleFilters: {open: true}, expectedRows: 3,
+    },
+    {
+      id: 'pc-creator-filter', query: 'issueListMatrixCreator',
+      family: 'creator', axes: ['creator'], sortField: 'modified', sortDirection: 'desc',
+      graphFilters: {creatorID}, oracleFilters: {creator}, expectedRows: 3,
+    },
+    {
+      id: 'pc-assignee-filter', query: 'issueListMatrixAssignee',
+      family: 'assignee', axes: ['assignee'], sortField: 'modified', sortDirection: 'desc',
+      graphFilters: {assigneeID}, oracleFilters: {assignee}, expectedRows: 3,
+    },
+    {
+      id: 'pc-all-selected-labels-filter', query: 'issueListMatrixLabelsAll',
+      family: 'all-label', axes: ['all-selected-labels'],
+      sortField: 'modified', sortDirection: 'desc',
+      graphLabels: selectedLabelIDs, oracleFilters: {labels: selectedLabelNames}, expectedRows: 2,
+    },
+    {
+      id: 'pc-combined-filter', query: 'issueListMatrixCombined',
+      family: 'combined', axes: ['open', 'creator', 'assignee', 'all-selected-labels'],
+      sortField: 'modified', sortDirection: 'desc',
+      graphFilters: {open: true, creatorID, assigneeID},
+      graphLabels: selectedLabelIDs,
+      oracleFilters: {open: true, creator, assignee, labels: selectedLabelNames},
+      expectedRows: 2,
+    },
+  ];
+
+  const cases = [];
+  for (const definition of definitions) {
+    const carrier = carriers[definition.query];
+    assert(carrier, `${definition.query} has a generated carrier`);
+    const graphArgs = {
+      projectID,
+      selectedLabelIDs: definition.graphLabels ?? [],
+      ...(definition.graphFilters ?? {}),
+    };
+    const handlerArgs = {
+      listContext: defaultListContext({
+        projectName,
+        sortField: definition.sortField,
+        sortDirection: definition.sortDirection,
+        ...(definition.oracleFilters ?? {}),
+      }),
+      limit: 1_023, start: null, dir: 'forward', inclusive: false,
+    };
+    const call = invocation(
+      carrier, graphArgs, principal, 0, definition.query, [], {rootTake: 1_024},
+    );
+    const fieldMapping = fieldMap('issueListV2', carrier);
+    fieldMapping.query = definition.query;
+    const worlds = {};
+    for (const world of ['present', 'absent']) {
+      const worldTables = applyFilterOrderMatrixWorld(baseTables, fixture, world);
+      const raw = await handler(mockContext(worldTables, principal), handlerArgs);
+      assert.equal(raw[0].status, 'complete', `${definition.id} ${world} oracle completes`);
+      assert.equal(raw[0].items.length, definition.expectedRows, `${definition.id} ${world} exercises rows`);
+      assert(
+        raw[0].items.every(item => item.issue.id !== fixture.bindings.crossProjectDecoy.sourceID),
+        `${definition.id} excludes the cross-project decoy`,
+      );
+      const normalized = normalizeListOrderForGraph(
+        raw, worldTables, definition.sortField, definition.sortDirection,
+      );
+      assert(normalized.tieGroups > 0, `${definition.id} exercises a ${definition.sortField} tie`);
+      let proofRootIds = normalized.orderedSourceIssueIDs;
+      if ((definition.graphLabels ?? []).length > 0) {
+        const preMembershipArgs = deepClone(handlerArgs);
+        preMembershipArgs.listContext.labels = null;
+        const preMembershipRaw = await handler(
+          mockContext(worldTables, principal), preMembershipArgs,
+        );
+        proofRootIds = normalizeListOrderForGraph(
+          preMembershipRaw, worldTables, definition.sortField, definition.sortDirection,
+        ).orderedSourceIssueIDs;
+        assert(
+          proofRootIds.length >= normalized.orderedSourceIssueIDs.length,
+          `${definition.id} membership proof starts from the unfiltered root candidates`,
+        );
+      }
+      const mapped = expectedFromOracle(
+        'issueListV2', normalized.result, fieldMapping, {labelRows: worldTables.label},
+      );
+      const expected = completeResult(
+        carrier, call, worldTables, mapped.resultBytes, mapped.orderedRootIds,
+        proofRootIds,
+      );
+
+      const afterTables = deepClone(worldTables);
+      const liveIssue = afterTables.issue.find(
+        row => row._id === fixture.bindings.liveIssue.physicalID,
+      );
+      assert(liveIssue, `${definition.id} live issue exists`);
+      liveIssue.title = `Matrix live replacement ${definition.id}`;
+      const rawAfter = await handler(mockContext(afterTables, principal), handlerArgs);
+      const normalizedAfter = normalizeListOrderForGraph(
+        rawAfter, afterTables, definition.sortField, definition.sortDirection,
+      );
+      const mappedAfter = expectedFromOracle(
+        'issueListV2', normalizedAfter.result, fieldMapping, {labelRows: afterTables.label},
+      );
+      const expectedAfter = completeResult(
+        carrier, call, afterTables, mappedAfter.resultBytes, mappedAfter.orderedRootIds,
+        proofRootIds,
+      );
+      worlds[world] = {
+        fixtureDigest: digestBytes(canonical({
+          baseFixture: fixture.baseFixture,
+          additions: fixture.worlds[world].additions,
+        })),
+        rawOracleDigest: digestBytes(JSON.stringify(raw)),
+        rawOracleOrder: raw[0].items.map(item => item.issue.id),
+        normalizedOracleOrder: normalized.orderedSourceIssueIDs,
+        tieGroups: normalized.tieGroups,
+        membershipCandidateRows: proofRootIds.length,
+        expected,
+        expectedAfter,
+      };
+    }
+    assert.deepEqual(
+      worlds.present.expected, worlds.absent.expected,
+      `${definition.id} hidden rows cannot influence initial bytes or proofs`,
+    );
+    assert.deepEqual(
+      worlds.present.expectedAfter, worlds.absent.expectedAfter,
+      `${definition.id} hidden rows cannot influence replacement bytes or proofs`,
+    );
+    cases.push({
+      caseKind: 'filterOrderMatrix',
+      id: definition.id,
+      query: definition.query,
+      family: definition.family,
+      axes: definition.axes,
+      plan: carrier,
+      invocation: call,
+      handlerInvocation: handlerArgs,
+      fieldMap: fieldMapping,
+      fixtureWorlds: {
+        present: {fixtureDigest: worlds.present.fixtureDigest, hiddenSlices: fixture.hiddenSlices},
+        absent: {fixtureDigest: worlds.absent.fixtureDigest, hiddenSlices: []},
+      },
+      exercise: {
+        resultRows: definition.expectedRows,
+        tieField: definition.sortField,
+        tieGroups: worlds.present.tieGroups,
+        crossProjectExcludedSourceID: fixture.bindings.crossProjectDecoy.sourceID,
+        liveReplacementSourceID: fixture.bindings.liveIssue.sourceID,
+      },
+      oracleEvidence: {
+        authority: 'zerobugs-serving-control-opaque-handler',
+        comparison: definition.sortDirection === 'desc'
+          ? 'exact-after-pinned-physical-id-tiebreak-normalization'
+          : 'exact',
+        deviationTicket: definition.sortDirection === 'desc'
+          ? 'issues/20260823-zerobugs-control-descending-tiebreak-deviation.md'
+          : null,
+        present: {
+          rawDigest: worlds.present.rawOracleDigest,
+          rawOrder: worlds.present.rawOracleOrder,
+          normalizedOrder: worlds.present.normalizedOracleOrder,
+        },
+        absent: {
+          rawDigest: worlds.absent.rawOracleDigest,
+          rawOrder: worlds.absent.rawOracleOrder,
+          normalizedOrder: worlds.absent.normalizedOracleOrder,
+        },
+      },
+      expect: {
+        initial: worlds.present.expected,
+        liveReplacement: {
+          mutation: 'graphCorpusPatchIssue',
+          args: {
+            rowID: fixture.bindings.liveIssue.physicalID,
+            value: `Matrix live replacement ${definition.id}`,
+          },
+          matcherDisposition: 'match',
+          servedDisposition: 'live_replace',
+          result: worlds.present.expectedAfter,
+        },
+      },
+    });
+  }
+  return {
+    format: 'snapback.graph-filter-order-matrix.v1', version: 1,
+    fixture: 'tests/conformance/graph/filter-order-fixture.v1.json',
+    generatedDeclarations: 'tests/conformance/graph/zerobugs/filter-order-queries.generated.mjs',
+    generator: 'tests/conformance/graph/zerobugs/generate-filter-order-queries.mjs',
+    queries: Object.entries(carriers).map(([query, carrier]) => ({query, carrier})),
+    cases,
   };
 }
 
@@ -2390,7 +2841,8 @@ async function main() {
   assert.equal(process.versions.node, '24.18.0', 'freeze requires paid-for Node 24.18.0');
   assert(requestedFixtures.includes('normal-seed-v1'), 'normal-seed-v1 is mandatory');
   const {
-    carriers, refusals, broadcastCarriers, broadcastManifest, broadcastSchema,
+    carriers, filterOrderCarriers, refusals,
+    broadcastCarriers, broadcastManifest, broadcastSchema,
   } = await codegenDeclarations();
   assert.equal(refusals.issueListV2, 'SNAPBACK_GRAPH_SEARCH_UNADMITTED');
   assert.equal(refusals.issueDetail, 'SNAPBACK_GRAPH_NODE_KIND_UNSUPPORTED');
@@ -2662,6 +3114,14 @@ async function main() {
     }
     assertion.scopeIdentities = {left, right};
   }
+  const matrixFixture = filterOrderMatrixFixture(tables);
+  const filterOrderMatrix = await freezeFilterOrderMatrix({
+    baseTables: tables,
+    fixture: matrixFixture,
+    carriers: filterOrderCarriers,
+    handler: handlers.issueListV2,
+    principal: ordinaryPrincipal,
+  });
   const notificationOverlay = {
     _id: 'issueNotifications_g0_other_principal', userID: otherUserID,
     issueID: publicIssue._id, subscribed: true, created: 2_000_000_000_100,
@@ -3296,6 +3756,7 @@ async function main() {
       normal: 'demos/zerobugs/control/fixtures/normal-seed-v1',
       policyExtension: 'demos/zerobugs/control/fixtures/policy-extension-v1.json',
       pairedWorlds: 'tests/conformance/graph/paired-world-fixtures.v1.json',
+      filterOrderMatrix: 'tests/conformance/graph/filter-order-fixture.v1.json',
       broadcast: 'tests/conformance/graph/broadcast-fixture/data.v1.json',
       large: 'demos/zerobugs/manifest/large-seed42-v1.receipt.json',
     },
@@ -3322,6 +3783,7 @@ async function main() {
             : 'fixed-id structural shape admitted; name-ordered through-shape remains refused while mapped label arrays use labelID graph order',
       },
     })),
+    filterOrderMatrix,
     authorityOwner: corpusAuthorityOwner,
     oracleCases, oracleTranslationCoverage: translationCoverage, cases, evaluatorEdgeCases,
     caseKinds: ['pairedWorld', 'allowDeny', 'audienceParity', 'scopeMismatch', 'authorityTransition', 'mixedCommit', 'refusal'],
@@ -3356,15 +3818,17 @@ async function main() {
     assert.equal(readFileSync(PENDING_CASES_PATH, 'utf8'), pretty(pendingCorpus), 'broadcast pending corpus is stale');
     assert.equal(readFileSync(PROVER_DISPOSITIONS_PATH, 'utf8'), pretty(proverDispositions), 'broadcast prover dispositions are stale');
     assert.equal(readFileSync(PAIRED_FIXTURES_PATH, 'utf8'), pretty(pairedFixtureCorpus), 'paired-world fixtures are stale');
+    assert.equal(readFileSync(FILTER_ORDER_FIXTURE_PATH, 'utf8'), pretty(matrixFixture), 'filter/order matrix fixture is stale');
   } else {
     writeFileSync(CORPUS_PATH, pretty(corpus));
     writeFileSync(BOUNDS_PATH, pretty(bounds));
     writeFileSync(PENDING_CASES_PATH, pretty(pendingCorpus));
     writeFileSync(PROVER_DISPOSITIONS_PATH, pretty(proverDispositions));
     writeFileSync(PAIRED_FIXTURES_PATH, pretty(pairedFixtureCorpus));
+    writeFileSync(FILTER_ORDER_FIXTURE_PATH, pretty(matrixFixture));
   }
   console.log(`graph-g0-digests: corpus=${corpus.contentDigest} bounds=${bounds.contentDigest} pending=${pendingCorpus.contentDigest} dispositions=${proverDispositions.contentDigest} paired=${pairedFixtureCorpus.contentDigest}`);
-  console.log(`graph-g0-oracle-freeze: PASS normal-seed-v1 queries=4 oracleCases=${oracleCases.length} pairedWorlds=${pairedWorlds.length} allowDeny=${allowDenyCases.length} refusals=${refusalCases.length} corpusDigest=${corpus.contentDigest} boundsDigest=${bounds.contentDigest}`);
+  console.log(`graph-g0-oracle-freeze: PASS normal-seed-v1 queries=4 matrixCases=${filterOrderMatrix.cases.length} oracleCases=${oracleCases.length} pairedWorlds=${pairedWorlds.length} allowDeny=${allowDenyCases.length} refusals=${refusalCases.length} corpusDigest=${corpus.contentDigest} boundsDigest=${bounds.contentDigest}`);
   if (!existsSync(LARGE_ROOT)) console.log('graph-g0-large-spot-check: DEFERRED receipt-only; rerun zb5 command recorded in bound-derivation.v1.json');
 }
 

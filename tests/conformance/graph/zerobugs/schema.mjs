@@ -94,6 +94,24 @@ export const issueListRead = defineTable({
   .index('by_source_issue_id', ['sourceIssueID'], { unique: true })
   .index('by_project_modified', ['projectID', 'modified', 'sourceIssueID'])
   .index('by_project_created', ['projectID', 'created', 'sourceIssueID'])
+  // The P-C matrix variants deliberately leave the final physical `_id ASC`
+  // tie-break implicit. These corpus-only indexes therefore stop at the
+  // selectable application sort field instead of inheriting the control
+  // oracle's sourceIssueID tie-break.
+  // @ref LLP 0209#9-sequencing-and-measurement-what-lands-first-and-how-it-is-measured
+  // — P-C freezes every filter/order variant as an admitted static plan.
+  .index('by_matrix_project_modified', ['projectID', 'modified'])
+  .index('by_matrix_project_created', ['projectID', 'created'])
+  .index('by_matrix_project_open_modified', ['projectID', 'open', 'modified'])
+  .index('by_matrix_project_creator_modified', ['projectID', 'creatorID', 'modified'])
+  .index('by_matrix_project_assignee_modified', ['projectID', 'assigneeID', 'modified'])
+  .index('by_matrix_project_open_creator_assignee_modified', [
+    'projectID',
+    'open',
+    'creatorID',
+    'assigneeID',
+    'modified',
+  ])
   .permissionBacking(['visibility'])
   .visibility({ kind: 'public-read' });
 
