@@ -287,11 +287,11 @@ async fn push_receipt_maintenance_refuses_on_a_ledger_bearing_fork_before_provid
             retention_ms: 2_592_000_000,
         }),
     };
-    let database_owner = snapback_engine::test_support::auth_database_mut(&mut snapback);
-    database_owner.activate_current_auth_catalog().unwrap();
-    database_owner
-        .activate_push_registry_for_test(declaration)
-        .unwrap();
+    snapback_engine::test_support::activate_auth_and_push_registry_for_test(
+        &mut snapback,
+        declaration,
+    )
+    .unwrap();
     let state = AppState::try_from_snapback(snapback, ServerContext::detached()).unwrap();
     let error = snapback_server::test_support::drive_push_maintenance_once_for_test(
         &state,

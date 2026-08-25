@@ -1403,13 +1403,10 @@ fn rehearsal_operations_pin_each_independent_authority_axis() {
 async fn production_rehearsal_operation_refuses_before_admin_and_body_details() {
     let mut snapback = LocalSnapback::memory().expect("production rehearsal HTTP fixture");
     let keyring = Arc::new(AuthKeyringStore::in_memory());
-    activate_catalog(
-        snapback.remainder_auth_database_mut(),
-        keyring.as_ref(),
-        super::now_millis(),
-        &OsRandom,
-    )
-    .expect("activate auth catalog");
+    snapback
+        .remainder_auth_fixture()
+        .activate_catalog(keyring.as_ref(), super::now_millis(), &OsRandom)
+        .expect("activate auth catalog");
     let provider = Arc::new(
         AuthProvider::new(AuthProviderProfile::Test, keyring).expect("construct auth provider"),
     );
@@ -1491,13 +1488,10 @@ async fn projected_rehearsal_status(state: &AppState) -> String {
 async fn rehearsal_capability_manifest_reports_absent_available_and_active() {
     let mut snapback = LocalSnapback::memory().expect("rehearsal manifest fixture");
     let keyring = Arc::new(AuthKeyringStore::in_memory());
-    activate_catalog(
-        snapback.remainder_auth_database_mut(),
-        keyring.as_ref(),
-        super::now_millis(),
-        &OsRandom,
-    )
-    .expect("activate auth catalog");
+    snapback
+        .remainder_auth_fixture()
+        .activate_catalog(keyring.as_ref(), super::now_millis(), &OsRandom)
+        .expect("activate auth catalog");
     let provider = Arc::new(
         AuthProvider::new(AuthProviderProfile::Test, keyring).expect("construct auth provider"),
     );
@@ -1608,13 +1602,10 @@ fn rehearsal_host_op_future_sizes_stay_heap_bounded() {
 async fn rehearsal_capture_releases_after_charge_and_exact_retry_is_free() {
     let mut snapback = LocalSnapback::memory().expect("rehearsal capture fixture");
     let keyring = Arc::new(AuthKeyringStore::in_memory());
-    activate_catalog(
-        snapback.remainder_auth_database_mut(),
-        keyring.as_ref(),
-        super::now_millis(),
-        &OsRandom,
-    )
-    .expect("activate rehearsal capture catalog");
+    snapback
+        .remainder_auth_fixture()
+        .activate_catalog(keyring.as_ref(), super::now_millis(), &OsRandom)
+        .expect("activate rehearsal capture catalog");
     let provider = Arc::new(
         AuthProvider::new(AuthProviderProfile::Test, keyring)
             .expect("construct rehearsal capture provider"),
@@ -1651,7 +1642,9 @@ async fn rehearsal_capture_releases_after_charge_and_exact_retry_is_free() {
         .expect("admit rehearsal capture address");
     let now_ms = provider.now_ms();
     let requested = with_snapback(&state.snapback, move |snapback| {
-        admission.request_code(snapback.remainder_auth_database_mut(), now_ms)
+        snapback
+            .remainder_auth_fixture()
+            .request_code(&admission, now_ms)
     })
     .await
     .expect("request rehearsal capture challenge");
@@ -1873,13 +1866,10 @@ fn auth_runtime_fixture_with_context(
     let mut snapback = LocalSnapback::memory().expect("memory auth HTTP fixture");
     prepare(&mut snapback);
     let keyring = Arc::new(AuthKeyringStore::in_memory());
-    activate_catalog(
-        snapback.remainder_auth_database_mut(),
-        keyring.as_ref(),
-        super::now_millis(),
-        &OsRandom,
-    )
-    .expect("activate auth catalog");
+    snapback
+        .remainder_auth_fixture()
+        .activate_catalog(keyring.as_ref(), super::now_millis(), &OsRandom)
+        .expect("activate auth catalog");
     let provider = Arc::new(
         AuthProvider::new(AuthProviderProfile::Test, keyring).expect("construct auth provider"),
     );
@@ -2183,13 +2173,10 @@ fn manual_clock_sessions_fixture(start_ms: u64) -> (AppState, Arc<ManualServerAu
     let clock = Arc::new(ManualServerAuthClock::new(start_ms));
     let mut snapback = LocalSnapback::memory().expect("manual-clock HTTP fixture");
     let keyring = Arc::new(AuthKeyringStore::in_memory());
-    activate_catalog(
-        snapback.remainder_auth_database_mut(),
-        keyring.as_ref(),
-        start_ms,
-        &OsRandom,
-    )
-    .expect("activate manual-clock auth catalog");
+    snapback
+        .remainder_auth_fixture()
+        .activate_catalog(keyring.as_ref(), start_ms, &OsRandom)
+        .expect("activate manual-clock auth catalog");
     let provider = Arc::new(
         AuthProvider::new_with_dependencies(
             AuthProviderProfile::Test,
@@ -2242,13 +2229,10 @@ fn auth_invalidation_reset_fixture_with_context(context: ServerContext) -> AppSt
         })
         .expect("apply reset authorization fixture schema");
     let keyring = Arc::new(AuthKeyringStore::in_memory());
-    activate_catalog(
-        snapback.remainder_auth_database_mut(),
-        keyring.as_ref(),
-        super::now_millis(),
-        &OsRandom,
-    )
-    .expect("activate reset auth catalog");
+    snapback
+        .remainder_auth_fixture()
+        .activate_catalog(keyring.as_ref(), super::now_millis(), &OsRandom)
+        .expect("activate reset auth catalog");
     let provider = Arc::new(
         AuthProvider::new(AuthProviderProfile::Test, keyring)
             .expect("construct reset auth provider"),
@@ -2390,13 +2374,10 @@ fn auth_projection_http_fixture(
         .expect("removable row id");
 
     let keyring = Arc::new(AuthKeyringStore::in_memory());
-    activate_catalog(
-        snapback.remainder_auth_database_mut(),
-        keyring.as_ref(),
-        super::now_millis(),
-        &OsRandom,
-    )
-    .expect("activate projection HTTP auth catalog");
+    snapback
+        .remainder_auth_fixture()
+        .activate_catalog(keyring.as_ref(), super::now_millis(), &OsRandom)
+        .expect("activate projection HTTP auth catalog");
     let provider = Arc::new(
         AuthProvider::new(AuthProviderProfile::Test, keyring)
             .expect("construct projection HTTP provider"),
@@ -2525,12 +2506,12 @@ fn protected_room_server_fixture() -> (AppState, tempfile::TempDir) {
         .load_or_mint_initial(super::now_millis(), &OsRandom)
         .expect("provision protected-room keyring before sessions consume");
     let settled = snapback
-        .remainder_auth_database_mut()
+        .remainder_auth_fixture()
         .stage_auth_mode(sessions_deployment(), schema.clone(), None)
         .expect("stage protected-room sessions schema");
     assert_eq!(settled.mode_state, AuthModeStatus::PendingRestart);
     let settled = snapback
-        .remainder_auth_database_mut()
+        .remainder_auth_fixture()
         .consume_sessions_auth_mode(&readiness)
         .expect("consume protected-room sessions schema");
     snapback
@@ -2632,13 +2613,10 @@ globalThis.__snapbackHandlers = {
         "protected-room function manifest loads: {diagnostics:?}"
     );
 
-    activate_catalog(
-        snapback.remainder_auth_database_mut(),
-        keyring.as_ref(),
-        super::now_millis(),
-        &OsRandom,
-    )
-    .expect("activate protected-room auth catalog");
+    snapback
+        .remainder_auth_fixture()
+        .activate_catalog(keyring.as_ref(), super::now_millis(), &OsRandom)
+        .expect("activate protected-room auth catalog");
     let provider = Arc::new(
         AuthProvider::new(AuthProviderProfile::Test, keyring)
             .expect("construct protected-room auth provider"),
@@ -3383,7 +3361,7 @@ async fn protected_room_server_fast_paths_progress_during_affected_commit() {
     );
     let remaining = with_snapback(&state.snapback, |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .query_reads_read()
             .scan_table("roomMembers", 10, 0)
             .map(|scan| scan.total)
@@ -3936,12 +3914,12 @@ fn sessions_activation_server_fixture_with_api_and_password_mode_on_snapback(
         .expect("provision activation keyring before sessions consume");
     if password_identifier_mode == PasswordIdentifierMode::EmailV1 {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .activate_current_auth_catalog_with_password_identifier_mode(password_identifier_mode)
             .expect("activate declared password identifier mode");
     }
     let settled = snapback
-        .remainder_auth_database_mut()
+        .remainder_auth_fixture()
         .consume_sessions_auth_mode(&readiness)
         .expect("consume initial sessions pair");
     snapback
@@ -3963,13 +3941,10 @@ fn sessions_activation_server_fixture_with_api_and_password_mode_on_snapback(
     // Scope bases are left to the caller to reconcile (matching
     // finite_authority_matrix_fixture): tests that seed `_auth_scope_bases`
     // directly must start from an empty table.
-    activate_catalog(
-        snapback.remainder_auth_database_mut(),
-        keyring.as_ref(),
-        activation_now_ms,
-        &OsRandom,
-    )
-    .expect("activate auth catalog");
+    snapback
+        .remainder_auth_fixture()
+        .activate_catalog(keyring.as_ref(), activation_now_ms, &OsRandom)
+        .expect("activate auth catalog");
     let provider = Arc::new(
         match clock {
             Some(clock) => AuthProvider::new_with_dependencies(
@@ -4611,7 +4586,7 @@ async fn sessions_activation_server_fixture_with_oauth_policy_async(
     .expect("construct OAuth facade fixture off the async workers");
     with_snapback(&state.snapback, |snapback| {
         let scope_functions = snapback.served_function_manifest().clone();
-        let database = snapback.remainder_auth_database_mut();
+        let mut database = snapback.remainder_auth_fixture();
         database.reconcile_auth_scope_bases(&scope_functions)?;
         assert_eq!(
             database.current_auth_scope_basis("fn:listItems", &FunctionKind::Query, false)?,
@@ -4966,7 +4941,7 @@ async fn remote_mcp_stateless_protocol_lists_and_calls_the_anonymous_external_se
     let declared_id = declared_id.to_owned();
     let row = with_snapback(&runtime.snapback, move |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .declared_client_for_admission(&declared_id, super::now_millis())
     })
     .await
@@ -5032,7 +5007,7 @@ async fn capability_link_revoke_returns_after_directly_seeded_link() {
         .to_owned();
     let now_ms = super::now_millis();
     let minted = with_snapback(&state.snapback, move |snapback| {
-        snapback.remainder_auth_database_mut().mint_capability_link(
+        snapback.remainder_auth_fixture().mint_capability_link(
             crate::storage::capability_links::MintCapabilityLink {
                 minter_principal_id,
                 minter_session_id,
@@ -5286,7 +5261,7 @@ async fn external_gate_keeps_first_party_direct_and_approval_executes_or_denies_
     let lookup_id = effect_id.clone();
     let stored = with_snapback(&state.snapback, move |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .pending_effect(&lookup_id, super::now_millis())
     })
     .await
@@ -5585,7 +5560,7 @@ async fn effect_approval_refuses_a_revoked_original_session() {
     let lookup_id = effect_id.clone();
     let stored = with_snapback(&state.snapback, move |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .pending_effect(&lookup_id, super::now_millis())
     })
     .await
@@ -5624,7 +5599,7 @@ async fn effect_approval_reprepares_original_session_with_catalog_claims() {
     let lookup_id = effect_id.clone();
     let effect = with_snapback(&state.snapback, move |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .pending_effect(&lookup_id, super::now_millis())
     })
     .await
@@ -5646,7 +5621,7 @@ async fn effect_approval_reprepares_original_session_with_catalog_claims() {
     let claims_now_ms = provider.now_ms();
     let claims = with_snapback(&state.snapback, move |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .identity_claims(&session_id, claims_now_ms, profile)
     })
     .await
@@ -5715,7 +5690,7 @@ async fn effect_approval_reprepares_original_session_with_catalog_claims() {
     let (durable, items, version_row, changes, after_change_count) =
         with_snapback(&state.snapback, move |snapback| {
             let durable = snapback
-                .remainder_auth_database_mut()
+                .remainder_auth_fixture()
                 .pending_effect(&durable_effect_id, super::now_millis())?;
             Ok::<_, SnapbackError>((
                 durable,
@@ -5882,7 +5857,7 @@ async fn oauth_dynamic_registration_reuses_open_invited_and_disabled_agent_polic
     let open_client_id = open["client_id"].as_str().unwrap().to_owned();
     let lookup_client_id = open_client_id.clone();
     let open_facts = with_snapback(&open_state.snapback, move |snapback| {
-        let database = snapback.remainder_auth_database_mut();
+        let mut database = snapback.remainder_auth_fixture();
         let (principal, claim, redirects) =
             database.oauth_registration_facts_for_test(&lookup_client_id)?;
         let principal_facts = database
@@ -5904,9 +5879,11 @@ async fn oauth_dynamic_registration_reuses_open_invited_and_disabled_agent_polic
     let suspended_principal = open_facts.0;
     let suspension_at = open_state.auth_provider.as_ref().unwrap().now_ms();
     with_snapback(&open_state.snapback, move |snapback| {
-        snapback
-            .remainder_auth_database_mut()
-            .set_integration_suspended(&suspended_principal, true, suspension_at)
+        snapback.remainder_auth_fixture().set_integration_suspended(
+            &suspended_principal,
+            true,
+            suspension_at,
+        )
     })
     .await
     .unwrap();
@@ -5952,7 +5929,7 @@ async fn oauth_dynamic_registration_reuses_open_invited_and_disabled_agent_polic
     let invited = response_json(invited).await;
     let invited_client_id = invited["client_id"].as_str().unwrap().to_owned();
     let invited_facts = with_snapback(&invited_state.snapback, move |snapback| {
-        let database = snapback.remainder_auth_database_mut();
+        let mut database = snapback.remainder_auth_fixture();
         let (principal, claim, _) =
             database.oauth_registration_facts_for_test(&invited_client_id)?;
         let principal_facts = database
@@ -6106,7 +6083,7 @@ async fn oauth_authorization_http_enforces_session_class_and_durable_shared_capa
     let zero_user_id = user_id.clone();
     let zero = with_snapback(&state.snapback, move |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .oauth_proposal_counts_for_test(&zero_user_id)
     })
     .await
@@ -6148,7 +6125,7 @@ async fn oauth_authorization_http_enforces_session_class_and_durable_shared_capa
     let counted_user_id = user_id.clone();
     let counts = with_snapback(&state.snapback, move |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .oauth_proposal_counts_for_test(&counted_user_id)
     })
     .await
@@ -6491,7 +6468,7 @@ async fn oauth_metadata_and_full_authorization_code_journey_are_enabled_only_and
     let lookup_client_id = client_id.clone();
     let integration_principal = with_snapback(&state.snapback, move |snapback| {
         let (principal, _, _) = snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .oauth_registration_facts_for_test(&lookup_client_id)?;
         Ok::<_, SnapbackError>(principal)
     })
@@ -6500,9 +6477,11 @@ async fn oauth_metadata_and_full_authorization_code_journey_are_enabled_only_and
     let suspended_principal = integration_principal.clone();
     let suspension_at = state.auth_provider.as_ref().unwrap().now_ms();
     with_snapback(&state.snapback, move |snapback| {
-        snapback
-            .remainder_auth_database_mut()
-            .set_integration_suspended(&suspended_principal, true, suspension_at)
+        snapback.remainder_auth_fixture().set_integration_suspended(
+            &suspended_principal,
+            true,
+            suspension_at,
+        )
     })
     .await
     .unwrap();
@@ -6535,9 +6514,11 @@ async fn oauth_metadata_and_full_authorization_code_journey_are_enabled_only_and
     let resumed_principal = integration_principal;
     let resumed_at = state.auth_provider.as_ref().unwrap().now_ms();
     with_snapback(&state.snapback, move |snapback| {
-        snapback
-            .remainder_auth_database_mut()
-            .set_integration_suspended(&resumed_principal, false, resumed_at)
+        snapback.remainder_auth_fixture().set_integration_suspended(
+            &resumed_principal,
+            false,
+            resumed_at,
+        )
     })
     .await
     .unwrap();
@@ -6862,7 +6843,7 @@ async fn external_api_v1_is_opt_in_unpinned_disclosed_and_exact_origin_cors() {
     let declared_id = "crawler-7f3a9c/ops@example.com".to_owned();
     let declared_record = with_snapback(&runtime.snapback, move |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .declared_client_for_admission(&declared_id, super::now_millis())
     })
     .await
@@ -6979,7 +6960,7 @@ async fn external_api_v1_is_opt_in_unpinned_disclosed_and_exact_origin_cors() {
     let suspended_id = declared_record.normalized_id.clone();
     with_snapback(&runtime.snapback, move |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .set_declared_client_status(
                 &suspended_id,
                 crate::storage::declared_clients::DeclaredClientStatus::Suspended,
@@ -7029,7 +7010,7 @@ async fn external_api_v1_is_opt_in_unpinned_disclosed_and_exact_origin_cors() {
     let resumed_id = declared_record.normalized_id;
     with_snapback(&runtime.snapback, move |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .set_declared_client_status(
                 &resumed_id,
                 crate::storage::declared_clients::DeclaredClientStatus::Active,
@@ -7083,7 +7064,7 @@ async fn external_api_v1_is_opt_in_unpinned_disclosed_and_exact_origin_cors() {
     let blocked_id = blocked_id.to_owned();
     let blocked_row = with_snapback(&runtime.snapback, move |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .declared_client_for_admission(&blocked_id, super::now_millis())
     })
     .await
@@ -7954,7 +7935,7 @@ async fn finite_authority_matrix_fixture_with_functions(
     let setup_grant_id = grant_id.clone();
     let (agent_user_id, credential, token, token_id, token_expires_at_ms) =
         with_snapback(&state.snapback, move |snapback| {
-            let db = snapback.remainder_auth_database_mut();
+            let mut db = snapback.remainder_auth_fixture();
             db.reconcile_auth_scope_bases(&functions)?;
             db.auth_catalog()
                 .insert_human_user_for_test(&setup_effective_user_id, start_ms)?;
@@ -7964,7 +7945,7 @@ async fn finite_authority_matrix_fixture_with_functions(
                 None,
                 ServerProfile::Test,
                 start_ms,
-                provider.agent_random_source(),
+                &OsRandom,
             )?;
             db.auth_catalog().insert_finite_authority_grant_for_test(
                 &setup_grant_id,
@@ -8015,7 +7996,7 @@ async fn mint_same_grant_sibling_and_set_deadline(
     with_snapback(&fixture.state.snapback, move |snapback| {
         let credential =
             AgentCredential::parse(&credential).expect("parse grant-expiry credential");
-        let issued = snapback.remainder_auth_database_mut().mint_scoped_token(
+        let issued = snapback.remainder_auth_fixture().mint_scoped_token(
             &credential,
             &grant_id,
             Some(24 * 60 * 60 * 1_000),
@@ -8023,7 +8004,7 @@ async fn mint_same_grant_sibling_and_set_deadline(
             &OsRandom,
         )?;
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .auth_catalog()
             .set_grant_expiry_for_test(&grant_id, grant_deadline_ms)?;
         Ok::<_, SnapbackError>((issued.secret.expose_secret().to_owned(), issued.token_id))
@@ -8164,7 +8145,7 @@ async fn token_release_consumes_terminal_gate_and_commits_durable_revocation() {
     let durable_error = with_snapback(&fixture.state.snapback, move |snapback| {
         let token = ScopedToken::parse(&released_token).expect("parse released scoped token");
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .resolve_scoped_token(&token, release_at_ms)
     })
     .await
@@ -8191,9 +8172,11 @@ async fn commit_finite_authority_matrix_ending(
             let now_ms = fixture.start_ms + 1;
             fixture.clock.set(now_ms);
             let revoked = with_snapback(&fixture.state.snapback, move |snapback| {
-                snapback
-                    .remainder_auth_database_mut()
-                    .revoke_grant_for_user(&effective_user_id, &grant_id, now_ms)
+                snapback.remainder_auth_fixture().revoke_grant_for_user(
+                    &effective_user_id,
+                    &grant_id,
+                    now_ms,
+                )
             })
             .await
             .expect("commit real grant revocation");
@@ -8208,9 +8191,11 @@ async fn commit_finite_authority_matrix_ending(
             let rotated = with_snapback(&fixture.state.snapback, move |snapback| {
                 let credential =
                     AgentCredential::parse(&credential).expect("parse matrix agent credential");
-                snapback
-                    .remainder_auth_database_mut()
-                    .rotate_agent_credential(&credential, now_ms, &OsRandom)
+                snapback.remainder_auth_fixture().rotate_agent_credential(
+                    &credential,
+                    now_ms,
+                    &OsRandom,
+                )
             })
             .await
             .expect("commit real credential rotation");
@@ -8225,7 +8210,7 @@ async fn commit_finite_authority_matrix_ending(
                 let credential =
                     AgentCredential::parse(&credential).expect("parse matrix agent credential");
                 snapback
-                    .remainder_auth_database_mut()
+                    .remainder_auth_fixture()
                     .revoke_agent_credential_family(&credential, now_ms)
             })
             .await
@@ -8237,8 +8222,8 @@ async fn commit_finite_authority_matrix_ending(
             let now_ms = fixture.start_ms + 1;
             fixture.clock.set(now_ms);
             with_snapback(&fixture.state.snapback, move |snapback| {
-                let manifest = snapback.remainder_auth_database_mut().schema().clone();
-                snapback.remainder_auth_database_mut().deactivate_agent(
+                let manifest = snapback.remainder_auth_fixture().schema().clone();
+                snapback.remainder_auth_fixture().deactivate_agent(
                     &agent_user_id,
                     now_ms,
                     &manifest,
@@ -8311,7 +8296,7 @@ async fn commit_finite_authority_matrix_ending(
                     AgentCredential::parse(&credential).expect("parse matrix agent credential");
                 let mut evicted = Vec::new();
                 for offset in 1..=crate::storage::auth_agent_credentials::SCOPED_TOKEN_LIVE_CAP {
-                    let issued = snapback.remainder_auth_database_mut().mint_scoped_token(
+                    let issued = snapback.remainder_auth_fixture().mint_scoped_token(
                         &credential,
                         &grant_id,
                         Some(24 * 60 * 60 * 1_000),
@@ -10904,7 +10889,7 @@ fn sender_issuance_durable_counts(
         .try_lock()
         .expect("borrow sender issuance durable facts");
     snapback
-        .remainder_auth_database_mut()
+        .remainder_auth_fixture()
         .auth_catalog()
         .sender_issuance_durable_counts_for_test(challenge_id)
         .expect("read sender issuance durable facts")
@@ -10942,7 +10927,7 @@ async fn settlement_acknowledgement_uses_prepared_authority_not_body_identity() 
     let retained_authority = prepared("settlement-owner");
     let authority_instance_id = super::with_snapback(&state.snapback, move |snapback| {
         let incarnation = snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .ensure_authorization_stream_incarnation()
             .expect("authorization stream incarnation");
         crate::auth::invocation::descriptor_for_authority(&retained_authority, incarnation.as_str())
@@ -10959,7 +10944,7 @@ async fn settlement_acknowledgement_uses_prepared_authority_not_body_identity() 
     let retained_id = identity.id.clone();
     super::with_snapback(&state.snapback, move |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .mutation_writes()
             .execute_mutation_idempotent(
                 &MutationPlan {
@@ -11563,12 +11548,12 @@ async fn same_mode_post_commit_publication_failure_cancels_and_closes_admission(
 
     let durable = super::with_snapback(&shared, |snapback| {
         snapback
-            .remainder_auth_database_mut()
-            .auth_mode_snapshot()
+            .remainder_auth_fixture()
+            .auth_mode_state()
             .expect("durable committed deployment")
     })
     .await;
-    assert!(durable.state.active_deployment.is_some());
+    assert!(durable.active_deployment.is_some());
     assert!(predecessor.is_cancelled());
     let closed = controller.snapshot();
     assert!(!closed.accepting);
@@ -12127,7 +12112,7 @@ async fn direct_functions_load_quiesces_old_query_body_and_activates_complete_pa
         with_snapback(&state.snapback, |snapback| {
             (
                 snapback
-                    .remainder_auth_database_mut()
+                    .remainder_auth_fixture()
                     .authorization_version()
                     .expect("durable activation authorization"),
                 snapback
@@ -12201,10 +12186,9 @@ async fn sessions_activation_runtime_projection_failure_never_reopens_admission(
     );
     let durable_bundle = with_snapback(&state.snapback, |snapback| {
         snapback
-            .remainder_auth_database_mut()
-            .auth_mode_snapshot()
+            .remainder_auth_fixture()
+            .auth_mode_state()
             .expect("durable activation snapshot")
-            .state
             .active_deployment
             .expect("durable successor deployment")
             .bundle_hash
@@ -15346,7 +15330,7 @@ async fn hosted_sender_issuance_session_and_refresh_compose_through_the_router()
                 .try_lock()
                 .expect("borrow sender replay authority for route matrix");
             snapback
-                .remainder_auth_database_mut()
+                .remainder_auth_fixture()
                 .auth_catalog()
                 .insert_sender_replay_for_test(replay_id.as_slice(), provider.now_ms() / 1_000 + 31)
                 .expect("seed exact replay id");
@@ -15724,7 +15708,7 @@ async fn sender_bound_grant_invalidates_when_the_sender_replay_epoch_advances() 
             .try_lock()
             .expect("borrow sender authority for epoch advance");
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .auth_catalog()
             .advance_sender_replay_epoch_for_test()
             .expect("advance durable sender replay epoch");
@@ -17086,7 +17070,7 @@ async fn scoped_token_carrier_is_resolved_only_for_granted_current_function_scop
     let now_ms = provider.now_ms();
     let (agent_user_id, token, agent_credential) =
         with_snapback(&state.snapback, move |snapback| {
-            let db = snapback.remainder_auth_database_mut();
+            let mut db = snapback.remainder_auth_fixture();
             db.auth_catalog()
                 .insert_query_carrier_prerequisites_for_test(now_ms)?;
             let credential = db.register_agent_principal(
@@ -17095,7 +17079,7 @@ async fn scoped_token_carrier_is_resolved_only_for_granted_current_function_scop
                 None,
                 ServerProfile::Test,
                 now_ms,
-                provider.agent_random_source(),
+                &OsRandom,
             )?;
             db.auth_catalog()
                 .insert_query_carrier_grant_for_test(&credential.user_id, now_ms)?;
@@ -17104,7 +17088,7 @@ async fn scoped_token_carrier_is_resolved_only_for_granted_current_function_scop
                 "018f0d90-7b32-7a22-8c33-445566778899",
                 None,
                 now_ms,
-                provider.agent_random_source(),
+                &OsRandom,
             )?;
             Ok::<_, SnapbackError>((
                 credential.user_id,
@@ -17414,7 +17398,7 @@ async fn scoped_token_carrier_is_resolved_only_for_granted_current_function_scop
 
     with_snapback(&state.snapback, |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .auth_catalog()
             .tombstone_allowed_query_scope_basis_for_test()
     })
@@ -17444,13 +17428,11 @@ async fn scoped_token_carrier_is_resolved_only_for_granted_current_function_scop
         .register_bound(connection_id, grant_id)
         .expect("register exact service socket");
     let revocation = with_snapback(&state.snapback, |snapback| {
-        snapback
-            .remainder_auth_database_mut()
-            .revoke_grant_for_user(
-                "018f0d90-7b30-7a22-8c33-445566778899",
-                "018f0d90-7b32-7a22-8c33-445566778899",
-                super::now_millis(),
-            )
+        snapback.remainder_auth_fixture().revoke_grant_for_user(
+            "018f0d90-7b30-7a22-8c33-445566778899",
+            "018f0d90-7b32-7a22-8c33-445566778899",
+            super::now_millis(),
+        )
     })
     .await
     .unwrap();
@@ -17600,7 +17582,7 @@ async fn live_attribution_is_immutable_across_renewal_and_regenerated_after_rota
     let seed_provider = provider.clone();
     let (agent_user_id, token, agent_credential) =
         with_snapback(&state.snapback, move |snapback| {
-            let db = snapback.remainder_auth_database_mut();
+            let mut db = snapback.remainder_auth_fixture();
             db.auth_catalog()
                 .insert_live_carrier_prerequisites_for_test(now_ms)?;
             let credential = db.register_agent_principal(
@@ -17609,7 +17591,7 @@ async fn live_attribution_is_immutable_across_renewal_and_regenerated_after_rota
                 None,
                 ServerProfile::Test,
                 now_ms,
-                seed_provider.agent_random_source(),
+                &OsRandom,
             )?;
             db.auth_catalog()
                 .insert_live_carrier_grant_for_test(&credential.user_id, now_ms)?;
@@ -17618,7 +17600,7 @@ async fn live_attribution_is_immutable_across_renewal_and_regenerated_after_rota
                 "018f0d90-7b32-7a22-8c33-445566778899",
                 None,
                 now_ms,
-                seed_provider.agent_random_source(),
+                &OsRandom,
             )?;
             Ok::<_, SnapbackError>((
                 credential.user_id,
@@ -17681,7 +17663,7 @@ async fn live_attribution_is_immutable_across_renewal_and_regenerated_after_rota
         .expect("register exact service socket");
     with_snapback(&state.snapback, move |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .auth_catalog()
             .set_agent_credential_rotated_at_for_test(&agent_user_id, 0)
     })
@@ -19151,13 +19133,10 @@ async fn public_health_revalidates_provider_readiness_without_leaking_keyring_de
     let database_path = directory.path().join("health.sqlite3");
     let mut snapback = LocalSnapback::open(&database_path).unwrap();
     let keyring = Arc::new(AuthKeyringStore::file_for_database(&database_path));
-    activate_catalog(
-        snapback.remainder_auth_database_mut(),
-        keyring.as_ref(),
-        super::now_millis(),
-        &OsRandom,
-    )
-    .unwrap();
+    snapback
+        .remainder_auth_fixture()
+        .activate_catalog(keyring.as_ref(), super::now_millis(), &OsRandom)
+        .unwrap();
     let provider = Arc::new(AuthProvider::new(AuthProviderProfile::Test, keyring).unwrap());
     let keyring_path = AuthKeyringStore::keyring_path(&database_path);
     let retained = std::fs::read(&keyring_path).unwrap();
@@ -19477,9 +19456,11 @@ async fn guest_entry_authorizes_claims_reaps_and_refuses_policy_or_input_failure
     assert_eq!(disabled_signup.status(), StatusCode::OK);
     let disabled_at_ms = super::now_millis();
     with_snapback(&state.snapback, move |snapback| {
-        snapback
-            .remainder_auth_database_mut()
-            .disable_identity_for_test("local-password", disabled_email, disabled_at_ms)
+        snapback.remainder_auth_fixture().disable_identity_for_test(
+            "local-password",
+            disabled_email,
+            disabled_at_ms,
+        )
     })
     .await
     .expect("disable collision predecessor identity");
@@ -19605,7 +19586,7 @@ async fn guest_entry_authorizes_claims_reaps_and_refuses_policy_or_input_failure
     let reap_at = reaped["session"]["absoluteExpiresAt"].as_u64().unwrap();
     with_snapback(&state.snapback, move |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .identity_reap_guests_default_tombstone(reap_at)
     })
     .await
@@ -19616,8 +19597,7 @@ async fn guest_entry_authorizes_claims_reaps_and_refuses_policy_or_input_failure
         .expect("installed auth provider");
     let admission = state.auth_admission_controller();
     let rebuild_preparation = with_snapback(&state.snapback, move |snapback| {
-        crate::auth::coordinator::AuthCoordinator::prepare_from_local_session_database(
-            snapback.remainder_auth_database_mut(),
+        snapback.remainder_auth_fixture().prepare_auth_coordinator(
             admission,
             provider.now_ms(),
             provider.monotonic_now(),
@@ -20292,7 +20272,7 @@ async fn guest_claim_prod_availability_preempts_real_preexhausted_and_occupied_s
         }
     }
     let before = with_snapback(&state.snapback, |snapback| {
-        let database = snapback.remainder_auth_database_mut();
+        let mut database = snapback.remainder_auth_fixture();
         Ok::<_, crate::diagnostic::SnapbackError>((
             database.authentication_attempt_charge_counts_for_test()?,
             database.password_identity_subject_count_for_test(occupied_email)?,
@@ -20357,7 +20337,7 @@ async fn guest_claim_prod_availability_preempts_real_preexhausted_and_occupied_s
         }
     }
     let after = with_snapback(&state.snapback, |snapback| {
-        let database = snapback.remainder_auth_database_mut();
+        let mut database = snapback.remainder_auth_fixture();
         Ok::<_, crate::diagnostic::SnapbackError>((
             database.authentication_attempt_charge_counts_for_test()?,
             database.password_identity_subject_count_for_test(occupied_email)?,
@@ -20594,8 +20574,8 @@ async fn password_routes_signup_authorize_signin_and_recover_end_to_end() {
     let durable_now_ms = provider.now_ms();
     let durable_admission = provider.admit().await;
     let durable = with_snapback(&state.snapback, move |snapback| {
-        durable_admission.resolve_session(
-            snapback.remainder_auth_database_mut(),
+        snapback.remainder_auth_fixture().resolve_session(
+            &durable_admission,
             &durable_token,
             durable_now_ms,
         )
@@ -20693,7 +20673,7 @@ async fn password_public_invalid_refusal_is_uniform_and_admin_unlock_clears_earl
     let now_ms = provider.now_ms();
     with_snapback(&state.snapback, move |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .insert_password_attempt_for_test(
                 "locked-password@example.com",
                 now_ms,
@@ -20864,7 +20844,7 @@ async fn password_change_closed_union_rotates_and_requires_step_up_for_first_set
     let sibling_fixture_bearer = email_bearer.clone();
     let sibling_identity_id = with_snapback(&state.snapback, move |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .insert_email_code_identity_for_live_session_for_test(
                 &sibling_fixture_bearer,
                 sibling_email,
@@ -20987,7 +20967,7 @@ async fn password_change_closed_union_rotates_and_requires_step_up_for_first_set
         "first-password set must issue a fresh authority instance"
     );
     let password_subject_counts = with_snapback(&state.snapback, move |snapback| {
-        let database = snapback.remainder_auth_database_mut();
+        let mut database = snapback.remainder_auth_fixture();
         Ok::<_, crate::diagnostic::SnapbackError>((
             database.password_identity_subject_count_for_test(set_email)?,
             database.password_identity_subject_count_for_test(sibling_email)?,
@@ -21140,7 +21120,7 @@ async fn push_registry_routes_keep_token_custody_and_logout_retirement_host_owne
     let state = activate_test_sessions(state);
     with_snapback(&state.snapback, |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .activate_push_registry_for_test(crate::push::PushSeamDeclarationV1 {
                 app_scope: crate::push::PushAppScopeV1 {
                     eas_project_id: "eas-route".into(),
@@ -21217,7 +21197,7 @@ async fn push_registry_routes_keep_token_custody_and_logout_retirement_host_owne
         .expect("logout registered session");
     assert_eq!(logout.status(), StatusCode::NO_CONTENT);
     let (inspection, bytes) = with_snapback(&state.snapback, |snapback| {
-        let db = snapback.remainder_auth_database_mut();
+        let mut db = snapback.remainder_auth_fixture();
         let inspection = db.push_registry_inspection()?;
         let bytes = db.push_registry().token_bytes_for_test()?;
         Ok::<_, SnapbackError>((inspection, bytes))
@@ -21264,7 +21244,7 @@ async fn open_registration_mints_exactly_one_credential_and_a_kind_agent_princip
 
     let inspected = with_snapback(&state.snapback, move |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .auth_catalog()
             .agent_registration_facts_for_test(&user_id)
     })
@@ -21385,7 +21365,7 @@ async fn user_minted_invitation_requires_step_up_and_is_single_use() {
     );
     let invitation_row = with_snapback(&state.snapback, move |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .auth_catalog()
             .invitation_consumption_for_test(&invitation_id)
     })
@@ -21405,7 +21385,7 @@ async fn invited_registration_records_the_minting_user_as_owner() {
     // scope bases the fixture leaves to its caller.
     with_snapback(&state.snapback, |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .reconcile_auth_scope_bases(&activation_functions('2', false))
     })
     .await
@@ -21427,11 +21407,7 @@ async fn invited_registration_records_the_minting_user_as_owner() {
     let credential = registered["credential"].as_str().unwrap().to_owned();
     let owner_recorded = with_snapback(&state.snapback, {
         let agent_id = agent_id.clone();
-        move |snapback| {
-            snapback
-                .remainder_auth_database_mut()
-                .agent_owner(&agent_id)
-        }
+        move |snapback| snapback.remainder_auth_fixture().agent_owner(&agent_id)
     })
     .await
     .unwrap();
@@ -21519,7 +21495,7 @@ async fn registered_agent_completes_the_full_pairing_journey() {
     // scope bases the fixture now leaves to its caller.
     with_snapback(&state.snapback, |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .reconcile_auth_scope_bases(&activation_functions('2', false))
     })
     .await
@@ -21645,7 +21621,7 @@ async fn integration_key_holder_retires_the_complete_installed_family() {
     let state = sessions_activation_server_fixture_with_integrations_async().await;
     with_snapback(&state.snapback, |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .reconcile_auth_scope_bases(&activation_functions('2', false))
     })
     .await
@@ -21755,7 +21731,7 @@ async fn integration_key_holder_retires_the_complete_installed_family() {
     let integration_caller_key = with_snapback(&state.snapback, move |snapback| {
         Ok::<_, SnapbackError>(
             snapback
-                .remainder_auth_database_mut()
+                .remainder_auth_fixture()
                 .integration_record_if_present(&integration_principal)?
                 .unwrap()
                 .integration_id,
@@ -22115,7 +22091,7 @@ async fn integration_key_holder_retires_the_complete_installed_family() {
         StatusCode::UNAUTHORIZED
     );
     let facts = with_snapback(&state.snapback, move |snapback| {
-        let db = snapback.remainder_auth_database_mut();
+        let mut db = snapback.remainder_auth_fixture();
         let record = db.integration_record_for_test(&integration_id)?.unwrap();
         let revoked = db.integration_grant_revoked_for_test(&grant_id)?;
         let resumed_revoked = db.integration_grant_revoked_for_test(&resumed_grant_id)?;
@@ -22206,9 +22182,9 @@ async fn deactivated_agent_cannot_re_register_or_reuse_its_credential() {
     with_snapback(&state.snapback, {
         let agent_id = agent_id.clone();
         move |snapback| {
-            let manifest = snapback.remainder_auth_database_mut().schema().clone();
+            let manifest = snapback.remainder_auth_fixture().schema().clone();
             snapback
-                .remainder_auth_database_mut()
+                .remainder_auth_fixture()
                 .deactivate_agent(&agent_id, now_ms, &manifest)
         }
     })
@@ -22252,7 +22228,7 @@ async fn agent_token_route_accepts_exactly_one_target_and_returns_complete_recei
     let provider = state.auth_provider.clone().unwrap();
     let now_ms = provider.now_ms();
     let (agent_user_id, credential) = with_snapback(&state.snapback, move |snapback| {
-        let db = snapback.remainder_auth_database_mut();
+        let mut db = snapback.remainder_auth_fixture();
         db.auth_catalog()
             .insert_human_user_for_test("grant-user", now_ms)?;
         let issued = db.register_agent_principal(
@@ -22261,7 +22237,7 @@ async fn agent_token_route_accepts_exactly_one_target_and_returns_complete_recei
             None,
             ServerProfile::Test,
             now_ms,
-            provider.agent_random_source(),
+            &OsRandom,
         )?;
         db.auth_catalog()
             .insert_agent_token_route_fixtures_for_test(&issued.user_id, now_ms)?;
@@ -22560,7 +22536,7 @@ async fn agent_token_route_accepts_exactly_one_target_and_returns_complete_recei
 
     with_snapback(&state.snapback, move |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .auth_catalog()
             .set_agent_credential_rotated_at_for_test(&agent_user_id, 0)
     })
@@ -22622,14 +22598,14 @@ async fn bulk_grant_revocation_is_owner_scoped_idempotent_and_no_store_over_http
     let now_ms = provider.now_ms();
     let owner_id_for_setup = owner_id.clone();
     let agent_user_id = with_snapback(&state.snapback, move |snapback| {
-        let db = snapback.remainder_auth_database_mut();
+        let mut db = snapback.remainder_auth_fixture();
         let issued = db.register_agent_principal(
             None,
             Some("Bulk Route Agent".to_owned()),
             None,
             ServerProfile::Test,
             now_ms,
-            provider.agent_random_source(),
+            &OsRandom,
         )?;
         db.auth_catalog().insert_bulk_route_grants_for_test(
             &issued.user_id,
@@ -22742,14 +22718,14 @@ async fn grant_step_up_is_domain_separated_target_bound_and_single_effect() {
     let request_ids = with_snapback(&state.snapback, {
         let user_id = user_id.clone();
         move |snapback| {
-            let db = snapback.remainder_auth_database_mut();
+            let mut db = snapback.remainder_auth_fixture();
             let issued = db.register_agent_principal(
                 None,
                 Some("Step-up Agent".to_owned()),
                 None,
                 ServerProfile::Test,
                 now_ms,
-                provider.agent_random_source(),
+                &OsRandom,
             )?;
             let agent_credential = issued.secret;
             db.auth_catalog().insert_step_up_scope_bases_for_test()?;
@@ -22820,8 +22796,9 @@ async fn grant_step_up_is_domain_separated_target_bound_and_single_effect() {
     let login_admission = provider.admit_email("step-up@example.com").await.unwrap();
     let login_now_ms = provider.now_ms();
     let login_challenge = with_snapback(&state.snapback, move |snapback| {
-        login_admission
-            .request_code(snapback.remainder_auth_database_mut(), login_now_ms)
+        snapback
+            .remainder_auth_fixture()
+            .request_code(&login_admission, login_now_ms)
             .map(|response| response.challenge_id)
     })
     .await
@@ -22997,7 +22974,7 @@ async fn grant_step_up_is_domain_separated_target_bound_and_single_effect() {
 
     with_snapback(&state.snapback, move |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .auth_catalog()
             .assert_step_up_consumption_for_test(&bound_request, &challenge_id, &code)
     })
@@ -23038,7 +23015,7 @@ async fn production_step_up_delivery_fails_closed_without_capture() {
     );
     let challenge_count = with_snapback(&state.snapback, |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .auth_catalog()
             .verification_address_count_for_test("prod-step-up@example.com")
     })
@@ -24462,13 +24439,10 @@ async fn postcommit_admin_mint_cap_finalize_failure_still_terminalizes_eviction(
     let clock = Arc::new(ManualServerAuthClock::new(start_ms));
     let mut snapback = LocalSnapback::memory().expect("manual-clock cap fixture");
     let keyring = Arc::new(AuthKeyringStore::in_memory());
-    activate_catalog(
-        snapback.remainder_auth_database_mut(),
-        keyring.as_ref(),
-        start_ms,
-        &OsRandom,
-    )
-    .expect("activate cap auth catalog");
+    snapback
+        .remainder_auth_fixture()
+        .activate_catalog(keyring.as_ref(), start_ms, &OsRandom)
+        .expect("activate cap auth catalog");
     let provider = Arc::new(
         AuthProvider::new_with_dependencies(
             AuthProviderProfile::Test,
@@ -24588,13 +24562,10 @@ async fn refresh_gate_preserves_outside_grace_reuse_revocation() {
     let clock = Arc::new(ManualServerAuthClock::new(start_ms));
     let mut snapback = LocalSnapback::memory().expect("manual-clock refresh fixture");
     let keyring = Arc::new(AuthKeyringStore::in_memory());
-    activate_catalog(
-        snapback.remainder_auth_database_mut(),
-        keyring.as_ref(),
-        start_ms,
-        &OsRandom,
-    )
-    .expect("activate manual-clock auth catalog");
+    snapback
+        .remainder_auth_fixture()
+        .activate_catalog(keyring.as_ref(), start_ms, &OsRandom)
+        .expect("activate manual-clock auth catalog");
     let provider = Arc::new(
         AuthProvider::new_with_dependencies(
             AuthProviderProfile::Test,
@@ -24833,13 +24804,10 @@ async fn successful_finite_session_use_extends_the_projection_deadline() {
     let clock = Arc::new(ManualServerAuthClock::new(start_ms));
     let mut snapback = LocalSnapback::memory().expect("manual-clock auth fixture");
     let keyring = Arc::new(AuthKeyringStore::in_memory());
-    activate_catalog(
-        snapback.remainder_auth_database_mut(),
-        keyring.as_ref(),
-        start_ms,
-        &OsRandom,
-    )
-    .expect("activate manual-clock auth catalog");
+    snapback
+        .remainder_auth_fixture()
+        .activate_catalog(keyring.as_ref(), start_ms, &OsRandom)
+        .expect("activate manual-clock auth catalog");
     let provider = Arc::new(
         AuthProvider::new_with_dependencies(
             AuthProviderProfile::Test,
@@ -29711,13 +29679,10 @@ fn held_action_host(
 async fn detached_ctx_push_send_durable_reservation_returns_without_admission_reentry() {
     let mut snapback = LocalSnapback::memory().expect("push deadlock regression state");
     let keyring = Arc::new(AuthKeyringStore::in_memory());
-    activate_catalog(
-        snapback.remainder_auth_database_mut(),
-        keyring.as_ref(),
-        super::now_millis(),
-        &OsRandom,
-    )
-    .expect("activate push deadlock auth catalog");
+    snapback
+        .remainder_auth_fixture()
+        .activate_catalog(keyring.as_ref(), super::now_millis(), &OsRandom)
+        .expect("activate push deadlock auth catalog");
     let provider = Arc::new(
         AuthProvider::new(AuthProviderProfile::Test, keyring)
             .expect("construct push deadlock auth provider"),
@@ -29732,7 +29697,7 @@ async fn detached_ctx_push_send_durable_reservation_returns_without_admission_re
     );
     with_snapback(&state.snapback, |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .activate_push_registry_for_test(crate::push::PushSeamDeclarationV1 {
                 app_scope: crate::push::PushAppScopeV1 {
                     eas_project_id: "eas-deadlock-regression".into(),
@@ -29820,7 +29785,7 @@ async fn watch_reaction_ctx_push_send_without_caller_publication_commits() {
         let watch_id = watch_id.clone();
         move |snapback| {
             let declaration = immediate_push_declaration();
-            let database = snapback.remainder_auth_database_mut();
+            let mut database = snapback.remainder_auth_fixture();
             database.activate_push_registry_for_test(declaration.clone())?;
             let mut schema = database.schema().clone();
             schema.push_seam = Some(declaration);
@@ -30086,7 +30051,7 @@ async fn llp0163_managed_host_action_retries_reuse_one_host_child_envelope() {
         "managed host identity functions load: {diagnostics:?}"
     );
     snapback
-        .remainder_auth_database_mut()
+        .remainder_auth_fixture()
         .install_operation_coverage_for_test(
             vec![crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1.to_owned()],
             crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1
@@ -30136,7 +30101,7 @@ async fn llp0163_managed_host_action_retries_reuse_one_host_child_envelope() {
     let mut snapback = state.lock().await;
     assert_eq!(
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .query_reads_read()
             .scan_table("items", 10, 0)
             .expect("scan carrier rows")
@@ -30145,7 +30110,7 @@ async fn llp0163_managed_host_action_retries_reuse_one_host_child_envelope() {
         "attempt-local run ids must not duplicate a committed child"
     );
     let envelopes = snapback
-        .remainder_auth_database_mut()
+        .remainder_auth_fixture()
         .settlement_read()
         .operation_envelopes_for_test()
         .expect("load retained host envelopes");
@@ -32973,13 +32938,10 @@ fn connection_registry_negotiates_exact_invalidation_v1_with_bound_authority() {
     let mut predecessor =
         LocalSnapback::open(&path).expect("file-backed connection registry fixture");
     let keyring = Arc::new(AuthKeyringStore::in_memory());
-    activate_catalog(
-        predecessor.remainder_auth_database_mut(),
-        keyring.as_ref(),
-        super::now_millis(),
-        &OsRandom,
-    )
-    .expect("activate connection registry auth catalog");
+    predecessor
+        .remainder_auth_fixture()
+        .activate_catalog(keyring.as_ref(), super::now_millis(), &OsRandom)
+        .expect("activate connection registry auth catalog");
     let provider = AuthProvider::new(AuthProviderProfile::Test, keyring)
         .expect("construct connection registry auth provider");
     // Boot 1 has no predecessor. End that database-open lifetime before
@@ -36241,7 +36203,7 @@ async fn mode_only_migration_reservation_wins(site: ModeOnlyMigrationAuthorizedE
         let session_id = session_id.clone();
         move |snapback| {
             snapback
-                .remainder_auth_database_mut()
+                .remainder_auth_fixture()
                 .auth_catalog()
                 .session_lifetime_facts_for_test(&session_id)
         }
@@ -36259,7 +36221,7 @@ async fn mode_only_migration_reservation_wins(site: ModeOnlyMigrationAuthorizedE
     assert_eq!(logout.status(), StatusCode::NO_CONTENT);
     let terminal_session_facts = with_snapback(&state.snapback, move |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .auth_catalog()
             .session_lifetime_facts_for_test(&session_id)
     })
@@ -36905,7 +36867,7 @@ async fn immediate_push_authorized_effect_fixture(
         let session_id = session_id.clone();
         let installation_id = installation_id.clone();
         move |snapback| {
-            let database = snapback.remainder_auth_database_mut();
+            let mut database = snapback.remainder_auth_fixture();
             database.activate_push_registry_for_test(declaration.clone())?;
             let mut schema = database.schema().clone();
             schema.push_seam = Some(declaration.clone());
@@ -37229,7 +37191,7 @@ async fn immediate_push_reservation_wins(site: ImmediatePushAuthorizedEffectSite
         let session_id = fixture.session_id.clone();
         move |snapback| {
             snapback
-                .remainder_auth_database_mut()
+                .remainder_auth_fixture()
                 .auth_catalog()
                 .session_lifetime_facts_for_test(&session_id)
         }
@@ -37252,7 +37214,7 @@ async fn immediate_push_reservation_wins(site: ImmediatePushAuthorizedEffectSite
         let session_id = fixture.session_id.clone();
         move |snapback| {
             snapback
-                .remainder_auth_database_mut()
+                .remainder_auth_fixture()
                 .auth_catalog()
                 .session_lifetime_facts_for_test(&session_id)
         }
@@ -38309,7 +38271,7 @@ async fn asset_reservation_wins_before_logout(site: AssetAuthorizedEffectSite) {
         let session_id = fixture.session_id.clone();
         move |snapback| {
             snapback
-                .remainder_auth_database_mut()
+                .remainder_auth_fixture()
                 .auth_catalog()
                 .session_lifetime_facts_for_test(&session_id)
         }
@@ -38329,7 +38291,7 @@ async fn asset_reservation_wins_before_logout(site: AssetAuthorizedEffectSite) {
         let session_id = fixture.session_id.clone();
         move |snapback| {
             snapback
-                .remainder_auth_database_mut()
+                .remainder_auth_fixture()
                 .auth_catalog()
                 .session_lifetime_facts_for_test(&session_id)
         }
@@ -38700,7 +38662,7 @@ async fn logout_wins_after_preparation_before_authority_work_reservation() {
     assert_eq!(logout.status(), StatusCode::NO_CONTENT);
     let session_facts = with_snapback(&state.snapback, move |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .auth_catalog()
             .session_lifetime_facts_for_test(&session_id)
     })
@@ -38854,7 +38816,7 @@ async fn authorized_effect_reservation_commits_before_logout_terminal_write() {
         let session_id = session_id.clone();
         move |snapback| {
             snapback
-                .remainder_auth_database_mut()
+                .remainder_auth_fixture()
                 .auth_catalog()
                 .session_lifetime_facts_for_test(&session_id)
         }
@@ -38872,7 +38834,7 @@ async fn authorized_effect_reservation_commits_before_logout_terminal_write() {
     assert_eq!(logout_response.status(), StatusCode::NO_CONTENT);
     let terminal_session_facts = with_snapback(&state.snapback, move |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .auth_catalog()
             .session_lifetime_facts_for_test(&session_id)
     })
@@ -39152,7 +39114,7 @@ async fn committed_reset_rebuilds_every_invalidation_projection_before_reopening
     assert_ne!(successor, predecessor);
     let durable = with_snapback(&state.snapback, |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .authorization_version()
             .expect("durable reset authorization")
     })
@@ -39409,7 +39371,7 @@ async fn dormant_dev_reset_rotates_stream_without_installing_a_session_issuer() 
         assert_ne!(successor, predecessor, "reset {reset_index} rotates stream");
         let durable = with_snapback(&state.snapback, |snapback| {
             snapback
-                .remainder_auth_database_mut()
+                .remainder_auth_fixture()
                 .authorization_version()
                 .expect("durable dormant successor")
         })
@@ -39478,7 +39440,7 @@ async fn active_dev_ready_catalog_reset_stays_session_issuer_free() {
     assert_ne!(successor, predecessor);
     let durable = with_snapback(&state.snapback, |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .authorization_version()
             .expect("durable ready Dev successor")
     })
@@ -39600,7 +39562,7 @@ async fn postcommit_reset_finalize_failure_clears_issuers_and_stays_globally_clo
         Duration::from_secs(2),
         with_snapback(&state.snapback, |snapback| {
             snapback
-                .remainder_auth_database_mut()
+                .remainder_auth_fixture()
                 .authorization_version()
                 .expect("durable committed successor")
         }),
@@ -41314,7 +41276,7 @@ async fn watch_management_race_fixture(
     let seed_principal_id = principal_id.clone();
     let seed_session_id = session_id.clone();
     with_snapback(&state.snapback, move |snapback| {
-        let db = snapback.remainder_auth_database_mut();
+        let mut db = snapback.remainder_auth_fixture();
         if site == WatchManagementRaceSite::Renew {
             db.seed_renewable_watch_for_management_test(
                 &seed_watch_id,
@@ -41402,7 +41364,7 @@ async fn watch_management_facts(
     let watch_id = fixture.watch_id.clone();
     with_snapback(&fixture.state.snapback, move |snapback| {
         snapback
-            .remainder_auth_database_mut()
+            .remainder_auth_fixture()
             .watch_management_facts_for_test(&watch_id)
     })
     .await
@@ -41614,7 +41576,7 @@ async fn watch_management_reservation_wins(site: WatchManagementRaceSite) {
         let session_id = fixture.session_id.clone();
         move |snapback| {
             snapback
-                .remainder_auth_database_mut()
+                .remainder_auth_fixture()
                 .auth_catalog()
                 .session_lifetime_facts_for_test(&session_id)
         }
@@ -41634,7 +41596,7 @@ async fn watch_management_reservation_wins(site: WatchManagementRaceSite) {
         let session_id = fixture.session_id.clone();
         move |snapback| {
             snapback
-                .remainder_auth_database_mut()
+                .remainder_auth_fixture()
                 .auth_catalog()
                 .session_lifetime_facts_for_test(&session_id)
         }

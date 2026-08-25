@@ -2,7 +2,7 @@
 // cross the engine crate's feature-gated test-support boundary.
 #[cfg(test)]
 pub(crate) trait RemainderLocalSnapbackExt {
-    fn remainder_auth_database_mut(&mut self) -> &mut snapback_kernel::storage::LocalDatabase;
+    fn remainder_auth_fixture(&mut self) -> snapback_engine::test_support::AuthFixture<'_>;
 
     fn remainder_erase_protected_record(
         &mut self,
@@ -50,8 +50,8 @@ pub(crate) trait RemainderLocalSnapbackExt {
 
 #[cfg(test)]
 impl RemainderLocalSnapbackExt for crate::local::LocalSnapback {
-    fn remainder_auth_database_mut(&mut self) -> &mut snapback_kernel::storage::LocalDatabase {
-        snapback_engine::test_support::auth_database_mut(self)
+    fn remainder_auth_fixture(&mut self) -> snapback_engine::test_support::AuthFixture<'_> {
+        snapback_engine::test_support::auth_fixture(self)
     }
 
     fn remainder_erase_protected_record(
@@ -74,9 +74,7 @@ impl RemainderLocalSnapbackExt for crate::local::LocalSnapback {
     fn remainder_initialize_commit_capsule_prototype(
         &mut self,
     ) -> crate::diagnostic::SnapbackResult<()> {
-        snapback_kernel::storage::commit_capsule_prototype::initialize(
-            snapback_engine::test_support::auth_database_mut(self),
-        )
+        snapback_engine::test_support::initialize_commit_capsule_prototype(self)
     }
 
     fn remainder_stage_commit_capsule_prototype<'a>(
@@ -86,8 +84,8 @@ impl RemainderLocalSnapbackExt for crate::local::LocalSnapback {
     ) -> crate::diagnostic::SnapbackResult<
         snapback_kernel::storage::commit_capsule_prototype::PrototypeStage<'a>,
     > {
-        snapback_kernel::storage::commit_capsule_prototype::stage(
-            snapback_engine::test_support::auth_database_mut(self),
+        snapback_engine::test_support::stage_commit_capsule_prototype(
+            self,
             intent,
             include_consumed_proof,
         )
@@ -104,10 +102,7 @@ impl RemainderLocalSnapbackExt for crate::local::LocalSnapback {
             >,
         >,
     > {
-        snapback_kernel::storage::commit_capsule_prototype::exact_reconciliation(
-            snapback_engine::test_support::auth_database_mut(self),
-            intent,
-        )
+        snapback_engine::test_support::reconcile_commit_capsule_prototype(self, intent)
     }
 
     fn remainder_commit_capsule_prototype_facts(
@@ -116,9 +111,6 @@ impl RemainderLocalSnapbackExt for crate::local::LocalSnapback {
     ) -> crate::diagnostic::SnapbackResult<
         snapback_kernel::storage::commit_capsule_prototype::PrototypeFacts,
     > {
-        snapback_kernel::storage::commit_capsule_prototype::facts(
-            snapback_engine::test_support::auth_database_mut(self),
-            intent,
-        )
+        snapback_engine::test_support::commit_capsule_prototype_facts(self, intent)
     }
 }

@@ -51,6 +51,599 @@ pub struct SignedAssetFixture {
     pub authority: PreparedAuthority,
 }
 
+/// Finite compatibility surface for higher-ranked auth fixtures.
+///
+/// This deliberately does not implement `Deref`/`DerefMut`, expose a raw
+/// database borrow, or accept caller-provided callbacks. Adding an operation
+/// therefore requires an explicit, reviewable forwarding method here instead
+/// of silently making every current and future `LocalDatabase` method
+/// dependent-reachable.
+pub struct AuthFixture<'a> {
+    snapback: &'a mut LocalSnapback,
+}
+
+impl AuthFixture<'_> {
+    fn database(&mut self) -> &mut crate::storage::LocalDatabase {
+        self.snapback.auth_database_mut()
+    }
+
+    pub fn auth_catalog(&mut self) -> crate::storage::AuthCatalogKernel<'_> {
+        self.database().auth_catalog()
+    }
+
+    pub fn auth_catalog_read(&mut self) -> crate::storage::AuthCatalogKernel<'_> {
+        self.database().auth_catalog_read()
+    }
+
+    pub fn mutation_writes(&mut self) -> crate::storage::MutationWritesKernel<'_> {
+        self.database().mutation_writes()
+    }
+
+    pub fn settlement_read(&mut self) -> crate::storage::SettlementReadKernel<'_> {
+        self.database().settlement_read()
+    }
+
+    pub fn query_reads_read(&mut self) -> crate::storage::QueryReadsReadKernel<'_> {
+        self.database().query_reads_read()
+    }
+
+    pub fn schema(&mut self) -> &crate::manifest::SchemaManifest {
+        self.database().schema()
+    }
+
+    pub fn ensure_authorization_stream_incarnation(
+        &mut self,
+    ) -> SnapbackResult<crate::contract_types::AuthorizationStreamIncarnation> {
+        self.database().ensure_authorization_stream_incarnation()
+    }
+
+    pub fn authorization_version(
+        &mut self,
+    ) -> SnapbackResult<crate::storage::AuthorizationVersion> {
+        self.database().authorization_version()
+    }
+
+    pub fn auth_session_clock_floor(&mut self) -> SnapbackResult<u64> {
+        self.database().auth_session_clock_floor()
+    }
+
+    pub fn auth_mode_state(&mut self) -> SnapbackResult<crate::auth::mode::AuthModeStateRecord> {
+        self.database()
+            .auth_mode_snapshot()
+            .map(|snapshot| snapshot.state)
+    }
+
+    pub fn activate_current_auth_catalog_with_password_identifier_mode(
+        &mut self,
+        mode: crate::storage::auth::PasswordIdentifierMode,
+    ) -> SnapbackResult<()> {
+        self.database()
+            .activate_current_auth_catalog_with_password_identifier_mode(mode)
+    }
+
+    pub fn activate_push_registry_for_test(
+        &mut self,
+        declaration: crate::push::PushSeamDeclarationV1,
+    ) -> SnapbackResult<()> {
+        self.database().activate_push_registry_for_test(declaration)
+    }
+
+    pub fn push_registry_inspection(
+        &mut self,
+    ) -> SnapbackResult<crate::push::PushRegistryInspectionV1> {
+        self.database().push_registry_inspection()
+    }
+
+    pub fn operation_lane_covered(&mut self, lane: &str) -> SnapbackResult<bool> {
+        self.database().operation_lane_covered(lane)
+    }
+
+    pub fn install_operation_coverage_for_test(
+        &mut self,
+        lanes: Vec<String>,
+        writers: Vec<String>,
+    ) -> SnapbackResult<()> {
+        self.database()
+            .install_operation_coverage_for_test(lanes, writers)
+    }
+
+    pub fn insert_password_attempt_for_test(
+        &mut self,
+        address: &str,
+        window_start_ms: u64,
+        failed_count: u64,
+        locked_until_ms: Option<u64>,
+    ) -> SnapbackResult<()> {
+        self.database().insert_password_attempt_for_test(
+            address,
+            window_start_ms,
+            failed_count,
+            locked_until_ms,
+        )
+    }
+
+    pub fn reconcile_auth_scope_bases(
+        &mut self,
+        manifest: &FunctionManifest,
+    ) -> SnapbackResult<snapback_kernel::storage::auth_scope_bases::ScopeBasisReconciliation> {
+        self.database().reconcile_auth_scope_bases(manifest)
+    }
+
+    pub fn current_auth_scope_basis(
+        &mut self,
+        function_id: &str,
+        kind: &crate::manifest::FunctionKind,
+        authority_creating: bool,
+    ) -> SnapbackResult<Option<u64>> {
+        self.database()
+            .current_auth_scope_basis(function_id, kind, authority_creating)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn register_agent_principal(
+        &mut self,
+        invitation: Option<&crate::auth::crypto::CreationInvitation>,
+        display_name: Option<String>,
+        operator_contact: Option<String>,
+        profile: ServerProfile,
+        now_ms: u64,
+        random: &dyn crate::auth::crypto::RandomSource,
+    ) -> SnapbackResult<snapback_kernel::storage::auth_agent_credentials::IssuedAgentCredential>
+    {
+        self.database().register_agent_principal(
+            invitation,
+            display_name,
+            operator_contact,
+            profile,
+            now_ms,
+            random,
+        )
+    }
+
+    pub fn agent_owner(&mut self, user_id: &str) -> SnapbackResult<Option<String>> {
+        self.database().agent_owner(user_id)
+    }
+
+    pub fn deactivate_agent(
+        &mut self,
+        user_id: &str,
+        now_ms: u64,
+        manifest: &crate::manifest::SchemaManifest,
+    ) -> SnapbackResult<()> {
+        self.database().deactivate_agent(user_id, now_ms, manifest)
+    }
+
+    pub fn rotate_agent_credential(
+        &mut self,
+        credential: &crate::auth::crypto::AgentCredential,
+        now_ms: u64,
+        random: &dyn crate::auth::crypto::RandomSource,
+    ) -> SnapbackResult<snapback_kernel::storage::auth_agent_credentials::RotatedAgentCredential>
+    {
+        self.database()
+            .rotate_agent_credential(credential, now_ms, random)
+    }
+
+    pub fn revoke_agent_credential_family(
+        &mut self,
+        credential: &crate::auth::crypto::AgentCredential,
+        now_ms: u64,
+    ) -> SnapbackResult<snapback_kernel::storage::auth_agent_credentials::AgentFamilyRevocation>
+    {
+        self.database()
+            .revoke_agent_credential_family(credential, now_ms)
+    }
+
+    pub fn mint_scoped_token(
+        &mut self,
+        credential: &crate::auth::crypto::AgentCredential,
+        grant_id: &str,
+        ttl_ms: Option<u64>,
+        now_ms: u64,
+        random: &dyn crate::auth::crypto::RandomSource,
+    ) -> SnapbackResult<snapback_kernel::storage::auth_agent_credentials::IssuedScopedToken> {
+        self.database()
+            .mint_scoped_token(credential, grant_id, ttl_ms, now_ms, random)
+    }
+
+    pub fn resolve_scoped_token(
+        &mut self,
+        token: &crate::auth::crypto::ScopedToken,
+        now_ms: u64,
+    ) -> SnapbackResult<snapback_kernel::storage::auth_agent_credentials::ResolvedScopedToken> {
+        self.database().resolve_scoped_token(token, now_ms)
+    }
+
+    pub fn terminalize_expired_service_authority(
+        &mut self,
+        deadline: &crate::auth::service_authority_contract::ServiceAuthorityDeadlineTerminal,
+    ) -> SnapbackResult<()> {
+        self.database()
+            .terminalize_expired_service_authority(deadline)
+    }
+
+    pub fn mint_pairing_code(
+        &mut self,
+        user_id: &str,
+        now_ms: u64,
+        random: &dyn crate::auth::crypto::RandomSource,
+    ) -> SnapbackResult<snapback_kernel::storage::auth_grants::MintedPairingCode> {
+        self.database().mint_pairing_code(user_id, now_ms, random)
+    }
+
+    pub fn present_pairing_code(
+        &mut self,
+        credential: &crate::auth::crypto::AgentCredential,
+        pairing_request_id: &str,
+        pairing_code: &crate::auth::crypto::PairingCode,
+        requested_scopes: &[snapback_kernel::storage::auth_grants::GrantScopeRequest],
+        now_ms: u64,
+    ) -> SnapbackResult<snapback_kernel::storage::auth_grants::PairingPresentation> {
+        self.database().present_pairing_code(
+            credential,
+            pairing_request_id,
+            pairing_code,
+            requested_scopes,
+            now_ms,
+        )
+    }
+
+    pub fn revoke_grant_for_user(
+        &mut self,
+        effective_user_id: &str,
+        grant_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<snapback_kernel::storage::auth_grants::GrantRevocation> {
+        self.database()
+            .revoke_grant_for_user(effective_user_id, grant_id, now_ms)
+    }
+
+    pub fn stage_auth_mode(
+        &mut self,
+        requested_deployment: crate::auth::mode::DeploymentIdentity,
+        schema_manifest: crate::manifest::SchemaManifest,
+        seed: Option<crate::manifest::SeedData>,
+    ) -> SnapbackResult<crate::auth::mode::AuthModeStateRecord> {
+        self.database()
+            .stage_auth_mode(requested_deployment, schema_manifest, seed)
+    }
+
+    pub fn consume_sessions_auth_mode(
+        &mut self,
+        readiness: &crate::auth::mode::AuthProgramReadiness,
+    ) -> SnapbackResult<crate::auth::mode::AuthModeStateRecord> {
+        self.database().consume_sessions_auth_mode(readiness)
+    }
+
+    pub fn declared_client_for_admission(
+        &mut self,
+        normalized_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<Option<snapback_kernel::storage::declared_clients::DeclaredClientRecord>>
+    {
+        self.database()
+            .declared_client_for_admission(normalized_id, now_ms)
+    }
+
+    pub fn set_declared_client_status(
+        &mut self,
+        normalized_id: &str,
+        status: snapback_kernel::storage::declared_clients::DeclaredClientStatus,
+    ) -> SnapbackResult<snapback_kernel::storage::declared_clients::DeclaredClientRecord> {
+        self.database()
+            .set_declared_client_status(normalized_id, status)
+    }
+
+    pub fn mint_capability_link(
+        &mut self,
+        request: snapback_kernel::storage::capability_links::MintCapabilityLink,
+    ) -> SnapbackResult<snapback_kernel::storage::capability_links::MintedCapabilityLink> {
+        self.database().mint_capability_link(request)
+    }
+
+    pub fn pending_effect(
+        &mut self,
+        id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<snapback_kernel::storage::pending_effects::PendingEffectRecord> {
+        self.database().pending_effect(id, now_ms)
+    }
+
+    pub fn identity_claims(
+        &mut self,
+        session_id: &str,
+        now_ms: u64,
+        profile: ServerProfile,
+    ) -> SnapbackResult<snapback_types::auth::identity_core::AuthClaimsProjection> {
+        self.database().identity_claims(session_id, now_ms, profile)
+    }
+
+    pub fn identity_reap_guests_default_tombstone(
+        &mut self,
+        now_ms: u64,
+    ) -> SnapbackResult<snapback_kernel::storage::auth_identity::GuestReapBatch> {
+        self.database()
+            .identity_reap_guests_default_tombstone(now_ms)
+    }
+
+    pub fn disable_identity_for_test(
+        &mut self,
+        provider: &str,
+        subject: &str,
+        disabled_at_ms: u64,
+    ) -> SnapbackResult<()> {
+        self.database()
+            .disable_identity_for_test(provider, subject, disabled_at_ms)
+    }
+
+    pub fn insert_email_code_identity_for_live_session_for_test(
+        &mut self,
+        bearer: &str,
+        address: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<String> {
+        self.database()
+            .insert_email_code_identity_for_live_session_for_test(bearer, address, now_ms)
+    }
+
+    pub fn authentication_attempt_charge_counts_for_test(
+        &mut self,
+    ) -> SnapbackResult<Vec<(String, String, i64)>> {
+        Ok(self
+            .database()
+            .authentication_attempt_charge_counts_for_test()?)
+    }
+
+    pub fn password_identity_subject_count_for_test(
+        &mut self,
+        subject: &str,
+    ) -> SnapbackResult<i64> {
+        Ok(self
+            .database()
+            .password_identity_subject_count_for_test(subject)?)
+    }
+
+    pub fn integration_record_if_present(
+        &mut self,
+        principal_user_id: &str,
+    ) -> SnapbackResult<Option<snapback_kernel::storage::auth_integrations::IntegrationRecord>>
+    {
+        self.database()
+            .integration_record_if_present(principal_user_id)
+    }
+
+    pub fn set_integration_suspended(
+        &mut self,
+        principal_user_id: &str,
+        suspended: bool,
+        now_ms: u64,
+    ) -> SnapbackResult<snapback_kernel::storage::auth_integrations::IntegrationRecord> {
+        self.database()
+            .set_integration_suspended(principal_user_id, suspended, now_ms)
+    }
+
+    pub fn integration_record_for_test(
+        &mut self,
+        principal_user_id: &str,
+    ) -> SnapbackResult<Option<snapback_kernel::storage::auth_integrations::IntegrationRecord>>
+    {
+        self.database()
+            .integration_record_for_test(principal_user_id)
+    }
+
+    pub fn integration_grant_revoked_for_test(&mut self, grant_id: &str) -> SnapbackResult<bool> {
+        self.database().integration_grant_revoked_for_test(grant_id)
+    }
+
+    pub fn oauth_registration_facts_for_test(
+        &mut self,
+        client_id: &str,
+    ) -> SnapbackResult<(String, String, String)> {
+        self.database().oauth_registration_facts_for_test(client_id)
+    }
+
+    pub fn oauth_proposal_counts_for_test(
+        &mut self,
+        consenting_user_id: &str,
+    ) -> SnapbackResult<(u64, u64)> {
+        self.database()
+            .oauth_proposal_counts_for_test(consenting_user_id)
+    }
+
+    pub fn push_registry(&mut self) -> snapback_kernel::storage::PushRegistryKernel<'_> {
+        self.database().push_registry()
+    }
+
+    pub fn create_watch(
+        &mut self,
+        request: snapback_kernel::storage::watches::CreateWatchRecord,
+    ) -> SnapbackResult<snapback_kernel::storage::watches::WatchRecord> {
+        self.database().create_watch(request)
+    }
+
+    pub fn revalidate_watch_principal(
+        &mut self,
+        watch_id: &str,
+    ) -> SnapbackResult<Option<snapback_kernel::storage::watches::RevalidatedWatchPrincipal>> {
+        self.database().revalidate_watch_principal(watch_id)
+    }
+
+    pub fn transition_watch(
+        &mut self,
+        id: &str,
+        owner: &str,
+        target: snapback_types::watches::WatchStatus,
+        now_ms: u64,
+    ) -> SnapbackResult<snapback_kernel::storage::watches::WatchRecord> {
+        self.database().transition_watch(id, owner, target, now_ms)
+    }
+
+    pub fn watch_management_facts_for_test(
+        &mut self,
+        watch_id: &str,
+    ) -> SnapbackResult<snapback_kernel::storage::watches::WatchManagementFactsForTest> {
+        self.database().watch_management_facts_for_test(watch_id)
+    }
+
+    pub fn seed_renewable_watch_for_management_test(
+        &mut self,
+        watch_id: &str,
+        effective_user_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<snapback_kernel::storage::watches::WatchRecord> {
+        self.database().seed_renewable_watch_for_management_test(
+            watch_id,
+            effective_user_id,
+            now_ms,
+        )
+    }
+
+    pub fn activate_catalog(
+        &mut self,
+        keyring: &snapback_auth::auth::keyring::AuthKeyringStore,
+        now_ms: u64,
+        random: &dyn crate::auth::crypto::RandomSource,
+    ) -> SnapbackResult<snapback_auth::auth::lifecycle::AuthActivation> {
+        snapback_auth::auth::lifecycle::activate_catalog(self.database(), keyring, now_ms, random)
+    }
+
+    pub fn resolve_session(
+        &mut self,
+        admission: &snapback_auth::auth::provider::AuthAdmission,
+        bearer: &str,
+        now_ms: u64,
+    ) -> snapback_auth::auth::provider::ProviderResult<crate::contract_types::ResolvedSession> {
+        admission.resolve_session(self.database(), bearer, now_ms)
+    }
+
+    pub fn request_code(
+        &mut self,
+        admission: &snapback_auth::auth::provider::AddressAdmission,
+        now_ms: u64,
+    ) -> snapback_auth::auth::provider::ProviderResult<
+        snapback_types::auth::wire::RequestCodeResponse,
+    > {
+        admission.request_code(self.database(), now_ms)
+    }
+
+    pub fn apply_declared_restore(
+        &mut self,
+        mailbox: &snapback_auth::auth::mailbox::CaptureMailbox,
+        declaration_path: &std::path::Path,
+        supplied_declaration_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<snapback_auth::auth::lifecycle::DeclaredRestoreOutcome> {
+        snapback_auth::auth::lifecycle::apply_declared_restore(
+            self.database(),
+            mailbox,
+            declaration_path,
+            supplied_declaration_id,
+            now_ms,
+        )
+    }
+
+    pub fn auth_coordinator(
+        &mut self,
+        admission: snapback_auth::auth::admission::AdmissionController,
+        epoch_now_ms: u64,
+        monotonic_now: std::time::Instant,
+    ) -> SnapbackResult<snapback_sync::auth::coordinator::AuthCoordinator> {
+        snapback_sync::auth::coordinator::AuthCoordinator::from_local_session_database(
+            self.database(),
+            admission,
+            epoch_now_ms,
+            monotonic_now,
+        )
+    }
+
+    pub fn prepare_auth_coordinator(
+        &mut self,
+        admission: snapback_auth::auth::admission::AdmissionController,
+        epoch_now_ms: u64,
+        monotonic_now: std::time::Instant,
+    ) -> SnapbackResult<snapback_sync::auth::coordinator::PreparedLocalSessionCoordinator> {
+        snapback_sync::auth::coordinator::AuthCoordinator::prepare_from_local_session_database(
+            self.database(),
+            admission,
+            epoch_now_ms,
+            monotonic_now,
+        )
+    }
+
+    pub fn create_auth_backup(
+        &mut self,
+        keyring: &snapback_auth::auth::keyring::AuthKeyringStore,
+        output_directory: &std::path::Path,
+        created_at_ms: u64,
+        random: &dyn crate::auth::crypto::RandomSource,
+    ) -> SnapbackResult<snapback_auth::auth::backup::AuthBackupOutcome> {
+        snapback_auth::auth::backup::create_backup(
+            self.database(),
+            keyring,
+            output_directory,
+            created_at_ms,
+            random,
+        )
+    }
+}
+
+/// Borrow the bounded auth-fixture surface without exposing its underlying
+/// `LocalDatabase`.
+pub fn auth_fixture(snapback: &mut LocalSnapback) -> AuthFixture<'_> {
+    AuthFixture { snapback }
+}
+
+/// Activate exactly the auth catalog and declared push registry needed by a
+/// push-serving fixture. The target database never leaves the engine crate.
+pub fn activate_auth_and_push_registry_for_test(
+    snapback: &mut LocalSnapback,
+    declaration: crate::push::PushSeamDeclarationV1,
+) -> SnapbackResult<()> {
+    let database = snapback.auth_database_mut();
+    database.activate_current_auth_catalog()?;
+    database.activate_push_registry_for_test(declaration)
+}
+
+pub fn initialize_commit_capsule_prototype(snapback: &mut LocalSnapback) -> SnapbackResult<()> {
+    snapback_kernel::storage::commit_capsule_prototype::initialize(snapback.auth_database_mut())
+}
+
+pub fn stage_commit_capsule_prototype<'a>(
+    snapback: &'a mut LocalSnapback,
+    intent: &snapback_kernel::storage::commit_capsule_prototype::PrototypeIntent,
+    include_consumed_proof: bool,
+) -> SnapbackResult<snapback_kernel::storage::commit_capsule_prototype::PrototypeStage<'a>> {
+    snapback_kernel::storage::commit_capsule_prototype::stage(
+        snapback.auth_database_mut(),
+        intent,
+        include_consumed_proof,
+    )
+}
+
+pub fn reconcile_commit_capsule_prototype(
+    snapback: &mut LocalSnapback,
+    intent: &snapback_kernel::storage::commit_capsule_prototype::PrototypeIntent,
+) -> SnapbackResult<
+    Option<
+        snapback_kernel::storage::ExactCommitRows<
+            snapback_kernel::storage::commit_capsule_prototype::PrototypeIntent,
+            snapback_kernel::storage::commit_capsule_prototype::PrototypeValue,
+        >,
+    >,
+> {
+    snapback_kernel::storage::commit_capsule_prototype::exact_reconciliation(
+        snapback.auth_database_mut(),
+        intent,
+    )
+}
+
+pub fn commit_capsule_prototype_facts(
+    snapback: &mut LocalSnapback,
+    intent: &snapback_kernel::storage::commit_capsule_prototype::PrototypeIntent,
+) -> SnapbackResult<snapback_kernel::storage::commit_capsule_prototype::PrototypeFacts> {
+    snapback_kernel::storage::commit_capsule_prototype::facts(snapback.auth_database_mut(), intent)
+}
+
 /// Construct the compatibility admission used by higher-rank transport tests.
 pub fn live_invalidation_admission(
     connection: crate::auth::invalidation::AuthorizationInvalidationConnection,

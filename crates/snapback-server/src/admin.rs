@@ -7324,7 +7324,7 @@ mod tests {
 
         let covered_before_success = crate::server::with_snapback(&shared, |snapback| {
             snapback
-                .remainder_auth_database_mut()
+                .remainder_auth_fixture()
                 .operation_lane_covered(crate::operation_ledger::ORDINARY_MUTATION_LANE_V1)
         })
         .await

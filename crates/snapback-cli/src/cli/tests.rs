@@ -1974,12 +1974,9 @@ async fn settled_sessions_pin_refusal_names_supported_repair_paths() {
         "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED"
     );
     assert_eq!(persisted_product_count(), 1);
-    let after_invalid = snapback
-        .remainder_auth_database_mut()
-        .auth_mode_snapshot()
-        .unwrap();
+    let after_invalid = snapback.remainder_auth_fixture().auth_mode_state().unwrap();
     assert_eq!(
-        after_invalid.state.active_deployment, activated.active_deployment,
+        after_invalid.active_deployment, activated.active_deployment,
         "an invalid schema successor does not move the durable deployment pin"
     );
 }
