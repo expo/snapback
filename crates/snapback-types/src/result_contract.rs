@@ -74,12 +74,13 @@ impl Violation {
 }
 
 pub fn validate_handler_result(function: &FunctionDefinition, value: &Value) -> SnapbackResult<()> {
-    validate_handler_result_contract(
+    validate_handler_result_contract_with_bytes(
         &function.id,
         function.result_contract_hash.as_deref(),
         &function.result_contract,
         value,
     )
+    .map(|_| ())
 }
 
 /// Validate a result when the commit boundary carries only the frozen result
@@ -90,6 +91,21 @@ pub fn validate_handler_result_contract(
     result_contract: &FunctionResultContract,
     value: &Value,
 ) -> SnapbackResult<()> {
+    validate_handler_result_contract_with_bytes(
+        function_id,
+        result_contract_hash,
+        result_contract,
+        value,
+    )
+    .map(|_| ())
+}
+
+fn validate_handler_result_contract_with_bytes(
+    function_id: &str,
+    result_contract_hash: Option<&str>,
+    result_contract: &FunctionResultContract,
+    value: &Value,
+) -> SnapbackResult<usize> {
     let bytes = serde_json::to_vec(value).map_err(|_| {
         violation(
             function_id,
@@ -123,7 +139,8 @@ pub fn validate_handler_result_contract(
             validate_value(value, contract, "$", 0, &mut budget)
         }
     }
-    .map_err(|failure| violation(function_id, result_contract_hash, failure))
+    .map_err(|failure| violation(function_id, result_contract_hash, failure))?;
+    Ok(bytes.len())
 }
 
 /// Query transport and live-diff machinery remain row-oriented. A declared
@@ -136,6 +153,16 @@ pub fn validate_query_handler_result(
     function: &FunctionDefinition,
     rows: &[Value],
 ) -> SnapbackResult<()> {
+    validate_query_handler_result_with_bytes(function, rows).map(|_| ())
+}
+
+/// Validate the query result and return the exact JSON byte count already
+/// computed by the result-contract bound. Runtime-cost diagnostics reuse this
+/// value so enabling recording never serializes the result a second time.
+pub fn validate_query_handler_result_with_bytes(
+    function: &FunctionDefinition,
+    rows: &[Value],
+) -> SnapbackResult<usize> {
     if matches!(
         function.result_contract,
         FunctionResultContract::Document { .. } | FunctionResultContract::Value { .. }
@@ -147,9 +174,19 @@ pub fn validate_query_handler_result(
                 Violation::bound("$", ARITY, 1, rows.len()),
             ));
         }
-        return validate_handler_result(function, &rows[0]);
+        return validate_handler_result_contract_with_bytes(
+            &function.id,
+            function.result_contract_hash.as_deref(),
+            &function.result_contract,
+            &rows[0],
+        );
     }
-    validate_handler_result(function, &Value::Array(rows.to_vec()))
+    validate_handler_result_contract_with_bytes(
+        &function.id,
+        function.result_contract_hash.as_deref(),
+        &function.result_contract,
+        &Value::Array(rows.to_vec()),
+    )
 }
 
 fn validate_rows(

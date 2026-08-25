@@ -8615,6 +8615,73 @@ pub fn take_keyset_scan_stats() -> Vec<KeysetScanStats> {
     KEYSET_SCAN_STATS.with(|stats| stats.borrow_mut().drain(..).collect())
 }
 
+/// Value-free physical evidence from one ordinary declarative query. This
+/// kernel carrier deliberately contains no argument or row value; the local
+/// runtime maps it into its gated inspection record after result validation.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct QueryAccessObservationV1 {
+    pub table: String,
+    pub selected_path: QuerySelectedAccessPathV1,
+    pub bound_shape: Vec<QueryAccessBoundShapeV1>,
+    pub direction: QueryAccessDirectionV1,
+    pub examined_entries: u64,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+thread_local! {
+    static FAIL_NEXT_QUERY_ACCESS_OBSERVATION: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Force the next ordinary query on this thread to skip physical-access
+/// collection. Product query execution must still succeed and the caller must
+/// retain an incomplete observation.
+#[cfg(any(test, feature = "test-support"))]
+pub fn fail_next_query_access_observation_for_test() {
+    FAIL_NEXT_QUERY_ACCESS_OBSERVATION.with(|slot| slot.set(true));
+}
+
+fn query_access_observation_available() -> bool {
+    #[cfg(any(test, feature = "test-support"))]
+    {
+        return FAIL_NEXT_QUERY_ACCESS_OBSERVATION.with(|slot| !slot.replace(false));
+    }
+    #[cfg(not(any(test, feature = "test-support")))]
+    {
+        true
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum QuerySelectedAccessPathV1 {
+    FullScan,
+    Index {
+        name: String,
+        unique: bool,
+        point: bool,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum QueryAccessBoundV1 {
+    Absent,
+    Exclusive,
+    Inclusive,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct QueryAccessBoundShapeV1 {
+    pub component: String,
+    pub lower: QueryAccessBoundV1,
+    pub upper: QueryAccessBoundV1,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum QueryAccessDirectionV1 {
+    Asc,
+    Desc,
+    Unordered,
+}
+
 /// The relational root window's entry: the generic validated query path with
 /// an optional keyset boundary and the always-total `(order…, _id ASC)`
 /// ordering `root-window-v1` continuation identity depends on.
@@ -8635,6 +8702,7 @@ pub(crate) fn query_on_keyset(
         keyset,
         false,
         true,
+        None,
         None,
     )
 }
@@ -8658,6 +8726,7 @@ fn query_on_with_storage_limit_visibility(
         false,
         false,
         None,
+        None,
     )
 }
 
@@ -8679,6 +8748,7 @@ fn query_on_with_examined_entry_ceiling(
         false,
         false,
         Some(examined_entry_ceiling),
+        None,
     )
 }
 
@@ -8694,6 +8764,7 @@ fn query_on_with_storage_limit_visibility_keyset(
     keyset_inclusive: bool,
     force_id_order: bool,
     examined_entry_ceiling: Option<usize>,
+    mut access_observation: Option<&mut Option<QueryAccessObservationV1>>,
 ) -> SnapbackResult<QueryOutput> {
     with_pinned_read_snapshot(conn, |conn| {
         crate::exec_guard::debug_assert_off_async_worker("a SQLite query");
@@ -8754,6 +8825,44 @@ fn query_on_with_storage_limit_visibility_keyset(
         if query_uses_row_version_for_selection(plan) {
             validate_managed_row_versions(conn, table, snapshot_version)?;
         }
+        let examined_entry_guard_exceeded =
+            std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let examined_entries = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let observation_requested = access_observation.is_some();
+        let observation_available = observation_requested && query_access_observation_available();
+        let install_examined_entry_guard = || {
+            let examined = examined_entries.clone();
+            let exceeded = examined_entry_guard_exceeded.clone();
+            conn.create_scalar_function(
+                "__snapback_single_table_examined_entry_guard",
+                0,
+                rusqlite::functions::FunctionFlags::SQLITE_UTF8
+                    | rusqlite::functions::FunctionFlags::SQLITE_DIRECTONLY,
+                move |_| {
+                    let entry = examined.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+                    if examined_entry_ceiling.is_some_and(|ceiling| entry > ceiling) {
+                        exceeded.store(true, std::sync::atomic::Ordering::Relaxed);
+                        return Err(rusqlite::Error::UserFunctionError(Box::new(
+                            std::io::Error::other("single-table examined-entry ceiling exceeded"),
+                        )));
+                    }
+                    Ok(1_i64)
+                },
+            )
+        };
+        let examined_entry_guard_installed = if examined_entry_ceiling.is_some() {
+            // The ceiling is product enforcement, not diagnostics. Its setup
+            // remains fail-closed exactly as on the recorder-off path.
+            install_examined_entry_guard()?;
+            true
+        } else if observation_available {
+            // @ref LLP 0267#71-posture-first-redaction-bounded-storage-localhosted —
+            // physical evidence is observational. If its SQLite helper cannot
+            // be installed, run the unchanged query and retain incomplete facts.
+            install_examined_entry_guard().is_ok()
+        } else {
+            false
+        };
         let (sql, values) = build_query_sql(
             table,
             schema,
@@ -8768,30 +8877,12 @@ fn query_on_with_storage_limit_visibility_keyset(
             keyset,
             keyset_inclusive,
             force_id_order,
-            examined_entry_ceiling.map(|_| "__snapback_single_table_examined_entry_guard"),
+            examined_entry_guard_installed
+                .then_some("__snapback_single_table_examined_entry_guard"),
         )?;
-        let examined_entry_guard_exceeded =
-            std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-        if let Some(ceiling) = examined_entry_ceiling {
-            let examined = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
-            let exceeded = examined_entry_guard_exceeded.clone();
-            conn.create_scalar_function(
-                "__snapback_single_table_examined_entry_guard",
-                0,
-                rusqlite::functions::FunctionFlags::SQLITE_UTF8
-                    | rusqlite::functions::FunctionFlags::SQLITE_DIRECTONLY,
-                move |_| {
-                    let entry = examined.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
-                    if entry > ceiling {
-                        exceeded.store(true, std::sync::atomic::Ordering::Relaxed);
-                        return Err(rusqlite::Error::UserFunctionError(Box::new(
-                            std::io::Error::other("single-table examined-entry ceiling exceeded"),
-                        )));
-                    }
-                    Ok(1_i64)
-                },
-            )?;
-        }
+        let selected_access = (observation_available && examined_entry_guard_installed)
+            .then(|| query_selected_access_path(conn, table, plan, &sql, &values))
+            .and_then(Result::ok);
         let mut statement = conn.prepare(&sql)?;
         let columns = statement
             .column_names()
@@ -8843,6 +8934,23 @@ fn query_on_with_storage_limit_visibility_keyset(
                     fetched_rows: output.len(),
                 });
             });
+        }
+
+        if let (Some(slot), Some(selected_path)) =
+            (access_observation.as_deref_mut(), selected_access)
+        {
+            let examined_entries = examined_entries.load(std::sync::atomic::Ordering::Relaxed);
+            if let Some(bound_shape) = query_access_bound_shape(table, plan, &selected_path) {
+                *slot = Some(QueryAccessObservationV1 {
+                    table: table.name.clone(),
+                    selected_path,
+                    bound_shape,
+                    // SQLite's plan text does not report traversal direction. The
+                    // authored order is not physical evidence, so do not copy it.
+                    direction: QueryAccessDirectionV1::Unordered,
+                    examined_entries: u64::try_from(examined_entries).unwrap_or(u64::MAX),
+                });
+            }
         }
 
         Ok(QueryOutput {
@@ -9680,6 +9788,49 @@ impl DbRead<'_> {
         }
     }
 
+    /// Ordinary declarative query plus best-effort, value-free physical-access
+    /// evidence for the gated local runtime-cost recorder. Observation setup
+    /// and planner inspection are branch-and-drop: their failure returns the
+    /// ordinary query result with `None`. Product ceiling enforcement remains
+    /// fail-closed independently of recording.
+    pub fn query_observed(
+        &self,
+        plan: &QueryPlan,
+        input: &HandlerInput,
+        examined_entry_ceiling: Option<usize>,
+    ) -> SnapbackResult<(QueryOutput, Option<QueryAccessObservationV1>)> {
+        let mut observation = None;
+        let output = match self {
+            DbRead::Pinned(read) => query_on_with_storage_limit_visibility_keyset(
+                read.conn,
+                read.schema,
+                plan,
+                input,
+                effective_query_limit(plan),
+                false,
+                None,
+                false,
+                false,
+                examined_entry_ceiling,
+                Some(&mut observation),
+            ),
+            DbRead::Live(db) => query_on_with_storage_limit_visibility_keyset(
+                &db.conn,
+                &db.schema,
+                plan,
+                input,
+                effective_query_limit(plan),
+                false,
+                None,
+                false,
+                false,
+                examined_entry_ceiling,
+                Some(&mut observation),
+            ),
+        }?;
+        Ok((output, observation))
+    }
+
     /// The new node-class establishment entry point. Keeping the ceiling on a
     /// distinct method makes it structurally impossible for the ordinary
     /// application Query/LiveQuery path to inherit the new refusal.
@@ -9813,6 +9964,7 @@ impl DbRead<'_> {
                 false,
                 true,
                 None,
+                None,
             ),
             DbRead::Live(db) => query_on_with_storage_limit_visibility_keyset(
                 &db.conn,
@@ -9824,6 +9976,7 @@ impl DbRead<'_> {
                 keyset,
                 false,
                 true,
+                None,
                 None,
             ),
         }
@@ -9897,6 +10050,7 @@ impl DbRead<'_> {
                 lower_inclusive,
                 true,
                 None,
+                None,
             )?,
             DbRead::Live(db) => query_on_with_storage_limit_visibility_keyset(
                 &db.conn,
@@ -9908,6 +10062,7 @@ impl DbRead<'_> {
                 lower_key.as_ref(),
                 lower_inclusive,
                 true,
+                None,
                 None,
             )?,
         };
@@ -9992,6 +10147,7 @@ impl DbRead<'_> {
                 false,
                 true,
                 None,
+                None,
             ),
             DbRead::Live(db) => query_on_with_storage_limit_visibility_keyset(
                 &db.conn,
@@ -10003,6 +10159,7 @@ impl DbRead<'_> {
                 keyset,
                 false,
                 true,
+                None,
                 None,
             ),
         }
@@ -14487,6 +14644,164 @@ fn validate_query_index(table: &TableManifest, plan: &QueryPlan) -> SnapbackResu
         "requestedIndex": index_name,
         "knownIndexes": table.indexes.iter().map(|index| &index.name).collect::<Vec<_>>(),
     })))
+}
+
+fn query_selected_access_path(
+    conn: &Connection,
+    table: &TableManifest,
+    plan: &QueryPlan,
+    sql: &str,
+    values: &[SqlValue],
+) -> SnapbackResult<QuerySelectedAccessPathV1> {
+    let mut statement = conn.prepare(&format!("EXPLAIN QUERY PLAN {sql}"))?;
+    let details = statement
+        .query_map(params_from_iter(values.iter()), |row| {
+            row.get::<_, String>(3)
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    let outer_details = details.iter().filter(|detail| {
+        detail.contains("__snapback_outer")
+            || detail.contains(&format!("SCAN {}", table.name))
+            || detail.contains(&format!("SEARCH {}", table.name))
+    });
+    for detail in outer_details {
+        if let Some(physical_name) = explain_index_name(detail) {
+            if let Some(index) = table
+                .indexes
+                .iter()
+                .find(|index| format!("{}_{}", table.name, index.name) == physical_name)
+            {
+                let point = index.unique
+                    && index.fields.iter().all(|field| {
+                        plan.filters
+                            .iter()
+                            .any(|filter| filter.field == *field && filter.op == FilterOp::Eq)
+                    });
+                return Ok(QuerySelectedAccessPathV1::Index {
+                    name: index.name.clone(),
+                    unique: index.unique,
+                    point,
+                });
+            }
+            if physical_name.starts_with("sqlite_autoindex_") {
+                let point = plan
+                    .filters
+                    .iter()
+                    .any(|filter| filter.field == "_id" && filter.op == FilterOp::Eq);
+                return Ok(QuerySelectedAccessPathV1::Index {
+                    name: "_id".to_owned(),
+                    unique: true,
+                    point,
+                });
+            }
+            return Ok(QuerySelectedAccessPathV1::Index {
+                name: physical_name,
+                unique: false,
+                point: false,
+            });
+        }
+        if detail.contains("USING INTEGER PRIMARY KEY") {
+            return Ok(QuerySelectedAccessPathV1::Index {
+                name: "_id".to_owned(),
+                unique: true,
+                point: true,
+            });
+        }
+        if detail.contains("USING AUTOMATIC") {
+            return Ok(QuerySelectedAccessPathV1::Index {
+                name: "sqlite-automatic".to_owned(),
+                unique: false,
+                point: false,
+            });
+        }
+    }
+    Ok(QuerySelectedAccessPathV1::FullScan)
+}
+
+fn explain_index_name(detail: &str) -> Option<String> {
+    ["USING COVERING INDEX ", "USING INDEX "]
+        .into_iter()
+        .find_map(|marker| {
+            let suffix = detail.split_once(marker)?.1;
+            let name = suffix
+                .split(|character: char| character.is_whitespace() || character == '(')
+                .next()?
+                .trim_matches(&['"', '`', '[', ']'][..]);
+            (!name.is_empty()).then(|| name.to_owned())
+        })
+}
+
+fn query_access_bound_shape(
+    table: &TableManifest,
+    plan: &QueryPlan,
+    selected_path: &QuerySelectedAccessPathV1,
+) -> Option<Vec<QueryAccessBoundShapeV1>> {
+    let components = match selected_path {
+        QuerySelectedAccessPathV1::FullScan => return Some(Vec::new()),
+        QuerySelectedAccessPathV1::Index { name, .. } if name == "_id" => {
+            vec!["_id".to_owned()]
+        }
+        QuerySelectedAccessPathV1::Index { name, .. } => table
+            .indexes
+            .iter()
+            .find(|index| &index.name == name)
+            .map(|index| index.fields.clone())
+            .unwrap_or_default(),
+    };
+    let mut bounds = Vec::new();
+    for component in components {
+        let filters = plan
+            .filters
+            .iter()
+            .filter(|filter| filter.field == component)
+            .collect::<Vec<_>>();
+        if filters.is_empty() {
+            break;
+        }
+        // One `IN` predicate may produce multiple physical seeks. Until the
+        // carrier can report each range, omit the consultation rather than
+        // collapsing those seeks into one inclusive bound.
+        if filters.iter().any(|filter| filter.op == FilterOp::In) {
+            return None;
+        }
+        let mut lower = QueryAccessBoundV1::Absent;
+        let mut upper = QueryAccessBoundV1::Absent;
+        let mut ends_prefix = false;
+        for filter in filters {
+            match filter.op {
+                FilterOp::Eq => {
+                    lower = QueryAccessBoundV1::Inclusive;
+                    upper = QueryAccessBoundV1::Inclusive;
+                }
+                FilterOp::Gt => {
+                    lower = QueryAccessBoundV1::Exclusive;
+                    ends_prefix = true;
+                }
+                FilterOp::Gte => {
+                    lower = QueryAccessBoundV1::Inclusive;
+                    ends_prefix = true;
+                }
+                FilterOp::Lt => {
+                    upper = QueryAccessBoundV1::Exclusive;
+                    ends_prefix = true;
+                }
+                FilterOp::Lte => {
+                    upper = QueryAccessBoundV1::Inclusive;
+                    ends_prefix = true;
+                }
+                FilterOp::In => unreachable!("IN returned above"),
+            }
+        }
+        bounds.push(QueryAccessBoundShapeV1 {
+            component,
+            lower,
+            upper,
+        });
+        if ends_prefix {
+            break;
+        }
+    }
+    (!bounds.is_empty()).then_some(bounds)
 }
 
 #[allow(clippy::too_many_arguments)]

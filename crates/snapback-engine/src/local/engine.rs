@@ -13177,6 +13177,12 @@ impl LocalSnapback {
                     self.graph_serving_authority_context(name),
                     None,
                     None,
+                    &self.runtime_cost.query_observation_recorder(),
+                    if function.kind == FunctionKind::LiveQuery {
+                        QueryExecutionKindV1::LiveReevaluation
+                    } else {
+                        QueryExecutionKindV1::Finite
+                    },
                 )
             });
         finish_function_observation(span, &mut result);
@@ -21277,6 +21283,12 @@ impl LocalSnapback {
                             self.graph_serving_authority_context(name),
                             None,
                             None,
+                            &self.runtime_cost.query_observation_recorder(),
+                            if function.kind == FunctionKind::LiveQuery {
+                                QueryExecutionKindV1::LiveEstablishment
+                            } else {
+                                QueryExecutionKindV1::Finite
+                            },
                         )
                         .map_err(|error| {
                             refuse(code::QUERY_FAILED, "mixed child evaluation failed")
@@ -22139,6 +22151,8 @@ impl LocalSnapback {
                             None
                         },
                         None,
+                        &self.runtime_cost.query_observation_recorder(),
+                        QueryExecutionKindV1::LiveEstablishment,
                     )
                 },
             );
@@ -29381,6 +29395,7 @@ impl LocalSnapback {
             graph_query_v1_target_declared: self.graph_query_v1_target_declared.clone(),
             graph_serving_authority_contexts: self.graph_serving_authority_contexts.clone(),
             resume_keyring: self.resume_keyring.clone(),
+            query_observations: self.runtime_cost.query_observation_recorder(),
         }
     }
 
@@ -34272,6 +34287,10 @@ pub struct ReadLane {
     // with the resume keyring, and the read lane serves `/query` (LLP 0080
     // §2 cursors) without the global mutex.
     resume_keyring: Arc<RwLock<crate::rqs::ResumeKeyring>>,
+    // The query ring alone is shared with this lock-free lane. Its recorder
+    // branches before locking while disabled and retains only bounded,
+    // value-free projections while enabled.
+    query_observations: QueryObservationRecorder,
 }
 
 /// What the read lane can serve for `/health` without the global mutex.
@@ -34705,6 +34724,8 @@ impl ReadLane {
                             self.graph_serving_authority_context(name),
                             None,
                             Some(&vector_quarantine),
+                            &self.query_observations,
+                            QueryExecutionKindV1::Finite,
                         )
                     },
                 )
@@ -40671,6 +40692,8 @@ fn execute_query_invocation(
     graph_authority_context: Option<GraphServingAuthorityContextV1>,
     examined_entry_ceiling: Option<usize>,
     vector_quarantine: Option<&VectorQuarantineCapture>,
+    query_observations: &QueryObservationRecorder,
+    query_execution_kind: QueryExecutionKindV1,
 ) -> SnapbackResult<QueryInvocation> {
     if let DbRead::Live(live) = db {
         let owned_capture = VectorQuarantineCapture::default();
@@ -40690,6 +40713,8 @@ fn execute_query_invocation(
                 graph_authority_context,
                 examined_entry_ceiling,
                 Some(capture),
+                query_observations,
+                query_execution_kind,
             )
         });
         if let Some(failure) = capture.take() {
@@ -40709,6 +40734,18 @@ fn execute_query_invocation(
         return result;
     }
     prepared.validate_admission("query execution")?;
+    let query_cost_enabled = query_observations.is_enabled();
+    let query_cost_context = query_cost_enabled.then(|| {
+        (
+            Instant::now(),
+            runtime_cost_plan_identity(function, db.schema()),
+            db.schema()
+                .target_profile
+                .clone()
+                .unwrap_or_else(|| TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned()),
+        )
+    });
+    let mut query_cost_access = None;
     let (input, graph_demand) = if matches!(
         function.runtime,
         FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(_))
@@ -40811,7 +40848,11 @@ fn execute_query_invocation(
                     Some(_) => return Err(standard_pattern_cursor_invalid()),
                 }
             }
-            let mut output = if let Some(ceiling) = examined_entry_ceiling {
+            let mut output = if query_cost_enabled {
+                let (output, access) = db.query_observed(plan, &input, examined_entry_ceiling)?;
+                query_cost_access = access;
+                output
+            } else if let Some(ceiling) = examined_entry_ceiling {
                 db.query_with_examined_entry_ceiling(plan, &input, ceiling)?
             } else {
                 db.query(plan, &input)?
@@ -41995,9 +42036,107 @@ fn execute_query_invocation(
             hook();
         }
     });
-    crate::result_contract::validate_query_handler_result(function, &invocation.output.rows)?;
+    let validated_result_bytes = crate::result_contract::validate_query_handler_result_with_bytes(
+        function,
+        &invocation.output.rows,
+    )?;
+    if let Some((started_at, plan_identity, target_profile)) = query_cost_context {
+        // @ref LLP 0267#77-surfaces-worked-attributions-and-acceptance — the
+        // production declarative-query producer feeds the recorder's
+        // validated, bounded projection seam. No raw input or row value enters
+        // the observation, and the read lane writes only through the shared
+        // local recorder handle.
+        // SQLite currently supplies one best-effort planner summary, not the
+        // exact physical consultation ledger required for `complete: true`
+        // (notably for multi-seek `IN` and order-only index scans).
+        let access_path_consultations = query_cost_access
+            .map(runtime_cost_access_consultation)
+            .into_iter()
+            .collect::<Vec<_>>();
+        let scanned_rows = access_path_consultations
+            .iter()
+            .map(|consultation| consultation.examined_entries)
+            .sum();
+        let index_range_count = u64::try_from(access_path_consultations.len()).unwrap_or(u64::MAX);
+        let result_bytes = u64::try_from(validated_result_bytes).ok();
+        query_observations.record(&QueryCostObservationV1 {
+            format: "snapback.query-cost-observation.v1".to_owned(),
+            function_id: function.id.clone(),
+            function_generation: prepared
+                .artifact_generation()
+                .unwrap_or("unversioned")
+                .to_owned(),
+            plan_identity,
+            target_profile,
+            fixture_identity: None,
+            authority_class: prepared.auth_requirement().as_str().to_owned(),
+            execution_kind: query_execution_kind,
+            status: QueryObservationStatusV1::Executed,
+            complete: false,
+            scanned_rows,
+            access_path_consultations,
+            index_range_count,
+            result_rows: u64::try_from(invocation.output.rows.len()).ok(),
+            result_bytes,
+            evaluation_turn_ms: Some(started_at.elapsed().as_secs_f64() * 1_000.0),
+            memo_delivery_turn_ms: None,
+            estimated_live_fanout_ms: None,
+            estimate_basis: None,
+            structural_work: invocation
+                .graph_serving
+                .as_ref()
+                .map(|registration| registration.structural_work.clone()),
+            target_work: None,
+        });
+    }
     let _publication = prepared.effect_guard("query result handoff")?;
     Ok(invocation)
+}
+
+fn runtime_cost_access_consultation(
+    access: crate::storage::QueryAccessObservationV1,
+) -> AccessPathConsultationV1 {
+    let selected_path = match access.selected_path {
+        crate::storage::QuerySelectedAccessPathV1::FullScan => SelectedAccessPathV1::FullScan,
+        crate::storage::QuerySelectedAccessPathV1::Index {
+            name, point: true, ..
+        } => SelectedAccessPathV1::Point { index: name },
+        crate::storage::QuerySelectedAccessPathV1::Index {
+            name, unique: true, ..
+        } => SelectedAccessPathV1::Unique { index: name },
+        crate::storage::QuerySelectedAccessPathV1::Index { name, .. } => {
+            SelectedAccessPathV1::BoundedIndex { index: name }
+        }
+    };
+    AccessPathConsultationV1 {
+        ordinal: 0,
+        node_id: None,
+        table: access.table,
+        selected_path,
+        bound_shape: access
+            .bound_shape
+            .into_iter()
+            .map(|bound| AccessBoundShapeV1 {
+                component: bound.component,
+                lower: match bound.lower {
+                    crate::storage::QueryAccessBoundV1::Absent => AccessBoundV1::Absent,
+                    crate::storage::QueryAccessBoundV1::Exclusive => AccessBoundV1::Exclusive,
+                    crate::storage::QueryAccessBoundV1::Inclusive => AccessBoundV1::Inclusive,
+                },
+                upper: match bound.upper {
+                    crate::storage::QueryAccessBoundV1::Absent => AccessBoundV1::Absent,
+                    crate::storage::QueryAccessBoundV1::Exclusive => AccessBoundV1::Exclusive,
+                    crate::storage::QueryAccessBoundV1::Inclusive => AccessBoundV1::Inclusive,
+                },
+            })
+            .collect(),
+        direction: match access.direction {
+            crate::storage::QueryAccessDirectionV1::Asc => AccessDirectionV1::Asc,
+            crate::storage::QueryAccessDirectionV1::Desc => AccessDirectionV1::Desc,
+            crate::storage::QueryAccessDirectionV1::Unordered => AccessDirectionV1::Unordered,
+        },
+        examined_entries: access.examined_entries,
+    }
 }
 
 fn add_permission_dependencies_with(

@@ -10,7 +10,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:5263e12d419fe89fd2f635df8795357d1d344add33becfa5dcc8d07af0d312b2
+reviewed-authorities-digest: sha256:3ffcb3d2cf6383aa7c806e688f42ceed210bc125a1b81b31fed86805b8cb9253
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -164,6 +164,9 @@ proof command, and honest nonclaims without opening every demo.
   remediation.
 - [Queries](./backend/queries.md) — indexed snapshot reads, server scoping,
   and the ordinary-vs-live boundary.
+- [Query costs and runtime attribution](./backend/query-costs.md) — pull the
+  gated local snapshot and attribute delayed sends, stalled live projections,
+  physical query work, and framework-owned multiplicity.
 - [Mutations](./backend/mutations.md) — buffered writes, one commit version,
   read-set conflict validation, and structured results.
 - [Declarative mutation plans](./backend/declarative-plans.md) — the complete

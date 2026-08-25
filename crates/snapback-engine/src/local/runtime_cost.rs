@@ -14,6 +14,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, VecDeque};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, TryLockError};
 
 pub const RUNTIME_COST_RING_RECORD_CAPACITY: usize = 512;
 pub const RUNTIME_COST_COUNTER_KEY_CAPACITY: usize = 1_024;
@@ -601,8 +603,8 @@ impl<T: Clone> ByteAccountedRing<T> {
         self.records.push_back((record, admitted_bytes));
     }
 
-    fn note_dropped_record(&mut self) {
-        self.dropped_records = self.dropped_records.saturating_add(1);
+    fn note_dropped_records(&mut self, count: u64) {
+        self.dropped_records = self.dropped_records.saturating_add(count);
     }
 
     fn remove_first(&mut self, predicate: impl Fn(&T) -> bool) -> Option<T> {
@@ -659,14 +661,90 @@ pub struct RuntimeCostSnapshotV1 {
 
 #[derive(Clone, Debug)]
 pub struct RuntimeCostRecorder {
-    enabled: bool,
+    enabled: Arc<AtomicBool>,
     mutation_phases: ByteAccountedRing<MutationPhaseCostV1>,
-    query_observations: ByteAccountedRing<QueryCostObservationInspectV1>,
-    query_truncated_records: u64,
+    query_observations: QueryObservationRecorder,
     live_delivery_waves: ByteAccountedRing<LiveDeliveryWaveV1>,
     server_mutation_phase_counters: CappedFunctionCounters,
     subscription_registry: BTreeMap<String, LiveSubscriptionCostRowV1>,
     next_wave_seq: u64,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct QueryObservationRecorder {
+    enabled: Arc<AtomicBool>,
+    state: Arc<Mutex<QueryObservationRecorderState>>,
+    pending_dropped_records: Arc<AtomicU64>,
+}
+
+#[derive(Clone, Debug)]
+struct QueryObservationRecorderState {
+    observations: ByteAccountedRing<QueryCostObservationInspectV1>,
+    truncated_records: u64,
+}
+
+impl QueryObservationRecorder {
+    pub(crate) fn is_enabled(&self) -> bool {
+        self.enabled.load(Ordering::Relaxed)
+    }
+
+    fn note_pending_drop(&self) {
+        let _ = self.pending_dropped_records.fetch_update(
+            Ordering::Relaxed,
+            Ordering::Relaxed,
+            |count| Some(count.saturating_add(1)),
+        );
+    }
+
+    /// Invalid observations are branch-and-drop by contract. The producer
+    /// cannot smuggle a partial or internally inconsistent cost record into
+    /// inspection merely because the local recorder is enabled.
+    pub(crate) fn record(&self, observation: &QueryCostObservationV1) {
+        if !self.is_enabled() {
+            return;
+        }
+        let Ok(projected) = observation.inspection_projection() else {
+            self.note_pending_drop();
+            return;
+        };
+        let Ok(bytes) = serde_json::to_vec(&projected) else {
+            self.note_pending_drop();
+            return;
+        };
+        let mut state = match self.state.try_lock() {
+            Ok(state) => state,
+            Err(TryLockError::Poisoned(poisoned)) => poisoned.into_inner(),
+            Err(TryLockError::WouldBlock) => {
+                self.note_pending_drop();
+                return;
+            }
+        };
+        let pending_drops = self.pending_dropped_records.swap(0, Ordering::Relaxed);
+        state.observations.note_dropped_records(pending_drops);
+        if projected.consultations_truncated {
+            state.truncated_records = state.truncated_records.saturating_add(1);
+        }
+        let bytes = bytes.len();
+        state.observations.push(projected, bytes);
+    }
+
+    fn snapshot(&self) -> QueryObservationRingSnapshotV1 {
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let pending_drops = self.pending_dropped_records.swap(0, Ordering::Relaxed);
+        state.observations.note_dropped_records(pending_drops);
+        let query = state.observations.snapshot(Clone::clone);
+        QueryObservationRingSnapshotV1 {
+            record_capacity: query.record_capacity,
+            byte_capacity: query.byte_capacity,
+            retained_bytes: query.retained_bytes,
+            dropped_records: query.dropped_records,
+            truncated_records: state.truncated_records,
+            records: query.records,
+        }
+    }
 }
 
 impl Default for RuntimeCostRecorder {
@@ -708,11 +786,18 @@ impl RuntimeCostRecorder {
         byte_capacities: [usize; 3],
         key_capacity: usize,
     ) -> Self {
+        let enabled = Arc::new(AtomicBool::new(enabled));
         Self {
-            enabled,
+            enabled: enabled.clone(),
             mutation_phases: ByteAccountedRing::new(record_capacity, byte_capacities[0]),
-            query_observations: ByteAccountedRing::new(record_capacity, byte_capacities[1]),
-            query_truncated_records: 0,
+            query_observations: QueryObservationRecorder {
+                enabled,
+                state: Arc::new(Mutex::new(QueryObservationRecorderState {
+                    observations: ByteAccountedRing::new(record_capacity, byte_capacities[1]),
+                    truncated_records: 0,
+                })),
+                pending_dropped_records: Arc::new(AtomicU64::new(0)),
+            },
             live_delivery_waves: ByteAccountedRing::new(record_capacity, byte_capacities[2]),
             server_mutation_phase_counters: CappedFunctionCounters::new(key_capacity),
             subscription_registry: BTreeMap::new(),
@@ -721,15 +806,19 @@ impl RuntimeCostRecorder {
     }
 
     pub fn is_enabled(&self) -> bool {
-        self.enabled
+        self.enabled.load(Ordering::Relaxed)
     }
 
     pub fn set_enabled(&mut self, enabled: bool) {
-        self.enabled = enabled;
+        self.enabled.store(enabled, Ordering::Relaxed);
+    }
+
+    pub(crate) fn query_observation_recorder(&self) -> QueryObservationRecorder {
+        self.query_observations.clone()
     }
 
     pub fn record_mutation_phase(&mut self, record: MutationPhaseCostV1) {
-        if !self.enabled {
+        if !self.is_enabled() {
             return;
         }
         let projected = record.inspection_projection();
@@ -744,7 +833,7 @@ impl RuntimeCostRecorder {
         execution_ms: Option<f64>,
         commit_ms: Option<f64>,
     ) {
-        if !self.enabled {
+        if !self.is_enabled() {
             return;
         }
         self.server_mutation_phase_counters.record(
@@ -756,22 +845,11 @@ impl RuntimeCostRecorder {
     }
 
     pub fn record_query_observation(&mut self, observation: &QueryCostObservationV1) {
-        if !self.enabled {
-            return;
-        }
-        let Ok(projected) = observation.inspection_projection() else {
-            self.query_observations.note_dropped_record();
-            return;
-        };
-        if projected.consultations_truncated {
-            self.query_truncated_records = self.query_truncated_records.saturating_add(1);
-        }
-        let bytes = serde_json::to_vec(&projected).map_or(usize::MAX, |value| value.len());
-        self.query_observations.push(projected, bytes);
+        self.query_observations.record(observation);
     }
 
     pub fn record_live_delivery_wave(&mut self, mut wave: LiveDeliveryWaveV1) {
-        if !self.enabled {
+        if !self.is_enabled() {
             return;
         }
         wave.format = "snapback.live-delivery-wave.v1".to_owned();
@@ -786,7 +864,7 @@ impl RuntimeCostRecorder {
     }
 
     pub fn reserve_wave_seq(&mut self) -> Option<u64> {
-        if !self.enabled {
+        if !self.is_enabled() {
             return None;
         }
         self.next_wave_seq = self.next_wave_seq.saturating_add(1);
@@ -801,7 +879,7 @@ impl RuntimeCostRecorder {
         plan_identity: Option<String>,
         evaluation_turn_ms: Option<f64>,
     ) {
-        if !self.enabled {
+        if !self.is_enabled() {
             return;
         }
         let wave_seq = self
@@ -867,7 +945,7 @@ impl RuntimeCostRecorder {
     }
 
     pub fn start_wave(&mut self, subscription_id: &str, wave_seq: Option<u64>) -> Option<u64> {
-        if !self.enabled || !self.subscription_registry.contains_key(subscription_id) {
+        if !self.is_enabled() || !self.subscription_registry.contains_key(subscription_id) {
             return None;
         }
         let wave_seq = wave_seq.unwrap_or_else(|| {
@@ -950,7 +1028,7 @@ impl RuntimeCostRecorder {
     pub fn queued_cancellation_transfer(&mut self, _subscription_id: &str) {}
 
     pub fn retire_subscription(&mut self, subscription_id: &str) {
-        if self.enabled {
+        if self.is_enabled() {
             self.subscription_registry.remove(subscription_id);
         }
     }
@@ -972,7 +1050,7 @@ impl RuntimeCostRecorder {
     }
 
     fn enabled_row_mut(&mut self, subscription_id: &str) -> Option<&mut LiveSubscriptionCostRowV1> {
-        if !self.enabled {
+        if !self.is_enabled() {
             return None;
         }
         self.subscription_registry.get_mut(subscription_id)
@@ -982,20 +1060,12 @@ impl RuntimeCostRecorder {
         let mutation_phases = self
             .mutation_phases
             .snapshot(MutationPhaseCostV1::inspection_projection);
-        let query = self.query_observations.snapshot(Clone::clone);
         RuntimeCostSnapshotV1 {
             format: "snapback.runtime-cost-snapshot.v1".to_owned(),
-            enabled: self.enabled,
+            enabled: self.is_enabled(),
             total_byte_capacity: RUNTIME_COST_TOTAL_BYTE_CAPACITY,
             mutation_phases,
-            query_observations: QueryObservationRingSnapshotV1 {
-                record_capacity: query.record_capacity,
-                byte_capacity: query.byte_capacity,
-                retained_bytes: query.retained_bytes,
-                dropped_records: query.dropped_records,
-                truncated_records: self.query_truncated_records,
-                records: query.records,
-            },
+            query_observations: self.query_observations.snapshot(),
             live_delivery_waves: self.live_delivery_waves.snapshot(Clone::clone),
             server_mutation_phase_counters: self.server_mutation_phase_counters.snapshot(),
             subscription_registry: self.subscription_registry.values().cloned().collect(),
@@ -1170,6 +1240,21 @@ mod tests {
         let snapshot = ring.snapshot(|value| *value);
         assert_eq!(snapshot.records, vec!["two", "three"]);
         assert_eq!(snapshot.dropped_records, 2);
+    }
+
+    #[test]
+    fn query_recording_drops_on_contention_without_waiting_for_the_snapshot_lock() {
+        let recorder = RuntimeCostRecorder::enabled().query_observation_recorder();
+        let held = recorder
+            .state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        recorder.record(&observation(1));
+        drop(held);
+
+        let snapshot = recorder.snapshot();
+        assert!(snapshot.records.is_empty());
+        assert_eq!(snapshot.dropped_records, 1);
     }
 
     #[test]

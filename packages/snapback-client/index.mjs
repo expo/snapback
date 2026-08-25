@@ -824,14 +824,13 @@ export function joinPendingDeliveryInspectionV1(
 ) {
   const clientRows = snapshotRows(clientSnapshot, [['subscriptions']]);
   const serverRows = snapshotRows(serverSnapshot, [
+    ['runtimeCost', 'subscriptionRegistry'],
     ['subscriptions'],
     ['liveSubscriptions'],
-    ['runtimeCosts', 'subscriptions'],
-    ['runtimeCosts', 'liveSubscriptionRegistry'],
   ]);
   const waves = snapshotRows(serverSnapshot, [
+    ['runtimeCost', 'liveDeliveryWaves', 'records'],
     ['liveDeliveryWaves'],
-    ['runtimeCosts', 'liveDeliveryWaves'],
   ]);
   const unidentifiedInitialClients = [];
   const identifiedClientRows = [];

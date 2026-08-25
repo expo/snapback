@@ -2168,6 +2168,15 @@ fn runtime_cost_live_scheduler_emits_wave_and_exact_registry_anchor() {
     let mut snapback = live_limit_snapback();
     snapback.set_runtime_cost_recorder_enabled(true);
     install_live_memo_scheduler(&mut snapback);
+    snapback
+        .invoke_mutation(
+            "insertItem",
+            HandlerInput {
+                args: json!({ "value": "observed" }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("seed one physically examined row");
     let subscription_id = snapback
         .subscribe_live(
             "listItems",
@@ -2210,6 +2219,132 @@ fn runtime_cost_live_scheduler_emits_wave_and_exact_registry_anchor() {
     assert_eq!(registry.evaluation, LiveEvaluationStageV1::Idle);
     assert_eq!(registry.current_wave_seq, None);
     assert_eq!(registry.pending_work, LivePendingWorkV1::None);
+
+    let query_observations = runtime_cost
+        .query_observations
+        .records
+        .iter()
+        .filter(|record| record.function_id == "fn:listItems")
+        .collect::<Vec<_>>();
+    assert!(
+        query_observations
+            .iter()
+            .any(|record| { record.execution_kind == QueryExecutionKindV1::LiveEstablishment }),
+        "the production establishment turn reaches validated recorder ingestion"
+    );
+    assert!(
+        query_observations
+            .iter()
+            .any(|record| { record.execution_kind == QueryExecutionKindV1::LiveReevaluation }),
+        "the production reevaluation turn reaches validated recorder ingestion"
+    );
+    assert!(query_observations.iter().all(|record| {
+        !record.complete
+            && record.scanned_rows == 1
+            && record.total_consultations == 1
+            && matches!(
+                record.consultation_sample[0].selected_path,
+                SelectedAccessPathV1::FullScan
+            )
+    }));
+}
+
+#[test]
+fn runtime_cost_query_producer_reports_physical_index_without_application_values() {
+    let mut snapback = live_limit_snapback();
+    snapback.set_runtime_cost_recorder_enabled(true);
+    for value in ["application-secret", "sibling"] {
+        snapback
+            .invoke_mutation(
+                "insertItem",
+                HandlerInput {
+                    args: json!({ "value": value }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("seed indexed runtime-cost fixture");
+    }
+
+    snapback
+        .invoke_query(
+            "listItemsByValue",
+            HandlerInput {
+                args: json!({ "value": "application-secret" }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("run observed indexed query");
+
+    let snapshot = snapback.inspect().expect("gated inspection").runtime_cost;
+    let observation = snapshot
+        .query_observations
+        .records
+        .iter()
+        .find(|record| record.function_id == "fn:listItemsByValue")
+        .expect("production query observation");
+    assert_eq!(observation.scanned_rows, 1);
+    assert_eq!(observation.result_rows, Some(1));
+    assert!(!observation.complete);
+    assert_eq!(observation.total_consultations, 1);
+    assert!(matches!(
+        &observation.consultation_sample[0].selected_path,
+        SelectedAccessPathV1::BoundedIndex { index } if index == "by_value"
+    ));
+    assert_eq!(
+        observation.consultation_sample[0].bound_shape,
+        vec![AccessBoundShapeV1 {
+            component: "value".to_owned(),
+            lower: AccessBoundV1::Inclusive,
+            upper: AccessBoundV1::Inclusive,
+        }]
+    );
+    let serialized = serde_json::to_string(&snapshot).expect("serialize gated snapshot");
+    assert!(!serialized.contains("application-secret"));
+    assert!(!serialized.contains("fixtureIdentity"));
+}
+
+#[test]
+fn runtime_cost_access_collection_failure_cannot_fail_the_product_query() {
+    let mut snapback = live_limit_snapback();
+    snapback.set_runtime_cost_recorder_enabled(true);
+    snapback
+        .invoke_mutation(
+            "insertItem",
+            HandlerInput {
+                args: json!({ "value": "application-secret" }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("seed observation-failure fixture");
+
+    crate::storage::fail_next_query_access_observation_for_test();
+    let output = snapback
+        .invoke_query(
+            "listItemsByValue",
+            HandlerInput {
+                args: json!({ "value": "application-secret" }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("diagnostic collection failure must not fail the product query");
+    assert_eq!(output.rows.len(), 1);
+
+    let snapshot = snapback.inspect().expect("gated inspection").runtime_cost;
+    let observation = snapshot
+        .query_observations
+        .records
+        .iter()
+        .find(|record| record.function_id == "fn:listItemsByValue")
+        .expect("incomplete observation is retained after collection failure");
+    assert!(!observation.complete);
+    assert_eq!(observation.scanned_rows, 0);
+    assert_eq!(observation.total_consultations, 0);
+    assert!(observation.consultation_sample.is_empty());
+    assert_eq!(observation.result_rows, Some(1));
+    assert!(observation.result_bytes.is_some());
+    assert!(observation.evaluation_turn_ms.is_some());
+    let serialized = serde_json::to_string(&snapshot).expect("serialize gated snapshot");
+    assert!(!serialized.contains("application-secret"));
 }
 
 #[test]

@@ -8,7 +8,12 @@ Ephemeral state, Memberships, Assets, Client integration, Exact/Contract
 integration, Guide, Benchmarks, Testing, Performance, Rust build
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-20
-**Revised:** 2026-08-24 (R2 final scoped-review remediation separates protocol
+**Revised:** 2026-08-24 (W5 fix-round evidence correction: all four source
+slices exist as a bounded local pull surface, but full LLP 0267 §7.7 acceptance
+remains open; the serialized authenticated host-operation/client join and
+incomplete-work fixture are integrated, while multiplicity and hosted/direct
+posture remain separate owner receipts; no hosted telemetry is claimed).
+2026-08-24 (R2 final scoped-review remediation separates protocol
 terminal wall from native usage settlement; binds continuation to exact
 execution bytes, host identity, complete prefix replay, live quiet probes, and
 an atomic controller-held lock; moves future cells to a new immutable
@@ -292,7 +297,7 @@ Move 5 instruments all of them and supplies the evidence for Phase 3.
 | 2. Fixed-origin lifecycle | W1 closed 2026-08-21 (`15efbe6cb`, `7a2903ae6`, `a3a2d8725`, `e98961ad3`, `70e2b9af4`); Guide recipe ticket closed | none owned here; R1 verifies the packed journey |
 | 3. Authority transitions and live composition | W2 conformance closed (`cebbf5c1a`, `f22cd67d6`, `94d4d8546`, `ea062befb`, `411334ae5`); 1D classified the six-subscription case as an LLP 0200 composition bound; LLP 0267 §7's owner acceptance landed at v0.15 | the pre-inconsistency client diagnostic in `issues/20260820-familiar-live-subscription-contention.md`, owned by `issues/20260822-client-runtime-cost-and-delivery-inspection.md` |
 | 4. Safe private composition | W4 closed 2026-08-22 (`a0bb35684`, `0b0bbaac7`, `810eacd2c`); D0.5 closed with four implementation records | none owned here |
-| 5. Cost and evidence visibility | per-milestone token metering (`59894588b`); W5 accepted at LLP 0267 §7 v0.15 and graduated to four independently closable implementation tickets | `issues/20260822-runtime-cost-recorder-and-server-observations.md`; `issues/20260822-client-runtime-cost-and-delivery-inspection.md`; `issues/20260822-equivalent-work-and-framework-multiplicity-diagnostics.md`; `issues/20260822-runtime-cost-diagnostics-integration-proof.md`; `issues/20260821-clique-instrument-observability-version-bump.md` (W6, LLP 0281 Draft); the binary-size drift metric in `issues/20260820-debug-binary-symbol-bloat.md`; R1 has not yet run against post-landing `main` |
+| 5. Cost and evidence visibility | per-milestone token metering (`59894588b`); W5's recorder/server, client/join, framework-warning, and integration/Guide source slices exist; the authenticated serialized host-operation/client join and incomplete-work receipt are integrated under LLP 0267 §7 v0.18 | `issues/20260822-runtime-cost-diagnostics-integration-proof.md` remains open for full §7.7 multiplicity/posture assembly; `issues/20260821-clique-instrument-observability-version-bump.md` remains W6 (LLP 0281 Draft); the binary-size drift metric in `issues/20260820-debug-binary-symbol-bloat.md` and post-landing R1 remain open |
 
 The consumer-skill size ceiling breach found while staging the Air run
 (`issues/20260822-consumer-skill-body-exceeds-0259-ceiling.md`) is an
@@ -738,6 +743,20 @@ The accepted design is LLP 0267 §7 and its React/client ownership notes, not a
 license to add ambient telemetry. Redaction, bounded storage, and the
 local-only-v1/hosted-nonclaim posture are binding. Closed design ticket:
 `issues/closed/20260821-app-boundary-runtime-cost-diagnostics-design.md`.
+
+**Implementation source reconciliation (2026-08-24 fix round).** All four W5
+source slices exist: (A) bounded recorder plus mutation/live observations, with
+best-effort declarative physical facts always incomplete and collection
+branch-and-drop; (B) client mutation timing and the pure gated-snapshot delivery
+join; (C) equivalent-work and provider/asset multiplicity warnings; and (D) the
+authenticated pull path and worked Guide attributions. A/B/C landed on `main`
+before D. The integrated receipt now starts a managed server and real client,
+serializes a ready-file-authenticated `app.inspect` result, feeds its runtime
+state into the client join, and retains a value-free incomplete JS-work record.
+Multiplicity and hosted/direct posture remain separate owner-test receipts, so
+this paragraph does not claim full §7.7 acceptance and the integration ticket
+is open. This does not advance W6, the binary-size metric, or R1, and does not
+claim hosted export, upload, collection, or a cost stream.
 
 ### W6. Instrument and context economy
 

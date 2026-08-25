@@ -5,7 +5,13 @@
 **Systems:** Live queries, Relational queries, Performance, Diagnostics, Schema
 **Author:** Codex gpt-5.6-sol xhigh, orchestrated by Claude Fable 5 (commissioned by the author performance-direction ruling 2026-08-15, Charlie Cheever)
 **Date:** 2026-08-16
-**Revised:** 2026-08-24 (v0.16 — §5 owner amendment gives G0 graph plans a
+**Revised:** 2026-08-24 (v0.18 — fix-round evidence correction: all four W5
+source slices exist, but full §7.7 acceptance remains open because multiplicity
+and hosted/direct posture have focused owner fixtures rather than one assembled
+cross-process receipt; the authenticated host-operation-to-client join and
+retained incomplete-work case are now integrated, and SQLite physical evidence
+is explicitly incomplete). 2026-08-24 (v0.17 — initial W5 implementation-status
+reconciliation, narrowed by v0.18). 2026-08-24 (v0.16 — §5 owner amendment gives G0 graph plans a
 distinct 65,536-consultation product ceiling; the admitted 1,024-root/
 1,025-consultation shape and served normal observation exposed the 512
 conflict without redefining point consultations). 2026-08-22 (v0.15 — author acceptance of the cross-owner §7
@@ -1280,6 +1286,28 @@ status or the provisional budget values. Implementation slices are tracked by
 the four tickets graduated from
 `issues/closed/20260821-app-boundary-runtime-cost-diagnostics-design.md`.
 
+**Implementation source and evidence status (2026-08-24 fix round).** The four
+W5 source slices exist as one local-only diagnostic surface: the bounded server
+recorder and live/query producers; the client mutation-phase projection and
+pure subscription/wave join; equivalent-enqueue/no-op-commit/provider/asset
+multiplicity warnings; and the authenticated pull snapshot plus Guide. The
+dependency slices landed on `main` before the integration slice. Evidence is
+narrower than v0.17 claimed:
+
+| Ticket | 2026-08-24 state |
+| --- | --- |
+| `issues/closed/20260822-runtime-cost-recorder-and-server-observations.md` | closed at owner scope; collection failure and recorder contention branch-and-drop; SQLite physical summaries remain `complete: false` |
+| `issues/closed/20260822-client-runtime-cost-and-delivery-inspection.md` | closed at owner scope; the pure join consumes the production singular `runtimeCost` / bounded-wave shape |
+| `issues/closed/20260822-equivalent-work-and-framework-multiplicity-diagnostics.md` | closed at owner scope; warning families have focused fixtures, not the cross-process D receipt |
+| `issues/20260822-runtime-cost-diagnostics-integration-proof.md` | open; authenticated serialized host-operation → client join and incomplete-work receipt landed, but §7.7 multiplicity/posture assembly remains unclaimed |
+
+This records implemented source and a partial integration receipt, not complete
+§7.7 acceptance or a hosted capability promotion. `snapback dev` is the
+default-on boundary; direct and hosted serving remain default-off, an operator
+opt-in remains instance-local/gated, `PublicInspect` remains unchanged, and v1
+still has no export, upload, collection, or streaming protocol for cost
+records.
+
 ## Open questions
 
 None. Signal dispositions, capture points, defaults, declaration/instance split, diagnostics,
@@ -1291,6 +1319,16 @@ surface.
 
 ## Revision history
 
+- **v0.18 (2026-08-24).** Corrects v0.17's evidence overclaim: records the real
+  authenticated serialized host-operation → client join and retained
+  `complete: false` JS-work fixture, keeps SQLite planner summaries explicitly
+  incomplete and observational, and leaves full §7.7 assembly open because
+  multiplicity and hosted/direct posture remain separate owner receipts.
+- **v0.17 (2026-08-24).** Reconciles the four W5 implementation slices and
+  their closed ticket states after affected proof, records that the client join
+  consumes the actual gated server snapshot shape, and repeats the local
+  pull-only/hosted-nonclaim boundary without changing §7 semantics or any cost
+  bound.
 - **v0.15 (2026-08-22).** Charlie Cheever accepts the complete cross-owner
   §7 packet and its local-only-v1/hosted-nonclaim posture. The implementation
   checklist graduates into four independently closable filesystem tickets;

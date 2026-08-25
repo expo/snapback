@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import {
   cpSync,
   existsSync,
@@ -12,6 +13,10 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import {
+  joinPendingDeliveryInspectionV1,
+  SnapbackClient,
+} from '@expo/snapback-client';
 import { generateApp, runDev } from './index.mjs';
 
 const packageRoot = dirname(fileURLToPath(import.meta.url));
@@ -29,6 +34,8 @@ const stateRoot = join(projectRoot, '.snapback');
 const readyFile = join(stateRoot, 'dev.ready.json');
 const database = join(stateRoot, 'dev.sqlite3');
 let dev = null;
+let receiptClient = null;
+let receiptLive = null;
 try {
   cpSync(join(repoRoot, 'tests', 'fixtures', 'familiar-todo'), backendRoot, { recursive: true });
   rmSync(join(backendRoot, 'generated'), { recursive: true, force: true });
@@ -56,6 +63,74 @@ try {
     'snapback-familiar-ts-v1',
   );
 
+  // LLP 0267 §7.7 integration receipt: a real client subscription and an
+  // authenticated app.inspect host operation meet only after the host payload
+  // has crossed its JSON serialization boundary. The familiar handler is an
+  // Ibex/JS query, so its retained record also proves incomplete physical work
+  // is not dropped or misread as measured zero.
+  const applicationValue = `runtime-cost-receipt-secret-${process.pid}`;
+  receiptClient = new SnapbackClient(dev.serverUrl, {
+    offlineQueue: false,
+    rqsStore: null,
+  });
+  await receiptClient.mutate('todos.create', {
+    args: { title: applicationValue },
+    queue: false,
+  });
+  receiptLive = await receiptClient.liveQuery('todos.list', {
+    args: { completed: false },
+    connectionId: 'runtime-cost-host-operation-receipt',
+    persistResume: false,
+  });
+  assert.equal(receiptLive.rows.length, 1);
+  const clientSnapshot = receiptClient.localResourceInspection();
+
+  const hostInspect = spawnSync(
+    runtimeBinary,
+    ['inspect', '--ready-file', readyFile],
+    { encoding: 'utf8' },
+  );
+  assert.equal(hostInspect.status, 0, hostInspect.stderr);
+  const serializedHostOperation = hostInspect.stdout;
+  assert.doesNotMatch(serializedHostOperation, new RegExp(applicationValue, 'u'));
+  assert.doesNotMatch(serializedHostOperation, /fixtureIdentity/u);
+  const hostOperation = JSON.parse(serializedHostOperation);
+  assert.equal(hostOperation.operation, 'app.inspect');
+  assert.equal(hostOperation.ok, true);
+  const runtimeState = hostOperation.data.runtimeState;
+  assert.equal(runtimeState.runtimeCost.enabled, true);
+
+  const incomplete = runtimeState.runtimeCost.queryObservations.records.find(
+    (record) => record.executionKind === 'liveEstablishment'
+      && record.resultRows === 1
+      && record.complete === false,
+  );
+  assert.ok(incomplete, 'the JS query observation is retained as incomplete');
+  assert.equal(incomplete.scannedRows, 0);
+  assert.equal(incomplete.indexRangeCount, 0);
+  assert.equal(incomplete.totalConsultations, 0);
+  assert.deepEqual(incomplete.consultationSample, []);
+  assert.equal(
+    incomplete.resultRows > 0 && incomplete.complete === false,
+    true,
+    'physical zeros are explicitly unmeasured, not a zero-work proof',
+  );
+
+  const joined = joinPendingDeliveryInspectionV1(clientSnapshot, runtimeState);
+  assert.equal(joined.subscriptions.length, 1);
+  assert.equal(
+    joined.subscriptions[0].subscriptionId,
+    clientSnapshot.subscriptions[0].subscriptionId,
+  );
+  assert.equal(Number.isSafeInteger(joined.subscriptions[0].wave.waveSeq), true);
+  assert.equal(joined.subscriptions[0].wave.rerunCause, 'reconnect-reestablish');
+
+  receiptLive.dispose();
+  await receiptLive.settled();
+  receiptLive = null;
+  await receiptClient.close();
+  receiptClient = null;
+
   await dev.close();
   dev = null;
 
@@ -70,6 +145,9 @@ try {
     JSON.stringify(refusedAlias.diagnostics),
   );
 } finally {
+  receiptLive?.dispose?.();
+  await receiptLive?.settled?.();
+  await receiptClient?.close?.();
   await dev?.close?.();
   rmSync(projectRoot, { recursive: true, force: true });
 }

@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-22
-reviewed-authorities-digest: sha256:e8b9df7473926b3bedcaa432ae4c3183c01270b67f08a1ead99f05a045b1bb30
+reviewed-authorities-digest: sha256:f08ac0e15a7123d0eedffca1258c4f90b542a9b36ab388023760b0c981c61565
 ---
 
 # Queries
@@ -94,6 +94,12 @@ index-backed text search ([text search](./text-search.md)), exact vector search
 snapshot ([snapshot batches](./snapshot-batches.md)), and the generated
 job-status and push-ledger queries ([jobs](./jobs.md),
 [Expo push](./expo-push.md)).
+
+When the question is why a query examined surprising work rather than how to
+declare it, pull the bounded local inspection described in
+[query costs and runtime attribution](./query-costs.md). A complete ordinary
+declarative record names the planner-selected access path and exact examined
+outer entries without retaining arguments or row values.
 
 An inline handler does not capture imports, top-level `const` bindings, or
 multi-file graphs; statically reachable same-file function declarations are

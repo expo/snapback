@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:1e510617d84a6c4c944b8239c521bf3fab37b04de2fa
 # @expo/snapback-client/search
 
 Build-bound public API projection for `@expo/snapback-client/search`. Canonical registry identity:
-`sha256:6a33fb4a2be36d1f9ca3f62bb5505fb89a45fcbb5c57e09774fb0af669809eb1`.
+`sha256:8eb0338eee563e757db9e9f19e3f227b14c95ef4bf89eebf370667b30ee3c919`.
 Runtime parity condition:
 `import` → `packages/snapback-client/search.mjs`.
 

@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-authorities-digest: sha256:200cc44a010d410e8d1079febbdeacb45e946479a33ec31a8281c84acce48783
+reviewed-authorities-digest: sha256:ef28a5c77a4f8ce99097778b64321a8f5a669a35989a730e590fcf315b41ff75
 ---
 
 # Live queries
@@ -24,6 +24,12 @@ to — the paved road to a live-updating list or view: subscribers get an
 authoritative initial snapshot **with** the subscription (never a prime
 race), then server-pushed updates over the durable lane as commits change
 the result.
+
+If a client remains stale, use the client/server snapshot join in
+[query costs and runtime attribution](../backend/query-costs.md). It derives a
+closed pending-delivery reason and follows the exact subscription into its
+server wave; do not diagnose the episode by sleeping through guessed retry
+delays.
 
 ## Define one
 

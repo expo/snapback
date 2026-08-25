@@ -1,6 +1,6 @@
 # Implement client runtime-cost and stalled-delivery inspection
 
-**Status:** Open
+**Status:** Closed — 2026-08-24
 **Opened:** 2026-08-22
 **Systems:** Client SDK, Outbox, Live queries, Provider inspection, Diagnostics
 **Governing:** LLP 0267 §§7.2, 7.4; LLP 0095; LLP 0114; LLP 0295 W5
@@ -22,3 +22,13 @@ Targeted client/provider tests prove delayed foreground-send attribution,
 join uniqueness, all six reason classes, neutral/defect/snapshot-skew outcomes,
 composite invalidation-during-evaluation, commitless restoration, both skew
 directions with reread, and caller-influencable-id pseudonymization.
+
+## Resolution
+
+Closed 2026-08-24 after the landed client slice and integration fixtures
+proved the mutation-phase attribution and pure join vocabulary. The fix-round
+integration receipt additionally feeds the serialized output of a real
+ready-file-authenticated `app.inspect` host operation into that join against
+the production singular `runtimeCost.subscriptionRegistry` and bounded
+`runtimeCost.liveDeliveryWaves.records` shape. Focused client fixtures retain
+the uniqueness, skew, composite pending-state, and closed-reason coverage.
