@@ -6,7 +6,7 @@
 **Author:** Claude (Opus 5), commissioned by Charlie Cheever (author ruling
 2026-08-24, in session supervising LLP 0283 F-1)
 **Date:** 2026-08-24
-**Revised:** 2026-08-25 (k — durable records are checked at acquisition; handles outlive them)
+**Revised:** 2026-08-25 (l — a guard held in per-handle state is opt-in)
 **Related:** LLP 0283, LLP 0298, LLP 0285, LLP 0274,
 `issues/20260824-liveness-row-bucket-assignment.md`,
 `issues/20260824-entitlement-predicates-for-the-live-sites.md`
@@ -353,6 +353,41 @@ its commit carrier must be opaque and producer-bound.
 Both findings share a shape with everything above: the mechanism was right and the boundary was one
 step away from where it was checked. When claiming durable single-use, state **where the check runs**
 and **what happens to handles issued before it**.
+
+### A guard held in per-handle state is opt-in
+
+A third review found the same class from the opposite direction. Where revision (k) is about a handle
+that goes **stale**, this is about a handle that starts **unguarded**.
+
+Executed from a dependent crate:
+
+- Adopt a file-backed `LocalDatabase` into a ready `ServingDatabase`.
+- Open **the same path again** with `LocalDatabase::open`.
+- Call `second.schema_seed().apply_schema(...)` — producing, staging and reserving nothing.
+
+The second handle begins at `AuthorizationInterlockState::Disabled`, which makes reservation
+*optional*, and the public schema operation commits. The table was created and
+`authorization_epoch_v1` advanced. The watched assertion read: *a second public LocalDatabase
+committed an authorization transition without the staged carrier.*
+
+> **A guard whose state lives on the handle is not a guard on the resource.** A second handle to the
+> same durable resource starts fresh — and if "fresh" means "disabled", the guard is opt-in, which is
+> to say optional, which is to say absent.
+
+The interlock was correct for the handle that had been through the ceremony. The defect is that
+being-guarded was a property of *that handle* rather than of *the database*, and the resource has no
+memory of it.
+
+So when a guard protects a durable resource, ask **where the guarded-ness lives**. If it is a field
+on a handle, an in-memory registry keyed by handle, or a state machine initialised per open, then the
+guard is defeated by opening the resource again — which any caller holding the path can do. The
+guarded state must be derivable from the resource itself, so that every handle to it observes the
+same answer.
+
+Note the interaction with revision (k): together they say a durable guard must be **read from the
+resource on every use**, not cached at acquisition (k) and not initialised per handle (this). Both
+failures look like correct code in isolation, and both were found only by opening a second handle or
+a second process.
 
 This is the same family as the constructor/setter case above: a derivation that holds at one instant
 and is undone afterwards. Setters undo it by assignment; combinators undo it by rewrapping; recycling
