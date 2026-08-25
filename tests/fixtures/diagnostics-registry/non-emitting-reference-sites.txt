@@ -1,0 +1,20 @@
+// Rust environment reads are configuration, not diagnostics.
+if std::env::var_os("SNAPBACK_FIXTURE_RUST_TRACE").is_some() {
+    eprintln!("SNAPBACK_FIXTURE_RUST_MISMATCH field={field}");
+}
+if env::var("SNAPBACK_FIXTURE_RUST_MODE").is_ok() {}
+if var_os("SNAPBACK_FIXTURE_IMPORTED_TRACE").is_some() {}
+
+// JavaScript environment reads and comparisons consume names without emitting them.
+const trace = process.env.SNAPBACK_FIXTURE_JS_TRACE;
+const optionalTrace = process.env?.SNAPBACK_FIXTURE_JS_OPTIONAL_TRACE;
+const bracketTrace = process.env['SNAPBACK_FIXTURE_JS_BRACKET_TRACE'];
+if (error.code === 'SNAPBACK_FIXTURE_JS_REFERENCE') recover();
+if ('SNAPBACK_FIXTURE_JS_REVERSE_REFERENCE' !== error.code) recover();
+switch (error.code) { case 'SNAPBACK_FIXTURE_JS_CASE_REFERENCE': recover(); }
+
+// Object/error construction remains an emission site.
+throw Object.assign(new Error('refused'), { code: 'SNAPBACK_FIXTURE_JS_EMITTED' });
+
+// diagnostics-registry: reference-only
+const ambiguousCatalogEntry = 'SNAPBACK_FIXTURE_MARKED_REFERENCE';
