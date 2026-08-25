@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 
 import { readdirSync, statSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 import {
   createLinuxRuntimeArtifactAttestation,
   readLinuxRuntimeBuildIdentity,
 } from '../packages/snapback-runtime-linux-x64/artifact-attestation.mjs';
 import { qualifyRuntimeBinary } from '../packages/snapback-cli/runtime-recovery.mjs';
+import { inspectRuntimeCatalogBuildIdentity } from './runtime-package-authority.mjs';
 
 function fail(message) {
   console.error(`snapback-create-runtime-artifact-attestation: ${message}`);
@@ -64,17 +65,29 @@ try {
     error.code = 'SNAPBACK_RUNTIME_PACKAGE_QUALIFICATION_FAILED';
     throw error;
   }
+  const catalogBuildIdentity = inspectRuntimeCatalogBuildIdentity({
+    binaryPath: options.binary,
+    binaryIdentity: buildIdentity,
+    environment: {
+      ...process.env,
+      LD_LIBRARY_PATH: [
+        dirname(options.hermes),
+        process.env.LD_LIBRARY_PATH,
+      ].filter(Boolean).join(':'),
+    },
+  });
   attestation = createLinuxRuntimeArtifactAttestation({
     binaryPath: options.binary,
     hermesPath: options.hermes,
     hermesHeaderPath: options.hermesHeader,
     buildIdentity,
+    catalogBuildIdentity,
     qualificationVerdict: qualification.report,
     sourceRevision: options.sourceRevision,
     bundledLibraries,
   });
 } catch (error) {
-  fail(error.message);
+  fail(`${error.code ?? 'SNAPBACK_RUNTIME_ARTIFACT_ATTESTATION_FAILED'}: ${error.message}`);
 }
 writeFileSync(options.out, `${JSON.stringify(attestation, null, 2)}\n`, {
   mode: 0o600,

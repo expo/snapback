@@ -190,6 +190,7 @@ export function issueRuntimeReadinessReceipt({
   packageName = null,
   platformId = null,
   preparedRuntime = null,
+  catalogBuildIdentityProof = null,
 }) {
   root = resolve(root);
   binaryPath = resolve(binaryPath);
@@ -222,6 +223,7 @@ export function issueRuntimeReadinessReceipt({
     ...(sourceRevision === null ? {} : { sourceRevision }),
     ...(packageName === null ? {} : { packageName }),
     ...(preparedRuntime === null ? {} : { preparedRuntime }),
+    ...(catalogBuildIdentityProof === null ? {} : { catalogBuildIdentityProof }),
   };
   receiptPath = resolvedReceiptPath(binaryPath, receiptPath);
   const temporary = `${receiptPath}.${randomUUID()}.tmp`;
@@ -416,6 +418,7 @@ export function produceRuntimePackageSeal({
   qualification = null,
   issuer = 'snapback-runtime-package-production',
   adminConsoleRequired = true,
+  catalogBuildIdentityProof = null,
 }) {
   root = resolve(root);
   binaryPath = resolve(binaryPath);
@@ -475,6 +478,7 @@ export function produceRuntimePackageSeal({
     buildIdentity,
     sourceRevision,
     packageName,
+    catalogBuildIdentityProof,
   });
   const verified = verifyRuntimePackageSeal({
     root,

@@ -328,7 +328,18 @@ try {
   const identityPath = join(attestationRoot, 'build-identity.json');
   const bundledLibsDirectory = join(attestationRoot, 'bundled-libs');
   const bundledIcu = join(bundledLibsDirectory, 'libicuuc.so.78');
+  const catalogBuildIdentity = {
+    sourceCommit: sourceRevision,
+    dirty: false,
+  };
   const attestedBinarySource = `#!/usr/bin/env node
+if (process.argv[2] === 'controls' && process.argv[3] === 'list' && process.argv[4] === '--json') {
+  console.log(JSON.stringify({
+    schemaVersion: 'snapback.control-catalog.v1',
+    buildIdentity: { sourceCommit: '${sourceRevision}', dirty: false }
+  }));
+  process.exit(0);
+}
 if (process.argv[2] !== 'runtime-qualify') process.exit(2);
 console.log(JSON.stringify({
   schemaVersion: 'snapback.runtime-qualify.v1', probe: 'restricted-no-eval-handler-vm', ok: true,
@@ -374,6 +385,7 @@ console.log(JSON.stringify({
     hermesPath: attestedHermes,
     hermesHeaderPath: attestedHermesHeader,
     buildIdentity,
+    catalogBuildIdentity,
     qualificationVerdict: {
       schemaVersion: 'snapback.runtime-qualify.v1',
       probe: 'restricted-no-eval-handler-vm',
@@ -386,8 +398,22 @@ console.log(JSON.stringify({
     sourceRevision,
     bundledLibraries: [],
   });
-  assert.equal(attestation.schemaVersion, 'snapback.runtime-artifact-attestation.v3');
+  assert.equal(attestation.schemaVersion, 'snapback.runtime-artifact-attestation.v4');
+  assert.deepEqual(attestation.catalogBuildIdentity, catalogBuildIdentity);
   assert.deepEqual(attestation.bundledLibrariesSha256, {});
+  assert.throws(
+    () => createLinuxRuntimeArtifactAttestation({
+      binaryPath: attestedBinary,
+      hermesPath: attestedHermes,
+      hermesHeaderPath: attestedHermesHeader,
+      buildIdentity,
+      catalogBuildIdentity: { sourceCommit: 'b'.repeat(40), dirty: false },
+      qualificationVerdict: attestation.qualificationVerdict,
+      sourceRevision,
+      bundledLibraries: [],
+    }),
+    (error) => error.code === 'SNAPBACK_RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH',
+  );
   writeFileSync(attestationPath, `${JSON.stringify(attestation)}\n`);
   assert.deepEqual(
     validateLinuxRuntimeArtifactAttestation({
@@ -404,6 +430,7 @@ console.log(JSON.stringify({
     hermesPath: attestedHermes,
     hermesHeaderPath: attestedHermesHeader,
     buildIdentity,
+    catalogBuildIdentity,
     qualificationVerdict: attestation.qualificationVerdict,
     sourceRevision,
     bundledLibraries: [{ soname: 'libicuuc.so.78', path: bundledIcu }],
@@ -500,6 +527,7 @@ console.log(JSON.stringify({
       hermesPath: attestedHermes,
       hermesHeaderPath: attestedHermesHeader,
       buildIdentity,
+      catalogBuildIdentity,
       qualificationVerdict: attestation.qualificationVerdict,
       sourceRevision: 'b'.repeat(40),
       bundledLibraries: [],
@@ -674,6 +702,10 @@ try {
       startupNonce: 'qualification-process',
     },
   };
+  const catalogBuildIdentity = {
+    sourceCommit: sourceRevision,
+    dirty: false,
+  };
   mkdirSync(packageRoot, { recursive: true });
   mkdirSync(sourceRoot, { recursive: true });
   writeFileSync(sourceBinary, syntheticElf64({
@@ -690,6 +722,7 @@ try {
     hermesPath: sourceHermes,
     hermesHeaderPath: sourceHeader,
     buildIdentity,
+    catalogBuildIdentity,
     qualificationVerdict,
     sourceRevision,
     bundledLibraries: [],
@@ -726,6 +759,44 @@ try {
   });
   assert.equal(verifyAssembly().ok, true);
   const originalReceipt = readFileSync(join(packageRoot, 'runtime-readiness.json'), 'utf8');
+  assert.deepEqual(
+    JSON.parse(originalReceipt).catalogBuildIdentityProof,
+    {
+      schemaVersion: 'snapback.runtime-catalog-build-identity-proof.v1',
+      source: 'snapback.runtime-artifact-attestation.v4',
+      buildIdentity: catalogBuildIdentity,
+    },
+  );
+
+  // Same-host Linux preparation must execute the binary's catalog projection,
+  // just as the Darwin preparer does, before any staged package can replace
+  // the previously sealed assembly.
+  assert.throws(
+    () => prepareLinuxRuntimePackage({
+      ...preparation,
+      platform: 'linux',
+      architecture: 'x64',
+      runBinary: (_command, commandArgs) => {
+        if (commandArgs[0] === 'build-identity') {
+          return { status: 0, stdout: JSON.stringify(buildIdentity), stderr: '' };
+        }
+        if (commandArgs.join(' ') === 'controls list --json') {
+          return {
+            status: 0,
+            stdout: JSON.stringify({
+              schemaVersion: 'snapback.control-catalog.v1',
+              buildIdentity: { sourceCommit: 'd'.repeat(40), dirty: false },
+            }),
+            stderr: '',
+          };
+        }
+        throw new Error(`unexpected fixture command: ${commandArgs.join(' ')}`);
+      },
+    }),
+    (error) => error.code === 'SNAPBACK_RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH',
+  );
+  assert.equal(verifyAssembly().ok, true);
+  assert.equal(readFileSync(join(packageRoot, 'runtime-readiness.json'), 'utf8'), originalReceipt);
 
   assert.throws(
     () => prepareLinuxRuntimePackage({
@@ -745,6 +816,7 @@ try {
     hermesPath: sourceHermes,
     hermesHeaderPath: sourceHeader,
     buildIdentity,
+    catalogBuildIdentity,
     qualificationVerdict,
     sourceRevision,
     bundledLibraries: [],
@@ -834,4 +906,4 @@ if (existsSync(binary) || existsSync(hermes)) {
   assert.equal(installedRuntime.binary, binary);
   assert.equal(installedRuntime.source, PACKAGE_NAME);
 }
-console.log('package.test.mjs: Linux x64 portability + attestation v3 + non-destructive staged assembly pass');
+console.log('package.test.mjs: Linux x64 portability + attestation v4 + non-destructive staged assembly pass');

@@ -45,7 +45,10 @@ import {
   assertStagedRuntimeStoreQualification,
 } from './publication-store-qualification-gate.mjs';
 import { verifyRuntimePackageSeal } from '../packages/snapback-cli/runtime-readiness.mjs';
-import { inspectRuntimeCatalogBuildIdentity } from './runtime-package-authority.mjs';
+import {
+  assertRuntimeCatalogBuildIdentityProof,
+  inspectRuntimeCatalogBuildIdentity,
+} from './runtime-package-authority.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const publicRegistry = 'https://registry.npmjs.org';
@@ -208,7 +211,12 @@ function sha256(path) {
   return createHash('sha256').update(readFileSync(path)).digest('hex');
 }
 
-function verifyPackedRuntimeSeal({ tarballPath, packageName, platformId }) {
+export function verifyPackedRuntimeSeal({
+  tarballPath,
+  packageName,
+  platformId,
+  hostPlatformId = `${process.platform}-${process.arch}`,
+}) {
   const extractionRoot = mkdtempSync(join(dirname(tarballPath), '.runtime-seal-'));
   try {
     execFileSync('tar', ['-xzf', tarballPath, '-C', extractionRoot]);
@@ -227,7 +235,11 @@ function verifyPackedRuntimeSeal({ tarballPath, packageName, platformId }) {
         + verdict.diagnostic.message,
       );
     }
-    if (`${process.platform}-${process.arch}` === platformId) {
+    assertRuntimeCatalogBuildIdentityProof(
+      verdict.receipt.buildIdentity,
+      verdict.receipt.catalogBuildIdentityProof,
+    );
+    if (hostPlatformId === platformId) {
       const binaryPath = join(packageRoot, 'bin', 'snapback');
       const identity = JSON.parse(
         execFileSync(binaryPath, ['build-identity'], { encoding: 'utf8' }),
@@ -487,7 +499,8 @@ function stage(options) {
   }
 }
 
-const options = parseArgs(process.argv.slice(2));
+export function main(argv = process.argv.slice(2)) {
+const options = parseArgs(argv);
 if (options.publish && process.env.SNAPBACK_PUBLISH_CONFIRM !== 'yes-really') {
   fail('real publish requires --publish and SNAPBACK_PUBLISH_CONFIRM=yes-really');
 }
@@ -757,3 +770,8 @@ for (const row of rows) {
 }
 console.log(`ledger: ${ledgerPath}`);
 if (!options.publish) console.log('DRY RUN complete — nothing was published.');
+}
+
+if (resolve(process.argv[1] ?? '') === fileURLToPath(import.meta.url)) {
+  main();
+}

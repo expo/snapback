@@ -1845,9 +1845,11 @@ the executable's transitive `DT_RPATH`, refuses `DT_RUNPATH` on the executable
 or a bundled library, and admits only x86-64 ELF members.
 
 The cross-host artifact attestation advances to
-`snapback.runtime-artifact-attestation.v3`; its
+`snapback.runtime-artifact-attestation.v4`; its
 `bundledLibrariesSha256` map binds each transported soname to its native
-builder digest. The package seal enumerates every regular file under `lib/`,
+builder digest, and its `catalogBuildIdentity` binds the catalog identity
+observed by executing `controls list --json` on that native builder. The
+package seal enumerates every regular file under `lib/`,
 so adding, removing, or changing a bundled dependency produces
 `framework-drift` at consumption.
 

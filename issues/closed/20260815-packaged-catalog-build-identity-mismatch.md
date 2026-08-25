@@ -29,9 +29,13 @@ the embedded catalog identity to the executable identity.
 stamps that copy with the commit and dirty state returned by the same shared
 build-identity probe used for the executable. The checked-in catalog remains
 the compiler-run snapshot, including `generatedAtCommit`, while its embedded
-`buildIdentity` is bound to the enclosing binary. Runtime package preparation
-and publication tarball qualification inspect `controls list --json` and
-refuse a mismatch with
+`buildIdentity` is bound to the enclosing binary. Darwin and Linux same-host
+runtime preparation inspect `controls list --json`; native Linux
+artifact-attestation creation binds the observed identity into the cross-host
+attestation, and cross-host Linux assembly carries that proof into the package
+seal. Publication requires the sealed proof for both platform tarballs and
+additionally executes the native tarball when the publisher host can run it.
+Every path refuses a mismatch with
 `SNAPBACK_RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH` before sealing, swapping,
 or publishing the artifact.
 

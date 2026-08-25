@@ -8,12 +8,16 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 
-import { assertPublicPackageBuildIdentity } from '../../scripts/runtime-package-authority.mjs';
+import {
+  assertPublicPackageBuildIdentity,
+  assertRuntimeCatalogBuildIdentity,
+} from '../../scripts/runtime-package-authority.mjs';
 
 const ATTESTATION_KEYS = [
   'binarySha256',
   'buildIdentity',
   'bundledLibrariesSha256',
+  'catalogBuildIdentity',
   'hermesHeaderSha256',
   'hermesSha256',
   'platform',
@@ -182,11 +186,16 @@ export function createLinuxRuntimeArtifactAttestation({
   hermesPath,
   hermesHeaderPath,
   buildIdentity,
+  catalogBuildIdentity,
   qualificationVerdict,
   sourceRevision,
   bundledLibraries = [],
 }) {
   validateBuildIdentity(buildIdentity, sourceRevision);
+  assertRuntimeCatalogBuildIdentity(buildIdentity, {
+    schemaVersion: 'snapback.control-catalog.v1',
+    buildIdentity: catalogBuildIdentity,
+  });
   validateQualificationVerdict(qualificationVerdict, buildIdentity, sourceRevision);
   if (!Array.isArray(bundledLibraries)) {
     throw new TypeError('Linux runtime bundled libraries must be an array');
@@ -213,7 +222,7 @@ export function createLinuxRuntimeArtifactAttestation({
     );
   }
   return {
-    schemaVersion: 'snapback.runtime-artifact-attestation.v3',
+    schemaVersion: 'snapback.runtime-artifact-attestation.v4',
     platform: 'linux-x64',
     sourceRevision,
     binarySha256: sha256RegularFile(binaryPath, 'Linux runtime binary'),
@@ -221,6 +230,7 @@ export function createLinuxRuntimeArtifactAttestation({
     hermesHeaderSha256: sha256RegularFile(hermesHeaderPath, 'Linux Hermes header'),
     bundledLibrariesSha256,
     buildIdentity: structuredClone(buildIdentity),
+    catalogBuildIdentity: structuredClone(catalogBuildIdentity),
     qualificationVerdict: structuredClone(qualificationVerdict),
   };
 }
@@ -235,7 +245,7 @@ export function validateLinuxRuntimeArtifactAttestation({
 }) {
   exactKeys(attestation, ATTESTATION_KEYS, 'Linux runtime artifact attestation');
   if (
-    attestation.schemaVersion !== 'snapback.runtime-artifact-attestation.v3'
+    attestation.schemaVersion !== 'snapback.runtime-artifact-attestation.v4'
     || attestation.platform !== 'linux-x64'
     || attestation.sourceRevision !== sourceRevision
     || !/^[0-9a-f]{64}$/u.test(attestation.binarySha256 ?? '')
@@ -259,6 +269,10 @@ export function validateLinuxRuntimeArtifactAttestation({
     throw new TypeError('Linux runtime artifact attestation bundled-library shape drifted');
   }
   validateBuildIdentity(attestation.buildIdentity, sourceRevision);
+  assertRuntimeCatalogBuildIdentity(attestation.buildIdentity, {
+    schemaVersion: 'snapback.control-catalog.v1',
+    buildIdentity: attestation.catalogBuildIdentity,
+  });
   validateQualificationVerdict(
     attestation.qualificationVerdict,
     attestation.buildIdentity,

@@ -418,7 +418,7 @@ run snapshot-batch-v2-parity -- node tests/conformance/snapshot-batch-sbsb2-pari
 # fresh provider-native workload witness remains source-bound and preserves
 # its qualification-binary edge through tracked runtime-readiness evidence.
 run fleet-observatory-move1-receipt -- node tests/acceptance/fleet-observatory-move1-v1.mjs --check --require-qualified
-run runtime-package-authority-fixtures -- node --test scripts/runtime-package-authority.test.mjs scripts/binary-size-metrology.test.mjs
+run runtime-package-authority-fixtures -- node --test scripts/runtime-package-authority.test.mjs scripts/snapback-publish.test.mjs scripts/binary-size-metrology.test.mjs
 run qualified-staging-ledger-fixtures -- node --test scripts/qualified-staging-ledger-check.test.mjs
 run publication-store-qualification-fixtures -- node --test scripts/publication-store-qualification-gate.test.mjs
 run published-closure-boot-smoke-fixtures -- node --test scripts/published-closure-boot-smoke.test.mjs

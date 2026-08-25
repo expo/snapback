@@ -60,7 +60,7 @@ windows-sys = { version = "0.61.2", features = [
 jsonschema = { version = "0.46.8", default-features = false, features = ["resolve-file"] }
 
 [build-dependencies]
-serde_json = "1.0"
+serde_json = { version = "1.0", features = ["preserve_order"] }
 
 [lints]
 workspace = true

@@ -17,9 +17,12 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH_CODE,
+  RUNTIME_CATALOG_INSPECTION_FAILED_CODE,
   assertPublicPackageBuildIdentity,
   assertRuntimePackageBuildIdentity,
   assertRuntimePackageSourceIdentity,
+  createRuntimeCatalogBuildIdentityProof,
   inspectRuntimeCatalogBuildIdentity,
   installPackagedStoreQualificationReceipt,
 } from '../../scripts/runtime-package-authority.mjs';
@@ -56,6 +59,24 @@ function diagnosticError(error, fallbackCode, fallbackMessage) {
     return error;
   }
   return codedError(fallbackCode, error?.message ?? fallbackMessage, error);
+}
+
+function inventoriedCatalogInspectionError(error) {
+  if (error?.code === RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH_CODE) {
+    return codedError(
+      'SNAPBACK_RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH',
+      error.message,
+      error,
+    );
+  }
+  if (error?.code === RUNTIME_CATALOG_INSPECTION_FAILED_CODE) {
+    return codedError(
+      'SNAPBACK_RUNTIME_CATALOG_INSPECTION_FAILED',
+      error.message,
+      error,
+    );
+  }
+  return error;
 }
 
 // @ref LLP 0041#runtime-distribution — a failed assembly may not destroy a
@@ -182,21 +203,32 @@ export function prepareDarwinRuntimePackage({
     );
   }
   let identity;
+  let catalogBuildIdentityProof;
   try {
     identity = JSON.parse(identityResult.stdout);
     assertRuntimePackageSourceIdentity(identity);
     if (strictCleanRelease) assertRuntimePackageBuildIdentity(identity);
     if (!sourceTestStaging) assertPublicPackageBuildIdentity(identity);
-    inspectRuntimeCatalogBuildIdentity({
-      binaryPath: sourceBinary,
+    let catalogBuildIdentity;
+    try {
+      catalogBuildIdentity = inspectRuntimeCatalogBuildIdentity({
+        binaryPath: sourceBinary,
+        binaryIdentity: identity,
+        environment: {
+          ...environment,
+          DYLD_FRAMEWORK_PATH: [
+            dirname(sourceFramework),
+            environment.DYLD_FRAMEWORK_PATH,
+          ].filter(Boolean).join(':'),
+        },
+      });
+    } catch (error) {
+      throw inventoriedCatalogInspectionError(error);
+    }
+    catalogBuildIdentityProof = createRuntimeCatalogBuildIdentityProof({
       binaryIdentity: identity,
-      environment: {
-        ...environment,
-        DYLD_FRAMEWORK_PATH: [
-          dirname(sourceFramework),
-          environment.DYLD_FRAMEWORK_PATH,
-        ].filter(Boolean).join(':'),
-      },
+      catalogBuildIdentity,
+      source: 'native-inspection',
     });
   } catch (error) {
     throw diagnosticError(
@@ -295,6 +327,7 @@ export function prepareDarwinRuntimePackage({
         sourceRevision: identity.binary.gitCommit,
         environment,
         adminConsoleRequired: !allowMissingAdminConsole,
+        catalogBuildIdentityProof,
       });
       const stagedSeal = verifyRuntimePackageSeal({
         root: stagingRoot,

@@ -21,9 +21,13 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH_CODE,
+  RUNTIME_CATALOG_INSPECTION_FAILED_CODE,
   assertPublicPackageBuildIdentity,
   assertRuntimePackageBuildIdentity,
   assertRuntimePackageSourceIdentity,
+  createRuntimeCatalogBuildIdentityProof,
+  inspectRuntimeCatalogBuildIdentity,
   installPackagedStoreQualificationReceipt,
 } from '../../scripts/runtime-package-authority.mjs';
 import { installAdminConsoleSnapshot } from '../snapback-cli/admin-snapshot.mjs';
@@ -73,6 +77,24 @@ function diagnosticError(error, fallbackCode, fallbackMessage) {
     return error;
   }
   return codedError(fallbackCode, error?.message ?? fallbackMessage, error);
+}
+
+function inventoriedCatalogInspectionError(error) {
+  if (error?.code === RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH_CODE) {
+    return codedError(
+      'SNAPBACK_RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH',
+      error.message,
+      error,
+    );
+  }
+  if (error?.code === RUNTIME_CATALOG_INSPECTION_FAILED_CODE) {
+    return codedError(
+      'SNAPBACK_RUNTIME_CATALOG_INSPECTION_FAILED',
+      error.message,
+      error,
+    );
+  }
+  return error;
 }
 
 function elfMachine(path) {
@@ -167,6 +189,7 @@ export function prepareLinuxRuntimePackage(options = {}) {
   const args = options.args ?? process.argv.slice(2);
   const platform = options.platform ?? process.platform;
   const architecture = options.architecture ?? process.arch;
+  const runBinary = options.runBinary ?? spawnSync;
 
   // Native preparation is the default on Linux. A release job may assemble the
   // package on another host only when it supplies both explicit CI artifacts;
@@ -222,6 +245,7 @@ export function prepareLinuxRuntimePackage(options = {}) {
   let identity;
   let transportedQualification = null;
   let artifactAttestation = null;
+  let catalogBuildIdentityProof;
   try {
     if (crossHost) {
       const attestation = readLinuxRuntimeArtifactAttestation(
@@ -244,16 +268,22 @@ export function prepareLinuxRuntimePackage(options = {}) {
         report: attestation.qualificationVerdict,
         reason: null,
       };
+      catalogBuildIdentityProof = createRuntimeCatalogBuildIdentityProof({
+        binaryIdentity: identity,
+        catalogBuildIdentity: attestation.catalogBuildIdentity,
+        source: attestation.schemaVersion,
+      });
     } else {
-      const identityResult = spawnSync(sourceBinary, ['build-identity'], {
+      const runtimeInspectionEnvironment = {
+        ...environment,
+        LD_LIBRARY_PATH: [
+          dirname(sourceHermes),
+          environment.LD_LIBRARY_PATH,
+        ].filter(Boolean).join(':'),
+      };
+      const identityResult = runBinary(sourceBinary, ['build-identity'], {
         encoding: 'utf8',
-        env: {
-          ...environment,
-          LD_LIBRARY_PATH: [
-            dirname(sourceHermes),
-            environment.LD_LIBRARY_PATH,
-          ].filter(Boolean).join(':'),
-        },
+        env: runtimeInspectionEnvironment,
         timeout: 15_000,
       });
       if (identityResult.status !== 0) {
@@ -269,6 +299,22 @@ export function prepareLinuxRuntimePackage(options = {}) {
         );
       }
       identity = JSON.parse(identityResult.stdout);
+      let catalogBuildIdentity;
+      try {
+        catalogBuildIdentity = inspectRuntimeCatalogBuildIdentity({
+          binaryPath: sourceBinary,
+          binaryIdentity: identity,
+          environment: runtimeInspectionEnvironment,
+          runBinary,
+        });
+      } catch (error) {
+        throw inventoriedCatalogInspectionError(error);
+      }
+      catalogBuildIdentityProof = createRuntimeCatalogBuildIdentityProof({
+        binaryIdentity: identity,
+        catalogBuildIdentity,
+        source: 'native-inspection',
+      });
     }
     assertRuntimePackageSourceIdentity(identity);
     if (strictCleanRelease) assertRuntimePackageBuildIdentity(identity);
@@ -396,6 +442,7 @@ export function prepareLinuxRuntimePackage(options = {}) {
           ? { environment }
           : { qualification: transportedQualification }),
         adminConsoleRequired: !allowMissingAdminConsole,
+        catalogBuildIdentityProof,
       });
       const stagedSeal = verifyRuntimePackageSeal({
         root: stagingRoot,

@@ -147,6 +147,11 @@ export const SCRIPTS_TEST_INVENTORY = Object.freeze([
     runner: { mechanism: 'verify-local-proof', gateId: 'publication-script-fixtures' },
   },
   {
+    file: 'scripts/snapback-publish.test.mjs',
+    disposition: 'run',
+    runner: { mechanism: 'verify-local-proof', gateId: 'runtime-package-authority-fixtures' },
+  },
+  {
     file: 'scripts/snapback-promotion-core.test.mjs',
     disposition: 'run',
     runner: { mechanism: 'verify-local-proof', gateId: 'promotion-fixtures' },

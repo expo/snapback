@@ -12,10 +12,13 @@ import test from 'node:test';
 import {
   PUBLIC_PACKAGE_BUILD_DISTRIBUTION,
   RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH_CODE,
+  RUNTIME_CATALOG_INSPECTION_FAILED_CODE,
   assertPublicPackageBuildIdentity,
   assertRuntimeCatalogBuildIdentity,
+  assertRuntimeCatalogBuildIdentityProof,
   assertRuntimePackageBuildIdentity,
   assertRuntimePackageSourceIdentity,
+  createRuntimeCatalogBuildIdentityProof,
   inspectRuntimeCatalogBuildIdentity,
   installPackagedStoreQualificationReceipt,
 } from './runtime-package-authority.mjs';
@@ -77,6 +80,69 @@ test('inspects the build-bound catalog through the runtime binary', () => {
       return { status: 0, stdout: JSON.stringify(catalog), stderr: '' };
     },
   }), catalog.buildIdentity);
+});
+
+test('distinguishes runtime catalog inspection failures from identity mismatches', () => {
+  for (const result of [
+    { status: 1, stdout: '', stderr: 'fixture command failed' },
+    { status: 0, stdout: '{not json', stderr: '' },
+  ]) {
+    assert.throws(
+      () => inspectRuntimeCatalogBuildIdentity({
+        binaryPath: '/fixture/snapback',
+        binaryIdentity: valid,
+        runBinary: () => result,
+      }),
+      (error) => error.code === RUNTIME_CATALOG_INSPECTION_FAILED_CODE,
+    );
+  }
+  assert.throws(
+    () => inspectRuntimeCatalogBuildIdentity({
+      binaryPath: '/fixture/snapback',
+      binaryIdentity: valid,
+      runBinary: () => { throw new Error('fixture spawn failed'); },
+    }),
+    (error) => error.code === RUNTIME_CATALOG_INSPECTION_FAILED_CODE,
+  );
+  assert.throws(
+    () => inspectRuntimeCatalogBuildIdentity({
+      binaryPath: '/fixture/snapback',
+      binaryIdentity: valid,
+      runBinary: () => ({
+        status: 0,
+        stdout: JSON.stringify({
+          schemaVersion: 'snapback.control-catalog.v1',
+          buildIdentity: { sourceCommit: 'b'.repeat(40), dirty: false },
+        }),
+        stderr: '',
+      }),
+    }),
+    (error) => error.code === RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH_CODE,
+  );
+});
+
+test('closes the catalog identity proof over its native evidence source', () => {
+  const proof = createRuntimeCatalogBuildIdentityProof({
+    binaryIdentity: valid,
+    catalogBuildIdentity: {
+      sourceCommit: valid.binary.gitCommit,
+      dirty: valid.binary.gitDirty,
+    },
+    source: 'snapback.runtime-artifact-attestation.v4',
+  });
+  assert.deepEqual(assertRuntimeCatalogBuildIdentityProof(valid, proof), proof);
+  const mismatched = structuredClone(proof);
+  mismatched.buildIdentity.sourceCommit = 'b'.repeat(40);
+  assert.throws(
+    () => assertRuntimeCatalogBuildIdentityProof(valid, mismatched),
+    (error) => error.code === RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH_CODE,
+  );
+  const skipped = structuredClone(proof);
+  skipped.source = 'foreign-architecture-skip';
+  assert.throws(
+    () => assertRuntimeCatalogBuildIdentityProof(valid, skipped),
+    (error) => error.code === RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH_CODE,
+  );
 });
 
 test('assembler strict mode admits a clean release contributor binary', () => {

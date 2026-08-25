@@ -10,6 +10,15 @@ export const PACKAGED_STORE_QUALIFICATION_SCHEMA_VERSION =
   'snapback.packaged-store-qualification.v1';
 export const RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH_CODE =
   'SNAPBACK_RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH';
+export const RUNTIME_CATALOG_INSPECTION_FAILED_CODE =
+  'SNAPBACK_RUNTIME_CATALOG_INSPECTION_FAILED';
+export const RUNTIME_CATALOG_BUILD_IDENTITY_PROOF_SCHEMA_VERSION =
+  'snapback.runtime-catalog-build-identity-proof.v1';
+
+const RUNTIME_CATALOG_BUILD_IDENTITY_PROOF_SOURCES = new Set([
+  'native-inspection',
+  'snapback.runtime-artifact-attestation.v4',
+]);
 
 function receiptError(code, message) {
   const error = new Error(message);
@@ -93,6 +102,12 @@ function catalogBuildIdentityError(message) {
   return error;
 }
 
+function catalogInspectionError(message, cause = undefined) {
+  const error = new Error(message, { cause });
+  error.code = RUNTIME_CATALOG_INSPECTION_FAILED_CODE;
+  return error;
+}
+
 export function assertRuntimeCatalogBuildIdentity(binaryIdentity, catalog) {
   assertRuntimePackageSourceIdentity(binaryIdentity);
   const catalogIdentity = catalog?.buildIdentity;
@@ -114,6 +129,46 @@ export function assertRuntimeCatalogBuildIdentity(binaryIdentity, catalog) {
   return catalogIdentity;
 }
 
+export function createRuntimeCatalogBuildIdentityProof({
+  binaryIdentity,
+  catalogBuildIdentity,
+  source,
+}) {
+  assertRuntimeCatalogBuildIdentity(binaryIdentity, {
+    schemaVersion: 'snapback.control-catalog.v1',
+    buildIdentity: catalogBuildIdentity,
+  });
+  if (!RUNTIME_CATALOG_BUILD_IDENTITY_PROOF_SOURCES.has(source)) {
+    throw catalogBuildIdentityError(
+      `runtime control catalog build identity proof has an unsupported source: ${source ?? 'unknown'}`,
+    );
+  }
+  return {
+    schemaVersion: RUNTIME_CATALOG_BUILD_IDENTITY_PROOF_SCHEMA_VERSION,
+    source,
+    buildIdentity: structuredClone(catalogBuildIdentity),
+  };
+}
+
+export function assertRuntimeCatalogBuildIdentityProof(binaryIdentity, proof) {
+  if (
+    proof === null
+    || typeof proof !== 'object'
+    || Array.isArray(proof)
+    || Object.keys(proof).sort().join(',') !== 'buildIdentity,schemaVersion,source'
+    || proof.schemaVersion !== RUNTIME_CATALOG_BUILD_IDENTITY_PROOF_SCHEMA_VERSION
+  ) {
+    throw catalogBuildIdentityError(
+      'runtime package does not carry a closed catalog build identity proof',
+    );
+  }
+  return createRuntimeCatalogBuildIdentityProof({
+    binaryIdentity,
+    catalogBuildIdentity: proof.buildIdentity,
+    source: proof.source,
+  });
+}
+
 // @ref LLP 0041#runtime-distribution — package manufacture must inspect the
 // exact embedded catalog before it can seal or publish the enclosing binary.
 export function inspectRuntimeCatalogBuildIdentity({
@@ -122,13 +177,21 @@ export function inspectRuntimeCatalogBuildIdentity({
   environment = process.env,
   runBinary = spawnSync,
 }) {
-  const result = runBinary(binaryPath, ['controls', 'list', '--json'], {
-    encoding: 'utf8',
-    env: environment,
-    timeout: 15_000,
-  });
+  let result;
+  try {
+    result = runBinary(binaryPath, ['controls', 'list', '--json'], {
+      encoding: 'utf8',
+      env: environment,
+      timeout: 15_000,
+    });
+  } catch (error) {
+    throw catalogInspectionError(
+      `could not inspect the runtime control catalog: ${error.message}`,
+      error,
+    );
+  }
   if (result.status !== 0) {
-    throw catalogBuildIdentityError(
+    throw catalogInspectionError(
       'could not inspect the runtime control catalog: '
       + (
         result.error?.message
@@ -143,8 +206,9 @@ export function inspectRuntimeCatalogBuildIdentity({
   try {
     catalog = JSON.parse(result.stdout);
   } catch (error) {
-    throw catalogBuildIdentityError(
+    throw catalogInspectionError(
       `runtime control catalog output was not valid JSON: ${error.message}`,
+      error,
     );
   }
   return assertRuntimeCatalogBuildIdentity(binaryIdentity, catalog);

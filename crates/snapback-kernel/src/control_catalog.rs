@@ -158,6 +158,25 @@ mod tests {
     use super::*;
 
     #[test]
+    fn embedded_catalog_build_identity_matches_the_enclosing_binary() {
+        let binary = snapback_types::identity::binary_identity();
+        let catalog_identity = &build_catalog()["buildIdentity"];
+        assert_eq!(
+            catalog_identity["sourceCommit"].as_str(),
+            Some(binary.git_commit.as_str()),
+        );
+        assert_eq!(catalog_identity["dirty"].as_bool(), Some(binary.git_dirty));
+
+        // Outside a git checkout both build scripts omit their rustc-env
+        // stamps. The shared runtime contract then defaults conservatively,
+        // and the embedded catalog must follow those same defaults.
+        if binary.git_commit == "unknown" {
+            assert_eq!(catalog_identity["sourceCommit"], "unknown");
+            assert_eq!(catalog_identity["dirty"], true);
+        }
+    }
+
+    #[test]
     fn search_matches_operation_title_and_intents_without_changing_identity() {
         let full = build_catalog();
         let filtered = search(Some("network profile"));
