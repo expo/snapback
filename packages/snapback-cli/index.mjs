@@ -20,6 +20,7 @@ import {
   rmdirSync,
   rmSync,
   statSync,
+  symlinkSync,
   watch,
   writeFileSync,
 } from 'node:fs';
@@ -27,7 +28,7 @@ import { tmpdir } from 'node:os';
 import { createConnection, createServer as createNetServer } from 'node:net';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { createInterface } from 'node:readline';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { SnapbackClient } from '@expo/snapback-client';
 import {
@@ -765,19 +766,38 @@ export async function doctor(options = {}) {
       await waitForReady(readyFile, child, readyTimeoutMs),
       { readyFile, database },
     );
+    const adminToken = managedAdminToken(descriptor, database);
+    const generatedActivation = await loadGenerated(
+      runtime.binary,
+      projectRoot,
+      backendRoot,
+      readyFile,
+      adminToken,
+      {
+        seed: true,
+        database,
+        skipSchemaFunctions: needsStartupActivation,
+        env: options.env,
+      },
+    );
+    // @ref LLP 0224#layered-readiness-not-one-overloaded-boolean — host
+    // readiness and completed post-bind generated provisioning are distinct
+    // boundaries; sessions ensureApp is also LLP 0058 same-mode activation.
     const activationReadiness = {
       requestedMode,
-      signal: 'runtime-ready-file',
-      timeoutMs: readyTimeoutMs,
-      startupCarrier: needsStartupActivation,
+      startup: {
+        signal: 'runtime-ready-file',
+        timeoutMs: readyTimeoutMs,
+        startupCarrier: needsStartupActivation,
+      },
+      postBind: {
+        signal: 'load-generated-return',
+        branch: generatedActivation.branch,
+        admissionBoundary: needsStartupActivation
+          ? 'sessions-same-mode-activation'
+          : 'none',
+      },
     };
-    const adminToken = managedAdminToken(descriptor, database);
-    await loadGenerated(runtime.binary, projectRoot, backendRoot, readyFile, adminToken, {
-      seed: true,
-      database,
-      skipSchemaFunctions: needsStartupActivation,
-      env: options.env,
-    });
     checks.push(doctorDiagnostic(
       'SNAPBACK_DOCTOR_BUNDLE_LOAD_OK',
       'runtime',
@@ -785,6 +805,24 @@ export async function doctor(options = {}) {
       { activationReadiness },
     ));
 
+    const generatedClientEntry = fileURLToPath(
+      import.meta.resolve('@expo/snapback-client/internal/declared-dev-mint'),
+    );
+    const generatedClientPackage = dirname(dirname(generatedClientEntry));
+    const generatedPackageScope = join(projectRoot, 'node_modules', '@expo');
+    mkdirSync(generatedPackageScope, { recursive: true });
+    symlinkSync(
+      generatedClientPackage,
+      join(generatedPackageScope, 'snapback-client'),
+      process.platform === 'win32' ? 'junction' : 'dir',
+    );
+    // @ref LLP 0012#call-time-generation-binding — doctor imports and calls
+    // the generated references so kind, args, and generation fences are part
+    // of the vertical slice rather than bypassed by string operation names.
+    const apiModule = await import(
+      `${pathToFileURL(resolveGeneratedArtifact(join(backendRoot, 'generated'), 'api.mjs')).href}?doctor=${Date.now()}`,
+    );
+    const api = apiModule.default;
     const devIdentityCapability = requestedMode === 'dev'
       ? resolveDevIdentityCapabilityForCli(descriptor, {
           readyFile,
@@ -816,8 +854,8 @@ export async function doctor(options = {}) {
       });
     }
     const before = await client.query(
-      'listTodos',
-      requestedMode === 'dev' ? { userId } : undefined,
+      api.listTodos,
+      requestedMode === 'dev' ? { userId } : {},
     );
     if (!Array.isArray(before.rows)) {
       throw diagnosticError('SNAPBACK_DOCTOR_QUERY_FAILED', 'the disposable query returned no rows array');
@@ -829,7 +867,7 @@ export async function doctor(options = {}) {
       { version: before.version, rowCount: before.rows.length },
     ));
 
-    const mutation = await client.mutate('createTodo', {
+    const mutation = await client.mutate(api.createTodo, {
       ...(requestedMode === 'dev' ? { userId } : {}),
       args: { title: 'Snapback doctor vertical slice' },
       clientMutationId: `doctor-${process.pid}-${Date.now()}`,
@@ -848,7 +886,7 @@ export async function doctor(options = {}) {
       { version: mutation.version },
     ));
 
-    live = await client.liveQuery('listTodos', {
+    live = await client.liveQuery(api.listTodos, {
       connectionId: 'doctor',
       ...(requestedMode === 'dev' ? { userId } : {}),
     });
