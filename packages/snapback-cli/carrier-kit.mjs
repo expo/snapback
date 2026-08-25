@@ -732,11 +732,15 @@ function assertExpoSupervisorReadinessUnchanged(readiness, confirmed, context) {
   }
 }
 
+// @ref LLP 0181#diagnostics — startup failures retain both the canonical
+// child-lifecycle fact and the missing structured-readiness capability.
 async function waitForExpoSupervisorWebReadiness(path, timeoutMs, child) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (child.exitCode !== null || child.signalCode !== null) {
-      throw new Error(`Expo web carrier exited ${child.exitCode ?? child.signalCode} before readiness`);
+      throw new Error(
+        `Expo web carrier exited ${child.exitCode ?? child.signalCode} before readiness; did not write structured readiness ${path}`,
+      );
     }
     if (existsSync(path)) return readExpoSupervisorWebReadiness(path, child);
     await new Promise((resolveWait) => setTimeout(resolveWait, 100));

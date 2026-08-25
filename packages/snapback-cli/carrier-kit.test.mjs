@@ -625,7 +625,7 @@ try {
     runTemplateCarrierCli(config('leader-sigkill'), [
       'web-browser', '--browser', browser, '--artifacts', killedCliArtifacts,
     ], { root }),
-    /exited .* before readiness/u,
+    /exited .* before readiness; did not write structured readiness/u,
   );
   const killedCliPids = JSON.parse(readFileSync(join(killedCliArtifacts, 'descendant-pids.json')));
   await eventually(() => killedCliPids.every((pid) => !pidAlive(pid)), 'pre-descriptor SIGKILL descendants');

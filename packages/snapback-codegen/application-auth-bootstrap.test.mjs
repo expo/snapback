@@ -462,9 +462,16 @@ test('familiar defaults durable custody and refuses the weaker grade before publ
     committedProjections: [],
     authoringProfile: 'snapback-familiar-ts-v1',
   }));
+  // The graph builder-site walk shares Familiar's module graph. Keep a local,
+  // specifier-less re-export in that graph so ExportDeclaration.moduleSpecifier
+  // remains optional while defineSchema still resolves to the owned builder.
+  writeFileSync(join(root, 'schema-builders.ts'), `
+import { defineSchema, defineTable, v } from './generated/server';
+export { defineSchema, defineTable, v };
+`);
   const writeFamiliarSchema = (custody = undefined) => writeFileSync(join(root, 'schema.ts'), `
 import { defineAuth } from '${defineUrl}';
-import { defineSchema, defineTable, v } from './generated/server';
+import { defineSchema, defineTable, v } from './schema-builders';
 const authProgram = defineAuth(${authProgram({ custody })});
 export default defineSchema({
   items: defineTable({ ownerId: v.principal(), title: v.string() })

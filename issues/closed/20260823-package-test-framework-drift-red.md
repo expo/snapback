@@ -104,3 +104,12 @@ the template moved the sessions data leg to `sessionClient.query(...)`.
 
 Red 3 remains owned by the separate codegen lane and is not part of this
 resolution. Red 4 was already fixed as recorded above.
+## Note (2026-08-25)
+
+The third inherited red, `familiar-dev-loop` failing in codegen while reading
+TypeScript node `kind`, is fixed by this lane's commit. The base already carried
+the `ExportDeclaration.moduleSpecifier` guard from `9653d21d2`; this lane adds
+the missing Familiar-profile specifier-less re-export regression and confirms
+the dev loop passes with the lane's qualified shared runtime. This ticket stays
+open for its separately owned framework-drift and application-auth-fixtures
+reds.
