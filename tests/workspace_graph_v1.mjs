@@ -398,6 +398,8 @@ test('the engine denylist covers qualified functions, unions, and raw identifier
     'pub extern "C" fn r#search() {}',
     'pub /* split visibility */ fn search() {}',
     'pub /* split restricted visibility */ (crate) fn search() {}',
+    'pub(crate)fn search() {}',
+    'pub(crate)mod search {}',
     'pub fn /* split name */ search() {}',
     '#[inline] pub const fn r#search() {}',
     'pub union PreparedAuthProvision { x: u8 }',
@@ -562,6 +564,13 @@ test('reviewed runtime_cost globs cannot be rebound at their canonical path', ()
     () => validateEngineDefinitionDenylist(artifact, [{
       path: canonicalPath,
       source: '#[path = "ask.rs"] mod runtime_cost;\npub use runtime_cost::*;',
+    }]),
+    /may not shadow reviewed glob binding runtime_cost/u,
+  );
+  assert.throws(
+    () => validateEngineDefinitionDenylist(artifact, [{
+      path: canonicalPath,
+      source: '#[path = "ask.rs"] #[path = "local/runtime_cost.rs"] mod runtime_cost;\npub use runtime_cost::*;',
     }]),
     /may not shadow reviewed glob binding runtime_cost/u,
   );

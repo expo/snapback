@@ -13,6 +13,8 @@ const ROOT = resolve(import.meta.dirname, '..');
 const ROOT_REAL = realpathSync(ROOT);
 const MATRIX_PATH = resolve(ROOT, 'crates/allowed-dependencies.v1.json');
 const DIAGNOSTIC = 'SNAPBACK_WORKSPACE_GRAPH_VIOLATION';
+const RUST_VISIBILITY = String.raw`pub(?:\s*\([^)]*\)\s*|\s+)`;
+const OPTIONAL_RUST_VISIBILITY = String.raw`(?:${RUST_VISIBILITY})?`;
 
 const EXPECTED_CRATES = [
   ['snapback-types', 'shared-contract-types-leaf', 0, []],
@@ -828,14 +830,15 @@ function rustAttributes(source) {
 }
 
 function modulePathBeforeStatement(source, attributes, statementStart) {
-  const pathAttribute = attributes.findLast((attribute) => (
+  const pathAttributes = attributes.filter((attribute) => (
     attribute.end <= statementStart
       && /^#\s*!?\s*\[\s*path\b/su.test(attribute.source)
       && maskRustAttributes(maskRustCommentsAndLiterals(
         source.slice(attribute.end, statementStart),
       )).trim() === ''
   ));
-  if (!pathAttribute) return null;
+  if (pathAttributes.length !== 1) return null;
+  const [pathAttribute] = pathAttributes;
   return /^#\s*!?\s*\[\s*path\s*=\s*"([^"\\]+)"\s*\]$/su.exec(pathAttribute.source)?.[1] ?? null;
 }
 
@@ -1010,9 +1013,8 @@ function validateEngineDefinitionInputs(files) {
 
     const masked = maskRustAttributes(maskRustCommentsAndLiterals(file.source));
     const repositoryFile = relative(ROOT, file.path).split(sep).join('/');
-    const visibility = String.raw`(?:pub(?:\s*\([^)]*\)\s*|\s+))?`;
     for (const externMatch of masked.matchAll(new RegExp(
-      String.raw`(?:^|[;{}])\s*${visibility}extern\s+crate\s+(?:r#)?([A-Za-z_][A-Za-z0-9_]*)(?:\s+as\s+(?:r#)?([A-Za-z_][A-Za-z0-9_]*))?\s*;`,
+      String.raw`(?:^|[;{}])\s*${OPTIONAL_RUST_VISIBILITY}extern\s+crate\s+(?:r#)?([A-Za-z_][A-Za-z0-9_]*)(?:\s+as\s+(?:r#)?([A-Za-z_][A-Za-z0-9_]*))?\s*;`,
       'gmu',
     ))) {
       const binding = externMatch[2] ?? externMatch[1];
@@ -1026,7 +1028,7 @@ function validateEngineDefinitionInputs(files) {
       );
     }
     for (const useMatch of masked.matchAll(new RegExp(
-      String.raw`(?:^|[;{}])\s*${visibility}use\s+([^;]+);`,
+      String.raw`(?:^|[;{}])\s*${OPTIONAL_RUST_VISIBILITY}use\s+([^;]+);`,
       'gmu',
     ))) {
       const useSpec = useMatch[1];
@@ -1072,7 +1074,7 @@ function validateEngineDefinitionInputs(files) {
       if (reviewedDeclaration) {
         declarations = declarations.replace(
           new RegExp(
-            String.raw`(^|[;{}])(\s*)(${visibility})mod\s+(?:r#)?${binding}\s*;`,
+            String.raw`(^|[;{}])(\s*)(${OPTIONAL_RUST_VISIBILITY})mod\s+(?:r#)?${binding}\s*;`,
             'gmu',
           ),
           (match, prefix, whitespace, _visibility, offset) => {
@@ -1086,18 +1088,24 @@ function validateEngineDefinitionInputs(files) {
       }
       assert(
         !new RegExp(
-          String.raw`(?:^|[;{}])\s*${visibility}(?:(?:unsafe|auto)\s+)*(?:mod|type|struct|enum|union|trait)\s+(?:r#)?${binding}\b`,
+          String.raw`(?:^|[;{}])\s*${OPTIONAL_RUST_VISIBILITY}(?:(?:unsafe|auto)\s+)*(?:mod|type|struct|enum|union|trait)\s+(?:r#)?${binding}\b`,
           'mu',
         ).test(declarations),
         `snapback-engine may not shadow reviewed glob binding ${binding}: ${repositoryFile}`,
       );
     }
     assert(
-      !/(?:^|[;{}])\s*(?:pub(?:\s*\([^)]*\))?\s+)?(?:mod|type|struct|enum|union|trait)\s+(?:r#)?(?:rusqlite|schemars|serde|serde_json|snapback_services|std|tokio)\b/mu.test(masked),
+      !new RegExp(
+        String.raw`(?:^|[;{}])\s*${OPTIONAL_RUST_VISIBILITY}(?:mod|type|struct|enum|union|trait)\s+(?:r#)?(?:rusqlite|schemars|serde|serde_json|snapback_services|std|tokio)\b`,
+        'mu',
+      ).test(masked),
       `snapback-engine may not shadow a trusted macro crate binding: ${relative(ROOT, file.path).split(sep).join('/')}`,
     );
     assert(
-      !/\bmacro_rules\s*!/u.test(masked) && !/(?:^|[;{}])\s*(?:pub(?:\s*\([^)]*\))?\s+)?macro\s+(?:r#)?[A-Za-z_][A-Za-z0-9_]*/mu.test(masked),
+      !/\bmacro_rules\s*!/u.test(masked) && !new RegExp(
+        String.raw`(?:^|[;{}])\s*${OPTIONAL_RUST_VISIBILITY}macro\s+(?:r#)?[A-Za-z_][A-Za-z0-9_]*`,
+        'mu',
+      ).test(masked),
       `snapback-engine may not define item-generating macros: ${relative(ROOT, file.path).split(sep).join('/')}`,
     );
     for (const match of masked.matchAll(/\b((?:[A-Za-z_][A-Za-z0-9_]*::)*(?:r#)?[A-Za-z_][A-Za-z0-9_]*)\s*!\s*[({\[]/gu)) {
@@ -1115,14 +1123,13 @@ export function validateEngineDefinitionDenylist(artifact, files = rustSourceFil
     'engine definition denylist drifted from the Phase 2 flip predicate',
   );
   validateEngineDefinitionInputs(files);
-  const visibility = String.raw`(?:pub(?:\s*\([^)]*\))?\s+)?`;
   for (const entry of artifact.engineDefinitionDenylist) {
     const declaration = String.raw`(?:`
       + String.raw`(?:(?:const|async|unsafe|safe|default)\s+|extern(?:\s+"[^"]*")?\s+)*fn`
       + String.raw`|(?:(?:unsafe|auto)\s+)*(?:struct|enum|union|trait|type)`
       + String.raw`|mod|const|(?:(?:safe|unsafe)\s+)?static(?:\s+mut)?|macro_rules\s*!|macro)`;
     const pattern = new RegExp(
-      String.raw`(?:^|[;{}(\[])\s*${visibility}${declaration}\s+(?:r#)?${entry.symbol}\b`,
+      String.raw`(?:^|[;{}(\[])\s*${OPTIONAL_RUST_VISIBILITY}${declaration}\s+(?:r#)?${entry.symbol}\b`,
       'mu',
     );
     for (const file of files) {
