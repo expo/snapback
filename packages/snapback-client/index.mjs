@@ -3291,6 +3291,70 @@ const offlineMutationReplayTargetBindingError = (record, replayTarget, knownAppI
   );
 };
 
+// @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 — retained
+//   presentation is target-bound observation, but it never reconciles or
+//   rewrites predecessor custody merely because a different app opened it.
+const offlineMutationProjectionTarget = ({ baseUrl, appId = null, capabilityFact = null }) => {
+  const origin = canonicalServerOrigin(baseUrl);
+  const fact = normalizeOfflineMutationReplayCapabilityFact(capabilityFact);
+  const factAppId = fact?.artifactGeneration?.appId ?? null;
+  const factApplies = fact !== null
+    && canonicalServerOrigin(fact.origin) === origin
+    && (appId === null || factAppId === null || factAppId === appId);
+  return Object.freeze({
+    origin,
+    appId,
+    targetProfileId: factApplies ? fact.targetProfileId : null,
+    artifactGeneration: factApplies ? fact.artifactGeneration : null,
+    ledgerIncarnation: factApplies ? fact.ledgerIncarnation ?? null : null,
+  });
+};
+
+const outboxRecordMatchesProjectionTarget = (record, target) => {
+  const persisted = record?.outboxRecordSchemaVersion === OUTBOX_RECORD_SCHEMA_VERSION
+    ? record.enqueueTarget
+    : null;
+  if (persisted === null || typeof persisted !== 'object') return true;
+  if (canonicalServerOrigin(persisted.canonicalOrigin) !== target.origin) return false;
+  if (
+    target.targetProfileId !== null
+    && persisted.targetProfileId !== target.targetProfileId
+  ) return false;
+  if (!sameOptionalLedgerIncarnation(
+    persisted.ledgerIncarnation ?? null,
+    target.ledgerIncarnation ?? null,
+  )) return false;
+  const currentAppId = target.appId ?? target.artifactGeneration?.appId ?? null;
+  if (persisted.artifactIdentity?.kind === 'app') {
+    return currentAppId === null || persisted.artifactIdentity.appId === currentAppId;
+  }
+  if (persisted.artifactIdentity?.kind === 'generated') {
+    if (target.artifactGeneration !== null) {
+      return sameArtifactGeneration(
+        persisted.artifactIdentity.generation,
+        target.artifactGeneration,
+      );
+    }
+    return currentAppId === null
+      || persisted.artifactIdentity.generation?.appId === currentAppId;
+  }
+  return false;
+};
+
+const outboxRecordTargetStatus = (record, target) => {
+  const enqueueTarget = record?.outboxRecordSchemaVersion === OUTBOX_RECORD_SCHEMA_VERSION
+    && record.enqueueTarget !== null
+    && typeof record.enqueueTarget === 'object'
+    ? structuredClone(record.enqueueTarget)
+    : null;
+  return enqueueTarget === null
+    ? null
+    : Object.freeze({
+      enqueueTarget,
+      targetMatchesCurrent: outboxRecordMatchesProjectionTarget(record, target),
+    });
+};
+
 const offlineMutationReplayCapabilityFactFromInspection = (inspection, origin) => {
   // Local `/inspect` nests the manifest in PublicInspect; the Cloudflare
   // proof serves that same manifest directly at `/inspect` and `/capability`.
@@ -7632,14 +7696,15 @@ export class SnapbackClient {
       }
       throw cause;
     }
-    const fact = await this.#recordOfflineMutationReplayCapabilityFact(
+    const recorded = await this.#recordOfflineMutationReplayCapabilityFact(
       offlineMutationReplayCapabilityFactFromInspection(inspection, origin),
       observation,
       transportTarget,
     );
     return Object.freeze({
       inspection,
-      fact,
+      fact: recorded.fact,
+      factCommitted: recorded.committed,
       inspectionRequestSequence: observation.requestSequence,
     });
   }
@@ -7654,14 +7719,21 @@ export class SnapbackClient {
   // a missing capability gap is never positive support; inspect the closed
   // supportedCapabilities set on both local and Cloudflare payload shapes.
   async #recordOfflineMutationReplayCapabilityFact(fact, observation, transportTarget = null) {
+    const result = (recordedFact, committed = null) => Object.freeze({
+      fact: recordedFact,
+      committed,
+    });
     const normalized = normalizeOfflineMutationReplayCapabilityFact(fact);
-    if (normalized === null) return null;
+    if (normalized === null) return result(null, false);
     if (
       transportTarget !== null
       && canonicalServerOrigin(normalized.origin) !== transportTarget.origin
-    ) return null;
+    ) return result(null, false);
     if (this.__clientClosed) {
-      return (await this.#currentOfflineMutationReplayCapabilityFact(transportTarget)) ?? normalized;
+      return result(
+        (await this.#currentOfflineMutationReplayCapabilityFact(transportTarget)) ?? normalized,
+        false,
+      );
     }
     const requestSequence = observation?.requestSequence;
     if (
@@ -7669,7 +7741,10 @@ export class SnapbackClient {
       || requestSequence < 1
       || requestSequence < this.__offlineMutationReplayCapabilityLastAnsweredRequestSequence
     ) {
-      return (await this.#currentOfflineMutationReplayCapabilityFact(transportTarget)) ?? normalized;
+      return result(
+        (await this.#currentOfflineMutationReplayCapabilityFact(transportTarget)) ?? normalized,
+        false,
+      );
     }
     // Connectivity failures never reach this cut. An answered request owns
     // the local high-water from dispatch time, not from response arrival.
@@ -7691,30 +7766,68 @@ export class SnapbackClient {
     }
     const commit = async () => {
       if (this.__clientClosed) {
-        return (await this.#currentOfflineMutationReplayCapabilityFact(transportTarget)) ?? normalized;
+        return result(
+          (await this.#currentOfflineMutationReplayCapabilityFact(transportTarget)) ?? normalized,
+          false,
+        );
       }
       if (
         requestSequence < this.__offlineMutationReplayCapabilityLastAnsweredRequestSequence
       ) {
-        return (await this.#currentOfflineMutationReplayCapabilityFact(transportTarget)) ?? normalized;
+        return result(
+          (await this.#currentOfflineMutationReplayCapabilityFact(transportTarget)) ?? normalized,
+          false,
+        );
       }
       let store = null;
       try { store = this.#offlineQueueStore(false); } catch { store = null; }
       if (typeof store?.commitOfflineMutationReplayCapabilityFact === 'function') {
         try {
-          const committed = observation.storeObservation === null
-            ? false
-            : await store.commitOfflineMutationReplayCapabilityFact(
-                normalized,
-                observation.storeObservation,
-              );
-          if (
-            committed !== false
-            && typeof store.readOfflineMutationReplayCapabilityFact === 'function'
-          ) {
-            const shared = normalizeOfflineMutationReplayCapabilityFact(
-              await store.readOfflineMutationReplayCapabilityFact(),
-            );
+          const commitAndRead = async () => {
+            const committed = observation.storeObservation === null
+              ? false
+              : await store.commitOfflineMutationReplayCapabilityFact(
+                  normalized,
+                  observation.storeObservation,
+                );
+            const shared = typeof store.readOfflineMutationReplayCapabilityFact === 'function'
+              ? normalizeOfflineMutationReplayCapabilityFact(
+                  await store.readOfflineMutationReplayCapabilityFact(),
+                )
+              : null;
+            return { committed, shared };
+          };
+          // Capability replacement and mutation transport share the exact
+          // authorization-dispatch cut. The exclusive form conflicts with
+          // both foreground and housekeeping lane dispatches, including when
+          // this call brokers a follower answer to the elected writer.
+          const { committed, shared } = typeof store.withOutboxAuthorizationDispatch === 'function'
+            ? await store.withOutboxAuthorizationDispatch(commitAndRead)
+            : await commitAndRead();
+          if (committed === false) {
+            this.__observedOfflineMutationReplayCapability = shared;
+            if (
+              this.__offlineMutationReplayCapabilityLocalOverrideRequestSequence
+                === requestSequence
+            ) {
+              this.__offlineMutationReplayCapabilityLocalOverride = null;
+              this.__offlineMutationReplayCapabilityLocalOverrideRequestSequence = null;
+            }
+            return result(shared, false);
+          }
+          if (shared !== null) {
+            this.__observedOfflineMutationReplayCapability = shared;
+            if (
+              this.__offlineMutationReplayCapabilityLocalOverrideRequestSequence
+                === requestSequence
+            ) {
+              this.__offlineMutationReplayCapabilityLocalOverride = null;
+              this.__offlineMutationReplayCapabilityLocalOverrideRequestSequence = null;
+            }
+            return result(shared, true);
+          }
+          if (committed !== false) {
+            const shared = normalizeOfflineMutationReplayCapabilityFact(committed);
             if (shared !== null) {
               this.__observedOfflineMutationReplayCapability = shared;
               if (
@@ -7724,7 +7837,7 @@ export class SnapbackClient {
                 this.__offlineMutationReplayCapabilityLocalOverride = null;
                 this.__offlineMutationReplayCapabilityLocalOverrideRequestSequence = null;
               }
-              return shared;
+              return result(shared, true);
             }
           }
         } catch { /* the fresh answer remains usable only by its direct caller */ }
@@ -7735,7 +7848,7 @@ export class SnapbackClient {
       ) {
         this.__observedOfflineMutationReplayCapability = normalized;
       }
-      return normalized;
+      return result(normalized, null);
     };
     const task = this.__offlineMutationReplayCapabilityCommitTail.then(commit, commit);
     this.__offlineMutationReplayCapabilityCommitTail = task.then(
@@ -7795,9 +7908,10 @@ export class SnapbackClient {
     }
     let inspection;
     let fact;
+    let factCommitted;
     let inspectionRequestSequence;
     try {
-      ({ inspection, fact, inspectionRequestSequence } = await (
+      ({ inspection, fact, factCommitted, inspectionRequestSequence } = await (
         this.#inspectWithOfflineMutationReplayCapabilitySequence(transportTarget)
       ));
     } catch (cause) {
@@ -7838,6 +7952,17 @@ export class SnapbackClient {
         operationTarget: transportTarget,
       });
     }
+    if (fact === null) {
+      return Object.freeze({
+        supported: false,
+        reason: 'inspection-fact-uncommitted',
+        targetProfileId: null,
+        evidence: null,
+        inspectionRequestSequence,
+        operationTarget: transportTarget,
+      });
+    }
+    const evidence = factCommitted === false ? null : 'fresh';
     if (
       fact.supported
       && expectedGeneration !== null
@@ -7850,7 +7975,7 @@ export class SnapbackClient {
         ...fact,
         supported: false,
         reason: 'target-identity-mismatch',
-        evidence: 'fresh',
+        evidence,
         inspectionRequestSequence,
         operationTarget: transportTarget,
       });
@@ -7861,14 +7986,14 @@ export class SnapbackClient {
         ...fact,
         supported: false,
         reason: 'target-identity-mismatch',
-        evidence: 'fresh',
+        evidence,
         inspectionRequestSequence,
         operationTarget: transportTarget,
       });
     }
     return Object.freeze({
       ...fact,
-      evidence: 'fresh',
+      evidence,
       inspectionRequestSequence,
       operationTarget: completedTarget,
     });
@@ -8431,6 +8556,34 @@ export class SnapbackClient {
     return this.__storeRuntimeInvoke('__evaluateLocalMutationWithReadAdmission', ...args);
   }
 
+  async #outboxProjectionTarget(store) {
+    let capabilityFact = null;
+    if (typeof store?.readOfflineMutationReplayCapabilityFact === 'function') {
+      try {
+        capabilityFact = await store.readOfflineMutationReplayCapabilityFact();
+      } catch { /* origin and established app identity still fence projection */ }
+    }
+    if (capabilityFact === null) {
+      capabilityFact = this.__offlineMutationReplayCapabilityLocalOverride
+        ?? this.__observedOfflineMutationReplayCapability;
+    }
+    return offlineMutationProjectionTarget({
+      baseUrl: this.baseUrl,
+      appId: this.__inspectionAppId,
+      capabilityFact,
+    });
+  }
+
+  #targetAwareOptimisticRecordStore(store) {
+    return Object.freeze({
+      outboxRecords: async () => {
+        const target = await this.#outboxProjectionTarget(store);
+        const records = await store.outboxRecords();
+        return records.filter((record) => outboxRecordMatchesProjectionTarget(record, target));
+      },
+    });
+  }
+
   // Internal Move-3 Phase-1 composition seam retained for focused tests; M4's
   // public view below wraps the same outbox/registration/store composition.
   async __createOptimisticRebaseEngine({
@@ -8438,7 +8591,7 @@ export class SnapbackClient {
     connected = false,
   } = {}) {
     return this.__storeRuntimeInvoke('__createOptimisticRebaseEngine', {
-      outboxStore: this.rqsStore,
+      outboxStore: this.#targetAwareOptimisticRecordStore(this.rqsStore),
       initialAuthoritativeRows,
       connected,
     });
@@ -8453,10 +8606,14 @@ export class SnapbackClient {
     connected = false,
   } = {}) {
     const outboxStore = this.#offlineQueueStore(true);
-    return this.__storeRuntimeInvoke('createOptimisticMutationView', outboxStore, {
-      authoritativeRows,
-      connected,
-    });
+    return this.__storeRuntimeInvoke(
+      'createOptimisticMutationView',
+      this.#targetAwareOptimisticRecordStore(outboxStore),
+      {
+        authoritativeRows,
+        connected,
+      },
+    );
   }
 
   // Ordinary query handles own one table-scoped view over the same rebase
@@ -8473,7 +8630,7 @@ export class SnapbackClient {
     if (typeof table !== 'string' || table.length === 0) return null;
     return this.__storeRuntimeInvoke(
       'createOptimisticMutationView',
-      this.__optimisticRecordStore,
+      this.#targetAwareOptimisticRecordStore(this.__optimisticRecordStore),
       {
         authoritativeRows,
         connected,
@@ -10976,12 +11133,16 @@ export class SnapbackClient {
     }
     const ephemeral = this.__ephemeralOptimisticRecords.get(clientMutationId) ?? null;
     if (ephemeral !== null) {
+      const target = await this.#outboxProjectionTarget(this.__optimisticRecordStore);
+      const targetStatus = outboxRecordTargetStatus(ephemeral, target);
+      const projectedTarget = targetStatus === null ? {} : targetStatus;
       if (ephemeral.status === 'settled') {
         return freezeDeep({
           status: 'settled',
           settlement: structuredClone(ephemeral.settlement),
           settledAt: ephemeral.settledAt,
           timing: mutationTiming(ephemeral),
+          ...projectedTarget,
         });
       }
       if (ephemeral.status === 'failed') {
@@ -10989,9 +11150,15 @@ export class SnapbackClient {
           status: 'failed',
           failure: structuredClone(ephemeral.failure),
           timing: mutationTiming(ephemeral),
+          ...projectedTarget,
         });
       }
-      return Object.freeze({ status: 'pending', blockedReason: null, timing: mutationTiming(ephemeral) });
+      return freezeDeep({
+        status: 'pending',
+        blockedReason: null,
+        timing: mutationTiming(ephemeral),
+        ...projectedTarget,
+      });
     }
     let store = null;
     try { store = this.#offlineQueueStore(); } catch { store = null; }
@@ -11006,16 +11173,20 @@ export class SnapbackClient {
       return Object.freeze({ status: 'unknown', timing: mutationTiming() });
     }
     if (!record) return Object.freeze({ status: 'unknown', timing: mutationTiming() });
+    const target = await this.#outboxProjectionTarget(store);
+    const targetStatus = outboxRecordTargetStatus(record, target);
+    const projectedTarget = targetStatus === null ? {} : targetStatus;
     const disposition = (value) => freezeDeep(value);
     if (record.status === 'pending') {
       // LLP 0218 §4.1: the current store records no durable
       // identity-horizon-passed marker, so outcome-unknown cannot be inferred
       // from a merely pending record and blockedReason remains null.
       const authorityStatus = this.authorityFence?.authorityTransitionStatus?.() ?? null;
-      return Object.freeze({
+      return freezeDeep({
         status: 'pending',
         blockedReason: authorityStatus?.transitionOwner === 'auth-coordinator' ? 'auth-barrier' : null,
         timing: mutationTiming(record),
+        ...projectedTarget,
       });
     }
     if (record.status === 'settled') {
@@ -11024,6 +11195,7 @@ export class SnapbackClient {
         settlement: structuredClone(record.settlement),
         settledAt: record.settledAt,
         timing: mutationTiming(record),
+        ...projectedTarget,
       });
     }
     if (record.status === 'failed') {
@@ -11031,18 +11203,24 @@ export class SnapbackClient {
         status: 'failed',
         failure: structuredClone(record.failure),
         timing: mutationTiming(record),
+        ...projectedTarget,
       });
     }
     if (record.status === 'stranded') {
-      return disposition({ status: 'stranded', timing: mutationTiming(record) });
+      return disposition({ status: 'stranded', timing: mutationTiming(record), ...projectedTarget });
     }
     if (record.status === 'quarantined') {
-      return disposition({ status: 'quarantined', timing: mutationTiming(record) });
+      return disposition({ status: 'quarantined', timing: mutationTiming(record), ...projectedTarget });
     }
     if (record.status === 'result-gone') {
-      return disposition({ status: 'resultGone', ...structuredClone(record.resultGone), timing: mutationTiming(record) });
+      return disposition({
+        status: 'resultGone',
+        ...structuredClone(record.resultGone),
+        timing: mutationTiming(record),
+        ...projectedTarget,
+      });
     }
-    return Object.freeze({ status: 'unknown', timing: mutationTiming(record) });
+    return freezeDeep({ status: 'unknown', timing: mutationTiming(record), ...projectedTarget });
   }
 
   /// Observe one durable mutation disposition over the existing outbox seam.
@@ -11423,8 +11601,10 @@ export class SnapbackClient {
     const store = this.#offlineQueueStore();
     if (!store || typeof store.outboxRecords !== 'function') return [];
     const cohort = await this.#currentSettlementRecoveryCohort(userId);
+    const target = await this.#outboxProjectionTarget(store);
     return (await store.outboxRecords())
       .filter((record) => record?.status === 'settled')
+      .filter((record) => outboxRecordMatchesProjectionTarget(record, target))
       .filter((record) => (record.userId ?? null) === cohort.userId)
       .filter((record) => (
         !cohort.enforceAuthorityDescriptor
@@ -11433,15 +11613,19 @@ export class SnapbackClient {
           cohort.authorityDescriptor,
         )
       ))
-      .map((record) => Object.freeze({
-        clientMutationId: record.id,
-        function: record.function,
-        settlement: structuredClone(record.settlement),
-        settledAt: record.settledAt,
-        authorityDescriptor: record.settlementAuthorityDescriptor
-          ?? record.settlement?.authorityDescriptor
-          ?? null,
-      }));
+      .map((record) => {
+        const targetStatus = outboxRecordTargetStatus(record, target);
+        return freezeDeep({
+          clientMutationId: record.id,
+          function: record.function,
+          settlement: structuredClone(record.settlement),
+          settledAt: record.settledAt,
+          authorityDescriptor: record.settlementAuthorityDescriptor
+            ?? record.settlement?.authorityDescriptor
+            ?? null,
+          ...(targetStatus === null ? {} : targetStatus),
+        });
+      });
   }
 
   async markMutationSettlementsConsumed(clientMutationIds = [], { userId = null } = {}) {
@@ -11743,7 +11927,11 @@ export class SnapbackClient {
         mutation: record.function,
         reason: error?.code ?? error?.message ?? String(error),
       });
-      return null;
+      // The explicit null returns above are true custody unavailability. A
+      // thrown target/authority fence or store failure is typed evidence the
+      // caller must see; collapsing it into null would relabel it as a missing
+      // settlement-ledger capability at the outer queue boundary.
+      throw error;
     }
   }
 

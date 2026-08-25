@@ -8,7 +8,9 @@
 retention/outbox), LLP 0208 (pilot evidence; carries the follow-on
 drain/observability design as its G1),
 `issues/20260808-first-class-react-optimistic-create.md` (adjacent),
-`issues/20260731-js-arm-lease-custody-and-sessions-outbox.md` (adjacent)
+`issues/20260731-js-arm-lease-custody-and-sessions-outbox.md` (adjacent),
+`issues/20260825-inspect-exposes-ledger-incarnation.md` (open reset-incarnation
+gap)
 
 ## Problem
 
@@ -94,3 +96,21 @@ distinct facet-A settlement, immediate queued warning, and blocked-head
 warning. The React mutation page and offline page both record the imperative
 versus React settlement shapes and the keep-pending/appCode-only rollback
 pattern.
+
+Resolution brought current through 2026-08-25. LLP 0218's follow-on work now
+also supplies the headless dispatch union, a client-owned default drain, and
+the read-only `outboxStatus()`, `mutationStatus()`, `settledMutations()`, and
+optimistic-projection observation paths. Those reads no longer run whole-queue
+custody reconciliation or otherwise mutate durable disposition. Replay runs
+the scoped per-record custody transaction at its dispatch cut, re-reads the
+record afterward, and applies the persisted enqueue-target fence before POST.
+A target-mismatch/missing pause is treated as a stable drain level so its own
+bookkeeping notifications cannot hot-loop the default drain. Target-bound
+status reports the persisted enqueue target, while target-mismatched records
+are excluded from optimistic and recovered-settlement projections.
+
+One reset boundary remains deliberately open: the client/store plumbing can
+compare a settlement-ledger incarnation once `/inspect` supplies it, but the
+server does not yet expose that fact. The resulting reset-incarnation gap is
+not resolved by this ticket and remains tracked in
+`issues/20260825-inspect-exposes-ledger-incarnation.md`.

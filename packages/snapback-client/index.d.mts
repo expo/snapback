@@ -527,7 +527,13 @@ export type MutationDisposition = (
     readonly receiptDigest: `sha256:${string}`;
   }
   | { readonly status: 'unknown' }
-) & { readonly timing: MutationTiming };
+) & {
+  readonly timing: MutationTiming;
+  /** Persisted enqueue target for v2 target-bound records. */
+  readonly enqueueTarget?: Readonly<Record<string, unknown>>;
+  /** Whether that persisted target matches this client's current target pin. */
+  readonly targetMatchesCurrent?: boolean;
+};
 
 export interface OptimisticMutationViewSnapshot {
   readonly format: 'snapback.optimistic-rebase-snapshot.v1';
@@ -737,6 +743,9 @@ export interface SettledMutation {
   readonly settlement: MutationOutput<unknown>;
   readonly settledAt: number;
   readonly authorityDescriptor: AuthorityDescriptorV1 | null;
+  /** Persisted enqueue target for v2 target-bound records. */
+  readonly enqueueTarget?: Readonly<Record<string, unknown>>;
+  readonly targetMatchesCurrent?: boolean;
 }
 
 export interface ActionOutput<Result> {

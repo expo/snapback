@@ -19,6 +19,7 @@ export interface RqsStoreMetaV3 {
     writerGeneration: number;
     authorityGenerationHighWater: number;
     queryGenerationHighWater: number;
+    offlineReplayCapabilityRequestHighWater: number;
   }>;
   /** Hex encoding of the 32-byte store-local LLP 0157 handle key. */
   readonly handleKey: string;
@@ -28,6 +29,7 @@ export interface RqsStoreMetaV3 {
   readonly fenceHighWaters: Readonly<Record<string, unknown>>;
   readonly tombstoneHighWaters: Readonly<Record<string, unknown>>;
   readonly barrierHighWaters: Readonly<Record<string, unknown>>;
+  readonly offlineMutationReplayCapabilityFact: Readonly<Record<string, unknown>>;
 }
 
 export type RqsStoreIdentityResetResult =

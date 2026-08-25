@@ -411,6 +411,73 @@ const currentOutboxTarget = ({
   },
 });
 
+const testDigest = (character) => `sha256:${character.repeat(64)}`;
+const optimisticCreateCardReference = (generation) => Object.freeze({
+  artifactKind: 'functionReference',
+  schemaVersion: generation.schemaVersion,
+  appId: generation.appId,
+  id: `${generation.appId}:createCard`,
+  name: 'createCard',
+  kind: 'Mutation',
+  implementationHash: testDigest('4'),
+  argsContractHash: testDigest('5'),
+  resultContractHash: testDigest('6'),
+  expectedGeneration: generation,
+  argumentSchema: Object.freeze({
+    type: 'object',
+    additionalProperties: false,
+    properties: Object.freeze({
+      title: Object.freeze({ type: 'string' }),
+      position: Object.freeze({ type: 'integer' }),
+    }),
+    required: Object.freeze(['title', 'position']),
+  }),
+  mutationIr: Object.freeze({
+    format: 'snapback.generated-mutation-ir.v1',
+    operationHash: testDigest('7'),
+    sourceIdentity: Object.freeze({
+      functionId: `${generation.appId}:createCard`,
+      implementationHash: testDigest('4'),
+      activation: generation,
+    }),
+    schemaIdentity: Object.freeze({
+      schemaVersion: generation.schemaVersion,
+      appId: generation.appId,
+      schemaHash: generation.schemaHash,
+    }),
+    capabilityClass: 'local-executable',
+    capabilityCode: 'SNAPBACK_GENERATED_IR_LOCAL_EXECUTABLE',
+    declaredEffectClass: 'snapback.browser-ir.insert-get-guard-patch.v1',
+    declaredReads: Object.freeze([]),
+    localReadRequirements: Object.freeze([]),
+    schema: Object.freeze({
+      tables: Object.freeze([Object.freeze({
+        name: 'cards',
+        fields: Object.freeze(['title', 'position', 'locked'].map((name) => Object.freeze({
+          name,
+        }))),
+      })]),
+    }),
+    plan: Object.freeze({
+      steps: Object.freeze([Object.freeze({
+        Insert: Object.freeze({
+          table: 'cards',
+          values: Object.freeze({
+            title: Object.freeze({ Arg: 'title' }),
+            position: Object.freeze({ Arg: 'position' }),
+            locked: Object.freeze({ Literal: false }),
+          }),
+          bind_id_as: 'cardId',
+        }),
+      })]),
+      return_value: Object.freeze({ Binding: 'cardId' }),
+    }),
+    mintSites: Object.freeze(['plan/steps/0/insert/row-id']),
+    usesRuntimeNow: false,
+    boundedSkew: null,
+  }),
+});
+
 const waitForOfflineReplayCapabilityFact = async (store, predicate, label) => {
   const deadline = Date.now() + 5_000;
   for (;;) {
@@ -2690,6 +2757,48 @@ test('a target advertising the settlement ledger still queues and replays', asyn
   assert.equal(delivered[0].clientMutationId, queued.clientMutationId);
 });
 
+test('cached enqueue preserves a typed store refusal instead of relabeling it as ledger absence', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const origin = 'https://cached-enqueue-store-refusal.example';
+  await store.commitOfflineMutationReplayCapabilityFact({
+    schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
+    origin,
+    supported: true,
+    reason: null,
+    targetProfileId: 'local-dev-sqlite-ibex',
+    artifactGeneration: TEST_ARTIFACT_GENERATION,
+  });
+  const client = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  client.__registerInspectionAppId(TEST_ARTIFACT_GENERATION.appId);
+  globalThis.fetch = async (url) => {
+    assert.equal(new URL(url).pathname, '/inspect');
+    throw new TypeError('offline capability refresh');
+  };
+  const outboxRecords = store.outboxRecords.bind(store);
+  const refusal = new Error('SNAPBACK_TEST_STORE_READ_FAILED: retained record is unreadable');
+  refusal.code = 'SNAPBACK_TEST_STORE_READ_FAILED';
+  store.outboxRecords = async () => { throw refusal; };
+
+  try {
+    await assert.rejects(
+      () => client.mutate('createThing', {
+        args: { title: 'preserve the store refusal' },
+        clientMutationId: 'cm-cached-enqueue-store-refusal',
+      }),
+      (error) => error === refusal,
+      'the enqueue helper must not collapse typed store failure into custody unavailability',
+    );
+  } finally {
+    store.outboxRecords = outboxRecords;
+    await client.close();
+    await store.close();
+  }
+});
+
 test('migrated retained live query discovers on reconnect, publicly settles, then queues offline', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const backing = createMemoryRqsStoreBacking();
@@ -3285,6 +3394,60 @@ test('repointing a client drops a local negative override from the previous orig
   await store.close();
 });
 
+test('a rejected capability commit reports the shared fact without fresh evidence', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const origin = 'https://rejected-capability-commit.example';
+  const positive = {
+    schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
+    origin,
+    supported: true,
+    reason: null,
+    targetProfileId: 'local-dev-sqlite-ibex',
+    artifactGeneration: TEST_ARTIFACT_GENERATION,
+  };
+  await store.commitOfflineMutationReplayCapabilityFact(positive);
+  const commitCapabilityFact = store.commitOfflineMutationReplayCapabilityFact.bind(store);
+  store.commitOfflineMutationReplayCapabilityFact = async () => false;
+  const client = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  client.__registerInspectionAppId(TEST_ARTIFACT_GENERATION.appId);
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+    if (path === '/query/listThings') return Response.json({ rows: [], version: 1 });
+    assert.equal(path, '/inspect');
+    return Response.json(offlineReplayInspection({
+      supported: false,
+      targetProfileId: 'cloudflare-do-sqlite-v8',
+    }));
+  };
+
+  try {
+    await client.query('listThings');
+    assert.deepEqual(
+      await client.whenOfflineMutationReplayCapabilitySettled(),
+      {
+        supported: true,
+        reason: null,
+        targetProfileId: 'local-dev-sqlite-ibex',
+        evidence: null,
+      },
+      'the rejected negative returns the store current fact without fresh evidence',
+    );
+    assert.equal(
+      (await store.readOfflineMutationReplayCapabilityFact()).supported,
+      true,
+      'the rejected payload is neither durable nor retained as a local override',
+    );
+  } finally {
+    store.commitOfflineMutationReplayCapabilityFact = commitCapabilityFact;
+    await client.close();
+    await store.close();
+  }
+});
+
 test('an answered negative overrides cached support before durable replacement settles', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
@@ -3325,11 +3488,20 @@ test('an answered negative overrides cached support before durable replacement s
     throw new TypeError('parallel transport loss');
   };
   try {
+    const mutation = client.mutate('createThing', {
+      args: { title: 'must-not-use-predecessor-positive' },
+      clientMutationId: 'cm-interleaved-negative',
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(
+      mutationCalls,
+      0,
+      'mutation transport waits behind the in-flight capability replacement commit',
+    );
+    releaseNegativeCommit();
+    await negativeInspection;
     await assert.rejects(
-      () => client.mutate('createThing', {
-        args: { title: 'must-not-use-predecessor-positive' },
-        clientMutationId: 'cm-interleaved-negative',
-      }),
+      () => mutation,
       (error) => isConnectivityFailureError(error),
     );
     assert.equal(mutationCalls, 1, 'the parallel mutation remains an online-only attempt');
@@ -3571,14 +3743,22 @@ const exerciseCrossClientCapabilityOrdering = async ({
         targetProfileId: 'cloudflare-do-sqlite-v8',
       }));
     };
-    await replacingClient.inspect();
+    const replacingInspection = replacingClient.inspect();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(
+      (await writerStore.readOfflineMutationReplayCapabilityFact()).supported,
+      true,
+      `${label}: follower-routed negative waits behind the dispatched mutation`,
+    );
+    releaseAmbiguousMutation();
+    const mutationOutcome = await mutation;
+    assert.equal(mutationOutcome.status, 'queued');
+    await replacingInspection;
     assert.equal(
       (await writerStore.readOfflineMutationReplayCapabilityFact()).supported,
       false,
-      `${label}: follower-routed negative is durable before the ambiguous response`,
+      `${label}: follower-routed negative is durable after the ambiguous response`,
     );
-    releaseAmbiguousMutation();
-    await assert.rejects(mutation, (error) => isConnectivityFailureError(error));
     assert.equal(mutationPosts, 1, `${label}: one foreground POST reached the ambiguous cut`);
     assert.deepEqual(
       (await writerStore.outboxPending()).map((record) => record.id),
@@ -3650,59 +3830,30 @@ const exerciseCrossClientCapabilityOrdering = async ({
       ...currentOutboxTarget({ origin }),
       args: { title: `${label}-replay-shared-generation` },
     });
-    const readCapabilityFact = writerStore.readOfflineMutationReplayCapabilityFact
-      .bind(writerStore);
-    let capabilityReads = 0;
-    let markReplayCapabilityRead;
-    const replayCapabilityRead = new Promise((resolve) => {
-      markReplayCapabilityRead = resolve;
-    });
-    let releaseReplayCapabilityRead;
-    const replayCapabilityReadRelease = new Promise((resolve) => {
-      releaseReplayCapabilityRead = resolve;
-    });
-    writerStore.readOfflineMutationReplayCapabilityFact = async () => {
-      capabilityReads += 1;
-      if (capabilityReads === 2) {
-        markReplayCapabilityRead();
-        await replayCapabilityReadRelease;
+    let replayPosts = 0;
+    globalThis.fetch = async (url) => {
+      const path = new URL(url).pathname;
+      if (path === '/inspect') {
+        return Response.json(offlineReplayInspection({
+          supported: false,
+          targetProfileId: 'cloudflare-do-sqlite-v8',
+        }));
       }
-      return readCapabilityFact();
+      replayPosts += 1;
+      return Response.json({ result: { replayed: true }, version: 1 });
     };
-    try {
-      let replayInspectionSupported = true;
-      let replayPosts = 0;
-      globalThis.fetch = async (url) => {
-        const path = new URL(url).pathname;
-        if (path === '/inspect') {
-          return Response.json(offlineReplayInspection({
-            supported: replayInspectionSupported,
-            targetProfileId: replayInspectionSupported
-              ? 'local-dev-sqlite-ibex'
-              : 'cloudflare-do-sqlite-v8',
-          }));
-        }
-        replayPosts += 1;
-        return Response.json({ result: { replayed: true }, version: 1 });
-      };
-      const replay = admittingClient.replayQueuedMutations();
-      await replayCapabilityRead;
-      replayInspectionSupported = false;
-      await replacingClient.inspect();
-      releaseReplayCapabilityRead();
-      const replayResult = await replay;
-      assert.equal(replayPosts, 0, `${label}: replay re-reads the shared fact before POST`);
-      assert.equal(replayResult.stopped, true, `${label}: replay pauses on superseded support`);
-      assert.deepEqual(
-        (await writerStore.outboxPending()).map((record) => record.id),
-        [replayId],
-        `${label}: capability supersession preserves pending replay custody`,
-      );
-      await writerStore.outboxDiscard(replayId);
-    } finally {
-      releaseReplayCapabilityRead();
-      writerStore.readOfflineMutationReplayCapabilityFact = readCapabilityFact;
-    }
+    await replacingClient.inspect();
+    await assert.rejects(
+      () => admittingClient.replayQueuedMutations(),
+      (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
+    );
+    assert.equal(replayPosts, 0, `${label}: a negative committed before replay licenses no POST`);
+    assert.deepEqual(
+      (await writerStore.outboxPending()).map((record) => record.id),
+      [replayId],
+      `${label}: capability supersession preserves pending replay custody`,
+    );
+    await writerStore.outboxDiscard(replayId);
   } finally {
     await replacingClient.close();
     await admittingClient.close();
@@ -3866,6 +4017,7 @@ test('post-loss capability supersession preserves the original pending mutation 
   let mutationTransportLost = false;
   let negativeEnabled = false;
   let negativeCommitted = false;
+  let replacingInspection = null;
   globalThis.fetch = async (url) => {
     const path = new URL(url).pathname;
     if (path === '/inspect') {
@@ -3885,19 +4037,18 @@ test('post-loss capability supersession preserves the original pending mutation 
   store.outboxRecords = async () => {
     if (mutationTransportLost && !negativeCommitted) {
       negativeCommitted = true;
-      await replacingClient.inspect();
+      replacingInspection = replacingClient.inspect();
     }
     return readOutboxRecords();
   };
 
   try {
-    await assert.rejects(
-      () => client.mutate('createThing', {
-        args: { title: 'retain exactly-once identity after lost POST' },
-        clientMutationId,
-      }),
-      (error) => isConnectivityFailureError(error),
-    );
+    const outcome = await client.mutate('createThing', {
+      args: { title: 'retain exactly-once identity after lost POST' },
+      clientMutationId,
+    });
+    assert.equal(outcome.status, 'queued');
+    await replacingInspection;
     assert.equal(mutationPosts, 1, 'no POST follows the original ambiguous attempt');
     assert.equal(
       (await store.readOfflineMutationReplayCapabilityFact()).supported,
@@ -3916,7 +4067,7 @@ test('post-loss capability supersession preserves the original pending mutation 
   }
 });
 
-test('capability re-read after submission preparation is the final mutation transport fence', async (t) => {
+test('a capability commit requested during submission preparation waits until after dispatch', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
   const origin = 'https://post-prepare-capability-fence.example';
@@ -3946,33 +4097,39 @@ test('capability re-read after submission preparation is the final mutation tran
   };
   const prepareSubmission = store.outboxPrepareSubmission.bind(store);
   let injectedNegative = false;
+  let replacingInspection = null;
   store.outboxPrepareSubmission = async (...args) => {
-    if (!injectedNegative) {
+    const prepared = await prepareSubmission(...args);
+    if (
+      !injectedNegative
+      && args[1]?.authorizationOnly === true
+      && args[1]?.markDispatched === true
+    ) {
       injectedNegative = true;
       inspectionSupported = false;
-      await replacingClient.inspect();
+      replacingInspection = replacingClient.inspect();
+      await new Promise((resolve) => setImmediate(resolve));
     }
-    return prepareSubmission(...args);
+    return prepared;
   };
 
   try {
-    await assert.rejects(
-      () => client.mutate('createThing', {
-        args: { title: 'negative committed during submission preparation' },
-        clientMutationId,
-      }),
-      (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
-    );
-    assert.equal(mutationPosts, 0, 'submission preparation cannot precede the final fact read');
+    const outcome = await client.mutate('createThing', {
+      args: { title: 'negative waits behind submission dispatch' },
+      clientMutationId,
+    });
+    await replacingInspection;
+    assert.equal(outcome.status, 'settled');
+    assert.equal(mutationPosts, 1, 'submission preparation and the final fact read admit one POST');
     assert.equal(
       (await store.readOfflineMutationReplayCapabilityFact()).supported,
       false,
-      'the shared capability fact is negative at the transport fence',
+      'the queued peer commit becomes durable after dispatch settlement',
     );
     assert.deepEqual(
-      await store.outboxRecords(),
-      [],
-      'pre-dispatch supersession retires the admitted record',
+      (await store.outboxRecords()).map((record) => ({ id: record.id, status: record.status })),
+      [{ id: clientMutationId, status: 'settled' }],
+      'the dispatched record settles under the fact read before the ordered replacement',
     );
   } finally {
     await replacingClient.close();
@@ -4043,10 +4200,10 @@ test('foreground mutation refuses a baseUrl repoint after target inspection', as
   }
 });
 
-test('replay capability re-read after submission preparation is the final transport fence', async (t) => {
+test('foreground capability commit cannot cross the final positive read before mutation fetch', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
-  const origin = 'https://replay-post-prepare-capability-fence.example';
+  const origin = 'https://foreground-capability-commit-dispatch-order.example';
   const client = new InspectingSnapbackClient(origin, {
     rqsStore: store,
     __outboxDrainLifecycle: false,
@@ -4055,15 +4212,10 @@ test('replay capability re-read after submission preparation is the final transp
     rqsStore: store,
     __outboxDrainLifecycle: false,
   });
-  const clientMutationId = 'cm-replay-post-prepare-capability-fence';
-  await store.outboxEnqueue({
-    id: clientMutationId,
-    function: 'createThing',
-    ...currentOutboxTarget({ origin }),
-    args: { title: 'negative committed during replay submission preparation' },
-  });
+  const clientMutationId = 'cm-foreground-capability-commit-dispatch-order';
   let inspectionSupported = true;
   let mutationPosts = 0;
+  let supportedAtMutationPost = null;
   globalThis.fetch = async (url) => {
     const path = new URL(url).pathname;
     if (path === '/inspect') {
@@ -4075,41 +4227,152 @@ test('replay capability re-read after submission preparation is the final transp
       }));
     }
     mutationPosts += 1;
-    return Response.json({ result: { committed: true }, version: 1 });
+    supportedAtMutationPost = (
+      await store.readOfflineMutationReplayCapabilityFact()
+    ).supported;
+    throw new TypeError('ambiguous foreground mutation response');
   };
-  const withAuthorizationDispatch = store.withOutboxAuthorizationDispatch.bind(store);
+  const prepareSubmission = store.outboxPrepareSubmission.bind(store);
+  let finalReadArmed = false;
+  store.outboxPrepareSubmission = async (...args) => {
+    const prepared = await prepareSubmission(...args);
+    if (args[1]?.authorizationOnly === true && args[1]?.markDispatched === true) {
+      finalReadArmed = true;
+    }
+    return prepared;
+  };
+  const readCapabilityFact = store.readOfflineMutationReplayCapabilityFact.bind(store);
   let injectedNegative = false;
-  store.withOutboxAuthorizationDispatch = (operation, options) => (
-    withAuthorizationDispatch(async () => {
-      if (!injectedNegative) {
-        injectedNegative = true;
-        inspectionSupported = false;
-        await replacingClient.inspect();
-      }
-      return operation();
-    }, options)
-  );
+  let replacingInspection = null;
+  store.readOfflineMutationReplayCapabilityFact = async () => {
+    const fact = await readCapabilityFact();
+    if (finalReadArmed && !injectedNegative) {
+      injectedNegative = true;
+      inspectionSupported = false;
+      replacingInspection = replacingClient.inspect();
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+    return fact;
+  };
 
   try {
-    const replay = await client.replayQueuedMutations();
-    assert.equal(mutationPosts, 0, 'replay preparation cannot precede the final fact read');
-    assert.equal(replay.replayed, 0, 'the superseded replay never settles');
-    assert.equal(replay.stopped, true, 'the replay pauses on superseded capability support');
-    assert.equal(
-      (await store.readOfflineMutationReplayCapabilityFact()).supported,
-      false,
-      'the shared capability fact is negative at the replay transport fence',
+    const outcome = await client.mutate('createThing', {
+      args: { title: 'negative waits behind foreground dispatch' },
+      clientMutationId,
+    }).then(
+      (value) => ({ value, error: null }),
+      (error) => ({ value: null, error }),
     );
+    await replacingInspection;
+    assert.equal(mutationPosts, 1, 'the positive final read admits exactly one mutation attempt');
+    assert.equal(
+      supportedAtMutationPost,
+      true,
+      'the peer negative cannot commit between the final positive read and mutation fetch',
+    );
+    assert.equal(outcome.value?.status, 'queued');
+    assert.equal(outcome.error, null);
+    assert.equal((await readCapabilityFact()).supported, false);
     assert.deepEqual(
       (await store.outboxPending()).map((record) => record.id),
       [clientMutationId],
-      'pre-dispatch replay supersession keeps the record pending',
+      'the ambiguous dispatched mutation retains its settlement identity',
     );
+    await assert.rejects(
+      () => client.replayQueuedMutations(),
+      (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
+      'the next cycle pauses the record under the now-durable negative fact',
+    );
+    assert.equal(mutationPosts, 1, 'the paused next cycle sends no second mutation POST');
+  } finally {
+    await replacingClient.close();
+    await client.close();
+    await store.close();
+  }
+});
+
+test('replay capability commit cannot cross the final positive read before mutation fetch', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const origin = 'https://replay-capability-commit-dispatch-order.example';
+  const clientMutationId = 'cm-replay-capability-commit-dispatch-order';
+  await store.outboxEnqueue({
+    id: clientMutationId,
+    function: 'createThing',
+    ...currentOutboxTarget({ origin }),
+    args: { title: 'negative waits behind replay dispatch' },
+  });
+  const client = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  const replacingClient = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  let inspectionSupported = true;
+  let mutationPosts = 0;
+  let supportedAtMutationPost = null;
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+    if (path === '/inspect') {
+      return Response.json(offlineReplayInspection({
+        supported: inspectionSupported,
+        targetProfileId: inspectionSupported
+          ? 'local-dev-sqlite-ibex'
+          : 'cloudflare-do-sqlite-v8',
+      }));
+    }
+    mutationPosts += 1;
+    supportedAtMutationPost = (
+      await store.readOfflineMutationReplayCapabilityFact()
+    ).supported;
+    throw new TypeError('ambiguous replay mutation response');
+  };
+  const prepareSubmission = store.outboxPrepareSubmission.bind(store);
+  let finalReadArmed = false;
+  store.outboxPrepareSubmission = async (...args) => {
+    const prepared = await prepareSubmission(...args);
+    if (args[1] === undefined && prepared?.status === 'ready') finalReadArmed = true;
+    return prepared;
+  };
+  const readCapabilityFact = store.readOfflineMutationReplayCapabilityFact.bind(store);
+  let injectedNegative = false;
+  let replacingInspection = null;
+  store.readOfflineMutationReplayCapabilityFact = async () => {
+    const fact = await readCapabilityFact();
+    if (finalReadArmed && !injectedNegative) {
+      injectedNegative = true;
+      inspectionSupported = false;
+      replacingInspection = replacingClient.inspect();
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+    return fact;
+  };
+
+  try {
+    const replay = await client.replayQueuedMutations();
+    await replacingInspection;
+    assert.equal(mutationPosts, 1, 'the positive final read admits exactly one replay attempt');
     assert.equal(
-      (await store.outboxPending())[0].timing.dispatchedAtMs,
-      null,
-      'a capability-refused replay is never stamped as dispatched',
+      supportedAtMutationPost,
+      true,
+      'the peer negative cannot commit between the final positive read and replay fetch',
     );
+    assert.equal(replay.replayed, 0);
+    assert.equal(replay.stopped, true);
+    assert.equal((await readCapabilityFact()).supported, false);
+    assert.deepEqual(
+      (await store.outboxPending()).map((record) => record.id),
+      [clientMutationId],
+      'the ambiguous replay remains pending after the ordered negative commit',
+    );
+    await assert.rejects(
+      () => client.replayQueuedMutations(),
+      (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
+      'the next replay cycle pauses before transport under the durable negative fact',
+    );
+    assert.equal(mutationPosts, 1, 'the paused next cycle sends no second mutation POST');
   } finally {
     await replacingClient.close();
     await client.close();
@@ -4618,6 +4881,122 @@ test('same-origin app replacement refuses string-named persisted intent before P
     await replayClient.close();
     await store.close();
   }
+});
+
+const exerciseTargetAwareOptimisticProjection = async ({
+  enqueueOrigin,
+  projectionOrigin,
+  enqueueAppId,
+  projectionAppId,
+}) => {
+  const store = createDurableTestStore();
+  const enqueueGeneration = Object.freeze({
+    schemaVersion: 'snapback.v1',
+    appId: enqueueAppId,
+    schemaHash: testDigest('a'),
+    bundleHash: testDigest('b'),
+    inputsHash: testDigest('c'),
+  });
+  const projectionGeneration = Object.freeze({
+    ...enqueueGeneration,
+    appId: projectionAppId,
+  });
+  const enqueueClient = new InspectingSnapbackClient(enqueueOrigin, {
+    rqsStore: store,
+    __offlineMutationReplayCapability: true,
+    __outboxDrainLifecycle: false,
+  });
+  enqueueClient.__registerInspectionAppId(enqueueGeneration.appId);
+  globalThis.fetch = async () => { throw new TypeError('enqueue target is offline'); };
+  const queued = await enqueueClient.mutate(
+    optimisticCreateCardReference(enqueueGeneration),
+    {
+      args: { title: 'card-from-a', position: 1 },
+      clientMutationId: `cm-target-projection-${enqueueAppId}`,
+    },
+  );
+  assert.equal(queued.status, 'queued');
+  const pendingRecord = (await store.outboxPending()).find((record) => record.id === queued.clientMutationId);
+  assert.ok(pendingRecord?.enqueueTarget, 'the optimistic record carries its durable enqueue target');
+
+  const settledId = `cm-target-settlement-${enqueueAppId}`;
+  await store.outboxEnqueue({
+    id: settledId,
+    function: 'createCard',
+    ...currentOutboxTarget({
+      origin: enqueueOrigin,
+      targetProfileId: null,
+      generation: enqueueGeneration,
+      generated: true,
+    }),
+    args: { title: 'settled-on-a', position: 2 },
+    userId: null,
+  });
+  await store.outboxDurablyConsume(
+    settledId,
+    { result: { id: 'card-settled-on-a' }, version: 1 },
+    null,
+  );
+  await enqueueClient.close();
+
+  const projectionClient = new InspectingSnapbackClient(projectionOrigin, {
+    rqsStore: store,
+    __offlineMutationReplayCapability: true,
+    __outboxDrainLifecycle: false,
+  });
+  projectionClient.__registerInspectionAppId(projectionGeneration.appId);
+  try {
+    const view = await projectionClient.createOptimisticMutationView({
+      authoritativeRows: { cards: [] },
+    });
+    try {
+      assert.equal(
+        view.getSnapshot().layers.length,
+        0,
+        'a target-mismatched optimistic layer is excluded without changing durable custody',
+      );
+      assert.deepEqual(view.getSnapshot().visibleRows.cards, []);
+    } finally {
+      view.close();
+    }
+    const status = await projectionClient.mutationStatus(queued.clientMutationId);
+    assert.equal(status.status, 'pending');
+    assert.equal(status.targetMatchesCurrent, false);
+    assert.deepEqual(status.enqueueTarget, pendingRecord.enqueueTarget);
+    assert.deepEqual(
+      await projectionClient.settledMutations(),
+      [],
+      'a target-mismatched settlement is not projected into the replacement app',
+    );
+    assert.equal(
+      (await store.outboxRecords()).length,
+      2,
+      'target-aware observation leaves both predecessor records byte-owned by the store',
+    );
+  } finally {
+    await projectionClient.close();
+    await store.close();
+  }
+};
+
+test('cross-origin store reopen filters predecessor optimistic and settlement projections', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  await exerciseTargetAwareOptimisticProjection({
+    enqueueOrigin: 'https://optimistic-target-a.example',
+    projectionOrigin: 'https://optimistic-target-b.example',
+    enqueueAppId: 'optimistic-cross-origin-app',
+    projectionAppId: 'optimistic-cross-origin-app',
+  });
+});
+
+test('same-origin app replacement filters predecessor optimistic and settlement projections', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  await exerciseTargetAwareOptimisticProjection({
+    enqueueOrigin: 'https://optimistic-app-replacement.example',
+    projectionOrigin: 'https://optimistic-app-replacement.example',
+    enqueueAppId: 'optimistic-app-a',
+    projectionAppId: 'optimistic-app-b',
+  });
 });
 
 test('matching persisted enqueue target replays exactly once after relaunch', async (t) => {
