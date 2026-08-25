@@ -10,7 +10,7 @@ status: current
 targets: [all]
 maturity: partial
 reviewed: 2026-08-16
-reviewed-authorities-digest: sha256:f98678eb61296e546f6705fc3d9fa99ede1c16217906a95ccd8ca5a66708d741
+reviewed-authorities-digest: sha256:b1de4655592c8c34389f77e8d98c250665b2e231cee9f2e4d0cd3c863b7e6d50
 ---
 
 # Targets — what each one claims

@@ -4815,6 +4815,10 @@ let missingDevIdentityCapabilityNoted = false;
 function resolveDevIdentityCapabilityForCli(descriptor, context) {
   const capability = managedDevIdentityCapability(descriptor, context);
   if (capability !== null || missingDevIdentityCapabilityNoted) return capability;
+  const sidecarPermitted = ['dev', 'demo', 'test'].includes(context?.serverProfile);
+  const sidecarAdvertised = typeof descriptor?.devIdentityCapabilityFile === 'string'
+    && descriptor.devIdentityCapabilityFile.length > 0;
+  if (!sidecarPermitted && !sidecarAdvertised) return null;
   missingDevIdentityCapabilityNoted = true;
   const expected = expectedDevIdentityCapabilityPath(descriptor, context);
   // @ref LLP 0262#d5-rollout-stages — Stage 2 proceeds without custody, but
@@ -6084,6 +6088,7 @@ export async function runDev(options = {}) {
   const generated = await generateApp(backendRoot, { appBindingMode: 'development' });
   if (!generated.ok) return { ...generated, state: 'generation-failed' };
   let devRuntimeEnvironment;
+  let resolvedServerProfile = null;
   const prepareVisibilityGovernanceDevEnvironment =
     options.visibilityGovernanceDevEnvironment ?? visibilityGovernanceDevEnvironment;
   const refreshVisibilityGovernanceDevEnvironment = () => {
@@ -6094,6 +6099,7 @@ export async function runDev(options = {}) {
       backendRoot,
       outputPath: join(stateRoot, 'visibility-governance-dev-target-config.json'),
     });
+    resolvedServerProfile = prepared.serverProfile ?? null;
     const admission = withExternalClientOrigins(prepared.environment, declaredClientOrigins);
     devRuntimeEnvironment = admission.environment;
     clientOrigins = admission.clientOrigins;
@@ -6342,7 +6348,7 @@ export async function runDev(options = {}) {
     //   supervised client arm receives relay custody in every local auth mode.
     devIdentityCapability = resolveDevIdentityCapabilityForCli(
       descriptor,
-      { readyFile, database },
+      { readyFile, database, serverProfile: resolvedServerProfile },
     );
     // `/inspect` becomes the bounded administrative projection when an admin
     // credential is attached, and therefore correctly requires a separately
@@ -6861,7 +6867,7 @@ export async function runDev(options = {}) {
       adminToken = managedAdminToken(descriptor, database);
       devIdentityCapability = resolveDevIdentityCapabilityForCli(
         descriptor,
-        { readyFile, database },
+        { readyFile, database, serverProfile: resolvedServerProfile },
       );
       if (startupPin) {
         emitDevEvent({
@@ -6999,7 +7005,7 @@ export async function runDev(options = {}) {
       adminToken = managedAdminToken(descriptor, database);
       devIdentityCapability = resolveDevIdentityCapabilityForCli(
         descriptor,
-        { readyFile, database },
+        { readyFile, database, serverProfile: resolvedServerProfile },
       );
       emitDevEvent({
         schemaVersion: 'snapback.dev.v1',

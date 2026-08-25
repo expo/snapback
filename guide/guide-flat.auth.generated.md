@@ -15,7 +15,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:11c9d2853afe66d5857b7ec3dd3bde9bcb8b3b342a6b686beaf8a44ee212a767
+reviewed-authorities-digest: sha256:cc5836efd5378b7ca1c76037ceb08651ad2a3d6c1af7cefb085d084ac03fa725
 ---
 
 # Sessions and principals
@@ -3425,7 +3425,7 @@ status: current
 targets: [all]
 maturity: partial
 reviewed: 2026-08-16
-reviewed-authorities-digest: sha256:f98678eb61296e546f6705fc3d9fa99ede1c16217906a95ccd8ca5a66708d741
+reviewed-authorities-digest: sha256:b1de4655592c8c34389f77e8d98c250665b2e231cee9f2e4d0cd3c863b7e6d50
 ---
 
 # Targets — what each one claims

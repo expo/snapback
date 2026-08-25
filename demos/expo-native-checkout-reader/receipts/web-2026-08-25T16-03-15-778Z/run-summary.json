@@ -1,5 +1,6 @@
 {
   "status": "passed",
+  "d2Evidence": false,
   "receiptRows": [
     "web-session-isolation"
   ],

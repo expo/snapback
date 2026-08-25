@@ -513,7 +513,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:d8b4dfcc49fbaa6a1fcd618cc68a024136ddcdcc44f3f5c39a5a1d34c3336574
+reviewed-authorities-digest: sha256:a22dd0e74759384215342248107606834be76a06f54eb4c096e6e3f6f18386fd
 ---
 
 # The authoring loop

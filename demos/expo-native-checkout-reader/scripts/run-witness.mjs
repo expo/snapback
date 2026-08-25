@@ -90,6 +90,17 @@ function projectAppReceipt(report) {
   return { appFormat, appRow, ...facts };
 }
 
+function appReceiptCarriesD2Evidence(report, receiptPlatform) {
+  if (receiptPlatform === 'web') {
+    return report.serverDevIdentityCapabilityWitnessed === true
+      && report.rowCount >= 1
+      && report.checkoutHeaderPresented === false;
+  }
+  return report.serverDevIdentityCapabilityWitnessed === true
+    && report.rowCount >= 1
+    && report.checkoutHeaderPresented === true;
+}
+
 function waitFor(predicate, label, timeoutMs = 120_000) {
   const deadline = Date.now() + timeoutMs;
   return new Promise((resolveWait, rejectWait) => {
@@ -243,6 +254,41 @@ try {
     browserConnection = await chromium.connectOverCDP(browserLifecycle.ws);
     const page = browserConnection.contexts().flatMap((context) => context.pages())[0];
     if (!page) throw new Error('Expo web Chrome launch did not expose a page');
+    const readyDescriptor = JSON.parse(readFileSync(readyFile, 'utf8'));
+    let webRelayCapability = readFileSync(
+      readyDescriptor.devIdentityCapabilityFile,
+      'utf8',
+    ).trim();
+    secretValues.add(webRelayCapability);
+    await page.route(
+      `${supervisor.binding.target.origin}/connection/open`,
+      async (route) => {
+        const request = route.request();
+        const requestHeaders = await request.allHeaders();
+        if (requestHeaders['x-snapback-dev-identity'] !== undefined) {
+          await route.continue();
+          return;
+        }
+        const forwardedHeaders = { ...requestHeaders };
+        delete forwardedHeaders.host;
+        delete forwardedHeaders['content-length'];
+        forwardedHeaders['x-snapback-dev-identity'] = webRelayCapability;
+        const forwarded = await fetch(request.url(), {
+          method: request.method(),
+          headers: forwardedHeaders,
+          body: request.postDataBuffer() ?? undefined,
+        });
+        const responseHeaders = Object.fromEntries(forwarded.headers.entries());
+        delete responseHeaders['content-encoding'];
+        delete responseHeaders['content-length'];
+        delete responseHeaders['transfer-encoding'];
+        await route.fulfill({
+          status: forwarded.status,
+          headers: responseHeaders,
+          body: Buffer.from(await forwarded.arrayBuffer()),
+        });
+      },
+    );
     await page.goto(supervisor.metroOrigin, { waitUntil: 'domcontentloaded' });
     const webReport = await waitFor(
       () => appReports.find((report) => report.row === 'web-session-isolation'),
@@ -261,19 +307,23 @@ try {
     const hostDirectRefusalBody = await hostDirectRefusal.json();
     const hostRefusalPassed = hostDirectRefusal.status === 403
       && hostDirectRefusalBody.diagnostic?.code === 'SNAPBACK_DEV_IDENTITY_REFUSED';
+    const d2Evidence = appReceiptCarriesD2Evidence(webReport, platform);
     writeReceipt('web-session-isolation', {
       ...projectAppReceipt(webReport),
+      d2Evidence,
       hostDirectRefusalStatus: hostDirectRefusal.status,
       hostDirectRefusalCode: hostDirectRefusalBody.diagnostic?.code ?? null,
     });
     writeReceipt('run-summary', {
       status: webReport.status === 'passed' && hostRefusalPassed ? 'passed' : 'failed',
+      d2Evidence,
       receiptRows: ['web-session-isolation'],
       device: { class: 'browser' },
     });
-    if (webReport.status !== 'passed' || !hostRefusalPassed) {
+    if (webReport.status !== 'passed' || !hostRefusalPassed || !d2Evidence) {
       throw new Error(`Expo web witness failed with ${webReport.code ?? 'UNKNOWN'}`);
     }
+    webRelayCapability = null;
   } else {
   await waitFor(
     () => capturedLaunches.length >= commandsPerLaunch,
@@ -388,7 +438,11 @@ try {
 
   runLaunchSequence(1);
   const firstAppReport = await waitFor(() => appReports[0], 'native reader application receipt');
-  writeReceipt(`${platform}-native-reader`, projectAppReceipt(firstAppReport));
+  const firstAppD2Evidence = appReceiptCarriesD2Evidence(firstAppReport, platform);
+  writeReceipt(`${platform}-native-reader`, {
+    ...projectAppReceipt(firstAppReport),
+    d2Evidence: firstAppD2Evidence,
+  });
 
   const replayAttempt = await fetch(
     `${supervisor.exchangeOrigin}${SUPERVISED_DEV_IDENTITY_CHECKOUT_PATH}`,
@@ -416,8 +470,10 @@ try {
     () => appReports[1],
     'native reader rotation-replacement receipt',
   );
+  const replacementD2Evidence = appReceiptCarriesD2Evidence(replacementReport, platform);
   writeReceipt(`${platform}-rotation-replacement`, {
     ...projectAppReceipt(replacementReport),
+    d2Evidence: replacementD2Evidence,
     freshLaunchDeliveryReplacedPriorBoot: true,
   });
 
@@ -430,8 +486,10 @@ try {
       replayAttempt.status === 403 ? 'passed' : 'failed',
     ];
   const nativePassed = nativeStatuses.every((status) => status === 'passed');
+  const d2Evidence = firstAppD2Evidence && replacementD2Evidence;
   writeReceipt('run-summary', {
     status: nativePassed ? 'passed' : 'failed',
+    d2Evidence,
     receiptRows: [
       `${platform}-native-reader`,
       `${platform}-rotation-replacement`,
@@ -444,7 +502,9 @@ try {
       ? { class: 'simulator' }
       : { class: supervisor.device.class, serial: supervisor.device.serial },
   });
-  if (!nativePassed) throw new Error(`${platform} native witness reported a failed row`);
+  if (!nativePassed || !d2Evidence) {
+    throw new Error(`${platform} native witness reported incomplete D2 evidence`);
+  }
   }
   process.stdout.write(`${receiptRoot}\n`);
 } finally {

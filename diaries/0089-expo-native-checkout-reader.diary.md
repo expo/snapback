@@ -77,14 +77,15 @@ the environment capture attempt itself under the same lock when needed, and
 both capture paths unset the environment immediately. This was native launch
 ordering friction, not a missing Guide fact, so no guide-gap ticket was filed.
 
-## Progress — 2026-08-25 (live Android emulator row WITNESSED)
+## Progress — 2026-08-25 (Android emulator carrier-only / pre-fail-sensitive, NOT YET)
 
-The Android emulator row now passes end to end and is retained under
+The Android emulator carrier run passed its then-current checks and is retained under
 `demos/expo-native-checkout-reader/receipts/android-2026-08-25T14-54-18-163Z/`.
-It proves the selected emulator's per-serial `adb reverse` path, Activity-extra
+It records the selected emulator's per-serial `adb reverse` path, Activity-extra
 checkout, pre-JS native reader, query admission, rotation replacement, replay
 and post-rotation refusal, browser-Origin refusal, and tunneled bootstrap
-isolation without retaining either secret value.
+isolation without retaining either secret value. It predates the later
+server-observed, nonempty-row criteria and is not D2 evidence.
 
 Android exposed two concrete integration frictions. The legacy Expo activity
 handler compiles against React Activity callback types, so the native module
@@ -104,7 +105,7 @@ redemption, and raw HTTP isolation instead of treating “the app launched” as
 the security claim. No Guide-gap ticket was filed because these were carrier
 implementation and acceptance-harness defects, not missing author guidance.
 
-## Progress — 2026-08-25 (Expo web and current iOS simulator WITNESSED)
+## Progress — 2026-08-25 (Expo web witnessed; iOS simulator carrier-only / pre-fail-sensitive, NOT YET)
 
 The real Expo web bundle now passes in Chrome under
 `demos/expo-native-checkout-reader/receipts/web-2026-08-25T14-49-42-653Z/`.
@@ -114,7 +115,7 @@ assertion is CORS-transport-refused in the browser and generically refused at
 the host-side probe. This is materially stronger than inferring web behavior
 from the native run's Node Origin-gate request.
 
-The current sessions-first iOS simulator row passes under
+The current sessions-first iOS simulator carrier run passed its then-current checks under
 `demos/expo-native-checkout-reader/receipts/ios-2026-08-25T15-06-51-734Z/`.
 iOS 26 revealed that a separate `simctl openurl` now presents a confirmation
 on every development-client launch. Passing Expo's supported `--initialUrl`
@@ -122,10 +123,11 @@ argument in the same nonce-bearing `simctl launch` avoids that UI gate without
 moving the nonce out of child-environment custody. Relative to ordinary Expo
 development, the carrier remains unusually evidence-heavy, but the retained
 receipt now proves both the dev-identity admission and the composing ordinary
-session/query rather than treating either as implied.
+session/query rather than treating either as implied; the correction below
+records why that observation was still not fail-sensitive D2 evidence.
 
-Physical Android USB is the only supported D2 witness still gating LLP 0262
-stage 3.
+This section originally treated physical Android USB as the only remaining
+gate; the correction below supersedes that claim.
 
 ## Review correction — 2026-08-25
 
@@ -141,6 +143,9 @@ The fixture also mutates a session-owned row before querying and requires at
 least one result. The existing iOS and Android-emulator receipts predate the
 server-observed check, so they are retained as narrower carrier/negative-path
 evidence while their D2 rows return to **NOT YET** until rerun. The real
-Expo-web bundle was rerun and now records one sessions-authorized row while
-preserving browser custody isolation. This was acceptance-test honesty rather
+Expo-web bundle was rerun again under
+`demos/expo-native-checkout-reader/receipts/web-2026-08-25T19-34-11-484Z/`.
+Its harness-derived D2 predicate records the server's capability witness, one
+sessions-authorized row, and `checkoutHeaderPresented: false` while preserving
+browser custody isolation. This was acceptance-test honesty rather
 than missing app-author guidance; no Guide-gap ticket was filed.

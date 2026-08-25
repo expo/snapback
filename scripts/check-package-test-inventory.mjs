@@ -77,6 +77,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'dev-admission-posture.test.mjs',
       'dev-cli-diagnostics.test.mjs',
       'dev-env-writer.test.mjs',
+      'dev-identity-absence-notice.test.mjs',
       'dev-identity-const.test.mjs',
       'dev-loop.test.mjs',
       'dev-port-range.test.mjs',
@@ -602,7 +603,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 357,
+  expectedTotal = 358,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1131,6 +1132,8 @@ export function checkPackageTestInventories(options = {}) {
 // the admin-token file custody substitution/owner/hard-link/size suite.
 // 356 -> 357 (2026-08-25, LLP 0262 Stage 2 review): @expo/snapback-cli gains
 // the Rust-to-JS dev-identity enforcement-flip identity guard.
+// 354 -> 355 (2026-08-25, LLP 0262 round-4 review): @expo/snapback-cli gains
+// the profile-aware Stage-2 dev-identity absence-notice guard.
 // LLP 0300 nine-row acceptance traceability (0301 §8 set-level table):
 // 1 cold bring-up -> templates/*/acceptance.mjs + declared-dev-episode.test.mjs;
 // 2 two principals -> declared-dev-episode.test.mjs; 3 forwards/tunnel/rebinding

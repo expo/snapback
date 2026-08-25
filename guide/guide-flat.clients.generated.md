@@ -761,7 +761,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:ee6b2fd3ea2d3c02fcde7255ef2fd62d613052d518df25cf370c0492f9de36ef
+reviewed-authorities-digest: sha256:6cff6fea9662ef786525bc074a5f9e534352dd15284e47ebff37d67b03fd5b96
 ---
 
 # The headless client
@@ -3494,7 +3494,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-24
-reviewed-authorities-digest: sha256:b5d93f72d1c45ebafe15d09274241dca2c4b3f349400f00e96c9a11ff04adb12
+reviewed-authorities-digest: sha256:e294ba993c34ae2b973e2460f73c4191254b99fbacb2ee4320ca7fa8c798f46c
 ---
 
 # React Expo Online clients

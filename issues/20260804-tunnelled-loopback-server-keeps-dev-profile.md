@@ -148,7 +148,7 @@ a strengthened rerun; and **physical Android USB — NOT YET**. The retained
 `ios-2026-08-25T15-06-51-734Z` and
 `android-2026-08-25T14-54-18-163Z` native receipts predate the fail-sensitive,
 server-observed checks and must not be treated as D2 evidence. The strengthened
-Expo-web evidence is `web-2026-08-25T16-03-15-778Z`.
+Expo-web evidence is `web-2026-08-25T19-34-11-484Z`.
 
 This note supersedes the earlier claim above that the simulator and emulator
 were witnessed and that only physical USB blocked stage 3. No native witness

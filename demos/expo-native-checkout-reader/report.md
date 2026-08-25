@@ -75,7 +75,9 @@ per-serial reverse route for its value-free receipt sink.
   `receipts/android-2026-08-25T14-54-18-163Z/`, but the D2 row is **NOT YET**
   for the same reason.
 - Expo web ordinary-session mutation/query and isolation/refusal: passed with
-  `rowCount: 1` in `receipts/web-2026-08-25T16-03-15-778Z/`.
+  `serverDevIdentityCapabilityWitnessed: true`, `rowCount: 1`,
+  `checkoutHeaderPresented: false`, and `d2Evidence: true` in
+  `receipts/web-2026-08-25T19-34-11-484Z/`.
 - Android physical USB native reader and rotation replacement (explicit
   nonclaim until hardware is available).
 - Replay refusal, unspent post-rotation refusal, the narrow server-side

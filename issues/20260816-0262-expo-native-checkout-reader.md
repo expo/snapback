@@ -132,15 +132,16 @@ The app now reads the server's post-verification
 `devIdentityCapabilityWitnessed` connection-grant fact after the real client
 transport, seeds a row for the supervised session user, and requires at least
 one returned row. The old receipts are retained honestly. The strengthened
-real-browser Expo-web rerun passes under
-`web-2026-08-25T16-03-15-778Z/` with `rowCount: 1` and no native capability.
+real-browser Expo-web rerun passes under `web-2026-08-25T19-34-11-484Z/`
+with `serverDevIdentityCapabilityWitnessed: true`, `rowCount: 1`,
+`checkoutHeaderPresented: false`, and harness-written `d2Evidence: true`.
 Stage 3 is blocked by exactly three missing D2 witnesses: **iOS simulator —
 NOT YET**, pending a strengthened rerun; **Android emulator — NOT YET**, pending
 a strengthened rerun; and **physical Android USB — NOT YET**. The retained
 `ios-2026-08-25T15-06-51-734Z` and
 `android-2026-08-25T14-54-18-163Z` native receipts predate the fail-sensitive,
 server-observed checks and must not be treated as D2 evidence. The strengthened
-Expo-web evidence is `web-2026-08-25T16-03-15-778Z`.
+Expo-web evidence is `web-2026-08-25T19-34-11-484Z`.
 
 Neither simulator nor emulator was rerun during this correction. Physical
 Android USB remains an explicit nonclaim until a USB device is available.

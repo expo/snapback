@@ -119,6 +119,12 @@ export default function App() {
           let directTransportErrorName = null;
           globalThis.fetch = observingFetch;
           try {
+            phase = 'web-dev-identity-admission';
+            const connectionGrant = await client.connectionGrant(
+              'expo-web-dev-identity-witness',
+            );
+            observed.serverDevIdentityCapabilityWitnessed =
+              connectionGrant.devIdentityCapabilityWitnessed === true;
             phase = 'web-seed';
             await seedSessionWitnessRow({
               fetch: observingFetch,
@@ -157,6 +163,7 @@ export default function App() {
             || capability !== null
             || observed.checkoutHeaderPresented !== false
             || observed.devIdentityHeaderPresented
+            || !observed.serverDevIdentityCapabilityWitnessed
             || !observed.sessionBearerPresented
             || !Array.isArray(result?.rows)
             || result.rows.length < 1
@@ -178,6 +185,8 @@ export default function App() {
             checkoutCapabilityAbsent: true,
             checkoutHeaderPresented: observed.checkoutHeaderPresented,
             devIdentityHeaderPresented: observed.devIdentityHeaderPresented,
+            serverDevIdentityCapabilityWitnessed:
+              observed.serverDevIdentityCapabilityWitnessed,
             sessionBearerPresented: observed.sessionBearerPresented,
             queryAccepted: true,
             rowCount: result.rows.length,
