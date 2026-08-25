@@ -661,12 +661,11 @@ fn point_of_use_check_serializes_the_durable_read_decision_and_allocation() {
     );
 }
 
-// @ref LLP 0303#a-guard-held-in-per-handle-state-is-opt-in — an independent
-// default SQLite handle can write compatibility projections, but it has no
-// kernel reservation authority. The epoch trigger consumes only a durable
-// reservation created by the connection-owned pending tuple.
+// An ordinarily configured raw handle lacks the kernel's function, so the
+// defense-in-depth trigger catches accidental direct DML. The adjacent hostile
+// raw-owner regression demonstrates why this is not an authorization boundary.
 #[test]
-fn raw_dml_cannot_forge_a_coherent_boot_advance_or_retire_the_live_issuer() {
+fn unconfigured_raw_dml_does_not_accidentally_advance_the_boot_epoch() {
     let directory = tempfile::tempdir().expect("raw-DML reservation directory");
     let database = directory.path().join("raw-dml.sqlite3");
     let mut snapback = LocalSnapback::open(&database).expect("open live boot-1 database");
@@ -760,6 +759,128 @@ fn raw_dml_cannot_forge_a_coherent_boot_advance_or_retire_the_live_issuer() {
         still_live.issuer_id.boot_sequence,
         still_live.connection_generation
     );
+}
+
+#[test]
+fn raw_connection_owner_can_shadow_the_reservation_function_and_retire_the_live_issuer() {
+    let directory = tempfile::tempdir().expect("shadow-function directory");
+    let database = directory.path().join("shadow-function.sqlite3");
+    let mut snapback = LocalSnapback::open(&database).expect("open legitimate database");
+    let issuer = snapback
+        .install_authenticated_auth_invalidation(&invalidation_provider(), None)
+        .expect("install legitimate issuer");
+    let first = issuer
+        .prepare_connection()
+        .expect("allocate legitimate generation 1");
+    assert_eq!(first.issuer_id.boot_sequence, 1);
+    assert_eq!(first.connection_generation, 1);
+
+    let before_epoch = durable_boot_epoch(&database);
+    let attacker_sequence = before_epoch.0 + 1;
+    let attacker_owner = "6f2a7b14-6963-4abe-9000-61b582ec317b";
+    let attacker_issuance = format!(
+        "{{\"databaseOpenOwnerId\":\"{attacker_owner}\",\"authorizationIncarnation\":\"{}\",\"bootSequence\":{attacker_sequence}}}",
+        before_epoch.2
+    );
+    let mut raw = Connection::open(&database).expect("open independent raw connection");
+    raw.create_scalar_function(
+        "__snapback_auth_invalidation_boot_reservation_matches_v1",
+        3,
+        rusqlite::functions::FunctionFlags::SQLITE_UTF8,
+        |_| Ok(1_i64),
+    )
+    .expect("shadow the connection-local reservation function");
+    let tx = raw
+        .transaction_with_behavior(TransactionBehavior::Immediate)
+        .expect("begin hostile coherent advance");
+    assert_eq!(
+        tx.execute(
+            "UPDATE _snapback_auth_invalidation_boot_reservation_v1
+             SET boot_sequence = ?1, database_open_owner_id = ?2,
+                 authorization_incarnation = ?3
+             WHERE id = 1 AND boot_sequence = ?4",
+            params![
+                attacker_sequence,
+                attacker_owner,
+                before_epoch.2,
+                before_epoch.0
+            ],
+        )
+        .expect("forge the reservation through the shadow function"),
+        1
+    );
+    assert_eq!(
+        tx.execute(
+            "UPDATE _snapback_meta SET value = ?1 WHERE key = ?2",
+            params![attacker_sequence.to_string(), BOOT_SEQUENCE_META_KEY],
+        )
+        .expect("advance the sequence projection"),
+        1
+    );
+    assert_eq!(
+        tx.execute(
+            "UPDATE _snapback_meta SET value = ?1 WHERE key = ?2",
+            params![attacker_issuance, BOOT_ISSUANCE_META_KEY],
+        )
+        .expect("advance the issuance projection"),
+        1
+    );
+    assert_eq!(
+        tx.execute(
+            "UPDATE _snapback_auth_invalidation_boot_epoch_v1
+             SET boot_sequence = ?1, database_open_owner_id = ?2,
+                 authorization_incarnation = ?3
+             WHERE id = 1 AND boot_sequence = ?4",
+            params![
+                attacker_sequence,
+                attacker_owner,
+                before_epoch.2,
+                before_epoch.0
+            ],
+        )
+        .expect("advance the epoch through the forged reservation"),
+        1
+    );
+    tx.commit().expect("commit hostile coherent advance");
+
+    assert_boot_projection_matches_epoch(&database);
+    assert_eq!(durable_boot_epoch(&database).0, attacker_sequence);
+    let refusal = issuer
+        .prepare_connection()
+        .expect_err("the hostile advance retires the legitimate live issuer");
+    assert_retired(&refusal);
+    println!(
+        "SHADOW_FUNCTION_FORGED sequence={} owner={} refusal={}",
+        attacker_sequence, attacker_owner, refusal.diagnostic.code
+    );
+}
+
+#[test]
+fn legacy_sequence_only_projection_graduates_to_the_complete_boot_epoch() {
+    let directory = tempfile::tempdir().expect("legacy-upgrade directory");
+    let database = directory.path().join("legacy-upgrade.sqlite3");
+    drop(LocalDatabase::open(&database).expect("create current infrastructure"));
+
+    // The predecessor binary had only this sequence high-water. Current-only
+    // tables exist here because the persistent cross-version proof creates the
+    // database with the actual predecessor executable; this focused regression
+    // synthesizes the same on-disk shape without compiling another revision.
+    let raw = Connection::open(&database).expect("open legacy-shape writer");
+    raw.execute(
+        "INSERT INTO _snapback_meta(key, value) VALUES(?1, '7')",
+        [BOOT_SEQUENCE_META_KEY],
+    )
+    .expect("persist predecessor sequence high-water");
+    drop(raw);
+
+    let local = LocalDatabase::open(&database).expect("open legacy-shaped database");
+    let mut serving = ServingDatabase::adopt(local).expect("adopt upgraded database");
+    let reservation = serving
+        .reserve_invalidation_boot_issuer()
+        .expect("graduate predecessor projection");
+    assert_eq!(reservation.boot_sequence(), 8);
+    assert_boot_projection_matches_epoch(&database);
+    assert_eq!(durable_boot_epoch(&database).0, 8);
 }
 
 // @ref LLP 0303#a-durable-record-is-checked-at-acquisition-a-live-handle-outlives-it

@@ -43,17 +43,11 @@ struct PersistedBootIssuance {
     boot_sequence: u64,
 }
 
-/// Connection-owned authority for creating the durable reservation that an
-/// epoch advance must consume. SQL triggers cannot authenticate a writer from
-/// durable SQL values alone: a raw writer that can update every participating
-/// row can reproduce every value the trigger can read. The binding therefore
-/// lives in this kernel-installed scalar function and its process-only pending
-/// tuple; the durable reservation table records the exact tuple the epoch
-/// trigger is allowed to consume.
-///
-/// Registering or replacing an application-defined SQLite function is native
-/// connection configuration, not DML. An independent ordinary-DML connection
-/// has no matching function and cannot create or advance the reservation.
+/// Connection-local integrity check for the kernel's durable boot-reservation
+/// write sequence. This catches accidental direct DML on an ordinarily
+/// configured connection; it is not an authorization boundary. A party that
+/// owns a raw SQLite connection can register a same-name function, disable
+/// triggers, or write the underlying tables directly.
 ///
 /// @ref LLP 0303#a-durable-record-is-checked-at-acquisition-a-live-handle-outlives-it
 /// — the resource carries a durable reservation and every writer must present
@@ -917,7 +911,19 @@ impl LocalDatabase {
         let projected_issuance = strict_boot_issuance(&tx)?;
         let durable_reservation = strict_boot_reservation(&tx)?;
         let durable_epoch = strict_boot_epoch(&tx)?;
-        if projected_sequence.is_some() != projected_issuance.is_some() {
+        // The predecessor binary persisted only the sequence high-water. The
+        // additive reservation/issuance/epoch infrastructure is empty on its
+        // first open under this binary, so accept that one exact legacy shape
+        // and graduate it atomically to the complete successor tuple below.
+        // Once any successor-only row exists, a missing projection is
+        // corruption rather than a migration case.
+        let legacy_sequence_only = projected_sequence.is_some()
+            && projected_issuance.is_none()
+            && durable_reservation.is_none()
+            && durable_epoch.is_none();
+        if projected_sequence.is_none() && projected_issuance.is_some()
+            || projected_sequence.is_some() && projected_issuance.is_none() && !legacy_sequence_only
+        {
             return Err(corrupt(
                 "invalidation boot sequence and issuance projections must appear together",
             ));

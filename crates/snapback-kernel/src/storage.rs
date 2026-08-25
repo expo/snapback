@@ -1603,9 +1603,9 @@ pub struct LocalDatabase {
     /// sequence so a second reservation from this lifetime cannot be mistaken
     /// for an ordinary process restart.
     invalidation_boot_owner_id: String,
-    /// Private connection authority behind the trigger-protected durable boot
-    /// reservation. Raw DML connections have neither this pending tuple nor
-    /// the registered function that can advance its singleton.
+    /// Connection-local integrity state behind the trigger-protected durable
+    /// boot reservation. This is defense in depth for kernel-owned
+    /// connections, not authority against an owner-controlled raw connection.
     invalidation_boot_reservation_authority:
         auth_invalidation::InvalidationBootReservationAuthority,
     /// The connection-local generated writer facade and SQLite authorizer.
@@ -7604,14 +7604,11 @@ impl LocalDatabase {
             -- @ref LLP 0303#a-durable-record-is-checked-at-acquisition-a-live-handle-outlives-it
             -- — the compatibility meta projections are restorable, so the
             -- point-of-use guard also consumes this structurally monotone
-            -- singleton. Its exact successor must first exist in the bounded
-            -- reservation singleton below; ordinary DML cannot create that
-            -- reservation because only the kernel writer connection owns the
-            -- matching pending tuple and registered scalar function.
-            -- A database owner able to DROP this table or its triggers can
-            -- rewrite every local authorization fact and is outside the
-            -- SQLite-level threat model; raw DML through an independent
-            -- connection remains in scope and is what these triggers fence.
+            -- singleton. Its exact successor first exists in the bounded
+            -- reservation singleton below. The triggers and connection-local
+            -- function are defense in depth against accidental direct DML;
+            -- a raw-connection owner can replace the function, disable the
+            -- triggers, or write the tables and is not authenticated by SQL.
             CREATE TABLE IF NOT EXISTS _snapback_auth_invalidation_boot_reservation_v1 (
               id INTEGER PRIMARY KEY CHECK(id = 1),
               boot_sequence INTEGER NOT NULL CHECK(boot_sequence BETWEEN 1 AND 9007199254740991),
