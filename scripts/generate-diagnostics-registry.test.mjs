@@ -52,13 +52,13 @@ test('diagnostic source classifier excludes environment reads per site and retai
     '../tests/fixtures/diagnostics-registry/non-emitting-reference-sites.txt',
   ), 'utf8');
 
-  assert.equal([...fixture.matchAll(/SNAPBACK_[A-Z0-9_]+/gu)].length, 52);
+  assert.equal([...fixture.matchAll(/SNAPBACK_[A-Z0-9_]+/gu)].length, 61);
 
   const sourceOptions = { ordinaryMultiline: true };
   assert.deepEqual(
     [...diagnosticCodeMatches(fixture, sourceOptions)].map((match) => match[0]),
     [
-      'SNAPBACK_FIXTURE_RUST_MISMATCH',
+      'SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH',
       'SNAPBACK_FIXTURE_JS_EMITTED',
       'SNAPBACK_FIXTURE_JS_URL_EMITTED',
       'SNAPBACK_FIXTURE_JS_MESSAGE_OWNER',
@@ -68,7 +68,11 @@ test('diagnostic source classifier excludes environment reads per site and retai
       'SNAPBACK_FIXTURE_SQL_STORED_EMISSION',
       'SNAPBACK_FIXTURE_ESCAPED_POISON',
       'SNAPBACK_FIXTURE_WARNING_PREFIX',
+      'SNAPBACK_FIXTURE_PRINTLN',
+      'SNAPBACK_FIXTURE_TRACING',
+      'SNAPBACK_FIXTURE_LOG',
       'SNAPBACK_FIXTURE_MARKED_EMISSION',
+      'SNAPBACK_FIXTURE_SYNTHETIC_DYNAMIC',
       'SNAPBACK_FIXTURE_DUAL_ROLE',
       'SNAPBACK_FIXTURE_DUAL_ROLE',
     ],
@@ -79,7 +83,11 @@ test('diagnostic source classifier excludes environment reads per site and retai
     'SNAPBACK_FIXTURE_SQL_STORED_EMISSION',
     'SNAPBACK_FIXTURE_ESCAPED_POISON',
     'SNAPBACK_FIXTURE_WARNING_PREFIX',
+    'SNAPBACK_FIXTURE_PRINTLN',
+    'SNAPBACK_FIXTURE_TRACING',
+    'SNAPBACK_FIXTURE_LOG',
     'SNAPBACK_FIXTURE_MARKED_EMISSION',
+    'SNAPBACK_FIXTURE_SYNTHETIC_DYNAMIC',
   ]);
   assert.deepEqual(
     diagnosticSourceSites(fixture, sourceOptions)
@@ -146,6 +154,10 @@ test('diagnostic source classifier excludes environment reads per site and retai
     'SNAPBACK_FIXTURE_MATCHES_REFERENCE',
     'SNAPBACK_FIXTURE_MATCHES_SECOND_REFERENCE',
     'SNAPBACK_FIXTURE_QUOTED_REFERENCE',
+    'SNAPBACK_FIXTURE_JS_PREFIX',
+    'SNAPBACK_FIXTURE_JS_SUFFIX',
+    'SNAPBACK_FIXTURE_RUST_PREFIX',
+    'SNAPBACK_FIXTURE_RUST_CONTAINS',
   ]);
   assert.deepEqual(
     diagnosticSourceSites(fixture, sourceOptions)
@@ -160,6 +172,56 @@ test('diagnostic source classifier excludes environment reads per site and retai
   ].map(({ match }) => match[0]);
   assert.ok(!classifiedNames.includes('SNAPBACK_FIXTURE_NESTED__'));
   assert.ok(!classifiedNames.includes('SNAPBACK_FIXTURE_ORIGIN'));
+  assert.ok(!classifiedNames.includes('SNAPBACK_FIXTURE_TRAILING_PREFIX_'));
+});
+
+test('generated registry retains target emitters and dynamic artifact-header emitters', () => {
+  const registry = JSON.parse(readFileSync(resolve(
+    import.meta.dirname,
+    '../guide/reference/diagnostics-registry.json',
+  ), 'utf8'));
+
+  const cloudflareCodes = [
+    'SNAPBACK_ACTION_STREAM_CANCELLED',
+    'SNAPBACK_ACTION_REPLAY_DIVERGED',
+    'SNAPBACK_TEST_CRON_ACTION_INTERRUPTED',
+    'SNAPBACK_HOST_FETCH_DESTINATION_INVALID',
+    'SNAPBACK_HOST_FETCH_DESTINATION_REFUSED',
+    'SNAPBACK_HOST_FETCH_REDIRECT_REFUSED',
+  ];
+  for (const code of cloudflareCodes) {
+    const sites = registry.diagnostics[code]?.sites.filter(
+      (site) => site.file.startsWith('targets/cloudflare/src/'),
+    ) ?? [];
+    assert.ok(sites.length > 0, `${code} must retain a Cloudflare production emitting site`);
+    assert.ok(sites.every((site) => site.kind === undefined));
+  }
+
+  const artifactHeaderCodes = [
+    'SNAPBACK_STALE_SCHEMA_ARTIFACT_KIND',
+    'SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION',
+    'SNAPBACK_STALE_FUNCTION_ARTIFACT_KIND',
+    'SNAPBACK_STALE_FUNCTION_ARTIFACT_VERSION',
+  ];
+  for (const code of artifactHeaderCodes) {
+    const sites = registry.diagnostics[code]?.sites.filter(
+      (site) => site.file === 'crates/snapback-types/src/manifest/mod.rs',
+    ) ?? [];
+    assert.equal(sites.length, 1, `${code} must have one artifact-header emitting site`);
+    assert.equal(sites[0].kind, undefined, `${code} must use the normal emission site kind`);
+  }
+
+  const demandMismatchSites = registry.diagnostics
+    .SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH.sites.filter(
+      (site) => site.file === 'crates/snapback-kernel/src/live_matcher.rs',
+    );
+  assert.equal(demandMismatchSites.length, 1);
+  assert.equal(demandMismatchSites[0].kind, undefined);
+
+  assert.deepEqual(
+    Object.keys(registry.diagnostics).filter((code) => code.endsWith('_')),
+    [],
+  );
 });
 
 test('diagnostic source classifier retains explicit historical reservations', () => {

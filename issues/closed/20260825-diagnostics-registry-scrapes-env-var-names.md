@@ -34,29 +34,42 @@ that treated every otherwise-unclassified token as an emission and a round-3
 rule that inspected only the start of the outer host-language string. The final
 classifier admits diagnostic-position whole codes and leading `CODE:` messages
 (including `WARNING|ERROR|INFO CODE:`), plus proven nested generated-source,
-stored-SQL, and escaped-poison emitters. It rejects comments before environment
-classification and treats Rust match patterns, `matches!`, comparisons, and
-all-code catalogues as references. Ambiguous real emitters and deliberate
-reservations have separate explicit markers.
+stored-SQL, and escaped-poison emitters. Rust `eprintln!`/`println!`,
+`tracing::*!`, and `log::*!` string arguments also emit when their leading code
+is followed by `:` or whitespace; this retains the exact production
+`SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH field={field}` print. It rejects
+comments before environment classification and treats Rust match patterns,
+`matches!`, comparisons, code catalogues, and
+`startsWith`/`starts_with`/`contains`/`endsWith` prefix checks as references.
+Tokens ending in `_` are never complete codes. Ambiguous real emitters,
+synthetic dynamic emissions, reference-only sites, and deliberate reservations
+have separate explicit markers.
 
-The fail-first fixture has 52 raw substrings and 13 retained occurrences across
-12 emitting names. It covers generated JavaScript, multiline Rust SQL, escaped
-poison, severity prefixes, a commented environment access, match arms,
-`matches!`, code catalogues, dual-role names, and the explicit emission,
-reference-only, and reservation markers.
+The fail-first fixture has 61 raw substrings and 17 retained occurrences across
+16 emitting names. It covers generated JavaScript, multiline Rust SQL, escaped
+poison, severity prefixes, Rust print/log macros, a commented environment
+access, match arms, `matches!`, code catalogues, prefix checks, a trailing-
+underscore family token, dual-role names, and the explicit emission,
+synthetic-emission, reference-only, and reservation markers.
 
-The final registry publishes 3,436 diagnostic codes / 10,210 emitting sites /
-five reserved sites and a separate environment vocabulary of 146 names / 275
-sites (184 reads, 16 indirect reads, 13 declarations, 25 table entries, 37
+The final registry publishes 3,512 diagnostic codes / 10,478 emitting sites /
+one reserved site and a separate environment vocabulary of 171 names / 348
+sites (255 reads, 16 indirect reads, 13 declarations, 25 table entries, 39
 mentions). `SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE` is absent from the diagnostic
 registry, Guide diagnostic projection, and `SnapbackDiagnosticCode`, but remains
 in the environment registry and `SnapbackEnvironmentVariable`;
 `SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH` remains a diagnostic.
 
+The production inventory now includes all 14 JavaScript modules under
+`targets/cloudflare/src/`. The six round-4 review codes are restored with real
+target emitting sites; they are not reference vocabulary. The four dynamic
+`validate_artifact_header` stale-artifact codes have normal synthetic-emission
+sites, and only `SNAPBACK_IBEX_CLI_UNAVAILABLE` remains reserved.
+
 The three publication-authority names retain their original validation text and
 are environment-only: their reads and message mentions remain, but their
 validation messages are not diagnostic emissions. The
-canonical 20260823 ticket records the complete
-237-name baseline analysis (141 environment, 96 non-environment), the 21 real
-emitters restored from the latter group, the corrected comment-site count, and
-why the HTTP-specific Rust exclusion list is not a public-registry denylist.
+canonical 20260823 ticket records the final merge-base comparison: 236 removed
+names (144 environment and 92 non-environment), the restored Cloudflare
+emitters, the corrected comment-site count, and why the HTTP-specific Rust
+exclusion list is not a public-registry denylist.

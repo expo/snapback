@@ -1,4 +1,4 @@
-export const DIAGNOSTIC_CODE_PATTERN = /(?<![A-Z0-9_])SNAPBACK_[A-Z0-9_]+/gu;
+export const DIAGNOSTIC_CODE_PATTERN = /(?<![A-Z0-9_])SNAPBACK_[A-Z0-9_]*[A-Z0-9](?![A-Z0-9_])/gu;
 const REFERENCE_ONLY_MARKER = 'diagnostics-registry: reference-only';
 const RESERVED_MARKER = 'diagnostics-registry: reserved';
 const EMISSION_MARKER = 'diagnostics-registry: emission';
@@ -310,12 +310,18 @@ function isExplicitDiagnosticCodePosition(source, offset) {
   );
 }
 
+function isRustDiagnosticPrintPosition(source, offset) {
+  const before = source.slice(Math.max(0, offset - 512), offset);
+  return /\b(?:(?:e?println)!|(?:tracing|log)::[a-z_][a-z0-9_]*!)\s*\([^;{}]*(?:r#*)?"$/su.test(before);
+}
+
 function isLeadingDiagnosticCodePosition(source, match, literals) {
   const literal = literals.byContentStart.get(match.index);
   if (literal === undefined) return false;
   const end = match.index + match[0].length;
   if (literal.end !== end && !/^[:\s]/u.test(source.slice(end, end + 1))) return false;
-  return isExplicitDiagnosticCodePosition(source, match.index);
+  return isExplicitDiagnosticCodePosition(source, match.index)
+    || isRustDiagnosticPrintPosition(source, match.index);
 }
 
 function isGeneratedSourceDiagnosticPosition(source, match, literals) {
@@ -456,7 +462,7 @@ function isCommentReference(source, offset) {
   return trimmed.startsWith('/*') || trimmed.startsWith('*');
 }
 
-function isJavaScriptComparison(source, offset, code) {
+function isComparisonOrPrefixCheck(source, offset, code) {
   const before = source.slice(Math.max(0, offset - 128), offset);
   const after = source.slice(offset + code.length, offset + code.length + 128);
 
@@ -464,6 +470,8 @@ function isJavaScriptComparison(source, offset, code) {
     (/(?:===|!==|==|!=)\s*["'`]$/u.test(before) && /^["'`]/u.test(after))
     || (/["'`]$/u.test(before) && /^["'`]\s*(?:===|!==|==|!=)/u.test(after))
     || (/\bcase\s+["'`]$/u.test(before) && /^["'`]\s*:/u.test(after))
+    || (/\.(?:startsWith|starts_with|contains|endsWith)\s*\(\s*["'`]$/u.test(before)
+      && /^["'`]\s*\)/u.test(after))
   );
 }
 
@@ -502,7 +510,7 @@ function isCodeReferenceCatalogue(source, offset) {
 
 function isReferencePosition(source, offset, code) {
   return (
-    isJavaScriptComparison(source, offset, code)
+    isComparisonOrPrefixCheck(source, offset, code)
     || isRustMatchArmPattern(source, offset, code)
     || isRustMatchesReference(source, offset)
     || isCodeReferenceCatalogue(source, offset)
@@ -512,12 +520,12 @@ function isReferencePosition(source, offset, code) {
 function diagnosticSiteKind(source, match, analysis, environmentNames) {
   const offset = match.index;
   if (hasReservedMarker(source, offset)) return 'reserved';
+  if (hasEmissionMarker(source, offset)) return 'emission';
   if (isCommentReference(source, offset)) return null;
   if (
     hasReferenceOnlyMarker(source, offset)
     || analysis.siteKinds.has(offset)
   ) return null;
-  if (hasEmissionMarker(source, offset)) return 'emission';
   if (isReferencePosition(source, offset, match[0])) return null;
   if (isUnrecognizedDiagnosticReference(source, match)) return null;
   if (isHtmlDiagnosticPosition(source, match)) {

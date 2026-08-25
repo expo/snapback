@@ -58,18 +58,32 @@ The machine registry's separate `environment` section records `read`,
 diagnostics registry, symbol registry, and Guide projections share one generated
 authority.
 
-The complete comparison with the lane's pre-fix parent found 237 removed names:
-141 are now environment variables and 96 were not in the environment section.
-Of those 96, 21 have real generated, stored, poison, or leading-message emission
-paths and are restored; the other 75 are constants, protocol/version symbols,
-receipt labels, wildcard/identifier fragments, test/reference vocabulary, or
-secret-staging keys rather than diagnostics. The five review exemplars
+The final comparison with merge-base `e370bb8f7` finds 236 removed names: 144
+are now environment variables and 92 are not in the environment section. The
+non-environment group contains constants, protocol/version symbols, receipt
+labels, wildcard/identifier fragments, test/reference vocabulary,
+secret-staging keys, and incomplete family prefixes rather than diagnostics.
+The five earlier review exemplars
 `SNAPBACK_DEV_APP_BINDING_UNAVAILABLE`,
 `SNAPBACK_FAMILIAR_HOST_EFFECT_UNSUPPORTED`,
 `SNAPBACK_CODEGEN_DEFINITION_AMBIENT_UNAVAILABLE`,
 `SNAPBACK_IBEX_GLOBAL_DENY_INCOMPLETE`, and
 `SNAPBACK_JOB_LEASE_EXPIRED` are present again, along with the related generated
 definition, familiar, job, poison, and LAN-warning codes.
+
+Round 4 inventories all 14 production JavaScript modules under
+`targets/cloudflare/src/`, excluding test and fixture trees under the same walk
+rule as other production JavaScript. This restores seven names that existed in
+the merge-base registry and were lost earlier in the lane:
+`SNAPBACK_ACTION_STREAM_CANCELLED`, `SNAPBACK_ACTION_REPLAY_DIVERGED`,
+`SNAPBACK_CONNECTION_SESSION_REPLACED`,
+`SNAPBACK_TEST_CRON_ACTION_INTERRUPTED`,
+`SNAPBACK_HOST_FETCH_DESTINATION_INVALID`,
+`SNAPBACK_HOST_FETCH_DESTINATION_REFUSED`, and
+`SNAPBACK_HOST_FETCH_REDIRECT_REFUSED`. The six review-named Cloudflare codes
+are real target emissions with target source sites, not reference vocabulary.
+The target scan also inventories 73 other production Cloudflare diagnostics
+that were absent from both the merge-base and pre-round registries.
 
 The three publication-authority messages now retain their original runtime text:
 `SNAPBACK_PUBLICATION_AUTHORITY_PORT`,
@@ -84,24 +98,31 @@ environment-only.
 The dual-role rule still holds: an environment name emitted elsewhere at a
 proven diagnostic site stays registered, but only the emitting occurrence
 appears in its diagnostic sites. Ordinary comments remain excluded. The
-`diagnostics-registry: reserved` marker retains the retired Ibex spelling and
-the four concrete stale-artifact spellings emitted by dynamic format strings;
-reservations do not count as emissions. The HTTP-only
+`diagnostics-registry: emission SNAPBACK_X` marker records a normal emitting
+site for a real dynamically assembled spelling. The four concrete
+`validate_artifact_header` stale-artifact spellings use that marker, while
+`diagnostics-registry: reserved` now retains only the retired
+`SNAPBACK_IBEX_CLI_UNAVAILABLE` spelling; reservations do not count as
+emissions. The HTTP-only
 `NON_DIAGNOSTIC_SNAPBACK_LITERALS` table remains separate because it includes
 legitimate non-HTTP diagnostics and is not a safe public-registry denylist.
 
-The companion fixture now has 52 raw `SNAPBACK_*` substrings and retains 13
-emitting occurrences across 12 names. Its fail-first run proved both sides of
-the regression: generated JavaScript and multiline Rust SQL were absent while
-match arms, `matches!`, and code catalogues were falsely present. It also pins a
-commented environment access, escaped poison, an unmarked `WARNING CODE:`
-message, explicit emission/reference/reservation markers, dual-role emission,
-and prefixed-identifier negative-lookbehind shapes.
+The companion fixture now has 61 raw `SNAPBACK_*` substrings and retains 17
+emitting occurrences across 16 names. Its fail-first runs proved all classifier
+repairs: generated JavaScript and multiline Rust SQL were absent while match
+arms, `matches!`, code catalogues, prefix checks, and a trailing-underscore
+family token were falsely present; the exact production
+`eprintln!("SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH field={field}")` line and
+the `println!`, `tracing::*!`, `log::*!`, and synthetic-marker rows were absent.
+The final classifier treats a diagnostic-leading string argument to those Rust
+print/log macros as an emission when the token is followed by `:` or whitespace,
+treats `startsWith`/`starts_with`/`contains`/`endsWith` operands as references,
+and never recognizes a token ending in `_` as a complete code.
 
-Final regeneration produces 3,436 diagnostic codes, 10,210 emitting sites, and
-five reserved sites from 615 production source files. The environment section
-contains 146 variables across 275 sites: 184 reads, 16 indirect reads, 13
-declarations, 25 table entries, and 37 message mentions. Excluding the
+Final regeneration produces 3,512 diagnostic codes, 10,478 emitting sites, and
+one reserved site from 629 production source files. The environment section
+contains 171 variables across 348 sites: 255 reads, 16 indirect reads, 13
+declarations, 25 table entries, and 39 message mentions. Excluding the
 comment-only `SNAPBACK_ADMIN_TOKEN` pseudo-read removes one bad read; restoring
 the three original publication-authority validation strings contributes three
 real message mentions.

@@ -1,6 +1,6 @@
 // Rust environment reads are configuration, not diagnostics.
 if std::env::var_os("SNAPBACK_FIXTURE_RUST_TRACE").is_some() {
-    eprintln!("SNAPBACK_FIXTURE_RUST_MISMATCH: field={field}");
+    eprintln!("SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH field={field}");
 }
 if env::var("SNAPBACK_FIXTURE_RUST_MODE").is_ok() {}
 if var_os("SNAPBACK_FIXTURE_IMPORTED_TRACE").is_some() {}
@@ -32,6 +32,11 @@ const FIXTURE_ENVIRONMENT_NAME_LIST: &[&str] = &[
 if (error.code === 'SNAPBACK_FIXTURE_JS_REFERENCE') recover();
 if ('SNAPBACK_FIXTURE_JS_REVERSE_REFERENCE' !== error.code) recover();
 switch (error.code) { case 'SNAPBACK_FIXTURE_JS_CASE_REFERENCE': recover(); }
+if (error.code.startsWith('SNAPBACK_FIXTURE_JS_PREFIX')) recover();
+if (error.code.endsWith('SNAPBACK_FIXTURE_JS_SUFFIX')) recover();
+if error.code.starts_with("SNAPBACK_FIXTURE_RUST_PREFIX") { recover(); }
+if error.code.contains("SNAPBACK_FIXTURE_RUST_CONTAINS") { recover(); }
+if (error.code.startsWith('SNAPBACK_FIXTURE_TRAILING_PREFIX_')) recover();
 let status = match code {
   "SNAPBACK_FIXTURE_MATCH_ARM_REFERENCE"
   | "SNAPBACK_FIXTURE_MATCH_ARM_SECOND_REFERENCE" => StatusCode::BAD_REQUEST,
@@ -70,10 +75,15 @@ let storedDiagnosticSql = r#"
 "#;
 const escapedPoison = "\"SNAPBACK_FIXTURE_ESCAPED_POISON: generated manifest is stale\"";
 eprintln!("WARNING SNAPBACK_FIXTURE_WARNING_PREFIX: local transport is cleartext");
+println!("SNAPBACK_FIXTURE_PRINTLN whitespace-delimited detail");
+tracing::warn!("SNAPBACK_FIXTURE_TRACING whitespace-delimited detail");
+log::error!("SNAPBACK_FIXTURE_LOG whitespace-delimited detail");
 const quotedReference = "documentation names 'SNAPBACK_FIXTURE_QUOTED_REFERENCE' only";
 
 // diagnostics-registry: emission
 eprintln!("WARNING SNAPBACK_FIXTURE_MARKED_EMISSION: local transport is cleartext");
+
+// diagnostics-registry: emission SNAPBACK_FIXTURE_SYNTHETIC_DYNAMIC
 
 // A name that is read from the environment and emitted elsewhere retains only
 // its emitting site.

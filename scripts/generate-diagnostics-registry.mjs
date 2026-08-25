@@ -9,10 +9,13 @@
 // local syntax constructs or assigns a diagnostic, or SQL that writes it to an
 // explicit diagnostic/error-code column. Environment-variable access,
 // declarations/tables, message references, comments, comparisons, Rust match
-// patterns, and code catalogues are excluded per site. For a real emitter the
-// syntax cannot prove, put `diagnostics-registry: emission` in a comment on
-// that line or the immediately preceding line. For a reference-only site
-// whose syntax is otherwise ambiguous, put
+// patterns, prefix checks, and code catalogues are excluded per site. Tokens
+// ending in `_` are incomplete family prefixes, never codes. For a real emitter
+// the syntax cannot prove, put `diagnostics-registry: emission` in a comment on
+// that line or the immediately preceding line. When a dynamic emitter never
+// contains the complete spelling, put `diagnostics-registry: emission
+// SNAPBACK_X` at that exact site; it is recorded as an ordinary emission. For
+// a reference-only site whose syntax is otherwise ambiguous, put
 // `diagnostics-registry: reference-only` in a comment on that line or the
 // immediately preceding line; never mark a line that also emits. To reserve a
 // spelling whose concrete emitter is dynamic, or a retired spelling in the
@@ -160,6 +163,11 @@ const productionPaths = [
     && !/(?:^|\.)test\.mjs$/u.test(path)
     && !/(?:^|\.)fixture\.mjs$/u.test(path)
     && !diagnosticCatalogPaths.includes(path)
+  )),
+  ...walk(join(root, 'targets/cloudflare/src'), (path) => (
+    (path.endsWith('.js') || path.endsWith('.mjs'))
+    && !/(?:^|\.)test\.(?:mjs|js)$/u.test(path)
+    && !/(?:^|\.)fixture\.(?:mjs|js)$/u.test(path)
   )),
   // Embedded byte-for-byte by both handler runtimes: production JavaScript,
   // despite the non-module extension.
