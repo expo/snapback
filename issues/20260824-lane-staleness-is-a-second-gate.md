@@ -84,3 +84,41 @@ work turned out to be adjacent rather than duplicated: those commits contain zer
 `oauth_consent` or `approval-session`. But it is worth knowing that concurrent sessions are editing
 the same fixture file for the same programme, and a conflict there needs checking for duplicated
 effort before it is resolved mechanically.
+
+---
+
+## The concrete drift every in-flight lane will hit
+
+Two lanes have now failed the pre-gate on the **same** error, and it will hit every lane branched
+before it:
+
+```
+error[E0063]: missing field `port_range` in initializer of `snapback::cli::Args`
+             (twice, in test "host_ops_v0")
+```
+
+Only `-p snapback` fails; the other crates pass. It is not a lane defect.
+
+**The fix, once, for everyone.** `main` added the field in `snapback-cli`, not in `snapback`:
+
+```rust
+// crates/snapback-cli/src/cli.rs:658
+#[arg(long, value_parser = parse_port_range, conflicts_with = "port")]
+pub port_range: Option<RangeInclusive<u16>>,
+```
+
+It is an `Option`, so any test constructing `Args` literally needs one added line:
+
+```rust
+port_range: None,
+```
+
+Note the crate that owns it (`snapback-cli`) is not the crate that fails (`snapback`) — the failing
+test constructs a re-exported `Args`. Anyone grepping `crates/snapback/src/cli.rs` for `port_range`
+finds nothing, because that file does not exist; the type lives in `crates/snapback-cli/src/cli.rs`.
+That mismatch is why the error reads as more mysterious than it is.
+
+**Why this is written down rather than fixed per lane.** Ten lanes are in flight. Each would
+otherwise spend part of a round rediscovering a one-line fix, and a lane that cannot explain a
+compile error is a lane that might "fix" it by reverting `main`'s change. Every rebase brief should
+carry the fix rather than the symptom.
