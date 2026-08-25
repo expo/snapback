@@ -3291,9 +3291,10 @@ impl EphemeralApi {
 
     pub fn complete_room_reauthorization(
         &self,
+        database: &ServingDatabase,
         batch: ResolvedRoomReauthorizationBatch,
     ) -> SnapbackResult<bool> {
-        self.store.complete_room_reauthorization(batch)
+        self.store.complete_room_reauthorization(database, batch)
     }
 
     /// The delivery notifier the WebSocket task registers with (L8).
@@ -29220,7 +29221,7 @@ impl LocalSnapback {
         let mut completed = 0_usize;
         for room in pending {
             let batch = self.resolve_pending_ephemeral_room_permissions(room)?;
-            if self.ephemeral.complete_room_reauthorization(batch)? {
+            if self.complete_room_reauthorization(batch)? {
                 completed = completed.saturating_add(1);
             }
         }
@@ -29233,6 +29234,14 @@ impl LocalSnapback {
     ) -> SnapbackResult<ResolvedRoomReauthorizationBatch> {
         self.ephemeral
             .resolve_pending_room_reauthorization(&self.db, room)
+    }
+
+    pub fn complete_room_reauthorization(
+        &self,
+        batch: ResolvedRoomReauthorizationBatch,
+    ) -> SnapbackResult<bool> {
+        self.ephemeral
+            .complete_room_reauthorization(&self.db, batch)
     }
 
     fn room_permission_projection_granted(

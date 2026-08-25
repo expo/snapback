@@ -16,7 +16,7 @@ use crate::auth::mode::{
 };
 use crate::ephemeral::{
     AccessPolicy, AdmittedRealtimeEnvelope, CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_JSON,
-    EphemeralErrorCode, RemoveReason, ResyncReason, RoomAuthorityPermit,
+    ConnectionEffectFence, EphemeralErrorCode, RemoveReason, ResyncReason, RoomAuthorityPermit,
 };
 use crate::manifest::{
     AuthManifest, AuthRequirement, FieldManifest, FieldType, FilterExpr, FilterOp, IbexModule,
@@ -46,6 +46,8 @@ const AUTHORITY_A: &str = "018f0d90-7b35-7a22-8c33-445566778899";
 const AUTHORITY_B: &str = "018f0d90-7b36-7a22-8c33-445566778899";
 const MUTATION_SESSION_B: &str = "018f0d90-7b39-7a22-8c33-445566778899";
 const MUTATION_AUTHORITY_B: &str = "018f0d90-7b3a-7a22-8c33-445566778899";
+const SESSION_UNBOUNDED_EXPIRY_MS: u64 = 9_007_199_254_740_991;
+const SESSION_A_FINITE_EXPIRY_MS: u64 = 4_000_000_000_000;
 const MEMBER_A: &str = "member-a";
 const MEMBER_B: &str = "member-b";
 const MEMBER_B_UNRELATED: &str = "member-b-unrelated";
@@ -131,6 +133,10 @@ fn project_authorization_envelopes(
 
 impl KickFixture {
     fn new() -> Self {
+        Self::new_with_session_a_expiry(SESSION_UNBOUNDED_EXPIRY_MS)
+    }
+
+    fn new_with_session_a_expiry(session_a_expiry_ms: u64) -> Self {
         let mut snapback = LocalSnapback::memory().expect("memory snapback");
         let schema = game_schema();
         snapback
@@ -152,6 +158,11 @@ impl KickFixture {
             (USER_B, SESSION_B, AUTHORITY_B, "b@example.test", 0xb2),
         ] {
             let identity_id = crate::ids::mint_time_ordered(crate::ids::Kind::Identity);
+            let expires_at_ms = if user_id == USER_A {
+                session_a_expiry_ms
+            } else {
+                SESSION_UNBOUNDED_EXPIRY_MS
+            };
             snapback
                 .auth_database_mut()
                 .auth_catalog()
@@ -164,8 +175,8 @@ impl KickFixture {
                     &[token_byte; 32],
                     session_created_at_ms,
                     session_created_at_ms,
-                    9_007_199_254_740_991,
-                    9_007_199_254_740_991,
+                    expires_at_ms,
+                    expires_at_ms,
                 )
                 .expect("install the durable acceptance session");
         }
@@ -186,7 +197,7 @@ impl KickFixture {
             SESSION_A,
             AUTHORITY_A,
             1,
-            9_007_199_254_740_991,
+            session_a_expiry_ms,
         );
         let durable_b_authority = snapback.prepare_resolved_session_for_test(
             InvocationSource::LiveInitialQuery,
@@ -261,8 +272,27 @@ impl KickFixture {
         snapback.notify_live_subscriptions(&[]);
 
         let ephemeral = snapback.ephemeral_api();
-        let room_auth_a = register_room(&snapback, &ephemeral, CONNECTION_A, USER_A, 10);
-        let room_auth_b = register_room(&snapback, &ephemeral, CONNECTION_B, USER_B, 11);
+        let session_fenced = session_a_expiry_ms != SESSION_UNBOUNDED_EXPIRY_MS;
+        let room_auth_a = register_room(
+            &snapback,
+            &ephemeral,
+            CONNECTION_A,
+            USER_A,
+            10,
+            session_fenced.then(|| {
+                ConnectionEffectFence::session("acceptance-stream", "grant-a", SESSION_A, 1)
+            }),
+        );
+        let room_auth_b = register_room(
+            &snapback,
+            &ephemeral,
+            CONNECTION_B,
+            USER_B,
+            11,
+            session_fenced.then(|| {
+                ConnectionEffectFence::session("acceptance-stream", "grant-b", SESSION_B, 1)
+            }),
+        );
         let (unrelated_room_auth_b, unrelated_room_observed) = snapback
             .authorize_ephemeral_room_observed(
                 "gamePresence",
@@ -551,6 +581,112 @@ impl KickFixture {
         }));
         frames
     }
+}
+
+#[test]
+fn stale_room_reauthorization_batch_cannot_outlive_session_validity() {
+    let fixture = KickFixture::new_with_session_a_expiry(SESSION_A_FINITE_EXPIRY_MS);
+    let mut snapback = fixture
+        .snapback
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner);
+
+    let userless_auth = AuthContext::default().with_room_permission("game", &room_scope());
+    let userless_permit = fixture
+        .ephemeral
+        .begin_server_authorized_room_act("gamePresence", &room_scope())
+        .expect("room authority is available")
+        .expect("protected room returns a permit");
+    fixture
+        .ephemeral
+        .subscribe(room_subscribe("userless-subscriber", userless_auth), 14)
+        .expect("the probe installs a userless subscriber for retry coverage");
+    drop(userless_permit);
+    assert_eq!(fixture.ephemeral.diagnostics().subscriber_count, 3);
+
+    snapback
+        .seed(SeedData {
+            tables: BTreeMap::from([(
+                "gameMembers".to_owned(),
+                vec![Map::from_iter([
+                    ("_id".to_owned(), json!("member-c-stale-batch")),
+                    ("gameId".to_owned(), json!(BOARD_ID)),
+                    ("userId".to_owned(), json!(USER_C)),
+                ])],
+            )]),
+        })
+        .expect("an authorization-changing insert creates the room obligation");
+    let pending = fixture.ephemeral.pending_room_reauthorizations();
+    assert_eq!(pending.len(), 1);
+    let stale_batch = snapback
+        .resolve_pending_ephemeral_room_permissions(pending.into_iter().next().unwrap())
+        .expect("both session-fenced subscribers resolve while A remains valid");
+
+    assert_eq!(
+        snapback
+            .auth_database_mut()
+            .advance_auth_session_clock_floor(SESSION_A_FINITE_EXPIRY_MS)
+            .expect("advance the durable session floor to A's expiry"),
+        SESSION_A_FINITE_EXPIRY_MS
+    );
+    assert!(
+        !snapback
+            .complete_room_reauthorization(stale_batch)
+            .expect("stale completion returns a retryable refusal"),
+        "a batch resolved before session expiry must not install stale authority"
+    );
+    assert_eq!(
+        fixture.ephemeral.pending_room_reauthorizations().len(),
+        1,
+        "stale refusal retains the level-triggered obligation"
+    );
+    assert_eq!(
+        fixture.ephemeral.diagnostics().subscriber_count,
+        3,
+        "refusal mutates neither suspended subscribers nor their retained state"
+    );
+    let pending_error = match fixture
+        .ephemeral
+        .begin_server_authorized_room_act("gamePresence", &room_scope())
+    {
+        Err(error) => error,
+        Ok(_) => panic!("the invalid subscriber cannot act through retained stale authority"),
+    };
+    assert_eq!(pending_error.code, EphemeralErrorCode::AuthorityPending);
+
+    assert_eq!(
+        snapback
+            .reauthorize_pending_ephemeral_rooms()
+            .expect("a fresh cycle resolves the advanced durable floor"),
+        1
+    );
+    assert_eq!(
+        fixture.ephemeral.diagnostics().subscriber_count,
+        1,
+        "fresh completion denies the userless and expired subscribers but retains B"
+    );
+    assert!(fixture.ephemeral.pending_room_reauthorizations().is_empty());
+
+    snapback
+        .seed(SeedData {
+            tables: BTreeMap::from([(
+                "gameMembers".to_owned(),
+                vec![Map::from_iter([
+                    ("_id".to_owned(), json!("member-d-after-retry")),
+                    ("gameId".to_owned(), json!(BOARD_ID)),
+                    ("userId".to_owned(), json!(USER_D)),
+                ])],
+            )]),
+        })
+        .expect("a later authorization-changing insert remains available");
+    assert_eq!(
+        snapback
+            .reauthorize_pending_ephemeral_rooms()
+            .expect("the later room obligation also completes"),
+        1
+    );
+    assert_eq!(fixture.ephemeral.diagnostics().subscriber_count, 1);
+    assert!(fixture.ephemeral.pending_room_reauthorizations().is_empty());
 }
 
 #[test]
@@ -2271,11 +2407,23 @@ fn register_room(
     connection_id: &str,
     user_id: &str,
     now_ms: u64,
+    effect_fence: Option<ConnectionEffectFence>,
 ) -> AuthContext {
     let (auth, permit) = server_room_grant(snapback, ephemeral, user_id);
-    let snapshot = ephemeral
-        .subscribe(room_subscribe(connection_id, auth.clone()), now_ms)
-        .expect("protected room registration and snapshot");
+    let request = room_subscribe(connection_id, auth.clone());
+    let snapshot = match effect_fence {
+        Some(effect_fence) => ephemeral
+            .subscribe_with_room_authority_and_effect_fence(
+                request,
+                now_ms,
+                Some(&permit),
+                effect_fence,
+            )
+            .expect("session-fenced protected room registration and snapshot"),
+        None => ephemeral
+            .subscribe(request, now_ms)
+            .expect("protected room registration and snapshot"),
+    };
     assert!(matches!(
         snapshot,
         EphemeralMessage::Snapshot {
