@@ -1,7 +1,8 @@
 # workspace-graph rejects OAuth test-generating macros in snapback-engine
 
-**Status:** Open
+**Status:** Resolved
 **Opened:** 2026-08-25
+**Resolved:** 2026-08-25
 **Systems:** Rust core, Auth, Testing, Tooling
 **Related:** LLP 0276#crates--the-rust-workspace
 
@@ -44,3 +45,11 @@ node --test tests/workspace_graph_v1.mjs
 ```
 
 This JS-only lane did not run Cargo or edit the Rust file.
+
+## Resolution
+
+Resolved on `origin/main` by `5c39b4df1`
+(`fix(cli): resolve cli-delegated-verb-help-resolution`), whose
+`cli-carrier-usage` changes replaced both OAuth test-generating macros with
+explicit test functions. Verification on main with
+`git grep macro_rules crates/snapback-engine` returned no matches.

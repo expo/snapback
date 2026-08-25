@@ -516,11 +516,24 @@ test('reviewed engine compatibility globs stay bound to their exact files', () =
   assert.doesNotThrow(() => validateEngineDefinitionDenylist(artifact, [
     {
       path: join(repositoryRoot, 'crates/snapback-engine/src/local.rs'),
-      source: '#[path = "local/runtime_cost.rs"] mod runtime_cost;\npub use runtime_cost::*;',
+      source: [
+        '#[path = "local/engine.rs"] mod engine;',
+        '#[path = "local/runtime_cost.rs"] mod runtime_cost;',
+        'pub use runtime_cost::*;',
+      ].join('\n'),
     },
     {
       path: join(repositoryRoot, 'crates/snapback-engine/src/local/engine.rs'),
-      source: 'use snapback_types::local::config_types;\npub use config_types::*;\nuse super::runtime_cost::*;',
+      source: [
+        '#[path = "generation_host.rs"] pub(super) mod generation_host;',
+        '#[path = "inspection.rs"] mod inspection;',
+        '#[path = "auth_room_kick_acceptance.rs"] mod auth_room_kick_acceptance;',
+        '#[path = "admission_fence_tests.rs"] mod admission_fence_tests;',
+        '#[path = "tests.rs"] pub(crate) mod tests;',
+        'use snapback_types::local::config_types;',
+        'pub use config_types::*;',
+        'use super::runtime_cost::*;',
+      ].join('\n'),
     },
   ]));
 
@@ -565,7 +578,7 @@ test('reviewed runtime_cost globs cannot be rebound at their canonical path', ()
       path: canonicalPath,
       source: '#[path = "ask.rs"] mod runtime_cost;\npub use runtime_cost::*;',
     }]),
-    /may not shadow reviewed glob binding runtime_cost/u,
+    /may not (?:remount reviewed module origin|shadow reviewed glob binding runtime_cost)/u,
   );
   assert.throws(
     () => validateEngineDefinitionDenylist(artifact, [{
@@ -595,16 +608,71 @@ test('reviewed null-path glob roots reject ambiguous path declarations', () => {
 
 test('reviewed crate-root module globs preserve their absent path attributes', () => {
   const canonicalPath = join(repositoryRoot, 'crates/snapback-engine/src/lib.rs');
-  for (const source of [
-    '#[path = "ask.rs"] mod local;',
-    '#[path = "ask.rs"] mod runtime;',
+  for (const binding of [
+    'local',
+    'manifest',
+    'push',
+    'runtime',
   ]) {
+    const source = `#[path = "ask.rs"] mod ${binding};`;
     assert.throws(
       () => validateEngineDefinitionDenylist(artifact, [{ path: canonicalPath, source }]),
-      /may not shadow reviewed glob binding (?:local|runtime)/u,
+      /may not (?:remount reviewed module origin|shadow reviewed glob binding (?:local|manifest|push|runtime))/u,
       source,
     );
   }
+});
+
+test('reviewed module declarations must remain at their exact lexical scope', () => {
+  const canonicalPath = join(repositoryRoot, 'crates/snapback-engine/src/local.rs');
+  assert.throws(
+    () => validateEngineDefinitionDenylist(artifact, [{
+      path: canonicalPath,
+      source: [
+        '#[path = "local/engine.rs"] mod engine;',
+        'mod wrapper {',
+        '  #[path = "local/runtime_cost.rs"] mod runtime_cost;',
+        '  pub use runtime_cost::*;',
+        '}',
+      ].join('\n'),
+    }]),
+    /must resolve to a real file inside snapback-engine\/src using its Rust module scope/u,
+  );
+});
+
+test('reviewed module origin files cannot be remounted through another path module', () => {
+  const canonicalPath = join(repositoryRoot, 'crates/snapback-engine/src/lib.rs');
+  for (const target of [
+    'manifest/capabilities.rs',
+    'local/generation_host.rs',
+    'local/inspection.rs',
+    'local/tests.rs',
+  ]) {
+    assert.throws(
+      () => validateEngineDefinitionDenylist(artifact, [{
+        path: canonicalPath,
+        source: `#[path = "${target}"] mod sneaky;`,
+      }]),
+      /#\[path\] may not remount reviewed module origin/u,
+      target,
+    );
+  }
+});
+
+test('remounting an origin does not substitute for its missing canonical declaration', () => {
+  assert.throws(
+    () => validateEngineDefinitionDenylist(artifact, [
+      {
+        path: join(repositoryRoot, 'crates/snapback-engine/src/manifest.rs'),
+        source: '#[cfg(test)] mod types_remainder_tests;\npub use capabilities::*;',
+      },
+      {
+        path: join(repositoryRoot, 'crates/snapback-engine/src/lib.rs'),
+        source: '#[path = "manifest/capabilities.rs"] mod sneaky;',
+      },
+    ]),
+    /reviewed module declaration capabilities is missing at its canonical scope/u,
+  );
 });
 
 test('reviewed local glob roots cannot be rebound', () => {
@@ -644,12 +712,12 @@ test('a crate-root alias cannot poison a reviewed glob in another file', () => {
   assert.throws(
     () => validateEngineDefinitionDenylist(artifact, [
       {
-        path: join(repositoryRoot, 'crates/snapback-engine/src/local.rs'),
-        source: 'pub use runtime_cost::*;',
-      },
-      {
         path: join(repositoryRoot, 'crates/snapback-engine/src/lib.rs'),
         source: 'extern crate foreign_bridge as runtime_cost;',
+      },
+      {
+        path: join(repositoryRoot, 'crates/snapback-engine/src/local.rs'),
+        source: 'pub use runtime_cost::*;',
       },
     ]),
     /may not alias or shadow reviewed glob binding runtime_cost/u,
