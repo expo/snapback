@@ -24,7 +24,8 @@ import {
   createNodeFilesAdapter,
   RQS_FILE_STORE_FORMAT_V1,
 } from './rqs-store-file.mjs';
-import { createIndexedDbRqsResumeStore } from './rqs-store.mjs';
+import { createIndexedDbRqsResumeStore, rqsEntryKey } from './rqs-store.mjs';
+import { makeResume, ROWS_V5 } from './rqs-resume-suite.mjs';
 import { createSqliteRqsResumeStore } from './rqs-store-sqlite.mjs';
 import {
   createInitialStoreMeta,
@@ -268,13 +269,17 @@ const createContendedLockManager = () => {
   };
   return {
     request(name, options, callback) {
+      const state = stateFor(name);
+      if (options?.ifAvailable === true && state.held) {
+        return Promise.resolve(callback(null));
+      }
       return new Promise((resolve, reject) => {
         const entry = { callback, resolve, reject, aborted: false };
         options?.signal?.addEventListener('abort', () => {
           entry.aborted = true;
           reject(Object.assign(new Error('aborted'), { name: 'AbortError' }));
         });
-        stateFor(name).queue.push(entry);
+        state.queue.push(entry);
         pump(name);
       });
     },
@@ -1717,8 +1722,9 @@ test('authority transition leaves quarantined and result-gone records recoverabl
   await store.close();
 });
 
-test('file arm outbox survives relaunch and refuses non-writers', async () => {
+test('file arm routes peer-negative capability replacement, survives relaunch, and refuses non-writers', async (t) => {
   const directory = mkdtempSync(join(tmpdir(), 'snapback-outbox-'));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
   const store = createFileRqsResumeStore({ directory, identity: 'origin:test' });
   await store.whenLockSettled();
   await exerciseOutboxContract(store, { label: 'file' });
@@ -1728,6 +1734,34 @@ test('file arm outbox survives relaunch and refuses non-writers', async () => {
   const reader = createFileRqsResumeStore({ directory, identity: 'origin:test' });
   await reader.whenLockSettled();
   assert.equal(reader.isWriter(), false);
+  const positive = {
+    schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
+    origin: 'https://file-peer.example',
+    supported: true,
+    reason: null,
+    targetProfileId: 'local-dev-sqlite-ibex',
+    artifactGeneration: TEST_ARTIFACT_GENERATION,
+  };
+  const predecessorRevision = (
+    await store.readOfflineMutationReplayCapabilityFact()
+  )?.storeRevision ?? 0;
+  assert.equal(
+    (await store.commitOfflineMutationReplayCapabilityFact(positive)).storeRevision,
+    predecessorRevision + 1,
+  );
+  const peerNegative = await reader.commitOfflineMutationReplayCapabilityFact({
+    ...positive,
+    supported: false,
+    reason: 'not-advertised',
+    targetProfileId: 'cloudflare-do-sqlite-v8',
+  });
+  assert.equal(peerNegative.supported, false);
+  assert.equal(peerNegative.storeRevision, predecessorRevision + 2);
+  assert.deepEqual(
+    await store.readOfflineMutationReplayCapabilityFact(),
+    peerNegative,
+    'the in-process follower routes the answered negative through the file writer',
+  );
   await assert.rejects(
     () => reader.outboxEnqueue({ id: 'cm-x', function: 'createThing' }),
     (error) => error.code === 'SNAPBACK_OUTBOX_NOT_WRITER',
@@ -2054,7 +2088,7 @@ test('volatile store never claims the durable settlement-publication path', asyn
   assert.equal((await store.outboxRecords()).length, 0, 'auto mode never queues into memory');
 });
 
-test("queue:'auto' never enqueues an ambiguous mutation for a ledger-less target", async (t) => {
+test("queue:'auto' keeps ledger-less attempts online and cached-evidence non-writers fail without POST", async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
   const client = new InspectingSnapbackClient('https://ledgerless.example', { rqsStore: store });
@@ -2084,6 +2118,83 @@ test("queue:'auto' never enqueues an ambiguous mutation for a ledger-less target
   assert.equal(mutationCalls, 1, 'auto still attempts the online mutation once');
   assert.equal(inspectCalls, 1, 'the target manifest is checked before durable fallback');
   assert.deepEqual(await store.outboxRecords(), [], 'ambiguous delivery is never enqueued');
+
+  const backing = createMemoryRqsStoreBacking();
+  const writerStore = createDurableTestStore({ backing });
+  const followerStore = createDurableTestStore({ backing });
+  assert.equal(writerStore.isWriter(), true);
+  assert.equal(followerStore.isWriter(), false);
+  await writerStore.commitOfflineMutationReplayCapabilityFact({
+    schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
+    origin: 'https://cached-non-writer.example',
+    supported: true,
+    reason: null,
+    targetProfileId: 'local-dev-sqlite-ibex',
+    artifactGeneration: TEST_ARTIFACT_GENERATION,
+  });
+  await writerStore.outboxEnqueue({
+    id: 'cm-writer-held-cached',
+    function: 'generatedCachedNonWriter',
+    args: { title: 'writer-held' },
+    expectedGeneration: TEST_ARTIFACT_GENERATION,
+  });
+  const generatedReference = {
+    artifactKind: 'functionReference',
+    kind: 'Mutation',
+    id: 'outbox-adoption-test:generatedCachedNonWriter',
+    name: 'generatedCachedNonWriter',
+    expectedGeneration: TEST_ARTIFACT_GENERATION,
+    argumentSchema: TEST_CREATE_THING_ARGUMENT_SCHEMA,
+    mutationIr: {
+      format: 'snapback.generated-mutation-ir.v1',
+      capabilityClass: 'local-executable',
+      operationHash: `sha256:${'d'.repeat(64)}`,
+      plan: { steps: [] },
+    },
+  };
+  const followerClient = new InspectingSnapbackClient(
+    'https://cached-non-writer.example',
+    { rqsStore: followerStore, __outboxDrainLifecycle: false },
+  );
+  const storeRuntimeInvoke = followerClient.__storeRuntimeInvoke.bind(followerClient);
+  followerClient.__storeRuntimeInvoke = async (name, ...args) => {
+    if (name !== 'prepareGeneratedMutation') return storeRuntimeInvoke(name, ...args);
+    const [{ clientMutationId }] = args;
+    return {
+      generatedMutation: { operationHash: generatedReference.mutationIr.operationHash },
+      clientMutationId,
+      optimisticOperation: null,
+      ctxLedger: null,
+      settlementLane: 'replay-accept',
+      settlementIdentity: null,
+      settlementClaims: null,
+      boundedSkew: null,
+    };
+  };
+  let followerInspectCalls = 0;
+  let followerMutationCalls = 0;
+  globalThis.fetch = async (url) => {
+    if (new URL(url).pathname === '/inspect') followerInspectCalls += 1;
+    else followerMutationCalls += 1;
+    throw new TypeError('offline cached follower');
+  };
+  await assert.rejects(
+    () => followerClient.mutate(generatedReference, {
+      args: { title: 'writer-held' },
+      clientMutationId: 'cm-writer-held-cached',
+    }),
+    (error) => error.code === 'SNAPBACK_OUTBOX_NOT_WRITER',
+    'cached support preserves the exact enqueue-custody refusal',
+  );
+  assert.equal(followerInspectCalls, 1, 'the cached path starts with one lost re-probe');
+  assert.equal(followerMutationCalls, 0, 'cached evidence never licenses a mutation POST');
+  assert.deepEqual(
+    (await writerStore.outboxRecords()).map((record) => record.id),
+    ['cm-writer-held-cached'],
+    'the writer-held record remains the sole custody record',
+  );
+  await followerStore.close();
+  await writerStore.close();
 });
 
 test("queue:'auto' retains authorization fencing when replay capability is unavailable", async (t) => {
@@ -2286,62 +2397,125 @@ test('a target advertising the settlement ledger still queues and replays', asyn
   assert.equal(delivered[0].clientMutationId, queued.clientMutationId);
 });
 
-test('normal online client use persists settlement-ledger evidence for an un-prewarmed offline relaunch', async (t) => {
+test('migrated retained live query discovers on reconnect, publicly settles, then queues offline', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const backing = createMemoryRqsStoreBacking();
-  const firstStore = createDurableTestStore({ backing });
-  const firstClient = new InspectingSnapbackClient('http://127.0.0.1:4400', {
-    rqsStore: firstStore,
+  const migratedStore = createDurableTestStore({ backing });
+  const resume = makeResume(ROWS_V5, 5);
+  await migratedStore.commit(rqsEntryKey('cells', {}), {
+    rows: ROWS_V5,
+    meta: resume.meta,
+    token: resume.token,
+  });
+  assert.deepEqual(
+    await migratedStore.readOfflineMutationReplayCapabilityFact(),
+    {},
+    'the migrated predecessor has retained rows but no additive capability fact',
+  );
+  const client = new InspectingSnapbackClient('https://rqs.example.test', {
+    rqsStore: migratedStore,
     __outboxDrainLifecycle: false,
   });
-
-  globalThis.fetch = async (url) => {
+  let online = false;
+  let inspectCalls = 0;
+  let mutationCalls = 0;
+  let subscribeCalls = 0;
+  globalThis.fetch = async (url, init = {}) => {
     const path = new URL(url).pathname;
-    if (path === '/query/listThings') return Response.json({ rows: [], version: 1 });
+    if (!online) {
+      if (path === '/inspect') inspectCalls += 1;
+      else if (path.startsWith('/mutation/')) mutationCalls += 1;
+      throw new TypeError('fetch failed');
+    }
+    if (path === '/live/cells/subscribe') {
+      subscribeCalls += 1;
+      const body = JSON.parse(init.body);
+      assert.equal(body.resumeFromToken?.resume?.token, resume.token);
+      return Response.json({
+        subscription_id: 'sub-reconnected-capability',
+        snapshot: { rows: ROWS_V5, version: 6 },
+        resume: makeResume(ROWS_V5, 6),
+      });
+    }
     if (path === '/inspect') {
+      inspectCalls += 1;
       return Response.json(offlineReplayInspection({
         supported: true,
         targetProfileId: 'local-dev-sqlite-ibex',
       }));
     }
-    throw new Error(`unexpected online lifecycle request ${path}`);
+    if (path === '/connection/open') {
+      const { connectionId } = JSON.parse(init.body);
+      return Response.json({
+        connectionId,
+        connectionToken: `sct_${connectionId}`,
+        wireVersion: 'snapback.v1',
+      });
+    }
+    if (path === '/live/cells/unsubscribe') {
+      return Response.json({ subscription_id: 'sub-reconnected-capability', disposed: true });
+    }
+    if (path.startsWith('/outbox/')) return Response.json([]);
+    throw new Error(`unexpected reconnect lifecycle request ${path}`);
   };
-  await firstClient.query('listThings');
-  await waitForOfflineReplayCapabilityFact(
-    firstStore,
-    (fact) => fact.supported === true,
-    'ordinary query lifecycle to persist the answered manifest',
-  );
-  await firstStore.close();
 
-  const reopenedStore = createDurableTestStore({ backing });
-  const relaunchedClient = new InspectingSnapbackClient('http://127.0.0.1:4400', {
-    rqsStore: reopenedStore,
-    __outboxDrainLifecycle: false,
+  const handle = await client.liveQuery('cells', {
+    connectionId: 'capability-reconnect',
+    transport: 'poll',
+    pollCadenceMs: 60_000,
   });
-  let inspectCalls = 0;
-  let mutationCalls = 0;
-  globalThis.fetch = async (url) => {
-    if (new URL(url).pathname === '/inspect') inspectCalls += 1;
-    else mutationCalls += 1;
-    throw new TypeError('fetch failed');
-  };
-  const queued = await relaunchedClient.mutate('createThing', {
-    args: { title: 'offline-without-manual-prewarm' },
-    clientMutationId: 'cm-cached-enqueue-only',
+  assert.equal(handle.freshness, 'retained', 'offline boot renders the migrated retained rows');
+  assert.deepEqual(handle.rows, ROWS_V5);
+  assert.equal(
+    await client.whenOfflineMutationReplayCapabilitySettled(),
+    null,
+    'retained-only startup has not fabricated a target observation',
+  );
+
+  online = true;
+  await handle.poll();
+  assert.equal(handle.freshness, 'current', 'poll reconnect promotes retained rows to current');
+  const discovery = await client.whenOfflineMutationReplayCapabilitySettled();
+  assert.deepEqual(discovery, {
+    supported: true,
+    reason: null,
+    targetProfileId: 'local-dev-sqlite-ibex',
+    evidence: 'fresh',
+  });
+  assert.equal(subscribeCalls, 1, 'the bounded retry re-established the retained handle once');
+  assert.equal(
+    (await migratedStore.readOfflineMutationReplayCapabilityFact()).supported,
+    true,
+    'the current transition persisted the discovered positive',
+  );
+
+  online = false;
+  const queued = await client.mutate('createThing', {
+    args: { title: 'offline-after-reconnect' },
+    clientMutationId: 'cm-reconnect-cached-enqueue',
   });
   assert.equal(queued.status, 'queued');
-  assert.equal((await reopenedStore.outboxPending()).length, 1);
-  assert.equal(inspectCalls, 1, 'cached fallback follows a transport-lost inspect probe');
+  assert.equal((await migratedStore.outboxPending()).length, 1);
+  assert.equal(inspectCalls, 2, 'reconnect discovery and offline cached fallback each probe once');
   assert.equal(mutationCalls, 0, 'cached support enqueues without a foreground mutation POST');
-  await reopenedStore.close();
+  handle.dispose();
+  await handle.settled();
+  await migratedStore.close();
 });
 
-test('an answered negative in a peer client replaces a process-cached positive through the writer', async (t) => {
+test('broker-unavailable peer negative stays fail-closed before and after IndexedDB writer handoff', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
-  const backing = createMemoryRqsStoreBacking();
-  const writerStore = createDurableTestStore({ backing });
-  const followerStore = createDurableTestStore({ backing });
+  const indexedDB = new IDBFactory();
+  const lockManager = createContendedLockManager();
+  const options = {
+    indexedDB,
+    lockManager,
+    databaseName: 'outbox-capability-broker-unavailable',
+    broadcastChannelFactory: null,
+  };
+  const writerStore = createIndexedDbRqsResumeStore(options);
+  const followerStore = createIndexedDbRqsResumeStore(options);
+  await Promise.all([writerStore.whenLockSettled(), followerStore.whenLockSettled()]);
   const positiveClient = new InspectingSnapbackClient('http://127.0.0.1:4400', {
     rqsStore: writerStore,
     __outboxDrainLifecycle: false,
@@ -2368,13 +2542,12 @@ test('an answered negative in a peer client replaces a process-cached positive t
     targetProfileId: 'cloudflare-do-sqlite-v8',
   }));
   await negativeClient.inspect();
-  const sharedNegative = await writerStore.readOfflineMutationReplayCapabilityFact();
-  assert.equal(sharedNegative.supported, false);
-  assert.equal(sharedNegative.storeRevision, 2, 'the elected writer versions the peer replacement');
-  assert.deepEqual(
-    await followerStore.readOfflineMutationReplayCapabilityFact(),
-    sharedNegative,
-    'both contexts observe the same durable fact',
+  const durablePredecessor = await writerStore.readOfflineMutationReplayCapabilityFact();
+  assert.equal(durablePredecessor.supported, true);
+  assert.equal(
+    durablePredecessor.storeRevision,
+    1,
+    'without BroadcastChannel the follower cannot coherently replace writer bytes',
   );
 
   let mutationCalls = 0;
@@ -2383,16 +2556,40 @@ test('an answered negative in a peer client replaces a process-cached positive t
     throw new TypeError('fetch failed');
   };
   await assert.rejects(
-    () => positiveClient.mutate('createThing', {
+    () => negativeClient.mutate('createThing', {
       args: { title: 'must-not-use-process-positive' },
       clientMutationId: 'cm-peer-negative',
     }),
     (error) => isConnectivityFailureError(error),
   );
-  assert.equal(mutationCalls, 1, 'the peer negative degrades auto queueing to foreground-only');
+  assert.equal(
+    mutationCalls,
+    1,
+    'the local answered negative defeats the stale durable positive while still a follower',
+  );
   assert.deepEqual(await writerStore.outboxRecords(), [], 'the stale process positive queues nothing');
-  await followerStore.close();
+
   await writerStore.close();
+  const handoffDeadline = Date.now() + 5_000;
+  while (!followerStore.isWriter()) {
+    if (Date.now() > handoffDeadline) throw new Error('timed out waiting for writer handoff');
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  mutationCalls = 0;
+  await assert.rejects(
+    () => negativeClient.mutate('createThing', {
+      args: { title: 'must-remain-negative-after-handoff' },
+      clientMutationId: 'cm-peer-negative-handoff',
+    }),
+    (error) => isConnectivityFailureError(error),
+  );
+  assert.equal(
+    mutationCalls,
+    1,
+    'writer takeover does not resurrect the predecessor cached positive',
+  );
+  assert.deepEqual(await followerStore.outboxRecords(), [], 'handoff still queues nothing');
+  await followerStore.close();
 });
 
 test('a 502 lifecycle answer is in-flight deduplication only and a later read recovers positive support', async (t) => {

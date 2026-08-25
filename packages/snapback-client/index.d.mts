@@ -1317,6 +1317,15 @@ export interface RqsStoreInfo {
   readonly reason: string | null;
 }
 
+/** Latest answered target-capability discovery scheduled by ordinary client
+ * read lifecycle. `null` means no lifecycle observation has been scheduled. */
+export interface OfflineMutationReplayCapabilityDiscovery {
+  readonly supported: boolean;
+  readonly reason: string | null;
+  readonly targetProfileId: string | null;
+  readonly evidence: 'fresh' | 'configured' | 'cached' | null;
+}
+
 /** Outcome of one LLP 0043 M2 ordered outbox drain. */
 export interface OutboxReplayOutcome {
   readonly replayed: number;
@@ -2025,6 +2034,11 @@ export class SnapbackClient {
     ref: NamedReference,
     options?: { readonly args?: Record<string, unknown>; readonly userId?: string },
   ): Promise<QueryOutput<Result>>;
+  /** Wait for the latest settlement-ledger capability observation scheduled
+   * by a successful query or by a live handle becoming current. */
+  whenOfflineMutationReplayCapabilitySettled(): Promise<
+    OfflineMutationReplayCapabilityDiscovery | null
+  >;
   search<Ref extends SnapbackFunctionReference<
     string,
     'Query',

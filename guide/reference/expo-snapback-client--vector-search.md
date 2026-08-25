@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:060607daf38646adbe429ee6d128e79ee8134afe155a
 # @expo/snapback-client/vector-search
 
 Build-bound public API projection for `@expo/snapback-client/vector-search`. Canonical registry identity:
-`sha256:f7378831bcc6de07cf8d7fe04c0363e5ab828391d5e1d39e7160389e1ef68057`.
+`sha256:82df96bf0cf4ce0816de9d567700fd696bc32d3c038b3a935c134ffc2e7b2757`.
 Runtime parity condition:
 `import` → `packages/snapback-client/vector-search.mjs`.
 
@@ -39,7 +39,7 @@ Symbols: 5 total; 1 runtime values; 4 type-only.
 
 Stable identity: `npm:@expo/snapback-client/vector-search#SnapbackClient`
 Kind: `runtime-class`
-Source: `packages/snapback-client/index.d.mts:1820`
+Source: `packages/snapback-client/index.d.mts:1829`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export class SnapbackClient {
@@ -250,6 +250,11 @@ export class SnapbackClient {
     ref: NamedReference,
     options?: { readonly args?: Record<string, unknown>; readonly userId?: string },
   ): Promise<QueryOutput<Result>>;
+  /** Wait for the latest settlement-ledger capability observation scheduled
+   * by a successful query or by a live handle becoming current. */
+  whenOfflineMutationReplayCapabilitySettled(): Promise<
+    OfflineMutationReplayCapabilityDiscovery | null
+  >;
   search<Ref extends SnapbackFunctionReference<
     string,
     'Query',
@@ -614,6 +619,7 @@ Members and overload groups:
 - `releaseConnection` — method; 1 signature
 - `fetchBundle` — method; 1 signature
 - `query` — method; 2 signatures
+- `whenOfflineMutationReplayCapabilitySettled` — method; 1 signature
 - `search` — method; 1 signature
 - `vectorSearch` — method; 1 signature
 - `createOptimisticMutationView` — method; 1 signature

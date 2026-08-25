@@ -89,21 +89,36 @@ Fail-first evidence: the focused client test failed without the client change
 with `SNAPBACK_CLIENT_REFUSED: fetch failed` (`tests 1`, `pass 0`, `fail 1`).
 The original acceptance reproduced at `FAIL ... — 4/9` before the fix.
 
-Verification:
+Round-3 verification (2026-08-25):
 
-- `node demos/public-dashboard/tests/acceptance/offline-local-first.mjs` with
-  the lane's explicit shared runtime/server binary: `PASS ... — 9/9`;
-- `node demos/public-dashboard/tests/acceptance/headless.mjs` with the same
-  binary configuration: `PASS ... — 6/6`;
-- `node --test packages/snapback-client/outbox-store.test.mjs`: `tests 88`,
-  `pass 88`, `fail 0`;
-- `node --test packages/snapback-client/app-data.test.mjs`: `tests 1`,
-  `pass 1`, `fail 0`;
-- `./ref-check --verbose`: `311 LLP docs, 6581 refs in 12260 files, 0 errors,
-  0 unchecked`;
-- `node scripts/check-diary-identity.mjs`: `11 known (baseline), 0 new`.
-
-`node scripts/check-inventories.mjs` remains red on unrelated inherited
-repository drift: absent generated sources for `competitive-checkpoint` and
-`todo-v2`, plus the pre-existing stale diagnostics-registry chain. Those
-artifacts are outside this ticket's exact lane scope and were not regenerated.
+- `node --test packages/snapback-client/outbox-store.test.mjs`: `tests 94`,
+  `pass 94`, `fail 0`. The same run names the new focused cases:
+  broker-unavailable negative plus IndexedDB writer handoff, migrated retained
+  live query reconnect plus public capability settlement and later offline
+  queueing, cached-evidence `SNAPBACK_OUTBOX_NOT_WRITER` with no POST, and
+  in-process file peer-negative routing.
+- `SNAPBACK_SERVER_BINARY="$PWD/target/debug/snapback" node
+  demos/public-dashboard/tests/acceptance/offline-local-first.mjs`: `PASS
+  public-dashboard / offline-local-first (JS arm) — 9/9`. The first check now
+  awaits `whenOfflineMutationReplayCapabilitySettled()`; it no longer polls
+  internal RQS metadata.
+- `SNAPBACK_SERVER_BINARY="$PWD/target/debug/snapback" node
+  demos/public-dashboard/tests/acceptance/headless.mjs`: `PASS public-dashboard
+  / headless — 6/6`. Both demo runs used the existing qualified binary stamped
+  at `f446d966b`; the explicit override reported the expected stamp mismatch
+  against JS-only HEAD and did not build a runtime.
+- `node scripts/check-guide.mjs`: `21 passed, 1 failed, 0 skipped, 0
+  preconditions; 157 pages, 1872 snippets, 174 routes + 51 host-ops joined, 94
+  warnings`. Symbol registry, guide corpus, manifest/MCP, and flat projections
+  pass. Only the diagnostics-registry freshness check is red: the round-3
+  `index.mjs` line shifts require the supervisor-owned diagnostics regeneration
+  and `SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE` union fix, deliberately excluded
+  from this lane.
+- Regenerated projections: `guide/reference/registry.json` and its 57 Markdown
+  symbol projections; `guide/guide-manifest.generated.json`; and the changed
+  global, reference, and sync flat guides. The diagnostics registry JSON and
+  Markdown were restored unchanged to `HEAD` before rebuilding the guide
+  projections.
+- `./ref-check --verbose`: `311 LLP docs, 6636 refs in 12503 files, 0 errors,
+  0 unchecked`.
+- `git diff --check`: no output (pass).

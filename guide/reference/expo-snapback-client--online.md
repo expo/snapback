@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:f67d35e504fd945115dfec0f54016b6e9cb601306c48
 # @expo/snapback-client/online
 
 Build-bound public API projection for `@expo/snapback-client/online`. Canonical registry identity:
-`sha256:f7378831bcc6de07cf8d7fe04c0363e5ab828391d5e1d39e7160389e1ef68057`.
+`sha256:82df96bf0cf4ce0816de9d567700fd696bc32d3c038b3a935c134ffc2e7b2757`.
 Runtime parity condition:
 `import` → `packages/snapback-client/online.mjs`.
 
@@ -38,7 +38,7 @@ Symbols: 4 total; 3 runtime values; 1 type-only.
 
 Stable identity: `npm:@expo/snapback-client/online#bindSnapbackAppLifecycle`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:2344`
+Source: `packages/snapback-client/index.d.mts:2358`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function bindSnapbackAppLifecycle(
@@ -59,7 +59,7 @@ export function bindSnapbackAppLifecycle(
 
 Stable identity: `npm:@expo/snapback-client/online#createExternalSessionClient`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:2340`
+Source: `packages/snapback-client/index.d.mts:2354`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function createExternalSessionClient(
@@ -73,7 +73,7 @@ export function createExternalSessionClient(
 
 Stable identity: `npm:@expo/snapback-client/online#SnapbackClient`
 Kind: `runtime-class`
-Source: `packages/snapback-client/index.d.mts:1820`
+Source: `packages/snapback-client/index.d.mts:1829`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export class SnapbackClient {
@@ -284,6 +284,11 @@ export class SnapbackClient {
     ref: NamedReference,
     options?: { readonly args?: Record<string, unknown>; readonly userId?: string },
   ): Promise<QueryOutput<Result>>;
+  /** Wait for the latest settlement-ledger capability observation scheduled
+   * by a successful query or by a live handle becoming current. */
+  whenOfflineMutationReplayCapabilitySettled(): Promise<
+    OfflineMutationReplayCapabilityDiscovery | null
+  >;
   search<Ref extends SnapbackFunctionReference<
     string,
     'Query',
@@ -648,6 +653,7 @@ Members and overload groups:
 - `releaseConnection` — method; 1 signature
 - `fetchBundle` — method; 1 signature
 - `query` — method; 2 signatures
+- `whenOfflineMutationReplayCapabilitySettled` — method; 1 signature
 - `search` — method; 1 signature
 - `vectorSearch` — method; 1 signature
 - `createOptimisticMutationView` — method; 1 signature

@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:3dc06cef5b0413375f0b95bf7439412190eccecd2009
 # @expo/snapback-react
 
 Build-bound public API projection for `@expo/snapback-react`. Canonical registry identity:
-`sha256:f7378831bcc6de07cf8d7fe04c0363e5ab828391d5e1d39e7160389e1ef68057`.
+`sha256:82df96bf0cf4ce0816de9d567700fd696bc32d3c038b3a935c134ffc2e7b2757`.
 Runtime parity condition:
 `import` → `packages/snapback-react/index.mjs`.
 

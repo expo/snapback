@@ -3585,7 +3585,9 @@ export class SnapbackClient {
     this.__outboxDrainLifecycle = __outboxDrainLifecycle;
     this.__offlineMutationReplayCapability = __offlineMutationReplayCapability;
     this.__observedOfflineMutationReplayCapability = null;
+    this.__offlineMutationReplayCapabilityLocalOverride = null;
     this.__offlineMutationReplayLifecycleProbe = null;
+    this.__offlineMutationReplayLifecycleSettlement = Promise.resolve(null);
     if (operationIdentityProtocol !== null && operationIdentityProtocol !== 1) {
       throw new TypeError('operationIdentityProtocol must be null or 1');
     }
@@ -7207,10 +7209,24 @@ export class SnapbackClient {
           );
           if (shared !== null) {
             this.__observedOfflineMutationReplayCapability = shared;
+            this.__offlineMutationReplayCapabilityLocalOverride = null;
             return shared;
           }
         }
       } catch { /* the fresh answer remains usable only by its direct caller */ }
+    }
+    // A follower may receive a newer answered negative while its writer
+    // broker is unavailable. The durable predecessor is then incoherent for
+    // this observer: retain the negative locally so writer takeover cannot
+    // resurrect an older positive. A later answered positive from this exact
+    // canonical target clears the override; an uncommitted positive alone is
+    // never promoted into durable cached evidence.
+    if (normalized.supported === false) {
+      this.__offlineMutationReplayCapabilityLocalOverride = normalized;
+    } else if (
+      this.__offlineMutationReplayCapabilityLocalOverride?.origin === normalized.origin
+    ) {
+      this.__offlineMutationReplayCapabilityLocalOverride = null;
     }
     this.__observedOfflineMutationReplayCapability = normalized;
     return normalized;
@@ -7219,8 +7235,14 @@ export class SnapbackClient {
   async #cachedOfflineMutationReplayCapabilityFact(expectedGeneration) {
     let store = null;
     try { store = this.#offlineQueueStore(false); } catch { store = null; }
-    let fact = null;
-    if (typeof store?.readOfflineMutationReplayCapabilityFact === 'function') {
+    let fact = normalizeOfflineMutationReplayCapabilityFact(
+      this.__offlineMutationReplayCapabilityLocalOverride,
+    );
+    if (fact !== null) {
+      // An answered negative that could not coherently replace shared bytes
+      // is authoritative for this client until a later answered positive.
+      this.__observedOfflineMutationReplayCapability = fact;
+    } else if (typeof store?.readOfflineMutationReplayCapabilityFact === 'function') {
       try {
         // Shared bytes are authoritative over every process cache. This read
         // occurs after the writer-routed replacement settles, so a negative
@@ -7313,6 +7335,15 @@ export class SnapbackClient {
     if (this.__offlineMutationReplayLifecycleProbe === null) {
       const task = this.#offlineMutationReplayCapabilityFact();
       this.__offlineMutationReplayLifecycleProbe = task;
+      this.__offlineMutationReplayLifecycleSettlement = task.then((fact) => Object.freeze({
+        supported: fact?.supported === true,
+        reason: typeof fact?.reason === 'string' ? fact.reason : null,
+        targetProfileId: typeof fact?.targetProfileId === 'string'
+          ? fact.targetProfileId
+          : null,
+        evidence: typeof fact?.evidence === 'string' ? fact.evidence : null,
+      }));
+      void this.__offlineMutationReplayLifecycleSettlement.catch(() => {});
       void task.finally(() => {
         if (this.__offlineMutationReplayLifecycleProbe === task) {
           this.__offlineMutationReplayLifecycleProbe = null;
@@ -7321,6 +7352,13 @@ export class SnapbackClient {
       return task;
     }
     return this.__offlineMutationReplayLifecycleProbe;
+  }
+
+  /** Settle the latest target-capability observation scheduled by ordinary
+   * query/live-query lifecycle. This is the public coordination boundary for
+   * discovery; applications never need to poll RQS store metadata. */
+  whenOfflineMutationReplayCapabilitySettled() {
+    return this.__offlineMutationReplayLifecycleSettlement;
   }
 
   async #requireOfflineMutationReplayCapability() {
@@ -13543,6 +13581,15 @@ export class SnapbackClient {
       } catch (error) {
         const code = error?.diagnostic?.code ?? error?.code;
         if (
+          queueCapabilityEvidence === 'cached'
+          && code === 'SNAPBACK_OUTBOX_NOT_WRITER'
+        ) {
+          // Cached support authorizes enqueue custody only. If another writer
+          // owns that custody, surface its exact refusal and never convert the
+          // missing record into a ledger error or an online POST.
+          throw error;
+        }
+        if (
           !generatedPresentationEnabled
           || queue !== 'auto'
           || code !== 'SNAPBACK_OUTBOX_NOT_WRITER'
@@ -15729,6 +15776,17 @@ export class SnapbackClient {
       },
     };
 
+    const setHandleFreshness = (next) => {
+      const previous = handle.freshness;
+      handle.freshness = next;
+      if (next === 'current' && previous !== 'current') {
+        // A retained/stale handle may become authoritative long after
+        // liveQuery() returned. The freshness transition, rather than only
+        // initial establishment, owns target-capability discovery.
+        void client.#observeOfflineMutationReplayCapabilityFromLifecycle().catch(() => {});
+      }
+    };
+
     const applicationOnUpdate = onUpdate;
     const optimisticCoverage = preparedMaterialization?.bridge?.localReadCoverage
       ?? ref?.localReadCoverage
@@ -16448,7 +16506,7 @@ export class SnapbackClient {
           // this client installed an optional durable materialization adapter.
           // Freshness describes the server answer, not its retention owner.
           handle.answerClass = 'authoritative';
-          handle.freshness = 'current';
+          setHandleFreshness('current');
         } else if (event.kind === 'quarantine' || event.kind === 'delete') {
           authoritativeRows = createClientOwnedLifecycleBlankCarrier();
           presentedRows = authoritativeRows;
@@ -17576,7 +17634,7 @@ export class SnapbackClient {
             handle.rqsResume = update.resume;
             repairRqsRetentionFromDurable();
           }
-          handle.freshness = 'current';
+          setHandleFreshness('current');
           handle.answerClass = 'authoritative';
           syncLiveRegistrationAnswer();
           schedulePersist();
@@ -17608,7 +17666,7 @@ export class SnapbackClient {
         }
         // The rung-1 authoritative answer: held (persisted-seeded) rows are
         // proved current without touching them.
-        handle.freshness = 'current';
+        setHandleFreshness('current');
         handle.answerClass = 'authoritative';
         syncLiveRegistrationAnswer();
         if (pendingResumeConfirmation) {
@@ -17692,7 +17750,7 @@ export class SnapbackClient {
               return;
             }
           }
-          handle.freshness = 'current';
+          setHandleFreshness('current');
           handle.answerClass = 'authoritative';
           syncLiveRegistrationAnswer();
           schedulePersist();
@@ -17977,7 +18035,7 @@ export class SnapbackClient {
                 presentedRows = authoritativeRows;
                 // A fresh LiveReplace answer (rung 3 or a plain subscribe) is
                 // authoritative (LLP 0090 D1 freshness rule).
-                handle.freshness = 'current';
+                setHandleFreshness('current');
                 handle.answerClass = 'authoritative';
               } else if (materializedSnapshot?.adoptedLegacy) {
                 // The ordinary proof already established the exact held rows
@@ -17987,7 +18045,7 @@ export class SnapbackClient {
                 presentedRows = authoritativeRows;
                 handle.version = sub.completenessProof.version.commit;
                 handle.rqsResume = null;
-                handle.freshness = 'current';
+                setHandleFreshness('current');
                 handle.answerClass = 'authoritative';
                 pendingResumeConfirmation = false;
               } else if (heldResume) {
@@ -18626,7 +18684,7 @@ export class SnapbackClient {
         && resume && typeof resume.token === 'string' ? resume : null;
       // The bundle snapshot is authoritative (LLP 0053's fresh snapshot,
       // taken once): 'current', never retained/pending.
-      handle.freshness = 'current';
+      setHandleFreshness('current');
       handle.answerClass = 'authoritative';
       schedulePersist();
       deliverAuthorityObservation(() => {
@@ -19083,9 +19141,6 @@ export class SnapbackClient {
         });
       }
       throw error;
-    }
-    if (handle.freshness === 'current') {
-      void this.#observeOfflineMutationReplayCapabilityFromLifecycle().catch(() => {});
     }
     return handle;
   }

@@ -12,7 +12,12 @@ references must match that generation, while string-named mutations carry no
 generation and match on canonical origin. Only an automatic enqueue whose
 re-probe loses transport may reuse a matching prior positive, and cached
 evidence enqueues without a foreground attempt. Answered gaps and HTTP errors
-replace/refuse, while every replay requires a fresh positive answer.)
+replace/refuse, while every replay requires a fresh positive answer. A
+follower whose replacement broker is unavailable retains an answered negative
+as a process-local override across writer handoff; cached enqueue then fails
+closed, including with exact `SNAPBACK_OUTBOX_NOT_WRITER` when another writer
+owns the record. Current live-query transitions schedule deduplicated
+observation, exposed through a public settlement promise.)
 **Revised:** 2026-08-16 (authorization observation amendment: every validated
 queue exposes its real payload-free authorization metadata even while a
 legacy/destructive record normalization awaits the exact writer; records,
@@ -375,6 +380,23 @@ outbox record is created. This exception licenses durable custody only; it is
 never transport or replay authority. Consequently cached evidence takes the
 enqueue-only path without a foreground mutation POST; only a fresh positive
 answer may gate a try-then-queue dispatch.
+
+Answered negative facts replace predecessor positives through the elected
+writer when the carrier can prove that route. If IndexedDB has no usable
+`BroadcastChannel`, the observing follower retains a local negative override
+that wins over shared predecessor bytes before and after writer takeover; only
+a later answered positive from the same canonical target clears it. The Node
+file store routes peer replacement to an in-process writer. It makes no
+cross-process broker claim: a follower in another process cannot replace the
+writer's bytes and therefore fails closed locally instead of reusing the
+predecessor positive. Cached evidence never licenses a foreground POST; if
+enqueue custody belongs to another writer, the client propagates
+`SNAPBACK_OUTBOX_NOT_WRITER` and leaves that writer's record untouched.
+
+Ordinary query success and every retained/stale-to-current live transition
+schedule the same in-flight-deduplicated observation. Applications may await
+`whenOfflineMutationReplayCapabilitySettled()`; polling store metadata is not
+part of the lifecycle contract.
 
 Before any queued record is reconciled or re-POSTed,
 `replayQueuedMutations()` always performs a fresh inspection and requires its
