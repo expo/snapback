@@ -451,12 +451,12 @@ export function resolveRuntimeBinary(options = {}) {
   return { binary, source: packageName, platform };
 }
 
-function runtimeReadinessRoot(runtime) {
+function runtimeReadinessRoot(runtime, cliPackageRoot = packageRoot) {
   if (runtime.checkoutRoot) return runtime.checkoutRoot;
   const binary = existsSync(runtime.binary)
     ? realpathSync(runtime.binary)
     : resolve(runtime.binary);
-  const checkoutRoot = sourceCheckoutRoot();
+  const checkoutRoot = sourceCheckoutRoot(cliPackageRoot);
   if (checkoutRoot !== null) {
     const candidate = relative(checkoutRoot, binary);
     if (

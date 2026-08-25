@@ -17,6 +17,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { createExternalSessionClient } from '@expo/snapback-client';
+import { GOVERNANCE_FILES } from '@expo/snapback-codegen/visibility-governance';
 
 import {
   managedAdminToken,
@@ -41,6 +42,9 @@ assert.ok(
 );
 
 const sourceFixture = join(packageRoot, 'fixtures', 'comparator', 'app', 'snapback');
+const generatedGovernanceFiles = Object.freeze(
+  Object.values(GOVERNANCE_FILES).filter((path) => path.startsWith('generated/')),
+);
 const scratchRoot = realpathSync(mkdtempSync(join(tmpdir(), 'snapback-reset-dev-fresh-')));
 const metroScript = join(scratchRoot, 'headless-metro.mjs');
 const openHandles = [];
@@ -81,17 +85,14 @@ function fixture(name, { sessions = true } = {}) {
   // @ref LLP 0234#d5--exact-ratchets-cover-overrides-and-ordinary-policy-widening —
   // fixture regeneration retains the governance baselines and ledgers that
   // authorize the generated schema/function pair.
-  const governanceFiles = [
-    'visibility-override-owner-baseline.json',
-    'visibility-override-baseline.json',
-    'table-visibility-policy-baseline.json',
-    'table-visibility-policy-transition-ledger.json',
-    'visibility-governance-quarantine-ledger.json',
-  ].map((name) => [name, readFileSync(join(backendRoot, 'generated', name))]);
+  const governanceFiles = generatedGovernanceFiles.map((path) => [
+    path,
+    readFileSync(join(backendRoot, path)),
+  ]);
   rmSync(join(backendRoot, 'generated'), { recursive: true, force: true });
   mkdirSync(join(backendRoot, 'generated'), { recursive: true });
-  for (const [name, bytes] of governanceFiles) {
-    writeFileSync(join(backendRoot, 'generated', name), bytes);
+  for (const [path, bytes] of governanceFiles) {
+    writeFileSync(join(backendRoot, path), bytes);
   }
   mkdirSync(expoRoot, { recursive: true });
   const seedPath = join(backendRoot, 'seed.json');

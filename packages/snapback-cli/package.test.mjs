@@ -535,22 +535,21 @@ try {
     binary: externalBinary,
     source: 'override',
   }), externalCheckout);
-  const linkedExternalBinary = join(
-    dirname(fileURLToPath(import.meta.url)),
-    '..',
-    '..',
-    'target',
-    `snapback-cli-package-runtime-root-${process.pid}`,
-  );
+  const linkedCheckout = join(root, 'linked-runtime-checkout');
+  const linkedCliPackageRoot = join(linkedCheckout, 'packages', 'snapback-cli');
+  const linkedExternalBinary = join(linkedCheckout, 'target', 'debug', 'snapback');
+  mkdirSync(linkedCliPackageRoot, { recursive: true });
+  mkdirSync(dirname(linkedExternalBinary), { recursive: true });
+  writeFileSync(join(linkedCheckout, 'Cargo.toml'), '[workspace]\n');
+  writeFileSync(join(linkedCliPackageRoot, 'package.json'), '{}\n');
   symlinkSync(externalBinary, linkedExternalBinary);
-  try {
-    assert.equal(__test.runtimeReadinessRoot({
+  assert.equal(
+    __test.runtimeReadinessRoot({
       binary: linkedExternalBinary,
       source: 'override',
-    }), externalCheckout);
-  } finally {
-    rmSync(linkedExternalBinary, { force: true });
-  }
+    }, linkedCliPackageRoot),
+    externalCheckout,
+  );
   const fakeRuntime = join(root, 'snapback');
   writeFileSync(fakeRuntime, '#!/bin/sh\nexit 0\n');
   chmodSync(fakeRuntime, 0o755);
