@@ -1,7 +1,7 @@
 # LLP 0303: Subject/authority correlation policy — the derive-not-supply ruling
 
 **Type:** Decision
-**Status:** Accepted
+**Status:** Active
 **Systems:** Auth, Sync, Engine, Kernel, Server
 **Author:** Claude (Opus 5), commissioned by Charlie Cheever (author ruling
 2026-08-24, in session supervising LLP 0283 F-1)
