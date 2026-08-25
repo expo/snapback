@@ -732,7 +732,7 @@ function assertExpoSupervisorReadinessUnchanged(readiness, confirmed, context) {
   }
 }
 
-// @ref LLP 0181#diagnostics — report missing structured readiness only when
+// @ref LLP 0181#web-browser — report missing structured readiness only when
 // no descriptor exists; a published descriptor remains authoritative input.
 async function waitForExpoSupervisorWebReadiness(path, timeoutMs, child) {
   const deadline = Date.now() + timeoutMs;
@@ -1620,3 +1620,7 @@ export async function runTemplateCarrierCli(configValue, argv, options = {}) {
   console.log(JSON.stringify(result, null, parsed.json ? 2 : 0));
   return 0;
 }
+
+export const __test = Object.freeze({
+  waitForExpoSupervisorWebReadiness,
+});

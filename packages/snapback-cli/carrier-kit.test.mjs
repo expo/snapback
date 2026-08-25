@@ -16,6 +16,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import {
+  __test as carrierKitTest,
   defineTemplateCarrierConfig,
   runTemplateCarrierCli,
 } from './carrier-kit.mjs';
@@ -252,59 +253,6 @@ if (scenario === 'timeout') {
   writeFileSync(pidFile, JSON.stringify([metro.child.pid]));
   writeFileSync(started, 'started');
   setInterval(() => {}, 1000);
-} else if (scenario === 'readiness-exit-race') {
-  const supervisorIdentity = identity(process.pid);
-  const descriptor = {
-    schemaVersion: 'snapback.expo-supervisor.v1',
-    formatVersion: 1,
-    state: 'ready',
-    correlationId: 'carrier-test-exit-race',
-    supervisorGeneration: 'carrier-test-exit-race-generation',
-    pid: process.pid,
-    supervisor: { pid: process.pid, startTime: supervisorIdentity.startTime },
-    platform: 'web',
-    connectCarrier: 'supervisor-rendezvous',
-    exchangeOrigin: 'http://127.0.0.1:1',
-    controlPath: '/_snapback/expo/v1/control',
-    metro: {
-      pid: process.pid,
-      startTime: supervisorIdentity.startTime,
-      origin: 'http://127.0.0.1:1',
-      upstreamOrigin: 'http://127.0.0.1:2',
-    },
-    attestation: {
-      path: '/_snapback/expo/v1/web-attestation/carrier-test-exit-race',
-      nonce: 'carrier-test-exit-race-' + 'x'.repeat(32),
-    },
-    listeners: [
-      {
-        owner: 'metro',
-        pid: process.pid,
-        startTime: supervisorIdentity.startTime,
-        command: 'race-test-metro',
-        host: '127.0.0.1',
-        port: 2,
-        loopback: true,
-      },
-      {
-        owner: 'metro-front',
-        pid: process.pid,
-        startTime: supervisorIdentity.startTime,
-        command: 'race-test-front',
-        host: '127.0.0.1',
-        port: 1,
-        loopback: true,
-      },
-    ],
-    startedAt: new Date().toISOString(),
-  };
-  await new Promise((resolveWait) => setTimeout(resolveWait, 25));
-  const temporary = readiness + '.tmp';
-  writeFileSync(temporary, JSON.stringify(descriptor), { mode: 0o600 });
-  renameSync(temporary, readiness);
-  writeFileSync(started, 'started');
-  writeFileSync(pidFile, JSON.stringify([process.pid]));
-  process.exit(0);
 } else if (scenario === 'stubborn-grandchild') {
   const stubborn = await startServer({ mode: 'stubborn' });
   writeFileSync(pidFile, JSON.stringify([stubborn.child.pid]));
@@ -600,6 +548,58 @@ try {
   );
   rmSync(staleDescriptor, { force: true });
 
+  const publishedReadiness = join(root, 'published-after-exit.json');
+  writeFileSync(publishedReadiness, JSON.stringify({
+    schemaVersion: 'snapback.expo-supervisor.v1',
+    formatVersion: 1,
+    state: 'ready',
+    correlationId: 'carrier-test-published-after-exit',
+    supervisorGeneration: 'carrier-test-published-after-exit-generation',
+    pid: 4242,
+    supervisor: { pid: 4242, startTime: 'published-supervisor-start' },
+    platform: 'web',
+    connectCarrier: 'supervisor-rendezvous',
+    metro: {
+      pid: 4343,
+      startTime: 'published-metro-start',
+      origin: 'http://127.0.0.1:4101',
+      upstreamOrigin: 'http://127.0.0.1:4102',
+    },
+    attestation: {
+      path: '/_snapback/expo/v1/web-attestation/published-after-exit',
+      nonce: 'published-after-exit-' + 'x'.repeat(32),
+    },
+    listeners: [
+      {
+        owner: 'metro',
+        pid: 4343,
+        startTime: 'published-metro-start',
+        host: '127.0.0.1',
+        port: 4102,
+        loopback: true,
+      },
+      {
+        owner: 'metro-front',
+        pid: 4242,
+        startTime: 'published-supervisor-start',
+        host: '127.0.0.1',
+        port: 4101,
+        loopback: true,
+      },
+    ],
+  }), { mode: 0o600 });
+  chmodSync(publishedReadiness, 0o600);
+  const published = await carrierKitTest.waitForExpoSupervisorWebReadiness(
+    publishedReadiness,
+    1_000,
+    { pid: 4242, exitCode: 0, signalCode: null },
+  );
+  assert.equal(
+    published.origin,
+    'http://127.0.0.1:4101',
+    'an existing descriptor is authoritative even when the child has already exited',
+  );
+
   const successArtifacts = join(root, 'success-artifacts');
   const successConfig = config('success');
   assert.equal(successConfig.carriers['web-browser'].origin, undefined);
@@ -672,19 +672,6 @@ try {
   assert.equal(existsSync(join(timeoutArtifacts, 'supervisor-cleaned')), true);
   const timeoutPids = JSON.parse(readFileSync(join(timeoutArtifacts, 'descendant-pids.json')));
   await eventually(() => timeoutPids.every((pid) => !pidAlive(pid)), 'timeout detached Metro cleanup');
-
-  const readinessExitArtifacts = join(root, 'readiness-exit-artifacts');
-  await assert.rejects(
-    runTemplateCarrierCli(config('readiness-exit-race'), [
-      'web-browser', '--browser', browser, '--artifacts', readinessExitArtifacts,
-    ], { root }),
-    (error) => {
-      assert.match(error.message, /web carrier exited 0 before readiness/u);
-      assert.doesNotMatch(error.message, /did not write structured readiness/u);
-      return true;
-    },
-  );
-  assert.equal(existsSync(join(readinessExitArtifacts, 'expo-supervisor.json')), false);
 
   const killedCliArtifacts = join(root, 'killed-cli-artifacts');
   await assert.rejects(

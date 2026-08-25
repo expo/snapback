@@ -80,12 +80,11 @@ coverage and fixes the separate Expo carrier diagnostic race.
   lane branched; the lane retains regression coverage confirming the parity
   test stays green.
 - The Expo carrier's readiness poll raced the supervised child exit. The base
-  correctly combined child status with missing-readiness detail when no file
-  existed, but falsely reported the same absence when the child published and
-  exited inside one polling interval. This lane consumes and validates an
-  existing descriptor first, then lets the dead supervisor fail at the later
-  lifecycle check. Deterministic regressions cover both exit-before-publication
-  and publish-then-exit.
+  reported only `Expo web carrier exited … before readiness`, omitting the
+  missing-readiness detail. Round 1 combined child status with that detail when
+  no file exists. Round 2 consumes and validates an existing descriptor first,
+  then lets the dead supervisor fail at the later lifecycle check. Deterministic
+  regressions cover both exit-before-publication and publish-then-exit.
 
 Verification evidence:
 
