@@ -159,6 +159,7 @@ const SAFE_ENGINE_GLOB_IMPORTS = new Set([
   'snapback_types::manifest::*',
   'snapback_types::push::*',
   'snapback_types::runtime::*',
+  'runtime_cost::*',
   'super::*',
   'super::runtime_cost::*',
 ]);

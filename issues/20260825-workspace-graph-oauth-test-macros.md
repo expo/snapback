@@ -8,8 +8,9 @@
 ## Summary
 
 After the main-hygiene lane recorded the canonically imported `JsonSchema`
-derive and the pre-existing `super::runtime_cost::*` compatibility glob, the
-fail-fast workspace-graph gate advanced to this inherited red:
+derive and the pre-existing `super::runtime_cost::*` and `runtime_cost::*`
+compatibility globs, a non-fail-fast per-file scan confirmed that the only
+remaining engine-definition violation is this inherited red:
 
 ```text
 SNAPBACK_WORKSPACE_GRAPH_VIOLATION: snapback-engine may not define item-generating macros: crates/snapback-engine/src/local/tests/engine.rs

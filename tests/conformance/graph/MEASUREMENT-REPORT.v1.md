@@ -33,15 +33,17 @@ as zero, and neither D2-H2 nor D2-H3 is requalified by this battery.
 
 ## Codegen seam re-freeze (2026-08-25)
 
-Commit `3523efec6` deliberately extended the codegen target-capability
-authoring vocabulary and its validation diagnostics. Because the frozen graph
-seam binds the complete emitted bundle closure, that intended source change
-rotated `bundleHash` from `sha256:0e699a91be68af74` to
+The toolchain source identity rotated (codegen landings since `301c52c1a`);
+graph plan bytes unchanged. The identifiable landings are `3523efec6`, which
+extended the codegen target-capability authoring vocabulary and its validation
+diagnostics, and `d86adf56d`, which hardened `write-policy.mjs` census handling
+for aliased contexts, unresolved computed members, and mutable helpers. Because
+the frozen graph seam's `bundleHash` binds those toolchain module bytes, these
+intended source changes rotated `bundleHash` from `sha256:0e699a91be68af74` to
 `sha256:80d9a0fa79f8dd5d` and the enclosing `inputsHash` from
 `5b153376d1e28ff6110022354ac2878eaecf6fd0ab4a925324eaf6db5a8b3a37` to
 `939f18f6c49cd412c03bf1212fca46659f45c91344e89b94811706026cb752cc`.
-The normalized graph manifest payload did not change. The seam was re-frozen
-through its guarded path:
+The seam was re-frozen through its guarded path:
 `SNAPBACK_FREEZE_GRAPH_CODEGEN_SEAM=1 node --test packages/snapback-codegen/graph-query.test.mjs`.
 
 ## Fixture regeneration and identity

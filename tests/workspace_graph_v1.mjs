@@ -472,7 +472,10 @@ test('reviewed engine derives remain bound to their canonical imports', () => {
 test('reviewed engine compatibility globs stay exact', () => {
   assert.doesNotThrow(() => validateEngineDefinitionDenylist(artifact, [{
     path: '/fixture/engine.rs',
-    source: 'use super::runtime_cost::*;',
+    source: [
+      'use super::runtime_cost::*;',
+      'pub use runtime_cost::*;',
+    ].join('\n'),
   }]));
 });
 
