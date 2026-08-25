@@ -35,15 +35,20 @@ artifact-attestation creation binds the observed identity into the cross-host
 attestation, and cross-host Linux assembly carries that proof into the package
 seal. Publication requires the sealed proof for both platform tarballs and
 additionally executes the native tarball when the publisher host can run it.
-Every path refuses a mismatch with
-`SNAPBACK_RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH` before sealing, swapping,
-or publishing the artifact.
+Package-seal production validates the proof against the seal's `buildIdentity`
+and refuses a missing or mismatched proof with
+`SNAPBACK_RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH` before writing
+`runtime-readiness.json`. Seal reopening re-checks any present proof and
+classifies a pre-proof receipt as `legacy-seal-no-catalog-proof`; that legacy
+state remains install-readable but publication refuses it. Same-host package
+preparation still performs the native inspection before sealing or swapping,
+and publication additionally refuses before publishing the artifact.
 
 The packaging refusal test was confirmed fail-first: before the ceremony
 check, the mismatched fixture failed with `Missing expected exception`. With
 the fix, the script and package test selection passes 58/58, including the
 mismatch refusal and preservation of the prior sealed package; the kernel
-control-catalog selection passes 3/3. A rebuilt binary reported matching
+control-catalog selection passes 4/4. A rebuilt binary reported matching
 `2bf6a81e7662d169cee72ea6eed42b49a97c9c84` / `dirty:true` identities for its
 launch stamp and embedded catalog during implementation. The final clean
 commit identity is recorded in the lane report.

@@ -4,6 +4,7 @@ import {
   chmodSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -15,7 +16,7 @@ import { writeAdminConsoleSnapshotManifest } from '../packages/snapback-cli/admi
 import { produceRuntimePackageSeal } from '../packages/snapback-cli/runtime-readiness.mjs';
 import { verifyPackedRuntimeSeal } from './snapback-publish.mjs';
 
-test('publication refuses a foreign Linux tarball with mismatched catalog proof', () => {
+test('publication refuses mismatched and legacy Linux catalog proofs', () => {
   const fixtureRoot = mkdtempSync(join(tmpdir(), 'snapback-publish-catalog-proof-'));
   try {
     const packageRoot = join(fixtureRoot, 'package');
@@ -75,9 +76,15 @@ test('publication refuses a foreign Linux tarball with mismatched catalog proof'
       catalogBuildIdentityProof: {
         schemaVersion: 'snapback.runtime-catalog-build-identity-proof.v1',
         source: 'snapback.runtime-artifact-attestation.v4',
-        buildIdentity: { sourceCommit: 'b'.repeat(40), dirty: false },
+        buildIdentity: { sourceCommit: sourceRevision, dirty: false },
       },
     });
+
+    const receiptPath = join(packageRoot, 'runtime-readiness.json');
+    const originalReceipt = JSON.parse(readFileSync(receiptPath, 'utf8'));
+    const mismatchedReceipt = structuredClone(originalReceipt);
+    mismatchedReceipt.catalogBuildIdentityProof.buildIdentity.sourceCommit = 'b'.repeat(40);
+    writeFileSync(receiptPath, `${JSON.stringify(mismatchedReceipt, null, 2)}\n`);
 
     const tarballPath = join(fixtureRoot, 'runtime-linux-x64.tgz');
     const packed = spawnSync('tar', [
@@ -86,6 +93,25 @@ test('publication refuses a foreign Linux tarball with mismatched catalog proof'
       'package',
     ], { encoding: 'utf8' });
     assert.equal(packed.status, 0, packed.stderr);
+    assert.throws(
+      () => verifyPackedRuntimeSeal({
+        tarballPath,
+        packageName,
+        platformId: 'linux-x64',
+        hostPlatformId: 'darwin-arm64',
+      }),
+      (error) => error.code === 'SNAPBACK_RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH',
+    );
+
+    const legacyReceipt = structuredClone(originalReceipt);
+    delete legacyReceipt.catalogBuildIdentityProof;
+    writeFileSync(receiptPath, `${JSON.stringify(legacyReceipt, null, 2)}\n`);
+    const legacyPacked = spawnSync('tar', [
+      '-czf', tarballPath,
+      '-C', fixtureRoot,
+      'package',
+    ], { encoding: 'utf8' });
+    assert.equal(legacyPacked.status, 0, legacyPacked.stderr);
     assert.throws(
       () => verifyPackedRuntimeSeal({
         tarballPath,

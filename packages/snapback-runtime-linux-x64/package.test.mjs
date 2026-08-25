@@ -584,6 +584,11 @@ process.exit(ok ? 0 : 1);
     },
     buildDistribution: 'public-package',
   };
+  const catalogBuildIdentityProof = {
+    schemaVersion: 'snapback.runtime-catalog-build-identity-proof.v1',
+    source: 'native-inspection',
+    buildIdentity: { sourceCommit: sourceRevision, dirty: false },
+  };
   const sealed = produceRuntimePackageSeal({
     root: sealRoot,
     binaryPath: sealedBinary,
@@ -592,6 +597,7 @@ process.exit(ok ? 0 : 1);
     architecture: 'x64',
     buildIdentity,
     sourceRevision,
+    catalogBuildIdentityProof,
   });
   assert.equal(sealed.receipt.qualification.report.schemaVersion, 'snapback.runtime-qualify.v1');
   assert.equal(sealed.receipt.qualification.report.ok, true);
@@ -663,6 +669,7 @@ process.exit(ok ? 0 : 1);
       architecture: 'x64',
       buildIdentity,
       sourceRevision,
+      catalogBuildIdentityProof,
       environment: { ...process.env, FIXTURE_QUALIFICATION_FAIL: '1' },
     }),
     (error) => error.code === RUNTIME_PACKAGE_QUALIFICATION_FAILED_CODE,

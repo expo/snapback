@@ -180,6 +180,11 @@ function validateQualificationVerdict(verdict, buildIdentity, sourceRevision) {
  * @ref LLP 0041#nine-package-candidate-promotion--2026-07-28 — one
  * source-bound assembly may transport a foreign native runtime only with its
  * executing-host identity and exact binary/support-artifact digests.
+ * `scripts/snapback-create-runtime-artifact-attestation.mjs` is the only
+ * sanctioned production caller: it executes the runtime catalog inspection
+ * immediately before invoking this ceremony primitive. Direct construction is
+ * reserved for fixtures, so the production attestation cannot rely on a
+ * caller-supplied catalog identity that was not observed from the binary.
  */
 export function createLinuxRuntimeArtifactAttestation({
   binaryPath,

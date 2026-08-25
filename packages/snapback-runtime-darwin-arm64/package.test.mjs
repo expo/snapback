@@ -15,12 +15,16 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { assertPublicPackageBuildIdentity } from '../../scripts/runtime-package-authority.mjs';
+import {
+  RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH_CODE,
+  assertPublicPackageBuildIdentity,
+} from '../../scripts/runtime-package-authority.mjs';
 import { resolveRuntimeBinary } from '../snapback-cli/index.mjs';
 import { writeAdminConsoleSnapshotManifest } from '../snapback-cli/admin-snapshot.mjs';
 import { prepareDarwinRuntimePackage } from './prepare-runtime.mjs';
 import {
   RUNTIME_PACKAGE_QUALIFICATION_FAILED_CODE,
+  RUNTIME_PACKAGE_LEGACY_CATALOG_PROOF_REASON,
   produceRuntimePackageSeal,
   verifyRuntimePackageSeal,
 } from '../snapback-cli/runtime-readiness.mjs';
@@ -48,6 +52,11 @@ const buildIdentity = {
     startupNonce: 'build-identity-process',
   },
   buildDistribution: 'public-package',
+};
+const catalogBuildIdentityProof = {
+  schemaVersion: 'snapback.runtime-catalog-build-identity-proof.v1',
+  source: 'native-inspection',
+  buildIdentity: { sourceCommit: sourceRevision, dirty: false },
 };
 
 function writeFixture(path, contents) {
@@ -94,6 +103,38 @@ process.exit(ok ? 0 : 1);
     sourceDirty: false,
   });
 
+  const receiptPath = join(sealRoot, 'runtime-readiness.json');
+  assert.throws(
+    () => produceRuntimePackageSeal({
+      root: sealRoot,
+      binaryPath: binary,
+      packageName: PACKAGE_NAME,
+      platform: 'darwin',
+      architecture: 'arm64',
+      buildIdentity,
+      sourceRevision,
+    }),
+    (error) => error.code === RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH_CODE,
+  );
+  assert.equal(existsSync(receiptPath), false);
+  assert.throws(
+    () => produceRuntimePackageSeal({
+      root: sealRoot,
+      binaryPath: binary,
+      packageName: PACKAGE_NAME,
+      platform: 'darwin',
+      architecture: 'arm64',
+      buildIdentity,
+      sourceRevision,
+      catalogBuildIdentityProof: {
+        ...catalogBuildIdentityProof,
+        buildIdentity: { sourceCommit: 'b'.repeat(40), dirty: false },
+      },
+    }),
+    (error) => error.code === RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH_CODE,
+  );
+  assert.equal(existsSync(receiptPath), false);
+
   const sealed = produceRuntimePackageSeal({
     root: sealRoot,
     binaryPath: binary,
@@ -102,6 +143,7 @@ process.exit(ok ? 0 : 1);
     architecture: 'arm64',
     buildIdentity,
     sourceRevision,
+    catalogBuildIdentityProof,
   });
   assert.equal(sealed.receipt.qualification.report.schemaVersion, 'snapback.runtime-qualify.v1');
   assert.equal(sealed.receipt.qualification.report.ok, true);
@@ -129,6 +171,37 @@ process.exit(ok ? 0 : 1);
     platform: 'darwin',
     architecture: 'arm64',
   }).ok, true);
+
+  const originalReceipt = readFileSync(receiptPath, 'utf8');
+  const mismatchedProofReceipt = JSON.parse(originalReceipt);
+  mismatchedProofReceipt.catalogBuildIdentityProof.buildIdentity.sourceCommit = 'b'.repeat(40);
+  writeFileSync(receiptPath, `${JSON.stringify(mismatchedProofReceipt, null, 2)}\n`);
+  const mismatchedProof = verifyRuntimePackageSeal({
+    root: sealRoot,
+    binaryPath: binary,
+    packageName: PACKAGE_NAME,
+    platform: 'darwin',
+    architecture: 'arm64',
+  });
+  assert.equal(mismatchedProof.reason, 'catalog-build-identity-proof-drift');
+  assert.equal(
+    mismatchedProof.diagnostic.code,
+    RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH_CODE,
+  );
+
+  const legacyReceipt = JSON.parse(originalReceipt);
+  delete legacyReceipt.catalogBuildIdentityProof;
+  writeFileSync(receiptPath, `${JSON.stringify(legacyReceipt, null, 2)}\n`);
+  const legacySeal = verifyRuntimePackageSeal({
+    root: sealRoot,
+    binaryPath: binary,
+    packageName: PACKAGE_NAME,
+    platform: 'darwin',
+    architecture: 'arm64',
+  });
+  assert.equal(legacySeal.ok, true);
+  assert.equal(legacySeal.reason, RUNTIME_PACKAGE_LEGACY_CATALOG_PROOF_REASON);
+  writeFileSync(receiptPath, originalReceipt);
 
   writeFileSync(framework, 'swapped Darwin Hermes runtime bytes');
   const frameworkDrift = verifyRuntimePackageSeal({
@@ -178,6 +251,7 @@ process.exit(ok ? 0 : 1);
       architecture: 'arm64',
       buildIdentity,
       sourceRevision,
+      catalogBuildIdentityProof,
       environment: { ...process.env, FIXTURE_QUALIFICATION_FAIL: '1' },
     }),
     (error) => error.code === RUNTIME_PACKAGE_QUALIFICATION_FAILED_CODE,

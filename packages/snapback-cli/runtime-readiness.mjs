@@ -50,8 +50,18 @@ export const RUNTIME_READINESS_INVALID_CODE = 'SNAPBACK_IBEX_RUNTIME_RECEIPT_INV
 export const RUNTIME_PACKAGE_QUALIFICATION_FAILED_CODE =
   'SNAPBACK_RUNTIME_PACKAGE_QUALIFICATION_FAILED';
 export const RUNTIME_PACKAGE_RECEIPT_FILENAME = 'runtime-readiness.json';
+export const RUNTIME_PACKAGE_LEGACY_CATALOG_PROOF_REASON =
+  'legacy-seal-no-catalog-proof';
 
 const HASH_CHUNK_BYTES = 1024 * 1024;
+const RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH_CODE =
+  'SNAPBACK_RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH';
+const RUNTIME_CATALOG_BUILD_IDENTITY_PROOF_SCHEMA_VERSION =
+  'snapback.runtime-catalog-build-identity-proof.v1';
+const RUNTIME_CATALOG_BUILD_IDENTITY_PROOF_SOURCES = new Set([
+  'native-inspection',
+  'snapback.runtime-artifact-attestation.v4',
+]);
 
 /// The receipt is a sibling of the binary it certifies, so it shares the
 /// binary's lifecycle (built together, cleaned together) and every consumer
@@ -232,7 +242,13 @@ export function issueRuntimeReadinessReceipt({
   return { receipt, receiptPath };
 }
 
-function packageSealRefusal(reason, message, context, details = {}) {
+function packageSealRefusal(
+  reason,
+  message,
+  context,
+  details = {},
+  diagnosticCode = RUNTIME_READINESS_INVALID_CODE,
+) {
   const {
     repairCommand: _repairCommand,
     requalifyCommand: _requalifyCommand,
@@ -240,7 +256,7 @@ function packageSealRefusal(reason, message, context, details = {}) {
     packageName: _packageName,
     ...classification
   } = details;
-  return refusal(reason, message, {
+  const verdict = refusal(reason, message, {
     ...context,
     details: {
       ...classification,
@@ -248,6 +264,8 @@ function packageSealRefusal(reason, message, context, details = {}) {
       packageName: context.packageName,
     },
   });
+  verdict.diagnostic.code = diagnosticCode;
+  return verdict;
 }
 
 function sameJson(left, right) {
@@ -279,6 +297,44 @@ function runtimePackageBindingValid({ qualification, buildIdentity, sourceRevisi
     )
     && buildBinary?.gitCommit === sourceRevision
   );
+}
+
+function catalogBuildIdentityProofError(message) {
+  const error = new Error(message);
+  error.code = RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH_CODE;
+  return error;
+}
+
+function validateRuntimeCatalogBuildIdentityProof(buildIdentity, proof) {
+  const binaryIdentity = buildIdentity?.binary;
+  const proofIdentity = proof?.buildIdentity;
+  if (
+    buildIdentity?.schemaVersion !== 'snapback.binary-identity.v1'
+    || !['contributor-source', 'public-package'].includes(buildIdentity?.buildDistribution)
+    || typeof binaryIdentity?.gitCommit !== 'string'
+    || binaryIdentity.gitCommit === 'unknown'
+    || binaryIdentity.gitCommit.length === 0
+    || typeof binaryIdentity.gitDirty !== 'boolean'
+    || typeof binaryIdentity.buildProfile !== 'string'
+    || binaryIdentity.buildProfile.length === 0
+    || proof === null
+    || typeof proof !== 'object'
+    || Array.isArray(proof)
+    || Object.keys(proof).sort().join(',') !== 'buildIdentity,schemaVersion,source'
+    || proof.schemaVersion !== RUNTIME_CATALOG_BUILD_IDENTITY_PROOF_SCHEMA_VERSION
+    || !RUNTIME_CATALOG_BUILD_IDENTITY_PROOF_SOURCES.has(proof.source)
+    || !/^[0-9a-f]{40}$/u.test(proofIdentity?.sourceCommit ?? '')
+    || typeof proofIdentity?.dirty !== 'boolean'
+    || proofIdentity.sourceCommit !== binaryIdentity.gitCommit
+    || proofIdentity.dirty !== binaryIdentity.gitDirty
+  ) {
+    throw catalogBuildIdentityProofError(
+      'runtime package does not carry a catalog build identity proof matching its build identity: '
+      + `binary=${binaryIdentity?.gitCommit ?? 'unknown'}/${binaryIdentity?.gitDirty ?? 'unknown'}, `
+      + `catalog=${proofIdentity?.sourceCommit ?? 'unknown'}/${proofIdentity?.dirty ?? 'unknown'}`,
+    );
+  }
+  return structuredClone(proof);
 }
 
 /// Verify the package-production seal before a resolver trusts a shipped
@@ -373,6 +429,22 @@ export function verifyRuntimePackageSeal({
       },
     );
   }
+  if (Object.hasOwn(receipt, 'catalogBuildIdentityProof')) {
+    try {
+      validateRuntimeCatalogBuildIdentityProof(
+        buildIdentity,
+        receipt.catalogBuildIdentityProof,
+      );
+    } catch (error) {
+      return packageSealRefusal(
+        'catalog-build-identity-proof-drift',
+        error.message,
+        context,
+        {},
+        error.code,
+      );
+    }
+  }
   try {
     if (adminConsoleRequired || existsSync(adminRoot)) {
       validateAdminConsoleSnapshot({
@@ -397,6 +469,9 @@ export function verifyRuntimePackageSeal({
       { expectedArtifactPaths, recordedArtifactPaths },
     );
   }
+  if (!Object.hasOwn(receipt, 'catalogBuildIdentityProof')) {
+    return { ...verdict, reason: RUNTIME_PACKAGE_LEGACY_CATALOG_PROOF_REASON };
+  }
   return verdict;
 }
 
@@ -418,7 +493,7 @@ export function produceRuntimePackageSeal({
   qualification = null,
   issuer = 'snapback-runtime-package-production',
   adminConsoleRequired = true,
-  catalogBuildIdentityProof = null,
+  catalogBuildIdentityProof,
 }) {
   root = resolve(root);
   binaryPath = resolve(binaryPath);
@@ -427,6 +502,10 @@ export function produceRuntimePackageSeal({
     error.code = RUNTIME_READINESS_INVALID_CODE;
     throw error;
   }
+  const validatedCatalogBuildIdentityProof = validateRuntimeCatalogBuildIdentityProof(
+    buildIdentity,
+    catalogBuildIdentityProof,
+  );
   qualification ??= qualifyRuntimeBinary(binaryPath, environment);
   if (!qualification.ok) {
     const error = new Error(
@@ -478,7 +557,7 @@ export function produceRuntimePackageSeal({
     buildIdentity,
     sourceRevision,
     packageName,
-    catalogBuildIdentityProof,
+    catalogBuildIdentityProof: validatedCatalogBuildIdentityProof,
   });
   const verified = verifyRuntimePackageSeal({
     root,

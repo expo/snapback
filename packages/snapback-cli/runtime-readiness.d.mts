@@ -2,6 +2,7 @@ export declare const RUNTIME_READINESS_SCHEMA_VERSION: 'snapback.runtime-readine
 export declare const RUNTIME_READINESS_INVALID_CODE: 'SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID';
 export declare const RUNTIME_PACKAGE_QUALIFICATION_FAILED_CODE: 'SNAPBACK_RUNTIME_PACKAGE_QUALIFICATION_FAILED';
 export declare const RUNTIME_PACKAGE_RECEIPT_FILENAME: 'runtime-readiness.json';
+export declare const RUNTIME_PACKAGE_LEGACY_CATALOG_PROOF_REASON: 'legacy-seal-no-catalog-proof';
 
 export declare function runtimeReadinessReceiptPath(binaryPath: string): string;
 
@@ -62,6 +63,13 @@ export interface RuntimeReadinessReceipt {
   readonly preparedRuntime?: PreparedRuntimeReuseIdentity;
   readonly sourceRevision?: string;
   readonly packageName?: string;
+  readonly catalogBuildIdentityProof?: RuntimeCatalogBuildIdentityProof;
+}
+
+export interface RuntimeCatalogBuildIdentityProof {
+  readonly schemaVersion: 'snapback.runtime-catalog-build-identity-proof.v1';
+  readonly source: 'native-inspection' | 'snapback.runtime-artifact-attestation.v4';
+  readonly buildIdentity: Readonly<{ sourceCommit: string; dirty: boolean }>;
 }
 
 export declare function issueRuntimeReadinessReceipt(options: {
@@ -77,6 +85,7 @@ export declare function issueRuntimeReadinessReceipt(options: {
   packageName?: string | null;
   platformId?: string | null;
   preparedRuntime?: PreparedRuntimeReuseIdentity | null;
+  catalogBuildIdentityProof?: RuntimeCatalogBuildIdentityProof | null;
 }): { receipt: RuntimeReadinessReceipt; receiptPath: string };
 
 export interface RuntimeReadinessVerification {
@@ -115,6 +124,8 @@ export declare function produceRuntimePackageSeal(options: {
   environment?: Record<string, string | undefined>;
   qualification?: Record<string, unknown> | null;
   issuer?: string;
+  adminConsoleRequired?: boolean;
+  catalogBuildIdentityProof: RuntimeCatalogBuildIdentityProof;
 }): {
   receipt: RuntimeReadinessReceipt;
   receiptPath: string;

@@ -3185,7 +3185,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-runtime-artifact-platform-mismatch"></a>`SNAPBACK_RUNTIME_ARTIFACT_PLATFORM_MISMATCH` | runtime | — | — | `packages/snapback-runtime-linux-x64/prepare-runtime.mjs:237` | 1 |
 | <a id="diagnostic-snapback-runtime-binary"></a>`SNAPBACK_RUNTIME_BINARY` | runtime | — | [guide](../getting-started/the-authoring-loop.md#anti-patterns) | `packages/snapback-acceptance/replay.mjs:964` | 6 |
 | <a id="diagnostic-snapback-runtime-binary-missing"></a>`SNAPBACK_RUNTIME_BINARY_MISSING` | runtime | — | — | `packages/snapback-cli/index.mjs:272` | 7 |
-| <a id="diagnostic-snapback-runtime-catalog-build-identity-mismatch"></a>`SNAPBACK_RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH` | runtime | — | — | `packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs:67` | 2 |
+| <a id="diagnostic-snapback-runtime-catalog-build-identity-mismatch"></a>`SNAPBACK_RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH` | runtime | — | — | `packages/snapback-cli/runtime-readiness.mjs:58` | 3 |
 | <a id="diagnostic-snapback-runtime-catalog-inspection-failed"></a>`SNAPBACK_RUNTIME_CATALOG_INSPECTION_FAILED` | runtime | — | — | `packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs:74` | 2 |
 | <a id="diagnostic-snapback-runtime-cost-recorder"></a>`SNAPBACK_RUNTIME_COST_RECORDER` | runtime | — | [guide](../backend/query-costs.md#pull-one-local-snapshot) | `crates/snapback-server/src/admin.rs:3087` | 2 |
 | <a id="diagnostic-snapback-runtime-create-failed"></a>`SNAPBACK_RUNTIME_CREATE_FAILED` | runtime | 500 | — | `crates/snapback-runtime/src/runtime.rs:305` | 2 |

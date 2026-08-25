@@ -112,6 +112,11 @@ test('Darwin package seals bind the dyld versioned file across npm symlink remov
       architecture: 'arm64',
       buildIdentity,
       sourceRevision,
+      catalogBuildIdentityProof: {
+        schemaVersion: 'snapback.runtime-catalog-build-identity-proof.v1',
+        source: 'native-inspection',
+        buildIdentity: { sourceCommit: sourceRevision, dirty: false },
+      },
       qualification,
       adminConsoleRequired: false,
     });

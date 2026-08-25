@@ -230,10 +230,12 @@ export function verifyPackedRuntimeSeal({
       architecture,
     });
     if (!verdict.ok) {
-      throw new Error(
+      const error = new Error(
         `${packageName} npm tarball failed its runtime seal (${verdict.reason}): `
         + verdict.diagnostic.message,
       );
+      error.code = verdict.diagnostic.code;
+      throw error;
     }
     assertRuntimeCatalogBuildIdentityProof(
       verdict.receipt.buildIdentity,

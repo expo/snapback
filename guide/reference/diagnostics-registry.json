@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:d3d36b108e591cb19c62d0f8cf817b111b8478ada4cbb23e155227176c42d6ba"
+    "sourceDigest": "sha256:7ac5777f14e808c00f8d08c69b8a3eecdc6a91256c740c974b104f94a9106ed8"
   },
   "limits": {
     "lookupBytes": 16384
@@ -10,7 +10,7 @@
   "counts": {
     "codes": 3674,
     "sourceFiles": 614,
-    "emittingSites": 12932,
+    "emittingSites": 12933,
     "httpClassified": 1730,
     "guideAnchored": 466
   },
@@ -61448,7 +61448,7 @@
         },
         {
           "file": "packages/snapback-cli/runtime-readiness.mjs",
-          "line": 540,
+          "line": 619,
           "column": 6
         },
         {
@@ -61490,7 +61490,7 @@
         },
         {
           "file": "packages/snapback-cli/runtime-readiness.mjs",
-          "line": 634,
+          "line": 713,
           "column": 16
         }
       ],
@@ -88243,6 +88243,11 @@
       "code": "SNAPBACK_RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH",
       "subsystem": "runtime",
       "sites": [
+        {
+          "file": "packages/snapback-cli/runtime-readiness.mjs",
+          "line": 58,
+          "column": 4
+        },
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
           "line": 67,
