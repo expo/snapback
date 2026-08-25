@@ -83,3 +83,58 @@ This ticket says *reuse the shape*, not *reuse the table*. Sharing one physical 
 unrelated key spaces creates contention and confuses retention. The point is that the
 primary-key-collision, request-digest, retention, and recorded-refusal properties are already worked
 out here and should not be rediscovered four times in parallel.
+
+---
+
+## What three lanes actually built, 2026-08-25
+
+The instruction above was issued to four lanes at once. Three have reported, and they converged on
+the same shape **without coordinating** — which is the evidence that this generalises rather than
+being three bespoke fixes.
+
+| Lane | Durable record | Written where | Rows |
+|---|---|---|---|
+| Q14 | `_snapback_hosted_admission_consumptions`, **envelope-digest primary key** | same `BEGIN IMMEDIATE` transaction as the admission watermark, in the deployment database | — |
+| Q43 | `_snapback_meta.auth_invalidation_boot_issuance_v1` | atomically with the boot-sequence high-water; records database-open owner, authorization incarnation, boot sequence | `F084` |
+| Q03 | `_snapback_meta.auth_commit_consumed:<operation-id>` | **inside the same SQLite transaction as the auth effect** | `F100, F101, F102` |
+
+Their refusals, verbatim:
+
+```
+SNAPBACK_AUTH_HOSTED_ADMISSION_REPLAYED: hosted admission envelope has already been durably consumed
+authorization invalidation boot issuer is already active for this database lifetime
+authentication commit operation was already durably consumed
+```
+
+### The property they all got right
+
+**The durable record is written in the same transaction as the effect it guards.** Not before, not
+after, not in a separate connection. That is the difference between a guard and a race: if the record
+and the effect can commit independently, a crash between them either loses the guard (the operation
+becomes replayable) or blocks a legitimate first use (the operation becomes wedged).
+
+This is worth stating because it is not implied by "add a replay ledger". A ledger written after the
+effect is a log; a ledger written before it, in a separate transaction, is a lock that can leak. Only
+the atomic form is a single-use guarantee.
+
+### How they proved it
+
+All three tested from an **external dependent crate**, and each reconstructed the input by the route
+that had previously defeated it rather than by cloning:
+
+- Q14 **reselected the serialised document and reopened the database** — the exact attack that beat
+  its previous round, where consuming the Rust binding left the signed envelope deserializable.
+- Q43 called the complete producer twice.
+- Q03 ran a replay-and-readback regression.
+
+Each then read back the durable rows and confirmed the refused second attempt changed nothing. That
+last step is what distinguishes "the call returned an error" from "nothing happened".
+
+### What remains complementary, not substituted
+
+All three **kept** their move-only consumption as a compile-time complement, as instructed. That
+combination — a type that cannot be reused accidentally, plus a durable record that cannot be
+replayed deliberately — is the shape to copy.
+
+None of the three added a genuinely new privilege-surface violation: each measures 105 against a
+`main` at 107, with zero new entries once line-number churn is normalised away.
