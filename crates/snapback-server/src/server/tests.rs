@@ -5596,7 +5596,11 @@ async fn effect_approval_reprepares_original_session_with_catalog_claims() {
             ))
             .collect::<Vec<_>>(),
         [
-            ("created", None, None),
+            (
+                "created",
+                Some(effect.caller_key.as_str()),
+                Some("SNAPBACK_EFFECT_APPROVAL_PENDING"),
+            ),
             ("approved", Some(expected_approver.as_str()), None),
             ("executed", None, Some("ok")),
         ]
@@ -8127,15 +8131,17 @@ async fn detached_nested_mutation_durable_evidence(
     state: &AppState,
 ) -> DetachedNestedMutationDurableEvidence {
     with_snapback(&state.snapback, |snapback| {
-        let mut image = tempfile::tempfile().expect("detached fence database image");
+        let mut image = tempfile::NamedTempFile::new().expect("detached fence database image");
         snapback
-            .backup_database_image_into(&image)
+            .backup_database_image_into(image.as_file())
             .expect("capture detached fence database image");
         image
+            .as_file_mut()
             .seek(SeekFrom::Start(0))
             .expect("rewind detached fence database image");
         let mut database_image = Vec::new();
         image
+            .as_file_mut()
             .read_to_end(&mut database_image)
             .expect("read detached fence database image");
         Ok::<_, SnapbackError>(DetachedNestedMutationDurableEvidence {
@@ -35283,15 +35289,17 @@ async fn mode_only_migration_durable_marker(
     ModeOnlyMigrationDurableMarker::DatabaseImage(
         with_snapback(&state.snapback, |snapback| {
             let mut image =
-                tempfile::tempfile().expect("temporary authorized-effect database image");
+                tempfile::NamedTempFile::new().expect("temporary authorized-effect database image");
             snapback
-                .backup_database_image_into(&image)
+                .backup_database_image_into(image.as_file())
                 .expect("capture authorized-effect database image");
             image
+                .as_file_mut()
                 .seek(SeekFrom::Start(0))
                 .expect("rewind database image");
             let mut bytes = Vec::new();
             image
+                .as_file_mut()
                 .read_to_end(&mut bytes)
                 .expect("read authorized-effect database image");
             bytes

@@ -81,17 +81,24 @@ pub struct ProjectionSource {
 /// projection. The source remains opaque so higher layers cannot author rows
 /// and then ask the coordinator to treat them as durable authority.
 pub struct AdmittedProjectionSnapshot {
+    database_binding: crate::storage::DatabaseBinding,
     source: ProjectionSource,
 }
 
 impl AdmittedProjectionSnapshot {
-    pub(crate) fn new(source: ProjectionSource) -> Self {
-        Self { source }
+    pub(crate) fn new(
+        database_binding: crate::storage::DatabaseBinding,
+        source: ProjectionSource,
+    ) -> Self {
+        Self {
+            database_binding,
+            source,
+        }
     }
 
     #[doc(hidden)]
-    pub fn into_source(self) -> ProjectionSource {
-        self.source
+    pub fn into_parts(self) -> (crate::storage::DatabaseBinding, ProjectionSource) {
+        (self.database_binding, self.source)
     }
 }
 

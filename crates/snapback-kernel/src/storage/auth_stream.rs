@@ -136,8 +136,9 @@ impl LocalDatabase {
     pub fn admitted_session_projection_snapshot(
         &mut self,
     ) -> SnapbackResult<AdmittedProjectionSnapshot> {
+        let database_binding = self.binding();
         self.session_projection_source()
-            .map(AdmittedProjectionSnapshot::new)
+            .map(|source| AdmittedProjectionSnapshot::new(database_binding, source))
     }
 
     /// Mint the stream-only snapshot used while the auth catalog is absent or
@@ -146,16 +147,20 @@ impl LocalDatabase {
     pub fn admitted_stream_projection_snapshot(
         &mut self,
     ) -> SnapbackResult<AdmittedProjectionSnapshot> {
+        let database_binding = self.binding();
         let incarnation = self.ensure_authorization_stream_incarnation()?;
-        Ok(AdmittedProjectionSnapshot::new(ProjectionSource {
-            authorization_stream_value: AuthorizationStreamRecord::new(incarnation)
-                .encode_bytes()?,
-            restore_declaration_id: None,
-            users: Vec::new(),
-            identities: Vec::new(),
-            sessions: Vec::new(),
-            superseded_tokens: Vec::new(),
-        }))
+        Ok(AdmittedProjectionSnapshot::new(
+            database_binding,
+            ProjectionSource {
+                authorization_stream_value: AuthorizationStreamRecord::new(incarnation)
+                    .encode_bytes()?,
+                restore_declaration_id: None,
+                users: Vec::new(),
+                identities: Vec::new(),
+                sessions: Vec::new(),
+                superseded_tokens: Vec::new(),
+            },
+        ))
     }
 
     fn session_projection_source_inner(&mut self) -> SnapbackResult<ProjectionSource> {

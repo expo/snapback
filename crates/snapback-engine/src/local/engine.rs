@@ -3599,8 +3599,13 @@ impl PreparedEffectApproval {
 }
 
 /// Prepared original authority for the exact pending effect named by an
-/// approval carrier. Its fields remain engine-private.
+/// approval carrier. Its fields remain engine-private, and the database
+/// binding prevents a same-ID approval in another engine from accepting it.
+///
+/// @ref LLP 0303#corollary--the-artifact-must-carry-provenance-not-just-type —
+/// reconstructed effect authority remains bound to its producing database.
 pub struct PreparedEffectOriginalAuthority {
+    database_binding: crate::storage::DatabaseBinding,
     effect_id: String,
     authority: PreparedAuthority,
 }
@@ -5782,10 +5787,11 @@ impl LocalSnapback {
         now_ms: u64,
     ) -> SnapbackResult<PreparedEffectApproval> {
         let (approver_id, _) = Self::require_effect_management_session(management)?;
-        let _effect = management.effect_guard("pending-effect approval preparation")?;
-        let pending = self
-            .db
-            .prepare_pending_effect_approval(effect_id, &approver_id, now_ms)?;
+        let pending = {
+            let _effect = management.effect_guard("pending-effect approval preparation")?;
+            self.db
+                .prepare_pending_effect_approval(effect_id, &approver_id, now_ms)?
+        };
         let approval = PreparedEffectApproval {
             pending,
             management: management.clone(),
@@ -5851,6 +5857,7 @@ impl LocalSnapback {
             )?
             .with_caller_attribution(Self::effect_caller_attribution(approval));
         Ok(PreparedEffectOriginalAuthority {
+            database_binding: self.db.binding(),
             effect_id: approval.effect_id().to_owned(),
             authority,
         })
@@ -5896,6 +5903,7 @@ impl LocalSnapback {
             )?
             .with_caller_attribution(Self::effect_caller_attribution(approval));
         Ok(PreparedEffectOriginalAuthority {
+            database_binding: self.db.binding(),
             effect_id: approval.effect_id().to_owned(),
             authority,
         })
@@ -5948,6 +5956,7 @@ impl LocalSnapback {
             )?
             .with_caller_attribution(Self::effect_caller_attribution(approval));
         Ok(PreparedEffectOriginalAuthority {
+            database_binding: self.db.binding(),
             effect_id: approval.effect_id().to_owned(),
             authority,
         })
@@ -5972,7 +5981,9 @@ impl LocalSnapback {
         step_up: Option<&crate::auth::crypto::StepUpProof>,
         now_ms: u64,
     ) -> SnapbackResult<ApprovedEffectDispatch> {
-        if original.effect_id != approval.effect_id() {
+        if original.effect_id != approval.effect_id()
+            || original.database_binding != self.db.binding()
+        {
             return Err(effect_original_authority_mismatch());
         }
         let function =

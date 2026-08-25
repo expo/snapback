@@ -1,4 +1,5 @@
 use super::*;
+use crate::local::{PreparedEffectApproval, PreparedEffectOriginalAuthority};
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

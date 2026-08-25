@@ -36,6 +36,9 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 pub struct AuthCoordinator {
+    /// Identity of the database whose admitted snapshot produced this live
+    /// projection. Retained effect-session views must match it before use.
+    database_binding: Option<crate::storage::DatabaseBinding>,
     topology: Mutex<CoordinatorTopology>,
     rehearsal_live_authority: crate::auth::rehearsal::RehearsalLiveAuthorityRegistry,
     #[cfg(any(test, feature = "test-support"))]
@@ -562,26 +565,30 @@ impl AuthCoordinator {
         epoch_now_ms: u64,
         monotonic_now: Instant,
     ) -> SnapbackResult<Self> {
-        Self::new(SessionProjection::rebuild_with_fresh_startup_id(
-            snapshot.into_source(),
-            epoch_now_ms,
-            monotonic_now,
-        )?)
+        let (database_binding, source) = snapshot.into_parts();
+        Self::new_inner(
+            SessionProjection::rebuild_with_fresh_startup_id(source, epoch_now_ms, monotonic_now)?,
+            Some(database_binding),
+        )
     }
 
     #[cfg(feature = "test-support")]
     pub fn new(projection: SessionProjection) -> SnapbackResult<Self> {
-        Self::new_inner(projection)
+        Self::new_inner(projection, None)
     }
 
     #[cfg(not(feature = "test-support"))]
     pub(crate) fn new(projection: SessionProjection) -> SnapbackResult<Self> {
-        Self::new_inner(projection)
+        Self::new_inner(projection, None)
     }
 
-    fn new_inner(projection: SessionProjection) -> SnapbackResult<Self> {
+    fn new_inner(
+        projection: SessionProjection,
+        database_binding: Option<crate::storage::DatabaseBinding>,
+    ) -> SnapbackResult<Self> {
         projection.check_invariants()?;
         Ok(Self {
+            database_binding,
             topology: Mutex::new(CoordinatorTopology {
                 projection,
                 rebuild_required_sessions: BTreeSet::new(),
@@ -1733,6 +1740,17 @@ impl AuthCoordinator {
         epoch_now_ms: u64,
         monotonic_now: Instant,
     ) -> SnapbackResult<PreparedBearerAuthority> {
+        if !self
+            .database_binding
+            .as_ref()
+            .is_some_and(|binding| retained.belongs_to_database(binding))
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_EFFECT_AUTHORITY_INVALID",
+                "effects",
+                "retained effect session authority belongs to a different database",
+            ));
+        }
         let resolved = self.resolve_bound_connection_session(
             retained.authorization_stream_incarnation(),
             retained.session_id(),
@@ -2361,6 +2379,63 @@ mod tests {
         }
     }
 
+    fn fixture_from_database(
+        include_substituted_session: bool,
+        database: &mut crate::storage::LocalDatabase,
+    ) -> Fixture {
+        let mut fixture = fixture_with_substituted_session(include_substituted_session);
+        database
+            .activate_current_auth_catalog()
+            .expect("activate database-backed session fixture catalog");
+        let bearer = SessionBearer::generate(&FixedRandom(7)).unwrap();
+        database
+            .auth_catalog()
+            .insert_email_session_for_test(
+                &fixture.user_id,
+                &uuid_v7(3, 3),
+                &fixture.session_id,
+                &fixture.authority_instance_id,
+                "effect-original@example.test",
+                bearer.token_hash().as_bytes(),
+                3,
+                4,
+                1_000,
+                9_000_000_000,
+            )
+            .expect("store database-backed original session fixture");
+        if include_substituted_session {
+            let substituted_bearer = SessionBearer::generate(&FixedRandom(8)).unwrap();
+            database
+                .auth_catalog()
+                .insert_email_session_for_test(
+                    &fixture.substituted_user_id,
+                    &uuid_v7(21, 21),
+                    &fixture.substituted_session_id,
+                    &uuid_v7(23, 23),
+                    "effect-substituted@example.test",
+                    substituted_bearer.token_hash().as_bytes(),
+                    3,
+                    4,
+                    1_000,
+                    9_000_000_000,
+                )
+                .expect("store database-backed substituted session fixture");
+        }
+        fixture.incarnation = database
+            .ensure_authorization_stream_incarnation()
+            .expect("mint database-backed session fixture stream")
+            .as_str()
+            .to_owned();
+        let snapshot = database
+            .admitted_session_projection_snapshot()
+            .expect("mint admitted database-backed session snapshot");
+        fixture.coordinator = Arc::new(
+            AuthCoordinator::from_admitted_snapshot(snapshot, 100, fixture.monotonic_start)
+                .expect("build database-bound session coordinator"),
+        );
+        fixture
+    }
+
     fn plan(fixture: &Fixture, reason: RevocationReason) -> ProviderRevocationPlan {
         ProviderRevocationPlan::for_test(
             fixture.session_id.clone(),
@@ -2484,13 +2559,86 @@ mod tests {
     }
 
     #[test]
+    fn retained_effect_session_rejects_foreign_database_composition_and_borrow_reuse() {
+        let mut database_b = crate::storage::LocalDatabase::memory()
+            .expect("independent retained-effect session consumer database B");
+        let fixture = fixture_from_database(false, &mut database_b);
+        let mut database_a = crate::storage::LocalDatabase::memory()
+            .expect("retained-effect session producer database A");
+        database_a
+            .activate_current_auth_catalog()
+            .expect("activate protected auth catalog in database A");
+        let mut manifest = SchemaManifest::default();
+        manifest.api = Some(ApiManifest {
+            enabled: true,
+            ..ApiManifest::default()
+        });
+        database_a
+            .schema_seed()
+            .apply_schema(manifest)
+            .expect("activate pending-effect storage in database A");
+        let mut database_a = crate::storage::ServingDatabase::adopt(database_a)
+            .expect("adopt retained-effect producer database A");
+        let created = database_a
+            .create_pending_effect_admitted(crate::storage::pending_effects::CreatePendingEffect {
+                function_id: "fn:write".to_owned(),
+                function_name: "write".to_owned(),
+                function_kind: FunctionKind::Mutation,
+                args: serde_json::json!({ "title": "foreign-database" }),
+                caller_lane: "integration".to_owned(),
+                caller_key: "session-cross-database-test".to_owned(),
+                authority: crate::storage::pending_effects::PendingEffectAuthority::Session {
+                    user_id: fixture.user_id.clone(),
+                    session_id: fixture.session_id.clone(),
+                    provider: "email-code".to_owned(),
+                    generation: 1,
+                    authority_instance_id: fixture.authority_instance_id.clone(),
+                    authorization_stream_incarnation: fixture.incarnation.clone(),
+                },
+                generation: ArtifactGeneration {
+                    schema_version: "snapback.v1".to_owned(),
+                    app_id: "app".to_owned(),
+                    schema_hash: "schema".to_owned(),
+                    bundle_hash: "bundle".to_owned(),
+                    inputs_hash: "inputs".to_owned(),
+                },
+                link_origin_id: None,
+                approver_principal_id: Some("approver-a".to_owned()),
+                declared_write_set: vec!["todos".to_owned()],
+                now_ms: 100,
+                ttl_ms: 1_000,
+            })
+            .expect("store matching session coordinates in database A");
+        let approval = database_a
+            .prepare_pending_effect_approval(&created.id, "approver-a", 200)
+            .expect("derive a retained session view from database A");
+        let crate::storage::pending_effects::RetainedEffectOriginalAuthority::Session(retained) =
+            approval.original_authority()
+        else {
+            panic!("stored session authority must produce the session borrow view")
+        };
+
+        for attempt in 1..=2 {
+            let error = fixture
+                .coordinator
+                .prepare_retained_effect_session(
+                    &retained,
+                    200,
+                    fixture.monotonic_start + Duration::from_millis(100),
+                )
+                .expect_err("database B must reject database A's borrowed retained view");
+            assert_eq!(
+                error.diagnostic.code, "SNAPBACK_EFFECT_AUTHORITY_INVALID",
+                "foreign borrowed use {attempt}"
+            );
+        }
+    }
+
+    #[test]
     fn retained_effect_session_reconstruction_derives_the_stored_original_subject() {
-        let fixture = fixture_with_substituted_session(true);
         let mut database = crate::storage::LocalDatabase::memory()
             .expect("pending-effect session derivation database");
-        database
-            .activate_current_auth_catalog()
-            .expect("activate protected auth catalog");
+        let fixture = fixture_from_database(true, &mut database);
         let mut manifest = SchemaManifest::default();
         manifest.api = Some(ApiManifest {
             enabled: true,

@@ -201,7 +201,13 @@ impl std::fmt::Debug for PreparedPendingEffectApproval {
     }
 }
 
+/// Borrowed session coordinates retained by one database-produced approval.
+/// The consumer must verify the opaque database binding before reconstruction.
+///
+/// @ref LLP 0303#corollary--the-artifact-must-carry-provenance-not-just-type —
+/// the borrow cannot be composed with an independent database's live session.
 pub struct RetainedEffectSessionAuthority<'a> {
+    database_binding: crate::storage::DatabaseBinding,
     authorization_stream_incarnation: &'a str,
     session_id: &'a str,
     user_id: &'a str,
@@ -211,6 +217,10 @@ pub struct RetainedEffectSessionAuthority<'a> {
 }
 
 impl RetainedEffectSessionAuthority<'_> {
+    pub fn belongs_to_database(&self, database_binding: &crate::storage::DatabaseBinding) -> bool {
+        self.database_binding.matches(database_binding)
+    }
+
     pub fn authorization_stream_incarnation(&self) -> &str {
         self.authorization_stream_incarnation
     }
@@ -236,7 +246,13 @@ impl RetainedEffectSessionAuthority<'_> {
     }
 }
 
+/// Borrowed service coordinates retained by one database-produced approval.
+/// The consumer must verify the opaque database binding before resolution.
+///
+/// @ref LLP 0303#corollary--the-artifact-must-carry-provenance-not-just-type —
+/// the borrow cannot be composed with an independent database's live token.
 pub struct RetainedEffectServiceAuthority<'a> {
+    database_binding: crate::storage::DatabaseBinding,
     actor_user_id: &'a str,
     credential_id: &'a str,
     credential_generation: u64,
@@ -247,6 +263,10 @@ pub struct RetainedEffectServiceAuthority<'a> {
 }
 
 impl RetainedEffectServiceAuthority<'_> {
+    pub fn belongs_to_database(&self, database_binding: &crate::storage::DatabaseBinding) -> bool {
+        self.database_binding.matches(database_binding)
+    }
+
     pub fn actor_user_id(&self) -> &str {
         self.actor_user_id
     }
@@ -306,6 +326,7 @@ impl PreparedPendingEffectApproval {
                 authority_instance_id,
                 authorization_stream_incarnation,
             } => RetainedEffectOriginalAuthority::Session(RetainedEffectSessionAuthority {
+                database_binding: self.database_binding.clone(),
                 authorization_stream_incarnation,
                 session_id,
                 user_id,
@@ -323,6 +344,7 @@ impl PreparedPendingEffectApproval {
                 token_expires_at_ms,
             } => {
                 RetainedEffectOriginalAuthority::ServicePrincipal(RetainedEffectServiceAuthority {
+                    database_binding: self.database_binding.clone(),
                     actor_user_id,
                     credential_id,
                     credential_generation: *credential_generation,
@@ -694,6 +716,7 @@ impl LocalDatabase {
         retained: &RetainedEffectServiceAuthority<'_>,
         now_ms: u64,
     ) -> SnapbackResult<crate::storage::auth_agent_credentials::ResolvedScopedToken> {
+        verify_command_identity(&retained.database_binding, &self.binding())?;
         let resolved = self.resolve_retained_service_authority(
             crate::storage::auth_agent_credentials::RetainedServiceAuthority {
                 actor_user_id: retained.actor_user_id(),
@@ -1711,6 +1734,81 @@ mod tests {
                     "auth_invalidation_clock_high_water_ms_v1".to_owned(),
                     (now_ms + 11).to_string(),
                 )
+            );
+        }
+    }
+
+    #[test]
+    fn retained_effect_service_rejects_foreign_database_composition_and_borrow_reuse() {
+        const ACTOR: &str = "effect-cross-database-agent";
+        const GRANT: &str = "effect-cross-database-grant";
+        let now_ms = (std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("fixture wall clock follows the Unix epoch")
+            .as_millis() as u64)
+            .checked_add(60_000)
+            .expect("fixture authorization clock can advance");
+
+        let mut database_b = LocalDatabase::memory().expect("service consumer database B");
+        database_b
+            .activate_current_auth_catalog()
+            .expect("activate protected catalog in database B");
+        let token_b = seed_service_authority(
+            &mut database_b,
+            ACTOR,
+            None,
+            GRANT,
+            now_ms,
+            &CounterRandom::new(),
+        );
+        let matching_b = database_b
+            .resolve_scoped_token(&token_b, now_ms + 1)
+            .expect("database B has independently produced live coordinates");
+
+        let mut database_a = LocalDatabase::memory().expect("service producer database A");
+        database_a
+            .activate_current_auth_catalog()
+            .expect("activate protected catalog in database A");
+        database_a.conn.execute_batch(TABLE_SQL).unwrap();
+        database_a.conn.execute_batch(APPROVER_INDEX_SQL).unwrap();
+        database_a.conn.execute_batch(EXPIRY_INDEX_SQL).unwrap();
+        let authority_a = database_a
+            .claim_kernel_commit_authority()
+            .expect("claim producer authority for database A");
+        let mut effect_request = request(now_ms + 10, DEFAULT_TTL_MS);
+        effect_request.authority = PendingEffectAuthority::ServicePrincipal {
+            actor_user_id: matching_b.actor_user_id.clone(),
+            credential_id: matching_b.credential_id.clone(),
+            credential_generation: matching_b.credential_generation,
+            grant_id: matching_b.grant_id.clone(),
+            token_id: matching_b.token_id.clone(),
+            effective_user_id: matching_b.effective_user_id.clone(),
+            token_expires_at_ms: matching_b.expires_at_ms,
+        };
+        let created = database_a
+            .create_pending_effect(authority_a.admit_pending_effect_creation(effect_request))
+            .expect("store retained service view in database A");
+        let approval = database_a
+            .prepare_pending_effect_approval(&created.id, "human-a", now_ms + 11)
+            .expect("derive retained service view from database A");
+        let RetainedEffectOriginalAuthority::ServicePrincipal(retained) =
+            approval.original_authority()
+        else {
+            panic!("stored service authority must produce the service borrow view")
+        };
+
+        assert_eq!(matching_b.actor_user_id, retained.actor_user_id());
+        assert_eq!(matching_b.credential_id, retained.credential_id());
+        assert_eq!(matching_b.grant_id, retained.grant_id());
+        assert_eq!(matching_b.token_id, retained.token_id());
+
+        for attempt in 1..=2 {
+            let error = database_b
+                .resolve_prepared_pending_effect_service_authority(&retained, now_ms + 11)
+                .expect_err("database B must reject database A's borrowed retained view");
+            assert_eq!(
+                error.diagnostic.code, "SNAPBACK_EFFECT_AUTHORITY_INVALID",
+                "foreign borrowed use {attempt}"
             );
         }
     }
