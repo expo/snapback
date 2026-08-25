@@ -384,14 +384,11 @@ withdrawal, `idleMs` product deadline, heartbeat ownership, and delete path.
 
 For URL-first web under a bare `SnapbackProvider`, import
 `useSnapbackActivityPresence` from `@expo/snapback-react`; that is the paved
-choice. The `@expo/snapback-expo` facade is the provider-owned choice in a
-`SnapbackExpoProvider` tree. The Expo facade also works under a bare
-`SnapbackProvider` via the browser AppState fallback: its browser AppState
-resolver gates the first publication until observation is established and
-withdraws on backgrounding.
-Use that fallback when AppState-driven background withdrawal matters. The
-React hook keeps the same activity deadline without the platform lifecycle
-listener; do not invent a third hook.
+choice. Use the `@expo/snapback-expo` facade only in a
+`SnapbackExpoProvider` tree; there it gates the first publication until
+AppState observation is established and withdraws on backgrounding. The React
+hook keeps the same activity deadline without the platform lifecycle listener;
+do not invent a third hook.
 
 The messaging demo has one deliberate direct-client exception. Its interactive
 server uses dev-mode persona assertions, while the `typing` collection also

@@ -2703,13 +2703,10 @@ Enclave/Keystore proof transport remains outside the shipped native target.
 
 For URL-first web under a bare `SnapbackProvider`, import
 `useSnapbackActivityPresence` from `@expo/snapback-react`; that is the paved
-choice. The `@expo/snapback-expo` facade is the provider-owned choice in a
-`SnapbackExpoProvider` tree. The Expo facade also works under a bare
-`SnapbackProvider` via the browser AppState fallback, using the browser AppState resolver;
-use that fallback when AppState-driven background
-withdrawal matters. The React hook keeps the same
-activity deadline but does not add platform-lifecycle withdrawal. Do not
-invent a third hook.
+choice. Use the `@expo/snapback-expo` facade only in a
+`SnapbackExpoProvider` tree; there it adds AppState-driven background
+withdrawal. The React hook keeps the same activity deadline but does not add
+platform-lifecycle withdrawal. Do not invent a third hook.
 Search vocabulary: URL-first activity presence.
 
 Here is the shortest coherent application loop, rather than six disconnected

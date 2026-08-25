@@ -2213,14 +2213,15 @@ platform, and generated-directory assumptions from that run.
 
 100. **URL-first activity presence import:** "Which package exports activity
      presence for URL-first Expo web with SnapbackProvider?"
-     The run fails if it omits the paved React import, falsely claims the Expo
-     facade expects `SnapbackExpoLifecycleContext`, or misses the browser
-     AppState fallback available when background withdrawal matters.
+     The run fails if it omits the paved React import, claims the Expo facade
+     expects `SnapbackExpoLifecycleContext`, or claims the facade works under a
+     bare provider.
      Expected pages: `backend/familiar-profile.md`, `realtime/ephemeral-state.md`, `recipes/activity-presence.md`.
-     Route terms: "URL-first activity presence", "browser AppState resolver".
-     Required guidance: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`",
-     "The Expo facade also works under a bare `SnapbackProvider` via the browser AppState fallback".
-     Rejected guidance: "expects SnapbackExpoLifecycleContext".
+     Route terms: "URL-first activity presence", "useSnapbackActivityPresence".
+     Required guidance: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`".
+     Rejected guidance: "expects SnapbackExpoLifecycleContext",
+     "works under a bare provider", "works under a bare `SnapbackProvider`",
+     "The Expo facade also works under a bare `SnapbackProvider`".
 
 101. **Durable custody in Node acceptance:** "Run expo-chat acceptance with
      durable-required custody from Node."

@@ -104,8 +104,8 @@ if (!probe) {
 
   const flush = () => new Promise((resolve) => setImmediate(resolve));
   let renderer;
-  // @ref LLP 0257#expo-backgrounding-and-resume — a tree without the facade
-  // provider still uses the conditional browser AppState source.
+  // Behavior observation only: this fallback currently exists, but LLP
+  // 0310.000 Ruling 3 does not make it a supported bare-provider contract.
   await TestRenderer.act(async () => {
     renderer = TestRenderer.create(React.createElement(
       SnapbackProvider,
@@ -114,7 +114,7 @@ if (!probe) {
     ));
     await flush();
   });
-  assert.equal(lifecycleSubscriptions, 1, 'bare provider must attach the browser AppState fallback');
+  assert.equal(lifecycleSubscriptions, 1, 'facade currently attaches the browser AppState fallback');
   TestRenderer.act(() => activity.touch());
   await TestRenderer.act(async () => { await flush(); });
   assert.equal(publishCalls, 1);
@@ -123,8 +123,8 @@ if (!probe) {
     await flush();
   });
   assert.equal(activity.active, false);
-  assert.equal(deleteCalls, 1, 'backgrounding must withdraw facade activity intent');
+  assert.equal(deleteCalls, 1, 'observed fallback currently withdraws facade activity intent');
   await TestRenderer.act(async () => { renderer.unmount(); });
 
-  console.log('activity-presence-bare-provider.test.mjs: facade hook under bare SnapbackProvider did not throw; browser AppState fallback attached and background withdrawal passed');
+  console.log('activity-presence-bare-provider.test.mjs: behavior observation passed (current browser AppState fallback under bare SnapbackProvider; not a supported contract)');
 }

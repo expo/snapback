@@ -29,13 +29,10 @@ attempt and fails the generated value contract.
 
 For URL-first web under a bare `SnapbackProvider`, import
 `useSnapbackActivityPresence` from `@expo/snapback-react`; that is the paved
-choice. The `@expo/snapback-expo` facade is the provider-owned choice in a
-`SnapbackExpoProvider` tree. The Expo facade also works under a bare
-`SnapbackProvider` via the browser AppState fallback, using the browser
-AppState resolver; use that fallback when AppState-driven background
-withdrawal matters. The React hook keeps the same
-activity deadline without the platform lifecycle listener. There is no third
-activity-presence hook.
+choice. Use the `@expo/snapback-expo` facade only in a
+`SnapbackExpoProvider` tree; there it adds AppState-driven background
+withdrawal. The React hook keeps the same activity deadline without the
+platform lifecycle listener. There is no third activity-presence hook.
 
 This is the usual cause of a “typing indicator stuck” or “presence not
 expiring” report. The heartbeat-vs-bound-value decision comes before choosing
