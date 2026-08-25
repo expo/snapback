@@ -595,7 +595,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 348,
+  expectedTotal = 349,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1109,6 +1109,8 @@ export function checkPackageTestInventories(options = {}) {
 // gains the shared development browser Adapter proof.
 // 347 -> 348 (2026-08-24, LLP 0144 Lane E): @expo/snapback-react gains the
 // packed Explicit + Familiar declared-refusal preservation proof.
+// 348 -> 349 (2026-08-24, LLP 0267 §7.5-7.6 Lane C): @expo/snapback-client
+// gains the equivalent-work / multiplicity diagnostics proof.
 // LLP 0300 nine-row acceptance traceability (0301 §8 set-level table):
 // 1 cold bring-up -> templates/*/acceptance.mjs + declared-dev-episode.test.mjs;
 // 2 two principals -> declared-dev-episode.test.mjs; 3 forwards/tunnel/rebinding
