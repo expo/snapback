@@ -1,7 +1,7 @@
 # LLP 0308: Agentic program representations and Snapback's IR stack
 
 **Type:** Research
-**Status:** Review
+**Status:** Shelved
 **Systems:** Live queries, Offline sync, Authorization, Code generation,
 Storage, Handler runtime, Agent experience
 **Author:** Claude Fable / Charlie Cheever
@@ -510,6 +510,14 @@ discussion (grep-verified).
 
 ## Revision history
 
+- **Shelved (2026-08-25, author ruling).** Charlie Cheever ruled
+  "shelve it for now" after the super-refine loop converged dual-READY
+  on r3. Nothing here is refuted or withdrawn: the findings stand as
+  reviewed, and the do-now items (I4 measurement probe, I1 scope
+  spike, the write-policy scanner false negatives, I3's status input
+  to the LLP 0274 implementation program) remain valid entry points
+  whenever the direction is picked up. Un-shelving needs no new
+  review; the r3 verdicts bind to content hash `d9f306d0d91582b0`.
 - **r4 (2026-08-25, UNREVIEWED).** Post-convergence non-material fixes
   from round 3 (loop converged dual-READY on r3): Alive2 author list
   corrected (Lopes, Lee, Hur, Liu, Regehr); I2(a) records that the
