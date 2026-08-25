@@ -6,10 +6,12 @@ import assert from 'node:assert/strict';
 import {
   chmodSync,
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   realpathSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { webcrypto } from 'node:crypto';
@@ -43,6 +45,12 @@ assert.ok(
 const scratchRoot = realpathSync(mkdtempSync(join(tmpdir(), 'snapback-sessions-dev-loop-')));
 const projectRoot = join(scratchRoot, 'react-sessions');
 assert.equal(scaffoldApp(projectRoot, { template: 'react' }).ok, true);
+mkdirSync(join(projectRoot, 'node_modules', '@expo'), { recursive: true });
+symlinkSync(
+  join(repoRoot, 'packages', 'snapback-client'),
+  join(projectRoot, 'node_modules', '@expo', 'snapback-client'),
+  'dir',
+);
 const backendRoot = join(projectRoot, 'snapback');
 const schemaPath = join(backendRoot, 'schema.mjs');
 const devSchema = readFileSync(schemaPath, 'utf8');

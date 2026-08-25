@@ -78,6 +78,9 @@ function fixture(name, { sessions = true } = {}) {
   const backendRoot = join(projectRoot, 'snapback');
   const expoRoot = join(projectRoot, 'app');
   cpSync(sourceFixture, backendRoot, { recursive: true });
+  // @ref LLP 0234#d5--exact-ratchets-cover-overrides-and-ordinary-policy-widening —
+  // fixture regeneration retains the governance baselines and ledgers that
+  // authorize the generated schema/function pair.
   const governanceFiles = [
     'visibility-override-owner-baseline.json',
     'visibility-override-baseline.json',
@@ -98,12 +101,14 @@ function fixture(name, { sessions = true } = {}) {
   if (sessions) {
     const schemaPath = join(backendRoot, 'schema.mjs');
     const source = readFileSync(schemaPath, 'utf8');
-    const updated = source.replace(
-      '  {\n    ephemeral: defineEphemeral({',
-      "  {\n    auth: { mode: 'sessions' },\n    ephemeral: defineEphemeral({",
-    );
-    assert.notEqual(updated, source, 'sessions fixture must alter the schema auth mode');
-    writeFileSync(schemaPath, updated);
+    if (!/auth:\s*\{\s*mode:\s*['"]sessions['"]/u.test(source)) {
+      const updated = source.replace(
+        '  {\n    ephemeral: defineEphemeral({',
+        "  {\n    auth: { mode: 'sessions' },\n    ephemeral: defineEphemeral({",
+      );
+      assert.notEqual(updated, source, 'sessions fixture must alter the schema auth mode');
+      writeFileSync(schemaPath, updated);
+    }
   }
   const stateRoot = join(projectRoot, '.snapback');
   return {

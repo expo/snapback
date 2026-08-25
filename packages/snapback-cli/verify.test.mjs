@@ -308,6 +308,16 @@ async function runStarterReceiptFixture({
   let dev = null;
   try {
     assert.equal(scaffoldApp(projectRoot).ok, true);
+    const schemaPath = join(backend, 'schema.mjs');
+    const sessionsSchema = readFileSync(schemaPath, 'utf8');
+    const devSchema = sessionsSchema
+      .replace(
+        /auth:\s*\{\s*mode:\s*['"]sessions['"]\s*\}/u,
+        "auth: { mode: 'dev' }",
+      )
+      .replace(/,\s*authProgram(?=\s*\})/u, '');
+    assert.notEqual(devSchema, sessionsSchema, 'positive live probe fixture must use dev auth');
+    writeFileSync(schemaPath, devSchema);
     dev = await runDev({
       backendDirectory: backend,
       projectRoot,

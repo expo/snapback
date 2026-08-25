@@ -1,6 +1,6 @@
 # cli package suite inherited reds: `package.test.mjs:560` framework-drift, `application-auth-fixtures` module resolution, `familiar-dev-loop` codegen `kind` TypeError
 
-- Status: Open
+- Status: Closed
 - Date: 2026-08-23
 - Systems: `packages/snapback-cli` (`runtime-readiness.mjs`, `package.test.mjs`)
 - Governing: LLP 0189 (fix-forward), LLP 0232 (inherited reds are not a
@@ -75,3 +75,32 @@ receipt's verified set on darwin (a `runtime-readiness.mjs` regression) or
 whether the fixture path the test writes no longer matches the artifact the
 verifier digests (a test regression), then fix forward. Until then, run the
 cli suite commands after `package.test.mjs` individually.
+
+## Resolution (2026-08-25)
+
+Red 1 was a verifier regression, not a Darwin fixture-path regression. The
+fixture and `packagedRuntimeArtifactCandidates` both name the npm-surviving
+`Frameworks/hermesvm.framework/Versions/1/hermesvm` file. The inherited
+selector had allowed an explicitly overridden packaged runtime to use the
+source-checkout candidate set, recording no packaged Hermes artifact and
+therefore reporting a false coherent verdict after drift. The lane base
+already contains the packaged-layout fallback that corrects that selector;
+this change adds the remaining symlink case, resolving a configured runtime to
+its physical source checkout before reopening its receipt and Hermes inputs.
+The framework-drift assertion now passes and `package.test.mjs` advances to an
+unrelated generated todo-template assertion.
+
+Red 2 was fixture install topology. The temporary application realpath exposed
+the repository's root `node_modules`, but Bun keeps the needed workspace links
+under package-local installs and the root had no `@expo/snapback-client`.
+The fixture now constructs its own minimal consumer `node_modules` with the
+three imported Snapback workspace packages and React, so all four generated
+applications resolve from their actual temporary realpaths.
+
+Verification: `application-auth-fixtures.test.mjs` passes its one four-app
+journey test. The package suite passes the readiness drift checks and stops at
+the out-of-scope todo-template assertion expecting `client.query(...)` after
+the template moved the sessions data leg to `sessionClient.query(...)`.
+
+Red 3 remains owned by the separate codegen lane and is not part of this
+resolution. Red 4 was already fixed as recorded above.

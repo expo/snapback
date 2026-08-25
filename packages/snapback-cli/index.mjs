@@ -453,9 +453,12 @@ export function resolveRuntimeBinary(options = {}) {
 
 function runtimeReadinessRoot(runtime) {
   if (runtime.checkoutRoot) return runtime.checkoutRoot;
+  const binary = existsSync(runtime.binary)
+    ? realpathSync(runtime.binary)
+    : resolve(runtime.binary);
   const checkoutRoot = sourceCheckoutRoot();
   if (checkoutRoot !== null) {
-    const candidate = relative(checkoutRoot, resolve(runtime.binary));
+    const candidate = relative(checkoutRoot, binary);
     if (
       candidate !== ''
       && candidate !== '..'
@@ -466,7 +469,6 @@ function runtimeReadinessRoot(runtime) {
   // another source checkout must reopen that checkout's digest-bound receipt
   // and Hermes artifacts, not reinterpret target/debug as a package root.
   if (['override', 'qualified-override'].includes(runtime.source)) {
-    const binary = resolve(runtime.binary);
     let candidate = dirname(binary);
     for (;;) {
       const parent = dirname(candidate);
@@ -484,7 +486,7 @@ function runtimeReadinessRoot(runtime) {
       candidate = parent;
     }
   }
-  return dirname(dirname(resolve(runtime.binary)));
+  return dirname(dirname(binary));
 }
 
 // @ref LLP 0010#native-runtime-bootstrap — the digest binding follows the
@@ -5451,10 +5453,13 @@ function qualifiedRuntimeIdentity(
   environment = process.env,
 ) {
   const qualifiedPath = qualifiedBinary === null ? null : resolve(qualifiedBinary);
+  const qualifiedPhysicalPath = qualifiedPath !== null && existsSync(qualifiedPath)
+    ? realpathSync(qualifiedPath)
+    : qualifiedPath;
   const checkoutRoot = sourceCheckoutRoot();
-  const checkoutRelative = qualifiedPath === null || checkoutRoot === null
+  const checkoutRelative = qualifiedPhysicalPath === null || checkoutRoot === null
     ? null
-    : relative(checkoutRoot, qualifiedPath);
+    : relative(checkoutRoot, qualifiedPhysicalPath);
   const qualifiedCheckoutRoot = checkoutRelative !== null
     && checkoutRelative !== ''
     && checkoutRelative !== '..'
