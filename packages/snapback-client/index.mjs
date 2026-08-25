@@ -492,6 +492,16 @@ const freezeDeep = (value) => {
   return value;
 };
 
+const copyInspectionValue = (value) => {
+  if (Array.isArray(value)) return value.map(copyInspectionValue);
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, member]) => [key, copyInspectionValue(member)]),
+    );
+  }
+  return value;
+};
+
 const mutationTiming = (record = null) => Object.freeze({
   enqueuedAtMs: record?.timing
     && Object.prototype.hasOwnProperty.call(record.timing, 'enqueuedAtMs')
@@ -502,6 +512,444 @@ const mutationTiming = (record = null) => Object.freeze({
   executedAtMs: record?.timing?.executedAtMs ?? record?.settlement?.timing?.executedAtMs ?? null,
   committedAtMs: record?.timing?.committedAtMs ?? record?.settlement?.timing?.committedAtMs ?? null,
 });
+
+const MUTATION_PHASE_COST_RECORD_LIMIT = 512;
+const MUTATION_PHASE_COST_BYTE_LIMIT = 1024 * 1024;
+const MUTATION_PHASE_COST_COUNTER_KEY_LIMIT = 1_024;
+const MUTATION_PHASE_COST_DETAIL_SAMPLING_THRESHOLD = 512;
+const MUTATION_PHASE_COST_DETAIL_SAMPLE_EVERY = 4;
+const MUTATION_PHASE_NAMES = Object.freeze([
+  'queueWaitMs',
+  'authWaitMs',
+  'executionMs',
+  'commitMs',
+]);
+const utf8ByteLength = (value) => new TextEncoder().encode(value).byteLength;
+
+/**
+ * Stable gated-inspection pseudonym using the same JCS + SHA-256 args-hash
+ * algorithm as the query-cost window ledger. This is a fingerprint, not an
+ * anonymization claim, and must not cross a public/export boundary.
+ */
+export function inspectionPseudonymV1(value) {
+  if (typeof value !== 'string') {
+    throw new TypeError('inspectionPseudonymV1 requires a string');
+  }
+  return argsHash(value);
+}
+
+const finiteTimestampOrNull = (value) => Number.isFinite(value) ? value : null;
+const durationBetween = (start, end) => (
+  start === null || end === null ? null : end - start
+);
+
+/** The single LLP 0267 §7.2 subtraction vocabulary. */
+export function mutationPhaseDurationsV1(timing = {}) {
+  const enqueuedAtMs = finiteTimestampOrNull(timing?.enqueuedAtMs);
+  const dispatchedAtMs = finiteTimestampOrNull(timing?.dispatchedAtMs);
+  const authorizedAtMs = finiteTimestampOrNull(timing?.authorizedAtMs);
+  const executedAtMs = finiteTimestampOrNull(timing?.executedAtMs);
+  const committedAtMs = finiteTimestampOrNull(timing?.committedAtMs);
+  return Object.freeze({
+    queueWaitMs: durationBetween(enqueuedAtMs, dispatchedAtMs),
+    authWaitMs: durationBetween(dispatchedAtMs, authorizedAtMs),
+    executionMs: durationBetween(authorizedAtMs, executedAtMs),
+    commitMs: durationBetween(executedAtMs, committedAtMs),
+  });
+}
+
+const mutationPhaseCostRecord = ({
+  clientMutationId,
+  functionId,
+  timing,
+  disposition,
+}, { pseudonymize = false } = {}) => {
+  if (typeof clientMutationId !== 'string' || clientMutationId.length === 0) {
+    throw new TypeError('MutationPhaseCostV1 requires clientMutationId');
+  }
+  if (typeof functionId !== 'string' || functionId.length === 0) {
+    throw new TypeError('MutationPhaseCostV1 requires functionId');
+  }
+  if (typeof disposition !== 'string' || disposition.length === 0) {
+    throw new TypeError('MutationPhaseCostV1 requires disposition');
+  }
+  const normalizedTiming = Object.freeze({
+    enqueuedAtMs: finiteTimestampOrNull(timing?.enqueuedAtMs),
+    dispatchedAtMs: finiteTimestampOrNull(timing?.dispatchedAtMs),
+    authorizedAtMs: finiteTimestampOrNull(timing?.authorizedAtMs),
+    executedAtMs: finiteTimestampOrNull(timing?.executedAtMs),
+    committedAtMs: finiteTimestampOrNull(timing?.committedAtMs),
+  });
+  return Object.freeze({
+    format: 'snapback.mutation-phase-cost.v1',
+    clientMutationId: pseudonymize
+      ? inspectionPseudonymV1(clientMutationId)
+      : clientMutationId,
+    functionId,
+    ...normalizedTiming,
+    ...mutationPhaseDurationsV1(normalizedTiming),
+    disposition,
+  });
+};
+
+/** Project one ruling-6 timing carrier at the gated snapshot boundary. */
+export function projectMutationPhaseCostV1(input) {
+  return mutationPhaseCostRecord(input, { pseudonymize: true });
+}
+
+const inspectionAuthorityClass = (authority) => {
+  const state = typeof authority?.state === 'string' ? authority.state : 'unknown';
+  return authority?.settled === true ? `settled:${state}` : `transitioning:${state}`;
+};
+
+/**
+ * Project the D0.5 sharing tuple without copying caller strings, principals,
+ * or a literal server URL. The internal sharing key remains unchanged.
+ */
+export function projectOwnershipTupleInspectionV1({
+  canonicalAppId = null,
+  storagePartition,
+  settledAuthority,
+} = {}) {
+  if (typeof storagePartition !== 'string' || storagePartition.length === 0) {
+    throw new TypeError('ownership inspection requires storagePartition');
+  }
+  return Object.freeze({
+    format: 'snapback.ownership-tuple-inspection.v1',
+    canonicalAppId: canonicalAppId === null ? null : inspectionPseudonymV1(canonicalAppId),
+    storagePartition: inspectionPseudonymV1(storagePartition),
+    serverInstance: 'self',
+    authorityClass: inspectionAuthorityClass(settledAuthority),
+  });
+}
+
+const normalizedSubscriptionState = (row) => {
+  const state = row?.subscriptionState ?? row?.state ?? 'UNKNOWN';
+  const normalized = String(state).replaceAll('-', '_').toUpperCase();
+  if (normalized === 'ACTIVE') return 'LIVE';
+  if (normalized === 'PAUSED') return 'RESYNC_PENDING';
+  return normalized;
+};
+
+const normalizedConnectionState = (row) => {
+  const state = row?.connectionState ?? row?.connection ?? 'UNKNOWN';
+  const normalized = String(state).replaceAll('-', '_').toUpperCase();
+  if (normalized === 'LIVE') return 'ATTACHED_LIVE';
+  if (normalized === 'POLLING') return 'ATTACHED_POLL';
+  if (normalized === 'STALE') return 'RECOVERING';
+  if (normalized === 'CONNECTING') return 'GRANTED';
+  if (normalized === 'DISCONNECTED') return 'IDLE';
+  return normalized;
+};
+
+const pendingDeliveryOutcome = (outcome, pendingDeliveryReason, detail) => freezeDeep({
+  outcome,
+  pendingDeliveryReason,
+  detail,
+});
+
+const snapshotSkewOutcome = (direction) => pendingDeliveryOutcome(
+  'snapshot-skew',
+  null,
+  { class: 'snapshot-skew', direction, reread: 'client-and-server' },
+);
+
+/**
+ * LLP 0267 §7.4's strict ordered decision list. This function is pure: the
+ * derived answer is retained on neither the client nor server snapshot.
+ */
+export function derivePendingDeliveryOutcomeV1(clientRow, serverRow) {
+  if (clientRow === null) {
+    return serverRow === null
+      ? pendingDeliveryOutcome('neutral', null, { class: 'retired' })
+      : snapshotSkewOutcome('server-ahead-of-client-retirement');
+  }
+
+  const subscriptionState = normalizedSubscriptionState(clientRow);
+  const connectionState = normalizedConnectionState(clientRow);
+  const supersedes = clientRow.supersedesSubscriptionId ?? clientRow.supersedes ?? null;
+
+  // Step 0: lifecycle classes precede every hold/reason and owed comparison.
+  if (subscriptionState === 'PENDING' && supersedes === null) {
+    return pendingDeliveryOutcome('neutral', null, { class: 'initial-pending' });
+  }
+  if (
+    subscriptionState === 'RELEASED'
+    || subscriptionState === 'TERMINAL_DELETED'
+    || connectionState === 'CLOSED'
+  ) {
+    return serverRow === null
+      ? pendingDeliveryOutcome('neutral', null, { class: 'retired' })
+      : snapshotSkewOutcome('server-ahead-of-client-retirement');
+  }
+  if (connectionState === 'IDLE' && serverRow === null) {
+    return pendingDeliveryOutcome('neutral', null, { class: 'idle' });
+  }
+
+  // Step 1: the six closed reason members, first match wins.
+  const terminalCode = clientRow.terminalCode ?? clientRow.terminalDiagnosticCode ?? null;
+  if (
+    typeof terminalCode === 'string'
+    || connectionState === 'TERMINAL_AUTH'
+    || subscriptionState === 'TERMINAL_QUARANTINE'
+  ) {
+    return pendingDeliveryOutcome('reason', 'terminal-quarantine', {
+      class: 'terminal-quarantine',
+      terminalCode,
+    });
+  }
+  const suspension = clientRow.outboxSuspensionReason ?? clientRow.blockedReason ?? null;
+  if (suspension === 'auth-barrier') {
+    return pendingDeliveryOutcome('reason', 'auth-barrier', { class: 'auth-barrier' });
+  }
+  if (suspension === 'custody-unsettled') {
+    return pendingDeliveryOutcome('reason', 'custody-unsettled', {
+      class: 'custody-unsettled',
+    });
+  }
+  if (typeof suspension === 'string' && suspension.startsWith('authority-unavailable:')) {
+    return pendingDeliveryOutcome('reason', 'authority-unavailable', {
+      class: 'authority-unavailable',
+      blockedReason: suspension,
+    });
+  }
+  if (
+    connectionState === 'RECOVERING'
+    || connectionState === 'GRANT_LOST'
+    || subscriptionState === 'DROPPED'
+    || subscriptionState === 'RESYNC_PENDING'
+    || (subscriptionState === 'PENDING' && supersedes !== null)
+  ) {
+    return pendingDeliveryOutcome('reason', 'transport-recovery', {
+      class: 'transport-recovery',
+      connectionState,
+      subscriptionState,
+    });
+  }
+  const evaluation = serverRow?.evaluation ?? 'idle';
+  const pendingWork = serverRow?.pendingWork ?? 'none';
+  const activeStage = serverRow !== null
+    && (evaluation !== 'idle' || pendingWork !== 'none');
+  if (activeStage) {
+    return pendingDeliveryOutcome('reason', 'server-pending', {
+      class: 'server-pending',
+      evaluation,
+      currentWaveSeq: serverRow.currentWaveSeq ?? null,
+      pendingWork,
+      owedThroughVersion: serverRow.owedThroughVersion ?? null,
+    });
+  }
+
+  // Step 2: total residuals over admitted client/server pairs.
+  if (serverRow !== null) {
+    const authoritativeRevision = Number.isSafeInteger(clientRow.authoritativeRevision)
+      ? clientRow.authoritativeRevision
+      : Number.isSafeInteger(clientRow.snapshotVersion)
+        ? clientRow.snapshotVersion
+        : null;
+    const owedThroughVersion = Number.isSafeInteger(serverRow.owedThroughVersion)
+      ? serverRow.owedThroughVersion
+      : null;
+    if (owedThroughVersion !== null && authoritativeRevision === null) {
+      return pendingDeliveryOutcome('defect', null, {
+        class: 'unrepresentable-pair',
+        reason: 'owed-version-without-client-revision',
+      });
+    }
+    if (owedThroughVersion !== null && owedThroughVersion > authoritativeRevision) {
+      return pendingDeliveryOutcome('defect', null, {
+        class: 'owed-without-recorded-stage',
+        owedThroughVersion,
+        authoritativeRevision,
+      });
+    }
+    if (
+      authoritativeRevision !== null
+      && Number.isSafeInteger(serverRow.lastDeliveredVersion)
+      && serverRow.lastDeliveredVersion > authoritativeRevision
+    ) {
+      return pendingDeliveryOutcome('neutral', null, {
+        class: 'in-transit',
+        lastDeliveredVersion: serverRow.lastDeliveredVersion,
+        authoritativeRevision,
+      });
+    }
+    return pendingDeliveryOutcome('neutral', null, { class: 'settled' });
+  }
+
+  if (
+    subscriptionState === 'LIVE'
+    && ['ATTACHED_LIVE', 'ATTACHED_POLL', 'GRANTED'].includes(connectionState)
+  ) {
+    return snapshotSkewOutcome('client-ahead-of-server-retirement');
+  }
+  return pendingDeliveryOutcome('defect', null, {
+    class: 'unrepresentable-pair',
+    reason: 'server-row-absent-outside-retirement-or-recovery',
+    connectionState,
+    subscriptionState,
+  });
+}
+
+const snapshotRows = (snapshot, candidates) => {
+  for (const path of candidates) {
+    let value = snapshot;
+    for (const member of path) value = value?.[member];
+    if (Array.isArray(value)) return value;
+  }
+  return [];
+};
+
+const uniqueInspectionMap = (rows, key, label, { numeric = false } = {}) => {
+  const result = new Map();
+  for (const row of rows) {
+    const identity = row?.[key];
+    const valid = numeric
+      ? Number.isSafeInteger(identity) && identity >= 0
+      : typeof identity === 'string' && identity.length > 0;
+    if (!valid) {
+      throw new TypeError(`${label} row requires ${key}`);
+    }
+    if (result.has(identity)) throw new TypeError(`${label} contains duplicate ${key} ${identity}`);
+    result.set(identity, row);
+  }
+  return result;
+};
+
+/** Join the two gated pull snapshots by subscription id, then by waveSeq. */
+export function joinPendingDeliveryInspectionV1(
+  clientSnapshot,
+  serverSnapshot,
+  { previous = null } = {},
+) {
+  const clientRows = snapshotRows(clientSnapshot, [['subscriptions']]);
+  const serverRows = snapshotRows(serverSnapshot, [
+    ['subscriptions'],
+    ['liveSubscriptions'],
+    ['runtimeCosts', 'subscriptions'],
+    ['runtimeCosts', 'liveSubscriptionRegistry'],
+  ]);
+  const waves = snapshotRows(serverSnapshot, [
+    ['liveDeliveryWaves'],
+    ['runtimeCosts', 'liveDeliveryWaves'],
+  ]);
+  const unidentifiedInitialClients = [];
+  const identifiedClientRows = [];
+  for (const row of clientRows) {
+    if (typeof row?.subscriptionId === 'string' && row.subscriptionId.length > 0) {
+      identifiedClientRows.push(row);
+      continue;
+    }
+    const supersedes = row?.supersedesSubscriptionId ?? row?.supersedes ?? null;
+    if (
+      row?.subscriptionId === null
+      && normalizedSubscriptionState(row) === 'PENDING'
+      && supersedes === null
+    ) {
+      unidentifiedInitialClients.push(row);
+      continue;
+    }
+    throw new TypeError('client snapshot row requires subscriptionId unless it is initial PENDING');
+  }
+  const clients = uniqueInspectionMap(
+    identifiedClientRows,
+    'subscriptionId',
+    'client snapshot',
+  );
+  const servers = uniqueInspectionMap(serverRows, 'subscriptionId', 'server snapshot');
+  const waveMap = uniqueInspectionMap(
+    waves,
+    'waveSeq',
+    'server wave snapshot',
+    { numeric: true },
+  );
+  const previousRows = new Map((previous?.subscriptions ?? []).map((row) => [
+    row.subscriptionId,
+    row,
+  ]));
+  const subscriptionIds = [...new Set([...clients.keys(), ...servers.keys()])].sort();
+  const subscriptions = unidentifiedInitialClients.map((client) => freezeDeep({
+    format: 'snapback.pending-delivery-inspection-row.v1',
+    subscriptionId: null,
+    functionId: client?.functionName ?? client?.functionId ?? null,
+    ...derivePendingDeliveryOutcomeV1(client, null),
+    serverRegistry: null,
+    wave: null,
+  }));
+  subscriptions.push(...subscriptionIds.map((subscriptionId) => {
+    const client = clients.get(subscriptionId) ?? null;
+    const server = servers.get(subscriptionId) ?? null;
+    let derived = derivePendingDeliveryOutcomeV1(client, server);
+    const prior = previousRows.get(subscriptionId) ?? null;
+    if (
+      derived.outcome === 'snapshot-skew'
+      && prior?.outcome === 'snapshot-skew'
+      && prior.detail?.direction === derived.detail?.direction
+    ) {
+      derived = pendingDeliveryOutcome('defect', null, {
+        class: 'persistent-snapshot-skew',
+        direction: derived.detail.direction,
+      });
+    }
+    const joinedWaveSeq = Number.isSafeInteger(server?.currentWaveSeq)
+      ? server.currentWaveSeq
+      : Number.isSafeInteger(server?.lastDeliveredWaveSeq)
+        ? server.lastDeliveredWaveSeq
+        : null;
+    return freezeDeep({
+      format: 'snapback.pending-delivery-inspection-row.v1',
+      subscriptionId,
+      functionId: client?.functionName ?? client?.functionId
+        ?? server?.functionName ?? server?.functionId ?? null,
+      ...derived,
+      serverRegistry: copyInspectionValue(server),
+      wave: joinedWaveSeq === null
+        ? null
+        : copyInspectionValue(waveMap.get(joinedWaveSeq) ?? null),
+    });
+  }));
+  return freezeDeep({
+    format: 'snapback.pending-delivery-inspection.v1',
+    subscriptions,
+  });
+}
+
+const emptyMutationPhaseAggregate = (functionId) => ({
+  functionId,
+  count: 0,
+  queueWaitMs: { count: 0, totalMs: 0, maxMs: null },
+  authWaitMs: { count: 0, totalMs: 0, maxMs: null },
+  executionMs: { count: 0, totalMs: 0, maxMs: null },
+  commitMs: { count: 0, totalMs: 0, maxMs: null },
+});
+
+const addMutationPhaseRecordToAggregate = (aggregate, record) => {
+  aggregate.count += 1;
+  for (const phase of MUTATION_PHASE_NAMES) {
+    const value = record[phase];
+    if (value === null) continue;
+    aggregate[phase].count += 1;
+    aggregate[phase].totalMs += value;
+    aggregate[phase].maxMs = aggregate[phase].maxMs === null
+      ? value
+      : Math.max(aggregate[phase].maxMs, value);
+  }
+};
+
+const mergeMutationPhaseAggregates = (target, source) => {
+  target.count += source.count;
+  for (const phase of MUTATION_PHASE_NAMES) {
+    target[phase].count += source[phase].count;
+    target[phase].totalMs += source[phase].totalMs;
+    if (source[phase].maxMs !== null) {
+      target[phase].maxMs = target[phase].maxMs === null
+        ? source[phase].maxMs
+        : Math.max(target[phase].maxMs, source[phase].maxMs);
+    }
+  }
+};
+
+const freezeMutationPhaseAggregate = (aggregate) => freezeDeep(structuredClone(aggregate));
 
 const isUnresolvedOutboxRecord = (record) => (
   record?.status === 'pending'
@@ -3222,6 +3670,20 @@ export class SnapbackClient {
     // @ref LLP 0095#connection-ownership-per-app-authorityorigin — active
     // headless subscriptions remain attributable to their manager owner.
     this.__liveQueryOwners = new Map();
+    // @ref LLP 0267#72-mutation-phase-visibility-consumes-llp-0059-ruling-6--decided
+    // — retain one bounded client-side projection of the already-carried
+    // ruling-6 timestamps; snapshot projection pseudonymizes caller ids.
+    this.__mutationPhaseCostRecords = new Map();
+    this.__mutationPhaseCostRetainedBytes = 0;
+    this.__mutationPhaseCostDroppedRecords = 0;
+    this.__mutationPhaseCostCounters = new Map();
+    this.__mutationPhaseCostOtherKeys = emptyMutationPhaseAggregate('otherKeys');
+    this.__mutationPhaseCostEvictedKeys = 0;
+    this.__mutationPhaseCostEventSequence = 0;
+    // Client-observed settlement versions are a bounded clock-local bridge to
+    // the first covering authoritative delivery. They are not serialized.
+    this.__mutationCommitObservations = new Map();
+    this.__mutationCommitObservationSequence = 0;
     // ENG-23442 connection grants: caller label -> Promise<{id, token}>.
     this.__connectionGrants = new Map();
     // Hosted ephemeral recovery is application data production, not transport
@@ -3503,11 +3965,13 @@ export class SnapbackClient {
       .then(() => this.#startDefaultOutboxDrainAtReadiness());
   }
 
-  #startDefaultOutboxDrainAtReadiness() {
-    if (this.__clientClosed || !this.__outboxDrainLifecycle) return null;
+  async #startDefaultOutboxDrainAtReadiness() {
+    if (this.__clientClosed) return null;
     let store = null;
     try { store = this.#offlineQueueStore(); } catch { store = null; }
     if (store === null) return null;
+    await this.#recordRestoredMutationPhaseCosts(store);
+    if (this.__clientClosed || !this.__outboxDrainLifecycle) return null;
     try {
       this.__outboxDrainHandle = this.startOutboxDrain({
         automatic: this.outboxDrainPolicy === 'auto',
@@ -6677,6 +7141,174 @@ export class SnapbackClient {
     });
   }
 
+  #recordMutationPhaseCost({
+    clientMutationId,
+    functionId,
+    disposition,
+    timing,
+    committedVersion = null,
+    observedAtMs = Date.now(),
+  }) {
+    if (
+      typeof clientMutationId !== 'string'
+      || clientMutationId.length === 0
+      || typeof functionId !== 'string'
+      || functionId.length === 0
+      || typeof disposition !== 'string'
+      || disposition.length === 0
+    ) return false;
+
+    if (
+      Number.isSafeInteger(committedVersion)
+      && Number.isFinite(observedAtMs)
+    ) {
+      this.__mutationCommitObservationSequence += 1;
+      this.__mutationCommitObservations.set(
+        this.__mutationCommitObservationSequence,
+        Object.freeze({
+          version: committedVersion,
+          observedAtMs,
+          sequence: this.__mutationCommitObservationSequence,
+        }),
+      );
+      while (this.__mutationCommitObservations.size > MUTATION_PHASE_COST_RECORD_LIMIT) {
+        this.__mutationCommitObservations.delete(
+          this.__mutationCommitObservations.keys().next().value,
+        );
+      }
+    }
+
+    let record;
+    try {
+      record = mutationPhaseCostRecord({
+        clientMutationId,
+        functionId,
+        timing,
+        disposition,
+      });
+    } catch {
+      return false;
+    }
+
+    let aggregate = this.__mutationPhaseCostCounters.get(functionId) ?? null;
+    if (aggregate === null) {
+      if (this.__mutationPhaseCostCounters.size >= MUTATION_PHASE_COST_COUNTER_KEY_LIMIT) {
+        const oldestKey = this.__mutationPhaseCostCounters.keys().next().value;
+        const evicted = this.__mutationPhaseCostCounters.get(oldestKey);
+        this.__mutationPhaseCostCounters.delete(oldestKey);
+        mergeMutationPhaseAggregates(this.__mutationPhaseCostOtherKeys, evicted);
+        this.__mutationPhaseCostEvictedKeys += 1;
+      }
+      aggregate = emptyMutationPhaseAggregate(functionId);
+    } else {
+      this.__mutationPhaseCostCounters.delete(functionId);
+    }
+    addMutationPhaseRecordToAggregate(aggregate, record);
+    this.__mutationPhaseCostCounters.set(functionId, aggregate);
+
+    this.__mutationPhaseCostEventSequence += 1;
+    const eventSequence = this.__mutationPhaseCostEventSequence;
+    if (
+      eventSequence > MUTATION_PHASE_COST_DETAIL_SAMPLING_THRESHOLD
+      && eventSequence % MUTATION_PHASE_COST_DETAIL_SAMPLE_EVERY !== 0
+    ) {
+      this.__mutationPhaseCostDroppedRecords += 1;
+      return true;
+    }
+
+    // The ring's storage and byte accounting are over the exact gated
+    // inspection projection. Exact counters are updated at terminal event
+    // seams before sampling or eviction, and the ring key is framework-only.
+    const projectedRecord = projectMutationPhaseCostV1({
+      clientMutationId,
+      functionId,
+      timing,
+      disposition,
+    });
+    const bytes = utf8ByteLength(JSON.stringify(projectedRecord));
+    if (bytes > MUTATION_PHASE_COST_BYTE_LIMIT) {
+      this.__mutationPhaseCostDroppedRecords += 1;
+      return true;
+    }
+    while (
+      this.__mutationPhaseCostRecords.size >= MUTATION_PHASE_COST_RECORD_LIMIT
+      || this.__mutationPhaseCostRetainedBytes + bytes > MUTATION_PHASE_COST_BYTE_LIMIT
+    ) {
+      const oldestId = this.__mutationPhaseCostRecords.keys().next().value;
+      const oldest = this.__mutationPhaseCostRecords.get(oldestId);
+      this.__mutationPhaseCostRecords.delete(oldestId);
+      this.__mutationPhaseCostRetainedBytes -= oldest.bytes;
+      this.__mutationPhaseCostDroppedRecords += 1;
+    }
+    this.__mutationPhaseCostRecords.set(eventSequence, {
+      record: projectedRecord,
+      bytes,
+    });
+    this.__mutationPhaseCostRetainedBytes += bytes;
+    return true;
+  }
+
+  #observeCoveringLiveDelivery(handle, deliveredVersion, deliveredAtMs) {
+    if (!Number.isSafeInteger(deliveredVersion) || !Number.isFinite(deliveredAtMs)) return;
+    const coveredSequences = handle.__coveredMutationCostObservationSequences;
+    for (const sequence of coveredSequences) {
+      if (!this.__mutationCommitObservations.has(sequence)) coveredSequences.delete(sequence);
+    }
+    let covered = null;
+    for (const [sequence, observation] of this.__mutationCommitObservations) {
+      if (coveredSequences.has(observation.sequence) || observation.version > deliveredVersion) {
+        continue;
+      }
+      coveredSequences.add(sequence);
+      if (covered === null || observation.sequence > covered.sequence) {
+        covered = observation;
+      }
+    }
+    if (covered === null || deliveredAtMs < covered.observedAtMs) return;
+    handle.deliveryLagMs = deliveredAtMs - covered.observedAtMs;
+  }
+
+  async #recordRestoredMutationPhaseCosts(store) {
+    let records;
+    try {
+      records = await store.outboxRecords();
+    } catch {
+      return;
+    }
+    for (const record of records) {
+      const disposition = record?.status === 'result-gone'
+        ? 'resultGone'
+        : ['settled', 'failed', 'stranded', 'quarantined'].includes(record?.status)
+          ? record.status
+          : null;
+      if (disposition === null) continue;
+      this.#recordMutationPhaseCost({
+        clientMutationId: record.id,
+        functionId: record.function,
+        disposition,
+        timing: mutationTiming(record),
+        committedVersion: record.settlement?.version ?? null,
+        observedAtMs: record.settledAt ?? record.quarantinedAt ?? record.strandedAt ?? Date.now(),
+      });
+    }
+  }
+
+  mutationPhaseCostInspection() {
+    return freezeDeep({
+      format: 'snapback.mutation-phase-cost-inspection.v1',
+      records: [...this.__mutationPhaseCostRecords.values()].map(({ record }) => record),
+      counters: [...this.__mutationPhaseCostCounters.values()].map(
+        freezeMutationPhaseAggregate,
+      ),
+      otherKeys: freezeMutationPhaseAggregate(this.__mutationPhaseCostOtherKeys),
+      evictedKeys: this.__mutationPhaseCostEvictedKeys,
+      droppedRecords: this.__mutationPhaseCostDroppedRecords,
+      retainedBytes: this.__mutationPhaseCostRetainedBytes,
+      recordLimit: MUTATION_PHASE_COST_RECORD_LIMIT,
+      byteLimit: MUTATION_PHASE_COST_BYTE_LIMIT,
+    });
+  }
+
   #runtimeCostOwnershipIdentityTuple({ authorityCapture, userId, appId }) {
     const projection = this.#runtimeCostOwnershipTuple();
     const settledAuthority = typeof authorityCapture?.authorityKey === 'string'
@@ -6741,7 +7373,9 @@ export class SnapbackClient {
       : new Set(Array.from(connectionIds, (value) => String(value)));
     const includes = (connectionId) => selected === null || selected.has(connectionId);
     const authority = this.authorityTransitionStatus();
-    const ownershipTuple = this.#runtimeCostOwnershipTuple();
+    const ownershipTuple = projectOwnershipTupleInspectionV1(
+      this.#runtimeCostOwnershipTuple(),
+    );
     const outboxSuspensionReason = authority.transitionOwner !== null
       ? 'auth-barrier'
       : this.__outboxDrainStartBlockedReason
@@ -6751,19 +7385,22 @@ export class SnapbackClient {
       [...(this.__liveStreamManagers?.entries?.() ?? [])]
         .filter(([connectionId]) => includes(connectionId))
         .map(([connectionId, manager]) => Object.freeze({
-          connectionId,
-          ownershipTuple,
           ...manager.inspection(),
+          connectionId: inspectionPseudonymV1(connectionId),
+          ownershipTuple,
         })),
     );
     const grantLabels = Object.freeze(
-      [...this.__connectionGrants.keys()].filter(includes).sort(),
+      [...this.__connectionGrants.keys()]
+        .filter(includes)
+        .map(inspectionPseudonymV1)
+        .sort(),
     );
     const laneConsumers = Object.freeze(
       [...this.__laneConsumers.entries()]
         .filter(([connectionId]) => includes(connectionId))
         .map(([connectionId, lanes]) => Object.freeze({
-          connectionId,
+          connectionId: inspectionPseudonymV1(connectionId),
           durable: lanes?.durable?.size ?? 0,
           ephemeral: lanes?.ephemeral?.size ?? 0,
         })),
@@ -6775,11 +7412,21 @@ export class SnapbackClient {
           const authorization = entry.handle.authorizationState?.() ?? null;
           return Object.freeze({
             owner: entry.owner,
-            connectionId: entry.connectionId,
+            connectionId: inspectionPseudonymV1(entry.connectionId),
+            subscriptionId: entry.handle.inspectionSubscriptionId,
             functionName: entry.functionName,
             state: entry.handle.paused ? 'paused' : 'active',
+            subscriptionState: entry.handle.inspectionSubscriptionState,
             connection: entry.handle.connection,
+            connectionState: entry.handle.inspectionConnectionState,
+            supersedesSubscriptionId: entry.handle.inspectionSupersedesSubscriptionId,
             snapshotVersion: entry.handle.authoritativeRevision,
+            lastDeliveryAtMs: entry.handle.lastDeliveryAtMs,
+            authoritativeRevision: entry.handle.authoritativeRevision,
+            deliveryLagMs: entry.handle.deliveryLagMs,
+            suppressedEqualSnapshots: entry.handle.suppressedEqualSnapshots,
+            terminalCode: entry.handle.terminalDiagnosticCode,
+            ownershipTuple,
             authBarrier: authorization?.lifecycle ?? null,
             readiness: ['live', 'polling'].includes(entry.handle.connection)
               ? 'ready'
@@ -6797,6 +7444,7 @@ export class SnapbackClient {
       grantCount: grantLabels.length,
       laneConsumers,
       subscriptions,
+      mutationPhaseCosts: this.mutationPhaseCostInspection(),
       subscriptionCount: subscriptions.length,
       runtimeCostDiagnostics: this.__runtimeCostDiagnostics.snapshot(),
       socketDemand: managers.reduce((sum, manager) => sum + manager.socketDemand, 0),
@@ -7075,13 +7723,22 @@ export class SnapbackClient {
   #settleEphemeralOptimisticRecord(clientMutationId, settlement) {
     const record = this.__ephemeralOptimisticRecords.get(clientMutationId) ?? null;
     if (record === null) return false;
-    this.__ephemeralOptimisticRecords.set(clientMutationId, Object.freeze({
+    const settled = Object.freeze({
       ...record,
       status: 'settled',
       settlement: structuredClone(settlement),
       settledAt: Date.now(),
       timing: mutationTiming({ ...record, settlement }),
-    }));
+    });
+    this.__ephemeralOptimisticRecords.set(clientMutationId, settled);
+    this.#recordMutationPhaseCost({
+      clientMutationId,
+      functionId: settled.function,
+      disposition: 'settled',
+      timing: settled.timing,
+      committedVersion: settlement?.version ?? null,
+      observedAtMs: settled.settledAt,
+    });
     this.#notifyOutboxListeners();
     return true;
   }
@@ -7100,7 +7757,7 @@ export class SnapbackClient {
   #failEphemeralOptimisticRecord(clientMutationId, error) {
     const record = this.__ephemeralOptimisticRecords.get(clientMutationId) ?? null;
     if (record === null) return false;
-    this.__ephemeralOptimisticRecords.set(clientMutationId, Object.freeze({
+    const failed = Object.freeze({
       ...record,
       status: 'failed',
       failure: {
@@ -7108,7 +7765,14 @@ export class SnapbackClient {
         message: error?.message ?? String(error),
       },
       timing: mutationTiming({ ...record, settlement: { timing: error?.timing } }),
-    }));
+    });
+    this.__ephemeralOptimisticRecords.set(clientMutationId, failed);
+    this.#recordMutationPhaseCost({
+      clientMutationId,
+      functionId: failed.function,
+      disposition: 'failed',
+      timing: failed.timing,
+    });
     this.#notifyOutboxListeners();
     return true;
   }
@@ -9032,6 +9696,11 @@ export class SnapbackClient {
     authority,
     { validateCurrent = true, expectedAuthorityGeneration = null } = {},
   ) {
+    let beforeRecords = [];
+    try { beforeRecords = await store.outboxRecords(); } catch { /* transition remains authoritative */ }
+    const pendingBefore = new Map(beforeRecords
+      .filter((record) => record?.status === 'pending')
+      .map((record) => [record.id, record]));
     const commit = () => store.outboxReconcileCustody(
       authority.principalScope,
       authority.authorityDescriptor,
@@ -9049,6 +9718,16 @@ export class SnapbackClient {
       throw error;
     }
     if (result.deleted > 0) {
+      for (const clientMutationId of result.deletedIds ?? []) {
+        const record = pendingBefore.get(clientMutationId);
+        if (record === undefined) continue;
+        this.#recordMutationPhaseCost({
+          clientMutationId,
+          functionId: record.function,
+          disposition: 'deleted',
+          timing: mutationTiming(record),
+        });
+      }
       // @ref LLP 0043#js-arm-sessions-custody-queue--recorded-design-2026-08-03-commissioned-at-author-sitting-2--ratified-2026-08-04-author-sitting-3-implementation-authorized-as-a-lane — cross-principal privacy
       //   deletion retains no tombstone and reports only the deleted count.
       this.#recordOutboxDiagnostic({
@@ -9058,6 +9737,16 @@ export class SnapbackClient {
       });
     }
     if (result.stranded > 0) {
+      for (const clientMutationId of result.strandedIds ?? []) {
+        const record = pendingBefore.get(clientMutationId);
+        if (record === undefined) continue;
+        this.#recordMutationPhaseCost({
+          clientMutationId,
+          functionId: record.function,
+          disposition: 'stranded',
+          timing: mutationTiming(record),
+        });
+      }
       this.#recordOutboxDiagnostic({
         code: 'SNAPBACK_OFFLINE_MUTATIONS_STRANDED',
         reason: 'authority_instance_changed',
@@ -9356,8 +10045,12 @@ export class SnapbackClient {
         timing: mutationTiming(record),
       });
     }
-    if (record.status === 'stranded') return disposition({ status: 'stranded', timing: mutationTiming(record) });
-    if (record.status === 'quarantined') return disposition({ status: 'quarantined', timing: mutationTiming(record) });
+    if (record.status === 'stranded') {
+      return disposition({ status: 'stranded', timing: mutationTiming(record) });
+    }
+    if (record.status === 'quarantined') {
+      return disposition({ status: 'quarantined', timing: mutationTiming(record) });
+    }
     if (record.status === 'result-gone') {
       return disposition({ status: 'resultGone', ...structuredClone(record.resultGone), timing: mutationTiming(record) });
     }
@@ -11170,6 +11863,12 @@ export class SnapbackClient {
       }
       if (prepared?.status === 'failed') {
         failed += 1;
+        this.#recordMutationPhaseCost({
+          clientMutationId: record.id,
+          functionId: record.function,
+          disposition: 'failed',
+          timing: mutationTiming(prepared.record ?? record),
+        });
         this.#recordOutboxDiagnostic({
           code: 'SNAPBACK_SPECULATIVE_ID_UNRESOLVED',
           mutation: record.function,
@@ -11400,6 +12099,13 @@ export class SnapbackClient {
           error.outboxSettlementPersistenceFailure = true;
           throw error;
         }
+        this.#recordMutationPhaseCost({
+          clientMutationId: record.id,
+          functionId: record.function,
+          disposition: 'settled',
+          timing: mutationTiming({ ...record, settlement: retainedSettlement }),
+          committedVersion: retainedSettlement.version ?? null,
+        });
         await this.#refreshOptimisticMutationViews('settlement-confirmed-bridge');
         replayed += 1;
         this.#recordOutboxDiagnostic({
@@ -11452,6 +12158,15 @@ export class SnapbackClient {
           replayStop.value = Object.freeze({
             kind: 'terminal',
             reason: 'terminal-disposition:result-expired',
+          });
+          this.#recordMutationPhaseCost({
+            clientMutationId: retained.id,
+            functionId: retained.function,
+            disposition: 'resultGone',
+            timing: mutationTiming({
+              ...retained,
+              settlement: { timing: error?.timing },
+            }),
           });
           this.#recordOutboxDiagnostic({
             code: 'SNAPBACK_OFFLINE_MUTATION_RESULT_EXPIRED',
@@ -11537,6 +12252,15 @@ export class SnapbackClient {
             kind: 'terminal',
             reason: 'terminal-disposition:stranded',
           });
+          this.#recordMutationPhaseCost({
+            clientMutationId: held.id,
+            functionId: held.function,
+            disposition: 'stranded',
+            timing: mutationTiming({
+              ...held,
+              settlement: { timing: error?.timing },
+            }),
+          });
           await this.#refreshOptimisticMutationViews('authority-stale-stranded');
           this.#recordOutboxDiagnostic({
             code: 'SNAPBACK_OFFLINE_MUTATION_STRANDED',
@@ -11576,6 +12300,18 @@ export class SnapbackClient {
             kind: 'terminal',
             reason: `terminal-disposition:${refusalCode}`,
           });
+          for (const tombstone of held.tombstones) {
+            const pendingRecord = pending.find((candidate) => candidate.id === tombstone.id)
+              ?? tombstone;
+            this.#recordMutationPhaseCost({
+              clientMutationId: tombstone.id,
+              functionId: tombstone.function,
+              disposition: 'quarantined',
+              timing: mutationTiming(tombstone.id === record.id
+                ? { ...pendingRecord, settlement: { timing: error?.timing } }
+                : pendingRecord),
+            });
+          }
           await this.#refreshOptimisticMutationViews('upgrade-required-quarantine');
           this.#recordOutboxDiagnostic({
             code: 'SNAPBACK_OFFLINE_MUTATIONS_QUARANTINED',
@@ -11630,6 +12366,15 @@ export class SnapbackClient {
         replayStop.value = Object.freeze({
           kind: 'terminal',
           reason: `terminal-disposition:${refusalCode}`,
+        });
+        this.#recordMutationPhaseCost({
+          clientMutationId: record.id,
+          functionId: record.function,
+          disposition: 'failed',
+          timing: mutationTiming({
+            ...record,
+            settlement: { timing: error?.timing },
+          }),
         });
         this.#recordOutboxDiagnostic({
           code: 'SNAPBACK_OFFLINE_MUTATION_REPLAY_FAILED',
@@ -11976,6 +12721,15 @@ export class SnapbackClient {
         boundedSkew,
       } = prepared);
     }
+    const mutationInspectionId = clientMutationId ?? createClientMutationId();
+    let mutationInspectionDispatchedAtMs = null;
+    const directMutationTiming = (serverTiming = null) => mutationTiming({
+      timing: {
+        enqueuedAtMs: null,
+        dispatchedAtMs: mutationInspectionDispatchedAtMs,
+      },
+      settlement: { timing: serverTiming },
+    });
     if (
       settlementLane !== null
       && settlementLane !== 'replay-accept'
@@ -12380,13 +13134,21 @@ export class SnapbackClient {
                 await this.#reconcileQueueCustody(queueStore);
                 throw error;
               }
-              await queueStore.outboxMarkFailed(stored.id, {
+              const markedFailed = await queueStore.outboxMarkFailed(stored.id, {
                 code: error?.diagnostic?.code ?? error?.code
                   ?? 'SNAPBACK_OPERATION_RANGE_REFRESH_FAILED',
                 message: error?.message ?? String(error),
                 effectCommitted: false,
                 effectMayHaveCommitted: false,
               }, preparationFence);
+              if (markedFailed) {
+                this.#recordMutationPhaseCost({
+                  clientMutationId: stored.id,
+                  functionId: stored.function,
+                  disposition: 'failed',
+                  timing: mutationTiming(stored),
+                });
+              }
               throw error;
             }
           }
@@ -12552,6 +13314,7 @@ export class SnapbackClient {
               if (ephemeralOptimisticRecord) {
                 this.#markEphemeralOptimisticDispatched(clientMutationId);
               }
+              mutationInspectionDispatchedAtMs ??= Date.now();
             },
             onTransportFailure: async (error) => {
               await __onTransportFailure?.(error);
@@ -12591,6 +13354,13 @@ export class SnapbackClient {
             error.outboxSettlementPersistenceFailure = true;
             throw error;
           }
+          this.#recordMutationPhaseCost({
+            clientMutationId,
+            functionId: name,
+            disposition: 'settled',
+            timing: mutationTiming({ ...durableOnlineStoredRecord, settlement: json }),
+            committedVersion: json?.version ?? null,
+          });
           this.#notifyOutboxListeners();
           if (generatedPresentationEnabled) {
             await this.#refreshOptimisticMutationViews('settlement-confirmed-bridge');
@@ -12599,6 +13369,19 @@ export class SnapbackClient {
         if (ephemeralOptimisticRecord) {
           this.#settleEphemeralOptimisticRecord(clientMutationId, json);
           await this.#refreshOptimisticMutationViews('settlement-confirmed-bridge');
+        }
+        if (
+          !durableOnlineRecord
+          && !ephemeralOptimisticRecord
+          && __authorizationDispatchOwnership !== OUTBOX_AUTHORIZATION_DISPATCH_OWNERSHIP
+        ) {
+          this.#recordMutationPhaseCost({
+            clientMutationId: mutationInspectionId,
+            functionId: name,
+            disposition: 'settled',
+            timing: directMutationTiming(json?.timing),
+            committedVersion: json?.version ?? null,
+          });
         }
         // The response proves the origin ran its piggyback ACK stage.
         await confirmSentAcknowledgements();
@@ -12685,6 +13468,30 @@ export class SnapbackClient {
                 throw custodyError;
               }
               this.#notifyOutboxListeners();
+              this.#recordMutationPhaseCost({
+                clientMutationId,
+                functionId: name,
+                disposition: 'resultGone',
+                timing: mutationTiming({
+                  ...durableOnlineStoredRecord,
+                  settlement: { timing: error?.timing },
+                }),
+              });
+            } else if (__authorizationDispatchOwnership !== OUTBOX_AUTHORIZATION_DISPATCH_OWNERSHIP) {
+              const ephemeralRecord = clientMutationId === null
+                ? null
+                : this.__ephemeralOptimisticRecords.get(clientMutationId) ?? null;
+              this.#recordMutationPhaseCost({
+                clientMutationId: mutationInspectionId,
+                functionId: name,
+                disposition: 'resultGone',
+                timing: ephemeralRecord === null
+                  ? directMutationTiming(error?.timing)
+                  : mutationTiming({
+                      ...ephemeralRecord,
+                      settlement: { timing: error?.timing },
+                    }),
+              });
             }
             this.#recordOutboxDiagnostic({
               code: 'SNAPBACK_OFFLINE_MUTATION_RESULT_EXPIRED',
@@ -12785,6 +13592,15 @@ export class SnapbackClient {
               effectProvenanceFromError(error),
             );
             if (held) {
+              this.#recordMutationPhaseCost({
+                clientMutationId,
+                functionId: name,
+                disposition: 'stranded',
+                timing: mutationTiming({
+                  ...durableOnlineStoredRecord,
+                  settlement: { timing: error?.timing },
+                }),
+              });
               this.#recordOutboxDiagnostic({
                 code: 'SNAPBACK_OFFLINE_MUTATION_STRANDED',
                 mutation: name,
@@ -12820,6 +13636,15 @@ export class SnapbackClient {
               });
             }
             if (failureMarked) {
+              this.#recordMutationPhaseCost({
+                clientMutationId,
+                functionId: name,
+                disposition: 'failed',
+                timing: mutationTiming({
+                  ...durableOnlineStoredRecord,
+                  settlement: { timing: error?.timing },
+                }),
+              });
               this.#notifyOutboxListeners();
               if (optimisticOperation !== null) {
                 await this.#refreshOptimisticMutationViews('settlement-refused');
@@ -12829,6 +13654,18 @@ export class SnapbackClient {
           if (ephemeralOptimisticRecord) {
             this.#failEphemeralOptimisticRecord(clientMutationId, error);
             await this.#refreshOptimisticMutationViews('settlement-refused');
+          }
+          if (
+            !durableOnlineRecord
+            && !ephemeralOptimisticRecord
+            && __authorizationDispatchOwnership !== OUTBOX_AUTHORIZATION_DISPATCH_OWNERSHIP
+          ) {
+            this.#recordMutationPhaseCost({
+              clientMutationId: mutationInspectionId,
+              functionId: name,
+              disposition: 'failed',
+              timing: directMutationTiming(error?.timing),
+            });
           }
           if (generatedPresentationEnabled) error.clientMutationId = clientMutationId;
           throw error;
@@ -14386,6 +15223,38 @@ export class SnapbackClient {
       // @ref LLP 0059#dated-amendment-total-client-authority-transition-state-and-settlement-matrix-2026-08-21-llp-0295-d02 — delivery time and authoritative revision are distinct public subscription facts.
       lastDeliveryAtMs: null,
       authoritativeRevision: 0,
+      deliveryLagMs: null,
+      suppressedEqualSnapshots: 0,
+      terminalDiagnosticCode: null,
+      __coveredMutationCostObservationSequences: new Set(),
+      get inspectionSubscriptionId() {
+        return currentSubscriptionId
+          ?? pendingSupersedesSubscriptionId
+          ?? resyncFencedSubscriptionId
+          ?? knownRetiredSubscriptionId;
+      },
+      get inspectionSupersedesSubscriptionId() {
+        return pendingSupersedesSubscriptionId
+          ?? resyncFencedSubscriptionId
+          ?? initialSupersedes
+          ?? null;
+      },
+      get inspectionSubscriptionState() {
+        if (disposed) return 'RELEASED';
+        if (authorizationFaulted) return 'RESYNC_PENDING';
+        if (needsResubscribe) return connection === 'stale' ? 'DROPPED' : 'RESYNC_PENDING';
+        if (currentSubscriptionId === null) return 'PENDING';
+        return 'LIVE';
+      },
+      get inspectionConnectionState() {
+        if (disposed) return 'CLOSED';
+        if (this.terminalDiagnosticCode !== null) return 'TERMINAL_AUTH';
+        if (connection === 'live') return 'ATTACHED_LIVE';
+        if (connection === 'polling') return 'ATTACHED_POLL';
+        if (connection === 'stale') return 'RECOVERING';
+        if (connection === 'connecting') return 'GRANTED';
+        return 'IDLE';
+      },
       get rows() {
         return projectRowsForConsumer(presentedRows);
       },
@@ -14781,8 +15650,13 @@ export class SnapbackClient {
         || detail?.kind === 'authorization_quarantine'
         || detail?.kind === 'authorization_error';
       if (!authorizationBoundary && detail?.freshness !== 'retained') {
-        handle.lastDeliveryAtMs = Date.now();
-        handle.authoritativeRevision += 1;
+        const deliveredAtMs = Date.now();
+        const deliveredVersion = Number.isSafeInteger(detail?.version)
+          ? detail.version
+          : Number.isSafeInteger(handle.version) ? handle.version : null;
+        handle.lastDeliveryAtMs = deliveredAtMs;
+        if (deliveredVersion !== null) handle.authoritativeRevision = deliveredVersion;
+        client.#observeCoveringLiveDelivery(handle, deliveredVersion, deliveredAtMs);
       }
       authoritativeRows = Array.isArray(rows) ? rows : [];
       // Preserve the synchronous liveQuery handle contract: canonical
@@ -16718,6 +17592,7 @@ export class SnapbackClient {
             // Any successful fresh subscribe supersedes an earlier denial
             // fact (0137 A1-Expo f4): the presented authority is authorized.
             handle.authorizationDenial = null;
+            handle.terminalDiagnosticCode = null;
             handleAuthorityCapture = responseCapture;
             if (!sub.authorizationScope) {
               if (sub.snapshot) {
@@ -17268,6 +18143,8 @@ export class SnapbackClient {
         // @ref LLP 0059#dated-amendment-total-client-authority-transition-state-and-settlement-matrix-2026-08-21-llp-0295-d02 — auth blank retires predecessor delivery facts.
         handle.lastDeliveryAtMs = null;
         handle.authoritativeRevision = 0;
+        handle.deliveryLagMs = null;
+        handle.__coveredMutationCostObservationSequences.clear();
         handle.freshness = null;
         handle.answerClass = 'unknown';
         handle.authorizationDisposition = 'delete';
@@ -17278,6 +18155,9 @@ export class SnapbackClient {
         const terminalError = context.terminal === true
           ? context.terminalError ?? staleAuthorityError()
           : null;
+        handle.terminalDiagnosticCode = terminalError?.diagnostic?.code
+          ?? terminalError?.code
+          ?? null;
         const detail = {
           version: handle.version,
           kind: terminalError === null ? 'authorization_delete' : 'authorization_error',

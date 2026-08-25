@@ -10,7 +10,12 @@ import {
   bindSnapbackAppLifecycle,
   createExternalSessionClient,
   createMemoryAgentAuthorityCustodyStorage,
+  derivePendingDeliveryOutcomeV1,
+  inspectionPseudonymV1,
+  joinPendingDeliveryInspectionV1,
+  mutationPhaseDurationsV1,
   newSeedOperationIdV1,
+  projectMutationPhaseCostV1,
 } from './index.mjs';
 import {
   SnapbackClient as OnlineSnapbackClient,
@@ -72,6 +77,510 @@ assert.equal(
   0,
   'ephemeral teardown after disconnect must not manufacture a manager',
 );
+
+// @ref LLP 0267#72-mutation-phase-visibility-consumes-llp-0059-ruling-6--decided
+// — delayed foreground attribution uses one derived duration vocabulary and
+// pseudonymizes caller-owned mutation identity at the snapshot boundary.
+const delayedForeground = projectMutationPhaseCostV1({
+  clientMutationId: 'save-user@example.test-draft',
+  functionId: 'messages.send',
+  disposition: 'settled',
+  timing: {
+    enqueuedAtMs: 100,
+    dispatchedAtMs: 1_100,
+    authorizedAtMs: 1_125,
+    executedAtMs: 1_165,
+    committedAtMs: 1_175,
+  },
+});
+assert.deepEqual(
+  {
+    queueWaitMs: delayedForeground.queueWaitMs,
+    authWaitMs: delayedForeground.authWaitMs,
+    executionMs: delayedForeground.executionMs,
+    commitMs: delayedForeground.commitMs,
+  },
+  { queueWaitMs: 1_000, authWaitMs: 25, executionMs: 40, commitMs: 10 },
+);
+assert.equal(
+  delayedForeground.clientMutationId,
+  inspectionPseudonymV1('save-user@example.test-draft'),
+);
+assert.equal(JSON.stringify(delayedForeground).includes('user@example.test'), false);
+assert.deepEqual(
+  mutationPhaseDurationsV1({ enqueuedAtMs: 1, dispatchedAtMs: null }),
+  { queueWaitMs: null, authWaitMs: null, executionMs: null, commitMs: null },
+);
+
+const inspectionManager = client.liveStreamManager('connection-user@example.test');
+const redactedD05 = client.localResourceInspection(['connection-user@example.test']);
+assert.equal(
+  redactedD05.managers[0].connectionId,
+  inspectionPseudonymV1('connection-user@example.test'),
+);
+assert.equal(JSON.stringify(redactedD05).includes('connection-user@example.test'), false);
+assert.equal(JSON.stringify(redactedD05).includes('http://127.0.0.1:9'), false);
+inspectionManager.close();
+
+// @ref LLP 0267#74-subscription-owner-readiness-and-missed-delivery-consumes-d05--decided
+// — the inspect-time join is a strict first-match decision list, stored on
+// neither snapshot, and subscription identity is the unique join key.
+const clientSubscription = (overrides = {}) => ({
+  subscriptionId: 'sub-1',
+  functionName: 'messages.list',
+  subscriptionState: 'LIVE',
+  connectionState: 'ATTACHED_LIVE',
+  authoritativeRevision: 10,
+  supersedesSubscriptionId: null,
+  authBarrier: 'open',
+  outboxSuspensionReason: null,
+  ...overrides,
+});
+const serverSubscription = (overrides = {}) => ({
+  subscriptionId: 'sub-1',
+  functionId: 'messages.list',
+  lastDeliveredWaveSeq: 40,
+  lastDeliveredVersion: 10,
+  owedThroughVersion: null,
+  evaluation: 'idle',
+  currentWaveSeq: null,
+  pendingWork: 'none',
+  ...overrides,
+});
+const reasonOf = (clientRow, serverRow) => (
+  derivePendingDeliveryOutcomeV1(clientRow, serverRow).pendingDeliveryReason
+);
+assert.equal(reasonOf(clientSubscription({ terminalCode: 'SNAPBACK_QUERY_COST_BOUND_EXCEEDED' }), null), 'terminal-quarantine');
+assert.equal(reasonOf(clientSubscription({ outboxSuspensionReason: 'auth-barrier' }), null), 'auth-barrier');
+assert.equal(reasonOf(clientSubscription({ outboxSuspensionReason: 'custody-unsettled' }), null), 'custody-unsettled');
+assert.equal(reasonOf(clientSubscription({ outboxSuspensionReason: 'authority-unavailable:reauth-required' }), null), 'authority-unavailable');
+assert.equal(reasonOf(clientSubscription({ subscriptionState: 'DROPPED' }), null), 'transport-recovery');
+assert.equal(reasonOf(clientSubscription(), serverSubscription({ pendingWork: 'queued' })), 'server-pending');
+assert.equal(
+  reasonOf(clientSubscription({ authBarrier: 'active' }), serverSubscription()),
+  null,
+  'healthy authorization lifecycle state is readiness, not an auth-barrier suspension',
+);
+assert.equal(
+  reasonOf(clientSubscription({
+    authBarrier: 'closed',
+    outboxSuspensionReason: 'custody-unsettled',
+  }), null),
+  'custody-unsettled',
+  'the ruled suspension spelling, not the readiness flag, selects member 3',
+);
+
+assert.deepEqual(
+  derivePendingDeliveryOutcomeV1(
+    clientSubscription({ subscriptionState: 'PENDING', authoritativeRevision: null }),
+    serverSubscription({ evaluation: 'evaluating', currentWaveSeq: 41 }),
+  ),
+  {
+    outcome: 'neutral',
+    pendingDeliveryReason: null,
+    detail: { class: 'initial-pending' },
+  },
+  'ordinary initial PENDING wins before server owed/member evaluation',
+);
+assert.equal(
+  derivePendingDeliveryOutcomeV1(clientSubscription(), serverSubscription()).outcome,
+  'neutral',
+);
+assert.equal(
+  derivePendingDeliveryOutcomeV1(
+    clientSubscription(),
+    serverSubscription({ owedThroughVersion: 11 }),
+  ).outcome,
+  'defect',
+);
+assert.deepEqual(
+  derivePendingDeliveryOutcomeV1(
+    clientSubscription({ authoritativeRevision: 10 }),
+    serverSubscription({ lastDeliveredVersion: 11 }),
+  ).detail,
+  { class: 'in-transit', lastDeliveredVersion: 11, authoritativeRevision: 10 },
+);
+
+const composite = derivePendingDeliveryOutcomeV1(
+  clientSubscription(),
+  serverSubscription({
+    owedThroughVersion: 11,
+    evaluation: 'evaluating',
+    currentWaveSeq: 41,
+    pendingWork: 'coalescing',
+  }),
+);
+assert.equal(composite.pendingDeliveryReason, 'server-pending');
+assert.deepEqual(
+  {
+    evaluation: composite.detail.evaluation,
+    currentWaveSeq: composite.detail.currentWaveSeq,
+    pendingWork: composite.detail.pendingWork,
+    owedThroughVersion: composite.detail.owedThroughVersion,
+  },
+  {
+    evaluation: 'evaluating',
+    currentWaveSeq: 41,
+    pendingWork: 'coalescing',
+    owedThroughVersion: 11,
+  },
+  'invalidation during evaluation retains the V+1 successor stage',
+);
+assert.equal(
+  reasonOf(clientSubscription(), serverSubscription({
+    owedThroughVersion: null,
+    pendingWork: 'queued',
+  })),
+  'server-pending',
+  'commitless authority restoration is active owed work',
+);
+
+assert.equal(
+  reasonOf(
+    clientSubscription({ outboxSuspensionReason: 'auth-barrier' }),
+    serverSubscription({ pendingWork: 'queued' }),
+  ),
+  'auth-barrier',
+);
+assert.equal(
+  reasonOf(
+    clientSubscription({ outboxSuspensionReason: 'authority-unavailable:successor' }),
+    serverSubscription({ pendingWork: 'queued' }),
+  ),
+  'authority-unavailable',
+);
+const queuedRestoration = derivePendingDeliveryOutcomeV1(
+  clientSubscription(),
+  serverSubscription({
+    owedThroughVersion: 11,
+    evaluation: 'idle',
+    currentWaveSeq: null,
+    pendingWork: 'queued',
+  }),
+);
+assert.equal(queuedRestoration.pendingDeliveryReason, 'server-pending');
+assert.deepEqual(
+  {
+    evaluation: queuedRestoration.detail.evaluation,
+    currentWaveSeq: queuedRestoration.detail.currentWaveSeq,
+    pendingWork: queuedRestoration.detail.pendingWork,
+    owedThroughVersion: queuedRestoration.detail.owedThroughVersion,
+  },
+  {
+    evaluation: 'idle',
+    currentWaveSeq: null,
+    pendingWork: 'queued',
+    owedThroughVersion: 11,
+  },
+  'the post-discard registry shape derives server-pending after client holds clear',
+);
+assert.equal(
+  reasonOf(clientSubscription({ subscriptionState: 'DROPPED' }), null),
+  'transport-recovery',
+);
+assert.equal(
+  reasonOf(
+    clientSubscription({
+      subscriptionState: 'PENDING',
+      supersedesSubscriptionId: 'sub-old',
+    }),
+    serverSubscription({ owedThroughVersion: null }),
+  ),
+  'transport-recovery',
+);
+
+const uniqueJoin = joinPendingDeliveryInspectionV1(
+  { subscriptions: [
+    clientSubscription({ subscriptionId: 'sub-a' }),
+    clientSubscription({ subscriptionId: 'sub-b' }),
+  ] },
+  {
+    subscriptions: [
+      serverSubscription({ subscriptionId: 'sub-a', lastDeliveredWaveSeq: 50 }),
+      serverSubscription({ subscriptionId: 'sub-b', lastDeliveredWaveSeq: 51 }),
+    ],
+    liveDeliveryWaves: [
+      { waveSeq: 50, functionId: 'messages.list', deliveredVersion: 10 },
+      { waveSeq: 51, functionId: 'messages.list', deliveredVersion: 10 },
+    ],
+  },
+);
+assert.deepEqual(
+  uniqueJoin.subscriptions.map((row) => [row.subscriptionId, row.wave.waveSeq]),
+  [['sub-a', 50], ['sub-b', 51]],
+  'same-function/same-version subscriptions join uniquely by subscription id',
+);
+assert.equal(
+  uniqueJoin.subscriptions.some((row) => (
+    Object.hasOwn(row.serverRegistry, 'pendingDeliveryReason')
+    || Object.hasOwn(row.wave, 'pendingDeliveryReason')
+  )),
+  false,
+  'the derived reason is stored only on the joined result',
+);
+
+const clientAhead = joinPendingDeliveryInspectionV1(
+  { subscriptions: [clientSubscription()] },
+  { subscriptions: [] },
+);
+assert.equal(clientAhead.subscriptions[0].outcome, 'snapshot-skew');
+const clientAheadResolved = joinPendingDeliveryInspectionV1(
+  { subscriptions: [clientSubscription({ subscriptionState: 'DROPPED' })] },
+  { subscriptions: [] },
+  { previous: clientAhead },
+);
+assert.equal(clientAheadResolved.subscriptions[0].pendingDeliveryReason, 'transport-recovery');
+const clientAheadPersistent = joinPendingDeliveryInspectionV1(
+  { subscriptions: [clientSubscription()] },
+  { subscriptions: [] },
+  { previous: clientAhead },
+);
+assert.deepEqual(
+  {
+    outcome: clientAheadPersistent.subscriptions[0].outcome,
+    class: clientAheadPersistent.subscriptions[0].detail.class,
+  },
+  { outcome: 'defect', class: 'persistent-snapshot-skew' },
+);
+
+const serverAhead = joinPendingDeliveryInspectionV1(
+  { subscriptions: [clientSubscription({ subscriptionState: 'RELEASED' })] },
+  { subscriptions: [serverSubscription()] },
+);
+assert.equal(serverAhead.subscriptions[0].outcome, 'snapshot-skew');
+const serverAheadResolved = joinPendingDeliveryInspectionV1(
+  { subscriptions: [clientSubscription({ subscriptionState: 'RELEASED' })] },
+  { subscriptions: [] },
+  { previous: serverAhead },
+);
+assert.equal(serverAheadResolved.subscriptions[0].outcome, 'neutral');
+const serverAheadPersistent = joinPendingDeliveryInspectionV1(
+  { subscriptions: [clientSubscription({ subscriptionState: 'RELEASED' })] },
+  { subscriptions: [serverSubscription()] },
+  { previous: serverAhead },
+);
+assert.equal(serverAheadPersistent.subscriptions[0].outcome, 'defect');
+
+const initialProviderJoin = joinPendingDeliveryInspectionV1(
+  { subscriptions: [clientSubscription({
+    subscriptionId: null,
+    subscriptionState: 'PENDING',
+    authoritativeRevision: null,
+  })] },
+  { subscriptions: [] },
+);
+assert.deepEqual(
+  initialProviderJoin.subscriptions[0],
+  {
+    format: 'snapback.pending-delivery-inspection-row.v1',
+    subscriptionId: null,
+    functionId: 'messages.list',
+    outcome: 'neutral',
+    pendingDeliveryReason: null,
+    detail: { class: 'initial-pending' },
+    serverRegistry: null,
+    wave: null,
+  },
+  'provider initial PENDING rows are classified before subscription-id join validation',
+);
+
+// A real settlement followed by the first covering subscription delivery
+// proves that lag is client-clock attribution, is held only on the client
+// subscription row, and does not leak either caller-influencable label.
+{
+  const originalFetch = globalThis.fetch;
+  const rawMutationId = 'save-lag-user@example.test-draft';
+  const rawConnectionId = 'lag-user@example.test-connection';
+  let lagHandle = null;
+  let lagClient = null;
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    if (path === '/mutation/messages.send') {
+      return Response.json({
+        version: 7,
+        changed_count: 1,
+        result: { ok: true },
+        timing: {
+          authorizedAtMs: 10,
+          executedAtMs: 14,
+          committedAtMs: 16,
+        },
+      });
+    }
+    if (path === '/connection/open') {
+      const body = JSON.parse(init.body);
+      return Response.json({
+        connectionId: body.connectionId,
+        connectionToken: 'sct_lag_fixture',
+        wireVersion: 'snapback.v1',
+      });
+    }
+    if (path === '/live/messages.list/subscribe') {
+      return Response.json({
+        subscription_id: 'sub_lag_fixture',
+        snapshot: { version: 7, rows: [] },
+        permission_epochs: {},
+      });
+    }
+    if (path === '/live/messages.list/unsubscribe') {
+      return Response.json({ subscription_id: 'sub_lag_fixture', disposed: true });
+    }
+    throw new Error(`unexpected lag-inspection request: ${path}`);
+  };
+  try {
+    lagClient = new SnapbackClient('http://lag-inspection.test', {
+      offlineQueue: false,
+      rqsStore: null,
+    });
+    await lagClient.mutate('messages.send', {
+      args: { text: 'redacted application value' },
+      clientMutationId: rawMutationId,
+      queue: false,
+    });
+    lagHandle = await lagClient.liveQuery('messages.list', {
+      connectionId: rawConnectionId,
+      ownerLabel: 'caller-owner-user@example.test',
+      persistResume: false,
+    });
+    const lagInspection = lagClient.localResourceInspection([rawConnectionId]);
+    assert.equal(lagInspection.subscriptions[0].subscriptionId, 'sub_lag_fixture');
+    assert.equal(lagInspection.subscriptions[0].authoritativeRevision, 7);
+    assert.equal(Number.isSafeInteger(lagInspection.subscriptions[0].lastDeliveryAtMs), true);
+    assert.equal(Number.isSafeInteger(lagInspection.subscriptions[0].deliveryLagMs), true);
+    assert.equal(lagInspection.subscriptions[0].deliveryLagMs >= 0, true);
+    assert.equal(
+      lagInspection.subscriptions[0].ownershipTuple,
+      lagInspection.ownershipTuple,
+    );
+    assert.equal(lagInspection.mutationPhaseCosts.records.length, 1);
+    assert.deepEqual(
+      {
+        authorizedAtMs: lagInspection.mutationPhaseCosts.records[0].authorizedAtMs,
+        executedAtMs: lagInspection.mutationPhaseCosts.records[0].executedAtMs,
+        committedAtMs: lagInspection.mutationPhaseCosts.records[0].committedAtMs,
+        executionMs: lagInspection.mutationPhaseCosts.records[0].executionMs,
+        commitMs: lagInspection.mutationPhaseCosts.records[0].commitMs,
+      },
+      {
+        authorizedAtMs: 10,
+        executedAtMs: 14,
+        committedAtMs: 16,
+        executionMs: 4,
+        commitMs: 2,
+      },
+      'the production recorder retains the same timestamps and durations as the projector',
+    );
+    assert.deepEqual(
+      {
+        recordLimit: lagInspection.mutationPhaseCosts.recordLimit,
+        byteLimit: lagInspection.mutationPhaseCosts.byteLimit,
+        droppedRecords: lagInspection.mutationPhaseCosts.droppedRecords,
+      },
+      { recordLimit: 512, byteLimit: 1024 * 1024, droppedRecords: 0 },
+    );
+    assert.deepEqual(
+      lagInspection.mutationPhaseCosts.counters.map(({ functionId, count }) => ({
+        functionId,
+        count,
+      })),
+      [{ functionId: 'messages.send', count: 1 }],
+      'per-function counters count the settled event independently of detail reads',
+    );
+    assert.equal(
+      lagInspection.mutationPhaseCosts.records[0].clientMutationId,
+      inspectionPseudonymV1(rawMutationId),
+    );
+    const serialized = JSON.stringify(lagInspection);
+    assert.equal(serialized.includes(rawMutationId), false);
+    assert.equal(serialized.includes(rawConnectionId), false);
+    assert.equal(serialized.includes('caller-owner-user@example.test'), false);
+    assert.equal(serialized.includes('redacted application value'), false);
+
+    const deliverVersion = (version) => {
+      for (const consumer of lagClient.__laneConsumers.get(rawConnectionId).durable) {
+        consumer({
+          kind: 'live_replace',
+          function: 'messages.list',
+          subscription_id: 'sub_lag_fixture',
+          version,
+          rows: [],
+        });
+      }
+    };
+    await Promise.all(Array.from({ length: 512 }, () => (
+      lagClient.mutate('messages.send', { queue: false })
+    )));
+    deliverVersion(8);
+    assert.equal(lagHandle.__coveredMutationCostObservationSequences.size, 512);
+    await Promise.all(Array.from({ length: 512 }, () => (
+      lagClient.mutate('messages.send', { queue: false })
+    )));
+    deliverVersion(9);
+    assert.equal(
+      lagHandle.__coveredMutationCostObservationSequences.size,
+      512,
+      'a long-lived handle prunes observations evicted from the bounded commit bridge',
+    );
+  } finally {
+    await lagHandle?.dispose();
+    await lagClient?.close();
+    globalThis.fetch = originalFetch;
+  }
+}
+
+// Bounds are executable behavior, not advertised constants: exact counters
+// survive record sampling/eviction and key eviction, and byte admission evicts
+// whole oldest records without crossing the configured 1 MiB family budget.
+{
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => Response.json({
+    version: 1,
+    changed_count: 1,
+    result: { ok: true },
+    timing: { authorizedAtMs: 10, executedAtMs: 11, committedAtMs: 12 },
+  });
+  const boundedClient = new SnapbackClient('http://mutation-cost-bounds.test', {
+    offlineQueue: false,
+    rqsStore: null,
+  });
+  const byteBoundedClient = new SnapbackClient('http://mutation-cost-bytes.test', {
+    offlineQueue: false,
+    rqsStore: null,
+  });
+  try {
+    await Promise.all(Array.from({ length: 1_025 }, (_, index) => (
+      boundedClient.mutate(`boundsFunction${index}`, { queue: false })
+    )));
+    const bounded = boundedClient.mutationPhaseCostInspection();
+    const exactCount = bounded.counters.reduce((sum, entry) => sum + entry.count, 0)
+      + bounded.otherKeys.count;
+    assert.equal(exactCount, 1_025, 'sampling and detail eviction never change exact totals');
+    assert.equal(bounded.records.length, 512, 'the default count cap is exercised');
+    assert.equal(bounded.droppedRecords, 513);
+    assert.equal(bounded.counters.length, 1_024, 'the exact counter-key cap is exercised');
+    assert.equal(bounded.evictedKeys, 1);
+    assert.equal(bounded.otherKeys.count, 1);
+    assert.equal(
+      bounded.records.every((record) => record.clientMutationId.startsWith('sha256:')),
+      true,
+      'ordinary foreground mutations without caller ids still produce pseudonymous records',
+    );
+
+    const byteHeavyFunction = `byteHeavy_${'x'.repeat(2_500)}`;
+    await Promise.all(Array.from({ length: 500 }, () => (
+      byteBoundedClient.mutate(byteHeavyFunction, { queue: false })
+    )));
+    const byteBounded = byteBoundedClient.mutationPhaseCostInspection();
+    assert.equal(byteBounded.retainedBytes <= 1024 * 1024, true);
+    assert.equal(byteBounded.records.length < 500, true, 'the byte cap, not count cap, evicts');
+    assert.equal(byteBounded.droppedRecords, 500 - byteBounded.records.length);
+    assert.equal(byteBounded.counters[0].count, 500);
+  } finally {
+    await boundedClient.close();
+    await byteBoundedClient.close();
+    globalThis.fetch = originalFetch;
+  }
+}
 
 const savedDecodeWebSocket = globalThis.WebSocket;
 const decodeSockets = [];

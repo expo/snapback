@@ -6,6 +6,7 @@ import TestRenderer, { act } from 'react-test-renderer';
 import {
   SnapbackClient,
   canonicalizeClientValueV1,
+  inspectionPseudonymV1,
 } from '@expo/snapback-client';
 import { prepareReactBindingForClient } from '../snapback-client/react-binding.mjs';
 import { resultContractHash } from '../snapback-codegen/result-contracts.mjs';
@@ -209,7 +210,10 @@ function createFakeClient({
           ?? `subscription-${starts}`,
         rows,
         connection: 'live',
+        version: options.registeredSubscription?.version ?? 1,
       };
+      let lastDeliveryAtMs = Date.now();
+      let deliveryLagMs = null;
       let resolveStarted = () => {};
       const started = deferRegisteredFunction === ref.name && options.registeredSubscription
         ? new Promise((resolve) => { resolveStarted = resolve; })
@@ -227,6 +231,20 @@ function createFakeClient({
         : Promise.resolve();
       const handle = {
         current,
+        get subscriptionId() { return current.subscriptionId; },
+        get authoritativeRevision() { return current.version; },
+        get lastDeliveryAtMs() { return lastDeliveryAtMs; },
+        get deliveryLagMs() { return deliveryLagMs; },
+        get inspectionSubscriptionId() { return current.subscriptionId; },
+        get inspectionSupersedesSubscriptionId() {
+          return options.supersedesSubscriptionId ?? null;
+        },
+        get inspectionSubscriptionState() { return disposed ? 'RELEASED' : 'LIVE'; },
+        get inspectionConnectionState() {
+          return current.connection === 'live'
+            ? 'ATTACHED_LIVE'
+            : current.connection === 'polling' ? 'ATTACHED_POLL' : 'RECOVERING';
+        },
         started: () => started,
         dispose() {
           if (disposed) return;
@@ -240,7 +258,12 @@ function createFakeClient({
         emit(nextRows, connection = 'live') {
           current.rows = nextRows;
           current.connection = connection;
-          options.onUpdate?.(nextRows);
+          current.version += 1;
+          lastDeliveryAtMs = Date.now();
+          options.onUpdate?.(nextRows, {
+            kind: 'live_replace',
+            version: current.version,
+          });
           options.onConnectionChange?.(connection);
         },
       };
@@ -1757,6 +1780,21 @@ assert.equal(
     initialNotifications,
     'an advanced transport delivery with the same complete visible snapshot is silent',
   );
+  assert.equal(dedupProvider.inspection().subscriptions[0].suppressedEqualSnapshots, 1);
+  assert.equal(
+    dedupProvider.inspection().subscriptions[0].authoritativeRevision,
+    2,
+    'dedup suppression does not hide the advanced storage commit version',
+  );
+  assert.equal(
+    dedupProvider.inspection().subscriptions[0].snapshotVersion,
+    2,
+  );
+  assert.equal(
+    Number.isSafeInteger(dedupProvider.inspection().subscriptions[0].lastDeliveryAtMs),
+    true,
+  );
+  assert.equal(dedupProvider.inspection().subscriptions[0].deliveryLagMs, null);
 
   armed = true;
   dedupFake.emit(capacityFeeds[200], sameRows, 'stale');
@@ -1957,17 +1995,29 @@ assert.equal(
     }
     assert.equal(transportOpens, 1, 'six provider cells open exactly one real transport');
     const lifecycleInspection = providerLifecycle.inspection();
-    assert.equal(lifecycleInspection.connections[0].ownershipTuple.canonicalAppId, 'react-fixture');
     assert.equal(
-      lifecycleInspection.connections[0].ownershipTuple.storagePartition,
-      providerLifecycleClient.clientStoreId,
+      lifecycleInspection.connections[0].ownershipTuple.canonicalAppId,
+      inspectionPseudonymV1('react-fixture'),
     );
     assert.equal(
-      lifecycleInspection.connections[0].ownershipTuple.serverOrigin,
-      'http://provider-lifecycle.test',
+      lifecycleInspection.connections[0].ownershipTuple.storagePartition,
+      inspectionPseudonymV1(providerLifecycleClient.clientStoreId),
+    );
+    assert.equal(
+      lifecycleInspection.connections[0].ownershipTuple.serverInstance,
+      'self',
+    );
+    assert.equal(
+      JSON.stringify(lifecycleInspection).includes('http://provider-lifecycle.test'),
+      false,
+      'the D0.5 projection carries instance-self rather than a literal endpoint',
     );
     assert.equal(typeof lifecycleInspection.connections[0].grantAgeMs, 'number');
     assert.equal(lifecycleInspection.connections[0].outboxSuspensionReason, null);
+    assert.equal(
+      lifecycleInspection.mutationPhaseCosts?.format,
+      'snapback.mutation-phase-cost-inspection.v1',
+    );
     assert(
       lifecycleInspection.subscriptions.every(
         (subscription) => subscription.ownershipTuple
