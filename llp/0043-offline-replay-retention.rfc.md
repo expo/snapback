@@ -5,10 +5,17 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
+**Revised:** 2026-08-26 (round-29 unified inspection-fact rule: enqueue-time,
+cycle-start, and final pre-POST inspection now share one classification.
+Transport loss and answered 5xx/proxy failures are local, non-durable
+unavailability observations with bounded transient retry; they preserve the
+last positive fact and its enqueue-only `queue: 'auto'` authority but never
+authorize a mutation POST. Answered 4xx or a 200 manifest gap is a durable
+negative that supersedes a positive and pauses the drain without self-waking.)
 **Revised:** 2026-08-26 (round-27 dispatch/error/contract correction: a final
-pre-POST inspection that receives an HTTP error or redirect backs replay off with
-`SNAPBACK_OUTBOX_REPLAY_INSPECTION_UNAVAILABLE`, retains the current record and
-every successor pending, and retries without an external wake. Standalone ACK
+pre-POST inspection records its observation before releasing dispatch; its
+classification and retry posture are superseded by the round-29 rule above.
+Standalone ACK
 re-reads and requires the shared positive target fact under the
 authorization-dispatch lock immediately before POST. The injected-store type
 now carries the sixth record-scoped legacy policy, quarantine result fields,
@@ -445,22 +452,39 @@ that same app id. An unbound client, a different app id at the same origin, or
 an identity-free cached manifest stays online-only instead of guessing the app
 identity that record schema v2 would persist.
 
+The **inspect-fact rule** is written once and applies identically at
+enqueue-time, cycle-start, and the final pre-POST inspection. (a) Transport
+loss with no `Response`, plus an answered 5xx or proxy/redirect failure, means
+**inspection unavailable**. It never replaces the last positive durable fact;
+the client records a local, non-durable unavailability observation visible in
+`outboxStatus()`, uses bounded `kind: 'transient'` backoff, and sends no
+mutation POST until a fresh positive inspection. The last positive may remain
+usable only as cached enqueue evidence for `queue: 'auto'`, which creates the
+durable record directly with zero mutation POSTs. (b) A manifest-answering
+response — an answered 4xx, or a parsed 200 manifest that omits
+`offline_mutation_replay` — is a durable negative. It overrides a predecessor
+positive, makes enqueue refuse with the capability code, and makes the drain
+pause once as `not-advertised` / target-capability-refused. Committing that
+fact must not request another drain cycle or otherwise self-wake the paused
+controller. Recovery requires a later positive inspection, an `online` event,
+or an explicit wake. “Answered-negative-overrides-positive” refers only to
+this (b) class.
+
 Inspection order belongs to the durable store, not a client instance or HTTP
 arrival order. Before dispatch, each inspection reserves a monotonic request
-sequence from the elected writer and captures the current fact revision. An
-answered positive, gap, or HTTP error compare-and-commits only when that
-revision is still current or its shared request sequence is newer than the
-last answered fact's sequence. A delayed older response therefore cannot
-overwrite a newer answer from the same or another client. A request that
-produces no HTTP response commits nothing: it advances neither the stored
-answered sequence nor the observing client's answered-request high-water, so
-it cannot discard an earlier discovery still in flight. The fact revision and
-answered request sequence are durable metadata and are preserved across
-writer/follower handoff.
+sequence from the elected writer and captures the current fact revision. A
+positive or rule-(b) negative compare-and-commits only when that revision is
+still current or its shared request sequence is newer than the last durable
+fact's sequence. A delayed older response therefore cannot overwrite a newer
+answer from the same or another client. A rule-(a) observation commits no
+durable fact and advances neither the stored fact sequence nor the observing
+client's answered-request high-water, so it cannot discard an earlier
+discovery still in flight. The fact revision and answered request sequence are
+durable metadata and are preserved across writer/follower handoff.
 
 `queue: 'auto'` ordinarily uses that fresh answer. Its one narrow exception is
-the enqueue fallback: when the capability re-probe itself loses transport and
-therefore produces no HTTP response, it may reuse a prior positive fact only
+the enqueue fallback for a rule-(a) unavailable inspection: it may reuse a
+prior positive fact only
 when the canonical origin plus either the operation-carried generation or the
 string reference's established app id still match the fact's served target
 identity. If no matching positive exists, the ambiguous mutation transport
@@ -470,8 +494,8 @@ authority. Consequently cached evidence takes the enqueue-only path without a
 foreground mutation POST; only a fresh positive answer may gate a
 try-then-queue dispatch.
 
-Answered negative facts replace predecessor positives through the elected
-writer when the carrier can prove that route. If IndexedDB has no usable
+Rule-(b) durable negative facts replace predecessor positives through the
+elected writer when the carrier can prove that route. If IndexedDB has no usable
 `BroadcastChannel`, the observing follower retains a local negative override
 that wins for that observer. The unreserved answer captures the shared fact
 revision observed before its HTTP request but no request sequence. On writer
@@ -552,12 +576,12 @@ for this amendment.
 For the final comparison, replay re-inspects the served target immediately
 before the mutation POST and compares it with the persisted generation. A
 difference pauses with `SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH` before the
-dispatch stamp or POST. An answered 4xx, 5xx, redirect, or other answered
-inspection failure at this final cut pauses with the retriable
-`SNAPBACK_OUTBOX_REPLAY_INSPECTION_UNAVAILABLE`; it never enters the server
-mutation-refusal branch, never marks the current record failed, and stops
-before visiting successors. A transport loss remains the existing transient
-connectivity pause. This narrows, but cannot atomically close, the
+dispatch stamp or POST. The final answer is recorded after the dispatch lock
+is released: rule-(a) unavailability is immediately visible locally and
+schedules transient backoff, while rule-(b) answers commit the durable
+negative and pause once without a self-wake. Neither class enters the server
+mutation-refusal branch, marks the current record failed, or visits a
+successor. This narrows, but cannot atomically close, the
 inspection-to-POST deployment window. Sessions-mode servers enforce the
 carried `expectedGeneration` against the manifest pair selected for the
 invocation. v0-dev servers currently tolerate that additive field and do not
@@ -581,9 +605,10 @@ part of the lifecycle contract.
 
 Before any queued record is reconciled or re-POSTed,
 `replayQueuedMutations()` always performs a fresh inspection and requires its
-positive answer. It never reuses process or durable cached evidence; a lost
-inspection, answered gap, 4xx, or 5xx refuses with the typed capability error
-and leaves the record pending and unchanged. Local SQLite advertises the
+positive answer. It never reuses process or durable cached evidence for
+transport: rule-(a) unavailability leaves the record pending and retries on
+bounded transient backoff, while rule-(b) negativity leaves it pending under
+the stable capability pause. Local SQLite advertises the
 capability because `_snapback_client_mutations` settles the id in the
 application-write transaction. The Cloudflare coordinator does not own that
 ledger and continues to report `offline_mutation_replay` as a gap, so its JS

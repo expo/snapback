@@ -2851,11 +2851,17 @@ test('capability inspection refuses redirects instead of borrowing another origi
   );
   assert.equal(redirectedInspectionCalls, 0, 'the target-B inspection is never followed');
   assert.equal(mutationCalls, 0, 'target-B evidence never licenses a mutation POST to target A');
-  assert.equal(
-    (await store.readOfflineMutationReplayCapabilityFact()).supported,
-    false,
-    'the redirect is retained as an answered inspection refusal',
+  assert.deepEqual(
+    await store.readOfflineMutationReplayCapabilityFact(),
+    {},
+    'a proxy redirect is local inspection unavailability, not a durable negative fact',
   );
+  assert.deepEqual((await client.outboxStatus()).offlineMutationReplayInspection, {
+    status: 'unavailable',
+    reason: 'answered-unavailable',
+    code: 'SNAPBACK_REDIRECT_REFUSED',
+    httpStatus: 302,
+  });
   assert.deepEqual(await store.outboxRecords(), []);
 });
 
@@ -3325,7 +3331,7 @@ test('a new default client stays online-only without an established app binding'
   }
 });
 
-test('broker-unavailable peer negative stays online-only before and after IndexedDB writer handoff', async (t) => {
+test('broker-unavailable peer negative overrides positive before and after IndexedDB writer handoff', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const indexedDB = new IDBFactory();
   const lockManager = createContendedLockManager();
@@ -3384,12 +3390,12 @@ test('broker-unavailable peer negative stays online-only before and after Indexe
       args: { title: 'must-not-use-process-positive' },
       clientMutationId: 'cm-peer-negative',
     }),
-    (error) => isSnapbackDiagnosticError(error) && error.cause instanceof TypeError,
+    (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
   );
   assert.equal(
     mutationCalls,
-    1,
-    'the bound follower answered negative permits one online-only mutation POST',
+    0,
+    'the bound follower negative supersedes the positive without a mutation POST',
   );
   assert.deepEqual(await writerStore.outboxRecords(), [], 'the bound follower queues no durable intent');
 
@@ -3416,12 +3422,12 @@ test('broker-unavailable peer negative stays online-only before and after Indexe
       args: { title: 'must-remain-negative-after-handoff' },
       clientMutationId: 'cm-peer-negative-handoff',
     }),
-    (error) => isSnapbackDiagnosticError(error) && error.cause instanceof TypeError,
+    (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
   );
   assert.equal(
     mutationCalls,
-    1,
-    'writer takeover keeps the mutation online-only instead of resurrecting cached support',
+    0,
+    'writer takeover preserves the negative refusal without a mutation POST',
   );
   assert.deepEqual(await followerStore.outboxRecords(), [], 'handoff still queues nothing');
 
@@ -3443,12 +3449,12 @@ test('broker-unavailable peer negative stays online-only before and after Indexe
       args: { title: 'new-context-must-observe-takeover-negative' },
       clientMutationId: 'cm-peer-negative-new-context',
     }),
-    (error) => isSnapbackDiagnosticError(error) && error.cause instanceof TypeError,
+    (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
   );
   assert.equal(
     newcomerMutationCalls,
-    1,
-    'a new bound client uses the durable negative for one online-only mutation POST',
+    0,
+    'a new bound client observes the durable negative without a mutation POST',
   );
   assert.deepEqual(
     await newcomerStore.outboxRecords(),
@@ -3757,7 +3763,7 @@ test('repointing a client drops a local negative override from the previous orig
   await store.close();
 });
 
-test('a rejected answered-negative capability commit keeps bound mutation admission online-only', async (t) => {
+test('a rejected answered-negative commit still overrides the predecessor positive locally', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
   const origin = 'https://rejected-capability-commit.example';
@@ -3808,15 +3814,17 @@ test('a rejected answered-negative capability commit keeps bound mutation admiss
       'the rejected shared commit leaves the predecessor bytes unchanged',
     );
     inspectionMode = 'transport-lost';
-    const localOverride = await client.mutate('createThing', {
-      args: { title: 'local negative still wins' },
-      clientMutationId: 'cm-rejected-answered-negative-follow-up',
-    });
-    assert.equal(localOverride.status, 'settled');
+    await assert.rejects(
+      () => client.mutate('createThing', {
+        args: { title: 'local negative still wins' },
+        clientMutationId: 'cm-rejected-answered-negative-follow-up',
+      }),
+      (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
+    );
     assert.equal(
       mutationPosts,
-      2,
-      'the local negative override keeps a later no-response probe online-only',
+      1,
+      'the local negative override refuses a later unavailable probe without another POST',
     );
     assert.deepEqual(await store.outboxRecords(), [], 'the shared predecessor positive is never queued');
   } finally {
@@ -3881,9 +3889,9 @@ test('an answered negative overrides cached support before durable replacement s
     await negativeInspection;
     await assert.rejects(
       () => mutation,
-      (error) => isSnapbackDiagnosticError(error) && error.cause instanceof TypeError,
+      (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
     );
-    assert.equal(mutationCalls, 1, 'the parallel mutation dispatches online-only after replacement');
+    assert.equal(mutationCalls, 0, 'the parallel mutation sends no POST after replacement');
     assert.deepEqual(await store.outboxRecords(), [], 'the predecessor positive queues nothing');
   } finally {
     releaseNegativeCommit();
@@ -4193,9 +4201,9 @@ const exerciseCrossClientCapabilityOrdering = async ({
         args: { title: `${label}-negative-stays-closed` },
         clientMutationId: `cm-${label}-negative-stays-closed`,
       }),
-      (error) => isSnapbackDiagnosticError(error) && error.cause instanceof TypeError,
+      (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
     );
-    assert.equal(offlineMutationPosts, 1, `${label}: stale positive licenses no enqueue, only an online POST`);
+    assert.equal(offlineMutationPosts, 0, `${label}: the durable negative licenses no mutation POST`);
     assert.deepEqual(
       await writerStore.outboxPending(),
       [],
@@ -4742,7 +4750,7 @@ test('replay final served-target reinspection wins before a delayed peer fact co
     assert.equal(replay.stopped, true);
     assert.equal(
       client.outboxDiagnostics.at(-1)?.code,
-      'SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH',
+      'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
     );
     assert.equal((await readCapabilityFact()).supported, false);
     assert.deepEqual(
@@ -6256,12 +6264,20 @@ test('a 502 lifecycle answer is in-flight deduplication only and a later read re
   };
 
   await client.query('listThings');
-  const negative = await waitForOfflineReplayCapabilityFact(
-    store,
-    (fact) => fact.supported === false && fact.reason === 'inspection-refused',
-    'the answered 502 capability fact',
+  const unavailable = await client.whenOfflineMutationReplayCapabilitySettled();
+  assert.equal(unavailable.supported, false);
+  assert.equal(unavailable.reason, 'inspection-unavailable');
+  assert.deepEqual(
+    await store.readOfflineMutationReplayCapabilityFact(),
+    {},
+    'the answered 502 leaves the durable fact slot untouched',
   );
-  assert.equal(negative.storeRevision, 1);
+  assert.deepEqual((await client.outboxStatus()).offlineMutationReplayInspection, {
+    status: 'unavailable',
+    reason: 'answered-unavailable',
+    code: 'SNAPBACK_HTTP_ERROR',
+    httpStatus: 502,
+  });
 
   await client.query('listThings');
   const recovered = await waitForOfflineReplayCapabilityFact(
@@ -6270,7 +6286,7 @@ test('a 502 lifecycle answer is in-flight deduplication only and a later read re
     'a later successful lifecycle capability recovery',
   );
   assert.equal(inspectCalls, 2, 'the settled negative promise is not retained as a cache');
-  assert.equal(recovered.storeRevision, 2);
+  assert.equal(recovered.storeRevision, 1);
   await store.close();
 });
 
@@ -6308,7 +6324,7 @@ test('automatic mode never reuses a positive fact from another canonical origin'
   await store.close();
 });
 
-test('replay requires a fresh positive inspection after cached support and refuses 404/502 answers', async (t) => {
+test('replay requires a fresh positive inspection; 404 is durable negative and 502 is unavailable', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
 
   for (const status of [404, 502]) {
@@ -6343,11 +6359,22 @@ test('replay requires a fresh positive inspection after cached support and refus
     );
     assert.equal(mutationCalls, 0, `HTTP ${status} answer prevents mutation POST`);
     assert.equal((await store.outboxPending()).length, 1, 'refusal preserves pending custody');
+    const retainedFact = await store.readOfflineMutationReplayCapabilityFact();
     assert.equal(
-      (await store.readOfflineMutationReplayCapabilityFact()).supported,
-      false,
-      `HTTP ${status} replaces the cached positive fact`,
+      retainedFact.supported,
+      status === 404 ? false : true,
+      status === 404
+        ? 'HTTP 404 replaces the cached positive fact'
+        : 'HTTP 502 preserves the cached positive fact',
     );
+    if (status === 502) {
+      assert.deepEqual((await client.outboxStatus()).offlineMutationReplayInspection, {
+        status: 'unavailable',
+        reason: 'answered-unavailable',
+        code: 'SNAPBACK_HTTP_ERROR',
+        httpStatus: 502,
+      });
+    }
     await store.close();
   }
 });

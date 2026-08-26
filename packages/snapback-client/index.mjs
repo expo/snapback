@@ -3625,6 +3625,54 @@ const offlineMutationReplayCapabilityFactFromAnsweredError = (cause, origin) => 
   cause,
 });
 
+// @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 — every
+// inspect path uses one answer classifier. No-Response loss and an answered
+// proxy/unavailable response are local observations only; an answering 4xx or
+// a parsed manifest response is durable target evidence.
+const offlineMutationReplayInspectionErrorStatus = (error) => (
+  Number.isInteger(error?.status)
+    ? error.status
+    : Number.isInteger(error?.diagnostic?.details?.status)
+      ? error.diagnostic.details.status
+      : null
+);
+
+const isOfflineMutationReplayInspectionUnavailableError = (error) => {
+  if (isConnectivityFailureError(error)) return true;
+  const status = offlineMutationReplayInspectionErrorStatus(error);
+  return status === null || status < 400 || status >= 500;
+};
+
+const offlineMutationReplayInspectionOutcome = ({ origin, inspection, error = null }) => {
+  if (error === null) {
+    return Object.freeze({
+      kind: 'fact',
+      fact: offlineMutationReplayCapabilityFactFromInspection(inspection, origin),
+      cause: null,
+    });
+  }
+  if (!isOfflineMutationReplayInspectionUnavailableError(error)) {
+    return Object.freeze({
+      kind: 'fact',
+      fact: offlineMutationReplayCapabilityFactFromAnsweredError(error, origin),
+      cause: error,
+    });
+  }
+  return Object.freeze({
+    kind: 'unavailable',
+    observation: Object.freeze({
+      origin,
+      status: 'unavailable',
+      reason: isConnectivityFailureError(error)
+        ? 'transport-loss'
+        : 'answered-unavailable',
+      code: error?.diagnostic?.code ?? error?.code ?? null,
+      httpStatus: offlineMutationReplayInspectionErrorStatus(error),
+    }),
+    cause: error,
+  });
+};
+
 const normalizeOfflineMutationReplayCapabilityFact = (value) => {
   if (
     value === null
@@ -3651,6 +3699,10 @@ const normalizeOfflineMutationReplayCapabilityFact = (value) => {
     || !(
       value.storeRevision === undefined
       || (Number.isSafeInteger(value.storeRevision) && value.storeRevision >= 1)
+    )
+    || !(
+      value.supersedesPositive === undefined
+      || typeof value.supersedesPositive === 'boolean'
     )
     || !(
       value.requestSequence === undefined
@@ -3682,8 +3734,27 @@ const normalizeOfflineMutationReplayCapabilityFact = (value) => {
       ? {}
       : { requestSequence: value.requestSequence }),
     ...(value.storeRevision === undefined ? {} : { storeRevision: value.storeRevision }),
+    ...(value.supersedesPositive === true ? { supersedesPositive: true } : {}),
   });
 };
+
+const sameOfflineMutationReplayCapabilityFactMeaning = (left, right) => (
+  left?.origin === right?.origin
+  && left?.supported === right?.supported
+  && left?.reason === right?.reason
+  && left?.targetProfileId === right?.targetProfileId
+  && left?.supersedesPositive === right?.supersedesPositive
+  && sameOptionalLedgerIncarnation(
+    left?.ledgerIncarnation ?? null,
+    right?.ledgerIncarnation ?? null,
+  )
+  && (
+    left?.artifactGeneration === null
+      ? right?.artifactGeneration === null
+      : right?.artifactGeneration !== null
+        && sameArtifactGeneration(left.artifactGeneration, right.artifactGeneration)
+  )
+);
 
 // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 — fact
 // revisions order observations; positive authority is semantic target identity.
@@ -4160,6 +4231,7 @@ export class SnapbackClient {
     this.__offlineMutationReplayCapability = __offlineMutationReplayCapability;
     this.__observedOfflineMutationReplayCapability = null;
     this.__offlineMutationReplayCapabilityLocalOverride = null;
+    this.__offlineMutationReplayInspectionUnavailable = null;
     this.__offlineMutationReplayCapabilityLocalOverrideRequestSequence = null;
     this.__offlineMutationReplayCapabilityRequestSequence = 0;
     this.__offlineMutationReplayCapabilityLastAnsweredRequestSequence = 0;
@@ -7952,6 +8024,7 @@ export class SnapbackClient {
 
   async #inspectWithOfflineMutationReplayCapabilitySequence(
     transportTarget = pinOfflineMutationTransportTarget(this.baseUrl),
+    { wakeDrain = true } = {},
   ) {
     const origin = transportTarget.origin;
     const observation = await this.#beginOfflineMutationReplayCapabilityObservation();
@@ -7968,22 +8041,29 @@ export class SnapbackClient {
         },
       );
     } catch (cause) {
-      // An HTTP answer is current target evidence even when it is a refusal
-      // or proxy error. Only a request that produced no Response preserves
-      // the predecessor fact for a possible automatic enqueue fallback.
-      if (!isConnectivityFailureError(cause)) {
+      const outcome = offlineMutationReplayInspectionOutcome({ origin, error: cause });
+      if (outcome.kind === 'unavailable') {
+        this.#recordOfflineMutationReplayInspectionUnavailable(
+          outcome.observation,
+          transportTarget,
+          { wakeDrain },
+        );
+      } else {
         await this.#recordOfflineMutationReplayCapabilityFact(
-          offlineMutationReplayCapabilityFactFromAnsweredError(cause, origin),
+          outcome.fact,
           observation,
           transportTarget,
+          { wakeDrain },
         );
       }
       throw cause;
     }
+    const outcome = offlineMutationReplayInspectionOutcome({ origin, inspection });
     const recorded = await this.#recordOfflineMutationReplayCapabilityFact(
-      offlineMutationReplayCapabilityFactFromInspection(inspection, origin),
+      outcome.fact,
       observation,
       transportTarget,
+      { wakeDrain },
     );
     return Object.freeze({
       inspection,
@@ -7994,26 +8074,43 @@ export class SnapbackClient {
   }
 
   // Replay already owns the authorization-dispatch gate at the final POST
-  // slot. Re-entering the ordinary inspection recorder there would deadlock
-  // on its exclusive fact commit, so this narrow observation reads the same
-  // served manifest without mutating shared capability custody.
-  async #inspectOfflineMutationReplayTargetWithoutCommit(transportTarget) {
-    const inspection = await this.#req(
-      'GET',
-      '/inspect',
-      undefined,
-      this.#authOfferHeaders(false),
-      {
-        rejectRedirects: true,
-        transportBaseUrl: transportTarget.baseUrl,
-      },
-    );
-    return normalizeOfflineMutationReplayCapabilityFact(
-      offlineMutationReplayCapabilityFactFromInspection(
+  // slot. Reserve and classify there, then let the caller commit the returned
+  // fact or publish the local unavailability observation only after releasing
+  // the gate.
+  async #inspectOfflineMutationReplayTargetDeferredCommit(transportTarget) {
+    const observation = await this.#beginOfflineMutationReplayCapabilityObservation();
+    let outcome;
+    try {
+      const inspection = await this.#req(
+        'GET',
+        '/inspect',
+        undefined,
+        this.#authOfferHeaders(false),
+        {
+          rejectRedirects: true,
+          transportBaseUrl: transportTarget.baseUrl,
+        },
+      );
+      outcome = offlineMutationReplayInspectionOutcome({
+        origin: transportTarget.origin,
         inspection,
-        transportTarget.origin,
-      ),
-    );
+      });
+    } catch (cause) {
+      outcome = offlineMutationReplayInspectionOutcome({
+        origin: transportTarget.origin,
+        error: cause,
+      });
+    }
+    return Object.freeze({
+      kind: outcome.kind,
+      fact: outcome.kind === 'fact' ? outcome.fact : null,
+      unavailableObservation: outcome.kind === 'unavailable'
+        ? outcome.observation
+        : null,
+      factObservation: observation,
+      transportTarget,
+      cause: outcome.cause,
+    });
   }
 
   async inspect() {
@@ -8025,12 +8122,60 @@ export class SnapbackClient {
   // @ref LLP 0058#target-capability-registry-amendment--offline-mutation-replay-2026-08-12 —
   // a missing capability gap is never positive support; inspect the closed
   // supportedCapabilities set on both local and Cloudflare payload shapes.
-  async #recordOfflineMutationReplayCapabilityFact(fact, observation, transportTarget = null) {
+  #recordOfflineMutationReplayInspectionUnavailable(
+    observation,
+    transportTarget = null,
+    { wakeDrain = true } = {},
+  ) {
+    if (
+      observation?.status !== 'unavailable'
+      || typeof observation.origin !== 'string'
+      || (
+        transportTarget !== null
+        && canonicalServerOrigin(observation.origin) !== transportTarget.origin
+      )
+    ) return false;
+    const previous = this.__offlineMutationReplayInspectionUnavailable;
+    this.__offlineMutationReplayInspectionUnavailable = Object.freeze({ ...observation });
+    if (
+      previous?.origin !== observation.origin
+      || previous?.reason !== observation.reason
+      || previous?.code !== observation.code
+      || previous?.httpStatus !== observation.httpStatus
+    ) {
+      this.#notifyOutboxListeners(Object.freeze({
+        kind: 'offline-mutation-replay-inspection',
+        drainWake: wakeDrain,
+      }));
+    }
+    return true;
+  }
+
+  #offlineMutationReplayInspectionUnavailableProjection() {
+    const observation = this.__offlineMutationReplayInspectionUnavailable;
+    if (
+      observation === null
+      || canonicalServerOrigin(observation.origin) !== canonicalServerOrigin(this.baseUrl)
+    ) return null;
+    return Object.freeze({
+      status: 'unavailable',
+      reason: observation.reason,
+      code: observation.code,
+      httpStatus: observation.httpStatus,
+    });
+  }
+
+  async #recordOfflineMutationReplayCapabilityFact(
+    fact,
+    observation,
+    transportTarget = null,
+    { wakeDrain = true } = {},
+  ) {
     const result = (recordedFact, committed = null) => Object.freeze({
       fact: recordedFact,
       committed,
     });
-    const normalized = normalizeOfflineMutationReplayCapabilityFact(fact);
+    let normalized = normalizeOfflineMutationReplayCapabilityFact(fact);
     if (normalized === null) return result(null, false);
     if (
       transportTarget !== null
@@ -8042,6 +8187,32 @@ export class SnapbackClient {
         false,
       );
     }
+    const previousFact = await this.#currentOfflineMutationReplayCapabilityFact(transportTarget);
+    if (
+      normalized.supported === false
+      && (
+        previousFact?.supported === true
+        || previousFact?.supersedesPositive === true
+      )
+    ) {
+      normalized = Object.freeze({ ...normalized, supersedesPositive: true });
+    }
+    let publishedFact = previousFact;
+    let clearedUnavailable = this.__offlineMutationReplayInspectionUnavailable !== null;
+    this.__offlineMutationReplayInspectionUnavailable = null;
+    const publishFact = (nextFact) => {
+      if (
+        clearedUnavailable
+        || !sameOfflineMutationReplayCapabilityFactMeaning(publishedFact, nextFact)
+      ) {
+        this.#notifyOutboxListeners(Object.freeze({
+          kind: 'offline-mutation-replay-capability',
+          drainWake: wakeDrain,
+        }));
+      }
+      clearedUnavailable = false;
+      publishedFact = nextFact;
+    };
     const requestSequence = observation?.requestSequence;
     if (
       !Number.isSafeInteger(requestSequence)
@@ -8065,16 +8236,13 @@ export class SnapbackClient {
       this.__offlineMutationReplayCapabilityLocalOverride = localNegativeOverride;
       this.__offlineMutationReplayCapabilityLocalOverrideRequestSequence = requestSequence;
       this.__observedOfflineMutationReplayCapability = localNegativeOverride;
+      publishFact(localNegativeOverride);
     } else if (
       this.__offlineMutationReplayCapabilityLocalOverride?.origin === normalized.origin
     ) {
       this.__offlineMutationReplayCapabilityLocalOverride = null;
       this.__offlineMutationReplayCapabilityLocalOverrideRequestSequence = null;
     }
-    // Capability identity is part of mutation disposition and optimistic-layer
-    // projection. Wake observers for the answered local fact; disposition
-    // deduplication suppresses callbacks when no observable field changed.
-    this.#notifyOutboxListeners();
     const commit = async () => {
       if (this.__clientClosed) {
         return result(
@@ -8121,7 +8289,7 @@ export class SnapbackClient {
             // answered negative as the local fail-closed override instead of
             // resurrecting the predecessor shared positive.
             this.__observedOfflineMutationReplayCapability = normalized;
-            this.#notifyOutboxListeners();
+            publishFact(normalized);
             return result(normalized, false);
           }
           if (shared !== null) {
@@ -8133,7 +8301,7 @@ export class SnapbackClient {
               this.__offlineMutationReplayCapabilityLocalOverride = null;
               this.__offlineMutationReplayCapabilityLocalOverrideRequestSequence = null;
             }
-            this.#notifyOutboxListeners();
+            publishFact(shared);
             return result(shared, true);
           }
           if (committed !== false) {
@@ -8147,7 +8315,7 @@ export class SnapbackClient {
                 this.__offlineMutationReplayCapabilityLocalOverride = null;
                 this.__offlineMutationReplayCapabilityLocalOverrideRequestSequence = null;
               }
-              this.#notifyOutboxListeners();
+              publishFact(shared);
               return result(shared, true);
             }
           }
@@ -8158,7 +8326,7 @@ export class SnapbackClient {
         && requestSequence === this.__offlineMutationReplayCapabilityLastAnsweredRequestSequence
       ) {
         this.__observedOfflineMutationReplayCapability = normalized;
-        this.#notifyOutboxListeners();
+        publishFact(normalized);
       }
       return result(normalized, null);
     };
@@ -8205,6 +8373,7 @@ export class SnapbackClient {
     allowCachedForEnqueue = false,
     expectedGeneration = null,
     operationTarget = null,
+    wakeDrain = true,
   } = {}) {
     const transportTarget = operationTarget
       ?? pinOfflineMutationTransportTarget(this.baseUrl, expectedGeneration);
@@ -8247,14 +8416,19 @@ export class SnapbackClient {
     let inspectionRequestSequence;
     try {
       ({ inspection, fact, factCommitted, inspectionRequestSequence } = await (
-        this.#inspectWithOfflineMutationReplayCapabilitySequence(transportTarget)
+        this.#inspectWithOfflineMutationReplayCapabilitySequence(
+          transportTarget,
+          { wakeDrain },
+        )
       ));
     } catch (cause) {
       // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 —
-      // only queue:'auto' may reuse a target-bound prior positive after a
-      // genuine no-Response transport loss. Answered HTTP errors replace it,
-      // and replay never sets allowCachedForEnqueue.
-      if (allowCachedForEnqueue && isConnectivityFailureError(cause)) {
+      // only queue:'auto' may reuse a target-bound prior positive after an
+      // unavailable inspection. Replay never sets allowCachedForEnqueue.
+      if (
+        allowCachedForEnqueue
+        && isOfflineMutationReplayInspectionUnavailableError(cause)
+      ) {
         const cached = await this.#cachedOfflineMutationReplayCapabilityFact(
           expectedGeneration,
           transportTarget,
@@ -8275,10 +8449,21 @@ export class SnapbackClient {
             operationTarget: completedTarget,
           });
         }
+        const current = await this.#currentOfflineMutationReplayCapabilityFact(
+          transportTarget,
+        );
+        if (current?.supported === false && current.supersedesPositive === true) {
+          return Object.freeze({
+            ...current,
+            evidence: 'cached-negative',
+            inspectionRequestSequence: null,
+            operationTarget: transportTarget,
+          });
+        }
       }
       return Object.freeze({
         supported: false,
-        reason: isConnectivityFailureError(cause)
+        reason: isOfflineMutationReplayInspectionUnavailableError(cause)
           ? 'inspection-unavailable'
           : 'inspection-refused',
         targetProfileId: null,
@@ -8431,8 +8616,14 @@ export class SnapbackClient {
     return this.__offlineMutationReplayLifecycleSettlement;
   }
 
-  async #requireOfflineMutationReplayCapability(operationTarget = null) {
-    const fact = await this.#offlineMutationReplayCapabilityFact({ operationTarget });
+  async #requireOfflineMutationReplayCapability(
+    operationTarget = null,
+    { wakeDrain = true } = {},
+  ) {
+    const fact = await this.#offlineMutationReplayCapabilityFact({
+      operationTarget,
+      wakeDrain,
+    });
     if (!fact.supported) throw offlineQueueSettlementLedgerError(fact);
     return fact;
   }
@@ -11821,9 +12012,9 @@ export class SnapbackClient {
     return this.__clientDiagnosticsChannel;
   }
 
-  #notifyOutboxListeners() {
+  #notifyOutboxListeners(notification = undefined) {
     for (const listener of [...this.__outboxListeners]) {
-      try { listener(); } catch { /* observation cannot own the queue */ }
+      try { listener(notification); } catch { /* observation cannot own the queue */ }
     }
   }
 
@@ -11856,6 +12047,8 @@ export class SnapbackClient {
     const registeredController = outboxDrainControllersByStore.get(store) ?? null;
     if (registeredController !== null) this.__outboxDrainController = registeredController;
     const controllerStatus = registeredController?.status?.() ?? null;
+    const replayInspectionUnavailable =
+      this.#offlineMutationReplayInspectionUnavailableProjection();
     let pending = 0;
     let failed = 0;
     let stranded = 0;
@@ -11919,6 +12112,9 @@ export class SnapbackClient {
       lastAttemptAtMs: controllerStatus?.lastAttemptAtMs ?? null,
       nextRetryAtMs: controllerStatus?.nextRetryAtMs ?? null,
       blockedReason,
+      ...(replayInspectionUnavailable === null
+        ? {}
+        : { offlineMutationReplayInspection: replayInspectionUnavailable }),
     });
   }
 
@@ -13007,7 +13203,11 @@ export class SnapbackClient {
         };
         participant.handle = participantHandle(participant);
         participant.cleanups.push(
-          client.subscribeOutbox(() => lifecycle.noteOutboxTransition()),
+          client.subscribeOutbox((notification) => (
+            notification?.drainWake === false
+              ? undefined
+              : lifecycle.noteOutboxTransition()
+          )),
           client.subscribeAuthTerminal(() => lifecycle.wake('participant-authority-transition')),
           client.subscribeAuthorityTransition((status) => {
             if (status.settled) lifecycle.wake('settled-authority');
@@ -13407,11 +13607,17 @@ export class SnapbackClient {
         // Gate the controller before custody reconciliation or a freshness
         // barrier can touch a ledger-less target. The private replay core
         // repeats this check because callers may use it without a controller.
-        await this.#requireOfflineMutationReplayCapability();
+        await this.#requireOfflineMutationReplayCapability(null, { wakeDrain: false });
       } catch (error) {
         if (running) {
           const code = error?.diagnostic?.code ?? error?.code ?? 'unavailable';
-          if (code === OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED) {
+          const reason = error?.diagnostic?.details?.reason ?? null;
+          if (
+            code === OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED
+            && reason === 'inspection-unavailable'
+          ) {
+            scheduleBackoff(`capability-transient:${code}`);
+          } else if (code === OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED) {
             this.__outboxLastReplayStop = Object.freeze({
               kind: 'terminal',
               reason: `target-capability-refused:${code}`,
@@ -13484,7 +13690,13 @@ export class SnapbackClient {
       } catch (error) {
         if (running) {
           const code = error?.diagnostic?.code ?? error?.code ?? 'unavailable';
-          if (code === OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED) {
+          const reason = error?.diagnostic?.details?.reason ?? null;
+          if (
+            code === OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED
+            && reason === 'inspection-unavailable'
+          ) {
+            scheduleBackoff(`capability-transient:${code}`);
+          } else if (code === OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED) {
             this.__outboxLastReplayStop = Object.freeze({
               kind: 'terminal',
               reason: `target-capability-refused:${code}`,
@@ -13597,7 +13809,9 @@ export class SnapbackClient {
     handle = Object.freeze({
       drainNow: async () => {
         const pending = await scanPending();
-        if (pending.length > 0) await this.#requireOfflineMutationReplayCapability();
+        if (pending.length > 0) {
+          await this.#requireOfflineMutationReplayCapability(null, { wakeDrain: false });
+        }
         return requestCycle('manual', { manual: true });
       },
       stop,
@@ -13837,6 +14051,7 @@ export class SnapbackClient {
       }
       const capability = await this.#requireOfflineMutationReplayCapability(
         replayTransportTarget,
+        { wakeDrain: false },
       );
       replayCapabilityFact = capability;
       replayCapabilityRequestSequence = capability.inspectionRequestSequence;
@@ -13881,6 +14096,7 @@ export class SnapbackClient {
       );
       let preparationFence = null;
       let replayAuthority = null;
+      let deferredReplayCapabilityFact = null;
       let authorizationDispatchRelease = null;
       let authorizationDispatchSettlement = Promise.resolve();
       const releaseAuthorizationDispatch = () => {
@@ -14189,13 +14405,25 @@ export class SnapbackClient {
               let immediateCapability = null;
               if (this.__offlineMutationReplayCapability === null) {
                 try {
-                  immediateCapability = await this.#inspectOfflineMutationReplayTargetWithoutCommit(
+                  const deferred = await this.#inspectOfflineMutationReplayTargetDeferredCommit(
                     replayOperationTarget,
+                  );
+                  deferredReplayCapabilityFact = deferred;
+                  if (deferred.kind === 'unavailable') throw deferred.cause;
+                  immediateCapability = normalizeOfflineMutationReplayCapabilityFact(
+                    deferred.fact,
                   );
                 } catch (error) {
                   if (isConnectivityFailureError(error)) throw error;
                   throw outboxReplayInspectionUnavailableError(error, record.id);
                 }
+              }
+              if (immediateCapability?.supported === false) {
+                throw offlineQueueSettlementLedgerError({
+                  cause: deferredReplayCapabilityFact?.cause,
+                  reason: immediateCapability.reason ?? 'not-advertised',
+                  targetProfileId: immediateCapability.targetProfileId,
+                });
               }
               const immediateTarget = immediateCapability === null
                 ? replayOperationTarget
@@ -14407,7 +14635,7 @@ export class SnapbackClient {
           });
           replayStop.value = Object.freeze({
             kind: 'paused',
-            reason: 'replay-paused:capability-superseded',
+            reason: `target-capability-refused:${error.code}`,
           });
           stopped = true;
           break;
@@ -14653,6 +14881,22 @@ export class SnapbackClient {
         });
       } finally {
         await releaseAuthorizationDispatch();
+        if (deferredReplayCapabilityFact !== null) {
+          if (deferredReplayCapabilityFact.kind === 'unavailable') {
+            this.#recordOfflineMutationReplayInspectionUnavailable(
+              deferredReplayCapabilityFact.unavailableObservation,
+              deferredReplayCapabilityFact.transportTarget,
+              { wakeDrain: false },
+            );
+          } else {
+            await this.#recordOfflineMutationReplayCapabilityFact(
+              deferredReplayCapabilityFact.fact,
+              deferredReplayCapabilityFact.factObservation,
+              deferredReplayCapabilityFact.transportTarget,
+              { wakeDrain: false },
+            );
+          }
+        }
       }
     }
     let remaining = 0;
@@ -14956,6 +15200,9 @@ export class SnapbackClient {
           operationTarget,
         });
         if (capability.supported !== true) {
+          if (capability.evidence === 'cached-negative') {
+            throw offlineQueueSettlementLedgerError(capability);
+          }
           queue = false;
         }
       } else if (queue === 'auto') {
@@ -15108,6 +15355,9 @@ export class SnapbackClient {
         queueCapabilityRequestSequence = capability.inspectionRequestSequence;
         operationTarget = capability.operationTarget ?? operationTarget;
       } else {
+        if (capability.evidence === 'cached-negative') {
+          throw offlineQueueSettlementLedgerError(capability);
+        }
         // Automatic mode on a ledger-less or inspection-unavailable target is
         // an ordinary online-only write. Clear all operation-local queue
         // authority so no record or ambiguous-response fallback can be minted.

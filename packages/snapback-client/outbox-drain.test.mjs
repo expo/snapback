@@ -1094,23 +1094,24 @@ test('transient-failure retry: connectivity replay failure retries on backoff wi
   assert.equal((await client.mutationStatus('cm-transient')).status, 'settled');
 });
 
-test('answered pre-POST inspect failure retries on backoff without an external wake', async (t) => {
+test('production drain bounds persistent 502 inspection retries and recovers on the capped timer', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
-  const origin = 'https://drain-pre-post-inspection.test';
+  const origin = 'https://drain-cycle-inspection-502.test';
   const store = createDurableTestStore();
-  await enqueue(store, 'cm-pre-post-inspection', origin);
+  await enqueue(store, 'cm-cycle-inspection-502', origin);
+  const timers = new FakeTimers();
   let inspectionRequests = 0;
   let mutationPosts = 0;
-  let inspectionAvailable = true;
-  let client;
+  let inspectionAvailable = false;
+  let controller = null;
   globalThis.fetch = async (url, init = {}) => {
     const path = new URL(url).pathname;
     if (path === '/inspect') {
       inspectionRequests += 1;
-      client.__offlineMutationReplayCapability = true;
       if (inspectionAvailable) {
         return Response.json(replayInspection());
       }
+      if (inspectionRequests === 8 && timers.delays.length === 0) controller?.stop();
       return Response.json({
         diagnostic: { code: 'HTTP_502', message: 'proxy inspection unavailable' },
       }, { status: 502 });
@@ -1120,40 +1121,283 @@ test('answered pre-POST inspect failure retries on backoff without an external w
       mutationPosts += 1;
       return settlement();
     }
-    throw new Error(`unexpected pre-POST inspection request ${path}`);
+    throw new Error(`unexpected cycle inspection request ${path}`);
   };
-  client = new SnapbackClient(origin, {
+  const client = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  client.__registerInspectionAppId(DRAIN_GENERATION.appId);
+  controller = client.startOutboxDrain({ timer: timers });
+  t.after(() => controller.stop());
+
+  await waitFor(
+    () => controller.status().drainPhase === 'backoff' || inspectionRequests === 8,
+    'first 502 backoff',
+  );
+  for (let index = 0; index < 20; index += 1) await tick();
+  assert.equal(inspectionRequests, 1, 'a queued wake cannot outrun the 250 ms retry timer');
+  assert.equal(timers.pendingCount, 1);
+  assert.equal(timers.delays[0], 250);
+  assert.equal(controller.status().drainPhase, 'backoff');
+  assert.equal(mutationPosts, 0, 'no mutation POST is sent while inspection is unavailable');
+  assert.equal((await client.mutationStatus('cm-cycle-inspection-502')).status, 'pending');
+  assert.equal(
+    (await store.readOfflineMutationReplayCapabilityFact()).supported,
+    true,
+    'answered 502 observations never replace the durable positive fact',
+  );
+  assert.deepEqual((await client.outboxStatus()).offlineMutationReplayInspection, {
+    status: 'unavailable',
+    reason: 'answered-unavailable',
+    code: 'HTTP_502',
+    httpStatus: 502,
+  });
+
+  for (let retry = 0; retry < 7; retry += 1) {
+    const before = inspectionRequests;
+    await timers.runNext();
+    await waitFor(() => inspectionRequests === before + 1, `502 retry ${retry + 1}`);
+    await waitFor(() => timers.delays.length === retry + 2, `502 timer ${retry + 2}`);
+    assert.equal(mutationPosts, 0);
+  }
+  assert.deepEqual(
+    timers.delays.slice(0, 8),
+    [250, 500, 1_000, 2_000, 4_000, 8_000, 16_000, 30_000],
+    'exponential retry delay is capped at 30 seconds',
+  );
+  assert.equal(timers.pendingCount, 1);
+
+  inspectionAvailable = true;
+  await timers.runNext();
+  await waitFor(() => mutationPosts === 1, 'timer-owned replay after inspection recovery');
+  assert.equal((await client.mutationStatus('cm-cycle-inspection-502')).status, 'settled');
+});
+
+test('an initial 502 inspect is a local unavailable observation and commits no durable fact', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const origin = 'https://drain-initial-inspection-502.test';
+  const store = createDurableTestStore();
+  globalThis.fetch = async (url) => {
+    assert.equal(new URL(url).pathname, '/inspect');
+    return Response.json({
+      diagnostic: { code: 'HTTP_502', message: 'proxy inspection unavailable' },
+    }, { status: 502 });
+  };
+  const client = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+
+  await assert.rejects(
+    () => client.inspect(),
+    (error) => error?.status === 502,
+  );
+  assert.deepEqual(await store.readOfflineMutationReplayCapabilityFact(), {});
+  assert.deepEqual((await client.outboxStatus()).offlineMutationReplayInspection, {
+    status: 'unavailable',
+    reason: 'answered-unavailable',
+    code: 'HTTP_502',
+    httpStatus: 502,
+  });
+});
+
+test("a 502 and transport loss preserve positive enqueue-only evidence for queue:'auto'", async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const origin = 'https://drain-enqueue-inspection-unavailable.test';
+  const store = createDurableTestStore();
+  let inspectMode = 'positive';
+  let mutationPosts = 0;
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+    if (path === '/inspect') {
+      if (inspectMode === 'positive') return Response.json(replayInspection());
+      if (inspectMode === '502') {
+        return Response.json({
+          diagnostic: { code: 'HTTP_502', message: 'proxy inspection unavailable' },
+        }, { status: 502 });
+      }
+      throw new TypeError('backend offline after proxy loss');
+    }
+    if (path === '/mutation/createThing') {
+      mutationPosts += 1;
+      throw new TypeError('mutation transport must stay enqueue-only');
+    }
+    throw new Error(`unexpected enqueue inspection request ${path}`);
+  };
+  const client = new InspectingSnapbackClient(origin, {
     rqsStore: store,
     __outboxDrainLifecycle: false,
   });
   client.__registerInspectionAppId(DRAIN_GENERATION.appId);
   await client.inspect();
-  inspectionAvailable = false;
-  const prepareSubmission = store.outboxPrepareSubmission.bind(store);
-  store.outboxPrepareSubmission = async (...args) => {
-    const prepared = await prepareSubmission(...args);
-    if (prepared?.status === 'ready' && args[1]?.markDispatched !== true) {
-      client.__offlineMutationReplayCapability = null;
+  inspectMode = '502';
+  await assert.rejects(() => client.inspect(), (error) => error?.status === 502);
+  inspectMode = 'offline';
+
+  const queued = await client.mutate('createThing', {
+    args: { id: 'cm-enqueue-inspection-unavailable' },
+    clientMutationId: 'cm-enqueue-inspection-unavailable',
+    queue: 'auto',
+  });
+  assert.equal(queued.status, 'queued');
+  assert.equal(mutationPosts, 0);
+  assert.deepEqual(
+    (await store.outboxPending()).map((record) => record.id),
+    ['cm-enqueue-inspection-unavailable'],
+  );
+  assert.equal((await store.readOfflineMutationReplayCapabilityFact()).supported, true);
+  assert.deepEqual((await client.outboxStatus()).offlineMutationReplayInspection, {
+    status: 'unavailable',
+    reason: 'transport-loss',
+    code: 'SNAPBACK_CLIENT_REFUSED',
+    httpStatus: null,
+  });
+});
+
+test("a final 502 replay inspect records unavailability and leaves cached auto enqueue usable", async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const origin = 'https://drain-final-inspection-502.test';
+  const store = createDurableTestStore();
+  await enqueue(store, 'cm-final-inspection-502-replay', origin);
+  const timers = new FakeTimers();
+  let inspectRequests = 0;
+  let inspectMode = 'replay';
+  let mutationPosts = 0;
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    if (path === '/inspect') {
+      inspectRequests += 1;
+      if (inspectMode === 'offline') throw new TypeError('backend offline after final inspect');
+      if (inspectRequests === 3) {
+        return Response.json({
+          diagnostic: { code: 'HTTP_502', message: 'proxy inspection unavailable' },
+        }, { status: 502 });
+      }
+      return Response.json(replayInspection());
     }
-    return prepared;
+    if (path === '/connection/open') return grant(JSON.parse(init.body).connectionId);
+    if (path === '/mutation/createThing') {
+      mutationPosts += 1;
+      return settlement();
+    }
+    throw new Error(`unexpected final-502 request ${path}`);
   };
-  const controller = client.startOutboxDrain();
+  const client = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  client.__registerInspectionAppId(DRAIN_GENERATION.appId);
+  const controller = client.startOutboxDrain({ timer: timers });
   t.after(() => controller.stop());
+  await waitFor(() => controller.status().drainPhase === 'backoff', 'final 502 backoff');
+  controller.stop();
+  assert.equal(mutationPosts, 0);
+  assert.equal((await store.readOfflineMutationReplayCapabilityFact()).supported, true);
+  assert.deepEqual((await client.outboxStatus()).offlineMutationReplayInspection, {
+    status: 'unavailable',
+    reason: 'answered-unavailable',
+    code: 'HTTP_502',
+    httpStatus: 502,
+  });
 
-  await waitFor(() => inspectionRequests >= 2, 'first pre-POST inspection refusal');
-  assert.equal(controller.status().drainPhase, 'backoff');
-  assert.equal(mutationPosts, 0, 'no mutation POST is sent while inspection stays negative');
-  assert.equal((await client.mutationStatus('cm-pre-post-inspection')).status, 'pending');
+  inspectMode = 'offline';
+  const queued = await client.mutate('createThing', {
+    args: { id: 'cm-after-final-inspection-502' },
+    clientMutationId: 'cm-after-final-inspection-502',
+    queue: 'auto',
+  });
+  assert.equal(queued.status, 'queued');
+  assert.equal(mutationPosts, 0);
+});
 
-  await new Promise((resolve) => setTimeout(resolve, 1_100));
-  assert.ok(inspectionRequests >= 3, 'the drain retries the answered failure on its own timer');
-  assert.equal(controller.status().drainPhase, 'backoff');
-  assert.equal(mutationPosts, 0, 'the automatic retry still sends no POST under a negative inspect');
+test("a final manifest gap commits a durable negative and refuses later cached auto enqueue", async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const origin = 'https://drain-final-inspection-gap.test';
+  const store = createDurableTestStore();
+  await enqueue(store, 'cm-final-inspection-gap-replay', origin);
+  const timers = new FakeTimers();
+  let inspectRequests = 0;
+  let inspectMode = 'replay';
+  let mutationPosts = 0;
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    if (path === '/inspect') {
+      inspectRequests += 1;
+      if (inspectMode === 'offline') throw new TypeError('backend offline after manifest gap');
+      return Response.json(replayInspection({ supported: inspectRequests !== 3 }));
+    }
+    if (path === '/connection/open') return grant(JSON.parse(init.body).connectionId);
+    if (path === '/mutation/createThing') {
+      mutationPosts += 1;
+      return settlement();
+    }
+    throw new Error(`unexpected final-gap request ${path}`);
+  };
+  const client = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  client.__registerInspectionAppId(DRAIN_GENERATION.appId);
+  const controller = client.startOutboxDrain({ timer: timers });
+  t.after(() => controller.stop());
+  await waitFor(() => controller.status().drainPhase === 'paused', 'final gap pause');
+  assert.equal(mutationPosts, 0);
+  assert.equal(inspectRequests, 3, 'cycle-start, replay-core, and final-cut inspect exactly once');
+  assert.equal(timers.pendingCount, 0, 'a durable gap is a stable pause, not a retry timer');
+  for (let index = 0; index < 20; index += 1) await tick();
+  assert.equal(inspectRequests, 3, 'the negative fact commit cannot self-wake the paused drain');
+  controller.stop();
+  const negative = await store.readOfflineMutationReplayCapabilityFact();
+  assert.equal(negative.supported, false);
+  assert.equal(negative.reason, 'not-advertised');
 
-  inspectionAvailable = true;
-  await new Promise((resolve) => setTimeout(resolve, 2_100));
-  await waitFor(() => mutationPosts === 1, 'timer-owned replay after inspection recovery');
-  assert.equal((await client.mutationStatus('cm-pre-post-inspection')).status, 'settled');
+  inspectMode = 'offline';
+  await assert.rejects(
+    () => client.mutate('createThing', {
+      args: { id: 'cm-after-final-inspection-gap' },
+      clientMutationId: 'cm-after-final-inspection-gap',
+      queue: 'auto',
+    }),
+    (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
+  );
+  assert.equal(mutationPosts, 0);
+});
+
+test('a live client drains after a backend restart on connectivity backoff without an online event', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const origin = 'https://drain-server-restart.test';
+  const store = createDurableTestStore();
+  await enqueue(store, 'cm-server-restart', origin);
+  const timers = new FakeTimers();
+  let backendOnline = false;
+  let mutationPosts = 0;
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    if (!backendOnline) throw new TypeError('local backend stopped');
+    if (path === '/inspect') return Response.json(replayInspection());
+    if (path === '/connection/open') return grant(JSON.parse(init.body).connectionId);
+    if (path === '/mutation/createThing') {
+      mutationPosts += 1;
+      return settlement();
+    }
+    throw new Error(`unexpected restart request ${path}`);
+  };
+  const client = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  client.__registerInspectionAppId(DRAIN_GENERATION.appId);
+  const controller = client.startOutboxDrain({ timer: timers });
+  t.after(() => controller.stop());
+  await waitFor(() => controller.status().drainPhase === 'backoff', 'restart connectivity backoff');
+  assert.equal(controller.status().nextRetryAtMs, timers.nowMs + 250);
+  assert.equal(mutationPosts, 0);
+
+  backendOnline = true;
+  await timers.runNext();
+  await waitFor(() => mutationPosts === 1, 'replay after backend restart');
+  assert.equal((await client.mutationStatus('cm-server-restart')).status, 'settled');
 });
 
 test('no-mounted-query drain: controller resyncs retained registrations itself', async (t) => {
