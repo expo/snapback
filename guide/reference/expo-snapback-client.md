@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:79e4adf7f062749fd6b754d16f152b23bf0617113231
 # @expo/snapback-client
 
 Build-bound public API projection for `@expo/snapback-client`. Canonical registry identity:
-`sha256:f872c0fda62d90344c074c0a417ecaafb3258fce2969591caf8f4ff46f2dad23`.
+`sha256:8a8f69257c87df826e679d4e1d84e3e836ba6744019e5b33cd3d91617d9ceeb4`.
 Runtime parity condition:
 `import` → `packages/snapback-client/index.mjs`.
 
@@ -8208,6 +8208,7 @@ export type SnapbackDiagnosticCode =
   | 'SNAPBACK_APP_API_ENVELOPE_UNKNOWN'
   | 'SNAPBACK_APP_API_STATE_PARSE_FAILED'
   | 'SNAPBACK_APP_API_UNAVAILABLE'
+  | 'SNAPBACK_APP_BINDING_BOOT_ADMISSION_RETRY_EXHAUSTED'
   | 'SNAPBACK_APP_BINDING_CAPABILITY_MISMATCH'
   | 'SNAPBACK_APP_BINDING_DECLARED_DEV_REFUSED'
   | 'SNAPBACK_APP_BINDING_EXPIRED'
