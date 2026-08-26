@@ -1636,7 +1636,9 @@ export async function startBootstrapExchange(
     const admittedOrigin = admittedBrowserExchangeOrigin(request.headers.origin);
     const authorityOriginAdmitted = admittedOrigin !== null
       && currentAuthorityOrigins().has(admittedOrigin);
-    const authorityOriginAbsent = request.headers.origin === undefined;
+    const authorityOriginless = request.headers.origin === undefined
+      || request.headers.origin === ''
+      || request.headers.origin === 'null';
     response.setHeader('cache-control', 'no-store, max-age=0');
     response.setHeader('pragma', 'no-cache');
     response.setHeader('referrer-policy', 'no-referrer');
@@ -1715,10 +1717,11 @@ export async function startBootstrapExchange(
       // @ref LLP 0310.000#track-b--url-visible-mint-not-stolen — browser fetch
       // always supplies Origin, so this originless exception does not weaken
       // browser CSRF posture. React Native/Expo fetch is unverified for forwarding
-      // a caller-set Origin; admit its originless form only when the same
+      // a caller-set Origin and may normalize an unset value to empty or "null";
+      // admit only those originless forms when the same
       // unguessable, timing-safe per-boot correlation capability matches before
-      // invoking the mint. A present but wrong Origin remains a refusal.
-      if (!authorityOriginAdmitted && !authorityOriginAbsent) {
+      // invoking the mint. Any other present but wrong Origin remains a refusal.
+      if (!authorityOriginAdmitted && !authorityOriginless) {
         response.statusCode = 403;
         response.end(JSON.stringify({
           ok: false,

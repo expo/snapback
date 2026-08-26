@@ -1674,6 +1674,7 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
       environment: createSupervisedExpoEnvironment({
         exchangeOrigin: supervisor.exchangeOrigin,
         appState: coldState,
+        runtimePlatform: 'web',
         clientOptions: {
           rqsStore: null,
           offlineQueue: false,
@@ -1684,6 +1685,11 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
     });
     const coldReady = await coldBoot.start();
     assert.equal(coldReady.status, 'ready', `${label} must reach application-ready state`);
+    assert.equal(
+      coldReady.authority.sessionId,
+      null,
+      `${label} must stay anonymous instead of minting a supervised web session`,
+    );
     assert.equal(
       coldReady.binding.provenance.supervisorGeneration,
       initialSupervisorGeneration,

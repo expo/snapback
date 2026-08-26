@@ -206,6 +206,53 @@ await boot.dispose();
 assert.equal(appState.count(), 0);
 assert.equal(providerDisposed, 1);
 
+// Memory selects volatile custody, not a runtime posture. When neither the
+// environment nor the host can disambiguate web from native, stay on the
+// safer anonymous/no-mint web default; native declares itself explicitly or
+// resolves through React Native's Platform.OS.
+let ambiguousMemoryAdoptions = 0;
+const ambiguousMemoryBoot = createSnapbackExpoBoot({
+  app,
+  environment: Object.freeze({
+    ...environment,
+    appState: appStateHarness(),
+    async resolveAppClientPlatform() {
+      return Object.freeze({ kind: 'memory' });
+    },
+    resolveNativeAuthCustodyOperatingSystem() {
+      return 'unknown';
+    },
+    async adoptAuthority({ adoptSupervisedSession }) {
+      ambiguousMemoryAdoptions += Number(adoptSupervisedSession);
+      return {
+        status: 'ready',
+        client: fakeClient,
+        publicFacts: {
+          kind: 'session',
+          authMode: 'sessions',
+          sessionId: null,
+          userId: null,
+        },
+      };
+    },
+  }),
+  now: () => Date.parse('2026-08-05T20:30:00.000Z'),
+  createProvider: () => Object.freeze({
+    async pause() {},
+    async resume() {},
+    async dispose() {},
+  }),
+});
+const ambiguousMemoryReady = await ambiguousMemoryBoot.start();
+assert.equal(ambiguousMemoryReady.status, 'ready');
+assert.equal(ambiguousMemoryReady.authority.sessionId, null);
+assert.equal(
+  ambiguousMemoryAdoptions,
+  0,
+  'an ambiguous memory platform defaults to anonymous/no-mint web posture',
+);
+await ambiguousMemoryBoot.dispose();
+
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const strictBinding = Object.freeze({
   ...binding,
@@ -492,4 +539,4 @@ completeAdoption({
 await interruptedStart;
 assert.equal(interruptedAuthorityDisposals, 1, 'dispose racing authority adoption releases it');
 
-console.log('provider.test.mjs: legacy web anonymous default/no-mint posture, descriptor delegation, exact boot states, authority refusal, lifecycle, and pre-store mismatch pass');
+console.log('provider.test.mjs: legacy and ambiguous-memory web anonymous default/no-mint posture, descriptor delegation, exact boot states, authority refusal, lifecycle, and pre-store mismatch pass');

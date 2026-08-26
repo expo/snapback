@@ -1316,5 +1316,7 @@ async function resolveExpoRuntimePosture(environment, platform) {
   if (operatingSystem !== 'unknown') return 'native';
   if (globalThis.navigator?.product === 'ReactNative') return 'native';
   if (typeof globalThis.navigator === 'object' && typeof globalThis.document === 'object') return 'web';
-  return 'native';
+  // An ambiguous host gets the safer anonymous/no-mint posture. Native apps
+  // declare runtimePlatform or resolve through React Native's Platform.OS.
+  return 'web';
 }
