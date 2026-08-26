@@ -319,7 +319,7 @@ await runAcceptance(suite, async () => {
       }),
     });
     try {
-      await waitUntil(async () => (await clientB.rqsStore.outboxPending()).length === 0, {
+      await waitUntil(async () => (await clientB.outboxStatus()).pending === 0, {
         label: 'outbox drain after reconnect',
       });
     } catch (error) {

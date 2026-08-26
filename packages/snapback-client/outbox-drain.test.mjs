@@ -75,6 +75,28 @@ const settlement = (result = { ok: true }) => Response.json({
   result,
 });
 
+const replayInspection = ({ supported = true } = {}) => ({
+  targetProfileId: DRAIN_TARGET_PROFILE,
+  schema: {
+    schemaVersion: DRAIN_GENERATION.schemaVersion,
+    appId: DRAIN_GENERATION.appId,
+    schemaHash: DRAIN_GENERATION.schemaHash,
+    inputsHash: DRAIN_GENERATION.inputsHash,
+  },
+  functions: {
+    schemaVersion: DRAIN_GENERATION.schemaVersion,
+    appId: DRAIN_GENERATION.appId,
+    bundleHash: DRAIN_GENERATION.bundleHash,
+    inputsHash: DRAIN_GENERATION.inputsHash,
+  },
+  capabilityManifest: {
+    manifestVersion: 1,
+    targetProfileId: DRAIN_TARGET_PROFILE,
+    supportedCapabilities: supported ? ['offline_mutation_replay'] : [],
+    capabilityGaps: supported ? [] : ['offline_mutation_replay'],
+  },
+});
+
 const configuredReplayTarget = (baseUrl) => ({
   outboxRecordSchemaVersion: 2,
   enqueueTarget: {
@@ -1070,6 +1092,68 @@ test('transient-failure retry: connectivity replay failure retries on backoff wi
   await timers.runNext();
   await waitFor(() => attempts === 2, 'timer-owned replay retry');
   assert.equal((await client.mutationStatus('cm-transient')).status, 'settled');
+});
+
+test('answered pre-POST inspect failure retries on backoff without an external wake', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const origin = 'https://drain-pre-post-inspection.test';
+  const store = createDurableTestStore();
+  await enqueue(store, 'cm-pre-post-inspection', origin);
+  let inspectionRequests = 0;
+  let mutationPosts = 0;
+  let inspectionAvailable = true;
+  let client;
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    if (path === '/inspect') {
+      inspectionRequests += 1;
+      client.__offlineMutationReplayCapability = true;
+      if (inspectionAvailable) {
+        return Response.json(replayInspection());
+      }
+      return Response.json({
+        diagnostic: { code: 'HTTP_502', message: 'proxy inspection unavailable' },
+      }, { status: 502 });
+    }
+    if (path === '/connection/open') return grant(JSON.parse(init.body).connectionId);
+    if (path === '/mutation/createThing') {
+      mutationPosts += 1;
+      return settlement();
+    }
+    throw new Error(`unexpected pre-POST inspection request ${path}`);
+  };
+  client = new SnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  client.__registerInspectionAppId(DRAIN_GENERATION.appId);
+  await client.inspect();
+  inspectionAvailable = false;
+  const prepareSubmission = store.outboxPrepareSubmission.bind(store);
+  store.outboxPrepareSubmission = async (...args) => {
+    const prepared = await prepareSubmission(...args);
+    if (prepared?.status === 'ready' && args[1]?.markDispatched !== true) {
+      client.__offlineMutationReplayCapability = null;
+    }
+    return prepared;
+  };
+  const controller = client.startOutboxDrain();
+  t.after(() => controller.stop());
+
+  await waitFor(() => inspectionRequests >= 2, 'first pre-POST inspection refusal');
+  assert.equal(controller.status().drainPhase, 'backoff');
+  assert.equal(mutationPosts, 0, 'no mutation POST is sent while inspection stays negative');
+  assert.equal((await client.mutationStatus('cm-pre-post-inspection')).status, 'pending');
+
+  await new Promise((resolve) => setTimeout(resolve, 1_100));
+  assert.ok(inspectionRequests >= 3, 'the drain retries the answered failure on its own timer');
+  assert.equal(controller.status().drainPhase, 'backoff');
+  assert.equal(mutationPosts, 0, 'the automatic retry still sends no POST under a negative inspect');
+
+  inspectionAvailable = true;
+  await new Promise((resolve) => setTimeout(resolve, 2_100));
+  await waitFor(() => mutationPosts === 1, 'timer-owned replay after inspection recovery');
+  assert.equal((await client.mutationStatus('cm-pre-post-inspection')).status, 'settled');
 });
 
 test('no-mounted-query drain: controller resyncs retained registrations itself', async (t) => {

@@ -6,9 +6,9 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
 **Revised:** 2026-08-26 (round-27 dispatch/error/contract correction: a final
-pre-POST inspection that receives an HTTP error or redirect pauses replay with
+pre-POST inspection that receives an HTTP error or redirect backs replay off with
 `SNAPBACK_OUTBOX_REPLAY_INSPECTION_UNAVAILABLE`, retains the current record and
-every successor pending, and remains explicitly retriable. Standalone ACK
+every successor pending, and retries without an external wake. Standalone ACK
 re-reads and requires the shared positive target fact under the
 authorization-dispatch lock immediately before POST. The injected-store type
 now carries the sixth record-scoped legacy policy, quarantine result fields,

@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
+import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { test } from 'node:test';
 
+import { IDBFactory } from 'fake-indexeddb';
+
+import { createNodeSqliteNamespace } from '../../demos/expo-local-first-carrier/node-sqlite-adapter.mjs';
 import {
   CLIENT_AUTHORITY_STATES,
   CLIENT_AUTHORITY_SURFACES,
@@ -9,7 +15,10 @@ import {
   classifyClientAuthorityState,
 } from './authority-transition.mjs';
 import { SnapbackClient } from './index.mjs';
+import { createFileRqsResumeStore } from './rqs-store-file.mjs';
 import { createMemoryRqsResumeStore } from './rqs-store-memory.mjs';
+import { createSqliteRqsResumeStore } from './rqs-store-sqlite.mjs';
+import { createIndexedDbRqsResumeStore } from './rqs-store.mjs';
 
 const OUTBOX_TEST_GENERATION = Object.freeze({
   schemaVersion: 'snapback.v0',
@@ -406,19 +415,7 @@ test('rejected mutations retain server timing on the error and durable failed di
   }
 });
 
-test('successor-valid housekeeping admitted before the durable barrier cut binds only after settle', async () => {
-  const store = createMemoryRqsResumeStore();
-  const before = await store.outboxAuthorizationStatus();
-  await store.outboxEnqueue({
-    id: 'hk-before-durable-cut',
-    function: 'refreshCache',
-    args: { route: '/inbox' },
-    dispatchLane: 'housekeeping',
-    housekeepingKey: 'route-inbox',
-    successorTargetedHousekeeping: true,
-  }, before);
-  await store.wipeForAuthorityTransition('sessions:test:0->1', 1);
-  const advanced = await store.outboxAuthorizationStatus();
+test('successor-valid housekeeping binds after settle with explicit zero quarantine on every store', async (t) => {
   const principalScope = {
     authMode: 'sessions',
     authorizationStreamIncarnation: '018f0d90-7b11-7a22-8c33-445566778899',
@@ -433,25 +430,62 @@ test('successor-valid housekeeping admitted before the durable barrier cut binds
     authorityEpoch: 1,
     authorityKey: 'session:successor',
   };
-  const reconciled = await store.outboxReconcileCustody(
-    principalScope,
-    authorityDescriptor,
-    custody,
-    advanced.authorityGeneration,
-  );
-  assert.deepEqual(reconciled, {
-    deleted: 0,
-    deletedIds: [],
-    stranded: 0,
-    strandedIds: [],
-  });
-  const [record] = await store.outboxRecords();
-  assert.equal(record.status, 'pending');
-  assert.equal(record.successorTargetedHousekeeping, false);
-  assert.deepEqual(record.principalScope, principalScope);
-  assert.deepEqual(record.authorityDescriptor, authorityDescriptor);
-  assert.deepEqual(record.custody, custody);
-  assert.equal(record.authorizationAuthorityGeneration, advanced.authorityGeneration);
+  const directory = await mkdtemp(join(tmpdir(), 'snapback-authority-conformance-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const sqliteDirectory = join(directory, 'sqlite');
+  await mkdir(sqliteDirectory);
+  const grantingLocks = {
+    request: (_name, _options, callback) => Promise.resolve(callback({ mode: 'exclusive' })),
+  };
+  const stores = [
+    ['memory', createMemoryRqsResumeStore()],
+    ['file', createFileRqsResumeStore({ directory: join(directory, 'file') })],
+    ['sqlite', await createSqliteRqsResumeStore({
+      sqlite: createNodeSqliteNamespace(sqliteDirectory),
+      databaseName: 'rqs.sqlite',
+    })],
+    ['indexeddb-fake', createIndexedDbRqsResumeStore({
+      indexedDB: new IDBFactory(),
+      lockManager: grantingLocks,
+      databaseName: 'authority-transition-zero-quarantine',
+    })],
+  ];
+  for (const [label, store] of stores) {
+    await Promise.resolve();
+    const before = await store.outboxAuthorizationStatus();
+    await store.outboxEnqueue({
+      id: `hk-before-durable-cut-${label}`,
+      function: 'refreshCache',
+      args: { route: '/inbox' },
+      dispatchLane: 'housekeeping',
+      housekeepingKey: 'route-inbox',
+      successorTargetedHousekeeping: true,
+    }, before);
+    await store.wipeForAuthorityTransition(`sessions:${label}:0->1`, 1);
+    const advanced = await store.outboxAuthorizationStatus();
+    const reconciled = await store.outboxReconcileCustody(
+      principalScope,
+      authorityDescriptor,
+      custody,
+      advanced.authorityGeneration,
+    );
+    assert.deepEqual(reconciled, {
+      deleted: 0,
+      deletedIds: [],
+      stranded: 0,
+      strandedIds: [],
+      quarantined: 0,
+      quarantinedIds: [],
+    }, label);
+    const [record] = await store.outboxRecords();
+    assert.equal(record.status, 'pending', label);
+    assert.equal(record.successorTargetedHousekeeping, false, label);
+    assert.deepEqual(record.principalScope, principalScope, label);
+    assert.deepEqual(record.authorityDescriptor, authorityDescriptor, label);
+    assert.deepEqual(record.custody, custody, label);
+    assert.equal(record.authorizationAuthorityGeneration, advanced.authorityGeneration, label);
+    await store.close();
+  }
 });
 
 test('declared housekeeping queues with auth-barrier attribution and zero transport', async () => {

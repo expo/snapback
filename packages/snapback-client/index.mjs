@@ -14422,9 +14422,9 @@ export class SnapbackClient {
             retryable: true,
           });
           replayStop.value = Object.freeze({
-            kind: 'paused',
+            kind: 'transient',
             code: error.code,
-            reason: 'replay-paused:pre-post-inspection-unavailable',
+            reason: 'replay-transient:pre-post-inspection-unavailable',
             retryable: true,
           });
           stopped = true;

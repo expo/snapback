@@ -2042,12 +2042,8 @@ export const outboxOps = {
         deletedIds,
         stranded: strandedIds.length,
         strandedIds,
-        ...(quarantinedIds.length === 0
-          ? {}
-          : {
-              quarantined: quarantinedIds.length,
-              quarantinedIds,
-            }),
+        quarantined: quarantinedIds.length,
+        quarantinedIds,
       },
     };
   },
