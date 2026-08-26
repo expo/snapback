@@ -12,7 +12,7 @@
 **Failure signature:** `sha256:36726bc1f2fccc4ec4a182b72d3b7f314512b18dc9927c382fd6f7d53d0778bd`
 **Causal landing:** `6364729feb221b6b482d1451ca3c2810f4f4e447` (Add invalidation boot reservation checks)
 **Detected at:** `ad53ab3d97c07bee4446f03187164167c2c0d034`
-**Last observed:** `48ac733b7faf04dbb139700e132a79e52c154024`
+**Last observed:** `784babd50de1f9f66ac3f9b155a8105f2886e6ac`
 **Attribution:** `first-parent-signature-epoch`
 **Related:** LLP 0175 §D2.1
 
