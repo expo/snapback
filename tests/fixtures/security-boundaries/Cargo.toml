@@ -341,6 +341,17 @@ path = "src/bin/generation_recorded_mutation_authority.rs"
 name = "wire-descriptor-trust"
 path = "src/bin/wire_descriptor_trust.rs"
 
+# F145 and F272 remain OPEN. Keep their dependent spellings source-visible,
+# but do not register them in the rejection-only attacks.v1.json until an
+# effect-wide implementation lands.
+[[bin]]
+name = "f145-prepare-asset-callbacks-authority"
+path = "src/bin/f145_prepare_asset_callbacks_authority.rs"
+
+[[bin]]
+name = "f272-supply-ticket-and-effect"
+path = "src/bin/f272_supply_ticket_and_effect.rs"
+
 # Harness-only counterexample: never part of attacks.v1.json.
 [[bin]]
 name = "unrelated-error-satisfies-regex"

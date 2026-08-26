@@ -1028,6 +1028,37 @@ pub async fn setup_base_attack() -> Result<BaseAttackFixture, String> {
     })
 }
 
+/// Production-shaped catalog and admission state used by the F145 dependent
+/// composition. The setup owns no authority composition: the attack source
+/// selects the callback subject and invokes the public sync consumer itself.
+pub struct CallbackAuthorityAttackFixture {
+    _directory: tempfile::TempDir,
+    pub serving: snapback_kernel::storage::ServingDatabase,
+    pub mode_state: AuthModeStateRecord,
+}
+
+pub fn setup_callback_authority_attack() -> Result<CallbackAuthorityAttackFixture, String> {
+    let directory = tempfile::tempdir().map_err(|error| error.to_string())?;
+    let path = directory.path().join("callback-target.sqlite3");
+    provision_sessions(&path)?;
+    let engine =
+        LocalSnapback::open(&path).map_err(|error| format!("open callback target: {error:?}"))?;
+    let mode_state = engine
+        .auth_mode_snapshot()
+        .map_err(|error| format!("callback mode: {error:?}"))?
+        .state;
+    drop(engine);
+    let database =
+        LocalDatabase::open(&path).map_err(|error| format!("open callback catalog: {error:?}"))?;
+    let serving = snapback_kernel::storage::ServingDatabase::adopt(database)
+        .map_err(|error| format!("adopt callback catalog: {error:?}"))?;
+    Ok(CallbackAuthorityAttackFixture {
+        _directory: directory,
+        serving,
+        mode_state,
+    })
+}
+
 pub fn integration_facts() -> IntegrationRegistrationFacts {
     IntegrationRegistrationFacts {
         origin: Some("https://attacker.example".to_owned()),
