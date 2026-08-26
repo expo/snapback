@@ -11,12 +11,12 @@
     "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs"
   ],
   "bindings": {
-    "harnessConfigSha256": "16177028721da57c08bf69ccfa299ac20e8c7b8804aa5c0bcde09e7c956cf687",
-    "instrumentManifestSha256": "fc08cc2d88d755d9cdbe5b9d138ac6f51e4073fb7041a8df92408c161923734e",
-    "materializedInstrumentRoot": "/Users/ccheever/bench-r3-20260826/instrument-review-fix-v2",
-    "meteringSourceClosureSha256": "27e1a9626db1092018a689c0099c2cc83f2953883150aa5baeb25d916027f47f",
-    "laneControllerSha256": "6f8f10c5d75fe6caf82d02f0403dadbf3bda4c70075a379509403e826630cf12",
-    "productionDriverSha256": "35ed95f086c0c17596bad4a269a26246fa3e5b06b3ab76813484f6a6bfeecd3c"
+    "harnessConfigSha256": "d4ea909e53876de784bcdaa55b329445d10c686850d34821e353df741749844a",
+    "instrumentManifestSha256": "73528e447562a55fc41e32da66d27157883a68eb49aa5ee9afa483cb18796935",
+    "materializedInstrumentRoot": "/Users/ccheever/bench-r3-20260826/instrument-review-fix-round2-final-v2",
+    "meteringSourceClosureSha256": "62dac9fc6dd6efcad4aaa3f9799d94912ee9f1807c078095c0d20f2ce5522180",
+    "laneControllerSha256": "803ab5fb586663edbb4415c52e649f98e56b3624e187141f065acc03613919cd",
+    "productionDriverSha256": "f8e381d9828a8d405963b397853a17c9b611ee2a18628c769b188c76fe4b597d"
   },
   "result": {
     "version": "snapback.r2-controller-non-consuming-smoke.v1",

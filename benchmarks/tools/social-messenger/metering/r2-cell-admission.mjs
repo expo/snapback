@@ -579,6 +579,7 @@ function validateLandedDispositionReport({
   committedRoot,
   repositoryRoot,
   gitRead,
+  requireRootCauseClass = false,
 }) {
   const dispositionFailure = (kind, detail) => {
     throw new Error(`R2_ADMISSION_DISPOSITION_${kind}: ${cellId} ${detail}`);
@@ -664,6 +665,15 @@ function validateLandedDispositionReport({
       "failure report merely mentions the cell without binding its report and admission/attempt identity",
     );
   }
+  if (
+    requireRootCauseClass
+    && (typeof identity.rootCauseClass !== "string" || identity.rootCauseClass.length === 0)
+  ) {
+    dispositionFailure(
+      "ROOT_CAUSE_MISSING",
+      "failure disposition does not retain its rootCauseClass",
+    );
+  }
   const disposedPath = resolve(committedRoot, disposedArtifact.path);
   if (!inside(committedRoot, disposedPath)) {
     dispositionFailure("WEAK_IDENTITY", "disposed admission/attempt path escapes the committed run root");
@@ -696,7 +706,92 @@ function validateLandedDispositionReport({
       `disposed ${disposedArtifact.kind} ${disposedArtifact.path} differs from committed HEAD bytes`,
     );
   }
-  return { cellId, kind: descriptor.kind, path: descriptor.path, sha256: descriptor.sha256 };
+  return {
+    cellId,
+    kind: descriptor.kind,
+    path: descriptor.path,
+    sha256: descriptor.sha256,
+    outcome: "failure",
+    rootCauseClass: identity.rootCauseClass ?? null,
+  };
+}
+
+function finalizedRecordDisposition(record, expectedMilestones, cellId) {
+  const failed = expectedMilestones.filter((milestone) => (
+    record.socialMessenger?.milestones?.[milestone]?.status !== "green"
+  ));
+  if (failed.length === 0) {
+    return { outcome: "success", rootCauseClass: null };
+  }
+  const rootCauseClasses = new Set(failed.map((milestone) => (
+    record.socialMessenger?.milestones?.[milestone]?.authoring?.terminalReason
+  )).filter((value) => typeof value === "string" && value.length > 0));
+  if (rootCauseClasses.size !== 1) {
+    throw new Error(
+      `R2_ADMISSION_DISPOSITION_ROOT_CAUSE_MISSING: ${cellId} failed record does not retain one rootCauseClass`,
+    );
+  }
+  return { outcome: "failure", rootCauseClass: [...rootCauseClasses][0] };
+}
+
+// @ref LLP 0295#r3-claim-eligible-wave — R3 admission, rather than conductor
+// prose, mechanically pauses after two immediately preceding same-leg failures
+// with one retained root-cause class. Refusal happens before lock acquisition
+// or any attempt artifact and is therefore non-consuming.
+export function assertConductorStoppingRule({ harnessConfig, cellId, seriality }) {
+  const rule = harnessConfig.execution?.conductorStoppingRule;
+  if (rule === undefined) return { required: false, reviewed: true };
+  if (
+    rule.consecutiveFailures !== 2
+    || rule.scope !== "same-leg"
+    || rule.sameRootCauseField !== "rootCauseClass"
+    || typeof rule.diagnostic !== "string"
+    || rule.diagnostic.length === 0
+  ) {
+    throw new Error("R2_ADMISSION_STOPPING_RULE: conductor stopping rule is malformed");
+  }
+  const requestedIndex = harnessConfig.cellOrder.indexOf(cellId);
+  const requestedCell = harnessConfig.cells?.find((candidate) => candidate.id === cellId);
+  if (requestedIndex < 0 || typeof requestedCell?.leg !== "string") {
+    throw new Error(`R2_ADMISSION_STOPPING_RULE: ${cellId} has no registered leg/order identity`);
+  }
+  const byId = new Map((seriality?.landedDispositions ?? []).map((item) => [item.cellId, item]));
+  const precedingSameLeg = harnessConfig.cellOrder
+    .slice(0, requestedIndex)
+    .map((id) => ({
+      cell: harnessConfig.cells.find((candidate) => candidate.id === id),
+      disposition: byId.get(id),
+    }))
+    .filter(({ cell, disposition }) => cell?.leg === requestedCell.leg && disposition !== undefined)
+    .map(({ disposition }) => disposition);
+  const immediatelyPreceding = precedingSameLeg.slice(-rule.consecutiveFailures);
+  const rootCauseClass = immediatelyPreceding[0]?.rootCauseClass;
+  if (
+    immediatelyPreceding.length === rule.consecutiveFailures
+    && immediatelyPreceding.every((item) => (
+      item.outcome === "failure"
+      && typeof item.rootCauseClass === "string"
+      && item.rootCauseClass.length > 0
+      && item.rootCauseClass === rootCauseClass
+    ))
+  ) {
+    const error = new Error(
+      `${rule.diagnostic}: ${cellId} follows two same-leg failures with rootCauseClass=${rootCauseClass}`,
+    );
+    error.code = rule.diagnostic;
+    error.rootCauseClass = rootCauseClass;
+    error.attemptConsumed = false;
+    throw error;
+  }
+  return {
+    required: false,
+    reviewed: true,
+    immediatelyPreceding: immediatelyPreceding.map((item) => ({
+      cellId: item.cellId,
+      outcome: item.outcome,
+      rootCauseClass: item.rootCauseClass,
+    })),
+  };
 }
 
 export async function inspectCommittedDispositions({
@@ -736,14 +831,23 @@ export async function inspectCommittedDispositions({
     }
 
     if (isFinalizedStatus(slot.status)) {
-      await validateFinalizedCellSlot({
+      const expectedMilestones = registeredMilestonesForCell(
+        harnessConfig,
+        configuredCells.get(id),
+      );
+      const finalized = await validateFinalizedCellSlot({
         slotPath,
         cellId: id,
         repositoryRoot,
-        expectedMilestones: registeredMilestonesForCell(harnessConfig, configuredCells.get(id)),
+        expectedMilestones,
         gitRead,
       });
-      landedDispositions.push({ cellId: id, kind: "validated-record", path: `cells/${id}/record.json` });
+      landedDispositions.push({
+        cellId: id,
+        kind: "validated-record",
+        path: `cells/${id}/record.json`,
+        ...finalizedRecordDisposition(finalized.record, expectedMilestones, id),
+      });
     } else if (pristine) {
       pristineCells.push(id);
     } else if (disposition !== undefined) {
@@ -753,6 +857,7 @@ export async function inspectCommittedDispositions({
         committedRoot,
         repositoryRoot,
         gitRead,
+        requireRootCauseClass: harnessConfig.execution?.conductorStoppingRule !== undefined,
       }));
     } else {
       throw new Error(`R2_ADMISSION_PRISTINE: slot ${id} is genuinely not pristine`);
@@ -1553,6 +1658,7 @@ export async function inspectNonConsumingAdmissionSmoke({
     repositoryRoot,
     gitRead: sourceIdentity.gitRead,
   });
+  assertConductorStoppingRule({ harnessConfig, cellId, seriality });
   const execution = (dependencies.configuredExecutionBinding ?? configuredExecutionBinding)({
     harnessConfig,
     cell,
@@ -1684,6 +1790,7 @@ export async function createAdmissionArtifact({
     repositoryRoot,
     gitRead: sourceIdentity.gitRead,
   });
+  assertConductorStoppingRule({ harnessConfig, cellId, seriality });
   const execution = (dependencies.configuredExecutionBinding ?? configuredExecutionBinding)({
     harnessConfig,
     cell,
@@ -1714,7 +1821,9 @@ export async function createAdmissionArtifact({
   const sampleLoad = dependencies.loadavg ?? loadavg;
   const sleep = dependencies.sleep ?? ((millis) => new Promise((done) => setTimeout(done, millis)));
   const policy = loadPolicyForCell(harnessConfig, cell);
-  const diskAdmission = (dependencies.inspectAdmissionDiskFloor ?? inspectAdmissionDiskFloor)({
+  // Early refusal preserves the pre-lock non-consuming guarantee. A second
+  // measurement after the three load samples becomes the issuance evidence.
+  (dependencies.inspectAdmissionDiskFloor ?? inspectAdmissionDiskFloor)({
     harnessConfig,
     statfs: dependencies.statfs ?? statfsSync,
     now,
@@ -1758,6 +1867,11 @@ export async function createAdmissionArtifact({
       now,
       processProbe: dependencies.processProbe ?? activeCampaignProcesses,
       portProbe: dependencies.portIsUnbound ?? portIsUnbound,
+    });
+    const diskAdmission = (dependencies.inspectAdmissionDiskFloor ?? inspectAdmissionDiskFloor)({
+      harnessConfig,
+      statfs: dependencies.statfs ?? statfsSync,
+      now,
     });
     const issuedAtMs = now();
     const artifact = {

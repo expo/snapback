@@ -79,17 +79,23 @@ The four remaining LLP 0186 commissioned rows are frozen as follows:
 6. **bounded orientation packet:** measurable; every successful eligible cell
    must retain a first-edit orientation packet of at most 16 KiB. Publish every
    constituent, median, range, and N. Missing evidence is never zero;
-7. **choreography retry ceiling:** explicitly excluded because instrument
-   0.3.4-m8 aggregates retried classes but cannot prove the per-failed-assertion
-   ceiling or unaffected-isolation retry count;
-8. **grouped migration advisories:** explicitly excluded because the frozen
-   schema has no typed repair-class-by-table advisory event; and
-9. **debug-artifact attribution:** explicitly excluded because the frozen
-   record has no debug/release artifact-size, link-time, or attribution fields.
+7. **choreography retry ceiling:** measurable from the hash-bound controller and
+   choreography streams. Per successful eligible cell, derive retry counts by
+   failed assertion identity; require at most one retry for each failed
+   assertion and zero retries for unaffected assertion identities. Publish
+   every constituent, maximum, median, range, and N;
+8. **grouped migration advisories:** measurable from the retained native
+   streams. Per successful eligible cell, group advisories by normalized repair
+   class; require exactly one advisory per class with its exact affected-table
+   count. Publish every class/count constituent, median class count, range, and
+   N; and
+9. **debug-artifact attribution:** the sole excluded row. This published-npm
+   wave builds no debug binary, so debug artifact size/link attribution belongs
+   to a source-build wave and cannot be inferred here.
 
 Rows 10–12 are the registered semantic-correction, output-token, and M1
 wall-to-first-green contrasts below. These twelve rows, their aggregations, and
-the three explicit exclusions are also frozen machine-readably in
+the sole explicit exclusion are also frozen machine-readably in
 `harness-config.json`.
 
 A row passes a family/profile/app comparison set only when every eligible
@@ -140,6 +146,15 @@ A fully metered failed replicate remains in attempt and failure-rate reporting.
 It never enters token, correction-action, or wall-to-green ratios. The paired
 sign-test guard is applied only after the N>=3 successful-per-side floor holds.
 
+[`compose-scorecard.mjs`](./compose-scorecard.mjs), with the SHA-256 registered
+at `config.scoring.composer`, is the only sanctioned scorecard path. It consumes
+`config.scoring`, validates every supplied record before producing any output,
+derives `SUCCESSFUL` from the run-record milestone verdicts registered for that
+cell's leg profile, and mechanically enforces the N>=3 floor independently for
+both ratio sides. A validation failure refuses the entire composition. A failed
+but validator-clean replicate is excluded from ratios and retained in the
+failure-rate denominator.
+
 ## Eligibility and retention
 
 A cell is scorecard-ineligible if any required phase metering is missing, any
@@ -153,8 +168,10 @@ they are not silently excluded from outcome reporting.
 Admission requires a pristine slot, exact committed config/source/instrument
 bytes, registered host/harness identity and auth, clean loader environment,
 exclusive host lock, all 2,400 campaign ports unbound, three passing load
-samples, and at least 20 GiB free. Below the disk floor, refuse without consuming
-the slot using `R3_ADMISSION_DISK_FLOOR`.
+samples, and at least 20 GiB free. Admission re-measures free bytes after the
+load samples, immediately before issuance. Below the disk floor at either
+measurement, refuse without consuming the slot using
+`R3_ADMISSION_DISK_FLOOR`.
 
 Finalization is same-config only. After a committed record or blocked report
 seals a cell, the conductor removes only rebuildable workspace node_modules and
@@ -163,8 +180,11 @@ build outputs, never evidence capsules, then repeats the next admission gates.
 ## Budgets and conductor stop
 
 The controller enforces one 14,400-second (four-hour) wall cap for the complete
-cell. Expiry terminates the native process group and retains
-`R3_CELL_WALL_CAP_TIMEOUT` with capability-failure / `wall-cap` disposition.
+cell. Expiry aborts every subsequent stage transition, terminates the native
+process group, and holds custody while the operation settles for the registered
+bounded grace. Failure to settle fails the whole cell closed; launch/write logic
+cannot resume after timeout. The retained disposition is
+`R3_CELL_WALL_CAP_TIMEOUT` with capability-failure / `wall-cap` classification.
 
 Token caps use LLP 0201's cap-family formula: twice the largest
 validator-clean green pilot fresh-input-plus-output count for the same cap
@@ -177,7 +197,10 @@ null/advisory because its registered adapter cannot report native tokens. The
 Codex and Claude caps are enforced from their registered native usage streams;
 cap exhaustion terminates the process group before another turn.
 
-Two consecutive cells in the same leg failing for the same retained
-`rootCauseClass` pause the wave with `R3_CONDUCTOR_REVIEW_REQUIRED`. The
-conductor may resume only after orchestrator review; the rule does not silently
-skip, reorder, or consume a cell.
+Before admitting a cell, admission reads committed records and blocked reports
+for previously executed slots in the preregistered order. If the two
+immediately preceding executed cells in the requested cell's leg both failed
+with the same retained `rootCauseClass`, admission refuses non-consumingly with
+`R3_CONDUCTOR_REVIEW_REQUIRED`. A successful same-leg cell resets the sequence.
+The conductor may resume only after orchestrator review; the rule does not
+silently skip, reorder, or consume a cell.

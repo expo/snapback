@@ -33,6 +33,7 @@ import { scrubR2NodeLoaderEnvironment } from "./r2-execution-environment.mjs";
 import { validateScaleReplayEvidence } from "./scale-replay-evidence.mjs";
 import { adaptClaudeSession } from "./adapters/claude-session.mjs";
 import { adaptCodexSessionTree } from "./adapters/codex-session.mjs";
+import { capTokenCount } from "./counts.mjs";
 import { TokenCapEnforcedError, TokenCapWatchdog } from "./watchdog.mjs";
 
 const MARKER_FILE = "events/cell-milestones.jsonl";
@@ -59,6 +60,20 @@ function requiredString(value, label) {
     throw new TypeError(`${label} must be a non-empty string`);
   }
   return value;
+}
+
+function transitionStage({ transition, abortSignal }, stage) {
+  if (typeof transition === "function") return transition(`driver-${stage}`);
+  if (abortSignal?.aborted === true) {
+    const error = new Error(
+      `R3_CELL_WALL_CAP_ABORTED: refused driver stage transition ${stage} after cancellation`,
+    );
+    error.code = "R3_CELL_WALL_CAP_ABORTED";
+    error.rootCauseClass = "cell-wall-cap";
+    error.stage = `driver-${stage}`;
+    throw error;
+  }
+  return stage;
 }
 
 function capFamily(harnessKey) {
@@ -497,6 +512,26 @@ function observeUsageTurns(state, turns) {
   for (const turn of turns) state.tokenWatchdog.observe(turn, { inFlight: true });
 }
 
+function createSessionTokenWatchdog(state) {
+  return new TokenCapWatchdog({
+    enforcementController: {
+      id: "social-messenger-r2-native-process-group-controller.v1",
+      terminate: (trip) => terminateNativeProcessTree(state, `${trip.milestone}-token-cap`),
+    },
+  });
+}
+
+function ensureSessionTokenWatchdog(state) {
+  requiredString(state.currentSession?.sourceId, "native session sourceId");
+  if (state.tokenWatchdogSessionSourceId === state.currentSession.sourceId) return;
+  if (state.tokenWatchdog !== null && state.tokenWatchdog !== undefined && state.tokenWatchdog.state !== null) {
+    throw new Error("R2_DRIVER_TOKEN_WATCHDOG_SESSION: native session changed with an armed milestone");
+  }
+  state.tokenWatchdog = createSessionTokenWatchdog(state);
+  state.tokenWatchdogSessionSourceId = state.currentSession.sourceId;
+  state.settledUsage = { turnIds: new Set(), usageRecordOrdinal: null };
+}
+
 async function pollNativeUsage(state) {
   if (state.tokenWatchdog?.state?.armed !== true || state.config.cell.harness !== "codex-sol") return;
   const records = await (state.readLiveCodexRecords ?? readLiveCodexRecords)(state);
@@ -509,8 +544,171 @@ async function pollNativeUsage(state) {
   observeUsageTurns(state, adapted.turns);
 }
 
+function settlementDeadline(state) {
+  const capSeconds = state.config.harnessConfig?.execution
+    ?.perMilestoneWallSafetyLimitSeconds;
+  if (!Number.isFinite(capSeconds) || capSeconds <= 0) {
+    throw new Error(
+      "R2_DRIVER_USAGE_SETTLEMENT_TIMEOUT: native usage settlement requires a positive recorded wall cap",
+    );
+  }
+  const now = state.now ?? Date.now;
+  const startedAtMs = now();
+  return {
+    now,
+    deadlineMs: startedAtMs + capSeconds * 1_000,
+    deadlineAt: new Date(startedAtMs + capSeconds * 1_000).toISOString(),
+    capSeconds,
+  };
+}
+
+async function settlementPause(state, remainingMs) {
+  const sleep = state.settlementSleep
+    ?? ((millis) => new Promise((resolveWait) => setTimeout(resolveWait, millis)));
+  await sleep(Math.min(250, remainingMs));
+}
+
+function retainedTurnTokens(turns) {
+  return turns.reduce((total, turn) => {
+    const tokens = capTokenCount(turn.usage);
+    if (tokens === null) {
+      throw new Error(`R2_DRIVER_USAGE_SETTLEMENT_INVALID: ${turn.id} lacks cap-bearing usage`);
+    }
+    return total + tokens;
+  }, 0);
+}
+
+async function waitForCodexMilestoneUsage(state, marker) {
+  const deadline = settlementDeadline(state);
+  while (true) {
+    const records = await (state.readLiveCodexRecords ?? readLiveCodexRecords)(state);
+    if (records !== null) {
+      const adapted = adaptCodexSessionTree([{
+        sourceId: state.currentSession.sourceId,
+        nativeSessionId: state.currentSession.nativeSessionId,
+        records,
+      }]);
+      observeUsageTurns(state, adapted.turns);
+      try {
+        const recovery = recoverCodexSignalSettlements({
+          records,
+          boundaryValue: {
+            [marker.milestone]: {
+              status: marker.status,
+              terminalAt: marker.recordedAt,
+              terminalSequence: 1,
+            },
+          },
+          closingSettlementSelection: "first",
+          allowTrailingUsage: true,
+          allowOpenWithoutTaskComplete: true,
+        });
+        const settlement = recovery.usageSettlements[0];
+        const lowerOrdinal = state.settledUsage.usageRecordOrdinal;
+        const retainedTurns = adapted.turns.filter((turn) => (
+          Number.isInteger(turn.nativeRecordOrdinal)
+          && turn.nativeRecordOrdinal <= settlement.usageRecordOrdinal
+          && (lowerOrdinal === null || turn.nativeRecordOrdinal > lowerOrdinal)
+        ));
+        if (!retainedTurns.some((turn) => (
+          turn.nativeRecordOrdinal === settlement.usageRecordOrdinal
+        ))) {
+          throw new Error(
+            `${marker.milestone} settlement token_count does not produce an independently retained usage turn`,
+          );
+        }
+        return {
+          retainedTokens: retainedTurnTokens(retainedTurns),
+          usageSettledAt: settlement.usageSettledAt,
+          commit: () => {
+            state.settledUsage.usageRecordOrdinal = settlement.usageRecordOrdinal;
+            for (const turn of retainedTurns) state.settledUsage.turnIds.add(turn.id);
+          },
+        };
+      } catch (error) {
+        if (
+          !/exactly one successful .* signal|no native token_count settlement after its signal/u
+            .test(error.message)
+        ) {
+          throw error;
+        }
+      }
+    }
+    const remainingMs = deadline.deadlineMs - deadline.now();
+    if (remainingMs <= 0) {
+      const error = new Error(
+        `R2_DRIVER_USAGE_SETTLEMENT_TIMEOUT: no post-${marker.milestone} native usage before ${deadline.deadlineAt}`,
+      );
+      error.code = "R2_DRIVER_USAGE_SETTLEMENT_TIMEOUT";
+      error.rootCauseClass = "native-usage-settlement-timeout";
+      error.capSeconds = deadline.capSeconds;
+      error.deadlineAt = deadline.deadlineAt;
+      throw error;
+    }
+    await settlementPause(state, remainingMs);
+  }
+}
+
+async function readLiveClaudeRecords(state) {
+  await state.streamWriteQueue;
+  if (state.currentSession.stdoutPath === null) return null;
+  const text = await readFile(state.currentSession.stdoutPath, "utf8");
+  if (!text.endsWith("\n")) return null;
+  return parseJsonLines(text, state.currentSession.stdoutPath);
+}
+
+async function waitForClaudeMilestoneUsage(state, marker) {
+  const deadline = settlementDeadline(state);
+  while (true) {
+    const records = await (state.readLiveClaudeRecords ?? readLiveClaudeRecords)(state);
+    if (records !== null) {
+      const adapted = adaptClaudeSession(records);
+      observeUsageTurns(state, adapted.turns);
+      const retainedTurns = adapted.turns.filter((turn) => !state.settledUsage.turnIds.has(turn.id));
+      const settledTurn = retainedTurns.findLast((turn) => (
+        Date.parse(turn.completedAt) >= Date.parse(marker.recordedAt)
+      ));
+      if (settledTurn !== undefined) {
+        const retainedThroughMarkerTurn = retainedTurns.filter((turn) => (
+          Date.parse(turn.completedAt) <= Date.parse(settledTurn.completedAt)
+        ));
+        return {
+          retainedTokens: retainedTurnTokens(retainedThroughMarkerTurn),
+          usageSettledAt: settledTurn.completedAt,
+          commit: () => {
+            for (const turn of retainedThroughMarkerTurn) state.settledUsage.turnIds.add(turn.id);
+          },
+        };
+      }
+    }
+    const remainingMs = deadline.deadlineMs - deadline.now();
+    if (remainingMs <= 0) {
+      const error = new Error(
+        `R2_DRIVER_USAGE_SETTLEMENT_TIMEOUT: no post-${marker.milestone} native usage before ${deadline.deadlineAt}`,
+      );
+      error.code = "R2_DRIVER_USAGE_SETTLEMENT_TIMEOUT";
+      error.rootCauseClass = "native-usage-settlement-timeout";
+      error.capSeconds = deadline.capSeconds;
+      error.deadlineAt = deadline.deadlineAt;
+      throw error;
+    }
+    await settlementPause(state, remainingMs);
+  }
+}
+
+async function waitForMilestoneUsage(state, marker) {
+  if (state.tokenWatchdog?.state?.armed !== true) return null;
+  if (state.config.cell.harness === "codex-sol") {
+    return waitForCodexMilestoneUsage(state, marker);
+  }
+  if (state.config.cell.harness === "claude-opus5") {
+    return waitForClaudeMilestoneUsage(state, marker);
+  }
+  throw new Error(`R2_DRIVER_USAGE_SETTLEMENT_UNSUPPORTED: ${state.config.cell.harness}`);
+}
+
 async function finishTokenWatchdog(state, marker) {
-  await pollNativeUsage(state);
+  const retained = await waitForMilestoneUsage(state, marker);
   if (state.usageFailure) throw state.usageFailure;
   const watchdogState = state.tokenWatchdog?.state;
   if (watchdogState?.tripped === true) {
@@ -520,12 +718,16 @@ async function finishTokenWatchdog(state, marker) {
   }
   if (watchdogState?.armed === true) {
     state.tokenWatchdog.reconcileMilestone({
-      retainedTokens: watchdogState.actualTokens,
-      terminalAt: marker.recordedAt,
+      retainedTokens: retained.retainedTokens,
+      terminalAt: retained.usageSettledAt,
     });
+    retained.commit();
   }
-  state.tokenWatchdog?.disarm();
-  state.tokenWatchdog = null;
+  const completed = state.tokenWatchdog?.disarm();
+  if (completed !== undefined) {
+    state.tokenWatchdogHistory ??= [];
+    state.tokenWatchdogHistory.push(completed);
+  }
 }
 
 function handleNativeRecord(state, record) {
@@ -778,6 +980,8 @@ async function beginFreshM7Session(state) {
   state.child = null;
   state.exit = null;
   state.closed = null;
+  state.tokenWatchdogSessionSourceId = null;
+  ensureSessionTokenWatchdog(state);
 }
 
 async function readMarkers(state) {
@@ -1600,12 +1804,21 @@ export async function preflight({ config, configDirectory }) {
   };
 }
 
-export async function prepare({ config, configDirectory, preflight: prepared = null }) {
+export async function prepare({
+  config,
+  configDirectory,
+  preflight: prepared = null,
+  abortSignal = null,
+  transition = null,
+}) {
+  const cancellation = { abortSignal, transition };
+  transitionStage(cancellation, "prepare-preflight");
   const plan = prepared ?? await preflight({ config, configDirectory });
   const root = resolve(configDirectory);
   if (plan.version !== "social-messenger-r2-driver-preflight.v1" || plan.root !== root) {
     throw new Error("R2 production driver requires its exact pre-attempt preflight result");
   }
+  transitionStage(cancellation, "prepare-directories");
   await mkdir(join(root, "events"), { recursive: true });
   await mkdir(join(root, "receipts"), { recursive: true });
   await mkdir(join(root, "gates"), { recursive: true });
@@ -1616,15 +1829,19 @@ export async function prepare({ config, configDirectory, preflight: prepared = n
     instrumentManifestText,
   } = plan;
   const initialSessionId = randomUUID();
+  transitionStage(cancellation, "prepare-prompt-and-instrument-write");
   await writeFile(promptPath, renderedPrompt, "utf8");
   await writeFile(join(root, "instrument.manifest.json"), instrumentManifestText, "utf8");
   const retainedAssertionPath = join(root, instrumentManifest.artifacts.assertions.path);
+  transitionStage(cancellation, "prepare-assertion-write");
   await mkdir(dirname(retainedAssertionPath), { recursive: true });
   await writeFile(retainedAssertionPath, plan.assertionBytes, { flag: "wx" });
+  transitionStage(cancellation, "prepare-record-base-write");
   await writeFile(
     join(root, "record-base.json"),
     `${JSON.stringify(plan.recordBase, null, 2)}\n`,
   );
+  transitionStage(cancellation, "prepare-state-install");
   states.set(config.laneRunId, {
     config,
     root,
@@ -1672,8 +1889,13 @@ export async function prepare({ config, configDirectory, preflight: prepared = n
     scaleReplayFailure: null,
     failureDisposition: null,
     tokenWatchdog: null,
+    tokenWatchdogSessionSourceId: null,
+    settledUsage: { turnIds: new Set(), usageRecordOrdinal: null },
+    tokenWatchdogHistory: [],
     usageFailure: null,
   });
+  const state = states.get(config.laneRunId);
+  ensureSessionTokenWatchdog(state);
 }
 
 export function claimOptions() {
@@ -1688,18 +1910,30 @@ export function claimOptions() {
   };
 }
 
-export async function runMilestone({ milestone, controls, config }) {
+export async function runMilestone({
+  milestone,
+  controls,
+  config,
+  abortSignal = null,
+  transition = null,
+}) {
+  const cancellation = { abortSignal, transition };
+  transitionStage(cancellation, `${milestone}-enter`);
   const state = states.get(config.laneRunId);
   if (!state) throw new Error("R2 production driver was not prepared");
   state.currentMilestone = milestone;
   state.controls = controls;
+  if (
+    milestone === "M7"
+    && state.journey.runScope === "full"
+    && state.currentSession.kind !== "fresh-m7"
+  ) {
+    transitionStage(cancellation, `${milestone}-fresh-session`);
+    await beginFreshM7Session(state);
+  }
+  transitionStage(cancellation, `${milestone}-watchdog-arm`);
+  ensureSessionTokenWatchdog(state);
   const tokenCap = configuredTokenCap(config, milestone);
-  state.tokenWatchdog = new TokenCapWatchdog({
-    enforcementController: {
-      id: "social-messenger-r2-native-process-group-controller.v1",
-      terminate: (trip) => terminateNativeProcessTree(state, `${trip.milestone}-token-cap`),
-    },
-  });
   state.tokenWatchdog.arm({
     capFamily: capFamily(config.cell.harness),
     milestone,
@@ -1707,15 +1941,10 @@ export async function runMilestone({ milestone, controls, config }) {
     startedAt: new Date().toISOString(),
     maxClockSkewMs: config.cell.harness === "codex-sol" ? 5_000 : 0,
   });
+  transitionStage(cancellation, `${milestone}-gate-write`);
   await writeFile(join(state.root, "gates", milestone), `${new Date().toISOString()}\n`);
-  if (
-    milestone === "M7"
-    && state.journey.runScope === "full"
-    && state.currentSession.kind !== "fresh-m7"
-  ) {
-    await beginFreshM7Session(state);
-  }
   if (state.child === null) {
+    transitionStage(cancellation, `${milestone}-native-launch`);
     await controls.apiRequest({
       provider: config.cell.harness,
       operation: state.currentSession.kind === "fresh-m7"
@@ -1724,6 +1953,7 @@ export async function runMilestone({ milestone, controls, config }) {
       requestId: `launch-${config.cell.id}-${state.currentSession.sourceId}`,
       retryOf: null,
     }, () => launchHarness(state));
+    transitionStage(cancellation, `${milestone}-launch-observation-write`);
     await controls.semanticAction({
       actionId: `native-${milestone.toLowerCase()}-${++state.actionSequence}`,
       actionClass: "process",
@@ -1733,8 +1963,11 @@ export async function runMilestone({ milestone, controls, config }) {
       binaryExcavation: false,
     });
   }
+  transitionStage(cancellation, `${milestone}-marker-wait`);
   const marker = await waitForMarker(state, milestone);
+  transitionStage(cancellation, `${milestone}-usage-settlement`);
   await finishTokenWatchdog(state, marker);
+  transitionStage(cancellation, `${milestone}-execution-order-release`);
   await releaseNativeSignalForExecutionOrder(state, milestone);
   state.suiteStatusPath = marker.suiteStatus ?? state.suiteStatusPath;
   for (const [suffix, path] of [
@@ -1756,6 +1989,7 @@ export async function runMilestone({ milestone, controls, config }) {
     throw new Error(`${milestone} green signal lacks suite/choreography observation sidecars`);
   }
   if (milestone === "M8" && state.journey.runScope === "full" && marker.status === "green") {
+    transitionStage(cancellation, `${milestone}-scale-replay-settlement`);
     let settlement;
     try {
       settlement = await waitForM8UsageSettlement(state, marker);
@@ -1775,6 +2009,7 @@ export async function runMilestone({ milestone, controls, config }) {
       Date.parse(settlement.usageSettledAt),
     )).toISOString();
     try {
+      transitionStage(cancellation, `${milestone}-scale-replay-launch`);
       await waitForScaleReplay(state, { notBefore: settlement.usageSettledAt });
     } catch (error) {
       await retainScaleReplayFailure(state, error, replayStartedAt);
@@ -1782,6 +2017,7 @@ export async function runMilestone({ milestone, controls, config }) {
     }
   }
   if (milestone === config.milestones.at(-1)) {
+    transitionStage(cancellation, `${milestone}-native-exit-custody`);
     const exit = await state.exit;
     if (exit.error || exit.code !== 0) {
       throw new Error(
@@ -1819,6 +2055,8 @@ export function observationSources({ config }) {
 
 export const r2CellDriverTestHooks = Object.freeze({
   beginFreshM7Session,
+  ensureSessionTokenWatchdog,
+  finishTokenWatchdog,
   handleNativeRecord,
   renderFreshM7Prompt,
   installState(laneRunId, state) {

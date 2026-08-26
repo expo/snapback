@@ -6,9 +6,10 @@ author-delegated task expressly requested no review loop).
 
 This directory commissions the LLP 0295 §R3 closure wave against the coherent
 published Snapback **0.1.27** package set and immutable instrument
-**social-messenger@0.3.4-m8**. The scorecard, exact order, exclusions, and
-comparisons are frozen in [PREREGISTRATION.md](./PREREGISTRATION.md); the machine
-plan is [harness-config.json](./harness-config.json).
+**social-messenger@0.3.4-m8**. The scorecard, exact order, measured rows, sole
+exclusion, and comparisons are frozen in
+[PREREGISTRATION.md](./PREREGISTRATION.md); the machine plan is
+[harness-config.json](./harness-config.json).
 
 ## Rulings
 
@@ -49,11 +50,10 @@ Grok CLI 1.0.5 (`5115b46bc909`), Claude Code 2.1.241, Node v24.18.0. The Exact
 checkout used only by Coterie is pinned read-only at
 `bc300aa4b5e40a55fcbec29aa8df94962b4b4200`.
 
-The instrument is materialized read-only at
-`/Users/ccheever/bench-r3-20260826/instrument-review-fix-v2`. Its manifest SHA-256
-is `fc08cc2d88d755d9cdbe5b9d138ac6f51e4073fb7041a8df92408c161923734e`;
-the same digest is verified for the read-only materialized snapshot and is
-recorded by `harness-config.json` and the committed non-consuming smoke summary.
+The instrument is materialized read-only at the exact root registered by
+`harness-config.json`. Its manifest SHA-256 is recorded there and in the
+committed non-consuming smoke summary; the same digest is verified for the
+read-only materialized snapshot.
 Commissioning observed 45 GiB free (the packet's estimate was approximately
 57 GiB); this remains above the invariant 20 GiB admission floor.
 
@@ -62,14 +62,29 @@ Commissioning observed 45 GiB free (the packet's estimate was approximately
 Before every admission, the conductor requires the exclusive host lock, closure
 of the prior process tree, all registered main and M7 ports unbound, three
 consecutive one-minute loadavg-1/5/15 samples at or below 10.00, and at least
-20 GiB free. A disk-floor refusal is reported as
+20 GiB free. Free bytes are measured again after load sampling, immediately
+before issuance. A disk-floor refusal at either measurement is reported as
 `R3_ADMISSION_DISK_FLOOR`; it does not consume the next cell.
 
-Each complete cell has an enforced four-hour wall cap. Codex and Claude use the
-registered native usage stream and per-leg/milestone token caps; Grok remains
-explicitly null/advisory. Two consecutive same-leg failures with the same
-retained root-cause class pause the wave for orchestrator review under
-`R3_CONDUCTOR_REVIEW_REQUIRED`.
+Each complete cell has an enforced four-hour wall cap. On expiry the controller
+aborts stage transitions, terminates any live process group, and holds custody
+through bounded settlement; an operation that does not settle is a whole-cell
+failure and cannot continue into launch or publication. Codex and Claude use
+the registered native usage stream and per-leg/milestone token caps; Grok
+remains explicitly null/advisory. Admission itself reads prior committed
+records/blocked reports. Two immediately preceding executed same-leg failures
+with the same retained root-cause class refuse the next cell non-consumingly
+under `R3_CONDUCTOR_REVIEW_REQUIRED`; a success resets that sequence.
+
+The only sanctioned scorecard implementation is
+[`compose-scorecard.mjs`](./compose-scorecard.mjs), hash-registered under
+`config.scoring.composer`. It validates every input before composing anything,
+uses only validator-clean successful eligible replicates for ratio rows, emits
+`insufficient successful replicates` below N=3 on either side, and keeps failed
+replicates out of ratios while including them in failure rates. Choreography
+retries and grouped migration advisories are measured from their registered
+retained streams. Only debug-artifact attribution is excluded because this
+published-npm wave produces no debug binary.
 
 After a cell record or blocked report is committed and the cell is sealed, the
 conductor deletes only that cell workspace's rebuildable `node_modules` and

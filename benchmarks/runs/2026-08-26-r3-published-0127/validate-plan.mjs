@@ -17,6 +17,16 @@ import {
 } from "../../tools/social-messenger/metering/r2-cell-admission.mjs";
 import { resolveRegisteredJourney } from "../../tools/social-messenger/metering/journey-contract.mjs";
 import { loadLaneControllerConfig } from "../../tools/social-messenger/metering/lane-controller.mjs";
+import {
+  assertNoRetainedFinalization,
+  assertPristineSlot,
+  assertPromptPin,
+  assertScorecardRegistration,
+  assertSlotMapping,
+  assertSmokeSummaryBinding,
+  assertSnapback0125Alias,
+  r3NamedFailure,
+} from "./plan-contract.mjs";
 
 const root = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(root, "../../..");
@@ -39,7 +49,7 @@ function fail(message) {
 }
 
 function namedFailure(diagnostic, message) {
-  throw new Error(`${diagnostic}: ${message}`);
+  r3NamedFailure(diagnostic, message);
 }
 
 function same(left, right) {
@@ -168,9 +178,7 @@ for (const [index, cell] of config.cells.entries()) {
   ];
   const actualSemantics = Object.fromEntries(semanticFields.map((field) => [field, cell[field]]));
   const expectedSemantics = Object.fromEntries(semanticFields.map((field) => [field, frozenSlot[field]]));
-  if (!same(actualSemantics, expectedSemantics)) {
-    namedFailure("R3_PLAN_SLOT_MAPPING_DRIFT", `cell ${cell.id} no longer matches its full ID semantics`);
-  }
+  assertSlotMapping({ actual: actualSemantics, expected: expectedSemantics, cellId: cell.id });
   const expected = expectedHarness[cell.leg];
   if (!same([cell.harness, cell.model, cell.effort, cell.runScope, cell.scoringProfile, cell.claimEligibility], expected)) {
     fail(`cell ${cell.id} leg registration drifted`);
@@ -202,19 +210,18 @@ for (const [index, cell] of config.cells.entries()) {
   const promptBytes = readFileSync(promptPath);
   const prompt = promptBytes.toString("utf8");
   const promptPin = config.prompts?.[cell.promptFile];
-  if (
-    promptPin?.path !== cell.promptFile
-    || promptPin.sha256 !== createHash("sha256").update(promptBytes).digest("hex")
-  ) namedFailure("R3_PLAN_PROMPT_HASH_DRIFT", `cell ${cell.id} prompt bytes differ from the registered pin`);
+  assertPromptPin({
+    promptBytes,
+    promptPin,
+    promptFile: cell.promptFile,
+    cellId: cell.id,
+  });
   if (!prompt.includes("Snapback 0.1.27") || !prompt.includes(config.paths.instrumentRoot)) {
     fail(`cell ${cell.id} prompt lacks the frozen product/instrument pin`);
   }
 
   const slotRoot = join(root, "cells", cell.id);
   const entries = readdirSync(slotRoot);
-  if (!same(entries, ["cell.json"])) {
-    namedFailure("R3_PLAN_PRIOR_ATTEMPT_STATE", `cell ${cell.id} slot directory carries extra files`);
-  }
   const slot = JSON.parse(readFileSync(join(slotRoot, "cell.json"), "utf8"));
   const expectedSlot = {
     schemaVersion: "snapback.r2-cell-slot.v1",
@@ -225,9 +232,7 @@ for (const [index, cell] of config.cells.entries()) {
     recordSchema: "../../../../schema/social-messenger/run-record.schema.json",
     checkedValidator: "../../../../tools/social-messenger/record-validator.mjs",
   };
-  if (!same(slot, expectedSlot)) {
-    namedFailure("R3_PLAN_PRIOR_ATTEMPT_STATE", `cell ${cell.id} slot has prior-attempt fields or drift`);
-  }
+  assertPristineSlot({ entries, slot, expectedSlot, cellId: cell.id });
 }
 
 for (const admissionsRoot of [join(root, "admissions"), join(config.paths.privateExecutionRoot, "admissions")]) {
@@ -278,12 +283,11 @@ if (
   || config.execution.finalizationPolicy !== "same-config-only"
 ) fail("disk or same-config finalization ruling drifted");
 
-if (Object.hasOwn(config.pins.instrument, "instrumentMigrations")) {
-  namedFailure("R3_PLAN_RETAINED_FINALIZATION_FORBIDDEN", "this run must not register a retained-finalization migration entry");
-}
+assertNoRetainedFinalization(config);
 
 if (
   config.execution.cellWallCapSeconds !== 14400
+  || config.execution.cellWallCapAbortGraceSeconds !== 15
   || config.execution.cellWallCapDisposition?.diagnostic !== "R3_CELL_WALL_CAP_TIMEOUT"
   || config.execution.cellWallCapDisposition?.terminateNativeProcessTree !== true
   || !config.execution.tokenCapFormula.includes("2 *")
@@ -293,22 +297,10 @@ if (
   || !same(config.execution.conductorStoppingRule, {consecutiveFailures:2,scope:"same-leg",sameRootCauseField:"rootCauseClass",action:"pause-wave-for-orchestrator-review",diagnostic:"R3_CONDUCTOR_REVIEW_REQUIRED"})
 ) fail("wall, token-cap, or conductor stopping registration drifted");
 
-if (
-  config.scoring?.successfulCompletion?.recordStatus !== "SUCCESSFUL"
-  || config.scoring.successfulCompletion.validator !== "validator-clean"
-  || config.scoring.successFloor?.minimumSuccessfulReplicatesPerSide !== 3
-  || config.scoring.successFloor.belowFloorDisposition !== "insufficient successful replicates"
-  || config.scoring.scorecardRows?.length !== 12
-  || config.scoring.scorecardRows.filter((row) => row.excluded === true).length !== 3
-  || !same(config.scoring.scorecardRows.map((row) => row.id), [
-    "covered-fact-source-inspections", "custom-fixed-origin-relays",
-    "destructive-additive-schema-restarts", "silent-auth-query-waits",
-    "advertised-path-disagreements", "bounded-orientation-packet",
-    "choreography-retry-ceiling", "grouped-migration-advisories",
-    "debug-artifact-attribution", "semantic-correction-actions",
-    "output-tokens", "m1-wall-to-first-green",
-  ])
-) fail("successful-completion floor or 12-row scorecard registration drifted");
+assertScorecardRegistration(config.scoring);
+if (config.scoring.composer.sha256 !== sha256(
+  "benchmarks/runs/2026-08-26-r3-published-0127/compose-scorecard.mjs",
+)) fail("sanctioned scorecard composer digest drifted");
 
 const machine = config.machines["charlies-macbook-air"];
 const observedHost = currentHostIdentity();
@@ -334,11 +326,7 @@ if (
   || Object.values(config.pins.snapback0127.packages).some((version) => version !== "0.1.27")
   || config.pins.instrument.instrumentPin !== "social-messenger@0.3.4-m8"
 ) fail("published closure or instrument pin drifted");
-if (
-  config.pins.snapback0125.compatibilityAliasOf !== "snapback0127"
-  || config.pins.snapback0125.version !== config.pins.snapback0127.version
-  || config.pins.snapback0125.closureId !== config.pins.snapback0127.closureId
-) fail("pins.snapback0125 is not an exact compatibility alias of the 0.1.27 registration");
+assertSnapback0125Alias(config);
 
 const manifestDigest = sha256(config.pins.instrument.manifestPath);
 if (manifestDigest !== config.pins.instrument.manifestSha256) fail("instrument manifest digest drifted");
@@ -374,6 +362,12 @@ const overlayFiles = {
 for (const [field, path] of Object.entries(overlayFiles)) {
   if (config.pins.instrument.d06MeteringOverlay[field] !== sha256(path)) fail(`overlay digest drifted: ${field}`);
 }
+
+assertSmokeSummaryBinding({
+  summary: JSON.parse(readFileSync(join(root, "smoke-summary.json"), "utf8")),
+  config,
+  harnessConfigSha256: createHash("sha256").update(configBytes).digest("hex"),
+});
 
 liveSourceClosure({ harnessConfig: config, repositoryRoot });
 for (const cell of config.cells) {

@@ -17,7 +17,7 @@
   "paths": {
     "committedRunRoot": "benchmarks/runs/2026-08-26-r3-published-0127",
     "privateExecutionRoot": "/Users/ccheever/bench-r3-20260826",
-    "instrumentRoot": "/Users/ccheever/bench-r3-20260826/instrument-review-fix-v2",
+    "instrumentRoot": "/Users/ccheever/bench-r3-20260826/instrument-review-fix-round2-final-v2",
     "exactPinnedCheckout": "/Users/ccheever/projects/exact-m0c-air-20260826"
   },
   "pins": {
@@ -57,7 +57,7 @@
     "instrument": {
       "manifestPath": "benchmarks/instrument.manifest.json",
       "instrumentPin": "social-messenger@0.3.4-m8",
-      "manifestSha256": "fc08cc2d88d755d9cdbe5b9d138ac6f51e4073fb7041a8df92408c161923734e",
+      "manifestSha256": "73528e447562a55fc41e32da66d27157883a68eb49aa5ee9afa483cb18796935",
       "fixtureVersion": "0.2.0-m8",
       "schemaVersion": "0.3.0-m8",
       "uiVersion": "0.3.2-m8",
@@ -71,15 +71,15 @@
         "recordValidatorSha256": "1484f1129664b3a1092b95dd198ad45708dca177e78782707541ab2f701738e3",
         "meterSha256": "d19aa6764c513af489e43b00ef15f8560d347dc84998254d1cceb4bf9e4d5a62",
         "laneSetupSha256": "bd5cf473f203db8a327afcf78193f895c040deacad638adbe031a41ce3b04c2c",
-        "laneControllerSha256": "6f8f10c5d75fe6caf82d02f0403dadbf3bda4c70075a379509403e826630cf12",
-        "productionDriverSha256": "35ed95f086c0c17596bad4a269a26246fa3e5b06b3ab76813484f6a6bfeecd3c",
+        "laneControllerSha256": "803ab5fb586663edbb4415c52e649f98e56b3624e187141f065acc03613919cd",
+        "productionDriverSha256": "f8e381d9828a8d405963b397853a17c9b611ee2a18628c769b188c76fe4b597d",
         "signalSha256": "f2f835538bc92cd5ea2af0098e43ca0e97cf3934101c713f6c13ede55066a712",
         "manifestLoaderSha256": "09300790421db0bd55d0771633db8fe54e648e49fd7e8342a2067c44835492e6",
         "joinerSha256": "713095fb4b331808a12871fbe4ff997566103b299dfcd6b9dea96d0d203a68be",
         "observationsSha256": "89032eafe7816c3664df28d0e82262ead328a655866db529481d1b0aeec1407e",
         "codexNativeEvidenceSha256": "052a5fa8c3a78b71769405421fd17730c0537c92567705bd498713f9aa387ad3",
         "recordComposerSha256": "db3a64611d6a8d03554e1ffd36d95e1401938db6f4c791950acd60d24274a0be",
-        "admissionToolSha256": "e3b84957ab27d364bb32f2ccd03b96f534ce0db498c7753e174ff6168ef57269",
+        "admissionToolSha256": "5c707fae07c33559d1b96315163d8d2efd7f5951c78b8afe80fb4be02e792f23",
         "finalizedCellValidatorSha256": "9ca156073f18fd581f413b4b4b537d397a13c78317688fe91f1da2f1bb349bd2",
         "hostLockSha256": "55a4c8cb77d13658f7e5a4aae73c3aefd1826408124e4cc60bb70d972f57a6fb",
         "finalizeExistingSha256": "e8adb8be16501c3d3c022e15542ba736491f5283a6e8c18b71c1429dfe3308e8",
@@ -88,10 +88,10 @@
     }
   },
   "prompts": {
-    "prompts/clique-explicit.md": {"path": "prompts/clique-explicit.md", "sha256": "c40cba747cd99fc873c169ef4bbe9abf2366add303a4b4f4207a371d1787a57b"},
-    "prompts/clique-familiar.md": {"path": "prompts/clique-familiar.md", "sha256": "7d55ca9ae8eaa42cedac1821f1a4d8d70aea6e92daf2a710b1675e47afe845ed"},
-    "prompts/coterie-explicit.md": {"path": "prompts/coterie-explicit.md", "sha256": "8dcfef6937212f6c9b232fa9036be56a3479efb21dc734883159934eb7450577"},
-    "prompts/coterie-familiar.md": {"path": "prompts/coterie-familiar.md", "sha256": "51bbac3a18d4e9ec5c7d5f3473cfc79555b42243a50fb292fe10711e8ace5f40"}
+    "prompts/clique-explicit.md": {"path": "prompts/clique-explicit.md", "sha256": "69b88be1b788a43c637841c01f3f56eed27cf39a6759028665b42d57fd174a22"},
+    "prompts/clique-familiar.md": {"path": "prompts/clique-familiar.md", "sha256": "71ac2d2311fae2693a139901d4324307c52d34de9ceff3a5edc61d2479585b03"},
+    "prompts/coterie-explicit.md": {"path": "prompts/coterie-explicit.md", "sha256": "62baa7021dda656fbee99976c0f27771f4e1859ad0c447ada5158325e0a3c4fd"},
+    "prompts/coterie-familiar.md": {"path": "prompts/coterie-familiar.md", "sha256": "81c22feaa2233450fe850a8e3e3da425ad6b9b5c17ddf3f142d08b8c34592b3f"}
   },
   "machines": {
     "charlies-macbook-air": {
@@ -178,6 +178,7 @@
     },
     "perMilestoneWallSafetyLimitSeconds": 14400,
     "cellWallCapSeconds": 14400,
+    "cellWallCapAbortGraceSeconds": 15,
     "cellWallCapDisposition": {"diagnostic": "R3_CELL_WALL_CAP_TIMEOUT", "status": "capability-failure", "terminalReason": "wall-cap", "terminateNativeProcessTree": true},
     "tokenCapFormula": "For each (cap family, milestone), 2 * the largest validator-clean green pilot fresh-input-plus-output count; where any registered condition lacks that figure, LLP 0201's 2,000,000-token safety figure is used and doubled to 4,000,000. Capstone M7 has a complete 331,698-token fresh-session figure, doubled to 663,396. Grok has no approved native adapter and remains null/advisory.",
     "tokenCapsByLeg": {
@@ -215,7 +216,7 @@
     "portPolicy": {"mainRange": [57000, 58679], "m7Range": [59000, 59719], "rangeWidth": 60, "allCampaignPorts": "union of every cell.ports and every present cell.m7Ports"},
     "sourceClosure": {
       "version": "snapback.r2-executing-source-closure.v1",
-      "meteringRoot": {"kind": "directory", "path": "benchmarks/tools/social-messenger/metering", "sha256": "sha256:27e1a9626db1092018a689c0099c2cc83f2953883150aa5baeb25d916027f47f"},
+      "meteringRoot": {"kind": "directory", "path": "benchmarks/tools/social-messenger/metering", "sha256": "sha256:62dac9fc6dd6efcad4aaa3f9799d94912ee9f1807c078095c0d20f2ce5522180"},
       "files": [
         {"kind": "file", "path": "benchmarks/schema/run-record.schema.json", "sha256": "sha256:48083edb411bc7a3f1e879183e8cab3952ee7e5efd4447dfe55a5a57771d5de3", "bytes": 12655},
         {"kind": "file", "path": "benchmarks/schema/social-messenger/run-record-extension.schema.json", "sha256": "sha256:c4b7a1425e41b7fadd85ef2ed842b81c04b76ccb42a4bd17ac2dccaf6ec3114a", "bytes": 100230},
@@ -241,6 +242,7 @@
   "scoring": {
     "successfulCompletion": {"recordStatus": "SUCCESSFUL", "validator": "validator-clean", "milestoneRule": "all registered milestones green for the leg profile"},
     "successFloor": {"minimumSuccessfulReplicatesPerSide": 3, "belowFloorDisposition": "insufficient successful replicates", "failedReplicateUse": "A fully metered failed replicate enters failure-rate reporting only and never token or correction ratios."},
+    "composer": {"path": "compose-scorecard.mjs", "sha256": "b5e89449b4a6d6888f712eee521891bdc453e7de10c9789cacc7818f33556c25", "sanctioned": true},
     "contrasts": ["Explicit-minus-Familiar within family and app", "Clique-minus-Coterie within family and profile"],
     "scorecardRows": [
       {"id": "covered-fact-source-inspections", "aggregation": "every eligible constituent must be zero; publish every constituent, median, range, and N"},
@@ -249,9 +251,9 @@
       {"id": "silent-auth-query-waits", "aggregation": "every eligible constituent must be zero; publish every constituent, median, range, and N"},
       {"id": "advertised-path-disagreements", "aggregation": "every eligible constituent must be zero; publish every constituent, median, range, and N"},
       {"id": "bounded-orientation-packet", "threshold": {"operator": "<=", "bytes": 16384}, "aggregation": "every successful eligible constituent must meet the threshold; publish every constituent, median, range, and N; missing orientation evidence is not zero"},
-      {"id": "choreography-retry-ceiling", "excluded": true, "rationale": "The frozen 0.3.4-m8 record aggregates retried classes but cannot prove the LLP 0186 per-failed-assertion retry ceiling or unaffected-isolation retry count."},
-      {"id": "grouped-migration-advisories", "excluded": true, "rationale": "The frozen schema has no typed repair-class-by-table migration advisory event, so grouping cannot be measured without post-registration instrumentation."},
-      {"id": "debug-artifact-attribution", "excluded": true, "rationale": "The frozen record has no debug/release build-artifact size and link-time attribution fields; inferring them from aggregate wall time would be invalid."},
+      {"id": "choreography-retry-ceiling", "source": "controller-and-choreography-streams", "aggregation": "per successful eligible cell, derive retry counts by failed assertion identity from the hash-bound controller/choreography streams; require at most one retry for each failed assertion and zero retries for unaffected assertion identities; publish every constituent, maximum, median, range, and N"},
+      {"id": "grouped-migration-advisories", "source": "retained-native-streams", "aggregation": "per successful eligible cell, group retained native-stream migration advisories by normalized repair class; require exactly one advisory per class with its exact affected-table count; publish every class/count constituent, median class count, range, and N"},
+      {"id": "debug-artifact-attribution", "excluded": true, "rationale": "This published-npm wave builds no debug binary; debug artifact size/link attribution belongs to a source-build wave and cannot be inferred here."},
       {"id": "semantic-correction-actions", "contrastBarPercent": 40, "aggregation": "successful replicates only; paired constituent values, arm medians, median paired percentage difference, range, and N"},
       {"id": "output-tokens", "contrastBarPercent": 20, "aggregation": "successful replicates only; paired constituent values, arm medians, median paired percentage difference, range, and N"},
       {"id": "m1-wall-to-first-green", "contrastBarPercent": 30, "aggregation": "successful replicates only; paired constituent values, arm medians, median paired percentage difference, range, and N"}

@@ -62,6 +62,7 @@ import {
 import {
   admissionIdentity,
   allCampaignPorts,
+  assertConductorStoppingRule,
   configuredExecutionBinding,
   createAdmissionArtifact,
   inspectAdmissionDiskFloor,
@@ -140,14 +141,48 @@ test("cell wall cap terminates before returning a named fail-closed timeout", as
     },
     setTimer: (callback) => { queueMicrotask(callback); return 1; },
     clearTimer: () => {},
+    setGraceTimer: (callback) => { queueMicrotask(callback); return 2; },
+    clearGraceTimer: () => {},
   }), (error) => (
     error.code === "R3_CELL_WALL_CAP_TIMEOUT"
     && error.processTerminationAcknowledged === true
+    && error.operationSettledWithinGrace === false
   ));
   assert.deepEqual(terminated, {
     code: "R3_CELL_WALL_CAP_TIMEOUT",
     cellWallCapSeconds: 14_400,
   });
+});
+
+test("cell wall timeout aborts custody and refuses a resumed launch transition", async () => {
+  let releaseOperation;
+  const paused = new Promise((resolvePaused) => { releaseOperation = resolvePaused; });
+  let launched = false;
+  let terminationObservedAbort = false;
+  await assert.rejects(runWithCellWallCap({
+    cellWallCapSeconds: 14_400,
+    abortGraceSeconds: 1,
+    operation: async ({ signal, transition }) => {
+      transition("preflight-complete");
+      await paused;
+      assert.equal(signal.aborted, true);
+      transition("native-launch");
+      launched = true;
+    },
+    terminate: async (reason) => {
+      terminationObservedAbort = true;
+      releaseOperation();
+      return { acknowledged: true, reason };
+    },
+    setTimer: (callback) => { queueMicrotask(callback); return 1; },
+    clearTimer: () => {},
+  }), (error) => (
+    error.code === "R3_CELL_WALL_CAP_TIMEOUT"
+    && error.processTerminationAcknowledged === true
+    && error.operationSettledWithinGrace === true
+  ));
+  assert.equal(terminationObservedAbort, true);
+  assert.equal(launched, false, "the resumed operation must never cross the launch transition");
 });
 
 test("disk-floor measurement uses statfs available blocks and names refusal", async () => {
@@ -174,6 +209,58 @@ test("disk-floor measurement uses statfs available blocks and names refusal", as
   } finally {
     await rm(temp, { recursive: true, force: true });
   }
+});
+
+test("R3 admission stopping rule trips on two same-leg root causes and resets on success", () => {
+  const harnessConfig = {
+    cellOrder: ["a-1", "b-1", "a-2", "b-2", "a-3", "a-4"],
+    cells: [
+      { id: "a-1", leg: "A" }, { id: "b-1", leg: "B" },
+      { id: "a-2", leg: "A" }, { id: "b-2", leg: "B" },
+      { id: "a-3", leg: "A" }, { id: "a-4", leg: "A" },
+    ],
+    execution: { conductorStoppingRule: {
+      consecutiveFailures: 2,
+      scope: "same-leg",
+      sameRootCauseField: "rootCauseClass",
+      action: "pause-wave-for-orchestrator-review",
+      diagnostic: "R3_CONDUCTOR_REVIEW_REQUIRED",
+    } },
+  };
+  const failure = (cellId, rootCauseClass) => ({
+    cellId,
+    kind: "driver-failure-report",
+    outcome: "failure",
+    rootCauseClass,
+  });
+  assert.throws(() => assertConductorStoppingRule({
+    harnessConfig,
+    cellId: "a-3",
+    seriality: { landedDispositions: [
+      failure("a-1", "native-usage-settlement-timeout"),
+      failure("b-1", "unrelated-leg"),
+      failure("a-2", "native-usage-settlement-timeout"),
+      failure("b-2", "unrelated-leg"),
+    ] },
+  }), (error) => (
+    error.code === "R3_CONDUCTOR_REVIEW_REQUIRED"
+    && error.rootCauseClass === "native-usage-settlement-timeout"
+    && error.attemptConsumed === false
+  ));
+
+  const reset = assertConductorStoppingRule({
+    harnessConfig,
+    cellId: "a-4",
+    seriality: { landedDispositions: [
+      failure("a-1", "native-usage-settlement-timeout"),
+      failure("a-2", "native-usage-settlement-timeout"),
+      { cellId: "a-3", kind: "validated-record", outcome: "success", rootCauseClass: null },
+    ] },
+  });
+  assert.deepEqual(reset.immediatelyPreceding, [
+    { cellId: "a-2", outcome: "failure", rootCauseClass: "native-usage-settlement-timeout" },
+    { cellId: "a-3", outcome: "success", rootCauseClass: null },
+  ]);
 });
 
 async function currentR2HarnessFixture() {
@@ -1653,6 +1740,166 @@ test("watchdog turn identities remain cumulative across milestone arms", () => {
   assert.equal(watchdog.state.actualTokens, 25);
 });
 
+function codexSignalRecord(ordinal, milestone, timestamp) {
+  return {
+    ordinal,
+    timestamp,
+    type: "event_msg",
+    payload: {
+      type: "item_completed",
+      item: {
+        id: `${milestone.toLowerCase()}-signal`,
+        type: "CommandExecution",
+        status: "completed",
+        exit_code: 0,
+        command: ["node", "/fixture/r2-cell-signal.mjs", "--milestone", milestone],
+      },
+    },
+  };
+}
+
+function codexTokenRecord(ordinal, timestamp, cumulativeInput, lastInput) {
+  const usage = (input) => ({
+    input_tokens: input,
+    cached_input_tokens: 0,
+    cache_write_input_tokens: 0,
+    output_tokens: 0,
+    reasoning_output_tokens: 0,
+    total_tokens: input,
+  });
+  return {
+    ordinal,
+    timestamp,
+    type: "event_msg",
+    payload: {
+      type: "token_count",
+      info: {
+        total_token_usage: usage(cumulativeInput),
+        last_token_usage: usage(lastInput),
+      },
+    },
+  };
+}
+
+function codexWatchdogState(records) {
+  let index = 0;
+  const state = {
+    config: {
+      cell: { harness: "codex-sol" },
+      harnessConfig: { execution: { perMilestoneWallSafetyLimitSeconds: 1 } },
+    },
+    currentSession: { sourceId: "builder", nativeSessionId: "codex-builder" },
+    tokenWatchdog: null,
+    tokenWatchdogSessionSourceId: null,
+    settledUsage: { turnIds: new Set(), usageRecordOrdinal: null },
+    tokenWatchdogHistory: [],
+    usageFailure: null,
+    child: null,
+    now: () => Date.parse("2026-08-26T12:02:00.000Z"),
+    settlementSleep: async () => {},
+    readLiveCodexRecords: async () => records[Math.min(index++, records.length - 1)],
+  };
+  r2CellDriverTestHooks.ensureSessionTokenWatchdog(state);
+  return state;
+}
+
+test("Codex cumulative polling keeps one session watchdog across two milestones", async () => {
+  const m1 = [
+    codexSignalRecord(0, "M1", "2026-08-26T12:00:02.000Z"),
+    codexTokenRecord(1, "2026-08-26T12:00:03.000Z", 80, 80),
+  ];
+  const m2BeforeUsage = [
+    ...m1,
+    codexSignalRecord(2, "M2", "2026-08-26T12:01:02.000Z"),
+  ];
+  const cumulativeM2 = [
+    ...m2BeforeUsage,
+    codexTokenRecord(3, "2026-08-26T12:01:03.000Z", 100, 20),
+  ];
+  const state = codexWatchdogState([m1, m2BeforeUsage, cumulativeM2]);
+  state.tokenWatchdog.arm({
+    capFamily: "gpt-frontier",
+    milestone: "M1",
+    tokenCap: 1_000,
+    startedAt: "2026-08-26T12:00:00.000Z",
+    maxClockSkewMs: 5_000,
+  });
+  await r2CellDriverTestHooks.finishTokenWatchdog(state, {
+    milestone: "M1",
+    status: "green",
+    recordedAt: "2026-08-26T12:00:01.000Z",
+  });
+  const sameWatchdog = state.tokenWatchdog;
+  state.tokenWatchdog.arm({
+    capFamily: "gpt-frontier",
+    milestone: "M2",
+    // A fresh watchdog would recharge M1's 80 tokens and trip this cap.
+    tokenCap: 50,
+    startedAt: "2026-08-26T12:01:00.000Z",
+    maxClockSkewMs: 5_000,
+  });
+  await r2CellDriverTestHooks.finishTokenWatchdog(state, {
+    milestone: "M2",
+    status: "green",
+    recordedAt: "2026-08-26T12:01:01.000Z",
+  });
+  assert.equal(state.tokenWatchdog, sameWatchdog);
+  assert.deepEqual(state.tokenWatchdogHistory.map((item) => ({
+    milestone: item.milestone,
+    liveActualTokens: item.reconciliation.liveActualTokens,
+    retainedActualTokens: item.reconciliation.retainedActualTokens,
+  })), [
+    { milestone: "M1", liveActualTokens: 80, retainedActualTokens: 80 },
+    { milestone: "M2", liveActualTokens: 20, retainedActualTokens: 20 },
+  ]);
+});
+
+test("post-marker Codex usage is settled, charged to that milestone, and enforced", async () => {
+  const m1 = [
+    codexSignalRecord(0, "M1", "2026-08-26T12:00:02.000Z"),
+    codexTokenRecord(1, "2026-08-26T12:00:03.000Z", 80, 80),
+  ];
+  const markerVisibleBeforeUsage = [
+    ...m1,
+    codexSignalRecord(2, "M2", "2026-08-26T12:01:02.000Z"),
+  ];
+  const lateUsage = [
+    ...markerVisibleBeforeUsage,
+    codexTokenRecord(3, "2026-08-26T12:01:03.000Z", 100, 20),
+  ];
+  const state = codexWatchdogState([m1, markerVisibleBeforeUsage, lateUsage]);
+  let settlementWaits = 0;
+  state.settlementSleep = async () => { settlementWaits += 1; };
+  state.tokenWatchdog.arm({
+    capFamily: "gpt-frontier",
+    milestone: "M1",
+    tokenCap: 1_000,
+    startedAt: "2026-08-26T12:00:00.000Z",
+  });
+  await r2CellDriverTestHooks.finishTokenWatchdog(state, {
+    milestone: "M1",
+    status: "green",
+    recordedAt: "2026-08-26T12:00:01.000Z",
+  });
+  state.tokenWatchdog.arm({
+    capFamily: "gpt-frontier",
+    milestone: "M2",
+    tokenCap: 15,
+    startedAt: "2026-08-26T12:01:00.000Z",
+  });
+  await assert.rejects(r2CellDriverTestHooks.finishTokenWatchdog(state, {
+    milestone: "M2",
+    status: "green",
+    recordedAt: "2026-08-26T12:01:01.000Z",
+  }), (error) => (
+    error instanceof TokenCapEnforcedError
+    && error.trip.milestone === "M2"
+    && error.trip.actualTokens === 20
+    && error.trip.observedAt === "2026-08-26T12:01:03.000Z"
+  ));
+  assert.equal(settlementWaits, 1, "the marker must not settle before its later usage event");
+});
+
 test("watchdog rejects late prior-milestone IDs and fails closed on retained-tree divergence", async () => {
   const watchdog = new TokenCapWatchdog({ enforcementController: immediateController() });
   watchdog.arm({
@@ -2133,6 +2380,7 @@ test("production driver classifies source-inspection retries and surfaces queued
     ...nativeState,
     config: { laneRunId, cell: { harness: "claude-opus5" }, milestones: ["M1", "M2", "M3"] },
     root: temp,
+    currentSession: { sourceId: "builder" },
     child: {},
     controls,
     currentMilestone: "M2",
@@ -2142,6 +2390,10 @@ test("production driver classifies source-inspection retries and surfaces queued
     pendingNativeTools: new Map(),
     seenNativeActions: new Set(),
     observationSources: [],
+    tokenWatchdog: null,
+    tokenWatchdogSessionSourceId: null,
+    settledUsage: { turnIds: new Set(), usageRecordOrdinal: null },
+    usageFailure: null,
   };
   try {
     await Promise.all([
@@ -2454,6 +2706,8 @@ test("admission accepts a validator-clean recorded disposition after its pristin
       cellId: fixture.cellId,
       kind: "validated-record",
       path: `cells/${fixture.cellId}/record.json`,
+      outcome: "success",
+      rootCauseClass: null,
     }]);
   } finally {
     await rm(fixture.temp, { recursive: true, force: true });
@@ -2921,6 +3175,30 @@ test("per-cell admission binds exact execution, probes after sampling, and owns 
       },
     }), /R3_ADMISSION_DISK_FLOOR/u);
     assert.equal(lowDiskLockCalls, 0, "disk refusal must precede exclusive lock acquisition");
+    let issuanceDiskChecks = 0;
+    let lateDiskSamples = 0;
+    await assert.rejects(createAdmissionArtifact({
+      harnessConfigPath: configPath,
+      cellId: cell.id,
+      reservedBy: "metering-test-late-low-disk",
+      admissionPath,
+      dependencies: {
+        ...injected,
+        loadavg: () => { lateDiskSamples += 1; return [1, 2, 3]; },
+        processProbe: () => {
+          assert.equal(lateDiskSamples, 3, "fresh disk refusal must follow all load samples");
+          return { recorded: { pids: [], isolatedProcessGroups: [] }, active: [] };
+        },
+        statfs: () => {
+          issuanceDiskChecks += 1;
+          return issuanceDiskChecks === 1
+            ? { bsize: 4096n, bavail: 6_000_000n }
+            : { bsize: 4096n, bavail: 1n };
+        },
+      },
+    }), /R3_ADMISSION_DISK_FLOOR/u);
+    assert.equal(issuanceDiskChecks, 2, "disk must be measured before lock and again at issuance");
+    await assert.rejects(stat(admissionPath), { code: "ENOENT" });
     let samplesBeforeInstrument = 0;
     await assert.rejects(createAdmissionArtifact({
       harnessConfigPath: configPath,
@@ -3210,6 +3488,8 @@ async function makeFinalizeExistingFixture({
       kind: dispositionCell.disposition.kind,
       path: dispositionCell.disposition.path,
       sha256: dispositionCell.disposition.sha256,
+      outcome: "failure",
+      rootCauseClass: null,
     };
     await Promise.all([
       mkdir(join(publicationRunRoot, "cells", dispositionCell.id), { recursive: true }),

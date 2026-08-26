@@ -490,52 +490,102 @@ export async function writeAttemptFailure(configDirectory, error, phase) {
 }
 
 export class CellWallCapTimeoutError extends Error {
-  constructor({ cellWallCapSeconds, processTerminationAcknowledged }) {
+  constructor({
+    cellWallCapSeconds,
+    processTerminationAcknowledged,
+    operationSettledWithinGrace,
+  }) {
     super(`R3_CELL_WALL_CAP_TIMEOUT: cell exceeded its ${cellWallCapSeconds}s registered wall cap`);
     this.name = "CellWallCapTimeoutError";
     this.code = "R3_CELL_WALL_CAP_TIMEOUT";
     this.rootCauseClass = "cell-wall-cap";
     this.cellWallCapSeconds = cellWallCapSeconds;
     this.processTerminationAcknowledged = processTerminationAcknowledged;
+    this.operationSettledWithinGrace = operationSettledWithinGrace;
   }
+}
+
+function wallCapTransition(signal, stage) {
+  requiredString(stage, "cell wall cap stage");
+  if (!signal.aborted) return stage;
+  const error = new Error(
+    `R3_CELL_WALL_CAP_ABORTED: refused stage transition ${stage} after the cell wall cap expired`,
+  );
+  error.name = "CellWallCapAbortError";
+  error.code = "R3_CELL_WALL_CAP_ABORTED";
+  error.rootCauseClass = "cell-wall-cap";
+  error.stage = stage;
+  throw error;
 }
 
 export async function runWithCellWallCap({
   cellWallCapSeconds,
+  abortGraceSeconds = 15,
   operation,
   terminate,
   setTimer = setTimeout,
   clearTimer = clearTimeout,
+  setGraceTimer = setTimeout,
+  clearGraceTimer = clearTimeout,
 }) {
   if (!Number.isInteger(cellWallCapSeconds) || cellWallCapSeconds <= 0) {
     throw new TypeError("execution.cellWallCapSeconds must be a positive integer");
   }
+  if (!Number.isFinite(abortGraceSeconds) || abortGraceSeconds <= 0) {
+    throw new TypeError("execution.cellWallCapAbortGraceSeconds must be positive");
+  }
   requiredOperation(operation, "cell wall cap");
   requiredOperation(terminate, "cell wall cap termination");
+  const abortController = new AbortController();
+  const transition = (stage) => wallCapTransition(abortController.signal, stage);
   let timer;
-  const timeout = new Promise((resolveTimeout, rejectTimeout) => {
-    timer = setTimer(async () => {
-      let acknowledged = false;
-      try {
-        const result = await terminate({
-          code: "R3_CELL_WALL_CAP_TIMEOUT",
-          cellWallCapSeconds,
-        });
-        acknowledged = result?.acknowledged === true;
-      } catch {
-        acknowledged = false;
-      }
-      rejectTimeout(new CellWallCapTimeoutError({
+  const timeout = new Promise((resolveTimeout) => {
+    timer = setTimer(() => {
+      abortController.abort({
+        code: "R3_CELL_WALL_CAP_TIMEOUT",
         cellWallCapSeconds,
-        processTerminationAcknowledged: acknowledged,
-      }));
+      });
+      resolveTimeout({ kind: "timeout" });
     }, cellWallCapSeconds * 1_000);
   });
-  try {
-    return await Promise.race([operation(), timeout]);
-  } finally {
+  const operationSettlement = Promise.resolve()
+    .then(() => operation({ signal: abortController.signal, transition }))
+    .then(
+      (value) => ({ kind: "operation", status: "fulfilled", value }),
+      (error) => ({ kind: "operation", status: "rejected", error }),
+    );
+  const winner = await Promise.race([operationSettlement, timeout]);
+  if (winner.kind === "operation") {
     clearTimer(timer);
+    if (winner.status === "rejected") throw winner.error;
+    return winner.value;
   }
+
+  let acknowledged = false;
+  try {
+    const result = await terminate({
+      code: "R3_CELL_WALL_CAP_TIMEOUT",
+      cellWallCapSeconds,
+    });
+    acknowledged = result?.acknowledged === true;
+  } catch {
+    acknowledged = false;
+  }
+
+  let graceTimer;
+  const graceExpired = new Promise((resolveGrace) => {
+    graceTimer = setGraceTimer(
+      () => resolveGrace({ kind: "grace-expired" }),
+      abortGraceSeconds * 1_000,
+    );
+  });
+  const custody = await Promise.race([operationSettlement, graceExpired]);
+  clearGraceTimer(graceTimer);
+  throw new CellWallCapTimeoutError({
+    cellWallCapSeconds,
+    processTerminationAcknowledged: acknowledged,
+    operationSettledWithinGrace: custody.kind === "operation",
+  });
 }
 
 export async function importAndPreflightR2Driver({
@@ -845,22 +895,33 @@ async function main() {
     try {
       await runWithCellWallCap({
         cellWallCapSeconds: config.harnessConfig.execution.cellWallCapSeconds,
+        abortGraceSeconds: config.harnessConfig.execution.cellWallCapAbortGraceSeconds,
         terminate: async (reason) => (
           typeof driver.terminate === "function"
             ? driver.terminate({ config, configDirectory, reason })
             : { acknowledged: false }
         ),
-        operation: async () => {
+        operation: async ({ signal, transition }) => {
           if (typeof driver.prepare === "function") {
+            transition("driver-prepare");
             attemptPhase = "driver-prepare";
-            await driver.prepare({ config, configDirectory, preflight: driverPreflight });
+            await driver.prepare({
+              config,
+              configDirectory,
+              preflight: driverPreflight,
+              abortSignal: signal,
+              transition,
+            });
           }
+          transition("model-product-execution");
           prepared = true;
           attemptPhase = "model-product-execution";
           for (const milestone of config.milestones) {
+            transition(`${milestone}-claim-options`);
             const claimOptions = typeof driver.claimOptions === "function"
               ? await driver.claimOptions({ milestone, config, configDirectory })
               : {};
+            transition(`${milestone}-controller-run`);
             await controller.runMilestone(
               milestone,
               (controls) => driver.runMilestone({
@@ -868,6 +929,8 @@ async function main() {
                 controls,
                 config,
                 configDirectory,
+                abortSignal: signal,
+                transition,
               }),
               claimOptions,
             );
@@ -876,6 +939,15 @@ async function main() {
       });
     } catch (error) {
       cellError = error;
+      if (
+        error?.code === "R3_CELL_WALL_CAP_TIMEOUT"
+        && error.operationSettledWithinGrace !== true
+      ) {
+        // Custody could not prove the aborted operation settled. Do not race
+        // deterministic record writes against it; the attempt-failure receipt
+        // is the only sanctioned terminal artifact for the whole cell.
+        prepared = false;
+      }
     } finally {
       if (prepared) {
         try {
