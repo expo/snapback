@@ -44,7 +44,20 @@
     "continuation": null
   },
   "foldedChangeBatch": {
-    "entries": []
+    "entries": [
+      {
+        "rowKey": "interval-start",
+        "op": "insert",
+        "admit": "enter",
+        "postImage": {
+          "_id": "interval-start",
+          "rank": 10
+        },
+        "rankKeys": [
+          10
+        ]
+      }
+    ]
   },
   "readTranscript": [],
   "expected": {

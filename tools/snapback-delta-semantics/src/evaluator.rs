@@ -761,10 +761,17 @@ pub fn evaluate_window(
         .take(config.take)
         .cloned()
         .collect::<Vec<_>>();
-    let selected_before_or_at_old = match &b_old {
+    let selected_before_tail_origin = match &b_old {
         Some(boundary) => selected
             .iter()
-            .filter(|row| cmp_rank(config, &row.rank_keys, boundary) != Ordering::Greater)
+            .filter(|row| {
+                let ordering = cmp_rank(config, &row.rank_keys, boundary);
+                if b_old_inclusive {
+                    ordering == Ordering::Less
+                } else {
+                    ordering != Ordering::Greater
+                }
+            })
             .count(),
         None => 0,
     };
@@ -781,7 +788,10 @@ pub fn evaluate_window(
         let request = ReadRequest::Tail {
             window: config.window_id.clone(),
             boundary: b_old.clone(),
-            k: config.take.saturating_sub(selected_before_or_at_old),
+            // An inclusive synthesized origin re-reads the row at the origin,
+            // so only rows strictly before it consume tail capacity. The
+            // row-keyed working map below deduplicates that re-read on merge.
+            k: config.take.saturating_sub(selected_before_tail_origin),
             label_only: false,
             inclusive: b_old_inclusive,
         };
@@ -2248,11 +2258,11 @@ fn propagate_projected_aliases(
         if instances.is_empty() {
             continue;
         }
-        // A propagated patch targets the consuming row. A to-many consumer is
-        // therefore below its array boundary even when the collection itself
-        // hangs directly from the root; the current wire can address its
-        // splices, not this ancestor-sourced row update.
-        if consumer.kind != AssemblyNodeKind::ToOne || !addressable(config, &consumer.node_id) {
+        if !matches!(
+            consumer.kind,
+            AssemblyNodeKind::ToOne | AssemblyNodeKind::ToMany
+        ) || !addressable(config, &consumer.node_id)
+        {
             return Err(FallbackReason::WireUnaddressable);
         }
         let field = consumer
@@ -2266,16 +2276,38 @@ fn propagate_projected_aliases(
                         .ok_or(FallbackReason::WireUnaddressable)?;
                 (context.root_key, context.root_position)
             };
-            let child = parent_value_mut(config, working_result, &consumer.node_id, &parent_scope)
-                .and_then(|parent| parent.get_mut(field))
+            let parent = parent_value_mut(config, working_result, &consumer.node_id, &parent_scope)
                 .ok_or(FallbackReason::WireUnaddressable)?;
+            let (child, position) = match consumer.kind {
+                AssemblyNodeKind::ToOne => (
+                    parent
+                        .get_mut(field)
+                        .ok_or(FallbackReason::WireUnaddressable)?,
+                    root_position,
+                ),
+                AssemblyNodeKind::ToMany => {
+                    let children = parent
+                        .get_mut(field)
+                        .and_then(Value::as_array_mut)
+                        .ok_or(FallbackReason::WireUnaddressable)?;
+                    let (position, child) = children
+                        .iter_mut()
+                        .enumerate()
+                        .find(|(_, child)| value_row_key(child).as_deref() == Some(key.as_str()))
+                        .ok_or(FallbackReason::WireUnaddressable)?;
+                    (child, position)
+                }
+                AssemblyNodeKind::Root | AssemblyNodeKind::Exists => {
+                    return Err(FallbackReason::WireUnaddressable);
+                }
+            };
             merge_patch(child, &patch)?;
             ops.push(WireOp {
                 op: WireOpKind::Update,
                 node_id: consumer.node_id.clone(),
                 root_key: Some(root_key),
                 key: Some(key),
-                position: Some(root_position),
+                position: Some(position),
                 row: Some(row_value(patch.clone())),
             });
         }

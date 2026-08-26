@@ -1174,20 +1174,19 @@
       ]
     },
     {
-      "name": "assemble-ancestor-source-alias-below-array-unaddressable",
-      "path": "124-assemble-ancestor-source-alias-below-array-unaddressable.case.json",
-      "sha256": "sha256:5d32136535d63d20451faa0aa6d3477ccdeb65693e928c188aef7d61271fb63d",
+      "name": "assemble-ancestor-source-alias-to-many",
+      "path": "124-assemble-ancestor-source-alias-to-many.case.json",
+      "sha256": "sha256:221dedf3327977b95f9c2a33d9179f61c2900eb6ae8afb2b2a09f0f08e4d36d9",
       "coverage": [
         "assemble",
         "projection-alias",
-        "ancestor-source",
-        "fallback"
+        "ancestor-source"
       ]
     },
     {
       "name": "window-empty-inclusive-start-admits-boundary-rank",
       "path": "125-window-empty-inclusive-start-admits-boundary-rank.case.json",
-      "sha256": "sha256:70487c38de4eb9158a0d0805adfcb5ccb124467db72c90ba085e7d1955999274",
+      "sha256": "sha256:670d979c1be3534eb3ef8aa030eb28fb38a2a0ea4e35caf9bc8404567201d510",
       "coverage": [
         "window",
         "finite-interval",
@@ -1209,11 +1208,22 @@
     {
       "name": "window-empty-inclusive-start-admits-boundary-rank-empty-transcript",
       "path": "127-window-empty-inclusive-start-admits-boundary-rank-empty-transcript.case.json",
-      "sha256": "sha256:62c26df2b4087239c82bb8afcda7cbbd43eb7790cfe60232f9ec8a0876be5728",
+      "sha256": "sha256:655f791537da484727b67da1326d254546958784088fc517475a0cab4207a1a4",
       "coverage": [
         "window",
         "finite-interval",
         "inclusive-origin",
+        "fallback"
+      ]
+    },
+    {
+      "name": "assemble-ancestor-source-alias-below-array-unaddressable",
+      "path": "128-assemble-ancestor-source-alias-below-array-unaddressable.case.json",
+      "sha256": "sha256:139e534fe664594fcc9ea3584b141f9a406fee71cc915ed4f8511e38f67e6428",
+      "coverage": [
+        "assemble",
+        "projection-alias",
+        "ancestor-source",
         "fallback"
       ]
     }

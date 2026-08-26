@@ -1,0 +1,231 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "assemble-ancestor-source-alias-to-many",
+  "coverage": [
+    "assemble",
+    "projection-alias",
+    "ancestor-source"
+  ],
+  "operator": {
+    "form": "assemble",
+    "config": {
+      "rootNodeId": "root",
+      "nodes": [
+        {
+          "nodeId": "root",
+          "parent": null,
+          "kind": "root",
+          "projection": {
+            "_id": {
+              "kind": "field",
+              "sourceNode": "root",
+              "sourceField": "_id"
+            },
+            "title": {
+              "kind": "field",
+              "sourceNode": "root",
+              "sourceField": "title"
+            }
+          }
+        },
+        {
+          "nodeId": "many",
+          "parent": "root",
+          "kind": "to-many",
+          "resultField": "children",
+          "projection": {
+            "_id": {
+              "kind": "field",
+              "sourceNode": "many",
+              "sourceField": "_id"
+            },
+            "rootTitle": {
+              "kind": "field",
+              "sourceNode": "root",
+              "sourceField": "title"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "initialState": {
+    "result": [
+      {
+        "_id": "p1",
+        "title": "old",
+        "children": [
+          {
+            "_id": "c1",
+            "rootTitle": "old"
+          },
+          {
+            "_id": "c2",
+            "rootTitle": "old"
+          }
+        ]
+      }
+    ],
+    "orderedRootKeys": [
+      "p1"
+    ]
+  },
+  "foldedChangeBatch": {
+    "events": [
+      {
+        "kind": "root-seq",
+        "nodeId": "root",
+        "delta": {
+          "ops": [
+            {
+              "op": "patch",
+              "sortKey": {
+                "values": [
+                  1
+                ],
+                "rowKey": "p1"
+              },
+              "rowKey": "p1",
+              "post": {
+                "title": "new"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "nextNodeOutputs": {
+      "root": {
+        "$root": [
+          {
+            "_id": "p1",
+            "title": "new"
+          }
+        ]
+      },
+      "many": {
+        "p1": [
+          {
+            "_id": "c1"
+          },
+          {
+            "_id": "c2"
+          }
+        ]
+      }
+    },
+    "postResult": [
+      {
+        "_id": "p1",
+        "title": "new",
+        "children": [
+          {
+            "_id": "c1",
+            "rootTitle": "new"
+          },
+          {
+            "_id": "c2",
+            "rootTitle": "new"
+          }
+        ]
+      }
+    ],
+    "orderedRootKeys": [
+      "p1"
+    ],
+    "nodeCompleteness": [
+      {
+        "nodeId": "root",
+        "label": "complete"
+      },
+      {
+        "nodeId": "many",
+        "label": "complete"
+      }
+    ],
+    "proofTuple": {
+      "materialization": "m1",
+      "authority": "public",
+      "evaluationCut": 7
+    }
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "ops": [
+        {
+          "op": "update",
+          "nodeId": "root",
+          "rootKey": "p1",
+          "key": "p1",
+          "position": 0,
+          "row": {
+            "title": "new"
+          }
+        },
+        {
+          "op": "update",
+          "nodeId": "many",
+          "rootKey": "p1",
+          "key": "c1",
+          "position": 0,
+          "row": {
+            "rootTitle": "new"
+          }
+        },
+        {
+          "op": "update",
+          "nodeId": "many",
+          "rootKey": "p1",
+          "key": "c2",
+          "position": 1,
+          "row": {
+            "rootTitle": "new"
+          }
+        }
+      ],
+      "orderedRootKeys": [
+        "p1"
+      ],
+      "nodeCompleteness": [
+        {
+          "nodeId": "root",
+          "label": "complete"
+        },
+        {
+          "nodeId": "many",
+          "label": "complete"
+        }
+      ],
+      "graphCompleteness": "complete",
+      "proofTuple": {
+        "materialization": "m1",
+        "authority": "public",
+        "evaluationCut": 7
+      },
+      "resultDigest": "sha256:158f2baafd6fc688e051e745c2f76ed74b5c0fcb54ebc25eb00027f0c9a48f4b"
+    },
+    "nextState": {
+      "result": [
+        {
+          "_id": "p1",
+          "title": "new",
+          "children": [
+            {
+              "_id": "c1",
+              "rootTitle": "new"
+            },
+            {
+              "_id": "c2",
+              "rootTitle": "new"
+            }
+          ]
+        }
+      ],
+      "orderedRootKeys": [
+        "p1"
+      ]
+    }
+  }
+}

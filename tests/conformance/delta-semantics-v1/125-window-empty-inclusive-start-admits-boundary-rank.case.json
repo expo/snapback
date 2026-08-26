@@ -44,7 +44,20 @@
     "continuation": null
   },
   "foldedChangeBatch": {
-    "entries": []
+    "entries": [
+      {
+        "rowKey": "interval-start",
+        "op": "insert",
+        "admit": "enter",
+        "postImage": {
+          "_id": "interval-start",
+          "rank": 10
+        },
+        "rankKeys": [
+          10
+        ]
+      }
+    ]
   },
   "readTranscript": [
     {
@@ -67,6 +80,10 @@
           {
             "_id": "interval-start",
             "rank": 10
+          },
+          {
+            "_id": "later",
+            "rank": 11
           }
         ],
         "exhausted": true
@@ -89,6 +106,19 @@
             "_id": "interval-start",
             "rank": 10
           }
+        },
+        {
+          "op": "splice-in",
+          "sortKey": {
+            "values": [
+              11
+            ],
+            "rowKey": "later"
+          },
+          "row": {
+            "_id": "later",
+            "rank": 11
+          }
         }
       ]
     },
@@ -106,22 +136,35 @@
             "_id": "interval-start",
             "rank": 10
           }
+        },
+        {
+          "rowKey": "later",
+          "rankKeys": {
+            "values": [
+              11
+            ],
+            "rowKey": "later"
+          },
+          "row": {
+            "_id": "later",
+            "rank": 11
+          }
         }
       ],
       "boundary": {
         "values": [
-          10
+          11
         ],
-        "rowKey": "interval-start"
+        "rowKey": "later"
       },
-      "resultCount": 1,
+      "resultCount": 2,
       "complete": true,
       "label": "complete",
       "continuation": {
         "values": [
-          10
+          11
         ],
-        "rowKey": "interval-start"
+        "rowKey": "later"
       }
     }
   }

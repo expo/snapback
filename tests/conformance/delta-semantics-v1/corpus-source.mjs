@@ -3505,6 +3505,98 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
       }
     }
   },
+  "admit-membership-rekey-probed-empty-transcript": {
+    "verdict": "Fallback",
+    "reason": "support-unproved"
+  },
+  "window-incomplete-underfill-tail-exhausted-empty-transcript": {
+    "verdict": "Fallback",
+    "reason": "boundary-displacement"
+  },
+  "window-backward-tail-competition-empty-transcript": {
+    "verdict": "Fallback",
+    "reason": "boundary-displacement"
+  },
+  "window-tail-competition-known-mask-empty-transcript": {
+    "verdict": "Fallback",
+    "reason": "boundary-displacement"
+  },
+  "window-desc-empty-finite-upper-origin-empty-transcript": {
+    "verdict": "Fallback",
+    "reason": "boundary-displacement"
+  },
+  "window-label-reproof-to-complete-empty-transcript": {
+    "verdict": "Fallback",
+    "reason": "completeness-indeterminate"
+  },
+  "window-label-reproof-stays-incomplete-empty-transcript": {
+    "verdict": "Fallback",
+    "reason": "completeness-indeterminate"
+  },
+  "window-empty-incomplete-tail-from-start-empty-transcript": {
+    "verdict": "Fallback",
+    "reason": "boundary-displacement"
+  },
+  "lookup-birth-fill-emitted-empty-transcript": {
+    "verdict": "Fallback",
+    "reason": "scope-unfilled"
+  },
+  "lookup-rekey-prior-to-fill-empty-transcript": {
+    "verdict": "Fallback",
+    "reason": "rekey-unread"
+  },
+  "lookup-both-change-parent-first-skip-empty-transcript": {
+    "verdict": "Fallback",
+    "reason": "rekey-unread"
+  },
+  "per-parent-birth-fill-emitted-empty-transcript": {
+    "verdict": "Fallback",
+    "reason": "scope-unfilled"
+  },
+  "per-parent-rekey-prior-to-fill-empty-transcript": {
+    "verdict": "Fallback",
+    "reason": "rekey-unread"
+  },
+  "per-parent-both-change-parent-first-skip-empty-transcript": {
+    "verdict": "Fallback",
+    "reason": "rekey-unread"
+  },
+  "support-direct-one-to-zero-reprobe-empty-transcript": {
+    "verdict": "Fallback",
+    "reason": "support-unproved"
+  },
+  "support-one-to-one-delete-empty-transcript": {
+    "verdict": "Fallback",
+    "reason": "support-unproved"
+  },
+  "support-through-zero-to-one-probed-empty-transcript": {
+    "verdict": "Fallback",
+    "reason": "support-unproved"
+  },
+  "support-all-mode-element-transition-empty-transcript": {
+    "verdict": "Fallback",
+    "reason": "support-unproved"
+  },
+  "support-parent-birth-establishes-bit-empty-transcript": {
+    "verdict": "Fallback",
+    "reason": "support-unproved"
+  },
+  "support-parent-rekey-establishes-bit-empty-transcript": {
+    "verdict": "Fallback",
+    "reason": "support-unproved"
+  },
+  "support-through-retarget-reprobed-empty-transcript": {
+    "verdict": "Fallback",
+    "reason": "support-unproved"
+  },
+  "lift-zero-to-one-admits-unretained-empty-transcript": {
+    "verdict": "Fallback",
+    "reason": "scope-unresolved"
+  },
+  "composition-lift-enters-window-same-step-empty-transcript": {
+    "verdict": "Fallback",
+    "reason": "scope-unresolved"
+  },
   "support-direct-stay-in-rekey-moves-scopes": {
     "verdict": "Maintain",
     "deltaOut": {
@@ -3602,9 +3694,83 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
       ]
     }
   },
-  "assemble-ancestor-source-alias-below-array-unaddressable": {
-    "verdict": "Fallback",
-    "reason": "wire-unaddressable"
+  "assemble-ancestor-source-alias-to-many": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "ops": [
+        {
+          "op": "update",
+          "nodeId": "root",
+          "rootKey": "p1",
+          "key": "p1",
+          "position": 0,
+          "row": {
+            "title": "new"
+          }
+        },
+        {
+          "op": "update",
+          "nodeId": "many",
+          "rootKey": "p1",
+          "key": "c1",
+          "position": 0,
+          "row": {
+            "rootTitle": "new"
+          }
+        },
+        {
+          "op": "update",
+          "nodeId": "many",
+          "rootKey": "p1",
+          "key": "c2",
+          "position": 1,
+          "row": {
+            "rootTitle": "new"
+          }
+        }
+      ],
+      "orderedRootKeys": [
+        "p1"
+      ],
+      "nodeCompleteness": [
+        {
+          "nodeId": "root",
+          "label": "complete"
+        },
+        {
+          "nodeId": "many",
+          "label": "complete"
+        }
+      ],
+      "graphCompleteness": "complete",
+      "proofTuple": {
+        "materialization": "m1",
+        "authority": "public",
+        "evaluationCut": 7
+      },
+      "resultDigest": "sha256:158f2baafd6fc688e051e745c2f76ed74b5c0fcb54ebc25eb00027f0c9a48f4b"
+    },
+    "nextState": {
+      "result": [
+        {
+          "_id": "p1",
+          "title": "new",
+          "children": [
+            {
+              "_id": "c1",
+              "rootTitle": "new"
+            },
+            {
+              "_id": "c2",
+              "rootTitle": "new"
+            }
+          ]
+        }
+      ],
+      "orderedRootKeys": [
+        "p1"
+      ]
+    }
   },
   "window-empty-inclusive-start-admits-boundary-rank": {
     "verdict": "Maintain",
@@ -3621,6 +3787,19 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
           "row": {
             "_id": "interval-start",
             "rank": 10
+          }
+        },
+        {
+          "op": "splice-in",
+          "sortKey": {
+            "values": [
+              11
+            ],
+            "rowKey": "later"
+          },
+          "row": {
+            "_id": "later",
+            "rank": 11
           }
         }
       ]
@@ -3639,116 +3818,37 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
             "_id": "interval-start",
             "rank": 10
           }
+        },
+        {
+          "rowKey": "later",
+          "rankKeys": {
+            "values": [
+              11
+            ],
+            "rowKey": "later"
+          },
+          "row": {
+            "_id": "later",
+            "rank": 11
+          }
         }
       ],
       "boundary": {
         "values": [
-          10
+          11
         ],
-        "rowKey": "interval-start"
+        "rowKey": "later"
       },
-      "resultCount": 1,
+      "resultCount": 2,
       "complete": true,
       "label": "complete",
       "continuation": {
         "values": [
-          10
+          11
         ],
-        "rowKey": "interval-start"
+        "rowKey": "later"
       }
     }
-  },
-  "admit-membership-rekey-probed-empty-transcript": {
-    "verdict": "Fallback",
-    "reason": "support-unproved"
-  },
-  "window-incomplete-underfill-tail-exhausted-empty-transcript": {
-    "verdict": "Fallback",
-    "reason": "boundary-displacement"
-  },
-  "window-backward-tail-competition-empty-transcript": {
-    "verdict": "Fallback",
-    "reason": "boundary-displacement"
-  },
-  "window-tail-competition-known-mask-empty-transcript": {
-    "verdict": "Fallback",
-    "reason": "boundary-displacement"
-  },
-  "window-desc-empty-finite-upper-origin-empty-transcript": {
-    "verdict": "Fallback",
-    "reason": "boundary-displacement"
-  },
-  "window-label-reproof-to-complete-empty-transcript": {
-    "verdict": "Fallback",
-    "reason": "completeness-indeterminate"
-  },
-  "window-label-reproof-stays-incomplete-empty-transcript": {
-    "verdict": "Fallback",
-    "reason": "completeness-indeterminate"
-  },
-  "window-empty-incomplete-tail-from-start-empty-transcript": {
-    "verdict": "Fallback",
-    "reason": "boundary-displacement"
-  },
-  "lookup-birth-fill-emitted-empty-transcript": {
-    "verdict": "Fallback",
-    "reason": "scope-unfilled"
-  },
-  "lookup-rekey-prior-to-fill-empty-transcript": {
-    "verdict": "Fallback",
-    "reason": "rekey-unread"
-  },
-  "lookup-both-change-parent-first-skip-empty-transcript": {
-    "verdict": "Fallback",
-    "reason": "rekey-unread"
-  },
-  "per-parent-birth-fill-emitted-empty-transcript": {
-    "verdict": "Fallback",
-    "reason": "scope-unfilled"
-  },
-  "per-parent-rekey-prior-to-fill-empty-transcript": {
-    "verdict": "Fallback",
-    "reason": "rekey-unread"
-  },
-  "per-parent-both-change-parent-first-skip-empty-transcript": {
-    "verdict": "Fallback",
-    "reason": "rekey-unread"
-  },
-  "support-direct-one-to-zero-reprobe-empty-transcript": {
-    "verdict": "Fallback",
-    "reason": "support-unproved"
-  },
-  "support-one-to-one-delete-empty-transcript": {
-    "verdict": "Fallback",
-    "reason": "support-unproved"
-  },
-  "support-through-zero-to-one-probed-empty-transcript": {
-    "verdict": "Fallback",
-    "reason": "support-unproved"
-  },
-  "support-all-mode-element-transition-empty-transcript": {
-    "verdict": "Fallback",
-    "reason": "support-unproved"
-  },
-  "support-parent-birth-establishes-bit-empty-transcript": {
-    "verdict": "Fallback",
-    "reason": "support-unproved"
-  },
-  "support-parent-rekey-establishes-bit-empty-transcript": {
-    "verdict": "Fallback",
-    "reason": "support-unproved"
-  },
-  "support-through-retarget-reprobed-empty-transcript": {
-    "verdict": "Fallback",
-    "reason": "support-unproved"
-  },
-  "lift-zero-to-one-admits-unretained-empty-transcript": {
-    "verdict": "Fallback",
-    "reason": "scope-unresolved"
-  },
-  "composition-lift-enters-window-same-step-empty-transcript": {
-    "verdict": "Fallback",
-    "reason": "scope-unresolved"
   },
   "support-direct-stay-in-rekey-moves-scopes-empty-transcript": {
     "verdict": "Fallback",
@@ -3757,6 +3857,10 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
   "window-empty-inclusive-start-admits-boundary-rank-empty-transcript": {
     "verdict": "Fallback",
     "reason": "boundary-displacement"
+  },
+  "assemble-ancestor-source-alias-below-array-unaddressable": {
+    "verdict": "Fallback",
+    "reason": "wire-unaddressable"
   }
 } /* EXPECTED_SOURCE_END */;
 
@@ -4476,10 +4580,12 @@ const ancestorAliasedManyNode = {
     _id: projectionField('many', '_id'), rootTitle: projectionField('root', 'title'),
   },
 };
-add('assemble-ancestor-source-alias-below-array-unaddressable',
-  ['assemble', 'projection-alias', 'ancestor-source', 'fallback'],
+add('assemble-ancestor-source-alias-to-many',
+  ['assemble', 'projection-alias', 'ancestor-source'],
   assemble([rootNode, ancestorAliasedManyNode]), {
-    result: [{ _id: 'p1', title: 'old', children: [{ _id: 'c1', rootTitle: 'old' }] }],
+    result: [{ _id: 'p1', title: 'old', children: [
+      { _id: 'c1', rootTitle: 'old' }, { _id: 'c2', rootTitle: 'old' },
+    ] }],
     orderedRootKeys: ['p1'],
   }, {
     ...assemblyInput(
@@ -4489,17 +4595,22 @@ add('assemble-ancestor-source-alias-below-array-unaddressable',
       ] } }],
       {
         root: { $root: [{ _id: 'p1', title: 'new' }] },
-        many: { p1: [{ _id: 'c1' }] },
+        many: { p1: [{ _id: 'c1' }, { _id: 'c2' }] },
       },
-      [{ _id: 'p1', title: 'new', children: [{ _id: 'c1', rootTitle: 'new' }] }],
+      [{ _id: 'p1', title: 'new', children: [
+        { _id: 'c1', rootTitle: 'new' }, { _id: 'c2', rootTitle: 'new' },
+      ] }],
     ),
   });
 
 add('window-empty-inclusive-start-admits-boundary-rank',
   ['window', 'finite-interval', 'inclusive-origin', 'read-maintain'], window({
     interval: { lower: { key: rankKey('interval-start', 10), inclusive: true } },
-  }), windowState([], false), { entries: [] }, [
-    tail('root', rankKey('interval-start', 10), 2, [row('interval-start', 10)], true, false, true),
+  }), windowState([], false), { entries: [
+    dz('interval-start', 'insert', 'enter', row('interval-start', 10), [10]),
+  ] }, [
+    tail('root', rankKey('interval-start', 10), 2,
+      [row('interval-start', 10), row('later', 11)], true, false, true),
   ]);
 
 // Every maintain vector whose proof consumes R has an exact empty-transcript
@@ -4515,6 +4626,37 @@ for (const source of round3Cases.filter(({ coverage }) => coverage.includes('rea
   add(`${source.name}-empty-transcript`, [...source.coverage.filter((tag) => tag !== 'read-maintain'), 'fallback'],
     clone(source.operator), clone(source.initialState), clone(source.foldedChangeBatch), []);
 }
+
+// Lane A re-review round 4: unlike a direct-root to-many item, this alias
+// consumer sits below an array and therefore remains wire-unaddressable.
+const ancestorAliasedNestedOneNode = {
+  nodeId: 'nestedAlias', parent: 'many', kind: 'to-one', resultField: 'detail', projection: {
+    name: projectionField('nestedAlias', 'name'), rootTitle: projectionField('root', 'title'),
+  },
+};
+add('assemble-ancestor-source-alias-below-array-unaddressable',
+  ['assemble', 'projection-alias', 'ancestor-source', 'fallback'],
+  assemble([rootNode, manyNode, ancestorAliasedNestedOneNode]), {
+    result: [{ _id: 'p1', title: 'old', children: [{
+      _id: 'c1', title: 'child', detail: { name: 'detail', rootTitle: 'old' },
+    }] }],
+    orderedRootKeys: ['p1'],
+  }, {
+    ...assemblyInput(
+      [rootNode, manyNode, ancestorAliasedNestedOneNode],
+      [{ kind: 'root-seq', nodeId: 'root', delta: { ops: [
+        { op: 'patch', sortKey: rankKey('p1', 1), rowKey: 'p1', post: { title: 'new' } },
+      ] } }],
+      {
+        root: { $root: [{ _id: 'p1', title: 'new' }] },
+        many: { p1: [{ _id: 'c1', title: 'child' }] },
+        nestedAlias: { c1: { _id: 'd1', name: 'detail' } },
+      },
+      [{ _id: 'p1', title: 'new', children: [{
+        _id: 'c1', title: 'child', detail: { name: 'detail', rootTitle: 'new' },
+      }] }],
+    ),
+  });
 
 if (authored.length < 60 || authored.length > 140) {
   throw new Error(`delta-semantics corpus must contain 60-140 cases, found ${authored.length}`);
