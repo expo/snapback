@@ -142,4 +142,6 @@ try {
   if (temporaryRoot !== null) rmSync(temporaryRoot, { recursive: true, force: true });
 }
 
-console.log('diagnostic-guide-anchors.test.mjs: COMPLETE stale-result guideAnchors regression and capability canary pass');
+if (!process.exitCode) {
+  console.log('diagnostic-guide-anchors.test.mjs: COMPLETE stale-result guideAnchors regression and capability canary pass');
+}

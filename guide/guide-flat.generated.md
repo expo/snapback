@@ -75068,7 +75068,6 @@ stable codes, never message text. `requireBunRuntime(label)` guards suites
 that must run under bun.
 
 ## Recover when durable auth custody is unavailable
-
 <!-- diagnostic-primary: SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE -->
 
 `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE` means the selected client platform
