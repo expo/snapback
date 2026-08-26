@@ -416,19 +416,37 @@ export function publishGeneratedGraph({
   reviewManifest,
   testHooks = undefined,
 }) {
+  const stagingRoot = dirname(resolve(temporaryGraphRoot));
+  const projectRoot = codegenProjectRoot(dirname(resolve(materializedRoot)));
+  const stagingRelativeToProject = relative(projectRoot, stagingRoot);
+  const candidateRelativeToStaging = relative(stagingRoot, resolve(temporaryGraphRoot));
+  if (
+    stagingRelativeToProject === ''
+    || (!stagingRelativeToProject.startsWith(`..${sep}`) && stagingRelativeToProject !== '..')
+    || candidateRelativeToStaging === '..'
+    || candidateRelativeToStaging.startsWith(`..${sep}`)
+    || isAbsolute(candidateRelativeToStaging)
+  ) {
+    throw new TypeError('codegen publication staging must contain the candidate outside the project root');
+  }
   const cacheParent = dirname(cacheGraphRoot);
   mkdirSync(cacheParent, { recursive: true });
   writeFileSync(join(temporaryGraphRoot, REVIEW_MANIFEST_FILE), `${stableArtifactJson(reviewManifest)}\n`);
-  atomicReplaceDirectory(temporaryGraphRoot, cacheGraphRoot);
+  atomicReplaceDirectory(temporaryGraphRoot, cacheGraphRoot, {
+    backupDir: join(stagingRoot, 'cache-backup'),
+  });
   verifyGeneratedGraphFromManifest(cacheGraphRoot, reviewManifest);
 
-  const materializedTmp = `${materializedRoot}.tmp-${process.pid}-${Date.now()}`;
+  const materializedTmp = join(stagingRoot, 'materialized-graph');
   rmSync(materializedTmp, { recursive: true, force: true });
   cpSync(cacheGraphRoot, materializedTmp, { recursive: true, errorOnExist: true });
   atomicReplaceDirectory(
     materializedTmp,
     materializedRoot,
-    testHooks?.afterMaterializedBackup,
+    {
+      backupDir: join(stagingRoot, 'materialized-backup'),
+      afterBackup: testHooks?.afterMaterializedBackup,
+    },
   );
   return verifyGeneratedGraph(materializedRoot);
 }
@@ -535,8 +553,7 @@ function assertPortableRelativePath(path, label) {
   }
 }
 
-function atomicReplaceDirectory(tmpDir, outDir, afterBackup = undefined) {
-  const backupDir = `${outDir}.bak-${process.pid}-${Date.now()}`;
+function atomicReplaceDirectory(tmpDir, outDir, { backupDir, afterBackup = undefined }) {
   rmSync(backupDir, { recursive: true, force: true });
   const hadExisting = existsSync(outDir);
   if (hadExisting) renameSync(outDir, backupDir);

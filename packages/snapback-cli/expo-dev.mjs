@@ -4312,6 +4312,32 @@ export async function runExpoDev(options = {}) {
         device: route.device,
       });
     }
+    // @ref LLP 0310.000#track-a--let-the-client-retry-and-bound-the-window —
+    // A1's reload is supervisor-initiated background work, not a caller's verb:
+    // it must never turn a successful rotation into a rejected promise, and a
+    // stopping owner refusing new control work is an expected outcome, not a
+    // fault. A genuine reload failure is already reported as a critical exit by
+    // reloadMetroVerb itself, so this path only has to keep the rejection
+    // handled.
+    const queueSuccessorMetroReload = (successorDescriptorIdentity) => {
+      if (closed || controlDispatcher === null) return;
+      let operation;
+      try {
+        operation = controlDispatcher.enqueue('reload-metro', {
+          reason: 'successor-binding',
+          descriptorIdentity: successorDescriptorIdentity,
+        });
+      } catch (error) {
+        // A stopping owner refusing new control work is expected. Anything else
+        // is unexpected, but must not take down the rotation that already
+        // published a correct binding — report it out of band instead.
+        if (error?.diagnostic?.code !== 'SNAPBACK_DEV_CONTROL_STOPPING' && !closed) {
+          setImmediate(() => reportCriticalExit(error));
+        }
+        return;
+      }
+      void operation.catch(() => undefined);
+    };
     // @ref LLP 0241#d6-development-commands-share-one-recovery-model —
     // generated-and-loaded is the compatible-cut boundary: only then may the
     // supervisor expose a binding for the successor descriptor identity.
@@ -4330,6 +4356,17 @@ export async function runExpoDev(options = {}) {
         routing: route.bindingRouting,
       });
       publishBindingProjection(rotatedBinding);
+      // @ref LLP 0310.000#track-a--let-the-client-retry-and-bound-the-window —
+      // A1. Exposure precedes publication: the successor graph is already in
+      // Metro's view and the backend is already serving it by the time this
+      // binding exists, so an arm that re-booted in between refused against the
+      // predecessor and has no reason to exchange again. Replacing Metro now
+      // makes the live arm re-import the successor `app` and re-exchange
+      // promptly. This *narrows* the window (W2); it does not close it — the
+      // client-side retry (A2) is what makes the remaining window survivable.
+      // The reload goes through the shared control lane so it serializes with
+      // operator verbs rather than racing them.
+      queueSuccessorMetroReload(descriptor.identity.descriptor);
       return {
         ok: true,
         state: 'binding-rotated',
@@ -4531,7 +4568,16 @@ export async function runExpoDev(options = {}) {
         },
       });
     };
-    const reloadMetroVerb = async ({ requestId, afterResponse = null } = {}) => {
+    // @ref LLP 0310.000#track-a--let-the-client-retry-and-bound-the-window —
+    // the same replacement operation serves an operator verb and the
+    // supervisor's own post-remint reload. `reason` records which one asked;
+    // `descriptorIdentity` names the successor the reload is publishing.
+    const reloadMetroVerb = async ({
+      requestId,
+      afterResponse = null,
+      reason = 'operator-control',
+      descriptorIdentity = null,
+    } = {}) => {
       if (closed) {
         return Object.freeze({
           schemaVersion: EXPO_DEV_EVENT_FORMAT,
@@ -4643,9 +4689,12 @@ export async function runExpoDev(options = {}) {
           ok: true,
           state: 'metro-reloaded',
           verb: 'reload-metro',
+          reason,
+          ...(descriptorIdentity === null ? {} : { descriptorIdentity }),
           ...(requestId === undefined ? {} : { requestId }),
           previousPid,
           pid: restartedMetro.child.pid,
+          backendPid: liveBackend.backendPid,
           metro: metroReadiness,
           listeners,
         });
@@ -4657,12 +4706,19 @@ export async function runExpoDev(options = {}) {
             error?.message ?? 'the replacement Metro process did not become ready',
             { cause: error?.diagnostic?.code ?? error?.code ?? error?.message ?? String(error) },
           );
+        let currentBackendPid = null;
+        try {
+          currentBackendPid = dev.child?.pid ?? readReadyDescriptor(dev.readyFile).pid;
+        } catch { /* the typed reload failure owns the outcome */ }
         const failure = emit({
           ok: false,
           state: 'metro-reload-failed',
           verb: 'reload-metro',
+          reason,
+          ...(descriptorIdentity === null ? {} : { descriptorIdentity }),
           ...(requestId === undefined ? {} : { requestId }),
           previousPid,
+          backendPid: currentBackendPid,
           diagnostics: [reloadError.diagnostic],
         });
         if (!closed) {

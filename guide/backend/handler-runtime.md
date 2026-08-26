@@ -103,7 +103,11 @@ declaration in the same `functions.mjs` file. Codegen includes every reachable
 same-file function declaration in the operation's executable bytes. Imported
 bindings and top-level values do not become spliceable helpers. A direct
 handler reference to one reports `SNAPBACK_INLINE_HANDLER_FREE_IDENTIFIER`;
-the message names an imported binding explicitly. An otherwise invalid
+the message names the binding, says whether it is an import or a top-level
+value, and gives the admitted rewrite — a same-file `function` declaration, or
+the value passed through args or `ctx`. Hoisting a shared regex, map, or
+constant to a module-level `const` is the ordinary JavaScript move and is
+exactly what this refuses; reach for the function declaration first. An otherwise invalid
 same-file helper reports `SNAPBACK_INLINE_HELPER_INADMISSIBLE`.
 
 ## Can I use Node crypto?

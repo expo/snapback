@@ -1,7 +1,7 @@
 # Building this Snapback app
 
 <!-- @ref LLP 0259#1-first-read-contract — the transcluded start packet is the whole required first read; escalate one page at a time, never a linear capability-index read. -->
-<!-- start-packet:begin expo-chat digest=sha256:a982797682da292c16a2027c24016c359352321d597f52bdacb83616e9e614df -->
+<!-- start-packet:begin expo-chat digest=sha256:e3e8853dd8bfe266c81a384dd20ba0f5927d797d5246912f30017a33889af332 -->
 This is the first read (LLP 0259 Rung A). Use edit targets; open one page
 only for a brief, `SNAPBACK_*` refusal, or failed `prove`, via
 `snapback guide <query>`.
@@ -86,8 +86,9 @@ only `generated/`.
    `v.principal()` is a snapshot, not membership.
 4. A changed seed identity never silently resets data: expect
    `SNAPBACK_SEED_MIGRATION_REQUIRED`, then migrate or reset-install.
-5. Every `SNAPBACK_*` refusal names its rule and fix; use
-   `snapback guide <CODE>` for its entry.
+5. Every `SNAPBACK_*` refusal names its rule and fix (inline handlers
+   capture nothing: hoist to a `function`, not a `const`);
+   `snapback guide <CODE>` has its entry.
 
 ## Escalate
 

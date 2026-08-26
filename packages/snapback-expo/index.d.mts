@@ -199,7 +199,18 @@ export type PublicAuthorityFacts = Readonly<{
 }>;
 
 export type LegacyExpoBootState =
-  | Readonly<{ status: 'starting'; stage: 'binding' | 'authority' | 'client' }>
+  | Readonly<{
+      status: 'starting';
+      stage: 'binding';
+      retry?: Readonly<{
+        reason: 'supervised-dev-identity-mismatch';
+        attempt: number;
+        maxAttempts: number;
+        delayMs: number;
+        diagnostic: SnapbackDiagnostic;
+      }>;
+    }>
+  | Readonly<{ status: 'starting'; stage: 'authority' | 'client' }>
   | Readonly<{
       status: 'ready';
       binding: PublicBindingFacts;

@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "snapback.probe.expo-presence-bare-provider.v1",
+  "llp": [
+    "0310 P20",
+    "0310.000 D2"
+  ],
+  "tree": "SnapbackProvider only — no SnapbackExpoProvider, no SnapbackExpoLifecycleContextProvider",
+  "condition": "browser",
+  "outcome": "works",
+  "diagnosticCode": null,
+  "diagnosticDetails": null,
+  "gatedAdmissionOpened": true,
+  "touch": {
+    "active": true,
+    "publishAttempts": 1,
+    "published": [
+      {
+        "userHandle": "probe",
+        "name": "Probe"
+      }
+    ]
+  },
+  "diagnostics": [],
+  "limits": [
+    "react-native-web/dist/exports/AppState/index.js is stubbed; it is not a workspace dependency.",
+    "Node with --conditions=browser stands in for Metro web bundling of the package `imports` map."
+  ]
+}

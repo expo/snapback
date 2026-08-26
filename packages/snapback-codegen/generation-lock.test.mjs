@@ -11,7 +11,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -93,8 +93,8 @@ const [backend, entered, release] = process.argv.slice(1);
 const sleepCell = new Int32Array(new SharedArrayBuffer(4));
 const result = await generateInProcess(backend, {}, {
   publication: {
-    afterMaterializedBackup() {
-      writeFileSync(entered, 'entered\\n');
+    afterMaterializedBackup(paths) {
+      writeFileSync(entered, JSON.stringify(paths) + '\\n');
       while (!existsSync(release)) Atomics.wait(sleepCell, 0, 0, 10);
     },
   },
@@ -132,6 +132,15 @@ test('overlapping regenerations serialize across the generated-directory rename 
 
     holder = spawnEval(generatedSwapHolderSource(), [backend, entered, release]);
     await waitForFile(entered, holder.child);
+    const publicationPaths = JSON.parse(readFileSync(entered, 'utf8'));
+    for (const path of [publicationPaths.backupDir, publicationPaths.tmpDir]) {
+      assert.match(
+        relative(project, path),
+        /^\.\.(?:[/\\]|$)/u,
+        `publication staging must remain outside the Metro project tree: ${path}`,
+      );
+    }
+    assert.equal(publicationPaths.outDir, join(realpathSync(backend), 'generated'));
 
     let reportBlocked;
     const blocked = new Promise((resolve) => { reportBlocked = resolve; });

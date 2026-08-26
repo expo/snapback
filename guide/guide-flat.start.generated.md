@@ -341,8 +341,9 @@ only `generated/`.
    `v.principal()` is a snapshot, not membership.
 4. A changed seed identity never silently resets data: expect
    `SNAPBACK_SEED_MIGRATION_REQUIRED`, then migrate or reset-install.
-5. Every `SNAPBACK_*` refusal names its rule and fix; use
-   `snapback guide <CODE>` for its entry.
+5. Every `SNAPBACK_*` refusal names its rule and fix (inline handlers
+   capture nothing: hoist to a `function`, not a `const`);
+   `snapback guide <CODE>` has its entry.
 
 ## Escalate
 

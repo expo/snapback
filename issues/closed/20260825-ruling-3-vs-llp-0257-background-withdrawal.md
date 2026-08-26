@@ -1,6 +1,6 @@
 # LLP 0310.000 Ruling 3 conflicts with LLP 0257 on bare-provider background withdrawal
 
-**Filed:** 2026-08-25
+**Filed:** 2026-08-25 · **Resolved:** 2026-08-26 — no conflict
 **Systems:** React, React/Expo, Ephemeral state, Guide
 **Owner:** LLP 0310.000 / LLP 0257 RFC owner
 **Related:** LLP 0257 §Expo: backgrounding and resume; LLP 0310.000 Ruling 3;
@@ -70,3 +70,31 @@ then fires that deadline and proves it performs the withdrawal. Retrieval case
 limitation and the shipped facade fallback. This characterization does not
 decide whether the facade's shipped bare-provider fallback should remain
 supported; the owner decision above remains open.
+
+## Resolution — 2026-08-26: no conflict
+
+Two things resolved this, and neither is a compromise between the two
+directions above.
+
+1. **Ruling 3 no longer asserts the boundary.** The r2 text this ticket was
+   filed against ("the facade hook is for `SnapbackExpoProvider` trees only")
+   was withdrawn during the LLP 0310.000 review. Its r5+ text says
+   *"no package boundary is ruled here"* and defers to the LLP 0310 P20
+   re-test.
+2. **P20 ran and the facade works.**
+   `tests/probes/expo-presence-bare-provider-20260826/` mounts the
+   `@expo/snapback-expo` facade under a bare URL-first `SnapbackProvider` on
+   web with no lifecycle context: outcome `works`, no diagnostic, gated
+   admission opened, one publish. LLP 0257's bare-provider fallback is what
+   ships and what is now proven.
+
+So direction 1's substance holds without amending anything: LLP 0257 stands
+unamended, LLP 0310.000 rules no package boundary, and the guide keeps both
+imports with their gated/ungated difference documented rather than declaring
+one composition unsupported. The three teaching pages and retrieval case 100
+were corrected in the same landing.
+
+`packages/snapback-react/activity-presence-react-characterization.test.mjs`
+stays as characterization of the React hook's deliberate absence of a platform
+lifecycle listener; `tests/probes/expo-presence-bare-provider-20260826/probe.test.mjs`
+is now the standing regression test for the facade's bare-provider fallback.

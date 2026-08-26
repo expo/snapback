@@ -84,9 +84,11 @@ const capabilityManifest = Object.freeze({
   supportedCapabilities: ['live_subscriptions'],
 });
 
-function fakeClient() {
+function fakeClient({ delayPublishes = false } = {}) {
   const authorityCapture = Object.freeze({ revision: 1 });
   const handles = new Set();
+  const pendingPublishes = [];
+  const publishedValues = [];
   let starts = 0;
   let publishAttempts = 0;
   let publishes = 0;
@@ -96,6 +98,7 @@ function fakeClient() {
   let dropNextPublishOffline = false;
   let failNextDelete = false;
   let dropNextDeleteOffline = false;
+  let barrierParticipant = null;
   return {
     liveQuery() {},
     async inspect() {
@@ -108,7 +111,12 @@ function fakeClient() {
       };
     },
     async authSession() { return { activeMode: 'dev' }; },
-    registerAuthBarrierParticipant() { return async () => {}; },
+    registerAuthBarrierParticipant(participant) {
+      barrierParticipant = participant;
+      return async () => {
+        if (barrierParticipant === participant) barrierParticipant = null;
+      };
+    },
     captureAuthority: () => authorityCapture,
     authorityCaptureFor: () => authorityCapture,
     isAuthorityCaptureCurrent: (capture) => capture === authorityCapture,
@@ -204,22 +212,31 @@ function fakeClient() {
               }),
             });
           }
-          if (failNextPublish) {
-            failNextPublish = false;
-            throw codedError('SNAPBACK_REACT_QUERY_FAILED', 'simulated publish failure');
-          }
-          publishes += 1;
-          ownEntry = Object.freeze({
-            key: selfKey,
-            value: Object.freeze({ ...value }),
-            expiresAtMs: 1_000 + ttlMs,
-            receivedAtMs: 1_000,
-            scopeEpoch: 1,
-            entryVersion: publishes,
-            scope,
+          publishedValues.push(Object.freeze({ ...value }));
+          const settle = () => {
+            if (failNextPublish) {
+              failNextPublish = false;
+              throw codedError('SNAPBACK_REACT_QUERY_FAILED', 'simulated publish failure');
+            }
+            publishes += 1;
+            ownEntry = Object.freeze({
+              key: selfKey,
+              value: Object.freeze({ ...value }),
+              expiresAtMs: 1_000 + ttlMs,
+              receivedAtMs: 1_000,
+              scopeEpoch: 1,
+              entryVersion: publishes,
+              scope,
+            });
+            publishSnapshot();
+            return { accepted: true, scope_epoch: 1, entry_version: publishes };
+          };
+          if (!delayPublishes) return settle();
+          return new Promise((resolve, reject) => {
+            pendingPublishes.push(() => {
+              try { resolve(settle()); } catch (error) { reject(error); }
+            });
           });
-          publishSnapshot();
-          return { accepted: true, scope_epoch: 1, entry_version: publishes };
         },
         async delete() {
           deletes += 1;
@@ -265,12 +282,37 @@ function fakeClient() {
       reconnect() {
         for (const handle of handles) handle.reconnect();
       },
+      settleNextPublish() {
+        const settle = pendingPublishes.shift();
+        assert.notEqual(settle, undefined, 'a delayed publish is pending');
+        settle();
+      },
+      beginSessionChange() {
+        assert.notEqual(barrierParticipant, null, 'the provider registered its auth barrier');
+        return barrierParticipant.quiesce();
+      },
+      blankSessionChange() {
+        assert.notEqual(barrierParticipant, null, 'the provider registered its auth barrier');
+        barrierParticipant.blank();
+      },
+      resumeSessionChange() {
+        assert.notEqual(barrierParticipant, null, 'the provider registered its auth barrier');
+        return barrierParticipant.resume();
+      },
       setPeers(entries) {
         for (const handle of handles) handle.setPeers(entries);
       },
     }),
     inspection() {
-      return { starts, publishAttempts, publishes, deletes, activeHandles };
+      return {
+        starts,
+        publishAttempts,
+        publishes,
+        publishedValues: Object.freeze([...publishedValues]),
+        pendingPublishes: pendingPublishes.length,
+        deletes,
+        activeHandles,
+      };
     },
   };
 }
@@ -481,6 +523,66 @@ async function fireTimerAt(timer, now) {
   }
 }
 
+async function createQueuedActivityHarness({ idleMs = 60_000 } = {}) {
+  const client = fakeClient({ delayPublishes: true });
+  let name = 'V1';
+  const harness = await createHarness({
+    client,
+    idleMs,
+    value: () => ({ userHandle: 'ada', name }),
+  });
+  const firstTouchedAt = Date.now();
+  let firstTimer;
+  act(() => { firstTimer = captureActivityTimer(() => harness.current.touch()); });
+  await act(async () => { await flush(); });
+  assert.equal(client.inspection().publishAttempts, 1, 'V1 is in flight');
+  assert.equal(client.inspection().pendingPublishes, 1);
+
+  name = 'V2';
+  const secondTouchedAt = firstTouchedAt + 100;
+  const originalNow = Date.now;
+  let secondTimer;
+  try {
+    Date.now = () => secondTouchedAt;
+    act(() => { secondTimer = captureActivityTimer(() => harness.current.touch()); });
+  } finally {
+    Date.now = originalNow;
+  }
+  await act(async () => { await flush(); });
+  assert.equal(
+    client.inspection().publishAttempts,
+    1,
+    'V2 is coalesced behind V1 instead of canceling the in-flight publish',
+  );
+  return {
+    client,
+    harness,
+    firstTimer,
+    secondTimer,
+    secondTouchedAt,
+    setName(next) { name = next; },
+  };
+}
+
+async function settleNextDelayedPublish(client) {
+  await act(async () => {
+    client.controls.settleNextPublish();
+    await flush();
+    await flush();
+  });
+}
+
+function assertQueuedV2WasDiscarded(client, boundary) {
+  const inspection = client.inspection();
+  assert.equal(inspection.publishAttempts, 1, `${boundary} discards queued V2`);
+  assert.deepEqual(
+    inspection.publishedValues.map((value) => value.name),
+    ['V1'],
+    `${boundary} cannot resurrect presence with V2 after V1 settles`,
+  );
+  assert.equal(inspection.pendingPublishes, 0);
+}
+
 // First touch admits once. Repeated unchanged touches re-arm only the helper
 // deadline while the canonical base publisher performs its unchanged-pair no-op.
 {
@@ -493,10 +595,17 @@ async function fireTimerAt(timer, now) {
   });
   assert.equal(harness.current.status, 'ready');
   const firstNow = Date.now();
+  const secondNow = firstNow + 100;
+  const originalNow = Date.now;
   let firstTimer;
-  act(() => {
-    firstTimer = captureActivityTimer(() => harness.current.touch());
-  });
+  try {
+    Date.now = () => firstNow;
+    act(() => {
+      firstTimer = captureActivityTimer(() => harness.current.touch());
+    });
+  } finally {
+    Date.now = originalNow;
+  }
   await act(async () => { await flush(); });
   assert.equal(valueCalls, 1);
   assert.equal(harness.client.inspection().publishes, 1, 'first touch publishes');
@@ -504,24 +613,28 @@ async function fireTimerAt(timer, now) {
   assert.equal(harness.current.publisher.status, 'published');
   assert.equal(harness.current.connection, 'live');
 
-  const secondNow = Date.now();
   let secondTimer;
-  act(() => {
-    secondTimer = captureActivityTimer(() => harness.current.touch());
-  });
+  try {
+    Date.now = () => secondNow;
+    act(() => {
+      secondTimer = captureActivityTimer(() => harness.current.touch());
+    });
+  } finally {
+    Date.now = originalNow;
+  }
   await act(async () => { await flush(); });
   assert.equal(valueCalls, 2, 'the thunk is sampled on every touch');
   assert.equal(harness.client.inspection().publishes, 1, 'unchanged value/TTL is a base no-op');
 
-  await fireTimerAt(firstTimer, firstNow + 1_000);
+  await fireTimerAt(firstTimer, firstNow + 300);
   assert.equal(
     harness.client.inspection().deletes,
     0,
-    'a canceled-but-queued predecessor timer cannot withdraw a newer generation',
+    'the predecessor deadline cannot withdraw an episode extended by the next touch',
   );
   assert.equal(harness.current.active, true);
 
-  await fireTimerAt(secondTimer, secondNow + 1_000);
+  await fireTimerAt(secondTimer, secondNow + 300);
   assert.equal(harness.current.active, false);
   assert.equal(harness.client.inspection().deletes, 1, 'idle expiry withdraws');
 
@@ -554,6 +667,132 @@ async function fireTimerAt(timer, now) {
     'excludeSelf false retains the granted connection entry',
   );
   await harness.unmount();
+}
+
+// @ref LLP 0310.000#acceptance — D1: an episode keeps its first generation
+// while changed values coalesce to the latest capture after V1 settles.
+{
+  const queued = await createQueuedActivityHarness();
+  queued.setName('V3');
+  act(() => { captureActivityTimer(() => queued.harness.current.touch()); });
+  await act(async () => { await flush(); });
+  assert.equal(queued.client.inspection().publishAttempts, 1);
+
+  await settleNextDelayedPublish(queued.client);
+  assert.equal(
+    queued.client.inspection().deletes,
+    0,
+    'settling V1 does not withdraw it as a superseded per-touch generation',
+  );
+  assert.deepEqual(
+    queued.client.inspection().publishedValues.map((value) => value.name),
+    ['V1', 'V3'],
+    'the latest changed value publishes after V1 under the same episode',
+  );
+  assert.equal(queued.client.inspection().pendingPublishes, 1);
+  await settleNextDelayedPublish(queued.client);
+  assert.equal(queued.client.inspection().publishes, 2);
+  await act(async () => { await queued.harness.current.withdraw(); });
+  await queued.harness.unmount();
+}
+
+// Clique-shaped clock: repeated keystrokes still produce a visible publish by
+// the 2 s appearance point and the final touch owns the 5 s idle deadline.
+{
+  const client = fakeClient({ delayPublishes: true });
+  const harness = await createHarness({ client, idleMs: 5_000 });
+  const firstTouchedAt = Date.now();
+  const touchTimes = [firstTouchedAt, firstTouchedAt + 100, firstTouchedAt + 200];
+  let latestTimer = null;
+  const originalNow = Date.now;
+  try {
+    for (const touchedAt of touchTimes) {
+      Date.now = () => touchedAt;
+      act(() => { latestTimer = captureActivityTimer(() => harness.current.touch()); });
+    }
+  } finally {
+    Date.now = originalNow;
+  }
+  await act(async () => { await flush(); });
+  assert.equal(client.inspection().publishAttempts, 1, 'keystrokes share one in-flight episode');
+  const nowBeforeSettle = Date.now;
+  try {
+    Date.now = () => firstTouchedAt + 2_000;
+    await settleNextDelayedPublish(client);
+  } finally {
+    Date.now = nowBeforeSettle;
+  }
+  assert.equal(client.inspection().publishes, 1, 'typing is published by the 2 s check');
+  assert.equal(harness.current.active, true);
+  await fireTimerAt(latestTimer, touchTimes.at(-1) + 5_000);
+  assert.equal(harness.current.active, false, 'the 5 s idle clock starts at the final touch');
+  await harness.unmount();
+}
+
+// Explicit withdrawal is an independent queue-discard boundary.
+{
+  const queued = await createQueuedActivityHarness();
+  await act(async () => { await queued.harness.current.withdraw(); });
+  await settleNextDelayedPublish(queued.client);
+  assertQueuedV2WasDiscarded(queued.client, 'explicit withdrawal');
+  await queued.harness.unmount();
+}
+
+// Idle expiry is an independent queue-discard boundary even though it does
+// not advance the activity generation: V1 in flight, V2 queued, expire, then
+// V1 settles must never publish V2.
+{
+  const queued = await createQueuedActivityHarness();
+  await fireTimerAt(
+    queued.secondTimer,
+    queued.secondTouchedAt + 60_000,
+  );
+  assert.equal(queued.harness.current.active, false);
+  await settleNextDelayedPublish(queued.client);
+  assertQueuedV2WasDiscarded(queued.client, 'idle expiry');
+  await queued.harness.unmount();
+}
+
+// Real unmount is an independent queue-discard boundary.
+{
+  const queued = await createQueuedActivityHarness();
+  const unmountTask = queued.harness.unmount();
+  await flush();
+  queued.client.controls.settleNextPublish();
+  await unmountTask;
+  assertQueuedV2WasDiscarded(queued.client, 'unmount');
+}
+
+// Routing-key change is an independent queue-discard boundary.
+{
+  const queued = await createQueuedActivityHarness();
+  await queued.harness.update({ roomId: 'room-two' });
+  assert.equal(queued.harness.current.active, false);
+  await settleNextDelayedPublish(queued.client);
+  assertQueuedV2WasDiscarded(queued.client, 'routing-key change');
+  await queued.harness.unmount();
+}
+
+// Auth-session replacement is an independent queue-discard boundary. The
+// private session epoch advances at barrier quiescence, before predecessor
+// work is awaited, so V1 settlement cannot flush V2 into the successor.
+{
+  const queued = await createQueuedActivityHarness();
+  let sessionTask;
+  await act(async () => {
+    sessionTask = queued.client.controls.beginSessionChange();
+    await flush();
+  });
+  assert.equal(queued.harness.current.active, false);
+  await settleNextDelayedPublish(queued.client);
+  await sessionTask;
+  await act(async () => {
+    queued.client.controls.blankSessionChange();
+    await queued.client.controls.resumeSessionChange();
+    await flush();
+  });
+  assertQueuedV2WasDiscarded(queued.client, 'session change');
+  await queued.harness.unmount();
 }
 
 // A true room identity change withdraws the predecessor through the base token

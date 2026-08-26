@@ -56,6 +56,40 @@ const bootContext = createContext(null);
 const lifecycleContext = createContext(null);
 let bootSequence = 0;
 
+const SUPERVISED_BOOT_ADMISSION_BACKOFF_BASE_MS = 100;
+const SUPERVISED_BOOT_ADMISSION_BACKOFF_CAP_MS = 2_000;
+// The successor graph is exposed before the CLI finishes activation. In
+// packages/snapback-cli/index.mjs, native() gives the load request a 30-second
+// default timeout; operational readiness is a second fallible request before
+// `generated-and-loaded` publishes the successor binding. Give both activation
+// steps that request budget and derive the attempt count from the resulting
+// horizon instead of choosing a small round number of attempts.
+const SUPERVISED_SUCCESSOR_ACTIVATION_STEP_BUDGET_MS = 30_000;
+const SUPERVISED_SUCCESSOR_ACTIVATION_STEP_COUNT = 2;
+const SUPERVISED_BOOT_ADMISSION_RETRY_HORIZON_MS =
+  SUPERVISED_SUCCESSOR_ACTIVATION_STEP_BUDGET_MS
+  * SUPERVISED_SUCCESSOR_ACTIVATION_STEP_COUNT;
+
+function supervisedBootAdmissionBackoffMs(attempt) {
+  return Math.min(
+    SUPERVISED_BOOT_ADMISSION_BACKOFF_BASE_MS * (2 ** (attempt - 1)),
+    SUPERVISED_BOOT_ADMISSION_BACKOFF_CAP_MS,
+  );
+}
+
+function supervisedBootAdmissionAttemptsForHorizon(horizonMs) {
+  let attempt = 1;
+  let elapsedMs = 0;
+  while (elapsedMs < horizonMs) {
+    elapsedMs += supervisedBootAdmissionBackoffMs(attempt);
+    attempt += 1;
+  }
+  return attempt;
+}
+
+const SUPERVISED_BOOT_ADMISSION_MAX_ATTEMPTS =
+  supervisedBootAdmissionAttemptsForHorizon(SUPERVISED_BOOT_ADMISSION_RETRY_HORIZON_MS);
+
 function freezeRecord(value) {
   return Object.freeze({ ...value });
 }
@@ -356,6 +390,59 @@ function errorState(error, correlationId) {
   });
 }
 
+function waitForSupervisedBootAdmissionRetry(delayMs, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) {
+      reject(signal.reason ?? Object.assign(new Error('Expo application bootstrap was aborted.'), {
+        name: 'AbortError',
+      }));
+      return;
+    }
+    const onAbort = () => {
+      clearTimeout(timer);
+      signal.removeEventListener('abort', onAbort);
+      reject(signal.reason ?? Object.assign(new Error('Expo application bootstrap was aborted.'), {
+        name: 'AbortError',
+      }));
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, delayMs);
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+function supervisedBootAdmissionRetryState(error, correlationId, attempt, delayMs) {
+  return Object.freeze({
+    status: 'starting',
+    stage: 'binding',
+    retry: Object.freeze({
+      reason: 'supervised-dev-identity-mismatch',
+      attempt,
+      maxAttempts: SUPERVISED_BOOT_ADMISSION_MAX_ATTEMPTS,
+      horizonMs: SUPERVISED_BOOT_ADMISSION_RETRY_HORIZON_MS,
+      delayMs,
+      diagnostic: normalizedDiagnostic(error, correlationId),
+    }),
+  });
+}
+
+function supervisedBootAdmissionRetryExhausted(lastMismatch) {
+  const error = new Error(
+    `Supervised Expo boot admission still mismatched after ${SUPERVISED_BOOT_ADMISSION_MAX_ATTEMPTS} attempts.`,
+  );
+  error.code = 'SNAPBACK_APP_BINDING_BOOT_ADMISSION_RETRY_EXHAUSTED';
+  error.diagnostic = diagnostic(error.code, error.message, {
+    causeCode: lastMismatch?.code ?? 'SNAPBACK_APP_BINDING_IDENTITY_MISMATCH',
+    phase: 'boot-admission',
+    source: 'supervised-dev',
+    status: 'exhausted',
+  });
+  error.remediations = lastMismatch?.remediations;
+  return error;
+}
+
 export const defaultSnapbackExpoEnvironment = createSupervisedExpoEnvironment();
 
 // @ref LLP 0181#provider — the controller exposes exactly the RFC boot-state
@@ -609,61 +696,86 @@ export function createSnapbackExpoBoot(options = {}) {
       const rendezvousConfigured = declaredDevCapability !== null
         && supervisedRendezvousConfiguredFromRuntime();
       const hasRealUrl = url !== undefined && url !== null && url !== '';
-      let resolution;
-      if (
-        bindingOverride === null
-        && declaredDevCapability !== null
-        && !rendezvousConfigured
-        && hasRealUrl
-      ) {
-        resolution = Object.freeze({
-          binding: createDeclaredDevBindingCandidate(app, url),
-          admission: Object.freeze({ productionCondition: false }),
-        });
-      } else {
-        if (declaredDevCapability === null && hasRealUrl) {
-          emitSourceDiagnostic(
-            'The generated app has no declared-dev capability; the url option is ignored for source selection.',
-            { selectedSource: 'existing-binding-resolution', ignoredUrl: url },
-          );
-        }
-        resolution = await awaitBoundary(environment.resolveBinding(Object.freeze({
-          app,
-          bindingOverride,
-          signal: controller.signal,
-          url,
-        })));
+      const resolveBootAdmissionCandidate = async () => {
+        let resolution;
         if (
-          declaredDevCapability !== null
+          bindingOverride === null
+          && declaredDevCapability !== null
+          && !rendezvousConfigured
           && hasRealUrl
-          && resolution?.binding?.source === 'supervised-dev'
         ) {
-          emitSourceDiagnostic(
-            'The supervised rendezvous completed; its binding is selected and the url option is ignored.',
-            { selectedSource: 'supervised-dev', ignoredUrl: url },
-          );
+          resolution = Object.freeze({
+            binding: createDeclaredDevBindingCandidate(app, url),
+            admission: Object.freeze({ productionCondition: false }),
+          });
+        } else {
+          if (declaredDevCapability === null && hasRealUrl) {
+            emitSourceDiagnostic(
+              'The generated app has no declared-dev capability; the url option is ignored for source selection.',
+              { selectedSource: 'existing-binding-resolution', ignoredUrl: url },
+            );
+          }
+          resolution = await awaitBoundary(environment.resolveBinding(Object.freeze({
+            app,
+            bindingOverride,
+            signal: controller.signal,
+            url,
+          })));
+          if (
+            declaredDevCapability !== null
+            && hasRealUrl
+            && resolution?.binding?.source === 'supervised-dev'
+          ) {
+            emitSourceDiagnostic(
+              'The supervised rendezvous completed; its binding is selected and the url option is ignored.',
+              { selectedSource: 'supervised-dev', ignoredUrl: url },
+            );
+          }
+        }
+        if (!resolution || typeof resolution !== 'object' || !resolution.binding) {
+          const error = new Error('binding resolver returned no AppBinding admission candidate');
+          error.code = 'SNAPBACK_APP_BINDING_UNAVAILABLE';
+          throw error;
+        }
+        if (
+          bindingOverride !== null
+          && canonicalJson(resolution.binding) !== canonicalJson(bindingOverride)
+        ) {
+          const error = new Error('binding resolver substituted a different binding for the explicit override');
+          error.code = 'SNAPBACK_APP_BINDING_OVERRIDE_UNCONFIRMED';
+          throw error;
+        }
+        return resolution;
+      };
+
+      for (let attempt = 1; attempt <= SUPERVISED_BOOT_ADMISSION_MAX_ATTEMPTS; attempt += 1) {
+        const resolution = await resolveBootAdmissionCandidate();
+        const admission = resolution.admission ?? {};
+        try {
+          // @ref LLP 0310.000#ruling-1--same-owner-successor-is-not-a-foreign-app
+          // — a pull-only supervised arm can observe the successor app before
+          // its same-owner binding is published. Only boot admission retries:
+          // every other source and LLP 0302 §3's live standing gate stay terminal.
+          admittedBinding = await awaitBoundary(admitBindingCandidate(
+            resolution.binding,
+            admission,
+            bindingOverride === null ? 'resolved' : 'override',
+          ));
+          admittedBindingAdmission = admission;
+          break;
+        } catch (error) {
+          if (
+            error?.code !== 'SNAPBACK_APP_BINDING_IDENTITY_MISMATCH'
+            || resolution.binding.source !== 'supervised-dev'
+          ) throw error;
+          if (attempt === SUPERVISED_BOOT_ADMISSION_MAX_ATTEMPTS) {
+            throw supervisedBootAdmissionRetryExhausted(error);
+          }
+          const delayMs = supervisedBootAdmissionBackoffMs(attempt);
+          publish(supervisedBootAdmissionRetryState(error, correlationId, attempt, delayMs));
+          await awaitBoundary(waitForSupervisedBootAdmissionRetry(delayMs, controller.signal));
         }
       }
-      if (!resolution || typeof resolution !== 'object' || !resolution.binding) {
-        const error = new Error('binding resolver returned no AppBinding admission candidate');
-        error.code = 'SNAPBACK_APP_BINDING_UNAVAILABLE';
-        throw error;
-      }
-      if (
-        bindingOverride !== null
-        && canonicalJson(resolution.binding) !== canonicalJson(bindingOverride)
-      ) {
-        const error = new Error('binding resolver substituted a different binding for the explicit override');
-        error.code = 'SNAPBACK_APP_BINDING_OVERRIDE_UNCONFIRMED';
-        throw error;
-      }
-      const admission = resolution.admission ?? {};
-      admittedBinding = await awaitBoundary(admitBindingCandidate(
-        resolution.binding,
-        admission,
-        bindingOverride === null ? 'resolved' : 'override',
-      ));
-      admittedBindingAdmission = admission;
       if (disposed) return state;
 
       // Binding supplies the canonical origin. Acquire the provider default
