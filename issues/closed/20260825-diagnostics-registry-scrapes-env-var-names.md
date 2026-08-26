@@ -528,8 +528,8 @@ crates non-comment diff against merge-base e370bb8f789007cffae1f4d80c4feabdedc81
 
 The inventory/Guide runs also printed six pre-existing GAP review warnings;
 the Guide run's remaining warnings were authority-freshness notices. All were
-warning-only and are included in the 100-warning summary above. Nothing in the
-requested verification remains unverified.
+warning-only and are included in the 100-warning summary above. This evidence
+describes the historical round-30 tree, not any later HEAD.
 
 ### Round-31 final verification
 
@@ -588,8 +588,8 @@ crates non-comment diff against merge-base e370bb8f789007cffae1f4d80c4feabdedc81
 ```
 
 The inventory/Guide runs emitted the same six warning-only GAP review notices;
-the other Guide warnings were authority-freshness notices. Nothing in the
-round-31 verification remains unverified.
+the other Guide warnings were authority-freshness notices. This evidence
+describes the historical round-31 tree, not any later HEAD.
 
 ### Round-32 declaration-table flow and removal-ledger trim
 
@@ -754,8 +754,8 @@ diagnostic code-set diff against a6862ac2b
 ```
 
 The inventory/Guide runs emitted six warning-only GAP review notices; the
-remaining Guide warnings were pre-existing authority-freshness notices. No
-requested round-33 verification remains unverified.
+remaining Guide warnings were pre-existing authority-freshness notices. This
+evidence describes the historical round-33 tree, not any later HEAD.
 
 ### Round-35 real identifier flow and removal-evidence enforcement
 
@@ -866,5 +866,139 @@ diagnostic code-set diff against d42511a43
 ```
 
 The inventory/Guide runs emitted six warning-only GAP review notices; the
-remaining 94 Guide warnings were pre-existing authority-freshness notices. No
-requested round-35 verification remains unverified.
+remaining 94 Guide warnings were pre-existing authority-freshness notices.
+This evidence describes the historical round-35 tree, not any later HEAD.
+
+### Round-37 final rebased-tree verification
+
+Round 37 rebases the lane onto `origin/main` merge-base
+`ed8300f90fa548f9e532d10901d8591d187052fb`. The semantic resolution retains
+main's primary-marker guide-anchor selection plus unknown/duplicate-marker
+validation, and retains this lane's per-site classifier for emissions,
+received/reserved/declaration sites, identifier flow, environment reads, and
+the standing removal ledger. The generator tests are the union of both sides;
+the package test command and inventory likewise retain main's
+`expo-dev-control.test.mjs` and this lane's
+`reference-lookup-reserved-code.test.mjs`, for a reviewed total of 362 package
+tests.
+
+Every environment record now has a Guide anchor of the form
+`/_snapback/guide/reference/diagnostics.md#environment-<slug>`, backed by the
+matching explicit anchor in `guide/reference/diagnostics.md`.
+`formatGuideReferenceLookup` renders that Guide reference before its optional
+site list, so the link remains present when sites are omitted. Generator and
+CLI lookup tests pin both properties for the committed projection.
+
+The new merge-base's complete-code set differs from the round-37 classifier
+set in both directions. The 245 main-only spellings are exactly covered by the
+245-entry ledger: 140 environment names, 30 incomplete prefixes, 48
+reference-only spellings, and 27 test-only spellings. Their sorted set hashes
+to `c6cd685228c836009261475f40d5149148b6a600bdd65513c2e0a8ac44783eea`.
+The 113 lane-only complete codes recovered through the stricter site
+classifier hash to
+`7c11fd8f85349eaef301308d04012ddf0e87a6969d09d045d49e3f47eaa8aaf5`.
+No ledger entry is missing or unused.
+
+The preceding 33-commit main advance added twelve complete codes plus the static
+template fragment `SNAPBACK_PROCESS_GROUP_STOP_` and removed no code from its
+checked-in registry. The only new ledger entry is that proven fragment:
+`packages/snapback-cli/process-teardown.mjs` appends either `AMBIGUOUS` or
+`DISCHARGED` at runtime. Two justifications used against the prior intermediate
+base, `SNAPBACK_EPHEMERAL_REAUTHORIZATION_INCOMPLETE` and
+`SNAPBACK_SERVICE_AUTHORITY_UNAVAILABLE`, were removed because the final
+merge-base already omits those spellings and the ledger guard correctly marks
+their entries unused. The final five-commit main advance and the subsequent
+benchmark-only commit changed neither code set nor any main registry count.
+After regeneration, the former added Guide anchors for
+`SNAPBACK_AUTH_PROVIDER_SHARED_UNAVAILABLE` and `SNAPBACK_ROUTE_UNKNOWN`,
+raising the lane's guide-anchored diagnostic count from 447 to 449. The
+complete sorted main and round-37 code sets hash to
+`2ed8044c5eb4f95ff5eb5590319743a98feb559f77f0572aa1ff4d2720778561`
+and `a00241e7b03f735403e48be6e0606208d171ceaff22777ef97ec706c3d0a790a`,
+respectively.
+
+| Count | `origin/main` (`ed8300f90`) | Round-37 final |
+| --- | ---: | ---: |
+| Diagnostics classifier tests | — | 51 |
+| Codes | 3,704 | 3,572 |
+| Source files | 617 | 631 |
+| Emitting sites | 13,149 | 9,588 |
+| Received sites | — | 378 |
+| Reserved sites | — | 11 |
+| HTTP-classified | 1,728 | 1,702 |
+| Guide-anchored diagnostics | 484 | 449 |
+| Environment variables | — | 188 |
+| Environment sites | — | 366 |
+| Public reference symbols | 1,460 | 1,460 |
+| Package tests | 361 | 362 |
+
+The full projection chain was regenerated in dependency order after the
+rebase. Final-tree verification produced these verbatim summaries:
+
+```text
+node --test scripts/generate-diagnostics-registry.test.mjs
+simulated HEAD == origin/main — 0 removal problems
+tests 51
+pass 51
+fail 0
+cancelled 0
+skipped 0
+todo 0
+
+node scripts/generate-diagnostics-registry.mjs --check
+[diagnostics-registry] ok — 3572 codes, 9588 emitting sites, 378 received sites, 11 reserved sites, 188 environment variables, 366 environment sites, 1702 HTTP-classified
+
+node scripts/generate-symbol-registry.mjs --check
+[symbol-registry] ok — 56 modules, 1460 symbols, runtime parity exact
+
+node packages/snapback-cli/reference-lookup.test.mjs
+reference-lookup.test.mjs: exact diagnostic/environment/dual-role/member, bounded symbol/module, identity, and fallback pass
+
+node packages/snapback-cli/reference-lookup-reserved-code.test.mjs
+reference-lookup-reserved-code.test.mjs: reserved sites retain their non-emitting label
+
+node --test packages/snapback-hosted-supervisor/target-onboarding.test.mjs
+snapback-hosted-supervisor: target onboarding plan corpus passed
+tests 1
+pass 1
+fail 0
+
+node scripts/check-inventories.mjs
+[check-inventories] PASS: 362 package tests; 32 scripts tests; 31 demos/31 catalog entries; 487 publication leaves; 157 guide pages/1882 snippets
+
+node scripts/check-first-read.mjs
+[first-read] ok — 5 profiles checked
+
+node scripts/check-guide.mjs
+[guide-check] ok — 22 passed, 0 failed, 0 skipped, 0 preconditions; 157 pages, 1882 snippets, 174 routes + 51 host-ops joined, 103 warnings
+
+./scripts/check-generated-artifacts
+[check-authorization-review] ok: 35 projections are schema-valid, identity-bound, consumer-committed, and current
+data-tier-corpus-exemplar: applyLiveFeedSnapshot outgrew-IR diagnostic verified
+[check-generated-artifacts] ok: review manifests, ignored caches, and committed projections are current
+
+./ref-check --verbose
+ref-check: ok — 321 LLP docs, 8129 refs in 16870 files, 0 errors, 0 unchecked
+
+git diff --check
+(no output; exit 0)
+
+git rev-list --count origin/main..HEAD
+44
+
+crates non-comment diff against merge-base ed8300f90fa548f9e532d10901d8591d187052fb
+[crates-non-comment-diff] checked 6 changed Rust files; semantic mismatches: 0
+```
+
+The inventory run emitted six warning-only GAP-review notices. The Guide run
+reported those six plus 97 authority-review digest freshness warnings inherited
+from the rebased corpus. The generated-artifact run also printed the maintained
+demo authoring/type-degradation warnings before its successful freshness
+summary. The expensive classifier, inventory, Guide, and generated-artifact
+commands completed at `f0a79f329` immediately before the final conflict-free
+benchmark-only rebase; a changed-path and diagnostic-token audit proved that
+`ed8300f90` touched none of their semantic inputs. The exact final tree reran
+symbol/lookup/onboarding/first-read/package-inventory/ref checks plus the
+code-set, crate, whitespace, and commit-count audits. These proof-transfer
+conditions, the warnings above, and the intentionally unrun Rust build/test
+battery are the only qualifications on the round-37 evidence.
