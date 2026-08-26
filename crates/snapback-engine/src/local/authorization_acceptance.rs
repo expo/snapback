@@ -514,15 +514,14 @@ fn session_authority(
     user: &str,
     source: InvocationSource,
 ) -> PreparedAuthority {
-    let session_id = crate::ids::mint(crate::ids::Kind::Session)
-        .expect("mint an independently resolved acceptance session");
-    let authority_instance_id = crate::ids::mint(crate::ids::Kind::AuthorityInstance)
-        .expect("mint an independently resolved acceptance authority instance");
+    // These are stable fixture cache labels only. The provider still mints
+    // the durable session and authority-instance ids through real ceremony.
+    let (session_id, authority_instance_id) = session_ids(user);
     snapback.prepare_resolved_session_for_test(
         source,
         user,
-        &session_id,
-        &authority_instance_id,
+        session_id,
+        authority_instance_id,
         1,
         4_000_000_000_000,
     )
@@ -535,7 +534,38 @@ fn input(args: Value) -> HandlerInput {
     }
 }
 
-fn mutate(snapback: &mut LocalSnapback, user: &str, name: &str, args: Value) -> Value {
+fn resolve_fixture_principals(snapback: &mut LocalSnapback, value: &mut Value) {
+    match value {
+        Value::String(label)
+            if matches!(
+                label.as_str(),
+                "usr_00000000000000000000000000"
+                    | "usr_00000000000000000000000001"
+                    | "usr_00000000000000000000000002"
+                    | PROPERTY_PRINCIPAL
+            ) =>
+        {
+            let (_, authority_label) = session_ids(label);
+            *label = snapback
+                .issue_production_session_for_test(label, authority_label)
+                .user_id;
+        }
+        Value::Array(values) => {
+            for value in values {
+                resolve_fixture_principals(snapback, value);
+            }
+        }
+        Value::Object(fields) => {
+            for value in fields.values_mut() {
+                resolve_fixture_principals(snapback, value);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn mutate(snapback: &mut LocalSnapback, user: &str, name: &str, mut args: Value) -> Value {
+    resolve_fixture_principals(snapback, &mut args);
     let authority = session_authority(snapback, user, InvocationSource::HttpMutation);
     snapback
         .invoke_mutation_with_authority(name, input(args), authority)
@@ -1574,9 +1604,9 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
     assert_eq!(membership_observation.delivered_snapshot_frames, 9);
     assert_eq!(membership_observation.discarded_snapshot_frames, 3);
     assert_eq!(membership_observation.reprojected_snapshot_frames, 3);
-    assert_eq!(membership_observation.generated_invalidation_frames, 21);
-    assert_eq!(membership_observation.delivered_invalidation_frames, 15);
-    assert_eq!(membership_observation.discarded_invalidation_frames, 6);
+    assert_eq!(membership_observation.generated_invalidation_frames, 12);
+    assert_eq!(membership_observation.delivered_invalidation_frames, 9);
+    assert_eq!(membership_observation.discarded_invalidation_frames, 3);
     assert_eq!(membership_observation.reprojected_invalidation_frames, 3);
     assert_eq!(membership_observation.discarded_response_drains, 3);
     assert_eq!(
@@ -1790,6 +1820,8 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
         .auth_database_mut()
         .authorization_version()
         .expect("authorization version before restart");
+    let predecessor_issuer_id = connection.issuer_id().to_owned();
+    drop(connection);
     drop(snapback);
     let mut restarted = LocalSnapback::open(&database_path).expect("restart acceptance database");
     let diagnostics = restarted.load_functions(acceptance_functions());
@@ -1815,7 +1847,7 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
         json!({}),
         100,
     );
-    let restart_installed_new_issuer = restarted_connection.issuer_id() != connection.issuer_id();
+    let restart_installed_new_issuer = restarted_connection.issuer_id() != &predecessor_issuer_id;
     assert!(restart_installed_new_issuer);
     let restart_accepted_distinct_caller_supplied_query_instance =
         !pre_restart_query_instances.contains(&restarted_query.query_instance_id);

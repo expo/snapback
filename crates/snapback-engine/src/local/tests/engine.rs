@@ -3464,7 +3464,22 @@ fn live_evaluation_memo_prepared_authority_instance_identity_isolates_sharing() 
             )
             .expect("subscribe instance-isolated authority");
     }
-    assert_eq!(projections[0], projections[1]);
+    let projection_values = projections
+        .iter()
+        .map(|projection| serde_json::to_value(projection).expect("serialize session projection"))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        projection_values[0]["userId"],
+        projection_values[1]["userId"]
+    );
+    assert_eq!(
+        projection_values[0]["claims"]["identities"],
+        projection_values[1]["claims"]["identities"]
+    );
+    assert_ne!(
+        projection_values[0]["sessionId"], projection_values[1]["sessionId"],
+        "independent production sessions cannot fabricate one shared session id"
+    );
     assert_ne!(subjects[0], subjects[1]);
     assert_ne!(
         LocalSnapback::live_evaluation_memo_authority_component(
@@ -3474,10 +3489,10 @@ fn live_evaluation_memo_prepared_authority_instance_identity_isolates_sharing() 
         ),
         LocalSnapback::live_evaluation_memo_authority_component(
             &AuthInput::default(),
-            &projections[1],
+            &projections[0],
             &subjects[1],
         ),
-        "the bearer-free authority identity isolates otherwise identical projections",
+        "the bearer-free authority identity independently isolates an identical projection",
     );
     let before = snapback.live_evaluation_stats.clone();
 
@@ -17633,7 +17648,12 @@ fn same_mode_sessions_activation_projects_live_successor_before_reopening() {
         .find(|frame| {
             frame["kind"] == "authorization_invalidation" && frame.get("snapshot").is_some()
         })
-        .expect("activation projects a successor snapshot before admission reopens");
+        .unwrap_or_else(|| {
+            panic!(
+                "activation projects a successor snapshot before admission reopens: {frames:?}; diagnostics={:?}",
+                snapback.recent_diagnostics
+            )
+        });
     assert_eq!(successor["snapshot"]["rows"], json!([]));
     assert_eq!(
         successor["obligation"]["witness"]["authorization"]["epoch"],
@@ -34941,6 +34961,12 @@ fn relational_shrinking_replacement_is_obligation_backed_and_recovered() {
         .auth_database_mut()
         .activate_current_auth_catalog()
         .expect("install shrink fixture auth catalog");
+    let owner_user_id = snapback
+        .issue_production_session_for_test(
+            "usr_00000000000000000000000010",
+            "aut_00000000000000000000000013",
+        )
+        .user_id;
     let diagnostics = snapback.load_functions(functions);
     assert!(
         diagnostics
@@ -34963,7 +34989,7 @@ fn relational_shrinking_replacement_is_obligation_backed_and_recovered() {
             HandlerInput {
                 args: json!({ "title": "alpha", "slug": "ada" }),
                 auth: AuthInput {
-                    user_id: Some("usr_00000000000000000000000010".to_owned()),
+                    user_id: Some(owner_user_id.clone()),
                     ..AuthInput::default()
                 },
                 ..HandlerInput::default()
@@ -34987,7 +35013,7 @@ fn relational_shrinking_replacement_is_obligation_backed_and_recovered() {
             },
             &HandlerInput {
                 auth: AuthInput {
-                    user_id: Some("usr_00000000000000000000000010".to_owned()),
+                    user_id: Some(owner_user_id.clone()),
                     ..AuthInput::default()
                 },
                 ..HandlerInput::default()
@@ -35009,7 +35035,7 @@ fn relational_shrinking_replacement_is_obligation_backed_and_recovered() {
     );
     let owner_input = HandlerInput {
         auth: AuthInput {
-            user_id: Some("usr_00000000000000000000000010".to_owned()),
+            user_id: Some(owner_user_id),
             ..AuthInput::default()
         },
         ..HandlerInput::default()
@@ -35140,6 +35166,10 @@ fn relational_shrinking_replacement_is_obligation_backed_and_recovered() {
 #[test]
 fn quarantined_resubscribe_stays_fail_closed_until_accepted_authority_proof() {
     let mut snapback = live_limit_snapback();
+    snapback
+        .functions
+        .acknowledged_experimental_capabilities
+        .push("result_contract_v1".to_owned());
     let schema = snapback.db.schema().clone();
     let function = snapback
         .functions

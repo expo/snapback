@@ -55,7 +55,7 @@ const ARTIFACT_SCOPE_FIELDS = Object.freeze([
 // The epoch is checked against the executed Rust receipt before any client
 // measurement runs. The local UUID supplies a structurally valid replacement
 // for the receipt's deliberately normalized authenticated incarnation.
-const AUTHORIZATION = Object.freeze({ incarnation: INCARNATION, epoch: 8 });
+const AUTHORIZATION = Object.freeze({ incarnation: INCARNATION, epoch: 10 });
 const ISSUER = Object.freeze({
   authorizationIncarnation: INCARNATION,
   bootSequence: 1,
@@ -81,10 +81,10 @@ const assertCode = async (code, operation) => {
   await assert.rejects(operation, (error) => error?.code === code);
 };
 
-const runRustReceipts = (testName, markers) => {
+const runRustReceipts = (packageName, testName, markers) => {
   const completed = spawnSync(
     'cargo',
-    ['test', '--lib', testName, '--', '--exact', '--nocapture'],
+    ['test', '-p', packageName, '--lib', testName, '--', '--exact', '--nocapture'],
     {
       cwd: ROOT,
       encoding: 'utf8',
@@ -106,7 +106,9 @@ const runRustReceipts = (testName, markers) => {
   }));
 };
 
-const runRustReceipt = (testName, marker) => runRustReceipts(testName, [marker])[marker];
+const runRustReceipt = (packageName, testName, marker) => (
+  runRustReceipts(packageName, testName, [marker])[marker]
+);
 
 const record = (version, rows, versionStream = VERSION_STREAM) => ({
   rows,
@@ -1543,7 +1545,8 @@ const runSeededPropertyOracleCorpus = async (receipts) => {
 
 const main = async () => {
   const serverReceipts = runRustReceipts(
-    'local::authorization_acceptance::permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt',
+    'snapback-engine',
+    'local::engine::authorization_acceptance::permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt',
     [
       'SNAPBACK_AUTH_ACCEPTANCE_SERVER_RECEIPT',
       'SNAPBACK_AUTH_ACCEPTANCE_SERVER_REPLAY',
@@ -1552,23 +1555,28 @@ const main = async () => {
   const serverReceipt = serverReceipts.SNAPBACK_AUTH_ACCEPTANCE_SERVER_RECEIPT;
   const serverReplay = serverReceipts.SNAPBACK_AUTH_ACCEPTANCE_SERVER_REPLAY;
   const propertyReceipt = runRustReceipt(
-    'local::authorization_acceptance::shared_property_corpus_emits_production_fresh_query_receipt',
+    'snapback-engine',
+    'local::engine::authorization_acceptance::shared_property_corpus_emits_production_fresh_query_receipt',
     'SNAPBACK_AUTH_ACCEPTANCE_PROPERTY_RECEIPT',
   );
   const overflowReceipt = runRustReceipt(
-    'local::tests::overflow_root_waits_for_every_auth_scoped_child',
+    'snapback-engine',
+    'local::engine::tests::engine::overflow_root_waits_for_every_auth_scoped_child',
     'SNAPBACK_AUTH_ACCEPTANCE_OVERFLOW_RECEIPT',
   );
   const deploymentReceipt = runRustReceipt(
+    'snapback-kernel',
     'storage::tests::guarded_commit_tests::activation_and_ordinary_writes_preserve_the_closed_event_universe',
     'SNAPBACK_AUTH_ACCEPTANCE_DEPLOYMENT_RECEIPT',
   );
   const roomFrameEnqueueReceipt = runRustReceipt(
-    'local::auth_room_kick_acceptance::frame_construction_before_first_enqueue_is_commit_ordered',
+    'snapback-engine',
+    'local::engine::auth_room_kick_acceptance::frame_construction_before_first_enqueue_is_commit_ordered',
     'SNAPBACK_AUTH_ACCEPTANCE_ROOM_FRAME_ENQUEUE_RECEIPT',
   );
   const roomReceipts = runRustReceipts(
-    'local::auth_room_kick_acceptance::card_game_kick_composes_durable_and_room_authority_boundaries',
+    'snapback-engine',
+    'local::engine::auth_room_kick_acceptance::card_game_kick_composes_durable_and_room_authority_boundaries',
     [
       'SNAPBACK_AUTH_ACCEPTANCE_ROOM_RECEIPT',
       'SNAPBACK_AUTH_ACCEPTANCE_ROOM_ENQUEUE_DRAIN_RECEIPT',

@@ -25,7 +25,7 @@
       ],
       "wallClockMeasured": false,
       "composedServerWitnessFloor": {
-        "authorizationEpoch": 8,
+        "authorizationEpoch": 10,
         "minCommitVersion": 11
       },
       "retainedPayloadBytesPreservedDuringQuarantine": 747,
@@ -42,8 +42,8 @@
       "authScopedQueriesPerEvent": 3,
       "completeExactScopeQueryLifecycles": 9,
       "retainedPayloadByteAggregation": "sum-across-nine-isolated-exact-scope-replays",
-      "retainedPayloadBytesBefore": 7119,
-      "retainedPayloadBytesDuringQuarantine": 7119,
+      "retainedPayloadBytesBefore": 7296,
+      "retainedPayloadBytesDuringQuarantine": 7296,
       "retainedPayloadBytesDeletedByCoarseQuarantine": 0,
       "durableQuarantineFenceWrites": 9,
       "durableDeleteTombstonesWrittenDuringQuarantine": 0,
@@ -52,11 +52,11 @@
       "queueReleaseCycles": 9,
       "trafficCounts": {
         "productionServer": {
-          "generatedInvalidationFrames": 21,
+          "generatedInvalidationFrames": 12,
           "generatedSnapshotFrames": 12,
-          "deliveredInvalidationFrames": 15,
+          "deliveredInvalidationFrames": 9,
           "deliveredSnapshotFrames": 9,
-          "discardedInvalidationFrames": 6,
+          "discardedInvalidationFrames": 3,
           "discardedSnapshotFrames": 3,
           "reprojectedInvalidationFrames": 3,
           "reprojectedSnapshotFrames": 3,
@@ -79,8 +79,8 @@
           "eventIndex": 1,
           "eventKind": "join-alice",
           "queryIndex": 0,
-          "principalId": "alice",
-          "clientStoreId": "store_alice",
+          "principalId": "usr_00000000000000000000000000",
+          "clientStoreId": "store_usr_00000000000000000000000000",
           "queryInstanceId": 10,
           "revision": 4,
           "pendingMutationsBefore": 2,
@@ -96,8 +96,8 @@
           "eventIndex": 1,
           "eventKind": "join-alice",
           "queryIndex": 1,
-          "principalId": "bob",
-          "clientStoreId": "store_bob",
+          "principalId": "usr_00000000000000000000000001",
+          "clientStoreId": "store_usr_00000000000000000000000001",
           "queryInstanceId": 11,
           "revision": 4,
           "pendingMutationsBefore": 2,
@@ -113,8 +113,8 @@
           "eventIndex": 1,
           "eventKind": "join-alice",
           "queryIndex": 2,
-          "principalId": "carol",
-          "clientStoreId": "store_carol",
+          "principalId": "usr_00000000000000000000000002",
+          "clientStoreId": "store_usr_00000000000000000000000002",
           "queryInstanceId": 12,
           "revision": 4,
           "pendingMutationsBefore": 2,
@@ -130,8 +130,8 @@
           "eventIndex": 2,
           "eventKind": "join-bob",
           "queryIndex": 0,
-          "principalId": "alice",
-          "clientStoreId": "store_alice",
+          "principalId": "usr_00000000000000000000000000",
+          "clientStoreId": "store_usr_00000000000000000000000000",
           "queryInstanceId": 10,
           "revision": 5,
           "pendingMutationsBefore": 2,
@@ -147,8 +147,8 @@
           "eventIndex": 2,
           "eventKind": "join-bob",
           "queryIndex": 1,
-          "principalId": "bob",
-          "clientStoreId": "store_bob",
+          "principalId": "usr_00000000000000000000000001",
+          "clientStoreId": "store_usr_00000000000000000000000001",
           "queryInstanceId": 11,
           "revision": 5,
           "pendingMutationsBefore": 2,
@@ -164,8 +164,8 @@
           "eventIndex": 2,
           "eventKind": "join-bob",
           "queryIndex": 2,
-          "principalId": "carol",
-          "clientStoreId": "store_carol",
+          "principalId": "usr_00000000000000000000000002",
+          "clientStoreId": "store_usr_00000000000000000000000002",
           "queryInstanceId": 12,
           "revision": 5,
           "pendingMutationsBefore": 2,
@@ -181,8 +181,8 @@
           "eventIndex": 3,
           "eventKind": "kick-bob",
           "queryIndex": 0,
-          "principalId": "alice",
-          "clientStoreId": "store_alice",
+          "principalId": "usr_00000000000000000000000000",
+          "clientStoreId": "store_usr_00000000000000000000000000",
           "queryInstanceId": 10,
           "revision": 6,
           "pendingMutationsBefore": 2,
@@ -198,8 +198,8 @@
           "eventIndex": 3,
           "eventKind": "kick-bob",
           "queryIndex": 1,
-          "principalId": "bob",
-          "clientStoreId": "store_bob",
+          "principalId": "usr_00000000000000000000000001",
+          "clientStoreId": "store_usr_00000000000000000000000001",
           "queryInstanceId": 11,
           "revision": 6,
           "pendingMutationsBefore": 2,
@@ -215,8 +215,8 @@
           "eventIndex": 3,
           "eventKind": "kick-bob",
           "queryIndex": 2,
-          "principalId": "carol",
-          "clientStoreId": "store_carol",
+          "principalId": "usr_00000000000000000000000002",
+          "clientStoreId": "store_usr_00000000000000000000000002",
           "queryInstanceId": 12,
           "revision": 6,
           "pendingMutationsBefore": 2,
@@ -242,13 +242,13 @@
             "kind": "subscription",
             "queryKey": "mineOrPublic:{}",
             "queryInstanceId": 10,
-            "clientStoreId": "store_alice"
+            "clientStoreId": "store_usr_00000000000000000000000000"
           },
           "revision": 4,
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 6
+              "epoch": 8
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -288,8 +288,8 @@
             "quarantineCommitted": true,
             "hiddenReadWasNull": true,
             "hiddenIntervalTransitions": 3,
-            "retainedPayloadBytesBefore": 741,
-            "retainedPayloadBytesDuringQuarantine": 741,
+            "retainedPayloadBytesBefore": 760,
+            "retainedPayloadBytesDuringQuarantine": 760,
             "retainedPayloadBytesDeletedByQuarantine": 0,
             "durableDeleteTombstonesWrittenDuringQuarantine": 0,
             "freshSnapshotCommitted": true,
@@ -312,13 +312,13 @@
             "kind": "subscription",
             "queryKey": "mineOrPublic:{}",
             "queryInstanceId": 11,
-            "clientStoreId": "store_bob"
+            "clientStoreId": "store_usr_00000000000000000000000001"
           },
           "revision": 4,
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 6
+              "epoch": 8
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -358,8 +358,8 @@
             "quarantineCommitted": true,
             "hiddenReadWasNull": true,
             "hiddenIntervalTransitions": 3,
-            "retainedPayloadBytesBefore": 739,
-            "retainedPayloadBytesDuringQuarantine": 739,
+            "retainedPayloadBytesBefore": 760,
+            "retainedPayloadBytesDuringQuarantine": 760,
             "retainedPayloadBytesDeletedByQuarantine": 0,
             "durableDeleteTombstonesWrittenDuringQuarantine": 0,
             "freshSnapshotCommitted": true,
@@ -382,13 +382,13 @@
             "kind": "subscription",
             "queryKey": "allNotes:{}",
             "queryInstanceId": 12,
-            "clientStoreId": "store_carol"
+            "clientStoreId": "store_usr_00000000000000000000000002"
           },
           "revision": 4,
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 6
+              "epoch": 8
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -428,8 +428,8 @@
             "quarantineCommitted": true,
             "hiddenReadWasNull": true,
             "hiddenIntervalTransitions": 3,
-            "retainedPayloadBytesBefore": 893,
-            "retainedPayloadBytesDuringQuarantine": 893,
+            "retainedPayloadBytesBefore": 912,
+            "retainedPayloadBytesDuringQuarantine": 912,
             "retainedPayloadBytesDeletedByQuarantine": 0,
             "durableDeleteTombstonesWrittenDuringQuarantine": 0,
             "freshSnapshotCommitted": true,
@@ -452,13 +452,13 @@
             "kind": "subscription",
             "queryKey": "mineOrPublic:{}",
             "queryInstanceId": 10,
-            "clientStoreId": "store_alice"
+            "clientStoreId": "store_usr_00000000000000000000000000"
           },
           "revision": 5,
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 7
+              "epoch": 9
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -498,8 +498,8 @@
             "quarantineCommitted": true,
             "hiddenReadWasNull": true,
             "hiddenIntervalTransitions": 3,
-            "retainedPayloadBytesBefore": 741,
-            "retainedPayloadBytesDuringQuarantine": 741,
+            "retainedPayloadBytesBefore": 760,
+            "retainedPayloadBytesDuringQuarantine": 760,
             "retainedPayloadBytesDeletedByQuarantine": 0,
             "durableDeleteTombstonesWrittenDuringQuarantine": 0,
             "freshSnapshotCommitted": true,
@@ -522,13 +522,13 @@
             "kind": "subscription",
             "queryKey": "mineOrPublic:{}",
             "queryInstanceId": 11,
-            "clientStoreId": "store_bob"
+            "clientStoreId": "store_usr_00000000000000000000000001"
           },
           "revision": 5,
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 7
+              "epoch": 9
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -568,8 +568,8 @@
             "quarantineCommitted": true,
             "hiddenReadWasNull": true,
             "hiddenIntervalTransitions": 3,
-            "retainedPayloadBytesBefore": 739,
-            "retainedPayloadBytesDuringQuarantine": 739,
+            "retainedPayloadBytesBefore": 760,
+            "retainedPayloadBytesDuringQuarantine": 760,
             "retainedPayloadBytesDeletedByQuarantine": 0,
             "durableDeleteTombstonesWrittenDuringQuarantine": 0,
             "freshSnapshotCommitted": true,
@@ -592,13 +592,13 @@
             "kind": "subscription",
             "queryKey": "allNotes:{}",
             "queryInstanceId": 12,
-            "clientStoreId": "store_carol"
+            "clientStoreId": "store_usr_00000000000000000000000002"
           },
           "revision": 5,
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 7
+              "epoch": 9
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -638,8 +638,8 @@
             "quarantineCommitted": true,
             "hiddenReadWasNull": true,
             "hiddenIntervalTransitions": 3,
-            "retainedPayloadBytesBefore": 893,
-            "retainedPayloadBytesDuringQuarantine": 893,
+            "retainedPayloadBytesBefore": 912,
+            "retainedPayloadBytesDuringQuarantine": 912,
             "retainedPayloadBytesDeletedByQuarantine": 0,
             "durableDeleteTombstonesWrittenDuringQuarantine": 0,
             "freshSnapshotCommitted": true,
@@ -662,13 +662,13 @@
             "kind": "subscription",
             "queryKey": "mineOrPublic:{}",
             "queryInstanceId": 10,
-            "clientStoreId": "store_alice"
+            "clientStoreId": "store_usr_00000000000000000000000000"
           },
           "revision": 6,
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -708,8 +708,8 @@
             "quarantineCommitted": true,
             "hiddenReadWasNull": true,
             "hiddenIntervalTransitions": 3,
-            "retainedPayloadBytesBefore": 741,
-            "retainedPayloadBytesDuringQuarantine": 741,
+            "retainedPayloadBytesBefore": 760,
+            "retainedPayloadBytesDuringQuarantine": 760,
             "retainedPayloadBytesDeletedByQuarantine": 0,
             "durableDeleteTombstonesWrittenDuringQuarantine": 0,
             "freshSnapshotCommitted": true,
@@ -732,13 +732,13 @@
             "kind": "subscription",
             "queryKey": "mineOrPublic:{}",
             "queryInstanceId": 11,
-            "clientStoreId": "store_bob"
+            "clientStoreId": "store_usr_00000000000000000000000001"
           },
           "revision": 6,
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -778,8 +778,8 @@
             "quarantineCommitted": true,
             "hiddenReadWasNull": true,
             "hiddenIntervalTransitions": 3,
-            "retainedPayloadBytesBefore": 739,
-            "retainedPayloadBytesDuringQuarantine": 739,
+            "retainedPayloadBytesBefore": 760,
+            "retainedPayloadBytesDuringQuarantine": 760,
             "retainedPayloadBytesDeletedByQuarantine": 0,
             "durableDeleteTombstonesWrittenDuringQuarantine": 0,
             "freshSnapshotCommitted": true,
@@ -802,13 +802,13 @@
             "kind": "subscription",
             "queryKey": "allNotes:{}",
             "queryInstanceId": 12,
-            "clientStoreId": "store_carol"
+            "clientStoreId": "store_usr_00000000000000000000000002"
           },
           "revision": 6,
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -848,8 +848,8 @@
             "quarantineCommitted": true,
             "hiddenReadWasNull": true,
             "hiddenIntervalTransitions": 3,
-            "retainedPayloadBytesBefore": 893,
-            "retainedPayloadBytesDuringQuarantine": 893,
+            "retainedPayloadBytesBefore": 912,
+            "retainedPayloadBytesDuringQuarantine": 912,
             "retainedPayloadBytesDeletedByQuarantine": 0,
             "durableDeleteTombstonesWrittenDuringQuarantine": 0,
             "freshSnapshotCommitted": true,
@@ -946,7 +946,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -1018,7 +1018,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -1093,7 +1093,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -1343,7 +1343,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -1400,7 +1400,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -1456,7 +1456,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -1517,7 +1517,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -1572,7 +1572,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -1629,7 +1629,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -1691,7 +1691,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -1761,7 +1761,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -1828,7 +1828,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -1904,7 +1904,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -1968,7 +1968,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -2035,7 +2035,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -2108,7 +2108,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -2175,7 +2175,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -2242,7 +2242,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -2318,7 +2318,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -2382,7 +2382,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -2452,7 +2452,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -2528,7 +2528,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -2601,7 +2601,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -2671,7 +2671,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -2744,7 +2744,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -2801,7 +2801,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -2859,7 +2859,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -2922,7 +2922,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -2979,7 +2979,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -3034,7 +3034,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -3096,7 +3096,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -3151,7 +3151,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -3206,7 +3206,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -3337,11 +3337,11 @@
       },
       "runtimeMeasurements": {
         "membershipChurn": {
-          "generatedInvalidationFrames": 21,
+          "generatedInvalidationFrames": 12,
           "generatedSnapshotFrames": 12,
-          "deliveredInvalidationFrames": 15,
+          "deliveredInvalidationFrames": 9,
           "deliveredSnapshotFrames": 9,
-          "discardedInvalidationFrames": 6,
+          "discardedInvalidationFrames": 3,
           "discardedSnapshotFrames": 3,
           "reprojectedInvalidationFrames": 3,
           "reprojectedSnapshotFrames": 3,
@@ -3399,7 +3399,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 6
+              "epoch": 8
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -3443,7 +3443,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 6
+              "epoch": 8
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -3487,7 +3487,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 6
+              "epoch": 8
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -3531,7 +3531,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 7
+              "epoch": 9
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -3575,7 +3575,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 7
+              "epoch": 9
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -3619,7 +3619,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 7
+              "epoch": 9
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -3663,7 +3663,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -3707,7 +3707,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -3751,7 +3751,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -3796,7 +3796,7 @@
           "compositeWitness": {
             "authorization": {
               "incarnation": "<authenticated-uuid-v7>",
-              "epoch": 8
+              "epoch": 10
             },
             "data": {
               "versionStream": "<authenticated-version-stream>",
@@ -5737,11 +5737,11 @@
       ]
     },
     "deployment": {
-      "missingPredecessorObserved": true,
       "activationEpoch": 1,
       "idempotentActivationEpochAdvance": 0,
-      "ordinaryWriteRaisedAuthorizationEvent": false,
-      "ordinaryRemovalRaisedAuthorizationEvent": false
+      "missingPredecessorObserved": true,
+      "ordinaryRemovalRaisedAuthorizationEvent": false,
+      "ordinaryWriteRaisedAuthorizationEvent": false
     },
     "overflow": {
       "overflowSentinelObserved": true,
