@@ -5990,13 +5990,17 @@ export async function runDev(options = {}) {
   const projectRoot = resolve(options.projectRoot ?? dirname(backendRoot));
   const stateRoot = join(projectRoot, '.snapback');
   mkdirSync(stateRoot, { recursive: true, mode: 0o700 });
-  const stateRootMetadata = lstatSync(stateRoot);
-  if (stateRootMetadata.isDirectory()
-      && !stateRootMetadata.isSymbolicLink()
-      && (typeof process.getuid !== 'function' || stateRootMetadata.uid === process.getuid())) {
-    chmodSync(stateRoot, 0o700);
-  }
   const readyFile = resolve(options.readyFile ?? join(stateRoot, 'dev.ready.json'));
+  if (options.controlSocket === true) {
+    const controlStateRoot = dirname(readyFile);
+    const controlStateRootMetadata = lstatSync(controlStateRoot);
+    if (controlStateRootMetadata.isDirectory()
+        && !controlStateRootMetadata.isSymbolicLink()
+        && (typeof process.getuid !== 'function'
+          || controlStateRootMetadata.uid === process.getuid())) {
+      chmodSync(controlStateRoot, 0o700);
+    }
+  }
   const applicationReadyFile = resolve(
     options.applicationReadyFile ?? `${readyFile}.application-ready`,
   );
@@ -9194,18 +9198,19 @@ export async function runCli(argv, options = {}) {
         stopping = true;
         detachInput();
         closePromise = (async () => {
-          const failures = [];
+          const failures = failure === null ? [] : [failure];
           try {
             await result?.close?.();
           } catch (error) { failures.push(error); }
           try {
             await closePackagedCarrierCleanupLease();
           } catch (error) { failures.push(error); }
-          if (failure !== null) rejectStop(failure);
-          else if (failures.length === 1) rejectStop(failures[0]);
+          if (failures.length === 1) rejectStop(failures[0]);
           else if (failures.length > 1) rejectStop(new AggregateError(
             failures,
-            'packaged Expo supervisor cleanup failed',
+            failure === null
+              ? 'packaged Expo supervisor cleanup failed'
+              : 'packaged Expo supervisor failed and cleanup also failed',
           ));
           else resolveStop();
         })();

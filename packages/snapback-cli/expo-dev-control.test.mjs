@@ -38,6 +38,7 @@ const packageRoot = dirname(fileURLToPath(import.meta.url));
 const scratchRoot = mkdtempSync(join(tmpdir(), 'sbctl-unit-'));
 const holderScript = join(scratchRoot, 'holder.mjs');
 const pathLockScript = join(scratchRoot, 'path-lock-holder.mjs');
+const foreignSocketScript = join(scratchRoot, 'foreign-socket-holder.mjs');
 const holders = new Set();
 
 writeFileSync(holderScript, `
@@ -61,10 +62,10 @@ const options = {
     'stop-children': async () => ({ ok: true }),
   },
 };
-const control = process.env.SNAPBACK_TEST_STALL_PENDING_SOCKET === '1'
+const control = process.env.SNAPBACK_TEST_STALL_BOUND_SOCKET === '1'
   ? await __test.startDevControlSocketWithDependencies(options, {
-      async afterPendingListen(details) {
-        process.stdout.write(JSON.stringify({ state: 'pending-listened', ...details }) + '\\n');
+      async afterEndpointLeaseActivation(details) {
+        process.stdout.write(JSON.stringify({ state: 'endpoint-lease-activated', ...details }) + '\\n');
         await new Promise(() => {});
       },
     })
@@ -125,6 +126,23 @@ try {
 }
 `);
 
+writeFileSync(foreignSocketScript, `
+import { lstatSync } from 'node:fs';
+import { createServer } from 'node:net';
+
+const path = process.argv[2];
+const server = createServer();
+server.listen(path, () => {
+  const metadata = lstatSync(path);
+  process.stdout.write(JSON.stringify({
+    state: 'listening',
+    device: String(metadata.dev),
+    inode: String(metadata.ino),
+  }) + '\\n');
+});
+setInterval(() => {}, 60_000);
+`);
+
 async function eventually(check, { timeoutMs = 10_000, label = 'condition' } = {}) {
   const deadline = Date.now() + timeoutMs;
   let lastError = null;
@@ -182,12 +200,12 @@ async function startHolder(root, ownerIncarnationId, cleanupLease = null) {
   return { child, ...published };
 }
 
-async function startPendingSocketHolder(root, ownerIncarnationId, cleanupLease) {
+async function startBoundSocketHolder(root, ownerIncarnationId, cleanupLease) {
   const child = spawn(process.execPath, [holderScript, join(root, 'dev.ready.json'), ownerIncarnationId], {
     env: {
       ...process.env,
       [CLEANUP_LEASE_DIRECTORY_ENV]: cleanupLease.directory,
-      SNAPBACK_TEST_STALL_PENDING_SOCKET: '1',
+      SNAPBACK_TEST_STALL_BOUND_SOCKET: '1',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -237,6 +255,28 @@ async function startPathLockActor(endpointPath, mode) {
     return false;
   }, { label: `${mode} path-lock barrier` });
   return { child, ready };
+}
+
+async function startForeignSocketHolder(endpointPath) {
+  const child = spawn(process.execPath, [foreignSocketScript, endpointPath], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  holders.add(child);
+  let stdout = '';
+  let stderr = '';
+  child.stdout.setEncoding('utf8');
+  child.stderr.setEncoding('utf8');
+  child.stdout.on('data', (chunk) => { stdout += chunk; });
+  child.stderr.on('data', (chunk) => { stderr += chunk; });
+  const ready = await eventually(() => {
+    const newline = stdout.indexOf('\n');
+    if (newline !== -1) return JSON.parse(stdout.slice(0, newline));
+    if (child.exitCode !== null || child.signalCode !== null) {
+      throw new Error(`foreign socket holder exited before readiness: ${stderr || stdout}`);
+    }
+    return false;
+  }, { label: 'foreign socket collision readiness' });
+  return { child, ...ready };
 }
 
 async function startStaleReclaimContender(endpointPath, contenderId, releaseFile) {
@@ -433,11 +473,17 @@ try {
   assert.equal(existsSync(join(uidlessRoot, '.dc-sock')), false);
   console.log('uid custody unavailable: stdin-only fallback remains live');
 
-  const advertisedPathWindowRoot = makeRootWithByteLength(88);
-  const advertisedPathWindowControl = await startDevControlSocket(testOptions(
-    advertisedPathWindowRoot,
-    'unit-advertised-path-window-owner',
-  ));
+  const sockaddrPathBytes = process.platform === 'darwin' ? 104 : 107;
+  const advertisedPathWindowRoot = makeRootWithByteLength(
+    sockaddrPathBytes - Buffer.byteLength('/.dc-sock'),
+  );
+  const advertisedPathWindowControl = await startDevControlSocket(
+    testOptions(advertisedPathWindowRoot, 'unit-advertised-path-window-owner'),
+  );
+  assert.equal(
+    Buffer.byteLength(advertisedPathWindowControl.descriptor.path),
+    sockaddrPathBytes,
+  );
   try {
     await new Promise((resolveConnect, rejectConnect) => {
       const socket = createConnection(advertisedPathWindowControl.descriptor.path);
@@ -452,7 +498,7 @@ try {
   } finally {
     await advertisedPathWindowControl.close();
   }
-  console.log('advertised path budget: descriptor endpoint accepts connect at 88-byte directory');
+  console.log(`advertised path budget: descriptor endpoint accepts connect at exact ${sockaddrPathBytes}-byte boundary`);
 
   const advertisedProbeRoot = makeRoot('advertised-probe');
   const advertisedProbeNotices = [];
@@ -473,43 +519,36 @@ try {
   assert.equal(existsSync(join(advertisedProbeRoot, 'dev-control.owner.json')), false);
   console.log('advertised path probe failure: coded stdin-only fallback publishes no descriptor');
 
-  for (const causeCode of ['EPERM', 'EXDEV']) {
-    const linuxPublishRoot = makeRoot(`linux-publish-${causeCode.toLowerCase()}`);
-    const linuxPublishNotices = [];
-    const linuxPublishControl = await expoDevTest.startDevControlSocketWithDependencies(
-      testOptions(linuxPublishRoot, `unit-linux-publish-${causeCode.toLowerCase()}-owner`, {
-        onUnavailable: (diagnostic) => linuxPublishNotices.push(diagnostic),
-      }),
+  const publishCollisionRoot = makeRoot('publish-collision');
+  let foreignSocketHolder = null;
+  let publishCollisionControl = null;
+  let publishCollisionError = null;
+  try {
+    publishCollisionControl = await expoDevTest.startDevControlSocketWithDependencies(
+      testOptions(publishCollisionRoot, 'unit-publish-collision-owner'),
       {
-        publishEndpoint() {
-          throw Object.assign(new Error('injected unix-socket rename refusal'), {
-            code: causeCode,
-          });
+        async beforeEndpointPublish({ path }) {
+          foreignSocketHolder = await startForeignSocketHolder(path);
         },
       },
     );
-    assert.equal(linuxPublishControl, null);
-    assert.equal(linuxPublishNotices[0].code, 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE');
-    assert.equal(linuxPublishNotices[0].details.cause, causeCode);
-    assert.equal(existsSync(join(linuxPublishRoot, '.dc-sock')), false);
-    assert.equal(existsSync(join(linuxPublishRoot, 'dev-control.owner.json')), false);
+  } catch (error) {
+    publishCollisionError = error;
   }
-  console.log('socket publication EPERM/EXDEV: coded stdin-only fallback remains live');
-
-  const publishCollisionRoot = makeRoot('publish-collision');
-  await assertRefusal(
-    () => expoDevTest.startDevControlSocketWithDependencies(
-      testOptions(publishCollisionRoot, 'unit-publish-collision-owner'),
-      {
-        publishEndpoint() {
-          throw Object.assign(new Error('injected occupied publication path'), { code: 'EEXIST' });
-        },
-      },
-    ),
+  if (publishCollisionControl !== null) await publishCollisionControl.close();
+  assert.equal(
+    publishCollisionError?.diagnostic?.code,
     'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
+    'a real same-UID endpoint created after the initial probe must refuse publication',
   );
-  assert.equal(existsSync(join(publishCollisionRoot, '.dc-sock')), false);
-  console.log('socket publication EEXIST: only path collision maps to foreign-owner refusal');
+  const collisionPath = join(publishCollisionRoot, '.dc-sock');
+  assert.equal(existsSync(collisionPath), true, 'the foreign socket path must remain published');
+  const collisionMetadata = lstatSync(collisionPath);
+  assert.equal(String(collisionMetadata.dev), foreignSocketHolder.device);
+  assert.equal(String(collisionMetadata.ino), foreignSocketHolder.inode);
+  await killHolder(foreignSocketHolder);
+  rmSync(collisionPath, { force: true });
+  console.log('real socket publication collision: owner refuses and preserves foreign inode');
 
   const lockTimeoutRoot = makeRoot('lock-timeout');
   const lockTimeoutNotices = [];
@@ -996,31 +1035,31 @@ try {
   }
   console.log('cleanup lease: owner death reaps the exact socket inode');
 
-  const pendingLeaseRoot = makeRoot('pending');
-  const pendingCleanupLease = await createCarrierCleanupLease();
+  const boundLeaseRoot = makeRoot('bound-lease');
+  const boundCleanupLease = await createCarrierCleanupLease();
   try {
-    const pendingHolder = await startPendingSocketHolder(
-      pendingLeaseRoot,
-      'unit-pending-owner',
-      pendingCleanupLease,
+    const boundHolder = await startBoundSocketHolder(
+      boundLeaseRoot,
+      'unit-bound-owner',
+      boundCleanupLease,
     );
     assert.equal(
-      pendingHolder.barrier.state,
-      'pending-listened',
-      'fault injection must stop after listen and before pending socket activation',
+      boundHolder.barrier.state,
+      'endpoint-lease-activated',
+      'fault injection must stop after direct bind and exact-inode lease activation',
     );
-    assert.equal(existsSync(pendingHolder.barrier.pendingPath), true);
-    assert.equal(existsSync(pendingHolder.barrier.ownerStatePath), true);
-    await killHolder(pendingHolder);
+    assert.equal(existsSync(boundHolder.barrier.path), true);
+    assert.equal(existsSync(boundHolder.barrier.ownerStatePath), true);
+    await killHolder(boundHolder);
     await eventually(
-      () => !existsSync(pendingHolder.barrier.pendingPath)
-        && !existsSync(pendingHolder.barrier.ownerStatePath),
-      { label: 'reserved pending socket and owner marker reap after owner SIGKILL' },
+      () => !existsSync(boundHolder.barrier.path)
+        && !existsSync(boundHolder.barrier.ownerStatePath),
+      { label: 'direct-bound socket and binding marker reap after owner SIGKILL' },
     );
   } finally {
-    await closeCarrierCleanupLease(pendingCleanupLease);
+    await closeCarrierCleanupLease(boundCleanupLease);
   }
-  console.log('cleanup lease: bind-to-activation owner death reaps reserved pending socket and marker');
+  console.log('cleanup lease: direct-bind owner death reaps exact socket inode and binding marker');
 } finally {
   await Promise.all([...holders].map(async (child) => {
     if (child.exitCode !== null || child.signalCode !== null) return;

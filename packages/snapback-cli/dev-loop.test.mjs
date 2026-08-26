@@ -10,7 +10,9 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import {
+  chmodSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -117,6 +119,9 @@ const readyFile = join(root, 'todo-contract', '.snapback', 'dev.ready.json');
 try {
   const project = join(root, 'todo-contract');
   assert.equal(scaffoldApp(project).ok, true);
+  const ordinaryStateRoot = dirname(readyFile);
+  mkdirSync(ordinaryStateRoot, { recursive: true });
+  chmodSync(ordinaryStateRoot, 0o755);
   const backend = join(project, 'snapback');
   const functionsPath = join(backend, 'functions.mjs');
   const functionsAsc = readFileSync(functionsPath, 'utf8');
@@ -231,6 +236,11 @@ console.log(JSON.stringify({ event: 'client-listening', origin: 'http://127.0.0.
     { timeoutMs: 120_000, label: 'initial generated-and-loaded' },
   );
   assert.equal(loaded.managed, true);
+  assert.equal(
+    lstatSync(ordinaryStateRoot).mode & 0o777,
+    0o755,
+    'ordinary non-Expo runDev must not tighten the project state directory',
+  );
   const started = await stream.waitFor((event) => event.state === 'client-started', { label: 'client-started' });
   assert.ok(Number.isInteger(started.pid));
   clientPid = started.pid;

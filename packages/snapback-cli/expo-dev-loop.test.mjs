@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash, webcrypto } from 'node:crypto';
 import {
+  chmodSync,
   cpSync,
   existsSync,
   mkdirSync,
@@ -1029,6 +1030,8 @@ async function runControlSocketSuite() {
   const controlRange = await reserveFreeRange(8);
   try {
     const lateExitFixture = fixture('late-exit-app', { sessions: true, root: controlRoot });
+    mkdirSync(lateExitFixture.stateRoot, { recursive: true });
+    chmodSync(lateExitFixture.stateRoot, 0o755);
     let injectReplacementExit = false;
     let replacementExitInjected = false;
     const lateExitRun = await startFixture(lateExitFixture, {
@@ -1040,6 +1043,11 @@ async function runControlSocketSuite() {
         metro.child.emit('exit', 87, null);
       },
     });
+    assert.equal(
+      statSync(lateExitFixture.stateRoot).mode & 0o777,
+      0o700,
+      'an Expo owner publishing the control socket must tighten its ready-file directory',
+    );
     const lateExitDescriptorPath = join(dirname(lateExitFixture.readyFile), 'expo-supervisor.json');
     const descriptorBeforeReload = statSync(lateExitDescriptorPath);
     const settledReload = await lateExitRun.supervisor.verbs['reload-metro']({

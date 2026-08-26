@@ -539,7 +539,6 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
       endpointPath,
       { timeoutMs: options.endpointProbeTimeoutMs ?? 500 },
     ));
-  const publishEndpoint = dependencies.publishEndpoint ?? renameSync;
   const withPathLock = dependencies.withPathLock ?? withCleanupPathLock;
   const writeAcknowledgement = dependencies.writeAcknowledgement
     ?? ((socket, payload) => socket.write(payload));
@@ -576,11 +575,10 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
   let closePromise = null;
   let controlSocket = null;
   let cleanupResource = null;
-  let pendingCleanupResource = null;
   let endpoint = null;
   let descriptor = null;
   let ownerStateIdentity = null;
-  let pendingPath = null;
+  let ownerStateEndpoint = null;
   let startupUnavailable = null;
   let close = async () => {};
   const server = createNetServer({ allowHalfOpen: false }, (socket) => {
@@ -770,13 +768,13 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
             if (sameControlEndpoint(current, endpoint)) rmSync(path);
           }
         } catch { /* Missing or replaced endpoints are permanently discharged. */ }
-        cleanupControlOwnerStateMarker(
-          ownerStatePath,
-          ownerStateIdentity,
-          options.ownerIncarnationId,
-          endpoint,
-        );
       });
+      cleanupControlOwnerStateMarker(
+        ownerStatePath,
+        ownerStateIdentity,
+        options.ownerIncarnationId,
+        endpoint,
+      );
       cleanupResource = null;
     });
     return closePromise;
@@ -795,13 +793,6 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
       cleanupResource = reserveCleanupPath(options.cleanupLease ?? null, path, {
         type: 'socket',
         label: 'Expo dev control socket',
-      });
-      // Darwin's sockaddr_un path is short; keep the private basename no
-      // longer than the well-known endpoint while retaining random custody.
-      pendingPath = join(dirname(path), `.dc-${randomBytes(4).toString('hex')}`);
-      pendingCleanupResource = reserveCleanupPath(options.cleanupLease ?? null, pendingPath, {
-        type: 'socket',
-        label: 'Expo pending dev control socket',
         pendingOwnerState: {
           path: ownerStatePath,
           endpointPath: path,
@@ -809,9 +800,9 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
           ownerUid,
         },
       });
-      // Persist the incarnation before binding even the unadvertised private
-      // name. The exact inode replaces this binding-phase marker below before
-      // the well-known endpoint becomes visible.
+      // Persist the incarnation before binding the well-known name. Direct
+      // bind is the atomic no-replace publication primitive: a pathname that
+      // appears after the probe produces EADDRINUSE and is never displaced.
       ownerStateIdentity = writeOwnerOnlyJsonAtomic(ownerStatePath, {
         schemaVersion: DEV_CONTROL_OWNER_STATE_FORMAT,
         phase: 'binding',
@@ -824,6 +815,7 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
         endpoint: null,
         startedAt: options.startedAt,
       });
+      await dependencies.beforeEndpointPublish?.({ path, ownerStatePath });
       await new Promise((resolveListen, rejectListen) => {
         const previousUmask = process.umask(0o177);
         let umaskRestored = false;
@@ -835,13 +827,20 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
         const onError = (cause) => {
           server.off('listening', onListening);
           restoreUmask();
+          if (cause?.code === 'EADDRINUSE') {
+            rejectListen(diagnosticError(
+              'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
+              'the dev control socket path became occupied before binding',
+              { path, cause: cause.code },
+            ));
+            return;
+          }
           rejectListen(diagnosticError(
             'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
-            `the dev control socket could not bind at ${pendingPath}: ${cause.message}`,
+            `the dev control socket could not bind at ${path}: ${cause.message}`,
             {
               path: stateDirectoryPath,
               endpointPath: path,
-              pendingPath,
               readyFile,
               cause: cause.code ?? cause.message,
               recovery: 'choose a shorter owner-only state directory with --ready-file <path>',
@@ -856,16 +855,25 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
         server.once('error', onError);
         server.once('listening', onListening);
         try {
-          // @ref LLP 0310.000#track-e--owner-bound-control-socket — bind at a
-          // private name first; the owner marker is durable before the exact
-          // inode is renamed into the well-known 0600 endpoint.
-          server.listen(pendingPath);
+          // @ref LLP 0310.000#track-e--owner-bound-control-socket — direct
+          // bind publishes without replacement while the shared path lock is
+          // held, so a foreign endpoint can only cause a refusal.
+          server.listen(path);
         } catch (cause) {
           onError(cause);
         }
       });
-      chmodSync(pendingPath, 0o600);
-      endpoint = observeEndpoint(pendingPath);
+      endpoint = observeEndpoint(path);
+      activateCleanupSocketPath(cleanupResource, {
+        ownerIncarnationId: options.ownerIncarnationId,
+        socketIdentity: endpoint,
+      });
+      await dependencies.afterEndpointLeaseActivation?.({
+        path,
+        ownerStatePath,
+      });
+      chmodSync(path, 0o600);
+      endpoint = observeEndpoint(path);
       if (endpoint.uid !== ownerUid || endpoint.mode !== 0o600) {
         throw diagnosticError(
           'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
@@ -873,7 +881,6 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
           {
             path: stateDirectoryPath,
             endpointPath: path,
-            pendingPath,
             readyFile,
             expectedUid: ownerUid,
             observedUid: endpoint.uid,
@@ -893,17 +900,6 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
         endpoint,
         verbs: DEV_CONTROL_VERBS,
       });
-      controlSocket = descriptor;
-      await dependencies.afterPendingListen?.({
-        path,
-        pendingPath,
-        ownerStatePath,
-        descriptor,
-      });
-      activateCleanupSocketPath(pendingCleanupResource, {
-        ownerIncarnationId: options.ownerIncarnationId,
-        socketIdentity: endpoint,
-      });
       ownerStateIdentity = writeOwnerOnlyJsonAtomic(ownerStatePath, {
         schemaVersion: DEV_CONTROL_OWNER_STATE_FORMAT,
         phase: 'bound',
@@ -916,43 +912,8 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
         endpoint: { ...endpoint, ownerIncarnationId: options.ownerIncarnationId },
         startedAt: options.startedAt,
       });
-      // The final cleanup identity is active before the well-known name can be
-      // observed. A SIGKILL on either side of publication remains reclaimable.
-      activateCleanupSocketPath(cleanupResource, {
-        ownerIncarnationId: options.ownerIncarnationId,
-        socketIdentity: endpoint,
-        ownerStatePath,
-      });
-      await dependencies.beforeEndpointPublish?.({
-        path,
-        pendingPath,
-        ownerStatePath,
-        descriptor,
-      });
-      try {
-        publishEndpoint(pendingPath, path);
-      } catch (cause) {
-        const causeCode = cause?.code ?? cause?.message ?? String(cause);
-        if (cause?.code === 'EEXIST') {
-          throw diagnosticError(
-            'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
-            'the dev control socket path became occupied before publication',
-            { path, cause: causeCode },
-          );
-        }
-        throw diagnosticError(
-          'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
-          `the dev control socket could not be published at ${path}`,
-          {
-            path: stateDirectoryPath,
-            endpointPath: path,
-            pendingPath,
-            readyFile,
-            cause: causeCode,
-            recovery: 'choose another owner-only state directory with --ready-file <path>',
-          },
-        );
-      }
+      ownerStateEndpoint = endpoint;
+      controlSocket = descriptor;
       try {
         const advertisedOccupancy = await probeEndpoint(path);
         if (advertisedOccupancy !== 'live') {
@@ -968,16 +929,12 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
           {
             path: stateDirectoryPath,
             endpointPath: path,
-            pendingPath,
             readyFile,
             cause: cause?.code ?? cause?.message ?? String(cause),
             recovery: 'choose a shorter owner-only state directory with --ready-file <path>',
           },
         );
       }
-      releaseCleanupResource(pendingCleanupResource);
-      pendingCleanupResource = null;
-      pendingPath = null;
       const published = observeEndpoint(path);
       if (!sameControlEndpoint(published, endpoint)) {
         throw diagnosticError(
@@ -989,26 +946,17 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
       await dependencies.afterEndpointPublish?.({ path, descriptor });
     } catch (error) {
       server.close();
-      if (endpoint === null && pendingPath !== null) {
-        rmSync(pendingPath, { force: true });
-      }
-      for (const resource of [cleanupResource, pendingCleanupResource]) {
-        releaseCleanupResource(resource);
-      }
+      releaseCleanupResource(cleanupResource);
       cleanupResource = null;
-      pendingCleanupResource = null;
-      for (const candidate of [path, pendingPath]) {
-        if (candidate === null) continue;
-        try {
-          const current = observeEndpoint(candidate);
-          if (endpoint !== null && sameControlEndpoint(current, endpoint)) rmSync(candidate);
-        } catch { /* absent or replaced */ }
-      }
+      try {
+        const current = observeEndpoint(path);
+        if (endpoint !== null && sameControlEndpoint(current, endpoint)) rmSync(path);
+      } catch { /* absent or replaced */ }
       cleanupControlOwnerStateMarker(
         ownerStatePath,
         ownerStateIdentity,
         options.ownerIncarnationId,
-        endpoint,
+        ownerStateEndpoint,
       );
       if (error?.diagnostic?.code === 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE') {
         startupUnavailable = error.diagnostic;
@@ -3671,6 +3619,7 @@ export async function runExpoDev(options = {}) {
       projectRoot,
       readyFile: options.readyFile,
       applicationReadyFile: options.applicationReadyFile,
+      controlSocket: options.controlSocket === true,
       database,
       ...(options.writeEnvFile === undefined ? {} : { writeEnvFile: options.writeEnvFile }),
       runtimeBinary: options.runtimeBinary,

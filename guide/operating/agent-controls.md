@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:c6f055b8850cc49ee1f314336d29eb906bc70fadafe3c48d8e4f5e4ef9f90912
+reviewed-authorities-digest: sha256:1bd8c1ebe3404290c81991427f69c83d3be111469b88f1f981240e62b1f06d81
 ---
 
 # Discover agent controls
@@ -146,14 +146,17 @@ same-UID; a bounded `connect()` probe returns `ECONNREFUSED` (timeout or any
 other result is “not proven dead”); and the inode remains unchanged throughout
 the check. The persisted `dev-control.owner.json` must be present, readable,
 valid, and bind that exact inode and a self-consistent owner incarnation. The
-owner publishes this bound marker before it hard-links the well-known endpoint,
-so a public endpoint with an absent or corrupt marker is not legitimate crash
-residue; it refuses as `SNAPBACK_DEV_CONTROL_FOREIGN_OWNER`, just like a valid
-record naming another inode or incarnation. Recovery is operator-explicit:
+owner binds the well-known endpoint directly while holding the state-directory
+lock, so publication cannot replace a socket created after the initial probe;
+`EADDRINUSE` refuses as `SNAPBACK_DEV_CONTROL_FOREIGN_OWNER`. A public endpoint
+with an absent or corrupt marker is not legitimate crash residue and refuses
+the same way, just like a valid record naming another inode or incarnation.
+Recovery is operator-explicit:
 inspect ownership and remove both artifacts, or relaunch with `--ready-file` in
-a different owner-only state directory. A pre-publication crash may leave the
-marker and private socket for the cleanup lease, but cannot leave a markerless
-public endpoint. This owner recovery is not client authority. The detached
+a different owner-only state directory. A bind-phase crash may leave the
+binding marker and well-known socket for the cleanup lease, which records the
+exact inode as soon as the bind completes. This owner recovery is not client
+authority. The detached
 reaper uses a separate, stricter deletion predicate: its cleanup lease must
 match the exact socket inode and incarnation. A client must never unlink or
 replace an endpoint to bypass a refusal.

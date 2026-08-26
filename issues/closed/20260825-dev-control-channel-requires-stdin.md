@@ -80,12 +80,13 @@ cleanup, and cleanup-lease reaping after owner death. The crash before
 `expo-supervisor.json` publication reclaims through the already-published bound
 marker. Further coverage includes a bounded-probe timeout, death while replacing
 stale `.dc-lock` through `.dc-reclaim`, death after the stale-generation claim
-but before `.dc-reclaim` replacement, and death after private socket bind but
-before activation. Generation claims record PID/start-time owner identity; a
+but before `.dc-reclaim` replacement, and death after direct well-known bind
+and exact-inode lease activation. Generation claims record PID/start-time owner identity; a
 dead claimant is recoverable through a next-generation atomic-link election,
 two racing successors still admit exactly one winner, and the winner removes
 the claim chain once its live `.dc-lock` is published. The live suite
 concurrently submits stdin and socket
 `reload-metro`, while the failed-reload case submits stdin `restart` after the
-stop acknowledgement; the implementation routes all four lifecycle-mutating
-stdin verbs through that same queue and stopping latch.
+stop acknowledgement, witnessing that verb on the shared stopping latch. The
+implementation routes all four lifecycle-mutating stdin verbs through the same
+serialized queue.

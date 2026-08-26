@@ -5,6 +5,7 @@ import {
   realpathSync,
   rmSync,
 } from 'node:fs';
+import { PassThrough } from 'node:stream';
 
 import {
   assessMetroWatchInertness,
@@ -295,6 +296,31 @@ async function captureDevAdvisory(argv, env) {
   assert.equal(
     captured.lines.some((line) => line.includes('SNAPBACK_EXPO_METRO_WATCH_INERT')),
     false,
+  );
+}
+
+{
+  const criticalFailure = new Error('injected critical supervisor failure');
+  const cleanupFailure = new Error('injected supervisor close failure');
+  await assert.rejects(
+    () => runCli(['dev', 'snapback', '--expo'], {
+      env: {},
+      stdin: new PassThrough(),
+      async runExpoDev(options) {
+        options.onCriticalExit(criticalFailure);
+        return {
+          ok: true,
+          verbs: {},
+          reportControlEvent() {},
+          async close() { throw cleanupFailure; },
+        };
+      },
+    }),
+    (error) => {
+      assert(error instanceof AggregateError);
+      assert.deepEqual(error.errors, [criticalFailure, cleanupFailure]);
+      return true;
+    },
   );
 }
 
