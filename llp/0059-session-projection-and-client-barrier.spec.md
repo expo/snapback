@@ -5,6 +5,11 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
+**Revised:** 2026-08-26 (exact room-reauthorization completion lock-order
+amendment: the no-overlap rule remains absolute for `LocalSnapback` and every
+reverse process-state-to-SQLite edge, while the sole bounded SQLite-first
+completion order closes the otherwise unavoidable two-store validation gap;
+cross-referenced with LLP 0290 §7.1.)
 **Revised:** 2026-08-21 (LLP 0295 D0.2 dated amendment: total client
 authority-transition state and settlement matrix across
 anonymous/authenticating/authenticated/revoking/reconnecting for one-shot
@@ -749,17 +754,26 @@ is not use.
 
 ### Prohibited overlap
 
-The following rules are unconditional:
+The following rules are unconditional except for the single SQLite/process-
+state overlap defined below and in LLP 0290 §7.1. That exception never applies
+to `LocalSnapback`:
 
 - Never hold the projection topology mutex, stream fence, session fence,
-  finite-service fence, connection-registry mutex, room mutex, or notifier
-  mutex while holding `LocalSnapback`, the provider/catalog mutex, a SQLite
-  writer, or a SQLite transaction.
+  finite-service fence, connection-registry mutex, participant
+  activation/projection state, authority registry, rooms map, room mutex,
+  subscriber outbox, or notifier mutex while holding `LocalSnapback`.
+- Outside exact room-reauthorization completion, never hold those process
+  states while holding the provider/catalog mutex, a SQLite writer, or a
+  SQLite transaction.
+- Never acquire or wait for SQLite while holding participant
+  activation/projection state, the authority registry, the rooms map, a room,
+  or a subscriber outbox. This reverse-edge prohibition has no exception.
 - The narrow existing post-commit live fan-out may take its per-connection
   outbox enqueue mutex while `with_snapback` still holds the global write guard.
   That enqueue may only copy an already-prepared effect stamp and bytes; it may
   not consult projection/stream/session state, drain, send, await, or call back
-  into any earlier lock. No outbox lock is held during SQLite transaction work.
+  into any earlier lock. Outside exact room-reauthorization completion, no
+  outbox lock is held during SQLite transaction work.
 - Never hold a synchronous mutex across `.await`, network I/O, email delivery,
   filesystem I/O, or client callback execution.
 - Never invoke app/Contract code while any server or coordinator lock is held.
@@ -774,16 +788,41 @@ The following rules are unconditional:
   that managed scope; debug/test builds make the boundary executable.
 - Reset, collection-definition publication, authorization-issuer publication,
   room-authority settlement, notifier wake, and ephemeral diagnostics likewise
-  never acquire their process locks while a managed or direct
-  `LocalSnapback` write scope is active. A committed Local phase transfers
-  immutable callbacks and any exact admission owner to its blocking owner,
-  releases Local and the scope, and only then executes those callbacks. The
-  logical managed writer remains closed until the callback batch finishes.
+  never acquire their process locks while a managed or direct `LocalSnapback`
+  write scope is active. Except for exact room-reauthorization completion,
+  they also never acquire those locks while SQLite is held. A committed Local
+  phase transfers immutable callbacks and any exact admission owner to its
+  blocking owner, releases Local and the scope, and only then executes those
+  callbacks. The logical managed writer remains closed until the callback
+  batch finishes.
   Ordinary successor projections (reset, collection definitions, issuer
   installation, and notifier wakes) form the first callback phase;
   authorization-ticket commit/rollback settlement is a distinct final phase.
   A projection panic skips settlement and leaves the exact protected sinks
   closed.
+
+The **only** permitted SQLite/process-state overlap is exact room-
+reauthorization completion, and its complete order is:
+
+```text
+ephemeral lifecycle -> SQLite IMMEDIATE -> authority registry -> rooms map
+-> room -> subscriber outbox
+```
+
+SQLite is acquired before the authority registry and remains held through the
+durable session and membership rereads, the exact subscriber/effect-fence
+mutation and subscriber-outbox effects, and the exact obligation clear. The
+notifier wake and later routing cleanup occur after all of those guards and
+SQLite are released. LLP 0290 §7.1 owns the participant-specific statement
+and reverse-edge inventory.
+
+The exception closes a necessary two-store gap. If SQLite were released after
+the durable reread but before the in-memory effect, a session or membership
+writer could commit in between and make the answer installed by completion
+stale. The current architecture has neither a shared sequencer nor durable
+coupling honored by every relevant writer. The bounded SQLite-first order
+therefore supplies the exact effect fence; the unconditional reverse-edge rule
+is what keeps that overlap acyclic.
 
 ### Authorization-write handoff
 

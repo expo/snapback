@@ -3898,6 +3898,8 @@ impl LocalEphemeralBackend {
         database: &ServingDatabase,
         batch: ResolvedRoomReauthorizationBatch,
     ) -> SnapbackResult<bool> {
+        // @ref LLP 0290#71-lock-ordering — exact completion is the sole
+        // SQLite/process-state overlap and every reverse edge remains forbidden.
         // Lock order: lifecycle -> SQLite IMMEDIATE -> registry -> rooms ->
         // room -> subscriber outboxes. SQLite waits with no registry/room held,
         // isolating contention to this owner. Lifecycle also serializes terminal
