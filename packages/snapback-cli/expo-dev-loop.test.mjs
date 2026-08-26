@@ -3155,7 +3155,14 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
           kind: 'expo-supervisor',
           file: '{supervisorState}/expo-supervisor.json',
         },
-        startupTimeoutMs: 15_000,
+        // This row proves the carrier's timeout PATH fires and cleans up, not
+        // that startup fits in any particular budget: the barrier hook below
+        // blocks forever, so the carrier always times out. The number therefore
+        // only has to exceed real supervised startup, and 15 s did not on a
+        // loaded machine — the carrier fired before startup reached the barrier
+        // and the row read as a supervisor defect
+        // (issues/20260826-expo-dev-loop-carrier-startup-timeout-load-sensitive.md).
+        startupTimeoutMs: 60_000,
       },
     },
   });
@@ -3166,7 +3173,11 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
     /did not write structured readiness/u,
   );
   assert.equal(existsSync(cliTimeoutBarrier), true);
-  assert.equal(existsSync(cliTimeoutCleanup), true);
+  // The abort listener's write and the CLI's exit are not ordered against each
+  // other, so sample until it lands rather than once at an arbitrary instant.
+  await eventually(() => existsSync(cliTimeoutCleanup), {
+    label: 'production runExpoDev carrier-timeout cleanup marker',
+  });
   const cliTimeoutState = JSON.parse(readFileSync(cliTimeoutBarrier, 'utf8'));
   await eventually(() => !processGroupAlive(cliTimeoutState.metroPid), {
     label: 'production runExpoDev carrier-timeout Metro group cleanup',
