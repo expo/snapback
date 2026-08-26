@@ -2206,3 +2206,141 @@ files, 0 errors, 0 unchecked`; `git diff --check` produces no output. No
 generator was run; the symbol registry, guide manifest, flat guides, and
 diagnostics registry remain byte-identical to merge base
 `baacaa20983f029f3e9cd23f60385ba00085e947`.
+
+### Round-32 dual-review closure (2026-08-26)
+
+A queue-capable foreground string-named mutation now derives its mutation-wire
+`expectedGeneration` from the complete operation target established by
+capability inspection. The final dispatch revalidation also compares the
+current origin, target profile, artifact generation, and optional ledger
+incarnation with that inspected target; a complete-target change retires only
+the invocation-owned pending insertion and refuses locally as
+`SNAPBACK_CLIENT_OPERATION_TARGET_CHANGED` with zero mutation POSTs. The
+existing replay inspect-to-POST deployment-race coverage remains in place,
+including its cycle-start inspection cases. Atomic server enforcement for the
+remaining answer-to-POST window is explicitly retained in
+`issues/20260825-v0-dev-mutation-generation-enforcement.md`, now including the
+foreground string-name carrier.
+
+The SQLite carrier now implements the same atomic
+`outboxDiscardPendingInsertion` operation as the memory, IndexedDB, and file
+arms. The shared carrier contract requires it. Every client compensation and
+capability-supersession site refuses with
+`SNAPBACK_OFFLINE_QUEUE_STORE_INCAPABLE` when an injected store lacks that
+exact-delete operation; none falls back to delete-any `outboxDiscard` or a
+silent no-op. A live SQLite regression proves stale-authority compensation
+deletes the owned insertion and a retry under a new `clientMutationId` leaves
+exactly one durable record.
+
+ACK confirmation now matches ACK-ready marking: omission or invalidity of the
+complete enqueue target is a no-op, never a wildcard over every target. The
+round-31 425 wording above now records the finding accurately as added test
+coverage; production already classified HTTP 425 as unavailable.
+
+The fail-first regressions reported these reviewed defects before production
+changes:
+
+```text
+[item 1 — foreground string-name POST omitted its inspected generation]
+✖ foreground string-named mutation carries the inspected generation across the final-answer deployment race
+AssertionError [ERR_ASSERTION]: the string-named foreground carrier asserts its inspected generation
++ null
+- {
+
+[item 1 — changed complete dispatch target received the generic ledger error]
+✖ foreground string-named mutation locally refuses a changed complete dispatch target
+AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false
+Caught:
+SnapbackDiagnosticError: SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED: target (unknown) does not advertise offline_mutation_replay; durable mutation queueing and replay are unsafe
+
+[item 2 — SQLite lacked exact pending-insertion compensation]
+✖ sqlite arm carries the outbox contract atomically
+AssertionError [ERR_ASSERTION]: sqlite: carries exact pending-insertion compensation
++ 'undefined'
+- 'function'
+
+✖ sqlite stale-authority compensation deletes only its owned insertion before retry
+AssertionError [ERR_ASSERTION]: the stale invocation deletes its exact owned insertion
++ [
++   {
++     id: 'cm-sqlite-stale-owned-insertion',
++     status: 'pending',
++   }
++ ]
+- []
+
+[item 3 — omitted ACK target collected a target-bound settlement]
+✖ ACK confirmation without an enqueue target is a no-op
+AssertionError [ERR_ASSERTION]: an omitted target cannot collect a target-bound settlement
+1 !== 0
+
+[item 4 — documentation accuracy; no executable regression]
+The round-31 ticket text described the 425 matrix beside implementation fixes
+without saying that production already classified 425 as unavailable.
+```
+
+Item 4 is a documentation defect, so it has no fabricated runtime assertion.
+
+At exact implementation commit
+`c6c334f4aa7c4ca6a01757e59caf5a08a49c5684`, the required combined suite
+reports verbatim:
+
+```text
+ℹ tests 286
+ℹ suites 0
+ℹ pass 286
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16781.933542
+```
+
+The full `npm test --prefix packages/snapback-client` script passes the
+changed outbox store, custody, drain, and quarantine suites 196/196, 22/22,
+37/37, and 4/4, then reaches only the inherited out-of-scope RQS red:
+
+```text
+✖ pre-subscribe durable-buffer overflow fails closed to one fresh snapshot [web/indexeddb] (11.139625ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 29
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2528.02025
+```
+
+The exact client TypeScript fixture command exits zero. The export-types gate
+reports its inherited codegen declaration red only:
+
+```text
+[check-package-export-types] fixture compile ok: 121 subpaths across 14 packages
+[check-package-export-types] FAILED (1):
+  - @expo/snapback-codegen ./app-descriptor: runtime exports missing from the declaration: APPLICATION_AUTH_BOOTSTRAP_CREDENTIAL_MODES, APPLICATION_AUTH_BOOTSTRAP_PROVIDERS, APPLICATION_AUTH_BOOTSTRAP_PROVIDER_KINDS
+```
+
+The Expo carrier recovery verifier reports verbatim:
+
+```text
+[expo-sqlite-node-qualification] PASS supporting-only: 8/8 scenario groups; sqlite_source_id=2026-07-24 19:02:57 bf7c7f30031888f4e796e429ab3978879485813aaca6f641c7b33e4e09459bcc; receipt=demos/expo-local-first-carrier/evidence/20260826T111047131Z-70695d61/qualification.supporting.v1.json
+```
+
+Both public-dashboard witnesses ran at that exact implementation commit with
+`SNAPBACK_SERVER_BINARY="$PWD/target/debug/snapback"` and report verbatim:
+
+```text
+PASS public-dashboard / offline-local-first (JS arm) — 9/9
+PASS public-dashboard / headless — 6/6
+```
+
+Both machine-readable reports contain `cleanupErrors: []` and
+`cleanupErrorCount: 0`. The configured binary is stamped at
+`a97e75286f098066931701df515fe7a812961798`, so both runs report the expected
+checkout/binary identity mismatch and exercise this JS-only implementation
+commit. `./ref-check --verbose` reports `311 LLP docs, 6656 refs in 12507
+files, 0 errors, 0 unchecked`; `git diff --check` produces no output. No
+generator was run; the symbol registry, guide manifest, flat guides, and
+diagnostics registry remain byte-identical to merge base
+`baacaa20983f029f3e9cd23f60385ba00085e947`.
