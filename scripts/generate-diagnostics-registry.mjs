@@ -278,6 +278,7 @@ function headingSlug(text) {
 function guideAnchors() {
   const anchors = new Map();
   const headingAnchors = new Map();
+  const explicitPrimaryAnchors = new Map();
   // Retrieval-eval is the routing-test corpus, not an author-facing diagnostic
   // target; its seeded codes must not capture or demote their tested anchors.
   // @ref LLP 0223#tickets — eval-run transcripts are retained evidence of the
@@ -305,6 +306,22 @@ function guideAnchors() {
         seenSlugs.set(base, count + 1);
         anchor = count === 0 ? base : `${base}-${count}`;
       }
+      const explicitPrimary = inFence
+        ? null
+        : line.match(/^<!-- diagnostic-primary: (SNAPBACK_[A-Z0-9_]+) -->$/u);
+      if (explicitPrimary) {
+        if (!anchor) {
+          throw new Error(`${path}: diagnostic-primary must follow a heading`);
+        }
+        const value = `/_snapback/${path}#${anchor}`;
+        const values = anchors.get(explicitPrimary[1]) ?? new Set();
+        values.add(value);
+        anchors.set(explicitPrimary[1], values);
+        const preferred = explicitPrimaryAnchors.get(explicitPrimary[1]) ?? new Set();
+        preferred.add(value);
+        explicitPrimaryAnchors.set(explicitPrimary[1], preferred);
+        continue;
+      }
       for (const match of line.matchAll(CODE_PATTERN)) {
         if (!anchor) continue;
         const values = anchors.get(match[0]) ?? new Set();
@@ -320,9 +337,14 @@ function guideAnchors() {
     }
   }
   return new Map([...anchors].map(([code, values]) => {
-    const preferred = [...(headingAnchors.get(code) ?? [])].sort();
-    const remaining = [...values].filter((value) => !preferred.includes(value)).sort();
-    return [code, [...preferred, ...remaining]];
+    const explicit = [...(explicitPrimaryAnchors.get(code) ?? [])].sort();
+    const heading = [...(headingAnchors.get(code) ?? [])]
+      .filter((value) => !explicit.includes(value))
+      .sort();
+    const remaining = [...values]
+      .filter((value) => !explicit.includes(value) && !heading.includes(value))
+      .sort();
+    return [code, [...explicit, ...heading, ...remaining]];
   }));
 }
 

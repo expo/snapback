@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:36457f364785a5bede71259a8cc553d8d9ffefeeb5c6fa1fda28b4f144bf1b69"
+    "sourceDigest": "sha256:72cb16fb9c8501eba1b788510c90e401e57f49400ac7e971c2338dac17a7d355"
   },
   "limits": {
     "lookupBytes": 16384
@@ -19399,7 +19399,8 @@
       "httpStatusClass": null,
       "guideAnchor": "/_snapback/guide/testing/acceptance.md#recover-when-durable-auth-custody-is-unavailable",
       "guideAnchors": [
-        "/_snapback/guide/testing/acceptance.md#recover-when-durable-auth-custody-is-unavailable"
+        "/_snapback/guide/testing/acceptance.md#recover-when-durable-auth-custody-is-unavailable",
+        "/_snapback/guide/start/expo-chat.md#posture"
       ]
     },
     "SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION": {

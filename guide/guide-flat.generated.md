@@ -1028,6 +1028,11 @@ Two classes, checked:
   claiming the remote bytes were checked. Exact uses the same convention and
   points its `data.snapback` external-authority row back to this guide.
 
+When a diagnostic appears on several pages, put
+`<!-- diagnostic-primary: SNAPBACK_CODE -->` immediately below its canonical
+teaching heading. The generated diagnostics registry keeps that heading first
+even when a compact start packet also names the failure class.
+
 ## Code snippets
 
 Every fenced `js` / `mjs` / `ts` / `tsx` / `json` / `contract` block carries
@@ -2211,7 +2216,8 @@ platform, and generated-directory assumptions from that run.
     The run fails if it creates the legacy directory or symlink, or teaches two
     watcher-visible paths for one generated graph.
     Expected pages: `backend/familiar-profile.md`, `start/expo-chat.md`.
-    Route terms: "refused alias", "generated directory spelling".
+    Route terms: "_generated/", "compatibility alias", "refused alias",
+    "generated directory spelling".
     Required guidance: "The `_generated/` spelling is a refused alias".
 
 99. **Stale auth result lookup:** "A mutation reports
@@ -2250,7 +2256,7 @@ platform, and generated-directory assumptions from that run.
      Expected pages: `start/expo-chat.md`, `testing/acceptance.md`.
      Route terms: "durable-required", "SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE", "Expo Native acceptance".
      Required guidance per page:
-     `start/expo-chat.md`: "Durable auth custody failures are platform-specific", "acceptance remediation".
+     `start/expo-chat.md`: "Node `memory` refuses `durable-required` custody with `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`", "`expo-web` + `fake-indexeddb` acceptance helper", "Recover when durable auth custody is unavailable".
      `testing/acceptance.md`: "Node `memory` emits this refusal for durable custody", "`expo-web` with `fake-indexeddb` does not repair Expo Native", "Install `@expo/snapback-expo-custody`, list it in the app's Expo `plugins`, and rebuild the native app", "The module is unavailable in Expo Go".
      Exact diagnostic target: `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE` ->
      `/_snapback/guide/testing/acceptance.md#recover-when-durable-auth-custody-is-unavailable`.
@@ -8174,14 +8180,14 @@ id: backend.familiar-profile
 order: 5
 audience: agent-first
 capabilities: [backend.familiar-profile-v1, authority.profile.v1]
-authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0237-bounded-handler-modules.rfc.md, llp/0240-application-authority-profiles.rfc.md, llp/0252-convex-familiar-authoring-profile.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0257-activity-scoped-presence-convenience.rfc.md, crates/snapback-engine/src/runtime.rs, packages/snapback-codegen/ctx.d.mts, packages/snapback-codegen/define.mjs, packages/snapback-codegen/familiar.mjs, packages/snapback-codegen/familiar.d.mts, packages/snapback-codegen/index.mjs, packages/snapback-umbrella/server.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-react/familiar.mjs, packages/snapback-react/implementation.mjs, packages/snapback-expo/activity-presence.mjs, packages/snapback-contract/auth-coordinator.mjs, packages/snapback-contract/auth-custody-secure-store.mjs, llp/0044-asset-storage-pipeline.rfc.md]
+authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0237-bounded-handler-modules.rfc.md, llp/0240-application-authority-profiles.rfc.md, llp/0252-convex-familiar-authoring-profile.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0257-activity-scoped-presence-convenience.rfc.md, llp/0310.000-successor-identity-and-paved-loop-repair.rfc.md, crates/snapback-engine/src/runtime.rs, packages/snapback-codegen/ctx.d.mts, packages/snapback-codegen/define.mjs, packages/snapback-codegen/familiar.mjs, packages/snapback-codegen/familiar.d.mts, packages/snapback-codegen/index.mjs, packages/snapback-umbrella/server.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-react/familiar.mjs, packages/snapback-react/implementation.mjs, packages/snapback-expo/activity-presence.mjs, packages/snapback-contract/auth-coordinator.mjs, packages/snapback-contract/auth-custody-secure-store.mjs, llp/0044-asset-storage-pipeline.rfc.md]
 examples: [tests/fixtures/familiar-todo, tests/fixtures/familiar-todo-explicit, tests/fixtures/familiar-vdoc-vertical, tests/fixtures/familiar-vdoc-vertical/auth-program.ts, scripts/familiar-vdoc-vertical-contract.mjs, packages/snapback-codegen/familiar-phase-b.test.mjs, packages/snapback-codegen/rbac-authoring.test.mjs, packages/snapback-react/familiar.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-contract/auth-coordinator.test.mjs, packages/snapback-contract/auth-custody-secure-store.test.mjs, packages/snapback-cli/templates/expo-chat, tests/acceptance/fixtures/familiar-video-asset, tests/acceptance/familiar-video-asset-v1.mjs]
 status: current
 targets: [local]
 maturity: partial
 since: 0.1.21
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:eebb9e475295648283afd7dbeb7a78f809cb0f7c291fa1279248a16427bdb630
+reviewed-authorities-digest: sha256:3d3e817a215052e59196864d82016bcb0fbe99173c8739b32d84b325ef426cc9
 ---
 
 # Familiar TypeScript profile (Experimental, non-default)
@@ -24579,13 +24585,13 @@ id: realtime.ephemeral-state
 order: 2
 audience: agent-first
 capabilities: [realtime.ephemeral]
-authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0056-scoped-roles-and-memberships.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, llp/0257-activity-scoped-presence-convenience.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, crates/snapback-server/src/admin.rs, crates/snapback-sync/src/ephemeral.rs, crates/snapback-server/src/server.rs, crates/snapback-cli/src/cli.rs, packages/snapback-cli/mcp-control.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/activity-presence.test.mjs, packages/snapback-react/activity-presence-react-characterization.test.mjs, packages/snapback-expo/activity-presence.mjs, packages/snapback-expo/activity-presence.test.mjs, demos/_kit/tests/regression-multiplexed-lanes.mjs, demos/messaging-snapback/snapback/schema.mjs, demos/messaging-snapback/tests/acceptance/headless.mjs]
+authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0056-scoped-roles-and-memberships.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, llp/0257-activity-scoped-presence-convenience.rfc.md, llp/0310.000-successor-identity-and-paved-loop-repair.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, crates/snapback-server/src/admin.rs, crates/snapback-sync/src/ephemeral.rs, crates/snapback-server/src/server.rs, crates/snapback-cli/src/cli.rs, packages/snapback-cli/mcp-control.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/activity-presence.test.mjs, packages/snapback-react/activity-presence-react-characterization.test.mjs, packages/snapback-expo/activity-presence.mjs, packages/snapback-expo/activity-presence.test.mjs, demos/_kit/tests/regression-multiplexed-lanes.mjs, demos/messaging-snapback/snapback/schema.mjs, demos/messaging-snapback/tests/acceptance/headless.mjs]
 examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs, demos/messaging-snapback]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:3e009aa1087ccbcc16fbd2de6fc44de5a4f224ed33afe7037d925999ed4f5a1d
+reviewed-authorities-digest: sha256:5d7b495aabe2c6b3c40e7e5d6c681520669be46383f043407f022dd638b36db4
 ---
 
 # Ephemeral realtime state
@@ -29064,13 +29070,13 @@ id: recipes.activity-presence
 order: 13
 audience: agent-first
 capabilities: [realtime.ephemeral]
-authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0257-activity-scoped-presence-convenience.rfc.md, packages/snapback-react/index.mjs, packages/snapback-react/implementation.mjs, packages/snapback-expo/activity-presence.mjs, scripts/activity-presence-vertical-contract.mjs]
+authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0257-activity-scoped-presence-convenience.rfc.md, llp/0310.000-successor-identity-and-paved-loop-repair.rfc.md, packages/snapback-react/index.mjs, packages/snapback-react/implementation.mjs, packages/snapback-expo/activity-presence.mjs, scripts/activity-presence-vertical-contract.mjs]
 examples: [demos/messaging-snapback, packages/snapback-cli/templates/expo-chat, tests/fixtures/activity-presence-vertical]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:87b3b3dfd641544285f417a31e6f94cf34186881c33aac835598402798dc27da
+reviewed-authorities-digest: sha256:5c414006932d9f0eb514956db50a553409b41e37225216f041f93dd64b12c598
 ---
 
 # Recipe: activity presence, heartbeats, and withdrawal
@@ -30470,7 +30476,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:b5f7c9a9e841c54903390717eaa22460db4ea78fcd67fbf3841bc4c40ab0996b
+reviewed-authorities-digest: sha256:1dc10ac3ffa01c6a11353f4e3d88c222607cbb170744a15d3636201841cdac6d
 ---
 
 <!-- Generated by scripts/generate-diagnostics-registry.mjs. Never hand-edit. -->
@@ -73728,10 +73734,10 @@ The `_generated/` spelling is a refused alias; use only `generated/`.
   password entry. Recovery codes surface once after signup or guest claim.
   URL-first dev mints no ambient session; multi-browser proofs sign up or sign
   in separately in each context instead of adopting the supervised mint.
-- **Custody: `volatile-explicit`.** Native restart returns anonymous.
-  Durable auth custody failures are platform-specific; follow the
-  [acceptance remediation](../testing/acceptance.md#recover-when-durable-auth-custody-is-unavailable)
-  for the exact diagnostic and repair.
+- **Custody: `volatile-explicit`.** Node `memory` refuses `durable-required`
+  custody with `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`; see existing
+  [`expo-web` + `fake-indexeddb` acceptance helper](../testing/acceptance.md#recover-when-durable-auth-custody-is-unavailable)
+  under “Recover when durable auth custody is unavailable.”
 - **Security caveat — client-supplied `senderId` is a demo convenience,
   never a boundary.** The seeded **TEST PERSONA** control passes the active
   persona's id as `senderId`/`userId` so demos work. In a real app, derive
@@ -75047,6 +75053,8 @@ stable codes, never message text. `requireBunRuntime(label)` guards suites
 that must run under bun.
 
 ## Recover when durable auth custody is unavailable
+
+<!-- diagnostic-primary: SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE -->
 
 `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE` means the selected client platform
 cannot satisfy durable custody.

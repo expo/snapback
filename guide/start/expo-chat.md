@@ -76,10 +76,10 @@ The `_generated/` spelling is a refused alias; use only `generated/`.
   password entry. Recovery codes surface once after signup or guest claim.
   URL-first dev mints no ambient session; multi-browser proofs sign up or sign
   in separately in each context instead of adopting the supervised mint.
-- **Custody: `volatile-explicit`.** Native restart returns anonymous.
-  Durable auth custody failures are platform-specific; follow the
-  [acceptance remediation](../testing/acceptance.md#recover-when-durable-auth-custody-is-unavailable)
-  for the exact diagnostic and repair.
+- **Custody: `volatile-explicit`.** Node `memory` refuses `durable-required`
+  custody with `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`; see existing
+  [`expo-web` + `fake-indexeddb` acceptance helper](../testing/acceptance.md#recover-when-durable-auth-custody-is-unavailable)
+  under “Recover when durable auth custody is unavailable.”
 - **Security caveat — client-supplied `senderId` is a demo convenience,
   never a boundary.** The seeded **TEST PERSONA** control passes the active
   persona's id as `senderId`/`userId` so demos work. In a real app, derive

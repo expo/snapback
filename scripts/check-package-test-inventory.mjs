@@ -1141,9 +1141,10 @@ export function checkPackageTestInventories(options = {}) {
 // @expo/snapback-expo gains the bare-provider browser AppState fallback probe.
 // 356 -> 357 (2026-08-25, guide-gap round-2/round-5 repairs): @expo/snapback-cli
 // gains the independently runnable complete diagnostic-anchor regression, and
-// @expo/snapback-react gains the supported activity-presence contract under a
-// bare React provider. The Expo facade fallback remains an unregistered
-// observation because it is not a maintained public contract.
+// @expo/snapback-react gains a characterization test for current
+// activity-presence behavior under a bare React provider. The test records the
+// observed behavior; it does not promote the Expo facade fallback to a
+// maintained public contract.
 // LLP 0300 nine-row acceptance traceability (0301 §8 set-level table):
 // 1 cold bring-up -> templates/*/acceptance.mjs + declared-dev-episode.test.mjs;
 // 2 two principals -> declared-dev-episode.test.mjs; 3 forwards/tunnel/rebinding

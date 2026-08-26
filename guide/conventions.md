@@ -153,6 +153,11 @@ Two classes, checked:
   claiming the remote bytes were checked. Exact uses the same convention and
   points its `data.snapback` external-authority row back to this guide.
 
+When a diagnostic appears on several pages, put
+`<!-- diagnostic-primary: SNAPBACK_CODE -->` immediately below its canonical
+teaching heading. The generated diagnostics registry keeps that heading first
+even when a compact start packet also names the failure class.
+
 ## Code snippets
 
 Every fenced `js` / `mjs` / `ts` / `tsx` / `json` / `contract` block carries

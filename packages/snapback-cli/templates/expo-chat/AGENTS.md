@@ -1,7 +1,7 @@
 # Building this Snapback app
 
 <!-- @ref LLP 0259#1-first-read-contract — the transcluded start packet is the whole required first read; escalate one page at a time, never a linear capability-index read. -->
-<!-- start-packet:begin expo-chat digest=sha256:f02782cbe57b6171d51d202ee7fb69398febd858fd4a42b36e831a6e9348ad40 -->
+<!-- start-packet:begin expo-chat digest=sha256:068b6a7f1abb8c46865f1965597336d7ba10266ffac565c7f3c258d40adbe47a -->
 This is the whole first read (LLP 0259 Rung A). Work from the edit targets;
 open one more page only for a brief, `SNAPBACK_*` refusal, or failed `prove`,
 via `snapback guide <query>`.
@@ -62,10 +62,10 @@ The `_generated/` spelling is a refused alias; use only `generated/`.
   password entry. Recovery codes surface once after signup or guest claim.
   URL-first dev mints no ambient session; multi-browser proofs sign up or sign
   in separately in each context instead of adopting the supervised mint.
-- **Custody: `volatile-explicit`.** Native restart returns anonymous.
-  Durable auth custody failures are platform-specific; follow the
-  [acceptance remediation](/_snapback/guide/testing/acceptance.md#recover-when-durable-auth-custody-is-unavailable)
-  for the exact diagnostic and repair.
+- **Custody: `volatile-explicit`.** Node `memory` refuses `durable-required`
+  custody with `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`; see existing
+  [`expo-web` + `fake-indexeddb` acceptance helper](/_snapback/guide/testing/acceptance.md#recover-when-durable-auth-custody-is-unavailable)
+  under “Recover when durable auth custody is unavailable.”
 - **Security caveat — client-supplied `senderId` is a demo convenience,
   never a boundary.** The seeded **TEST PERSONA** control passes the active
   persona's id as `senderId`/`userId` so demos work. In a real app, derive

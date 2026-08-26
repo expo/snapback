@@ -19,11 +19,10 @@ Point at the existing acceptance helper. Do not invent a second store.
 
 ## Resolution (2026-08-25)
 
-Resolved the guide ticket while preserving the product boundary that keeps
-durable custody out of Node `memory`. The expo-chat start packet and acceptance
-guide state the `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE` refusal and point
-to the existing `expo-web` plus `fake-indexeddb` acceptance helper. The
-acceptance page now owns the diagnostic's teaching heading; retrieval case 101
-replaces the dead wrong guess with the pages' existing `durable-required`
-vocabulary and pins that target. The per-page check verifies both pages. This
-lane did not add or exercise another custody store.
+The expo-chat start packet now says that Node `memory` refuses
+`durable-required` custody with
+`SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`. It points readers to the existing
+`expo-web` + `fake-indexeddb` acceptance helper under “Recover when durable auth
+custody is unavailable”; it does not copy repair steps or propose another
+custody store. Retrieval case 101 requires those packet phrases on the start
+page and keeps the exact diagnostic target pinned to that acceptance heading.

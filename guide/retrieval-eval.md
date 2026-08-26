@@ -1062,7 +1062,8 @@ platform, and generated-directory assumptions from that run.
     The run fails if it creates the legacy directory or symlink, or teaches two
     watcher-visible paths for one generated graph.
     Expected pages: `backend/familiar-profile.md`, `start/expo-chat.md`.
-    Route terms: "refused alias", "generated directory spelling".
+    Route terms: "_generated/", "compatibility alias", "refused alias",
+    "generated directory spelling".
     Required guidance: "The `_generated/` spelling is a refused alias".
 
 99. **Stale auth result lookup:** "A mutation reports
@@ -1101,7 +1102,7 @@ platform, and generated-directory assumptions from that run.
      Expected pages: `start/expo-chat.md`, `testing/acceptance.md`.
      Route terms: "durable-required", "SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE", "Expo Native acceptance".
      Required guidance per page:
-     `start/expo-chat.md`: "Durable auth custody failures are platform-specific", "acceptance remediation".
+     `start/expo-chat.md`: "Node `memory` refuses `durable-required` custody with `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`", "`expo-web` + `fake-indexeddb` acceptance helper", "Recover when durable auth custody is unavailable".
      `testing/acceptance.md`: "Node `memory` emits this refusal for durable custody", "`expo-web` with `fake-indexeddb` does not repair Expo Native", "Install `@expo/snapback-expo-custody`, list it in the app's Expo `plugins`, and rebuild the native app", "The module is unavailable in Expo Go".
      Exact diagnostic target: `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE` ->
      `/_snapback/guide/testing/acceptance.md#recover-when-durable-auth-custody-is-unavailable`.
