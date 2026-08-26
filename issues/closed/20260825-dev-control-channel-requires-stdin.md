@@ -67,22 +67,30 @@ non-root-owned/hostile symlink emits
 readable command pipe may keep the packaged supervisor alive with stdin-only
 control. Under `--json`, if stdin is `/dev/null`, closed, or otherwise cannot
 carry `snapback.dev-command.v1`, the same missing socket instead refuses startup
-with `SNAPBACK_DEV_CONTROL_CHANNEL_UNAVAILABLE`; its message names the exact
-failing chain component and reason and directs the operator to put
+with `SNAPBACK_DEV_CONTROL_CHANNEL_UNAVAILABLE`; a chain-admission message names
+the exact failing component and reason and directs the operator to put
 `--ready-file` inside a `0700` owner-only tree or fix that directory mode. A
 mode-`0775` project root remains ineligible for default socket publication even
 when its `.snapback/` leaf is `0700`, because another group member could rename
-the leaf; an external owner-only ready-file tree is the supported recovery.
+the leaf. A mode-`0755` victim project beneath a non-sticky mode-`0777` parent is
+also ineligible even when the caller supplies the project itself as the chain
+root, because the parent can replace the whole project; an external owner-only
+ready-file tree with secure ancestry is the supported recovery.
 Bind failures and a failed prepublication `connect()` of the advertised path
-follow the same usable-stdin fallback or unavailable-channel refusal, so a state
-directory beyond the platform's Unix-socket path budget cannot publish an
-unreachable descriptor. The short `.dc-sock`
+follow the same usable-stdin fallback or unavailable-channel refusal, but the
+required-channel message now calls out bind/publication versus advertised-path
+probe and preserves the underlying cause rather than describing either as
+directory-chain admission. Thus a state directory beyond the platform's
+Unix-socket path budget reports its bind cause and cannot publish an unreachable
+descriptor; every branch retains the `--ready-file` recovery text. The short `.dc-sock`
 well-known basename stays within the `.dc-*` coordination budget; live or
 occupied endpoints remain fail-closed refusals. Explicit external ready-file
-directories are resolved before their canonical ancestor chain is validated to
-a root-owned trust anchor: same-UID non-writable components and root-owned
-mode-`1777` sticky system directories are admitted, while a non-sticky
-group/other-writable parent refuses socket publication. The lexical spelling is
+directories are resolved before every canonical ancestor is validated through
+`/`, including parents of a caller-proposed project or state-directory trust
+anchor. Root-owned non-group/other-writable components, same-UID
+non-group/other-writable components, and root-owned mode-`1777` sticky system
+directories are admitted; a non-sticky group/other-writable parent refuses
+socket publication. The complete lexical spelling is
 checked separately and admits a symlink only when the link is root-owned and
 resolves to a trusted or root-owned sticky system directory. Thus Darwin's
 `/tmp` spelling is admitted through the root-owned `/tmp` → `/private/tmp`
@@ -96,6 +104,17 @@ open cannot retain a supervisor file descriptor; the endpoint remains available
 for subsequent commands. A standard client may half-close after sending a
 complete request with `socket.end(request)`: the server retains its writable
 half until both the acknowledgement and asynchronous settled result flush.
+
+Carrier commands preserve the public artifact contract separately from Track
+E's private supervisor state. For both web and native carriers, `{artifacts}`
+expands exactly to the directory named by `--artifacts`, so a custom v1 command
+writing `{artifacts}/proof.json` leaves that file in the caller-visible
+directory beside logs and `director-log.json`. `{supervisorState}` expands to
+the owner-only `{artifacts}/.snapback-carrier-state` child. The shipped Expo web
+carrier uses `{supervisorState}` for its `--ready-file` and
+`expo-supervisor.json`, and the structured-readiness declaration requires that
+private placeholder. Ordinary artifacts are never silently redirected into
+supervisor state.
 
 The focused `expo-dev-loop.test.mjs --control-socket-only` regression includes
 a `--json` launch using the default control-socket posture, with stdin ignored
@@ -145,6 +164,12 @@ pre-listen lease reaps `.d<random>` after reservation-owner death. External
 chain regressions refuse a mode-`0777` non-sticky parent without publishing an
 endpoint, admit the literal Darwin `/tmp` spelling through its root-owned
 symlink, and require the descriptor to publish the canonical socket path.
+The internal-chain regression places a mode-`0755` victim project under a
+non-sticky mode-`0777` parent outside `pathChainRoot` and requires refusal with
+that canonical parent named. Another fault injection SIGKILLs immediately after
+opening a `.dc-c-<pid>-<token>` publication candidate; after the minimum stale
+age, the next publication removes it only after same-UID, one-link, dead-owner,
+and unchanged-inode/bytes checks, leaving no `.dc-c-*` residue.
 Generation claims record PID/start-time owner identity; a
 dead claimant is recoverable through a next-generation atomic-link election,
 two racing successors still admit exactly one winner, and the winner removes

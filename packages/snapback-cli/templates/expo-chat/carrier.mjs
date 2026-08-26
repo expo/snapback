@@ -19,11 +19,11 @@ const config = defineTemplateCarrierConfig({
       command: [
         './node_modules/.bin/snapback', 'dev', 'snapback', '--expo',
         '--expo-platform', 'web',
-        '--ready-file', '{artifacts}/dev.ready.json',
+        '--ready-file', '{supervisorState}/dev.ready.json',
       ],
       structuredReadiness: {
         kind: 'expo-supervisor',
-        file: '{artifacts}/expo-supervisor.json',
+        file: '{supervisorState}/expo-supervisor.json',
       },
       browserJourney: {
         readyExpression: `(() => {

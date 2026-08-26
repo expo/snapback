@@ -1149,6 +1149,44 @@ function assertGrepAbsent(label, files, bearers) {
 }
 
 async function runControlSocketSuite() {
+  const unavailableMessages = [
+    {
+      details: { component: '/tmp/project', reason: 'writable-component' },
+      expected: /failed secure directory-chain admission \(writable-component\)/u,
+      forbidden: /could not bind|advertised.*probe/iu,
+    },
+    {
+      details: {
+        component: '/tmp/state',
+        reason: 'socket-bind-failed',
+        cause: 'ENAMETOOLONG',
+      },
+      expected: /could not bind.*ENAMETOOLONG/iu,
+      forbidden: /directory-chain admission|advertised.*probe/iu,
+    },
+    {
+      details: {
+        component: '/tmp/state',
+        reason: 'advertised-path-probe-failed',
+        cause: 'ETIMEDOUT',
+      },
+      expected: /advertised.*probe.*ETIMEDOUT/iu,
+      forbidden: /directory-chain admission|could not bind/iu,
+    },
+  ];
+  for (const { details, expected, forbidden } of unavailableMessages) {
+    const diagnostic = expoDevTest.requiredDevControlChannelDiagnostic({
+      unavailableDetails: details,
+      stdinControl: { available: false, kind: 'null', reason: 'stdin is /dev/null' },
+      readyFile: join(details.component, 'dev.ready.json'),
+    });
+    assert.equal(diagnostic.code, 'SNAPBACK_DEV_CONTROL_CHANNEL_UNAVAILABLE');
+    assert.match(diagnostic.message, expected);
+    assert.doesNotMatch(diagnostic.message, forbidden);
+    assert.match(diagnostic.message, /--ready-file/u);
+  }
+  console.log('required control channel: chain, bind, and advertised-probe diagnostics stay distinct');
+
   const controlRoot = mkdtempSync('/tmp/sbctl-');
   const controlFixture = fixture('app', { sessions: true, root: controlRoot });
   const controlRange = await reserveFreeRange(8);
@@ -1482,7 +1520,7 @@ async function runControlSocketSuite() {
       '--port-range', `${groupWritableRefusalRange.lo}-${groupWritableRefusalRange.hi}`,
     ], {
       expectControlChannelRefusal: {
-        component: groupWritableFixture.projectRoot,
+        component: realpathSync.native(groupWritableFixture.projectRoot),
         reason: 'writable-component',
       },
     });
@@ -2105,13 +2143,13 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
           cliTimeout.metroEnv,
           cliTimeout.generatedRoot,
           ...expoCliArguments(cliTimeout, {
-            readyFile: '{artifacts}/dev.ready.json',
-            database: '{artifacts}/dev.sqlite3',
+            readyFile: '{supervisorState}/dev.ready.json',
+            database: '{supervisorState}/dev.sqlite3',
           }),
         ],
         structuredReadiness: {
           kind: 'expo-supervisor',
-          file: '{artifacts}/expo-supervisor.json',
+          file: '{supervisorState}/expo-supervisor.json',
         },
         startupTimeoutMs: 15_000,
       },

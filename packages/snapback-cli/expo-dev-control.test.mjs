@@ -100,7 +100,7 @@ setInterval(() => {}, 60_000);
 `);
 
 writeFileSync(pathLockScript, `
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { withCleanupPathLock } from ${JSON.stringify(pathToFileURL(join(packageRoot, 'process-teardown.mjs')).href)};
 
@@ -120,6 +120,12 @@ try {
       afterLockRecordOpened() {
         process.stdout.write(JSON.stringify({ state: 'lock-record-opened', contenderId }) + '\\n');
         Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 750);
+      },
+    } : {}),
+    ...(mode === 'die-after-temporary-open' ? {
+      afterLockRecordOpened() {
+        writeSync(1, JSON.stringify({ state: 'temporary-candidate-opened', contenderId }) + '\\n');
+        process.kill(process.pid, 'SIGKILL');
       },
     } : {}),
     ...(mode === 'die-while-reclaiming' ? {
@@ -888,8 +894,16 @@ try {
   const advertisedPathWindowRoot = makeRootWithByteLength(
     sockaddrPathBytes - Buffer.byteLength('/.dc-sock'),
   );
+  const advertisedPathWindowNotices = [];
   const advertisedPathWindowControl = await startDevControlSocket(
-    testOptions(advertisedPathWindowRoot, 'unit-advertised-path-window-owner'),
+    testOptions(advertisedPathWindowRoot, 'unit-advertised-path-window-owner', {
+      onUnavailable: (diagnostic) => advertisedPathWindowNotices.push(diagnostic),
+    }),
+  );
+  assert.notEqual(
+    advertisedPathWindowControl,
+    null,
+    JSON.stringify(advertisedPathWindowNotices),
   );
   assert.equal(
     Buffer.byteLength(advertisedPathWindowControl.descriptor.path),
@@ -911,6 +925,24 @@ try {
   }
   console.log(`advertised path budget: descriptor endpoint accepts connect at exact ${sockaddrPathBytes}-byte boundary`);
 
+  const bindFailureRoot = makeRoot('bind-failure');
+  const bindFailureNotices = [];
+  const bindFailureControl = await expoDevTest.startDevControlSocketWithDependencies(
+    testOptions(bindFailureRoot, 'unit-bind-failure-owner', {
+      onUnavailable: (diagnostic) => bindFailureNotices.push(diagnostic),
+    }),
+    {
+      listenServer() {
+        throw Object.assign(new Error('injected sockaddr path overflow'), { code: 'ENAMETOOLONG' });
+      },
+    },
+  );
+  assert.equal(bindFailureControl, null);
+  assert.equal(bindFailureNotices[0].details.reason, 'socket-bind-failed');
+  assert.equal(bindFailureNotices[0].details.cause, 'ENAMETOOLONG');
+  assert.equal(existsSync(join(bindFailureRoot, '.dc-sock')), false);
+  console.log('socket bind failure: coded reason retains ENAMETOOLONG without publishing a descriptor');
+
   const advertisedProbeRoot = makeRoot('advertised-probe');
   const advertisedProbeNotices = [];
   const advertisedProbeControl = await expoDevTest.startDevControlSocketWithDependencies(
@@ -925,6 +957,7 @@ try {
   );
   assert.equal(advertisedProbeControl, null);
   assert.equal(advertisedProbeNotices[0].code, 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE');
+  assert.equal(advertisedProbeNotices[0].details.reason, 'advertised-path-probe-failed');
   assert.equal(advertisedProbeNotices[0].details.cause, 'EINVAL');
   assert.equal(existsSync(join(advertisedProbeRoot, '.dc-sock')), false);
   assert.equal(existsSync(join(advertisedProbeRoot, 'dev-control.owner.json')), false);
@@ -1067,6 +1100,7 @@ try {
   );
   assert.equal(socketModeControl, null);
   assert.equal(socketModeNotices[0].code, 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE');
+  assert.equal(socketModeNotices[0].details.reason, 'socket-custody-failed');
   assert.equal(socketModeNotices[0].details.observedMode, 0o660);
   assert.equal(existsSync(join(socketModeRoot, '.dc-sock')), false);
   console.log('post-bind socket mode mismatch: coded stdin-only fallback avoids other-uid claim');
@@ -1345,6 +1379,32 @@ try {
   );
   await Promise.all([pausedPublisher, publicationContender].map(killHolder));
   console.log('lock publication pause: complete atomic marker admits only one protected action');
+
+  const temporaryCandidateCrashRoot = makeRoot('candidate-crash');
+  const temporaryCandidateCrashEndpoint = join(temporaryCandidateCrashRoot, '.dc-sock');
+  const temporaryCandidatePublisher = await startPathLockActor(
+    temporaryCandidateCrashEndpoint,
+    'die-after-temporary-open',
+  );
+  assert.equal(temporaryCandidatePublisher.ready.state, 'temporary-candidate-opened');
+  await eventually(
+    () => temporaryCandidatePublisher.child.signalCode === 'SIGKILL',
+    { label: 'temporary candidate publisher SIGKILL' },
+  );
+  holders.delete(temporaryCandidatePublisher.child);
+  assert.equal(
+    readdirSync(temporaryCandidateCrashRoot).some((name) => name.startsWith('.dc-c-')),
+    true,
+    'fault injection must leave the prepublication candidate for successor reclamation',
+  );
+  await new Promise((resolveWait) => setTimeout(resolveWait, 300));
+  await withCleanupPathLock(temporaryCandidateCrashEndpoint, async () => {});
+  assert.deepEqual(
+    readdirSync(temporaryCandidateCrashRoot).filter((name) => name.startsWith('.dc-c-')),
+    [],
+    'the next publication must reclaim a dead unreferenced temporary candidate',
+  );
+  console.log('temporary lock candidate: successor reclaims SIGKILL residue before publication');
 
   const lockRecoveryRoot = makeRoot('locks');
   const lockRecoveryEndpoint = join(lockRecoveryRoot, '.dc-sock');
@@ -1745,9 +1805,38 @@ try {
   if (writableParentControl !== null) await writableParentControl.close();
   assert.equal(writableParentControl, null);
   assert.equal(writableParentNotices[0].code, 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE');
-  assert.equal(writableParentNotices[0].details.component, writableParent);
+  assert.equal(writableParentNotices[0].details.component, realpathSync.native(writableParent));
   assert.equal(existsSync(join(writableParentReadyRoot, '.dc-sock')), false);
   console.log('writable parent state chain: coded stdin-only fallback publishes no endpoint');
+
+  const writableProjectAncestor = mkdtempSync(join('/tmp', 'sbctl-project-ancestor-'));
+  chmodSync(writableProjectAncestor, 0o777);
+  const nestedProjectRoot = join(writableProjectAncestor, 'victim-project');
+  mkdirSync(nestedProjectRoot, { mode: 0o755 });
+  const nestedStateRoot = join(nestedProjectRoot, '.snapback');
+  mkdirSync(nestedStateRoot, { mode: 0o700 });
+  const nestedAncestorNotices = [];
+  try {
+    const nestedAncestorControl = await startDevControlSocket(testOptions(
+      nestedStateRoot,
+      'unit-writable-project-ancestor-owner',
+      {
+        pathChainRoot: nestedProjectRoot,
+        onUnavailable: (diagnostic) => nestedAncestorNotices.push(diagnostic),
+      },
+    ));
+    if (nestedAncestorControl !== null) await nestedAncestorControl.close();
+    assert.equal(nestedAncestorControl, null);
+    assert.equal(nestedAncestorNotices[0].code, 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE');
+    assert.equal(
+      nestedAncestorNotices[0].details.component,
+      realpathSync.native(writableProjectAncestor),
+    );
+    assert.equal(existsSync(join(nestedStateRoot, '.dc-sock')), false);
+  } finally {
+    rmSync(writableProjectAncestor, { recursive: true, force: true });
+  }
+  console.log('project ancestor outside pathChainRoot: non-sticky writable parent refuses publication');
 
   const barrierOutcomes = [];
   const barrierComponents = [];
@@ -1757,9 +1846,9 @@ try {
   ].entries()) {
     const barrierRoot = makeRoot(`b${index}`);
     const barrierParent = join(barrierRoot, 'p');
-    barrierComponents.push(barrierParent);
     const barrierStateRoot = join(barrierParent, 's');
     mkdirSync(barrierStateRoot, { recursive: true, mode: 0o700 });
+    barrierComponents.push(realpathSync.native(barrierParent));
     chmodSync(barrierParent, 0o700);
     chmodSync(barrierStateRoot, 0o700);
     const barrierNotices = [];

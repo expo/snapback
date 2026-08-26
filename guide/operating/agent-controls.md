@@ -4,13 +4,13 @@ id: operating.agent-controls
 order: 1
 audience: agent-first
 capabilities: [operating.agent-controls]
-authorities: [llp/0184-agent-accessible-control-plane.rfc.md, llp/0031-server-route-taxonomy.spec.md, llp/0042-agent-mcp-surface.rfc.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, crates/snapback-server/src/control_catalog.rs, crates/snapback-cli/src/cli.rs, packages/snapback-cli/expo-dev.mjs, packages/snapback-cli/mcp-control.mjs, packages/snapback-client/index.mjs]
+authorities: [llp/0184-agent-accessible-control-plane.rfc.md, llp/0031-server-route-taxonomy.spec.md, llp/0042-agent-mcp-surface.rfc.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, crates/snapback-server/src/control_catalog.rs, crates/snapback-cli/src/cli.rs, packages/snapback-cli/expo-dev.mjs, packages/snapback-cli/process-teardown.mjs, packages/snapback-cli/carrier-kit.mjs, packages/snapback-cli/mcp-control.mjs, packages/snapback-client/index.mjs]
 examples: []
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:1b470516db2ae2238ad9c4e43878078a4deabd30f700debd08f3b35af2ff112a
+reviewed: 2026-08-26
+reviewed-authorities-digest: sha256:9a942c8dd07ead029e6ef6422d8232ec1b912cd5ba9fa7487570554c5ae87a45
 ---
 
 # Discover agent controls
@@ -94,16 +94,18 @@ by name.
 
 The state directory must resolve to a same-UID real directory with no
 group/other permission bits (normally mode `0700`); the default dev loop creates
-or repairs `.snapback/` to that posture only when the project-owned directory
-chain is already secure. A group-writable project root such as mode `0775`
-remains ineligible even when `.snapback/` is `0700`, because another group member
-could rename the leaf; use `--ready-file` inside a separate `0700` owner-only
-tree or fix the project directory mode. For an explicit ready file outside the
-project, Snapback resolves the directory first, walks the canonical ancestor
-chain to a root-owned trust anchor, and admits only same-UID components with no
-group/other write or a root-owned mode-`1777` sticky system directory. It also
-checks the lexical spelling: a symlink still refuses unless the symlink itself
-is root-owned and resolves to a trusted or root-owned sticky system directory.
+or repairs `.snapback/` to that posture only when the complete directory chain
+is already secure. Snapback walks every canonical ancestor through `/`,
+including parents above the caller's project or proposed state-directory trust
+anchor. Each component must be root-owned with no group/other write, same-UID
+with no group/other write, or a root-owned mode-`1777` sticky system directory.
+A group-writable project root such as mode `0775` remains ineligible even when
+`.snapback/` is `0700`, and a mode-`0755` project beneath a non-sticky
+mode-`0777` parent is likewise ineligible, because another writer could rename
+the project or leaf. Use `--ready-file` inside a separate `0700` owner-only tree
+with a secure ancestry or fix the named directory mode. Snapback also checks the
+complete lexical spelling: a symlink refuses unless the symlink itself is
+root-owned and resolves to a trusted or root-owned sticky system directory.
 Consequently Darwin's root-owned `/tmp` symlink to `/private/tmp` is admitted,
 the socket is bound under `/private/tmp/...`, and that canonical socket path is
 published in the descriptor. A non-root-owned symlink and a non-sticky
@@ -124,10 +126,25 @@ or otherwise unreadable, Snapback instead refuses startup with
 `SNAPBACK_DEV_CONTROL_CHANNEL_UNAVAILABLE`; the diagnostic names the exact
 chain component and reason. Choose `--ready-file` inside a `0700` owner-only
 tree or fix the named directory mode. A Unix-socket bind or advertised-path
-probe failure (including a state directory beyond the platform's `sockaddr_un`
-path budget) uses the same usable-stdin fallback or unavailable-channel refusal.
+probe failure uses the same usable-stdin fallback or unavailable-channel
+refusal, but its message identifies the bind/publication or advertised-path
+probe failure and its cause instead of calling it directory-chain admission.
+The `--ready-file` recovery remains present; a state directory beyond the
+platform's `sockaddr_un` path budget is the common `ENAMETOOLONG` bind case.
 A live or otherwise occupied well-known endpoint still refuses startup rather
 than being downgraded.
+
+Template carrier command placeholders have two distinct path meanings for both
+web and native carriers. `{artifacts}` expands exactly to the caller-visible
+directory selected by `--artifacts`; retained proofs and any other ordinary
+artifact written there stay alongside `director-log.json`, logs, and
+screenshots. `{supervisorState}` expands to that directory's owner-only
+`.snapback-carrier-state` child. The shipped Expo web carriers put their
+`--ready-file` and `expo-supervisor.json` structured-readiness path below
+`{supervisorState}`; structured Expo readiness is rejected unless it uses that
+private placeholder. Do not use `{supervisorState}` for an artifact the caller
+expects to find directly under `--artifacts`, and do not use `{artifacts}` as an
+alias for private supervisor state.
 
 This is transient instance-local state: do not copy it with the database or
 treat a leftover endpoint as durable owner authority. Each request must repeat
@@ -178,8 +195,14 @@ socket created at the well-known name after the initial probe: `EEXIST` refuses
 as `SNAPBACK_DEV_CONTROL_FOREIGN_OWNER`. The private name is removed and its
 lease discharged after publication; if the owner is killed between private
 `listen()` and removal, the detached reaper matches the dead reservation-owner
-identity and removes that lease-unique socket artifact. A public endpoint
-with an absent or corrupt marker is not legitimate crash residue and refuses
+identity and removes that lease-unique socket artifact. Path-lock publication
+also uses a `.dc-c-<pid>-<token>` candidate. If SIGKILL leaves that
+candidate behind, a later publisher removes it only when it is a same-UID
+regular file with one link, has reached the minimum stale age, names a dead
+publisher (or contains its complete dead PID/start-time record), and a second
+observation verifies the same inode, bytes, age, and link count. Ambiguous or
+linked candidates are preserved. A public endpoint with an absent or corrupt
+marker is not legitimate crash residue and refuses
 the same way, just like a valid record naming another inode or incarnation.
 Recovery is operator-explicit:
 inspect ownership and remove both artifacts, or relaunch with `--ready-file` in

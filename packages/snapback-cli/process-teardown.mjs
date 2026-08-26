@@ -33,6 +33,7 @@ const DEV_CONTROL_OWNER_STATE_FORMAT = 'snapback.dev-control-owner.v1';
 const PENDING_PROCESS_CONFIRM_MS = 1_000;
 const CLEANUP_PATH_LOCK_TIMEOUT_MS = 5_000;
 const CLEANUP_PATH_MARKER_STALE_MS = 250;
+const CLEANUP_PATH_CANDIDATE_PREFIX = '.dc-c-';
 const MODULE_PATH = fileURLToPath(import.meta.url);
 const LEASED_PROCESS_STATE = new WeakMap();
 
@@ -42,8 +43,8 @@ function pathWithin(root, path) {
 }
 
 // @ref LLP 0310.000#track-e--owner-bound-control-socket — the socket's
-// cross-UID pathname gate covers every project-owned directory component,
-// not only the final state directory reached after symlink traversal.
+// cross-UID pathname gate covers the complete lexical and canonical ancestry
+// through `/`, not only the caller's proposed project/state trust anchor.
 export function inspectSecureDirectoryChain(rootPath, targetPath, ownerUid) {
   const root = resolve(rootPath);
   const target = resolve(targetPath);
@@ -56,130 +57,47 @@ export function inspectSecureDirectoryChain(rootPath, targetPath, ownerUid) {
       component: target,
     });
   }
+  const completeChain = inspectSecureExternalDirectoryChain(target, ownerUid);
+  if (!completeChain.ok) return completeChain;
   const relation = relative(root, target);
-  const components = [
-    root,
-    ...relation.split(sep).filter(Boolean).map((_, index, parts) => (
-      join(root, ...parts.slice(0, index + 1))
-    )),
-  ];
-  const identities = [];
-  for (const component of components) {
-    let metadata;
-    try {
-      metadata = lstatSync(component);
-    } catch (error) {
-      return Object.freeze({
-        ok: false,
-        reason: 'unreadable-component',
-        root,
-        target,
-        component,
-        cause: error?.code ?? error?.message ?? String(error),
-      });
-    }
-    if (!metadata.isDirectory() || metadata.isSymbolicLink()) {
-      return Object.freeze({
-        ok: false,
-        reason: metadata.isSymbolicLink() ? 'symlink-component' : 'non-directory-component',
-        root,
-        target,
-        component,
-      });
-    }
-    if (metadata.uid !== ownerUid) {
-      return Object.freeze({
-        ok: false,
-        reason: 'foreign-owner-component',
-        root,
-        target,
-        component,
-        expectedUid: ownerUid,
-        observedUid: metadata.uid,
-      });
-    }
-    if ((metadata.mode & 0o022) !== 0) {
-      return Object.freeze({
-        ok: false,
-        reason: 'writable-component',
-        root,
-        target,
-        component,
-        observedMode: metadata.mode & 0o777,
-      });
-    }
-    identities.push(Object.freeze({
-      path: component,
-      device: String(metadata.dev),
-      inode: String(metadata.ino),
-    }));
-  }
   let canonicalRoot;
-  let canonicalTarget;
   try {
     canonicalRoot = realpathSync.native(root);
-    canonicalTarget = realpathSync.native(target);
   } catch (error) {
     return Object.freeze({
       ok: false,
       reason: 'canonicalization-failed',
-      root,
+      root: resolve(sep),
       target,
-      component: target,
+      component: root,
       cause: error?.code ?? error?.message ?? String(error),
     });
   }
-  if (!pathWithin(canonicalRoot, canonicalTarget)
-      || canonicalTarget !== resolve(canonicalRoot, relation)) {
+  if (!pathWithin(canonicalRoot, completeChain.canonicalTarget)
+      || completeChain.canonicalTarget !== resolve(canonicalRoot, relation)) {
     return Object.freeze({
       ok: false,
       reason: 'canonical-traversal',
-      root,
+      root: resolve(sep),
       target,
       component: target,
       canonicalRoot,
-      canonicalTarget,
+      canonicalTarget: completeChain.canonicalTarget,
     });
   }
-  for (const identity of identities) {
-    let metadata;
-    try {
-      metadata = lstatSync(identity.path);
-    } catch (error) {
-      return Object.freeze({
-        ok: false,
-        reason: 'component-changed',
-        root,
-        target,
-        component: identity.path,
-        cause: error?.code ?? error?.message ?? String(error),
-      });
-    }
-    if (String(metadata.dev) !== identity.device || String(metadata.ino) !== identity.inode) {
-      return Object.freeze({
-        ok: false,
-        reason: 'component-changed',
-        root,
-        target,
-        component: identity.path,
-      });
-    }
-  }
   return Object.freeze({
-    ok: true,
+    ...completeChain,
     root,
-    target,
     canonicalRoot,
-    canonicalTarget,
-    components: Object.freeze(identities),
+    external: false,
   });
 }
 
 // An explicitly selected ready-file directory may sit outside the checkout.
-// Resolve it first and walk the complete canonical chain to a root-owned trust
-// anchor: an owner-safe component cannot be replaced by another UID, while a
-// root-owned 1777 sticky component limits removal/rename of our leaf to that
-// leaf's owner. The lexical chain is checked separately so only a root-owned
+// Resolve it first and walk the complete canonical chain through `/`: every
+// component must be root-owned non-writable, owner-safe, or a root-owned 1777
+// sticky directory that limits removal/rename of our leaf to that leaf's
+// owner. The lexical chain is checked separately so only a root-owned
 // symlink to a trusted/sticky system directory (Darwin's /tmp -> /private/tmp)
 // may supply that canonical spelling; owner/foreign symlinks still refuse.
 export function inspectSecureExternalDirectoryChain(targetPath, ownerUid) {
@@ -293,7 +211,7 @@ export function inspectSecureExternalDirectoryChain(targetPath, ownerUid) {
 
   const identities = [];
   let component = canonicalTarget;
-  let root = resolve(sep);
+  const root = resolve(sep);
   for (;;) {
     let metadata;
     try {
@@ -323,15 +241,11 @@ export function inspectSecureExternalDirectoryChain(targetPath, ownerUid) {
       inode: String(metadata.ino),
     }));
     const writableByAnotherUid = (metadata.mode & 0o022) !== 0;
-    const trustedSystemRoot = metadata.uid === 0 && !writableByAnotherUid;
+    const trustedSystemComponent = metadata.uid === 0 && !writableByAnotherUid;
     const stickySystemDirectory = metadata.uid === 0
       && (metadata.mode & 0o7777) === 0o1777;
     const ownerSafe = metadata.uid === ownerUid && !writableByAnotherUid;
-    if (trustedSystemRoot) {
-      root = component;
-      break;
-    }
-    if (!stickySystemDirectory && !ownerSafe) {
+    if (!trustedSystemComponent && !stickySystemDirectory && !ownerSafe) {
       return Object.freeze({
         ok: false,
         reason: writableByAnotherUid ? 'writable-component' : 'foreign-owner-component',
@@ -344,15 +258,7 @@ export function inspectSecureExternalDirectoryChain(targetPath, ownerUid) {
       });
     }
     const parent = dirname(component);
-    if (parent === component) {
-      return Object.freeze({
-        ok: false,
-        reason: 'trusted-root-not-found',
-        root,
-        target: requestedTarget,
-        component,
-      });
-    }
+    if (parent === component) break;
     component = parent;
   }
   for (const identity of identities) {
@@ -615,8 +521,102 @@ function writeExclusiveOwnerRecord(path, value, { afterOpen } = {}) {
   }
 }
 
+function observeExclusiveOwnerCandidate(path) {
+  try {
+    const before = lstatSync(path);
+    if (!before.isFile() || before.isSymbolicLink()) return null;
+    const bytes = readFileSync(path, 'utf8');
+    const after = lstatSync(path);
+    if (before.dev !== after.dev
+        || before.ino !== after.ino
+        || before.uid !== after.uid
+        || before.nlink !== after.nlink
+        || before.mtimeMs !== after.mtimeMs
+        || before.size !== after.size) return null;
+    let owner = null;
+    try { owner = JSON.parse(bytes); } catch { /* SIGKILL may leave an empty candidate. */ }
+    return Object.freeze({
+      path,
+      bytes,
+      owner,
+      device: String(after.dev),
+      inode: String(after.ino),
+      uid: after.uid,
+      links: after.nlink,
+      modifiedAtMs: after.mtimeMs,
+      size: after.size,
+    });
+  } catch (error) {
+    if (error?.code === 'ENOENT') return null;
+    throw error;
+  }
+}
+
+function sameExclusiveOwnerCandidate(left, right) {
+  return left !== null
+    && right !== null
+    && left.path === right.path
+    && left.bytes === right.bytes
+    && left.device === right.device
+    && left.inode === right.inode
+    && left.uid === right.uid
+    && left.links === right.links
+    && left.modifiedAtMs === right.modifiedAtMs
+    && left.size === right.size;
+}
+
+function reclaimStaleExclusiveOwnerCandidates(directory) {
+  if (typeof process.getuid !== 'function') return;
+  const ownerUid = process.getuid();
+  for (const name of readdirSync(directory)) {
+    if (!name.startsWith(CLEANUP_PATH_CANDIDATE_PREFIX)) continue;
+    const encoded = /^\.dc-c-(\d+)-(.+)$/u.exec(name);
+    const candidatePath = join(directory, name);
+    const candidate = observeExclusiveOwnerCandidate(candidatePath);
+    if (candidate === null
+        || candidate.uid !== ownerUid
+        || candidate.links !== 1
+        || Date.now() - candidate.modifiedAtMs < CLEANUP_PATH_MARKER_STALE_MS) continue;
+
+    let publisherPid;
+    let publisherToken;
+    if (encoded !== null) {
+      publisherPid = Number(encoded[1]);
+      publisherToken = encoded[2];
+    } else if (validCleanupPathLockOwner(candidate.owner)
+        && name === `${CLEANUP_PATH_CANDIDATE_PREFIX}${candidate.owner.token}`) {
+      // Completed candidates from the prior basename format remain safely
+      // reclaimable. Empty legacy candidates have no recoverable owner
+      // identity and deliberately remain operator-visible residue.
+      publisherPid = candidate.owner.pid;
+      publisherToken = candidate.owner.token;
+    } else {
+      continue;
+    }
+    if (!Number.isSafeInteger(publisherPid) || publisherPid < 1 || publisherToken.length === 0) {
+      continue;
+    }
+    const completeOwner = validCleanupPathLockOwner(candidate.owner)
+      && candidate.owner.pid === publisherPid
+      && candidate.owner.token === publisherToken;
+    if (completeOwner ? liveCleanupPathLockOwner(candidate.owner) : processIdExists(publisherPid)) {
+      continue;
+    }
+    const verified = observeExclusiveOwnerCandidate(candidatePath);
+    if (!sameExclusiveOwnerCandidate(candidate, verified)
+        || verified.uid !== ownerUid
+        || verified.links !== 1) continue;
+    rmSync(candidatePath);
+  }
+}
+
 function linkExclusiveOwnerRecord(path, value, { afterTemporaryOpen } = {}) {
-  const temporary = join(dirname(path), `.dc-c-${value.token}`);
+  const directory = dirname(path);
+  reclaimStaleExclusiveOwnerCandidates(directory);
+  const temporary = join(
+    directory,
+    `${CLEANUP_PATH_CANDIDATE_PREFIX}${value.pid}-${value.token}`,
+  );
   try {
     writeExclusiveOwnerRecord(temporary, value, {
       afterOpen: () => afterTemporaryOpen?.({ path, temporary }),

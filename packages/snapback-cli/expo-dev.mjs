@@ -86,6 +86,45 @@ function devControlDiagnostic(code, message, details = {}) {
   return Object.freeze({ code, severity: 'error', subsystem: 'cli', message, details });
 }
 
+function requiredDevControlChannelDiagnostic({
+  unavailableDetails = {},
+  stdinControl = { available: false, kind: 'unknown' },
+  readyFile,
+}) {
+  const component = unavailableDetails.component
+    ?? unavailableDetails.path
+    ?? dirname(resolve(readyFile));
+  const reason = unavailableDetails.reason
+    ?? unavailableDetails.cause
+    ?? 'socket-publication-failed';
+  const cause = unavailableDetails.cause ?? reason;
+  const stdinReason = stdinControl.reason ?? 'stdin is unavailable';
+  let failure;
+  let recovery;
+  if (reason === 'advertised-path-probe-failed') {
+    failure = `the advertised owner-bound dev control socket probe failed in ${component} (${cause})`;
+    recovery = 'use --ready-file <path> inside a shorter 0700 owner-only directory tree';
+  } else if (['socket-bind-failed', 'socket-publication-failed', 'socket-custody-failed']
+    .includes(reason)) {
+    failure = `the owner-bound dev control socket could not bind or publish in ${component} (${cause})`;
+    recovery = 'use --ready-file <path> inside a shorter 0700 owner-only directory tree';
+  } else {
+    failure = `${component} failed secure directory-chain admission (${reason})`;
+    recovery = `use --ready-file <path> inside a 0700 owner-only directory tree, or fix the directory mode at ${component}`;
+  }
+  return devControlDiagnostic(
+    'SNAPBACK_DEV_CONTROL_CHANNEL_UNAVAILABLE',
+    `owner-bound dev control cannot start because ${failure}; ${stdinReason}, so stdin cannot carry snapback.dev-command.v1; ${recovery}`,
+    {
+      ...unavailableDetails,
+      component,
+      reason,
+      stdin: stdinControl,
+      recovery,
+    },
+  );
+}
+
 function devControlResult({ requestId = null, verb = null, ok, result, diagnostic }) {
   return Object.freeze({
     schemaVersion: DEV_CONTROL_RESULT_FORMAT,
@@ -631,6 +670,7 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
     return unavailable({
       path: stateDirectoryPath,
       readyFile,
+      reason: 'state-directory-custody-failed',
       expectedUid: ownerUid,
       observedUid: stateDirectory.uid,
       observedMode: stateDirectory.mode & 0o777,
@@ -991,6 +1031,7 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
               path: stateDirectoryPath,
               endpointPath: path,
               readyFile,
+              reason: 'socket-bind-failed',
               cause: cause.code ?? cause.message,
               recovery: 'choose a shorter owner-only state directory with --ready-file <path>',
             },
@@ -1032,6 +1073,7 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
             path: stateDirectoryPath,
             endpointPath: path,
             readyFile,
+            reason: 'socket-custody-failed',
             expectedUid: ownerUid,
             observedUid: boundEndpoint.uid,
             observedMode: boundEndpoint.mode,
@@ -1066,6 +1108,7 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
             path: stateDirectoryPath,
             endpointPath: path,
             readyFile,
+            reason: 'socket-publication-failed',
             cause: cause?.code ?? cause?.message ?? String(cause),
             recovery: 'choose another owner-only state directory with --ready-file <path>',
           },
@@ -1123,6 +1166,7 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
             path: stateDirectoryPath,
             endpointPath: path,
             readyFile,
+            reason: 'advertised-path-probe-failed',
             cause: cause?.code ?? cause?.message ?? String(cause),
             recovery: 'choose a shorter owner-only state directory with --ready-file <path>',
           },
@@ -4615,23 +4659,15 @@ export async function runExpoDev(options = {}) {
     }
     if (controlSocketHandle === null && options.requireControlSocket === true) {
       const unavailableDetails = controlSocketUnavailable?.details ?? {};
-      const component = unavailableDetails.component
-        ?? unavailableDetails.path
-        ?? dirname(dev.readyFile);
-      const reason = unavailableDetails.reason
-        ?? unavailableDetails.cause
-        ?? 'socket-publication-failed';
-      const recovery = `use --ready-file <path> inside a 0700 owner-only directory tree, or fix the directory mode at ${component}`;
+      const unavailableDiagnostic = requiredDevControlChannelDiagnostic({
+        unavailableDetails,
+        stdinControl: options.stdinControl,
+        readyFile: dev.readyFile,
+      });
       throw diagnosticError(
-        'SNAPBACK_DEV_CONTROL_CHANNEL_UNAVAILABLE',
-        `owner-bound dev control cannot start because ${component} failed secure directory-chain admission (${reason}); ${options.stdinControl?.reason ?? 'stdin is unavailable'}, so stdin cannot carry snapback.dev-command.v1; ${recovery}`,
-        {
-          ...unavailableDetails,
-          component,
-          reason,
-          stdin: options.stdinControl ?? { available: false, kind: 'unknown' },
-          recovery,
-        },
+        unavailableDiagnostic.code,
+        unavailableDiagnostic.message,
+        unavailableDiagnostic.details,
       );
     }
     assertStartupActive();
@@ -4802,6 +4838,7 @@ export const __test = Object.freeze({
   bindPlannedSupervisorListeners,
   probeDevControlEndpoint,
   publishSupervisorDescriptorAtomically,
+  requiredDevControlChannelDiagnostic,
   startDevControlSocketWithDependencies,
   startMetroWebFront,
 });

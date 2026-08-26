@@ -86,16 +86,17 @@ function config(scenario, startupTimeoutMs = 10_000) {
           process.execPath,
           supervisor,
           scenario,
-          '{artifacts}/expo-supervisor.json',
-          '{artifacts}/supervisor-cleaned',
-          '{artifacts}/supervisor-started',
-          '{artifacts}/descendant-pids.json',
-          '{artifacts}/takeover-trigger',
-          '{artifacts}/takeover-ready',
+          '{supervisorState}/expo-supervisor.json',
+          '{supervisorState}/supervisor-cleaned',
+          '{supervisorState}/supervisor-started',
+          '{supervisorState}/descendant-pids.json',
+          '{supervisorState}/takeover-trigger',
+          '{supervisorState}/takeover-ready',
+          '{artifacts}/proof.json',
         ],
         structuredReadiness: {
           kind: 'expo-supervisor',
-          file: '{artifacts}/expo-supervisor.json',
+          file: '{supervisorState}/expo-supervisor.json',
         },
         browserJourney: {
           readyExpression: 'true',
@@ -185,7 +186,9 @@ const [
   pidFile,
   takeoverTrigger,
   takeoverReady,
+  artifactProof,
 ] = process.argv.slice(2);
+writeFileSync(artifactProof, JSON.stringify({ location: 'public-artifacts' }));
 const children = [];
 const cleanupLease = openCarrierCleanupLease(process.env);
 const waitFor = async (path) => {
@@ -681,6 +684,12 @@ try {
   assert.equal(director.observations.journey.readObserved, true);
   assert.equal(director.observations.journey.writeObserved, true);
   assert.match(readFileSync(join(successArtifacts, 'web-browser.html'), 'utf8'), /snapback-carrier-/u);
+  assert.deepEqual(
+    JSON.parse(readFileSync(join(successArtifacts, 'proof.json'), 'utf8')),
+    { location: 'public-artifacts' },
+    'an unrelated {artifacts} command argument must land in the caller-visible artifacts directory',
+  );
+  assert.equal(existsSync(join(carrierState(successArtifacts), 'proof.json')), false);
   assert.equal(director.observations.cleanup.readinessFileRemoved, true);
   assert.equal(director.observations.cleanup.browserExited, true);
   assert.equal(director.observations.cleanup.browserProfileRemoved, true);

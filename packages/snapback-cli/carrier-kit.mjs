@@ -84,13 +84,13 @@ function validateRelativePath(value, label) {
   return value;
 }
 
-function validateArtifactPathTemplate(value, label) {
-  if (typeof value !== 'string' || !value.startsWith('{artifacts}/')) {
-    throw new TypeError(`${label} must be a path below {artifacts}`);
+function validateSupervisorStatePathTemplate(value, label) {
+  if (typeof value !== 'string' || !value.startsWith('{supervisorState}/')) {
+    throw new TypeError(`${label} must be a path below {supervisorState}`);
   }
-  const segments = value.slice('{artifacts}/'.length).split('/');
+  const segments = value.slice('{supervisorState}/'.length).split('/');
   if (segments.some((segment) => segment.length === 0 || segment === '.' || segment === '..')) {
-    throw new TypeError(`${label} must stay below {artifacts}`);
+    throw new TypeError(`${label} must stay below {supervisorState}`);
   }
   return value;
 }
@@ -172,7 +172,7 @@ export function defineTemplateCarrierConfig(value) {
         }
         structuredReadiness = Object.freeze({
           kind: 'expo-supervisor',
-          file: validateArtifactPathTemplate(
+          file: validateSupervisorStatePathTemplate(
             options.structuredReadiness.file,
             'web-browser structuredReadiness file',
           ),
@@ -345,7 +345,7 @@ function run(command, { cwd, env = process.env, capture = false, timeout = 180_0
 }
 
 function expandedCommand(command, replacements) {
-  return command.map((part) => part.replace(/\{([a-z]+)\}/gu, (match, key) => {
+  return command.map((part) => part.replace(/\{([A-Za-z][A-Za-z0-9]*)\}/gu, (match, key) => {
     if (!Object.hasOwn(replacements, key)) throw new TypeError(`unknown command placeholder ${match}`);
     return replacements[key];
   }));
@@ -1051,7 +1051,7 @@ async function runWebCarrier({
 }) {
   const carrier = config.carriers['web-browser'];
   const logPath = join(artifacts, 'web-dev.log');
-  const replacements = { artifacts: supervisorState };
+  const replacements = { artifacts, supervisorState };
   const command = expandedCommand(carrier.command, replacements);
   const structuredReadinessPath = carrier.structuredReadiness === undefined
     ? null
@@ -1507,7 +1507,7 @@ async function runNativeCarrier({
         'EXDevMenuIsOnboardingFinished', '-bool', 'YES',
       ]);
     }
-    const command = expandedCommand(carrier.command, { artifacts: supervisorState, udid });
+    const command = expandedCommand(carrier.command, { artifacts, supervisorState, udid });
     const readyFile = resolve(root, carrier.readyFile);
     rmSync(readyFile, { force: true });
     dev = startOwned(command, {
