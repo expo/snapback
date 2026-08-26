@@ -3540,6 +3540,10 @@ export async function runExpoDev(options = {}) {
   let nativeCheckoutLaunch = null;
   let listeners = Object.freeze([]);
   let closed = false;
+  let backendControlClosed = false;
+  let backendControlClosing = false;
+  let backendControlStopAttempted = false;
+  let validatedOperatorToken = null;
   let childClosePromise = null;
   let closePromise = null;
   let closeSupervisor = null;
@@ -3951,6 +3955,7 @@ export async function runExpoDev(options = {}) {
     }
     let descriptor = JSON.parse(readFileSync(appDescriptorPath, 'utf8'));
     const readyDescriptor = readReadyDescriptor(dev.readyFile);
+    validatedOperatorToken = managedAdminToken(readyDescriptor, database);
     // @ref LLP 0151#shared-development-browser-adapter — the broker exists only
     // when this app declares a provider, and only when server-held deployment
     // state admits the shared profile. Its origin is the one the client already
@@ -3959,7 +3964,7 @@ export async function runExpoDev(options = {}) {
       sharedAuthBroker = createSharedDevelopmentBroker({
         appId: descriptor.identity.app,
         serverOrigin: dev.serverUrl.replace(/\/$/u, ''),
-        adminToken: managedAdminToken(readyDescriptor, database),
+        adminToken: validatedOperatorToken,
         impersonationCapability: readSupervisedImpersonationCapability(readyDescriptor, dev.readyFile),
         returnTargets: supervisedSharedAuthReturnTargets(metroPort),
         deploymentProfile: expoSharedAuthDeploymentProfile(childEnv),
@@ -4019,16 +4024,37 @@ export async function runExpoDev(options = {}) {
     // sessions-first at the provider boundary, but the provider's default
     // adoption request is now the first mint; there is no discarded S1.
     let route = null;
+    // Backend lifecycle verbs keep revalidating the ready descriptor and its
+    // declared carrier while that backend is live. Native stop removes the
+    // descriptor, but not the surviving supervisor's bootstrap route, so the
+    // post-stop control plane resolves the already-validated sibling directly
+    // and falls back to the last validated token if the sidecar is also gone.
+    const supervisorOperatorToken = () => {
+      if (!backendControlClosed && !backendControlClosing) {
+        const current = managedAdminToken(readReadyDescriptor(dev.readyFile), database);
+        validatedOperatorToken = current;
+        return current;
+      }
+      try {
+        const current = managedAdminToken({
+          adminTokenFile: `${database}.admin-token`,
+        }, database);
+        validatedOperatorToken = current;
+        return current;
+      } catch (error) {
+        if (typeof validatedOperatorToken === 'string' && validatedOperatorToken.length > 0) {
+          return validatedOperatorToken;
+        }
+        throw error;
+      }
+    };
     // @ref LLP 0310.000#track-e--add-the-missing-verb-to-the-control-route-that-already-exists — the
     // token-gated HTTP plane and owner-bound socket enqueue their shared verb
     // implementations on one serialized dispatcher.
     handleBootstrapControl = async ({ operatorToken, body }) => {
         let expectedOperatorToken = null;
         try {
-          expectedOperatorToken = managedAdminToken(
-            readReadyDescriptor(dev.readyFile),
-            database,
-          );
+          expectedOperatorToken = supervisorOperatorToken();
           // @ref LLP 0181#provider — the operator capability remains
           // supervisor-held; the control route authenticates it without ever
           // projecting either it or the ordinary replacement bearer.
@@ -4304,7 +4330,6 @@ export async function runExpoDev(options = {}) {
       ...(metroFront === null ? [] : [{ owner: 'metro-front', port: metroPort }]),
       { owner: 'bootstrap', port: bootstrap.port },
     ];
-    let backendControlClosed = false;
     const refreshLiveBackendListenerTarget = () => {
       const liveReady = readReadyDescriptor(dev.readyFile);
       const liveRoute = portFromOrigin(liveReady.serverUrl, 'Snapback backend');
@@ -4527,59 +4552,82 @@ export async function runExpoDev(options = {}) {
       if (responseFlushed !== null) await responseFlushed;
       await options.beforeStopChildren?.({ requestId });
       const failures = [];
+      const recordFailure = (error, resource) => {
+        failures.push(devControlDiagnostic(
+          'SNAPBACK_EXPO_CHILD_STOP_FAILED',
+          `the supervised ${resource} did not stop cleanly`,
+          { resource, cause: error?.diagnostic?.code ?? error?.code ?? error?.message ?? String(error) },
+        ));
+      };
       const stoppedMetro = metro;
-      const installedForwards = forwarding?.installed?.length ?? 0;
+      const stoppedForwarding = forwarding;
+      const installedForwards = stoppedForwarding?.installed?.length ?? 0;
       if (stoppedMetro !== null) intentionallyStoppedMetroChildren.add(stoppedMetro.child);
-      try { forwarding?.remove?.(); } catch (error) { failures.push(error); }
-      forwarding = null;
+      if (stoppedForwarding !== null) {
+        try {
+          stoppedForwarding.remove?.();
+          if (forwarding === stoppedForwarding) forwarding = null;
+        } catch (error) { recordFailure(error, 'port forwarding'); }
+      }
       if (stoppedMetro !== null) {
         try {
           await stopProcessGroup(stoppedMetro.child, { processGroup: true });
-        } catch (error) { failures.push(error); }
+          if (metro === stoppedMetro) metro = null;
+          if (metroLaunching === stoppedMetro) metroLaunching = null;
+          metroAttestation = null;
+          metroReadiness = null;
+        } catch (error) { recordFailure(error, 'Metro child'); }
       }
-      if (metro === stoppedMetro) metro = null;
-      metroLaunching = null;
-      metroAttestation = null;
-      try {
-        if (!backendControlClosed) await dev?.close?.();
-      } catch (error) { failures.push(error); }
-      backendControlClosed = true;
-      try { bindingPublisher?.close?.(); } catch (error) { failures.push(error); }
-      checkoutRegistry?.invalidate();
-      checkoutRegistry = null;
-      checkoutNonce = null;
-      authority = null;
+      if (!backendControlClosed) {
+        backendControlStopAttempted = true;
+        backendControlClosing = true;
+        try {
+          await dev?.close?.();
+          backendControlClosed = true;
+        } catch (error) { recordFailure(error, 'backend child'); } finally {
+          backendControlClosing = false;
+        }
+      }
+      if (backendControlClosed) {
+        try { bindingPublisher?.close?.(); } catch (error) { recordFailure(error, 'binding publisher'); }
+        checkoutRegistry?.invalidate();
+        checkoutRegistry = null;
+        checkoutNonce = null;
+        authority = null;
+      }
       listeners = Object.freeze(listeners.filter(({ owner }) => (
-        owner === 'bootstrap' || owner === 'metro-front'
+        (owner !== 'metro' || metro !== null)
+          && (owner !== 'backend' || !backendControlClosed)
       )));
-      metroReadiness = null;
-      updateSupervisorDescriptor({
-        state: 'children-stopped',
-        metro: null,
-        listeners,
-      });
+      const childrenStopped = failures.length === 0
+        && forwarding === null
+        && metro === null
+        && backendControlClosed;
+      const state = childrenStopped ? 'children-stopped' : 'children-stop-failed';
+      try {
+        updateSupervisorDescriptor({
+          state,
+          metro: metro === null ? null : metroReadiness,
+          listeners,
+        });
+      } catch (error) { recordFailure(error, 'supervisor descriptor'); }
       const stoppedEvent = emit({
-        ok: failures.length === 0,
-        state: 'children-stopped',
+        ok: childrenStopped && failures.length === 0,
+        state: childrenStopped && failures.length === 0 ? 'children-stopped' : 'children-stop-failed',
         verb: 'stop-children',
         ...(requestId === undefined ? {} : { requestId }),
         reclaimed: {
-          backend: dev?.managed === true,
-          metro: stoppedMetro !== null,
+          backend: backendControlClosed && dev?.managed === true,
+          metro: stoppedMetro !== null && metro !== stoppedMetro,
           bootstrap: false,
-          portForwards: installedForwards,
+          portForwards: stoppedForwarding !== null && forwarding !== stoppedForwarding
+            ? installedForwards
+            : 0,
         },
         ...(failures.length === 0 ? {} : {
-          diagnostics: failures.map((error) => error?.diagnostic ?? clientDiagnostic(
-            error,
-            'SNAPBACK_EXPO_CHILD_STOP_FAILED',
-            error?.message ?? 'a supervised child did not stop cleanly',
-          )),
+          diagnostics: failures,
         }),
       });
-      if (failures.length > 0) {
-        throw new AggregateError(failures, 'Expo supervisor child cleanup failed');
-      }
       return stoppedEvent;
     };
     const runBackendLifecycleVerb = async (verb, context) => {
@@ -4742,7 +4790,7 @@ export async function runExpoDev(options = {}) {
       ]),
     ));
     const inspectHttpControl = () => {
-      let httpOperatorToken = managedAdminToken(readReadyDescriptor(dev.readyFile), database);
+      let httpOperatorToken = supervisorOperatorToken();
       const projection = Object.freeze({
         available: typeof httpOperatorToken === 'string' && httpOperatorToken.length > 0,
         controlPath: SUPERVISED_CONTROL_PATH,
@@ -4892,7 +4940,8 @@ export async function runExpoDev(options = {}) {
           readApplicationReadyReceipt(dev.applicationReadyFile),
         );
       } catch (error) {
-        if (closed && applicationReceiptProjection !== null) return applicationReceiptProjection;
+        if ((closed || backendControlClosed || backendControlStopAttempted)
+            && applicationReceiptProjection !== null) return applicationReceiptProjection;
         throw error;
       }
     };
@@ -4936,7 +4985,7 @@ export async function runExpoDev(options = {}) {
           binding: publicBinding(bindingProjection),
           applicationReady: currentApplicationReceiptProjection(),
           portPlan,
-          metro: Object.freeze({
+          metro: metro === null ? null : Object.freeze({
             pid: metro.child.pid,
             origin: `http://${LOOPBACK_HOST}:${metroPort}`,
             logs: Object.freeze([...metro.logs]),

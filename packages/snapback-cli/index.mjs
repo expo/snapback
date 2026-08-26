@@ -6348,10 +6348,14 @@ export async function runDev(options = {}) {
   const closeManaged = async () => {
     try {
       if (managed && child?.exitCode === null) {
-        native(runtime.binary, ['stop', '--ready-file', readyFile], {
-          cwd: projectRoot,
-          env: options.env,
-        });
+        requireNativeSuccess(
+          native(runtime.binary, ['stop', '--ready-file', readyFile], {
+            cwd: projectRoot,
+            env: options.env,
+          }),
+          'SNAPBACK_DEV_SERVER_STOP_FAILED',
+          'managed dev server stop',
+        );
         await stopProcessGroup(child);
       }
     } finally {
@@ -6447,6 +6451,10 @@ export async function runDev(options = {}) {
 
   let timer = null;
   let closed = false;
+  let closePrepared = false;
+  let closeSucceeded = false;
+  let closeAttempt = null;
+  let clientClosePromise = null;
   let restarting = false;
   let queuedFilename = null;
   let lastLoad = { state: result.state, changed: null, ok: true };
@@ -7084,14 +7092,29 @@ export async function runDev(options = {}) {
       restart: restartVerb,
       'dev-fresh': devFreshVerb,
     },
-    async close() {
-      if (closed) return;
-      closed = true;
-      if (managed) removeApplicationReadyReceipt();
-      clearTimeout(timer);
-      watcher.close();
-      await closeClientArm();
-      await closeManaged();
+    close() {
+      if (closeSucceeded) return Promise.resolve();
+      if (closeAttempt !== null) return closeAttempt;
+      if (!closePrepared) {
+        closed = true;
+        if (managed) removeApplicationReadyReceipt();
+        clearTimeout(timer);
+        watcher.close();
+        clientClosePromise = Promise.resolve().then(() => closeClientArm());
+        closePrepared = true;
+      }
+      // Preparation is one-shot, but a custody refusal from closeManaged is
+      // retryable after the ready-file owner is restored or reconciled.
+      const attempt = (async () => {
+        await clientClosePromise;
+        await closeManaged();
+        closeSucceeded = true;
+      })();
+      closeAttempt = attempt;
+      void attempt.finally(() => {
+        if (closeAttempt === attempt) closeAttempt = null;
+      }).catch(() => {});
+      return attempt;
     },
   };
 }

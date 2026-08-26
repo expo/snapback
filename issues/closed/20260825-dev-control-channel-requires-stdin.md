@@ -136,14 +136,19 @@ The focused `expo-dev-loop.test.mjs --control-socket-only` regression includes
 the HTTP E1 slice (also runnable alone as `--http-control-only`): bad-token and
 unknown-verb refusals, request correlation, Metro PID replacement, and an HTTP
 `stop-children` acknowledgement that flushes before teardown starts. The
-backend and Metro process groups then disappear while the owner,
-bootstrap/front listeners, and control socket survive; `reload-metro` on that
-same owner respawns Metro. It also includes a `--json` launch using the default
+backend and Metro process groups then disappear while the mode-`0775`, stdin
+`/dev/null` owner and its bootstrap/front listeners survive with
+`controlSocket: null`; a second authenticated HTTP `reload-metro` on that same
+owner respawns Metro. It also includes a `--json` launch using the default
 control-socket posture, with stdin ignored and test-only fixture paths/ports,
 that acknowledges and settles `reload-metro`. It overlaps acknowledged
 `reload-metro` with `stop-children`, asserts both settled results, then proves
 the packaged owner and socket remain live until SIGTERM and a later
 `reload-metro` respawns Metro.
+Ready-file replacement fault injection separately proves that a refused native
+backend stop publishes `children-stop-failed`, retains the live backend and its
+listener in supervisor custody, and succeeds on a later correlated retry only
+after the validated ready-file owner is restored.
 It also proves stale/foreign/other-UID requests return one result and no
 acknowledgement; queues `stop-children` behind an injected replacement-Metro
 launch failure and requires the stop result before critical owner exit; and

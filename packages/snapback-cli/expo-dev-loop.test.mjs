@@ -11,6 +11,7 @@ import {
   readdirSync,
   readFileSync,
   realpathSync,
+  renameSync,
   rmSync,
   statSync,
   symlinkSync,
@@ -67,6 +68,7 @@ const runtimeBinary = process.env.SNAPBACK_SERVER_BINARY
 const metroFreshnessOnly = process.argv.includes('--metro-freshness-only');
 const controlSocketOnly = process.argv.includes('--control-socket-only');
 const httpControlOnly = process.argv.includes('--http-control-only');
+const stopFailureOnly = process.argv.includes('--stop-failure-only');
 const controlOwnerSurvivalOnly = process.argv.includes('--control-owner-survival-only');
 const noTokenCarrierOnly = process.argv.includes('--no-token-carrier-only');
 const regularFileOnly = process.argv.includes('--regular-file-only');
@@ -898,6 +900,42 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
     );
     assert.equal(reload.status, 200);
     assert.equal(reload.body.ok, true, JSON.stringify(reload.body));
+    assert.notEqual(reload.body.pid, supervisorDescriptor.metro.pid);
+    const backendPid = readReadyDescriptor(target.readyFile).pid;
+    const stop = await sendHttpControl(
+      supervisorDescriptor,
+      operatorToken,
+      'stop-children',
+      'http-fallback-stop-1',
+    );
+    assert.equal(stop.status, 200);
+    assert.equal(stop.body.ok, true, JSON.stringify(stop.body));
+    assert.equal(stop.body.state, 'acknowledged');
+    const stopped = await eventually(
+      () => events.find((event) => (
+        event.state === 'children-stopped' && event.requestId === 'http-fallback-stop-1'
+      )),
+      { label: 'packaged HTTP-only stop-children effect' },
+    );
+    assert.equal(stopped.ok, true, JSON.stringify(stopped));
+    await eventually(() => !processAlive(backendPid), { label: 'packaged HTTP-only backend stop' });
+    await eventually(() => !processGroupAlive(reload.body.pid), {
+      label: 'packaged HTTP-only Metro stop',
+    });
+    const reloadAfterStop = await sendHttpControl(
+      supervisorDescriptor,
+      operatorToken,
+      'reload-metro',
+      'http-fallback-reload-after-stop',
+    );
+    assert.equal(reloadAfterStop.status, 200);
+    assert.equal(reloadAfterStop.body.ok, true, JSON.stringify(reloadAfterStop.body));
+    assert.equal(reloadAfterStop.body.previousPid, null);
+    assert.equal(processGroupAlive(reloadAfterStop.body.pid), true);
+    assert.equal(
+      JSON.parse(readFileSync(supervisorDescriptorPath, 'utf8')).controlSocket,
+      null,
+    );
     const exitPromise = new Promise((resolveExit) => {
       child.once('exit', (code, signal) => resolveExit({ code, signal }));
     });
@@ -1209,6 +1247,7 @@ function assertGrepAbsent(label, files, bearers) {
 async function runHttpControlE1Suite() {
   const controlRoot = mkdtempSync('/tmp/sb-http-e1-');
   const target = fixture('http-control-app', { sessions: true, root: controlRoot });
+  chmodSync(target.projectRoot, 0o775);
   const stopAtBarrier = deferred();
   const releaseStop = deferred();
   let holdStop = false;
@@ -1217,6 +1256,8 @@ async function runHttpControlE1Suite() {
     run = await startFixture(target, {
       platform: 'web',
       controlSocket: true,
+      requireControlCarrier: true,
+      stdinControl: { available: false, kind: 'null', reason: 'stdin is /dev/null' },
       async beforeStopChildren({ requestId } = {}) {
         if (!holdStop || requestId !== 'http-stop-1') return;
         stopAtBarrier.resolve();
@@ -1225,6 +1266,8 @@ async function runHttpControlE1Suite() {
     });
     const supervisorDescriptorPath = join(dirname(target.readyFile), 'expo-supervisor.json');
     const supervisorDescriptor = JSON.parse(readFileSync(supervisorDescriptorPath, 'utf8'));
+    assert.equal(run.supervisor.controlSocket, null);
+    assert.equal(supervisorDescriptor.controlSocket, null);
     const operatorToken = managedAdminToken(
       readReadyDescriptor(target.readyFile),
       target.database,
@@ -1304,28 +1347,103 @@ async function runHttpControlE1Suite() {
     console.log('HTTP E1: stop-children effect settled');
     await eventually(() => !processAlive(backendPid), { label: 'HTTP-stopped backend child' });
     await eventually(() => !processGroupAlive(reload.body.pid), { label: 'HTTP-stopped Metro child' });
-    assert.equal(existsSync(run.supervisor.controlSocket.path), true);
-    console.log('HTTP E1: child process groups gone; owner socket remains');
+    assert.equal(run.supervisor.controlSocket, null);
+    assert.equal(run.supervisor.inspection().metro, null);
+    console.log('HTTP E1: child process groups gone; HTTP-only owner remains');
 
-    const afterStop = await sendControlCommand(
-      run.supervisor.controlSocket,
-      controlCommand(
-        run.supervisor.controlSocket,
-        'reload-metro',
-        'socket-reload-after-http-stop',
-      ),
+    const afterStop = await sendHttpControl(
+      supervisorDescriptor,
+      operatorToken,
+      'reload-metro',
+      'http-reload-after-http-stop',
     );
-    assert.equal(afterStop.length, 2, JSON.stringify(afterStop));
-    assert.equal(afterStop[1].ok, true, JSON.stringify(afterStop));
-    assert.equal(afterStop[1].requestId, 'socket-reload-after-http-stop');
-    assert.equal(afterStop[1].result.previousPid, null);
-    assert.equal(processGroupAlive(afterStop[1].result.pid), true);
-    console.log('HTTP E1: token gate, refusal arms, correlated Metro effect, flushed stop, and owner reuse pass');
+    assert.equal(afterStop.status, 200);
+    assert.equal(afterStop.body.ok, true, JSON.stringify(afterStop));
+    assert.equal(afterStop.body.requestId, 'http-reload-after-http-stop');
+    assert.equal(afterStop.body.previousPid, null);
+    assert.equal(processGroupAlive(afterStop.body.pid), true);
+    console.log('HTTP E1: token gate, refusal arms, correlated Metro effect, flushed stop, and HTTP-only owner reuse pass');
   } finally {
     releaseStop.resolve();
     if (run !== null) {
       await run.supervisor.close().catch(() => {});
       supervisors.splice(supervisors.indexOf(run.supervisor), 1);
+    }
+    rmSync(controlRoot, { recursive: true, force: true });
+  }
+}
+
+async function runStopChildrenFailureRetrySuite() {
+  const controlRoot = mkdtempSync('/tmp/sb-stop-failure-');
+  const target = fixture('stop-failure-app', { sessions: true, root: controlRoot });
+  chmodSync(target.projectRoot, 0o700);
+  const displacedReadyFile = `${target.readyFile}.stop-failure`;
+  let run = null;
+  let backendPid = null;
+  try {
+    run = await startFixture(target, {
+      platform: 'web',
+      controlSocket: true,
+      beforeStopChildren({ requestId } = {}) {
+        if (requestId !== 'fault-stop-1') return;
+        renameSync(target.readyFile, displacedReadyFile);
+        writeFileSync(target.readyFile, '{}\n', { mode: 0o600 });
+      },
+    });
+    const controlSocket = run.supervisor.controlSocket;
+    const supervisorDescriptorPath = join(dirname(target.readyFile), 'expo-supervisor.json');
+    backendPid = readReadyDescriptor(target.readyFile).pid;
+    const firstStop = await sendControlCommand(
+      controlSocket,
+      controlCommand(controlSocket, 'stop-children', 'fault-stop-1'),
+    );
+    assert.equal(firstStop.length, 2, JSON.stringify(firstStop));
+    assert.equal(firstStop[1].ok, false, JSON.stringify(firstStop));
+    assert.equal(firstStop[1].result?.state, 'children-stop-failed', JSON.stringify(firstStop));
+    assert.equal(
+      firstStop[1].result?.diagnostics?.[0]?.code,
+      'SNAPBACK_EXPO_CHILD_STOP_FAILED',
+      JSON.stringify(firstStop),
+    );
+    assert.equal(processAlive(backendPid), true, 'a refused native stop must retain its live backend');
+    const failedDescriptor = JSON.parse(readFileSync(supervisorDescriptorPath, 'utf8'));
+    assert.equal(failedDescriptor.state, 'children-stop-failed');
+    assert.equal(failedDescriptor.metro, null);
+    assert.equal(failedDescriptor.listeners.some(({ owner }) => owner === 'backend'), true);
+    const failedInspection = run.supervisor.inspection();
+    assert.equal(failedInspection.metro, null);
+    assert.equal(failedInspection.listeners.some(({ owner }) => owner === 'backend'), true);
+
+    rmSync(target.readyFile, { force: true });
+    renameSync(displacedReadyFile, target.readyFile);
+    const retry = await sendControlCommand(
+      controlSocket,
+      controlCommand(controlSocket, 'stop-children', 'fault-stop-retry'),
+    );
+    assert.equal(retry.length, 2, JSON.stringify(retry));
+    assert.equal(retry[1].ok, true, JSON.stringify(retry));
+    assert.equal(retry[1].result?.state, 'children-stopped', JSON.stringify(retry));
+    await eventually(() => !processAlive(backendPid), { label: 'retried backend child stop' });
+    assert.equal(
+      JSON.parse(readFileSync(supervisorDescriptorPath, 'utf8')).state,
+      'children-stopped',
+    );
+    console.log('stop-children failure: partial custody stays truthful and a coded retry reclaims the backend');
+  } finally {
+    if (existsSync(displacedReadyFile)) {
+      rmSync(target.readyFile, { force: true });
+      renameSync(displacedReadyFile, target.readyFile);
+    }
+    if (run !== null) {
+      await run.supervisor.close().catch(() => {});
+      supervisors.splice(supervisors.indexOf(run.supervisor), 1);
+    }
+    if (backendPid !== null && processAlive(backendPid) && existsSync(target.readyFile)) {
+      spawnSync(runtimeBinary, ['stop', '--ready-file', target.readyFile], {
+        cwd: target.projectRoot,
+        env: process.env,
+      });
+      await eventually(() => !processAlive(backendPid), { label: 'fault-injection cleanup' });
     }
     rmSync(controlRoot, { recursive: true, force: true });
   }
@@ -1340,6 +1458,23 @@ async function runPackagedControlOwnerSurvivalSuite() {
       '--port-range', `${range.lo}-${range.hi}`,
     ]);
     console.log('packaged owner: stop-children preserves owner/socket and later reload-metro respawns Metro');
+  } finally {
+    rmSync(controlRoot, { recursive: true, force: true });
+  }
+}
+
+async function runPackagedHttpOnlyAfterStopSuite() {
+  const controlRoot = mkdtempSync('/tmp/sb-http-only-packaged-');
+  try {
+    const target = fixture('packaged-http-only-app', { sessions: true, root: controlRoot });
+    chmodSync(target.projectRoot, 0o775);
+    mkdirSync(target.stateRoot, { recursive: true, mode: 0o700 });
+    chmodSync(target.stateRoot, 0o700);
+    const range = await reserveFreeRange(8);
+    await runCliSupervisor(target, 'web', [
+      '--port-range', `${range.lo}-${range.hi}`,
+    ], { expectHttpFallback: true });
+    console.log('packaged HTTP-only: 0775 + /dev/null reloads, stops, and respawns Metro without a socket');
   } finally {
     rmSync(controlRoot, { recursive: true, force: true });
   }
@@ -1936,8 +2071,11 @@ async function runRegularFileControlInputSuite() {
 }
 
 try {
-  if (httpControlOnly) {
+  if (stopFailureOnly) {
+    await runStopChildrenFailureRetrySuite();
+  } else if (httpControlOnly) {
     await runHttpControlE1Suite();
+    await runPackagedHttpOnlyAfterStopSuite();
   } else if (noTokenCarrierOnly) {
     await runNoTokenCarrierRefusalSuite();
   } else if (regularFileOnly) {
@@ -1946,6 +2084,7 @@ try {
     await runPackagedControlOwnerSurvivalSuite();
   } else if (controlSocketOnly) {
     await runHttpControlE1Suite();
+    await runStopChildrenFailureRetrySuite();
     await runNoTokenCarrierRefusalSuite();
     await runRegularFileControlInputSuite();
     await runControlSocketSuite();
@@ -1953,6 +2092,7 @@ try {
   // The package-default suite owns the E1 no-TTY witness too; CI cannot green
   // by running only the broader lifecycle cases below.
   await runHttpControlE1Suite();
+  await runStopChildrenFailureRetrySuite();
   await runNoTokenCarrierRefusalSuite();
   await runRegularFileControlInputSuite();
   await runControlSocketSuite();

@@ -222,7 +222,17 @@ if (failures.length === 0) {
     const semanticFixtures = `
 import { defineTemplateCarrierConfig } from '@expo/snapback-cli/carrier-kit';
 import { startDevControlSocket } from '@expo/snapback-cli/expo-dev';
-import type { RunExpoDevOptions } from '@expo/snapback-cli/expo-dev';
+import type {
+  BootstrapExchangeControlResult,
+  RunExpoDevOptions,
+} from '@expo/snapback-cli/expo-dev';
+
+const postFlushControlResult: BootstrapExchangeControlResult = {
+  statusCode: 202,
+  body: { ok: true },
+  afterResponse: async () => {},
+};
+void postFlushControlResult;
 
 type OnControlStopIsUndeclared = unknown extends RunExpoDevOptions['onControlStop']
   ? true

@@ -140,6 +140,7 @@ export interface BootstrapExchangeControlRequest {
 export interface BootstrapExchangeControlResult {
   readonly statusCode: number;
   readonly body: Readonly<Record<string, unknown>>;
+  readonly afterResponse?: () => unknown | Promise<unknown>;
 }
 
 export interface BootstrapExchangeHandle {
