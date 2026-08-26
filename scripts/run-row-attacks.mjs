@@ -19,6 +19,10 @@ import {
 const DEFAULT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DIAGNOSTIC = 'SNAPBACK_ROW_ATTACK_CORPUS';
 const OBSERVATION_PREFIX = 'SNAPBACK_ROW_ATTACK ';
+const RUNTIME_REFUSAL_ROWS = new Set([
+  'F157', 'F171', 'F172', 'F173', 'F188', 'F190', 'F191', 'F182',
+  'F126',
+]);
 
 function rootArgument() {
   const index = process.argv.indexOf('--root');
@@ -58,7 +62,10 @@ export function loadRowAttackLedger(fixtureRoot) {
         || !['OPEN', 'CLOSED'].includes(attack.expected)
         || typeof attack.note !== 'string'
         || (attack.expectedCode !== undefined
-          && !/^E\d{4}$/u.test(attack.expectedCode))) {
+          && !/^E\d{4}$/u.test(attack.expectedCode))
+        || (attack.expected === 'OPEN' && attack.expectedCode !== undefined)
+        || (attack.expected === 'CLOSED' && attack.expectedCode === undefined
+          && !RUNTIME_REFUSAL_ROWS.has(attack.row))) {
       throw new GateInfrastructureError(`${ledgerPath} has an invalid or duplicate attack row`);
     }
     // An OPEN row asserts the attack COMPILES and reaches the effect, so no

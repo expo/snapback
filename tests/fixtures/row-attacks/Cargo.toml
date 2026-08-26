@@ -179,6 +179,18 @@ name = "f313"
 path = "src/attacks/f313.rs"
 
 [[bin]]
+name = "f319"
+path = "src/attacks/f319.rs"
+
+[[bin]]
+name = "f320"
+path = "src/attacks/f320.rs"
+
+[[bin]]
+name = "f321"
+path = "src/attacks/f321.rs"
+
+[[bin]]
 name = "negative-routes"
 path = "src/bin/negative_routes.rs"
 

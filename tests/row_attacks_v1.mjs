@@ -21,6 +21,7 @@ test('row-attack ledger carries every measured row and all feature cells', () =>
       'C005', 'C009', 'F094', 'F143', 'F182', 'F112', 'F113', 'C006', 'F115',
       'F149', 'F150', 'F279', 'F280', 'C012', 'F053', 'F145', 'F272', 'F220',
       'F082', 'F129', 'F126', 'F318', 'F314', 'F315', 'F316', 'F317', 'F313',
+      'F319', 'F320', 'F321',
     ],
   );
   assert.deepEqual(ledger.featureCells.map(({ id }) => id), [
@@ -68,6 +69,9 @@ test('row-attack ledger carries every measured row and all feature cells', () =>
       F316: 'CLOSED',
       F317: 'CLOSED',
       F313: 'CLOSED',
+      F319: 'OPEN',
+      F320: 'OPEN',
+      F321: 'OPEN',
     },
   );
   assert.ok(
