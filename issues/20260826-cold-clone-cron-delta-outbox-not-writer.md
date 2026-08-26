@@ -58,3 +58,50 @@ scripts/cold-clone-check.sh
 F-3 credit requires this check to pass. It does not. The gap is one named check with a
 precise diagnostic, which is a far better position than "never run" — but it is not green,
 and no F-3 claim should describe it as such.
+
+## Independent reproduction on `origin/main`
+
+Reproduced at `deb3d79c5` on 2026-08-26 with Node `v24.13.1` and Chrome for
+Testing `152.0.7977.64`. The host does not provide a Chrome sandbox, so the first exact
+cold-clone invocation reached the browser step and stopped with Chrome's `No usable
+sandbox!` infrastructure error. A temporary `CHROME_BIN` wrapper supplying
+`--no-sandbox` then let the unchanged acceptance run directly:
+
+```text
+CHROME_BIN=/home/ccheever/lanes/outbox/scripts/.chrome-headless-no-sandbox.tmp \
+SNAPBACK_REQUIRE_EXACT=1 \
+ALL_ABOARD_VITE_PORT=5271 \
+LD_LIBRARY_PATH=/home/ccheever/lanes/outbox/vendor/ibex/linux/lib \
+node demos/all-aboard/tests/acceptance/browser.mjs
+
+✗ cron-authored delta reaches the browser through the bindings (no pump)
+    SNAPBACK_OUTBOX_NOT_WRITER: this context does not hold single-writer ownership of the client store; the mutation was not queued
+FAIL all-aboard browser (Phase 1) — 33/34
+```
+
+The other 33 checks passed in that same process. In particular, the preceding paved-path
+check returned `livePush: true` and `liveTrainStatus`, `liveDepartures`, and `feedState` all
+as `live`.
+
+## Root cause correction
+
+The diagnostic is real, but the initial attribution above is not: the exception is thrown
+by the acceptance check's preparatory `resetFeed` client mutation, before the cron manual-run
+route is called. The server cron authoring context has no client store and is not the
+non-writer.
+
+The acceptance process constructs several default Node `SnapbackClient` instances for
+server-side cross-check queries and never closes them. Those clients resolve the same
+per-origin file RQS store. The first query client acquires and retains the single-writer
+lock; the fresh client constructed later by the cron check is correctly a reader. A direct
+two-client ownership trace confirmed the lifecycle:
+
+```text
+{"beforeClose":{"firstQueryClientIsWriter":true,"cronCheckClientIsWriter":false}}
+{"afterFirstClose":{"cronCheckClientIsWriter":true}}
+```
+
+Earlier revisions did not expose the leak because a plain string mutation with
+`queue: "auto"` was not always outbox-eligible. The newer enqueue-by-default behavior is
+intentional. The repair must therefore give the acceptance process one explicit client
+lifecycle (and release it at teardown), not bypass or relax the writer invariant.
