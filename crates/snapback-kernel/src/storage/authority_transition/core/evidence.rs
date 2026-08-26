@@ -5,14 +5,15 @@ use super::*;
 // @ref LLP 0313#6-legitimate-minting-ceremonies — this function returns only
 // the consumed transaction permit; evidence never becomes an argument or
 // return value at the core boundary.
-pub(super) fn verify_and_consume<'tx>(
+pub(super) fn verify_and_consume<'tx, 'conn>(
+    sqlite_transaction: &'tx rusqlite::Transaction<'conn>,
     transaction: &'tx TransactionIdentity,
     database_origin: &DatabaseOrigin,
     proof: VerifiedProof,
     mutation: AuthorityMutation,
     successor_digest: [u8; 32],
     commit_time_ms: u64,
-) -> AuthorityTransitionResult<AuthorityWritePermit<'tx>> {
+) -> AuthorityTransitionResult<AuthorityWritePermit<'tx, 'conn>> {
     let write_set = registry::write_set_for(&mutation);
     let single_use_nonce = registry::register_nonce(transaction)?;
     let evidence = KernelVerifiedEvidence {
@@ -30,6 +31,7 @@ pub(super) fn verify_and_consume<'tx>(
     };
     consume(
         evidence,
+        sqlite_transaction,
         ConsumptionExpectation {
             transaction,
             database_origin,
@@ -41,10 +43,11 @@ pub(super) fn verify_and_consume<'tx>(
     )
 }
 
-fn consume<'tx>(
+fn consume<'tx, 'conn>(
     evidence: KernelVerifiedEvidence<'tx>,
+    sqlite_transaction: &'tx rusqlite::Transaction<'conn>,
     expectation: ConsumptionExpectation<'_>,
-) -> AuthorityTransitionResult<AuthorityWritePermit<'tx>> {
+) -> AuthorityTransitionResult<AuthorityWritePermit<'tx, 'conn>> {
     if !evidence
         .transaction
         .database_origin
@@ -96,6 +99,7 @@ fn consume<'tx>(
     }
     permit::activate(
         evidence.transaction,
+        sqlite_transaction,
         evidence.single_use_nonce,
         expectation.mutation,
         evidence.write_set,

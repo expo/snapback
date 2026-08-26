@@ -67,13 +67,14 @@ impl ConnectionAuthorizer {
     }
 }
 
-pub(super) fn activate<'tx>(
+pub(super) fn activate<'tx, 'conn>(
     transaction: &'tx TransactionIdentity,
+    sqlite_transaction: &'tx Transaction<'conn>,
     nonce: NonZeroU128,
     mutation: AuthorityMutation,
     write_set: ProtectedWriteSet,
     successor_digest: [u8; 32],
-) -> AuthorityTransitionResult<AuthorityWritePermit<'tx>> {
+) -> AuthorityTransitionResult<AuthorityWritePermit<'tx, 'conn>> {
     let mut cell = transaction
         .authorizer_permit_cell
         .lock()
@@ -91,6 +92,7 @@ pub(super) fn activate<'tx>(
     drop(cell);
     Ok(AuthorityWritePermit {
         transaction,
+        _sqlite_transaction: sqlite_transaction,
         nonce,
         mutation,
         successor_digest,
@@ -325,7 +327,7 @@ fn authorize_connection_operation(
     }
 }
 
-impl Drop for AuthorityWritePermit<'_> {
+impl Drop for AuthorityWritePermit<'_, '_> {
     fn drop(&mut self) {
         let Ok(mut cell) = self.transaction.authorizer_permit_cell.lock() else {
             return;

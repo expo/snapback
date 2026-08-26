@@ -17,7 +17,7 @@ pub(super) fn create_schema(connection: &Connection) -> rusqlite::Result<()> {
 
 pub(super) fn insert_expected_session(
     transaction: &Transaction<'_>,
-    _permit: &AuthorityWritePermit<'_>,
+    _permit: &AuthorityWritePermit<'_, '_>,
 ) -> rusqlite::Result<usize> {
     transaction.execute("INSERT INTO _auth_sessions(id) VALUES('session-1')", [])
 }
@@ -65,6 +65,7 @@ pub(super) fn insert_dynamic_membership(connection: &Connection) -> rusqlite::Re
 }
 
 #[cfg(test)]
+#[allow(unexpected_cfgs)]
 mod tests {
     use super::super::super::*;
     use super::*;
@@ -153,6 +154,7 @@ mod tests {
             .begin_immediate(&mut connection)
             .expect("begin immediate protected transaction");
         let permit = verifier::consume_verified_proof(
+            &transaction,
             &identity,
             &authorizer.database_origin,
             password_proof(),
@@ -173,8 +175,8 @@ mod tests {
             denied(&mismatch),
             "unexpected write-set mismatch: {mismatch:?}"
         );
-        transaction.commit().expect("commit exact protected write");
         drop(permit);
+        transaction.commit().expect("commit exact protected write");
 
         let after_drop = insert_auth_user(&connection)
             .expect_err("permit drop clears the connection-local cell");
@@ -196,6 +198,7 @@ mod tests {
             .expect("begin immediate protected transaction");
 
         let error = match verifier::consume_verified_proof(
+            &transaction,
             &identity,
             &authorizer.database_origin,
             password_proof(),
@@ -218,4 +221,24 @@ mod tests {
         );
         transaction.rollback().expect("rollback rejected ceremony");
     }
+
+    // These owning-crate probes compile only when the security-boundary gate
+    // supplies its private cfg. They exercise the real private types and
+    // functions; ordinary workspace and product builds never include them.
+    #[cfg(snapback_authority_compile_fail)]
+    include!("compile_fail/obtain_kernel_verified_evidence.rs");
+    #[cfg(snapback_authority_compile_fail)]
+    include!("compile_fail/accept_kernel_verified_evidence.rs");
+    #[cfg(snapback_authority_compile_fail)]
+    include!("compile_fail/clone_kernel_verified_evidence.rs");
+    #[cfg(snapback_authority_compile_fail)]
+    include!("compile_fail/convert_kernel_verified_evidence.rs");
+    #[cfg(snapback_authority_compile_fail)]
+    include!("compile_fail/deserialize_kernel_verified_evidence.rs");
+    #[cfg(snapback_authority_compile_fail)]
+    include!("compile_fail/decompose_kernel_verified_evidence.rs");
+    #[cfg(snapback_authority_compile_fail)]
+    include!("compile_fail/reinstall_kernel_verified_evidence.rs");
+    #[cfg(snapback_authority_compile_fail)]
+    include!("compile_fail/hold_authority_write_permit_across_commit.rs");
 }

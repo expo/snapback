@@ -2,15 +2,17 @@
 
 use super::*;
 
-pub(super) fn consume_verified_proof<'tx>(
+pub(super) fn consume_verified_proof<'tx, 'conn>(
+    sqlite_transaction: &'tx rusqlite::Transaction<'conn>,
     transaction: &'tx TransactionIdentity,
     database_origin: &DatabaseOrigin,
     proof: VerifiedProof,
     mutation: AuthorityMutation,
     successor_digest: [u8; 32],
     commit_time_ms: u64,
-) -> AuthorityTransitionResult<AuthorityWritePermit<'tx>> {
+) -> AuthorityTransitionResult<AuthorityWritePermit<'tx, 'conn>> {
     evidence::verify_and_consume(
+        sqlite_transaction,
         transaction,
         database_origin,
         proof,
