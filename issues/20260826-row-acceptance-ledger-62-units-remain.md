@@ -329,3 +329,45 @@ export, so it is a live feature and not a test-only concept. This needs settling
 parallel filler between review cycles. The practical order stays A → B → C → D → E. Attempting
 deletions out of order buys nothing and risks a rebase against the landing that was supposed to carry
 them.
+
+## The three suspect closures, settled by execution — 2026-08-26 (`250d653bd`)
+
+The Contradictions section above flagged three rows whose closure evidence did not meet LLP 0303
+revision (s). All three were re-tested by **running an alternate composition**, not by reading. One was
+a false closure.
+
+**F182 — OPEN.** It was recorded CLOSED because two obsolete partial APIs no longer compose. The seam
+map's disagreement was correct. The executed composition:
+
+> Open handle A and publish agents mode `Open`. Open handle B on the same SQLite file and publish
+> agents mode `Disabled`. Use the **stale** handle A to call `register_agent_principal`. A third handle
+> then resolves the issued secret and returns the same durable user, credential, and generation.
+
+Reached the effect in **both** production and additive-test-support cells. **No error code fired** —
+the call returned `Ok` at `tests/fixtures/row-attacks/src/attacks/f182.rs:47`, with durable readback
+succeeding at line 60. The ledger has been corrected to OPEN.
+
+**F094 — genuinely CLOSED.** The obsolete `SessionProjection::rebuild` spelling was replaced with a real
+alternate: read database A's public raw projection source, create a public admission controller, combine
+those with database B's public binding via the public `PreparedLocalSessionCoordinator`, and pass it to
+`AuthCoordinator::from_prepared_local_session_database`. Both cells refuse the carrier literal itself
+with **`E0451`** at its private-field span, *before* the consumer. The recorded `expectedCode` is now
+that code rather than the removed spelling's.
+
+**C009 — genuinely CLOSED.** The historical `Clone` route was replayed: clone a real
+`AuthorizationInvalidationConnection`, set the clone's generation to `connection_generation() + 10_000`,
+wrap it in `LiveInvalidationAdmission`, and supply it to the live-resume consumer preceding the
+failure/manual-retry/durable-retry suffix. `Clone` is still available, but both cells refuse the
+never-issued-generation assignment with **`E0616`**, so resume and the durable retry-state operations
+are never reached.
+
+## What this changes
+
+**F182 is the second confirmed false closure**, after F170. Both were recorded CLOSED on compile-fail
+evidence while a runtime route reached the effect through a *second handle*. That is now a named
+pattern rather than a coincidence: **compile-fail evidence cannot see a second-handle route**, because
+nothing about the second handle is a spelling.
+
+The audit's value was in the ratio as much as the finding — two of three suspicions were wrong, and
+saying so is what makes the third credible. Closure counts move to **28 qualifying**, and the open
+floor to **113**.
