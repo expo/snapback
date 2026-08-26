@@ -74203,7 +74203,7 @@ Before proof edits, read `node_modules/@expo/snapback-acceptance/README.md`.
 <!-- script-glossary:begin -->
 ## Script glossary
 
-`prove`: done-oracle; writes the aggregate `snapback verify` receipt.
+`prove`: only done-oracle; writes the aggregate `snapback verify` receipt.
 `npm test`: raw acceptance debug. `test:static`: no-server
 coherence. `carry:headless`, `carry:web-browser`, `carry:native-simulator`:
 observations after `prove`; `carry:self-check`: wiring only. Removed
