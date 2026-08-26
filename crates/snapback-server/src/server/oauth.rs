@@ -688,17 +688,17 @@ pub(super) async fn oauth_token(
     };
     let snapback = runtime.snapback.clone();
     let lifecycle = runtime.auth_terminal_lifecycle.clone();
+    let admission = provider.admit().await;
     let transaction = spawn_owned_auth_transaction(async move {
         with_snapback(&snapback, move |snapback| {
             let issued = with_service_authority_terminal_gate(service_terminal_gate, || {
-                snapback.mint_scoped_token_for_oauth_code(
+                snapback.execute_auth_plan(admission.mint_scoped_token_for_oauth_code_plan(
                     &form.code,
                     &form.client_id,
                     &form.redirect_uri,
                     &form.code_verifier,
                     now_ms,
-                    provider.agent_random_source(),
-                )
+                ))
             })?;
             let token_ids = issued.evicted_token_ids.clone();
             let close_by = terminal_close_by(Instant::now());

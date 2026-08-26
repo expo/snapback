@@ -5916,25 +5916,6 @@ impl LocalSnapback {
             .issue_oauth_authorization_code(consenting_user_id, request_id, now_ms, random)
     }
 
-    pub fn mint_scoped_token_for_oauth_code(
-        &mut self,
-        code: &str,
-        client_id: &str,
-        redirect_uri: &str,
-        verifier: &str,
-        now_ms: u64,
-        random: &dyn crate::auth::crypto::RandomSource,
-    ) -> SnapbackResult<crate::storage::auth_agent_credentials::IssuedScopedToken> {
-        self.db.mint_scoped_token_for_oauth_code(
-            code,
-            client_id,
-            redirect_uri,
-            verifier,
-            now_ms,
-            random,
-        )
-    }
-
     pub fn plan_oauth_scoped_token_service_terminal(
         &self,
         code: &str,

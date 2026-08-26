@@ -3133,6 +3133,32 @@ impl fmt::Debug for AuthAdmission {
 }
 
 impl AuthAdmission {
+    /// Mint an OAuth scoped-token exchange through the admitted provider so
+    /// its entropy dependency cannot be selected independently by the caller.
+    ///
+    /// @ref LLP 0303#the-governing-principle — derive entropy from the authority owner instead of supplying it beside the operation.
+    pub fn mint_scoped_token_for_oauth_code_plan<'a>(
+        &'a self,
+        code: &'a str,
+        client_id: &'a str,
+        redirect_uri: &'a str,
+        verifier: &'a str,
+        now_ms: u64,
+    ) -> impl super::database_plan::AuthDatabasePlan<
+        Output = SnapbackResult<crate::storage::auth_agent_credentials::IssuedScopedToken>,
+    > + 'a {
+        super::database_plan::plan(move |database| {
+            database.mint_scoped_token_for_oauth_code(
+                code,
+                client_id,
+                redirect_uri,
+                verifier,
+                now_ms,
+                self.provider.random.as_ref(),
+            )
+        })
+    }
+
     pub fn plan_guest_session_plan(
         &self,
         now_ms: u64,
