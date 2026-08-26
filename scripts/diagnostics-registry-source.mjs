@@ -365,16 +365,71 @@ function environmentHelperNames(source) {
   return helpers;
 }
 
-function indirectEnvironmentHelperOffsets(source, matches) {
+export function indirectEnvironmentReadContracts(source) {
+  const contracts = [];
+  for (const declaration of source.matchAll(
+    /\bfunction\s+([A-Za-z_$][\w$]*)\s*\(\s*\{([\s\S]{0,4096}?)\}\s*\)\s*\{/gu,
+  )) {
+    const helper = declaration[1];
+    const parameters = declaration[2].split(',').flatMap((entry) => {
+      const normalized = entry.trim().replace(/\s*=.*$/su, '').trim();
+      if (normalized.length === 0 || normalized.startsWith('...')) return [];
+      const [property, binding = property] = normalized.split(':').map((value) => value.trim());
+      return /^[A-Za-z_$][\w$]*$/u.test(property)
+          && /^[A-Za-z_$][\w$]*$/u.test(binding)
+        ? [{ property, binding }]
+        : [];
+    });
+    const environmentBindings = parameters
+      .filter(({ binding }) => isEnvironmentIdentifier(binding))
+      .map(({ binding }) => binding);
+    if (environmentBindings.length === 0) continue;
+    const open = declaration.index + declaration[0].lastIndexOf('{');
+    const body = source.slice(open, matchingBrace(source, open) + 1);
+    for (const { property, binding } of parameters) {
+      if (environmentBindings.includes(binding)) continue;
+      const parameter = escapeRegExp(binding);
+      const readsEnvironment = environmentBindings.some((environmentBinding) => {
+        const environment = escapeRegExp(environmentBinding);
+        return new RegExp(
+          `(?:\\b${environment}(?:\\?\\.)?\\[\\s*${parameter}\\s*\\]|\\bObject\\.hasOwn\\s*\\(\\s*${environment}\\s*,\\s*${parameter}\\b)`,
+          'u',
+        ).test(body);
+      });
+      if (readsEnvironment) contracts.push({ helper, property });
+    }
+  }
+  return contracts.sort((left, right) => (
+    left.helper.localeCompare(right.helper) || left.property.localeCompare(right.property)
+  ));
+}
+
+function helperObjectCallContains(source, helper, offset) {
+  const callPattern = new RegExp(`\\b${escapeRegExp(helper)}\\s*\\(\\s*\\{`, 'gu');
+  for (const call of source.matchAll(callPattern)) {
+    const open = call.index + call[0].lastIndexOf('{');
+    if (open >= offset) break;
+    if (matchingBrace(source, open) > offset) return true;
+  }
+  return false;
+}
+
+function indirectEnvironmentHelperOffsets(source, matches, readContracts) {
   const helpers = [...environmentHelperNames(source)];
-  if (helpers.length === 0) return new Set();
-  const call = new RegExp(
+  const call = helpers.length === 0 ? null : new RegExp(
     `\\b(?:${helpers.map(escapeRegExp).join('|')})\\s*\\(\\s*["']$`,
     'u',
   );
-  return new Set(matches.filter((match) => (
-    call.test(source.slice(Math.max(0, match.index - 256), match.index))
-  )).map((match) => match.index));
+  const contracts = readContracts ?? indirectEnvironmentReadContracts(source);
+  return new Set(matches.filter((match) => {
+    if (call?.test(source.slice(Math.max(0, match.index - 256), match.index))) return true;
+    return contracts.some(({ helper, property }) => (
+      new RegExp(`\\b${escapeRegExp(property)}\\s*:\\s*["']$`, 'u').test(
+        source.slice(Math.max(0, match.index - 256), match.index),
+      )
+      && helperObjectCallContains(source, helper, match.index)
+    ));
+  }).map((match) => match.index));
 }
 
 // This purpose-built tokenizer keeps the generator dependency-free while
@@ -833,7 +888,11 @@ function environmentAnalysis(source, options) {
   for (const offset of javaScriptIndirectEnvironmentOffsets(source)) {
     siteKinds.set(offset, 'declaration');
   }
-  for (const offset of indirectEnvironmentHelperOffsets(source, matches)) {
+  for (const offset of indirectEnvironmentHelperOffsets(
+    source,
+    matches,
+    options.indirectEnvironmentReadContracts,
+  )) {
     siteKinds.set(offset, 'read');
   }
   for (const match of matches) {
@@ -865,10 +924,15 @@ function environmentAnalysis(source, options) {
 
 export function environmentVariableSites(source, {
   environmentNames,
+  indirectEnvironmentReadContracts: readContracts,
   javascript,
   ordinaryMultiline,
 } = {}) {
-  const analysis = environmentAnalysis(source, { javascript, ordinaryMultiline });
+  const analysis = environmentAnalysis(source, {
+    indirectEnvironmentReadContracts: readContracts,
+    javascript,
+    ordinaryMultiline,
+  });
   const classifiedNames = environmentNames ?? analysis.names;
   return analysis.matches.flatMap((match) => {
     const kind = analysis.siteKinds.get(match.index);
@@ -1060,11 +1124,7 @@ function hasReceivedMembershipConsumer(source, open, close) {
   if (member === undefined) return false;
 
   const after = source.slice(close + 1);
-  const directConsumption = new RegExp(
-    `\\b${escapeRegExp(member)}\\s*\\.(?:has|includes)\\s*\\(`,
-    'u',
-  );
-  if (directConsumption.test(after)) return true;
+  if (membershipConsumerFor(member, after)) return true;
 
   for (const derived of source.matchAll(
     /\bconst\s+([A-Za-z_$][\w$]*)\s*=\s*new\s+Set\s*\(([^)]*)\)/gu,
@@ -1079,13 +1139,107 @@ function hasReceivedMembershipConsumer(source, open, close) {
   return false;
 }
 
-function receivedProtocolOffsets(source, matches) {
+function matchingDelimiter(source, open) {
+  const pairs = { '(': ')', '[': ']', '{': '}' };
+  const stack = [pairs[source[open]]];
+  let quote = null;
+  let escaped = false;
+  for (let index = open + 1; index < source.length; index += 1) {
+    const character = source[index];
+    if (quote !== null) {
+      if (escaped) escaped = false;
+      else if (character === '\\') escaped = true;
+      else if (character === quote) quote = null;
+      continue;
+    }
+    if (source.startsWith('//', index)) {
+      const newline = source.indexOf('\n', index + 2);
+      if (newline === -1) return source.length;
+      index = newline;
+      continue;
+    }
+    if (source.startsWith('/*', index)) {
+      const close = source.indexOf('*/', index + 2);
+      if (close === -1) return source.length;
+      index = close + 1;
+      continue;
+    }
+    if (character === '"' || character === "'" || character === '`') {
+      quote = character;
+      continue;
+    }
+    if (pairs[character]) {
+      stack.push(pairs[character]);
+      continue;
+    }
+    if (character === stack.at(-1)) {
+      stack.pop();
+      if (stack.length === 0) return index;
+    }
+  }
+  return source.length;
+}
+
+function membershipConsumerFor(member, after, { objectTable = false } = {}) {
+  const name = escapeRegExp(member);
+  if (objectTable) {
+    return (
+      new RegExp(`\\bin\\s+(?:(?:Self|self|this)\\.)?${name}\\b`, 'u').test(after)
+      || new RegExp(`\\bObject\\.hasOwn\\s*\\(\\s*(?:(?:Self|self|this)\\.)?${name}\\s*,`, 'u').test(after)
+    );
+  }
+  return new RegExp(
+    `(?:\\b(?:Self|self|this)\\.)?\\b${name}\\s*\\.(?:has|includes|contains)\\s*\\(`,
+    'u',
+  ).test(after);
+}
+
+function receivedMembershipTables(source) {
+  const tables = [];
+  const declarations = [
+    /\b(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:(?:Object\.freeze|new\s+(?:Set|Map)|Set(?:<[^>]+>)?)\s*\(\s*)?([\[{])/gu,
+    /\b(?:(?:private|public|internal|fileprivate|open)\s+)?(?:static\s+)?let\s+([A-Za-z_$][\w$]*)\s*:\s*[^=\n]{0,256}=\s*(?:Set(?:<[^>]+>)?\s*\(\s*)?([\[])/gu,
+    /\b(?:pub\s+)?(?:const|static)\s+([A-Z][A-Z0-9_]*)\s*:[^=]{0,256}=\s*&?([\[])/gu,
+  ];
+  for (const pattern of declarations) {
+    for (const declaration of source.matchAll(pattern)) {
+      const open = declaration.index + declaration[0].lastIndexOf(declaration[2]);
+      const close = matchingDelimiter(source, open);
+      if (close === source.length) continue;
+      const after = source.slice(close + 1);
+      const objectTable = declaration[2] === '{';
+      if (membershipConsumerFor(declaration[1], after, {
+        objectTable,
+      })) {
+        tables.push({ open, close, objectTable });
+      }
+    }
+  }
+  return tables;
+}
+
+function receivedProtocolOffsets(source, matches, environmentNames) {
   const offsets = new Set();
   for (const match of matches) {
+    if (environmentNames.has(match[0])) continue;
     if (!isCodeReferenceCatalogue(source, match.index)) continue;
     const open = source.lastIndexOf('[', match.index);
     const close = source.indexOf(']', match.index);
     if (hasReceivedMembershipConsumer(source, open, close)) offsets.add(match.index);
+  }
+  const tables = receivedMembershipTables(source);
+  for (const match of matches) {
+    if (environmentNames.has(match[0])) continue;
+    if (tables.some(({ open, close, objectTable }) => (
+      open < match.index
+      && match.index < close
+      && (
+        !objectTable
+        || /^(?:["'])?\s*:/u.test(source.slice(match.index + match[0].length))
+      )
+    ))) {
+      offsets.add(match.index);
+    }
   }
   return offsets;
 }
@@ -1139,15 +1293,20 @@ function diagnosticSiteKind(source, match, analysis, environmentNames) {
 
 export function diagnosticSourceSites(source, {
   environmentNames,
+  indirectEnvironmentReadContracts: readContracts,
   javascript,
   ordinaryMultiline,
   receivedProtocolVocabulary = false,
 } = {}) {
-  const analysis = environmentAnalysis(source, { javascript, ordinaryMultiline });
-  analysis.receivedOffsets = receivedProtocolVocabulary
-    ? receivedProtocolOffsets(source, analysis.matches)
-    : new Set();
+  const analysis = environmentAnalysis(source, {
+    indirectEnvironmentReadContracts: readContracts,
+    javascript,
+    ordinaryMultiline,
+  });
   const classifiedNames = environmentNames ?? analysis.names;
+  analysis.receivedOffsets = receivedProtocolVocabulary
+    ? receivedProtocolOffsets(source, analysis.matches, classifiedNames)
+    : new Set();
   const sites = analysis.matches.flatMap((match) => {
     const kind = diagnosticSiteKind(source, match, analysis, classifiedNames);
     return kind === null ? [] : [{ match, kind }];

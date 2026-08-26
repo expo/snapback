@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { createHash } from 'node:crypto';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { runCli } from './index.mjs';
@@ -96,6 +104,80 @@ assert.match(
   formatGuideReferenceLookup(dualRole),
   /snapback[^]*environment variable[^]*Environment sites:[^]*- read: targets\/cloudflare\/src\/coordinator\.js:/u,
 );
+
+const syntheticRoot = mkdtempSync(join(tmpdir(), 'snapback-reference-lookup-'));
+try {
+  const syntheticName = 'SNAPBACK_SYNTHETIC_DUAL_ROLE_PAGINATION';
+  const sites = (owner) => Array.from({ length: 25 }, (_, index) => ({
+    file: `synthetic/${owner}-${String(index + 1).padStart(2, '0')}.mjs`,
+    line: index + 1,
+    column: 1,
+    ...(owner === 'environment' ? { kind: 'read' } : {}),
+  }));
+  const symbolRegistry = {
+    schemaVersion: 'snapback-symbol-registry.v1',
+    buildIdentity: { sourceDigest: 'sha256:synthetic-symbols' },
+    limits: { lookupBytes: 16_384 },
+    modules: [],
+    symbols: [],
+  };
+  const diagnosticsRegistry = {
+    schemaVersion: 'snapback-diagnostics-registry.v1',
+    buildIdentity: { sourceDigest: 'sha256:synthetic-diagnostics' },
+    diagnostics: {
+      [syntheticName]: {
+        code: syntheticName,
+        subsystem: 'synthetic',
+        sites: sites('diagnostic'),
+        httpStatus: null,
+        httpStatusClass: null,
+        guideAnchor: null,
+        guideAnchors: [],
+      },
+    },
+    environment: {
+      [syntheticName]: { name: syntheticName, sites: sites('environment') },
+    },
+  };
+  const symbolBytes = Buffer.from(`${JSON.stringify(symbolRegistry)}\n`);
+  const diagnosticsBytes = Buffer.from(`${JSON.stringify(diagnosticsRegistry)}\n`);
+  const digest = (bytes) => createHash('sha256').update(bytes).digest('hex');
+  const manifest = {
+    contentHash: 'synthetic-guide',
+    buildIdentity: { commit: 'synthetic' },
+    resources: {
+      'reference.symbol-registry': {
+        sha256: digest(symbolBytes),
+        sourceDigest: symbolRegistry.buildIdentity.sourceDigest,
+      },
+      'reference.diagnostics-registry': {
+        sha256: digest(diagnosticsBytes),
+        sourceDigest: diagnosticsRegistry.buildIdentity.sourceDigest,
+      },
+    },
+  };
+  mkdirSync(join(syntheticRoot, 'guide', 'reference'), { recursive: true });
+  writeFileSync(join(syntheticRoot, 'guide', 'reference', 'registry.json'), symbolBytes);
+  writeFileSync(
+    join(syntheticRoot, 'guide', 'reference', 'diagnostics-registry.json'),
+    diagnosticsBytes,
+  );
+  writeFileSync(
+    join(syntheticRoot, 'guide', 'guide-manifest.generated.json'),
+    `${JSON.stringify(manifest)}\n`,
+  );
+  const pagedDualRole = lookupGuideReference([syntheticName], {
+    projectRoot: syntheticRoot,
+    includeDiagnosticSites: true,
+    lookupBudgetBytes: 2_800,
+  });
+  assert.equal(pagedDualRole.match, 'diagnostic-environment-slice');
+  assert.ok(pagedDualRole.diagnostic.sites.length > 0);
+  assert.ok(pagedDualRole.environment.sites.length > 0);
+  assert.ok(Buffer.byteLength(JSON.stringify(pagedDualRole)) <= 2_800);
+} finally {
+  rmSync(syntheticRoot, { recursive: true, force: true });
+}
 
 const large = lookupGuideReference(['SnapbackClient'], { projectRoot: root });
 assert.equal(large.match, 'symbol-slice');

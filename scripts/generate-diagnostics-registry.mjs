@@ -22,10 +22,11 @@
 // spelling whose concrete emitter is dynamic, or a retired spelling in the
 // stable vocabulary, use `diagnostics-registry: reserved SNAPBACK_X` there;
 // reservations are published with their own site kind and do not count as
-// emissions. Closed code-literal Sets/arrays in shipped client packages count
-// as `received` vocabulary when the table flows to a `.has(code)` or
-// `.includes(code)` dispatch membership test. Ambiguous receive tables use
-// `diagnostics-registry: received SNAPBACK_X` on the literal line instead.
+// emissions. Closed code-literal Set, Map, array, and object tables in shipped
+// protocol consumers count as `received` vocabulary when membership gates
+// acceptance through `.has`, `.includes`, `.contains`, `in`, or
+// `Object.hasOwn`. Ambiguous receive tables use `diagnostics-registry: received
+// SNAPBACK_X` on the literal line instead.
 // Object-literal keys passed to known secret/environment writers and keys in
 // spawned-process `env: { ... }` options are environment writes. For a custom
 // writer the classifier cannot recognize, put
@@ -49,6 +50,7 @@ import {
   DIAGNOSTICS_RUST_PRODUCTION_ROOTS,
   diagnosticSourceSites,
   environmentVariableSites,
+  indirectEnvironmentReadContracts,
 } from './diagnostics-registry-source.mjs';
 import { authoritiesDigest } from './guide-lib.mjs';
 
@@ -100,6 +102,13 @@ const diagnosticCatalogPaths = [
   // handler profile, but it does not emit the diagnostics itself. Keep it in
   // the registry input digest below without treating catalog entries as sites.
   'packages/snapback-codegen/handler-runtime-profile.mjs',
+];
+const classificationContractPaths = [
+  // Package prepare scripts import this repository-owned helper during
+  // assembly. Its named argument flows into `environment[...]`, so the helper
+  // contract is an input even though the helper itself is not an emitted-site
+  // production carrier.
+  'scripts/runtime-package-authority.mjs',
 ];
 
 function acceptRustProductionPath(path) {
@@ -245,12 +254,6 @@ function shippedPackageProductionPaths() {
 }
 
 const packageProductionPaths = shippedPackageProductionPaths();
-const shippedClientProtocolRoots = Object.freeze([
-  'packages/snapback-admin-client/',
-  'packages/snapback-client/',
-  'packages/snapback-expo/',
-  'packages/snapback-react/',
-]);
 const targetProductionPaths = walk(join(root, 'targets'), (path) => (
   /\.(?:cjs|js|mjs)$/u.test(path)
   && !isExcludedProductionJavaScript(path)
@@ -345,9 +348,14 @@ function collectSites() {
   const sources = new Map(productionPaths.map((path) => (
     [path, readFileSync(join(root, path), 'utf8')]
   )));
+  const readContracts = [
+    ...sources.values(),
+    ...classificationContractPaths.map((path) => readFileSync(join(root, path), 'utf8')),
+  ].flatMap(indirectEnvironmentReadContracts);
   const environmentNames = new Set();
   for (const [path, source] of sources) {
     for (const { match } of environmentVariableSites(source, {
+      indirectEnvironmentReadContracts: readContracts,
       javascript: /\.(?:cjs|js|mjs)$/u.test(path),
       ordinaryMultiline: path.endsWith('.rs'),
     })) {
@@ -361,14 +369,14 @@ function collectSites() {
     const source = sources.get(path);
     const sourceOptions = {
       environmentNames,
+      indirectEnvironmentReadContracts: readContracts,
       javascript: /\.(?:cjs|js|mjs)$/u.test(path),
       ordinaryMultiline: path.endsWith('.rs'),
-      // These are public client arms selected from their shipped package
-      // manifests above. A closed literal table must also feed a dispatch
-      // membership test; all other catalogues remain reference-only.
-      receivedProtocolVocabulary: shippedClientProtocolRoots.some((rootPath) => (
-        path.startsWith(rootPath)
-      )),
+      // Every inventoried path is a shipped package, operator target, native
+      // client, or production Rust owner. Only literal tables that feed a
+      // membership acceptance gate classify as received vocabulary; inert
+      // catalogues remain reference-only.
+      receivedProtocolVocabulary: true,
     };
     for (const { match, kind, synthetic } of diagnosticSourceSites(source, sourceOptions)) {
       const code = match[0];
@@ -671,6 +679,7 @@ const inputPaths = [
   'scripts/generate-diagnostics-registry.mjs',
   'scripts/diagnostics-registry-source.mjs',
   ...diagnosticCatalogPaths,
+  ...classificationContractPaths,
   'scripts/guide-lib.mjs',
   ...productionPaths,
   ...walk(join(root, 'guide'), (path) => (

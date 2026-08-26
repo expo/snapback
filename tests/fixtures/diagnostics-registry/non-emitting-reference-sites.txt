@@ -22,6 +22,17 @@ const injectedTrace = environment.SNAPBACK_FIXTURE_JS_INJECTED_TRACE;
 const helperTrace = env('SNAPBACK_FIXTURE_JS_HELPER_TRACE');
 function requiredEnvironment(name) { return process.env[name]; }
 const indirectHelperTrace = requiredEnvironment('SNAPBACK_FIXTURE_JS_INDIRECT_HELPER');
+function installReceipt({ receiptEnvironmentName, environment = process.env }) {
+  return environment[receiptEnvironmentName];
+}
+installReceipt({
+  receiptEnvironmentName: 'SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_FILE',
+  environment,
+});
+installReceipt({
+  receiptEnvironmentName: 'SNAPBACK_RUNTIME_LINUX_X64_QUALIFICATION_RECEIPT',
+  environment,
+});
 const DERIVED_INSTANCE_ID_BINDING = 'SNAPBACK_FIXTURE_OPAQUE_INDIRECT_ENV';
 const opaqueInjectedTrace = env[DERIVED_INSTANCE_ID_BINDING];
 const opaqueOptionalTrace = this.env?.[DERIVED_INSTANCE_ID_BINDING];

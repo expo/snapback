@@ -52,7 +52,7 @@ test('diagnostic source classifier excludes environment reads per site and retai
     '../tests/fixtures/diagnostics-registry/non-emitting-reference-sites.txt',
   ), 'utf8');
 
-  assert.equal([...fixture.matchAll(/SNAPBACK_[A-Z0-9_]+/gu)].length, 85);
+  assert.equal([...fixture.matchAll(/SNAPBACK_[A-Z0-9_]+/gu)].length, 87);
 
   const sourceOptions = { ordinaryMultiline: true };
   assert.deepEqual(
@@ -169,6 +169,40 @@ test('diagnostic source classifier excludes environment reads per site and retai
       .filter(({ match }) => environmentMutationKinds.has(match[0]))
       .map(({ match, kind }) => ({ name: match[0], kind })),
     [...environmentMutationKinds].map(([name, kind]) => ({ name, kind })),
+  );
+
+  const canonicalReadSites = new Map([
+    ['SNAPBACK_FIXTURE_RUST_TRACE', 'if std::env::var_os("SNAPBACK_FIXTURE_RUST_TRACE").is_some() {'],
+    ['SNAPBACK_FIXTURE_JS_TRACE', 'const trace = process.env.SNAPBACK_FIXTURE_JS_TRACE;'],
+  ]);
+  assert.deepEqual(
+    environmentVariableSites(fixture, sourceOptions)
+      .filter(({ match }) => canonicalReadSites.has(match[0]))
+      .map(({ match, kind }) => ({
+        name: match[0],
+        line: fixture.slice(
+          fixture.lastIndexOf('\n', match.index - 1) + 1,
+          fixture.indexOf('\n', match.index),
+        ),
+        kind,
+      })),
+    [...canonicalReadSites].map(([name, line]) => ({ name, line, kind: 'read' })),
+  );
+
+  const helperArgumentEnvironmentNames = [
+    'SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_FILE',
+    'SNAPBACK_RUNTIME_LINUX_X64_QUALIFICATION_RECEIPT',
+  ];
+  assert.deepEqual(
+    environmentVariableSites(fixture, sourceOptions)
+      .filter(({ match }) => helperArgumentEnvironmentNames.includes(match[0]))
+      .map(({ match, kind }) => ({ name: match[0], kind })),
+    helperArgumentEnvironmentNames.map((name) => ({ name, kind: 'read' })),
+  );
+  assert.deepEqual(
+    diagnosticSourceSites(fixture, sourceOptions)
+      .filter(({ match }) => helperArgumentEnvironmentNames.includes(match[0])),
+    [],
   );
 
   assert.deepEqual(
@@ -313,7 +347,10 @@ test('generated registry retains target emitters and dynamic artifact-header emi
       (site) => site.file.startsWith('targets/cloudflare/src/'),
     ) ?? [];
     assert.ok(sites.length > 0, `${code} must retain a Cloudflare production emitting site`);
-    assert.ok(sites.every((site) => site.kind === undefined));
+    assert.ok(
+      sites.some((site) => site.kind === undefined),
+      `${code} must retain an emission when the same target also receives it`,
+    );
   }
 
   const artifactHeaderCodes = [
@@ -353,6 +390,11 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     registry.environment.SNAPBACK_DERIVED_INSTANCE_ID.sites.map(({ file, kind }) => ({ file, kind })),
     [{ file: 'targets/cloudflare/src/network-profile.js', kind: 'declaration' }],
   );
+
+  for (const name of ['SNAPBACK_GENERATED_AT_MS', 'SNAPBACK_OUTBOUND_ACTIONS']) {
+    assert.equal(registry.diagnostics[name], undefined, `${name} is not received diagnostics`);
+    assert.ok(registry.environment[name], `${name} remains environment vocabulary`);
+  }
 
   for (const binding of [
     'SNAPBACK_SUBSCRIPTION_PER_CONNECTION_LIMIT',
@@ -453,7 +495,6 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     'SNAPBACK_AUTH_MODE_CHANGED',
     'SNAPBACK_OPERATION_CANCELLED',
     'SNAPBACK_ADMIN_SECRET_READ_MINT_DENIED',
-    'SNAPBACK_API_BUDGETS_UNAVAILABLE',
     'SNAPBACK_AUTHORITY_ROSTER_CURSOR_INVALID',
     'SNAPBACK_BRANCH_CAPTURE_ONLY_MISSING',
     'SNAPBACK_PROMOTION_EFFECT_INTENT_MISSING',
@@ -466,6 +507,38 @@ test('generated registry retains target emitters and dynamic artifact-header emi
         && site.kind === 'reserved'
       )),
       `${code} must retain its HTTP-table reservation`,
+    );
+  }
+
+  assert.ok(
+    registry.diagnostics.SNAPBACK_API_BUDGETS_UNAVAILABLE?.sites.some((site) => (
+      site.file === 'packages/snapback-codegen/index.mjs'
+      && site.kind === 'received'
+    )),
+    'SNAPBACK_API_BUDGETS_UNAVAILABLE must retain its shipped codegen receive table',
+  );
+  assert.equal(
+    registry.diagnostics.SNAPBACK_API_BUDGETS_UNAVAILABLE.sites.some(
+      (site) => site.kind === 'reserved',
+    ),
+    false,
+    'SNAPBACK_API_BUDGETS_UNAVAILABLE is not an HTTP-table-only reservation',
+  );
+
+  for (const [name, file] of [
+    [
+      'SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_FILE',
+      'packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs',
+    ],
+    [
+      'SNAPBACK_RUNTIME_LINUX_X64_QUALIFICATION_RECEIPT',
+      'packages/snapback-runtime-linux-x64/prepare-runtime.mjs',
+    ],
+  ]) {
+    assert.equal(registry.diagnostics[name], undefined, `${name} is not a diagnostic`);
+    assert.ok(
+      registry.environment[name]?.sites.some((site) => site.file === file && site.kind === 'read'),
+      `${name} must retain its indirect helper-argument environment read`,
     );
   }
 
@@ -538,6 +611,35 @@ test('diagnostic source classifier retains explicitly marked received vocabulary
   assert.deepEqual(
     diagnosticSourceSites(source).map(({ match, kind }) => ({ code: match[0], kind })),
     [{ code: 'SNAPBACK_FIXTURE_AMBIGUOUS_RECEIVED', kind: 'received' }],
+  );
+});
+
+test('received protocol classifier follows shipped membership-table idioms', () => {
+  const source = [
+    "const SET_CODES = new Set(['SNAPBACK_FIXTURE_RECEIVED_SET']);",
+    'if (SET_CODES.has(receivedCode)) accept();',
+    "const ARRAY_CODES = ['SNAPBACK_FIXTURE_RECEIVED_ARRAY'];",
+    'if (ARRAY_CODES.includes(receivedCode)) accept();',
+    "const MAP_CODES = new Map([['SNAPBACK_FIXTURE_RECEIVED_MAP', 'accepted']]);",
+    'if (MAP_CODES.has(receivedCode)) accept();',
+    "const OBJECT_CODES = Object.freeze({ SNAPBACK_FIXTURE_RECEIVED_OBJECT: 'accepted' });",
+    'if (receivedCode in OBJECT_CODES) accept();',
+    'private static let swiftCodes: Set<String> = [',
+    '  "SNAPBACK_FIXTURE_RECEIVED_SWIFT",',
+    ']',
+    'if Self.swiftCodes.contains(receivedCode) { accept() }',
+  ].join('\n');
+
+  assert.deepEqual(
+    diagnosticSourceSites(source, { receivedProtocolVocabulary: true })
+      .map(({ match, kind }) => ({ code: match[0], kind })),
+    [
+      { code: 'SNAPBACK_FIXTURE_RECEIVED_SET', kind: 'received' },
+      { code: 'SNAPBACK_FIXTURE_RECEIVED_ARRAY', kind: 'received' },
+      { code: 'SNAPBACK_FIXTURE_RECEIVED_MAP', kind: 'received' },
+      { code: 'SNAPBACK_FIXTURE_RECEIVED_OBJECT', kind: 'received' },
+      { code: 'SNAPBACK_FIXTURE_RECEIVED_SWIFT', kind: 'received' },
+    ],
   );
 });
 

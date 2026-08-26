@@ -176,10 +176,17 @@ function budgetedDiagnosticEnvironment(
 
   const diagnosticSites = Array.isArray(diagnostic.sites) ? diagnostic.sites : [];
   const environmentSites = Array.isArray(environment.sites) ? environment.sites : [];
-  const sites = [
-    ...diagnosticSites.map((site) => ({ owner: 'diagnostic', site })),
-    ...environmentSites.map((site) => ({ owner: 'environment', site })),
-  ];
+  const sites = Array.from(
+    { length: Math.max(diagnosticSites.length, environmentSites.length) },
+    (_, index) => [
+      ...(diagnosticSites[index] === undefined
+        ? []
+        : [{ owner: 'diagnostic', site: diagnosticSites[index] }]),
+      ...(environmentSites[index] === undefined
+        ? []
+        : [{ owner: 'environment', site: environmentSites[index] }]),
+    ],
+  ).flat();
   const pageSize = 24;
   const start = (slice - 1) * pageSize;
   const visible = sites.slice(start, start + pageSize);
