@@ -6,7 +6,10 @@
 **Author:** codex `gpt-5.6-sol` (read-only design), commissioned by Claude (Opus 5)
 orchestrating LLP 0283 F-1, for Charlie Cheever
 **Date:** 2026-08-26
-**Revised:** 2026-08-26 (a — initial design)
+**Revised:** 2026-08-26 (b — Landing A design replacement: connection-owned
+enforcement, generative scoped borrow, private derivation, fixed SQL, and an
+executing runtime gate supersede the rejected retainable permit design); 2026-08-26
+(a — initial design)
 **Related:** LLP 0283 (F-1), LLP 0285 (§5.1, §6 — superseded in part by this document),
 LLP 0291 (the enumerated forgery surface), LLP 0303, LLP 0284, LLP 0225
 
@@ -34,9 +37,18 @@ programme, which is a staffing decision, not an engineering one.
 
 **[INFERRED]** Supersede LLP 0285 §5.1 and historical step 5. Do not merge or recreate additive `ResolvedPrincipal`.
 
-**[INFERRED]** Retain LLP 0291 §4’s `KernelVerifiedEvidence` shape, strengthened by LLP 0303. Evidence is module-private—not merely opaque or `pub(crate)`—and bound to the current database resource, creator process, transaction, subject, authority class, purpose, durable predecessors, verified time, exact write set, and successor digest.
+**[INFERRED]** Retain LLP 0291 §4’s verification obligations, strengthened by
+LLP 0303, but do not embody their correspondence in a retainable evidence or
+permit value. The connection-owning core privately verifies and derives the
+subject, purpose, exact fixed writer, durable predecessors, time, and successor
+inside the exact transaction and generative scope that commits them.
 
-**[INFERRED]** Do not expose a commit function accepting evidence. The public surface consists only of exact `ServingDatabase` ceremonies accepting untrusted selectors, raw possession material, provider cryptographic artifacts, or ordinary payload. The private kernel core performs verification, derives every authority fact, mints evidence, consumes it, and commits in one transaction.
+**[INFERRED]** Do not expose a commit function accepting evidence. The public
+surface consists only of exact `ServingDatabase` ceremonies accepting untrusted
+selectors, raw possession material, provider cryptographic artifacts, or
+ordinary payload. The private kernel core owns the connection, verifies and
+derives every authority fact, enters the protected effect scope, runs one fixed
+writer, invalidates the scope, and commits in one control flow.
 
 **[INFERRED]** Narrow the row programme. Pause independent authority-carrier fixes; retain subtractive deletion, behavioral evidence, hostile compositions, and concurrency work that survives the reset. Use the rows as the reset’s acceptance ledger.
 
@@ -85,24 +97,17 @@ storage/authority_transition/mod.rs
     // exact public inherent methods on ServingDatabase
 
 storage/authority_transition/core/mod.rs
-    mod evidence;
-    mod permit;
+    mod evidence;    // private verify -> derive -> scope -> commit control flow
     mod registry;
-    mod verifier;
-    mod bearer;
-    mod password;
-    mod recovery;
-    mod delivery;
-    mod step_up;
-    mod administrator;
-    mod internal_work;
-    mod writers;
+    mod writers;     // fixed SQL only
 
 storage/authority_transition/core/writers/*.rs
     pub(super) functions only
 ```
 
-**[INFERRED]** `KernelVerifiedEvidence`, `VerifiedSubject`, `AuthorityClass`, `AuthorityPurpose`, `DurablePredecessor`, `VerifiedTime`, `AuthorityMutation`, permits, and transaction identity use inherited visibility inside `core`. They are not `pub(crate)`.
+**[INFERRED]** `GuardedConnection`, `ProtectedTx`, proof-verifier state, derived
+mutation state, the closed operation registry, and scope state use inherited
+visibility inside `core`. They are not `pub(crate)`.
 
 **[INFERRED]** `ServingDatabase` remains public with private fields. `LocalDatabase` becomes `pub(crate)`.
 
@@ -118,53 +123,61 @@ storage/authority_transition/core/writers/*.rs
 
 **[INFERRED]** `DatabaseBinding` remains public and cloneable because it is powerless. Strengthen it to contain durable store identity, live graph allocation identity, and creator-process identity. Matching checks the current process so inherited post-fork bindings fail closed.
 
-## 4. Private evidence and permits
+## 4. Connection-owned scope and private derivation
 
-**[INFERRED]** The evidence type is structurally:
+**[INFERRED]** The rejected Landing A permit design is superseded. There is no
+caller-visible or retainable `AuthorityTransaction`, `AuthorityWritePermit`,
+`ActivePermit`, transaction identity, nonce, connection epoch, mutation, write
+set, or successor that can be paired after verification.
+
+**[INFERRED]** `GuardedConnection` owns the actual `rusqlite::Connection`,
+durable origin, resource binding, statement-cache policy, and authorizer cell.
+The cell contains only one canonical `ScopePhase`; the generation moves inside
+that phase across `Idle`, `Active`, and `Committing`. It contains no copied
+origin, resource binding, database identity, lifecycle generation, or other
+proxy that is compared later. The owner installs the authorizer once while
+taking ownership. There is no reusable
+`install(&self, connection)` and no raw `Connection` accessor, conversion, or
+dereference.
+
+**[INFERRED]** Scope opening is private to `core::evidence`. An exact ceremony
+accepts raw proof/selectors and ordinary payload only, begins `IMMEDIATE`, reads
+the durable resource guard on that exact connection inside the transaction,
+verifies the proof, and privately derives the exact operation and successor.
+No scope-opening argument supplies a write set, nonce, mutation, epoch,
+generation, or successor.
+
+**[INFERRED]** The privately selected writer is called through a higher-ranked
+borrow:
 
 ```rust
-struct KernelVerifiedEvidence<'tx> {
-    transaction: &'tx TransactionIdentity,
-    single_use_nonce: NonZeroU128,
-    proof_kind: ProofKind,
-    subject: VerifiedSubject,
-    authority_class: AuthorityClass,
-    purpose: AuthorityPurpose,
-    predecessors: NonEmpty<DurablePredecessor>,
-    time: VerifiedTime,
-    write_set: ProtectedWriteSet,
-    successor_digest: [u8; 32],
-    _not_send_sync: PhantomData<Rc<()>>,
-}
+for<'scope> FnOnce(&mut ProtectedTx<'scope>, &DerivedExactEffect) -> Result<T>
 ```
 
-**[INFERRED]** `ProofKind` has exactly:
+`ProtectedTx` does not implement `Deref`, expose `Connection` or
+`rusqlite::Transaction`, commit or roll back, accept arbitrary SQL, prepare or
+return statements, create savepoints, or access a statement cache.
 
-```text
-Bearer
-Password
-RecoveryCode
-DeliveryProof
-StepUpProof
-AdministratorAnchor
-SealedInternalService
-```
+**[INFERRED]** The wrapper alone transitions
+`Idle(generation) -> Active(generation + 1) -> Committing -> Idle`, advances
+the one canonical generation, and commits or rolls back. The authorizer derives permission from that
+connection-owned lifecycle state; no `Weak<...>` allocation is a transaction
+liveness oracle.
 
-**[INFERRED]** `AuthorityClass` contains only derived classes such as human, delegated service, autonomous service, operator, internal work, and non-production rehearsal. It contains no `System`, `Admin`, `Anonymous`, `Seed`, or `Import`.
+**[INFERRED]** Every protected writer lives below `core::writers`, receives
+only `ProtectedTx<'scope>` plus privately derived exact values, and contains
+registered fixed/parameterized SQL. The production surface contains no generic
+execute/prepare method and no transaction-control SQL.
 
-**[INFERRED]** Anonymous access is absence of credentials under a purpose policy derived from active configuration—not an authority value.
+**[INFERRED]** `REPLACE` is not a protected operation. SQLite reports
+`REPLACE` as `INSERT`, so the authorizer cannot distinguish it. Replacement is
+therefore made unrepresentable by fixed writer SQL; duplicate keys must refuse
+with a constraint error and leave the predecessor row unchanged.
 
-**[INFERRED]** Evidence has exactly one syn-visible struct literal. It has no named constructor, `Clone`, `Copy`, `Default`, serde, conversions, `FromStr`, getters exposing components, `Debug` of evidence, callback decomposition, or cross-thread transfer.
-
-**[INFERRED]** `TransactionIdentity` is created at `BEGIN IMMEDIATE` or the protected read cut. It contains the database origin, nonzero connection epoch, nonce registry, and connection-local authorizer permit cell.
-
-**[INFERRED]** Evidence consumption validates the current process, database origin, transaction identity, nonce, proof/purpose/class relation, predecessors, time, mutation discriminant, write set, and successor digest. It removes the nonce and returns a private transaction-lifetime permit.
-
-**[INFERRED]** `AuthorityPurpose` and `AuthorityMutation` are closed, one-to-one enums. Multi-table ceremonies are one composite mutation rather than separately callable writes.
-
-**[INFERRED]** Every protected writer lives below `core::writers`, accepts a private permit, and has at most `pub(super)` visibility.
-
-**[INFERRED]** The SQLite authorizer denies protected inserts, updates, deletes, replacements, triggers, schema operations, attached-database access, and dynamic membership effects unless the active permit’s exact write set authorizes them.
+**[INFERRED]** Anonymous access remains absence of credentials under a purpose
+policy derived from active configuration—not an authority value. Exact
+ceremonies for bearer, recovery, delivery, step-up, administrator, and internal
+work remain later-land work; Landing A exposes none of them.
 
 ## 5. Public prepared operations
 
@@ -200,11 +213,15 @@ pub struct PreparedOperation<Kind> {
 
 1. **[INFERRED]** An exact public ceremony accepts raw proof material, cryptographic artifact, work identifier, and ordinary payload.
 2. **[INFERRED]** Expensive cryptography runs under kernel custody outside the writer and returns a private row-digest/generation-bound computation—not a Boolean.
-3. **[INFERRED]** The core opens the transaction and allocates transaction identity, nonce, and verified time.
+3. **[INFERRED]** The connection-owning core opens `BEGIN IMMEDIATE`, advances
+   its private scope generation, and derives verified time.
 4. **[INFERRED]** It reloads every subject, proof, policy, generation, scope, work, and anchor predecessor from that database.
 5. **[INFERRED]** It derives subject, authority class, purpose, writer, provenance, scopes, time, write set, and successor.
-6. **[INFERRED]** It constructs the sole evidence literal.
-7. **[INFERRED]** It immediately consumes evidence into the permit and performs one composite mutation or creates one exact prepared operation.
+6. **[INFERRED]** It selects the one exact fixed writer and privately enters a
+   generative `ProtectedTx<'scope>` borrow.
+7. **[INFERRED]** The wrapper performs one composite mutation, transitions to
+   `Committing`, invalidates the scope, and alone commits; no authority value
+   crosses that sequence.
 8. **[INFERRED]** Commit uncertainty is reconciled through a powerless operation ID and exact durable receipt, never retained evidence.
 9. **[INFERRED]** Publication revalidates all session, service, room, connection, mode, and exposure fences.
 
@@ -234,9 +251,13 @@ pub struct PreparedOperation<Kind> {
 
 ### First landable commit
 
-**[INFERRED]** Land `feat(kernel): add private authority-transition core and structural registry`.
+**[INFERRED]** Land `feat(kernel): add private connection-owned authority-transition scope and executing gate`.
 
-**[INFERRED]** It contains the private hierarchy, evidence/permit types, identities, purpose and protected-object registries, authorizer substrate, hostile shape fixtures, and gate checks. It exposes no public authority ceremony and does not route old caller facts through evidence.
+**[INFERRED]** It contains the private hierarchy, connection owner, generative
+protected transaction borrow, closed fixed-operation registry, authorizer
+substrate, one unit-only exact ceremony, hostile runtime/shape fixtures, and
+split gate checks. It exposes no public authority ceremony and connects no
+legacy writer.
 
 **[INFERRED]** It must pass `cargo check --all-targets --workspace`. It makes no F-1 closure claim.
 
@@ -244,7 +265,7 @@ pub struct PreparedOperation<Kind> {
 
 | Landing | Atomic scope | Claim |
 |---|---|---|
-| A | **[INFERRED]** Private core, identities, registries, permit/authorizer substrate, and structural gate. | **[INFERRED]** Green workspace; infrastructure only. |
+| A | **[INFERRED]** Private connection-owned core, generative scope, fixed writer registry, authorizer substrate, structural compile phase, and executing runtime phase. | **[INFERRED]** Green workspace; additive/inert infrastructure only. |
 | B | **[INFERRED]** Delete all feature-public authority writers/accessors and migrate their tests; remove `remainder-tests` and raw-SQLite laundering. | **[INFERRED]** Green workspace; closes only the additive fixture mechanism. |
 | C | **[INFERRED]** Move every protected writer under the core; enable authorizer enforcement; privatize `LocalDatabase`; delete raw access/adoption/plans/discriminators; install vNext store binding/anchor; reconnect durable mechanisms 2–10. | **[INFERRED]** Green workspace; durable forgery cut, but in-memory F-1 remains open. |
 | D | **[INFERRED]** Delete old in-memory authority vocabulary; install exact prepared operations and all engine/sync/server consumers; move HTTP handoff and service/room/publication fences together. | **[INFERRED]** Green workspace; earliest closure candidate. |
@@ -293,18 +314,42 @@ contains LocalDatabase or an adoptable equivalent.
 
 **[INFERRED]** Extend the current syn scanner to check:
 
-1. **[INFERRED]** Evidence visibility, exact fields, one literal, forbidden traits, and absence from exposed signatures.
-2. **[INFERRED]** Writer and protected SQL custody below `core::writers`.
+1. **[INFERRED]** Exact private `GuardedConnection` ownership fields; absence
+   of permit/transaction proxy types, raw accessors, escape traits, and public
+   or crate-visible ceremonies.
+2. **[INFERRED]** Opaque one-lifetime `ProtectedTx`, higher-ranked scope entry,
+   scope activation private to `core::evidence`, and writer/fixed-SQL custody
+   below `core::writers`.
 3. **[INFERRED]** Bidirectional equality among purpose, mutation, proof, subject-class, predecessor, write-set, verifier, entrypoint, and prepared-kind registries.
 4. **[INFERRED]** Privileged parameters recursively through aliases, structs, enums, associated types, `impl Trait`, generic bounds, and local trait implementations.
 5. **[INFERRED]** Generic indirection such as `W: MembershipWriterAccess`, not merely literal `MembershipWriter`.
-6. **[INFERRED]** Call/reference sites for the core entry, permits, protected writers, prepared-operation literals, and catalog effects.
+6. **[INFERRED]** Call/reference sites for the private core entry, protected
+   writers, prepared-operation literals, and catalog effects.
 7. **[INFERRED]** `LocalDatabase` through `Self`, references, wrappers, aliases, associated types, fields, accessors, conversions, dereference, and adoption.
 8. **[INFERRED]** Default, no-default, every additive feature, all features, and symbolic caller-feature visibility.
 9. **[INFERRED]** Absence of old authority names and equivalent registered effects without allowlists.
 10. **[INFERRED]** Creator-process identity and current-process validation on every provenance-bearing origin.
 
 **[INFERRED]** Keep hostile dependent-crate `rustc --message-format=json` checks with primary-span assertions, but treat them only as spelling evidence.
+
+**[INFERRED]** The security-boundary gate has two non-substitutable phases:
+
+1. a compile-fail phase (`cargo test --no-run` is allowed here) proving marked
+   `ProtectedTx` commit/deref, raw-connection-accessor, and writer scope-opening
+   expressions fail at their attack spans; and
+2. an executing phase running the owning-crate runtime attacks under default
+   and additive `test-support` features. The runner requires one emitted
+   sentinel per attack; compiling without execution is a gate failure.
+
+**[INFERRED]** Landing A runtime acceptance directly attempts and refuses:
+forgotten-scope/raw-COMMIT liveness, cross-connection authorization,
+prepare-now/execute-later cache reuse, duplicate-key replacement, valid-proof
+plus foreign-subject joining, stale copied generation, and unscoped protected
+write. The stale-generation case replays a generation-1 scoped borrow during a
+live generation-2 scope rather than corrupting the connection-owned state. It
+separately proves the durable resource guard is reread inside the
+effect transaction. Every protection is mutation-tested by defanging it and
+observing its matching attack fail.
 
 **[INFERRED]** Each LLP 0291 family and inventory row additionally needs an alternate-route effect witness using another producer and consumer. Refused runtime cases assert protected rows unchanged; accepted cases assert exact durable columns and receipts.
 
