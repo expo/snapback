@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:600d5d0ad0f16eec9caf9b6bcb7b585d24cc3c87f0338c577b0764abf8b7e317
+reviewed-authorities-digest: sha256:4e4b7879ec1b0657bf1731f4701e3b3d058614d5b4378cf5af86778b41e597fb
 ---
 
 # React Expo Online clients
@@ -473,10 +473,11 @@ it; the fixture README gives the full source-checkout commands
 ### Know what the supervisor owns
 
 One supervisor starts or adopts the exact backend generation, starts Metro,
-issues an expiring `source: "supervised-dev"` binding, mints an ordinary
-session, and verifies the backend, Metro, and bootstrap listeners before
-reporting readiness. It also owns signal forwarding and reclaims the backend,
-Metro, bootstrap exchange, binding material, and port forwards on exit
+issues an expiring `source: "supervised-dev"` binding, offers the admitted
+on-demand ordinary-session mint, and verifies the backend, Metro, and bootstrap
+listeners before reporting readiness. It also owns signal forwarding and
+reclaims the backend, Metro, bootstrap exchange, binding material, and port
+forwards on exit
 ([LLP 0181 §Supervised development baseline](repo:llp/0181-zero-configuration-expo.rfc.md#supervised-development-baseline),
 [`runExpoDev`](repo:packages/snapback-cli/expo-dev.mjs)).
 

@@ -9,8 +9,8 @@ examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:3ffcb3d2cf6383aa7c806e688f42ceed210bc125a1b81b31fed86805b8cb9253
+reviewed: 2026-08-25
+reviewed-authorities-digest: sha256:bc0793f907cf66c73b269b17c0248acb776571b4983b2ec067504b4b9bbf7bf3
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />

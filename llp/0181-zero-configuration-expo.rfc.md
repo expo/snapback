@@ -6,6 +6,12 @@
 Auth, Assets, Offline, Testing, Hosted environments, Code generation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
+**Revised:** 2026-08-25 (ac) — Aligns the optional supervised Expo carrier
+with LLP 0300 P4 and LLP 0262 D2: web Metro receives the backend data/auth
+origin plus the supervisor rendezvous, the bootstrap GET is binding-only,
+ordinary-session minting moves to the admitted adoption POST, web defaults
+anonymous, and native defaults to adoption. See the dated correction in the
+URL-first amendment.
 **Revised:** 2026-08-24 (ab) — LLP 0300–0302 re-rule the supervised
 no-URL baseline as one of two admitted development sources. URL-first is the
 canonical path and the client process is ordinarily caller-owned; supervised
@@ -1236,16 +1242,17 @@ project metadata.
 - Exercise live query, ordinary mutation, scoped presence, HMR/reconnect, and
   authority replacement.
 
-**E1 carrier disposition.** The non-secret value Metro exposes is only the
-credential-free loopback rendezvous origin
-(`EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN`). The provider performs a runtime
-`GET /_snapback/expo/v1/bootstrap` with `cache: "no-store"`; its response pairs
-the admitted expiring `AppBinding` with the native mint's ordinary
-session, a binding-only arm carrying no session (the provider then boots
-anonymous `ready`; a supervised session may arrive on a later supervisor
-event), or a structured `authority-required` refusal for the
-unsettled-Sessions precondition (amended 2026-08-15, LLP 0258 Phase 0). A
-returned session is adopted only under LLP 0258 D5's precedence: over an
+**E1 carrier disposition.** On web, Metro exposes the exact backend data/auth
+origin as `EXPO_PUBLIC_SNAPBACK_URL` and the credential-free loopback
+rendezvous origin as `EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN`. The provider
+performs a runtime `GET /_snapback/expo/v1/bootstrap` with
+`cache: "no-store"`; that GET returns the admitted expiring `AppBinding` only
+and never creates or returns an ordinary session. A later authority-adoption
+POST is origin-admitted on web and correlation-capability-gated on native; it
+is the only supervised exchange that mints an ordinary session. Web defaults
+to anonymous `ready`, while native defaults to requesting adoption (LLP 0300
+P4; LLP 0262 D2). A session returned by that POST is adopted only under LLP
+0258 D5's precedence: over an
 application-entered or restored authenticated principal the exchange
 updates binding/transport facts only and surfaces
 `SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT` as a `ready`-arm advisory.
@@ -1526,6 +1533,12 @@ URL; a configured but failed rendezvous never falls back within that boot.
 
 Accordingly, this RFC's no-URL and supervisor-ownership claims remain the
 contract of the supervised source, not the universal or default development
-contract. Release admission, generated target identity, auth custody, and the
-supervised source's stronger issuance remain unchanged. URL-first is a dev-only
-generated capability and cannot be selected by release artifacts.
+contract. Release admission, generated target identity, and auth custody
+remain unchanged. URL-first is a dev-only generated capability and cannot be
+selected by release artifacts.
+
+**2026-08-25 supervised-session correction.** LLP 0300 P4 and LLP 0262 D2
+already revise supervised issuance and adoption: web Metro receives the
+backend URL plus the supervisor rendezvous, the GET is binding-only, the
+origin-admitted or correlation-gated POST is the only ordinary-session mint,
+web defaults anonymous, and native defaults to adoption.

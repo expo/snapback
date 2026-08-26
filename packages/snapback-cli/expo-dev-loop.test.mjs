@@ -975,7 +975,7 @@ try {
   // Ruling 2 makes supervised web anonymous-first. A separate native-default
   // boot below adopts on demand and surfaces the unsettled Sessions refusal;
   // the ordinary exchange itself never mints or leaks a bearer.
-  const unsettled = fixture('unsettled-web', { sessions: true });
+  const unsettled = fixture('anonymous-web-no-mint', { sessions: true });
   const unsettledRun = await startFixture(unsettled, { platform: 'web' });
   assert.deepEqual(JSON.parse(readFileSync(unsettled.metroEnv, 'utf8')), {
     nodeOptions: '--trace-warnings --dns-result-order=ipv4first',

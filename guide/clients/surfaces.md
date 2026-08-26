@@ -10,8 +10,8 @@ status: current
 targets: [local]
 maturity: partial
 since: 0.1.11
-reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:1b8366a3e658f07b57c069a944a6a64ecbcd0469e2bbc0ee8ec042f1dbe2299e
+reviewed: 2026-08-25
+reviewed-authorities-digest: sha256:8bc43407a00329474f32a601a4e657370c403050d767b50dbf76d7887de4a068
 ---
 
 # Application surfaces
