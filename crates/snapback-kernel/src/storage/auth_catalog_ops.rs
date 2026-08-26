@@ -1,8 +1,9 @@
 use super::{LocalDatabase, SnapbackResult};
 use crate::auth::crypto::{
     AuthKeyMaterial, CanonicalAddress, ChallengeId, CodeDigest, StepUpConsumption, StepUpDigest,
-    StepUpProof, TokenHash, VerificationCode,
+    TokenHash, VerificationCode,
 };
+use crate::auth::keyring::{AuthProviderStepUpBinding, ProviderBoundStepUpProof};
 use crate::auth::throttle::{
     AUTH_MAXIMUM_ATTEMPTS, AuthBudgetName, AuthBudgetRefusal, RecipientRuleDisposition,
     ResolvedCompatibilityAuthBudgetPolicy, RollingWindowBudgetTerms,
@@ -1250,6 +1251,7 @@ fn commit_planned_revocation_set(
 pub(crate) fn planned_password_change_transaction(
     transaction: &Transaction<'_>,
     plan: &CatalogPasswordChangePlan<'_>,
+    step_up_provider: Option<&AuthProviderStepUpBinding>,
 ) -> SnapbackResult<CatalogPasswordChangeCommit> {
     let admission = match plan.mutation {
         crate::storage::auth_identity::CredentialRotationMutation::PasswordChange(mutation) => {
@@ -1266,6 +1268,7 @@ pub(crate) fn planned_password_change_transaction(
                 mutation,
                 plan.rotation.superseded_at_ms,
                 plan.password_profile,
+                step_up_provider,
             )?
         }
     };
@@ -1438,6 +1441,7 @@ pub(crate) fn planned_session_issuance_transaction(
     transaction: &Transaction<'_>,
     plan: &CatalogSessionIssuancePlan,
     exchange_proof: Option<(&AuthKeyMaterial, &VerificationCode)>,
+    step_up_provider: Option<&AuthProviderStepUpBinding>,
 ) -> SnapbackResult<CatalogIssuanceCommit> {
     if let Some(idempotency) = plan.guest_idempotency {
         if !matches!(plan.identity, PlannedIdentityState::GuestCreate { .. }) {
@@ -1734,6 +1738,7 @@ pub(crate) fn planned_session_issuance_transaction(
             password,
             plan.now_ms,
             profile,
+            step_up_provider,
         )? {
             crate::storage::auth_identity::PasswordIssuanceAdmission::Proceed {
                 create_principal,
@@ -2751,8 +2756,9 @@ fn insert_identity_session(
 
 pub(crate) fn reconcile_step_up_consumed_on(
     connection: &Connection,
-    proof: &StepUpProof,
+    proof: &ProviderBoundStepUpProof,
 ) -> SnapbackResult<bool> {
+    let proof = proof.proof();
     let Some(expected_key_id) = proof.key_id() else {
         return Ok(false);
     };
@@ -2785,8 +2791,9 @@ pub(crate) fn reconcile_step_up_consumed_on(
 
 pub(crate) fn reconcile_step_up_unconsumed_on(
     connection: &Connection,
-    proof: &StepUpProof,
+    proof: &ProviderBoundStepUpProof,
 ) -> SnapbackResult<bool> {
+    let proof = proof.proof();
     let Some(expected_key_id) = proof.key_id() else {
         return Ok(true);
     };
@@ -2829,10 +2836,15 @@ pub(crate) struct ExpectedStepUpProof<'a> {
 /// caller holding an admission.
 pub(crate) fn consume_step_up_proof_on(
     transaction: &Transaction<'_>,
-    proof: &StepUpProof,
+    proof: &ProviderBoundStepUpProof,
+    expected_provider: &AuthProviderStepUpBinding,
     expected: ExpectedStepUpProof<'_>,
     now_ms: u64,
 ) -> SnapbackResult<StepUpConsumption> {
+    if !proof.matches_provider(expected_provider) {
+        return Ok(StepUpConsumption::Rejected);
+    }
+    let proof = proof.proof();
     if !proof.matches_binding(
         expected.user_id,
         expected.session_id,
@@ -3662,9 +3674,15 @@ impl LocalDatabase {
         super::auth::AuthTransactionAttempt<CatalogIssuanceCommit>,
         Option<CatalogIssuanceCommit>,
     ) {
+        let step_up_provider = self.auth_step_up_provider().ok();
         let mut body_outcome = None;
         let attempt = self.attempt_auth_transaction(|transaction| {
-            let outcome = planned_session_issuance_transaction(transaction, plan, exchange_proof)?;
+            let outcome = planned_session_issuance_transaction(
+                transaction,
+                plan,
+                exchange_proof,
+                step_up_provider.as_ref(),
+            )?;
             body_outcome = Some(outcome.clone());
             Ok(outcome)
         });
@@ -3679,9 +3697,11 @@ impl LocalDatabase {
         super::auth::AuthTransactionAttempt<CatalogPasswordChangeCommit>,
         Option<CatalogPasswordChangeCommit>,
     ) {
+        let step_up_provider = self.auth_step_up_provider().ok();
         let mut body_outcome = None;
         let attempt = self.attempt_auth_transaction(|transaction| {
-            let outcome = planned_password_change_transaction(transaction, plan)?;
+            let outcome =
+                planned_password_change_transaction(transaction, plan, step_up_provider.as_ref())?;
             body_outcome = Some(outcome.clone());
             Ok(outcome)
         });

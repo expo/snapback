@@ -1772,6 +1772,11 @@ pub struct LocalDatabase {
     // replicator owns every checkpoint while the lane is enabled.
     replication_checkpoint_owner: bool,
     authorization_interlock: AuthorizationInterlockState,
+    /// Exact provider/keyring origin allowed to mint step-up proof carriers
+    /// for this database-open lifetime. It is installed once by auth startup
+    /// (or by the first provider-owned challenge mint in focused embeddings)
+    /// and cannot be replaced by a caller-created provider.
+    auth_step_up_provider: Option<crate::auth::keyring::AuthProviderStepUpBinding>,
     /// The concrete service-authority fence graph belongs to this database.
     /// Storage prepares and settles it directly; no consumer-supplied callback
     /// can replace the terminalization semantics.
@@ -2013,6 +2018,13 @@ impl ServingDatabase {
 
     pub fn binding(&self) -> DatabaseBinding {
         self.authority.binding()
+    }
+
+    pub fn bind_auth_step_up_provider(
+        &mut self,
+        binding: crate::auth::keyring::AuthProviderStepUpBinding,
+    ) -> SnapbackResult<()> {
+        self.db.bind_auth_step_up_provider(binding)
     }
 
     /// Borrow the sole database-owned service fence graph. Clones retain the
@@ -2827,7 +2839,7 @@ impl ServingDatabase {
         &mut self,
         owner: pending_effects::PendingEffectOwner,
         approval: pending_effects::PreparedPendingEffectApproval,
-        step_up: Option<&crate::auth::crypto::StepUpProof>,
+        step_up: Option<&crate::auth::keyring::ProviderBoundStepUpProof>,
         now_ms: u64,
     ) -> SnapbackResult<pending_effects::ApprovedPendingEffect> {
         let command = self.authority.admit_pending_effect_approval(
@@ -3500,6 +3512,7 @@ impl LocalDatabase {
             ),
             replication_checkpoint_owner: false,
             authorization_interlock: AuthorizationInterlockState::Disabled,
+            auth_step_up_provider: None,
             service_authority_fences,
             app_state_graph_claimed: false,
             projections: Arc::new(Vec::new()),
@@ -3573,6 +3586,7 @@ impl LocalDatabase {
             ),
             replication_checkpoint_owner: crate::replication::configured_from_env(),
             authorization_interlock: AuthorizationInterlockState::Disabled,
+            auth_step_up_provider: None,
             service_authority_fences,
             app_state_graph_claimed: false,
             projections: Arc::new(Vec::new()),
@@ -3821,6 +3835,7 @@ impl LocalDatabase {
             ),
             replication_checkpoint_owner: false,
             authorization_interlock: AuthorizationInterlockState::Disabled,
+            auth_step_up_provider: None,
             service_authority_fences,
             app_state_graph_claimed: false,
             projections: Arc::new(Vec::new()),
@@ -3884,6 +3899,40 @@ impl LocalDatabase {
     /// Return the non-privileged identity binding for this database.
     pub fn binding(&self) -> DatabaseBinding {
         DatabaseBinding(self.commit_authority_identity.clone())
+    }
+
+    /// Install the provider/keyring origin that alone may mint step-up proof
+    /// carriers for this database. Repeating the exact binding is idempotent;
+    /// replacement is refused so a retained caller-created provider cannot
+    /// take over an already-serving database.
+    pub fn bind_auth_step_up_provider(
+        &mut self,
+        binding: crate::auth::keyring::AuthProviderStepUpBinding,
+    ) -> SnapbackResult<()> {
+        match &self.auth_step_up_provider {
+            Some(installed) if installed.matches(&binding) => Ok(()),
+            Some(_) => Err(SnapbackError::error(
+                "SNAPBACK_AUTH_STEP_UP_PROVIDER_INVALID",
+                "auth",
+                "step-up provider does not match the database-installed provider",
+            )),
+            None => {
+                self.auth_step_up_provider = Some(binding);
+                Ok(())
+            }
+        }
+    }
+
+    pub(crate) fn auth_step_up_provider(
+        &self,
+    ) -> SnapbackResult<crate::auth::keyring::AuthProviderStepUpBinding> {
+        self.auth_step_up_provider.clone().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_STEP_UP_PROVIDER_INVALID",
+                "auth",
+                "step-up provider is not bound to this database",
+            )
+        })
     }
 
     /// Join a second typed database handle to an already-claimed authority

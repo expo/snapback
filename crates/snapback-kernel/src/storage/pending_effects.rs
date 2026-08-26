@@ -6,6 +6,7 @@
 //! execute the ordinary mutation/action path.
 
 use super::{LocalDatabase, SnapbackResult};
+use crate::auth::keyring::ProviderBoundStepUpProof;
 use crate::diagnostic::SnapbackError;
 use crate::manifest::{ArtifactGeneration, FunctionKind, SchemaManifest};
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
@@ -459,7 +460,7 @@ pub struct ApprovePendingEffectCommand {
     approval: PreparedPendingEffectApproval,
     active_function_policies: super::ActiveFunctionPolicies,
     active_function_policy_manifest_digest: Option<String>,
-    step_up: Option<crate::auth::crypto::StepUpProof>,
+    step_up: Option<ProviderBoundStepUpProof>,
     now_ms: u64,
     owner: PendingEffectOwner,
 }
@@ -548,7 +549,7 @@ impl crate::storage::KernelCommitAuthority {
         approval: PreparedPendingEffectApproval,
         active_function_policies: super::ActiveFunctionPolicies,
         active_function_policy_manifest_digest: Option<String>,
-        step_up: Option<&crate::auth::crypto::StepUpProof>,
+        step_up: Option<&ProviderBoundStepUpProof>,
         now_ms: u64,
     ) -> SnapbackResult<ApprovePendingEffectCommand> {
         owner.verify_for(&self.binding())?;
@@ -1208,6 +1209,10 @@ impl LocalDatabase {
         } = approval;
         let id = prepared.id.clone();
         let database_binding = self.binding();
+        let step_up_provider = step_up
+            .as_ref()
+            .map(|_| self.auth_step_up_provider())
+            .transpose()?;
         // Proof, policy, effect-state, or approver refusal rolls the decision
         // transaction back. Persist the time observation first so none of
         // those refusals can revive expired authority on a backdated retry.
@@ -1283,6 +1288,9 @@ impl LocalDatabase {
                 if super::auth_catalog_ops::consume_step_up_proof_on(
                     tx,
                     proof,
+                    step_up_provider
+                        .as_ref()
+                        .ok_or_else(|| crate::auth::crypto::step_up_required_error())?,
                     super::auth_catalog_ops::ExpectedStepUpProof {
                         user_id: revalidated_principal_id,
                         session_id: Some(&approver.session_id),
@@ -2462,6 +2470,131 @@ mod tests {
     }
 
     #[test]
+    fn caller_minted_challenge_and_matching_proof_do_not_cross_provider_origin() {
+        use crate::auth::crypto::{
+            CanonicalAddress, ChallengeId, CodeDigest, OsRandom, StepUpDigest, StepUpProof,
+            VerificationCode,
+        };
+        use crate::auth::keyring::AuthKeyringStore;
+        use crate::auth::throttle::{
+            AuthBudgetDeploymentProfile, ResolvedCompatibilityAuthBudgetPolicy,
+            ServerVerifiedAuthTrustEvidence, derive_auth_trust_tier,
+        };
+
+        let mut db = ready();
+        install_loaded_policy(&mut db, true);
+        let request = request(10, DEFAULT_TTL_MS);
+        let creation_owner = test_owner(db.auth_database_mut(), request.authority.clone(), None);
+        let created = db
+            .create_pending_effect_admitted(&creation_owner, request)
+            .expect("authority-creating pending effect");
+        let approver = principal(&mut db, "human-a", 0xa0);
+
+        let installed_keyring = AuthKeyringStore::in_memory();
+        installed_keyring
+            .load_or_mint_initial(0, &OsRandom)
+            .unwrap();
+        let installed_origin = installed_keyring.claim_step_up_provider_origin();
+        db.bind_auth_step_up_provider(
+            installed_keyring
+                .step_up_provider_binding(&installed_origin)
+                .unwrap(),
+        )
+        .unwrap();
+
+        // Exact reviewed attack: the caller owns a different keyring, selects
+        // every challenge/proof coordinate, writes the public challenge row,
+        // and presents a matching proof without any delivery ceremony.
+        let attacker_keyring = AuthKeyringStore::in_memory();
+        attacker_keyring.load_or_mint_initial(0, &OsRandom).unwrap();
+        let attacker_origin = attacker_keyring.claim_step_up_provider_origin();
+        let address = CanonicalAddress::parse("human-a@example.com").unwrap();
+        let challenge_id = ChallengeId::generate(&OsRandom).unwrap();
+        let code = VerificationCode::parse("123456").unwrap();
+        let (key_id, submitted_digest) = attacker_keyring
+            .with_active_key(10, &OsRandom, |key_id, key| {
+                (
+                    key_id.clone(),
+                    StepUpDigest::compute(
+                        key,
+                        &challenge_id,
+                        &address,
+                        "human-a",
+                        "session-human-a",
+                        1,
+                        "authority-human-a",
+                        "effectApproval",
+                        &created.id,
+                        &code,
+                    ),
+                )
+            })
+            .unwrap();
+        let row_digest = CodeDigest::from_bytes(*submitted_digest.as_bytes());
+        let budget = ResolvedCompatibilityAuthBudgetPolicy::resolve(
+            AuthBudgetDeploymentProfile::Test,
+            derive_auth_trust_tier(ServerVerifiedAuthTrustEvidence::Anonymous),
+        );
+        let inserted = db
+            .auth_database_mut()
+            .auth_catalog()
+            .insert_verification_challenge(
+                &address,
+                &challenge_id,
+                &row_digest,
+                key_id.as_str(),
+                10,
+                100,
+                &budget,
+            )
+            .expect("caller-writable challenge insert remains reachable");
+        assert_eq!(
+            inserted,
+            crate::contract_types::RequestInsertOutcome::Inserted
+        );
+        let proof = StepUpProof::from_verified_binding(
+            challenge_id.clone(),
+            address,
+            Some(key_id),
+            submitted_digest,
+            "human-a".to_owned(),
+            "session-human-a".to_owned(),
+            1,
+            "authority-human-a".to_owned(),
+            "effectApproval",
+            created.id.clone(),
+        );
+        let proof = attacker_keyring
+            .bind_step_up_proof(&attacker_origin, proof)
+            .unwrap();
+
+        let approval = db
+            .prepare_pending_effect_approval(&approver, &created.id, 20)
+            .expect("prepare exact effect approval");
+        let owner = management_owner(db.auth_database_mut(), "human-a");
+        let error = db
+            .approve_pending_effect_admitted(owner, approval, Some(&proof), 20)
+            .err()
+            .expect("caller-minted provider origin must be refused");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_STEP_UP_REQUIRED");
+        assert_eq!(
+            db.pending_effect(&created.id, 20).unwrap().status,
+            PendingEffectStatus::Pending
+        );
+        let consumed: i64 = db
+            .auth_database_mut()
+            .conn
+            .query_row(
+                "SELECT consumed_at_ms IS NOT NULL FROM _auth_verification_codes
+                 WHERE challenge_id = ?1",
+                [challenge_id.as_str()],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(consumed, 0, "foreign-provider challenge remains unconsumed");
+    }
+
+    #[test]
     fn public_scope_reconciliation_cannot_downgrade_the_loaded_function_policy() {
         let mut db = ready();
         install_loaded_policy(&mut db, true);
@@ -2628,9 +2761,9 @@ mod tests {
     #[test]
     fn expired_step_up_proof_cannot_be_retried_before_expiry() {
         use crate::auth::crypto::{
-            AuthKeyId, AuthKeyMaterial, CanonicalAddress, ChallengeId, OsRandom, StepUpDigest,
-            StepUpProof, VerificationCode,
+            CanonicalAddress, ChallengeId, OsRandom, StepUpDigest, StepUpProof, VerificationCode,
         };
+        use crate::auth::keyring::AuthKeyringStore;
 
         let mut db = ready();
         install_loaded_policy(&mut db, true);
@@ -2642,21 +2775,31 @@ mod tests {
         let approver = principal(&mut db, "human-a", 0xa0);
         let address = CanonicalAddress::parse("human-a@example.com").unwrap();
         let challenge_id = ChallengeId::generate(&OsRandom).unwrap();
-        let key_id = AuthKeyId::generate(&OsRandom).unwrap();
-        let key = AuthKeyMaterial::from_bytes([0x5a; 32]);
+        let keyring = AuthKeyringStore::in_memory();
+        keyring.load_or_mint_initial(0, &OsRandom).unwrap();
+        let provider_origin = keyring.claim_step_up_provider_origin();
+        db.bind_auth_step_up_provider(keyring.step_up_provider_binding(&provider_origin).unwrap())
+            .unwrap();
         let code = VerificationCode::parse("123456").unwrap();
-        let submitted_digest = StepUpDigest::compute(
-            &key,
-            &challenge_id,
-            &address,
-            "human-a",
-            "session-human-a",
-            1,
-            "authority-human-a",
-            "effectApproval",
-            &created.id,
-            &code,
-        );
+        let (key_id, submitted_digest) = keyring
+            .with_active_key(10, &OsRandom, |key_id, key| {
+                (
+                    key_id.clone(),
+                    StepUpDigest::compute(
+                        key,
+                        &challenge_id,
+                        &address,
+                        "human-a",
+                        "session-human-a",
+                        1,
+                        "authority-human-a",
+                        "effectApproval",
+                        &created.id,
+                        &code,
+                    ),
+                )
+            })
+            .unwrap();
         db.auth_database_mut()
             .conn
             .execute(
@@ -2686,6 +2829,7 @@ mod tests {
             "effectApproval",
             created.id.clone(),
         );
+        let proof = keyring.bind_step_up_proof(&provider_origin, proof).unwrap();
 
         let first_approval = db
             .prepare_pending_effect_approval(&approver, &created.id, 19)
@@ -2726,9 +2870,9 @@ mod tests {
     #[test]
     fn password_set_step_up_proof_cannot_approve_an_authority_creating_effect() {
         use crate::auth::crypto::{
-            AuthKeyId, AuthKeyMaterial, CanonicalAddress, ChallengeId, OsRandom, StepUpDigest,
-            StepUpProof, VerificationCode,
+            CanonicalAddress, ChallengeId, OsRandom, StepUpDigest, StepUpProof, VerificationCode,
         };
+        use crate::auth::keyring::AuthKeyringStore;
 
         let mut db = ready();
         install_loaded_policy(&mut db, true);
@@ -2740,21 +2884,31 @@ mod tests {
         let approver = principal(&mut db, "human-a", 0xa0);
         let address = CanonicalAddress::parse("human-a@example.com").unwrap();
         let challenge_id = ChallengeId::generate(&OsRandom).unwrap();
-        let key_id = AuthKeyId::generate(&OsRandom).unwrap();
-        let key = AuthKeyMaterial::from_bytes([0x6b; 32]);
+        let keyring = AuthKeyringStore::in_memory();
+        keyring.load_or_mint_initial(0, &OsRandom).unwrap();
+        let provider_origin = keyring.claim_step_up_provider_origin();
+        db.bind_auth_step_up_provider(keyring.step_up_provider_binding(&provider_origin).unwrap())
+            .unwrap();
         let code = VerificationCode::parse("654321").unwrap();
-        let submitted_digest = StepUpDigest::compute(
-            &key,
-            &challenge_id,
-            &address,
-            "human-a",
-            "session-human-a",
-            1,
-            "authority-human-a",
-            "passwordSet",
-            "session-human-a",
-            &code,
-        );
+        let (key_id, submitted_digest) = keyring
+            .with_active_key(10, &OsRandom, |key_id, key| {
+                (
+                    key_id.clone(),
+                    StepUpDigest::compute(
+                        key,
+                        &challenge_id,
+                        &address,
+                        "human-a",
+                        "session-human-a",
+                        1,
+                        "authority-human-a",
+                        "passwordSet",
+                        "session-human-a",
+                        &code,
+                    ),
+                )
+            })
+            .unwrap();
         db.auth_database_mut()
             .conn
             .execute(
@@ -2784,6 +2938,7 @@ mod tests {
             "passwordSet",
             "session-human-a".to_owned(),
         );
+        let proof = keyring.bind_step_up_proof(&provider_origin, proof).unwrap();
 
         let approval = db
             .prepare_pending_effect_approval(&approver, &created.id, 20)

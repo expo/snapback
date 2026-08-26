@@ -5729,6 +5729,11 @@ impl LocalSnapback {
         catalog_ready: bool,
     ) -> SnapbackResult<Arc<crate::auth::coordinator::AuthCoordinator>> {
         self.db.ensure_authorization_stream_incarnation()?;
+        self.db.bind_auth_step_up_provider(
+            provider
+                .step_up_provider_binding()
+                .map_err(crate::auth::provider::ProviderError::into_snapback_error)?,
+        )?;
         if catalog_ready {
             self.seed_auth_session_clock_floor(provider)?;
         }
@@ -5929,7 +5934,7 @@ impl LocalSnapback {
         &mut self,
         authority: &PreparedAuthority,
         request_id: &str,
-        step_up_proof: Option<&crate::auth::crypto::StepUpProof>,
+        step_up_proof: Option<&crate::auth::keyring::ProviderBoundStepUpProof>,
         now_ms: u64,
     ) -> SnapbackResult<crate::storage::auth_grants::GrantApproval> {
         let (effective_user_id, session_id) = self.require_agent_grant_management_session(
@@ -6316,7 +6321,7 @@ impl LocalSnapback {
         &mut self,
         approval: PreparedEffectApproval,
         original: PreparedEffectOriginalAuthority,
-        step_up: Option<&crate::auth::crypto::StepUpProof>,
+        step_up: Option<&crate::auth::keyring::ProviderBoundStepUpProof>,
         now_ms: u64,
     ) -> SnapbackResult<ApprovedEffectDispatch> {
         if original.effect_id != approval.effect_id()
@@ -6743,7 +6748,7 @@ impl LocalSnapback {
         effect: &AdmissionEffectGuard<'_>,
         user_id: &str,
         profile: ServerProfile,
-        proof: &crate::auth::crypto::StepUpProof,
+        proof: &crate::auth::keyring::ProviderBoundStepUpProof,
         now_ms: u64,
         random: &dyn crate::auth::crypto::RandomSource,
     ) -> SnapbackResult<crate::storage::auth_agents::IssuedAgentInvitation> {
@@ -6757,7 +6762,7 @@ impl LocalSnapback {
         authority: &PreparedAuthority,
         user_id: &str,
         profile: ServerProfile,
-        proof: &crate::auth::crypto::StepUpProof,
+        proof: &crate::auth::keyring::ProviderBoundStepUpProof,
         now_ms: u64,
         random: &dyn crate::auth::crypto::RandomSource,
         authorized_effect: AuthorizedEffectReservation,
@@ -6923,7 +6928,7 @@ impl LocalSnapback {
         authority: &PreparedAuthority,
         request_id: &str,
         requested_ttl_ms: Option<u64>,
-        proof: Option<&crate::auth::crypto::StepUpProof>,
+        proof: Option<&crate::auth::keyring::ProviderBoundStepUpProof>,
         now_ms: u64,
     ) -> SnapbackResult<crate::storage::auth_grants::GrantApproval> {
         let (user_id, session_id) =

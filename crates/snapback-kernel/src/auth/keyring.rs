@@ -14,9 +14,10 @@ use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize as _, Zeroizing};
 
 use super::crypto::{
-    AuthKeyId, AuthKeyMaterial, CryptoError, RandomSource, decode_canonical_base64url,
+    AuthKeyId, AuthKeyMaterial, CryptoError, RandomSource, StepUpProof, decode_canonical_base64url,
     encode_base64url,
 };
+use crate::process_bound_identity::ProcessBoundIdentity;
 
 pub const AUTH_KEYRING_FORMAT_VERSION: u32 = 1;
 pub const AUTH_KEYRING_MAXIMUM_BYTES: usize = 64 * 1024;
@@ -92,6 +93,80 @@ impl fmt::Debug for ValidatedKeyringBytes {
 /// operations reopen and validate the complete current file on every call.
 pub struct AuthKeyringStore {
     backend: Mutex<Backend>,
+    /// Exact process/keyring instance used to mint provider-bound step-up
+    /// carriers. A second wrapper around the same file is deliberately a
+    /// different origin: only the provider installed into the serving graph
+    /// may authorize consumption.
+    identity: ProcessBoundIdentity,
+}
+
+/// Powerless identity installed into one database before it can consume a
+/// step-up proof. It can be copied for comparison but cannot mint a carrier.
+///
+/// @ref LLP 0303#corollary--the-artifact-must-carry-provenance-not-just-type
+/// — consumption verifies the exact provider/keyring instance that produced
+/// the proof, not merely a caller-writable key id.
+#[derive(Clone)]
+pub struct AuthProviderStepUpBinding(ProcessBoundIdentity);
+
+impl fmt::Debug for AuthProviderStepUpBinding {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("AuthProviderStepUpBinding(..)")
+    }
+}
+
+impl AuthProviderStepUpBinding {
+    pub(crate) fn matches(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl PartialEq for AuthProviderStepUpBinding {
+    fn eq(&self, other: &Self) -> bool {
+        self.matches(other)
+    }
+}
+
+impl Eq for AuthProviderStepUpBinding {}
+
+/// Provider-held minting owner. The binding may leave the provider; this owner
+/// does not. A fresh provider, even over the same keyring file, receives a
+/// distinct origin and cannot mint a carrier accepted by the installed graph.
+pub struct AuthProviderStepUpOwner {
+    keyring_identity: ProcessBoundIdentity,
+    binding: AuthProviderStepUpBinding,
+}
+
+impl fmt::Debug for AuthProviderStepUpOwner {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("AuthProviderStepUpOwner(..)")
+    }
+}
+
+/// A proof admitted by one exact provider after its referenced key was found
+/// in that provider's keyring. The durable challenge row remains the one-shot
+/// predecessor; the origin binding prevents a caller-created keyring from
+/// making a matching row and proof authoritative.
+#[derive(Clone, Eq, PartialEq)]
+pub struct ProviderBoundStepUpProof {
+    binding: AuthProviderStepUpBinding,
+    proof: StepUpProof,
+}
+
+impl fmt::Debug for ProviderBoundStepUpProof {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("ProviderBoundStepUpProof([REDACTED])")
+    }
+}
+
+impl ProviderBoundStepUpProof {
+    pub fn proof(&self) -> &StepUpProof {
+        &self.proof
+    }
+
+    pub(crate) fn matches_provider(&self, expected: &AuthProviderStepUpBinding) -> bool {
+        self.binding.matches(expected)
+    }
 }
 
 enum Backend {
@@ -109,6 +184,7 @@ impl AuthKeyringStore {
     pub fn in_memory() -> Self {
         Self {
             backend: Mutex::new(Backend::Memory { ring: None }),
+            identity: ProcessBoundIdentity::new(),
         }
     }
 
@@ -119,7 +195,48 @@ impl AuthKeyringStore {
     pub fn file_at_path(path: PathBuf) -> Self {
         Self {
             backend: Mutex::new(Backend::File { path }),
+            identity: ProcessBoundIdentity::new(),
         }
+    }
+
+    /// Claim a fresh provider origin for this exact keyring instance. The
+    /// resulting owner stays private inside `AuthProvider`; only its powerless
+    /// binding is installed into the serving database.
+    pub fn claim_step_up_provider_origin(&self) -> AuthProviderStepUpOwner {
+        AuthProviderStepUpOwner {
+            keyring_identity: self.identity.clone(),
+            binding: AuthProviderStepUpBinding(ProcessBoundIdentity::new()),
+        }
+    }
+
+    pub fn step_up_provider_binding(
+        &self,
+        owner: &AuthProviderStepUpOwner,
+    ) -> Result<AuthProviderStepUpBinding, KeyringError> {
+        if owner.keyring_identity != self.identity {
+            return Err(KeyringError::Unavailable);
+        }
+        Ok(owner.binding.clone())
+    }
+
+    /// Admit a proof only through the exact provider owner and only while the
+    /// proof's key id is a member of this keyring. The transaction later
+    /// compares the carrier origin with the database-installed binding and
+    /// verifies/consumes the provider-minted durable challenge.
+    pub fn bind_step_up_proof(
+        &self,
+        owner: &AuthProviderStepUpOwner,
+        proof: StepUpProof,
+    ) -> Result<ProviderBoundStepUpProof, KeyringError> {
+        if owner.keyring_identity != self.identity {
+            return Err(KeyringError::Unavailable);
+        }
+        let key_id = proof.key_id().ok_or(KeyringError::MissingKey)?;
+        self.with_key(key_id, |_| ())?;
+        Ok(ProviderBoundStepUpProof {
+            binding: owner.binding.clone(),
+            proof,
+        })
     }
 
     pub fn keyring_path(database_path: &Path) -> PathBuf {

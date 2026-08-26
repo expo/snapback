@@ -23,7 +23,8 @@ use super::auth_agent_credentials::{
     reconcile_issued_agent_credential, require_agent_clock_on,
 };
 use crate::auth::crypto::{CreationInvitation, RandomSource};
-use crate::auth::crypto::{StepUpConsumption, StepUpProof, step_up_required_error};
+use crate::auth::crypto::{StepUpConsumption, step_up_required_error};
+use crate::auth::keyring::ProviderBoundStepUpProof;
 use crate::contract_types::ServerProfile;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{AgentsMode, AuthMode, MembershipScope, SchemaManifest};
@@ -281,7 +282,7 @@ impl LocalDatabase {
         &mut self,
         user_id: &str,
         profile: ServerProfile,
-        proof: &StepUpProof,
+        proof: &ProviderBoundStepUpProof,
         now_ms: u64,
         random: &dyn RandomSource,
     ) -> SnapbackResult<IssuedAgentInvitation> {
@@ -292,7 +293,7 @@ impl LocalDatabase {
         &mut self,
         user_id: &str,
         profile: ServerProfile,
-        proof: &StepUpProof,
+        proof: &ProviderBoundStepUpProof,
         now_ms: u64,
         random: &dyn RandomSource,
         before_commit: BeforeCommit,
@@ -305,6 +306,7 @@ impl LocalDatabase {
             .checked_add(AGENT_INVITATION_TTL_MS)
             .filter(|expires| *expires <= super::MAX_AUTHORIZATION_EPOCH)
             .ok_or_else(agent_invitation_invalid)?;
+        let step_up_provider = self.auth_step_up_provider()?;
         let mut body_outcome = None;
         let attempt = self.attempt_auth_transaction_guarded(
             |tx| {
@@ -313,6 +315,7 @@ impl LocalDatabase {
                 if super::auth_catalog_ops::consume_step_up_proof_on(
                     tx,
                     proof,
+                    &step_up_provider,
                     super::auth_catalog_ops::ExpectedStepUpProof {
                         user_id,
                         session_id: None,
@@ -1861,7 +1864,7 @@ impl super::ServingDatabase {
         &mut self,
         user_id: &str,
         profile: ServerProfile,
-        proof: &StepUpProof,
+        proof: &ProviderBoundStepUpProof,
         now_ms: u64,
         random: &dyn RandomSource,
     ) -> SnapbackResult<IssuedAgentInvitation> {
@@ -1872,7 +1875,7 @@ impl super::ServingDatabase {
         &mut self,
         user_id: &str,
         profile: ServerProfile,
-        proof: &StepUpProof,
+        proof: &ProviderBoundStepUpProof,
         now_ms: u64,
         random: &dyn RandomSource,
         before_commit: BeforeCommit,
