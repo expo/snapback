@@ -898,6 +898,46 @@ This matters beyond one gate. Every green result in this programme is only as tr
 the instrument that produced it, and instruments are written by the same hands, under the
 same assumptions, as the code they check.
 
+
+**Moving the channel outward is not the same as leaving the caller's control.** The gate
+above was forged a third time, and the progression is the lesson. Its verdict came first from
+free-floating stdout sentinels, then from exact fully-qualified libtest lines, then from
+structural cargo JSON plus per-test exit status. Each repair sounded strictly more rigorous
+than the last. Each was forged.
+
+The third forgery: a reviewer placed a **fake `cargo` on `PATH`**. It returned one fabricated
+`compiler-artifact` naming a shell script inside the target directory; the script emitted four
+matching suite and test JSON records and exited 0. **No Rust was compiled and no test ran**, and
+the gate reported `PASS … machine-executed 16/16` under both feature cells — forging the cargo
+JSON, the binary identification, the exact test names, the records, and the exit status in a
+single move.
+
+So "structural machine-readable output" is not the property that matters. The gate resolved a
+**bare tool name from a caller-controlled `PATH`** and then trusted whatever that tool named.
+The trusted channel had moved from the test's stdout to the toolchain, and the caller owned
+both. The question is never *how structured is this evidence* but **who can author it**.
+
+Practically: resolve toolchains absolutely rather than by search path, verify that the executed
+artifact is the one you built, or have the harness own execution end to end. And note why the
+lane's own fabricator regression missed this — **it fabricated only the last link in the chain**
+(the scorer's input) while the real forgery replaced the first (the toolchain). A gate's
+mutation test must fabricate the *whole* chain it depends on, or it certifies only the part it
+happened to imagine.
+
+**Safety instrumentation must not ship in the production build graph.** The same lane made its
+mutations reproducible as source-level `cfg` flags — a good instinct, since a mutation described
+in prose cannot be re-run by a reviewer. But `build.rs` read the selecting environment variable
+**unconditionally**, with no `cfg(test)` constraint, so an ordinary
+`cargo rustc … --print cfg` reported the mutation cfgs as available. That single channel could
+enable shared-file acceptance, policy cloning, or exposed limbs **in a production build**, and
+enabling one made a *legitimate* ceremony fail closed — a denial inversion delivered by the
+test apparatus itself.
+
+The rule: mechanisms that exist to *defeat* a guard must be unreachable from any build a user
+could run. Constrain them to `cfg(test)`, or keep them out of the production build graph
+entirely. Reproducible mutations are worth having; an environment variable that disarms
+authorization is not the way to have them.
+
 **Scope.** This says nothing about ordinary RAII. Guards that protect only their holder's
 own correctness are fine. The rule binds where the value's continued existence is what
 authorizes an effect, or what another thread is waiting on.
