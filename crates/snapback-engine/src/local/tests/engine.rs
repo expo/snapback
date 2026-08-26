@@ -7087,7 +7087,8 @@ impl crate::assets_store::AssetStore for ScriptedPublicationStore {
     }
 
     fn put_blob_idempotent(&self, key: &str, bytes: &[u8]) -> SnapbackResult<()> {
-        if let Some((entered, release)) = self.blocked_put.lock().expect("put script lock").take() {
+        let blocked = self.blocked_put.lock().expect("put script lock").take();
+        if let Some((entered, release)) = blocked {
             entered.send(()).expect("announce blocked publication PUT");
             release.recv().expect("release blocked publication PUT");
         }
