@@ -182,23 +182,6 @@ pub mod benchmark_support {
 pub mod test_support {
     pub use axum;
 
-    /// Compose the real secret-read HTTP bridge without exposing its root or
-    /// bridge carrier to a higher-rank test crate.
-    pub fn app_state_with_secret_read_mint_for_test(
-        snapback: crate::local::LocalSnapback,
-        context: crate::admin::ServerContext,
-        root: crate::admin_secret_read::SecretReadProofRoot,
-        startup_nonce: String,
-    ) -> crate::diagnostic::SnapbackResult<crate::admin::AppState> {
-        let (state, operator) =
-            crate::admin::AppState::try_from_snapback_with_secret_read_operator(snapback, context)?;
-        Ok(
-            state.with_secret_read_mint_bridge(
-                crate::admin_secret_read::SecretReadMintBridge::new(operator, root, startup_nonce),
-            ),
-        )
-    }
-
     /// Run one real maintenance pass while keeping the shared writer handle
     /// and provider-ordering details inside the server owner crate.
     pub async fn drive_push_maintenance_once_for_test(

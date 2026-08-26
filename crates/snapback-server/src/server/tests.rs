@@ -122,31 +122,37 @@ fn asset_signed_url_request_accepts_empty_defaults_and_types_parse_refusals() {
 
 #[tokio::test]
 async fn asset_signed_url_route_empty_and_omitted_body_issue_primary() {
-    let snapback_engine::test_support::SignedAssetFixture {
-        snapback,
-        asset_id,
-        authority,
-    } = snapback_engine::test_support::signed_asset_fixture("user_a", b"signed-route-defaults");
-    let state = Arc::new(Mutex::new(snapback));
+    let fixture =
+        asset_authorized_effect_fixture(AssetAuthorizedEffectSite::SignedUrlReceipt).await;
+    let asset_id = fixture
+        .target
+        .asset_id
+        .as_deref()
+        .expect("ready signed asset id")
+        .to_owned();
 
-    for body in [Bytes::new(), Bytes::from_static(b"{}")] {
-        let issued = super::asset_signed_url_issue_route(
-            State(state.clone()),
-            Extension(authority.clone()),
-            AxumPath(asset_id.clone()),
-            HeaderMap::new(),
-            Ok(body),
-        )
-        .await
-        .expect("empty/default issuance succeeds");
-        assert_eq!(issued.0.variant, "primary");
+    for body in [Vec::new(), b"{}".to_vec()] {
+        let response = fixture
+            .router
+            .clone()
+            .oneshot(asset_session_request(
+                "POST",
+                &format!("/assets/records/{asset_id}/signed-url"),
+                body,
+                Some("application/json"),
+                &fixture.bearer,
+            ))
+            .await
+            .expect("empty/default signed-url request completes");
+        assert_eq!(response.status(), StatusCode::OK);
+        let issued = response_json(response).await;
+        assert_eq!(issued["variant"], "primary");
         assert!(
-            issued
-                .0
-                .url
+            issued["url"]
+                .as_str()
+                .expect("signed URL")
                 .contains(&format!("/{asset_id}/primary?token="))
         );
-        assert_eq!(issued.into_response().status(), StatusCode::OK);
     }
 }
 

@@ -5,19 +5,13 @@
 //! this module must not combine caller-selected executable code with fabricated
 //! authority or expose an authority-bypassing evaluator.
 
-use base64::Engine as _;
-use sha2::Digest as _;
-
-use crate::assets::AssetReadAccessPolicy;
-use crate::auth::invocation::{InvocationGate, InvocationSource, PreparedAuthority};
+use crate::auth::invocation::PreparedAuthority;
 use crate::contract_types::ServerProfile;
 use crate::diagnostic::SnapbackResult;
 use crate::local::LocalSnapback;
 use crate::local::{LiveInvalidationAdmission, LiveSubscribeInput, LiveSubscribeOutput};
 use crate::manifest::{
-    AssetAcceptPolicy, AssetAccessPolicy, AssetDeliveryPolicy, AssetImagePolicy, AssetImageVariant,
-    AssetLocationPolicy, AssetUploadIntentDefinition, AuthInput, FunctionManifest, FunctionRuntime,
-    GraphQueryPlanV1, GraphRowKeyV1, HandlerInput, IbexModule,
+    FunctionManifest, FunctionRuntime, GraphQueryPlanV1, GraphRowKeyV1, HandlerInput, IbexModule,
 };
 
 pub fn apply_graph_delta_to_result_for_test(
@@ -34,21 +28,6 @@ pub fn apply_graph_delta_to_result_for_test(
         ops,
         ordered_root_keys,
     )
-}
-
-const ASSET_INTENT_SOURCE: &str = r#"
-globalThis.__snapbackHandlers = {
-  async signedUpload(ctx) {
-    return { owner: (ctx.auth && ctx.auth.userId) ? ctx.auth.userId : "owner_1" };
-  }
-};
-"#;
-
-/// A ready private-signed asset and the exact authority that created it.
-pub struct SignedAssetFixture {
-    pub snapback: LocalSnapback,
-    pub asset_id: String,
-    pub authority: PreparedAuthority,
 }
 
 /// Finite compatibility surface for higher-ranked auth fixtures.
@@ -919,125 +898,4 @@ globalThis.__snapbackHandlers = {
             "SNAPBACK_TEST_SUPPORT_RUNTIME_FORBIDDEN"
         );
     }
-}
-
-/// Build the bounded engine state needed by the façade's signed-URL route test.
-pub fn signed_asset_fixture(user: &str, bytes: &[u8]) -> SignedAssetFixture {
-    let mut snapback = LocalSnapback::memory().expect("memory snapback");
-    let diagnostics = snapback.load_functions(FunctionManifest {
-        asset_upload_intents: vec![AssetUploadIntentDefinition {
-            id: "app:signedUpload".to_owned(),
-            name: "signedUpload".to_owned(),
-            exported_name: Some("signedUpload".to_owned()),
-            implementation_hash: Some("sha256:test-impl".to_owned()),
-            args_contract_hash: Some("sha256:test-args".to_owned()),
-            intent_policy_hash: "sha256:test-policy-signedUpload".to_owned(),
-            auth_requirement: None,
-            accept: AssetAcceptPolicy {
-                media_types: vec![
-                    "application/octet-stream".to_owned(),
-                    "image/jpeg".to_owned(),
-                ],
-                max_bytes: 64 * 1024,
-            },
-            delivery: AssetDeliveryPolicy {
-                kind: crate::assets::AssetDeliveryProfile::PrivateSigned,
-            },
-            access: AssetAccessPolicy {
-                read: AssetReadAccessPolicy::OwnerOnly,
-            },
-            grants: false,
-            image: Some(AssetImagePolicy {
-                location: AssetLocationPolicy::Retain,
-                variants: vec![AssetImageVariant {
-                    key: "thumb".to_owned(),
-                    width: 16,
-                    required: false,
-                }],
-            }),
-            video: None,
-            on: None,
-            declared_reads: Vec::new(),
-            runtime: FunctionRuntime::IbexModule(IbexModule {
-                source: ASSET_INTENT_SOURCE.to_owned(),
-                export: "signedUpload".to_owned(),
-            }),
-            handler_form: Some("inline".to_owned()),
-            source_span: None,
-        }],
-        ..FunctionManifest::default()
-    });
-    assert!(
-        diagnostics
-            .iter()
-            .all(|diagnostic| diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error),
-        "intent manifest must load: {diagnostics:?}"
-    );
-
-    let authority = dev_authority(&snapback, user, InvocationSource::HttpQuery);
-    let transfer = dev_authority(&snapback, user, InvocationSource::AssetTransfer);
-    let created = snapback
-        .asset_attempt_create(
-            &authority,
-            crate::assets::AssetAttemptCreateRequestV1 {
-                intent_id: "app:signedUpload".to_owned(),
-                intent_policy_hash: "sha256:test-policy-signedUpload".to_owned(),
-                implementation_hash: Some("sha256:test-impl".to_owned()),
-                args: serde_json::json!({}),
-                declared_filename: Some("photo.bin".to_owned()),
-                declared_length: Some(bytes.len() as u64),
-                declared_content_type: Some("application/octet-stream".to_owned()),
-                retry_of_asset_id: None,
-            },
-        )
-        .expect("attempt creates");
-    let checksum = base64::engine::general_purpose::STANDARD.encode(sha2::Sha256::digest(bytes));
-    snapback
-        .asset_tus_patch(
-            &transfer,
-            &created.task.attempt_id,
-            0,
-            bytes,
-            Some(("sha256", checksum.as_str())),
-        )
-        .expect("bytes land");
-    snapback
-        .asset_attempt_finalize(
-            &authority,
-            crate::assets::AssetFinalizeRequestV1 {
-                attempt_id: created.task.attempt_id,
-                lifecycle_generation: 1,
-                declared_digest: None,
-            },
-        )
-        .expect("finalizes");
-
-    SignedAssetFixture {
-        snapback,
-        asset_id: created.task.asset_id,
-        authority,
-    }
-}
-
-fn dev_authority(
-    snapback: &LocalSnapback,
-    user: &str,
-    source: InvocationSource,
-) -> PreparedAuthority {
-    InvocationGate::prepare_admitted_dev_input(
-        source,
-        ServerProfile::Dev,
-        &HandlerInput {
-            auth: AuthInput {
-                user_id: Some(user.to_owned()),
-                ..AuthInput::default()
-            },
-            ..HandlerInput::default()
-        },
-        snapback
-            .admission_controller()
-            .admit_dev()
-            .expect("dev fixture admission"),
-    )
-    .expect("dev authority")
 }
