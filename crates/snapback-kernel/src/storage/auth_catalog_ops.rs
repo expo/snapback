@@ -4017,39 +4017,63 @@ impl LocalDatabase {
         session_id: &str,
         authority_instance_id: &str,
         address: &str,
-        token_hash: &[u8],
+        predecessor_bearer: &SessionBearer,
+        successor_bearer: &SessionBearer,
         generation: u64,
         now_ms: u64,
         expires_at_ms: u64,
     ) -> SnapbackResult<()> {
         self.with_auth_transaction(|transaction| {
-            let _ = (identity_id, address, now_ms);
-            // Additive test support may rotate a fixture session that the
-            // supplied user already owns; it cannot create a human/session
-            // pair or retarget another user's session. This closes both the
-            // mint+bind authority composition and the existing-session
-            // takeover while preserving same-owner fixture rotation.
+            let predecessor_hash = predecessor_bearer.token_hash();
+            let successor_hash = successor_bearer.token_hash();
+            // Additive test support may rotate a live fixture bearer only by
+            // presenting the bearer already bound to the complete durable
+            // session tuple. Caller-known identifiers are expectations, not
+            // authority. Rotation deliberately preserves the generation,
+            // authority instance, and absolute lifetime instead of letting a
+            // feature caller rewrite those authority coordinates.
             // @ref LLP 0303#s-a-compile-fail-witness-proves-a-spelling-is-gone-not-a-capability —
             // gate the durable capability, not merely one old helper name.
             let changed = transaction.execute(
                 "UPDATE _auth_sessions
-                 SET token_hash = ?1, expires_at_ms = ?2, absolute_expires_at_ms = ?2,
-                     authority_instance_id = ?3, generation = ?4
-                 WHERE id = ?5 AND user_id = ?6",
+                 SET token_hash = ?1, expires_at_ms = ?2
+                 WHERE id = ?3
+                   AND user_id = ?4
+                   AND identity_id = ?5
+                   AND authority_instance_id = ?6
+                   AND generation = ?7
+                   AND token_hash = ?8
+                   AND revoked_at_ms IS NULL
+                   AND expires_at_ms > ?9
+                   AND absolute_expires_at_ms > ?9
+                   AND ?2 > ?9
+                   AND ?2 <= absolute_expires_at_ms
+                   AND EXISTS (
+                     SELECT 1 FROM _auth_identities AS identity
+                     WHERE identity.id = ?5
+                       AND identity.user_id = ?4
+                       AND identity.provider = 'email-code'
+                       AND identity.subject = ?10
+                       AND identity.disabled_at_ms IS NULL
+                   )",
                 params![
-                    token_hash,
+                    successor_hash.as_bytes().as_slice(),
                     expires_at_ms as i64,
-                    authority_instance_id,
-                    generation as i64,
                     session_id,
                     user_id,
+                    identity_id,
+                    authority_instance_id,
+                    generation as i64,
+                    predecessor_hash.as_bytes().as_slice(),
+                    now_ms as i64,
+                    address,
                 ],
             )?;
             if changed != 1 {
                 return Err(crate::diagnostic::SnapbackError::error(
                     "SNAPBACK_TEST_SESSION_BINDING_INVALID",
                     "auth",
-                    "test session binding requires an existing session owned by the supplied user",
+                    "test bearer rotation requires the live predecessor bearer and exact durable session binding",
                 ));
             }
             Ok(())
@@ -5643,7 +5667,8 @@ impl<'a> AuthCatalogKernel<'a> {
         session_id: &str,
         authority_instance_id: &str,
         address: &str,
-        token_hash: &[u8],
+        predecessor_bearer: &SessionBearer,
+        successor_bearer: &SessionBearer,
         generation: u64,
         now_ms: u64,
         expires_at_ms: u64,
@@ -5654,7 +5679,8 @@ impl<'a> AuthCatalogKernel<'a> {
             session_id,
             authority_instance_id,
             address,
-            token_hash,
+            predecessor_bearer,
+            successor_bearer,
             generation,
             now_ms,
             expires_at_ms,
