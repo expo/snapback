@@ -314,6 +314,67 @@ mod resolved_principal_tests {
     }
 
     #[test]
+    fn unauthenticated_or_implausibly_forward_resolution_cannot_poison_session_clock() {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.activate_current_auth_catalog().expect("auth catalog");
+        let digest = crate::contract_types::TokenDigest::from_bytes([0x22; 32]);
+        db.auth_catalog()
+            .insert_email_session_for_test(
+                "human-forward-clock",
+                "identity-forward-clock",
+                "session-forward-clock",
+                "authority-forward-clock",
+                "forward-clock@example.com",
+                digest.as_bytes(),
+                1,
+                1,
+                100,
+                200,
+            )
+            .expect("durable session");
+
+        let random_digest = crate::contract_types::TokenDigest::from_bytes([0x99; 32]);
+        let plausible_error = db
+            .resolve_principal_from_session(&random_digest, 60)
+            .err()
+            .expect("a plausible unauthenticated sample is refused before clock mutation");
+        assert_eq!(
+            plausible_error.diagnostic.code,
+            "SNAPBACK_AUTH_PRINCIPAL_INVALID"
+        );
+        assert_eq!(db.auth_session_clock_floor().unwrap(), 0);
+
+        let random_error = db
+            .resolve_principal_from_session(
+                &random_digest,
+                crate::contract_types::AUTH_MAX_SAFE_TIMESTAMP,
+            )
+            .err()
+            .expect("random digest at the maximum sample is refused");
+        assert_eq!(
+            random_error.diagnostic.code,
+            "SNAPBACK_AUTH_PRINCIPAL_INVALID"
+        );
+        assert_eq!(db.auth_session_clock_floor().unwrap(), 0);
+
+        let forward_error = db
+            .resolve_principal_from_session(&digest, crate::contract_types::AUTH_MAX_SAFE_TIMESTAMP)
+            .err()
+            .expect("even an authentic digest cannot submit an absorbing forward sample");
+        assert_eq!(
+            forward_error.diagnostic.code,
+            "SNAPBACK_AUTH_PRINCIPAL_INVALID"
+        );
+        assert_eq!(db.auth_session_clock_floor().unwrap(), 0);
+
+        let principal = db
+            .resolve_principal_from_session(&digest, 50)
+            .expect("the legitimate session remains usable after both attacks");
+        assert_eq!(principal.principal_id(), "human-forward-clock");
+        assert_eq!(db.auth_session_clock_floor().unwrap(), 50);
+    }
+
+    #[test]
     fn cross_crate_session_fixtures_cannot_mint_a_resolved_principal() {
         let mut db = LocalDatabase::memory().expect("memory database");
         db.activate_current_auth_catalog().expect("auth catalog");
@@ -423,6 +484,94 @@ mod resolved_principal_tests {
             .err()
             .expect("the CLI restore fixture cannot resolve as user authority");
         assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_PRINCIPAL_INVALID");
+    }
+
+    #[test]
+    fn additive_mint_and_bind_cannot_create_or_hijack_human_session_authority() {
+        let mut db = LocalDatabase::memory().expect("test-support attack database");
+        db.activate_current_auth_catalog().expect("auth catalog");
+        let victim_digest = crate::contract_types::TokenDigest::from_bytes([0x33; 32]);
+        db.auth_catalog()
+            .insert_email_session_for_test(
+                "victim",
+                "identity-victim",
+                "session-victim",
+                "authority-victim",
+                "victim@example.com",
+                victim_digest.as_bytes(),
+                1,
+                1,
+                1_000,
+                2_000,
+            )
+            .expect("existing victim session");
+        let attacker_user = db
+            .auth_catalog()
+            .mint_human_user_for_test(2)
+            .expect("feature-public helper mints a kernel-chosen human id");
+        let attacker_digest = crate::contract_types::TokenDigest::from_bytes([0x44; 32]);
+
+        let create_error = db
+            .auth_catalog()
+            .bind_email_session_bearer_for_test(
+                &attacker_user,
+                "identity-attacker",
+                "session-attacker",
+                "authority-attacker",
+                "attacker@example.com",
+                attacker_digest.as_bytes(),
+                1,
+                2,
+                1_000,
+            )
+            .err()
+            .expect("mint plus bind cannot create a resolvable human session");
+        assert_eq!(
+            create_error.diagnostic.code,
+            "SNAPBACK_TEST_SESSION_BINDING_INVALID"
+        );
+
+        let hijack_error = db
+            .auth_catalog()
+            .bind_email_session_bearer_for_test(
+                &attacker_user,
+                "identity-attacker",
+                "session-victim",
+                "authority-attacker",
+                "attacker@example.com",
+                attacker_digest.as_bytes(),
+                2,
+                2,
+                1_000,
+            )
+            .err()
+            .expect("supplied attacker user cannot retarget the victim's session row");
+        assert_eq!(
+            hijack_error.diagnostic.code,
+            "SNAPBACK_TEST_SESSION_BINDING_INVALID"
+        );
+        let victim = db
+            .resolve_principal_from_session(&victim_digest, 50)
+            .expect("failed takeover leaves the victim bearer intact");
+        assert_eq!(victim.principal_id(), "victim");
+
+        db.auth_catalog()
+            .bind_email_session_bearer_for_test(
+                "victim",
+                "identity-victim",
+                "session-victim",
+                "authority-victim-rotated",
+                "victim@example.com",
+                attacker_digest.as_bytes(),
+                2,
+                2,
+                1_000,
+            )
+            .expect("same-owner fixture rotation remains available");
+        let rotated = db
+            .resolve_principal_from_session(&attacker_digest, 50)
+            .expect("same-owner rotated bearer resolves");
+        assert_eq!(rotated.principal_id(), "victim");
     }
 
     #[test]

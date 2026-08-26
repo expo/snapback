@@ -310,8 +310,19 @@ impl LocalDatabase {
             |tx| {
                 advance_agent_clock_on(tx, now_ms)?;
                 require_human_user_on(tx, user_id)?;
-                if super::auth_catalog_ops::consume_step_up_proof_on(tx, proof, now_ms)?
-                    != StepUpConsumption::Verified
+                if super::auth_catalog_ops::consume_step_up_proof_on(
+                    tx,
+                    proof,
+                    super::auth_catalog_ops::ExpectedStepUpProof {
+                        user_id,
+                        session_id: None,
+                        session_generation: None,
+                        authority_instance_id: None,
+                        operation: "agentInvitation",
+                        target_id: "creation",
+                    },
+                    now_ms,
+                )? != StepUpConsumption::Verified
                 {
                     return Err(step_up_required_error());
                 }

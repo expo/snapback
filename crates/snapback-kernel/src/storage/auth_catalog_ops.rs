@@ -2753,7 +2753,7 @@ pub(crate) fn reconcile_step_up_consumed_on(
     connection: &Connection,
     proof: &StepUpProof,
 ) -> SnapbackResult<bool> {
-    let Some(expected_key_id) = proof.key_id.as_ref() else {
+    let Some(expected_key_id) = proof.key_id() else {
         return Ok(false);
     };
     connection
@@ -2761,7 +2761,7 @@ pub(crate) fn reconcile_step_up_consumed_on(
             "SELECT canonical_address, key_id,
                     consumed_at_ms IS NOT NULL, superseded_by IS NOT NULL
              FROM _auth_verification_codes WHERE challenge_id = ?1",
-            params![proof.challenge_id.as_str()],
+            params![proof.challenge_id().as_str()],
             |row| {
                 Ok((
                     row.get::<_, String>(0)?,
@@ -2774,7 +2774,7 @@ pub(crate) fn reconcile_step_up_consumed_on(
         .optional()
         .map(|row| {
             row.is_some_and(|(address, key_id, consumed, superseded)| {
-                address == proof.address.as_str()
+                address == proof.address().as_str()
                     && key_id == expected_key_id.as_str()
                     && consumed
                     && !superseded
@@ -2787,14 +2787,14 @@ pub(crate) fn reconcile_step_up_unconsumed_on(
     connection: &Connection,
     proof: &StepUpProof,
 ) -> SnapbackResult<bool> {
-    let Some(expected_key_id) = proof.key_id.as_ref() else {
+    let Some(expected_key_id) = proof.key_id() else {
         return Ok(true);
     };
     connection
         .query_row(
             "SELECT canonical_address, key_id, consumed_at_ms IS NULL
              FROM _auth_verification_codes WHERE challenge_id = ?1",
-            params![proof.challenge_id.as_str()],
+            params![proof.challenge_id().as_str()],
             |row| {
                 Ok((
                     row.get::<_, String>(0)?,
@@ -2806,7 +2806,7 @@ pub(crate) fn reconcile_step_up_unconsumed_on(
         .optional()
         .map(|row| {
             row.is_some_and(|(address, key_id, unconsumed)| {
-                address == proof.address.as_str()
+                address == proof.address().as_str()
                     && key_id == expected_key_id.as_str()
                     && unconsumed
             })
@@ -2814,21 +2814,72 @@ pub(crate) fn reconcile_step_up_unconsumed_on(
         .map_err(crate::diagnostic::SnapbackError::from)
 }
 
+pub(crate) struct ExpectedStepUpProof<'a> {
+    pub user_id: &'a str,
+    pub session_id: Option<&'a str>,
+    pub session_generation: Option<u64>,
+    pub authority_instance_id: Option<&'a str>,
+    pub operation: &'a str,
+    pub target_id: &'a str,
+}
+
 /// Verify and consume one operation-bound proof inside the protected kernel
-/// transaction. The sync owner has already selected the proof and operation;
-/// this primitive only rechecks and commits its exact durable predecessor.
+/// transaction. The sink supplies the exact expected subject, operation, and
+/// target; the proof's private retained coordinates cannot be relabelled by a
+/// caller holding an admission.
 pub(crate) fn consume_step_up_proof_on(
     transaction: &Transaction<'_>,
     proof: &StepUpProof,
+    expected: ExpectedStepUpProof<'_>,
     now_ms: u64,
 ) -> SnapbackResult<StepUpConsumption> {
+    if !proof.matches_binding(
+        expected.user_id,
+        expected.session_id,
+        expected.session_generation,
+        expected.authority_instance_id,
+        expected.operation,
+        expected.target_id,
+    ) {
+        return Ok(StepUpConsumption::Rejected);
+    }
+    let (proof_user_id, proof_session_id, proof_generation, proof_authority_instance_id) =
+        proof.bound_session();
+    let live_bound_session = transaction
+        .query_row(
+            "SELECT 1
+             FROM _auth_sessions AS session
+             JOIN _auth_users AS user ON user.id = session.user_id
+             WHERE session.id = ?1 AND session.user_id = ?2
+               AND session.generation = ?3
+               AND session.authority_instance_id = ?4
+               AND session.revoked_at_ms IS NULL
+               AND ?5 < session.expires_at_ms
+               AND ?5 < session.absolute_expires_at_ms
+               AND user.kind = 'human'
+               AND user.guest_state <> 'active'
+               AND user.deactivated_at_ms IS NULL",
+            params![
+                proof_session_id,
+                proof_user_id,
+                proof_generation as i64,
+                proof_authority_instance_id,
+                now_ms as i64,
+            ],
+            |_| Ok(()),
+        )
+        .optional()?
+        .is_some();
+    if !live_bound_session {
+        return Ok(StepUpConsumption::Rejected);
+    }
     let row = transaction
         .query_row(
             "SELECT canonical_address, code_digest, key_id, attempts,
                     max_attempts, expires_at_ms,
                     consumed_at_ms IS NOT NULL, superseded_by IS NOT NULL
              FROM _auth_verification_codes WHERE challenge_id = ?1",
-            params![proof.challenge_id.as_str()],
+            params![proof.challenge_id().as_str()],
             |row| {
                 Ok((
                     row.get::<_, String>(0)?,
@@ -2848,13 +2899,13 @@ pub(crate) fn consume_step_up_proof_on(
     else {
         return Ok(StepUpConsumption::Rejected);
     };
-    let Some(expected_key_id) = proof.key_id.as_ref() else {
+    let Some(expected_key_id) = proof.key_id() else {
         return Ok(StepUpConsumption::Rejected);
     };
     let attempts = u32::try_from(attempts).map_err(|_| internal_state_snapback())?;
     let max_attempts = u32::try_from(max_attempts).map_err(|_| internal_state_snapback())?;
     let expires_at_ms = checked_stored_time(expires_at)?;
-    if address != proof.address.as_str()
+    if address != proof.address().as_str()
         || key_id != expected_key_id.as_str()
         || digest.len() != 32
         || max_attempts != AUTH_MAXIMUM_ATTEMPTS
@@ -2869,7 +2920,7 @@ pub(crate) fn consume_step_up_proof_on(
     let next_attempts = attempts
         .checked_add(1)
         .ok_or_else(internal_state_snapback)?;
-    if !proof.submitted_digest.verify(&digest) {
+    if !proof.verifies_submitted_digest(&digest) {
         let changed = transaction.execute(
             "UPDATE _auth_verification_codes SET attempts = ?1
              WHERE challenge_id = ?2 AND attempts = ?3
@@ -2877,7 +2928,7 @@ pub(crate) fn consume_step_up_proof_on(
                AND consumed_at_ms IS NULL AND superseded_by IS NULL",
             params![
                 next_attempts as i64,
-                proof.challenge_id.as_str(),
+                proof.challenge_id().as_str(),
                 attempts as i64,
                 digest.as_slice(),
                 expected_key_id.as_str(),
@@ -2899,7 +2950,7 @@ pub(crate) fn consume_step_up_proof_on(
         params![
             next_attempts as i64,
             now_ms as i64,
-            proof.challenge_id.as_str(),
+            proof.challenge_id().as_str(),
             attempts as i64,
             digest.as_slice(),
             expected_key_id.as_str(),
@@ -3952,49 +4003,34 @@ impl LocalDatabase {
         expires_at_ms: u64,
     ) -> SnapbackResult<()> {
         self.with_auth_transaction(|transaction| {
-            let present = transaction.query_row(
-                "SELECT EXISTS(SELECT 1 FROM _auth_sessions WHERE id = ?1)",
-                params![session_id],
-                |row| row.get::<_, i64>(0),
-            )? != 0;
-            if present {
-                transaction.execute(
-                    "UPDATE _auth_sessions
-                     SET token_hash = ?1, expires_at_ms = ?2, absolute_expires_at_ms = ?2,
-                         authority_instance_id = ?3, generation = ?4
-                     WHERE id = ?5",
-                    params![
-                        token_hash,
-                        expires_at_ms as i64,
-                        authority_instance_id,
-                        generation as i64,
-                        session_id
-                    ],
-                )?;
-                return Ok(());
-            }
-            transaction.execute(
-                "INSERT OR IGNORE INTO _auth_users(id, created_at_ms) VALUES(?1, ?2)",
-                params![user_id, now_ms as i64],
+            let _ = (identity_id, address, now_ms);
+            // Additive test support may rotate a fixture session that the
+            // supplied user already owns; it cannot create a human/session
+            // pair or retarget another user's session. This closes both the
+            // mint+bind authority composition and the existing-session
+            // takeover while preserving same-owner fixture rotation.
+            // @ref LLP 0303#s-a-compile-fail-witness-proves-a-spelling-is-gone-not-a-capability —
+            // gate the durable capability, not merely one old helper name.
+            let changed = transaction.execute(
+                "UPDATE _auth_sessions
+                 SET token_hash = ?1, expires_at_ms = ?2, absolute_expires_at_ms = ?2,
+                     authority_instance_id = ?3, generation = ?4
+                 WHERE id = ?5 AND user_id = ?6",
+                params![
+                    token_hash,
+                    expires_at_ms as i64,
+                    authority_instance_id,
+                    generation as i64,
+                    session_id,
+                    user_id,
+                ],
             )?;
-            insert_test_email_identity(transaction, identity_id, user_id, address, now_ms, false)?;
-            insert_test_identity_session(
-                transaction,
-                session_id,
-                user_id,
-                identity_id,
-                authority_instance_id,
-                token_hash,
-                now_ms,
-                now_ms,
-                expires_at_ms,
-                expires_at_ms,
-            )?;
-            if generation != 1 {
-                transaction.execute(
-                    "UPDATE _auth_sessions SET generation = ?1 WHERE id = ?2",
-                    params![generation as i64, session_id],
-                )?;
+            if changed != 1 {
+                return Err(crate::diagnostic::SnapbackError::error(
+                    "SNAPBACK_TEST_SESSION_BINDING_INVALID",
+                    "auth",
+                    "test session binding requires an existing session owned by the supplied user",
+                ));
             }
             Ok(())
         })

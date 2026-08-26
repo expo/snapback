@@ -1152,8 +1152,19 @@ impl LocalDatabase {
                     body_outcome = Some(Err(()));
                     return Ok(Err(()));
                 };
-                if super::auth_catalog_ops::consume_step_up_proof_on(tx, proof, now_ms)?
-                    != StepUpConsumption::Verified
+                if super::auth_catalog_ops::consume_step_up_proof_on(
+                    tx,
+                    proof,
+                    super::auth_catalog_ops::ExpectedStepUpProof {
+                        user_id: effective_user_id,
+                        session_id: Some(session_id),
+                        session_generation: None,
+                        authority_instance_id: None,
+                        operation: "grantApproval",
+                        target_id: request_id,
+                    },
+                    now_ms,
+                )? != StepUpConsumption::Verified
                 {
                     body_outcome = Some(Err(()));
                     return Ok(Err(()));

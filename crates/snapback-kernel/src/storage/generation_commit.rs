@@ -10,7 +10,7 @@ use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{
     FunctionManifest, MaintainedProjectionPlan, SchemaManifest, SeedData, SequenceDeclaration,
 };
-use rusqlite::{OptionalExtension, TransactionBehavior, params};
+use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
@@ -183,6 +183,14 @@ impl LocalDatabase {
             &sequence_declarations,
         )?;
         projection_rebuild::apply_projection_publication_in(&tx, &projection_publications)?;
+        // The durable approval projection and the generation identity are one
+        // publication. A later public reconciliation cannot independently
+        // rewrite one side of the canonical/projected policy comparison.
+        // @ref LLP 0303#removing-a-constructor-is-not-removing-the-capability —
+        // bind the producer of the policy fact to the committed generation.
+        if super::auth_scope_bases::scope_basis_catalog_exists_on(&tx)? {
+            super::auth_scope_bases::reconcile_auth_scope_bases_on(&tx, &manifest)?;
+        }
         // @ref LLP 0225#1-ownership-map — transcript-catalog publication is
         //   generation-coupled durable state, so owner 1 composes it through
         //   owner 2's exact raw-dev transaction instead of a post-commit cut.
@@ -248,25 +256,7 @@ impl LocalDatabase {
     }
 
     pub fn function_generation_record(&self) -> SnapbackResult<Option<FunctionGenerationRecord>> {
-        let stored: Option<String> = self
-            .conn
-            .query_row(
-                "SELECT value FROM _snapback_meta WHERE key = ?1",
-                params![META_FUNCTION_GENERATION],
-                |row| row.get(0),
-            )
-            .optional()?;
-        stored
-            .map(|raw| {
-                serde_json::from_str(&raw).map_err(|_| {
-                    SnapbackError::error(
-                        "SNAPBACK_FUNCTION_GENERATION_STATE_CORRUPT",
-                        "storage",
-                        "persisted function generation record is corrupt",
-                    )
-                })
-            })
-            .transpose()
+        function_generation_record_on(&self.conn)
     }
 
     pub(super) fn install_committed_sequence_declarations(
@@ -275,4 +265,27 @@ impl LocalDatabase {
     ) {
         self.sequence_declarations = Arc::new(declarations);
     }
+}
+
+pub(super) fn function_generation_record_on(
+    connection: &Connection,
+) -> SnapbackResult<Option<FunctionGenerationRecord>> {
+    let stored: Option<String> = connection
+        .query_row(
+            "SELECT value FROM _snapback_meta WHERE key = ?1",
+            params![META_FUNCTION_GENERATION],
+            |row| row.get(0),
+        )
+        .optional()?;
+    stored
+        .map(|raw| {
+            serde_json::from_str(&raw).map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_FUNCTION_GENERATION_STATE_CORRUPT",
+                    "storage",
+                    "persisted function generation record is corrupt",
+                )
+            })
+        })
+        .transpose()
 }

@@ -17638,7 +17638,7 @@ fn same_mode_sessions_activation_projects_live_successor_before_reopening() {
 }
 
 #[test]
-fn same_mode_sessions_activation_replaces_loaded_effect_policy_before_decision() {
+fn same_mode_sessions_activation_keeps_policy_projection_closed_and_guest_cannot_decide() {
     let write_function = |authority_creating| {
         let mut function = FunctionDefinition::new(
             "writeItem",
@@ -17685,17 +17685,17 @@ fn same_mode_sessions_activation_replaces_loaded_effect_policy_before_decision()
     let _connection = install_test_invalidation(&mut snapback);
 
     let now_ms = now_millis();
-    let session = snapback
+    let guest = snapback
         .auth_database_mut()
         .identity_guest_create(now_ms + 60_000, now_ms, &CounterRandom::new())
-        .expect("kernel-created approver session");
+        .expect("production guest ceremony");
     let approver = snapback
         .db
         .resolve_principal_from_session(
-            &crate::contract_types::TokenDigest::from_token_hash(&session.bearer.token_hash()),
+            &crate::contract_types::TokenDigest::from_token_hash(&guest.bearer.token_hash()),
             now_ms + 1,
         )
-        .expect("durable approver principal");
+        .expect("guest remains usable for ordinary product access");
     let creation_owner = snapback
         .db
         .resolve_pending_effect_owner(
@@ -17723,7 +17723,7 @@ fn same_mode_sessions_activation_replaces_loaded_effect_policy_before_decision()
                     inputs_hash: "inputs".to_owned(),
                 },
                 link_origin_id: None,
-                approver_principal_id: Some(session.user_id.clone()),
+                approver_principal_id: Some(guest.user_id.clone()),
                 declared_write_set: vec!["items".to_owned()],
                 now_ms: now_ms + 1,
                 ttl_ms: 30_000,
@@ -17762,26 +17762,21 @@ fn same_mode_sessions_activation_replaces_loaded_effect_policy_before_decision()
         .and_then(|committed| committed.publish_successor())
         .expect("commit and publish same-mode successor");
 
-    snapback
+    let rewrite_error = snapback
         .auth_database_mut()
         .reconcile_auth_scope_bases(&attacker_projection)
-        .expect("public reconciliation writes the stale false projection");
-    let decision_owner = snapback
-        .db
-        .resolve_pending_effect_owner(
-            crate::storage::pending_effects::PendingEffectOwnerEvidence::Session(session.bearer),
-            now_ms + 2,
-        )
-        .expect("derive approver ownership from the exact durable session");
-    let approval = snapback
-        .db
-        .prepare_pending_effect_approval(&approver, &created.id, now_ms + 2)
-        .expect("prepare the exact durable effect and approver");
+        .err()
+        .expect("public reconciliation cannot rewrite the active generation policy");
+    assert_eq!(
+        rewrite_error.diagnostic.code,
+        "SNAPBACK_FUNCTION_POLICY_WRITE_FORBIDDEN"
+    );
     let error = snapback
         .db
-        .approve_pending_effect_admitted(decision_owner, approval, None, now_ms + 2)
-        .expect_err("the loaded true policy must disagree with the stale false projection");
-    assert_eq!(error.diagnostic.code, "SNAPBACK_EFFECT_BINDING_STALE");
+        .prepare_pending_effect_approval(&approver, &created.id, now_ms + 2)
+        .err()
+        .expect("an active guest cannot decide even its explicitly assigned effect");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_PRINCIPAL_INVALID");
 }
 
 #[test]
