@@ -85,14 +85,6 @@ impl GuardedConnection {
         Self::install_composite_authorizer(connection, writer_authority)
     }
 
-    #[cfg(test)]
-    pub(super) fn from_hostile_schema_for_effect_time_test(
-        connection: Connection,
-        writer_authority: WriterAuthorityV1,
-    ) -> AuthorityTransitionResult<Self> {
-        Self::install_composite_authorizer(connection, writer_authority)
-    }
-
     fn install_composite_authorizer(
         connection: Connection,
         writer_authority: WriterAuthorityV1,
@@ -177,6 +169,9 @@ impl<'scope> ProtectedTx<'scope> {
 
 #[cfg(test)]
 mod attacks;
+
+#[cfg(test)]
+pub(super) use attacks::guarded_from_hostile_schema_for_effect_time_test;
 
 #[allow(unexpected_cfgs)]
 fn authorize_composed(
