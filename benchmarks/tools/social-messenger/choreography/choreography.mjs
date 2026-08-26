@@ -2371,6 +2371,17 @@ async function pollTally(option) {
   return numeric;
 }
 
+async function pollSelection(option) {
+  return option.evaluate((element) => {
+    for (const name of ["aria-pressed", "aria-selected", "data-selected"]) {
+      const value = element.getAttribute(name)?.toLowerCase();
+      if (["true", "1"].includes(value)) return true;
+      if (["false", "0"].includes(value)) return false;
+    }
+    return null;
+  });
+}
+
 // M7 is intentionally a fresh-session choreography segment. It is never
 // included in CONTINUOUS_SEGMENTS and parseSegments refuses a mixed M7 run.
 async function m7(ctx) {
@@ -2402,12 +2413,26 @@ async function m7(ctx) {
       ctx.timeoutMs,
       "other-client poll tally",
     );
+    // visibleMs stays click-to-tally; the selection wait below gates segment
+    // close but must not sit inside the metric window (0.3.4-m8 boundary).
+    const visibleMs = rounded(performance.now() - started);
     const totalValue = Number(await semanticValue(testId(observerPage, "sm-poll-total")));
     if (!Number.isInteger(totalValue) || totalValue < changed.value) {
       throw new Error("poll total did not expose a coherent structural count");
     }
+    if (vote.actor === "alice" && vote.optionFixture === "pollAlternateOptionId") {
+      await waitForValue(
+        actorOption,
+        async (target) => {
+          const value = await pollSelection(target);
+          return { matched: value === true, value };
+        },
+        ctx.timeoutMs,
+        "Alice's switched poll selection",
+      );
+    }
     return {
-      metrics: { visibleMs: rounded(performance.now() - started) },
+      metrics: { visibleMs },
       note: `${vote.actor}/${optionId} is unique across all retained best-of-three attempts`,
     };
   });
@@ -2420,6 +2445,15 @@ async function m7(ctx) {
     const optionId = ctx.adapter.fixtures.pollAlternateOptionId;
     const actorOption = await pollOption(ctx.bobPage, optionId, ctx.timeoutMs);
     const observerOption = await pollOption(ctx.alicePage, optionId, ctx.timeoutMs);
+    await waitForValue(
+      observerOption,
+      async (target) => {
+        const value = await pollSelection(target);
+        return { matched: value === true, value };
+      },
+      ctx.timeoutMs,
+      "Alice's retained switched poll selection",
+    );
     const before = await pollTally(observerOption);
     await setContextsOffline([ctx.bobContext], true);
     try {

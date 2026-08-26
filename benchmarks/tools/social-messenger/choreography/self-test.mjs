@@ -270,14 +270,15 @@ async function syncPoll() {
       });
       if (response.ok) localStorage.removeItem(pendingVoteKey());
     }
-    const response = await fetch('/api/poll');
+    const response = await fetch('/api/poll?actor=' + encodeURIComponent(session()));
     const value = await response.json();
     const options = document.querySelector('#poll-options');
     if (!options) return;
     options.innerHTML = value.options.map((option) => {
       const isPending = pendingVote() === option.id;
       return '<button ' + tid('sm-poll-option') + ' aria-valuetext="' + esc(option.id) +
-        '" aria-busy="' + isPending + '" data-pending="' + isPending + '">' +
+        '" aria-selected="' + option.selected + '" aria-busy="' + isPending +
+        '" data-pending="' + isPending + '">' +
         esc(option.id) + ' <span ' + tid('sm-poll-tally') + ' aria-valuetext="' +
         option.tally + '">' + option.tally + '</span></button>';
     }).join('');
@@ -489,9 +490,11 @@ const server = createServer(async (request, response) => {
     return json(response, 200, { accepted: true });
   }
   if (url.pathname === "/api/poll") {
+    const actor = url.searchParams.get("actor") ?? "";
     const options = pollOptionIds.map((id) => ({
       id,
       tally: [...pollVotes.values()].filter((optionId) => optionId === id).length,
+      selected: pollVotes.get(actor) === id,
     }));
     return json(response, 200, { options, total: pollVotes.size });
   }

@@ -154,8 +154,10 @@ when the lane does not satisfy them:
 - M6 web: two offline messages expose pending state, reconnect, arrive exactly
   in order, and reach read receipts.
 - M7 fresh session: another client observes an exact poll tally increment for
-  three distinct retained actor/option pairs, and a fourth distinct offline
-  vote exposes a pending marker then reconciles exactly once.
+  three distinct retained actor/option pairs. Alice's option-A to option-B
+  switch must also become observable as her selected option before the offline
+  assertion begins; the fourth distinct offline vote then exposes a pending
+  marker and reconciles exactly once.
 - M8 web: Bob's like increments Alice's refreshed Insights total; a second
   Alice context receives a same-account message live; opening the conversation
   on Alice client 1 clears `sm-chats-unread` on client 2; and two warm-offline
@@ -251,8 +253,10 @@ makes avatar identity conditional on the app actually mounting
 `sm-convo-sender-avatar`. Removed-member cutoff waits for a subsequent direct
 message to reach Dave before checking the still-open group view; there is no
 fixed short sleep. M7 assigns Alice/option-A, Alice/option-B, and Bob/option-A
-to its three retained live attempts, then Bob/option-B to the offline path, so
-page-only retry resets cannot turn a correct idempotent product red.
+to its three retained live attempts, waits within `ctx.timeoutMs` until Alice's
+option-B selection is observable before the offline assertion, then assigns
+Bob/option-B to the offline path. Page-only retry resets therefore cannot let
+the segment close green while the retained vote switch is still unsettled.
 
 `0.3.2-m8` uses the unambiguous `sm-convo-quote-preview` selector as the sole
 quoted-excerpt jump path after the Clique kit's matching `0.3.1-m8` migration.
