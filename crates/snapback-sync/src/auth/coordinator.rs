@@ -2372,12 +2372,13 @@ fn session_expired(reason: RevocationReason) -> SnapbackError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::auth::crypto::{CryptoError, OsRandom, RandomSource};
+    use crate::auth::crypto::OsRandom;
     use crate::auth::invocation::{InvocationGate, InvocationSource, WireAuthorityFields};
     use crate::auth::keyring::AuthKeyringStore;
     use crate::auth::provider::{
         AuthAdmission, AuthProvider, CredentialIssue, PasswordIssuanceCustody,
-        PlannedIssuanceCommit, PlannedLogout, PlannedRefresh, ProviderGuestSessionPlan,
+        PlannedIssuanceCommit, PlannedLogout, PlannedPasswordChangeCommit, PlannedRefresh,
+        ProviderGuestSessionPlan,
     };
     use crate::contract_types::{
         ApiManifest, AuthProviderProfile, RevocationReason, ServerProfile,
@@ -2386,20 +2387,15 @@ mod tests {
     use std::sync::Arc;
     use std::time::Duration;
 
-    struct FixedRandom(u8);
-
-    impl RandomSource for FixedRandom {
-        fn fill(&self, destination: &mut [u8]) -> Result<(), CryptoError> {
-            destination.fill(self.0);
-            Ok(())
-        }
-    }
-
-    fn uuid_v7(timestamp_ms: u64, byte: u8) -> String {
-        uuid::Builder::from_unix_timestamp_millis(timestamp_ms, &[byte; 10])
-            .into_uuid()
-            .to_string()
-    }
+    const FIXTURE_SESSION_CREATED_MS: u64 = 100;
+    const FIXTURE_SESSION_EXPIRES_MS: u64 =
+        FIXTURE_SESSION_CREATED_MS + AUTH_SESSION_SLIDING_WINDOW_MS;
+    const FIXTURE_SESSION_ABSOLUTE_EXPIRES_MS: u64 =
+        FIXTURE_SESSION_CREATED_MS + crate::auth::provider::AUTH_SESSION_ABSOLUTE_WINDOW_MS;
+    const FIXTURE_ROTATION_MS: u64 = 250;
+    const FIXTURE_FAMILY_ALARM_MS: u64 =
+        FIXTURE_ROTATION_MS + AUTH_SESSION_SUPERSESSION_GRACE_MS + 1;
+    const FIXTURE_FAMILY_COMMIT_MS: u64 = FIXTURE_FAMILY_ALARM_MS + 1;
 
     fn pending_session_owner_evidence(
         bearer: &str,
@@ -2420,6 +2416,7 @@ mod tests {
         authority_instance_id: String,
         substituted_user_id: String,
         substituted_session_id: String,
+        substituted_bearer: String,
         monotonic_start: Instant,
         provider: Arc<AuthProvider>,
         provider_admission: AuthAdmission,
@@ -2438,8 +2435,10 @@ mod tests {
         let planned = provider
             .plan_guest_session(
                 database,
-                3,
-                997,
+                // The fixture keyring becomes active at epoch 100. The real
+                // provider correctly refuses issuance before that ceremony.
+                FIXTURE_SESSION_CREATED_MS,
+                crate::auth::provider::AUTH_SESSION_ABSOLUTE_WINDOW_MS,
                 crate::auth::throttle::RollingWindowBudgetTerms {
                     limit: 10,
                     window_ms: 1_000,
@@ -2466,6 +2465,17 @@ mod tests {
     }
 
     async fn fixture_with_substituted_session(include_substituted_session: bool) -> Fixture {
+        fixture_with_sessions(include_substituted_session, false).await
+    }
+
+    async fn fixture_with_claimed_password_session() -> Fixture {
+        fixture_with_sessions(false, true).await
+    }
+
+    async fn fixture_with_sessions(
+        include_substituted_session: bool,
+        claim_original_password: bool,
+    ) -> Fixture {
         let monotonic_start = Instant::now();
         let admission_controller =
             crate::auth::invocation::test_admission_controller(AuthMode::Sessions, 0)
@@ -2483,7 +2493,7 @@ mod tests {
             AuthProvider::new(AuthProviderProfile::Test, keyring)
                 .expect("construct provider planning authority"),
         );
-        let issued = mint_guest_session(
+        let mut issued = mint_guest_session(
             provider.as_ref(),
             &mut planning_database,
             "coordinator-original-session",
@@ -2495,6 +2505,37 @@ mod tests {
                 "coordinator-substituted-session",
             )
         });
+        if claim_original_password {
+            let plan = provider
+                .plan_guest_claim_password(
+                    &planning_database,
+                    issued.response().token(),
+                    "coordinator-family-alarm@example.test",
+                    crate::auth::identity_core::PasswordSecret::new(
+                        "coordinator-family-alarm-password".to_owned(),
+                    ),
+                    FIXTURE_SESSION_CREATED_MS + 1,
+                    "coordinator-family-recovery-key",
+                    &[7; 32],
+                    crate::auth::throttle::RollingWindowBudgetTerms {
+                        limit: 10,
+                        window_ms: 1_000,
+                    },
+                    PasswordIssuanceCustody::Bearer,
+                )
+                .await
+                .expect("plan guest password claim through the production provider");
+            let attempt =
+                provider.commit_password_change(&mut planning_database, &plan.commit_plan());
+            let AuthTransactionAttempt::Committed(PlannedPasswordChangeCommit::Committed {
+                session,
+                ..
+            }) = attempt
+            else {
+                panic!("production guest password claim must commit");
+            };
+            issued = plan.into_issue(session);
+        }
         let session = &issued.response().session;
         let user_id = session.user_id.clone();
         let session_id = session.id.clone();
@@ -2508,6 +2549,10 @@ mod tests {
         let substituted_session_id = substituted
             .as_ref()
             .map(|issue| issue.response().session.id.clone())
+            .unwrap_or_default();
+        let substituted_bearer = substituted
+            .as_ref()
+            .map(|issue| issue.response().token().expose_secret().to_owned())
             .unwrap_or_default();
         let incarnation = planning_database
             .ensure_authorization_stream_incarnation()
@@ -2535,6 +2580,7 @@ mod tests {
             authority_instance_id,
             substituted_user_id,
             substituted_session_id,
+            substituted_bearer,
             monotonic_start,
             provider,
             provider_admission,
@@ -2647,9 +2693,9 @@ mod tests {
     }
 
     async fn family_alarm_fixture() -> (Fixture, ProviderRevocationPlan) {
-        let mut fixture = fixture().await;
+        let mut fixture = fixture_with_claimed_password_session().await;
         let predecessor_bearer = fixture.bearer.clone();
-        let rotation = rotation_plan(&fixture, 250);
+        let rotation = rotation_plan(&fixture, FIXTURE_ROTATION_MS);
         let commit_plan = rotation.commit_plan();
         let carrier = fixture
             .coordinator
@@ -2675,7 +2721,7 @@ mod tests {
             let database = fixture.planning_database.lock().unwrap();
             fixture
                 .provider_admission
-                .plan_family_alarm(&database, &predecessor_bearer, 251)
+                .plan_family_alarm(&database, &predecessor_bearer, FIXTURE_FAMILY_ALARM_MS)
                 .expect("plan family alarm from the durable predecessor")
                 .revocation_plan()
                 .expect("superseded bearer produces an actionable revocation")
@@ -2693,11 +2739,11 @@ mod tests {
     fn committed_rotation_session(fixture: &Fixture) -> crate::auth::wire::SessionResponse {
         crate::auth::wire::SessionResponse {
             id: fixture.session_id.clone(),
-            user_id: uuid_v7(2, 2),
-            provider: "email-code".to_owned(),
-            created_at: 3,
-            expires_at: 1_000,
-            absolute_expires_at: 9_000_000_000,
+            user_id: fixture.user_id.clone(),
+            provider: "guest".to_owned(),
+            created_at: FIXTURE_SESSION_CREATED_MS,
+            expires_at: FIXTURE_SESSION_EXPIRES_MS,
+            absolute_expires_at: FIXTURE_SESSION_ABSOLUTE_EXPIRES_MS,
             authority_instance_id: fixture.authority_instance_id.clone(),
             generation: 1,
         }
@@ -2800,14 +2846,13 @@ mod tests {
         let fixture = fixture_from_database(true, &mut database).await;
         let mut database = crate::storage::ServingDatabase::adopt(database)
             .expect("adopt session authority lease fixture database");
-        let second_bearer = SessionBearer::generate(&FixedRandom(8)).unwrap();
         let first = fixture
             .coordinator
             .resolve_required_bearer(&fixture.bearer, 200, fixture.monotonic_start)
             .unwrap();
         let second = fixture
             .coordinator
-            .resolve_required_bearer(second_bearer.expose_secret(), 200, fixture.monotonic_start)
+            .resolve_required_bearer(&fixture.substituted_bearer, 200, fixture.monotonic_start)
             .unwrap();
         assert_ne!(
             first.resolved().session_id(),
@@ -2874,7 +2919,7 @@ mod tests {
         let exact = crate::storage::pending_effects::PendingEffectAuthority::Session {
             user_id: fixture.user_id.clone(),
             session_id: fixture.session_id.clone(),
-            provider: "email-code".to_owned(),
+            provider: "guest".to_owned(),
             generation: 1,
             authority_instance_id: fixture.authority_instance_id.clone(),
             authorization_stream_incarnation: fixture.incarnation.clone(),
@@ -2952,7 +2997,7 @@ mod tests {
         let exact = crate::storage::pending_effects::PendingEffectAuthority::Session {
             user_id: fixture.user_id.clone(),
             session_id: fixture.session_id.clone(),
-            provider: "email-code".to_owned(),
+            provider: "guest".to_owned(),
             generation: 1,
             authority_instance_id: fixture.authority_instance_id.clone(),
             authorization_stream_incarnation: fixture.incarnation.clone(),
@@ -2998,7 +3043,7 @@ mod tests {
                 &fixture.incarnation,
                 &fixture.substituted_session_id,
                 &fixture.substituted_user_id,
-                "email-code",
+                "guest",
                 1,
                 200,
                 fixture.monotonic_start + Duration::from_millis(100),
@@ -3015,7 +3060,7 @@ mod tests {
         let ResolvedAppAuthority::Session(subject) = reconstructed.authority() else {
             panic!("retained session reconstruction must produce session authority")
         };
-        assert_eq!(subject.user_id(), uuid_v7(2, 2));
+        assert_eq!(subject.user_id(), fixture.user_id.as_str());
 
         let mut cases = Vec::new();
         let mut add_case =
@@ -3316,28 +3361,35 @@ mod tests {
     #[tokio::test]
     async fn cancelling_expiry_drain_removes_every_exact_due_marker() {
         let fixture = fixture().await;
+        let before_expiry_ms = FIXTURE_SESSION_EXPIRES_MS - 1;
+        let before_expiry_monotonic =
+            fixture.monotonic_start + Duration::from_millis(AUTH_SESSION_SLIDING_WINDOW_MS - 1);
         let (_, publication) = fixture
             .coordinator
-            .resolve_required_bearer(&fixture.bearer, 999, fixture.monotonic_start)
+            .resolve_required_bearer(&fixture.bearer, before_expiry_ms, before_expiry_monotonic)
             .unwrap()
             .into_parts();
         let permit = publication
-            .try_reserve_work(999, fixture.monotonic_start)
+            .try_reserve_work(before_expiry_ms, before_expiry_monotonic)
             .unwrap()
             .expect("work starts immediately before expiry");
         let batch = fixture
             .coordinator
-            .sample_due_expiries(1_000, fixture.monotonic_start + Duration::from_millis(900))
+            .sample_due_expiries(
+                FIXTURE_SESSION_EXPIRES_MS,
+                fixture.monotonic_start + Duration::from_millis(AUTH_SESSION_SLIDING_WINDOW_MS),
+            )
             .unwrap()
             .expect("one due expiry");
         let coordinator = fixture.coordinator.clone();
         let pending = tokio::spawn(async move { coordinator.expire_sampled_due(batch).await });
-        wait_until_publication_closed(&publication, 999, fixture.monotonic_start).await;
+        wait_until_publication_closed(&publication, before_expiry_ms, before_expiry_monotonic)
+            .await;
         pending.abort();
         assert!(pending.await.unwrap_err().is_cancelled());
         assert!(
             publication
-                .try_reserve_work(999, fixture.monotonic_start)
+                .try_reserve_work(before_expiry_ms, before_expiry_monotonic)
                 .unwrap()
                 .is_some()
         );
@@ -3732,7 +3784,7 @@ mod tests {
                     &deadline_fixture.session_id,
                     1,
                     AuthenticatedUse::Unchanged {
-                        expires_at_ms: 1_000,
+                        expires_at_ms: FIXTURE_SESSION_EXPIRES_MS,
                     },
                     300,
                     deadline_fixture.monotonic_start + Duration::from_millis(100),
@@ -3828,7 +3880,7 @@ mod tests {
                 fixture.provider_admission.commit_planned_revocation(
                     &mut database,
                     &winner_plan,
-                    252,
+                    FIXTURE_FAMILY_COMMIT_MS,
                 )
             };
             let outcome = fixture
@@ -3849,7 +3901,11 @@ mod tests {
             assert_eq!(
                 fixture
                     .coordinator
-                    .resolve_required_bearer(&fixture.bearer, 252, fixture.monotonic_start,)
+                    .resolve_required_bearer(
+                        &fixture.bearer,
+                        FIXTURE_FAMILY_COMMIT_MS,
+                        fixture.monotonic_start,
+                    )
                     .unwrap_err()
                     .diagnostic
                     .code,
@@ -3911,7 +3967,7 @@ mod tests {
             family_fixture.provider_admission.commit_planned_revocation(
                 &mut database,
                 &family_plan,
-                251,
+                FIXTURE_FAMILY_COMMIT_MS,
             )
         };
         let RevocationFinish::Committed { outcome, .. } = family_fixture
@@ -3985,9 +4041,11 @@ mod tests {
             .unwrap();
         let committed_family_alarm = {
             let mut database = fixture.planning_database.lock().unwrap();
-            fixture
-                .provider_admission
-                .commit_planned_revocation(&mut database, &family_plan, 252)
+            fixture.provider_admission.commit_planned_revocation(
+                &mut database,
+                &family_plan,
+                FIXTURE_FAMILY_COMMIT_MS,
+            )
         };
         fixture
             .coordinator
@@ -3995,9 +4053,11 @@ mod tests {
             .unwrap();
         let already_terminal = {
             let mut database = fixture.planning_database.lock().unwrap();
-            fixture
-                .provider_admission
-                .commit_planned_revocation(&mut database, &logout_plan, 253)
+            fixture.provider_admission.commit_planned_revocation(
+                &mut database,
+                &logout_plan,
+                FIXTURE_FAMILY_COMMIT_MS + 1,
+            )
         };
         let outcome = fixture
             .coordinator
@@ -4244,7 +4304,7 @@ mod tests {
                 &fixture.session_id,
                 1,
                 AuthenticatedUse::Unchanged {
-                    expires_at_ms: 1_000,
+                    expires_at_ms: FIXTURE_SESSION_EXPIRES_MS,
                 },
                 200,
                 at_use,
@@ -4258,8 +4318,8 @@ mod tests {
             .coordinator
             .resolve_required_bearer(
                 &fixture.bearer,
-                1_000,
-                fixture.monotonic_start + Duration::from_millis(900),
+                FIXTURE_SESSION_EXPIRES_MS,
+                fixture.monotonic_start + Duration::from_millis(AUTH_SESSION_SLIDING_WINDOW_MS),
             )
             .unwrap();
         fixture.coordinator.check_invariants().unwrap();
