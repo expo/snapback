@@ -5,7 +5,7 @@ use snapback_row_attack_fixtures::{
 };
 use snapback_sync::auth::invocation::{InvocationSource, WireAuthorityFields};
 use snapback_types::auth::crypto::OsRandom;
-use snapback_types::contract_types::{AgentsMode, AuthMode, ServerProfile};
+use snapback_types::contract_types::{AuthMode, ServerProfile};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), String> {
@@ -34,7 +34,6 @@ async fn main() -> Result<(), String> {
             .engine
             .register_oauth_client(
                 &foreign_lease,
-                AgentsMode::Open,
                 None,
                 Some("cross-engine client".to_owned()),
                 integration_facts(),

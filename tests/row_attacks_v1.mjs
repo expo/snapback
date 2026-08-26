@@ -75,6 +75,13 @@ test('row-attack ledger carries every measured row and all feature cells', () =>
       .filter(({ row }) => ['C005', 'C009', 'F094', 'F143'].includes(row))
       .every(({ expectedCode }) => /^E\d{4}$/u.test(expectedCode)),
   );
+  assert.deepEqual(
+    ledger.attacks
+      .filter(({ expected, expectedCode }) => expected === 'CLOSED' && expectedCode === undefined)
+      .map(({ row }) => row),
+    ['F157', 'F171', 'F172', 'F173', 'F188', 'F190', 'F191', 'F126'],
+    'only runtime-refusal CLOSED rows may omit a Rust expectedCode',
+  );
   const rawSql = ledger.attacks.find(({ row }) => row === 'F313');
   assert.deepEqual(rawSql.requiredFeatures, ['kernel-push-fixture']);
   assert.equal(expectedInCell(rawSql, 'production'), 'CLOSED');
