@@ -3102,7 +3102,13 @@ fn auth_clock_rollback() -> SnapbackError {
 mod tests {
     use super::*;
     use crate::auth::crypto::{CryptoError, RandomSource};
+    use crate::auth::mode::{
+        AuthProgramReadiness, DeploymentIdentity, FUNCTION_V1_PREFIX, INPUTS_V1_PREFIX,
+        SCHEMA_V1_PREFIX,
+    };
+    use crate::manifest::{AuthMode, SchemaManifest};
     use crate::storage::auth_agents::AgentRegistration;
+    use serde_json::json;
     use std::sync::atomic::{AtomicU8, Ordering};
 
     static AGENT_LIFECYCLE_COMMIT_UNCERTAINTY_TEST_LOCK: std::sync::Mutex<()> =
@@ -3168,6 +3174,90 @@ mod tests {
         )
         .expect("agent principal");
         db
+    }
+
+    fn stale_policy_digest(prefix: &str, nibble: char) -> String {
+        format!("{prefix}{}", nibble.to_string().repeat(64))
+    }
+
+    fn stale_credential_policy_schema(
+        schema_nibble: char,
+        protect_last_holder: bool,
+    ) -> SchemaManifest {
+        let membership = protect_last_holder.then(|| {
+            json!({
+                "principal": "userId",
+                "resource": "eventId",
+                "role": "role",
+                "roles": ["host"],
+                "bootstrapRole": "host",
+                "lastHolder": { "protect": "host" },
+                "scope": "resource",
+                "resourceTable": "events"
+            })
+        });
+        serde_json::from_value(json!({
+            "schemaVersion": "snapback.v1",
+            "appId": "stale-credential-policy",
+            "schemaHash": stale_policy_digest(SCHEMA_V1_PREFIX, schema_nibble),
+            "inputsHash": stale_policy_digest(INPUTS_V1_PREFIX, 'c'),
+            "auth": { "mode": "sessions" },
+            "tables": [
+                { "name": "events" },
+                {
+                    "name": "event_members",
+                    "fields": [
+                        { "name": "userId", "field_type": "Principal" },
+                        { "name": "eventId", "field_type": { "Id": { "table": "events" } } },
+                        { "name": "role", "field_type": "String" }
+                    ],
+                    "membership": membership
+                }
+            ]
+        }))
+        .expect("stale credential policy schema")
+    }
+
+    fn stale_credential_policy_deployment(
+        schema_nibble: char,
+        schema: &SchemaManifest,
+    ) -> DeploymentIdentity {
+        DeploymentIdentity {
+            schema_version: "snapback.v1".to_owned(),
+            auth_mode: AuthMode::Sessions,
+            app_id: schema.app_id.clone(),
+            schema_hash: stale_policy_digest(SCHEMA_V1_PREFIX, schema_nibble),
+            bundle_hash: stale_policy_digest(FUNCTION_V1_PREFIX, 'b'),
+            inputs_hash: stale_policy_digest(INPUTS_V1_PREFIX, 'c'),
+        }
+    }
+
+    fn stale_credential_policy_readiness() -> AuthProgramReadiness {
+        AuthProgramReadiness {
+            route_registry_enforced: true,
+            existing_surface_closure: true,
+            admin_secret_read_enforced: true,
+            secret_read_process_prerequisites: true,
+            provider_core: true,
+            shared_invocation_gate: true,
+            staged_mode: true,
+            connection_binding: true,
+            two_phase_revocation: true,
+            auth_coordinator: true,
+            authorization_invalidation: false,
+            authority_descriptor: false,
+            authorized_lease: false,
+            password_provider: crate::auth::mode::PasswordProviderReadiness::requires_v4(None),
+            session_activation_ready: true,
+        }
+    }
+
+    fn publish_stale_credential_policy_successor(publisher: &mut LocalDatabase) {
+        let successor = stale_credential_policy_schema('d', true);
+        let deployment = stale_credential_policy_deployment('d', &successor);
+        publisher
+            .apply_same_mode_schema(deployment, successor)
+            .expect("publish protected successor manifest");
     }
 
     fn seed_grant(db: &LocalDatabase, id: &str, now_ms: u64) {
@@ -3935,6 +4025,86 @@ mod tests {
         );
         db.resolve_agent_credential(&issued.secret, 1_002)
             .expect("refused restore rolls the authority purge back");
+    }
+
+    #[test]
+    #[ignore = "open stale-schema defect measurement; run explicitly"]
+    fn stale_predecessor_manifest_reaches_credential_family_revocation_effect() {
+        let directory = tempfile::tempdir().expect("stale credential policy tempdir");
+        let path = directory.path().join("stale-credential-policy.sqlite3");
+        let mut stale = LocalDatabase::open(&path).expect("open stale handle A");
+        let predecessor = stale_credential_policy_schema('a', false);
+        let predecessor_deployment = stale_credential_policy_deployment('a', &predecessor);
+        stale
+            .stage_auth_mode(predecessor_deployment, predecessor, None)
+            .expect("stage initial sessions manifest");
+        stale
+            .consume_sessions_auth_mode(&stale_credential_policy_readiness())
+            .expect("activate initial sessions manifest");
+        let mut publisher = LocalDatabase::open(&path).expect("open publisher handle B");
+        create_agent(&mut stale, "agent-a");
+        let issued = stale
+            .issue_initial_agent_credential("agent-a", 1_000, &CounterRandom::new())
+            .expect("issue the recovery carrier before the policy successor");
+        stale
+            .conn
+            .execute("UPDATE _snapback_version SET version = 1 WHERE id = 1", [])
+            .expect("advance the test fixture storage head");
+        stale
+            .conn
+            .execute(
+                "INSERT INTO events(_id, _version, _createdAt, _updatedAt) \
+                 VALUES('event-1', 1, 1, 1)",
+                [],
+            )
+            .expect("seed protected resource");
+        stale
+            .conn
+            .execute(
+                "INSERT INTO event_members( \
+                    _id, userId, eventId, role, _version, _createdAt, _updatedAt \
+                 ) VALUES('member-1', 'agent-a', 'event-1', 'host', 1, 1, 1)",
+                [],
+            )
+            .expect("seed sole holder");
+
+        publish_stale_credential_policy_successor(&mut publisher);
+        assert!(
+            stale.schema().tables[1].membership.is_none(),
+            "handle A must retain the predecessor without lastHolder"
+        );
+        assert!(
+            publisher.schema().tables[1]
+                .membership
+                .as_ref()
+                .and_then(|membership| membership.last_holder.as_ref())
+                .is_some(),
+            "handle B must durably publish the protected successor before use"
+        );
+
+        let outcome = stale.revoke_agent_credential_family(&issued.secret, 1_001);
+        let revoked_at: Option<i64> = publisher
+            .conn
+            .query_row(
+                "SELECT revoked_at_ms FROM _auth_agent_credentials \
+                 WHERE id = ?1 AND user_id = 'agent-a'",
+                params![issued.credential_id],
+                |row| row.get(0),
+            )
+            .expect("read exact credential-family effect");
+        match outcome {
+            Err(error) => {
+                assert_eq!(
+                    error.diagnostic.code, "SNAPBACK_MEMBERSHIP_LAST_HOLDER_STRAND",
+                    "a safe refusal must fire at credential-family use"
+                );
+                assert_eq!(revoked_at, None, "a refusal must leave the family live");
+            }
+            Ok(revocation) => panic!(
+                "FAMILY1_REACHES_EFFECT: use returned Ok({revocation:?}); \
+                 publisher handle B observed revoked_at_ms={revoked_at:?}"
+            ),
+        }
     }
 }
 impl super::ServingDatabase {
