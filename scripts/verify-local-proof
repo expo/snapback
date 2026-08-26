@@ -257,6 +257,7 @@ proof_runner_init local-proof "$PROOF_RESULTS" "$KEEP_GOING" "$PROOF_SELECTED_GA
 # helper as the battery and matches it to runner-observed host/policy facts.
 proof_runner_declare_inapplicable cargo-test-profile-clean ci-only
 proof_runner_declare_inapplicable cargo-test-profile-clean cargo-clean-required
+proof_runner_declare_inapplicable admin-ui-build linux-host
 proof_runner_declare_inapplicable runtime-package-stage linux-host
 proof_runner_declare_inapplicable swift-client swift-toolchain
 proof_runner_declare_inapplicable exact-todo-install exact-surface-enabled
@@ -681,7 +682,9 @@ run guide-capability-link-real-backend --requires current-binary-readiness -- \
 runtime_binary="$ROOT/target/debug/snapback"
 runtime_prerequisite="current-binary-readiness"
 if [ "$PROOF_HOST_OS" = "linux" ]; then
-    run runtime-package-stage --requires current-binary-readiness -- env \
+    run admin-ui-build -- bash -c \
+        'bun install --frozen-lockfile --cwd admin-ui && admin-ui/build.sh'
+    run runtime-package-stage --requires current-binary-readiness,admin-ui-build -- env \
         SNAPBACK_RUNTIME_LINUX_X64_SOURCE_BINARY="$runtime_binary" \
         SNAPBACK_RUNTIME_LINUX_X64_HERMES_LIBRARY="$ROOT/vendor/ibex/linux/lib/libhermesvm.so" \
         node packages/snapback-runtime-linux-x64/prepare-runtime.mjs \
@@ -689,6 +692,8 @@ if [ "$PROOF_HOST_OS" = "linux" ]; then
     runtime_binary="$ROOT/packages/snapback-runtime-linux-x64/bin/snapback"
     runtime_prerequisite="runtime-package-stage"
 else
+    inapplicable admin-ui-build linux-host \
+        "{\"hostOs\":\"$PROOF_HOST_OS\"}"
     inapplicable runtime-package-stage linux-host \
         "{\"hostOs\":\"$PROOF_HOST_OS\"}"
 fi

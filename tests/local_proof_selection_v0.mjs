@@ -83,6 +83,7 @@ test('affected groups retain mandatory Contract/Exact and admin behavior', () =>
   const admin = select(['admin-ui/src/main.ts']);
   assert.deepEqual(admin.selectedGroups, ['exact-admin', 'packaging']);
   includesAll(admin, [
+    'admin-ui-build',
     'admin-acceptance',
     'publication-store-qualification-fixtures',
     'published-closure-boot-smoke-fixtures',
@@ -96,6 +97,7 @@ test('single-gate re-entry closes over declared prerequisites', () => {
     'native-runtime-bootstrap',
     'current-binary-build',
     'current-binary-readiness',
+    'admin-ui-build',
     'runtime-package-stage',
     'snapback-cli-real-server',
   ]);

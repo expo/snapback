@@ -318,6 +318,7 @@ export function validateGateCalls(calls, {
     ['ibex-doctor', ['native-runtime-bootstrap']],
     ['current-binary-build', ['native-runtime-bootstrap']],
     ['current-binary-readiness', ['current-binary-build']],
+    ['runtime-package-stage', ['current-binary-readiness', 'admin-ui-build']],
     ['file-drop-browser-relay', ['current-binary-readiness', 'browser-availability']],
     ['admin-acceptance', ['browser-availability']],
   ]);

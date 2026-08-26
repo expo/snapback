@@ -61,6 +61,7 @@
       "rustfmt"
     ],
     "javascriptDependencies": [
+      "admin-ui-build",
       "package-readme-funnel",
       "publication-script-fixtures"
     ]
@@ -1361,6 +1362,7 @@
         "publication-store-qualification-fixtures",
         "published-closure-boot-smoke-fixtures",
         "fastpath-release-fixtures",
+        "admin-ui-build",
         "runtime-package-authority-fixtures",
         "runtime-package-stage",
         "snapback-app-cli-package",

@@ -108,6 +108,11 @@ test('the canonical proof has named gates and its producer edges are closed', ()
     /run generated-artifacts[^\n]*[\s\S]*run drift-prone-gate-fixtures --requires generated-artifacts/u,
     'committed-history fixtures must run after their ignored generated inputs are produced',
   );
+  assert.match(
+    source,
+    /run admin-ui-build -- bash -c[\s\S]*bun install --frozen-lockfile --cwd admin-ui && admin-ui\/build\.sh[\s\S]*run runtime-package-stage --requires current-binary-readiness,admin-ui-build/u,
+    'Linux runtime staging must consume a canonically built admin console snapshot',
+  );
 
   const seedDispatcher = readFileSync(
     resolve(root, 'tests/conformance/run-versioned-seed-v1.mjs'),
@@ -137,6 +142,11 @@ test('the canonical proof has named gates and its producer edges are closed', ()
 
 test('host inapplicability declarations are literal, known gate/predicate pairs', () => {
   const canonical = readFileSync(resolve(root, 'scripts/verify-local-proof'), 'utf8');
+  assert.match(
+    canonical,
+    /proof_runner_declare_inapplicable admin-ui-build linux-host/u,
+    'the Linux-only admin build prerequisite must be statically inventoried',
+  );
   const mutated = canonical.replace(
     'proof_runner_declare_inapplicable runtime-package-stage linux-host',
     'proof_runner_declare_inapplicable runtime-package-stage invented-host-predicate',
