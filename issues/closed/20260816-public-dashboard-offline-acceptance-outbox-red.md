@@ -1245,7 +1245,7 @@ keeps ownership through durable range assignment. The older range/root tests
 now assert this serialized order rather than waiting cyclically on the lock.
 
 At the final JS implementation commit
-`1a1792b1f7b29c22c6c2045cc463cca2d259650e`, the focused outbox suite reports:
+`3374d357c02631a449859560f3bf003f6a30e276`, the focused outbox suite reports:
 
 ```text
 ℹ tests 178
@@ -1255,14 +1255,14 @@ At the final JS implementation commit
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 1791.971
+ℹ duration_ms 1746.618167
 ```
 
 The full `npm test --prefix packages/snapback-client` script reaches only its
 inherited, out-of-scope RQS assertion after the affected suites pass:
 
 ```text
-✖ pre-subscribe durable-buffer overflow fails closed to one fresh snapshot [web/indexeddb] (8.579333ms)
+✖ pre-subscribe durable-buffer overflow fails closed to one fresh snapshot [web/indexeddb] (10.339417ms)
 ℹ tests 30
 ℹ suites 0
 ℹ pass 29
@@ -1270,7 +1270,7 @@ inherited, out-of-scope RQS assertion after the affected suites pass:
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 2514.003458
+ℹ duration_ms 2511.747292
 ```
 
 The strict client TypeScript fixture command, run separately because the full
