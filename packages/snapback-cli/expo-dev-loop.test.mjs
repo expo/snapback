@@ -769,6 +769,7 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
   expectControlUnavailable = false,
   expectHttpFallback = false,
   closeStdinImmediately = false,
+  expectNoStdinControlReady = false,
   failMetroReload = false,
   stubbornMetroDuringReload = false,
 } = {}) {
@@ -861,6 +862,15 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
   const supervisorDescriptorPath = join(dirname(target.readyFile), 'expo-supervisor.json');
   const supervisorDescriptor = JSON.parse(readFileSync(supervisorDescriptorPath, 'utf8'));
   const controlSocket = supervisorDescriptor.controlSocket;
+  if (expectNoStdinControlReady) {
+    await new Promise((resolveWait) => setTimeout(resolveWait, 100));
+    assert.equal(
+      events.some((event) => event.state === 'control-event'
+        && event.control?.state === 'control-ready'),
+      false,
+      'an unavailable stdin carrier must not emit control-ready',
+    );
+  }
   const assertReloadThroughStdin = async () => {
     child.stdin.write(`${JSON.stringify({
       schemaVersion: 'snapback.dev-command.v1',
@@ -1200,8 +1210,12 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
       'an acknowledged stop queued during Metro SIGTERM grace must not make reload critical',
     );
   }
-  assert(events.some((event) => event.schemaVersion === 'snapback.expo-dev.v1'
-    && event.state === 'control-event'));
+  assert.equal(
+    events.some((event) => event.schemaVersion === 'snapback.expo-dev.v1'
+      && event.state === 'control-event'),
+    assertStdinReload || assertStdinRestartBeforeSocketReload || assertConcurrentStdinSocketReload,
+    'stdin control events must exist only when this launch has a usable stdin command channel',
+  );
   const exitPromise = new Promise((resolveExit) => {
     child.once('exit', (code, signal) => resolveExit({ code, signal }));
   });
@@ -1692,7 +1706,26 @@ async function runNonExpoCloseRetrySuite() {
 
 async function runPackagedControlOwnerSurvivalSuite() {
   const controlRoot = mkdtempSync('/tmp/sb-owner-e1-');
+  let directRun = null;
   try {
+    const directTarget = fixture('in-process-owner-app', { sessions: true, root: controlRoot });
+    directRun = await startFixture(directTarget, { platform: 'web' });
+    assert.equal(
+      typeof directRun.supervisor.verbs['stop-children'],
+      'function',
+      'the in-process Expo lifecycle surface must expose serialized stop-children',
+    );
+    const stopped = await directRun.supervisor.verbs['stop-children']({
+      requestId: 'in-process-stop-children',
+    });
+    assert.equal(stopped.ok, true, JSON.stringify(stopped));
+    const respawned = await directRun.supervisor.verbs['reload-metro']({
+      requestId: 'in-process-reload-after-stop',
+    });
+    assert.equal(respawned.ok, true, JSON.stringify(respawned));
+    await directRun.supervisor.close();
+    supervisors.splice(supervisors.indexOf(directRun.supervisor), 1);
+    directRun = null;
     const target = fixture('packaged-owner-app', { sessions: true, root: controlRoot });
     const range = await reserveFreeRange(8);
     await runCliSupervisor(target, 'web', [
@@ -1700,6 +1733,10 @@ async function runPackagedControlOwnerSurvivalSuite() {
     ]);
     console.log('packaged owner: stop-children preserves owner/socket and later reload-metro respawns Metro');
   } finally {
+    if (directRun !== null) {
+      await directRun.supervisor.close().catch(() => {});
+      supervisors.splice(supervisors.indexOf(directRun.supervisor), 1);
+    }
     rmSync(controlRoot, { recursive: true, force: true });
   }
 }
@@ -2080,7 +2117,7 @@ async function runControlSocketSuite() {
     const ignoredStdinRange = await reserveFreeRange(8);
     await runCliSupervisor(ignoredStdinFixture, 'web', [
       '--port-range', `${ignoredStdinRange.lo}-${ignoredStdinRange.hi}`,
-    ], { stubbornMetroDuringReload: true });
+    ], { stubbornMetroDuringReload: true, expectNoStdinControlReady: true });
     const groupWritableFixture = fixture('group-writable-project', {
       sessions: true,
       root: controlRoot,
@@ -2121,6 +2158,7 @@ async function runControlSocketSuite() {
     ], {
       closeStdinImmediately: true,
       expectHttpFallback: true,
+      expectNoStdinControlReady: true,
     });
     const customReadyRange = await reserveFreeRange(8);
     await runCliSupervisor(customReadyTarget, 'web', [
@@ -2297,6 +2335,100 @@ async function runNoTokenCarrierRefusalSuite() {
   }
 }
 
+async function runUnreadableDeclaredTokenSuite(kind) {
+  const root = mkdtempSync(`/tmp/sbunreadable-${kind}-`);
+  let run = null;
+  try {
+    const target = fixture(`${kind}-token-project`, { sessions: true, root });
+    chmodSync(target.projectRoot, 0o700);
+    mkdirSync(target.stateRoot, { recursive: true, mode: 0o700 });
+    chmodSync(target.stateRoot, 0o700);
+    run = await startFixture(target, {
+      platform: 'web',
+      controlSocket: true,
+      requireControlCarrier: true,
+      stdinControl: {
+        available: false,
+        kind: 'empty-regular-file',
+        reason: 'stdin regular file reached EOF before control-channel startup',
+      },
+      beforeReadinessPublish() {
+        const descriptor = JSON.parse(readFileSync(target.readyFile, 'utf8'));
+        const tokenFile = descriptor.adminTokenFile;
+        assert.equal(typeof tokenFile, 'string');
+        if (kind === 'missing') rmSync(tokenFile, { force: true });
+        else chmodSync(tokenFile, 0o644);
+      },
+    });
+    const unavailable = run.events.find((event) => event.state === 'http-control-unavailable');
+    assert.equal(
+      unavailable?.diagnostics?.[0]?.code,
+      'SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID',
+      `${kind} declared admin-token file must log its coded HTTP-control refusal`,
+    );
+    assert.equal(run.supervisor.controlSocket?.schemaVersion, 'snapback.dev-control.v1');
+    const reload = await sendControlCommand(
+      run.supervisor.controlSocket,
+      controlCommand(run.supervisor.controlSocket, 'reload-metro', `${kind}-token-reload`),
+    );
+    assert.equal(reload.at(-1)?.ok, true, JSON.stringify(reload));
+    console.log(`${kind} declared token: coded HTTP refusal falls through to the owner socket`);
+  } finally {
+    if (run !== null) {
+      await run.supervisor.close().catch(() => {});
+      supervisors.splice(supervisors.indexOf(run.supervisor), 1);
+    }
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+async function runUnavailableStdinAdvertisementSuite() {
+  const emptyInputPath = join(scratchRoot, 'unavailable-empty-control-input.jsonl');
+  writeFileSync(emptyInputPath, '');
+  const cases = [
+    ['null-device', () => createReadStream('/dev/null')],
+    ['empty-regular-file', () => createReadStream(emptyInputPath)],
+  ];
+  const advertised = [];
+  for (const [label, makeInput] of cases) {
+    const input = makeInput();
+    if (Number.isInteger(input.fd) === false && typeof input.once === 'function') {
+      await new Promise((resolveOpen, rejectOpen) => {
+        input.once('open', resolveOpen);
+        input.once('error', rejectOpen);
+      });
+    }
+    const events = [];
+    const abort = new AbortController();
+    const exitCode = await runCli(['dev', 'snapback', '--expo', '--json'], {
+      cwd: scratchRoot,
+      stdin: input,
+      signal: abort.signal,
+      async runExpoDev(options) {
+        assert.equal(options.stdinControl.available, false, label);
+        setImmediate(() => abort.abort());
+        return {
+          ok: true,
+          verbs: {},
+          reportControlEvent(event) { events.push(event); },
+          async close() {},
+        };
+      },
+    });
+    assert.equal(exitCode, 0);
+    advertised.push(...events
+      .filter((event) => event.state === 'control-ready')
+      .map((event) => `${label}:${event.channel}`));
+    input.destroy();
+  }
+  assert.deepEqual(
+    advertised,
+    [],
+    'unavailable stdin inputs must not advertise a JSON control channel',
+  );
+  console.log('/dev/null and empty-file stdin do not advertise control-ready');
+}
+
 async function runRegularFileControlInputSuite() {
   const emptyInputPath = join(scratchRoot, 'empty-control-input.jsonl');
   writeFileSync(emptyInputPath, '');
@@ -2391,7 +2523,10 @@ try {
     await runPackagedHttpOnlyAfterStopSuite();
   } else if (noTokenCarrierOnly) {
     await runNoTokenCarrierRefusalSuite();
+    await runUnreadableDeclaredTokenSuite('missing');
+    await runUnreadableDeclaredTokenSuite('loose');
   } else if (regularFileOnly) {
+    await runUnavailableStdinAdvertisementSuite();
     await runRegularFileControlInputSuite();
   } else if (controlOwnerSurvivalOnly) {
     await runPackagedControlOwnerSurvivalSuite();
@@ -2415,6 +2550,9 @@ try {
   await runDelayedMetroExitAfterStopFailureSuite();
   await runNonExpoCloseRetrySuite();
   await runNoTokenCarrierRefusalSuite();
+  await runUnreadableDeclaredTokenSuite('missing');
+  await runUnreadableDeclaredTokenSuite('loose');
+  await runUnavailableStdinAdvertisementSuite();
   await runRegularFileControlInputSuite();
   await runControlSocketSuite();
   let largeUpstreamCancelled = false;

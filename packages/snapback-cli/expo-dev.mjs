@@ -3570,6 +3570,7 @@ export async function runExpoDev(options = {}) {
   let backendControlClosing = false;
   let backendControlStopAttempted = false;
   let validatedOperatorToken = null;
+  let httpControlUnavailableDiagnostic = null;
   let childClosePromise = null;
   let closePromise = null;
   let closeSupervisor = null;
@@ -3999,12 +4000,39 @@ export async function runExpoDev(options = {}) {
     }
     let descriptor = JSON.parse(readFileSync(appDescriptorPath, 'utf8'));
     const readyDescriptor = readReadyDescriptor(dev.readyFile);
-    validatedOperatorToken = managedAdminToken(readyDescriptor, database);
+    const readManagedOperatorToken = (currentReadyDescriptor) => {
+      try {
+        const token = managedAdminToken(currentReadyDescriptor, database);
+        httpControlUnavailableDiagnostic = null;
+        return token;
+      } catch (error) {
+        if ((error?.diagnostic?.code ?? error?.code) !== 'SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID') {
+          throw error;
+        }
+        const diagnostic = error.diagnostic ?? clientDiagnostic(
+          error,
+          'SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID',
+          'the managed admin-token carrier is unavailable',
+        );
+        if (httpControlUnavailableDiagnostic === null) {
+          emit({
+            ok: true,
+            state: 'http-control-unavailable',
+            notice: diagnostic.message,
+            diagnostics: [diagnostic],
+          });
+        }
+        httpControlUnavailableDiagnostic = diagnostic;
+        return null;
+      }
+    };
+    validatedOperatorToken = readManagedOperatorToken(readyDescriptor);
     // @ref LLP 0151#shared-development-browser-adapter — the broker exists only
     // when this app declares a provider, and only when server-held deployment
     // state admits the shared profile. Its origin is the one the client already
     // discovers, so no second terminal and no broker origin configuration.
-    if ((descriptor.authBootstrap?.providers ?? []).length > 0) {
+    if ((descriptor.authBootstrap?.providers ?? []).length > 0
+        && validatedOperatorToken !== null) {
       sharedAuthBroker = createSharedDevelopmentBroker({
         appId: descriptor.identity.app,
         serverOrigin: dev.serverUrl.replace(/\/$/u, ''),
@@ -4021,6 +4049,12 @@ export async function runExpoDev(options = {}) {
           sharedAuth: sharedAuthProjection,
         });
       }
+    } else if ((descriptor.authBootstrap?.providers ?? []).length > 0) {
+      emit({
+        ok: true,
+        state: 'shared-auth-unavailable',
+        sharedAuth: sharedAuthProjection,
+      });
     }
     checkoutRegistry = createDevIdentityCheckoutRegistry({
       getReadyDescriptor: () => readReadyDescriptor(dev.readyFile),
@@ -4028,17 +4062,27 @@ export async function runExpoDev(options = {}) {
     const mintAndSwapAuthority = (email, { emitReplacement = true, pending = false } = {}) => {
       authorityEmail = email;
       authorityRequested = true;
-      let operatorToken = managedAdminToken(readReadyDescriptor(dev.readyFile), database);
+      let operatorToken = readManagedOperatorToken(readReadyDescriptor(dev.readyFile));
       try {
         authorityMintCount += 1;
-        authority = mintSupervisedOrdinarySession({
-          runtimeBinary: dev.runtime.binary,
-          readyFile: dev.readyFile,
-          email,
-          operatorToken,
-          cwd: projectRoot,
-          env: childEnv,
-        });
+        authority = operatorToken === null
+          ? Object.freeze({
+            status: 'authority-required',
+            diagnostic: httpControlUnavailableDiagnostic ?? clientDiagnostic(
+              null,
+              'SNAPBACK_AUTHORITY_REQUIRED',
+              'The supervised ordinary-session mint has no usable managed admin-token carrier.',
+            ),
+            remediations: Object.freeze([]),
+          })
+          : mintSupervisedOrdinarySession({
+            runtimeBinary: dev.runtime.binary,
+            readyFile: dev.readyFile,
+            email,
+            operatorToken,
+            cwd: projectRoot,
+            env: childEnv,
+          });
       } finally {
         operatorToken = null;
       }
@@ -4075,14 +4119,19 @@ export async function runExpoDev(options = {}) {
     // and falls back to the last validated token if the sidecar is also gone.
     const supervisorOperatorToken = () => {
       if (!backendControlClosed && !backendControlClosing) {
-        const current = managedAdminToken(readReadyDescriptor(dev.readyFile), database);
+        const current = readManagedOperatorToken(readReadyDescriptor(dev.readyFile));
         validatedOperatorToken = current;
         return current;
       }
       try {
-        const current = managedAdminToken({
+        const current = readManagedOperatorToken({
           adminTokenFile: `${database}.admin-token`,
-        }, database);
+        });
+        if (current === null
+            && typeof validatedOperatorToken === 'string'
+            && validatedOperatorToken.length > 0) {
+          return validatedOperatorToken;
+        }
         validatedOperatorToken = current;
         return current;
       } catch (error) {
@@ -4869,7 +4918,7 @@ export async function runExpoDev(options = {}) {
       'stop-children': stopChildrenVerb,
     });
     const serializedLifecycleVerbs = Object.freeze(Object.fromEntries(
-      ['reload', 'restart', 'dev-fresh', 'reload-metro'].map((verb) => [
+      ['reload', 'restart', 'dev-fresh', 'reload-metro', 'stop-children'].map((verb) => [
         verb,
         (context = {}) => controlDispatcher.enqueue(verb, context),
       ]),

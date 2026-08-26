@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import {
   chmodSync,
+  cpSync,
   existsSync,
   lstatSync,
   mkdirSync,
@@ -10,17 +11,16 @@ import {
   readdirSync,
   renameSync,
   rmSync,
-  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import {
   __test as carrierKitTest,
   defineTemplateCarrierConfig,
-  runTemplateCarrierCli,
+  runTemplateCarrierCli as runTemplateCarrierCliRaw,
 } from './carrier-kit.mjs';
 import {
   __test as teardownTest,
@@ -43,7 +43,33 @@ const supervisor = join(root, 'supervisor.mjs');
 const browser = join(root, 'browser.mjs');
 const signalRunner = join(root, 'signal-runner.mjs');
 const carrierDeathRunner = join(root, 'carrier-death-runner.mjs');
-const carrierState = (artifacts) => join(artifacts, '.snapback-carrier-state');
+const carrierStatePaths = new Map();
+const carrierState = (artifacts) => {
+  const key = resolve(artifacts);
+  const pointer = join(key, 'carrier-state-path');
+  if (!carrierStatePaths.has(key) && existsSync(pointer)) {
+    carrierStatePaths.set(key, readFileSync(pointer, 'utf8'));
+  }
+  return carrierStatePaths.get(key) ?? join(key, '.snapback-carrier-state');
+};
+const runTemplateCarrierCli = (configValue, argv, options = {}) => runTemplateCarrierCliRaw(
+  configValue,
+  argv,
+  {
+    ...options,
+    onSupervisorStatePrepared(prepared) {
+      carrierStatePaths.set(resolve(prepared.artifacts), prepared.directory);
+      return options.onSupervisorStatePrepared?.(prepared);
+    },
+    onBeforeSupervisorStateCleanup(prepared) {
+      const snapshot = join(prepared.artifacts, 'carrier-state-snapshot');
+      rmSync(snapshot, { recursive: true, force: true });
+      cpSync(prepared.directory, snapshot, { recursive: true });
+      carrierStatePaths.set(resolve(prepared.artifacts), snapshot);
+      return options.onBeforeSupervisorStateCleanup?.(prepared);
+    },
+  },
+);
 
 for (const template of ['react', 'crud-dashboard']) {
   const source = readFileSync(join(import.meta.dirname, 'templates', template, 'carrier.mjs'), 'utf8');
@@ -643,31 +669,24 @@ try {
   const looseStateDirectory = carrierState(looseStateArtifacts);
   mkdirSync(looseStateDirectory, { recursive: true, mode: 0o755 });
   chmodSync(looseStateDirectory, 0o755);
-  assert.throws(
-    () => carrierKitTest.prepareSupervisorStateDirectory(looseStateArtifacts),
-    /owner-only real directory/u,
+  const preparedState = carrierKitTest.prepareSupervisorStateDirectory();
+  assert.equal(
+    lstatSync(preparedState).mode & 0o777,
+    0o700,
+    'supervisor state must be owner-only',
   );
-  const symlinkStateArtifacts = join(root, 'symlink-state-artifacts');
-  const symlinkStateTarget = join(root, 'symlink-state-target');
-  mkdirSync(symlinkStateArtifacts);
-  mkdirSync(symlinkStateTarget, { mode: 0o700 });
-  symlinkSync(symlinkStateTarget, carrierState(symlinkStateArtifacts), 'dir');
-  assert.throws(
-    () => carrierKitTest.prepareSupervisorStateDirectory(symlinkStateArtifacts),
-    /owner-only real directory/u,
+  assert.notEqual(
+    preparedState,
+    looseStateDirectory,
+    'caller-owned artifacts must not carry supervisor state',
   );
-
-  const unsafeStateParent = join(root, 'unsafe-state-parent');
-  const unsafeStateArtifacts = join(unsafeStateParent, 'artifacts');
-  mkdirSync(unsafeStateArtifacts, { recursive: true, mode: 0o755 });
-  chmodSync(unsafeStateParent, 0o777);
-  assert.throws(
-    () => carrierKitTest.prepareSupervisorStateDirectory(unsafeStateArtifacts),
-    (error) => error?.code === 'SNAPBACK_CARRIER_SUPERVISOR_STATE_UNSAFE'
-      && /writable-component/u.test(error.message),
-    'a non-sticky group/world-writable artifacts ancestor must refuse supervisor state',
+  assert.equal(
+    lstatSync(looseStateDirectory).mode & 0o777,
+    0o755,
+    'pre-existing caller artifacts must not be chmodded',
   );
-  console.log('supervisor state ancestry: unsafe writable artifacts parent refuses with a code');
+  rmSync(preparedState, { recursive: true, force: true });
+  console.log('supervisor state custody: run-unique owner-only temp tree leaves artifacts untouched');
 
   const headlessConfig = defineTemplateCarrierConfig({
     schemaVersion: 'snapback.template-carriers.v1',
@@ -764,10 +783,23 @@ try {
     '--artifacts must not change the caller-owned directory mode',
   );
   assert.equal(
-    lstatSync(carrierState(successArtifacts)).mode & 0o777,
-    0o700,
-    'supervisor state must live in a dedicated owner-only child',
+    existsSync(join(successArtifacts, '.snapback-carrier-state')),
+    false,
+    'authority-bearing supervisor state must not live under caller artifacts',
   );
+  const groupWritableProject = join(root, 'group-writable-web-project');
+  const groupWritableArtifacts = join(groupWritableProject, 'artifacts');
+  mkdirSync(groupWritableProject, { mode: 0o775 });
+  chmodSync(groupWritableProject, 0o775);
+  assert.equal(await runTemplateCarrierCli(successConfig, [
+    'web-browser', '--browser', browser, '--artifacts', groupWritableArtifacts,
+  ], { root: groupWritableProject }), 0);
+  assert.equal(
+    existsSync(join(groupWritableArtifacts, 'director-log.json')),
+    true,
+    'a 0775 template project must still spawn snapback dev and reach web readiness',
+  );
+  console.log('0775 template project: web carrier spawns and reaches structured readiness');
   const director = JSON.parse(readFileSync(join(successArtifacts, 'director-log.json'), 'utf8'));
   assert.equal(director.status, 'completed');
   assert.equal(director.proofAuthority.kind, 'llp-0146-d2');
@@ -883,12 +915,21 @@ try {
   const browserProfile = join(signalArtifacts, 'browser-profile');
   mkdirSync(signalArtifacts, { recursive: true });
   writeFileSync(signalRunner, `
-import { writeFileSync } from 'node:fs';
+import { cpSync, rmSync, writeFileSync } from 'node:fs';
 import { defineTemplateCarrierConfig, runTemplateCarrierCli } from ${JSON.stringify(carrierKitUrl)};
 const config = defineTemplateCarrierConfig(${JSON.stringify(config('success', 5_000))});
 try {
   await runTemplateCarrierCli(config, ['web-browser', '--browser', ${JSON.stringify(browser)}, '--artifacts', ${JSON.stringify(signalArtifacts)}], {
     root: ${JSON.stringify(root)},
+    onSupervisorStatePrepared({ directory }) {
+      writeFileSync(${JSON.stringify(join(signalArtifacts, 'carrier-state-path'))}, directory);
+    },
+    onBeforeSupervisorStateCleanup({ directory }) {
+      const snapshot = ${JSON.stringify(join(signalArtifacts, 'carrier-state-snapshot'))};
+      rmSync(snapshot, { recursive: true, force: true });
+      cpSync(directory, snapshot, { recursive: true });
+      writeFileSync(${JSON.stringify(join(signalArtifacts, 'carrier-state-path'))}, snapshot);
+    },
     onBrowserJourneyReady() {
       writeFileSync(${JSON.stringify(browserJourneyReady)}, 'ready');
     },
@@ -939,11 +980,20 @@ try {
   const carrierDeathFinalizeBarrier = join(carrierDeathArtifacts, 'allow-browser-finalization');
   mkdirSync(carrierDeathArtifacts, { recursive: true });
   writeFileSync(carrierDeathRunner, `
-import { existsSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, rmSync, writeFileSync } from 'node:fs';
 import { defineTemplateCarrierConfig, runTemplateCarrierCli } from ${JSON.stringify(carrierKitUrl)};
 const config = defineTemplateCarrierConfig(${JSON.stringify(config('success', 30_000))});
 await runTemplateCarrierCli(config, ['web-browser', '--browser', ${JSON.stringify(browser)}, '--artifacts', ${JSON.stringify(carrierDeathArtifacts)}], {
   root: ${JSON.stringify(root)},
+  onSupervisorStatePrepared({ directory }) {
+    writeFileSync(${JSON.stringify(join(carrierDeathArtifacts, 'carrier-state-path'))}, directory);
+  },
+  onBeforeSupervisorStateCleanup({ directory }) {
+    const snapshot = ${JSON.stringify(join(carrierDeathArtifacts, 'carrier-state-snapshot'))};
+    rmSync(snapshot, { recursive: true, force: true });
+    cpSync(directory, snapshot, { recursive: true });
+    writeFileSync(${JSON.stringify(join(carrierDeathArtifacts, 'carrier-state-path'))}, snapshot);
+  },
   browserLeaseFinalizationReady() {
     return existsSync(${JSON.stringify(carrierDeathFinalizeBarrier)});
   },
@@ -964,6 +1014,10 @@ await runTemplateCarrierCli(config, ['web-browser', '--browser', ${JSON.stringif
     },
     stdio: ['ignore', 'ignore', 'ignore'],
   });
+  await eventually(
+    () => existsSync(join(carrierDeathArtifacts, 'carrier-state-path')),
+    'carrier-death supervisor-state publication',
+  );
   const carrierDeathPidsPath = join(carrierState(carrierDeathArtifacts), 'descendant-pids.json');
   await eventually(() => existsSync(carrierDeathPidsPath), 'carrier-death descendant inventory');
   await eventually(() => existsSync(carrierDeathBrowserStarted), 'carrier-death browser start');
@@ -992,5 +1046,8 @@ await runTemplateCarrierCli(config, ['web-browser', '--browser', ${JSON.stringif
 
   console.log('carrier-kit.test.mjs: supervisor-state declaration/runtime path parity, identity discharge, run-bound descriptor and pending child leases, live ownership, attestation, takeover, stubborn/SIGKILL reclamation, and double-signal cleanup pass');
 } finally {
+  for (const directory of new Set(carrierStatePaths.values())) {
+    rmSync(directory, { recursive: true, force: true });
+  }
   rmSync(root, { recursive: true, force: true });
 }

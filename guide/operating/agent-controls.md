@@ -4,7 +4,7 @@ id: operating.agent-controls
 order: 1
 audience: agent-first
 capabilities: [operating.agent-controls]
-authorities: [llp/0184-agent-accessible-control-plane.rfc.md, llp/0031-server-route-taxonomy.spec.md, llp/0042-agent-mcp-surface.rfc.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, crates/snapback-server/src/control_catalog.rs, crates/snapback-cli/src/cli.rs, packages/snapback-cli/expo-dev.mjs, packages/snapback-cli/process-teardown.mjs, packages/snapback-cli/carrier-kit.mjs, packages/snapback-cli/mcp-control.mjs, packages/snapback-client/index.mjs]
+authorities: [llp/0184-agent-accessible-control-plane.rfc.md, llp/0031-server-route-taxonomy.spec.md, llp/0042-agent-mcp-surface.rfc.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, crates/snapback-server/src/control_catalog.rs, crates/snapback-cli/src/cli.rs, packages/snapback-cli/index.mjs, packages/snapback-cli/expo-dev.mjs, packages/snapback-cli/process-teardown.mjs, packages/snapback-cli/carrier-kit.mjs, packages/snapback-cli/mcp-control.mjs, packages/snapback-client/index.mjs]
 examples: []
 status: current
 targets: [local]
@@ -99,6 +99,11 @@ refuse with `SNAPBACK_EXPO_CONTROL_UNAUTHORIZED`; unknown verbs refuse with
 API: its CORS projection advertises only `GET, OPTIONS`, not `POST` or the
 operator-token header.
 
+A declared token file that is missing or fails its owner-only custody check
+emits `SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID`, marks HTTP control unavailable,
+and continues to owner-socket publication instead of stopping before that
+fallback can be attempted.
+
 The detached-control precedence is exact: authenticated HTTP with the managed
 token first, the owner-bound Unix socket second, and interactive or
 newline-delimited JSON stdin third. `snapback dev --expo --json` publishes the
@@ -164,13 +169,15 @@ Template carrier command placeholders have two distinct path meanings for both
 web and native carriers. `{artifacts}` expands exactly to the caller-visible
 directory selected by `--artifacts`; retained proofs and any other ordinary
 artifact written there stay alongside `director-log.json`, logs, and
-screenshots. `{supervisorState}` expands to that directory's owner-only
-`.snapback-carrier-state` child. The shipped Expo web carriers put their
+screenshots. `{supervisorState}` expands to a run-unique owner-only directory
+below the platform temporary tree. The shipped Expo web carriers put their
 `--ready-file` and `expo-supervisor.json` structured-readiness path below
 `{supervisorState}`; structured Expo readiness is rejected unless it uses that
-private placeholder. Do not use `{supervisorState}` for an artifact the caller
-expects to find directly under `--artifacts`, and do not use `{artifacts}` as an
-alias for private supervisor state.
+private placeholder. The carrier removes this temporary tree after supervised
+cleanup. Do not use `{supervisorState}` for an artifact the caller expects to
+find directly under `--artifacts`, and do not use `{artifacts}` as an alias for
+private supervisor state. A caller-owned `0775` project or artifacts directory
+therefore does not prevent the web or native carrier from starting.
 
 This is transient instance-local state: do not copy it with the database or
 treat a leftover endpoint as durable owner authority. Each request must repeat
@@ -185,8 +192,8 @@ One socket connection carries one newline-delimited request. A valid verb first
 returns `snapback.dev-control-ack.v1` with the same request id, then a
 `snapback.dev-control-result.v1` after the operation settles. All acknowledged
 socket verbs, admitted HTTP verbs, and packaged-stdin lifecycle mutations
-(`reload`, `restart`, `dev-fresh`, and `reload-metro`) share one serialized
-lane. Once
+(`reload`, `restart`, `dev-fresh`, `reload-metro`, and `stop-children`) share
+one serialized lane. Once
 `stop-children` is acknowledged, new work on either channel refuses with
 `SNAPBACK_DEV_CONTROL_STOPPING`; every earlier acknowledged request is allowed
 to settle. After child teardown settles, the lane accepts work again and the
@@ -253,9 +260,9 @@ Interactive humans keep the existing stdin channel: TTY keys remain
 `s`/`r`/`R`/`f`/`q`, and non-TTY
 `snapback.dev-command.v1` input remains available when a launcher preserves a
 pipe. Stdin carries `status`, `reload`, `restart`, and `dev-fresh`, plus
-`reload-metro` for Expo. `stop-children` is available through the token-gated
-HTTP route and owner-bound socket, while `q` or `SIGTERM` is the human stop
-path. Stdin EOF still does not stop the supervisor. The HTTP route is the
+`reload-metro` and `stop-children` for Expo. The TTY has no `stop-children`
+keybinding; `q` or `SIGTERM` remains the human stop path. Stdin EOF still does
+not stop the supervisor. The HTTP route is the
 ordinary agent path when stdin is `/dev/null`; the socket covers the
 no-admin-token pathname-authority case. It is not a FIFO and does not add
 recook as a client verb.

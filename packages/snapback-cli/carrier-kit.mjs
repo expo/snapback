@@ -37,7 +37,6 @@ const CARRIERS = new Set(['headless', 'web-browser', 'native-simulator']);
 const OWNED_PROCESS_STATE = new WeakMap();
 const SUPERVISOR_PARENT_PID_ENV = 'SNAPBACK_EXPO_SUPERVISOR_PARENT_PID';
 const SUPERVISOR_PARENT_START_TIME_ENV = 'SNAPBACK_EXPO_SUPERVISOR_PARENT_START_TIME';
-const SUPERVISOR_STATE_BASENAME = '.snapback-carrier-state';
 const PLIST_UPDATE_SOURCE = String.raw`
 import json
 import plistlib
@@ -363,40 +362,41 @@ function writeDirectorLog(artifacts, record) {
   return path;
 }
 
-function prepareSupervisorStateDirectory(artifacts) {
-  const directory = join(artifacts, SUPERVISOR_STATE_BASENAME);
-  let created = false;
+function prepareSupervisorStateDirectory() {
+  // Caller-selected artifact and project directories commonly inherit 0775
+  // from umask 002. Keep authority-bearing ready/socket state in a run-unique
+  // owner-only directory below the platform's admitted temporary tree.
+  const directory = mkdtempSync(join(tmpdir(), 'snapback-carrier-state-'));
   try {
-    mkdirSync(directory, { mode: 0o700 });
-    created = true;
-  } catch (error) {
-    if (error?.code !== 'EEXIST') throw error;
-  }
-  if (created) chmodSync(directory, 0o700);
-  const metadata = lstatSync(directory);
-  const ownerUid = typeof process.getuid === 'function' ? process.getuid() : null;
-  if (!metadata.isDirectory()
-      || metadata.isSymbolicLink()
-      || (ownerUid !== null && metadata.uid !== ownerUid)
-      || (metadata.mode & 0o777) !== 0o700) {
-    const error = new Error(
-      `carrier supervisor state must be an owner-only real directory: ${directory}`,
-    );
-    error.code = 'SNAPBACK_CARRIER_SUPERVISOR_STATE_UNSAFE';
-    throw error;
-  }
-  if (ownerUid !== null) {
-    const custody = inspectSecureExternalDirectoryChain(directory, ownerUid);
-    if (!custody.ok) {
+    chmodSync(directory, 0o700);
+    const metadata = lstatSync(directory);
+    const ownerUid = typeof process.getuid === 'function' ? process.getuid() : null;
+    if (!metadata.isDirectory()
+        || metadata.isSymbolicLink()
+        || (ownerUid !== null && metadata.uid !== ownerUid)
+        || (metadata.mode & 0o777) !== 0o700) {
       const error = new Error(
-        `carrier supervisor state failed secure directory-chain admission (${custody.reason}) at ${custody.component}: ${directory}`,
+        `carrier supervisor state must be an owner-only real directory: ${directory}`,
       );
       error.code = 'SNAPBACK_CARRIER_SUPERVISOR_STATE_UNSAFE';
-      error.details = custody;
       throw error;
     }
+    if (ownerUid !== null) {
+      const custody = inspectSecureExternalDirectoryChain(directory, ownerUid);
+      if (!custody.ok) {
+        const error = new Error(
+          `carrier supervisor state failed secure directory-chain admission (${custody.reason}) at ${custody.component}: ${directory}`,
+        );
+        error.code = 'SNAPBACK_CARRIER_SUPERVISOR_STATE_UNSAFE';
+        error.details = custody;
+        throw error;
+      }
+    }
+    return directory;
+  } catch (error) {
+    rmSync(directory, { recursive: true, force: true });
+    throw error;
   }
-  return directory;
 }
 
 function recheckSupervisorStateDirectory(directory) {
@@ -1652,48 +1652,67 @@ export async function runTemplateCarrierCli(configValue, argv, options = {}) {
   mkdirSync(artifacts, { recursive: true });
   const supervisorState = parsed.carrier === 'headless'
     ? null
-    : prepareSupervisorStateDirectory(artifacts);
-  const verifyReceipt = verifyScaffold(config, root);
-  let directorLog;
-  if (parsed.carrier === 'headless') {
-    directorLog = writeDirectorLog(artifacts, {
-      schemaVersion: TEMPLATE_CARRIER_LOG_SCHEMA_VERSION,
-      status: 'completed',
-      carrier: 'headless',
-      proofAuthority: { kind: 'llp-0146-d2', receipt: verifyReceipt },
-      observations: { receipt: verifyReceipt },
-      nonClaim: 'the D2 receipt is authoritative; this director log adds no proof format',
-    });
-  } else if (parsed.carrier === 'web-browser') {
-    directorLog = await runWebCarrier({
-      config,
-      options: parsed,
-      testHooks: options,
-      root,
+    : prepareSupervisorStateDirectory();
+  if (supervisorState !== null) {
+    await options.onSupervisorStatePrepared?.(Object.freeze({
       artifacts,
-      supervisorState,
-      verifyReceipt,
-      fetchImpl: options.fetch ?? fetch,
-    });
-  } else {
-    directorLog = await runNativeCarrier({
-      config,
-      options: parsed,
-      root,
-      artifacts,
-      supervisorState,
-      verifyReceipt,
-    });
+      directory: supervisorState,
+    }));
   }
-  const result = {
-    schemaVersion: 'snapback.template-carrier-command.v1',
-    ok: true,
-    carrier: parsed.carrier,
-    verifyReceipt,
-    directorLog,
-  };
-  console.log(JSON.stringify(result, null, parsed.json ? 2 : 0));
-  return 0;
+  try {
+    const verifyReceipt = verifyScaffold(config, root);
+    let directorLog;
+    if (parsed.carrier === 'headless') {
+      directorLog = writeDirectorLog(artifacts, {
+        schemaVersion: TEMPLATE_CARRIER_LOG_SCHEMA_VERSION,
+        status: 'completed',
+        carrier: 'headless',
+        proofAuthority: { kind: 'llp-0146-d2', receipt: verifyReceipt },
+        observations: { receipt: verifyReceipt },
+        nonClaim: 'the D2 receipt is authoritative; this director log adds no proof format',
+      });
+    } else if (parsed.carrier === 'web-browser') {
+      directorLog = await runWebCarrier({
+        config,
+        options: parsed,
+        testHooks: options,
+        root,
+        artifacts,
+        supervisorState,
+        verifyReceipt,
+        fetchImpl: options.fetch ?? fetch,
+      });
+    } else {
+      directorLog = await runNativeCarrier({
+        config,
+        options: parsed,
+        root,
+        artifacts,
+        supervisorState,
+        verifyReceipt,
+      });
+    }
+    const result = {
+      schemaVersion: 'snapback.template-carrier-command.v1',
+      ok: true,
+      carrier: parsed.carrier,
+      verifyReceipt,
+      directorLog,
+    };
+    console.log(JSON.stringify(result, null, parsed.json ? 2 : 0));
+    return 0;
+  } finally {
+    if (supervisorState !== null) {
+      try {
+        await options.onBeforeSupervisorStateCleanup?.(Object.freeze({
+          artifacts,
+          directory: supervisorState,
+        }));
+      } finally {
+        rmSync(supervisorState, { recursive: true, force: true });
+      }
+    }
+  }
 }
 
 export const __test = Object.freeze({
