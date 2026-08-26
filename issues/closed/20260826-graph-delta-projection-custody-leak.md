@@ -50,10 +50,7 @@ bytes.
 ## Resolution
 
 Resolved 2026-08-26 by the landing named
-`fix graph delta projection custody and kill switch`. The implementation commit
-hash is pending because the linked worktree could not create its shared
-`index.lock`; the landing orchestrator must replace this note with the committed
-hash.
+`fix graph delta projection custody and kill switch`. Implementation commit: `ce9f2f564` (landed on main 2026-08-26).
 
 `retained_row_patch` now receives the emitting node's closed-projection field
 set and produces a diff over that set only, retaining projected removal `null`s

@@ -50,10 +50,7 @@ publishing a graph delta.
 ## Resolution
 
 Resolved 2026-08-26 by the landing named
-`fix graph delta projection custody and kill switch`. The implementation commit
-hash is pending because the linked worktree could not create its shared
-`index.lock`; the landing orchestrator must replace this note with the committed
-hash.
+`fix graph delta projection custody and kill switch`. Implementation commit: `ce9f2f564` (landed on main 2026-08-26).
 
 The graph delta candidacy gate now consults `graph_execution_disabled()` before
 incremental evaluation, alongside `graph_delta_disabled()`. The regression

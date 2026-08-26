@@ -1,0 +1,726 @@
+{
+  "actorIdentity": {
+    "actors": {
+      "assignee": {
+        "role": "user",
+        "sourceUserID": "usr_0012"
+      },
+      "creator": {
+        "role": "user",
+        "sourceUserID": "usr_0011"
+      },
+      "crew-admin": {
+        "role": "crew",
+        "sourceUserID": "usr_0000"
+      },
+      "ordinary-user": {
+        "role": "user",
+        "sourceUserID": "usr_0010"
+      },
+      "removed-member": {
+        "role": "crew",
+        "sourceUserID": "usr_0001"
+      }
+    },
+    "mode": "manifest source-user bindings; no live session carriers retained"
+  },
+  "arm": "snapback-control-large",
+  "assistance": [
+    {
+      "at": "2026-08-26T09:09:41.266Z",
+      "kind": "governing-design",
+      "purpose": "ZB acceptance and immutable evidence contract",
+      "sequence": 1,
+      "source": "llp/0183-zerobugs-quality-surface.rfc.md"
+    },
+    {
+      "at": "2026-08-26T09:09:41.266Z",
+      "kind": "guide",
+      "purpose": "fresh owned server and non-vacuous check lifecycle",
+      "sequence": 2,
+      "source": "guide/testing/acceptance.md"
+    },
+    {
+      "at": "2026-08-26T09:09:41.266Z",
+      "kind": "landed-lane-evidence",
+      "purpose": "reuse source-oracle, actor, mutation, effect, and adapter checks",
+      "sequence": 3,
+      "source": "demos/zerobugs/control/tests/acceptance/lane2-live.mts..lane6a-live.mts"
+    }
+  ],
+  "attempt": "v5",
+  "browserIdentity": {
+    "mode": "headless generated-client scale driver; no browser launched"
+  },
+  "capabilityFacts": [
+    {
+      "id": "performance.large-fixture",
+      "status": "gap"
+    },
+    {
+      "bound": "W=1,000",
+      "id": "relational-graph.issue-list.large-W",
+      "status": "gap"
+    },
+    {
+      "id": "derived-search.large-refusal",
+      "status": "gap"
+    }
+  ],
+  "checks": {
+    "counts": {
+      "fail": 8,
+      "gap": 0,
+      "missing": 0,
+      "pass": 6
+    },
+    "executed": 14,
+    "expected": 14,
+    "harness": {
+      "expectedChecks": 14,
+      "failed": 8,
+      "ok": false,
+      "passed": 6,
+      "shortfall": null,
+      "skipped": 0,
+      "total": 14
+    },
+    "missing": [],
+    "rows": [
+      {
+        "details": {
+          "arm": "snapback-control-large",
+          "expectedChecks": 14,
+          "overwritesLane7": false,
+          "performancePolicy": "single raw sample per named path; no margins or score",
+          "receipt": "snapback-control-large.zb5.v1.json"
+        },
+        "id": "gate-definition-and-distinct-receipt-arm",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "bytesUsedOnlyAfterAllShardDigestsMatched": true,
+          "fixtureId": "large-seed42-v1",
+          "overallDigest": "sha256:7514938a88bb1b8d77fee15f2cf7a50aa1030be2ebee344c473ef4d263a21c94",
+          "receiptDigest": "sha256:d9dfd4fde488a388502773f569e829746f66826ae0f9f47263d36eef7d625a8a",
+          "shardsVerified": 16
+        },
+        "id": "large-source-shards-match-frozen-receipt",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "collisionAndReferenceChecks": "builder refused before artifact publication on mismatch",
+          "contentDigest": "sha256:39d7758a5a5809abf9fa3b3c6b966ecdf43dd9f5c6cc8b3977a94c17dd4efd73",
+          "overlayId": "large-overlay-v1",
+          "policyIssueFirst": true,
+          "selectedProject": {
+            "id": "OfAwqxYz9GbQfkkFpNpkT",
+            "issueCount": 99943
+          },
+          "workingSetDigest": "sha256:7e3ee7d659ad10e69f4ff681b091980d30525b62991ab4548c547e5240b9e464"
+        },
+        "id": "large-overlay-rules-1-through-6-and-digest",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "loadPlan": {
+            "batchesByTable": {
+              "comment": 2809,
+              "emoji": 2,
+              "issue": 1112,
+              "issueLabel": 2223,
+              "issueLabelRead": 3,
+              "issueListRead": 2,
+              "issueNotifications": 6,
+              "issueSearchDocument": 2,
+              "label": 6,
+              "project": 1,
+              "projectUserRead": 1,
+              "searchEpoch": 1,
+              "user": 1,
+              "userPref": 1,
+              "viewState": 6
+            },
+            "rowsByTable": {
+              "comment": 2527887,
+              "emoji": 1746,
+              "issue": 1000001,
+              "issueLabel": 2000370,
+              "issueLabelRead": 1992,
+              "issueListRead": 1000,
+              "issueNotifications": 5000,
+              "issueSearchDocument": 1000,
+              "label": 4810,
+              "project": 100,
+              "projectUserRead": 100,
+              "searchEpoch": 2,
+              "user": 100,
+              "userPref": 5,
+              "viewState": 5000
+            },
+            "totalBatches": 6176,
+            "totalRows": 5549113
+          },
+          "sourceCounts": {
+            "comment": 2527886,
+            "issue": 1000000,
+            "issueLabel": 2000370,
+            "label": 4810,
+            "project": 100,
+            "total": 5533266,
+            "user": 100
+          }
+        },
+        "id": "large-source-and-overlay-counts",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "digest": "sha256:25034c07339f524d3dd78281c0da953ed6f64e9320f71eec98c89ba7682005b2",
+          "oracleBound": "exactly W; no full 5.5M-row replay claimed",
+          "order": "(modified desc, id desc)",
+          "rows": 1000
+        },
+        "id": "working-set-oracle-is-bounded-and-exact",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "batches": 6176,
+          "checkpoint": "local ignored .snapback carrier; server ledger is authoritative",
+          "elapsedMs": 15948668,
+          "insertedBatches": 6176,
+          "inverseRemap": "every committed or replayed row matched its source-shaped canonical row before progress advanced",
+          "protocol": "zerobugs-large-ingest.v1: one atomic ledger row per deterministic batch; same-digest replay returns status=already-ingested plus aligned ids/rows; final summary reconciles every table; searchEpoch is last",
+          "replayedBatches": 0,
+          "rows": 5549113
+        },
+        "id": "resumable-ingest-and-inverse-remap",
+        "status": "PASS"
+      },
+      {
+        "diagnostic": {
+          "code": 1,
+          "details": null,
+          "id": "loaded-table-counts-equal-large-profile",
+          "message": "Command failed: /Users/ccheever/projects/snapback/demos/zerobugs/control/node_modules/.bin/snapback session mint --email zerobugs-zb5-large-ordinary-user@acceptance.invalid --ready-file /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/zerobugs-zb5-large-THu3XK/large-baseline.ready.json\n{\"ok\":false,\"diagnostics\":[{\"code\":\"SNAPBACK_BUILD_IDENTITY_MISMATCH\",\"severity\":\"error\",\"subsystem\":\"cli\",\"message\":\"the linked Snapback source runtime does not match the checkout's scoped build identity: /Users/ccheever/projects/snapback/target/release/snapback\",\"details\":{\"binary\":\"/Users/ccheever/projects/snapback/target/release/snapback\",\"checkoutRoot\":\"/Users/ccheever/projects/snapback\",\"expected\":{\"gitCommit\":\"10965597cd92bd12da01e51888baab6008283393\",\"gitDirty\":false,\"crateVersion\":\"0.1.0\",\"buildProfile\":null},\"actual\":{\"gitCommit\":\"c119c9cec295007be95c900fff44b81e71ea24d3\",\"gitDirty\":false,\"crateVersion\":\"0.1.0\",\"buildProfile\":\"release\"},\"runnable\":true,\"reason\":null,\"repairCommands\":[\"/Users/ccheever/projects/snapback/scripts/bootstrap-ibex-runtime\",\"cargo build --release --bin snapback --manifest-path \\\"/Users/ccheever/projects/snapback/Cargo.toml\\\"\",\"node \\\"/Users/ccheever/projects/snapback/packages/snapback-cli/runtime-readiness.mjs\\\" issue --root \\\"/Users/ccheever/projects/snapback\\\" --binary \\\"/Users/ccheever/projects/snapback/target/release/snapback\\\"\"]}}]}\n",
+          "redacted": true
+        },
+        "id": "loaded-table-counts-equal-large-profile",
+        "status": "FAIL"
+      },
+      {
+        "diagnostic": {
+          "code": "ZBUGS_GATE_CHECK_FAILED",
+          "details": null,
+          "id": "live-list-window-matches-bounded-working-set-oracle",
+          "message": "Cannot read properties of null (reading 'sessions')",
+          "redacted": true
+        },
+        "id": "live-list-window-matches-bounded-working-set-oracle",
+        "status": "FAIL"
+      },
+      {
+        "diagnostic": {
+          "code": "ZBUGS_GATE_CHECK_FAILED",
+          "details": null,
+          "id": "protected-internal-issue-enters-working-set",
+          "message": "Cannot read properties of null (reading 'row')",
+          "redacted": true
+        },
+        "id": "protected-internal-issue-enters-working-set",
+        "status": "FAIL"
+      },
+      {
+        "diagnostic": {
+          "code": "ZBUGS_GATE_CHECK_FAILED",
+          "details": null,
+          "id": "ordinary-and-anonymous-count-like-surfaces-do-not-leak-protected-issue",
+          "message": "Cannot read properties of null (reading 'sessions')",
+          "redacted": true
+        },
+        "id": "ordinary-and-anonymous-count-like-surfaces-do-not-leak-protected-issue",
+        "status": "FAIL"
+      },
+      {
+        "diagnostic": {
+          "code": "ZBUGS_GATE_CHECK_FAILED",
+          "details": null,
+          "id": "search-epoch-refuses-at-1024-partition-boundary",
+          "message": "Cannot read properties of null (reading 'sessions')",
+          "redacted": true
+        },
+        "id": "search-epoch-refuses-at-1024-partition-boundary",
+        "status": "FAIL"
+      },
+      {
+        "diagnostic": {
+          "code": "ZBUGS_GATE_CHECK_FAILED",
+          "details": null,
+          "id": "raw-list-ready-timing",
+          "message": "Cannot read properties of null (reading 'elapsedMs')",
+          "redacted": true
+        },
+        "id": "raw-list-ready-timing",
+        "status": "FAIL"
+      },
+      {
+        "diagnostic": {
+          "code": "ZBUGS_GATE_CHECK_FAILED",
+          "details": null,
+          "id": "raw-representative-window-walk-timing",
+          "message": "Cannot read properties of null (reading 'sessions')",
+          "redacted": true
+        },
+        "id": "raw-representative-window-walk-timing",
+        "status": "FAIL"
+      },
+      {
+        "diagnostic": {
+          "code": "ZBUGS_GATE_CHECK_FAILED",
+          "details": null,
+          "id": "large-custody-counters",
+          "message": "Cannot read properties of null (reading 'sessions')",
+          "redacted": true
+        },
+        "id": "large-custody-counters",
+        "status": "FAIL"
+      }
+    ]
+  },
+  "cleanup": {
+    "ownership": "Every resource registered through the gate runner was cleaned in reverse ownership order.",
+    "results": [
+      {
+        "label": "Snapback server",
+        "reverseIndex": 0,
+        "status": "PASS",
+        "targets": [
+          {
+            "id": "15437",
+            "kind": "process"
+          }
+        ]
+      },
+      {
+        "label": "zb5-large scratch namespace",
+        "reverseIndex": 1,
+        "status": "PASS",
+        "targets": [
+          {
+            "kind": "directory",
+            "path": "/private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/zerobugs-zb5-large-THu3XK"
+          }
+        ]
+      }
+    ],
+    "status": "PASS",
+    "targets": [
+      {
+        "id": "15437",
+        "kind": "process"
+      },
+      {
+        "kind": "directory",
+        "path": "/private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/zerobugs-zb5-large-THu3XK"
+      }
+    ]
+  },
+  "completedAt": "2026-08-26T13:35:45.987Z",
+  "componentReleaseIdentities": [
+    {
+      "id": "zerobugs-control-composition",
+      "path": "demos/zerobugs/control/composition/zerobugs-control-composition.v1.json",
+      "runtime": {
+        "entrypoint": "composition/server.mts",
+        "hostEnv": "ZERBUGS_GATEWAY_HOST",
+        "name": "bun",
+        "portEnv": "ZERBUGS_GATEWAY_PORT",
+        "readyFileEnv": "ZERBUGS_GATEWAY_READY_FILE",
+        "version": "1.3.12"
+      },
+      "sha256": "sha256:ea6dafa31b8b03a3a0063733ca58cf321f0e1f86e5455a2b124ff40b780449d6",
+      "snapbackRelease": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:fa78853180085fdbafbdbc5c9f0da60af316f3607d6ac3a364d5891a46f0a231",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:f6e4bb6f59cf866a7589971d3a40b44afc6bbe1c1909bb19021d669b4bdde6a3",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:0ff7735ed6ec1baad585e6bf15f42ab63e93b2a64b2c5eb25ab8bbbee72e0682",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "status": "supported-local-control",
+      "version": 1
+    }
+  ],
+  "custodyAccounting": {
+    "browserFacts": null,
+    "reason": "live custody check did not complete",
+    "serverRows": null,
+    "status": "FAIL"
+  },
+  "diagnostics": [
+    {
+      "code": 1,
+      "details": null,
+      "id": "loaded-table-counts-equal-large-profile",
+      "message": "Command failed: /Users/ccheever/projects/snapback/demos/zerobugs/control/node_modules/.bin/snapback session mint --email zerobugs-zb5-large-ordinary-user@acceptance.invalid --ready-file /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/zerobugs-zb5-large-THu3XK/large-baseline.ready.json\n{\"ok\":false,\"diagnostics\":[{\"code\":\"SNAPBACK_BUILD_IDENTITY_MISMATCH\",\"severity\":\"error\",\"subsystem\":\"cli\",\"message\":\"the linked Snapback source runtime does not match the checkout's scoped build identity: /Users/ccheever/projects/snapback/target/release/snapback\",\"details\":{\"binary\":\"/Users/ccheever/projects/snapback/target/release/snapback\",\"checkoutRoot\":\"/Users/ccheever/projects/snapback\",\"expected\":{\"gitCommit\":\"10965597cd92bd12da01e51888baab6008283393\",\"gitDirty\":false,\"crateVersion\":\"0.1.0\",\"buildProfile\":null},\"actual\":{\"gitCommit\":\"c119c9cec295007be95c900fff44b81e71ea24d3\",\"gitDirty\":false,\"crateVersion\":\"0.1.0\",\"buildProfile\":\"release\"},\"runnable\":true,\"reason\":null,\"repairCommands\":[\"/Users/ccheever/projects/snapback/scripts/bootstrap-ibex-runtime\",\"cargo build --release --bin snapback --manifest-path \\\"/Users/ccheever/projects/snapback/Cargo.toml\\\"\",\"node \\\"/Users/ccheever/projects/snapback/packages/snapback-cli/runtime-readiness.mjs\\\" issue --root \\\"/Users/ccheever/projects/snapback\\\" --binary \\\"/Users/ccheever/projects/snapback/target/release/snapback\\\"\"]}}]}\n",
+      "redacted": true
+    },
+    {
+      "code": "ZBUGS_GATE_CHECK_FAILED",
+      "details": null,
+      "id": "live-list-window-matches-bounded-working-set-oracle",
+      "message": "Cannot read properties of null (reading 'sessions')",
+      "redacted": true
+    },
+    {
+      "code": "ZBUGS_GATE_CHECK_FAILED",
+      "details": null,
+      "id": "protected-internal-issue-enters-working-set",
+      "message": "Cannot read properties of null (reading 'row')",
+      "redacted": true
+    },
+    {
+      "code": "ZBUGS_GATE_CHECK_FAILED",
+      "details": null,
+      "id": "ordinary-and-anonymous-count-like-surfaces-do-not-leak-protected-issue",
+      "message": "Cannot read properties of null (reading 'sessions')",
+      "redacted": true
+    },
+    {
+      "code": "ZBUGS_GATE_CHECK_FAILED",
+      "details": null,
+      "id": "raw-list-ready-timing",
+      "message": "Cannot read properties of null (reading 'elapsedMs')",
+      "redacted": true
+    },
+    {
+      "code": "ZBUGS_GATE_CHECK_FAILED",
+      "details": null,
+      "id": "raw-representative-window-walk-timing",
+      "message": "Cannot read properties of null (reading 'sessions')",
+      "redacted": true
+    },
+    {
+      "code": "ZBUGS_GATE_CHECK_FAILED",
+      "details": null,
+      "id": "search-epoch-refuses-at-1024-partition-boundary",
+      "message": "Cannot read properties of null (reading 'sessions')",
+      "redacted": true
+    },
+    {
+      "code": "ZBUGS_GATE_CHECK_FAILED",
+      "details": null,
+      "id": "large-custody-counters",
+      "message": "Cannot read properties of null (reading 'sessions')",
+      "redacted": true
+    }
+  ],
+  "execution": {
+    "harnessAcceptedCount": true,
+    "setupCompleted": true,
+    "status": "PASS"
+  },
+  "fixtureIdentity": {
+    "baseRowCount": 5533266,
+    "digest": "sha256:7514938a88bb1b8d77fee15f2cf7a50aa1030be2ebee344c473ef4d263a21c94",
+    "extensionIds": [
+      "large-overlay-v1",
+      "policy-extension-v1"
+    ],
+    "id": "large-seed42-v1",
+    "mode": "canonical CSV shards verified before use; W projection bound recorded separately",
+    "overlayDigest": "sha256:39d7758a5a5809abf9fa3b3c6b966ecdf43dd9f5c6cc8b3977a94c17dd4efd73",
+    "rowCount": 5549113
+  },
+  "gate": "zb5",
+  "generatedIdentities": [
+    {
+      "id": "schemaManifest",
+      "path": "demos/zerobugs/control/snapback/generated/schema.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:01443e7ea8b463dc0ac2d3ba3c1f7c9bad16508ba3734ea279558285fb41e8bc",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:a58c24d20054b965a2899325a62105213d8c3430481067b293c6742ef2e4304a",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:54f995845bf91a1362da6c19c3888bba6a433427b1d42b033f033a3a69f430c0",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:b2f01a95dc0ddf629896ed5def21721c54bff46d8d431d98b52ff9a0d626e128"
+    },
+    {
+      "id": "functionManifest",
+      "path": "demos/zerobugs/control/snapback/generated/functions.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:5815b0b85c6c870c6a44c3b379cc6aca76691435f6ffe27cb59b4d5deb1e5845",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:a58c24d20054b965a2899325a62105213d8c3430481067b293c6742ef2e4304a",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:fbfb92e09f61b2f5c57edca8b88bada793780da8c0c7c50a4405d6f3d4324a80",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:6c99f895c3960255daabb98b6180c8ba77f7e3ea343403525a5adac445668ad3"
+    },
+    {
+      "id": "capabilityManifest",
+      "path": "demos/zerobugs/control/snapback/generated/capability.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:01443e7ea8b463dc0ac2d3ba3c1f7c9bad16508ba3734ea279558285fb41e8bc",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:cc8ff5496ac5777f0ee39e27bca9c9e8a6f73cd91899a3eae0347cc4a646f4b3",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:fbfb92e09f61b2f5c57edca8b88bada793780da8c0c7c50a4405d6f3d4324a80",
+        "schemaVersion": "snapback.v0",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:4e03e6be6eb2cc2fafc7cf67ad73c8b8c6d73fc5f4b036ed753f4b66bc303015"
+    },
+    {
+      "id": "contractDataManifest",
+      "path": "demos/zerobugs/control/snapback/generated/contract-data.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:5815b0b85c6c870c6a44c3b379cc6aca76691435f6ffe27cb59b4d5deb1e5845",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:a58c24d20054b965a2899325a62105213d8c3430481067b293c6742ef2e4304a",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:54f995845bf91a1362da6c19c3888bba6a433427b1d42b033f033a3a69f430c0",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:dfd78a4d7a01ffab012c99a75fc213e69545938ce40a4f6629b2e3132b16cc01"
+    },
+    {
+      "id": "artifactIndex",
+      "path": "demos/zerobugs/control/snapback/generated/artifacts.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:01443e7ea8b463dc0ac2d3ba3c1f7c9bad16508ba3734ea279558285fb41e8bc",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:cc8ff5496ac5777f0ee39e27bca9c9e8a6f73cd91899a3eae0347cc4a646f4b3",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:fbfb92e09f61b2f5c57edca8b88bada793780da8c0c7c50a4405d6f3d4324a80",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:932b6b4724580cfc45a174829c802c4b4722fd088d2b8aec4adcb8a0f6f9f0f3"
+    }
+  ],
+  "machineIdentity": {
+    "arch": "arm64",
+    "cpuCount": 10,
+    "hostnameSha256": "sha256:8cf9dcb74e9c542e01ac4ce9ee8c6112eadf2285cb70b1ff0ba7dd1b3e57702a",
+    "platform": "darwin"
+  },
+  "manifest": {
+    "id": "zerobugs-acceptance.v1",
+    "path": "demos/zerobugs/manifest/acceptance.v1.json",
+    "sha256": "sha256:3eb0280a5803da887cea371193f62ff372ac537efa24e7cd53b150afe0d1fc2c"
+  },
+  "network": "owned local loopback server; generated client HTTP/live-query operation paths; no injected delay",
+  "outcome": "FAIL",
+  "rawArtifacts": [
+    {
+      "path": "demos/zerobugs/control/PLAN.md",
+      "sha256": "sha256:caa9d7d80ab5f9051055dc36f7cd2af0485715c545151db570dcc7cc3dcad73c"
+    },
+    {
+      "path": "demos/zerobugs/control/composition/zerobugs-control-composition.v1.json",
+      "sha256": "sha256:ea6dafa31b8b03a3a0063733ca58cf321f0e1f86e5455a2b124ff40b780449d6"
+    },
+    {
+      "path": "demos/zerobugs/control/scripts/build-large-overlay.mts",
+      "sha256": "sha256:e0b7369049f69cba9bfa784af3c4efae44fe8460043d3c99c4df2ce7cc46f4ff"
+    },
+    {
+      "path": "demos/zerobugs/control/scripts/load-large-fixture.mts",
+      "sha256": "sha256:894b680906bf3de438ac406e85b27586a6d08a1c9cc064abde2a1bd4d47ab185"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/artifacts.json",
+      "sha256": "sha256:932b6b4724580cfc45a174829c802c4b4722fd088d2b8aec4adcb8a0f6f9f0f3"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/capability.manifest.json",
+      "sha256": "sha256:4e03e6be6eb2cc2fafc7cf67ad73c8b8c6d73fc5f4b036ed753f4b66bc303015"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/contract-data.manifest.json",
+      "sha256": "sha256:dfd78a4d7a01ffab012c99a75fc213e69545938ce40a4f6629b2e3132b16cc01"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/functions.manifest.json",
+      "sha256": "sha256:6c99f895c3960255daabb98b6180c8ba77f7e3ea343403525a5adac445668ad3"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/schema.manifest.json",
+      "sha256": "sha256:b2f01a95dc0ddf629896ed5def21721c54bff46d8d431d98b52ff9a0d626e128"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/acceptance/gate-support.mjs",
+      "sha256": "sha256:52e514bc20ab2ac0dfba2639e7e07ac2f38f824836070c3847867afb221f2437"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs",
+      "sha256": "sha256:c8edc8cc7946a3762c482ef3e25a7b1042199100502a0abe90ce9d4b993d58c6"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/acceptance/gates/zb5-scale-support.mjs",
+      "sha256": "sha256:ac5dd07e841ce02f2350fa9f3fba221095e21537f61dda46e07db754b71c49a1"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/fixtures/fixture-digests.json",
+      "sha256": "sha256:56afa56a74f0edddfd71ac0e7a09f5c12bc1e2eaed9e2be2f2ad6c84c31d38b3"
+    },
+    {
+      "path": "demos/zerobugs/manifest/acceptance.v1.json",
+      "sha256": "sha256:3eb0280a5803da887cea371193f62ff372ac537efa24e7cd53b150afe0d1fc2c"
+    },
+    {
+      "path": "demos/zerobugs/manifest/large-seed42-v1.receipt.json",
+      "sha256": "sha256:d9dfd4fde488a388502773f569e829746f66826ae0f9f47263d36eef7d625a8a"
+    },
+    {
+      "path": "demos/zerobugs/stage0/inventory.v1.json",
+      "sha256": "sha256:0d7233897864c39f99ef5c46946da21ddfc8a404e6f0441c741c02192a43eaa3"
+    },
+    {
+      "path": "guide/testing/acceptance.md",
+      "sha256": "sha256:304c727d1eedc6c632fbf254b6b835c25995f1bacf7c4b05ed573e9029cae455"
+    }
+  ],
+  "refusalFacts": [
+    {
+      "blockers": [],
+      "id": "large-ingest-without-idempotent-batch-ledger",
+      "status": "refused"
+    },
+    {
+      "id": "large-full-corpus-readmodel-projection",
+      "owner": "control server/read-model ingestion lane",
+      "status": "gap"
+    },
+    {
+      "id": "performance-unfrozen-margin",
+      "status": "refused"
+    }
+  ],
+  "schemaVersion": "zerobugs-gate-receipt.v1",
+  "sourceAccounting": {
+    "batchMath": {
+      "batchesByTable": {
+        "comment": 2809,
+        "emoji": 2,
+        "issue": 1112,
+        "issueLabel": 2223,
+        "issueLabelRead": 3,
+        "issueListRead": 2,
+        "issueNotifications": 6,
+        "issueSearchDocument": 2,
+        "label": 6,
+        "project": 1,
+        "projectUserRead": 1,
+        "searchEpoch": 1,
+        "user": 1,
+        "userPref": 1,
+        "viewState": 6
+      },
+      "rowsByTable": {
+        "comment": 2527887,
+        "emoji": 1746,
+        "issue": 1000001,
+        "issueLabel": 2000370,
+        "issueLabelRead": 1992,
+        "issueListRead": 1000,
+        "issueNotifications": 5000,
+        "issueSearchDocument": 1000,
+        "label": 4810,
+        "project": 100,
+        "projectUserRead": 100,
+        "searchEpoch": 2,
+        "user": 100,
+        "userPref": 5,
+        "viewState": 5000
+      },
+      "totalBatches": 6176,
+      "totalRows": 5549113
+    },
+    "expectedChecks": 14,
+    "fullListSample": null,
+    "ingest": {
+      "baseDigest": "sha256:7514938a88bb1b8d77fee15f2cf7a50aa1030be2ebee344c473ef4d263a21c94",
+      "batches": 6176,
+      "checkpoint": "local ignored .snapback carrier; server ledger is authoritative",
+      "elapsedMs": 15948668,
+      "fixtureId": "large-seed42-v1",
+      "insertedBatches": 6176,
+      "overlayDigest": "sha256:39d7758a5a5809abf9fa3b3c6b966ecdf43dd9f5c6cc8b3977a94c17dd4efd73",
+      "principal": "sha256:1607d19783b0d8f80c57bb5c80417fa72b31c0ac12e582b14ff140a5a538a8b3",
+      "replayedBatches": 0,
+      "rows": 5549113,
+      "rowsByTable": {
+        "comment": 2527887,
+        "emoji": 1746,
+        "issue": 1000001,
+        "issueLabel": 2000370,
+        "issueLabelRead": 1992,
+        "issueListRead": 1000,
+        "issueNotifications": 5000,
+        "issueSearchDocument": 1000,
+        "label": 4810,
+        "project": 100,
+        "projectUserRead": 100,
+        "searchEpoch": 2,
+        "user": 100,
+        "userPref": 5,
+        "viewState": 5000
+      },
+      "status": "ok"
+    },
+    "oracleBound": "W only",
+    "overlayCounts": {
+      "baseGenerated": 5533266,
+      "boundedProjectionRows": 4094,
+      "comment": 2527887,
+      "emoji": 1746,
+      "issue": 1000001,
+      "issueLabelRead": 1992,
+      "issueListRead": 1000,
+      "issueNotifications": 5000,
+      "issueSearchDocument": 1000,
+      "overlaySourceRows": 11753,
+      "projectUserRead": 100,
+      "searchEpoch": 2,
+      "userPref": 5,
+      "viewState": 5000
+    },
+    "rawSamples": 0,
+    "searchBoundary": null,
+    "sourceCounts": {
+      "comment": 2527886,
+      "issue": 1000000,
+      "issueLabel": 2000370,
+      "label": 4810,
+      "project": 100,
+      "total": 5533266,
+      "user": 100
+    },
+    "windowWalk": null
+  },
+  "startedAt": "2026-08-26T09:09:41.266Z",
+  "targetIdentity": {
+    "appId": "zerobugs-control",
+    "bundleHash": "snapback.v1:sessions:function:sha256:01443e7ea8b463dc0ac2d3ba3c1f7c9bad16508ba3734ea279558285fb41e8bc",
+    "id": "local-dev-sqlite-ibex",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:cc8ff5496ac5777f0ee39e27bca9c9e8a6f73cd91899a3eae0347cc4a646f4b3",
+    "mode": "fresh local Ibex plus SQLite server",
+    "schemaHash": "snapback.v1:sessions:schema:sha256:fbfb92e09f61b2f5c57edca8b88bada793780da8c0c7c50a4405d6f3d4324a80",
+    "schemaVersion": "snapback.v1"
+  },
+  "workarounds": [
+    {
+      "admittedBound": "working set W only",
+      "id": "W-READMODEL-LARGE-FULL-CORPUS",
+      "owner": "control server/read-model ingestion lane",
+      "status": "gap"
+    }
+  ]
+}
