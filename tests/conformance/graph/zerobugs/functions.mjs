@@ -1,5 +1,9 @@
 export { issueListV2, issueDetail, issueSummary, listIssueByID } from './queries.mjs';
 export {
+  issueListPrivateOverlays,
+  issueDetailPrivateOverlays,
+} from './private-overlay-queries.mjs';
+export {
   issueListMatrixProjectModifiedAsc,
   issueListMatrixProjectModifiedDesc,
   issueListMatrixProjectCreatedAsc,

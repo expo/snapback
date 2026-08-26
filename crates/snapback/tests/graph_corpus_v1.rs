@@ -53,6 +53,7 @@ const PAIRED_FIXTURES_FILE: &str = "tests/conformance/graph/paired-world-fixture
 const FILTER_ORDER_FIXTURE_FILE: &str = "tests/conformance/graph/filter-order-fixture.v1.json";
 const TWO_WAY_OBSERVATIONS_FILE: &str =
     "tests/conformance/graph/two-way-window-observations.v1.json";
+const PRIVATE_OVERLAY_MATRIX_FILE: &str = "tests/conformance/graph/private-overlay-matrix.v1.json";
 const RUNTIME_CAPTURES_FILE: &str = "tests/conformance/graph/runtime-captures.g2-b.v1.json";
 const MATCH_DISPOSITIONS_FILE: &str = "tests/conformance/graph/match-dispositions.v1.json";
 const SERVED_OBSERVATIONS_FILE: &str = "tests/conformance/graph/served-observations.g2-c.v1.json";
@@ -77,6 +78,9 @@ const GRAPH_CORPUS_PATCH_COMMENT: &str = "graphCorpusPatchComment";
 const GRAPH_CORPUS_PATCH_CREATOR: &str = "graphCorpusPatchCreator";
 const GRAPH_CORPUS_PATCH_ASSIGNEE_USER: &str = "graphCorpusPatchAssigneeUser";
 const GRAPH_CORPUS_PATCH_LABEL: &str = "graphCorpusPatchLabel";
+const GRAPH_CORPUS_PATCH_VIEW_STATE: &str = "graphCorpusPatchViewState";
+const GRAPH_CORPUS_PATCH_NOTIFICATION_STATE: &str = "graphCorpusPatchNotificationState";
+const GRAPH_CORPUS_TRANSITION_OTHER_PRINCIPAL: &str = "graphCorpusTransitionOtherPrincipal";
 const GRAPH_CORPUS_ADD_MEMBERSHIP: &str = "graphCorpusAddMembership";
 const DELTA_DISPOSITIONS_FILE: &str = "tests/conformance/graph/delta-dispositions.v1.json";
 const OWNER_SCOPE_DOMAIN: &str = "snapback:g0-corpus-authority-scope:v1:";
@@ -126,6 +130,10 @@ fn paired_world_fixtures() -> Value {
 
 fn filter_order_fixture() -> Value {
     load_json(FILTER_ORDER_FIXTURE_FILE)
+}
+
+fn private_overlay_matrix() -> Value {
+    load_json(PRIVATE_OVERLAY_MATRIX_FILE)
 }
 
 fn corpus_seed_tables(corpus: &Value) -> BTreeMap<String, Vec<Map<String, Value>>> {
@@ -1112,6 +1120,94 @@ fn filter_order_store(corpus: &Value, fixture: &Value, world: &str) -> LocalSnap
     snapback
 }
 
+fn private_overlay_seed_tables(
+    corpus: &Value,
+    matrix: &Value,
+    world: &Value,
+) -> BTreeMap<String, Vec<Map<String, Value>>> {
+    let mut tables = corpus_seed_tables(corpus);
+    let issue_id = matrix["fixture"]["issue"]["physicalID"]
+        .as_str()
+        .expect("private-overlay physical issue");
+    for table in ["viewState", "issueNotifications"] {
+        tables
+            .get_mut(table)
+            .unwrap_or_else(|| panic!("private-overlay table {table}"))
+            .retain(|row| row["issueID"] != issue_id);
+    }
+    let active = &matrix["fixture"]["principals"]["active"];
+    let other = &matrix["fixture"]["principals"]["other"];
+    for binding in tables.get_mut("identityBinding").unwrap() {
+        let authority_instance = if binding["principal"] == active["principal"] {
+            &active["authorityInstanceID"]
+        } else if binding["principal"] == other["principal"] {
+            &other["authorityInstanceID"]
+        } else {
+            &other["transitionAuthorityInstanceID"]
+        };
+        binding.insert("authorityInstanceID".to_owned(), authority_instance.clone());
+    }
+    let updated = world.get("updated").and_then(Value::as_str);
+    for (overlay, own_key, other_key) in [
+        ("viewState", "ownViewState", "otherViewState"),
+        (
+            "notificationState",
+            "ownNotificationState",
+            "otherNotificationState",
+        ),
+    ] {
+        let rows = &matrix["fixture"]["rows"][overlay];
+        if world[own_key]
+            .as_bool()
+            .expect("private-overlay own presence")
+        {
+            let variant = if updated == Some(overlay) {
+                "ownUpdated"
+            } else {
+                "own"
+            };
+            let table = rows[variant]["table"].as_str().unwrap();
+            tables.get_mut(table).unwrap().push(
+                rows[variant]["value"]
+                    .as_object()
+                    .expect("private-overlay own row")
+                    .clone(),
+            );
+        }
+        if world[other_key]
+            .as_bool()
+            .expect("private-overlay other presence")
+        {
+            let table = rows["other"]["table"].as_str().unwrap();
+            tables.get_mut(table).unwrap().push(
+                rows["other"]["value"]
+                    .as_object()
+                    .expect("private-overlay other row")
+                    .clone(),
+            );
+        }
+    }
+    tables
+}
+
+fn private_overlay_store(corpus: &Value, matrix: &Value, world: &Value) -> LocalSnapback {
+    let tables = private_overlay_seed_tables(corpus, matrix, world);
+    let mut snapback = LocalSnapback::memory().expect("private-overlay corpus memory store");
+    let diagnostics = snapback
+        .apply_schema(corpus_schema(&tables))
+        .expect("apply private-overlay corpus schema");
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error),
+        "private-overlay corpus schema diagnostics: {diagnostics:?}",
+    );
+    snapback
+        .seed(SeedData { tables })
+        .expect("seed private-overlay corpus store");
+    snapback
+}
+
 fn corpus_authority(corpus: &Value, principal: &str) -> GraphEvaluationAuthorityV1 {
     let fact = corpus["authorityOwner"]["facts"]
         .as_array()
@@ -1746,6 +1842,19 @@ fn two_way_carriers(
     served_graph_carriers_from(snapback, rows.iter())
 }
 
+fn private_overlay_carriers(
+    snapback: &LocalSnapback,
+    matrix: &Value,
+) -> Vec<(String, GraphQueryCarrierV1, FunctionDefinition)> {
+    served_graph_carriers_from(
+        snapback,
+        matrix["queries"]
+            .as_array()
+            .expect("private-overlay queries")
+            .iter(),
+    )
+}
+
 fn graph_corpus_scheduler_mutations(corpus: &Value) -> Vec<FunctionDefinition> {
     let seed_tables = corpus_seed_tables(corpus);
     let disjoint_issue_id = seed_tables["issue"]
@@ -1903,6 +2012,12 @@ fn graph_corpus_scheduler_mutations(corpus: &Value) -> Vec<FunctionDefinition> {
         patch(GRAPH_CORPUS_PATCH_CREATOR, "user", "login"),
         patch(GRAPH_CORPUS_PATCH_ASSIGNEE_USER, "user", "login"),
         patch(GRAPH_CORPUS_PATCH_LABEL, "label", "name"),
+        patch(GRAPH_CORPUS_PATCH_VIEW_STATE, "viewState", "viewed"),
+        patch(
+            GRAPH_CORPUS_PATCH_NOTIFICATION_STATE,
+            "issueNotifications",
+            "subscribed",
+        ),
         add_membership,
     ]
 }
@@ -1927,6 +2042,30 @@ fn served_graph_manifest(
             .collect(),
         ..FunctionManifest::default()
     }
+}
+
+fn private_overlay_served_graph_manifest(
+    corpus: &Value,
+    carriers: &[(String, GraphQueryCarrierV1, FunctionDefinition)],
+) -> FunctionManifest {
+    let mut manifest = served_graph_manifest(corpus, carriers);
+    manifest.functions.push(FunctionDefinition::new(
+        GRAPH_CORPUS_TRANSITION_OTHER_PRINCIPAL,
+        FunctionKind::Mutation,
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
+            steps: vec![MutationStep::Patch {
+                table: "identityBinding".to_owned(),
+                id: ValueExpr::Arg("rowID".to_owned()),
+                values: BTreeMap::from([(
+                    "authorityInstanceID".to_owned(),
+                    ValueExpr::Arg("value".to_owned()),
+                )]),
+            }],
+            return_value: None,
+        })),
+    ));
+    manifest
 }
 
 fn scheduler_invocation_from_observation(call: &Value, observation: &Value) -> Value {
@@ -9616,6 +9755,846 @@ fn two_way_windows_execute_evaluator_and_served_scheduler_paths() {
             artifact,
             load_json(TWO_WAY_OBSERVATIONS_FILE),
             "two-way evaluator/served observation artifact is stale",
+        );
+    }
+}
+
+/// The D2 private-overlay matrix is corpus-local and evaluator-authoritative:
+/// no expected byte or proof is borrowed from the D1 control handler. Every
+/// list/detail × view/notification × positive/update/absent/other row executes
+/// against the canonical principal binding and an attested matcher vector.
+///
+/// @ref LLP 0209#32-authority-partition-identity-and-versioning — a class-3
+/// graph uses an owner-issued partition of one, distinct across principals and
+/// stable across ordinary overlay writes.
+/// @ref LLP 0209#51-captured-vocabulary-by-normalized-node — complete
+/// principal-field captures permit a cross-principal write to skip precisely.
+#[test]
+fn private_overlay_matrix_executes_evaluator_and_matcher_paths() {
+    let corpus = graph_corpus();
+    let matrix = private_overlay_matrix();
+    assert_eq!(
+        matrix["oracleAuthority"],
+        "corpus-local-independent-fixture-projection; never D1 control oracle",
+    );
+    assert_eq!(matrix["coverage"]["caseCount"], 16);
+    assert_eq!(
+        matrix["coverage"]["arms"],
+        json!(["own-positive", "own-update", "absent", "other-principal"]),
+    );
+
+    for partition_case in matrix["partitions"]
+        .as_array()
+        .expect("private-overlay partitions")
+    {
+        let query = partition_case["query"].as_str().unwrap();
+        let carrier: GraphQueryCarrierV1 = serde_json::from_value(
+            matrix["queries"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|row| row["query"] == query)
+                .expect("private-overlay partition carrier")["carrier"]
+                .clone(),
+        )
+        .expect("private-overlay partition carrier shape");
+        assert_eq!(partition_case["rule"], "partition-of-one");
+        let (_, active) =
+            validate_corpus_invocation(&carrier, &partition_case["active"]["invocation"], query);
+        let (_, other) =
+            validate_corpus_invocation(&carrier, &partition_case["other"]["invocation"], query);
+        assert_eq!(
+            active.partition_hash.as_str(),
+            partition_case["active"]["partitionHash"].as_str().unwrap(),
+        );
+        assert_eq!(
+            other.partition_hash.as_str(),
+            partition_case["other"]["partitionHash"].as_str().unwrap(),
+        );
+        assert_ne!(active.partition_hash, other.partition_hash);
+        assert_eq!(partition_case["stableAcrossOwnDataUpdate"], true);
+    }
+
+    for case in matrix["cases"].as_array().expect("private-overlay cases") {
+        let case_id = case["id"].as_str().unwrap();
+        let query = case["query"].as_str().unwrap();
+        let carrier: GraphQueryCarrierV1 =
+            serde_json::from_value(case["plan"].clone()).expect("private-overlay carrier");
+        assert_eq!(
+            graph_plan_identity_v1(&carrier.normalized_plan).unwrap(),
+            carrier,
+            "{case_id} plan identity",
+        );
+        let call = &case["invocation"];
+        let (materialization, partition) = validate_corpus_invocation(&carrier, call, query);
+        let request = evaluation_request(&corpus, call, &materialization, &partition);
+        let tables = private_overlay_seed_tables(&corpus, &matrix, &case["world"]);
+        let mut snapback = private_overlay_store(&corpus, &matrix, &case["world"]);
+        let initial = snapback
+            .evaluate_graph_query(&carrier.normalized_plan, &request)
+            .unwrap_or_else(|error| panic!("evaluate {case_id}: {error:?}"));
+        assert_evaluator_matches_frozen_result(case_id, &initial, &case["expect"]["initial"], true);
+
+        let matcher_input = normalized_matcher_input(&carrier.normalized_plan, &request);
+        let registration_demand = GraphSubscriptionRegistrationDemandV1 {
+            args: request.args.clone(),
+            windows: request.windows.clone(),
+            input: matcher_input.clone(),
+            permission_values_by_table: request
+                .authority
+                .permission_values_by_table
+                .iter()
+                .map(|(table, permission)| {
+                    (
+                        table.clone(),
+                        GraphRegistrationPermissionValuesV1 {
+                            field: permission.field.clone(),
+                            allowed_values: permission.allowed_values.clone(),
+                        },
+                    )
+                })
+                .collect(),
+            materialization: materialization.clone(),
+            partition: partition.clone(),
+        };
+        let registered = register_graph_subscription_dependencies(
+            &carrier,
+            &corpus_schema(&tables),
+            &registration_demand,
+            &initial.captured_reads,
+            &initial.capture_attachments,
+            &initial.captured_query_outputs,
+        )
+        .unwrap_or_else(|error| panic!("register {case_id}: {error:?}"));
+        let definition = FunctionDefinition::new(
+            query,
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier.clone())),
+        );
+        let overlay = case["overlay"].as_str().unwrap();
+        let other = &matrix["fixture"]["rows"][overlay]["otherUpdated"];
+        let other_field = if overlay == "viewState" {
+            "viewed"
+        } else {
+            "subscribed"
+        };
+        let other_change = update_change(
+            other["table"].as_str().unwrap(),
+            other["value"].clone(),
+            &[other_field],
+        );
+        let other_decision = live_subscription_match_decision_with_graph_registration(
+            &definition,
+            &matcher_input,
+            &registered,
+            &[other_change],
+        );
+        assert_eq!(
+            match_outcome_name(other_decision.outcome),
+            case["dispositions"]["matcher"]["crossPrincipalWrite"]
+                .as_str()
+                .unwrap(),
+            "{case_id} cross-principal matcher disposition",
+        );
+        let target_node = carrier
+            .normalized_plan
+            .nodes
+            .iter()
+            .find(|node| node.edge_name() == overlay)
+            .expect("private-overlay target node")
+            .node_id();
+        assert_eq!(
+            other_decision
+                .graph_nodes
+                .iter()
+                .find(|node| node.node_id == target_node)
+                .expect("cross-principal target disposition")
+                .disposition,
+            GraphNodeMatchDispositionV1::Skip,
+            "{case_id} target principal node skips the other principal",
+        );
+        assert!(
+            other_decision.graph_nodes.iter().all(|node| {
+                node.disposition != GraphNodeMatchDispositionV1::ConservativeFallback
+            })
+        );
+
+        if case["arm"] == "other-principal" {
+            let paired = case["pairedWorld"].as_object().unwrap();
+            let absent = private_overlay_store(&corpus, &matrix, &paired["absent"])
+                .evaluate_graph_query(&carrier.normalized_plan, &request)
+                .unwrap_or_else(|error| panic!("evaluate {case_id} absent world: {error:?}"));
+            assert_evaluator_matches_frozen_result(
+                &format!("{case_id} absent world"),
+                &absent,
+                &paired["expect"],
+                true,
+            );
+            assert_eq!(initial.result_bytes, absent.result_bytes);
+            let mut present_proofs = serde_json::to_value(&initial).unwrap();
+            let mut absent_proofs = serde_json::to_value(&absent).unwrap();
+            normalize_snapshot_tuple(&mut present_proofs);
+            normalize_snapshot_tuple(&mut absent_proofs);
+            assert_eq!(
+                present_proofs["nodeCompleteness"],
+                absent_proofs["nodeCompleteness"],
+            );
+            assert_eq!(
+                present_proofs["graphCompleteness"],
+                absent_proofs["graphCompleteness"],
+            );
+        }
+
+        if case["arm"] == "own-update" {
+            let update = &case["expect"]["update"];
+            let own_change = update_change(
+                update["table"].as_str().unwrap(),
+                update["row"].clone(),
+                &update["changedFields"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|field| field.as_str().unwrap())
+                    .collect::<Vec<_>>(),
+            );
+            let own_decision = live_subscription_match_decision_with_graph_registration(
+                &definition,
+                &matcher_input,
+                &registered,
+                &[own_change],
+            );
+            assert_eq!(
+                match_outcome_name(own_decision.outcome),
+                case["dispositions"]["matcher"]["ownUpdate"]
+                    .as_str()
+                    .unwrap(),
+                "{case_id} own-principal update matcher disposition",
+            );
+            assert_eq!(
+                own_decision
+                    .graph_nodes
+                    .iter()
+                    .find(|node| node.node_id == target_node)
+                    .expect("own-principal target disposition")
+                    .disposition,
+                GraphNodeMatchDispositionV1::Match,
+            );
+
+            snapback.declare_graph_query_v1_capability();
+            let carriers = private_overlay_carriers(&snapback, &matrix)
+                .into_iter()
+                .filter(|(name, _, _)| name == query)
+                .collect::<Vec<_>>();
+            let diagnostics = snapback.load_functions(served_graph_manifest(&corpus, &carriers));
+            assert!(
+                diagnostics
+                    .iter()
+                    .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error)
+            );
+            let changed_field = update["changedFields"][0].as_str().unwrap();
+            let committed = snapback
+                .invoke_mutation(
+                    if overlay == "viewState" {
+                        GRAPH_CORPUS_PATCH_VIEW_STATE
+                    } else {
+                        GRAPH_CORPUS_PATCH_NOTIFICATION_STATE
+                    },
+                    graph_corpus_dev_mutation_input(json!({
+                        "rowID":update["rowID"],
+                        "value":update["row"][changed_field],
+                    })),
+                )
+                .unwrap_or_else(|error| panic!("commit {case_id}: {error:?}"));
+            assert_eq!(
+                committed.version,
+                update["invocation"]["evaluationCut"].as_u64().unwrap(),
+            );
+            let (after_materialization, after_partition) =
+                validate_corpus_invocation(&carrier, &update["invocation"], query);
+            assert_eq!(after_partition.partition_hash, partition.partition_hash);
+            let after_request = evaluation_request(
+                &corpus,
+                &update["invocation"],
+                &after_materialization,
+                &after_partition,
+            );
+            let after = snapback
+                .evaluate_graph_query(&carrier.normalized_plan, &after_request)
+                .unwrap_or_else(|error| panic!("evaluate {case_id} successor: {error:?}"));
+            assert_evaluator_matches_frozen_result(
+                &format!("{case_id} successor"),
+                &after,
+                &update["expect"],
+                true,
+            );
+        }
+    }
+}
+
+/// Every frozen arm establishes through the retained serving path. The active
+/// principal's data update produces one exact replacement, while both another
+/// principal's overlay write and its principal-to-app binding transition are
+/// mechanically skipped and publish no frame.
+///
+/// @ref LLP 0209#51-captured-vocabulary-by-normalized-node — point/miss plus
+/// principal-field capture proves per-principal disjointness without a
+/// table-granular wake.
+#[test]
+fn private_overlay_matrix_executes_served_data_and_cross_principal_paths() {
+    let corpus = graph_corpus();
+    let matrix = private_overlay_matrix();
+
+    for case in matrix["cases"].as_array().expect("private-overlay cases") {
+        let case_id = case["id"].as_str().unwrap();
+        let query = case["query"].as_str().unwrap();
+        let overlay = case["overlay"].as_str().unwrap();
+        let carrier: GraphQueryCarrierV1 =
+            serde_json::from_value(case["plan"].clone()).expect("private-overlay served carrier");
+        let call = &case["invocation"];
+        let authority = corpus_authority(&corpus, corpus_invocation_principal(call));
+        let mut snapback = private_overlay_store(&corpus, &matrix, &case["world"]);
+        snapback.declare_graph_query_v1_capability();
+        let carriers = private_overlay_carriers(&snapback, &matrix)
+            .into_iter()
+            .filter(|(name, _, _)| name == query)
+            .collect::<Vec<_>>();
+        let diagnostics =
+            snapback.load_functions(private_overlay_served_graph_manifest(&corpus, &carriers));
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error),
+            "{case_id} served manifest diagnostics: {diagnostics:#?}",
+        );
+        snapback.install_graph_serving_authority_context_for_test(
+            query,
+            GraphServingAuthorityContextV1 {
+                evaluation: authority.clone(),
+                class2: serde_json::from_value(call["partition"]["class2"].clone())
+                    .expect("private-overlay class-2 inputs"),
+            },
+        );
+        let mut args = call["args"].as_object().unwrap().clone();
+        args.insert(
+            snapback_engine::graph_evaluator::GRAPH_SERVING_DEMAND_ARG.to_owned(),
+            json!({
+                "format":"snapback.graph-serving-demand.v1",
+                "windows":call["windows"],
+                "advancedNodeId":call["advancedNodeId"],
+                "priorWindowLedgers":[],
+            }),
+        );
+        let connection_id = format!("private-overlay-{case_id}");
+        let established = snapback
+            .subscribe_live(
+                query,
+                LiveSubscribeInput {
+                    connection_id: connection_id.clone(),
+                    input: HandlerInput {
+                        args: Value::Object(args),
+                        auth: authority.auth,
+                        read_set: Vec::new(),
+                        correlation: None,
+                        ctx_ledger: None,
+                    },
+                    authorization_namespace: None,
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+            )
+            .unwrap_or_else(|error| panic!("serve {case_id}: {error:?}"));
+        let snapshot = established.snapshot.expect("private-overlay snapshot");
+        assert_eq!(
+            serde_json::to_string(&snapshot.rows).unwrap(),
+            case["expect"]["initial"]["resultBytes"].as_str().unwrap(),
+            "{case_id} exact served initial bytes",
+        );
+        let observation = snapback
+            .graph_serving_observation_for_test(&established.subscription_id)
+            .expect("private-overlay served observation");
+        assert_eq!(
+            observation["resultBytes"],
+            case["expect"]["initial"]["resultBytes"],
+        );
+        assert_eq!(
+            observation["partition"]["class3"]["principalDataScope"]["userId"],
+            matrix["fixture"]["principals"]["active"]["principal"],
+            "{case_id} served partition is the active principal's partition of one",
+        );
+        assert_eq!(
+            observation["graphCompleteness"]["partitionHash"],
+            observation["partitionHash"],
+        );
+        let mut served_proofs = observation.clone();
+        let mut frozen_proofs = case["expect"]["initial"].clone();
+        normalize_snapshot_tuple(&mut served_proofs);
+        normalize_snapshot_tuple(&mut frozen_proofs);
+        normalize_served_harness_identity(&mut served_proofs);
+        normalize_served_harness_identity(&mut frozen_proofs);
+        assert_eq!(
+            served_proofs["nodeCompleteness"], frozen_proofs["nodeCompleteness"],
+            "{case_id} exact served initial node proofs",
+        );
+        assert_eq!(
+            served_proofs["graphCompleteness"], frozen_proofs["graphCompleteness"],
+            "{case_id} exact served initial graph proof",
+        );
+        assert!(snapback.drain_live_stream(&connection_id).is_empty());
+
+        let target_node = carrier
+            .normalized_plan
+            .nodes
+            .iter()
+            .find(|node| node.edge_name() == overlay)
+            .unwrap()
+            .node_id()
+            .to_owned();
+        let other = &matrix["fixture"]["rows"][overlay]["otherUpdated"];
+        let changed_field = if overlay == "viewState" {
+            "viewed"
+        } else {
+            "subscribed"
+        };
+        let other_change = update_change(
+            other["table"].as_str().unwrap(),
+            other["value"].clone(),
+            &[changed_field],
+        );
+        let served_decision = snapback
+            .replay_graph_matcher_for_test(&established.subscription_id, &[other_change])
+            .expect("served cross-principal matcher replay");
+        assert_eq!(
+            match_outcome_name(served_decision.outcome),
+            case["dispositions"]["matcher"]["crossPrincipalWrite"]
+                .as_str()
+                .unwrap(),
+        );
+        assert_eq!(
+            served_decision
+                .graph_nodes
+                .iter()
+                .find(|node| node.node_id == target_node)
+                .unwrap()
+                .disposition,
+            GraphNodeMatchDispositionV1::Skip,
+        );
+        snapback
+            .invoke_mutation(
+                if overlay == "viewState" {
+                    GRAPH_CORPUS_PATCH_VIEW_STATE
+                } else {
+                    GRAPH_CORPUS_PATCH_NOTIFICATION_STATE
+                },
+                graph_corpus_dev_mutation_input(json!({
+                    "rowID":other["value"]["_id"],
+                    "value":other["value"][changed_field],
+                })),
+            )
+            .unwrap_or_else(|error| panic!("cross-principal commit {case_id}: {error:?}"));
+        let _ = snapback.flush_pending_live_fanout();
+        assert_eq!(
+            snapback.drain_live_stream(&connection_id).len(),
+            case["dispositions"]["servedScheduler"]["crossPrincipalDeliveries"]
+                .as_u64()
+                .unwrap() as usize,
+            "{case_id} other-principal write publishes no delivery",
+        );
+
+        let transition_tables = private_overlay_seed_tables(&corpus, &matrix, &case["world"]);
+        let mut binding = transition_tables["identityBinding"]
+            .iter()
+            .find(|row| row["_id"] == matrix["fixture"]["principals"]["other"]["bindingRowID"])
+            .expect("other-principal binding row")
+            .clone();
+        binding["authorityInstanceID"] =
+            matrix["fixture"]["principals"]["other"]["transitionAuthorityInstanceID"].clone();
+        let binding_change = update_change(
+            "identityBinding",
+            Value::Object(binding),
+            &["authorityInstanceID"],
+        );
+        let binding_decision = snapback
+            .replay_graph_matcher_for_test(&established.subscription_id, &[binding_change])
+            .expect("served other-principal authority matcher replay");
+        assert_eq!(
+            match_outcome_name(binding_decision.outcome),
+            case["dispositions"]["matcher"]["otherPrincipalAuthorityTransition"]
+                .as_str()
+                .unwrap(),
+            "{case_id} another principal's binding transition skips: {binding_decision:#?}",
+        );
+        snapback
+            .invoke_mutation(
+                GRAPH_CORPUS_TRANSITION_OTHER_PRINCIPAL,
+                graph_corpus_dev_mutation_input(json!({
+                    "rowID":matrix["fixture"]["principals"]["other"]["bindingRowID"],
+                    "value":matrix["fixture"]["principals"]["other"]
+                        ["transitionAuthorityInstanceID"],
+                })),
+            )
+            .unwrap_or_else(|error| panic!("other-principal transition {case_id}: {error:?}"));
+        let _ = snapback.flush_pending_live_fanout();
+        assert_eq!(
+            snapback.drain_live_stream(&connection_id).len(),
+            case["dispositions"]["authorityTransition"]["otherPrincipal"]["deliveries"]
+                .as_u64()
+                .unwrap() as usize,
+            "{case_id} another principal's authority transition publishes no frame",
+        );
+        assert_eq!(
+            snapback
+                .graph_serving_observation_for_test(&established.subscription_id)
+                .unwrap(),
+            observation,
+            "{case_id} active-principal bytes, partition, and proofs remain exact after both cross-principal probes",
+        );
+    }
+
+    for case in matrix["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|case| case["arm"] == "own-update")
+    {
+        let case_id = case["id"].as_str().unwrap();
+        let query = case["query"].as_str().unwrap();
+        let overlay = case["overlay"].as_str().unwrap();
+        let call = &case["invocation"];
+        let authority = corpus_authority(&corpus, corpus_invocation_principal(call));
+        let mut snapback = private_overlay_store(&corpus, &matrix, &case["world"]);
+        snapback.declare_graph_query_v1_capability();
+        let mut carriers = private_overlay_carriers(&snapback, &matrix)
+            .into_iter()
+            .filter(|(name, _, _)| name == query)
+            .collect::<Vec<_>>();
+        let (_, carrier, definition) = carriers.first_mut().unwrap();
+        ensure_graph_window_pages(carrier, 2);
+        definition.runtime = FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier.clone()));
+        let diagnostics = snapback.load_functions(served_graph_manifest(&corpus, &carriers));
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error)
+        );
+        snapback.install_graph_serving_authority_context_for_test(
+            query,
+            GraphServingAuthorityContextV1 {
+                evaluation: authority.clone(),
+                class2: serde_json::from_value(call["partition"]["class2"].clone()).unwrap(),
+            },
+        );
+        let mut args = call["args"].as_object().unwrap().clone();
+        args.insert(
+            snapback_engine::graph_evaluator::GRAPH_SERVING_DEMAND_ARG.to_owned(),
+            json!({
+                "format":"snapback.graph-serving-demand.v1",
+                "windows":call["windows"],
+                "advancedNodeId":call["advancedNodeId"],
+                "priorWindowLedgers":[],
+            }),
+        );
+        let connection_id = format!("private-overlay-update-{case_id}");
+        let established = snapback
+            .subscribe_live(
+                query,
+                LiveSubscribeInput {
+                    connection_id: connection_id.clone(),
+                    input: HandlerInput {
+                        args: Value::Object(args),
+                        auth: authority.auth,
+                        read_set: Vec::new(),
+                        correlation: None,
+                        ctx_ledger: None,
+                    },
+                    authorization_namespace: None,
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+            )
+            .unwrap_or_else(|error| panic!("serve update {case_id}: {error:?}"));
+        assert!(snapback.drain_live_stream(&connection_id).is_empty());
+        let initial_partition_hash = snapback
+            .graph_serving_observation_for_test(&established.subscription_id)
+            .unwrap()["partitionHash"]
+            .clone();
+        let update = &case["expect"]["update"];
+        let changed_field = update["changedFields"][0].as_str().unwrap();
+        snapback
+            .invoke_mutation(
+                if overlay == "viewState" {
+                    GRAPH_CORPUS_PATCH_VIEW_STATE
+                } else {
+                    GRAPH_CORPUS_PATCH_NOTIFICATION_STATE
+                },
+                graph_corpus_dev_mutation_input(json!({
+                    "rowID":update["rowID"],
+                    "value":update["row"][changed_field],
+                })),
+            )
+            .unwrap_or_else(|error| panic!("served own update {case_id}: {error:?}"));
+        let _ = snapback.flush_pending_live_fanout();
+        let frames = snapback
+            .drain_live_stream(&connection_id)
+            .into_iter()
+            .map(|frame| serde_json::from_str::<Value>(&frame).unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(frames.len(), 1, "{case_id} one own-principal delivery");
+        assert_eq!(
+            frames[0]["kind"],
+            case["dispositions"]["servedScheduler"]["ownUpdate"],
+        );
+        assert_eq!(
+            serde_json::to_string(&frames[0]["rows"]).unwrap(),
+            update["expect"]["resultBytes"].as_str().unwrap(),
+            "{case_id} exact own-principal successor bytes",
+        );
+        let mut served = snapback
+            .graph_serving_observation_for_test(&established.subscription_id)
+            .unwrap();
+        let mut expected = update["expect"].clone();
+        normalize_snapshot_tuple(&mut served);
+        normalize_snapshot_tuple(&mut expected);
+        normalize_served_harness_identity(&mut served);
+        normalize_served_harness_identity(&mut expected);
+        for field in ["resultBytes", "nodeCompleteness", "graphCompleteness"] {
+            assert_eq!(
+                served[field], expected[field],
+                "{case_id} served update {field}"
+            );
+        }
+        assert_eq!(
+            snapback
+                .graph_serving_observation_for_test(&established.subscription_id)
+                .unwrap()["partitionHash"],
+            initial_partition_hash,
+            "{case_id} partition identity is stable across its own data update",
+        );
+    }
+}
+
+/// Advancing the active principal's authority fences the predecessor and then
+/// restores exactly one successor snapshot. Both private overlays remain
+/// scoped to the same partition of one on list and detail graphs.
+///
+/// @ref LLP 0209#32-authority-partition-identity-and-versioning — authority
+/// versions are adjacent to, but do not replace, the stable principal-scoped
+/// partition identity.
+/// @ref LLP 0268#4-decision-the-fail-closed-lane-owns-every-individualized-boundary — the retained
+/// scheduler publishes a fence before any successor-authority graph bytes.
+#[test]
+fn private_overlay_matrix_active_authority_transition_fences_and_restores() {
+    let corpus = graph_corpus();
+    let matrix = private_overlay_matrix();
+    let cases = matrix["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|case| case["arm"] == "own-positive" && case["overlay"] == "viewState")
+        .collect::<Vec<_>>();
+    assert_eq!(cases.len(), 2, "one list and one detail authority probe");
+
+    for case in cases {
+        let case_id = case["id"].as_str().unwrap();
+        let query = case["query"].as_str().unwrap();
+        let call = &case["invocation"];
+        let authority = corpus_authority(&corpus, corpus_invocation_principal(call));
+        let mut snapback = private_overlay_store(&corpus, &matrix, &case["world"]);
+        snapback.declare_graph_query_v1_capability();
+        let mut carriers = private_overlay_carriers(&snapback, &matrix)
+            .into_iter()
+            .filter(|(name, _, _)| name == query)
+            .collect::<Vec<_>>();
+        let (_, carrier, definition) = carriers.first_mut().unwrap();
+        ensure_graph_window_pages(carrier, 4);
+        definition.runtime = FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier.clone()));
+        let diagnostics = snapback.load_functions(served_graph_manifest(&corpus, &carriers));
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error),
+            "{case_id} authority manifest diagnostics: {diagnostics:#?}",
+        );
+        snapback.install_graph_serving_authority_context_for_test(
+            query,
+            GraphServingAuthorityContextV1 {
+                evaluation: authority.clone(),
+                class2: serde_json::from_value(call["partition"]["class2"].clone()).unwrap(),
+            },
+        );
+        let predecessor: snapback_types::storage::AuthorizationVersion =
+            serde_json::from_value(json!({
+                "incarnation":GRAPH_CORPUS_AUTHORIZATION_INCARNATION,
+                "epoch":0,
+            }))
+            .unwrap();
+        let connection = configure_graph_corpus_scheduler(
+            &mut snapback,
+            predecessor,
+            GRAPH_CORPUS_DATA_VERSION_STREAM,
+        )
+        .unwrap_or_else(|error| panic!("configure {case_id} authority scheduler: {error:?}"));
+        let connection_id = format!("private-overlay-authority-{case_id}");
+        let mut args = call["args"].as_object().unwrap().clone();
+        args.insert(
+            snapback_engine::graph_evaluator::GRAPH_SERVING_DEMAND_ARG.to_owned(),
+            json!({
+                "format":"snapback.graph-serving-demand.v1",
+                "windows":call["windows"],
+                "advancedNodeId":call["advancedNodeId"],
+                "priorWindowLedgers":[],
+            }),
+        );
+        let established = subscribe_graph_corpus_case(
+            &mut snapback,
+            query,
+            LiveSubscribeInput {
+                connection_id: connection_id.clone(),
+                input: HandlerInput {
+                    args: Value::Object(args),
+                    auth: authority.auth,
+                    read_set: Vec::new(),
+                    correlation: None,
+                    ctx_ledger: None,
+                },
+                authorization_namespace: Some(QueryNamespace {
+                    client_store_id: "g2-d2-private-overlay".to_owned(),
+                    query_key: query.to_owned(),
+                    query_instance_id: 1,
+                }),
+                supersedes: None,
+                resume_from_token: None,
+            },
+            connection,
+        )
+        .unwrap_or_else(|error| panic!("establish {case_id} authority scheduler: {error:?}"));
+        assert_eq!(
+            serde_json::to_string(&established.snapshot.unwrap().rows).unwrap(),
+            case["expect"]["initial"]["resultBytes"].as_str().unwrap(),
+            "{case_id} exact predecessor overlay bytes",
+        );
+        assert!(snapback.drain_live_stream(&connection_id).is_empty());
+        let before = snapback
+            .graph_serving_observation_for_test(&established.subscription_id)
+            .expect("private-overlay predecessor observation");
+
+        let committed = invoke_graph_corpus_mutation(
+            &mut snapback,
+            GRAPH_CORPUS_AUTHORITY_MUTATION,
+            HandlerInput {
+                args: json!({"generation":1}),
+                ..HandlerInput::default()
+            },
+        )
+        .unwrap_or_else(|error| panic!("commit {case_id} authority transition: {error:?}"));
+        let mut frame_strings = drain_graph_corpus_stream(&snapback, &connection_id);
+        assert!(
+            snapback.flush_pending_live_fanout(),
+            "{case_id} active authority transition restores",
+        );
+        frame_strings.extend(drain_graph_corpus_stream(&snapback, &connection_id));
+        frame_strings.extend(
+            graph_corpus_authorization_frames(&mut snapback, &connection_id)
+                .expect("project private-overlay authority frames"),
+        );
+        let frames = frame_strings
+            .iter()
+            .map(|frame| serde_json::from_str::<Value>(frame).unwrap())
+            .collect::<Vec<_>>();
+        let successor = json!({
+            "incarnation":GRAPH_CORPUS_AUTHORIZATION_INCARNATION,
+            "epoch":1,
+        });
+        let authorization_frames = frames
+            .iter()
+            .enumerate()
+            .filter(|(_, frame)| frame["kind"] == "authorization_invalidation")
+            .collect::<Vec<_>>();
+        let fences = authorization_frames
+            .iter()
+            .filter(|(_, frame)| frame.get("snapshot").is_none())
+            .collect::<Vec<_>>();
+        let deliveries = authorization_frames
+            .iter()
+            .filter(|(_, frame)| frame.get("snapshot").is_some())
+            .collect::<Vec<_>>();
+        let stale_deliveries = deliveries
+            .iter()
+            .filter(|(_, frame)| frame["obligation"]["witness"]["authorization"] != successor)
+            .count();
+        assert_eq!(
+            stale_deliveries,
+            case["dispositions"]["authorityTransition"]["activePrincipal"]["staleDeliveries"]
+                .as_u64()
+                .unwrap() as usize,
+            "{case_id} publishes no stale-authority overlay bytes",
+        );
+        assert_eq!(
+            fences.len(),
+            case["dispositions"]["authorityTransition"]["activePrincipal"]["fenceFrames"]
+                .as_u64()
+                .unwrap() as usize,
+            "{case_id} publishes one successor fence",
+        );
+        assert_eq!(
+            deliveries.len(),
+            case["dispositions"]["authorityTransition"]["activePrincipal"]["successorDeliveries"]
+                .as_u64()
+                .unwrap() as usize,
+            "{case_id} publishes one successor overlay snapshot",
+        );
+        assert!(
+            fences[0].0 < deliveries[0].0,
+            "{case_id} fence precedes successor delivery",
+        );
+        assert_eq!(
+            fences[0].1["obligation"]["witness"]["authorization"],
+            successor,
+        );
+        assert_eq!(
+            serde_json::to_string(&deliveries[0].1["snapshot"]["rows"]).unwrap(),
+            case["expect"]["initial"]["resultBytes"].as_str().unwrap(),
+            "{case_id} exact overlay bytes survive authority restoration",
+        );
+
+        let after = snapback
+            .graph_serving_observation_for_test(&established.subscription_id)
+            .expect("private-overlay successor observation");
+        assert_eq!(
+            after["resultBytes"],
+            case["expect"]["initial"]["resultBytes"]
+        );
+        assert_eq!(after["partitionHash"], before["partitionHash"]);
+        assert_eq!(after["authorizationVersion"], successor);
+        assert_eq!(after["evaluationCut"], committed.version);
+        assert_legal_node_proof_classes(&after["nodeCompleteness"], case_id);
+        for proof in after["nodeCompleteness"].as_array().unwrap() {
+            assert_eq!(proof["proof"]["partitionHash"], after["partitionHash"]);
+            assert_eq!(proof["proof"]["authorizationVersion"], successor);
+            assert_eq!(proof["proof"]["evaluationCut"], committed.version);
+        }
+        assert_eq!(
+            after["graphCompleteness"]["proof"]["partitionHash"],
+            after["partitionHash"],
+        );
+        assert_eq!(
+            after["graphCompleteness"]["proof"]["authorizationVersion"],
+            successor,
+        );
+        assert_eq!(
+            after["graphCompleteness"]["proof"]["evaluationCut"],
+            committed.version,
+        );
+        let mut normalized_before = before.clone();
+        let mut normalized_after = after.clone();
+        normalize_snapshot_tuple(&mut normalized_before);
+        normalize_snapshot_tuple(&mut normalized_after);
+        assert_eq!(
+            normalized_after["nodeCompleteness"], normalized_before["nodeCompleteness"],
+            "{case_id} exact completeness shape survives authority restoration",
+        );
+        assert_eq!(
+            normalized_after["graphCompleteness"], normalized_before["graphCompleteness"],
+            "{case_id} exact graph proof shape survives authority restoration",
         );
     }
 }

@@ -31,6 +31,7 @@ const PROVER_DISPOSITIONS_PATH = join(GRAPH_ROOT, 'broadcast-prover-dispositions
 const PAIRED_FIXTURES_PATH = join(GRAPH_ROOT, 'paired-world-fixtures.v1.json');
 const FILTER_ORDER_FIXTURE_PATH = join(GRAPH_ROOT, 'filter-order-fixture.v1.json');
 const TWO_WAY_OBSERVATIONS_PATH = join(GRAPH_ROOT, 'two-way-window-observations.v1.json');
+const PRIVATE_OVERLAY_MATRIX_PATH = join(GRAPH_ROOT, 'private-overlay-matrix.v1.json');
 const RUNTIME_CAPTURES_PATH = join(GRAPH_ROOT, 'runtime-captures.g2-b.v1.json');
 const SERVED_OBSERVATIONS_PATH = join(GRAPH_ROOT, 'served-observations.g2-c.v1.json');
 const PB_SERVED_OBSERVATIONS_PATH = join(GRAPH_ROOT, 'served-observations.large-hot.v1.json');
@@ -71,6 +72,10 @@ const FILTER_ORDER_QUERY_NAMES = [
   'issueListWindowsAssigneeDesc',
   'issueListWindowsAssigneeBefore',
   'issueDetailTwoWay',
+];
+const PRIVATE_OVERLAY_QUERY_NAMES = [
+  'issueListPrivateOverlays',
+  'issueDetailPrivateOverlays',
 ];
 
 const fixtureOptionIndex = process.argv.indexOf('--fixtures');
@@ -538,7 +543,7 @@ async function codegenDeclarations() {
   ], {stdio: 'inherit'});
   for (const file of [
     'schema.mjs', 'queries.mjs', 'filter-order-queries.generated.mjs',
-    'functions.mjs', 'refusal-candidates.mjs',
+    'private-overlay-queries.mjs', 'functions.mjs', 'refusal-candidates.mjs',
   ]) {
     cpSync(join(DECLARATION_ROOT, file), join(backend, file));
   }
@@ -565,6 +570,11 @@ async function codegenDeclarations() {
   const filterOrderCarriers = Object.fromEntries(FILTER_ORDER_QUERY_NAMES.map(name => {
     const fn = manifest.functions.find(candidate => candidate.name === name);
     assert(fn, `generated filter/order graph declaration ${name}`);
+    return [name, fn.runtime.HostPlan.GraphQuery];
+  }));
+  const privateOverlayCarriers = Object.fromEntries(PRIVATE_OVERLAY_QUERY_NAMES.map(name => {
+    const fn = manifest.functions.find(candidate => candidate.name === name);
+    assert(fn, `generated private-overlay graph declaration ${name}`);
     return [name, fn.runtime.HostPlan.GraphQuery];
   }));
   const refusalModule = await import(`${pathToFileURL(join(backend, 'refusal-candidates.mjs')).href}?freeze=${Date.now()}`);
@@ -622,7 +632,7 @@ async function codegenDeclarations() {
   rmSync(tempRoot, { recursive: true });
   rmSync(broadcastTempRoot, { recursive: true });
   return {
-    carriers, filterOrderCarriers, refusals,
+    carriers, filterOrderCarriers, privateOverlayCarriers, refusals,
     broadcastCarriers, broadcastManifest, broadcastSchema,
   };
 }
@@ -2066,6 +2076,272 @@ async function freezeFilterOrderMatrix({
   };
 }
 
+function privateOverlayWorld(baseTables, fixture, options) {
+  const tables = deepClone(baseTables);
+  for (const table of ['viewState', 'issueNotifications']) {
+    tables[table] = tables[table].filter(row => row.issueID !== fixture.issue.physicalID);
+  }
+  const install = (overlay, owner, present, updated = false) => {
+    if (!present) return;
+    const row = fixture.rows[overlay][updated ? `${owner}Updated` : owner];
+    tables[row.table].push(deepClone(row.value));
+  };
+  install('viewState', 'own', options.ownViewState, options.updated === 'viewState');
+  install('notificationState', 'own', options.ownNotificationState,
+    options.updated === 'notificationState');
+  install('viewState', 'other', options.otherViewState);
+  install('notificationState', 'other', options.otherNotificationState);
+  return tables;
+}
+
+function privateOverlayProjection(query, tables, fixture, principal) {
+  const authority = authorityFact(principal);
+  const issueRow = tables.issue.find(row => row._id === fixture.issue.physicalID);
+  assert(issueRow, 'private-overlay fixture issue exists');
+  const view = tables.viewState.find(row => (
+    row.issueID === issueRow._id && row.userID === authority.userID
+  ));
+  const notification = tables.issueNotifications.find(row => (
+    row.issueID === issueRow._id && row.userID === authority.userID
+  ));
+  const overlays = {
+    viewState: view ? {viewed: view.viewed} : null,
+    notificationState: notification ? {subscribed: notification.subscribed} : null,
+  };
+  return query === 'issueListPrivateOverlays'
+    ? [{issue: {id: issueRow.id, title: issueRow.title}, ...overlays}]
+    : [{issueId: issueRow.id, issueTitle: issueRow.title, ...overlays}];
+}
+
+function freezePrivateOverlayMatrix({baseTables, carriers, issueRow}) {
+  const active = authorityFact(GRAPH_CORPUS_ORDINARY_PRINCIPAL);
+  const other = authorityFact(GRAPH_CORPUS_CREW_PRINCIPAL);
+  const transitionedOther = authorityFact(GRAPH_CORPUS_REMOVED_PRINCIPAL);
+  const fixture = {
+    format: 'snapback.graph-private-overlay-fixture.v1',
+    issue: {physicalID: issueRow._id, sourceID: issueRow.id, title: issueRow.title},
+    principals: {
+      active: {
+        principal: active.principal, userID: active.userID,
+        authorityInstanceID: graphCorpusAuthorityInstanceId(active.principal),
+      },
+      other: {
+        principal: other.principal, userID: other.userID,
+        authorityInstanceID: graphCorpusAuthorityInstanceId(other.principal),
+        bindingRowID: 'graph_identity_binding_1',
+        transitionAuthorityInstanceID: graphCorpusAuthorityInstanceId(transitionedOther.principal),
+      },
+    },
+    rows: {
+      viewState: {
+        own: {table: 'viewState', value: {
+          _id: 'viewState_pc_own', issueID: issueRow._id,
+          userID: active.userID, viewed: 2_000_000_000_100,
+        }},
+        ownUpdated: {table: 'viewState', value: {
+          _id: 'viewState_pc_own', issueID: issueRow._id,
+          userID: active.userID, viewed: 2_000_000_000_101,
+        }},
+        other: {table: 'viewState', value: {
+          _id: 'viewState_pc_other', issueID: issueRow._id,
+          userID: other.userID, viewed: 9_000_000_000_100,
+        }},
+        otherUpdated: {table: 'viewState', value: {
+          _id: 'viewState_pc_other', issueID: issueRow._id,
+          userID: other.userID, viewed: 9_000_000_000_101,
+        }},
+      },
+      notificationState: {
+        own: {table: 'issueNotifications', value: {
+          _id: 'issueNotifications_pc_own', issueID: issueRow._id,
+          userID: active.userID, subscribed: true, created: 2_000_000_000_200,
+        }},
+        ownUpdated: {table: 'issueNotifications', value: {
+          _id: 'issueNotifications_pc_own', issueID: issueRow._id,
+          userID: active.userID, subscribed: false, created: 2_000_000_000_200,
+        }},
+        other: {table: 'issueNotifications', value: {
+          _id: 'issueNotifications_pc_other', issueID: issueRow._id,
+          userID: other.userID, subscribed: false, created: 9_000_000_000_200,
+        }},
+        otherUpdated: {table: 'issueNotifications', value: {
+          _id: 'issueNotifications_pc_other', issueID: issueRow._id,
+          userID: other.userID, subscribed: true, created: 9_000_000_000_200,
+        }},
+      },
+    },
+  };
+  const fullWorld = {
+    ownViewState: true, ownNotificationState: true,
+    otherViewState: true, otherNotificationState: true,
+  };
+  const definitions = [];
+  for (const [surface, query] of [
+    ['list', 'issueListPrivateOverlays'],
+    ['detail', 'issueDetailPrivateOverlays'],
+  ]) {
+    for (const overlay of ['viewState', 'notificationState']) {
+      definitions.push(
+        {surface, query, overlay, arm: 'own-positive', initialWorld: fullWorld},
+        {surface, query, overlay, arm: 'own-update', initialWorld: fullWorld, update: overlay},
+        {
+          surface, query, overlay, arm: 'absent',
+          initialWorld: {
+            ...fullWorld,
+            [overlay === 'viewState' ? 'ownViewState' : 'ownNotificationState']: false,
+          },
+        },
+        {
+          surface, query, overlay, arm: 'other-principal',
+          initialWorld: {
+            ...fullWorld,
+            [overlay === 'viewState' ? 'ownViewState' : 'ownNotificationState']: false,
+          },
+          pairedAbsentWorld: {
+            ...fullWorld,
+            [overlay === 'viewState' ? 'ownViewState' : 'ownNotificationState']: false,
+            [overlay === 'viewState' ? 'otherViewState' : 'otherNotificationState']: false,
+          },
+        },
+      );
+    }
+  }
+
+  const cases = definitions.map(definition => {
+    const carrier = carriers[definition.query];
+    assert(carrier, `${definition.query} private-overlay carrier exists`);
+    assert.equal(
+      carrier.normalizedPlan.authorityPartitionRule.class3,
+      'partition-of-one',
+      `${definition.query} is principal partition-of-one`,
+    );
+    const call = invocation(
+      carrier, {sourceIssueID: issueRow.id}, active.principal, 0,
+      definition.query, [], {rootTake: 1},
+    );
+    const initialTables = privateOverlayWorld(baseTables, fixture, definition.initialWorld);
+    const initialBytes = JSON.stringify(privateOverlayProjection(
+      definition.query, initialTables, fixture, active.principal,
+    ));
+    const initial = completeResult(
+      carrier, call, initialTables, initialBytes, [issueRow.id],
+    );
+    let update = null;
+    if (definition.update) {
+      const afterWorld = {...definition.initialWorld, updated: definition.update};
+      const afterTables = privateOverlayWorld(baseTables, fixture, afterWorld);
+      const afterCall = deepClone(call);
+      afterCall.evaluationCut = 2;
+      const afterBytes = JSON.stringify(privateOverlayProjection(
+        definition.query, afterTables, fixture, active.principal,
+      ));
+      update = {
+        table: fixture.rows[definition.update].own.table,
+        rowID: fixture.rows[definition.update].own.value._id,
+        changedFields: definition.update === 'viewState' ? ['viewed'] : ['subscribed'],
+        row: fixture.rows[definition.update].ownUpdated.value,
+        invocation: afterCall,
+        expect: completeResult(
+          carrier, afterCall, afterTables, afterBytes, [issueRow.id],
+        ),
+      };
+    }
+    let pairedWorld = null;
+    if (definition.pairedAbsentWorld) {
+      const absentTables = privateOverlayWorld(baseTables, fixture, definition.pairedAbsentWorld);
+      const absentBytes = JSON.stringify(privateOverlayProjection(
+        definition.query, absentTables, fixture, active.principal,
+      ));
+      const absent = completeResult(
+        carrier, call, absentTables, absentBytes, [issueRow.id],
+      );
+      assert.deepEqual(
+        absent, initial,
+        `${definition.surface}/${definition.overlay} other principal cannot alter bytes or proofs`,
+      );
+      pairedWorld = {
+        present: definition.initialWorld,
+        absent: definition.pairedAbsentWorld,
+        expect: absent,
+      };
+    }
+    return {
+      caseKind: 'privateOverlayMatrix',
+      id: `pc-private-${definition.surface}-${definition.overlay}-${definition.arm}`,
+      surface: definition.surface,
+      query: definition.query,
+      overlay: definition.overlay,
+      arm: definition.arm,
+      plan: carrier,
+      invocation: call,
+      world: definition.initialWorld,
+      pairedWorld,
+      expect: {initial, update},
+      dispositions: {
+        evaluator: {initial: 'exact', pairedWorld: pairedWorld ? 'exact' : null},
+        matcher: {
+          ownUpdate: update ? 'match' : null,
+          crossPrincipalWrite: 'skip',
+          otherPrincipalAuthorityTransition: 'skip',
+        },
+        servedScheduler: {
+          initialSnapshot: 'exact',
+          ownUpdate: update ? 'live_replace' : null,
+          crossPrincipalDeliveries: 0,
+          otherPrincipalAuthorityDeliveries: 0,
+        },
+        authorityTransition: {
+          activePrincipal: {staleDeliveries: 0, fenceFrames: 1, successorDeliveries: 1},
+          otherPrincipal: {fenceFrames: 0, deliveries: 0},
+        },
+        deltaEligibility: 'unchanged-principal-bound-replace-only',
+      },
+    };
+  });
+
+  const partitions = Object.entries(carriers).map(([query, carrier]) => {
+    const activeCall = invocation(
+      carrier, {sourceIssueID: issueRow.id}, active.principal, 0, query, [], {rootTake: 1},
+    );
+    const otherCall = invocation(
+      carrier, {sourceIssueID: issueRow.id}, other.principal, 0, query, [], {rootTake: 1},
+    );
+    const activeHash = domainHash(
+      'snapback:graph-authority-partition:v1:', activeCall.partition,
+    );
+    const otherHash = domainHash(
+      'snapback:graph-authority-partition:v1:', otherCall.partition,
+    );
+    assert.notEqual(activeHash, otherHash, `${query} partitions principals distinctly`);
+    return {
+      query,
+      rule: 'partition-of-one',
+      active: {invocation: activeCall, partitionHash: activeHash},
+      other: {invocation: otherCall, partitionHash: otherHash},
+      stableAcrossOwnDataUpdate: true,
+    };
+  });
+
+  const artifact = {
+    format: 'snapback.graph-private-overlay-matrix.v1',
+    version: 1,
+    source: 'tests/conformance/graph/zerobugs/private-overlay-queries.mjs',
+    oracleAuthority: 'corpus-local-independent-fixture-projection; never D1 control oracle',
+    fixture,
+    queries: Object.entries(carriers).map(([query, carrier]) => ({query, carrier})),
+    partitions,
+    cases,
+    coverage: {
+      surfaces: ['list', 'detail'],
+      overlays: ['viewState', 'notificationState'],
+      arms: ['own-positive', 'own-update', 'absent', 'other-principal'],
+      caseCount: cases.length,
+    },
+  };
+  artifact.contentDigest = digestBytes(canonical(artifact));
+  return artifact;
+}
+
 function graphKeyset(node, row) {
   return {
     entries: node.order.map(component => [
@@ -3403,7 +3679,7 @@ async function main() {
   assert.equal(process.versions.node, '24.18.0', 'freeze requires paid-for Node 24.18.0');
   assert(requestedFixtures.includes('normal-seed-v1'), 'normal-seed-v1 is mandatory');
   const {
-    carriers, filterOrderCarriers, refusals,
+    carriers, filterOrderCarriers, privateOverlayCarriers, refusals,
     broadcastCarriers, broadcastManifest, broadcastSchema,
   } = await codegenDeclarations();
   assert.equal(refusals.issueListV2, 'SNAPBACK_GRAPH_SEARCH_UNADMITTED');
@@ -3693,6 +3969,11 @@ async function main() {
     commentsPageHandler,
     principal: ordinaryPrincipal,
     detailSourceIssueID: publicIssue.id,
+  });
+  const privateOverlayMatrix = freezePrivateOverlayMatrix({
+    baseTables: tables,
+    carriers: privateOverlayCarriers,
+    issueRow: publicIssue,
   });
   const notificationOverlay = {
     _id: 'issueNotifications_g0_other_principal', userID: otherUserID,
@@ -4396,6 +4677,7 @@ async function main() {
     assert.equal(readFileSync(PROVER_DISPOSITIONS_PATH, 'utf8'), pretty(proverDispositions), 'broadcast prover dispositions are stale');
     assert.equal(readFileSync(PAIRED_FIXTURES_PATH, 'utf8'), pretty(pairedFixtureCorpus), 'paired-world fixtures are stale');
     assert.equal(readFileSync(FILTER_ORDER_FIXTURE_PATH, 'utf8'), pretty(matrixFixture), 'filter/order matrix fixture is stale');
+    assert.equal(readFileSync(PRIVATE_OVERLAY_MATRIX_PATH, 'utf8'), pretty(privateOverlayMatrix), 'private-overlay matrix is stale');
   } else {
     writeFileSync(CORPUS_PATH, pretty(corpus));
     writeFileSync(BOUNDS_PATH, pretty(bounds));
@@ -4403,9 +4685,10 @@ async function main() {
     writeFileSync(PROVER_DISPOSITIONS_PATH, pretty(proverDispositions));
     writeFileSync(PAIRED_FIXTURES_PATH, pretty(pairedFixtureCorpus));
     writeFileSync(FILTER_ORDER_FIXTURE_PATH, pretty(matrixFixture));
+    writeFileSync(PRIVATE_OVERLAY_MATRIX_PATH, pretty(privateOverlayMatrix));
   }
   console.log(`graph-g0-digests: corpus=${corpus.contentDigest} bounds=${bounds.contentDigest} pending=${pendingCorpus.contentDigest} dispositions=${proverDispositions.contentDigest} paired=${pairedFixtureCorpus.contentDigest}`);
-  console.log(`graph-g0-oracle-freeze: PASS normal-seed-v1 queries=4 matrixCases=${filterOrderMatrix.cases.length} oracleCases=${oracleCases.length} pairedWorlds=${pairedWorlds.length} allowDeny=${allowDenyCases.length} refusals=${refusalCases.length} corpusDigest=${corpus.contentDigest} boundsDigest=${bounds.contentDigest}`);
+  console.log(`graph-g0-oracle-freeze: PASS normal-seed-v1 queries=4 matrixCases=${filterOrderMatrix.cases.length} privateOverlayCases=${privateOverlayMatrix.cases.length} oracleCases=${oracleCases.length} pairedWorlds=${pairedWorlds.length} allowDeny=${allowDenyCases.length} refusals=${refusalCases.length} corpusDigest=${corpus.contentDigest} boundsDigest=${bounds.contentDigest}`);
   if (freezeTwoWayObservations) {
     assert(!checkOnly, '--freeze-two-way-observations writes the Rust evaluator/served artifact');
     execFileSync('cargo', [
