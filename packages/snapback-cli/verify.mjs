@@ -102,6 +102,10 @@ const NEXT_BY_STAGE = Object.freeze({
   }),
 });
 
+function verifyNextDiagnostic(record) {
+  return record;
+}
+
 function foreignCauseDetails(error, details = undefined) {
   const causeCode = typeof error?.code === 'string' && !error.code.startsWith('SNAPBACK_')
     ? error.code
@@ -1832,7 +1836,9 @@ export async function runVerify(config, options = {}) {
     }),
     stage('acceptance-profiles', acceptance),
   ]);
-  const next = Object.freeze(stages.filter(({ status }) => status === 'failed').map(({ id }) => NEXT_BY_STAGE[id]));
+  const next = Object.freeze(stages
+    .filter(({ status }) => status === 'failed')
+    .map(({ id }) => verifyNextDiagnostic(NEXT_BY_STAGE[id])));
   const finishedAtMs = options.now?.() ?? Date.now();
   const allStagesPassed = stages.every(({ status }) => status === 'passed');
   const acceptanceRegistered = config.profiles.length > 0;

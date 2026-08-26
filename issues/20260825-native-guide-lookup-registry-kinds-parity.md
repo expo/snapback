@@ -13,13 +13,16 @@ The JavaScript Guide wrapper resolves both top-level vocabularies in
 `guide/reference/diagnostics-registry.json`, but native lookup only consults
 `diagnostics` at `crates/snapback-server/src/guide_reference.rs` around the
 exact-lookup branch currently near line 483. The concrete regression after the
-registry-classification lane lands is that native
-`snapback guide SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE` returns `Resource not
-found`. It was previously found only because the environment variable was
-mis-typed as a diagnostic; the generated registry now correctly publishes it
-only under `environment`. The equivalent native MCP resource
-`snapback-guide://symbol/SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE` fails the same
-way. The JavaScript CLI lookup is correct.
+registry-classification lane lands is that the native MCP exact lookup
+`snapback-guide://symbol/SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE` returns the
+exact `Resource not found` error from `guide_mcp.rs`. It was previously found
+only because the environment variable was mis-typed as a diagnostic; the
+generated registry now correctly publishes it only under `environment`. The
+native CLI has a different degraded behavior: its exact-registry lookup misses,
+then `snapback guide SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE` falls through to
+Markdown section search and finds the environment-table row in
+`guide/reference/diagnostics.md`. That section-search hit is not native exact
+lookup parity. The JavaScript CLI exact lookup is correct.
 
 The native formatter currently groups every diagnostic site under `Emitting
 sites:` near line 606. Concretely, native output prints declaration, received,

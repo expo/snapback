@@ -56,6 +56,7 @@ import {
   sourceImportsOrQualifiesConstant,
   wholeStringDiagnosticDeclarations,
 } from './diagnostics-registry-source.mjs';
+import { registryRemovalProblems } from './diagnostics-registry-removals.mjs';
 import { authoritiesDigest } from './guide-lib.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -716,6 +717,7 @@ for (const name of environmentNames) {
 const inputPaths = [
   'scripts/generate-diagnostics-registry.mjs',
   'scripts/diagnostics-registry-source.mjs',
+  'scripts/diagnostics-registry-removals.mjs',
   'scripts/diagnostics-registry-code-removals.json',
   ...diagnosticCatalogPaths,
   'scripts/guide-lib.mjs',
@@ -764,9 +766,21 @@ for (const [path, expected] of rendered) {
   if (actual !== expected) stale.push(path);
   if (!check) writeFileSync(absolute, expected);
 }
-if (check && stale.length > 0) {
+const removalProblems = check
+  ? registryRemovalProblems(
+    root,
+    outputs.registry,
+    'scripts/diagnostics-registry-code-removals.json',
+  )
+  : [];
+if (check && (stale.length > 0 || removalProblems.length > 0)) {
   for (const path of stale) console.error(`[diagnostics-registry] stale: ${path}`);
-  console.error('[diagnostics-registry] run node scripts/generate-diagnostics-registry.mjs');
+  for (const problem of removalProblems) {
+    console.error(`[diagnostics-registry] removal: ${problem}`);
+  }
+  if (stale.length > 0) {
+    console.error('[diagnostics-registry] run node scripts/generate-diagnostics-registry.mjs');
+  }
   process.exit(1);
 }
 console.log(`[diagnostics-registry] ${check ? 'ok' : 'wrote'} — ${codes.length} codes, ${registry.counts.emittingSites} emitting sites, ${registry.counts.receivedSites} received sites, ${registry.counts.reservedSites} reserved sites, ${environmentNames.length} environment variables, ${registry.counts.environmentSites} environment sites, ${registry.counts.httpClassified} HTTP-classified`);

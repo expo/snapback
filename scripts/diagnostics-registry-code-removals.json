@@ -162,12 +162,12 @@
       "detail": "SNAPBACK_AUTH_ACCEPTANCE_ROOM_RECEIPT occurs only as non-emitting metadata, protocol vocabulary, or prose."
     },
     "SNAPBACK_AUTH_ACCEPTANCE_SERVER_RECEIPT": {
-      "reason": "reference-only",
-      "detail": "SNAPBACK_AUTH_ACCEPTANCE_SERVER_RECEIPT occurs only as non-emitting metadata, protocol vocabulary, or prose."
+      "reason": "test-only",
+      "detail": "SNAPBACK_AUTH_ACCEPTANCE_SERVER_RECEIPT is emitted by println! only inside the #[cfg(test)] server acceptance module in authorization_acceptance.rs."
     },
     "SNAPBACK_AUTH_ACCEPTANCE_SERVER_REPLAY": {
-      "reason": "reference-only",
-      "detail": "SNAPBACK_AUTH_ACCEPTANCE_SERVER_REPLAY occurs only as non-emitting metadata, protocol vocabulary, or prose."
+      "reason": "test-only",
+      "detail": "SNAPBACK_AUTH_ACCEPTANCE_SERVER_REPLAY is emitted by println! only inside the #[cfg(test)] server acceptance module in authorization_acceptance.rs."
     },
     "SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION": {
       "reason": "reference-only",

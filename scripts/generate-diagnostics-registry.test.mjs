@@ -21,6 +21,10 @@ import {
   sourceImportsOrQualifiesConstant,
   wholeStringDiagnosticDeclarations,
 } from './diagnostics-registry-source.mjs';
+import {
+  codeRemovalProblems,
+  registryRemovalProblems,
+} from './diagnostics-registry-removals.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const generator = resolve(root, 'scripts/generate-diagnostics-registry.mjs');
@@ -62,157 +66,6 @@ function sourceLinesContaining(repoPath, expression) {
   return readFileSync(resolve(import.meta.dirname, '..', repoPath), 'utf8')
     .split('\n')
     .flatMap((line, index) => line.includes(expression) ? [index + 1] : []);
-}
-
-function gitOutput(repoRoot, args) {
-  return execFileSync('git', args, {
-    cwd: repoRoot,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-  }).trim();
-}
-
-function stableRegistryHistory(repoRoot, dirtyPath) {
-  try {
-    const baseline = gitOutput(repoRoot, ['merge-base', 'HEAD', 'origin/main']);
-    const head = gitOutput(repoRoot, ['rev-parse', 'HEAD']);
-    if (baseline !== head) return { baseline };
-  } catch {
-    // Fall through to the local registry history when origin/main is absent.
-  }
-
-  try {
-    const latestRegistryCommit = gitOutput(repoRoot, [
-      'log',
-      '-1',
-      '--format=%H',
-      'HEAD',
-      '--',
-      dirtyPath,
-    ]);
-    if (latestRegistryCommit !== '') {
-      return { baseline: gitOutput(repoRoot, ['rev-parse', `${latestRegistryCommit}^`]) };
-    }
-  } catch {
-    // A root registry commit has no earlier snapshot; use the registry itself.
-  }
-  return { baseline: 'HEAD' };
-}
-
-function committedJson(repoRoot, revision, path, fallback = undefined) {
-  try {
-    return JSON.parse(execFileSync('git', ['show', `${revision}:${path}`], {
-      cwd: repoRoot,
-      encoding: 'utf8',
-      maxBuffer: 8 * 1024 * 1024,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    }));
-  } catch (error) {
-    if (fallback !== undefined && error.status === 128) return fallback;
-    throw error;
-  }
-}
-
-function codeRemovalProblems(
-  previousCodes,
-  currentCodes,
-  allowlist,
-  previousAllowlist = { removals: {} },
-) {
-  const validReasons = new Set([
-    'environment',
-    'prefix',
-    'reference-only',
-    'renamed',
-    'test-only',
-  ]);
-  const problems = [];
-  assert.equal(
-    allowlist.schemaVersion,
-    'snapback-diagnostics-code-removals.v1',
-    'diagnostics removal allowlist schema version',
-  );
-  assert.equal(
-    allowlist.removals !== null && typeof allowlist.removals === 'object'
-      && !Array.isArray(allowlist.removals),
-    true,
-    'diagnostics removal allowlist must contain an object-valued removals map',
-  );
-  for (const [code, justification] of Object.entries(allowlist.removals)) {
-    assert.equal(
-      justification !== null && typeof justification === 'object'
-        && !Array.isArray(justification),
-      true,
-      `${code} removal justification must be an object`,
-    );
-    assert.match(
-      code,
-      justification.reason === 'prefix'
-        ? /^SNAPBACK_[A-Z0-9_]*_$/u
-        : /^SNAPBACK_[A-Z0-9_]*[A-Z0-9]$/u,
-    );
-    assert.ok(
-      validReasons.has(justification.reason),
-      `${code} removal reason must be environment, prefix, reference-only, renamed, or test-only`,
-    );
-    assert.ok(
-      typeof justification.detail === 'string' && justification.detail.trim().length >= 12,
-      `${code} removal detail must explain the source-classification change`,
-    );
-    if (justification.reason === 'renamed') {
-      assert.match(
-        justification.replacement ?? '',
-        /^SNAPBACK_[A-Z0-9_]*[A-Z0-9]$/u,
-        `${code} renamed removal must name its replacement`,
-      );
-    }
-  }
-  for (const code of previousCodes) {
-    if (currentCodes.has(code)) continue;
-    const justification = allowlist.removals[code];
-    if (justification === undefined) {
-      problems.push(`${code}: missing checked-in removal justification`);
-    } else if (
-      JSON.stringify(previousAllowlist.removals?.[code]) === JSON.stringify(justification)
-    ) {
-      problems.push(`${code}: removal justification was not added or revised with this change`);
-    }
-  }
-  for (const code of Object.keys(allowlist.removals)) {
-    const existedInBaselineLedger = Object.hasOwn(previousAllowlist.removals ?? {}, code);
-    if (
-      currentCodes.has(code)
-      || (!existedInBaselineLedger && !previousCodes.has(code))
-    ) {
-      problems.push(`${code}: unused checked-in removal justification`);
-    }
-  }
-  return problems;
-}
-
-function registryRemovalProblems(repoRoot, registryPath, allowlistPath) {
-  const allowlist = JSON.parse(readFileSync(resolve(repoRoot, allowlistPath), 'utf8'));
-  const { baseline } = stableRegistryHistory(repoRoot, registryPath);
-  const baselineRegistry = committedJson(
-    repoRoot,
-    baseline,
-    registryPath,
-    { diagnostics: {} },
-  );
-  const previousCodes = new Set(Object.keys(baselineRegistry.diagnostics));
-  const currentRegistry = JSON.parse(readFileSync(resolve(repoRoot, registryPath), 'utf8'));
-  const previousAllowlist = committedJson(
-    repoRoot,
-    baseline,
-    allowlistPath,
-    { removals: {} },
-  );
-  return codeRemovalProblems(
-    previousCodes,
-    new Set(Object.keys(currentRegistry.diagnostics)),
-    allowlist,
-    previousAllowlist,
-  );
 }
 
 test('diagnostic removal allowlist requires a classified, explained justification', () => {
@@ -284,6 +137,89 @@ test('diagnostic removal allowlist requires a classified, explained justificatio
       },
     ),
     ['SNAPBACK_FIXTURE_NEVER_BASELINE_DIAGNOSTIC: unused checked-in removal justification'],
+  );
+});
+
+test('diagnostic removal reasons agree with classifier emitter regions', () => {
+  const referenceCode = 'SNAPBACK_FIXTURE_REFERENCE_REASON';
+  const testCode = 'SNAPBACK_FIXTURE_TEST_REASON';
+  const fixture = [
+    `fn production() { println!("${referenceCode}"); }`,
+    '#[cfg(test)]',
+    `fn test_only() { println!("${testCode}"); }`,
+  ].join('\n');
+  const production = new Set(diagnosticSourceSites(fixture, {
+    excludeRustTestRegions: true,
+    ordinaryMultiline: true,
+  }).filter(({ kind }) => kind === 'emission')
+    .map(({ match }) => `${match[0]}\0${match.index}`));
+  const evidence = new Map([
+    [referenceCode, { production: ['fixture.rs:1'], test: [] }],
+    [testCode, {
+      production: [],
+      test: diagnosticSourceSites(fixture, { ordinaryMultiline: true })
+        .filter(({ match, kind }) => (
+          kind === 'emission'
+          && match[0] === testCode
+          && !production.has(`${match[0]}\0${match.index}`)
+        ))
+        .map(() => 'fixture.rs:3'),
+    }],
+  ]);
+  const removal = (code, reason) => codeRemovalProblems(
+    new Set([code]),
+    new Set(),
+    {
+      schemaVersion: 'snapback-diagnostics-code-removals.v1',
+      removals: {
+        [code]: { reason, detail: `Classifier-backed ${reason} fixture reason.` },
+      },
+    },
+    { removals: {} },
+    evidence,
+  );
+
+  assert.deepEqual(removal(referenceCode, 'reference-only'), [
+    `${referenceCode}: reference-only removal has a classified emitter at fixture.rs:1`,
+  ]);
+  assert.deepEqual(removal(testCode, 'test-only'), []);
+  assert.deepEqual(removal(referenceCode, 'test-only'), [
+    `${referenceCode}: test-only removal has no classified test-region emitter`,
+  ]);
+
+  const repoRoot = resolve(import.meta.dirname, '..');
+  const sourcePath = 'crates/snapback-engine/src/local/authorization_acceptance.rs';
+  const source = readFileSync(resolve(repoRoot, sourcePath), 'utf8');
+  const codes = [
+    'SNAPBACK_AUTH_ACCEPTANCE_SERVER_RECEIPT',
+    'SNAPBACK_AUTH_ACCEPTANCE_SERVER_REPLAY',
+  ];
+  const productionSites = new Set(diagnosticSourceSites(source, {
+    excludeRustTestRegions: true,
+    ordinaryMultiline: true,
+  }).filter(({ kind }) => kind === 'emission')
+    .map(({ match }) => `${match[0]}\0${match.index}`));
+  const actualEvidence = new Map(codes.map((code) => [code, { production: [], test: [] }]));
+  for (const { match, kind } of diagnosticSourceSites(source, { ordinaryMultiline: true })) {
+    if (kind !== 'emission' || !actualEvidence.has(match[0])) continue;
+    const region = productionSites.has(`${match[0]}\0${match.index}`) ? 'production' : 'test';
+    const line = source.slice(0, match.index).split('\n').length;
+    actualEvidence.get(match[0])[region].push(`${sourcePath}:${line}`);
+  }
+  const ledger = JSON.parse(readFileSync(resolve(
+    repoRoot,
+    'scripts/diagnostics-registry-code-removals.json',
+  ), 'utf8'));
+  const removals = Object.fromEntries(codes.map((code) => [code, ledger.removals[code]]));
+  assert.deepEqual(
+    codeRemovalProblems(
+      new Set(codes),
+      new Set(),
+      { schemaVersion: ledger.schemaVersion, removals },
+      { removals: {} },
+      actualEvidence,
+    ),
+    [],
   );
 });
 

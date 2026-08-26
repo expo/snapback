@@ -1899,20 +1899,7 @@ function identifierFlowEmissionSites(source, analysis, externalDeclarations = []
         && /^\s*[,}]/u.test(after)
         && !before.endsWith('${')
         && /^(?:code|.*Code|.*_CODE)$/u.test(declaration.identifier);
-      if (
-        !usePattern.table
-        && !explicitDiagnosticPosition
-        && !diagnosticProperty
-        && !diagnosticShorthand
-      ) {
-        continue;
-      }
-      if (
-        usePattern.iteration === true
-        && !explicitDiagnosticPosition
-        && !diagnosticProperty
-        && !diagnosticShorthand
-      ) {
+      if (!explicitDiagnosticPosition && !diagnosticProperty && !diagnosticShorthand) {
         continue;
       }
       const siteKey = `${declaration.code}\0${useOffset}`;
@@ -2079,7 +2066,7 @@ function isExplicitDiagnosticIdentifierPosition(source, offset, literals) {
     || /\bnew\s+(?:Snapback)?Error\s*\(\s*(?:&\s*)?$/u.test(before)
     || /\b(?:kitError|requestDiagnostic)\s*\(\s*\d{3}\s*,\s*(?:&\s*)?$/u.test(before)
     || /\b[A-Za-z_][A-Za-z0-9_]*_error\s*\(\s*(?:&\s*)?$/u.test(before)
-    || /\b(?:bindingFailure|diagnosticError|codedError|verifyError|codegenError|conformanceDiagnostic|graph_serving_error|__snapbackFail|__snapbackFamiliarFail|snapbackError)\s*\(\s*(?:&\s*)?$/u.test(before)
+    || /\b(?:addDiagnostic|bindingFailure|diagnosticError|codedError|verifyError|codegenError|conformanceDiagnostic|fail|graph_serving_error|verifyNextDiagnostic|__snapbackFail|__snapbackFamiliarFail|snapbackError)\s*\(\s*(?:&\s*)?$/u.test(before)
     || /\b(?:SnapbackError|Diagnostic)::(?:error|warning|info|new)\s*\(\s*(?:&\s*)?$/u.test(before)
     || /\b(?:e?println)!\s*\(\s*(?:&\s*)?$/su.test(before)
     || /\b(?:tracing|log)::[a-z_][a-z0-9_]*!\s*\(\s*(?:&\s*)?$/su.test(before)
