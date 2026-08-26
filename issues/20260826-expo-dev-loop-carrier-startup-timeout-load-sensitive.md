@@ -88,3 +88,22 @@ remains the better long-term shape.
 LLP 0310.000's A1/A3 live-arm coverage sits after this case in the file and has
 therefore still never executed. That is the reason this ticket matters beyond
 its own noise.
+
+**The independent repair, and why it was not done here.** This file already
+supports section isolation — `--metro-stop-race-only`, `--http-control-only`,
+`--no-token-carrier-only`, `--regular-file-only`, and others, dispatched from one
+`if/else if` chain. Every one of them gates a suite that has been **extracted
+into a named function**. The live-successor arm is not: it is roughly 400 lines
+of inline top-level code, so `--live-successor-only` cannot be added without
+extracting it first.
+
+That extraction is the change that would make the RFC's headline acceptance row
+runnable on demand, independent of everything before it in the file and
+independent of this timeout entirely. It was deliberately not attempted in the
+same session that wrote the coverage, because the machine could not run the file
+to validate the refactor — moving 400 lines of a suite you cannot execute is how
+coverage silently stops covering. Whoever has a quiet machine should do it there.
+
+Ordering note for that work: extract first and prove the extracted suite passes
+in isolation, *then* add the flag. A flag added first will appear to pass by
+running nothing.
