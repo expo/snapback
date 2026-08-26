@@ -357,6 +357,47 @@ path = "src/bin/generation_recorded_mutation_authority.rs"
 name = "wire-descriptor-trust"
 path = "src/bin/wire_descriptor_trust.rs"
 
+# LLP 0313 Landing A: hostile shape witnesses for the private evidence core.
+[[bin]]
+name = "name-kernel-verified-evidence"
+path = "src/bin/name_kernel_verified_evidence.rs"
+
+[[bin]]
+name = "obtain-kernel-verified-evidence"
+path = "src/bin/obtain_kernel_verified_evidence.rs"
+
+[[bin]]
+name = "accept-kernel-verified-evidence"
+path = "src/bin/accept_kernel_verified_evidence.rs"
+
+[[bin]]
+name = "construct-kernel-verified-evidence"
+path = "src/bin/construct_kernel_verified_evidence.rs"
+
+[[bin]]
+name = "clone-kernel-verified-evidence"
+path = "src/bin/clone_kernel_verified_evidence.rs"
+
+[[bin]]
+name = "convert-kernel-verified-evidence"
+path = "src/bin/convert_kernel_verified_evidence.rs"
+
+[[bin]]
+name = "deserialize-kernel-verified-evidence"
+path = "src/bin/deserialize_kernel_verified_evidence.rs"
+
+[[bin]]
+name = "decompose-kernel-verified-evidence"
+path = "src/bin/decompose_kernel_verified_evidence.rs"
+
+[[bin]]
+name = "reinstall-kernel-verified-evidence"
+path = "src/bin/reinstall_kernel_verified_evidence.rs"
+
+[[bin]]
+name = "name-kernel-verified-evidence-component"
+path = "src/bin/name_kernel_verified_evidence_component.rs"
+
 # F145 and F272 remain OPEN. Keep their dependent spellings source-visible,
 # but do not register them in the rejection-only attacks.v1.json until an
 # effect-wide implementation lands.

@@ -3607,6 +3607,685 @@ fn collect_block_candidates(statements: &[Stmt], output: &mut Vec<Span>) {
     }
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AuthorityTransitionViolation {
+    file: String,
+    line: usize,
+    kind: String,
+    detail: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AuthorityTransitionAudit {
+    violations: Vec<AuthorityTransitionViolation>,
+    evidence_literals: usize,
+    writer_files: usize,
+}
+
+fn normalized_tokens(value: &impl ToTokens) -> String {
+    value
+        .to_token_stream()
+        .to_string()
+        .chars()
+        .filter(|character| !character.is_whitespace())
+        .collect()
+}
+
+fn path_leaf(path: &syn::Path) -> Option<String> {
+    path.segments.last().map(|segment| ident_name(&segment.ident))
+}
+
+fn is_pub_super(visibility: &Visibility) -> bool {
+    matches!(
+        visibility,
+        Visibility::Restricted(restricted)
+            if restricted.in_token.is_none()
+                && path_is_ident(&restricted.path, "super")
+    )
+}
+
+fn direct_item_visibility(item: &Item) -> Option<&Visibility> {
+    match item {
+        Item::Const(item) => Some(&item.vis),
+        Item::Enum(item) => Some(&item.vis),
+        Item::ExternCrate(item) => Some(&item.vis),
+        Item::Fn(item) => Some(&item.vis),
+        Item::Mod(item) => Some(&item.vis),
+        Item::Static(item) => Some(&item.vis),
+        Item::Struct(item) => Some(&item.vis),
+        Item::Trait(item) => Some(&item.vis),
+        Item::TraitAlias(item) => Some(&item.vis),
+        Item::Type(item) => Some(&item.vis),
+        Item::Union(item) => Some(&item.vis),
+        Item::Use(item) => Some(&item.vis),
+        _ => None,
+    }
+}
+
+fn collect_rust_files(root: &Path, output: &mut Vec<PathBuf>) -> Result<(), String> {
+    let entries = fs::read_dir(root)
+        .map_err(|error| format!("cannot read Rust source directory {}: {error}", root.display()))?;
+    for entry in entries {
+        let entry = entry.map_err(|error| {
+            format!("cannot enumerate Rust source directory {}: {error}", root.display())
+        })?;
+        let path = entry.path();
+        let file_type = entry.file_type().map_err(|error| {
+            format!("cannot inspect Rust source path {}: {error}", path.display())
+        })?;
+        if file_type.is_dir() {
+            collect_rust_files(&path, output)?;
+        } else if file_type.is_file() && path.extension().is_some_and(|extension| extension == "rs") {
+            output.push(path);
+        }
+    }
+    Ok(())
+}
+
+fn authority_path(crate_root: &Path, path: &Path) -> String {
+    path.strip_prefix(crate_root)
+        .unwrap_or(path)
+        .to_string_lossy()
+        .replace('\\', "/")
+}
+
+fn push_authority_violation(
+    violations: &mut Vec<AuthorityTransitionViolation>,
+    crate_root: &Path,
+    path: &Path,
+    span: Span,
+    kind: &str,
+    detail: impl Into<String>,
+) {
+    violations.push(AuthorityTransitionViolation {
+        file: authority_path(crate_root, path),
+        line: span.start().line,
+        kind: kind.to_owned(),
+        detail: detail.into(),
+    });
+}
+
+fn private_external_modules(syntax: &syn::File) -> BTreeSet<String> {
+    syntax
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            Item::Mod(module)
+                if module.content.is_none() && matches!(module.vis, Visibility::Inherited) =>
+            {
+                Some(ident_name(&module.ident))
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+fn check_exact_private_modules(
+    violations: &mut Vec<AuthorityTransitionViolation>,
+    crate_root: &Path,
+    path: &Path,
+    syntax: &syn::File,
+    expected: &[&str],
+) {
+    let observed = private_external_modules(syntax);
+    let expected = expected
+        .iter()
+        .map(|value| (*value).to_owned())
+        .collect::<BTreeSet<_>>();
+    if observed != expected {
+        push_authority_violation(
+            violations,
+            crate_root,
+            path,
+            syntax.span(),
+            "module-hierarchy",
+            format!(
+                "private external modules were {:?}, expected {:?}",
+                observed, expected
+            ),
+        );
+    }
+}
+
+fn authority_transition_audit(crate_root: &Path) -> Result<AuthorityTransitionAudit, String> {
+    const EVIDENCE: &str = "KernelVerifiedEvidence";
+    const CORE_MODULES: &[&str] = &[
+        "administrator",
+        "bearer",
+        "delivery",
+        "evidence",
+        "internal_work",
+        "password",
+        "permit",
+        "recovery",
+        "registry",
+        "step_up",
+        "verifier",
+        "writers",
+    ];
+    const EVIDENCE_FIELDS: &[(&str, &str)] = &[
+        ("transaction", "&'txTransactionIdentity"),
+        ("single_use_nonce", "NonZeroU128"),
+        ("proof_kind", "ProofKind"),
+        ("subject", "VerifiedSubject"),
+        ("authority_class", "AuthorityClass"),
+        ("purpose", "AuthorityPurpose"),
+        ("predecessors", "NonEmpty<DurablePredecessor>"),
+        ("time", "VerifiedTime"),
+        ("write_set", "ProtectedWriteSet"),
+        ("successor_digest", "[u8;32]"),
+        ("_not_send_sync", "PhantomData<Rc<()>>"),
+    ];
+    const PROOF_KINDS: &[&str] = &[
+        "AdministratorAnchor",
+        "Bearer",
+        "DeliveryProof",
+        "Password",
+        "RecoveryCode",
+        "SealedInternalService",
+        "StepUpProof",
+    ];
+    const AUTHORITY_CLASSES: &[&str] = &[
+        "AutonomousService",
+        "DelegatedService",
+        "Human",
+        "InternalWork",
+        "NonProductionRehearsal",
+        "Operator",
+    ];
+    const FORBIDDEN_TRAITS: &[&str] = &[
+        "Clone",
+        "Copy",
+        "Debug",
+        "Default",
+        "Deserialize",
+        "From",
+        "FromStr",
+        "Into",
+        "Send",
+        "Serialize",
+        "Sync",
+        "TryFrom",
+        "TryInto",
+    ];
+
+    let source_root = crate_root.join("src");
+    let storage_path = source_root.join("storage.rs");
+    let authority_root = source_root.join("storage/authority_transition");
+    let authority_mod = authority_root.join("mod.rs");
+    let core_mod = authority_root.join("core/mod.rs");
+    let writers_root = authority_root.join("core/writers");
+    let required_paths = [&storage_path, &authority_mod, &core_mod, &writers_root];
+    for path in required_paths {
+        if !path.exists() {
+            return Ok(AuthorityTransitionAudit {
+                violations: vec![AuthorityTransitionViolation {
+                    file: authority_path(crate_root, path),
+                    line: 1,
+                    kind: "module-hierarchy".to_owned(),
+                    detail: "required authority-transition path is missing".to_owned(),
+                }],
+                evidence_literals: 0,
+                writer_files: 0,
+            });
+        }
+    }
+
+    let parse = |path: &Path| -> Result<syn::File, String> {
+        let source = fs::read_to_string(path)
+            .map_err(|error| format!("cannot read Rust source {}: {error}", path.display()))?;
+        syn::parse_file(&source)
+            .map_err(|error| format!("cannot parse Rust source {}: {error}", path.display()))
+    };
+    let storage_syntax = parse(&storage_path)?;
+    let authority_syntax = parse(&authority_mod)?;
+    let core_syntax = parse(&core_mod)?;
+    let mut violations = Vec::new();
+
+    let storage_authority = storage_syntax.items.iter().find_map(|item| match item {
+        Item::Mod(module) if ident_matches(&module.ident, "authority_transition") => Some(module),
+        _ => None,
+    });
+    if !storage_authority.is_some_and(|module| {
+        module.content.is_none() && matches!(module.vis, Visibility::Inherited)
+    }) {
+        push_authority_violation(
+            &mut violations,
+            crate_root,
+            &storage_path,
+            storage_authority.map_or(storage_syntax.span(), |module| module.span()),
+            "module-visibility",
+            "storage::authority_transition must be a private external module",
+        );
+    }
+    check_exact_private_modules(
+        &mut violations,
+        crate_root,
+        &authority_mod,
+        &authority_syntax,
+        &["core"],
+    );
+    check_exact_private_modules(
+        &mut violations,
+        crate_root,
+        &core_mod,
+        &core_syntax,
+        CORE_MODULES,
+    );
+
+    let mut evidence_declarations = 0_usize;
+    let mut proof_kind_seen = false;
+    let mut authority_class_seen = false;
+    for item in &core_syntax.items {
+        match item {
+            Item::Struct(item) if ident_matches(&item.ident, EVIDENCE) => {
+                evidence_declarations += 1;
+                if !matches!(item.vis, Visibility::Inherited) {
+                    push_authority_violation(
+                        &mut violations,
+                        crate_root,
+                        &core_mod,
+                        item.vis.span(),
+                        "evidence-visibility",
+                        "KernelVerifiedEvidence must use inherited visibility",
+                    );
+                }
+                let Fields::Named(fields) = &item.fields else {
+                    push_authority_violation(
+                        &mut violations,
+                        crate_root,
+                        &core_mod,
+                        item.fields.span(),
+                        "evidence-fields",
+                        "KernelVerifiedEvidence must have named fields",
+                    );
+                    continue;
+                };
+                let observed = fields
+                    .named
+                    .iter()
+                    .map(|field| {
+                        (
+                            field.ident.as_ref().map(ident_name).unwrap_or_default(),
+                            normalized_tokens(&field.ty),
+                            matches!(field.vis, Visibility::Inherited),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                let expected = EVIDENCE_FIELDS
+                    .iter()
+                    .map(|(name, ty)| ((*name).to_owned(), (*ty).to_owned(), true))
+                    .collect::<Vec<_>>();
+                if observed != expected {
+                    push_authority_violation(
+                        &mut violations,
+                        crate_root,
+                        &core_mod,
+                        fields.span(),
+                        "evidence-fields",
+                        format!("evidence fields were {observed:?}, expected {expected:?}"),
+                    );
+                }
+                for attribute in &item.attrs {
+                    if attribute.path().is_ident("serde") {
+                        push_authority_violation(
+                            &mut violations,
+                            crate_root,
+                            &core_mod,
+                            attribute.span(),
+                            "evidence-forbidden-trait",
+                            "serde attributes are forbidden on evidence",
+                        );
+                    }
+                    if attribute.path().is_ident("derive") {
+                        let traits = attribute
+                            .parse_args_with(Punctuated::<syn::Path, Token![,]>::parse_terminated)
+                            .unwrap_or_default();
+                        for path in traits {
+                            let Some(name) = path_leaf(&path) else { continue };
+                            if FORBIDDEN_TRAITS.contains(&name.as_str()) {
+                                push_authority_violation(
+                                    &mut violations,
+                                    crate_root,
+                                    &core_mod,
+                                    path.span(),
+                                    "evidence-forbidden-trait",
+                                    format!("evidence derives forbidden trait {name}"),
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+            Item::Enum(item) if ident_matches(&item.ident, "ProofKind") => {
+                proof_kind_seen = true;
+                let observed = item
+                    .variants
+                    .iter()
+                    .map(|variant| ident_name(&variant.ident))
+                    .collect::<BTreeSet<_>>();
+                let expected = PROOF_KINDS
+                    .iter()
+                    .map(|name| (*name).to_owned())
+                    .collect::<BTreeSet<_>>();
+                if !matches!(item.vis, Visibility::Inherited) || observed != expected {
+                    push_authority_violation(
+                        &mut violations,
+                        crate_root,
+                        &core_mod,
+                        item.span(),
+                        "proof-kind",
+                        format!("private ProofKind variants were {observed:?}, expected {expected:?}"),
+                    );
+                }
+            }
+            Item::Enum(item) if ident_matches(&item.ident, "AuthorityClass") => {
+                authority_class_seen = true;
+                let observed = item
+                    .variants
+                    .iter()
+                    .map(|variant| ident_name(&variant.ident))
+                    .collect::<BTreeSet<_>>();
+                let expected = AUTHORITY_CLASSES
+                    .iter()
+                    .map(|name| (*name).to_owned())
+                    .collect::<BTreeSet<_>>();
+                if !matches!(item.vis, Visibility::Inherited) || observed != expected {
+                    push_authority_violation(
+                        &mut violations,
+                        crate_root,
+                        &core_mod,
+                        item.span(),
+                        "authority-class",
+                        format!(
+                            "private derived AuthorityClass variants were {observed:?}, expected {expected:?}"
+                        ),
+                    );
+                }
+            }
+            _ => {}
+        }
+    }
+    if evidence_declarations != 1 {
+        push_authority_violation(
+            &mut violations,
+            crate_root,
+            &core_mod,
+            core_syntax.span(),
+            "evidence-declaration",
+            format!("found {evidence_declarations} KernelVerifiedEvidence declarations, expected 1"),
+        );
+    }
+    if !proof_kind_seen {
+        push_authority_violation(
+            &mut violations,
+            crate_root,
+            &core_mod,
+            core_syntax.span(),
+            "proof-kind",
+            "private ProofKind declaration is missing",
+        );
+    }
+    if !authority_class_seen {
+        push_authority_violation(
+            &mut violations,
+            crate_root,
+            &core_mod,
+            core_syntax.span(),
+            "authority-class",
+            "private AuthorityClass declaration is missing",
+        );
+    }
+
+    let mut crate_files = Vec::new();
+    collect_rust_files(&source_root, &mut crate_files)?;
+    crate_files.sort();
+    let mut evidence_literals = 0_usize;
+    for path in &crate_files {
+        let syntax = parse(path)?;
+        struct EvidenceLiteralVisitor {
+            count: usize,
+        }
+        impl<'ast> Visit<'ast> for EvidenceLiteralVisitor {
+            fn visit_expr_struct(&mut self, expression: &'ast syn::ExprStruct) {
+                if path_has_leaf_ident(&expression.path, EVIDENCE) {
+                    self.count += 1;
+                }
+                visit::visit_expr_struct(self, expression);
+            }
+        }
+        let mut literal_visitor = EvidenceLiteralVisitor { count: 0 };
+        literal_visitor.visit_file(&syntax);
+        evidence_literals += literal_visitor.count;
+
+        for item in &syntax.items {
+            let tokens = normalized_tokens(item);
+            if let Item::Impl(item_impl) = item {
+                if tokens.contains(EVIDENCE) {
+                    let trait_name = item_impl
+                        .trait_
+                        .as_ref()
+                        .and_then(|(_, path, _)| path_leaf(path));
+                    if item_impl.trait_.is_none()
+                        || trait_name
+                            .as_deref()
+                            .is_some_and(|name| FORBIDDEN_TRAITS.contains(&name))
+                    {
+                        push_authority_violation(
+                            &mut violations,
+                            crate_root,
+                            path,
+                            item_impl.span(),
+                            "evidence-forbidden-impl",
+                            match trait_name {
+                                Some(name) => format!("evidence participates in forbidden impl {name}"),
+                                None => "evidence has an inherent impl (constructors/getters/decomposition are forbidden)".to_owned(),
+                            },
+                        );
+                    }
+                }
+                for member in &item_impl.items {
+                    if let ImplItem::Fn(function) = member
+                        && !matches!(function.vis, Visibility::Inherited)
+                        && normalized_tokens(&function.sig).contains(EVIDENCE)
+                    {
+                        push_authority_violation(
+                            &mut violations,
+                            crate_root,
+                            path,
+                            function.sig.span(),
+                            "evidence-exposed-signature",
+                            "an exposed impl method signature names evidence",
+                        );
+                    }
+                }
+                continue;
+            }
+            if let Item::Fn(function) = item {
+                let signature = normalized_tokens(&function.sig);
+                if !matches!(function.vis, Visibility::Inherited) && signature.contains(EVIDENCE) {
+                    push_authority_violation(
+                        &mut violations,
+                        crate_root,
+                        path,
+                        function.sig.span(),
+                        "evidence-exposed-signature",
+                        "an exposed free-function signature names evidence",
+                    );
+                }
+                if signature.contains(EVIDENCE) {
+                    let returns_evidence = normalized_tokens(&function.sig.output).contains(EVIDENCE);
+                    let has_callback = signature.contains("Fn(")
+                        || signature.contains("FnMut(")
+                        || signature.contains("FnOnce(");
+                    let allowed_consumer = ident_matches(&function.sig.ident, "consume")
+                        && matches!(function.vis, Visibility::Inherited)
+                        && !returns_evidence
+                        && !has_callback;
+                    if !allowed_consumer {
+                        push_authority_violation(
+                            &mut violations,
+                            crate_root,
+                            path,
+                            function.sig.span(),
+                            "evidence-construction-or-decomposition",
+                            "only the private immediate consume function may name evidence",
+                        );
+                    }
+                }
+                continue;
+            }
+            if direct_item_visibility(item).is_some_and(|visibility| {
+                !matches!(visibility, Visibility::Inherited) && tokens.contains(EVIDENCE)
+            }) {
+                push_authority_violation(
+                    &mut violations,
+                    crate_root,
+                    path,
+                    item.span(),
+                    "evidence-exposed-signature",
+                    "an exposed item names or re-exports evidence",
+                );
+            }
+            if let Item::Macro(item_macro) = item
+                && tokens.contains(EVIDENCE)
+                && tokens.contains("pub")
+            {
+                push_authority_violation(
+                    &mut violations,
+                    crate_root,
+                    path,
+                    item_macro.span(),
+                    "evidence-macro-exposure",
+                    "a macro can emit a public evidence spelling",
+                );
+            }
+        }
+    }
+    if evidence_literals != 1 {
+        push_authority_violation(
+            &mut violations,
+            crate_root,
+            &authority_root,
+            Span::call_site(),
+            "evidence-literal",
+            format!("found {evidence_literals} syn-visible evidence literals, expected 1"),
+        );
+    }
+
+    let mut authority_files = Vec::new();
+    collect_rust_files(&authority_root, &mut authority_files)?;
+    authority_files.sort();
+    let mut writer_files = 0_usize;
+    for path in &authority_files {
+        let syntax = parse(path)?;
+        let under_writers = path.starts_with(&writers_root);
+        if under_writers {
+            writer_files += 1;
+            for item in &syntax.items {
+                if let Item::Fn(function) = item
+                    && !is_pub_super(&function.vis)
+                {
+                    push_authority_violation(
+                        &mut violations,
+                        crate_root,
+                        path,
+                        function.sig.span(),
+                        "writer-visibility",
+                        "top-level writer functions must use exactly pub(super)",
+                    );
+                }
+            }
+        }
+
+        struct SqlCustodyVisitor {
+            spans: Vec<Span>,
+        }
+        impl<'ast> Visit<'ast> for SqlCustodyVisitor {
+            fn visit_lit_str(&mut self, literal: &'ast syn::LitStr) {
+                let upper = literal.value().to_ascii_uppercase();
+                if [
+                    "INSERT INTO",
+                    "UPDATE ",
+                    "DELETE FROM",
+                    "REPLACE INTO",
+                    "CREATE TABLE",
+                    "DROP TABLE",
+                    "ALTER TABLE",
+                    "CREATE TRIGGER",
+                    "DROP TRIGGER",
+                    "ATTACH DATABASE",
+                    "DETACH DATABASE",
+                ]
+                .iter()
+                .any(|verb| upper.contains(verb))
+                {
+                    self.spans.push(literal.span());
+                }
+                visit::visit_lit_str(self, literal);
+            }
+        }
+        let mut sql = SqlCustodyVisitor { spans: Vec::new() };
+        sql.visit_file(&syntax);
+        if !under_writers {
+            for span in sql.spans {
+                push_authority_violation(
+                    &mut violations,
+                    crate_root,
+                    path,
+                    span,
+                    "protected-sql-custody",
+                    "write SQL inside authority_transition must live below core::writers",
+                );
+            }
+        }
+
+        struct PermitParameterVisitor {
+            spans: Vec<Span>,
+        }
+        impl<'ast> Visit<'ast> for PermitParameterVisitor {
+            fn visit_signature(&mut self, signature: &'ast syn::Signature) {
+                let accepts_permit = signature.inputs.iter().any(|input| {
+                    normalized_tokens(input).contains("AuthorityWritePermit")
+                });
+                if accepts_permit {
+                    self.spans.push(signature.span());
+                }
+                visit::visit_signature(self, signature);
+            }
+        }
+        let mut permits = PermitParameterVisitor { spans: Vec::new() };
+        permits.visit_file(&syntax);
+        if !under_writers {
+            for span in permits.spans {
+                push_authority_violation(
+                    &mut violations,
+                    crate_root,
+                    path,
+                    span,
+                    "writer-custody",
+                    "functions accepting an authority write permit must live below core::writers",
+                );
+            }
+        }
+    }
+
+    violations.sort_by(|left, right| {
+        left.file
+            .cmp(&right.file)
+            .then(left.line.cmp(&right.line))
+            .then(left.kind.cmp(&right.kind))
+            .then(left.detail.cmp(&right.detail))
+    });
+    Ok(AuthorityTransitionAudit {
+        violations,
+        evidence_literals,
+        writer_files,
+    })
+}
+
 fn required_arg(args: &[String], flag: &str) -> Result<String, String> {
     let index = args
         .iter()
@@ -3750,9 +4429,17 @@ fn run() -> Result<(), String> {
                     .map_err(|error| format!("cannot serialize crate references: {error}"))?
             );
         }
+        "authority-transition" => {
+            let crate_root = PathBuf::from(required_arg(&args, "--crate-root")?);
+            println!(
+                "{}",
+                serde_json::to_string(&authority_transition_audit(&crate_root)?)
+                    .map_err(|error| format!("cannot serialize authority-transition audit: {error}"))?
+            );
+        }
         _ => {
             return Err(
-                "usage: security-gates-rust <privilege|privilege-sinks|privilege-identifiers|api-shape|local-shared-methods|units|attack-span|crate-references> ..."
+                "usage: security-gates-rust <privilege|privilege-sinks|privilege-identifiers|api-shape|local-shared-methods|units|attack-span|crate-references|authority-transition> ..."
                     .to_owned(),
             );
         }
