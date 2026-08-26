@@ -109,3 +109,53 @@ reading and found only by execution.
 **Action:** correct the module docs to name `CLONE_NEWPID`-from-pid-1 rather than PID reuse, and decide
 whether container init is in the threat model. If it is, the generation alone is insufficient there and
 the identity needs a fact that a new PID namespace cannot replicate.
+
+## Resolution — 2026-08-26, and the one case that remains open
+
+Landed at `fcbc72633` (7 commits). `crates/snapback-kernel/src/process_bound_identity.rs` replaces the
+open-coded `Arc::ptr_eq` identity with equality that reads the **current** process at comparison time
+and requires both sides' creator to match it, backed by a private lineage generation advanced by a
+`pthread_atfork` child hook so PID reuse cannot resurrect an inherited identity. `DatabaseBinding` is
+converted and all `storage.rs` sites with it. **F126 is CLOSED**, historical fail-first 2/2 OPEN.
+
+It took three rounds, and each round closed a defect the previous reviewer could not see:
+
+1. **Round 1** built the primitive. A reading review returned LAND; an executing review found that
+   `pthread_atfork` was registered inside a lazy `Once`, so a fork landing after registration succeeded
+   but before the `Once` reached COMPLETE left the child inheriting RUNNING with no thread alive to
+   finish it — **the child blocked forever** (`child=HUNG_UNTIL_SIGALRM`). Invisible to reading.
+2. **Round 2** replaced `Once` with a non-waiting `AtomicU8` state machine. The reading review returned
+   LAND; the executing review found that a legitimate identity and its own clone compared **unequal**
+   while registration was transient — LLP 0303 revision (p), a false denial of a legitimate caller.
+   The reading reviewer had seen the same thing and judged it non-blocking, and also supplied the fix.
+3. **Round 3** let `REGISTERING` perform the same non-waiting PID + generation + allocation comparison
+   as `REGISTERED`, so only `UNREGISTERED` and `FAILED` refuse. Both alarm-bounded fork races pass with
+   no child blocking; clone, reopen, exec-restart, parent-after-fork and child refusal all pass.
+
+Two corrections to earlier claims are worth preserving. Rust has no `is_always_lock_free()` API, so the
+lock-freedom contract the child handler depends on is asserted via `target_has_atomic` instead. And the
+module's original platform-boundary documentation was **wrong in both directions** — see the addendum
+above.
+
+## Still open: `CLONE_NEWPID` from pid 1
+
+**Container init is in the threat model**, confirmed by the implementing lane. The remaining fail-open
+is real:
+
+> `clone(CLONE_NEWPID)` from a process whose `getpid()` is already `1` produces a child whose
+> `getpid()` is also `1`, with the registration state still `REGISTERED` and the lineage generation
+> still `1` — so both checks pass and an inherited identity compares **equal**.
+
+Closing it requires a **namespace-resistant creator fact** — something a fresh PID namespace cannot
+replicate. The lineage generation alone is insufficient there because it is inherited unchanged.
+
+This is strictly narrower than what preceded it: before this work, `Arc::ptr_eq` failed open for
+*every* fork, in every environment. It now fails open only for container-init `CLONE_NEWPID`. Landing
+the improvement and tracking the remainder is the right trade, but the remainder is a live defect and
+should not be described as closed.
+
+**Also outstanding:** LLP 0313 §3 wants `DatabaseBinding` to carry **durable store identity** alongside
+the allocation and creator-process identities. Not done.
+
+**Census unchanged: 48 sites remain**, 30 of them authorization/custody guards, recorded at
+`issues/20260826-fork-identity-primitive-census.md`.
