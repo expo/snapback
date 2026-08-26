@@ -10,12 +10,12 @@
 **Battery gate:** `relation-activity-publication`
 **Failure signature:** `sha256:28481316e7f1aa3d7115aa7085d7a556b05f179758534d2cc03c510379e742c7`
 **First observed run:** `local.20260825T115521Z.64e70df1e088`
-**Last observed run:** `local.20260826T121823Z.f69e9b16cbe8`
-**Last processed run:** `local.20260826T121823Z.f69e9b16cbe8`
+**Last observed run:** `local.20260826T230829Z.fb14180ba761`
+**Last processed run:** `local.20260826T230829Z.fb14180ba761`
 **Detected at revision:** `64e70df1e088d492cde44c9693463a2d052bbd7a`
-**Last observed revision:** `f69e9b16cbe835a3d99d598bc739acccb27365d1`
-**Consecutive red runs:** `3`
-**Escalation:** `pending (3/4)`
+**Last observed revision:** `fb14180ba761ee0cee2881d4889f4fffa981ae83`
+**Consecutive red runs:** `4`
+**Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
@@ -40,3 +40,8 @@ node tests/conformance/relation-activity-publication-v1.mjs
 
 Fix forward, rerun the complete battery, and let the next determinate pass close
 this signature. Four consecutive red observations require author escalation.
+
+## Author escalation
+
+This root-failure signature remained red for 4 consecutive scheduled
+battery runs. Escalate to the author (Charlie Cheever) before the next run.
