@@ -3693,7 +3693,7 @@ impl LocalDatabase {
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     #[allow(clippy::too_many_arguments)]
     pub(super) fn auth_insert_verification_code_for_test(
         &mut self,
@@ -3749,7 +3749,7 @@ impl LocalDatabase {
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     #[allow(clippy::too_many_arguments)]
     pub(super) fn auth_insert_restore_fixture_for_test(
         &mut self,
@@ -3841,7 +3841,7 @@ impl LocalDatabase {
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     #[allow(clippy::too_many_arguments)]
     pub(super) fn auth_insert_email_session_for_test(
         &mut self,
@@ -3948,7 +3948,7 @@ impl LocalDatabase {
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     #[allow(clippy::too_many_arguments)]
     pub(super) fn auth_insert_email_session_and_push_token_for_test(
         &mut self,
@@ -3995,7 +3995,7 @@ impl LocalDatabase {
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     #[allow(clippy::too_many_arguments)]
     pub(super) fn auth_insert_restore_cli_fixture_for_test(
         &mut self,
@@ -4277,7 +4277,7 @@ impl LocalDatabase {
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub(super) fn auth_insert_session_tombstone_for_test(
         &mut self,
         token_hash: &[u8],
@@ -4473,7 +4473,7 @@ impl LocalDatabase {
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub(super) fn auth_install_service_replay_authority_for_test(
         &mut self,
         now_ms: u64,
@@ -4567,7 +4567,7 @@ impl LocalDatabase {
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     #[allow(clippy::too_many_arguments)]
     pub(super) fn auth_insert_finite_authority_grant_for_test(
         &mut self,
@@ -4597,7 +4597,7 @@ impl LocalDatabase {
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     #[allow(clippy::too_many_arguments)]
     pub(super) fn auth_insert_exact_grant_for_test(
         &mut self,
@@ -4648,7 +4648,7 @@ impl LocalDatabase {
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub(super) fn auth_set_grant_expiry_for_test(
         &mut self,
         grant_id: &str,
@@ -4695,7 +4695,7 @@ impl LocalDatabase {
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub(super) fn auth_insert_sender_replay_for_test(
         &mut self,
         replay_id: &[u8],
@@ -4717,7 +4717,7 @@ impl LocalDatabase {
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub(super) fn auth_advance_sender_replay_epoch_for_test(&mut self) -> SnapbackResult<()> {
         self.with_auth_transaction(|transaction| {
             transaction.execute(
@@ -4731,7 +4731,7 @@ impl LocalDatabase {
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub(super) fn auth_insert_query_carrier_prerequisites_for_test(
         &mut self,
         now_ms: u64,
@@ -4766,7 +4766,7 @@ impl LocalDatabase {
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub(super) fn auth_insert_query_carrier_grant_for_test(
         &mut self,
         agent_user_id: &str,
@@ -4793,7 +4793,7 @@ impl LocalDatabase {
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub(super) fn auth_insert_live_carrier_prerequisites_for_test(
         &mut self,
         now_ms: u64,
@@ -4816,7 +4816,7 @@ impl LocalDatabase {
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub(super) fn auth_insert_live_carrier_grant_for_test(
         &mut self,
         agent_user_id: &str,
@@ -4843,7 +4843,7 @@ impl LocalDatabase {
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub(super) fn auth_set_agent_credential_rotated_at_for_test(
         &mut self,
         user_id: &str,
@@ -4916,7 +4916,7 @@ impl LocalDatabase {
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub(super) fn auth_insert_agent_token_route_fixtures_for_test(
         &mut self,
         agent_user_id: &str,
@@ -4973,7 +4973,7 @@ impl LocalDatabase {
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub(super) fn auth_insert_bulk_route_grants_for_test(
         &mut self,
         agent_user_id: &str,

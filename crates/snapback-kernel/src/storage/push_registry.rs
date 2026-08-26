@@ -287,7 +287,7 @@ impl LocalDatabase {
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub(super) fn push_insert_session_for_test(
         &mut self,
         principal_id: &str,
@@ -1277,27 +1277,6 @@ impl<'a> PushRegistryKernel<'a> {
 #[cfg(any(test, feature = "test-support"))]
 #[allow(private_interfaces)]
 impl PushRegistryKernel<'_> {
-    pub fn install_immediate_sender_for_test(
-        &mut self,
-        schema: crate::manifest::SchemaManifest,
-        principal_id: &str,
-    ) -> SnapbackResult<()> {
-        self.db.with_auth_transaction(|tx| {
-            tx.execute_batch(
-                "CREATE TABLE app_members(
-                   principal TEXT NOT NULL, role TEXT NOT NULL
-                 );",
-            )?;
-            tx.execute(
-                "INSERT INTO app_members(principal, role) VALUES(?1, 'sender')",
-                params![principal_id],
-            )?;
-            Ok(())
-        })?;
-        self.db.replace_active_schema(schema);
-        Ok(())
-    }
-
     #[cfg(test)]
     pub fn insert_session_for_test(
         &mut self,

@@ -3721,6 +3721,7 @@ fn sessions_activation_server_fixture_with_api_and_password_mode(
         password_identifier_mode,
         auth_program,
         None,
+        Vec::new(),
     )
 }
 
@@ -3733,6 +3734,7 @@ fn sessions_activation_server_fixture_with_api_and_password_mode_on_snapback(
     password_identifier_mode: PasswordIdentifierMode,
     auth_program: Option<AuthProgramManifestV1>,
     push_seam: Option<crate::push::PushSeamDeclarationV1>,
+    additional_tables: Vec<TableManifest>,
 ) -> AppState {
     let activation_now_ms = clock
         .as_ref()
@@ -3788,6 +3790,27 @@ fn sessions_activation_server_fixture_with_api_and_password_mode_on_snapback(
             member_digests,
         }
     });
+    let mut tables = vec![TableManifest {
+        name: "items".to_owned(),
+        fields: vec![FieldManifest {
+            name: "value".to_owned(),
+            field_type: FieldType::String,
+            optional: false,
+        }],
+        indexes: Vec::new(),
+        syncable: true,
+        permission_backing: false,
+        permission_fields: None,
+        search_indexes: Vec::new(),
+        vector_indexes: Vec::new(),
+        search_live_limits: None,
+        membership: None,
+        authority_profile: None,
+        asset_sharing: None,
+        visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
+        history: None,
+    }];
+    tables.extend(additional_tables);
     let schema = SchemaManifest {
         schema_version: SNAPBACK_SESSIONS_SCHEMA_VERSION.to_owned(),
         app_id: "auth-activation-fixture".to_owned(),
@@ -3803,26 +3826,7 @@ fn sessions_activation_server_fixture_with_api_and_password_mode_on_snapback(
         required_capabilities: vec![TargetCapabilityId::AuthSessionsV1.to_string()],
         schema_hash: Some(format!("{SCHEMA_V1_PREFIX}{}", "1".repeat(64))),
         inputs_hash: Some(format!("{INPUTS_V1_PREFIX}{}", "3".repeat(64))),
-        tables: vec![TableManifest {
-            name: "items".to_owned(),
-            fields: vec![FieldManifest {
-                name: "value".to_owned(),
-                field_type: FieldType::String,
-                optional: false,
-            }],
-            indexes: Vec::new(),
-            syncable: true,
-            permission_backing: false,
-            permission_fields: None,
-            search_indexes: Vec::new(),
-            vector_indexes: Vec::new(),
-            search_live_limits: None,
-            membership: None,
-            authority_profile: None,
-            asset_sharing: None,
-            visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
-            history: None,
-        }],
+        tables,
         ..SchemaManifest::default()
     };
     let prepared = snapback
@@ -4145,6 +4149,7 @@ async fn push_registry_sessions_fixture(
                 uses: Vec::new(),
                 ledger: None,
             }),
+            Vec::new(),
         )
     })
     .await
@@ -4199,6 +4204,88 @@ async fn sessions_activation_server_fixture_with_integrations_async() -> AppStat
     })
     .await
     .expect("construct integration lifecycle fixture off the async workers")
+}
+
+async fn immediate_push_sessions_fixture_async() -> AppState {
+    tokio::task::spawn_blocking(|| {
+        let _sanction = crate::exec_guard::BlockingSanction::acquire();
+        let mut functions = activation_functions('2', false);
+        functions.functions.extend(
+            generation_test_manifest()
+                .functions
+                .into_iter()
+                .filter(|function| function.name == "heldAction"),
+        );
+        functions
+            .functions
+            .push(immediate_push_sender_join_function());
+        for function in &mut functions.functions {
+            function.api_exposure = Some(ApiFunctionExposure::default());
+        }
+        for function in functions.functions.iter_mut().filter(|function| {
+            matches!(
+                function.name.as_str(),
+                "listItems" | "liveItems" | "heldAction"
+            )
+        }) {
+            function.api_exposure = Some(ApiFunctionExposure {
+                expose: true,
+                since: None,
+                approval: None,
+            });
+        }
+        let scope_manifest = functions.clone();
+        let state = sessions_activation_server_fixture_with_api_and_password_mode_on_snapback(
+            LocalSnapback::memory().expect("memory immediate-push fixture"),
+            functions,
+            None,
+            Some(agent_policy(AgentsMode::Open, InvitedBy::Operators)),
+            Some(ApiManifest {
+                enabled: true,
+                functions: BTreeMap::from([
+                    (
+                        "listItems".to_owned(),
+                        ApiFunctionExposure {
+                            expose: true,
+                            since: None,
+                            approval: None,
+                        },
+                    ),
+                    (
+                        "liveItems".to_owned(),
+                        ApiFunctionExposure {
+                            expose: true,
+                            since: None,
+                            approval: None,
+                        },
+                    ),
+                    (
+                        "heldAction".to_owned(),
+                        ApiFunctionExposure {
+                            expose: true,
+                            since: None,
+                            approval: None,
+                        },
+                    ),
+                ]),
+                ..ApiManifest::default()
+            }),
+            PasswordIdentifierMode::UsernameV1,
+            None,
+            Some(immediate_push_declaration()),
+            vec![immediate_push_sender_membership_table()],
+        );
+        state
+            .snapback
+            .try_lock()
+            .expect("immediate-push fixture owns instance lock")
+            .remainder_auth_fixture()
+            .reconcile_auth_scope_bases(&scope_manifest)
+            .expect("reconcile immediate-push function scope bases");
+        state
+    })
+    .await
+    .expect("construct immediate-push fixture off the async workers")
 }
 
 async fn approval_effect_server_fixture_with_authority_creation(
@@ -5829,9 +5916,7 @@ async fn oauth_dynamic_registration_reuses_open_invited_and_disabled_agent_polic
         let mut database = snapback.remainder_auth_fixture();
         let (principal, claim, redirects) =
             database.oauth_registration_facts_for_test(&lookup_client_id)?;
-        let principal_facts = database
-            .auth_catalog()
-            .agent_registration_facts_for_test(&principal)?;
+        let principal_facts = database.agent_registration_facts_for_test(&principal)?;
         Ok::<_, SnapbackError>((principal, principal_facts, claim, redirects))
     })
     .await
@@ -5901,12 +5986,8 @@ async fn oauth_dynamic_registration_reuses_open_invited_and_disabled_agent_polic
         let mut database = snapback.remainder_auth_fixture();
         let (principal, claim, _) =
             database.oauth_registration_facts_for_test(&invited_client_id)?;
-        let principal_facts = database
-            .auth_catalog()
-            .agent_registration_facts_for_test(&principal)?;
-        let consumption = database
-            .auth_catalog()
-            .invitation_consumption_for_test(&invitation_id)?;
+        let principal_facts = database.agent_registration_facts_for_test(&principal)?;
+        let consumption = database.invitation_consumption_for_test(&invitation_id)?;
         Ok::<_, SnapbackError>((principal, principal_facts, claim, consumption))
     })
     .await
@@ -11142,7 +11223,6 @@ fn sender_issuance_durable_counts(
         .expect("borrow sender issuance durable facts");
     snapback
         .remainder_auth_fixture()
-        .auth_catalog()
         .sender_issuance_durable_counts_for_test(challenge_id)
         .expect("read sender issuance durable facts")
 }
@@ -21404,7 +21484,7 @@ async fn push_registry_routes_keep_token_custody_and_logout_retirement_host_owne
     let (inspection, bytes) = with_snapback(&state.snapback, |snapback| {
         let mut db = snapback.remainder_auth_fixture();
         let inspection = db.push_registry_inspection()?;
-        let bytes = db.push_registry().token_bytes_for_test()?;
+        let bytes = db.push_token_bytes_for_test()?;
         Ok::<_, SnapbackError>((inspection, bytes))
     })
     .await
@@ -21497,7 +21577,6 @@ async fn open_registration_mints_exactly_one_credential_and_a_kind_agent_princip
     let inspected = with_snapback(&state.snapback, move |snapback| {
         snapback
             .remainder_auth_fixture()
-            .auth_catalog()
             .agent_registration_facts_for_test(&user_id)
     })
     .await
@@ -21618,7 +21697,6 @@ async fn user_minted_invitation_requires_step_up_and_is_single_use() {
     let invitation_row = with_snapback(&state.snapback, move |snapback| {
         snapback
             .remainder_auth_fixture()
-            .auth_catalog()
             .invitation_consumption_for_test(&invitation_id)
     })
     .await
@@ -23226,7 +23304,6 @@ async fn grant_step_up_is_domain_separated_target_bound_and_single_effect() {
     with_snapback(&state.snapback, move |snapback| {
         snapback
             .remainder_auth_fixture()
-            .auth_catalog()
             .assert_step_up_consumption_for_test(&bound_request, &challenge_id, &code)
     })
     .await
@@ -23267,7 +23344,6 @@ async fn production_step_up_delivery_fails_closed_without_capture() {
     let challenge_count = with_snapback(&state.snapback, |snapback| {
         snapback
             .remainder_auth_fixture()
-            .auth_catalog()
             .verification_address_count_for_test("prod-step-up@example.com")
     })
     .await
@@ -30021,133 +30097,26 @@ async fn detached_ctx_push_send_durable_reservation_returns_without_admission_re
 
 #[tokio::test]
 async fn watch_reaction_ctx_push_send_without_caller_publication_commits() {
-    let state = sessions_activation_server_fixture_with_integrations_async().await;
+    let state = immediate_push_sessions_fixture_async().await;
     let credential = mint_test_credential(&state, "watch-reaction-push@example.test").await;
-    let watch_owner = credential["session"]["userId"]
-        .as_str()
-        .expect("watch-reaction push owner principal")
-        .to_owned();
     let bearer = credential["token"]
         .as_str()
         .expect("watch-reaction push session bearer")
         .to_owned();
-    with_snapback(&state.snapback, {
-        let watch_owner = watch_owner.clone();
-        move |snapback| {
-            let declaration = immediate_push_declaration();
-            let mut database = snapback.remainder_auth_fixture();
-            database.activate_push_registry_for_test(declaration.clone())?;
-            let mut schema = database.schema().clone();
-            schema.push_seam = Some(declaration);
-            schema
-                .api
-                .as_mut()
-                .expect("watch-reaction push fixture has API policy")
-                .functions
-                .insert(
-                    "heldAction".to_owned(),
-                    ApiFunctionExposure {
-                        expose: true,
-                        since: None,
-                        approval: None,
-                    },
-                );
-            schema.tables.push(TableManifest {
-                name: "app_members".to_owned(),
-                fields: vec![
-                    FieldManifest {
-                        name: "principal".to_owned(),
-                        field_type: FieldType::Principal,
-                        optional: false,
-                    },
-                    FieldManifest {
-                        name: "role".to_owned(),
-                        field_type: FieldType::String,
-                        optional: false,
-                    },
-                ],
-                indexes: Vec::new(),
-                syncable: true,
-                permission_backing: false,
-                permission_fields: None,
-                search_indexes: Vec::new(),
-                vector_indexes: Vec::new(),
-                search_live_limits: None,
-                membership: Some(crate::manifest::MembershipManifest {
-                    id: Some("app_members".to_owned()),
-                    principal: "principal".to_owned(),
-                    resource: None,
-                    role: "role".to_owned(),
-                    roles: vec!["sender".to_owned()],
-                    pending_roles: None,
-                    bootstrap_role: None,
-                    last_holder: None,
-                    expiry: None,
-                    incidental: None,
-                    provenance: None,
-                    transitions: Vec::new(),
-                    principal_addressed_writes: None,
-                    scope: crate::manifest::MembershipScope::App,
-                    resource_table: None,
-                }),
-                authority_profile: None,
-                asset_sharing: None,
-                visibility: None,
-                history: None,
-            });
-            database
-                .push_registry()
-                .install_immediate_sender_for_test(schema, &watch_owner)?;
-            let mut manifest = generation_test_manifest();
-            manifest.functions.push(FunctionDefinition::new(
-                "listItems",
-                FunctionKind::Query,
-                FunctionRuntime::IbexModule(IbexModule {
-                    source: "globalThis.__snapbackHandlers = { async listItems() { return []; } };"
-                        .to_owned(),
-                    export: "listItems".to_owned(),
-                }),
-            ));
-            manifest.functions.push(FunctionDefinition::new(
-                "liveItems",
-                FunctionKind::LiveQuery,
-                FunctionRuntime::IbexModule(IbexModule {
-                    source: "globalThis.__snapbackHandlers = { async liveItems() { return []; } };"
-                        .to_owned(),
-                    export: "liveItems".to_owned(),
-                }),
-            ));
-            for function in &mut manifest.functions {
-                function.api_exposure = Some(ApiFunctionExposure::default());
-            }
-            for function in manifest.functions.iter_mut().filter(|function| {
-                matches!(
-                    function.name.as_str(),
-                    "listItems" | "liveItems" | "heldAction"
-                )
-            }) {
-                function.api_exposure = Some(ApiFunctionExposure {
-                    expose: true,
-                    since: None,
-                    approval: None,
-                });
-            }
-            let diagnostics = snapback.load_functions(manifest.clone());
-            assert!(
-                diagnostics.iter().all(|diagnostic| {
-                    diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error
-                }),
-                "watch-reaction push functions load: {diagnostics:?}"
-            );
-            snapback
-                .remainder_auth_fixture()
-                .reconcile_auth_scope_bases(&manifest)?;
-            Ok::<_, SnapbackError>(())
-        }
-    })
-    .await
-    .expect("activate watch-reaction push seam and action");
     let router = app(state.clone());
+    let joined = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/mutation/joinImmediatePushSenders",
+            serde_json::to_vec(&json!({ "args": {} }))
+                .expect("serialize immediate-push membership join"),
+            &bearer,
+        ))
+        .await
+        .expect("join immediate-push sender membership through the public mutation route");
+    let joined_status = joined.status();
+    let joined = response_json(joined).await;
+    assert_eq!(joined_status, StatusCode::OK, "{joined}");
     let created = router
         .oneshot(session_auth_http_request(
             "/watches",
@@ -36468,7 +36437,6 @@ async fn mode_only_migration_reservation_wins(site: ModeOnlyMigrationAuthorizedE
         move |snapback| {
             snapback
                 .remainder_auth_fixture()
-                .auth_catalog()
                 .session_lifetime_facts_for_test(&session_id)
         }
     })
@@ -36486,7 +36454,6 @@ async fn mode_only_migration_reservation_wins(site: ModeOnlyMigrationAuthorizedE
     let terminal_session_facts = with_snapback(&state.snapback, move |snapback| {
         snapback
             .remainder_auth_fixture()
-            .auth_catalog()
             .session_lifetime_facts_for_test(&session_id)
     })
     .await
@@ -37118,86 +37085,113 @@ fn immediate_push_declaration() -> crate::push::PushSeamDeclarationV1 {
     }
 }
 
+fn immediate_push_sender_membership_table() -> TableManifest {
+    TableManifest {
+        name: "app_members".to_owned(),
+        fields: vec![
+            FieldManifest {
+                name: "principal".to_owned(),
+                field_type: FieldType::Principal,
+                optional: false,
+            },
+            FieldManifest {
+                name: "role".to_owned(),
+                field_type: FieldType::String,
+                optional: false,
+            },
+        ],
+        indexes: Vec::new(),
+        syncable: true,
+        permission_backing: false,
+        permission_fields: None,
+        search_indexes: Vec::new(),
+        vector_indexes: Vec::new(),
+        search_live_limits: None,
+        membership: Some(crate::manifest::MembershipManifest {
+            id: Some("app_members".to_owned()),
+            principal: "principal".to_owned(),
+            resource: None,
+            role: "role".to_owned(),
+            roles: vec!["sender".to_owned()],
+            pending_roles: None,
+            bootstrap_role: None,
+            last_holder: None,
+            expiry: None,
+            incidental: None,
+            provenance: Some(crate::manifest::MembershipProvenance::Full),
+            transitions: vec![crate::manifest::MembershipTransition {
+                op: crate::manifest::MembershipOp::Insert,
+                by: vec!["none".to_owned()],
+                target: crate::manifest::MembershipTarget::Own,
+                from: None,
+                to: Some(vec!["sender".to_owned()]),
+                fields: None,
+            }],
+            principal_addressed_writes: None,
+            scope: crate::manifest::MembershipScope::App,
+            resource_table: None,
+        }),
+        authority_profile: None,
+        asset_sharing: None,
+        visibility: None,
+        history: None,
+    }
+}
+
+fn immediate_push_sender_join_function() -> FunctionDefinition {
+    let mut function = FunctionDefinition::new(
+        "joinImmediatePushSenders",
+        FunctionKind::Mutation,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: "globalThis.__snapbackHandlers = { async joinImmediatePushSenders(ctx) { await ctx.membership.app_members.insert({ principal: ctx.auth.userId, role: 'sender' }); return null; } };"
+                .to_owned(),
+            export: "joinImmediatePushSenders".to_owned(),
+        }),
+    );
+    function.auth_requirement = Some(crate::manifest::AuthRequirement::Authenticated);
+    function
+}
+
 async fn immediate_push_authorized_effect_fixture(
     site: ImmediatePushAuthorizedEffectSite,
 ) -> ImmediatePushAuthorizedEffectFixture {
-    let state = sessions_activation_server_fixture_async().await;
+    let state = immediate_push_sessions_fixture_async().await;
     let credential = mint_test_credential(&state, "immediate-push-fence@example.test").await;
     let bearer = credential["token"].as_str().unwrap().to_owned();
     let session_id = credential["session"]["id"].as_str().unwrap().to_owned();
     let principal_id = credential["session"]["userId"].as_str().unwrap().to_owned();
     let installation_id = crate::ids::mint(crate::ids::Kind::Installation)
         .expect("immediate push fixture installation id");
-    let declaration = immediate_push_declaration();
-    with_snapback(&state.snapback, {
-        let declaration = declaration.clone();
-        let principal_id = principal_id.clone();
-        let session_id = session_id.clone();
-        let installation_id = installation_id.clone();
-        move |snapback| {
-            let mut database = snapback.remainder_auth_fixture();
-            database.activate_push_registry_for_test(declaration.clone())?;
-            let mut schema = database.schema().clone();
-            schema.push_seam = Some(declaration.clone());
-            schema.tables.push(TableManifest {
-                name: "app_members".to_owned(),
-                fields: vec![
-                    FieldManifest {
-                        name: "principal".to_owned(),
-                        field_type: FieldType::Principal,
-                        optional: false,
-                    },
-                    FieldManifest {
-                        name: "role".to_owned(),
-                        field_type: FieldType::String,
-                        optional: false,
-                    },
-                ],
-                indexes: Vec::new(),
-                syncable: true,
-                permission_backing: false,
-                permission_fields: None,
-                search_indexes: Vec::new(),
-                vector_indexes: Vec::new(),
-                search_live_limits: None,
-                membership: Some(crate::manifest::MembershipManifest {
-                    id: Some("app_members".to_owned()),
-                    principal: "principal".to_owned(),
-                    resource: None,
-                    role: "role".to_owned(),
-                    roles: vec!["sender".to_owned()],
-                    pending_roles: None,
-                    bootstrap_role: None,
-                    last_holder: None,
-                    expiry: None,
-                    incidental: None,
-                    provenance: None,
-                    transitions: Vec::new(),
-                    principal_addressed_writes: None,
-                    scope: crate::manifest::MembershipScope::App,
-                    resource_table: None,
-                }),
-                authority_profile: None,
-                asset_sharing: None,
-                visibility: None,
-                history: None,
-            });
-            let mut registry = database.push_registry();
-            registry.install_immediate_sender_for_test(schema, &principal_id)?;
-            registry.register(
-                &declaration,
-                &principal_id,
-                &session_id,
-                1,
-                &installation_id,
-                "ExponentPushToken[authorized-effect-race]",
-                super::now_millis(),
-            )?;
-            Ok::<_, SnapbackError>(())
-        }
-    })
-    .await
-    .expect("install immediate push authorized-effect fixture");
+    let router = app(state.clone());
+    let joined = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/mutation/joinImmediatePushSenders",
+            serde_json::to_vec(&json!({ "args": {} }))
+                .expect("serialize immediate-push race membership join"),
+            &bearer,
+        ))
+        .await
+        .expect("join immediate-push race sender membership through the public mutation route");
+    let joined_status = joined.status();
+    let joined = response_json(joined).await;
+    assert_eq!(joined_status, StatusCode::OK, "{joined}");
+    let registered = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/push/tokens/register",
+            serde_json::to_vec(&json!({
+                "installationId": installation_id,
+                "token": "ExponentPushToken[authorized-effect-race]",
+            }))
+            .expect("serialize immediate-push race token registration"),
+            &bearer,
+        ))
+        .await
+        .expect("register immediate-push race token through the public route");
+    let registered_status = registered.status();
+    let registered = response_json(registered).await;
+    assert_eq!(registered_status, StatusCode::OK, "{registered}");
     let authority =
         prepared_test_session_route_authority(&state, InvocationSource::HttpAction, &bearer).await;
     let request = crate::push::PushSendRequestV1 {
@@ -37261,7 +37255,7 @@ async fn immediate_push_authorized_effect_fixture(
         claim = Some(seeded);
     }
     ImmediatePushAuthorizedEffectFixture {
-        router: app(state.clone()),
+        router,
         state,
         bearer,
         session_id,
@@ -37461,7 +37455,6 @@ async fn immediate_push_reservation_wins(site: ImmediatePushAuthorizedEffectSite
         move |snapback| {
             snapback
                 .remainder_auth_fixture()
-                .auth_catalog()
                 .session_lifetime_facts_for_test(&session_id)
         }
     })
@@ -37484,7 +37477,6 @@ async fn immediate_push_reservation_wins(site: ImmediatePushAuthorizedEffectSite
         move |snapback| {
             snapback
                 .remainder_auth_fixture()
-                .auth_catalog()
                 .session_lifetime_facts_for_test(&session_id)
         }
     })
@@ -38542,7 +38534,6 @@ async fn asset_reservation_wins_before_logout(site: AssetAuthorizedEffectSite) {
         move |snapback| {
             snapback
                 .remainder_auth_fixture()
-                .auth_catalog()
                 .session_lifetime_facts_for_test(&session_id)
         }
     })
@@ -38562,7 +38553,6 @@ async fn asset_reservation_wins_before_logout(site: AssetAuthorizedEffectSite) {
         move |snapback| {
             snapback
                 .remainder_auth_fixture()
-                .auth_catalog()
                 .session_lifetime_facts_for_test(&session_id)
         }
     })
@@ -38933,7 +38923,6 @@ async fn logout_wins_after_preparation_before_authority_work_reservation() {
     let session_facts = with_snapback(&state.snapback, move |snapback| {
         snapback
             .remainder_auth_fixture()
-            .auth_catalog()
             .session_lifetime_facts_for_test(&session_id)
     })
     .await
@@ -39087,7 +39076,6 @@ async fn authorized_effect_reservation_commits_before_logout_terminal_write() {
         move |snapback| {
             snapback
                 .remainder_auth_fixture()
-                .auth_catalog()
                 .session_lifetime_facts_for_test(&session_id)
         }
     })
@@ -39105,7 +39093,6 @@ async fn authorized_effect_reservation_commits_before_logout_terminal_write() {
     let terminal_session_facts = with_snapback(&state.snapback, move |snapback| {
         snapback
             .remainder_auth_fixture()
-            .auth_catalog()
             .session_lifetime_facts_for_test(&session_id)
     })
     .await
@@ -41873,7 +41860,6 @@ async fn watch_management_reservation_wins(site: WatchManagementRaceSite) {
         move |snapback| {
             snapback
                 .remainder_auth_fixture()
-                .auth_catalog()
                 .session_lifetime_facts_for_test(&session_id)
         }
     })
@@ -41893,7 +41879,6 @@ async fn watch_management_reservation_wins(site: WatchManagementRaceSite) {
         move |snapback| {
             snapback
                 .remainder_auth_fixture()
-                .auth_catalog()
                 .session_lifetime_facts_for_test(&session_id)
         }
     })
@@ -42370,6 +42355,7 @@ impl CommitCapsulePrototypeDatabase {
                 PasswordIdentifierMode::UsernameV1,
                 None,
                 None,
+                Vec::new(),
             )
         })
         .await

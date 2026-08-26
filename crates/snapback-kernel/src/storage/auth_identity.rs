@@ -3002,7 +3002,7 @@ impl LocalDatabase {
     /// UNWIRED TEST-ONLY LEGACY PRIMITIVE. The served password-claim protocol
     /// lives in auth_catalog_ops; this replacement-session fixture must not be
     /// promoted into a production entry point.
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub(crate) fn identity_guest_claim_password(
         &mut self,
         guest: &SessionBearer,

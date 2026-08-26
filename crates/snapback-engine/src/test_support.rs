@@ -43,12 +43,61 @@ impl AuthFixture<'_> {
         self.snapback.auth_database_mut()
     }
 
-    pub fn auth_catalog(&mut self) -> crate::storage::AuthCatalogKernel<'_> {
-        self.database().auth_catalog()
-    }
-
     pub fn auth_catalog_read(&mut self) -> crate::storage::AuthCatalogKernel<'_> {
         self.database().auth_catalog_read()
+    }
+
+    pub fn agent_registration_facts_for_test(
+        &mut self,
+        user_id: &str,
+    ) -> SnapbackResult<((String, Option<String>, String), i64, i64)> {
+        self.database()
+            .auth_catalog_read()
+            .agent_registration_facts_for_test(user_id)
+    }
+
+    pub fn invitation_consumption_for_test(
+        &mut self,
+        invitation_id: &str,
+    ) -> SnapbackResult<(String, Option<String>)> {
+        self.database()
+            .auth_catalog_read()
+            .invitation_consumption_for_test(invitation_id)
+    }
+
+    pub fn sender_issuance_durable_counts_for_test(
+        &mut self,
+        challenge_id: &str,
+    ) -> SnapbackResult<(i64, i64, i64, i64, i64)> {
+        self.database()
+            .auth_catalog_read()
+            .sender_issuance_durable_counts_for_test(challenge_id)
+    }
+
+    pub fn assert_step_up_consumption_for_test(
+        &mut self,
+        bound_request: &str,
+        challenge_id: &str,
+        code: &str,
+    ) -> SnapbackResult<()> {
+        self.database()
+            .auth_catalog_read()
+            .assert_step_up_consumption_for_test(bound_request, challenge_id, code)
+    }
+
+    pub fn verification_address_count_for_test(&mut self, address: &str) -> SnapbackResult<i64> {
+        self.database()
+            .auth_catalog_read()
+            .verification_address_count_for_test(address)
+    }
+
+    pub fn session_lifetime_facts_for_test(
+        &mut self,
+        session_id: &str,
+    ) -> SnapbackResult<(i64, i64, i64, bool)> {
+        self.database()
+            .auth_catalog_read()
+            .session_lifetime_facts_for_test(session_id)
     }
 
     pub fn mutation_writes(&mut self) -> crate::storage::MutationWritesKernel<'_> {
@@ -391,8 +440,8 @@ impl AuthFixture<'_> {
             .oauth_proposal_counts_for_test(consenting_user_id)
     }
 
-    pub fn push_registry(&mut self) -> snapback_kernel::storage::PushRegistryKernel<'_> {
-        self.database().push_registry()
+    pub fn push_token_bytes_for_test(&mut self) -> SnapbackResult<String> {
+        self.database().push_registry().token_bytes_for_test()
     }
 
     pub fn revalidate_watch_principal(
