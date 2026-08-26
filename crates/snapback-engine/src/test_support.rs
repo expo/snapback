@@ -43,10 +43,6 @@ impl AuthFixture<'_> {
         self.snapback.auth_database_mut()
     }
 
-    pub fn auth_catalog_read(&mut self) -> crate::storage::AuthCatalogKernel<'_> {
-        self.database().auth_catalog_read()
-    }
-
     pub fn agent_registration_facts_for_test(
         &mut self,
         user_id: &str,
@@ -89,6 +85,12 @@ impl AuthFixture<'_> {
         self.database()
             .auth_catalog_read()
             .verification_address_count_for_test(address)
+    }
+
+    pub fn verification_challenge_count_for_test(&mut self) -> SnapbackResult<i64> {
+        self.database()
+            .auth_catalog_read()
+            .verification_challenge_count_for_test()
     }
 
     pub fn session_lifetime_facts_for_test(

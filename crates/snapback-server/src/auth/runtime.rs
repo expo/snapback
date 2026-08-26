@@ -762,7 +762,6 @@ mod tests {
     fn challenge_count(snapback: &mut LocalSnapback) -> usize {
         snapback
             .remainder_auth_fixture()
-            .auth_catalog_read()
             .verification_challenge_count_for_test()
             .map(|count| count as usize)
             .expect("count retained auth challenges")
