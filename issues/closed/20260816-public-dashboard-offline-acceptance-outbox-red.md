@@ -2063,3 +2063,146 @@ Both machine-readable reports contain `cleanupErrors: []` and
 checkout/binary identity mismatch and exercise this JS-only commit. No
 generator was run; integration-owned guide projections remain at merge-base
 bytes.
+
+### Round-31 dual-review closure (2026-08-26)
+
+Capability supersession now discards only a pending outbox insertion owned by
+the current invocation. An idempotently reused record with
+`insertionOwned: false` remains the sole durable settlement identity after an
+ambiguous POST; both the ordinary mutation path and the housekeeping fallback
+return `SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED` without deleting it.
+
+Replay now compare-and-commits every final inspection fact whose positive
+authority differs from the cycle admission fact while it still owns the
+authorization-dispatch lock. This includes origin, target profile, complete
+artifact generation, and optional ledger incarnation changes as well as
+negative facts. Notification remains deferred until after release with
+`drainWake: false`, so a waiting foreground dispatch observes the successor
+authority and sends no predecessor-pinned POST.
+
+An inspect answer whose store CAS loses to a current negative or different
+positive authority is refused in automatic queue mode as
+`inspection-superseded`. The shared/local re-read occurs before a new
+`clientMutationId` is minted, repeats at the enqueue boundary, and cannot
+degrade to an online-only POST. The retryable-inspection matrix now exercises
+HTTP 425 beside 408 and 429 at enqueue, cycle start, and final pre-POST. LLP
+0043's revision header now uses the same terminal-4xx exclusion as its body
+and LLP 0058.
+
+The fail-first regressions reported these reviewed defects before production
+changes:
+
+```text
+[item 1 — supersession deleted a pre-existing ambiguous settlement identity]
+✖ capability supersession preserves a pre-existing ambiguous idempotent identity
+AssertionError [ERR_ASSERTION]: supersession preserves the pre-existing possibly committed settlement identity
++ actual - expected
+
++ []
+- [
+
+[item 2 — changed positive authority was persisted after dispatch-lock release]
+✖ replay persists a changed positive authority before releasing a waiting foreground dispatch
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ {
++   clientMutationId: 'cm-foreground-waits-behind-replay-successor',
++   presentation: 'withheld',
++   sequence: 2,
++   status: 'queued'
++ }
+- null
+
+[item 3 — a CAS-losing positive degraded queue:auto to an unsafe POST]
+✖ queue:'auto' refuses when a newer shared negative wins an in-flight positive inspection
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ {
++   result: {
++     wronglyDispatched: true
++   },
++   status: 'settled',
++   version: 1
++ }
+- null
+
+[item 4 — coverage omission; production already classified 425 as unavailable]
+packages/snapback-client/outbox-drain.test.mjs:1258:for (const status of [408, 429]) {
+packages/snapback-client/outbox-drain.test.mjs:1303:for (const status of [408, 429]) {
+packages/snapback-client/outbox-drain.test.mjs:1339:for (const status of [408, 429]) {
+
+[item 5 — documentation contradiction; no executable regression]
+authorize a mutation POST. Answered 4xx or a 200 manifest gap is a durable
+negative that supersedes a positive and pauses the drain without self-waking.)
+```
+
+Items 4 and 5 were review-proven coverage/documentation defects rather than
+production behavior regressions, so they have no fabricated failing runtime
+assertion: the newly added 425 cases passed on their first execution, and the
+header wording was corrected directly.
+
+At exact implementation commit
+`301eb6dbe2994ade15a96bb4916d29eb9eca5d3f`, the required combined suite
+reports:
+
+```text
+ℹ tests 282
+ℹ suites 0
+ℹ pass 282
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8276.062084
+```
+
+The full `npm test --prefix packages/snapback-client` script passes the
+changed outbox store, custody, drain, and quarantine suites 192/192, 22/22,
+37/37, and 4/4, then reaches only the inherited out-of-scope RQS red:
+
+```text
+✖ pre-subscribe durable-buffer overflow fails closed to one fresh snapshot [web/indexeddb] (11.264542ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 29
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2547.916666
+```
+
+The exact client TypeScript fixture command exits zero. The export-types gate
+reports its inherited codegen declaration red only:
+
+```text
+[check-package-export-types] fixture compile ok: 121 subpaths across 14 packages
+[check-package-export-types] FAILED (1):
+  - @expo/snapback-codegen ./app-descriptor: runtime exports missing from the declaration: APPLICATION_AUTH_BOOTSTRAP_CREDENTIAL_MODES, APPLICATION_AUTH_BOOTSTRAP_PROVIDERS, APPLICATION_AUTH_BOOTSTRAP_PROVIDER_KINDS
+```
+
+The Expo carrier recovery verifier reports verbatim:
+
+```text
+[expo-sqlite-node-qualification] PASS supporting-only: 8/8 scenario groups; sqlite_source_id=2026-07-24 19:02:57 bf7c7f30031888f4e796e429ab3978879485813aaca6f641c7b33e4e09459bcc; receipt=demos/expo-local-first-carrier/evidence/20260826T103027465Z-9f69ef43/qualification.supporting.v1.json
+```
+
+Both public-dashboard witnesses ran at that exact implementation commit with
+`SNAPBACK_SERVER_BINARY="$PWD/target/debug/snapback"` and report verbatim:
+
+```text
+PASS public-dashboard / offline-local-first (JS arm) — 9/9
+PASS public-dashboard / headless — 6/6
+```
+
+Both machine-readable reports contain `cleanupErrors: []` and
+`cleanupErrorCount: 0`. The configured binary is stamped at
+`a97e75286f098066931701df515fe7a812961798`, so both runs report the expected
+checkout/binary identity mismatch and exercise this JS-only implementation
+commit. `./ref-check --verbose` reports `311 LLP docs, 6655 refs in 12507
+files, 0 errors, 0 unchecked`; `git diff --check` produces no output. No
+generator was run; the symbol registry, guide manifest, flat guides, and
+diagnostics registry remain byte-identical to merge base
+`baacaa20983f029f3e9cd23f60385ba00085e947`.
