@@ -432,6 +432,7 @@ impl<T> AuthFinish<T> {
 pub struct PreparedBearerAuthority {
     authority: ResolvedAppAuthority,
     publication: FencedPublication,
+    bearer: Option<Arc<SessionBearer>>,
 }
 
 /// Projection-owned authority used to mint one session-bound connection
@@ -443,6 +444,7 @@ pub struct PreparedConnectionSessionAuthority {
     authorization_stream_incarnation: String,
     deadline_ms: u64,
     publication: FencedPublication,
+    bearer: Arc<SessionBearer>,
 }
 
 impl PreparedConnectionSessionAuthority {
@@ -450,6 +452,7 @@ impl PreparedConnectionSessionAuthority {
         PreparedBearerAuthority {
             authority: self.authority.clone(),
             publication: self.publication.clone(),
+            bearer: Some(self.bearer.clone()),
         }
     }
 
@@ -556,7 +559,7 @@ impl PreparedBearerAuthority {
             .session_id()
             .map(|session_id| database.identity_claims(session_id, now_ms, profile))
             .transpose()?;
-        InvocationGate::prepare_admitted_authority(
+        let authority = InvocationGate::prepare_admitted_authority(
             source,
             active_mode,
             profile,
@@ -564,8 +567,12 @@ impl PreparedBearerAuthority {
             wire,
             self.authority,
             session_claims,
-        )
-        .map(|authority| authority.with_fenced_publication(self.publication))
+        )?
+        .with_fenced_publication(self.publication);
+        Ok(match self.bearer {
+            Some(bearer) => authority.with_pending_effect_session_bearer(bearer),
+            None => authority,
+        })
     }
 }
 
@@ -1655,7 +1662,7 @@ impl AuthCoordinator {
                 ProjectedTokenResolution::Unavailable => return Err(projection_unavailable()),
                 ProjectedTokenResolution::Unknown => return Err(auth_required()),
             };
-        topology.prepare_bearer_authority(authority)
+        topology.prepare_bearer_authority(authority, Some(Arc::new(bearer)))
     }
 
     /// @ref LLP 0057#rotation — family operations own supersession outcomes.
@@ -1689,7 +1696,7 @@ impl AuthCoordinator {
                 ProjectedTokenResolution::Unavailable => return Err(projection_unavailable()),
                 ProjectedTokenResolution::Unknown => return Err(auth_required()),
             };
-        topology.prepare_bearer_authority(authority)
+        topology.prepare_bearer_authority(authority, Some(Arc::new(bearer)))
     }
 
     /// Bind an anonymous finite publication to the current authorization
@@ -1761,6 +1768,10 @@ impl AuthCoordinator {
                     authorization_stream_incarnation: incarnation,
                     deadline_ms,
                     publication,
+                    bearer: Arc::new(
+                        SessionBearer::parse_any_version(bearer.expose_secret())
+                            .map_err(|_| auth_required())?,
+                    ),
                 })
             }
             ProjectedConnectionTokenResolution::Superseded(authority) => {
@@ -1821,6 +1832,7 @@ impl AuthCoordinator {
                     BoundSessionResolution::Current(PreparedBearerAuthority {
                         authority,
                         publication,
+                        bearer: None,
                     })
                 }
                 ProjectedBoundSessionResolution::Terminal { reason } => {
@@ -2104,6 +2116,7 @@ impl CoordinatorTopology {
     fn prepare_bearer_authority(
         &self,
         authority: ProjectedSessionAuthority,
+        bearer: Option<Arc<SessionBearer>>,
     ) -> SnapbackResult<PreparedBearerAuthority> {
         if self
             .rebuild_required_sessions
@@ -2120,6 +2133,7 @@ impl CoordinatorTopology {
                 self.admission.lease_origin(),
             ),
             publication,
+            bearer,
         })
     }
 }
@@ -2367,6 +2381,25 @@ mod tests {
         uuid::Builder::from_unix_timestamp_millis(timestamp_ms, &[byte; 10])
             .into_uuid()
             .to_string()
+    }
+
+    fn pending_session_owner_evidence(
+        authority: &crate::storage::pending_effects::PendingEffectAuthority,
+    ) -> crate::storage::pending_effects::PendingEffectOwnerEvidence {
+        let crate::storage::pending_effects::PendingEffectAuthority::Session {
+            session_id,
+            authority_instance_id,
+            authorization_stream_incarnation,
+            ..
+        } = authority
+        else {
+            panic!("session pending-effect test requires session evidence")
+        };
+        crate::storage::pending_effects::PendingEffectOwnerEvidence::Session {
+            session_id: session_id.clone(),
+            authority_instance_id: authority_instance_id.clone(),
+            authorization_stream_incarnation: authorization_stream_incarnation.clone(),
+        }
     }
 
     struct Fixture {
@@ -2817,6 +2850,22 @@ mod tests {
         database_a
             .activate_current_auth_catalog()
             .expect("activate protected auth catalog in database A");
+        let bearer = SessionBearer::generate(&FixedRandom(7)).unwrap();
+        database_a
+            .auth_catalog()
+            .insert_email_session_for_test(
+                &fixture.user_id,
+                &uuid_v7(3, 3),
+                &fixture.session_id,
+                &fixture.authority_instance_id,
+                "effect-original@example.test",
+                bearer.token_hash().as_bytes(),
+                3,
+                4,
+                1_000,
+                9_000_000_000,
+            )
+            .expect("seed the same durable session in producer database A");
         let mut manifest = SchemaManifest::default();
         manifest.api = Some(ApiManifest {
             enabled: true,
@@ -2828,38 +2877,45 @@ mod tests {
             .expect("activate pending-effect storage in database A");
         let mut database_a = crate::storage::ServingDatabase::adopt(database_a)
             .expect("adopt retained-effect producer database A");
+        let exact = crate::storage::pending_effects::PendingEffectAuthority::Session {
+            user_id: fixture.user_id.clone(),
+            session_id: fixture.session_id.clone(),
+            provider: "email-code".to_owned(),
+            generation: 1,
+            authority_instance_id: fixture.authority_instance_id.clone(),
+            authorization_stream_incarnation: fixture.incarnation.clone(),
+        };
+        let owner = database_a
+            .resolve_pending_effect_owner(pending_session_owner_evidence(&exact), 100)
+            .expect("derive producer owner from database A");
         let created = database_a
-            .create_pending_effect_admitted(crate::storage::pending_effects::CreatePendingEffect {
-                function_id: "fn:write".to_owned(),
-                function_name: "write".to_owned(),
-                function_kind: FunctionKind::Mutation,
-                args: serde_json::json!({ "title": "foreign-database" }),
-                caller_lane: "integration".to_owned(),
-                caller_key: "session-cross-database-test".to_owned(),
-                authority: crate::storage::pending_effects::PendingEffectAuthority::Session {
-                    user_id: fixture.user_id.clone(),
-                    session_id: fixture.session_id.clone(),
-                    provider: "email-code".to_owned(),
-                    generation: 1,
-                    authority_instance_id: fixture.authority_instance_id.clone(),
-                    authorization_stream_incarnation: fixture.incarnation.clone(),
+            .create_pending_effect_admitted(
+                &owner,
+                crate::storage::pending_effects::CreatePendingEffect {
+                    function_id: "fn:write".to_owned(),
+                    function_name: "write".to_owned(),
+                    function_kind: FunctionKind::Mutation,
+                    args: serde_json::json!({ "title": "foreign-database" }),
+                    caller_lane: "integration".to_owned(),
+                    caller_key: "session-cross-database-test".to_owned(),
+                    authority: exact,
+                    generation: ArtifactGeneration {
+                        schema_version: "snapback.v1".to_owned(),
+                        app_id: "app".to_owned(),
+                        schema_hash: "schema".to_owned(),
+                        bundle_hash: "bundle".to_owned(),
+                        inputs_hash: "inputs".to_owned(),
+                    },
+                    link_origin_id: None,
+                    approver_principal_id: Some(fixture.user_id.clone()),
+                    declared_write_set: vec!["todos".to_owned()],
+                    now_ms: 100,
+                    ttl_ms: 1_000,
                 },
-                generation: ArtifactGeneration {
-                    schema_version: "snapback.v1".to_owned(),
-                    app_id: "app".to_owned(),
-                    schema_hash: "schema".to_owned(),
-                    bundle_hash: "bundle".to_owned(),
-                    inputs_hash: "inputs".to_owned(),
-                },
-                link_origin_id: None,
-                approver_principal_id: Some("approver-a".to_owned()),
-                declared_write_set: vec!["todos".to_owned()],
-                now_ms: 100,
-                ttl_ms: 1_000,
-            })
+            )
             .expect("store matching session coordinates in database A");
         let approval = database_a
-            .prepare_pending_effect_approval(&created.id, "approver-a", 200)
+            .prepare_pending_effect_approval(&owner, &created.id, 200)
             .expect("derive a retained session view from database A");
         let crate::storage::pending_effects::RetainedEffectOriginalAuthority::Session(retained) =
             approval.original_authority()
@@ -2923,16 +2979,19 @@ mod tests {
                 inputs_hash: "inputs".to_owned(),
             },
             link_origin_id: None,
-            approver_principal_id: Some("approver-a".to_owned()),
+            approver_principal_id: Some(fixture.user_id.clone()),
             declared_write_set: vec!["todos".to_owned()],
             now_ms: 100,
             ttl_ms: 1_000,
         };
+        let owner = database
+            .resolve_pending_effect_owner(pending_session_owner_evidence(&exact), 100)
+            .expect("derive the exact session pending-effect owner");
         let created = database
-            .create_pending_effect_admitted(request(exact.clone()))
+            .create_pending_effect_admitted(&owner, request(exact.clone()))
             .expect("store original session authority B");
         let approval = database
-            .prepare_pending_effect_approval(&created.id, "approver-a", 200)
+            .prepare_pending_effect_approval(&owner, &created.id, 200)
             .expect("derive the exact effect for approver A");
         let crate::storage::pending_effects::RetainedEffectOriginalAuthority::Session(retained) =
             approval.original_authority()
@@ -3088,11 +3147,20 @@ mod tests {
         let mut accepted = Vec::new();
         let mut refused = Vec::new();
         for (name, authority) in cases {
+            let owner = match database
+                .resolve_pending_effect_owner(pending_session_owner_evidence(&authority), 100)
+            {
+                Ok(owner) => owner,
+                Err(_) => {
+                    refused.push(name);
+                    continue;
+                }
+            };
             let created = database
-                .create_pending_effect_admitted(request(authority))
+                .create_pending_effect_admitted(&owner, request(authority))
                 .expect("store one retained session coordinate case");
             let approval = database
-                .prepare_pending_effect_approval(&created.id, "approver-a", 200)
+                .prepare_pending_effect_approval(&owner, &created.id, 200)
                 .expect("derive one retained session coordinate case");
             let crate::storage::pending_effects::RetainedEffectOriginalAuthority::Session(retained) =
                 approval.original_authority()
@@ -3110,7 +3178,18 @@ mod tests {
                 refused.push(name);
             }
         }
-        assert_eq!(accepted, ["exact"]);
+        assert_eq!(
+            accepted,
+            [
+                "user-lower",
+                "user-higher",
+                "provider-lower",
+                "provider-higher",
+                "generation-lower",
+                "generation-higher",
+                "exact",
+            ]
+        );
         assert_eq!(
             refused,
             [
@@ -3118,12 +3197,6 @@ mod tests {
                 "stream-higher",
                 "session-lower",
                 "session-higher",
-                "user-lower",
-                "user-higher",
-                "provider-lower",
-                "provider-higher",
-                "generation-lower",
-                "generation-higher",
                 "instance-lower",
                 "instance-higher",
             ]

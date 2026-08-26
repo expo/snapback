@@ -216,6 +216,63 @@ pub struct CreatePendingEffect {
     pub ttl_ms: u64,
 }
 
+/// Untrusted evidence from which the pending-effect transaction derives its
+/// exact owner.  The variants are deliberately public: presenting a durable
+/// identity selector is not authority.  Only a successful lookup against this
+/// database produces [`PendingEffectOwner`].
+///
+/// @ref LLP 0292#42-authority-flow — admission accepts evidence and the exact
+/// operation selector; the canonical store alone creates verified authority.
+pub enum PendingEffectOwnerEvidence {
+    Anonymous,
+    Session {
+        bearer: crate::auth::crypto::SessionBearer,
+        authorization_stream_incarnation: String,
+    },
+    ServicePrincipal(crate::auth::crypto::ScopedToken),
+}
+
+/// Exact owner derived by one serving database.  It is non-cloneable, has no
+/// public constructor, and is invalid in a child process after `fork()`.
+/// Every pending-effect transition consumes or borrows this same carrier.
+///
+/// @ref LLP 0303#the-governing-principle — durable effect authority is derived
+/// from canonical state instead of accepted beside the effect subject.
+/// @ref LLP 0303#t-allocation-identity-fails-open-across-fork-and-the-ruling-belongs-here —
+/// inherited allocation identities fail closed outside their creator process.
+pub struct PendingEffectOwner {
+    database_binding: crate::storage::DatabaseBinding,
+    authority: PendingEffectAuthority,
+    principal_id: Option<String>,
+    creator_process_id: u32,
+}
+
+impl std::fmt::Debug for PendingEffectOwner {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("PendingEffectOwner(..)")
+    }
+}
+
+impl PendingEffectOwner {
+    pub(super) fn verify_for(
+        &self,
+        database_binding: &crate::storage::DatabaseBinding,
+    ) -> SnapbackResult<()> {
+        if self.creator_process_id != std::process::id() {
+            return Err(owner_invalid(
+                "pending-effect owner was inherited from another process",
+            ));
+        }
+        verify_command_identity(&self.database_binding, database_binding)
+    }
+
+    pub(super) fn require_session_principal(&self) -> SnapbackResult<&str> {
+        self.principal_id.as_deref().ok_or_else(|| {
+            owner_invalid("pending-effect management requires a durably resolved session owner")
+        })
+    }
+}
+
 /// Opaque, database-bound creation command. The request facts remain useful
 /// to adapters, but only the kernel commit authority can turn them into a
 /// writable transition.
@@ -405,6 +462,7 @@ pub struct ApprovePendingEffectCommand {
     requires_step_up: bool,
     step_up: Option<crate::auth::crypto::StepUpProof>,
     now_ms: u64,
+    owner: PendingEffectOwner,
 }
 
 pub struct DenyPendingEffectCommand {
@@ -422,6 +480,7 @@ pub struct ApprovedPendingEffect {
 pub struct PendingEffectExecutionTicket {
     database_binding: crate::storage::DatabaseBinding,
     id: String,
+    owner: PendingEffectOwner,
 }
 
 impl ApprovedPendingEffect {
@@ -430,11 +489,35 @@ impl ApprovedPendingEffect {
     }
 }
 
-pub struct SettlePendingEffectCommand {
+pub struct PendingEffectSettlement {
     execution: PendingEffectExecutionTicket,
     executed: bool,
     outcome_code: Option<String>,
     now_ms: u64,
+}
+
+impl PendingEffectExecutionTicket {
+    /// Consume the exact approved ticket into an executed settlement.  The
+    /// result can no longer be supplied as an independent sibling argument to
+    /// the durable consumer.
+    pub fn executed(self, outcome_code: Option<&str>, now_ms: u64) -> PendingEffectSettlement {
+        PendingEffectSettlement {
+            execution: self,
+            executed: true,
+            outcome_code: outcome_code.map(str::to_owned),
+            now_ms,
+        }
+    }
+
+    /// Consume the exact approved ticket into a refused settlement.
+    pub fn refused(self, outcome_code: &str, now_ms: u64) -> PendingEffectSettlement {
+        PendingEffectSettlement {
+            execution: self,
+            executed: false,
+            outcome_code: Some(outcome_code.to_owned()),
+            now_ms,
+        }
+    }
 }
 
 pub struct RefusePendingEffectCommand {
@@ -442,75 +525,77 @@ pub struct RefusePendingEffectCommand {
     id: String,
     outcome_code: String,
     now_ms: u64,
+    owner_principal_id: String,
 }
 
 impl crate::storage::KernelCommitAuthority {
     pub fn admit_pending_effect_creation(
         &self,
+        owner: &PendingEffectOwner,
         request: CreatePendingEffect,
-    ) -> CreatePendingEffectCommand {
-        CreatePendingEffectCommand {
+    ) -> SnapbackResult<CreatePendingEffectCommand> {
+        owner.verify_for(&self.binding())?;
+        let mut request = request;
+        request.authority = owner.authority.clone();
+        Ok(CreatePendingEffectCommand {
             database_binding: self.binding(),
             request,
-        }
+        })
     }
 
     pub fn admit_pending_effect_approval(
         &self,
+        owner: PendingEffectOwner,
         approval: PreparedPendingEffectApproval,
         requires_step_up: bool,
         step_up: Option<&crate::auth::crypto::StepUpProof>,
         now_ms: u64,
-    ) -> ApprovePendingEffectCommand {
-        ApprovePendingEffectCommand {
+    ) -> SnapbackResult<ApprovePendingEffectCommand> {
+        owner.verify_for(&self.binding())?;
+        if approval.approver_principal_id != owner.require_session_principal()? {
+            return Err(owner_invalid(
+                "pending-effect approval belongs to a different derived approver",
+            ));
+        }
+        Ok(ApprovePendingEffectCommand {
             approval,
             requires_step_up,
             step_up: step_up.cloned(),
             now_ms,
-        }
+            owner,
+        })
     }
 
     pub fn admit_pending_effect_denial(
         &self,
+        owner: &PendingEffectOwner,
         id: &str,
-        approver_principal_id: &str,
         now_ms: u64,
-    ) -> DenyPendingEffectCommand {
-        DenyPendingEffectCommand {
+    ) -> SnapbackResult<DenyPendingEffectCommand> {
+        owner.verify_for(&self.binding())?;
+        Ok(DenyPendingEffectCommand {
             database_binding: self.binding(),
             id: id.to_owned(),
-            approver_principal_id: approver_principal_id.to_owned(),
+            approver_principal_id: owner.require_session_principal()?.to_owned(),
             now_ms,
-        }
-    }
-
-    pub fn admit_pending_effect_settlement(
-        &self,
-        execution: PendingEffectExecutionTicket,
-        executed: bool,
-        outcome_code: Option<&str>,
-        now_ms: u64,
-    ) -> SettlePendingEffectCommand {
-        SettlePendingEffectCommand {
-            execution,
-            executed,
-            outcome_code: outcome_code.map(str::to_owned),
-            now_ms,
-        }
+        })
     }
 
     pub fn admit_pending_effect_refusal(
         &self,
+        owner: &PendingEffectOwner,
         id: &str,
         outcome_code: &str,
         now_ms: u64,
-    ) -> RefusePendingEffectCommand {
-        RefusePendingEffectCommand {
+    ) -> SnapbackResult<RefusePendingEffectCommand> {
+        owner.verify_for(&self.binding())?;
+        Ok(RefusePendingEffectCommand {
             database_binding: self.binding(),
             id: id.to_owned(),
             outcome_code: outcome_code.to_owned(),
             now_ms,
-        }
+            owner_principal_id: owner.require_session_principal()?.to_owned(),
+        })
     }
 }
 
@@ -527,6 +612,14 @@ fn verify_command_identity(
             "pending-effect command belongs to a different database",
         ))
     }
+}
+
+fn owner_invalid(message: impl Into<String>) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_EFFECT_AUTHORITY_INVALID",
+        "effects",
+        message.into(),
+    )
 }
 
 pub fn manifest_enabled(manifest: &SchemaManifest) -> bool {
@@ -749,6 +842,89 @@ fn lazy_expire(tx: &Transaction<'_>, id: Option<&str>, now_ms: u64) -> SnapbackR
 }
 
 impl LocalDatabase {
+    /// Resolve caller-presented identity evidence against this database and
+    /// return the single owner carrier shared by every pending-effect
+    /// transition.  Session and service coordinates are lookup keys only; all
+    /// stored authority fields are reconstructed from the protected catalog.
+    ///
+    /// @ref LLP 0292#42-authority-flow — the canonical store converts evidence
+    /// into an exact prepared operation rather than trusting copied subjects.
+    pub(crate) fn resolve_pending_effect_owner(
+        &mut self,
+        evidence: PendingEffectOwnerEvidence,
+        now_ms: u64,
+    ) -> SnapbackResult<PendingEffectOwner> {
+        let (authority, principal_id) = match evidence {
+            PendingEffectOwnerEvidence::Anonymous => (PendingEffectAuthority::Anonymous, None),
+            PendingEffectOwnerEvidence::Session {
+                bearer,
+                authorization_stream_incarnation,
+            } => {
+                let lookup = self
+                    .auth_catalog_read()
+                    .lookup_presented_session(&bearer.token_hash())?;
+                let session = match lookup {
+                    crate::contract_types::PresentedSessionLookup::Current(session)
+                        if session.live_at(now_ms) =>
+                    {
+                        session.session
+                    }
+                    _ => {
+                        return Err(owner_invalid(
+                            "pending-effect session bearer is not current",
+                        ));
+                    }
+                };
+                let stream_is_canonical_v7 =
+                    uuid::Uuid::parse_str(&authorization_stream_incarnation)
+                        .ok()
+                        .is_some_and(|stream| {
+                            stream.get_version_num() == 7
+                                && stream.to_string() == authorization_stream_incarnation
+                        });
+                if !stream_is_canonical_v7 {
+                    return Err(owner_invalid(
+                        "pending-effect session evidence is no longer current",
+                    ));
+                }
+                let user_id = session.user_id;
+                (
+                    PendingEffectAuthority::Session {
+                        user_id: user_id.clone(),
+                        session_id: session.session_id,
+                        provider: session.provider,
+                        generation: session.generation,
+                        authority_instance_id: session.authority_instance_id,
+                        authorization_stream_incarnation,
+                    },
+                    Some(user_id),
+                )
+            }
+            PendingEffectOwnerEvidence::ServicePrincipal(token) => {
+                let resolved = self.resolve_scoped_service_authority(&token, now_ms)?;
+                let resolved = resolved.resolved();
+                (
+                    PendingEffectAuthority::ServicePrincipal {
+                        actor_user_id: resolved.actor_user_id().to_owned(),
+                        credential_id: resolved.credential_id().to_owned(),
+                        credential_generation: resolved.credential_generation(),
+                        grant_id: resolved.grant_id().to_owned(),
+                        token_id: resolved.token_id().to_owned(),
+                        effective_user_id: resolved.effective_user_id().map(str::to_owned),
+                        token_expires_at_ms: resolved.expires_at_ms(),
+                    },
+                    None,
+                )
+            }
+        };
+        Ok(PendingEffectOwner {
+            database_binding: self.binding(),
+            authority,
+            principal_id,
+            creator_process_id: std::process::id(),
+        })
+    }
+
     /// Re-resolve every stored service coordinate borrowed from an exact
     /// pending-effect approval, including the frozen token deadline.
     ///
@@ -949,6 +1125,7 @@ impl LocalDatabase {
             requires_step_up,
             step_up,
             now_ms,
+            owner,
         } = command;
         let PreparedPendingEffectApproval {
             record: prepared,
@@ -1015,6 +1192,7 @@ impl LocalDatabase {
             execution: PendingEffectExecutionTicket {
                 database_binding: self.binding(),
                 id,
+                owner,
             },
         })
     }
@@ -1073,15 +1251,16 @@ impl LocalDatabase {
 
     pub fn settle_pending_effect(
         &mut self,
-        command: SettlePendingEffectCommand,
+        settlement: PendingEffectSettlement,
     ) -> SnapbackResult<PendingEffectRecord> {
-        verify_command_identity(&command.execution.database_binding, &self.binding())?;
-        let SettlePendingEffectCommand {
+        verify_command_identity(&settlement.execution.database_binding, &self.binding())?;
+        settlement.execution.owner.verify_for(&self.binding())?;
+        let PendingEffectSettlement {
             execution,
             executed,
             outcome_code,
             now_ms,
-        } = command;
+        } = settlement;
         let id = execution.id;
         let status = if executed { "executed" } else { "refused" };
         self.with_auth_transaction(|tx| {
@@ -1117,9 +1296,16 @@ impl LocalDatabase {
             id,
             outcome_code,
             now_ms,
+            owner_principal_id,
             ..
         } = command;
         self.with_auth_transaction(|tx| {
+            let current = read_record(tx, &id)?.ok_or_else(not_found)?;
+            if current.approver_principal_id.as_deref() != Some(owner_principal_id.as_str()) {
+                return Err(owner_invalid(
+                    "pending-effect refusal owner does not match the stored effect",
+                ));
+            }
             let changed = tx.execute(
                 "UPDATE _snapback_pending_effects
                  SET status = 'refused', decided_at_ms = COALESCE(decided_at_ms, ?1),
@@ -1222,6 +1408,34 @@ mod tests {
         (db, authority)
     }
 
+    fn test_owner(
+        db: &LocalDatabase,
+        authority: PendingEffectAuthority,
+        principal_id: Option<&str>,
+    ) -> PendingEffectOwner {
+        PendingEffectOwner {
+            database_binding: db.binding(),
+            authority,
+            principal_id: principal_id.map(str::to_owned),
+            creator_process_id: std::process::id(),
+        }
+    }
+
+    fn admit_creation(
+        db: &LocalDatabase,
+        authority: &crate::storage::KernelCommitAuthority,
+        request: CreatePendingEffect,
+    ) -> CreatePendingEffectCommand {
+        let owner = test_owner(db, request.authority.clone(), None);
+        authority
+            .admit_pending_effect_creation(&owner, request)
+            .unwrap()
+    }
+
+    fn management_owner(db: &LocalDatabase, principal_id: &str) -> PendingEffectOwner {
+        test_owner(db, PendingEffectAuthority::Anonymous, Some(principal_id))
+    }
+
     fn request(now_ms: u64, ttl_ms: u64) -> CreatePendingEffect {
         CreatePendingEffect {
             function_id: "fn:write".to_owned(),
@@ -1312,9 +1526,7 @@ mod tests {
     fn disclosed_intent_is_bounded_and_journals_approve_execute() {
         let (mut db, authority) = ready();
         let created = db
-            .create_pending_effect(
-                authority.admit_pending_effect_creation(request(10, DEFAULT_TTL_MS)),
-            )
+            .create_pending_effect(admit_creation(&db, &authority, request(10, DEFAULT_TTL_MS)))
             .unwrap();
         assert!(created.id.starts_with("pfx_"));
         assert_eq!(created.status, PendingEffectStatus::Pending);
@@ -1328,18 +1540,21 @@ mod tests {
             .unwrap();
         let approved = db
             .approve_pending_effect(
-                authority.admit_pending_effect_approval(approval, false, None, 20),
+                authority
+                    .admit_pending_effect_approval(
+                        management_owner(&db, "human-a"),
+                        approval,
+                        false,
+                        None,
+                        20,
+                    )
+                    .unwrap(),
             )
             .unwrap();
         assert_eq!(approved.record.status, PendingEffectStatus::Approved);
         let (_, execution) = approved.into_parts();
         let executed = db
-            .settle_pending_effect(authority.admit_pending_effect_settlement(
-                execution,
-                true,
-                Some("ok"),
-                21,
-            ))
+            .settle_pending_effect(execution.executed(Some("ok"), 21))
             .unwrap();
         assert_eq!(executed.status, PendingEffectStatus::Executed);
         assert_eq!(
@@ -1476,7 +1691,7 @@ mod tests {
             token_expires_at_ms: stored.expires_at_ms(),
         };
         let created = db
-            .create_pending_effect(authority.admit_pending_effect_creation(effect_request))
+            .create_pending_effect(admit_creation(&db, &authority, effect_request))
             .expect("store exact original service authority");
         let approval = db
             .prepare_pending_effect_approval(&created.id, "human-a", now_ms + 11)
@@ -1672,7 +1887,7 @@ mod tests {
                 let mut effect_request = request(now_ms + 10, DEFAULT_TTL_MS);
                 effect_request.authority = retained_authority;
                 let created = db
-                    .create_pending_effect(authority.admit_pending_effect_creation(effect_request))
+                    .create_pending_effect(admit_creation(&db, &authority, effect_request))
                     .expect("store one retained service coordinate case");
                 let approval = db
                     .prepare_pending_effect_approval(&created.id, "human-a", now_ms + 11)
@@ -1714,7 +1929,7 @@ mod tests {
             let mut revocation_request = request(now_ms + 10, DEFAULT_TTL_MS);
             revocation_request.authority = exact;
             let revocation_effect = db
-                .create_pending_effect(authority.admit_pending_effect_creation(revocation_request))
+                .create_pending_effect(admit_creation(&db, &authority, revocation_request))
                 .expect("store exact authority for revocation cases");
             let revocation_approval = db
                 .prepare_pending_effect_approval(&revocation_effect.id, "human-a", now_ms + 11)
@@ -1833,7 +2048,7 @@ mod tests {
             token_expires_at_ms: matching_b.expires_at_ms(),
         };
         let created = database_a
-            .create_pending_effect(authority_a.admit_pending_effect_creation(effect_request))
+            .create_pending_effect(admit_creation(&database_a, &authority_a, effect_request))
             .expect("store retained service view in database A");
         let approval = database_a
             .prepare_pending_effect_approval(&created.id, "human-a", now_ms + 11)
@@ -1864,11 +2079,13 @@ mod tests {
     fn approver_deny_and_lazy_expiry_are_closed_transitions() {
         let (mut db, authority) = ready();
         let denied = db
-            .create_pending_effect(authority.admit_pending_effect_creation(request(10, 100)))
+            .create_pending_effect(admit_creation(&db, &authority, request(10, 100)))
             .unwrap();
         assert_eq!(
             db.deny_pending_effect(
-                authority.admit_pending_effect_denial(&denied.id, "human-b", 20)
+                authority
+                    .admit_pending_effect_denial(&management_owner(&db, "human-b"), &denied.id, 20,)
+                    .unwrap()
             )
             .unwrap_err()
             .diagnostic
@@ -1883,12 +2100,16 @@ mod tests {
             "SNAPBACK_EFFECT_APPROVAL_DENIED",
         );
         let refused = db
-            .deny_pending_effect(authority.admit_pending_effect_denial(&denied.id, "human-a", 20))
+            .deny_pending_effect(
+                authority
+                    .admit_pending_effect_denial(&management_owner(&db, "human-a"), &denied.id, 20)
+                    .unwrap(),
+            )
             .unwrap();
         assert_eq!(refused.status, PendingEffectStatus::Refused);
 
         let expiring = db
-            .create_pending_effect(authority.admit_pending_effect_creation(request(30, 1)))
+            .create_pending_effect(admit_creation(&db, &authority, request(30, 1)))
             .unwrap();
         let expired = db.pending_effect(&expiring.id, 31).unwrap();
         assert_eq!(expired.status, PendingEffectStatus::Expired);

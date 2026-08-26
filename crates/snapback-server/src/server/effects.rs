@@ -321,14 +321,13 @@ pub(super) async fn effect_deny(
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Json<crate::storage::pending_effects::PendingEffectRecord>, ApiError> {
-    let (approver_id, _) =
-        LocalSnapback::require_effect_management_session(&authority).map_err(ApiError::from)?;
+    LocalSnapback::require_effect_management_session(&authority).map_err(ApiError::from)?;
     let _: EmptyAuthRequest = parse_auth_json(&headers, body)?;
     let now_ms = installed_auth_provider(&runtime)?.now_ms();
     let effect_authority = authority.clone();
     Ok(Json(
         with_snapback(&runtime.snapback, move |snapback| {
-            snapback.deny_pending_effect(&effect_authority, &effect_id, &approver_id, now_ms)
+            snapback.deny_pending_effect(&effect_authority, &effect_id, now_ms)
         })
         .await?,
     ))

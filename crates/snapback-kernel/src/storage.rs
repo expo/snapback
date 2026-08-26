@@ -2684,77 +2684,84 @@ impl ServingDatabase {
             .activate_promotion_contention_reservation_for_bench(&binding, reservation, now_ms)
     }
 
+    pub fn resolve_pending_effect_owner(
+        &mut self,
+        evidence: pending_effects::PendingEffectOwnerEvidence,
+        now_ms: u64,
+    ) -> SnapbackResult<pending_effects::PendingEffectOwner> {
+        self.db.resolve_pending_effect_owner(evidence, now_ms)
+    }
+
     pub fn create_pending_effect_admitted(
         &mut self,
+        owner: &pending_effects::PendingEffectOwner,
         request: pending_effects::CreatePendingEffect,
     ) -> SnapbackResult<pending_effects::PendingEffectRecord> {
-        let command = self.authority.admit_pending_effect_creation(request);
+        let command = self
+            .authority
+            .admit_pending_effect_creation(owner, request)?;
         self.db.create_pending_effect(command)
     }
 
     pub fn prepare_pending_effect_approval(
         &mut self,
+        owner: &pending_effects::PendingEffectOwner,
         id: &str,
-        approver_principal_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<pending_effects::PreparedPendingEffectApproval> {
+        owner.verify_for(&self.binding())?;
+        let approver_principal_id = owner.require_session_principal()?;
         self.db
             .prepare_pending_effect_approval(id, approver_principal_id, now_ms)
     }
 
     pub fn approve_pending_effect_admitted(
         &mut self,
+        owner: pending_effects::PendingEffectOwner,
         approval: pending_effects::PreparedPendingEffectApproval,
         requires_step_up: bool,
         step_up: Option<&crate::auth::crypto::StepUpProof>,
         now_ms: u64,
     ) -> SnapbackResult<pending_effects::ApprovedPendingEffect> {
         let command = self.authority.admit_pending_effect_approval(
+            owner,
             approval,
             requires_step_up,
             step_up,
             now_ms,
-        );
+        )?;
         self.db.approve_pending_effect(command)
     }
 
     pub fn deny_pending_effect_admitted(
         &mut self,
+        owner: &pending_effects::PendingEffectOwner,
         id: &str,
-        approver_principal_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<pending_effects::PendingEffectRecord> {
         let command = self
             .authority
-            .admit_pending_effect_denial(id, approver_principal_id, now_ms);
+            .admit_pending_effect_denial(owner, id, now_ms)?;
         self.db.deny_pending_effect(command)
     }
 
     pub fn settle_pending_effect_admitted(
         &mut self,
-        execution: pending_effects::PendingEffectExecutionTicket,
-        executed: bool,
-        outcome_code: Option<&str>,
-        now_ms: u64,
+        settlement: pending_effects::PendingEffectSettlement,
     ) -> SnapbackResult<pending_effects::PendingEffectRecord> {
-        let command = self.authority.admit_pending_effect_settlement(
-            execution,
-            executed,
-            outcome_code,
-            now_ms,
-        );
-        self.db.settle_pending_effect(command)
+        self.db.settle_pending_effect(settlement)
     }
 
     pub fn refuse_pending_effect_admitted(
         &mut self,
+        owner: &pending_effects::PendingEffectOwner,
         id: &str,
         outcome_code: &str,
         now_ms: u64,
     ) -> SnapbackResult<()> {
-        let command = self
-            .authority
-            .admit_pending_effect_refusal(id, outcome_code, now_ms);
+        let command =
+            self.authority
+                .admit_pending_effect_refusal(owner, id, outcome_code, now_ms)?;
         self.db.refuse_pending_effect(command)
     }
 

@@ -6090,14 +6090,13 @@ impl LocalSnapback {
         effect_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<PreparedEffectApproval> {
+        Self::require_effect_management_session(management)?;
         let approver_attribution = management.prepare_effect_approver_attribution()?;
         let pending = {
             let _effect = management.effect_guard("pending-effect approval preparation")?;
-            self.db.prepare_pending_effect_approval(
-                effect_id,
-                approver_attribution.principal_id(),
-                now_ms,
-            )?
+            let owner = self.pending_effect_owner(management, now_ms)?;
+            self.db
+                .prepare_pending_effect_approval(&owner, effect_id, now_ms)?
         };
         let approval = PreparedEffectApproval {
             pending,
@@ -6262,8 +6261,9 @@ impl LocalSnapback {
         now_ms: u64,
     ) -> SnapbackResult<()> {
         let _effect = authority.effect_guard("pending-effect refusal transaction")?;
+        let owner = self.pending_effect_owner(authority, now_ms)?;
         self.db
-            .refuse_pending_effect_admitted(id, outcome_code, now_ms)
+            .refuse_pending_effect_admitted(&owner, id, outcome_code, now_ms)
     }
 
     pub fn approve_pending_effect(
@@ -6283,7 +6283,9 @@ impl LocalSnapback {
         let _effect = approval
             .management
             .effect_guard("pending-effect approval transaction")?;
+        let owner = self.pending_effect_owner(&approval.management, now_ms)?;
         let approved = self.db.approve_pending_effect_admitted(
+            owner,
             approval.pending,
             function.authority_creating,
             step_up,
@@ -6311,20 +6313,26 @@ impl LocalSnapback {
         let _effect = settlement
             .management
             .effect_guard("pending-effect settlement transaction")?;
-        self.db
-            .settle_pending_effect_admitted(settlement.execution, executed, outcome_code, now_ms)
+        let settled = if executed {
+            settlement.execution.executed(outcome_code, now_ms)
+        } else {
+            settlement.execution.refused(
+                outcome_code.unwrap_or("SNAPBACK_EFFECT_EXECUTION_REFUSED"),
+                now_ms,
+            )
+        };
+        self.db.settle_pending_effect_admitted(settled)
     }
 
     pub fn deny_pending_effect(
         &mut self,
         authority: &PreparedAuthority,
         id: &str,
-        approver_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<crate::storage::pending_effects::PendingEffectRecord> {
         let _effect = authority.effect_guard("pending-effect denial transaction")?;
-        self.db
-            .deny_pending_effect_admitted(id, approver_id, now_ms)
+        let owner = self.pending_effect_owner(authority, now_ms)?;
+        self.db.deny_pending_effect_admitted(&owner, id, now_ms)
     }
 
     pub fn resolve_scoped_token_route_authority(
@@ -6339,9 +6347,19 @@ impl LocalSnapback {
             .service_authority_fences
             .register_resolved(durable, now_ms, monotonic_now)?
             .with_provider_clock(provider);
-        Ok(ResolvedServiceAuthority::from_registered(
+        let retained_token = std::sync::Arc::new(
+            crate::auth::crypto::ScopedToken::parse(token.expose_secret()).map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
+                    "auth",
+                    "the scoped token could not be retained for exact effect ownership",
+                )
+            })?,
+        );
+        Ok(ResolvedServiceAuthority::from_registered_with_token(
             registered,
             self.admission.lease_origin(),
+            retained_token,
         ))
     }
 
@@ -7386,9 +7404,88 @@ impl LocalSnapback {
         mut request: crate::storage::pending_effects::CreatePendingEffect,
     ) -> SnapbackResult<crate::storage::pending_effects::PendingEffectRecord> {
         let _effect = authority.effect_guard("pending-effect creation transaction")?;
+        let owner = self.pending_effect_owner(authority, request.now_ms)?;
         request.link_origin_id = link.map(|link| link.record.id.clone());
         request.approver_principal_id = link.map(|link| link.record.minter_principal_id.clone());
-        self.db.create_pending_effect_admitted(request)
+        self.db.create_pending_effect_admitted(&owner, request)
+    }
+
+    /// Convert one already-prepared invocation into untrusted lookup evidence;
+    /// the serving database re-resolves it and returns the opaque owner used by
+    /// every pending-effect transition.  No authority field from the request
+    /// reaches storage without this derivation.
+    ///
+    /// @ref LLP 0303#the-governing-principle — the effect owner is derived from
+    /// the prepared authority and canonical catalog, never supplied beside it.
+    fn pending_effect_owner(
+        &mut self,
+        authority: &PreparedAuthority,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::storage::pending_effects::PendingEffectOwner> {
+        use crate::storage::pending_effects::PendingEffectOwnerEvidence;
+
+        let evidence = match authority.resolved() {
+            ResolvedAppAuthority::Anonymous => PendingEffectOwnerEvidence::Anonymous,
+            ResolvedAppAuthority::Session(subject) => PendingEffectOwnerEvidence::Session {
+                bearer: crate::auth::crypto::SessionBearer::parse_any_version(
+                    authority
+                        .pending_effect_session_bearer()
+                        .ok_or_else(|| {
+                            SnapbackError::error(
+                                "SNAPBACK_EFFECT_AUTHORITY_INVALID",
+                                "effects",
+                                "session effect ownership requires its presented bearer",
+                            )
+                        })?
+                        .expose_secret(),
+                )
+                .map_err(|_| {
+                    SnapbackError::error(
+                        "SNAPBACK_EFFECT_AUTHORITY_INVALID",
+                        "effects",
+                        "session effect bearer is malformed",
+                    )
+                })?,
+                authorization_stream_incarnation: authority
+                    .authorization_stream_incarnation()
+                    .ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_EFFECT_AUTHORITY_INVALID",
+                            "effects",
+                            "session effect authority has no authorization-stream binding",
+                        )
+                    })?
+                    .to_owned(),
+            },
+            ResolvedAppAuthority::ServicePrincipal(_) => {
+                let token = authority.pending_effect_scoped_token().ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_EFFECT_AUTHORITY_INVALID",
+                        "effects",
+                        "service effect ownership requires its presented scoped token",
+                    )
+                })?;
+                PendingEffectOwnerEvidence::ServicePrincipal(
+                    crate::auth::crypto::ScopedToken::parse(token.expose_secret()).map_err(
+                        |_| {
+                            SnapbackError::error(
+                                "SNAPBACK_EFFECT_AUTHORITY_INVALID",
+                                "effects",
+                                "service effect token is malformed",
+                            )
+                        },
+                    )?,
+                )
+            }
+            _ => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_EFFECT_AUTHORITY_INVALID",
+                    "effects",
+                    "this authority class cannot own an external approval effect",
+                ));
+            }
+        };
+        self.db.resolve_pending_effect_owner(evidence, now_ms)
     }
 
     fn validate_operator_authority(

@@ -906,6 +906,7 @@ pub struct ResolvedServiceAuthority {
     database_binding: crate::storage::DatabaseBinding,
     resolved: ResolvedAppAuthority,
     publication: ServiceAuthorityPublication,
+    scoped_token: Option<std::sync::Arc<crate::auth::crypto::ScopedToken>>,
 }
 
 impl ResolvedServiceAuthority {
@@ -918,7 +919,18 @@ impl ResolvedServiceAuthority {
             database_binding,
             resolved: ResolvedAppAuthority::from_scoped_token(resolved, admission_origin),
             publication,
+            scoped_token: None,
         }
+    }
+
+    pub fn from_registered_with_token(
+        registered: crate::auth::service_fence::RegisteredServiceAuthority,
+        admission_origin: crate::auth::admission::AdmissionLeaseOrigin,
+        token: std::sync::Arc<crate::auth::crypto::ScopedToken>,
+    ) -> Self {
+        let mut authority = Self::from_registered(registered, admission_origin);
+        authority.scoped_token = Some(token);
+        authority
     }
 
     pub fn resolved(&self) -> &ResolvedAppAuthority {
@@ -957,6 +969,10 @@ impl ResolvedServiceAuthority {
             None,
         )?
         .with_service_publication(self.publication);
+        let authority = match self.scoped_token {
+            Some(token) => authority.with_pending_effect_scoped_token(token),
+            None => authority,
+        };
         Ok(match stream_publication {
             Some(publication) => authority.with_fenced_publication(publication),
             None => authority,
@@ -1530,6 +1546,8 @@ pub struct PreparedAuthority {
     asset_callbacks_service: Option<AssetCallbacksServicePrincipal>,
     rehearsal_provenance: Option<crate::auth::rehearsal::AuthRehearsalProvenanceV1>,
     rehearsal_fence: Option<crate::auth::rehearsal::RehearsalAuthorityFence>,
+    pending_effect_session_bearer: Option<std::sync::Arc<crate::auth::crypto::SessionBearer>>,
+    pending_effect_scoped_token: Option<std::sync::Arc<crate::auth::crypto::ScopedToken>>,
 }
 
 /// Opaque authority root for pending-effect approver attribution. The retained
@@ -2182,6 +2200,32 @@ impl PreparedAuthority {
 
     pub fn resolved(&self) -> &ResolvedAppAuthority {
         &self.resolved
+    }
+
+    #[doc(hidden)]
+    pub fn pending_effect_session_bearer(&self) -> Option<&crate::auth::crypto::SessionBearer> {
+        self.pending_effect_session_bearer.as_deref()
+    }
+
+    #[doc(hidden)]
+    pub fn pending_effect_scoped_token(&self) -> Option<&crate::auth::crypto::ScopedToken> {
+        self.pending_effect_scoped_token.as_deref()
+    }
+
+    pub(crate) fn with_pending_effect_session_bearer(
+        mut self,
+        bearer: std::sync::Arc<crate::auth::crypto::SessionBearer>,
+    ) -> Self {
+        self.pending_effect_session_bearer = Some(bearer);
+        self
+    }
+
+    fn with_pending_effect_scoped_token(
+        mut self,
+        token: std::sync::Arc<crate::auth::crypto::ScopedToken>,
+    ) -> Self {
+        self.pending_effect_scoped_token = Some(token);
+        self
     }
 
     pub fn rehearsal_provenance(
@@ -3487,6 +3531,8 @@ impl InvocationGate {
             asset_callbacks_service: None,
             rehearsal_provenance,
             rehearsal_fence: None,
+            pending_effect_session_bearer: None,
+            pending_effect_scoped_token: None,
         })
     }
 
