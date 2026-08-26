@@ -10,9 +10,15 @@ use snapback::admin::{AppState, ServerContext};
 use snapback::admin_secret_read::{
     SECRET_READ_LEASE_HEADER, SecretReadLeaseRequest, SecretReadScope,
 };
+use snapback::auth::mode::{
+    AuthProgramReadiness, FUNCTION_V1_PREFIX, INPUTS_V1_PREFIX, SCHEMA_V1_PREFIX,
+};
 use snapback::contract_types::ServerProfile;
 use snapback::instance_fork::{EgressFamily, inspect_boot};
-use snapback::local::{DiagnosticBoundary, LocalSnapback};
+use snapback::local::{DiagnosticBoundary, EnsureAppMode, LocalSnapback};
+use snapback::manifest::{
+    AuthManifest, AuthMode, FunctionManifest, SchemaManifest, TargetCapabilityId,
+};
 use snapback::push::{
     PushAppScopeV1, PushAudienceAuthorizeV1, PushAudienceDeclarationV1, PushAudienceResolverV1,
     PushLedgerDeclarationV1, PushRegistryDeclarationV1, PushSeamDeclarationV1,
@@ -261,8 +267,6 @@ async fn direct_telemetry_export_route_refuses_before_export_read() {
 #[tokio::test]
 async fn push_receipt_maintenance_refuses_on_a_ledger_bearing_fork_before_provider_io() {
     let directory = tempfile::tempdir().unwrap();
-    let (_source, database) = published_fork(directory.path());
-    let mut snapback = LocalSnapback::open(&database).unwrap();
     let declaration = PushSeamDeclarationV1 {
         app_scope: PushAppScopeV1 {
             eas_project_id: "eas-fork".into(),
@@ -287,11 +291,65 @@ async fn push_receipt_maintenance_refuses_on_a_ledger_bearing_fork_before_provid
             retention_ms: 2_592_000_000,
         }),
     };
-    snapback_engine::test_support::activate_auth_and_push_registry_for_test(
-        &mut snapback,
-        declaration,
+    let source = source_database(directory.path());
+    let mut parent = LocalSnapback::open(&source).unwrap();
+    let schema = SchemaManifest {
+        schema_version: "snapback.v1".to_owned(),
+        app_id: "fork-push-maintenance".to_owned(),
+        schema_hash: Some(format!("{SCHEMA_V1_PREFIX}{}", "1".repeat(64))),
+        inputs_hash: Some(format!("{INPUTS_V1_PREFIX}{}", "3".repeat(64))),
+        auth: Some(AuthManifest {
+            mode: AuthMode::Sessions,
+            agents: None,
+            password_identifier_mode: None,
+            password_minimum_length: None,
+        }),
+        required_capabilities: vec![
+            TargetCapabilityId::AuthSessionsV1.to_string(),
+            TargetCapabilityId::ExpoPushSeamV1.to_string(),
+        ],
+        push_seam: Some(declaration),
+        ..SchemaManifest::default()
+    };
+    let functions = FunctionManifest {
+        schema_version: "snapback.v1".to_owned(),
+        app_id: "fork-push-maintenance".to_owned(),
+        bundle_hash: Some(format!("{FUNCTION_V1_PREFIX}{}", "2".repeat(64))),
+        inputs_hash: Some(format!("{INPUTS_V1_PREFIX}{}", "3".repeat(64))),
+        ..FunctionManifest::default()
+    };
+    let prepared = parent
+        .prepare_auth_provision(
+            EnsureAppMode::Sessions,
+            Some(schema),
+            Some(functions.clone()),
+            None,
+        )
+        .expect("preflight the parent's declared push ledger");
+    let pending = parent
+        .commit_auth_provision_classified(prepared, "test", None)
+        .expect("stage the parent's declared push ledger");
+    assert_eq!(pending.state().active, AuthMode::Dev);
+    let settled = parent
+        .consume_sessions_auth_mode_with_functions(
+            &AuthProgramReadiness::new(true, true, true, true, true, true, true),
+            &functions,
+        )
+        .expect("activate the parent's declared push ledger");
+    assert_eq!(settled.active, AuthMode::Sessions);
+    drop(parent);
+    let destination = directory.path().join("fork");
+    publish(
+        &source,
+        &destination,
+        "fork-push-maintenance",
+        "parent-a",
+        42,
+        None,
     )
-    .unwrap();
+    .expect("publish ledger-bearing derived fork");
+    let database = destination.join("app.sqlite3");
+    let snapback = LocalSnapback::open(&database).unwrap();
     let state = AppState::try_from_snapback(snapback, ServerContext::detached()).unwrap();
     let error = snapback_server::test_support::drive_push_maintenance_once_for_test(
         &state,

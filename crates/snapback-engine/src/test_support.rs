@@ -537,17 +537,6 @@ pub fn auth_fixture(snapback: &mut LocalSnapback) -> AuthFixture<'_> {
     AuthFixture { snapback }
 }
 
-/// Activate exactly the auth catalog and declared push registry needed by a
-/// push-serving fixture. The target database never leaves the engine crate.
-pub fn activate_auth_and_push_registry_for_test(
-    snapback: &mut LocalSnapback,
-    declaration: crate::push::PushSeamDeclarationV1,
-) -> SnapbackResult<()> {
-    let database = snapback.auth_database_mut();
-    database.activate_current_auth_catalog()?;
-    database.activate_push_registry_for_test(declaration)
-}
-
 pub fn initialize_commit_capsule_prototype(snapback: &mut LocalSnapback) -> SnapbackResult<()> {
     snapback_kernel::storage::commit_capsule_prototype::initialize(snapback.auth_database_mut())
 }
