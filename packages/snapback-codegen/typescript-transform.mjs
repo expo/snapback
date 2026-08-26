@@ -82,7 +82,7 @@ export function inspectTypeScriptHandlerSource(source, sourcePath) {
   );
   const diagnostics = [];
   const seen = new Set();
-  const addDiagnostic = (code, message, node, extra = {}) => {
+  const add = (code, message, node, extra = {}) => {
     const location = point(sourceFile, node);
     const key = `${code}\0${location.offset}`;
     if (seen.has(key)) return;
@@ -91,19 +91,19 @@ export function inspectTypeScriptHandlerSource(source, sourcePath) {
   };
 
   if (/\.d\.(?:ts|mts|cts)$/u.test(lowerPath)) {
-    addDiagnostic(RULES.declarationFile, 'TypeScript declaration files cannot be executable handlers', sourceFile);
+    add(RULES.declarationFile, 'TypeScript declaration files cannot be executable handlers', sourceFile);
   } else if (extension === '.tsx') {
-    addDiagnostic(RULES.tsx, 'JSX/TSX is outside bounded-handler-typescript-v1', sourceFile);
+    add(RULES.tsx, 'JSX/TSX is outside bounded-handler-typescript-v1', sourceFile);
   } else if (extension === '.cts') {
-    addDiagnostic(RULES.commonJs, 'CommonJS .cts handlers are outside bounded-handler-typescript-v1', sourceFile);
+    add(RULES.commonJs, 'CommonJS .cts handlers are outside bounded-handler-typescript-v1', sourceFile);
   } else if (!ADMITTED_SOURCE_EXTENSIONS.has(extension)) {
-    addDiagnostic(RULES.unsupportedExtension, `handler source ${sourcePath} must end in .ts or .mts`, sourceFile);
+    add(RULES.unsupportedExtension, `handler source ${sourcePath} must end in .ts or .mts`, sourceFile);
   }
 
   for (const parseDiagnostic of sourceFile.parseDiagnostics ?? []) {
     const start = Number.isInteger(parseDiagnostic.start) ? parseDiagnostic.start : 0;
     const node = { getStart: () => start };
-    addDiagnostic(
+    add(
       RULES.transformFailed,
       `handler source is not valid TypeScript: ${ts.flattenDiagnosticMessageText(parseDiagnostic.messageText, '\n')}`,
       node,
@@ -116,22 +116,22 @@ export function inspectTypeScriptHandlerSource(source, sourcePath) {
       const isConst = ts.canHaveModifiers(node)
         && ts.getModifiers(node)?.some((modifier) => modifier.kind === ts.SyntaxKind.ConstKeyword);
       if (isConst) {
-        addDiagnostic(RULES.constEnum, 'const enum emits runtime JavaScript and is outside the syntax-erasure profile', node);
+        add(RULES.constEnum, 'const enum emits runtime JavaScript and is outside the syntax-erasure profile', node);
       } else {
-        addDiagnostic(RULES.enum, 'enum emits runtime JavaScript and is outside the syntax-erasure profile', node);
+        add(RULES.enum, 'enum emits runtime JavaScript and is outside the syntax-erasure profile', node);
       }
     } else if (ts.isModuleDeclaration(node)) {
-      addDiagnostic(RULES.namespace, 'TypeScript namespaces/modules emit runtime JavaScript and are outside the syntax-erasure profile', node);
+      add(RULES.namespace, 'TypeScript namespaces/modules emit runtime JavaScript and are outside the syntax-erasure profile', node);
     } else if (ts.isImportEqualsDeclaration(node) || ts.isExportAssignment(node) && node.isExportEquals) {
-      addDiagnostic(RULES.commonJs, 'TypeScript CommonJS import/export syntax is outside the ESM handler profile', node);
+      add(RULES.commonJs, 'TypeScript CommonJS import/export syntax is outside the ESM handler profile', node);
     } else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
-      addDiagnostic(RULES.dynamicImport, 'dynamic import() is outside the closed handler graph', node.expression);
+      add(RULES.dynamicImport, 'dynamic import() is outside the closed handler graph', node.expression);
     } else if (
       ts.isCallExpression(node)
       && ts.isIdentifier(node.expression)
       && node.expression.text === 'require'
     ) {
-      addDiagnostic(RULES.commonJs, 'CommonJS require() is outside the ESM handler profile', node.expression);
+      add(RULES.commonJs, 'CommonJS require() is outside the ESM handler profile', node.expression);
     } else if (
       ts.isBinaryExpression(node)
       && node.operatorToken.kind === ts.SyntaxKind.EqualsToken
@@ -140,28 +140,28 @@ export function inspectTypeScriptHandlerSource(source, sourcePath) {
       && node.left.expression.text === 'module'
       && node.left.name.text === 'exports'
     ) {
-      addDiagnostic(RULES.commonJs, 'CommonJS module.exports is outside the ESM handler profile', node.left);
+      add(RULES.commonJs, 'CommonJS module.exports is outside the ESM handler profile', node.left);
     }
 
     const propertyModifier = parameterPropertyModifier(node);
     if (propertyModifier) {
-      addDiagnostic(
+      add(
         RULES.parameterProperty,
         'constructor parameter properties emit class-field assignments and are outside the syntax-erasure profile',
         propertyModifier,
       );
     }
     if (hasDecorators(node)) {
-      addDiagnostic(RULES.decorator, 'decorators and decorator metadata are outside the syntax-erasure profile', ts.getDecorators(node)[0]);
+      add(RULES.decorator, 'decorators and decorator metadata are outside the syntax-erasure profile', ts.getDecorators(node)[0]);
     }
     if (ts.isVariableDeclarationList(node) && (node.flags & ts.NodeFlags.Using) !== 0) {
-      addDiagnostic(RULES.nonErasableSyntax, 'using/await using requires TypeScript emit helpers and is outside the syntax-erasure profile', node);
+      add(RULES.nonErasableSyntax, 'using/await using requires TypeScript emit helpers and is outside the syntax-erasure profile', node);
     }
 
     const specifierNode = moduleSpecifier(node);
     if (specifierNode) {
       const refusal = moduleSpecifierRule(specifierNode.text);
-      if (refusal) addDiagnostic(refusal.code, refusal.message, specifierNode, { specifier: specifierNode.text });
+      if (refusal) add(refusal.code, refusal.message, specifierNode, { specifier: specifierNode.text });
     }
     ts.forEachChild(node, visit);
   }

@@ -184,7 +184,7 @@ test('diagnostic removal reasons agree with classifier emitter regions', () => {
   ]);
   assert.deepEqual(removal(testCode, 'test-only'), []);
   assert.deepEqual(removal(referenceCode, 'test-only'), [
-    `${referenceCode}: test-only removal has no classified test-region emitter`,
+    `${referenceCode}: test-only removal has a classified production emitter at fixture.rs:1`,
   ]);
 
   const repoRoot = resolve(import.meta.dirname, '..');
@@ -221,6 +221,71 @@ test('diagnostic removal reasons agree with classifier emitter regions', () => {
     ),
     [],
   );
+});
+
+test('registry removal check rejects production emitters mislabeled in the ledger', () => {
+  const repoRoot = mkdtempSync(resolve(tmpdir(), 'snapback-diagnostics-removal-evidence-'));
+  const registryPath = 'guide/reference/diagnostics-registry.json';
+  const allowlistPath = 'scripts/diagnostics-registry-code-removals.json';
+  const registryFile = resolve(repoRoot, registryPath);
+  const allowlistFile = resolve(repoRoot, allowlistPath);
+  const referenceCode = 'SNAPBACK_FIXTURE_REAL_REFERENCE_EMITTER';
+  const testOnlyCode = 'SNAPBACK_FIXTURE_REAL_TEST_ONLY_EMITTER';
+  const git = (...args) => execFileSync('git', args, {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim();
+  try {
+    git('init', '-b', 'main');
+    git('config', 'user.name', 'Diagnostics Registry Test');
+    git('config', 'user.email', 'diagnostics-registry@example.invalid');
+    mkdirSync(resolve(repoRoot, 'guide/reference'), { recursive: true });
+    mkdirSync(resolve(repoRoot, 'scripts'), { recursive: true });
+    writeFileSync(registryFile, `${JSON.stringify({ diagnostics: {
+      [referenceCode]: {},
+      [testOnlyCode]: {},
+    } })}\n`);
+    writeFileSync(allowlistFile, `${JSON.stringify({
+      schemaVersion: 'snapback-diagnostics-code-removals.v1',
+      removals: {},
+    })}\n`);
+    git('add', '.');
+    git('commit', '-m', 'baseline registry');
+
+    writeFileSync(registryFile, `${JSON.stringify({ diagnostics: {} })}\n`);
+    writeFileSync(allowlistFile, `${JSON.stringify({
+      schemaVersion: 'snapback-diagnostics-code-removals.v1',
+      removals: {
+        [referenceCode]: {
+          reason: 'reference-only',
+          detail: 'The fixture deliberately mislabels a real production emitter.',
+        },
+        [testOnlyCode]: {
+          reason: 'test-only',
+          detail: 'The fixture deliberately mislabels a real production emitter.',
+        },
+      },
+    })}\n`);
+    const source = [
+      `throw new Error('${referenceCode}');`,
+      `throw new Error('${testOnlyCode}');`,
+    ].join('\n');
+
+    assert.deepEqual(
+      registryRemovalProblems(repoRoot, registryPath, allowlistPath, [{
+        path: 'production.mjs',
+        source,
+        options: { javascript: true },
+      }]),
+      [
+        `${referenceCode}: reference-only removal has a classified emitter at production.mjs:1`,
+        `${testOnlyCode}: test-only removal has a classified production emitter at production.mjs:2`,
+      ],
+    );
+  } finally {
+    rmSync(repoRoot, { recursive: true, force: true });
+  }
 });
 
 test('generated registry never silently loses a previously committed diagnostic code', () => {
@@ -1172,6 +1237,40 @@ test('imported diagnostic rule tables classify declarations and follow consuming
       'SNAPBACK_FIXTURE_IMPORTED_RULE_ITERATED',
       'SNAPBACK_FIXTURE_IMPORTED_RULE_DYNAMIC',
     ]),
+  );
+});
+
+test('identifier flow follows real diagnostic constructors and forwarding helpers', () => {
+  const fixture = [
+    'const NEXT_BY_STAGE = Object.freeze({',
+    "  verify: Object.freeze({ code: 'SNAPBACK_FIXTURE_CONTRACT_DIAGNOSTIC' }),",
+    '});',
+    'const RULES = Object.freeze({',
+    "  direct: 'SNAPBACK_FIXTURE_FORWARDED_DIAGNOSTIC',",
+    '});',
+    'const diagnostics = [];',
+    'const add = (code, message) => {',
+    '  diagnostics.push(diagnostic({ code, message }));',
+    '};',
+    'function emit(id) {',
+    '  contractDiagnostic(NEXT_BY_STAGE[id]);',
+    "  add(RULES.direct, 'fixture');",
+    '}',
+  ].join('\n');
+
+  assert.deepEqual(
+    diagnosticSourceSites(fixture, { javascript: true })
+      .map(({ match, kind }) => ({
+        code: match[0],
+        line: fixture.slice(0, match.index).split('\n').length,
+        kind,
+      })),
+    [
+      { code: 'SNAPBACK_FIXTURE_CONTRACT_DIAGNOSTIC', line: 2, kind: 'declaration' },
+      { code: 'SNAPBACK_FIXTURE_FORWARDED_DIAGNOSTIC', line: 5, kind: 'declaration' },
+      { code: 'SNAPBACK_FIXTURE_CONTRACT_DIAGNOSTIC', line: 12, kind: 'emission' },
+      { code: 'SNAPBACK_FIXTURE_FORWARDED_DIAGNOSTIC', line: 13, kind: 'emission' },
+    ],
   );
 });
 

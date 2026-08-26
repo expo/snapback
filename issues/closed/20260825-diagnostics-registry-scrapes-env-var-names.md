@@ -748,3 +748,115 @@ diagnostic code-set diff against a6862ac2b
 The inventory/Guide runs emitted six warning-only GAP review notices; the
 remaining Guide warnings were pre-existing authority-freshness notices. No
 requested round-33 verification remains unverified.
+
+### Round-35 real identifier flow and removal-evidence enforcement
+
+Round 35 removes the product shapes that existed only to satisfy classifier
+helper-name spelling. `verifyNextDiagnostic` and its identity call are gone;
+the verify receipt again maps directly from `NEXT_BY_STAGE[id]`. The codegen
+collector is again named `add`, while its `{ code, message }` refusal record is
+retained as the clearer product shape. Identifier flow now recognizes the real
+`contractDiagnostic(...)` / `diagnostic(...)` constructors, discovers local
+helpers only when their first parameter flows into one of those constructors,
+and follows a code-bearing table entry returned from an array projection. The
+two synthetic emission comments made redundant by that flow were removed.
+
+The two focused fixtures failed first with these summaries:
+
+```text
+✖ registry removal check rejects production emitters mislabeled in the ledger
+actual: []
+expected: reference-only and test-only classified-production-emitter problems
+
+✖ identifier flow follows real diagnostic constructors and forwarding helpers
+actual: 2 declaration sites
+expected: 2 declaration sites + 2 real emission sites
+
+tests 2
+pass 0
+fail 2
+```
+
+`registryRemovalProblems`, the path used by generator `--check`, now runs the
+classifier over each relevant production source with all regions visible and
+with Rust test regions masked, builds production/test emitter evidence, and
+passes that map into `codeRemovalProblems`. A production emitter therefore
+cannot be justified as either `reference-only` or `test-only`. The evidence
+scan is bounded to production files containing one of the 244 ledger spellings.
+
+The removal ledger contains **244** entries in the final tree: **140
+environment**, **29 prefix**, **48 reference-only**, and **27 test-only**. The
+diagnostic code set is byte-for-byte unchanged from `d42511a43`; both sorted
+sets hash to
+`6afe6f9d2324be4b600f706b4eab16d10b4753c45c6d0d8ab93639de0231d210`.
+Only site evidence expands: eight real constructor/helper-forwarding sites are
+new after the two redundant synthetic sites leave the projection.
+
+| Count | `d42511a43` | Round-35 final | Delta |
+| --- | ---: | ---: | ---: |
+| Diagnostics classifier tests | 45 | 47 | +2 |
+| Codes | 3,543 | 3,543 | 0 |
+| Source files | 628 | 628 | 0 |
+| Emitting sites | 9,413 | 9,421 | +8 |
+| Received sites | 378 | 378 | 0 |
+| Reserved sites | 11 | 11 | 0 |
+| HTTP-classified | 1,704 | 1,704 | 0 |
+| Guide-anchored | 431 | 431 | 0 |
+| Environment variables | 188 | 188 | 0 |
+| Environment sites | 366 | 366 | 0 |
+| `verify.mjs` emissions | 52 | 52 | 0 |
+| `verify.mjs` declarations | 5 | 5 | 0 |
+| `typescript-transform.mjs` emissions | 25 | 25 | 0 |
+| Public reference symbols | 1,454 | 1,454 | 0 |
+
+The lane's diagnostics, symbol, manifest, and flat Guide projections were
+regenerated in dependency order. Final-tree verification produced these
+verbatim summaries:
+
+```text
+node --test scripts/generate-diagnostics-registry.test.mjs
+simulated HEAD == origin/main — 0 removal problems
+tests 47
+pass 47
+fail 0
+
+node scripts/generate-diagnostics-registry.mjs --check
+[diagnostics-registry] ok — 3543 codes, 9421 emitting sites, 378 received sites, 11 reserved sites, 188 environment variables, 366 environment sites, 1704 HTTP-classified
+
+node scripts/generate-symbol-registry.mjs --check
+[symbol-registry] ok — 56 modules, 1454 symbols, runtime parity exact
+
+node packages/snapback-cli/reference-lookup.test.mjs
+reference-lookup.test.mjs: exact diagnostic/environment/dual-role/member, bounded symbol/module, identity, and fallback pass
+
+node packages/snapback-cli/verify.test.mjs
+verify.test.mjs: 50 D2 cases passed
+
+node --test packages/snapback-codegen/typescript-*.test.mjs
+typescript-profile.test.mjs: 58 assertions passed
+tests 1
+pass 1
+fail 0
+
+node scripts/check-inventories.mjs
+[check-inventories] PASS: 357 package tests; 32 scripts tests; 31 demos/31 catalog entries; 487 publication leaves; 157 guide pages/1871 snippets
+
+node scripts/check-first-read.mjs
+[first-read] ok — 5 profiles checked
+
+node scripts/check-guide.mjs
+[guide-check] ok — 22 passed, 0 failed, 0 skipped, 0 preconditions; 157 pages, 1871 snippets, 174 routes + 51 host-ops joined, 100 warnings
+
+./ref-check --verbose
+ref-check: ok — 311 LLP docs, 7873 refs in 16057 files, 0 errors, 0 unchecked
+
+git diff --check
+(no output; exit 0)
+
+diagnostic code-set diff against d42511a43
+(no output; empty)
+```
+
+The inventory/Guide runs emitted six warning-only GAP review notices; the
+remaining 94 Guide warnings were pre-existing authority-freshness notices. No
+requested round-35 verification remains unverified.

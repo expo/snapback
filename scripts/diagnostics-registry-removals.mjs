@@ -3,6 +3,8 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
+import { diagnosticSourceSites } from './diagnostics-registry-source.mjs';
+
 // @ref LLP 0193#program — diagnostic removals remain explicit, classified,
 // and reviewable instead of disappearing behind regenerated projections.
 
@@ -53,6 +55,43 @@ function committedJson(repoRoot, revision, path, fallback = undefined) {
     if (fallback !== undefined && error.status === 128) return fallback;
     throw error;
   }
+}
+
+function sourceLine(source, offset) {
+  return source.slice(0, offset).split('\n').length;
+}
+
+export function diagnosticEmitterEvidence(classifierSources) {
+  const evidence = new Map();
+  const add = (code, region, location) => {
+    const record = evidence.get(code) ?? { production: [], test: [] };
+    if (!record[region].includes(location)) record[region].push(location);
+    evidence.set(code, record);
+  };
+  for (const { path, source, options = {} } of classifierSources) {
+    // Run the same source once with every region visible and once with Rust
+    // test regions masked. Only the masked result can disprove a removal
+    // ledger's claim that a spelling is reference-only or test-only.
+    const allSites = diagnosticSourceSites(source, {
+      ...options,
+      excludeRustTestRegions: false,
+    }).filter(({ kind }) => kind === 'emission');
+    const productionSites = diagnosticSourceSites(source, {
+      ...options,
+      excludeRustTestRegions: path.endsWith('.rs'),
+    }).filter(({ kind }) => kind === 'emission');
+    const productionKeys = new Set(productionSites.map(({ match }) => (
+      `${match[0]}\0${match.index}`
+    )));
+    for (const { match } of productionSites) {
+      add(match[0], 'production', `${path}:${sourceLine(source, match.index)}`);
+    }
+    for (const { match } of allSites) {
+      if (productionKeys.has(`${match[0]}\0${match.index}`)) continue;
+      add(match[0], 'test', `${path}:${sourceLine(source, match.index)}`);
+    }
+  }
+  return evidence;
 }
 
 export function codeRemovalProblems(
@@ -113,17 +152,16 @@ export function codeRemovalProblems(
       const evidence = emitterEvidence.get(code) ?? { production: [], test: [] };
       if (
         justification.reason === 'reference-only'
-        && (evidence.production.length > 0 || evidence.test.length > 0)
+        && evidence.production.length > 0
       ) {
         problems.push(
-          `${code}: reference-only removal has a classified emitter at ${[
-            ...evidence.production,
-            ...evidence.test,
-          ][0]}`,
+          `${code}: reference-only removal has a classified emitter at ${evidence.production[0]}`,
         );
       }
-      if (justification.reason === 'test-only' && evidence.test.length === 0) {
-        problems.push(`${code}: test-only removal has no classified test-region emitter`);
+      if (justification.reason === 'test-only' && evidence.production.length > 0) {
+        problems.push(
+          `${code}: test-only removal has a classified production emitter at ${evidence.production[0]}`,
+        );
       }
     }
   }
@@ -150,7 +188,12 @@ export function codeRemovalProblems(
   return problems;
 }
 
-export function registryRemovalProblems(repoRoot, registryPath, allowlistPath) {
+export function registryRemovalProblems(
+  repoRoot,
+  registryPath,
+  allowlistPath,
+  classifierSources = null,
+) {
   const allowlist = JSON.parse(readFileSync(resolve(repoRoot, allowlistPath), 'utf8'));
   const { baseline } = stableRegistryHistory(repoRoot, registryPath);
   const baselineRegistry = committedJson(
@@ -172,5 +215,6 @@ export function registryRemovalProblems(repoRoot, registryPath, allowlistPath) {
     new Set(Object.keys(currentRegistry.diagnostics)),
     allowlist,
     previousAllowlist,
+    classifierSources === null ? null : diagnosticEmitterEvidence(classifierSources),
   );
 }

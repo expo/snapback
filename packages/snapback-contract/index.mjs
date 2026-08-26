@@ -302,7 +302,6 @@ const CONTRACT_LIFECYCLE_GENERATION_EXHAUSTED =
   'SNAPBACK_CONTRACT_LIFECYCLE_GENERATION_EXHAUSTED';
 
 function contractLifecycleGenerationError(axis) {
-  // diagnostics-registry: emission SNAPBACK_CONTRACT_LIFECYCLE_GENERATION_EXHAUSTED
   const diagnostic = contractDiagnostic(
     CONTRACT_LIFECYCLE_GENERATION_EXHAUSTED,
     'Contract lifecycle generation space is exhausted; the affected surface is terminally closed.',

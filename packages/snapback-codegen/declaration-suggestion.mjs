@@ -2101,7 +2101,6 @@ export function applyDeclarationSuggestion(input, { testHooks = undefined } = {}
     || stableJson(suggestion.compiler) !== stableJson(suggestionCompilerIdentity)
     || stableJson(suggestion.analyzer) !== stableJson(analyzerIdentity)
   ) {
-    // diagnostics-registry: emission SNAPBACK_DECLARATION_SUGGESTION_STALE
     return applyFailure(
       STALE_SUGGESTION_CODE,
       'suggestion compiler/analyzer identity or patch target does not match this tool',

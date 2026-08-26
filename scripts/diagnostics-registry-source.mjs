@@ -1309,7 +1309,7 @@ function isExplicitDiagnosticCodePosition(source, offset) {
     || /\b(?:code|diagnosticCode|diagnostic_code|errorCode|error_code)\s*:\s*["'`]$/u.test(before)
     || /\.code\s*=\s*["'`]$/u.test(before)
     || /\b(?:kitError|requestDiagnostic)\s*\(\s*\d{3}\s*,\s*["'`]$/u.test(before)
-    || /\b(?:bindingFailure|diagnosticError|codedError|verifyError|codegenError|conformanceDiagnostic|graph_serving_error|__snapbackFail|__snapbackFamiliarFail|snapbackError)\s*\(\s*["'`]$/u.test(before)
+    || /\b(?:contractDiagnostic|diagnostic|bindingFailure|diagnosticError|codedError|verifyError|codegenError|conformanceDiagnostic|graph_serving_error|__snapbackFail|__snapbackFamiliarFail|snapbackError)\s*\(\s*["'`]$/u.test(before)
     || /\b(?:SnapbackError|Diagnostic)::(?:error|warning|info|new)\s*\(\s*["'`]$/u.test(before)
   );
 }
@@ -1822,9 +1822,60 @@ function diagnosticTableIterationUses(source, base, accessPath) {
   return uses;
 }
 
+function javaScriptDiagnosticForwardingHelpers(source, literals) {
+  // Helper names are evidence only when their first parameter flows into a
+  // real diagnostic constructor. Product-local names such as `add` can then
+  // change without teaching this classifier another spelling.
+  const helpers = new Set();
+  const delimiterPairs = lexicalDelimiterPairs(source, literals);
+  const bracePairsByOpen = new Map(delimiterPairs
+    .filter(({ open }) => source[open] === '{')
+    .map((pair) => [pair.open, pair]));
+  const definitions = [
+    ...source.matchAll(/\bfunction\s+([A-Za-z_$][\w$]*)\s*\(([^)]*)\)\s*\{/gu),
+    ...source.matchAll(/\b(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?\(([^)]*)\)\s*=>\s*\{/gu),
+  ];
+  for (const definition of definitions) {
+    if (!codeOffset(definition.index, literals)) continue;
+    const firstParameter = definition[2].split(',', 1)[0].trim()
+      .match(/^([A-Za-z_$][\w$]*)\b/u)?.[1];
+    if (firstParameter === undefined) continue;
+    const open = definition.index + definition[0].lastIndexOf('{');
+    const pair = bracePairsByOpen.get(open);
+    if (pair === undefined) continue;
+    const body = source.slice(open + 1, pair.close);
+    const parameterUses = new RegExp(
+      `(?<![A-Za-z0-9_$])${escapeRegExp(firstParameter)}(?![A-Za-z0-9_$])`,
+      'gu',
+    );
+    const forwards = [...body.matchAll(parameterUses)].some((use) => {
+      const offset = open + 1 + use.index;
+      if (!codeOffset(offset, literals)) return false;
+      const before = source.slice(Math.max(open + 1, offset - 256), offset);
+      return (
+        /\b(?:contractDiagnostic|diagnostic)\s*\(\s*$/u.test(before)
+        || /\b(?:contractDiagnostic|diagnostic)\s*\(\s*\{\s*(?:code\s*:\s*)?$/u.test(before)
+      );
+    });
+    if (forwards) helpers.add(definition[1]);
+  }
+  return helpers;
+}
+
+function isMappedProjectionIdentifierPosition(source, offset) {
+  // A table entry returned from Array.map becomes output vocabulary even when
+  // no redundant identity helper wraps the arrow expression.
+  const before = source.slice(Math.max(0, offset - 768), offset);
+  const after = source.slice(offset, offset + 512);
+  return /\.map\s*\([\s\S]*?=>\s*\(?\s*$/u.test(before)
+    && /^\s*[A-Za-z_$][\w$]*(?:\s*\[[^\]]+\]|\s*\.\s*[A-Za-z_$][\w$]*)*\s*\)?\s*\)/u
+      .test(after);
+}
+
 function identifierFlowEmissionSites(source, analysis, externalDeclarations = []) {
   const sites = [];
   const seen = new Set();
+  const forwardingHelpers = javaScriptDiagnosticForwardingHelpers(source, analysis.literals);
   const declarations = [
     ...analysis.declarations.values(),
     ...externalDeclarations.map((declaration) => ({
@@ -1893,13 +1944,25 @@ function identifierFlowEmissionSites(source, analysis, externalDeclarations = []
       const before = source.slice(Math.max(declaration.scopeStart, useOffset - 512), useOffset);
       const after = source.slice(useOffset + use[0].length, useOffset + use[0].length + 32);
       const explicitDiagnosticPosition = formatInterpolatedBail
-        || isExplicitDiagnosticIdentifierPosition(source, useOffset, analysis.literals);
+        || isExplicitDiagnosticIdentifierPosition(
+          source,
+          useOffset,
+          analysis.literals,
+          forwardingHelpers,
+        );
+      const mappedProjection = usePattern.table
+        && isMappedProjectionIdentifierPosition(source, useOffset);
       const diagnosticProperty = /\b(?:code|[A-Za-z0-9_]*(?:diagnosticCode|errorCode|refusalCode|capabilityCode|diagnostic_code|error_code|refusal_code|capability_code))\s*(?::|=(?!=|>))\s*(?:Some\s*\(\s*)?$/su.test(before);
       const diagnosticShorthand = /(?:^|[{,])\s*$/su.test(before)
         && /^\s*[,}]/u.test(after)
         && !before.endsWith('${')
         && /^(?:code|.*Code|.*_CODE)$/u.test(declaration.identifier);
-      if (!explicitDiagnosticPosition && !diagnosticProperty && !diagnosticShorthand) {
+      if (
+        !explicitDiagnosticPosition
+        && !diagnosticProperty
+        && !diagnosticShorthand
+        && !mappedProjection
+      ) {
         continue;
       }
       const siteKey = `${declaration.code}\0${useOffset}`;
@@ -2050,7 +2113,12 @@ function isRustFormatInterpolatedBailIdentifierPosition(source, offset) {
   );
 }
 
-function isExplicitDiagnosticIdentifierPosition(source, offset, literals) {
+function isExplicitDiagnosticIdentifierPosition(
+  source,
+  offset,
+  literals,
+  forwardingHelpers = new Set(),
+) {
   const before = source.slice(Math.max(0, offset - 512), offset);
   const outsideRustMatches = !isRustMatchesReference(source, offset);
   const rustResultError = outsideRustMatches && (
@@ -2060,13 +2128,20 @@ function isExplicitDiagnosticIdentifierPosition(source, offset, literals) {
     || /\.ok_or_else\s*\(\s*(?:move\s+)?\|\s*\|\s*$/u.test(before)
     || /\.map_err\s*\(\s*(?:move\s+)?\|[^|\r\n]*\|\s*$/u.test(before)
   );
+  const forwardedCall = forwardingHelpers.size === 0
+    ? false
+    : new RegExp(
+      `\\b(?:${[...forwardingHelpers].map(escapeRegExp).join('|')})\\s*\\(\\s*(?:&\\s*)?$`,
+      'u',
+    ).test(before);
   return (
     isThrowExpressionIdentifierPosition(source, offset, literals)
     || rustResultError
     || /\bnew\s+(?:Snapback)?Error\s*\(\s*(?:&\s*)?$/u.test(before)
     || /\b(?:kitError|requestDiagnostic)\s*\(\s*\d{3}\s*,\s*(?:&\s*)?$/u.test(before)
     || /\b[A-Za-z_][A-Za-z0-9_]*_error\s*\(\s*(?:&\s*)?$/u.test(before)
-    || /\b(?:addDiagnostic|bindingFailure|diagnosticError|codedError|verifyError|codegenError|conformanceDiagnostic|fail|graph_serving_error|verifyNextDiagnostic|__snapbackFail|__snapbackFamiliarFail|snapbackError)\s*\(\s*(?:&\s*)?$/u.test(before)
+    || /\b(?:contractDiagnostic|diagnostic|bindingFailure|diagnosticError|codedError|verifyError|codegenError|conformanceDiagnostic|fail|graph_serving_error|__snapbackFail|__snapbackFamiliarFail|snapbackError)\s*\(\s*(?:&\s*)?$/u.test(before)
+    || forwardedCall
     || /\b(?:SnapbackError|Diagnostic)::(?:error|warning|info|new)\s*\(\s*(?:&\s*)?$/u.test(before)
     || /\b(?:e?println)!\s*\(\s*(?:&\s*)?$/su.test(before)
     || /\b(?:tracing|log)::[a-z_][a-z0-9_]*!\s*\(\s*(?:&\s*)?$/su.test(before)

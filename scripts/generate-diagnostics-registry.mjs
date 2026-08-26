@@ -345,13 +345,11 @@ function assertPathRelocationPreservesSubsystem(code, sites) {
 }
 
 function collectSites() {
-  const sources = new Map(productionPaths.map((path) => (
-    [
-      path,
-      path.endsWith('.rs')
-        ? rustProductionSource(readFileSync(join(root, path), 'utf8'))
-        : readFileSync(join(root, path), 'utf8'),
-    ]
+  const rawSources = new Map(productionPaths.map((path) => (
+    [path, readFileSync(join(root, path), 'utf8')]
+  )));
+  const sources = new Map([...rawSources].map(([path, source]) => (
+    [path, path.endsWith('.rs') ? rustProductionSource(source) : source]
   )));
   const declarationsByIdentifier = new Map();
   for (const [path, source] of sources) {
@@ -398,6 +396,7 @@ function collectSites() {
 
   const byCode = new Map();
   const byEnvironmentVariable = new Map();
+  const removalClassifierSources = [];
   for (const path of productionPaths) {
     const source = sources.get(path);
     const sourceOptions = {
@@ -420,6 +419,11 @@ function collectSites() {
       // catalogues remain reference-only.
       receivedProtocolVocabulary: true,
     };
+    removalClassifierSources.push({
+      path,
+      source: rawSources.get(path),
+      options: sourceOptions,
+    });
     for (const { match, kind, synthetic } of diagnosticSourceSites(source, sourceOptions)) {
       const code = match[0];
       const location = lineAndColumn(source, match.index);
@@ -440,7 +444,7 @@ function collectSites() {
       byEnvironmentVariable.set(name, sites);
     }
   }
-  return { byCode, byEnvironmentVariable };
+  return { byCode, byEnvironmentVariable, removalClassifierSources };
 }
 
 const HTTP_STATUS_NUMBERS = {
@@ -680,7 +684,7 @@ function renderTypes(codes) {
   ].join('\n');
 }
 
-const { byCode, byEnvironmentVariable } = collectSites();
+const { byCode, byEnvironmentVariable, removalClassifierSources } = collectSites();
 const statuses = parseHttpStatuses();
 const codes = [...byCode].filter(([, sites]) => (
   sites.some((site) => site.kind !== 'declaration')
@@ -767,11 +771,23 @@ for (const [path, expected] of rendered) {
   if (!check) writeFileSync(absolute, expected);
 }
 const removalProblems = check
-  ? registryRemovalProblems(
-    root,
-    outputs.registry,
-    'scripts/diagnostics-registry-code-removals.json',
-  )
+  ? (() => {
+    const allowlistPath = 'scripts/diagnostics-registry-code-removals.json';
+    const removalCodes = Object.keys(JSON.parse(
+      readFileSync(join(root, allowlistPath), 'utf8'),
+    ).removals);
+    // Classifying the ledger cannot reveal evidence in a file that contains
+    // none of its spellings. Keep --check bounded to relevant production
+    // sources while preserving their full-vs-test-masked comparison.
+    const evidenceSources = removalClassifierSources
+      .filter(({ source }) => removalCodes.some((code) => source.includes(code)));
+    return registryRemovalProblems(
+      root,
+      outputs.registry,
+      allowlistPath,
+      evidenceSources,
+    );
+  })()
   : [];
 if (check && (stale.length > 0 || removalProblems.length > 0)) {
   for (const path of stale) console.error(`[diagnostics-registry] stale: ${path}`);
