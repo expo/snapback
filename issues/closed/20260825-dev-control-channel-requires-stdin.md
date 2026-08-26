@@ -36,9 +36,13 @@ endpoint mode `0600`, registers its exact inode with the instance cleanup
 lease, and removes it on shutdown or owner death. A same-UID dead leftover is
 reclaimed under the directory lock only after a bounded `connect()` returns
 `ECONNREFUSED`, the inode remains unchanged, and a present valid owner record
-matches its inode/incarnation. Publication is ordered binding marker → direct
-`listen()` on the well-known endpoint → bound record with the exact inode →
-active cleanup lease, with no await between the completed bind and activation.
+matches its inode/incarnation. Publication is ordered binding marker → private
+cleanup lease → `listen()` on `.d<random>` → no-replace `link(2)` at the
+well-known endpoint → private-name removal → bound record with the exact public
+inode → active public cleanup lease. An occupied well-known name makes
+`link(2)` return `EEXIST`, which refuses as `SNAPBACK_DEV_CONTROL_FOREIGN_OWNER`.
+The private transient socket is recorded before `listen()` and reaped after a
+matching reservation-owner death if SIGKILL lands before its normal removal.
 An absent or unreadable/corrupt record and a present valid mismatch therefore
 refuse with `SNAPBACK_DEV_CONTROL_FOREIGN_OWNER`; recovery
 requires the operator to inspect and explicitly remove both artifacts or choose
@@ -59,7 +63,12 @@ prepublication `connect()` of the advertised path use that same fallback, so a
 state directory beyond the platform's Unix-socket path budget cannot abort the
 interactive supervisor or publish an unreachable descriptor. The short
 `.dc-sock` well-known basename stays within the `.dc-*` coordination budget;
-live or occupied endpoints remain fail-closed refusals.
+live or occupied endpoints remain fail-closed refusals. Explicit external
+ready-file directories validate their complete ancestor chain to a root-owned
+trust anchor: same-UID non-writable components and root-owned mode-`1777`
+sticky system directories are admitted, while a non-sticky group/other-writable
+parent refuses stdin-only. The leaf device/inode is rechecked immediately
+before private bind and before `link(2)` publication.
 
 The focused `expo-dev-loop.test.mjs --control-socket-only` regression includes
 a `--json` launch using the default control-socket posture, with stdin ignored
@@ -87,12 +96,17 @@ cleanup, and cleanup-lease reaping after owner death. The crash before
 `expo-supervisor.json` publication reclaims through the already-published bound
 marker. Further coverage includes a bounded-probe timeout, death while replacing
 stale `.dc-lock` through `.dc-reclaim`, death after the stale-generation claim
-but before `.dc-reclaim` replacement, and death after direct well-known bind
-and exact-inode lease activation. The pre-activation SIGKILL regression proves
+but before `.dc-reclaim` replacement, and death after private bind, `link(2)`
+publication, and exact public-inode lease activation. The pre-activation
+SIGKILL regression proves
 reserved cleanup preserves the well-known socket, removes only the binding
 marker, and makes a racing successor refuse until explicit recovery. The
 reserved reaper-versus-bind clone proves a live successor inode survives a
-stale reservation. Generation claims record PID/start-time owner identity; a
+stale reservation. A separate private-bind SIGKILL regression proves the
+pre-listen lease reaps `.d<random>` after reservation-owner death. External
+chain regressions refuse a mode-`0777` non-sticky parent without publishing an
+endpoint and admit an owner-only leaf beneath the system sticky temp directory.
+Generation claims record PID/start-time owner identity; a
 dead claimant is recoverable through a next-generation atomic-link election,
 two racing successors still admit exactly one winner, and the winner removes
 the claim chain once its live `.dc-lock` is published. The live suite

@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:2eb9a74f4f9291d681789ef3ae1097974dbeb6f7e337b9367adeeaedad8b3668
+reviewed-authorities-digest: sha256:1b470516db2ae2238ad9c4e43878078a4deabd30f700debd08f3b35af2ff112a
 ---
 
 # Discover agent controls
@@ -94,7 +94,14 @@ by name.
 
 The state directory must be a same-UID real directory with no group/other
 permission bits (normally mode `0700`); the default dev loop creates or repairs
-`.snapback/` to that posture. The descriptor is mode `0600`, and the socket is
+`.snapback/` to that posture. For an explicit ready file outside the project,
+every ancestor up to a root-owned trust anchor must also be a real directory
+and either same-UID with no group/other write or a root-owned mode-`1777` sticky
+system directory. A non-sticky group/other-writable parent refuses because
+another UID could replace the state-directory name; a `/tmp`-style sticky
+parent is admitted because only the leaf owner can rename that owner-only leaf.
+The admitted leaf's device/inode is rechecked immediately before private bind
+and again before publication. The descriptor is mode `0600`, and the socket is
 also requested and checked as `0600`, but Darwin may not enforce AF_UNIX inode
 mode bits. Directory search permission plus the owner-only descriptor is the
 cross-UID kernel gate. The UID repeated in command JSON is an advisory
@@ -146,15 +153,20 @@ same-UID; a bounded `connect()` probe returns `ECONNREFUSED` (timeout or any
 other result is “not proven dead”); and the inode remains unchanged throughout
 the check. The persisted `dev-control.owner.json` must be present, readable,
 valid, and bind that exact inode and a self-consistent owner incarnation. The
-owner binds the well-known endpoint directly while holding the state-directory
-lock, so publication cannot replace a socket created after the initial probe;
-`EADDRINUSE` refuses as `SNAPBACK_DEV_CONTROL_FOREIGN_OWNER`. A public endpoint
+owner cleanup-leases a random same-directory `.d<random>` name before binding
+it, calls `listen()` on that private name, and publishes the bound inode with
+`link(2)` while holding the state-directory lock. `link(2)` never replaces a
+socket created at the well-known name after the initial probe: `EEXIST` refuses
+as `SNAPBACK_DEV_CONTROL_FOREIGN_OWNER`. The private name is removed and its
+lease discharged after publication; if the owner is killed between private
+`listen()` and removal, the detached reaper matches the dead reservation-owner
+identity and removes that lease-unique socket artifact. A public endpoint
 with an absent or corrupt marker is not legitimate crash residue and refuses
 the same way, just like a valid record naming another inode or incarnation.
 Recovery is operator-explicit:
 inspect ownership and remove both artifacts, or relaunch with `--ready-file` in
-a different owner-only state directory. A bind-phase crash may leave the
-binding marker and well-known socket after the kernel bind but before the owner
+a different owner-only state directory. A post-link bind-phase crash may leave
+the binding marker and well-known socket after publication but before the owner
 can observe the inode, publish the bound record, and activate the exact-inode
 cleanup lease. The reserved pre-activation lease has no endpoint identity and
 deliberately preserves that ambiguous residue, so it requires the same explicit

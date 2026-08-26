@@ -9,6 +9,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   renameSync,
   rmSync,
   symlinkSync,
@@ -65,7 +66,14 @@ const options = {
     'stop-children': async () => ({ ok: true }),
   },
 };
-const injectedDependencies = process.env.SNAPBACK_TEST_CRASH_PREACTIVATION_SOCKET === '1'
+const injectedDependencies = process.env.SNAPBACK_TEST_CRASH_PRIVATE_SOCKET === '1'
+  ? {
+      afterPrivateEndpointListen(details) {
+        writeSync(1, JSON.stringify({ state: 'private-endpoint-listened-reserved', ...details }) + '\\n');
+        process.kill(process.pid, 'SIGKILL');
+      },
+    }
+  : process.env.SNAPBACK_TEST_CRASH_PREACTIVATION_SOCKET === '1'
   ? {
       afterEndpointListen(details) {
         writeSync(1, JSON.stringify({ state: 'endpoint-listened-reserved', ...details }) + '\\n');
@@ -83,6 +91,10 @@ const injectedDependencies = process.env.SNAPBACK_TEST_CRASH_PREACTIVATION_SOCKE
 const control = injectedDependencies === null
   ? await startDevControlSocket(options)
   : await __test.startDevControlSocketWithDependencies(options, injectedDependencies);
+if (process.env.SNAPBACK_TEST_CRASH_PRIVATE_SOCKET === '1') {
+  writeSync(1, JSON.stringify({ state: 'private-endpoint-hook-missed' }) + '\\n');
+  process.kill(process.pid, 'SIGKILL');
+}
 process.stdout.write(JSON.stringify({ startedAt, descriptor: control.descriptor }) + '\\n');
 setInterval(() => {}, 60_000);
 `);
@@ -320,6 +332,38 @@ async function startPreActivationCrash(root, ownerIncarnationId, cleanupLease) {
   await eventually(
     () => child.signalCode === 'SIGKILL',
     { label: 'pre-activation holder SIGKILL' },
+  );
+  holders.delete(child);
+  return { child, barrier };
+}
+
+async function startPrivateBindCrash(root, ownerIncarnationId, cleanupLease) {
+  const child = spawn(process.execPath, [holderScript, join(root, 'dev.ready.json'), ownerIncarnationId], {
+    env: {
+      ...process.env,
+      [CLEANUP_LEASE_DIRECTORY_ENV]: cleanupLease.directory,
+      SNAPBACK_TEST_CRASH_PRIVATE_SOCKET: '1',
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  holders.add(child);
+  let stdout = '';
+  let stderr = '';
+  child.stdout.setEncoding('utf8');
+  child.stderr.setEncoding('utf8');
+  child.stdout.on('data', (chunk) => { stdout += chunk; });
+  child.stderr.on('data', (chunk) => { stderr += chunk; });
+  const barrier = await eventually(() => {
+    const newline = stdout.indexOf('\n');
+    if (newline !== -1) return JSON.parse(stdout.slice(0, newline));
+    if (child.exitCode !== null || child.signalCode !== null) {
+      throw new Error(`private-bind holder exited before its barrier: ${stderr || stdout}`);
+    }
+    return false;
+  }, { label: 'private socket bind barrier' });
+  await eventually(
+    () => child.signalCode === 'SIGKILL',
+    { label: 'private-bind holder SIGKILL' },
   );
   holders.delete(child);
   return { child, barrier };
@@ -1342,6 +1386,32 @@ try {
   }
 
   {
+    const privateBindCrashRoot = makeRoot('private-bind-crash');
+    const privateBindCrashLease = await createCarrierCleanupLease();
+    try {
+      const crashed = await startPrivateBindCrash(
+        privateBindCrashRoot,
+        'unit-private-bind-owner',
+        privateBindCrashLease,
+      );
+      assert.equal(crashed.barrier.state, 'private-endpoint-listened-reserved');
+      assert.equal(dirname(crashed.barrier.privateBindPath), privateBindCrashRoot);
+      assert.match(crashed.barrier.privateBindPath, /\/\.d[0-9a-f]{6}$/u);
+      await eventually(
+        () => !existsSync(crashed.barrier.privateBindPath),
+        { label: 'private bind inode cleanup after owner SIGKILL' },
+      );
+      assert.equal(
+        readdirSync(privateBindCrashRoot).some((name) => /^\.d[0-9a-f]{6}$/u.test(name)),
+        false,
+      );
+    } finally {
+      await closeCarrierCleanupLease(privateBindCrashLease);
+    }
+    console.log('private bind SIGKILL: reserved unique socket lease reaps the unadvertised publication precursor');
+  }
+
+  {
     const preActivationRoot = makeRoot('preactivation-crash');
     const preActivationLease = await createCarrierCleanupLease();
     try {
@@ -1532,6 +1602,51 @@ try {
   assert.equal(writableParentNotices[0].details.component, writableParent);
   assert.equal(existsSync(join(writableParentReadyRoot, '.dc-sock')), false);
   console.log('writable parent state chain: coded stdin-only fallback publishes no endpoint');
+
+  const externalProjectRoot = makeRoot('external-project');
+  const stickySystemRoot = realpathSync.native('/tmp');
+  const stickySystemMetadata = lstatSync(stickySystemRoot);
+  assert.equal(stickySystemMetadata.uid, 0);
+  assert.equal(stickySystemMetadata.mode & 0o1777, 0o1777);
+  const nonStickyExternalParent = mkdtempSync(join(stickySystemRoot, 'sbctl-external-shared-'));
+  chmodSync(nonStickyExternalParent, 0o777);
+  const nonStickyExternalRoot = join(nonStickyExternalParent, 'state');
+  mkdirSync(nonStickyExternalRoot, { mode: 0o700 });
+  const nonStickyExternalNotices = [];
+  try {
+    const nonStickyExternalControl = await startDevControlSocket(testOptions(
+      nonStickyExternalRoot,
+      'unit-external-non-sticky-parent-owner',
+      {
+        pathChainRoot: externalProjectRoot,
+        onUnavailable: (diagnostic) => nonStickyExternalNotices.push(diagnostic),
+      },
+    ));
+    if (nonStickyExternalControl !== null) await nonStickyExternalControl.close();
+    assert.equal(nonStickyExternalControl, null);
+    assert.equal(nonStickyExternalNotices[0].code, 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE');
+    assert.equal(nonStickyExternalNotices[0].details.component, nonStickyExternalParent);
+    assert.equal(existsSync(join(nonStickyExternalRoot, '.dc-sock')), false);
+  } finally {
+    rmSync(nonStickyExternalParent, { recursive: true, force: true });
+  }
+  console.log('external non-sticky writable parent: coded stdin-only fallback publishes no endpoint');
+
+  const stickyExternalRoot = mkdtempSync(join(stickySystemRoot, 'sbctl-external-owner-'));
+  chmodSync(stickyExternalRoot, 0o700);
+  try {
+    const stickyExternalControl = await startDevControlSocket(testOptions(
+      stickyExternalRoot,
+      'unit-external-sticky-parent-owner',
+      { pathChainRoot: externalProjectRoot },
+    ));
+    assert.notEqual(stickyExternalControl, null);
+    assert.equal(existsSync(stickyExternalControl.descriptor.path), true);
+    await stickyExternalControl.close();
+  } finally {
+    rmSync(stickyExternalRoot, { recursive: true, force: true });
+  }
+  console.log('external sticky system parent: owner-only leaf admits the control endpoint');
 
   const connectionRoot = makeRoot('c');
   const connectionControl = await startDevControlSocket(testOptions(

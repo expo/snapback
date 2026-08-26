@@ -638,6 +638,8 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
   let closePromise = null;
   let controlSocket = null;
   let cleanupResource = null;
+  let privateCleanupResource = null;
+  let privateEndpointListened = false;
   let endpoint = null;
   let boundEndpoint = null;
   let descriptor = null;
@@ -645,6 +647,45 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
   let ownerStateEndpoint = null;
   let startupUnavailable = null;
   let close = async () => {};
+  const assertStateDirectoryIdentity = (stage) => {
+    const expected = pathChain.components.find((identity) => (
+      resolve(identity.path) === resolve(stateDirectoryPath)
+    ));
+    let observed;
+    try {
+      observed = lstatSync(stateDirectoryPath);
+    } catch (cause) {
+      throw diagnosticError(
+        'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
+        'the admitted dev control state directory changed before endpoint publication',
+        {
+          path: stateDirectoryPath,
+          endpointPath: path,
+          readyFile,
+          reason: 'component-changed',
+          stage,
+          cause: cause?.code ?? cause?.message ?? String(cause),
+        },
+      );
+    }
+    if (expected === undefined
+        || !observed.isDirectory()
+        || observed.isSymbolicLink()
+        || String(observed.dev) !== expected.device
+        || String(observed.ino) !== expected.inode) {
+      throw diagnosticError(
+        'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
+        'the admitted dev control state directory changed before endpoint publication',
+        {
+          path: stateDirectoryPath,
+          endpointPath: path,
+          readyFile,
+          reason: 'component-changed',
+          stage,
+        },
+      );
+    }
+  };
   const observeBoundEndpoint = () => {
     const observed = observeEndpoint(path);
     if (boundEndpoint !== null && !sameControlEndpoint(observed, boundEndpoint)) {
@@ -875,9 +916,9 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
           ownerUid,
         },
       });
-      // Persist the incarnation before binding the well-known name. Direct
-      // bind is the atomic no-replace publication primitive: a pathname that
-      // appears after the probe produces EADDRINUSE and is never displaced.
+      // Persist the incarnation before binding a private same-directory name.
+      // The private inode is cleanup-leased before listen; link(2) later
+      // publishes it without replacing an occupied well-known endpoint.
       ownerStateIdentity = writeOwnerOnlyJsonAtomic(ownerStatePath, {
         schemaVersion: DEV_CONTROL_OWNER_STATE_FORMAT,
         phase: 'binding',
@@ -891,6 +932,16 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
         startedAt: options.startedAt,
       });
       await dependencies.beforeEndpointPublish?.({ path, ownerStatePath });
+      assertStateDirectoryIdentity('before-private-bind');
+      privateCleanupResource = reserveCleanupPath(
+        options.cleanupLease ?? null,
+        privateBindPath,
+        {
+          type: 'socket',
+          label: 'Expo dev control private bind socket',
+          leaseUnique: true,
+        },
+      );
       await new Promise((resolveListen, rejectListen) => {
         const previousUmask = process.umask(0o177);
         const onError = (cause) => {
@@ -917,6 +968,7 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
         };
         const onListening = () => {
           server.off('error', onError);
+          privateEndpointListened = true;
           resolveListen();
         };
         server.once('error', onError);
@@ -933,6 +985,11 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
         } finally {
           process.umask(previousUmask);
         }
+      });
+      await dependencies.afterPrivateEndpointListen?.({
+        path,
+        privateBindPath,
+        ownerStatePath,
       });
       boundEndpoint = observeEndpoint(privateBindPath);
       chmodSync(privateBindPath, 0o600);
@@ -953,11 +1010,14 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
         );
       }
       try {
+        assertStateDirectoryIdentity('before-link-publication');
         // link(2) publishes only into an absent destination. Removing the
         // private name detaches Node's automatic close-time pathname unlink
         // while the public hard link continues accepting connections.
         linkSync(privateBindPath, path);
         rmSync(privateBindPath);
+        releaseCleanupResource(privateCleanupResource);
+        privateCleanupResource = null;
       } catch (cause) {
         if (cause?.code === 'EEXIST') {
           throw diagnosticError(
@@ -1050,6 +1110,11 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
         }
         boundServer.close(() => resolveClose());
       })))(server);
+      if (privateCleanupResource !== null) {
+        if (privateEndpointListened) await cleanupLeasedPath(privateCleanupResource);
+        else releaseCleanupResource(privateCleanupResource);
+        privateCleanupResource = null;
+      }
       releaseCleanupResource(cleanupResource);
       cleanupResource = null;
       try {

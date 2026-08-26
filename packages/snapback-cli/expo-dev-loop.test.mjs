@@ -1094,7 +1094,7 @@ function assertGrepAbsent(label, files, bearers) {
 }
 
 async function runControlSocketSuite() {
-  const controlRoot = mkdtempSync('/tmp/sbctl-');
+  const controlRoot = realpathSync(mkdtempSync('/tmp/sbctl-'));
   const controlFixture = fixture('app', { sessions: true, root: controlRoot });
   const controlRange = await reserveFreeRange(8);
   try {

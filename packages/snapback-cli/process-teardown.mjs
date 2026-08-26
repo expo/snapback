@@ -176,73 +176,132 @@ export function inspectSecureDirectoryChain(rootPath, targetPath, ownerUid) {
 }
 
 // An explicitly selected ready-file directory may sit outside the checkout.
-// Its own real path is the authority root: a lexical symlink cannot become
-// that root, and the ordinary chain inspector still enforces owner/mode/type
-// custody on the root itself.
+// Walk its complete lexical chain to a root-owned trust anchor: an owner-safe
+// component cannot be replaced by another UID, while a root-owned 1777 sticky
+// component limits removal/rename of our leaf to that leaf's owner.
 export function inspectSecureExternalDirectoryChain(targetPath, ownerUid) {
   const target = resolve(targetPath);
-  let before;
-  try {
-    before = lstatSync(target);
-  } catch (error) {
-    return Object.freeze({
-      ok: false,
-      reason: 'unreadable-component',
-      root: target,
-      target,
-      component: target,
-      cause: error?.code ?? error?.message ?? String(error),
-    });
+  const identities = [];
+  let component = target;
+  let root = resolve(sep);
+  for (;;) {
+    let metadata;
+    try {
+      metadata = lstatSync(component);
+    } catch (error) {
+      return Object.freeze({
+        ok: false,
+        reason: 'unreadable-component',
+        root,
+        target,
+        component,
+        cause: error?.code ?? error?.message ?? String(error),
+      });
+    }
+    if (!metadata.isDirectory() || metadata.isSymbolicLink()) {
+      return Object.freeze({
+        ok: false,
+        reason: metadata.isSymbolicLink() ? 'symlink-component' : 'non-directory-component',
+        root,
+        target,
+        component,
+      });
+    }
+    identities.push(Object.freeze({
+      path: component,
+      device: String(metadata.dev),
+      inode: String(metadata.ino),
+    }));
+    const writableByAnotherUid = (metadata.mode & 0o022) !== 0;
+    const trustedSystemRoot = metadata.uid === 0 && !writableByAnotherUid;
+    const stickySystemDirectory = metadata.uid === 0
+      && (metadata.mode & 0o7777) === 0o1777;
+    const ownerSafe = metadata.uid === ownerUid && !writableByAnotherUid;
+    if (trustedSystemRoot) {
+      root = component;
+      break;
+    }
+    if (!stickySystemDirectory && !ownerSafe) {
+      return Object.freeze({
+        ok: false,
+        reason: writableByAnotherUid ? 'writable-component' : 'foreign-owner-component',
+        root,
+        target,
+        component,
+        expectedUid: ownerUid,
+        observedUid: metadata.uid,
+        observedMode: metadata.mode & 0o7777,
+      });
+    }
+    const parent = dirname(component);
+    if (parent === component) {
+      return Object.freeze({
+        ok: false,
+        reason: 'trusted-root-not-found',
+        root,
+        target,
+        component,
+      });
+    }
+    component = parent;
   }
-  if (!before.isDirectory() || before.isSymbolicLink()) {
-    return Object.freeze({
-      ok: false,
-      reason: before.isSymbolicLink() ? 'symlink-component' : 'non-directory-component',
-      root: target,
-      target,
-      component: target,
-    });
-  }
-  let root;
+  let canonicalTarget;
   try {
-    root = realpathSync.native(target);
+    canonicalTarget = realpathSync.native(target);
   } catch (error) {
     return Object.freeze({
       ok: false,
       reason: 'canonicalization-failed',
-      root: target,
-      target,
-      component: target,
-      cause: error?.code ?? error?.message ?? String(error),
-    });
-  }
-  let after;
-  try {
-    after = lstatSync(target);
-  } catch (error) {
-    return Object.freeze({
-      ok: false,
-      reason: 'component-changed',
       root,
       target,
       component: target,
       cause: error?.code ?? error?.message ?? String(error),
     });
   }
-  if (before.dev !== after.dev || before.ino !== after.ino) {
+  if (canonicalTarget !== target) {
     return Object.freeze({
       ok: false,
-      reason: 'component-changed',
+      reason: 'canonical-traversal',
       root,
       target,
       component: target,
+      canonicalTarget,
     });
   }
-  const inspection = inspectSecureDirectoryChain(root, root, ownerUid);
+  for (const identity of identities) {
+    let metadata;
+    try {
+      metadata = lstatSync(identity.path);
+    } catch (error) {
+      return Object.freeze({
+        ok: false,
+        reason: 'component-changed',
+        root,
+        target,
+        component: identity.path,
+        cause: error?.code ?? error?.message ?? String(error),
+      });
+    }
+    if (!metadata.isDirectory()
+        || metadata.isSymbolicLink()
+        || String(metadata.dev) !== identity.device
+        || String(metadata.ino) !== identity.inode) {
+      return Object.freeze({
+        ok: false,
+        reason: 'component-changed',
+        root,
+        target,
+        component: identity.path,
+      });
+    }
+  }
   return Object.freeze({
-    ...inspection,
+    ok: true,
+    root,
     target,
-    canonicalTarget: root,
+    canonicalRoot: root,
+    canonicalTarget,
+    components: Object.freeze([...identities].reverse()),
     external: true,
   });
 }
@@ -1746,6 +1805,17 @@ async function cleanupExactPath(resource, dependencies = {}) {
       return cleanupReservedSocketPath(resource, dependencies);
     }
     if (resource.state !== 'active') return false;
+    if (resource.leaseUnique === true) {
+      try {
+        const observed = lstatSync(resource.path);
+        if (!observed.isSocket() || observed.isSymbolicLink()) return false;
+        rmSync(resource.path);
+        return true;
+      } catch (error) {
+        if (error?.code === 'ENOENT') return false;
+        throw error;
+      }
+    }
     const identity = resource.socketIdentity;
     if (typeof identity?.device !== 'string'
         || typeof identity?.inode !== 'string'
