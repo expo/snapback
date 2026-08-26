@@ -68,3 +68,20 @@ Worth deciding, and none of it belongs inside a row lane:
 `llp/0290-authorization-commit-participant.spec.md`,
 `llp/0059-session-projection-and-client-barrier.spec.md`,
 `llp/0303-subject-authority-correlation-policy.decision.md`.
+
+## 2026-08-26 F244 containment note
+
+The room-reauthorization lane removed its edge structurally without treating
+the rank checker as evidence. Completion moved to a dedicated take-once
+database owner outside managed Local; outbox/notifier public callback surfaces
+became concrete channel operations; room/outbox guards release before SQLite
+settlement; and the common kernel completion consumer now performs an always-on
+Local-scope refusal before SQLite or process-state acquisition. A public
+completion consumer was actually captured and composed under Local: the old
+tree entered completion, while the current tree returns
+`SNAPBACK_AUTH_INTERLOCK_LOCAL_SCOPE_FORBIDDEN` and permits a legitimate
+outside-Local retry. This issue remains open for the checker-model correction
+and the requested repository-wide callback-site sweep. The doc-hidden engine
+owner converges on that same checked consumer but could not be exercised in its
+engine acceptance target because of the inherited engine test compilation reds
+recorded by the lane.
