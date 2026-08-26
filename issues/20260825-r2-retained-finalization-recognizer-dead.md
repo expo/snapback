@@ -21,3 +21,15 @@ reason/commits (e.g. `b86cd6e2d`, `057ce5898`, `92f21bec4`), not by
 `.at(-1)` + a retired placeholder. If no, delete the dead helper and its
 callers so the surface stays honest. Reviewer guidance: do not teach the helper
 to accept the dual-review row as a retained overlay implicitly.
+
+## 2026-08-26 R3 commissioning decision
+
+The author-delegated R3 packet chooses **same-config finalization only** for
+`2026-08-26-r3-published-0127`. A retained attempt may be finalized only by the
+exact committed harness config and executing-source closure that admitted it.
+No cross-overlay recognizer is commissioned, and an overlay change cannot
+authorize a relaunch or recovery of consumed evidence.
+
+This resolves the R3 policy decision, not the dead-code cleanup. Keep this
+ticket open until the unconditional recognizer, helper, and callers are removed
+or replaced by an independently commissioned contract.

@@ -739,7 +739,7 @@ export async function inspectCommittedDispositions({
         slotPath,
         cellId: id,
         repositoryRoot,
-        expectedMilestones: harnessConfig.execution?.milestones ?? [],
+        expectedMilestones: registeredMilestonesForCell(harnessConfig, configuredCells.get(id)),
         gitRead,
       });
       landedDispositions.push({ cellId: id, kind: "validated-record", path: `cells/${id}/record.json` });
@@ -807,6 +807,17 @@ export function loadPolicyForCell(harnessConfig, cell) {
     throw new Error(`R2_ADMISSION_LOAD: cell ${cell.id} has no exact registered load policy`);
   }
   return policy;
+}
+
+// @ref LLP 0201#d5--lanes-backends-and-models — one serial wave may mix
+// full-primary-family and reduced second/exploratory-family cells, while old
+// single-scope registrations retain their campaign-level milestone fallback.
+export function registeredMilestonesForCell(harnessConfig, cell) {
+  const milestones = cell?.milestones ?? harnessConfig.execution?.milestones;
+  if (!Array.isArray(milestones) || milestones.length === 0) {
+    throw new Error(`R2_ADMISSION_MILESTONES: cell ${cell?.id ?? "unknown"} has no registered milestones`);
+  }
+  return milestones;
 }
 
 function fileDescriptor(path, label) {
@@ -1365,7 +1376,14 @@ export async function probeLaunchQuiet({
     );
   }
   const ports = allCampaignPorts(harnessConfig);
-  const portResults = await Promise.all(ports.map((port) => portProbe(port)));
+  // @ref LLP 0295#r3-claim-eligible-wave — the 28-cell R3 union is large
+  // enough that one Promise per IPv4/IPv6 bind can exhaust the host socket
+  // window and misreport a free port as occupied. Probe the complete union in
+  // bounded batches; no port is skipped and any real bind error still refuses.
+  const portResults = [];
+  for (let offset = 0; offset < ports.length; offset += 32) {
+    portResults.push(...await Promise.all(ports.slice(offset, offset + 32).map((port) => portProbe(port))));
+  }
   const portsCheckedAt = new Date(now()).toISOString();
   if (portResults.some((unbound) => !unbound)) {
     throw new Error("R2_ADMISSION_PORTS: one or more campaign registered ports are bound");
@@ -1549,7 +1567,7 @@ export async function createAdmissionArtifact({
   const cell = harnessConfig.cells.find((candidate) => candidate.id === cellId);
   if (!cell) throw new Error(`R2_ADMISSION_INVALID: unknown cell ${cellId}`);
   resolveRegisteredJourney({
-    milestones: harnessConfig.execution?.milestones,
+    milestones: registeredMilestonesForCell(harnessConfig, cell),
     sessionShape: harnessConfig.execution?.sessionShape,
     cell,
   });

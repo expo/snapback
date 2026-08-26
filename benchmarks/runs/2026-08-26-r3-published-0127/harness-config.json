@@ -1,0 +1,270 @@
+{
+  "schemaVersion": "snapback.r2-harness-config.v1",
+  "runId": "2026-08-26-r3-published-0127",
+  "status": "serial-per-cell-admission",
+  "noBenchmarkCellStarted": true,
+  "governing": [
+    "LLP 0295#r3-claim-eligible-wave",
+    "LLP 0295#efficiency-scorecard",
+    "LLP 0201#d5--lanes-backends-and-models",
+    "LLP 0201#p4--scored-wave-reduced-run",
+    "LLP 0201#p5--full-app-wave-and-capability-floor-leg",
+    "LLP 0201#oq3--second-family-full-app-runs",
+    "LLP 0197 rule 2",
+    "LLP 0186 2026-08-21 variance-guard amendment",
+    "LLP 0189"
+  ],
+  "paths": {
+    "committedRunRoot": "benchmarks/runs/2026-08-26-r3-published-0127",
+    "privateExecutionRoot": "/Users/ccheever/bench-r3-20260826",
+    "instrumentRoot": "/Users/ccheever/bench-r3-20260826/instrument",
+    "exactPinnedCheckout": "/Users/ccheever/projects/exact-m0c-air-20260826"
+  },
+  "pins": {
+    "snapback0127": {
+      "version": "0.1.27",
+      "distTag": "latest",
+      "closureId": "fastpath-0-1-27-98681377721e",
+      "publicationStatus": "npm latest published",
+      "packages": {
+        "@expo/snapback": "0.1.27",
+        "@expo/snapback-acceptance": "0.1.27",
+        "@expo/snapback-app-cli": "0.1.27",
+        "@expo/snapback-cli": "0.1.27",
+        "@expo/snapback-client": "0.1.27",
+        "@expo/snapback-codegen": "0.1.27",
+        "@expo/snapback-contract": "0.1.27",
+        "@expo/snapback-expo": "0.1.27",
+        "@expo/snapback-expo-custody": "0.1.27",
+        "@expo/snapback-react": "0.1.27",
+        "@expo/snapback-runtime-darwin-arm64": "0.1.27",
+        "@expo/snapback-runtime-linux-x64": "0.1.27",
+        "@expo/snapback-vite": "0.1.27",
+        "create-snapback-app": "0.1.27"
+      }
+    },
+    "snapback0125": {
+      "compatibilityAliasOf": "snapback0127",
+      "version": "0.1.27",
+      "closureId": "fastpath-0-1-27-98681377721e",
+      "reason": "r2-cell-driver.mjs retains the legacy snapback0125 config key"
+    },
+    "exactPinnedCheckout": {
+      "path": "/Users/ccheever/projects/exact-m0c-air-20260826",
+      "revision": "bc300aa4b5e40a55fcbec29aa8df94962b4b4200",
+      "posture": "read-only source pin for Coterie; not a comparative claim axis"
+    },
+    "instrument": {
+      "manifestPath": "benchmarks/instrument.manifest.json",
+      "instrumentPin": "social-messenger@0.3.4-m8",
+      "manifestSha256": "3fb6d974ce4c4b35ae8e930bcb02a2c987cba1d07443efa95cee71e620eae5b0",
+      "fixtureVersion": "0.2.0-m8",
+      "schemaVersion": "0.3.0-m8",
+      "uiVersion": "0.3.2-m8",
+      "choreographyVersion": "0.3.4-m8",
+      "typingObservationBoundaryVersion": "v2",
+      "d06MeteringOverlay": {
+        "revision": "r3-mixed-profile-cell-registration-scoped-review-pending",
+        "recordSchema": "benchmarks/schema/social-messenger/run-record.schema.json",
+        "recordSchemaSha256": "3384205152c3f7573cc07fd994aaae2f3261e0ba9f351801456c120d50b6f5d6",
+        "extensionSchemaSha256": "c4b7a1425e41b7fadd85ef2ed842b81c04b76ccb42a4bd17ac2dccaf6ec3114a",
+        "recordValidatorSha256": "1484f1129664b3a1092b95dd198ad45708dca177e78782707541ab2f701738e3",
+        "meterSha256": "d19aa6764c513af489e43b00ef15f8560d347dc84998254d1cceb4bf9e4d5a62",
+        "laneSetupSha256": "bd5cf473f203db8a327afcf78193f895c040deacad638adbe031a41ce3b04c2c",
+        "laneControllerSha256": "2c9cec4fb86811bffcc7e5e80b0ce035ddbdb2ed4d3eb8fc782258e7b5f5969b",
+        "productionDriverSha256": "349d0ab554e2ac9c6f0b1561bf24c4bd6d596f7a8bf7f8efd67e65e5ef3b5959",
+        "signalSha256": "f2f835538bc92cd5ea2af0098e43ca0e97cf3934101c713f6c13ede55066a712",
+        "manifestLoaderSha256": "09300790421db0bd55d0771633db8fe54e648e49fd7e8342a2067c44835492e6",
+        "joinerSha256": "713095fb4b331808a12871fbe4ff997566103b299dfcd6b9dea96d0d203a68be",
+        "observationsSha256": "89032eafe7816c3664df28d0e82262ead328a655866db529481d1b0aeec1407e",
+        "codexNativeEvidenceSha256": "052a5fa8c3a78b71769405421fd17730c0537c92567705bd498713f9aa387ad3",
+        "recordComposerSha256": "db3a64611d6a8d03554e1ffd36d95e1401938db6f4c791950acd60d24274a0be",
+        "admissionToolSha256": "04d7293a97ca8471d65b8445bcadca6454ead9c217fb4b079043b40ad851ef54",
+        "finalizedCellValidatorSha256": "cce9a149c421801e0badea8b7bc04518df12e9280d5f7ed664d246fca7baadb2",
+        "hostLockSha256": "55a4c8cb77d13658f7e5a4aae73c3aefd1826408124e4cc60bb70d972f57a6fb",
+        "finalizeExistingSha256": "f5b7b1d32859e1df1bb6f26b8b5d85f582b3fca563525f8f4116b027241d3b7a",
+        "instrumentMaterializerSha256": "1ac7cd354d22e67c4b1eb19d96ac395a0ab62e0ecd3506bdf13844952c65306a"
+      }
+    }
+  },
+  "machines": {
+    "charlies-macbook-air": {
+      "id": "charlies-macbook-air",
+      "hostname": "Charlies-MacBook-Air.local",
+      "machineName": "Charlie's MacBook Air",
+      "hardwareModel": "Mac17,3",
+      "chip": "Apple M5",
+      "platform": "darwin",
+      "osVersion": "macOS 26.6.2 (25G83)",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "physicalCpuCount": 10,
+      "logicalCpuCount": 10,
+      "memoryBytes": 34359738368,
+      "memoryGiB": 32,
+      "node": {
+        "path": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+        "version": "v24.18.0",
+        "sha256": "sha256:ee6fb0e015284d83a91e8ec5213f43a157f8a392b58555301682892ba928c04a",
+        "bytes": 120965360
+      },
+      "identityNotes": ["No serial number or UUID retained.", "Commissioning free disk observed as 45 GiB; admission floor is independent at 20 GiB."]
+    }
+  },
+  "harnesses": {
+    "codex-sol": {
+      "binary": "/Users/ccheever/.volta/bin/codex",
+      "observedVersion": "0.149.1",
+      "model": "gpt-5.6-sol",
+      "effort": "xhigh",
+      "permissionMode": "dangerously-bypass-approvals-and-sandbox",
+      "outputFormat": "jsonl",
+      "promptDelivery": "stdin",
+      "tokensSource": "codex-rollout-token-count",
+      "argvTemplate": ["exec", "--dangerously-bypass-approvals-and-sandbox", "--json", "--model", "gpt-5.6-sol", "-c", "model_reasoning_effort=\"xhigh\"", "-"]
+    },
+    "claude-opus5": {
+      "binary": "/Users/ccheever/.local/bin/claude",
+      "observedVersion": "2.1.241",
+      "model": "claude-opus-5",
+      "effort": {"value": null, "ruled": "AUTHOR-DELEGATED RULING: harness-default"},
+      "permissionMode": "dangerously-skip-permissions",
+      "outputFormat": "stream-json",
+      "promptDelivery": "argument",
+      "tokensSource": "claude-code-session-usage",
+      "argvTemplate": ["--print", "--model", "claude-opus-5", "--dangerously-skip-permissions", "--output-format", "stream-json", "--verbose"]
+    },
+    "grok-46": {
+      "binary": "/Users/ccheever/.grok/bin/grok",
+      "observedVersion": "1.0.5 (5115b46bc909)",
+      "model": "grok-4.6",
+      "effort": "xhigh",
+      "permissionMode": "bypassPermissions",
+      "outputFormat": "streaming-json",
+      "promptDelivery": "file",
+      "tokensSource": null,
+      "meteringUnavailableReason": "exploratory-family-no-approved-native-per-turn-adapter",
+      "argvTemplate": ["--prompt-file", "{renderedPrompt}", "--model", "grok-4.6", "--reasoning-effort", "xhigh", "--permission-mode", "bypassPermissions", "--output-format", "streaming-json"]
+    }
+  },
+  "controller": {
+    "entrypoint": "benchmarks/tools/social-messenger/metering/lane-controller.mjs",
+    "driver": "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs",
+    "signal": "benchmarks/tools/social-messenger/metering/r2-cell-signal.mjs",
+    "admission": "benchmarks/tools/social-messenger/metering/r2-cell-admission.mjs",
+    "finalizeExisting": "benchmarks/tools/social-messenger/metering/r2-finalize-existing.mjs",
+    "materializeInstrument": "benchmarks/tools/materialize-instrument.mjs",
+    "commandTemplate": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-26-r3-published-0127/harness-config.json", "--cell", "{cellId}", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-26-r3-published-0127/admissions/{cellId}.json"]
+  },
+  "execution": {
+    "serial": true,
+    "maxConcurrentCells": 1,
+    "interleaveRule": "For each replicate ordinal, A then B then C when C exists; never overlap cells.",
+    "profiles": {
+      "full-journey": {"runScope": "full", "milestones": ["M1", "M2", "M3", "M4", "M5", "M6", "M8", "M7"], "driverId": "social-messenger-full-journey-native-cli-driver.v1"},
+      "reduced": {"runScope": "reduced", "milestones": ["M1", "M2", "M3"], "driverId": "social-messenger-r2-native-cli-driver.v1"}
+    },
+    "sessionShape": {
+      "continuous": ["M1", "M2", "M3", "M4", "M5", "M6", "M8"],
+      "fresh": ["M7"],
+      "m7FreshSessionRequired": true,
+      "m7BackendState": "fresh-starter-only-pre-replay"
+    },
+    "perMilestoneWallSafetyLimitSeconds": 14400,
+    "exclusiveHostLock": {"version": "snapback.r2-exclusive-host-lock.v1", "path": "/Users/ccheever/bench-r3-20260826/locks/2026-08-26-r3-published-0127.host.lock", "staleRecovery": "explicit-only; never authorizes a rerun"},
+    "loadIsolation": {
+      "policies": {
+        "mac17-3-m5-10core-loadavg-10-approved": {
+          "policyId": "mac17-3-m5-10core-loadavg-10-approved",
+          "allowedHostId": "charlies-macbook-air",
+          "status": "chartered",
+          "ruling": "Loadavg-1/loadavg-5/loadavg-15 <= 10.00; any single exceeding sample contaminates the cell; three consecutive one-minute passes precede admission.",
+          "sampleEverySeconds": 60,
+          "metrics": ["loadavg1", "loadavg5", "loadavg15"],
+          "ceilingInclusive": {"loadavg1": 10, "loadavg5": 10, "loadavg15": 10},
+          "preStartConsecutivePassingSamples": 3,
+          "breachRule": "Any sample above any ceiling sets host-load-contamination.",
+          "onBreach": "Retain product findings; efficiencyScorecardEligible=false.",
+          "nextCellRule": "Exclusive host lock; prior process tree closed; all main and M7 campaign ports unbound; disk floor passes; three consecutive load passes."
+        }
+      }
+    },
+    "diskPolicy": {
+      "commissioningAvailableGiB": 45,
+      "admissionFloorGiB": 20,
+      "refusalDiagnostic": "R3_ADMISSION_DISK_FLOOR",
+      "cleanupAfterSeal": ["workspace node_modules", "workspace build outputs"],
+      "neverDelete": ["evidence capsules", "committed record", "committed blocked report"],
+      "cleanupOrder": "Commit the record or blocked report, seal the cell, delete only rebuildable workspace outputs, then evaluate the next admission."
+    },
+    "portPolicy": {"mainRange": [57000, 58679], "m7Range": [59000, 59719], "rangeWidth": 60, "allCampaignPorts": "union of every cell.ports and every present cell.m7Ports"},
+    "sourceClosure": {
+      "version": "snapback.r2-executing-source-closure.v1",
+      "meteringRoot": {"kind": "directory", "path": "benchmarks/tools/social-messenger/metering", "sha256": "sha256:d383fbaae22c68c7090a7b2f98525bf8783cdff1444e992035f9cd3334df1162"},
+      "files": [
+        {"kind": "file", "path": "benchmarks/schema/run-record.schema.json", "sha256": "sha256:48083edb411bc7a3f1e879183e8cab3952ee7e5efd4447dfe55a5a57771d5de3", "bytes": 12655},
+        {"kind": "file", "path": "benchmarks/schema/social-messenger/run-record-extension.schema.json", "sha256": "sha256:c4b7a1425e41b7fadd85ef2ed842b81c04b76ccb42a4bd17ac2dccaf6ec3114a", "bytes": 100230},
+        {"kind": "file", "path": "benchmarks/schema/social-messenger/run-record.schema.json", "sha256": "sha256:3384205152c3f7573cc07fd994aaae2f3261e0ba9f351801456c120d50b6f5d6", "bytes": 10186},
+        {"kind": "file", "path": "benchmarks/tools/lane-setup.mjs", "sha256": "sha256:bd5cf473f203db8a327afcf78193f895c040deacad638adbe031a41ce3b04c2c", "bytes": 35503},
+        {"kind": "file", "path": "benchmarks/tools/social-messenger/choreography/receipts.schema.json", "sha256": "sha256:5d1033b49be1efee3a1c122bbea39f352fc158f2ccc4c424262d679488b31126", "bytes": 22268},
+        {"kind": "file", "path": "benchmarks/tools/social-messenger/record-validator.mjs", "sha256": "sha256:1484f1129664b3a1092b95dd198ad45708dca177e78782707541ab2f701738e3", "bytes": 53943},
+        {"kind": "file", "path": "benchmarks/tools/lib/json-schema.mjs", "sha256": "sha256:7b882f6147e6efde88bc41f4dbc6806e712fb54c2e1b47a214a5d59e96f02660", "bytes": 7733}
+      ]
+    },
+    "environment": {"version": "snapback.r2-execution-environment.v1", "inheritedNodeLoaderHooks": "forbidden-and-absent", "forbiddenVariables": ["DYLD_FALLBACK_FRAMEWORK_PATH", "DYLD_FALLBACK_LIBRARY_PATH", "DYLD_FRAMEWORK_PATH", "DYLD_INSERT_LIBRARIES", "DYLD_LIBRARY_PATH", "LD_PRELOAD", "NODE_COMPILE_CACHE", "NODE_OPTIONS", "NODE_PATH", "NODE_PRESERVE_SYMLINKS", "NODE_REPL_EXTERNAL_MODULE"], "nativeHarnessEnvironment": "scrub-forbidden-variables"},
+    "coldContextPerCell": true,
+    "reuseAcrossCells": [],
+    "finalizationPolicy": "same-config-only",
+    "apiInterruptionRule": "Any provider/API interruption makes the cell scorecard-ineligible; retain product findings.",
+    "suiteStatus": {"required": true, "mustBeHashBound": true, "greenRequiresSuiteAndChoreography": true, "startupRefusalRequired": true}
+  },
+  "recording": {
+    "recordSchema": "benchmarks/schema/social-messenger/run-record.schema.json",
+    "checkedValidator": "benchmarks/tools/social-messenger/record-validator.mjs",
+    "eligibilityRule": "Missing phase metering, any load ceiling breach, or any API interruption makes a cell scorecard-ineligible; a full-journey row additionally requires M7 session metering; product findings remain retained."
+  },
+  "cellOrder": [
+    "sol-clique-explicit-1", "opus-clique-explicit-1", "grok-clique-explicit-1",
+    "sol-coterie-explicit-1", "opus-coterie-explicit-1", "grok-coterie-explicit-1",
+    "sol-clique-familiar-1", "opus-clique-familiar-1", "grok-clique-familiar-1",
+    "sol-coterie-familiar-1", "opus-coterie-familiar-1", "grok-coterie-familiar-1",
+    "sol-coterie-explicit-2", "opus-coterie-explicit-2",
+    "sol-clique-familiar-2", "opus-clique-familiar-2",
+    "sol-coterie-familiar-2", "opus-coterie-familiar-2",
+    "sol-clique-explicit-2", "opus-clique-explicit-2",
+    "sol-clique-familiar-3", "opus-clique-familiar-3",
+    "sol-coterie-familiar-3", "opus-coterie-familiar-3",
+    "sol-clique-explicit-3", "opus-clique-explicit-3",
+    "sol-coterie-explicit-3", "opus-coterie-explicit-3"
+  ],
+  "cells": [
+    {"id":"sol-clique-explicit-1","leg":"A","harness":"codex-sol","model":"gpt-5.6-sol","effort":"xhigh","app":"Clique","clientStack":"Expo Router web","profile":"explicit","replicate":1,"promptFile":"prompts/clique-explicit.md","runScope":"full","scoringProfile":"full-journey","claimEligibility":"scored-family-and-profile-scoped","milestones":["M1","M2","M3","M4","M5","M6","M8","M7"],"driverId":"social-messenger-full-journey-native-cli-driver.v1","ports":[57000,57059],"m7Ports":[59000,59059],"pins":["snapback0127","instrument"],"allowedHostId":"charlies-macbook-air","loadCeilingId":"mac17-3-m5-10core-loadavg-10-approved","controllerCommand":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node","benchmarks/tools/social-messenger/metering/lane-controller.mjs","--harness-config","benchmarks/runs/2026-08-26-r3-published-0127/harness-config.json","--cell","sol-clique-explicit-1","--driver","benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs","--admission","benchmarks/runs/2026-08-26-r3-published-0127/admissions/sol-clique-explicit-1.json"],"admissionArtifact":"admissions/sol-clique-explicit-1.json","meteringPolicy":{"adapter":"codex","capFamily":"gpt-frontier","nativeCounts":"required"}},
+    {"id":"opus-clique-explicit-1","leg":"B","harness":"claude-opus5","model":"claude-opus-5","effort":null,"app":"Clique","clientStack":"Expo Router web","profile":"explicit","replicate":1,"promptFile":"prompts/clique-explicit.md","runScope":"reduced","scoringProfile":"reduced-run-m1-m3","claimEligibility":"scored-family-and-profile-scoped-reduced-only","milestones":["M1","M2","M3"],"driverId":"social-messenger-r2-native-cli-driver.v1","ports":[57060,57119],"pins":["snapback0127","instrument"],"allowedHostId":"charlies-macbook-air","loadCeilingId":"mac17-3-m5-10core-loadavg-10-approved","controllerCommand":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node","benchmarks/tools/social-messenger/metering/lane-controller.mjs","--harness-config","benchmarks/runs/2026-08-26-r3-published-0127/harness-config.json","--cell","opus-clique-explicit-1","--driver","benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs","--admission","benchmarks/runs/2026-08-26-r3-published-0127/admissions/opus-clique-explicit-1.json"],"admissionArtifact":"admissions/opus-clique-explicit-1.json","meteringPolicy":{"adapter":"claude","capFamily":"claude-frontier","nativeCounts":"required"}},
+    {"id":"grok-clique-explicit-1","leg":"C","harness":"grok-46","model":"grok-4.6","effort":"xhigh","app":"Clique","clientStack":"Expo Router web","profile":"explicit","replicate":1,"promptFile":"prompts/clique-explicit.md","runScope":"reduced","scoringProfile":"reduced-run-m1-m3","claimEligibility":"exploratory-claim-ineligible-by-registration","milestones":["M1","M2","M3"],"driverId":"social-messenger-r2-native-cli-driver.v1","ports":[57120,57179],"pins":["snapback0127","instrument"],"allowedHostId":"charlies-macbook-air","loadCeilingId":"mac17-3-m5-10core-loadavg-10-approved","controllerCommand":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node","benchmarks/tools/social-messenger/metering/lane-controller.mjs","--harness-config","benchmarks/runs/2026-08-26-r3-published-0127/harness-config.json","--cell","grok-clique-explicit-1","--driver","benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs","--admission","benchmarks/runs/2026-08-26-r3-published-0127/admissions/grok-clique-explicit-1.json"],"admissionArtifact":"admissions/grok-clique-explicit-1.json","meteringPolicy":{"adapter":"unavailable","capFamily":"grok-advisory","nativeCounts":"registered-unavailable","unavailableReason":"exploratory-family-no-approved-native-per-turn-adapter"}},
+    {"id":"sol-coterie-explicit-1","leg":"A","harness":"codex-sol","model":"gpt-5.6-sol","effort":"xhigh","app":"Coterie","clientStack":"Exact/Contract web","profile":"explicit","replicate":1,"promptFile":"prompts/coterie-explicit.md","runScope":"full","scoringProfile":"full-journey","claimEligibility":"scored-family-and-profile-scoped","milestones":["M1","M2","M3","M4","M5","M6","M8","M7"],"driverId":"social-messenger-full-journey-native-cli-driver.v1","ports":[57180,57239],"m7Ports":[59060,59119],"pins":["snapback0127","instrument","exactPinnedCheckout"],"allowedHostId":"charlies-macbook-air","loadCeilingId":"mac17-3-m5-10core-loadavg-10-approved","controllerCommand":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node","benchmarks/tools/social-messenger/metering/lane-controller.mjs","--harness-config","benchmarks/runs/2026-08-26-r3-published-0127/harness-config.json","--cell","sol-coterie-explicit-1","--driver","benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs","--admission","benchmarks/runs/2026-08-26-r3-published-0127/admissions/sol-coterie-explicit-1.json"],"admissionArtifact":"admissions/sol-coterie-explicit-1.json","meteringPolicy":{"adapter":"codex","capFamily":"gpt-frontier","nativeCounts":"required"}},
+    {"id":"opus-coterie-explicit-1","leg":"B","harness":"claude-opus5","model":"claude-opus-5","effort":null,"app":"Coterie","clientStack":"Exact/Contract web","profile":"explicit","replicate":1,"promptFile":"prompts/coterie-explicit.md","runScope":"reduced","scoringProfile":"reduced-run-m1-m3","claimEligibility":"scored-family-and-profile-scoped-reduced-only","milestones":["M1","M2","M3"],"driverId":"social-messenger-r2-native-cli-driver.v1","ports":[57240,57299],"pins":["snapback0127","instrument","exactPinnedCheckout"],"allowedHostId":"charlies-macbook-air","loadCeilingId":"mac17-3-m5-10core-loadavg-10-approved","controllerCommand":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node","benchmarks/tools/social-messenger/metering/lane-controller.mjs","--harness-config","benchmarks/runs/2026-08-26-r3-published-0127/harness-config.json","--cell","opus-coterie-explicit-1","--driver","benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs","--admission","benchmarks/runs/2026-08-26-r3-published-0127/admissions/opus-coterie-explicit-1.json"],"admissionArtifact":"admissions/opus-coterie-explicit-1.json","meteringPolicy":{"adapter":"claude","capFamily":"claude-frontier","nativeCounts":"required"}},
+    {"id":"grok-coterie-explicit-1","leg":"C","harness":"grok-46","model":"grok-4.6","effort":"xhigh","app":"Coterie","clientStack":"Exact/Contract web","profile":"explicit","replicate":1,"promptFile":"prompts/coterie-explicit.md","runScope":"reduced","scoringProfile":"reduced-run-m1-m3","claimEligibility":"exploratory-claim-ineligible-by-registration","milestones":["M1","M2","M3"],"driverId":"social-messenger-r2-native-cli-driver.v1","ports":[57300,57359],"pins":["snapback0127","instrument","exactPinnedCheckout"],"allowedHostId":"charlies-macbook-air","loadCeilingId":"mac17-3-m5-10core-loadavg-10-approved","controllerCommand":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node","benchmarks/tools/social-messenger/metering/lane-controller.mjs","--harness-config","benchmarks/runs/2026-08-26-r3-published-0127/harness-config.json","--cell","grok-coterie-explicit-1","--driver","benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs","--admission","benchmarks/runs/2026-08-26-r3-published-0127/admissions/grok-coterie-explicit-1.json"],"admissionArtifact":"admissions/grok-coterie-explicit-1.json","meteringPolicy":{"adapter":"unavailable","capFamily":"grok-advisory","nativeCounts":"registered-unavailable","unavailableReason":"exploratory-family-no-approved-native-per-turn-adapter"}},
+    {"id":"sol-clique-familiar-1","leg":"A","harness":"codex-sol","model":"gpt-5.6-sol","effort":"xhigh","app":"Clique","clientStack":"Expo Router web","profile":"familiar","replicate":1,"promptFile":"prompts/clique-familiar.md","runScope":"full","scoringProfile":"full-journey","claimEligibility":"scored-family-and-profile-scoped","milestones":["M1","M2","M3","M4","M5","M6","M8","M7"],"driverId":"social-messenger-full-journey-native-cli-driver.v1","ports":[57360,57419],"m7Ports":[59120,59179],"pins":["snapback0127","instrument"],"allowedHostId":"charlies-macbook-air","loadCeilingId":"mac17-3-m5-10core-loadavg-10-approved","controllerCommand":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node","benchmarks/tools/social-messenger/metering/lane-controller.mjs","--harness-config","benchmarks/runs/2026-08-26-r3-published-0127/harness-config.json","--cell","sol-clique-familiar-1","--driver","benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs","--admission","benchmarks/runs/2026-08-26-r3-published-0127/admissions/sol-clique-familiar-1.json"],"admissionArtifact":"admissions/sol-clique-familiar-1.json","meteringPolicy":{"adapter":"codex","capFamily":"gpt-frontier","nativeCounts":"required"}},
+    {"id":"opus-clique-familiar-1","leg":"B","harness":"claude-opus5","model":"claude-opus-5","effort":null,"app":"Clique","clientStack":"Expo Router web","profile":"familiar","replicate":1,"promptFile":"prompts/clique-familiar.md","runScope":"reduced","scoringProfile":"reduced-run-m1-m3","claimEligibility":"scored-family-and-profile-scoped-reduced-only","milestones":["M1","M2","M3"],"driverId":"social-messenger-r2-native-cli-driver.v1","ports":[57420,57479],"pins":["snapback0127","instrument"],"allowedHostId":"charlies-macbook-air","loadCeilingId":"mac17-3-m5-10core-loadavg-10-approved","controllerCommand":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node","benchmarks/tools/social-messenger/metering/lane-controller.mjs","--harness-config","benchmarks/runs/2026-08-26-r3-published-0127/harness-config.json","--cell","opus-clique-familiar-1","--driver","benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs","--admission","benchmarks/runs/2026-08-26-r3-published-0127/admissions/opus-clique-familiar-1.json"],"admissionArtifact":"admissions/opus-clique-familiar-1.json","meteringPolicy":{"adapter":"claude","capFamily":"claude-frontier","nativeCounts":"required"}},
+    {"id":"grok-clique-familiar-1","leg":"C","harness":"grok-46","model":"grok-4.6","effort":"xhigh","app":"Clique","clientStack":"Expo Router web","profile":"familiar","replicate":1,"promptFile":"prompts/clique-familiar.md","runScope":"reduced","scoringProfile":"reduced-run-m1-m3","claimEligibility":"exploratory-claim-ineligible-by-registration","milestones":["M1","M2","M3"],"driverId":"social-messenger-r2-native-cli-driver.v1","ports":[57480,57539],"pins":["snapback0127","instrument"],"allowedHostId":"charlies-macbook-air","loadCeilingId":"mac17-3-m5-10core-loadavg-10-approved","controllerCommand":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node","benchmarks/tools/social-messenger/metering/lane-controller.mjs","--harness-config","benchmarks/runs/2026-08-26-r3-published-0127/harness-config.json","--cell","grok-clique-familiar-1","--driver","benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs","--admission","benchmarks/runs/2026-08-26-r3-published-0127/admissions/grok-clique-familiar-1.json"],"admissionArtifact":"admissions/grok-clique-familiar-1.json","meteringPolicy":{"adapter":"unavailable","capFamily":"grok-advisory","nativeCounts":"registered-unavailable","unavailableReason":"exploratory-family-no-approved-native-per-turn-adapter"}},
+    {"id":"sol-coterie-familiar-1","leg":"A","harness":"codex-sol","model":"gpt-5.6-sol","effort":"xhigh","app":"Coterie","clientStack":"Exact/Contract web","profile":"familiar","replicate":1,"promptFile":"prompts/coterie-familiar.md","runScope":"full","scoringProfile":"full-journey","claimEligibility":"scored-family-and-profile-scoped","milestones":["M1","M2","M3","M4","M5","M6","M8","M7"],"driverId":"social-messenger-full-journey-native-cli-driver.v1","ports":[57540,57599],"m7Ports":[59180,59239],"pins":["snapback0127","instrument","exactPinnedCheckout"],"allowedHostId":"charlies-macbook-air","loadCeilingId":"mac17-3-m5-10core-loadavg-10-approved","controllerCommand":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node","benchmarks/tools/social-messenger/metering/lane-controller.mjs","--harness-config","benchmarks/runs/2026-08-26-r3-published-0127/harness-config.json","--cell","sol-coterie-familiar-1","--driver","benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs","--admission","benchmarks/runs/2026-08-26-r3-published-0127/admissions/sol-coterie-familiar-1.json"],"admissionArtifact":"admissions/sol-coterie-familiar-1.json","meteringPolicy":{"adapter":"codex","capFamily":"gpt-frontier","nativeCounts":"required"}},
+    {"id":"opus-coterie-familiar-1","leg":"B","harness":"claude-opus5","model":"claude-opus-5","effort":null,"app":"Coterie","clientStack":"Exact/Contract web","profile":"familiar","replicate":1,"promptFile":"prompts/coterie-familiar.md","runScope":"reduced","scoringProfile":"reduced-run-m1-m3","claimEligibility":"scored-family-and-profile-scoped-reduced-only","milestones":["M1","M2","M3"],"driverId":"social-messenger-r2-native-cli-driver.v1","ports":[57600,57659],"pins":["snapback0127","instrument","exactPinnedCheckout"],"allowedHostId":"charlies-macbook-air","loadCeilingId":"mac17-3-m5-10core-loadavg-10-approved","controllerCommand":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node","benchmarks/tools/social-messenger/metering/lane-controller.mjs","--harness-config","benchmarks/runs/2026-08-26-r3-published-0127/harness-config.json","--cell","opus-coterie-familiar-1","--driver","benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs","--admission","benchmarks/runs/2026-08-26-r3-published-0127/admissions/opus-coterie-familiar-1.json"],"admissionArtifact":"admissions/opus-coterie-familiar-1.json","meteringPolicy":{"adapter":"claude","capFamily":"claude-frontier","nativeCounts":"required"}},
+    {"id":"grok-coterie-familiar-1","leg":"C","harness":"grok-46","model":"grok-4.6","effort":"xhigh","app":"Coterie","clientStack":"Exact/Contract web","profile":"familiar","replicate":1,"promptFile":"prompts/coterie-familiar.md","runScope":"reduced","scoringProfile":"reduced-run-m1-m3","claimEligibility":"exploratory-claim-ineligible-by-registration","milestones":["M1","M2","M3"],"driverId":"social-messenger-r2-native-cli-driver.v1","ports":[57660,57719],"pins":["snapback0127","instrument","exactPinnedCheckout"],"allowedHostId":"charlies-macbook-air","loadCeilingId":"mac17-3-m5-10core-loadavg-10-approved","controllerCommand":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node","benchmarks/tools/social-messenger/metering/lane-controller.mjs","--harness-config","benchmarks/runs/2026-08-26-r3-published-0127/harness-config.json","--cell","grok-coterie-familiar-1","--driver","benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs","--admission","benchmarks/runs/2026-08-26-r3-published-0127/admissions/grok-coterie-familiar-1.json"],"admissionArtifact":"admissions/grok-coterie-familiar-1.json","meteringPolicy":{"adapter":"unavailable","capFamily":"grok-advisory","nativeCounts":"registered-unavailable","unavailableReason":"exploratory-family-no-approved-native-per-turn-adapter"}},
+    {"id":"sol-coterie-explicit-2","leg":"A","harness":"codex-sol","model":"gpt-5.6-sol","effort":"xhigh","app":"Coterie","clientStack":"Exact/Contract web","profile":"explicit","replicate":2,"promptFile":"prompts/coterie-explicit.md","runScope":"full","scoringProfile":"full-journey","claimEligibility":"scored-family-and-profile-scoped","milestones":["M1","M2","M3","M4","M5","M6","M8","M7"],"driverId":"social-messenger-full-journey-native-cli-driver.v1","ports":[57720,57779],"m7Ports":[59240,59299],"pins":["snapback0127","instrument","exactPinnedCheckout"],"allowedHostId":"charlies-macbook-air","loadCeilingId":"mac17-3-m5-10core-loadavg-10-approved","controllerCommand":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node","benchmarks/tools/social-messenger/metering/lane-controller.mjs","--harness-config","benchmarks/runs/2026-08-26-r3-published-0127/harness-config.json","--cell","sol-coterie-explicit-2","--driver","benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs","--admission","benchmarks/runs/2026-08-26-r3-published-0127/admissions/sol-coterie-explicit-2.json"],"admissionArtifact":"admissions/sol-coterie-explicit-2.json","meteringPolicy":{"adapter":"codex","capFamily":"gpt-frontier","nativeCounts":"required"}},
+    {"id":"opus-coterie-explicit-2","leg":"B","harness":"claude-opus5","model":"claude-opus-5","effort":null,"app":"Coterie","clientStack":"Exact/Contract web","profile":"explicit","replicate":2,"promptFile":"prompts/coterie-explicit.md","runScope":"reduced","scoringProfile":"reduced-run-m1-m3","claimEligibility":"scored-family-and-profile-scoped-reduced-only","milestones":["M1","M2","M3"],"driverId":"social-messenger-r2-native-cli-driver.v1","ports":[57780,57839],"pins":["snapback0127","instrument","exactPinnedCheckout"],"allowedHostId":"charlies-macbook-air","loadCeilingId":"mac17-3-m5-10core-loadavg-10-approved","controllerCommand":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node","benchmarks/tools/social-messenger/metering/lane-controller.mjs","--harness-config","benchmarks/runs/2026-08-26-r3-published-0127/harness-config.json","--cell","opus-coterie-explicit-2","--driver","benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs","--admission","benchmarks/runs/2026-08-26-r3-published-0127/admissions/opus-coterie-explicit-2.json"],"admissionArtifact":"admissions/opus-coterie-explicit-2.json","meteringPolicy":{"adapter":"claude","capFamily":"claude-frontier","nativeCounts":"required"}},
+    {"id":"sol-clique-familiar-2","leg":"A","harness":"codex-sol","model":"gpt-5.6-sol","effort":"xhigh","app":"Clique","clientStack":"Expo Router web","profile":"familiar","replicate":2,"promptFile":"prompts/clique-familiar.md","runScope":"full","scoringProfile":"full-journey","claimEligibility":"scored-family-and-profile-scoped","milestones":["M1","M2","M3","M4","M5","M6","M8","M7"],"driverId":"social-messenger-full-journey-native-cli-driver.v1","ports":[57840,57899],"m7Ports":[59300,59359],"pins":["snapback0127","instrument"],"allowedHostId":"charlies-macbook-air","loadCeilingId":"mac17-3-m5-10core-loadavg-10-approved","controllerCommand":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node","benchmarks/tools/social-messenger/metering/lane-controller.mjs","--harness-config","benchmarks/runs/2026-08-26-r3-published-0127/harness-config.json","--cell","sol-clique-familiar-2","--driver","benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs","--admission","benchmarks/runs/2026-08-26-r3-published-0127/admissions/sol-clique-familiar-2.json"],"admissionArtifact":"admissions/sol-clique-familiar-2.json","meteringPolicy":{"adapter":"codex","capFamily":"gpt-frontier","nativeCounts":"required"}},
+    {"id":"opus-clique-familiar-2","leg":"B","harness":"claude-opus5","model":"claude-opus-5","effort":null,"app":"Clique","clientStack":"Expo Router web","profile":"familiar","replicate":2,"promptFile":"prompts/clique-familiar.md","runScope":"reduced","scoringProfile":"reduced-run-m1-m3","claimEligibility":"scored-family-and-profile-scoped-reduced-only","milestones":["M1","M2","M3"],"driverId":"social-messenger-r2-native-cli-driver.v1","ports":[57900,57959],"pins":["snapback0127","instrument"],"allowedHostId":"charlies-macbook-air","loadCeilingId":"mac17-3-m5-10core-loadavg-10-approved","controllerCommand":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node","benchmarks/tools/social-messenger/metering/lane-controller.mjs","--harness-config","benchmarks/runs/2026-08-26-r3-published-0127/harness-config.json","--cell","opus-clique-familiar-2","--driver","benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs","--admission","benchmarks/runs/2026-08-26-r3-published-0127/admissions/opus-clique-familiar-2.json"],"admissionArtifact":"admissions/opus-clique-familiar-2.json","meteringPolicy":{"adapter":"claude","capFamily":"claude-frontier","nativeCounts":"required"}},
+    {"id":"sol-coterie-familiar-2","leg":"A","harness":"codex-sol","model":"gpt-5.6-sol","effort":"xhigh","app":"Coterie","clientStack":"Exact/Contract web","profile":"familiar","replicate":2,"promptFile":"prompts/coterie-familiar.md","runScope":"full","scoringProfile":"full-journey","claimEligibility":"scored-family-and-profile-scoped","milestones":["M1","M2","M3","M4","M5","M6","M8","M7"],"driverId":"social-messenger-full-journey-native-cli-driver.v1","ports":[57960,58019],"m7Ports":[59360,59419],"pins":["snapback0127","instrument","exactPinnedCheckout"],"allowedHostId":"charlies-macbook-air","loadCeilingId":"mac17-3-m5-10core-loadavg-10-approved","controllerCommand":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node","benchmarks/tools/social-messenger/metering/lane-controller.mjs","--harness-config","benchmarks/runs/2026-08-26-r3-published-0127/harness-config.json","--cell","sol-coterie-familiar-2","--driver","benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs","--admission","benchmarks/runs/2026-08-26-r3-published-0127/admissions/sol-coterie-familiar-2.json"],"admissionArtifact":"admissions/sol-coterie-familiar-2.json","meteringPolicy":{"adapter":"codex","capFamily":"gpt-frontier","nativeCounts":"required"}},
+    {"id":"opus-coterie-familiar-2","leg":"B","harness":"claude-opus5","model":"claude-opus-5","effort":null,"app":"Coterie","clientStack":"Exact/Contract web","profile":"familiar","replicate":2,"promptFile":"prompts/coterie-familiar.md","runScope":"reduced","scoringProfile":"reduced-run-m1-m3","claimEligibility":"scored-family-and-profile-scoped-reduced-only","milestones":["M1","M2","M3"],"driverId":"social-messenger-r2-native-cli-driver.v1","ports":[58020,58079],"pins":["snapback0127","instrument","exactPinnedCheckout"],"allowedHostId":"charlies-macbook-air","loadCeilingId":"mac17-3-m5-10core-loadavg-10-approved","controllerCommand":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node","benchmarks/tools/social-messenger/metering/lane-controller.mjs","--harness-config","benchmarks/runs/2026-08-26-r3-published-0127/harness-config.json","--cell","opus-coterie-familiar-2","--driver","benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs","--admission","benchmarks/runs/2026-08-26-r3-published-0127/admissions/opus-coterie-familiar-2.json"],"admissionArtifact":"admissions/opus-coterie-familiar-2.json","meteringPolicy":{"adapter":"claude","capFamily":"claude-frontier","nativeCounts":"required"}},
+    {"id":"sol-clique-explicit-2","leg":"A","harness":"codex-sol","model":"gpt-5.6-sol","effort":"xhigh","app":"Clique","clientStack":"Expo Router web","profile":"explicit","replicate":2,"promptFile":"prompts/clique-explicit.md","runScope":"full","scoringProfile":"full-journey","claimEligibility":"scored-family-and-profile-scoped","milestones":["M1","M2","M3","M4","M5","M6","M8","M7"],"driverId":"social-messenger-full-journey-native-cli-driver.v1","ports":[58080,58139],"m7Ports":[59420,59479],"pins":["snapback0127","instrument"],"allowedHostId":"charlies-macbook-air","loadCeilingId":"mac17-3-m5-10core-loadavg-10-approved","controllerCommand":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node","benchmarks/tools/social-messenger/metering/lane-controller.mjs","--harness-config","benchmarks/runs/2026-08-26-r3-published-0127/harness-config.json","--cell","sol-clique-explicit-2","--driver","benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs","--admission","benchmarks/runs/2026-08-26-r3-published-0127/admissions/sol-clique-explicit-2.json"],"admissionArtifact":"admissions/sol-clique-explicit-2.json","meteringPolicy":{"adapter":"codex","capFamily":"gpt-frontier","nativeCounts":"required"}},
+    {"id":"opus-clique-explicit-2","leg":"B","harness":"claude-opus5","model":"claude-opus-5","effort":null,"app":"Clique","clientStack":"Expo Router web","profile":"explicit","replicate":2,"promptFile":"prompts/clique-explicit.md","runScope":"reduced","scoringProfile":"reduced-run-m1-m3","claimEligibility":"scored-family-and-profile-scoped-reduced-only","milestones":["M1","M2","M3"],"driverId":"social-messenger-r2-native-cli-driver.v1","ports":[58140,58199],"pins":["snapback0127","instrument"],"allowedHostId":"charlies-macbook-air","loadCeilingId":"mac17-3-m5-10core-loadavg-10-approved","controllerCommand":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node","benchmarks/tools/social-messenger/metering/lane-controller.mjs","--harness-config","benchmarks/runs/2026-08-26-r3-published-0127/harness-config.json","--cell","opus-clique-explicit-2","--driver","benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs","--admission","benchmarks/runs/2026-08-26-r3-published-0127/admissions/opus-clique-explicit-2.json"],"admissionArtifact":"admissions/opus-clique-explicit-2.json","meteringPolicy":{"adapter":"claude","capFamily":"claude-frontier","nativeCounts":"required"}},
+    {"id":"sol-clique-familiar-3","leg":"A","harness":"codex-sol","model":"gpt-5.6-sol","effort":"xhigh","app":"Clique","clientStack":"Expo Router web","profile":"familiar","replicate":3,"promptFile":"prompts/clique-familiar.md","runScope":"full","scoringProfile":"full-journey","claimEligibility":"scored-family-and-profile-scoped","milestones":["M1","M2","M3","M4","M5","M6","M8","M7"],"driverId":"social-messenger-full-journey-native-cli-driver.v1","ports":[58200,58259],"m7Ports":[59480,59539],"pins":["snapback0127","instrument"],"allowedHostId":"charlies-macbook-air","loadCeilingId":"mac17-3-m5-10core-loadavg-10-approved","controllerCommand":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node","benchmarks/tools/social-messenger/metering/lane-controller.mjs","--harness-config","benchmarks/runs/2026-08-26-r3-published-0127/harness-config.json","--cell","sol-clique-familiar-3","--driver","benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs","--admission","benchmarks/runs/2026-08-26-r3-published-0127/admissions/sol-clique-familiar-3.json"],"admissionArtifact":"admissions/sol-clique-familiar-3.json","meteringPolicy":{"adapter":"codex","capFamily":"gpt-frontier","nativeCounts":"required"}},
+    {"id":"opus-clique-familiar-3","leg":"B","harness":"claude-opus5","model":"claude-opus-5","effort":null,"app":"Clique","clientStack":"Expo Router web","profile":"familiar","replicate":3,"promptFile":"prompts/clique-familiar.md","runScope":"reduced","scoringProfile":"reduced-run-m1-m3","claimEligibility":"scored-family-and-profile-scoped-reduced-only","milestones":["M1","M2","M3"],"driverId":"social-messenger-r2-native-cli-driver.v1","ports":[58260,58319],"pins":["snapback0127","instrument"],"allowedHostId":"charlies-macbook-air","loadCeilingId":"mac17-3-m5-10core-loadavg-10-approved","controllerCommand":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node","benchmarks/tools/social-messenger/metering/lane-controller.mjs","--harness-config","benchmarks/runs/2026-08-26-r3-published-0127/harness-config.json","--cell","opus-clique-familiar-3","--driver","benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs","--admission","benchmarks/runs/2026-08-26-r3-published-0127/admissions/opus-clique-familiar-3.json"],"admissionArtifact":"admissions/opus-clique-familiar-3.json","meteringPolicy":{"adapter":"claude","capFamily":"claude-frontier","nativeCounts":"required"}},
+    {"id":"sol-coterie-familiar-3","leg":"A","harness":"codex-sol","model":"gpt-5.6-sol","effort":"xhigh","app":"Coterie","clientStack":"Exact/Contract web","profile":"familiar","replicate":3,"promptFile":"prompts/coterie-familiar.md","runScope":"full","scoringProfile":"full-journey","claimEligibility":"scored-family-and-profile-scoped","milestones":["M1","M2","M3","M4","M5","M6","M8","M7"],"driverId":"social-messenger-full-journey-native-cli-driver.v1","ports":[58320,58379],"m7Ports":[59540,59599],"pins":["snapback0127","instrument","exactPinnedCheckout"],"allowedHostId":"charlies-macbook-air","loadCeilingId":"mac17-3-m5-10core-loadavg-10-approved","controllerCommand":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node","benchmarks/tools/social-messenger/metering/lane-controller.mjs","--harness-config","benchmarks/runs/2026-08-26-r3-published-0127/harness-config.json","--cell","sol-coterie-familiar-3","--driver","benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs","--admission","benchmarks/runs/2026-08-26-r3-published-0127/admissions/sol-coterie-familiar-3.json"],"admissionArtifact":"admissions/sol-coterie-familiar-3.json","meteringPolicy":{"adapter":"codex","capFamily":"gpt-frontier","nativeCounts":"required"}},
+    {"id":"opus-coterie-familiar-3","leg":"B","harness":"claude-opus5","model":"claude-opus-5","effort":null,"app":"Coterie","clientStack":"Exact/Contract web","profile":"familiar","replicate":3,"promptFile":"prompts/coterie-familiar.md","runScope":"reduced","scoringProfile":"reduced-run-m1-m3","claimEligibility":"scored-family-and-profile-scoped-reduced-only","milestones":["M1","M2","M3"],"driverId":"social-messenger-r2-native-cli-driver.v1","ports":[58380,58439],"pins":["snapback0127","instrument","exactPinnedCheckout"],"allowedHostId":"charlies-macbook-air","loadCeilingId":"mac17-3-m5-10core-loadavg-10-approved","controllerCommand":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node","benchmarks/tools/social-messenger/metering/lane-controller.mjs","--harness-config","benchmarks/runs/2026-08-26-r3-published-0127/harness-config.json","--cell","opus-coterie-familiar-3","--driver","benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs","--admission","benchmarks/runs/2026-08-26-r3-published-0127/admissions/opus-coterie-familiar-3.json"],"admissionArtifact":"admissions/opus-coterie-familiar-3.json","meteringPolicy":{"adapter":"claude","capFamily":"claude-frontier","nativeCounts":"required"}},
+    {"id":"sol-clique-explicit-3","leg":"A","harness":"codex-sol","model":"gpt-5.6-sol","effort":"xhigh","app":"Clique","clientStack":"Expo Router web","profile":"explicit","replicate":3,"promptFile":"prompts/clique-explicit.md","runScope":"full","scoringProfile":"full-journey","claimEligibility":"scored-family-and-profile-scoped","milestones":["M1","M2","M3","M4","M5","M6","M8","M7"],"driverId":"social-messenger-full-journey-native-cli-driver.v1","ports":[58440,58499],"m7Ports":[59600,59659],"pins":["snapback0127","instrument"],"allowedHostId":"charlies-macbook-air","loadCeilingId":"mac17-3-m5-10core-loadavg-10-approved","controllerCommand":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node","benchmarks/tools/social-messenger/metering/lane-controller.mjs","--harness-config","benchmarks/runs/2026-08-26-r3-published-0127/harness-config.json","--cell","sol-clique-explicit-3","--driver","benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs","--admission","benchmarks/runs/2026-08-26-r3-published-0127/admissions/sol-clique-explicit-3.json"],"admissionArtifact":"admissions/sol-clique-explicit-3.json","meteringPolicy":{"adapter":"codex","capFamily":"gpt-frontier","nativeCounts":"required"}},
+    {"id":"opus-clique-explicit-3","leg":"B","harness":"claude-opus5","model":"claude-opus-5","effort":null,"app":"Clique","clientStack":"Expo Router web","profile":"explicit","replicate":3,"promptFile":"prompts/clique-explicit.md","runScope":"reduced","scoringProfile":"reduced-run-m1-m3","claimEligibility":"scored-family-and-profile-scoped-reduced-only","milestones":["M1","M2","M3"],"driverId":"social-messenger-r2-native-cli-driver.v1","ports":[58500,58559],"pins":["snapback0127","instrument"],"allowedHostId":"charlies-macbook-air","loadCeilingId":"mac17-3-m5-10core-loadavg-10-approved","controllerCommand":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node","benchmarks/tools/social-messenger/metering/lane-controller.mjs","--harness-config","benchmarks/runs/2026-08-26-r3-published-0127/harness-config.json","--cell","opus-clique-explicit-3","--driver","benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs","--admission","benchmarks/runs/2026-08-26-r3-published-0127/admissions/opus-clique-explicit-3.json"],"admissionArtifact":"admissions/opus-clique-explicit-3.json","meteringPolicy":{"adapter":"claude","capFamily":"claude-frontier","nativeCounts":"required"}},
+    {"id":"sol-coterie-explicit-3","leg":"A","harness":"codex-sol","model":"gpt-5.6-sol","effort":"xhigh","app":"Coterie","clientStack":"Exact/Contract web","profile":"explicit","replicate":3,"promptFile":"prompts/coterie-explicit.md","runScope":"full","scoringProfile":"full-journey","claimEligibility":"scored-family-and-profile-scoped","milestones":["M1","M2","M3","M4","M5","M6","M8","M7"],"driverId":"social-messenger-full-journey-native-cli-driver.v1","ports":[58560,58619],"m7Ports":[59660,59719],"pins":["snapback0127","instrument","exactPinnedCheckout"],"allowedHostId":"charlies-macbook-air","loadCeilingId":"mac17-3-m5-10core-loadavg-10-approved","controllerCommand":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node","benchmarks/tools/social-messenger/metering/lane-controller.mjs","--harness-config","benchmarks/runs/2026-08-26-r3-published-0127/harness-config.json","--cell","sol-coterie-explicit-3","--driver","benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs","--admission","benchmarks/runs/2026-08-26-r3-published-0127/admissions/sol-coterie-explicit-3.json"],"admissionArtifact":"admissions/sol-coterie-explicit-3.json","meteringPolicy":{"adapter":"codex","capFamily":"gpt-frontier","nativeCounts":"required"}},
+    {"id":"opus-coterie-explicit-3","leg":"B","harness":"claude-opus5","model":"claude-opus-5","effort":null,"app":"Coterie","clientStack":"Exact/Contract web","profile":"explicit","replicate":3,"promptFile":"prompts/coterie-explicit.md","runScope":"reduced","scoringProfile":"reduced-run-m1-m3","claimEligibility":"scored-family-and-profile-scoped-reduced-only","milestones":["M1","M2","M3"],"driverId":"social-messenger-r2-native-cli-driver.v1","ports":[58620,58679],"pins":["snapback0127","instrument","exactPinnedCheckout"],"allowedHostId":"charlies-macbook-air","loadCeilingId":"mac17-3-m5-10core-loadavg-10-approved","controllerCommand":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node","benchmarks/tools/social-messenger/metering/lane-controller.mjs","--harness-config","benchmarks/runs/2026-08-26-r3-published-0127/harness-config.json","--cell","opus-coterie-explicit-3","--driver","benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs","--admission","benchmarks/runs/2026-08-26-r3-published-0127/admissions/opus-coterie-explicit-3.json"],"admissionArtifact":"admissions/opus-coterie-explicit-3.json","meteringPolicy":{"adapter":"claude","capFamily":"claude-frontier","nativeCounts":"required"}}
+  ]
+}

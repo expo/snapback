@@ -21,6 +21,7 @@ import {
   liveSourceClosure,
   loadPolicyForCell,
   probeLaunchQuiet,
+  registeredMilestonesForCell,
   resolveSourceIdentity,
   verifyAdmissionArtifact,
 } from "./r2-cell-admission.mjs";
@@ -350,7 +351,7 @@ export async function loadLaneControllerConfig({ configPath: path, harnessConfig
       observationPath: "events/lane-controller-observations.jsonl",
       loadCeilings: loadIsolation.ceilingInclusive,
       loadIntervalMs: sampleEverySeconds * 1_000,
-      milestones: harnessConfig.execution?.milestones,
+      milestones: registeredMilestonesForCell(harnessConfig, cell),
       manifestPath: "metering-manifest.json",
       recordPatchPath: "metering.json",
       recordBasePath: "record-base.json",

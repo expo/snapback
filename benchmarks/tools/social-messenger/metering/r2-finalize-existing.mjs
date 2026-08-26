@@ -31,6 +31,7 @@ import {
   loadPolicyForCell,
   probeLaunchQuiet,
   registeredCellExpectations,
+  registeredMilestonesForCell,
   resolveSourceIdentity,
 } from "./r2-cell-admission.mjs";
 import {
@@ -325,7 +326,7 @@ function assertRawRetainedManifestIdentity({
     cellRoot,
     base,
     manifest,
-    expectedMilestones: harnessConfig.execution.milestones,
+    expectedMilestones: registeredMilestonesForCell(harnessConfig, cell),
   });
   return { manifest, base, coverage };
 }
@@ -945,7 +946,7 @@ async function publish({
     slotPath: preflight.slotPath,
     cellId,
     repositoryRoot,
-    expectedMilestones: harnessConfig.execution.milestones,
+    expectedMilestones: registeredMilestonesForCell(harnessConfig, cell),
     requireCommitted: false,
   });
   return { targetRoot, slot, validated };
@@ -1074,7 +1075,11 @@ export async function finalizeExisting({
       cellRoot,
       "record base",
     ).toString("utf8"));
-    const record = composeRunRecord({ base, patch: metering, expectedMilestones: harnessConfig.execution.milestones });
+    const record = composeRunRecord({
+      base,
+      patch: metering,
+      expectedMilestones: registeredMilestonesForCell(harnessConfig, cell),
+    });
     const recordBytes = Buffer.from(`${JSON.stringify(record, null, 2)}\n`);
     const [baseSchema, extensionSchema, composedSchema] = schemas(repositoryRoot);
     const errors = validateSocialMessengerRunRecord(composedSchema, record, {
