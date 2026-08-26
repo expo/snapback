@@ -462,7 +462,7 @@ run drift-prone-gate-fixtures --requires generated-artifacts -- node --test test
 # @ref LLP 0061#3-verification-snippets-that-ran — published-closure fixtures
 # keep released, unreleased, stale-fence, banner, and record failures executable.
 run guide-published-closure-fixtures -- node --test scripts/guide-published-closure.test.mjs
-run guide-shell-command-fixtures -- node --test scripts/check-guide-shell-commands.test.mjs scripts/generate-diagnostics-registry.test.mjs
+run guide-shell-command-fixtures -- node --test scripts/check-guide-shell-commands.test.mjs
 # LLP 0061: guide corpus — snippet transclusion-match, capability-index joins,
 # manifest staleness. Docs-only fast path: node scripts/check-guide.mjs.
 run guide --requires generated-artifacts -- node scripts/check-guide.mjs
@@ -476,6 +476,11 @@ run guide --requires generated-artifacts -- node scripts/check-guide.mjs
 # Rust suites, not by this docs/JS-only step).
 run control-catalog -- node scripts/generate-control-catalog.mjs --check
 run control-catalog-fixtures -- node --test scripts/generate-control-catalog.test.mjs
+# @ref LLP 0193#program — the public vocabulary contains emitted diagnostics,
+# not environment names or comparison-only references to those diagnostics.
+# The registered suite also invokes the generator with --check so production
+# line metadata cannot drift while classifier-only fixtures remain green.
+run diagnostics-registry-fixtures -- node --test scripts/generate-diagnostics-registry.test.mjs
 # @ref LLP 0204#sequencing — S0's API.md projection is deterministic, derives
 # only from the envelope, and rejects malformed/version-mismatched inputs.
 run app-api-md-fixtures -- node --test scripts/generate-app-api-md.test.mjs
