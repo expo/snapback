@@ -34,7 +34,7 @@ test('row-attack ledger carries every measured row and all feature cells', () =>
     [
       'F157', 'F170', 'F171', 'F172', 'F173', 'F175', 'F188', 'F190', 'F191',
       'C005', 'C009', 'F094', 'F143', 'F182', 'F112', 'F113', 'C006', 'F115',
-      'F149', 'F150', 'F279', 'F280', 'C012', 'F053', 'F145', 'F272', 'F220',
+      'F149', 'F150', 'F279', 'F280', 'C012', 'F053', 'F145', 'F272', 'F220', 'F244',
       'F082', 'F129', 'F126', 'F318', 'F314', 'F315', 'F316', 'F317', 'F313',
       'F319', 'F320', 'F321',
     ],
@@ -75,6 +75,7 @@ test('row-attack ledger carries every measured row and all feature cells', () =>
       F145: 'OPEN',
       F272: 'OPEN',
       F220: 'CLOSED',
+      F244: 'CLOSED',
       F082: 'CLOSED',
       F129: 'CLOSED',
       F126: 'CLOSED',
