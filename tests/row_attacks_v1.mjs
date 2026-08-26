@@ -9,14 +9,14 @@ import {
 
 const fixtureRoot = new URL('./fixtures/row-attacks/', import.meta.url).pathname;
 
-test('row-attack ledger carries the 26 measured rows and both feature cells', () => {
+test('row-attack ledger carries the 27 measured rows and both feature cells', () => {
   const ledger = loadRowAttackLedger(fixtureRoot);
   assert.deepEqual(
     ledger.attacks.map(({ row }) => row),
     [
       'F157', 'F170', 'F171', 'F172', 'F173', 'F175', 'F188', 'F190', 'F191',
       'C005', 'C009', 'F094', 'F143', 'F182', 'F112', 'F113', 'C006', 'F115',
-      'F149', 'F150', 'F279', 'F280', 'C012', 'F053', 'F145', 'F272',
+      'F149', 'F150', 'F279', 'F280', 'C012', 'F053', 'F145', 'F272', 'F220',
     ],
   );
   assert.deepEqual(ledger.featureCells.map(({ id }) => id), [
@@ -52,6 +52,7 @@ test('row-attack ledger carries the 26 measured rows and both feature cells', ()
       F053: 'OPEN',
       F145: 'OPEN',
       F272: 'OPEN',
+      F220: 'CLOSED',
     },
   );
   assert.ok(
