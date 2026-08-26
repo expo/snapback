@@ -274,7 +274,7 @@ function parseArgs(argv) {
   return options;
 }
 
-function testId(root, id) {
+export function testId(root, id) {
   if (!CONTRACT_TEST_IDS.has(id)) {
     throw new Error(`selector is not present in CONTRACT.md: ${id}`);
   }
