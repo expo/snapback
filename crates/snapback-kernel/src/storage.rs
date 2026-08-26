@@ -3901,13 +3901,28 @@ impl LocalDatabase {
     }
 
     /// Install the provider/keyring origin that alone may mint step-up proof
-    /// carriers for this database. Repeating the exact binding is idempotent;
-    /// replacement is refused so a retained caller-created provider cannot
-    /// take over an already-serving database.
+    /// carriers for this database. The durable catalog-creation origin is the
+    /// root: an uninitialized runtime field is never permission to install a
+    /// caller-authored provider. Repeating the exact binding is idempotent.
+    // @ref LLP 0303#the-root-boundary-not-another-wrapper — runtime installation derives from the catalog-creation root and cannot create it.
     pub fn bind_auth_step_up_provider(
         &mut self,
         binding: crate::auth::keyring::AuthProviderStepUpBinding,
     ) -> SnapbackResult<()> {
+        let durable_origin = self.auth_step_up_keyring_origin()?.ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_STEP_UP_PROVIDER_INVALID",
+                "auth",
+                "step-up is unavailable because the catalog has no creation-ceremony keyring origin",
+            )
+        })?;
+        if durable_origin != binding.durable_origin().as_str() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_STEP_UP_PROVIDER_INVALID",
+                "auth",
+                "step-up provider does not match the catalog-creation keyring origin",
+            ));
+        }
         match &self.auth_step_up_provider {
             Some(installed) if installed.matches(&binding) => Ok(()),
             Some(_) => Err(SnapbackError::error(
@@ -3932,6 +3947,10 @@ impl LocalDatabase {
                 "step-up provider is not bound to this database",
             )
         })
+    }
+
+    pub(crate) fn auth_step_up_keyring_origin(&self) -> SnapbackResult<Option<String>> {
+        auth::read_step_up_keyring_origin_on(&self.conn)
     }
 
     /// Join a second typed database handle to an already-claimed authority

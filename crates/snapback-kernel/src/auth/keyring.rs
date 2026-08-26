@@ -11,13 +11,18 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
 
 use serde::{Deserialize, Serialize};
+use sha2::{Digest as _, Sha256};
 use zeroize::{Zeroize as _, Zeroizing};
 
 use super::crypto::{
-    AuthKeyId, AuthKeyMaterial, CryptoError, RandomSource, StepUpProof, decode_canonical_base64url,
-    encode_base64url,
+    AuthKeyId, AuthKeyMaterial, CanonicalAddress, ChallengeId, CodeDigest, CryptoError,
+    RandomSource, StepUpDigest, VerificationCode, decode_canonical_base64url, encode_base64url,
 };
+use crate::contract_types::RequestInsertOutcome;
+use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::process_bound_identity::ProcessBoundIdentity;
+use crate::storage::LocalDatabase;
+use crate::storage::auth_catalog_ops::CatalogStepUpBinding;
 
 pub const AUTH_KEYRING_FORMAT_VERSION: u32 = 1;
 pub const AUTH_KEYRING_MAXIMUM_BYTES: usize = 64 * 1024;
@@ -26,6 +31,7 @@ pub const AUTH_KEY_ROTATION_AGE_MS: u64 = 30 * 24 * 60 * 60 * 1_000;
 pub const AUTH_RETIRED_KEY_MINIMUM_AGE_MS: u64 = 24 * 60 * 60 * 1_000;
 const MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
 const KEY_ALGORITHM: &str = "hmac-sha256";
+const STEP_UP_ORIGIN_DOMAIN: &[u8] = b"snapback.auth.step-up-keyring-origin.v1";
 const TEMP_CANDIDATE_ATTEMPTS: usize = 3;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -100,14 +106,36 @@ pub struct AuthKeyringStore {
     identity: ProcessBoundIdentity,
 }
 
+/// Stable non-secret commitment to the oldest retained key in one keyring.
+/// Fresh catalog activation stores it durably; runtime provider identities
+/// may be compared only after this origin matches that ceremony root.
+#[derive(Clone, Eq, PartialEq)]
+pub(crate) struct AuthKeyringOrigin(String);
+
+impl AuthKeyringOrigin {
+    pub(crate) fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Debug for AuthKeyringOrigin {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("AuthKeyringOrigin(..)")
+    }
+}
+
 /// Powerless identity installed into one database before it can consume a
-/// step-up proof. It can be copied for comparison but cannot mint a carrier.
+/// step-up proof. It carries both the ceremony-rooted keyring origin and the
+/// exact live provider allocation; neither coordinate alone is authoritative.
 ///
 /// @ref LLP 0303#corollary--the-artifact-must-carry-provenance-not-just-type
 /// — consumption verifies the exact provider/keyring instance that produced
 /// the proof, not merely a caller-writable key id.
 #[derive(Clone)]
-pub struct AuthProviderStepUpBinding(ProcessBoundIdentity);
+pub struct AuthProviderStepUpBinding {
+    provider_identity: ProcessBoundIdentity,
+    durable_origin: AuthKeyringOrigin,
+}
 
 impl fmt::Debug for AuthProviderStepUpBinding {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -117,7 +145,12 @@ impl fmt::Debug for AuthProviderStepUpBinding {
 
 impl AuthProviderStepUpBinding {
     pub(crate) fn matches(&self, other: &Self) -> bool {
-        self.0 == other.0
+        self.provider_identity == other.provider_identity
+            && self.durable_origin == other.durable_origin
+    }
+
+    pub(crate) fn durable_origin(&self) -> &AuthKeyringOrigin {
+        &self.durable_origin
     }
 }
 
@@ -134,7 +167,46 @@ impl Eq for AuthProviderStepUpBinding {}
 /// distinct origin and cannot mint a carrier accepted by the installed graph.
 pub struct AuthProviderStepUpOwner {
     keyring_identity: ProcessBoundIdentity,
-    binding: AuthProviderStepUpBinding,
+    provider_identity: ProcessBoundIdentity,
+}
+
+/// Keyring-derived half of fresh auth-catalog activation. The caller can
+/// choose which keyring accompanies a database it is creating, but cannot
+/// author or inspect the commitment installed by the closed transaction.
+pub struct PreparedAuthCatalogActivation {
+    durable_origin: AuthKeyringOrigin,
+}
+
+/// Opaque keyring/provider-authored material for one step-up row. The caller
+/// may schedule its commit after reserving delivery capacity, but cannot
+/// inspect or synthesize the origin/digest coordinates.
+pub struct PreparedStepUpChallenge {
+    keyring_identity: ProcessBoundIdentity,
+    provider_identity: ProcessBoundIdentity,
+    durable_origin: AuthKeyringOrigin,
+    key_id: String,
+    digest: StepUpDigest,
+}
+
+/// Opaque keyring/provider-authored material for one ordinary login row.
+pub struct PreparedVerificationChallenge {
+    keyring_identity: ProcessBoundIdentity,
+    provider_identity: ProcessBoundIdentity,
+    durable_origin: AuthKeyringOrigin,
+    key_id: String,
+    digest: CodeDigest,
+}
+
+impl fmt::Debug for PreparedAuthCatalogActivation {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("PreparedAuthCatalogActivation(..)")
+    }
+}
+
+impl PreparedAuthCatalogActivation {
+    pub(crate) fn origin(&self) -> &AuthKeyringOrigin {
+        &self.durable_origin
+    }
 }
 
 impl fmt::Debug for AuthProviderStepUpOwner {
@@ -150,7 +222,16 @@ impl fmt::Debug for AuthProviderStepUpOwner {
 #[derive(Clone, Eq, PartialEq)]
 pub struct ProviderBoundStepUpProof {
     binding: AuthProviderStepUpBinding,
-    proof: StepUpProof,
+    challenge_id: ChallengeId,
+    address: CanonicalAddress,
+    key_id: Option<AuthKeyId>,
+    submitted_digest: StepUpDigest,
+    user_id: String,
+    session_id: String,
+    session_generation: u64,
+    authority_instance_id: String,
+    operation: String,
+    target_id: String,
 }
 
 impl fmt::Debug for ProviderBoundStepUpProof {
@@ -160,12 +241,55 @@ impl fmt::Debug for ProviderBoundStepUpProof {
 }
 
 impl ProviderBoundStepUpProof {
-    pub fn proof(&self) -> &StepUpProof {
-        &self.proof
-    }
-
     pub(crate) fn matches_provider(&self, expected: &AuthProviderStepUpBinding) -> bool {
         self.binding.matches(expected)
+    }
+
+    pub(crate) fn durable_origin(&self) -> &AuthKeyringOrigin {
+        self.binding.durable_origin()
+    }
+
+    pub(crate) fn challenge_id(&self) -> &ChallengeId {
+        &self.challenge_id
+    }
+
+    pub fn address(&self) -> &CanonicalAddress {
+        &self.address
+    }
+
+    pub(crate) fn key_id(&self) -> Option<&AuthKeyId> {
+        self.key_id.as_ref()
+    }
+
+    pub(crate) fn verifies_submitted_digest(&self, expected: &[u8]) -> bool {
+        self.submitted_digest.verify(expected)
+    }
+
+    pub(crate) fn bound_session(&self) -> (&str, &str, u64, &str) {
+        (
+            &self.user_id,
+            &self.session_id,
+            self.session_generation,
+            &self.authority_instance_id,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn matches_binding(
+        &self,
+        user_id: &str,
+        session_id: Option<&str>,
+        session_generation: Option<u64>,
+        authority_instance_id: Option<&str>,
+        operation: &str,
+        target_id: &str,
+    ) -> bool {
+        self.user_id == user_id
+            && session_id.is_none_or(|expected| self.session_id == expected)
+            && session_generation.is_none_or(|expected| self.session_generation == expected)
+            && authority_instance_id.is_none_or(|expected| self.authority_instance_id == expected)
+            && self.operation == operation
+            && self.target_id == target_id
     }
 }
 
@@ -205,7 +329,7 @@ impl AuthKeyringStore {
     pub fn claim_step_up_provider_origin(&self) -> AuthProviderStepUpOwner {
         AuthProviderStepUpOwner {
             keyring_identity: self.identity.clone(),
-            binding: AuthProviderStepUpBinding(ProcessBoundIdentity::new()),
+            provider_identity: ProcessBoundIdentity::new(),
         }
     }
 
@@ -216,33 +340,263 @@ impl AuthKeyringStore {
         if owner.keyring_identity != self.identity {
             return Err(KeyringError::Unavailable);
         }
-        Ok(owner.binding.clone())
+        Ok(AuthProviderStepUpBinding {
+            provider_identity: owner.provider_identity.clone(),
+            durable_origin: self.durable_origin()?,
+        })
+    }
+
+    fn origin_for_provider(
+        &self,
+        owner: &AuthProviderStepUpOwner,
+    ) -> Result<AuthKeyringOrigin, KeyringError> {
+        if owner.keyring_identity != self.identity {
+            return Err(KeyringError::Unavailable);
+        }
+        self.durable_origin()
+    }
+
+    /// Prepare a step-up predecessor under the exact provider/keyring owner.
+    #[allow(clippy::too_many_arguments)]
+    pub fn prepare_step_up_challenge(
+        &self,
+        owner: &AuthProviderStepUpOwner,
+        binding: &CatalogStepUpBinding<'_>,
+        address: &CanonicalAddress,
+        challenge_id: &ChallengeId,
+        target_id: &str,
+        code: &VerificationCode,
+        now_ms: u64,
+        random: &dyn RandomSource,
+    ) -> Result<PreparedStepUpChallenge, KeyringError> {
+        let origin = self.origin_for_provider(owner)?;
+        let (key_id, digest) = self.with_active_key(now_ms, random, |key_id, key| {
+            (
+                key_id.as_str().to_owned(),
+                StepUpDigest::compute(
+                    key,
+                    challenge_id,
+                    address,
+                    binding.user_id,
+                    binding.session_id,
+                    binding.session_generation,
+                    binding.authority_instance_id,
+                    binding.operation,
+                    target_id,
+                    code,
+                ),
+            )
+        })?;
+        Ok(PreparedStepUpChallenge {
+            keyring_identity: self.identity.clone(),
+            provider_identity: owner.provider_identity.clone(),
+            durable_origin: origin,
+            key_id,
+            digest,
+        })
+    }
+
+    /// Commit an opaque step-up predecessor only when its origin derives from
+    /// this exact owner and the database's creation ceremony.
+    #[allow(clippy::too_many_arguments)]
+    pub fn insert_prepared_step_up_challenge(
+        &self,
+        owner: &AuthProviderStepUpOwner,
+        database: &mut LocalDatabase,
+        prepared: &PreparedStepUpChallenge,
+        binding: &CatalogStepUpBinding<'_>,
+        address: &CanonicalAddress,
+        challenge_id: &ChallengeId,
+        now_ms: u64,
+        expires_at_ms: u64,
+        budget_policy: &crate::auth::throttle::ResolvedCompatibilityAuthBudgetPolicy,
+    ) -> SnapbackResult<RequestInsertOutcome> {
+        if prepared.keyring_identity != self.identity
+            || owner.keyring_identity != self.identity
+            || prepared.provider_identity != owner.provider_identity
+            || self.origin_for_provider(owner).ok().as_ref() != Some(&prepared.durable_origin)
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
+                "auth",
+                "email-code auth provider is unavailable",
+            ));
+        }
+        database.auth_catalog().insert_step_up_challenge(
+            prepared.durable_origin.as_str(),
+            binding,
+            address,
+            challenge_id,
+            &prepared.digest,
+            &prepared.key_id,
+            now_ms,
+            expires_at_ms,
+            budget_policy,
+        )
+    }
+
+    /// Prepare an ordinary verification predecessor under the exact owner.
+    #[allow(clippy::too_many_arguments)]
+    pub fn prepare_verification_challenge(
+        &self,
+        owner: &AuthProviderStepUpOwner,
+        address: &CanonicalAddress,
+        challenge_id: &ChallengeId,
+        code: &VerificationCode,
+        now_ms: u64,
+        random: &dyn RandomSource,
+    ) -> Result<PreparedVerificationChallenge, KeyringError> {
+        let origin = self.origin_for_provider(owner)?;
+        let (key_id, digest) = self.with_active_key(now_ms, random, |key_id, key| {
+            (
+                key_id.as_str().to_owned(),
+                CodeDigest::compute(key, challenge_id, address, code),
+            )
+        })?;
+        Ok(PreparedVerificationChallenge {
+            keyring_identity: self.identity.clone(),
+            provider_identity: owner.provider_identity.clone(),
+            durable_origin: origin,
+            key_id,
+            digest,
+        })
+    }
+
+    /// Commit an opaque ordinary predecessor with immutable kind and origin
+    /// provenance in the same SQLite transaction as the challenge row.
+    #[allow(clippy::too_many_arguments)]
+    pub fn insert_prepared_verification_challenge(
+        &self,
+        owner: &AuthProviderStepUpOwner,
+        database: &mut LocalDatabase,
+        prepared: &PreparedVerificationChallenge,
+        address: &CanonicalAddress,
+        challenge_id: &ChallengeId,
+        now_ms: u64,
+        expires_at_ms: u64,
+        budget_policy: &crate::auth::throttle::ResolvedCompatibilityAuthBudgetPolicy,
+        rehearsal_window: Option<&crate::auth::rehearsal::AuthRehearsalWindowV1>,
+    ) -> SnapbackResult<RequestInsertOutcome> {
+        if prepared.keyring_identity != self.identity
+            || owner.keyring_identity != self.identity
+            || prepared.provider_identity != owner.provider_identity
+            || self.origin_for_provider(owner).ok().as_ref() != Some(&prepared.durable_origin)
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
+                "auth",
+                "email-code auth provider is unavailable",
+            ));
+        }
+        match rehearsal_window {
+            Some(window) => database
+                .auth_catalog()
+                .insert_verification_challenge_for_rehearsal_window(
+                    prepared.durable_origin.as_str(),
+                    address,
+                    challenge_id,
+                    &prepared.digest,
+                    &prepared.key_id,
+                    now_ms,
+                    expires_at_ms,
+                    budget_policy,
+                    window,
+                ),
+            None => database.auth_catalog().insert_verification_challenge(
+                prepared.durable_origin.as_str(),
+                address,
+                challenge_id,
+                &prepared.digest,
+                &prepared.key_id,
+                now_ms,
+                expires_at_ms,
+                budget_policy,
+            ),
+        }
     }
 
     /// Admit a proof only through the exact provider owner and only while the
     /// proof's key id is a member of this keyring. The transaction later
     /// compares the carrier origin with the database-installed binding and
     /// verifies/consumes the provider-minted durable challenge.
+    #[allow(clippy::too_many_arguments)]
     pub fn bind_step_up_proof(
         &self,
         owner: &AuthProviderStepUpOwner,
-        proof: StepUpProof,
+        challenge_id: ChallengeId,
+        address: CanonicalAddress,
+        key_id: Option<AuthKeyId>,
+        submitted_digest: StepUpDigest,
+        user_id: String,
+        session_id: String,
+        session_generation: u64,
+        authority_instance_id: String,
+        operation: impl Into<String>,
+        target_id: String,
     ) -> Result<ProviderBoundStepUpProof, KeyringError> {
         if owner.keyring_identity != self.identity {
             return Err(KeyringError::Unavailable);
         }
-        let key_id = proof.key_id().ok_or(KeyringError::MissingKey)?;
-        self.with_key(key_id, |_| ())?;
+        let key_id_ref = key_id.as_ref().ok_or(KeyringError::MissingKey)?;
+        self.with_key(key_id_ref, |_| ())?;
         Ok(ProviderBoundStepUpProof {
-            binding: owner.binding.clone(),
-            proof,
+            binding: AuthProviderStepUpBinding {
+                provider_identity: owner.provider_identity.clone(),
+                durable_origin: self.durable_origin()?,
+            },
+            challenge_id,
+            address,
+            key_id,
+            submitted_digest,
+            user_id,
+            session_id,
+            session_generation,
+            authority_instance_id,
+            operation: operation.into(),
+            target_id,
         })
+    }
+
+    fn durable_origin(&self) -> Result<AuthKeyringOrigin, KeyringError> {
+        let backend = self.lock()?;
+        match &*backend {
+            Backend::Memory { ring } => ring
+                .as_ref()
+                .ok_or(KeyringError::Missing)
+                .and_then(Keyring::durable_origin),
+            Backend::File { path } => load_file(path)?.ring.durable_origin(),
+        }
     }
 
     pub fn keyring_path(database_path: &Path) -> PathBuf {
         let mut value = OsString::from(database_path.as_os_str());
         value.push(".auth-keyring.json");
         PathBuf::from(value)
+    }
+
+    /// Prepare the immutable keyring half of fresh catalog activation. The
+    /// consumer installs this origin in the same transaction as catalog v5;
+    /// it is never a migration or first-writer binding for an existing store.
+    pub fn prepare_catalog_activation(
+        &self,
+        now_ms: u64,
+        random: &dyn RandomSource,
+    ) -> Result<PreparedAuthCatalogActivation, KeyringError> {
+        self.load_or_mint_initial(now_ms, random)?;
+        Ok(PreparedAuthCatalogActivation {
+            durable_origin: self.durable_origin()?,
+        })
+    }
+
+    pub fn catalog_origin_matches(
+        &self,
+        database: &crate::storage::LocalDatabase,
+    ) -> Result<bool, KeyringError> {
+        let expected = self.durable_origin()?;
+        let stored = database
+            .auth_step_up_keyring_origin()
+            .map_err(|_| KeyringError::Unavailable)?;
+        Ok(stored.as_deref() == Some(expected.as_str()))
     }
 
     pub fn load_existing(&self) -> Result<KeyringSummary, KeyringError> {
@@ -478,6 +832,20 @@ impl Keyring {
         })
     }
 
+    fn durable_origin(&self) -> Result<AuthKeyringOrigin, KeyringError> {
+        self.validate()?;
+        let root = self.keys.first().ok_or(KeyringError::Corrupt)?;
+        let mut digest = Sha256::new();
+        digest.update(STEP_UP_ORIGIN_DOMAIN);
+        digest.update((root.id.as_str().len() as u64).to_be_bytes());
+        digest.update(root.id.as_str().as_bytes());
+        digest.update(root.material.expose_secret());
+        Ok(AuthKeyringOrigin(format!(
+            "sbko_{}",
+            encode_base64url(&digest.finalize())
+        )))
+    }
+
     fn rotate_if_due(
         &mut self,
         now_ms: u64,
@@ -540,11 +908,14 @@ impl Keyring {
         // Complete every fallible catalog lookup before mutating the ring. A
         // lookup error midway through pruning must leave memory mode intact.
         let mut remove = Vec::with_capacity(self.keys.len());
-        for entry in &self.keys {
+        for (index, entry) in self.keys.iter().enumerate() {
             let old_enough = entry.retired_at_ms.is_some_and(|retired_at_ms| {
                 now_ms >= retired_at_ms.saturating_add(AUTH_RETIRED_KEY_MINIMUM_AGE_MS)
             });
-            remove.push(old_enough && !is_referenced(&entry.id)?);
+            // The oldest retained key is the durable ceremony root. It is not
+            // an active signing key after rotation, but pruning it would make
+            // the database/keyring origin unverifiable after restart.
+            remove.push(index != 0 && old_enough && !is_referenced(&entry.id)?);
         }
         let removed = remove.iter().filter(|candidate| **candidate).count();
         if removed > 0 {

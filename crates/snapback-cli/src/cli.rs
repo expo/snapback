@@ -510,12 +510,19 @@ async fn compose_auth_mode_startup_with_embedded(
             let publication_generation = snapback.reserve_function_publication_generation()?;
             let provider = auth_runtime.provider();
             let maintenance = provider.exclusive_maintenance().await;
-            if let Err(error) = startup_blocking(|| maintenance.prepare_catalog_activation()) {
-                drop(maintenance);
-                return quarantine_pending_startup(snapback, error);
-            }
+            let activation = match startup_blocking(|| maintenance.prepare_catalog_activation()) {
+                Ok(activation) => activation,
+                Err(error) => {
+                    drop(maintenance);
+                    return quarantine_pending_startup(snapback, error);
+                }
+            };
             let state = match startup_blocking(|| {
-                snapback.consume_sessions_auth_mode_with_functions(readiness, &carrier.functions)
+                snapback.consume_sessions_auth_mode_with_functions_and_catalog_activation(
+                    readiness,
+                    &carrier.functions,
+                    &activation,
+                )
             }) {
                 Ok(state) => state,
                 Err(error) => {

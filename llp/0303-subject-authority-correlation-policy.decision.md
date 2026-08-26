@@ -6,6 +6,7 @@
 **Author:** Claude (Opus 5), commissioned by Charlie Cheever (author ruling
 2026-08-24, in session supervising LLP 0283 F-1)
 **Date:** 2026-08-24
+**Revised:** 2026-08-26 (v — authorization derivations must terminate at a non-caller-authored durable ceremony root)
 **Revised:** 2026-08-26 (u — a retainable value guarded by a destructor is the same defect; generalized to any caller-authored fact)
 **Revised:** 2026-08-25 (s — Q23 owner-bound; scoped landings)
 **Related:** LLP 0283, LLP 0298, LLP 0285, LLP 0274,
@@ -908,6 +909,35 @@ question, not an optional one. Authors proposing a fix in this class should stat
 the two remedies they chose and why — and if they chose a deadline or a bound rather than
 removing the retainable value, they must justify why the bound is safe and say what happens
 to work that returns after it expires.
+
+### (v) The root boundary, not another wrapper
+
+Round 4 of the step-up review executed revision (u)'s generalized attack one
+level farther outward. The keyring-owned proof and its process identity were
+genuine and unforgeable, but a caller could create a second genuine keyring and
+install it into a database handle whose runtime binding began as `None`. The
+durable challenge was also caller-writable and carried neither its provider
+origin nor whether it was a normal verification challenge or a step-up
+challenge. The exact-session invitation sink consequently consumed authority
+derived entirely from caller-authored predecessors.
+
+**Ruling.** A chain of checks must terminate at a fact established by a
+non-caller-authored ceremony. Another opaque wrapper around the immediately
+preceding caller-authored fact is not a root. For local email-code step-up, the
+root is the keyring commitment installed in the same transaction as fresh auth
+catalog creation, before the version marker. Runtime provider binding derives
+from that durable value; `None` never means that the first installer becomes
+trusted. Every challenge row has a one-to-one durable provenance row naming
+that origin and the closed kind `verification` or `step-up`; producers and
+consumers compare provenance with the durable root and enforce the expected
+kind.
+
+Catalogs that predate this ceremony have no fact from which the root can be
+honestly derived. They therefore remain recognized but cannot serve
+email-code challenge or step-up operations until an explicit, operator-owned
+migration ceremony exists. Runtime installation is not such a migration, and
+must not silently become one. This availability cost is the required
+fail-closed result of finding that the earlier design had no root.
 
 ## Severity context
 

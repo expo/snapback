@@ -5,6 +5,9 @@
 **Systems:** Auth, Storage, Security, API, Admin API, Backup/restore, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
+**Revised:** 2026-08-26 (catalog v5 roots email-code challenge authority in the
+fresh-catalog creation ceremony and records immutable provider-origin/kind
+provenance for every challenge; legacy catalogs require an explicit migration)
 **Revised:** 2026-08-23 (pairing-parent admission counts every unexpired row
 without a grant, including deliberately consumed OAuth parents; the existing
 OAuth child-FK cleanup wedge remains deferred). 2026-08-15 (password issuance releases its planning
@@ -2023,6 +2026,33 @@ shared authority is unavailable. This amendment neither duplicates nor
 weakens that hosted authority. LLP 0213 continues to own rehearsal grant/window
 state and numeric rehearsal policy; ordinary compatibility budgets do not
 rename or borrow those counters.
+
+## Dated amendment (2026-08-26): catalog v5 challenge-authority root
+
+Catalog v5 adds `_auth_verification_code_provenance`, a one-to-one child of
+`_auth_verification_codes` containing the closed challenge kind
+(`verification` or `step-up`) and the provider keyring origin. Fresh activation
+stores `auth_step_up_keyring_origin_v1` in `_snapback_meta` in the same
+transaction, before writing marker `5`. The origin is a domain-separated
+SHA-256 commitment to the oldest retained key; that first key is never pruned,
+while ordinary signing continues to rotate through later keys.
+
+The creation ceremony is the authority root. A database handle's process-local
+provider field starts empty, but empty is not an installation grant: binding
+succeeds only when the provider's keyring commitment equals the durable root.
+Challenge writers are keyring/provider-owner operations, and insert the parent
+row plus provenance child atomically. Normal exchange accepts only
+`verification`; step-up accepts only `step-up`; every preliminary lookup,
+terminal transaction, reconciliation, and compare-and-set consumption checks
+the row origin against the durable root.
+
+Exact v1–v4 catalogs remain recognized without reinterpretation. They have no
+creation-ceremony origin, so email challenge and step-up service is unavailable
+rather than accepting a first runtime installer. This amendment does not
+define a v4→v5 migration: that requires a separate operator-authorized plan,
+preview/backup rule, crash matrix, and evidence under LLP 0214 §3.1. Physical
+v5 backup carries both the root metadata and exact keyring bytes; deleting a
+challenge cascades its provenance child.
 
 ## Open questions
 

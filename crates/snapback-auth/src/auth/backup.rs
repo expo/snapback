@@ -60,6 +60,7 @@ pub struct AuthBackupOutcome {
 pub enum AuthBackupCatalogState {
     ReadyV3,
     ReadyV4,
+    ReadyV5,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -132,18 +133,20 @@ impl AuthBackupManifest {
                     source_database_basename,
                 })
             }
-            AuthCatalogState::ReadyV3 | AuthCatalogState::ReadyV4 => {
+            AuthCatalogState::ReadyV3 | AuthCatalogState::ReadyV4 | AuthCatalogState::ReadyV5 => {
                 AuthBackupManifestData::Format2(AuthBackupManifestV2 {
                     format_version: BACKUP_FORMAT_VERSION,
                     created_at_ms,
                     catalog_state: match catalog {
                         AuthCatalogState::ReadyV3 => AuthBackupCatalogState::ReadyV3,
                         AuthCatalogState::ReadyV4 => AuthBackupCatalogState::ReadyV4,
+                        AuthCatalogState::ReadyV5 => AuthBackupCatalogState::ReadyV5,
                         _ => unreachable!("identity-core catalog matched above"),
                     },
                     catalog_version: match catalog {
                         AuthCatalogState::ReadyV3 => AUTH_CATALOG_VERSION_V3,
-                        AuthCatalogState::ReadyV4 => AUTH_CATALOG_VERSION,
+                        AuthCatalogState::ReadyV4 => "4",
+                        AuthCatalogState::ReadyV5 => AUTH_CATALOG_VERSION,
                         _ => unreachable!("identity-core catalog matched above"),
                     }
                     .parse()
@@ -178,6 +181,7 @@ impl AuthBackupManifest {
                 let catalog = match manifest.catalog_state {
                     AuthBackupCatalogState::ReadyV3 => AuthCatalogState::ReadyV3,
                     AuthBackupCatalogState::ReadyV4 => AuthCatalogState::ReadyV4,
+                    AuthBackupCatalogState::ReadyV5 => AuthCatalogState::ReadyV5,
                 };
                 let expected = crate::storage::auth::auth_catalog_table_names(catalog)
                     .expect("ready catalog has a table inventory");
@@ -187,6 +191,13 @@ impl AuthBackupManifest {
                     }
                     AuthBackupCatalogState::ReadyV4 => {
                         manifest.catalog_version == 4
+                            && matches!(
+                                manifest.password_identifier_mode.as_deref(),
+                                Some("username-v1" | "email-v1")
+                            )
+                    }
+                    AuthBackupCatalogState::ReadyV5 => {
+                        manifest.catalog_version == 5
                             && matches!(
                                 manifest.password_identifier_mode.as_deref(),
                                 Some("username-v1" | "email-v1")
@@ -397,9 +408,12 @@ fn create_backup_inner(
     let keyring_sha256 = sha256_bytes(keyring_bytes.expose_secret());
     let manifest = AuthBackupManifest::new(
         catalog,
-        (catalog == AuthCatalogState::ReadyV4)
-            .then(|| database.auth_password_identifier_mode())
-            .transpose()?,
+        matches!(
+            catalog,
+            AuthCatalogState::ReadyV4 | AuthCatalogState::ReadyV5
+        )
+        .then(|| database.auth_password_identifier_mode())
+        .transpose()?,
         created_at_ms,
         database_sha256,
         keyring_sha256,
@@ -512,6 +526,7 @@ pub fn restore_backup(
         AuthCatalogState::ReadyV2 => 2,
         AuthCatalogState::ReadyV3 => 3,
         AuthCatalogState::ReadyV4 => 4,
+        AuthCatalogState::ReadyV5 => 5,
         AuthCatalogState::Uninitialized => unreachable!("readiness checked above"),
     };
     if restored_catalog_version != manifest.catalog_version() {
@@ -519,7 +534,10 @@ pub fn restore_backup(
             "restored auth catalog version does not match the backup manifest",
         ));
     }
-    if restored_catalog == AuthCatalogState::ReadyV4 {
+    if matches!(
+        restored_catalog,
+        AuthCatalogState::ReadyV4 | AuthCatalogState::ReadyV5
+    ) {
         let restored_mode =
             LocalDatabase::auth_password_identifier_mode_descriptor_read_only(&staged_database)
                 .map_err(|_| backup_invalid("restored password identifier mode is invalid"))?;

@@ -49,16 +49,20 @@ pub fn activate_catalog(
         AuthCatalogState::ReadyV1
         | AuthCatalogState::ReadyV2
         | AuthCatalogState::ReadyV3
-        | AuthCatalogState::ReadyV4 => Ok(AuthActivation {
+        | AuthCatalogState::ReadyV4
+        | AuthCatalogState::ReadyV5 => Ok(AuthActivation {
             catalog_created: false,
-            email_code: existing_keyring_readiness(keyring),
+            email_code: existing_keyring_readiness(database, keyring),
         }),
         AuthCatalogState::Uninitialized => {
-            keyring
-                .load_or_mint_initial(now_ms, random)
+            let preparation = keyring
+                .prepare_catalog_activation(now_ms, random)
                 .map_err(provider_unavailable)?;
             activation_keyring_ready()?;
-            database.activate_current_auth_catalog()?;
+            database.activate_new_auth_catalog_with_step_up_origin(
+                crate::storage::auth::PasswordIdentifierMode::UsernameV1,
+                &preparation,
+            )?;
             if !database.inspect_auth_catalog()?.is_ready() {
                 return Err(SnapbackError::error(
                     "SNAPBACK_AUTH_CATALOG_CORRUPT",
@@ -68,16 +72,22 @@ pub fn activate_catalog(
             }
             Ok(AuthActivation {
                 catalog_created: true,
-                email_code: existing_keyring_readiness(keyring),
+                email_code: existing_keyring_readiness(database, keyring),
             })
         }
     }
 }
 
-fn existing_keyring_readiness(keyring: &AuthKeyringStore) -> EmailCodeReadiness {
-    match keyring.load_existing() {
-        Ok(summary) => EmailCodeReadiness::Ready(summary),
-        Err(_) => EmailCodeReadiness::Unavailable,
+fn existing_keyring_readiness(
+    database: &LocalDatabase,
+    keyring: &AuthKeyringStore,
+) -> EmailCodeReadiness {
+    match (
+        keyring.load_existing(),
+        keyring.catalog_origin_matches(database),
+    ) {
+        (Ok(summary), Ok(true)) => EmailCodeReadiness::Ready(summary),
+        _ => EmailCodeReadiness::Unavailable,
     }
 }
 

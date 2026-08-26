@@ -28,8 +28,8 @@ use uuid::Uuid;
 use zeroize::{Zeroize as _, Zeroizing};
 
 use super::crypto::{
-    AuthKeyId, AuthKeyMaterial, CanonicalAddress, ChallengeId, CodeDigest, CryptoError, OsRandom,
-    RandomSource, SessionBearer, StepUpDigest, StepUpProof, TokenHash, VerificationCode,
+    AuthKeyId, AuthKeyMaterial, CanonicalAddress, ChallengeId, CryptoError, OsRandom, RandomSource,
+    SessionBearer, StepUpDigest, TokenHash, VerificationCode,
 };
 use super::keyring::AuthKeyringStore;
 use super::keyring::{
@@ -302,7 +302,7 @@ impl StepUpProofAdmission {
     }
 
     pub fn address(&self) -> &CanonicalAddress {
-        self.proof.proof().address()
+        self.proof.address()
     }
 
     pub fn prepare_password_set_plan<'a>(
@@ -312,7 +312,7 @@ impl StepUpProofAdmission {
         custody: PasswordIssuanceCustody,
     ) -> impl super::database_plan::AuthDatabasePlan<Output = SnapbackResult<PasswordSetPreparation>> + 'a
     {
-        let identifier = self.proof.proof().address().as_str();
+        let identifier = self.proof.address().as_str();
         super::database_plan::plan(move |database| {
             self._admission
                 .provider
@@ -3434,7 +3434,7 @@ impl AuthAdmission {
         let challenge_id = ChallengeId::parse(challenge_id).map_err(|_| request_invalid())?;
         let row = database
             .auth_catalog_read()
-            .challenge_coordination(challenge_id.as_str())
+            .step_up_challenge_coordination(challenge_id.as_str())
             .map_err(|_| provider_unavailable())?;
         match row {
             Some((address, key_id)) => Ok(StepUpCoordination {
@@ -3502,22 +3502,22 @@ impl AuthAdmission {
             operation,
             target_id,
         } = binding;
-        let proof = StepUpProof::from_verified_binding(
-            coordination.challenge_id,
-            coordination.address,
-            coordination.key_id,
-            submitted_digest,
-            user_id,
-            session_id,
-            session_generation,
-            authority_instance_id,
-            operation,
-            target_id,
-        );
         let proof = self
             .provider
             .keyring
-            .bind_step_up_proof(&self.provider.step_up_owner, proof)
+            .bind_step_up_proof(
+                &self.provider.step_up_owner,
+                coordination.challenge_id,
+                coordination.address,
+                coordination.key_id,
+                submitted_digest,
+                user_id,
+                session_id,
+                session_generation,
+                authority_instance_id,
+                operation,
+                target_id,
+            )
             .map_err(|_| provider_unavailable())?;
         Ok(StepUpProofAdmission {
             _admission: self,
@@ -3537,7 +3537,7 @@ impl AuthAdmission {
         let challenge_id = ChallengeId::parse(challenge_id).map_err(|_| request_invalid())?;
         database
             .auth_catalog_read()
-            .challenge_coordination(challenge_id.as_str())
+            .verification_challenge_coordination(challenge_id.as_str())
             .map_err(|_| provider_unavailable())?
             .map(|(address, key_id)| {
                 Ok(ExchangeCoordination {
@@ -4543,26 +4543,20 @@ impl AddressAdmission {
                 .map_err(|_| provider_unavailable())?;
             let code = VerificationCode::generate(self.provider().random.as_ref())
                 .map_err(|_| provider_unavailable())?;
-            let (key_id, digest) = self
+            let prepared = self
                 .provider()
                 .keyring
-                .with_active_key(now_ms, self.provider().random.as_ref(), |key_id, key| {
-                    (
-                        key_id.as_str().to_owned(),
-                        StepUpDigest::compute(
-                            key,
-                            &challenge_id,
-                            &self.address,
-                            &binding.user_id,
-                            &binding.session_id,
-                            binding.session_generation,
-                            &binding.authority_instance_id,
-                            binding.operation,
-                            &binding.target_id,
-                            &code,
-                        ),
-                    )
-                })
+                .prepare_step_up_challenge(
+                    &self.provider().step_up_owner,
+                    &binding.catalog_binding(),
+                    &self.address,
+                    &challenge_id,
+                    &binding.target_id,
+                    &code,
+                    now_ms,
+                    expires_at_ms,
+                    self.provider().random.as_ref(),
+                )
                 .map_err(|_| provider_unavailable())?;
             let entry = CaptureMailboxEntry::new(
                 challenge_id.clone(),
@@ -4580,12 +4574,13 @@ impl AddressAdmission {
                 Err(_) => continue,
             };
 
-            let outcome = database.auth_catalog().insert_step_up_challenge(
+            let outcome = self.provider().keyring.insert_prepared_step_up_challenge(
+                &self.provider().step_up_owner,
+                database,
+                &prepared,
                 &binding.catalog_binding(),
                 &self.address,
                 &challenge_id,
-                &digest,
-                &key_id,
                 now_ms,
                 expires_at_ms,
                 &self.provider().budget_policy(),
@@ -4645,6 +4640,9 @@ impl AddressAdmission {
         rehearsal_window: Option<&crate::auth::rehearsal::AuthRehearsalWindowV1>,
     ) -> ProviderResult<RequestCodeResponse> {
         validate_now(now_ms)?;
+        database
+            .bind_auth_step_up_provider(self.provider().step_up_provider_binding()?)
+            .map_err(|_| provider_unavailable())?;
         if !self.provider().profile.permits_capture() {
             return Err(provider_unavailable());
         }
@@ -4661,15 +4659,18 @@ impl AddressAdmission {
                 .map_err(|_| provider_unavailable())?;
             let code = VerificationCode::generate(self.provider().random.as_ref())
                 .map_err(|_| provider_unavailable())?;
-            let (key_id, digest) = self
+            let prepared = self
                 .provider()
                 .keyring
-                .with_active_key(now_ms, self.provider().random.as_ref(), |key_id, key| {
-                    (
-                        key_id.as_str().to_owned(),
-                        CodeDigest::compute(key, &challenge_id, &self.address, &code),
-                    )
-                })
+                .prepare_verification_challenge(
+                    &self.provider().step_up_owner,
+                    &self.address,
+                    &challenge_id,
+                    &code,
+                    now_ms,
+                    expires_at_ms,
+                    self.provider().random.as_ref(),
+                )
                 .map_err(|_| provider_unavailable())?;
             let entry = CaptureMailboxEntry::new(
                 challenge_id.clone(),
@@ -4690,29 +4691,20 @@ impl AddressAdmission {
                 Err(_) => continue,
             };
 
-            let outcome = match rehearsal_window {
-                Some(window) => database
-                    .auth_catalog()
-                    .insert_verification_challenge_for_rehearsal_window(
-                        &self.address,
-                        &challenge_id,
-                        &digest,
-                        &key_id,
-                        now_ms,
-                        expires_at_ms,
-                        &self.provider().budget_policy(),
-                        window,
-                    ),
-                None => database.auth_catalog().insert_verification_challenge(
+            let outcome = self
+                .provider()
+                .keyring
+                .insert_prepared_verification_challenge(
+                    &self.provider().step_up_owner,
+                    database,
+                    &prepared,
                     &self.address,
                     &challenge_id,
-                    &digest,
-                    &key_id,
                     now_ms,
                     expires_at_ms,
                     &self.provider().budget_policy(),
-                ),
-            };
+                    rehearsal_window,
+                );
 
             match outcome {
                 Ok(RequestInsertOutcome::Inserted) => {
@@ -4851,18 +4843,19 @@ impl AuthMaintenanceGuard {
     /// publishing a usable keyring first preserves LLP 0057's one-way ordering
     /// without creating a second provider or escaping this maintenance guard.
     // @ref LLP 0057#activation-ordering — usable key material precedes the catalog marker and is never reminted for a marked catalog.
-    pub fn prepare_catalog_activation(&self) -> SnapbackResult<()> {
+    pub fn prepare_catalog_activation(
+        &self,
+    ) -> SnapbackResult<snapback_kernel::auth::keyring::PreparedAuthCatalogActivation> {
         self.provider
             .keyring
-            .load_or_mint_initial(self.provider.now_ms(), self.provider.random.as_ref())
+            .prepare_catalog_activation(self.provider.now_ms(), self.provider.random.as_ref())
             .map_err(|_| {
                 SnapbackError::error(
                     "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
                     "auth",
                     "email-code auth provider is unavailable",
                 )
-            })?;
-        Ok(())
+            })
     }
 
     pub fn mailbox(&self) -> &CaptureMailbox {

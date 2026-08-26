@@ -337,108 +337,10 @@ impl CodeDigest {
 #[derive(Clone, Eq, PartialEq)]
 pub struct StepUpDigest(Zeroizing<[u8; 32]>);
 
-#[derive(Clone, Eq, PartialEq)]
-pub struct StepUpProof {
-    challenge_id: ChallengeId,
-    address: CanonicalAddress,
-    key_id: Option<AuthKeyId>,
-    submitted_digest: StepUpDigest,
-    user_id: String,
-    session_id: String,
-    session_generation: u64,
-    authority_instance_id: String,
-    operation: String,
-    target_id: String,
-}
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum StepUpConsumption {
     Verified,
     Rejected,
-}
-
-impl fmt::Debug for StepUpProof {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("StepUpProof([REDACTED])")
-    }
-}
-
-impl StepUpProof {
-    /// Retain the exact coordinates that produced the submitted HMAC. The
-    /// fields are private so a caller holding an admission cannot relabel its
-    /// digest for another principal, operation, or target.
-    ///
-    /// @ref LLP 0303#corollary--the-artifact-must-carry-provenance-not-just-type
-    /// — the proof carries its derivation coordinates to the consuming sink.
-    #[allow(clippy::too_many_arguments)]
-    pub fn from_verified_binding(
-        challenge_id: ChallengeId,
-        address: CanonicalAddress,
-        key_id: Option<AuthKeyId>,
-        submitted_digest: StepUpDigest,
-        user_id: String,
-        session_id: String,
-        session_generation: u64,
-        authority_instance_id: String,
-        operation: impl Into<String>,
-        target_id: String,
-    ) -> Self {
-        Self {
-            challenge_id,
-            address,
-            key_id,
-            submitted_digest,
-            user_id,
-            session_id,
-            session_generation,
-            authority_instance_id,
-            operation: operation.into(),
-            target_id,
-        }
-    }
-
-    pub fn challenge_id(&self) -> &ChallengeId {
-        &self.challenge_id
-    }
-
-    pub fn address(&self) -> &CanonicalAddress {
-        &self.address
-    }
-
-    pub fn key_id(&self) -> Option<&AuthKeyId> {
-        self.key_id.as_ref()
-    }
-
-    pub fn verifies_submitted_digest(&self, expected: &[u8]) -> bool {
-        self.submitted_digest.verify(expected)
-    }
-
-    pub fn bound_session(&self) -> (&str, &str, u64, &str) {
-        (
-            &self.user_id,
-            &self.session_id,
-            self.session_generation,
-            &self.authority_instance_id,
-        )
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn matches_binding(
-        &self,
-        user_id: &str,
-        session_id: Option<&str>,
-        session_generation: Option<u64>,
-        authority_instance_id: Option<&str>,
-        operation: &str,
-        target_id: &str,
-    ) -> bool {
-        self.user_id == user_id
-            && session_id.is_none_or(|expected| self.session_id == expected)
-            && session_generation.is_none_or(|expected| self.session_generation == expected)
-            && authority_instance_id.is_none_or(|expected| self.authority_instance_id == expected)
-            && self.operation == operation
-            && self.target_id == target_id
-    }
 }
 
 pub fn step_up_required_error() -> SnapbackError {

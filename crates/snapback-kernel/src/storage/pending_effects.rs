@@ -1553,7 +1553,8 @@ fn catalog_corrupt() -> SnapbackError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::auth::crypto::{CryptoError, RandomSource};
+    use crate::auth::crypto::{CryptoError, OsRandom, RandomSource};
+    use crate::auth::keyring::AuthKeyringStore;
     use crate::manifest::{
         FunctionDefinition, FunctionManifest, FunctionRuntime, HandlerPlan, QueryPlan,
     };
@@ -1576,9 +1577,29 @@ mod tests {
     }
 
     fn ready() -> ServingDatabase {
+        ready_inner(None)
+    }
+
+    fn ready_with_step_up_keyring(keyring: &AuthKeyringStore) -> ServingDatabase {
+        let activation = keyring.prepare_catalog_activation(0, &OsRandom).unwrap();
+        ready_inner(Some(&activation))
+    }
+
+    fn ready_inner(
+        activation: Option<&crate::auth::keyring::PreparedAuthCatalogActivation>,
+    ) -> ServingDatabase {
         let mut db = LocalDatabase::memory().expect("pending-effect database");
-        db.activate_current_auth_catalog()
-            .expect("activate protected catalog");
+        match activation {
+            Some(activation) => db
+                .activate_new_auth_catalog_with_step_up_origin(
+                    crate::storage::auth::PasswordIdentifierMode::UsernameV1,
+                    activation,
+                )
+                .expect("activate rooted protected catalog"),
+            None => db
+                .activate_current_auth_catalog()
+                .expect("activate protected catalog"),
+        }
         db.conn.execute_batch(TABLE_SQL).unwrap();
         db.conn.execute_batch(APPROVER_INDEX_SQL).unwrap();
         db.conn.execute_batch(EXPIRY_INDEX_SQL).unwrap();
@@ -2471,16 +2492,15 @@ mod tests {
     #[test]
     fn caller_minted_challenge_and_matching_proof_do_not_cross_provider_origin() {
         use crate::auth::crypto::{
-            CanonicalAddress, ChallengeId, CodeDigest, OsRandom, StepUpDigest, StepUpProof,
-            VerificationCode,
+            CanonicalAddress, ChallengeId, OsRandom, StepUpDigest, VerificationCode,
         };
-        use crate::auth::keyring::AuthKeyringStore;
         use crate::auth::throttle::{
             AuthBudgetDeploymentProfile, ResolvedCompatibilityAuthBudgetPolicy,
             ServerVerifiedAuthTrustEvidence, derive_auth_trust_tier,
         };
 
-        let mut db = ready();
+        let installed_keyring = AuthKeyringStore::in_memory();
+        let mut db = ready_with_step_up_keyring(&installed_keyring);
         install_loaded_policy(&mut db, true);
         let request = request(10, DEFAULT_TTL_MS);
         let creation_owner = test_owner(db.auth_database_mut(), request.authority.clone(), None);
@@ -2489,10 +2509,6 @@ mod tests {
             .expect("authority-creating pending effect");
         let approver = principal(&mut db, "human-a", 0xa0);
 
-        let installed_keyring = AuthKeyringStore::in_memory();
-        installed_keyring
-            .load_or_mint_initial(0, &OsRandom)
-            .unwrap();
         let installed_origin = installed_keyring.claim_step_up_provider_origin();
         db.bind_auth_step_up_provider(
             installed_keyring
@@ -2507,6 +2523,17 @@ mod tests {
         let attacker_keyring = AuthKeyringStore::in_memory();
         attacker_keyring.load_or_mint_initial(0, &OsRandom).unwrap();
         let attacker_origin = attacker_keyring.claim_step_up_provider_origin();
+        let bind_error = db
+            .bind_auth_step_up_provider(
+                attacker_keyring
+                    .step_up_provider_binding(&attacker_origin)
+                    .unwrap(),
+            )
+            .expect_err("an empty runtime field is not a first-writer trust root");
+        assert_eq!(
+            bind_error.diagnostic.code,
+            "SNAPBACK_AUTH_STEP_UP_PROVIDER_INVALID"
+        );
         let address = CanonicalAddress::parse("human-a@example.com").unwrap();
         let challenge_id = ChallengeId::generate(&OsRandom).unwrap();
         let code = VerificationCode::parse("123456").unwrap();
@@ -2529,42 +2556,52 @@ mod tests {
                 )
             })
             .unwrap();
-        let row_digest = CodeDigest::from_bytes(*submitted_digest.as_bytes());
         let budget = ResolvedCompatibilityAuthBudgetPolicy::resolve(
             AuthBudgetDeploymentProfile::Test,
             derive_auth_trust_tier(ServerVerifiedAuthTrustEvidence::Anonymous),
         );
-        let inserted = db
-            .auth_database_mut()
-            .auth_catalog()
-            .insert_verification_challenge(
+        let prepared = attacker_keyring
+            .prepare_verification_challenge(
+                &attacker_origin,
                 &address,
                 &challenge_id,
-                &row_digest,
-                key_id.as_str(),
+                &code,
+                10,
+                100,
+                &OsRandom,
+            )
+            .unwrap();
+        let writer_error = attacker_keyring
+            .insert_prepared_verification_challenge(
+                &attacker_origin,
+                db.auth_database_mut(),
+                &prepared,
+                &address,
+                &challenge_id,
                 10,
                 100,
                 &budget,
+                None,
             )
-            .expect("caller-writable challenge insert remains reachable");
+            .expect_err("caller-created provider cannot write a normal predecessor");
         assert_eq!(
-            inserted,
-            crate::contract_types::RequestInsertOutcome::Inserted
-        );
-        let proof = StepUpProof::from_verified_binding(
-            challenge_id.clone(),
-            address,
-            Some(key_id),
-            submitted_digest,
-            "human-a".to_owned(),
-            "session-human-a".to_owned(),
-            1,
-            "authority-human-a".to_owned(),
-            "effectApproval",
-            created.id.clone(),
+            writer_error.diagnostic.code,
+            "SNAPBACK_AUTH_STEP_UP_PROVIDER_INVALID"
         );
         let proof = attacker_keyring
-            .bind_step_up_proof(&attacker_origin, proof)
+            .bind_step_up_proof(
+                &attacker_origin,
+                challenge_id.clone(),
+                address,
+                Some(key_id),
+                submitted_digest,
+                "human-a".to_owned(),
+                "session-human-a".to_owned(),
+                1,
+                "authority-human-a".to_owned(),
+                "effectApproval",
+                created.id.clone(),
+            )
             .unwrap();
 
         let approval = db
@@ -2580,17 +2617,205 @@ mod tests {
             db.pending_effect(&created.id, 20).unwrap().status,
             PendingEffectStatus::Pending
         );
-        let consumed: i64 = db
+        let challenge_rows: i64 = db
             .auth_database_mut()
             .conn
             .query_row(
-                "SELECT consumed_at_ms IS NOT NULL FROM _auth_verification_codes
-                 WHERE challenge_id = ?1",
+                "SELECT COUNT(*) FROM _auth_verification_codes WHERE challenge_id = ?1",
                 [challenge_id.as_str()],
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(consumed, 0, "foreign-provider challenge remains unconsumed");
+        assert_eq!(
+            challenge_rows, 0,
+            "foreign-provider challenge was never written"
+        );
+    }
+
+    #[test]
+    fn durable_challenge_origin_and_kind_are_not_interchangeable() {
+        use crate::auth::crypto::{CanonicalAddress, ChallengeId, VerificationCode};
+        use crate::auth::throttle::{
+            AuthBudgetDeploymentProfile, ResolvedCompatibilityAuthBudgetPolicy,
+            ServerVerifiedAuthTrustEvidence, derive_auth_trust_tier,
+        };
+        use crate::contract_types::RequestInsertOutcome;
+        use crate::storage::auth_catalog_ops::CatalogStepUpBinding;
+
+        let keyring = AuthKeyringStore::in_memory();
+        let mut db = ready_with_step_up_keyring(&keyring);
+        let owner = keyring.claim_step_up_provider_origin();
+        db.bind_auth_step_up_provider(keyring.step_up_provider_binding(&owner).unwrap())
+            .unwrap();
+        let address = CanonicalAddress::parse("human-a@example.com").unwrap();
+        let code = VerificationCode::parse("123456").unwrap();
+        let budget = ResolvedCompatibilityAuthBudgetPolicy::resolve(
+            AuthBudgetDeploymentProfile::Test,
+            derive_auth_trust_tier(ServerVerifiedAuthTrustEvidence::Anonymous),
+        );
+
+        let verification_id = ChallengeId::generate(&OsRandom).unwrap();
+        let prepared = keyring
+            .prepare_verification_challenge(
+                &owner,
+                &address,
+                &verification_id,
+                &code,
+                10,
+                100,
+                &OsRandom,
+            )
+            .unwrap();
+        assert_eq!(
+            keyring
+                .insert_prepared_verification_challenge(
+                    &owner,
+                    db.auth_database_mut(),
+                    &prepared,
+                    &address,
+                    &verification_id,
+                    10,
+                    100,
+                    &budget,
+                    None,
+                )
+                .unwrap(),
+            RequestInsertOutcome::Inserted
+        );
+        let root: String = db
+            .auth_database_mut()
+            .conn
+            .query_row(
+                "SELECT value FROM _snapback_meta
+                 WHERE key = 'auth_step_up_keyring_origin_v1'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let verification_provenance: (String, String) = db
+            .auth_database_mut()
+            .conn
+            .query_row(
+                "SELECT provider_origin, challenge_kind
+                 FROM _auth_verification_code_provenance WHERE challenge_id = ?1",
+                params![verification_id.as_str()],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(verification_provenance, (root.clone(), "verification".to_owned()));
+        assert!(
+            db.auth_database_mut()
+                .auth_catalog_read()
+                .verification_challenge_coordination(verification_id.as_str())
+                .unwrap()
+                .is_some()
+        );
+        assert!(
+            db.auth_database_mut()
+                .auth_catalog_read()
+                .step_up_challenge_coordination(verification_id.as_str())
+                .unwrap()
+                .is_none(),
+            "a normal predecessor cannot coordinate a step-up proof"
+        );
+
+        let step_up_id = ChallengeId::generate(&OsRandom).unwrap();
+        let binding = CatalogStepUpBinding {
+            user_id: "human-a",
+            session_id: "session-human-a",
+            session_generation: 1,
+            authority_instance_id: "authority-human-a",
+            operation: "effectApproval",
+        };
+        let prepared = keyring
+            .prepare_step_up_challenge(
+                &owner,
+                &binding,
+                &address,
+                &step_up_id,
+                "effect-1",
+                &code,
+                11,
+                100,
+                &OsRandom,
+            )
+            .unwrap();
+        assert_eq!(
+            keyring
+                .insert_prepared_step_up_challenge(
+                    &owner,
+                    db.auth_database_mut(),
+                    &prepared,
+                    &binding,
+                    &address,
+                    &step_up_id,
+                    11,
+                    100,
+                    &budget,
+                )
+                .unwrap(),
+            RequestInsertOutcome::Inserted
+        );
+        let step_up_provenance: (String, String) = db
+            .auth_database_mut()
+            .conn
+            .query_row(
+                "SELECT provider_origin, challenge_kind
+                 FROM _auth_verification_code_provenance WHERE challenge_id = ?1",
+                params![step_up_id.as_str()],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(step_up_provenance, (root, "step-up".to_owned()));
+        assert!(
+            db.auth_database_mut()
+                .auth_catalog_read()
+                .step_up_challenge_coordination(step_up_id.as_str())
+                .unwrap()
+                .is_some()
+        );
+        assert!(
+            db.auth_database_mut()
+                .auth_catalog_read()
+                .verification_challenge_coordination(step_up_id.as_str())
+                .unwrap()
+                .is_none(),
+            "a step-up predecessor cannot coordinate a normal exchange"
+        );
+        assert!(
+            db.auth_database_mut()
+                .auth_catalog_read()
+                .exchange_challenge_fact(&step_up_id)
+                .unwrap()
+                .is_none(),
+            "the normal exchange fact loader must enforce durable kind"
+        );
+
+        db.auth_database_mut()
+            .conn
+            .execute(
+                "UPDATE _auth_verification_code_provenance
+                 SET provider_origin = 'sbko_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+                 WHERE challenge_id = ?1",
+                params![verification_id.as_str()],
+            )
+            .unwrap();
+        assert!(
+            db.auth_database_mut()
+                .auth_catalog_read()
+                .verification_challenge_coordination(verification_id.as_str())
+                .unwrap()
+                .is_none(),
+            "a row origin that does not equal the durable root is powerless"
+        );
+        assert!(
+            db.auth_database_mut()
+                .auth_catalog_read()
+                .exchange_challenge_fact(&verification_id)
+                .unwrap()
+                .is_none(),
+            "normal exchange also checks origin against the durable root"
+        );
     }
 
     #[test]
@@ -2756,11 +2981,11 @@ mod tests {
     #[test]
     fn expired_step_up_proof_cannot_be_retried_before_expiry() {
         use crate::auth::crypto::{
-            CanonicalAddress, ChallengeId, OsRandom, StepUpDigest, StepUpProof, VerificationCode,
+            CanonicalAddress, ChallengeId, OsRandom, StepUpDigest, VerificationCode,
         };
-        use crate::auth::keyring::AuthKeyringStore;
 
-        let mut db = ready();
+        let keyring = AuthKeyringStore::in_memory();
+        let mut db = ready_with_step_up_keyring(&keyring);
         install_loaded_policy(&mut db, true);
         let request = request(10, DEFAULT_TTL_MS);
         let creation_owner = test_owner(db.auth_database_mut(), request.authority.clone(), None);
@@ -2770,8 +2995,6 @@ mod tests {
         let approver = principal(&mut db, "human-a", 0xa0);
         let address = CanonicalAddress::parse("human-a@example.com").unwrap();
         let challenge_id = ChallengeId::generate(&OsRandom).unwrap();
-        let keyring = AuthKeyringStore::in_memory();
-        keyring.load_or_mint_initial(0, &OsRandom).unwrap();
         let provider_origin = keyring.claim_step_up_provider_origin();
         db.bind_auth_step_up_provider(keyring.step_up_provider_binding(&provider_origin).unwrap())
             .unwrap();
@@ -2812,19 +3035,31 @@ mod tests {
                 ],
             )
             .expect("durable operation-bound proof");
-        let proof = StepUpProof::from_verified_binding(
-            challenge_id,
-            address,
-            Some(key_id),
-            submitted_digest,
-            "human-a".to_owned(),
-            "session-human-a".to_owned(),
-            1,
-            "authority-human-a".to_owned(),
-            "effectApproval",
-            created.id.clone(),
-        );
-        let proof = keyring.bind_step_up_proof(&provider_origin, proof).unwrap();
+        db.auth_database_mut()
+            .conn
+            .execute(
+                "INSERT INTO _auth_verification_code_provenance(
+                   challenge_id, provider_origin, challenge_kind
+                 ) SELECT ?1, value, 'step-up' FROM _snapback_meta
+                   WHERE key = 'auth_step_up_keyring_origin_v1'",
+                params![challenge_id.as_str()],
+            )
+            .expect("rooted step-up provenance");
+        let proof = keyring
+            .bind_step_up_proof(
+                &provider_origin,
+                challenge_id,
+                address,
+                Some(key_id),
+                submitted_digest,
+                "human-a".to_owned(),
+                "session-human-a".to_owned(),
+                1,
+                "authority-human-a".to_owned(),
+                "effectApproval",
+                created.id.clone(),
+            )
+            .unwrap();
 
         let first_approval = db
             .prepare_pending_effect_approval(&approver, &created.id, 19)
@@ -2865,11 +3100,11 @@ mod tests {
     #[test]
     fn password_set_step_up_proof_cannot_approve_an_authority_creating_effect() {
         use crate::auth::crypto::{
-            CanonicalAddress, ChallengeId, OsRandom, StepUpDigest, StepUpProof, VerificationCode,
+            CanonicalAddress, ChallengeId, OsRandom, StepUpDigest, VerificationCode,
         };
-        use crate::auth::keyring::AuthKeyringStore;
 
-        let mut db = ready();
+        let keyring = AuthKeyringStore::in_memory();
+        let mut db = ready_with_step_up_keyring(&keyring);
         install_loaded_policy(&mut db, true);
         let request = request(10, DEFAULT_TTL_MS);
         let creation_owner = test_owner(db.auth_database_mut(), request.authority.clone(), None);
@@ -2879,8 +3114,6 @@ mod tests {
         let approver = principal(&mut db, "human-a", 0xa0);
         let address = CanonicalAddress::parse("human-a@example.com").unwrap();
         let challenge_id = ChallengeId::generate(&OsRandom).unwrap();
-        let keyring = AuthKeyringStore::in_memory();
-        keyring.load_or_mint_initial(0, &OsRandom).unwrap();
         let provider_origin = keyring.claim_step_up_provider_origin();
         db.bind_auth_step_up_provider(keyring.step_up_provider_binding(&provider_origin).unwrap())
             .unwrap();
@@ -2921,19 +3154,31 @@ mod tests {
                 ],
             )
             .expect("durable passwordSet challenge");
-        let proof = StepUpProof::from_verified_binding(
-            challenge_id.clone(),
-            address,
-            Some(key_id),
-            submitted_digest,
-            "human-a".to_owned(),
-            "session-human-a".to_owned(),
-            1,
-            "authority-human-a".to_owned(),
-            "passwordSet",
-            "session-human-a".to_owned(),
-        );
-        let proof = keyring.bind_step_up_proof(&provider_origin, proof).unwrap();
+        db.auth_database_mut()
+            .conn
+            .execute(
+                "INSERT INTO _auth_verification_code_provenance(
+                   challenge_id, provider_origin, challenge_kind
+                 ) SELECT ?1, value, 'step-up' FROM _snapback_meta
+                   WHERE key = 'auth_step_up_keyring_origin_v1'",
+                params![challenge_id.as_str()],
+            )
+            .expect("rooted step-up provenance");
+        let proof = keyring
+            .bind_step_up_proof(
+                &provider_origin,
+                challenge_id.clone(),
+                address,
+                Some(key_id),
+                submitted_digest,
+                "human-a".to_owned(),
+                "session-human-a".to_owned(),
+                1,
+                "authority-human-a".to_owned(),
+                "passwordSet",
+                "session-human-a".to_owned(),
+            )
+            .unwrap();
 
         let approval = db
             .prepare_pending_effect_approval(&approver, &created.id, 20)

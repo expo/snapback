@@ -944,10 +944,18 @@ pub(crate) fn exchange_challenge_fact(
 ) -> SnapbackResult<Option<ExchangeChallengeFact>> {
     let raw = connection
         .query_row(
-            "SELECT canonical_address, code_digest, key_id, attempts,
-                    max_attempts, expires_at_ms, consumed_at_ms IS NOT NULL,
-                    superseded_by IS NOT NULL
-             FROM _auth_verification_codes WHERE challenge_id = ?1",
+            "SELECT challenge.canonical_address, challenge.code_digest, challenge.key_id,
+                    challenge.attempts, challenge.max_attempts, challenge.expires_at_ms,
+                    challenge.consumed_at_ms IS NOT NULL,
+                    challenge.superseded_by IS NOT NULL
+             FROM _auth_verification_codes AS challenge
+             JOIN _auth_verification_code_provenance AS provenance
+               ON provenance.challenge_id = challenge.challenge_id
+              AND provenance.challenge_kind = 'verification'
+             JOIN _snapback_meta AS root
+               ON root.key = 'auth_step_up_keyring_origin_v1'
+              AND root.value = provenance.provider_origin
+             WHERE challenge.challenge_id = ?1",
             params![challenge_id.as_str()],
             |row| {
                 Ok((
@@ -1561,10 +1569,18 @@ pub(crate) fn planned_session_issuance_transaction(
         };
         let durable = transaction
             .query_row(
-                "SELECT canonical_address, code_digest, key_id, attempts,
-                        max_attempts, expires_at_ms, consumed_at_ms IS NOT NULL,
-                        superseded_by IS NOT NULL
-                 FROM _auth_verification_codes WHERE challenge_id = ?1",
+                "SELECT challenge.canonical_address, challenge.code_digest, challenge.key_id,
+                        challenge.attempts, challenge.max_attempts, challenge.expires_at_ms,
+                        challenge.consumed_at_ms IS NOT NULL,
+                        challenge.superseded_by IS NOT NULL
+                 FROM _auth_verification_codes AS challenge
+                 JOIN _auth_verification_code_provenance AS provenance
+                   ON provenance.challenge_id = challenge.challenge_id
+                  AND provenance.challenge_kind = 'verification'
+                 JOIN _snapback_meta AS root
+                   ON root.key = 'auth_step_up_keyring_origin_v1'
+                  AND root.value = provenance.provider_origin
+                 WHERE challenge.challenge_id = ?1",
                 params![challenge.challenge_id],
                 |row| {
                     Ok(ChallengeTransactionRow {
@@ -1626,7 +1642,15 @@ pub(crate) fn planned_session_issuance_transaction(
                  WHERE challenge_id = ?2 AND attempts = ?3
                    AND code_digest = ?4 AND key_id = ?5
                    AND expires_at_ms = ?6
-                   AND consumed_at_ms IS NULL AND superseded_by IS NULL",
+                   AND consumed_at_ms IS NULL AND superseded_by IS NULL
+                   AND EXISTS(
+                     SELECT 1 FROM _auth_verification_code_provenance AS provenance
+                     JOIN _snapback_meta AS root
+                       ON root.key = 'auth_step_up_keyring_origin_v1'
+                      AND root.value = provenance.provider_origin
+                     WHERE provenance.challenge_id = _auth_verification_codes.challenge_id
+                       AND provenance.challenge_kind = 'verification'
+                   )",
                 params![
                     next_attempts as i64,
                     challenge.challenge_id,
@@ -2038,7 +2062,15 @@ pub(crate) fn planned_session_issuance_transaction(
              WHERE challenge_id = ?3 AND attempts = ?4
                AND code_digest = ?5 AND key_id = ?6
                AND expires_at_ms = ?7
-               AND consumed_at_ms IS NULL AND superseded_by IS NULL",
+               AND consumed_at_ms IS NULL AND superseded_by IS NULL
+               AND EXISTS(
+                 SELECT 1 FROM _auth_verification_code_provenance AS provenance
+                 JOIN _snapback_meta AS root
+                   ON root.key = 'auth_step_up_keyring_origin_v1'
+                  AND root.value = provenance.provider_origin
+                 WHERE provenance.challenge_id = _auth_verification_codes.challenge_id
+                   AND provenance.challenge_kind = 'verification'
+               )",
             params![
                 next_attempts as i64,
                 plan.now_ms as i64,
@@ -2108,9 +2140,17 @@ fn lookup_planned_challenge(
 ) -> SnapbackResult<Option<DurableChallengeSnapshot>> {
     connection
         .query_row(
-            "SELECT canonical_address, code_digest, key_id, attempts,
-                    max_attempts, expires_at_ms, consumed_at_ms, superseded_by IS NOT NULL
-             FROM _auth_verification_codes WHERE challenge_id = ?1",
+            "SELECT challenge.canonical_address, challenge.code_digest, challenge.key_id,
+                    challenge.attempts, challenge.max_attempts, challenge.expires_at_ms,
+                    challenge.consumed_at_ms, challenge.superseded_by IS NOT NULL
+             FROM _auth_verification_codes AS challenge
+             JOIN _auth_verification_code_provenance AS provenance
+               ON provenance.challenge_id = challenge.challenge_id
+              AND provenance.challenge_kind = 'verification'
+             JOIN _snapback_meta AS root
+               ON root.key = 'auth_step_up_keyring_origin_v1'
+              AND root.value = provenance.provider_origin
+             WHERE challenge.challenge_id = ?1",
             params![challenge.challenge_id],
             |row| {
                 Ok((
@@ -2527,11 +2567,18 @@ pub(crate) fn rejected_exchange_transaction(
 ) -> SnapbackResult<RejectedExchangeOutcome> {
     let row = transaction
         .query_row(
-            "SELECT canonical_address, code_digest, key_id, attempts,
-                    max_attempts, expires_at_ms, consumed_at_ms IS NOT NULL,
-                    superseded_by IS NOT NULL
-             FROM _auth_verification_codes
-             WHERE challenge_id = ?1",
+            "SELECT challenge.canonical_address, challenge.code_digest, challenge.key_id,
+                    challenge.attempts, challenge.max_attempts, challenge.expires_at_ms,
+                    challenge.consumed_at_ms IS NOT NULL,
+                    challenge.superseded_by IS NOT NULL
+             FROM _auth_verification_codes AS challenge
+             JOIN _auth_verification_code_provenance AS provenance
+               ON provenance.challenge_id = challenge.challenge_id
+              AND provenance.challenge_kind = 'verification'
+             JOIN _snapback_meta AS root
+               ON root.key = 'auth_step_up_keyring_origin_v1'
+              AND root.value = provenance.provider_origin
+             WHERE challenge.challenge_id = ?1",
             params![plan.challenge_id.as_str()],
             |row| {
                 Ok(ChallengeTransactionRow {
@@ -2603,7 +2650,15 @@ pub(crate) fn rejected_exchange_transaction(
          WHERE challenge_id = ?2 AND attempts = ?3
            AND code_digest = ?4 AND key_id = ?5
            AND expires_at_ms = ?6
-           AND consumed_at_ms IS NULL AND superseded_by IS NULL",
+           AND consumed_at_ms IS NULL AND superseded_by IS NULL
+           AND EXISTS(
+             SELECT 1 FROM _auth_verification_code_provenance AS provenance
+             JOIN _snapback_meta AS root
+               ON root.key = 'auth_step_up_keyring_origin_v1'
+              AND root.value = provenance.provider_origin
+             WHERE provenance.challenge_id = _auth_verification_codes.challenge_id
+               AND provenance.challenge_kind = 'verification'
+           )",
         params![
             next_attempts as i64,
             plan.challenge_id.as_str(),
@@ -2758,16 +2813,27 @@ pub(crate) fn reconcile_step_up_consumed_on(
     connection: &Connection,
     proof: &ProviderBoundStepUpProof,
 ) -> SnapbackResult<bool> {
-    let proof = proof.proof();
     let Some(expected_key_id) = proof.key_id() else {
         return Ok(false);
     };
     connection
         .query_row(
-            "SELECT canonical_address, key_id,
-                    consumed_at_ms IS NOT NULL, superseded_by IS NOT NULL
-             FROM _auth_verification_codes WHERE challenge_id = ?1",
-            params![proof.challenge_id().as_str()],
+            "SELECT challenge.canonical_address, challenge.key_id,
+                    challenge.consumed_at_ms IS NOT NULL,
+                    challenge.superseded_by IS NOT NULL
+             FROM _auth_verification_codes AS challenge
+             JOIN _auth_verification_code_provenance AS provenance
+               ON provenance.challenge_id = challenge.challenge_id
+              AND provenance.challenge_kind = 'step-up'
+              AND provenance.provider_origin = ?2
+             JOIN _snapback_meta AS root
+               ON root.key = 'auth_step_up_keyring_origin_v1'
+              AND root.value = provenance.provider_origin
+             WHERE challenge.challenge_id = ?1",
+            params![
+                proof.challenge_id().as_str(),
+                proof.durable_origin().as_str(),
+            ],
             |row| {
                 Ok((
                     row.get::<_, String>(0)?,
@@ -2793,15 +2859,26 @@ pub(crate) fn reconcile_step_up_unconsumed_on(
     connection: &Connection,
     proof: &ProviderBoundStepUpProof,
 ) -> SnapbackResult<bool> {
-    let proof = proof.proof();
     let Some(expected_key_id) = proof.key_id() else {
         return Ok(true);
     };
     connection
         .query_row(
-            "SELECT canonical_address, key_id, consumed_at_ms IS NULL
-             FROM _auth_verification_codes WHERE challenge_id = ?1",
-            params![proof.challenge_id().as_str()],
+            "SELECT challenge.canonical_address, challenge.key_id,
+                    challenge.consumed_at_ms IS NULL
+             FROM _auth_verification_codes AS challenge
+             JOIN _auth_verification_code_provenance AS provenance
+               ON provenance.challenge_id = challenge.challenge_id
+              AND provenance.challenge_kind = 'step-up'
+              AND provenance.provider_origin = ?2
+             JOIN _snapback_meta AS root
+               ON root.key = 'auth_step_up_keyring_origin_v1'
+              AND root.value = provenance.provider_origin
+             WHERE challenge.challenge_id = ?1",
+            params![
+                proof.challenge_id().as_str(),
+                proof.durable_origin().as_str(),
+            ],
             |row| {
                 Ok((
                     row.get::<_, String>(0)?,
@@ -2844,7 +2921,6 @@ pub(crate) fn consume_step_up_proof_on(
     if !proof.matches_provider(expected_provider) {
         return Ok(StepUpConsumption::Rejected);
     }
-    let proof = proof.proof();
     if !proof.matches_binding(
         expected.user_id,
         expected.session_id,
@@ -2887,11 +2963,23 @@ pub(crate) fn consume_step_up_proof_on(
     }
     let row = transaction
         .query_row(
-            "SELECT canonical_address, code_digest, key_id, attempts,
-                    max_attempts, expires_at_ms,
-                    consumed_at_ms IS NOT NULL, superseded_by IS NOT NULL
-             FROM _auth_verification_codes WHERE challenge_id = ?1",
-            params![proof.challenge_id().as_str()],
+            "SELECT challenge.canonical_address, challenge.code_digest, challenge.key_id,
+                    challenge.attempts, challenge.max_attempts, challenge.expires_at_ms,
+                    challenge.consumed_at_ms IS NOT NULL,
+                    challenge.superseded_by IS NOT NULL
+             FROM _auth_verification_codes AS challenge
+             JOIN _auth_verification_code_provenance AS provenance
+               ON provenance.challenge_id = challenge.challenge_id
+              AND provenance.challenge_kind = 'step-up'
+              AND provenance.provider_origin = ?2
+             JOIN _snapback_meta AS root
+               ON root.key = 'auth_step_up_keyring_origin_v1'
+              AND root.value = provenance.provider_origin
+             WHERE challenge.challenge_id = ?1",
+            params![
+                proof.challenge_id().as_str(),
+                proof.durable_origin().as_str(),
+            ],
             |row| {
                 Ok((
                     row.get::<_, String>(0)?,
@@ -2937,7 +3025,16 @@ pub(crate) fn consume_step_up_proof_on(
             "UPDATE _auth_verification_codes SET attempts = ?1
              WHERE challenge_id = ?2 AND attempts = ?3
                AND code_digest = ?4 AND key_id = ?5 AND expires_at_ms = ?6
-               AND consumed_at_ms IS NULL AND superseded_by IS NULL",
+               AND consumed_at_ms IS NULL AND superseded_by IS NULL
+               AND EXISTS(
+                 SELECT 1 FROM _auth_verification_code_provenance AS provenance
+                 JOIN _snapback_meta AS root
+                   ON root.key = 'auth_step_up_keyring_origin_v1'
+                  AND root.value = provenance.provider_origin
+                 WHERE provenance.challenge_id = _auth_verification_codes.challenge_id
+                   AND provenance.challenge_kind = 'step-up'
+                   AND provenance.provider_origin = ?7
+               )",
             params![
                 next_attempts as i64,
                 proof.challenge_id().as_str(),
@@ -2945,6 +3042,7 @@ pub(crate) fn consume_step_up_proof_on(
                 digest.as_slice(),
                 expected_key_id.as_str(),
                 expires_at_ms as i64,
+                proof.durable_origin().as_str(),
             ],
         )?;
         if changed != 1 {
@@ -2958,7 +3056,16 @@ pub(crate) fn consume_step_up_proof_on(
          SET attempts = ?1, consumed_at_ms = ?2
          WHERE challenge_id = ?3 AND attempts = ?4
            AND code_digest = ?5 AND key_id = ?6 AND expires_at_ms = ?7
-           AND consumed_at_ms IS NULL AND superseded_by IS NULL",
+           AND consumed_at_ms IS NULL AND superseded_by IS NULL
+           AND EXISTS(
+             SELECT 1 FROM _auth_verification_code_provenance AS provenance
+             JOIN _snapback_meta AS root
+               ON root.key = 'auth_step_up_keyring_origin_v1'
+              AND root.value = provenance.provider_origin
+             WHERE provenance.challenge_id = _auth_verification_codes.challenge_id
+               AND provenance.challenge_kind = 'step-up'
+               AND provenance.provider_origin = ?8
+           )",
         params![
             next_attempts as i64,
             now_ms as i64,
@@ -2967,6 +3074,7 @@ pub(crate) fn consume_step_up_proof_on(
             digest.as_slice(),
             expected_key_id.as_str(),
             expires_at_ms as i64,
+            proof.durable_origin().as_str(),
         ],
     )?;
     if changed != 1 {
@@ -3046,6 +3154,36 @@ fn request_code_budget_refusal(
     Ok(exhausted.map(|(retry_after_ms, budget_name)| {
         AuthBudgetRefusal::rate_duration(budget_name, retry_after_ms)
     }))
+}
+
+fn require_challenge_writer_origin(
+    transaction: &Transaction<'_>,
+    provider_origin: &str,
+) -> SnapbackResult<()> {
+    let stored = crate::storage::auth::read_step_up_keyring_origin_on(transaction)?;
+    if stored.as_deref() == Some(provider_origin) {
+        return Ok(());
+    }
+    Err(crate::diagnostic::SnapbackError::error(
+        "SNAPBACK_AUTH_STEP_UP_PROVIDER_INVALID",
+        "auth",
+        "challenge writer does not match the catalog-creation keyring origin",
+    ))
+}
+
+fn insert_challenge_provenance(
+    transaction: &Transaction<'_>,
+    challenge_id: &ChallengeId,
+    provider_origin: &str,
+    challenge_kind: &str,
+) -> SnapbackResult<()> {
+    transaction.execute(
+        "INSERT INTO _auth_verification_code_provenance(
+           challenge_id, provider_origin, challenge_kind
+         ) VALUES(?1, ?2, ?3)",
+        params![challenge_id.as_str(), provider_origin, challenge_kind],
+    )?;
+    Ok(())
 }
 
 #[cfg(any(test, feature = "test-support"))]
@@ -3321,13 +3459,21 @@ impl LocalDatabase {
     pub(super) fn auth_challenge_coordination(
         &self,
         challenge_id: &str,
+        challenge_kind: &str,
     ) -> SnapbackResult<Option<(String, String)>> {
         self.with_auth_read(|connection| {
             connection
                 .query_row(
-                    "SELECT canonical_address, key_id
-                     FROM _auth_verification_codes WHERE challenge_id = ?1",
-                    params![challenge_id],
+                    "SELECT challenge.canonical_address, challenge.key_id
+                     FROM _auth_verification_codes AS challenge
+                     JOIN _auth_verification_code_provenance AS provenance
+                       ON provenance.challenge_id = challenge.challenge_id
+                      AND provenance.challenge_kind = ?2
+                     JOIN _snapback_meta AS root
+                       ON root.key = 'auth_step_up_keyring_origin_v1'
+                      AND root.value = provenance.provider_origin
+                     WHERE challenge.challenge_id = ?1",
+                    params![challenge_id, challenge_kind],
                     |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
                 )
                 .optional()
@@ -3492,6 +3638,7 @@ impl LocalDatabase {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn auth_insert_step_up_challenge(
         &mut self,
+        provider_origin: &str,
         binding: &CatalogStepUpBinding<'_>,
         address: &CanonicalAddress,
         challenge_id: &ChallengeId,
@@ -3502,6 +3649,7 @@ impl LocalDatabase {
         budget_policy: &ResolvedCompatibilityAuthBudgetPolicy,
     ) -> SnapbackResult<RequestInsertOutcome> {
         self.with_auth_transaction(|transaction| {
+            require_challenge_writer_origin(transaction, provider_origin)?;
             let live_address = transaction
                 .query_row(
                     "SELECT identity.subject
@@ -3560,7 +3708,15 @@ impl LocalDatabase {
                     expires_at_ms as i64,
                 ],
             ) {
-                Ok(_) => Ok(RequestInsertOutcome::Inserted),
+                Ok(_) => {
+                    insert_challenge_provenance(
+                        transaction,
+                        challenge_id,
+                        provider_origin,
+                        "step-up",
+                    )?;
+                    Ok(RequestInsertOutcome::Inserted)
+                }
                 Err(error) if is_constraint_error(&error) => Err(internal_collision_snapback()),
                 Err(error) => Err(error.into()),
             }
@@ -3570,6 +3726,7 @@ impl LocalDatabase {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn auth_insert_verification_challenge(
         &mut self,
+        provider_origin: &str,
         address: &CanonicalAddress,
         challenge_id: &ChallengeId,
         digest: &CodeDigest,
@@ -3580,6 +3737,7 @@ impl LocalDatabase {
         rehearsal_window: Option<&crate::auth::rehearsal::AuthRehearsalWindowV1>,
     ) -> SnapbackResult<RequestInsertOutcome> {
         self.with_auth_transaction(|transaction| {
+            require_challenge_writer_origin(transaction, provider_origin)?;
             if let Some(refusal) =
                 request_code_budget_refusal(transaction, address, now_ms, *budget_policy)?
             {
@@ -3610,6 +3768,12 @@ impl LocalDatabase {
                 ],
             ) {
                 Ok(_) => {
+                    insert_challenge_provenance(
+                        transaction,
+                        challenge_id,
+                        provider_origin,
+                        "verification",
+                    )?;
                     if let Some(window) = rehearsal_window {
                         crate::storage::auth_rehearsal::consume_rehearsal_window_challenge_in(
                             transaction,
@@ -5262,11 +5426,20 @@ impl<'a> AuthCatalogKernel<'a> {
         self.read_db().auth_step_up_address(binding, now_ms)
     }
 
-    pub fn challenge_coordination(
+    pub fn step_up_challenge_coordination(
         &self,
         challenge_id: &str,
     ) -> SnapbackResult<Option<(String, String)>> {
-        self.read_db().auth_challenge_coordination(challenge_id)
+        self.read_db()
+            .auth_challenge_coordination(challenge_id, "step-up")
+    }
+
+    pub fn verification_challenge_coordination(
+        &self,
+        challenge_id: &str,
+    ) -> SnapbackResult<Option<(String, String)>> {
+        self.read_db()
+            .auth_challenge_coordination(challenge_id, "verification")
     }
 
     pub fn exchange_unknown(
@@ -5384,8 +5557,9 @@ impl<'a> AuthCatalogKernel<'a> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn insert_step_up_challenge(
+    pub(crate) fn insert_step_up_challenge(
         &mut self,
+        provider_origin: &str,
         binding: &CatalogStepUpBinding<'_>,
         address: &CanonicalAddress,
         challenge_id: &ChallengeId,
@@ -5396,6 +5570,7 @@ impl<'a> AuthCatalogKernel<'a> {
         budget_policy: &ResolvedCompatibilityAuthBudgetPolicy,
     ) -> SnapbackResult<RequestInsertOutcome> {
         self.write_db().auth_insert_step_up_challenge(
+            provider_origin,
             binding,
             address,
             challenge_id,
@@ -5408,8 +5583,9 @@ impl<'a> AuthCatalogKernel<'a> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn insert_verification_challenge(
+    pub(crate) fn insert_verification_challenge(
         &mut self,
+        provider_origin: &str,
         address: &CanonicalAddress,
         challenge_id: &ChallengeId,
         digest: &CodeDigest,
@@ -5419,6 +5595,7 @@ impl<'a> AuthCatalogKernel<'a> {
         budget_policy: &ResolvedCompatibilityAuthBudgetPolicy,
     ) -> SnapbackResult<RequestInsertOutcome> {
         self.write_db().auth_insert_verification_challenge(
+            provider_origin,
             address,
             challenge_id,
             digest,
@@ -5431,8 +5608,9 @@ impl<'a> AuthCatalogKernel<'a> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn insert_verification_challenge_for_rehearsal_window(
+    pub(crate) fn insert_verification_challenge_for_rehearsal_window(
         &mut self,
+        provider_origin: &str,
         address: &CanonicalAddress,
         challenge_id: &ChallengeId,
         digest: &CodeDigest,
@@ -5443,6 +5621,7 @@ impl<'a> AuthCatalogKernel<'a> {
         window: &crate::auth::rehearsal::AuthRehearsalWindowV1,
     ) -> SnapbackResult<RequestInsertOutcome> {
         self.write_db().auth_insert_verification_challenge(
+            provider_origin,
             address,
             challenge_id,
             digest,

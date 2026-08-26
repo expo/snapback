@@ -5689,6 +5689,18 @@ impl LocalSnapback {
             .consume_sessions_auth_mode_with_functions(readiness, functions)
     }
 
+    pub fn consume_sessions_auth_mode_with_functions_and_catalog_activation(
+        &mut self,
+        readiness: &crate::auth::mode::AuthProgramReadiness,
+        functions: &crate::manifest::FunctionManifest,
+        activation: &crate::auth::keyring::PreparedAuthCatalogActivation,
+    ) -> SnapbackResult<crate::auth::mode::AuthModeStateRecord> {
+        self.db
+            .consume_sessions_auth_mode_with_functions_and_catalog_activation(
+                readiness, functions, activation,
+            )
+    }
+
     pub fn consume_dev_downgrade_with_functions(
         &mut self,
         allow_auth_downgrade: bool,

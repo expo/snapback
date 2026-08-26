@@ -842,7 +842,7 @@ impl LocalDatabase {
         &mut self,
         readiness: &AuthProgramReadiness,
     ) -> SnapbackResult<AuthModeStateRecord> {
-        self.consume_sessions_auth_mode_inner(readiness, None)
+        self.consume_sessions_auth_mode_inner(readiness, None, None)
     }
 
     pub fn consume_sessions_auth_mode_with_functions(
@@ -850,13 +850,23 @@ impl LocalDatabase {
         readiness: &AuthProgramReadiness,
         functions: &FunctionManifest,
     ) -> SnapbackResult<AuthModeStateRecord> {
-        self.consume_sessions_auth_mode_inner(readiness, Some(functions))
+        self.consume_sessions_auth_mode_inner(readiness, Some(functions), None)
+    }
+
+    pub fn consume_sessions_auth_mode_with_functions_and_catalog_activation(
+        &mut self,
+        readiness: &AuthProgramReadiness,
+        functions: &FunctionManifest,
+        activation: &crate::auth::keyring::PreparedAuthCatalogActivation,
+    ) -> SnapbackResult<AuthModeStateRecord> {
+        self.consume_sessions_auth_mode_inner(readiness, Some(functions), Some(activation))
     }
 
     fn consume_sessions_auth_mode_inner(
         &mut self,
         readiness: &AuthProgramReadiness,
         functions: Option<&FunctionManifest>,
+        activation: Option<&crate::auth::keyring::PreparedAuthCatalogActivation>,
     ) -> SnapbackResult<AuthModeStateRecord> {
         let _writer_token = self
             .writer_authority
@@ -891,10 +901,17 @@ impl LocalDatabase {
                 functions,
             )?;
         }
-        if manifest_explicitly_declares_password_identifier_mode(&staged.schema_manifest) {
+        let password_mode = manifest_password_identifier_mode(&staged.schema_manifest);
+        if let Some(activation) = activation {
+            crate::storage::auth::activate_current_auth_catalog_with_password_identifier_mode_and_origin_in(
+                &tx,
+                password_mode,
+                Some(activation.origin()),
+            )?;
+        } else if manifest_explicitly_declares_password_identifier_mode(&staged.schema_manifest) {
             crate::storage::auth::activate_current_auth_catalog_with_password_identifier_mode_in(
                 &tx,
-                manifest_password_identifier_mode(&staged.schema_manifest),
+                password_mode,
             )?;
         } else {
             crate::storage::auth::activate_current_auth_catalog_in(&tx)?;
@@ -3800,6 +3817,17 @@ impl super::ServingDatabase {
     ) -> SnapbackResult<AuthModeStateRecord> {
         self.db
             .consume_sessions_auth_mode_with_functions(readiness, functions)
+    }
+    pub fn consume_sessions_auth_mode_with_functions_and_catalog_activation(
+        &mut self,
+        readiness: &AuthProgramReadiness,
+        functions: &FunctionManifest,
+        activation: &crate::auth::keyring::PreparedAuthCatalogActivation,
+    ) -> SnapbackResult<AuthModeStateRecord> {
+        self.db
+            .consume_sessions_auth_mode_with_functions_and_catalog_activation(
+                readiness, functions, activation,
+            )
     }
     pub fn consume_dev_downgrade_with_functions(
         &mut self,

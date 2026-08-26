@@ -6,6 +6,9 @@
 Security, Delivery, Testing
 **Author:** Charlie Cheever / Codex (gpt-5.6-sol) via Claude orchestration
 **Date:** 2026-08-09
+**Revised:** 2026-08-26 (v0.11 — catalog v5 adds the creation-ceremony
+email-code authority root and per-challenge origin/kind provenance; no silent
+v4 migration)
 **Revised:** 2026-08-25 (v0.10 — distinguish first-password replacement of
 the email-code predecessor with a new local-password session from in-place
 acting-session rotation on password change)
@@ -3596,3 +3599,21 @@ phone, username, or provider subject may eventually seed the one-time app-row
 lookup only inside the specified host writer; the app must durably key the
 resulting binding by principal. No claim object is accepted back from a client
 as proof.
+
+## 24. Amendment (2026-08-26): catalog v5 challenge provenance
+
+Catalog v4 is immutable published schema. The email-code authorization review
+requires one additional relation and one creation-time metadata fact, so fresh
+catalogs advance to version 5 rather than changing v4 in place. V5 adds the
+exact `_auth_verification_code_provenance` child described by LLP 0057's
+2026-08-26 amendment and stores the keyring origin in the fresh activation
+transaction before marker `5`.
+
+The §3.1 version policy is unchanged. V1–v4 are recognition-only predecessors;
+opening them does not install or infer an origin. Because their creation did
+not record the required fact, email-code challenge service fails closed on
+those catalogs. A future v4→v5 path must be a first-class operator ceremony
+with plan, preview, backup, transactional/crash evidence, and an explicit
+answer for which existing keyring becomes authoritative. This implementation
+does not silently choose the first runtime provider and does not claim that
+migration exists.

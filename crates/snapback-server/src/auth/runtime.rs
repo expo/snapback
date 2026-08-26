@@ -272,7 +272,8 @@ impl AuthRuntime {
             AuthCatalogState::ReadyV1
             | AuthCatalogState::ReadyV2
             | AuthCatalogState::ReadyV3
-            | AuthCatalogState::ReadyV4 => match provider.readiness() {
+            | AuthCatalogState::ReadyV4
+            | AuthCatalogState::ReadyV5 => match provider.readiness() {
                 AuthProviderReadiness::Available => None,
                 AuthProviderReadiness::Unavailable => Some(match database_path {
                     Some(database_path) => {

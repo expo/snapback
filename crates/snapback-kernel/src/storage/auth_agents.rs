@@ -1285,6 +1285,8 @@ fn deactivation_would_strand(resources: &[String]) -> SnapbackError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::auth::crypto::OsRandom;
+    use crate::auth::keyring::AuthKeyringStore;
     use crate::manifest::{AgentsManifest, AuthManifest, InvitedBy, SchemaManifest};
     use crate::storage::auth::AUTH_CATALOG_VERSION;
     use std::path::{Path, PathBuf};
@@ -1293,6 +1295,17 @@ mod tests {
         let mut db = LocalDatabase::memory().expect("memory database");
         db.activate_current_auth_catalog()
             .expect("activate catalog v2");
+        db
+    }
+
+    fn ready_database_with_step_up_keyring(keyring: &AuthKeyringStore) -> LocalDatabase {
+        let activation = keyring.prepare_catalog_activation(0, &OsRandom).unwrap();
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.activate_new_auth_catalog_with_step_up_origin(
+            crate::storage::auth::PasswordIdentifierMode::UsernameV1,
+            &activation,
+        )
+        .expect("activate rooted catalog v5");
         db
     }
 
@@ -1830,11 +1843,12 @@ mod tests {
     #[test]
     fn agent_invitation_refuses_step_up_proof_from_another_live_session() {
         use crate::auth::crypto::{
-            CanonicalAddress, ChallengeId, OsRandom, StepUpDigest, StepUpProof, VerificationCode,
+            CanonicalAddress, ChallengeId, OsRandom, StepUpDigest, VerificationCode,
         };
         use crate::auth::keyring::AuthKeyringStore;
 
-        let mut db = ready_database();
+        let keyring = AuthKeyringStore::in_memory();
+        let mut db = ready_database_with_step_up_keyring(&keyring);
         db.auth_catalog()
             .insert_email_session_for_test(
                 "human-a",
@@ -1863,8 +1877,6 @@ mod tests {
         )
         .expect("second live session");
 
-        let keyring = AuthKeyringStore::in_memory();
-        keyring.load_or_mint_initial(0, &OsRandom).unwrap();
         let provider_origin = keyring.claim_step_up_provider_origin();
         db.bind_auth_step_up_provider(keyring.step_up_provider_binding(&provider_origin).unwrap())
             .unwrap();
@@ -1906,19 +1918,30 @@ mod tests {
                 ],
             )
             .expect("session-B challenge");
-        let proof = StepUpProof::from_verified_binding(
-            challenge_id.clone(),
-            address,
-            Some(key_id),
-            submitted_digest,
-            "human-a".to_owned(),
-            "session-b".to_owned(),
-            1,
-            "authority-b".to_owned(),
-            "agentInvitation",
-            "creation".to_owned(),
-        );
-        let proof = keyring.bind_step_up_proof(&provider_origin, proof).unwrap();
+        db.conn
+            .execute(
+                "INSERT INTO _auth_verification_code_provenance(
+                   challenge_id, provider_origin, challenge_kind
+                 ) SELECT ?1, value, 'step-up' FROM _snapback_meta
+                   WHERE key = 'auth_step_up_keyring_origin_v1'",
+                params![challenge_id.as_str()],
+            )
+            .expect("rooted step-up provenance");
+        let proof = keyring
+            .bind_step_up_proof(
+                &provider_origin,
+                challenge_id.clone(),
+                address,
+                Some(key_id),
+                submitted_digest,
+                "human-a".to_owned(),
+                "session-b".to_owned(),
+                1,
+                "authority-b".to_owned(),
+                "agentInvitation",
+                "creation".to_owned(),
+            )
+            .unwrap();
 
         let error = db
             .mint_agent_invitation(
@@ -1954,17 +1977,17 @@ mod tests {
 
     #[test]
     fn catalog_refuses_a_version_above_this_binary_understanding() {
-        // Refuse-at-open: a fresh catalog is v4 and recognized; a marker naming a
+        // Refuse-at-open: a fresh catalog is v5 and recognized; a marker naming a
         // higher version must fail closed rather than reopen "without agents".
         let db = ready_database();
         assert_eq!(
             db.inspect_auth_catalog().unwrap(),
-            crate::storage::auth::AuthCatalogState::ReadyV4
+            crate::storage::auth::AuthCatalogState::ReadyV5
         );
-        assert_eq!(AUTH_CATALOG_VERSION, "4");
+        assert_eq!(AUTH_CATALOG_VERSION, "5");
         db.conn
             .execute(
-                "UPDATE _snapback_meta SET value = '5' WHERE key = 'auth_catalog_version'",
+                "UPDATE _snapback_meta SET value = '6' WHERE key = 'auth_catalog_version'",
                 [],
             )
             .expect("bump marker above understanding");

@@ -346,7 +346,8 @@ fn rescue_successor_is_durable(
             AuthCatalogState::ReadyV1
             | AuthCatalogState::ReadyV2
             | AuthCatalogState::ReadyV3
-            | AuthCatalogState::ReadyV4,
+            | AuthCatalogState::ReadyV4
+            | AuthCatalogState::ReadyV5,
         ) => {
             return Ok(false);
         }
@@ -508,7 +509,8 @@ fn rescue_in_transaction(
             AuthCatalogState::ReadyV1
             | AuthCatalogState::ReadyV2
             | AuthCatalogState::ReadyV3
-            | AuthCatalogState::ReadyV4,
+            | AuthCatalogState::ReadyV4
+            | AuthCatalogState::ReadyV5,
         ) => {
             return Err(rescue_invalid(
                 "auth catalog became owned during collision rescue",
