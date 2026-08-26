@@ -7,6 +7,8 @@ experience, CLI, Local server lifecycle, Auth, Live queries, Ephemeral state,
 Offline sync, Code generation, React/Expo, Diagnostics, Guide, Testing
 **Author:** Grok / Charlie Cheever
 **Date:** 2026-08-24
+**Revised:** 2026-08-25 (Answered — capstone comparison landed; see the
+dated closing section)
 **Related:** LLP 0043, LLP 0061, LLP 0144, LLP 0160, LLP 0186, LLP 0200,
 LLP 0201, LLP 0219, LLP 0223, LLP 0236, LLP 0253, LLP 0275, LLP 0277,
 LLP 0281, LLP 0295, LLP 0297, LLP 0299, LLP 0300, LLP 0301, LLP 0302,
@@ -564,3 +566,19 @@ latency/size diagnostics, and capability/refusal vocabulary parity.
 5. Should the next full pin require per-milestone token events as a run
    admission check, so session-totals cannot be compared as profile
    efficiency?
+
+## Answered — 2026-08-25
+
+The question this research posed — where the published-pair cost goes, and
+whether the chip-away round would move it — was answered by the LLP 0307
+capstone run against published 0.1.27 with per-milestone metering:
+[`benchmarks/runs/2026-08-25-clique-pair-published-0127-capstone/record.md`](../benchmarks/runs/2026-08-25-clique-pair-published-0127-capstone/record.md).
+Outcome in brief: Explicit M1 first-green halved; the scale-babysitting mode
+(11,314 s here) was replaced by two bounded fail-closed recoveries plus a
+fully-unattended 2:47:20 replay on the LLP 0307.000 surface; fresh M7 got
+cheaper on every axis but first-green; and the `0.3.4-m8` instrument
+(open question 4's resolution) caught a real removed-member live-delivery
+leak in the Familiar arm that this run's weaker instrument had passed.
+Open question 5's answer is implemented: per-milestone attribution existed
+for every capstone figure. Remaining measurement work is tracked in
+`issues/20260825-metering-driver-full-journey-portability.md`.

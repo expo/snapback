@@ -8,7 +8,10 @@ Ephemeral state, Memberships, Assets, Client integration, Exact/Contract
 integration, Guide, Benchmarks, Testing, Performance, Rust build
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-20
-**Revised:** 2026-08-25 (W5 closure fix round: the production receipt now binds
+**Revised:** 2026-08-25 (capstone pair run recorded against Phase 3 —
+standalone 0.1.27 run under 0.3.4-m8, headlines and R3-prerequisite pointer
+in the dated R2-closure subsection); prior 2026-08-25 (W5 closure fix
+round: the production receipt now binds
 each real subscription to its registry-selected distinct wave, requires positive
 queue wait for the forced delayed send, checks row-value redaction on the
 pre-overflow join-source envelope, and exercises signed hosted input through
@@ -996,6 +999,23 @@ produces no eligible comparison and no profile, efficiency, or capability
 claim. Product findings remain separately citable at their retained milestone
 boundaries. Whether to commission R3, and on what repaired instrument and
 eligible-baseline prerequisites, is the author's go/no-go decision.
+
+#### Capstone pair run — 2026-08-25 (standalone, not an R-series wave)
+
+The LLP 0307 capstone ran the full Clique pair against published 0.1.27
+with per-milestone metering under the repaired `social-messenger@0.3.4-m8`
+instrument:
+[`benchmarks/runs/2026-08-25-clique-pair-published-0127-capstone/`](../benchmarks/runs/2026-08-25-clique-pair-published-0127-capstone/record.md).
+Manual shape (the R2 driver stack is reduced-run-only; the full-journey and
+portability work is the R3 prerequisite, filed as
+`issues/20260825-metering-driver-full-journey-portability.md`); N=1 per
+cell, observations not scorecard claims. Headlines against this plan's
+registered target dimensions: Explicit M1 first-green −51% (target ≥30%);
+scale 167,157/167,157 with zero replay interventions versus the 0.1.25
+baseline's 11,314 s babysitting; the strengthened cutoff assertion caught a
+real removed-member live-delivery leak in the Familiar arm
+(`issues/20260825-familiar-removed-member-live-cutoff-leak.md`), rendering
+the baseline's Familiar M3 green suspect as a false green.
 
 ### R3. Claim-eligible wave
 
