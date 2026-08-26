@@ -32,10 +32,10 @@ use snapback_engine::test_support::{
     configure_graph_measurement_scheduler, drain_graph_corpus_stream,
     graph_corpus_authorization_frames, graph_corpus_memo_entries,
     graph_corpus_other_principal_connection, graph_corpus_scheduler_control,
-    invoke_graph_corpus_mutation, measure_graph_serving_groups, refresh_graph_corpus_scheduler,
-    set_graph_corpus_memo_limits, subscribe_graph_corpus_case,
-    subscribe_graph_corpus_other_principal_case,
-    subscribe_graph_corpus_other_principal_partition_case, subscribe_graph_corpus_partition_case,
+    graph_corpus_subscription_activity, invoke_graph_corpus_mutation, measure_graph_serving_groups,
+    refresh_graph_corpus_scheduler, set_graph_corpus_memo_limits, subscribe_graph_corpus_case,
+    subscribe_graph_corpus_other_principal_case, subscribe_graph_corpus_partition_case,
+    transition_graph_corpus_other_principal_authority_instance,
 };
 use snapback_kernel::storage::{ChangeOp, ChangedRow};
 use snapback_sync::graph_captured_read::{
@@ -10530,12 +10530,16 @@ fn private_overlay_other_principal_binding_row_data_write_skips_capture() {
 }
 
 /// Rotate retained principal B through a second owner-issued authority
-/// instance while principal A remains served. B's two engine observations share every
-/// partition input except class 3; their engine-issued partition identities
-/// must therefore differ, and A must observe no fence, wake, or delivery.
+/// instance while principal A remains served. B's two engine observations
+/// share every partition input except class 3; their engine-issued partition
+/// identities must therefore differ. B crosses the §2.4 fence/restoration
+/// sequence, while A observes no fence, wake, or delivery.
 ///
 /// @ref LLP 0209#32-authority-partition-identity-and-versioning — the full
-/// owner-issued authority instance is a class-3 partition input.
+/// owner-issued authority instance is a class-3 partition input and rotates
+/// only through the fail-closed authority-event path.
+/// @ref LLP 0200#24-the-authorization-lane-splits-in-two--by-declared-classification —
+/// the affected subscription is fenced before its restoration delivery.
 #[test]
 fn private_overlay_real_other_principal_authority_instance_rotation_is_isolated() {
     let corpus = graph_corpus();
@@ -10576,11 +10580,14 @@ fn private_overlay_real_other_principal_authority_instance_rotation_is_isolated(
             .filter(|(name, _, _)| name == query)
             .collect::<Vec<_>>();
         let b_query = format!("{query}OtherPrincipalRotation");
-        let (_, b_carrier, mut b_definition) = carriers[0].clone();
+        let (_, mut b_carrier, mut b_definition) = carriers[0].clone();
+        ensure_graph_window_pages(&mut b_carrier, 4);
         b_definition.id = format!("fn:{b_query}");
         b_definition.name = b_query.clone();
         b_definition.exported_name = Some(b_query.clone());
         b_definition.bundle_entrypoint = Some(b_query.clone());
+        b_definition.runtime =
+            FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(b_carrier.clone()));
         carriers.push((b_query.clone(), b_carrier, b_definition));
         let diagnostics = snapback.load_functions(served_graph_manifest(&corpus, &carriers));
         assert!(
@@ -10630,7 +10637,7 @@ fn private_overlay_real_other_principal_authority_instance_rotation_is_isolated(
             &mut snapback,
             &b_query,
             graph_scheduler_memo_input(b_call, &b_authority, &b_connection, 2, None),
-            b_scheduler_connection.clone(),
+            b_scheduler_connection,
         )
         .expect("establish principal B predecessor authority instance");
         assert!(drain_graph_corpus_stream(&snapback, &a_connection).is_empty());
@@ -10641,21 +10648,72 @@ fn private_overlay_real_other_principal_authority_instance_rotation_is_isolated(
         let b_before = snapback
             .graph_serving_observation_for_test(&b_predecessor.subscription_id)
             .expect("lane B predecessor partition observation");
+        let a_activity_before = graph_corpus_subscription_activity(&snapback, &a.subscription_id)
+            .expect("retained lane A activity counters");
+        let b_activity_before =
+            graph_corpus_subscription_activity(&snapback, &b_predecessor.subscription_id)
+                .expect("lane B predecessor activity counters");
         let metrics_before = snapback.inspect_core().unwrap();
 
-        let mut replacement_input =
-            graph_scheduler_memo_input(b_call, &b_authority, &b_connection, 3, None);
-        replacement_input.supersedes = Some(b_predecessor.subscription_id.clone());
-        let b_successor = subscribe_graph_corpus_other_principal_partition_case(
+        transition_graph_corpus_other_principal_authority_instance(
             &mut snapback,
-            &b_query,
-            replacement_input,
-            b_scheduler_connection,
+            &b_predecessor.subscription_id,
         )
-        .expect("rotate principal B to the alternate owner-issued authority instance");
-        assert!(b_successor.superseded.is_some());
+        .expect("fence principal B and resolve its alternate owner-issued authority instance");
+        let mut b_frame_strings = drain_graph_corpus_stream(&snapback, &b_connection);
+        assert!(
+            snapback.flush_pending_live_fanout(),
+            "{case_id} principal B authority restoration executes",
+        );
+        b_frame_strings.extend(drain_graph_corpus_stream(&snapback, &b_connection));
+        b_frame_strings.extend(
+            graph_corpus_authorization_frames(&mut snapback, &b_connection)
+                .expect("project principal B authority frames"),
+        );
+        let b_frames = b_frame_strings
+            .iter()
+            .map(|frame| serde_json::from_str::<Value>(frame).unwrap())
+            .collect::<Vec<_>>();
+        let b_diagnostics = snapback.inspect_core().unwrap().recent_diagnostics;
+        let b_authorization_frames = b_frames
+            .iter()
+            .enumerate()
+            .filter(|(_, frame)| frame["kind"] == "authorization_invalidation")
+            .collect::<Vec<_>>();
+        assert_eq!(
+            b_authorization_frames.len(),
+            b_frames.len(),
+            "{case_id} principal B transition emits only §2.4 authority frames",
+        );
+        let b_fences = b_authorization_frames
+            .iter()
+            .filter(|(_, frame)| frame.get("snapshot").is_none())
+            .collect::<Vec<_>>();
+        let b_deliveries = b_authorization_frames
+            .iter()
+            .filter(|(_, frame)| frame.get("snapshot").is_some())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            b_fences.len(),
+            1,
+            "{case_id} principal B receives one §2.4 fence; frames={b_frames:#?}; diagnostics={b_diagnostics:#?}",
+        );
+        assert_eq!(
+            b_deliveries.len(),
+            1,
+            "{case_id} principal B receives one gated restoration; frames={b_frames:#?}",
+        );
+        assert!(
+            b_fences[0].0 < b_deliveries[0].0,
+            "{case_id} principal B's fence ordinal precedes its restoration delivery",
+        );
+        assert_eq!(
+            serde_json::to_string(&b_deliveries[0].1["snapshot"]["rows"]).unwrap(),
+            b_before["resultBytes"].as_str().unwrap(),
+            "{case_id} principal B restoration preserves its private-overlay bytes",
+        );
         let b_after = snapback
-            .graph_serving_observation_for_test(&b_successor.subscription_id)
+            .graph_serving_observation_for_test(&b_predecessor.subscription_id)
             .expect("lane B successor partition observation");
 
         let first_preimage: GraphAuthorityPartitionPreimageV1 =
@@ -10707,12 +10765,51 @@ fn private_overlay_real_other_principal_authority_instance_rotation_is_isolated(
         let metrics_after = snapback.inspect_core().unwrap();
         assert_eq!(
             metrics_after.live_authority.fences_applied,
-            metrics_before.live_authority.fences_applied,
-            "{case_id} lane B rotation applies zero fences to retained lane A",
+            metrics_before.live_authority.fences_applied + 1,
+            "{case_id} lane B rotation applies exactly its own §2.4 fence",
+        );
+        assert_eq!(
+            metrics_after.live_authority.restorations_completed,
+            metrics_before.live_authority.restorations_completed + 1,
+            "{case_id} lane B completes exactly one gated restoration",
         );
         assert_eq!(
             metrics_after.live_matcher, metrics_before.live_matcher,
             "{case_id} lane B rotation wakes no retained data subscription",
+        );
+        let b_activity_after =
+            graph_corpus_subscription_activity(&snapback, &b_predecessor.subscription_id)
+                .expect("lane B successor activity counters");
+        assert_eq!(
+            b_activity_after["fencesApplied"].as_u64().unwrap(),
+            b_activity_before["fencesApplied"].as_u64().unwrap() + 1,
+            "{case_id} principal B's per-subscription fence counter increments",
+        );
+        assert_eq!(
+            b_activity_after["authorityWakes"].as_u64().unwrap(),
+            b_activity_before["authorityWakes"].as_u64().unwrap() + 1,
+            "{case_id} principal B's per-subscription authority wake counter increments",
+        );
+        assert_eq!(
+            b_activity_after["authorityDeliveries"].as_u64().unwrap(),
+            b_activity_before["authorityDeliveries"].as_u64().unwrap() + 1,
+            "{case_id} principal B's per-subscription restoration delivery counter increments",
+        );
+        assert_eq!(
+            b_activity_after["framesEnqueued"].as_u64().unwrap(),
+            b_activity_before["framesEnqueued"].as_u64().unwrap() + 1,
+            "{case_id} principal B enqueues one inline fence; its restoration is level-triggered from the obligation projection",
+        );
+        assert!(
+            b_activity_after["bytesEnqueued"].as_u64().unwrap()
+                > b_activity_before["bytesEnqueued"].as_u64().unwrap(),
+            "{case_id} principal B's per-subscription authority-frame bytes increase",
+        );
+        let a_activity_after = graph_corpus_subscription_activity(&snapback, &a.subscription_id)
+            .expect("retained lane A activity counters after B rotation");
+        assert_eq!(
+            a_activity_after, a_activity_before,
+            "{case_id} retained lane A has zero per-subscription fence, wake, delivery, frame, or byte delta",
         );
         assert!(drain_graph_corpus_stream(&snapback, &a_connection).is_empty());
         assert!(
@@ -10720,6 +10817,13 @@ fn private_overlay_real_other_principal_authority_instance_rotation_is_isolated(
                 .unwrap()
                 .is_empty(),
             "{case_id} retained lane A receives zero fence or delivery frames",
+        );
+        assert_eq!(
+            snapback
+                .graph_serving_observation_for_test(&a.subscription_id)
+                .unwrap()["resultBytes"],
+            a_before["resultBytes"],
+            "{case_id} retained lane A result bytes remain unchanged",
         );
         assert_eq!(
             snapback

@@ -4422,6 +4422,18 @@ struct LiveSubscription {
     /// identity every refreshed token binds. Minting is suppressed entirely
     /// when absent — auth-scoped subscriptions never carry it.
     rqs: Option<RqsLiveState>,
+    #[cfg(any(test, feature = "test-support"))]
+    test_activity: Arc<LiveSubscriptionActivityForTest>,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+#[derive(Debug, Default)]
+struct LiveSubscriptionActivityForTest {
+    fences_applied: AtomicU64,
+    authority_wakes: AtomicU64,
+    authority_deliveries: AtomicU64,
+    frames_enqueued: AtomicU64,
+    bytes_enqueued: AtomicU64,
 }
 
 /// One admitted long-lived subscription observation, shared across the
@@ -14099,25 +14111,6 @@ impl LocalSnapback {
         let authority = self.graph_corpus_other_principal_authority_for_test(
             InvocationSource::LiveInitialQuery,
             false,
-        )?;
-        self.subscribe_live_prepared_with_invalidation(
-            name,
-            input,
-            authority,
-            LiveInvalidationAdmission::new(connection).with_session_mode(true),
-        )
-    }
-
-    #[cfg(any(test, feature = "test-support"))]
-    pub(crate) fn subscribe_graph_corpus_other_principal_partition_case_for_test(
-        &mut self,
-        name: &str,
-        input: LiveSubscribeInput,
-        connection: AuthorizationInvalidationConnection,
-    ) -> SnapbackResult<LiveSubscribeOutput> {
-        let authority = self.graph_corpus_other_principal_authority_for_test(
-            InvocationSource::LiveInitialQuery,
-            true,
         )?;
         self.subscribe_live_prepared_with_invalidation(
             name,
@@ -23933,6 +23926,8 @@ impl LocalSnapback {
                 effect_fence,
                 observation,
                 rqs: rqs_state,
+                #[cfg(any(test, feature = "test-support"))]
+                test_activity: Arc::new(LiveSubscriptionActivityForTest::default()),
             },
         );
         self.runtime_cost.establish_subscription(
@@ -28901,6 +28896,17 @@ impl LocalSnapback {
         subscription: &LiveSubscription,
         payload: Vec<u8>,
     ) -> crate::ephemeral::DurableEnqueueOutcome {
+        #[cfg(any(test, feature = "test-support"))]
+        {
+            subscription
+                .test_activity
+                .frames_enqueued
+                .fetch_add(1, Ordering::Relaxed);
+            subscription
+                .test_activity
+                .bytes_enqueued
+                .fetch_add(payload.len() as u64, Ordering::Relaxed);
+        }
         self.prepare_scheduler_live_delivery_enqueue(subscription, &payload);
         let network_egress = self.current_live_network_egress.clone().unwrap_or_else(|| {
             self.network_profiles.admit_result(
@@ -28929,6 +28935,17 @@ impl LocalSnapback {
         payload: Vec<u8>,
         authorization: crate::storage::AuthorizationVersion,
     ) -> crate::ephemeral::DurableEnqueueOutcome {
+        #[cfg(any(test, feature = "test-support"))]
+        {
+            subscription
+                .test_activity
+                .frames_enqueued
+                .fetch_add(1, Ordering::Relaxed);
+            subscription
+                .test_activity
+                .bytes_enqueued
+                .fetch_add(payload.len() as u64, Ordering::Relaxed);
+        }
         self.prepare_scheduler_live_delivery_enqueue(subscription, &payload);
         let network_egress = self.current_live_network_egress.clone().unwrap_or_else(|| {
             self.network_profiles.admit_result(
@@ -31785,6 +31802,13 @@ impl LocalSnapback {
         let Some(coalescer) = self.live_coalescer.clone() else {
             return;
         };
+        #[cfg(any(test, feature = "test-support"))]
+        if let Some(subscription) = self.subscriptions.get(&subscription_id) {
+            subscription
+                .test_activity
+                .authority_wakes
+                .fetch_add(1, Ordering::Relaxed);
+        }
         let first_deferred_at = self
             .pending_live_fanout
             .entries
@@ -32942,6 +32966,11 @@ impl LocalSnapback {
         // its level-triggered direct projection in the same delivery turn.
         self.ephemeral
             .wake_durable_projection(&subscription.connection_id);
+        #[cfg(any(test, feature = "test-support"))]
+        subscription
+            .test_activity
+            .authority_deliveries
+            .fetch_add(1, Ordering::Relaxed);
         Ok(true)
     }
 
@@ -33396,6 +33425,11 @@ impl LocalSnapback {
         let marking_started = Instant::now();
         for subscription in subscriptions {
             coalescer.fence_authority(&subscription.id, authorization.clone());
+            #[cfg(any(test, feature = "test-support"))]
+            subscription
+                .test_activity
+                .fences_applied
+                .fetch_add(1, Ordering::Relaxed);
             crate::spike_trace::fence(
                 &subscription.id,
                 "applied",
@@ -33524,11 +33558,30 @@ impl LocalSnapback {
             .filter(|subscription| subscription.authorization.is_some())
             .cloned()
             .collect::<Vec<_>>();
+        self.notify_authorization_subscriptions_in_frame(
+            &authorization.version,
+            &authorization.membership_declarations,
+            min_commit_version,
+            admission,
+            fail_closed_on_preprojection_error,
+            subscriptions,
+        )
+    }
+
+    fn notify_authorization_subscriptions_in_frame(
+        &mut self,
+        authorization: &crate::storage::AuthorizationVersion,
+        membership_declarations: &[String],
+        min_commit_version: u64,
+        admission: &AdmissionLease,
+        fail_closed_on_preprojection_error: bool,
+        subscriptions: Vec<LiveSubscription>,
+    ) -> SnapbackResult<BTreeSet<String>> {
         if subscriptions.is_empty() {
             return Ok(BTreeSet::new());
         }
         let scheduled_coalescer =
-            self.apply_live_authority_fences(&subscriptions, &authorization.version)?;
+            self.apply_live_authority_fences(&subscriptions, authorization)?;
 
         let mut preprojected = Vec::with_capacity(subscriptions.len());
         for subscription in &subscriptions {
@@ -33574,7 +33627,7 @@ impl LocalSnapback {
             }
         }
         self.live_delivery.authorization_blast_radius.for_event(
-            &authorization.membership_declarations,
+            membership_declarations,
             |counters| {
                 counters.quarantined_subscriptions += preprojected.len() as u64;
             },
@@ -33649,7 +33702,7 @@ impl LocalSnapback {
                 self.enqueue_authority_restoration(
                     subscription.id.clone(),
                     min_commit_version,
-                    authorization.membership_declarations.clone(),
+                    membership_declarations.to_vec(),
                     runtime_wave_seq,
                     plan_identity,
                 );
@@ -33678,7 +33731,7 @@ impl LocalSnapback {
                         self.live_delivery.total_deliveries += 1;
                         self.live_delivery.last_deliveries += 1;
                         self.live_delivery.authorization_blast_radius.for_event(
-                            &authorization.membership_declarations,
+                            membership_declarations,
                             |counters| {
                                 counters.resnapshots += 1;
                             },
@@ -44675,6 +44728,99 @@ fn live_owner_mismatch(subscription_id: &str, authority: &PreparedAuthority) -> 
             .then_some(json!({ "present": true })),
         "expectedIdentity": "[redacted]",
     }))
+}
+
+#[cfg(any(test, feature = "test-support"))]
+impl LocalSnapback {
+    pub(crate) fn graph_corpus_subscription_activity_for_test(
+        &self,
+        subscription_id: &str,
+    ) -> Option<Value> {
+        let activity = &self.subscriptions.get(subscription_id)?.test_activity;
+        Some(json!({
+            "fencesApplied": activity.fences_applied.load(Ordering::Relaxed),
+            "authorityWakes": activity.authority_wakes.load(Ordering::Relaxed),
+            "authorityDeliveries": activity.authority_deliveries.load(Ordering::Relaxed),
+            "framesEnqueued": activity.frames_enqueued.load(Ordering::Relaxed),
+            "bytesEnqueued": activity.bytes_enqueued.load(Ordering::Relaxed),
+        }))
+    }
+
+    /// Exercise an authority-instance event without relabelling it as a data
+    /// write or a client supersession. The alternate instance is produced by
+    /// the same session resolver as establishment; the shared authority-event
+    /// lifecycle applies the fail-closed fence and queues restoration for the
+    /// affected retained subscription only.
+    pub(crate) fn transition_graph_corpus_other_principal_authority_instance_for_test(
+        &mut self,
+        subscription_id: &str,
+    ) -> SnapbackResult<()> {
+        let successor = self.graph_corpus_other_principal_authority_for_test(
+            InvocationSource::LiveInitialQuery,
+            true,
+        )?;
+        let successor_subject = successor.resolved().invalidation_subject();
+        let successor_retained = successor.retain_live_owner()?;
+        let admission = successor.admission_lease().clone();
+        let predecessor = self
+            .subscriptions
+            .get(subscription_id)
+            .cloned()
+            .expect("graph corpus authority-instance transition subscription");
+        assert!(
+            predecessor.authorization.is_some(),
+            "graph corpus authority-instance transition requires an auth-scoped subscription"
+        );
+        assert!(
+            predecessor.authority.matches(&successor),
+            "graph corpus authority-instance transition must preserve the retained live owner"
+        );
+        assert_ne!(
+            predecessor.authority.resolved().invalidation_subject(),
+            successor_subject,
+            "graph corpus authority-instance transition must rotate the resolved instance"
+        );
+        let authorization = self
+            .auth_invalidation
+            .as_ref()
+            .expect("graph corpus authority-instance transition invalidation state")
+            .obligations
+            .expectation()
+            .authorization
+            .clone();
+        let min_commit_version = self.db.versions_read().current_version()?;
+
+        self.begin_live_delivery_frame(1);
+        let handled = self.notify_authorization_subscriptions_in_frame(
+            &authorization,
+            &[],
+            min_commit_version,
+            &admission,
+            true,
+            vec![predecessor],
+        )?;
+        assert_eq!(
+            handled,
+            BTreeSet::from([subscription_id.to_owned()]),
+            "graph corpus authority-instance transition must fence exactly its affected subscription"
+        );
+
+        let stored = self
+            .subscriptions
+            .get_mut(subscription_id)
+            .expect("fenced graph corpus authority-instance subscription remains retained");
+        stored.authority = successor_retained;
+        stored
+            .authorization
+            .as_mut()
+            .expect("fenced graph corpus authority-instance scope")
+            .authority_subject = successor_subject;
+        if let Some(graph) = stored.graph_serving.as_mut() {
+            // @ref LLP 0209#24-plan-instance-and-contextual-materialization-identity — an authority-instance change rotates the class-3 partition, so predecessor-authenticated continuation lineage cannot cross the fence into the successor restoration.
+            graph.evaluation.window_ledgers.clear();
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]

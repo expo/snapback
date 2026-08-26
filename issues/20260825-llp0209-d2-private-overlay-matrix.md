@@ -39,9 +39,11 @@ assert:
   principal A's complete served observation;
 - an ordinary write to principal B's `identityBinding` row remains a separately
   named capture-skip proof; it is not represented as an authority transition;
-- retained principal B rotates through the scheduler's real second owner-issued
-  authority instance while retained principal A observes zero fence, wake, or
-  delivery and keeps a byte-identical served observation;
+- retained principal B rotates through the resolver's real second owner-issued
+  authority instance, crosses the shared §2.4 fence before its gated
+  restoration, and records one per-subscription fence, wake, and delivery;
+  retained principal A records zero fence, wake, delivery, frame, or byte delta
+  and keeps a byte-identical served observation;
 - active authority generation 0 has an in-flight predecessor data evaluation
   fenced before delivery; the delivery-time gate discards that late result,
   then the transition emits the closed census of exactly one fence and one

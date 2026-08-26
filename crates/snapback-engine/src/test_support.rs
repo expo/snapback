@@ -830,16 +830,22 @@ pub fn subscribe_graph_corpus_other_principal_case(
     snapback.subscribe_graph_corpus_other_principal_case_for_test(name, input, connection)
 }
 
-/// Rotate the canonical second principal to its second owner-issued authority
-/// instance through the same retained-live scheduler path.
-pub fn subscribe_graph_corpus_other_principal_partition_case(
+/// Resolve the canonical second principal's alternate owner-issued authority
+/// instance and drive the affected retained subscription through the shared
+/// fail-closed authority-event/fence/restoration lifecycle.
+pub fn transition_graph_corpus_other_principal_authority_instance(
     snapback: &mut LocalSnapback,
-    name: &str,
-    input: LiveSubscribeInput,
-    connection: crate::auth::invalidation::AuthorizationInvalidationConnection,
-) -> SnapbackResult<LiveSubscribeOutput> {
-    snapback.require_host_plan_for_test_support(name)?;
-    snapback.subscribe_graph_corpus_other_principal_partition_case_for_test(name, input, connection)
+    subscription_id: &str,
+) -> SnapbackResult<()> {
+    snapback.transition_graph_corpus_other_principal_authority_instance_for_test(subscription_id)
+}
+
+/// Exact per-subscription activity counters for authority-isolation evidence.
+pub fn graph_corpus_subscription_activity(
+    snapback: &LocalSnapback,
+    subscription_id: &str,
+) -> Option<serde_json::Value> {
+    snapback.graph_corpus_subscription_activity_for_test(subscription_id)
 }
 
 /// Commit one declarative corpus mutation through the ordinary mutation and
