@@ -3540,6 +3540,86 @@ mod tests {
     }
 
     #[test]
+    fn reauthorization_batch_refuses_a_reopened_handle_to_the_same_file() {
+        let directory = tempfile::tempdir().expect("reauthorization reopen directory");
+        let database_path = directory.path().join("snapback.sqlite3");
+        let source = ready_file_fixture(&database_path);
+        install_room_resync(&source);
+
+        let pending_for_reopened_resolver = source
+            .participant
+            .pending_reauthorizations()
+            .pop()
+            .expect("source pending room batch");
+        let source_batch = source
+            .participant
+            .resolve_room_reauthorization(
+                &source.database,
+                source
+                    .participant
+                    .pending_reauthorizations()
+                    .pop()
+                    .expect("source batch for completion"),
+                Vec::new(),
+            )
+            .expect("source database derives its exact batch");
+
+        let ReadyFixture {
+            database: source_database,
+            participant: source_participant,
+            view: source_view,
+            _issuer_projection: source_projection,
+            authorization: _,
+        } = source;
+        drop(source_database);
+        drop(source_view);
+        drop(source_projection);
+
+        let target = ready_file_fixture(&database_path);
+        let mismatch = match source_participant.resolve_room_reauthorization(
+            &target.database,
+            pending_for_reopened_resolver,
+            Vec::new(),
+        ) {
+            Err(error) => error,
+            Ok(_) => panic!("a reopened database handle resolved the predecessor graph"),
+        };
+        assert_eq!(
+            mismatch.diagnostic.code,
+            "SNAPBACK_AUTH_PARTICIPANT_DATABASE_MISMATCH"
+        );
+        assert!(
+            target
+                .participant
+                .begin_room_reauthorization_completion(&target.database, source_batch)
+                .expect("foreign batch is a retryable mismatch")
+                .is_none(),
+            "a batch from the predecessor graph completed through a reopened handle"
+        );
+
+        install_room_resync(&target);
+        let target_batch = target
+            .participant
+            .resolve_room_reauthorization(
+                &target.database,
+                target
+                    .participant
+                    .pending_reauthorizations()
+                    .pop()
+                    .expect("target pending room batch"),
+                Vec::new(),
+            )
+            .expect("target database derives a fresh exact batch");
+        target
+            .participant
+            .begin_room_reauthorization_completion(&target.database, target_batch)
+            .expect("reopened graph remains operational")
+            .expect("fresh exact target batch reaches completion")
+            .complete_exact();
+        assert!(target.participant.pending_reauthorizations().is_empty());
+    }
+
+    #[test]
     fn room_reauthorization_completion_refuses_local_scope_and_remains_retryable() {
         let fixture = ready_fixture();
         install_room_resync(&fixture);
