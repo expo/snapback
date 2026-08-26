@@ -6,6 +6,10 @@
 **Author:** codex `gpt-5.6-sol`, synthesizing two independent blind designs — codex
 `gpt-5.6-sol` and grok-4.6 — orchestrated by Claude (Opus 5) for Charlie Cheever  
 **Date:** 2026-08-20  
+**Revised:** 2026-08-26 (round-7 structural closure: room and outbox guards
+now release before exact obligation settlement drops the SQLite transaction;
+`DatabaseBinding` retains private creator-process identity and compares it
+with the current process, so an inherited fork graph fails closed.)
 **Revised:** 2026-08-26 (round-6 lock-order correction: completion moved to a
 take-once database owner outside managed `LocalSnapback`; arbitrary outbox and
 notifier callbacks were replaced by concrete operations; and the overlap
@@ -185,8 +189,11 @@ A bind-time rejection is the load-bearing LLP 0285 §8 risk-4 proof because it
 runs on the database that will commit. The earlier construction check remains
 required so a mismatched backend never becomes the composed backend or starts
 registering rooms. Both checks are exact; neither substitutes a string id for
-`DatabaseBinding::matches` or `Arc::ptr_eq`, whose current identity semantics
-are at `crates/snapback-kernel/src/storage.rs:532-573`.
+`DatabaseBinding::matches` or exact registry allocation identity.
+`DatabaseBinding` combines its private allocation discriminator with a private
+creator PID that must equal the current process; a PID is never identity by
+itself. Thus the database-origin check also fails closed in a forked child as
+required by LLP 0303(t).
 
 ### 1.2 Participant fields
 
@@ -1800,9 +1807,11 @@ inside `with_snapback`. Completion takes the lifecycle read guard before it
 waits for `IMMEDIATE`, but during that wait it holds no participant projection,
 registry, rooms, room, outbox, notifier, or global Local guard. SQLite remains
 held through the durable session and membership rereads, exact
-subscriber/effect-fence mutation and subscriber-outbox effects, and exact
-obligation clear. Notifier wake and later routing cleanup occur only after
-SQLite, registry, room, and rooms map release. A persistent SQLite writer can
+subscriber/effect-fence mutation and subscriber-outbox effects. Every outbox,
+room, and rooms-map guard then releases before the exact registry obligation
+is cleared and the SQLite transaction is dropped; no SQLite operation executes
+under those guards. Notifier wake and later routing cleanup occur only after
+SQLite and registry release. A persistent SQLite writer can
 delay this completion owner and lifecycle-exclusive work, but it cannot pin
 every managed Local operation. An authorization write can still pin Local
 while waiting for its own `IMMEDIATE`; that is the separate bind path above.
@@ -2198,6 +2207,8 @@ Tests must establish:
 - auth-invalidation installation at the current enable point performs the `Bound -> Ready` transition;
 - transaction bind reads the committing `LocalDatabase` state and repeats database-binding, registry-binding, exact-registry, activation, and all-generation checks;
 - old reservations fail after same-database replacement;
+- an inherited `DatabaseBinding` fails against the current process after
+  POSIX fork even though its allocation address remains equal;
 - a dropped pending participant leaves the database fail-closed;
 - unbound backends cannot reserve.
 
