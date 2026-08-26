@@ -37,7 +37,7 @@ cargo test -p snapback-kernel stale_predecessor_manifest_reaches_credential_fami
 ```
 
 The observation fired at the witness's effect branch, currently
-`crates/snapback-kernel/src/storage/auth_agent_credentials.rs:4104`:
+`crates/snapback-kernel/src/storage/auth_agent_credentials.rs:4113`:
 
 ```text
 FAMILY1_REACHES_EFFECT: use returned Ok(AgentFamilyRevocation { user_id: Some("agent-a"), ... }); publisher handle B observed revoked_at_ms=Some(1001)
