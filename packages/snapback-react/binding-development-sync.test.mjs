@@ -67,7 +67,7 @@ await prepareReactBindingForClient(changing, { generatedManifest });
 assert(persistedReceipt, 'online preparation persists the binding receipt');
 changing.reset([
   inspection('sha256:deployed-predecessor'),
-  new TypeError('fetch failed'),
+  Object.assign(new TypeError('fetch failed'), { fetchDispatchFailed: true }),
   inspection(generatedManifest.bundleHash),
 ]);
 const transientStates = [];

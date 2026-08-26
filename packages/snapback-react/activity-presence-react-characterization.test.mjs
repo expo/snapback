@@ -1,7 +1,7 @@
-// React-side characterization evidence, not a regression test for the
-// LLP 0310.000 Ruling 3 versus implemented LLP 0257 conflict ticket. It
-// characterizes the React module graph and its bare-provider deadline behavior;
-// the RFC owner still owns the facade-boundary decision.
+// Characterization of shipped React behavior that the Guide relies on, not a
+// regression test for the LLP 0310.000 Ruling 3 versus implemented LLP 0257
+// conflict ticket. It characterizes the React module graph and its bare-provider
+// deadline behavior; the RFC owner still owns the facade-boundary decision.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

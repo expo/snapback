@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:0c193ba4b236abeecc24f8c373ce49d424eda326e468
 # @expo/snapback-expo
 
 Build-bound public API projection for `@expo/snapback-expo`. Canonical registry identity:
-`sha256:22c57a57e023df3bee26855c34b8408d141c0ab0ef1cfb1338059e5c1d5089d1`.
+`sha256:020fae83887019d90f99d657e3530f6b6352705c7e6ba5dea60ff00a39bc2ff6`.
 Runtime parity condition:
 `import, default` → `packages/snapback-expo/index.mjs`.
 

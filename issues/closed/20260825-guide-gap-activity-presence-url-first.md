@@ -24,8 +24,9 @@ The Expo facade hook is for `SnapbackExpoProvider` only.
 
 ## Resolution (2026-08-25)
 
-LLP 0310.000 Ruling 3, as landed on `origin/main`, governs this lane; the
-conflict with implemented LLP 0257 is filed in
+LLP 0310.000 Ruling 3 is an RFC in Review, landed on `origin/main` on
+2026-08-25; it directs this lane while the conflict with implemented LLP 0257
+is filed in
 [`issues/20260825-ruling-3-vs-llp-0257-background-withdrawal.md`](../20260825-ruling-3-vs-llp-0257-background-withdrawal.md)
 for the RFC owner. URL-first web under a bare `SnapbackProvider` imports from
 `@expo/snapback-react`, while the Expo facade is for `SnapbackExpoProvider`
@@ -38,9 +39,8 @@ fallback and links the conflict ticket.
 
 Retrieval case 100 and its required-guidance phrases are the proof for this
 ticket. The renamed `activity-presence-react-characterization.test.mjs` is
-explicitly non-gating React-side characterization evidence, not a regression
-test for this ticket; it is intentionally absent from the package test command
-and gating package-test inventory. The file walks local imports from
+package-gating characterization of shipped React behavior that the Guide
+relies on, not a regression test for this ticket. The file walks local imports from
 `implementation.mjs`, characterizes the React
 module graph's lack of AppState integration, and separately demonstrates
 deadline-only withdrawal under a bare provider. The generation-fence product

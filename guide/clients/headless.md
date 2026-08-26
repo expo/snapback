@@ -9,8 +9,8 @@ examples: [demos/todo, demos/todo-v2, demos/graffiti, demos/card-game, demos/par
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:45c4beb95d66c26e287a312684e3cf4f774232921063046395d600b67302daee
+reviewed: 2026-08-25
+reviewed-authorities-digest: sha256:6b002186d94944cf9c5a3021c79654857ab0e11265ea7758ae917dca708f23de
 ---
 
 # The headless client

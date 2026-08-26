@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:5b84306e6e386e4c1e6d7e64045c79bd4d97219cd6bd15f38830158552713020"
+    "sourceDigest": "sha256:607952bb99ce0487c737de41eb55f057b55d17d69ed0f2443d561e852de84f75"
   },
   "limits": {
     "lookupBytes": 16384
@@ -10,7 +10,7 @@
   "counts": {
     "codes": 3678,
     "sourceFiles": 616,
-    "emittingSites": 12974,
+    "emittingSites": 12975,
     "httpClassified": 1729,
     "guideAnchored": 468
   },
@@ -20614,6 +20614,11 @@
           "file": "crates/snapback-server/src/server/api_error.rs",
           "line": 435,
           "column": 10
+        },
+        {
+          "file": "packages/snapback-react/familiar-error-classes.mjs",
+          "line": 28,
+          "column": 6
         }
       ],
       "httpStatus": 403,
@@ -20790,7 +20795,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 28,
+          "line": 29,
           "column": 6
         }
       ],
@@ -21472,7 +21477,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 29,
+          "line": 30,
           "column": 6
         }
       ],
@@ -21564,7 +21569,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 30,
+          "line": 31,
           "column": 6
         }
       ],
@@ -21624,7 +21629,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 31,
+          "line": 32,
           "column": 6
         }
       ],
@@ -21674,7 +21679,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 32,
+          "line": 33,
           "column": 6
         }
       ],
@@ -21699,7 +21704,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 33,
+          "line": 34,
           "column": 6
         }
       ],
@@ -21744,7 +21749,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 34,
+          "line": 35,
           "column": 6
         }
       ],
@@ -23813,7 +23818,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 35,
+          "line": 36,
           "column": 6
         }
       ],
@@ -23883,7 +23888,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 36,
+          "line": 37,
           "column": 6
         }
       ],
@@ -24737,7 +24742,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 37,
+          "line": 38,
           "column": 6
         }
       ],
@@ -24981,7 +24986,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 38,
+          "line": 39,
           "column": 6
         }
       ],
@@ -26699,7 +26704,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 39,
+          "line": 40,
           "column": 6
         }
       ],
@@ -27024,7 +27029,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 40,
+          "line": 41,
           "column": 6
         }
       ],
@@ -27124,7 +27129,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 41,
+          "line": 42,
           "column": 6
         }
       ],
@@ -27184,7 +27189,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 42,
+          "line": 43,
           "column": 6
         }
       ],
@@ -27249,7 +27254,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 43,
+          "line": 44,
           "column": 6
         }
       ],
@@ -27314,7 +27319,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 44,
+          "line": 45,
           "column": 6
         }
       ],
@@ -27339,7 +27344,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 45,
+          "line": 46,
           "column": 6
         }
       ],
@@ -27399,7 +27404,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 46,
+          "line": 47,
           "column": 6
         }
       ],
@@ -27479,7 +27484,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 47,
+          "line": 48,
           "column": 6
         }
       ],
@@ -27629,7 +27634,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 48,
+          "line": 49,
           "column": 6
         }
       ],
@@ -27704,7 +27709,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 49,
+          "line": 50,
           "column": 6
         }
       ],
@@ -27759,7 +27764,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 50,
+          "line": 51,
           "column": 6
         }
       ],
@@ -27794,7 +27799,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 51,
+          "line": 52,
           "column": 6
         }
       ],
@@ -28106,7 +28111,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 52,
+          "line": 53,
           "column": 6
         },
         {
@@ -28732,7 +28737,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 53,
+          "line": 54,
           "column": 6
         }
       ],
@@ -29171,7 +29176,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 54,
+          "line": 55,
           "column": 6
         }
       ],
@@ -29196,7 +29201,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 55,
+          "line": 56,
           "column": 6
         }
       ],
@@ -29251,7 +29256,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 56,
+          "line": 57,
           "column": 6
         }
       ],
@@ -29456,7 +29461,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 57,
+          "line": 58,
           "column": 6
         }
       ],
@@ -29493,7 +29498,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 58,
+          "line": 59,
           "column": 6
         }
       ],
@@ -29518,7 +29523,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 59,
+          "line": 60,
           "column": 6
         }
       ],
@@ -29931,7 +29936,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 60,
+          "line": 61,
           "column": 6
         }
       ],
@@ -30106,7 +30111,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 61,
+          "line": 62,
           "column": 6
         }
       ],
@@ -30666,7 +30671,7 @@
         },
         {
           "file": "packages/snapback-react/familiar-error-classes.mjs",
-          "line": 62,
+          "line": 63,
           "column": 6
         }
       ],

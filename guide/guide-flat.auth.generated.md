@@ -253,15 +253,16 @@ stale auth result.
 
 Inspect the client error's `operation` and `details` (or a graph result's
 `refusalReason` and `graphCompleteness.proof.primaryReason`) before choosing a
-recovery. The client stamps `operation` as `mutation`, `query`, or `request`;
-it does not stamp a mutation/replay path name or `liveQuery.subscribe`. A
-server diagnostic that exposes only `subsystem: "auth"` is not classified by
-that subsystem alone: use `details.clientMutationId`,
-`details.guidance: "discard_or_rerecord"`, or the graph `refusalReason` to
-choose the branch:
+recovery. The client stamps `operation` as `mutation`, `query`, `request`,
+`action`, or `ephemeral`; it does not stamp a mutation/replay path name or
+`liveQuery.subscribe`. A non-`mutation`/`query` stamp does not classify the
+family by itself, and a server diagnostic that exposes only `subsystem: "auth"`
+is likewise insufficient. Use `details.clientMutationId`,
+`details.guidance: "discard_or_rerecord"`, an authority-descriptor
+`details.reason`, or the graph `refusalReason` to choose the branch:
 
-- **Mutation or replay:** `operation` is `mutation`, or an otherwise
-  unclassified `request` has `details` carrying `clientMutationId`,
+- **Mutation or replay:** `operation` is `mutation`, or `operation` is
+  `request`, `action`, or `ephemeral` and `details` carries `clientMutationId`,
   `guidance: "discard_or_rerecord"`, or an authority-descriptor `reason`. The
   emitters cover an absent, unknown, or
   mismatched queued authority descriptor; divergent authority facts on an

@@ -354,7 +354,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:5d7b495aabe2c6b3c40e7e5d6c681520669be46383f043407f022dd638b36db4
+reviewed-authorities-digest: sha256:c5511fceb534f1c9facbe5d09103e913d37281afe0b2800a4be5ab674c479a4c
 ---
 
 # Ephemeral realtime state
@@ -382,9 +382,11 @@ First decide whether the value is continuously bound or activity-driven. The
 and lifecycle guide, including the Supabase `track()` analogue, bound `skip`
 withdrawal, `idleMs` product deadline, heartbeat ownership, and delete path.
 
+LLP 0310.000 Ruling 3 is an RFC in Review, landed on `origin/main` on
+2026-08-25. While that review remains open, Ruling 3 directs this guide lane.
 For URL-first web under a bare `SnapbackProvider`, import
 `useSnapbackActivityPresence` from `@expo/snapback-react`; that is the paved
-choice. Use the `@expo/snapback-expo` facade only in a
+choice for this lane. Use the `@expo/snapback-expo` facade only in a
 `SnapbackExpoProvider` tree; there it gates the first publication until
 AppState observation is established and withdraws on backgrounding. The React
 hook under a bare `SnapbackProvider` has no AppState-driven background
@@ -392,8 +394,11 @@ withdrawal. If the app backgrounds, typing intent expires by the presence
 deadline rather than being withdrawn immediately. Do not invent a third hook.
 The shipped facade currently also mounts under a bare `SnapbackProvider` and,
 through LLP 0257's AppState fallback, withdraws immediately on backgrounding.
-That composition is not the paved contract under LLP 0310.000 Ruling 3 and is
-pending the RFC owner's decision in [the recorded LLP 0257 conflict](repo:issues/20260825-ruling-3-vs-llp-0257-background-withdrawal.md); use it only if immediate background withdrawal on web today outweighs relying on the currently non-paved boundary.
+That composition is not the RFC's proposed paved contract and is pending the
+RFC owner's decision in [the still-open LLP 0257 conflict](repo:issues/20260825-ruling-3-vs-llp-0257-background-withdrawal.md);
+use it only if immediate background withdrawal on web today outweighs relying
+on the currently non-paved boundary. Do not treat the provider boundary as
+settled while that conflict remains open.
 
 The messaging demo has one deliberate direct-client exception. Its interactive
 server uses dev-mode persona assertions, while the `typing` collection also

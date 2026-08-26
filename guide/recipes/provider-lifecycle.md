@@ -9,8 +9,8 @@ examples: [packages/snapback-contract/keyed-provider.mjs, packages/snapback-reac
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-22
-reviewed-authorities-digest: sha256:8a63496d82a30b312b43af3e49e76b3625cc47be7276fcb08165153aacff1d4e
+reviewed: 2026-08-25
+reviewed-authorities-digest: sha256:5be11b1bf4a2ffb4cb129f56fa7e4a8d414b1c9af1045fad6ec3b41760917663
 ---
 
 # Recipe: provider connection and subscription lifecycle
@@ -134,6 +134,8 @@ blocked transition:
         answerClass: 'unknown',
         retention: null,
         optimisticPresentation: null,
+        authoritativeRevision: 0,
+        lastDeliveryAtMs: null,
       });
       assert.equal(client.state.attempts, 0, 'held custody starts no live transport');
 ```

@@ -26,5 +26,8 @@ asset-retention heading; and retrieval-eval evidence is excluded from
 diagnostic target selection. Retrieval case 99 pins the exact generated
 anchor, and the focused test exercises `snapback guide
 SNAPBACK_AUTH_STALE_RESULT` in both JSON and text modes and asserts the complete
-user-visible anchor list, not only its primary member. These checks do not
-exercise a live stale-result mutation.
+user-visible anchor list, not only its primary member. This proves the
+JavaScript `runCli` lookup over checkout artifacts; it does not execute the
+native binary. The native binary embeds the generated registry at build time
+and follows this correction when rebuilt. These checks do not exercise a live
+stale-result mutation.

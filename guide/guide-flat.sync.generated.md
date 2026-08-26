@@ -14,8 +14,8 @@ examples: [demos/triage-graph, demos/card-game, demos/todo-v2/surfaces/contract,
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-16
-reviewed-authorities-digest: sha256:8247e5bbf4236ef656eecd9f697afa2060fe506b082669a611b15f23af3f7a86
+reviewed: 2026-08-25
+reviewed-authorities-digest: sha256:338c67399ea095b570d16da2d3488c14296fd4f85bf279ed7cc2b66dbf576421
 ---
 
 # Offline retention and mutation replay

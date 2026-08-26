@@ -27,9 +27,11 @@ five-second TTL or acceptance ceiling does not make that value disappear after
 five seconds of no typing. Bound withdrawal is `skip`; `null` is a value publish
 attempt and fails the generated value contract.
 
+LLP 0310.000 Ruling 3 is an RFC in Review, landed on `origin/main` on
+2026-08-25. While that review remains open, Ruling 3 directs this guide lane.
 For URL-first web under a bare `SnapbackProvider`, import
 `useSnapbackActivityPresence` from `@expo/snapback-react`; that is the paved
-choice. Use the `@expo/snapback-expo` facade only in a
+choice for this lane. Use the `@expo/snapback-expo` facade only in a
 `SnapbackExpoProvider` tree; there it adds AppState-driven background
 withdrawal. Under a bare `SnapbackProvider`, the React hook has no
 AppState-driven background withdrawal. If the app backgrounds, typing intent
@@ -37,9 +39,9 @@ expires by the presence deadline rather than being withdrawn immediately.
 There is no third activity-presence hook.
 The shipped facade currently also mounts under a bare `SnapbackProvider` and,
 through LLP 0257's AppState fallback, withdraws immediately on backgrounding.
-That composition is not the paved contract under LLP 0310.000 Ruling 3; the
+That composition is not the RFC's proposed paved contract; the still-open
 [recorded LLP 0257 conflict](repo:issues/20260825-ruling-3-vs-llp-0257-background-withdrawal.md)
-is for the RFC owner to resolve.
+is for the RFC owner to resolve before treating the boundary as settled.
 
 This is the usual cause of a “typing indicator stuck” or “presence not
 expiring” report. The heartbeat-vs-bound-value decision comes before choosing
