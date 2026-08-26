@@ -564,7 +564,7 @@ in 0.1.27.
 | P16 | both | instrument | no `sm-nav-chats`; typing clock includes `pressSequentially` | instrument | genuinely outside Snapback's control — the instrument owns its own test IDs and its frozen clock, and no Snapback change would have prevented this | out of bar |
 | P17 | both | auth | signup/profile save races the authenticated dispatcher; remount drops `HANDLE_TAKEN` | snapback-defect (undocumented seam) | `issues/closed/20260826-guide-gap-signup-dispatcher-and-profile-hydrate.md` | done (landed `c80a35f0c`, not published) |
 | P18 | familiar | auth | the lane set conversations/members/messages `public-read` to make its queries reachable, and said in its own diary this was “not a production ACL.” A capable agent knowingly shipping a posture it calls wrong is a signal that the reachable-and-correct shape was too hard to reach | snapback-defect (authoring surface) — **re-dispositioned in r6** from “out of bar” under the pit-of-success standard | not this program's repair bar, but `issues/20260826-membership-scoped-query-reachability.md` now asks the design question rather than dismissing the row: what is the paved way to make a membership-scoped query reachable without widening the read posture? | planned, not started |
-| P19 | explicit | identity | **reproduce** a schema successor under supervised `--expo --expo-platform web` with the `--json` stream retained, and record whether `binding-rotated` fired and what the next exchange carried | investigation | corroborates P1 (not a prerequisite — r4); settles which side of the predicate was stale; `issues/20260826-probe-successor-binding-rotation-json-stream.md` | planned, not started |
+| P19 | explicit | identity | **reproduce** a schema successor under supervised `--expo --expo-platform web` with the `--json` stream retained, and record whether `binding-rotated` fired and what the next exchange carried | investigation | **answered 2026-08-26** — `binding-rotated` fired, `generated-and-loaded` preceded the remint on the live stream, the next exchange returned the successor binding, and the **delivered binding** is the stale side; `tests/probes/successor-binding-rotation-20260826/`; `issues/closed/20260826-probe-successor-binding-rotation-json-stream.md` | **done 2026-08-26** |
 | P20 | familiar | presence | **re-test** `@expo/snapback-expo` `useSnapbackActivityPresence` under a bare URL-first `SnapbackProvider` on web; the “requires the Expo lifecycle context” premise is unverified and contradicted by the shipped fallback | investigation | settled Ruling 3's package boundary (there is none) and the LLP 0257 conflict; `tests/probes/expo-presence-bare-provider-20260826/`; `issues/closed/20260826-probe-expo-presence-facade-bare-provider.md` | **done 2026-08-26 — `works`** |
 
 No row this program should fix is **not-yet-planned**, but two rows —
@@ -641,13 +641,16 @@ inventory rather than on a label.
 - High: F1's **ordering defect** — the successor graph is published and the
   backend activates before the remint — established from source and confirmed
   by four independent reviews across two model families.
-- Inference, not established: the **interleaving** in this particular run.
-  Metro HMR and the provider re-boot are asynchronous and unordered against the
-  remint, so the source shows a race, not a trace. P19 settles it.
-- Inference, not established: **which side** of the mismatch predicate the lane
-  observed as stale. The retained evidence names the M1 identity from the Expo
-  `extra`, not from a bootstrap response, and no `mismatches[]` payload was
-  dumped. P19 settles it.
+- **Established 2026-08-26 by P19, on a live `--json` stream** (was inference):
+  the interleaving is real. `generated-and-loaded` reaches the arm before the
+  remint publishes the successor binding, and both precede it — observed, not
+  read off the source.
+- **Established 2026-08-26 by P19** (was inference): **which side** of the
+  mismatch predicate is stale. Sampling both sides every 10 ms across the
+  transition caught the generated graph naming the successor while the delivered
+  binding still named the predecessor, so the **delivered binding** is the stale
+  operand. What remains unestablished is the window's *width* under a real
+  bundler: the probe's Metro is a stub, and the 0.1.27 lane's was not.
 - Open: F4's package-split premise (P20).
 - **Withdrawn:** the r1/r2 claim of a regression versus 0.1.24/0.1.25.
   The cited diaries do not support it. Anything downstream of that claim
@@ -663,8 +666,9 @@ inventory rather than on a label.
    arm on a schema successor?~~ **Answered in r4, refined in r5:** it fires
    after both the successor graph publication and the backend activation, so a
    live arm can refuse against the predecessor binding and never re-exchange.
-   P19 remains open to corroborate the interleaving and to settle which side of
-   the predicate was stale.
+   **P19 ran on 2026-08-26 and corroborated both halves**: the interleaving is
+   observed on a live `--json` stream, and the stale operand is the delivered
+   binding (`tests/probes/successor-binding-rotation-20260826/`).
 2. Should the supervisor's non-destructive control verbs live on the
    existing `/_snapback/expo/v1/control` route, or does something require
    a second, socket-based plane?

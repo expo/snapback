@@ -1,6 +1,6 @@
 # Probe: does `binding-rotated` fire on a schema successor under supervised `--expo`?
 
-**Filed:** 2026-08-26
+**Filed:** 2026-08-26 · **Resolved:** 2026-08-26
 **Systems:** React/Expo, CLI, Local server lifecycle, Testing
 **Revised:** 2026-08-26 (no longer a gate: the ordering defect is established
 from source; this probe corroborates the interleaving)
@@ -58,3 +58,35 @@ successor — which is LLP 0310.000 acceptance A1/A3, not this probe.
 
 The four observations above are recorded as a retained artifact, and LLP
 0310.000 OQ6 is answered.
+
+## Resolution — 2026-08-26
+
+Ran. `tests/probes/successor-binding-rotation-20260826/` retains the full
+`--json` stream (`events.jsonl`), 208 paired samples of both sides of the
+`admitAppBindingV1` predicate (`samples.jsonl`), the four observations
+(`observations.json`), and the reading (`summary.md`).
+
+1. **`binding-rotated` was emitted**, `sha256:dbc67d74…` → `sha256:4bf382cc…`,
+   `changed: "schema.mjs"`. The remint is not missing.
+2. **`generated-and-loaded` precedes the remint** on the live stream — the
+   ordering defect LLP 0310 F1 established from source, now observed rather than
+   inferred. (`startup-successor-activated` does not appear: the supervised
+   backend hot-loads the successor instead of restarting.)
+3. **The next bootstrap exchange returned the successor binding**, `200`,
+   `source: supervised-dev`.
+4. **Which side was stale: the delivered binding.** Two consecutive samples show
+   the generated graph naming the successor while the supervisor still delivered
+   the predecessor binding. LLP 0310 recorded this as inference; it is now
+   audited fact.
+
+The observed disagreement lasted ~14 ms at a 10 ms sample period. That is **not**
+the 0.1.27 window: this probe's Metro is a stub serving a precomputed bundle,
+while the Clique lane's Metro rebuilt and hot-reloaded a real bundle into a live
+browser. The number establishes where the window is, not how wide it is under a
+real bundler.
+
+The run also observed LLP 0310.000 **A1**: `metro-reloaded` fired 665 ms after
+the remint with `reason: "successor-binding"`, the successor `descriptorIdentity`,
+a replaced Metro pid, and an unchanged backend pid.
+
+LLP 0310.000 OQ6's corroboration and the A0 acceptance row are closed.
