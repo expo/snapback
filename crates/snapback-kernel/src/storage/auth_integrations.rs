@@ -1569,7 +1569,7 @@ mod tests {
     fn api_manifest() -> SchemaManifest {
         let mut manifest: SchemaManifest = serde_json::from_value(json!({ "tables": [] })).unwrap();
         manifest.auth = Some(crate::manifest::AuthManifest {
-            mode: crate::manifest::AuthMode::Sessions,
+            mode: crate::manifest::AuthMode::Dev,
             agents: Some(crate::manifest::AgentsManifest::explicit(
                 AgentsMode::Open,
                 crate::manifest::InvitedBy::Operators,
@@ -1612,12 +1612,14 @@ mod tests {
         let mut db = LocalDatabase::memory().unwrap();
         db.activate_current_auth_catalog().unwrap();
         let manifest = api_manifest();
+        db.schema_seed()
+            .apply_schema(manifest.clone())
+            .expect("publish integration registration policy schema");
         db.with_auth_transaction(|tx| {
             activate_manifest_in(tx, &manifest)?;
             crate::storage::declared_clients::activate_manifest_in(tx, &manifest)
         })
         .unwrap();
-        db.replace_active_schema(manifest);
         db
     }
 
@@ -1625,9 +1627,11 @@ mod tests {
         let mut db = LocalDatabase::memory().unwrap();
         db.activate_current_auth_catalog().unwrap();
         let manifest = oauth_api_manifest();
+        db.schema_seed()
+            .apply_schema(manifest.clone())
+            .expect("publish OAuth integration registration policy schema");
         db.with_auth_transaction(|tx| activate_manifest_in(tx, &manifest))
             .unwrap();
-        db.replace_active_schema(manifest);
         db.conn
             .execute(
                 "INSERT INTO _auth_scope_bases(
@@ -2587,7 +2591,9 @@ mod tests {
                 AgentsMode::Invited,
                 crate::manifest::InvitedBy::Users,
             ));
-        db.replace_active_schema(invited_manifest);
+        db.schema_seed()
+            .apply_schema(invited_manifest)
+            .expect("publish invited integration registration policy schema");
         seed_human(&db, "user-a");
         let invitation = CreationInvitation::generate(&random).unwrap();
         db.conn
