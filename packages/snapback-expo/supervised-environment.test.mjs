@@ -129,6 +129,11 @@ assert.equal(
   `http://127.0.0.1:4321${SUPERVISED_EXCHANGE_PATH}?authority=mint`,
 );
 assert.equal(requests[1].options.method, 'POST');
+assert.equal(
+  requests[1].options.headers.origin,
+  undefined,
+  'native/headless authority adoption does not rely on React Native forwarding Origin',
+);
 assert.deepEqual(JSON.parse(requests[1].options.body), {
   correlationId: 'supervised-environment-correlation',
 });
@@ -389,4 +394,4 @@ try {
   }
 }
 
-console.log('supervised-environment.test.mjs: default environment, binding-only exchange, explicit on-demand authority request, sanitized refusal, abort cleanup, retryable redemption, and one-shot native checkout pass');
+console.log('supervised-environment.test.mjs: default environment, binding-only exchange, originless native on-demand authority request, sanitized refusal, abort cleanup, retryable redemption, and one-shot native checkout pass');

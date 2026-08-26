@@ -397,6 +397,11 @@ two-user proof should instead use ordinary password entry with separate custody
 per context. `snapback auth dev-session` likewise remains an explicit operator
 tool, never a template-consumed app session.
 
+The mint POST admits browser callers only from an exact supervisor-admitted
+`Origin`. Native fetch may omit `Origin`, so an originless POST is admitted only
+when its timing-safe per-boot `correlationId` matches; a present wrong `Origin`
+is always refused.
+
 From an Expo app whose backend is the conventional `snapback/` child, select
 the supervised carrier explicitly (iOS remains the default when the platform
 flag is omitted):

@@ -38,9 +38,11 @@ Implemented LLP 0310.000 Track B (in review).
   credential-free control-plane rendezvous and the selected binding source.
 - The ordinary bootstrap exchange returns the binding with authority
   `unavailable`, including after another client has minted. Explicit adoption
-  is a capability-bearing POST from an exact admitted origin; every accepted
-  request receives a fresh session, and the first mint does not emit
-  `authority-replaced`.
+  is a capability-bearing POST: browser requests require an exact admitted
+  origin, while an originless native request requires the same timing-safe
+  per-boot correlation capability and any present wrong origin is refused.
+  Every accepted request receives a fresh session, and the first mint does not
+  emit `authority-replaced`.
 - The default supervised-web provider stays anonymous and its password form
   remains visible. A real `SnapbackExpoProvider` React tree with a mounted
   query also proves that explicitly adopting a mint and signing it out leaves

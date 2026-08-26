@@ -226,6 +226,20 @@ function validateExchange(value) {
 function publicAuthorityFacts(session) {
   const authority = session?.authority;
   const descriptor = session?.authorityDescriptor;
+  if (session?.activeMode === 'sessions' && authority?.kind === 'anonymous') {
+    return Object.freeze({
+      kind: 'session',
+      authMode: session.activeMode,
+      sessionId: null,
+      userId: null,
+      authorizationStreamIncarnation:
+        nonEmptyString(session.authorizationStreamIncarnation)
+          ? session.authorizationStreamIncarnation
+          : null,
+      authorityInstanceId: null,
+      sessionGeneration: null,
+    });
+  }
   if (
     session?.activeMode !== 'sessions'
     || authority?.kind !== 'humanSession'
@@ -397,13 +411,6 @@ export function createSupervisedExpoEnvironment({
         accept: 'application/json',
         ...(requestAuthority ? { 'content-type': 'application/json' } : {}),
       };
-      // Browser fetch supplies its real Origin and forbids callers from
-      // forging it. React Native and headless protocol witnesses have no page
-      // origin, so they identify the exact supervisor origin explicitly; the
-      // per-boot correlation capability remains the independent proof.
-      if (requestAuthority && globalThis.location?.origin === undefined) {
-        headers.origin = origin;
-      }
       response = await fetchImplementation(exchangeUrl, {
         method: requestAuthority ? 'POST' : 'GET',
         cache: 'no-store',
@@ -675,7 +682,12 @@ export function createSupervisedExpoEnvironment({
         refreshAfterMs: Number.MAX_SAFE_INTEGER,
       });
     },
-    async adoptAuthority({ binding, signal, rqsStore }) {
+    async adoptAuthority({
+      binding,
+      signal,
+      rqsStore,
+      adoptSupervisedSession = true,
+    }) {
       const key = bindingKey(binding);
       const storedExchange = exchanges.get(key);
       const cached = storedExchange === undefined ? offlineFallbacks.get(key) : null;
@@ -708,7 +720,9 @@ export function createSupervisedExpoEnvironment({
           },
         });
       }
-      const exchange = await fetchAuthorityExchange(signal, key, storedExchange);
+      const exchange = adoptSupervisedSession
+        ? await fetchAuthorityExchange(signal, key, storedExchange)
+        : storedExchange ?? await fetchExchange(signal);
       exchanges.delete(key);
       const required = authorityRequired(exchange);
       if (required) return required;
@@ -719,16 +733,24 @@ export function createSupervisedExpoEnvironment({
         );
       }
       const resolvedClientOptions = await clientOptionsWithDevIdentity(signal);
-      const client = createExternalSessionClient(binding.target.origin, {
+      const sharedClientOptions = {
         ...resolvedClientOptions,
-        bearerToken: exchange.authority.token,
-        authorizedLeaseProtocol: 1,
         clientStoreId: resolvedClientOptions.clientStoreId
           ?? `snapback-expo-${binding.provenance.supervisorGeneration}`,
         rqsStore: Object.hasOwn(resolvedClientOptions, 'rqsStore')
           ? resolvedClientOptions.rqsStore
           : rqsStore,
-      });
+      };
+      const client = adoptSupervisedSession
+        ? createExternalSessionClient(binding.target.origin, {
+            ...sharedClientOptions,
+            bearerToken: exchange.authority.token,
+            authorizedLeaseProtocol: 1,
+          })
+        : new SnapbackClient(binding.target.origin, {
+            ...sharedClientOptions,
+            bearerToken: null,
+          });
       let facts;
       try {
         const session = await client.authSession({ force: true });
@@ -740,11 +762,11 @@ export function createSupervisedExpoEnvironment({
       adopted = {
         binding,
         client,
-        token: exchange.authority.token,
+        token: adoptSupervisedSession ? exchange.authority.token : null,
         publicFacts: facts,
         offline: false,
       };
-      saveCachedBinding(exchange.binding, facts);
+      if (adoptSupervisedSession) saveCachedBinding(exchange.binding, facts);
       return Object.freeze({
         status: 'ready',
         client,

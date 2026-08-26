@@ -489,7 +489,17 @@ try {
       body: authorityBody,
     },
   );
-  assert.equal(originlessAuthorityPost.status, 403);
+  assert.equal(originlessAuthorityPost.status, 200);
+  assert.deepEqual(await originlessAuthorityPost.json(), payload);
+  const originlessWrongCorrelationPost = await fetch(
+    `${exchange.origin}${SUPERVISED_EXCHANGE_PATH}?authority=mint`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ correlationId: 'wrong-bootstrap-capability' }),
+    },
+  );
+  assert.equal(originlessWrongCorrelationPost.status, 403);
   const wrongOriginAuthorityPost = await fetch(
     `${exchange.origin}${SUPERVISED_EXCHANGE_PATH}?authority=mint`,
     {
@@ -502,8 +512,12 @@ try {
     },
   );
   assert.equal(wrongOriginAuthorityPost.status, 403);
-  assert.equal(payloadRequests.length, requestsBeforeOriginRefusals);
-  assert.equal(authorityMintRequests, 0, 'origin refusals happen before minting');
+  assert.deepEqual(
+    payloadRequests.slice(requestsBeforeOriginRefusals).map(({ requestAuthority }) => requestAuthority),
+    [false, true, false],
+    'originless admission validates correlation before minting; refusals never invoke the mint',
+  );
+  assert.equal(authorityMintRequests, 1);
 
   const wrongCapabilityAuthorityPost = await fetch(
     `${exchange.origin}${SUPERVISED_EXCHANGE_PATH}?authority=mint`,
@@ -514,7 +528,7 @@ try {
     },
   );
   assert.equal(wrongCapabilityAuthorityPost.status, 403);
-  assert.equal(authorityMintRequests, 0, 'capability refusal happens before minting');
+  assert.equal(authorityMintRequests, 1, 'capability refusal happens before another mint');
 
   const authorityPost = await fetch(
     `${exchange.origin}${SUPERVISED_EXCHANGE_PATH}?authority=mint`,
@@ -526,7 +540,7 @@ try {
   );
   assert.equal(authorityPost.status, 200);
   assert.deepEqual(await authorityPost.json(), payload);
-  assert.equal(authorityMintRequests, 1);
+  assert.equal(authorityMintRequests, 2);
 
   const requestsBeforeInvalidQuery = payloadRequests.length;
   const invalidAuthorityGet = await fetch(
@@ -631,7 +645,7 @@ try {
     code: 'SNAPBACK_EXPO_BOOTSTRAP_ROUTE_NOT_FOUND',
   });
 
-  console.log('expo-bootstrap-exchange.test.mjs: scoped loopback CORS, binding-only and explicit authority requests, preflight, payload refusal, and route handling pass');
+console.log('expo-bootstrap-exchange.test.mjs: scoped loopback CORS, browser-origin and originless correlation admission, explicit authority requests, preflight, payload refusal, and route handling pass');
 } finally {
   await exchange.close();
 }

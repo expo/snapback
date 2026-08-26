@@ -114,7 +114,7 @@ function appStateHarness() {
 }
 
 const states = [];
-let authorityAdoptions = 0;
+let authorityMints = 0;
 let preparedInput = null;
 let providerDisposed = 0;
 const lifecycleCalls = [];
@@ -138,16 +138,24 @@ const environment = Object.freeze({
       },
     };
   },
-  async adoptAuthority() {
-    authorityAdoptions += 1;
+  async resolveAppClientPlatform() {
+    return Object.freeze({ kind: 'expo-web' });
+  },
+  async adoptAuthority({ adoptSupervisedSession }) {
+    assert.equal(
+      adoptSupervisedSession,
+      false,
+      'legacy supervised web defaults to anonymous instead of requesting a mint',
+    );
+    if (adoptSupervisedSession) authorityMints += 1;
     return {
       status: 'ready',
       client: fakeClient,
       publicFacts: {
         kind: 'session',
         authMode: 'sessions',
-        sessionId: 'session-public-id',
-        userId: 'user-public-id',
+        sessionId: null,
+        userId: null,
         bearerToken: 'must-not-project',
       },
     };
@@ -183,9 +191,10 @@ assert.deepEqual(states.map((state) => (
 assert.equal(ready.status, 'ready');
 assert.strictEqual(preparedInput, app);
 assert.equal(ready.authority.bearerToken, undefined);
-assert.equal(ready.authority.sessionId, 'session-public-id');
+assert.equal(ready.authority.sessionId, null, 'legacy web leaves password entry visible');
+assert.equal(ready.authority.userId, null);
 assert.equal(ready.binding.target.origin, binding.target.origin);
-assert.equal(authorityAdoptions, 1);
+assert.equal(authorityMints, 0);
 assert.strictEqual(boot.lifecycleSource(), appState);
 assert.equal(appState.count(), 1);
 appState.emit('background');
@@ -483,4 +492,4 @@ completeAdoption({
 await interruptedStart;
 assert.equal(interruptedAuthorityDisposals, 1, 'dispose racing authority adoption releases it');
 
-console.log('provider.test.mjs: descriptor delegation, exact boot states, authority refusal, lifecycle, and pre-store mismatch pass');
+console.log('provider.test.mjs: legacy web anonymous default/no-mint posture, descriptor delegation, exact boot states, authority refusal, lifecycle, and pre-store mismatch pass');
