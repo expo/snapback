@@ -62,7 +62,8 @@ interactive supervisor or publish an unreachable descriptor. The short
 live or occupied endpoints remain fail-closed refusals.
 
 The focused `expo-dev-loop.test.mjs --control-socket-only` regression includes
-a default-options launch with stdin ignored that acknowledges and settles
+a `--json` launch using the default control-socket posture, with stdin ignored
+and test-only fixture paths/ports, that acknowledges and settles
 `reload-metro`. It overlaps acknowledged `reload-metro` with `stop-children`,
 asserts both settled results, all Metro PIDs gone, and the planned port free.
 It also proves stale/foreign/other-UID requests return one result and no

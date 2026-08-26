@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:a24deb2521267299b4c29c3380c81e577f0b9bc29a40d138efd0a733bf0310fd
+reviewed-authorities-digest: sha256:2eb9a74f4f9291d681789ef3ae1097974dbeb6f7e337b9367adeeaedad8b3668
 ---
 
 # Discover agent controls
@@ -154,9 +154,12 @@ the same way, just like a valid record naming another inode or incarnation.
 Recovery is operator-explicit:
 inspect ownership and remove both artifacts, or relaunch with `--ready-file` in
 a different owner-only state directory. A bind-phase crash may leave the
-binding marker and well-known socket for the cleanup lease, which records the
-exact inode as soon as the bind completes. This owner recovery is not client
-authority. The detached
+binding marker and well-known socket after the kernel bind but before the owner
+can observe the inode, publish the bound record, and activate the exact-inode
+cleanup lease. The reserved pre-activation lease has no endpoint identity and
+deliberately preserves that ambiguous residue, so it requires the same explicit
+recovery above. Once activation completes, the lease is bound to the observed
+inode and incarnation. This owner recovery is not client authority. The detached
 reaper uses a separate, stricter deletion predicate: its cleanup lease must
 match the exact socket inode and incarnation. A client must never unlink or
 replace an endpoint to bypass a refusal.

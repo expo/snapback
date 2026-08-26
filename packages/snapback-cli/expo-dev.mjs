@@ -3851,138 +3851,17 @@ export async function runExpoDev(options = {}) {
           };
         }
         const requestId = typeof body.requestId === 'string' ? body.requestId : undefined;
-        if (controlDispatcher === null) {
-          throw diagnosticError(
-            'SNAPBACK_EXPO_CONTROL_FAILED',
-            'the supervised control dispatcher is not ready',
-          );
-        }
-        const event = await controlDispatcher.enqueue('dev-fresh', { requestId });
-        if (event?.ok !== true) {
-          return {
-            statusCode: 200,
-            body: {
-              schemaVersion: 'snapback.reset-dev-fresh.v1',
-              ok: false,
-              mode: 'supervised',
-              diagnostics: event?.diagnostics ?? [{
-                code: 'SNAPBACK_DEV_FRESH_FAILED',
-                severity: 'error',
-                subsystem: 'cli',
-                message: 'the managed dev-fresh operation did not complete',
-              }],
-              ...(requestId === undefined ? {} : { requestId }),
-            },
-          };
-        }
-
         try {
-          const refreshedReady = readReadyDescriptor(dev.readyFile);
-          backendRoute = portFromOrigin(refreshedReady.serverUrl, 'Snapback backend');
-          const refreshedBackendProvenance = devPortPlanOwner(dev.portPlan, 'backend');
-          portPlan = materializeDevPortPlan(
-            portPlan,
-            { backend: backendRoute.port },
-            refreshedBackendProvenance === null ? {} : {
-              backend: {
-                source: refreshedBackendProvenance.source,
-                declaredBy: refreshedBackendProvenance.declaredBy,
-              },
-            },
-          );
-          if (!isLoopbackHost(backendRoute.host)) {
+          if (controlDispatcher === null) {
             throw diagnosticError(
-              'SNAPBACK_EXPO_LISTENER_EXPOSED',
-              'the refreshed supervised backend is not loopback-bound',
+              'SNAPBACK_EXPO_CONTROL_FAILED',
+              'the supervised control dispatcher is not ready',
             );
           }
-          descriptor = JSON.parse(readFileSync(appDescriptorPath, 'utf8'));
-          // A backend restart rotates startupNonce and the dev-identity
-          // sidecar, so both the pending delivery and every issued nonce are
-          // invalid. The opt-in own-bundle path below issues a replacement
-          // only after the refreshed listeners and sidecar are current.
-          checkoutRegistry?.invalidate();
-          checkoutNonce = null;
-          nativeCheckoutLaunch = null;
-          route = createExpoRoutingPlan({
-            platform: options.platform ?? 'ios',
-            backendPort: backendRoute.port,
-            metroPort,
-            bootstrapPort: bootstrap.port,
-            androidTransport: options.androidTransport ?? 'adb-reverse',
-            androidSerial: selectedDevice.serial,
-            androidDeviceClass: selectedDevice.class,
-          });
-          const refreshedBinding = bindingPublisher.issue({
-            descriptor,
-            capabilityManifest: currentCapabilityManifest(),
-            origin: appOrigin(route.appHost, backendRoute.port),
-            routing: route.bindingRouting,
-          });
-          publishBindingProjection(refreshedBinding);
-          forwarding?.remove?.();
-          forwarding = installAndroidPortForwarding(route, {
-            adbBinary: options.adbBinary,
-            run: options.adbRun,
-            env: childEnv,
-          });
-          listeners = await waitForListenerInventory({
-            backendPid: refreshedReady.pid,
-            metroPid: metro.child.pid,
-            metroProcess: metro.child,
-            webFrontPort: metroFront?.port ?? null,
-            expected: [
-              { owner: 'backend', port: backendRoute.port },
-              { owner: 'metro', port: metroProcessPort },
-              ...(metroFront === null ? [] : [{ owner: 'metro-front', port: metroPort }]),
-              { owner: 'bootstrap', port: bootstrap.port },
-            ],
-            timeoutMs: options.metroReadyTimeoutMs ?? 30_000,
-          });
-          emit({ ok: true, state: 'listeners-verified', listeners });
-          if (authorityRequested) mintAndSwapAuthority(authorityEmail, { pending: true });
-          else authority = Object.freeze({ status: 'unavailable' });
-          if (shouldLaunchExpoNativeCheckout(route, options)) {
-            checkoutNonce = checkoutRegistry.issue({
-              platform: route.platform,
-              device: route.device,
-            });
-            if (checkoutNonce !== null) {
-              nativeCheckoutLaunch = launchExpoNativeCheckout(route, checkoutNonce, {
-                xcrunBinary: options.xcrunBinary,
-                adbBinary: options.adbBinary,
-                iosSimulator: options.iosSimulator,
-                iosBundleIdentifier: options.iosBundleIdentifier,
-                androidComponent: options.androidComponent,
-                expoAppScheme: options.expoAppScheme,
-                run: options.nativeLaunchRun ?? spawnSync,
-                env: childEnv,
-              });
-              checkoutNonce = null;
-              emit({
-                ok: true,
-                state: 'native-checkout-launched',
-                reason: 'backend-rotation',
-                nativeCheckout: nativeCheckoutLaunch,
-              });
-            }
-          }
+          const result = await controlDispatcher.enqueue('dev-fresh', { requestId });
           return {
             statusCode: 200,
-            body: {
-              schemaVersion: 'snapback.reset-dev-fresh.v1',
-              ok: true,
-              mode: 'supervised',
-              correlationId,
-              database: 'fresh',
-              seed: 'applied',
-              authority: {
-                status: authority.status,
-                authMode: 'sessions',
-              },
-              backend: { origin: backendRoute.origin },
-              ...(requestId === undefined ? {} : { requestId }),
-            },
+            body: result,
           };
         } catch (error) {
           return {
@@ -3994,7 +3873,7 @@ export async function runExpoDev(options = {}) {
               diagnostics: [error?.diagnostic ?? clientDiagnostic(
                 error,
                 'SNAPBACK_EXPO_CONTROL_FAILED',
-                'the supervised dev-fresh refresh did not complete',
+                'the supervised dev-fresh control request did not complete',
               )],
               ...(requestId === undefined ? {} : { requestId }),
             },
@@ -4305,6 +4184,7 @@ export async function runExpoDev(options = {}) {
           intentionallyStoppedMetroChildren.add(previousMetro.child);
           await stopProcessGroup(previousMetro.child, { processGroup: true });
           if (metro === previousMetro) metro = null;
+          await options.afterMetroReloadPreviousStopped?.({ metro: previousMetro });
         }
         const restartedMetro = await launchMetro(backendRoute.origin);
         const liveBackend = refreshLiveBackendListenerTarget();
@@ -4410,10 +4290,151 @@ export async function runExpoDev(options = {}) {
       if (!closed && event?.ok === true) refreshLiveBackendListenerTarget();
       return event;
     };
+    const supervisedDevFreshVerb = async ({ requestId } = {}) => {
+      const event = await runBackendLifecycleVerb('dev-fresh', { requestId });
+      if (event?.ok !== true) {
+        return Object.freeze({
+          schemaVersion: 'snapback.reset-dev-fresh.v1',
+          ok: false,
+          mode: 'supervised',
+          diagnostics: event?.diagnostics ?? [{
+            code: 'SNAPBACK_DEV_FRESH_FAILED',
+            severity: 'error',
+            subsystem: 'cli',
+            message: 'the managed dev-fresh operation did not complete',
+          }],
+          ...(requestId === undefined ? {} : { requestId }),
+        });
+      }
+
+      try {
+        // The Expo refresh is part of the dispatched operation. No queued
+        // Metro reload or child stop may observe the backend-success boundary
+        // before listener verification, binding replacement, forwarding, and
+        // authority remint all settle.
+        await options.beforeDevFreshExpoRefresh?.();
+        const refreshedReady = readReadyDescriptor(dev.readyFile);
+        backendRoute = portFromOrigin(refreshedReady.serverUrl, 'Snapback backend');
+        const refreshedBackendProvenance = devPortPlanOwner(dev.portPlan, 'backend');
+        portPlan = materializeDevPortPlan(
+          portPlan,
+          { backend: backendRoute.port },
+          refreshedBackendProvenance === null ? {} : {
+            backend: {
+              source: refreshedBackendProvenance.source,
+              declaredBy: refreshedBackendProvenance.declaredBy,
+            },
+          },
+        );
+        if (!isLoopbackHost(backendRoute.host)) {
+          throw diagnosticError(
+            'SNAPBACK_EXPO_LISTENER_EXPOSED',
+            'the refreshed supervised backend is not loopback-bound',
+          );
+        }
+        descriptor = JSON.parse(readFileSync(appDescriptorPath, 'utf8'));
+        // A backend restart rotates startupNonce and the dev-identity
+        // sidecar, so both the pending delivery and every issued nonce are
+        // invalid. The opt-in own-bundle path below issues a replacement
+        // only after the refreshed listeners and sidecar are current.
+        checkoutRegistry?.invalidate();
+        checkoutNonce = null;
+        nativeCheckoutLaunch = null;
+        route = createExpoRoutingPlan({
+          platform: options.platform ?? 'ios',
+          backendPort: backendRoute.port,
+          metroPort,
+          bootstrapPort: bootstrap.port,
+          androidTransport: options.androidTransport ?? 'adb-reverse',
+          androidSerial: selectedDevice.serial,
+          androidDeviceClass: selectedDevice.class,
+        });
+        const refreshedBinding = bindingPublisher.issue({
+          descriptor,
+          capabilityManifest: currentCapabilityManifest(),
+          origin: appOrigin(route.appHost, backendRoute.port),
+          routing: route.bindingRouting,
+        });
+        publishBindingProjection(refreshedBinding);
+        forwarding?.remove?.();
+        forwarding = installAndroidPortForwarding(route, {
+          adbBinary: options.adbBinary,
+          run: options.adbRun,
+          env: childEnv,
+        });
+        listeners = await waitForListenerInventory({
+          backendPid: refreshedReady.pid,
+          metroPid: metro.child.pid,
+          metroProcess: metro.child,
+          webFrontPort: metroFront?.port ?? null,
+          expected: [
+            { owner: 'backend', port: backendRoute.port },
+            { owner: 'metro', port: metroProcessPort },
+            ...(metroFront === null ? [] : [{ owner: 'metro-front', port: metroPort }]),
+            { owner: 'bootstrap', port: bootstrap.port },
+          ],
+          timeoutMs: options.metroReadyTimeoutMs ?? 30_000,
+        });
+        emit({ ok: true, state: 'listeners-verified', listeners });
+        if (authorityRequested) mintAndSwapAuthority(authorityEmail, { pending: true });
+        else authority = Object.freeze({ status: 'unavailable' });
+        if (shouldLaunchExpoNativeCheckout(route, options)) {
+          checkoutNonce = checkoutRegistry.issue({
+            platform: route.platform,
+            device: route.device,
+          });
+          if (checkoutNonce !== null) {
+            nativeCheckoutLaunch = launchExpoNativeCheckout(route, checkoutNonce, {
+              xcrunBinary: options.xcrunBinary,
+              adbBinary: options.adbBinary,
+              iosSimulator: options.iosSimulator,
+              iosBundleIdentifier: options.iosBundleIdentifier,
+              androidComponent: options.androidComponent,
+              expoAppScheme: options.expoAppScheme,
+              run: options.nativeLaunchRun ?? spawnSync,
+              env: childEnv,
+            });
+            checkoutNonce = null;
+            emit({
+              ok: true,
+              state: 'native-checkout-launched',
+              reason: 'backend-rotation',
+              nativeCheckout: nativeCheckoutLaunch,
+            });
+          }
+        }
+        return Object.freeze({
+          schemaVersion: 'snapback.reset-dev-fresh.v1',
+          ok: true,
+          mode: 'supervised',
+          correlationId,
+          database: 'fresh',
+          seed: 'applied',
+          authority: {
+            status: authority.status,
+            authMode: 'sessions',
+          },
+          backend: { origin: backendRoute.origin },
+          ...(requestId === undefined ? {} : { requestId }),
+        });
+      } catch (error) {
+        return Object.freeze({
+          schemaVersion: 'snapback.reset-dev-fresh.v1',
+          ok: false,
+          mode: 'supervised',
+          diagnostics: [error?.diagnostic ?? clientDiagnostic(
+            error,
+            'SNAPBACK_EXPO_CONTROL_FAILED',
+            'the supervised dev-fresh refresh did not complete',
+          )],
+          ...(requestId === undefined ? {} : { requestId }),
+        });
+      }
+    };
     controlDispatcher = createDevControlDispatcher({
       reload: (context) => runBackendLifecycleVerb('reload', context),
       restart: (context) => runBackendLifecycleVerb('restart', context),
-      'dev-fresh': (context) => runBackendLifecycleVerb('dev-fresh', context),
+      'dev-fresh': supervisedDevFreshVerb,
       'reload-metro': reloadMetroVerb,
       'stop-children': stopChildrenVerb,
     });

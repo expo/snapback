@@ -537,6 +537,8 @@ async function startFixture(target, options = {}) {
     afterSupervisedAuthorityRequested: options.afterSupervisedAuthorityRequested,
     controlSocket: options.controlSocket,
     afterControlEndpointLeaseActivation: options.afterControlEndpointLeaseActivation,
+    beforeDevFreshExpoRefresh: options.beforeDevFreshExpoRefresh,
+    afterMetroReloadPreviousStopped: options.afterMetroReloadPreviousStopped,
     afterMetroReloadListenersVerified: options.afterMetroReloadListenersVerified,
     devOptions: options.devOptions,
     clientPort: options.clientPort,
@@ -716,6 +718,7 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
     'dev',
     target.backendRoot,
     '--expo',
+    '--json',
     '--expo-platform', platform,
     '--expo-dir', target.expoRoot,
     '--ready-file', target.readyFile,
@@ -1186,9 +1189,13 @@ async function runControlSocketSuite() {
       sessions: true,
       root: controlRoot,
     });
-    const reloadAtDispatcherBarrier = deferred();
-    const releaseDispatcherReload = deferred();
+    let reloadAtDispatcherBarrier = deferred();
+    let releaseDispatcherReload = deferred();
+    const reloadAfterFreshStoppedPrevious = deferred();
+    const releaseReloadAfterFresh = deferred();
     let holdDispatcherReload = false;
+    let reloadAfterHttpDevFresh = null;
+    let queueReloadAfterHttpDevFresh = false;
     const dispatcherRun = await startFixture(dispatcherFixture, {
       platform: 'web',
       controlSocket: true,
@@ -1196,6 +1203,34 @@ async function runControlSocketSuite() {
         if (!holdDispatcherReload) return;
         reloadAtDispatcherBarrier.resolve();
         await releaseDispatcherReload.promise;
+      },
+      async afterMetroReloadPreviousStopped() {
+        if (queueReloadAfterHttpDevFresh) return;
+        if (reloadAfterHttpDevFresh === null) return;
+        reloadAfterFreshStoppedPrevious.resolve();
+        await releaseReloadAfterFresh.promise;
+      },
+      async beforeDevFreshExpoRefresh() {
+        if (reloadAfterHttpDevFresh === null) return;
+        await Promise.race([
+          reloadAfterFreshStoppedPrevious.promise,
+          new Promise((resolveWait) => setTimeout(resolveWait, 250)),
+        ]);
+      },
+      onEvent(event) {
+        if (!queueReloadAfterHttpDevFresh
+            || event.state !== 'backend-event'
+            || event.backend?.state !== 'generated-and-loaded'
+            || event.backend?.verb !== 'dev-fresh') return;
+        queueReloadAfterHttpDevFresh = false;
+        reloadAfterHttpDevFresh = openControlCommand(
+          dispatcherControl,
+          controlCommand(
+            dispatcherControl,
+            'reload-metro',
+            'reload-after-http-dev-fresh',
+          ),
+        );
       },
     });
     const dispatcherControl = dispatcherRun.supervisor.controlSocket;
@@ -1263,9 +1298,112 @@ async function runControlSocketSuite() {
     assert.equal(httpDevFreshResult.status, 200);
     assert.equal(httpDevFreshResult.body.ok, true, JSON.stringify(httpDevFreshResult.body));
     assert.equal(httpDevFreshResult.body.requestId, 'http-dev-fresh-overlap');
+    const authorityReplacementCount = dispatcherRun.events.filter(
+      (event) => event.state === 'authority-replaced',
+    ).length;
+    queueReloadAfterHttpDevFresh = true;
+    const httpDevFreshBeforeReload = fetch(
+      `${dispatcherDescriptor.exchangeOrigin}${dispatcherDescriptor.controlPath}`,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-snapback-operator-token': managedAdminToken(
+            readReadyDescriptor(dispatcherFixture.readyFile),
+            dispatcherFixture.database,
+          ),
+        },
+        body: JSON.stringify({
+          verb: 'dev-fresh',
+          requestId: 'http-dev-fresh-before-reload',
+        }),
+      },
+    ).then(async (response) => ({ status: response.status, body: await response.json() }));
+    await eventually(
+      () => reloadAfterHttpDevFresh,
+      { label: 'socket Metro reload queued from HTTP dev-fresh generated-and-loaded boundary' },
+    );
+    await reloadAfterHttpDevFresh.acknowledged;
+    const httpBeforeReloadResult = await httpDevFreshBeforeReload;
+    await reloadAfterFreshStoppedPrevious.promise;
+    releaseReloadAfterFresh.resolve();
+    const reloadAfterFreshMessages = await reloadAfterHttpDevFresh.completion;
+    assert.equal(httpBeforeReloadResult.status, 200);
+    assert.equal(
+      httpBeforeReloadResult.body.ok,
+      true,
+      JSON.stringify(httpBeforeReloadResult.body),
+    );
+    assert.equal(
+      reloadAfterFreshMessages.at(-1)?.ok,
+      true,
+      JSON.stringify(reloadAfterFreshMessages),
+    );
+    assert.equal(
+      dispatcherRun.events.filter((event) => event.state === 'authority-replaced').length,
+      authorityReplacementCount + 1,
+      'HTTP dev-fresh must remint authority before the queued socket reload runs',
+    );
+    const remintIndex = dispatcherRun.events.findIndex(
+      (event, index) => index >= 0
+        && event.state === 'authority-replaced'
+        && index > dispatcherRun.events.findIndex(
+          (candidate) => candidate.backend?.requestId === 'http-dev-fresh-before-reload',
+        ),
+    );
+    const reloadIndex = dispatcherRun.events.findIndex(
+      (event) => event.state === 'metro-reloaded'
+        && event.requestId === 'reload-after-http-dev-fresh',
+    );
+    assert(remintIndex !== -1 && reloadIndex !== -1 && remintIndex < reloadIndex);
+    reloadAtDispatcherBarrier = deferred();
+    releaseDispatcherReload = deferred();
+    holdDispatcherReload = true;
+    const reloadBeforeStopping = openControlCommand(
+      dispatcherControl,
+      controlCommand(dispatcherControl, 'reload-metro', 'reload-before-stopping'),
+    );
+    await reloadBeforeStopping.acknowledged;
+    await reloadAtDispatcherBarrier.promise;
+    const stopForHttpRefusal = openControlCommand(
+      dispatcherControl,
+      controlCommand(dispatcherControl, 'stop-children', 'stop-for-http-refusal'),
+    );
+    await stopForHttpRefusal.acknowledged;
+    const stoppingOperatorToken = managedAdminToken(
+      readReadyDescriptor(dispatcherFixture.readyFile),
+      dispatcherFixture.database,
+    );
+    const stoppingResponse = await fetch(
+      `${dispatcherDescriptor.exchangeOrigin}${dispatcherDescriptor.controlPath}`,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-snapback-operator-token': stoppingOperatorToken,
+        },
+        body: JSON.stringify({
+          verb: 'dev-fresh',
+          requestId: 'http-dev-fresh-while-stopping',
+        }),
+      },
+    );
+    const stoppingBody = await stoppingResponse.json();
+    assert.equal(stoppingResponse.status, 200);
+    assert.equal(stoppingBody.ok, false);
+    assert.equal(stoppingBody.requestId, 'http-dev-fresh-while-stopping');
+    assert.equal(stoppingBody.diagnostics?.[0]?.code, 'SNAPBACK_DEV_CONTROL_STOPPING');
+    holdDispatcherReload = false;
+    releaseDispatcherReload.resolve();
+    const [reloadBeforeStoppingMessages, stopForHttpRefusalMessages] = await Promise.all([
+      reloadBeforeStopping.completion,
+      stopForHttpRefusal.completion,
+    ]);
+    assert.equal(reloadBeforeStoppingMessages.at(-1)?.ok, true);
+    assert.equal(stopForHttpRefusalMessages.at(-1)?.ok, true);
     await dispatcherRun.supervisor.close();
     supervisors.splice(supervisors.indexOf(dispatcherRun.supervisor), 1);
-    console.log('control dispatcher: HTTP dev-fresh queues behind an acknowledged socket Metro reload');
+    console.log('control dispatcher: HTTP dev-fresh serializes both ways and returns coded stopping refusal');
 
     const ignoredStdinFixture = fixture('ignored-stdin-app', { sessions: true, root: controlRoot });
     const ignoredStdinRange = await reserveFreeRange(8);
@@ -1332,7 +1470,7 @@ async function runControlSocketSuite() {
       assertStdinReload: true,
       failMetroReload: true,
     });
-    console.log('expo-dev-loop.test.mjs: default /dev/null control, long-path stdin-only fallback, socket concurrency, reload failure, stdin stopping latch, refusals, and cleanup pass');
+    console.log('expo-dev-loop.test.mjs: --json /dev/null default control posture, long-path stdin-only fallback, socket concurrency, reload failure, stdin stopping latch, refusals, and cleanup pass');
   } finally {
     rmSync(controlRoot, { recursive: true, force: true });
   }
