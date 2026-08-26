@@ -1,7 +1,7 @@
 # Building this Snapback app
 
 <!-- @ref LLP 0259#1-first-read-contract — the transcluded start packet is the whole required first read; escalate one page at a time, never a linear capability-index read. -->
-<!-- start-packet:begin expo-chat digest=sha256:27a6547842abb8b003346375181a8532070ce4d99814418d4dd4f339f68bdeb4 -->
+<!-- start-packet:begin expo-chat digest=sha256:ee1e74962b32b05835e3d1a401dd86f6b2908c684d90f8d9467fd7bdf644db48 -->
 This is the first read (LLP 0259 Rung A). Use edit targets; open one page
 only for a brief, `SNAPBACK_*` refusal, or failed `prove`, via
 `snapback guide <query>`.
@@ -25,7 +25,7 @@ Before proof edits, read `node_modules/@expo/snapback-acceptance/README.md`.
 <!-- script-glossary:begin -->
 ## Script glossary
 
-`prove`: done-oracle; writes the aggregate `snapback verify` receipt.
+`prove`: only done-oracle; writes the aggregate `snapback verify` receipt.
 `npm test`: raw acceptance debug. `test:static`: no-server
 coherence. `carry:headless`, `carry:web-browser`, `carry:native-simulator`:
 observations after `prove`; `carry:self-check`: wiring only. Removed
