@@ -763,3 +763,111 @@ Both machine-readable reports contain `cleanupErrors: []` and
 `a97e75286f098066931701df515fe7a812961798`, so both also reported the expected
 checkout/binary stamp mismatch; these runs prove the named JS-arm behavior,
 not a same-commit server-binary qualification.
+
+### Round-19 review closure (2026-08-25)
+
+Round 19 corrects round 18's over-broad fail-closed admission. For default
+`queue: 'auto'`, an answered capability gap or a non-cached inspection failure
+now makes one ordinary online-only mutation POST and creates no outbox record.
+An answered negative remains the observing client's local override even when
+its shared-store commit returns `false`; a later no-response inspection still
+cannot resurrect the rejected shared positive. Explicit `queue: true` keeps
+the typed settlement-ledger refusal, cached positive evidence remains
+enqueue-only with no speculative POST from a non-writer, and replay still
+requires a fresh positive inspection.
+
+Settlement ACK obligations now persist the v2 record's enqueue target.
+Standalone acknowledgement selects its exact target cohort while holding the
+shared authorization-dispatch fence, and both standalone confirmation and
+mutation piggyback selection/confirmation filter by that persisted target.
+After an A-to-B repoint, target B receives no target-A ACK and target A's local
+settlement recovery record plus ACK obligation survive. The sync guide's
+offline example is again a verbatim transclusion of the positive-inspect then
+failed-mutation transport fixture.
+
+The five watched regressions failed before the production fix with these
+verbatim lines:
+
+```text
+✖ settlement ACK obligations persist the record enqueue target (2.0765ms)
+✖ queue:'auto' uses online-only dispatch for a ledger-less target and cached-evidence non-writers fail without POST (13.829542ms)
+✖ a rejected answered-negative capability commit keeps bound mutation admission online-only (3.059208ms)
+✖ standalone ACK never crosses the persisted enqueue target after client repoint (2.177917ms)
+✖ piggyback ACK never crosses the persisted enqueue target after client repoint (3.304667ms)
+ℹ tests 5
+ℹ pass 0
+ℹ fail 5
+```
+
+The persistence assertion saw `undefined` instead of the enqueue target. The
+two auto-admission cases threw
+`SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED`. The standalone case sent
+the target-A id to
+`https://standalone-ack-target-b.example/client-mutations/acknowledge`, and the
+piggyback body carried `['cm-piggyback-ack-target-a']` instead of omitting the
+field.
+
+At the final JS implementation commit
+`0c6abbb75dc677928fabc7ef56daddf17c98da60`, the focused suite reports:
+
+```text
+ℹ tests 144
+ℹ suites 0
+ℹ pass 144
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1596.6155
+```
+
+The package-wide `npm test --prefix packages/snapback-client` script again
+stops only on the already-recorded, out-of-scope RQS assertion:
+
+```text
+✖ pre-subscribe durable-buffer overflow fails closed to one fresh snapshot [web/indexeddb] (9.781625ms)
+ℹ tests 30
+ℹ pass 29
+ℹ fail 1
+```
+
+The strict TypeScript fixture command was run separately after that stop and
+exits zero. The same RQS assertion also reproduces on the native/file and
+memory arms, so commands sequenced after those failures are not claimed as
+part of the package script.
+
+Both required public-dashboard witnesses were run at that exact JS commit with
+`SNAPBACK_SERVER_BINARY="$PWD/target/debug/snapback"` and report these verbatim
+summaries:
+
+```text
+PASS public-dashboard / offline-local-first (JS arm) — 9/9
+PASS public-dashboard / headless — 6/6
+```
+
+Both machine-readable reports contain `cleanupErrors: []` and
+`cleanupErrorCount: 0`. The configured binary is stamped at
+`a97e75286f098066931701df515fe7a812961798`, so both runs report the expected
+checkout/binary identity mismatch and prove the JS lane rather than a
+same-commit server binary.
+
+`node scripts/check-guide.mjs` reports the following verbatim final summary:
+
+```text
+[guide-check] FAILED — 18 passed, 4 failed, 0 skipped, 0 preconditions; 157 pages, 1871 snippets, 174 routes + 51 host-ops joined, 96 warnings
+```
+
+Every remaining failure is an integration-owned generated projection:
+diagnostics registry, symbol registry, Guide manifest/MCP projection, and flat
+guides. The source snippet transclusion and capability/surface joins pass. The
+expired `backend.structured-stored-fields` review was evidence-audited without
+changing its claim and moved to 2026-09-30 in its owning open ticket.
+
+`./ref-check --verbose` reports `311 LLP docs, 6647 refs in 12505 files, 0
+errors, 0 unchecked`. `git diff --check` produces no output.
+
+No claim is made that `node scripts/generate-symbol-registry.mjs --check` is
+green at this HEAD. `packages/snapback-client/index.d.mts` gained
+`whenOfflineMutationReplayCapabilitySettled()` earlier in this lane, and the
+symbol registry, reference pages, Guide manifest, and flat projections remain
+at merge-base bytes for the landing script to regenerate at integration.
