@@ -5,6 +5,11 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
+**Revised:** 2026-08-26 (round-12 pruning/retirement settlement repair:
+pruning and generation-exhaustion retirement defer kernel-control removal
+while an exact room settlement is `SETTLING`. Terminal reconciliation applies
+the retirement; waiting writers re-intersect cached rooms with installed
+controls while their selector-level dependency fences recreation.)
 **Revised:** 2026-08-26 (round-10 completion-liveness repair: the completion
 fence no longer crosses the closed kernel operation in an owned value.
 Kernel lends sync a read-only decision view only after releasing SQLite, then
@@ -887,18 +892,20 @@ while its own `IMMEDIATE` acquisition waits; that is the transaction-bind path,
 not completion. LLP 0290 §7.1 owns the participant-specific statement and
 reverse-edge inventory.
 
-The atomic marker closes the two-store gap without becoming a liveness
-dependency. Every relevant authorization writer premarks its affected-room
-ticket under registry, then invalidates and removes any older in-flight
-completion marker before it may acquire SQLite. A completion cannot claim
-after that premark. If a writer preempts a completion after its durable reread,
-the writer's already-installed ticket blocks every sink; the late callback may
-perform conservative in-memory work, but exact settlement loses, the old
-obligation is not cleared, and no stale frame can cross final admission.
-Participant replacement first retires the registry, so the same late work is
-fail-closed there. Neither path waits for callback return or destructor
-execution. The callback sees no fence value it can retain, and `mem::forget`
-of its borrowed decision view carries no coordination authority.
+The atomic marker closes the two-store gap without allowing a writer to
+preempt irreversible settlement. Every relevant authorization writer
+snapshots affected rooms under registry and waits while an exact marker is
+`SETTLING`; participant replacement follows the same rule. A completion still
+in `ACTIVE` may be preempted before its irreversible work begins, but after the
+`ACTIVE -> SETTLING` claim the real settlement derives and publishes its
+terminal fact first. Pruning and generation-exhaustion retirement requested in
+that interval record deferred retirement instead of removing the kernel
+control. Terminal reconciliation then applies the retirement. A waiting writer
+re-intersects its cached room set with installed controls under the same
+registry lock; its selector-level dependency already fences recreation, so an
+enumerated-then-retired room is a normal outcome rather than an invariant
+failure. The callback sees no fence value it can retain, and `mem::forget` of
+its borrowed decision view carries no coordination authority.
 
 ### Authorization-write handoff
 

@@ -6,6 +6,14 @@
 **Author:** codex `gpt-5.6-sol`, synthesizing two independent blind designs — codex
 `gpt-5.6-sol` and grok-4.6 — orchestrated by Claude (Opus 5) for Charlie Cheever  
 **Date:** 2026-08-20  
+**Revised:** 2026-08-26 (round-12 pruning/retirement settlement repair: room
+pruning and generation-exhaustion retirement requested during `SETTLING` now
+defer kernel-control retirement until the exact marker publishes a terminal
+fact. A waiting writer re-intersects its cached room set with installed
+controls under the registry lock; the selector-level dependency fences later
+recreation while only surviving controls receive room-local tickets. Executed
+regressions cover completed all-denied pruning, reverse-index cleanup, the
+concurrent fresh grant, and generation-exhaustion retirement.)
 **Revised:** 2026-08-26 (round-11 terminal-authority and exact-settlement
 repair: completion callers provide neither executable code nor a disposition.
 The database-bound participant invokes its once-installed private sync owner,
@@ -1889,6 +1897,15 @@ reacquires the registry and applies the disposition only if the exact marker
 remains `SETTLING`.
 Error, panic, and unwind atomically publish `ABANDONED`; ordinary registry
 acquisition reconciles that disposition.
+Room pruning and whole-incarnation generation-exhaustion retirement cannot
+remove the kernel control while that exact marker is `SETTLING`. They record a
+deferred retirement intent; terminal reconciliation first observes
+`COMPLETE`, `MISSING`, or `ABANDONED`, then retires and removes the control when
+its permits and tickets permit removal. A writer that cached the room before
+waiting re-intersects that set with installed controls while still holding the
+registry lock. The dependency's selector already fences later recreation, so
+an enumerated-then-retired room needs neither a local ticket nor a
+commit-finalization fact.
 Notifier wake and later routing cleanup likewise occur without SQLite or
 registry. A persistent SQLite writer can
 delay this completion owner and lifecycle-exclusive work, but it cannot pin
@@ -2407,6 +2424,13 @@ Additional tests must establish:
 - the real settlement witness denies a subscriber, removes its owner entries,
   queues the denial/removal/snapshot effects, updates indexes, and leaves a new
   level-triggered obligation when the serialized writer commits;
+- all-denied settlement removes subscriber and entry state, clears the
+  connection reverse index, actually prunes the sync room, and still reports
+  `COMPLETE`; a concurrent fresh-grant writer waits for that terminal fact and
+  then commits without assuming the retired control remains installed;
+- generation-exhaustion retirement during `SETTLING` publishes terminal
+  abandonment before removing the kernel control and releases a waiting
+  writer without panic or disconnected result;
 - the exact registry→SQLite reverse schedule completes under the alarm, while
   the mutation that reacquires SQLite before the registry claim times out; the
   clean witness uses actual registry and SQLite acquisition barriers, not a

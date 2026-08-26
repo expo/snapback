@@ -6652,6 +6652,13 @@ impl LocalEphemeralBackend {
             || lock(&self.shared.rate_buckets).contains_key(connection_id)
     }
 
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn connection_room_count_for_test(&self, connection_id: &str) -> usize {
+        lock(&self.shared.connection_rooms)
+            .get(connection_id)
+            .map_or(0, BTreeSet::len)
+    }
+
     /// Non-destructive queue witness for settlement tests that intentionally
     /// inspect frames while final publication remains fenced.
     #[cfg(any(test, feature = "test-support"))]

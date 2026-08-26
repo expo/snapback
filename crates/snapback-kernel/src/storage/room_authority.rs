@@ -659,6 +659,7 @@ struct RoomAuthorityControl {
     pending_tickets: BTreeSet<u64>,
     resync: Option<RoomAuthorityResync>,
     reauthorization_completion: Option<Arc<RoomReauthorizationCompletionState>>,
+    retire_after_settlement: bool,
     retired: bool,
 }
 
@@ -670,6 +671,7 @@ impl Default for RoomAuthorityControl {
             pending_tickets: BTreeSet::new(),
             resync: None,
             reauthorization_completion: None,
+            retire_after_settlement: false,
             retired: false,
         }
     }
@@ -921,12 +923,13 @@ fn abandon_room_reauthorization_completion(control: &mut RoomAuthorityControl) {
 }
 
 fn reconcile_room_reauthorization_completions(state: &mut RoomAuthorityRegistryState) {
-    let mut remove = Vec::new();
+    let mut remove = BTreeSet::new();
     for (room, control) in &mut state.rooms {
         let Some(completion) = control.reauthorization_completion.as_ref() else {
             continue;
         };
-        match completion.disposition.load(Ordering::Acquire) {
+        let disposition = completion.disposition.load(Ordering::Acquire);
+        match disposition {
             ROOM_REAUTHORIZATION_ACTIVE => {}
             ROOM_REAUTHORIZATION_SETTLING => {}
             ROOM_REAUTHORIZATION_COMPLETE => {
@@ -935,7 +938,7 @@ fn reconcile_room_reauthorization_completions(state: &mut RoomAuthorityRegistryS
             }
             ROOM_REAUTHORIZATION_MISSING => {
                 if control.pending_tickets.is_empty() && control.active_permits == 0 {
-                    remove.push(room.clone());
+                    remove.insert(room.clone());
                 }
                 control.reauthorization_completion = None;
             }
@@ -943,6 +946,18 @@ fn reconcile_room_reauthorization_completions(state: &mut RoomAuthorityRegistryS
                 control.reauthorization_completion = None;
             }
             _ => unreachable!("room reauthorization disposition is kernel-minted"),
+        };
+        let terminal = !matches!(
+            disposition,
+            ROOM_REAUTHORIZATION_ACTIVE | ROOM_REAUTHORIZATION_SETTLING
+        );
+        if terminal && control.retire_after_settlement {
+            control.retire_after_settlement = false;
+            control.retired = true;
+            control.resync = None;
+            if control.pending_tickets.is_empty() && control.active_permits == 0 {
+                remove.insert(room.clone());
+            }
         }
     }
     for room in remove {
@@ -1292,7 +1307,7 @@ impl AuthorizationCommitParticipant {
                 "authorization commit outcome sequence exhausted",
             )
         })?;
-        let affected_rooms = state
+        let mut affected_rooms = state
             .rooms
             .keys()
             .filter(|room| reserved_selector.matches(room))
@@ -1330,6 +1345,11 @@ impl AuthorizationCommitParticipant {
                 .0;
             reconcile_room_reauthorization_completions(&mut state);
         }
+        // A terminal settlement may legitimately retire an enumerated room
+        // while this writer waits. The selector-level dependency installed
+        // below still fences recreation; only controls that remain installed
+        // need room-local tickets and commit-finalization facts.
+        affected_rooms.retain(|room| state.rooms.contains_key(room));
         if affected_rooms.iter().any(|room| {
             state
                 .rooms
@@ -1347,10 +1367,12 @@ impl AuthorizationCommitParticipant {
         let expected_authorization = Arc::new(OnceLock::new());
         let known_commit = Arc::new(OnceLock::new());
         for room in &affected_rooms {
-            let control = state
-                .rooms
-                .get_mut(room)
-                .expect("enumerated room remains installed");
+            // @ref LLP 0290#71-lock-ordering — the set was re-intersected
+            // after the settlement wait; tolerate a missing control defensively
+            // while the selector-level dependency fences later recreation.
+            let Some(control) = state.rooms.get_mut(room) else {
+                continue;
+            };
             control.pending_tickets.insert(ticket_id);
             // The durable writer cut is installed before invalidating an
             // in-flight room completion. If that completion returns later,
@@ -2549,11 +2571,11 @@ pub struct RoomRetirementAdmission<'a> {
 
 impl RoomRetirementAdmission<'_> {
     pub fn retire_generation_exhausted(mut self) {
-        let remove = self.state.rooms.get_mut(&self.room).is_some_and(|control| {
-            control.retired = true;
-            control.resync = None;
-            control.pending_tickets.is_empty() && control.active_permits == 0
-        });
+        let remove = self
+            .state
+            .rooms
+            .get_mut(&self.room)
+            .is_some_and(request_room_retirement);
         if remove {
             self.state.rooms.remove(&self.room);
         }
@@ -3066,14 +3088,35 @@ fn rollback_ticket(state: &mut RoomAuthorityRegistryState, ticket_id: u64) -> bo
 }
 
 fn retire_room_in_state(state: &mut RoomAuthorityRegistryState, room: &RoomId) {
-    let remove = state.rooms.get_mut(room).is_some_and(|control| {
-        control.retired = true;
-        control.resync = None;
-        control.pending_tickets.is_empty() && control.active_permits == 0
-    });
+    let remove = state
+        .rooms
+        .get_mut(room)
+        .is_some_and(request_room_retirement);
     if remove {
         state.rooms.remove(room);
     }
+}
+
+fn request_room_retirement(control: &mut RoomAuthorityControl) -> bool {
+    let settling = control
+        .reauthorization_completion
+        .as_ref()
+        .is_some_and(|completion| {
+            completion.disposition.load(Ordering::Acquire) == ROOM_REAUTHORIZATION_SETTLING
+        });
+    if settling {
+        // @ref LLP 0290#71-lock-ordering — retirement follows the exact
+        // terminal settlement fact instead of invalidating its fence.
+        // Sync routing state may already be gone, but the exact kernel control
+        // remains until its finite settlement publishes a terminal fact. This
+        // keeps cached writers and participant replacement waiting and lets a
+        // genuinely completed prune remain observable to fence.finish().
+        control.retire_after_settlement = true;
+        return false;
+    }
+    control.retired = true;
+    control.resync = None;
+    control.pending_tickets.is_empty() && control.active_permits == 0
 }
 
 fn outcome_from_known(
@@ -4219,6 +4262,65 @@ mod tests {
 
         drop(view);
         drop(_issuer_projection);
+        drop(participant);
+    }
+
+    #[test]
+    fn generation_exhaustion_retirement_releases_a_waiting_writer_without_panicking() {
+        use std::sync::mpsc;
+        use std::time::Duration;
+
+        let fixture = ready_fixture();
+        let room = install_room_resync(&fixture);
+        let generation = fixture.participant.room_generation(&room);
+        let fence = fixture
+            .participant
+            .begin_room_reauthorization_fence(&room, generation)
+            .expect("claim the exact completion fence");
+        assert!(fence.begin_settlement());
+
+        let ReadyFixture {
+            database,
+            participant,
+            settler,
+            view,
+            _issuer_projection,
+            authorization,
+        } = fixture;
+        let participant = Arc::new(participant);
+        let (waiting_tx, waiting_rx) = mpsc::channel();
+        participant.install_authorization_writer_settlement_wait_witness_for_test(waiting_tx);
+        let writer_participant = participant.clone();
+        let (writer_tx, writer_rx) = mpsc::channel();
+        let writer = std::thread::spawn(move || {
+            let result = writer_participant.prepare_authorization_commit(
+                AuthorizationCommitPreflight::AllProtectedRooms,
+                Arc::new(AuthorizationReservationCancellation::new()),
+            );
+            writer_tx.send(result).expect("return writer result");
+        });
+        waiting_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("writer snapshots the room and waits for settlement");
+
+        participant
+            .begin_room_retirement_admission(&room)
+            .expect("generation-exhaustion retirement admission")
+            .retire_generation_exhausted();
+        drop(fence);
+
+        let reservation = writer_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("enumerated-then-retired room is a normal writer outcome")
+            .expect("writer remains operational after generation exhaustion");
+        reservation.cancel();
+        writer.join().expect("writer joins without panic");
+
+        drop(database);
+        drop(settler);
+        drop(view);
+        drop(_issuer_projection);
+        drop(authorization);
         drop(participant);
     }
 
