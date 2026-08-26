@@ -2687,12 +2687,19 @@ impl RoomReauthorizationCompletion {
 
 /// Participant-bound implementation of the sync-owned room settlement.
 ///
-/// The implementation is installed exactly once before database binding and
-/// is never accepted from a completion caller. Its disposition therefore
-/// describes the result of the installed settlement operation rather than a
-/// claim supplied alongside one completion attempt.
+/// # Safety
+///
+/// `settle` must return `Complete` only after it has applied every resolution
+/// to the exact room generation and published all resulting removal and
+/// denial effects. It must return `Missing` only when that room is absent and
+/// `Abandoned` when the exact subscriber/effect-fence set no longer matches.
+/// Violating this contract can reopen protected admission with stale sync
+/// authority. The implementation is installed exactly once before database
+/// binding and is never accepted from a completion caller; requiring an
+/// `unsafe impl` keeps an ordinary safe-Rust caller from substituting a no-op
+/// implementation that asserts a terminal disposition.
 #[doc(hidden)]
-pub trait RoomReauthorizationSettlementExecutor: Send + Sync {
+pub unsafe trait RoomReauthorizationSettlementExecutor: Send + Sync {
     fn settle(
         &self,
         completion: &RoomReauthorizationCompletion,
@@ -3285,7 +3292,11 @@ mod tests {
         }
     }
 
-    impl RoomReauthorizationSettlementExecutor for TestRoomReauthorizationSettler {
+    // SAFETY: this kernel-private scaffold is installed only in unit fixtures;
+    // each queued operation is the test's explicit model of the trusted sync
+    // settlement owner and cannot be supplied through the public completion
+    // call.
+    unsafe impl RoomReauthorizationSettlementExecutor for TestRoomReauthorizationSettler {
         fn settle(
             &self,
             completion: &RoomReauthorizationCompletion,

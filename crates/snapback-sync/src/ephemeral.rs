@@ -3539,7 +3539,11 @@ struct SyncRoomReauthorizationSettlementExecutor {
     shared: Weak<EphemeralShared>,
 }
 
-impl RoomReauthorizationSettlementExecutor for SyncRoomReauthorizationSettlementExecutor {
+// SAFETY: this executor is private, participant-bound during construction,
+// and derives its disposition from `finish_room_reauthorization_completion`,
+// which checks the exact room/subscriber fences before mutation and returns
+// `Complete` only after all sync state and outbox effects have been applied.
+unsafe impl RoomReauthorizationSettlementExecutor for SyncRoomReauthorizationSettlementExecutor {
     fn settle(
         &self,
         completion: &RoomReauthorizationCompletion,
@@ -4047,8 +4051,10 @@ impl LocalEphemeralBackend {
         // @ref LLP 0290#71-lock-ordering — kernel validation mints its
         // non-locking writer fence under the registry, releases that guard,
         // then acquires and releases SQLite before this sync-owned room work.
-        // The kernel lends only a read-only completion view to this closed
-        // callback; no caller-retainable value owns the fence or either lock.
+        // The participant invokes only the settlement owner installed during
+        // construction; no completion caller supplies executable code or a
+        // terminal disposition, and no caller-retainable value owns the fence
+        // or either lock.
         // Lifecycle also serializes terminal revocation with definition/reset
         // so neither clears the other's marker.
         let _lifecycle = self.lifecycle_read("ephemeral room reauthorization completion");
