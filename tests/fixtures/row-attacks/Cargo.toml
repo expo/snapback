@@ -16,11 +16,11 @@ additive = [
   "snapback-auth/test-support",
   "snapback-engine/test-support",
   "snapback-kernel/test-support",
+  "snapback-services/test-support",
   "snapback-sync/test-support",
   "snapback-types/test-support",
 ]
 kernel-push-fixture = ["snapback-kernel/test-support"]
-services-remainder-tests = ["snapback-services/remainder-tests"]
 
 [dependencies]
 libc = "0.2"

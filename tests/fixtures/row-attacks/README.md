@@ -26,19 +26,15 @@ featureless `snapback-engine` fails inside `host_ops.rs` before a dependent
 attack can compile. Here, “no features” therefore means no optional or
 `test-support` features beyond the required production owner feature.
 
-The additive cell enables `test-support` across auth, engine, kernel, sync, and
-types to expose feature-unified dependent routes.
+The additive cell enables `test-support` across auth, engine, kernel, services,
+sync, and types to expose feature-unified dependent routes. Services contributes
+only typed probes and deterministic media fixtures; it has no raw-SQLite seam.
 
-The `services-remainder-tests` cell enables exactly
-`snapback-services/remainder-tests`, with every fixture dependency's defaults
-disabled. This cell is distinct because Cargo feature unification can expose
-services-only producers that neither production nor the five-crate additive
-cell sees.
-
-The `additive-services-remainder-tests` cell enables both feature sets. F313
-also declares the invariant `kernel-push-fixture` mount in every cell so its
-setup can construct the surviving confined fixture before the marked raw-SQL
-expression; that mount is evidence plumbing, not part of the cell label.
+The retired `snapback-services/remainder-tests` feature has no feature cell.
+F313 instead declares the invariant `kernel-push-fixture` mount in both cells
+so its setup can construct the surviving confined fixture before the marked
+raw-SQL expression; that mount is evidence plumbing, not part of the cell
+label.
 
 `src/bin/negative_routes.rs` preserves the audit's fifteen carrier-route
 probes (`Default`, `From`/`Into`, serde, and `builder()`). They are auxiliary

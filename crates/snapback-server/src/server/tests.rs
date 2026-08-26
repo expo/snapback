@@ -25381,9 +25381,7 @@ fn has_test_only_cfg(attributes: &[syn::Attribute]) -> bool {
         let predicate = arguments.tokens.to_string();
         predicate == "test"
             || predicate == "feature = \"test-support\""
-            || predicate == "feature = \"remainder-tests\""
             || predicate == "any (test , feature = \"test-support\")"
-            || predicate == "any (test , feature = \"remainder-tests\")"
     })
 }
 

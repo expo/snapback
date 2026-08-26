@@ -7899,6 +7899,17 @@ impl LocalSnapback {
         Ok(snapback)
     }
 
+    /// Install a controlled byte store before issuing any asset ticket. Tests
+    /// exercise the same instance-level configuration custody as production;
+    /// no already-issued ticket can be retargeted.
+    #[cfg(test)]
+    pub(crate) fn install_controlled_asset_store_for_test(
+        &mut self,
+        store: std::sync::Arc<dyn crate::assets_store::AssetStore>,
+    ) {
+        self.asset_store_config = AssetStoreConfig::for_controlled(store);
+    }
+
     /// Construct an in-memory production instance under an authoritative
     /// target descriptor. The schema owns `app_id`; the descriptor owns the
     /// opaque environment identifier.

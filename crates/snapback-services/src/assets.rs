@@ -765,7 +765,7 @@ pub fn asset_publication_put_lease_state(publication_id: &str) -> AssetPublicati
     asset_publication_put_lease_state_at(publication_id, std::time::Instant::now())
 }
 
-#[cfg(any(test, feature = "remainder-tests"))]
+#[cfg(any(test, feature = "test-support"))]
 pub fn asset_publication_expire_put_leases_for_test(publication_id: &str) {
     let mut registry = asset_publication_put_leases()
         .lock()
@@ -956,7 +956,7 @@ impl AssetWidthPutTicketV1 {
         })
     }
 
-    #[cfg(any(test, feature = "remainder-tests"))]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn publication_for_test(&self) -> &AssetPublicationRecordV1 {
         self.publication.publication()
     }
@@ -1539,7 +1539,7 @@ impl FinalizePutTicketV1 {
         )
     }
 
-    #[cfg(any(test, feature = "remainder-tests"))]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn publication_for_test(&self) -> &AssetPublicationRecordV1 {
         &self.publication
     }
@@ -1682,7 +1682,7 @@ impl AssetFsStore {
         Ok(self.blobs_dir.join(validated_key(physical_key)?))
     }
 
-    #[cfg(any(test, feature = "remainder-tests"))]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn blobs_dir_for_test(&self) -> &Path {
         &self.blobs_dir
     }

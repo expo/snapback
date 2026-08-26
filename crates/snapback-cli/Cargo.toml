@@ -27,7 +27,7 @@ serde_json = "1.0"
 sha2 = "0.10"
 snapback-kernel = { path = "../snapback-kernel" }
 snapback-server = { path = "../snapback-server" }
-snapback-services = { path = "../snapback-services" }
+snapback-services = { path = "../snapback-services", features = ["test-support"] }
 tokio = { version = "1.48", features = ["full"] }
 ureq = { version = "2", features = ["json"] }
 uuid = { version = "1.23.4", features = ["v4", "v7", "serde"] }
@@ -35,7 +35,7 @@ zeroize = "1.8"
 
 [dev-dependencies]
 snapback-kernel = { path = "../snapback-kernel", features = ["test-support"] }
-snapback-services = { path = "../snapback-services", features = ["remainder-tests"] }
+snapback-services = { path = "../snapback-services" }
 tempfile = "3.23"
 tokio = { version = "1.48", features = ["full", "test-util"] }
 

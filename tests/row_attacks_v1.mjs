@@ -42,8 +42,6 @@ test('row-attack ledger carries every measured row and all feature cells', () =>
   assert.deepEqual(ledger.featureCells.map(({ id }) => id), [
     'production',
     'additive-test-support',
-    'services-remainder-tests',
-    'additive-services-remainder-tests',
   ]);
   assert.deepEqual(
     Object.fromEntries(ledger.attacks.map(({ row, expected }) => [row, expected])),
@@ -104,8 +102,7 @@ test('row-attack ledger carries every measured row and all feature cells', () =>
   const rawSql = ledger.attacks.find(({ row }) => row === 'F313');
   assert.deepEqual(rawSql.requiredFeatures, ['kernel-push-fixture']);
   assert.equal(expectedInCell(rawSql, 'production'), 'CLOSED');
-  assert.equal(expectedInCell(rawSql, 'services-remainder-tests'), 'CLOSED');
-  assert.equal(expectedInCell(rawSql, 'additive-services-remainder-tests'), 'CLOSED');
+  assert.equal(expectedInCell(rawSql, 'additive-test-support'), 'CLOSED');
 });
 
 test('security attacks must map a row or match the pinned unmapped-debt digest', () => {

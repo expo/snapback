@@ -4187,12 +4187,80 @@ mod tests {
         function
     }
 
-    fn effect_attribution_fixture() -> (crate::storage::ServingDatabase, AdmissionController) {
+    struct CeremonySession {
+        user_id: String,
+        bearer: String,
+    }
+
+    fn mint_guest_session(
+        database: &mut crate::storage::LocalDatabase,
+        idempotency_key: &str,
+        now_ms: u64,
+    ) -> CeremonySession {
+        use crate::auth::crypto::OsRandom;
+        use crate::auth::keyring::AuthKeyringStore;
+        use crate::auth::provider::{
+            AuthProvider, PasswordIssuanceCustody, PlannedIssuanceCommit, ProviderGuestSessionPlan,
+        };
+        use crate::contract_types::AuthProviderProfile;
+        use crate::storage::auth::AuthTransactionAttempt;
+        use std::sync::Arc;
+
+        let keyring = Arc::new(AuthKeyringStore::in_memory());
+        keyring
+            .load_or_mint_initial(now_ms, &OsRandom)
+            .expect("initialize guest ceremony keyring");
+        let provider = AuthProvider::new(AuthProviderProfile::Test, keyring)
+            .expect("construct guest ceremony provider");
+        let ProviderGuestSessionPlan::Planned(plan) = provider
+            .plan_guest_session(
+                database,
+                now_ms,
+                60_000,
+                crate::auth::throttle::RollingWindowBudgetTerms {
+                    limit: 10,
+                    window_ms: 1_000,
+                },
+                idempotency_key,
+                "effect-attribution-fixture",
+                "effect-attribution-deployment",
+                &format!("sha256:{}", "a".repeat(64)),
+                PasswordIssuanceCustody::Bearer,
+            )
+            .expect("plan guest ceremony")
+        else {
+            panic!("fresh guest ceremony must produce a plan")
+        };
+        let commit_plan = plan.commit_plan();
+        let AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
+            session,
+            committed_revocations,
+        }) = provider.commit_guest_issuance(database, &commit_plan)
+        else {
+            panic!("guest ceremony must commit")
+        };
+        let issue = plan.into_issue(session, committed_revocations);
+        CeremonySession {
+            user_id: issue.response().session.user_id.clone(),
+            bearer: issue.response().token().expose_secret().to_owned(),
+        }
+    }
+
+    fn effect_attribution_fixture() -> (
+        crate::storage::ServingDatabase,
+        AdmissionController,
+        CeremonySession,
+        CeremonySession,
+        CeremonySession,
+    ) {
         let mut local = crate::storage::LocalDatabase::memory()
             .expect("pending-effect attribution fixture database");
         local
             .activate_current_auth_catalog()
             .expect("activate pending-effect attribution auth catalog");
+        let approver_a0 = mint_guest_session(&mut local, "effect-approver-a0", 10);
+        let approver_a1 = mint_guest_session(&mut local, "effect-approver-a1", 11);
+        let attacker = mint_guest_session(&mut local, "effect-attacker-00", 12);
         let mut schema = crate::manifest::SchemaManifest::default();
         schema.app_id = "effect-attribution-fixture".to_owned();
         schema.api = Some(crate::contract_types::ApiManifest {
@@ -4229,7 +4297,7 @@ mod tests {
         let admission =
             AdmissionController::from_mode_state_with_database_binding(&mode, database.binding())
                 .expect("bind admission to the serving database");
-        (database, admission)
+        (database, admission, approver_a0, approver_a1, attacker)
     }
 
     fn create_effect_attribution_row(
@@ -4238,28 +4306,37 @@ mod tests {
         approver: Option<&str>,
         now_ms: u64,
     ) -> crate::storage::pending_effects::PendingEffectRecord {
-        database
-            .create_pending_effect_admitted(crate::storage::pending_effects::CreatePendingEffect {
-                function_id: "fn:effectAttribution".to_owned(),
-                function_name: "effectAttribution".to_owned(),
-                function_kind: FunctionKind::Mutation,
-                args: json!({ "caller": caller_key }),
-                caller_lane: "integration".to_owned(),
-                caller_key: caller_key.to_owned(),
-                authority: crate::storage::pending_effects::PendingEffectAuthority::Anonymous,
-                generation: crate::manifest::ArtifactGeneration {
-                    schema_version: "snapback.v1".to_owned(),
-                    app_id: "effect-attribution-fixture".to_owned(),
-                    schema_hash: "schema".to_owned(),
-                    bundle_hash: "bundle".to_owned(),
-                    inputs_hash: "inputs".to_owned(),
-                },
-                link_origin_id: None,
-                approver_principal_id: approver.map(str::to_owned),
-                declared_write_set: vec!["items".to_owned()],
+        let owner = database
+            .resolve_pending_effect_owner(
+                crate::storage::pending_effects::PendingEffectOwnerEvidence::Anonymous,
                 now_ms,
-                ttl_ms: 60_000,
-            })
+            )
+            .expect("derive anonymous pending-effect owner");
+        database
+            .create_pending_effect_admitted(
+                &owner,
+                crate::storage::pending_effects::CreatePendingEffect {
+                    function_id: "fn:effectAttribution".to_owned(),
+                    function_name: "effectAttribution".to_owned(),
+                    function_kind: FunctionKind::Mutation,
+                    args: json!({ "caller": caller_key }),
+                    caller_lane: "integration".to_owned(),
+                    caller_key: caller_key.to_owned(),
+                    authority: crate::storage::pending_effects::PendingEffectAuthority::Anonymous,
+                    generation: crate::manifest::ArtifactGeneration {
+                        schema_version: "snapback.v1".to_owned(),
+                        app_id: "effect-attribution-fixture".to_owned(),
+                        schema_hash: "schema".to_owned(),
+                        bundle_hash: "bundle".to_owned(),
+                        inputs_hash: "inputs".to_owned(),
+                    },
+                    link_origin_id: None,
+                    approver_principal_id: approver.map(str::to_owned),
+                    declared_write_set: vec!["items".to_owned()],
+                    now_ms,
+                    ttl_ms: 60_000,
+                },
+            )
             .expect("create durable pending effect")
     }
 
@@ -4310,22 +4387,49 @@ mod tests {
 
     #[test]
     fn pending_effect_caller_and_approver_attribution_refuses_crossed_rows() {
-        let (mut database, admission) = effect_attribution_fixture();
-        let effect_c0 =
-            create_effect_attribution_row(&mut database, "caller-C0", Some("approver-A0"), 100);
-        let effect_c1 =
-            create_effect_attribution_row(&mut database, "caller-C1", Some("approver-A1"), 101);
+        let (mut database, admission, session_a0, session_a1, attacker) =
+            effect_attribution_fixture();
+        let effect_c0 = create_effect_attribution_row(
+            &mut database,
+            "caller-C0",
+            Some(&session_a0.user_id),
+            100,
+        );
+        let effect_c1 = create_effect_attribution_row(
+            &mut database,
+            "caller-C1",
+            Some(&session_a1.user_id),
+            101,
+        );
+        let owner_a0 = database
+            .resolve_pending_effect_owner(
+                crate::storage::pending_effects::PendingEffectOwnerEvidence::Session(
+                    crate::auth::crypto::SessionBearer::parse_any_version(&session_a0.bearer)
+                        .expect("A0 ceremony bearer"),
+                ),
+                110,
+            )
+            .expect("derive A0 approval owner");
+        let owner_a1 = database
+            .resolve_pending_effect_owner(
+                crate::storage::pending_effects::PendingEffectOwnerEvidence::Session(
+                    crate::auth::crypto::SessionBearer::parse_any_version(&session_a1.bearer)
+                        .expect("A1 ceremony bearer"),
+                ),
+                110,
+            )
+            .expect("derive A1 approval owner");
         let prepared_c0_a0 = database
-            .prepare_pending_effect_approval(&effect_c0.id, "approver-A0", 110)
+            .prepare_pending_effect_approval(&owner_a0, &effect_c0.id, 110)
             .expect("prepare C0/A0");
         let prepared_c1_a1 = database
-            .prepare_pending_effect_approval(&effect_c1.id, "approver-A1", 110)
+            .prepare_pending_effect_approval(&owner_a1, &effect_c1.id, 110)
             .expect("prepare C1/A1");
         let authority = effect_execution_authority(&admission);
-        let approver_a0 = effect_management_authority(&admission, "approver-A0")
+        let approver_a0 = effect_management_authority(&admission, &session_a0.user_id)
             .prepare_effect_approver_attribution()
             .expect("derive A0 from its approving authority");
-        let approver_a1 = effect_management_authority(&admission, "approver-A1")
+        let approver_a1 = effect_management_authority(&admission, &session_a1.user_id)
             .prepare_effect_approver_attribution()
             .expect("derive A1 from its approving authority");
 
@@ -4367,19 +4471,29 @@ mod tests {
             json!({
                 "callerLane": "integration",
                 "callerKey": "caller-C0",
-                "approverKey": "approver-A0",
+                "approverKey": session_a0.user_id,
             })
         );
 
-        let (mut foreign_database, foreign_admission) = effect_attribution_fixture();
+        let (mut foreign_database, foreign_admission, foreign_a0, _, _) =
+            effect_attribution_fixture();
         let foreign_effect = create_effect_attribution_row(
             &mut foreign_database,
             "caller-C0",
-            Some("approver-A0"),
+            Some(&foreign_a0.user_id),
             100,
         );
+        let foreign_owner = foreign_database
+            .resolve_pending_effect_owner(
+                crate::storage::pending_effects::PendingEffectOwnerEvidence::Session(
+                    crate::auth::crypto::SessionBearer::parse_any_version(&foreign_a0.bearer)
+                        .expect("foreign A0 ceremony bearer"),
+                ),
+                110,
+            )
+            .expect("derive foreign A0 approval owner");
         let foreign_approval = foreign_database
-            .prepare_pending_effect_approval(&foreign_effect.id, "approver-A0", 110)
+            .prepare_pending_effect_approval(&foreign_owner, &foreign_effect.id, 110)
             .expect("prepare same-shaped row in another database");
         let foreign_error = authority
             .with_effect_caller_attribution(foreign_approval.effect(), &approver_a0)
@@ -4391,7 +4505,7 @@ mod tests {
 
         // Denial inversion: a fresh authority from the foreign graph still
         // accepts that graph's legitimate pair after the cross-graph refusal.
-        let foreign_approver = effect_management_authority(&foreign_admission, "approver-A0")
+        let foreign_approver = effect_management_authority(&foreign_admission, &foreign_a0.user_id)
             .prepare_effect_approver_attribution()
             .expect("derive foreign A0 authority");
         effect_execution_authority(&foreign_admission)
@@ -4399,13 +4513,22 @@ mod tests {
             .expect("foreign graph remains usable by its legitimate authority");
 
         // Adapt the original public two-call attack instead of merely proving
-        // the old string parameter disappeared. Storage may prepare an
-        // unrestricted row for an arbitrary string, but the final consumer
-        // refuses to record it when the actual approving authority derives A0.
+        // the old string parameter disappeared. A genuinely resolved but
+        // unrelated session may approve an unrestricted row, but the final
+        // consumer still refuses to attribute it to A0.
         let unrestricted = create_effect_attribution_row(&mut database, "caller-open", None, 120);
+        let attacker_owner = database
+            .resolve_pending_effect_owner(
+                crate::storage::pending_effects::PendingEffectOwnerEvidence::Session(
+                    crate::auth::crypto::SessionBearer::parse_any_version(&attacker.bearer)
+                        .expect("attacker ceremony bearer"),
+                ),
+                121,
+            )
+            .expect("derive unrelated approval owner");
         let forged = database
-            .prepare_pending_effect_approval(&unrestricted.id, "attacker-selected-approver", 121)
-            .expect("raw storage preparation remains independently callable");
+            .prepare_pending_effect_approval(&attacker_owner, &unrestricted.id, 121)
+            .expect("unrestricted row admits the genuinely resolved session");
         let adapted_attack = effect_execution_authority(&admission)
             .with_effect_caller_attribution(forged.effect(), &approver_a0)
             .expect_err("caller-supplied storage binding is not approver authority");

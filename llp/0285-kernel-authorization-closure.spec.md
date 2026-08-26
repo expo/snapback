@@ -8,10 +8,12 @@ Verification, Packaging
 Claude (Opus 5) and codex `gpt-5.6-sol` — commissioned by Charlie Cheever
 (author rulings 2026-08-19, recorded in §2)
 **Date:** 2026-08-19
-**Revised:** 2026-08-26 (F313 completes §5.3's typed push-guard step: the
-sole `snapback_services::test_support` consumer now uses a fixed-schema
-kernel fixture and the services raw-crate re-export is deleted. The broader
-`remainder-tests` feature remains for separately inventoried services seams.)
+**Revised:** 2026-08-26 (Landing B of LLP 0313 completes §5.3's subtractive
+cleanup: the already-deleted raw-crate re-export is followed by deletion of
+`remainder-tests`, its four workspace activations, and its two row-corpus
+feature cells. Legitimate closed-value probes move to the standard
+`test-support` cell without exposing SQLite or authority writers. This closes
+only the additive fixture mechanism and makes no F-1 or row-closure claim.)
 **Revised:** 2026-08-19 (F-1 test-confinement implementation note: tiers 2–3
 add visible `rusqlite` dev-dependencies to `snapback` and the new rank-7
 `snapback-harness`; exact telemetry probes read unbounded physical rows when
@@ -413,9 +415,10 @@ move the **mechanism** down and keep the **policy** up (author-approved, §2.1):
 
 ### 5.3 Defect 3 — the caller-selectable raw-SQLite feature
 
-`remainder-tests` is a **confinement-laundering device**: the workspace-graph
+`remainder-tests` was a **confinement-laundering device**: the workspace-graph
 gate already collapses dependency kinds, so a direct `rusqlite` dev-dependency
-would fail the gate — which is precisely why the feature exists. Close it in
+would fail the gate — which is precisely why the feature existed. It was
+closed in
 three tiers:
 
 1. **Typed guard probes** remove the need for tests to name `rusqlite` at all —
@@ -448,25 +451,21 @@ logic, not a general SQL client. `PushAuthorizationTestFixture` now owns a
 private in-memory connection, creates only `app_members`, grants or revokes
 only the fixed `sender` role, and offers typed authorization/resolution
 methods. `snapback-services::test_support` and its `pub use rusqlite` are
-deleted. The `remainder-tests` activation remains because unrelated typed
-services seams still use it; deleting that broader feature is outside F313.
+deleted. Landing B of LLP 0313 subsequently moved the unrelated typed
+services seams into the ordinary `test-support` cell and deleted
+`remainder-tests`; the replacement surface exposes no SQLite handle, backend
+replacement, or authority writer.
 The compile-fail row targets this surviving fixture rather than the deleted
 import: setup constructs `app_members`, then the marked arbitrary-SQL
-expression is refused because the fixture's connection is private. Its four
-cells include additive plus services remainder, and each carries the invariant
-kernel fixture mount needed to reach the marked expression.
+expression is refused because the fixture's connection is private. Its two
+surviving cells are production and additive test support, and each carries the
+invariant kernel fixture mount needed to reach the marked expression.
 
-The intermediate state intentionally adds **no** separate caller-selectable
-`snapback-services/test-support` feature. All services seams needed by these
-tests remain behind the already conspicuous `remainder-tests` feature until
-steps 10–14 delete both that feature and `snapback-services::test_support`.
-This avoids creating a smaller second door to mutators such as
-`replace_store_for_test` and `fail_next_config_update_for_test`; it does not
-claim that the surviving `remainder-tests` door is confinement.
-
-Then delete `snapback-services::test_support`, the `remainder-tests` feature, and
-all four dev-dependency activations. Every `test-support` privilege seam demotes
-to `#[cfg(test)]`, **including `open_commit_graph_sibling_for_test`** (§4.5).
+The intermediate state intentionally added **no** second caller-selectable
+feature while `remainder-tests` still exposed privileged seams. Landing B
+deletes `remainder-tests`, moves the four dev-dependency activations to the
+standard additive `test-support` cell, and keeps only closed-value probes,
+deterministic media fixtures, and passive observation hooks there.
 
 ### 5.4 Defect 4 — forgeable privileged membership writes (NEW; not in LLP 0283)
 

@@ -240,11 +240,30 @@ fn session_authority(user_id: &str) -> crate::auth::invocation::PreparedAuthorit
 }
 
 fn system_authority() -> crate::auth::invocation::PreparedAuthority {
+    let deployment = crate::auth::mode::DeploymentIdentity {
+        schema_version: "snapback.v1".to_owned(),
+        auth_mode: AuthMode::Sessions,
+        app_id: "push-authority-fixture".to_owned(),
+        schema_hash: format!("snapback.v1:sessions:schema:sha256:{}", "1".repeat(64)),
+        bundle_hash: format!("snapback.v1:sessions:function:sha256:{}", "2".repeat(64)),
+        inputs_hash: format!("snapback.v1:sessions:inputs:sha256:{}", "3".repeat(64)),
+    };
+    let mut mode = crate::auth::mode::AuthModeStateRecord::initial_dev(Some(deployment.clone()));
+    mode.transition_generation = 1;
+    mode.active = AuthMode::Sessions;
+    mode.desired = AuthMode::Sessions;
+    mode.sessions_ever_activated = true;
+    mode.active_deployment = Some(deployment);
+    mode.validate_shape().expect("settled sessions mode");
+    let admission = crate::auth::admission::AdmissionController::from_mode_state(&mode)
+        .expect("sessions admission controller")
+        .admit_for_mode(AuthMode::Sessions)
+        .expect("managed sessions admission");
     InvocationGate::prepare_admitted_subjectless_authority(
         InvocationSource::Cron,
         AuthMode::Sessions,
         ServerProfile::Test,
-        crate::auth::admission::AdmissionLease::unmanaged(1, 1),
+        admission,
         &WireAuthorityFields::default(),
         ResolvedAppAuthority::System,
         None,

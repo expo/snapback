@@ -236,6 +236,7 @@ export function validateRowAttackInventory(root, fixtureRoot, ledger) {
     'snapback-auth',
     'snapback-engine',
     'snapback-kernel',
+    'snapback-services',
     'snapback-sync',
     'snapback-types',
   ];
@@ -257,35 +258,16 @@ export function validateRowAttackInventory(root, fixtureRoot, ledger) {
   }
   const production = ledger.featureCells.find(({ id }) => id === 'production');
   const additive = ledger.featureCells.find(({ id }) => id === 'additive-test-support');
-  const servicesRemainder = ledger.featureCells
-    .find(({ id }) => id === 'services-remainder-tests');
-  const additiveServicesRemainder = ledger.featureCells
-    .find(({ id }) => id === 'additive-services-remainder-tests');
   if (!production || !sameValues(production.features, [])) {
     errors.push('ledger must declare the empty production feature cell');
   }
   if (!additive || !sameValues(additive.features, ['additive'])) {
     errors.push('ledger must declare the additive-test-support feature cell');
   }
-  if (!servicesRemainder || !sameValues(servicesRemainder.features, ['services-remainder-tests'])) {
-    errors.push('ledger must declare the snapback-services/remainder-tests feature cell');
-  }
-  if (!additiveServicesRemainder
-      || !sameValues(additiveServicesRemainder.features, [
-        'additive',
-        'services-remainder-tests',
-      ])) {
-    errors.push('ledger must declare the additive-plus-services-remainder-tests feature cell');
-  }
   if (!sameValues(pkg.features['kernel-push-fixture'] ?? [], [
     'snapback-kernel/test-support',
   ])) {
     errors.push('kernel-push-fixture must enable exactly snapback-kernel/test-support');
-  }
-  if (!sameValues(pkg.features['services-remainder-tests'] ?? [], [
-    'snapback-services/remainder-tests',
-  ])) {
-    errors.push('services-remainder-tests must enable exactly snapback-services/remainder-tests');
   }
   for (const attack of ledger.attacks) {
     for (const feature of attack.requiredFeatures ?? []) {

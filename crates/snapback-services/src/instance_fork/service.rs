@@ -87,7 +87,7 @@ impl<'a> ForkReadView<'a> {
                 .optional()?,
             "global storage version",
         )?;
-        #[cfg(any(test, feature = "remainder-tests"))]
+        #[cfg(any(test, feature = "test-support"))]
         snapback_kernel::storage::notify_external_storage_read_snapshot_pinned(
             self.conn.path(),
             current,

@@ -346,8 +346,8 @@ it does not fold enclosing module or impl cfg attributes into that row.
   \`KernelCommitAuthority\` to \`ServingDatabase\`. The adaptation was
   appropriate to preserve those tests while removing their direct route to the
   kernel-private root; the statement that the prohibited set was untouched was
-  nevertheless false. The cumulative range has no net change to the
-  \`remainder-tests\` feature or \`test_support\` module.
+  nevertheless false. The historical cumulative range had no net change to
+  \`test_support\`; Landing B subsequently retired \`remainder-tests\`.
 
 ## Runtime-guard-dependent dispositions
 

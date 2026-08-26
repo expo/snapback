@@ -6725,27 +6725,26 @@ fn asset_double_finalize_put_tickets(
     attempt_id: &str,
     store: Arc<dyn crate::assets_store::AssetStore>,
 ) -> (Box<FinalizePutTicketV1>, Box<FinalizePutTicketV1>) {
+    snapback.install_controlled_asset_store_for_test(store);
     let request = crate::assets::AssetFinalizeRequestV1 {
         attempt_id: attempt_id.to_owned(),
         lifecycle_generation: 1,
         declared_digest: None,
     };
-    let mut first_ticket = match snapback
+    let first_ticket = match snapback
         .asset_attempt_finalize_preflight(authority, request.clone())
         .expect("first finalizer preflight")
     {
         FinalizePreflightV1::Proceed(ticket) => ticket,
         FinalizePreflightV1::AlreadyComplete(_) => panic!("attempt is not complete yet"),
     };
-    let mut second_ticket = match snapback
+    let second_ticket = match snapback
         .asset_attempt_finalize_preflight(authority, request)
         .expect("second finalizer preflight")
     {
         FinalizePreflightV1::Proceed(ticket) => ticket,
         FinalizePreflightV1::AlreadyComplete(_) => panic!("attempt is not complete yet"),
     };
-    first_ticket.replace_store_for_test(store.clone());
-    second_ticket.replace_store_for_test(store);
     let first_preparation = first_ticket.prepare().expect("first finalizer prepare");
     let second_preparation = second_ticket.prepare().expect("second finalizer prepare");
     let first_put = match snapback
@@ -11715,14 +11714,23 @@ fn asset_publication_maintain_slow_put_releases_writer_and_double_finalize_conve
         lifecycle_generation: 1,
         declared_digest: None,
     };
-    let mut first_ticket = match snapback
+    let (entered_tx, entered_rx) = std::sync::mpsc::channel();
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+    let gated_store: Arc<dyn crate::assets_store::AssetStore> =
+        Arc::new(BlockFirstCanonicalCopyStore {
+            inner: snapback.asset_store_obj().expect("finalizer store"),
+            entered: std::sync::Mutex::new(Some(entered_tx)),
+            release: std::sync::Mutex::new(release_rx),
+        });
+    snapback.install_controlled_asset_store_for_test(gated_store);
+    let first_ticket = match snapback
         .asset_attempt_finalize_preflight(&authority, request.clone())
         .expect("first preflight proceeds")
     {
         FinalizePreflightV1::Proceed(ticket) => ticket,
         FinalizePreflightV1::AlreadyComplete(_) => panic!("attempt is not complete yet"),
     };
-    let mut second_ticket = match snapback
+    let second_ticket = match snapback
         .asset_attempt_finalize_preflight(&authority, request)
         .expect("second preflight proceeds")
     {
@@ -11731,17 +11739,6 @@ fn asset_publication_maintain_slow_put_releases_writer_and_double_finalize_conve
     };
     let first_preparation = first_ticket.prepare().expect("first prepare succeeds");
     let second_preparation = second_ticket.prepare().expect("second prepare succeeds");
-
-    let (entered_tx, entered_rx) = std::sync::mpsc::channel();
-    let (release_tx, release_rx) = std::sync::mpsc::channel();
-    let gated_store: Arc<dyn crate::assets_store::AssetStore> =
-        Arc::new(BlockFirstCanonicalCopyStore {
-            inner: first_ticket.store_for_test(),
-            entered: std::sync::Mutex::new(Some(entered_tx)),
-            release: std::sync::Mutex::new(release_rx),
-        });
-    first_ticket.replace_store_for_test(gated_store.clone());
-    second_ticket.replace_store_for_test(gated_store);
 
     let first_put = match snapback
         .asset_attempt_finalize_plan(&authority, first_ticket, first_preparation)
@@ -13979,23 +13976,23 @@ fn asset_publication_maintain_retains_torn_plan_during_active_width_put() {
         AssetWidthPreflightV1::Proceed(ticket) => ticket,
         AssetWidthPreflightV1::AlreadyReady(_) => panic!("width is not materialized yet"),
     };
-    let mut stale_prepare = match snapback
+    let first_plan = first_prepare.prepare().expect("render winner width");
+
+    let (entered_tx, entered_rx) = std::sync::mpsc::channel();
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+    let gated_store: Arc<dyn crate::assets_store::AssetStore> = Arc::new(BlockFirstBlobHashStore {
+        inner: snapback.asset_store_obj().expect("width store"),
+        entered: std::sync::Mutex::new(Some(entered_tx)),
+        release: std::sync::Mutex::new(release_rx),
+    });
+    snapback.install_controlled_asset_store_for_test(gated_store);
+    let stale_prepare = match snapback
         .asset_width_preflight(&asset_id, 100)
         .expect("stale width preflight")
     {
         AssetWidthPreflightV1::Proceed(ticket) => ticket,
         AssetWidthPreflightV1::AlreadyReady(_) => panic!("width is not materialized yet"),
     };
-    let first_plan = first_prepare.prepare().expect("render winner width");
-
-    let (entered_tx, entered_rx) = std::sync::mpsc::channel();
-    let (release_tx, release_rx) = std::sync::mpsc::channel();
-    let gated_store: Arc<dyn crate::assets_store::AssetStore> = Arc::new(BlockFirstBlobHashStore {
-        inner: stale_prepare.store_for_test(),
-        entered: std::sync::Mutex::new(Some(entered_tx)),
-        release: std::sync::Mutex::new(release_rx),
-    });
-    stale_prepare.replace_store_for_test(gated_store);
     let stale_plan = stale_prepare.prepare().expect("render stale width");
 
     let first_effect = authority
@@ -14092,7 +14089,17 @@ fn asset_expired_width_put_cannot_delete_sibling_committed_publication_blob() {
     // Both first-width requests preflight and render before w128 exists. C's
     // conditional PUT enters the remote seam and crosses its lease deadline;
     // B then joins the same still-planned P under a fresh lease.
-    let mut late_prepare = match snapback
+    let (entered_tx, entered_rx) = std::sync::mpsc::channel();
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+    let inner = snapback.asset_store_obj().expect("width store");
+    let blocked: Arc<dyn crate::assets_store::AssetStore> = Arc::new(ScriptedPublicationStore {
+        inner: inner.clone(),
+        blocked_put: std::sync::Mutex::new(Some((entered_tx, release_rx))),
+        corrupt_blob_hash_call: None,
+        blob_hash_calls: std::sync::atomic::AtomicU64::new(0),
+    });
+    snapback.install_controlled_asset_store_for_test(blocked);
+    let late_prepare = match snapback
         .asset_width_preflight(&asset_id, 100)
         .expect("late first-width preflight")
     {
@@ -14106,16 +14113,6 @@ fn asset_expired_width_put_cannot_delete_sibling_committed_publication_blob() {
         AssetWidthPreflightV1::Proceed(ticket) => ticket,
         AssetWidthPreflightV1::AlreadyReady(_) => panic!("width is not materialized yet"),
     };
-    let (entered_tx, entered_rx) = std::sync::mpsc::channel();
-    let (release_tx, release_rx) = std::sync::mpsc::channel();
-    let inner = late_prepare.store_for_test();
-    let blocked: Arc<dyn crate::assets_store::AssetStore> = Arc::new(ScriptedPublicationStore {
-        inner: inner.clone(),
-        blocked_put: std::sync::Mutex::new(Some((entered_tx, release_rx))),
-        corrupt_blob_hash_call: None,
-        blob_hash_calls: std::sync::atomic::AtomicU64::new(0),
-    });
-    late_prepare.replace_store_for_test(blocked);
     let late_plan = late_prepare.prepare().expect("render late width");
     let winner_plan = winner_prepare.prepare().expect("render winner width");
     let late_effect = authority
@@ -14205,15 +14202,22 @@ fn asset_runner_retains_active_width_put_then_bounded_expiry_reclaims_it() {
     };
     let first_plan = preflight().prepare().expect("render first width");
     let second_plan = preflight().prepare().expect("render second width");
-    let mut third_prepare = preflight();
+    drop(preflight);
     let (entered_tx, entered_rx) = std::sync::mpsc::channel();
     let (release_tx, release_rx) = std::sync::mpsc::channel();
     let gated_store: Arc<dyn crate::assets_store::AssetStore> = Arc::new(BlockFirstBlobHashStore {
-        inner: third_prepare.store_for_test(),
+        inner: snapback.asset_store_obj().expect("width store"),
         entered: std::sync::Mutex::new(Some(entered_tx)),
         release: std::sync::Mutex::new(release_rx),
     });
-    third_prepare.replace_store_for_test(gated_store);
+    snapback.install_controlled_asset_store_for_test(gated_store);
+    let third_prepare = match snapback
+        .asset_width_preflight(&asset_id, 100)
+        .expect("runner-race width preflight")
+    {
+        AssetWidthPreflightV1::Proceed(ticket) => ticket,
+        AssetWidthPreflightV1::AlreadyReady(_) => panic!("width is not materialized yet"),
+    };
     let third_plan = third_prepare.prepare().expect("render third width");
 
     let first_effect = authority
@@ -14375,19 +14379,20 @@ fn asset_stale_divergent_width_plan_cannot_converge_before_tight_quota() {
         AssetWidthPreflightV1::Proceed(ticket) => ticket,
         AssetWidthPreflightV1::AlreadyReady(_) => panic!("width is not materialized yet"),
     };
-    let mut second_prepare = match snapback
+    let first_plan = first_prepare.prepare().expect("render first width");
+    let replacement_store: Arc<dyn crate::assets_store::AssetStore> =
+        Arc::new(ReplaceWidthSourceReadStore {
+            inner: snapback.asset_store_obj().expect("width store"),
+            replacement: crate::assets_image::fixtures::plain_jpeg_quality(200, 150, 35),
+        });
+    snapback.install_controlled_asset_store_for_test(replacement_store);
+    let second_prepare = match snapback
         .asset_width_preflight(&asset_id, 100)
         .expect("second tight-quota preflight")
     {
         AssetWidthPreflightV1::Proceed(ticket) => ticket,
         AssetWidthPreflightV1::AlreadyReady(_) => panic!("width is not materialized yet"),
     };
-    let real_store = second_prepare.store_for_test();
-    second_prepare.replace_store_for_test(Arc::new(ReplaceWidthSourceReadStore {
-        inner: real_store,
-        replacement: crate::assets_image::fixtures::plain_jpeg_quality(200, 150, 35),
-    }));
-    let first_plan = first_prepare.prepare().expect("render first width");
     let second_plan = second_prepare.prepare().expect("render second width");
     assert_ne!(
         first_plan.digest(),

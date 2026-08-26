@@ -15,11 +15,9 @@ default = ["services-owner"]
 # recorder and integration tests. Confined handles do not cross those APIs.
 services-owner = []
 benchmark-support = []
-# Explicit, non-default test composition. The service remainder seam calls the
-# kernel's snapshot-pinned test hook, so this must forward kernel test support.
-# Kernel commit observation is passive under that feature: it accepts no
-# callback and cannot run caller code beside COMMIT.
-remainder-tests = ["snapback-kernel/test-support"]
+# Typed test probes and deterministic media fixtures only. This feature does
+# not expose SQLite handles, replace storage backends, or assert authority.
+test-support = ["snapback-kernel/test-support"]
 
 [dependencies]
 anyhow = "1.0"

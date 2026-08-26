@@ -34,7 +34,7 @@ snapback-activation = { path = "../snapback-activation" }
 snapback-auth = { path = "../snapback-auth" }
 snapback-kernel = { path = "../snapback-kernel" }
 snapback-runtime = { path = "../snapback-runtime" }
-snapback-services = { path = "../snapback-services" }
+snapback-services = { path = "../snapback-services", features = ["test-support"] }
 snapback-sync = { path = "../snapback-sync" }
 snapback-types = { path = "../snapback-types" }
 tokio = { version = "1.48", features = ["full"] }
@@ -48,7 +48,7 @@ snapback-activation = { path = "../snapback-activation", features = ["test-suppo
 snapback-auth = { path = "../snapback-auth", features = ["test-support"] }
 snapback-kernel = { path = "../snapback-kernel", features = ["test-support"] }
 snapback-runtime = { path = "../snapback-runtime", features = ["test-support"] }
-snapback-services = { path = "../snapback-services", features = ["remainder-tests"] }
+snapback-services = { path = "../snapback-services" }
 snapback-sync = { path = "../snapback-sync", features = ["test-support"] }
 tempfile = "3.23"
 
