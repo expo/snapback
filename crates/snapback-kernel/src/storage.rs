@@ -47,6 +47,7 @@ pub mod asset_grants;
 mod asset_maintenance;
 mod asset_reads;
 pub mod auth_catalog_ops;
+mod authority_transition;
 // @ref LLP 0213#security-boundaries-and-invariants — rehearsal grants and
 // accounting are a protected companion catalog, outside app-addressable
 // schema and the frozen `_auth_*` catalog shape/version.
