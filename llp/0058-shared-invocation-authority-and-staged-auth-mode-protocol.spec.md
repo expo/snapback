@@ -476,10 +476,13 @@ does not satisfy the predicate.
 
 The capability is `experimental` while its governing LLP 0043 remains Draft.
 The JS client consumes the served `/inspect` manifest as an execution-safety
-fact. A fresh positive presence admits replay; absence, an older manifest, an
-answered gap/error, an unavailable inspection, or a merely absent gap does
-not. LLP 0043's enqueue-only exception may reuse the last positive answer after
-a no-response transport loss, but only from durable evidence bound to the same
+fact. A fresh positive presence admits replay; absence, an older manifest, a
+terminal answered gap/error, an unavailable inspection, or a merely absent gap
+does not. The single inspect-fact rule is LLP 0043's: no-response loss, 5xx,
+proxy/redirect failure, and retryable HTTP 408/425/429 are rule-(a)
+unavailability, while 401/403/404 and a parsed manifest-gap 200 are durable
+rule-(b) negatives. LLP 0043's enqueue-only exception may reuse the last
+positive answer after rule-(a) unavailability, but only from durable evidence bound to the same
 canonical origin and, for a generated mutation reference, its exact app
 artifact generation. A string-named mutation has no **call-site-generated**
 generation witness; admission instead binds its established served-app

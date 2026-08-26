@@ -19,6 +19,22 @@ const invariantNames = Object.freeze([
   'settlement-republished-then-ack-removed',
 ]);
 const never = new Promise(() => {});
+const enqueueTarget = Object.freeze({
+  schemaVersion: 'snapback.outbox-enqueue-target.v1',
+  canonicalOrigin: 'https://expo-carrier-qualification.invalid',
+  targetProfileId: 'expo-sqlite-qualification',
+  artifactIdentity: Object.freeze({
+    kind: 'app',
+    appId: 'expo-local-first-carrier-qualification',
+    generation: Object.freeze({
+      schemaVersion: 'snapback.v0',
+      appId: 'expo-local-first-carrier-qualification',
+      schemaHash: `sha256:${'a'.repeat(64)}`,
+      bundleHash: `sha256:${'b'.repeat(64)}`,
+      inputsHash: `sha256:${'c'.repeat(64)}`,
+    }),
+  }),
+});
 let activeCut = null;
 let storePromise = null;
 
@@ -142,12 +158,16 @@ async function verify(server, cycle, expectedHandleKeyDigest, launchNonce) {
     await handle.outboxDurablyConsume(id, { result: execution.result }, 'qualification-user');
   }
   const republished = (await handle.outboxRecords()).find((record) => record.id === id) ?? null;
-  await handle.outboxMarkAcknowledgementsReady([id]);
-  const ackReadyObserved = (await handle.outboxPendingAcknowledgements('qualification-user')).includes(id);
+  await handle.outboxMarkAcknowledgementsReady([id], undefined, undefined, null, enqueueTarget);
+  const ackReadyObserved = (await handle.outboxPendingAcknowledgements(
+    'qualification-user', 64, null, enqueueTarget,
+  )).includes(id);
   await serverCommand(server, 'ack', { clientMutationId: id });
-  await handle.outboxConfirmAcknowledgements([id]);
+  await handle.outboxConfirmAcknowledgements([id], undefined, undefined, null, enqueueTarget);
   const removedAfterAckProof = !(await handle.outboxRecords()).some((record) => record.id === id)
-    && !(await handle.outboxPendingAcknowledgements('qualification-user')).includes(id);
+    && !(await handle.outboxPendingAcknowledgements(
+      'qualification-user', 64, null, enqueueTarget,
+    )).includes(id);
   const meta = await handle.readStoreMeta();
   const postBootRecord = {
     generation: { values: projected.generationValues },
@@ -206,7 +226,13 @@ async function executeCommand({
   await handle.wipeForAuthorityTransition();
   const successorMeta = await handle.readStoreMeta();
   await writeGeneration(handle, cycle, 1);
-  await handle.outboxEnqueue({ id, function: 'qualificationMutation', args: { phase, cycle } });
+  await handle.outboxEnqueue({
+    id,
+    function: 'qualificationMutation',
+    args: { phase, cycle },
+    outboxRecordSchemaVersion: 2,
+    enqueueTarget,
+  });
   if (phase === 'consumed-before-ack' || phase === 'ack-proof-before-local-removal') {
     const execution = await serverCommand(server, 'execute', { clientMutationId: id });
     await handle.outboxDurablyConsume(id, { result: execution.result }, 'qualification-user');
@@ -244,14 +270,14 @@ async function executeCommand({
     await commitWatermark(handle, server, cycle, phase, launchNonce);
     await cutReady(server, cycle, phase, 'settlement-consumed-before-ack-ready', launchNonce);
   } else if (phase === 'ack-proof-before-local-removal') {
-    await handle.outboxMarkAcknowledgementsReady([id]);
+    await handle.outboxMarkAcknowledgementsReady([id], undefined, undefined, null, enqueueTarget);
     await commitWatermark(handle, server, cycle, phase, launchNonce);
     await cutReady(server, cycle, phase, phase, launchNonce);
   } else if (phase === 'authority-wipe-before-successor') {
     activeCut = {
       server, cycle, phase, launchNonce, boundary: 'authority-wipe:checkpoint-truncate:before',
     };
-    await handle.wipeForAuthorityTransition();
+    await handle.wipeForAuthorityTransition(null, null, { rebaseUnscopedPending: true });
   } else {
     throw new Error(`unknown qualification phase ${phase}`);
   }

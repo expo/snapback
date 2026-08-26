@@ -1517,6 +1517,14 @@ export interface OutboxStatus {
   readonly lastAttemptAtMs: number | null;
   readonly nextRetryAtMs: number | null;
   readonly blockedReason: string | null;
+  /** Latest process-local rule-(a) inspect unavailability; durable capability
+   * facts remain in store custody and are intentionally not projected here. */
+  readonly offlineMutationReplayInspection?: Readonly<{
+    readonly status: 'unavailable';
+    readonly reason: string;
+    readonly code: string | null;
+    readonly httpStatus: number | null;
+  }>;
 }
 
 /** Terminal-auth fact (0137 A6 f3): pure projection of the client's own
@@ -2194,7 +2202,9 @@ export class SnapbackClient {
   ): Promise<ResultGoneAcknowledgementOutcome>;
   /** Fires after every outbox transition (queue/replay/settle-failure) and
    * around each drain; returns the unsubscribe. Listeners observe only. */
-  subscribeOutbox(listener: () => void): () => void;
+  subscribeOutbox(
+    listener: (notification?: { readonly kind?: string; readonly drainWake?: boolean }) => void,
+  ): () => void;
   /** Terminal-auth fact: is this client's current authority permanently
    * done? Synchronous pure projection; see AuthTerminalStatus. */
   authTerminalStatus(): AuthTerminalStatus;

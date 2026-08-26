@@ -81,13 +81,35 @@ export async function verifyRecoveredCycle({
   const republished = (await store.outboxRecords()).find(
     (record) => record.id === armed.clientMutationId,
   );
-  await store.outboxMarkAcknowledgementsReady([armed.clientMutationId]);
-  const ackReadyObserved = (await store.outboxPendingAcknowledgements('qualification-user'))
+  await store.outboxMarkAcknowledgementsReady(
+    [armed.clientMutationId],
+    undefined,
+    undefined,
+    null,
+    armed.enqueueTarget,
+  );
+  const ackReadyObserved = (await store.outboxPendingAcknowledgements(
+    'qualification-user',
+    64,
+    null,
+    armed.enqueueTarget,
+  ))
     .includes(armed.clientMutationId);
-  await store.outboxConfirmAcknowledgements([armed.clientMutationId]);
+  await store.outboxConfirmAcknowledgements(
+    [armed.clientMutationId],
+    undefined,
+    undefined,
+    null,
+    armed.enqueueTarget,
+  );
   const removedAfterAckProof = !(await store.outboxRecords())
     .some((record) => record.id === armed.clientMutationId)
-    && !(await store.outboxPendingAcknowledgements('qualification-user'))
+    && !(await store.outboxPendingAcknowledgements(
+      'qualification-user',
+      64,
+      null,
+      armed.enqueueTarget,
+    ))
       .includes(armed.clientMutationId);
   const currentMeta = await store.readStoreMeta();
   const record = {

@@ -3627,8 +3627,8 @@ const offlineMutationReplayCapabilityFactFromAnsweredError = (cause, origin) => 
 
 // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 — every
 // inspect path uses one answer classifier. No-Response loss and an answered
-// proxy/unavailable response are local observations only; an answering 4xx or
-// a parsed manifest response is durable target evidence.
+// proxy/unavailable response and a retryable HTTP answer are local observations
+// only; a terminal answering 4xx or parsed manifest response is durable target evidence.
 const offlineMutationReplayInspectionErrorStatus = (error) => (
   Number.isInteger(error?.status)
     ? error.status
@@ -3637,10 +3637,17 @@ const offlineMutationReplayInspectionErrorStatus = (error) => (
       : null
 );
 
+const isOfflineMutationReplayInspectionRetryableStatus = (status) => (
+  status === 408 || status === 425 || status === 429
+);
+
 const isOfflineMutationReplayInspectionUnavailableError = (error) => {
   if (isConnectivityFailureError(error)) return true;
   const status = offlineMutationReplayInspectionErrorStatus(error);
-  return status === null || status < 400 || status >= 500;
+  return status === null
+    || status < 400
+    || status >= 500
+    || isOfflineMutationReplayInspectionRetryableStatus(status);
 };
 
 const offlineMutationReplayInspectionOutcome = ({ origin, inspection, error = null }) => {
@@ -8169,11 +8176,17 @@ export class SnapbackClient {
     fact,
     observation,
     transportTarget = null,
-    { wakeDrain = true } = {},
+    {
+      wakeDrain = true,
+      authorizationDispatchOwned = false,
+      deferNotification = false,
+    } = {},
   ) {
+    let notificationRequired = false;
     const result = (recordedFact, committed = null) => Object.freeze({
       fact: recordedFact,
       committed,
+      notificationRequired,
     });
     let normalized = normalizeOfflineMutationReplayCapabilityFact(fact);
     if (normalized === null) return result(null, false);
@@ -8205,10 +8218,13 @@ export class SnapbackClient {
         clearedUnavailable
         || !sameOfflineMutationReplayCapabilityFactMeaning(publishedFact, nextFact)
       ) {
-        this.#notifyOutboxListeners(Object.freeze({
-          kind: 'offline-mutation-replay-capability',
-          drainWake: wakeDrain,
-        }));
+        if (deferNotification) notificationRequired = true;
+        else {
+          this.#notifyOutboxListeners(Object.freeze({
+            kind: 'offline-mutation-replay-capability',
+            drainWake: wakeDrain,
+          }));
+        }
       }
       clearedUnavailable = false;
       publishedFact = nextFact;
@@ -8280,7 +8296,9 @@ export class SnapbackClient {
           // authorization-dispatch cut. The exclusive form conflicts with
           // both foreground and housekeeping lane dispatches, including when
           // this call brokers a follower answer to the elected writer.
-          const { committed, shared } = typeof store.withOutboxAuthorizationDispatch === 'function'
+          const { committed, shared } = authorizationDispatchOwned
+            ? await commitAndRead()
+            : typeof store.withOutboxAuthorizationDispatch === 'function'
             ? await store.withOutboxAuthorizationDispatch(commitAndRead)
             : await commitAndRead();
           if (committed === false) {
@@ -8330,7 +8348,9 @@ export class SnapbackClient {
       }
       return result(normalized, null);
     };
-    const task = this.__offlineMutationReplayCapabilityCommitTail.then(commit, commit);
+    const task = authorizationDispatchOwned
+      ? commit()
+      : this.__offlineMutationReplayCapabilityCommitTail.then(commit, commit);
     this.__offlineMutationReplayCapabilityCommitTail = task.then(
       () => undefined,
       () => undefined,
@@ -13524,8 +13544,7 @@ export class SnapbackClient {
       if (
         isConnectivityFailureError(error)
         || code === 'SNAPBACK_OUTBOX_DRAIN_BARRIER_TIMEOUT'
-        || error?.status === 408
-        || error?.status === 429
+        || isOfflineMutationReplayInspectionRetryableStatus(error?.status)
         || (Number.isInteger(error?.status) && error.status >= 500)
       ) {
         scheduleBackoff(`barrier-transient:${code}`);
@@ -14880,7 +14899,34 @@ export class SnapbackClient {
           reason: error?.diagnostic?.code ?? error?.code ?? error?.message,
         });
       } finally {
-        await releaseAuthorizationDispatch();
+        let deferredCapabilityNotification = false;
+        try {
+          if (
+            deferredReplayCapabilityFact?.kind === 'fact'
+            && deferredReplayCapabilityFact.fact?.supported === false
+          ) {
+            const recorded = await this.#recordOfflineMutationReplayCapabilityFact(
+              deferredReplayCapabilityFact.fact,
+              deferredReplayCapabilityFact.factObservation,
+              deferredReplayCapabilityFact.transportTarget,
+              {
+                wakeDrain: false,
+                authorizationDispatchOwned: true,
+                deferNotification: true,
+              },
+            );
+            deferredCapabilityNotification = recorded.notificationRequired === true;
+            deferredReplayCapabilityFact = null;
+          }
+        } finally {
+          await releaseAuthorizationDispatch();
+        }
+        if (deferredCapabilityNotification) {
+          this.#notifyOutboxListeners(Object.freeze({
+            kind: 'offline-mutation-replay-capability',
+            drainWake: false,
+          }));
+        }
         if (deferredReplayCapabilityFact !== null) {
           if (deferredReplayCapabilityFact.kind === 'unavailable') {
             this.#recordOfflineMutationReplayInspectionUnavailable(

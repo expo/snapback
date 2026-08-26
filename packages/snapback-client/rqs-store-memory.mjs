@@ -59,6 +59,8 @@ export function createMemoryRqsResumeStore({
   let resolveOwnership;
   const ownership = new Promise((resolve) => { resolveOwnership = resolve; });
   let closed = false;
+  let pendingOfflineReplayCapabilityFact = null;
+  let flushPendingOfflineReplayCapabilityFact = async () => {};
   const writerLockListeners = new Set();
   const notifyWriterLock = (writer) => {
     for (const listener of [...writerLockListeners]) {
@@ -75,6 +77,7 @@ export function createMemoryRqsResumeStore({
       resolve: resolveOwnership,
       closed: () => closed,
       notify: notifyWriterLock,
+      flushPending: () => flushPendingOfflineReplayCapabilityFact(),
     });
   }
 
@@ -205,6 +208,59 @@ export function createMemoryRqsResumeStore({
     instance,
     commitOfflineReplayCapabilityAsWriter,
   );
+  const stashPendingOfflineReplayCapabilityFact = (fact, observation = null) => {
+    if (fact?.supported !== false) return false;
+    let storedFact;
+    try { storedFact = structuredClone(fact); } catch { return false; }
+    const preparedObservation = prepareOfflineMutationReplayCapabilityObservation(observation);
+    const currentRevision = state.storeMeta.offlineMutationReplayCapabilityFact?.storeRevision;
+    pendingOfflineReplayCapabilityFact = Object.freeze({
+      fact: storedFact,
+      observation: preparedObservation,
+      observedStoreRevision: preparedObservation?.observedStoreRevision
+        ?? (Number.isSafeInteger(currentRevision) && currentRevision >= 1 ? currentRevision : 0),
+    });
+    return true;
+  };
+  // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 — an
+  // unanswered writer route retains the observed negative and publishes it
+  // only if takeover still sees the exact predecessor revision.
+  flushPendingOfflineReplayCapabilityFact = async () => {
+    const pending = pendingOfflineReplayCapabilityFact;
+    if (pending === null || !requireWriter()) return;
+    if (pending.observation !== null) {
+      await commitOfflineReplayCapabilityAsWriter(pending.fact, pending.observation);
+    } else {
+      const current = state.storeMeta;
+      const currentRevision = current.offlineMutationReplayCapabilityFact?.storeRevision;
+      const revision = Number.isSafeInteger(currentRevision) && currentRevision >= 1
+        ? currentRevision
+        : 0;
+      if (revision !== pending.observedStoreRevision) {
+        if (pendingOfflineReplayCapabilityFact === pending) {
+          pendingOfflineReplayCapabilityFact = null;
+        }
+        return;
+      }
+      const replacementFact = structuredClone(pending.fact);
+      delete replacementFact.storeRevision;
+      delete replacementFact.requestSequence;
+      const requestSequence = current.generationCounters.offlineReplayCapabilityRequestHighWater;
+      if (Number.isSafeInteger(requestSequence) && requestSequence >= 1) {
+        replacementFact.requestSequence = requestSequence;
+      }
+      replacementFact.storeRevision = revision + 1;
+      const replacement = prepareStoreMeta({
+        ...current,
+        offlineMutationReplayCapabilityFact: replacementFact,
+      });
+      if (replacement === null) return;
+      state.storeMeta = replacement;
+    }
+    if (pendingOfflineReplayCapabilityFact === pending) {
+      pendingOfflineReplayCapabilityFact = null;
+    }
+  };
   // @ref LLP 0053#client-fences — a public wipe cannot advance the shared
   // generation while predecessor authorization dispatch remains in flight.
   const authorityTransitionWipe = (...args) => withAuthorizationDispatch(
@@ -299,12 +355,27 @@ export function createMemoryRqsResumeStore({
 
     async commitOfflineMutationReplayCapabilityFact(fact, observation = null) {
       requireOpen();
+      if (observation === false) {
+        if (fact?.supported === false) stashPendingOfflineReplayCapabilityFact(fact);
+        else if (pendingOfflineReplayCapabilityFact?.fact?.origin === fact?.origin) {
+          pendingOfflineReplayCapabilityFact = null;
+        }
+        if (state.writer === instance) await flushPendingOfflineReplayCapabilityFact();
+        return false;
+      }
       if (state.writer === instance) {
         return commitOfflineReplayCapabilityAsWriter(fact, observation);
       }
       const request = state.offlineReplayCapabilityCommitters.get(state.writer);
-      if (typeof request !== 'function') return false;
-      return request(fact, observation);
+      if (typeof request !== 'function') {
+        if (fact?.supported === false) stashPendingOfflineReplayCapabilityFact(fact, observation);
+        return false;
+      }
+      const committed = await request(fact, observation);
+      if (committed === false && fact?.supported === false) {
+        stashPendingOfflineReplayCapabilityFact(fact, observation);
+      }
+      return committed;
     },
 
     async readStoreMeta() {
@@ -926,6 +997,7 @@ export function createMemoryRqsResumeStore({
         const next = state.waiters.shift();
         if (next.closed()) continue;
         state.writer = next.instance;
+        await next.flushPending?.();
         next.resolve();
         next.notify?.(true);
         break;

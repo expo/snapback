@@ -1255,6 +1255,129 @@ test("a 502 and transport loss preserve positive enqueue-only evidence for queue
   });
 });
 
+for (const status of [408, 429]) {
+  test(`retryable HTTP ${status} at enqueue inspection preserves positive enqueue-only evidence`, async (t) => {
+    t.after(() => { globalThis.fetch = originalFetch; });
+    const origin = `https://drain-enqueue-inspection-${status}.test`;
+    const store = createDurableTestStore();
+    let inspectMode = 'positive';
+    let mutationPosts = 0;
+    globalThis.fetch = async (url) => {
+      const path = new URL(url).pathname;
+      if (path === '/inspect') {
+        if (inspectMode === 'positive') return Response.json(replayInspection());
+        if (inspectMode === 'retryable') {
+          return Response.json({
+            diagnostic: { code: `HTTP_${status}`, message: 'retryable inspect response' },
+          }, { status });
+        }
+        throw new TypeError('backend offline after retryable inspect');
+      }
+      if (path === '/mutation/createThing') {
+        mutationPosts += 1;
+        throw new TypeError('mutation transport must stay enqueue-only');
+      }
+      throw new Error(`unexpected retryable enqueue request ${path}`);
+    };
+    const client = new InspectingSnapbackClient(origin, {
+      rqsStore: store,
+      __outboxDrainLifecycle: false,
+    });
+    client.__registerInspectionAppId(DRAIN_GENERATION.appId);
+    await client.inspect();
+    inspectMode = 'retryable';
+    await assert.rejects(() => client.inspect(), (error) => error?.status === status);
+    inspectMode = 'offline';
+
+    const queued = await client.mutate('createThing', {
+      args: { id: `cm-enqueue-inspection-${status}` },
+      clientMutationId: `cm-enqueue-inspection-${status}`,
+      queue: 'auto',
+    });
+    assert.equal(queued.status, 'queued');
+    assert.equal(mutationPosts, 0);
+    assert.equal((await store.readOfflineMutationReplayCapabilityFact()).supported, true);
+  });
+}
+
+for (const status of [408, 429]) {
+  test(`retryable HTTP ${status} at replay cycle start preserves the positive and backs off`, async (t) => {
+    t.after(() => { globalThis.fetch = originalFetch; });
+    const origin = `https://drain-cycle-inspection-${status}.test`;
+    const store = createDurableTestStore();
+    await enqueue(store, `cm-cycle-inspection-${status}`, origin);
+    const timers = new FakeTimers();
+    let mutationPosts = 0;
+    globalThis.fetch = async (url) => {
+      const path = new URL(url).pathname;
+      if (path === '/inspect') {
+        return Response.json({
+          diagnostic: { code: `HTTP_${status}`, message: 'retryable inspect response' },
+        }, { status });
+      }
+      if (path === '/mutation/createThing') {
+        mutationPosts += 1;
+        return settlement();
+      }
+      throw new Error(`unexpected retryable cycle-start request ${path}`);
+    };
+    const client = new InspectingSnapbackClient(origin, {
+      rqsStore: store,
+      __outboxDrainLifecycle: false,
+    });
+    client.__registerInspectionAppId(DRAIN_GENERATION.appId);
+    const controller = client.startOutboxDrain({ timer: timers });
+    t.after(() => controller.stop());
+
+    await waitFor(() => controller.status().drainPhase === 'backoff', `${status} cycle-start backoff`);
+    assert.equal(mutationPosts, 0);
+    assert.equal(timers.delays.at(-1), 250);
+    assert.equal((await store.readOfflineMutationReplayCapabilityFact()).supported, true);
+  });
+}
+
+for (const status of [408, 429]) {
+  test(`retryable HTTP ${status} at final pre-POST inspection preserves the positive and backs off`, async (t) => {
+    t.after(() => { globalThis.fetch = originalFetch; });
+    const origin = `https://drain-final-inspection-${status}.test`;
+    const store = createDurableTestStore();
+    await enqueue(store, `cm-final-inspection-${status}`, origin);
+    const timers = new FakeTimers();
+    let inspectRequests = 0;
+    let mutationPosts = 0;
+    globalThis.fetch = async (url, init = {}) => {
+      const path = new URL(url).pathname;
+      if (path === '/inspect') {
+        inspectRequests += 1;
+        if (inspectRequests === 3) {
+          return Response.json({
+            diagnostic: { code: `HTTP_${status}`, message: 'retryable inspect response' },
+          }, { status });
+        }
+        return Response.json(replayInspection());
+      }
+      if (path === '/connection/open') return grant(JSON.parse(init.body).connectionId);
+      if (path === '/mutation/createThing') {
+        mutationPosts += 1;
+        return settlement();
+      }
+      throw new Error(`unexpected retryable final-inspect request ${path}`);
+    };
+    const client = new InspectingSnapbackClient(origin, {
+      rqsStore: store,
+      __outboxDrainLifecycle: false,
+    });
+    client.__registerInspectionAppId(DRAIN_GENERATION.appId);
+    const controller = client.startOutboxDrain({ timer: timers });
+    t.after(() => controller.stop());
+
+    await waitFor(() => controller.status().drainPhase === 'backoff', `${status} final-inspect backoff`);
+    assert.equal(mutationPosts, 0);
+    assert.equal(timers.delays.at(-1), 250);
+    assert.equal((await store.readOfflineMutationReplayCapabilityFact()).supported, true);
+  });
+}
+
 test("a final 502 replay inspect records unavailability and leaves cached auto enqueue usable", async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const origin = 'https://drain-final-inspection-502.test';

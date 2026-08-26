@@ -365,3 +365,16 @@ client.reenterQuarantinedMutations().then((outcome) => {
   outcome.reentered.toFixed();
   outcome.clientMutationIds[0]?.toUpperCase();
 });
+client.outboxStatus().then((status) => {
+  const inspection = status.offlineMutationReplayInspection;
+  if (inspection) {
+    inspection.status satisfies 'unavailable';
+    inspection.reason.toUpperCase();
+    inspection.code?.toUpperCase();
+    inspection.httpStatus?.toFixed();
+  }
+});
+client.subscribeOutbox((notification) => {
+  notification?.kind?.toUpperCase();
+  notification?.drainWake satisfies boolean | undefined;
+});

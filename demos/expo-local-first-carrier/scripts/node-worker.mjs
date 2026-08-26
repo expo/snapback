@@ -10,6 +10,22 @@ if (input.command !== 'probe') setInterval(() => {}, 60_000);
 let cutBoundary = null;
 let cutPublished = false;
 const never = new Promise(() => {});
+const enqueueTarget = Object.freeze({
+  schemaVersion: 'snapback.outbox-enqueue-target.v1',
+  canonicalOrigin: 'https://expo-carrier-qualification.invalid',
+  targetProfileId: 'expo-sqlite-qualification',
+  artifactIdentity: Object.freeze({
+    kind: 'app',
+    appId: 'expo-local-first-carrier-qualification',
+    generation: Object.freeze({
+      schemaVersion: 'snapback.v0',
+      appId: 'expo-local-first-carrier-qualification',
+      schemaHash: `sha256:${'a'.repeat(64)}`,
+      bundleHash: `sha256:${'b'.repeat(64)}`,
+      inputsHash: `sha256:${'c'.repeat(64)}`,
+    }),
+  }),
+});
 
 const breakStore = (store) => {
   if (input.storeImplementation !== 'drop-generation-membership-write') return store;
@@ -125,7 +141,13 @@ try {
     await store.wipeForAuthorityTransition();
     const successorMeta = await store.readStoreMeta();
     await writeGeneration(store, 1);
-    await store.outboxEnqueue({ id, function: 'qualificationMutation', args: { phase: input.phase } });
+    await store.outboxEnqueue({
+      id,
+      function: 'qualificationMutation',
+      args: { phase: input.phase },
+      outboxRecordSchemaVersion: 2,
+      enqueueTarget,
+    });
 
     if (input.phase === 'consumed-before-ack' || input.phase === 'ack-proof-before-local-removal') {
       const result = serverExecuteOnce(id);
@@ -142,6 +164,7 @@ try {
         ? successorMeta.handleKey
         : predecessorMeta.handleKey,
       initialSuccessorHandleKey: successorMeta.handleKey,
+      enqueueTarget,
     });
 
     if (input.phase === 'pending-durable-before-delivery') {
@@ -164,13 +187,13 @@ try {
       publish({ status: 'cut-ready', boundary: 'settlement-consumed-before-ack-ready', insideTransaction: false });
       await never;
     } else if (input.phase === 'ack-proof-before-local-removal') {
-      await store.outboxMarkAcknowledgementsReady([id]);
+      await store.outboxMarkAcknowledgementsReady([id], undefined, undefined, null, enqueueTarget);
       await hostWatermark(store, input.phase);
       publish({ status: 'cut-ready', boundary: 'ack-proof-before-local-removal', insideTransaction: false });
       await never;
     } else if (input.phase === 'authority-wipe-before-successor') {
       cutBoundary = 'authority-wipe:checkpoint-truncate:before';
-      await store.wipeForAuthorityTransition();
+      await store.wipeForAuthorityTransition(null, null, { rebaseUnscopedPending: true });
     } else {
       throw new Error(`unknown phase ${input.phase}`);
     }

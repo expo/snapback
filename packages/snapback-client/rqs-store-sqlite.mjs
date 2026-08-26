@@ -188,6 +188,7 @@ export async function createSqliteRqsResumeStore({
   }
 
   let closed = false;
+  let pendingOfflineReplayCapabilityFact = null;
   let callbackActive = false;
   let chain = Promise.resolve();
   const writerLockListeners = new Set();
@@ -327,6 +328,55 @@ export async function createSqliteRqsResumeStore({
     const state = validateOutboxState(await readRecord('outbox', 'state'));
     if (state === null) throw corruptError('SQLite RQS outbox state is invalid');
     return state;
+  };
+  const stashPendingOfflineReplayCapabilityFact = async (fact, observation = null) => {
+    if (fact?.supported !== false) return false;
+    let storedFact;
+    try { storedFact = clone(fact); } catch { return false; }
+    const preparedObservation = prepareOfflineMutationReplayCapabilityObservation(observation);
+    const current = await readMeta();
+    const currentRevision = current.offlineMutationReplayCapabilityFact?.storeRevision;
+    pendingOfflineReplayCapabilityFact = Object.freeze({
+      fact: storedFact,
+      observation: preparedObservation,
+      observedStoreRevision: preparedObservation?.observedStoreRevision
+        ?? (Number.isSafeInteger(currentRevision) && currentRevision >= 1 ? currentRevision : 0),
+    });
+    return true;
+  };
+  // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 — the
+  // single-writer SQLite arm publishes an unanswered-route negative against
+  // the exact revision it observed rather than silently dropping it.
+  const flushPendingOfflineReplayCapabilityFact = async () => {
+    const pending = pendingOfflineReplayCapabilityFact;
+    if (pending === null || closed) return;
+    await writeTransaction('offline-replay-capability-pending-fact', async () => {
+      const current = await readMeta();
+      const currentRevision = current.offlineMutationReplayCapabilityFact?.storeRevision;
+      const revision = Number.isSafeInteger(currentRevision) && currentRevision >= 1
+        ? currentRevision
+        : 0;
+      if (revision !== pending.observedStoreRevision) return;
+      const replacementFact = clone(pending.fact);
+      delete replacementFact.storeRevision;
+      delete replacementFact.requestSequence;
+      const requestSequence = current.generationCounters.offlineReplayCapabilityRequestHighWater;
+      if (Number.isSafeInteger(requestSequence) && requestSequence >= 1) {
+        replacementFact.requestSequence = requestSequence;
+      }
+      replacementFact.storeRevision = revision + 1;
+      const replacement = prepareStoreMeta({
+        ...current,
+        offlineMutationReplayCapabilityFact: replacementFact,
+      });
+      if (replacement === null) {
+        throw corruptError('refusing invalid pending offline replay capability fact');
+      }
+      await writeRecord('store_meta', 'state', replacement);
+    });
+    if (pendingOfflineReplayCapabilityFact === pending) {
+      pendingOfflineReplayCapabilityFact = null;
+    }
   };
 
   const validateVersionOneSchema = async () => {
@@ -677,7 +727,17 @@ export async function createSqliteRqsResumeStore({
       ));
     },
     commitOfflineMutationReplayCapabilityFact(fact, observation = null) {
-      if (observation === false) return Promise.resolve(false);
+      if (observation === false) {
+        return serialized(async () => {
+          if (fact?.supported === false) {
+            await stashPendingOfflineReplayCapabilityFact(fact);
+            await flushPendingOfflineReplayCapabilityFact();
+          } else if (pendingOfflineReplayCapabilityFact?.fact?.origin === fact?.origin) {
+            pendingOfflineReplayCapabilityFact = null;
+          }
+          return false;
+        });
+      }
       return serialized(() => writeTransaction('offline-replay-capability-fact', async () => {
         const current = await readMeta();
         let workingMeta = current;

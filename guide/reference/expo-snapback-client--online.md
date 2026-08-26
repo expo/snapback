@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:2aa36e984905bbe736fc53782db1cb79e57ad7bc4121
 # @expo/snapback-client/online
 
 Build-bound public API projection for `@expo/snapback-client/online`. Canonical registry identity:
-`sha256:e6790bc2ab7fa1236c1980600a2a69d6aebcc4af0ef9b7f6de2ad1ffe3825fed`.
+`sha256:7a899c7e251ab8dce3f3187d7aafe6d333acc6390ba1e27ee6a0a49d090f7a50`.
 Runtime parity condition:
 `import` → `packages/snapback-client/online.mjs`.
 
@@ -38,7 +38,7 @@ Symbols: 4 total; 3 runtime values; 1 type-only.
 
 Stable identity: `npm:@expo/snapback-client/online#bindSnapbackAppLifecycle`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:2380`
+Source: `packages/snapback-client/index.d.mts:2390`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function bindSnapbackAppLifecycle(
@@ -59,7 +59,7 @@ export function bindSnapbackAppLifecycle(
 
 Stable identity: `npm:@expo/snapback-client/online#createExternalSessionClient`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:2376`
+Source: `packages/snapback-client/index.d.mts:2386`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function createExternalSessionClient(
@@ -73,7 +73,7 @@ export function createExternalSessionClient(
 
 Stable identity: `npm:@expo/snapback-client/online#SnapbackClient`
 Kind: `runtime-class`
-Source: `packages/snapback-client/index.d.mts:1850`
+Source: `packages/snapback-client/index.d.mts:1858`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export class SnapbackClient {
@@ -423,7 +423,9 @@ export class SnapbackClient {
   ): Promise<ResultGoneAcknowledgementOutcome>;
   /** Fires after every outbox transition (queue/replay/settle-failure) and
    * around each drain; returns the unsubscribe. Listeners observe only. */
-  subscribeOutbox(listener: () => void): () => void;
+  subscribeOutbox(
+    listener: (notification?: { readonly kind?: string; readonly drainWake?: boolean }) => void,
+  ): () => void;
   /** Terminal-auth fact: is this client's current authority permanently
    * done? Synchronous pure projection; see AuthTerminalStatus. */
   authTerminalStatus(): AuthTerminalStatus;

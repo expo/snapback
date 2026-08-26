@@ -6,7 +6,7 @@
 // demos/public-dashboard/tests/acceptance/offline-local-first.mjs.
 
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -3468,6 +3468,164 @@ test('broker-unavailable peer negative overrides positive before and after Index
   await followerStore.close();
 });
 
+test('unanswered-route negatives publish on takeover across all four RQS stores', async (t) => {
+  const origin = 'https://unanswered-route-negative-takeover.example';
+  const positive = {
+    schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
+    origin,
+    supported: true,
+    reason: null,
+    targetProfileId: 'local-dev-sqlite-ibex',
+    artifactGeneration: TEST_ARTIFACT_GENERATION,
+  };
+  const negative = {
+    ...positive,
+    supported: false,
+    reason: 'not-advertised',
+    targetProfileId: 'cloudflare-do-sqlite-v8',
+  };
+  const seedPositive = async (store) => {
+    const observation = await store.beginOfflineMutationReplayCapabilityObservation();
+    const committed = await store.commitOfflineMutationReplayCapabilityFact(
+      positive,
+      observation,
+    );
+    assert.equal(committed.supported, true);
+  };
+  const expectPublishedNegative = async (store, label) => {
+    const fact = await waitForOfflineReplayCapabilityFact(
+      store,
+      (candidate) => candidate.supported === false,
+      `${label} takeover negative`,
+    );
+    assert.equal(fact.reason, 'not-advertised');
+  };
+
+  await Promise.all([
+    t.test('IndexedDB', async () => {
+      const indexedDB = new IDBFactory();
+      const lockManager = createContendedLockManager();
+      const options = {
+        indexedDB,
+        lockManager,
+        databaseName: 'unanswered-route-negative-takeover-conformance',
+        broadcastChannelFactory: null,
+      };
+      const writer = createIndexedDbRqsResumeStore(options);
+      const follower = createIndexedDbRqsResumeStore(options);
+      await Promise.all([writer.whenLockSettled(), follower.whenLockSettled()]);
+      try {
+        await seedPositive(writer);
+        const observation = await follower.beginOfflineMutationReplayCapabilityObservation();
+        assert.equal(Object.hasOwn(observation, 'requestSequence'), false);
+        assert.equal(
+          await follower.commitOfflineMutationReplayCapabilityFact(negative, observation),
+          false,
+        );
+        await writer.close();
+        const deadline = Date.now() + 5_000;
+        while (!follower.isWriter()) {
+          if (Date.now() > deadline) throw new Error('IndexedDB takeover timed out');
+          await new Promise((resolve) => setTimeout(resolve, 5));
+        }
+        await expectPublishedNegative(follower, 'IndexedDB');
+      } finally {
+        await follower.close();
+        await writer.close();
+      }
+    }),
+    t.test('memory', async () => {
+      const backing = createMemoryRqsStoreBacking();
+      const writer = createMemoryRqsResumeStore({ backing });
+      const follower = createMemoryRqsResumeStore({ backing });
+      try {
+        assert.equal(writer.isWriter(), true);
+        assert.equal(follower.isWriter(), false);
+        await seedPositive(writer);
+        backing.offlineReplayCapabilityObservers.clear();
+        backing.offlineReplayCapabilityCommitters.clear();
+        const observation = await follower.beginOfflineMutationReplayCapabilityObservation();
+        assert.equal(observation, false);
+        assert.equal(
+          await follower.commitOfflineMutationReplayCapabilityFact(negative, observation),
+          false,
+        );
+        await writer.close();
+        await follower.whenLockSettled();
+        await expectPublishedNegative(follower, 'memory');
+      } finally {
+        await follower.close();
+        await writer.close();
+      }
+    }),
+    t.test('file', async () => {
+      const directory = mkdtempSync(join(tmpdir(), 'snapback-unanswered-negative-file-'));
+      const identity = 'origin:unanswered-route-negative';
+      const writer = createFileRqsResumeStore({ directory, identity });
+      await writer.whenLockSettled();
+      try {
+        await seedPositive(writer);
+      } finally {
+        await writer.close();
+      }
+      const blobName = readdirSync(directory).find((name) => name.endsWith('.v1.json'));
+      assert.equal(typeof blobName, 'string');
+      const lockPath = join(directory, blobName.replace(/\.v1\.json$/u, '.v1.lock'));
+      const foreignPid = process.pid + 10_000;
+      let foreignAlive = true;
+      writeFileSync(lockPath, JSON.stringify({
+        pid: foreignPid,
+        instanceId: 'foreign-unreachable-writer',
+        acquiredAt: Date.now(),
+      }));
+      const baseFiles = createNodeFilesAdapter();
+      const files = {
+        ...baseFiles,
+        processAlive: (pid) => (pid === foreignPid ? foreignAlive : baseFiles.processAlive(pid)),
+      };
+      const follower = createFileRqsResumeStore({ directory, identity, files });
+      try {
+        await follower.whenLockSettled();
+        assert.equal(follower.isWriter(), false);
+        const observation = await follower.beginOfflineMutationReplayCapabilityObservation();
+        assert.equal(observation, false);
+        assert.equal(
+          await follower.commitOfflineMutationReplayCapabilityFact(negative, observation),
+          false,
+        );
+        foreignAlive = false;
+        await follower.whenLockSettled();
+        assert.equal(follower.isWriter(), true);
+        await expectPublishedNegative(follower, 'file');
+      } finally {
+        await follower.close();
+        rmSync(directory, { recursive: true, force: true });
+      }
+    }),
+    t.test('SQLite', async () => {
+      const directory = mkdtempSync(join(tmpdir(), 'snapback-unanswered-negative-sqlite-'));
+      const open = () => createSqliteRqsResumeStore({
+        sqlite: createNodeSqliteNamespace(directory),
+        databaseName: 'unanswered-route-negative.sqlite',
+      });
+      let store = await open();
+      try {
+        await seedPositive(store);
+        assert.equal(
+          await store.commitOfflineMutationReplayCapabilityFact(negative, false),
+          false,
+        );
+        await store.close();
+        store = await open();
+        await expectPublishedNegative(store, 'SQLite');
+      } finally {
+        await store.close();
+        rmSync(directory, { recursive: true, force: true });
+      }
+    }),
+  ]);
+});
+
 test('unreserved follower negative cannot overwrite a newer positive after writer takeover', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const indexedDB = new IDBFactory();
@@ -4766,6 +4924,111 @@ test('replay final served-target reinspection wins before a delayed peer fact co
     assert.equal(mutationPosts, 0, 'the paused next cycle sends no mutation POST');
   } finally {
     await replacingClient.close();
+    await client.close();
+    await store.close();
+  }
+});
+
+test('replay persists a final negative before releasing a waiting foreground dispatch', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const origin = 'https://replay-negative-before-dispatch-release.example';
+  const targetProfileId = 'local-dev-sqlite-ibex';
+  await commitCompleteReplayCapability(store, origin, targetProfileId);
+  await store.outboxEnqueue({
+    id: 'cm-replay-negative-before-dispatch-release',
+    function: 'createThing',
+    ...currentOutboxTarget({ origin, targetProfileId }),
+    args: { title: 'replay owns the dispatch lock' },
+  });
+  const client = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  client.__registerInspectionAppId(TEST_ARTIFACT_GENERATION.appId);
+  let inspectRequests = 0;
+  let mutationPosts = 0;
+  let resolveReplayFinalInspection;
+  let resolveReplayFinalInspectionStarted;
+  const replayFinalInspectionStartedPromise = new Promise((resolve) => {
+    resolveReplayFinalInspectionStarted = resolve;
+  });
+  const replayFinalInspection = new Promise((resolve) => {
+    resolveReplayFinalInspection = resolve;
+  });
+  let resolveForegroundEnqueue;
+  let resolveForegroundEnqueueStarted;
+  const foregroundEnqueueStarted = new Promise((resolve) => {
+    resolveForegroundEnqueueStarted = resolve;
+  });
+  const foregroundEnqueueRelease = new Promise((resolve) => {
+    resolveForegroundEnqueue = resolve;
+  });
+  const outboxEnqueue = store.outboxEnqueue.bind(store);
+  store.outboxEnqueue = async (record, ...args) => {
+    const stored = await outboxEnqueue(record, ...args);
+    if (record.id === 'cm-foreground-waits-behind-replay-negative') {
+      resolveForegroundEnqueueStarted();
+      await foregroundEnqueueRelease;
+    }
+    return stored;
+  };
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+    if (path === '/inspect') {
+      inspectRequests += 1;
+      if (inspectRequests === 3) {
+        resolveReplayFinalInspectionStarted();
+        return replayFinalInspection;
+      }
+      return Response.json(offlineReplayInspection({ supported: true, targetProfileId }));
+    }
+    if (path === '/mutation/createThing') {
+      mutationPosts += 1;
+      throw new TypeError('simulated lost response after mutation effect');
+    }
+    throw new Error(`unexpected replay/foreground request ${path}`);
+  };
+
+  try {
+    const foregroundOutcome = client.mutate('createThing', {
+      args: { title: 'foreground waits behind replay' },
+      clientMutationId: 'cm-foreground-waits-behind-replay-negative',
+      queue: 'auto',
+    }).then(
+      (value) => ({ value, error: null }),
+      (error) => ({ value: null, error }),
+    );
+    await foregroundEnqueueStarted;
+    const replayPromise = client.replayQueuedMutations();
+    await replayFinalInspectionStartedPromise;
+    resolveForegroundEnqueue();
+    await new Promise((resolve) => setImmediate(resolve));
+    resolveReplayFinalInspection(Response.json(offlineReplayInspection({
+      supported: false,
+      targetProfileId,
+    })));
+
+    const [replay, foreground] = await Promise.all([replayPromise, foregroundOutcome]);
+    assert.equal(replay.replayed, 0);
+    assert.equal(replay.stopped, true);
+    assert.equal(foreground.value, null);
+    assert.equal(
+      foreground.error?.code,
+      'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
+    );
+    assert.equal(mutationPosts, 0, 'neither mutation reaches transport');
+    assert.equal((await store.readOfflineMutationReplayCapabilityFact()).supported, false);
+    assert.equal(
+      (await store.outboxRecords()).some((record) => (
+        record.id === 'cm-foreground-waits-behind-replay-negative'
+        && record.status === 'pending'
+        && record.timing?.dispatchedAtMs !== null
+      )),
+      false,
+      'the refused foreground record is not retained as dispatched pending custody',
+    );
+  } finally {
     await client.close();
     await store.close();
   }

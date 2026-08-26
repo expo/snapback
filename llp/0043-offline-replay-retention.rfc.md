@@ -454,14 +454,16 @@ identity that record schema v2 would persist.
 
 The **inspect-fact rule** is written once and applies identically at
 enqueue-time, cycle-start, and the final pre-POST inspection. (a) Transport
-loss with no `Response`, plus an answered 5xx or proxy/redirect failure, means
-**inspection unavailable**. It never replaces the last positive durable fact;
+loss with no `Response`, an answered 5xx, retryable HTTP 408/425/429, or a
+proxy/redirect failure means **inspection unavailable**. It never replaces the
+last positive durable fact;
 the client records a local, non-durable unavailability observation visible in
 `outboxStatus()`, uses bounded `kind: 'transient'` backoff, and sends no
 mutation POST until a fresh positive inspection. The last positive may remain
 usable only as cached enqueue evidence for `queue: 'auto'`, which creates the
 durable record directly with zero mutation POSTs. (b) A manifest-answering
-response — an answered 4xx, or a parsed 200 manifest that omits
+response — an answered terminal 4xx (excluding retryable 408/425/429), or a
+parsed 200 manifest that omits
 `offline_mutation_replay` — is a durable negative. It overrides a predecessor
 positive, makes enqueue refuse with the capability code, and makes the drain
 pause once as `not-advertised` / target-capability-refused. Committing that
@@ -576,10 +578,12 @@ for this amendment.
 For the final comparison, replay re-inspects the served target immediately
 before the mutation POST and compares it with the persisted generation. A
 difference pauses with `SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH` before the
-dispatch stamp or POST. The final answer is recorded after the dispatch lock
-is released: rule-(a) unavailability is immediately visible locally and
-schedules transient backoff, while rule-(b) answers commit the durable
-negative and pause once without a self-wake. Neither class enters the server
+dispatch stamp or POST. A final rule-(b) negative is durably persisted while
+the authorization-dispatch lock is still held, so a waiting foreground
+mutation cannot acquire that lock and dispatch under the predecessor positive.
+Only listener notification and drain work are deferred until after release,
+and the commit does not self-wake. Rule-(a) unavailability is recorded locally
+after release and schedules transient backoff. Neither class enters the server
 mutation-refusal branch, marks the current record failed, or visits a
 successor. This narrows, but cannot atomically close, the
 inspection-to-POST deployment window. Sessions-mode servers enforce the

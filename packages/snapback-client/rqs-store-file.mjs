@@ -507,6 +507,7 @@ export function createFileRqsResumeStore({
   let borrowedAuthorizationDispatchDepth = 0;
   let pendingOutboxNormalization = false;
   let outboxNormalizationTask = null;
+  let pendingOfflineReplayCapabilityFact = null;
   let authorityTransitionWipe = null;
 
   const chmodBestEffort = async (path, mode) => {
@@ -823,6 +824,66 @@ export function createFileRqsResumeStore({
     await writeState({ ...state, storeMeta: replacement });
     return structuredClone(versioned.fact);
   };
+  const stashPendingOfflineReplayCapabilityFact = async (fact, observation = null) => {
+    if (fact?.supported !== false) return false;
+    let storedFact;
+    try { storedFact = structuredClone(fact); } catch { return false; }
+    const preparedObservation = prepareOfflineMutationReplayCapabilityObservation(observation);
+    let observedStoreRevision = preparedObservation?.observedStoreRevision;
+    if (observedStoreRevision === undefined) {
+      const current = (await readState()).storeMeta.offlineMutationReplayCapabilityFact;
+      observedStoreRevision = Number.isSafeInteger(current?.storeRevision)
+        && current.storeRevision >= 1
+        ? current.storeRevision
+        : 0;
+    }
+    pendingOfflineReplayCapabilityFact = Object.freeze({
+      fact: storedFact,
+      observation: preparedObservation,
+      observedStoreRevision,
+    });
+    return true;
+  };
+  // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 — an
+  // unreachable writer route retains the observed negative and publishes it
+  // only if takeover still sees the exact predecessor revision.
+  const flushPendingOfflineReplayCapabilityFact = async () => {
+    const pending = pendingOfflineReplayCapabilityFact;
+    if (pending === null || !writer || closed) return;
+    if (pending.observation !== null) {
+      await commitOfflineReplayCapabilityAsWriter(pending.fact, pending.observation);
+    } else {
+      const state = await readState();
+      const current = state.storeMeta;
+      const currentRevision = current.offlineMutationReplayCapabilityFact?.storeRevision;
+      const revision = Number.isSafeInteger(currentRevision) && currentRevision >= 1
+        ? currentRevision
+        : 0;
+      if (revision !== pending.observedStoreRevision) {
+        if (pendingOfflineReplayCapabilityFact === pending) {
+          pendingOfflineReplayCapabilityFact = null;
+        }
+        return;
+      }
+      const replacementFact = structuredClone(pending.fact);
+      delete replacementFact.storeRevision;
+      delete replacementFact.requestSequence;
+      const requestSequence = current.generationCounters.offlineReplayCapabilityRequestHighWater;
+      if (Number.isSafeInteger(requestSequence) && requestSequence >= 1) {
+        replacementFact.requestSequence = requestSequence;
+      }
+      replacementFact.storeRevision = revision + 1;
+      const replacement = prepareStoreMeta({
+        ...current,
+        offlineMutationReplayCapabilityFact: replacementFact,
+      });
+      if (replacement === null) return;
+      await writeState({ ...state, storeMeta: replacement });
+    }
+    if (pendingOfflineReplayCapabilityFact === pending) {
+      pendingOfflineReplayCapabilityFact = null;
+    }
+  };
   offlineReplayCapabilityObservationBroker = () => serialized(
     () => beginOfflineReplayCapabilityObservationAsWriter(),
   );
@@ -1127,7 +1188,10 @@ export function createFileRqsResumeStore({
     whenLockSettled() {
       return serialized(async () => {
         await acquireLock();
-        if (writer) await readState();
+        if (writer) {
+          await flushPendingOfflineReplayCapabilityFact();
+          await readState();
+        }
       }).catch(() => {});
     },
 
@@ -1638,7 +1702,10 @@ export function createFileRqsResumeStore({
       requireOpen();
       return serialized(async () => {
         await acquireLock();
-        if (writer) return beginOfflineReplayCapabilityObservationAsWriter();
+        if (writer) {
+          await flushPendingOfflineReplayCapabilityFact();
+          return beginOfflineReplayCapabilityObservationAsWriter();
+        }
         const holder = heldLocks.get(lockPath);
         if (
           holder?.instanceId !== competingWriter?.instanceId
@@ -1652,13 +1719,33 @@ export function createFileRqsResumeStore({
       requireOpen();
       return serialized(async () => {
         await acquireLock();
-        if (writer) return commitOfflineReplayCapabilityAsWriter(fact, observation);
+        if (observation === false) {
+          if (fact?.supported === false) await stashPendingOfflineReplayCapabilityFact(fact);
+          else if (pendingOfflineReplayCapabilityFact?.fact?.origin === fact?.origin) {
+            pendingOfflineReplayCapabilityFact = null;
+          }
+          if (writer) await flushPendingOfflineReplayCapabilityFact();
+          return false;
+        }
+        if (writer) {
+          await flushPendingOfflineReplayCapabilityFact();
+          return commitOfflineReplayCapabilityAsWriter(fact, observation);
+        }
         const holder = heldLocks.get(lockPath);
         if (
           holder?.instanceId !== competingWriter?.instanceId
           || typeof holder?.offlineReplayCapability !== 'function'
-        ) return false;
-        return holder.offlineReplayCapability(fact, observation);
+        ) {
+          if (fact?.supported === false) {
+            await stashPendingOfflineReplayCapabilityFact(fact, observation);
+          }
+          return false;
+        }
+        const committed = await holder.offlineReplayCapability(fact, observation);
+        if (committed === false && fact?.supported === false) {
+          await stashPendingOfflineReplayCapabilityFact(fact, observation);
+        }
+        return committed;
       });
     },
 

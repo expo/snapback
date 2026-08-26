@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:2274c9cf2f2cacd881d91cdfec7bbee6d75272d04bd383ee856ca6b8590ce999"
+    "sourceDigest": "sha256:34d7542e1c8b13005f24b10eac842c4fbe048a012ccfd3e69037dbad7006164c"
   },
   "limits": {
     "lookupBytes": 16384
@@ -249,7 +249,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11078,
+          "line": 11098,
           "column": 10
         }
       ],
@@ -264,7 +264,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11092,
+          "line": 11112,
           "column": 18
         }
       ],
@@ -4539,7 +4539,7 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 3949,
+          "line": 3956,
           "column": 79
         }
       ],
@@ -7271,7 +7271,7 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 22207,
+          "line": 22253,
           "column": 12
         },
         {
@@ -7663,7 +7663,7 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 22307,
+          "line": 22353,
           "column": 12
         },
         {
@@ -9878,7 +9878,7 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 22208,
+          "line": 22254,
           "column": 12
         }
       ],
@@ -10179,7 +10179,7 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 23623,
+          "line": 23669,
           "column": 8
         },
         {
@@ -10199,7 +10199,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 23555,
+          "line": 23601,
           "column": 12
         },
         {
@@ -10337,22 +10337,22 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14682,
+          "line": 14701,
           "column": 40
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14683,
+          "line": 14702,
           "column": 31
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14686,
+          "line": 14705,
           "column": 20
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14693,
+          "line": 14712,
           "column": 20
         },
         {
@@ -14306,32 +14306,32 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 7158,
+          "line": 7165,
           "column": 16
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11227,
+          "line": 11247,
           "column": 14
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 12577,
+          "line": 12597,
           "column": 8
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14280,
+          "line": 14299,
           "column": 16
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 15506,
+          "line": 15552,
           "column": 10
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 15532,
+          "line": 15578,
           "column": 10
         }
       ],
@@ -17672,7 +17672,7 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 7167,
+          "line": 7174,
           "column": 28
         }
       ],
@@ -19061,42 +19061,42 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 6442,
+          "line": 6449,
           "column": 8
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 6444,
+          "line": 6451,
           "column": 19
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 10230,
+          "line": 10250,
           "column": 16
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 10232,
+          "line": 10252,
           "column": 27
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 10240,
+          "line": 10260,
           "column": 16
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 10242,
+          "line": 10262,
           "column": 27
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 10365,
+          "line": 10385,
           "column": 10
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 10367,
+          "line": 10387,
           "column": 21
         },
         {
@@ -19171,7 +19171,7 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 7592,
+          "line": 7599,
           "column": 10
         },
         {
@@ -20732,12 +20732,12 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 9719,
+          "line": 9739,
           "column": 8
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 9720,
+          "line": 9740,
           "column": 9
         }
       ],
@@ -20872,17 +20872,17 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 4992,
+          "line": 4999,
           "column": 22
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 6383,
+          "line": 6390,
           "column": 10
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 6385,
+          "line": 6392,
           "column": 21
         }
       ],
@@ -20907,67 +20907,67 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 4790,
+          "line": 4797,
           "column": 18
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 4792,
+          "line": 4799,
           "column": 20
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 4794,
+          "line": 4801,
           "column": 69
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 4991,
+          "line": 4998,
           "column": 22
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 5123,
+          "line": 5130,
           "column": 12
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 5124,
+          "line": 5131,
           "column": 13
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 5433,
+          "line": 5440,
           "column": 10
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 5434,
+          "line": 5441,
           "column": 11
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 5868,
+          "line": 5875,
           "column": 14
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 5920,
+          "line": 5927,
           "column": 10
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 5922,
+          "line": 5929,
           "column": 21
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11593,
+          "line": 11613,
           "column": 10
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11595,
+          "line": 11615,
           "column": 21
         }
       ],
@@ -22034,22 +22034,22 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 7195,
+          "line": 7202,
           "column": 14
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 19511,
+          "line": 19557,
           "column": 12
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 19873,
+          "line": 19919,
           "column": 12
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 21304,
+          "line": 21350,
           "column": 14
         },
         {
@@ -22146,32 +22146,32 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 19362,
+          "line": 19408,
           "column": 10
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 19364,
+          "line": 19410,
           "column": 21
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 19631,
+          "line": 19677,
           "column": 14
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 19799,
+          "line": 19845,
           "column": 16
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 19883,
+          "line": 19929,
           "column": 12
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 21318,
+          "line": 21364,
           "column": 14
         },
         {
@@ -22633,7 +22633,7 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 19454,
+          "line": 19500,
           "column": 12
         },
         {
@@ -22698,7 +22698,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 19455,
+          "line": 19501,
           "column": 12
         },
         {
@@ -22748,7 +22748,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 19463,
+          "line": 19509,
           "column": 26
         },
         {
@@ -22878,7 +22878,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 19456,
+          "line": 19502,
           "column": 12
         },
         {
@@ -23648,7 +23648,7 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 7402,
+          "line": 7409,
           "column": 19
         },
         {
@@ -24827,12 +24827,12 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 9712,
+          "line": 9732,
           "column": 8
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 9713,
+          "line": 9733,
           "column": 9
         }
       ],
@@ -25086,7 +25086,7 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 22835,
+          "line": 22881,
           "column": 8
         },
         {
@@ -25597,12 +25597,12 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 7146,
+          "line": 7153,
           "column": 55
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 7593,
+          "line": 7600,
           "column": 10
         },
         {
@@ -26839,17 +26839,17 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 18848,
+          "line": 18894,
           "column": 10
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 18850,
+          "line": 18896,
           "column": 21
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 19452,
+          "line": 19498,
           "column": 12
         },
         {
@@ -26989,7 +26989,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 19453,
+          "line": 19499,
           "column": 12
         },
         {
@@ -28216,12 +28216,12 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 7530,
+          "line": 7537,
           "column": 19
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 7589,
+          "line": 7596,
           "column": 10
         },
         {
@@ -28420,7 +28420,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 16766,
+          "line": 16812,
           "column": 20
         }
       ],
@@ -28435,7 +28435,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 16776,
+          "line": 16822,
           "column": 18
         }
       ],
@@ -28450,7 +28450,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 16425,
+          "line": 16471,
           "column": 20
         }
       ],
@@ -28495,7 +28495,7 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 6950,
+          "line": 6957,
           "column": 39
         }
       ],
@@ -29286,17 +29286,17 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 6314,
+          "line": 6321,
           "column": 21
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 7728,
+          "line": 7735,
           "column": 32
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 7729,
+          "line": 7736,
           "column": 21
         },
         {
@@ -29366,17 +29366,17 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 6068,
+          "line": 6075,
           "column": 19
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 7373,
+          "line": 7380,
           "column": 19
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 10168,
+          "line": 10188,
           "column": 24
         },
         {
@@ -29581,7 +29581,7 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 7590,
+          "line": 7597,
           "column": 10
         },
         {
@@ -29643,7 +29643,7 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 7591,
+          "line": 7598,
           "column": 10
         },
         {
@@ -30221,17 +30221,17 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 4517,
+          "line": 4524,
           "column": 23
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 5800,
+          "line": 5807,
           "column": 31
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 12679,
+          "line": 12699,
           "column": 27
         },
         {
@@ -30535,7 +30535,7 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 4993,
+          "line": 5000,
           "column": 22
         },
         {
@@ -30587,12 +30587,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 4624,
+          "line": 4631,
           "column": 14
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 4626,
+          "line": 4633,
           "column": 25
         }
       ],
@@ -30607,12 +30607,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 6419,
+          "line": 6426,
           "column": 12
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 6421,
+          "line": 6428,
           "column": 23
         }
       ],
@@ -30627,12 +30627,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 4588,
+          "line": 4595,
           "column": 14
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 4590,
+          "line": 4597,
           "column": 25
         }
       ],
@@ -34154,7 +34154,7 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 10850,
+          "line": 10870,
           "column": 29
         }
       ],
@@ -36082,32 +36082,32 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 6142,
+          "line": 6149,
           "column": 26
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 9679,
+          "line": 9699,
           "column": 26
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 9763,
+          "line": 9783,
           "column": 26
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 9937,
+          "line": 9957,
           "column": 26
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 10350,
+          "line": 10370,
           "column": 23
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 15213,
+          "line": 15259,
           "column": 18
         },
         {
@@ -36246,47 +36246,47 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 4653,
+          "line": 4660,
           "column": 30
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 6143,
+          "line": 6150,
           "column": 29
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 6259,
+          "line": 6266,
           "column": 30
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 6334,
+          "line": 6341,
           "column": 27
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 9680,
+          "line": 9700,
           "column": 29
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 9764,
+          "line": 9784,
           "column": 29
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 9938,
+          "line": 9958,
           "column": 29
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 10351,
+          "line": 10371,
           "column": 26
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 19450,
+          "line": 19496,
           "column": 27
         },
         {
@@ -36523,7 +36523,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 19315,
+          "line": 19361,
           "column": 10
         }
       ],
@@ -36653,7 +36653,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 5471,
+          "line": 5478,
           "column": 10
         }
       ],
@@ -36668,7 +36668,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 4496,
+          "line": 4503,
           "column": 14
         }
       ],
@@ -36683,32 +36683,32 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 12975,
+          "line": 12995,
           "column": 32
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 12976,
+          "line": 12996,
           "column": 21
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 12998,
+          "line": 13018,
           "column": 32
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 12999,
+          "line": 13019,
           "column": 21
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 13925,
+          "line": 13944,
           "column": 32
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 13926,
+          "line": 13945,
           "column": 21
         },
         {
@@ -37338,17 +37338,17 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 20819,
+          "line": 20865,
           "column": 16
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 21012,
+          "line": 21058,
           "column": 12
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 21027,
+          "line": 21073,
           "column": 12
         }
       ],
@@ -37428,7 +37428,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 3988,
+          "line": 3995,
           "column": 8
         },
         {
@@ -37475,7 +37475,7 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 10560,
+          "line": 10580,
           "column": 16
         }
       ],
@@ -37493,7 +37493,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 22273,
+          "line": 22319,
           "column": 10
         }
       ],
@@ -37508,7 +37508,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 21182,
+          "line": 21228,
           "column": 14
         }
       ],
@@ -37523,12 +37523,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 22536,
+          "line": 22582,
           "column": 12
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 22615,
+          "line": 22661,
           "column": 8
         }
       ],
@@ -37768,12 +37768,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 20097,
+          "line": 20143,
           "column": 10
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 20111,
+          "line": 20157,
           "column": 10
         }
       ],
@@ -37788,7 +37788,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 19325,
+          "line": 19371,
           "column": 10
         }
       ],
@@ -37866,7 +37866,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 6608,
+          "line": 6615,
           "column": 16
         }
       ],
@@ -37881,7 +37881,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 6673,
+          "line": 6680,
           "column": 18
         }
       ],
@@ -37896,7 +37896,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 6696,
+          "line": 6703,
           "column": 20
         }
       ],
@@ -37911,7 +37911,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 6708,
+          "line": 6715,
           "column": 22
         }
       ],
@@ -37926,7 +37926,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 6591,
+          "line": 6598,
           "column": 16
         }
       ],
@@ -42248,12 +42248,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 6483,
+          "line": 6490,
           "column": 12
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 6485,
+          "line": 6492,
           "column": 10
         }
       ],
@@ -42418,7 +42418,7 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 6851,
+          "line": 6858,
           "column": 38
         },
         {
@@ -48001,12 +48001,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 17648,
+          "line": 17694,
           "column": 39
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 17676,
+          "line": 17722,
           "column": 22
         }
       ],
@@ -48071,12 +48071,12 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 6643,
+          "line": 6650,
           "column": 12
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 6645,
+          "line": 6652,
           "column": 23
         }
       ],
@@ -48111,7 +48111,7 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 7444,
+          "line": 7451,
           "column": 19
         }
       ],
@@ -48191,12 +48191,12 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 6626,
+          "line": 6633,
           "column": 12
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 6628,
+          "line": 6635,
           "column": 23
         }
       ],
@@ -48356,27 +48356,27 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 6656,
+          "line": 6663,
           "column": 12
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 6658,
+          "line": 6665,
           "column": 23
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 17179,
+          "line": 17225,
           "column": 14
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 17181,
+          "line": 17227,
           "column": 25
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 17203,
+          "line": 17249,
           "column": 46
         },
         {
@@ -48726,7 +48726,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 17444,
+          "line": 17490,
           "column": 53
         }
       ],
@@ -48801,12 +48801,12 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 17337,
+          "line": 17383,
           "column": 32
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 17338,
+          "line": 17384,
           "column": 21
         }
       ],
@@ -48831,12 +48831,12 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 17373,
+          "line": 17419,
           "column": 36
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 17374,
+          "line": 17420,
           "column": 25
         }
       ],
@@ -48851,12 +48851,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 17389,
+          "line": 17435,
           "column": 36
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 17390,
+          "line": 17436,
           "column": 25
         }
       ],
@@ -48871,12 +48871,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 17380,
+          "line": 17426,
           "column": 36
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 17381,
+          "line": 17427,
           "column": 25
         }
       ],
@@ -48891,12 +48891,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 22825,
+          "line": 22871,
           "column": 27
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 22836,
+          "line": 22882,
           "column": 8
         }
       ],
@@ -48951,12 +48951,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 17153,
+          "line": 17199,
           "column": 38
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 17154,
+          "line": 17200,
           "column": 27
         }
       ],
@@ -49046,12 +49046,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 23005,
+          "line": 23051,
           "column": 10
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 23008,
+          "line": 23054,
           "column": 16
         }
       ],
@@ -49121,7 +49121,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 17481,
+          "line": 17527,
           "column": 47
         }
       ],
@@ -49161,12 +49161,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 17507,
+          "line": 17553,
           "column": 10
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 17520,
+          "line": 17566,
           "column": 10
         },
         {
@@ -51169,12 +51169,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/rqs-store-sqlite.mjs",
-          "line": 254,
+          "line": 255,
           "column": 12
         },
         {
           "file": "packages/snapback-client/rqs-store-sqlite.mjs",
-          "line": 783,
+          "line": 843,
           "column": 32
         }
       ],
@@ -51189,7 +51189,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/rqs-store-sqlite.mjs",
-          "line": 432,
+          "line": 482,
           "column": 10
         },
         {
@@ -51329,12 +51329,12 @@
         },
         {
           "file": "packages/snapback-client/rqs-store-sqlite.mjs",
-          "line": 238,
+          "line": 239,
           "column": 12
         },
         {
           "file": "packages/snapback-client/rqs-store-sqlite.mjs",
-          "line": 499,
+          "line": 549,
           "column": 10
         },
         {
@@ -51354,7 +51354,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/rqs-store-sqlite.mjs",
-          "line": 214,
+          "line": 215,
           "column": 10
         }
       ],
@@ -61748,7 +61748,7 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 7790,
+          "line": 7797,
           "column": 22
         }
       ],
@@ -62177,7 +62177,7 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 22338,
+          "line": 22384,
           "column": 30
         }
       ],
@@ -64448,7 +64448,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 20083,
+          "line": 20129,
           "column": 12
         }
       ],
@@ -64463,17 +64463,17 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 20154,
+          "line": 20200,
           "column": 8
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 20155,
+          "line": 20201,
           "column": 9
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 20829,
+          "line": 20875,
           "column": 30
         }
       ],
@@ -64488,7 +64488,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 20084,
+          "line": 20130,
           "column": 12
         }
       ],
@@ -64503,22 +64503,22 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 20091,
+          "line": 20137,
           "column": 8
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 20092,
+          "line": 20138,
           "column": 9
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 20911,
+          "line": 20957,
           "column": 30
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 21051,
+          "line": 21097,
           "column": 30
         }
       ],
@@ -64783,22 +64783,22 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 21914,
+          "line": 21960,
           "column": 10
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 21979,
+          "line": 22025,
           "column": 10
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 22060,
+          "line": 22106,
           "column": 18
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 22150,
+          "line": 22196,
           "column": 14
         }
       ],
@@ -64813,7 +64813,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 17912,
+          "line": 17958,
           "column": 14
         }
       ],
@@ -64828,12 +64828,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 21973,
+          "line": 22019,
           "column": 10
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 22103,
+          "line": 22149,
           "column": 12
         }
       ],
@@ -64848,7 +64848,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 22048,
+          "line": 22094,
           "column": 16
         }
       ],
@@ -64863,7 +64863,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 18841,
+          "line": 18887,
           "column": 24
         }
       ],
@@ -71697,12 +71697,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 9510,
+          "line": 9530,
           "column": 58
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 16683,
+          "line": 16729,
           "column": 66
         }
       ],
@@ -71993,7 +71993,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11863,
+          "line": 11883,
           "column": 16
         }
       ],
@@ -72008,7 +72008,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14810,
+          "line": 14829,
           "column": 20
         }
       ],
@@ -72023,7 +72023,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 12333,
+          "line": 12353,
           "column": 14
         }
       ],
@@ -72038,7 +72038,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11880,
+          "line": 11900,
           "column": 16
         }
       ],
@@ -72068,12 +72068,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14601,
+          "line": 14620,
           "column": 20
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 16546,
+          "line": 16592,
           "column": 22
         }
       ],
@@ -72098,17 +72098,17 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11913,
+          "line": 11933,
           "column": 38
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11994,
+          "line": 12014,
           "column": 14
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 12940,
+          "line": 12960,
           "column": 16
         },
         {
@@ -72136,22 +72136,22 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11650,
+          "line": 11670,
           "column": 14
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 12880,
+          "line": 12900,
           "column": 20
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 12959,
+          "line": 12979,
           "column": 16
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 15515,
+          "line": 15561,
           "column": 18
         }
       ],
@@ -72166,7 +72166,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14526,
+          "line": 14545,
           "column": 18
         }
       ],
@@ -72181,7 +72181,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14877,
+          "line": 14896,
           "column": 18
         }
       ],
@@ -72196,12 +72196,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14586,
+          "line": 14605,
           "column": 20
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 16535,
+          "line": 16581,
           "column": 22
         }
       ],
@@ -72216,12 +72216,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14756,
+          "line": 14775,
           "column": 20
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 16667,
+          "line": 16713,
           "column": 24
         }
       ],
@@ -72236,12 +72236,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11323,
+          "line": 11343,
           "column": 10
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11325,
+          "line": 11345,
           "column": 21
         }
       ],
@@ -72256,7 +72256,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11301,
+          "line": 11321,
           "column": 20
         },
         {
@@ -72279,7 +72279,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11337,
+          "line": 11357,
           "column": 10
         }
       ],
@@ -72314,47 +72314,47 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11331,
+          "line": 11351,
           "column": 10
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 12251,
+          "line": 12271,
           "column": 10
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 12253,
+          "line": 12273,
           "column": 21
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 12289,
+          "line": 12309,
           "column": 10
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 12291,
+          "line": 12311,
           "column": 21
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 12296,
+          "line": 12316,
           "column": 10
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 12298,
+          "line": 12318,
           "column": 21
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 12631,
+          "line": 12651,
           "column": 10
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 12633,
+          "line": 12653,
           "column": 21
         },
         {
@@ -72374,7 +72374,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 12434,
+          "line": 12454,
           "column": 16
         }
       ],
@@ -72389,7 +72389,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 12548,
+          "line": 12568,
           "column": 14
         }
       ],
@@ -72404,7 +72404,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 12540,
+          "line": 12560,
           "column": 16
         }
       ],
@@ -72444,17 +72444,17 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14267,
+          "line": 14286,
           "column": 56
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 15169,
+          "line": 15215,
           "column": 13
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 15907,
+          "line": 15953,
           "column": 56
         }
       ],
@@ -73464,22 +73464,22 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14269,
+          "line": 14288,
           "column": 16
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14271,
+          "line": 14290,
           "column": 27
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 15909,
+          "line": 15955,
           "column": 16
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 15911,
+          "line": 15957,
           "column": 27
         }
       ],
@@ -73684,22 +73684,22 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14337,
+          "line": 14356,
           "column": 16
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14339,
+          "line": 14358,
           "column": 27
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 16110,
+          "line": 16156,
           "column": 16
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 16112,
+          "line": 16158,
           "column": 27
         }
       ],
@@ -73764,22 +73764,22 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14293,
+          "line": 14312,
           "column": 18
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14295,
+          "line": 14314,
           "column": 29
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 15544,
+          "line": 15590,
           "column": 12
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 15546,
+          "line": 15592,
           "column": 23
         }
       ],
@@ -73794,7 +73794,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 16089,
+          "line": 16135,
           "column": 23
         }
       ],
@@ -73809,12 +73809,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 12848,
+          "line": 12868,
           "column": 10
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 12850,
+          "line": 12870,
           "column": 21
         }
       ],
@@ -73829,12 +73829,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 15473,
+          "line": 15519,
           "column": 12
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 15475,
+          "line": 15521,
           "column": 23
         }
       ],
@@ -73854,17 +73854,17 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11914,
+          "line": 11934,
           "column": 20
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14617,
+          "line": 14636,
           "column": 20
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 16023,
+          "line": 16069,
           "column": 26
         }
       ],
@@ -75171,12 +75171,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11212,
+          "line": 11232,
           "column": 16
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11214,
+          "line": 11234,
           "column": 27
         }
       ],
@@ -75191,12 +75191,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11205,
+          "line": 11225,
           "column": 16
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11207,
+          "line": 11227,
           "column": 27
         }
       ],
@@ -75231,7 +75231,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14943,
+          "line": 14989,
           "column": 10
         }
       ],
@@ -75246,7 +75246,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14977,
+          "line": 15023,
           "column": 10
         }
       ],
@@ -75261,7 +75261,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 15006,
+          "line": 15052,
           "column": 12
         }
       ],
@@ -75276,7 +75276,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14951,
+          "line": 14997,
           "column": 10
         }
       ],
@@ -75291,7 +75291,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 15034,
+          "line": 15080,
           "column": 17
         }
       ],
@@ -75306,12 +75306,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14829,
+          "line": 14848,
           "column": 20
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14837,
+          "line": 14856,
           "column": 20
         }
       ],
@@ -75326,7 +75326,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14964,
+          "line": 15010,
           "column": 10
         }
       ],
@@ -75341,7 +75341,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14957,
+          "line": 15003,
           "column": 10
         }
       ],
@@ -75356,12 +75356,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 4575,
+          "line": 4582,
           "column": 16
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 4577,
+          "line": 4584,
           "column": 27
         }
       ],
@@ -75381,17 +75381,17 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 16050,
+          "line": 16096,
           "column": 51
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 16455,
+          "line": 16501,
           "column": 39
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 19459,
+          "line": 19505,
           "column": 12
         },
         {
@@ -75461,27 +75461,27 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11362,
+          "line": 11382,
           "column": 10
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11364,
+          "line": 11384,
           "column": 21
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11692,
+          "line": 11712,
           "column": 12
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11694,
+          "line": 11714,
           "column": 23
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 19458,
+          "line": 19504,
           "column": 12
         }
       ],
@@ -75516,32 +75516,32 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14389,
+          "line": 14408,
           "column": 24
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14468,
+          "line": 14487,
           "column": 24
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 16049,
+          "line": 16095,
           "column": 48
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 16308,
+          "line": 16354,
           "column": 28
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 16454,
+          "line": 16500,
           "column": 39
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 19460,
+          "line": 19506,
           "column": 12
         },
         {
@@ -75576,67 +75576,67 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11164,
+          "line": 11184,
           "column": 14
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11166,
+          "line": 11186,
           "column": 25
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11177,
+          "line": 11197,
           "column": 14
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11179,
+          "line": 11199,
           "column": 25
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14387,
+          "line": 14406,
           "column": 22
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14466,
+          "line": 14485,
           "column": 22
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 16051,
+          "line": 16097,
           "column": 51
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 16056,
+          "line": 16102,
           "column": 24
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 16290,
+          "line": 16336,
           "column": 24
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 16292,
+          "line": 16338,
           "column": 35
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 16305,
+          "line": 16351,
           "column": 26
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 16453,
+          "line": 16499,
           "column": 36
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 16461,
+          "line": 16507,
           "column": 18
         },
         {
@@ -75667,12 +75667,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 13872,
+          "line": 13891,
           "column": 12
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 13874,
+          "line": 13893,
           "column": 23
         }
       ],
@@ -75687,17 +75687,17 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 13429,
+          "line": 13449,
           "column": 12
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 13431,
+          "line": 13451,
           "column": 23
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 13526,
+          "line": 13546,
           "column": 22
         }
       ],
@@ -75712,12 +75712,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 13422,
+          "line": 13442,
           "column": 12
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 13424,
+          "line": 13444,
           "column": 23
         }
       ],
@@ -75732,7 +75732,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 16697,
+          "line": 16743,
           "column": 24
         }
       ],
@@ -75777,7 +75777,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11888,
+          "line": 11908,
           "column": 16
         },
         {
@@ -75797,12 +75797,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11804,
+          "line": 11824,
           "column": 10
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11806,
+          "line": 11826,
           "column": 21
         }
       ],
@@ -75832,22 +75832,22 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11377,
+          "line": 11397,
           "column": 30
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 16161,
+          "line": 16207,
           "column": 26
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 16171,
+          "line": 16217,
           "column": 26
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 19457,
+          "line": 19503,
           "column": 12
         },
         {
@@ -75870,7 +75870,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14768,
+          "line": 14787,
           "column": 22
         }
       ],
@@ -75920,12 +75920,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 12326,
+          "line": 12346,
           "column": 10
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 12328,
+          "line": 12348,
           "column": 21
         }
       ],
@@ -75940,12 +75940,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14847,
+          "line": 14866,
           "column": 62
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14862,
+          "line": 14881,
           "column": 72
         },
         {
@@ -75985,12 +75985,12 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14436,
+          "line": 14455,
           "column": 20
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14662,
+          "line": 14681,
           "column": 28
         }
       ],
@@ -76012,12 +76012,12 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14663,
+          "line": 14682,
           "column": 31
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14674,
+          "line": 14693,
           "column": 37
         }
       ],
@@ -76034,7 +76034,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 12231,
+          "line": 12251,
           "column": 16
         }
       ],
@@ -76079,12 +76079,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 12215,
+          "line": 12235,
           "column": 14
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 12217,
+          "line": 12237,
           "column": 25
         }
       ],
@@ -76099,22 +76099,22 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14555,
+          "line": 14574,
           "column": 44
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14565,
+          "line": 14584,
           "column": 22
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 16502,
+          "line": 16548,
           "column": 20
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 16504,
+          "line": 16550,
           "column": 38
         }
       ],
@@ -76129,27 +76129,27 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14507,
+          "line": 14526,
           "column": 14
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14509,
+          "line": 14528,
           "column": 25
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14538,
+          "line": 14557,
           "column": 34
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 16380,
+          "line": 16426,
           "column": 16
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 16382,
+          "line": 16428,
           "column": 27
         }
       ],
@@ -76164,12 +76164,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 12349,
+          "line": 12369,
           "column": 10
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 12351,
+          "line": 12371,
           "column": 21
         }
       ],
@@ -76184,12 +76184,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 12466,
+          "line": 12486,
           "column": 10
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 12468,
+          "line": 12488,
           "column": 21
         }
       ],
@@ -76204,32 +76204,32 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14384,
+          "line": 14403,
           "column": 20
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14390,
+          "line": 14409,
           "column": 24
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14463,
+          "line": 14482,
           "column": 20
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14469,
+          "line": 14488,
           "column": 24
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 16302,
+          "line": 16348,
           "column": 24
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 16309,
+          "line": 16355,
           "column": 28
         }
       ],
@@ -76244,17 +76244,17 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 9213,
+          "line": 9233,
           "column": 18
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 9221,
+          "line": 9241,
           "column": 18
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 15637,
+          "line": 15683,
           "column": 18
         }
       ],
@@ -76269,7 +76269,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 9420,
+          "line": 9440,
           "column": 44
         }
       ],
@@ -77340,7 +77340,7 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 10545,
+          "line": 10565,
           "column": 16
         }
       ],
@@ -81211,17 +81211,17 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 3827,
+          "line": 3834,
           "column": 14
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 3828,
+          "line": 3835,
           "column": 4
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 3918,
+          "line": 3925,
           "column": 11
         },
         {
@@ -81904,7 +81904,7 @@
         },
         {
           "file": "packages/snapback-client/rqs-store-file.mjs",
-          "line": 1603,
+          "line": 1667,
           "column": 14
         },
         {
@@ -82030,22 +82030,22 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 21380,
+          "line": 21426,
           "column": 14
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 21382,
+          "line": 21428,
           "column": 25
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 21392,
+          "line": 21438,
           "column": 16
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 21395,
+          "line": 21441,
           "column": 27
         },
         {
@@ -82922,12 +82922,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 17275,
+          "line": 17321,
           "column": 36
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 17276,
+          "line": 17322,
           "column": 25
         },
         {
@@ -83620,12 +83620,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 18080,
+          "line": 18126,
           "column": 10
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 18082,
+          "line": 18128,
           "column": 21
         }
       ],
@@ -86952,12 +86952,12 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 6724,
+          "line": 6731,
           "column": 62
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 6757,
+          "line": 6764,
           "column": 35
         }
       ],
@@ -87092,7 +87092,7 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 7826,
+          "line": 7833,
           "column": 16
         }
       ],
@@ -88146,7 +88146,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 20765,
+          "line": 20811,
           "column": 20
         },
         {
@@ -88169,7 +88169,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 20781,
+          "line": 20827,
           "column": 22
         }
       ],
@@ -88186,7 +88186,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 20754,
+          "line": 20800,
           "column": 20
         }
       ],
@@ -88201,7 +88201,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 20138,
+          "line": 20184,
           "column": 39
         }
       ],
@@ -88462,12 +88462,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 18073,
+          "line": 18119,
           "column": 10
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 18075,
+          "line": 18121,
           "column": 21
         },
         {
@@ -88502,12 +88502,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 18062,
+          "line": 18108,
           "column": 10
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 18064,
+          "line": 18110,
           "column": 21
         }
       ],
@@ -88567,22 +88567,22 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 16689,
+          "line": 16735,
           "column": 40
         },
         {
           "file": "packages/snapback-client/rqs-store-file.mjs",
-          "line": 947,
+          "line": 1008,
           "column": 35
         },
         {
           "file": "packages/snapback-client/rqs-store-memory.mjs",
-          "line": 83,
+          "line": 86,
           "column": 32
         },
         {
           "file": "packages/snapback-client/rqs-store-memory.mjs",
-          "line": 84,
+          "line": 87,
           "column": 21
         },
         {
@@ -88647,62 +88647,62 @@
         },
         {
           "file": "packages/snapback-client/rqs-store-memory.mjs",
-          "line": 157,
+          "line": 160,
           "column": 10
         },
         {
           "file": "packages/snapback-client/rqs-store-memory.mjs",
-          "line": 159,
+          "line": 162,
           "column": 21
         },
         {
           "file": "packages/snapback-client/rqs-store-memory.mjs",
-          "line": 192,
+          "line": 195,
           "column": 10
         },
         {
           "file": "packages/snapback-client/rqs-store-memory.mjs",
-          "line": 194,
+          "line": 197,
           "column": 21
         },
         {
           "file": "packages/snapback-client/rqs-store-memory.mjs",
-          "line": 283,
+          "line": 339,
           "column": 34
         },
         {
           "file": "packages/snapback-client/rqs-store-memory.mjs",
-          "line": 284,
+          "line": 340,
           "column": 23
         },
         {
           "file": "packages/snapback-client/rqs-store-memory.mjs",
-          "line": 314,
+          "line": 385,
           "column": 34
         },
         {
           "file": "packages/snapback-client/rqs-store-memory.mjs",
-          "line": 315,
+          "line": 386,
           "column": 23
         },
         {
           "file": "packages/snapback-client/rqs-store-memory.mjs",
-          "line": 325,
+          "line": 396,
           "column": 34
         },
         {
           "file": "packages/snapback-client/rqs-store-memory.mjs",
-          "line": 326,
+          "line": 397,
           "column": 23
         },
         {
           "file": "packages/snapback-client/rqs-store-memory.mjs",
-          "line": 355,
+          "line": 426,
           "column": 34
         },
         {
           "file": "packages/snapback-client/rqs-store-memory.mjs",
-          "line": 356,
+          "line": 427,
           "column": 23
         },
         {
@@ -88844,22 +88844,22 @@
       "sites": [
         {
           "file": "packages/snapback-client/rqs-store-file.mjs",
-          "line": 1692,
+          "line": 1779,
           "column": 14
         },
         {
           "file": "packages/snapback-client/rqs-store-memory.mjs",
-          "line": 342,
+          "line": 413,
           "column": 12
         },
         {
           "file": "packages/snapback-client/rqs-store-memory.mjs",
-          "line": 344,
+          "line": 415,
           "column": 23
         },
         {
           "file": "packages/snapback-client/rqs-store-sqlite.mjs",
-          "line": 732,
+          "line": 792,
           "column": 14
         },
         {
@@ -88937,12 +88937,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11355,
+          "line": 11375,
           "column": 10
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 11357,
+          "line": 11377,
           "column": 21
         },
         {
@@ -92967,7 +92967,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 14242,
+          "line": 14261,
           "column": 20
         },
         {
@@ -94545,37 +94545,37 @@
       "sites": [
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 3829,
+          "line": 3836,
           "column": 14
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 3830,
+          "line": 3837,
           "column": 4
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 3877,
+          "line": 3884,
           "column": 23
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 3879,
+          "line": 3886,
           "column": 30
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 3880,
+          "line": 3887,
           "column": 16
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 3883,
+          "line": 3890,
           "column": 11
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 4666,
+          "line": 4673,
           "column": 18
         },
         {
@@ -100541,7 +100541,7 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 20021,
+          "line": 20067,
           "column": 44
         }
       ],
@@ -103208,7 +103208,7 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
-          "line": 17454,
+          "line": 17500,
           "column": 7
         }
       ],

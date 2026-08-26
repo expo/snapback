@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:65c1e36dd4cfd507238a9bb34dab540c790306040c4f
 # @expo/snapback-client/vector-search
 
 Build-bound public API projection for `@expo/snapback-client/vector-search`. Canonical registry identity:
-`sha256:e6790bc2ab7fa1236c1980600a2a69d6aebcc4af0ef9b7f6de2ad1ffe3825fed`.
+`sha256:7a899c7e251ab8dce3f3187d7aafe6d333acc6390ba1e27ee6a0a49d090f7a50`.
 Runtime parity condition:
 `import` → `packages/snapback-client/vector-search.mjs`.
 
@@ -39,7 +39,7 @@ Symbols: 5 total; 1 runtime values; 4 type-only.
 
 Stable identity: `npm:@expo/snapback-client/vector-search#SnapbackClient`
 Kind: `runtime-class`
-Source: `packages/snapback-client/index.d.mts:1850`
+Source: `packages/snapback-client/index.d.mts:1858`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export class SnapbackClient {
@@ -389,7 +389,9 @@ export class SnapbackClient {
   ): Promise<ResultGoneAcknowledgementOutcome>;
   /** Fires after every outbox transition (queue/replay/settle-failure) and
    * around each drain; returns the unsubscribe. Listeners observe only. */
-  subscribeOutbox(listener: () => void): () => void;
+  subscribeOutbox(
+    listener: (notification?: { readonly kind?: string; readonly drainWake?: boolean }) => void,
+  ): () => void;
   /** Terminal-auth fact: is this client's current authority permanently
    * done? Synchronous pure projection; see AuthTerminalStatus. */
   authTerminalStatus(): AuthTerminalStatus;
