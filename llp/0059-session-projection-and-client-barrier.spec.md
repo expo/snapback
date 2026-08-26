@@ -5,7 +5,16 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-08-26 (round-9 structural ordering repair: exact room
+**Revised:** 2026-08-26 (round-10 completion-liveness repair: the completion
+fence no longer crosses the closed kernel operation in an owned value.
+Kernel lends sync a read-only decision view only after releasing SQLite, then
+settles the exact marker after the callback returns. An authorization writer
+premarks its ticket and invalidates an older in-flight completion instead of
+waiting for its destructor; participant replacement retires the old registry
+and does the same. A late completion cannot clear its obligation, and the
+writer's premark or retired registry keeps its effects from reaching a sink.)
+**Revised:** 2026-08-26 (round-9 structural ordering repair, superseded in
+completion ownership and writer-wait details by round 10: exact room
 reauthorization no longer overlaps SQLite with the authority registry or sync
 room locks. It claims a lock-free writer fence under registry, releases
 registry, performs and closes the SQLite validation transaction, and only then
@@ -852,7 +861,8 @@ Exact room-reauthorization completion is deliberately not a second overlap:
 ```text
 ephemeral lifecycle -> authority registry claim -> release authority registry
 -> SQLite IMMEDIATE validation -> release SQLite
--> rooms map -> room -> subscriber outbox -> atomic completion disposition
+-> closed borrowed completion callback: rooms map -> room -> subscriber outbox
+-> exact authority-registry settlement
 ```
 
 The completion SQLite connection is claimed once from `ServingDatabase` during
@@ -862,26 +872,33 @@ perform the always-on Local-scope refusal above. Completion then takes the
 lifecycle read guard, installs an active atomic writer fence under the registry,
 and releases the registry before it may wait for `IMMEDIATE`. SQLite remains
 held only through the durable session and membership rereads and is released
-inside that closed kernel call. The returned value owns neither lock. Exact
-subscriber/effect-fence mutation and subscriber-outbox effects run afterward
-without SQLite or registry. Once those guards release, the terminal method
-publishes one atomic disposition; a later ordinary registry acquisition
-reconciles it. The notifier wake and later routing cleanup also occur without
-SQLite or registry. A persistent SQLite writer can therefore delay the
+inside that closed kernel call. Kernel then lends the callback only a borrowed,
+read-only view of the derived decisions; the fence remains kernel-owned and no
+owned completion is returned. Exact subscriber/effect-fence mutation and
+subscriber-outbox effects run without SQLite or registry. Once the callback's
+guards release, kernel reacquires the registry and applies `COMPLETE`,
+`MISSING`, or `ABANDONED` only when the exact marker is still active. Error,
+panic, and unwind publish `ABANDONED` without acquiring a lock; a later ordinary
+registry acquisition reconciles it. The notifier wake and later routing cleanup
+also occur without SQLite or registry. A persistent SQLite writer can therefore delay the
 completion owner and lifecycle-exclusive maintenance, but cannot pin every
 managed Local operation. An ordinary authorization write can still pin Local
 while its own `IMMEDIATE` acquisition waits; that is the transaction-bind path,
 not completion. LLP 0290 §7.1 owns the participant-specific statement and
 reverse-edge inventory.
 
-The atomic writer fence closes the two-store gap without lock overlap. Every
-relevant authorization writer premarks its affected-room ticket under registry
-and then waits while the fence is active, before it can acquire SQLite. A
-completion cannot claim the fence after that premark, and a writer cannot
-commit between a successful durable reread and the in-memory effect. The
-returned completion may be retained, but it cannot carry a mutex guard or
-SQLite transaction into arbitrary caller work, and its terminal and `Drop`
-paths cannot create a reverse edge.
+The atomic marker closes the two-store gap without becoming a liveness
+dependency. Every relevant authorization writer premarks its affected-room
+ticket under registry, then invalidates and removes any older in-flight
+completion marker before it may acquire SQLite. A completion cannot claim
+after that premark. If a writer preempts a completion after its durable reread,
+the writer's already-installed ticket blocks every sink; the late callback may
+perform conservative in-memory work, but exact settlement loses, the old
+obligation is not cleared, and no stale frame can cross final admission.
+Participant replacement first retires the registry, so the same late work is
+fail-closed there. Neither path waits for callback return or destructor
+execution. The callback sees no fence value it can retain, and `mem::forget`
+of its borrowed decision view carries no coordination authority.
 
 ### Authorization-write handoff
 

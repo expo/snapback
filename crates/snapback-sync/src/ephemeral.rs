@@ -16,8 +16,8 @@ use crate::storage::{
     AuthorizationOutboxAdmission, AuthorizationReservationCancellation, AuthorizationVersion,
     NonAuthorizingRoomAuthority, OutboxFrameDisposition, RealtimePublicationValidity,
     RoomAuthorityOperationGuard, RoomCreationAdmission, RoomReauthorizationCompletion,
-    RoomReauthorizationDatabase, RoomReauthorizationSubject, RoomReauthorizationSubscriber,
-    RoomRetirementAdmission, ServingDatabase,
+    RoomReauthorizationDatabase, RoomReauthorizationDisposition, RoomReauthorizationSubject,
+    RoomReauthorizationSubscriber, RoomRetirementAdmission, ServingDatabase,
 };
 pub use crate::storage::{
     RealtimePublicationPermit, ResolvedRoomReauthorizationBatch, RoomAuthorityPermit,
@@ -3377,32 +3377,38 @@ impl RoomAuthority {
         }
     }
 
-    fn begin_room_reauthorization_completion(
+    fn run_room_reauthorization_completion<T>(
         &self,
         database: &ServingDatabase,
         batch: ResolvedRoomReauthorizationBatch,
-    ) -> SnapbackResult<Option<RoomReauthorizationCompletion>> {
+        finish: impl FnOnce(
+            &RoomReauthorizationCompletion,
+        ) -> SnapbackResult<(RoomReauthorizationDisposition, T)>,
+    ) -> SnapbackResult<Option<T>> {
         match self {
             Self::Bound(participant) => {
-                participant.begin_room_reauthorization_completion(database, batch)
+                participant.run_room_reauthorization_completion(database, batch, finish)
             }
             Self::Unbound(authority) => {
-                authority.begin_room_reauthorization_completion(database, batch)
+                authority.run_room_reauthorization_completion(database, batch, finish)
             }
         }
     }
 
-    fn begin_room_reauthorization_completion_off_local(
+    fn run_room_reauthorization_completion_off_local<T>(
         &self,
         database: &RoomReauthorizationDatabase,
         batch: ResolvedRoomReauthorizationBatch,
-    ) -> SnapbackResult<Option<RoomReauthorizationCompletion>> {
+        finish: impl FnOnce(
+            &RoomReauthorizationCompletion,
+        ) -> SnapbackResult<(RoomReauthorizationDisposition, T)>,
+    ) -> SnapbackResult<Option<T>> {
         match self {
             Self::Bound(participant) => {
-                participant.begin_room_reauthorization_completion_off_local(database, batch)
+                participant.run_room_reauthorization_completion_off_local(database, batch, finish)
             }
             Self::Unbound(authority) => {
-                authority.begin_room_reauthorization_completion_off_local(database, batch)
+                authority.run_room_reauthorization_completion_off_local(database, batch, finish)
             }
         }
     }
@@ -3950,19 +3956,18 @@ impl LocalEphemeralBackend {
         // @ref LLP 0290#71-lock-ordering — kernel validation mints its
         // non-locking writer fence under the registry, releases that guard,
         // then acquires and releases SQLite before this sync-owned room work.
-        // No caller-retainable value owns either lock. Lifecycle also
-        // serializes terminal revocation with definition/reset so neither
-        // clears the other's marker.
+        // The kernel lends only a read-only completion view to this closed
+        // callback; no caller-retainable value owns the fence or either lock.
+        // Lifecycle also serializes terminal revocation with definition/reset
+        // so neither clears the other's marker.
         let _lifecycle = self.lifecycle_read("ephemeral room reauthorization completion");
-        let completion = match self
+        Ok(self
             .shared
             .room_authority
-            .begin_room_reauthorization_completion(database, batch)?
-        {
-            Some(completion) => completion,
-            None => return Ok(false),
-        };
-        self.finish_room_reauthorization_completion(completion)
+            .run_room_reauthorization_completion(database, batch, |completion| {
+                self.finish_room_reauthorization_completion(completion)
+            })?
+            .unwrap_or(false))
     }
 
     /// Complete on the take-once database lane owned outside managed Local.
@@ -3975,32 +3980,25 @@ impl LocalEphemeralBackend {
     ) -> SnapbackResult<bool> {
         require_room_reauthorization_outside_local()?;
         let _lifecycle = self.lifecycle_read("ephemeral room reauthorization completion");
-        let completion = match self
+        Ok(self
             .shared
             .room_authority
-            .begin_room_reauthorization_completion_off_local(database, batch)?
-        {
-            Some(completion) => completion,
-            None => return Ok(false),
-        };
-        self.finish_room_reauthorization_completion(completion)
+            .run_room_reauthorization_completion_off_local(database, batch, |completion| {
+                self.finish_room_reauthorization_completion(completion)
+            })?
+            .unwrap_or(false))
     }
 
     fn finish_room_reauthorization_completion(
         &self,
-        completion: RoomReauthorizationCompletion,
-    ) -> SnapbackResult<bool> {
+        completion: &RoomReauthorizationCompletion,
+    ) -> SnapbackResult<(RoomReauthorizationDisposition, bool)> {
         let room_id = completion.room().clone();
         let room_authority_generation = completion.generation();
         let resolutions = completion.resolutions();
         let rooms = lock(&self.shared.rooms);
         let Some(room_arc) = rooms.get(&room_id).cloned() else {
-            // The kernel has already released SQLite. Release room routing
-            // before publishing the lock-free missing-room disposition; the
-            // registry reconciles that disposition on its next acquisition.
-            drop(rooms);
-            completion.remove_missing_room();
-            return Ok(true);
+            return Ok((RoomReauthorizationDisposition::Missing, true));
         };
         let mut room = lock(&room_arc);
         let expected = room
@@ -4024,7 +4022,7 @@ impl LocalEphemeralBackend {
             // permission checks ran. Keep the level-triggered obligation
             // pending so maintenance resolves the replacement's exact fence;
             // never apply the predecessor's result to it.
-            return Ok(false);
+            return Ok((RoomReauthorizationDisposition::Abandoned, false));
         }
 
         let denied = resolutions
@@ -4052,7 +4050,6 @@ impl LocalEphemeralBackend {
             room.retired = true;
             drop(room);
             drop(rooms);
-            drop(completion);
             self.retire_generation_exhausted_room(&room_id);
             return Err(SnapbackError::error(
                 error.code.diagnostic_code(),
@@ -4205,12 +4202,6 @@ impl LocalEphemeralBackend {
 
         drop(room);
         drop(rooms);
-        // The lock-free completion fence keeps authorization writers behind
-        // this effect. SQLite was released by kernel validation before this
-        // function could run; publish completion only after every room/outbox
-        // guard is gone. Registry reconciliation happens on a later ordinary
-        // acquisition and never from this caller-owned value.
-        completion.complete_exact();
         for connection_id in &denied_connections {
             self.unindex_connection_room_if_unused(connection_id, &room_id);
         }
@@ -4218,7 +4209,7 @@ impl LocalEphemeralBackend {
             .delivery
             .wake_many(&wakees.into_iter().collect::<Vec<_>>());
         self.prune_room_if_empty(&room_id);
-        Ok(true)
+        Ok((RoomReauthorizationDisposition::Complete, true))
     }
 
     fn record_queue_push(&self, result: QueuePush) {
