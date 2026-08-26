@@ -458,6 +458,7 @@ impl PreparedPendingEffectApproval {
 pub struct ApprovePendingEffectCommand {
     approval: PreparedPendingEffectApproval,
     active_function_policies: super::ActiveFunctionPolicies,
+    active_function_policy_manifest_digest: Option<String>,
     step_up: Option<crate::auth::crypto::StepUpProof>,
     now_ms: u64,
     owner: PendingEffectOwner,
@@ -546,6 +547,7 @@ impl crate::storage::KernelCommitAuthority {
         owner: PendingEffectOwner,
         approval: PreparedPendingEffectApproval,
         active_function_policies: super::ActiveFunctionPolicies,
+        active_function_policy_manifest_digest: Option<String>,
         step_up: Option<&crate::auth::crypto::StepUpProof>,
         now_ms: u64,
     ) -> SnapbackResult<ApprovePendingEffectCommand> {
@@ -559,6 +561,7 @@ impl crate::storage::KernelCommitAuthority {
         Ok(ApprovePendingEffectCommand {
             approval,
             active_function_policies,
+            active_function_policy_manifest_digest,
             step_up: step_up.cloned(),
             now_ms,
             owner,
@@ -1192,6 +1195,7 @@ impl LocalDatabase {
         let ApprovePendingEffectCommand {
             approval,
             active_function_policies,
+            active_function_policy_manifest_digest,
             step_up,
             now_ms,
             owner,
@@ -1251,6 +1255,14 @@ impl LocalDatabase {
             // @ref LLP 0303#the-governing-principle — derive the step-up
             // policy from the exact durable effect and cross-check it against
             // the process-loaded function before consuming any proof.
+            let loaded_manifest_digest = active_function_policy_manifest_digest
+                .as_deref()
+                .ok_or_else(binding_stale)?;
+            let committed_generation = super::generation_commit::function_generation_record_on(tx)?
+                .ok_or_else(binding_stale)?;
+            if committed_generation.function_manifest_digest != loaded_manifest_digest {
+                return Err(binding_stale());
+            }
             let canonical = active_function_policies
                 .get(&current.function_id)
                 .filter(|policy| policy.kind == current.function_kind)
@@ -1268,8 +1280,19 @@ impl LocalDatabase {
                 let proof = step_up
                     .as_ref()
                     .ok_or_else(crate::auth::crypto::step_up_required_error)?;
-                if super::auth_catalog_ops::consume_step_up_proof_on(tx, proof, effective_now_ms)?
-                    != crate::auth::crypto::StepUpConsumption::Verified
+                if super::auth_catalog_ops::consume_step_up_proof_on(
+                    tx,
+                    proof,
+                    super::auth_catalog_ops::ExpectedStepUpProof {
+                        user_id: revalidated_principal_id,
+                        session_id: Some(&approver.session_id),
+                        session_generation: Some(approver.generation),
+                        authority_instance_id: Some(&approver.authority_instance_id),
+                        operation: "effectApproval",
+                        target_id: &id,
+                    },
+                    effective_now_ms,
+                )? != crate::auth::crypto::StepUpConsumption::Verified
                 {
                     return Err(crate::auth::crypto::step_up_required_error());
                 }
@@ -1725,11 +1748,17 @@ mod tests {
 
     fn install_loaded_policy(db: &mut ServingDatabase, authority_creating: bool) {
         let manifest = policy_manifest(authority_creating);
-        db.auth_database_mut()
-            .reconcile_auth_scope_bases(&manifest)
-            .expect("install durable function policy projection");
+        db.generation_commit_ops()
+            .commit_function_generation(crate::storage::CommitFunctionGeneration {
+                manifest: manifest.clone(),
+                trusted_active_generation: false,
+                projection_publications: Vec::new(),
+            })
+            .expect("commit durable function policy projection and generation identity");
         db.active_function_policies = crate::storage::active_function_policies(&manifest)
             .expect("install canonical process-loaded function policy");
+        db.active_function_policy_manifest_digest =
+            crate::manifest::canonical_content_identity(&manifest);
     }
 
     fn principal(db: &mut ServingDatabase, principal: &str, token_byte: u8) -> ResolvedPrincipal {
@@ -1876,6 +1905,41 @@ mod tests {
         assert_eq!(
             approved.record.approver_identity.as_deref(),
             Some("human-a")
+        );
+    }
+
+    #[test]
+    fn active_guest_cannot_approve_an_unassigned_effect() {
+        let mut db = ready();
+        let mut unassigned = request(10, DEFAULT_TTL_MS);
+        unassigned.approver_principal_id = None;
+        let creation_owner = test_owner(db.auth_database_mut(), unassigned.authority.clone(), None);
+        let created = db
+            .create_pending_effect_admitted(&creation_owner, unassigned)
+            .expect("create unassigned effect visible to session principals");
+
+        let guest = db
+            .auth_database_mut()
+            .identity_guest_create(1_000, 11, &CounterRandom::new())
+            .expect("production guest ceremony mints an active guest bearer");
+        let guest_principal = db
+            .resolve_principal_from_session(
+                &crate::contract_types::TokenDigest::from_token_hash(&guest.bearer.token_hash()),
+                12,
+            )
+            .expect("guest bearer resolves for ordinary product access");
+        assert!(matches!(
+            guest_principal.class(),
+            crate::storage::resolved_principal::ResolvedPrincipalClass::Guest
+        ));
+        let error = db
+            .prepare_pending_effect_approval(&guest_principal, &created.id, 12)
+            .err()
+            .expect("a guest cannot become an effect approver");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_PRINCIPAL_INVALID");
+        assert_eq!(
+            db.pending_effect(&created.id, 12).unwrap().status,
+            PendingEffectStatus::Pending,
         );
     }
 
@@ -2407,9 +2471,15 @@ mod tests {
             .create_pending_effect_admitted(&creation_owner, request)
             .unwrap();
 
-        db.auth_database_mut()
+        let rewrite_error = db
+            .auth_database_mut()
             .reconcile_auth_scope_bases(&policy_manifest(false))
-            .expect("attacker rewrites the public durable projection");
+            .err()
+            .expect("a public caller cannot rewrite an active generation projection");
+        assert_eq!(
+            rewrite_error.diagnostic.code,
+            "SNAPBACK_FUNCTION_POLICY_WRITE_FORBIDDEN"
+        );
         let approver = principal(&mut db, "human-a", 0xa0);
         let approval = db
             .prepare_pending_effect_approval(&approver, &created.id, 20)
@@ -2418,16 +2488,12 @@ mod tests {
         let error = db
             .approve_pending_effect_admitted(owner, approval, None, 20)
             .err()
-            .expect("the caller-written projection cannot bypass step-up");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_EFFECT_BINDING_STALE");
+            .expect("the committed authority-creating policy still requires proof");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_STEP_UP_REQUIRED");
         assert_eq!(
             db.pending_effect(&created.id, 20).unwrap().status,
             PendingEffectStatus::Pending,
         );
-
-        db.auth_database_mut()
-            .reconcile_auth_scope_bases(&policy_manifest(true))
-            .expect("restore the canonical projection value");
         db.generation_commit_ops()
             .commit_function_generation(crate::storage::CommitFunctionGeneration {
                 manifest: policy_manifest(false),
@@ -2442,8 +2508,66 @@ mod tests {
         let error = db
             .approve_pending_effect_admitted(owner, approval, None, 20)
             .err()
-            .expect("canonical authority-creating policy still requires proof");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_STEP_UP_REQUIRED");
+            .expect("a caller-committed generation cannot relabel loaded process policy");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_EFFECT_BINDING_STALE");
+    }
+
+    #[test]
+    fn caller_cannot_install_false_canonical_and_projected_policy_for_true_generation() {
+        let mut local = LocalDatabase::memory().expect("policy attack database");
+        local
+            .activate_current_auth_catalog()
+            .expect("activate protected catalog");
+        local.conn.execute_batch(TABLE_SQL).unwrap();
+        local.conn.execute_batch(APPROVER_INDEX_SQL).unwrap();
+        local.conn.execute_batch(EXPIRY_INDEX_SQL).unwrap();
+        insert_session_on(&mut local, "human-a", 0xa0);
+        local
+            .generation_commit_ops()
+            .commit_function_generation(crate::storage::CommitFunctionGeneration {
+                manifest: policy_manifest(true),
+                trusted_active_generation: false,
+                projection_publications: Vec::new(),
+            })
+            .expect("commit actually authority-creating generation");
+        let (mut db, publisher) =
+            ServingDatabase::adopt_with_loaded_function_policy_publisher(local)
+                .expect("obtain the public policy publisher with the serving facade");
+        db.install_loaded_function_policies(&publisher, &policy_manifest(true))
+            .expect("install the exact committed loaded policy");
+
+        let request = request(10, DEFAULT_TTL_MS);
+        let creation_owner = test_owner(db.auth_database_mut(), request.authority.clone(), None);
+        let created = db
+            .create_pending_effect_admitted(&creation_owner, request)
+            .expect("effect under true generation");
+
+        // Exercise both public writer spellings even though either may refuse first. The
+        // security assertion is at the approval sink: if both protections are defanged,
+        // false canonical and false projected policy must not compose into approval.
+        let _canonical_write =
+            db.install_loaded_function_policies(&publisher, &policy_manifest(false));
+        let _projected_write = db
+            .auth_database_mut()
+            .reconcile_auth_scope_bases(&policy_manifest(false));
+
+        let approver = principal(&mut db, "human-a", 0xa0);
+        let approval = db
+            .prepare_pending_effect_approval(&approver, &created.id, 20)
+            .expect("prepare exact approval");
+        let owner = management_owner(db.auth_database_mut(), "human-a");
+        let error = db
+            .approve_pending_effect_admitted(owner, approval, None, 20)
+            .err()
+            .expect("false/false composition cannot skip step-up");
+        assert!(matches!(
+            error.diagnostic.code.as_str(),
+            "SNAPBACK_AUTH_STEP_UP_REQUIRED" | "SNAPBACK_EFFECT_BINDING_STALE"
+        ));
+        assert_eq!(
+            db.pending_effect(&created.id, 20).unwrap().status,
+            PendingEffectStatus::Pending,
+        );
     }
 
     #[test]
@@ -2529,7 +2653,7 @@ mod tests {
             "session-human-a",
             1,
             "authority-human-a",
-            "pending-effect.approve",
+            "effectApproval",
             &created.id,
             &code,
         );
@@ -2550,12 +2674,18 @@ mod tests {
                 ],
             )
             .expect("durable operation-bound proof");
-        let proof = StepUpProof {
+        let proof = StepUpProof::from_verified_binding(
             challenge_id,
             address,
-            key_id: Some(key_id),
+            Some(key_id),
             submitted_digest,
-        };
+            "human-a".to_owned(),
+            "session-human-a".to_owned(),
+            1,
+            "authority-human-a".to_owned(),
+            "effectApproval",
+            created.id.clone(),
+        );
 
         let first_approval = db
             .prepare_pending_effect_approval(&approver, &created.id, 19)
@@ -2563,7 +2693,8 @@ mod tests {
         let first_owner = management_owner(db.auth_database_mut(), "human-a");
         let first_error = db
             .approve_pending_effect_admitted(first_owner, first_approval, Some(&proof), 21)
-            .expect_err("the first decision observes proof expiry");
+            .err()
+            .expect("the first decision observes proof expiry");
         assert_eq!(
             first_error.diagnostic.code,
             "SNAPBACK_AUTH_STEP_UP_REQUIRED"
@@ -2574,7 +2705,8 @@ mod tests {
         let retry_owner = management_owner(db.auth_database_mut(), "human-a");
         let retry_error = db
             .approve_pending_effect_admitted(retry_owner, retry_approval, Some(&proof), 19)
-            .expect_err("an expired proof cannot be revived by a backdated retry");
+            .err()
+            .expect("an expired proof cannot be revived by a backdated retry");
         assert_eq!(
             retry_error.diagnostic.code,
             "SNAPBACK_AUTH_STEP_UP_REQUIRED"
@@ -2588,6 +2720,94 @@ mod tests {
         assert_eq!(
             db.pending_effect(&created.id, 21).unwrap().status,
             PendingEffectStatus::Pending
+        );
+    }
+
+    #[test]
+    fn password_set_step_up_proof_cannot_approve_an_authority_creating_effect() {
+        use crate::auth::crypto::{
+            AuthKeyId, AuthKeyMaterial, CanonicalAddress, ChallengeId, OsRandom, StepUpDigest,
+            StepUpProof, VerificationCode,
+        };
+
+        let mut db = ready();
+        install_loaded_policy(&mut db, true);
+        let request = request(10, DEFAULT_TTL_MS);
+        let creation_owner = test_owner(db.auth_database_mut(), request.authority.clone(), None);
+        let created = db
+            .create_pending_effect_admitted(&creation_owner, request)
+            .expect("authority-creating pending effect");
+        let approver = principal(&mut db, "human-a", 0xa0);
+        let address = CanonicalAddress::parse("human-a@example.com").unwrap();
+        let challenge_id = ChallengeId::generate(&OsRandom).unwrap();
+        let key_id = AuthKeyId::generate(&OsRandom).unwrap();
+        let key = AuthKeyMaterial::from_bytes([0x6b; 32]);
+        let code = VerificationCode::parse("654321").unwrap();
+        let submitted_digest = StepUpDigest::compute(
+            &key,
+            &challenge_id,
+            &address,
+            "human-a",
+            "session-human-a",
+            1,
+            "authority-human-a",
+            "passwordSet",
+            "session-human-a",
+            &code,
+        );
+        db.auth_database_mut()
+            .conn
+            .execute(
+                "INSERT INTO _auth_verification_codes(
+                   challenge_id, canonical_address, code_digest, key_id,
+                   attempts, max_attempts, requested_at_ms, expires_at_ms,
+                   consumed_at_ms, superseded_by
+                 ) VALUES(?1, ?2, ?3, ?4, 0, ?5, 10, 100, NULL, NULL)",
+                params![
+                    challenge_id.as_str(),
+                    address.as_str(),
+                    submitted_digest.as_bytes().as_slice(),
+                    key_id.as_str(),
+                    crate::auth::throttle::AUTH_MAXIMUM_ATTEMPTS as i64,
+                ],
+            )
+            .expect("durable passwordSet challenge");
+        let proof = StepUpProof::from_verified_binding(
+            challenge_id.clone(),
+            address,
+            Some(key_id),
+            submitted_digest,
+            "human-a".to_owned(),
+            "session-human-a".to_owned(),
+            1,
+            "authority-human-a".to_owned(),
+            "passwordSet",
+            "session-human-a".to_owned(),
+        );
+
+        let approval = db
+            .prepare_pending_effect_approval(&approver, &created.id, 20)
+            .expect("prepare exact effect approval");
+        let owner = management_owner(db.auth_database_mut(), "human-a");
+        let error = db
+            .approve_pending_effect_admitted(owner, approval, Some(&proof), 20)
+            .err()
+            .expect("proof for another operation and target is refused");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_STEP_UP_REQUIRED");
+        let consumed: i64 = db
+            .auth_database_mut()
+            .conn
+            .query_row(
+                "SELECT consumed_at_ms IS NOT NULL FROM _auth_verification_codes
+                 WHERE challenge_id = ?1",
+                params![challenge_id.as_str()],
+                |row| row.get(0),
+            )
+            .expect("read durable proof state");
+        assert_eq!(consumed, 0, "a substituted proof must not be consumed");
+        assert_eq!(
+            db.pending_effect(&created.id, 20).unwrap().status,
+            PendingEffectStatus::Pending,
         );
     }
 

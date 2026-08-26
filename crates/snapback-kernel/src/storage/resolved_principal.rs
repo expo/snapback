@@ -31,6 +31,7 @@ pub struct ResolvedPrincipal {
 
 pub(super) enum ResolvedPrincipalClass {
     User,
+    Guest,
     ServicePrincipal,
     InternalService,
 }
@@ -68,6 +69,7 @@ impl ResolvedPrincipal {
         session: ResolvedSession,
         digest: TokenDigest,
         resolved_at_version: u64,
+        class: ResolvedPrincipalClass,
     ) -> Self {
         Self {
             database_binding,
@@ -79,7 +81,7 @@ impl ResolvedPrincipal {
                 digest,
             },
             resolved_at_version,
-            class: ResolvedPrincipalClass::User,
+            class,
         }
     }
 
@@ -178,6 +180,8 @@ impl ResolvedPrincipal {
         else {
             return Err(invalid());
         };
+        // @ref LLP 0293#42-execution-mechanism — a guest session may resolve
+        // for ordinary product access but cannot mint an effect-approver proof.
         if !matches!(self.class, ResolvedPrincipalClass::User) {
             return Err(invalid());
         }
@@ -204,7 +208,8 @@ pub(super) fn revalidate_effect_approver_on<'a>(
     let active_human = transaction
         .query_row(
             "SELECT 1 FROM _auth_users
-             WHERE id = ?1 AND kind = 'human' AND deactivated_at_ms IS NULL",
+             WHERE id = ?1 AND kind = 'human'
+               AND guest_state <> 'active' AND deactivated_at_ms IS NULL",
             params![approver.principal_id],
             |_| Ok(()),
         )
@@ -259,22 +264,57 @@ impl LocalDatabase {
         if now_ms > crate::contract_types::AUTH_MAX_SAFE_TIMESTAMP {
             return Err(invalid());
         }
-        // Persist the observation before the resolving transaction: expiry or
-        // any other refusal must not roll the high-water back with that
-        // transaction and make the same durable session live again.
-        // @ref LLP 0059#durable-session-clock-floor — refused observations
-        // advance the same monotone durable floor as successful resolutions.
+        const MAX_CALLER_FORWARD_SKEW_MS: u64 = 5 * 60 * 1_000;
+        let host_now_ms: u64 = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_err(|_| invalid())?
+            .as_millis()
+            .try_into()
+            .map_err(|_| invalid())?;
+        if now_ms > host_now_ms.saturating_add(MAX_CALLER_FORWARD_SKEW_MS) {
+            return Err(invalid());
+        }
+        let token_hash = TokenHash::from_bytes(*digest.as_bytes());
+        // Authenticate the presented digest and its still-active human
+        // subject before a caller-controlled sample may advance irreversible
+        // clock state. Expiry is intentionally evaluated in the committing
+        // transaction below so an authenticated expiry observation still
+        // closes the rollback/revival case from LLP 0059.
+        // @ref LLP 0303#r-monotonic-prevents-lowering-the-ceiling-is-absorbing —
+        // an unauthenticated caller cannot advance a monotone ceiling.
+        let authenticated_subject = self.with_auth_read(|connection| {
+            let PresentedSessionLookup::Current(record) =
+                super::auth_catalog_ops::lookup_presented_session(connection, &token_hash)?
+            else {
+                return Ok(false);
+            };
+            connection
+                .query_row(
+                    "SELECT 1 FROM _auth_users
+                     WHERE id = ?1 AND kind = 'human'
+                       AND guest_state <> 'reaped'
+                       AND deactivated_at_ms IS NULL",
+                    params![record.session.user_id],
+                    |_| Ok(()),
+                )
+                .optional()
+                .map(|row| row.is_some())
+                .map_err(SnapbackError::from)
+        })?;
+        if !authenticated_subject {
+            return Err(invalid());
+        }
+        // Persist an authenticated, bounded observation before the resolving
+        // transaction: expiry refusal must not roll the high-water back and
+        // make the same durable session live again.
         let observed_now_ms = self.advance_auth_session_clock_floor(now_ms)?;
         let binding = self.binding();
         self.with_auth_transaction(|transaction| {
             // @ref LLP 0059#durable-session-clock-floor — a caller may sample
             // below the durable high-water, but authorization evaluates at
             // the non-decreasing floor and can never revive expired state.
-            let effective_now_ms = super::auth::advance_session_clock_floor_on(
-                transaction,
-                observed_now_ms,
-            )?;
-            let token_hash = TokenHash::from_bytes(*digest.as_bytes());
+            let effective_now_ms =
+                super::auth::advance_session_clock_floor_on(transaction, observed_now_ms)?;
             let PresentedSessionLookup::Current(mut record) =
                 super::auth_catalog_ops::lookup_presented_session(transaction, &token_hash)?
             else {
@@ -285,18 +325,20 @@ impl LocalDatabase {
             {
                 return Err(invalid());
             }
-            let active_human = transaction
+            let principal_class = transaction
                 .query_row(
-                    "SELECT 1 FROM _auth_users
+                    "SELECT guest_state FROM _auth_users
                      WHERE id = ?1 AND kind = 'human' AND deactivated_at_ms IS NULL",
                     params![record.session.user_id],
-                    |_| Ok(()),
+                    |row| row.get::<_, String>(0),
                 )
                 .optional()?
-                .is_some();
-            if !active_human {
-                return Err(invalid());
-            }
+                .and_then(|guest_state| match guest_state.as_str() {
+                    "active" => Some(ResolvedPrincipalClass::Guest),
+                    "never" | "claimed" => Some(ResolvedPrincipalClass::User),
+                    _ => None,
+                })
+                .ok_or_else(invalid)?;
             let use_row = super::auth_catalog_ops::authenticated_use_row(
                 transaction,
                 &record.session.session_id,
@@ -332,6 +374,7 @@ impl LocalDatabase {
                 record.session,
                 *digest,
                 resolved_at_version,
+                principal_class,
             ))
         })
     }
