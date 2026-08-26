@@ -1739,3 +1739,96 @@ generated projection files remain byte-identical to merge base
 
 `./ref-check --verbose` reports `311 LLP docs, 6651 refs in 12507 files, 0
 errors, 0 unchecked`. `git diff --check` produces no output.
+
+### Round-28 dual-review closure (2026-08-26)
+
+An answered failure from the immediate pre-POST inspection is now a transient
+replay stop. The platform controller applies its existing bounded backoff and
+retries without an enqueue, live-query snapshot, or `online` event. The
+current record and every successor remain pending, and a persistently negative
+inspection sends zero mutation POSTs.
+
+Custody reconciliation now returns the declared result shape even when no
+record is quarantined: `quarantined: 0` and `quarantinedIds: []` are present on
+memory, file, SQLite, and fake IndexedDB. The public-dashboard reconnect
+witness observes drain completion through `outboxStatus().pending` instead of
+the injected store implementation.
+
+The three fail-first regressions produced these verbatim lines before the
+production fixes:
+
+```text
+✖ answered pre-POST inspect failure retries on backoff without an external wake
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ 'paused'
+- 'backoff'
+
+✖ successor-valid housekeeping binds after settle with explicit zero quarantine on every store
+AssertionError [ERR_ASSERTION]: memory
++ actual - expected
+
+  {
+    deleted: 0,
+    deletedIds: [],
+-   quarantined: 0,
+-   quarantinedIds: [],
+    stranded: 0,
+    strandedIds: []
+  }
+
+AssertionError [ERR_ASSERTION]: acceptance reconnect witness must observe drain completion through outboxStatus()
+
+true !== false
+```
+
+At the final JS implementation commit
+`31d4962fd3e43fe790bfb1ac643482045bff8fcc`, the required combined suite
+reports:
+
+```text
+ℹ tests 237
+ℹ suites 0
+ℹ pass 237
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3463.890583
+```
+
+The full `npm test --prefix packages/snapback-client` script reaches only its
+inherited, out-of-scope RQS assertion:
+
+```text
+✖ pre-subscribe durable-buffer overflow fails closed to one fresh snapshot [web/indexeddb] (12.06225ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 29
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2513.0065
+```
+
+Both required public-dashboard witnesses were run at that exact JS commit with
+`SNAPBACK_SERVER_BINARY="$PWD/target/debug/snapback"` and report these verbatim
+summaries:
+
+```text
+PASS public-dashboard / offline-local-first (JS arm) — 9/9
+PASS public-dashboard / headless — 6/6
+```
+
+Both machine-readable reports contain `cleanupErrors: []` and
+`cleanupErrorCount: 0`. The configured binary is stamped at
+`a97e75286f098066931701df515fe7a812961798`, so both runs report the expected
+checkout/binary identity mismatch and exercise the JS lane.
+
+`./ref-check --verbose` reports `311 LLP docs, 6651 refs in 12507 files, 0
+errors, 0 unchecked`. `git diff --check` produces no output. Generated
+projection paths remain byte-identical to merge base
+`baacaa20983f029f3e9cd23f60385ba00085e947`; integration retains ownership of
+their regeneration.
