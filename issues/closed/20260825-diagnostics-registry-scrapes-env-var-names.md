@@ -58,7 +58,8 @@ environment read and zero diagnostics. It also binds Rust `matches!(...)`
 reference detection to the macro's matched closing parenthesis. This restores
 five production emitters following completed macros, including the four
 reviewed sites at `admin_link.rs:765,1008` and `cli.rs:4464,6638`; the fifth is
-`admin.rs:696`. The generated registry now contains 9,221 emitting sites.
+`admin.rs:696`. The round-19 projection contains 9,216 emitting sites after
+whitespace-delimited prose is excluded.
 
 The final round-16 correction binds environment-name tables to the opener
 found for their declaration by the lexical delimiter stack. Comment braces,
@@ -75,9 +76,20 @@ Generic environment-object mutations are classified before the read fallback:
 the current `delete childEnv.SNAPBACK_CLIENT_RQS_DIR` site is a removal and
 `delegatedEnvironment.SNAPBACK_ADMIN_TOKEN = …` is a write. The environment
 object fixture also keeps entries after a `}` embedded in a string value inside
-the same object. `SNAPBACK_ADMIN_TOKEN` is dual-role: those environment sites
-remain, while the refusal in `targets/cloudflare/config-set.mjs` is restored as
-a diagnostic emission.
+the same object. `SNAPBACK_ADMIN_TOKEN` remains environment-only: the refusal
+sentence in `targets/cloudflare/config-set.mjs` contributes a mention, not a
+diagnostic emission.
+
+Round 19 restricts diagnostic-leading literals to a whole-string code or a
+`CODE:` prefix. Its fail-first fixture is exactly
+`throw new Error('SNAPBACK_FIXTURE_ENV is required to continue')` plus
+`process.env.SNAPBACK_FIXTURE_ENV`, producing one mention, one read, and zero
+diagnostics. `SNAPBACK_ADMIN_TOKEN` and the three
+`SNAPBACK_PUBLICATION_AUTHORITY_{PORT,INSTALLATION_ID,ORIGIN}` names therefore
+stay environment-only. Explicit code-bearing dual-role sites remain intact,
+including `SNAPBACK_ACCEPTED_SOCKET_LIMIT`, `SNAPBACK_GRAPH_EXEC_DISABLED`,
+`SNAPBACK_VERIFY_PROFILE_TIMEOUT`, and
+`SNAPBACK_TEST_CRON_STOP_AFTER_TERMINAL_UPDATE`.
 
 Package manifests now contribute shipped `.swift` and `.kt` sources, and
 the local-proof selection rule covers both extensions. Existing native custody
@@ -104,18 +116,11 @@ emitting sites (`app-binding.mjs:586` and
 identified in round 17 are also absent from that type.
 
 The complete earlier 141-name environment-removal claim was re-audited against
-the merge-base carrier files. Five names have real emitters and were re-typed
-back as diagnostics:
-
-- `SNAPBACK_ADMIN_TOKEN`
-- `SNAPBACK_APP_BINDING_EXPIRED`
-- `SNAPBACK_PUBLICATION_AUTHORITY_INSTALLATION_ID`
-- `SNAPBACK_PUBLICATION_AUTHORITY_ORIGIN`
-- `SNAPBACK_PUBLICATION_AUTHORITY_PORT`
-
-The other 136 remain environment removals. An independent syntax-context pass
-over all 136 and every carrier file recorded at merge base found zero remaining
-throw/error/failure/diagnostic/code-assignment emitter candidates.
+the merge-base carrier files. Only `SNAPBACK_APP_BINDING_EXPIRED` has
+whole-string code-bearing emitters and was re-typed back as a diagnostic. The
+other 140 remain environment removals. A delimiter-aware pass over every
+carrier finds no whole-string or `CODE:` diagnostic emitter among those 140;
+the four round-19 throw sentences are environment mentions.
 
 The canonical embedded measurement was rerun after the final implementation and
 projection regeneration. Its captured output is:
@@ -124,19 +129,19 @@ projection regeneration. Its captured output is:
 {
   "mergeBase": "e370bb8f789007cffae1f4d80c4feabdedc81cb5",
   "counts": {
-    "codes": 3543,
+    "codes": 3539,
     "sourceFiles": 642,
-    "emittingSites": 9221,
+    "emittingSites": 9216,
     "receivedSites": 339,
     "reservedSites": 9,
     "httpClassified": 1709,
-    "guideAnchored": 428,
+    "guideAnchored": 427,
     "environmentVariables": 185,
-    "environmentSites": 364
+    "environmentSites": 368
   },
   "environmentKinds": {
     "read": 258,
-    "mention": 38,
+    "mention": 42,
     "declaration": 14,
     "remove": 9,
     "write": 24,
@@ -144,16 +149,12 @@ projection regeneration. Its captured output is:
     "indirect-read": 15
   },
   "mergeBaseRemovals": {
-    "total": 234,
-    "environment": 136,
+    "total": 238,
+    "environment": 140,
     "other": 98
   },
   "retypedBack": [
-    "SNAPBACK_ADMIN_TOKEN",
-    "SNAPBACK_APP_BINDING_EXPIRED",
-    "SNAPBACK_PUBLICATION_AUTHORITY_INSTALLATION_ID",
-    "SNAPBACK_PUBLICATION_AUTHORITY_ORIGIN",
-    "SNAPBACK_PUBLICATION_AUTHORITY_PORT"
+    "SNAPBACK_APP_BINDING_EXPIRED"
   ],
   "fixtureRawTokens": 87,
   "receivedCodes": 263,

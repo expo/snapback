@@ -99,6 +99,13 @@ assert.deepEqual(
 assert.match(environment.identity.diagnosticsSourceDigest, /^sha256:[0-9a-f]{64}$/u);
 assert.ok(Buffer.byteLength(JSON.stringify(environment)) <= 16_384);
 
+const adminTokenEnvironment = lookupGuideReference(
+  ['SNAPBACK_ADMIN_TOKEN'],
+  { projectRoot: root },
+);
+assert.equal(adminTokenEnvironment.match, 'environment');
+assert.equal(adminTokenEnvironment.environment.name, 'SNAPBACK_ADMIN_TOKEN');
+
 const dualRole = lookupGuideReference(
   ['SNAPBACK_ACCEPTED_SOCKET_LIMIT'],
   { projectRoot: root },
@@ -244,7 +251,7 @@ output.length = 0;
 try {
   console.log = (...values) => output.push(values.join(' '));
   assert.equal(await runCli(
-    ['guide', 'SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE', '--json'],
+    ['guide', 'SNAPBACK_ADMIN_TOKEN', '--json'],
     { projectRoot: root },
   ), 0);
 } finally {
@@ -254,6 +261,6 @@ const environmentCliResult = JSON.parse(output.join('\n'));
 assert.equal(environmentCliResult.result.match, 'environment');
 assert.equal(
   environmentCliResult.result.environment.name,
-  'SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE',
+  'SNAPBACK_ADMIN_TOKEN',
 );
 console.log('reference-lookup.test.mjs: exact diagnostic/environment/dual-role/member, bounded symbol/module, identity, and fallback pass');

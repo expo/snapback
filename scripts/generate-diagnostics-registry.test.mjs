@@ -58,20 +58,14 @@ test('diagnostic source classifier excludes environment reads per site and retai
   assert.deepEqual(
     [...diagnosticCodeMatches(fixture, sourceOptions)].map((match) => match[0]),
     [
-      'SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH',
       'SNAPBACK_FIXTURE_JS_EMITTED',
       'SNAPBACK_FIXTURE_JS_URL_EMITTED',
       'SNAPBACK_FIXTURE_JS_MESSAGE_OWNER',
       'SNAPBACK_FIXTURE_PREFIXED_CODE',
-      'SNAPBACK_FIXTURE_LEADING_ERROR_CODE',
-      'SNAPBACK_FIXTURE_PUBLICATION_PORT',
       'SNAPBACK_FIXTURE_GENERATED_JS_EMISSION',
       'SNAPBACK_FIXTURE_SQL_STORED_EMISSION',
       'SNAPBACK_FIXTURE_ESCAPED_POISON',
       'SNAPBACK_FIXTURE_WARNING_PREFIX',
-      'SNAPBACK_FIXTURE_PRINTLN',
-      'SNAPBACK_FIXTURE_TRACING',
-      'SNAPBACK_FIXTURE_LOG',
       'SNAPBACK_FIXTURE_MARKED_EMISSION',
       'SNAPBACK_FIXTURE_SYNTHETIC_DYNAMIC',
       'SNAPBACK_FIXTURE_DUAL_ROLE',
@@ -84,9 +78,6 @@ test('diagnostic source classifier excludes environment reads per site and retai
     'SNAPBACK_FIXTURE_SQL_STORED_EMISSION',
     'SNAPBACK_FIXTURE_ESCAPED_POISON',
     'SNAPBACK_FIXTURE_WARNING_PREFIX',
-    'SNAPBACK_FIXTURE_PRINTLN',
-    'SNAPBACK_FIXTURE_TRACING',
-    'SNAPBACK_FIXTURE_LOG',
     'SNAPBACK_FIXTURE_MARKED_EMISSION',
     'SNAPBACK_FIXTURE_SYNTHETIC_DYNAMIC',
   ]);
@@ -286,6 +277,12 @@ test('diagnostic source classifier excludes environment reads per site and retai
     'SNAPBACK_FIXTURE_RUST_PREFIX',
     'SNAPBACK_FIXTURE_RUST_CONTAINS',
     'SNAPBACK_FIXTURE_SINGLETON_METADATA_REFERENCE',
+    'SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH',
+    'SNAPBACK_FIXTURE_LEADING_ERROR_CODE',
+    'SNAPBACK_FIXTURE_PUBLICATION_PORT',
+    'SNAPBACK_FIXTURE_PRINTLN',
+    'SNAPBACK_FIXTURE_TRACING',
+    'SNAPBACK_FIXTURE_LOG',
   ]);
   assert.deepEqual(
     diagnosticSourceSites(fixture, sourceOptions)
@@ -359,6 +356,23 @@ test('direct environment access takes precedence over enclosing throw syntax', (
     environmentVariableSites(fixture, { javascript: true })
       .map(({ match, kind }) => ({ name: match[0], kind })),
     [{ name: 'SNAPBACK_FIXTURE_ENV', kind: 'read' }],
+  );
+  assert.deepEqual(diagnosticSourceSites(fixture, { javascript: true }), []);
+});
+
+test('leading environment names in error prose remain environment vocabulary', () => {
+  const fixture = [
+    "throw new Error('SNAPBACK_FIXTURE_ENV is required to continue');",
+    'process.env.SNAPBACK_FIXTURE_ENV;',
+  ].join('\n');
+
+  assert.deepEqual(
+    environmentVariableSites(fixture, { javascript: true })
+      .map(({ match, kind }) => ({ name: match[0], kind })),
+    [
+      { name: 'SNAPBACK_FIXTURE_ENV', kind: 'mention' },
+      { name: 'SNAPBACK_FIXTURE_ENV', kind: 'read' },
+    ],
   );
   assert.deepEqual(diagnosticSourceSites(fixture, { javascript: true }), []);
 });
@@ -555,8 +569,8 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     .SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH.sites.filter(
       (site) => site.file === 'crates/snapback-kernel/src/live_matcher.rs',
     );
-  assert.equal(demandMismatchSites.length, 1);
-  assert.equal(demandMismatchSites[0].kind, undefined);
+  assert.deepEqual(demandMismatchSites, []);
+  assert.ok(registry.diagnostics.SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH);
   assert.equal(registry.diagnostics.SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE, undefined);
   assert.ok(registry.environment.SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE);
 
@@ -601,6 +615,18 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     1,
   );
 
+  for (const name of [
+    'SNAPBACK_GRAPH_EXEC_DISABLED',
+    'SNAPBACK_VERIFY_PROFILE_TIMEOUT',
+    'SNAPBACK_TEST_CRON_STOP_AFTER_TERMINAL_UPDATE',
+  ]) {
+    assert.ok(
+      registry.diagnostics[name]?.sites.some((site) => site.kind === undefined),
+      `${name} retains its explicit code-bearing emitter`,
+    );
+    assert.ok(registry.environment[name], `${name} retains its environment role`);
+  }
+
   assert.ok(
     registry.environment.SNAPBACK_CLIENT_RQS_DIR.sites.some((site) => (
       site.file === 'packages/snapback-cli/expo-dev.mjs' && site.kind === 'remove'
@@ -613,12 +639,34 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     )),
     'delegatedEnvironment.SNAPBACK_ADMIN_TOKEN assignment must be classified as a write',
   );
-  assert.ok(
-    registry.diagnostics.SNAPBACK_ADMIN_TOKEN.sites.some((site) => (
-      site.file === 'targets/cloudflare/config-set.mjs' && site.kind === undefined
-    )),
-    'the protected-config refusal keeps SNAPBACK_ADMIN_TOKEN as a dual-role diagnostic',
+
+  const proseOnlyEnvironmentNames = [
+    'SNAPBACK_ADMIN_TOKEN',
+    'SNAPBACK_PUBLICATION_AUTHORITY_INSTALLATION_ID',
+    'SNAPBACK_PUBLICATION_AUTHORITY_ORIGIN',
+    'SNAPBACK_PUBLICATION_AUTHORITY_PORT',
+  ];
+  const diagnosticType = diagnosticTypes.slice(
+    diagnosticTypes.indexOf('export type SnapbackDiagnosticCode ='),
+    diagnosticTypes.indexOf('export type SnapbackEnvironmentVariable ='),
   );
+  const environmentType = diagnosticTypes.slice(
+    diagnosticTypes.indexOf('export type SnapbackEnvironmentVariable ='),
+  );
+  for (const name of proseOnlyEnvironmentNames) {
+    assert.equal(registry.diagnostics[name], undefined, `${name} is not a diagnostic`);
+    assert.ok(registry.environment[name], `${name} remains environment vocabulary`);
+    assert.doesNotMatch(
+      diagnosticType,
+      new RegExp(`^  (?:\\| )?'${name}'$`, 'mu'),
+      `${name} must be absent from SnapbackDiagnosticCode`,
+    );
+    assert.match(
+      environmentType,
+      new RegExp(`^  (?:\\| )?'${name}'$`, 'mu'),
+      `${name} must remain in SnapbackEnvironmentVariable`,
+    );
+  }
 
   assert.deepEqual(
     registry.diagnostics.SNAPBACK_APP_BINDING_EXPIRED.sites
@@ -637,9 +685,6 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     'SNAPBACK_EXPO_COMPATIBILITY_UNSUPPORTED',
     'SNAPBACK_EXPO_ENVIRONMENT_INVALID',
   ];
-  const environmentType = diagnosticTypes.slice(
-    diagnosticTypes.indexOf('export type SnapbackEnvironmentVariable ='),
-  );
   for (const name of falselyClassifiedEnvironmentNames) {
     assert.equal(registry.environment[name], undefined, `${name} is not environment vocabulary`);
     assert.doesNotMatch(

@@ -1126,7 +1126,7 @@ function isLeadingDiagnosticCodePosition(source, match, literals) {
   const literal = literals.byContentStart.get(match.index);
   if (literal === undefined) return false;
   const end = match.index + match[0].length;
-  if (literal.end !== end && !/^[:\s]/u.test(source.slice(end, end + 1))) return false;
+  if (literal.end !== end && source[end] !== ':') return false;
   return isExplicitDiagnosticCodePosition(source, match.index)
     || isRustDiagnosticPrintPosition(source, match.index);
 }

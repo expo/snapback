@@ -32,9 +32,10 @@ and Guide projections from that source-complete inventory.
 
 The source classifier now distinguishes real emissions, received protocol
 vocabulary, reservations, environment reads/writes/removals/declarations/table
-entries/mentions, and inert references. Diagnostic-leading strings, explicit
-diagnostic positions, generated executable source, stored diagnostic SQL,
-print/log macros, and explicit emission markers remain emissions. Comments,
+entries/mentions, and inert references. Whole-string diagnostic literals,
+`CODE:` prefixes, explicit diagnostic positions, generated executable source,
+stored diagnostic SQL, delimiter-bound print/log prefixes, and explicit
+emission markers remain emissions. Comments,
 match arms, `matches!`, comparisons, prefix checks, and inert catalogues do
 not.
 
@@ -45,9 +46,10 @@ arrays of ordinary string literals or objects proven by ordinary string-literal
 name keys or values. Only direct elements, keys, and values become table entries; nested
 functions, methods, calls, objects, arrays, and template bodies never do.
 Explicit emission markers win over an environment classification at the same
-offset. Broad throw/error/failure/diagnostic syntax wins for otherwise
-ambiguous literals, but proven direct environment access remains an environment
-site even when nested inside that syntax. The round-17 fail-first fixture is
+offset. Broad throw/error/failure/diagnostic syntax wins only for whole-string
+codes or `CODE:` prefixes; a leading `SNAPBACK_*` token followed by whitespace
+is prose. Proven direct environment access remains an environment site even
+when nested inside broad throw syntax. The round-17 fail-first fixture is
 exactly:
 
 ```js
@@ -70,6 +72,16 @@ environment read and zero diagnostic emissions. Direct `process.env.X`,
 `${X}`/`$X` syntax remain environment access regardless of an enclosing broad
 throw heuristic; a named emission marker remains the explicit override.
 
+Round 19 pins the adjacent prose boundary with exactly
+`throw new Error('SNAPBACK_FIXTURE_ENV is required to continue')` plus
+`process.env.SNAPBACK_FIXTURE_ENV`: the result is one environment mention, one
+environment read, and zero diagnostics. Consequently `SNAPBACK_ADMIN_TOKEN`
+and the `SNAPBACK_PUBLICATION_AUTHORITY_{PORT,INSTALLATION_ID,ORIGIN}` names
+remain environment vocabulary only. Genuine dual-role names retain their
+explicit code-bearing emitters, including `SNAPBACK_ACCEPTED_SOCKET_LIMIT`,
+`SNAPBACK_GRAPH_EXEC_DISABLED`, `SNAPBACK_VERIFY_PROFILE_TIMEOUT`, and
+`SNAPBACK_TEST_CRON_STOP_AFTER_TERMINAL_UPDATE`.
+
 Round 18 also bounds Rust `matches!(...)` reference detection to the macro's
 matched closing parenthesis. Five real emitters that follow completed macros
 are restored: `SNAPBACK_ADMIN_LAN_TARGET_INVALID` at
@@ -90,9 +102,8 @@ Generic environment-object mutations are classified before the read fallback:
 the current `delete childEnv.SNAPBACK_CLIENT_RQS_DIR` site is a removal and
 `delegatedEnvironment.SNAPBACK_ADMIN_TOKEN = …` is a write. The object-boundary
 fixture also retains environment entries after a `}` embedded in a string
-value. `SNAPBACK_ADMIN_TOKEN` is now correctly dual-role: its environment sites
-remain, and the refusal in `targets/cloudflare/config-set.mjs` is a diagnostic
-emission.
+value. `SNAPBACK_ADMIN_TOKEN` remains environment-only: the refusal sentence in
+`targets/cloudflare/config-set.mjs` contributes a mention, not a diagnostic.
 
 Manifest-derived package inventory now admits shipped `.swift` and `.kt`
 files alongside JavaScript. Six native package files join the production
@@ -137,16 +148,13 @@ diagnostic registry and `SnapbackDiagnosticCode`, while remaining present in
 the environment registry and `SnapbackEnvironmentVariable`.
 
 The final comparison with merge-base
-`e370bb8f789007cffae1f4d80c4feabdedc81cb5` finds 234 removed diagnostic
-names: 136 are now environment variables and 98 are other non-emitting
-vocabulary. The earlier 141-name environment claim was audited in full. Five
-real emitters were re-typed back:
-`SNAPBACK_ADMIN_TOKEN`, `SNAPBACK_APP_BINDING_EXPIRED`,
-`SNAPBACK_PUBLICATION_AUTHORITY_INSTALLATION_ID`,
-`SNAPBACK_PUBLICATION_AUTHORITY_ORIGIN`, and
-`SNAPBACK_PUBLICATION_AUTHORITY_PORT`. An independent syntax-context scan of
-all merge-base carrier files for the remaining 136 names found zero remaining
-throw/error/failure/diagnostic/code-assignment candidates.
+`e370bb8f789007cffae1f4d80c4feabdedc81cb5` finds 238 removed diagnostic
+names: 140 are now environment variables and 98 are other non-emitting
+vocabulary. The earlier 141-name environment claim was audited in full. Only
+`SNAPBACK_APP_BINDING_EXPIRED` has whole-string code-bearing emitters and was
+re-typed back as a diagnostic. A delimiter-aware re-audit of the remaining 140
+finds no whole-string or `CODE:` diagnostic emitter; the four leading-token
+throw sentences corrected in round 19 are environment mentions.
 
 `SNAPBACK_APP_BINDING_EXPIRED` is pinned to exactly three emitting sites:
 `packages/snapback-expo/app-binding.mjs:586` and
@@ -224,19 +232,19 @@ Captured output:
 {
   "mergeBase": "e370bb8f789007cffae1f4d80c4feabdedc81cb5",
   "counts": {
-    "codes": 3543,
+    "codes": 3539,
     "sourceFiles": 642,
-    "emittingSites": 9221,
+    "emittingSites": 9216,
     "receivedSites": 339,
     "reservedSites": 9,
     "httpClassified": 1709,
-    "guideAnchored": 428,
+    "guideAnchored": 427,
     "environmentVariables": 185,
-    "environmentSites": 364
+    "environmentSites": 368
   },
   "environmentKinds": {
     "read": 258,
-    "mention": 38,
+    "mention": 42,
     "declaration": 14,
     "remove": 9,
     "write": 24,
@@ -244,16 +252,12 @@ Captured output:
     "indirect-read": 15
   },
   "mergeBaseRemovals": {
-    "total": 234,
-    "environment": 136,
+    "total": 238,
+    "environment": 140,
     "other": 98
   },
   "retypedBack": [
-    "SNAPBACK_ADMIN_TOKEN",
-    "SNAPBACK_APP_BINDING_EXPIRED",
-    "SNAPBACK_PUBLICATION_AUTHORITY_INSTALLATION_ID",
-    "SNAPBACK_PUBLICATION_AUTHORITY_ORIGIN",
-    "SNAPBACK_PUBLICATION_AUTHORITY_PORT"
+    "SNAPBACK_APP_BINDING_EXPIRED"
   ],
   "fixtureRawTokens": 87,
   "receivedCodes": 263,
