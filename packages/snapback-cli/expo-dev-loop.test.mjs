@@ -517,6 +517,8 @@ async function startFixture(target, options = {}) {
     bindingTtlMs: options.bindingTtlMs,
     bindingRefreshWindowMs: options.bindingRefreshWindowMs,
     afterSupervisedAuthorityRequested: options.afterSupervisedAuthorityRequested,
+    controlSocket: options.controlSocket,
+    afterMetroReloadListenersVerified: options.afterMetroReloadListenersVerified,
     devOptions: options.devOptions,
     clientPort: options.clientPort,
     bootstrapPort: options.bootstrapPort,
@@ -1026,6 +1028,46 @@ async function runControlSocketSuite() {
   const controlFixture = fixture('app', { sessions: true, root: controlRoot });
   const controlRange = await reserveFreeRange(8);
   try {
+    const lateExitFixture = fixture('late-exit-app', { sessions: true, root: controlRoot });
+    let injectReplacementExit = false;
+    let replacementExitInjected = false;
+    const lateExitRun = await startFixture(lateExitFixture, {
+      platform: 'web',
+      controlSocket: true,
+      afterMetroReloadListenersVerified({ metro }) {
+        if (!injectReplacementExit) return;
+        replacementExitInjected = true;
+        metro.child.emit('exit', 87, null);
+      },
+    });
+    const lateExitDescriptorPath = join(dirname(lateExitFixture.readyFile), 'expo-supervisor.json');
+    const descriptorBeforeReload = statSync(lateExitDescriptorPath);
+    const settledReload = await lateExitRun.supervisor.verbs['reload-metro']({
+      requestId: 'atomic-descriptor-reload',
+    });
+    assert.equal(settledReload.ok, true, JSON.stringify(settledReload));
+    const descriptorAfterReload = statSync(lateExitDescriptorPath);
+    assert.notEqual(
+      descriptorAfterReload.ino,
+      descriptorBeforeReload.ino,
+      'reload-metro must atomically replace the supervisor descriptor inode',
+    );
+    assert.equal(descriptorAfterReload.mode & 0o777, 0o600);
+    injectReplacementExit = true;
+    const lateExitReload = await lateExitRun.supervisor.verbs['reload-metro']({
+      requestId: 'late-exit-reload',
+    });
+    assert.equal(replacementExitInjected, true);
+    assert.equal(lateExitReload.ok, false, JSON.stringify(lateExitReload));
+    assert.equal(
+      lateExitReload.diagnostics?.[0]?.code,
+      'SNAPBACK_EXPO_METRO_RELOAD_FAILED',
+    );
+    await eventually(() => !existsSync(lateExitDescriptorPath), {
+      label: 'late-exit supervisor descriptor cleanup',
+    });
+    supervisors.splice(supervisors.indexOf(lateExitRun.supervisor), 1);
+
     const ignoredStdinFixture = fixture('ignored-stdin-app', { sessions: true, root: controlRoot });
     const ignoredStdinRange = await reserveFreeRange(8);
     await runCliSupervisor(ignoredStdinFixture, 'web', [

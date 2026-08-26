@@ -36,6 +36,7 @@ const CARRIERS = new Set(['headless', 'web-browser', 'native-simulator']);
 const OWNED_PROCESS_STATE = new WeakMap();
 const SUPERVISOR_PARENT_PID_ENV = 'SNAPBACK_EXPO_SUPERVISOR_PARENT_PID';
 const SUPERVISOR_PARENT_START_TIME_ENV = 'SNAPBACK_EXPO_SUPERVISOR_PARENT_START_TIME';
+const SUPERVISOR_STATE_BASENAME = '.snapback-carrier-state';
 const PLIST_UPDATE_SOURCE = String.raw`
 import json
 import plistlib
@@ -359,6 +360,27 @@ function writeDirectorLog(artifacts, record) {
   const path = join(artifacts, 'director-log.json');
   writeFileSync(path, `${JSON.stringify(record, null, 2)}\n`);
   return path;
+}
+
+function prepareSupervisorStateDirectory(artifacts) {
+  const directory = join(artifacts, SUPERVISOR_STATE_BASENAME);
+  let created = false;
+  try {
+    mkdirSync(directory, { mode: 0o700 });
+    created = true;
+  } catch (error) {
+    if (error?.code !== 'EEXIST') throw error;
+  }
+  if (created) chmodSync(directory, 0o700);
+  const metadata = lstatSync(directory);
+  const ownerUid = typeof process.getuid === 'function' ? process.getuid() : null;
+  if (!metadata.isDirectory()
+      || metadata.isSymbolicLink()
+      || (ownerUid !== null && metadata.uid !== ownerUid)
+      || (metadata.mode & 0o777) !== 0o700) {
+    throw new Error(`carrier supervisor state must be an owner-only real directory: ${directory}`);
+  }
+  return directory;
 }
 
 function verifyScaffold(config, root) {
@@ -1023,12 +1045,13 @@ async function runWebCarrier({
   testHooks,
   root,
   artifacts,
+  supervisorState,
   verifyReceipt,
   fetchImpl,
 }) {
   const carrier = config.carriers['web-browser'];
   const logPath = join(artifacts, 'web-dev.log');
-  const replacements = { artifacts };
+  const replacements = { artifacts: supervisorState };
   const command = expandedCommand(carrier.command, replacements);
   const structuredReadinessPath = carrier.structuredReadiness === undefined
     ? null
@@ -1428,7 +1451,14 @@ function screenshot(udid, path) {
   }
 }
 
-async function runNativeCarrier({ config, options, root, artifacts, verifyReceipt }) {
+async function runNativeCarrier({
+  config,
+  options,
+  root,
+  artifacts,
+  supervisorState,
+  verifyReceipt,
+}) {
   if (process.platform !== 'darwin') throw new Error('native-simulator kit requires macOS');
   const carrier = config.carriers['native-simulator'];
   const simulator = chooseSimulator(options.udid);
@@ -1477,7 +1507,7 @@ async function runNativeCarrier({ config, options, root, artifacts, verifyReceip
         'EXDevMenuIsOnboardingFinished', '-bool', 'YES',
       ]);
     }
-    const command = expandedCommand(carrier.command, { artifacts, udid });
+    const command = expandedCommand(carrier.command, { artifacts: supervisorState, udid });
     const readyFile = resolve(root, carrier.readyFile);
     rmSync(readyFile, { force: true });
     dev = startOwned(command, {
@@ -1580,8 +1610,8 @@ export async function runTemplateCarrierCli(configValue, argv, options = {}) {
   if (!carrier) throw new Error(`template does not support carrier ${parsed.carrier}`);
   const root = resolve(options.root ?? process.cwd());
   const artifacts = resolve(root, parsed.artifacts ?? join(config.artifactsDirectory, parsed.carrier));
-  mkdirSync(artifacts, { recursive: true, mode: 0o700 });
-  chmodSync(artifacts, 0o700);
+  mkdirSync(artifacts, { recursive: true });
+  const supervisorState = prepareSupervisorStateDirectory(artifacts);
   const verifyReceipt = verifyScaffold(config, root);
   let directorLog;
   if (parsed.carrier === 'headless') {
@@ -1600,6 +1630,7 @@ export async function runTemplateCarrierCli(configValue, argv, options = {}) {
       testHooks: options,
       root,
       artifacts,
+      supervisorState,
       verifyReceipt,
       fetchImpl: options.fetch ?? fetch,
     });
@@ -1609,6 +1640,7 @@ export async function runTemplateCarrierCli(configValue, argv, options = {}) {
       options: parsed,
       root,
       artifacts,
+      supervisorState,
       verifyReceipt,
     });
   }
@@ -1624,5 +1656,6 @@ export async function runTemplateCarrierCli(configValue, argv, options = {}) {
 }
 
 export const __test = Object.freeze({
+  prepareSupervisorStateDirectory,
   waitForExpoSupervisorWebReadiness,
 });

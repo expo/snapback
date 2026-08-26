@@ -3,7 +3,6 @@ import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypt
 import {
   chmodSync,
   existsSync,
-  linkSync,
   lstatSync,
   mkdirSync,
   mkdtempSync,
@@ -36,6 +35,7 @@ import {
   activateCleanupSocketPath,
   cleanupLeasedPath,
   openCarrierCleanupLease,
+  rebindCleanupPath,
   releaseCleanupResource,
   reserveCleanupPath,
   spawnLeasedProcess,
@@ -121,6 +121,30 @@ function writeOwnerOnlyJsonAtomic(path, value) {
     device: String(metadata.dev),
     inode: String(metadata.ino),
   });
+}
+
+function publishSupervisorDescriptorAtomically(path, descriptor, temporaryFile = null) {
+  // @ref LLP 0310.000#track-c--generate-must-not-kill-metro — the live Metro
+  // policy carrier is read concurrently by bare generate, so every revision
+  // is a private same-directory rename rather than truncate-and-rewrite.
+  const destination = resolve(path);
+  const temporary = temporaryFile === null
+    ? `${destination}.${process.pid}.${randomUUID()}.tmp`
+    : resolve(temporaryFile);
+  if (dirname(temporary) !== dirname(destination)) {
+    throw new TypeError('Expo supervisor descriptor temporary file must share its destination directory');
+  }
+  mkdirSync(dirname(destination), { recursive: true });
+  try {
+    writeFileSync(temporary, `${JSON.stringify(descriptor, null, 2)}\n`, {
+      flag: 'wx',
+      mode: 0o600,
+    });
+    chmodSync(temporary, 0o600);
+    renameSync(temporary, destination);
+  } finally {
+    rmSync(temporary, { force: true });
+  }
 }
 
 function validateDevControlCommand(command, controlSocket, endpoint) {
@@ -515,6 +539,7 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
       endpointPath,
       { timeoutMs: options.endpointProbeTimeoutMs ?? 500 },
     ));
+  const publishEndpoint = dependencies.publishEndpoint ?? renameSync;
   const withPathLock = dependencies.withPathLock ?? withCleanupPathLock;
   const writeAcknowledgement = dependencies.writeAcknowledgement
     ?? ((socket, payload) => socket.write(payload));
@@ -833,7 +858,7 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
         try {
           // @ref LLP 0310.000#track-e--owner-bound-control-socket — bind at a
           // private name first; the owner marker is durable before the exact
-          // inode is hard-linked into the well-known 0600 endpoint.
+          // inode is renamed into the well-known 0600 endpoint.
           server.listen(pendingPath);
         } catch (cause) {
           onError(cause);
@@ -905,12 +930,27 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
         descriptor,
       });
       try {
-        linkSync(pendingPath, path);
+        publishEndpoint(pendingPath, path);
       } catch (cause) {
+        const causeCode = cause?.code ?? cause?.message ?? String(cause);
+        if (cause?.code === 'EEXIST') {
+          throw diagnosticError(
+            'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
+            'the dev control socket path became occupied before publication',
+            { path, cause: causeCode },
+          );
+        }
         throw diagnosticError(
-          'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
-          'the dev control socket path became occupied before publication',
-          { path, cause: cause?.code ?? cause?.message ?? String(cause) },
+          'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
+          `the dev control socket could not be published at ${path}`,
+          {
+            path: stateDirectoryPath,
+            endpointPath: path,
+            pendingPath,
+            readyFile,
+            cause: causeCode,
+            recovery: 'choose another owner-only state directory with --ready-file <path>',
+          },
         );
       }
       try {
@@ -935,7 +975,6 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
           },
         );
       }
-      rmSync(pendingPath);
       releaseCleanupResource(pendingCleanupResource);
       pendingCleanupResource = null;
       pendingPath = null;
@@ -977,6 +1016,21 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
       }
       throw error;
     }
+  }).catch((error) => {
+    if ((error?.diagnostic?.code ?? error?.code) !== 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE') {
+      throw error;
+    }
+    startupUnavailable = error?.diagnostic ?? devControlDiagnostic(
+      'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
+      error?.message ?? 'timed out waiting for the owner-bound dev control path lock',
+      {
+        path: stateDirectoryPath,
+        endpointPath: path,
+        readyFile,
+        cause: error?.code ?? error?.message ?? String(error),
+        recovery: 'wait for the current same-uid owner to exit or choose another owner-only state directory with --ready-file <path>',
+      },
+    );
   });
   if (startupUnavailable !== null) return unavailable(startupUnavailable.details);
   return Object.freeze({
@@ -3290,7 +3344,8 @@ export async function runExpoDev(options = {}) {
   let supervisorDescriptorTemporaryCleanupResource = null;
   let controlSocketHandle = null;
   let controlDispatcher = null;
-  let metroReloading = false;
+  const intentionallyStoppedMetroChildren = new WeakSet();
+  const metroExitErrors = new WeakMap();
   const abortSignal = options.signal ?? null;
   let abortListener = null;
   const appDescriptorPath = join(backendRoot, 'generated', 'app.descriptor.json');
@@ -3573,14 +3628,19 @@ export async function runExpoDev(options = {}) {
             metroLaunching = handle;
           },
           onExit(code, signal, cause) {
-            if (!closed && !metroReloading && metro?.child === startedMetro.child) {
-              const error = diagnosticError(
-                'SNAPBACK_EXPO_METRO_EXITED',
-                cause
-                  ? 'Expo/Metro could not be started'
-                  : 'Expo/Metro exited while supervised development was active',
-                { code, signal, ...(cause ? { cause: cause.code ?? cause.message } : {}) },
-              );
+            if (intentionallyStoppedMetroChildren.has(startedMetro.child)) return;
+            const error = diagnosticError(
+              'SNAPBACK_EXPO_METRO_EXITED',
+              cause
+                ? 'Expo/Metro could not be started'
+                : 'Expo/Metro exited while supervised development was active',
+              { code, signal, ...(cause ? { cause: cause.code ?? cause.message } : {}) },
+            );
+            metroExitErrors.set(startedMetro.child, error);
+            if (!closed && (
+              metro?.child === startedMetro.child
+              || metroLaunching?.child === startedMetro.child
+            )) {
               reportCriticalExit(error);
             }
           },
@@ -3955,13 +4015,16 @@ export async function runExpoDev(options = {}) {
         }
         // This transient descriptor is an inspection projection, not attach
         // authority. The application-ready file remains untouched.
-        writeFileSync(supervisorDescriptorFile, `${JSON.stringify({
+        publishSupervisorDescriptorAtomically(supervisorDescriptorFile, {
           ...current,
           portPlan,
           binding: bindingProjection,
           applicationReady: applicationReceiptProjection,
-        }, null, 2)}\n`);
-        chmodSync(supervisorDescriptorFile, 0o600);
+        });
+        rebindCleanupPath(supervisorDescriptorCleanupResource, {
+          runIdField: 'supervisorGeneration',
+          runId: generation,
+        });
       }
       return bindingProjection;
     };
@@ -4163,8 +4226,11 @@ export async function runExpoDev(options = {}) {
           { path: supervisorDescriptorFile, expected: generation, observed: current.supervisorGeneration },
         );
       }
-      writeFileSync(supervisorDescriptorFile, `${JSON.stringify({ ...current, ...fields }, null, 2)}\n`);
-      chmodSync(supervisorDescriptorFile, 0o600);
+      publishSupervisorDescriptorAtomically(supervisorDescriptorFile, { ...current, ...fields });
+      rebindCleanupPath(supervisorDescriptorCleanupResource, {
+        runIdField: 'supervisorGeneration',
+        runId: generation,
+      });
     };
     const reloadMetroVerb = async ({ requestId } = {}) => {
       if (closed) {
@@ -4182,9 +4248,9 @@ export async function runExpoDev(options = {}) {
       }
       const previousMetro = metro;
       const previousPid = previousMetro?.child.pid ?? null;
-      metroReloading = true;
       try {
         if (previousMetro !== null) {
+          intentionallyStoppedMetroChildren.add(previousMetro.child);
           await stopProcessGroup(previousMetro.child, { processGroup: true });
           if (metro === previousMetro) metro = null;
         }
@@ -4197,6 +4263,35 @@ export async function runExpoDev(options = {}) {
           expected: expectedListeners,
           timeoutMs: options.metroReadyTimeoutMs ?? 30_000,
         });
+        await options.afterMetroReloadListenersVerified?.({
+          metro: restartedMetro,
+          listeners,
+        });
+        // A listener can be observed just before its owning process exit event
+        // is delivered. Give that terminal notification one turn to latch
+        // before replacing the descriptor, then repeat the turn/check at the
+        // immediate success-publication boundary.
+        const assertReplacementMetroActive = () => {
+          const replacementExit = metroExitErrors.get(restartedMetro.child) ?? null;
+          if (replacementExit === null
+              && !closed
+              && metro === restartedMetro
+              && restartedMetro.child.exitCode === null
+              && restartedMetro.child.signalCode === null) return;
+          throw diagnosticError(
+            'SNAPBACK_EXPO_METRO_RELOAD_FAILED',
+            'the replacement Metro process exited before reload success could be published',
+            {
+              pid: restartedMetro.child.pid,
+              cause: replacementExit?.diagnostic?.code
+                ?? restartedMetro.child.signalCode
+                ?? restartedMetro.child.exitCode
+                ?? 'supervisor-closed',
+            },
+          );
+        };
+        await new Promise((resolveTurn) => setImmediate(resolveTurn));
+        assertReplacementMetroActive();
         const identity = processIdentity(restartedMetro.child.pid, processTable());
         if (identity === null) {
           throw diagnosticError(
@@ -4211,6 +4306,8 @@ export async function runExpoDev(options = {}) {
           upstreamOrigin: appOrigin(LOOPBACK_HOST, metroProcessPort),
         });
         updateSupervisorDescriptor({ metro: metroReadiness, listeners });
+        await new Promise((resolveTurn) => setImmediate(resolveTurn));
+        assertReplacementMetroActive();
         return emit({
           ok: true,
           state: 'metro-reloaded',
@@ -4239,8 +4336,6 @@ export async function runExpoDev(options = {}) {
         });
         if (!closed) reportCriticalExit(reloadError);
         return failure;
-      } finally {
-        metroReloading = false;
       }
     };
     const stopChildrenVerb = async ({ requestId } = {}) => {
@@ -4327,7 +4422,7 @@ export async function runExpoDev(options = {}) {
         leaseUnique: true,
       },
     );
-    writeFileSync(supervisorDescriptorTemporaryFile, `${JSON.stringify({
+    publishSupervisorDescriptorAtomically(supervisorDescriptorFile, {
       schemaVersion: EXPO_SUPERVISOR_DESCRIPTOR_FORMAT,
       formatVersion: 1,
       state: finalState,
@@ -4355,9 +4450,7 @@ export async function runExpoDev(options = {}) {
       }),
       listeners,
       startedAt,
-    }, null, 2)}\n`, { mode: 0o600 });
-    chmodSync(supervisorDescriptorTemporaryFile, 0o600);
-    renameSync(supervisorDescriptorTemporaryFile, supervisorDescriptorFile);
+    }, supervisorDescriptorTemporaryFile);
     releaseCleanupResource(supervisorDescriptorTemporaryCleanupResource);
     supervisorDescriptorTemporaryCleanupResource = null;
     supervisorDescriptorTemporaryFile = null;
@@ -4460,6 +4553,7 @@ export const __test = Object.freeze({
   allocateSupervisorPortCandidates,
   bindPlannedSupervisorListeners,
   probeDevControlEndpoint,
+  publishSupervisorDescriptorAtomically,
   startDevControlSocketWithDependencies,
   startMetroWebFront,
 });

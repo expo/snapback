@@ -10,6 +10,7 @@ import {
   readdirSync,
   renameSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -42,6 +43,7 @@ const supervisor = join(root, 'supervisor.mjs');
 const browser = join(root, 'browser.mjs');
 const signalRunner = join(root, 'signal-runner.mjs');
 const carrierDeathRunner = join(root, 'carrier-death-runner.mjs');
+const carrierState = (artifacts) => join(artifacts, '.snapback-carrier-state');
 
 for (const template of ['react', 'crud-dashboard']) {
   const source = readFileSync(join(import.meta.dirname, 'templates', template, 'carrier.mjs'), 'utf8');
@@ -549,6 +551,24 @@ try {
   );
   rmSync(staleDescriptor, { force: true });
 
+  const looseStateArtifacts = join(root, 'loose-state-artifacts');
+  const looseStateDirectory = carrierState(looseStateArtifacts);
+  mkdirSync(looseStateDirectory, { recursive: true, mode: 0o755 });
+  chmodSync(looseStateDirectory, 0o755);
+  assert.throws(
+    () => carrierKitTest.prepareSupervisorStateDirectory(looseStateArtifacts),
+    /owner-only real directory/u,
+  );
+  const symlinkStateArtifacts = join(root, 'symlink-state-artifacts');
+  const symlinkStateTarget = join(root, 'symlink-state-target');
+  mkdirSync(symlinkStateArtifacts);
+  mkdirSync(symlinkStateTarget, { mode: 0o700 });
+  symlinkSync(symlinkStateTarget, carrierState(symlinkStateArtifacts), 'dir');
+  assert.throws(
+    () => carrierKitTest.prepareSupervisorStateDirectory(symlinkStateArtifacts),
+    /owner-only real directory/u,
+  );
+
   const publishedReadiness = join(root, 'published-after-exit.json');
   writeFileSync(publishedReadiness, JSON.stringify({
     schemaVersion: 'snapback.expo-supervisor.v1',
@@ -610,7 +630,16 @@ try {
   assert.equal(await runTemplateCarrierCli(successConfig, [
     'web-browser', '--browser', browser, '--artifacts', successArtifacts,
   ], { root }), 0);
-  assert.equal(lstatSync(successArtifacts).mode & 0o777, 0o700);
+  assert.equal(
+    lstatSync(successArtifacts).mode & 0o777,
+    0o755,
+    '--artifacts must not change the caller-owned directory mode',
+  );
+  assert.equal(
+    lstatSync(carrierState(successArtifacts)).mode & 0o777,
+    0o700,
+    'supervisor state must live in a dedicated owner-only child',
+  );
   const director = JSON.parse(readFileSync(join(successArtifacts, 'director-log.json'), 'utf8'));
   assert.equal(director.status, 'completed');
   assert.equal(director.proofAuthority.kind, 'llp-0146-d2');
@@ -627,8 +656,8 @@ try {
   assert.equal(director.observations.cleanup.readinessFileRemoved, true);
   assert.equal(director.observations.cleanup.browserExited, true);
   assert.equal(director.observations.cleanup.browserProfileRemoved, true);
-  assert.equal(existsSync(join(successArtifacts, 'expo-supervisor.json')), false);
-  assert.equal(existsSync(join(successArtifacts, 'supervisor-cleaned')), true);
+  assert.equal(existsSync(join(carrierState(successArtifacts), 'expo-supervisor.json')), false);
+  assert.equal(existsSync(join(carrierState(successArtifacts), 'supervisor-cleaned')), true);
 
   const staleArtifacts = join(root, 'stale-artifacts');
   await assert.rejects(
@@ -637,7 +666,7 @@ try {
     ], { root }),
     /does not belong to the exact web carrier child/u,
   );
-  assert.equal(existsSync(join(staleArtifacts, 'supervisor-cleaned')), true);
+  assert.equal(existsSync(join(carrierState(staleArtifacts), 'supervisor-cleaned')), true);
 
   const unrelatedArtifacts = join(root, 'unrelated-artifacts');
   await assert.rejects(
@@ -646,7 +675,7 @@ try {
     ], { root }),
     /Metro upstream listener was replaced/u,
   );
-  assert.equal(existsSync(join(unrelatedArtifacts, 'supervisor-cleaned')), true);
+  assert.equal(existsSync(join(carrierState(unrelatedArtifacts), 'supervisor-cleaned')), true);
 
   const takeoverArtifacts = join(root, 'takeover-artifacts');
   await assert.rejects(
@@ -655,16 +684,16 @@ try {
     ], {
       root,
       async onWebOwnershipValidated() {
-        writeFileSync(join(takeoverArtifacts, 'takeover-trigger'), 'replace');
+        writeFileSync(join(carrierState(takeoverArtifacts), 'takeover-trigger'), 'replace');
         await eventually(
-          () => existsSync(join(takeoverArtifacts, 'takeover-ready')),
+          () => existsSync(join(carrierState(takeoverArtifacts), 'takeover-ready')),
           'synchronized same-project Metro takeover',
         );
       },
     }),
     /Metro process identity changed|Metro upstream listener (?:ownership changed|was replaced)/u,
   );
-  assert.equal(existsSync(join(takeoverArtifacts, 'supervisor-cleaned')), true);
+  assert.equal(existsSync(join(carrierState(takeoverArtifacts), 'supervisor-cleaned')), true);
 
   const timeoutArtifacts = join(root, 'timeout-artifacts');
   await assert.rejects(
@@ -673,8 +702,8 @@ try {
     ], { root }),
     /did not write structured readiness/u,
   );
-  assert.equal(existsSync(join(timeoutArtifacts, 'supervisor-cleaned')), true);
-  const timeoutPids = JSON.parse(readFileSync(join(timeoutArtifacts, 'descendant-pids.json')));
+  assert.equal(existsSync(join(carrierState(timeoutArtifacts), 'supervisor-cleaned')), true);
+  const timeoutPids = JSON.parse(readFileSync(join(carrierState(timeoutArtifacts), 'descendant-pids.json')));
   await eventually(() => timeoutPids.every((pid) => !pidAlive(pid)), 'timeout detached Metro cleanup');
 
   const killedCliArtifacts = join(root, 'killed-cli-artifacts');
@@ -684,7 +713,7 @@ try {
     ], { root }),
     /exited .* before readiness; did not write structured readiness/u,
   );
-  const killedCliPids = JSON.parse(readFileSync(join(killedCliArtifacts, 'descendant-pids.json')));
+  const killedCliPids = JSON.parse(readFileSync(join(carrierState(killedCliArtifacts), 'descendant-pids.json')));
   await eventually(() => killedCliPids.every((pid) => !pidAlive(pid)), 'pre-descriptor SIGKILL descendants');
 
   const stubbornArtifacts = join(root, 'stubborn-artifacts');
@@ -694,7 +723,7 @@ try {
     ], { root }),
     /did not write structured readiness/u,
   );
-  const stubbornPids = JSON.parse(readFileSync(join(stubbornArtifacts, 'descendant-pids.json')));
+  const stubbornPids = JSON.parse(readFileSync(join(carrierState(stubbornArtifacts), 'descendant-pids.json')));
   await eventually(() => stubbornPids.every((pid) => !pidAlive(pid)), 'stubborn grandchild SIGKILL');
 
   const signalArtifacts = join(root, 'signal-artifacts');
@@ -748,10 +777,10 @@ try {
   assert.deepEqual(signalExit, { code: 23, signal: null }, signalOutput);
   await eventually(() => existsSync(browserCleaned), 'double-signal browser cleanup completion');
   await eventually(
-    () => existsSync(join(signalArtifacts, 'supervisor-cleaned')),
+    () => existsSync(join(carrierState(signalArtifacts), 'supervisor-cleaned')),
     'double-signal supervisor cleanup completion',
   );
-  assert.equal(existsSync(join(signalArtifacts, 'expo-supervisor.json')), false);
+  assert.equal(existsSync(join(carrierState(signalArtifacts), 'expo-supervisor.json')), false);
   assert.equal(existsSync(readFileSync(browserProfile, 'utf8')), false);
 
   const carrierDeathArtifacts = join(root, 'carrier-death-artifacts');
@@ -787,7 +816,7 @@ await runTemplateCarrierCli(config, ['web-browser', '--browser', ${JSON.stringif
     },
     stdio: ['ignore', 'ignore', 'ignore'],
   });
-  const carrierDeathPidsPath = join(carrierDeathArtifacts, 'descendant-pids.json');
+  const carrierDeathPidsPath = join(carrierState(carrierDeathArtifacts), 'descendant-pids.json');
   await eventually(() => existsSync(carrierDeathPidsPath), 'carrier-death descendant inventory');
   await eventually(() => existsSync(carrierDeathBrowserStarted), 'carrier-death browser start');
   const cleanupLeaseDirectory = readFileSync(carrierDeathLeaseDirectory, 'utf8');
@@ -811,7 +840,7 @@ await runTemplateCarrierCli(config, ['web-browser', '--browser', ${JSON.stringif
     'carrier-death supervisor, detached Metro, and browser groups',
   );
   await eventually(() => !existsSync(carrierDeathProfile), 'carrier-death browser profile lease');
-  assert.equal(existsSync(join(carrierDeathArtifacts, 'expo-supervisor.json')), false);
+  assert.equal(existsSync(join(carrierState(carrierDeathArtifacts), 'expo-supervisor.json')), false);
 
   console.log('carrier-kit.test.mjs: identity discharge, run-bound descriptor and pending child leases, live ownership, attestation, takeover, stubborn/SIGKILL reclamation, and double-signal cleanup pass');
 } finally {

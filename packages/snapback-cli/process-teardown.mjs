@@ -219,9 +219,26 @@ function validCleanupPathLockOwner(owner) {
     && Number.isFinite(Date.parse(owner.acquiredAt));
 }
 
-function liveCleanupPathLockOwner(owner, table = processTable()) {
+function processIdExists(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    if (error?.code === 'ESRCH') return false;
+    if (error?.code === 'EPERM') return true;
+    return true;
+  }
+}
+
+function liveCleanupPathLockOwner(owner, table = null) {
   if (!validCleanupPathLockOwner(owner)) return false;
-  const current = processIdentity(owner.pid, table);
+  if (!processIdExists(owner.pid)) return false;
+  const current = processIdentity(owner.pid, table ?? processTable());
+  // kill(pid, 0) proves the numeric process still exists. If a concurrent ps
+  // parse misses it, preserve the live marker: ambiguity is not authority to
+  // replace a lock. When ps does return an identity, its OS start time fences
+  // PID reuse before the marker can be treated as live.
+  if (current === null) return true;
   return current?.startTime === owner.startTime;
 }
 
@@ -370,7 +387,6 @@ async function acquireCleanupPathLock(path, timeoutMs = CLEANUP_PATH_LOCK_TIMEOU
 
     const observedLock = observeCleanupPathLockMarker(lockFile);
     if (observedLock === null) continue;
-    const observedBytes = observedLock.bytes;
     const observedOwner = observedLock.owner;
     if (liveCleanupPathLockOwner(observedOwner)) {
       if (Date.now() >= deadline) {
@@ -438,19 +454,19 @@ async function acquireCleanupPathLock(path, timeoutMs = CLEANUP_PATH_LOCK_TIMEOU
           marker: incumbent,
           claimFiles: reclaimClaimFiles,
         });
-        const reclaimReplacement = join(lockDirectory, `.dc-r-${reclaimOwner.token.slice(0, 8)}`);
         let adoptedReclaim = false;
-        try {
-          writeExclusiveOwnerRecord(reclaimReplacement, reclaimOwner);
-          const current = observeCleanupPathLockMarker(reclaimFile);
-          if (sameCleanupPathLockMarker(current, incumbent)) {
-            renameSync(reclaimReplacement, reclaimFile);
+        const current = observeCleanupPathLockMarker(reclaimFile);
+        if (sameCleanupPathLockMarker(current, incumbent)
+            && !liveCleanupPathLockOwner(current.owner)) {
+          rmSync(reclaimFile);
+          try {
+            linkExclusiveOwnerRecord(reclaimFile, reclaimOwner);
             const adopted = readJson(reclaimFile);
             adoptedReclaim = validCleanupPathLockOwner(adopted)
               && adopted.token === reclaimOwner.token;
+          } catch (error) {
+            if (error?.code !== 'EEXIST') throw error;
           }
-        } finally {
-          rmSync(reclaimReplacement, { force: true });
         }
         if (!adoptedReclaim) continue;
         ownsReclaim = true;
@@ -462,24 +478,24 @@ async function acquireCleanupPathLock(path, timeoutMs = CLEANUP_PATH_LOCK_TIMEOU
         if (ownsReclaim) releaseCleanupPathLock(reclaimFile, reclaimOwner);
         throw error;
       }
-      const replacementFile = join(lockDirectory, `.dc-l-${owner.token.slice(0, 8)}`);
       try {
-        let currentBytes = null;
-        try { currentBytes = readFileSync(lockFile, 'utf8'); } catch (error) {
-          if (error?.code !== 'ENOENT') throw error;
+        const current = observeCleanupPathLockMarker(lockFile);
+        if (!sameCleanupPathLockMarker(current, observedLock)
+            || liveCleanupPathLockOwner(current.owner)) continue;
+        rmSync(lockFile);
+        try {
+          // Publish only into an absent pathname. A normal O_EXCL acquirer or
+          // another elected reclaimer may win the unlink-to-link window; this
+          // contender then observes EEXIST and never replaces that live owner.
+          linkExclusiveOwnerRecord(lockFile, owner);
+        } catch (error) {
+          if (error?.code === 'EEXIST') continue;
+          throw error;
         }
-        if (currentBytes !== observedBytes || observedBytes === null) continue;
-        writeExclusiveOwnerRecord(replacementFile, owner);
-        if (readFileSync(lockFile, 'utf8') !== observedBytes) continue;
-        // The reclaimer is O_EXCL-serialized, and rename replaces the stale
-        // lock atomically. Once that live owner is published, old observers
-        // can no longer replace it and the generation claims are discharged.
-        renameSync(replacementFile, lockFile);
         releaseCleanupPathClaims(reclaimClaimFiles);
         reclaimClaimFiles = [];
         return Object.freeze({ lockFile, owner });
       } finally {
-        rmSync(replacementFile, { force: true });
         if (ownsReclaim) releaseCleanupPathLock(reclaimFile, reclaimOwner);
       }
     } finally {
@@ -490,7 +506,7 @@ async function acquireCleanupPathLock(path, timeoutMs = CLEANUP_PATH_LOCK_TIMEOU
 
 // Socket bind/reclaim and detached-reaper deletion share this exact lock. The
 // callback may wait (for listen or a test barrier); a killed holder is recovered
-// through the lock's PID/start-time-bound atomic replacement path above.
+// through the lock's PID/start-time-bound exclusive stale-marker takeover above.
 // @ref LLP 0310.000#track-e--owner-bound-control-socket — the owner endpoint's
 // reclaim, bind, and reaper deletion are one serialized ownership transition.
 export async function withCleanupPathLock(path, action, {
@@ -789,6 +805,32 @@ export function activateCleanupPath(resource, { runIdField, runId } = {}) {
     state: 'active',
     fileIdentity,
     activatedAt: new Date().toISOString(),
+  });
+  return Object.freeze({ ...fileIdentity });
+}
+
+export function rebindCleanupPath(resource, { runIdField, runId } = {}) {
+  if (resource === null || resource === undefined) return null;
+  if (typeof runIdField !== 'string' || runIdField.length === 0
+      || typeof runId !== 'string' || runId.length === 0) {
+    throw new Error('cleanup file rebind requires a run-id field and value');
+  }
+  const record = readJson(resource.path);
+  if (record?.schemaVersion !== CLEANUP_RESOURCE_FORMAT
+      || record.kind !== 'path'
+      || record.runId !== resource.lease.runId
+      || record.pathType !== 'file'
+      || record.state !== 'active'
+      || record.leaseUnique === true
+      || record.fileIdentity?.runIdField !== runIdField
+      || record.fileIdentity?.runId !== runId) {
+    throw new Error('cleanup file lease is not rebindable');
+  }
+  const fileIdentity = exactFileIdentity(record.path, runIdField, runId);
+  writeOwnerOnlyJson(resource.path, {
+    ...record,
+    fileIdentity,
+    reboundAt: new Date().toISOString(),
   });
   return Object.freeze({ ...fileIdentity });
 }

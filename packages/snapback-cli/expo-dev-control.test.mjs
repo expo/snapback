@@ -25,9 +25,12 @@ import {
 } from './expo-dev.mjs';
 import {
   __test as teardownTest,
+  activateCleanupPath,
   CLEANUP_LEASE_DIRECTORY_ENV,
   closeCarrierCleanupLease,
   createCarrierCleanupLease,
+  rebindCleanupPath,
+  reserveCleanupPath,
   withCleanupPathLock,
 } from './process-teardown.mjs';
 
@@ -79,24 +82,24 @@ const endpointPath = process.argv[2];
 const mode = process.argv[3];
 const contenderId = process.argv[4];
 const releaseFile = process.argv[5];
+const stall = () => new Promise(() => { setInterval(() => {}, 60_000); });
 try {
   await withCleanupPathLock(endpointPath, async () => {
     const lockOwner = JSON.parse(readFileSync(join(dirname(endpointPath), '.dc-lock'), 'utf8'));
     process.stdout.write(JSON.stringify({ state: mode === 'stale-contender' ? 'protected-action' : 'lock-acquired', contenderId, lockOwner }) + '\\n');
-    await new Promise(() => {});
+    await stall();
   }, {
-    timeoutMs: mode === 'stale-contender' ? 750 : 10_000,
-    markerStaleMs: mode === 'stale-contender' ? 0 : undefined,
+    timeoutMs: mode === 'stale-contender' ? 5_000 : 10_000,
     ...(mode === 'die-while-reclaiming' ? {
       async afterReclaimMarkerAcquired() {
         process.stdout.write(JSON.stringify({ state: 'reclaim-marker-acquired' }) + '\\n');
-        await new Promise(() => {});
+        await stall();
       },
     } : {}),
     ...(mode === 'die-after-stale-claim' ? {
       async afterStaleReclaimClaimAcquired({ claimFiles }) {
         process.stdout.write(JSON.stringify({ state: 'stale-claim-acquired', claimFiles }) + '\\n');
-        await new Promise(() => {});
+        await stall();
       },
     } : {}),
     ...(mode === 'stale-contender' ? {
@@ -365,6 +368,56 @@ try {
     'the default Expo lifecycle suite must retain the no-TTY E1 control-socket witness',
   );
 
+  const atomicDescriptorRoot = makeRoot('atomic-descriptor');
+  const atomicDescriptorPath = join(atomicDescriptorRoot, 'expo-supervisor.json');
+  writeFileSync(atomicDescriptorPath, '{"supervisorGeneration":"atomic-owner","revision":1}\n', {
+    mode: 0o600,
+  });
+  const descriptorBefore = lstatSync(atomicDescriptorPath);
+  assert.equal(
+    typeof expoDevTest.publishSupervisorDescriptorAtomically,
+    'function',
+    'Expo supervisor descriptor publication must expose the Track C atomic helper',
+  );
+  expoDevTest.publishSupervisorDescriptorAtomically(atomicDescriptorPath, {
+    supervisorGeneration: 'atomic-owner',
+    revision: 2,
+  });
+  const descriptorAfter = lstatSync(atomicDescriptorPath);
+  assert.notEqual(descriptorAfter.ino, descriptorBefore.ino);
+  assert.equal(descriptorAfter.mode & 0o777, 0o600);
+  assert.equal(JSON.parse(readFileSync(atomicDescriptorPath, 'utf8')).revision, 2);
+  assert.deepEqual(
+    readdirSync(atomicDescriptorRoot).filter((name) => name.endsWith('.tmp')),
+    [],
+  );
+  const descriptorLease = await createCarrierCleanupLease();
+  const leasedDescriptorPath = join(atomicDescriptorRoot, 'leased-expo-supervisor.json');
+  const leasedDescriptorResource = reserveCleanupPath(descriptorLease, leasedDescriptorPath, {
+    type: 'file',
+    label: 'atomic supervisor descriptor regression',
+  });
+  writeFileSync(
+    leasedDescriptorPath,
+    '{"supervisorGeneration":"leased-owner","revision":1}\n',
+    { mode: 0o600 },
+  );
+  activateCleanupPath(leasedDescriptorResource, {
+    runIdField: 'supervisorGeneration',
+    runId: 'leased-owner',
+  });
+  expoDevTest.publishSupervisorDescriptorAtomically(leasedDescriptorPath, {
+    supervisorGeneration: 'leased-owner',
+    revision: 2,
+  });
+  rebindCleanupPath(leasedDescriptorResource, {
+    runIdField: 'supervisorGeneration',
+    runId: 'leased-owner',
+  });
+  await closeCarrierCleanupLease(descriptorLease);
+  assert.equal(existsSync(leasedDescriptorPath), false);
+  console.log('supervisor descriptor publication: owner-only same-directory atomic replacement');
+
   const uidlessRoot = makeRoot('n');
   const unavailableNotices = [];
   const uidlessControl = await expoDevTest.startDevControlSocketWithDependencies(
@@ -419,6 +472,64 @@ try {
   assert.equal(existsSync(join(advertisedProbeRoot, '.dc-sock')), false);
   assert.equal(existsSync(join(advertisedProbeRoot, 'dev-control.owner.json')), false);
   console.log('advertised path probe failure: coded stdin-only fallback publishes no descriptor');
+
+  for (const causeCode of ['EPERM', 'EXDEV']) {
+    const linuxPublishRoot = makeRoot(`linux-publish-${causeCode.toLowerCase()}`);
+    const linuxPublishNotices = [];
+    const linuxPublishControl = await expoDevTest.startDevControlSocketWithDependencies(
+      testOptions(linuxPublishRoot, `unit-linux-publish-${causeCode.toLowerCase()}-owner`, {
+        onUnavailable: (diagnostic) => linuxPublishNotices.push(diagnostic),
+      }),
+      {
+        publishEndpoint() {
+          throw Object.assign(new Error('injected unix-socket rename refusal'), {
+            code: causeCode,
+          });
+        },
+      },
+    );
+    assert.equal(linuxPublishControl, null);
+    assert.equal(linuxPublishNotices[0].code, 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE');
+    assert.equal(linuxPublishNotices[0].details.cause, causeCode);
+    assert.equal(existsSync(join(linuxPublishRoot, '.dc-sock')), false);
+    assert.equal(existsSync(join(linuxPublishRoot, 'dev-control.owner.json')), false);
+  }
+  console.log('socket publication EPERM/EXDEV: coded stdin-only fallback remains live');
+
+  const publishCollisionRoot = makeRoot('publish-collision');
+  await assertRefusal(
+    () => expoDevTest.startDevControlSocketWithDependencies(
+      testOptions(publishCollisionRoot, 'unit-publish-collision-owner'),
+      {
+        publishEndpoint() {
+          throw Object.assign(new Error('injected occupied publication path'), { code: 'EEXIST' });
+        },
+      },
+    ),
+    'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
+  );
+  assert.equal(existsSync(join(publishCollisionRoot, '.dc-sock')), false);
+  console.log('socket publication EEXIST: only path collision maps to foreign-owner refusal');
+
+  const lockTimeoutRoot = makeRoot('lock-timeout');
+  const lockTimeoutNotices = [];
+  const lockTimeoutControl = await expoDevTest.startDevControlSocketWithDependencies(
+    testOptions(lockTimeoutRoot, 'unit-lock-timeout-owner', {
+      onUnavailable: (diagnostic) => lockTimeoutNotices.push(diagnostic),
+    }),
+    {
+      async withPathLock() {
+        throw Object.assign(new Error('injected cleanup path lock timeout'), {
+          code: 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
+        });
+      },
+    },
+  );
+  assert.equal(lockTimeoutControl, null);
+  assert.equal(lockTimeoutNotices[0].code, 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE');
+  assert.equal(lockTimeoutNotices[0].details.cause, 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE');
+  assert.equal(existsSync(join(lockTimeoutRoot, '.dc-sock')), false);
+  console.log('cleanup path lock timeout: coded stdin-only fallback remains live');
 
   const socketModeRoot = makeRoot('socket-mode');
   const socketModeNotices = [];
