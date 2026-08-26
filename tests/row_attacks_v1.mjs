@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 
 import {
@@ -11,6 +14,18 @@ import {
 } from '../scripts/run-row-attacks.mjs';
 
 const fixtureRoot = new URL('./fixtures/row-attacks/', import.meta.url).pathname;
+
+function withMutatedLedger(mutate, check) {
+  const directory = mkdtempSync(join(tmpdir(), 'snapback-row-ledger-'));
+  try {
+    const ledger = JSON.parse(readFileSync(join(fixtureRoot, 'attacks.v1.json'), 'utf8'));
+    mutate(ledger);
+    writeFileSync(join(directory, 'attacks.v1.json'), `${JSON.stringify(ledger)}\n`);
+    check(directory);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+}
 
 test('row-attack ledger carries every measured row and all feature cells', () => {
   const ledger = loadRowAttackLedger(fixtureRoot);
@@ -135,5 +150,29 @@ test('runtime observations require the exact row and one machine-readable line',
       'F157',
     ).observed,
     'ERROR',
+  );
+});
+
+test('OPEN rows cannot carry a speculative rustc code', () => {
+  withMutatedLedger(
+    (ledger) => {
+      ledger.attacks.find(({ row }) => row === 'F319').expectedCode = 'E0599';
+    },
+    (directory) => assert.throws(
+      () => loadRowAttackLedger(directory),
+      /invalid or duplicate attack row/u,
+    ),
+  );
+});
+
+test('only listed runtime-refusal rows can be CLOSED without a rustc code', () => {
+  withMutatedLedger(
+    (ledger) => {
+      ledger.attacks.find(({ row }) => row === 'F319').expected = 'CLOSED';
+    },
+    (directory) => assert.throws(
+      () => loadRowAttackLedger(directory),
+      /invalid or duplicate attack row/u,
+    ),
   );
 });
