@@ -219,6 +219,12 @@ function validCleanupPathLockOwner(owner) {
     && Number.isFinite(Date.parse(owner.acquiredAt));
 }
 
+function liveCleanupPathLockOwner(owner, table = processTable()) {
+  if (!validCleanupPathLockOwner(owner)) return false;
+  const current = processIdentity(owner.pid, table);
+  return current?.startTime === owner.startTime;
+}
+
 function observeCleanupPathLockMarker(path) {
   try {
     const before = lstatSync(path);
@@ -269,30 +275,62 @@ function cleanupPathLockMarkerAge(marker, now = Date.now()) {
   return Math.max(0, now - acquiredAt);
 }
 
-function claimStaleCleanupPathMarker({
+async function claimStaleCleanupPathMarker({
+  deadline,
   lockDirectory,
   reclaimFile,
   marker,
   owner,
 }) {
-  const claimFile = join(
-    lockDirectory,
-    `.dc-t-${cleanupPathLockMarkerGeneration(marker)}`,
-  );
-  try {
-    // link(2) publishes a complete owner record and elects exactly one
-    // claimant for this stale generation. Retain the linked token as a
-    // tombstone so a contender parked on the old observation cannot wake
-    // after takeover and repeat the election.
-    linkExclusiveOwnerRecord(claimFile, owner);
-    return claimFile;
-  } catch (error) {
-    if (error?.code !== 'EEXIST') throw error;
-    throw Object.assign(
-      new Error(`stale cleanup path reclaimer is already claimed ${reclaimFile}`),
-      { code: 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE' },
+  const claimFiles = [];
+  let claimedMarker = marker;
+  for (;;) {
+    const claimFile = join(
+      lockDirectory,
+      `.dc-t-${cleanupPathLockMarkerGeneration(claimedMarker)}`,
     );
+    try {
+      // link(2) publishes a complete PID/start-time owner record and elects
+      // exactly one claimant for this stale generation. If that claimant
+      // dies, its claim marker becomes the next generation's input instead
+      // of permanently wedging the original generation.
+      linkExclusiveOwnerRecord(claimFile, owner);
+      claimFiles.push(claimFile);
+      return Object.freeze(claimFiles);
+    } catch (error) {
+      if (error?.code !== 'EEXIST') throw error;
+    }
+    for (;;) {
+      const incumbent = observeCleanupPathLockMarker(claimFile);
+      if (incumbent === null) break;
+      if (claimFiles.at(-1) !== claimFile) claimFiles.push(claimFile);
+      if (liveCleanupPathLockOwner(incumbent.owner)) {
+        throw Object.assign(
+          new Error(`stale cleanup path reclaimer is already claimed ${reclaimFile}`),
+          { code: 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE' },
+        );
+      }
+      // A process may not be visible in a concurrent ps snapshot immediately
+      // after publishing its claim. Apply the protocol's bounded stale age to
+      // the claim itself before deriving a takeover generation.
+      if (cleanupPathLockMarkerAge(incumbent) < CLEANUP_PATH_MARKER_STALE_MS) {
+        if (Date.now() >= deadline) {
+          throw Object.assign(
+            new Error(`timed out waiting for stale cleanup path claim ${claimFile}`),
+            { code: 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE' },
+          );
+        }
+        await new Promise((resolveWait) => setTimeout(resolveWait, 10));
+        continue;
+      }
+      claimedMarker = incumbent;
+      break;
+    }
   }
+}
+
+function releaseCleanupPathClaims(claimFiles) {
+  for (const claimFile of [...claimFiles].reverse()) rmSync(claimFile, { force: true });
 }
 
 function releaseCleanupPathLock(lockFile, owner) {
@@ -308,14 +346,16 @@ function releaseCleanupPathLock(lockFile, owner) {
 
 async function acquireCleanupPathLock(path, timeoutMs = CLEANUP_PATH_LOCK_TIMEOUT_MS, {
   afterReclaimMarkerAcquired,
+  afterStaleReclaimClaimAcquired,
   afterStaleReclaimMarkerObserved,
   markerStaleMs = CLEANUP_PATH_MARKER_STALE_MS,
 } = {}) {
   const lockDirectory = dirname(resolve(path));
-  // Keep lock basenames shorter than dev-control.sock: Darwin's sockaddr_un
-  // parents can already sit near their path limit, and stale-lock recovery
-  // must remain available there too. One directory lock also serializes the
-  // private prepublication name with the well-known endpoint.
+  // Keep the well-known socket basename within the short .dc-lock budget:
+  // Darwin's sockaddr_un parents can already sit near their path limit. The
+  // longer recovery markers are regular files, not socket addresses. One
+  // directory lock also serializes the private prepublication name with the
+  // well-known endpoint.
   const lockFile = join(lockDirectory, '.dc-lock');
   const reclaimFile = join(lockDirectory, '.dc-reclaim');
   const owner = cleanupPathLockOwner();
@@ -332,7 +372,7 @@ async function acquireCleanupPathLock(path, timeoutMs = CLEANUP_PATH_LOCK_TIMEOU
     if (observedLock === null) continue;
     const observedBytes = observedLock.bytes;
     const observedOwner = observedLock.owner;
-    if (validCleanupPathLockOwner(observedOwner) && liveIdentity(observedOwner)) {
+    if (liveCleanupPathLockOwner(observedOwner)) {
       if (Date.now() >= deadline) {
         throw Object.assign(new Error(`timed out waiting for cleanup path lock ${lockFile}`), {
           code: 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
@@ -352,79 +392,98 @@ async function acquireCleanupPathLock(path, timeoutMs = CLEANUP_PATH_LOCK_TIMEOU
     }
 
     let ownsReclaim = false;
+    let reclaimClaimFiles = [];
     const reclaimOwner = cleanupPathLockOwner();
     try {
-      writeExclusiveOwnerRecord(reclaimFile, reclaimOwner);
-      ownsReclaim = true;
-    } catch (error) {
-      if (error?.code !== 'EEXIST') throw error;
-      const incumbent = observeCleanupPathLockMarker(reclaimFile);
-      if (incumbent === null) continue;
-      if (validCleanupPathLockOwner(incumbent.owner) && liveIdentity(incumbent.owner)) {
-        if (Date.now() >= deadline) {
-          throw Object.assign(new Error(`timed out waiting for cleanup path reclaimer ${reclaimFile}`), {
-            code: 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
-          });
-        }
-        await new Promise((resolveWait) => setTimeout(resolveWait, 10));
-        continue;
-      }
-      if (cleanupPathLockMarkerAge(incumbent) < markerStaleMs) {
-        if (Date.now() >= deadline) {
-          throw Object.assign(new Error(`timed out waiting for stale cleanup path reclaimer ${reclaimFile}`), {
-            code: 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
-          });
-        }
-        await new Promise((resolveWait) => setTimeout(resolveWait, 10));
-        continue;
-      }
-      await afterStaleReclaimMarkerObserved?.({
-        lockFile,
-        reclaimFile,
-        marker: incumbent,
-      });
-      claimStaleCleanupPathMarker({
-        lockDirectory,
-        reclaimFile,
-        marker: incumbent,
-        owner: reclaimOwner,
-      });
-      const reclaimReplacement = join(lockDirectory, `.dc-r-${reclaimOwner.token.slice(0, 8)}`);
       try {
-        writeExclusiveOwnerRecord(reclaimReplacement, reclaimOwner);
-        const current = observeCleanupPathLockMarker(reclaimFile);
-        if (!sameCleanupPathLockMarker(current, incumbent)) continue;
-        renameSync(reclaimReplacement, reclaimFile);
-        const adopted = readJson(reclaimFile);
-        if (!validCleanupPathLockOwner(adopted) || adopted.token !== reclaimOwner.token) continue;
+        writeExclusiveOwnerRecord(reclaimFile, reclaimOwner);
         ownsReclaim = true;
-      } finally {
-        rmSync(reclaimReplacement, { force: true });
+      } catch (error) {
+        if (error?.code !== 'EEXIST') throw error;
+        const incumbent = observeCleanupPathLockMarker(reclaimFile);
+        if (incumbent === null) continue;
+        if (liveCleanupPathLockOwner(incumbent.owner)) {
+          if (Date.now() >= deadline) {
+            throw Object.assign(new Error(`timed out waiting for cleanup path reclaimer ${reclaimFile}`), {
+              code: 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
+            });
+          }
+          await new Promise((resolveWait) => setTimeout(resolveWait, 10));
+          continue;
+        }
+        if (cleanupPathLockMarkerAge(incumbent) < markerStaleMs) {
+          if (Date.now() >= deadline) {
+            throw Object.assign(new Error(`timed out waiting for stale cleanup path reclaimer ${reclaimFile}`), {
+              code: 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
+            });
+          }
+          await new Promise((resolveWait) => setTimeout(resolveWait, 10));
+          continue;
+        }
+        await afterStaleReclaimMarkerObserved?.({
+          lockFile,
+          reclaimFile,
+          marker: incumbent,
+        });
+        reclaimClaimFiles = await claimStaleCleanupPathMarker({
+          deadline,
+          lockDirectory,
+          reclaimFile,
+          marker: incumbent,
+          owner: reclaimOwner,
+        });
+        await afterStaleReclaimClaimAcquired?.({
+          lockFile,
+          reclaimFile,
+          marker: incumbent,
+          claimFiles: reclaimClaimFiles,
+        });
+        const reclaimReplacement = join(lockDirectory, `.dc-r-${reclaimOwner.token.slice(0, 8)}`);
+        let adoptedReclaim = false;
+        try {
+          writeExclusiveOwnerRecord(reclaimReplacement, reclaimOwner);
+          const current = observeCleanupPathLockMarker(reclaimFile);
+          if (sameCleanupPathLockMarker(current, incumbent)) {
+            renameSync(reclaimReplacement, reclaimFile);
+            const adopted = readJson(reclaimFile);
+            adoptedReclaim = validCleanupPathLockOwner(adopted)
+              && adopted.token === reclaimOwner.token;
+          }
+        } finally {
+          rmSync(reclaimReplacement, { force: true });
+        }
+        if (!adoptedReclaim) continue;
+        ownsReclaim = true;
       }
-    }
 
-    try {
-      await afterReclaimMarkerAcquired?.({ lockFile, reclaimFile });
-    } catch (error) {
-      if (ownsReclaim) releaseCleanupPathLock(reclaimFile, reclaimOwner);
-      throw error;
-    }
-    const replacementFile = join(lockDirectory, `.dc-l-${owner.token.slice(0, 8)}`);
-    try {
-      let currentBytes = null;
-      try { currentBytes = readFileSync(lockFile, 'utf8'); } catch (error) {
-        if (error?.code !== 'ENOENT') throw error;
+      try {
+        await afterReclaimMarkerAcquired?.({ lockFile, reclaimFile });
+      } catch (error) {
+        if (ownsReclaim) releaseCleanupPathLock(reclaimFile, reclaimOwner);
+        throw error;
       }
-      if (currentBytes !== observedBytes || observedBytes === null) continue;
-      writeExclusiveOwnerRecord(replacementFile, owner);
-      if (readFileSync(lockFile, 'utf8') !== observedBytes) continue;
-      // The reclaimer is O_EXCL-serialized, and rename replaces the stale lock
-      // atomically. There is no unlink gap in which a new live lock can appear.
-      renameSync(replacementFile, lockFile);
-      return Object.freeze({ lockFile, owner });
+      const replacementFile = join(lockDirectory, `.dc-l-${owner.token.slice(0, 8)}`);
+      try {
+        let currentBytes = null;
+        try { currentBytes = readFileSync(lockFile, 'utf8'); } catch (error) {
+          if (error?.code !== 'ENOENT') throw error;
+        }
+        if (currentBytes !== observedBytes || observedBytes === null) continue;
+        writeExclusiveOwnerRecord(replacementFile, owner);
+        if (readFileSync(lockFile, 'utf8') !== observedBytes) continue;
+        // The reclaimer is O_EXCL-serialized, and rename replaces the stale
+        // lock atomically. Once that live owner is published, old observers
+        // can no longer replace it and the generation claims are discharged.
+        renameSync(replacementFile, lockFile);
+        releaseCleanupPathClaims(reclaimClaimFiles);
+        reclaimClaimFiles = [];
+        return Object.freeze({ lockFile, owner });
+      } finally {
+        rmSync(replacementFile, { force: true });
+        if (ownsReclaim) releaseCleanupPathLock(reclaimFile, reclaimOwner);
+      }
     } finally {
-      rmSync(replacementFile, { force: true });
-      if (ownsReclaim) releaseCleanupPathLock(reclaimFile, reclaimOwner);
+      releaseCleanupPathClaims(reclaimClaimFiles);
     }
   }
 }
@@ -437,11 +496,13 @@ async function acquireCleanupPathLock(path, timeoutMs = CLEANUP_PATH_LOCK_TIMEOU
 export async function withCleanupPathLock(path, action, {
   timeoutMs,
   afterReclaimMarkerAcquired,
+  afterStaleReclaimClaimAcquired,
   afterStaleReclaimMarkerObserved,
   markerStaleMs,
 } = {}) {
   const lock = await acquireCleanupPathLock(path, timeoutMs, {
     afterReclaimMarkerAcquired,
+    afterStaleReclaimClaimAcquired,
     afterStaleReclaimMarkerObserved,
     markerStaleMs,
   });

@@ -87,7 +87,7 @@ documentation absence never appears as success.
 
 `snapback dev --expo --json` publishes an owner-bound Unix control socket in
 the same state directory as its ready file. The default path is
-`.snapback/dev-control.sock`; read the exact path and lifecycle binding from
+`.snapback/.dc-sock`; read the exact path and lifecycle binding from
 the `controlSocket` field in `.snapback/expo-supervisor.json` or the final
 `snapback.expo-dev.v1` readiness event. Do not guess a path or signal a process
 by name.
@@ -103,7 +103,10 @@ lease removes the exact socket inode on ordinary shutdown or owner death. If the
 `--ready-file` directory is not a same-UID owner-only real directory, the
 supervisor emits `SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE`, omits the endpoint,
 and continues with stdin-only control; choose another `--ready-file` path to
-restore the socket channel.
+restore the socket channel. A Unix-socket bind or advertised-path probe failure
+(including a state directory beyond the platform's `sockaddr_un` path budget)
+uses the same coded stdin-only fallback. A live or otherwise occupied
+well-known endpoint still refuses startup rather than being downgraded.
 
 This is transient instance-local state: do not copy it with the database or
 treat a leftover endpoint as durable owner authority. Each request must repeat

@@ -681,6 +681,7 @@ async function sendControlCommand(controlSocket, command) {
 async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
   assertStdinReload = false,
   assertConcurrentStdinSocketReload = false,
+  expectControlUnavailable = false,
   failMetroReload = false,
 } = {}) {
   const cli = join(packageRoot, 'cli.mjs');
@@ -750,11 +751,33 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
   const supervisorDescriptorPath = join(dirname(target.readyFile), 'expo-supervisor.json');
   const supervisorDescriptor = JSON.parse(readFileSync(supervisorDescriptorPath, 'utf8'));
   const controlSocket = supervisorDescriptor.controlSocket;
+  if (expectControlUnavailable) {
+    const unavailableEvent = events.find((event) => event.state === 'control-socket-unavailable');
+    assert.equal(
+      unavailableEvent?.diagnostics?.[0]?.code,
+      'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
+      'a socket path beyond sockaddr_un capacity must emit the coded stdin-only notice',
+    );
+    assert.equal(readyEvent.controlSocket, undefined);
+    assert.equal(controlSocket, undefined);
+    const exitPromise = new Promise((resolveExit) => {
+      child.once('exit', (code, signal) => resolveExit({ code, signal }));
+    });
+    child.kill('SIGTERM');
+    await Promise.race([
+      exitPromise,
+      new Promise((_, rejectExit) => setTimeout(
+        () => rejectExit(new Error('stdin-only Expo supervisor did not join SIGTERM cleanup')),
+        15_000,
+      )),
+    ]);
+    return { events, readyEvent, listenerEvent, bearer: exchange.authority.token };
+  }
   assert.equal(controlSocket?.schemaVersion, 'snapback.dev-control.v1');
   assert.equal(controlSocket.ownerPid, child.pid);
   assert.equal(controlSocket.ownerIncarnationId, supervisorDescriptor.supervisorGeneration);
   assert.deepEqual(controlSocket.verbs, ['reload-metro', 'stop-children']);
-  assert.equal(controlSocket.path, join(dirname(target.readyFile), 'dev-control.sock'));
+  assert.equal(controlSocket.path, join(dirname(target.readyFile), '.dc-sock'));
   const endpointStat = statSync(controlSocket.path);
   assert.equal(endpointStat.isSocket(), true);
   assert.equal(endpointStat.mode & 0o777, 0o600);
@@ -1008,6 +1031,14 @@ async function runControlSocketSuite() {
     await runCliSupervisor(ignoredStdinFixture, 'web', [
       '--port-range', `${ignoredStdinRange.lo}-${ignoredStdinRange.hi}`,
     ]);
+    const longStateFixture = fixture(`long-state-${'x'.repeat(100)}`, {
+      sessions: true,
+      root: controlRoot,
+    });
+    const longStateRange = await reserveFreeRange(8);
+    await runCliSupervisor(longStateFixture, 'web', [
+      '--port-range', `${longStateRange.lo}-${longStateRange.hi}`,
+    ], { expectControlUnavailable: true });
     const controlRun = await runCliSupervisor(controlFixture, 'web', [
       '--port-range', `${controlRange.lo}-${controlRange.hi}`,
     ], { assertConcurrentStdinSocketReload: true });
@@ -1020,7 +1051,7 @@ async function runControlSocketSuite() {
       assertStdinReload: true,
       failMetroReload: true,
     });
-    console.log('expo-dev-loop.test.mjs: default /dev/null control, socket concurrency, reload failure, stdin stopping latch, refusals, and cleanup pass');
+    console.log('expo-dev-loop.test.mjs: default /dev/null control, long-path stdin-only fallback, socket concurrency, reload failure, stdin stopping latch, refusals, and cleanup pass');
   } finally {
     rmSync(controlRoot, { recursive: true, force: true });
   }

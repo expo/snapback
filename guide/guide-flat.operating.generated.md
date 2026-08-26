@@ -9,13 +9,13 @@ id: operating.agent-controls
 order: 1
 audience: agent-first
 capabilities: [operating.agent-controls]
-authorities: [llp/0184-agent-accessible-control-plane.rfc.md, llp/0031-server-route-taxonomy.spec.md, llp/0042-agent-mcp-surface.rfc.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, crates/snapback-server/src/control_catalog.rs, crates/snapback-cli/src/cli.rs, packages/snapback-cli/expo-dev.mjs, packages/snapback-cli/mcp-control.mjs, packages/snapback-client/index.mjs]
+authorities: [llp/0184-agent-accessible-control-plane.rfc.md, llp/0031-server-route-taxonomy.spec.md, llp/0042-agent-mcp-surface.rfc.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, crates/snapback-server/src/control_catalog.rs, crates/snapback-cli/src/cli.rs, packages/snapback-cli/mcp-control.mjs, packages/snapback-client/index.mjs]
 examples: []
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:c6f055b8850cc49ee1f314336d29eb906bc70fadafe3c48d8e4f5e4ef9f90912
+reviewed-authorities-digest: sha256:03b9df8b8507e75ab0d5c3001950f2fb5df4c44f2f94bf8869213868c103d05b
 ---
 
 # Discover agent controls
@@ -87,85 +87,6 @@ missing, `resources/list` reports
 `SNAPBACK_MCP_NATIVE_DOCUMENTATION_UNAVAILABLE` in resource diagnostics and
 does not list pretend Guide/catalog resources. Direct reads fail explicitly;
 documentation absence never appears as success.
-
-## Control a detached Expo dev supervisor
-
-`snapback dev --expo --json` publishes an owner-bound Unix control socket in
-the same state directory as its ready file. The default path is
-`.snapback/dev-control.sock`; read the exact path and lifecycle binding from
-the `controlSocket` field in `.snapback/expo-supervisor.json` or the final
-`snapback.expo-dev.v1` readiness event. Do not guess a path or signal a process
-by name.
-
-The state directory must be a same-UID real directory with no group/other
-permission bits (normally mode `0700`); the default dev loop creates or repairs
-`.snapback/` to that posture. The descriptor is mode `0600`, and the socket is
-also requested and checked as `0600`, but Darwin may not enforce AF_UNIX inode
-mode bits. Directory search permission plus the owner-only descriptor is the
-cross-UID kernel gate. The UID repeated in command JSON is an advisory
-descriptor-consistency check, not a peer-credential check. The instance cleanup
-lease removes the exact socket inode on ordinary shutdown or owner death. If the
-`--ready-file` directory is not a same-UID owner-only real directory, the
-supervisor emits `SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE`, omits the endpoint,
-and continues with stdin-only control; choose another `--ready-file` path to
-restore the socket channel.
-
-This is transient instance-local state: do not copy it with the database or
-treat a leftover endpoint as durable owner authority. Each request must repeat
-the descriptor's `ownerPid`, `ownerUid`, `ownerIncarnationId`, and
-`lifecycleReceipt`:
-
-```json fragment reason="illustrative descriptor-bound control request"
-{"schemaVersion":"snapback.dev-control-command.v1","requestId":"reload-1","verb":"reload-metro","owner":{"pid":1234,"uid":501,"incarnationId":"supervisor-…"},"lifecycleReceipt":"sha256:…"}
-```
-
-One connection carries one newline-delimited request. A valid verb first
-returns `snapback.dev-control-ack.v1` with the same request id, then a
-`snapback.dev-control-result.v1` after the operation settles. All acknowledged
-socket verbs and packaged-stdin lifecycle mutations (`reload`, `restart`,
-`dev-fresh`, and `reload-metro`) share one serialized lane. Once
-`stop-children` is acknowledged, new work on either channel refuses with
-`SNAPBACK_DEV_CONTROL_STOPPING`; every earlier acknowledged request is allowed
-to send its result before the endpoint closes. Wait for the result before
-claiming the operation took effect. A client that reaches EOF before its
-newline, or stays incomplete for five seconds, is closed without retaining a
-half-open connection.
-
-The socket's closed verb set is:
-
-| Verb | Settled result |
-| --- | --- |
-| `reload-metro` | Stops the owned Metro process group, launches Metro again on the same planned port, re-verifies listener ownership, updates `expo-supervisor.json`, and reports the previous and replacement PIDs. |
-| `stop-children` | Reclaims the supervisor-owned backend, Metro, bootstrap exchange, front, and port forwards; flushes the result; then removes the socket and lets the CLI owner exit. |
-
-An endpoint or request naming another UID, owner incarnation, or lifecycle
-receipt refuses with `SNAPBACK_DEV_CONTROL_OTHER_UID`,
-`SNAPBACK_DEV_CONTROL_FOREIGN_OWNER`, or
-`SNAPBACK_DEV_CONTROL_STALE_INCARNATION`. A live listener is always a foreign
-owner. On relaunch, the lifecycle owner itself may reclaim a leftover only
-under the state-directory lock when all of these hold: the endpoint is
-same-UID; a bounded `connect()` probe returns `ECONNREFUSED` (timeout or any
-other result is “not proven dead”); and the inode remains unchanged throughout
-the check. The persisted `dev-control.owner.json` must be present, readable,
-valid, and bind that exact inode and a self-consistent owner incarnation. The
-owner publishes this bound marker before it hard-links the well-known endpoint,
-so a public endpoint with an absent or corrupt marker is not legitimate crash
-residue; it refuses as `SNAPBACK_DEV_CONTROL_FOREIGN_OWNER`, just like a valid
-record naming another inode or incarnation. Recovery is operator-explicit:
-inspect ownership and remove both artifacts, or relaunch with `--ready-file` in
-a different owner-only state directory. A pre-publication crash may leave the
-marker and private socket for the cleanup lease, but cannot leave a markerless
-public endpoint. This owner recovery is not client authority. The detached
-reaper uses a separate, stricter deletion predicate: its cleanup lease must
-match the exact socket inode and incarnation. A client must never unlink or
-replace an endpoint to bypass a refusal.
-
-Interactive humans keep the existing stdin channel: TTY keys remain
-`s`/`r`/`R`/`f`/`q`, and non-TTY
-`snapback.dev-command.v1` input remains available when a launcher preserves a
-pipe. Stdin EOF still does not stop the supervisor. The socket is the supported
-agent path when stdin is `/dev/null`; it is not a FIFO and does not add recook
-as a client verb.
 
 ## Run functions against sessions mode
 

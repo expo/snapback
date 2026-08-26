@@ -29,7 +29,7 @@ launch. Keep stdin for interactive humans.
 
 Implemented LLP 0310.000 Track E (in review) for packaged supervised Expo
 development. `snapback dev --expo --json` now publishes an owner-bound
-`.snapback/dev-control.sock` descriptor, admits only `reload-metro` and
+`.snapback/.dc-sock` descriptor, admits only `reload-metro` and
 `stop-children`, emits request-id-correlated acknowledgement and settled-result
 records, enforces owner UID/incarnation/lifecycle-receipt checks, creates the
 endpoint mode `0600`, registers its exact inode with the instance cleanup
@@ -48,7 +48,12 @@ instance-local state and names the owner-only state directory plus descriptor
 as the cross-UID gate; AF_UNIX inode mode is not trusted on Darwin and the
 command's JSON UID remains advisory. A non-owner-only or symlinked state
 directory now emits `SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE` and keeps the
-packaged supervisor alive with stdin-only control.
+packaged supervisor alive with stdin-only control. Bind failures and a failed
+prepublication `connect()` of the advertised path use that same fallback, so a
+state directory beyond the platform's Unix-socket path budget cannot abort the
+interactive supervisor or publish an unreachable descriptor. The short
+`.dc-sock` well-known basename stays within the `.dc-*` coordination budget;
+live or occupied endpoints remain fail-closed refusals.
 
 The focused `expo-dev-loop.test.mjs --control-socket-only` regression includes
 a default-options launch with stdin ignored that acknowledges and settles
@@ -74,8 +79,13 @@ other-UID refusal, owner-directory stdin-only degradation, EOF and idle-deadline
 cleanup, and cleanup-lease reaping after owner death. The crash before
 `expo-supervisor.json` publication reclaims through the already-published bound
 marker. Further coverage includes a bounded-probe timeout, death while replacing
-stale `.dc-lock` through `.dc-reclaim`, and death after private socket bind but
-before activation. The live suite concurrently submits stdin and socket
+stale `.dc-lock` through `.dc-reclaim`, death after the stale-generation claim
+but before `.dc-reclaim` replacement, and death after private socket bind but
+before activation. Generation claims record PID/start-time owner identity; a
+dead claimant is recoverable through a next-generation atomic-link election,
+two racing successors still admit exactly one winner, and the winner removes
+the claim chain once its live `.dc-lock` is published. The live suite
+concurrently submits stdin and socket
 `reload-metro`, while the failed-reload case submits stdin `restart` after the
 stop acknowledgement; the implementation routes all four lifecycle-mutating
 stdin verbs through that same queue and stopping latch.

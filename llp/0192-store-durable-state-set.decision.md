@@ -120,11 +120,11 @@ also `InstanceLocal` and never enter `store export` or any database copy:
 
 | Member (default ready directory is `.snapback/`) | Transient disposition |
 | --- | --- |
-| `.snapback/dev-control.sock` | Never copied/exported. Ordinary shutdown or the detached reaper removes only the exact leased inode/incarnation; a successor may reclaim a same-UID endpoint only after its separate bounded dead-endpoint predicate. |
+| `.snapback/.dc-sock` | Never copied/exported. Ordinary shutdown or the detached reaper removes only the exact leased inode/incarnation; a successor may reclaim a same-UID endpoint only after its separate bounded dead-endpoint predicate. |
 | `dev-control.owner.json` | Never copied/exported. The reaper removes only the exact leased owner marker; a crash-before-publication may leave it absent or corrupt without making the dead socket durable authority. |
 | `.dc-lock` | Never copied/exported. Released by the pathname-lock holder; a dead PID/start-time holder is successor-reclaimable only after the bounded stale age. |
 | `.dc-reclaim` | Never copied/exported. Serializes stale-lock replacement; a dead PID/start-time reclaimer is itself successor-reclaimable after the same bounded stale age. |
-| `.dc-*` | Never copied/exported. Random private socket paths are reserved before bind and reaper-cleaned when their reservation owner dies; atomic lock/reclaim replacement markers are removed on completion or recovered through the same marker discipline. |
+| `.dc-*` coordination markers (other than `.dc-sock`) | Never copied/exported. Random private socket paths are reserved before bind and reaper-cleaned when their reservation owner dies. Atomic lock/reclaim replacement claims carry PID/start-time owner identity; a dead claimant is elected over through a token-generation link, and the winning chain is removed once its live `.dc-lock` is published. |
 
 **`Refuse`** — `<dir>/.<db>.in-app-branches-v1/` when non-empty (managed
 branch workspaces hold `.immutable-base` snapshots that cannot be rebuilt from

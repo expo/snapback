@@ -7,6 +7,7 @@ import {
   lstatSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   symlinkSync,
@@ -89,6 +90,12 @@ try {
     ...(mode === 'die-while-reclaiming' ? {
       async afterReclaimMarkerAcquired() {
         process.stdout.write(JSON.stringify({ state: 'reclaim-marker-acquired' }) + '\\n');
+        await new Promise(() => {});
+      },
+    } : {}),
+    ...(mode === 'die-after-stale-claim' ? {
+      async afterStaleReclaimClaimAcquired({ claimFiles }) {
+        process.stdout.write(JSON.stringify({ state: 'stale-claim-acquired', claimFiles }) + '\\n');
         await new Promise(() => {});
       },
     } : {}),
@@ -338,6 +345,14 @@ try {
     chmodSync(root, 0o700);
     return root;
   };
+  const makeRootWithByteLength = (byteLength) => {
+    const prefixBytes = Buffer.byteLength(`${scratchRoot}/`);
+    const root = join(scratchRoot, 'w'.repeat(byteLength - prefixBytes));
+    assert.equal(Buffer.byteLength(root), byteLength);
+    mkdirSync(root, { mode: 0o700 });
+    chmodSync(root, 0o700);
+    return root;
+  };
   const packageManifest = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8'));
   assert.match(
     packageManifest.scripts.test,
@@ -362,8 +377,72 @@ try {
   assert.equal(unavailableNotices.length, 1);
   assert.equal(unavailableNotices[0].code, 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE');
   assert.equal(unavailableNotices[0].severity, 'warning');
-  assert.equal(existsSync(join(uidlessRoot, 'dev-control.sock')), false);
+  assert.equal(existsSync(join(uidlessRoot, '.dc-sock')), false);
   console.log('uid custody unavailable: stdin-only fallback remains live');
+
+  const advertisedPathWindowRoot = makeRootWithByteLength(88);
+  const advertisedPathWindowControl = await startDevControlSocket(testOptions(
+    advertisedPathWindowRoot,
+    'unit-advertised-path-window-owner',
+  ));
+  try {
+    await new Promise((resolveConnect, rejectConnect) => {
+      const socket = createConnection(advertisedPathWindowControl.descriptor.path);
+      socket.once('connect', () => {
+        socket.destroy();
+        resolveConnect();
+      });
+      socket.once('error', (error) => rejectConnect(new Error(
+        `advertised dev control path must accept connect: ${error.code}: ${error.message}`,
+      )));
+    });
+  } finally {
+    await advertisedPathWindowControl.close();
+  }
+  console.log('advertised path budget: descriptor endpoint accepts connect at 88-byte directory');
+
+  const advertisedProbeRoot = makeRoot('advertised-probe');
+  const advertisedProbeNotices = [];
+  const advertisedProbeControl = await expoDevTest.startDevControlSocketWithDependencies(
+    testOptions(advertisedProbeRoot, 'unit-advertised-probe-owner', {
+      onUnavailable: (diagnostic) => advertisedProbeNotices.push(diagnostic),
+    }),
+    {
+      async probeEndpoint() {
+        throw Object.assign(new Error('injected advertised-path EINVAL'), { code: 'EINVAL' });
+      },
+    },
+  );
+  assert.equal(advertisedProbeControl, null);
+  assert.equal(advertisedProbeNotices[0].code, 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE');
+  assert.equal(advertisedProbeNotices[0].details.cause, 'EINVAL');
+  assert.equal(existsSync(join(advertisedProbeRoot, '.dc-sock')), false);
+  assert.equal(existsSync(join(advertisedProbeRoot, 'dev-control.owner.json')), false);
+  console.log('advertised path probe failure: coded stdin-only fallback publishes no descriptor');
+
+  const socketModeRoot = makeRoot('socket-mode');
+  const socketModeNotices = [];
+  const socketModeControl = await expoDevTest.startDevControlSocketWithDependencies(
+    testOptions(socketModeRoot, 'unit-socket-mode-owner', {
+      onUnavailable: (diagnostic) => socketModeNotices.push(diagnostic),
+    }),
+    {
+      observeEndpoint(endpointPath) {
+        const observed = lstatSync(endpointPath);
+        return Object.freeze({
+          uid: observed.uid,
+          mode: 0o660,
+          device: String(observed.dev),
+          inode: String(observed.ino),
+        });
+      },
+    },
+  );
+  assert.equal(socketModeControl, null);
+  assert.equal(socketModeNotices[0].code, 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE');
+  assert.equal(socketModeNotices[0].details.observedMode, 0o660);
+  assert.equal(existsSync(join(socketModeRoot, '.dc-sock')), false);
+  console.log('post-bind socket mode mismatch: coded stdin-only fallback avoids other-uid claim');
 
   let configuredProbeTimeout = null;
   const stalledProbeSocket = new EventEmitter();
@@ -543,7 +622,7 @@ try {
   console.log('two reclaimers: shared lock serializes recheck, unlink, and successor bind');
 
   const lockRecoveryRoot = makeRoot('locks');
-  const lockRecoveryEndpoint = join(lockRecoveryRoot, 'dev-control.sock');
+  const lockRecoveryEndpoint = join(lockRecoveryRoot, '.dc-sock');
   const deadLockHolder = await startPathLockActor(lockRecoveryEndpoint, 'hold-lock');
   assert.equal(deadLockHolder.ready.state, 'lock-acquired');
   await killHolder(deadLockHolder);
@@ -566,7 +645,7 @@ try {
   console.log('coordination markers: successor recovers after reclaimer SIGKILL');
 
   const takeoverRaceRoot = makeRoot('takeover-race');
-  const takeoverRaceEndpoint = join(takeoverRaceRoot, 'dev-control.sock');
+  const takeoverRaceEndpoint = join(takeoverRaceRoot, '.dc-sock');
   const takeoverDeadLockHolder = await startPathLockActor(takeoverRaceEndpoint, 'hold-lock');
   await killHolder(takeoverDeadLockHolder);
   const takeoverDeadReclaimer = await startPathLockActor(
@@ -574,6 +653,16 @@ try {
     'die-while-reclaiming',
   );
   await killHolder(takeoverDeadReclaimer);
+  const takeoverDeadClaimant = await startPathLockActor(
+    takeoverRaceEndpoint,
+    'die-after-stale-claim',
+  );
+  assert.equal(
+    takeoverDeadClaimant.ready.state,
+    'stale-claim-acquired',
+    'fault injection must stop after the generation claim and before .dc-reclaim replacement',
+  );
+  await killHolder(takeoverDeadClaimant);
   const takeoverReleaseFile = join(takeoverRaceRoot, 'release-stale-contenders');
   const staleContenders = await Promise.all([
     startStaleReclaimContender(takeoverRaceEndpoint, 'first', takeoverReleaseFile),
@@ -607,8 +696,13 @@ try {
     takeoverEntrants[0].lockOwner,
     'the losing contender must leave the winning lock owner marker intact',
   );
+  assert.deepEqual(
+    readdirSync(takeoverRaceRoot).filter((name) => name.startsWith('.dc-t-')),
+    [],
+    'the winning live .dc-lock publication must remove stale-generation claim markers',
+  );
   await Promise.all(staleContenders.map(killHolder));
-  console.log('stale reclaimer takeover: one generation claim enters and loser preserves owner marker');
+  console.log('stale reclaimer claim crash: later race yields one winner, preserves its lock, and removes tombstones');
 
   const reaperRaceRoot = makeRoot('x');
   const reaperRaceHolder = await startHolder(reaperRaceRoot, 'unit-reaper-stale');
@@ -710,7 +804,7 @@ try {
   assert.match(looseDirectoryNotices[0].details.recovery, /--ready-file/u);
   assert.equal(looseDirectoryNotices[0].message.includes(looseDirectoryRoot), true);
   assert.match(looseDirectoryNotices[0].message, /--ready-file/u);
-  assert.equal(existsSync(join(looseDirectoryRoot, 'dev-control.sock')), false);
+  assert.equal(existsSync(join(looseDirectoryRoot, '.dc-sock')), false);
   chmodSync(looseDirectoryRoot, 0o700);
   console.log('non-owner-only state directory: stdin-only fallback remains live');
 
@@ -733,7 +827,7 @@ try {
   assert.match(symlinkDirectoryNotices[0].details.recovery, /--ready-file/u);
   assert.equal(symlinkDirectoryNotices[0].message.includes(symlinkDirectoryRoot), true);
   assert.match(symlinkDirectoryNotices[0].message, /--ready-file/u);
-  assert.equal(existsSync(join(symlinkDirectoryRoot, 'dev-control.sock')), false);
+  assert.equal(existsSync(join(symlinkDirectoryRoot, '.dc-sock')), false);
   console.log('symlinked state directory: stdin-only fallback remains live');
 
   const connectionRoot = makeRoot('c');

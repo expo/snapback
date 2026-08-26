@@ -73,7 +73,7 @@ export const SUPERVISOR_PARENT_START_TIME_ENV = 'SNAPBACK_EXPO_SUPERVISOR_PARENT
 const EXPO_GO_IOS_BUNDLE_IDENTIFIER = 'host.exp.Exponent';
 const EXPO_GO_ANDROID_COMPONENT_PREFIX = 'host.exp.exponent/';
 const EXPO_APP_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*$/u;
-const DEV_CONTROL_SOCKET_BASENAME = 'dev-control.sock';
+const DEV_CONTROL_SOCKET_BASENAME = '.dc-sock';
 const DEV_CONTROL_OWNER_STATE_BASENAME = 'dev-control.owner.json';
 const DEV_CONTROL_OWNER_STATE_FORMAT = 'snapback.dev-control-owner.v1';
 const DEV_CONTROL_COMMAND_LIMIT_BYTES = 16 * 1024;
@@ -556,6 +556,7 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
   let descriptor = null;
   let ownerStateIdentity = null;
   let pendingPath = null;
+  let startupUnavailable = null;
   let close = async () => {};
   const server = createNetServer({ allowHalfOpen: false }, (socket) => {
     sockets.add(socket);
@@ -811,8 +812,15 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
           restoreUmask();
           rejectListen(diagnosticError(
             'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
-            `the dev control socket could not bind at ${path}: ${cause.message}`,
-            { path, cause: cause.code ?? cause.message },
+            `the dev control socket could not bind at ${pendingPath}: ${cause.message}`,
+            {
+              path: stateDirectoryPath,
+              endpointPath: path,
+              pendingPath,
+              readyFile,
+              cause: cause.code ?? cause.message,
+              recovery: 'choose a shorter owner-only state directory with --ready-file <path>',
+            },
           ));
         };
         const onListening = () => {
@@ -835,9 +843,18 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
       endpoint = observeEndpoint(pendingPath);
       if (endpoint.uid !== ownerUid || endpoint.mode !== 0o600) {
         throw diagnosticError(
-          'SNAPBACK_DEV_CONTROL_OTHER_UID',
+          'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
           'the dev control socket did not acquire owner-only uid/mode custody',
-          { path, expectedUid: ownerUid, observedUid: endpoint.uid, observedMode: endpoint.mode },
+          {
+            path: stateDirectoryPath,
+            endpointPath: path,
+            pendingPath,
+            readyFile,
+            expectedUid: ownerUid,
+            observedUid: endpoint.uid,
+            observedMode: endpoint.mode,
+            recovery: 'choose another owner-only state directory with --ready-file <path>',
+          },
         );
       }
       descriptor = Object.freeze({
@@ -896,6 +913,28 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
           { path, cause: cause?.code ?? cause?.message ?? String(cause) },
         );
       }
+      try {
+        const advertisedOccupancy = await probeEndpoint(path);
+        if (advertisedOccupancy !== 'live') {
+          throw Object.assign(
+            new Error(`advertised endpoint probe returned ${advertisedOccupancy ?? 'unknown'}`),
+            { code: advertisedOccupancy ?? 'UNKNOWN_SOCKET_OUTCOME' },
+          );
+        }
+      } catch (cause) {
+        throw diagnosticError(
+          'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
+          'the advertised dev control socket path could not be reached before publication',
+          {
+            path: stateDirectoryPath,
+            endpointPath: path,
+            pendingPath,
+            readyFile,
+            cause: cause?.code ?? cause?.message ?? String(cause),
+            recovery: 'choose a shorter owner-only state directory with --ready-file <path>',
+          },
+        );
+      }
       rmSync(pendingPath);
       releaseCleanupResource(pendingCleanupResource);
       pendingCleanupResource = null;
@@ -932,9 +971,14 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
         options.ownerIncarnationId,
         endpoint,
       );
+      if (error?.diagnostic?.code === 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE') {
+        startupUnavailable = error.diagnostic;
+        return;
+      }
       throw error;
     }
   });
+  if (startupUnavailable !== null) return unavailable(startupUnavailable.details);
   return Object.freeze({
     descriptor,
     get closed() { return closed; },
