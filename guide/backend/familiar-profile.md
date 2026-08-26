@@ -453,17 +453,17 @@ Enclave/Keystore proof transport remains outside the shipped native target.
 
 For URL-first web under a bare `SnapbackProvider`, import
 `useSnapbackActivityPresence` from `@expo/snapback-react`; that is the paved
-choice. Use the `@expo/snapback-expo` facade only in a
-`SnapbackExpoProvider` tree; there it adds AppState-driven background
-withdrawal. Under a bare `SnapbackProvider`, the React hook has no
+choice. Under a bare `SnapbackProvider`, the React hook has no
 AppState-driven background withdrawal, so backgrounded typing intent expires
 by the presence deadline rather than being withdrawn immediately. Do not
 invent a third hook.
-The shipped facade currently also mounts under a bare `SnapbackProvider` and,
-through LLP 0257's AppState fallback, withdraws immediately on backgrounding.
-That behavior conflicts with the paved provider boundary; the still-open
-[recorded LLP 0257 conflict](repo:issues/20260825-ruling-3-vs-llp-0257-background-withdrawal.md)
-must be resolved before treating the boundary as settled.
+The `@expo/snapback-expo` facade of the same name is the *gated* variant: it
+adds AppState-driven background withdrawal. It does **not** require a
+`SnapbackExpoProvider` tree — the Expo lifecycle context is optional, and under
+a bare `SnapbackProvider` on web the facade resolves `react-native-web`'s
+`AppState` through LLP 0257's fallback ([the bare-provider probe](repo:tests/probes/expo-presence-bare-provider-20260826/summary.md)). Choose between
+the two by whether you want immediate background withdrawal on web, not by
+which provider you mounted.
 
 Search vocabulary: URL-first activity presence.
 

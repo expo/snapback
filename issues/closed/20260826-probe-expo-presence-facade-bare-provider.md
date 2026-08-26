@@ -1,6 +1,6 @@
 # Probe: does the Expo presence facade work under a bare URL-first `SnapbackProvider` on web?
 
-**Filed:** 2026-08-26
+**Filed:** 2026-08-26 · **Resolved:** 2026-08-26 — **works**
 **Systems:** Ephemeral state, React/Expo, Guide
 **Owner:** LLP 0310.000 Track D / acceptance D2
 **Related:** `issues/20260825-ruling-3-vs-llp-0257-background-withdrawal.md`
@@ -50,3 +50,37 @@ opens.
 ## Done when
 
 The observation is recorded and LLP 0310.000 OQ7 can be answered.
+
+## Resolution — 2026-08-26: **works**
+
+Probe: `tests/probes/expo-presence-bare-provider-20260826/` (`run.mjs`,
+retained `observation.json`, `summary.md`, and `probe.test.mjs` as a standing
+regression test).
+
+Rendered under a bare URL-first `SnapbackProvider` — no `SnapbackExpoProvider`,
+no `SnapbackExpoLifecycleContextProvider`, no injected environment:
+
+```json
+{ "outcome": "works", "diagnosticCode": null, "gatedAdmissionOpened": true,
+  "touch": { "active": true, "publishAttempts": 1 } }
+```
+
+No `SNAPBACK_EXPO_ACTIVITY_LIFECYCLE_UNAVAILABLE`; the gated admission opened
+and `touch()` published once. The lane's premise — that the facade *requires*
+`SnapbackExpoLifecycleContext` — is refuted. Every Snapback module in the chain
+was shipped source; only `react-native-web`'s `AppState` module was stubbed
+(it is not a workspace dependency), and `--conditions=browser` stood in for
+Metro's web condition resolution. Both limits are recorded in `summary.md`.
+
+Consequences applied in the same landing:
+
+- LLP 0257 stands unamended.
+- `issues/20260825-ruling-3-vs-llp-0257-background-withdrawal.md` closed as
+  "no conflict".
+- LLP 0310.000 Ruling 3 rules **no package boundary** (its r5+ text already
+  held the boundary open pending this probe).
+- `guide/realtime/ephemeral-state.md`, `guide/recipes/activity-presence.md`,
+  and `guide/backend/familiar-profile.md` now describe both hooks and their
+  gated/ungated difference instead of declaring the facade
+  `SnapbackExpoProvider`-only; retrieval case 100 updated to match.
+- LLP 0310 P5/P20 closed; LLP 0310.000 OQ7 answered.
