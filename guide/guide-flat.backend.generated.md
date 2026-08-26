@@ -3275,8 +3275,8 @@ examples: [demos/party-wall, demos/file-drop, demos/tandem-expo-bakeoff, demos/e
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:f5de8473ebe24952779b5536452d7d873ab92fe9d2505021d30deab9acd34469
+reviewed: 2026-08-25
+reviewed-authorities-digest: sha256:d8478f180e4b0afed0ffa796dcbf6e91ffb26abe9368e4882c9978e3141caaf0
 ---
 
 # Assets

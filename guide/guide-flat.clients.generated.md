@@ -2799,8 +2799,8 @@ status: current
 targets: [local]
 maturity: partial
 since: 0.1.11
-reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:1b8366a3e658f07b57c069a944a6a64ecbcd0469e2bbc0ee8ec042f1dbe2299e
+reviewed: 2026-08-25
+reviewed-authorities-digest: sha256:3f24f88bcfb4bd7cf6c24c2b6fe7631c261188320c7c430eaf9978a660573079
 ---
 
 # Application surfaces
@@ -3495,7 +3495,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:5bd2781bf22b976261e63cc5b2c647ba29934d3062dffa1e37f0a419dc306aeb
+reviewed-authorities-digest: sha256:d0b414626c974f56c2dde5a8d18d6ce46190dc3097bc5a8b30af54a133d4b624
 ---
 
 # React Expo Online clients
@@ -3823,11 +3823,11 @@ wrap an independently owned listener in the supervised `--expo` loop.
 > boundary on an older closure.
 
 This supervised boot has three application-visible pieces: the config-plugin
-entry, the generated `app`, and `SnapbackExpoProvider`. On web the supervisor
-injects `EXPO_PUBLIC_SNAPBACK_URL` as the backend data/auth origin as well as
-its control-plane rendezvous origin. The rendezvous remains the binding source
-and wins over the configured URL, so the older no-URL composition remains valid
-here
+entry, the generated `app`, and `SnapbackExpoProvider`. On web Metro receives
+two distinct environment variables: `EXPO_PUBLIC_SNAPBACK_URL` is the backend
+data/auth origin, while `EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN` is the
+control-plane rendezvous. The rendezvous remains the binding source and wins
+over the configured URL, so the older no-URL composition remains valid here
 ([LLP 0181 §Config plugin](repo:llp/0181-zero-configuration-expo.rfc.md#config-plugin),
 [LLP 0181 §Provider](repo:llp/0181-zero-configuration-expo.rfc.md#provider)).
 The working fixture's plugin entry is:
@@ -3958,10 +3958,11 @@ it; the fixture README gives the full source-checkout commands
 ### Know what the supervisor owns
 
 One supervisor starts or adopts the exact backend generation, starts Metro,
-issues an expiring `source: "supervised-dev"` binding, mints an ordinary
-session, and verifies the backend, Metro, and bootstrap listeners before
-reporting readiness. It also owns signal forwarding and reclaims the backend,
-Metro, bootstrap exchange, binding material, and port forwards on exit
+issues an expiring `source: "supervised-dev"` binding, offers the admitted
+on-demand ordinary-session mint, and verifies the backend, Metro, and bootstrap
+listeners before reporting readiness. It also owns signal forwarding and
+reclaims the backend, Metro, bootstrap exchange, binding material, and port
+forwards on exit
 ([LLP 0181 §Supervised development baseline](repo:llp/0181-zero-configuration-expo.rfc.md#supervised-development-baseline),
 [`runExpoDev`](repo:packages/snapback-cli/expo-dev.mjs)).
 

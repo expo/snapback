@@ -1660,8 +1660,8 @@ examples: [demos/knockoff]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:6a6299803527109f6c2771d85ed567fabfdbb379d8041b49bb57bf7368b2e79a
+reviewed: 2026-08-25
+reviewed-authorities-digest: sha256:c6922b6105ce5ea0d0f5f73fdcc5e54a63cab9093ba030d8509bfacfb5a7fa21
 ---
 
 # Authenticate a native app
@@ -1685,10 +1685,11 @@ JavaScript uses `createExternalSessionClient(baseUrl, { bearerToken })`, while
 Swift sets `Configuration.sessionBearer`.
 
 **Expo apps in local development rarely need to hand-build either shape**:
-the supervised dev loop (`snapback dev --expo`) already auto-mints an
-ordinary session through its loopback-only
-`GET /_snapback/expo/v1/bootstrap` exchange under `SnapbackExpoProvider` —
-see [the supervised Expo development loop](../clients/react-expo.md#appendix-run-the-supervised-expo-development-loop)
+the supervised dev loop (`snapback dev --expo`) returns the binding through
+its loopback-only `GET /_snapback/expo/v1/bootstrap`, then the native-default
+provider requests and adopts an ordinary session through the later
+correlation-gated POST. See
+[the supervised Expo development loop](../clients/react-expo.md#appendix-run-the-supervised-expo-development-loop)
 before wiring a broker by hand.
 
 An application that uses `SnapbackExpoProvider` can consume the broker's
