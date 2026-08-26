@@ -53,3 +53,10 @@ export function runTemplateCarrierCli(
     readonly fetch?: typeof globalThis.fetch;
   },
 ): Promise<number>;
+export const __test: Readonly<{
+  waitForExpoSupervisorWebReadiness(
+    path: string,
+    timeoutMs: number,
+    child: Readonly<{ pid: number; exitCode: number | null; signalCode: string | null }>,
+  ): Promise<Readonly<Record<string, unknown>>>;
+}>;

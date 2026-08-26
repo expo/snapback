@@ -1,6 +1,13 @@
 export const APP_DESCRIPTOR_FORMAT: 'snapback.app.v1';
 export const APP_DESCRIPTOR_MAX_BYTES: number;
 export const APPLICATION_AUTH_BOOTSTRAP_FORMAT: 'snapback.application-auth-bootstrap.v1';
+export const APPLICATION_AUTH_BOOTSTRAP_PROVIDERS: readonly ['apple', 'google'];
+export const APPLICATION_AUTH_BOOTSTRAP_PROVIDER_KINDS: readonly ['apple', 'oidc'];
+export const APPLICATION_AUTH_BOOTSTRAP_CREDENTIAL_MODES: readonly [
+  'auto',
+  'shared',
+  'app-owned',
+];
 export const APPLICATION_AUTH_BOOTSTRAP_ENTRY_MECHANISMS: readonly [
   'guest-v1',
   'password-v1',
