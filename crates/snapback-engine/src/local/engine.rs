@@ -4872,7 +4872,7 @@ impl BundleRegisterTarget {
 pub struct LiveInvalidationAdmission {
     connection: Option<AuthorizationInvalidationConnection>,
     effect_fence: Option<crate::ephemeral::ConnectionEffectFence>,
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub(crate) session_mode: bool,
 }
 
@@ -4882,7 +4882,7 @@ impl LiveInvalidationAdmission {
         Self {
             connection: Some(connection),
             effect_fence: Some(effect_fence),
-            #[cfg(any(test, feature = "test-support"))]
+            #[cfg(test)]
             session_mode: false,
         }
     }
@@ -4891,12 +4891,12 @@ impl LiveInvalidationAdmission {
         Self {
             connection: None,
             effect_fence: Some(effect_fence),
-            #[cfg(any(test, feature = "test-support"))]
+            #[cfg(test)]
             session_mode: false,
         }
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub(crate) fn with_session_mode(mut self, session_mode: bool) -> Self {
         self.session_mode = session_mode;
         self
@@ -14412,7 +14412,7 @@ impl LocalSnapback {
             name,
             input,
             authority,
-            LiveInvalidationAdmission::new(connection).with_session_mode(true),
+            LiveInvalidationAdmission::new(connection),
         )
     }
 
@@ -14429,7 +14429,7 @@ impl LocalSnapback {
             name,
             input,
             authority,
-            LiveInvalidationAdmission::new(connection).with_session_mode(true),
+            LiveInvalidationAdmission::new(connection),
         )
     }
 
@@ -14448,7 +14448,7 @@ impl LocalSnapback {
             name,
             input,
             authority,
-            LiveInvalidationAdmission::new(connection).with_session_mode(true),
+            LiveInvalidationAdmission::new(connection),
         )
     }
 
@@ -23210,7 +23210,7 @@ impl LocalSnapback {
     /// Compatibility scaffold for engine-owned protocol unit tests. Cross-crate
     /// tests use the HostPlan-only wrapper in `test_support` so enabling the
     /// feature cannot expose a caller-selected JavaScript evaluator.
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub(crate) fn subscribe_live_with_invalidation(
         &mut self,
         name: &str,
@@ -23220,8 +23220,10 @@ impl LocalSnapback {
         self.subscribe_live_with_invalidation_generation(name, input, invalidation, None)
     }
 
-    #[cfg(feature = "test-support")]
-    // @ref LLP 0283#f-1--the-authorization-model-is-not-closed-blocking-publication — a caller-selectable feature may expose declarative fixtures, never an executable-code evaluator.
+    // Crate-private policy used only by the feature-gated declarative corpus
+    // wrappers. Keeping the check compiled does not expose an evaluator or an
+    // authority operation to dependents.
+    #[allow(dead_code)]
     pub(crate) fn require_host_plan_for_test_support(&self, name: &str) -> SnapbackResult<()> {
         let function = self.function(name)?;
         if matches!(function.runtime, FunctionRuntime::HostPlan(_)) {
@@ -23234,7 +23236,7 @@ impl LocalSnapback {
         ))
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     fn subscribe_live_with_invalidation_generation(
         &mut self,
         name: &str,

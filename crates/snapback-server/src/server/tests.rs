@@ -472,7 +472,9 @@ use crate::contract_types::{
 };
 use crate::cron::CronRunOutcome;
 use crate::diagnostic::SnapbackError;
-use crate::local::{EnsureAppMode, LiveSubscribeInput, LocalSnapback, StagedAction};
+use crate::local::{
+    EnsureAppMode, LiveInvalidationAdmission, LiveSubscribeInput, LocalSnapback, StagedAction,
+};
 use crate::manifest::{
     ActionPlan, ActionReturnValue, ActionStep, AgentsManifest, AgentsMode, ApiAskBilling,
     ApiAskBudgets, ApiAskManifest, ApiAskModelManifest, ApiAskPerPrincipalDayBudget,
@@ -2293,11 +2295,7 @@ fn dormant_dev_reset_fixture_with_context(mut context: ServerContext) -> AppStat
         .expect("install dormant auth runtime")
 }
 
-fn auth_projection_http_fixture(
-    connection_id: &str,
-    subscription_count: u64,
-    retained_row_bytes: usize,
-) -> AppState {
+fn auth_projection_http_fixture() -> AppState {
     let mut snapback = LocalSnapback::memory().expect("memory projection HTTP fixture");
     snapback
         .apply_schema(SchemaManifest {
@@ -2353,51 +2351,11 @@ fn auth_projection_http_fixture(
             return_value: Some(ReturnValue::ChangedCount),
         })),
     );
-    let delete = FunctionDefinition::new(
-        "deleteItem",
-        FunctionKind::Mutation,
-        FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
-            steps: vec![MutationStep::Delete {
-                table: "items".to_owned(),
-                id: ValueExpr::Arg("id".to_owned()),
-            }],
-            return_value: Some(ReturnValue::ChangedCount),
-        })),
-    );
     snapback.load_functions(FunctionManifest {
         bundle_hash: Some("projection-http-functions".to_owned()),
-        functions: vec![list, insert, delete],
+        functions: vec![list, insert],
         ..FunctionManifest::default()
     });
-    if retained_row_bytes > 0 {
-        snapback
-            .invoke_mutation(
-                "insertItem",
-                HandlerInput {
-                    args: json!({ "value": "x".repeat(retained_row_bytes) }),
-                    ..HandlerInput::default()
-                },
-            )
-            .expect("insert retained projection row");
-    }
-    snapback
-        .invoke_mutation(
-            "insertItem",
-            HandlerInput {
-                args: json!({ "value": "remove-me" }),
-                ..HandlerInput::default()
-            },
-        )
-        .expect("insert removable projection row");
-    let removable_id = snapback
-        .invoke_query("listItems", HandlerInput::default())
-        .expect("query removable projection row")
-        .rows
-        .into_iter()
-        .find(|row| row["value"] == "remove-me")
-        .and_then(|row| row["_id"].as_str().map(str::to_owned))
-        .expect("removable row id");
 
     let keyring = Arc::new(AuthKeyringStore::in_memory());
     snapback
@@ -2411,54 +2369,8 @@ fn auth_projection_http_fixture(
     let invalidation = snapback
         .install_authenticated_auth_invalidation(&provider, None)
         .expect("install projection HTTP invalidation");
-    let projection_connection = invalidation
-        .prepare_connection(crate::ephemeral::ConnectionEffectFence::anonymous(
-            "projection-http-incarnation",
-            "projection-http-grant",
-        ))
-        .expect("prepare projection connection");
-    for query_instance_id in 0..subscription_count {
-        snapback_engine::test_support::subscribe_live_host_plan_with_invalidation(
-            &mut snapback,
-            "listItems",
-            LiveSubscribeInput {
-                connection_id: connection_id.to_owned(),
-                input: HandlerInput::default(),
-                authorization_namespace: Some(QueryNamespace {
-                    client_store_id: "projection_http_store".to_owned(),
-                    query_key: "listItems:{}".to_owned(),
-                    query_instance_id: 500 + query_instance_id,
-                }),
-                supersedes: None,
-                resume_from_token: None,
-            },
-            snapback_engine::test_support::live_invalidation_admission(
-                projection_connection.clone(),
-                true,
-            ),
-        )
-        .expect("install projection HTTP subscription");
-    }
-    loop {
-        let initial = snapback.drain_outbox_for_send(connection_id);
-        if initial.is_empty() {
-            break;
-        }
-        for admitted in initial {
-            assert!(admitted.commit_handoff());
-        }
-    }
-    snapback
-        .invoke_mutation(
-            "deleteItem",
-            HandlerInput {
-                args: json!({ "id": removable_id }),
-                ..HandlerInput::default()
-            },
-        )
-        .expect("raise projection HTTP obligations");
-
-    test_app_state_from_snapback(snapback, bound_loopback_context())
+    let state = test_app_state_from_snapback(snapback, bound_loopback_context());
+    state
         .with_policy_auth_mode(PolicyAuthMode::Sessions)
         .try_with_auth_provider(provider)
         .expect("auth provider app state")
@@ -2911,7 +2823,7 @@ fn authority_preparation_writer_priority_is_limited_to_mutation_writers() {
 async fn authorization_neutral_staged_write_commits_before_its_shared_batch_flushes() {
     let state = tokio::task::spawn_blocking(|| {
         let _sanction = crate::exec_guard::BlockingSanction::acquire();
-        auth_projection_http_fixture("neutral-stage-turn", 0, 0)
+        auth_projection_http_fixture()
     })
     .await
     .expect("construct authorization-neutral fixture");
@@ -9204,6 +9116,95 @@ enum NestedAfterLocalRuntime {
     DetachedIbex,
 }
 
+async fn prepare_live_route_authority(
+    state: &AppState,
+    bearer: &str,
+    connection_act: &super::PreparedConnectionAct,
+) -> PreparedAuthority {
+    let provider = state.auth_provider.as_ref().expect("auth provider");
+    let coordinator = state.auth_coordinator.as_ref().expect("auth coordinator");
+    let prepared = coordinator
+        .resolve_family_bearer(bearer, provider.now_ms(), provider.monotonic_now())
+        .expect("resolve live bearer through the production projection");
+    let admission = test_route_admission(state).0;
+    let profile = state.server.profile;
+    let now_ms = provider.now_ms();
+    with_snapback(&state.snapback, move |snapback| {
+        snapback.prepare_bearer_authority(
+            prepared,
+            InvocationSource::LiveInitialQuery,
+            AuthMode::Sessions,
+            profile,
+            admission,
+            &WireAuthorityFields::default(),
+            now_ms,
+        )
+    })
+    .await
+    .expect("prepare live authority through the target engine")
+    .with_fenced_publication(connection_act.bound.publication().clone())
+}
+
+async fn install_sessions_projection_subscription(
+    state: &AppState,
+    bearer: &str,
+    connection_act: &super::PreparedConnectionAct,
+    query_instance_id: u64,
+) {
+    let connection_id = connection_act.connection_id.clone();
+    let authority = prepare_live_route_authority(state, bearer, connection_act).await;
+    let effect_fence = connection_act.effect_fence();
+    let invalidation = connection_act.authorization_invalidation.clone();
+    with_snapback(&state.snapback, move |snapback| {
+        let staged = snapback.prepare_subscribe_live_for_transport_generation(
+            "listItems".to_owned(),
+            LiveSubscribeInput {
+                connection_id: connection_id.clone(),
+                input: HandlerInput::default(),
+                authorization_namespace: Some(QueryNamespace {
+                    client_store_id: "projection_http_store".to_owned(),
+                    query_key: "listItems:{}".to_owned(),
+                    query_instance_id,
+                }),
+                supersedes: None,
+                resume_from_token: None,
+            },
+            authority,
+            LiveInvalidationAdmission::new(
+                invalidation.expect("negotiated invalidation descriptor"),
+            ),
+            None,
+        )?;
+        staged.try_commit(&connection_id, &effect_fence)?;
+        snapback.finalize_subscribe_live_for_transport(&staged)?;
+        loop {
+            let initial = snapback.drain_outbox_for_send(&connection_id);
+            if initial.is_empty() {
+                break;
+            }
+            for admitted in initial {
+                assert!(admitted.commit_handoff());
+            }
+        }
+        Ok::<(), SnapbackError>(())
+    })
+    .await
+    .expect("install session-authorized projection subscription");
+}
+
+async fn invoke_session_projection_mutation(state: &AppState, bearer: &str, value: String) {
+    let response = app(state.clone())
+        .oneshot(session_auth_http_request(
+            "/mutation/insertItem",
+            serde_json::to_vec(&json!({ "args": { "value": value } }))
+                .expect("serialize projection mutation"),
+            bearer,
+        ))
+        .await
+        .expect("session-authorized projection mutation response");
+    assert_eq!(response.status(), StatusCode::OK);
+}
+
 async fn install_after_local_production_subscription(
     state: &AppState,
     bearer: &str,
@@ -9213,27 +9214,15 @@ async fn install_after_local_production_subscription(
     let (_opened, connection_act) =
         prepare_invalidation_session_connection_act(state, bearer, connection_id);
     state.ephemeral.touch_connection(connection_id);
-    let admission = test_route_admission(state).0;
-    let subscribe_authority = InvocationGate::prepare_admitted_subjectless_authority(
-        InvocationSource::LiveInitialQuery,
-        AuthMode::Sessions,
-        state.server.profile,
-        admission,
-        &WireAuthorityFields::default(),
-        connection_act.resolved.clone(),
-        test_session_claims_for(&connection_act.resolved),
-    )
-    .expect("prepare after-Local live authority")
-    .with_fenced_publication(connection_act.bound.publication().clone());
+    let subscribe_authority = prepare_live_route_authority(state, bearer, &connection_act).await;
     let effect_fence = connection_act.effect_fence();
     let invalidation = connection_act.authorization_invalidation.clone();
     let connection = connection_id.to_owned();
     with_snapback(&state.snapback, move |snapback| {
-        snapback_engine::test_support::subscribe_live_prepared_with_invalidation(
-            snapback,
-            "liveItems",
+        let staged = snapback.prepare_subscribe_live_for_transport_generation(
+            "liveItems".to_owned(),
             LiveSubscribeInput {
-                connection_id: connection,
+                connection_id: connection.clone(),
                 input: HandlerInput::default(),
                 authorization_namespace: Some(QueryNamespace {
                     client_store_id: "after_local_production_store".to_owned(),
@@ -9244,11 +9233,15 @@ async fn install_after_local_production_subscription(
                 resume_from_token: None,
             },
             subscribe_authority,
-            snapback_engine::test_support::live_invalidation_admission(
+            LiveInvalidationAdmission::new(
                 invalidation.expect("negotiated invalidation descriptor"),
-                true,
             ),
-        )
+            None,
+        )?;
+        staged.try_commit(&connection, &effect_fence)?;
+        snapback
+            .finalize_subscribe_live_for_transport(&staged)
+            .map(|publication| publication.output)
     })
     .await
     .expect("install after-Local production subscription");
@@ -10583,16 +10576,30 @@ async fn direct_outbox_http_response(
     connection_act: &super::PreparedConnectionAct,
 ) -> Result<axum::response::Response, super::ApiError> {
     let admission = test_route_admission(state).0;
-    let authority = InvocationGate::prepare_admitted_subjectless_authority(
-        InvocationSource::OutboxDrain,
-        AuthMode::Sessions,
-        state.server.profile,
-        admission.clone(),
-        &WireAuthorityFields::default(),
-        connection_act.resolved.clone(),
-        test_session_claims_for(&connection_act.resolved),
-    )
-    .expect("prepare direct outbox authority")
+    let prepared = connection_act
+        .session_route_authority
+        .clone()
+        .expect("session connection retains its verifier-owned bearer authority");
+    let now_ms = state
+        .auth_provider
+        .as_ref()
+        .expect("auth provider")
+        .now_ms();
+    let profile = state.server.profile;
+    let authority_admission = admission.clone();
+    let authority = with_snapback(&state.snapback, move |snapback| {
+        snapback.prepare_bearer_authority(
+            prepared,
+            InvocationSource::OutboxDrain,
+            AuthMode::Sessions,
+            profile,
+            authority_admission,
+            &WireAuthorityFields::default(),
+            now_ms,
+        )
+    })
+    .await
+    .expect("prepare direct outbox authority through the target engine")
     .with_fenced_publication(connection_act.bound.publication().clone());
     let response = super::drain_outbox(
         State(state.clone()),
@@ -23850,7 +23857,7 @@ async fn websocket_projection_offer_loses_to_marker_installed_after_selection() 
 #[tokio::test]
 async fn sessions_live_update_stream_sends_one_frame_per_subscription_version() {
     let connection_id = "sessions-one-frame-per-version";
-    let state = auth_projection_http_fixture(connection_id, 0, 0);
+    let state = auth_projection_http_fixture();
     let credential = mint_test_credential(&state, "one-frame@example.test").await;
     let bearer = credential["token"].as_str().expect("credential token");
     let (_opened, connection_act) =
@@ -23861,28 +23868,17 @@ async fn sessions_live_update_stream_sends_one_frame_per_subscription_version() 
         .register_bound(connection_id, connection_act.grant_id.clone())
         .expect("register exact sessions stream owner");
     let admission = test_route_admission(&state).0;
-
-    let subscribe_authority = InvocationGate::prepare_admitted_subjectless_authority(
-        InvocationSource::LiveInitialQuery,
-        AuthMode::Sessions,
-        state.server.profile,
-        admission.clone(),
-        &WireAuthorityFields::default(),
-        connection_act.resolved.clone(),
-        test_session_claims_for(&connection_act.resolved),
-    )
-    .expect("prepare sessions live authority")
-    .with_fenced_publication(connection_act.bound.publication().clone());
+    let subscribe_authority = prepare_live_route_authority(&state, bearer, &connection_act).await;
     let effect_fence = connection_act.effect_fence();
     let invalidation = connection_act.authorization_invalidation.clone();
     let subscribed = with_snapback(&state.snapback, {
         let connection_id = connection_id.to_owned();
+        let effect_fence = effect_fence.clone();
         move |snapback| {
-            snapback_engine::test_support::subscribe_live_prepared_with_invalidation(
-                snapback,
-                "listItems",
+            let staged = snapback.prepare_subscribe_live_for_transport_generation(
+                "listItems".to_owned(),
                 LiveSubscribeInput {
-                    connection_id,
+                    connection_id: connection_id.clone(),
                     input: HandlerInput::default(),
                     authorization_namespace: Some(QueryNamespace {
                         client_store_id: "sessions_one_frame_store".to_owned(),
@@ -23893,11 +23889,15 @@ async fn sessions_live_update_stream_sends_one_frame_per_subscription_version() 
                     resume_from_token: None,
                 },
                 subscribe_authority,
-                snapback_engine::test_support::live_invalidation_admission(
+                LiveInvalidationAdmission::new(
                     invalidation.expect("negotiated invalidation descriptor"),
-                    true,
                 ),
-            )
+                None,
+            )?;
+            staged.try_commit(&connection_id, &effect_fence)?;
+            snapback
+                .finalize_subscribe_live_for_transport(&staged)
+                .map(|publication| publication.output)
         }
     })
     .await
@@ -24007,12 +24007,13 @@ fn websocket_selected_marker_defers_precomputed_projections_and_emits_alone() {
 #[tokio::test]
 async fn oversized_http_projection_returns_503_before_outbox_lease_and_stays_pending() {
     let connection_id = "oversized-projection-http";
-    let state = auth_projection_http_fixture(connection_id, 1, 0)
-        .with_projection_handoff_limit_for_test(1_000);
+    let state = auth_projection_http_fixture().with_projection_handoff_limit_for_test(1_000);
     let credential = mint_test_credential(&state, "oversized-projection@example.com").await;
     let bearer = credential["token"].as_str().expect("credential token");
     let (_opened, act) = prepare_invalidation_session_connection_act(&state, bearer, connection_id);
     state.ephemeral.touch_connection(connection_id);
+    install_sessions_projection_subscription(&state, bearer, &act, 501).await;
+    invoke_session_projection_mutation(&state, bearer, "x".repeat(2_000)).await;
     state.ephemeral.enqueue_durable_bound_for_test(
         connection_id,
         b"ordinary-after-projection-error".to_vec(),
@@ -24054,11 +24055,13 @@ async fn oversized_http_projection_returns_503_before_outbox_lease_and_stays_pen
 #[tokio::test]
 async fn leased_marker_suppresses_http_projection_then_marker_emits_alone_before_retry() {
     let connection_id = "leased-marker-projection-http";
-    let state = auth_projection_http_fixture(connection_id, 1, 0);
+    let state = auth_projection_http_fixture();
     let credential = mint_test_credential(&state, "marker-projection@example.com").await;
     let bearer = credential["token"].as_str().expect("credential token");
     let (_opened, act) = prepare_invalidation_session_connection_act(&state, bearer, connection_id);
     state.ephemeral.touch_connection(connection_id);
+    install_sessions_projection_subscription(&state, bearer, &act, 502).await;
+    invoke_session_projection_mutation(&state, bearer, "marker projection".to_owned()).await;
     state
         .ephemeral
         .overflow_outbox_for_test(connection_id, Some(act.effect_fence()));
@@ -34629,7 +34632,7 @@ async fn maintenance_cleanup_join_failure_retains_exact_retry_capture() {
 async fn committed_live_stage_finalize_outlives_request_cancellation_and_retains_work() {
     let state = tokio::task::spawn_blocking(|| {
         let _sanction = crate::exec_guard::BlockingSanction::acquire();
-        auth_projection_http_fixture("owned-finalize-fixture", 0, 0)
+        auth_projection_http_fixture()
     })
     .await
     .expect("build SQLite-backed fixture off the async worker");
@@ -34829,7 +34832,7 @@ async fn committed_live_stage_finalize_outlives_request_cancellation_and_retains
 async fn refused_connection_act_abandons_staged_subscribe_without_publication() {
     let state = tokio::task::spawn_blocking(|| {
         let _sanction = crate::exec_guard::BlockingSanction::acquire();
-        auth_projection_http_fixture("refused-stage-fixture", 0, 0)
+        auth_projection_http_fixture()
     })
     .await
     .expect("build SQLite-backed fixture off the async worker");

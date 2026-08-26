@@ -5,14 +5,11 @@
 //! this module must not combine caller-selected executable code with fabricated
 //! authority or expose an authority-bypassing evaluator.
 
-use crate::auth::invocation::PreparedAuthority;
 use crate::contract_types::ServerProfile;
 use crate::diagnostic::SnapbackResult;
 use crate::local::LocalSnapback;
-use crate::local::{LiveInvalidationAdmission, LiveSubscribeInput, LiveSubscribeOutput};
-use crate::manifest::{
-    FunctionManifest, FunctionRuntime, GraphQueryPlanV1, GraphRowKeyV1, HandlerInput, IbexModule,
-};
+use crate::local::{LiveSubscribeInput, LiveSubscribeOutput};
+use crate::manifest::{FunctionManifest, GraphQueryPlanV1, GraphRowKeyV1, HandlerInput};
 
 pub fn apply_graph_delta_to_result_for_test(
     plan: &GraphQueryPlanV1,
@@ -581,23 +578,6 @@ pub fn commit_capsule_prototype_facts(
     snapback_kernel::storage::commit_capsule_prototype::facts(snapback.auth_database_mut(), intent)
 }
 
-/// Construct the compatibility admission used by higher-rank transport tests.
-pub fn live_invalidation_admission(
-    connection: crate::auth::invalidation::AuthorizationInvalidationConnection,
-    session_mode: bool,
-) -> LiveInvalidationAdmission {
-    LiveInvalidationAdmission::new(connection).with_session_mode(session_mode)
-}
-
-/// Compatibility admission for tests that deliberately exercise a connection
-/// without the authorization-invalidation protocol.
-pub fn live_unscoped_invalidation_admission(
-    effect_fence: crate::ephemeral::ConnectionEffectFence,
-    session_mode: bool,
-) -> LiveInvalidationAdmission {
-    LiveInvalidationAdmission::without_invalidation(effect_fence).with_session_mode(session_mode)
-}
-
 pub fn erase_protected_record(
     snapback: &mut LocalSnapback,
     request: &crate::proof_checkpoint::ProtectedRecordErasureRequestV1,
@@ -662,31 +642,6 @@ pub fn asset_move_finalize_witness(
     attempt_id: &str,
 ) -> SnapbackResult<()> {
     snapback.asset_move_finalize_witness_for_test(attempt_id)
-}
-
-/// Subscribe through a prepared authority, restricted to declarative plans.
-/// Caller-loaded JavaScript modules are refused before evaluation.
-pub fn subscribe_live_prepared_with_invalidation(
-    snapback: &mut LocalSnapback,
-    name: &str,
-    input: LiveSubscribeInput,
-    authority: PreparedAuthority,
-    invalidation: LiveInvalidationAdmission,
-) -> SnapbackResult<LiveSubscribeOutput> {
-    snapback.require_host_plan_for_test_support(name)?;
-    snapback.subscribe_live_prepared_with_invalidation(name, input, authority, invalidation)
-}
-
-/// Build the protocol-test authority and subscribe to a declarative plan.
-/// Caller-loaded JavaScript modules are refused before evaluation.
-pub fn subscribe_live_host_plan_with_invalidation(
-    snapback: &mut LocalSnapback,
-    name: &str,
-    input: LiveSubscribeInput,
-    invalidation: LiveInvalidationAdmission,
-) -> SnapbackResult<LiveSubscribeOutput> {
-    snapback.require_host_plan_for_test_support(name)?;
-    snapback.subscribe_live_with_invalidation(name, input, invalidation)
 }
 
 /// Install the deterministic stream identities and real retained-live
@@ -833,58 +788,4 @@ pub fn set_graph_corpus_memo_limits(
 
 pub fn graph_corpus_memo_entries(snapback: &LocalSnapback) -> serde_json::Value {
     snapback.graph_corpus_memo_entries_for_test()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn public_live_helper_refuses_caller_loaded_javascript() {
-        let mut snapback = LocalSnapback::memory().expect("memory test-support audit fixture");
-        let diagnostics = snapback.load_functions(FunctionManifest {
-            functions: vec![crate::manifest::FunctionDefinition::new(
-                "callerJavascript",
-                crate::manifest::FunctionKind::LiveQuery,
-                FunctionRuntime::IbexModule(IbexModule {
-                    source: r#"
-globalThis.__snapbackHandlers = {
-  async callerJavascript(ctx) {
-    return await ctx.db.elevated.query("secrets").collect();
-  }
-};
-"#
-                    .to_owned(),
-                    export: "callerJavascript".to_owned(),
-                }),
-            )],
-            ..FunctionManifest::default()
-        });
-        assert!(
-            !diagnostics.iter().any(|diagnostic| matches!(
-                diagnostic.severity,
-                crate::diagnostic::DiagnosticSeverity::Error
-                    | crate::diagnostic::DiagnosticSeverity::Fatal
-            )),
-            "caller module must load so the guard, not fixture validation, is tested: {diagnostics:?}",
-        );
-
-        let error = subscribe_live_host_plan_with_invalidation(
-            &mut snapback,
-            "callerJavascript",
-            LiveSubscribeInput {
-                connection_id: "test-support-audit".to_owned(),
-                input: HandlerInput::default(),
-                authorization_namespace: None,
-                supersedes: None,
-                resume_from_token: None,
-            },
-            LiveInvalidationAdmission::default(),
-        )
-        .expect_err("public test-support helper must refuse caller-loaded JavaScript");
-        assert_eq!(
-            error.diagnostic.code,
-            "SNAPBACK_TEST_SUPPORT_RUNTIME_FORBIDDEN"
-        );
-    }
 }
