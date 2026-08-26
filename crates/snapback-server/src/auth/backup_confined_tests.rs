@@ -9,8 +9,8 @@ use snapback_kernel::storage::LocalDatabase;
 use snapback_kernel::storage::auth::AuthTransactionAttempt;
 use snapback_kernel::storage::auth::{AuthCatalogState, PasswordIdentifierMode};
 use snapback_types::manifest::{
-    FieldManifest, FieldType, HandlerInput, MutationPlan, MutationStep, SchemaManifest,
-    TableManifest, ValueExpr,
+    AuthInput, FieldManifest, FieldType, HandlerInput, MutationPlan, MutationStep, SchemaManifest,
+    TableManifest, TableVisibilityV1, ValueExpr,
 };
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -93,16 +93,18 @@ fn register_password(
             .expect("construct production auth provider"),
     );
     let runtime = tokio::runtime::Runtime::new().expect("test runtime");
+    let preparation = provider
+        .prepare_password_registration(database, identifier, PasswordIssuanceCustody::Bearer)
+        .expect("prepare production password registration");
     let plan = runtime
-        .block_on(provider.plan_password_registration(
-            database,
-            identifier,
-            crate::auth::identity_core::PasswordSecret::new(password.to_owned()),
-            now_ms,
-            "backup-recovery-key",
-            &[7; 32],
-            PasswordIssuanceCustody::Bearer,
-        ))
+        .block_on(
+            provider.finish_password_registration_with_active_recovery_key(
+                preparation,
+                crate::auth::identity_core::PasswordSecret::new(password.to_owned()),
+                now_ms,
+                PasswordIssuanceCustody::Bearer,
+            ),
+        )
         .expect("plan production password registration");
     assert!(matches!(
         provider.commit_password_issuance(database, &plan.commit_plan()),
@@ -143,11 +145,18 @@ fn install_large_app_fixture(database: &mut LocalDatabase) {
         .apply_schema(SchemaManifest {
             tables: vec![TableManifest {
                 name: "backup_large_app_fixture".to_owned(),
-                fields: vec![FieldManifest {
-                    name: "payload".to_owned(),
-                    field_type: FieldType::String,
-                    optional: false,
-                }],
+                fields: vec![
+                    FieldManifest {
+                        name: "payload".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "ownerId".to_owned(),
+                        field_type: FieldType::Principal,
+                        optional: false,
+                    },
+                ],
                 indexes: Vec::new(),
                 search_indexes: Vec::new(),
                 vector_indexes: Vec::new(),
@@ -158,7 +167,9 @@ fn install_large_app_fixture(database: &mut LocalDatabase) {
                 membership: None,
                 authority_profile: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(TableVisibilityV1::Owner {
+                    field: "ownerId".to_owned(),
+                }),
                 history: None,
             }],
             ..SchemaManifest::default()
@@ -171,15 +182,23 @@ fn install_large_app_fixture(database: &mut LocalDatabase) {
                 owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Insert {
                     table: "backup_large_app_fixture".to_owned(),
-                    values: BTreeMap::from([(
-                        "payload".to_owned(),
-                        ValueExpr::Literal(serde_json::Value::String("x".repeat(1_048_576))),
-                    )]),
+                    values: BTreeMap::from([
+                        ("payload".to_owned(), ValueExpr::Arg("payload".to_owned())),
+                        ("ownerId".to_owned(), ValueExpr::AuthUserId),
+                    ]),
                     bind_id_as: None,
                 }],
                 return_value: None,
             },
-            &HandlerInput::default(),
+            &HandlerInput {
+                args: serde_json::json!({ "payload": "x".repeat(1_048_576) }),
+                auth: AuthInput {
+                    principal: Some("backup-fixture-owner".to_owned()),
+                    user_id: Some("backup-fixture-owner".to_owned()),
+                    ..AuthInput::default()
+                },
+                ..HandlerInput::default()
+            },
         )
         .expect("insert large app row through the production mutation pipeline");
 }
@@ -193,7 +212,7 @@ fn backup_and_restore_publish_exact_owner_only_consistent_units() {
     let provider = register_password(
         database,
         fixture.keyring.clone(),
-        "backup-person",
+        "backup-person@example.com",
         "strong-backup-password-1",
         20,
     );

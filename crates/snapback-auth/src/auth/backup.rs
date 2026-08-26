@@ -1949,24 +1949,24 @@ mod tests {
         identifier: &str,
         password: &str,
         now_ms: u64,
-        recovery_key_id: &str,
-        recovery_key: &[u8; 32],
     ) -> Arc<AuthProvider> {
         let provider = Arc::new(
             AuthProvider::new(AuthProviderProfile::Test, keyring)
                 .expect("construct production auth provider"),
         );
         let runtime = tokio::runtime::Runtime::new().expect("test runtime");
+        let preparation = provider
+            .prepare_password_registration(database, identifier, PasswordIssuanceCustody::Bearer)
+            .expect("prepare production password registration");
         let plan = runtime
-            .block_on(provider.plan_password_registration(
-                database,
-                identifier,
-                crate::auth::identity_core::PasswordSecret::new(password.to_owned()),
-                now_ms,
-                recovery_key_id,
-                recovery_key,
-                PasswordIssuanceCustody::Bearer,
-            ))
+            .block_on(
+                provider.finish_password_registration_with_active_recovery_key(
+                    preparation,
+                    crate::auth::identity_core::PasswordSecret::new(password.to_owned()),
+                    now_ms,
+                    PasswordIssuanceCustody::Bearer,
+                ),
+            )
             .expect("plan production password registration");
         let attempt = provider.commit_password_issuance(database, &plan.commit_plan());
         assert!(matches!(
@@ -2107,8 +2107,6 @@ mod tests {
             "email-mode@example.com",
             "strong-email-mode-password",
             0,
-            "email-mode-recovery-key",
-            &[7; 32],
         );
         record_failed_password_attempt(&provider, &mut source, "email-mode@example.com", 1);
         record_failed_password_attempt(&provider, &mut source, "email-mode@example.com", 2);
@@ -2909,15 +2907,26 @@ mod tests {
     fn v3_recovery_key_references_are_part_of_the_backup_unit() {
         let mut fixture = Fixture::new();
         let missing_key_id = "sbak_AAAAAAAAAAAAAAAAAAAAAA";
-        register_password(
-            &mut fixture.database,
-            fixture.keyring.clone(),
-            "missing-recovery-key",
-            "strong-missing-recovery-key-1",
-            20,
-            missing_key_id,
-            &[7_u8; 32],
-        );
+        let provider = AuthProvider::new(AuthProviderProfile::Test, fixture.keyring.clone())
+            .expect("construct production auth provider");
+        let runtime = tokio::runtime::Runtime::new().expect("test runtime");
+        let plan = runtime
+            .block_on(provider.plan_password_registration(
+                &fixture.database,
+                "missing-recovery-key@example.com",
+                crate::auth::identity_core::PasswordSecret::new(
+                    "strong-missing-recovery-key-1".to_owned(),
+                ),
+                20,
+                missing_key_id,
+                &[7_u8; 32],
+                PasswordIssuanceCustody::Bearer,
+            ))
+            .expect("plan production password registration with missing retained key");
+        assert!(matches!(
+            provider.commit_password_issuance(&mut fixture.database, &plan.commit_plan()),
+            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed { .. })
+        ));
 
         assert!(
             fixture
