@@ -3995,6 +3995,11 @@ impl LocalEphemeralBackend {
         let resolutions = completion.resolutions();
         let rooms = lock(&self.shared.rooms);
         let Some(room_arc) = rooms.get(&room_id).cloned() else {
+            // Keep the exact registry admission, but release room routing
+            // before obligation removal drops its SQLite transaction. This
+            // makes the no-room leaf follow the same structural order as the
+            // ordinary completion leaf.
+            drop(rooms);
             completion.remove_missing_room();
             return Ok(true);
         };
@@ -4199,9 +4204,13 @@ impl LocalEphemeralBackend {
             wakees.insert(connection_id);
         }
 
-        completion.complete_exact();
         drop(room);
         drop(rooms);
+        // The registry admission prevents a protected operation from passing
+        // the pending obligation while the in-memory locks are released. Drop
+        // the durable fence only after every room/outbox guard is gone, so a
+        // SQLite call can never execute underneath those guards.
+        completion.complete_exact();
         for connection_id in &denied_connections {
             self.unindex_connection_room_if_unused(connection_id, &room_id);
         }
