@@ -11,7 +11,7 @@ targets: [local]
 maturity: partial
 since: 0.1.11
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:8bc43407a00329474f32a601a4e657370c403050d767b50dbf76d7887de4a068
+reviewed-authorities-digest: sha256:3f24f88bcfb4bd7cf6c24c2b6fe7631c261188320c7c430eaf9978a660573079
 ---
 
 # Application surfaces

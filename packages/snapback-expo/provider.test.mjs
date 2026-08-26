@@ -115,6 +115,7 @@ function appStateHarness() {
 
 const states = [];
 let authorityMints = 0;
+let legacyPlatformResolutions = 0;
 let preparedInput = null;
 let providerDisposed = 0;
 const lifecycleCalls = [];
@@ -127,6 +128,7 @@ const fakeClient = {
 };
 const environment = Object.freeze({
   format: 'snapback.expo-environment.v1',
+  runtimePlatform: 'web',
   appState,
   async resolveBinding({ bindingOverride }) {
     assert.equal(bindingOverride, null);
@@ -139,7 +141,8 @@ const environment = Object.freeze({
     };
   },
   async resolveAppClientPlatform() {
-    return 'expo-web';
+    legacyPlatformResolutions += 1;
+    throw new Error('legacy descriptor must not resolve first-party app-client platform');
   },
   async adoptAuthority({ adoptSupervisedSession }) {
     assert.equal(
@@ -195,6 +198,7 @@ assert.equal(ready.authority.sessionId, null, 'legacy web leaves password entry 
 assert.equal(ready.authority.userId, null);
 assert.equal(ready.binding.target.origin, binding.target.origin);
 assert.equal(authorityMints, 0);
+assert.equal(legacyPlatformResolutions, 0);
 assert.strictEqual(boot.lifecycleSource(), appState);
 assert.equal(appState.count(), 1);
 appState.emit('background');
@@ -206,23 +210,21 @@ await boot.dispose();
 assert.equal(appState.count(), 0);
 assert.equal(providerDisposed, 1);
 
-// Memory selects volatile custody, not a runtime posture. A DOM host remains
-// web even when a compatibility shim advertises navigator.product as
-// ReactNative; native declares itself explicitly or resolves through Platform.OS.
-let ambiguousMemoryAdoptions = 0;
-const ambiguousMemoryBoot = createSnapbackExpoBoot({
+// A DOM host remains web even when a compatibility shim advertises
+// navigator.product as ReactNative; native declares itself explicitly or
+// resolves through Platform.OS.
+let ambiguousHostAdoptions = 0;
+const ambiguousHostBoot = createSnapbackExpoBoot({
   app,
   environment: Object.freeze({
     ...environment,
+    runtimePlatform: undefined,
     appState: appStateHarness(),
-    async resolveAppClientPlatform() {
-      return Object.freeze({ kind: 'memory' });
-    },
     resolveNativeAuthCustodyOperatingSystem() {
       return 'unknown';
     },
     async adoptAuthority({ adoptSupervisedSession }) {
-      ambiguousMemoryAdoptions += Number(adoptSupervisedSession);
+      ambiguousHostAdoptions += Number(adoptSupervisedSession);
       return {
         status: 'ready',
         client: fakeClient,
@@ -253,15 +255,15 @@ Object.defineProperty(globalThis, 'navigator', {
   value: Object.freeze({ product: 'ReactNative' }),
 });
 try {
-  const ambiguousMemoryReady = await ambiguousMemoryBoot.start();
-  assert.equal(ambiguousMemoryReady.status, 'ready');
-  assert.equal(ambiguousMemoryReady.authority.sessionId, null);
+  const ambiguousHostReady = await ambiguousHostBoot.start();
+  assert.equal(ambiguousHostReady.status, 'ready');
+  assert.equal(ambiguousHostReady.authority.sessionId, null);
   assert.equal(
-    ambiguousMemoryAdoptions,
+    ambiguousHostAdoptions,
     0,
-    'a DOM memory host advertising ReactNative stays anonymous with zero mints',
+    'a DOM host advertising ReactNative stays anonymous with zero mints',
   );
-  await ambiguousMemoryBoot.dispose();
+  await ambiguousHostBoot.dispose();
 } finally {
   if (previousAmbiguousDocument === undefined) delete globalThis.document;
   else Object.defineProperty(globalThis, 'document', previousAmbiguousDocument);
@@ -555,4 +557,4 @@ completeAdoption({
 await interruptedStart;
 assert.equal(interruptedAuthorityDisposals, 1, 'dispose racing authority adoption releases it');
 
-console.log('provider.test.mjs: legacy and DOM-memory web anonymous default/no-mint posture, descriptor delegation, exact boot states, authority refusal, lifecycle, and pre-store mismatch pass');
+console.log('provider.test.mjs: legacy runtime and DOM-host web anonymous default/no-mint posture, descriptor delegation, exact boot states, authority refusal, lifecycle, and pre-store mismatch pass');

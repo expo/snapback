@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:ae5b6bd1bcd8ade1c1c7f43dad692962db96c3543be6f08f857e2fc414d034fd
+reviewed-authorities-digest: sha256:c6922b6105ce5ea0d0f5f73fdcc5e54a63cab9093ba030d8509bfacfb5a7fa21
 ---
 
 # Authenticate a native app

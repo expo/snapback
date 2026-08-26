@@ -1423,12 +1423,16 @@ partial adapters into an unearned “offline” claim.
 
 ## Open questions and E1 dispositions
 
-1. **Answered for E1:** Metro carries only the credential-free rendezvous
-   origin; the binding itself is fetched at runtime from the transient local
-   exchange described in §Delivery E1.
-2. **Answered for E1:** the supervisor-owned loopback `no-store` exchange
-   delivers the ordinary session alongside the binding. The E1 negative grep
-   proves absence from the named static surfaces, not live-channel security.
+1. **Answered for E1:** web Metro carries the exact backend data/auth origin as
+   `EXPO_PUBLIC_SNAPBACK_URL` and the credential-free rendezvous origin as
+   `EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN`; the provider fetches the binding
+   at runtime through the supervisor-owned loopback `no-store` GET described
+   in §Delivery E1.
+2. **Answered for E1:** that bootstrap GET is binding-only and never creates or
+   returns an ordinary session. A separate authority-adoption POST —
+   origin-admitted on web and correlation-capability-gated on native — is the
+   only supervised exchange that mints one. The E1 negative grep proves
+   absence from the named static surfaces, not live-channel security.
 3. Should release binding be embedded as generated source, an Expo Updates
    asset, or a signed public artifact, and which owner verifies its receipt?
 4. **Partially answered 2026-08-06 after the LLP 0176 OQ4 ruling:** Android can

@@ -10,7 +10,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:bc0793f907cf66c73b269b17c0248acb776571b4983b2ec067504b4b9bbf7bf3
+reviewed-authorities-digest: sha256:0776ae1ed843d8f89ef62bbd3d5e0197c43d3641e4295d6c619c85281b2c6929
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />

@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:a64d519e30a14ff845f69369ff82c288dd3b69e226b01c4bfdb10e94a00b3ab3
+reviewed-authorities-digest: sha256:d8478f180e4b0afed0ffa796dcbf6e91ffb26abe9368e4882c9978e3141caaf0
 ---
 
 # Assets

@@ -784,20 +784,12 @@ export function createSnapbackExpoBoot(options = {}) {
         return state;
       }
 
-      let legacyPlatform = null;
-      if (
-        adoptSupervisedSession === undefined
-        && typeof environment.resolveAppClientPlatform === 'function'
-      ) {
-        legacyPlatform = normalizeAppClientPlatform(
-          await awaitBoundary(environment.resolveAppClientPlatform({ app })),
-        );
-      }
       // @ref LLP 0300#p4--the-dev-session-becomes-explicit — legacy generated
       // apps use the same native-default/web-opt-in adoption posture as the
-      // first-party bootstrap path; lacking the capability must not mint on web.
+      // first-party bootstrap path; lacking the capability must not enter LLP
+      // 0258's opt-in-only platform resolver merely to decide whether to mint.
       const legacyAdoptsSupervisedSession = adoptSupervisedSession
-        ?? (await awaitBoundary(resolveExpoRuntimePosture(environment, legacyPlatform))) === 'native';
+        ?? (await awaitBoundary(resolveExpoRuntimePosture(environment, null))) === 'native';
       publish(Object.freeze({ status: 'starting', stage: 'authority' }));
       let adopted;
       try {
