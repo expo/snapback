@@ -839,6 +839,34 @@ it instead?* If the answer is the caller — directly, or by writing the durable
 check compares against — the check is decorative regardless of how many coordinates it carries.
 A protection that merely verifies a caller "should" have done the work is not a protection.
 
+
+**The regress terminates only at a root the caller cannot author.** A fourth case makes the
+practical consequence explicit. A lane bound step-up proofs to a provider origin, and the
+binding was *internally genuine* — it really did prove the owner belonged to the keyring and
+the key belonged to the owner. It failed anyway, because **the caller can create the keyring**.
+An executing reviewer minted a real agent invitation from an external dependent crate.
+
+The enabling anti-pattern is **first-writer-wins**: the per-handle binding initialized to
+`None`, and any caller could install one into an unbound handle. Note what this defeats. The
+underlying identity primitive was inspected and found genuinely unforgeable — process, fork
+and pointer identity all held. That did not help, because the attacker never forged an
+identity; it **minted a fresh valid one and installed it first**.
+
+Each round of that lane moved the caller-authored fact one level outward: proof → coordinates
+→ durable challenge row → provider → keyring. Adding a layer that checks the previous layer
+always produces the next round's finding, because the chain has no bottom.
+
+**So the design question is not "is this checked?" but "where does this chain terminate?"**
+Something must be established by a fact the caller cannot author — provenance fixed at
+database or ceremony creation and stored durably, an unbound handle that refuses to serve
+rather than accepting its first installer, or durable rows that carry their own origin
+provenance so a caller-supplied companion value cannot stand in for it. Everything else
+derives from that root.
+
+A corollary worth stating plainly: if rooting the chain properly requires work outside a
+lane's scope — a migration, or a ceremony that does not exist yet — **saying so is a better
+outcome than another checking layer**, and reviewers should accept it as one.
+
 **Scope.** This says nothing about ordinary RAII. Guards that protect only their holder's
 own correctness are fine. The rule binds where the value's continued existence is what
 authorizes an effect, or what another thread is waiting on.
