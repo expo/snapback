@@ -7,6 +7,7 @@ use crate::auth::identity_core::{
     AssuranceKind, AssuranceProvenance, AssuranceRecord, AuthClaimsProjection, ClaimsIdentity,
     DeploymentPosture, PasswordSecret, RecoveryCodes,
 };
+use crate::auth::keyring::{AuthProviderStepUpBinding, ProviderBoundStepUpProof};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use argon2::{
     Algorithm, Argon2, Params, Version,
@@ -396,7 +397,7 @@ pub enum PasswordIssuanceOperation {
     Set {
         predecessor: PasswordSetPredecessor,
         displaced: Option<DisplacedPasswordPredecessor>,
-        step_up: crate::auth::crypto::StepUpProof,
+        step_up: ProviderBoundStepUpProof,
         credential_id: String,
         password: PreparedPasswordHash,
         recovery: PreparedRecoverySet,
@@ -1289,6 +1290,7 @@ pub(crate) fn admit_password_issuance_in(
     plan: &PasswordIssuanceCommitPlan,
     now_ms: u64,
     profile: PasswordSecurityProfile,
+    step_up_provider: Option<&AuthProviderStepUpBinding>,
 ) -> SnapbackResult<PasswordIssuanceAdmission> {
     super::auth::require_password_identifier_mode_on(transaction)?;
     require_same_password_identifier_mode(transaction, plan.identifier_mode)?;
@@ -1441,6 +1443,13 @@ pub(crate) fn admit_password_issuance_in(
             if super::auth_catalog_ops::consume_step_up_proof_on(
                 transaction,
                 step_up,
+                step_up_provider.ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_AUTH_STEP_UP_PROVIDER_INVALID",
+                        "auth",
+                        "step-up provider is not bound to this database",
+                    )
+                })?,
                 super::auth_catalog_ops::ExpectedStepUpProof {
                     user_id: &predecessor.acting_user_id,
                     session_id: Some(&predecessor.acting_session_id),

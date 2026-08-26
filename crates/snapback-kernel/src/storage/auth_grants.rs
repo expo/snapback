@@ -12,7 +12,8 @@ use super::auth_agent_credentials::{
 #[cfg(any(test, feature = "test-support"))]
 use super::auth_invalidation::{AUTH_CLOCK_META_KEY, strict_meta_u64};
 use crate::auth::crypto::{AgentCredential, PairingCode, RandomSource};
-use crate::auth::crypto::{StepUpConsumption, StepUpProof, step_up_required_error};
+use crate::auth::crypto::{StepUpConsumption, step_up_required_error};
+use crate::auth::keyring::ProviderBoundStepUpProof;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::FunctionKind;
 use crate::storage::auth::{
@@ -1109,7 +1110,7 @@ impl LocalDatabase {
         session_id: &str,
         request_id: &str,
         requested_ttl_ms: Option<u64>,
-        step_up_proof: Option<&StepUpProof>,
+        step_up_proof: Option<&ProviderBoundStepUpProof>,
         now_ms: u64,
     ) -> SnapbackResult<GrantApproval> {
         self.observe_agent_authorization_clock(now_ms)?;
@@ -1121,6 +1122,9 @@ impl LocalDatabase {
             .checked_add(ttl)
             .filter(|expires_at_ms| *expires_at_ms <= super::MAX_AUTHORIZATION_EPOCH)
             .ok_or_else(grant_expiry_invalid)?;
+        let step_up_provider = step_up_proof
+            .map(|_| self.auth_step_up_provider())
+            .transpose()?;
         let grant_id_candidate = crate::ids::mint_time_ordered(crate::ids::Kind::Grant);
         let mut body_outcome = None;
         let attempt = self.attempt_auth_transaction(|tx| {
@@ -1155,6 +1159,9 @@ impl LocalDatabase {
                 if super::auth_catalog_ops::consume_step_up_proof_on(
                     tx,
                     proof,
+                    step_up_provider
+                        .as_ref()
+                        .ok_or_else(step_up_required_error)?,
                     super::auth_catalog_ops::ExpectedStepUpProof {
                         user_id: effective_user_id,
                         session_id: Some(session_id),
@@ -2254,7 +2261,7 @@ fn reconcile_created_grant_approval(
     effective_user_id: &str,
     request_id: &str,
     expected: &ApprovedGrant,
-    proof: Option<&StepUpProof>,
+    proof: Option<&ProviderBoundStepUpProof>,
 ) -> SnapbackResult<ApprovedGrant> {
     let request = connection
         .query_row(
@@ -2283,7 +2290,7 @@ fn reconcile_rejected_grant_approval(
     connection: &rusqlite::Connection,
     effective_user_id: &str,
     request_id: &str,
-    proof: Option<&StepUpProof>,
+    proof: Option<&ProviderBoundStepUpProof>,
 ) -> SnapbackResult<()> {
     let request = connection
         .query_row(
@@ -3463,7 +3470,7 @@ impl super::ServingDatabase {
         session_id: &str,
         request_id: &str,
         requested_ttl_ms: Option<u64>,
-        step_up_proof: Option<&StepUpProof>,
+        step_up_proof: Option<&ProviderBoundStepUpProof>,
         now_ms: u64,
     ) -> SnapbackResult<GrantApproval> {
         self.db.approve_grant_request(

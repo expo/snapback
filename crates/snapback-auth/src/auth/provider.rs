@@ -32,6 +32,9 @@ use super::crypto::{
     RandomSource, SessionBearer, StepUpDigest, StepUpProof, TokenHash, VerificationCode,
 };
 use super::keyring::AuthKeyringStore;
+use super::keyring::{
+    AuthProviderStepUpBinding, AuthProviderStepUpOwner, ProviderBoundStepUpProof,
+};
 use super::lease::{
     AuthorizedLease, AuthorizedLeaseAuthenticator, AuthorizedLeaseConfig,
     AuthorizedLeaseExpectation, AuthorizedLeaseIssue, VerifiedAuthorizedLease,
@@ -290,16 +293,16 @@ impl fmt::Debug for StepUpCoordination {
 pub struct StepUpProofAdmission {
     _admission: AuthAdmission,
     _stripe: OwnedMutexGuard<()>,
-    proof: StepUpProof,
+    proof: ProviderBoundStepUpProof,
 }
 
 impl StepUpProofAdmission {
-    pub fn proof(&self) -> &StepUpProof {
+    pub fn proof(&self) -> &ProviderBoundStepUpProof {
         &self.proof
     }
 
     pub fn address(&self) -> &CanonicalAddress {
-        self.proof.address()
+        self.proof.proof().address()
     }
 
     pub fn prepare_password_set_plan<'a>(
@@ -309,7 +312,7 @@ impl StepUpProofAdmission {
         custody: PasswordIssuanceCustody,
     ) -> impl super::database_plan::AuthDatabasePlan<Output = SnapbackResult<PasswordSetPreparation>> + 'a
     {
-        let identifier = self.proof.address().as_str();
+        let identifier = self.proof.proof().address().as_str();
         super::database_plan::plan(move |database| {
             self._admission
                 .provider
@@ -1460,6 +1463,10 @@ pub struct AuthProvider {
     profile: AuthProviderProfile,
     budgets: ResolvedCompatibilityAuthBudgetPolicy,
     keyring: Arc<AuthKeyringStore>,
+    /// Minting half of the provider origin installed into the serving
+    /// database. The powerless comparison binding may leave this type; the
+    /// owner never does.
+    step_up_owner: AuthProviderStepUpOwner,
     mailbox: CaptureMailbox,
     random: Arc<dyn RandomSource>,
     clock: Arc<dyn AuthClock>,
@@ -1552,6 +1559,7 @@ impl AuthProvider {
     ) -> ProviderResult<Self> {
         let dummy_key =
             AuthKeyMaterial::generate(random.as_ref()).map_err(|_| provider_unavailable())?;
+        let step_up_owner = keyring.claim_step_up_provider_origin();
         let dummy_address = CanonicalAddress::parse("invalid@snapback.invalid")
             .expect("the fixed dummy auth address is valid");
         let dummy_bearer =
@@ -1576,6 +1584,7 @@ impl AuthProvider {
             profile,
             budgets,
             keyring,
+            step_up_owner,
             mailbox,
             random,
             clock,
@@ -1595,6 +1604,14 @@ impl AuthProvider {
 
     pub fn profile(&self) -> AuthProviderProfile {
         self.profile
+    }
+
+    /// Powerless comparison identity installed into the serving database.
+    /// It cannot mint a proof; only this provider's private owner can do so.
+    pub fn step_up_provider_binding(&self) -> ProviderResult<AuthProviderStepUpBinding> {
+        self.keyring
+            .step_up_provider_binding(&self.step_up_owner)
+            .map_err(|_| provider_unavailable())
     }
 
     /// Plan the policy-derived guest principal and its first session. The
@@ -2311,7 +2328,7 @@ impl AuthProvider {
     pub async fn finish_password_set(
         &self,
         preparation: PasswordSetPreparation,
-        step_up: StepUpProof,
+        step_up: ProviderBoundStepUpProof,
         password: crate::auth::identity_core::PasswordSecret,
         now_ms: u64,
         recovery_key_id: &str,
@@ -2387,7 +2404,7 @@ impl AuthProvider {
     pub async fn finish_password_set_with_active_recovery_key(
         &self,
         preparation: PasswordSetPreparation,
-        step_up: StepUpProof,
+        step_up: ProviderBoundStepUpProof,
         password: crate::auth::identity_core::PasswordSecret,
         now_ms: u64,
         custody: PasswordIssuanceCustody,
@@ -2418,7 +2435,7 @@ impl AuthProvider {
         &self,
         database: &LocalDatabase,
         acting: &SessionBearer,
-        step_up: StepUpProof,
+        step_up: ProviderBoundStepUpProof,
         identifier: &str,
         password: crate::auth::identity_core::PasswordSecret,
         now_ms: u64,
@@ -3485,21 +3502,27 @@ impl AuthAdmission {
             operation,
             target_id,
         } = binding;
+        let proof = StepUpProof::from_verified_binding(
+            coordination.challenge_id,
+            coordination.address,
+            coordination.key_id,
+            submitted_digest,
+            user_id,
+            session_id,
+            session_generation,
+            authority_instance_id,
+            operation,
+            target_id,
+        );
+        let proof = self
+            .provider
+            .keyring
+            .bind_step_up_proof(&self.provider.step_up_owner, proof)
+            .map_err(|_| provider_unavailable())?;
         Ok(StepUpProofAdmission {
             _admission: self,
             _stripe: stripe,
-            proof: StepUpProof::from_verified_binding(
-                coordination.challenge_id,
-                coordination.address,
-                coordination.key_id,
-                submitted_digest,
-                user_id,
-                session_id,
-                session_generation,
-                authority_instance_id,
-                operation,
-                target_id,
-            ),
+            proof,
         })
     }
 
@@ -4501,6 +4524,9 @@ impl AddressAdmission {
         // lengthened by request-queue delay.
         let now_ms = self.provider().now_ms();
         validate_now(now_ms)?;
+        database
+            .bind_auth_step_up_provider(self.provider().step_up_provider_binding()?)
+            .map_err(|_| provider_unavailable())?;
         if !self.provider().profile.permits_capture() {
             return Err(step_up_delivery_unavailable());
         }
