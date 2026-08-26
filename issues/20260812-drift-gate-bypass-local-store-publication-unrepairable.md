@@ -9,7 +9,7 @@
 **Date:** 2026-08-12
 **Drift gate:** `local-store-publication`
 **Failure signature:** `sha256:3daaf301d85d6913e43803ee7a20710d5ad4932924e9f3125bd6530baa7db90c`
-**Last observed:** `ad53ab3d97c07bee4446f03187164167c2c0d034`
+**Last observed:** `48ac733b7faf04dbb139700e132a79e52c154024`
 **Bypass:** `SNAPBACK_DRIFT_GATES_BYPASS=1`, author-authorized 2026-08-12
 **Related:** `issues/20260811-record-inventory-local-store-publication.md` (the
 same mechanism, Impact 5 / Urgency 5, already open),
