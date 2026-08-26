@@ -27,6 +27,10 @@ const ACTIVATION_PENDING: u8 = 0;
 const ACTIVATION_BOUND: u8 = 1;
 const ACTIVATION_READY: u8 = 2;
 const ACTIVATION_RETIRED: u8 = 3;
+const ROOM_REAUTHORIZATION_ACTIVE: u8 = 0;
+const ROOM_REAUTHORIZATION_COMPLETE: u8 = 1;
+const ROOM_REAUTHORIZATION_MISSING: u8 = 2;
+const ROOM_REAUTHORIZATION_ABANDONED: u8 = 3;
 
 pub(super) struct AuthorizationParticipantActivation {
     // @ref LLP 0303#t-allocation-identity-fails-open-across-fork-and-the-ruling-belongs-here
@@ -653,6 +657,7 @@ struct RoomAuthorityControl {
     active_permits: usize,
     pending_tickets: BTreeSet<u64>,
     resync: Option<RoomAuthorityResync>,
+    reauthorization_completion: Option<Arc<RoomReauthorizationCompletionState>>,
     retired: bool,
 }
 
@@ -663,8 +668,26 @@ impl Default for RoomAuthorityControl {
             active_permits: 0,
             pending_tickets: BTreeSet::new(),
             resync: None,
+            reauthorization_completion: None,
             retired: false,
         }
+    }
+}
+
+#[derive(Debug)]
+struct RoomReauthorizationCompletionState {
+    disposition: AtomicU8,
+}
+
+impl RoomReauthorizationCompletionState {
+    fn active() -> Arc<Self> {
+        Arc::new(Self {
+            disposition: AtomicU8::new(ROOM_REAUTHORIZATION_ACTIVE),
+        })
+    }
+
+    fn is_active(&self) -> bool {
+        self.disposition.load(Ordering::Acquire) == ROOM_REAUTHORIZATION_ACTIVE
     }
 }
 
@@ -727,7 +750,9 @@ impl RoomAuthorityRegistry {
     }
 
     fn lock(&self) -> MutexGuard<'_, RoomAuthorityRegistryState> {
-        self.state.lock().unwrap_or_else(PoisonError::into_inner)
+        let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+        reconcile_room_reauthorization_completions(&mut state);
+        state
     }
 
     pub(super) fn binding_matches(&self, binding: &DatabaseBinding) -> bool {
@@ -768,13 +793,54 @@ impl RoomAuthorityRegistry {
         }
         self.retired.store(true, Ordering::Release);
         self.quiescent.notify_all();
-        while state.active_operations != 0 {
+        while state.active_operations != 0
+            || state.rooms.values().any(|control| {
+                control
+                    .reauthorization_completion
+                    .as_ref()
+                    .is_some_and(|completion| completion.is_active())
+            })
+        {
             state = self
                 .quiescent
-                .wait(state)
-                .unwrap_or_else(PoisonError::into_inner);
+                // Completion settles without taking this mutex. A bounded
+                // wait prevents a notification between the predicate read
+                // and `wait` from becoming a lost wake.
+                .wait_timeout(state, std::time::Duration::from_millis(10))
+                .unwrap_or_else(PoisonError::into_inner)
+                .0;
+            reconcile_room_reauthorization_completions(&mut state);
         }
         Ok(())
+    }
+}
+
+fn reconcile_room_reauthorization_completions(state: &mut RoomAuthorityRegistryState) {
+    let mut remove = Vec::new();
+    for (room, control) in &mut state.rooms {
+        let Some(completion) = control.reauthorization_completion.as_ref() else {
+            continue;
+        };
+        match completion.disposition.load(Ordering::Acquire) {
+            ROOM_REAUTHORIZATION_ACTIVE => {}
+            ROOM_REAUTHORIZATION_COMPLETE => {
+                control.resync = None;
+                control.reauthorization_completion = None;
+            }
+            ROOM_REAUTHORIZATION_MISSING => {
+                if control.pending_tickets.is_empty() && control.active_permits == 0 {
+                    remove.push(room.clone());
+                }
+                control.reauthorization_completion = None;
+            }
+            ROOM_REAUTHORIZATION_ABANDONED => {
+                control.reauthorization_completion = None;
+            }
+            _ => unreachable!("room reauthorization disposition is kernel-minted"),
+        }
+    }
+    for room in remove {
+        state.rooms.remove(&room);
     }
 }
 
@@ -1144,10 +1210,13 @@ impl AuthorizationCommitParticipant {
             }
             let waiting = state.active_durable_publications != 0
                 || affected_rooms.iter().any(|room| {
-                    state
-                        .rooms
-                        .get(room)
-                        .is_some_and(|control| control.active_permits != 0)
+                    state.rooms.get(room).is_some_and(|control| {
+                        control.active_permits != 0
+                            || control
+                                .reauthorization_completion
+                                .as_ref()
+                                .is_some_and(|completion| completion.is_active())
+                    })
                 });
             if !waiting {
                 break;
@@ -1297,42 +1366,52 @@ impl AuthorizationCommitParticipant {
         })
     }
 
-    fn begin_room_reauthorization_admission(
+    fn begin_room_reauthorization_fence(
         &self,
         room: &RoomId,
         generation: u64,
-    ) -> Result<RoomReauthorizationAdmission<'_>, EphemeralError> {
-        let state = self.registry.lock();
+    ) -> Result<RoomReauthorizationFence, EphemeralError> {
+        let mut state = self.registry.lock();
         self.require_live_locked(true)?;
-        let control = state.rooms.get(room).ok_or_else(authority_pending_error)?;
+        let control = state
+            .rooms
+            .get_mut(room)
+            .ok_or_else(authority_pending_error)?;
         let obligation = control.resync.clone().ok_or_else(authority_pending_error)?;
         if control.retired
             || !control.pending_tickets.is_empty()
             || control.generation != generation
             || obligation.room_authority_generation != generation
+            || control.reauthorization_completion.is_some()
         {
             return Err(authority_pending_error());
         }
-        Ok(RoomReauthorizationAdmission {
-            state,
+        let completion = RoomReauthorizationCompletionState::active();
+        control.reauthorization_completion = Some(completion.clone());
+        Ok(RoomReauthorizationFence {
+            registry: self.registry.clone(),
             room: room.clone(),
             generation,
+            completion,
         })
     }
 
     /// Consume a database-derived batch and open the finite quiescence leaf
     /// only when it belongs to this exact registry instance and generation.
-    /// The durable facts are re-read under an IMMEDIATE SQLite transaction
-    /// that remains held through subscriber retention and obligation clear.
+    /// A non-locking room permit is minted before SQLite is acquired, so an
+    /// authorization writer cannot invalidate the durable reread before the
+    /// subscriber effect completes. The IMMEDIATE transaction is always
+    /// dropped inside this closed validation call; no registry guard or SQLite
+    /// transaction is returned to caller code.
     ///
     /// @ref LLP 0303#a-durable-record-is-checked-at-acquisition-a-live-handle-outlives-it —
     /// a resolved batch is only a cache; completion revalidates its session
     /// and membership facts at the guarded effect.
-    pub fn begin_room_reauthorization_completion<'registry, 'database>(
-        &'registry self,
-        database: &'database super::ServingDatabase,
+    pub fn begin_room_reauthorization_completion(
+        &self,
+        database: &super::ServingDatabase,
         batch: ResolvedRoomReauthorizationBatch,
-    ) -> SnapbackResult<Option<RoomReauthorizationCompletion<'registry, 'database>>> {
+    ) -> SnapbackResult<Option<RoomReauthorizationCompletion>> {
         self.begin_room_reauthorization_completion_on(
             &database.binding(),
             &database.db.conn,
@@ -1343,11 +1422,11 @@ impl AuthorizationCommitParticipant {
 
     /// Begin the same exact completion cut on the take-once database lane
     /// owned outside managed `LocalSnapback`.
-    pub fn begin_room_reauthorization_completion_off_local<'registry, 'database>(
-        &'registry self,
-        database: &'database super::RoomReauthorizationDatabase,
+    pub fn begin_room_reauthorization_completion_off_local(
+        &self,
+        database: &super::RoomReauthorizationDatabase,
         batch: ResolvedRoomReauthorizationBatch,
-    ) -> SnapbackResult<Option<RoomReauthorizationCompletion<'registry, 'database>>> {
+    ) -> SnapbackResult<Option<RoomReauthorizationCompletion>> {
         let schema = database
             .schema
             .read()
@@ -1361,13 +1440,13 @@ impl AuthorizationCommitParticipant {
         )
     }
 
-    fn begin_room_reauthorization_completion_on<'registry, 'database>(
-        &'registry self,
+    fn begin_room_reauthorization_completion_on(
+        &self,
         database_binding: &DatabaseBinding,
-        connection: &'database Connection,
+        connection: &Connection,
         schema: &SchemaManifest,
         batch: ResolvedRoomReauthorizationBatch,
-    ) -> SnapbackResult<Option<RoomReauthorizationCompletion<'registry, 'database>>> {
+    ) -> SnapbackResult<Option<RoomReauthorizationCompletion>> {
         if crate::exec_guard::local_snapback_write_scope_active() {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_INTERLOCK_LOCAL_SCOPE_FORBIDDEN",
@@ -1409,11 +1488,16 @@ impl AuthorizationCommitParticipant {
                     })
             })
             .collect::<SnapbackResult<Vec<_>>>()?;
-        let durable_fence = Transaction::new_unchecked(connection, TransactionBehavior::Immediate)?;
-        let admission = match self.begin_room_reauthorization_admission(&room, generation) {
-            Ok(admission) => admission,
+        // @ref LLP 0290#71-lock-ordering — claim under the registry and
+        // release that guard before SQLite. The fence is lock-free and makes
+        // authorization writers wait; every error path drops the SQLite
+        // transaction before it abandons the fence because the transaction is
+        // declared second.
+        let fence = match self.begin_room_reauthorization_fence(&room, generation) {
+            Ok(fence) => fence,
             Err(_) => return Ok(None),
         };
+        let durable_fence = Transaction::new_unchecked(connection, TransactionBehavior::Immediate)?;
         for resolution in &resolutions {
             let current = resolve_room_reauthorization_subject_on(
                 &durable_fence,
@@ -1426,14 +1510,13 @@ impl AuthorizationCommitParticipant {
                 &resolution.subject,
             )?;
             if current != resolution.authorized_auth {
+                drop(durable_fence);
+                drop(fence);
                 return Ok(None);
             }
         }
-        Ok(Some(RoomReauthorizationCompletion {
-            admission,
-            durable_fence,
-            resolutions,
-        }))
+        drop(durable_fence);
+        Ok(Some(RoomReauthorizationCompletion { fence, resolutions }))
     }
 }
 
@@ -1542,20 +1625,20 @@ impl NonAuthorizingRoomAuthority {
         self.participant.begin_room_retirement_admission(room)
     }
 
-    pub fn begin_room_reauthorization_completion<'registry, 'database>(
-        &'registry self,
-        database: &'database super::ServingDatabase,
+    pub fn begin_room_reauthorization_completion(
+        &self,
+        database: &super::ServingDatabase,
         batch: ResolvedRoomReauthorizationBatch,
-    ) -> SnapbackResult<Option<RoomReauthorizationCompletion<'registry, 'database>>> {
+    ) -> SnapbackResult<Option<RoomReauthorizationCompletion>> {
         self.participant
             .begin_room_reauthorization_completion(database, batch)
     }
 
-    pub fn begin_room_reauthorization_completion_off_local<'registry, 'database>(
-        &'registry self,
-        database: &'database super::RoomReauthorizationDatabase,
+    pub fn begin_room_reauthorization_completion_off_local(
+        &self,
+        database: &super::RoomReauthorizationDatabase,
         batch: ResolvedRoomReauthorizationBatch,
-    ) -> SnapbackResult<Option<RoomReauthorizationCompletion<'registry, 'database>>> {
+    ) -> SnapbackResult<Option<RoomReauthorizationCompletion>> {
         self.participant
             .begin_room_reauthorization_completion_off_local(database, batch)
     }
@@ -2288,54 +2371,66 @@ impl RoomRetirementAdmission<'_> {
     }
 }
 
-struct RoomReauthorizationAdmission<'a> {
-    state: MutexGuard<'a, RoomAuthorityRegistryState>,
+struct RoomReauthorizationFence {
+    registry: Arc<RoomAuthorityRegistry>,
     room: RoomId,
     generation: u64,
+    completion: Arc<RoomReauthorizationCompletionState>,
 }
 
-impl RoomReauthorizationAdmission<'_> {
-    fn complete_exact(mut self) {
-        if let Some(control) = self.state.rooms.get_mut(&self.room) {
-            if control.generation == self.generation
-                && control
-                    .resync
-                    .as_ref()
-                    .is_some_and(|resync| resync.room_authority_generation == self.generation)
-            {
-                control.resync = None;
-            }
-        }
-    }
-
-    fn remove_missing_room(mut self) {
-        let should_remove = self.state.rooms.get(&self.room).is_some_and(|control| {
-            control.generation == self.generation
-                && control.pending_tickets.is_empty()
-                && control.active_permits == 0
-        });
-        if should_remove {
-            self.state.rooms.remove(&self.room);
-        }
+impl RoomReauthorizationFence {
+    fn finish(&self, disposition: u8) {
+        self.completion
+            .disposition
+            .compare_exchange(
+                ROOM_REAUTHORIZATION_ACTIVE,
+                disposition,
+                Ordering::AcqRel,
+                Ordering::Acquire,
+            )
+            .expect("a finite room reauthorization completion settles exactly once");
+        self.registry.quiescent.notify_all();
     }
 }
 
-/// A finite quiescent completion cut holding the database-derived decisions.
-/// Construction consumes a [`ResolvedRoomReauthorizationBatch`] and is
-/// confined to its exact registry root.
-pub struct RoomReauthorizationCompletion<'registry, 'database> {
-    admission: RoomReauthorizationAdmission<'registry>,
-    durable_fence: Transaction<'database>,
+impl Drop for RoomReauthorizationFence {
+    fn drop(&mut self) {
+        if self
+            .completion
+            .disposition
+            .compare_exchange(
+                ROOM_REAUTHORIZATION_ACTIVE,
+                ROOM_REAUTHORIZATION_ABANDONED,
+                Ordering::AcqRel,
+                Ordering::Acquire,
+            )
+            .is_ok()
+        {
+            self.registry.quiescent.notify_all();
+        }
+    }
+}
+
+/// A finite quiescent completion cut holding only database-derived decisions
+/// and a lock-free authorization-writer fence. Construction consumes a
+/// [`ResolvedRoomReauthorizationBatch`] and is confined to its exact registry
+/// root. It owns neither a registry guard nor a SQLite transaction; both are
+/// released inside the closed validation call before this value can exist.
+/// Its terminal methods publish one atomic disposition and never acquire a
+/// lock, so retaining or dropping it around arbitrary caller work cannot form
+/// a registry/SQLite ordering edge.
+pub struct RoomReauthorizationCompletion {
+    fence: RoomReauthorizationFence,
     resolutions: Vec<ResolvedRoomSubscriberReauthorization>,
 }
 
-impl RoomReauthorizationCompletion<'_, '_> {
+impl RoomReauthorizationCompletion {
     pub fn room(&self) -> &RoomId {
-        &self.admission.room
+        &self.fence.room
     }
 
     pub fn generation(&self) -> u64 {
-        self.admission.generation
+        self.fence.generation
     }
 
     pub fn resolutions(&self) -> &[ResolvedRoomSubscriberReauthorization] {
@@ -2344,22 +2439,18 @@ impl RoomReauthorizationCompletion<'_, '_> {
 
     pub fn complete_exact(self) {
         let Self {
-            admission,
-            durable_fence,
+            fence,
             resolutions: _,
         } = self;
-        admission.complete_exact();
-        drop(durable_fence);
+        fence.finish(ROOM_REAUTHORIZATION_COMPLETE);
     }
 
     pub fn remove_missing_room(self) {
         let Self {
-            admission,
-            durable_fence,
+            fence,
             resolutions: _,
         } = self;
-        admission.remove_missing_room();
-        drop(durable_fence);
+        fence.finish(ROOM_REAUTHORIZATION_MISSING);
     }
 }
 
@@ -3680,6 +3771,72 @@ mod tests {
     }
 
     #[test]
+    fn room_reauthorization_completion_fence_blocks_authorization_writer_until_terminal() {
+        use std::sync::mpsc;
+        use std::time::Duration;
+
+        let fixture = ready_fixture();
+        install_room_resync(&fixture);
+        let batch = fixture
+            .participant
+            .resolve_room_reauthorization(
+                &fixture.database,
+                fixture
+                    .participant
+                    .pending_reauthorizations()
+                    .pop()
+                    .expect("real pending room batch"),
+                Vec::new(),
+            )
+            .expect("resolve the pending room batch");
+        let completion = fixture
+            .participant
+            .begin_room_reauthorization_completion(&fixture.database, batch)
+            .expect("completion validation remains operational")
+            .expect("exact batch claims the completion fence");
+
+        std::thread::scope(|scope| {
+            let (started_tx, started_rx) = mpsc::channel();
+            let (completed_tx, completed_rx) = mpsc::channel();
+            let participant = &fixture.participant;
+            let writer = scope.spawn(move || {
+                started_tx.send(()).expect("signal writer start");
+                let result = participant
+                    .prepare_authorization_commit(
+                        AuthorizationCommitPreflight::AllProtectedRooms,
+                        Arc::new(AuthorizationReservationCancellation::new()),
+                    )
+                    .map(|reservation| {
+                        drop(reservation);
+                        true
+                    });
+                completed_tx
+                    .send(result)
+                    .expect("return authorization writer result");
+            });
+            started_rx
+                .recv_timeout(Duration::from_secs(1))
+                .expect("authorization writer starts");
+            assert!(
+                completed_rx
+                    .recv_timeout(Duration::from_millis(50))
+                    .is_err(),
+                "the premarked authorization writer waits behind the active completion fence"
+            );
+
+            completion.complete_exact();
+            assert!(
+                completed_rx
+                    .recv_timeout(Duration::from_secs(1))
+                    .expect("writer resumes after the terminal disposition")
+                    .expect("writer remains operational"),
+                "writer returns only after completion settles"
+            );
+            writer.join().expect("authorization writer joins");
+        });
+    }
+
+    #[test]
     fn ready_interlock_requires_the_exact_projection_carrier_to_remain_live() {
         let ReadyFixture {
             database,
@@ -4105,6 +4262,97 @@ mod tests {
             completion_result.expect("completion remains operational"),
             Some(true),
             "the exact batch completes after SQLite becomes available"
+        );
+    }
+
+    #[test]
+    fn room_reauthorization_reverse_schedule_cannot_deadlock_registry_to_sqlite_against_completion()
+    {
+        use rusqlite::TransactionBehavior;
+        use std::sync::mpsc;
+        use std::time::Duration;
+
+        let directory = tempfile::tempdir().expect("reauthorization reverse-schedule directory");
+        let database_path = directory.path().join("snapback.sqlite3");
+        let mut fixture = ready_file_fixture(&database_path);
+        install_room_resync(&fixture);
+        let batch = fixture
+            .participant
+            .resolve_room_reauthorization(
+                &fixture.database,
+                fixture
+                    .participant
+                    .pending_reauthorizations()
+                    .pop()
+                    .expect("real pending room batch"),
+                Vec::new(),
+            )
+            .expect("resolve the pending room batch");
+        let completion_database = fixture
+            .database
+            .take_room_reauthorization_database()
+            .expect("claim the off-Local completion database");
+        let ReadyFixture {
+            database: _,
+            participant,
+            view: _,
+            _issuer_projection,
+            authorization: _,
+        } = fixture;
+        let participant = Arc::new(participant);
+
+        // This public guard is the retained registry -> SQLite half of the
+        // exact reverse schedule. Completion must not acquire SQLite before
+        // it can pass this registry cut, or the writer below and completion
+        // form a real ABBA deadlock.
+        let registry_guard = participant
+            .begin_outbox_admission(false)
+            .expect("retain the public registry admission");
+        let completion_participant = participant.clone();
+        let (entered_tx, entered_rx) = mpsc::channel();
+        let (completed_tx, completed_rx) = mpsc::channel();
+        let completion = std::thread::spawn(move || {
+            entered_tx.send(()).expect("signal completion start");
+            let result = completion_participant
+                .begin_room_reauthorization_completion_off_local(&completion_database, batch)
+                .map(|completion| {
+                    completion.map(|completion| {
+                        completion.complete_exact();
+                        true
+                    })
+                });
+            completed_tx
+                .send(result)
+                .expect("return reverse-schedule completion result");
+        });
+        entered_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("completion thread starts");
+
+        // Give the completion thread a deterministic opportunity to reach
+        // its first blocking acquisition. In the unsafe order it owns SQLite
+        // and waits for `registry_guard`; in the repaired order it waits for
+        // `registry_guard` without owning SQLite.
+        std::thread::sleep(Duration::from_millis(250));
+        let mut reverse_writer = rusqlite::Connection::open(&database_path)
+            .expect("open reverse-schedule SQLite writer");
+        reverse_writer
+            .busy_timeout(Duration::from_secs(30))
+            .expect("extend SQLite wait beyond the outer deadlock alarm");
+        let reverse_transaction = reverse_writer
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .expect("registry-owning caller can acquire SQLite without deadlock");
+        drop(reverse_transaction);
+        drop(registry_guard);
+
+        let result = completed_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("completion returns after the reverse writer releases SQLite");
+        completion.join().expect("completion thread joins");
+        assert_eq!(
+            result.expect("completion remains operational"),
+            Some(true),
+            "the exact batch completes after the acyclic reverse schedule"
         );
     }
 }

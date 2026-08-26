@@ -6,6 +6,16 @@
 **Author:** codex `gpt-5.6-sol`, synthesizing two independent blind designs — codex
 `gpt-5.6-sol` and grok-4.6 — orchestrated by Claude (Opus 5) for Charlie Cheever  
 **Date:** 2026-08-20  
+**Revised:** 2026-08-26 (round-9 structural ordering repair: exact room
+completion now claims a lock-free writer fence under the authority registry,
+releases the registry, and performs its durable SQLite reread in a closed
+kernel call that releases SQLite before returning. The caller-retainable
+completion owns neither lock and settles only an atomic disposition; ordinary
+registry acquisition reconciles that disposition later. Authorization writers
+premark before waiting on the fence, so releasing SQLite before the sync-owned
+subscriber effect no longer opens a stale-answer gap. This removes the
+completion SQLite/registry overlap and the executable ABBA edge found by the
+round-8 reverse-schedule review.)
 **Revised:** 2026-08-26 (round-8 consumer closure: the common kernel room
 completion consumer and both sync facades now perform an always-on
 managed/direct `LocalSnapback` scope refusal before lifecycle or SQLite. This
@@ -160,7 +170,9 @@ Both designs agreed on the central conclusions:
 - The callback factory must be deleted, not relocated.
 - The participant must be database-bound and non-forgeable.
 - `PreparedAuthorizationCommit` must become kernel-private.
-- Bind must not acquire a registry mutex under Local or SQLite.
+- Bind must not acquire room, outbox, or notifier state under Local or SQLite;
+  its finite participant-projection/registry validation is the one documented
+  SQLite/authorization-state overlap.
 - The registry cannot carry its present `drain_outbox` method into the kernel.
 - Sync must retain its queue, lease, effect-fence, subscriber, and transport responsibilities.
 - Ambiguity must retain the exact ticket indefinitely.
@@ -1211,13 +1223,14 @@ ready projection without its matching off-Local reservation returns
 the precommit reservation is what became stale or incomplete. A missing or
 suspended issuer projection remains `SNAPBACK_AUTH_PROJECTION_UNAVAILABLE`.
 
-Bind acquires no registry, room, outbox, issuer, or SQLite-adjacent process
-mutex. Its only mutation is `expected_authorization.set`. Pointer comparisons,
-atomic loads, selector computation over owned data, and predecessor comparisons
-preserve LLP 0059’s transaction-time lock prohibition. This extends the current
-collection-generation/selector/successor bind checks at
-`crates/snapback-sync/src/ephemeral.rs:4207-4253`; it does not relocate a
-registry lock under SQLite.
+Bind acquires the finite participant-projection and authority-registry mutexes
+to recheck the live projected authorization and registry incarnation while the
+SQLite transaction is open. It acquires no room, outbox, notifier, or
+sync-owned state. Its only persistent mutation is
+`expected_authorization.set`; pointer comparisons, atomic loads, selector
+computation over owned data, and predecessor comparisons stay inside this
+closed bind operation. This is the pre-existing SQLite/authorization-state
+overlap inventoried in §7.1, not a public guard handoff.
 
 ### 5.5 Finalize
 
@@ -1717,22 +1730,26 @@ impl AuthorizationCommitParticipant {
         room: &RoomId,
     ) -> Result<RoomRetirementAdmission<'_>, EphemeralError>;
 
-    pub fn begin_room_reauthorization_admission(
+    pub fn begin_room_reauthorization_completion_off_local(
         &self,
-        room: &RoomId,
-        generation: u64,
-    ) -> Result<RoomReauthorizationAdmission<'_>, EphemeralError>;
+        database: &RoomReauthorizationDatabase,
+        batch: ResolvedRoomReauthorizationBatch,
+    ) -> SnapbackResult<Option<RoomReauthorizationCompletion>>;
 }
 ```
 
-Each guard has private fields and a finite, operation-specific method set. None accepts a closure, caller disposition, registry state value, or raw registry accessor.
+Each guard or completion has private fields and a finite, operation-specific
+method set. None accepts a closure, caller disposition, registry state value,
+or raw registry accessor. `RoomReauthorizationCompletion` owns neither a guard
+nor a transaction.
 
 Required lock orders:
 
 - room creation: registry admission, then sync room map;
 - retirement: registry admission, then sync room map;
-- reauthorization completion: sync lifecycle read guard, dedicated SQLite
-  `IMMEDIATE`, registry admission, then sync room map;
+- reauthorization completion: sync lifecycle read guard, registry claim and
+  release, dedicated SQLite `IMMEDIATE` validation and release, then sync room
+  map; the returned value owns neither registry nor SQLite;
 - resync snapshot: copy under registry guard, release it, then lock rooms/outboxes;
 - generation-exhaustion retirement: registry admission before room mutation.
 
@@ -1745,7 +1762,7 @@ sites exist today, and each has a named replacement:
 | Current production site | What it does now | Required replacement after the move |
 | --- | --- | --- |
 | `pending_room_reauthorizations`, `crates/snapback-sync/src/ephemeral.rs:4729-4770` | Copies settled, no-pending-ticket resync obligations, then joins them to sync-owned subscribers under the rooms map. | `participant.pending_reauthorizations()` returns only the copied kernel obligations; sync retains the subscriber join. Registry is released before rooms, preserving the current order. |
-| `complete_room_reauthorization_off_local` (the finite completion owns SQLite and registry custody through the room update) | Under lifecycle → dedicated SQLite `IMMEDIATE` → registry → rooms → room → outboxes, revalidates durable session/membership and the exact generation/obligation, applies subscriber resolutions, and clears or removes the obligation. | `begin_room_reauthorization_completion_off_local(database, batch)` returns a finite completion whose only terminal methods are `complete_exact()` and `remove_missing_room()`. Its database is a take-once narrow owner outside managed Local; sync retains subscriber mutation and denial cleanup. No method accepts an authorization version, generation, arbitrary disposition, or callback after construction. |
+| `complete_room_reauthorization_off_local` | Under lifecycle, claims the exact writer fence under registry and releases it, revalidates durable session/membership under a dedicated SQLite `IMMEDIATE` transaction and releases it, then applies subscriber resolutions under rooms → room → outboxes. | `begin_room_reauthorization_completion_off_local(database, batch)` is a closed validation operation. It returns only database-derived decisions plus a lock-free, non-cloneable terminal fence whose methods are `complete_exact()` and `remove_missing_room()`; it owns no mutex guard or SQLite transaction. Sync retains subscriber mutation and denial cleanup. No method accepts an authorization version, generation, arbitrary disposition, or callback after construction. |
 | `enqueue_room_authority_resyncs`, `ephemeral.rs:7312-7368` | Copies ready obligations under registry, releases it, then materializes sync-owned resync frames under rooms/outboxes and wakes delivery. | `participant.pending_reauthorizations()` supplies the copy. Frame construction, effect fences, queue push accounting, and notifier wake remain exactly here in sync. |
 | `retire_generation_exhausted_room`, `ephemeral.rs:7551-7631` | Takes registry → rooms → room/outbox, monotonically retires the authority control, purges the room, and emits `EpochChanged`. | `begin_room_retirement_admission(room)` retains the registry guard and exposes only `retire_generation_exhausted()`. Sync retains routing removal, expiry-index cleanup, outbox purge/resync, reverse-index reconciliation, and wake. |
 | protected branch of `with_room_create`, `ephemeral.rs:7639-7665` | Holds registry while checking the exact non-retired generation, then takes the rooms map so a stale permit cannot recreate a retired room. | `begin_room_creation_admission(room, generation)` retains a non-`Send` exact guard through sync room-map lookup/insert. It has no mutation or raw-state accessor. |
@@ -1784,7 +1801,7 @@ The following remain unconditional:
   callbacks, or app/Contract execution. No general-purpose public lock
   accessor is introduced.
 
-The permitted SQLite/process-state overlaps are a closed set of two.
+The only SQLite/authorization-state overlap is authorization transaction bind.
 
 Authorization transaction bind, including auth-catalog activation and the
 ordinary authorization-changing commit path, has this order:
@@ -1806,11 +1823,12 @@ outbox, or notifier state. Reservation/quiescence occurred before Local and
 SQLite; rollback settlement is deferred to the after-Local finalizer when the
 scope is active.
 
-Exact room-reauthorization completion has this order:
+Exact room-reauthorization completion instead has this non-overlapping order:
 
 ```text
-ephemeral lifecycle -> SQLite IMMEDIATE -> authority registry -> rooms map
--> room -> subscriber outbox
+ephemeral lifecycle -> authority registry claim -> release authority registry
+-> SQLite IMMEDIATE validation -> release SQLite
+-> rooms map -> room -> subscriber outbox -> atomic completion disposition
 ```
 
 The maintenance worker invokes this owner directly from `spawn_blocking`, not
@@ -1819,27 +1837,31 @@ not expand that authority: a caller may capture the owner, but every terminal
 consumer converges on the always-on Local-scope refusal before any lock or
 database acquisition. Refusal retains the level-triggered obligation for a
 fresh outside-Local resolution and retry. Completion then takes the lifecycle
-read guard before it waits for `IMMEDIATE`, but during that wait it holds no participant projection,
-registry, rooms, room, outbox, notifier, or global Local guard. SQLite remains
-held through the durable session and membership rereads, exact
-subscriber/effect-fence mutation and subscriber-outbox effects. Every outbox,
-room, and rooms-map guard then releases before the exact registry obligation
-is cleared and the SQLite transaction is dropped; no SQLite operation executes
-under those guards. Notifier wake and later routing cleanup occur only after
-SQLite and registry release. A persistent SQLite writer can
+read guard, claims an active completion fence under the registry, and releases
+the registry before it waits for `IMMEDIATE`. The fence is an atomic state
+marker, not a mutex guard. SQLite remains held only through the durable session
+and membership rereads and is released inside the closed kernel begin call.
+The returned completion owns only the derived subscriber decisions and the
+non-cloneable marker. Sync can then perform the exact subscriber/effect-fence
+mutation under rooms and outboxes without SQLite or registry. Terminal methods
+publish one atomic disposition after those guards release; a later ordinary
+registry acquisition reconciles it and clears or removes the obligation.
+Notifier wake and later routing cleanup likewise occur without SQLite or
+registry. A persistent SQLite writer can
 delay this completion owner and lifecycle-exclusive work, but it cannot pin
 every managed Local operation. An authorization write can still pin Local
 while waiting for its own `IMMEDIATE`; that is the separate bind path above.
-LLP 0059 §"Prohibited overlap" states the same closed set at the global
+LLP 0059 §"Prohibited overlap" states the same inventory at the global
 lock-policy boundary.
 
-This overlap is necessary in the present two-store architecture. Releasing
-SQLite after the durable reread but before the in-memory subscriber effect
-would let a session or membership writer commit in that gap, so completion
-could install an authority answer that was already stale. Avoiding the overlap
-would require a shared sequencer or durable coupling honored by every relevant
-writer; neither exists. Acquiring SQLite first closes that gap. Both permitted
-paths acquire SQLite before process state, so they do not form a reverse edge.
+The writer fence supplies the coupling that the superseded SQLite-first design
+lacked. Every relevant authorization writer premarks its affected-room ticket
+under the registry before it can reach SQLite, and waits while an active
+completion fence exists. Therefore a writer cannot commit between completion's
+durable reread and its in-memory subscriber effect. Conversely, a completion
+cannot claim its fence after a writer has premarked the room. The two phases are
+stable without co-owning SQLite and registry, and caller code never receives a
+value whose lifetime keeps either lock live.
 
 #### Callback and trait-dispatch census
 
@@ -1863,9 +1885,10 @@ The result is:
   `AuthorizingRoomAuthority` forwarders, sync
   `complete_room_reauthorization{,_off_local}`, and the engine's take-once
   completion owner. All converge on the common kernel begin implementation;
-  it performs the always-on Local-scope refusal before SQLite or registry
-  access. Sync also refuses before lifecycle acquisition. The resolved batch,
-  finite completion, and take-once owners have private fields and no
+  it performs the always-on Local-scope refusal before registry or SQLite
+  access, claims and releases the registry before acquiring SQLite, and
+  releases SQLite before returning. Sync also refuses before lifecycle
+  acquisition. The resolved batch, lock-free completion, and take-once owners have private fields and no
   `Clone`, serialization, or from-parts reconstruction surface. A runtime
   witness captures the public consumer, invokes it from a Local scope, proves
   typed refusal, then proves the exact legitimate retry succeeds outside Local.
@@ -1902,22 +1925,24 @@ The as-built reverse-edge inventory at this amendment is:
   `storage/room_authority.rs`. Activation, admission, quiescence, observation,
   permit/guard `Drop`, issuer projection, commit settlement, rollback, and
   retirement paths touch only owned data, atomics, condition variables, or
-  registry state; none opens or waits for SQLite.
+  registry state; none opens or waits for SQLite. Room completion claims an
+  atomic fence while briefly under the registry and releases that guard before
+  its caller reaches SQLite; its terminal and `Drop` paths acquire no lock.
 - The database-reading siblings do not invert that edge.
   `resolve_room_reauthorization` consumes owned pending/subscriber snapshots
   and reads SQLite without a participant or registry guard. Participant
   installation/activation reads its durable authorization snapshot before
-  calling the registry-held initialization checks. Transaction bind and exact
-  completion are the two combined paths, and both acquire `IMMEDIATE` before
-  their process-state locks.
+  calling the registry-held initialization checks. Transaction bind remains
+  the combined SQLite/authorization-state path. Exact completion is phased:
+  registry claim/release, then `IMMEDIATE` reread/release, then sync state.
 - Sync rooms and subscriber outboxes are private to `sync/ephemeral.rs`.
   Ordinary room acts, pending enumeration, resync synthesis, outbox admission
   and drain, expiry/disconnect cleanup, room creation/retirement, diagnostics,
   and notifier paths have no database handle and do not acquire SQLite; the
   callback census above covers the indirection callee inspection misses.
   Database construction/activation and pending-resolution paths retain no
-  room or outbox guard; exact completion alone continues from SQLite into the
-  finite registry/rooms/room/outbox chain above.
+  room or outbox guard; exact completion returns from its closed SQLite
+  validation before entering the finite rooms/room/outbox chain above.
 
 ### 7.2 Premark before write
 
@@ -2215,7 +2240,7 @@ No F-1 closure claim is allowed until steps 10–12 delete the legacy path.
 | `DurableAuthorizationPermit` | **POWERLESS** | Bound to one registry’s durable-publication count. |
 | `RoomCreationAdmission` | **POWERLESS** | Exact room/generation validation retained through sync room creation; no mutation or raw state access. |
 | `RoomRetirementAdmission` | **POWERLESS** | Only monotone retirement of its exact room is exposed. |
-| `RoomReauthorizationAdmission` | **POWERLESS** | Can complete or remove only its already-validated exact room/generation obligation. |
+| `RoomReauthorizationCompletion` | **POWERLESS** | Owns derived decisions and a non-cloneable atomic disposition marker, not a mutex guard or SQLite transaction; it can complete or remove only its already-validated exact room/generation obligation. |
 | `AuthorizationCommitCarrierFactory` | **DELETED** | No callback factory remains. |
 | Public test settlement/factory seams | **DELETED** | Tests use kernel-private unit seams or real composition. |
 
@@ -2312,8 +2337,11 @@ Additional tests must establish:
 - lease drop occurs while the publication permit remains live;
 - permit Drop wakes prepare waiters;
 - no synchronous guard crosses `.await`;
-- reauthorization retains lifecycle → dedicated SQLite `IMMEDIATE` → registry
-  → rooms → room → outboxes order and runs outside managed Local.
+- reauthorization retains lifecycle, claims/releases registry before its closed
+  SQLite validation, releases SQLite before rooms → room → outboxes, and runs
+  outside managed Local;
+- the exact registry→SQLite reverse schedule completes under the alarm, while
+  the mutation that reacquires SQLite before the registry claim times out.
 
 ### 10.5 Security surface
 

@@ -3377,11 +3377,11 @@ impl RoomAuthority {
         }
     }
 
-    fn begin_room_reauthorization_completion<'registry, 'database>(
-        &'registry self,
-        database: &'database ServingDatabase,
+    fn begin_room_reauthorization_completion(
+        &self,
+        database: &ServingDatabase,
         batch: ResolvedRoomReauthorizationBatch,
-    ) -> SnapbackResult<Option<RoomReauthorizationCompletion<'registry, 'database>>> {
+    ) -> SnapbackResult<Option<RoomReauthorizationCompletion>> {
         match self {
             Self::Bound(participant) => {
                 participant.begin_room_reauthorization_completion(database, batch)
@@ -3392,11 +3392,11 @@ impl RoomAuthority {
         }
     }
 
-    fn begin_room_reauthorization_completion_off_local<'registry, 'database>(
-        &'registry self,
-        database: &'database RoomReauthorizationDatabase,
+    fn begin_room_reauthorization_completion_off_local(
+        &self,
+        database: &RoomReauthorizationDatabase,
         batch: ResolvedRoomReauthorizationBatch,
-    ) -> SnapbackResult<Option<RoomReauthorizationCompletion<'registry, 'database>>> {
+    ) -> SnapbackResult<Option<RoomReauthorizationCompletion>> {
         match self {
             Self::Bound(participant) => {
                 participant.begin_room_reauthorization_completion_off_local(database, batch)
@@ -3947,11 +3947,12 @@ impl LocalEphemeralBackend {
         batch: ResolvedRoomReauthorizationBatch,
     ) -> SnapbackResult<bool> {
         require_room_reauthorization_outside_local()?;
-        // @ref LLP 0290#71-lock-ordering — exact completion is a bounded
-        // SQLite/process-state overlap with a closed reverse-edge surface.
-        // Lock order: lifecycle -> SQLite IMMEDIATE -> registry -> rooms ->
-        // room -> subscriber outboxes. Lifecycle also serializes terminal
-        // revocation with definition/reset so neither clears the other's marker.
+        // @ref LLP 0290#71-lock-ordering — kernel validation mints its
+        // non-locking writer fence under the registry, releases that guard,
+        // then acquires and releases SQLite before this sync-owned room work.
+        // No caller-retainable value owns either lock. Lifecycle also
+        // serializes terminal revocation with definition/reset so neither
+        // clears the other's marker.
         let _lifecycle = self.lifecycle_read("ephemeral room reauthorization completion");
         let completion = match self
             .shared
@@ -3987,17 +3988,16 @@ impl LocalEphemeralBackend {
 
     fn finish_room_reauthorization_completion(
         &self,
-        completion: RoomReauthorizationCompletion<'_, '_>,
+        completion: RoomReauthorizationCompletion,
     ) -> SnapbackResult<bool> {
         let room_id = completion.room().clone();
         let room_authority_generation = completion.generation();
         let resolutions = completion.resolutions();
         let rooms = lock(&self.shared.rooms);
         let Some(room_arc) = rooms.get(&room_id).cloned() else {
-            // Keep the exact registry admission, but release room routing
-            // before obligation removal drops its SQLite transaction. This
-            // makes the no-room leaf follow the same structural order as the
-            // ordinary completion leaf.
+            // The kernel has already released SQLite. Release room routing
+            // before publishing the lock-free missing-room disposition; the
+            // registry reconciles that disposition on its next acquisition.
             drop(rooms);
             completion.remove_missing_room();
             return Ok(true);
@@ -4205,10 +4205,11 @@ impl LocalEphemeralBackend {
 
         drop(room);
         drop(rooms);
-        // The registry admission prevents a protected operation from passing
-        // the pending obligation while the in-memory locks are released. Drop
-        // the durable fence only after every room/outbox guard is gone, so a
-        // SQLite call can never execute underneath those guards.
+        // The lock-free completion fence keeps authorization writers behind
+        // this effect. SQLite was released by kernel validation before this
+        // function could run; publish completion only after every room/outbox
+        // guard is gone. Registry reconciliation happens on a later ordinary
+        // acquisition and never from this caller-owned value.
         completion.complete_exact();
         for connection_id in &denied_connections {
             self.unindex_connection_room_if_unused(connection_id, &room_id);
