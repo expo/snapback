@@ -56,6 +56,10 @@ const APP_ID: &str = "card-game-acceptance";
 struct KickFixture {
     snapback: Arc<Mutex<LocalSnapback>>,
     ephemeral: EphemeralApi,
+    user_a: String,
+    user_b: String,
+    session_a: String,
+    session_b: String,
     room_auth_a: AuthContext,
     room_auth_b: AuthContext,
     unrelated_room_auth_b: AuthContext,
@@ -132,10 +136,16 @@ fn project_authorization_envelopes(
 impl KickFixture {
     fn new() -> Self {
         let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        let session_a = snapback.issue_production_session_for_test(USER_A, AUTHORITY_A);
+        let session_b = snapback.issue_production_session_for_test(USER_B, AUTHORITY_B);
         let schema = game_schema();
         snapback
             .auth_database_mut()
-            .stage_auth_mode(game_deployment(), schema.clone(), Some(game_members()))
+            .stage_auth_mode(
+                game_deployment(),
+                schema.clone(),
+                Some(game_members(&session_a.user_id, &session_b.user_id)),
+            )
             .expect("stage complete sessions game deployment and seed");
         let settled = snapback
             .auth_database_mut()
@@ -172,6 +182,14 @@ impl KickFixture {
             AUTHORITY_B,
             1,
             9_007_199_254_740_991,
+        );
+        assert_eq!(
+            durable_a_authority.projection().user_id(),
+            Some(session_a.user_id.as_str())
+        );
+        assert_eq!(
+            durable_b_authority.projection().user_id(),
+            Some(session_b.user_id.as_str())
         );
         let mutation_authority_b = snapback.prepare_resolved_session_for_test(
             InvocationSource::HttpMutation,
@@ -238,22 +256,45 @@ impl KickFixture {
         snapback.notify_live_subscriptions(&[]);
 
         let ephemeral = snapback.ephemeral_api();
-        let room_auth_a = register_room(&snapback, &ephemeral, CONNECTION_A, USER_A, 10);
-        let room_auth_b = register_room(&snapback, &ephemeral, CONNECTION_B, USER_B, 11);
+        let room_auth_a = register_room(
+            &snapback,
+            &ephemeral,
+            CONNECTION_A,
+            &session_a.user_id,
+            &session_a.session_id,
+            10,
+        );
+        let room_auth_b = register_room(
+            &snapback,
+            &ephemeral,
+            CONNECTION_B,
+            &session_b.user_id,
+            &session_b.session_id,
+            11,
+        );
         let (unrelated_room_auth_b, unrelated_room_observed) = snapback
             .authorize_ephemeral_room_observed(
                 "gamePresence",
                 &room_scope_for(UNRELATED_BOARD_ID),
-                base_room_auth(USER_B),
+                base_room_auth(&session_b.user_id, &session_b.session_id),
             )
             .expect("lookup for an unrelated protected room completes before the kick");
-        publish_presence(&snapback, &ephemeral, CONNECTION_A, USER_A, b"A:ready", 12)
-            .expect("A publishes its pre-kick presence");
+        publish_presence(
+            &snapback,
+            &ephemeral,
+            CONNECTION_A,
+            &session_a.user_id,
+            &session_a.session_id,
+            b"A:ready",
+            12,
+        )
+        .expect("A publishes its pre-kick presence");
         let opponent_presence = publish_presence(
             &snapback,
             &ephemeral,
             CONNECTION_B,
-            USER_B,
+            &session_b.user_id,
+            &session_b.session_id,
             OPPONENT_PRESENCE,
             13,
         )
@@ -262,6 +303,10 @@ impl KickFixture {
         Self {
             snapback: Arc::new(Mutex::new(snapback)),
             ephemeral,
+            user_a: session_a.user_id,
+            user_b: session_b.user_id,
+            session_a: session_a.session_id,
+            session_b: session_b.session_id,
             room_auth_a,
             room_auth_b,
             unrelated_room_auth_b,
@@ -372,7 +417,8 @@ impl KickFixture {
             .publish(
                 room_publish(
                     CONNECTION_A,
-                    USER_A,
+                    &self.user_a,
+                    &self.session_a,
                     self.room_auth_a.clone(),
                     b"A:after-lookup",
                 ),
@@ -421,7 +467,8 @@ impl KickFixture {
             .publish(
                 room_publish_for(
                     CONNECTION_UNRELATED,
-                    USER_B,
+                    &self.user_b,
+                    &self.session_b,
                     self.unrelated_room_auth_b.clone(),
                     b"B:unrelated-live",
                     UNRELATED_BOARD_ID,
@@ -1016,7 +1063,12 @@ fn frame_construction_before_first_enqueue_is_commit_ordered() {
             .snapback
             .lock()
             .unwrap_or_else(PoisonError::into_inner);
-        server_room_grant(&snapback, &fixture.ephemeral, USER_B)
+        server_room_grant(
+            &snapback,
+            &fixture.ephemeral,
+            &fixture.user_b,
+            &fixture.session_b,
+        )
     };
 
     let (frame_reached_tx, frame_reached_rx) = mpsc::sync_channel(0);
@@ -1026,11 +1078,18 @@ fn frame_construction_before_first_enqueue_is_commit_ordered() {
         .install_frame_before_first_enqueue_hook_for_test(frame_reached_tx, frame_release_rx);
 
     let publish_ephemeral = fixture.ephemeral.clone();
+    let publisher_user_b = fixture.user_b.clone();
     let (enqueue_completed_tx, enqueue_completed_rx) = mpsc::sync_channel(0);
     let (permit_release_tx, permit_release_rx) = mpsc::sync_channel(0);
     let publisher = std::thread::spawn(move || {
         let result = publish_ephemeral.publish_with_room_authority(
-            room_publish(CONNECTION_B, USER_B, room_auth, b"B:paused-before-enqueue"),
+            room_publish(
+                CONNECTION_B,
+                &publisher_user_b,
+                &fixture.session_b,
+                room_auth,
+                b"B:paused-before-enqueue",
+            ),
             17,
             Some(&room_permit),
         );
@@ -1180,8 +1239,8 @@ fn card_game_kick_composes_durable_and_room_authority_boundaries() {
         .expect("installed authorization expectation");
     assert_eq!(pending[0].obligation.authorization, expectation);
 
-    let frames_a = fixture.drain_composed_delivery(CONNECTION_A, USER_A);
-    let frames_b = fixture.drain_composed_delivery(CONNECTION_B, USER_B);
+    let frames_a = fixture.drain_composed_delivery(CONNECTION_A, &fixture.user_a);
+    let frames_b = fixture.drain_composed_delivery(CONNECTION_B, &fixture.user_b);
     assert_durable_kick_snapshot(&frames_a, "currentMembership", kick.version, 0);
     assert_durable_kick_snapshot(&frames_b, "currentMembership", kick.version, 1);
     let board_a = assert_durable_kick_snapshot(&frames_a, "board", kick.version, 0);
@@ -1229,7 +1288,8 @@ fn card_game_kick_composes_durable_and_room_authority_boundaries() {
         .publish(
             room_publish_for(
                 CONNECTION_UNRELATED,
-                USER_B,
+                &fixture.user_b,
+                &fixture.session_b,
                 fixture.unrelated_room_auth_b.clone(),
                 b"B:unrelated-after-commit",
                 UNRELATED_BOARD_ID,
@@ -1300,7 +1360,11 @@ fn card_game_kick_composes_durable_and_room_authority_boundaries() {
         .snapback
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
-        .authorize_ephemeral_room_observed("gamePresence", &room_scope(), base_room_auth(USER_A))
+        .authorize_ephemeral_room_observed(
+            "gamePresence",
+            &room_scope(),
+            base_room_auth(&fixture.user_a, &fixture.session_a),
+        )
         .expect_err("A cannot regain a room grant after its membership is deleted");
     assert_eq!(denied.diagnostic.code, "SNAPBACK_AUTH_PERMISSION_DENIED");
 
@@ -1308,7 +1372,8 @@ fn card_game_kick_composes_durable_and_room_authority_boundaries() {
         &fixture.snapback,
         &fixture.ephemeral,
         CONNECTION_B,
-        USER_B,
+        &fixture.user_b,
+        &fixture.session_b,
         b"B:still-here",
         20,
     )
@@ -1397,7 +1462,11 @@ fn lost_commit_ack_proves_successor_and_finalizes_the_exact_room_ticket() {
         .snapback
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
-        .authorize_ephemeral_room_observed("gamePresence", &room_scope(), base_room_auth(USER_A))
+        .authorize_ephemeral_room_observed(
+            "gamePresence",
+            &room_scope(),
+            base_room_auth(&fixture.user_a, &fixture.session_a),
+        )
         .expect_err("the reconciled commit durably removed A's membership");
     assert_eq!(denied.diagnostic.code, "SNAPBACK_AUTH_PERMISSION_DENIED");
 }
@@ -1436,13 +1505,18 @@ fn commit_error_with_durable_rollback_removes_only_its_exact_room_ticket() {
         .snapback
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
-        .authorize_ephemeral_room_observed("gamePresence", &room_scope(), base_room_auth(USER_A))
+        .authorize_ephemeral_room_observed(
+            "gamePresence",
+            &room_scope(),
+            base_room_auth(&fixture.user_a, &fixture.session_a),
+        )
         .expect("rollback preserves A's durable room permission");
     publish_presence_locked(
         &fixture.snapback,
         &fixture.ephemeral,
         CONNECTION_A,
-        USER_A,
+        &fixture.user_a,
+        &fixture.session_a,
         b"A:rollback-kept-authority",
         31,
     )
@@ -2078,7 +2152,7 @@ fn game_inputs_hash() -> String {
     format!("{INPUTS_V1_PREFIX}{}", "c".repeat(64))
 }
 
-fn game_members() -> SeedData {
+fn game_members(user_a: &str, user_b: &str) -> SeedData {
     SeedData {
         tables: BTreeMap::from([
             (
@@ -2087,17 +2161,17 @@ fn game_members() -> SeedData {
                     Map::from_iter([
                         ("_id".to_owned(), json!(MEMBER_A)),
                         ("gameId".to_owned(), json!(BOARD_ID)),
-                        ("userId".to_owned(), json!(USER_A)),
+                        ("userId".to_owned(), json!(user_a)),
                     ]),
                     Map::from_iter([
                         ("_id".to_owned(), json!(MEMBER_B)),
                         ("gameId".to_owned(), json!(BOARD_ID)),
-                        ("userId".to_owned(), json!(USER_B)),
+                        ("userId".to_owned(), json!(user_b)),
                     ]),
                     Map::from_iter([
                         ("_id".to_owned(), json!(MEMBER_B_UNRELATED)),
                         ("gameId".to_owned(), json!(UNRELATED_BOARD_ID)),
-                        ("userId".to_owned(), json!(USER_B)),
+                        ("userId".to_owned(), json!(user_b)),
                     ]),
                 ],
             ),
@@ -2106,7 +2180,7 @@ fn game_members() -> SeedData {
                 vec![Map::from_iter([
                     ("_id".to_owned(), json!("move-opponent-private")),
                     ("gameId".to_owned(), json!(BOARD_ID)),
-                    ("playerId".to_owned(), json!(USER_B)),
+                    ("playerId".to_owned(), json!(user_b)),
                     ("move".to_owned(), json!(OPPONENT_MOVE)),
                 ])],
             ),
@@ -2214,17 +2288,10 @@ fn room_scope_for(game_id: &str) -> crate::ephemeral::Scope {
     crate::ephemeral::Scope::from_pairs([("gameId", game_id)])
 }
 
-fn base_room_auth(user_id: &str) -> AuthContext {
+fn base_room_auth(user_id: &str, session_id: &str) -> AuthContext {
     AuthContext {
         principal: None,
-        session_id: Some(
-            if user_id == USER_A {
-                SESSION_A
-            } else {
-                SESSION_B
-            }
-            .to_owned(),
-        ),
+        session_id: Some(session_id.to_owned()),
         user_id: Some(user_id.to_owned()),
         permissions: BTreeSet::new(),
         stream_initiator: None,
@@ -2235,9 +2302,14 @@ fn server_room_grant(
     snapback: &LocalSnapback,
     ephemeral: &EphemeralApi,
     user_id: &str,
+    session_id: &str,
 ) -> (AuthContext, RoomAuthorityPermit) {
     let (auth, observed) = snapback
-        .authorize_ephemeral_room_observed("gamePresence", &room_scope(), base_room_auth(user_id))
+        .authorize_ephemeral_room_observed(
+            "gamePresence",
+            &room_scope(),
+            base_room_auth(user_id, session_id),
+        )
         .expect("durable membership grants the protected room");
     let permit = ephemeral
         .begin_server_authorized_room_act("gamePresence", &room_scope())
@@ -2256,9 +2328,10 @@ fn register_room(
     ephemeral: &EphemeralApi,
     connection_id: &str,
     user_id: &str,
+    session_id: &str,
     now_ms: u64,
 ) -> AuthContext {
-    let (auth, permit) = server_room_grant(snapback, ephemeral, user_id);
+    let (auth, permit) = server_room_grant(snapback, ephemeral, user_id, session_id);
     let snapshot = ephemeral
         .subscribe(room_subscribe(connection_id, auth.clone()), now_ms)
         .expect("protected room registration and snapshot");
@@ -2278,11 +2351,15 @@ fn publish_presence(
     ephemeral: &EphemeralApi,
     connection_id: &str,
     user_id: &str,
+    session_id: &str,
     value: &[u8],
     now_ms: u64,
 ) -> Result<PublishOutcome, crate::ephemeral::EphemeralError> {
-    let (auth, permit) = server_room_grant(snapback, ephemeral, user_id);
-    let result = ephemeral.publish(room_publish(connection_id, user_id, auth, value), now_ms);
+    let (auth, permit) = server_room_grant(snapback, ephemeral, user_id, session_id);
+    let result = ephemeral.publish(
+        room_publish(connection_id, user_id, session_id, auth, value),
+        now_ms,
+    );
     drop(permit);
     result
 }
@@ -2292,11 +2369,20 @@ fn publish_presence_locked(
     ephemeral: &EphemeralApi,
     connection_id: &str,
     user_id: &str,
+    session_id: &str,
     value: &[u8],
     now_ms: u64,
 ) -> Result<PublishOutcome, crate::ephemeral::EphemeralError> {
     let snapback = snapback.lock().unwrap_or_else(PoisonError::into_inner);
-    publish_presence(&snapback, ephemeral, connection_id, user_id, value, now_ms)
+    publish_presence(
+        &snapback,
+        ephemeral,
+        connection_id,
+        user_id,
+        session_id,
+        value,
+        now_ms,
+    )
 }
 
 fn room_subscribe(connection_id: &str, auth: AuthContext) -> SubscribeRequest {
@@ -2316,15 +2402,17 @@ fn room_subscribe_for(connection_id: &str, auth: AuthContext, game_id: &str) -> 
 fn room_publish(
     connection_id: &str,
     user_id: &str,
+    session_id: &str,
     auth: AuthContext,
     value: &[u8],
 ) -> PublishRequest {
-    room_publish_for(connection_id, user_id, auth, value, BOARD_ID)
+    room_publish_for(connection_id, user_id, session_id, auth, value, BOARD_ID)
 }
 
 fn room_publish_for(
     connection_id: &str,
     user_id: &str,
+    session_id: &str,
     auth: AuthContext,
     value: &[u8],
     game_id: &str,
@@ -2333,14 +2421,7 @@ fn room_publish_for(
         collection: "gamePresence".to_owned(),
         scope: room_scope_for(game_id),
         connection_id: connection_id.to_owned(),
-        session_id: Some(
-            if user_id == USER_A {
-                SESSION_A
-            } else {
-                SESSION_B
-            }
-            .to_owned(),
-        ),
+        session_id: Some(session_id.to_owned()),
         user_id: Some(user_id.to_owned()),
         custom_key: None,
         value: value.to_vec(),

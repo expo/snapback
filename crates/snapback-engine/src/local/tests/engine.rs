@@ -1656,10 +1656,11 @@ fn run_graph_scheduler_authority_case(case_kind: &str, mixed: bool) {
         "the fenced restoration runs through the existing scheduler"
     );
     let mut frame_strings = snapback.drain_live_stream(&connection_id);
+    let admission = test_session_admission(&mut snapback);
     frame_strings.extend(project_authorization_frames_through_test_sink(
         &mut snapback,
         &connection_id,
-        &test_session_admission(),
+        &admission,
     ));
     let frames = frame_strings
         .into_iter()
@@ -31082,6 +31083,11 @@ fn live_resume_retires_predecessor_before_successor_admission() {
 }
 
 fn install_test_invalidation(snapback: &mut LocalSnapback) -> AuthorizationInvalidationConnection {
+    let _ = snapback.prepare_resolved_password_session_for_test(
+        InvocationSource::LiveInitialQuery,
+        "engine-live-compatibility-session",
+        u64::MAX,
+    );
     let binding = snapback
         .install_authenticated_auth_invalidation(&invalidation_provider_for_test(), None)
         .expect("install test invalidation");
@@ -31104,17 +31110,15 @@ fn test_authorization_namespace(instance: u64) -> QueryNamespace {
     }
 }
 
-fn test_session_authority(source: InvocationSource) -> PreparedAuthority {
-    InvocationGate::prepare_admitted_subjectless_authority(
+fn test_session_authority(
+    snapback: &mut LocalSnapback,
+    source: InvocationSource,
+) -> PreparedAuthority {
+    snapback.prepare_resolved_password_session_for_test(
         source,
-        AuthMode::Sessions,
-        ServerProfile::Test,
-        managed_session_admission(),
-        &WireAuthorityFields::default(),
-        ResolvedAppAuthority::Anonymous,
-        None,
+        "engine-live-compatibility-session",
+        u64::MAX,
     )
-    .expect("prepare exact test session authority")
 }
 
 fn test_live_session_authority(
@@ -34631,8 +34635,8 @@ fn grant_revocation_planners_select_only_the_session_users_exact_token_set() {
     assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_MODE_PENDING");
 }
 
-fn test_session_admission() -> crate::auth::admission::AdmissionLease {
-    test_session_authority(InvocationSource::LiveInitialQuery)
+fn test_session_admission(snapback: &mut LocalSnapback) -> crate::auth::admission::AdmissionLease {
+    test_session_authority(snapback, InvocationSource::LiveInitialQuery)
         .admission_lease()
         .clone()
 }
@@ -34649,11 +34653,8 @@ fn invoke_test_session_mutation(
     name: &str,
     input: HandlerInput,
 ) -> crate::diagnostic::SnapbackResult<crate::manifest::MutationOutput> {
-    snapback.invoke_mutation_with_authority(
-        name,
-        input,
-        test_session_authority(InvocationSource::HttpMutation),
-    )
+    let authority = test_session_authority(snapback, InvocationSource::HttpMutation);
+    snapback.invoke_mutation_with_authority(name, input, authority)
 }
 
 fn two_pending_projection_fixture(
@@ -35082,6 +35083,7 @@ fn quarantined_resubscribe_stays_fail_closed_until_accepted_authority_proof() {
         .expect("retained subscription")
         .input
         .args = json!({});
+    let resume_authority = test_session_authority(&mut snapback, InvocationSource::LiveResume);
     let error = snapback
         .resume_live_prepared_with_invalidation(
             "listItemsByValue",
@@ -35091,7 +35093,7 @@ fn quarantined_resubscribe_stays_fail_closed_until_accepted_authority_proof() {
                 auth: AuthInput::default(),
                 recorded_permission_epochs: subscribed.permission_epochs.clone(),
             },
-            test_session_authority(InvocationSource::LiveResume),
+            resume_authority,
             LiveInvalidationAdmission {
                 session_mode: true,
                 connection: Some(connection.clone()),
@@ -35166,6 +35168,8 @@ fn quarantined_resubscribe_stays_fail_closed_until_accepted_authority_proof() {
     // @ref LLP 0053#invalidation-is-an-obligation-not-a-message — an
     // exhausted retry episode reopens only through an explicit,
     // authority-checked manual retry.
+    let retry_authority =
+        test_session_authority(&mut snapback, InvocationSource::InvalidationAcknowledgement);
     let retry = snapback
         .manual_retry_authorization_invalidation(
             AuthorizationInvalidationManualRetryInput {
@@ -35174,7 +35178,7 @@ fn quarantined_resubscribe_stays_fail_closed_until_accepted_authority_proof() {
                 manual_retry_id: "quarantine-resubscribe-retry-1".to_owned(),
             },
             connection.clone(),
-            test_session_authority(InvocationSource::InvalidationAcknowledgement),
+            retry_authority,
         )
         .expect("manual retry resolves repaired input");
     assert_eq!(retry.outcome, "resolved");
@@ -35367,7 +35371,7 @@ fn auth_scoped_removal_is_atomic_obligation_and_exact_ack() {
 fn mutation_fanout_resolution_supersession_never_reuses_frame_key() {
     let mut snapback = live_limit_snapback();
     let connection = install_test_invalidation(&mut snapback);
-    let admission = test_session_admission();
+    let admission = test_session_admission(&mut snapback);
     snapback
         .subscribe_live_with_invalidation(
             "listItemsByValue",
@@ -35481,7 +35485,7 @@ fn overflow_root_waits_for_every_auth_scoped_child() {
         .expect("row id")
         .to_owned();
     let connection = install_test_invalidation(&mut snapback);
-    let admission = test_session_admission();
+    let admission = test_session_admission(&mut snapback);
     for instance in [10, 11] {
         snapback
             .subscribe_live_with_invalidation(
@@ -35603,7 +35607,7 @@ fn overflow_root_waits_for_every_auth_scoped_child() {
 fn aggregate_projection_handoff_is_a_bounded_prefix_and_suffix_stays_pending() {
     let connection_id = "session-projection-prefix";
     let (mut snapback, connection) = two_pending_projection_fixture(connection_id);
-    let admission = test_session_admission();
+    let admission = test_session_admission(&mut snapback);
     let full = snapback
         .authorization_invalidation_frames(connection_id, &admission)
         .expect("measure complete pending projection set");
@@ -35648,7 +35652,7 @@ fn aggregate_projection_handoff_is_a_bounded_prefix_and_suffix_stays_pending() {
 fn one_projection_over_handoff_limit_fails_closed_and_remains_pending() {
     let connection_id = "session-projection-oversized";
     let (mut snapback, _connection) = two_pending_projection_fixture(connection_id);
-    let admission = test_session_admission();
+    let admission = test_session_admission(&mut snapback);
     let full = snapback
         .authorization_invalidation_frames(connection_id, &admission)
         .expect("measure pending projection");
@@ -35926,7 +35930,7 @@ fn auth_requery_error_uses_one_durable_three_attempt_episode() {
         crate::auth::invalidation::AUTH_ERROR_ATTEMPTS_TOTAL
     );
     let revision = pending.revision;
-    let admission = test_session_admission();
+    let admission = test_session_admission(&mut snapback);
     let frames = snapback
         .authorization_invalidation_frames("session-retry", &admission)
         .expect("drain retry invalidation");
@@ -36593,7 +36597,7 @@ fn authorized_lease_reservation_recheck_is_scoped_to_the_lease_target() {
 fn only_host_branded_permission_denial_issues_terminal_delete() {
     let mut snapback = live_limit_snapback();
     let connection = install_test_invalidation(&mut snapback);
-    let admission = test_session_admission();
+    let admission = test_session_admission(&mut snapback);
     let subscribe = |snapback: &mut LocalSnapback, instance, connection_id: &str| {
         snapback
             .subscribe_live_with_invalidation(
@@ -38506,6 +38510,8 @@ fn live_scope_failures_roll_back_or_preserve_the_exact_predecessor() {
         .expect("auth-scoped predecessor");
 
     FAIL_NEXT_SCOPE_RETIREMENT_AUTH.with(|fail| fail.set(true));
+    let unsubscribe_authority =
+        test_session_authority(&mut snapback, InvocationSource::LiveUnsubscribe);
     assert_eq!(
         snapback
             .subscribe_live_with_invalidation(
@@ -38544,7 +38550,7 @@ fn live_scope_failures_roll_back_or_preserve_the_exact_predecessor() {
                     connection_id: "scope-rollback".to_owned(),
                     auth: AuthInput::default(),
                 },
-                test_session_authority(InvocationSource::LiveUnsubscribe),
+                unsubscribe_authority,
                 Some(&fence),
             )
             .expect_err("failed retirement authentication precedes removal")
@@ -38700,11 +38706,13 @@ fn live_resume_requires_the_exact_connection_grant() {
         recorded_permission_epochs: subscribed.permission_epochs.clone(),
     };
 
+    let foreign_resume_authority =
+        test_session_authority(&mut snapback, InvocationSource::LiveResume);
     let error = snapback
         .resume_live_prepared_with_invalidation(
             "listItems",
             resume(),
-            test_session_authority(InvocationSource::LiveResume),
+            foreign_resume_authority,
             LiveInvalidationAdmission {
                 connection: Some(connection.clone()),
                 effect_fence: Some(other_fence),
@@ -38723,11 +38731,13 @@ fn live_resume_requires_the_exact_connection_grant() {
         Some(&owner_fence),
     );
 
+    let owner_resume_authority =
+        test_session_authority(&mut snapback, InvocationSource::LiveResume);
     let resumed = snapback
         .resume_live_prepared_with_invalidation(
             "listItems",
             resume(),
-            test_session_authority(InvocationSource::LiveResume),
+            owner_resume_authority,
             LiveInvalidationAdmission {
                 connection: Some(connection),
                 effect_fence: Some(owner_fence),
@@ -38773,11 +38783,13 @@ fn live_unsubscribe_requires_the_exact_connection_grant() {
         auth: AuthInput::default(),
     };
 
+    let foreign_unsubscribe_authority =
+        test_session_authority(&mut snapback, InvocationSource::LiveUnsubscribe);
     let error = snapback
         .unsubscribe_live_prepared(
             "listItems",
             unsubscribe(),
-            test_session_authority(InvocationSource::LiveUnsubscribe),
+            foreign_unsubscribe_authority,
             Some(&other_fence),
         )
         .expect_err("same authority under another grant cannot unsubscribe");
@@ -38788,11 +38800,13 @@ fn live_unsubscribe_requires_the_exact_connection_grant() {
             .contains_key(&subscribed.subscription_id)
     );
 
+    let owner_unsubscribe_authority =
+        test_session_authority(&mut snapback, InvocationSource::LiveUnsubscribe);
     let disposed = snapback
         .unsubscribe_live_prepared(
             "listItems",
             unsubscribe(),
-            test_session_authority(InvocationSource::LiveUnsubscribe),
+            owner_unsubscribe_authority,
             Some(&owner_fence),
         )
         .expect("the exact owner grant may unsubscribe");
@@ -39022,6 +39036,7 @@ fn changed_invalidation_generation_live_resume_keeps_exact_grant_owner() {
         .reserve_connection(owner_fence.clone())
         .expect("reserve successor connection");
 
+    let resume_authority = test_session_authority(&mut snapback, InvocationSource::LiveResume);
     let output = snapback
         .resume_live_prepared_with_invalidation(
             "listItems",
@@ -39031,7 +39046,7 @@ fn changed_invalidation_generation_live_resume_keeps_exact_grant_owner() {
                 auth: AuthInput::default(),
                 recorded_permission_epochs: subscribed.permission_epochs,
             },
-            test_session_authority(InvocationSource::LiveResume),
+            resume_authority,
             LiveInvalidationAdmission::new(successor_connection.clone()).with_session_mode(true),
         )
         .expect("successor resume");
@@ -39143,11 +39158,12 @@ fn changed_generation_failed_resume_rolls_back_unpublished_successor_scope() {
     };
 
     for _ in 0..2 {
+        let resume_authority = test_session_authority(&mut snapback, InvocationSource::LiveResume);
         let error = snapback
             .resume_live_prepared_with_invalidation(
                 "listItemsByValue",
                 resume(),
-                test_session_authority(InvocationSource::LiveResume),
+                resume_authority,
                 LiveInvalidationAdmission::new(successor_connection.clone())
                     .with_session_mode(true),
             )
@@ -39256,6 +39272,7 @@ fn same_scope_failed_resume_keeps_failure_hint_on_retained_effect_fence() {
         .input
         .args = json!({});
 
+    let resume_authority = test_session_authority(&mut snapback, InvocationSource::LiveResume);
     snapback
         .resume_live_prepared_with_invalidation(
             "listItemsByValue",
@@ -39265,7 +39282,7 @@ fn same_scope_failed_resume_keeps_failure_hint_on_retained_effect_fence() {
                 auth: AuthInput::default(),
                 recorded_permission_epochs: subscribed.permission_epochs,
             },
-            test_session_authority(InvocationSource::LiveResume),
+            resume_authority,
             LiveInvalidationAdmission {
                 connection: Some(connection),
                 effect_fence: Some(predecessor_fence.clone()),
@@ -43113,6 +43130,12 @@ fn c009_descriptor_derives_exact_fence_for_live_effect_staging() {
 #[test]
 fn c009_foreign_reservation_history_is_rejected_by_live_subscribe() {
     let mut snapback = live_limit_snapback();
+    let foreign_subscribe_authority =
+        test_session_authority(&mut snapback, InvocationSource::LiveInitialQuery);
+    let genuine_subscribe_authority =
+        test_session_authority(&mut snapback, InvocationSource::LiveInitialQuery);
+    let retry_authority =
+        test_session_authority(&mut snapback, InvocationSource::InvalidationAcknowledgement);
     let directory = tempfile::tempdir().expect("C009 database directory");
     let foreign_path = directory.path().join("foreign.sqlite3");
     let foreign_image = std::fs::File::create(&foreign_path).expect("create C009 database image");
@@ -43181,7 +43204,7 @@ fn c009_foreign_reservation_history_is_rejected_by_live_subscribe() {
                 supersedes: None,
                 resume_from_token: None,
             },
-            test_session_authority(InvocationSource::LiveInitialQuery),
+            foreign_subscribe_authority,
             LiveInvalidationAdmission::new(foreign.clone()).with_session_mode(true),
         )
         .expect_err("foreign issuer reservation history must not enter the live sink");
@@ -43201,7 +43224,7 @@ fn c009_foreign_reservation_history_is_rejected_by_live_subscribe() {
                 supersedes: None,
                 resume_from_token: None,
             },
-            test_session_authority(InvocationSource::LiveInitialQuery),
+            genuine_subscribe_authority,
             LiveInvalidationAdmission::new(genuine).with_session_mode(true),
         )
         .expect("install genuine C009 subscription");
@@ -43217,7 +43240,7 @@ fn c009_foreign_reservation_history_is_rejected_by_live_subscribe() {
                 manual_retry_id: "p3-c009-foreign-reservation".to_owned(),
             },
             foreign,
-            test_session_authority(InvocationSource::InvalidationAcknowledgement),
+            retry_authority,
         )
         .expect_err("foreign history must refuse before durable retry reservation");
     assert_eq!(
@@ -43272,6 +43295,8 @@ fn f286_victim_connection_is_touched_and_foreign_obligation_is_discharged() {
         .expect("F286 installed invalidation state")
         .reserve_connection(fence_b.clone())
         .expect("reserve genuine F286 connection B descriptor");
+    let subscribe_authority =
+        test_session_authority(&mut snapback, InvocationSource::LiveInitialQuery);
     let subscribed = snapback
         .subscribe_live_prepared_with_invalidation(
             "listItems",
@@ -43282,7 +43307,7 @@ fn f286_victim_connection_is_touched_and_foreign_obligation_is_discharged() {
                 supersedes: None,
                 resume_from_token: None,
             },
-            test_session_authority(InvocationSource::LiveInitialQuery),
+            subscribe_authority,
             LiveInvalidationAdmission::new(descriptor_b.clone()).with_session_mode(true),
         )
         .expect("install F286 B-owned subscription");
@@ -43299,7 +43324,7 @@ fn f286_victim_connection_is_touched_and_foreign_obligation_is_discharged() {
         },
     )
     .expect("raise F286 B obligation");
-    let admission = managed_session_admission();
+    let admission = test_session_admission(&mut snapback);
     let frames = snapback
         .authorization_invalidation_frames("p3-f286-b", &admission)
         .expect("resolve F286 B obligation");
@@ -43390,6 +43415,8 @@ fn f288_victim_connection_repoints_owned_subscription_with_issued_descriptor() {
         .reserve_connection(fence_b.clone())
         .expect("reserve genuine F288 connection B descriptor");
     let issued_generation = descriptor_b.connection_generation();
+    let subscribe_authority =
+        test_session_authority(&mut snapback, InvocationSource::LiveInitialQuery);
     let subscribed = snapback
         .subscribe_live_prepared_with_invalidation(
             "listItems",
@@ -43400,12 +43427,14 @@ fn f288_victim_connection_repoints_owned_subscription_with_issued_descriptor() {
                 supersedes: None,
                 resume_from_token: None,
             },
-            test_session_authority(InvocationSource::LiveInitialQuery),
+            subscribe_authority,
             LiveInvalidationAdmission::new(descriptor_b.clone()).with_session_mode(true),
         )
         .expect("install F288 B-owned subscription");
 
     snapback.connections_last_seen.touch("p3-f288-a", 1);
+    let invalid_resume_authority =
+        test_session_authority(&mut snapback, InvocationSource::LiveResume);
     let invalid = snapback
         .prepare_resume_live_for_transport(
             "listItems".to_owned(),
@@ -43415,7 +43444,7 @@ fn f288_victim_connection_repoints_owned_subscription_with_issued_descriptor() {
                 auth: AuthInput::default(),
                 recorded_permission_epochs: BTreeMap::new(),
             },
-            test_session_authority(InvocationSource::LiveResume),
+            invalid_resume_authority,
             LiveInvalidationAdmission::new(descriptor_b.clone()).with_session_mode(true),
         )
         .expect("stage F288 invalid-subscription resume");
@@ -43429,6 +43458,8 @@ fn f288_victim_connection_repoints_owned_subscription_with_issued_descriptor() {
         .expect("F288 victim A tracked after invalid subscription");
 
     snapback.connections_last_seen.touch("p3-f288-a", 1);
+    let valid_resume_authority =
+        test_session_authority(&mut snapback, InvocationSource::LiveResume);
     let valid = snapback
         .prepare_resume_live_for_transport(
             "listItems".to_owned(),
@@ -43438,7 +43469,7 @@ fn f288_victim_connection_repoints_owned_subscription_with_issued_descriptor() {
                 auth: AuthInput::default(),
                 recorded_permission_epochs: subscribed.permission_epochs,
             },
-            test_session_authority(InvocationSource::LiveResume),
+            valid_resume_authority,
             LiveInvalidationAdmission::new(descriptor_b).with_session_mode(true),
         )
         .expect("stage F288 victim/owned-subscription composition");

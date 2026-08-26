@@ -4072,6 +4072,24 @@ struct GraphCorpusAuthorityFixtures {
 struct ProductionSessionFixture {
     bearer: String,
     provider: Arc<crate::auth::provider::AuthProvider>,
+    facts: ProductionSessionFacts,
+}
+
+#[cfg(test)]
+#[derive(Clone, Debug)]
+pub(crate) struct ProductionSessionFacts {
+    pub(crate) user_id: String,
+    pub(crate) session_id: String,
+    pub(crate) authority_instance_id: String,
+    pub(crate) generation: u64,
+    pub(crate) expires_at_ms: u64,
+}
+
+#[cfg(test)]
+#[derive(Clone)]
+struct ProductionIdentityFixture {
+    identifier: String,
+    provider: Arc<crate::auth::provider::AuthProvider>,
 }
 
 #[cfg(test)]
@@ -4080,7 +4098,7 @@ struct ProductionSessionFixtureClock;
 #[cfg(test)]
 impl crate::auth::provider::AuthClock for ProductionSessionFixtureClock {
     fn epoch_ms(&self) -> u64 {
-        1
+        now_millis()
     }
 
     fn monotonic_now(&self) -> Instant {
@@ -4181,6 +4199,8 @@ pub struct LocalSnapback {
     graph_corpus_authority_fixtures: Option<GraphCorpusAuthorityFixtures>,
     #[cfg(test)]
     production_session_fixtures: HashMap<String, ProductionSessionFixture>,
+    #[cfg(test)]
+    production_identity_fixtures: HashMap<String, ProductionIdentityFixture>,
     /// Target-owned class-2/evaluator facts. The production map starts empty;
     /// its test-support installer cannot be reached from handler input.
     graph_serving_authority_contexts: Arc<RwLock<BTreeMap<String, GraphServingAuthorityContextV1>>>,
@@ -9915,6 +9935,188 @@ impl LocalSnapback {
         self.install_authorization_stream(authority)
     }
 
+    /// Enter sessions mode through the production provisioning transaction.
+    /// Tests that need session authority must establish the same durable mode
+    /// and function ceremony as a served target; synchronizing only the
+    /// process-local admission graph would assert a fact the database does
+    /// not hold.
+    #[cfg(test)]
+    fn ensure_sessions_mode_for_test(&mut self) {
+        let snapshot = self
+            .db
+            .auth_mode_snapshot()
+            .expect("read unit-test auth-mode state");
+        if snapshot.state.active == AuthMode::Sessions {
+            self.synchronize_auth_mode_admission(&snapshot.state)
+                .expect("publish existing unit-test sessions admission");
+            return;
+        }
+        assert_eq!(
+            snapshot.state.active,
+            AuthMode::Dev,
+            "unit-test session ceremony starts from dev or settled sessions mode"
+        );
+        assert!(
+            snapshot.staged.is_none(),
+            "unit-test session ceremony cannot replace an in-flight auth transition"
+        );
+
+        let digest = |prefix: &str, byte: char| format!("{prefix}{}", byte.to_string().repeat(64));
+        let mut schema = self.db.schema().clone();
+        schema.schema_version = "snapback.v1".to_owned();
+        schema.auth = Some(crate::manifest::AuthManifest {
+            mode: AuthMode::Sessions,
+            agents: schema.auth.as_ref().and_then(|auth| auth.agents.clone()),
+            password_identifier_mode: schema
+                .auth
+                .as_ref()
+                .and_then(|auth| auth.password_identifier_mode),
+            password_minimum_length: schema
+                .auth
+                .as_ref()
+                .and_then(|auth| auth.password_minimum_length),
+        });
+        schema.schema_hash = Some(digest(crate::auth::mode::SCHEMA_V1_PREFIX, 'a'));
+        schema.inputs_hash = Some(digest(crate::auth::mode::INPUTS_V1_PREFIX, 'c'));
+        if !schema
+            .required_capabilities
+            .iter()
+            .any(|capability| capability == "auth.sessions.v1")
+        {
+            schema
+                .required_capabilities
+                .push("auth.sessions.v1".to_owned());
+        }
+        let mut functions = self.functions.clone();
+        functions.schema_version = "snapback.v1".to_owned();
+        functions.app_id = schema.app_id.clone();
+        functions.bundle_hash = Some(digest(crate::auth::mode::FUNCTION_V1_PREFIX, 'b'));
+        functions.inputs_hash = schema.inputs_hash.clone();
+        let prepared = self
+            .prepare_auth_provision(
+                EnsureAppMode::Sessions,
+                Some(schema),
+                Some(functions.clone()),
+                None,
+            )
+            .expect("preflight unit-test sessions ceremony");
+        self.commit_auth_provision(prepared, "test")
+            .expect("stage unit-test sessions ceremony");
+        let settled = self
+            .db
+            .auth_database_mut()
+            .consume_sessions_auth_mode_with_functions(
+                &crate::auth::mode::AuthProgramReadiness::new(
+                    true, true, true, true, true, true, true,
+                ),
+                &functions,
+            )
+            .expect("activate unit-test sessions ceremony");
+        self.synchronize_auth_mode_admission(&settled)
+            .expect("publish unit-test sessions admission");
+        let diagnostics =
+            self.publish_preflighted_functions(functions, 1, DiagnosticBoundary::Attached);
+        assert!(
+            diagnostics.iter().all(|diagnostic| !matches!(
+                diagnostic.severity,
+                DiagnosticSeverity::Error | DiagnosticSeverity::Fatal
+            )),
+            "unit-test sessions functions must publish: {diagnostics:?}"
+        );
+    }
+
+    /// Issue a human credential through production password registration or
+    /// authentication without asserting that sessions mode is already live.
+    /// Activation seeds may therefore name the host-minted user before the
+    /// caller stages and commits its sessions deployment.
+    #[cfg(test)]
+    pub(crate) fn issue_production_session_for_test(
+        &mut self,
+        fixture_user_label: &str,
+        fixture_authority_label: &str,
+    ) -> ProductionSessionFacts {
+        static NEXT_SESSION_FIXTURE: AtomicU64 = AtomicU64::new(1);
+        let now_ms = now_millis();
+        self.db
+            .activate_current_auth_catalog()
+            .expect("activate unit-test authority catalog");
+        let session_key = format!("{fixture_user_label}\u{0}{fixture_authority_label}");
+        if let Some(fixture) = self.production_session_fixtures.get(&session_key) {
+            return fixture.facts.clone();
+        }
+
+        let runtime = tokio::runtime::Runtime::new().expect("unit-test session fixture runtime");
+        let identity = if let Some(identity) = self
+            .production_identity_fixtures
+            .get(fixture_user_label)
+            .cloned()
+        {
+            identity
+        } else {
+            let keyring = Arc::new(crate::auth::keyring::AuthKeyringStore::in_memory());
+            keyring
+                .load_or_mint_initial(now_ms, &crate::auth::crypto::OsRandom)
+                .expect("initialize unit-test provider keyring");
+            let provider = Arc::new(
+                crate::auth::provider::AuthProvider::new_with_dependencies(
+                    crate::contract_types::AuthProviderProfile::Test,
+                    keyring,
+                    Arc::new(crate::auth::crypto::OsRandom),
+                    Arc::new(ProductionSessionFixtureClock),
+                )
+                .expect("construct unit-test production provider"),
+            );
+            let sequence = NEXT_SESSION_FIXTURE.fetch_add(1, Ordering::SeqCst);
+            let identity = ProductionIdentityFixture {
+                identifier: format!("engine-session-{sequence}@example.test"),
+                provider,
+            };
+            self.production_identity_fixtures
+                .insert(fixture_user_label.to_owned(), identity.clone());
+            identity
+        };
+        let issue = if self
+            .production_session_fixtures
+            .values()
+            .any(|fixture| Arc::ptr_eq(&fixture.provider, &identity.provider))
+        {
+            graph_corpus_authenticate_password(
+                &runtime,
+                &identity.provider,
+                self.db.auth_database_mut(),
+                &identity.identifier,
+                "correct horse battery staple",
+                now_ms,
+            )
+        } else {
+            graph_corpus_register_password(
+                &runtime,
+                &identity.provider,
+                self.db.auth_database_mut(),
+                &identity.identifier,
+                "correct horse battery staple",
+                now_ms,
+            )
+        };
+        let response = issue.response();
+        let facts = ProductionSessionFacts {
+            user_id: response.session.user_id.clone(),
+            session_id: response.session.id.clone(),
+            authority_instance_id: response.session.authority_instance_id.clone(),
+            generation: response.session.generation,
+            expires_at_ms: response.session.expires_at,
+        };
+        self.production_session_fixtures.insert(
+            session_key,
+            ProductionSessionFixture {
+                bearer: response.token().expose_secret().to_owned(),
+                provider: identity.provider,
+                facts: facts.clone(),
+            },
+        );
+        facts
+    }
+
     /// Unit-test session fixture that still traverses protected catalog,
     /// projection, bearer resolution, and this engine's admission graph.
     // @ref LLP 0303#the-governing-principle — tests derive session authority through the same resolver as production.
@@ -9923,110 +10125,22 @@ impl LocalSnapback {
     fn prepare_resolved_session_fixture(
         &mut self,
         source: InvocationSource,
-        _fixture_user_label: &str,
+        fixture_user_label: &str,
         _fixture_session_label: &str,
-        _fixture_authority_label: &str,
+        fixture_authority_label: &str,
         _fixture_generation: u64,
-        session_not_after_ms: u64,
+        _session_not_after_ms: u64,
     ) -> PreparedAuthority {
-        use crate::auth::provider::{
-            PasswordIssuanceCustody, PlannedIssuanceCommit, ProviderGuestSessionPlan,
-        };
-        use crate::storage::auth::AuthTransactionAttempt;
-
-        static NEXT_SESSION_FIXTURE: AtomicU64 = AtomicU64::new(1);
-        let now_ms = 1;
-        let deadline = session_not_after_ms.min(crate::storage::SEQUENCE_MAX_SAFE_INTEGER);
-        let retention_ms = deadline
-            .checked_sub(now_ms)
-            .filter(|retention| *retention != 0)
-            .expect("unit-test session deadline follows issuance");
-        self.db
-            .activate_current_auth_catalog()
-            .expect("activate unit-test authority catalog");
-        let keyring = Arc::new(crate::auth::keyring::AuthKeyringStore::in_memory());
-        keyring
-            .load_or_mint_initial(now_ms, &crate::auth::crypto::OsRandom)
-            .expect("initialize unit-test provider keyring");
-        let provider = Arc::new(
-            crate::auth::provider::AuthProvider::new(
-                crate::contract_types::AuthProviderProfile::Test,
-                keyring,
-            )
-            .expect("construct unit-test production provider"),
-        );
-        let bearer = if let Some(fixture) = self
+        self.ensure_sessions_mode_for_test();
+        let _ = self.issue_production_session_for_test(fixture_user_label, fixture_authority_label);
+        let now_ms = now_millis();
+        let session_key = format!("{fixture_user_label}\u{0}{fixture_authority_label}");
+        let bearer = self
             .production_session_fixtures
-            .get(_fixture_user_label)
-            .cloned()
-        {
-            fixture.bearer
-        } else {
-            let idempotency_key = format!(
-                "engine-session-ceremony-{}",
-                NEXT_SESSION_FIXTURE.fetch_add(1, Ordering::SeqCst)
-            );
-            let planned = provider
-                .plan_guest_session(
-                    self.db.auth_database_mut(),
-                    now_ms,
-                    retention_ms,
-                    crate::auth::throttle::RollingWindowBudgetTerms {
-                        limit: 10,
-                        window_ms: 1_000,
-                    },
-                    &idempotency_key,
-                    "engine-test-app",
-                    "engine-test-deployment",
-                    &format!("sha256:{}", "a".repeat(64)),
-                    PasswordIssuanceCustody::Bearer,
-                )
-                .expect("plan unit-test guest session through production provider");
-            let ProviderGuestSessionPlan::Planned(plan) = planned else {
-                panic!("fresh unit-test idempotency key must plan a guest session");
-            };
-            let attempt =
-                provider.commit_guest_issuance(self.db.auth_database_mut(), &plan.commit_plan());
-            let AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
-                session,
-                committed_revocations,
-            }) = attempt
-            else {
-                panic!("unit-test guest session must commit");
-            };
-            let issue = plan.into_issue(session, committed_revocations);
-            let bearer = issue.response().token().expose_secret().to_owned();
-            self.production_session_fixtures.insert(
-                _fixture_user_label.to_owned(),
-                ProductionSessionFixture {
-                    bearer: bearer.clone(),
-                    provider,
-                },
-            );
-            bearer
-        };
-
-        let digest = |prefix: &str, byte: char| format!("{prefix}{}", byte.to_string().repeat(64));
-        let deployment = DeploymentIdentity {
-            schema_version: "snapback.v1".to_owned(),
-            auth_mode: AuthMode::Sessions,
-            app_id: "authority-provenance-unit-test".to_owned(),
-            schema_hash: digest(crate::auth::mode::SCHEMA_V1_PREFIX, 'a'),
-            bundle_hash: digest(crate::auth::mode::FUNCTION_V1_PREFIX, 'b'),
-            inputs_hash: digest(crate::auth::mode::INPUTS_V1_PREFIX, 'c'),
-        };
-        let mut state = AuthModeStateRecord::initial_dev(Some(deployment.clone()));
-        state.transition_generation = 1;
-        state.active = AuthMode::Sessions;
-        state.desired = AuthMode::Sessions;
-        state.sessions_ever_activated = true;
-        state.active_deployment = Some(deployment);
-        state
-            .validate_shape()
-            .expect("validate unit-test sessions mode");
-        self.admission
-            .synchronize_mode_state(&state)
-            .expect("bind unit-test admission graph");
+            .get(&session_key)
+            .expect("production session ceremony retained its bearer")
+            .bearer
+            .clone();
 
         let coordinator = crate::auth::coordinator::AuthCoordinator::from_session_database(
             &mut self.db,
@@ -10084,43 +10198,6 @@ impl LocalSnapback {
         fixture_label: &str,
         session_not_after_ms: u64,
     ) -> PreparedAuthority {
-        static NEXT_PASSWORD_SESSION_FIXTURE: AtomicU64 = AtomicU64::new(1);
-        self.db
-            .activate_current_auth_catalog()
-            .expect("activate password-session fixture catalog");
-        if !self.production_session_fixtures.contains_key(fixture_label) {
-            let runtime = tokio::runtime::Runtime::new().expect("password-session fixture runtime");
-            let keyring = Arc::new(crate::auth::keyring::AuthKeyringStore::in_memory());
-            keyring
-                .load_or_mint_initial(1, &crate::auth::crypto::OsRandom)
-                .expect("initialize password-session fixture keyring");
-            let provider = Arc::new(
-                crate::auth::provider::AuthProvider::new_with_dependencies(
-                    crate::contract_types::AuthProviderProfile::Test,
-                    keyring,
-                    Arc::new(crate::auth::crypto::OsRandom),
-                    Arc::new(ProductionSessionFixtureClock),
-                )
-                .expect("construct password-session production provider"),
-            );
-            let sequence = NEXT_PASSWORD_SESSION_FIXTURE.fetch_add(1, Ordering::SeqCst);
-            let identifier = format!("engine-human-{sequence}@example.test");
-            let issue = graph_corpus_register_password(
-                &runtime,
-                &provider,
-                self.db.auth_database_mut(),
-                &identifier,
-                "correct horse battery staple",
-                1,
-            );
-            self.production_session_fixtures.insert(
-                fixture_label.to_owned(),
-                ProductionSessionFixture {
-                    bearer: issue.response().token().expose_secret().to_owned(),
-                    provider,
-                },
-            );
-        }
         self.prepare_resolved_session_fixture(
             source,
             fixture_label,
@@ -10143,14 +10220,16 @@ impl LocalSnapback {
         session_not_after_ms: u64,
     ) -> PreparedAuthority {
         static NEXT_EMAIL_SESSION_FIXTURE: AtomicU64 = AtomicU64::new(1);
+        let now_ms = now_millis();
         self.db
             .activate_current_auth_catalog()
             .expect("activate email-session fixture catalog");
-        if !self.production_session_fixtures.contains_key(fixture_label) {
+        let session_key = format!("{fixture_label}\u{0}{fixture_label}");
+        if !self.production_session_fixtures.contains_key(&session_key) {
             let runtime = tokio::runtime::Runtime::new().expect("email-session fixture runtime");
             let keyring = Arc::new(crate::auth::keyring::AuthKeyringStore::in_memory());
             keyring
-                .load_or_mint_initial(1, &crate::auth::crypto::OsRandom)
+                .load_or_mint_initial(now_ms, &crate::auth::crypto::OsRandom)
                 .expect("initialize email-session fixture keyring");
             let provider = Arc::new(
                 crate::auth::provider::AuthProvider::new_with_dependencies(
@@ -10167,7 +10246,7 @@ impl LocalSnapback {
                 .block_on(provider.admit_email(&address))
                 .expect("admit email-session fixture address");
             let request = address_admission
-                .request_code(self.db.auth_database_mut(), 1)
+                .request_code(self.db.auth_database_mut(), now_ms)
                 .expect("request email-session fixture code");
             drop(address_admission);
             let mailbox = runtime
@@ -10187,13 +10266,21 @@ impl LocalSnapback {
                 .block_on(admission.for_exchange(coordination))
                 .expect("admit email-session fixture exchange");
             let issue = exchange
-                .exchange(self.db.auth_database_mut(), code, 1)
+                .exchange(self.db.auth_database_mut(), code, now_ms)
                 .expect("exchange email-session fixture code");
+            let response = issue.response();
             self.production_session_fixtures.insert(
-                fixture_label.to_owned(),
+                session_key.clone(),
                 ProductionSessionFixture {
-                    bearer: issue.response().token().expose_secret().to_owned(),
+                    bearer: response.token().expose_secret().to_owned(),
                     provider,
+                    facts: ProductionSessionFacts {
+                        user_id: response.session.user_id.clone(),
+                        session_id: response.session.id.clone(),
+                        authority_instance_id: response.session.authority_instance_id.clone(),
+                        generation: response.session.generation,
+                        expires_at_ms: response.session.expires_at,
+                    },
                 },
             );
         }
@@ -10423,7 +10510,9 @@ impl LocalSnapback {
             .then(|| {
                 let provider = self
                     .production_session_fixtures
-                    .get(effective_user_label)
+                    .get(&format!(
+                        "{effective_user_label}\u{0}{effective_user_label}"
+                    ))
                     .expect("delegated service retains its email-code provider")
                     .provider
                     .clone();
@@ -23405,18 +23494,14 @@ impl LocalSnapback {
         } else {
             AuthMode::Dev
         };
-        let admission = self.admission.admit_for_mode(active_mode)?;
         let authority = if active_mode == AuthMode::Sessions {
-            InvocationGate::prepare_admitted_subjectless_authority(
+            self.prepare_resolved_password_session_for_test(
                 InvocationSource::LiveInitialQuery,
-                active_mode,
-                ServerProfile::Test,
-                admission,
-                &WireAuthorityFields::default(),
-                ResolvedAppAuthority::Anonymous,
-                None,
-            )?
+                "engine-live-compatibility-session",
+                u64::MAX,
+            )
         } else {
+            let admission = self.admission.admit_for_mode(active_mode)?;
             InvocationGate::prepare_admitted_dev_input(
                 InvocationSource::LiveInitialQuery,
                 ServerProfile::Test,
@@ -30080,6 +30165,8 @@ impl LocalSnapback {
             graph_corpus_authority_fixtures: None,
             #[cfg(test)]
             production_session_fixtures: HashMap::new(),
+            #[cfg(test)]
+            production_identity_fixtures: HashMap::new(),
             graph_serving_authority_contexts: Arc::new(RwLock::new(BTreeMap::new())),
             app_state_graph_identity: Arc::new(()),
             operator_authority_identity: Arc::new(()),

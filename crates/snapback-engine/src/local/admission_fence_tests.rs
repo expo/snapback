@@ -263,13 +263,22 @@ fn assert_guard_observed_at_commit(site: AdmissionEffectSite, observed: &GuardCo
 }
 
 fn durable_database_image(snapback: &LocalSnapback) -> Vec<u8> {
-    let mut image = tempfile::tempfile().expect("temporary database image");
+    // Linux SQLite cannot reopen an anonymous tempfile through
+    // `/proc/self/fd`; production backup members are named, owner-retained
+    // staging files, so use the same descriptor shape here.
+    let mut image = tempfile::NamedTempFile::new().expect("temporary database image");
     snapback
-        .backup_database_image_into(&image)
+        .backup_database_image_into(image.as_file())
         .expect("capture complete database image");
-    image.seek(SeekFrom::Start(0)).expect("rewind image");
+    image
+        .as_file_mut()
+        .seek(SeekFrom::Start(0))
+        .expect("rewind image");
     let mut bytes = Vec::new();
-    image.read_to_end(&mut bytes).expect("read database image");
+    image
+        .as_file_mut()
+        .read_to_end(&mut bytes)
+        .expect("read database image");
     bytes
 }
 
