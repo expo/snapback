@@ -426,19 +426,6 @@ impl AuthFixture<'_> {
         self.database().watch_management_facts_for_test(watch_id)
     }
 
-    pub fn seed_renewable_watch_for_management_test(
-        &mut self,
-        watch_id: &str,
-        effective_user_id: &str,
-        now_ms: u64,
-    ) -> SnapbackResult<snapback_kernel::storage::watches::WatchRecord> {
-        self.database().seed_renewable_watch_for_management_test(
-            watch_id,
-            effective_user_id,
-            now_ms,
-        )
-    }
-
     pub fn activate_catalog(
         &mut self,
         keyring: &snapback_auth::auth::keyring::AuthKeyringStore,

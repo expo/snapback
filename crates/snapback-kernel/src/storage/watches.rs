@@ -1154,7 +1154,7 @@ impl LocalDatabase {
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn seed_renewable_watch_for_management_test(
         &mut self,
         watch_id: &str,

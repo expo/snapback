@@ -7963,15 +7963,19 @@ async fn approve_agent_pairing_request(
 }
 
 async fn mint_agent_token(router: &SnapbackApp, agent_credential: &str, target: Value) -> Value {
+    let mut body = Map::from_iter([(
+        "credential".to_owned(),
+        Value::String(agent_credential.to_owned()),
+    )]);
+    for field in ["grantId", "pairingRequestId"] {
+        if let Some(value) = target.get(field) {
+            body.insert(field.to_owned(), value.clone());
+        }
+    }
     let mut request = auth_http_request(
         "POST",
         "/auth/agents/token",
-        serde_json::to_vec(&json!({
-            "credential": agent_credential,
-            "grantId": target.get("grantId"),
-            "pairingRequestId": target.get("pairingRequestId"),
-        }))
-        .unwrap(),
+        serde_json::to_vec(&body).unwrap(),
         true,
         None,
         None,
@@ -41514,6 +41518,14 @@ async fn watch_management_race_fixture(
     site: WatchManagementRaceSite,
 ) -> WatchManagementRaceFixture {
     let state = sessions_activation_server_fixture_with_integrations_async().await;
+    let router = app(state.clone());
+    with_snapback(&state.snapback, |snapback| {
+        snapback
+            .remainder_auth_fixture()
+            .reconcile_auth_scope_bases(&activation_functions('2', false))
+    })
+    .await
+    .expect("reconcile watch-management production scope bases");
     let credential =
         mint_test_credential(&state, &format!("watch-management-{site:?}@example.test")).await;
     let bearer = credential["token"]
@@ -41524,69 +41536,87 @@ async fn watch_management_race_fixture(
         .as_str()
         .expect("watch management session id")
         .to_owned();
-    let principal_id = credential["session"]["userId"]
+    let (watch_bearer, owner_kind, authority_mode) = if site == WatchManagementRaceSite::Renew {
+        let registered = router
+            .clone()
+            .oneshot(agent_registration_http_request(json!({
+                "class": "integration",
+                "displayName": "Watch management race integration",
+                "origin": "https://watch-management-race.example.test",
+                "redirectUris": ["https://watch-management-race.example.test/callback"]
+            })))
+            .await
+            .expect("register watch-management integration through the public route");
+        let registered_status = registered.status();
+        let registered = response_json(registered).await;
+        assert_eq!(registered_status, StatusCode::OK, "{registered}");
+        let integration_credential = registered["credential"]
+            .as_str()
+            .expect("watch-management integration credential");
+        let request_id = submit_agent_pairing_request(
+            &router,
+            &bearer,
+            integration_credential,
+            json!([{ "tier": "query" }]),
+        )
+        .await;
+        let grant = approve_agent_pairing_request(&router, &bearer, &request_id, json!({})).await;
+        let grant_id = grant["grantId"]
+            .as_str()
+            .expect("watch-management integration grant id")
+            .to_owned();
+        let token = mint_agent_token(
+            &router,
+            integration_credential,
+            json!({ "grantId": grant_id }),
+        )
+        .await;
+        (
+            token["token"]
+                .as_str()
+                .expect("watch-management scoped token")
+                .to_owned(),
+            "integration",
+            "capturedGrant",
+        )
+    } else {
+        (bearer.clone(), "user", "revalidatePrincipal")
+    };
+    let created = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/watches",
+            serde_json::to_vec(&json!({
+                "ownerKind": owner_kind,
+                "authorityMode": authority_mode,
+                "query": { "function": "liveItems", "args": {} },
+                "predicate": { "path": "/rows", "op": "exists" },
+                "reaction": { "kind": "function", "function": "listItems", "args": {} }
+            }))
+            .expect("serialize watch-management create request"),
+            &watch_bearer,
+        ))
+        .await
+        .expect("create watch-management watch through the public route");
+    let created_status = created.status();
+    let created = response_json(created).await;
+    assert_eq!(created_status, StatusCode::CREATED, "{created}");
+    let watch_id = created["id"]
         .as_str()
-        .expect("watch management principal id")
+        .expect("production watch id")
         .to_owned();
-    let watch_id = crate::ids::mint_time_ordered(crate::ids::Kind::Watch);
-    let seed_watch_id = watch_id.clone();
-    let seed_principal_id = principal_id.clone();
-    let seed_session_id = session_id.clone();
-    with_snapback(&state.snapback, move |snapback| {
-        let mut db = snapback.remainder_auth_fixture();
-        if site == WatchManagementRaceSite::Renew {
-            db.seed_renewable_watch_for_management_test(
-                &seed_watch_id,
-                &seed_principal_id,
-                super::now_millis(),
-            )?;
-        } else {
-            let now_ms = super::now_millis();
-            db.create_watch(crate::storage::watches::CreateWatchRecord {
-                id: seed_watch_id.clone(),
-                owner_kind: crate::watches::WatchOwnerKind::User,
-                owner_principal_id: seed_principal_id.clone(),
-                owner_authority_instance_id: seed_session_id,
-                authority_mode: crate::watches::WatchAuthorityMode::RevalidatePrincipal,
-                anchor_grant_id: None,
-                installation_grant_id: None,
-                anchor_effective_user_id: None,
-                anchor_scopes: Vec::new(),
-                anchor_expires_at_ms: 0,
-                query_function_id: "watch-management-race-query".to_owned(),
-                query_function_name: "liveItems".to_owned(),
-                query_basis: 1,
-                query_args_json: "{}".to_owned(),
-                query_args_digest: "watch-management-race-query-args".to_owned(),
-                read_dependencies: Vec::new(),
-                predicate_json: "{\"path\":\"/rows\",\"op\":\"exists\"}".to_owned(),
-                reaction_kind: crate::watches::WatchReactionKind::Function,
-                reaction_function_id: "watch-management-race-reaction".to_owned(),
-                reaction_function_name: "listItems".to_owned(),
-                reaction_function_kind: crate::watches::WatchFunctionKind::Action,
-                reaction_basis: 1,
-                reaction_args_json: "{}".to_owned(),
-                reaction_args_digest: "watch-management-race-reaction-args".to_owned(),
-                webhook_url: None,
-                webhook_secret_ref: None,
-                daily_firing_budget: crate::watches::DEFAULT_DAILY_FIRING_BUDGET,
-                debounce_ms: crate::watches::DEFAULT_DEBOUNCE_MS,
-                initial_predicate_state: false,
-                now_ms,
-            })?;
-            if site == WatchManagementRaceSite::Resume {
-                db.transition_watch(
-                    &seed_watch_id,
-                    &seed_principal_id,
-                    crate::watches::WatchStatus::Suspended,
-                    now_ms + 1,
-                )?;
-            }
-        }
-        Ok::<_, SnapbackError>(())
-    })
-    .await
-    .expect("seed watch management race fixture");
+    if site == WatchManagementRaceSite::Resume {
+        let suspended = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                &format!("/watches/{watch_id}/suspend"),
+                Vec::new(),
+                &bearer,
+            ))
+            .await
+            .expect("suspend watch through the public route");
+        assert_eq!(suspended.status(), StatusCode::OK);
+    }
 
     let uri = match site {
         WatchManagementRaceSite::Delete => format!("/watches/{watch_id}"),
@@ -41604,7 +41634,6 @@ async fn watch_management_race_fixture(
     if site == WatchManagementRaceSite::Delete {
         *request.method_mut() = axum::http::Method::DELETE;
     }
-    let router = app(state.clone());
     WatchManagementRaceFixture {
         state,
         router,
