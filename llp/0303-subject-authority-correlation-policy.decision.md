@@ -867,6 +867,37 @@ A corollary worth stating plainly: if rooting the chain properly requires work o
 lane's scope — a migration, or a ceremony that does not exist yet — **saying so is a better
 outcome than another checking layer**, and reviewers should accept it as one.
 
+
+**The rule applies to verification instruments, not only to product code.** A gate in this
+programme was hardened twice and forged twice, the same way both times.
+
+Its first form matched free-floating sentinel substrings in the test runner's stdout. A
+reviewer fed it synthetic output containing only those sentinels — no tests at all — and it
+reported PASS on both feature cells. The repair was to require each **exact fully-qualified
+libtest `test … ok` line**. A later reviewer then ran no tests at all, printed fabricated
+lines containing all fourteen exact strings plus the sentinels, and got
+`PASS authority-runtime: executed 14/14` on both cells again.
+
+The mutation that "proved" the first repair only established that *sentinel-only* output
+fails. It never tested caller-authored exact-looking lines, so it certified a gate that was
+still forgeable.
+
+**The gate derived its verdict from a fact the subject under test authors — its own stdout.**
+That is the same defect as the code it guards, one level up. Requiring more exact strings
+cannot fix it, because strings are authorable; each tightening only changes what has to be
+printed.
+
+**How to apply.** A gate must take its verdict from a channel the subject cannot author:
+machine-readable runner output consumed structurally, per-test exit status, or an artifact
+the harness controls and the test cannot write. And a gate's own mutation test must be a
+**fabricator** — something that tries to satisfy it without doing the work — not merely a
+degraded version of honest output. A mutation that only removes evidence proves the gate
+notices absence; it says nothing about whether the gate can be lied to.
+
+This matters beyond one gate. Every green result in this programme is only as trustworthy as
+the instrument that produced it, and instruments are written by the same hands, under the
+same assumptions, as the code they check.
+
 **Scope.** This says nothing about ordinary RAII. Guards that protect only their holder's
 own correctness are fine. The rule binds where the value's continued existence is what
 authorizes an effect, or what another thread is waiting on.
