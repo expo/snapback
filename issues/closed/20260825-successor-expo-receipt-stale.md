@@ -1,6 +1,6 @@
 # Supervised Expo web admits a predecessor binding after a same-owner schema successor
 
-**Filed:** 2026-08-25
+**Filed:** 2026-08-25 · **Resolved:** 2026-08-26 (landed, not published)
 **Revised:** 2026-08-26 (r4, round-3 dual review: root cause located from
 source by both reviewer families; unblocked from the P19 probe)
 **Revised:** 2026-08-26 (r3 source audit: retitled from "Expo extra keeps the
@@ -97,3 +97,48 @@ functions). Do not weaken mismatch against a foreign backend. Do not bless
 `pkill` or owner restart as the paved recovery. Do not rewrite the
 `expo.extra` receipt. Do not build a supervisor→browser push plane — there is
 none, and the earlier freeze/drain/ack design wrongly assumed one.
+
+## Resolution — 2026-08-26
+
+Both halves of LLP 0310.000 Track A landed. Neither is published; the Clique run
+measured published 0.1.27 and this reaches agents on the next publication.
+
+**I2 — the client retries (`d10791c03`, `04fe273ad`).**
+`SnapbackExpoProvider` (`packages/snapback-expo/provider.mjs`) no longer treats a
+`supervised-dev` identity mismatch at boot admission as terminal. It re-runs the
+bootstrap exchange with bounded attempts and backoff, re-running the full
+`admitAppBindingV1` predicate each time and gating on the resolved candidate's
+`source` rather than on the thrown error, and surfaces a typed diagnostic when
+the bound is exhausted. The bound is derived from the activation request budget
+(two fallible 30 s steps) rather than a round number of attempts, and the
+retrying boot state carries `horizonMs`. LLP 0302 §3's standing-gate mismatch
+stays terminal; a foreign backend, a `declared-dev` binding, hosted, and release
+candidates all stay terminal — the retry does not leak outside `supervised-dev`.
+
+**I1 — the window is bounded (`ee5365c7e`).** Once `rotateBindingAfterLoad`
+publishes the successor binding, the supervisor enqueues `reload-metro` on the
+shared control dispatcher, so the live arm re-imports the successor `app` and
+re-exchanges promptly instead of waiting for a change that never comes. The verb
+now carries `reason` (`successor-binding` vs `operator-control`), the successor
+`descriptorIdentity`, and the current `backendPid`. A `SNAPBACK_DEV_CONTROL_STOPPING`
+refusal is swallowed — a stopping owner is not a fault — and the rotation can
+never turn a correctly published binding into a rejected promise.
+
+This **narrows** the window; it does not close it. LLP 0310.000's open obligation
+W2 stands.
+
+**The ordering account is now observed, not inferred.** The A0 probe
+(`tests/probes/successor-binding-rotation-20260826/`) ran a real supervised
+successor with the whole `--json` stream retained and sampled *both* sides of the
+`admitAppBindingV1` predicate every 10 ms. It caught the generated graph naming
+the successor while the delivered binding still named the predecessor: **the
+delivered binding is the stale operand**, which this filing and LLP 0310 had both
+held open as inference.
+
+**Coverage caveat, stated rather than glossed.** The live-arm test (A1/A3) is
+written — it holds one mounted provider arm across schema *and* functions
+successors, injecting a stale predecessor exchange per successor — but it sits
+after a case in `expo-dev-loop.test.mjs` that fails on a loaded machine
+(`issues/20260826-expo-dev-loop-carrier-startup-timeout-load-sensitive.md`), so
+it did not execute to completion here. The scoping half of A3 does run, in
+`packages/snapback-expo/provider.test.mjs`.
