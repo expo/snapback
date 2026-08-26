@@ -1059,6 +1059,43 @@ pub fn setup_callback_authority_attack() -> Result<CallbackAuthorityAttackFixtur
     })
 }
 
+/// Production-feature pending-effect catalog exposed through the raw serving
+/// owner. The attack source owns every transition composition; setup only
+/// provisions the declared API and returns the public bridge plus inert input.
+pub struct PendingEffectOwnerBridgeAttackFixture {
+    _directory: tempfile::TempDir,
+    pub serving: snapback_kernel::storage::ServingDatabase,
+    pub request: CreatePendingEffect,
+}
+
+pub fn setup_pending_effect_owner_bridge_attack()
+-> Result<PendingEffectOwnerBridgeAttackFixture, String> {
+    let directory = tempfile::tempdir().map_err(|error| error.to_string())?;
+    let path = directory.path().join("pending-effect-owner.sqlite3");
+    provision_sessions(&path)?;
+    let database =
+        LocalDatabase::open(&path).map_err(|error| format!("open pending catalog: {error:?}"))?;
+    let serving = snapback_kernel::storage::ServingDatabase::adopt(database)
+        .map_err(|error| format!("adopt pending catalog: {error:?}"))?;
+    let mut request = pending_request(
+        PendingEffectAuthority::Anonymous,
+        ArtifactGeneration {
+            schema_version: "snapback.v1".to_owned(),
+            app_id: "landed-row-recheck".to_owned(),
+            schema_hash: format!("{}{}", SCHEMA_V1_PREFIX, "a".repeat(64)),
+            bundle_hash: format!("{}{}", FUNCTION_V1_PREFIX, "b".repeat(64)),
+            inputs_hash: format!("{}{}", INPUTS_V1_PREFIX, "a".repeat(64)),
+        },
+        NOW,
+    );
+    request.approver_principal_id = Some("human-a".to_owned());
+    Ok(PendingEffectOwnerBridgeAttackFixture {
+        _directory: directory,
+        serving,
+        request,
+    })
+}
+
 pub fn integration_facts() -> IntegrationRegistrationFacts {
     IntegrationRegistrationFacts {
         origin: Some("https://attacker.example".to_owned()),

@@ -150,5 +150,25 @@ name = "f126-fork"
 path = "src/attacks/f126_fork.rs"
 
 [[bin]]
+name = "f318"
+path = "src/attacks/f318.rs"
+
+[[bin]]
+name = "f314"
+path = "src/attacks/f314.rs"
+
+[[bin]]
+name = "f315"
+path = "src/attacks/f315.rs"
+
+[[bin]]
+name = "f316"
+path = "src/attacks/f316.rs"
+
+[[bin]]
+name = "f317"
+path = "src/attacks/f317.rs"
+
+[[bin]]
 name = "negative-routes"
 path = "src/bin/negative_routes.rs"
