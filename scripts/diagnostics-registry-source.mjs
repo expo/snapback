@@ -1309,7 +1309,7 @@ function isExplicitDiagnosticCodePosition(source, offset) {
     || /\b(?:code|diagnosticCode|diagnostic_code|errorCode|error_code)\s*:\s*["'`]$/u.test(before)
     || /\.code\s*=\s*["'`]$/u.test(before)
     || /\b(?:kitError|requestDiagnostic)\s*\(\s*\d{3}\s*,\s*["'`]$/u.test(before)
-    || /\b(?:contractDiagnostic|diagnostic|bindingFailure|diagnosticError|codedError|verifyError|codegenError|conformanceDiagnostic|graph_serving_error|__snapbackFail|__snapbackFamiliarFail|snapbackError)\s*\(\s*["'`]$/u.test(before)
+    || /\b(?:contractDiagnostic|diagnostic|bindingFailure|diagnosticError|codedError|verifyError|codegenError|conformanceDiagnostic|warn|graph_serving_error|__snapbackFail|__snapbackFamiliarFail|snapbackError)\s*\(\s*["'`]$/u.test(before)
     || /\b(?:SnapbackError|Diagnostic)::(?:error|warning|info|new)\s*\(\s*["'`]$/u.test(before)
   );
 }
@@ -2140,7 +2140,7 @@ function isExplicitDiagnosticIdentifierPosition(
     || /\bnew\s+(?:Snapback)?Error\s*\(\s*(?:&\s*)?$/u.test(before)
     || /\b(?:kitError|requestDiagnostic)\s*\(\s*\d{3}\s*,\s*(?:&\s*)?$/u.test(before)
     || /\b[A-Za-z_][A-Za-z0-9_]*_error\s*\(\s*(?:&\s*)?$/u.test(before)
-    || /\b(?:contractDiagnostic|diagnostic|bindingFailure|diagnosticError|codedError|verifyError|codegenError|conformanceDiagnostic|fail|graph_serving_error|__snapbackFail|__snapbackFamiliarFail|snapbackError)\s*\(\s*(?:&\s*)?$/u.test(before)
+    || /\b(?:contractDiagnostic|diagnostic|bindingFailure|diagnosticError|codedError|verifyError|codegenError|conformanceDiagnostic|fail|warn|graph_serving_error|__snapbackFail|__snapbackFamiliarFail|snapbackError)\s*\(\s*(?:&\s*)?$/u.test(before)
     || forwardedCall
     || /\b(?:SnapbackError|Diagnostic)::(?:error|warning|info|new)\s*\(\s*(?:&\s*)?$/u.test(before)
     || /\b(?:e?println)!\s*\(\s*(?:&\s*)?$/su.test(before)

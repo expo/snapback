@@ -1198,6 +1198,26 @@ test('Rust identifier flow recognizes generic error helpers and interpolated bai
   );
 });
 
+test('JavaScript identifier flow recognizes warning callback sinks', () => {
+  const fixture = [
+    "const WARNING_CODE = 'SNAPBACK_FIXTURE_WARNING_SINK';",
+    "warn(WARNING_CODE, 'fixture', 'warning');",
+  ].join('\n');
+
+  assert.deepEqual(
+    diagnosticSourceSites(fixture, { javascript: true })
+      .map(({ match, kind }) => ({
+        code: match[0],
+        line: fixture.slice(0, match.index).split('\n').length,
+        kind,
+      })),
+    [
+      { code: 'SNAPBACK_FIXTURE_WARNING_SINK', line: 1, kind: 'declaration' },
+      { code: 'SNAPBACK_FIXTURE_WARNING_SINK', line: 2, kind: 'emission' },
+    ],
+  );
+});
+
 test('identifier flow follows unambiguous whole-string constants across files', () => {
   const fixture = [
     'use crate::contract::WRITER_COVERAGE_GAP_CODE;',
