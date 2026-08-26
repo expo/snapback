@@ -4219,3 +4219,38 @@ mod tests {
         );
     }
 }
+
+#[cfg(any(test, feature = "test-support"))]
+impl RetainedEvaluationState {
+    pub(crate) fn observation_for_test(&self) -> Value {
+        json!({
+            "byNode": self.0.by_node.iter().map(|(node_id, rows)| json!({
+                "nodeId": node_id,
+                "rows": rows.iter().map(|instance| json!({
+                    "key": instance.key,
+                    "rootKey": instance.root_key,
+                    "row": instance.row,
+                })).collect::<Vec<_>>(),
+            })).collect::<Vec<_>>(),
+            "hasMore": self.0.has_more.iter().map(|((node_id, scope), has_more)| json!({
+                "nodeId": node_id,
+                "scope": scope,
+                "value": has_more,
+            })).collect::<Vec<_>>(),
+            "continuations": self.0.continuations.iter().map(|((node_id, scope), continuation)| json!({
+                "nodeId": node_id,
+                "scope": scope,
+                "value": continuation,
+            })).collect::<Vec<_>>(),
+        })
+    }
+}
+
+#[cfg(any(test, feature = "test-support"))]
+impl GraphEvaluationOutputV1 {
+    pub(crate) fn retained_state_observation_for_test(&self) -> Option<Value> {
+        self.retained_state
+            .as_ref()
+            .map(RetainedEvaluationState::observation_for_test)
+    }
+}

@@ -13797,6 +13797,7 @@ impl LocalSnapback {
             "evaluationCut": graph.evaluation.evaluation_cut,
             "orderedRootIds": graph.evaluation.evaluation.ordered_root_ids,
             "orderedRootKeys": graph.evaluation.evaluation.ordered_root_keys,
+            "retainedState": graph.evaluation.evaluation.retained_state_observation_for_test(),
             "resultBytes": graph.evaluation.evaluation.result_bytes,
             "label": graph.evaluation.evaluation.label,
             "nodeCompleteness": graph.evaluation.evaluation.node_completeness,
@@ -13804,7 +13805,6 @@ impl LocalSnapback {
             "deltaDelivery": graph.delivery.last_delta_delivery,
         }))
     }
-
     #[cfg(any(test, feature = "test-support"))]
     pub fn corrupt_graph_delta_retained_result_for_test(&mut self, subscription_id: &str) -> bool {
         let Some(graph) = self

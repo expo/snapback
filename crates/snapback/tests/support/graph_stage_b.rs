@@ -42,12 +42,13 @@ pub struct GraphReplay {
     pub case: Value,
     pub plan: GraphQueryPlanV1,
     pub call: Value,
+    pub auth: AuthInput,
     pub before: Value,
     pub after: Value,
     pub frame: Value,
     pub disposition: Value,
     pub before_rows: Vec<Value>,
-    pub after_rows: Vec<Value>,
+    pub reference_read_rows: BTreeMap<String, Vec<Value>>,
     pub change: Option<ChangedRow>,
     pub delivery_before: (bool, bool),
     pub delivery_after: (bool, bool),
@@ -67,14 +68,6 @@ fn load_json(relative: &str) -> Value {
 
 pub fn graph_corpus() -> Value {
     load_json(CORPUS_FILE)
-}
-
-pub fn corpus_table_rows(corpus: &Value, table: &str) -> Vec<Value> {
-    corpus_seed_tables(corpus)[table]
-        .iter()
-        .cloned()
-        .map(Value::Object)
-        .collect()
 }
 
 fn corpus_seed_tables(corpus: &Value) -> BTreeMap<String, Vec<Map<String, Value>>> {
@@ -664,6 +657,7 @@ fn execute_commit_case(corpus: &Value, case: &Value, exec_disabled: bool) -> Gra
         "graph Stage-B manifest diagnostics: {diagnostics:?}",
     );
     let authority = corpus_authority(corpus, corpus_invocation_principal(&call));
+    let reference_auth = authority.auth.clone();
     snapback.install_graph_serving_authority_context_for_test(
         query,
         GraphServingAuthorityContextV1 {
@@ -738,6 +732,42 @@ fn execute_commit_case(corpus: &Value, case: &Value, exec_disabled: bool) -> Gra
         .expect("graph successor delivery state");
     assert_eq!(after["deltaDelivery"]["lane"], lane);
     let change = change_descriptor(case, &before_rows, &after_rows);
+    let reference_read_tables = plan
+        .nodes
+        .iter()
+        .filter_map(|node| match node {
+            GraphNodeV1::EqualityToOne {
+                parent_node_id,
+                table,
+                join_on,
+                ..
+            } if join_on
+                .iter()
+                .any(|join| change.changed_fields.contains(&join.root_field)) =>
+            {
+                let parent_table = plan
+                    .nodes
+                    .iter()
+                    .find(|node| node.node_id() == parent_node_id)
+                    .and_then(|parent| match parent {
+                        GraphNodeV1::RootWindow { table, .. }
+                        | GraphNodeV1::EqualityToOne { table, .. }
+                        | GraphNodeV1::BoundedToMany { table, .. }
+                        | GraphNodeV1::PrincipalBound { table, .. } => Some(table),
+                        _ => None,
+                    });
+                (parent_table == Some(&change.table)).then_some(table.clone())
+            }
+            _ => None,
+        })
+        .collect::<BTreeSet<_>>();
+    let reference_read_rows = reference_read_tables
+        .into_iter()
+        .map(|table| {
+            let rows = all_rows(&snapback, &table);
+            (table, rows)
+        })
+        .collect();
     let disposition = json!({
         "id":case["id"],
         "query":query,
@@ -752,12 +782,13 @@ fn execute_commit_case(corpus: &Value, case: &Value, exec_disabled: bool) -> Gra
         case: case.clone(),
         plan,
         call,
+        auth: reference_auth,
         before,
         after,
         frame,
         disposition,
         before_rows,
-        after_rows,
+        reference_read_rows,
         change: Some(change),
         delivery_before,
         delivery_after,
@@ -778,6 +809,7 @@ fn execute_window_change(corpus: &Value, case: &Value) -> GraphReplay {
     let (_, carrier, _) = carriers.iter().find(|(name, _, _)| name == query).unwrap();
     let call = invocation(corpus, carrier).clone();
     let authority = corpus_authority(corpus, corpus_invocation_principal(&call));
+    let reference_auth = authority.auth.clone();
     snapback.install_graph_serving_authority_context_for_test(
         query,
         GraphServingAuthorityContextV1 {
@@ -844,6 +876,7 @@ fn execute_window_change(corpus: &Value, case: &Value) -> GraphReplay {
         case: case.clone(),
         plan: carrier.normalized_plan.clone(),
         call,
+        auth: reference_auth,
         before,
         after,
         frame: json!({"kind":"subscription_snapshot","rows":snapshot.rows}),
@@ -855,7 +888,7 @@ fn execute_window_change(corpus: &Value, case: &Value) -> GraphReplay {
             "dispositionBasis":"subscription supersession creates a new graph instance",
         }),
         before_rows: Vec::new(),
-        after_rows: Vec::new(),
+        reference_read_rows: BTreeMap::new(),
         change: None,
         delivery_before,
         delivery_after,
