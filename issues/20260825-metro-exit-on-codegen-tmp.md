@@ -26,3 +26,8 @@ publish the generated graph atomically so the watcher never opens a path
 that then vanishes. `SNAPBACK_EXPO_METRO_EXITED` caused by generate tmp is
 a product bug. Distinct from the already-closed `CI=1` watcher issue
 (LLP 0307 T1).
+
+Until that lands: one sentence on the familiar / expo-chat loop that
+generate under `--expo` can kill Metro on a watched tmp path, and that
+restarting the same owner against existing sqlite is a fallback, not the
+paved successor step. Do not teach owner restart as success.
