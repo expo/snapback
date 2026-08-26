@@ -1,8 +1,8 @@
 {
   "schemaVersion": "snapback.security-boundary-attacks.v1",
   "rowCoverage": {
-    "unmappedAttackCount": 72,
-    "unmappedAttackIdsSha256": "d67351deb016c39f18e26720be287d584746e273aadce3a87dd68bec84f86b98",
+    "unmappedAttackCount": 74,
+    "unmappedAttackIdsSha256": "8325cf2439cd825532db7d12a1906134bee76f783ff2080bb1f7651999e300c7",
     "unmappedReason": "Pinned legacy debt from issues/20260826-authorization-denominator-and-seam-map.md; any new omission or mapping changes this digest and fails row-corpus inventory."
   },
   "attacks": [
@@ -1309,7 +1309,7 @@
       "historicalFailFirst": "The private effect-scope function did not exist before LLP 0313 Landing A."
     },
     {
-      "id": "raw-guarded-connection-accessor",
+      "id": "raw-protected-tx-connection-field",
       "mode": "kernel-unit-compile-fail",
       "source": "crates/snapback-kernel/src/storage/authority_transition/core/compile_fail/raw_connection_accessor.rs",
       "mount": "snapback-kernel",
@@ -1319,8 +1319,36 @@
           "test-support"
         ]
       ],
-      "expectedCode": "E0599",
-      "historicalFailFirst": "GuardedConnection did not exist before LLP 0313 Landing A."
+      "expectedCode": "E0616",
+      "historicalFailFirst": "Round-2 review demonstrated that the field was writer-readable before the evidence-sibling privacy boundary."
+    },
+    {
+      "id": "writer-replace-authorizer",
+      "mode": "kernel-unit-compile-fail",
+      "source": "crates/snapback-kernel/src/storage/authority_transition/core/compile_fail/writer_replace_authorizer.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        [],
+        [
+          "test-support"
+        ]
+      ],
+      "expectedCode": "E0616",
+      "historicalFailFirst": "Round-2 review demonstrated safe writer-side Connection::authorizer replacement through the inherited-private field."
+    },
+    {
+      "id": "writer-mutate-authorizer-state",
+      "mode": "kernel-unit-compile-fail",
+      "source": "crates/snapback-kernel/src/storage/authority_transition/core/compile_fail/writer_mutate_authorizer_state.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        [],
+        [
+          "test-support"
+        ]
+      ],
+      "expectedCode": "E0616",
+      "historicalFailFirst": "Round-2 review demonstrated safe writer-side generation corruption through the inherited-private field."
     }
   ]
 }

@@ -6,7 +6,10 @@
 **Author:** codex `gpt-5.6-sol` (read-only design), commissioned by Claude (Opus 5)
 orchestrating LLP 0283 F-1, for Charlie Cheever
 **Date:** 2026-08-26
-**Revised:** 2026-08-26 (b — Landing A design replacement: connection-owned
+**Revised:** 2026-08-26 (c — Landing A round-2 hardening: evidence-sibling raw
+custody, one callback composing WriterAuthorityV1, hostile-schema validation,
+effect-time `OR ABORT`/row-count enforcement, row-derived successor facts, and
+exact-name runtime/mutation gates); 2026-08-26 (b — Landing A design replacement: connection-owned
 enforcement, generative scoped borrow, private derivation, fixed SQL, and an
 executing runtime gate supersede the rejected retainable permit design); 2026-08-26
 (a — initial design)
@@ -101,13 +104,24 @@ storage/authority_transition/core/mod.rs
     mod registry;
     mod writers;     // fixed SQL only
 
+storage/authority_transition/core/evidence/protected_tx.rs
+    // raw handle and composite-callback custody; sibling to writers
+
 storage/authority_transition/core/writers/*.rs
     pub(super) functions only
 ```
 
 **[INFERRED]** `GuardedConnection`, `ProtectedTx`, proof-verifier state, derived
-mutation state, the closed operation registry, and scope state use inherited
-visibility inside `core`. They are not `pub(crate)`.
+mutation state, the closed operation registry, and scope state are restricted
+to the private `core` hierarchy. They are not `pub(crate)`.
+
+**[INFERRED]** The raw fields of `GuardedConnection` and `ProtectedTx` live in
+`evidence::protected_tx`. Writer modules are siblings of `evidence`, not
+descendants of the field-defining module. A writer may name the opaque scoped
+types and invoke one registered exact operation, but Rust privacy refuses
+direct `Connection`, `Transaction`, or callback-state field access. Merely
+placing private fields in `core` is insufficient because `core::writers`
+inherits that privacy scope.
 
 **[INFERRED]** `ServingDatabase` remains public with private fields. `LocalDatabase` becomes `pub(crate)`.
 
@@ -135,10 +149,23 @@ durable origin, resource binding, statement-cache policy, and authorizer cell.
 The cell contains only one canonical `ScopePhase`; the generation moves inside
 that phase across `Idle`, `Active`, and `Committing`. It contains no copied
 origin, resource binding, database identity, lifecycle generation, or other
-proxy that is compared later. The owner installs the authorizer once while
-taking ownership. There is no reusable
+proxy that is compared later. The owner installs one composite authorizer while
+taking ownership. Its single callback state owns the transition phase and the
+existing `WriterAuthorityV1` policy; a denial by either limb denies the
+statement. Activation may replace a previous callback only with this
+composition, never with transition policy alone. There is no reusable
 `install(&self, connection)` and no raw `Connection` accessor, conversion, or
 dereference.
+
+**[INFERRED]** `from_initialized` treats durable schema as hostile input before
+installing the callback. It requires canonical case for the closed protected
+table registry, exact column shapes for the resource guard, credential, and
+session tables, no trigger whose source is a protected table, no attached
+database, and no pre-existing virtual or shadow table. SQLite identifiers are
+case-insensitive, so every runtime protected-name comparison is ASCII
+case-insensitive as well. Schema validation is not the only enforcement:
+effect-time rules independently close conflict replacement, trigger
+suppression, trigger-target writes, and FK cascades.
 
 **[INFERRED]** Scope opening is private to `core::evidence`. An exact ceremony
 accepts raw proof/selectors and ordinary payload only, begins `IMMEDIATE`, reads
@@ -170,9 +197,18 @@ registered fixed/parameterized SQL. The production surface contains no generic
 execute/prepare method and no transaction-control SQL.
 
 **[INFERRED]** `REPLACE` is not a protected operation. SQLite reports
-`REPLACE` as `INSERT`, so the authorizer cannot distinguish it. Replacement is
-therefore made unrepresentable by fixed writer SQL; duplicate keys must refuse
-with a constraint error and leave the predecessor row unchanged.
+`REPLACE` as `INSERT`, so the authorizer cannot distinguish it. The fixed writer
+therefore spells `INSERT OR ABORT`, which overrides a hostile schema-level
+`ON CONFLICT REPLACE`; duplicate keys must refuse with a constraint error and
+leave the predecessor row unchanged. The ceremony also requires exactly one
+affected row before commit, so `RAISE(IGNORE)`, `OR IGNORE`, and `DO NOTHING`
+cannot report a successful authority transition with no durable successor.
+
+**[INFERRED]** The password-session ceremony accepts no session identifier.
+Inside the effect transaction it selects canonical `user_id`, digest, and
+assurance generation from the verified credential row, derives the durable
+session key from those row facts, and passes the opaque derived effect to the
+exact writer. The lookup selector is never copied into successor state.
 
 **[INFERRED]** Anonymous access remains absence of credentials under a purpose
 policy derived from active configuration—not an authority value. Exact
@@ -338,8 +374,10 @@ contains LocalDatabase or an adoptable equivalent.
    `ProtectedTx` commit/deref, raw-connection-accessor, and writer scope-opening
    expressions fail at their attack spans; and
 2. an executing phase running the owning-crate runtime attacks under default
-   and additive `test-support` features. The runner requires one emitted
-   sentinel per attack; compiling without execution is a gate failure.
+   and additive `test-support` features. The runner requires both one emitted
+   sentinel and one libtest `ok` line for each exact fully-qualified test name;
+   compiling without execution, a renamed test, or fabricated sentinel-only
+   Cargo output is a gate failure.
 
 **[INFERRED]** Landing A runtime acceptance directly attempts and refuses:
 forgotten-scope/raw-COMMIT liveness, cross-connection authorization,
@@ -348,8 +386,15 @@ plus foreign-subject joining, stale copied generation, and unscoped protected
 write. The stale-generation case replays a generation-1 scoped borrow during a
 live generation-2 scope rather than corrupting the connection-owned state. It
 separately proves the durable resource guard is reread inside the
-effect transaction. Every protection is mutation-tested by defanging it and
-observing its matching attack fail.
+effect transaction. The executed matrix additionally covers statement-level
+`INSERT OR REPLACE`, schema-level `ON CONFLICT REPLACE`, `UPDATE OR REPLACE`,
+UPSERT `DO UPDATE`, `INSERT OR IGNORE`, `DO NOTHING`, protected-source triggers,
+FK cascades, canonical-case collisions, pre-activation virtual tables,
+WriterAuthorityV1 composition, direct writer-side authorizer/state access, and
+close/address reuse. Every protection is mutation-tested by defanging it and
+observing its matching exact attack fail; the checked mutation runner also
+requires widened writer fields to make the attacks compile and sentinel-only
+gate scoring to turn its harness regression red.
 
 **[INFERRED]** Each LLP 0291 family and inventory row additionally needs an alternate-route effect witness using another producer and consumer. Refused runtime cases assert protected rows unchanged; accepted cases assert exact durable columns and receipts.
 

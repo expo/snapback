@@ -400,6 +400,36 @@ impl WriterAuthorityV1 {
         }));
     }
 
+    /// Evaluate the existing application-writer policy as one limb of a
+    /// connection owner's composite SQLite callback. SQLite permits only one
+    /// authorizer per handle, so a later security substrate must compose this
+    /// policy rather than independently replacing it.
+    pub(super) fn authorize_context(&self, context: AuthContext<'_>) -> Authorization {
+        authorize(&self.state, context)
+    }
+
+    #[cfg(test)]
+    pub(super) fn arm_covered_table_for_authority_transition_test(
+        &self,
+        conn: &Connection,
+        table: &str,
+    ) -> SnapbackResult<()> {
+        enable_and_verify_defensive(conn)?;
+        let mut state = self.lock()?;
+        state.covered_tables.insert(table.to_owned());
+        state.manifest = Some(OperationCoverageManifestV1 {
+            schema_version: 1,
+            manifest_version: 1,
+            stream_id: "authority-transition-composition".to_owned(),
+            covered_lanes: Vec::new(),
+            writer_choke_points: Vec::new(),
+            coverage_digest: "0".repeat(64),
+        });
+        drop(state);
+        self.install_authorizer(conn);
+        Ok(())
+    }
+
     pub(super) fn set_schema(&self, schema: &SchemaManifest) -> SnapbackResult<()> {
         let mut state = self.lock()?;
         state.covered_tables = schema
@@ -733,7 +763,12 @@ fn authorize(state: &Arc<Mutex<WriterAuthorityState>>, context: AuthContext<'_>)
     let Ok(state) = state.lock() else {
         return Authorization::Deny;
     };
-    let protected = |table: &str| state.covered_tables.contains(table);
+    let protected = |table: &str| {
+        state
+            .covered_tables
+            .iter()
+            .any(|covered| covered.eq_ignore_ascii_case(table))
+    };
     let integrity_table = |table: &str| {
         table.eq_ignore_ascii_case("_snapback_changes")
             || table.eq_ignore_ascii_case("_snapback_version")
@@ -743,8 +778,9 @@ fn authorize(state: &Arc<Mutex<WriterAuthorityState>>, context: AuthContext<'_>)
             || table.eq_ignore_ascii_case("_snapback_operation_coverage_continuity_v1")
     };
     let system_table = |table: &str| {
-        table.starts_with("_snapback_")
-            || table.starts_with("_auth_")
+        let folded = table.to_ascii_lowercase();
+        folded.starts_with("_snapback_")
+            || folded.starts_with("_auth_")
             || table.eq_ignore_ascii_case("sqlite_sequence")
     };
     let schema_alias = |table: &str| {
@@ -920,7 +956,7 @@ fn enable_and_verify_defensive(conn: &Connection) -> SnapbackResult<()> {
 }
 
 fn internal_schema_maintenance_target(action: &AuthAction<'_>) -> bool {
-    let owned = |name: &str| name.starts_with("_snapback_");
+    let owned = |name: &str| name.to_ascii_lowercase().starts_with("_snapback_");
     match action {
         AuthAction::CreateTable { table_name } => owned(table_name),
         AuthAction::CreateIndex {
