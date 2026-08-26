@@ -113,7 +113,7 @@ mod tests {
             process_id: 41,
         };
 
-        assert_ne!(first, reused_pid_in_a_descendant);
+        assert!(first != reused_pid_in_a_descendant);
     }
 
     #[cfg(unix)]

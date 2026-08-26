@@ -28,8 +28,9 @@ const ACTIVATION_READY: u8 = 2;
 const ACTIVATION_RETIRED: u8 = 3;
 
 pub(super) struct AuthorizationParticipantActivation {
-    // @ref LLP 0303#t-fork-is-in-scope — consumers compare through the
-    // current-process-aware identity instead of exposing this allocation.
+    // @ref LLP 0303#t-allocation-identity-fails-open-across-fork-and-the-ruling-belongs-here
+    // — consumers compare through the current-process-aware identity instead
+    // of exposing this allocation.
     identity: ProcessBoundIdentity,
     state: AtomicU8,
     projection_available: AtomicBool,
@@ -369,8 +370,9 @@ struct RoomAuthorityRegistryState {
 }
 
 pub(super) struct RoomAuthorityRegistry {
-    // @ref LLP 0303#t-fork-is-in-scope — database participant installation
-    // refuses registry handles inherited from a creator process.
+    // @ref LLP 0303#t-allocation-identity-fails-open-across-fork-and-the-ruling-belongs-here
+    // — database participant installation refuses registry handles inherited
+    // from a creator process.
     identity: ProcessBoundIdentity,
     binding: DatabaseBinding,
     generation: AtomicU64,

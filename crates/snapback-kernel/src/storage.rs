@@ -288,8 +288,9 @@ pub struct AdmissionEffectGuardIdentityForTest {
 
 #[cfg(any(test, feature = "test-support"))]
 struct DurableCommitObservationStateForTest {
-    // @ref LLP 0303#t-fork-is-in-scope — even test-support owner cleanup must
-    // not mistake a parent's inherited allocation for a child-local owner.
+    // @ref LLP 0303#t-allocation-identity-fails-open-across-fork-and-the-ruling-belongs-here
+    // — even test-support owner cleanup must not mistake a parent's inherited
+    // allocation for a child-local owner.
     identity: ProcessBoundIdentity,
     matching_commits: std::sync::atomic::AtomicUsize,
     mismatched_commits: std::sync::atomic::AtomicUsize,
@@ -2608,8 +2609,9 @@ impl ServingDatabase {
                 "authorization participant belongs to another database",
             ));
         }
-        // @ref LLP 0303#t-fork-is-in-scope — registry and activation custody
-        // are exact current-process identities, not inherited Arc addresses.
+        // @ref LLP 0303#t-allocation-identity-fails-open-across-fork-and-the-ruling-belongs-here
+        // — registry and activation custody are exact current-process
+        // identities, not inherited Arc addresses.
         if !registry.binding_matches(&binding) || !participant.registry().is_same_instance(registry)
         {
             return Err(SnapbackError::error(
