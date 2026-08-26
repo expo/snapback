@@ -233,3 +233,64 @@ Overall, LLP 0314’s r3 corrections are sound: the manufacture/source-repair sp
 VERDICT 0314: READY
 VERDICT 0314.000: NOT READY
 VERDICT SET: NOT READY
+
+## Round 4 — author-authorized extension: scope-freeze punch-list delta round
+
+- Authorization: the author selected the extension option in reply to the
+  terminal report (2026-08-26). The plan carries a dated freeze declaration
+  (r4.1). Target: 0314.000 only; the converged research was context, with
+  contradictions admissible only if diff-created.
+- Revision under review: commit `368ab1a1f3063b18a2592331f3c84a0c1aef7c4c`
+  - 0314.000 sha256 `78bbd7e0b3cbc02c95df39e670335e5a0dec1912daa3790f9cedf0b72620e377`
+- Capsule: `git archive` export of that commit with `llp/reviews/0314-*`
+  removed; enumerated delta `r4-delta.diff` (`fb0bddda9..368ab1a1f`, 233
+  lines) at the capsule root. Runner confinement self-attested.
+- Materials: common brief sha256 `cd8eba0199591d49f89b0ea24fadde77f3e6bca8b871a77ccefd45e22722bbfa`;
+  this family's punch list only (cross-family blindness preserved).
+- Runtime: both reviews returned at the ~12-minute poll tick.
+- Punch list sha256 `d4ec57554a5bccf506f752f239382489a3f8dc82b1eeb3d6d749d206c8834ad0`.
+- Result: **NOT READY — 8/10 dispositions VERIFIED, 2 DISPOSITION ERRORS
+  (1c override channels incomplete; consumer inventory wrong — including
+  refutation of the orchestrator's own REFUTED disposition: the consumers
+  exist at `crates/snapback-cli/src/cli/guide_command.rs` and
+  `crates/snapback-cli/src/guide_mcp.rs`), plus 2 MATERIAL diff findings
+  (bare-sidecar integrity unsound under LLP 0284 §3.7; producer scope
+  conflicts with contributor assembly mode 3).** Orchestrator verified the
+  CLI-crate files exist and `guide_artifact.rs` is shared constants — the
+  round-4 punch-list REFUTED was the orchestrator's error, not codex's.
+
+### Verbatim review body (round 4)
+
+## Punch-list dispositions
+
+1. **DISPOSITION ERROR** — Phase 1 §1c still does not close all ways the compiled recipe can differ from the declared recipe. It omits at least `-C incremental` from the forbidden `RUSTFLAGS` set, Cargo configuration discovered through `.cargo/config{,.toml}`/Cargo home, and final-target overrides such as `cargo rustc -- -C …`. These can preserve `PROFILE=production` while changing the effective recipe, leaving the static Cargo.toml-derived stamp false. Require compiler-observed effective flags or exhaustively exclude these channels, with negative tests.
+
+2. **VERIFIED** — The 1a set is exactly `s01-r013`, `s01-r024`, `s01-r025`, and `s07-r004`. `s01-r005` remains ordinary release under 1b, matching `scripts/assemble-runtime-package:63`.
+
+3. **VERIFIED** — Phase 2 names all three assembly modes, omits the sidecar for contributor staging, requires stale `guide/` removal through the swap, and requires transition tests. A conflicting producer scope is reported below.
+
+4. **VERIFIED** — The Linux source-custody assertion has a named home: a second ordinary-release build and sibling receipt in `linux-runtime-package.yml`.
+
+5. **VERIFIED** — The producer owns a coded pack-time refusal for dirty package inputs and `HEAD`/binary-commit disagreement.
+
+6. **VERIFIED** — The claim is correctly narrowed to binary-side `gitDirty`; committed Guide changes still advance and restamp the commit identity.
+
+7. **VERIFIED** — Both runtime packages’ `.gitignore`, manifest-files assertions, and exact-ignore assertions are explicitly included.
+
+8. **VERIFIED** — LLP 0123’s seal-member amendment and Guide-drift coverage through package-seal reopening and `runtime-qualify --persist/--verify` are required on the same landing.
+
+9. **DISPOSITION ERROR** — The corrected HTTP ownership is accurate, but the consumer inventory is not. `guide_artifact.rs` contains shared producer/decoder constants and does not read through the loader. The actual native and MCP consumers do exist at `crates/snapback-cli/src/cli/guide_command.rs` and `crates/snapback-cli/src/guide_mcp.rs`. Correct the inventory to distinguish the shared artifact-contract module from the HTTP, reference, native-command, and MCP consumers.
+
+10. **VERIFIED** — Darwin is explicitly changed from bare source-topology resolution to the forced-package-root installed-custody form.
+
+## Diff findings
+
+- **MATERIAL — Bare-sidecar integrity is unsound.** Phase 2 allows a bare binary to accept a sidecar using only compiled `contentHash` and binary `gitCommit`. LLP 0284 §3.7 explicitly says that `contentHash` does not bind individual page, section-flat, or non-`contentHash` manifest records. An attacker can alter such a record, retain the valid content hash and revision, and have the bare loader accept bytes that are not build-matched. This contradicts the preserved one-build-matched-corpus property and the promised tamper tests.  
+  **Suggested correction:** bind a full deterministic artifact digest into the binary during the build, or otherwise bind every record through a compiled trust anchor, and require that binding for bare loads. Add a negative test that mutates an intentionally unbound record, not merely a core hash-domain record.
+
+- **MATERIAL — Producer scope conflicts with contributor assembly.** The producer bullet runs the clean-source/HEAD-gated producer in every non-`--native-artifact-staging` preparation, which includes `--source-test-staging`. The assembly-mode bullet says contributor staging uses its already-embedded bytes and omits the sidecar; current LLP 0041 and package tests also admit contributor dirty/debug identities. As written, the plan either generates and validates a discarded artifact and rejects valid contributor cases, or violates the producer rule.  
+  **Suggested correction:** run the pack-time producer and its clean-source gate only in public-package final assembly; source-test and native modes should merely ensure the swap removes any stale `guide/` member.
+
+No additional post-freeze obligations.
+
+VERDICT 0314.000: NOT READY

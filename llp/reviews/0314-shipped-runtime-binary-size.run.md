@@ -196,6 +196,64 @@ consumer naming, Darwin test) were folded in the same pass.
   labeled unreviewed. MATERIAL cross-family contradiction: none.
   Sustained asymmetry: none (families agreed every round).
 
+## Round 4 — author-authorized extension (scope-freeze punch-list delta)
+
+Authorized by the author 2026-08-26 (option (a) of the terminal
+report). Freeze declaration added (r4.1, commit `368ab1a1f`, plan
+sha256 `78bbd7e0…20e377`). Each family received the full plan, the
+r3→r4.1 diff (233 lines), and only its own round-3 punch list.
+Finding-classification tally at freeze: round-3 MATERIALs all
+new-on-new-content (fold defects); 3–4 persistent pre-existing minors;
+no bar-inflation identified. Both reviews back at ~12 minutes.
+
+- **grok: READY** — all 9 dispositions VERIFIED, no MATERIAL diff
+  defect, 4 non-blocking obligations (producer placement, OQ5 wording,
+  enforcement point, Phase 0 snapshot custody).
+- **codex: NOT READY** — 8/10 VERIFIED, 2 DISPOSITION ERRORS (1c
+  forbidden-channel list incomplete: `-C incremental`, ambient
+  `.cargo/config`/`CARGO_HOME` discovery, trailing `cargo rustc -- -C`
+  flags; consumer inventory wrong), 2 MATERIAL diff findings
+  (bare-sidecar loads authenticated by facts LLP 0284 §3.7 says do not
+  bind every record; producer scope textually conflicts with
+  contributor mode 3 — the same tension grok noted non-blockingly).
+- **Orchestrator disposition error on record:** the round-4 codex
+  punch list marked the `guide_mcp.rs`/`guide_command.rs` filenames
+  REFUTED. That refutation was wrong — both exist in
+  `crates/snapback-cli/src/` (verified); only the crate was
+  unqualified in codex's round-3 finding, and the orchestrator had
+  checked `crates/snapback-server/src/` alone.
+
+### Revision r5 (reviser: orchestrator, 2026-08-26) — corrections only, post-freeze
+
+All four codex items and all grok obligations folded as corrections:
+1c channel list completed; consumer inventory corrected (CLI-crate
+consumers named; `guide_artifact.rs` = shared contract); producer
+scoped to public-package final assembly only; bare-load integrity
+restored — the public binary compiles in the deterministic
+whole-artifact `artifactSha256` (guide walk retained for the hash
+pass; `gitDirty` reclassification withdrawn as a consequence; tamper
+tests must mutate an intentionally unbound record); 1d stale hedge
+removed; OQ5 wording restored; OQ6 records the enforcement-point
+obligation. No new normative closure beyond these corrections.
+
+## Terminal state — updated after the extension round (2026-08-26)
+
+- **LLP 0314 (research): CONVERGED dual-READY** (unchanged; sha256
+  `f7ace0dd…a15c04`).
+- **LLP 0314.000 (plan):** the authorized extension round is spent.
+  **grok: READY at r4.1** (`78bbd7e0…20e377`). **codex: NOT READY at
+  r4.1**; every codex item is folded in **r5, whose delta is
+  unreviewed**. No PRE-EXISTING MATERIAL concern from any family in
+  any round since r1; no cross-family MATERIAL contradiction (grok
+  independently flagged codex's producer-scope conflict as a
+  non-blocking restatement); no sustained asymmetry (grok was NOT
+  READY at r3, READY at r4.1).
+- Options for the author: (a2) authorize one further codex-side
+  punch-list round on the r4.1→r5 diff to seal dual convergence —
+  the open surface is exactly codex's four folded items; or (b)
+  accept the plan at r5 with grok's READY, codex's r4.1 dissent
+  recorded verbatim, and the r5 delta labeled unreviewed.
+
 ## Provenance note (post-push)
 
 The pre-push rebase onto newer `origin/main` renumbered this loop's

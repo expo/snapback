@@ -533,3 +533,129 @@ Do not leave “where a source release build exists” as the landing instructio
 - `VERDICT 0314: READY`
 - `VERDICT 0314.000: NOT READY` (MATERIAL findings 1 and 2, both IN-DELTA)
 - `VERDICT SET: NOT READY` (blocked by 0314.000 findings 1 and 2)
+
+## Round 4 — author-authorized extension: scope-freeze punch-list delta round
+
+- Authorization: the author selected the extension option in reply to the
+  terminal report (2026-08-26). The plan carries a dated freeze declaration
+  (r4.1). Target: 0314.000 only; the converged research was context, with
+  contradictions admissible only if diff-created.
+- Revision under review: commit `368ab1a1f3063b18a2592331f3c84a0c1aef7c4c`
+  - 0314.000 sha256 `78bbd7e0b3cbc02c95df39e670335e5a0dec1912daa3790f9cedf0b72620e377`
+- Capsule: `git archive` export of that commit with `llp/reviews/0314-*`
+  removed; enumerated delta `r4-delta.diff` (`fb0bddda9..368ab1a1f`, 233
+  lines) at the capsule root. Runner confinement self-attested.
+- Materials: common brief sha256 `cd8eba0199591d49f89b0ea24fadde77f3e6bca8b871a77ccefd45e22722bbfa`;
+  this family's punch list only (cross-family blindness preserved).
+- Runtime: both reviews returned at the ~12-minute poll tick.
+- Punch list sha256 `9b8189712da5bf0a447e08c8f822b6b2885e3b6c5a3f4465ebd277b8b558c8ee`.
+- Result: **READY — all 9 dispositions VERIFIED, no MATERIAL diff defect,
+  4 non-blocking obligations** (producer placement restated to mode 2; OQ5
+  wording restore; forbidden-channel enforcement point; Phase 0 snapshot
+  custody). Grok's non-blocking note 2 independently identified the same
+  producer/mode-3 tension codex reported as MATERIAL.
+- Capture note: stdout narration preserved verbatim below.
+
+### Runner narration (verbatim, round 4)
+
+I'll review the plan, delta, punch-list dispositions, and cited capsule sources using file-read tools only—no shell.The plan and delta are in hand. Next I’ll check the cited sources the punch-list dispositions depend on.The 1a/1b row claims look plausible; next I’ll confirm the remaining path-migration rows and the package, identity, and LLP citations.The producer vs. source-test tension needs a closer look against prepare-runtime flags, admin discovery, and the cited LLP sections.I’ll search the capsule for the cited symbols (`default_admin_dist`, seal members, `emit_embedded_guide`) without using the shell.
+
+### Verbatim review body (round 4)
+
+# Super-refine round 4 — Grok family punch-list delta review
+
+**Target:** `llp/0314.000-reduce-shipped-runtime-size.plan.md` (r4 fold + r4.1 freeze declaration)  
+**Materials:** full plan, `r4-delta.diff`, parent research `llp/0314-shipped-runtime-binary-size.research.md` (context only)  
+**Capsule checks:** path-migration rows `s01-r005` / `s01-r013` / `s01-r024` / `s01-r025` / `s07-r004`; `scripts/assemble-runtime-package`; `.github/workflows/linux-runtime-package.yml`; both `package.test.mjs` and `.gitignore` files; `crates/snapback-types/build_identity.rs`; `crates/snapback-server/{build.rs,src/guide.rs,src/admin.rs}` and Guide consumers; root `Cargo.toml`; LLPs 0010, 0041, 0061 §4a, 0123 package-seal landing, 0284 §3.7.
+
+Post-freeze rule applied: punch-list dispositions first; outside findings only as disposition errors or MATERIAL contradictions created by this diff. New normative closure is recorded as `OBLIGATION:`, not a READY veto.
+
+---
+
+## Punch-list dispositions
+
+### 1. (MATERIAL) `s01-r005` still in the 1a change list — **VERIFIED**
+
+Phase 1 §1a now restricts the intentional path-migration change set to `s01-r013`, `s01-r024`, `s01-r025`, `s07-r004`. `s01-r005` is named as **not** in that set; its consumer is `scripts/assemble-runtime-package:63`; it stays `verify-unchanged` on `--release`.
+
+Capsule: `s01-r005` is exactly `scripts/assemble-runtime-package:63` / `cargo build --release --bin snapback`. That script is still the contributor repair path (`prepare-runtime.mjs --source-test-staging --strict-clean-release`). The other four rows are the public-package / Linux-workflow pins. §1b independently keeps `assemble-runtime-package` on ordinary release and requires it to pass the release binary explicitly once packer defaults move.
+
+### 2. (MATERIAL) Linux lane split had no named CI home — **VERIFIED**
+
+§1a now names `.github/workflows/linux-runtime-package.yml` as the home of a **second** ordinary `--release` build plus sibling receipt, solely for the existing source-checkout custody assertion (LLP 0010). Production is the pack/seal path. `package.test.mjs` splits so the public-package lane asserts installed-package custody only. Darwin’s `package.test.mjs` is required to take the Linux-style forced-package-root form instead of bare `resolveRuntimeBinary()`.
+
+Capsule: the workflow today dual-uses one `SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build --release` plus one sibling receipt on `target/release/snapback` (commented as source-CLI custody; `tests/ci_workflows_v0.mjs` pins that order). Linux `package.test.mjs` currently asserts **both** source-checkout (`target/release/snapback`) and installed custody (`cliPackageRoot`). Darwin currently does `resolveRuntimeBinary().binary ===` the package binary with no forced root. §1b still lists the Linux source-checkout assertion. That is the named-home reconstruction the finding asked for.
+
+### 3. (minor) 1c normative fields are not build-script env — **VERIFIED**
+
+§1c now states that Cargo hands `PROFILE` but not the resolved `lto` / `codegen-units` / `incremental` / `strip` tuple. `build_identity.rs` (already the `cargo:rustc-env` emitter) stamps `PROFILE` plus the `[profile.production]` recipe **as declared** in root `Cargo.toml`. Forbidden override channels are enumerated (`CARGO_PROFILE_PRODUCTION_*`, `CARGO_INCREMENTAL`, `RUSTFLAGS`/`CARGO_ENCODED_RUSTFLAGS` touching `-C lto`/`-C strip`/`-C codegen-units`/`-C opt-level`, `cargo --config`, rustc wrappers), with negative tests per class. Public-package assembly requires `PROFILE=production` with the declared values. `buildProfile` is still not repurposed.
+
+Capsule: root `[profile.production]` is `inherits = "release"`, `incremental = false`, `lto = "fat"`, `codegen-units = 1` (no `strip` yet; 1d adds it on the same landing). `build_identity.rs` already emits rustc-env stamps; it does not currently see resolved profile knobs.
+
+### 4. (minor) Full seal tuple cannot live on binary identity — **VERIFIED**
+
+Phase 2 §Load validation splits the tuple: every load checks compiled-in manifest `contentHash` **and** binary `gitCommit` against the sidecar’s stamped revision; `artifactSha256` only where a package seal exists; a bare-binary launch may load an env-injected sidecar on those two binary facts alone. Same-content wrong-revision refusal and LLP 0284 §3.7 (`contentHash` does not bind every record) are retained.
+
+Capsule: `emit_embedded_guide` already injects `buildIdentity.commit` into the blob’s copy of the manifest, so “sidecar’s stamped revision” has a home in the **existing** closed-table format without a magic/version bump. `include_str!` of `guide/guide-manifest.generated.json` remains the compiled-in `contentHash` anchor. Bare-binary tests have no seal; skipping `artifactSha256` there is the right split.
+
+### 5. (minor) Member inventory missed `manifest.files` / `.gitignore` — **VERIFIED**
+
+Phase 2 §Assembly modes (2) adds `/guide/` to both packages’ `.gitignore` and the `guide/` member to both `package.test.mjs` `manifest.files` / exact-ignore assertions, mirroring `admin/`.
+
+Capsule: Darwin files/ignore are `admin`, `bin`, `Frameworks`, `include`, `runtime-readiness.json`; Linux the same with `lib` instead of `Frameworks`. No `/guide/` today. `swapStagedAssembly` lists are `['bin', 'Frameworks'|'lib', 'include', 'admin', 'runtime-readiness.json']` — the plan also names those lists as gaining the member.
+
+### 6. (minor) Discovery must not copy `default_admin_dist()` — **VERIFIED**
+
+Phase 2 §Discovery requires a **new** env (not `SNAPBACK_ADMIN_DIST`), CLI-injected with the package-relative `guide/embedded-guide.v1.bin` after seal membership checks, fail-closed: no cwd, no loose `guide/` tree, **no** `CARGO_MANIFEST_DIR` probe. It explicitly cites `default_admin_dist()` as the forbidden checkout-tree fallback.
+
+Capsule: `default_admin_dist()` is `env!("CARGO_MANIFEST_DIR")/../../admin-ui/dist` if `index.html` exists; `SNAPBACK_ADMIN_DIST` is the contributor override. Copying that pattern would re-open source-tree Guide discovery.
+
+### 7. (minor) Producer must refuse at assembly time — **VERIFIED**
+
+Phase 2 §Producer places a pack-time producer inside non-`--native-artifact-staging` `prepare-runtime.mjs` on both platforms, using the shared encoder `build.rs` already calls, with a **coded assembly failure** if package-input pathspecs are dirty or `HEAD != identity.binary.gitCommit`. Runtime wrong-revision refusal is a backstop.
+
+Capsule: `emit_embedded_guide` is the only producer today (`OUT_DIR`). Both preparers already branch on `--native-artifact-staging` vs `--source-test-staging` vs default. The clean-source gate is the finding.
+
+See OBLIGATION 1 for a placement-clarity restatement against mode 3; that is not a miss of this fold.
+
+### 8. (minor) Phase 0 strip must match 1d — **VERIFIED**
+
+Phase 0 now ranks `cargo bloat` / `bloaty` before and after Cargo `strip = "symbols"` — “the same transform Phase 1d ships.” `strip -x` is an optional extra measurement row, not the primary.
+
+### 9. (minor, PRE-EXISTING) Research F2 not locally re-runnable — **VERIFIED** (RECORDED-AS-OBLIGATION)
+
+No new prose, as claimed. Research F2 already directs future snapshots to retain digest + raw `size`/`otool` output. Plan §Measurement items 1–4 require file/section bytes, `nsyms`, package/tarball bytes, and digest + raw `size`/`otool -l` (or `readelf`) with each dated snapshot; Phase 0 is the first such snapshot. Parent research is not under verdict; this does not contradict it.
+
+---
+
+## Diff findings
+
+No MATERIAL defect. Non-blocking notes:
+
+1. **§1c vs Open question 5 (wording drift).** r4 restates 1c as `PROFILE` + **declared** `[profile.production]` recipe. OQ5 still says “compiler-derived recipe stamp” and “from Cargo’s profile facts.” Authority (stamp originates in `build-identity`; ceremony copies; `buildProfile` untouched) is unchanged. Restoration only.
+
+2. **Producer placement vs assembly mode 3 (clarity).** The Producer bullet says the pack-time producer (with dirty/`HEAD` refusal) runs inside every non-`--native-artifact-staging` prepare. Mode 3 says `--source-test-staging` **omits** the sidecar because the contributor binary already embeds the Guide; Darwin source-test admits debug/dirty fixtures. Naive intersection would refuse dirty source-test assemblies. The unique reconstruction is: producer runs in **mode 2** (public-package final assembly); modes 1 and 3 omit. Mode 3 is the more specific rule in the same section.
+
+3. **1d leftover hedge.** After Phase 0’s primary transform was pinned to Cargo `strip = "symbols"`, 1d still says “or Phase 0 records both it and `strip -x`.” Not contradictory (`strip -x` remains optional), just stale.
+
+4. **LLP 0123 “only binary and Hermes.”** 0123’s 2026-08-06 landing text does enumerate binary + Hermes header/runtime at reopen. Live `produceRuntimePackageSeal` also seals admin members. The r4 amendment of 0123’s member set for the Guide sidecar is still the right landing; “only” under-counts admin in **code**, not in 0123’s own prose. Not a plan/research contradiction.
+
+5. **Carriage-selection sentence moved, not dropped.** r3’s pinned-shape “fail closed both ways, no silent fallback” was deleted next to Load validation. OQ2 and the Producer/`cfg` still require in-tree embed vs public-package sidecar, fail closed both ways.
+
+**Research:** the r4 fold does not contradict LLP 0314. F3 already carved `assemble-runtime-package` out as source-repair; 1a/1b match. F4 already required a governed 0061/0041/0284 amendment; adding 0123 is extra, not conflicting. F2’s non-replayability is the recorded obligation above.
+
+---
+
+## Obligations (non-blocking)
+
+- **OBLIGATION:** In Phase 2 §Producer, restore the pack-time producer to **public-package final assembly (mode 2)** — not `--native-artifact-staging`, not `--source-test-staging` — so the dirty/`HEAD` refusal cannot be read as applying to contributor source-test. Correction/restoration of r4 wording, not new closure.
+
+- **OBLIGATION:** Restore Open question 5 to §1c’s restatement: the stamp is `PROFILE` plus the **declared** `[profile.production]` recipe, not compiler-resolved profile knobs.
+
+- **OBLIGATION:** Name the fail-closed enforcement point for 1c’s forbidden override channels (build-script refuse vs assembly refuse vs CI wrapper). Negative tests per class are already required; the point of refusal is an implementation choice, not new product scope.
+
+- **OBLIGATION:** (pre-existing, item 9) First Phase 0 snapshot must land digest + raw `size`/`otool`/`readelf` so F2 becomes locally re-runnable. Already directed by research and plan §Measurement 1–4.
+
+---
+
+`VERDICT 0314.000: READY`
