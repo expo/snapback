@@ -33,7 +33,6 @@ pub(crate) trait RemainderLocalSnapbackExt {
 
     fn remainder_reconcile_commit_capsule_prototype(
         &mut self,
-        intent: &snapback_kernel::storage::commit_capsule_prototype::PrototypeIntent,
         intended: &snapback_kernel::storage::commit_capsule_prototype::PrototypeIntendedRows,
     ) -> crate::diagnostic::SnapbackResult<
         Option<
@@ -101,7 +100,6 @@ impl RemainderLocalSnapbackExt for crate::local::LocalSnapback {
 
     fn remainder_reconcile_commit_capsule_prototype(
         &mut self,
-        intent: &snapback_kernel::storage::commit_capsule_prototype::PrototypeIntent,
         intended: &snapback_kernel::storage::commit_capsule_prototype::PrototypeIntendedRows,
     ) -> crate::diagnostic::SnapbackResult<
         Option<
@@ -111,7 +109,7 @@ impl RemainderLocalSnapbackExt for crate::local::LocalSnapback {
             >,
         >,
     > {
-        snapback_engine::test_support::reconcile_commit_capsule_prototype(self, intent, intended)
+        snapback_engine::test_support::reconcile_commit_capsule_prototype(self, intended)
     }
 
     fn remainder_commit_capsule_prototype_facts(

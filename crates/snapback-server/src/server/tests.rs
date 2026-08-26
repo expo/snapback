@@ -42382,7 +42382,6 @@ struct CommitCapsuleHooks {
     panic_reconcile: bool,
     panic_retain: bool,
     commit_guard_failure: Option<SnapbackError>,
-    reconcile_as: Option<crate::storage::commit_capsule_prototype::PrototypeIntent>,
     reuse_final_cut: bool,
 }
 
@@ -42400,7 +42399,6 @@ async fn run_commit_capsule_prototype<Gate: Send + 'static>(
     let transact_receipt = commit_receipt.clone();
     let reconcile_barrier = hooks.reconcile.clone();
     let panic_reconcile = hooks.panic_reconcile;
-    let reconcile_as = hooks.reconcile_as.clone();
     let retain_barrier = hooks.retain.clone();
     let panic_retain = hooks.panic_retain;
     let reservation_pause_id = hooks.reservation_pause_id.clone();
@@ -42508,7 +42506,7 @@ async fn run_commit_capsule_prototype<Gate: Send + 'static>(
             drop(observation);
             attempt
         },
-        move |local, intent, carrier| {
+        move |local, _intent, carrier| {
             if let Some(barrier) = reconcile_barrier {
                 barrier.block();
             }
@@ -42516,7 +42514,6 @@ async fn run_commit_capsule_prototype<Gate: Send + 'static>(
                 panic!("injected bounded commit capsule panic during reconciliation")
             }
             local.reconcile_prototype(
-                reconcile_as.as_ref().unwrap_or(intent),
                 carrier
                     .intended
                     .as_ref()
@@ -42710,7 +42707,7 @@ async fn bounded_commit_capsule_rejects_authority_against_a_wholly_replaced_dest
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn bounded_commit_capsule_rejects_unequal_operation_identity() {
+async fn bounded_commit_capsule_rejects_committed_decoy_rows() {
     let _registry_test_guard = lock_commit_capsule_registry_tests().await;
     let database = CommitCapsulePrototypeDatabase::new().await;
     let decoy = commit_capsule_intent("lying-reconciliation-decoy");
@@ -42751,13 +42748,10 @@ async fn bounded_commit_capsule_rejects_unequal_operation_identity() {
         gate,
         intent.clone(),
         CommitCapsuleInjection::CommitErrorRowsAbsent,
-        CommitCapsuleHooks {
-            // This queries a decoy with a different operation identifier. The
-            // witness retains its complete producer and intended-row identity
-            // and exposes no content-replacement combinator.
-            reconcile_as: Some(decoy),
-            ..CommitCapsuleHooks::default()
-        },
+        // Reconciliation derives its query subject from the private intended-
+        // rows carrier. The already committed decoy therefore cannot be
+        // supplied as a replacement query subject.
+        CommitCapsuleHooks::default(),
         caller.expected_guard(),
         Arc::new(StdMutex::new(None)),
         retention,

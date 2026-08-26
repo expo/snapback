@@ -260,7 +260,6 @@ impl CommitCapsuleTransaction<'_> {
     #[cfg(test)]
     pub(crate) fn reconcile_prototype(
         &mut self,
-        intent: &crate::storage::commit_capsule_prototype::PrototypeIntent,
         intended: &crate::storage::commit_capsule_prototype::PrototypeIntendedRows,
     ) -> SnapbackResult<
         Option<
@@ -271,7 +270,7 @@ impl CommitCapsuleTransaction<'_> {
         >,
     > {
         self.local
-            .remainder_reconcile_commit_capsule_prototype(intent, intended)
+            .remainder_reconcile_commit_capsule_prototype(intended)
     }
 }
 

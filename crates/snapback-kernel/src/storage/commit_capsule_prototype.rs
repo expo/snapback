@@ -105,6 +105,7 @@ pub struct PrototypePending<'connection> {
 #[derive(Clone, Debug)]
 pub struct PrototypeIntendedRows {
     intent: BoundCommitCapsuleIntent<PrototypeIntent>,
+    subject: PrototypeIntent,
 }
 
 pub fn initialize(db: &mut LocalDatabase) -> SnapbackResult<()> {
@@ -222,6 +223,7 @@ pub fn stage<'connection>(
         binding,
         intended: PrototypeIntendedRows {
             intent: bound_intent,
+            subject: intent.clone(),
         },
         value: PrototypeValue {
             operation_id: intent.operation_id.as_ref().to_owned(),
@@ -331,12 +333,16 @@ fn exact_reconciled_value(
     }))
 }
 
+/// Reconcile the subject retained by staging. A separate raw intent here would
+/// let a dependent query rows B and attach correlation carrier A to the value.
+///
+/// @ref LLP 0303#the-governing-principle — the exact-row producer derives its
+/// query subject from the authority-bound intended-row carrier.
 pub fn exact_reconciliation(
     db: &mut LocalDatabase,
-    intent: &PrototypeIntent,
     intended: &PrototypeIntendedRows,
 ) -> SnapbackResult<Option<ExactCommitRows<PrototypeIntent, PrototypeValue>>> {
-    Ok(exact_reconciled_value(db, intent)?
+    Ok(exact_reconciled_value(db, &intended.subject)?
         .map(|value| ExactCommitRows::new(db.binding(), intended.intent.clone(), value)))
 }
 
@@ -461,7 +467,7 @@ mod tests {
         );
         let decoy_intended = commit(&mut db, &decoy);
 
-        let witness = exact_reconciliation(&mut db, &decoy, &decoy_intended)
+        let witness = exact_reconciliation(&mut db, &decoy_intended)
             .expect("query decoy exact rows")
             .expect("decoy exact rows exist");
         let authority = CommitCapsuleAuthority {

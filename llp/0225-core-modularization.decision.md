@@ -94,6 +94,8 @@ instances; same-ID semantic replay through reconciliation is closed while the
 other capsule residuals remain)
 **Revised:** 2026-08-25 (ag — §3 corrects F220 from caller-intent verification
 to an authority-minted, move-consumed producer/expectation correlation)
+**Revised:** 2026-08-25 (ah — §3 removes the prototype reconciler's detached
+raw-intent consumer; its query subject now comes from the intended-row carrier)
 **Related:** LLP 0199 (accepted incremental core-modularization Decision this
 consolidates), LLP 0000 (root explainer — load-bearing invariants), LLP 0038
 (July whole-system review; first `local.rs` god-object finding), LLP 0059
@@ -1518,3 +1520,11 @@ so slices can follow product priorities.
   `Clone`. Request-derived operation identity, watch ID, target, resume-job ID,
   renewal TTL, and replacement-grant ID describe the staged effect but do not
   select or mint its correlation identity.
+- **2026-08-25 (ah).** A fresh consumer review found the test-support prototype
+  reconciler still accepted raw intent B beside intended-row carrier A, queried
+  B, and attached A's bound correlation to the returned value. The intended-row
+  carrier now privately retains the exact staged prototype subject, and
+  reconciliation accepts only that carrier. The carrier remains `Clone` because
+  uncertainty retention needs owned custody, but cloning preserves both the
+  query subject and its bound correlation; callers can no longer replace either
+  half independently.

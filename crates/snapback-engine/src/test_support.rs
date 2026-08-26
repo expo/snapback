@@ -626,7 +626,6 @@ pub fn stage_commit_capsule_prototype<'a>(
 
 pub fn reconcile_commit_capsule_prototype(
     snapback: &mut LocalSnapback,
-    intent: &snapback_kernel::storage::commit_capsule_prototype::PrototypeIntent,
     intended: &snapback_kernel::storage::commit_capsule_prototype::PrototypeIntendedRows,
 ) -> SnapbackResult<
     Option<
@@ -638,7 +637,6 @@ pub fn reconcile_commit_capsule_prototype(
 > {
     snapback_kernel::storage::commit_capsule_prototype::exact_reconciliation(
         snapback.auth_database_mut(),
-        intent,
         intended,
     )
 }
