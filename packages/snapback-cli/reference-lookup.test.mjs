@@ -116,6 +116,11 @@ assert.deepEqual(
 );
 assert.match(environment.identity.diagnosticsSourceDigest, /^sha256:[0-9a-f]{64}$/u);
 assert.ok(Buffer.byteLength(JSON.stringify(environment)) <= 16_384);
+assert.equal(
+  lookupGuideReference(['SnapbackEnvironmentVariable'], { projectRoot: root }),
+  null,
+  'environment names remain exact Guide records without a public client type symbol',
+);
 
 const adminTokenEnvironment = lookupGuideReference(
   ['SNAPBACK_ADMIN_TOKEN'],

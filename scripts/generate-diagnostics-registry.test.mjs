@@ -75,32 +75,28 @@ function gitOutput(repoRoot, args) {
 function stableRegistryHistory(repoRoot, dirtyPath) {
   try {
     const baseline = gitOutput(repoRoot, ['merge-base', 'HEAD', 'origin/main']);
-    const revisions = gitOutput(repoRoot, [
-      'log',
-      '--format=%H',
-      '--reverse',
-      `${baseline}..HEAD`,
-      '--',
-      dirtyPath,
-    ]).split('\n').filter(Boolean);
-    return { baseline, revisions };
+    const head = gitOutput(repoRoot, ['rev-parse', 'HEAD']);
+    if (baseline !== head) return { baseline };
   } catch {
-    // A checkout without origin/main still compares against the registry state
-    // before the latest committed registry change. Following unrelated commits
-    // therefore cannot turn the current registry into its own baseline.
+    // Fall through to the local registry history when origin/main is absent.
   }
 
-  const latest = gitOutput(repoRoot, [
-    'log',
-    '-1',
-    '--format=%H',
-    'HEAD',
-    '--',
-    dirtyPath,
-  ]);
-  return latest === ''
-    ? { baseline: 'HEAD', revisions: [] }
-    : { baseline: `${latest}^`, revisions: [latest] };
+  try {
+    const latestRegistryCommit = gitOutput(repoRoot, [
+      'log',
+      '-1',
+      '--format=%H',
+      'HEAD',
+      '--',
+      dirtyPath,
+    ]);
+    if (latestRegistryCommit !== '') {
+      return { baseline: gitOutput(repoRoot, ['rev-parse', `${latestRegistryCommit}^`]) };
+    }
+  } catch {
+    // A root registry commit has no earlier snapshot; use the registry itself.
+  }
+  return { baseline: 'HEAD' };
 }
 
 function committedJson(repoRoot, revision, path, fallback = undefined) {
@@ -183,7 +179,11 @@ function codeRemovalProblems(
     }
   }
   for (const code of Object.keys(allowlist.removals)) {
-    if (!previousCodes.has(code) || currentCodes.has(code)) {
+    const existedInBaselineLedger = Object.hasOwn(previousAllowlist.removals ?? {}, code);
+    if (
+      currentCodes.has(code)
+      || (!existedInBaselineLedger && !previousCodes.has(code))
+    ) {
       problems.push(`${code}: unused checked-in removal justification`);
     }
   }
@@ -269,6 +269,22 @@ test('diagnostic removal allowlist requires a classified, explained justificatio
     ),
     ['SNAPBACK_FIXTURE_NOT_REMOVED: unused checked-in removal justification'],
   );
+  assert.deepEqual(
+    codeRemovalProblems(
+      new Set(),
+      new Set(),
+      {
+        schemaVersion: 'snapback-diagnostics-code-removals.v1',
+        removals: {
+          SNAPBACK_FIXTURE_NEVER_BASELINE_DIAGNOSTIC: {
+            reason: 'reference-only',
+            detail: 'This new ledger key never named a baseline diagnostic.',
+          },
+        },
+      },
+    ),
+    ['SNAPBACK_FIXTURE_NEVER_BASELINE_DIAGNOSTIC: unused checked-in removal justification'],
+  );
 });
 
 test('generated registry never silently loses a previously committed diagnostic code', () => {
@@ -281,6 +297,59 @@ test('generated registry never silently loses a previously committed diagnostic 
     [],
     `diagnostic codes disappeared from the previous committed registry:\n${problems.join('\n')}`,
   );
+});
+
+test('diagnostic removal guard accepts its historical ledger after HEAD lands on origin/main', (t) => {
+  const repoRoot = mkdtempSync(resolve(tmpdir(), 'snapback-diagnostics-landed-history-'));
+  const registryPath = 'guide/reference/diagnostics-registry.json';
+  const allowlistPath = 'scripts/diagnostics-registry-code-removals.json';
+  const registryFile = resolve(repoRoot, registryPath);
+  const allowlistFile = resolve(repoRoot, allowlistPath);
+  const git = (...args) => execFileSync('git', args, {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim();
+  try {
+    git('init', '-b', 'main');
+    git('config', 'user.name', 'Diagnostics Registry Test');
+    git('config', 'user.email', 'diagnostics-registry@example.invalid');
+    mkdirSync(resolve(repoRoot, 'guide/reference'), { recursive: true });
+    mkdirSync(resolve(repoRoot, 'scripts'), { recursive: true });
+    writeFileSync(registryFile, `${JSON.stringify({ diagnostics: {
+      SNAPBACK_FIXTURE_HISTORICAL_REMOVAL: {},
+    } })}\n`);
+    writeFileSync(allowlistFile, `${JSON.stringify({
+      schemaVersion: 'snapback-diagnostics-code-removals.v1',
+      removals: {},
+    })}\n`);
+    git('add', '.');
+    git('commit', '-m', 'baseline registry');
+
+    writeFileSync(registryFile, `${JSON.stringify({ diagnostics: {} })}\n`);
+    writeFileSync(allowlistFile, `${JSON.stringify({
+      schemaVersion: 'snapback-diagnostics-code-removals.v1',
+      removals: {
+        SNAPBACK_FIXTURE_HISTORICAL_REMOVAL: {
+          reason: 'test-only',
+          detail: 'The historical emitter was compiled exclusively by #[cfg(test)].',
+        },
+      },
+    })}\n`);
+    git('add', '.');
+    git('commit', '-m', 'remove diagnostic with justification');
+    const landedHead = git('rev-parse', 'HEAD');
+    git('update-ref', 'refs/remotes/origin/main', landedHead);
+    assert.equal(git('merge-base', 'HEAD', 'origin/main'), landedHead);
+
+    assert.deepEqual(
+      registryRemovalProblems(repoRoot, registryPath, allowlistPath),
+      [],
+    );
+    t.diagnostic('simulated HEAD == origin/main — 0 removal problems');
+  } finally {
+    rmSync(repoRoot, { recursive: true, force: true });
+  }
 });
 
 test('diagnostic removal guard keeps its merge-base after an unrelated commit', () => {
@@ -1618,10 +1687,11 @@ test('generated registry retains target emitters and dynamic artifact-header emi
   ];
   const diagnosticType = diagnosticTypes.slice(
     diagnosticTypes.indexOf('export type SnapbackDiagnosticCode ='),
-    diagnosticTypes.indexOf('export type SnapbackEnvironmentVariable ='),
   );
-  const environmentType = diagnosticTypes.slice(
-    diagnosticTypes.indexOf('export type SnapbackEnvironmentVariable ='),
+  assert.doesNotMatch(
+    diagnosticTypes,
+    /SnapbackEnvironmentVariable/u,
+    'environment names stay in the Guide registry without adding public client surface',
   );
   for (const name of [
     'SNAPBACK_ALL_ABOARD_API',
@@ -1633,11 +1703,6 @@ test('generated registry retains target emitters and dynamic artifact-header emi
       )),
       `${name} must retain its deploy.sh prefix-assignment write`,
     );
-    assert.match(
-      environmentType,
-      new RegExp(`^  (?:\\| )?'${name}'$`, 'mu'),
-      `${name} must remain in SnapbackEnvironmentVariable`,
-    );
   }
   for (const name of proseOnlyEnvironmentNames) {
     assert.equal(registry.diagnostics[name], undefined, `${name} is not a diagnostic`);
@@ -1646,11 +1711,6 @@ test('generated registry retains target emitters and dynamic artifact-header emi
       diagnosticType,
       new RegExp(`^  (?:\\| )?'${name}'$`, 'mu'),
       `${name} must be absent from SnapbackDiagnosticCode`,
-    );
-    assert.match(
-      environmentType,
-      new RegExp(`^  (?:\\| )?'${name}'$`, 'mu'),
-      `${name} must remain in SnapbackEnvironmentVariable`,
     );
   }
 
@@ -1673,11 +1733,6 @@ test('generated registry retains target emitters and dynamic artifact-header emi
   ];
   for (const name of falselyClassifiedEnvironmentNames) {
     assert.equal(registry.environment[name], undefined, `${name} is not environment vocabulary`);
-    assert.doesNotMatch(
-      environmentType,
-      new RegExp(`^  (?:\\| )?'${name}'$`, 'mu'),
-      `${name} must be absent from SnapbackEnvironmentVariable`,
-    );
   }
 
   for (const [file, code] of [

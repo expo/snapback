@@ -647,3 +647,104 @@ the exact Rust change and parity tests are tracked in
 `issues/20260825-native-guide-lookup-registry-kinds-parity.md`.
 That ticket explicitly records that v1 diagnostic `sites` entries now carry an
 optional `kind` field and native must consume it.
+
+### Round-33 standing removal ledger and public-surface ruling
+
+The fail-first landed-HEAD fixture reproduced the review blocker before the
+guard changed:
+
+```text
+SNAPBACK_FIXTURE_HISTORICAL_REMOVAL: unused checked-in removal justification
+tests 1
+pass 0
+fail 1
+```
+
+Removal justifications are now a standing historical ledger. An entry is unused
+only when its code remains in the current diagnostic set, or when a newly added
+ledger key names a code absent from the baseline diagnostic set. A current
+removal still needs a newly added or revised justification. The baseline is the
+merge-base with `origin/main` when that differs from `HEAD`; otherwise it is the
+parent of the latest registry-changing commit, falling back to the committed
+registry itself when no earlier snapshot exists. Fixtures cover a historical
+entry after `HEAD == origin/main` (zero problems), an unjustified removal, an
+entry for a still-present code, a new key that never named a baseline
+diagnostic, and the round-32 two-commit removal.
+
+The item-2 ruling took the no-new-public-surface branch. The exact merge-base
+check was:
+
+```text
+merge-base e370bb8f789007cffae1f4d80c4feabdedc81cb5
+git show e370bb8f789007cffae1f4d80c4feabdedc81cb5:packages/snapback-client/diagnostic-codes.d.mts | grep -c SnapbackEnvironmentVariable
+0
+```
+
+Because the union did not exist there, `SnapbackEnvironmentVariable` was
+removed from the generated client declaration and root export rather than
+adding a public client contract in this lane. The 188 names remain available in
+`registry.environment`, generated Guide reference, and exact Guide lookup; the
+reference-lookup test also pins that the retired type name has no symbol result.
+No LLP 0193 stability-contract amendment applies.
+
+`SNAPBACK_RESUME_RATE_LIMITED` now has one site, the inline `reserved` marker at
+`crates/snapback-sync/src/rqs.rs:112`; the stray declaration site is gone. The
+diagnostic code set is byte-for-byte unchanged from `a6862ac2b` (both sorted-key
+sets hash to
+`6afe6f9d2324be4b600f706b4eab16d10b4753c45c6d0d8ab93639de0231d210`).
+
+| Count | `a6862ac2b` | Round-33 final |
+| --- | ---: | ---: |
+| Codes | 3,543 | 3,543 |
+| Source files | 628 | 628 |
+| Emitting sites | 9,413 | 9,413 |
+| Received sites | 378 | 378 |
+| Reserved sites | 11 | 11 |
+| HTTP-classified | 1,704 | 1,704 |
+| Guide-anchored | 431 | 431 |
+| Environment variables | 188 | 188 |
+| Environment sites | 366 | 366 |
+| Public reference symbols | 1,455 | 1,454 |
+
+The lane's diagnostics, symbol, manifest, and flat Guide projections were
+regenerated in dependency order. Final-tree verification produced these
+verbatim summaries:
+
+```text
+node --test scripts/generate-diagnostics-registry.test.mjs
+simulated HEAD == origin/main — 0 removal problems
+tests 44
+pass 44
+fail 0
+
+node scripts/generate-diagnostics-registry.mjs --check
+[diagnostics-registry] ok — 3543 codes, 9413 emitting sites, 378 received sites, 11 reserved sites, 188 environment variables, 366 environment sites, 1704 HTTP-classified
+
+node scripts/generate-symbol-registry.mjs --check
+[symbol-registry] ok — 56 modules, 1454 symbols, runtime parity exact
+
+node packages/snapback-cli/reference-lookup.test.mjs
+reference-lookup.test.mjs: exact diagnostic/environment/dual-role/member, bounded symbol/module, identity, and fallback pass
+
+node scripts/check-inventories.mjs
+[check-inventories] PASS: 357 package tests; 32 scripts tests; 31 demos/31 catalog entries; 487 publication leaves; 157 guide pages/1871 snippets
+
+node scripts/check-first-read.mjs
+[first-read] ok — 5 profiles checked
+
+node scripts/check-guide.mjs
+[guide-check] ok — 22 passed, 0 failed, 0 skipped, 0 preconditions; 157 pages, 1871 snippets, 174 routes + 51 host-ops joined, 100 warnings
+
+./ref-check --verbose
+ref-check: ok — 311 LLP docs, 7872 refs in 16056 files, 0 errors, 0 unchecked
+
+git diff --check
+(no output; exit 0)
+
+diagnostic code-set diff against a6862ac2b
+(no output; empty)
+```
+
+The inventory/Guide runs emitted six warning-only GAP review notices; the
+remaining Guide warnings were pre-existing authority-freshness notices. No
+requested round-33 verification remains unverified.

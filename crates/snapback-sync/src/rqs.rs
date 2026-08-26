@@ -108,9 +108,8 @@ pub mod refusal {
     pub const WITNESS_REPLAY_DIVERGED: &str = "SNAPBACK_RESUME_WITNESS_REPLAY_DIVERGED";
     #[allow(dead_code)]
     pub const BUDGET_EXCEEDED: &str = "SNAPBACK_RESUME_BUDGET_EXCEEDED"; // diagnostics-registry: reserved SNAPBACK_RESUME_BUDGET_EXCEEDED
-    // diagnostics-registry: reserved SNAPBACK_RESUME_RATE_LIMITED
     #[allow(dead_code)]
-    pub const RATE_LIMITED: &str = "SNAPBACK_RESUME_RATE_LIMITED";
+    pub const RATE_LIMITED: &str = "SNAPBACK_RESUME_RATE_LIMITED"; // diagnostics-registry: reserved SNAPBACK_RESUME_RATE_LIMITED
     pub const POLICY_REPLACED: &str = "SNAPBACK_RESUME_POLICY_REPLACED";
 }
 
