@@ -74,6 +74,7 @@ const metroScript = join(scratchRoot, 'headless-metro.mjs');
 const cliLifecycleRunner = join(scratchRoot, 'cli-lifecycle-runner.mjs');
 const supervisors = [];
 const cliChildren = [];
+const externalScratchRoots = new Set();
 const governanceInputs = Object.freeze([
   'elevated-read-site-baseline.json',
   'table-visibility-policy-baseline.json',
@@ -438,6 +439,17 @@ function fixture(name, { sessions, root = scratchRoot }) {
   // resolve those bare imports only through a project-local node_modules.
   symlinkSync(join(repoRoot, 'node_modules'), join(projectRoot, 'node_modules'), 'dir');
   cpSync(sourceFixture, backendRoot, { recursive: true });
+  // Generated app bindings execute from the copied project and import the
+  // public package name, so give the fixture the same workspace dependency a
+  // real app install would provide instead of relying on the test runner's
+  // repository-local resolution ancestry.
+  const fixtureExpoModules = join(projectRoot, 'node_modules', '@expo');
+  mkdirSync(fixtureExpoModules, { recursive: true });
+  symlinkSync(
+    join(repoRoot, 'packages', 'snapback-client'),
+    join(fixtureExpoModules, 'snapback-client'),
+    'dir',
+  );
   const governance = governanceInputs.map((name) => [
     name,
     readFileSync(join(backendRoot, 'generated', name)),
@@ -706,6 +718,7 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
   assertStdinRestartBeforeSocketReload = false,
   assertConcurrentStdinSocketReload = false,
   expectControlUnavailable = false,
+  expectControlChannelRefusal = null,
   failMetroReload = false,
   stubbornMetroDuringReload = false,
 } = {}) {
@@ -747,6 +760,7 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
     },
     stdio: [
       assertStdinReload || assertStdinRestartBeforeSocketReload || assertConcurrentStdinSocketReload
+        || expectControlUnavailable
         ? 'pipe'
         : 'ignore',
       'pipe',
@@ -769,13 +783,54 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
   });
   await eventually(
     () => {
+      const startupOutcome = events.find((event) => event.schemaVersion === 'snapback.expo-dev.v1'
+        && (event.state === 'ready' || event.state === 'startup-failed'));
+      if (startupOutcome) return startupOutcome;
       if (child.exitCode !== null || child.signalCode !== null) {
         throw new Error(`snapback dev --expo exited before readiness: ${stderr || stdoutBuffer}`);
       }
-      return events.find((event) => event.schemaVersion === 'snapback.expo-dev.v1'
-        && event.state === 'ready');
+      return false;
     },
     { label: 'snapback dev --expo CLI readiness' },
+  );
+  const startupOutcome = events.find((event) => event.schemaVersion === 'snapback.expo-dev.v1'
+    && (event.state === 'ready' || event.state === 'startup-failed'));
+  if (expectControlChannelRefusal !== null) {
+    const exitPromise = child.exitCode !== null || child.signalCode !== null
+      ? Promise.resolve({ code: child.exitCode, signal: child.signalCode })
+      : new Promise((resolveExit) => {
+          child.once('exit', (code, signal) => resolveExit({ code, signal }));
+        });
+    if (startupOutcome.state === 'ready') child.kill('SIGTERM');
+    const exit = await Promise.race([
+      exitPromise,
+      new Promise((_, rejectExit) => setTimeout(
+        () => rejectExit(new Error('control-channel startup refusal did not join cleanup')),
+        15_000,
+      )),
+    ]);
+    assert.equal(
+      startupOutcome.state,
+      'startup-failed',
+      `expected coded control-channel startup refusal, got ${startupOutcome.state}`,
+    );
+    const diagnostic = startupOutcome.diagnostics?.[0];
+    assert.equal(diagnostic?.code, 'SNAPBACK_DEV_CONTROL_CHANNEL_UNAVAILABLE');
+    assert.equal(diagnostic?.details?.component, expectControlChannelRefusal.component);
+    assert.equal(diagnostic?.details?.reason, expectControlChannelRefusal.reason);
+    assert.equal(diagnostic.message.includes(expectControlChannelRefusal.component), true);
+    assert.match(diagnostic.message, new RegExp(expectControlChannelRefusal.reason, 'u'));
+    assert.match(diagnostic.message, /--ready-file/u);
+    assert.match(diagnostic.message, /0700/u);
+    assert.match(diagnostic.message, /directory mode/u);
+    assert.equal(events.some((event) => event.state === 'ready'), false);
+    assert.deepEqual(exit, { code: 1, signal: null }, stderr || stdoutBuffer);
+    return { events, startupOutcome };
+  }
+  assert.equal(
+    startupOutcome.state,
+    'ready',
+    `unexpected CLI startup refusal: ${JSON.stringify(startupOutcome.diagnostics ?? [])}`,
   );
   const readyEvent = events.find((event) => event.state === 'ready');
   assert.equal(readyEvent.connectCarrier, 'supervisor-rendezvous');
@@ -1415,6 +1470,34 @@ async function runControlSocketSuite() {
     await runCliSupervisor(ignoredStdinFixture, 'web', [
       '--port-range', `${ignoredStdinRange.lo}-${ignoredStdinRange.hi}`,
     ], { stubbornMetroDuringReload: true });
+    const groupWritableFixture = fixture('group-writable-project', {
+      sessions: true,
+      root: controlRoot,
+    });
+    chmodSync(groupWritableFixture.projectRoot, 0o775);
+    mkdirSync(groupWritableFixture.stateRoot, { recursive: true, mode: 0o700 });
+    chmodSync(groupWritableFixture.stateRoot, 0o700);
+    const groupWritableRefusalRange = await reserveFreeRange(8);
+    await runCliSupervisor(groupWritableFixture, 'web', [
+      '--port-range', `${groupWritableRefusalRange.lo}-${groupWritableRefusalRange.hi}`,
+    ], {
+      expectControlChannelRefusal: {
+        component: groupWritableFixture.projectRoot,
+        reason: 'writable-component',
+      },
+    });
+    const groupWritableExternalState = join(controlRoot, 'group-writable-external-state');
+    mkdirSync(groupWritableExternalState, { mode: 0o700 });
+    chmodSync(groupWritableExternalState, 0o700);
+    const groupWritableExternalTarget = {
+      ...groupWritableFixture,
+      readyFile: join(groupWritableExternalState, 'dev.ready.json'),
+    };
+    const groupWritableExternalRange = await reserveFreeRange(8);
+    await runCliSupervisor(groupWritableExternalTarget, 'web', [
+      '--port-range', `${groupWritableExternalRange.lo}-${groupWritableExternalRange.hi}`,
+    ]);
+    console.log('group-writable project: /dev/null JSON startup refuses without a socket and an external 0700 ready tree publishes one');
     const customReadyFixture = fixture('custom-ready-app', { sessions: true, root: controlRoot });
     const customReadyParent = join(customReadyFixture.projectRoot, 'caller-ready-state');
     mkdirSync(customReadyParent, { mode: 0o755 });
@@ -2850,6 +2933,7 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
     metro: supervisor.metroOrigin,
     bootstrap: supervisor.exchangeOrigin,
   };
+  const settledInspection = supervisor.inspection();
   await supervisor.close();
   supervisors.splice(supervisors.indexOf(supervisor), 1);
   await Promise.all(Object.entries(settledOrigins).map(([label, origin]) => (
@@ -2923,8 +3007,19 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   // Exercise the packaged command wiring and signal path, not only the
   // programmatic supervisor seam. It reuses the settled database, receives a
   // fresh ordinary session, correlates control events, and joins every child.
+  // The suite's Darwin tmpdir spelling is too long for an AF_UNIX endpoint;
+  // use the documented external owner-only ready tree now that ignored stdin
+  // makes a publishable control socket a startup requirement.
+  const cliStateRoot = realpathSync(mkdtempSync('/tmp/sbcli-'));
+  externalScratchRoots.add(cliStateRoot);
+  chmodSync(cliStateRoot, 0o700);
+  const cliTarget = {
+    ...settled,
+    readyFile: join(cliStateRoot, 'dev.ready.json'),
+  };
+  const cliSupervisorDescriptor = join(cliStateRoot, 'expo-supervisor.json');
   const cliRange = await reserveFreeRange(8);
-  const cliRun = await runCliSupervisor(settled, 'web', [
+  const cliRun = await runCliSupervisor(cliTarget, 'web', [
     '--port-range', `${cliRange.lo}-${cliRange.hi}`,
   ]);
   assert.match(cliRun.bearer, /^sbs_/u);
@@ -2949,10 +3044,12 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
     assertOriginClosed(origin, `CLI ${label}`)
   )));
   await eventually(
-    () => !existsSync(supervisorDescriptor),
+    () => !existsSync(cliSupervisorDescriptor),
     { label: 'CLI supervisor descriptor cleanup' },
   );
-  await eventually(() => !existsSync(settled.readyFile), { label: 'CLI ready-file cleanup' });
+  await eventually(() => !existsSync(cliTarget.readyFile), { label: 'CLI ready-file cleanup' });
+  rmSync(cliStateRoot, { recursive: true, force: true });
+  externalScratchRoots.delete(cliStateRoot);
 
   // Bearer-leak matrix: use /usr/bin/grep exactly as the E1 acceptance asks.
   const evidenceRoot = join(settled.projectRoot, 'e1-evidence');
@@ -2967,7 +3064,7 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   writeFileSync(
     metroLogs,
     `${[
-      ...supervisor.inspection().metro.logs.map(({ stream, line }) => `${stream}: ${line}`),
+      ...settledInspection.metro.logs.map(({ stream, line }) => `${stream}: ${line}`),
       ...cliRun.events
         .filter((event) => event.state === 'metro-output')
         .map(({ stream, line }) => `${stream}: ${line}`),
@@ -3013,5 +3110,8 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   await Promise.allSettled(supervisors.flatMap((supervisor) => (
     typeof supervisor?.close === 'function' ? [supervisor.close()] : []
   )));
+  for (const root of externalScratchRoots) {
+    rmSync(root, { recursive: true, force: true });
+  }
   rmSync(scratchRoot, { recursive: true, force: true });
 }

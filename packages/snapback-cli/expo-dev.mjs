@@ -654,42 +654,62 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
   let startupUnavailable = null;
   let close = async () => {};
   const assertStateDirectoryIdentity = (stage) => {
-    const expected = pathChain.components.find((identity) => (
-      resolve(identity.path) === resolve(stateDirectoryPath)
-    ));
-    let observed;
-    try {
-      observed = lstatSync(stateDirectoryPath);
-    } catch (cause) {
+    const inspected = pathChain.external === true
+      ? inspectSecureExternalDirectoryChain(requestedStateDirectoryPath, ownerUid)
+      : inspectSecureDirectoryChain(
+          requestedPathChainRoot,
+          requestedStateDirectoryPath,
+          ownerUid,
+        );
+    const fail = (details) => {
       throw diagnosticError(
         'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
-        'the admitted dev control state directory changed before endpoint publication',
+        'the admitted dev control directory chain changed before endpoint publication',
         {
           path: stateDirectoryPath,
           endpointPath: path,
           readyFile,
-          reason: 'component-changed',
           stage,
-          cause: cause?.code ?? cause?.message ?? String(cause),
+          ...details,
         },
       );
+    };
+    if (!inspected.ok) {
+      fail({
+        reason: inspected.reason,
+        component: inspected.component,
+        ...(inspected.cause === undefined ? {} : { cause: inspected.cause }),
+        ...(inspected.expectedUid === undefined ? {} : { expectedUid: inspected.expectedUid }),
+        ...(inspected.observedUid === undefined ? {} : { observedUid: inspected.observedUid }),
+        ...(inspected.observedMode === undefined ? {} : { observedMode: inspected.observedMode }),
+      });
     }
-    if (expected === undefined
-        || !observed.isDirectory()
-        || observed.isSymbolicLink()
-        || String(observed.dev) !== expected.device
-        || String(observed.ino) !== expected.inode) {
-      throw diagnosticError(
-        'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
-        'the admitted dev control state directory changed before endpoint publication',
-        {
-          path: stateDirectoryPath,
-          endpointPath: path,
-          readyFile,
+    if (inspected.root !== pathChain.root
+        || inspected.target !== pathChain.target
+        || inspected.canonicalRoot !== pathChain.canonicalRoot
+        || inspected.canonicalTarget !== pathChain.canonicalTarget) {
+      fail({ reason: 'component-changed', component: requestedStateDirectoryPath });
+    }
+    for (const key of ['components', 'lexicalComponents']) {
+      const expected = pathChain[key] ?? [];
+      const observed = inspected[key] ?? [];
+      if (expected.length !== observed.length) {
+        fail({
           reason: 'component-changed',
-          stage,
-        },
-      );
+          component: observed.at(-1)?.path ?? expected.at(-1)?.path ?? requestedStateDirectoryPath,
+        });
+      }
+      for (let index = 0; index < expected.length; index += 1) {
+        const expectedIdentity = expected[index];
+        const observedIdentity = observed[index];
+        if (expectedIdentity.path !== observedIdentity.path
+            || expectedIdentity.device !== observedIdentity.device
+            || expectedIdentity.inode !== observedIdentity.inode
+            || expectedIdentity.symlink !== observedIdentity.symlink
+            || expectedIdentity.canonicalPath !== observedIdentity.canonicalPath) {
+          fail({ reason: 'component-changed', component: observedIdentity.path });
+        }
+      }
     }
   };
   const observeBoundEndpoint = () => {
@@ -703,7 +723,7 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
     }
     return observed;
   };
-  const server = createNetServer({ allowHalfOpen: false }, (socket) => {
+  const server = createNetServer({ allowHalfOpen: true }, (socket) => {
     sockets.add(socket);
     socket.setEncoding('utf8');
     socket.setTimeout(options.connectionIdleTimeoutMs ?? 5_000);
@@ -716,6 +736,10 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
     socket.on('error', () => sockets.delete(socket));
     socket.on('timeout', () => socket.destroy());
     socket.on('end', () => {
+      // EOF before a complete newline-delimited request closes the writable
+      // half immediately. After a complete request, retain it until the
+      // asynchronous settled result flushes; flushControlResult then destroys
+      // the connection even when the client never closes its writable half.
       if (!handled) socket.end();
     });
     socket.on('data', (chunk) => {
@@ -1025,6 +1049,9 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
         releaseCleanupResource(privateCleanupResource);
         privateCleanupResource = null;
       } catch (cause) {
+        if (cause?.diagnostic?.code === 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE') {
+          throw cause;
+        }
         if (cause?.code === 'EEXIST') {
           throw diagnosticError(
             'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
@@ -3470,6 +3497,7 @@ export async function runExpoDev(options = {}) {
   let supervisorDescriptorCleanupResource = null;
   let supervisorDescriptorTemporaryCleanupResource = null;
   let controlSocketHandle = null;
+  let controlSocketUnavailable = null;
   let controlDispatcher = null;
   const intentionallyStoppedMetroChildren = new WeakSet();
   const metroExitErrors = new WeakMap();
@@ -4572,6 +4600,7 @@ export async function runExpoDev(options = {}) {
         },
         onStopComplete: options.onControlStop,
         onUnavailable(diagnostic) {
+          controlSocketUnavailable = diagnostic;
           emit({
             ok: true,
             state: 'control-socket-unavailable',
@@ -4583,6 +4612,27 @@ export async function runExpoDev(options = {}) {
         dispatcher: controlDispatcher,
         afterEndpointLeaseActivation: options.afterControlEndpointLeaseActivation,
       });
+    }
+    if (controlSocketHandle === null && options.requireControlSocket === true) {
+      const unavailableDetails = controlSocketUnavailable?.details ?? {};
+      const component = unavailableDetails.component
+        ?? unavailableDetails.path
+        ?? dirname(dev.readyFile);
+      const reason = unavailableDetails.reason
+        ?? unavailableDetails.cause
+        ?? 'socket-publication-failed';
+      const recovery = `use --ready-file <path> inside a 0700 owner-only directory tree, or fix the directory mode at ${component}`;
+      throw diagnosticError(
+        'SNAPBACK_DEV_CONTROL_CHANNEL_UNAVAILABLE',
+        `owner-bound dev control cannot start because ${component} failed secure directory-chain admission (${reason}); ${options.stdinControl?.reason ?? 'stdin is unavailable'}, so stdin cannot carry snapback.dev-command.v1; ${recovery}`,
+        {
+          ...unavailableDetails,
+          component,
+          reason,
+          stdin: options.stdinControl ?? { available: false, kind: 'unknown' },
+          recovery,
+        },
+      );
     }
     assertStartupActive();
     const finalReadiness = {

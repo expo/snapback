@@ -94,7 +94,11 @@ by name.
 
 The state directory must resolve to a same-UID real directory with no
 group/other permission bits (normally mode `0700`); the default dev loop creates
-or repairs `.snapback/` to that posture. For an explicit ready file outside the
+or repairs `.snapback/` to that posture only when the project-owned directory
+chain is already secure. A group-writable project root such as mode `0775`
+remains ineligible even when `.snapback/` is `0700`, because another group member
+could rename the leaf; use `--ready-file` inside a separate `0700` owner-only
+tree or fix the project directory mode. For an explicit ready file outside the
 project, Snapback resolves the directory first, walks the canonical ancestor
 chain to a root-owned trust anchor, and admits only same-UID components with no
 group/other write or a root-owned mode-`1777` sticky system directory. It also
@@ -114,11 +118,16 @@ descriptor-consistency check, not a peer-credential check. The instance cleanup
 lease removes the exact socket inode on ordinary shutdown or owner death. If the
 `--ready-file` directory is not a same-UID owner-only real directory, the
 supervisor emits `SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE`, omits the endpoint,
-and continues with stdin-only control; choose another `--ready-file` path to
-restore the socket channel. A Unix-socket bind or advertised-path probe failure
-(including a state directory beyond the platform's `sockaddr_un` path budget)
-uses the same coded stdin-only fallback. A live or otherwise occupied
-well-known endpoint still refuses startup rather than being downgraded.
+and continues with stdin-only control only when an interactive TTY or readable
+command pipe remains available. With `--json` and stdin at `/dev/null`, closed,
+or otherwise unreadable, Snapback instead refuses startup with
+`SNAPBACK_DEV_CONTROL_CHANNEL_UNAVAILABLE`; the diagnostic names the exact
+chain component and reason. Choose `--ready-file` inside a `0700` owner-only
+tree or fix the named directory mode. A Unix-socket bind or advertised-path
+probe failure (including a state directory beyond the platform's `sockaddr_un`
+path budget) uses the same usable-stdin fallback or unavailable-channel refusal.
+A live or otherwise occupied well-known endpoint still refuses startup rather
+than being downgraded.
 
 This is transient instance-local state: do not copy it with the database or
 treat a leftover endpoint as durable owner authority. Each request must repeat
@@ -139,9 +148,11 @@ socket verbs and packaged-stdin lifecycle mutations (`reload`, `restart`,
 to send its result before the endpoint closes. After that result flushes, the
 supervisor destroys the one-request connection; a client cannot retain a
 supervisor-side file descriptor by leaving its writable half open. Wait for the
-result before claiming the operation took effect. A client that reaches EOF before its
-newline, or stays incomplete for five seconds, is closed without retaining a
-half-open connection.
+result before claiming the operation took effect. A client may call
+`socket.end(request)` after sending the complete newline-delimited request; the
+server keeps its writable half until both the acknowledgement and settled result
+flush. A client that reaches EOF before its newline, or stays incomplete for
+five seconds, is closed without retaining a half-open connection.
 
 The socket's closed verb set is:
 
@@ -186,9 +197,11 @@ replace an endpoint to bypass a refusal.
 Interactive humans keep the existing stdin channel: TTY keys remain
 `s`/`r`/`R`/`f`/`q`, and non-TTY
 `snapback.dev-command.v1` input remains available when a launcher preserves a
-pipe. Stdin EOF still does not stop the supervisor. The socket is the supported
-agent path when stdin is `/dev/null`; it is not a FIFO and does not add recook
-as a client verb.
+pipe. Stdin carries `status`, `reload`, `restart`, and `dev-fresh`, plus
+`reload-metro` for Expo; `stop-children` is socket-only, while `q` or `SIGTERM`
+is the human stop path. Stdin EOF still does not stop the supervisor. The socket
+is the supported agent path when stdin is `/dev/null`; it is not a FIFO and does
+not add recook as a client verb.
 
 ## Run functions against sessions mode
 

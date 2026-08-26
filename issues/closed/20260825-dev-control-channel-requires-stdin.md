@@ -41,6 +41,11 @@ cleanup lease → `listen()` on `.d<random>` → no-replace `link(2)` at the
 well-known endpoint → private-name removal → bound record with the exact public
 inode → active public cleanup lease. An occupied well-known name makes
 `link(2)` return `EEXIST`, which refuses as `SNAPBACK_DEV_CONTROL_FOREIGN_OWNER`.
+Linux portability evidence was recorded on 2026-08-26 on an Ubuntu 25.10 host
+(Linux `7.0.0-30-generic`, Node `v24.18.0`): `/tmp` (tmpfs), `/dev/shm`
+(tmpfs), and `$HOME` (ext4) each allowed the first `linkSync` with link count
+two, accepted `connect()` through the linked pathname, and returned `EEXIST`
+from a second `linkSync`. This evidence makes no claim about other filesystems.
 The private transient socket is recorded before `listen()` and reaped after a
 matching reservation-owner death if SIGKILL lands before its normal removal.
 An absent or unreadable/corrupt record and a present valid mismatch therefore
@@ -58,27 +63,39 @@ instance-local state and names the owner-only state directory plus descriptor
 as the cross-UID gate; AF_UNIX inode mode is not trusted on Darwin and the
 command's JSON UID remains advisory. A non-owner-only state directory or a
 non-root-owned/hostile symlink emits
-`SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE` and keeps the packaged supervisor
-alive with stdin-only control. Bind failures and a failed prepublication
-`connect()` of the advertised path use that same fallback, so a state directory
-beyond the platform's Unix-socket path budget cannot abort the interactive
-supervisor or publish an unreachable descriptor. The short `.dc-sock`
+`SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE`. An interactive TTY or a preserved
+readable command pipe may keep the packaged supervisor alive with stdin-only
+control. Under `--json`, if stdin is `/dev/null`, closed, or otherwise cannot
+carry `snapback.dev-command.v1`, the same missing socket instead refuses startup
+with `SNAPBACK_DEV_CONTROL_CHANNEL_UNAVAILABLE`; its message names the exact
+failing chain component and reason and directs the operator to put
+`--ready-file` inside a `0700` owner-only tree or fix that directory mode. A
+mode-`0775` project root remains ineligible for default socket publication even
+when its `.snapback/` leaf is `0700`, because another group member could rename
+the leaf; an external owner-only ready-file tree is the supported recovery.
+Bind failures and a failed prepublication `connect()` of the advertised path
+follow the same usable-stdin fallback or unavailable-channel refusal, so a state
+directory beyond the platform's Unix-socket path budget cannot publish an
+unreachable descriptor. The short `.dc-sock`
 well-known basename stays within the `.dc-*` coordination budget; live or
 occupied endpoints remain fail-closed refusals. Explicit external ready-file
 directories are resolved before their canonical ancestor chain is validated to
 a root-owned trust anchor: same-UID non-writable components and root-owned
 mode-`1777` sticky system directories are admitted, while a non-sticky
-group/other-writable parent refuses stdin-only. The lexical spelling is checked
-separately and admits a symlink only when the link is root-owned and resolves to
-a trusted or root-owned sticky system directory. Thus Darwin's `/tmp` spelling
-is admitted through the root-owned `/tmp` → `/private/tmp` symlink, and the
-descriptor publishes the canonical `/private/tmp/.../.dc-sock` path;
+group/other-writable parent refuses socket publication. The lexical spelling is
+checked separately and admits a symlink only when the link is root-owned and
+resolves to a trusted or root-owned sticky system directory. Thus Darwin's
+`/tmp` spelling is admitted through the root-owned `/tmp` → `/private/tmp`
+symlink, and the descriptor publishes the canonical
+`/private/tmp/.../.dc-sock` path;
 non-root-owned/hostile symlinks still refuse. The lexical and canonical
 component identities, including the leaf, are rechecked before private bind and
 before `link(2)` publication. After a settled result is flushed, the supervisor
 destroys the one-request connection so a client that leaves its writable half
 open cannot retain a supervisor file descriptor; the endpoint remains available
-for subsequent commands.
+for subsequent commands. A standard client may half-close after sending a
+complete request with `socket.end(request)`: the server retains its writable
+half until both the acknowledgement and asynchronous settled result flush.
 
 The focused `expo-dev-loop.test.mjs --control-socket-only` regression includes
 a `--json` launch using the default control-socket posture, with stdin ignored
@@ -97,15 +114,23 @@ returned only the reload acknowledgement and no settled result; before the
 round-4 fix the failed-reload overlap timed out waiting for
 `stop-after-failed-reload`; before the round-17 fix the literal `/tmp` external
 ready-file regression again failed with `actual undefined`, expected
-`snapback.dev-control.v1`.
+`snapback.dev-control.v1`; before the round-18 fix the mode-`0775` project with
+stdin `/dev/null` reached `ready` instead of the expected coded startup refusal.
+The repaired regression also proves that the same project publishes a live
+socket when `--ready-file` moves into an external `0700` owner-only tree.
 
 `expo-dev-control.test.mjs` binds a socket in a child, kills the holder with
 `SIGKILL`, and proves a relaunch reclaims the exact stale endpoint only when its
 bound owner marker matches. It separately proves missing/corrupt/mismatched
 owner-state refusal with operator-explicit recovery, live-owner and simulated
 other-UID refusal, owner-directory stdin-only degradation, EOF and idle-deadline
-cleanup, settled half-open-client destruction with a subsequent successful
-command, and cleanup-lease reaping after owner death. The crash before
+cleanup, complete-request EOF delivery of both acknowledgement and settled
+result, settled half-open-client destruction with a subsequent successful
+command, and cleanup-lease reaping after owner death. Before the round-18 fix,
+the complete-request EOF regression received only the acknowledgement. The
+suite also changes a secure ancestor before private bind and before `link(2)`;
+before the round-18 fix both barriers published successfully instead of
+refusing the changed chain. The crash before
 `expo-supervisor.json` publication reclaims through the already-published bound
 marker. Further coverage includes a bounded-probe timeout, death while replacing
 stale `.dc-lock` through `.dc-reclaim`, death after the stale-generation claim

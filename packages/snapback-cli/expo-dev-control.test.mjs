@@ -652,6 +652,52 @@ async function sendControlFin(control, command) {
   });
 }
 
+async function assertFinClientReceivesSettledResult(control, onAcknowledged) {
+  const messages = [];
+  await new Promise((resolveClose, rejectClose) => {
+    const socket = createConnection(control.descriptor.path);
+    let buffer = '';
+    const timeout = setTimeout(() => {
+      socket.destroy();
+      rejectClose(new Error('timed out waiting for the half-closed client result'));
+    }, 2_000);
+    socket.setEncoding('utf8');
+    socket.once('connect', () => socket.end(`${JSON.stringify({
+      schemaVersion: 'snapback.dev-control-command.v1',
+      requestId: 'fin-reload-result',
+      verb: 'reload-metro',
+      owner: {
+        pid: control.descriptor.ownerPid,
+        uid: control.descriptor.ownerUid,
+        incarnationId: control.descriptor.ownerIncarnationId,
+      },
+      lifecycleReceipt: control.descriptor.lifecycleReceipt,
+    })}\n`));
+    socket.on('data', (chunk) => {
+      buffer += chunk;
+      let newline;
+      while ((newline = buffer.indexOf('\n')) !== -1) {
+        const line = buffer.slice(0, newline);
+        buffer = buffer.slice(newline + 1);
+        if (!line) continue;
+        const message = JSON.parse(line);
+        messages.push(message);
+        if (message.schemaVersion === 'snapback.dev-control-ack.v1') onAcknowledged();
+      }
+    });
+    socket.once('error', rejectClose);
+    socket.once('close', () => {
+      clearTimeout(timeout);
+      resolveClose();
+    });
+  });
+  assert.deepEqual(
+    messages.map(({ schemaVersion }) => schemaVersion),
+    ['snapback.dev-control-ack.v1', 'snapback.dev-control-result.v1'],
+    'a standard client that sends its complete request with socket.end must receive the settled result',
+  );
+}
+
 function deferred() {
   let resolvePromise;
   const promise = new Promise((resolve) => { resolvePromise = resolve; });
@@ -1703,6 +1749,61 @@ try {
   assert.equal(existsSync(join(writableParentReadyRoot, '.dc-sock')), false);
   console.log('writable parent state chain: coded stdin-only fallback publishes no endpoint');
 
+  const barrierOutcomes = [];
+  const barrierComponents = [];
+  for (const [index, [stage, hook]] of [
+    ['before-private-bind', 'beforeEndpointPublish'],
+    ['before-link-publication', 'afterPrivateEndpointListen'],
+  ].entries()) {
+    const barrierRoot = makeRoot(`b${index}`);
+    const barrierParent = join(barrierRoot, 'p');
+    barrierComponents.push(barrierParent);
+    const barrierStateRoot = join(barrierParent, 's');
+    mkdirSync(barrierStateRoot, { recursive: true, mode: 0o700 });
+    chmodSync(barrierParent, 0o700);
+    chmodSync(barrierStateRoot, 0o700);
+    const barrierNotices = [];
+    let barrierControl = null;
+    try {
+      barrierControl = await expoDevTest.startDevControlSocketWithDependencies(
+        testOptions(barrierStateRoot, `unit-${stage}-owner`, {
+          pathChainRoot: barrierRoot,
+          onUnavailable: (diagnostic) => barrierNotices.push(diagnostic),
+        }),
+        {
+          [hook]() { chmodSync(barrierParent, 0o777); },
+        },
+      );
+      barrierOutcomes.push({
+        stage,
+        published: barrierControl !== null,
+        code: barrierNotices[0]?.code,
+        reason: barrierNotices[0]?.details?.reason,
+        component: barrierNotices[0]?.details?.component,
+      });
+    } finally {
+      chmodSync(barrierParent, 0o700);
+      await barrierControl?.close();
+    }
+  }
+  assert.deepEqual(barrierOutcomes, [
+    {
+      stage: 'before-private-bind',
+      published: false,
+      code: 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
+      reason: 'writable-component',
+      component: barrierComponents[0],
+    },
+    {
+      stage: 'before-link-publication',
+      published: false,
+      code: 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
+      reason: 'writable-component',
+      component: barrierComponents[1],
+    },
+  ]);
+  console.log('publication barriers: full directory chain is re-admitted before private bind and public link');
+
   const externalProjectRoot = makeRoot('external-project');
   const stickySystemRoot = '/tmp';
   const canonicalStickySystemRoot = realpathSync.native(stickySystemRoot);
@@ -1767,6 +1868,25 @@ try {
   await assertIncompleteClientCloses(connectionControl.descriptor.path, { idle: true });
   await connectionControl.close();
   console.log('incomplete clients: EOF and idle deadline both release the connection');
+
+  const finReplyRoot = makeRoot('fin-reply');
+  const releaseFinReply = deferred();
+  const finReplyControl = await startDevControlSocket(testOptions(
+    finReplyRoot,
+    'unit-fin-reply-owner',
+    {
+      verbs: {
+        'reload-metro': async () => {
+          await releaseFinReply.promise;
+          return { ok: true };
+        },
+        'stop-children': async () => ({ ok: true }),
+      },
+    },
+  ));
+  await assertFinClientReceivesSettledResult(finReplyControl, releaseFinReply.resolve);
+  await finReplyControl.close();
+  console.log('complete client EOF: acknowledgement and settled result both flush');
 
   const settledClientRoot = makeRoot('settled-client');
   const settledClientControl = await startDevControlSocket(testOptions(

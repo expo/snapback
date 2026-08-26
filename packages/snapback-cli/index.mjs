@@ -10,6 +10,7 @@ import {
   copyFileSync,
   cpSync,
   existsSync,
+  fstatSync,
   lstatSync,
   mkdtempSync,
   mkdirSync,
@@ -7195,6 +7196,39 @@ export function attachDevControlChannel({ verbs, stop, onEvent, stdin = process.
   return () => lines.close();
 }
 
+function inspectDevControlInput(stdin) {
+  if (stdin?.isTTY === true) return Object.freeze({ available: true, kind: 'tty' });
+  if (stdin === null || stdin === undefined) {
+    return Object.freeze({ available: false, kind: 'missing', reason: 'stdin is unavailable' });
+  }
+  if (stdin.destroyed === true || stdin.readableEnded === true || stdin.readable === false) {
+    return Object.freeze({ available: false, kind: 'closed', reason: 'stdin is closed' });
+  }
+  if (Number.isInteger(stdin.fd)) {
+    let metadata;
+    try {
+      metadata = fstatSync(stdin.fd);
+    } catch (error) {
+      return Object.freeze({
+        available: false,
+        kind: 'unreadable',
+        reason: `stdin cannot be inspected (${error?.code ?? error?.message ?? String(error)})`,
+      });
+    }
+    if (metadata.isCharacterDevice() && existsSync('/dev/null')) {
+      const nullDevice = statSync('/dev/null');
+      if (metadata.dev === nullDevice.dev && metadata.rdev === nullDevice.rdev) {
+        return Object.freeze({
+          available: false,
+          kind: 'null-device',
+          reason: 'stdin is /dev/null',
+        });
+      }
+    }
+  }
+  return Object.freeze({ available: true, kind: 'readable-command-channel' });
+}
+
 function takeFlag(args, name, fallback = null) {
   const index = args.findIndex((argument) => argument === name || argument.startsWith(`${name}=`));
   if (index === -1) return fallback;
@@ -9257,6 +9291,7 @@ export async function runCli(argv, options = {}) {
             [CLEANUP_LEASE_DIRECTORY_ENV]: carrierCleanupLease.directory,
           }),
         };
+        const stdinControl = inspectDevControlInput(options.stdin ?? process.stdin);
         result = await runExpoDev({
           ...options,
           env: expoEnvironment,
@@ -9287,6 +9322,8 @@ export async function runCli(argv, options = {}) {
           ...(expoAppScheme ? { expoAppScheme } : {}),
           platform: expoSelectedPlatform,
           controlSocket: true,
+          requireControlSocket: json && !stdinControl.available,
+          stdinControl,
           signal: interrupt.signal,
           onEvent(event) {
             printDevEvent(event, { json, plainProfile: false });
