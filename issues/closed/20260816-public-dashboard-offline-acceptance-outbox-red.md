@@ -2453,3 +2453,90 @@ files, 0 errors, 0 unchecked`; `git diff --check` produces no output. No
 generator was run; the symbol registry, guide manifest, flat guides, and
 diagnostics registry remain byte-identical to merge base
 `baacaa20983f029f3e9cd23f60385ba00085e947`.
+
+### Round-34 dual-review closure (2026-08-26)
+
+Online-only string-named mutations no longer complete their operation target
+from an arbitrary positive capability fact retained in the shared store.
+Explicit `queue:false` sends no stale generation pin, and an automatic
+mutation that falls back to online-only after an unavailable inspection sends
+no generation pin from predecessor evidence. The regressions cover both a
+Sessions deployment successor and a fresh unbound client over a shared store.
+
+`acknowledgementTargetMatches` no longer contains the dead
+`enqueueTarget === undefined` wildcard. The existing four-carrier conformance
+continues to prove that omitted target custody exposes no acknowledgement ids.
+Because the removed branch was unreachable behind each public operation's
+complete-target guard, this cleanup has no fabricated runtime fail-first
+assertion.
+
+The generation regressions reported the reviewed defects before the production
+change:
+
+```text
+✖ a new default client stays online-only without an established app binding
+AssertionError [ERR_ASSERTION]: the unbound successor does not pin the predecessor generation after inspection loss
++ actual - expected
++ {
+- null
+
+✖ queue:false string-named mutation does not pin a generation left by a prior client
+Error [SnapbackDiagnosticError]: SNAPBACK_MIGRATION_UPGRADE_REQUIRED: the asserted mutation generation is not active
+```
+
+At exact implementation commit
+`dd2c81b3100afe799fdf290aadc868a8ed5011c4`, the required combined suite
+reports verbatim:
+
+```text
+ℹ tests 276
+ℹ suites 0
+ℹ pass 276
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3708.66175
+```
+
+The full `npm test --prefix packages/snapback-client` script passes the changed
+outbox store, custody, drain, and quarantine suites 196/196, 22/22, 37/37, and
+4/4, then reaches only the inherited out-of-scope RQS red:
+
+```text
+✖ pre-subscribe durable-buffer overflow fails closed to one fresh snapshot [web/indexeddb] (13.812ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 29
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3154.572875
+```
+
+The export-types gate reports its inherited codegen declaration red only:
+
+```text
+[check-package-export-types] fixture compile ok: 121 subpaths across 14 packages
+[check-package-export-types] FAILED (1):
+  - @expo/snapback-codegen ./app-descriptor: runtime exports missing from the declaration: APPLICATION_AUTH_BOOTSTRAP_CREDENTIAL_MODES, APPLICATION_AUTH_BOOTSTRAP_PROVIDERS, APPLICATION_AUTH_BOOTSTRAP_PROVIDER_KINDS
+```
+
+Both public-dashboard witnesses ran at that exact implementation commit with
+`SNAPBACK_SERVER_BINARY="$PWD/target/debug/snapback"` and report verbatim:
+
+```text
+PASS public-dashboard / offline-local-first (JS arm) — 9/9
+PASS public-dashboard / headless — 6/6
+```
+
+Both machine-readable reports contain `cleanupErrors: []` and
+`cleanupErrorCount: 0`. The configured binary is stamped at
+`a97e75286f098066931701df515fe7a812961798`, so both runs report the expected
+checkout/binary identity mismatch and exercise this JS-only implementation
+commit. `./ref-check --verbose` reports `311 LLP docs, 6657 refs in 12507
+files, 0 errors, 0 unchecked`; `git diff --check` produces no output. No
+generator was run; the symbol registry, guide manifest, flat guides, and
+diagnostics registry remain byte-identical to merge base
+`baacaa20983f029f3e9cd23f60385ba00085e947`.
