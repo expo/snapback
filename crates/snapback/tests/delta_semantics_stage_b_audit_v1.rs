@@ -615,6 +615,93 @@ fn retained_node_rows<'a>(observation: &'a Value, node_id: &str) -> Option<&'a [
         .map(Vec::as_slice)
 }
 
+fn expected_children_index_keys(
+    replay: &graph_stage_b::GraphReplay,
+) -> BTreeSet<(String, String, String)> {
+    let mut expected = BTreeSet::new();
+    for node in &replay.plan.nodes {
+        let (parent_node_id, child_node_id) = match node {
+            GraphNodeV1::EqualityToOne {
+                parent_node_id,
+                node_id,
+                ..
+            }
+            | GraphNodeV1::BoundedToMany {
+                parent_node_id,
+                node_id,
+                ..
+            }
+            | GraphNodeV1::PrincipalBound {
+                parent_node_id,
+                node_id,
+                ..
+            } => (parent_node_id, node_id),
+            _ => continue,
+        };
+        let parents = retained_node_rows(&replay.before, parent_node_id).unwrap_or_else(|| {
+            panic!(
+                "{}: predecessor rows for children-index parent {parent_node_id}",
+                replay.case["id"],
+            )
+        });
+        for parent in parents {
+            let parent_row_id = parent["row"]["_id"]
+                .as_str()
+                .expect("fixture-derived predecessor parent row id");
+            assert_eq!(
+                parent["key"]["id"],
+                parent_row_id,
+                "{}: predecessor parent physical key agrees with its fixture row",
+                replay.case["id"],
+            );
+            assert!(
+                expected.insert((
+                    parent_node_id.clone(),
+                    parent_row_id.to_owned(),
+                    child_node_id.clone(),
+                )),
+                "{}: fixture-derived children-index scope keys are unique",
+                replay.case["id"],
+            );
+        }
+    }
+    expected
+}
+
+fn shipped_children_index_keys(
+    replay: &graph_stage_b::GraphReplay,
+) -> BTreeSet<(String, String, String)> {
+    let entries = replay.after["retainedState"]["children"]
+        .as_array()
+        .expect("successor retained scope-keyed child index");
+    let keys = entries
+        .iter()
+        .map(|entry| {
+            (
+                entry["parentNodeId"]
+                    .as_str()
+                    .expect("retained child-index parent node id")
+                    .to_owned(),
+                entry["scope"]
+                    .as_str()
+                    .expect("retained child-index parent row id")
+                    .to_owned(),
+                entry["nodeId"]
+                    .as_str()
+                    .expect("retained child-index child node id")
+                    .to_owned(),
+            )
+        })
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        entries.len(),
+        keys.len(),
+        "{}: retained children index has unique scope keys",
+        replay.case["id"],
+    );
+    keys
+}
+
 fn graph_reference_root(
     replay: &graph_stage_b::GraphReplay,
     node_id: &str,
@@ -1238,6 +1325,12 @@ fn assert_graph_reference_state_matches_shipped(
             let child_index = replay.after["retainedState"]["children"]
                 .as_array()
                 .expect("successor retained scope-keyed child index");
+            assert_eq!(
+                expected_children_index_keys(replay),
+                shipped_children_index_keys(replay),
+                "{}: complete E4 children-index scope keys",
+                replay.case["id"],
+            );
             let shipped_scopes = child_index
                 .iter()
                 .filter(|entry| {
@@ -1267,13 +1360,13 @@ fn assert_graph_reference_state_matches_shipped(
                 replay.case["id"],
             );
 
-            let parent_rows = retained_node_rows(&replay.after, parent_node_id)
-                .expect("successor retained E4 parent rows are observable");
+            let parent_rows = retained_node_rows(&replay.before, parent_node_id)
+                .expect("predecessor retained E4 parent rows are observable");
             let mut expected_instances = Vec::new();
             for (scope, reference) in &state.scopes {
                 let parents = parent_rows
                     .iter()
-                    .filter(|instance| instance["key"]["id"] == scope.as_str())
+                    .filter(|instance| instance["row"]["_id"] == scope.as_str())
                     .collect::<Vec<_>>();
                 assert_eq!(
                     parents.len(),
