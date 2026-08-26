@@ -50,11 +50,14 @@ cleanup lease → `listen()` on `.d<random>` → no-replace `link(2)` at the
 well-known endpoint → private-name removal → bound record with the exact public
 inode → active public cleanup lease. An occupied well-known name makes
 `link(2)` return `EEXIST`, which refuses as `SNAPBACK_DEV_CONTROL_FOREIGN_OWNER`.
-Linux portability evidence was recorded on 2026-08-26 on an Ubuntu 25.10 host
+**Extra-repo evidence (host, kernel, filesystems, not exercised by CI):** the
+Linux portability probe was recorded on 2026-08-26 on an Ubuntu 25.10 host
 (Linux `7.0.0-30-generic`, Node `v24.18.0`): `/tmp` (tmpfs), `/dev/shm`
 (tmpfs), and `$HOME` (ext4) each allowed the first `linkSync` with link count
 two, accepted `connect()` through the linked pathname, and returned `EEXIST`
 from a second `linkSync`. This evidence makes no claim about other filesystems.
+The Darwin control-socket probe in `expo-dev-control.test.mjs` is the in-repo
+proof.
 The private transient socket is recorded before `listen()` and reaped after a
 matching reservation-owner death if SIGKILL lands before its normal removal.
 An absent or unreadable/corrupt record and a present valid mismatch therefore

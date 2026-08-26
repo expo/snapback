@@ -3512,6 +3512,7 @@ export async function runExpoDev(options = {}) {
   const generation = options.supervisorGeneration ?? `supervisor-${randomUUID()}`;
   const startedAt = new Date().toISOString();
   const childEnv = expoSupervisorChildEnvironment(options.env ?? process.env);
+  const stopOwnedProcessGroup = options.stopProcessGroup ?? stopProcessGroup;
   const backendRoot = resolve(options.backendDirectory ?? 'snapback');
   const projectRoot = resolve(options.projectRoot ?? dirname(backendRoot));
   const database = resolve(options.database ?? join(projectRoot, '.snapback', 'dev.sqlite3'));
@@ -3569,6 +3570,7 @@ export async function runExpoDev(options = {}) {
   let controlSocketUnavailable = null;
   let controlDispatcher = null;
   const intentionallyStoppedMetroChildren = new WeakSet();
+  const stoppingMetroChildren = new WeakSet();
   const metroExitErrors = new WeakMap();
   const abortSignal = options.signal ?? null;
   let abortListener = null;
@@ -3621,7 +3623,9 @@ export async function runExpoDev(options = {}) {
       metroPlaceholder = null;
       const metroHandles = [...new Set([metroLaunching, metro].filter(Boolean))];
       for (const handle of metroHandles) {
-        try { await stopProcessGroup(handle.child, { processGroup: true }); } catch (error) { failures.push(error); }
+        try {
+          await stopOwnedProcessGroup(handle.child, { processGroup: true });
+        } catch (error) { failures.push(error); }
       }
       metro = null;
       metroLaunching = null;
@@ -3860,6 +3864,10 @@ export async function runExpoDev(options = {}) {
               { code, signal, ...(cause ? { cause: cause.code ?? cause.message } : {}) },
             );
             metroExitErrors.set(startedMetro.child, error);
+            // A stop attempt must settle before this exit is classified. A
+            // confirmed stop suppresses it; a failed stop replays it below or
+            // lets this callback close the supervisor after the failure.
+            if (stoppingMetroChildren.has(startedMetro.child)) return;
             if (!closed && (
               metro?.child === startedMetro.child
               || metroLaunching?.child === startedMetro.child
@@ -3870,7 +3878,7 @@ export async function runExpoDev(options = {}) {
         });
         metroLaunching = startedMetro;
         if (closed) {
-          await stopProcessGroup(startedMetro.child, { processGroup: true });
+          await stopOwnedProcessGroup(startedMetro.child, { processGroup: true });
           throw diagnosticError(
             'SNAPBACK_EXPO_SUPERVISOR_CLOSED',
             'the Expo supervisor closed while Metro was launching',
@@ -4449,8 +4457,22 @@ export async function runExpoDev(options = {}) {
       const previousPid = previousMetro?.child.pid ?? null;
       try {
         if (previousMetro !== null) {
-          intentionallyStoppedMetroChildren.add(previousMetro.child);
-          await stopProcessGroup(previousMetro.child, { processGroup: true });
+          stoppingMetroChildren.add(previousMetro.child);
+          try {
+            await stopOwnedProcessGroup(previousMetro.child, { processGroup: true });
+            intentionallyStoppedMetroChildren.add(previousMetro.child);
+          } catch (error) {
+            const racedExit = metroExitErrors.get(previousMetro.child);
+            if (racedExit !== undefined && !closed && (
+              metro?.child === previousMetro.child
+              || metroLaunching?.child === previousMetro.child
+            )) {
+              reportCriticalExit(racedExit);
+            }
+            throw error;
+          } finally {
+            stoppingMetroChildren.delete(previousMetro.child);
+          }
           if (metro === previousMetro) metro = null;
           await options.afterMetroReloadPreviousStopped?.({ metro: previousMetro });
         }
@@ -4570,7 +4592,6 @@ export async function runExpoDev(options = {}) {
       const stoppedMetro = metro;
       const stoppedForwarding = forwarding;
       const installedForwards = stoppedForwarding?.installed?.length ?? 0;
-      if (stoppedMetro !== null) intentionallyStoppedMetroChildren.add(stoppedMetro.child);
       if (stoppedForwarding !== null) {
         try {
           stoppedForwarding.remove?.();
@@ -4578,13 +4599,26 @@ export async function runExpoDev(options = {}) {
         } catch (error) { recordFailure(error, 'port forwarding'); }
       }
       if (stoppedMetro !== null) {
+        stoppingMetroChildren.add(stoppedMetro.child);
         try {
-          await stopProcessGroup(stoppedMetro.child, { processGroup: true });
+          await stopOwnedProcessGroup(stoppedMetro.child, { processGroup: true });
+          intentionallyStoppedMetroChildren.add(stoppedMetro.child);
           if (metro === stoppedMetro) metro = null;
           if (metroLaunching === stoppedMetro) metroLaunching = null;
           metroAttestation = null;
           metroReadiness = null;
-        } catch (error) { recordFailure(error, 'Metro child'); }
+        } catch (error) {
+          recordFailure(error, 'Metro child');
+          const racedExit = metroExitErrors.get(stoppedMetro.child);
+          if (racedExit !== undefined && !closed && (
+            metro?.child === stoppedMetro.child
+            || metroLaunching?.child === stoppedMetro.child
+          )) {
+            reportCriticalExit(racedExit);
+          }
+        } finally {
+          stoppingMetroChildren.delete(stoppedMetro.child);
+        }
       }
       if (!backendControlClosed) {
         backendControlStopAttempted = true;

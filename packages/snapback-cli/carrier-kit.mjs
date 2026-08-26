@@ -21,6 +21,7 @@ import {
   cleanupLeasedPath,
   closeCarrierCleanupLease,
   createCarrierCleanupLease,
+  inspectSecureExternalDirectoryChain,
   releaseCleanupResource,
   reserveCleanupPath,
   spawnLeasedProcess,
@@ -378,9 +379,37 @@ function prepareSupervisorStateDirectory(artifacts) {
       || metadata.isSymbolicLink()
       || (ownerUid !== null && metadata.uid !== ownerUid)
       || (metadata.mode & 0o777) !== 0o700) {
-    throw new Error(`carrier supervisor state must be an owner-only real directory: ${directory}`);
+    const error = new Error(
+      `carrier supervisor state must be an owner-only real directory: ${directory}`,
+    );
+    error.code = 'SNAPBACK_CARRIER_SUPERVISOR_STATE_UNSAFE';
+    throw error;
+  }
+  if (ownerUid !== null) {
+    const custody = inspectSecureExternalDirectoryChain(directory, ownerUid);
+    if (!custody.ok) {
+      const error = new Error(
+        `carrier supervisor state failed secure directory-chain admission (${custody.reason}) at ${custody.component}: ${directory}`,
+      );
+      error.code = 'SNAPBACK_CARRIER_SUPERVISOR_STATE_UNSAFE';
+      error.details = custody;
+      throw error;
+    }
   }
   return directory;
+}
+
+function recheckSupervisorStateDirectory(directory) {
+  const ownerUid = typeof process.getuid === 'function' ? process.getuid() : null;
+  if (ownerUid === null) return;
+  const custody = inspectSecureExternalDirectoryChain(directory, ownerUid);
+  if (custody.ok) return;
+  const error = new Error(
+    `carrier supervisor state directory chain changed or became unsafe (${custody.reason}) at ${custody.component}: ${directory}`,
+  );
+  error.code = 'SNAPBACK_CARRIER_SUPERVISOR_STATE_UNSAFE';
+  error.details = custody;
+  throw error;
 }
 
 function verifyScaffold(config, root) {
@@ -1049,6 +1078,7 @@ async function runWebCarrier({
   verifyReceipt,
   fetchImpl,
 }) {
+  recheckSupervisorStateDirectory(supervisorState);
   const carrier = config.carriers['web-browser'];
   const logPath = join(artifacts, 'web-dev.log');
   const replacements = { artifacts, supervisorState };
@@ -1074,7 +1104,10 @@ async function runWebCarrier({
         type: 'file',
         label: 'Expo supervisor readiness',
       });
-    if (structuredReadinessPath !== null) rmSync(structuredReadinessPath, { force: true });
+    if (structuredReadinessPath !== null) {
+      recheckSupervisorStateDirectory(supervisorState);
+      rmSync(structuredReadinessPath, { force: true });
+    }
   } catch (error) {
     releaseCleanupResource(readinessLease);
     if (cleanupLease !== null) {
@@ -1090,6 +1123,9 @@ async function runWebCarrier({
   }
   let child;
   try {
+    // Re-admit the complete lexical/canonical chain immediately before the
+    // child receives the state pathname and can publish into it.
+    recheckSupervisorStateDirectory(supervisorState);
     child = startOwned(command, {
       cleanupLease,
       label: 'Expo CLI supervisor',
@@ -1459,6 +1495,7 @@ async function runNativeCarrier({
   supervisorState,
   verifyReceipt,
 }) {
+  recheckSupervisorStateDirectory(supervisorState);
   if (process.platform !== 'darwin') throw new Error('native-simulator kit requires macOS');
   const carrier = config.carriers['native-simulator'];
   const simulator = chooseSimulator(options.udid);
@@ -1509,7 +1546,9 @@ async function runNativeCarrier({
     }
     const command = expandedCommand(carrier.command, { artifacts, supervisorState, udid });
     const readyFile = resolve(root, carrier.readyFile);
+    recheckSupervisorStateDirectory(supervisorState);
     rmSync(readyFile, { force: true });
+    recheckSupervisorStateDirectory(supervisorState);
     dev = startOwned(command, {
       cwd: root,
       env: { ...process.env, CI: '1' },

@@ -520,27 +520,54 @@ if (cdp) {
 `);
 
 try {
+  const unsafeStateOnly = process.argv.includes('--unsafe-state-only');
   const simulatedLeader = {
     pid: 4242,
     startTime: 'Fri Aug 21 10:00:00 2026',
     command: 'node old-carrier.mjs',
     leaseMarker: 'old-run-marker',
   };
-  const simulatedSignals = [];
-  let simulatedGroup = 'owned';
-  await teardownTest.stopGuardedProcessGroup(4242, simulatedLeader, 250, 250, {
-    inspect: () => simulatedGroup,
-    sendSignal(_pgid, name) {
-      simulatedSignals.push(name);
-      if (name === 'SIGTERM') simulatedGroup = 'changed';
-    },
-    wait: async () => {},
-  });
-  assert.deepEqual(
-    simulatedSignals,
-    ['SIGTERM'],
-    'a reused PGID observed during the wait must permanently discharge before SIGKILL',
-  );
+  if (!unsafeStateOnly) {
+    const simulatedSignals = [];
+    let simulatedGroup = 'owned';
+    await teardownTest.stopGuardedProcessGroup(4242, simulatedLeader, 250, 250, {
+      inspect: () => simulatedGroup,
+      sendSignal(_pgid, name) {
+        simulatedSignals.push(name);
+        if (name === 'SIGTERM') simulatedGroup = 'changed';
+      },
+      wait: async () => {},
+    });
+    assert.deepEqual(
+      simulatedSignals,
+      ['SIGTERM'],
+      'a reused PGID observed during the wait must permanently discharge before SIGKILL',
+    );
+
+    const ambiguousSignals = [];
+    const ambiguousOutcome = await teardownTest.stopGuardedProcessGroup(
+      4343,
+      { ...simulatedLeader, pid: 4343 },
+      0,
+      0,
+      {
+        inspect: () => 'ambiguous',
+        sendSignal(_pgid, name) { ambiguousSignals.push(name); },
+        wait: async () => {},
+      },
+    );
+    assert.deepEqual(
+      ambiguousOutcome,
+      { status: 'ambiguous' },
+      'an ambiguous post-signal inspection must not report the owned group stopped',
+    );
+    assert.deepEqual(
+      ambiguousSignals,
+      [],
+      'ambiguity must retain custody without signaling an unverified group',
+    );
+    console.log('process-group ambiguity: stop outcome remains ambiguous and custody is retained');
+  }
 
   const npxStarted = join(root, 'npx-shim-started');
   const npxMutate = join(root, 'npx-shim-mutate');
@@ -615,6 +642,18 @@ try {
     () => carrierKitTest.prepareSupervisorStateDirectory(symlinkStateArtifacts),
     /owner-only real directory/u,
   );
+
+  const unsafeStateParent = join(root, 'unsafe-state-parent');
+  const unsafeStateArtifacts = join(unsafeStateParent, 'artifacts');
+  mkdirSync(unsafeStateArtifacts, { recursive: true, mode: 0o755 });
+  chmodSync(unsafeStateParent, 0o777);
+  assert.throws(
+    () => carrierKitTest.prepareSupervisorStateDirectory(unsafeStateArtifacts),
+    (error) => error?.code === 'SNAPBACK_CARRIER_SUPERVISOR_STATE_UNSAFE'
+      && /writable-component/u.test(error.message),
+    'a non-sticky group/world-writable artifacts ancestor must refuse supervisor state',
+  );
+  console.log('supervisor state ancestry: unsafe writable artifacts parent refuses with a code');
 
   const headlessConfig = defineTemplateCarrierConfig({
     schemaVersion: 'snapback.template-carriers.v1',

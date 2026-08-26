@@ -25,6 +25,7 @@ import {
 import { createConnection, createServer as createNetServer } from 'node:net';
 import { dirname, join, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import { PassThrough } from 'node:stream';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { IDBFactory } from 'fake-indexeddb';
 
@@ -51,7 +52,14 @@ import {
   installAndroidPortForwarding,
   runExpoDev,
 } from './expo-dev.mjs';
-import { managedAdminToken, readReadyDescriptor, runCli, runDev } from './index.mjs';
+import {
+  attachDevControlChannel,
+  managedAdminToken,
+  readReadyDescriptor,
+  runCli,
+  runDev,
+} from './index.mjs';
+import { stopProcessGroup } from './process-teardown.mjs';
 import {
   defineTemplateCarrierConfig,
   runTemplateCarrierCli,
@@ -69,6 +77,8 @@ const metroFreshnessOnly = process.argv.includes('--metro-freshness-only');
 const controlSocketOnly = process.argv.includes('--control-socket-only');
 const httpControlOnly = process.argv.includes('--http-control-only');
 const stopFailureOnly = process.argv.includes('--stop-failure-only');
+const metroStopRaceOnly = process.argv.includes('--metro-stop-race-only');
+const backendCloseRetryOnly = process.argv.includes('--backend-close-retry-only');
 const controlOwnerSurvivalOnly = process.argv.includes('--control-owner-survival-only');
 const noTokenCarrierOnly = process.argv.includes('--no-token-carrier-only');
 const regularFileOnly = process.argv.includes('--regular-file-only');
@@ -560,6 +570,7 @@ async function startFixture(target, options = {}) {
     stdinControl: options.stdinControl,
     afterControlEndpointLeaseActivation: options.afterControlEndpointLeaseActivation,
     beforeStopChildren: options.beforeStopChildren,
+    stopProcessGroup: options.stopProcessGroup,
     beforeDevFreshExpoRefresh: options.beforeDevFreshExpoRefresh,
     afterMetroReloadPreviousStopped: options.afterMetroReloadPreviousStopped,
     afterMetroReloadListenersVerified: options.afterMetroReloadListenersVerified,
@@ -1159,7 +1170,7 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
   assert.equal(stop[0].requestId, 'stop-1');
   assert.equal(stop[1].state, 'result');
   assert.equal(stop[1].requestId, 'stop-1');
-  assert.equal(stop[1].ok, true);
+  assert.equal(stop[1].ok, true, JSON.stringify(stop));
   assert.equal(stop[1].result.state, 'children-stopped');
   assert.equal(
     child.exitCode,
@@ -1462,6 +1473,139 @@ async function runStopChildrenFailureRetrySuite() {
       });
       await eventually(() => !processAlive(backendPid), { label: 'fault-injection cleanup' });
     }
+    rmSync(controlRoot, { recursive: true, force: true });
+  }
+}
+
+async function runDelayedMetroExitAfterStopFailureSuite() {
+  const controlRoot = mkdtempSync('/tmp/sb-metro-stop-race-');
+  const target = fixture('metro-stop-race-app', { sessions: true, root: controlRoot });
+  chmodSync(target.projectRoot, 0o700);
+  let run = null;
+  let injected = false;
+  let delayedStop = Promise.resolve();
+  try {
+    run = await startFixture(target, {
+      platform: 'web',
+      controlSocket: true,
+      async stopProcessGroup(child, options) {
+        if (!injected && options?.processGroup === true) {
+          injected = true;
+          delayedStop = new Promise((resolveStop) => setTimeout(resolveStop, 250))
+            .then(() => stopProcessGroup(child, options));
+          const error = new Error('injected Metro process group survived SIGKILL');
+          error.code = 'SNAPBACK_TEST_METRO_STOP_FAILED';
+          throw error;
+        }
+        return stopProcessGroup(child, options);
+      },
+    });
+    const supervisorDescriptorPath = join(dirname(target.readyFile), 'expo-supervisor.json');
+    const initialDescriptor = JSON.parse(readFileSync(supervisorDescriptorPath, 'utf8'));
+    const stopped = await sendControlCommand(
+      run.supervisor.controlSocket,
+      controlCommand(run.supervisor.controlSocket, 'stop-children', 'metro-stop-race-1'),
+    );
+    assert.equal(stopped[1]?.ok, false, JSON.stringify(stopped));
+    assert.equal(stopped[1]?.result?.state, 'children-stop-failed', JSON.stringify(stopped));
+    assert.equal(
+      JSON.parse(readFileSync(supervisorDescriptorPath, 'utf8')).metro.pid,
+      initialDescriptor.metro.pid,
+      'a failed Metro stop must retain its live descriptor until the child exits',
+    );
+    await delayedStop;
+    await eventually(
+      () => !existsSync(supervisorDescriptorPath)
+        || run.events.some((event) => event.state === 'closed'),
+      { label: 'delayed Metro exit reconciliation after failed stop' },
+    );
+    assert.equal(processGroupAlive(initialDescriptor.metro.pid), false);
+    console.log('delayed Metro exit: failed stop is not suppressed and the supervisor reconciles closed');
+  } finally {
+    await delayedStop.catch(() => {});
+    if (run !== null) {
+      await run.supervisor.close().catch(() => {});
+      supervisors.splice(supervisors.indexOf(run.supervisor), 1);
+    }
+    rmSync(controlRoot, { recursive: true, force: true });
+  }
+}
+
+async function runNonExpoCloseRetrySuite() {
+  const controlRoot = mkdtempSync('/tmp/sb-backend-close-retry-');
+  const target = fixture('backend-close-retry-app', { sessions: true, root: controlRoot });
+  chmodSync(target.projectRoot, 0o700);
+  const displacedReadyFile = `${target.readyFile}.retry`;
+  const events = [];
+  let dev = null;
+  let detachInput = () => {};
+  const input = new PassThrough();
+  try {
+    dev = await runDev({
+      backendDirectory: target.backendRoot,
+      projectRoot: target.projectRoot,
+      readyFile: target.readyFile,
+      database: target.database,
+      runtimeBinary,
+      watch: true,
+      serverStdio: ['ignore', 'ignore', 'ignore'],
+      onEvent(event) { events.push(event); },
+    });
+    const applicationReadyFile = dev.applicationReadyFile;
+    assert.equal(existsSync(applicationReadyFile), true);
+    detachInput = attachDevControlChannel({
+      verbs: dev.verbs,
+      stop() {},
+      onEvent(event) { events.push(event); },
+      stdin: input,
+    });
+    renameSync(target.readyFile, displacedReadyFile);
+    writeFileSync(target.readyFile, '{}\n', { mode: 0o600 });
+    const stopAttempt = dev.closeForExpoStopChildren();
+    input.write(`${JSON.stringify({
+      schemaVersion: 'snapback.dev-command.v1',
+      verb: 'reload',
+      requestId: 'reload-while-backend-stopping',
+    })}\n`);
+    const duringStop = await eventually(
+      () => events.find((event) => event.requestId === 'reload-while-backend-stopping'),
+      { timeoutMs: 3_000, label: 'coded stdin reload during retryable backend stop' },
+    );
+    assert.equal(
+      duringStop.diagnostics?.[0]?.code,
+      'SNAPBACK_DEV_CONTROL_BACKEND_STOPPING',
+      JSON.stringify(duringStop),
+    );
+    await assert.rejects(
+      stopAttempt,
+      (error) => error?.code === 'SNAPBACK_DEV_SERVER_STOP_FAILED',
+    );
+    assert.equal(
+      existsSync(applicationReadyFile),
+      true,
+      'a refused native stop must preserve the application-ready receipt',
+    );
+
+    rmSync(target.readyFile, { force: true });
+    renameSync(displacedReadyFile, target.readyFile);
+    const recoveredReload = await dev.verbs.reload({ requestId: 'reload-after-stop-refusal' });
+    assert.equal(recoveredReload?.state, 'generated-and-loaded', JSON.stringify(recoveredReload));
+    await dev.closeForExpoStopChildren();
+    const afterStop = await dev.verbs.restart({ requestId: 'restart-after-backend-stop' });
+    assert.equal(
+      afterStop?.diagnostics?.[0]?.code,
+      'SNAPBACK_DEV_CONTROL_BACKEND_STOPPED',
+      JSON.stringify(afterStop),
+    );
+    console.log('non-Expo close retry: stdin is coded while stopping, refusal preserves custody, retry and stopped-state verbs settle');
+  } finally {
+    detachInput();
+    input.destroy();
+    if (existsSync(displacedReadyFile)) {
+      rmSync(target.readyFile, { force: true });
+      renameSync(displacedReadyFile, target.readyFile);
+    }
+    await dev?.close?.().catch(() => {});
     rmSync(controlRoot, { recursive: true, force: true });
   }
 }
@@ -2153,8 +2297,14 @@ async function runRegularFileControlInputSuite() {
 }
 
 try {
-  if (stopFailureOnly) {
+  if (metroStopRaceOnly) {
+    await runDelayedMetroExitAfterStopFailureSuite();
+  } else if (backendCloseRetryOnly) {
+    await runNonExpoCloseRetrySuite();
+  } else if (stopFailureOnly) {
     await runStopChildrenFailureRetrySuite();
+    await runDelayedMetroExitAfterStopFailureSuite();
+    await runNonExpoCloseRetrySuite();
   } else if (httpControlOnly) {
     await runHttpControlE1Suite();
     await runPackagedHttpOnlyAfterStopSuite();
@@ -2167,6 +2317,8 @@ try {
   } else if (controlSocketOnly) {
     await runHttpControlE1Suite();
     await runStopChildrenFailureRetrySuite();
+    await runDelayedMetroExitAfterStopFailureSuite();
+    await runNonExpoCloseRetrySuite();
     await runNoTokenCarrierRefusalSuite();
     await runRegularFileControlInputSuite();
     await runControlSocketSuite();
@@ -2175,6 +2327,8 @@ try {
   // by running only the broader lifecycle cases below.
   await runHttpControlE1Suite();
   await runStopChildrenFailureRetrySuite();
+  await runDelayedMetroExitAfterStopFailureSuite();
+  await runNonExpoCloseRetrySuite();
   await runNoTokenCarrierRefusalSuite();
   await runRegularFileControlInputSuite();
   await runControlSocketSuite();

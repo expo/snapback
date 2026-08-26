@@ -1534,50 +1534,71 @@ function processGroupLeaseGuard(pgid, leader, {
   sendSignal = (group, name) => process.kill(-group, name),
   wait = (duration) => new Promise((resolveWait) => setTimeout(resolveWait, duration)),
 } = {}) {
-  let discharged = false;
+  let stopped = false;
+  let signalDischarged = false;
   const observe = () => {
-    if (discharged) return 'discharged';
+    if (stopped) return 'stopped';
     const observation = inspect(pgid, leader);
-    if (observation !== 'owned') {
-      // An empty group, changed leader, or failed/ambiguous inspection ends
-      // this lease permanently. It can never reacquire a reused numeric PGID.
-      discharged = true;
-      return 'discharged';
+    if (observation === 'empty') {
+      stopped = true;
+      return 'stopped';
     }
-    return 'owned';
+    if (observation === 'changed') signalDischarged = true;
+    // Inspection ambiguity is not evidence that the group stopped and does
+    // not discharge custody. A later bounded observation may recover.
+    if (observation === 'ambiguous') return 'ambiguous';
+    return signalDischarged ? 'discharged' : observation;
   };
   const signalGroup = (name) => {
-    if (observe() !== 'owned') return false;
+    const observation = observe();
+    if (observation !== 'owned') return Object.freeze({ status: observation });
     try {
       // The ownership observation is deliberately adjacent to every signal.
       sendSignal(pgid, name);
-      return true;
+      return Object.freeze({ status: 'signalled' });
     } catch (error) {
       if (error?.code === 'ESRCH') {
-        discharged = true;
-        return false;
+        stopped = true;
+        return Object.freeze({ status: 'stopped' });
       }
       throw error;
     }
   };
-  const waitForDischarge = async (timeoutMs) => {
+  const waitForOutcome = async (timeoutMs) => {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
-      if (observe() !== 'owned') return true;
+      const observation = observe();
+      if (observation === 'stopped') return Object.freeze({ status: observation });
       await wait(Math.min(25, Math.max(0, deadline - Date.now())));
     }
-    return observe() !== 'owned';
+    return Object.freeze({ status: observe() });
   };
-  return Object.freeze({ observe, signalGroup, waitForDischarge });
+  return Object.freeze({ observe, signalGroup, waitForOutcome });
 }
 
 async function stopGuardedProcessGroup(pgid, leader, graceMs, killWaitMs, dependencies) {
   const guard = processGroupLeaseGuard(pgid, leader, dependencies);
-  if (!guard.signalGroup('SIGTERM')) return true;
-  if (await guard.waitForDischarge(graceMs)) return true;
-  if (!guard.signalGroup('SIGKILL')) return true;
-  if (await guard.waitForDischarge(killWaitMs)) return true;
+  const gracefulSignal = guard.signalGroup('SIGTERM');
+  if (gracefulSignal.status !== 'signalled') return gracefulSignal;
+  const gracefulOutcome = await guard.waitForOutcome(graceMs);
+  if (gracefulOutcome.status !== 'owned') return gracefulOutcome;
+  const killSignal = guard.signalGroup('SIGKILL');
+  if (killSignal.status !== 'signalled') return killSignal;
+  const killOutcome = await guard.waitForOutcome(killWaitMs);
+  if (killOutcome.status !== 'owned') return killOutcome;
   throw new Error(`owned process group ${pgid} survived SIGKILL`);
+}
+
+function processGroupStopOutcomeError(pgid, outcome) {
+  const suffix = outcome.status === 'ambiguous' ? 'AMBIGUOUS' : 'DISCHARGED';
+  const error = new Error(
+    outcome.status === 'ambiguous'
+      ? `owned process group ${pgid} stop remains ambiguous after bounded identity inspection`
+      : `owned process group ${pgid} custody discharged before group exit was proven`,
+  );
+  error.code = `SNAPBACK_PROCESS_GROUP_STOP_${suffix}`;
+  error.outcome = outcome;
+  return error;
 }
 
 function intendedCommandMatches(resource, candidate) {
@@ -1795,10 +1816,27 @@ export async function stopProcessGroup(child, {
     const state = LEASED_PROCESS_STATE.get(child);
     const leader = await recordedProcessGroupLeader(child, state);
     if (leader === null) {
-      releaseLeasedProcess(child);
-      return true;
+      if (exited(child)) {
+        releaseLeasedProcess(child);
+        return true;
+      }
+      throw processGroupStopOutcomeError(
+        child.pid,
+        Object.freeze({ status: 'ambiguous' }),
+      );
     }
-    await stopGuardedProcessGroup(child.pid, leader, graceMs, killWaitMs);
+    const outcome = await stopGuardedProcessGroup(
+      child.pid,
+      leader,
+      graceMs,
+      killWaitMs,
+    );
+    if (outcome.status !== 'stopped') {
+      // Keep the cleanup resource leased. A retry may recover a transient
+      // inspection failure; neither ambiguity nor identity discharge proves
+      // that the owned group is gone.
+      throw processGroupStopOutcomeError(child.pid, outcome);
+    }
     await waitForExit(child, 0);
     releaseLeasedProcess(child);
     return true;
@@ -1820,7 +1858,7 @@ export async function stopProcessGroup(child, {
 }
 
 async function cleanupProcessGroup(pgid, leader) {
-  await stopGuardedProcessGroup(pgid, leader, 1_000, 2_000);
+  return stopGuardedProcessGroup(pgid, leader, 1_000, 2_000);
 }
 
 function cleanupSocketOwnerState(resource) {
@@ -2058,10 +2096,11 @@ async function cleanupResource(path, resource, {
 }) {
   if (resource.runId !== root.runId) return false;
   if (resource.kind === 'process-group' && resource.state === 'active') {
-    await cleanupProcessGroup(
+    const outcome = await cleanupProcessGroup(
       resource.processGroup,
       refreshedActiveProcessGroupLeader(resource, table),
     );
+    if (outcome.status !== 'stopped') return false;
   } else if (resource.kind === 'process-group' && resource.state === 'pending') {
     const resolution = pendingProcessGroupResolution(
       resource,
@@ -2079,7 +2118,8 @@ async function cleanupResource(path, resource, {
         identityFinalizedAt: new Date().toISOString(),
         finalizedBy: 'cleanup-reaper',
       });
-      await cleanupProcessGroup(resolution.leader.pid, resolution.leader);
+      const outcome = await cleanupProcessGroup(resolution.leader.pid, resolution.leader);
+      if (outcome.status !== 'stopped') return false;
     } else if (resolution.status === 'absent') {
       const firstAbsent = pendingAbsentSince.get(path) ?? Date.now();
       pendingAbsentSince.set(path, firstAbsent);

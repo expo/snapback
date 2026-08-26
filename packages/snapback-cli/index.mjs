@@ -6158,6 +6158,7 @@ export async function runDev(options = {}) {
       });
     },
   });
+  let backendControlState = 'active';
   const generatedSchemaPath = resolveGeneratedArtifact(
     generatedRoot,
     'schema.manifest.json',
@@ -6346,33 +6347,44 @@ export async function runDev(options = {}) {
     managed ? null : { source: 'attached', declaredBy: null },
   );
   const closeManaged = async ({ allowNativeStopRetry = false } = {}) => {
-    try {
-      if (managed && child?.exitCode === null) {
-        let nativeStopFailure = null;
-        try {
-          requireNativeSuccess(
-            native(runtime.binary, ['stop', '--ready-file', readyFile], {
-              cwd: projectRoot,
-              env: options.env,
-            }),
-            'SNAPBACK_DEV_SERVER_STOP_FAILED',
-            'managed dev server stop',
-          );
-        } catch (error) {
-          nativeStopFailure = error;
-          if (allowNativeStopRetry) throw error;
+    let nativeStopFailure = null;
+    if (managed && child?.exitCode === null && child?.signalCode === null) {
+      backendControlState = 'stopping';
+      try {
+        requireNativeSuccess(
+          native(runtime.binary, ['stop', '--ready-file', readyFile], {
+            cwd: projectRoot,
+            env: options.env,
+          }),
+          'SNAPBACK_DEV_SERVER_STOP_FAILED',
+          'managed dev server stop',
+        );
+      } catch (error) {
+        nativeStopFailure = error;
+        if (allowNativeStopRetry) {
+          // Native custody refused before shutdown. Preserve every live
+          // control-loop resource so the same owner can repair and retry.
+          backendControlState = 'retryable-stop-refused';
+          throw error;
         }
-        // Terminal close and startup abort own this exact child handle. A
-        // missing, replaced, or malformed public ready file must keep the
-        // nonce-verified native refusal visible without stranding that owned
-        // process group (and its inherited pipe handles) behind the throw.
-        await stopProcessGroup(child);
-        if (nativeStopFailure !== null) throw nativeStopFailure;
       }
-    } finally {
-      if (managed) removeApplicationReadyReceipt();
-      bindingPublisher.close();
+      // Terminal close and startup abort own this exact child handle. A
+      // missing, replaced, or malformed public ready file must keep the
+      // nonce-verified native refusal visible without stranding that owned
+      // process group (and its inherited pipe handles) behind the throw.
+      try {
+        await stopProcessGroup(child);
+      } catch (error) {
+        backendControlState = 'active';
+        throw error;
+      }
     }
+    backendControlState = 'stopped';
+    // Receipt and binding closure become truthful only after the backend exit
+    // is proven; a retryable refusal leaves both available.
+    if (managed) removeApplicationReadyReceipt();
+    bindingPublisher.close();
+    if (nativeStopFailure !== null) throw nativeStopFailure;
   };
   let adminToken;
   let devIdentityCapability;
@@ -6639,6 +6651,51 @@ export async function runDev(options = {}) {
     workChain = run.then(() => undefined, () => undefined);
     return run;
   };
+  const backendControlUnavailable = (verb, { requestId } = {}) => {
+    if (backendControlState === 'retryable-stop-refused') {
+      try {
+        const restoredDescriptor = validateDevTarget(
+          readReadyDescriptor(readyFile),
+          { readyFile, database },
+        );
+        if (canonicalJson(restoredDescriptor) !== canonicalJson(descriptor)) {
+          throw new Error('the restored ready descriptor does not name the retained backend');
+        }
+        backendControlState = 'active';
+      } catch {
+        // Custody is still unrepaired. Keep the loop resources live but do
+        // not let a backend verb fall through to a null or incidental ready-
+        // file failure while the owner is awaiting a stop retry.
+      }
+    }
+    const state = backendControlState === 'active'
+      ? (closed ? 'stopped' : null)
+      : backendControlState;
+    if (state === null) return null;
+    const stopping = state === 'stopping' || state === 'retryable-stop-refused';
+    return emitDevEvent({
+      schemaVersion: 'snapback.dev.v1',
+      ok: false,
+      state: `${verb}-failed`,
+      verb,
+      ...(requestId === undefined ? {} : { requestId }),
+      diagnostics: [{
+        code: stopping
+          ? 'SNAPBACK_DEV_CONTROL_BACKEND_STOPPING'
+          : 'SNAPBACK_DEV_CONTROL_BACKEND_STOPPED',
+        severity: 'error',
+        subsystem: 'dev-loop',
+        message: stopping
+          ? `the managed backend is stopping; ${verb} was not started`
+          : `the managed backend has stopped; ${verb} is unavailable`,
+      }],
+    });
+  };
+  const withBackendControl = (verb, context, task) => {
+    const unavailable = backendControlUnavailable(verb, context);
+    if (unavailable !== null) return Promise.resolve(unavailable);
+    return withDevLock(() => backendControlUnavailable(verb, context) ?? task());
+  };
   const drainGenerationQueue = () => withDevLock(async () => {
     while (!closed && queuedFilename !== null) {
       const filename = queuedFilename;
@@ -6682,7 +6739,11 @@ export async function runDev(options = {}) {
 
   const attachExitWatch = (proc) => {
     proc?.once('exit', (code, signal) => {
-      if (closed || restarting || proc !== child) return;
+      if (closed
+          || restarting
+          || backendControlState === 'stopping'
+          || backendControlState === 'stopped'
+          || proc !== child) return;
       removeApplicationReadyReceipt();
       emitDevEvent({ schemaVersion: 'snapback.dev.v1', ok: false, state: 'server-exited', code, signal });
       options.onServerExit?.(code, signal);
@@ -6824,7 +6885,9 @@ export async function runDev(options = {}) {
     lastLoad,
     client: clientStatus(),
   }));
-  const reloadVerb = ({ requestId } = {}) => withDevLock(
+  const reloadVerb = ({ requestId } = {}) => withBackendControl(
+    'reload',
+    { requestId },
     () => forceRegenerateAndLoad('(reload)', {
       verb: 'reload',
       ...(requestId === undefined ? {} : { requestId }),
@@ -6835,9 +6898,8 @@ export async function runDev(options = {}) {
   // generate+load pass. The client arm keeps running: its relay re-resolves
   // the backend target from the rewritten ready file, so restart never
   // requires restarting the client process.
-  const restartVerb = ({ requestId } = {}) => withDevLock(async () => {
+  const restartVerb = ({ requestId } = {}) => withBackendControl('restart', { requestId }, async () => {
     const tag = requestId === undefined ? {} : { requestId };
-    if (closed) return null;
     removeApplicationReadyReceipt();
     if (!managed || child === null) {
       return emitDevEvent({
@@ -6978,9 +7040,8 @@ export async function runDev(options = {}) {
     }
   });
 
-  const devFreshVerb = ({ requestId } = {}) => withDevLock(async () => {
+  const devFreshVerb = ({ requestId } = {}) => withBackendControl('dev-fresh', { requestId }, async () => {
     const tag = requestId === undefined ? {} : { requestId };
-    if (closed) return null;
     if (!managed || child === null) {
       return emitDevEvent({
         schemaVersion: 'snapback.dev.v1',
@@ -7105,19 +7166,33 @@ export async function runDev(options = {}) {
         return closeDevLoop(false);
       })();
     }
-    if (!closePrepared) {
-      closed = true;
-      if (managed) removeApplicationReadyReceipt();
-      clearTimeout(timer);
-      watcher.close();
-      clientClosePromise = Promise.resolve().then(() => closeClientArm());
-      closePrepared = true;
-    }
-    const attempt = (async () => {
+    backendControlState = 'stopping';
+    const attempt = withDevLock(async () => {
+      let stopFailure = null;
+      try {
+        await closeManaged({ allowNativeStopRetry });
+      } catch (error) {
+        if (backendControlState !== 'stopped') {
+          if (backendControlState !== 'retryable-stop-refused') {
+            backendControlState = 'active';
+          }
+          throw error;
+        }
+        // Terminal exact-child fallback may prove exit while preserving the
+        // native custody refusal as the caller-visible failure.
+        stopFailure = error;
+      }
+      if (!closePrepared) {
+        closed = true;
+        clearTimeout(timer);
+        watcher.close();
+        clientClosePromise = Promise.resolve().then(() => closeClientArm());
+        closePrepared = true;
+      }
       await clientClosePromise;
-      await closeManaged({ allowNativeStopRetry });
       closeSucceeded = true;
-    })();
+      if (stopFailure !== null) throw stopFailure;
+    });
     closeAttempt = attempt;
     closeAttemptAllowsNativeStopRetry = allowNativeStopRetry;
     void attempt.finally(() => {
