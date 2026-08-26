@@ -288,6 +288,9 @@ pub struct AdmissionEffectGuardIdentityForTest {
 
 #[cfg(any(test, feature = "test-support"))]
 struct DurableCommitObservationStateForTest {
+    // @ref LLP 0303#t-fork-is-in-scope — even test-support owner cleanup must
+    // not mistake a parent's inherited allocation for a child-local owner.
+    identity: ProcessBoundIdentity,
     matching_commits: std::sync::atomic::AtomicUsize,
     mismatched_commits: std::sync::atomic::AtomicUsize,
 }
@@ -439,9 +442,10 @@ impl DurableCommitObservationReceiptForTest {
 impl Drop for DurableCommitObservationForTest {
     fn drop(&mut self) {
         DURABLE_COMMIT_OBSERVER_FOR_TEST.with(|slot| {
-            let installed = slot.borrow().as_ref().is_some_and(|observer| {
-                std::sync::Arc::ptr_eq(&observer.observation, &self.observation)
-            });
+            let installed = slot
+                .borrow()
+                .as_ref()
+                .is_some_and(|observer| observer.observation.identity == self.observation.identity);
             if installed {
                 slot.borrow_mut().take();
             }
@@ -462,6 +466,7 @@ pub fn observe_next_durable_commits_for_test(
         "a durable-commit observer needs at least one commit"
     );
     let observation = std::sync::Arc::new(DurableCommitObservationStateForTest {
+        identity: ProcessBoundIdentity::new(),
         matching_commits: std::sync::atomic::AtomicUsize::new(0),
         mismatched_commits: std::sync::atomic::AtomicUsize::new(0),
     });
@@ -2603,7 +2608,10 @@ impl ServingDatabase {
                 "authorization participant belongs to another database",
             ));
         }
-        if !registry.binding_matches(&binding) || !Arc::ptr_eq(participant.registry(), registry) {
+        // @ref LLP 0303#t-fork-is-in-scope — registry and activation custody
+        // are exact current-process identities, not inherited Arc addresses.
+        if !registry.binding_matches(&binding) || !participant.registry().is_same_instance(registry)
+        {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_PARTICIPANT_REGISTRY_MISMATCH",
                 "auth",
@@ -2626,7 +2634,7 @@ impl ServingDatabase {
                 "authorization participant was dropped",
             )
         })?;
-        if !Arc::ptr_eq(&installed, participant.activation()) {
+        if !installed.is_same_instance(participant.activation()) {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_PARTICIPANT_REGISTRY_MISMATCH",
                 "auth",

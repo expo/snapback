@@ -1,6 +1,7 @@
 //! Exact allocation identity that is valid only in its creator process.
 
 use std::sync::Arc;
+use std::sync::Once;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Opaque allocation identity whose equality fails closed after a process
@@ -21,18 +22,20 @@ pub struct ProcessBoundIdentity {
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
-struct CreatorProcessIdentity(u64);
+struct CreatorProcessIdentity {
+    lineage_generation: u64,
+    process_id: u32,
+}
 
-// The high word is a private lineage generation; the low word is the last PID
-// observed in this address space. A child inherits the word, observes its new
-// PID on the first construction or comparison, and advances the generation.
-// Keeping both in one atomic makes initialization and post-fork refresh
-// lock-free and prevents a thread from observing a PID with the prior
-// generation. If a PID is later reused in the same inherited lineage, the
-// generation advances again, so equality never rests on the PID alone.
-static CURRENT_PROCESS_STATE: AtomicU64 = AtomicU64::new(0);
-
-const PID_MASK: u64 = u32::MAX as u64;
+// Register before the first identity can be returned. POSIX calls the child
+// hook around `fork`, after the address space has been copied and before the
+// child returns to application code. Every descendant therefore advances a
+// private lineage token even if it never compares an identity before forking
+// again. The freshly read PID is an additional current-process fact, not the
+// source of uniqueness, so PID reuse cannot resurrect an inherited identity.
+#[cfg(unix)]
+static REGISTER_FORK_IDENTITY_HOOK: Once = Once::new();
+static CURRENT_PROCESS_LINEAGE_GENERATION: AtomicU64 = AtomicU64::new(1);
 
 impl ProcessBoundIdentity {
     /// Mint a fresh allocation identity bound to the current process.
@@ -62,31 +65,27 @@ impl PartialEq for ProcessBoundIdentity {
 impl Eq for ProcessBoundIdentity {}
 
 fn current_process_identity() -> CreatorProcessIdentity {
-    let current_pid = u64::from(std::process::id());
-    let mut observed = CURRENT_PROCESS_STATE.load(Ordering::Acquire);
-    loop {
-        if observed & PID_MASK == current_pid && observed >> 32 != 0 {
-            return CreatorProcessIdentity(observed);
-        }
-        let refreshed = refreshed_process_state(observed, current_pid as u32);
-        match CURRENT_PROCESS_STATE.compare_exchange_weak(
-            observed,
-            refreshed,
-            Ordering::AcqRel,
-            Ordering::Acquire,
-        ) {
-            Ok(_) => return CreatorProcessIdentity(refreshed),
-            Err(actual) => observed = actual,
-        }
+    #[cfg(unix)]
+    REGISTER_FORK_IDENTITY_HOOK.call_once(|| {
+        // SAFETY: the callback has C ABI, captures no Rust state, and performs
+        // only one lock-free atomic operation in the post-fork child.
+        let registered =
+            unsafe { libc::pthread_atfork(None, None, Some(advance_process_identity_after_fork)) };
+        assert_eq!(
+            registered, 0,
+            "failed to install the process-bound identity fork hook"
+        );
+    });
+
+    CreatorProcessIdentity {
+        lineage_generation: CURRENT_PROCESS_LINEAGE_GENERATION.load(Ordering::Acquire),
+        process_id: std::process::id(),
     }
 }
 
-fn refreshed_process_state(observed: u64, current_pid: u32) -> u64 {
-    let mut next_generation = (observed >> 32).wrapping_add(1) as u32;
-    if next_generation == 0 {
-        next_generation = 1;
-    }
-    (u64::from(next_generation) << 32) | u64::from(current_pid)
+#[cfg(unix)]
+unsafe extern "C" fn advance_process_identity_after_fork() {
+    CURRENT_PROCESS_LINEAGE_GENERATION.fetch_add(1, Ordering::SeqCst);
 }
 
 #[cfg(test)]
@@ -104,14 +103,17 @@ mod tests {
     }
 
     #[test]
-    fn reused_pid_advances_private_process_identity() {
-        let first = refreshed_process_state(0, 41);
-        let second = refreshed_process_state(first, 42);
-        let reused = refreshed_process_state(second, 41);
+    fn private_lineage_token_not_pid_is_the_identity_discriminator() {
+        let first = CreatorProcessIdentity {
+            lineage_generation: 7,
+            process_id: 41,
+        };
+        let reused_pid_in_a_descendant = CreatorProcessIdentity {
+            lineage_generation: 9,
+            process_id: 41,
+        };
 
-        assert_ne!(first, second);
-        assert_ne!(first, reused);
-        assert_eq!(first as u32, reused as u32);
+        assert_ne!(first, reused_pid_in_a_descendant);
     }
 
     #[cfg(unix)]

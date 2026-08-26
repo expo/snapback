@@ -15,6 +15,7 @@ use crate::ephemeral::{
     validate_collection_definitions,
 };
 use crate::manifest::{PORTABLE_STORAGE_VERSION_MAX, SchemaManifest};
+use crate::process_bound_identity::ProcessBoundIdentity;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
@@ -27,6 +28,9 @@ const ACTIVATION_READY: u8 = 2;
 const ACTIVATION_RETIRED: u8 = 3;
 
 pub(super) struct AuthorizationParticipantActivation {
+    // @ref LLP 0303#t-fork-is-in-scope — consumers compare through the
+    // current-process-aware identity instead of exposing this allocation.
+    identity: ProcessBoundIdentity,
     state: AtomicU8,
     projection_available: AtomicBool,
     projection: Mutex<AuthorizationProjectionState>,
@@ -45,6 +49,7 @@ struct AuthorizationProjectionState {
 impl AuthorizationParticipantActivation {
     pub(super) fn pending() -> Self {
         Self {
+            identity: ProcessBoundIdentity::new(),
             state: AtomicU8::new(ACTIVATION_PENDING),
             projection_available: AtomicBool::new(false),
             projection: Mutex::new(AuthorizationProjectionState {
@@ -61,6 +66,10 @@ impl AuthorizationParticipantActivation {
 
     fn state(&self) -> u8 {
         self.state.load(Ordering::Acquire)
+    }
+
+    pub(super) fn is_same_instance(&self, other: &Self) -> bool {
+        self.identity == other.identity
     }
 
     pub(super) fn transition(&self, from: u8, to: u8) -> SnapbackResult<()> {
@@ -360,6 +369,9 @@ struct RoomAuthorityRegistryState {
 }
 
 pub(super) struct RoomAuthorityRegistry {
+    // @ref LLP 0303#t-fork-is-in-scope — database participant installation
+    // refuses registry handles inherited from a creator process.
+    identity: ProcessBoundIdentity,
     binding: DatabaseBinding,
     generation: AtomicU64,
     retired: AtomicBool,
@@ -375,6 +387,7 @@ impl RoomAuthorityRegistry {
 
     pub(super) fn new_with_generation(binding: DatabaseBinding, generation: u64) -> Arc<Self> {
         Arc::new(Self {
+            identity: ProcessBoundIdentity::new(),
             binding,
             generation: AtomicU64::new(generation),
             retired: AtomicBool::new(false),
@@ -403,6 +416,10 @@ impl RoomAuthorityRegistry {
 
     pub(super) fn binding_matches(&self, binding: &DatabaseBinding) -> bool {
         self.binding.matches(binding)
+    }
+
+    pub(super) fn is_same_instance(&self, other: &Self) -> bool {
+        self.identity == other.identity
     }
 
     pub(super) fn generation(&self) -> u64 {
@@ -992,6 +1009,7 @@ impl Default for NonAuthorizingRoomAuthority {
         let binding = DatabaseBinding::isolated();
         let registry = RoomAuthorityRegistry::new(binding.clone());
         let activation = Arc::new(AuthorizationParticipantActivation {
+            identity: ProcessBoundIdentity::new(),
             state: AtomicU8::new(ACTIVATION_BOUND),
             projection_available: AtomicBool::new(false),
             projection: Mutex::new(AuthorizationProjectionState {
