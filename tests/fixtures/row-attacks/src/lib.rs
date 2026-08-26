@@ -1133,13 +1133,17 @@ struct Q06Base {
     engine_a: LocalSnapback,
     engine_b: LocalSnapback,
     provider_a: Arc<AuthProvider>,
+    provider_b: Arc<AuthProvider>,
     clock_a: Arc<FixedClock>,
+    controller_a: snapback_auth::auth::admission::AdmissionController,
+    controller_b: snapback_auth::auth::admission::AdmissionController,
     coordinator_a: Arc<snapback_sync::auth::coordinator::AuthCoordinator>,
     coordinator_b: Arc<snapback_sync::auth::coordinator::AuthCoordinator>,
     effect_management_a: snapback_sync::auth::invocation::PreparedAuthority,
     effect_management_b: snapback_sync::auth::invocation::PreparedAuthority,
     token: snapback_kernel::storage::auth_agent_credentials::IssuedScopedToken,
     generation: ArtifactGeneration,
+    victim_user_id: String,
     victim_bearer: String,
 }
 
@@ -1369,14 +1373,99 @@ async fn setup_q06_base() -> Result<Q06Base, String> {
         engine_a,
         engine_b,
         provider_a,
+        provider_b,
         clock_a,
+        controller_a,
+        controller_b,
         coordinator_a,
         coordinator_b,
         effect_management_a,
         effect_management_b,
         token,
         generation,
+        victim_user_id,
         victim_bearer,
+    })
+}
+
+/// A genuinely created pending effect plus a second, public serving handle.
+/// Consumer witnesses do all of their legitimate setup here so their marked
+/// attack is the surviving raw transition rather than an obsolete creation
+/// spelling.
+pub struct PendingEffectConsumerAttackFixture {
+    _directory: tempfile::TempDir,
+    pub serving: snapback_kernel::storage::ServingDatabase,
+    pub effect_id: String,
+    bearer: String,
+    authorization_stream_incarnation: String,
+}
+
+impl PendingEffectConsumerAttackFixture {
+    pub fn resolve_owner(
+        &mut self,
+        now_ms: u64,
+    ) -> Result<snapback_kernel::storage::pending_effects::PendingEffectOwner, String> {
+        use snapback_kernel::storage::pending_effects::PendingEffectOwnerEvidence;
+        use snapback_types::auth::crypto::SessionBearer;
+
+        let bearer = SessionBearer::parse_any_version(&self.bearer)
+            .map_err(|error| format!("parse pending-effect bearer: {error:?}"))?;
+        self.serving
+            .resolve_pending_effect_owner(
+                PendingEffectOwnerEvidence::Session {
+                    bearer,
+                    authorization_stream_incarnation: self
+                        .authorization_stream_incarnation
+                        .clone(),
+                },
+                now_ms,
+            )
+            .map_err(|error| format!("resolve pending-effect owner: {error:?}"))
+    }
+}
+
+pub async fn setup_pending_effect_consumer_attack()
+-> Result<PendingEffectConsumerAttackFixture, String> {
+    let base = setup_q06_base().await?;
+    let path = base.directory.path().join("engine-a.sqlite3");
+    let authorization_stream_incarnation = base
+        .coordinator_a
+        .authorization_stream_incarnation()
+        .map_err(|error| format!("pending-effect owner incarnation: {error:?}"))?;
+    drop(base.engine_a);
+    drop(base.engine_b);
+    let database =
+        LocalDatabase::open(&path).map_err(|error| format!("open pending consumer: {error:?}"))?;
+    let mut serving = snapback_kernel::storage::ServingDatabase::adopt(database)
+        .map_err(|error| format!("adopt pending consumer: {error:?}"))?;
+    let bearer = snapback_types::auth::crypto::SessionBearer::parse_any_version(
+        &base.victim_bearer,
+    )
+    .map_err(|error| format!("parse pending consumer bearer: {error:?}"))?;
+    let owner = serving
+        .resolve_pending_effect_owner(
+            snapback_kernel::storage::pending_effects::PendingEffectOwnerEvidence::Session {
+                bearer,
+                authorization_stream_incarnation: authorization_stream_incarnation.clone(),
+            },
+            NOW + 200,
+        )
+        .map_err(|error| format!("derive pending consumer owner: {error:?}"))?;
+    let mut request = pending_request(
+        PendingEffectAuthority::Anonymous,
+        base.generation.clone(),
+        NOW + 200,
+    );
+    request.approver_principal_id = Some(base.victim_user_id.clone());
+    let created = serving
+        .create_pending_effect_admitted(&owner, request)
+        .map_err(|error| format!("legitimate pending consumer creation: {error:?}"))?;
+    Ok(PendingEffectConsumerAttackFixture {
+        _directory: base.directory,
+        serving,
+        effect_id: created.id,
+        bearer: base.victim_bearer,
+        authorization_stream_incarnation,
     })
 }
 
@@ -1493,10 +1582,24 @@ pub async fn setup_f175_attack() -> Result<F175AttackFixture, String> {
         effective_user_id: subject.effective_user_id().map(str::to_owned),
         token_expires_at_ms: subject.token_expires_at_ms(),
     };
+    let service_invocation_a = base
+        .engine_a
+        .prepare_connection_service_authority(
+            route_service,
+            InvocationSource::HttpMutation,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            base.controller_a
+                .admit_for_mode(AuthMode::Sessions)
+                .map_err(|error| format!("F175 A route lease: {error:?}"))?,
+            &WireAuthorityFields::default(),
+            NOW + 130,
+        )
+        .map_err(|error| format!("F175 A route authority: {error:?}"))?;
     let pending_a = base
         .engine_a
         .create_pending_effect(
-            &base.effect_management_a,
+            &service_invocation_a,
             None,
             pending_request(
                 service_authority.clone(),
@@ -1524,10 +1627,33 @@ pub async fn setup_f175_attack() -> Result<F175AttackFixture, String> {
             base.provider_a,
         )
         .map_err(|error| format!("F175 A reconstruction: {error:?}"))?;
+    let route_service_b = base
+        .engine_b
+        .resolve_scoped_token_route_authority(
+            &base.token.secret,
+            NOW + 130,
+            base.clock_a.monotonic_now(),
+            base.provider_b.clone(),
+        )
+        .map_err(|error| format!("B route service: {error:?}"))?;
+    let service_invocation_b = base
+        .engine_b
+        .prepare_connection_service_authority(
+            route_service_b,
+            InvocationSource::HttpMutation,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            base.controller_b
+                .admit_for_mode(AuthMode::Sessions)
+                .map_err(|error| format!("F175 B route lease: {error:?}"))?,
+            &WireAuthorityFields::default(),
+            NOW + 130,
+        )
+        .map_err(|error| format!("F175 B route authority: {error:?}"))?;
     let pending_b = base
         .engine_b
         .create_pending_effect(
-            &base.effect_management_b,
+            &service_invocation_b,
             None,
             pending_request(
                 service_authority.clone(),
@@ -1545,7 +1671,7 @@ pub async fn setup_f175_attack() -> Result<F175AttackFixture, String> {
         let pending = base
             .engine_b
             .create_pending_effect(
-                &base.effect_management_b,
+                &service_invocation_b,
                 None,
                 pending_request(service_authority, base.generation, NOW + 140),
             )

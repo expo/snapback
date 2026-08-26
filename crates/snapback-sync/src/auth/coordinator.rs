@@ -2384,21 +2384,13 @@ mod tests {
     }
 
     fn pending_session_owner_evidence(
-        authority: &crate::storage::pending_effects::PendingEffectAuthority,
+        bearer: &str,
+        authorization_stream_incarnation: &str,
     ) -> crate::storage::pending_effects::PendingEffectOwnerEvidence {
-        let crate::storage::pending_effects::PendingEffectAuthority::Session {
-            session_id,
-            authority_instance_id,
-            authorization_stream_incarnation,
-            ..
-        } = authority
-        else {
-            panic!("session pending-effect test requires session evidence")
-        };
         crate::storage::pending_effects::PendingEffectOwnerEvidence::Session {
-            session_id: session_id.clone(),
-            authority_instance_id: authority_instance_id.clone(),
-            authorization_stream_incarnation: authorization_stream_incarnation.clone(),
+            bearer: SessionBearer::parse_any_version(bearer)
+                .expect("pending-effect test session bearer"),
+            authorization_stream_incarnation: authorization_stream_incarnation.to_owned(),
         }
     }
 
@@ -2886,7 +2878,10 @@ mod tests {
             authorization_stream_incarnation: fixture.incarnation.clone(),
         };
         let owner = database_a
-            .resolve_pending_effect_owner(pending_session_owner_evidence(&exact), 100)
+            .resolve_pending_effect_owner(
+                pending_session_owner_evidence(&fixture.bearer, &fixture.incarnation),
+                100,
+            )
             .expect("derive producer owner from database A");
         let created = database_a
             .create_pending_effect_admitted(
@@ -2985,7 +2980,10 @@ mod tests {
             ttl_ms: 1_000,
         };
         let owner = database
-            .resolve_pending_effect_owner(pending_session_owner_evidence(&exact), 100)
+            .resolve_pending_effect_owner(
+                pending_session_owner_evidence(&fixture.bearer, &fixture.incarnation),
+                100,
+            )
             .expect("derive the exact session pending-effect owner");
         let created = database
             .create_pending_effect_admitted(&owner, request(exact.clone()))
@@ -3147,9 +3145,10 @@ mod tests {
         let mut accepted = Vec::new();
         let mut refused = Vec::new();
         for (name, authority) in cases {
-            let owner = match database
-                .resolve_pending_effect_owner(pending_session_owner_evidence(&authority), 100)
-            {
+            let owner = match database.resolve_pending_effect_owner(
+                pending_session_owner_evidence(&fixture.bearer, &fixture.incarnation),
+                100,
+            ) {
                 Ok(owner) => owner,
                 Err(_) => {
                     refused.push(name);
@@ -3181,26 +3180,22 @@ mod tests {
         assert_eq!(
             accepted,
             [
+                "stream-lower",
+                "stream-higher",
+                "session-lower",
+                "session-higher",
                 "user-lower",
                 "user-higher",
                 "provider-lower",
                 "provider-higher",
                 "generation-lower",
                 "generation-higher",
+                "instance-lower",
+                "instance-higher",
                 "exact",
             ]
         );
-        assert_eq!(
-            refused,
-            [
-                "stream-lower",
-                "stream-higher",
-                "session-lower",
-                "session-higher",
-                "instance-lower",
-                "instance-higher",
-            ]
-        );
+        assert!(refused.is_empty());
     }
 
     #[tokio::test]

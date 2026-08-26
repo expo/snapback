@@ -24,6 +24,7 @@ additive = [
 libc = "0.2"
 serde_json = "1"
 tempfile = "3"
+libc = "0.2"
 tokio = { version = "1.48", features = ["macros", "rt"] }
 snapback-auth = { path = "../../../crates/snapback-auth", default-features = false }
 snapback-engine = { path = "../../../crates/snapback-engine", default-features = false, features = ["engine-owner"] }
@@ -172,3 +173,7 @@ path = "src/attacks/f317.rs"
 [[bin]]
 name = "negative-routes"
 path = "src/bin/negative_routes.rs"
+
+[[example]]
+name = "pending-effect-owner-composition"
+path = "src/bin/pending_effect_owner_composition.rs"
