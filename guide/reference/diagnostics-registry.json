@@ -2,14 +2,14 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:20bebec2e35b9b6a41315e67dc4131f3d2f108840357651548c47ccb2f5480f0"
+    "sourceDigest": "sha256:02b7fb0388674008acb4a63f45ad8d6e6693400be002bfb2d0e3997ecc6e3cc0"
   },
   "limits": {
     "lookupBytes": 16384
   },
   "counts": {
     "codes": 3691,
-    "sourceFiles": 633,
+    "sourceFiles": 635,
     "emittingSites": 13077,
     "httpClassified": 1729,
     "guideAnchored": 473
@@ -74044,7 +74044,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage/write_authority.rs",
-          "line": 503,
+          "line": 505,
           "column": 18
         },
         {
@@ -74089,7 +74089,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage/write_authority.rs",
-          "line": 975,
+          "line": 977,
           "column": 10
         },
         {

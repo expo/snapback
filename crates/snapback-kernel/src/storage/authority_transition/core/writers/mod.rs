@@ -15,7 +15,10 @@ pub(super) use attacks::{
 };
 
 #[allow(unexpected_cfgs)]
-#[cfg(snapback_authority_compile_fail)]
+#[cfg(all(
+    snapback_authority_compile_fail,
+    not(snapback_authority_mutation_expose_initialized_limbs)
+))]
 mod compile_fail {
     use super::super::ScopePhase;
     use super::super::evidence::ProtectedTx;

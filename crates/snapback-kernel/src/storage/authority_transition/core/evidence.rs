@@ -10,7 +10,11 @@ mod protected_tx;
 
 use protected_tx::CompositePolicyState;
 #[cfg(test)]
+use protected_tx::InitializedConnection;
+#[cfg(test)]
 use protected_tx::guarded_from_hostile_schema_for_effect_time_test;
+#[cfg(test)]
+use protected_tx::mutate_resource_guard_for_effect_time_test;
 pub(super) use protected_tx::{DerivedPasswordSession, GuardedConnection, ProtectedTx};
 
 pub(super) struct RawPasswordProof {
@@ -93,6 +97,7 @@ where
 
     // @ref LLP 0311#4-requirements — R2: the durable resource fact is read from
     // this exact connection inside the same IMMEDIATE effect transaction.
+    #[cfg(not(snapback_authority_mutation_skip_resource_guard_reread))]
     registry::guard_matches_connection(
         &transaction,
         &guarded.durable_origin,
@@ -164,6 +169,20 @@ where
             Err(error)
         }
     };
+    #[cfg(snapback_authority_mutation_retain_scope)]
+    if finalized.is_ok() {
+        guarded
+            .authorizer_state
+            .transition
+            .lock()
+            .map_err(|_| AuthorityTransitionError::ScopeStatePoisoned)?
+            .phase = ScopePhase::Active {
+            generation,
+            operation: RegisteredOperation::IssuePasswordSession,
+        };
+        std::mem::forget(reset);
+        return finalized;
+    }
     drop(reset);
     finalized
 }

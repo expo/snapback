@@ -10,6 +10,7 @@
 //! @ref LLP 0162#4-journal-diff-instead-of-maintained-merkle-state — complete
 //!   covered-lane journals require an unforgeable writer token plus a SQLite
 //!   authorizer, not test-only enumeration.
+#![allow(unexpected_cfgs)]
 
 use super::{LocalDatabase, SchemaManifest};
 use crate::commit_envelope::OperationCoverageManifestV1;
@@ -363,7 +364,8 @@ impl WriterAuthorityState {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[cfg_attr(snapback_authority_mutation_clone_writer_policy, derive(Clone))]
+#[derive(Debug, Default)]
 pub(super) struct WriterAuthorityV1 {
     state: Arc<Mutex<WriterAuthorityState>>,
 }

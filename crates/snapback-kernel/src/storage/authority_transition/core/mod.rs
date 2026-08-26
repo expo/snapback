@@ -15,6 +15,7 @@ enum AuthorityTransitionError {
     ScopeAlreadyActive,
     ScopeGenerationExhausted,
     ScopeStatePoisoned,
+    SharedFileCustodyUnproven,
     HostileSchema(&'static str),
     UnexpectedWriteCount { expected: usize, actual: usize },
 }
@@ -70,19 +71,35 @@ mod compile_fail {
 
     #[cfg(all(
         snapback_authority_compile_fail,
-        not(snapback_authority_mutation_writer_raw_access)
+        not(snapback_authority_mutation_writer_raw_access),
+        not(snapback_authority_mutation_expose_initialized_limbs)
     ))]
     include!("compile_fail/commit_protected_tx.rs");
     #[cfg(all(
         snapback_authority_compile_fail,
-        not(snapback_authority_mutation_writer_raw_access)
+        not(snapback_authority_mutation_writer_raw_access),
+        not(snapback_authority_mutation_expose_initialized_limbs)
     ))]
     include!("compile_fail/deref_protected_tx.rs");
     #[cfg(all(
         snapback_authority_compile_fail,
-        not(snapback_authority_mutation_writer_raw_access)
+        not(snapback_authority_mutation_writer_raw_access),
+        not(snapback_authority_mutation_expose_initialized_limbs)
     ))]
     include!("compile_fail/open_effect_scope_from_writer.rs");
-    #[cfg(snapback_authority_compile_fail)]
+    #[cfg(all(
+        snapback_authority_compile_fail,
+        not(snapback_authority_mutation_expose_initialized_limbs)
+    ))]
     include!("compile_fail/raw_connection_accessor.rs");
+    #[cfg(all(
+        snapback_authority_compile_fail,
+        not(snapback_authority_mutation_writer_raw_access)
+    ))]
+    include!("compile_fail/clone_writer_policy.rs");
+    #[cfg(all(
+        snapback_authority_compile_fail,
+        not(snapback_authority_mutation_writer_raw_access)
+    ))]
+    include!("compile_fail/swap_initialized_writer_policy.rs");
 }

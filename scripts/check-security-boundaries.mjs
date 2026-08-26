@@ -17,7 +17,8 @@ import {
 } from './security-gates-lib.mjs';
 import {
   AUTHORITY_RUNTIME_TESTS,
-  scoreAuthorityRuntimeOutput,
+  qualifiedAuthorityTestName,
+  scoreAuthorityLibtestJson,
 } from './authority-runtime-output.mjs';
 
 const DEFAULT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -319,12 +320,14 @@ export function runOwningCrateAttacks({
 }
 
 // @ref LLP 0303#s-a-compile-fail-witness-proves-a-spelling-is-gone-not-a-capability
-// — these tests execute the hostile compositions and the gate requires their
-// runtime sentinels. `--no-run` can never satisfy this phase.
+// — Cargo identifies the owning libtest executable, then each exact registered
+// test runs in its own process. Machine-readable libtest records and per-test
+// exit status, never test-authored stdout, decide the verdict.
 export function runAuthorityRuntimeAttacks({
   root = DEFAULT_ROOT,
   targetDir = RUNTIME_TARGET,
   spawnCargo = spawnSync,
+  spawnTest = spawnSync,
 } = {}) {
   const outcomes = [];
   for (const features of [[], ['test-support']]) {
@@ -332,12 +335,12 @@ export function runAuthorityRuntimeAttacks({
       'test',
       '--offline',
       '--locked',
+      '--message-format=json',
       '--package', 'snapback-kernel',
       '--lib',
-      'authority_transition_runtime_',
+      '--no-run',
     ];
     if (features.length > 0) args.push('--features', features.join(','));
-    args.push('--', '--show-output', '--test-threads=1');
     const result = spawnCargo('cargo', args, {
       cwd: root,
       env: { ...process.env, CARGO_TARGET_DIR: targetDir },
@@ -346,35 +349,87 @@ export function runAuthorityRuntimeAttacks({
     });
     if (result.error || result.status === null) {
       throw new GateInfrastructureError(
-        `cargo did not execute authority runtime probes: ${result.error?.message ?? 'no exit status'}`,
+        `cargo did not build authority runtime probes: ${result.error?.message ?? 'no exit status'}`,
       );
     }
-    const output = `${result.stdout}\n${result.stderr}`;
-    const score = scoreAuthorityRuntimeOutput(output, result.status);
     const featureLabel = `[${features.join(',')}]`;
-    if (!score.passed) {
+    const cargoOutput = `${result.stdout}\n${result.stderr}`;
+    const artifacts = cargoOutput.split('\n').flatMap((line) => {
+      if (!line.startsWith('{')) return [];
+      try {
+        const record = JSON.parse(line);
+        return record.reason === 'compiler-artifact'
+          && record.target?.name === 'snapback_kernel'
+          && record.target?.kind?.includes('lib')
+          && record.profile?.test === true
+          && typeof record.executable === 'string'
+          ? [record.executable]
+          : [];
+      } catch {
+        return [];
+      }
+    });
+    const executables = [...new Set(artifacts)];
+    if (result.status !== 0 || executables.length !== 1) {
       const reason = result.status !== 0
-        ? `tests exited ${result.status}`
-        : [
-          score.missingSentinels.length > 0
-            ? `missing executed sentinel(s): ${score.missingSentinels.join(', ')}`
-            : null,
-          score.missingOkTests.length > 0
-            ? `missing exact ok test(s): ${score.missingOkTests.join(', ')}`
-            : null,
-        ].filter(Boolean).join('; ');
+        ? `test build exited ${result.status}`
+        : `Cargo identified ${executables.length} libtest executables, expected one`;
       outcomes.push({
         passed: false,
         line: `[security-boundary] RED authority-runtime: ${reason} under features ${featureLabel}`,
-        diagnostics: output.trim().split('\n').slice(-40),
+        diagnostics: cargoOutput.trim().split('\n').slice(-40),
       });
-    } else {
-      outcomes.push({
-        passed: true,
-        line: `[security-boundary] PASS authority-runtime: executed ${score.observed.length}/${AUTHORITY_RUNTIME_TESTS.length} exact named probe(s) under features ${featureLabel}`,
-        diagnostics: [],
-      });
+      continue;
     }
+    const executable = resolve(executables[0]);
+    const executableWithinTarget = relative(resolve(targetDir), executable);
+    if (executableWithinTarget.startsWith('..') || executableWithinTarget === '') {
+      outcomes.push({
+        passed: false,
+        line: `[security-boundary] RED authority-runtime: Cargo test executable escaped target directory under features ${featureLabel}`,
+        diagnostics: [executable],
+      });
+      continue;
+    }
+    const observed = [];
+    const failures = [];
+    for (const [testName] of AUTHORITY_RUNTIME_TESTS) {
+      const exactName = qualifiedAuthorityTestName(testName);
+      const execution = spawnTest(executable, [
+        exactName,
+        '--exact',
+        '--format', 'json',
+        '-Z', 'unstable-options',
+        '--test-threads=1',
+      ], {
+        cwd: root,
+        env: { ...process.env, RUSTC_BOOTSTRAP: '1' },
+        encoding: 'utf8',
+        maxBuffer: 16 * 1024 * 1024,
+      });
+      if (execution.error || execution.status === null) {
+        throw new GateInfrastructureError(
+          `libtest did not execute exact authority probe ${exactName}: ${execution.error?.message ?? 'no exit status'}`,
+        );
+      }
+      const output = `${execution.stdout}\n${execution.stderr}`;
+      const score = scoreAuthorityLibtestJson(output, execution.status, exactName);
+      if (score.passed) observed.push(testName);
+      else failures.push(`${testName}: ${score.reason}\n${output.trim()}`);
+    }
+    if (failures.length > 0) {
+      outcomes.push({
+        passed: false,
+        line: `[security-boundary] RED authority-runtime: machine execution proved ${observed.length}/${AUTHORITY_RUNTIME_TESTS.length} exact named probe(s) under features ${featureLabel}`,
+        diagnostics: failures.slice(0, 8),
+      });
+      continue;
+    }
+    outcomes.push({
+      passed: true,
+      line: `[security-boundary] PASS authority-runtime: machine-executed ${observed.length}/${AUTHORITY_RUNTIME_TESTS.length} exact named probe(s) under features ${featureLabel}`,
+      diagnostics: [],
+    });
   }
   return outcomes;
 }

@@ -1,5 +1,4 @@
 use super::*;
-use crate::storage::write_authority::WriterAuthorityV1;
 use rusqlite::{ErrorCode, params};
 use std::collections::HashSet;
 use std::mem::ManuallyDrop;
@@ -9,14 +8,15 @@ const USER_B: &str = "user-b";
 const SECRET_A: &[u8] = b"correct horse battery staple";
 const SECRET_B: &[u8] = b"different credential";
 
-fn initialized_connection(origin: [u8; 32], resource: [u8; 32]) -> Connection {
-    let connection = Connection::open_in_memory().expect("open authority-transition probe");
+fn initialized_connection(origin: [u8; 32], resource: [u8; 32]) -> InitializedConnection {
+    let connection =
+        InitializedConnection::private_memory().expect("open authority-transition probe");
     initialize_schema(&connection, origin, resource, "");
     connection
 }
 
 fn initialize_schema(
-    connection: &Connection,
+    connection: &InitializedConnection,
     origin: [u8; 32],
     resource: [u8; 32],
     session_primary_key_suffix: &str,
@@ -45,7 +45,11 @@ fn initialize_schema(
     seed_resource_and_credentials(connection, origin, resource);
 }
 
-fn seed_resource_and_credentials(connection: &Connection, origin: [u8; 32], resource: [u8; 32]) {
+fn seed_resource_and_credentials(
+    connection: &InitializedConnection,
+    origin: [u8; 32],
+    resource: [u8; 32],
+) {
     connection
         .execute(
             "INSERT INTO _snapback_authorization_publication_guard_v1(
@@ -70,11 +74,8 @@ fn seed_resource_and_credentials(connection: &Connection, origin: [u8; 32], reso
 }
 
 fn guarded(origin: u8, resource: u8) -> GuardedConnection {
-    GuardedConnection::from_initialized(
-        initialized_connection([origin; 32], [resource; 32]),
-        WriterAuthorityV1::default(),
-    )
-    .expect("own initialized guarded connection")
+    GuardedConnection::from_initialized(initialized_connection([origin; 32], [resource; 32]))
+        .expect("own initialized guarded connection")
 }
 
 fn proof(user_selector: &str, secret: &[u8]) -> RawPasswordProof {
@@ -145,7 +146,7 @@ fn authority_transition_runtime_01_forgotten_scope_cannot_commit_or_outlive_wrap
 
     let after_scope =
         writers::unscoped_session_insert(&guarded.connection, "liveness-after-scope", USER_A)
-            .expect_err("forgotten scoped borrow must not authorize after wrapper commit");
+            .expect_err("FORGOTTEN_SCOPE_MUTATION authorized after wrapper commit");
     assert!(
         denied(&after_scope),
         "unexpected liveness refusal: {after_scope:?}"
@@ -172,7 +173,7 @@ fn authority_transition_runtime_02_scope_on_a_cannot_authorize_connection_b() {
         |_transaction, _derived| {
             let error =
                 writers::unscoped_session_insert(&second.connection, "cross-installed", USER_A)
-                    .expect_err("connection A's active scope must not arm connection B");
+                    .expect_err("SHARED_CONNECTION_STATE_MUTATION armed connection B");
             assert!(
                 denied(&error),
                 "unexpected cross-connection refusal: {error:?}"
@@ -206,7 +207,7 @@ fn authority_transition_runtime_03_prepared_statement_cannot_execute_after_scope
 
     let error =
         writers::execute_cached_session_insert(&guarded.connection, "execute-after-authority")
-            .expect_err("the statement must be re-prepared and re-authorized after scope exit");
+            .expect_err("STATEMENT_CACHE_MUTATION executed after scope exit");
     assert!(
         denied(&error),
         "unexpected cached-statement refusal: {error:?}"
@@ -217,7 +218,7 @@ fn authority_transition_runtime_03_prepared_statement_cannot_execute_after_scope
 
 #[test]
 fn authority_transition_runtime_04_schema_conflict_replace_cannot_replace_predecessor() {
-    let connection = Connection::open_in_memory().expect("open hostile conflict schema");
+    let connection = InitializedConnection::private_memory().expect("open hostile conflict schema");
     initialize_schema(&connection, [9; 32], [10; 32], "ON CONFLICT REPLACE");
     let attacked_id = expected_session_id(USER_A, SECRET_A, 7);
     connection
@@ -226,7 +227,7 @@ fn authority_transition_runtime_04_schema_conflict_replace_cannot_replace_predec
             params![&attacked_id, USER_B, 11_i64],
         )
         .expect("seed foreign predecessor at the derived write key");
-    let mut guarded = GuardedConnection::from_initialized(connection, WriterAuthorityV1::default())
+    let mut guarded = GuardedConnection::from_initialized(connection)
         .expect("schema-level conflict policy is independently overridden at effect time");
 
     let result = issue_password_session(&mut guarded, proof(USER_A, SECRET_A));
@@ -280,7 +281,9 @@ fn authority_transition_runtime_06_stale_generation_cannot_reactivate_scope() {
         |transaction, _derived| {
             let error =
                 writers::stale_generation_session_insert(transaction, "stale-generation", USER_A)
-                    .expect_err("a copied generation-1 scope must not write during generation 2");
+                    .expect_err(
+                        "SCOPE_GENERATION_MUTATION accepted generation 1 during generation 2",
+                    );
             assert!(matches!(
                 error,
                 AuthorityTransitionError::ScopeAlreadyActive
@@ -312,7 +315,7 @@ fn authority_transition_runtime_07_conflict_and_upsert_matrix_is_refused_unscope
             [USER_B],
         )
         .expect("seed the conflicting protected predecessor");
-    let guarded = GuardedConnection::from_initialized(connection, WriterAuthorityV1::default())
+    let guarded = GuardedConnection::from_initialized(connection)
         .expect("activate the conflict-matrix connection owner");
     let attacks = [
         (
@@ -343,7 +346,7 @@ fn authority_transition_runtime_07_conflict_and_upsert_matrix_is_refused_unscope
     ];
     for (label, sql) in attacks {
         let error = match guarded.connection.execute(sql, []) {
-            Ok(_) => panic!("{label} unexpectedly executed"),
+            Ok(_) => panic!("UNSCOPED_CONFLICT_MUTATION {label} unexpectedly executed"),
             Err(error) => error,
         };
         assert!(
@@ -360,7 +363,8 @@ fn authority_transition_runtime_07_conflict_and_upsert_matrix_is_refused_unscope
 
 #[test]
 fn authority_transition_runtime_08_casefolded_trigger_attack_is_closed() {
-    let connection = Connection::open_in_memory().expect("open casefold attack database");
+    let connection =
+        InitializedConnection::private_memory().expect("open casefold attack database");
     connection
         .execute_batch(
             "CREATE TABLE _snapback_authorization_publication_guard_v1(
@@ -388,7 +392,7 @@ fn authority_transition_runtime_08_casefolded_trigger_attack_is_closed() {
         .expect("create exact casefold trigger attack");
     seed_resource_and_credentials(&connection, [17; 32], [18; 32]);
 
-    match GuardedConnection::from_initialized(connection, WriterAuthorityV1::default()) {
+    match GuardedConnection::from_initialized(connection) {
         Err(AuthorityTransitionError::HostileSchema(reason)) => assert!(!reason.is_empty()),
         Err(error) => panic!("unexpected casefold schema refusal: {error:?}"),
         Ok(mut guarded) => {
@@ -414,8 +418,7 @@ fn authority_transition_runtime_09_suppressing_trigger_cannot_report_success() {
         )
         .expect("create suppressing trigger attack");
 
-    let error = match GuardedConnection::from_initialized(connection, WriterAuthorityV1::default())
-    {
+    let error = match GuardedConnection::from_initialized(connection) {
         Ok(_) => panic!("SUPPRESSING_TRIGGER_SCHEMA_MUTATION accepted the hostile trigger"),
         Err(error) => error,
     };
@@ -432,11 +435,8 @@ fn authority_transition_runtime_09_suppressing_trigger_cannot_report_success() {
              END;",
         )
         .expect("recreate suppressing trigger for effect-time proof");
-    let mut guarded = guarded_from_hostile_schema_for_effect_time_test(
-        effect_connection,
-        WriterAuthorityV1::default(),
-    )
-    .expect("unit-only activation reaches the independent row-count defense");
+    let mut guarded = guarded_from_hostile_schema_for_effect_time_test(effect_connection)
+        .expect("unit-only activation reaches the independent row-count defense");
     let error = issue_password_session(&mut guarded, proof(USER_A, SECRET_A))
         .expect_err("SUPPRESSING_TRIGGER_COUNT_MUTATION reported success with zero rows");
     assert!(matches!(
@@ -467,7 +467,7 @@ fn authority_transition_runtime_10_foreign_key_cascade_into_protected_row_is_den
              PRAGMA foreign_keys = ON;",
         )
         .expect("create foreign-key cascade attack");
-    let guarded = GuardedConnection::from_initialized(connection, WriterAuthorityV1::default())
+    let guarded = GuardedConnection::from_initialized(connection)
         .expect("foreign keys are independently enforced at effect time");
 
     let error = guarded
@@ -476,7 +476,7 @@ fn authority_transition_runtime_10_foreign_key_cascade_into_protected_row_is_den
             "UPDATE ordinary SET id = 'parent-b' WHERE id = 'parent-a'",
             [],
         )
-        .expect_err("cascade into a protected row must be denied");
+        .expect_err("FK_CASCADE_MUTATION changed a protected row");
     assert!(denied(&error), "unexpected FK-cascade refusal: {error:?}");
     assert_eq!(
         sessions(&guarded.connection),
@@ -491,8 +491,7 @@ fn authority_transition_runtime_11_virtual_table_is_refused_before_activation() 
     connection
         .execute_batch("CREATE VIRTUAL TABLE hostile_search USING fts5(body);")
         .expect("create pre-activation virtual table attack");
-    let error = match GuardedConnection::from_initialized(connection, WriterAuthorityV1::default())
-    {
+    let error = match GuardedConnection::from_initialized(connection) {
         Ok(_) => panic!("VIRTUAL_TABLE_MUTATION activated virtual and shadow tables"),
         Err(error) => error,
     };
@@ -506,11 +505,10 @@ fn authority_transition_runtime_11_virtual_table_is_refused_before_activation() 
 #[test]
 fn authority_transition_runtime_12_existing_writer_policy_remains_composed() {
     let connection = initialized_connection([25; 32], [26; 32]);
-    let writer_authority = WriterAuthorityV1::default();
-    writer_authority
-        .arm_covered_table_for_authority_transition_test(&connection, "ordinary")
+    connection
+        .arm_covered_table_for_test("ordinary")
         .expect("install the first 24-lane writer policy callback");
-    let guarded = GuardedConnection::from_initialized(connection, writer_authority)
+    let guarded = GuardedConnection::from_initialized(connection)
         .expect("replace the callback only with the composed state owner");
 
     let result = guarded.connection.execute(
@@ -545,7 +543,7 @@ fn authority_transition_runtime_13_close_and_address_reuse_gets_fresh_state() {
         let address = unsafe { guarded.connection.handle() as usize };
         reused |= !addresses.insert(address);
         let error = writers::unscoped_session_insert(&guarded.connection, "reused", USER_A)
-            .expect_err("every newly owned handle starts with an idle transition state");
+            .expect_err("ADDRESS_REUSE_STATE_MUTATION started a new handle active");
         assert!(denied(&error));
         drop(guarded);
         if reused {
@@ -561,32 +559,91 @@ fn authority_transition_runtime_13_close_and_address_reuse_gets_fresh_state() {
 
 #[test]
 fn authority_transition_runtime_14_resource_guard_is_reread_inside_effect_transaction() {
-    let directory = tempfile::tempdir().expect("resource-guard tempdir");
-    let path = directory.path().join("authority-transition.sqlite3");
-    let bootstrap = Connection::open(&path).expect("open bootstrap connection");
-    initialize_schema(&bootstrap, [29; 32], [30; 32], "");
-    drop(bootstrap);
-
-    let mut guarded = GuardedConnection::from_initialized(
-        Connection::open(&path).expect("open supported guarded connection"),
-        WriterAuthorityV1::default(),
-    )
-    .expect("own file-backed guarded connection");
-    let external = Connection::open(&path).expect("open hostile raw file connection");
-    external
-        .execute(
-            "UPDATE _snapback_authorization_publication_guard_v1
-             SET resource_binding = ?1 WHERE singleton = 1",
-            [[31_u8; 32].as_slice()],
-        )
-        .expect("change durable guard after supported connection acquisition");
+    let mut guarded = guarded(29, 30);
+    mutate_resource_guard_for_effect_time_test(&guarded, &[31; 32])
+        .expect("unit-only raw-custody hook changes the guard after acquisition");
 
     let error = issue_password_session(&mut guarded, proof(USER_A, SECRET_A))
-        .expect_err("the next effect must reread and refuse the changed durable guard");
+        .expect_err("RESOURCE_GUARD_REREAD_MUTATION trusted the acquisition-time guard");
     assert!(matches!(
         error,
         AuthorityTransitionError::ResourceGuardChanged
     ));
     assert!(sessions(&guarded.connection).is_empty());
     emit_runtime_probe("14-resource-guard-reread");
+}
+
+#[test]
+fn authority_transition_runtime_15_second_handle_cannot_author_trusted_facts_or_effects() {
+    let directory = tempfile::tempdir().expect("second-handle tempdir");
+    let path = directory.path().join("authority-transition.sqlite3");
+    let bootstrap = InitializedConnection::shared_file_for_rejection_probe(&path)
+        .expect("open bootstrap connection");
+    initialize_schema(&bootstrap, [32; 32], [33; 32], "");
+    drop(bootstrap);
+
+    let initialized = InitializedConnection::shared_file_for_rejection_probe(&path)
+        .expect("open file-backed rejection probe");
+    match GuardedConnection::from_initialized(initialized) {
+        Err(AuthorityTransitionError::SharedFileCustodyUnproven) => {}
+        Err(error) => panic!("unexpected shared-file refusal: {error:?}"),
+        Ok(mut guarded) => {
+            let external = Connection::open(&path).expect("open hostile second connection");
+            let attacker_digest: [u8; 32] = Sha256::digest(b"attacker secret").into();
+            external
+                .execute_batch(
+                    "ALTER TABLE _auth_password_credentials RENAME TO caller_replaced_credentials;
+                     CREATE TABLE caller_credentials(
+                         user_id TEXT PRIMARY KEY,
+                         secret_digest BLOB NOT NULL,
+                         assurance_generation INTEGER NOT NULL
+                     );
+                     CREATE VIEW _auth_password_credentials AS
+                         SELECT user_id, secret_digest, assurance_generation FROM caller_credentials;",
+                )
+                .expect("replace the trusted credential relation after activation");
+            external
+                .execute(
+                    "INSERT INTO caller_credentials(user_id, secret_digest, assurance_generation)
+                     VALUES(?1, ?2, 31337)",
+                    params![USER_A, attacker_digest.as_slice()],
+                )
+                .expect("seed caller-authored credential fact");
+            let direct = external.execute(
+                "INSERT INTO _auth_sessions(id, user_id, assurance_generation)
+                 VALUES('second-handle-direct', ?1, 31337)",
+                [USER_A],
+            );
+            let issued = issue_password_session(&mut guarded, proof(USER_A, b"attacker secret"));
+            let durable_sessions = sessions(&guarded.connection);
+            assert!(
+                direct.is_err() && issued.is_err() && durable_sessions.is_empty(),
+                "SECOND_HANDLE_CUSTODY_MUTATION direct={direct:?} issued={issued:?} rows={durable_sessions:?}"
+            );
+        }
+    }
+    emit_runtime_probe("15-second-handle-custody");
+}
+
+#[test]
+fn authority_transition_runtime_16_writer_policy_limb_cannot_be_swapped_or_disarmed() {
+    let initialized = initialized_connection([34; 32], [35; 32]);
+    initialized
+        .arm_covered_table_for_test("ordinary")
+        .expect("arm the connection-owned writer policy");
+    let guarded = GuardedConnection::from_initialized(initialized)
+        .expect("activation consumes the connection and its owned policy together");
+    let write = guarded.connection.execute(
+        "INSERT INTO ordinary(id, value) VALUES('owned', 'written')",
+        [],
+    );
+    let rows: i64 = guarded
+        .connection
+        .query_row("SELECT COUNT(*) FROM ordinary", [], |row| row.get(0))
+        .expect("read owned-policy projection");
+    assert!(
+        write.is_err() && rows == 0,
+        "WRITER_POLICY_OWNERSHIP_MUTATION write={write:?} rows={rows}"
+    );
+    emit_runtime_probe("16-writer-policy-ownership");
 }

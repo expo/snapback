@@ -8,11 +8,19 @@
 
 use super::super::*;
 use crate::storage::write_authority::WriterAuthorityV1;
+#[cfg(test)]
+use rusqlite::Params;
 use rusqlite::hooks::{AuthAction, AuthContext, Authorization, TransactionOperation};
 use rusqlite::{Connection, Transaction, params};
 use std::marker::PhantomData;
 use std::rc::Rc;
+#[cfg(snapback_authority_mutation_share_connection_state)]
+use std::sync::Weak;
 use std::sync::{Arc, Mutex};
+
+#[cfg(snapback_authority_mutation_share_connection_state)]
+static SHARED_CONNECTION_STATE_MUTATION: Mutex<Option<Weak<CompositePolicyState>>> =
+    Mutex::new(None);
 
 pub(in crate::storage::authority_transition::core) struct DerivedPasswordSession {
     pub(super) session_id: String,
@@ -41,6 +49,35 @@ pub(in crate::storage::authority_transition::core) struct CompositePolicyState {
     #[cfg(snapback_authority_mutation_writer_raw_access)]
     pub(in crate::storage::authority_transition::core) transition: Mutex<AuthorizerCell>,
     writer_authority: WriterAuthorityV1,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ResourceCustody {
+    PrivateConnectionMemory,
+    #[cfg(test)]
+    SharedFileForRejectionProbe,
+}
+
+/// The SQLite handle and writer-policy limb are created and consumed as one
+/// private object. No activation API accepts either limb independently.
+///
+/// @ref LLP 0303#a-guard-held-in-per-handle-state-is-opt-in — Landing A
+/// accepts only a connection-private memory resource; shared-file custody is
+/// not inferred from a handle-local callback.
+#[allow(unexpected_cfgs)]
+pub(in crate::storage::authority_transition::core) struct InitializedConnection {
+    #[cfg(not(snapback_authority_mutation_expose_initialized_limbs))]
+    connection: Connection,
+    #[cfg(snapback_authority_mutation_expose_initialized_limbs)]
+    pub(in crate::storage::authority_transition::core) connection: Connection,
+    #[cfg(not(snapback_authority_mutation_expose_initialized_limbs))]
+    writer_authority: WriterAuthorityV1,
+    #[cfg(snapback_authority_mutation_expose_initialized_limbs)]
+    pub(in crate::storage::authority_transition::core) writer_authority: WriterAuthorityV1,
+    #[cfg(not(snapback_authority_mutation_expose_initialized_limbs))]
+    custody: ResourceCustody,
+    #[cfg(snapback_authority_mutation_expose_initialized_limbs)]
+    pub(in crate::storage::authority_transition::core) custody: ResourceCustody,
 }
 
 // @ref LLP 0311#65-closed-transaction-gateway — the connection and the one
@@ -78,28 +115,61 @@ pub(in crate::storage::authority_transition::core) struct ProtectedTx<'scope> {
 
 impl GuardedConnection {
     pub(super) fn from_initialized(
-        connection: Connection,
-        writer_authority: WriterAuthorityV1,
+        initialized: InitializedConnection,
     ) -> AuthorityTransitionResult<Self> {
-        registry::validate_initialized_schema(&connection)?;
-        Self::install_composite_authorizer(connection, writer_authority)
+        if initialized.custody != ResourceCustody::PrivateConnectionMemory
+            && !cfg!(snapback_authority_mutation_allow_shared_file)
+        {
+            return Err(AuthorityTransitionError::SharedFileCustodyUnproven);
+        }
+        registry::validate_initialized_schema(&initialized.connection)?;
+        Self::install_composite_authorizer(initialized)
     }
 
     fn install_composite_authorizer(
-        connection: Connection,
-        writer_authority: WriterAuthorityV1,
+        initialized: InitializedConnection,
     ) -> AuthorityTransitionResult<Self> {
+        let InitializedConnection {
+            connection,
+            writer_authority,
+            custody: _,
+        } = initialized;
         let (durable_origin, resource_binding) = registry::read_resource_guard(&connection)?;
-        let authorizer_state = Arc::new(CompositePolicyState {
+        #[cfg(snapback_authority_mutation_discard_owned_writer_policy)]
+        let writer_authority = WriterAuthorityV1::default();
+        let fresh_authorizer_state = Arc::new(CompositePolicyState {
             transition: Mutex::new(AuthorizerCell {
+                #[cfg(not(snapback_authority_mutation_stale_reused_state))]
                 phase: ScopePhase::Idle { generation: 0 },
+                #[cfg(snapback_authority_mutation_stale_reused_state)]
+                phase: ScopePhase::Active {
+                    generation: 0,
+                    operation: RegisteredOperation::IssuePasswordSession,
+                },
             }),
             writer_authority,
         });
+        #[cfg(not(snapback_authority_mutation_share_connection_state))]
+        let authorizer_state = fresh_authorizer_state;
+        #[cfg(snapback_authority_mutation_share_connection_state)]
+        let authorizer_state = {
+            let mut shared = SHARED_CONNECTION_STATE_MUTATION
+                .lock()
+                .expect("connection-state mutation mutex");
+            if let Some(existing) = shared.as_ref().and_then(Weak::upgrade) {
+                existing
+            } else {
+                *shared = Some(Arc::downgrade(&fresh_authorizer_state));
+                fresh_authorizer_state
+            }
+        };
 
         // SQLite authorizes statements when they are prepared. A zero-capacity
         // cache is therefore part of the security boundary, not a tuning knob.
+        #[cfg(not(snapback_authority_mutation_statement_cache))]
         connection.set_prepared_statement_cache_capacity(0);
+        #[cfg(snapback_authority_mutation_statement_cache)]
+        connection.set_prepared_statement_cache_capacity(16);
         let installed_state = Arc::clone(&authorizer_state);
         connection.authorizer(Some(move |context: AuthContext<'_>| {
             authorize_composed(&installed_state, context)
@@ -112,6 +182,46 @@ impl GuardedConnection {
             statement_cache_policy: StatementCachePolicy::Disabled,
             authorizer_state,
         })
+    }
+}
+
+impl InitializedConnection {
+    pub(super) fn private_memory() -> AuthorityTransitionResult<Self> {
+        Ok(Self {
+            connection: Connection::open_in_memory()?,
+            writer_authority: WriterAuthorityV1::default(),
+            custody: ResourceCustody::PrivateConnectionMemory,
+        })
+    }
+
+    #[cfg(test)]
+    pub(super) fn shared_file_for_rejection_probe(
+        path: &std::path::Path,
+    ) -> AuthorityTransitionResult<Self> {
+        Ok(Self {
+            connection: Connection::open(path)?,
+            writer_authority: WriterAuthorityV1::default(),
+            custody: ResourceCustody::SharedFileForRejectionProbe,
+        })
+    }
+
+    #[cfg(test)]
+    pub(super) fn execute_batch(&self, sql: &str) -> rusqlite::Result<()> {
+        self.connection.execute_batch(sql)
+    }
+
+    #[cfg(test)]
+    pub(super) fn execute<P: Params>(&self, sql: &str, params: P) -> rusqlite::Result<usize> {
+        self.connection.execute(sql, params)
+    }
+
+    #[cfg(test)]
+    pub(super) fn arm_covered_table_for_test(
+        &self,
+        table: &str,
+    ) -> crate::diagnostic::SnapbackResult<()> {
+        self.writer_authority
+            .arm_covered_table_for_authority_transition_test(&self.connection, table)
     }
 }
 
@@ -140,13 +250,19 @@ impl<'scope> ProtectedTx<'scope> {
         let Ok(cell) = self.authorizer_state.transition.lock() else {
             return false;
         };
-        matches!(
-            cell.phase,
+        match cell.phase {
             ScopePhase::Active {
                 generation: active_generation,
                 operation,
-            } if active_generation == generation && operation == self.operation
-        )
+            } => {
+                #[cfg(not(snapback_authority_mutation_ignore_scope_generation))]
+                let generation_matches = active_generation == generation;
+                #[cfg(snapback_authority_mutation_ignore_scope_generation)]
+                let generation_matches = true;
+                generation_matches && operation == self.operation
+            }
+            ScopePhase::Idle { .. } | ScopePhase::Committing { .. } => false,
+        }
     }
 
     pub(in crate::storage::authority_transition::core) fn insert_password_session(
@@ -172,6 +288,8 @@ mod attacks;
 
 #[cfg(test)]
 pub(super) use attacks::guarded_from_hostile_schema_for_effect_time_test;
+#[cfg(test)]
+pub(super) use attacks::mutate_resource_guard_for_effect_time_test;
 
 #[allow(unexpected_cfgs)]
 fn authorize_composed(
@@ -208,8 +326,10 @@ fn authorize_transition(cell: &Mutex<AuthorizerCell>, context: AuthContext<'_>) 
 
     match context.action {
         AuthAction::Insert { table_name } if table_name.eq_ignore_ascii_case("_auth_sessions") => {
-            if active_operation(&cell) == Some(RegisteredOperation::IssuePasswordSession)
-                && context.accessor.is_none()
+            if cfg!(snapback_authority_mutation_allow_unscoped_conflicts)
+                || cfg!(snapback_authority_mutation_statement_cache)
+                || (active_operation(&cell) == Some(RegisteredOperation::IssuePasswordSession)
+                    && context.accessor.is_none())
             {
                 Authorization::Allow
             } else {
@@ -221,7 +341,13 @@ fn authorize_transition(cell: &Mutex<AuthorizerCell>, context: AuthContext<'_>) 
         | AuthAction::Update { table_name, .. }
             if registry::is_protected_table(table_name) =>
         {
-            Authorization::Deny
+            if cfg!(snapback_authority_mutation_allow_unscoped_conflicts)
+                || cfg!(snapback_authority_mutation_allow_fk_cascade)
+            {
+                Authorization::Allow
+            } else {
+                Authorization::Deny
+            }
         }
         AuthAction::CreateIndex { .. }
         | AuthAction::CreateTable { .. }

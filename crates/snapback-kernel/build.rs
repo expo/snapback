@@ -9,6 +9,43 @@ fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=../../control-catalog/generated/control-catalog.v1.json");
 
+    const AUTHORITY_MUTATIONS: &[&str] = &[
+        "snapback_authority_mutation_accept_suppressing_trigger",
+        "snapback_authority_mutation_allow_fk_cascade",
+        "snapback_authority_mutation_allow_shared_file",
+        "snapback_authority_mutation_allow_unscoped_conflicts",
+        "snapback_authority_mutation_allow_virtual_table",
+        "snapback_authority_mutation_casefold_schema",
+        "snapback_authority_mutation_clone_writer_policy",
+        "snapback_authority_mutation_discard_owned_writer_policy",
+        "snapback_authority_mutation_discard_writer_policy",
+        "snapback_authority_mutation_expose_initialized_limbs",
+        "snapback_authority_mutation_ignore_scope_generation",
+        "snapback_authority_mutation_ignore_write_count",
+        "snapback_authority_mutation_retain_scope",
+        "snapback_authority_mutation_schema_conflict_replace",
+        "snapback_authority_mutation_share_connection_state",
+        "snapback_authority_mutation_skip_resource_guard_reread",
+        "snapback_authority_mutation_stale_reused_state",
+        "snapback_authority_mutation_statement_cache",
+        "snapback_authority_mutation_supply_selector",
+        "snapback_authority_mutation_writer_raw_access",
+    ];
+    const AUTHORITY_MUTATION_ENV: &str = "SNAPBACK_AUTHORITY_TRANSITION_MUTATIONS";
+    println!("cargo:rerun-if-env-changed={AUTHORITY_MUTATION_ENV}");
+    for mutation in AUTHORITY_MUTATIONS {
+        println!("cargo:rustc-check-cfg=cfg({mutation})");
+    }
+    if let Ok(requested) = std::env::var(AUTHORITY_MUTATION_ENV) {
+        for mutation in requested.split(',').filter(|value| !value.is_empty()) {
+            assert!(
+                AUTHORITY_MUTATIONS.contains(&mutation),
+                "unknown authority-transition mutation cfg: {mutation}"
+            );
+            println!("cargo:rustc-cfg={mutation}");
+        }
+    }
+
     let identity = build_identity::emit_build_identity();
     let manifest_dir = PathBuf::from(
         std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR is set by cargo"),

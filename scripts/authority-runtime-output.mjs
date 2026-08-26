@@ -1,6 +1,7 @@
-// Exact owning-crate runtime identities. A free-floating sentinel proves only
-// that bytes appeared in Cargo output; the matching libtest `ok` line proves
-// that the named test actually completed successfully in this invocation.
+// Exact owning-crate runtime identities. Sentinels remain useful human
+// diagnostics, but they do not contribute to the gate verdict: test bodies
+// author their own stdout. The gate executes each fully qualified name in an
+// isolated libtest process and consumes libtest's JSON records instead.
 export const AUTHORITY_RUNTIME_TESTS = [
   ['authority_transition_runtime_01_forgotten_scope_cannot_commit_or_outlive_wrapper', '01-transaction-liveness'],
   ['authority_transition_runtime_02_scope_on_a_cannot_authorize_connection_b', '02-connection-ownership'],
@@ -16,35 +17,64 @@ export const AUTHORITY_RUNTIME_TESTS = [
   ['authority_transition_runtime_12_existing_writer_policy_remains_composed', '12-policy-composition'],
   ['authority_transition_runtime_13_close_and_address_reuse_gets_fresh_state', '13-close-address-reuse'],
   ['authority_transition_runtime_14_resource_guard_is_reread_inside_effect_transaction', '14-resource-guard-reread'],
+  ['authority_transition_runtime_15_second_handle_cannot_author_trusted_facts_or_effects', '15-second-handle-custody'],
+  ['authority_transition_runtime_16_writer_policy_limb_cannot_be_swapped_or_disarmed', '16-writer-policy-ownership'],
 ];
 
-const TEST_MODULE = 'storage::authority_transition::core::evidence::tests';
-// Mutation runner changes only this literal and requires the synthetic-output
-// regression to turn red, preserving an executable proof of the old weakness.
-const REQUIRE_EXACT_TEST_OK = true;
+export const AUTHORITY_TEST_MODULE = 'storage::authority_transition::core::evidence::tests';
 
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+// The mutation runner changes this literal and requires exact-looking
+// caller-authored lines to turn its regression red.
+const REQUIRE_PER_TEST_LIBTEST_JSON = true;
+
+export function qualifiedAuthorityTestName(testName) {
+  return `${AUTHORITY_TEST_MODULE}::${testName}`;
 }
 
-export function scoreAuthorityRuntimeOutput(output, status) {
-  const observed = [];
-  const missingSentinels = [];
-  const missingOkTests = [];
-  for (const [testName, sentinel] of AUTHORITY_RUNTIME_TESTS) {
-    const sawSentinel = output.includes(`AUTHORITY_TRANSITION_RUNTIME_PROBE: ${sentinel}`);
-    const exactOk = new RegExp(
-      `^test ${escapeRegExp(`${TEST_MODULE}::${testName}`)} \\.\\.\\. ok$`,
-      'mu',
-    ).test(output);
-    if (!sawSentinel) missingSentinels.push(sentinel);
-    if (REQUIRE_EXACT_TEST_OK && !exactOk) missingOkTests.push(testName);
-    if (sawSentinel && (!REQUIRE_EXACT_TEST_OK || exactOk)) observed.push(testName);
+export function scoreAuthorityLibtestJson(output, status, exactName) {
+  if (!REQUIRE_PER_TEST_LIBTEST_JSON) {
+    return { passed: status === 0, reason: null, records: [] };
   }
+  const records = [];
+  for (const [index, line] of output.split('\n').entries()) {
+    if (line.trim() === '') continue;
+    try {
+      records.push(JSON.parse(line));
+    } catch {
+      return {
+        passed: false,
+        reason: `non-JSON libtest output at line ${index + 1}`,
+        records,
+      };
+    }
+  }
+  if (status !== 0) {
+    return { passed: false, reason: `libtest exited ${status}`, records };
+  }
+  const allowed = records.every((record) =>
+    record?.type === 'suite' || (record?.type === 'test' && record.name === exactName));
+  const suiteStarted = records.filter((record) =>
+    record?.type === 'suite' && record.event === 'started' && record.test_count === 1);
+  const testStarted = records.filter((record) =>
+    record?.type === 'test' && record.event === 'started' && record.name === exactName);
+  const testOk = records.filter((record) =>
+    record?.type === 'test' && record.event === 'ok' && record.name === exactName);
+  const suiteOk = records.filter((record) =>
+    record?.type === 'suite'
+      && record.event === 'ok'
+      && record.passed === 1
+      && record.failed === 0
+      && record.ignored === 0
+      && record.measured === 0);
+  const passed = allowed
+    && records.length === 4
+    && suiteStarted.length === 1
+    && testStarted.length === 1
+    && testOk.length === 1
+    && suiteOk.length === 1;
   return {
-    passed: status === 0 && missingSentinels.length === 0 && missingOkTests.length === 0,
-    observed,
-    missingSentinels,
-    missingOkTests,
+    passed,
+    reason: passed ? null : 'libtest JSON did not prove one exact started-and-ok test',
+    records,
   };
 }

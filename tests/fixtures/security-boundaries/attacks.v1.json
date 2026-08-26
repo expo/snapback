@@ -1349,6 +1349,34 @@
       ],
       "expectedCode": "E0616",
       "historicalFailFirst": "Round-2 review demonstrated safe writer-side generation corruption through the inherited-private field."
+    },
+    {
+      "id": "clone-writer-policy",
+      "mode": "kernel-unit-compile-fail",
+      "source": "crates/snapback-kernel/src/storage/authority_transition/core/compile_fail/clone_writer_policy.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        [],
+        [
+          "test-support"
+        ]
+      ],
+      "expectedCode": "E0277",
+      "historicalFailFirst": "Round-3 review retained a WriterAuthorityV1 clone and disarmed the live composite policy after activation."
+    },
+    {
+      "id": "swap-initialized-writer-policy",
+      "mode": "kernel-unit-compile-fail",
+      "source": "crates/snapback-kernel/src/storage/authority_transition/core/compile_fail/swap_initialized_writer_policy.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        [],
+        [
+          "test-support"
+        ]
+      ],
+      "expectedCode": "E0616",
+      "historicalFailFirst": "Round-3 review paired an armed connection with an independently supplied unarmed WriterAuthorityV1 at activation."
     }
   ]
 }

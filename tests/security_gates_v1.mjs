@@ -23,6 +23,11 @@ import {
   runAuthorityRuntimeAttacks,
   validateFixtureInventory,
 } from '../scripts/check-security-boundaries.mjs';
+import {
+  AUTHORITY_RUNTIME_TESTS,
+  qualifiedAuthorityTestName,
+  scoreAuthorityLibtestJson,
+} from '../scripts/authority-runtime-output.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const fixtureRoot = resolve(root, 'tests/fixtures/security-boundaries');
@@ -531,22 +536,8 @@ test('a Cargo failure without a rustc compiler-message is infrastructure', () =>
 });
 
 test('sentinel-only fabricated Cargo output cannot satisfy authority runtime cells', () => {
-  const sentinels = [
-    '01-transaction-liveness',
-    '02-connection-ownership',
-    '03-prepare-execution-lifetime',
-    '04-schema-conflict-abort',
-    '05-row-derived-successor',
-    '06-wrapper-generation',
-    '07-conflict-upsert-matrix',
-    '08-casefolded-trigger',
-    '09-suppressing-trigger',
-    '10-foreign-key-cascade',
-    '11-virtual-table-preactivation',
-    '12-policy-composition',
-    '13-close-address-reuse',
-    '14-resource-guard-reread',
-  ].map((id) => `AUTHORITY_TRANSITION_RUNTIME_PROBE: ${id}`).join('\n');
+  const sentinels = AUTHORITY_RUNTIME_TESTS
+    .map(([, id]) => `AUTHORITY_TRANSITION_RUNTIME_PROBE: ${id}`).join('\n');
   const outcomes = runAuthorityRuntimeAttacks({
     root,
     spawnCargo: () => ({
@@ -558,7 +549,34 @@ test('sentinel-only fabricated Cargo output cannot satisfy authority runtime cel
   });
   assert.equal(outcomes.length, 2);
   assert(outcomes.every(({ passed }) => !passed));
-  assert(outcomes.every(({ line }) => line.includes('missing exact ok test(s)')));
+  assert(outcomes.every(({ line }) => line.includes('Cargo identified 0 libtest executables')));
+});
+
+test('exact-looking fabricated Cargo output cannot satisfy authority runtime cells', () => {
+  const fabricated = AUTHORITY_RUNTIME_TESTS.flatMap(([testName, sentinel]) => [
+    `test storage::authority_transition::core::evidence::tests::${testName} ... ok`,
+    `AUTHORITY_TRANSITION_RUNTIME_PROBE: ${sentinel}`,
+  ]).join('\n');
+  const outcomes = runAuthorityRuntimeAttacks({
+    root,
+    spawnCargo: () => ({
+      status: 0,
+      stdout: fabricated,
+      stderr: '',
+      error: undefined,
+    }),
+  });
+  assert.equal(outcomes.length, 2);
+  assert(outcomes.every(({ passed }) => !passed), 'FABRICATED_EXACT_OUTPUT_MUTATION passed');
+  assert.equal(
+    scoreAuthorityLibtestJson(
+      fabricated,
+      0,
+      qualifiedAuthorityTestName(AUTHORITY_RUNTIME_TESTS[0][0]),
+    ).passed,
+    false,
+    'FABRICATED_EXACT_OUTPUT_MUTATION passed the machine scorer',
+  );
 });
 
 test('a claimed mount absent from cargo metadata dependency keys fails inventory honesty', () => {

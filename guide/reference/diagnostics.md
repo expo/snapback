@@ -19,7 +19,7 @@ reviewed-authorities-digest: sha256:6e5cb257376c246d7dc348556a5ef07df8e6dd7ed983
 
 This build-bound registry is generated from production Rust, JavaScript, and Swift sources. Use `snapback guide SNAPBACK_*` for an exact, bounded lookup before searching prose.
 
-**3,691 stable codes** from 633 production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site.
+**3,691 stable codes** from 635 production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site.
 
 | Code | Subsystem | HTTP | Guide | First emitting site | Sites |
 | --- | --- | ---: | --- | --- | ---: |
@@ -2603,9 +2603,9 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-operation-stored-refusal"></a>`SNAPBACK_OPERATION_STORED_REFUSAL` | server | 409 | — | `crates/snapback-kernel/src/storage.rs:8307` | 2 |
 | <a id="diagnostic-snapback-operation-stream-unavailable"></a>`SNAPBACK_OPERATION_STREAM_UNAVAILABLE` | server | 503 | — | `crates/snapback-kernel/src/storage.rs:4795` | 7 |
 | <a id="diagnostic-snapback-operation-terminal-diverged"></a>`SNAPBACK_OPERATION_TERMINAL_DIVERGED` | server | 409 | — | `crates/snapback-kernel/src/operation_ledger.rs:2183` | 4 |
-| <a id="diagnostic-snapback-operation-writer-excluded"></a>`SNAPBACK_OPERATION_WRITER_EXCLUDED` | server | 500 | — | `crates/snapback-kernel/src/storage/write_authority.rs:503` | 2 |
+| <a id="diagnostic-snapback-operation-writer-excluded"></a>`SNAPBACK_OPERATION_WRITER_EXCLUDED` | server | 500 | — | `crates/snapback-kernel/src/storage/write_authority.rs:505` | 2 |
 | <a id="diagnostic-snapback-operation-writer-identity-mismatch"></a>`SNAPBACK_OPERATION_WRITER_IDENTITY_MISMATCH` | server | 500 | — | `crates/snapback-kernel/src/storage.rs:24283` | 3 |
-| <a id="diagnostic-snapback-operation-write-authority-invalid"></a>`SNAPBACK_OPERATION_WRITE_AUTHORITY_INVALID` | server | 500 | — | `crates/snapback-kernel/src/storage/write_authority.rs:975` | 2 |
+| <a id="diagnostic-snapback-operation-write-authority-invalid"></a>`SNAPBACK_OPERATION_WRITE_AUTHORITY_INVALID` | server | 500 | — | `crates/snapback-kernel/src/storage/write_authority.rs:977` | 2 |
 | <a id="diagnostic-snapback-operator-async-executor-required"></a>`SNAPBACK_OPERATOR_ASYNC_EXECUTOR_REQUIRED` | hosted-supervisor | — | — | `packages/snapback-hosted-supervisor/operator-authority.mjs:727` | 2 |
 | <a id="diagnostic-snapback-operator-authority-cas-failed"></a>`SNAPBACK_OPERATOR_AUTHORITY_CAS_FAILED` | hosted-supervisor | — | — | `packages/snapback-hosted-supervisor/operator-authority-transaction.mjs:132` | 2 |
 | <a id="diagnostic-snapback-operator-authority-uninitialized"></a>`SNAPBACK_OPERATOR_AUTHORITY_UNINITIALIZED` | hosted-supervisor | — | — | `packages/snapback-hosted-supervisor/operator-authority-transaction.mjs:70` | 1 |

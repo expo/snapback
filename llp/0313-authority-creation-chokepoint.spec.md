@@ -6,7 +6,10 @@
 **Author:** codex `gpt-5.6-sol` (read-only design), commissioned by Claude (Opus 5)
 orchestrating LLP 0283 F-1, for Charlie Cheever
 **Date:** 2026-08-26
-**Revised:** 2026-08-26 (c — Landing A round-2 hardening: evidence-sibling raw
+**Revised:** 2026-08-26 (d — Landing A round-3 hardening: private-memory-only
+resource custody, file-backed activation refusal, connection-owned non-cloneable
+WriterAuthorityV1, isolated machine-readable libtest execution, exact-output
+fabricator mutation, and one defanging mutation per runtime probe); 2026-08-26 (c — Landing A round-2 hardening: evidence-sibling raw
 custody, one callback composing WriterAuthorityV1, hostile-schema validation,
 effect-time `OR ABORT`/row-count enforcement, row-derived successor facts, and
 exact-name runtime/mutation gates); 2026-08-26 (b — Landing A design replacement: connection-owned
@@ -156,6 +159,23 @@ statement. Activation may replace a previous callback only with this
 composition, never with transition policy alone. There is no reusable
 `install(&self, connection)` and no raw `Connection` accessor, conversion, or
 dereference.
+
+**[INFERRED]** Landing A does not accept a raw `Connection` and
+`WriterAuthorityV1` independently. A private `InitializedConnection` opens a
+connection-local `Connection::open_in_memory()` resource and creates its writer
+policy as one object; activation consumes that object. The policy is not
+`Clone`, its fields are not replaceable outside the raw-custody sibling, and no
+post-activation handle can call `set_manifest` on the owned limb.
+
+**[INFERRED]** Landing A explicitly refuses file-backed activation with
+`SharedFileCustodyUnproven`. A SQLite authorizer is handle-local and therefore
+cannot protect a shared file from a second connection that replaces a trusted
+relation or writes a protected table directly. The durable resource-guard
+blobs are caller-writable facts, not an authenticated root. File-backed support
+must not be re-enabled until a later atomic landing either establishes exclusive
+file custody or authenticates every effect-time file fact against a root the
+caller cannot author. This dormant landing makes no file-backed protection
+claim.
 
 **[INFERRED]** `from_initialized` treats durable schema as hostile input before
 installing the callback. It requires canonical case for the closed protected
@@ -412,11 +432,14 @@ contains LocalDatabase or an adoptable equivalent.
 1. a compile-fail phase (`cargo test --no-run` is allowed here) proving marked
    `ProtectedTx` commit/deref, raw-connection-accessor, and writer scope-opening
    expressions fail at their attack spans; and
-2. an executing phase running the owning-crate runtime attacks under default
-   and additive `test-support` features. The runner requires both one emitted
-   sentinel and one libtest `ok` line for each exact fully-qualified test name;
-   compiling without execution, a renamed test, or fabricated sentinel-only
-   Cargo output is a gate failure.
+2. an executing phase building the owning-crate libtest binary under default
+   and additive `test-support` features, then launching one isolated process per
+   exact fully-qualified test name. Each process must exit zero and emit the
+   machine-readable libtest sequence proving `test_count=1`, that exact test
+   started, that exact test completed `ok`, and the one-test suite passed.
+   Test-authored sentinels remain diagnostics only and do not contribute to the
+   verdict. Compiling without execution, a renamed or absent test, sentinel-only
+   output, or fabricated exact-looking `test ... ok` lines is a gate failure.
 
 **[INFERRED]** Landing A runtime acceptance directly attempts and refuses:
 forgotten-scope/raw-COMMIT liveness, cross-connection authorization,
@@ -429,11 +452,13 @@ effect transaction. The executed matrix additionally covers statement-level
 `INSERT OR REPLACE`, schema-level `ON CONFLICT REPLACE`, `UPDATE OR REPLACE`,
 UPSERT `DO UPDATE`, `INSERT OR IGNORE`, `DO NOTHING`, protected-source triggers,
 FK cascades, canonical-case collisions, pre-activation virtual tables,
-WriterAuthorityV1 composition, direct writer-side authorizer/state access, and
-close/address reuse. Every protection is mutation-tested by defanging it and
-observing its matching exact attack fail; the checked mutation runner also
-requires widened writer fields to make the attacks compile and sentinel-only
-gate scoring to turn its harness regression red.
+WriterAuthorityV1 composition, direct writer-side authorizer/state access,
+close/address reuse, shared-file/second-handle mutation, and writer-policy limb
+substitution or retained-clone disarming. Every runtime probe has at least one
+defanging mutation that must make that exact named test fail at its marker. The
+checked mutation runner also requires widened writer fields and policy-ownership
+limbs to make their exact attacks compile, and requires an exact-line fabricator
+to turn the machine-readable gate regression red.
 
 **[INFERRED]** Each LLP 0291 family and inventory row additionally needs an alternate-route effect witness using another producer and consumer. Refused runtime cases assert protected rows unchanged; accepted cases assert exact durable columns and receipts.
 
