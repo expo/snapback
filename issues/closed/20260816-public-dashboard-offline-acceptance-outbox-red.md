@@ -1410,3 +1410,96 @@ generated projection files remain byte-identical to merge base
 
 `./ref-check --verbose` reports `311 LLP docs, 6648 refs in 12505 files, 0
 errors, 0 unchecked`. `git diff --check` produces no output.
+
+### Round-25 dual-review closure (2026-08-25)
+
+String-named schema-v2 replay now derives a replay-only
+`wireExpectedGeneration` from the complete served generation persisted in its
+enqueue target and sends it as the mutation carrier's `expectedGeneration`.
+The server's existing mutation-time generation check therefore closes the
+deployment race after `/inspect` but before POST. A server generation mismatch
+pauses the record pending rather than recording a content failure, so generation
+B executes zero effects from generation A's queued intent.
+
+The principal-privacy origin cut now includes targetless/pre-v2 ids from the
+current origin-scoped store domain. Those records enter the existing
+predecessor/successor strand/delete matrix before successor observation;
+replay, observation, ACK, recovery, and adoption retain the complete schema-v2
+target fence. Authorization-dispatch borrowing now verifies that the supplied
+owner lease was minted into the private `WeakSet`.
+
+The regressions failed before the production fixes with these verbatim test and
+assertion lines:
+
+```text
+✖ string-named replay carries its persisted generation across an inspect-to-POST deployment race
+AssertionError [ERR_ASSERTION]: generation-one intent has no effect on generation two
+1 !== 0
+✖ principal switch privacy cut deletes targetless pre-v2 queued args
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++       secret: 'USER_A_PRE_V2_PRIVATE_ARGS'
+- []
+```
+
+At the final JS implementation commit
+`a6514fc9d42dc79e67fa0adeacb9849bea0ca9d8`, the required combined suite
+reports:
+
+```text
+ℹ tests 210
+ℹ suites 0
+ℹ pass 210
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1757.391917
+```
+
+The full `npm test --prefix packages/snapback-client` script reaches only its
+inherited, out-of-scope RQS assertion after the affected suites pass 181/181,
+20/20, 22/22, and 4/4:
+
+```text
+✖ pre-subscribe durable-buffer overflow fails closed to one fresh snapshot [web/indexeddb] (9.661542ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 29
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2525.046042
+```
+
+The strict client TypeScript fixture command, run separately because the full
+script stops at that inherited RQS red, exits zero.
+
+Both required public-dashboard witnesses were run at that exact JS commit with
+`SNAPBACK_SERVER_BINARY="$PWD/target/debug/snapback"` and report these verbatim
+summaries:
+
+```text
+PASS public-dashboard / offline-local-first (JS arm) — 9/9
+PASS public-dashboard / headless — 6/6
+```
+
+Both machine-readable reports contain `cleanupErrors: []` and
+`cleanupErrorCount: 0`. The configured binary is stamped at
+`a97e75286f098066931701df515fe7a812961798`, so both runs report the expected
+checkout/binary identity mismatch and exercise the JS lane.
+
+`node scripts/check-guide.mjs` passes snippet transclusions and reports this
+verbatim final summary:
+
+```text
+[guide-check] FAILED — 17 passed, 5 failed, 0 skipped, 0 preconditions; 157 pages, 1871 snippets, 174 routes + 51 host-ops joined, 97 warnings
+```
+
+The remaining diagnostics-registry, symbol-registry, capability/surface join,
+manifest/MCP, and flat-guide projection/corpus reds are integration-owned; the
+generated projection files remain byte-identical to merge base
+`baacaa20983f029f3e9cd23f60385ba00085e947`.
+
+`./ref-check --verbose` reports `311 LLP docs, 6648 refs in 12505 files, 0
+errors, 0 unchecked`. `git diff --check` produces no output.
