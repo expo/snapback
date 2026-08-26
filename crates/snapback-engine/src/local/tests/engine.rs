@@ -4833,6 +4833,12 @@ fn bundled_live_first_snapshots_preserve_catalog_session_claims() {
     let mut snapback = retainable_sessions_snapback();
     let connection = install_test_invalidation(&mut snapback);
     let authority = lease_session_authority(&mut snapback);
+    let expected_claim = serde_json::to_value(authority.projection())
+        .expect("serialize handler authority projection")
+        .pointer("/claims/identities/0/value")
+        .and_then(Value::as_str)
+        .map(str::to_owned)
+        .expect("production session exposes its catalog identity claim");
     let route = |mixed: bool| crate::bundle::BundleRouteEntry {
         route: if mixed {
             "/claims-mixed".to_owned()
@@ -4892,7 +4898,7 @@ fn bundled_live_first_snapshots_preserve_catalog_session_claims() {
             .expect("claims bundle first snapshot");
         assert_eq!(
             response.entries[0].rows,
-            vec![json!({ "value": "lease@example.test" })],
+            vec![json!({ "value": expected_claim.clone() })],
             "{} first snapshot must contain claims",
             if mixed {
                 "mixed-bundle"
@@ -27164,6 +27170,18 @@ fn cursor_negatives_hold_under_sessions_authorities() {
             .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
         "sessions fixture must activate: {diagnostics:?}"
     );
+    let owner_facts = snapback.issue_production_session_for_test(
+        "usr_00000000000000000000000010",
+        "ses_00000000000000000000000020",
+    );
+    let _ = snapback.issue_production_session_for_test(
+        "usr_00000000000000000000000010",
+        "ses_00000000000000000000000021",
+    );
+    let _ = snapback.issue_production_session_for_test(
+        "usr_00000000000000000000000018",
+        "ses_00000000000000000000000022",
+    );
     let row = |fields: Value| fields.as_object().cloned().expect("seed row");
     snapback
         .seed(crate::manifest::SeedData {
@@ -27171,8 +27189,8 @@ fn cursor_negatives_hold_under_sessions_authorities() {
                 (
                     "books".to_owned(),
                     vec![
-                        row(json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "usr_00000000000000000000000010" })),
-                        row(json!({ "title": "beta", "authorSlug": "ada", "ownerId": "usr_00000000000000000000000010" })),
+                        row(json!({ "title": "alpha", "authorSlug": "ada", "ownerId": owner_facts.user_id.clone() })),
+                        row(json!({ "title": "beta", "authorSlug": "ada", "ownerId": owner_facts.user_id.clone() })),
                     ],
                 ),
                 (
@@ -28900,8 +28918,11 @@ fn lane_settlement_snapback() -> LocalSnapback {
 #[test]
 fn llp0133_sketch_1_lane_q_receipt_and_fanout_privacy() {
     let mut snapback = guarded_snapback();
-    let authority =
-        prepare_admitted_dev_authority_for_test(InvocationSource::LocalMutation, &input());
+    let authority = snapback.prepare_resolved_password_session_for_test(
+        InvocationSource::HttpMutation,
+        "llp0133-lane-q-user",
+        u64::MAX,
+    );
     let (result, receipt) = snapback.invoke_mutation_recording_with_authority_descriptor(
         "hostInsert",
         input(),
@@ -28955,15 +28976,19 @@ fn invoke_synthetic_settlement(
     client_mutation_id: &str,
     settlement: MutationSettlement,
 ) -> SnapbackResult<(SnapbackResult<MutationOutput>, Receipt)> {
-    let authority = snapback.prepare_legacy_dev_authority(
-        InvocationSource::LocalMutation,
-        ServerProfile::Test,
-        &input,
-    )?;
+    let authority = snapback.prepare_resolved_password_session_for_test(
+        InvocationSource::HttpMutation,
+        "llp0133-settlement-user",
+        u64::MAX,
+    );
+    let descriptor = snapback
+        .prepare_authority_descriptor(authority.clone())?
+        .authority_descriptor()
+        .clone();
     let recorded_authority = snapback.bind_recorded_mutation_authority(
         authority,
         Some(client_mutation_id.to_owned()),
-        None,
+        Some(descriptor),
     )?;
     let (preflight, staged) = snapback
         .stage_recorded_authorization_mutation_with_generation_and_settlement(
@@ -29569,18 +29594,21 @@ fn llp0133_sketch_10_stale_reservation_rolls_back_then_retry_rederives() {
     let mut snapback = lane_settlement_snapback();
     let settlement = synthetic_lane_l_settlement(13, [LOCAL_ROW, LOCAL_TOKEN]);
     let captured = captured_lane_input(13, [LOCAL_ROW, LOCAL_TOKEN]);
-    let authority = snapback
-        .prepare_legacy_dev_authority(
-            InvocationSource::LocalMutation,
-            ServerProfile::Test,
-            &captured,
-        )
-        .unwrap();
+    let authority = snapback.prepare_resolved_password_session_for_test(
+        InvocationSource::HttpMutation,
+        "llp0133-settlement-user",
+        u64::MAX,
+    );
+    let descriptor = snapback
+        .prepare_authority_descriptor(authority.clone())
+        .unwrap()
+        .authority_descriptor()
+        .clone();
     let authority = snapback
         .bind_recorded_mutation_authority(
             authority,
             Some("cm_llp0133_reservation_retry".to_owned()),
-            None,
+            Some(descriptor),
         )
         .unwrap();
     let (preflight, mut staged) = snapback
@@ -30122,10 +30150,10 @@ const SERVICE_REPLAY_EXPIRES_AT_MS: u64 = 2_000_000_000_000;
 struct ServiceReplaySecrets(BTreeMap<String, String>);
 
 fn install_service_replay_auth(snapback: &mut LocalSnapback) -> ServiceReplaySecrets {
-    let now_ms = now_millis();
+    let fixture_start_ms = now_millis();
     let random = CounterRandom::new();
-    let fixture_deadline =
-        now_ms.saturating_add(crate::storage::auth_agent_credentials::SCOPED_TOKEN_MAX_TTL_MS);
+    let fixture_deadline = fixture_start_ms
+        .saturating_add(crate::storage::auth_agent_credentials::SCOPED_TOKEN_MAX_TTL_MS);
     let _ = snapback.prepare_resolved_service_for_test(
         InvocationSource::HttpMutation,
         "service-replay-policy-bootstrap",
@@ -30136,7 +30164,7 @@ fn install_service_replay_auth(snapback: &mut LocalSnapback) -> ServiceReplaySec
             basis: 0,
             authority_creating: false,
         }],
-        now_ms,
+        fixture_start_ms,
         fixture_deadline,
     );
     let human_authority = snapback.prepare_resolved_password_session_for_test(
@@ -30149,6 +30177,9 @@ fn install_service_replay_auth(snapback: &mut LocalSnapback) -> ServiceReplaySec
     };
     let human_user_id = human.user_id().to_owned();
     let human_session_id = human.session_id().to_owned();
+    // The production password ceremony advances the durable authorization
+    // clock. All subsequent grant operations must sample after that ceremony.
+    let now_ms = now_millis();
     let mut secrets = BTreeMap::new();
     let db = snapback.auth_database_mut();
     db.activate_current_auth_catalog()
