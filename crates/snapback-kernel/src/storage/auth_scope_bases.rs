@@ -12,7 +12,7 @@
 use super::LocalDatabase;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{FunctionDefinition, FunctionKind, FunctionManifest};
-use rusqlite::{OptionalExtension, params};
+use rusqlite::{Connection, OptionalExtension, params};
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -55,6 +55,7 @@ impl LocalDatabase {
         &mut self,
         manifest: &FunctionManifest,
     ) -> SnapbackResult<ScopeBasisReconciliation> {
+        refuse_projection_rewrite_after_generation(self)?;
         self.with_auth_transaction(|tx| reconcile_auth_scope_bases_on(tx, manifest))
     }
 
@@ -63,6 +64,7 @@ impl LocalDatabase {
         manifest: &FunctionManifest,
         schema: &crate::manifest::SchemaManifest,
     ) -> SnapbackResult<ScopeBasisReconciliation> {
+        refuse_projection_rewrite_after_generation(self)?;
         self.with_auth_transaction(|tx| {
             let mut result = reconcile_auth_scope_bases_on(tx, manifest)?;
             reconcile_ask_scope_basis_on(tx, schema, &mut result)?;
@@ -110,6 +112,17 @@ impl LocalDatabase {
             )
         })
     }
+}
+
+fn refuse_projection_rewrite_after_generation(db: &LocalDatabase) -> SnapbackResult<()> {
+    if db.function_generation_record()?.is_some() {
+        return Err(crate::diagnostic::SnapbackError::error(
+            "SNAPBACK_FUNCTION_POLICY_WRITE_FORBIDDEN",
+            "storage",
+            "active function policy projection is written only by function generation commit",
+        ));
+    }
+    Ok(())
 }
 
 /// Re-derive the current authority-creation policy for a function from the
@@ -258,6 +271,19 @@ pub(super) fn reconcile_auth_scope_bases_on(
     }
 
     Ok(reconciliation)
+}
+
+pub(super) fn scope_basis_catalog_exists_on(connection: &Connection) -> SnapbackResult<bool> {
+    connection
+        .query_row(
+            "SELECT EXISTS(
+               SELECT 1 FROM sqlite_schema
+               WHERE type = 'table' AND name = '_auth_scope_bases'
+             )",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(crate::diagnostic::SnapbackError::from)
 }
 
 pub(super) fn reconcile_auth_scope_bases_with_schema_on(

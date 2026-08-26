@@ -1438,8 +1438,19 @@ pub(crate) fn admit_password_issuance_in(
             if durable_displaced != expected_displaced {
                 return Ok(PasswordIssuanceAdmission::PredecessorChanged);
             }
-            if super::auth_catalog_ops::consume_step_up_proof_on(transaction, step_up, now_ms)?
-                != StepUpConsumption::Verified
+            if super::auth_catalog_ops::consume_step_up_proof_on(
+                transaction,
+                step_up,
+                super::auth_catalog_ops::ExpectedStepUpProof {
+                    user_id: &predecessor.acting_user_id,
+                    session_id: Some(&predecessor.acting_session_id),
+                    session_generation: Some(predecessor.acting_generation),
+                    authority_instance_id: None,
+                    operation: "passwordSet",
+                    target_id: &predecessor.acting_session_id,
+                },
+                now_ms,
+            )? != StepUpConsumption::Verified
             {
                 return Ok(PasswordIssuanceAdmission::Invalid {
                     committed_attempt: None,

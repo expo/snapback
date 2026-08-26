@@ -1859,10 +1859,11 @@ pub struct ServingDatabase {
     stream_attempt_persistence_verifier:
         Option<crate::stream_attempt::StreamAttemptPersistenceVerifier>,
     stream_attempt_startup_reconciliation: Option<StreamAttemptStartupReconciliation>,
-    /// Canonical process-loaded function policy installed only by successful
-    /// generation/deployment operations. Public auth-scope reconciliation can
-    /// update its projection row but cannot rewrite this source of truth.
+    /// Canonical process-loaded function policy installed only for the exact
+    /// durable function generation. Its projection is published in that same
+    /// generation transaction and cannot be rewritten independently.
     active_function_policies: ActiveFunctionPolicies,
+    active_function_policy_manifest_digest: Option<String>,
 }
 
 /// One-use authority for the process-death reconciliation cut. Its private
@@ -1956,6 +1957,7 @@ impl ServingDatabase {
                 stream_attempt_persistence_verifier,
                 stream_attempt_startup_reconciliation,
                 active_function_policies: Arc::new(BTreeMap::new()),
+                active_function_policy_manifest_digest: None,
             },
             publisher,
         ))
@@ -1982,7 +1984,30 @@ impl ServingDatabase {
                 "loaded function policy publisher belongs to another database",
             ));
         }
+        let manifest_digest =
+            crate::manifest::canonical_content_identity(manifest).ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_FUNCTION_GENERATION_INVALID",
+                    "storage",
+                    "loaded function manifest is not canonically digestible",
+                )
+            })?;
+        let committed = self.db.function_generation_record()?.ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_FUNCTION_GENERATION_INVALID",
+                "storage",
+                "loaded function policy requires a committed function generation",
+            )
+        })?;
+        if committed.function_manifest_digest != manifest_digest {
+            return Err(SnapbackError::error(
+                "SNAPBACK_FUNCTION_GENERATION_INVALID",
+                "storage",
+                "loaded function policy does not match the committed function generation",
+            ));
+        }
         self.active_function_policies = active_function_policies(manifest)?;
+        self.active_function_policy_manifest_digest = Some(manifest_digest);
         Ok(())
     }
 
@@ -2809,6 +2834,7 @@ impl ServingDatabase {
             owner,
             approval,
             self.active_function_policies.clone(),
+            self.active_function_policy_manifest_digest.clone(),
             step_up,
             now_ms,
         )?;

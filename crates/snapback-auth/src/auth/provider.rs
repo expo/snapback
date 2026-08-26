@@ -299,7 +299,7 @@ impl StepUpProofAdmission {
     }
 
     pub fn address(&self) -> &CanonicalAddress {
-        &self.proof.address
+        self.proof.address()
     }
 
     pub fn prepare_password_set_plan<'a>(
@@ -309,7 +309,7 @@ impl StepUpProofAdmission {
         custody: PasswordIssuanceCustody,
     ) -> impl super::database_plan::AuthDatabasePlan<Output = SnapbackResult<PasswordSetPreparation>> + 'a
     {
-        let identifier = self.proof.address.as_str();
+        let identifier = self.proof.address().as_str();
         super::database_plan::plan(move |database| {
             self._admission
                 .provider
@@ -3477,15 +3477,29 @@ impl AuthAdmission {
             .stripe(&coordination.address)
             .lock_owned()
             .await;
+        let StepUpBinding {
+            user_id,
+            session_id,
+            session_generation,
+            authority_instance_id,
+            operation,
+            target_id,
+        } = binding;
         Ok(StepUpProofAdmission {
             _admission: self,
             _stripe: stripe,
-            proof: StepUpProof {
-                challenge_id: coordination.challenge_id,
-                address: coordination.address,
-                key_id: coordination.key_id,
+            proof: StepUpProof::from_verified_binding(
+                coordination.challenge_id,
+                coordination.address,
+                coordination.key_id,
                 submitted_digest,
-            },
+                user_id,
+                session_id,
+                session_generation,
+                authority_instance_id,
+                operation,
+                target_id,
+            ),
         })
     }
 
