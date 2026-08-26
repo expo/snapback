@@ -88,10 +88,12 @@ export function validateSelectionPolicy(policy, calls) {
     assert(typeof rule?.id === 'string' && /^[a-z0-9-]+$/u.test(rule.id), 'path rule id');
     assert(!ruleIds.has(rule.id), `duplicate path rule ${rule.id}`);
     ruleIds.add(rule.id);
-    const matchers = ['files', 'prefixes', 'suffixes'].flatMap((key) => rule[key] ?? []);
+    const matchers = ['files', 'prefixes', 'suffixes', 'patterns']
+      .flatMap((key) => rule[key] ?? []);
     validateUniqueStrings(matchers, `path rule ${rule.id} matchers`);
     assert(matchers.length > 0, `path rule ${rule.id} has a matcher`);
     validateRuleExtensions(rule, `path rule ${rule.id}`);
+    validateRulePatterns(rule, `path rule ${rule.id}`);
     if (rule.disposition === 'all') {
       assert(rule.groups === undefined, `broad path rule ${rule.id} has no groups`);
     } else {
@@ -105,10 +107,12 @@ export function validateSelectionPolicy(policy, calls) {
     assert(typeof rule?.id === 'string' && /^[a-z0-9-]+$/u.test(rule.id), 'additive path rule id');
     assert(!ruleIds.has(rule.id), `duplicate path rule ${rule.id}`);
     ruleIds.add(rule.id);
-    const matchers = ['files', 'prefixes', 'suffixes'].flatMap((key) => rule[key] ?? []);
+    const matchers = ['files', 'prefixes', 'suffixes', 'patterns']
+      .flatMap((key) => rule[key] ?? []);
     validateUniqueStrings(matchers, `additive path rule ${rule.id} matchers`);
     assert(matchers.length > 0, `additive path rule ${rule.id} has a matcher`);
     validateRuleExtensions(rule, `additive path rule ${rule.id}`);
+    validateRulePatterns(rule, `additive path rule ${rule.id}`);
     assert(rule.disposition === undefined, `additive path rule ${rule.id} disposition`);
     validateUniqueStrings(rule.groups, `additive path rule ${rule.id} groups`);
     for (const group of rule.groups) {
@@ -513,11 +517,26 @@ function closePrerequisites(selected, calls, overrides) {
 function matchesRule(path, rule) {
   const matchesPath = (rule.files ?? []).includes(path)
     || (rule.prefixes ?? []).some((prefix) => path.startsWith(prefix))
-    || (rule.suffixes ?? []).some((suffix) => path.endsWith(suffix));
+    || (rule.suffixes ?? []).some((suffix) => path.endsWith(suffix))
+    || (rule.patterns ?? []).some((pattern) => new RegExp(pattern, 'u').test(path));
   return matchesPath && (
     rule.extensions === undefined
     || rule.extensions.some((extension) => path.endsWith(extension))
   );
+}
+
+function validateRulePatterns(rule, description) {
+  if (rule.patterns === undefined) return;
+  validateUniqueStrings(rule.patterns, `${description} patterns`);
+  assert(rule.patterns.length > 0, `${description} patterns are non-empty`);
+  for (const pattern of rule.patterns) {
+    assert(pattern.startsWith('^') && pattern.endsWith('$'), `${description} anchored pattern ${pattern}`);
+    try {
+      new RegExp(pattern, 'u');
+    } catch {
+      assert(false, `${description} valid pattern ${pattern}`);
+    }
+  }
 }
 
 function validateRuleExtensions(rule, description) {

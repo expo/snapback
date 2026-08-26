@@ -302,7 +302,7 @@ test('diagnostic production sources select registry fixtures and Guide drift', (
     ({ id }) => id === 'diagnostics-production-sources',
   );
   assert.deepEqual(productionRule.prefixes, DIAGNOSTICS_PRODUCTION_ROOTS);
-  assert.deepEqual(productionRule.extensions, ['.rs', '.js', '.mjs', '.cjs', '.swift', '.kt']);
+  assert.deepEqual(productionRule.extensions, ['.rs', '.js', '.mjs', '.cjs', '.sh', '.swift', '.kt']);
 
   const guideTriggerPrefixes = context.policy.driftProneGates.guide.triggerRules.prefixes;
   for (const rootPrefix of DIAGNOSTICS_PRODUCTION_ROOTS) {
@@ -314,6 +314,7 @@ test('diagnostic production sources select registry fixtures and Guide drift', (
 
   for (const source of [
     'targets/cloudflare/src/coordinator.js',
+    'targets/cloudflare/deploy.sh',
     'crates/snapback-kernel/src/live_matcher.rs',
     'crates/snapback-types/src/manifest/mod.rs',
     'crates/snapback-server/src/server/api_error.rs',
@@ -347,6 +348,12 @@ test('manifest-only package source additions and removals select registry fixtur
   assert(
     manifestOnly.matchedRules.includes('diagnostics-package-manifests'),
     'package shipment manifests must route through the diagnostics registry generator gate',
+  );
+  assert.equal(
+    select(['packages/snapback-client/fixtures/package.json'])
+      .matchedRules.includes('diagnostics-package-manifests'),
+    false,
+    'nested package.json files are not package shipment manifests',
   );
 });
 

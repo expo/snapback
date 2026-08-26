@@ -37,6 +37,17 @@ fail-first shape
 retains the first token as an environment table entry and the second as a real
 diagnostic.
 
+The final round-16 correction binds environment-name tables to the opener
+found for their declaration by the lexical delimiter stack. Comment braces,
+string braces, and nested values before later entries are all regression
+fixtures. Target discovery now includes `.sh`; shell-aware classification
+retains 12 unique `deploy_fail` diagnostics from
+`targets/cloudflare/deploy.sh` and separates `${SNAPBACK_X}`/`$SNAPBACK_X`
+reads. Inline `#[cfg(test)]` modules and `#[test]` functions are excluded from
+Rust production classification, leaving every `SNAPBACK_S3_TEST_*` name out
+of `SnapbackEnvironmentVariable`. The affected-source selector covers `.sh`,
+and the package-manifest rule is restricted to `packages/*/package.json`.
+
 Generic environment-object mutations are classified before the read fallback:
 the current `delete childEnv.SNAPBACK_CLIENT_RQS_DIR` site is a removal and
 `delegatedEnvironment.SNAPBACK_ADMIN_TOKEN = …` is a write. The environment
@@ -70,33 +81,35 @@ projection regeneration. Its captured output is:
 {
   "mergeBase": "e370bb8f789007cffae1f4d80c4feabdedc81cb5",
   "counts": {
-    "codes": 3540,
-    "sourceFiles": 640,
-    "emittingSites": 10270,
-    "receivedSites": 339,
+    "codes": 3538,
+    "sourceFiles": 642,
+    "emittingSites": 9196,
+    "receivedSites": 338,
     "reservedSites": 9,
     "httpClassified": 1709,
-    "guideAnchored": 427,
-    "environmentVariables": 183,
-    "environmentSites": 363
+    "guideAnchored": 426,
+    "environmentVariables": 191,
+    "environmentSites": 390
   },
   "environmentKinds": {
-    "read": 250,
-    "mention": 43,
+    "read": 258,
+    "mention": 56,
     "declaration": 14,
     "remove": 9,
-    "write": 19,
-    "table-entry": 12,
-    "indirect-read": 16
+    "write": 18,
+    "table-entry": 20,
+    "indirect-read": 15
   },
   "mergeBaseRemovals": {
-    "total": 225,
-    "environment": 149,
-    "other": 76
+    "total": 239,
+    "environment": 141,
+    "other": 98
   },
   "fixtureRawTokens": 87,
-  "receivedCodes": 263,
-  "httpReservations": 7
+  "receivedCodes": 262,
+  "httpReservations": 7,
+  "cloudflareDeployEmissionCodes": 12,
+  "s3TestEnvironmentNames": []
 }
 ```
 

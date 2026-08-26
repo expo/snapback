@@ -715,6 +715,7 @@
         ".js",
         ".mjs",
         ".cjs",
+        ".sh",
         ".swift",
         ".kt"
       ]
@@ -724,8 +725,8 @@
       "groups": [
         "diagnostics-registry"
       ],
-      "suffixes": [
-        "/package.json"
+      "patterns": [
+        "^packages/[^/]+/package\\.json$"
       ]
     },
     {

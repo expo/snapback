@@ -51,6 +51,7 @@ import {
   diagnosticSourceSites,
   environmentVariableSites,
   indirectEnvironmentReadContracts,
+  rustProductionSource,
 } from './diagnostics-registry-source.mjs';
 import { authoritiesDigest } from './guide-lib.mjs';
 
@@ -255,7 +256,7 @@ function shippedPackageProductionPaths() {
 
 const packageProductionPaths = shippedPackageProductionPaths();
 const targetProductionPaths = walk(join(root, 'targets'), (path) => (
-  /\.(?:cjs|js|mjs)$/u.test(path)
+  /\.(?:cjs|js|mjs|sh)$/u.test(path)
   && !isExcludedProductionSource(path)
   // Target app bundles are reference/application fixtures, not framework or
   // operator carriers; their app-authored diagnostic vocabulary is not part
@@ -346,7 +347,12 @@ function assertPathRelocationPreservesSubsystem(code, sites) {
 
 function collectSites() {
   const sources = new Map(productionPaths.map((path) => (
-    [path, readFileSync(join(root, path), 'utf8')]
+    [
+      path,
+      path.endsWith('.rs')
+        ? rustProductionSource(readFileSync(join(root, path), 'utf8'))
+        : readFileSync(join(root, path), 'utf8'),
+    ]
   )));
   const readContracts = [
     ...sources.values(),
@@ -358,6 +364,7 @@ function collectSites() {
       indirectEnvironmentReadContracts: readContracts,
       javascript: /\.(?:cjs|js|mjs)$/u.test(path),
       ordinaryMultiline: path.endsWith('.rs'),
+      shell: path.endsWith('.sh'),
     })) {
       environmentNames.add(match[0]);
     }
@@ -372,6 +379,7 @@ function collectSites() {
       indirectEnvironmentReadContracts: readContracts,
       javascript: /\.(?:cjs|js|mjs)$/u.test(path),
       ordinaryMultiline: path.endsWith('.rs'),
+      shell: path.endsWith('.sh'),
       // Every inventoried path is a shipped package, operator target, native
       // client, or production Rust owner. Only literal tables that feed a
       // membership acceptance gate classify as received vocabulary; inert
@@ -592,7 +600,7 @@ function renderMarkdown(registry) {
     '',
     '# Diagnostic code registry',
     '',
-    'This build-bound registry is generated from production Rust, JavaScript, and Swift sources. Use `snapback guide SNAPBACK_*` for an exact, bounded lookup before searching prose.',
+    'This build-bound registry is generated from production Rust, JavaScript, shell, Swift, and Kotlin sources. Use `snapback guide SNAPBACK_*` for an exact, bounded lookup before searching prose.',
     '',
     `**${registry.counts.codes.toLocaleString('en-US')} stable codes** from ${registry.counts.sourceFiles.toLocaleString('en-US')} production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site, received-vocabulary site, and explicit reservation.`,
     '',

@@ -267,22 +267,53 @@ function javaScriptEnvironmentObjectKind(source, offset, code) {
     .find(({ open }) => matchingDelimiter(source, open) > offset)?.kind ?? null;
 }
 
-function isEnvironmentNameTable(source, offset) {
-  const open = Math.max(source.lastIndexOf('{', offset), source.lastIndexOf('[', offset));
-  if (open === -1) return false;
-  const close = matchingDelimiter(source, open);
-  if (close === source.length || offset >= close) return false;
-  const prefix = source.slice(Math.max(0, open - 1024), open);
-  const javaScriptDeclaration = prefix.match(
-    /\b(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*(?:(?:Object\.freeze|new\s+Set)\s*\()?\s*$/u,
-  );
-  if (javaScriptDeclaration !== null) {
-    return isEnvironmentIdentifier(javaScriptDeclaration[1]);
+function environmentNameTables(source, literals) {
+  const tables = [];
+  for (const { open, close } of lexicalDelimiterPairs(source, literals)) {
+    if (source[open] !== '[' && source[open] !== '{') continue;
+    const prefix = source.slice(Math.max(0, open - 2048), open);
+    const javaScriptDeclaration = prefix.match(
+      /\b(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*(?:(?:Object\.freeze|new\s+Set)\s*\(\s*)?$/u,
+    );
+    const rustDeclaration = prefix.match(
+      /\b(?:pub\s+)?const\s+([A-Z][A-Z0-9_]*)\s*:[^=;]{0,512}=\s*&?\s*$/u,
+    );
+    const identifier = javaScriptDeclaration?.[1] ?? rustDeclaration?.[1];
+    if (identifier !== undefined && isEnvironmentIdentifier(identifier)) {
+      tables.push({ open, close });
+    }
   }
-  const rustDeclaration = prefix.match(
-    /\b(?:pub\s+)?const\s+([A-Z][A-Z0-9_]*)\s*:[^=]+?=\s*&?\s*$/su,
-  );
-  return rustDeclaration !== null && isEnvironmentIdentifier(rustDeclaration[1]);
+  return tables;
+}
+
+function lexicalDelimiterPairs(source, literals) {
+  const excluded = [
+    ...literals.comments,
+    ...(literals.lexicalExcluded ?? []),
+    ...literals.ranges.map(({ contentStart, end }) => ({ start: contentStart, end })),
+  ].sort((left, right) => left.start - right.start);
+  const stack = [];
+  const pairs = [];
+  const closing = { '(': ')', '[': ']', '{': '}' };
+  let excludedIndex = 0;
+  for (let index = 0; index < source.length; index += 1) {
+    while (excludedIndex < excluded.length && excluded[excludedIndex].end <= index) {
+      excludedIndex += 1;
+    }
+    const range = excluded[excludedIndex];
+    if (range !== undefined && range.start <= index && index < range.end) {
+      index = range.end - 1;
+      continue;
+    }
+    const character = source[index];
+    if (closing[character] !== undefined) {
+      stack.push({ open: index, close: closing[character] });
+    } else if (stack.at(-1)?.close === character) {
+      const opener = stack.pop();
+      pairs.push({ open: opener.open, close: index });
+    }
+  }
+  return pairs;
 }
 
 function rustIndirectEnvironmentOffsets(source) {
@@ -468,6 +499,7 @@ function indirectEnvironmentHelperOffsets(source, matches, readContracts) {
 function javaScriptLiteralBounds(source) {
   const byContentStart = new Map();
   const comments = [];
+  const lexicalExcluded = [];
   const ranges = [];
   const regexPrefixKeywords = new Set([
     'await', 'case', 'delete', 'do', 'else', 'in', 'instanceof', 'new',
@@ -593,6 +625,7 @@ function javaScriptLiteralBounds(source) {
         if (expectExpression) {
           const next = scanRegex(index);
           if (next !== index + 1) {
+            lexicalExcluded.push({ start: index, end: next });
             index = next;
             expectExpression = false;
             previousWord = '';
@@ -686,14 +719,60 @@ function javaScriptLiteralBounds(source) {
   scanCode(0, false);
   ranges.sort((left, right) => left.contentStart - right.contentStart);
   comments.sort((left, right) => left.start - right.start);
+  lexicalExcluded.sort((left, right) => left.start - right.start);
+  return { byContentStart, comments, lexicalExcluded, ranges };
+}
+
+function shellLiteralBounds(source) {
+  const byContentStart = new Map();
+  const comments = [];
+  const ranges = [];
+  let index = 0;
+  while (index < source.length) {
+    if (
+      source[index] === '#'
+      && (index === 0 || /[\s;|&()]/u.test(source[index - 1]))
+    ) {
+      const newline = source.indexOf('\n', index + 1);
+      const end = newline === -1 ? source.length : newline;
+      comments.push({ start: index, end });
+      index = end;
+      continue;
+    }
+    const delimiter = source[index];
+    if (delimiter !== '"' && delimiter !== "'") {
+      index += 1;
+      continue;
+    }
+    const contentStart = index + 1;
+    let cursor = contentStart;
+    while (cursor < source.length) {
+      if (delimiter === '"' && source[cursor] === '\\') {
+        cursor += 2;
+        continue;
+      }
+      if (source[cursor] === delimiter) break;
+      cursor += 1;
+    }
+    if (cursor === source.length) {
+      index += 1;
+      continue;
+    }
+    const literal = { contentStart, end: cursor };
+    byContentStart.set(contentStart, literal);
+    ranges.push(literal);
+    index = cursor + 1;
+  }
   return { byContentStart, comments, ranges };
 }
 
 function stringLiteralBounds(source, {
   ordinaryMultiline = false,
   javascript = false,
+  shell = false,
 } = {}) {
   if (javascript) return javaScriptLiteralBounds(source);
+  if (shell) return shellLiteralBounds(source);
   const byContentStart = new Map();
   const comments = [];
   const ranges = [];
@@ -773,6 +852,78 @@ function stringLiteralBounds(source, {
     index = cursor + closingDelimiter.length;
   }
   return { byContentStart, comments, ranges };
+}
+
+function codeOffset(offset, literals) {
+  return !isCommentReference(offset, literals.comments)
+    && enclosingStringLiteral(offset, literals) === null;
+}
+
+function rustDeclarationBrace(source, start, kind, literals) {
+  const tail = source.slice(start);
+  const declaration = kind === 'module'
+    ? tail.match(/^(?:\s*#\[[^\]]+\])*\s*(?:pub(?:\([^)]*\))?\s+)?mod\s+[A-Za-z_][A-Za-z0-9_]*\s*/u)
+    : tail.match(/^(?:\s*#\[[^\]]+\])*\s*(?:(?:pub(?:\([^)]*\))?|async|unsafe|extern(?:\s+"[^"]+")?)\s+)*fn\s+[A-Za-z_][A-Za-z0-9_]*\b/u);
+  if (declaration === null) return null;
+  let parenDepth = 0;
+  let bracketDepth = 0;
+  for (let index = start + declaration[0].length; index < source.length; index += 1) {
+    if (!codeOffset(index, literals)) continue;
+    if (source[index] === '(') parenDepth += 1;
+    else if (source[index] === ')') parenDepth = Math.max(0, parenDepth - 1);
+    else if (source[index] === '[') bracketDepth += 1;
+    else if (source[index] === ']') bracketDepth = Math.max(0, bracketDepth - 1);
+    else if (source[index] === '{' && parenDepth === 0 && bracketDepth === 0) return index;
+    else if (source[index] === ';' && parenDepth === 0 && bracketDepth === 0) return null;
+  }
+  return null;
+}
+
+// Preserve byte offsets and line numbers while removing Rust regions that are
+// compiled only by the test harness from the production registry population.
+export function rustProductionSource(source) {
+  if (!/#\s*\[\s*(?:cfg\s*\(\s*test\s*\)|test)\s*\]/u.test(source)) return source;
+  const literals = stringLiteralBounds(source, { ordinaryMultiline: true });
+  const delimiterCloses = new Map(
+    lexicalDelimiterPairs(source, literals).map(({ open, close }) => [open, close]),
+  );
+  const ranges = [];
+  const attributes = /^\s*#\s*\[\s*(cfg\s*\(\s*test\s*\)|test)\s*\]/gmu;
+  for (const attribute of source.matchAll(attributes)) {
+    const marker = attribute.index + attribute[0].indexOf('#');
+    if (!codeOffset(marker, literals)) continue;
+    if (ranges.some((range) => range.start <= marker && marker < range.end)) continue;
+    const kind = attribute[1].startsWith('cfg') ? 'module' : 'function';
+    const open = rustDeclarationBrace(
+      source,
+      attribute.index + attribute[0].length,
+      kind,
+      literals,
+    );
+    if (open === null) continue;
+    const close = delimiterCloses.get(open);
+    if (close === undefined) continue;
+    ranges.push({ start: attribute.index, end: close + 1 });
+  }
+  if (ranges.length === 0) return source;
+  ranges.sort((left, right) => left.start - right.start);
+  const merged = [];
+  for (const range of ranges) {
+    const previous = merged.at(-1);
+    if (previous !== undefined && range.start <= previous.end) {
+      previous.end = Math.max(previous.end, range.end);
+    } else {
+      merged.push({ ...range });
+    }
+  }
+  let cursor = 0;
+  let result = '';
+  for (const range of merged) {
+    result += source.slice(cursor, range.start);
+    result += source.slice(range.start, range.end).replace(/[^\r\n]/gu, 'x');
+    cursor = range.end;
+  }
+  return result + source.slice(cursor);
 }
 
 function enclosingStringLiteral(offset, literals) {
@@ -907,9 +1058,20 @@ function isUnrecognizedDiagnosticReference(source, match) {
   ));
 }
 
+function shellEnvironmentSiteKind(source, offset, code, literals) {
+  const literal = enclosingStringLiteral(offset, literals);
+  if (literal !== null && source[literal.contentStart - 1] === "'") return null;
+  const before = source.slice(Math.max(0, offset - 2), offset);
+  const after = source.slice(offset + code.length);
+  if (before.endsWith('${') && /^(?:\}|[:#%/?+=-])/u.test(after)) return 'read';
+  if (before.endsWith('$') && !/[\\$]\$$/u.test(before)) return 'read';
+  return null;
+}
+
 function environmentAnalysis(source, options) {
   const matches = [...source.matchAll(DIAGNOSTIC_CODE_PATTERN)];
   const literals = stringLiteralBounds(source, options);
+  const nameTables = environmentNameTables(source, literals);
   const siteKinds = new Map();
   for (const offset of rustIndirectEnvironmentOffsets(source)) {
     siteKinds.set(offset, 'indirect-read');
@@ -935,13 +1097,18 @@ function environmentAnalysis(source, options) {
       siteKinds.delete(match.index);
       continue;
     }
+    const shellKind = options.shell
+      ? shellEnvironmentSiteKind(source, match.index, match[0], literals)
+      : null;
     const directKind = directEnvironmentSiteKind(source, match.index, match[0]);
     const objectKind = javaScriptEnvironmentObjectKind(source, match.index, match[0]);
-    if (directKind !== null) {
+    if (shellKind !== null) {
+      siteKinds.set(match.index, shellKind);
+    } else if (directKind !== null) {
       siteKinds.set(match.index, directKind);
     } else if (objectKind !== null) {
       siteKinds.set(match.index, objectKind);
-    } else if (isEnvironmentNameTable(source, match.index)) {
+    } else if (nameTables.some(({ open, close }) => open < match.index && match.index < close)) {
       siteKinds.set(match.index, 'table-entry');
     }
   }
@@ -956,11 +1123,15 @@ export function environmentVariableSites(source, {
   indirectEnvironmentReadContracts: readContracts,
   javascript,
   ordinaryMultiline,
+  shell,
+  excludeRustTestRegions = false,
 } = {}) {
-  const analysis = environmentAnalysis(source, {
+  const classifiedSource = excludeRustTestRegions ? rustProductionSource(source) : source;
+  const analysis = environmentAnalysis(classifiedSource, {
     indirectEnvironmentReadContracts: readContracts,
     javascript,
     ordinaryMultiline,
+    shell,
   });
   const classifiedNames = environmentNames ?? analysis.names;
   return analysis.matches.flatMap((match) => {
@@ -968,7 +1139,7 @@ export function environmentVariableSites(source, {
     if (kind !== undefined) return [{ match, kind }];
     if (
       classifiedNames.has(match[0])
-      && diagnosticSiteKind(source, match, analysis, classifiedNames) === null
+      && diagnosticSiteKind(classifiedSource, match, analysis, classifiedNames, { shell }) === null
       && analysis.literals.byContentStart.has(match.index)
       && !isCommentReference(match.index, analysis.literals.comments)
     ) {
@@ -1288,7 +1459,15 @@ function isReferencePosition(source, offset, code) {
   );
 }
 
-function diagnosticSiteKind(source, match, analysis, environmentNames) {
+function shellDiagnosticOperator(source, offset) {
+  const bounds = lineBounds(source, offset);
+  const before = source.slice(bounds.start, offset);
+  if (/(?:^|[;&|()])\s*deploy_fail\s+$/u.test(before)) return 'deploy-fail';
+  if (/(?:^|[;&|()])\s*(?:echo|printf)\b[^#]*$/u.test(before)) return 'print';
+  return null;
+}
+
+function diagnosticSiteKind(source, match, analysis, environmentNames, { shell = false } = {}) {
   const offset = match.index;
   if (hasReservedMarker(source, offset, match[0])) return 'reserved';
   if (hasReceivedMarker(source, offset, match[0])) return 'received';
@@ -1302,6 +1481,12 @@ function diagnosticSiteKind(source, match, analysis, environmentNames) {
     || analysis.siteKinds.has(offset)
   ) return null;
   if (analysis.receivedOffsets.has(offset)) return 'received';
+  if (shell) {
+    const operator = shellDiagnosticOperator(source, offset);
+    return operator === 'deploy-fail' || (operator === 'print' && !environmentNames.has(match[0]))
+      ? 'emission'
+      : null;
+  }
   if (isReferencePosition(source, offset, match[0])) return null;
   if (isUnrecognizedDiagnosticReference(source, match)) return null;
   if (isHtmlDiagnosticPosition(source, match)) {
@@ -1331,22 +1516,26 @@ export function diagnosticSourceSites(source, {
   indirectEnvironmentReadContracts: readContracts,
   javascript,
   ordinaryMultiline,
+  shell,
+  excludeRustTestRegions = false,
   receivedProtocolVocabulary = false,
 } = {}) {
-  const analysis = environmentAnalysis(source, {
+  const classifiedSource = excludeRustTestRegions ? rustProductionSource(source) : source;
+  const analysis = environmentAnalysis(classifiedSource, {
     indirectEnvironmentReadContracts: readContracts,
     javascript,
     ordinaryMultiline,
+    shell,
   });
   const classifiedNames = environmentNames ?? analysis.names;
   analysis.receivedOffsets = receivedProtocolVocabulary
-    ? receivedProtocolOffsets(source, analysis.matches, classifiedNames)
+    ? receivedProtocolOffsets(classifiedSource, analysis.matches, classifiedNames)
     : new Set();
   const sites = analysis.matches.flatMap((match) => {
-    const kind = diagnosticSiteKind(source, match, analysis, classifiedNames);
+    const kind = diagnosticSiteKind(classifiedSource, match, analysis, classifiedNames, { shell });
     return kind === null ? [] : [{ match, kind }];
   });
-  sites.push(...syntheticEmissionSites(source, analysis.literals.comments));
+  sites.push(...syntheticEmissionSites(classifiedSource, analysis.literals.comments));
   return sites.sort((left, right) => (
     left.match.index - right.match.index || left.match[0].localeCompare(right.match[0])
   ));

@@ -332,6 +332,10 @@ test('environment-name tables end at their matching closing delimiter', () => {
       .map(({ match, kind }) => ({ name: match[0], kind })),
     [
       { name: 'SNAPBACK_FOO_ENV', kind: 'table-entry' },
+      { name: 'SNAPBACK_COMMENT_BRACE_ENV', kind: 'table-entry' },
+      { name: 'SNAPBACK_STRING_BRACE_ENV', kind: 'table-entry' },
+      { name: 'SNAPBACK_REGEX_BRACE_ENV', kind: 'table-entry' },
+      { name: 'SNAPBACK_AFTER_NESTED_VALUE_ENV', kind: 'table-entry' },
       { name: 'SNAPBACK_OBJECT_BEFORE_STRING_BRACE', kind: 'write' },
       { name: 'SNAPBACK_OBJECT_AFTER_STRING_BRACE', kind: 'write' },
     ],
@@ -341,6 +345,68 @@ test('environment-name tables end at their matching closing delimiter', () => {
       .map(({ match, kind }) => ({ code: match[0], kind })),
     [{ code: 'SNAPBACK_REAL_FAILURE', kind: 'emission' }],
   );
+});
+
+test('shell classifier retains operator emissions and environment reads only', () => {
+  const fixture = [
+    'app="${SNAPBACK_FIXTURE_SHELL_APP:-notes}"',
+    'token="$SNAPBACK_FIXTURE_SHELL_TOKEN"',
+    "literal='$SNAPBACK_FIXTURE_SHELL_LITERAL'",
+    'deploy_fail SNAPBACK_FIXTURE_SHELL_DEPLOY_FAILED 2 "failed"',
+    'echo "SNAPBACK_FIXTURE_SHELL_ECHO_FAILED: failed" >&2',
+    "printf '%s\\n' SNAPBACK_FIXTURE_SHELL_PRINTF_FAILED >&2",
+    'value="SNAPBACK_FIXTURE_SHELL_REFERENCE"',
+    '# echo SNAPBACK_FIXTURE_SHELL_COMMENTED_FAILED',
+  ].join('\n');
+
+  assert.deepEqual(
+    environmentVariableSites(fixture, { shell: true })
+      .map(({ match, kind }) => ({ name: match[0], kind })),
+    [
+      { name: 'SNAPBACK_FIXTURE_SHELL_APP', kind: 'read' },
+      { name: 'SNAPBACK_FIXTURE_SHELL_TOKEN', kind: 'read' },
+    ],
+  );
+  assert.deepEqual(
+    diagnosticSourceSites(fixture, { shell: true })
+      .map(({ match, kind }) => ({ code: match[0], kind })),
+    [
+      { code: 'SNAPBACK_FIXTURE_SHELL_DEPLOY_FAILED', kind: 'emission' },
+      { code: 'SNAPBACK_FIXTURE_SHELL_ECHO_FAILED', kind: 'emission' },
+      { code: 'SNAPBACK_FIXTURE_SHELL_PRINTF_FAILED', kind: 'emission' },
+    ],
+  );
+});
+
+test('Rust production classification excludes inline test-gated regions', () => {
+  const fixture = [
+    'pub fn production() {',
+    '    let _ = std::env::var("SNAPBACK_FIXTURE_PRODUCTION_ENV");',
+    '}',
+    '#[cfg(test)]',
+    'mod tests {',
+    '    fn helper() {',
+    '        let _ = std::env::var("SNAPBACK_FIXTURE_CFG_TEST_ENV");',
+    '    }',
+    '',
+    '    #[test]',
+    '    fn inline_test() {',
+    '        panic!("SNAPBACK_FIXTURE_INLINE_TEST_FAILURE");',
+    '    }',
+    '}',
+    '#[test]',
+    'fn top_level_test() {',
+    '    let _ = std::env::var("SNAPBACK_FIXTURE_TOP_LEVEL_TEST_ENV");',
+    '}',
+  ].join('\n');
+  const options = { ordinaryMultiline: true, excludeRustTestRegions: true };
+
+  assert.deepEqual(
+    environmentVariableSites(fixture, options)
+      .map(({ match, kind }) => ({ name: match[0], kind })),
+    [{ name: 'SNAPBACK_FIXTURE_PRODUCTION_ENV', kind: 'read' }],
+  );
+  assert.deepEqual(diagnosticSourceSites(fixture, options), []);
 });
 
 test('Rust match-arm references scan an entire brace-bounded or-pattern', () => {
@@ -388,6 +454,27 @@ test('generated registry retains target emitters and dynamic artifact-header emi
       sites.some((site) => site.kind === undefined),
       `${code} must retain an emission when the same target also receives it`,
     );
+  }
+
+  const cloudflareDeployCodes = [
+    'SNAPBACK_CF_DEPLOY_APP_UNKNOWN',
+    'SNAPBACK_CF_DEPLOY_CREDENTIAL_MISSING',
+    'SNAPBACK_CF_DEPLOY_HEALTH_REFUSED',
+  ];
+  for (const code of cloudflareDeployCodes) {
+    assert.ok(
+      registry.diagnostics[code]?.sites.some((site) => (
+        site.file === 'targets/cloudflare/deploy.sh' && site.kind === undefined
+      )),
+      `${code} must retain its shell deploy_fail emission`,
+    );
+  }
+
+  for (const name of [
+    'SNAPBACK_S3_TEST_ENDPOINT',
+    'SNAPBACK_S3_TEST_SECRET_ACCESS_KEY',
+  ]) {
+    assert.equal(registry.environment[name], undefined, `${name} is test-only`);
   }
 
   const artifactHeaderCodes = [
@@ -474,6 +561,11 @@ test('generated registry retains target emitters and dynamic artifact-header emi
       site.file === 'packages/snapback-cli/index.mjs' && site.kind === 'write'
     )),
     'delegatedEnvironment.SNAPBACK_ADMIN_TOKEN assignment must be classified as a write',
+  );
+  assert.equal(
+    registry.diagnostics.SNAPBACK_ADMIN_TOKEN,
+    undefined,
+    'printing an environment name from shell is not a diagnostic emission',
   );
 
   for (const [file, code] of [

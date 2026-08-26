@@ -49,6 +49,12 @@ const SNAPBACK_ENVIRONMENT_NAMES = ['SNAPBACK_FOO_ENV']; throw new Error('SNAPBA
 It retains only `SNAPBACK_FOO_ENV` as a table entry and
 `SNAPBACK_REAL_FAILURE` as an emission.
 
+The final round-16 correction derives each table's opener from the lexical
+delimiter stack and then tests containment against that exact declaration
+pair. An unmatched `{` in a table comment, a `{` inside a string value, and a
+nested object before a later entry can no longer replace the declaration's
+real opener; all three shapes are pinned in the boundary fixture.
+
 Generic environment-object mutations are classified before the read fallback:
 the current `delete childEnv.SNAPBACK_CLIENT_RQS_DIR` site is a removal and
 `delegatedEnvironment.SNAPBACK_ADMIN_TOKEN = …` is a write. The object-boundary
@@ -62,7 +68,20 @@ inventory. In particular, the generated registry retains
 `packages/snapback-expo-custody/ios/SnapbackExpoCustodyCore.swift` and
 `SNAPBACK_AUTH_CUSTODY_SECONDARY_PROCESS_IO_OCCURRED` at
 `packages/snapback-expo-custody/android/src/main/java/expo/modules/snapbackcustody/SnapbackExpoCustodyModule.kt`.
-The affected-proof extension list includes both `.swift` and `.kt`.
+The target inventory additionally admits shipped `.sh` operator carriers.
+Shell classification treats `deploy_fail` and diagnostic-bearing
+`echo`/`printf` sites as emissions while `${SNAPBACK_X}` and `$SNAPBACK_X`
+remain environment reads. The final registry contains 12 unique
+`targets/cloudflare/deploy.sh` emission codes, including
+`SNAPBACK_CF_DEPLOY_APP_UNKNOWN`, `SNAPBACK_CF_DEPLOY_CREDENTIAL_MISSING`,
+and `SNAPBACK_CF_DEPLOY_HEALTH_REFUSED`. The affected-proof extension list
+now includes `.sh`, `.swift`, and `.kt`; its manifest rule matches only
+`packages/*/package.json`.
+
+Production Rust classification masks inline `#[cfg(test)] mod tests` regions
+and standalone `#[test]` functions while preserving byte offsets and line
+numbers. Consequently every `SNAPBACK_S3_TEST_*` name is absent from the
+public environment union.
 
 Received-table detection now recognizes direct
 `NAME.binary_search(...)` consumers and
@@ -85,10 +104,10 @@ diagnostic registry and `SnapbackDiagnosticCode`, while remaining present in
 the environment registry and `SnapbackEnvironmentVariable`.
 
 The final comparison with merge-base
-`e370bb8f789007cffae1f4d80c4feabdedc81cb5` finds 225 removed diagnostic
-names: 149 are now environment variables and 76 are other non-emitting
+`e370bb8f789007cffae1f4d80c4feabdedc81cb5` finds 239 removed diagnostic
+names: 141 are now environment variables and 98 are other non-emitting
 vocabulary. The companion mixed-language fixture contains 87 raw
-`SNAPBACK_*` substrings. The final registry contains 263 codes with at least
+`SNAPBACK_*` substrings. The final registry contains 262 codes with at least
 one received site and seven reservations in the server HTTP table.
 
 The exact final measurement script was rerun after the implementation and all
@@ -132,6 +151,13 @@ console.log(JSON.stringify({
     record.sites.some((site) => site.kind === 'reserved'
       && site.file === 'crates/snapback-server/src/server/api_error.rs')
   )).length,
+  cloudflareDeployEmissionCodes: Object.values(registry.diagnostics).filter((record) => (
+    record.sites.some((site) => site.file === 'targets/cloudflare/deploy.sh'
+      && site.kind === undefined)
+  )).length,
+  s3TestEnvironmentNames: Object.keys(registry.environment).filter((name) => (
+    name.startsWith('SNAPBACK_S3_TEST_')
+  )),
 }, null, 2));
 ```
 
@@ -141,33 +167,35 @@ Captured output:
 {
   "mergeBase": "e370bb8f789007cffae1f4d80c4feabdedc81cb5",
   "counts": {
-    "codes": 3540,
-    "sourceFiles": 640,
-    "emittingSites": 10270,
-    "receivedSites": 339,
+    "codes": 3538,
+    "sourceFiles": 642,
+    "emittingSites": 9196,
+    "receivedSites": 338,
     "reservedSites": 9,
     "httpClassified": 1709,
-    "guideAnchored": 427,
-    "environmentVariables": 183,
-    "environmentSites": 363
+    "guideAnchored": 426,
+    "environmentVariables": 191,
+    "environmentSites": 390
   },
   "environmentKinds": {
-    "read": 250,
-    "mention": 43,
+    "read": 258,
+    "mention": 56,
     "declaration": 14,
     "remove": 9,
-    "write": 19,
-    "table-entry": 12,
-    "indirect-read": 16
+    "write": 18,
+    "table-entry": 20,
+    "indirect-read": 15
   },
   "mergeBaseRemovals": {
-    "total": 225,
-    "environment": 149,
-    "other": 76
+    "total": 239,
+    "environment": 141,
+    "other": 98
   },
   "fixtureRawTokens": 87,
-  "receivedCodes": 263,
-  "httpReservations": 7
+  "receivedCodes": 262,
+  "httpReservations": 7,
+  "cloudflareDeployEmissionCodes": 12,
+  "s3TestEnvironmentNames": []
 }
 ```
 
