@@ -10325,12 +10325,13 @@ impl LocalSnapback {
             }
         }
 
-        let expires_at_ms =
-            expires_at_ms
-                .min(now_ms.saturating_add(
-                    crate::storage::auth_agent_credentials::SCOPED_TOKEN_MAX_TTL_MS,
-                ))
-                .min(crate::storage::SEQUENCE_MAX_SAFE_INTEGER);
+        let requested_ttl_ms = expires_at_ms
+            .saturating_sub(now_ms)
+            .min(crate::storage::auth_agent_credentials::SCOPED_TOKEN_MAX_TTL_MS);
+        let now_ms = now_ms.max(now_millis());
+        let expires_at_ms = now_ms
+            .saturating_add(requested_ttl_ms)
+            .min(crate::storage::SEQUENCE_MAX_SAFE_INTEGER);
         if self.db.schema().effective_agents_manifest().mode
             == crate::manifest::AgentsMode::Disabled
         {
@@ -10552,13 +10553,14 @@ impl LocalSnapback {
                     .block_on(admission.for_step_up(coordination, binding, code))
                     .expect("verify service grant step-up proof")
             });
+        let approval_now_ms = now_ms.max(now_millis());
         let approval = self
             .approve_grant_request(
                 &human_authority,
                 &pairing.request_id,
-                Some(expires_at_ms.saturating_sub(now_ms)),
+                Some(expires_at_ms.saturating_sub(approval_now_ms)),
                 proof_admission.as_ref().map(|admission| admission.proof()),
-                now_ms,
+                approval_now_ms,
             )
             .expect("approve delegated service grant through production ceremony");
         let grant_id = match approval {
@@ -10570,18 +10572,18 @@ impl LocalSnapback {
             .mint_scoped_token(
                 &credential.secret,
                 &grant_id,
-                Some(expires_at_ms.saturating_sub(now_ms)),
-                now_ms,
+                Some(expires_at_ms.saturating_sub(approval_now_ms)),
+                approval_now_ms,
                 &random,
             )
             .expect("mint unit-test scoped token through production grant");
         let durable = self
             .db
-            .resolve_scoped_token(&token.secret, now_ms)
+            .resolve_scoped_token(&token.secret, approval_now_ms)
             .expect("resolve unit-test scoped token");
         let registered = self
             .service_authority_fences
-            .register_resolved(durable, now_ms, Instant::now())
+            .register_resolved(durable, approval_now_ms, Instant::now())
             .expect("register unit-test service publication");
         let resolution =
             ResolvedServiceAuthority::from_registered(registered, self.admission.lease_origin());
@@ -10596,7 +10598,7 @@ impl LocalSnapback {
             ServerProfile::Test,
             admission,
             &WireAuthorityFields::default(),
-            now_ms,
+            approval_now_ms,
         )
         .expect("prepare unit-test resolved service authority")
     }

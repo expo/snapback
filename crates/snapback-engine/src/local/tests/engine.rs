@@ -31275,19 +31275,22 @@ fn oauth_consent_ownership_fixture() -> (LocalSnapback, String, String) {
     (snapback, client_id, principal_user_id)
 }
 
-fn seed_oauth_consent_users(snapback: &mut LocalSnapback, now_ms: u64) {
+fn seed_oauth_consent_users(
+    snapback: &mut LocalSnapback,
+) -> BTreeMap<&'static str, ProductionSessionFacts> {
+    let mut sessions = BTreeMap::new();
     for user_id in [
         "usr_00000000000000000000000010",
         "usr_00000000000000000000000011",
         "usr_00000000000000000000000012",
         "usr_00000000000000000000000013",
     ] {
-        let _ = snapback.prepare_resolved_password_session_for_test(
-            InvocationSource::AgentGrantManagement,
+        sessions.insert(
             user_id,
-            now_ms + 60_000,
+            snapback.issue_production_session_for_test(user_id, user_id),
         );
     }
+    sessions
 }
 
 fn begin_oauth_request_for_test(
@@ -31558,7 +31561,7 @@ fn run_oauth_consent_begin_case(case: OAuthConsentBeginCase) {
         assert!(OAUTH_CONSENT_BEGIN_L_SHAPE.contains(&case));
     }
     let (mut snapback, client_id, principal_user_id) = oauth_consent_ownership_fixture();
-    seed_oauth_consent_users(&mut snapback, 1_000);
+    let _sessions = seed_oauth_consent_users(&mut snapback);
     let authority = test_live_session_authority_with_session(
         &mut snapback,
         case.source(),
@@ -31568,6 +31571,10 @@ fn run_oauth_consent_begin_case(case: OAuthConsentBeginCase) {
         NOW_MS + 60_000,
         None,
     );
+    let ResolvedAppAuthority::Session(authority_subject) = authority.resolved() else {
+        panic!("OAuth begin fixture resolves a human session");
+    };
+    let authority_user_id = authority_subject.user_id().to_owned();
     let before = oauth_durable_state_for_test(&mut snapback);
     let random = CounterRandom::new();
     let result = snapback.begin_oauth_authorization(
@@ -31642,7 +31649,7 @@ fn run_oauth_consent_begin_case(case: OAuthConsentBeginCase) {
     );
     assert!(durable_pairing.request_id.starts_with("greq_"));
     assert_eq!(durable_pairing.code_hash, vec![1; 32]);
-    assert_eq!(durable_pairing.minted_by_user_id, case.user_id());
+    assert_eq!(durable_pairing.minted_by_user_id, authority_user_id);
     assert_eq!(
         durable_pairing.agent_user_id.as_deref(),
         Some(principal_user_id.as_str())
@@ -31664,7 +31671,7 @@ fn run_oauth_consent_begin_case(case: OAuthConsentBeginCase) {
         .find(|row| row.request_id == begun.request_id)
         .expect("accepted durable OAuth authorization");
     assert_eq!(durable_authorization.request_id, durable_pairing.request_id);
-    assert_eq!(durable_authorization.consenting_user_id, case.user_id());
+    assert_eq!(durable_authorization.consenting_user_id, authority_user_id);
     assert_eq!(
         durable_authorization.oauth_state.as_deref(),
         Some(case.oauth_state())
@@ -31678,7 +31685,7 @@ fn run_oauth_consent_begin_case(case: OAuthConsentBeginCase) {
     let expected_pairing = OAuthPairingRequestRowForTest {
         request_id: begun.request_id.clone(),
         code_hash: vec![1; 32],
-        minted_by_user_id: case.user_id().to_owned(),
+        minted_by_user_id: authority_user_id.clone(),
         agent_user_id: Some(principal_user_id.clone()),
         requested_scopes: Some(OAUTH_TEST_SCOPES_JSON.to_owned()),
         state: "pending".to_owned(),
@@ -31692,7 +31699,7 @@ fn run_oauth_consent_begin_case(case: OAuthConsentBeginCase) {
         request_id: begun.request_id,
         client_id,
         principal_user_id,
-        consenting_user_id: case.user_id().to_owned(),
+        consenting_user_id: authority_user_id,
         redirect_uri: OAUTH_TEST_REDIRECT_URI.to_owned(),
         code_challenge: OAUTH_TEST_CODE_CHALLENGE.to_owned(),
         bundle_names_json: OAUTH_TEST_BUNDLES_JSON.to_owned(),
@@ -31757,7 +31764,8 @@ const OAUTH_APPROVAL_APPROVED_AT_MS: u64 = 2_000;
 #[derive(Clone)]
 struct OAuthApprovalRequestFixture {
     label: &'static str,
-    user_id: &'static str,
+    user_label: &'static str,
+    user_id: String,
     request_id: String,
     created_at_ms: u64,
 }
@@ -31841,7 +31849,7 @@ fn oauth_approval_fixture_for_test(
     target_user_id: &'static str,
 ) -> (LocalSnapback, String, Vec<OAuthApprovalRequestFixture>) {
     let (mut snapback, client_id, principal_user_id) = oauth_consent_ownership_fixture();
-    seed_oauth_consent_users(&mut snapback, OAUTH_APPROVAL_REQUESTED_AT_MS);
+    let sessions = seed_oauth_consent_users(&mut snapback);
     let foreign_user_id = if target_user_id == "usr_00000000000000000000000011" {
         "usr_00000000000000000000000012"
     } else {
@@ -31855,12 +31863,13 @@ fn oauth_approval_fixture_for_test(
         ("foreign-upper", "usr_00000000000000000000000013"),
     ]
     .into_iter()
-    .map(|(label, user_id)| OAuthApprovalRequestFixture {
+    .map(|(label, user_label)| OAuthApprovalRequestFixture {
         label,
-        user_id,
+        user_label,
+        user_id: sessions[user_label].user_id.clone(),
         request_id: begin_oauth_request_for_test(
             &mut snapback,
-            user_id,
+            &sessions[user_label].user_id,
             &client_id,
             OAUTH_APPROVAL_REQUESTED_AT_MS,
             &random,
@@ -31974,7 +31983,10 @@ fn run_oauth_consent_approval_case(
         .iter()
         .map(|request| (request.label, request))
         .collect::<BTreeMap<_, _>>();
-    assert_eq!(request_by_label["target"].user_id, authority_case.user_id);
+    assert_eq!(
+        request_by_label["target"].user_label,
+        authority_case.user_id
+    );
     let authority = test_live_session_authority_with_session(
         &mut snapback,
         InvocationSource::AgentGrantManagement,
@@ -31984,6 +31996,12 @@ fn run_oauth_consent_approval_case(
         OAUTH_APPROVAL_REQUESTED_AT_MS + 60_000,
         None,
     );
+    let ResolvedAppAuthority::Session(authority_subject) = authority.resolved() else {
+        panic!("OAuth approval fixture resolves a human session");
+    };
+    let authority_user_id = authority_subject.user_id().to_owned();
+    let authority_session_id = authority_subject.session_id().to_owned();
+    assert_eq!(request_by_label["target"].user_id, authority_user_id);
     let request_id = match attempt {
         OAuthApprovalAttempt::ForeignLower => request_by_label["foreign-lower"].request_id.as_str(),
         OAuthApprovalAttempt::ForeignOtherAuthority => request_by_label["foreign-other-authority"]
@@ -32032,8 +32050,8 @@ fn run_oauth_consent_approval_case(
     };
     let expected_grant = expected_oauth_approval_grant_row(
         &principal_user_id,
-        authority_case.user_id,
-        authority_case.session_id,
+        &authority_user_id,
+        &authority_session_id,
         request_id,
         &approval.grant_id,
         OAUTH_APPROVAL_APPROVED_AT_MS,
@@ -32080,7 +32098,7 @@ fn run_oauth_consent_approval_case(
     assert_eq!(durable_grant.actor_user_id, principal_user_id);
     assert_eq!(
         durable_grant.effective_user_id.as_deref(),
-        Some(authority_case.user_id)
+        Some(authority_user_id.as_str())
     );
     assert_eq!(durable_grant.scopes, OAUTH_TEST_SCOPES_JSON);
     assert_eq!(durable_grant.created_at_ms, OAUTH_APPROVAL_APPROVED_AT_MS);
@@ -32311,7 +32329,7 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user_n_session_
 fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
     let (mut snapback, client_id, principal_user_id) = oauth_consent_ownership_fixture();
     let now_ms = 1_000;
-    seed_oauth_consent_users(&mut snapback, now_ms);
+    let sessions = seed_oauth_consent_users(&mut snapback);
     let random = CounterRandom::new();
     let requests = [
         "usr_00000000000000000000000010",
@@ -32320,10 +32338,12 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
     ]
     .into_iter()
     .enumerate()
-    .map(|(offset, user_id)| {
+    .map(|(offset, user_label)| {
+        let user_id = sessions[user_label].user_id.clone();
+        let session_id = sessions[user_label].session_id.clone();
         let request_id = begin_oauth_request_for_test(
             &mut snapback,
-            user_id,
+            &user_id,
             &client_id,
             now_ms + (offset as u64 * 10),
             &random,
@@ -32331,21 +32351,27 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
         let approval = snapback
             .auth_database_mut()
             .approve_grant_request(
-                user_id,
-                &format!("session-{user_id}"),
+                &user_id,
+                &session_id,
                 &request_id,
                 None,
                 None,
                 now_ms + (offset as u64 * 10) + 1,
             )
-            .unwrap_or_else(|error| panic!("approve OAuth request for {user_id}: {error:?}"));
+            .unwrap_or_else(|error| panic!("approve OAuth request for {user_label}: {error:?}"));
         let approval = match approval {
             crate::storage::auth_grants::GrantApproval::Created(approval) => approval,
             crate::storage::auth_grants::GrantApproval::Existing(_) => {
                 panic!("first OAuth setup approval must create a grant")
             }
         };
-        (user_id.to_owned(), request_id, approval.grant_id)
+        (
+            user_label,
+            user_id,
+            session_id,
+            request_id,
+            approval.grant_id,
+        )
     })
     .collect::<Vec<_>>();
     let authority = test_live_session_authority(
@@ -32356,16 +32382,20 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
         now_ms + 60_000,
         None,
     );
+    let ResolvedAppAuthority::Session(authority_subject) = authority.resolved() else {
+        panic!("OAuth issuance fixture resolves a human session");
+    };
+    let authority_user_id = authority_subject.user_id().to_owned();
 
     let initial_rows = oauth_durable_state_for_test(&mut snapback);
     let mut expected_grants = requests
         .iter()
         .enumerate()
-        .map(|(offset, (user_id, request_id, grant_id))| {
+        .map(|(offset, (_, user_id, session_id, request_id, grant_id))| {
             expected_oauth_approval_grant_row(
                 &principal_user_id,
                 user_id,
-                &format!("session-{user_id}"),
+                session_id,
                 request_id,
                 grant_id,
                 now_ms + (offset as u64 * 10) + 1,
@@ -32376,7 +32406,7 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
     let mut expected_pairing_requests = requests
         .iter()
         .enumerate()
-        .map(|(offset, (user_id, request_id, grant_id))| {
+        .map(|(offset, (_, user_id, _, request_id, grant_id))| {
             let created_at_ms = now_ms + (offset as u64 * 10);
             crate::storage::auth_integrations::OAuthPairingRequestRowForTest {
                 request_id: request_id.clone(),
@@ -32397,7 +32427,7 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
     let mut expected_authorizations = requests
         .iter()
         .enumerate()
-        .map(|(offset, (user_id, request_id, _))| {
+        .map(|(offset, (_, user_id, _, request_id, _))| {
             let created_at_ms = now_ms + (offset as u64 * 10);
             crate::storage::auth_integrations::OAuthAuthorizationRowForTest {
                 request_id: request_id.clone(),
@@ -32432,9 +32462,9 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
         now_ms + 60_000,
         None,
     );
-    let (_, own_request_id, _) = requests
+    let (_, _, _, own_request_id, _) = requests
         .iter()
-        .find(|(user_id, _, _)| user_id == "usr_00000000000000000000000011")
+        .find(|(user_label, _, _, _, _)| *user_label == "usr_00000000000000000000000011")
         .expect("authority user's issuance request exists");
     let before_wrong_source = oauth_durable_state_for_test(&mut snapback);
     let wrong_source_result = snapback.issue_oauth_authorization_code(
@@ -32459,7 +32489,7 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
     let mut durable_code_hashes = Vec::new();
     let mut accepted = Vec::new();
     let mut refused = Vec::new();
-    for (user_id, request_id, grant_id) in &requests {
+    for (user_label, user_id, _, request_id, grant_id) in &requests {
         let before = oauth_durable_state_for_test(&mut snapback);
         let result =
             snapback.issue_oauth_authorization_code(&authority, request_id, now_ms + 100, &random);
@@ -32469,7 +32499,7 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
             (now_ms + 100).to_string(),
             "{user_id} issuance authorization clock"
         );
-        if user_id == "usr_00000000000000000000000011" {
+        if user_id == &authority_user_id {
             let issued = result.expect("authority user can issue their OAuth code");
             assert!(issued.code.expose_secret().starts_with("sboac_"));
             assert_eq!(issued.redirect_uri, OAUTH_TEST_REDIRECT_URI);
@@ -32514,7 +32544,7 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
                     .clone()
                     .expect("issued OAuth row must retain its durable selector"),
             );
-            accepted.push(user_id.as_str());
+            accepted.push(*user_label);
 
             let mut expected = with_oauth_authorization_clock(before, now_ms + 100);
             let expected_updated = expected
@@ -32533,7 +32563,7 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
                 .diagnostic
                 .code;
             assert_eq!(code, "SNAPBACK_AUTH_OAUTH_GRANT_INVALID");
-            refused.push((user_id.as_str(), code));
+            refused.push((*user_label, code));
             assert_eq!(
                 after,
                 with_oauth_authorization_clock(before, now_ms + 100),
@@ -32551,10 +32581,15 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
         now_ms + 60_000,
         None,
     );
-    let (_, second_request_id, second_grant_id) = requests
+    let ResolvedAppAuthority::Session(second_authority_subject) = second_authority.resolved()
+    else {
+        panic!("second OAuth issuance fixture resolves a human session");
+    };
+    let (_, second_user_id, _, second_request_id, second_grant_id) = requests
         .iter()
-        .find(|(user_id, _, _)| user_id == "usr_00000000000000000000000013")
+        .find(|(user_label, _, _, _, _)| *user_label == "usr_00000000000000000000000013")
         .expect("second authority user's OAuth request exists");
+    assert_eq!(second_authority_subject.user_id(), second_user_id);
     let before = oauth_durable_state_for_test(&mut snapback);
     let issued = snapback
         .issue_oauth_authorization_code(&second_authority, second_request_id, now_ms + 100, &random)
@@ -32581,7 +32616,7 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
     assert_eq!(updated.status, "approved");
     assert_eq!(updated.client_id, client_id);
     assert_eq!(updated.principal_user_id, principal_user_id);
-    assert_eq!(updated.consenting_user_id, "usr_00000000000000000000000013");
+    assert_eq!(updated.consenting_user_id, *second_user_id);
     assert_eq!(updated.redirect_uri, OAUTH_TEST_REDIRECT_URI);
     assert_eq!(updated.code_challenge, OAUTH_TEST_CODE_CHALLENGE);
     assert_eq!(updated.bundle_names_json, OAUTH_TEST_BUNDLES_JSON);
@@ -32953,6 +32988,7 @@ fn grant_denial_derives_subject_and_preserves_every_other_durable_request() {
 
 struct OAuthDenialFixture {
     snapback: LocalSnapback,
+    user_ids: BTreeMap<&'static str, String>,
     pairing_requests:
         BTreeMap<&'static str, crate::storage::auth_grants::GrantApprovalPairingRowForTest>,
     authorizations: BTreeMap<
@@ -33044,18 +33080,23 @@ impl OAuthDenialFixture {
             .expect("read OAuth denial integration")
             .expect("OAuth denial integration exists")
             .integration_id;
-        for user_id in DENY_USERS {
-            let _ = snapback.prepare_resolved_password_session_for_test(
-                InvocationSource::AgentGrantManagement,
-                user_id,
-                DENY_FIXTURE_MS + 60_000,
-            );
-        }
+        let user_ids = DENY_USERS
+            .into_iter()
+            .map(|user_label| {
+                (
+                    user_label,
+                    snapback
+                        .issue_production_session_for_test(user_label, user_label)
+                        .user_id,
+                )
+            })
+            .collect::<BTreeMap<_, _>>();
         let (pairing_requests, authorizations) = {
             let database = snapback.auth_database_mut();
             let mut pairing_requests = BTreeMap::new();
             let mut authorizations = BTreeMap::new();
-            for user_id in DENY_USERS {
+            for user_label in DENY_USERS {
+                let user_id = &user_ids[user_label];
                 let inert_pairing_hash = vec![random.next_fill_byte(); 32];
                 let begun = database
                     .begin_oauth_authorization(
@@ -33071,11 +33112,11 @@ impl OAuthDenialFixture {
                     .expect("begin OAuth denial fixture request");
                 let request_id = begun.request_id;
                 pairing_requests.insert(
-                    user_id,
+                    user_label,
                     crate::storage::auth_grants::GrantApprovalPairingRowForTest {
                         request_id: request_id.clone(),
                         code_hash: inert_pairing_hash,
-                        minted_by_user_id: user_id.to_owned(),
+                        minted_by_user_id: user_id.clone(),
                         agent_user_id: Some(begun.client.principal_user_id.clone()),
                         requested_scopes: Some(OAUTH_DENIAL_SCOPES_JSON.to_owned()),
                         state: "pending".to_owned(),
@@ -33088,12 +33129,12 @@ impl OAuthDenialFixture {
                     },
                 );
                 authorizations.insert(
-                    user_id,
+                    user_label,
                     crate::storage::auth_integrations::OAuthDenialAuthorizationRowForTest {
                         request_id,
                         client_id: begun.client.client_id,
                         principal_user_id: begun.client.principal_user_id,
-                        consenting_user_id: user_id.to_owned(),
+                        consenting_user_id: user_id.clone(),
                         redirect_uri: "https://example.test/callback".to_owned(),
                         code_challenge: "abcdefghijklmnopqrstuvwxyzABCDEFGH012345678".to_owned(),
                         bundle_names_json: r#"["read"]"#.to_owned(),
@@ -33113,6 +33154,7 @@ impl OAuthDenialFixture {
         };
         Self {
             snapback,
+            user_ids,
             pairing_requests,
             authorizations,
         }
@@ -33135,18 +33177,20 @@ impl OAuthDenialFixture {
 
         let mut pairing_requests = self.pairing_requests.values().cloned().collect::<Vec<_>>();
         if deny_case_is_accepted(case) {
+            let target_user_id = &self.user_ids[case.target_user];
             pairing_requests
                 .iter_mut()
-                .find(|row| row.minted_by_user_id == case.target_user)
+                .find(|row| row.minted_by_user_id == *target_user_id)
                 .expect("OAuth pairing expected target")
                 .state = "denied".to_owned();
         }
         pairing_requests.sort_by(|left, right| left.request_id.cmp(&right.request_id));
         let mut authorizations = self.authorizations.values().cloned().collect::<Vec<_>>();
         if deny_case_is_accepted(case) {
+            let target_user_id = &self.user_ids[case.target_user];
             authorizations
                 .iter_mut()
-                .find(|row| row.consenting_user_id == case.target_user)
+                .find(|row| row.consenting_user_id == *target_user_id)
                 .expect("OAuth authorization expected target")
                 .status = "denied".to_owned();
         }
