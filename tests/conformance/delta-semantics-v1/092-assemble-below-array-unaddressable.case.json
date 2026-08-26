@@ -1,0 +1,88 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "assemble-below-array-unaddressable",
+  "coverage": [
+    "assemble",
+    "fallback"
+  ],
+  "operator": {
+    "form": "assemble",
+    "config": {
+      "rootNodeId": "root",
+      "nodes": [
+        {
+          "nodeId": "root",
+          "parent": null,
+          "kind": "root",
+          "projectionFields": [
+            "_id",
+            "title"
+          ]
+        },
+        {
+          "nodeId": "many",
+          "parent": "root",
+          "kind": "to-many",
+          "resultField": "children",
+          "projectionFields": [
+            "_id",
+            "title"
+          ]
+        },
+        {
+          "nodeId": "nestedOne",
+          "parent": "many",
+          "kind": "to-one",
+          "projectionFields": [
+            "name"
+          ]
+        }
+      ]
+    }
+  },
+  "initialState": {
+    "result": [
+      {
+        "_id": "p1",
+        "title": "old"
+      }
+    ],
+    "orderedRootKeys": [
+      "p1"
+    ]
+  },
+  "foldedChangeBatch": {
+    "events": [
+      {
+        "kind": "to-one",
+        "nodeId": "nestedOne",
+        "delta": {
+          "ops": [
+            {
+              "kind": "presence",
+              "scope": "c1",
+              "childKey": "x",
+              "value": {
+                "name": "x"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "postResult": [
+      {
+        "_id": "p1",
+        "title": "old"
+      }
+    ],
+    "orderedRootKeys": [
+      "p1"
+    ]
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Fallback",
+    "reason": "wire-unaddressable"
+  }
+}

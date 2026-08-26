@@ -1,0 +1,57 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "admit-un-analyzable-row-value",
+  "coverage": [
+    "admit",
+    "fallback"
+  ],
+  "operator": {
+    "form": "admit",
+    "config": {
+      "visibility": {
+        "kind": "public-read"
+      },
+      "filters": [
+        {
+          "field": "value",
+          "op": "Eq",
+          "literal": 1
+        }
+      ],
+      "grain": "complete-scope",
+      "rankOrder": [
+        {
+          "field": "rank",
+          "direction": "asc"
+        }
+      ],
+      "probeRelation": false
+    }
+  },
+  "initialState": {
+    "retained": {}
+  },
+  "foldedChangeBatch": {
+    "changes": {
+      "changes": [
+        {
+          "rowKey": "a",
+          "op": "insert",
+          "postImage": {
+            "_id": "a",
+            "rank": 1,
+            "value": [
+              1
+            ]
+          }
+        }
+      ]
+    },
+    "supportBits": {}
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Fallback",
+    "reason": "predicate-unanalyzable"
+  }
+}

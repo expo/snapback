@@ -1,0 +1,60 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "lift-one-to-zero-sole-admission",
+  "coverage": [
+    "membership-lift"
+  ],
+  "operator": {
+    "form": "membership-lift",
+    "config": {
+      "index": "carrier.by_room",
+      "supportField": "roomId",
+      "bound": 4,
+      "windowedUnprojected": false
+    }
+  },
+  "initialState": {
+    "retained": {
+      "a": {
+        "_id": "a",
+        "roomId": "r1"
+      }
+    },
+    "survivingAnyOf": []
+  },
+  "foldedChangeBatch": {
+    "bits": {
+      "transitions": [
+        {
+          "scope": "r1",
+          "transition": "one-to-zero"
+        }
+      ]
+    },
+    "supportValues": {
+      "r1": "r1"
+    }
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "entries": [
+        {
+          "rowKey": "a",
+          "op": "update",
+          "postImage": {
+            "_id": "a",
+            "roomId": "r1"
+          },
+          "admit": "leave",
+          "rankKeys": []
+        }
+      ]
+    },
+    "nextState": {
+      "retained": {},
+      "survivingAnyOf": []
+    }
+  }
+}

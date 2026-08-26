@@ -1,0 +1,58 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "lift-one-to-zero-any-of-survives",
+  "coverage": [
+    "membership-lift"
+  ],
+  "operator": {
+    "form": "membership-lift",
+    "config": {
+      "index": "carrier.by_room",
+      "supportField": "roomId",
+      "bound": 4,
+      "windowedUnprojected": false
+    }
+  },
+  "initialState": {
+    "retained": {
+      "a": {
+        "_id": "a",
+        "roomId": "r1"
+      }
+    },
+    "survivingAnyOf": [
+      "a"
+    ]
+  },
+  "foldedChangeBatch": {
+    "bits": {
+      "transitions": [
+        {
+          "scope": "r1",
+          "transition": "one-to-zero"
+        }
+      ]
+    },
+    "supportValues": {
+      "r1": "r1"
+    }
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "entries": []
+    },
+    "nextState": {
+      "retained": {
+        "a": {
+          "_id": "a",
+          "roomId": "r1"
+        }
+      },
+      "survivingAnyOf": [
+        "a"
+      ]
+    }
+  }
+}

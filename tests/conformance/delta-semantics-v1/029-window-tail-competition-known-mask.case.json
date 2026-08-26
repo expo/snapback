@@ -1,0 +1,194 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "window-tail-competition-known-mask",
+  "coverage": [
+    "window",
+    "read-maintain"
+  ],
+  "operator": {
+    "form": "window",
+    "config": {
+      "windowId": "root",
+      "order": [
+        {
+          "field": "rank",
+          "direction": "asc"
+        }
+      ],
+      "interval": {},
+      "take": 2,
+      "projectionFields": [
+        "rank",
+        "title"
+      ]
+    }
+  },
+  "initialState": {
+    "rows": [
+      {
+        "rowKey": "a",
+        "rankKeys": {
+          "values": [
+            1
+          ],
+          "rowKey": "a"
+        },
+        "row": {
+          "_id": "a",
+          "rank": 1
+        }
+      },
+      {
+        "rowKey": "b",
+        "rankKeys": {
+          "values": [
+            2
+          ],
+          "rowKey": "b"
+        },
+        "row": {
+          "_id": "b",
+          "rank": 2
+        }
+      }
+    ],
+    "boundary": {
+      "values": [
+        2
+      ],
+      "rowKey": "b"
+    },
+    "resultCount": 2,
+    "complete": false,
+    "label": "incomplete",
+    "continuation": {
+      "values": [
+        2
+      ],
+      "rowKey": "b"
+    }
+  },
+  "foldedChangeBatch": {
+    "entries": [
+      {
+        "rowKey": "a",
+        "op": "delete",
+        "admit": "leave",
+        "rankKeys": []
+      },
+      {
+        "rowKey": "d",
+        "op": "insert",
+        "admit": "enter",
+        "postImage": {
+          "_id": "d",
+          "rank": 4
+        },
+        "rankKeys": [
+          4
+        ]
+      }
+    ]
+  },
+  "readTranscript": [
+    {
+      "request": {
+        "kind": "tail",
+        "window": "root",
+        "boundary": {
+          "values": [
+            2
+          ],
+          "rowKey": "b"
+        },
+        "k": 1,
+        "labelOnly": false
+      },
+      "response": {
+        "kind": "tail",
+        "rows": [
+          {
+            "_id": "c",
+            "rank": 3
+          }
+        ],
+        "exhausted": false
+      }
+    }
+  ],
+  "expected": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "ops": [
+        {
+          "op": "splice-out",
+          "sortKey": {
+            "values": [
+              1
+            ],
+            "rowKey": "a"
+          },
+          "rowKey": "a"
+        },
+        {
+          "op": "splice-in",
+          "sortKey": {
+            "values": [
+              3
+            ],
+            "rowKey": "c"
+          },
+          "row": {
+            "_id": "c",
+            "rank": 3
+          }
+        }
+      ]
+    },
+    "nextState": {
+      "rows": [
+        {
+          "rowKey": "b",
+          "rankKeys": {
+            "values": [
+              2
+            ],
+            "rowKey": "b"
+          },
+          "row": {
+            "_id": "b",
+            "rank": 2
+          }
+        },
+        {
+          "rowKey": "c",
+          "rankKeys": {
+            "values": [
+              3
+            ],
+            "rowKey": "c"
+          },
+          "row": {
+            "_id": "c",
+            "rank": 3
+          }
+        }
+      ],
+      "boundary": {
+        "values": [
+          3
+        ],
+        "rowKey": "c"
+      },
+      "resultCount": 2,
+      "complete": false,
+      "label": "incomplete",
+      "continuation": {
+        "values": [
+          3
+        ],
+        "rowKey": "c"
+      }
+    }
+  }
+}

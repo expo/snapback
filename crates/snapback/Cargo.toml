@@ -84,6 +84,7 @@ windows-sys = { version = "0.61.2", features = [
 [dev-dependencies]
 rusqlite = { version = "0.31", features = ["backup", "bundled", "column_decltype", "functions", "hooks", "limits", "serialize"] }
 snapback-auth = { path = "../snapback-auth", features = ["test-support"] }
+snapback-delta-semantics = { path = "../../tools/snapback-delta-semantics" }
 snapback-engine = { path = "../snapback-engine", features = ["test-support"] }
 snapback-kernel = { path = "../snapback-kernel", features = ["test-support"] }
 snapback-runtime = { path = "../snapback-runtime", features = ["test-support"] }

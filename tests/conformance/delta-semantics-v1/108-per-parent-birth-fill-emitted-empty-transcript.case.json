@@ -1,0 +1,60 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "per-parent-birth-fill-emitted-empty-transcript",
+  "coverage": [
+    "per-parent-window",
+    "scope-fill",
+    "fallback"
+  ],
+  "operator": {
+    "form": "per-parent-window",
+    "config": {
+      "index": "child.by_parent",
+      "parentJoinFields": [
+        "join"
+      ],
+      "demandPaged": false,
+      "maxChildrenPerParent": 4,
+      "window": {
+        "windowId": "children",
+        "order": [
+          {
+            "field": "rank",
+            "direction": "asc"
+          }
+        ],
+        "interval": {},
+        "take": 2,
+        "projectionFields": [
+          "rank",
+          "title"
+        ]
+      }
+    }
+  },
+  "initialState": {
+    "scopes": {}
+  },
+  "foldedChangeBatch": {
+    "parent": {
+      "entries": [
+        {
+          "rowKey": "p1",
+          "op": "insert",
+          "admit": "enter",
+          "postImage": {
+            "_id": "p1",
+            "join": "j1"
+          },
+          "rankKeys": []
+        }
+      ]
+    },
+    "childByScope": {}
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Fallback",
+    "reason": "scope-unfilled"
+  }
+}

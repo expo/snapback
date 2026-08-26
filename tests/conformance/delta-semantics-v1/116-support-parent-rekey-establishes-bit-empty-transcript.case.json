@@ -1,0 +1,63 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "support-parent-rekey-establishes-bit-empty-transcript",
+  "coverage": [
+    "support",
+    "parent-arm",
+    "rekey",
+    "fallback"
+  ],
+  "operator": {
+    "form": "support-semi-join",
+    "config": {
+      "edge": "edge",
+      "edgeKind": "direct",
+      "mode": {
+        "kind": "exists"
+      },
+      "parentJoinFields": [
+        "join"
+      ],
+      "supportJoinFields": [
+        "join"
+      ]
+    }
+  },
+  "initialState": {
+    "scopes": {
+      "p1": {
+        "joinKey": [
+          "j1"
+        ],
+        "bit": true
+      }
+    }
+  },
+  "foldedChangeBatch": {
+    "parent": {
+      "entries": [
+        {
+          "rowKey": "p1",
+          "op": "update",
+          "admit": "stay-in",
+          "postImage": {
+            "_id": "p1",
+            "join": "j2"
+          },
+          "rankKeys": []
+        }
+      ]
+    },
+    "support": {
+      "entries": []
+    },
+    "target": {
+      "entries": []
+    }
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Fallback",
+    "reason": "support-unproved"
+  }
+}

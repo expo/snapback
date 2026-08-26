@@ -1,0 +1,165 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "window-label-reproof-stays-incomplete",
+  "coverage": [
+    "window",
+    "completeness",
+    "read-maintain"
+  ],
+  "operator": {
+    "form": "window",
+    "config": {
+      "windowId": "root",
+      "order": [
+        {
+          "field": "rank",
+          "direction": "asc"
+        }
+      ],
+      "interval": {},
+      "take": 2,
+      "projectionFields": [
+        "rank",
+        "title"
+      ]
+    }
+  },
+  "initialState": {
+    "rows": [
+      {
+        "rowKey": "a",
+        "rankKeys": {
+          "values": [
+            1
+          ],
+          "rowKey": "a"
+        },
+        "row": {
+          "_id": "a",
+          "rank": 1
+        }
+      },
+      {
+        "rowKey": "b",
+        "rankKeys": {
+          "values": [
+            2
+          ],
+          "rowKey": "b"
+        },
+        "row": {
+          "_id": "b",
+          "rank": 2
+        }
+      }
+    ],
+    "boundary": {
+      "values": [
+        2
+      ],
+      "rowKey": "b"
+    },
+    "resultCount": 2,
+    "complete": false,
+    "label": "incomplete",
+    "continuation": {
+      "values": [
+        2
+      ],
+      "rowKey": "b"
+    }
+  },
+  "foldedChangeBatch": {
+    "entries": [
+      {
+        "rowKey": "x",
+        "op": "update",
+        "admit": "stay-out",
+        "postImage": {
+          "_id": "x",
+          "rank": 9
+        },
+        "rankKeys": [
+          9
+        ]
+      }
+    ]
+  },
+  "readTranscript": [
+    {
+      "request": {
+        "kind": "tail",
+        "window": "root",
+        "boundary": {
+          "values": [
+            2
+          ],
+          "rowKey": "b"
+        },
+        "k": 1,
+        "labelOnly": true
+      },
+      "response": {
+        "kind": "tail",
+        "rows": [
+          {
+            "_id": "c",
+            "rank": 3
+          }
+        ],
+        "exhausted": true
+      }
+    }
+  ],
+  "expected": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "ops": []
+    },
+    "nextState": {
+      "rows": [
+        {
+          "rowKey": "a",
+          "rankKeys": {
+            "values": [
+              1
+            ],
+            "rowKey": "a"
+          },
+          "row": {
+            "_id": "a",
+            "rank": 1
+          }
+        },
+        {
+          "rowKey": "b",
+          "rankKeys": {
+            "values": [
+              2
+            ],
+            "rowKey": "b"
+          },
+          "row": {
+            "_id": "b",
+            "rank": 2
+          }
+        }
+      ],
+      "boundary": {
+        "values": [
+          2
+        ],
+        "rowKey": "b"
+      },
+      "resultCount": 2,
+      "complete": false,
+      "label": "incomplete",
+      "continuation": {
+        "values": [
+          2
+        ],
+        "rowKey": "b"
+      }
+    }
+  }
+}

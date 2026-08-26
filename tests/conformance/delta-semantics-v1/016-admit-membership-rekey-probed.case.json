@@ -1,0 +1,106 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "admit-membership-rekey-probed",
+  "coverage": [
+    "admit",
+    "membership",
+    "parent-arm"
+  ],
+  "operator": {
+    "form": "admit",
+    "config": {
+      "visibility": {
+        "kind": "membership",
+        "arm": "member",
+        "resourceField": "roomId",
+        "roles": null,
+        "edge": "membership"
+      },
+      "filters": [],
+      "grain": "complete-scope",
+      "rankOrder": [
+        {
+          "field": "rank",
+          "direction": "asc"
+        }
+      ],
+      "probeRelation": false
+    }
+  },
+  "initialState": {
+    "retained": {
+      "a": {
+        "_id": "a",
+        "rank": 1,
+        "roomId": "r1"
+      }
+    }
+  },
+  "foldedChangeBatch": {
+    "changes": {
+      "changes": [
+        {
+          "rowKey": "a",
+          "op": "update",
+          "postImage": {
+            "_id": "a",
+            "rank": 1,
+            "roomId": "r2"
+          },
+          "preImage": {
+            "_id": "a",
+            "rank": 1,
+            "roomId": "r1"
+          }
+        }
+      ]
+    },
+    "supportBits": {}
+  },
+  "readTranscript": [
+    {
+      "request": {
+        "kind": "probe",
+        "edge": "membership",
+        "scope": "r2"
+      },
+      "response": {
+        "kind": "probe",
+        "rows": [
+          {
+            "_id": "support-r2-exists"
+          }
+        ]
+      }
+    }
+  ],
+  "expected": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "entries": [
+        {
+          "rowKey": "a",
+          "op": "update",
+          "postImage": {
+            "_id": "a",
+            "rank": 1,
+            "roomId": "r2"
+          },
+          "admit": "stay-in",
+          "rankKeys": [
+            1
+          ]
+        }
+      ]
+    },
+    "nextState": {
+      "retained": {
+        "a": {
+          "_id": "a",
+          "rank": 1,
+          "roomId": "r2"
+        }
+      }
+    }
+  }
+}

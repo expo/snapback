@@ -1,0 +1,57 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "admit-insert-delete-folds-away",
+  "coverage": [
+    "admit",
+    "batch-fold"
+  ],
+  "operator": {
+    "form": "admit",
+    "config": {
+      "visibility": {
+        "kind": "public-read"
+      },
+      "filters": [],
+      "grain": "complete-scope",
+      "rankOrder": [
+        {
+          "field": "rank",
+          "direction": "asc"
+        }
+      ],
+      "probeRelation": false
+    }
+  },
+  "initialState": {
+    "retained": {}
+  },
+  "foldedChangeBatch": {
+    "changes": {
+      "changes": [
+        {
+          "rowKey": "a",
+          "op": "insert",
+          "postImage": {
+            "_id": "a",
+            "rank": 1
+          }
+        },
+        {
+          "rowKey": "a",
+          "op": "delete"
+        }
+      ]
+    },
+    "supportBits": {}
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "entries": []
+    },
+    "nextState": {
+      "retained": {}
+    }
+  }
+}

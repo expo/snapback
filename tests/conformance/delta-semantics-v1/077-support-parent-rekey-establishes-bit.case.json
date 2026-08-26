@@ -1,0 +1,92 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "support-parent-rekey-establishes-bit",
+  "coverage": [
+    "support",
+    "parent-arm",
+    "rekey",
+    "read-maintain"
+  ],
+  "operator": {
+    "form": "support-semi-join",
+    "config": {
+      "edge": "edge",
+      "edgeKind": "direct",
+      "mode": {
+        "kind": "exists"
+      },
+      "parentJoinFields": [
+        "join"
+      ],
+      "supportJoinFields": [
+        "join"
+      ]
+    }
+  },
+  "initialState": {
+    "scopes": {
+      "p1": {
+        "joinKey": [
+          "j1"
+        ],
+        "bit": true
+      }
+    }
+  },
+  "foldedChangeBatch": {
+    "parent": {
+      "entries": [
+        {
+          "rowKey": "p1",
+          "op": "update",
+          "admit": "stay-in",
+          "postImage": {
+            "_id": "p1",
+            "join": "j2"
+          },
+          "rankKeys": []
+        }
+      ]
+    },
+    "support": {
+      "entries": []
+    },
+    "target": {
+      "entries": []
+    }
+  },
+  "readTranscript": [
+    {
+      "request": {
+        "kind": "probe",
+        "edge": "edge",
+        "scope": "p1"
+      },
+      "response": {
+        "kind": "probe",
+        "rows": []
+      }
+    }
+  ],
+  "expected": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "transitions": [
+        {
+          "scope": "p1",
+          "transition": "one-to-zero"
+        }
+      ]
+    },
+    "nextState": {
+      "scopes": {
+        "p1": {
+          "joinKey": [
+            "j2"
+          ],
+          "bit": false
+        }
+      }
+    }
+  }
+}

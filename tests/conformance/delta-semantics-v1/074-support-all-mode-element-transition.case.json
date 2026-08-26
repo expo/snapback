@@ -1,0 +1,115 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "support-all-mode-element-transition",
+  "coverage": [
+    "support",
+    "read-maintain"
+  ],
+  "operator": {
+    "form": "support-semi-join",
+    "config": {
+      "edge": "edge",
+      "edgeKind": "direct",
+      "mode": {
+        "kind": "all",
+        "elements": [
+          "a",
+          "b"
+        ]
+      },
+      "parentJoinFields": [
+        "join"
+      ],
+      "supportJoinFields": [
+        "join"
+      ]
+    }
+  },
+  "initialState": {
+    "scopes": {
+      "p1": {
+        "joinKey": [
+          "j1"
+        ],
+        "bit": false
+      }
+    }
+  },
+  "foldedChangeBatch": {
+    "parent": {
+      "entries": []
+    },
+    "support": {
+      "entries": [
+        {
+          "rowKey": "m1",
+          "op": "insert",
+          "admit": "enter",
+          "postImage": {
+            "_id": "m1",
+            "join": "j1"
+          },
+          "rankKeys": []
+        }
+      ]
+    },
+    "target": {
+      "entries": []
+    }
+  },
+  "readTranscript": [
+    {
+      "request": {
+        "kind": "probe",
+        "edge": "edge",
+        "scope": "p1",
+        "element": "a"
+      },
+      "response": {
+        "kind": "probe",
+        "rows": [
+          {
+            "_id": "support-p1-a"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "kind": "probe",
+        "edge": "edge",
+        "scope": "p1",
+        "element": "b"
+      },
+      "response": {
+        "kind": "probe",
+        "rows": [
+          {
+            "_id": "support-p1-b"
+          }
+        ]
+      }
+    }
+  ],
+  "expected": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "transitions": [
+        {
+          "scope": "p1",
+          "transition": "zero-to-one"
+        }
+      ]
+    },
+    "nextState": {
+      "scopes": {
+        "p1": {
+          "joinKey": [
+            "j1"
+          ],
+          "bit": true
+        }
+      }
+    }
+  }
+}

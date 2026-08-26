@@ -1,0 +1,84 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "admit-delete-reinsert-nets-update",
+  "coverage": [
+    "admit",
+    "batch-fold"
+  ],
+  "operator": {
+    "form": "admit",
+    "config": {
+      "visibility": {
+        "kind": "public-read"
+      },
+      "filters": [],
+      "grain": "complete-scope",
+      "rankOrder": [
+        {
+          "field": "rank",
+          "direction": "asc"
+        }
+      ],
+      "probeRelation": false
+    }
+  },
+  "initialState": {
+    "retained": {
+      "a": {
+        "_id": "a",
+        "rank": 1
+      }
+    }
+  },
+  "foldedChangeBatch": {
+    "changes": {
+      "changes": [
+        {
+          "rowKey": "a",
+          "op": "delete",
+          "preImage": {
+            "_id": "a",
+            "rank": 1
+          }
+        },
+        {
+          "rowKey": "a",
+          "op": "insert",
+          "postImage": {
+            "_id": "a",
+            "rank": 3
+          }
+        }
+      ]
+    },
+    "supportBits": {}
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "entries": [
+        {
+          "rowKey": "a",
+          "op": "update",
+          "postImage": {
+            "_id": "a",
+            "rank": 3
+          },
+          "admit": "stay-in",
+          "rankKeys": [
+            3
+          ]
+        }
+      ]
+    },
+    "nextState": {
+      "retained": {
+        "a": {
+          "_id": "a",
+          "rank": 3
+        }
+      }
+    }
+  }
+}

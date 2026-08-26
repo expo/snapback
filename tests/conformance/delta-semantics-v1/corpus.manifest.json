@@ -1,0 +1,1089 @@
+{
+  "artifactKind": "snapback.delta-semantics-corpus-manifest.v1",
+  "corpus": "snapback.delta-semantics-v1",
+  "corpusFormatVersion": 1,
+  "caseSchemaPath": "tests/conformance/delta-semantics-v1/case.schema.json",
+  "evaluatorIdentity": "snapback.delta-semantics.reference.rust.v1",
+  "cases": [
+    {
+      "name": "admit-public-insert",
+      "path": "001-admit-public-insert.case.json",
+      "sha256": "sha256:2f09a78e4c8cf97a2cc8164d9e95c33d537531cd107c9bb1d20649aed54ae05c",
+      "coverage": [
+        "admit",
+        "three-valued"
+      ]
+    },
+    {
+      "name": "admit-owner-missing-field",
+      "path": "002-admit-owner-missing-field.case.json",
+      "sha256": "sha256:25c155f45afb33a0812be68e477e5ac58a8c9470766469efd9750e3622a44654",
+      "coverage": [
+        "admit",
+        "three-valued"
+      ]
+    },
+    {
+      "name": "admit-owner-non-string-field",
+      "path": "003-admit-owner-non-string-field.case.json",
+      "sha256": "sha256:0947cf2a79a612eca84eae6024c856d584e886dd337d59e65ac026d096d1c4de",
+      "coverage": [
+        "admit",
+        "three-valued"
+      ]
+    },
+    {
+      "name": "admit-owner-transfer-leaves",
+      "path": "004-admit-owner-transfer-leaves.case.json",
+      "sha256": "sha256:ca32c50d150f21690016d65a868aec54e7f042a37d205e9f257ccdfd69d1e1ba",
+      "coverage": [
+        "admit",
+        "three-valued"
+      ]
+    },
+    {
+      "name": "admit-null-actual-never-eq",
+      "path": "005-admit-null-actual-never-eq.case.json",
+      "sha256": "sha256:40f7f71a67f00770286dfd2436e6dbd5bf9f8a07e0205bb0aa3b55cd32adcdf3",
+      "coverage": [
+        "admit",
+        "three-valued"
+      ]
+    },
+    {
+      "name": "admit-in-null-element-with-match",
+      "path": "006-admit-in-null-element-with-match.case.json",
+      "sha256": "sha256:0875cdec9465620a7c05c77d89e7f2ec77345aeaec64e80d43b8fbfb9a91720c",
+      "coverage": [
+        "admit",
+        "three-valued"
+      ]
+    },
+    {
+      "name": "admit-in-null-element-without-match",
+      "path": "007-admit-in-null-element-without-match.case.json",
+      "sha256": "sha256:2dca438306a887ad4f0476eb335eecc20661a450053ad409400814adc0c052eb",
+      "coverage": [
+        "admit",
+        "three-valued"
+      ]
+    },
+    {
+      "name": "admit-missing-filter-field",
+      "path": "008-admit-missing-filter-field.case.json",
+      "sha256": "sha256:91f0dd1e1912a8b4c183a3396054860a1a11646529498ac5241497b22815b30d",
+      "coverage": [
+        "admit",
+        "three-valued"
+      ]
+    },
+    {
+      "name": "admit-un-analyzable-row-value",
+      "path": "009-admit-un-analyzable-row-value.case.json",
+      "sha256": "sha256:c581907805474169aca6953aadd28e9facbd3c532383ddc10a04ef1528dce15f",
+      "coverage": [
+        "admit",
+        "fallback"
+      ]
+    },
+    {
+      "name": "admit-any-of-row-arm-wins",
+      "path": "010-admit-any-of-row-arm-wins.case.json",
+      "sha256": "sha256:b5334565fed440c024ef9a14920e231a804f865c7b1558ea950c3782c962ca11",
+      "coverage": [
+        "admit",
+        "membership"
+      ]
+    },
+    {
+      "name": "admit-any-of-membership-loss-surviving-owner",
+      "path": "011-admit-any-of-membership-loss-surviving-owner.case.json",
+      "sha256": "sha256:ac1ed5006aadb2c0ff370f829724efee050df9f721082c0b9da2edbded760114",
+      "coverage": [
+        "admit",
+        "membership"
+      ]
+    },
+    {
+      "name": "admit-membership-any-active-role",
+      "path": "012-admit-membership-any-active-role.case.json",
+      "sha256": "sha256:33043923b62d9eb6cc6c38e2b368e3e322fa11dffce7a1d370d50b61c5eb9767",
+      "coverage": [
+        "admit",
+        "membership",
+        "roles"
+      ]
+    },
+    {
+      "name": "admit-membership-pending-role-denied",
+      "path": "013-admit-membership-pending-role-denied.case.json",
+      "sha256": "sha256:a29cde9a06b34da296e0bef1de275ab52a385e3a103369f3f1af128212b555ef",
+      "coverage": [
+        "admit",
+        "membership",
+        "roles"
+      ]
+    },
+    {
+      "name": "admit-membership-listed-role",
+      "path": "014-admit-membership-listed-role.case.json",
+      "sha256": "sha256:d02f75eeeb822c13a227a9984f0bb68af6bcaeaf66215feced9c5dbda03b4307",
+      "coverage": [
+        "admit",
+        "membership",
+        "roles"
+      ]
+    },
+    {
+      "name": "admit-membership-unlisted-role-denied",
+      "path": "015-admit-membership-unlisted-role-denied.case.json",
+      "sha256": "sha256:6014dab59af0c7deef5ea5158bd84927502a71d9a1f418bd0060ebaf073bfc66",
+      "coverage": [
+        "admit",
+        "membership",
+        "roles"
+      ]
+    },
+    {
+      "name": "admit-membership-rekey-probed",
+      "path": "016-admit-membership-rekey-probed.case.json",
+      "sha256": "sha256:42e2b90043fe154aface7d00c1f06b1b56187806842ee83a93bc988fda62b7ec",
+      "coverage": [
+        "admit",
+        "membership",
+        "parent-arm"
+      ]
+    },
+    {
+      "name": "admit-membership-probe-visibility-exception",
+      "path": "017-admit-membership-probe-visibility-exception.case.json",
+      "sha256": "sha256:1a21eaced56c182a33f6e24ba9f42b610ccda70d833792eedd7569a44a60cf26",
+      "coverage": [
+        "admit",
+        "membership"
+      ]
+    },
+    {
+      "name": "admit-insert-delete-folds-away",
+      "path": "018-admit-insert-delete-folds-away.case.json",
+      "sha256": "sha256:a27b5019a0476a36637004dae38ee997579cd994da49bf907280fd231e7f07e8",
+      "coverage": [
+        "admit",
+        "batch-fold"
+      ]
+    },
+    {
+      "name": "admit-delete-reinsert-nets-update",
+      "path": "019-admit-delete-reinsert-nets-update.case.json",
+      "sha256": "sha256:4316409b09fd8207d8589322635581d3d19835c2172f5336305d72f39089e581",
+      "coverage": [
+        "admit",
+        "batch-fold"
+      ]
+    },
+    {
+      "name": "admit-update-update-folds-last-post",
+      "path": "020-admit-update-update-folds-last-post.case.json",
+      "sha256": "sha256:72bb5aedfc6c2cca744351cb25cf3ee0343daf116d00f996528900ba7bc5f702",
+      "coverage": [
+        "admit",
+        "batch-fold"
+      ]
+    },
+    {
+      "name": "window-full-complete-displacement",
+      "path": "021-window-full-complete-displacement.case.json",
+      "sha256": "sha256:9cd0d7f9f9455077bf1cb74819fb60a88941fb3bb051288bf23c85f8df6f1e0e",
+      "coverage": [
+        "window"
+      ]
+    },
+    {
+      "name": "window-unfull-complete-insert",
+      "path": "022-window-unfull-complete-insert.case.json",
+      "sha256": "sha256:b9db9bb35709f20ae3aa30b1ee8b5d566baab356f399bb3961e8dc9e7efc409c",
+      "coverage": [
+        "window"
+      ]
+    },
+    {
+      "name": "window-incomplete-underfill-tail-exhausted",
+      "path": "023-window-incomplete-underfill-tail-exhausted.case.json",
+      "sha256": "sha256:b89a43b03f24a65b24f737edbe709ba190cc6456db31774a60605a23c245d9cd",
+      "coverage": [
+        "window",
+        "read-maintain"
+      ]
+    },
+    {
+      "name": "window-backward-order",
+      "path": "024-window-backward-order.case.json",
+      "sha256": "sha256:e8b096835dd4752271d8c0d52c4011f37a1f656b5673a0a12b6e68699faa27c5",
+      "coverage": [
+        "window"
+      ]
+    },
+    {
+      "name": "window-interval-clips-candidate",
+      "path": "025-window-interval-clips-candidate.case.json",
+      "sha256": "sha256:2376b4caaa9d3d63af022cb87edce2ea941a1ceb9936e0443fe26189d720e8b2",
+      "coverage": [
+        "window"
+      ]
+    },
+    {
+      "name": "window-take-zero",
+      "path": "026-window-take-zero.case.json",
+      "sha256": "sha256:3eb31ab3dbf28d6c42d1e1a5f8d823903ccfd0d8844bc9ab81e4c8eac33d1d9b",
+      "coverage": [
+        "window"
+      ]
+    },
+    {
+      "name": "window-boundary-swap-one-batch",
+      "path": "027-window-boundary-swap-one-batch.case.json",
+      "sha256": "sha256:fe44ea61383b1627c2c8abb95424eab3c34ff11624e329b40fa13de061d4f1b4",
+      "coverage": [
+        "window",
+        "batch-fold"
+      ]
+    },
+    {
+      "name": "window-two-enters-displace-two",
+      "path": "028-window-two-enters-displace-two.case.json",
+      "sha256": "sha256:33f8cd367b443873fbcf911097c9174d6bed2411169d6e604204891af84acd9b",
+      "coverage": [
+        "window",
+        "batch-fold"
+      ]
+    },
+    {
+      "name": "window-tail-competition-known-mask",
+      "path": "029-window-tail-competition-known-mask.case.json",
+      "sha256": "sha256:b0c4fc56b238a23c089d2975c197b33cd6ef47d37c09660e410755d4c3d83f78",
+      "coverage": [
+        "window",
+        "read-maintain"
+      ]
+    },
+    {
+      "name": "window-tail-authenticated-exhausted-true",
+      "path": "030-window-tail-authenticated-exhausted-true.case.json",
+      "sha256": "sha256:879ab68ab2b5289bea05b0fd4de15410d63e88e7c1936cb585571f1984998f52",
+      "coverage": [
+        "window",
+        "read-maintain"
+      ]
+    },
+    {
+      "name": "window-tail-authenticated-exhausted-false",
+      "path": "031-window-tail-authenticated-exhausted-false.case.json",
+      "sha256": "sha256:d1b3348909984cf35b0785c7e4be3ebca545aaa28ca303f038b4422f0c426018",
+      "coverage": [
+        "window",
+        "read-maintain"
+      ]
+    },
+    {
+      "name": "window-tail-missing-authenticated-exhausted",
+      "path": "032-window-tail-missing-authenticated-exhausted.case.json",
+      "sha256": "sha256:cdb285daecfefd52693179d7462249d5ae12e414e0905ac33ae68634680c2d4d",
+      "coverage": [
+        "window",
+        "fallback"
+      ]
+    },
+    {
+      "name": "window-discarded-known-insert-makes-incomplete",
+      "path": "033-window-discarded-known-insert-makes-incomplete.case.json",
+      "sha256": "sha256:e3a0c9434a8dd5fcedaf6e8d35555763fe81c04bbfad4e7411b73e1507ed88aa",
+      "coverage": [
+        "window",
+        "completeness"
+      ]
+    },
+    {
+      "name": "window-label-reproof-to-complete",
+      "path": "034-window-label-reproof-to-complete.case.json",
+      "sha256": "sha256:67c51af1b6fbc0cbfc657358d13a488199fc55d18a0fcd0df4ea3d6197fc1297",
+      "coverage": [
+        "window",
+        "completeness",
+        "read-maintain"
+      ]
+    },
+    {
+      "name": "window-label-reproof-stays-incomplete",
+      "path": "035-window-label-reproof-stays-incomplete.case.json",
+      "sha256": "sha256:1510b2706796ad5a0799995be6ad10e81815eb579dd66213397a54bca0d46b19",
+      "coverage": [
+        "window",
+        "completeness",
+        "read-maintain"
+      ]
+    },
+    {
+      "name": "window-label-reproof-no-read",
+      "path": "036-window-label-reproof-no-read.case.json",
+      "sha256": "sha256:d2c8755d6a3b9385e8066d7a0bf4b98648d4e7a828cbe678684c69f6cbe56cf8",
+      "coverage": [
+        "window",
+        "fallback"
+      ]
+    },
+    {
+      "name": "window-a-gates-c-combined-batch",
+      "path": "037-window-a-gates-c-combined-batch.case.json",
+      "sha256": "sha256:5b04f265a971109f2c22ac339c406877b14529ac29c0a89fb24bee2f0892591f",
+      "coverage": [
+        "window",
+        "completeness",
+        "batch-fold"
+      ]
+    },
+    {
+      "name": "window-rank-unchanged-patch",
+      "path": "038-window-rank-unchanged-patch.case.json",
+      "sha256": "sha256:889358cf925643a516416b15fb6b2e008c1e6c4ff9b68bcf268372f8993f01c3",
+      "coverage": [
+        "window"
+      ]
+    },
+    {
+      "name": "window-rank-change-atomic-out-in",
+      "path": "039-window-rank-change-atomic-out-in.case.json",
+      "sha256": "sha256:f196e4133c1c2abd918867970ffc444b6991c829363edb3f1f7c053fe82c7a2b",
+      "coverage": [
+        "window"
+      ]
+    },
+    {
+      "name": "window-rank-undecidable",
+      "path": "040-window-rank-undecidable.case.json",
+      "sha256": "sha256:ae5f837bc66aed19810a8b7dc4709194bff95895fcd2d4ff85d49c2eb2a438e1",
+      "coverage": [
+        "window",
+        "fallback"
+      ]
+    },
+    {
+      "name": "window-stay-out-post-rank-undecidable",
+      "path": "041-window-stay-out-post-rank-undecidable.case.json",
+      "sha256": "sha256:73764aedac8cff713044f8783596e40694a8b323d84820f11c1a5e834cb7b6c2",
+      "coverage": [
+        "window",
+        "fallback"
+      ]
+    },
+    {
+      "name": "window-admitted-missing-post-image",
+      "path": "042-window-admitted-missing-post-image.case.json",
+      "sha256": "sha256:9e2240187f1e7f8d983d10bc5238b80db244c1943577015d066dd5a143711b65",
+      "coverage": [
+        "window",
+        "fallback"
+      ]
+    },
+    {
+      "name": "window-complete-unretained-delete-noop",
+      "path": "043-window-complete-unretained-delete-noop.case.json",
+      "sha256": "sha256:7ed86f0c571416b1308e9a7bedd73f9de8f056dfda062788adb7af49f0188440",
+      "coverage": [
+        "window",
+        "completeness"
+      ]
+    },
+    {
+      "name": "window-empty-incomplete-tail-from-start",
+      "path": "044-window-empty-incomplete-tail-from-start.case.json",
+      "sha256": "sha256:e2b10e6f527ea6b3453d0d488b964fbd8bfb16642a8cabfe3d1b013d93fbd15e",
+      "coverage": [
+        "window",
+        "read-maintain"
+      ]
+    },
+    {
+      "name": "window-backward-tail-competition",
+      "path": "045-window-backward-tail-competition.case.json",
+      "sha256": "sha256:0d578d6049ab35a73776ce1cb40dede75923f1acc5ca10ded3a720eff7ed131a",
+      "coverage": [
+        "window",
+        "read-maintain"
+      ]
+    },
+    {
+      "name": "lookup-child-patch",
+      "path": "046-lookup-child-patch.case.json",
+      "sha256": "sha256:70e801d65b1ccda5a29e094eb3a49c090069d40907fad11b1f127876fd68fe2b",
+      "coverage": [
+        "lookup",
+        "presence"
+      ]
+    },
+    {
+      "name": "lookup-optional-found-to-missing",
+      "path": "047-lookup-optional-found-to-missing.case.json",
+      "sha256": "sha256:2cdb96fa12fd1414c445d9bab2bdee55ed004075c8195d3e1cb3cb150586b29d",
+      "coverage": [
+        "lookup",
+        "presence"
+      ]
+    },
+    {
+      "name": "lookup-optional-missing-to-found",
+      "path": "048-lookup-optional-missing-to-found.case.json",
+      "sha256": "sha256:4f18218a065196c224732a10ca4c5e39003ea702398f3189fd0baccfb1104948",
+      "coverage": [
+        "lookup",
+        "presence"
+      ]
+    },
+    {
+      "name": "lookup-required-found-to-missing",
+      "path": "049-lookup-required-found-to-missing.case.json",
+      "sha256": "sha256:b6bf930ed4c5b28b17c81808b718f9764ed741133e4969879ce0f5561c26d2e1",
+      "coverage": [
+        "lookup",
+        "presence",
+        "fallback"
+      ]
+    },
+    {
+      "name": "lookup-required-missing-to-found",
+      "path": "050-lookup-required-missing-to-found.case.json",
+      "sha256": "sha256:379360b0371bba34f6d9e9d550469ae0e3b5d86232b271e1a64c2baace34a0ed",
+      "coverage": [
+        "lookup",
+        "presence",
+        "fallback"
+      ]
+    },
+    {
+      "name": "lookup-birth-fill-emitted",
+      "path": "051-lookup-birth-fill-emitted.case.json",
+      "sha256": "sha256:5776123e0d3d0f580faeb55dd6facc5639b7964d7f15138a777f681234b4ec7e",
+      "coverage": [
+        "lookup",
+        "scope-fill",
+        "read-maintain"
+      ]
+    },
+    {
+      "name": "lookup-birth-null-key-skips-read",
+      "path": "052-lookup-birth-null-key-skips-read.case.json",
+      "sha256": "sha256:a0a01f1f70b51b64550037b6719ad60a94cdd06b267b7c7c040f05334560c396",
+      "coverage": [
+        "lookup",
+        "scope-fill"
+      ]
+    },
+    {
+      "name": "lookup-rekey-prior-to-fill",
+      "path": "053-lookup-rekey-prior-to-fill.case.json",
+      "sha256": "sha256:0eaf9597a93f5c053136231a4c094b96c0364c75770ab6965fcd98a6413a0e32",
+      "coverage": [
+        "lookup",
+        "rekey",
+        "read-maintain"
+      ]
+    },
+    {
+      "name": "lookup-existing-found-second-row-unique",
+      "path": "054-lookup-existing-found-second-row-unique.case.json",
+      "sha256": "sha256:62f3d6bbbd0accaf556a75636c0bc0654af582c4633fb5d803fb8e3909317533",
+      "coverage": [
+        "lookup",
+        "fallback"
+      ]
+    },
+    {
+      "name": "lookup-two-enters-empty-unique",
+      "path": "055-lookup-two-enters-empty-unique.case.json",
+      "sha256": "sha256:e2745f329d8d7b0c03190d0c3bf4611e93463b612a5b350cf66e90d2d3a3d10d",
+      "coverage": [
+        "lookup",
+        "fallback",
+        "batch-fold"
+      ]
+    },
+    {
+      "name": "lookup-both-change-parent-first-skip",
+      "path": "056-lookup-both-change-parent-first-skip.case.json",
+      "sha256": "sha256:6e4850791cda3de9de375534b5daeb3adb5cf039909206c650e44da9809f2de3",
+      "coverage": [
+        "lookup",
+        "both-change",
+        "read-maintain"
+      ]
+    },
+    {
+      "name": "lookup-inadmitted-child-does-not-attach",
+      "path": "057-lookup-inadmitted-child-does-not-attach.case.json",
+      "sha256": "sha256:dfc35b1ea48478cfafb03172bf3102fb18835abfbc4737fa92005a036245eea6",
+      "coverage": [
+        "lookup"
+      ]
+    },
+    {
+      "name": "lookup-scope-death-no-read",
+      "path": "058-lookup-scope-death-no-read.case.json",
+      "sha256": "sha256:ccb811a08a1671dc84b94f3581f37e0402319cd9856ca3248500d0cd206bd414",
+      "coverage": [
+        "lookup",
+        "parent-arm"
+      ]
+    },
+    {
+      "name": "lookup-child-rekey-old-leaves-new-arrives",
+      "path": "059-lookup-child-rekey-old-leaves-new-arrives.case.json",
+      "sha256": "sha256:358c5b94ad97df2ef0b6e986f51c592ba83993f7fab42a4e69c4344a0fbbaf15",
+      "coverage": [
+        "lookup",
+        "rekey"
+      ]
+    },
+    {
+      "name": "per-parent-birth-fill-emitted",
+      "path": "060-per-parent-birth-fill-emitted.case.json",
+      "sha256": "sha256:57f20e06644c0ab1958b7e0e3a0f323122782b34ed2a18065dfb617242cd7d00",
+      "coverage": [
+        "per-parent-window",
+        "scope-fill",
+        "read-maintain"
+      ]
+    },
+    {
+      "name": "per-parent-birth-null-key-skips-read",
+      "path": "061-per-parent-birth-null-key-skips-read.case.json",
+      "sha256": "sha256:f1f43a49bc0de738d90d28b1a68e8071f9f9c03602671852e86f432ac1dab0cd",
+      "coverage": [
+        "per-parent-window",
+        "scope-fill"
+      ]
+    },
+    {
+      "name": "per-parent-rekey-prior-to-fill",
+      "path": "062-per-parent-rekey-prior-to-fill.case.json",
+      "sha256": "sha256:5577b7ba232675d95e678e137718d43836948c8622220c51ad3043bf78b26850",
+      "coverage": [
+        "per-parent-window",
+        "rekey",
+        "read-maintain"
+      ]
+    },
+    {
+      "name": "per-parent-rekey-to-null-skips-read",
+      "path": "063-per-parent-rekey-to-null-skips-read.case.json",
+      "sha256": "sha256:6d6f0b166f30a992768377fb3e4c571d55946dae68c77cbccda2f16e132caf67",
+      "coverage": [
+        "per-parent-window",
+        "rekey"
+      ]
+    },
+    {
+      "name": "per-parent-demand-birth",
+      "path": "064-per-parent-demand-birth.case.json",
+      "sha256": "sha256:ac232466d2ef6c46b7e189487e42c68b47179551ca0f33faa2bc6c86025d7edd",
+      "coverage": [
+        "per-parent-window",
+        "demand-identity",
+        "fallback"
+      ]
+    },
+    {
+      "name": "per-parent-demand-death",
+      "path": "065-per-parent-demand-death.case.json",
+      "sha256": "sha256:4804458140687ce8a8b0eac4d8dd729ac7a9aea00a605bcf86ea3911b5eae8ee",
+      "coverage": [
+        "per-parent-window",
+        "demand-identity",
+        "fallback"
+      ]
+    },
+    {
+      "name": "per-parent-demand-rekey",
+      "path": "066-per-parent-demand-rekey.case.json",
+      "sha256": "sha256:8f766efc293d11e8f7145211ca28d9fe66043a4da938f93adfdfdeb8e92ac8e9",
+      "coverage": [
+        "per-parent-window",
+        "demand-identity",
+        "fallback"
+      ]
+    },
+    {
+      "name": "per-parent-zero-take-birth",
+      "path": "067-per-parent-zero-take-birth.case.json",
+      "sha256": "sha256:8e7785ca3a9f1a7f53deafbce23ee5a6da789597bfa3407196244a5c6166586f",
+      "coverage": [
+        "per-parent-window",
+        "scope-fill"
+      ]
+    },
+    {
+      "name": "per-parent-zero-take-rekey",
+      "path": "068-per-parent-zero-take-rekey.case.json",
+      "sha256": "sha256:dbfa87d828128070394ffc3ab82921cafaae8245de1dfc9786569e46b5cbbe61",
+      "coverage": [
+        "per-parent-window",
+        "rekey"
+      ]
+    },
+    {
+      "name": "per-parent-both-change-parent-first-skip",
+      "path": "069-per-parent-both-change-parent-first-skip.case.json",
+      "sha256": "sha256:48bad90746a31be4fc2e0162ab039ed3357af0267407965603d59d155b2b74ec",
+      "coverage": [
+        "per-parent-window",
+        "both-change",
+        "read-maintain"
+      ]
+    },
+    {
+      "name": "support-direct-zero-to-one",
+      "path": "070-support-direct-zero-to-one.case.json",
+      "sha256": "sha256:ce215ddec115f1dd105c78e9e7cb465c59220acf79406f8a08692db31898c2a6",
+      "coverage": [
+        "support"
+      ]
+    },
+    {
+      "name": "support-direct-one-to-zero-reprobe",
+      "path": "071-support-direct-one-to-zero-reprobe.case.json",
+      "sha256": "sha256:30b8631294aa04bef1d0dba5d02255cae1157a11f3508544d359bd95fba437bb",
+      "coverage": [
+        "support",
+        "read-maintain"
+      ]
+    },
+    {
+      "name": "support-one-to-one-delete",
+      "path": "072-support-one-to-one-delete.case.json",
+      "sha256": "sha256:a97ae454ce3a37cbac52779cd43e4139d9f549368655c10dc349e64b55482283",
+      "coverage": [
+        "support",
+        "read-maintain"
+      ]
+    },
+    {
+      "name": "support-through-zero-to-one-probed",
+      "path": "073-support-through-zero-to-one-probed.case.json",
+      "sha256": "sha256:995da8f84331795016efcf43199fab6f6c47861f131c2ff276d012a843084803",
+      "coverage": [
+        "support",
+        "read-maintain"
+      ]
+    },
+    {
+      "name": "support-all-mode-element-transition",
+      "path": "074-support-all-mode-element-transition.case.json",
+      "sha256": "sha256:7928c2652551c5bc1a1b158dbac8332a4c0e0e8745c4aef5277521b70ecd2854",
+      "coverage": [
+        "support",
+        "read-maintain"
+      ]
+    },
+    {
+      "name": "support-same-scope-delete-insert-fold",
+      "path": "075-support-same-scope-delete-insert-fold.case.json",
+      "sha256": "sha256:cc5d3c4e2ce580e72e7ff26c7beda567f97fffdfa21e9323c0a2d2463dfc0e31",
+      "coverage": [
+        "support",
+        "batch-fold"
+      ]
+    },
+    {
+      "name": "support-parent-birth-establishes-bit",
+      "path": "076-support-parent-birth-establishes-bit.case.json",
+      "sha256": "sha256:fb1a18ee09bc0308d3fa19e9652c0b376e3c69b20ca48c758fa01988b5483e4d",
+      "coverage": [
+        "support",
+        "parent-arm",
+        "read-maintain"
+      ]
+    },
+    {
+      "name": "support-parent-rekey-establishes-bit",
+      "path": "077-support-parent-rekey-establishes-bit.case.json",
+      "sha256": "sha256:b40e6977c86da082a4c63a5ac9355aefbf053792d75ffbb408296d3d2c91fbc7",
+      "coverage": [
+        "support",
+        "parent-arm",
+        "rekey",
+        "read-maintain"
+      ]
+    },
+    {
+      "name": "support-scope-attribution-unresolved",
+      "path": "078-support-scope-attribution-unresolved.case.json",
+      "sha256": "sha256:7b54dd9a03fd3bc26dea92404bff82b0f9b02789f3c73b2b2ae37f476c2dff92",
+      "coverage": [
+        "support",
+        "fallback"
+      ]
+    },
+    {
+      "name": "support-parent-death-destroys-bit",
+      "path": "079-support-parent-death-destroys-bit.case.json",
+      "sha256": "sha256:b693e659a5875aba7bc51ebf29945f3db9ec0f05e2a52270a0ee74aef9d7bb4b",
+      "coverage": [
+        "support",
+        "parent-arm"
+      ]
+    },
+    {
+      "name": "support-through-target-change",
+      "path": "080-support-through-target-change.case.json",
+      "sha256": "sha256:4b09406e23d0fc410c6a7187c48bd9be57a6ebe9c2339275e4ce3224a208c333",
+      "coverage": [
+        "support",
+        "read-maintain"
+      ]
+    },
+    {
+      "name": "lift-zero-to-one-admits-unretained",
+      "path": "081-lift-zero-to-one-admits-unretained.case.json",
+      "sha256": "sha256:32032828a6053389926d930a87562d24ab740b74647318959da241c23fda0a6b",
+      "coverage": [
+        "membership-lift",
+        "read-maintain"
+      ]
+    },
+    {
+      "name": "lift-one-to-zero-sole-admission",
+      "path": "082-lift-one-to-zero-sole-admission.case.json",
+      "sha256": "sha256:094ea9503c419106483f73fb0d5ca4c20bbf2d9b084d0c76dc363281b0d2b9bb",
+      "coverage": [
+        "membership-lift"
+      ]
+    },
+    {
+      "name": "lift-one-to-zero-any-of-survives",
+      "path": "083-lift-one-to-zero-any-of-survives.case.json",
+      "sha256": "sha256:248e6e77bef9341733980938e77871eff8b59ad007a1e8bac7a7b6cb53f99836",
+      "coverage": [
+        "membership-lift"
+      ]
+    },
+    {
+      "name": "lift-windowed-unprojected-fallback-pin",
+      "path": "084-lift-windowed-unprojected-fallback-pin.case.json",
+      "sha256": "sha256:770a2deb9e1810ddd23399b9b33a5bdb4cde44636c0545fcfd3f8aa78758239b",
+      "coverage": [
+        "membership-lift",
+        "fallback"
+      ]
+    },
+    {
+      "name": "principal-target-child-patch",
+      "path": "085-principal-target-child-patch.case.json",
+      "sha256": "sha256:66693dbbe0b350ea872aac02d80548bc95297d434c4a3c7dcadb5e1001e35359",
+      "coverage": [
+        "principal"
+      ]
+    },
+    {
+      "name": "principal-binding-then-target",
+      "path": "086-principal-binding-then-target.case.json",
+      "sha256": "sha256:e5810f4e0ab592b1ae125ead19263070bb7a90d26f9b9afcdac463f01bb0de69",
+      "coverage": [
+        "principal",
+        "both-change"
+      ]
+    },
+    {
+      "name": "principal-digest-cannot-rekey",
+      "path": "087-principal-digest-cannot-rekey.case.json",
+      "sha256": "sha256:d9f2e1dfef316d838c48c980ce7df15caed8f1702a1a91a9b1f4af6727818f86",
+      "coverage": [
+        "principal",
+        "fallback"
+      ]
+    },
+    {
+      "name": "assemble-projection-scoped-patch",
+      "path": "088-assemble-projection-scoped-patch.case.json",
+      "sha256": "sha256:47f1cb19a573c84de1326f0958953acd3068fbbfd0f17ee0e4bb801e1d785d40",
+      "coverage": [
+        "assemble"
+      ]
+    },
+    {
+      "name": "assemble-root-splice-add",
+      "path": "089-assemble-root-splice-add.case.json",
+      "sha256": "sha256:5037a9e1023bada890ca583bb2dafa06e8bb7c915fa355f1739bc9c0e6f0ebef",
+      "coverage": [
+        "assemble"
+      ]
+    },
+    {
+      "name": "assemble-to-one-presence",
+      "path": "090-assemble-to-one-presence.case.json",
+      "sha256": "sha256:7e5b7f3726d69e08353fadf37ec39f020970cee2814e708b7429bc5e7dec4511",
+      "coverage": [
+        "assemble",
+        "presence"
+      ]
+    },
+    {
+      "name": "assemble-exists-bit",
+      "path": "091-assemble-exists-bit.case.json",
+      "sha256": "sha256:08c2e47316da2bd888db50032342451fe6dabfc8e30fb44c42f49ed7f16e3902",
+      "coverage": [
+        "assemble",
+        "support"
+      ]
+    },
+    {
+      "name": "assemble-below-array-unaddressable",
+      "path": "092-assemble-below-array-unaddressable.case.json",
+      "sha256": "sha256:05959e85337021d127211ad72511a7e02bd849f0539a71fabf7bca55612c6536",
+      "coverage": [
+        "assemble",
+        "fallback"
+      ]
+    },
+    {
+      "name": "assemble-ancestor-birth-absorbs-descendant",
+      "path": "093-assemble-ancestor-birth-absorbs-descendant.case.json",
+      "sha256": "sha256:fb11952dfce8666439d3e0aa145cf1864704cd93a82c37d09e1e29556e421550",
+      "coverage": [
+        "assemble",
+        "ancestor-absorption"
+      ]
+    },
+    {
+      "name": "assemble-to-many-direct-root-addressable",
+      "path": "094-assemble-to-many-direct-root-addressable.case.json",
+      "sha256": "sha256:76977f50aea15facb6d391cd69f4d5ea6379bf2b01499e9d66a00b89c6324c53",
+      "coverage": [
+        "assemble"
+      ]
+    },
+    {
+      "name": "composition-admit-to-window",
+      "path": "095-composition-admit-to-window.case.json",
+      "sha256": "sha256:37252c48b749bf2ec5d6d43cc5c3508344ae99090cc22291e8a1f1570437327c",
+      "coverage": [
+        "composition"
+      ]
+    },
+    {
+      "name": "composition-fallback-aborts-frame",
+      "path": "096-composition-fallback-aborts-frame.case.json",
+      "sha256": "sha256:9f34858352e4e0ff5bcfb8e5dcb9c2211065a0c1748c6f3a58cbaace6d8aac62",
+      "coverage": [
+        "composition",
+        "fallback"
+      ]
+    },
+    {
+      "name": "window-incomplete-underfill-tail-exhausted-empty-transcript",
+      "path": "097-window-incomplete-underfill-tail-exhausted-empty-transcript.case.json",
+      "sha256": "sha256:c67ef4ca893407b69051e2159eabf4d5610616174db06727046103cb6c67e4fa",
+      "coverage": [
+        "window",
+        "fallback"
+      ]
+    },
+    {
+      "name": "window-tail-competition-known-mask-empty-transcript",
+      "path": "098-window-tail-competition-known-mask-empty-transcript.case.json",
+      "sha256": "sha256:171c7c4b12b05a11ff3f19caf03969bc369359544a2b58e6b3258c9b8b2a5faa",
+      "coverage": [
+        "window",
+        "fallback"
+      ]
+    },
+    {
+      "name": "window-tail-authenticated-exhausted-true-empty-transcript",
+      "path": "099-window-tail-authenticated-exhausted-true-empty-transcript.case.json",
+      "sha256": "sha256:f1e9d956e6a8307365a3ef53d54b9402763b4bb9e8388c80801564a1bd6dbfe0",
+      "coverage": [
+        "window",
+        "fallback"
+      ]
+    },
+    {
+      "name": "window-tail-authenticated-exhausted-false-empty-transcript",
+      "path": "100-window-tail-authenticated-exhausted-false-empty-transcript.case.json",
+      "sha256": "sha256:23f3f15e0856ce1bba4965f133982f0a71dd055a40925ab1864247082f256ef1",
+      "coverage": [
+        "window",
+        "fallback"
+      ]
+    },
+    {
+      "name": "window-label-reproof-to-complete-empty-transcript",
+      "path": "101-window-label-reproof-to-complete-empty-transcript.case.json",
+      "sha256": "sha256:08b8994475139be4f87b3f5a60677ec9dfd460701b99d79b3b5658a83f6aa9e5",
+      "coverage": [
+        "window",
+        "completeness",
+        "fallback"
+      ]
+    },
+    {
+      "name": "window-label-reproof-stays-incomplete-empty-transcript",
+      "path": "102-window-label-reproof-stays-incomplete-empty-transcript.case.json",
+      "sha256": "sha256:b452c38a4c9917988d21be64b0ddcdf9708e8f80e746f24badb405d34f2a34ee",
+      "coverage": [
+        "window",
+        "completeness",
+        "fallback"
+      ]
+    },
+    {
+      "name": "window-empty-incomplete-tail-from-start-empty-transcript",
+      "path": "103-window-empty-incomplete-tail-from-start-empty-transcript.case.json",
+      "sha256": "sha256:a94fdb4701f6e6e826d18ba219a9afc4adb22b2568de011ec1cef2341debb543",
+      "coverage": [
+        "window",
+        "fallback"
+      ]
+    },
+    {
+      "name": "window-backward-tail-competition-empty-transcript",
+      "path": "104-window-backward-tail-competition-empty-transcript.case.json",
+      "sha256": "sha256:09b1f46150c240d390e68a66bd0241b9d13f22624dce7bafc0bc528c5e2c2fb5",
+      "coverage": [
+        "window",
+        "fallback"
+      ]
+    },
+    {
+      "name": "lookup-birth-fill-emitted-empty-transcript",
+      "path": "105-lookup-birth-fill-emitted-empty-transcript.case.json",
+      "sha256": "sha256:a30678acd982e6d4c23d4cf54ad07af9871f9aeff8f1994d738946af9ec5c462",
+      "coverage": [
+        "lookup",
+        "scope-fill",
+        "fallback"
+      ]
+    },
+    {
+      "name": "lookup-rekey-prior-to-fill-empty-transcript",
+      "path": "106-lookup-rekey-prior-to-fill-empty-transcript.case.json",
+      "sha256": "sha256:0f754ffd22bd1bc8c07d8b02e7d77c8352942fc88ba0386665dceac902623f1e",
+      "coverage": [
+        "lookup",
+        "rekey",
+        "fallback"
+      ]
+    },
+    {
+      "name": "lookup-both-change-parent-first-skip-empty-transcript",
+      "path": "107-lookup-both-change-parent-first-skip-empty-transcript.case.json",
+      "sha256": "sha256:9802611a23a40531f741f1e0fbcd07ab1581fd4205724ab8e492155e780f930d",
+      "coverage": [
+        "lookup",
+        "both-change",
+        "fallback"
+      ]
+    },
+    {
+      "name": "per-parent-birth-fill-emitted-empty-transcript",
+      "path": "108-per-parent-birth-fill-emitted-empty-transcript.case.json",
+      "sha256": "sha256:936297314fe13982a97eb75cf01501095f915d8ac0c76562a3f117a52f508e79",
+      "coverage": [
+        "per-parent-window",
+        "scope-fill",
+        "fallback"
+      ]
+    },
+    {
+      "name": "per-parent-rekey-prior-to-fill-empty-transcript",
+      "path": "109-per-parent-rekey-prior-to-fill-empty-transcript.case.json",
+      "sha256": "sha256:b69cfb8d9529ebfb883f79ed24fa2d6fdcf1ffb7ad7d8b87c4433683500d5a0b",
+      "coverage": [
+        "per-parent-window",
+        "rekey",
+        "fallback"
+      ]
+    },
+    {
+      "name": "per-parent-both-change-parent-first-skip-empty-transcript",
+      "path": "110-per-parent-both-change-parent-first-skip-empty-transcript.case.json",
+      "sha256": "sha256:578fd7419dd5e044632b574ecefe1ac5907c5dbd18c44b7e94f9a57ed0048e63",
+      "coverage": [
+        "per-parent-window",
+        "both-change",
+        "fallback"
+      ]
+    },
+    {
+      "name": "support-direct-one-to-zero-reprobe-empty-transcript",
+      "path": "111-support-direct-one-to-zero-reprobe-empty-transcript.case.json",
+      "sha256": "sha256:6a9ec9e683b78d61bbffaa3163657c32d33809fdf190f3cd9cff47273f044d6c",
+      "coverage": [
+        "support",
+        "fallback"
+      ]
+    },
+    {
+      "name": "support-one-to-one-delete-empty-transcript",
+      "path": "112-support-one-to-one-delete-empty-transcript.case.json",
+      "sha256": "sha256:f477db5b99f1fba2d77e03db87f1254e6c76ea2da36a86d42b3a582cb366aac5",
+      "coverage": [
+        "support",
+        "fallback"
+      ]
+    },
+    {
+      "name": "support-through-zero-to-one-probed-empty-transcript",
+      "path": "113-support-through-zero-to-one-probed-empty-transcript.case.json",
+      "sha256": "sha256:bcc9b60fe0a6a116b0831ecc8dbb817d8d4735654a95c387a6d2c901d96e2775",
+      "coverage": [
+        "support",
+        "fallback"
+      ]
+    },
+    {
+      "name": "support-all-mode-element-transition-empty-transcript",
+      "path": "114-support-all-mode-element-transition-empty-transcript.case.json",
+      "sha256": "sha256:03c7872e544de2b911da42215e9a29b5d20a6f74af68ecbeda2a2233d74efdb7",
+      "coverage": [
+        "support",
+        "fallback"
+      ]
+    },
+    {
+      "name": "support-parent-birth-establishes-bit-empty-transcript",
+      "path": "115-support-parent-birth-establishes-bit-empty-transcript.case.json",
+      "sha256": "sha256:d85ff188650bf54ff39318389d010cb4715ed03cb6ef95c374fa46e18f03a8d5",
+      "coverage": [
+        "support",
+        "parent-arm",
+        "fallback"
+      ]
+    },
+    {
+      "name": "support-parent-rekey-establishes-bit-empty-transcript",
+      "path": "116-support-parent-rekey-establishes-bit-empty-transcript.case.json",
+      "sha256": "sha256:32ab5b0f4533dd2f943b4313c46ecff770580a715443d565cd74e82ea2217bb2",
+      "coverage": [
+        "support",
+        "parent-arm",
+        "rekey",
+        "fallback"
+      ]
+    },
+    {
+      "name": "support-through-target-change-empty-transcript",
+      "path": "117-support-through-target-change-empty-transcript.case.json",
+      "sha256": "sha256:038dd9143eb6f789515f0aff9572b03a2378702557d171399b5a0bde94b1ad23",
+      "coverage": [
+        "support",
+        "fallback"
+      ]
+    },
+    {
+      "name": "lift-zero-to-one-admits-unretained-empty-transcript",
+      "path": "118-lift-zero-to-one-admits-unretained-empty-transcript.case.json",
+      "sha256": "sha256:51cd3c619a80fbabd60573dbde0c382a99c22e40b2efe28d8486fbb902997b3e",
+      "coverage": [
+        "membership-lift",
+        "fallback"
+      ]
+    }
+  ]
+}

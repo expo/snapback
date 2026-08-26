@@ -1,0 +1,59 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "window-rank-undecidable",
+  "coverage": [
+    "window",
+    "fallback"
+  ],
+  "operator": {
+    "form": "window",
+    "config": {
+      "windowId": "root",
+      "order": [
+        {
+          "field": "rank",
+          "direction": "asc"
+        }
+      ],
+      "interval": {},
+      "take": 2,
+      "projectionFields": [
+        "rank",
+        "title"
+      ]
+    }
+  },
+  "initialState": {
+    "rows": [],
+    "boundary": null,
+    "resultCount": 0,
+    "complete": true,
+    "label": "complete",
+    "continuation": null
+  },
+  "foldedChangeBatch": {
+    "entries": [
+      {
+        "rowKey": "a",
+        "op": "insert",
+        "admit": "enter",
+        "postImage": {
+          "_id": "a",
+          "rank": [
+            1
+          ]
+        },
+        "rankKeys": [
+          [
+            1
+          ]
+        ]
+      }
+    ]
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Fallback",
+    "reason": "rank-undecidable"
+  }
+}

@@ -1,0 +1,157 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "window-rank-unchanged-patch",
+  "coverage": [
+    "window"
+  ],
+  "operator": {
+    "form": "window",
+    "config": {
+      "windowId": "root",
+      "order": [
+        {
+          "field": "rank",
+          "direction": "asc"
+        }
+      ],
+      "interval": {},
+      "take": 2,
+      "projectionFields": [
+        "rank",
+        "title"
+      ]
+    }
+  },
+  "initialState": {
+    "rows": [
+      {
+        "rowKey": "a",
+        "rankKeys": {
+          "values": [
+            1
+          ],
+          "rowKey": "a"
+        },
+        "row": {
+          "_id": "a",
+          "rank": 1,
+          "title": "old"
+        }
+      },
+      {
+        "rowKey": "b",
+        "rankKeys": {
+          "values": [
+            2
+          ],
+          "rowKey": "b"
+        },
+        "row": {
+          "_id": "b",
+          "rank": 2
+        }
+      }
+    ],
+    "boundary": {
+      "values": [
+        2
+      ],
+      "rowKey": "b"
+    },
+    "resultCount": 2,
+    "complete": true,
+    "label": "complete",
+    "continuation": {
+      "values": [
+        2
+      ],
+      "rowKey": "b"
+    }
+  },
+  "foldedChangeBatch": {
+    "entries": [
+      {
+        "rowKey": "a",
+        "op": "update",
+        "admit": "stay-in",
+        "postImage": {
+          "_id": "a",
+          "rank": 1,
+          "title": "new",
+          "secret": "hidden"
+        },
+        "rankKeys": [
+          1
+        ]
+      }
+    ]
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "ops": [
+        {
+          "op": "patch",
+          "sortKey": {
+            "values": [
+              1
+            ],
+            "rowKey": "a"
+          },
+          "rowKey": "a",
+          "post": {
+            "title": "new"
+          }
+        }
+      ]
+    },
+    "nextState": {
+      "rows": [
+        {
+          "rowKey": "a",
+          "rankKeys": {
+            "values": [
+              1
+            ],
+            "rowKey": "a"
+          },
+          "row": {
+            "_id": "a",
+            "rank": 1,
+            "secret": "hidden",
+            "title": "new"
+          }
+        },
+        {
+          "rowKey": "b",
+          "rankKeys": {
+            "values": [
+              2
+            ],
+            "rowKey": "b"
+          },
+          "row": {
+            "_id": "b",
+            "rank": 2
+          }
+        }
+      ],
+      "boundary": {
+        "values": [
+          2
+        ],
+        "rowKey": "b"
+      },
+      "resultCount": 2,
+      "complete": true,
+      "label": "complete",
+      "continuation": {
+        "values": [
+          2
+        ],
+        "rowKey": "b"
+      }
+    }
+  }
+}

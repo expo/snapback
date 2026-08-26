@@ -1,0 +1,105 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "assemble-exists-bit",
+  "coverage": [
+    "assemble",
+    "support"
+  ],
+  "operator": {
+    "form": "assemble",
+    "config": {
+      "rootNodeId": "root",
+      "nodes": [
+        {
+          "nodeId": "root",
+          "parent": null,
+          "kind": "root",
+          "projectionFields": [
+            "_id",
+            "title"
+          ]
+        },
+        {
+          "nodeId": "exists",
+          "parent": "root",
+          "kind": "exists",
+          "resultField": "hasAny",
+          "projectionFields": [
+            "hasAny"
+          ]
+        }
+      ]
+    }
+  },
+  "initialState": {
+    "result": [
+      {
+        "_id": "p1",
+        "title": "old"
+      }
+    ],
+    "orderedRootKeys": [
+      "p1"
+    ]
+  },
+  "foldedChangeBatch": {
+    "events": [
+      {
+        "kind": "exists",
+        "nodeId": "exists",
+        "delta": {
+          "transitions": [
+            {
+              "scope": "p1",
+              "transition": "zero-to-one"
+            }
+          ]
+        }
+      }
+    ],
+    "postResult": [
+      {
+        "_id": "p1",
+        "title": "old",
+        "hasAny": true
+      }
+    ],
+    "orderedRootKeys": [
+      "p1"
+    ]
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "ops": [
+        {
+          "op": "update",
+          "nodeId": "exists",
+          "rootKey": "p1",
+          "key": "p1",
+          "position": 0,
+          "row": {
+            "hasAny": true
+          }
+        }
+      ],
+      "orderedRootKeys": [
+        "p1"
+      ],
+      "resultDigest": "sha256:24b4e11c3e33bbf957d1358a1746e3d446410e964b06ff65882b3f2f8d1ceda5"
+    },
+    "nextState": {
+      "result": [
+        {
+          "_id": "p1",
+          "title": "old",
+          "hasAny": true
+        }
+      ],
+      "orderedRootKeys": [
+        "p1"
+      ]
+    }
+  }
+}

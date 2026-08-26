@@ -1,0 +1,54 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "admit-null-actual-never-eq",
+  "coverage": [
+    "admit",
+    "three-valued"
+  ],
+  "operator": {
+    "form": "admit",
+    "config": {
+      "visibility": {
+        "kind": "public-read"
+      },
+      "filters": [
+        {
+          "field": "rank",
+          "op": "Eq",
+          "literal": null
+        }
+      ],
+      "grain": "complete-scope",
+      "rankOrder": [
+        {
+          "field": "rank",
+          "direction": "asc"
+        }
+      ],
+      "probeRelation": false
+    }
+  },
+  "initialState": {
+    "retained": {}
+  },
+  "foldedChangeBatch": {
+    "changes": {
+      "changes": [
+        {
+          "rowKey": "a",
+          "op": "insert",
+          "postImage": {
+            "_id": "a",
+            "rank": null
+          }
+        }
+      ]
+    },
+    "supportBits": {}
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Fallback",
+    "reason": "predicate-unanalyzable"
+  }
+}

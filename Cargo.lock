@@ -4051,6 +4051,7 @@ dependencies = [
  "snapback-activation",
  "snapback-auth",
  "snapback-cli",
+ "snapback-delta-semantics",
  "snapback-engine",
  "snapback-kernel",
  "snapback-runtime",
@@ -4150,6 +4151,15 @@ dependencies = [
  "serde_json",
  "snapback-engine",
  "snapback-types",
+]
+
+[[package]]
+name = "snapback-delta-semantics"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
 ]
 
 [[package]]

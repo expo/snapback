@@ -1,0 +1,65 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "lookup-birth-null-key-skips-read",
+  "coverage": [
+    "lookup",
+    "scope-fill"
+  ],
+  "operator": {
+    "form": "keyed-lookup",
+    "config": {
+      "index": "child.by_join",
+      "parentJoinFields": [
+        "join"
+      ],
+      "childJoinFields": [
+        "join"
+      ],
+      "presence": "optional",
+      "projectionFields": [
+        "name"
+      ]
+    }
+  },
+  "initialState": {
+    "scopes": {},
+    "children": {}
+  },
+  "foldedChangeBatch": {
+    "parent": {
+      "entries": [
+        {
+          "rowKey": "p1",
+          "op": "insert",
+          "admit": "enter",
+          "postImage": {
+            "_id": "p1",
+            "join": null
+          },
+          "rankKeys": []
+        }
+      ]
+    },
+    "child": {
+      "entries": []
+    }
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "ops": []
+    },
+    "nextState": {
+      "scopes": {
+        "p1": {
+          "lookupKey": null,
+          "childKey": null,
+          "found": false,
+          "rowVersion": null
+        }
+      },
+      "children": {}
+    }
+  }
+}

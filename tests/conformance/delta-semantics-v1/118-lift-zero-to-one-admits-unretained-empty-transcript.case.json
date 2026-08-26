@@ -1,0 +1,39 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "lift-zero-to-one-admits-unretained-empty-transcript",
+  "coverage": [
+    "membership-lift",
+    "fallback"
+  ],
+  "operator": {
+    "form": "membership-lift",
+    "config": {
+      "index": "carrier.by_room",
+      "supportField": "roomId",
+      "bound": 4,
+      "windowedUnprojected": false
+    }
+  },
+  "initialState": {
+    "retained": {},
+    "survivingAnyOf": []
+  },
+  "foldedChangeBatch": {
+    "bits": {
+      "transitions": [
+        {
+          "scope": "r1",
+          "transition": "zero-to-one"
+        }
+      ]
+    },
+    "supportValues": {
+      "r1": "r1"
+    }
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Fallback",
+    "reason": "scope-unresolved"
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "admit-owner-non-string-field",
+  "coverage": [
+    "admit",
+    "three-valued"
+  ],
+  "operator": {
+    "form": "admit",
+    "config": {
+      "visibility": {
+        "kind": "owner",
+        "field": "ownerId",
+        "userId": "u1"
+      },
+      "filters": [],
+      "grain": "complete-scope",
+      "rankOrder": [
+        {
+          "field": "rank",
+          "direction": "asc"
+        }
+      ],
+      "probeRelation": false
+    }
+  },
+  "initialState": {
+    "retained": {}
+  },
+  "foldedChangeBatch": {
+    "changes": {
+      "changes": [
+        {
+          "rowKey": "a",
+          "op": "insert",
+          "postImage": {
+            "_id": "a",
+            "rank": 1,
+            "ownerId": 7
+          }
+        }
+      ]
+    },
+    "supportBits": {}
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "entries": [
+        {
+          "rowKey": "a",
+          "op": "insert",
+          "postImage": {
+            "_id": "a",
+            "ownerId": 7,
+            "rank": 1
+          },
+          "admit": "stay-out",
+          "rankKeys": [
+            1
+          ]
+        }
+      ]
+    },
+    "nextState": {
+      "retained": {}
+    }
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "window-admitted-missing-post-image",
+  "coverage": [
+    "window",
+    "fallback"
+  ],
+  "operator": {
+    "form": "window",
+    "config": {
+      "windowId": "root",
+      "order": [
+        {
+          "field": "rank",
+          "direction": "asc"
+        }
+      ],
+      "interval": {},
+      "take": 2,
+      "projectionFields": [
+        "rank",
+        "title"
+      ]
+    }
+  },
+  "initialState": {
+    "rows": [],
+    "boundary": null,
+    "resultCount": 0,
+    "complete": true,
+    "label": "complete",
+    "continuation": null
+  },
+  "foldedChangeBatch": {
+    "entries": [
+      {
+        "rowKey": "a",
+        "op": "update",
+        "admit": "enter",
+        "rankKeys": []
+      }
+    ]
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Fallback",
+    "reason": "missing-image"
+  }
+}

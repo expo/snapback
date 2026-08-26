@@ -1,0 +1,59 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "support-through-target-change-empty-transcript",
+  "coverage": [
+    "support",
+    "fallback"
+  ],
+  "operator": {
+    "form": "support-semi-join",
+    "config": {
+      "edge": "edge",
+      "edgeKind": "through",
+      "mode": {
+        "kind": "exists"
+      },
+      "parentJoinFields": [
+        "join"
+      ],
+      "supportJoinFields": [
+        "join"
+      ]
+    }
+  },
+  "initialState": {
+    "scopes": {
+      "p1": {
+        "joinKey": [
+          "j1"
+        ],
+        "bit": true
+      }
+    }
+  },
+  "foldedChangeBatch": {
+    "parent": {
+      "entries": []
+    },
+    "support": {
+      "entries": []
+    },
+    "target": {
+      "entries": [
+        {
+          "rowKey": "t1",
+          "op": "delete",
+          "admit": "leave",
+          "rankKeys": [
+            "j1"
+          ]
+        }
+      ]
+    }
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Fallback",
+    "reason": "support-unproved"
+  }
+}

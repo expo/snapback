@@ -1,0 +1,32 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "lift-windowed-unprojected-fallback-pin",
+  "coverage": [
+    "membership-lift",
+    "fallback"
+  ],
+  "operator": {
+    "form": "membership-lift",
+    "config": {
+      "index": "carrier.by_room",
+      "supportField": "roomId",
+      "bound": 4,
+      "windowedUnprojected": true
+    }
+  },
+  "initialState": {
+    "retained": {},
+    "survivingAnyOf": []
+  },
+  "foldedChangeBatch": {
+    "bits": {
+      "transitions": []
+    },
+    "supportValues": {}
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Fallback",
+    "reason": "support-unproved"
+  }
+}

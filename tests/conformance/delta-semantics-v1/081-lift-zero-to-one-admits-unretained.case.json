@@ -1,0 +1,85 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "lift-zero-to-one-admits-unretained",
+  "coverage": [
+    "membership-lift",
+    "read-maintain"
+  ],
+  "operator": {
+    "form": "membership-lift",
+    "config": {
+      "index": "carrier.by_room",
+      "supportField": "roomId",
+      "bound": 4,
+      "windowedUnprojected": false
+    }
+  },
+  "initialState": {
+    "retained": {},
+    "survivingAnyOf": []
+  },
+  "foldedChangeBatch": {
+    "bits": {
+      "transitions": [
+        {
+          "scope": "r1",
+          "transition": "zero-to-one"
+        }
+      ]
+    },
+    "supportValues": {
+      "r1": "r1"
+    }
+  },
+  "readTranscript": [
+    {
+      "request": {
+        "kind": "range",
+        "index": "carrier.by_room",
+        "keyPrefix": [
+          "r1"
+        ],
+        "bound": 4
+      },
+      "response": {
+        "kind": "range",
+        "rows": [
+          {
+            "_id": "a",
+            "roomId": "r1",
+            "rank": 1
+          }
+        ],
+        "exhausted": true
+      }
+    }
+  ],
+  "expected": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "entries": [
+        {
+          "rowKey": "a",
+          "op": "update",
+          "postImage": {
+            "_id": "a",
+            "rank": 1,
+            "roomId": "r1"
+          },
+          "admit": "enter",
+          "rankKeys": []
+        }
+      ]
+    },
+    "nextState": {
+      "retained": {
+        "a": {
+          "_id": "a",
+          "rank": 1,
+          "roomId": "r1"
+        }
+      },
+      "survivingAnyOf": []
+    }
+  }
+}

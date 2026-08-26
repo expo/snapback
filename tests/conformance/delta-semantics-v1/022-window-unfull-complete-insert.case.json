@@ -1,0 +1,139 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "window-unfull-complete-insert",
+  "coverage": [
+    "window"
+  ],
+  "operator": {
+    "form": "window",
+    "config": {
+      "windowId": "root",
+      "order": [
+        {
+          "field": "rank",
+          "direction": "asc"
+        }
+      ],
+      "interval": {},
+      "take": 2,
+      "projectionFields": [
+        "rank",
+        "title"
+      ]
+    }
+  },
+  "initialState": {
+    "rows": [
+      {
+        "rowKey": "a",
+        "rankKeys": {
+          "values": [
+            1
+          ],
+          "rowKey": "a"
+        },
+        "row": {
+          "_id": "a",
+          "rank": 1
+        }
+      }
+    ],
+    "boundary": {
+      "values": [
+        1
+      ],
+      "rowKey": "a"
+    },
+    "resultCount": 1,
+    "complete": true,
+    "label": "complete",
+    "continuation": {
+      "values": [
+        1
+      ],
+      "rowKey": "a"
+    }
+  },
+  "foldedChangeBatch": {
+    "entries": [
+      {
+        "rowKey": "b",
+        "op": "insert",
+        "admit": "enter",
+        "postImage": {
+          "_id": "b",
+          "rank": 2
+        },
+        "rankKeys": [
+          2
+        ]
+      }
+    ]
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "ops": [
+        {
+          "op": "splice-in",
+          "sortKey": {
+            "values": [
+              2
+            ],
+            "rowKey": "b"
+          },
+          "row": {
+            "_id": "b",
+            "rank": 2
+          }
+        }
+      ]
+    },
+    "nextState": {
+      "rows": [
+        {
+          "rowKey": "a",
+          "rankKeys": {
+            "values": [
+              1
+            ],
+            "rowKey": "a"
+          },
+          "row": {
+            "_id": "a",
+            "rank": 1
+          }
+        },
+        {
+          "rowKey": "b",
+          "rankKeys": {
+            "values": [
+              2
+            ],
+            "rowKey": "b"
+          },
+          "row": {
+            "_id": "b",
+            "rank": 2
+          }
+        }
+      ],
+      "boundary": {
+        "values": [
+          2
+        ],
+        "rowKey": "b"
+      },
+      "resultCount": 2,
+      "complete": true,
+      "label": "complete",
+      "continuation": {
+        "values": [
+          2
+        ],
+        "rowKey": "b"
+      }
+    }
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "lookup-birth-fill-emitted",
+  "coverage": [
+    "lookup",
+    "scope-fill",
+    "read-maintain"
+  ],
+  "operator": {
+    "form": "keyed-lookup",
+    "config": {
+      "index": "child.by_join",
+      "parentJoinFields": [
+        "join"
+      ],
+      "childJoinFields": [
+        "join"
+      ],
+      "presence": "optional",
+      "projectionFields": [
+        "name"
+      ]
+    }
+  },
+  "initialState": {
+    "scopes": {},
+    "children": {}
+  },
+  "foldedChangeBatch": {
+    "parent": {
+      "entries": [
+        {
+          "rowKey": "p1",
+          "op": "insert",
+          "admit": "enter",
+          "postImage": {
+            "_id": "p1",
+            "join": "j1"
+          },
+          "rankKeys": []
+        }
+      ]
+    },
+    "child": {
+      "entries": []
+    }
+  },
+  "readTranscript": [
+    {
+      "request": {
+        "kind": "point",
+        "index": "child.by_join",
+        "key": [
+          "j1"
+        ]
+      },
+      "response": {
+        "kind": "point",
+        "row": {
+          "_id": "c1",
+          "join": "j1",
+          "name": "new"
+        }
+      }
+    }
+  ],
+  "expected": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "ops": [
+        {
+          "kind": "presence",
+          "scope": "p1",
+          "childKey": "c1",
+          "value": {
+            "name": "new"
+          }
+        }
+      ]
+    },
+    "nextState": {
+      "scopes": {
+        "p1": {
+          "lookupKey": [
+            "j1"
+          ],
+          "childKey": "c1",
+          "found": true,
+          "rowVersion": null
+        }
+      },
+      "children": {
+        "c1": {
+          "_id": "c1",
+          "join": "j1",
+          "name": "new"
+        }
+      }
+    }
+  }
+}

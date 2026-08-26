@@ -1,0 +1,42 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "window-empty-incomplete-tail-from-start-empty-transcript",
+  "coverage": [
+    "window",
+    "fallback"
+  ],
+  "operator": {
+    "form": "window",
+    "config": {
+      "windowId": "root",
+      "order": [
+        {
+          "field": "rank",
+          "direction": "asc"
+        }
+      ],
+      "interval": {},
+      "take": 2,
+      "projectionFields": [
+        "rank",
+        "title"
+      ]
+    }
+  },
+  "initialState": {
+    "rows": [],
+    "boundary": null,
+    "resultCount": 0,
+    "complete": false,
+    "label": "incomplete",
+    "continuation": null
+  },
+  "foldedChangeBatch": {
+    "entries": []
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Fallback",
+    "reason": "boundary-displacement"
+  }
+}

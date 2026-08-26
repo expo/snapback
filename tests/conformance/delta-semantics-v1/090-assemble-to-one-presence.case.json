@@ -1,0 +1,113 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "assemble-to-one-presence",
+  "coverage": [
+    "assemble",
+    "presence"
+  ],
+  "operator": {
+    "form": "assemble",
+    "config": {
+      "rootNodeId": "root",
+      "nodes": [
+        {
+          "nodeId": "root",
+          "parent": null,
+          "kind": "root",
+          "projectionFields": [
+            "_id",
+            "title"
+          ]
+        },
+        {
+          "nodeId": "one",
+          "parent": "root",
+          "kind": "to-one",
+          "resultField": "child",
+          "projectionFields": [
+            "name"
+          ]
+        }
+      ]
+    }
+  },
+  "initialState": {
+    "result": [
+      {
+        "_id": "p1",
+        "title": "old"
+      }
+    ],
+    "orderedRootKeys": [
+      "p1"
+    ]
+  },
+  "foldedChangeBatch": {
+    "events": [
+      {
+        "kind": "to-one",
+        "nodeId": "one",
+        "delta": {
+          "ops": [
+            {
+              "kind": "presence",
+              "scope": "p1",
+              "childKey": "c1",
+              "value": {
+                "name": "child"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "postResult": [
+      {
+        "_id": "p1",
+        "title": "old",
+        "child": {
+          "name": "child"
+        }
+      }
+    ],
+    "orderedRootKeys": [
+      "p1"
+    ]
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "ops": [
+        {
+          "op": "update",
+          "nodeId": "one",
+          "rootKey": "p1",
+          "key": "p1",
+          "position": 0,
+          "row": {
+            "name": "child"
+          }
+        }
+      ],
+      "orderedRootKeys": [
+        "p1"
+      ],
+      "resultDigest": "sha256:4fd139b23420dce177de78466789d97857f9d35f75ed725be274669596d01dfc"
+    },
+    "nextState": {
+      "result": [
+        {
+          "_id": "p1",
+          "title": "old",
+          "child": {
+            "name": "child"
+          }
+        }
+      ],
+      "orderedRootKeys": [
+        "p1"
+      ]
+    }
+  }
+}

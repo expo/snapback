@@ -1,0 +1,76 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "admit-membership-probe-visibility-exception",
+  "coverage": [
+    "admit",
+    "membership"
+  ],
+  "operator": {
+    "form": "admit",
+    "config": {
+      "visibility": {
+        "kind": "owner",
+        "field": "ownerId",
+        "userId": "u1"
+      },
+      "filters": [],
+      "grain": "complete-scope",
+      "rankOrder": [
+        {
+          "field": "rank",
+          "direction": "asc"
+        }
+      ],
+      "probeRelation": true
+    }
+  },
+  "initialState": {
+    "retained": {}
+  },
+  "foldedChangeBatch": {
+    "changes": {
+      "changes": [
+        {
+          "rowKey": "m1",
+          "op": "insert",
+          "postImage": {
+            "_id": "m1",
+            "rank": 1,
+            "ownerId": "u2"
+          }
+        }
+      ]
+    },
+    "supportBits": {}
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "entries": [
+        {
+          "rowKey": "m1",
+          "op": "insert",
+          "postImage": {
+            "_id": "m1",
+            "ownerId": "u2",
+            "rank": 1
+          },
+          "admit": "enter",
+          "rankKeys": [
+            1
+          ]
+        }
+      ]
+    },
+    "nextState": {
+      "retained": {
+        "m1": {
+          "_id": "m1",
+          "ownerId": "u2",
+          "rank": 1
+        }
+      }
+    }
+  }
+}

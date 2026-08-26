@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.snapback.dev/snapback.v0/delta-semantics-v1.case.schema.json",
+  "title": "DeltaSemanticsCaseV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "name",
+    "coverage",
+    "operator",
+    "initialState",
+    "foldedChangeBatch",
+    "readTranscript",
+    "expected"
+  ],
+  "properties": {
+    "format": {
+      "const": "snapback.delta-semantics.case.v1"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "coverage": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "operator": {
+      "type": "object",
+      "required": ["form"],
+      "properties": {
+        "form": {
+          "enum": [
+            "admit",
+            "window",
+            "keyed-lookup",
+            "per-parent-window",
+            "support-semi-join",
+            "membership-lift",
+            "principal-bind",
+            "assemble",
+            "composition"
+          ]
+        }
+      }
+    },
+    "initialState": true,
+    "foldedChangeBatch": true,
+    "readTranscript": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["request", "response"],
+        "properties": {
+          "request": {
+            "type": "object",
+            "required": ["kind"],
+            "properties": {
+              "kind": {
+                "enum": ["point", "probe", "range", "tail"]
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": ["kind"],
+            "properties": {
+              "kind": {
+                "enum": ["point", "probe", "range", "tail"]
+              }
+            }
+          }
+        }
+      }
+    },
+    "expected": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["verdict", "deltaOut", "nextState"],
+          "properties": {
+            "verdict": { "const": "Maintain" },
+            "deltaOut": true,
+            "nextState": true
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["verdict", "reason"],
+          "properties": {
+            "verdict": { "const": "Fallback" },
+            "reason": {
+              "enum": [
+                "missing-image",
+                "predicate-unanalyzable",
+                "rank-undecidable",
+                "boundary-displacement",
+                "completeness-indeterminate",
+                "rekey-unread",
+                "scope-unfilled",
+                "demand-identity-transition",
+                "refusal-transition",
+                "support-unproved",
+                "scope-unresolved",
+                "unique-violation",
+                "wire-unaddressable"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

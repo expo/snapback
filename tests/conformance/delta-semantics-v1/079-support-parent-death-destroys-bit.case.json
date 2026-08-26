@@ -1,0 +1,62 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "support-parent-death-destroys-bit",
+  "coverage": [
+    "support",
+    "parent-arm"
+  ],
+  "operator": {
+    "form": "support-semi-join",
+    "config": {
+      "edge": "edge",
+      "edgeKind": "direct",
+      "mode": {
+        "kind": "exists"
+      },
+      "parentJoinFields": [
+        "join"
+      ],
+      "supportJoinFields": [
+        "join"
+      ]
+    }
+  },
+  "initialState": {
+    "scopes": {
+      "p1": {
+        "joinKey": [
+          "j1"
+        ],
+        "bit": true
+      }
+    }
+  },
+  "foldedChangeBatch": {
+    "parent": {
+      "entries": [
+        {
+          "rowKey": "p1",
+          "op": "delete",
+          "admit": "leave",
+          "rankKeys": []
+        }
+      ]
+    },
+    "support": {
+      "entries": []
+    },
+    "target": {
+      "entries": []
+    }
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "transitions": []
+    },
+    "nextState": {
+      "scopes": {}
+    }
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "support-parent-birth-establishes-bit-empty-transcript",
+  "coverage": [
+    "support",
+    "parent-arm",
+    "fallback"
+  ],
+  "operator": {
+    "form": "support-semi-join",
+    "config": {
+      "edge": "edge",
+      "edgeKind": "direct",
+      "mode": {
+        "kind": "exists"
+      },
+      "parentJoinFields": [
+        "join"
+      ],
+      "supportJoinFields": [
+        "join"
+      ]
+    }
+  },
+  "initialState": {
+    "scopes": {}
+  },
+  "foldedChangeBatch": {
+    "parent": {
+      "entries": [
+        {
+          "rowKey": "p1",
+          "op": "insert",
+          "admit": "enter",
+          "postImage": {
+            "_id": "p1",
+            "join": "j1"
+          },
+          "rankKeys": []
+        }
+      ]
+    },
+    "support": {
+      "entries": []
+    },
+    "target": {
+      "entries": []
+    }
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Fallback",
+    "reason": "support-unproved"
+  }
+}

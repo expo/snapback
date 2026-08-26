@@ -1,0 +1,103 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "assemble-projection-scoped-patch",
+  "coverage": [
+    "assemble"
+  ],
+  "operator": {
+    "form": "assemble",
+    "config": {
+      "rootNodeId": "root",
+      "nodes": [
+        {
+          "nodeId": "root",
+          "parent": null,
+          "kind": "root",
+          "projectionFields": [
+            "_id",
+            "title"
+          ]
+        }
+      ]
+    }
+  },
+  "initialState": {
+    "result": [
+      {
+        "_id": "p1",
+        "title": "old"
+      }
+    ],
+    "orderedRootKeys": [
+      "p1"
+    ]
+  },
+  "foldedChangeBatch": {
+    "events": [
+      {
+        "kind": "root-seq",
+        "nodeId": "root",
+        "delta": {
+          "ops": [
+            {
+              "op": "patch",
+              "sortKey": {
+                "values": [
+                  1
+                ],
+                "rowKey": "p1"
+              },
+              "rowKey": "p1",
+              "post": {
+                "title": "new",
+                "secret": "hidden"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "postResult": [
+      {
+        "_id": "p1",
+        "title": "new"
+      }
+    ],
+    "orderedRootKeys": [
+      "p1"
+    ]
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "ops": [
+        {
+          "op": "update",
+          "nodeId": "root",
+          "rootKey": "p1",
+          "key": "p1",
+          "position": 0,
+          "row": {
+            "title": "new"
+          }
+        }
+      ],
+      "orderedRootKeys": [
+        "p1"
+      ],
+      "resultDigest": "sha256:1e7f4f831e1822fe6f24deb7a46171e684a2ae772649c386ebc7977da7c296b3"
+    },
+    "nextState": {
+      "result": [
+        {
+          "_id": "p1",
+          "title": "new"
+        }
+      ],
+      "orderedRootKeys": [
+        "p1"
+      ]
+    }
+  }
+}

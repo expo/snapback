@@ -1,0 +1,105 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "assemble-root-splice-add",
+  "coverage": [
+    "assemble"
+  ],
+  "operator": {
+    "form": "assemble",
+    "config": {
+      "rootNodeId": "root",
+      "nodes": [
+        {
+          "nodeId": "root",
+          "parent": null,
+          "kind": "root",
+          "projectionFields": [
+            "_id",
+            "title"
+          ]
+        }
+      ]
+    }
+  },
+  "initialState": {
+    "result": [],
+    "orderedRootKeys": []
+  },
+  "foldedChangeBatch": {
+    "events": [
+      {
+        "kind": "root-seq",
+        "nodeId": "root",
+        "delta": {
+          "ops": [
+            {
+              "op": "splice-in",
+              "sortKey": {
+                "values": [
+                  1
+                ],
+                "rowKey": "p1"
+              },
+              "row": {
+                "_id": "p1",
+                "title": "new",
+                "secret": "hidden"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "postResult": [
+      {
+        "_id": "p1",
+        "title": "new",
+        "child": {
+          "name": "assembled"
+        }
+      }
+    ],
+    "orderedRootKeys": [
+      "p1"
+    ]
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "ops": [
+        {
+          "op": "add",
+          "nodeId": "root",
+          "key": "p1",
+          "position": 0,
+          "row": {
+            "_id": "p1",
+            "title": "new",
+            "child": {
+              "name": "assembled"
+            }
+          }
+        }
+      ],
+      "orderedRootKeys": [
+        "p1"
+      ],
+      "resultDigest": "sha256:8cc79c6b8ffe23ce67ea8d7a336e6d92ef096225d0c1a67b18c72ea139e0014f"
+    },
+    "nextState": {
+      "result": [
+        {
+          "_id": "p1",
+          "title": "new",
+          "child": {
+            "name": "assembled"
+          }
+        }
+      ],
+      "orderedRootKeys": [
+        "p1"
+      ]
+    }
+  }
+}

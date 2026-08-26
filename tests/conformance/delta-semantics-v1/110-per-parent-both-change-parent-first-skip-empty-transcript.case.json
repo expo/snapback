@@ -1,0 +1,128 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "per-parent-both-change-parent-first-skip-empty-transcript",
+  "coverage": [
+    "per-parent-window",
+    "both-change",
+    "fallback"
+  ],
+  "operator": {
+    "form": "per-parent-window",
+    "config": {
+      "index": "child.by_parent",
+      "parentJoinFields": [
+        "join"
+      ],
+      "demandPaged": false,
+      "maxChildrenPerParent": 4,
+      "window": {
+        "windowId": "children",
+        "order": [
+          {
+            "field": "rank",
+            "direction": "asc"
+          }
+        ],
+        "interval": {},
+        "take": 2,
+        "projectionFields": [
+          "rank",
+          "title"
+        ]
+      }
+    }
+  },
+  "initialState": {
+    "scopes": {
+      "p1": {
+        "lookupKey": [
+          "j1"
+        ],
+        "window": {
+          "rows": [
+            {
+              "rowKey": "c1",
+              "rankKeys": {
+                "values": [
+                  1
+                ],
+                "rowKey": "c1"
+              },
+              "row": {
+                "_id": "c1",
+                "rank": 1
+              }
+            },
+            {
+              "rowKey": "c2",
+              "rankKeys": {
+                "values": [
+                  2
+                ],
+                "rowKey": "c2"
+              },
+              "row": {
+                "_id": "c2",
+                "rank": 2
+              }
+            }
+          ],
+          "boundary": {
+            "values": [
+              2
+            ],
+            "rowKey": "c2"
+          },
+          "resultCount": 2,
+          "complete": true,
+          "label": "complete",
+          "continuation": {
+            "values": [
+              2
+            ],
+            "rowKey": "c2"
+          }
+        }
+      }
+    }
+  },
+  "foldedChangeBatch": {
+    "parent": {
+      "entries": [
+        {
+          "rowKey": "p1",
+          "op": "update",
+          "admit": "stay-in",
+          "postImage": {
+            "_id": "p1",
+            "join": "j2"
+          },
+          "rankKeys": []
+        }
+      ]
+    },
+    "childByScope": {
+      "p1": {
+        "entries": [
+          {
+            "rowKey": "c3",
+            "op": "insert",
+            "admit": "enter",
+            "postImage": {
+              "_id": "c3",
+              "rank": 3
+            },
+            "rankKeys": [
+              3
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Fallback",
+    "reason": "rekey-unread"
+  }
+}

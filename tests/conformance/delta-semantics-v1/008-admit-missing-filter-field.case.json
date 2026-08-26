@@ -1,0 +1,72 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "admit-missing-filter-field",
+  "coverage": [
+    "admit",
+    "three-valued"
+  ],
+  "operator": {
+    "form": "admit",
+    "config": {
+      "visibility": {
+        "kind": "public-read"
+      },
+      "filters": [
+        {
+          "field": "missing",
+          "op": "Gt",
+          "literal": 0
+        }
+      ],
+      "grain": "complete-scope",
+      "rankOrder": [
+        {
+          "field": "rank",
+          "direction": "asc"
+        }
+      ],
+      "probeRelation": false
+    }
+  },
+  "initialState": {
+    "retained": {}
+  },
+  "foldedChangeBatch": {
+    "changes": {
+      "changes": [
+        {
+          "rowKey": "a",
+          "op": "insert",
+          "postImage": {
+            "_id": "a",
+            "rank": 1
+          }
+        }
+      ]
+    },
+    "supportBits": {}
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "entries": [
+        {
+          "rowKey": "a",
+          "op": "insert",
+          "postImage": {
+            "_id": "a",
+            "rank": 1
+          },
+          "admit": "stay-out",
+          "rankKeys": [
+            1
+          ]
+        }
+      ]
+    },
+    "nextState": {
+      "retained": {}
+    }
+  }
+}

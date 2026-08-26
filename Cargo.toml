@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/*"]
+members = ["crates/*", "tools/snapback-delta-semantics"]
 default-members = ["crates/snapback"]
 exclude = [
   "tools/agent-safe-baseline-worker",

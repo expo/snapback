@@ -1,0 +1,164 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "assemble-ancestor-birth-absorbs-descendant",
+  "coverage": [
+    "assemble",
+    "ancestor-absorption"
+  ],
+  "operator": {
+    "form": "assemble",
+    "config": {
+      "rootNodeId": "root",
+      "nodes": [
+        {
+          "nodeId": "root",
+          "parent": null,
+          "kind": "root",
+          "projectionFields": [
+            "_id",
+            "title"
+          ]
+        },
+        {
+          "nodeId": "many",
+          "parent": "root",
+          "kind": "to-many",
+          "resultField": "children",
+          "projectionFields": [
+            "_id",
+            "title"
+          ]
+        }
+      ]
+    }
+  },
+  "initialState": {
+    "result": [
+      {
+        "_id": "p1",
+        "title": "old"
+      }
+    ],
+    "orderedRootKeys": [
+      "p1"
+    ]
+  },
+  "foldedChangeBatch": {
+    "events": [
+      {
+        "kind": "root-seq",
+        "nodeId": "root",
+        "delta": {
+          "ops": [
+            {
+              "op": "splice-in",
+              "sortKey": {
+                "values": [
+                  2
+                ],
+                "rowKey": "p2"
+              },
+              "row": {
+                "_id": "p2",
+                "title": "new"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "kind": "to-many",
+        "nodeId": "many",
+        "scope": "p2",
+        "delta": {
+          "ops": [
+            {
+              "op": "splice-in",
+              "sortKey": {
+                "values": [
+                  1
+                ],
+                "rowKey": "c1"
+              },
+              "row": {
+                "_id": "c1",
+                "title": "child"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "postResult": [
+      {
+        "_id": "p1",
+        "title": "old"
+      },
+      {
+        "_id": "p2",
+        "title": "new",
+        "children": [
+          {
+            "_id": "c1",
+            "title": "child"
+          }
+        ]
+      }
+    ],
+    "orderedRootKeys": [
+      "p1",
+      "p2"
+    ]
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "ops": [
+        {
+          "op": "add",
+          "nodeId": "root",
+          "key": "p2",
+          "position": 1,
+          "row": {
+            "_id": "p2",
+            "title": "new",
+            "children": [
+              {
+                "_id": "c1",
+                "title": "child"
+              }
+            ]
+          }
+        }
+      ],
+      "orderedRootKeys": [
+        "p1",
+        "p2"
+      ],
+      "resultDigest": "sha256:1c5ad2f3964bf1a50920e8e94e0f1e354af0e4fa4e52e858d0f04288470267c4"
+    },
+    "nextState": {
+      "result": [
+        {
+          "_id": "p1",
+          "title": "old"
+        },
+        {
+          "_id": "p2",
+          "title": "new",
+          "children": [
+            {
+              "_id": "c1",
+              "title": "child"
+            }
+          ]
+        }
+      ],
+      "orderedRootKeys": [
+        "p1",
+        "p2"
+      ]
+    }
+  }
+}

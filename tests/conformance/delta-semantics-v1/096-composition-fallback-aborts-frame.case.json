@@ -1,0 +1,93 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "composition-fallback-aborts-frame",
+  "coverage": [
+    "composition",
+    "fallback"
+  ],
+  "operator": {
+    "form": "composition",
+    "nodes": [
+      {
+        "nodeId": "admit",
+        "operator": {
+          "form": "admit",
+          "config": {
+            "visibility": {
+              "kind": "public-read"
+            },
+            "filters": [],
+            "grain": "complete-scope",
+            "rankOrder": [
+              {
+                "field": "rank",
+                "direction": "asc"
+              }
+            ],
+            "probeRelation": false
+          }
+        },
+        "inputFrom": null
+      },
+      {
+        "nodeId": "window",
+        "operator": {
+          "form": "window",
+          "config": {
+            "windowId": "root",
+            "order": [
+              {
+                "field": "rank",
+                "direction": "asc"
+              }
+            ],
+            "interval": {},
+            "take": 2,
+            "projectionFields": [
+              "rank",
+              "title"
+            ]
+          }
+        },
+        "inputFrom": "admit"
+      }
+    ]
+  },
+  "initialState": {
+    "admit": {
+      "retained": {}
+    },
+    "window": {
+      "rows": [],
+      "boundary": null,
+      "resultCount": 0,
+      "complete": true,
+      "label": "complete",
+      "continuation": null
+    }
+  },
+  "foldedChangeBatch": {
+    "admit": {
+      "changes": {
+        "changes": [
+          {
+            "rowKey": "a",
+            "op": "insert",
+            "postImage": {
+              "_id": "a",
+              "rank": [
+                1
+              ]
+            }
+          }
+        ]
+      },
+      "supportBits": {}
+    }
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Fallback",
+    "reason": "rank-undecidable"
+  }
+}

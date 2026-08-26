@@ -1,0 +1,198 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "window-two-enters-displace-two",
+  "coverage": [
+    "window",
+    "batch-fold"
+  ],
+  "operator": {
+    "form": "window",
+    "config": {
+      "windowId": "root",
+      "order": [
+        {
+          "field": "rank",
+          "direction": "asc"
+        }
+      ],
+      "interval": {},
+      "take": 2,
+      "projectionFields": [
+        "rank",
+        "title"
+      ]
+    }
+  },
+  "initialState": {
+    "rows": [
+      {
+        "rowKey": "c",
+        "rankKeys": {
+          "values": [
+            3
+          ],
+          "rowKey": "c"
+        },
+        "row": {
+          "_id": "c",
+          "rank": 3
+        }
+      },
+      {
+        "rowKey": "d",
+        "rankKeys": {
+          "values": [
+            4
+          ],
+          "rowKey": "d"
+        },
+        "row": {
+          "_id": "d",
+          "rank": 4
+        }
+      }
+    ],
+    "boundary": {
+      "values": [
+        4
+      ],
+      "rowKey": "d"
+    },
+    "resultCount": 2,
+    "complete": true,
+    "label": "complete",
+    "continuation": {
+      "values": [
+        4
+      ],
+      "rowKey": "d"
+    }
+  },
+  "foldedChangeBatch": {
+    "entries": [
+      {
+        "rowKey": "a",
+        "op": "insert",
+        "admit": "enter",
+        "postImage": {
+          "_id": "a",
+          "rank": 1
+        },
+        "rankKeys": [
+          1
+        ]
+      },
+      {
+        "rowKey": "b",
+        "op": "insert",
+        "admit": "enter",
+        "postImage": {
+          "_id": "b",
+          "rank": 2
+        },
+        "rankKeys": [
+          2
+        ]
+      }
+    ]
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "ops": [
+        {
+          "op": "splice-out",
+          "sortKey": {
+            "values": [
+              3
+            ],
+            "rowKey": "c"
+          },
+          "rowKey": "c"
+        },
+        {
+          "op": "splice-out",
+          "sortKey": {
+            "values": [
+              4
+            ],
+            "rowKey": "d"
+          },
+          "rowKey": "d"
+        },
+        {
+          "op": "splice-in",
+          "sortKey": {
+            "values": [
+              1
+            ],
+            "rowKey": "a"
+          },
+          "row": {
+            "_id": "a",
+            "rank": 1
+          }
+        },
+        {
+          "op": "splice-in",
+          "sortKey": {
+            "values": [
+              2
+            ],
+            "rowKey": "b"
+          },
+          "row": {
+            "_id": "b",
+            "rank": 2
+          }
+        }
+      ]
+    },
+    "nextState": {
+      "rows": [
+        {
+          "rowKey": "a",
+          "rankKeys": {
+            "values": [
+              1
+            ],
+            "rowKey": "a"
+          },
+          "row": {
+            "_id": "a",
+            "rank": 1
+          }
+        },
+        {
+          "rowKey": "b",
+          "rankKeys": {
+            "values": [
+              2
+            ],
+            "rowKey": "b"
+          },
+          "row": {
+            "_id": "b",
+            "rank": 2
+          }
+        }
+      ],
+      "boundary": {
+        "values": [
+          2
+        ],
+        "rowKey": "b"
+      },
+      "resultCount": 2,
+      "complete": false,
+      "label": "incomplete",
+      "continuation": {
+        "values": [
+          2
+        ],
+        "rowKey": "b"
+      }
+    }
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "admit-any-of-row-arm-wins",
+  "coverage": [
+    "admit",
+    "membership"
+  ],
+  "operator": {
+    "form": "admit",
+    "config": {
+      "visibility": {
+        "kind": "any-of",
+        "arms": [
+          {
+            "kind": "owner",
+            "field": "ownerId",
+            "userId": "u1"
+          },
+          {
+            "kind": "membership",
+            "arm": "member",
+            "resourceField": "roomId",
+            "roles": null,
+            "edge": "membership"
+          }
+        ]
+      },
+      "filters": [],
+      "grain": "complete-scope",
+      "rankOrder": [
+        {
+          "field": "rank",
+          "direction": "asc"
+        }
+      ],
+      "probeRelation": false
+    }
+  },
+  "initialState": {
+    "retained": {}
+  },
+  "foldedChangeBatch": {
+    "changes": {
+      "changes": [
+        {
+          "rowKey": "a",
+          "op": "insert",
+          "postImage": {
+            "_id": "a",
+            "rank": 1,
+            "ownerId": "u1",
+            "roomId": "r1"
+          }
+        }
+      ]
+    },
+    "supportBits": {}
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "entries": [
+        {
+          "rowKey": "a",
+          "op": "insert",
+          "postImage": {
+            "_id": "a",
+            "ownerId": "u1",
+            "rank": 1,
+            "roomId": "r1"
+          },
+          "admit": "enter",
+          "rankKeys": [
+            1
+          ]
+        }
+      ]
+    },
+    "nextState": {
+      "retained": {
+        "a": {
+          "_id": "a",
+          "ownerId": "u1",
+          "rank": 1,
+          "roomId": "r1"
+        }
+      }
+    }
+  }
+}
