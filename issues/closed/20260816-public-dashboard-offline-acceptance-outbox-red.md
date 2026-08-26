@@ -1189,7 +1189,8 @@ The systemic client API inventory is:
 | `outboxStatus()` | all locally retained current-target records | shared projection fence | shared authorization-dispatch lock |
 | `#outboxHeadFact()` | all current-target diagnostic head candidates | read-only projection fence | callback may inherit foreground ownership; this path performs no record transition |
 | `mutationStatus(id)` / `subscribeMutation(id)` | exact locally present caller id | shared projection fence; foreign/legacy is `unknown` | shared authorization-dispatch lock per observation |
-| `createOptimisticMutationView()` / `__createOptimisticRebaseEngine()` / `__optimisticMutationDisposition(id)` | all current-target optimistic layers, or one exact retained layer id | read-only projection fence | caller may already own the shared lock; this path performs no record transition |
+| `createOptimisticMutationView()` / `__createOptimisticRebaseEngine()` | all current-target optimistic layers | read-only projection fence | callback may inherit foreground ownership; this path performs no record transition |
+| `__optimisticMutationDisposition(id)` | one exact retained current-target layer id | shared projection fence | acquires the shared lock, or borrows a tracked read lease until the owning foreground cut releases |
 | `acknowledgeMutations({ clientMutationIds })` | exact local ids surviving cohort and post-custody re-read | fresh complete ACK target plus exact persisted enqueue target | held through scoped custody, ACK POST, and exact-target confirmation |
 | `acknowledgeResultGoneMutations(ids)` | exact local `result-gone` ids | shared projection fence | held through each discard |
 | `quarantinedMutations()` | redacted quarantine rows whose private target metadata matches | shared projection fence | held through observation |

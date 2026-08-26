@@ -8241,7 +8241,7 @@ test('shared-store recovery APIs never reconcile foreign-target custody', async 
     },
     {
       label: 'optimistic-projection-and-disposition',
-      invoke: async ({ client, foreignId }) => {
+      invoke: async ({ client, foreignId, store }) => {
         const view = await client.createOptimisticMutationView({
           authoritativeRows: { cards: [] },
         });
@@ -8250,9 +8250,18 @@ test('shared-store recovery APIs never reconcile foreign-target custody', async 
         } finally {
           view.close();
         }
+        const withAuthorizationDispatch = store.withOutboxAuthorizationDispatch.bind(store);
+        let dispositionDispatchCuts = 0;
+        store.withOutboxAuthorizationDispatch = (operation, options) => (
+          withAuthorizationDispatch(async () => {
+            dispositionDispatchCuts += 1;
+            return operation();
+          }, options)
+        );
         const disposition = await client.__optimisticMutationDisposition(foreignId);
         assert.equal(disposition.status, 'unknown');
         assert.equal(disposition.record, null);
+        assert.equal(dispositionDispatchCuts, 1, 'the internal id read owns the shared cut');
         assert.equal(
           client.outboxDiagnostics.at(-1)?.code,
           'SNAPBACK_OUTBOX_TARGET_FENCE_REFUSED',

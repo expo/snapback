@@ -364,6 +364,39 @@ const replayEligibleOutboxRecords = (store, records) => records
   .filter((record) => isForegroundReplayEligible(store, record));
 const isHousekeepingReplayEligible = (record) => record?.dispatchLane === 'housekeeping';
 
+// Read-only recovery projections can be reached synchronously from optimistic
+// publication while the foreground mutation still owns this lock. Track only
+// locks acquired through the client and let those projections borrow a lease;
+// the owner's release waits for every borrower, so the read remains inside the
+// same authorization cut without making foreground mutation dispatch reentrant.
+const OUTBOX_AUTHORIZATION_DISPATCH_SCOPES_REGISTRY_KEY = Symbol.for(
+  'expo.snapback-client.outbox-authorization-dispatch-scopes.v1',
+);
+const outboxAuthorizationDispatchScopesByStore = (() => {
+  const existing = globalThis[OUTBOX_AUTHORIZATION_DISPATCH_SCOPES_REGISTRY_KEY];
+  if (existing instanceof WeakMap) return existing;
+  const created = new WeakMap();
+  try {
+    globalThis[OUTBOX_AUTHORIZATION_DISPATCH_SCOPES_REGISTRY_KEY] = created;
+  } catch { /* module-local fallback */ }
+  return created;
+})();
+const borrowOutboxAuthorizationDispatch = (store) => {
+  const scope = [...(outboxAuthorizationDispatchScopesByStore.get(store) ?? [])]
+    .find((candidate) => candidate.releaseRequested !== true);
+  if (scope === undefined) return null;
+  scope.borrowers += 1;
+  let released = false;
+  return async () => {
+    if (released) return;
+    released = true;
+    scope.borrowers -= 1;
+    if (scope.borrowers === 0) {
+      for (const resolve of scope.borrowersDrained.splice(0)) resolve();
+    }
+  };
+};
+
 const acquireOutboxAuthorizationDispatch = async (store, lane = null) => {
   if (typeof store?.withOutboxAuthorizationDispatch !== 'function') {
     return async () => {};
@@ -382,10 +415,23 @@ const acquireOutboxAuthorizationDispatch = async (store, lane = null) => {
   }, { lane }));
   task.catch(enterReject);
   await entered;
+  const scope = { borrowers: 0, borrowersDrained: [], releaseRequested: false };
+  let scopes = outboxAuthorizationDispatchScopesByStore.get(store);
+  if (scopes === undefined) {
+    scopes = new Set();
+    outboxAuthorizationDispatchScopesByStore.set(store, scopes);
+  }
+  scopes.add(scope);
   let released = false;
   return async () => {
     if (released) return;
     released = true;
+    scope.releaseRequested = true;
+    if (scope.borrowers > 0) {
+      await new Promise((resolve) => { scope.borrowersDrained.push(resolve); });
+    }
+    scopes.delete(scope);
+    if (scopes.size === 0) outboxAuthorizationDispatchScopesByStore.delete(store);
     releaseResolve();
     await task;
   };
@@ -8751,6 +8797,7 @@ export class SnapbackClient {
       clientMutationIds = null,
       target = null,
       authorizationDispatchOwned = false,
+      borrowAuthorizationDispatch = false,
       lane = 'foreground',
     },
     operation,
@@ -8758,9 +8805,12 @@ export class SnapbackClient {
     const requestedIds = clientMutationIds === null
       ? null
       : [...new Set(clientMutationIds)];
+    const borrowedRelease = authorizationDispatchOwned || !borrowAuthorizationDispatch
+      ? null
+      : borrowOutboxAuthorizationDispatch(store);
     const release = authorizationDispatchOwned
       ? async () => {}
-      : await acquireOutboxAuthorizationDispatch(store, lane);
+      : borrowedRelease ?? await acquireOutboxAuthorizationDispatch(store, lane);
     let released = false;
     const releaseAuthorizationDispatch = async () => {
       if (released) return;
@@ -8931,22 +8981,19 @@ export class SnapbackClient {
     let disposition = Object.freeze({ status: 'unknown', timing: mutationTiming() });
     let record = null;
     try {
-      const target = await this.#outboxProjectionTarget(this.__optimisticRecordStore);
-      const candidate = (await this.__optimisticRecordStore.outboxRecords())
-        .find((entry) => entry?.id === clientMutationId) ?? null;
-      record = candidate !== null && outboxRecordMatchesProjectionTarget(candidate, target)
-        ? candidate
-        : null;
-      if (candidate !== null && record === null) {
-        this.#recordOutboxDiagnostic({
-          code: 'SNAPBACK_OUTBOX_TARGET_FENCE_REFUSED',
+      const store = this.#offlineQueueStore(false);
+      if (store === null) throw new Error('SNAPBACK_OUTBOX_UNAVAILABLE');
+      const selection = await this.#withTargetFencedOutboxRecords(
+        store,
+        {
           api: '__optimisticMutationDisposition',
-          refused: 1,
-          reasons: Object.freeze(['enqueue-target-mismatch']),
-          clientMutationIds: Object.freeze([clientMutationId]),
-        }, { notify: false });
-      }
-      disposition = mutationStatusFromOutboxRecord(record, target, {
+          clientMutationIds: [clientMutationId],
+          borrowAuthorizationDispatch: true,
+        },
+        async ({ records, target }) => ({ record: records[0] ?? null, target }),
+      );
+      record = selection.record;
+      disposition = mutationStatusFromOutboxRecord(record, selection.target, {
         authBarrier: this.authorityFence?.authorityTransitionStatus?.()?.transitionOwner
           === 'auth-coordinator',
       });
