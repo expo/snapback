@@ -70,6 +70,143 @@ function sha256(path) {
   return createHash('sha256').update(readFileSync(path)).digest('hex');
 }
 
+function rustCrateName(name) {
+  return name.replaceAll('-', '_');
+}
+
+function manifestKey(path) {
+  return realpathSync(path);
+}
+
+function withinRoot(root, path) {
+  return path === root || path.startsWith(`${root}/`);
+}
+
+// @ref LLP 0284#41-kernel-raw-sql-api--privilege-surface-scanner — cargo
+// metadata owns crate identity. Inspect excluded local bridge packages only
+// when their dependency graph leads back to a workspace package; ordinary
+// third-party path dependencies do not become independently audited members.
+function localSymbolGraphPackages(root, workspace) {
+  const byManifest = new Map(workspace.map((pkg) => [manifestKey(pkg.manifest_path), pkg]));
+  const pending = [...workspace];
+  for (let index = 0; index < pending.length; index += 1) {
+    const pkg = pending[index];
+    for (const dependency of pkg.dependencies) {
+      if (!dependency.path || dependency.kind !== null) continue;
+      const manifest = resolve(dependency.path, 'Cargo.toml');
+      if (!existsSync(manifest)) continue;
+      const key = manifestKey(manifest);
+      if (!withinRoot(root, key) || byManifest.has(key)) continue;
+      const metadata = runCargoMetadata(manifest);
+      const candidate = metadata.packages.find((entry) =>
+        manifestKey(entry.manifest_path) === key);
+      if (!candidate || !libraryTarget(candidate)) continue;
+      byManifest.set(key, candidate);
+      pending.push(candidate);
+    }
+  }
+
+  const selected = new Set(workspace.map(({ manifest_path: manifest }) => manifestKey(manifest)));
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const [manifest, pkg] of byManifest) {
+      if (selected.has(manifest)) continue;
+      if (pkg.dependencies.some((dependency) => dependency.kind === null
+        && dependency.path
+        && existsSync(resolve(dependency.path, 'Cargo.toml'))
+        && selected.has(manifestKey(resolve(dependency.path, 'Cargo.toml'))))) {
+        selected.add(manifest);
+        changed = true;
+      }
+    }
+  }
+  return [...byManifest]
+    .filter(([manifest]) => selected.has(manifest))
+    .map(([, pkg]) => pkg);
+}
+
+function parsePrivilegeCell(root, pkg, cell, externalSeeds = {}) {
+  const lib = libraryTarget(pkg);
+  const crateRoot = dirname(pkg.manifest_path);
+  const args = [
+    'privilege',
+    '--crate-name', pkg.name,
+    '--crate-root', crateRoot,
+    '--lib', lib.src_path,
+    '--features', cell.features.join(','),
+  ];
+  if (Object.keys(externalSeeds).length > 0) {
+    args.push('--external-seeds', JSON.stringify(externalSeeds));
+  }
+  return runAst(args).map((finding) => ({
+    ...finding,
+    crate: pkg.name,
+    file: repositoryPath(root, resolve(crateRoot, finding.file)),
+  }));
+}
+
+function symbolRelativeItem(pkg, item) {
+  const prefix = `${rustCrateName(pkg.name)}::`;
+  return item.startsWith(prefix) ? item.slice(prefix.length) : undefined;
+}
+
+function dependencyPackages(pkg, packagesByManifest) {
+  const dependencies = new Map();
+  for (const dependency of pkg.dependencies) {
+    if (dependency.kind !== null
+      || !dependency.path
+      || !existsSync(resolve(dependency.path, 'Cargo.toml'))) continue;
+    const target = packagesByManifest.get(manifestKey(resolve(dependency.path, 'Cargo.toml')));
+    if (!target) continue;
+    dependencies.set(rustCrateName(dependency.rename ?? dependency.name), target);
+  }
+  return dependencies;
+}
+
+function scanPrivilegeGraph(root, graphPackages) {
+  const packagesByManifest = new Map(graphPackages.map((pkg) => [
+    manifestKey(pkg.manifest_path),
+    pkg,
+  ]));
+  const scans = new Map();
+  const visiting = new Set();
+
+  const visit = (pkg) => {
+    const packageKey = manifestKey(pkg.manifest_path);
+    if ([...scans.keys()].some((key) => key.startsWith(`${packageKey}\0`))) return;
+    if (visiting.has(packageKey)) {
+      throw new GateInfrastructureError(`local Cargo dependency cycle reaches ${pkg.name}`);
+    }
+    visiting.add(packageKey);
+    const dependencies = dependencyPackages(pkg, packagesByManifest);
+    for (const dependency of dependencies.values()) visit(dependency);
+
+    for (const cell of featureCells(pkg)) {
+      const externalSeeds = {};
+      for (const [dependencyKey, dependency] of dependencies) {
+        const dependencyScan = scans.get(
+          `${manifestKey(dependency.manifest_path)}\0${cell.label}`,
+        );
+        for (const finding of dependencyScan?.parsed ?? []) {
+          if (finding.kind !== 'reexport' || !finding.seedType) continue;
+          const relative = symbolRelativeItem(dependency, finding.item);
+          if (relative) externalSeeds[`${dependencyKey}::${relative}`] = finding.seedType;
+        }
+      }
+      scans.set(`${packageKey}\0${cell.label}`, {
+        pkg,
+        cell,
+        parsed: parsePrivilegeCell(root, pkg, cell, externalSeeds),
+      });
+    }
+    visiting.delete(packageKey);
+  };
+
+  for (const pkg of graphPackages) visit(pkg);
+  return scans;
+}
+
 // @ref LLP 0284#37-what-is-not-an-invariant-honest-limits — generated Rust
 // is review debt, not executable evidence. The review is pinned to Cargo's
 // actual custom-build target so changing either the manifest target or its
@@ -186,28 +323,20 @@ export function auditPrivilegeSurface(root = DEFAULT_ROOT) {
   const started = process.hrtime.bigint();
   const metadata = runCargoMetadata(resolve(root, 'Cargo.toml'));
   const packages = workspacePackages(metadata).filter(libraryTarget);
+  const graphPackages = localSymbolGraphPackages(root, packages);
   let registeredPrivilegeSinks;
   const observedPrivilegeSinks = new Set();
   const aggregated = new Map();
   let cellCount = 0;
 
   registeredPrivilegeSinks = runAst(['privilege-sinks']);
+  const graphScans = scanPrivilegeGraph(root, graphPackages);
+
   for (const pkg of packages) {
-    const lib = libraryTarget(pkg);
-    const crateRoot = dirname(pkg.manifest_path);
     for (const cell of featureCells(pkg)) {
       cellCount += 1;
-      const parsed = runAst([
-        'privilege',
-        '--crate-name', pkg.name,
-        '--crate-root', crateRoot,
-        '--lib', lib.src_path,
-        '--features', cell.features.join(','),
-      ]).map((finding) => ({
-        ...finding,
-        crate: pkg.name,
-        file: repositoryPath(root, resolve(crateRoot, finding.file)),
-      }));
+      const cellKey = `${manifestKey(pkg.manifest_path)}\0${cell.label}`;
+      const parsed = graphScans.get(cellKey).parsed;
       const obtainable = new Set(parsed
         .filter((finding) => ['seed-obtain', 'reexport'].includes(finding.kind))
         .map((finding) => finding.seedType)

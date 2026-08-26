@@ -116,6 +116,19 @@ test('renamed privilege imports seed returns and facade re-exports', () => {
   );
 });
 
+test('cross-crate symbol graph attributes opaque dependency facade re-exports', () => {
+  const corpus = resolve(root, 'tests/fixtures/privilege-surface/by_value_connection');
+  const result = auditPrivilegeSurface(corpus);
+  const facade = result.violations.find(({ kind, item, seedType }) =>
+    kind === 'reexport'
+      && item === 'opaque_facade::Facade'
+      && seedType === 'KernelCommitAuthority');
+  assert(
+    facade,
+    'an opaque dependency Root re-export must be attributed to its canonical privilege seed',
+  );
+});
+
 test('From impls expose a raw foreign self type', () => {
   const corpus = resolve(root, 'tests/fixtures/privilege-surface/by_value_connection');
   const result = auditPrivilegeSurface(corpus);

@@ -5,6 +5,10 @@
 **Systems:** Security/authorization, Build, Verification, Packaging, Rust core
 **Author:** Grok 4.6 (xAI) — independent of the LLP 0276 implementer lane; commissioned by LLP 0283 F-2
 **Date:** 2026-08-19
+**Revised:** 2026-08-26 (closes the cross-crate seed-graph residual: cargo
+metadata orders normal local dependencies before dependents and carries
+canonical seed identity through named opaque re-exports, with an excluded
+bridge probe and a zero-new-finding product comparison.)
 **Revised:** 2026-08-26 (corrects the server-mount conclusion: the server
 storage alias is crate-private, but the public secret-read operator and registry
 remain privilege seeds. I-12 mounts `snapback-server` for their clone/mint
@@ -679,9 +683,9 @@ as security evidence. An unrelated error whose message matches a regex is a
   `external_emit::privilege_api!();` can likewise emit a public sensitive API
   while placing neither `pub` nor the sensitive name in scanner-visible
   invocation tokens.
-- **Renamed imports are not a cross-crate symbol graph.** Renamed raw-SQL and
-  privilege-seed imports now initialize the in-crate alias fixpoint, so this
-  concrete workspace source is a finding:
+- **Renamed imports and local dependency re-exports use a cross-crate seed
+  graph.** Renamed raw-SQL and privilege-seed imports initialize the in-crate
+  alias fixpoint, so this concrete workspace source is a finding:
 
   ```rust
   use snapback_kernel::storage::KernelCommitAuthority as Root;
@@ -689,15 +693,17 @@ as security evidence. An unrelated error whose message matches a regex is a
   pub fn leak() -> Root { todo!() }
   ```
 
-  Each crate is still scanned independently. There is no metadata-derived
-  symbol graph relating an opaque exported name to its defining type. For
-  example, if a dependency outside the scanned workspace exports the seed only
-  as `Root`, a workspace façade containing only `pub use opaque_bridge::Root as
-  Facade;` produces no finding. Within the workspace, a two-hop
-  `pub use bridge::Root as Facade;` is not independently attributed at the
-  second hop, although the first-hop bridge is rejected where it spells or
-  imports `KernelCommitAuthority`. This remains an explicit implementation
-  deviation from §4.1's original cross-crate-resolution requirement.
+  The scanner now joins normal local dependency keys and package identities
+  through cargo metadata, scans dependencies before dependents, and carries
+  canonical seed identity through their public re-export findings. The
+  committed excluded-package probe has `opaque_bridge` export the seed only as
+  `Root`; the workspace package containing only `pub use opaque_bridge::Root as
+  Facade;` is independently attributed to `KernelCommitAuthority`. The same
+  propagation covers named two-workspace-crate chains. The graph deliberately
+  does not make third-party registry packages or local packages outside the
+  audited repository into independently audited workspace members; it follows
+  local library bridges under the audit root whose normal-dependency graph
+  leads back to a workspace package.
 - **Trait/impl egress coverage still has structural gaps.** Raw handles and
   privilege seeds directly named in either the trait or self position are now
   scanned, including `impl From<Wrapper> for rusqlite::Connection`. The
@@ -852,12 +858,14 @@ does not hide an item that the crate root publicly re-exports. Trait generic
 arguments and ordinary concrete trait-impl methods are included even though an
 impl method is not spelled `pub`.
 
-The original requirement to follow `pub use` across crates with a metadata-
-derived symbol graph is **not implemented**. Renamed seed imports are resolved
-inside the crate that spells the canonical seed, but opaque names are not
-carried into dependent crates. The absent symbol graph remains a specification
-deviation and concrete residual in §3.7; neither this document nor gate output
-credits the current scanner with that coverage.
+Follow named privilege-seed `pub use` chains across crates with a metadata-
+derived symbol graph. Normal local dependencies are scanned before dependents;
+their Cargo dependency keys (including renames) bind public opaque names to
+the package that exported the canonical seed. An excluded local bridge under
+the audit root is included for graph resolution without becoming a workspace
+member or independently audited package. Each workspace façade is attributed
+at its own re-export span. Registry packages and local packages outside the
+audited repository are not promoted into the audited workspace by this rule.
 
 **Technique.** syn AST + cargo metadata. Not rustdoc JSON on this pin
 (§Summary). A small host binary (for example
@@ -884,6 +892,7 @@ text is not.
 | `#[macro_export]` (I-14), public `impl Trait` returns (I-15) | as stated |
 | Renamed imports / private-module re-exports / trait forms | `use rusqlite::Connection as Handle`; `mod hidden { pub fn leak() -> KernelCommitAuthority } pub use hidden::leak`; `impl AsRef<rusqlite::Connection> for PublicWrapper` |
 | Rooted/parent local re-exports and reverse conversion impls | `pub use crate::hidden::leak`; `pub use super::leak`; `impl From<Wrapper> for rusqlite::Connection` |
+| Cross-crate opaque seed re-exports | excluded local dependency exports `KernelCommitAuthority` only as `Root`; workspace façade has only `pub use opaque_bridge::Root as Facade` |
 | Direct-signature caller discriminators (I-16) | caller-constructible `MembershipWriter` is named directly by fixed-name privileged-plan, sanctioned, bypass, and provenance sink signatures |
 | Dead privilege-sink registry entries (I-16) | every registered sink spelling resolves to a scanned Rust item or fails as `sink-registry-unresolved` |
 | Macro/build-generated API approximations (I-14) | ordinary `macro_rules!` tokens emitting a public seed API; recognized direct, qualified, imported-alias, hardcoded-wrapper, and literal parameter-forwarded `OUT_DIR` Rust includes in module/impl/trait/foreign item positions without an exact review row; the Guide's `include_bytes!` artifact is inert data and creates no generated-API finding |
@@ -1309,6 +1318,7 @@ is a fourth live defect.
 | `symlink-path-target` | `#[path = "local.rs"]` where `local.rs` is a symlink to another crate | `tests/fixtures/path-includes/symlink-target/` | MISS (lexical inside) | RED |
 | `include-escape` | `include!("../../snapback-kernel/src/lib.rs");` | `tests/fixtures/path-includes/include/` | MISS (not `#[path]`) | RED |
 | `raw-identifier-include-escape` | `r#include!("../../victim/src/lib.rs");` | `tests/fixtures/path-includes/raw-include/` | MISS | RED `include-escape` |
+| `cross-crate-opaque-seed-facade` | excluded local dependency exports the seed only as `Root`; workspace member re-exports `opaque_bridge::Root as Facade` | privilege corpus | MISS at the workspace façade | `opaque_facade::Facade` RED as a `KernelCommitAuthority` re-export |
 
 Corpus and path-include fixtures are **synthetic trees** under
 `tests/fixtures/`, not mutations of `crates/`. Harness tests live in
@@ -1514,6 +1524,15 @@ server module. Because no producer byte is parsed as Rust, the wrapper shape
 manifest no longer proves a live boundary and was deleted rather than
 repurposed. The final `embedded-guide-generated-table` row was deleted, leaving
 zero privilege-surface allowlist entries.
+
+On 2026-08-26 the scanner gained the metadata-derived cross-crate seed graph.
+The negative corpus first demonstrated that an excluded local dependency's
+opaque `Root` export was not attributed at a workspace façade. Normal local
+dependencies are now scanned before dependents and their Cargo dependency keys
+carry canonical seed identity through named public re-exports. The same probe
+then reports `opaque_facade::Facade` at its own span. A controlled product-tree
+comparison reported 103 inherited F-1 violations both before and after graph
+propagation, so this closure introduced no legitimate workspace rejection.
 
 ## 8. Acceptance
 

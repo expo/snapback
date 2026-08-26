@@ -1,3 +1,9 @@
 [workspace]
 resolver = "3"
-members = ["crates/privilege-source", "crates/rusqlite", "crates/synthetic-kernel"]
+members = [
+  "crates/opaque-facade",
+  "crates/privilege-source",
+  "crates/rusqlite",
+  "crates/synthetic-kernel",
+]
+exclude = ["external/opaque-bridge"]

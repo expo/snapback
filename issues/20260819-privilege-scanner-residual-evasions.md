@@ -14,18 +14,20 @@ as follow-up work without blocking the bounded final F-2 hardening round.
 
 ## Demonstrated residuals
 
-1. **Renamed seeds: closed; cross-crate symbol graph: open.** The committed
+1. **Renamed seeds and cross-crate symbol graph: closed.** The committed
    `renamed privilege imports seed returns and facade re-exports` corpus probe
    imports `privilege_source::KernelCommitAuthority as Root`, returns `Root`,
-   and re-exports `Root as RenamedPrivilegeFacade`; both egresses now fail the
-   gate. Crates are still scanned independently rather than through the cross-
-   crate symbol graph LLP 0284 §4.1 originally required. Exact remaining
-   shape: an out-of-workspace dependency exports the seed only as `Root`, and a
-   workspace crate contains only `pub use opaque_bridge::Root as Facade;`.
-   That façade names neither a canonical seed nor an in-crate alias seeded from
-   one, so it is missed. For two workspace crates, the origin re-export is
-   rejected but a downstream `pub use bridge::Root as Facade;` is not
-   independently attributed.
+   and re-exports `Root as RenamedPrivilegeFacade`; both egresses fail the
+   gate. The replacement probe adds an excluded local dependency that exports
+   the seed only as `Root` and a workspace member whose only item is `pub use
+   opaque_bridge::Root as Facade;`. Fail-first, the façade assertion had no
+   matching finding. The scanner now orders normal local dependencies through
+   cargo metadata and carries canonical seed identity through each named
+   public re-export, so `opaque_facade::Facade` is independently rejected as a
+   `KernelCommitAuthority` re-export. Named two-workspace-crate chains use the
+   same graph. A controlled product scan remained at the same 103 inherited
+   F-1 findings with propagation disabled and enabled; no legitimate item was
+   newly rejected.
 2. **Trait and impl forms: open.** Direct raw-handle/seed names in either the
    trait or self position, including `impl From<Wrapper> for
    rusqlite::Connection`, are covered. These exact shapes remain missed:

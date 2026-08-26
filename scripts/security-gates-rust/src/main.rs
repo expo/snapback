@@ -297,6 +297,7 @@ struct ModuleNames {
     sql_imports: BTreeSet<String>,
     raw_aliases: BTreeSet<String>,
     seed_aliases: BTreeMap<String, String>,
+    external_seed_paths: BTreeMap<String, String>,
     public_types: BTreeSet<String>,
     public_api_macros: BTreeSet<String>,
     include_macro_aliases: BTreeSet<String>,
@@ -308,6 +309,7 @@ struct PrivilegeScanner {
     crate_root: PathBuf,
     crate_lib: PathBuf,
     active_features: BTreeSet<String>,
+    external_seed_paths: BTreeMap<String, String>,
     findings: Vec<Finding>,
     visited: HashSet<(PathBuf, bool, String)>,
     reexport_visits: HashSet<(PathBuf, String, String, String)>,
@@ -853,7 +855,10 @@ impl PrivilegeScanner {
     }
 
     fn collect_names(&self, items: &[Item]) -> ModuleNames {
-        let mut names = ModuleNames::default();
+        let mut names = ModuleNames {
+            external_seed_paths: self.external_seed_paths.clone(),
+            ..ModuleNames::default()
+        };
         let mut aliases = Vec::new();
         let mut macro_definitions = Vec::new();
         for item in items {
@@ -863,6 +868,7 @@ impl PrivilegeScanner {
             match item {
                 Item::Use(item_use) => {
                     for path in flatten_use_tree(&item_use.tree) {
+                        let rendered = path.segments.join("::");
                         if path.segments.iter().any(|segment| segment == "rusqlite") {
                             if let Some(last) = path.segments.last() {
                                 if matches!(last.as_str(), "Connection" | "Transaction") {
@@ -886,6 +892,11 @@ impl PrivilegeScanner {
                             .iter()
                             .find(|segment| SEED_TYPES.contains(&segment.as_str()))
                         {
+                            names
+                                .seed_aliases
+                                .insert(path.exposed.clone(), seed.clone());
+                        }
+                        if let Some(seed) = names.external_seed_paths.get(&rendered) {
                             names
                                 .seed_aliases
                                 .insert(path.exposed.clone(), seed.clone());
@@ -1401,6 +1412,7 @@ impl PrivilegeScanner {
                     .iter()
                     .find_map(|segment| names.seed_aliases.get(segment).cloned())
             })
+            .or_else(|| names.external_seed_paths.get(&rendered).cloned())
         {
             self.push_finding(
                 "reexport",
@@ -2198,6 +2210,7 @@ fn inspect_type(ty: &Type, names: &ModuleNames) -> TypeInfo {
                 .iter()
                 .map(|segment| ident_name(&segment.ident))
                 .collect::<Vec<_>>();
+            let rendered = segments.join("::");
             let has_rusqlite = segments.iter().any(|segment| segment == "rusqlite");
             for segment in &segments {
                 self.info.type_names.insert(segment.clone());
@@ -2221,6 +2234,9 @@ fn inspect_type(ty: &Type, names: &ModuleNames) -> TypeInfo {
                 if let Some(seed) = self.names.seed_aliases.get(segment) {
                     self.info.seed_type.get_or_insert_with(|| seed.clone());
                 }
+            }
+            if let Some(seed) = self.names.external_seed_paths.get(&rendered) {
+                self.info.seed_type.get_or_insert_with(|| seed.clone());
             }
             visit::visit_type_path(self, node);
         }
@@ -3134,6 +3150,16 @@ fn run() -> Result<(), String> {
                 .filter(|feature| !feature.is_empty())
                 .map(str::to_owned)
                 .collect::<BTreeSet<_>>();
+            let external_seed_paths = args
+                .iter()
+                .position(|argument| argument == "--external-seeds")
+                .and_then(|index| args.get(index + 1))
+                .map(|value| {
+                    serde_json::from_str::<BTreeMap<String, String>>(value)
+                        .map_err(|error| format!("invalid --external-seeds JSON: {error}"))
+                })
+                .transpose()?
+                .unwrap_or_default();
             let (crate_public_api_macros, crate_generated_include_macros) =
                 discover_crate_macros(&lib, &features)?;
             let findings = PrivilegeScanner {
@@ -3141,6 +3167,7 @@ fn run() -> Result<(), String> {
                 crate_root,
                 crate_lib: lib.clone(),
                 active_features: features,
+                external_seed_paths,
                 findings: Vec::new(),
                 visited: HashSet::new(),
                 reexport_visits: HashSet::new(),
