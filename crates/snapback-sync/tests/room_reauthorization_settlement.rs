@@ -245,6 +245,44 @@ fn all_denied_pruning_reports_completed_settlement() {
 }
 
 #[test]
+fn dropped_reached_receiver_cannot_abort_real_settlement() {
+    let (mut database, backend, issuer) = all_denied_fixture();
+    write_membership(
+        &backend,
+        &issuer,
+        &mut database,
+        membership("member-c", BOARD_1, "user-c"),
+    )
+    .expect("an authorization-changing writer creates the denial obligation");
+    let pending = backend.pending_room_reauthorizations();
+    assert_eq!(pending.len(), 1);
+    let batch = backend
+        .resolve_pending_room_reauthorization(&database, pending.into_iter().next().unwrap())
+        .expect("durable resolution denies the room's only subject");
+    let completion_database = database
+        .take_room_reauthorization_database()
+        .expect("take exact off-Local completion database");
+
+    let (reached_tx, reached_rx) = mpsc::channel();
+    drop(reached_rx);
+    let (release_tx, release_rx) = mpsc::channel();
+    release_tx
+        .send(())
+        .expect("pre-release the disconnected reached observer");
+    backend.install_room_reauthorization_before_mutation_hook_for_test(reached_tx, release_rx);
+
+    assert!(
+        backend
+            .complete_room_reauthorization_off_local(&completion_database, batch)
+            .expect("a disconnected reached observer cannot abort real settlement"),
+        "real settlement remains complete after reached notification disconnects"
+    );
+    assert_eq!(backend.diagnostics().subscriber_count, 0);
+    assert_eq!(backend.diagnostics().entry_count, 0);
+    assert_eq!(backend.diagnostics().room_count, 0);
+}
+
+#[test]
 fn all_denied_pruning_serializes_a_concurrent_fresh_grant() {
     let (mut database, backend, issuer) = all_denied_fixture();
     write_membership(
