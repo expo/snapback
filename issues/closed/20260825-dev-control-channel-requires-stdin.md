@@ -27,13 +27,22 @@ launch. Keep stdin for interactive humans.
 
 ## Resolution (2026-08-25)
 
-Implemented LLP 0310.000 Track E (in review) for packaged supervised Expo
-development. `snapback dev --expo --json` now publishes an owner-bound
-`.snapback/.dc-sock` descriptor, admits only `reload-metro` and
-`stop-children`, emits request-id-correlated acknowledgement and settled-result
-records, enforces owner UID/incarnation/lifecycle-receipt checks, creates the
-endpoint mode `0600`, registers its exact inode with the instance cleanup
-lease, and removes it on shutdown or owner death. A same-UID dead leftover is
+Implemented LLP 0310.000 Track E (in review) across the packaged supervisor's
+three control carriers. Packaged stdin keeps the interactive/JSON lifecycle
+verbs. The managed-admin-token-gated `POST /_snapback/expo/v1/control` route
+now admits `reload-metro` and `stop-children` alongside `dev-fresh`, preserving
+its unauthorized and unknown-verb refusals; it echoes request IDs, proves
+Metro replacement by PID, and admits `stop-children` to the same serialized
+dispatcher before beginning teardown only after the correlated HTTP
+acknowledgement flushes.
+`snapback dev --expo --json` also publishes an owner-bound
+`.snapback/.dc-sock` descriptor for `reload-metro` and `stop-children`, emits
+request-id-correlated acknowledgement and settled-result records, enforces
+owner UID/incarnation/lifecycle-receipt checks, creates the endpoint mode
+`0600`, registers its exact inode with the instance cleanup lease, and removes
+it on owner shutdown or death. The socket covers the case where the managed
+ready descriptor has no admin-token file and the HTTP plane therefore has no
+bearer, while the owner-only pathname gate remains usable. A same-UID dead leftover is
 reclaimed under the directory lock only after a bounded `connect()` returns
 `ECONNREFUSED`, the inode remains unchanged, and a present valid owner record
 matches its inode/incarnation. Publication is ordered binding marker → private
@@ -117,10 +126,17 @@ private placeholder. Ordinary artifacts are never silently redirected into
 supervisor state.
 
 The focused `expo-dev-loop.test.mjs --control-socket-only` regression includes
-a `--json` launch using the default control-socket posture, with stdin ignored
-and test-only fixture paths/ports, that acknowledges and settles
-`reload-metro`. It overlaps acknowledged `reload-metro` with `stop-children`,
-asserts both settled results, all Metro PIDs gone, and the planned port free.
+the HTTP E1 slice (also runnable alone as `--http-control-only`): bad-token and
+unknown-verb refusals, request correlation, Metro PID replacement, and an HTTP
+`stop-children` acknowledgement that flushes before teardown starts. The
+backend and Metro process groups then disappear while the owner,
+bootstrap/front listeners, and control socket survive; `reload-metro` on that
+same owner respawns Metro. It also includes a `--json` launch using the default
+control-socket posture, with stdin ignored and test-only fixture paths/ports,
+that acknowledges and settles `reload-metro`. It overlaps acknowledged
+`reload-metro` with `stop-children`, asserts both settled results, then proves
+the packaged owner and socket remain live until SIGTERM and a later
+`reload-metro` respawns Metro.
 It also proves stale/foreign/other-UID requests return one result and no
 acknowledgement; queues `stop-children` behind an injected replacement-Metro
 launch failure and requires the stop result before critical owner exit; and
@@ -174,8 +190,13 @@ Generation claims record PID/start-time owner identity; a
 dead claimant is recoverable through a next-generation atomic-link election,
 two racing successors still admit exactly one winner, and the winner removes
 the claim chain once its live `.dc-lock` is published. The live suite
-concurrently submits stdin and socket
-`reload-metro`, while the failed-reload case submits stdin `restart` after the
-stop acknowledgement, witnessing that verb on the shared stopping latch. The
-implementation routes all four lifecycle-mutating stdin verbs through the same
-serialized queue.
+concurrently submits stdin and socket `reload-metro`, while the failed-reload
+case submits stdin `restart` during the transient `stop-children` latch. The
+latch refuses work only while teardown is pending; after the settled result,
+the same owner accepts `reload-metro` again. The implementation routes all four
+lifecycle-mutating stdin verbs through the same serialized queue.
+
+LLP 0310.000 OQ8 remains open: the no-admin-token pathname-authority case is
+now documented and covered, but the RFC still owns the broader product question
+of which concrete callers require the socket rather than the ordinary HTTP
+route.

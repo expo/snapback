@@ -85,8 +85,25 @@ documentation absence never appears as success.
 
 ## Control a detached Expo dev supervisor
 
-`snapback dev --expo --json` publishes an owner-bound Unix control socket in
-the same state directory as its ready file. The default path is
+The ordinary non-interactive plane is the token-gated HTTP route advertised by
+`.snapback/expo-supervisor.json`: send `POST` to
+`exchangeOrigin + controlPath` (currently
+`/_snapback/expo/v1/control`) with `content-type: application/json`, an
+`x-snapback-operator-token` header, and a body such as
+`{"verb":"reload-metro","requestId":"reload-1"}`. Read the token from the
+owner-only `adminTokenFile` named by the managed ready descriptor; on the
+default store this is `.snapback/dev.sqlite3.admin-token`. The closed HTTP verb
+set is `dev-fresh`, `reload-metro`, and `stop-children`. Unauthorized requests
+refuse with `SNAPBACK_EXPO_CONTROL_UNAUTHORIZED`; unknown verbs refuse with
+`SNAPBACK_EXPO_CONTROL_VERB_UNKNOWN`. This owner-process route is not a browser
+API: its CORS projection advertises only `GET, OPTIONS`, not `POST` or the
+operator-token header.
+
+`snapback dev --expo --json` also publishes an owner-bound Unix control socket
+in the same state directory as its ready file. This plane is required when the
+managed ready descriptor has no admin-token file: HTTP has no bearer to
+authenticate, while the owner-only pathname and descriptor can still gate the
+same `reload-metro` / `stop-children` implementations. The default path is
 `.snapback/.dc-sock`; read the exact path and lifecycle binding from
 the `controlSocket` field in `.snapback/expo-supervisor.json` or the final
 `snapback.expo-dev.v1` readiness event. Do not guess a path or signal a process
@@ -155,17 +172,23 @@ the descriptor's `ownerPid`, `ownerUid`, `ownerIncarnationId`, and
 {"schemaVersion":"snapback.dev-control-command.v1","requestId":"reload-1","verb":"reload-metro","owner":{"pid":1234,"uid":501,"incarnationId":"supervisor-…"},"lifecycleReceipt":"sha256:…"}
 ```
 
-One connection carries one newline-delimited request. A valid verb first
+One socket connection carries one newline-delimited request. A valid verb first
 returns `snapback.dev-control-ack.v1` with the same request id, then a
 `snapback.dev-control-result.v1` after the operation settles. All acknowledged
-socket verbs and packaged-stdin lifecycle mutations (`reload`, `restart`,
-`dev-fresh`, and `reload-metro`) share one serialized lane. Once
+socket verbs, admitted HTTP verbs, and packaged-stdin lifecycle mutations
+(`reload`, `restart`, `dev-fresh`, and `reload-metro`) share one serialized
+lane. Once
 `stop-children` is acknowledged, new work on either channel refuses with
 `SNAPBACK_DEV_CONTROL_STOPPING`; every earlier acknowledged request is allowed
-to send its result before the endpoint closes. After that result flushes, the
-supervisor destroys the one-request connection; a client cannot retain a
-supervisor-side file descriptor by leaving its writable half open. Wait for the
-result before claiming the operation took effect. A client may call
+to settle. After child teardown settles, the lane accepts work again and the
+same owner may run `reload-metro`. The HTTP response for `stop-children` is its
+correlated acknowledgement; teardown starts only after that response flushes.
+The socket returns its ordinary settled result. In both cases the owner and its
+control endpoints survive until SIGTERM, interactive `q`, or the packaged
+`stop` action. After each socket result flushes, the supervisor destroys that
+one-request connection; a client cannot retain a supervisor-side file descriptor
+by leaving its writable half open. Wait for the result or observable child
+effect, as appropriate, before claiming the operation took effect. A client may call
 `socket.end(request)` after sending the complete newline-delimited request; the
 server keeps its writable half until both the acknowledgement and settled result
 flush. A client that reaches EOF before its newline, or stays incomplete for
@@ -176,7 +199,7 @@ The socket's closed verb set is:
 | Verb | Settled result |
 | --- | --- |
 | `reload-metro` | Stops the owned Metro process group, launches Metro again on the same planned port, re-verifies listener ownership, updates `expo-supervisor.json`, and reports the previous and replacement PIDs. |
-| `stop-children` | Reclaims the supervisor-owned backend, Metro, bootstrap exchange, front, and port forwards; flushes the result; then removes the socket and lets the CLI owner exit. |
+| `stop-children` | Reclaims the supervisor-owned backend and Metro process groups plus port forwards. The bootstrap/front control listeners, Unix endpoint, and CLI owner remain; a later `reload-metro` on that owner respawns Metro. |
 
 An endpoint or request naming another UID, owner incarnation, or lifecycle
 receipt refuses with `SNAPBACK_DEV_CONTROL_OTHER_UID`,
@@ -221,10 +244,12 @@ Interactive humans keep the existing stdin channel: TTY keys remain
 `s`/`r`/`R`/`f`/`q`, and non-TTY
 `snapback.dev-command.v1` input remains available when a launcher preserves a
 pipe. Stdin carries `status`, `reload`, `restart`, and `dev-fresh`, plus
-`reload-metro` for Expo; `stop-children` is socket-only, while `q` or `SIGTERM`
-is the human stop path. Stdin EOF still does not stop the supervisor. The socket
-is the supported agent path when stdin is `/dev/null`; it is not a FIFO and does
-not add recook as a client verb.
+`reload-metro` for Expo. `stop-children` is available through the token-gated
+HTTP route and owner-bound socket, while `q` or `SIGTERM` is the human stop
+path. Stdin EOF still does not stop the supervisor. The HTTP route is the
+ordinary agent path when stdin is `/dev/null`; the socket covers the
+no-admin-token pathname-authority case. It is not a FIFO and does not add
+recook as a client verb.
 
 ## Run functions against sessions mode
 

@@ -726,6 +726,7 @@ try {
     return root;
   };
   const packageManifest = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8'));
+  const expoDevSource = readFileSync(join(packageRoot, 'expo-dev.mjs'), 'utf8');
   assert.match(
     packageManifest.scripts.test,
     /node expo-dev-loop\.test\.mjs/u,
@@ -735,6 +736,25 @@ try {
     readFileSync(join(packageRoot, 'expo-dev-loop.test.mjs'), 'utf8'),
     /else \{\s*\/\/ The package-default suite owns the E1 no-TTY witness too;[\s\S]*?await runControlSocketSuite\(\);/u,
     'the default Expo lifecycle suite must retain the no-TTY E1 control-socket witness',
+  );
+  assert.doesNotMatch(
+    expoDevSource,
+    /process\.umask\(0o177\)/u,
+    'socket custody must rely on chmod plus the post-bind mode assertion, not a restored-before-bind umask',
+  );
+  const socketDispatchSource = expoDevSource.slice(
+    expoDevSource.indexOf('const reply = operation.then'),
+    expoDevSource.indexOf('const reply = operation.then') + 700,
+  );
+  const httpControlOffset = expoDevSource.lastIndexOf('handleBootstrapControl = async');
+  const httpControlSource = expoDevSource.slice(
+    httpControlOffset - 400,
+    httpControlOffset + 2_800,
+  );
+  assert.match(socketDispatchSource, /@ref LLP 0192#d-1-the-durable-state-registry/u);
+  assert.match(
+    httpControlSource,
+    /@ref LLP 0310\.000#track-e--add-the-missing-verb-to-the-control-route-that-already-exists/u,
   );
 
   const reusedLockPidOwner = {
@@ -1104,23 +1124,6 @@ try {
   assert.equal(socketModeNotices[0].details.observedMode, 0o660);
   assert.equal(existsSync(join(socketModeRoot, '.dc-sock')), false);
   console.log('post-bind socket mode mismatch: coded stdin-only fallback avoids other-uid claim');
-
-  const umaskRoot = makeRoot('umask');
-  const expectedUmask = process.umask();
-  let umaskAfterListenReturned = null;
-  const umaskControl = await expoDevTest.startDevControlSocketWithDependencies(
-    testOptions(umaskRoot, 'unit-umask-owner'),
-    {
-      listenServer(boundServer, endpointPath) {
-        boundServer.listen(endpointPath);
-        queueMicrotask(() => { umaskAfterListenReturned = process.umask(); });
-      },
-    },
-  );
-  assert.equal(umaskAfterListenReturned, expectedUmask);
-  assert.equal(process.umask(), expectedUmask);
-  await umaskControl.close();
-  console.log('socket bind umask: process-global mask is restored before listen settles');
 
   const postListenFailureRoot = makeRoot('post-listen-failure');
   const postListenFailureNotices = [];
@@ -1989,6 +1992,7 @@ try {
 
   const finRoot = makeRoot('f');
   const stopQueued = deferred();
+  let resetBeforeFirstAcknowledgement = true;
   const finControl = await expoDevTest.startDevControlSocketWithDependencies(
     testOptions(
       finRoot,
@@ -2004,9 +2008,13 @@ try {
       },
     ),
     {
-      writeAcknowledgement(socket) {
-        socket.destroy();
-        throw new Error('simulated peer reset before acknowledgement');
+      writeAcknowledgement(socket, payload) {
+        if (resetBeforeFirstAcknowledgement) {
+          resetBeforeFirstAcknowledgement = false;
+          socket.destroy();
+          throw new Error('simulated peer reset before acknowledgement');
+        }
+        socket.write(payload);
       },
     },
   );
@@ -2014,8 +2022,11 @@ try {
   await eventually(() => stopQueued.promise.then(() => true), {
     label: 'FIN-disconnected stop-children dispatch',
   });
-  await eventually(() => finControl.closed, { label: 'FIN-disconnected control close' });
-  console.log('stop-children FIN: work is queued before acknowledgement and completes');
+  assert.equal(finControl.closed, false);
+  assert.equal(existsSync(finControl.descriptor.path), true);
+  await assertReloadRoundTrip(finControl, 'reload-after-FIN-disconnected-stop');
+  await finControl.close();
+  console.log('stop-children FIN: queued work completes and the owner endpoint remains reusable');
 
   const leasedRoot = makeRoot('r');
   const cleanupLease = await createCarrierCleanupLease();

@@ -7475,7 +7475,7 @@ export const PACKAGED_CLI_COMMANDS = Object.freeze([
       'Supervised Expo iOS: snapback dev snapback --expo --expo-platform ios (ios is the default).',
       'Supervised Expo Android: snapback dev snapback --expo --expo-platform android.',
       'Supervised Expo web: snapback dev snapback --expo --expo-platform web.',
-      'Supervised Expo also publishes an owner-bound 0600 Unix endpoint at expo-supervisor.json#controlSocket for non-TTY reload-metro and stop-children automation; stdin control remains available.',
+      'Supervised Expo publishes the managed-token HTTP route at expo-supervisor.json#controlPath for dev-fresh, reload-metro, and stop-children; an owner-bound 0600 Unix endpoint at expo-supervisor.json#controlSocket carries reload-metro and stop-children when no admin-token file is available; stdin control remains available, and stop-children leaves the owner alive.',
       'Every owned listener uses the stable 4287-4387 range by default; use --port/--client-port/--bootstrap-port for strict pins or --port-range for a constrained lane.',
       'Native dev-identity checkout is default-off and requires the application development client\'s own bundle/component and URL scheme; Expo Go is refused.',
       '--expo owns the bootstrap environment; --client-command is a generic child and does not install the supervised Expo bootstrap.',
@@ -9349,10 +9349,6 @@ export async function runCli(argv, options = {}) {
             criticalExit = error;
             options.onCriticalExit?.(error);
             if (result !== null) void settle(error);
-          },
-          onControlStop() {
-            options.onControlStop?.();
-            void settle();
           },
         });
         if (result.ok === false) {

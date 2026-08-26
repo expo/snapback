@@ -81,6 +81,7 @@ const DEV_CONTROL_OWNER_STATE_BASENAME = 'dev-control.owner.json';
 const DEV_CONTROL_OWNER_STATE_FORMAT = 'snapback.dev-control-owner.v1';
 const DEV_CONTROL_COMMAND_LIMIT_BYTES = 16 * 1024;
 const DEV_CONTROL_VERBS = Object.freeze(['reload-metro', 'stop-children']);
+const SUPERVISED_HTTP_CONTROL_VERBS = Object.freeze(['dev-fresh', ...DEV_CONTROL_VERBS]);
 
 function devControlDiagnostic(code, message, details = {}) {
   return Object.freeze({ code, severity: 'error', subsystem: 'cli', message, details });
@@ -554,25 +555,37 @@ function flushControlResult(socket, encodedResult, timeoutMs = 1_000) {
 }
 
 function createDevControlDispatcher(verbs) {
-  let stopping = false;
+  let accepting = true;
+  let stopPending = false;
   let controlChain = Promise.resolve();
   const enqueue = (verb, context) => {
-    if (stopping) {
+    if (!accepting || stopPending) {
       throw diagnosticError(
         'SNAPBACK_DEV_CONTROL_STOPPING',
         'the dev control owner is stopping and will not acknowledge new work',
         { verb },
       );
     }
-    if (verb === 'stop-children') stopping = true;
-    const run = controlChain.then(() => verbs[verb](context));
+    const stopsChildren = verb === 'stop-children';
+    if (stopsChildren) stopPending = true;
+    const operation = controlChain.then(() => verbs[verb](context));
+    const run = operation.then(
+      (result) => {
+        if (stopsChildren) stopPending = false;
+        return result;
+      },
+      (error) => {
+        if (stopsChildren) stopPending = false;
+        throw error;
+      },
+    );
     controlChain = run.then(() => undefined, () => undefined);
     return run;
   };
   return Object.freeze({
     enqueue,
-    get stopping() { return stopping; },
-    stopAccepting() { stopping = true; },
+    get stopping() { return !accepting || stopPending; },
+    stopAccepting() { accepting = false; },
     idle() { return controlChain; },
   });
 }
@@ -870,9 +883,9 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
         // acknowledgement/result, never the already-admitted owner verb.
         const reply = operation.then(
           (result) => {
-            // @ref LLP 0310.000#track-e--add-the-missing-verb-to-the-control-route-that-already-exists — every
-            // acknowledged owner verb and packaged stdin reload share one
-            // serialized dispatch lane.
+            // @ref LLP 0192#d-1-the-durable-state-registry — the owner-only
+            // InstanceLocal socket returns the correlated result without
+            // transferring lifecycle authority into durable store state.
             return `${JSON.stringify(devControlResult({
               requestId,
               verb,
@@ -909,19 +922,6 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
           })}\n`);
         } catch {
           socket.destroy();
-        }
-        if (verb === 'stop-children') {
-          void reply.then(() => {
-            void close().then(
-              () => options.onStopComplete?.(),
-              () => options.onStopComplete?.(),
-            );
-          }, () => {
-            void close().then(
-              () => options.onStopComplete?.(),
-              () => options.onStopComplete?.(),
-            );
-          });
         }
       };
       void handleCommand().catch(() => socket.destroy());
@@ -1013,7 +1013,6 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
         },
       );
       await new Promise((resolveListen, rejectListen) => {
-        const previousUmask = process.umask(0o177);
         const onError = (cause) => {
           server.off('listening', onListening);
           if (cause?.code === 'EADDRINUSE') {
@@ -1045,16 +1044,14 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
         server.once('error', onError);
         server.once('listening', onListening);
         try {
-          // @ref LLP 0310.000#track-e--add-the-missing-verb-to-the-control-route-that-already-exists — bind an
-          // unadvertised inode first; link(2) below is the atomic no-replace
-          // publication primitive for the owner-bound endpoint.
+          // @ref LLP 0192#d-1-the-durable-state-registry — bind an unadvertised
+          // InstanceLocal inode first; link(2) below publishes it without
+          // replacing an occupied owner endpoint.
           (dependencies.listenServer ?? ((boundServer, endpointPath) => (
             boundServer.listen(endpointPath)
           )))(server, privateBindPath);
         } catch (cause) {
           onError(cause);
-        } finally {
-          process.umask(previousUmask);
         }
       });
       await dependencies.afterPrivateEndpointListen?.({
@@ -3009,10 +3006,27 @@ export async function startBootstrapExchange(
           body,
         });
         response.statusCode = result?.statusCode ?? 500;
-        response.end(JSON.stringify(result?.body ?? {
+        const encodedBody = JSON.stringify(result?.body ?? {
           ok: false,
           code: 'SNAPBACK_EXPO_CONTROL_FAILED',
-        }));
+        });
+        if (typeof result?.afterResponse !== 'function') {
+          response.end(encodedBody);
+        } else {
+          let afterResponseStarted = false;
+          const startAfterResponse = () => {
+            if (afterResponseStarted) return;
+            afterResponseStarted = true;
+            void Promise.resolve().then(() => result.afterResponse()).catch(() => {});
+          };
+          // A destructive control action starts only once the response has
+          // flushed, or once a disconnected caller can no longer receive it.
+          // This keeps the serving bootstrap listener alive through delivery
+          // without letting a reset peer cancel already-admitted work.
+          response.once('finish', startAfterResponse);
+          response.once('close', startAfterResponse);
+          response.end(encodedBody);
+        }
       } catch {
         response.statusCode = 500;
         response.end(JSON.stringify({ ok: false, code: 'SNAPBACK_EXPO_CONTROL_FAILED' }));
@@ -3529,7 +3543,6 @@ export async function runExpoDev(options = {}) {
   let childClosePromise = null;
   let closePromise = null;
   let closeSupervisor = null;
-  let closeSupervisorChildren = null;
   let parentLease = null;
   let cleanupLease = null;
   let bindingPublisher = null;
@@ -3622,7 +3635,6 @@ export async function runExpoDev(options = {}) {
     })();
     return childClosePromise;
   };
-  closeSupervisorChildren = closeChildren;
   const close = () => {
     if (closePromise !== null) return closePromise;
     const children = closeChildren();
@@ -4007,11 +4019,14 @@ export async function runExpoDev(options = {}) {
     // sessions-first at the provider boundary, but the provider's default
     // adoption request is now the first mint; there is no discarded S1.
     let route = null;
+    // @ref LLP 0310.000#track-e--add-the-missing-verb-to-the-control-route-that-already-exists — the
+    // token-gated HTTP plane and owner-bound socket enqueue their shared verb
+    // implementations on one serialized dispatcher.
     handleBootstrapControl = async ({ operatorToken, body }) => {
         let expectedOperatorToken = null;
         try {
           expectedOperatorToken = managedAdminToken(
-            readReadyDescriptor(dev.readyFile),
+            readyDescriptor,
             database,
           );
           // @ref LLP 0181#provider — the operator capability remains
@@ -4026,13 +4041,14 @@ export async function runExpoDev(options = {}) {
         } finally {
           expectedOperatorToken = null;
         }
-        if (body?.verb !== 'dev-fresh') {
+        const verb = typeof body?.verb === 'string' ? body.verb : null;
+        if (!SUPERVISED_HTTP_CONTROL_VERBS.includes(verb)) {
           return {
             statusCode: 400,
             body: {
               ok: false,
               code: 'SNAPBACK_EXPO_CONTROL_VERB_UNKNOWN',
-              supported: ['dev-fresh'],
+              supported: SUPERVISED_HTTP_CONTROL_VERBS,
             },
           };
         }
@@ -4044,7 +4060,28 @@ export async function runExpoDev(options = {}) {
               'the supervised control dispatcher is not ready',
             );
           }
-          const result = await controlDispatcher.enqueue('dev-fresh', { requestId });
+          if (verb === 'stop-children') {
+            let releaseResponse;
+            const responseFlushed = new Promise((resolveFlushed) => {
+              releaseResponse = resolveFlushed;
+            });
+            const operation = controlDispatcher.enqueue(verb, { requestId, responseFlushed });
+            return {
+              statusCode: 200,
+              body: {
+                schemaVersion: DEV_CONTROL_ACK_FORMAT,
+                ok: true,
+                state: 'acknowledged',
+                verb,
+                ...(requestId === undefined ? {} : { requestId }),
+              },
+              afterResponse: async () => {
+                releaseResponse();
+                await operation;
+              },
+            };
+          }
+          const result = await controlDispatcher.enqueue(verb, { requestId });
           return {
             statusCode: 200,
             body: result,
@@ -4052,7 +4089,7 @@ export async function runExpoDev(options = {}) {
         } catch (error) {
           return {
             statusCode: 200,
-            body: {
+            body: verb === 'dev-fresh' ? {
               schemaVersion: 'snapback.reset-dev-fresh.v1',
               ok: false,
               mode: 'supervised',
@@ -4060,6 +4097,17 @@ export async function runExpoDev(options = {}) {
                 error,
                 'SNAPBACK_EXPO_CONTROL_FAILED',
                 'the supervised dev-fresh control request did not complete',
+              )],
+              ...(requestId === undefined ? {} : { requestId }),
+            } : {
+              schemaVersion: EXPO_DEV_EVENT_FORMAT,
+              ok: false,
+              state: `${verb}-failed`,
+              verb,
+              diagnostics: [error?.diagnostic ?? clientDiagnostic(
+                error,
+                'SNAPBACK_EXPO_CONTROL_FAILED',
+                `the supervised ${verb} control request did not complete`,
               )],
               ...(requestId === undefined ? {} : { requestId }),
             },
@@ -4256,6 +4304,7 @@ export async function runExpoDev(options = {}) {
       ...(metroFront === null ? [] : [{ owner: 'metro-front', port: metroPort }]),
       { owner: 'bootstrap', port: bootstrap.port },
     ];
+    let backendControlClosed = false;
     const refreshLiveBackendListenerTarget = () => {
       const liveReady = readReadyDescriptor(dev.readyFile);
       const liveRoute = portFromOrigin(liveReady.serverUrl, 'Snapback backend');
@@ -4373,7 +4422,16 @@ export async function runExpoDev(options = {}) {
           await options.afterMetroReloadPreviousStopped?.({ metro: previousMetro });
         }
         const restartedMetro = await launchMetro(backendRoute.origin);
-        const liveBackend = refreshLiveBackendListenerTarget();
+        const liveBackend = backendControlClosed
+          ? Object.freeze({
+              backendPid,
+              expectedListeners: Object.freeze([
+                { owner: 'metro', port: metroProcessPort },
+                ...(metroFront === null ? [] : [{ owner: 'metro-front', port: metroPort }]),
+                { owner: 'bootstrap', port: bootstrap.port },
+              ]),
+             })
+          : refreshLiveBackendListenerTarget();
         listeners = await waitForListenerInventory({
           backendPid: liveBackend.backendPid,
           metroPid: restartedMetro.child.pid,
@@ -4424,7 +4482,11 @@ export async function runExpoDev(options = {}) {
           origin: appOrigin(route.appHost, metroPort),
           upstreamOrigin: appOrigin(LOOPBACK_HOST, metroProcessPort),
         });
-        updateSupervisorDescriptor({ metro: metroReadiness, listeners });
+        updateSupervisorDescriptor({
+          ...(backendControlClosed ? { state: 'metro-only' } : {}),
+          metro: metroReadiness,
+          listeners,
+        });
         await new Promise((resolveTurn) => setImmediate(resolveTurn));
         assertReplacementMetroActive();
         return emit({
@@ -4457,19 +4519,68 @@ export async function runExpoDev(options = {}) {
         return failure;
       }
     };
-    const stopChildrenVerb = async ({ requestId } = {}) => {
-      // Child teardown is the control-lane operation. Endpoint shutdown is
-      // triggered by the stop reply path only after this result flushes, so
-      // stop-children never awaits the dispatcher lane that is executing it.
-      const closedEvent = await closeSupervisorChildren();
-      return Object.freeze({
-        schemaVersion: EXPO_DEV_EVENT_FORMAT,
-        ok: true,
+    const stopChildrenVerb = async ({ requestId, responseFlushed = null } = {}) => {
+      // HTTP admits this operation into the shared lane before replying, then
+      // releases the gate from response.end's flush/close callback. Socket
+      // callers already have a two-message acknowledgement/result protocol and
+      // therefore enter teardown immediately after their acknowledgement.
+      if (responseFlushed !== null) await responseFlushed;
+      await options.beforeStopChildren?.({ requestId });
+      const failures = [];
+      const stoppedMetro = metro;
+      const installedForwards = forwarding?.installed?.length ?? 0;
+      if (stoppedMetro !== null) intentionallyStoppedMetroChildren.add(stoppedMetro.child);
+      try { forwarding?.remove?.(); } catch (error) { failures.push(error); }
+      forwarding = null;
+      if (stoppedMetro !== null) {
+        try {
+          await stopProcessGroup(stoppedMetro.child, { processGroup: true });
+        } catch (error) { failures.push(error); }
+      }
+      if (metro === stoppedMetro) metro = null;
+      metroLaunching = null;
+      metroAttestation = null;
+      try {
+        if (!backendControlClosed) await dev?.close?.();
+      } catch (error) { failures.push(error); }
+      backendControlClosed = true;
+      try { bindingPublisher?.close?.(); } catch (error) { failures.push(error); }
+      checkoutRegistry?.invalidate();
+      checkoutRegistry = null;
+      checkoutNonce = null;
+      authority = null;
+      listeners = Object.freeze(listeners.filter(({ owner }) => (
+        owner === 'bootstrap' || owner === 'metro-front'
+      )));
+      metroReadiness = null;
+      updateSupervisorDescriptor({
+        state: 'children-stopped',
+        metro: null,
+        listeners,
+      });
+      const stoppedEvent = emit({
+        ok: failures.length === 0,
         state: 'children-stopped',
         verb: 'stop-children',
         ...(requestId === undefined ? {} : { requestId }),
-        reclaimed: closedEvent?.reclaimed ?? null,
+        reclaimed: {
+          backend: dev?.managed === true,
+          metro: stoppedMetro !== null,
+          bootstrap: false,
+          portForwards: installedForwards,
+        },
+        ...(failures.length === 0 ? {} : {
+          diagnostics: failures.map((error) => error?.diagnostic ?? clientDiagnostic(
+            error,
+            'SNAPBACK_EXPO_CHILD_STOP_FAILED',
+            error?.message ?? 'a supervised child did not stop cleanly',
+          )),
+        }),
       });
+      if (failures.length > 0) {
+        throw new AggregateError(failures, 'Expo supervisor child cleanup failed');
+      }
+      return stoppedEvent;
     };
     const runBackendLifecycleVerb = async (verb, context) => {
       const event = await dev.verbs[verb](context);
@@ -4642,7 +4753,6 @@ export async function runExpoDev(options = {}) {
           'reload-metro': reloadMetroVerb,
           'stop-children': stopChildrenVerb,
         },
-        onStopComplete: options.onControlStop,
         onUnavailable(diagnostic) {
           controlSocketUnavailable = diagnostic;
           emit({

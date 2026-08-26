@@ -64,6 +64,8 @@ const runtimeBinary = process.env.SNAPBACK_SERVER_BINARY
   ?? join(repoRoot, 'target', 'debug', 'snapback');
 const metroFreshnessOnly = process.argv.includes('--metro-freshness-only');
 const controlSocketOnly = process.argv.includes('--control-socket-only');
+const httpControlOnly = process.argv.includes('--http-control-only');
+const controlOwnerSurvivalOnly = process.argv.includes('--control-owner-survival-only');
 if (!metroFreshnessOnly) {
   assert.ok(existsSync(runtimeBinary), `real Snapback runtime is missing: ${runtimeBinary}`);
 }
@@ -549,6 +551,7 @@ async function startFixture(target, options = {}) {
     afterSupervisedAuthorityRequested: options.afterSupervisedAuthorityRequested,
     controlSocket: options.controlSocket,
     afterControlEndpointLeaseActivation: options.afterControlEndpointLeaseActivation,
+    beforeStopChildren: options.beforeStopChildren,
     beforeDevFreshExpoRefresh: options.beforeDevFreshExpoRefresh,
     afterMetroReloadPreviousStopped: options.afterMetroReloadPreviousStopped,
     afterMetroReloadListenersVerified: options.afterMetroReloadListenersVerified,
@@ -711,6 +714,21 @@ async function sendControlCommand(controlSocket, command) {
   const operation = openControlCommand(controlSocket, command);
   void operation.acknowledged.catch(() => {});
   return await operation.completion;
+}
+
+async function sendHttpControl(supervisorDescriptor, operatorToken, verb, requestId) {
+  const response = await fetch(
+    `${supervisorDescriptor.exchangeOrigin}${supervisorDescriptor.controlPath}`,
+    {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-snapback-operator-token': operatorToken,
+      },
+      body: JSON.stringify({ verb, requestId }),
+    },
+  );
+  return Object.freeze({ status: response.status, body: await response.json() });
 }
 
 async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
@@ -1051,12 +1069,6 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
     controlCommand(controlSocket, 'stop-children', 'stop-1'),
   );
   await stopOperation.acknowledged;
-  const stopping = await sendControlCommand(
-    controlSocket,
-    controlCommand(controlSocket, 'reload-metro', 'stopping-1'),
-  );
-  assert.equal(stopping.length, 1, 'work arriving after stop begins must not be acknowledged');
-  assert.equal(stopping[0].diagnostics[0].code, 'SNAPBACK_DEV_CONTROL_STOPPING');
   const [reload, stop] = await Promise.all([
     reloadOperation.completion,
     stopOperation.completion,
@@ -1088,14 +1100,25 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
   assert.equal(stop[1].requestId, 'stop-1');
   assert.equal(stop[1].ok, true);
   assert.equal(stop[1].result.state, 'children-stopped');
-  const exit = await Promise.race([
-    new Promise((resolveExit) => child.once('exit', (code, signal) => resolveExit({ code, signal }))),
-    new Promise((_, rejectExit) => setTimeout(
-      () => rejectExit(new Error('snapback dev --expo CLI did not join shutdown')),
-      15_000,
-    )),
-  ]);
-  assert.deepEqual(exit, { code: 0, signal: null }, stderr || stdoutBuffer);
+  assert.equal(
+    child.exitCode,
+    null,
+    'stop-children must leave the packaged Expo lifecycle owner alive',
+  );
+  assert.equal(
+    existsSync(controlSocket.path),
+    true,
+    'stop-children must preserve the owner-bound control endpoint',
+  );
+  const reloadAfterStop = await sendControlCommand(
+    controlSocket,
+    controlCommand(controlSocket, 'reload-metro', 'reload-after-stop'),
+  );
+  assert.equal(reloadAfterStop.length, 2, JSON.stringify(reloadAfterStop));
+  assert.equal(reloadAfterStop[1].ok, true, JSON.stringify(reloadAfterStop));
+  assert.equal(reloadAfterStop[1].requestId, 'reload-after-stop');
+  assert.equal(reloadAfterStop[1].result.previousPid, null);
+  assert.equal(processGroupAlive(reloadAfterStop[1].result.pid), true);
   if (stubbornMetroDuringReload) {
     assert.equal(
       events.some((event) => event.diagnostics?.some(
@@ -1107,10 +1130,28 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
   }
   assert(events.some((event) => event.schemaVersion === 'snapback.expo-dev.v1'
     && event.state === 'control-event'));
+  const exitPromise = new Promise((resolveExit) => {
+    child.once('exit', (code, signal) => resolveExit({ code, signal }));
+  });
+  child.kill('SIGTERM');
+  const exit = await Promise.race([
+    exitPromise,
+    new Promise((_, rejectExit) => setTimeout(
+      () => rejectExit(new Error('snapback dev --expo CLI did not join SIGTERM shutdown')),
+      15_000,
+    )),
+  ]);
+  assert.deepEqual(exit, { code: 0, signal: null }, stderr || stdoutBuffer);
   assert(events.some((event) => event.schemaVersion === 'snapback.expo-dev.v1'
     && event.state === 'closed'));
   assert.equal(existsSync(controlSocket.path), false);
-  for (const pid of [metroPidBefore, ...intermediateMetroPids, reloadPreviousPid, reload[1].result.pid]) {
+  for (const pid of [
+    metroPidBefore,
+    ...intermediateMetroPids,
+    reloadPreviousPid,
+    reload[1].result.pid,
+    reloadAfterStop[1].result.pid,
+  ]) {
     await eventually(() => !processGroupAlive(pid), { label: `Metro cleanup for pid ${pid}` });
   }
   const metroProcessPort = Number(new URL(readyEvent.metro.upstreamOrigin).port);
@@ -1150,6 +1191,144 @@ function assertGrepAbsent(label, files, bearers) {
       1,
       `${label} leaked an issued bearer: ${result.stdout}${result.stderr}`,
     );
+  }
+}
+
+async function runHttpControlE1Suite() {
+  const controlRoot = mkdtempSync('/tmp/sb-http-e1-');
+  const target = fixture('http-control-app', { sessions: true, root: controlRoot });
+  const stopAtBarrier = deferred();
+  const releaseStop = deferred();
+  let holdStop = false;
+  let run = null;
+  try {
+    run = await startFixture(target, {
+      platform: 'web',
+      controlSocket: true,
+      async beforeStopChildren({ requestId } = {}) {
+        if (!holdStop || requestId !== 'http-stop-1') return;
+        stopAtBarrier.resolve();
+        await releaseStop.promise;
+      },
+    });
+    const supervisorDescriptorPath = join(dirname(target.readyFile), 'expo-supervisor.json');
+    const supervisorDescriptor = JSON.parse(readFileSync(supervisorDescriptorPath, 'utf8'));
+    const operatorToken = managedAdminToken(
+      readReadyDescriptor(target.readyFile),
+      target.database,
+    );
+    console.log('HTTP E1: supervisor ready');
+
+    const unauthorized = await sendHttpControl(
+      supervisorDescriptor,
+      'wrong-operator-token',
+      'reload-metro',
+      'http-unauthorized-1',
+    );
+    assert.equal(unauthorized.status, 401);
+    assert.equal(unauthorized.body.code, 'SNAPBACK_EXPO_CONTROL_UNAUTHORIZED');
+
+    const unknown = await sendHttpControl(
+      supervisorDescriptor,
+      operatorToken,
+      'recook',
+      'http-unknown-1',
+    );
+    assert.equal(unknown.status, 400);
+    assert.equal(unknown.body.code, 'SNAPBACK_EXPO_CONTROL_VERB_UNKNOWN');
+    console.log('HTTP E1: unauthorized and unknown verbs refused');
+
+    const initialMetroPid = supervisorDescriptor.metro.pid;
+    const reload = await sendHttpControl(
+      supervisorDescriptor,
+      operatorToken,
+      'reload-metro',
+      'http-reload-1',
+    );
+    assert.equal(reload.status, 200);
+    assert.equal(reload.body.ok, true, JSON.stringify(reload.body));
+    assert.equal(reload.body.requestId, 'http-reload-1');
+    assert.equal(reload.body.previousPid, initialMetroPid);
+    assert.notEqual(reload.body.pid, initialMetroPid);
+    assert.equal(processGroupAlive(initialMetroPid), false);
+    assert.equal(processGroupAlive(reload.body.pid), true);
+    assert.equal(
+      JSON.parse(readFileSync(supervisorDescriptorPath, 'utf8')).metro.pid,
+      reload.body.pid,
+      'HTTP reload-metro must publish the replacement Metro pid',
+    );
+    console.log('HTTP E1: reload-metro replaced Metro with correlated result');
+
+    const backendPid = readReadyDescriptor(target.readyFile).pid;
+    holdStop = true;
+    const stopResponse = await Promise.race([
+      sendHttpControl(
+        supervisorDescriptor,
+        operatorToken,
+        'stop-children',
+        'http-stop-1',
+      ),
+      new Promise((_, rejectStop) => setTimeout(
+        () => rejectStop(new Error('HTTP stop-children did not flush its response before teardown')),
+        5_000,
+      )),
+    ]);
+    assert.equal(stopResponse.status, 200);
+    assert.equal(stopResponse.body.ok, true, JSON.stringify(stopResponse.body));
+    assert.equal(stopResponse.body.requestId, 'http-stop-1');
+    assert.equal(stopResponse.body.verb, 'stop-children');
+    assert.equal(stopResponse.body.state, 'acknowledged');
+    console.log('HTTP E1: stop-children response flushed');
+    await stopAtBarrier.promise;
+    releaseStop.resolve();
+    const stopped = await eventually(
+      () => run.events.find((event) => (
+        event.state === 'children-stopped' && event.requestId === 'http-stop-1'
+      )),
+      { label: 'HTTP stop-children effect after response flush' },
+    );
+    assert.equal(stopped.ok, true, JSON.stringify(stopped));
+    console.log('HTTP E1: stop-children effect settled');
+    await eventually(() => !processAlive(backendPid), { label: 'HTTP-stopped backend child' });
+    await eventually(() => !processGroupAlive(reload.body.pid), { label: 'HTTP-stopped Metro child' });
+    assert.equal(existsSync(run.supervisor.controlSocket.path), true);
+    console.log('HTTP E1: child process groups gone; owner socket remains');
+
+    const afterStop = await sendControlCommand(
+      run.supervisor.controlSocket,
+      controlCommand(
+        run.supervisor.controlSocket,
+        'reload-metro',
+        'socket-reload-after-http-stop',
+      ),
+    );
+    assert.equal(afterStop.length, 2, JSON.stringify(afterStop));
+    assert.equal(afterStop[1].ok, true, JSON.stringify(afterStop));
+    assert.equal(afterStop[1].requestId, 'socket-reload-after-http-stop');
+    assert.equal(afterStop[1].result.previousPid, null);
+    assert.equal(processGroupAlive(afterStop[1].result.pid), true);
+    console.log('HTTP E1: token gate, refusal arms, correlated Metro effect, flushed stop, and owner reuse pass');
+  } finally {
+    releaseStop.resolve();
+    if (run !== null) {
+      await run.supervisor.close().catch(() => {});
+      supervisors.splice(supervisors.indexOf(run.supervisor), 1);
+    }
+    rmSync(controlRoot, { recursive: true, force: true });
+  }
+}
+
+async function runPackagedControlOwnerSurvivalSuite() {
+  const controlRoot = mkdtempSync('/tmp/sb-owner-e1-');
+  try {
+    const target = fixture('packaged-owner-app', { sessions: true, root: controlRoot });
+    const range = await reserveFreeRange(8);
+    await runCliSupervisor(target, 'web', [
+      '--port-range', `${range.lo}-${range.hi}`,
+    ]);
+    console.log('packaged owner: stop-children preserves owner/socket and later reload-metro respawns Metro');
+  } finally {
+    rmSync(controlRoot, { recursive: true, force: true });
   }
 }
 
@@ -1636,11 +1815,17 @@ async function runControlSocketSuite() {
 }
 
 try {
-  if (controlSocketOnly) {
+  if (httpControlOnly) {
+    await runHttpControlE1Suite();
+  } else if (controlOwnerSurvivalOnly) {
+    await runPackagedControlOwnerSurvivalSuite();
+  } else if (controlSocketOnly) {
+    await runHttpControlE1Suite();
     await runControlSocketSuite();
   } else {
   // The package-default suite owns the E1 no-TTY witness too; CI cannot green
   // by running only the broader lifecycle cases below.
+  await runHttpControlE1Suite();
   await runControlSocketSuite();
   let largeUpstreamCancelled = false;
   let largeUpstreamBytes = 0;

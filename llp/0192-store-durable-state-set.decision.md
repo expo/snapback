@@ -7,10 +7,10 @@
 **Date:** 2026-08-08
 **Revised:** 2026-08-25 (Active: linked into `llp/foundation/` as part of the
 LLP v2 larger kernel)
-**Revised:** 2026-08-25 (owner-bound Expo dev-control socket, owner marker,
-pathname coordination markers, and private pending paths are explicitly
-InstanceLocal: transient, never copied/exported, and crash-cleaned or
-successor-reclaimed under their identity predicates)
+**Revised:** 2026-08-26 (owner-bound Expo `.dc-*` dev-control members,
+including the socket, owner marker, pathname coordination markers, and private
+pending paths, are explicitly InstanceLocal: transient, never copied/exported,
+and crash-cleaned or successor-reclaimed under their identity predicates)
 **Revised:** 2026-08-21 (the packaged `dev-fresh` reset now requires the
 canonical CLI-owned managed-store path, validates the database before deleting
 anything, and refuses shared-directory or symlink ambiguity)

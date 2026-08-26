@@ -481,11 +481,15 @@ forwards on exit
 ([LLP 0181 §Supervised development baseline](repo:llp/0181-zero-configuration-expo.rfc.md#supervised-development-baseline),
 [`runExpoDev`](repo:packages/snapback-cli/expo-dev.mjs)).
 
-For a headless `--json` launch whose stdin is `/dev/null`, read the
-`controlSocket` field from `.snapback/expo-supervisor.json` and use its
-owner-bound acknowledgement protocol; do not signal a process by pattern.
-The exact request shape, `reload-metro` / `stop-children` verb set, and
-stale/foreign refusal rules are in
+For a headless `--json` launch whose stdin is `/dev/null`, use the token-gated
+HTTP route at `exchangeOrigin + controlPath` from
+`.snapback/expo-supervisor.json`; the managed ready descriptor names its
+owner-only admin-token file. If that descriptor has no admin-token carrier,
+use the descriptor's owner-bound `controlSocket` instead. Both planes run
+`reload-metro` and `stop-children` through one serialized dispatcher; do not
+signal a process by pattern. `stop-children` leaves the CLI owner alive, so a
+later `reload-metro` on that owner respawns Metro. The exact request shapes,
+HTTP and socket responses, and stale/foreign refusal rules are in
 [Control a detached Expo dev supervisor](../operating/agent-controls.md#control-a-detached-expo-dev-supervisor).
 
 When a watched backend edit reaches `generated-and-loaded`, the supervisor
