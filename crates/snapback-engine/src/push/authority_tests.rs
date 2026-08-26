@@ -3,6 +3,9 @@ use super::*;
 use crate::auth::invocation::{
     InvocationGate, InvocationSource, PreparedAuthority, ResolvedAppAuthority, WireAuthorityFields,
 };
+use crate::auth::mode::{
+    AuthModeStateRecord, DeploymentIdentity, FUNCTION_V1_PREFIX, INPUTS_V1_PREFIX, SCHEMA_V1_PREFIX,
+};
 use crate::contract_types::ServerProfile;
 use crate::diagnostic::SnapbackError;
 use crate::ids::{self, Kind};
@@ -240,11 +243,31 @@ fn session_authority(user_id: &str) -> crate::auth::invocation::PreparedAuthorit
 }
 
 fn system_authority() -> crate::auth::invocation::PreparedAuthority {
+    let digest = |prefix: &str, byte: char| format!("{prefix}{}", byte.to_string().repeat(64));
+    let deployment = DeploymentIdentity {
+        schema_version: "snapback.v1".to_owned(),
+        auth_mode: AuthMode::Sessions,
+        app_id: "push-authority-fixture".to_owned(),
+        schema_hash: digest(SCHEMA_V1_PREFIX, 'a'),
+        bundle_hash: digest(FUNCTION_V1_PREFIX, 'b'),
+        inputs_hash: digest(INPUTS_V1_PREFIX, 'c'),
+    };
+    let mut mode = AuthModeStateRecord::initial_dev(Some(deployment.clone()));
+    mode.transition_generation = 1;
+    mode.active = AuthMode::Sessions;
+    mode.desired = AuthMode::Sessions;
+    mode.sessions_ever_activated = true;
+    mode.active_deployment = Some(deployment);
+    mode.validate_shape().expect("settled sessions mode");
+    let admission = crate::auth::admission::AdmissionController::from_mode_state(&mode)
+        .expect("push authority admission controller")
+        .admit_for_mode(AuthMode::Sessions)
+        .expect("push authority admission");
     InvocationGate::prepare_admitted_subjectless_authority(
         InvocationSource::Cron,
         AuthMode::Sessions,
         ServerProfile::Test,
-        crate::auth::admission::AdmissionLease::unmanaged(1, 1),
+        admission,
         &WireAuthorityFields::default(),
         ResolvedAppAuthority::System,
         None,
