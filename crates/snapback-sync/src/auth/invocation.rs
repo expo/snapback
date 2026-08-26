@@ -405,6 +405,10 @@ impl ResolvedSessionAuthority {
     ) -> Option<&crate::auth::rehearsal::AuthRehearsalProvenanceV1> {
         self.rehearsal_provenance.as_ref()
     }
+
+    pub(crate) fn admission_origin(&self) -> &crate::auth::admission::AdmissionLeaseOrigin {
+        &self.admission_origin
+    }
 }
 
 /// Immutable result of one serving-database scoped-token resolution.
@@ -939,6 +943,41 @@ impl ResolvedServiceAuthority {
 
     pub fn publication(&self) -> &ServiceAuthorityPublication {
         &self.publication
+    }
+
+    /// Re-enter one approved effect only through the original service
+    /// resolution's sealed admission origin. The human approver remains a
+    /// distinct principal and cannot lend its already-bound lease.
+    ///
+    /// @ref LLP 0303#derivation-is-a-lifetime-property-not-a-constructor-event — retained work rejoins only its sealed producer graph.
+    pub fn prepare_retained_effect(
+        self,
+        expected_database: &crate::storage::DatabaseBinding,
+        profile: ServerProfile,
+        wire: &WireAuthorityFields,
+        stream_publication: Option<FencedPublication>,
+    ) -> SnapbackResult<PreparedAuthority> {
+        let admission = match &self.resolved {
+            ResolvedAppAuthority::ServicePrincipal(subject) => subject
+                .admission_origin
+                .admit_for_mode(AuthMode::Sessions)?,
+            _ => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_EFFECT_AUTHORITY_INVALID",
+                    "effects",
+                    "retained effect service carrier does not contain service authority",
+                ));
+            }
+        };
+        self.prepare(
+            expected_database,
+            InvocationSource::EffectExecution,
+            AuthMode::Sessions,
+            profile,
+            admission,
+            wire,
+            stream_publication,
+        )
     }
 
     #[allow(clippy::too_many_arguments)]

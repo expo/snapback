@@ -531,6 +531,41 @@ impl PreparedBearerAuthority {
         )
     }
 
+    /// Re-enter one approved effect only through the original session
+    /// resolution's sealed admission origin. The approver's lease is already
+    /// bound to a different subject and must never be reused here.
+    ///
+    /// @ref LLP 0303#derivation-is-a-lifetime-property-not-a-constructor-event — retained work rejoins only its sealed producer graph.
+    pub fn prepare_retained_effect(
+        self,
+        database: &mut crate::storage::ServingDatabase,
+        profile: ServerProfile,
+        wire: &WireAuthorityFields,
+        now_ms: u64,
+    ) -> SnapbackResult<PreparedAuthority> {
+        let admission = match &self.authority {
+            ResolvedAppAuthority::Session(subject) => subject
+                .admission_origin()
+                .admit_for_mode(AuthMode::Sessions)?,
+            _ => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_EFFECT_AUTHORITY_INVALID",
+                    "effects",
+                    "retained effect session carrier does not contain session authority",
+                ));
+            }
+        };
+        self.prepare(
+            database,
+            InvocationSource::EffectExecution,
+            AuthMode::Sessions,
+            profile,
+            admission,
+            wire,
+            now_ms,
+        )
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn prepare(
         self,

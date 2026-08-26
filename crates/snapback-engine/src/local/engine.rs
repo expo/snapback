@@ -6347,16 +6347,15 @@ impl LocalSnapback {
         ) {
             return Err(effect_original_authority_mismatch());
         }
+        let authority = prepared.prepare_retained_effect(
+            &mut self.db,
+            approval.management.profile(),
+            &WireAuthorityFields::default(),
+            now_ms,
+        )?;
+        self.require_owned_authority_admission(authority.admission_lease())?;
         let authority = self
-            .prepare_bearer_authority(
-                prepared,
-                InvocationSource::EffectExecution,
-                AuthMode::Sessions,
-                approval.management.profile(),
-                approval.management.admission_lease().clone(),
-                &WireAuthorityFields::default(),
-                now_ms,
-            )?
+            .install_authorization_stream(authority)?
             .with_effect_caller_attribution(
                 approval.pending.effect(),
                 &approval.approver_attribution,
@@ -6373,7 +6372,7 @@ impl LocalSnapback {
         approval: &PreparedEffectApproval,
         resolution: ResolvedServiceAuthority,
         stream_publication: crate::auth::session_projection::FencedPublication,
-        now_ms: u64,
+        _now_ms: u64,
     ) -> SnapbackResult<PreparedEffectOriginalAuthority> {
         let crate::storage::pending_effects::RetainedEffectOriginalAuthority::ServicePrincipal(
             retained,
@@ -6394,17 +6393,15 @@ impl LocalSnapback {
         ) {
             return Err(effect_original_authority_mismatch());
         }
+        let authority = resolution.prepare_retained_effect(
+            &self.db.binding(),
+            approval.management.profile(),
+            &WireAuthorityFields::default(),
+            Some(stream_publication),
+        )?;
+        self.require_owned_authority_admission(authority.admission_lease())?;
         let authority = self
-            .prepare_service_authority(
-                resolution,
-                InvocationSource::EffectExecution,
-                AuthMode::Sessions,
-                approval.management.profile(),
-                approval.management.admission_lease().clone(),
-                &WireAuthorityFields::default(),
-                now_ms,
-                stream_publication,
-            )?
+            .install_authorization_stream(authority)?
             .with_effect_caller_attribution(
                 approval.pending.effect(),
                 &approval.approver_attribution,
