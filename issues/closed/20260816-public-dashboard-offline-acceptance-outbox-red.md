@@ -2347,3 +2347,107 @@ files, 0 errors, 0 unchecked`; `git diff --check` produces no output. No
 generator was run; the symbol registry, guide manifest, flat guides, and
 diagnostics registry remain byte-identical to merge base
 `baacaa20983f029f3e9cd23f60385ba00085e947`.
+
+### Round-33 dual-review closure (2026-08-26)
+
+Pending acknowledgement reads now require a complete enqueue target just like
+ACK-ready marking and confirmation. Omission or invalidity returns an empty
+set, and the shared store contract proves this across memory, file, SQLite,
+and IndexedDB while retaining exact target-local ACK selection. The exported
+helper declaration now includes its authority descriptor and enqueue target.
+
+`RqsResumeStore.outboxDiscardPendingInsertion` is required in the public type,
+matching the runtime's typed incapability refusal and every shipped carrier.
+The type fixture proves both that required member and the complete
+`pendingAcknowledgementsFor` signature.
+
+An explicit online-only (`queue:false`) string-named foreground mutation now
+hydrates its operation target from already-inspected complete target evidence
+and derives the mutation-wire `expectedGeneration` from that pin. The
+final-answer deployment-race regression proves the carrier asserts generation
+G1 and the switched generation G2 executes zero effects. A fresh unbound
+offline client remains online-only without guessing an app or generation.
+
+The fail-first regressions reported the reviewed defects before production
+changes:
+
+```text
+[omitted ACK target exposed both targets on every store]
+AssertionError [ERR_ASSERTION]: memory: omitted ACK target exposes no cross-target ids
+AssertionError [ERR_ASSERTION]: indexeddb: omitted ACK target exposes no cross-target ids
+AssertionError [ERR_ASSERTION]: sqlite: omitted ACK target exposes no cross-target ids
+AssertionError [ERR_ASSERTION]: file: omitted ACK target exposes no cross-target ids
+
+[online-only string-name POST omitted its inspected generation]
+✖ online-only string-named mutation carries the inspected generation across the final-answer deployment race
+AssertionError [ERR_ASSERTION]: the online-only string-named foreground carrier asserts its inspected generation
++ null
+- {
+
+[RqsResumeStore compensation was optional]
+packages/snapback-client/rqs-store-types.fixture.ts(13,7): error TS2322: Type 'true' is not assignable to type 'false'.
+
+[pendingAcknowledgementsFor declaration omitted two runtime parameters]
+packages/snapback-client/rqs-store-types.fixture.ts(23,3): error TS2554: Expected 3 arguments, but got 5.
+```
+
+The summary correction above is documentation-only, so it has no fabricated
+runtime failure.
+
+At exact implementation commit
+`dc0f11f27e95bac2e0dd462b542d7836ee20022f`, the required combined suite
+reports verbatim:
+
+```text
+ℹ tests 264
+ℹ suites 0
+ℹ pass 264
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2012.463875
+```
+
+The full `npm test --prefix packages/snapback-client` script passes the
+changed pretest and outbox coverage, then reaches only the inherited
+out-of-scope RQS red:
+
+```text
+✖ pre-subscribe durable-buffer overflow fails closed to one fresh snapshot [web/indexeddb] (11.741542ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 29
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2511.718959
+```
+
+The exact client TypeScript fixture command exits zero. The export-types gate
+reports its inherited codegen declaration red only:
+
+```text
+[check-package-export-types] fixture compile ok: 121 subpaths across 14 packages
+[check-package-export-types] FAILED (1):
+  - @expo/snapback-codegen ./app-descriptor: runtime exports missing from the declaration: APPLICATION_AUTH_BOOTSTRAP_CREDENTIAL_MODES, APPLICATION_AUTH_BOOTSTRAP_PROVIDERS, APPLICATION_AUTH_BOOTSTRAP_PROVIDER_KINDS
+```
+
+Both public-dashboard witnesses ran at that exact implementation commit with
+`SNAPBACK_SERVER_BINARY="$PWD/target/debug/snapback"` and report verbatim:
+
+```text
+PASS public-dashboard / offline-local-first (JS arm) — 9/9
+PASS public-dashboard / headless — 6/6
+```
+
+Both machine-readable reports contain `cleanupErrors: []` and
+`cleanupErrorCount: 0`. The configured binary is stamped at
+`a97e75286f098066931701df515fe7a812961798`, so both runs report the expected
+checkout/binary identity mismatch and exercise this JS-only implementation
+commit. `./ref-check --verbose` reports `311 LLP docs, 6657 refs in 12507
+files, 0 errors, 0 unchecked`; `git diff --check` produces no output. No
+generator was run; the symbol registry, guide manifest, flat guides, and
+diagnostics registry remain byte-identical to merge base
+`baacaa20983f029f3e9cd23f60385ba00085e947`.
