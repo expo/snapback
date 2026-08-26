@@ -286,7 +286,7 @@ existing `EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN` remains a control-plane
 rendezvous and never becomes a second binding source. The credential-free
 exchange publishes the binding without creating a session. A supervised
 ordinary session is minted only when a client explicitly requests adoption,
-and `SnapbackExpoProvider`/`createSnapbackExpoBoot` do so only when
+and on web `SnapbackExpoProvider`/`createSnapbackExpoBoot` do so only when
 `adoptSupervisedSession: true` is supplied (an explicit refresh or operator
 replacement remains explicit too). The default first-party provider therefore
 reaches anonymous ready and exposes guest/password entry on web; native keeps
