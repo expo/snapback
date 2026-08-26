@@ -9688,69 +9688,90 @@ impl LocalSnapback {
                     crate::storage::auth_agent_credentials::SCOPED_TOKEN_MAX_TTL_MS,
                 ))
                 .min(crate::storage::SEQUENCE_MAX_SAFE_INTEGER);
+        if self.db.schema().effective_agents_manifest().mode
+            == crate::manifest::AgentsMode::Disabled
+        {
+            let digest =
+                |prefix: &str, byte: char| format!("{prefix}{}", byte.to_string().repeat(64));
+            let mut schema = self.db.schema().clone();
+            schema.schema_version = "snapback.v1".to_owned();
+            schema.auth = Some(crate::manifest::AuthManifest {
+                mode: AuthMode::Sessions,
+                agents: Some(crate::manifest::AgentsManifest::explicit(
+                    crate::manifest::AgentsMode::Open,
+                    crate::manifest::InvitedBy::Operators,
+                )),
+                password_identifier_mode: None,
+                password_minimum_length: None,
+            });
+            schema.schema_hash = Some(digest(crate::auth::mode::SCHEMA_V1_PREFIX, 'd'));
+            schema.inputs_hash = Some(digest(crate::auth::mode::INPUTS_V1_PREFIX, 'f'));
+            if !schema
+                .required_capabilities
+                .iter()
+                .any(|capability| capability == "auth.sessions.v1")
+            {
+                schema
+                    .required_capabilities
+                    .push("auth.sessions.v1".to_owned());
+            }
+            let mut functions = self.functions.clone();
+            functions.schema_version = "snapback.v1".to_owned();
+            functions.app_id = schema.app_id.clone();
+            functions.bundle_hash = Some(digest(crate::auth::mode::FUNCTION_V1_PREFIX, 'e'));
+            functions.inputs_hash = schema.inputs_hash.clone();
+            let prepared = self
+                .prepare_auth_provision(
+                    EnsureAppMode::Sessions,
+                    Some(schema),
+                    Some(functions.clone()),
+                    None,
+                )
+                .expect("preflight guarded unit-test agent registration policy");
+            self.commit_auth_provision(prepared, "test")
+                .expect("stage guarded unit-test agent registration policy");
+            let settled = self
+                .db
+                .auth_database_mut()
+                .consume_sessions_auth_mode_with_functions(
+                    &crate::auth::mode::AuthProgramReadiness::new(
+                        true, true, true, true, true, true, true,
+                    ),
+                    &functions,
+                )
+                .expect("activate guarded unit-test agent registration policy");
+            self.synchronize_auth_mode_admission(&settled)
+                .expect("publish guarded unit-test agent registration admission");
+            let diagnostics =
+                self.publish_preflighted_functions(functions, 1, DiagnosticBoundary::Attached);
+            assert!(
+                diagnostics.iter().all(|diagnostic| !matches!(
+                    diagnostic.severity,
+                    DiagnosticSeverity::Error | DiagnosticSeverity::Fatal
+                )),
+                "unit-test service functions must publish: {diagnostics:?}"
+            );
+        }
         self.db
             .activate_current_auth_catalog()
             .expect("activate unit-test service catalog");
-        let digest = |prefix: &str, byte: char| format!("{prefix}{}", byte.to_string().repeat(64));
-        let deployment = DeploymentIdentity {
-            schema_version: "snapback.v1".to_owned(),
-            auth_mode: AuthMode::Sessions,
-            app_id: "authority-provenance-service-unit-test".to_owned(),
-            schema_hash: digest(crate::auth::mode::SCHEMA_V1_PREFIX, 'd'),
-            bundle_hash: digest(crate::auth::mode::FUNCTION_V1_PREFIX, 'e'),
-            inputs_hash: digest(crate::auth::mode::INPUTS_V1_PREFIX, 'f'),
-        };
-        let mut state = AuthModeStateRecord::initial_dev(Some(deployment.clone()));
-        state.transition_generation = 1;
-        state.active = AuthMode::Sessions;
-        state.desired = AuthMode::Sessions;
-        state.sessions_ever_activated = true;
-        state.active_deployment = Some(deployment);
-        state
-            .validate_shape()
-            .expect("validate unit-test service mode");
-        self.admission
-            .synchronize_mode_state(&state)
-            .expect("bind unit-test service admission graph");
         let random = FixedServiceRandom {
             base: NEXT_SERVICE_FIXTURE_RANDOM.fetch_add(1_024, Ordering::SeqCst),
             next: AtomicU64::new(0),
         };
-        let original_schema = self.db.schema().clone();
-        let mut registration_schema = original_schema.clone();
-        let mut registration_auth =
-            registration_schema
-                .auth
-                .unwrap_or(crate::manifest::AuthManifest {
-                    mode: registration_schema.effective_auth_mode(),
-                    agents: None,
-                    password_identifier_mode: None,
-                    password_minimum_length: None,
-                });
-        registration_auth.agents = Some(crate::manifest::AgentsManifest::explicit(
-            crate::manifest::AgentsMode::Open,
-            crate::manifest::InvitedBy::Operators,
-        ));
-        registration_schema.auth = Some(registration_auth);
-        self.db
-            .schema_seed()
-            .apply_schema(registration_schema)
-            .expect("temporarily enable production agent registration for the unit-test fixture");
-        let credential_result = self.db.register_agent_principal_with_class(
-            None,
-            Some(actor_user_id.to_owned()),
-            None,
-            crate::storage::auth_integrations::AgentRegistrationClass::Agent,
-            crate::storage::auth_integrations::IntegrationRegistrationFacts::default(),
-            ServerProfile::Test,
-            now_ms,
-            &random,
-        );
-        self.db
-            .schema_seed()
-            .apply_schema(original_schema)
-            .expect("restore the unit-test app schema after agent registration");
-        let credential = credential_result.expect("register unit-test service principal");
+        let credential = self
+            .db
+            .register_agent_principal_with_class(
+                None,
+                Some(actor_user_id.to_owned()),
+                None,
+                crate::storage::auth_integrations::AgentRegistrationClass::Agent,
+                crate::storage::auth_integrations::IntegrationRegistrationFacts::default(),
+                ServerProfile::Test,
+                now_ms,
+                &random,
+            )
+            .expect("atomically register unit-test service principal");
         let actor_user_id = credential.user_id.clone();
         let token = {
             let db = self.db.auth_database_mut();
