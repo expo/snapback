@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import {
   buildTargetOnboardingPlan,
@@ -35,6 +36,21 @@ assert.deepEqual(Object.keys(TARGET_TIGRIS_ROLES).sort(), [
   'control-state',
   'logs',
 ]);
+const onboardingSource = readFileSync(new URL('./target-onboarding.mjs', import.meta.url), 'utf8');
+for (const [role, code] of Object.entries({
+  artifact: 'SNAPBACK_HOSTED_TARGET_TIGRIS_ARTIFACT_PARTIAL',
+  backup: 'SNAPBACK_HOSTED_TARGET_TIGRIS_BACKUP_PARTIAL',
+  'control-state': 'SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL_STATE_PARTIAL',
+  audit: 'SNAPBACK_HOSTED_TARGET_TIGRIS_AUDIT_PARTIAL',
+  logs: 'SNAPBACK_HOSTED_TARGET_TIGRIS_LOGS_PARTIAL',
+  cleanup: 'SNAPBACK_HOSTED_TARGET_TIGRIS_CLEANUP_PARTIAL',
+})) {
+  assert.match(
+    onboardingSource,
+    new RegExp(`(?:['"]${role}['"]|${role})\\s*:\\s*['"]${code}['"]`, 'u'),
+    `private partial-credential code mapping must cover ${role}`,
+  );
+}
 const artifactPolicy = targetRolePolicy(
   TARGET_DEFAULTS,
   'artifact',

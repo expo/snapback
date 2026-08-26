@@ -514,6 +514,22 @@ test('Rust production classification excludes inline test-gated regions', () => 
   );
 });
 
+test('Rust zero-hash raw strings do not swallow following diagnostics', () => {
+  const fixture = String.raw`let raw = r"ends with a backslash \";
+SnapbackError::error("SNAPBACK_AFTER_RAW_STRING", "real diagnostic");
+let raw_bytes = br"bytes ending with a backslash \";
+SnapbackError::error("SNAPBACK_AFTER_RAW_BYTE_STRING", "real diagnostic");`;
+
+  assert.deepEqual(
+    diagnosticSourceSites(fixture, { ordinaryMultiline: true })
+      .map(({ match, kind }) => ({ code: match[0], kind })),
+    [
+      { code: 'SNAPBACK_AFTER_RAW_STRING', kind: 'emission' },
+      { code: 'SNAPBACK_AFTER_RAW_BYTE_STRING', kind: 'emission' },
+    ],
+  );
+});
+
 test('Rust production discovery excludes external cfg(test) modules transitively', () => {
   const fixture = 'tests/fixtures/diagnostics-registry/external-test-modules.rs';
   const fixtureRoot = resolve(import.meta.dirname, '..');
@@ -962,6 +978,7 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     'SNAPBACK_HOSTED_TARGET_TIGRIS_AUDIT_PARTIAL',
     'SNAPBACK_HOSTED_TARGET_TIGRIS_BACKUP_PARTIAL',
     'SNAPBACK_HOSTED_TARGET_TIGRIS_CLEANUP_PARTIAL',
+    'SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL_STATE_PARTIAL',
     'SNAPBACK_HOSTED_TARGET_TIGRIS_LOGS_PARTIAL',
   ];
   for (const code of tigrisRoleCodes) {
@@ -986,11 +1003,11 @@ test('generated registry retains target emitters and dynamic artifact-header emi
       `${code} must attach to the dynamic throw statement`,
     );
   }
-  assert.equal(registry.diagnostics.SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL_STATE_PARTIAL, undefined);
-  assert.equal(
-    registry.diagnostics['SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL-STATE_PARTIAL'],
-    undefined,
-  );
+  const invalidControlStateSpelling = [
+    'SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL',
+    'STATE_PARTIAL',
+  ].join('-');
+  assert.equal(registry.diagnostics[invalidControlStateSpelling], undefined);
 
   for (const code of [
     'SNAPBACK_AUTH_SESSION_REVOKED',

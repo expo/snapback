@@ -1,6 +1,6 @@
 # Normalize hosted-target Tigris partial-credential diagnostic spellings
 
-Status: Open — separate compatibility change
+Status: Closed
 Created: 2026-08-25
 Related: `packages/snapback-hosted-supervisor/target-onboarding.mjs`, LLP 0111,
 LLP 0193
@@ -15,9 +15,9 @@ runtime:
 ```
 
 That template has six possible role spellings, but no complete literal code for
-the diagnostics registry to inventory. It also produces
-`SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL-STATE_PARTIAL` for the `control-state`
-role, which does not follow the stable diagnostic spelling grammar.
+the diagnostics registry to inventory. It also puts a hyphen between `CONTROL`
+and `STATE` for the `control-state` role, which does not follow the stable
+diagnostic spelling grammar.
 
 The registry lane briefly replaced the template with six literals and exported
 the Tigris role helper for testing. That was reverted: exporting a helper that
@@ -49,3 +49,22 @@ behavior through the existing onboarding surface or a module-local test seam
 that cannot create or attach IAM policy. Treat the `control-state` message
 normalization as an explicit compatibility change, regenerate diagnostics,
 symbol, and Guide projections, and record the old spelling's disposition.
+
+## Resolution (2026-08-26)
+
+`target-onboarding.mjs` now uses a private exhaustive mapping for all six
+closed Tigris roles. The `control-state` entry emits the registered
+`SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL_STATE_PARTIAL` spelling; the other five
+roles retain their existing codes. `ensureTargetTigrisRole` and the mapping
+remain private, and `TARGET_TIGRIS_ROLES`, `targetRolePolicy`, and every IAM
+action/resource decision are unchanged.
+
+The existing onboarding test reads the module text as a non-executing test seam
+and pins all six exact role-to-code pairs. It cannot invoke credential creation
+or policy attachment. The diagnostics-registry projection test separately pins
+all six spellings to the private dynamic throw site and keeps the hyphenated
+spelling absent.
+
+The old output with a hyphen between `CONTROL` and `STATE` is retired, not
+aliased or reserved: it never satisfied the registry grammar and therefore was
+never a valid diagnostic identity. Consumers must use the underscore form.

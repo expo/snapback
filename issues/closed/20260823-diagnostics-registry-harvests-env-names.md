@@ -7,6 +7,12 @@
   `packages/snapback-client/diagnostic-codes.d.mts`
 - Governing: LLP 0193 (errors as docs)
 - Found by: grok review of the LLP 0299 landing (finding #4)
+- Canonical final evidence: `issues/closed/20260825-diagnostics-registry-scrapes-env-var-names.md`
+
+This file is the intermediate round-21 evidence blob at commit
+`b19fba533f31a7df2aa089ba9efa0e813d1ca435`. Its counts below describe that
+commit, not HEAD. The canonical ticket above owns the sole current count table
+and final verification evidence.
 
 ## Problem
 
@@ -28,7 +34,7 @@ received vocabulary, reservations, and environment writes, and derive shipped
 package sources from package manifests. Regenerate the diagnostic, type, symbol,
 and Guide projections from that source-complete inventory.
 
-## Resolution (2026-08-25)
+## Intermediate resolution (2026-08-25, commit b19fba533)
 
 The source classifier now distinguishes real emissions, received protocol
 vocabulary, reservations, environment reads/writes/removals/declarations/table

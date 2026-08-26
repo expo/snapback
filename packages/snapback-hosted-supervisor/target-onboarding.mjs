@@ -72,6 +72,21 @@ export const TARGET_TIGRIS_ROLES = Object.freeze({
   cleanup: ['s3:DeleteObject', 's3:ListBucket'],
 });
 
+const TARGET_TIGRIS_PARTIAL_CREDENTIAL_CODES = Object.freeze({
+  // diagnostics-registry: reference-only
+  artifact: 'SNAPBACK_HOSTED_TARGET_TIGRIS_ARTIFACT_PARTIAL',
+  // diagnostics-registry: reference-only
+  backup: 'SNAPBACK_HOSTED_TARGET_TIGRIS_BACKUP_PARTIAL',
+  // diagnostics-registry: reference-only
+  'control-state': 'SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL_STATE_PARTIAL', // diagnostics-registry: reference-only
+  // diagnostics-registry: reference-only
+  audit: 'SNAPBACK_HOSTED_TARGET_TIGRIS_AUDIT_PARTIAL',
+  // diagnostics-registry: reference-only
+  logs: 'SNAPBACK_HOSTED_TARGET_TIGRIS_LOGS_PARTIAL',
+  // diagnostics-registry: reference-only
+  cleanup: 'SNAPBACK_HOSTED_TARGET_TIGRIS_CLEANUP_PARTIAL',
+});
+
 const BASE_SUPERVISOR_SECRET_FILES = Object.freeze([
   ['/run/secrets/fly-read-token', 'SUPERVISOR_FLY_READ_TOKEN'],
   ['/run/secrets/fly-control-token', 'SUPERVISOR_FLY_CONTROL_TOKEN'],
@@ -355,10 +370,9 @@ async function ensureTargetTigrisRole(rootCredentials, config, role, actions) {
     // diagnostics-registry: emission SNAPBACK_HOSTED_TARGET_TIGRIS_AUDIT_PARTIAL
     // diagnostics-registry: emission SNAPBACK_HOSTED_TARGET_TIGRIS_BACKUP_PARTIAL
     // diagnostics-registry: emission SNAPBACK_HOSTED_TARGET_TIGRIS_CLEANUP_PARTIAL
+    // diagnostics-registry: emission SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL_STATE_PARTIAL
     // diagnostics-registry: emission SNAPBACK_HOSTED_TARGET_TIGRIS_LOGS_PARTIAL
-    // The control-state role still interpolates a hyphen and therefore produces
-    // an unregisterable spelling pending the role-code compatibility ticket.
-    throw new Error(`SNAPBACK_HOSTED_TARGET_TIGRIS_${roleStem.toUpperCase()}_PARTIAL`);
+    throw new Error(TARGET_TIGRIS_PARTIAL_CREDENTIAL_CODES[role]);
   }
   let created = false;
   const iam = tigrisIamClient(rootCredentials);

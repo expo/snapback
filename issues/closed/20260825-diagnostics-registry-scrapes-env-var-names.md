@@ -4,7 +4,7 @@
 **Date:** 2026-08-25
 **Systems:** Diagnostics, Guide, Packaging
 **Related:** LLP 0193, `scripts/generate-diagnostics-registry.mjs`,
-`crates/snapback-kernel/src/live_matcher.rs`, canonical ticket
+`crates/snapback-kernel/src/live_matcher.rs`, intermediate evidence ticket
 `issues/closed/20260823-diagnostics-registry-harvests-env-names.md`
 
 ## Symptom
@@ -27,7 +27,7 @@ emissions. Preserve explicit markers for syntax the classifier cannot prove,
 and guard the classifier with fixtures that retain real emissions next to
 excluded references.
 
-## Resolution (2026-08-25, superseded by canonical ticket)
+## Canonical resolution (2026-08-25)
 
 The final classifier separates emissions, received protocol vocabulary,
 reservations, environment sites, and references. Environment-name tables are
@@ -244,13 +244,21 @@ a `Declaration sites:` group. The native-parity follow-up explicitly includes
 that fourth diagnostic site kind alongside emitting, received, and reserved
 sites.
 
-The round-22 before/after registry counts are:
+Round 23 recognizes zero-hash Rust raw and raw-byte strings (`r"…"` and
+`br"…"`). The fail-first fixture ends each raw string with a backslash and
+then emits a real diagnostic; before the fix the scanner returned zero sites,
+and after the fix it retains both. The hosted-target partial-credential path
+also replaces role-name interpolation with a private exhaustive six-role code
+mapping. That adds the grammar-valid `CONTROL_STATE` spelling without changing
+the closed role/action policy.
+
+The canonical round-21-intermediate versus round-23-final count table is:
 
 | Count | Before | After |
 | --- | ---: | ---: |
-| Codes | 3,540 | 3,540 |
+| Codes | 3,540 | 3,541 |
 | Source files | 626 | 626 |
-| Emitting sites | 9,551 | 9,239 |
+| Emitting sites | 9,551 | 9,240 |
 | Received sites | 339 | 340 |
 | Reserved sites | 11 | 11 |
 | HTTP-classified | 1,704 | 1,704 |
@@ -258,8 +266,9 @@ The round-22 before/after registry counts are:
 | Environment variables | 186 | 186 |
 | Environment sites | 368 | 364 |
 
-The post-marker re-audit reports no added code, no dropped code, and no
-declaration-backed code whose emitter set fell to zero.
+The round-22 post-marker re-audit reported no added or dropped code and no
+declaration-backed code whose emitter set fell to zero. Round 23 deliberately
+adds the one formerly unregisterable `CONTROL_STATE` code and drops none.
 
 The canonical embedded measurement was rerun after the final implementation and
 projection regeneration. Its captured output is:
@@ -268,9 +277,9 @@ projection regeneration. Its captured output is:
 {
   "mergeBase": "e370bb8f789007cffae1f4d80c4feabdedc81cb5",
   "counts": {
-    "codes": 3540,
+    "codes": 3541,
     "sourceFiles": 626,
-    "emittingSites": 9239,
+    "emittingSites": 9240,
     "receivedSites": 340,
     "reservedSites": 11,
     "httpClassified": 1704,
@@ -303,7 +312,7 @@ projection regeneration. Its captured output is:
 }
 ```
 
-### Round-22 final verification
+### Round-23 final verification
 
 The final candidate tree was verified immediately before its local-only commit;
 no source or generated projection changed between these results and the commit.
@@ -311,10 +320,10 @@ The command summaries were:
 
 ```text
 node --test scripts/generate-diagnostics-registry.test.mjs
-tests 22; pass 22; fail 0
+tests 23; pass 23; fail 0
 
 node scripts/generate-diagnostics-registry.mjs --check
-[diagnostics-registry] ok — 3540 codes, 9239 emitting sites, 340 received sites, 11 reserved sites, 186 environment variables, 364 environment sites, 1704 HTTP-classified
+[diagnostics-registry] ok — 3541 codes, 9240 emitting sites, 340 received sites, 11 reserved sites, 186 environment variables, 364 environment sites, 1704 HTTP-classified
 
 node scripts/generate-symbol-registry.mjs --check
 [symbol-registry] ok — 56 modules, 1455 symbols, runtime parity exact
@@ -324,6 +333,9 @@ reference-lookup.test.mjs: exact diagnostic/environment/dual-role/member, bounde
 
 node packages/snapback-cli/reference-lookup-reserved-code.test.mjs
 reference-lookup-reserved-code.test.mjs: reserved sites retain their non-emitting label
+
+node --test packages/snapback-hosted-supervisor/*.test.mjs
+tests 12; pass 12; fail 0
 
 node --test tests/check-inventories.test.mjs tests/local_proof_selection_v0.mjs
 tests 38; pass 38; fail 0
@@ -342,6 +354,9 @@ ref-check: ok — 311 LLP docs, 7213 refs in 15516 files, 0 errors, 0 unchecked
 
 git diff --check
 (no output; exit 0)
+
+invariant grep
+six Tigris role codes present in SnapbackDiagnosticCode; zero occurrences of the hyphenated control-state code
 ```
 
 ### Known JS/native lookup divergence

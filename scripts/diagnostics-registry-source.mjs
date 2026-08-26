@@ -1022,7 +1022,7 @@ function stringLiteralBounds(source, {
     }
 
     const rawPrefix = delimiter === '"'
-      ? source.slice(Math.max(0, index - 32), index).match(/(?:^|[^A-Za-z0-9_])(?:br|r)(#+)$/u)
+      ? source.slice(Math.max(0, index - 32), index).match(/(?:^|[^A-Za-z0-9_])(?:br|r)(#{0,255})$/u)
       : null;
     const closingDelimiter = rawPrefix === null ? delimiter : `"${rawPrefix[1]}`;
     const raw = rawPrefix !== null;
