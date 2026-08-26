@@ -4027,6 +4027,118 @@ mod tests {
     }
 
     #[test]
+    fn imported_hash_upgrade_is_generation_cas_and_respects_declared_minimum() {
+        let random = CounterRandom::new();
+        let key = [7; 32];
+        let mut db = ready();
+        db.identity_password_register(
+            "upgrade@example.com",
+            &password("a-strong-password-123"),
+            1,
+            &random,
+            "key-1",
+            &key,
+        )
+        .unwrap();
+        let imported = bcrypt::hash("a-strong-password-123", 4).unwrap();
+        db.install_imported_password_hash_for_test("upgrade@example.com", "bcrypt", &imported)
+            .unwrap();
+        let predecessor = db
+            .password_snapshot("upgrade@example.com")
+            .unwrap()
+            .unwrap();
+        let profile =
+            PasswordSecurityProfile::for_provider(crate::contract_types::AuthProviderProfile::Test);
+        let first = verify_password_on_blocking_pool(
+            &password("a-strong-password-123"),
+            &predecessor.hash_phc,
+            true,
+            &random,
+            profile,
+        )
+        .unwrap();
+        let racing = verify_password_on_blocking_pool(
+            &password("a-strong-password-123"),
+            &predecessor.hash_phc,
+            true,
+            &random,
+            profile,
+        )
+        .unwrap();
+        let plan = |replacement: PreparedPasswordHash| PasswordIssuanceCommitPlan {
+            canonical_identifier: "upgrade@example.com".to_owned(),
+            identifier_mode: predecessor.identifier_mode,
+            identity_id: predecessor.identity_id.clone(),
+            user_id: predecessor.user_id.clone(),
+            operation: PasswordIssuanceOperation::Authenticate {
+                credential: Some(predecessor.clone()),
+                admission_ledger: None,
+                verified: true,
+                replacement: Some(replacement),
+            },
+        };
+        let winner = plan(first.replacement.expect("legacy hash prepares an upgrade"));
+        let loser = plan(
+            racing
+                .replacement
+                .expect("racing verify prepares an upgrade"),
+        );
+        db.with_auth_transaction(|transaction| {
+            assert!(matches!(
+                admit_password_issuance_in(transaction, &winner, 2, profile)?,
+                PasswordIssuanceAdmission::Proceed { .. }
+            ));
+            apply_password_issuance_in(transaction, &winner, 2)
+        })
+        .unwrap();
+        db.with_auth_transaction(|transaction| {
+            assert!(matches!(
+                admit_password_issuance_in(transaction, &loser, 3, profile)?,
+                PasswordIssuanceAdmission::PredecessorChanged
+            ));
+            Ok(())
+        })
+        .unwrap();
+        let (generation, algorithm, phc) = db
+            .password_hash_facts_for_test("upgrade@example.com")
+            .unwrap();
+        assert_eq!(generation, 2);
+        assert_eq!(algorithm, "argon2id");
+        assert!(phc.starts_with("$argon2id$"));
+        assert!(
+            db.password_attempt_admin_projection("upgrade@example.com", 3)
+                .unwrap()
+                .is_none()
+        );
+
+        let low_profile = profile.with_minimum_password_length(8).unwrap();
+        let low_imported = bcrypt::hash("eight888", 4).unwrap();
+        let low = verify_password_on_blocking_pool(
+            &password("eight888"),
+            &low_imported,
+            true,
+            &random,
+            low_profile,
+        )
+        .unwrap();
+        assert!(low.verified);
+        assert!(low.replacement.is_some());
+
+        let high_profile = profile.with_minimum_password_length(20).unwrap();
+        let high_imported = bcrypt::hash("fifteen-char-pw", 4).unwrap();
+        let high = verify_password_on_blocking_pool(
+            &password("fifteen-char-pw"),
+            &high_imported,
+            true,
+            &random,
+            high_profile,
+        )
+        .unwrap();
+        assert!(high.verified);
+        assert!(high.replacement.is_none());
+    }
+
+    #[test]
     fn guest_create_claim_is_continuous_and_collision_is_atomic() {
         let random = CounterRandom::new();
         let key = [7; 32];
@@ -4066,6 +4178,24 @@ mod tests {
             )
             .unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_GUEST_CLAIM_COLLISION");
+        db.disable_identity_for_test("local-password", "taken", 4)
+            .unwrap();
+        let disabled_collision_guest = db.identity_guest_create(50_000, 4, &random).unwrap();
+        assert_eq!(
+            db.identity_guest_claim_password(
+                &disabled_collision_guest.bearer,
+                "taken",
+                &password("strong-disabled-collision-secret-22"),
+                5,
+                &random,
+                RecoveryKeyMaterial::new("key-1", &key),
+            )
+            .unwrap_err()
+            .diagnostic
+            .code,
+            "SNAPBACK_AUTH_GUEST_CLAIM_COLLISION",
+            "a disabled identity remains the immutable owner of its subject",
+        );
         let claimed = db
             .identity_guest_claim_password(
                 &guest.bearer,

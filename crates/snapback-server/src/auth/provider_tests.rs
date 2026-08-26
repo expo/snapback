@@ -78,6 +78,31 @@ mod tests {
         }
     }
 
+    struct CrossTableCollisionRandom {
+        fills: AtomicUsize,
+    }
+
+    impl CrossTableCollisionRandom {
+        fn new() -> Self {
+            Self {
+                fills: AtomicUsize::new(0),
+            }
+        }
+    }
+
+    impl RandomSource for CrossTableCollisionRandom {
+        fn fill(&self, destination: &mut [u8]) -> Result<(), super::super::crypto::CryptoError> {
+            let fill = self.fills.fetch_add(1, Ordering::SeqCst);
+            let byte = if matches!(fill, 12 | 13) {
+                6
+            } else {
+                fill as u8
+            };
+            destination.fill(byte);
+            Ok(())
+        }
+    }
+
     #[test]
     fn guest_creation_refuses_csprng_failure_before_planning_an_effect() {
         let now_ms = 1_700_000_000_000;
@@ -553,6 +578,75 @@ mod tests {
             )
             .await
             .expect("password signin plan");
+        commit_password_issuance_for_test(provider, database, coordinator, plan, now_ms).await
+    }
+
+    async fn password_set_for_test(
+        provider: &Arc<AuthProvider>,
+        database: &mut LocalDatabase,
+        coordinator: &Arc<AuthCoordinator>,
+        actor: &CredentialIssue,
+        identifier: &str,
+        password: &str,
+        now_ms: u64,
+    ) -> (
+        IssuanceFinish,
+        Vec<crate::auth::coordinator::CommittedRevocationTarget>,
+    ) {
+        let actor_session = &actor.response().session;
+        let binding = StepUpBinding::password_set(
+            actor_session.user_id.clone(),
+            actor_session.id.clone(),
+            actor_session.generation,
+            actor_session.authority_instance_id.clone(),
+        );
+        let admission = provider.admit().await;
+        let address = admission
+            .step_up_address(database, &binding, now_ms)
+            .expect("password-set step-up address");
+        let request = admission
+            .for_address(address)
+            .await
+            .expect("password-set address admission")
+            .request_step_up(database, &binding)
+            .expect("password-set step-up challenge");
+        let mailbox = serde_json::to_value(
+            provider
+                .mailbox_entry(&request.challenge_id)
+                .await
+                .expect("password-set step-up mailbox"),
+        )
+        .expect("serialize password-set step-up mailbox");
+        let code = mailbox["code"].as_str().expect("password-set step-up code");
+        let admission = provider.admit().await;
+        let coordination = admission
+            .step_up_coordination(database, &request.challenge_id)
+            .expect("password-set step-up coordination");
+        let step_up = admission
+            .for_step_up(coordination, binding, code)
+            .await
+            .expect("password-set proof admission");
+        let preparation = provider
+            .prepare_password_set(
+                database,
+                actor.response().token(),
+                identifier,
+                now_ms,
+                PasswordIssuanceCustody::Bearer,
+            )
+            .expect("password-set preparation");
+        let plan = provider
+            .finish_password_set(
+                preparation,
+                step_up.proof().clone(),
+                PasswordSecret::new(password.to_owned()),
+                now_ms,
+                "recovery-key-1",
+                &[7; 32],
+                PasswordIssuanceCustody::Bearer,
+            )
+            .await
+            .expect("password-set plan");
         commit_password_issuance_for_test(provider, database, coordinator, plan, now_ms).await
     }
 
@@ -1963,12 +2057,38 @@ mod tests {
                 reason: Some(RevocationReason::Logout),
             })
         ));
-        database
-            .auth_catalog()
-            .delete_terminal_cause_witness_for_test(plan.session_id())
-            .expect("simulate a legacy terminal row without a cause witness");
+        let mut legacy = LocalDatabase::memory().expect("legacy memory database");
+        crate::storage::auth::install_frozen_v1_catalog_fixture(&mut legacy)
+            .expect("install the fixed predecessor catalog through its typed fixture");
+        let legacy_keyring = Arc::new(AuthKeyringStore::in_memory());
+        legacy_keyring
+            .load_or_mint_initial(start_ms, &OsRandom)
+            .expect("legacy fixture keyring");
+        let legacy_provider = Arc::new(
+            AuthProvider::new(AuthProviderProfile::Test, legacy_keyring)
+                .expect("legacy fixture provider"),
+        );
+        let legacy_issue = mint(
+            &legacy_provider,
+            &mut legacy,
+            "legacy-logout@example.com",
+            start_ms,
+        )
+        .await;
+        let legacy_bearer = issue_token(&legacy_issue);
+        let legacy_admission = legacy_provider.admit().await;
+        let PlannedLogout::Revoke(legacy_plan) = legacy_admission
+            .plan_logout(&legacy, &legacy_bearer, start_ms + 1)
+            .expect("legacy logout plan")
+        else {
+            panic!("legacy current bearer must plan a revocation");
+        };
         assert!(matches!(
-            admission.commit_planned_revocation(&mut database, &plan, start_ms + 1),
+            legacy_admission.commit_planned_revocation(&mut legacy, &legacy_plan, start_ms + 1,),
+            AuthTransactionAttempt::Committed(PlannedRevocationCommit::Committed(_))
+        ));
+        assert!(matches!(
+            legacy_admission.commit_planned_revocation(&mut legacy, &legacy_plan, start_ms + 1,),
             AuthTransactionAttempt::Committed(PlannedRevocationCommit::AlreadyTerminal {
                 generation: 2,
                 reason: None,
@@ -2150,18 +2270,28 @@ mod tests {
     async fn planned_issuance_and_rotation_report_cross_table_candidate_collisions_without_writes()
     {
         let now_ms = 36_000;
-        let (provider, mut database) = provider_database(now_ms);
+        let (provider, mut database) =
+            provider_database_with_random(now_ms, Arc::new(CrossTableCollisionRandom::new()));
         let first = mint(&provider, &mut database, "first@example.com", now_ms).await;
-        let first_id = first.response().session.id.clone();
+        let first_bearer = issue_token(&first);
+        let admission = provider.admit().await;
+        let PlannedRefresh::Rotate(first_rotation) = admission
+            .plan_refresh(&database, &first_bearer, now_ms + 1)
+            .expect("plan the real predecessor rotation")
+        else {
+            panic!("current bearer must rotate");
+        };
+        let AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed { session }) =
+            admission.commit_planned_rotation(&mut database, &first_rotation.commit_plan())
+        else {
+            panic!("predecessor rotation must create the real tombstone");
+        };
+        let current = first_rotation.into_issue(session);
+        let current_bearer = issue_token(&current);
 
         let issuance = provider.admit_email("second@example.com").await.unwrap();
-        let issuance_plan = issuance.plan_mint_session(&database, now_ms + 1).unwrap();
-        let projected_digest = issuance_plan.projected_insert().token_digest;
+        let issuance_plan = issuance.plan_mint_session(&database, now_ms + 2).unwrap();
         let issuance_commit = issuance_plan.commit_plan();
-        database
-            .auth_catalog()
-            .insert_session_tombstone_for_test(projected_digest.as_bytes(), &first_id, now_ms)
-            .unwrap();
         assert!(matches!(
             issuance.commit_planned_issuance(&mut database, &issuance_commit),
             AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CandidateCollision)
@@ -2172,28 +2302,19 @@ mod tests {
             .unwrap();
         assert_eq!(second_exists, 0, "collision precedes every issuance write");
 
-        let bearer = issue_token(&first);
         let admission = provider.admit().await;
         let PlannedRefresh::Rotate(rotation) = admission
-            .plan_refresh(&database, &bearer, now_ms + 2)
+            .plan_refresh(&database, &current_bearer, now_ms + 3)
             .unwrap()
         else {
             panic!("rotation plan");
         };
-        database
-            .auth_catalog()
-            .insert_session_tombstone_for_test(
-                rotation.successor.token_hash.as_bytes(),
-                &first.response().session.id,
-                now_ms + 1,
-            )
-            .unwrap();
         assert!(matches!(
             admission.commit_planned_rotation(&mut database, &rotation.commit_plan()),
             AuthTransactionAttempt::Committed(PlannedRotationCommit::CandidateCollision)
         ));
         admission
-            .resolve_session(&database, &bearer, now_ms + 3)
+            .resolve_session(&database, &current_bearer, now_ms + 4)
             .expect("collision leaves the rotation predecessor current");
     }
 
@@ -3198,188 +3319,50 @@ mod tests {
             "SNAPBACK_AUTH_PASSWORD_SENDER_CONSTRAINED_UNSUPPORTED"
         );
     }
-
-    #[tokio::test]
-    async fn imported_hash_upgrades_by_generation_cas_and_lost_race_does_not_overwrite() {
-        let now_ms = 7_000_000;
-        let (provider, mut database, coordinator) = password_provider_database_coordinator(now_ms);
-        register_password_for_test(
-            &provider,
-            &mut database,
-            &coordinator,
-            "upgrade@example.com",
-            "a-strong-password-123",
-            now_ms,
-        )
-        .await;
-        let imported = bcrypt::hash("a-strong-password-123", 4).expect("bcrypt fixture");
-        database
-            .install_imported_password_hash_for_test("upgrade@example.com", "bcrypt", &imported)
-            .expect("install imported hash");
-        let first = provider
-            .plan_password_authentication(
-                &database,
-                "upgrade@example.com",
-                PasswordSecret::new("a-strong-password-123".to_owned()),
-                now_ms + 1,
-                PasswordIssuanceCustody::Bearer,
-            )
-            .await
-            .expect("first upgrade plan");
-        let losing = provider
-            .plan_password_authentication(
-                &database,
-                "upgrade@example.com",
-                PasswordSecret::new("a-strong-password-123".to_owned()),
-                now_ms + 2,
-                PasswordIssuanceCustody::Bearer,
-            )
-            .await
-            .expect("racing upgrade plan");
-        let (winner, _) = commit_password_issuance_for_test(
-            &provider,
-            &mut database,
-            &coordinator,
-            first,
-            now_ms + 1,
-        )
-        .await;
-        assert!(matches!(winner, IssuanceFinish::Committed { .. }));
-        let (generation, algorithm, phc) = database
-            .password_hash_facts_for_test("upgrade@example.com")
-            .expect("upgraded hash facts");
-        assert_eq!(generation, 2);
-        assert_eq!(algorithm, "argon2id");
-        assert!(phc.starts_with("$argon2id$"));
-        let (loser, _) = commit_password_issuance_for_test(
-            &provider,
-            &mut database,
-            &coordinator,
-            losing,
-            now_ms + 2,
-        )
-        .await;
-        assert!(matches!(loser, IssuanceFinish::CredentialInvalid));
-        assert_eq!(
-            database
-                .password_hash_facts_for_test("upgrade@example.com")
-                .expect("winner remains authoritative")
-                .0,
-            2
-        );
-        assert!(
-            database
-                .password_attempt_admin_projection("upgrade@example.com", now_ms + 2)
-                .expect("lost upgrade ledger")
-                .is_none()
-        );
-    }
-
-    #[tokio::test]
-    async fn password_upgrade_uses_declared_minimum_profile() {
-        let low_now_ms = 7_100_000;
-        let (low_provider, mut low_database, low_coordinator) =
-            password_provider_database_coordinator_with_minimum(low_now_ms, 8);
-        register_password_for_test(
-            &low_provider,
-            &mut low_database,
-            &low_coordinator,
-            "minimum-eight@example.com",
-            "eight888",
-            low_now_ms,
-        )
-        .await;
-        let low_imported = bcrypt::hash("eight888", 4).expect("bcrypt fixture");
-        low_database
-            .install_imported_password_hash_for_test(
-                "minimum-eight@example.com",
-                "bcrypt",
-                &low_imported,
-            )
-            .expect("install imported hash");
-        let (low_finish, _) = password_signin_for_test(
-            &low_provider,
-            &mut low_database,
-            &low_coordinator,
-            "minimum-eight@example.com",
-            "eight888",
-            low_now_ms + 1,
-        )
-        .await;
-        assert!(matches!(low_finish, IssuanceFinish::Committed { .. }));
-        let (low_generation, _, low_phc) = low_database
-            .password_hash_facts_for_test("minimum-eight@example.com")
-            .expect("upgraded low-minimum hash");
-        assert_eq!(low_generation, 2);
-        assert!(low_phc.starts_with("$argon2id$"));
-
-        let high_now_ms = 7_200_000;
-        let (high_provider, mut high_database, high_coordinator) =
-            password_provider_database_coordinator_with_minimum(high_now_ms, 20);
-        register_password_for_test(
-            &high_provider,
-            &mut high_database,
-            &high_coordinator,
-            "minimum-twenty@example.com",
-            "a-strong-password-123",
-            high_now_ms,
-        )
-        .await;
-        let high_imported = bcrypt::hash("fifteen-char-pw", 4).expect("bcrypt fixture");
-        high_database
-            .install_imported_password_hash_for_test(
-                "minimum-twenty@example.com",
-                "bcrypt",
-                &high_imported,
-            )
-            .expect("install imported hash");
-        let (high_finish, _) = password_signin_for_test(
-            &high_provider,
-            &mut high_database,
-            &high_coordinator,
-            "minimum-twenty@example.com",
-            "fifteen-char-pw",
-            high_now_ms + 1,
-        )
-        .await;
-        assert!(matches!(high_finish, IssuanceFinish::Committed { .. }));
-        let (high_generation, _, high_phc) = high_database
-            .password_hash_facts_for_test("minimum-twenty@example.com")
-            .expect("retained high-minimum legacy hash");
-        assert_eq!(
-            high_generation, 1,
-            "a skipped upgrade must not bump generation"
-        );
-        assert_eq!(high_phc, high_imported);
-    }
-
-    #[tokio::test]
     async fn password_set_displaces_only_local_password_identity_sessions() {
         let now_ms = 8_000_000;
         let (provider, mut database, coordinator) = password_provider_database_coordinator(now_ms);
-        let squatter = register_password_for_test(
+        let squatter_email = email_issue_for_test(
             &provider,
             &mut database,
             &coordinator,
+            "other@example.com",
+            now_ms,
+        )
+        .await;
+        let (squatter_finish, initial_targets) = password_set_for_test(
+            &provider,
+            &mut database,
+            &coordinator,
+            &squatter_email,
             "claimed@example.com",
             "a-strong-password-123",
             now_ms,
         )
         .await;
+        assert_eq!(initial_targets.len(), 1);
+        let IssuanceFinish::Committed {
+            issue: squatter, ..
+        } = squatter_finish
+        else {
+            panic!("initial password set must commit");
+        };
         let squatter_password_bearer = issue_token(&squatter);
         let squatter_user = squatter.response().session.user_id.clone();
         let displaced = database
             .password_snapshot("claimed@example.com")
             .expect("password snapshot")
             .expect("displaced credential");
-        let (_, _, squatter_other_bearer) = database
-            .insert_other_identity_session_for_test(
-                &squatter_user,
-                "other@example.com",
-                now_ms + 1,
-                &OsRandom,
-            )
-            .expect("other-identity session fixture");
+        let squatter_other = email_issue_for_test(
+            &provider,
+            &mut database,
+            &coordinator,
+            "other@example.com",
+            now_ms + 1,
+        )
+        .await;
+        assert_eq!(squatter_other.response().session.user_id, squatter_user);
+        let squatter_other_bearer = issue_token(&squatter_other);
         let actor = email_issue_for_test(
             &provider,
             &mut database,
@@ -3389,80 +3372,13 @@ mod tests {
         )
         .await;
         let actor_old_bearer = issue_token(&actor);
-        let actor_session = &actor.response().session;
-        let password_set_binding = StepUpBinding::password_set(
-            actor_session.user_id.clone(),
-            actor_session.id.clone(),
-            actor_session.generation,
-            actor_session.authority_instance_id.clone(),
-        );
-        let admission = provider.admit().await;
-        let step_up_address = admission
-            .step_up_address(&database, &password_set_binding, now_ms + 2)
-            .expect("password-set step-up address");
-        let step_up_request = admission
-            .for_address(step_up_address)
-            .await
-            .expect("password-set address admission")
-            .request_step_up(&mut database, &password_set_binding)
-            .expect("password-set step-up challenge");
-        let mailbox = serde_json::to_value(
-            provider
-                .mailbox_entry(&step_up_request.challenge_id)
-                .await
-                .expect("password-set step-up mailbox"),
-        )
-        .expect("serialize password-set step-up mailbox");
-        let step_up_code = mailbox["code"]
-            .as_str()
-            .expect("password-set step-up code")
-            .to_owned();
-        let admission = provider.admit().await;
-        let coordination = admission
-            .step_up_coordination(&database, &step_up_request.challenge_id)
-            .expect("password-set step-up coordination");
-        let step_up = admission
-            .for_step_up(coordination, password_set_binding, &step_up_code)
-            .await
-            .expect("password-set proof admission");
-
-        // Pull the test-only fixture session into the same memory-only
-        // projection before exercising exact displacement finalization.
-        let coordinator = Arc::new(
-            AuthCoordinator::from_local_session_database(
-                &mut database,
-                AdmissionController::new(0, true).expect("test admission controller"),
-                now_ms + 2,
-                provider.monotonic_now(),
-            )
-            .expect("rebuilt database-bound coordinator"),
-        );
-        let preparation = provider
-            .prepare_password_set(
-                &database,
-                actor.response().token(),
-                "claimed@example.com",
-                now_ms + 3,
-                PasswordIssuanceCustody::Bearer,
-            )
-            .expect("displacing password-set preparation");
-        let plan = provider
-            .finish_password_set(
-                preparation,
-                step_up.proof().clone(),
-                PasswordSecret::new("rightful-password-456".to_owned()),
-                now_ms + 3,
-                "recovery-key-1",
-                &[7; 32],
-                PasswordIssuanceCustody::Bearer,
-            )
-            .await
-            .expect("displacing password-set plan");
-        let (finish, targets) = commit_password_issuance_for_test(
+        let (finish, targets) = password_set_for_test(
             &provider,
             &mut database,
             &coordinator,
-            plan,
+            &actor,
+            "claimed@example.com",
+            "rightful-password-456",
             now_ms + 3,
         )
         .await;
@@ -3501,7 +3417,7 @@ mod tests {
         assert!(
             coordinator
                 .resolve_required_bearer(
-                    squatter_other_bearer.expose_secret(),
+                    &squatter_other_bearer,
                     now_ms + 3,
                     provider.monotonic_now(),
                 )
@@ -3562,9 +3478,36 @@ mod tests {
     async fn guest_claim_and_recovery_consume_use_shared_issuance_finalization() {
         let now_ms = 9_000_000;
         let (provider, mut database, _) = password_provider_database_coordinator(now_ms);
-        let guest = database
-            .insert_typed_guest_session_for_test(now_ms + 60_000, now_ms, &OsRandom)
-            .expect("guest fixture");
+        let guest_plan = provider
+            .plan_guest_session(
+                &mut database,
+                now_ms,
+                60_000,
+                snapback_kernel::auth::throttle::RollingWindowBudgetTerms {
+                    limit: 10,
+                    window_ms: 1_000,
+                },
+                "guest-claim-shared-finalization-0001",
+                "guest-test-app",
+                "guest-test-deployment",
+                &format!("sha256:{}", "a".repeat(64)),
+                PasswordIssuanceCustody::Bearer,
+            )
+            .expect("plan guest through the production entry ceremony");
+        let ProviderGuestSessionPlan::Planned(guest_plan) = guest_plan else {
+            panic!("fresh guest entry key must produce a plan");
+        };
+        let AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
+            session,
+            committed_revocations,
+        }) = provider.commit_guest_issuance(&mut database, &guest_plan.commit_plan())
+        else {
+            panic!("guest entry ceremony must commit");
+        };
+        let guest_issue = guest_plan.into_issue(session, committed_revocations);
+        let guest = guest_issue.response().session.clone();
+        let guest_bearer = SessionBearer::parse(&issue_token(&guest_issue))
+            .expect("production guest ceremony returns a typed bearer");
         let coordinator = Arc::new(
             AuthCoordinator::from_local_session_database(
                 &mut database,
@@ -3577,7 +3520,7 @@ mod tests {
         let claim = provider
             .plan_guest_claim_password(
                 &database,
-                &guest.bearer,
+                &guest_bearer,
                 "guest@example.com",
                 PasswordSecret::new("a-strong-password-123".to_owned()),
                 now_ms + 1,
@@ -3591,10 +3534,10 @@ mod tests {
             )
             .await
             .expect("guest password claim plan");
-        let original_session_id = guest.session_id.clone();
+        let original_session_id = guest.id.clone();
         let original_authority_id = match database
             .auth_catalog_read()
-            .lookup_presented_session(&guest.bearer.token_hash())
+            .lookup_presented_session(&guest_bearer.token_hash())
             .expect("guest session lookup")
         {
             PresentedSessionLookup::Current(session) => session.session.authority_instance_id,
@@ -3624,7 +3567,7 @@ mod tests {
         assert!(
             coordinator
                 .resolve_required_bearer(
-                    guest.bearer.expose_secret(),
+                    guest_bearer.expose_secret(),
                     now_ms + 1 + AUTH_SESSION_SUPERSESSION_GRACE_MS + 1,
                     provider.monotonic_now(),
                 )

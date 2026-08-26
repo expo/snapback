@@ -1894,12 +1894,19 @@ fn auth_runtime_fixture_with_context(
 }
 
 fn hosted_serving_authority(now_ms: u64) -> HostedServingAuthority {
+    hosted_serving_authority_with_sender_floor(now_ms, 0)
+}
+
+fn hosted_serving_authority_with_sender_floor(
+    now_ms: u64,
+    sender_replay_epoch_floor: u64,
+) -> HostedServingAuthority {
     let policy = AuthenticationBucketPolicy {
         interval_ms: 1,
         burst: 10_000,
         maximum_denial_debt_attempts: 100,
     };
-    hosted_serving_authority_with_throttle(
+    hosted_serving_authority_with_throttle_and_sender_floor(
         now_ms,
         SharedAuthenticationThrottleConfig {
             retention_ms: 900_000,
@@ -1910,6 +1917,7 @@ fn hosted_serving_authority(now_ms: u64) -> HostedServingAuthority {
             source_subject: policy,
             family: policy,
         },
+        sender_replay_epoch_floor,
     )
 }
 
@@ -2026,6 +2034,18 @@ fn hosted_serving_authority_with_throttle(
     now_ms: u64,
     authentication_throttle_config: SharedAuthenticationThrottleConfig,
 ) -> HostedServingAuthority {
+    hosted_serving_authority_with_throttle_and_sender_floor(
+        now_ms,
+        authentication_throttle_config,
+        0,
+    )
+}
+
+fn hosted_serving_authority_with_throttle_and_sender_floor(
+    now_ms: u64,
+    authentication_throttle_config: SharedAuthenticationThrottleConfig,
+    sender_replay_epoch_floor: u64,
+) -> HostedServingAuthority {
     HostedServingAuthority::from_authenticated_target(
         "https://app.example.test",
         HostedAdmission {
@@ -2039,7 +2059,7 @@ fn hosted_serving_authority_with_throttle(
             limiter_epoch: 11,
             authentication_throttle_config,
             invalidation_epoch: 13,
-            sender_replay_epoch_floor: 0,
+            sender_replay_epoch_floor,
             handler_protocol_version: 1,
             handler_incarnation: "handler-hosted-test".to_owned(),
             operator_surface: HostedOperatorSurface::Disabled,
@@ -3782,6 +3802,7 @@ fn sessions_activation_server_fixture_with_api_and_password_mode(
         api,
         password_identifier_mode,
         auth_program,
+        None,
     )
 }
 
@@ -3793,6 +3814,7 @@ fn sessions_activation_server_fixture_with_api_and_password_mode_on_snapback(
     api: Option<ApiManifest>,
     password_identifier_mode: PasswordIdentifierMode,
     auth_program: Option<AuthProgramManifestV1>,
+    push_seam: Option<crate::push::PushSeamDeclarationV1>,
 ) -> AppState {
     let activation_now_ms = clock
         .as_ref()
@@ -3859,6 +3881,7 @@ fn sessions_activation_server_fixture_with_api_and_password_mode_on_snapback(
         }),
         auth_program,
         api,
+        push_seam,
         required_capabilities: vec![TargetCapabilityId::AuthSessionsV1.to_string()],
         schema_hash: Some(format!("{SCHEMA_V1_PREFIX}{}", "1".repeat(64))),
         inputs_hash: Some(format!("{INPUTS_V1_PREFIX}{}", "3".repeat(64))),
@@ -4174,6 +4197,40 @@ async fn sessions_activation_server_fixture_with_agents_async(agents: AgentsMani
     })
     .await
     .expect("construct agent-registration fixture off the async workers")
+}
+
+async fn push_registry_sessions_fixture(
+    retention_ms: u64,
+    clock: Option<Arc<ManualServerAuthClock>>,
+) -> AppState {
+    tokio::task::spawn_blocking(move || {
+        let _sanction = crate::exec_guard::BlockingSanction::acquire();
+        let snapback = LocalSnapback::memory().expect("memory push-registry fixture");
+        sessions_activation_server_fixture_with_api_and_password_mode_on_snapback(
+            snapback,
+            activation_functions('2', false),
+            clock,
+            None,
+            None,
+            PasswordIdentifierMode::UsernameV1,
+            None,
+            Some(crate::push::PushSeamDeclarationV1 {
+                app_scope: crate::push::PushAppScopeV1 {
+                    eas_project_id: "eas-maintenance".into(),
+                    application_id: "com.example.maintenance".into(),
+                    environment: "test".into(),
+                },
+                registry: crate::push::PushRegistryDeclarationV1 {
+                    idle_retention_ms: retention_ms,
+                },
+                audiences: BTreeMap::new(),
+                uses: Vec::new(),
+                ledger: None,
+            }),
+        )
+    })
+    .await
+    .expect("construct push-registry fixture off async workers")
 }
 
 async fn sessions_activation_server_fixture_with_integrations_async() -> AppState {
@@ -5612,31 +5669,22 @@ async fn effect_approval_reprepares_original_session_with_catalog_claims() {
     let prepared = coordinator
         .resolve_required_bearer(approver_bearer, provider.now_ms(), provider.monotonic_now())
         .expect("resolve effect approver session");
-    let (resolved, publication) = prepared.into_parts();
-    let ResolvedAppAuthority::Session(subject) = &resolved else {
-        panic!("effect approver must resolve to session authority")
-    };
-    let session_id = subject.session_id().to_owned();
     let profile = state.server.profile;
     let claims_now_ms = provider.now_ms();
-    let claims = with_snapback(&state.snapback, move |snapback| {
-        snapback
-            .remainder_auth_fixture()
-            .identity_claims(&session_id, claims_now_ms, profile)
+    let admission = test_route_admission(&state).0;
+    let management = with_snapback(&state.snapback, move |snapback| {
+        snapback.prepare_bearer_authority(
+            prepared,
+            InvocationSource::EffectManagement,
+            AuthMode::Sessions,
+            profile,
+            admission,
+            &WireAuthorityFields::default(),
+            claims_now_ms,
+        )
     })
     .await
-    .unwrap();
-    let management = InvocationGate::prepare_admitted_subjectless_authority(
-        InvocationSource::EffectManagement,
-        AuthMode::Sessions,
-        state.server.profile,
-        test_route_admission(&state).0,
-        &WireAuthorityFields::default(),
-        resolved,
-        Some(claims),
-    )
-    .unwrap()
-    .with_fenced_publication(publication);
+    .expect("prepare effect approver through the target engine");
 
     let approval_management = management.clone();
     let approval_effect_id = effect.id.clone();
@@ -7905,6 +7953,121 @@ struct FiniteAuthorityMatrixFixture {
     token: String,
     token_id: String,
     token_expires_at_ms: u64,
+    grant_expires_at_ms: u64,
+}
+
+struct RegisteredTestAgent {
+    user_id: String,
+    credential: String,
+}
+
+async fn register_test_agent(router: &SnapbackApp, display_name: &str) -> RegisteredTestAgent {
+    let response = router
+        .clone()
+        .oneshot(agent_registration_http_request(json!({
+            "displayName": display_name,
+        })))
+        .await
+        .expect("register test agent through the public route");
+    let status = response.status();
+    let response = response_json(response).await;
+    assert_eq!(status, StatusCode::OK, "{response}");
+    RegisteredTestAgent {
+        user_id: response["userId"].as_str().unwrap().to_owned(),
+        credential: response["credential"].as_str().unwrap().to_owned(),
+    }
+}
+
+async fn submit_agent_pairing_request(
+    router: &SnapbackApp,
+    owner_bearer: &str,
+    agent_credential: &str,
+    requested_scopes: Value,
+) -> String {
+    let pairing = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/auth/pairing-codes",
+            br#"{}"#.to_vec(),
+            owner_bearer,
+        ))
+        .await
+        .expect("mint pairing code through the authenticated route");
+    let pairing_status = pairing.status();
+    let pairing = response_json(pairing).await;
+    assert_eq!(pairing_status, StatusCode::OK, "{pairing}");
+    let request_id = pairing["pairingRequestId"].as_str().unwrap().to_owned();
+    let mut request = auth_http_request(
+        "POST",
+        "/auth/agents/pair",
+        serde_json::to_vec(&json!({
+            "credential": agent_credential,
+            "pairingRequestId": request_id,
+            "pairingCode": pairing["pairingCode"],
+            "requestedScopes": requested_scopes,
+        }))
+        .unwrap(),
+        true,
+        None,
+        None,
+    );
+    offer_auth_client_protocol(&mut request);
+    let response = router
+        .clone()
+        .oneshot(request)
+        .await
+        .expect("present pairing proof through the public route");
+    let status = response.status();
+    let response = response_json(response).await;
+    assert_eq!(status, StatusCode::OK, "{response}");
+    request_id
+}
+
+async fn approve_agent_pairing_request(
+    router: &SnapbackApp,
+    owner_bearer: &str,
+    request_id: &str,
+    body: Value,
+) -> Value {
+    let response = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            &format!("/auth/grant-requests/{request_id}/approve"),
+            serde_json::to_vec(&body).unwrap(),
+            owner_bearer,
+        ))
+        .await
+        .expect("approve grant through the authenticated route");
+    let status = response.status();
+    let response = response_json(response).await;
+    assert_eq!(status, StatusCode::OK, "{response}");
+    response
+}
+
+async fn mint_agent_token(router: &SnapbackApp, agent_credential: &str, target: Value) -> Value {
+    let mut request = auth_http_request(
+        "POST",
+        "/auth/agents/token",
+        serde_json::to_vec(&json!({
+            "credential": agent_credential,
+            "grantId": target.get("grantId"),
+            "pairingRequestId": target.get("pairingRequestId"),
+        }))
+        .unwrap(),
+        true,
+        None,
+        None,
+    );
+    offer_auth_client_protocol(&mut request);
+    let response = router
+        .clone()
+        .oneshot(request)
+        .await
+        .expect("mint scoped token through the public route");
+    let status = response.status();
+    let response = response_json(response).await;
+    assert_eq!(status, StatusCode::OK, "{response}");
+    response
 }
 
 async fn finite_authority_matrix_fixture() -> FiniteAuthorityMatrixFixture {
@@ -7932,48 +8095,110 @@ async fn finite_authority_matrix_fixture_with_functions(
     })
     .await
     .expect("construct finite-authority matrix fixture off async workers");
-    let effective_user_id = "018f0d90-7b30-7a22-8c33-445566778899".to_owned();
-    let grant_id = "018f0d90-7b32-7a22-8c33-445566778899".to_owned();
-    let setup_effective_user_id = effective_user_id.clone();
-    let setup_grant_id = grant_id.clone();
-    let (agent_user_id, credential, token, token_id, token_expires_at_ms) =
-        with_snapback(&state.snapback, move |snapback| {
-            let mut db = snapback.remainder_auth_fixture();
-            db.reconcile_auth_scope_bases(&functions)?;
-            db.auth_catalog()
-                .insert_human_user_for_test(&setup_effective_user_id, start_ms)?;
-            let credential = db.register_agent_principal(
-                None,
-                Some("Finite Authority Agent".to_owned()),
-                None,
-                ServerProfile::Test,
-                start_ms,
-                &OsRandom,
-            )?;
-            db.auth_catalog().insert_finite_authority_grant_for_test(
-                &setup_grant_id,
-                &credential.user_id,
-                &setup_effective_user_id,
-                start_ms,
-            )?;
-            let issued = db.mint_scoped_token(
-                &credential.secret,
-                &setup_grant_id,
-                Some(24 * 60 * 60 * 1_000),
-                start_ms,
-                &OsRandom,
-            )?;
-            Ok::<_, SnapbackError>((
-                credential.user_id,
-                credential.secret.expose_secret().to_owned(),
-                issued.secret.expose_secret().to_owned(),
-                issued.token_id,
-                issued.expires_at_ms,
-            ))
-        })
-        .await
-        .expect("seed real finite service authority");
     let router = app(state.clone());
+    with_snapback(&state.snapback, move |snapback| {
+        snapback
+            .remainder_auth_fixture()
+            .reconcile_auth_scope_bases(&functions)
+    })
+    .await
+    .expect("reconcile the deployed function scope bases");
+    let owner = mint_test_credential(&state, "finite-authority-owner@example.com").await;
+    let effective_user_id = owner["session"]["userId"].as_str().unwrap().to_owned();
+    let owner_bearer = owner["token"].as_str().unwrap().to_owned();
+    let registered = router
+        .clone()
+        .oneshot(agent_registration_http_request(json!({
+            "displayName": "Finite Authority Agent",
+        })))
+        .await
+        .expect("register finite-authority agent through the public route");
+    let registered_status = registered.status();
+    let registered = response_json(registered).await;
+    assert_eq!(registered_status, StatusCode::OK, "{registered}");
+    let agent_user_id = registered["userId"].as_str().unwrap().to_owned();
+    let credential = registered["credential"].as_str().unwrap().to_owned();
+    let pairing = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/auth/pairing-codes",
+            br#"{}"#.to_vec(),
+            &owner_bearer,
+        ))
+        .await
+        .expect("mint pairing code through the authenticated route");
+    let pairing = response_json(pairing).await;
+    let pairing_request_id = pairing["pairingRequestId"].as_str().unwrap().to_owned();
+    let mut pair_request = auth_http_request(
+        "POST",
+        "/auth/agents/pair",
+        serde_json::to_vec(&json!({
+            "credential": credential,
+            "pairingRequestId": pairing_request_id,
+            "pairingCode": pairing["pairingCode"],
+            "requestedScopes": [
+                { "fn": "fn:listItems", "kind": "query" },
+                { "fn": "fn:liveItems", "kind": "liveQuery" },
+                { "fn": "fn:queuedWrite", "kind": "mutation" },
+                { "fn": "fn:writeAction", "kind": "action" }
+            ],
+        }))
+        .unwrap(),
+        true,
+        None,
+        None,
+    );
+    offer_auth_client_protocol(&mut pair_request);
+    let paired = router
+        .clone()
+        .oneshot(pair_request)
+        .await
+        .expect("present pairing proof through the public route");
+    let paired_status = paired.status();
+    let paired = response_json(paired).await;
+    assert_eq!(paired_status, StatusCode::OK, "{paired}");
+    let approved = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            &format!("/auth/grant-requests/{pairing_request_id}/approve"),
+            serde_json::to_vec(&json!({
+                "requestedTtlMs": 48 * 60 * 60 * 1_000_u64,
+            }))
+            .unwrap(),
+            &owner_bearer,
+        ))
+        .await
+        .expect("approve finite grant through the authenticated route");
+    let approved_status = approved.status();
+    let approved = response_json(approved).await;
+    assert_eq!(approved_status, StatusCode::OK, "{approved}");
+    let grant_id = approved["grantId"].as_str().unwrap().to_owned();
+    let grant_expires_at_ms = approved["expiresAtMs"].as_u64().unwrap();
+    let mut token_request = auth_http_request(
+        "POST",
+        "/auth/agents/token",
+        serde_json::to_vec(&json!({
+            "credential": credential,
+            "grantId": grant_id,
+            "ttlMs": 24 * 60 * 60 * 1_000_u64,
+        }))
+        .unwrap(),
+        true,
+        None,
+        None,
+    );
+    offer_auth_client_protocol(&mut token_request);
+    let issued = router
+        .clone()
+        .oneshot(token_request)
+        .await
+        .expect("mint scoped token through the public route");
+    let issued_status = issued.status();
+    let issued = response_json(issued).await;
+    assert_eq!(issued_status, StatusCode::OK, "{issued}");
+    let token = issued["token"].as_str().unwrap().to_owned();
+    let token_id = issued["tokenId"].as_str().unwrap().to_owned();
+    let token_expires_at_ms = issued["expiresAtMs"].as_u64().unwrap();
     FiniteAuthorityMatrixFixture {
         state,
         router,
@@ -7986,34 +8211,38 @@ async fn finite_authority_matrix_fixture_with_functions(
         token,
         token_id,
         token_expires_at_ms,
+        grant_expires_at_ms,
     }
 }
 
-async fn mint_same_grant_sibling_and_set_deadline(
-    fixture: &FiniteAuthorityMatrixFixture,
-    grant_deadline_ms: u64,
-) -> (String, String) {
-    let start_ms = fixture.start_ms;
-    let credential = fixture.credential.clone();
-    let grant_id = fixture.grant_id.clone();
-    with_snapback(&fixture.state.snapback, move |snapback| {
-        let credential =
-            AgentCredential::parse(&credential).expect("parse grant-expiry credential");
-        let issued = snapback.remainder_auth_fixture().mint_scoped_token(
-            &credential,
-            &grant_id,
-            Some(24 * 60 * 60 * 1_000),
-            start_ms,
-            &OsRandom,
-        )?;
-        snapback
-            .remainder_auth_fixture()
-            .auth_catalog()
-            .set_grant_expiry_for_test(&grant_id, grant_deadline_ms)?;
-        Ok::<_, SnapbackError>((issued.secret.expose_secret().to_owned(), issued.token_id))
-    })
-    .await
-    .expect("mint sibling token and shorten the shared grant")
+async fn mint_same_grant_sibling(fixture: &FiniteAuthorityMatrixFixture) -> (String, String) {
+    let mut request = auth_http_request(
+        "POST",
+        "/auth/agents/token",
+        serde_json::to_vec(&json!({
+            "credential": fixture.credential,
+            "grantId": fixture.grant_id,
+            "ttlMs": 24 * 60 * 60 * 1_000_u64,
+        }))
+        .unwrap(),
+        true,
+        None,
+        None,
+    );
+    offer_auth_client_protocol(&mut request);
+    let response = fixture
+        .router
+        .clone()
+        .oneshot(request)
+        .await
+        .expect("mint sibling scoped token through the public route");
+    let status = response.status();
+    let response = response_json(response).await;
+    assert_eq!(status, StatusCode::OK, "{response}");
+    (
+        response["token"].as_str().unwrap().to_owned(),
+        response["tokenId"].as_str().unwrap().to_owned(),
+    )
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -10445,7 +10674,7 @@ async fn assert_revocation_terminalized(
     registry.assert_grant_indexes_consistent();
 }
 
-fn prepared_provider_route_authority(
+async fn prepared_provider_route_authority(
     state: &AppState,
     source: InvocationSource,
     bearer: &str,
@@ -10459,20 +10688,23 @@ fn prepared_provider_route_authority(
     let prepared = coordinator
         .resolve_family_bearer(bearer, provider.now_ms(), provider.monotonic_now())
         .expect("resolve provider-route bearer through projection");
-    let (resolved, publication) = prepared.into_parts();
-    let session_claims = test_session_claims_for(&resolved);
+    let now_ms = provider.now_ms();
+    let profile = state.server.profile;
+    let admission = test_route_admission(state).0;
     Extension(
-        InvocationGate::prepare_admitted_subjectless_authority(
-            source,
-            AuthMode::Sessions,
-            state.server.profile,
-            test_route_admission(state).0,
-            &WireAuthorityFields::default(),
-            resolved,
-            session_claims,
-        )
-        .expect("prepare provider-route authority")
-        .with_fenced_publication(publication),
+        with_snapback(&state.snapback, move |snapback| {
+            snapback.prepare_bearer_authority(
+                prepared,
+                source,
+                AuthMode::Sessions,
+                profile,
+                admission,
+                &WireAuthorityFields::default(),
+                now_ms,
+            )
+        })
+        .await
+        .expect("prepare provider-route authority through the target engine"),
     )
 }
 
@@ -15193,7 +15425,7 @@ async fn hosted_sender_issuance_session_and_refresh_compose_through_the_router()
         .await
         .expect("open sender-bound connection grant");
     assert_eq!(connection_open.status(), StatusCode::OK);
-    let nonce_five = connection_open
+    let mut nonce_five = connection_open
         .headers()
         .get(super::SENDER_NONCE_HEADER)
         .and_then(|value| value.to_str().ok())
@@ -15249,7 +15481,7 @@ async fn hosted_sender_issuance_session_and_refresh_compose_through_the_router()
 
     for (index, (method, path, websocket_carrier)) in grant_route_matrix.iter().enumerate() {
         let canonical_uri = format!("https://app.example.test{path}");
-        let request = |proof: Option<&str>| {
+        let request = |proof: Option<&str>, body: Body| {
             let mut builder = Request::builder()
                 .method(*method)
                 .uri(path)
@@ -15276,14 +15508,12 @@ async fn hosted_sender_issuance_session_and_refresh_compose_through_the_router()
                     builder = builder.header(super::SENDER_PROOF_HEADER, proof);
                 }
             }
-            builder
-                .body(Body::new(PanicOnPollBody))
-                .expect("grant matrix request")
+            builder.body(body).expect("grant matrix request")
         };
 
         let missing = router
             .clone()
-            .oneshot(request(None))
+            .oneshot(request(None, Body::new(PanicOnPollBody)))
             .await
             .expect("refuse missing grant proof");
         assert_eq!(missing.status(), StatusCode::UNAUTHORIZED, "{path}");
@@ -15303,7 +15533,10 @@ async fn hosted_sender_issuance_session_and_refresh_compose_through_the_router()
 
         let malformed = router
             .clone()
-            .oneshot(request(Some("not-a-compact-proof")))
+            .oneshot(request(
+                Some("not-a-compact-proof"),
+                Body::new(PanicOnPollBody),
+            ))
             .await
             .expect("refuse malformed grant proof");
         assert_eq!(malformed.status(), StatusCode::UNAUTHORIZED, "{path}");
@@ -15323,7 +15556,7 @@ async fn hosted_sender_issuance_session_and_refresh_compose_through_the_router()
         );
         let wrong_ath = router
             .clone()
-            .oneshot(request(Some(&wrong_ath)))
+            .oneshot(request(Some(&wrong_ath), Body::new(PanicOnPollBody)))
             .await
             .expect("refuse session-ath proof on a grant route");
         assert_eq!(wrong_ath.status(), StatusCode::UNAUTHORIZED, "{path}");
@@ -15334,18 +15567,7 @@ async fn hosted_sender_issuance_session_and_refresh_compose_through_the_router()
         );
 
         let replay_id = [120_u8.saturating_add(index as u8); 16];
-        {
-            let mut snapback = state
-                .snapback
-                .try_lock()
-                .expect("borrow sender replay authority for route matrix");
-            snapback
-                .remainder_auth_fixture()
-                .auth_catalog()
-                .insert_sender_replay_for_test(replay_id.as_slice(), provider.now_ms() / 1_000 + 31)
-                .expect("seed exact replay id");
-        }
-        let replayed = sender_key.resource_proof(
+        let proof = sender_key.resource_proof(
             method,
             &canonical_uri,
             &connection_token,
@@ -15353,9 +15575,21 @@ async fn hosted_sender_issuance_session_and_refresh_compose_through_the_router()
             provider.now_ms() / 1_000,
             replay_id,
         );
+        let accepted = router
+            .clone()
+            .oneshot(request(Some(&proof), Body::empty()))
+            .await
+            .expect("consume a valid grant proof through the real route");
+        assert_ne!(accepted.status(), StatusCode::UNAUTHORIZED, "{path}");
+        nonce_five = accepted
+            .headers()
+            .get(super::SENDER_NONCE_HEADER)
+            .and_then(|value| value.to_str().ok())
+            .expect("accepted grant proof returns its successor nonce")
+            .to_owned();
         let replayed = router
             .clone()
-            .oneshot(request(Some(&replayed)))
+            .oneshot(request(Some(&proof), Body::new(PanicOnPollBody)))
             .await
             .expect("refuse replayed grant proof");
         assert_eq!(replayed.status(), StatusCode::UNAUTHORIZED, "{path}");
@@ -15710,19 +15944,22 @@ async fn sender_bound_grant_invalidates_when_the_sender_replay_epoch_advances() 
         .expect("connection token")
         .to_owned();
 
-    // Advance the durable sender namespace exactly as the stream-reset
-    // transaction does: epoch + 1 with both tables cleared.
-    {
-        let mut snapback = state
-            .snapback
-            .try_lock()
-            .expect("borrow sender authority for epoch advance");
-        snapback
-            .remainder_auth_fixture()
-            .auth_catalog()
-            .advance_sender_replay_epoch_for_test()
-            .expect("advance durable sender replay epoch");
-    }
+    // Apply a newer authenticated control-plane floor through the same hosted
+    // authority installation ceremony used at listener bind.
+    let successor_authority = hosted_serving_authority_with_sender_floor(now_ms, 2);
+    state
+        .snapback
+        .try_lock()
+        .expect("borrow serving owner for hosted authority renewal")
+        .initialize_hosted_serving_authority(&successor_authority)
+        .expect("apply the authenticated sender replay floor");
+    assert!(
+        state
+            .hosted_serving_handle()
+            .expect("hosted serving handle")
+            .install(successor_authority),
+        "the successor belongs to the same authenticated hosted process",
+    );
 
     // The stale grant is closed outright — no nonce challenge, because a
     // dead grant must not become a nonce-issuance oracle.
@@ -17076,40 +17313,63 @@ async fn scoped_token_carrier_is_resolved_only_for_granted_current_function_scop
         InvitedBy::Operators,
     ))
     .await;
-    let provider = state.auth_provider.clone().unwrap();
-    let now_ms = provider.now_ms();
-    let (agent_user_id, token, agent_credential) =
-        with_snapback(&state.snapback, move |snapback| {
-            let mut db = snapback.remainder_auth_fixture();
-            db.auth_catalog()
-                .insert_query_carrier_prerequisites_for_test(now_ms)?;
-            let credential = db.register_agent_principal(
-                None,
-                Some("Carrier Test Agent".to_owned()),
-                None,
-                ServerProfile::Test,
-                now_ms,
-                &OsRandom,
-            )?;
-            db.auth_catalog()
-                .insert_query_carrier_grant_for_test(&credential.user_id, now_ms)?;
-            let issued = db.mint_scoped_token(
-                &credential.secret,
-                "018f0d90-7b32-7a22-8c33-445566778899",
-                None,
-                now_ms,
-                &OsRandom,
-            )?;
-            Ok::<_, SnapbackError>((
-                credential.user_id,
-                issued.secret.expose_secret().to_owned(),
-                credential.secret.expose_secret().to_owned(),
-            ))
-        })
-        .await
-        .unwrap();
-
     let connection_router = super::app(state.clone());
+    let mut deployed_functions = activation_functions('2', false);
+    deployed_functions.functions.push(FunctionDefinition::new(
+        "allowed",
+        FunctionKind::Query,
+        FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table_visibility: None,
+            table: "items".to_owned(),
+            filters: Vec::new(),
+            order: Vec::new(),
+            limit: None,
+            membership_filters: Vec::new(),
+            indexed_by: None,
+        })),
+    ));
+    with_snapback(&state.snapback, {
+        let deployed_functions = deployed_functions.clone();
+        move |snapback| {
+            snapback
+                .remainder_auth_fixture()
+                .reconcile_auth_scope_bases(&deployed_functions)
+        }
+    })
+    .await
+    .expect("reconcile real query-carrier scope bases");
+    let owner = mint_test_credential(&state, "query-carrier-owner@example.com").await;
+    let effective_user_id = owner["session"]["userId"].as_str().unwrap().to_owned();
+    let owner_bearer = owner["token"].as_str().unwrap().to_owned();
+    let agent = register_test_agent(&connection_router, "Carrier Test Agent").await;
+    let pairing_request_id = submit_agent_pairing_request(
+        &connection_router,
+        &owner_bearer,
+        &agent.credential,
+        json!([
+            { "fn": "fn:allowed", "kind": "query" },
+            { "fn": "fn:liveItems", "kind": "liveQuery" },
+            { "fn": "fn:queuedWrite", "kind": "mutation" }
+        ]),
+    )
+    .await;
+    let grant = approve_agent_pairing_request(
+        &connection_router,
+        &owner_bearer,
+        &pairing_request_id,
+        json!({}),
+    )
+    .await;
+    let grant_id = grant["grantId"].as_str().unwrap().to_owned();
+    let issued = mint_agent_token(
+        &connection_router,
+        &agent.credential,
+        json!({ "grantId": grant_id }),
+    )
+    .await;
+    let token = issued["token"].as_str().unwrap().to_owned();
+    let agent_user_id = agent.user_id;
+    let agent_credential = agent.credential;
     let handshake = connection_router
         .clone()
         .oneshot(
@@ -17128,10 +17388,7 @@ async fn scoped_token_carrier_is_resolved_only_for_granted_current_function_scop
     let handshake = response_json(handshake).await;
     assert_eq!(handshake["authority"]["kind"], "servicePrincipal");
     assert_eq!(handshake["authority"]["isAuthenticated"], true);
-    assert_eq!(
-        handshake["authority"]["userId"],
-        "018f0d90-7b30-7a22-8c33-445566778899"
-    );
+    assert_eq!(handshake["authority"]["userId"], effective_user_id);
     assert_eq!(handshake["authority"]["sessionId"], Value::Null);
     assert_eq!(handshake["authorityDescriptor"]["descriptorVersion"], 1);
     assert_eq!(handshake["authorityDescriptor"]["sessionGeneration"], 0);
@@ -17199,8 +17456,8 @@ async fn scoped_token_carrier_is_resolved_only_for_granted_current_function_scop
         queued["attribution"],
         json!({
             "actorUserId": agent_user_id,
-            "effectiveUserId": "018f0d90-7b30-7a22-8c33-445566778899",
-            "grantId": "018f0d90-7b32-7a22-8c33-445566778899",
+            "effectiveUserId": effective_user_id,
+            "grantId": grant_id,
             "dryRun": false
         })
     );
@@ -17334,19 +17591,16 @@ async fn scoped_token_carrier_is_resolved_only_for_granted_current_function_scop
         .unwrap();
     assert_eq!(allowed.status(), StatusCode::OK);
     let projection = response_json(allowed).await;
-    assert_eq!(projection["userId"], "018f0d90-7b30-7a22-8c33-445566778899");
+    assert_eq!(projection["userId"], effective_user_id);
     assert_eq!(projection["kind"], "human");
     assert_eq!(projection["actor"]["userId"], agent_user_id);
-    assert_eq!(
-        projection["actor"]["grantId"],
-        "018f0d90-7b32-7a22-8c33-445566778899"
-    );
+    assert_eq!(projection["actor"]["grantId"], grant_id);
     assert_eq!(
         projection["attribution"],
         json!({
             "actorUserId": agent_user_id,
-            "effectiveUserId": "018f0d90-7b30-7a22-8c33-445566778899",
-            "grantId": "018f0d90-7b32-7a22-8c33-445566778899",
+            "effectiveUserId": effective_user_id,
+            "grantId": grant_id,
             "dryRun": false
         })
     );
@@ -17406,11 +17660,13 @@ async fn scoped_token_carrier_is_resolved_only_for_granted_current_function_scop
         "SNAPBACK_AUTH_CREDENTIAL_CLASS_MISMATCH"
     );
 
-    with_snapback(&state.snapback, |snapback| {
+    deployed_functions
+        .functions
+        .retain(|function| function.id != "fn:allowed");
+    with_snapback(&state.snapback, move |snapback| {
         snapback
             .remainder_auth_fixture()
-            .auth_catalog()
-            .tombstone_allowed_query_scope_basis_for_test()
+            .reconcile_auth_scope_bases(&deployed_functions)
     })
     .await
     .unwrap();
@@ -17435,12 +17691,12 @@ async fn scoped_token_carrier_is_resolved_only_for_granted_current_function_scop
     };
     let notifier = state.ephemeral.delivery_notifier();
     let (generation, waker) = notifier
-        .register_bound(connection_id, grant_id)
+        .register_bound(connection_id, grant_id.clone())
         .expect("register exact service socket");
-    let revocation = with_snapback(&state.snapback, |snapback| {
+    let revocation = with_snapback(&state.snapback, move |snapback| {
         snapback.remainder_auth_fixture().revoke_grant_for_user(
-            "018f0d90-7b30-7a22-8c33-445566778899",
-            "018f0d90-7b32-7a22-8c33-445566778899",
+            &effective_user_id,
+            &grant_id,
             super::now_millis(),
         )
     })
@@ -17580,47 +17836,45 @@ async fn live_attribution_is_immutable_across_renewal_and_regenerated_after_rota
         subscribed
     }
 
-    let effective_user_id = "018f0d90-7b30-7a22-8c33-445566778899";
-    let grant_id = "018f0d90-7b32-7a22-8c33-445566778899";
-    let state = sessions_activation_server_fixture_with_agents_async(agent_policy(
-        AgentsMode::Open,
-        InvitedBy::Operators,
-    ))
-    .await;
-    let provider = state.auth_provider.clone().unwrap();
-    let now_ms = provider.now_ms();
-    let seed_provider = provider.clone();
-    let (agent_user_id, token, agent_credential) =
-        with_snapback(&state.snapback, move |snapback| {
-            let mut db = snapback.remainder_auth_fixture();
-            db.auth_catalog()
-                .insert_live_carrier_prerequisites_for_test(now_ms)?;
-            let credential = db.register_agent_principal(
-                None,
-                Some("Live Attribution Agent".to_owned()),
-                None,
-                ServerProfile::Test,
-                now_ms,
-                &OsRandom,
-            )?;
-            db.auth_catalog()
-                .insert_live_carrier_grant_for_test(&credential.user_id, now_ms)?;
-            let issued = db.mint_scoped_token(
-                &credential.secret,
-                "018f0d90-7b32-7a22-8c33-445566778899",
-                None,
-                now_ms,
-                &OsRandom,
-            )?;
-            Ok::<_, SnapbackError>((
-                credential.user_id,
-                issued.secret.expose_secret().to_owned(),
-                credential.secret.expose_secret().to_owned(),
-            ))
-        })
-        .await
-        .unwrap();
+    let start_ms = super::now_millis();
+    let clock = Arc::new(ManualServerAuthClock::new(start_ms));
+    let fixture_clock = Arc::clone(&clock);
+    let state = tokio::task::spawn_blocking(move || {
+        let _sanction = crate::exec_guard::BlockingSanction::acquire();
+        sessions_activation_server_fixture_with_agents(
+            activation_functions('2', false),
+            Some(fixture_clock),
+            Some(agent_policy(AgentsMode::Open, InvitedBy::Operators)),
+        )
+    })
+    .await
+    .expect("construct live-attribution fixture off async workers");
+    with_snapback(&state.snapback, |snapback| {
+        snapback
+            .remainder_auth_fixture()
+            .reconcile_auth_scope_bases(&activation_functions('2', false))
+    })
+    .await
+    .expect("reconcile real live-attribution scope bases");
     let router = super::app(state.clone());
+    let owner = mint_test_credential(&state, "live-attribution-owner@example.com").await;
+    let effective_user_id = owner["session"]["userId"].as_str().unwrap().to_owned();
+    let owner_bearer = owner["token"].as_str().unwrap().to_owned();
+    let agent = register_test_agent(&router, "Live Attribution Agent").await;
+    let pairing_request_id = submit_agent_pairing_request(
+        &router,
+        &owner_bearer,
+        &agent.credential,
+        json!([{ "fn": "fn:liveItems", "kind": "liveQuery" }]),
+    )
+    .await;
+    let grant =
+        approve_agent_pairing_request(&router, &owner_bearer, &pairing_request_id, json!({})).await;
+    let grant_id = grant["grantId"].as_str().unwrap().to_owned();
+    let issued = mint_agent_token(&router, &agent.credential, json!({ "grantId": grant_id })).await;
+    let token = issued["token"].as_str().unwrap().to_owned();
+    let agent_user_id = agent.user_id;
+    let agent_credential = agent.credential;
     let expected_attribution = json!({
         "actorUserId": agent_user_id,
         "effectiveUserId": effective_user_id,
@@ -17671,14 +17925,10 @@ async fn live_attribution_is_immutable_across_renewal_and_regenerated_after_rota
     let (registration, waker) = notifier
         .register_bound(&connection_id, bound_grant_id)
         .expect("register exact service socket");
-    with_snapback(&state.snapback, move |snapback| {
-        snapback
-            .remainder_auth_fixture()
-            .auth_catalog()
-            .set_agent_credential_rotated_at_for_test(&agent_user_id, 0)
-    })
-    .await
-    .unwrap();
+    clock.set(
+        start_ms
+            + crate::storage::auth_agent_credentials::AGENT_CREDENTIAL_ROTATION_MIN_INTERVAL_MS,
+    );
     let mut rotate = auth_http_request(
         "POST",
         "/auth/agents/rotate",
@@ -19454,27 +19704,6 @@ async fn guest_entry_authorizes_claims_reaps_and_refuses_policy_or_input_failure
         .expect("collision predecessor signup");
     assert_eq!(signup.status(), StatusCode::OK);
 
-    let disabled_email = "disabled-guest-claim@example.com";
-    let disabled_signup = router
-        .clone()
-        .oneshot(password_auth_http_request(
-            "/auth/password/signup",
-            json!({ "email": disabled_email, "password": "disabled-password-123!" }),
-        ))
-        .await
-        .expect("disabled collision predecessor signup");
-    assert_eq!(disabled_signup.status(), StatusCode::OK);
-    let disabled_at_ms = super::now_millis();
-    with_snapback(&state.snapback, move |snapback| {
-        snapback.remainder_auth_fixture().disable_identity_for_test(
-            "local-password",
-            disabled_email,
-            disabled_at_ms,
-        )
-    })
-    .await
-    .expect("disable collision predecessor identity");
-
     let malformed = router
         .clone()
         .oneshot(password_auth_http_request(
@@ -19539,27 +19768,6 @@ async fn guest_entry_authorizes_claims_reaps_and_refuses_policy_or_input_failure
         "SNAPBACK_AUTH_GUEST_CLAIM_COLLISION"
     );
     assert!(!collision.to_string().contains(existing_email));
-
-    let disabled_collision = router
-        .clone()
-        .oneshot(session_auth_http_request(
-            "/auth/guest/claim/password",
-            serde_json::to_vec(&json!({
-                "email": disabled_email,
-                "password": "guest-disabled-collision-password-456!",
-            }))
-            .unwrap(),
-            &guest_token,
-        ))
-        .await
-        .expect("disabled guest claim collision");
-    assert_eq!(disabled_collision.status(), StatusCode::CONFLICT);
-    let disabled_collision = response_json(disabled_collision).await;
-    assert_eq!(
-        disabled_collision["diagnostic"]["code"],
-        "SNAPBACK_AUTH_GUEST_CLAIM_COLLISION"
-    );
-    assert!(!disabled_collision.to_string().contains(disabled_email));
 
     let claimed = router
         .clone()
@@ -20666,7 +20874,6 @@ async fn password_routes_signup_authorize_signin_and_recover_end_to_end() {
 async fn password_public_invalid_refusal_is_uniform_and_admin_unlock_clears_early_lockout() {
     const HTTP_TIMING_ENVELOPE: Duration = Duration::from_millis(250);
     let state = password_sessions_activation_server_fixture_async().await;
-    let provider = state.auth_provider.clone().expect("password provider");
     let router = app(state.clone());
     let password = "uniform-password-route-123!";
     for email in ["wrong-password@example.com", "locked-password@example.com"] {
@@ -20680,19 +20887,24 @@ async fn password_public_invalid_refusal_is_uniform_and_admin_unlock_clears_earl
             .expect("uniform-refusal signup");
         assert_eq!(response.status(), StatusCode::OK);
     }
-    let now_ms = provider.now_ms();
-    with_snapback(&state.snapback, move |snapback| {
-        snapback
-            .remainder_auth_fixture()
-            .insert_password_attempt_for_test(
-                "locked-password@example.com",
-                now_ms,
-                99,
-                Some(now_ms + 60_000),
-            )
-    })
-    .await
-    .expect("install early-unlock fixture");
+    for attempt in 1..=10 {
+        let response = router
+            .clone()
+            .oneshot(password_auth_http_request(
+                "/auth/password/signin",
+                json!({
+                    "email": "locked-password@example.com",
+                    "password": "definitely-wrong-password!",
+                }),
+            ))
+            .await
+            .expect("real failed password attempt");
+        assert_eq!(
+            response.status(),
+            StatusCode::UNAUTHORIZED,
+            "failed attempt {attempt}",
+        );
+    }
 
     let attempts = [
         ("wrong-password@example.com", "definitely-wrong-password!"),
@@ -20753,7 +20965,7 @@ async fn password_public_invalid_refusal_is_uniform_and_admin_unlock_clears_earl
     assert_eq!(projection.status(), StatusCode::OK);
     let projection = response_json(projection).await;
     assert_eq!(projection["failureThreshold"], 10);
-    assert_eq!(projection["attempt"]["failedCount"], 99);
+    assert_eq!(projection["attempt"]["failedCount"], 10);
     assert_eq!(projection["attempt"]["locked"], true);
     assert_eq!(
         projection["attempt"]["canonicalIdentifier"],
@@ -20850,19 +21062,7 @@ async fn password_change_closed_union_rotates_and_requires_step_up_for_first_set
             .as_str()
             .unwrap()
             .to_owned();
-    let sibling_email = "set-first-password-sibling@example.com";
-    let sibling_fixture_bearer = email_bearer.clone();
-    let sibling_identity_id = with_snapback(&state.snapback, move |snapback| {
-        snapback
-            .remainder_auth_fixture()
-            .insert_email_code_identity_for_live_session_for_test(
-                &sibling_fixture_bearer,
-                sibling_email,
-                super::now_millis(),
-            )
-    })
-    .await
-    .expect("same-user sibling email-code identity");
+    let caller_selected_identity = "caller-must-not-select-an-identity";
 
     let bearer_alone = router
         .clone()
@@ -20889,7 +21089,7 @@ async fn password_change_closed_union_rotates_and_requires_step_up_for_first_set
             "/auth/step-up/request",
             serde_json::to_vec(&json!({
                 "operation": "passwordSet",
-                "identityId": sibling_identity_id.clone(),
+                "identityId": caller_selected_identity,
             }))
             .unwrap(),
             &email_bearer,
@@ -20932,7 +21132,7 @@ async fn password_change_closed_union_rotates_and_requires_step_up_for_first_set
                 "stepUp": {
                     "challengeId": challenge_id.clone(),
                     "code": code,
-                    "identityId": sibling_identity_id,
+                    "identityId": caller_selected_identity,
                 }
             }))
             .unwrap(),
@@ -20976,16 +21176,14 @@ async fn password_change_closed_union_rotates_and_requires_step_up_for_first_set
         Some(email_authority_instance_id.as_str()),
         "first-password set must issue a fresh authority instance"
     );
-    let password_subject_counts = with_snapback(&state.snapback, move |snapback| {
-        let mut database = snapback.remainder_auth_fixture();
-        Ok::<_, crate::diagnostic::SnapbackError>((
-            database.password_identity_subject_count_for_test(set_email)?,
-            database.password_identity_subject_count_for_test(sibling_email)?,
-        ))
+    let password_subject_count = with_snapback(&state.snapback, move |snapback| {
+        snapback
+            .remainder_auth_fixture()
+            .password_identity_subject_count_for_test(set_email)
     })
     .await
-    .expect("password-set subject derivation counts");
-    assert_eq!(password_subject_counts, (1, 0));
+    .expect("password-set subject derivation count");
+    assert_eq!(password_subject_count, 1);
 
     // The email-code and local-password identities now share one principal,
     // so the capture-profile reset route may consume a fresh email challenge.
@@ -21126,27 +21324,7 @@ async fn production_password_signup_and_capture_reset_are_typed_unready_boundari
 
 #[tokio::test]
 async fn push_registry_routes_keep_token_custody_and_logout_retirement_host_owned() {
-    let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
-    let state = activate_test_sessions(state);
-    with_snapback(&state.snapback, |snapback| {
-        snapback
-            .remainder_auth_fixture()
-            .activate_push_registry_for_test(crate::push::PushSeamDeclarationV1 {
-                app_scope: crate::push::PushAppScopeV1 {
-                    eas_project_id: "eas-route".into(),
-                    application_id: "com.example.route".into(),
-                    environment: "test".into(),
-                },
-                registry: crate::push::PushRegistryDeclarationV1 {
-                    idle_retention_ms: 86_400_000,
-                },
-                audiences: BTreeMap::new(),
-                uses: Vec::new(),
-                ledger: None,
-            })
-    })
-    .await
-    .expect("declare push registry");
+    let state = push_registry_sessions_fixture(86_400_000, None).await;
     let credential = mint_test_credential(&state, "push-route@example.com").await;
     let bearer = credential["token"].as_str().unwrap().to_owned();
     let installation_id = crate::ids::mint(crate::ids::Kind::Installation).unwrap();
@@ -21217,6 +21395,53 @@ async fn push_registry_routes_keep_token_custody_and_logout_retirement_host_owne
     assert_eq!(inspection.live_tokens, 0);
     assert_eq!(inspection.retirement_reasons["session-ended"], 1);
     assert!(bytes.is_empty());
+}
+
+#[tokio::test]
+async fn periodic_auth_maintenance_runs_declared_push_idle_retention() {
+    let retention_ms = 86_400_000;
+    let start_ms = 1_000;
+    let clock = Arc::new(ManualServerAuthClock::new(start_ms));
+    let state = push_registry_sessions_fixture(retention_ms, Some(Arc::clone(&clock))).await;
+    let provider = state.auth_provider.clone().expect("push fixture provider");
+    let coordinator = state
+        .auth_coordinator
+        .clone()
+        .expect("push fixture coordinator");
+    let credential = mint_test_credential(&state, "push-maintenance@example.com").await;
+    let bearer = credential["token"].as_str().unwrap().to_owned();
+    let installation_id = crate::ids::mint(crate::ids::Kind::Installation).unwrap();
+    let router = app(state.clone());
+    let registered = router
+        .oneshot(session_auth_http_request(
+            "/push/tokens/register",
+            serde_json::to_vec(&json!({
+                "installationId": installation_id,
+                "token": "ExponentPushToken[maintenance_secret]",
+            }))
+            .unwrap(),
+            &bearer,
+        ))
+        .await
+        .expect("register maintenance token through the public route");
+    assert_eq!(registered.status(), StatusCode::OK);
+
+    clock.set(start_ms + retention_ms + 1);
+    crate::auth::runtime::run_periodic_gc_pass(
+        &state.snapback,
+        provider,
+        coordinator,
+        &crate::auth::runtime::AuthExpiryTerminalSink::new(|_| {}),
+    )
+    .await
+    .expect("run the production periodic maintenance pass");
+    let inspection = with_snapback(&state.snapback, |snapback| {
+        snapback.remainder_auth_fixture().push_registry_inspection()
+    })
+    .await
+    .expect("inspect bounded push-retention facts");
+    assert_eq!(inspection.live_tokens, 0);
+    assert_eq!(inspection.retirement_reasons["idle-retention"], 1);
 }
 
 #[tokio::test]
@@ -22230,39 +22455,58 @@ async fn deactivated_agent_cannot_re_register_or_reuse_its_credential() {
 
 #[tokio::test]
 async fn agent_token_route_accepts_exactly_one_target_and_returns_complete_receipts() {
-    let state = sessions_activation_server_fixture_with_agents_async(agent_policy(
-        AgentsMode::Open,
-        InvitedBy::Operators,
-    ))
-    .await;
-    let provider = state.auth_provider.clone().unwrap();
-    let now_ms = provider.now_ms();
-    let (agent_user_id, credential) = with_snapback(&state.snapback, move |snapback| {
-        let mut db = snapback.remainder_auth_fixture();
-        db.auth_catalog()
-            .insert_human_user_for_test("grant-user", now_ms)?;
-        let issued = db.register_agent_principal(
-            None,
-            Some("Route Agent".to_owned()),
-            None,
-            ServerProfile::Test,
-            now_ms,
-            &OsRandom,
-        )?;
-        db.auth_catalog()
-            .insert_agent_token_route_fixtures_for_test(&issued.user_id, now_ms)?;
-        Ok::<_, SnapbackError>((issued.user_id, issued.secret.expose_secret().to_owned()))
+    let start_ms = super::now_millis();
+    let clock = Arc::new(ManualServerAuthClock::new(start_ms));
+    let fixture_clock = Arc::clone(&clock);
+    let state = tokio::task::spawn_blocking(move || {
+        let _sanction = crate::exec_guard::BlockingSanction::acquire();
+        sessions_activation_server_fixture_with_agents(
+            activation_functions('2', false),
+            Some(fixture_clock),
+            Some(agent_policy(AgentsMode::Open, InvitedBy::Operators)),
+        )
     })
     .await
-    .unwrap();
+    .expect("construct token-route fixture off async workers");
+    with_snapback(&state.snapback, |snapback| {
+        snapback
+            .remainder_auth_fixture()
+            .reconcile_auth_scope_bases(&activation_functions('2', false))
+    })
+    .await
+    .expect("reconcile token-route scope bases");
     let router = app(state.clone());
+    let owner = mint_test_credential(&state, "grant-route-owner@example.com").await;
+    let owner_id = owner["session"]["userId"].as_str().unwrap().to_owned();
+    let owner_bearer = owner["token"].as_str().unwrap().to_owned();
+    let agent = register_test_agent(&router, "Route Agent").await;
+    let agent_user_id = agent.user_id;
+    let credential = agent.credential;
+    let pairing_request_id = submit_agent_pairing_request(
+        &router,
+        &owner_bearer,
+        &credential,
+        json!([{ "fn": "fn:listItems", "kind": "query" }]),
+    )
+    .await;
+    let approved =
+        approve_agent_pairing_request(&router, &owner_bearer, &pairing_request_id, json!({})).await;
+    let grant_id = approved["grantId"].as_str().unwrap().to_owned();
+    let grant_expires_at_ms = approved["expiresAtMs"].as_u64().unwrap();
+    let pending_request_id = submit_agent_pairing_request(
+        &router,
+        &owner_bearer,
+        &credential,
+        json!([{ "fn": "fn:listItems", "kind": "query" }]),
+    )
+    .await;
 
     let mut ordinary_request = auth_http_request(
         "POST",
         "/auth/agents/token",
         serde_json::to_vec(&json!({
             "credential": credential,
-            "grantId": "route-grant",
+            "grantId": grant_id,
         }))
         .unwrap(),
         true,
@@ -22274,14 +22518,14 @@ async fn agent_token_route_accepts_exactly_one_target_and_returns_complete_recei
     let ordinary_status = ordinary.status();
     let ordinary = response_json(ordinary).await;
     assert_eq!(ordinary_status, StatusCode::OK, "{ordinary}");
-    assert_eq!(ordinary["grantId"], "route-grant");
+    assert_eq!(ordinary["grantId"], grant_id);
     assert_eq!(ordinary["actorUserId"], agent_user_id);
-    assert_eq!(ordinary["effectiveUserId"], "grant-user");
-    assert_eq!(ordinary["grantExpiresAtMs"], now_ms + 60_000);
+    assert_eq!(ordinary["effectiveUserId"], owner_id);
+    assert_eq!(ordinary["grantExpiresAtMs"], grant_expires_at_ms);
     assert!(
         ordinary["expiresInMs"]
             .as_u64()
-            .is_some_and(|remaining| remaining > 59_000 && remaining <= 60_000),
+            .is_some_and(|remaining| remaining > 0),
         "the receipt reports a server-relative token lifetime: {ordinary}"
     );
     assert_eq!(ordinary["scopes"][0]["fn"], "fn:listItems");
@@ -22315,7 +22559,7 @@ async fn agent_token_route_accepts_exactly_one_target_and_returns_complete_recei
         "/auth/agents/token",
         serde_json::to_vec(&json!({
             "credential": credential,
-            "pairingRequestId": "route-pairing",
+            "pairingRequestId": pairing_request_id,
         }))
         .unwrap(),
         true,
@@ -22327,8 +22571,8 @@ async fn agent_token_route_accepts_exactly_one_target_and_returns_complete_recei
     let pairing_status = pairing.status();
     let pairing = response_json(pairing).await;
     assert_eq!(pairing_status, StatusCode::OK, "{pairing}");
-    assert_eq!(pairing["grantId"], "route-grant");
-    assert_eq!(pairing["grantExpiresAtMs"], now_ms + 60_000);
+    assert_eq!(pairing["grantId"], grant_id);
+    assert_eq!(pairing["grantExpiresAtMs"], grant_expires_at_ms);
     assert_eq!(pairing["scopes"], ordinary["scopes"]);
     let second_token = pairing["token"].as_str().unwrap().to_owned();
     let second_open = router
@@ -22362,7 +22606,7 @@ async fn agent_token_route_accepts_exactly_one_target_and_returns_complete_recei
             "/auth/agents/token",
             serde_json::to_vec(&json!({
                 "credential": credential,
-                "grantId": "route-grant",
+                "grantId": grant_id,
             }))
             .unwrap(),
             true,
@@ -22381,7 +22625,7 @@ async fn agent_token_route_accepts_exactly_one_target_and_returns_complete_recei
         "/auth/agents/token",
         serde_json::to_vec(&json!({
             "credential": credential,
-            "grantId": "route-grant",
+            "grantId": grant_id,
         }))
         .unwrap(),
         true,
@@ -22505,7 +22749,7 @@ async fn agent_token_route_accepts_exactly_one_target_and_returns_complete_recei
         "/auth/agents/token",
         serde_json::to_vec(&json!({
             "credential": credential,
-            "pairingRequestId": "route-pending",
+            "pairingRequestId": pending_request_id,
         }))
         .unwrap(),
         true,
@@ -22524,8 +22768,8 @@ async fn agent_token_route_accepts_exactly_one_target_and_returns_complete_recei
         json!({"credential": credential}),
         json!({
             "credential": credential,
-            "grantId": "route-grant",
-            "pairingRequestId": "route-pairing",
+            "grantId": grant_id,
+            "pairingRequestId": pairing_request_id,
         }),
     ] {
         let mut request = auth_http_request(
@@ -22544,14 +22788,10 @@ async fn agent_token_route_accepts_exactly_one_target_and_returns_complete_recei
         );
     }
 
-    with_snapback(&state.snapback, move |snapback| {
-        snapback
-            .remainder_auth_fixture()
-            .auth_catalog()
-            .set_agent_credential_rotated_at_for_test(&agent_user_id, 0)
-    })
-    .await
-    .unwrap();
+    clock.set(
+        start_ms
+            + crate::storage::auth_agent_credentials::AGENT_CREDENTIAL_ROTATION_MIN_INTERVAL_MS,
+    );
     let mut rotate = auth_http_request(
         "POST",
         "/auth/agents/rotate",
@@ -22601,32 +22841,28 @@ async fn bulk_grant_revocation_is_owner_scoped_idempotent_and_no_store_over_http
     .await;
     let owner = mint_test_credential(&state, "bulk-owner@example.com").await;
     let stranger = mint_test_credential(&state, "bulk-stranger@example.com").await;
-    let owner_id = owner["session"]["userId"].as_str().unwrap().to_owned();
     let owner_bearer = owner["token"].as_str().unwrap().to_owned();
     let stranger_bearer = stranger["token"].as_str().unwrap().to_owned();
-    let provider = state.auth_provider.clone().unwrap();
-    let now_ms = provider.now_ms();
-    let owner_id_for_setup = owner_id.clone();
-    let agent_user_id = with_snapback(&state.snapback, move |snapback| {
-        let mut db = snapback.remainder_auth_fixture();
-        let issued = db.register_agent_principal(
-            None,
-            Some("Bulk Route Agent".to_owned()),
-            None,
-            ServerProfile::Test,
-            now_ms,
-            &OsRandom,
-        )?;
-        db.auth_catalog().insert_bulk_route_grants_for_test(
-            &issued.user_id,
-            &owner_id_for_setup,
-            now_ms,
-        )?;
-        Ok::<_, SnapbackError>(issued.user_id)
+    with_snapback(&state.snapback, |snapback| {
+        snapback
+            .remainder_auth_fixture()
+            .reconcile_auth_scope_bases(&activation_functions('2', false))
     })
     .await
-    .unwrap();
+    .expect("reconcile bulk-revocation scope bases");
     let router = app(state);
+    let agent = register_test_agent(&router, "Bulk Route Agent").await;
+    let agent_user_id = agent.user_id;
+    for _ in 0..2 {
+        let request_id = submit_agent_pairing_request(
+            &router,
+            &owner_bearer,
+            &agent.credential,
+            json!([{ "fn": "fn:listItems", "kind": "query" }]),
+        )
+        .await;
+        approve_agent_pairing_request(&router, &owner_bearer, &request_id, json!({})).await;
+    }
 
     let request = |method: &'static str, uri: &str, bearer: &str| {
         let mut request = auth_http_request(method, uri, Vec::new(), false, None, None);
@@ -22723,59 +22959,47 @@ async fn grant_step_up_is_domain_separated_target_bound_and_single_effect() {
     let bearer = credential["token"].as_str().unwrap().to_owned();
     let second_credential = mint_test_credential(&state, "step-up@example.com").await;
     let second_bearer = second_credential["token"].as_str().unwrap().to_owned();
-    let user_id = credential["session"]["userId"].as_str().unwrap().to_owned();
     let now_ms = provider.now_ms();
-    let request_ids = with_snapback(&state.snapback, {
-        let user_id = user_id.clone();
-        move |snapback| {
-            let mut db = snapback.remainder_auth_fixture();
-            let issued = db.register_agent_principal(
-                None,
-                Some("Step-up Agent".to_owned()),
-                None,
-                ServerProfile::Test,
-                now_ms,
-                &OsRandom,
-            )?;
-            let agent_credential = issued.secret;
-            db.auth_catalog().insert_step_up_scope_bases_for_test()?;
-
-            let mut present = |function_id: &str,
-                               kind: crate::storage::auth_grants::ScopedFunctionKind|
-             -> crate::diagnostic::SnapbackResult<String> {
-                let pairing = db.mint_pairing_code(&user_id, now_ms, &OsRandom)?;
-                db.present_pairing_code(
-                    &agent_credential,
-                    &pairing.request_id,
-                    &pairing.secret,
-                    &[crate::storage::auth_grants::GrantScopeRequest::Exact {
-                        function_id: function_id.to_owned(),
-                        kind,
-                    }],
-                    now_ms,
-                )?;
-                Ok(pairing.request_id)
-            };
-            Ok::<_, SnapbackError>((
-                present(
-                    "fn:seatRole",
-                    crate::storage::auth_grants::ScopedFunctionKind::Mutation,
-                )?,
-                present(
-                    "fn:seatRole",
-                    crate::storage::auth_grants::ScopedFunctionKind::Mutation,
-                )?,
-                present(
-                    "fn:listItems",
-                    crate::storage::auth_grants::ScopedFunctionKind::Query,
-                )?,
-            ))
-        }
+    let mut deployed_functions = activation_functions('2', false);
+    let mut seat_role = deployed_functions
+        .functions
+        .iter()
+        .find(|function| function.id == "fn:queuedWrite")
+        .unwrap()
+        .clone();
+    seat_role.name = "seatRole".to_owned();
+    seat_role.id = "fn:seatRole".to_owned();
+    deployed_functions.functions.push(seat_role);
+    with_snapback(&state.snapback, move |snapback| {
+        snapback
+            .remainder_auth_fixture()
+            .reconcile_auth_scope_bases(&deployed_functions)
     })
     .await
-    .unwrap();
-    let (bound_request, other_request, ordinary_request) = request_ids;
+    .expect("reconcile step-up grant scope bases");
     let router = app(state.clone());
+    let agent = register_test_agent(&router, "Step-up Agent").await;
+    let bound_request = submit_agent_pairing_request(
+        &router,
+        &bearer,
+        &agent.credential,
+        json!([{ "fn": "fn:seatRole", "kind": "mutation" }]),
+    )
+    .await;
+    let other_request = submit_agent_pairing_request(
+        &router,
+        &bearer,
+        &agent.credential,
+        json!([{ "fn": "fn:seatRole", "kind": "mutation" }]),
+    )
+    .await;
+    let ordinary_request = submit_agent_pairing_request(
+        &router,
+        &bearer,
+        &agent.credential,
+        json!([{ "fn": "fn:listItems", "kind": "query" }]),
+    )
+    .await;
 
     let ordinary = router
         .clone()
@@ -23128,7 +23352,9 @@ async fn refresh_credential_response_is_fenced_by_prepublication_revocation() {
     let initial = mint_test_credential(&state, "refresh-fence@example.com").await;
     let predecessor = initial["token"].as_str().unwrap().to_owned();
     let refresh_authority =
-        prepared_provider_route_authority(&state, InvocationSource::AuthRefresh, &predecessor).0;
+        prepared_provider_route_authority(&state, InvocationSource::AuthRefresh, &predecessor)
+            .await
+            .0;
     let refreshed = super::auth_refresh(
         State(state.clone()),
         Extension(refresh_authority.clone()),
@@ -23148,7 +23374,9 @@ async fn refresh_credential_response_is_fenced_by_prepublication_revocation() {
         axum::response::Response::from_parts(refreshed_parts, Body::from(refreshed_bytes));
 
     let logout_authority =
-        prepared_provider_route_authority(&state, InvocationSource::AuthLogout, &successor).0;
+        prepared_provider_route_authority(&state, InvocationSource::AuthLogout, &successor)
+            .await
+            .0;
     let logout = super::auth_logout(
         State(state),
         Extension(logout_authority),
@@ -24394,7 +24622,8 @@ async fn postcommit_logout_finalize_failure_still_terminalizes_exact_grant() {
         .expect("logout incarnation");
     let (connection_id, registration_generation, waker) =
         open_registered_session_connection(&state, bearer, "logout-finalize");
-    let authority = prepared_provider_route_authority(&state, InvocationSource::AuthLogout, bearer);
+    let authority =
+        prepared_provider_route_authority(&state, InvocationSource::AuthLogout, bearer).await;
     let coordinator = state.auth_coordinator.clone().expect("logout coordinator");
     coordinator.inject_finalize_failure();
 
@@ -24684,7 +24913,8 @@ async fn auth_family_alarm_is_delayed_opaque_and_revoke_only() {
     assert_eq!(response_json(response).await["accepted"], true);
     let rotated = super::auth_refresh(
         State(state.clone()),
-        prepared_provider_route_authority(&state, InvocationSource::AuthRefresh, &predecessor),
+        prepared_provider_route_authority(&state, InvocationSource::AuthRefresh, &predecessor)
+            .await,
         auth_provider_headers(Some(&predecessor)),
         Ok(Bytes::from_static(br#"{}"#)),
     )
@@ -24840,18 +25070,20 @@ async fn successful_finite_session_use_extends_the_projection_deadline() {
     let prepared = coordinator
         .resolve_required_bearer(&bearer, use_at_ms, clock.monotonic_now())
         .expect("resolve current bearer before finite use");
-    let (resolved, publication) = prepared.into_parts();
-    let authority = InvocationGate::prepare_authority(
-        InvocationSource::HttpQuery,
-        AuthMode::Sessions,
-        ServerProfile::Test,
-        0,
-        0,
-        &WireAuthorityFields::default(),
-        resolved,
-    )
-    .expect("prepare finite request authority")
-    .with_fenced_publication(publication);
+    let admission = test_route_admission(&state).0;
+    let authority = with_snapback(&state.snapback, move |snapback| {
+        snapback.prepare_bearer_authority(
+            prepared,
+            InvocationSource::HttpQuery,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            admission,
+            &WireAuthorityFields::default(),
+            use_at_ms,
+        )
+    })
+    .await
+    .expect("prepare finite request authority through the target engine");
     super::record_successful_finite_session_use(&state, &authority)
         .await
         .expect("record successful finite session use");
@@ -35128,9 +35360,7 @@ async fn rejected_connection_open_bodies_still_consume_session_budget() {
 #[tokio::test]
 async fn service_token_terminalization_is_carrier_exact_within_one_durable_grant() {
     let fixture = finite_authority_matrix_fixture().await;
-    let (second_bearer, second_token_id) =
-        mint_same_grant_sibling_and_set_deadline(&fixture, fixture.start_ms + 48 * 60 * 60 * 1_000)
-            .await;
+    let (second_bearer, second_token_id) = mint_same_grant_sibling(&fixture).await;
     let (epoch_now_ms, monotonic_now) = super::auth_runtime_now(&fixture.state);
     let first_authority = super::prepare_connection_open_authority_with_scoped_token(
         &fixture.state,
@@ -35258,9 +35488,8 @@ async fn service_token_terminalization_is_carrier_exact_within_one_durable_grant
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn delayed_live_observer_grant_expiry_preserves_close_budget_and_fanout() {
     let fixture = finite_authority_matrix_fixture().await;
-    let grant_deadline_ms = fixture.start_ms + 1_000;
-    let (second_token, second_token_id) =
-        mint_same_grant_sibling_and_set_deadline(&fixture, grant_deadline_ms).await;
+    let grant_deadline_ms = fixture.grant_expires_at_ms;
+    let (second_token, second_token_id) = mint_same_grant_sibling(&fixture).await;
     let tokens = [
         (fixture.token.clone(), fixture.token_id.clone()),
         (second_token, second_token_id),
@@ -35456,9 +35685,8 @@ async fn grant_deadline_crossing_direct_bearer_expires_every_same_grant_socket()
     // while service publications carry the injected provider clock. Keep
     // the grant live in both domains during setup, then advance the manual
     // epoch/monotonic pair directly to this future deadline.
-    let grant_deadline_ms = super::now_millis().saturating_add(60_000);
-    let (second_token, second_token_id) =
-        mint_same_grant_sibling_and_set_deadline(&fixture, grant_deadline_ms).await;
+    let grant_deadline_ms = fixture.grant_expires_at_ms;
+    let (second_token, second_token_id) = mint_same_grant_sibling(&fixture).await;
 
     let notifier = fixture.state.ephemeral.delivery_notifier();
     let tokens = [
@@ -35745,7 +35973,7 @@ async fn mode_only_migration_durable_marker(
     )
 }
 
-fn prepared_test_session_route_authority(
+async fn prepared_test_session_route_authority(
     state: &AppState,
     source: InvocationSource,
     bearer: &str,
@@ -35755,19 +35983,22 @@ fn prepared_test_session_route_authority(
     let prepared = coordinator
         .resolve_required_bearer(bearer, provider.now_ms(), provider.monotonic_now())
         .expect("resolve authorized-effect session bearer");
-    let (resolved, publication) = prepared.into_parts();
-    let session_claims = test_session_claims_for(&resolved);
-    InvocationGate::prepare_admitted_subjectless_authority(
-        source,
-        AuthMode::Sessions,
-        state.server.profile,
-        test_route_admission(state).0,
-        &WireAuthorityFields::default(),
-        resolved,
-        session_claims,
-    )
-    .expect("prepare authorized-effect session authority")
-    .with_fenced_publication(publication)
+    let now_ms = provider.now_ms();
+    let profile = state.server.profile;
+    let admission = test_route_admission(state).0;
+    with_snapback(&state.snapback, move |snapback| {
+        snapback.prepare_bearer_authority(
+            prepared,
+            source,
+            AuthMode::Sessions,
+            profile,
+            admission,
+            &WireAuthorityFields::default(),
+            now_ms,
+        )
+    })
+    .await
+    .expect("prepare authorized-effect session authority through the target engine")
 }
 
 async fn prepared_test_service_route_authority(
@@ -35967,7 +36198,8 @@ async fn mode_only_migration_authorized_effect_fixture(
                     &state,
                     InvocationSource::MutationSettlementAcknowledgement,
                     &bearer,
-                ),
+                )
+                .await,
                 MutationAcknowledgementRequest {
                     auth: AuthInput::default(),
                     authority_descriptor: serde_json::from_value(authority_descriptor)
@@ -36107,7 +36339,9 @@ async fn mode_only_migration_reservation_wins(site: ModeOnlyMigrationAuthorizedE
     } = mode_only_migration_authorized_effect_fixture(site).await;
     let marker_before = mode_only_migration_durable_marker(&state, site, &principal_id).await;
     let logout_premark_probe =
-        prepared_provider_route_authority(&state, InvocationSource::AuthLogout, &bearer).0;
+        prepared_provider_route_authority(&state, InvocationSource::AuthLogout, &bearer)
+            .await
+            .0;
     let effect_pause = install_test_finite_authority_pause(
         TestFiniteAuthorityPausePoint::AfterAuthorizedEffectReservation,
     );
@@ -36323,7 +36557,8 @@ async fn pairing_code_mint_final_mode_guard_refusal_rolls_back_complete_auth_tra
         &fixture.state,
         InvocationSource::AgentGrantManagement,
         &fixture.bearer,
-    );
+    )
+    .await;
     let mut headers = HeaderMap::new();
     headers.insert(
         header::CONTENT_TYPE,
@@ -36370,7 +36605,8 @@ async fn pairing_code_mint_stages_clock_and_row_under_exact_guard_before_one_com
         &fixture.state,
         InvocationSource::AgentGrantManagement,
         &fixture.bearer,
-    );
+    )
+    .await;
     let authorized_effect = authority
         .reserve_authorized_effect("pairing-code mint transaction")
         .expect("reserve exact pairing-code authority");
@@ -36496,7 +36732,8 @@ async fn pairing_code_mint_bounds_fifo_local_wait() {
         &fixture.state,
         InvocationSource::AgentGrantManagement,
         &fixture.bearer,
-    );
+    )
+    .await;
     let mut headers = HeaderMap::new();
     headers.insert(
         header::CONTENT_TYPE,
@@ -36619,7 +36856,8 @@ fn pairing_code_mint_saturated_blocking_pool_times_out_and_logout_premark_drains
             &fixture.state,
             InvocationSource::AgentGrantManagement,
             &fixture.bearer,
-        );
+        )
+        .await;
         let reservation_pause = install_test_finite_authority_pause(
             TestFiniteAuthorityPausePoint::AfterAuthorizedEffectReservation,
         );
@@ -36939,7 +37177,7 @@ async fn immediate_push_authorized_effect_fixture(
     .await
     .expect("install immediate push authorized-effect fixture");
     let authority =
-        prepared_test_session_route_authority(&state, InvocationSource::HttpAction, &bearer);
+        prepared_test_session_route_authority(&state, InvocationSource::HttpAction, &bearer).await;
     let request = crate::push::PushSendRequestV1 {
         to: crate::push::PushAudienceReferenceV1 {
             audience: "selectedMembers".to_owned(),
@@ -37145,6 +37383,7 @@ async fn immediate_push_reservation_wins(site: ImmediatePushAuthorizedEffectSite
         InvocationSource::AuthLogout,
         &fixture.bearer,
     )
+    .await
     .0;
     let logout_pause = install_test_finite_authority_pause(
         TestFiniteAuthorityPausePoint::AfterSessionTerminalPremark,
@@ -38200,6 +38439,7 @@ async fn asset_reservation_wins_before_logout(site: AssetAuthorizedEffectSite) {
         InvocationSource::AuthLogout,
         &fixture.bearer,
     )
+    .await
     .0;
     let effect_pause = install_test_finite_authority_pause(
         TestFiniteAuthorityPausePoint::AfterAuthorizedEffectReservation,
@@ -41500,6 +41740,7 @@ async fn watch_management_reservation_wins(site: WatchManagementRaceSite) {
         InvocationSource::AuthLogout,
         &fixture.bearer,
     )
+    .await
     .0;
     let effect_pause = install_test_finite_authority_pause(
         TestFiniteAuthorityPausePoint::AfterAuthorizedEffectReservation,
@@ -42081,6 +42322,7 @@ impl CommitCapsulePrototypeDatabase {
                 None,
                 PasswordIdentifierMode::UsernameV1,
                 None,
+                None,
             )
         })
         .await
@@ -42131,16 +42373,17 @@ impl CommitCapsuleCallerFixture {
         Self { state, bearer }
     }
 
-    fn authority(&self) -> PreparedAuthority {
+    async fn authority(&self) -> PreparedAuthority {
         prepared_test_session_route_authority(
             &self.state,
             InvocationSource::HttpMutation,
             &self.bearer,
         )
+        .await
     }
 
-    fn destination(&self) -> super::CommitCapsuleDestination {
-        super::CommitCapsuleDestination::bind(&self.state, self.authority())
+    async fn destination(&self) -> super::CommitCapsuleDestination {
+        super::CommitCapsuleDestination::bind(&self.state, self.authority().await)
             .expect("commit capsule fixture binds authority to its durable destination")
     }
 
@@ -42166,6 +42409,7 @@ impl CommitCapsuleCallerFixture {
             InvocationSource::AuthLogout,
             &self.bearer,
         )
+        .await
         .0;
         let logout = self.spawn_logout_drain();
         tokio::time::timeout(Duration::from_secs(5), async {
@@ -42698,7 +42942,8 @@ async fn bounded_commit_capsule_rejects_authority_against_a_wholly_replaced_dest
     let mut hybrid = authority_database.app_state.clone();
     hybrid.snapback = durable_database.app_state.snapback.clone();
     hybrid.commit_capsule_runtime = durable_database.app_state.commit_capsule_runtime.clone();
-    let Err(error) = super::CommitCapsuleDestination::bind(&hybrid, caller.authority()) else {
+    let Err(error) = super::CommitCapsuleDestination::bind(&hybrid, caller.authority().await)
+    else {
         panic!("an authority must not bind against a wholly foreign destination bundle")
     };
     assert_eq!(
@@ -42718,7 +42963,7 @@ async fn bounded_commit_capsule_rejects_committed_decoy_rows() {
         .expect("reserve decoy uncertainty retention")
         .0;
     let decoy_outcome = run_commit_capsule_prototype(
-        decoy_caller.destination(),
+        decoy_caller.destination().await,
         tokio::time::Instant::now() + Duration::from_secs(3),
         (),
         decoy.clone(),
@@ -42744,7 +42989,7 @@ async fn bounded_commit_capsule_rejects_committed_decoy_rows() {
     let (retention, retained) =
         commit_capsule_retention(&intent).expect("reserve target uncertainty retention");
     let outcome = run_commit_capsule_prototype(
-        caller.destination(),
+        caller.destination().await,
         tokio::time::Instant::now() + Duration::from_secs(3),
         gate,
         intent.clone(),
@@ -42790,7 +43035,7 @@ async fn bounded_commit_capsule_final_cut_is_one_shot_after_exact_existing() {
         CommitCapsuleCallerFixture::new(&database.app_state, "exact-existing-consumes-final-cut")
             .await;
     let first = run_commit_capsule_prototype(
-        caller.destination(),
+        caller.destination().await,
         tokio::time::Instant::now() + Duration::from_secs(3),
         (),
         intent.clone(),
@@ -42811,7 +43056,7 @@ async fn bounded_commit_capsule_final_cut_is_one_shot_after_exact_existing() {
         }
     ));
 
-    let destination = caller.destination();
+    let destination = caller.destination().await;
     let expected_guard = caller.expected_guard();
     let retry_intent = intent.clone();
     let task = tokio::spawn(async move {
@@ -42944,7 +43189,7 @@ async fn bounded_commit_capsule_unpolled_future_owns_no_authority_permit() {
     // Constructing the future transfers only prepared authority. Until the
     // capsule is polled, no reservation exists that can pin terminal logout.
     let capsule = run_commit_capsule_prototype(
-        caller.destination(),
+        caller.destination().await,
         deadline,
         (),
         intent.clone(),
@@ -42975,7 +43220,7 @@ async fn bounded_commit_capsule_live_reservation_refusal_is_not_timeout() {
     let database = CommitCapsulePrototypeDatabase::new().await;
     let intent = commit_capsule_intent("entry-refusal");
     let caller = CommitCapsuleCallerFixture::new(&database.app_state, "entry-refusal").await;
-    let authority = caller.authority();
+    let authority = caller.authority().await;
     let destination = super::CommitCapsuleDestination::bind(&caller.state, authority)
         .expect("bind the pre-logout authority to its database");
     let expected_guard = caller.expected_guard();
@@ -43028,7 +43273,7 @@ async fn bounded_commit_capsule_queue_timeout_preserves_fifo_and_drains_logout()
     );
     let reservation_pause_id = reservation_pause.id().to_owned();
     let deadline = tokio::time::Instant::now() + Duration::from_millis(1_200);
-    let destination = caller.destination();
+    let destination = caller.destination().await;
     let expected_guard = caller.expected_guard();
     let (terminal, gate) = CommitCapsuleTerminalFixture::new().await;
     let order = Arc::new(StdMutex::new(Vec::new()));
@@ -43124,7 +43369,7 @@ async fn bounded_commit_capsule_handoff_timeout_drops_only_its_waiter_and_drains
     );
     let reservation_pause_id = reservation_pause.id().to_owned();
     let deadline = tokio::time::Instant::now() + Duration::from_millis(400);
-    let destination = caller.destination();
+    let destination = caller.destination().await;
     let expected_guard = caller.expected_guard();
     let (terminal, gate) = CommitCapsuleTerminalFixture::new().await;
     let receipt = Arc::new(StdMutex::new(None));
@@ -43200,7 +43445,7 @@ async fn bounded_commit_capsule_post_staging_barrier_is_invisible_and_unwind_saf
     let receipt = Arc::new(StdMutex::new(None));
     let (retention, _retained) = commit_capsule_retention(&intent)
         .expect("reserve bounded commit capsule uncertainty retention");
-    let destination = caller.destination();
+    let destination = caller.destination().await;
     let capsule = tokio::spawn({
         let barrier = barrier.clone();
         let receipt = receipt.clone();
@@ -43267,7 +43512,7 @@ async fn bounded_commit_capsule_post_staging_barrier_is_invisible_and_unwind_saf
     let panic_reservation_pause_id = panic_reservation_pause.id().to_owned();
     let (terminal, gate) = CommitCapsuleTerminalFixture::new().await;
     let panic_barrier = Arc::new(CommitCapsuleBarrier::default());
-    let panic_destination = panic_caller.destination();
+    let panic_destination = panic_caller.destination().await;
     let panic_task = tokio::spawn({
         let barrier = panic_barrier.clone();
         let intent = panic_intent.clone();
@@ -43322,7 +43567,7 @@ async fn bounded_commit_capsule_final_cut_timeout_rolls_back_and_drains_every_ca
         TestFiniteAuthorityPausePoint::AfterAuthorizedEffectReservation,
     );
     let reservation_pause_id = reservation_pause.id().to_owned();
-    let destination = caller.destination();
+    let destination = caller.destination().await;
     let expected_guard = caller.expected_guard();
     let (terminal, gate) = CommitCapsuleTerminalFixture::new().await;
     let barrier = Arc::new(CommitCapsuleBarrier::default());
@@ -43413,7 +43658,7 @@ async fn bounded_commit_capsule_final_guard_refusal_rolls_back_and_drains_logout
         TestFiniteAuthorityPausePoint::AfterAuthorizedEffectReservation,
     );
     let reservation_pause_id = reservation_pause.id().to_owned();
-    let destination = caller.destination();
+    let destination = caller.destination().await;
     let expected_guard = caller.expected_guard();
     let (terminal, gate) = CommitCapsuleTerminalFixture::new().await;
     let barrier = Arc::new(CommitCapsuleBarrier::default());
@@ -43491,7 +43736,7 @@ async fn bounded_commit_capsule_known_rollback_drops_reservation_and_terminal_ga
     let reservation_pause_id = reservation_pause.id().to_owned();
     let (terminal, gate) = CommitCapsuleTerminalFixture::new().await;
     let barrier = Arc::new(CommitCapsuleBarrier::default());
-    let destination = caller.destination();
+    let destination = caller.destination().await;
     let retention = commit_capsule_retention(&intent)
         .expect("reserve bounded commit capsule uncertainty retention")
         .0;
@@ -43547,7 +43792,7 @@ async fn bounded_commit_capsule_pre_guard_panic_rolls_back_and_releases_every_ow
         TestFiniteAuthorityPausePoint::AfterAuthorizedEffectReservation,
     );
     let reservation_pause_id = reservation_pause.id().to_owned();
-    let destination = caller.destination();
+    let destination = caller.destination().await;
     let expected_guard = caller.expected_guard();
     let (terminal, gate) = CommitCapsuleTerminalFixture::new().await;
     let barrier = Arc::new(CommitCapsuleBarrier::default());
@@ -43629,7 +43874,7 @@ async fn bounded_commit_capsule_during_commit_never_times_out_and_reconciles_exa
         let database = CommitCapsulePrototypeDatabase::new().await;
         let intent = commit_capsule_intent(&format!("during-commit-{suffix}"));
         let caller = CommitCapsuleCallerFixture::new(&database.app_state, suffix).await;
-        let destination = caller.destination();
+        let destination = caller.destination().await;
         let expected_guard = caller.expected_guard();
         let (terminal, gate) = CommitCapsuleTerminalFixture::new().await;
         let barrier = Arc::new(CommitCapsuleBarrier::default());
@@ -43744,7 +43989,7 @@ async fn bounded_commit_capsule_reconciliation_panic_retains_terminal_domain() {
     let receipt = Arc::new(StdMutex::new(None));
     let (retention, retained) = commit_capsule_retention(&intent)
         .expect("reserve bounded commit capsule uncertainty retention");
-    let destination = caller.destination();
+    let destination = caller.destination().await;
     let capsule = tokio::spawn({
         let barrier = barrier.clone();
         let receipt = receipt.clone();
@@ -43826,7 +44071,7 @@ async fn bounded_commit_capsule_retain_panic_is_safe_without_caller_storage_owne
     // fail-closed owner that caller discipline previously had to provide.
     let (retention, retained) = commit_capsule_retention(&intent)
         .expect("reserve bounded commit capsule uncertainty retention");
-    let destination = caller.destination();
+    let destination = caller.destination().await;
     let capsule = tokio::spawn({
         let barrier = barrier.clone();
         let receipt = receipt.clone();
@@ -43917,7 +44162,7 @@ async fn bounded_commit_capsule_cancelled_request_is_recoverable_by_operation_id
     let (terminal, gate) = CommitCapsuleTerminalFixture::new().await;
     let barrier = Arc::new(CommitCapsuleBarrier::default());
     let receipt = Arc::new(StdMutex::new(None));
-    let destination = caller.destination();
+    let destination = caller.destination().await;
     let request = tokio::spawn({
         let barrier = barrier.clone();
         let intent = intent.clone();
@@ -44043,7 +44288,7 @@ async fn bounded_commit_capsule_during_commit_panics_retain_ambiguity_and_drain_
         let database = CommitCapsulePrototypeDatabase::new().await;
         let intent = commit_capsule_intent(&format!("during-commit-{suffix}"));
         let caller = CommitCapsuleCallerFixture::new(&database.app_state, suffix).await;
-        let destination = caller.destination();
+        let destination = caller.destination().await;
         let expected_guard = caller.expected_guard();
         let (terminal, gate) = CommitCapsuleTerminalFixture::new().await;
         let barrier = Arc::new(CommitCapsuleBarrier::default());
@@ -44120,7 +44365,7 @@ async fn bounded_commit_capsule_post_commit_response_loss_and_retry_cannot_dupli
     let caller =
         CommitCapsuleCallerFixture::new(&database.app_state, "post-commit-response-loss").await;
     let first_receipt = Arc::new(StdMutex::new(None));
-    let destination = caller.destination();
+    let destination = caller.destination().await;
     let (reached_tx, reached_rx) = tokio::sync::oneshot::channel();
     let release_response = Arc::new(tokio::sync::Notify::new());
     let response_waiter = release_response.clone();
@@ -44201,7 +44446,7 @@ async fn bounded_commit_capsule_post_commit_response_loss_and_retry_cannot_dupli
         .expect("reserve bounded commit capsule uncertainty retention")
         .0;
     let retry = run_commit_capsule_prototype(
-        retry_caller.destination(),
+        retry_caller.destination().await,
         tokio::time::Instant::now() + Duration::from_secs(3),
         (),
         intent.clone(),
@@ -44238,7 +44483,7 @@ async fn bounded_commit_capsule_post_commit_panic_has_one_durable_effect_and_no_
     let intent = commit_capsule_intent("post-commit-response-panic");
     let caller =
         CommitCapsuleCallerFixture::new(&database.app_state, "post-commit-response-panic").await;
-    let destination = caller.destination();
+    let destination = caller.destination().await;
     let task = tokio::spawn({
         let intent = intent.clone();
         let expected_guard = caller.expected_guard();
@@ -44301,7 +44546,7 @@ async fn bounded_commit_capsule_queue_and_handoff_unwinds_release_reservation_an
     );
     let queue_reservation_pause_id = queue_reservation_pause.id().to_owned();
     let (queue_terminal, queue_gate) = CommitCapsuleTerminalFixture::new().await;
-    let queue_destination = queue_caller.destination();
+    let queue_destination = queue_caller.destination().await;
     let queue_task = tokio::spawn({
         let intent = queue_intent.clone();
         let expected_guard = queue_caller.expected_guard();
@@ -44363,7 +44608,7 @@ async fn bounded_commit_capsule_queue_and_handoff_unwinds_release_reservation_an
     })
     .await;
     let (handoff_terminal, handoff_gate) = CommitCapsuleTerminalFixture::new().await;
-    let handoff_destination = handoff_caller.destination();
+    let handoff_destination = handoff_caller.destination().await;
     let handoff_task = tokio::spawn({
         let intent = handoff_intent.clone();
         let expected_guard = handoff_caller.expected_guard();

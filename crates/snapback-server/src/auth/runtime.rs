@@ -656,15 +656,17 @@ pub fn provider_profile(profile: crate::contract_types::ServerProfile) -> AuthPr
 mod tests {
     use super::*;
     use crate::auth::backup::create_backup;
-    use crate::auth::crypto::{OsRandom, SessionBearer};
+    use crate::auth::crypto::OsRandom;
     use crate::auth::invocation::ResolvedAppAuthority;
     use crate::auth::keyring::AUTH_KEY_ROTATION_AGE_MS;
     use crate::auth::lifecycle::{
         RestoreDeclaration, activate_catalog, apply_declared_restore, restore_declaration_path,
     };
     use crate::auth::provider::AuthClock;
+    use crate::auth::provider::{CredentialIssue, PlannedIssuanceCommit};
     use crate::local::LocalSnapback;
     use crate::storage::auth::AUTH_GC_BATCH;
+    use crate::storage::auth::AuthTransactionAttempt;
     use snapback_kernel::storage::auth_rescue::{
         AuthCollisionFixtureIndexForTest, AuthCollisionFixtureRowForTest,
         AuthCollisionFixtureTableForTest, install_auth_collision_fixtures_for_test,
@@ -713,12 +715,49 @@ mod tests {
             .expect("activate auth fixture");
         (snapback, keyring)
     }
-    fn insert_expired_challenges(snapback: &mut LocalSnapback, count: usize) {
-        snapback
-            .remainder_auth_fixture()
-            .auth_catalog()
-            .insert_expired_challenges_for_test(count)
-            .expect("insert expired auth challenges");
+    async fn insert_expired_challenges(
+        snapback: &mut LocalSnapback,
+        keyring: Arc<AuthKeyringStore>,
+        count: usize,
+    ) {
+        let provider = Arc::new(
+            AuthProvider::new(AuthProviderProfile::Test, keyring)
+                .expect("construct production auth provider"),
+        );
+        for index in 0..count {
+            let address = format!("expired-challenge-{index}@example.com");
+            let admission = provider
+                .admit_email(&address)
+                .await
+                .expect("admit challenge address");
+            snapback
+                .execute_auth_plan(admission.request_code_plan(1_000))
+                .expect("persist challenge through the production provider");
+        }
+    }
+
+    async fn mint_email_session(
+        snapback: &mut LocalSnapback,
+        provider: &Arc<AuthProvider>,
+        address: &str,
+        now_ms: u64,
+    ) -> CredentialIssue {
+        let admission = provider
+            .admit_email(address)
+            .await
+            .expect("admit email through the production provider");
+        let plan = snapback
+            .execute_auth_plan(admission.plan_mint_session_plan(now_ms))
+            .expect("plan production email issuance");
+        let commit_plan = plan.commit_plan();
+        let AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
+            session,
+            committed_revocations,
+        }) = snapback.execute_auth_plan(admission.commit_planned_issuance_plan(&commit_plan))
+        else {
+            panic!("production email issuance must commit");
+        };
+        plan.into_issue(session, committed_revocations)
     }
     fn challenge_count(snapback: &mut LocalSnapback) -> usize {
         snapback
@@ -903,26 +942,13 @@ mod tests {
     async fn marked_catalog_with_missing_keyring_names_sidecar_and_keeps_session_resolution() {
         let directory = tempfile::tempdir().unwrap();
         let database_path = directory.path().join("app.sqlite3");
-        let (mut snapback, _) = activate_file_catalog(&database_path, 1_000);
-        let bearer = SessionBearer::generate(&OsRandom).unwrap();
-        let bearer_text = bearer.expose_secret().to_owned();
-        let token_hash = bearer.token_hash();
-        snapback
-            .remainder_auth_fixture()
-            .auth_catalog()
-            .insert_email_session_for_test(
-                "user-1",
-                "identity-1",
-                "session-1",
-                "authority-1",
-                "user@example.com",
-                token_hash.as_bytes(),
-                1000,
-                1000,
-                9_000_000_000_000_000,
-                9_000_000_000_000_000,
-            )
-            .unwrap();
+        let (mut snapback, keyring) = activate_file_catalog(&database_path, 1_000);
+        let provider = Arc::new(
+            AuthProvider::new(AuthProviderProfile::Test, keyring)
+                .expect("construct production auth provider"),
+        );
+        let issue = mint_email_session(&mut snapback, &provider, "user@example.com", 1_000).await;
+        let bearer_text = issue.response().token().expose_secret().to_owned();
         let keyring_path = AuthKeyringStore::keyring_path(&database_path);
         let keyring_json: serde_json::Value =
             serde_json::from_slice(&std::fs::read(&keyring_path).unwrap()).unwrap();
@@ -1048,9 +1074,9 @@ mod tests {
     async fn missing_keyring_preserves_startup_and_periodic_immediate_retry_scheduling() {
         let directory = tempfile::tempdir().unwrap();
         let database_path = directory.path().join("app.sqlite3");
-        let (mut snapback, _) = activate_file_catalog(&database_path, 1_000);
+        let (mut snapback, keyring) = activate_file_catalog(&database_path, 1_000);
         let expired_count = AUTH_GC_BATCH * 2 + 1;
-        insert_expired_challenges(&mut snapback, expired_count);
+        insert_expired_challenges(&mut snapback, keyring, expired_count).await;
 
         let keyring_path = AuthKeyringStore::keyring_path(&database_path);
         std::fs::remove_file(&keyring_path).unwrap();
@@ -1217,12 +1243,13 @@ mod tests {
     #[tokio::test]
     async fn periodic_gc_releases_projection_begin_before_acquiring_maintenance() {
         let mut snapback = activated_memory_snapback();
-        let _bearer = insert_lifetime_session(&mut snapback, 200, 300);
+        let session =
+            insert_lifetime_session(&mut snapback, "projection-begin@example.com", 100).await;
         let clock = Arc::new(RuntimeDualClock::new(100));
         let (runtime, provider) = ready_runtime_with_clock(clock.clone());
         let coordinator = runtime.build_coordinator(&mut snapback).unwrap();
         let state = Arc::new(Mutex::new(snapback));
-        clock.set(201, 101);
+        clock.set(session.expires_at_ms + 1, session.expires_at_ms - 100 + 1);
 
         let outer = state.clone().lock_owned().await;
         let (sampled_tx, sampled_rx) = oneshot::channel();
@@ -1268,29 +1295,10 @@ mod tests {
             )
             .unwrap(),
         );
-        let bearer = SessionBearer::generate(&OsRandom).unwrap();
-        let bearer_text = bearer.expose_secret().to_owned();
-        let token_hash = bearer.token_hash();
-        let user_id = uuid::Uuid::now_v7().to_string();
-        let identity_id = uuid::Uuid::now_v7().to_string();
-        let session_id = uuid::Uuid::now_v7().to_string();
-        let authority_instance_id = uuid::Uuid::now_v7().to_string();
-        snapback
-            .remainder_auth_fixture()
-            .auth_catalog()
-            .insert_email_session_for_test(
-                &user_id,
-                &identity_id,
-                &session_id,
-                &authority_instance_id,
-                "gc@example.com",
-                token_hash.as_bytes(),
-                900,
-                900,
-                1100,
-                1100,
-            )
-            .unwrap();
+        let issue = mint_email_session(&mut snapback, &provider, "gc@example.com", 1_000).await;
+        let bearer_text = issue.response().token().expose_secret().to_owned();
+        let session_id = issue.response().session.id.clone();
+        let expires_at_ms = issue.response().session.expires_at;
         snapback
             .remainder_auth_fixture()
             .ensure_authorization_stream_incarnation()
@@ -1310,7 +1318,7 @@ mod tests {
             .expect("predecessor session begins live");
 
         let state = Arc::new(Mutex::new(snapback));
-        clock.set(1_101);
+        clock.set(expires_at_ms + 1);
         let terminalized = Arc::new(StdMutex::new(Vec::new()));
         let terminalized_for_sink = Arc::clone(&terminalized);
         let sink = AuthExpiryTerminalSink::new(move |expired| {
@@ -1327,7 +1335,7 @@ mod tests {
                 .remainder_auth_fixture()
                 .auth_session_clock_floor()
                 .unwrap(),
-            1_101,
+            expires_at_ms + 1,
             "forward wall-clock expiry persists its terminal frontier before deletion",
         );
         let terminalized = terminalized.lock().unwrap();
@@ -1343,90 +1351,6 @@ mod tests {
                 .code,
             "SNAPBACK_AUTH_SESSION_EXPIRED"
         );
-    }
-
-    #[tokio::test]
-    async fn periodic_auth_maintenance_runs_declared_push_idle_retention() {
-        let retention_ms = 86_400_000;
-        let mut snapback = LocalSnapback::memory().unwrap();
-        let keyring = Arc::new(AuthKeyringStore::in_memory());
-        snapback
-            .remainder_auth_fixture()
-            .activate_catalog(keyring.as_ref(), 1, &OsRandom)
-            .unwrap();
-        snapback
-            .remainder_auth_fixture()
-            .activate_push_registry_for_test(crate::push::PushSeamDeclarationV1 {
-                app_scope: crate::push::PushAppScopeV1 {
-                    eas_project_id: "eas-maintenance".into(),
-                    application_id: "com.example.maintenance".into(),
-                    environment: "test".into(),
-                },
-                registry: crate::push::PushRegistryDeclarationV1 {
-                    idle_retention_ms: retention_ms,
-                },
-                audiences: std::collections::BTreeMap::new(),
-                uses: Vec::new(),
-                ledger: None,
-            })
-            .unwrap();
-        let user_id = crate::ids::mint(crate::ids::Kind::User).unwrap();
-        let identity_id = crate::ids::mint(crate::ids::Kind::Identity).unwrap();
-        let session_id = crate::ids::mint(crate::ids::Kind::Session).unwrap();
-        let authority_id = crate::ids::mint(crate::ids::Kind::AuthorityInstance).unwrap();
-        snapback
-            .remainder_auth_fixture()
-            .auth_catalog()
-            .insert_email_session_and_push_token_for_test(
-                &user_id,
-                &identity_id,
-                &session_id,
-                &authority_id,
-                retention_ms * 2,
-            )
-            .unwrap();
-        snapback
-            .remainder_auth_fixture()
-            .ensure_authorization_stream_incarnation()
-            .unwrap();
-        let clock = Arc::new(RuntimeManualClock::new(1));
-        let provider = Arc::new(
-            AuthProvider::new_with_dependencies(
-                AuthProviderProfile::Test,
-                keyring,
-                Arc::new(OsRandom),
-                clock.clone(),
-            )
-            .unwrap(),
-        );
-        let coordinator = Arc::new(
-            snapback
-                .remainder_auth_fixture()
-                .auth_coordinator(
-                    AdmissionController::new(0, true).expect("test admission controller"),
-                    provider.now_ms(),
-                    provider.monotonic_now(),
-                )
-                .unwrap(),
-        );
-        let state = Arc::new(Mutex::new(snapback));
-        clock.set(retention_ms + 1);
-        run_periodic_gc_pass(
-            &state,
-            provider,
-            coordinator,
-            &AuthExpiryTerminalSink::new(|_| {}),
-        )
-        .await
-        .unwrap();
-        let inspection = state
-            .lock()
-            .await
-            .remainder_auth_fixture()
-            .push_registry_inspection()
-            .unwrap();
-        assert_eq!(inspection.live_tokens, 0);
-        assert_eq!(inspection.retirement_reasons["idle-retention"], 1);
     }
 
     #[tokio::test]
@@ -1544,35 +1468,30 @@ mod tests {
         };
         (runtime, provider)
     }
-    fn insert_lifetime_session(
-        snapback: &mut LocalSnapback,
+    struct LifetimeSession {
+        bearer: String,
         expires_at_ms: u64,
         absolute_expires_at_ms: u64,
-    ) -> String {
-        let bearer = SessionBearer::generate(&OsRandom).unwrap();
-        let bearer_text = bearer.expose_secret().to_owned();
-        let token_hash = bearer.token_hash();
-        let user_id = uuid::Uuid::now_v7().to_string();
-        let identity_id = uuid::Uuid::now_v7().to_string();
-        let session_id = uuid::Uuid::now_v7().to_string();
-        let authority_instance_id = uuid::Uuid::now_v7().to_string();
-        snapback
-            .remainder_auth_fixture()
-            .auth_catalog()
-            .insert_email_session_for_test(
-                &user_id,
-                &identity_id,
-                &session_id,
-                &authority_instance_id,
-                &format!("{identity_id}@example.com"),
-                token_hash.as_bytes(),
-                100,
-                100,
-                expires_at_ms,
-                absolute_expires_at_ms,
+    }
+
+    async fn insert_lifetime_session(
+        snapback: &mut LocalSnapback,
+        address: &str,
+        now_ms: u64,
+    ) -> LifetimeSession {
+        let provider = Arc::new(
+            AuthProvider::new(
+                AuthProviderProfile::Test,
+                Arc::new(AuthKeyringStore::in_memory()),
             )
-            .unwrap();
-        bearer_text
+            .expect("construct production auth provider"),
+        );
+        let issue = mint_email_session(snapback, &provider, address, now_ms).await;
+        LifetimeSession {
+            bearer: issue.response().token().expose_secret().to_owned(),
+            expires_at_ms: issue.response().session.expires_at,
+            absolute_expires_at_ms: issue.response().session.absolute_expires_at,
+        }
     }
     fn activated_memory_snapback() -> LocalSnapback {
         let mut snapback = LocalSnapback::memory().unwrap();
@@ -1588,17 +1507,23 @@ mod tests {
     #[tokio::test]
     async fn restart_backward_wall_move_cannot_revive_a_slid_session() {
         let mut snapback = activated_memory_snapback();
-        // Sliding expiry 200, absolute expiry 300; the exact repro shape.
-        let bearer = insert_lifetime_session(&mut snapback, 200, 300);
+        let session =
+            insert_lifetime_session(&mut snapback, "backward-restart@example.com", 100).await;
+        let expired_epoch = session.expires_at_ms + 50;
+        let rolled_back_epoch = session.expires_at_ms - 50;
 
-        // Process 1 reaches epoch 250, where the sliding deadline is terminal.
+        // Process 1 advances past the sliding deadline.
         // Building the coordinator advances and persists the durable floor.
         let (runtime1, provider1) =
-            ready_runtime_with_clock(Arc::new(RuntimeManualClock::new(250)));
+            ready_runtime_with_clock(Arc::new(RuntimeManualClock::new(expired_epoch)));
         let coordinator1 = runtime1.build_coordinator(&mut snapback).unwrap();
         assert_eq!(
             coordinator1
-                .resolve_required_bearer(&bearer, provider1.now_ms(), provider1.monotonic_now())
+                .resolve_required_bearer(
+                    &session.bearer,
+                    provider1.now_ms(),
+                    provider1.monotonic_now(),
+                )
                 .unwrap_err()
                 .diagnostic
                 .code,
@@ -1610,12 +1535,14 @@ mod tests {
                 .remainder_auth_fixture()
                 .auth_session_clock_floor()
                 .unwrap(),
-            250,
+            expired_epoch,
             "the running process persisted its advancing clock floor"
         );
 
-        // Process 2 restarts after the wall clock moved back to 150. Startup GC
-        // retains the row (300 > 150) but the rebuild must still fail closed.
+        // Process 2 restarts after the wall clock moved behind the sliding
+        // deadline. Startup GC retains the row because the absolute deadline
+        // is later, but the rebuild must still fail closed.
+        assert!(session.absolute_expires_at_ms > rolled_back_epoch);
         assert!(
             runtime1
                 .run_startup_gc(&mut snapback)
@@ -1626,16 +1553,20 @@ mod tests {
                 == 0
         );
         let (runtime2, provider2) =
-            ready_runtime_with_clock(Arc::new(RuntimeManualClock::new(150)));
+            ready_runtime_with_clock(Arc::new(RuntimeManualClock::new(rolled_back_epoch)));
         let coordinator2 = runtime2.build_coordinator(&mut snapback).unwrap();
         assert_eq!(
             provider2.now_ms(),
-            250,
+            expired_epoch,
             "the process clock floor is seeded from the durable floor, not the lower sample"
         );
         assert_eq!(
             coordinator2
-                .resolve_required_bearer(&bearer, provider2.now_ms(), provider2.monotonic_now())
+                .resolve_required_bearer(
+                    &session.bearer,
+                    provider2.now_ms(),
+                    provider2.monotonic_now(),
+                )
                 .unwrap_err()
                 .diagnostic
                 .code,
@@ -1650,12 +1581,13 @@ mod tests {
     #[tokio::test]
     async fn monotonic_expiry_commits_terminal_frontier_before_publication() {
         let mut snapback = activated_memory_snapback();
-        let bearer = insert_lifetime_session(&mut snapback, 200, 300);
+        let session =
+            insert_lifetime_session(&mut snapback, "monotonic-frontier@example.com", 100).await;
         let clock = Arc::new(RuntimeDualClock::new(100));
         let (runtime, provider) = ready_runtime_with_clock(clock.clone());
         let coordinator = runtime.build_coordinator(&mut snapback).unwrap();
         let state = Arc::new(Mutex::new(snapback));
-        clock.set(50, 101);
+        clock.set(50, session.expires_at_ms - 100 + 1);
 
         let terminalized = Arc::new(StdMutex::new(Vec::new()));
         let observed = Arc::clone(&terminalized);
@@ -1679,7 +1611,7 @@ mod tests {
                 .remainder_auth_fixture()
                 .auth_session_clock_floor()
                 .unwrap(),
-            200,
+            session.expires_at_ms,
             "the durable frontier advances to the monotonic deadline, not the lower wall sample"
         );
 
@@ -1689,7 +1621,7 @@ mod tests {
         assert_eq!(
             rebuilt
                 .resolve_required_bearer(
-                    &bearer,
+                    &session.bearer,
                     restart_provider.now_ms(),
                     restart_provider.monotonic_now(),
                 )
@@ -1707,13 +1639,21 @@ mod tests {
     #[tokio::test]
     async fn expiry_terminalizes_only_the_sampled_set_before_storage_await() {
         let mut snapback = activated_memory_snapback();
-        let first = insert_lifetime_session(&mut snapback, 200, 300);
-        let second = insert_lifetime_session(&mut snapback, 400, 500);
-        let clock = Arc::new(RuntimeDualClock::new(100));
+        let first = insert_lifetime_session(&mut snapback, "sampled-first@example.com", 100).await;
+        let second_created_at_ms = first.expires_at_ms - 1_000;
+        let second = insert_lifetime_session(
+            &mut snapback,
+            "sampled-second@example.com",
+            second_created_at_ms,
+        )
+        .await;
+        let sampled_epoch = first.expires_at_ms + 1;
+        let later_epoch = second.expires_at_ms + 1;
+        let clock = Arc::new(RuntimeDualClock::new(second_created_at_ms));
         let (runtime, provider) = ready_runtime_with_clock(clock.clone());
         let coordinator = runtime.build_coordinator(&mut snapback).unwrap();
         let state = Arc::new(Mutex::new(snapback));
-        clock.set(201, 101);
+        clock.set(sampled_epoch, sampled_epoch - second_created_at_ms);
 
         let storage_guard = state.clone().lock_owned().await;
         let (sampled_tx, sampled_rx) = oneshot::channel();
@@ -1737,7 +1677,7 @@ mod tests {
         sampled_rx
             .await
             .expect("expiry pass sampled before storage await");
-        clock.set(401, 301);
+        clock.set(later_epoch, later_epoch - second_created_at_ms);
         drop(storage_guard);
         task.await.unwrap().unwrap();
         assert_eq!(
@@ -1755,16 +1695,16 @@ mod tests {
                 .remainder_auth_fixture()
                 .auth_session_clock_floor()
                 .unwrap(),
-            201,
+            sampled_epoch,
             "only the sampled first-session frontier was persisted",
         );
         let (restart, restart_provider) =
-            ready_runtime_with_clock(Arc::new(RuntimeManualClock::new(201)));
+            ready_runtime_with_clock(Arc::new(RuntimeManualClock::new(sampled_epoch)));
         let rebuilt = restart.build_coordinator(&mut snapback).unwrap();
         assert_eq!(
             rebuilt
                 .resolve_required_bearer(
-                    &first,
+                    &first.bearer,
                     restart_provider.now_ms(),
                     restart_provider.monotonic_now(),
                 )
@@ -1775,7 +1715,7 @@ mod tests {
         );
         rebuilt
             .resolve_required_bearer(
-                &second,
+                &second.bearer,
                 restart_provider.now_ms(),
                 restart_provider.monotonic_now(),
             )
@@ -1787,24 +1727,37 @@ mod tests {
     #[tokio::test]
     async fn restart_forward_time_expires_slid_and_keeps_live_sessions() {
         let mut snapback = activated_memory_snapback();
-        let slid = insert_lifetime_session(&mut snapback, 200, 300);
-        let live = insert_lifetime_session(&mut snapback, 4_000, 5_000);
+        let slid = insert_lifetime_session(&mut snapback, "forward-slid@example.com", 100).await;
+        let live_created_at_ms = slid.expires_at_ms - 1_000;
+        let live = insert_lifetime_session(
+            &mut snapback,
+            "forward-live@example.com",
+            live_created_at_ms,
+        )
+        .await;
+        let first_epoch = slid.expires_at_ms + 50;
+        let second_epoch = first_epoch + 10;
 
-        let (runtime1, _) = ready_runtime_with_clock(Arc::new(RuntimeManualClock::new(250)));
+        let (runtime1, _) =
+            ready_runtime_with_clock(Arc::new(RuntimeManualClock::new(first_epoch)));
         runtime1.build_coordinator(&mut snapback).unwrap();
 
-        // Restart with the wall clock genuinely advanced to 260.
+        // Restart with the wall clock genuinely advanced past the floor.
         let (runtime2, provider2) =
-            ready_runtime_with_clock(Arc::new(RuntimeManualClock::new(260)));
+            ready_runtime_with_clock(Arc::new(RuntimeManualClock::new(second_epoch)));
         let coordinator2 = runtime2.build_coordinator(&mut snapback).unwrap();
         assert_eq!(
             provider2.now_ms(),
-            260,
+            second_epoch,
             "forward time is honored past the floor"
         );
         assert_eq!(
             coordinator2
-                .resolve_required_bearer(&slid, provider2.now_ms(), provider2.monotonic_now())
+                .resolve_required_bearer(
+                    &slid.bearer,
+                    provider2.now_ms(),
+                    provider2.monotonic_now(),
+                )
                 .unwrap_err()
                 .diagnostic
                 .code,
@@ -1813,9 +1766,13 @@ mod tests {
         assert!(
             matches!(
                 coordinator2
-                    .resolve_required_bearer(&live, provider2.now_ms(), provider2.monotonic_now())
+                    .resolve_required_bearer(
+                        &live.bearer,
+                        provider2.now_ms(),
+                        provider2.monotonic_now(),
+                    )
                     .unwrap()
-                    .authority(),
+                    .resolved(),
                 ResolvedAppAuthority::Session(subject) if subject.generation() == 1
             ),
             "a session whose deadlines are still ahead of the floor stays current"
@@ -1827,26 +1784,32 @@ mod tests {
     #[tokio::test]
     async fn restart_backward_move_keeps_a_still_future_session_live() {
         let mut snapback = activated_memory_snapback();
-        // Sliding 400, absolute 500: still ahead of the process-1 epoch 250.
-        let live = insert_lifetime_session(&mut snapback, 400, 500);
+        let live = insert_lifetime_session(&mut snapback, "backward-live@example.com", 100).await;
+        let first_epoch = live.expires_at_ms - 1_000;
+        let rolled_back_epoch = first_epoch - 100;
 
-        let (runtime1, _) = ready_runtime_with_clock(Arc::new(RuntimeManualClock::new(250)));
+        let (runtime1, _) =
+            ready_runtime_with_clock(Arc::new(RuntimeManualClock::new(first_epoch)));
         runtime1.build_coordinator(&mut snapback).unwrap();
 
         let (runtime2, provider2) =
-            ready_runtime_with_clock(Arc::new(RuntimeManualClock::new(150)));
+            ready_runtime_with_clock(Arc::new(RuntimeManualClock::new(rolled_back_epoch)));
         let coordinator2 = runtime2.build_coordinator(&mut snapback).unwrap();
         assert_eq!(
             provider2.now_ms(),
-            250,
+            first_epoch,
             "effective epoch is the durable floor"
         );
         assert!(
             matches!(
                 coordinator2
-                    .resolve_required_bearer(&live, provider2.now_ms(), provider2.monotonic_now())
+                    .resolve_required_bearer(
+                        &live.bearer,
+                        provider2.now_ms(),
+                        provider2.monotonic_now(),
+                    )
                     .unwrap()
-                    .authority(),
+                    .resolved(),
                 ResolvedAppAuthority::Session(subject) if subject.generation() == 1
             ),
             "the floor fails closed only for deadlines it has passed, not future ones"

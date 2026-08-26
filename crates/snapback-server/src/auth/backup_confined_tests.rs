@@ -4,9 +4,17 @@ use snapback_auth::auth::keyring::AuthKeyringStore;
 use snapback_auth::auth::lifecycle::{
     EmailCodeReadiness, RESTORE_DECLARATION_FILE, RestoreDeclaration, activate_catalog,
 };
+use snapback_auth::auth::provider::{AuthProvider, PasswordIssuanceCustody, PlannedIssuanceCommit};
 use snapback_kernel::storage::LocalDatabase;
+use snapback_kernel::storage::auth::AuthTransactionAttempt;
 use snapback_kernel::storage::auth::{AuthCatalogState, PasswordIdentifierMode};
+use snapback_types::manifest::{
+    FieldManifest, FieldType, HandlerInput, MutationPlan, MutationStep, SchemaManifest,
+    TableManifest, ValueExpr,
+};
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicU8, Ordering};
 
 #[derive(Debug, Default)]
@@ -26,7 +34,7 @@ struct Fixture {
     _directory: tempfile::TempDir,
     database_path: PathBuf,
     database: LocalDatabase,
-    keyring: AuthKeyringStore,
+    keyring: Arc<AuthKeyringStore>,
     random: CountingRandom,
 }
 
@@ -35,24 +43,11 @@ impl Fixture {
         let directory = tempfile::tempdir().unwrap();
         let database_path = directory.path().join("source.sqlite3");
         let mut database = LocalDatabase::open(&database_path).unwrap();
-        let keyring = AuthKeyringStore::file_for_database(&database_path);
+        let keyring = Arc::new(AuthKeyringStore::file_for_database(&database_path));
         let random = CountingRandom::default();
         let activated = activate_catalog(&mut database, &keyring, 10, &random).unwrap();
         assert!(matches!(activated.email_code, EmailCodeReadiness::Ready(_)));
-        let key_id = keyring
-            .with_active_key(10, &random, |id, _| id.as_str().to_owned())
-            .unwrap();
-        database
-            .auth_catalog()
-            .insert_verification_code_for_test(
-                "sbc_AAAAAAAAAAAAAAAAAAAAAA",
-                "user@example.com",
-                &[7_u8; 32],
-                &key_id,
-                10,
-                1000,
-            )
-            .unwrap();
+        request_code_with_keyring(&mut database, keyring.clone(), "user@example.com", 10);
         Self {
             _directory: directory,
             database_path,
@@ -67,31 +62,145 @@ impl Fixture {
     }
 }
 
+fn request_code_with_keyring(
+    database: &mut LocalDatabase,
+    keyring: Arc<AuthKeyringStore>,
+    address: &str,
+    now_ms: u64,
+) {
+    let provider = Arc::new(
+        AuthProvider::new(crate::contract_types::AuthProviderProfile::Test, keyring)
+            .expect("construct production auth provider"),
+    );
+    let runtime = tokio::runtime::Runtime::new().expect("test runtime");
+    let admission = runtime
+        .block_on(provider.admit_email(address))
+        .expect("admit address through production provider");
+    admission
+        .request_code(database, now_ms)
+        .expect("persist challenge through production provider");
+}
+
+fn register_password(
+    database: &mut LocalDatabase,
+    keyring: Arc<AuthKeyringStore>,
+    identifier: &str,
+    password: &str,
+    now_ms: u64,
+) -> Arc<AuthProvider> {
+    let provider = Arc::new(
+        AuthProvider::new(crate::contract_types::AuthProviderProfile::Test, keyring)
+            .expect("construct production auth provider"),
+    );
+    let runtime = tokio::runtime::Runtime::new().expect("test runtime");
+    let plan = runtime
+        .block_on(provider.plan_password_registration(
+            database,
+            identifier,
+            crate::auth::identity_core::PasswordSecret::new(password.to_owned()),
+            now_ms,
+            "backup-recovery-key",
+            &[7; 32],
+            PasswordIssuanceCustody::Bearer,
+        ))
+        .expect("plan production password registration");
+    assert!(matches!(
+        provider.commit_password_issuance(database, &plan.commit_plan()),
+        AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed { .. })
+    ));
+    provider
+}
+
+fn record_failed_password_attempt(
+    provider: &AuthProvider,
+    database: &mut LocalDatabase,
+    identifier: &str,
+    now_ms: u64,
+) {
+    let runtime = tokio::runtime::Runtime::new().expect("test runtime");
+    let plan = runtime
+        .block_on(provider.plan_password_authentication(
+            database,
+            identifier,
+            crate::auth::identity_core::PasswordSecret::new(
+                "definitely-the-wrong-password".to_owned(),
+            ),
+            now_ms,
+            PasswordIssuanceCustody::Bearer,
+        ))
+        .expect("plan production password authentication");
+    assert!(matches!(
+        provider.commit_password_issuance(database, &plan.commit_plan()),
+        AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CredentialInvalid {
+            committed_attempt: Some(_),
+        })
+    ));
+}
+
+fn install_large_app_fixture(database: &mut LocalDatabase) {
+    database
+        .schema_seed()
+        .apply_schema(SchemaManifest {
+            tables: vec![TableManifest {
+                name: "backup_large_app_fixture".to_owned(),
+                fields: vec![FieldManifest {
+                    name: "payload".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                }],
+                indexes: Vec::new(),
+                search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
+                search_live_limits: None,
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                membership: None,
+                authority_profile: None,
+                asset_sharing: None,
+                visibility: None,
+                history: None,
+            }],
+            ..SchemaManifest::default()
+        })
+        .expect("apply production app schema");
+    database
+        .mutation_writes()
+        .execute_mutation(
+            &MutationPlan {
+                owner_write_checks: Vec::new(),
+                steps: vec![MutationStep::Insert {
+                    table: "backup_large_app_fixture".to_owned(),
+                    values: BTreeMap::from([(
+                        "payload".to_owned(),
+                        ValueExpr::Literal(serde_json::Value::String("x".repeat(1_048_576))),
+                    )]),
+                    bind_id_as: None,
+                }],
+                return_value: None,
+            },
+            &HandlerInput::default(),
+        )
+        .expect("insert large app row through the production mutation pipeline");
+}
+
 #[test]
 fn backup_and_restore_publish_exact_owner_only_consistent_units() {
-    use crate::auth::identity_core::PasswordSecret;
     use std::os::unix::fs::PermissionsExt as _;
 
     let mut fixture = Fixture::new();
     let database = &mut fixture.database;
-    fixture
-        .keyring
-        .with_active_key(20, &fixture.random, |key_id, key| {
-            database.identity_password_register(
-                "backup-person",
-                &PasswordSecret::new("strong-backup-password-1".to_owned()),
-                20,
-                &fixture.random,
-                key_id.as_str(),
-                key.expose_secret(),
-            )
-        })
-        .unwrap()
-        .unwrap();
-    database
-        .insert_password_attempt_for_test("backup-ledger@example.com", 20, 4, Some(120))
-        .unwrap();
-    database.insert_large_backup_fixture_for_test().unwrap();
+    let provider = register_password(
+        database,
+        fixture.keyring.clone(),
+        "backup-person",
+        "strong-backup-password-1",
+        20,
+    );
+    for now_ms in 20..30 {
+        record_failed_password_attempt(&provider, database, "backup-ledger@example.com", now_ms);
+    }
+    install_large_app_fixture(database);
     let backup_directory = fixture.parent().join("backup");
     let outcome = create_backup(
         &fixture.database,
@@ -238,7 +347,7 @@ fn backup_and_restore_publish_exact_owner_only_consistent_units() {
         let count = restored_counts[table];
         assert!(count > 0, "v4 backup omitted state from {table}");
     }
-    assert_eq!(restored_attempt, Some((20, 4, Some(120))));
+    assert_eq!(restored_attempt, Some((20, 10, Some(900_029))));
     assert_eq!(
         restored_payload_bytes, 1_048_576,
         "the descriptor-safe backup must retain real multi-page app data",

@@ -9897,7 +9897,7 @@ impl LocalSnapback {
     /// Unit-test session fixture that still traverses protected catalog,
     /// projection, bearer resolution, and this engine's admission graph.
     // @ref LLP 0303#the-governing-principle — tests derive session authority through the same resolver as production.
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     #[allow(clippy::too_many_arguments)]
     fn prepare_resolved_session_fixture(
         &mut self,
