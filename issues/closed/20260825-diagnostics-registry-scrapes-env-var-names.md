@@ -421,13 +421,31 @@ SNAPBACK_TEST_FIXTURE_INVALID: missing checked-in removal justification
 SNAPBACK_TEST_OPERATION_CRASH_CUT: missing checked-in removal justification
 ```
 
-All eight are restored. None is allowlisted: every test-named code above has a
-non-test feature branch, and the other five have direct production or
-feature-shippable emitters. The checked
-`scripts/diagnostics-registry-code-removals.json` allowlist is therefore empty.
-Future removal of a previously committed spelling fails unless the same change
-checks in a concrete explanation classified as `test-only`, `renamed`, or
-`prefix` (with a replacement required for `renamed`).
+All eight are restored. None was allowlisted in round 30: every test-named code
+above has a non-test feature branch, and the other five have direct production
+or feature-shippable emitters.
+
+Round 31 makes the guard compare the working registry with the merge-base of
+`HEAD` and `origin/main`, so an unrelated commit after a removal cannot make
+the registry its own baseline. In a checkout without that remote-tracking ref,
+the fallback compares with the parent of the latest registry-changing commit.
+The merge-base predates this classifier lane, and the guard inspects every
+registry-changing commit in the range so a spelling introduced and later
+removed cannot escape. The checked allowlist now records all 248 intentional
+lane removals: the 140 environment names removed from the merge-base plus four
+temporary environment misclassifications, 29 incomplete prefixes, 50
+reference-only spellings, and 25 test-only spellings. This is a retrospective
+classification ledger, not a further code-set change. Future
+removals require a concrete checked-in explanation classified as
+`environment`, `prefix`, `reference-only`, `renamed`, or `test-only` (with a
+replacement required for `renamed`).
+
+Round 31 also stops treating every Rust `use path::*` as an import of every
+repository-unambiguous constant. Explicit imports and qualified paths still
+flow automatically. The real `WRITER_COVERAGE_GAP_CODE` bare-name emitter
+behind `use super::contract::*` now carries an explicit comment-only emission
+marker; an unrelated glob-import fixture proves that a same-spelled short name
+does not acquire a false emitting site.
 
 The cfg classifier now parses predicate structure. `cfg(test)`,
 `cfg(all(test, ...))`, nested `any(...)` whose every branch requires test, and
@@ -504,6 +522,66 @@ The inventory/Guide runs also printed six pre-existing GAP review warnings;
 the Guide run's remaining warnings were authority-freshness notices. All were
 warning-only and are included in the 100-warning summary above. Nothing in the
 requested verification remains unverified.
+
+### Round-31 final verification
+
+Round 31 leaves every registry count and the diagnostic code set unchanged
+from `2981ceb4c`:
+
+| Count | `2981ceb4c` | Round-31 final |
+| --- | ---: | ---: |
+| Codes | 3,543 | 3,543 |
+| Source files | 628 | 628 |
+| Emitting sites | 9,375 | 9,375 |
+| Received sites | 378 | 378 |
+| Reserved sites | 11 | 11 |
+| HTTP-classified | 1,704 | 1,704 |
+| Guide-anchored | 431 | 431 |
+| Environment variables | 188 | 188 |
+| Environment sites | 366 | 366 |
+
+The regenerated registry records the
+`SNAPBACK_RESUME_BUDGET_EXCEEDED` reservation at
+`crates/snapback-sync/src/rqs.rs:110`, the spelling line. The requested checks
+passed with these verbatim summaries:
+
+```text
+node --test scripts/generate-diagnostics-registry.test.mjs
+tests 42
+pass 42
+fail 0
+
+node scripts/generate-diagnostics-registry.mjs --check
+[diagnostics-registry] ok — 3543 codes, 9375 emitting sites, 378 received sites, 11 reserved sites, 188 environment variables, 366 environment sites, 1704 HTTP-classified
+
+node scripts/generate-symbol-registry.mjs --check
+[symbol-registry] ok — 56 modules, 1455 symbols, runtime parity exact
+
+node packages/snapback-cli/reference-lookup.test.mjs
+reference-lookup.test.mjs: exact diagnostic/environment/dual-role/member, bounded symbol/module, identity, and fallback pass
+
+node scripts/check-inventories.mjs
+[check-inventories] PASS: 357 package tests; 32 scripts tests; 31 demos/31 catalog entries; 487 publication leaves; 157 guide pages/1872 snippets
+
+node scripts/check-first-read.mjs
+[first-read] ok — 5 profiles checked
+
+node scripts/check-guide.mjs
+[guide-check] ok — 22 passed, 0 failed, 0 skipped, 0 preconditions; 157 pages, 1872 snippets, 174 routes + 51 host-ops joined, 100 warnings
+
+./ref-check --verbose
+ref-check: ok — 311 LLP docs, 7872 refs in 16054 files, 0 errors, 0 unchecked
+
+git diff --check
+(no output; exit 0)
+
+crates non-comment diff against merge-base e370bb8f789007cffae1f4d80c4feabdedc81cb5
+(no output; empty)
+```
+
+The inventory/Guide runs emitted the same six warning-only GAP review notices;
+the other Guide warnings were authority-freshness notices. Nothing in the
+round-31 verification remains unverified.
 
 ### Known JS/native lookup divergence
 

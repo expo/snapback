@@ -33,6 +33,27 @@ export const DIAGNOSTICS_PRODUCTION_ROOTS = Object.freeze([
   'clients/swift/',
 ]);
 
+export function sourceImportsOrQualifiesConstant(source, identifier) {
+  const qualified = new RegExp(
+    `(?:\\b[A-Za-z_][A-Za-z0-9_]*::)+${identifier}(?![A-Za-z0-9_])`,
+    'u',
+  );
+  if (qualified.test(source)) return true;
+  for (const statement of source.matchAll(
+    /\b(?:pub(?:\([^)]*\))?\s+)?use\s+([\s\S]*?);/gu,
+  )) {
+    if (
+      new RegExp(`(?<![A-Za-z0-9_])${identifier}(?![A-Za-z0-9_])`, 'u')
+        .test(statement[1])
+    ) return true;
+  }
+  for (const statement of source.matchAll(/\bimport\s+([\s\S]*?)\s+from\s+['"][^'"]+['"]/gu)) {
+    if (new RegExp(`(?<![A-Za-z0-9_])${identifier}(?![A-Za-z0-9_])`, 'u')
+      .test(statement[1])) return true;
+  }
+  return false;
+}
+
 function skipRustCfgWhitespace(source, offset) {
   let cursor = offset;
   while (/\s/u.test(source[cursor] ?? '')) cursor += 1;

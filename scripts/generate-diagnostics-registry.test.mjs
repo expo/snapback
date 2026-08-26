@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import test from 'node:test';
 
@@ -10,6 +18,7 @@ import {
   environmentVariableSites,
   indirectEnvironmentReadContracts,
   rustExternalTestModulePaths,
+  sourceImportsOrQualifiesConstant,
 } from './diagnostics-registry-source.mjs';
 
 const root = resolve(import.meta.dirname, '..');
@@ -54,26 +63,43 @@ function sourceLinesContaining(repoPath, expression) {
     .flatMap((line, index) => line.includes(expression) ? [index + 1] : []);
 }
 
-function previousCommittedRevision(repoRoot, dirtyPath) {
+function gitOutput(repoRoot, args) {
+  return execFileSync('git', args, {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim();
+}
+
+function stableRegistryHistory(repoRoot, dirtyPath) {
   try {
-    execFileSync('git', ['diff', '--quiet', 'HEAD', '--', dirtyPath], {
-      cwd: repoRoot,
-      stdio: 'ignore',
-    });
-  } catch (error) {
-    if (error.status !== 1) throw error;
-    return 'HEAD';
+    const baseline = gitOutput(repoRoot, ['merge-base', 'HEAD', 'origin/main']);
+    const revisions = gitOutput(repoRoot, [
+      'log',
+      '--format=%H',
+      '--reverse',
+      `${baseline}..HEAD`,
+      '--',
+      dirtyPath,
+    ]).split('\n').filter(Boolean);
+    return { baseline, revisions };
+  } catch {
+    // A checkout without origin/main still compares against the registry state
+    // before the latest committed registry change. Following unrelated commits
+    // therefore cannot turn the current registry into its own baseline.
   }
-  try {
-    execFileSync('git', ['diff', '--quiet', 'HEAD^', 'HEAD', '--', dirtyPath], {
-      cwd: repoRoot,
-      stdio: 'ignore',
-    });
-  } catch (error) {
-    if (error.status !== 1) throw error;
-    return 'HEAD^';
-  }
-  return 'HEAD';
+
+  const latest = gitOutput(repoRoot, [
+    'log',
+    '-1',
+    '--format=%H',
+    'HEAD',
+    '--',
+    dirtyPath,
+  ]);
+  return latest === ''
+    ? { baseline: 'HEAD', revisions: [] }
+    : { baseline: `${latest}^`, revisions: [latest] };
 }
 
 function committedJson(repoRoot, revision, path, fallback = undefined) {
@@ -96,7 +122,13 @@ function codeRemovalProblems(
   allowlist,
   previousAllowlist = { removals: {} },
 ) {
-  const validReasons = new Set(['test-only', 'renamed', 'prefix']);
+  const validReasons = new Set([
+    'environment',
+    'prefix',
+    'reference-only',
+    'renamed',
+    'test-only',
+  ]);
   const problems = [];
   assert.equal(
     allowlist.schemaVersion,
@@ -110,16 +142,21 @@ function codeRemovalProblems(
     'diagnostics removal allowlist must contain an object-valued removals map',
   );
   for (const [code, justification] of Object.entries(allowlist.removals)) {
-    assert.match(code, /^SNAPBACK_[A-Z0-9_]*[A-Z0-9]$/u);
     assert.equal(
       justification !== null && typeof justification === 'object'
         && !Array.isArray(justification),
       true,
       `${code} removal justification must be an object`,
     );
+    assert.match(
+      code,
+      justification.reason === 'prefix'
+        ? /^SNAPBACK_[A-Z0-9_]*_$/u
+        : /^SNAPBACK_[A-Z0-9_]*[A-Z0-9]$/u,
+    );
     assert.ok(
       validReasons.has(justification.reason),
-      `${code} removal reason must be test-only, renamed, or prefix`,
+      `${code} removal reason must be environment, prefix, reference-only, renamed, or test-only`,
     );
     assert.ok(
       typeof justification.detail === 'string' && justification.detail.trim().length >= 12,
@@ -145,6 +182,29 @@ function codeRemovalProblems(
     }
   }
   return problems;
+}
+
+function registryRemovalProblems(repoRoot, registryPath, allowlistPath) {
+  const allowlist = JSON.parse(readFileSync(resolve(repoRoot, allowlistPath), 'utf8'));
+  const { baseline, revisions } = stableRegistryHistory(repoRoot, registryPath);
+  const previousCodes = new Set();
+  for (const revision of [baseline, ...revisions]) {
+    const registry = committedJson(repoRoot, revision, registryPath, { diagnostics: {} });
+    for (const code of Object.keys(registry.diagnostics)) previousCodes.add(code);
+  }
+  const currentRegistry = JSON.parse(readFileSync(resolve(repoRoot, registryPath), 'utf8'));
+  const previousAllowlist = committedJson(
+    repoRoot,
+    baseline,
+    allowlistPath,
+    { removals: {} },
+  );
+  return codeRemovalProblems(
+    previousCodes,
+    new Set(Object.keys(currentRegistry.diagnostics)),
+    allowlist,
+    previousAllowlist,
+  );
 }
 
 test('diagnostic removal allowlist requires a classified, explained justification', () => {
@@ -191,22 +251,74 @@ test('generated registry never silently loses a previously committed diagnostic 
   const repoRoot = resolve(import.meta.dirname, '..');
   const registryPath = 'guide/reference/diagnostics-registry.json';
   const allowlistPath = 'scripts/diagnostics-registry-code-removals.json';
-  const revision = previousCommittedRevision(repoRoot, registryPath);
-  const previous = committedJson(repoRoot, revision, registryPath);
-  const current = JSON.parse(readFileSync(resolve(repoRoot, registryPath), 'utf8'));
-  const allowlist = JSON.parse(readFileSync(resolve(repoRoot, allowlistPath), 'utf8'));
-  const previousAllowlist = committedJson(repoRoot, revision, allowlistPath, { removals: {} });
-  const problems = codeRemovalProblems(
-    new Set(Object.keys(previous.diagnostics)),
-    new Set(Object.keys(current.diagnostics)),
-    allowlist,
-    previousAllowlist,
-  );
+  const problems = registryRemovalProblems(repoRoot, registryPath, allowlistPath);
   assert.deepEqual(
     problems,
     [],
     `diagnostic codes disappeared from the previous committed registry:\n${problems.join('\n')}`,
   );
+});
+
+test('diagnostic removal guard survives an unrelated commit after the removal', () => {
+  const repoRoot = mkdtempSync(resolve(tmpdir(), 'snapback-diagnostics-history-'));
+  const registryPath = 'guide/reference/diagnostics-registry.json';
+  const allowlistPath = 'scripts/diagnostics-registry-code-removals.json';
+  const registryFile = resolve(repoRoot, registryPath);
+  const allowlistFile = resolve(repoRoot, allowlistPath);
+  const git = (...args) => execFileSync('git', args, {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim();
+  try {
+    git('init', '-b', 'main');
+    git('config', 'user.name', 'Diagnostics Registry Test');
+    git('config', 'user.email', 'diagnostics-registry@example.invalid');
+    mkdirSync(resolve(repoRoot, 'guide/reference'), { recursive: true });
+    mkdirSync(resolve(repoRoot, 'scripts'), { recursive: true });
+    writeFileSync(registryFile, `${JSON.stringify({
+      diagnostics: { SNAPBACK_FIXTURE_REMOVED: {} },
+    })}\n`);
+    writeFileSync(allowlistFile, `${JSON.stringify({
+      schemaVersion: 'snapback-diagnostics-code-removals.v1',
+      removals: {},
+    })}\n`);
+    git('add', '.');
+    git('commit', '-m', 'baseline registry');
+    const baseline = git('rev-parse', 'HEAD');
+    git('update-ref', 'refs/remotes/origin/main', baseline);
+
+    writeFileSync(registryFile, `${JSON.stringify({ diagnostics: {
+      SNAPBACK_FIXTURE_REMOVED: {},
+      SNAPBACK_FIXTURE_TRANSIENT: {},
+    } })}\n`);
+    git('add', registryPath);
+    git('commit', '-m', 'add transient diagnostic');
+    writeFileSync(registryFile, `${JSON.stringify({ diagnostics: {} })}\n`);
+    git('add', registryPath);
+    git('commit', '-m', 'remove diagnostic without justification');
+    writeFileSync(resolve(repoRoot, 'unrelated.txt'), 'unrelated\n');
+    git('add', 'unrelated.txt');
+    git('commit', '-m', 'unrelated follow-up');
+
+    assert.deepEqual(
+      registryRemovalProblems(repoRoot, registryPath, allowlistPath),
+      [
+        'SNAPBACK_FIXTURE_REMOVED: missing checked-in removal justification',
+        'SNAPBACK_FIXTURE_TRANSIENT: missing checked-in removal justification',
+      ],
+    );
+    git('update-ref', '-d', 'refs/remotes/origin/main');
+    assert.deepEqual(
+      registryRemovalProblems(repoRoot, registryPath, allowlistPath),
+      [
+        'SNAPBACK_FIXTURE_REMOVED: missing checked-in removal justification',
+        'SNAPBACK_FIXTURE_TRANSIENT: missing checked-in removal justification',
+      ],
+    );
+  } finally {
+    rmSync(repoRoot, { recursive: true, force: true });
+  }
 });
 
 test('diagnostic source classifier excludes environment reads per site and retains emissions', () => {
@@ -976,6 +1088,31 @@ test('identifier flow follows unambiguous whole-string constants across files', 
   );
 });
 
+test('cross-file constant flow ignores unrelated Rust glob imports', () => {
+  const declaration = {
+    code: 'SNAPBACK_FIXTURE_GLOB_IMPORT',
+    identifier: 'GLOB_IMPORT_CODE',
+  };
+  const sites = (source) => diagnosticSourceSites(source, {
+    ordinaryMultiline: true,
+    externalWholeStringDeclarations: sourceImportsOrQualifiesConstant(
+      source,
+      declaration.identifier,
+    ) ? [declaration] : [],
+  }).map(({ match, kind }) => ({ code: match[0], kind }));
+
+  assert.deepEqual(sites([
+    'use crate::unrelated::*;',
+    'fn false_site() { fork_error(GLOB_IMPORT_CODE, "gap"); }',
+  ].join('\n')), []);
+  assert.deepEqual(sites([
+    'use crate::contract::GLOB_IMPORT_CODE;',
+    'fn imported() { fork_error(GLOB_IMPORT_CODE, "gap"); }',
+  ].join('\n')), [
+    { code: 'SNAPBACK_FIXTURE_GLOB_IMPORT', kind: 'emission' },
+  ]);
+});
+
 test('environment helper discovery requires environment to be a full identifier segment', () => {
   const fixture = [
     '// loadEnvironmentConfig and its case-folded twin are configuration helpers, not env objects.',
@@ -1699,6 +1836,19 @@ test('diagnostic source classifier retains explicit historical reservations', ()
     diagnosticSourceSites(source).map(({ match, kind }) => ({ code: match[0], kind })),
     [{ code: 'SNAPBACK_FIXTURE_RETIRED', kind: 'reserved' }],
   );
+});
+
+test('resume budget reservation is recorded on its spelling line', () => {
+  const registry = JSON.parse(readFileSync(resolve(
+    import.meta.dirname,
+    '../guide/reference/diagnostics-registry.json',
+  ), 'utf8'));
+  const file = 'crates/snapback-sync/src/rqs.rs';
+  const reservedLines = registry.diagnostics.SNAPBACK_RESUME_BUDGET_EXCEEDED.sites
+    .filter((site) => site.file === file && site.kind === 'reserved')
+    .map((site) => site.line);
+
+  assert.deepEqual(reservedLines, sourceLinesContaining(file, 'pub const BUDGET_EXCEEDED'));
 });
 
 test('diagnostic source classifier retains explicitly marked received vocabulary', () => {

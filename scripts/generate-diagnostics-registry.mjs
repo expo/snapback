@@ -53,6 +53,7 @@ import {
   indirectEnvironmentReadContracts,
   rustExternalTestModulePaths,
   rustProductionSource,
+  sourceImportsOrQualifiesConstant,
   wholeStringDiagnosticDeclarations,
 } from './diagnostics-registry-source.mjs';
 import { authoritiesDigest } from './guide-lib.mjs';
@@ -278,28 +279,6 @@ function lineAndColumn(source, offset) {
   const line = before.split('\n').length;
   const lastNewline = before.lastIndexOf('\n');
   return { line, column: offset - lastNewline };
-}
-
-function sourceImportsOrQualifiesConstant(source, identifier) {
-  const qualified = new RegExp(
-    `(?:\\b[A-Za-z_][A-Za-z0-9_]*::)+${identifier}(?![A-Za-z0-9_])`,
-    'u',
-  );
-  if (qualified.test(source)) return true;
-  for (const statement of source.matchAll(
-    /\b(?:pub(?:\([^)]*\))?\s+)?use\s+([\s\S]*?);/gu,
-  )) {
-    if (
-      new RegExp(`(?<![A-Za-z0-9_])${identifier}(?![A-Za-z0-9_])`, 'u')
-        .test(statement[1])
-      || /::\s*\*/u.test(statement[1])
-    ) return true;
-  }
-  for (const statement of source.matchAll(/\bimport\s+([\s\S]*?)\s+from\s+['"][^'"]+['"]/gu)) {
-    if (new RegExp(`(?<![A-Za-z0-9_])${identifier}(?![A-Za-z0-9_])`, 'u')
-      .test(statement[1])) return true;
-  }
-  return false;
 }
 
 function subsystemFor(code, sites) {

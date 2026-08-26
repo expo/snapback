@@ -1,4 +1,997 @@
 {
   "schemaVersion": "snapback-diagnostics-code-removals.v1",
-  "removals": {}
+  "removals": {
+    "SNAPBACK_ACTION_MAX_CONCURRENCY": {
+      "reason": "environment",
+      "detail": "SNAPBACK_ACTION_MAX_CONCURRENCY is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_ACTION_SECRETS": {
+      "reason": "environment",
+      "detail": "SNAPBACK_ACTION_SECRETS is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_ACTION_STREAM_": {
+      "reason": "prefix",
+      "detail": "SNAPBACK_ACTION_STREAM_ is an incomplete diagnostic-family prefix, not a complete emitted code."
+    },
+    "SNAPBACK_ACTION_TIMEOUT_MS": {
+      "reason": "environment",
+      "detail": "SNAPBACK_ACTION_TIMEOUT_MS is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_ADMIN_DEV_ALLOW_NON_LOOPBACK": {
+      "reason": "environment",
+      "detail": "SNAPBACK_ADMIN_DEV_ALLOW_NON_LOOPBACK is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_ADMIN_DEV_API": {
+      "reason": "environment",
+      "detail": "SNAPBACK_ADMIN_DEV_API is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_ADMIN_DEV_HOST": {
+      "reason": "environment",
+      "detail": "SNAPBACK_ADMIN_DEV_HOST is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_ADMIN_DEV_PORT": {
+      "reason": "environment",
+      "detail": "SNAPBACK_ADMIN_DEV_PORT is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_ADMIN_DIST": {
+      "reason": "environment",
+      "detail": "SNAPBACK_ADMIN_DIST is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_ADMIN_TAILSCALE_RECEIPT_DIR": {
+      "reason": "environment",
+      "detail": "SNAPBACK_ADMIN_TAILSCALE_RECEIPT_DIR is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_ADMIN_TOKEN": {
+      "reason": "environment",
+      "detail": "SNAPBACK_ADMIN_TOKEN is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_ADMIN_TOKEN_FILE": {
+      "reason": "environment",
+      "detail": "SNAPBACK_ADMIN_TOKEN_FILE is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_AGENT_SAFE_IMPLEMENTATION_SHA256": {
+      "reason": "environment",
+      "detail": "SNAPBACK_AGENT_SAFE_IMPLEMENTATION_SHA256 is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_ALLOW_MISSING_STORE_RECEIPTS": {
+      "reason": "environment",
+      "detail": "SNAPBACK_ALLOW_MISSING_STORE_RECEIPTS is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_APP_AGENT_PROFILE": {
+      "reason": "environment",
+      "detail": "SNAPBACK_APP_AGENT_PROFILE is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_APP_CLI_QUALIFICATION_REQUIRE_LIVE_STREAM": {
+      "reason": "environment",
+      "detail": "SNAPBACK_APP_CLI_QUALIFICATION_REQUIRE_LIVE_STREAM is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_APP_SESSION_BEARER": {
+      "reason": "environment",
+      "detail": "SNAPBACK_APP_SESSION_BEARER is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_ARGS__": {
+      "reason": "prefix",
+      "detail": "SNAPBACK_ARGS__ is an incomplete diagnostic-family prefix, not a complete emitted code."
+    },
+    "SNAPBACK_ASSET_": {
+      "reason": "prefix",
+      "detail": "SNAPBACK_ASSET_ is an incomplete diagnostic-family prefix, not a complete emitted code."
+    },
+    "SNAPBACK_ASSET_IMPORT_EXPERIMENTAL": {
+      "reason": "environment",
+      "detail": "SNAPBACK_ASSET_IMPORT_EXPERIMENTAL is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_ASSET_RUNNER_DISABLED": {
+      "reason": "environment",
+      "detail": "SNAPBACK_ASSET_RUNNER_DISABLED is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_ASSET_S3_": {
+      "reason": "prefix",
+      "detail": "SNAPBACK_ASSET_S3_ is an incomplete diagnostic-family prefix, not a complete emitted code."
+    },
+    "SNAPBACK_ASSET_S3_ACCESS_KEY_ID": {
+      "reason": "environment",
+      "detail": "SNAPBACK_ASSET_S3_ACCESS_KEY_ID is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_ASSET_S3_BUCKET": {
+      "reason": "environment",
+      "detail": "SNAPBACK_ASSET_S3_BUCKET is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_ASSET_S3_ENDPOINT": {
+      "reason": "environment",
+      "detail": "SNAPBACK_ASSET_S3_ENDPOINT is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_ASSET_S3_EXPERIMENTAL": {
+      "reason": "environment",
+      "detail": "SNAPBACK_ASSET_S3_EXPERIMENTAL is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_ASSET_S3_PREFIX": {
+      "reason": "environment",
+      "detail": "SNAPBACK_ASSET_S3_PREFIX is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_ASSET_S3_REGION": {
+      "reason": "environment",
+      "detail": "SNAPBACK_ASSET_S3_REGION is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_ASSET_S3_SECRET_ACCESS_KEY": {
+      "reason": "environment",
+      "detail": "SNAPBACK_ASSET_S3_SECRET_ACCESS_KEY is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_ASSET_STORE": {
+      "reason": "environment",
+      "detail": "SNAPBACK_ASSET_STORE is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_ASSET_TEST_TRANSIENT": {
+      "reason": "test-only",
+      "detail": "SNAPBACK_ASSET_TEST_TRANSIENT occurs only in excluded test or classifier-fixture source."
+    },
+    "SNAPBACK_AUTHORIZED_LEASE_DEFAULT_MS": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_AUTHORIZED_LEASE_DEFAULT_MS occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_AUTHORIZED_LEASE_HARD_MAX_MS": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_AUTHORIZED_LEASE_HARD_MAX_MS occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_AUTHORIZED_LEASE_PROTOCOL_VERSION": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_AUTHORIZED_LEASE_PROTOCOL_VERSION occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_AUTH_": {
+      "reason": "prefix",
+      "detail": "SNAPBACK_AUTH_ is an incomplete diagnostic-family prefix, not a complete emitted code."
+    },
+    "SNAPBACK_AUTH_ACCEPTANCE_PROPERTY_RECEIPT": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_AUTH_ACCEPTANCE_PROPERTY_RECEIPT occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_AUTH_ACCEPTANCE_ROOM_DRAIN_SEND_RECEIPT": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_AUTH_ACCEPTANCE_ROOM_DRAIN_SEND_RECEIPT occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_AUTH_ACCEPTANCE_ROOM_ENQUEUE_DRAIN_RECEIPT": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_AUTH_ACCEPTANCE_ROOM_ENQUEUE_DRAIN_RECEIPT occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_AUTH_ACCEPTANCE_ROOM_FRAME_ENQUEUE_RECEIPT": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_AUTH_ACCEPTANCE_ROOM_FRAME_ENQUEUE_RECEIPT occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_AUTH_ACCEPTANCE_ROOM_RECEIPT": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_AUTH_ACCEPTANCE_ROOM_RECEIPT occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_AUTH_ACCEPTANCE_SERVER_RECEIPT": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_AUTH_ACCEPTANCE_SERVER_RECEIPT occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_AUTH_ACCEPTANCE_SERVER_REPLAY": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_AUTH_ACCEPTANCE_SERVER_REPLAY occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_AUTH_HANDLER_V1": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_AUTH_HANDLER_V1 occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_AUTH_INVALIDATION_PROTOCOL_VERSION": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_AUTH_INVALIDATION_PROTOCOL_VERSION occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_AUTH__": {
+      "reason": "prefix",
+      "detail": "SNAPBACK_AUTH__ is an incomplete diagnostic-family prefix, not a complete emitted code."
+    },
+    "SNAPBACK_BOOT_ELEMENT_ID": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_BOOT_ELEMENT_ID occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_BROWSER_EXECUTABLE": {
+      "reason": "environment",
+      "detail": "SNAPBACK_BROWSER_EXECUTABLE is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_BUILD_DISTRIBUTION": {
+      "reason": "environment",
+      "detail": "SNAPBACK_BUILD_DISTRIBUTION is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_BUILD_GIT_COMMIT": {
+      "reason": "environment",
+      "detail": "SNAPBACK_BUILD_GIT_COMMIT is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_BUILD_GIT_DIRTY": {
+      "reason": "environment",
+      "detail": "SNAPBACK_BUILD_GIT_DIRTY is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_BUNDLE_": {
+      "reason": "prefix",
+      "detail": "SNAPBACK_BUNDLE_ is an incomplete diagnostic-family prefix, not a complete emitted code."
+    },
+    "SNAPBACK_BUNDLE_ATTACH_GRACE_MS": {
+      "reason": "environment",
+      "detail": "SNAPBACK_BUNDLE_ATTACH_GRACE_MS is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_CARRIER_CLEANUP_LEASE_DIRECTORY": {
+      "reason": "environment",
+      "detail": "SNAPBACK_CARRIER_CLEANUP_LEASE_DIRECTORY is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_CARRIER_PROCESS_LEASE_MARKER": {
+      "reason": "environment",
+      "detail": "SNAPBACK_CARRIER_PROCESS_LEASE_MARKER is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_CARRIER_PROCESS_LEASE_RUN_ID": {
+      "reason": "environment",
+      "detail": "SNAPBACK_CARRIER_PROCESS_LEASE_RUN_ID is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_CHECKPOINT_TEST_PARENT_SYNC_FAILED": {
+      "reason": "test-only",
+      "detail": "SNAPBACK_CHECKPOINT_TEST_PARENT_SYNC_FAILED occurs only in excluded test or classifier-fixture source."
+    },
+    "SNAPBACK_CLIENT_ID_HEADER": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_CLIENT_ID_HEADER occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_CLIENT_ID_STATUS_HEADER": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_CLIENT_ID_STATUS_HEADER occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_CLIENT_RQS_DIR": {
+      "reason": "environment",
+      "detail": "SNAPBACK_CLIENT_RQS_DIR is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_CLIENT_RQS_GC": {
+      "reason": "environment",
+      "detail": "SNAPBACK_CLIENT_RQS_GC is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_CLIENT_RQS_GC_MAX_AGE_MS": {
+      "reason": "environment",
+      "detail": "SNAPBACK_CLIENT_RQS_GC_MAX_AGE_MS is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_CLIENT_RQS_STORE": {
+      "reason": "environment",
+      "detail": "SNAPBACK_CLIENT_RQS_STORE is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_CLIENT_STORE_VERSION": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_CLIENT_STORE_VERSION occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_CODEGEN_": {
+      "reason": "prefix",
+      "detail": "SNAPBACK_CODEGEN_ is an incomplete diagnostic-family prefix, not a complete emitted code."
+    },
+    "SNAPBACK_CONTRACT_ADAPTER_VERSION": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_CONTRACT_ADAPTER_VERSION occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_CONTRACT_CAPABILITY_CLASS": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_CONTRACT_CAPABILITY_CLASS occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_CONTRACT_PARITY_CAPABILITY_CLASS": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_CONTRACT_PARITY_CAPABILITY_CLASS occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_CONTRACT_RECEIPT_CAPABILITY": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_CONTRACT_RECEIPT_CAPABILITY occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_CRON_DISABLED": {
+      "reason": "environment",
+      "detail": "SNAPBACK_CRON_DISABLED is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_CRON_DISPATCH_CONCURRENCY": {
+      "reason": "environment",
+      "detail": "SNAPBACK_CRON_DISPATCH_CONCURRENCY is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_CTX_LEDGER_VERSION": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_CTX_LEDGER_VERSION occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_DEV_ADMISSION_POSTURE": {
+      "reason": "environment",
+      "detail": "SNAPBACK_DEV_ADMISSION_POSTURE is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_DEV_AUTH_DEPLOYMENT_PROFILE": {
+      "reason": "environment",
+      "detail": "SNAPBACK_DEV_AUTH_DEPLOYMENT_PROFILE is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_DEV_AUTH_ORIGINS": {
+      "reason": "environment",
+      "detail": "SNAPBACK_DEV_AUTH_ORIGINS is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_DEV_BOOTSTRAP_PORT": {
+      "reason": "environment",
+      "detail": "SNAPBACK_DEV_BOOTSTRAP_PORT is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_DEV_CLIENT_PORT": {
+      "reason": "environment",
+      "detail": "SNAPBACK_DEV_CLIENT_PORT is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_DEV_IDENTITY_FILE": {
+      "reason": "environment",
+      "detail": "SNAPBACK_DEV_IDENTITY_FILE is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_DEV_PORT": {
+      "reason": "environment",
+      "detail": "SNAPBACK_DEV_PORT is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_DEV_PORT_RANGE": {
+      "reason": "environment",
+      "detail": "SNAPBACK_DEV_PORT_RANGE is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_DERIVED_INSTANCE_ID": {
+      "reason": "environment",
+      "detail": "SNAPBACK_DERIVED_INSTANCE_ID is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_DIFFERENT_FAULT": {
+      "reason": "test-only",
+      "detail": "SNAPBACK_DIFFERENT_FAULT occurs only in excluded test or classifier-fixture source."
+    },
+    "SNAPBACK_DRILL_ADMISSION_SEED": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_DRILL_ADMISSION_SEED occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_DRILL_CLIENT_CA": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_DRILL_CLIENT_CA occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_DRILL_FLY_CONTROL_TOKEN": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_DRILL_FLY_CONTROL_TOKEN occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_DRILL_FLY_REGISTRY_TOKEN": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_DRILL_FLY_REGISTRY_TOKEN occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_DRILL_TIGRIS_": {
+      "reason": "prefix",
+      "detail": "SNAPBACK_DRILL_TIGRIS_ is an incomplete diagnostic-family prefix, not a complete emitted code."
+    },
+    "SNAPBACK_ELEVATED_READ_TRACE": {
+      "reason": "environment",
+      "detail": "SNAPBACK_ELEVATED_READ_TRACE is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_EMBEDDED_GUIDE": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_EMBEDDED_GUIDE occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_EMISSION_TEST_FAILURE": {
+      "reason": "test-only",
+      "detail": "SNAPBACK_EMISSION_TEST_FAILURE occurs only in excluded test or classifier-fixture source."
+    },
+    "SNAPBACK_EPOCH__": {
+      "reason": "prefix",
+      "detail": "SNAPBACK_EPOCH__ is an incomplete diagnostic-family prefix, not a complete emitted code."
+    },
+    "SNAPBACK_EXACT_PROVIDER_CONFORMANCE": {
+      "reason": "environment",
+      "detail": "SNAPBACK_EXACT_PROVIDER_CONFORMANCE is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_EXACT_PROVIDER_CONFORMANCE_MISSING": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_EXACT_PROVIDER_CONFORMANCE_MISSING occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_EXACT_ROOT": {
+      "reason": "environment",
+      "detail": "SNAPBACK_EXACT_ROOT is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_EXPORT__": {
+      "reason": "prefix",
+      "detail": "SNAPBACK_EXPORT__ is an incomplete diagnostic-family prefix, not a complete emitted code."
+    },
+    "SNAPBACK_EXPOSURE": {
+      "reason": "environment",
+      "detail": "SNAPBACK_EXPOSURE is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_HOOK": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_HOOK occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE": {
+      "reason": "environment",
+      "detail": "SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE__": {
+      "reason": "prefix",
+      "detail": "SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE__ is an incomplete diagnostic-family prefix, not a complete emitted code."
+    },
+    "SNAPBACK_EXPO_INTEGRATION_RECEIPT_FORMAT": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_EXPO_INTEGRATION_RECEIPT_FORMAT occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_EXPO_METRO_PORT": {
+      "reason": "environment",
+      "detail": "SNAPBACK_EXPO_METRO_PORT is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_EXPO_PUSH_BASE_URL": {
+      "reason": "environment",
+      "detail": "SNAPBACK_EXPO_PUSH_BASE_URL is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_EXPO_SUPERVISOR_ORIGIN__": {
+      "reason": "prefix",
+      "detail": "SNAPBACK_EXPO_SUPERVISOR_ORIGIN__ is an incomplete diagnostic-family prefix, not a complete emitted code."
+    },
+    "SNAPBACK_EXPO_SUPERVISOR_PARENT_PID": {
+      "reason": "environment",
+      "detail": "SNAPBACK_EXPO_SUPERVISOR_PARENT_PID is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_EXPO_SUPERVISOR_PARENT_START_TIME": {
+      "reason": "environment",
+      "detail": "SNAPBACK_EXPO_SUPERVISOR_PARENT_START_TIME is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_EXTERNAL_STORE_PROTOCOL": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_EXTERNAL_STORE_PROTOCOL occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_FAVICON_SVG": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_FAVICON_SVG occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_FIXTURE_FAILED": {
+      "reason": "test-only",
+      "detail": "SNAPBACK_FIXTURE_FAILED occurs only in excluded test or classifier-fixture source."
+    },
+    "SNAPBACK_FUTURE_CODE_UNSEEN": {
+      "reason": "test-only",
+      "detail": "SNAPBACK_FUTURE_CODE_UNSEEN occurs only in excluded test or classifier-fixture source."
+    },
+    "SNAPBACK_GENERATED_AT_MS": {
+      "reason": "environment",
+      "detail": "SNAPBACK_GENERATED_AT_MS is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_GRAPH_DELTA_CONVERGENCE": {
+      "reason": "environment",
+      "detail": "SNAPBACK_GRAPH_DELTA_CONVERGENCE is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_GRAPH_DELTA_DISABLED": {
+      "reason": "environment",
+      "detail": "SNAPBACK_GRAPH_DELTA_DISABLED is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE": {
+      "reason": "environment",
+      "detail": "SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_GUARD_FAILED": {
+      "reason": "test-only",
+      "detail": "SNAPBACK_GUARD_FAILED occurs only in excluded test or classifier-fixture source."
+    },
+    "SNAPBACK_HANDLER_BACKEND": {
+      "reason": "environment",
+      "detail": "SNAPBACK_HANDLER_BACKEND is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_HANDLER_CONSOLE": {
+      "reason": "environment",
+      "detail": "SNAPBACK_HANDLER_CONSOLE is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_HANDLER_ERROR_EXPOSURE": {
+      "reason": "environment",
+      "detail": "SNAPBACK_HANDLER_ERROR_EXPOSURE is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_HANDLER_HOST_CALL_": {
+      "reason": "prefix",
+      "detail": "SNAPBACK_HANDLER_HOST_CALL_ is an incomplete diagnostic-family prefix, not a complete emitted code."
+    },
+    "SNAPBACK_HOSTED_TARGET_TIGRIS_": {
+      "reason": "prefix",
+      "detail": "SNAPBACK_HOSTED_TARGET_TIGRIS_ is an incomplete diagnostic-family prefix, not a complete emitted code."
+    },
+    "SNAPBACK_HOST_TOKEN": {
+      "reason": "environment",
+      "detail": "SNAPBACK_HOST_TOKEN is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_IBEX": {
+      "reason": "environment",
+      "detail": "SNAPBACK_IBEX is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_ID": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_ID occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_ID_PATTERN": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_ID_PATTERN occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_ID_TABLE": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_ID_TABLE occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_INIT_": {
+      "reason": "prefix",
+      "detail": "SNAPBACK_INIT_ is an incomplete diagnostic-family prefix, not a complete emitted code."
+    },
+    "SNAPBACK_INVOCATION_JSON__": {
+      "reason": "prefix",
+      "detail": "SNAPBACK_INVOCATION_JSON__ is an incomplete diagnostic-family prefix, not a complete emitted code."
+    },
+    "SNAPBACK_INVOKE_TOKEN": {
+      "reason": "environment",
+      "detail": "SNAPBACK_INVOKE_TOKEN is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_JOBS_DISABLED": {
+      "reason": "environment",
+      "detail": "SNAPBACK_JOBS_DISABLED is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_LIVE_COALESCE_DISABLED": {
+      "reason": "environment",
+      "detail": "SNAPBACK_LIVE_COALESCE_DISABLED is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_LIVE_EVAL_MEMO_DISABLED": {
+      "reason": "environment",
+      "detail": "SNAPBACK_LIVE_EVAL_MEMO_DISABLED is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_LIVE_MAX_EVAL_TURN_MS": {
+      "reason": "environment",
+      "detail": "SNAPBACK_LIVE_MAX_EVAL_TURN_MS is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_LIVE_SCHEDULER_DISABLED": {
+      "reason": "environment",
+      "detail": "SNAPBACK_LIVE_SCHEDULER_DISABLED is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_LOCAL_EVALUATION_DIAGNOSTICS": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_LOCAL_EVALUATION_DIAGNOSTICS occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_MARK_SVG": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_MARK_SVG occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_MARK__": {
+      "reason": "prefix",
+      "detail": "SNAPBACK_MARK__ is an incomplete diagnostic-family prefix, not a complete emitted code."
+    },
+    "SNAPBACK_MAX_CHUNK_BYTES_HEADER": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_MAX_CHUNK_BYTES_HEADER occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_MEDIA_COLLECTION_": {
+      "reason": "prefix",
+      "detail": "SNAPBACK_MEDIA_COLLECTION_ is an incomplete diagnostic-family prefix, not a complete emitted code."
+    },
+    "SNAPBACK_MEDIA_COMMAND_": {
+      "reason": "prefix",
+      "detail": "SNAPBACK_MEDIA_COMMAND_ is an incomplete diagnostic-family prefix, not a complete emitted code."
+    },
+    "SNAPBACK_MODE__": {
+      "reason": "prefix",
+      "detail": "SNAPBACK_MODE__ is an incomplete diagnostic-family prefix, not a complete emitted code."
+    },
+    "SNAPBACK_NETWORK_PROFILE": {
+      "reason": "environment",
+      "detail": "SNAPBACK_NETWORK_PROFILE is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_NETWORK_PROFILE_": {
+      "reason": "prefix",
+      "detail": "SNAPBACK_NETWORK_PROFILE_ is an incomplete diagnostic-family prefix, not a complete emitted code."
+    },
+    "SNAPBACK_OLD_FAILED": {
+      "reason": "test-only",
+      "detail": "SNAPBACK_OLD_FAILED occurs only in excluded test or classifier-fixture source."
+    },
+    "SNAPBACK_OPAQUE_ID": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_OPAQUE_ID occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_OUTBOUND_ACTIONS": {
+      "reason": "environment",
+      "detail": "SNAPBACK_OUTBOUND_ACTIONS is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_OUTBOUND_LOOPBACK": {
+      "reason": "environment",
+      "detail": "SNAPBACK_OUTBOUND_LOOPBACK is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_PACKAGED_STORE_QUALIFICATION_MODE": {
+      "reason": "environment",
+      "detail": "SNAPBACK_PACKAGED_STORE_QUALIFICATION_MODE is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT": {
+      "reason": "environment",
+      "detail": "SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_FILE": {
+      "reason": "environment",
+      "detail": "SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_FILE is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_PASSWORD": {
+      "reason": "environment",
+      "detail": "SNAPBACK_PASSWORD is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_PROFILE": {
+      "reason": "environment",
+      "detail": "SNAPBACK_PROFILE is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_PROOF_URL": {
+      "reason": "environment",
+      "detail": "SNAPBACK_PROOF_URL is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_PROVE_SKIP_BOOTSTRAP": {
+      "reason": "environment",
+      "detail": "SNAPBACK_PROVE_SKIP_BOOTSTRAP is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_PUBLICATION_AUTHORITY_ALLOW_LOOPBACK_HTTP": {
+      "reason": "environment",
+      "detail": "SNAPBACK_PUBLICATION_AUTHORITY_ALLOW_LOOPBACK_HTTP is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_PUBLICATION_AUTHORITY_BEARER_TOKEN_FILE": {
+      "reason": "environment",
+      "detail": "SNAPBACK_PUBLICATION_AUTHORITY_BEARER_TOKEN_FILE is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_PUBLICATION_AUTHORITY_DATABASE": {
+      "reason": "environment",
+      "detail": "SNAPBACK_PUBLICATION_AUTHORITY_DATABASE is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_PUBLICATION_AUTHORITY_HOST": {
+      "reason": "environment",
+      "detail": "SNAPBACK_PUBLICATION_AUTHORITY_HOST is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_PUBLICATION_AUTHORITY_INSTALLATION_ID": {
+      "reason": "environment",
+      "detail": "SNAPBACK_PUBLICATION_AUTHORITY_INSTALLATION_ID is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_PUBLICATION_AUTHORITY_ORIGIN": {
+      "reason": "environment",
+      "detail": "SNAPBACK_PUBLICATION_AUTHORITY_ORIGIN is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_PUBLICATION_AUTHORITY_PORT": {
+      "reason": "environment",
+      "detail": "SNAPBACK_PUBLICATION_AUTHORITY_PORT is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_PUBLICATION_AUTHORITY_PRIVATE_KEY_FILE": {
+      "reason": "environment",
+      "detail": "SNAPBACK_PUBLICATION_AUTHORITY_PRIVATE_KEY_FILE is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_REPLICATION_ACCESS_KEY_ID": {
+      "reason": "environment",
+      "detail": "SNAPBACK_REPLICATION_ACCESS_KEY_ID is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_REPLICATION_ENDPOINT": {
+      "reason": "environment",
+      "detail": "SNAPBACK_REPLICATION_ENDPOINT is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_REPLICATION_INTERVAL_MS": {
+      "reason": "environment",
+      "detail": "SNAPBACK_REPLICATION_INTERVAL_MS is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_REPLICATION_KEY_FILE": {
+      "reason": "environment",
+      "detail": "SNAPBACK_REPLICATION_KEY_FILE is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_REPLICATION_PREFIX": {
+      "reason": "environment",
+      "detail": "SNAPBACK_REPLICATION_PREFIX is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_REPLICATION_REGION": {
+      "reason": "environment",
+      "detail": "SNAPBACK_REPLICATION_REGION is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_REPLICATION_SECRET_ACCESS_KEY": {
+      "reason": "environment",
+      "detail": "SNAPBACK_REPLICATION_SECRET_ACCESS_KEY is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_REPLICATION_SESSION_TOKEN": {
+      "reason": "environment",
+      "detail": "SNAPBACK_REPLICATION_SESSION_TOKEN is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_REPLICATION_TARGET": {
+      "reason": "environment",
+      "detail": "SNAPBACK_REPLICATION_TARGET is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_REPLY_": {
+      "reason": "prefix",
+      "detail": "SNAPBACK_REPLY_ is an incomplete diagnostic-family prefix, not a complete emitted code."
+    },
+    "SNAPBACK_REPO_ROOT": {
+      "reason": "environment",
+      "detail": "SNAPBACK_REPO_ROOT is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_RESPONSE_TOKEN": {
+      "reason": "environment",
+      "detail": "SNAPBACK_RESPONSE_TOKEN is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_RESUME_": {
+      "reason": "prefix",
+      "detail": "SNAPBACK_RESUME_ is an incomplete diagnostic-family prefix, not a complete emitted code."
+    },
+    "SNAPBACK_RUNTIME_BINARY": {
+      "reason": "environment",
+      "detail": "SNAPBACK_RUNTIME_BINARY is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_RUNTIME_COST_RECORDER": {
+      "reason": "environment",
+      "detail": "SNAPBACK_RUNTIME_COST_RECORDER is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_RUNTIME_HERMES_FRAMEWORK": {
+      "reason": "environment",
+      "detail": "SNAPBACK_RUNTIME_HERMES_FRAMEWORK is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_RUNTIME_HERMES_HEADER": {
+      "reason": "environment",
+      "detail": "SNAPBACK_RUNTIME_HERMES_HEADER is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_RUNTIME_LINUX_X64_BUILD_ATTESTATION": {
+      "reason": "environment",
+      "detail": "SNAPBACK_RUNTIME_LINUX_X64_BUILD_ATTESTATION is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_RUNTIME_LINUX_X64_BUNDLED_LIBS_DIR": {
+      "reason": "environment",
+      "detail": "SNAPBACK_RUNTIME_LINUX_X64_BUNDLED_LIBS_DIR is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_RUNTIME_LINUX_X64_HERMES_HEADER": {
+      "reason": "environment",
+      "detail": "SNAPBACK_RUNTIME_LINUX_X64_HERMES_HEADER is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_RUNTIME_LINUX_X64_HERMES_LIBRARY": {
+      "reason": "environment",
+      "detail": "SNAPBACK_RUNTIME_LINUX_X64_HERMES_LIBRARY is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_RUNTIME_LINUX_X64_QUALIFICATION_RECEIPT": {
+      "reason": "environment",
+      "detail": "SNAPBACK_RUNTIME_LINUX_X64_QUALIFICATION_RECEIPT is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_RUNTIME_LINUX_X64_SOURCE_BINARY": {
+      "reason": "environment",
+      "detail": "SNAPBACK_RUNTIME_LINUX_X64_SOURCE_BINARY is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_RUNTIME_LINUX_X64_SOURCE_REVISION": {
+      "reason": "environment",
+      "detail": "SNAPBACK_RUNTIME_LINUX_X64_SOURCE_REVISION is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_RUNTIME_SOURCE_BINARY": {
+      "reason": "environment",
+      "detail": "SNAPBACK_RUNTIME_SOURCE_BINARY is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_RUN__": {
+      "reason": "prefix",
+      "detail": "SNAPBACK_RUN__ is an incomplete diagnostic-family prefix, not a complete emitted code."
+    },
+    "SNAPBACK_S3_PROXY_POLICY_CHILD": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_S3_PROXY_POLICY_CHILD occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_S3_TEST_": {
+      "reason": "prefix",
+      "detail": "SNAPBACK_S3_TEST_ is an incomplete diagnostic-family prefix, not a complete emitted code."
+    },
+    "SNAPBACK_S3_TEST_ACCESS_KEY_ID": {
+      "reason": "test-only",
+      "detail": "SNAPBACK_S3_TEST_ACCESS_KEY_ID occurs only in excluded test or classifier-fixture source."
+    },
+    "SNAPBACK_S3_TEST_BUCKET": {
+      "reason": "test-only",
+      "detail": "SNAPBACK_S3_TEST_BUCKET occurs only in excluded test or classifier-fixture source."
+    },
+    "SNAPBACK_S3_TEST_ENDPOINT": {
+      "reason": "test-only",
+      "detail": "SNAPBACK_S3_TEST_ENDPOINT occurs only in excluded test or classifier-fixture source."
+    },
+    "SNAPBACK_S3_TEST_REGION": {
+      "reason": "test-only",
+      "detail": "SNAPBACK_S3_TEST_REGION occurs only in excluded test or classifier-fixture source."
+    },
+    "SNAPBACK_S3_TEST_SECRET_ACCESS_KEY": {
+      "reason": "test-only",
+      "detail": "SNAPBACK_S3_TEST_SECRET_ACCESS_KEY occurs only in excluded test or classifier-fixture source."
+    },
+    "SNAPBACK_SCHEMA_VERSION": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_SCHEMA_VERSION occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_SECRETS__": {
+      "reason": "prefix",
+      "detail": "SNAPBACK_SECRETS__ is an incomplete diagnostic-family prefix, not a complete emitted code."
+    },
+    "SNAPBACK_SESSIONS_SCHEMA_VERSION": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_SESSIONS_SCHEMA_VERSION occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_SHUTDOWN_CHECKPOINT_TIMEOUT_MS": {
+      "reason": "environment",
+      "detail": "SNAPBACK_SHUTDOWN_CHECKPOINT_TIMEOUT_MS is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_SOCKETS_PER_CONNECTION_LIMIT": {
+      "reason": "environment",
+      "detail": "SNAPBACK_SOCKETS_PER_CONNECTION_LIMIT is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_SOFT_NOTE": {
+      "reason": "test-only",
+      "detail": "SNAPBACK_SOFT_NOTE occurs only in excluded test or classifier-fixture source."
+    },
+    "SNAPBACK_SOURCE_UNMAPPED": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_SOURCE_UNMAPPED occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_SPIKE_TRACE": {
+      "reason": "environment",
+      "detail": "SNAPBACK_SPIKE_TRACE is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_STALE_": {
+      "reason": "prefix",
+      "detail": "SNAPBACK_STALE_ is an incomplete diagnostic-family prefix, not a complete emitted code."
+    },
+    "SNAPBACK_SUBSCRIPTION_ARGS_BYTES": {
+      "reason": "environment",
+      "detail": "SNAPBACK_SUBSCRIPTION_ARGS_BYTES is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_SUBSCRIPTION_PER_CONNECTION_LIMIT": {
+      "reason": "environment",
+      "detail": "SNAPBACK_SUBSCRIPTION_PER_CONNECTION_LIMIT is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_SUPERVISOR_CLIENT_CA": {
+      "reason": "environment",
+      "detail": "SNAPBACK_SUPERVISOR_CLIENT_CA is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_SUPERVISOR_CONTROL_PORT": {
+      "reason": "environment",
+      "detail": "SNAPBACK_SUPERVISOR_CONTROL_PORT is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_SUPERVISOR_DATABASE": {
+      "reason": "environment",
+      "detail": "SNAPBACK_SUPERVISOR_DATABASE is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_SUPERVISOR_DATA_DIR": {
+      "reason": "environment",
+      "detail": "SNAPBACK_SUPERVISOR_DATA_DIR is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_SUPERVISOR_HEALTH_PORT": {
+      "reason": "environment",
+      "detail": "SNAPBACK_SUPERVISOR_HEALTH_PORT is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_SUPERVISOR_INSTALLATION_RECEIPT": {
+      "reason": "environment",
+      "detail": "SNAPBACK_SUPERVISOR_INSTALLATION_RECEIPT is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_SUPERVISOR_OPERATOR_CLIENT_CA": {
+      "reason": "environment",
+      "detail": "SNAPBACK_SUPERVISOR_OPERATOR_CLIENT_CA is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_SUPERVISOR_OPERATOR_PORT": {
+      "reason": "environment",
+      "detail": "SNAPBACK_SUPERVISOR_OPERATOR_PORT is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_SUPERVISOR_ORIGIN": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_SUPERVISOR_ORIGIN occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_SUPERVISOR_RESPONSE_CUSTODY_HELPER": {
+      "reason": "environment",
+      "detail": "SNAPBACK_SUPERVISOR_RESPONSE_CUSTODY_HELPER is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_SUPERVISOR_RESPONSE_INTERMEDIATE": {
+      "reason": "environment",
+      "detail": "SNAPBACK_SUPERVISOR_RESPONSE_INTERMEDIATE is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_SUPERVISOR_ROOT_PUBLIC_KEY": {
+      "reason": "environment",
+      "detail": "SNAPBACK_SUPERVISOR_ROOT_PUBLIC_KEY is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_SUPERVISOR_SERVER_CA": {
+      "reason": "environment",
+      "detail": "SNAPBACK_SUPERVISOR_SERVER_CA is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_SUPERVISOR_TARGET_CLIENT_CA": {
+      "reason": "environment",
+      "detail": "SNAPBACK_SUPERVISOR_TARGET_CLIENT_CA is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_SUPERVISOR_TARGET_CLIENT_CERT": {
+      "reason": "environment",
+      "detail": "SNAPBACK_SUPERVISOR_TARGET_CLIENT_CERT is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_SUPERVISOR_TARGET_CLIENT_KEY": {
+      "reason": "environment",
+      "detail": "SNAPBACK_SUPERVISOR_TARGET_CLIENT_KEY is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_SUPERVISOR_TARGET_CONTROL_PORT": {
+      "reason": "environment",
+      "detail": "SNAPBACK_SUPERVISOR_TARGET_CONTROL_PORT is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_SUPERVISOR_TLS_CERT": {
+      "reason": "environment",
+      "detail": "SNAPBACK_SUPERVISOR_TLS_CERT is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_SUPERVISOR_TLS_KEY": {
+      "reason": "environment",
+      "detail": "SNAPBACK_SUPERVISOR_TLS_KEY is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_TELEMETRY_TEST_FLUSH_FAILED": {
+      "reason": "test-only",
+      "detail": "SNAPBACK_TELEMETRY_TEST_FLUSH_FAILED occurs only in excluded test or classifier-fixture source."
+    },
+    "SNAPBACK_TELEMETRY_TEST_REBIND_FAILED": {
+      "reason": "test-only",
+      "detail": "SNAPBACK_TELEMETRY_TEST_REBIND_FAILED occurs only in excluded test or classifier-fixture source."
+    },
+    "SNAPBACK_TEST": {
+      "reason": "test-only",
+      "detail": "SNAPBACK_TEST occurs only in excluded test or classifier-fixture source."
+    },
+    "SNAPBACK_TEST_CRON_FAILED": {
+      "reason": "test-only",
+      "detail": "SNAPBACK_TEST_CRON_FAILED occurs only in excluded test or classifier-fixture source."
+    },
+    "SNAPBACK_TEST_FAILURE": {
+      "reason": "test-only",
+      "detail": "SNAPBACK_TEST_FAILURE occurs only in excluded test or classifier-fixture source."
+    },
+    "SNAPBACK_TEST_LIVE_SCOPE_REGISTRATION_FAILED": {
+      "reason": "test-only",
+      "detail": "SNAPBACK_TEST_LIVE_SCOPE_REGISTRATION_FAILED occurs only in excluded test or classifier-fixture source."
+    },
+    "SNAPBACK_TEST_LIVE_SERVICE_TERMINAL_FAILURE": {
+      "reason": "test-only",
+      "detail": "SNAPBACK_TEST_LIVE_SERVICE_TERMINAL_FAILURE occurs only in excluded test or classifier-fixture source."
+    },
+    "SNAPBACK_TEST_QUARANTINE": {
+      "reason": "test-only",
+      "detail": "SNAPBACK_TEST_QUARANTINE occurs only in excluded test or classifier-fixture source."
+    },
+    "SNAPBACK_TEST_REPLACEMENT_FAILED": {
+      "reason": "test-only",
+      "detail": "SNAPBACK_TEST_REPLACEMENT_FAILED occurs only in excluded test or classifier-fixture source."
+    },
+    "SNAPBACK_TEST_SCOPE_RETIREMENT_AUTH_FAILED": {
+      "reason": "test-only",
+      "detail": "SNAPBACK_TEST_SCOPE_RETIREMENT_AUTH_FAILED occurs only in excluded test or classifier-fixture source."
+    },
+    "SNAPBACK_UPDATE_CAPABILITY_MANIFEST": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_UPDATE_CAPABILITY_MANIFEST occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_URL": {
+      "reason": "environment",
+      "detail": "SNAPBACK_URL is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_V8_WALL_CLOCK_TIMEOUT_MS": {
+      "reason": "environment",
+      "detail": "SNAPBACK_V8_WALL_CLOCK_TIMEOUT_MS is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_VECTOR_QUALIFICATION_MACHINE": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_VECTOR_QUALIFICATION_MACHINE occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_VECTOR_QUALIFICATION_RECEIPT_OUT": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_VECTOR_QUALIFICATION_RECEIPT_OUT occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_VECTOR_QUALIFICATION_REVISION": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_VECTOR_QUALIFICATION_REVISION occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    },
+    "SNAPBACK_VERIFY_PROFILE": {
+      "reason": "environment",
+      "detail": "SNAPBACK_VERIFY_PROFILE is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_VERSION__": {
+      "reason": "prefix",
+      "detail": "SNAPBACK_VERSION__ is an incomplete diagnostic-family prefix, not a complete emitted code."
+    },
+    "SNAPBACK_VISIBILITY_GOVERNANCE_TARGET_CONFIG": {
+      "reason": "environment",
+      "detail": "SNAPBACK_VISIBILITY_GOVERNANCE_TARGET_CONFIG is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_VM_DRIVER_ALLOW_TEST_BASE": {
+      "reason": "environment",
+      "detail": "SNAPBACK_VM_DRIVER_ALLOW_TEST_BASE is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_VM_DRIVER_TEST_BASE": {
+      "reason": "environment",
+      "detail": "SNAPBACK_VM_DRIVER_TEST_BASE is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_WATCH_TEST_FAILURE": {
+      "reason": "test-only",
+      "detail": "SNAPBACK_WATCH_TEST_FAILURE occurs only in excluded test or classifier-fixture source."
+    },
+    "SNAPBACK_WORKERD_BIN": {
+      "reason": "environment",
+      "detail": "SNAPBACK_WORKERD_BIN is a configuration/environment name with no proven diagnostic emission site."
+    },
+    "SNAPBACK_WORKER_STACK_BYTES": {
+      "reason": "reference-only",
+      "detail": "SNAPBACK_WORKER_STACK_BYTES occurs only as non-emitting metadata, protocol vocabulary, or prose."
+    }
+  }
 }
