@@ -1692,19 +1692,24 @@ mod tests {
             "CallerAuthorized"
         );
         assert_eq!(
-            service_caller_origin(crate::auth::invocation::test_service_authority(
-                "agent-a",
-                "credential-a",
-                1,
-                "grant-a",
-                "token-a",
-                Some("user-a".to_owned()),
-                Vec::new(),
-                10_000,
-                None,
-            ))
+            prepared_origin(
+                crate::auth::invocation::InvocationSource::HttpAction,
+                AuthMode::Sessions,
+                crate::auth::invocation::test_service_authority(
+                    "agent-a",
+                    "credential-a",
+                    1,
+                    "grant-a",
+                    "token-a",
+                    Some("user-a".to_owned()),
+                    Vec::new(),
+                    10_000,
+                    None,
+                ),
+            )
             .provenance_for_test(),
-            "CallerAuthorized"
+            "ModeOnly",
+            "resolved service identity alone cannot forge a retained publication carrier",
         );
         for origin in [
             prepared_origin(

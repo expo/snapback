@@ -2393,7 +2393,7 @@ mod tests {
 
     struct Fixture {
         coordinator: Arc<AuthCoordinator>,
-        admission: AdmissionController,
+        admission_controller: AdmissionController,
         incarnation: String,
         user_id: String,
         session_id: String,
@@ -2404,7 +2404,7 @@ mod tests {
         substituted_session_id: String,
         monotonic_start: Instant,
         provider: Arc<AuthProvider>,
-        admission: AuthAdmission,
+        provider_admission: AuthAdmission,
         planning_database: Mutex<crate::storage::LocalDatabase>,
     }
 
@@ -2440,7 +2440,7 @@ mod tests {
         let mut sessions = vec![ProjectionSessionRow {
             id: session_id.clone(),
             user_id: user_id.clone(),
-            identity_id,
+            identity_id: identity_id.clone(),
             authority_instance_id: authority_instance_id.clone(),
             token_hash: token_hash.as_bytes().to_vec(),
             generation: 1,
@@ -2466,8 +2466,8 @@ mod tests {
             sessions.push(ProjectionSessionRow {
                 id: substituted_session_id.clone(),
                 user_id: substituted_user_id.clone(),
-                identity_id: substituted_identity_id,
-                authority_instance_id: substituted_authority_instance_id,
+                identity_id: substituted_identity_id.clone(),
+                authority_instance_id: substituted_authority_instance_id.clone(),
                 token_hash: substituted_bearer.token_hash().as_bytes().to_vec(),
                 generation: 1,
                 created_at_ms: 3,
@@ -2494,13 +2494,61 @@ mod tests {
         let monotonic_start = Instant::now();
         let projection =
             SessionProjection::rebuild(source, &uuid_v7(6, 6), 100, monotonic_start).unwrap();
-        let admission = crate::auth::invocation::test_admission_controller(AuthMode::Sessions, 0)
-            .expect("sessions admission controller");
+        let admission_controller =
+            crate::auth::invocation::test_admission_controller(AuthMode::Sessions, 0)
+                .expect("sessions admission controller");
+        let mut planning_database =
+            crate::storage::LocalDatabase::memory().expect("provider planning database");
+        planning_database
+            .activate_current_auth_catalog()
+            .expect("activate provider planning catalog");
+        planning_database
+            .auth_catalog()
+            .insert_email_session_for_test(
+                &user_id,
+                &identity_id,
+                &session_id,
+                &authority_instance_id,
+                "coordinator-original@example.test",
+                token_hash.as_bytes(),
+                3,
+                4,
+                1_000,
+                9_000_000_000,
+            )
+            .expect("store provider-planned original session fixture");
+        if include_substituted_session {
+            planning_database
+                .auth_catalog()
+                .insert_email_session_for_test(
+                    &substituted_user_id,
+                    &substituted_identity_id,
+                    &substituted_session_id,
+                    &substituted_authority_instance_id,
+                    "coordinator-substituted@example.test",
+                    substituted_bearer.token_hash().as_bytes(),
+                    3,
+                    4,
+                    1_000,
+                    9_000_000_000,
+                )
+                .expect("store provider-planned substituted session fixture");
+        }
+        let keyring = Arc::new(AuthKeyringStore::in_memory());
+        keyring
+            .load_or_mint_initial(100, &OsRandom)
+            .expect("initialize provider planning keyring");
+        let provider = Arc::new(
+            AuthProvider::new(AuthProviderProfile::Test, keyring)
+                .expect("construct provider planning authority"),
+        );
+        let provider_admission = provider.admit().await;
         Fixture {
             coordinator: Arc::new(
-                AuthCoordinator::new_with_admission(projection, admission.clone()).unwrap(),
+                AuthCoordinator::new_with_admission(projection, admission_controller.clone())
+                    .unwrap(),
             ),
-            admission,
+            admission_controller,
             incarnation,
             user_id,
             session_id,
@@ -2511,7 +2559,7 @@ mod tests {
             substituted_session_id,
             monotonic_start,
             provider,
-            admission,
+            provider_admission,
             planning_database: Mutex::new(planning_database),
         }
     }
@@ -2566,7 +2614,7 @@ mod tests {
         fixture.coordinator = Arc::new(
             AuthCoordinator::from_local_session_database(
                 database,
-                fixture.admission.clone(),
+                fixture.admission_controller.clone(),
                 100,
                 fixture.monotonic_start,
             )
@@ -2578,7 +2626,7 @@ mod tests {
     fn logout_plan(fixture: &Fixture) -> ProviderRevocationPlan {
         let database = fixture.planning_database.lock().unwrap();
         match fixture
-            .admission
+            .provider_admission
             .plan_logout(&database, &fixture.bearer, 200)
             .expect("plan logout through the provider")
         {
@@ -2598,7 +2646,7 @@ mod tests {
     ) -> ProviderTokenRotationPlan {
         let database = fixture.planning_database.lock().unwrap();
         match fixture
-            .admission
+            .provider_admission
             .plan_refresh(&database, bearer, now_ms)
             .expect("plan refresh through the provider")
         {
@@ -2645,7 +2693,7 @@ mod tests {
         let attempt = {
             let mut database = fixture.planning_database.lock().unwrap();
             fixture
-                .admission
+                .provider_admission
                 .commit_planned_rotation(&mut database, &commit_plan)
         };
         let RotationFinish::Committed { issue, .. } = fixture
@@ -2660,7 +2708,7 @@ mod tests {
         let family = {
             let database = fixture.planning_database.lock().unwrap();
             fixture
-                .admission
+                .provider_admission
                 .plan_family_alarm(&database, &predecessor_bearer, 251)
                 .expect("plan family alarm from the durable predecessor")
                 .revocation_plan()
@@ -2779,11 +2827,11 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn cloned_admission_lease_cannot_prepare_two_genuine_session_resolutions() {
+    #[tokio::test]
+    async fn cloned_admission_lease_cannot_prepare_two_genuine_session_resolutions() {
         let mut database = crate::storage::LocalDatabase::memory()
             .expect("session authority lease fixture database");
-        let fixture = fixture_from_database(true, &mut database);
+        let fixture = fixture_from_database(true, &mut database).await;
         let mut database = crate::storage::ServingDatabase::adopt(database)
             .expect("adopt session authority lease fixture database");
         let second_bearer = SessionBearer::generate(&FixedRandom(8)).unwrap();
@@ -2801,7 +2849,7 @@ mod tests {
         );
 
         let admission = fixture
-            .admission
+            .admission_controller
             .admit_for_mode(AuthMode::Sessions)
             .unwrap();
         first
@@ -2829,11 +2877,11 @@ mod tests {
         assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_POLICY_UNAVAILABLE");
     }
 
-    #[test]
-    fn retained_effect_session_rejects_foreign_database_composition_and_borrow_reuse() {
+    #[tokio::test]
+    async fn retained_effect_session_rejects_foreign_database_composition_and_borrow_reuse() {
         let mut database_b = crate::storage::LocalDatabase::memory()
             .expect("independent retained-effect session consumer database B");
-        let fixture = fixture_from_database(false, &mut database_b);
+        let fixture = fixture_from_database(false, &mut database_b).await;
         let mut database_a = crate::storage::LocalDatabase::memory()
             .expect("retained-effect session producer database A");
         database_a
@@ -3638,7 +3686,7 @@ mod tests {
             .finish_rotation(first_rotation, {
                 let mut database = successor_fixture.planning_database.lock().unwrap();
                 successor_fixture
-                    .admission
+                    .provider_admission
                     .commit_planned_rotation(&mut database, &successor_one_commit)
             })
             .unwrap()
@@ -3665,7 +3713,7 @@ mod tests {
             .finish_rotation(second_rotation, {
                 let mut database = successor_fixture.planning_database.lock().unwrap();
                 successor_fixture
-                    .admission
+                    .provider_admission
                     .commit_planned_rotation(&mut database, &successor_two_commit)
             })
             .unwrap()
@@ -3820,9 +3868,11 @@ mod tests {
             };
             let committed = {
                 let mut database = fixture.planning_database.lock().unwrap();
-                fixture
-                    .admission
-                    .commit_planned_revocation(&mut database, &winner_plan, 252)
+                fixture.provider_admission.commit_planned_revocation(
+                    &mut database,
+                    &winner_plan,
+                    252,
+                )
             };
             let outcome = fixture
                 .coordinator
@@ -3901,9 +3951,11 @@ mod tests {
             .unwrap();
         let committed_family_alarm = {
             let mut database = family_fixture.planning_database.lock().unwrap();
-            family_fixture
-                .admission
-                .commit_planned_revocation(&mut database, &family_plan, 251)
+            family_fixture.provider_admission.commit_planned_revocation(
+                &mut database,
+                &family_plan,
+                251,
+            )
         };
         let RevocationFinish::Committed { outcome, .. } = family_fixture
             .coordinator
@@ -3977,7 +4029,7 @@ mod tests {
         let committed_family_alarm = {
             let mut database = fixture.planning_database.lock().unwrap();
             fixture
-                .admission
+                .provider_admission
                 .commit_planned_revocation(&mut database, &family_plan, 252)
         };
         fixture
@@ -3987,7 +4039,7 @@ mod tests {
         let already_terminal = {
             let mut database = fixture.planning_database.lock().unwrap();
             fixture
-                .admission
+                .provider_admission
                 .commit_planned_revocation(&mut database, &logout_plan, 253)
         };
         let outcome = fixture

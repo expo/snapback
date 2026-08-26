@@ -655,6 +655,27 @@ install LLP 0200's fail-closed revocation fence. A second membership query,
 turn it into one. In particular, an already-open subscription must not depend
 on cross-subscription delivery order to learn that its caller was removed.
 
+The packed characterization exercises the split application graph directly.
+Its authenticated messages-only query reads only the `public-read` messages
+table, so the removed client's raw stream receives the post-removal sentinel.
+An independently delivered membership query also reaches `active: false`.
+Those are the only per-stream guarantees: Snapback supplies no ordering between
+the two ordinary data subscriptions, so whether browser-clock composition ever
+paints and later removes the sentinel is application-owned.
+
+Codegen warns with `SNAPBACK_ORDINARY_ROSTER_AUTHORITY_UNDECLARED` only for a
+narrower, statically provable same-handler shape: a public synced ordinary
+table has principal, resource, and lifecycle axes; an exact patch/delete
+changes that lifecycle field; and one exact authenticated multi-table handler
+scopes that exact roster read to the current principal and uses its lifecycle
+field to gate another table's result. The warning does **not** claim to detect
+independent client-side subscriptions because the backend artifact contains no
+client composition graph. This is an advisory, not inferred authority. A
+principal-scoped roster read that merely decorates a legitimate multi-table
+display does not match, even when the handler also filters its result. If the
+relation is product data, keep it ordinary; if it controls delivery authority,
+declare the membership profile and use generated transitions.
+
 Use the generated membership authority surface for the fence. If removal
 should also erase all old history, the generated `api.<profile>.remove`
 operation is the simpler terminal path: the caller no longer passes membership
@@ -695,11 +716,15 @@ The removal flow has an intentional order:
 
 The second commit advances the global authorization epoch. Every already-open
 Sessions subscription crosses the delivery-time authority gate: pre-transition
-frames cannot deliver, the client observes `authorization_quarantine`, and the
-restored handler result may retain only the pre-cutoff rows. A message committed
-immediately after the role-transition settlement is on the post-removal side of
-the regression contract; the application does not wait for a resnapshot or a
-browser signal before sending it.
+frames cannot deliver, and the restored handler result may retain only the
+pre-cutoff rows. Raw subscription lifecycle callbacks observe
+`authorization_quarantine`. Familiar `useQuery` deliberately projects
+`undefined` while that boundary is unresolved, then restores the current
+value; use `useQueryState` when the component needs the explicit status,
+connection, freshness, or error surface. A message committed immediately after
+the role-transition settlement is on the post-removal side of the regression
+contract; the application does not wait for a resnapshot or a browser signal
+before sending it.
 
 The two-step form fails closed for disclosure: if the cutoff patch fails, do
 not issue the role transition; if the later transition fails, the cutoff may
@@ -712,10 +737,13 @@ requirement rather than replacing the authorization fence with client timing.
 Do not convert a hand-written roster to `permissionBacking()` while retaining
 generic `ctx.db` writers. Authority tables deliberately refuse generic writes
 with `SNAPBACK_TABLE_WRITE_AUTHORITY_TABLE_INELIGIBLE`; the diagnostic routes
-here with repair class `use-generated-membership-authority-operation`. Move the
-authority relation to `.membership()`/`.authorityProfile()` and use its
-generated transition operations. Keep the retained-history cutoff in an
-ordinary table.
+here with repair class `use-generated-membership-authority-operation`. For a
+finite principal/resource role roster, move the authority relation to
+`.membership()`/`.authorityProfile()` and use its generated transition
+operations. A broader permission-backing relation must instead use that
+declaration's own governed writer; it should not be narrowed to membership just
+to satisfy this diagnostic. Keep the retained-history cutoff in an ordinary
+table.
 
 ## Remove another principal with `removePrincipal` (explicit opt-in)
 

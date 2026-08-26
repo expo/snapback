@@ -5,7 +5,7 @@
 **Closed:** 2026-08-25
 **Systems:** Familiar, Live queries, Auth
 **Related:** `benchmarks/runs/2026-08-25-clique-pair-published-0127-capstone/`
-(cell 2), LLP 0281 (cutoff assertion), LLP 0234 (roster governance),
+(cell 2), LLP 0281 (cutoff assertion), LLP 0234 (visibility-override governance),
 `issues/20260820-familiar-live-subscription-contention.md` (adjacent, distinct)
 
 ## Problem
@@ -47,8 +47,8 @@ receipts under the campaign root on `expo-build-450b`
   removed member with an open live subscription must not observe
   post-removal messages, or must observably transition to a refused/closed
   subscription state.
-- Reconcile with LLP 0234 roster governance and the 20260820 contention
-  ticket's Wanted #4 acceptance bar where they intersect.
+- Reconcile with LLP 0234 visibility-override governance and the 20260820
+  contention ticket's Wanted #4 acceptance bar where they intersect.
 
 ## Root-cause classification — 2026-08-25
 
@@ -62,39 +62,78 @@ then tried to compose an imperative server filter, a separately delivered
 `myMemberships` query, and a browser-clock/BroadcastChannel cutoff. That is not
 an LLP 0053/0200 revocation fence.
 
-The server-side Class R mechanism is present and works when authority is
-declared. A control using a Familiar `.membership()` roster observed
-`global-authorization-epoch-advanced`, an immediate
-`authorization_quarantine`, a replacement containing no rows, and no
-post-removal sentinel. The owner subscription received the sentinel, proving
-data-lane progress. This rules out classification (a).
+The packed regression runs two undeclared legs over an ordinary `public-read` +
+`sync()` `roomMemberships` table and a generic patch from `active: true` to
+`active: false`. The safer leg uses one authenticated live handler whose
+generated read set is exactly `roomMemberships + messages`. The removed
+client's post-sentinel callback (framed after its removal reevaluation, not a
+pre-existing handle value) and fresh read both retain only `before-removal`;
+the owner observes the sentinel; the removal receipt has no authority
+transition; and the server's fence count does not change. Its persisted
+server-time cutoff and messages share one reevaluated read set.
 
-A minimized app matching the capstone's actual public-sync/imperative shape
-was then run on current main through two authenticated clients, generated API
-references, stream transport, and a headless Familiar React provider. B's open
-subscription retained `before-removal`; owner removed B and immediately sent
-`after-removal-sentinel`; a fresh B query returned only `before-removal`; and
-neither B's raw update transcript nor its Familiar hook frames ever contained
-the sentinel. The generated function declared reads of `memberships` and
-`messages`, and every post-write handler result was reevaluated rather than
-bypassed. This rules out classification (c) on current main and localizes the
-published benchmark observation to the application's undeclared-authority,
-multi-subscription/browser-clock fence rather than a server delivery bypass.
+The second leg reproduces the capstone's split composition. A messages-only
+authenticated query reads only the `public-read` messages table, while an
+independent membership query reads only `roomMemberships`; browser-cutoff logic
+composes the separately delivered values client-side. The membership stream is
+guaranteed and observed to reach `active: false`. The messages stream is also
+guaranteed and observed to contain the post-removal sentinel, because that
+undeclared data-lane query has no roster or authorization dependence. The
+transcript records whether callback order paints the sentinel in the composed
+view, but does not assert either outcome: Snapback provides no cross-stream
+order here, so that race is application-owned.
 
-The product gap is discoverability and admission. A hand-written
-`permissionBacking(fields)` roster would create the needed epoch fence, but
-LLP 0274 correctly makes generic application writes to authority tables
-ineligible; applying that declaration to the capstone app fails generation
-with `SNAPBACK_TABLE_WRITE_AUTHORITY_TABLE_INELIGIBLE`. The compatible paved
-path is a real `.membership()`/`authorityProfile()` roster whose removal is an
-active delivery role → non-delivery `former` role transition. Keeping the row
-lets a retained-history query remain admitted while an ordinary access-window
-row supplies its persisted cutoff; the role transition remains the
-host-checked authorization event and revocation fence. The
-served guide did not name this pattern, connect the generic-write refusal to
-it, or state that public visibility does not create a revocation fence. A
-strong agent therefore spent 73 minutes attempting an application-side
-substitute for an available but undiscoverable composition.
+This reproduction is the evidence-backed explanation of the capstone bubble.
+It supports classification (b) without dismissing the observation or
+pretending the safer same-handler leg covered the application graph that
+failed. What Snapback guarantees in the split leg is each stream's own result;
+what it does not guarantee is an authorization fence or a security ordering
+between those independently delivered ordinary-data facts.
+
+The declared control separates the application cutoff from the platform
+gate. Its retained-history query still uses the ordinary cutoff, but a second
+`hasRole('member')` live query has no cutoff table and no handler filter. The
+open control receives a message committed under the predecessor role, crosses
+`authorization_quarantine` after the generated `member` → `former`
+transition, and restores to an empty current result; a fresh read is also
+empty. The owner receives both the pre-transition and post-transition
+sentinels, proving continued publication. Separately,
+`crates/snapback-sync/tests/live_authority_gate.rs` installs successor epoch 8
+and asserts that an epoch-7 frame is discarded, leaves the subscription stale,
+and cannot restore it; only an epoch-8 proof restores delivery. The engine test
+`engine_authorization_snapshot_path_discards_predecessor_after_installed_fence`
+then evaluates a real auth-scoped snapshot under the predecessor epoch,
+installs the successor through `apply_live_authority_fences`, and drives that
+stale snapshot through production `deliver_authorization_snapshot` →
+`authorize_live_delivery`. It must return before enqueue and leave restoration
+owed. Omitting the production fence installation or bypassing the wrapper gate
+therefore fails coverage independently of application filtering or race timing.
+Together these facts rule out classification (a).
+
+The product gap was discoverability and admission. Codegen now emits
+`SNAPBACK_ORDINARY_ROSTER_AUTHORITY_UNDECLARED` only on a narrower,
+statically provable same-handler source. The advisory deliberately does not
+claim to detect the split capstone graph because backend codegen has no client
+composition artifact. It requires a public-sync table with
+principal/resource/lifecycle schema axes, an exact generic lifecycle
+patch/delete, and one authenticated multi-table handler where the exact roster
+read is current-principal-scoped and its lifecycle field controls another
+table's result. A real multi-table display query that independently reads auth,
+displays roster lifecycle state, and filters messages is the semantic negative
+control. The repair points finite role rosters to
+`.membership()`/`.authorityProfile()` and generated transitions; it does not
+claim that an ordinary data patch is already a fence.
+
+`permissionBacking(fields)` remains a different authority class. LLP 0274
+correctly makes generic application writes to authority tables ineligible and
+generation reports `SNAPBACK_TABLE_WRITE_AUTHORITY_TABLE_INELIGIBLE`. Its
+repair now says to use that declaration's own governed writer; migration to a
+membership profile is suggested only when the relation really is a finite
+principal/resource role roster. Broader permission-backing models are not
+told to become memberships. For the capstone roster, the compatible paved
+path is a real membership profile whose removal is an active delivery role →
+non-delivery `former` transition, with an ordinary access-window row supplying
+the retained-history cutoff.
 
 ## Resolution shipped — 2026-08-25
 
@@ -106,22 +145,36 @@ transition settles. The membership commit is the LLP 0200 fence; the ordinary
 cutoff lets the restored query retain only earlier rows. Generated `remove`
 remains the simpler blank-all-history path.
 
-`SNAPBACK_TABLE_WRITE_AUTHORITY_TABLE_INELIGIBLE` now carries repair class
-`use-generated-membership-authority-operation` and routes directly to the new
-guide section. This makes the capstone's tempting `permissionBacking()` plus
-generic-writer dead end actionable without weakening LLP 0274's refusal.
+Codegen now steers both relevant failure modes. The conservative
+`SNAPBACK_ORDINARY_ROSTER_AUTHORITY_UNDECLARED` warning fires on the provable
+same-handler roster/result-gate shape and points to the recipe. It explicitly
+does not claim split-client-graph coverage; the packed characterization and
+guide text own that explanation. Neither a single-table display nor the real
+multi-table display negative control warns.
+`SNAPBACK_TABLE_WRITE_AUTHORITY_TABLE_INELIGIBLE` retains repair class
+`use-generated-membership-authority-operation` and the same guide route, but
+its advice is authority-class-specific: membership tables use their generated
+profile transitions; permission-backing tables use their own governed writer
+unless their model is genuinely the finite role-roster shape.
 
 `tests/acceptance/familiar-removed-member-live-cutoff.mjs` is the packed
-product regression. Its first phase proves that the capstone-shaped authority
-writer refuses with the new route (the assertion fails on the pre-fix tree).
-Its two authenticated clients then use generated API references, a real local
-server, stream delivery, and a headless Familiar React provider. After the
-owner records the cutoff and receives a
+product regression. Its first server phase characterizes both undeclared
+forms: the safer true two-table read set, and the capstone-faithful independent
+membership/messages streams composed with a browser cutoff. It asserts the
+same-handler advisory's exact scope, membership removal on its own stream, and
+the sentinel on the messages-only stream; the client composition order remains
+record-only. Its declared leg uses generated API references, a real local
+server, stream delivery, and a headless Familiar React provider. The no-cutoff
+role-gated control isolates authority admission from the history filter. After
+the owner records the cutoff and receives a
 `global-authorization-epoch-advanced` role-transition settlement, it sends the
-sentinel immediately—without waiting for B's quarantine callback. B's raw and
-React transcripts cross `authorization_quarantine`, restore
-`before-removal`, and never contain the sentinel; the owner's open subscription
-receives it and proves delivery progress.
+post-transition sentinel immediately—without waiting for B's callback. Raw
+stream state observes `authorization_quarantine`; Familiar `useQuery` becomes
+`undefined` at that boundary, then restores `before-removal` with
+ready/current/live state. Post-transition frames are published, the owner sees
+both sentinels, and neither B surface sees either forbidden sentinel after the
+transition. The coalescer unit plus engine production-wrapper test pin
+predecessor-frame rejection without relying on a scheduler race.
 
 LLP 0200 §2.4 now records that the fence is declaration-bound and that a data
 commit ordered after the generated transition cannot deliver under the prior
@@ -131,3 +184,18 @@ is disclosure-safe but not an atomic availability transaction: a successful
 cutoff followed by a failed role change can hide data early until retry or
 repair. Atomic arbitrary companion writes with a principal-addressed generated
 transition remain outside the current surface and were not invented here.
+
+The 20260820 contention ticket's Wanted #4 does not close here. That ticket
+requires a client-visible diagnostic *before* a multi-subscription UI becomes
+inconsistent or suspended. This lane observes and documents the established
+authorization-boundary lifecycle after a declared transition; it neither
+implements a pre-inconsistency overload warning nor changes LLP 0200's
+scheduler-capacity contract. The contention ticket therefore remains open and
+owns that distinct exit condition.
+
+**Engine-test execution caveat (2026-08-25):** the epoch-gate delivery test
+compiles clean but cannot yet execute — the engine lib-test target is red
+on main from inherited seam-helper debt
+(`issues/20260825-engine-lib-test-target-red-seam-helpers.md`). The
+coalescer unit test and the packed two-client legs carry the executable
+proof until that clears.

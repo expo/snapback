@@ -6062,6 +6062,15 @@ async function generateInProcessLocked({
         elevatedDbCapabilities: resolvedHandler?.elevatedDbCapabilities ?? [],
         typescriptIdentity: resolvedHandler?.typescriptIdentity,
         sourceSpan: resolvedHandler?.sourceSpan ?? null,
+        // Internal source evidence for conservative ordinary-roster steering.
+        // Familiar runtime facades wrap this closure, so the selected authored
+        // closure is the only exact place to classify result gating.
+        authorityGateSourcePath:
+          resolvedHandler?.analysisSourceSpan?.file ?? 'functions.mjs',
+        authorityGateAnalysisSource:
+          resolvedHandler?.writePolicyAnalysisSource ?? resolvedHandler?.source ?? '',
+        authorityGateSourceSegments:
+          resolvedHandler?.writePolicySourceSegments ?? null,
         declaredReads: readTables,
         declaredWrites: [],
         ...(def.standardPattern ? { standardPattern: def.standardPattern } : {}),

@@ -21,6 +21,8 @@ export const AUTHORITY_TABLE_WRITE_REPAIR_CLASS =
   'use-generated-membership-authority-operation';
 export const AUTHORITY_TABLE_WRITE_GUIDE_ANCHOR =
   '/_snapback/guide/auth/scoped-roles.md#keep-pre-removal-history-without-live-delivery';
+export const ORDINARY_ROSTER_AUTHORITY_WARNING =
+  'SNAPBACK_ORDINARY_ROSTER_AUTHORITY_UNDECLARED';
 
 const WRITE_FORMS = Object.freeze(['insert', 'insert-each', 'patch', 'delete', 'delete-where']);
 const JS_WRITE_FORMS = Object.freeze(['insert', 'patch', 'delete']);
@@ -209,6 +211,18 @@ function isContextDbMember(member, contextNames) {
     && isContextDbObject(member.object, contextNames);
 }
 
+function isContextAuthObject(member, contextNames) {
+  return member?.type === 'MemberExpression'
+    && memberName(member) === 'auth'
+    && isContextIdentifier(member.object, contextNames);
+}
+
+function isContextAuthUserId(member, contextNames) {
+  return member?.type === 'MemberExpression'
+    && memberName(member) === 'userId'
+    && isContextAuthObject(member.object, contextNames);
+}
+
 function authoredSourcePosition(node, sourcePath, sourceSegments) {
   const line = node.loc?.start.line ?? null;
   const column = node.loc?.start.column == null ? null : node.loc.start.column + 1;
@@ -294,6 +308,9 @@ export function scanGenericWriteSites(
     return { sites: [], opaque: true, parseError: true };
   }
   const sites = [];
+  const observedReadTables = new Set();
+  const principalScopedReadTables = new Set();
+  const resultGateFacts = new Map();
   let opaque = false;
   let selectedOperationRoot = null;
   const topLevelHelpers = new Map();
@@ -373,6 +390,75 @@ export function scanGenericWriteSites(
     if (patternCapturesDb(target)) opaque = true;
     return new Set();
   };
+  const expressionObservations = (node, contextNames, observations = {
+    readTables: new Set(),
+    readsCurrentPrincipal: false,
+    boundFields: [],
+  }) => {
+    if (!node || typeof node.type !== 'string') return observations;
+    if (node.type === 'CallExpression' && isContextDbMember(node.callee, contextNames)) {
+      const readForm = memberName(node.callee);
+      if (['get', 'query'].includes(readForm)) {
+        const table = literalString(node.arguments[0]);
+        if (table !== null) observations.readTables.add(table);
+      }
+    }
+    if (isContextAuthUserId(node, contextNames)) {
+      observations.readsCurrentPrincipal = true;
+    }
+    if (node.type === 'MemberExpression'
+      && node.object?.type === 'Identifier'
+      && memberName(node) !== null) {
+      observations.boundFields.push({
+        binding: node.object.name,
+        field: memberName(node),
+      });
+    }
+    for (const value of Object.values(node)) {
+      if (Array.isArray(value)) {
+        for (const child of value) expressionObservations(child, contextNames, observations);
+      } else {
+        expressionObservations(value, contextNames, observations);
+      }
+    }
+    return observations;
+  };
+  const returnedTable = (node, queryBindings) => {
+    if (node?.type === 'Identifier') return queryBindings.get(node.name)?.table ?? null;
+    if (node?.type === 'CallExpression'
+      && node.callee?.type === 'MemberExpression'
+      && memberName(node.callee) === 'filter'
+      && node.callee.object?.type === 'Identifier') {
+      return queryBindings.get(node.callee.object.name)?.table ?? null;
+    }
+    return null;
+  };
+  const directReturns = (node, returns = []) => {
+    if (!node || typeof node.type !== 'string') return returns;
+    if (node.type === 'ReturnStatement') {
+      returns.push(node.argument);
+      return returns;
+    }
+    if (FUNCTION_NODE_TYPES.has(node.type)) return returns;
+    for (const value of Object.values(node)) {
+      if (Array.isArray(value)) {
+        for (const child of value) directReturns(child, returns);
+      } else {
+        directReturns(value, returns);
+      }
+    }
+    return returns;
+  };
+  const recordResultGateFacts = (gateNode, resultTable, form, state) => {
+    if (resultTable === null) return;
+    const observations = expressionObservations(gateNode, state.contextNames);
+    for (const { binding, field } of observations.boundFields) {
+      const sourceTable = state.queryBindings.get(binding)?.table ?? null;
+      if (sourceTable === null || sourceTable === resultTable) continue;
+      const fact = { sourceTable, field, resultTable, form };
+      resultGateFacts.set(canonical(fact), fact);
+    }
+  };
   const walk = (node, parent, state) => {
     if (!node || typeof node.type !== 'string') return;
     if (node !== state.root && FUNCTION_NODE_TYPES.has(node.type)) {
@@ -385,6 +471,16 @@ export function scanGenericWriteSites(
       || (node.type === 'AssignmentExpression' && isContextIdentifier(node.right, state.contextNames))
       || (node.type === 'AssignmentPattern' && isContextIdentifier(node.right, state.contextNames))) {
       opaque = true;
+    }
+    if (node.type === 'VariableDeclarator'
+      && node.id?.type === 'Identifier'
+      && node.init) {
+      const observations = expressionObservations(node.init, state.contextNames);
+      if (observations.readTables.size === 1) {
+        const [table] = observations.readTables;
+        state.queryBindings.set(node.id.name, { table });
+        if (observations.readsCurrentPrincipal) principalScopedReadTables.add(table);
+      }
     }
     if (node.type === 'CallExpression' && node.callee?.type === 'Identifier') {
       const helperName = node.callee.name;
@@ -435,7 +531,34 @@ export function scanGenericWriteSites(
         });
       } else if (writeForm === null) {
         opaque = true;
+      } else if (['get', 'query'].includes(writeForm)) {
+        const table = literalString(node.arguments[0]);
+        if (table !== null) observedReadTables.add(table);
       }
+    }
+    if (node.type === 'IfStatement') {
+      for (const returned of [
+        ...directReturns(node.consequent),
+        ...directReturns(node.alternate),
+      ]) {
+        recordResultGateFacts(
+          node.test,
+          returnedTable(returned, state.queryBindings),
+          'conditional-return',
+          state,
+        );
+      }
+    }
+    if (node.type === 'ReturnStatement'
+      && node.argument?.type === 'CallExpression'
+      && node.argument.callee?.type === 'MemberExpression'
+      && memberName(node.argument.callee) === 'filter') {
+      recordResultGateFacts(
+        node.argument,
+        returnedTable(node.argument, state.queryBindings),
+        'filter-return',
+        state,
+      );
     }
     if (node.type === 'MemberExpression' && isContextDbMember(node, state.contextNames)) {
       const writeForm = memberName(node);
@@ -501,6 +624,7 @@ export function scanGenericWriteSites(
       contextNames,
       localBindings,
       ownTopLevelName,
+      queryBindings: new Map(),
     });
   }
   const uniqueSites = new Map(sites.map((site) => [site.siteId, site]));
@@ -515,6 +639,12 @@ export function scanGenericWriteSites(
     opaque,
     parseError: false,
     selectedOperation: selectedOperationRoot !== null,
+    observations: {
+      readTables: [...observedReadTables].sort(compareText),
+      principalScopedReadTables: [...principalScopedReadTables].sort(compareText),
+      resultGateFacts: [...resultGateFacts.values()]
+        .sort((left, right) => compareText(canonical(left), canonical(right))),
+    },
   };
 }
 
@@ -587,6 +717,168 @@ function migrationWarning(warn, operation, table, writeForm, candidate) {
       candidateWritePolicyCheck: candidate,
     },
   );
+}
+
+function normalizedFieldType(field) {
+  const value = field?.field_type ?? field?.fieldType ?? null;
+  if (typeof value === 'string') return { kind: value, table: null };
+  if (value && typeof value === 'object') {
+    const [kind, detail] = Object.entries(value)[0] ?? [];
+    return { kind: kind ?? null, table: detail?.table ?? null };
+  }
+  return { kind: null, table: null };
+}
+
+function rosterLikeOrdinaryTable(table) {
+  if (authorityTableClass(table) !== 'ordinary'
+    || table?.visibility?.kind !== 'public-read'
+    || table?.syncable !== true) return null;
+  const fields = Array.isArray(table.fields)
+    ? table.fields
+    : Object.entries(table.fields ?? {}).map(([name, field]) => ({ name, ...field }));
+  const principalFields = fields
+    .filter((field) => normalizedFieldType(field).kind === 'Principal')
+    .map(({ name }) => name)
+    .sort(compareText);
+  const resourceFields = fields
+    .filter((field) => normalizedFieldType(field).kind === 'Id')
+    .map(({ name }) => name)
+    .sort(compareText);
+  const lifecycleNames = new Set([
+    'active', 'isActive', 'isCurrent', 'removedAt', 'revokedAt', 'leftAt',
+  ]);
+  const lifecycleFields = fields
+    .filter(({ name }) => lifecycleNames.has(name))
+    .map(({ name }) => name)
+    .sort(compareText);
+  if (principalFields.length === 0
+    || resourceFields.length === 0
+    || lifecycleFields.length === 0) return null;
+  return { principalFields, resourceFields, lifecycleFields };
+}
+
+function operationCensus(fn, sourceFn) {
+  const moduleSource = fn.runtime?.IbexModule?.source ?? '';
+  return scanGenericWriteSites(
+    sourceFn.writePolicyAnalysisSource
+      ?? sourceFn.authorityGateAnalysisSource
+      ?? moduleSource,
+    fn.name,
+    sourceFn.writePolicySourcePath
+      ?? sourceFn.authorityGateSourcePath
+      ?? 'functions.mjs',
+    {
+      resolvedOperationClosure: fn.handlerForm === 'inline',
+      sourceSegments: sourceFn.writePolicySourceSegments
+        ?? sourceFn.authorityGateSourceSegments,
+    },
+  );
+}
+
+// This advisory is deliberately an intersection, not a name guess. It covers
+// only a selected server handler where a public synced ordinary table has
+// principal/resource/lifecycle axes, an exact lifecycle patch/delete exists,
+// and one authenticated multi-table query both scopes that roster read to the
+// current principal and uses its lifecycle field to gate another table's
+// result. It does not claim to discover client-side composition across two
+// independently delivered queries; codegen has no client graph proving that
+// relationship. Ordinary principal-keyed rows that are merely displayed do
+// not match, even when the same handler reads other tables and filters them.
+function warnOnOrdinaryRosterAuthorityGates({
+  tables,
+  functions,
+  sourceByName,
+  warn,
+}) {
+  if (typeof warn !== 'function') return;
+  const censusByOperation = new Map();
+  const census = (fn) => {
+    if (!censusByOperation.has(fn.name)) {
+      censusByOperation.set(
+        fn.name,
+        operationCensus(fn, sourceByName.get(fn.name) ?? {}),
+      );
+    }
+    return censusByOperation.get(fn.name);
+  };
+  for (const table of Object.values(tables)) {
+    const shape = rosterLikeOrdinaryTable(table);
+    if (shape === null) continue;
+    const lifecycle = new Set(shape.lifecycleFields);
+    const writeOperations = functions
+      .filter((fn) => fn.kind === 'Mutation')
+      .filter((fn) => {
+        const operation = census(fn);
+        return operation.opaque === false
+          && operation.selectedOperation === true
+          && operation.sites.some((site) => (
+            site.table === table.name
+            && (site.writeForm === 'delete' || (site.writeForm === 'patch'
+              && site.valueFields?.some((field) => lifecycle.has(field))))
+          ));
+      })
+      .map(({ name }) => name)
+      .sort(compareText);
+    if (writeOperations.length === 0) continue;
+    const gatingOperations = functions
+      .filter((fn) => ['Query', 'LiveQuery'].includes(fn.kind)
+        && fn.authRequirement === 'authenticated')
+      .filter((fn) => {
+        const declaredReads = fn.readSetSummary?.tables ?? fn.declaredReads ?? [];
+        if (!declaredReads.includes(table.name) || declaredReads.length < 2) return false;
+        const operation = census(fn);
+        const observations = operation.observations ?? {};
+        const resultGateFacts = observations.resultGateFacts?.filter((fact) => (
+          fact.sourceTable === table.name
+          && lifecycle.has(fact.field)
+          && fact.resultTable !== table.name
+          && declaredReads.includes(fact.resultTable)
+        )) ?? [];
+        return operation.opaque === false
+          && operation.selectedOperation === true
+          && observations.readTables?.includes(table.name)
+          && observations.readTables.some((readTable) => readTable !== table.name)
+          && observations.principalScopedReadTables?.includes(table.name)
+          && resultGateFacts.length > 0;
+      })
+      .map(({ name }) => name)
+      .sort(compareText);
+    if (gatingOperations.length === 0) continue;
+    warn(
+      ORDINARY_ROSTER_AUTHORITY_WARNING,
+      'auth',
+      `${table.name}: a same-handler ordinary public-sync roster result gate does not advance the authorization epoch`,
+      {
+        table: table.name,
+        authorityTableClass: 'ordinary',
+        repairClass: AUTHORITY_TABLE_WRITE_REPAIR_CLASS,
+        guideAnchor: AUTHORITY_TABLE_WRITE_GUIDE_ANCHOR,
+        repair: 'If this relation controls delivery authority, model it with membership() and authorityProfile() and use generated transitions. If it is only product data, keep it ordinary and do not rely on it as a revocation fence.',
+        heuristicEvidence: {
+          visibility: 'public-read',
+          syncable: true,
+          principalFields: shape.principalFields,
+          resourceFields: shape.resourceFields,
+          lifecycleFields: shape.lifecycleFields,
+          writeOperations,
+          gatingOperations,
+          resultGateFacts: gatingOperations.flatMap((operationName) => (
+            census(functions.find(({ name }) => name === operationName))
+              .observations.resultGateFacts.filter((fact) => fact.sourceTable === table.name)
+          )),
+        },
+        detectionScope: 'selected authenticated same-handler multi-table result gate; independent client-side subscription composition is not statically linked',
+        falsePositiveGuard: 'requires principal/resource/lifecycle schema axes, an exact lifecycle patch/delete, a principal-scoped read of that exact table, and a lifecycle-field control dependency on another table result',
+      },
+    );
+  }
+}
+
+function authorityTableRepair(authorityClass) {
+  if (authorityClass === 'membership') {
+    return 'Use this membership/authorityProfile declaration\'s generated transition operations; keep retained-history cutoff data in an ordinary table.';
+  }
+  return 'Use this permission-backing declaration\'s own governed writer. Migrate to membership()/authorityProfile() only when the relation is actually a finite principal/resource role roster; broader permission backing must keep its broader authority model.';
 }
 
 function uniqueConflictFact(table, site, operation, disclosures, conservative = false) {
@@ -786,7 +1078,7 @@ function validateExactSite({
         authorityTableClass: authorityClass,
         repairClass: AUTHORITY_TABLE_WRITE_REPAIR_CLASS,
         guideAnchor: AUTHORITY_TABLE_WRITE_GUIDE_ANCHOR,
-        repair: 'Use membership() with an authorityProfile() and its generated transition operations; keep retained-history cutoff data in an ordinary table.',
+        repair: authorityTableRepair(authorityClass),
       }, row);
     return;
   }
@@ -1068,6 +1360,7 @@ export function buildWritePolicyChecks({
       });
     }
   }
+  warnOnOrdinaryRosterAuthorityGates({ tables, functions, sourceByName, warn });
   return {
     disclosures,
     rows: rows.sort((left, right) => compareText(left.id, right.id)),

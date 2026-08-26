@@ -1711,6 +1711,89 @@ fn graph_scheduler_case_mixed_commit_has_one_fenced_delivery() {
     run_graph_scheduler_authority_case("mixed-commit", true);
 }
 
+// @ref LLP 0200#24-the-authorization-lane-splits-in-two--by-declared-classification
+// — bind predecessor-frame rejection to the engine's production fence
+// installer and final authorization-snapshot publication wrapper.
+#[test]
+fn engine_authorization_snapshot_path_discards_predecessor_after_installed_fence() {
+    let mut snapback = graph_serving_sessions_fixture();
+    install_live_memo_scheduler(&mut snapback);
+    let connection = install_test_invalidation(&mut snapback);
+    let connection_id = "engine-predecessor-delivery-gate";
+    let mut input = graph_serving_live_input(connection_id);
+    input.authorization_namespace = Some(test_authorization_namespace(813));
+    let established = snapback
+        .subscribe_live_with_invalidation(
+            "graphIssues",
+            input,
+            LiveInvalidationAdmission {
+                session_mode: true,
+                connection: Some(connection),
+                effect_fence: None,
+            },
+        )
+        .expect("establish auth-scoped engine delivery fixture");
+    let subscription = snapback
+        .subscriptions
+        .get(&established.subscription_id)
+        .expect("retained auth-scoped subscription")
+        .clone();
+    let predecessor_query = snapback
+        .prepare_live_rerun_authority(&subscription.authority)
+        .and_then(|authority| snapback.invoke_live_subscription_query(&subscription, authority))
+        .expect("evaluate predecessor-authority snapshot");
+    let predecessor = snapback
+        .auth_invalidation
+        .as_ref()
+        .expect("installed invalidation state")
+        .obligations
+        .expectation()
+        .authorization
+        .clone();
+    let successor = crate::storage::AuthorizationVersion {
+        incarnation: predecessor.incarnation.clone(),
+        epoch: predecessor.epoch + 1,
+    };
+    let stale_discards_before = snapback
+        .live_authority_stats
+        .stale_authority_frames_discarded;
+
+    assert!(
+        snapback
+            .apply_live_authority_fences(std::slice::from_ref(&subscription), &successor)
+            .expect("install successor fence through the engine wrapper"),
+        "the production fence installer must reach the installed coalescer",
+    );
+    let admission = snapback.admission.admit().expect("test admission");
+    assert!(
+        !snapback
+            .deliver_authorization_snapshot(
+                &subscription,
+                predecessor_query,
+                "forced_predecessor_delivery",
+                false,
+                &admission,
+            )
+            .expect("production snapshot delivery returns a disposition"),
+        "the production snapshot path must discard a predecessor proof before enqueue",
+    );
+    assert_eq!(
+        snapback
+            .live_authority_stats
+            .stale_authority_frames_discarded
+            - stale_discards_before,
+        1,
+    );
+    assert!(
+        snapback
+            .live_coalescer
+            .as_ref()
+            .expect("installed delivery coalescer")
+            .authority_is_stale(&subscription.id),
+        "discarding the predecessor snapshot must leave restoration owed",
+    );
+}
+
 #[test]
 fn unbound_local_snapback_defaults_governance_activation_to_prod() {
     let snapback = LocalSnapback::memory().expect("memory app");

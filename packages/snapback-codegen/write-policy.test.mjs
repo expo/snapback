@@ -6,6 +6,7 @@ import {
   AUTHORITY_TABLE_WRITE_REPAIR_CLASS,
   buildWritePolicyChecks,
   deriveWritePosture,
+  ORDINARY_ROSTER_AUTHORITY_WARNING,
   scanGenericWriteSites,
   WRITE_POSTURE_MIGRATION_REPAIR_CLASS,
   WRITE_POSTURE_MIGRATION_WARNING,
@@ -756,6 +757,187 @@ test('authority tables refuse before their row-policy kind', () => {
       assert.match(details.repair, /generated transition operations/u);
       return true;
     },
+  );
+
+  assert.throws(
+    () => buildWritePolicyChecks({
+      tables: { todos: ownerTable({
+        visibility: { kind: 'public-read' },
+        permissionBacking: true,
+      }) },
+      functions: [fn], sourceFunctions: [fn], err: errorSink,
+    }),
+    ({ code, details }) => {
+      assert.equal(code, 'SNAPBACK_TABLE_WRITE_AUTHORITY_TABLE_INELIGIBLE');
+      assert.equal(details.authorityTableClass, 'permission-backing');
+      assert.match(details.repair, /own governed writer/u);
+      assert.match(details.repair, /only when/u);
+      assert.doesNotMatch(details.repair, /keep retained-history cutoff/u);
+      return true;
+    },
+  );
+});
+
+test('ordinary roster steering requires a lifecycle writer and a related same-handler result gate', () => {
+  const roster = {
+    name: 'roomMemberships',
+    visibility: { kind: 'public-read' },
+    syncable: true,
+    fields: {
+      roomId: { fieldType: { Id: { table: 'rooms' } } },
+      userId: { fieldType: 'Principal' },
+      active: { fieldType: 'Boolean' },
+      removedAt: { fieldType: 'Integer', optional: true },
+    },
+    indexes: [],
+  };
+  const messages = {
+    name: 'messages',
+    visibility: { kind: 'public-read' },
+    fields: [],
+    indexes: [],
+  };
+  const source = `
+globalThis.__snapbackHandlers = {
+  async removeMember(ctx, args) {
+    await ctx.db.patch('roomMemberships', args.id, {
+      active: false,
+      removedAt: ctx.runtime.now(),
+    });
+    return null;
+  },
+  async listMessages(ctx, args) {
+    const membership = await ctx.db.query('roomMemberships')
+      .withIndex('by_member', q => q.eq('roomId', args.roomId).eq('userId', ctx.auth.userId))
+      .first();
+    const rows = await ctx.db.query('messages').collect();
+    if (!membership) return [];
+    if (membership.active) return rows;
+    return rows.filter(row => row.createdAt <= membership.removedAt);
+  },
+  async listPresence(ctx) {
+    return (await ctx.db.query('roomMemberships').collect()).filter(row => row.active);
+  },
+};
+`;
+  const removeMember = {
+    ...jsMutation('removeMember', source, { handlerForm: 'module' }),
+    declaredWrites: ['roomMemberships'],
+  };
+  const listMessages = {
+    name: 'listMessages',
+    kind: 'LiveQuery',
+    authRequirement: 'authenticated',
+    handlerForm: 'module',
+    runtime: { IbexModule: { source, export: 'listMessages' } },
+    readSetSummary: { tables: ['messages', 'roomMemberships'] },
+  };
+  const warnings = [];
+  buildWritePolicyChecks({
+    tables: { roomMemberships: roster, messages },
+    functions: [removeMember, listMessages],
+    sourceFunctions: [removeMember, listMessages],
+    err: errorSink,
+    warn: (code, subsystem, message, details) => {
+      warnings.push({ code, subsystem, message, details });
+    },
+  });
+  const steering = warnings.filter(({ code }) => code === ORDINARY_ROSTER_AUTHORITY_WARNING);
+  assert.equal(steering.length, 1);
+  assert.equal(steering[0].details.repairClass, AUTHORITY_TABLE_WRITE_REPAIR_CLASS);
+  assert.deepEqual(steering[0].details.heuristicEvidence.lifecycleFields, [
+    'active', 'removedAt',
+  ]);
+  assert.deepEqual(steering[0].details.heuristicEvidence.writeOperations, ['removeMember']);
+  assert.deepEqual(steering[0].details.heuristicEvidence.gatingOperations, ['listMessages']);
+  assert.deepEqual(steering[0].details.heuristicEvidence.resultGateFacts, [
+    {
+      sourceTable: 'roomMemberships',
+      field: 'active',
+      resultTable: 'messages',
+      form: 'conditional-return',
+    },
+    {
+      sourceTable: 'roomMemberships',
+      field: 'removedAt',
+      resultTable: 'messages',
+      form: 'filter-return',
+    },
+  ]);
+  assert.match(steering[0].details.detectionScope, /same-handler/u);
+  assert.match(steering[0].details.detectionScope, /not statically linked/u);
+
+  const displayOnly = {
+    name: 'listPresence',
+    kind: 'LiveQuery',
+    authRequirement: 'authenticated',
+    handlerForm: 'module',
+    runtime: { IbexModule: { source, export: 'listPresence' } },
+    readSetSummary: { tables: ['roomMemberships'] },
+  };
+  const displayWarnings = [];
+  buildWritePolicyChecks({
+    tables: { roomMemberships: roster },
+    functions: [removeMember, displayOnly],
+    sourceFunctions: [removeMember, displayOnly],
+    err: errorSink,
+    warn: (code, subsystem, message, details) => {
+      displayWarnings.push({ code, subsystem, message, details });
+    },
+  });
+  assert.equal(
+    displayWarnings.some(({ code }) => code === ORDINARY_ROSTER_AUTHORITY_WARNING),
+    false,
+    'a synced presence/product table that is only displayed is not classified as authority',
+  );
+
+  const multiTableDisplaySource = `
+globalThis.__snapbackHandlers = {
+  async removeMember(ctx, args) {
+    await ctx.db.patch('roomMemberships', args.id, {
+      active: false,
+      removedAt: ctx.runtime.now(),
+    });
+    return null;
+  },
+  async listRoomDashboard(ctx, args) {
+    const membership = await ctx.db.query('roomMemberships')
+      .withIndex('by_member', q => q.eq('roomId', args.roomId).eq('userId', ctx.auth.userId))
+      .first();
+    const messages = await ctx.db.query('messages').collect();
+    if (membership && membership.active) {
+      messages.unshift({ body: 'active member display badge' });
+    }
+    return messages.filter(message => message.body !== 'display-hidden');
+  },
+};
+`;
+  const multiTableRemoveMember = {
+    ...jsMutation('removeMember', multiTableDisplaySource, { handlerForm: 'module' }),
+    declaredWrites: ['roomMemberships'],
+  };
+  const multiTableDisplay = {
+    name: 'listRoomDashboard',
+    kind: 'LiveQuery',
+    authRequirement: 'authenticated',
+    handlerForm: 'module',
+    runtime: { IbexModule: { source: multiTableDisplaySource, export: 'listRoomDashboard' } },
+    readSetSummary: { tables: ['messages', 'roomMemberships'] },
+  };
+  const multiTableDisplayWarnings = [];
+  buildWritePolicyChecks({
+    tables: { roomMemberships: roster, messages },
+    functions: [multiTableRemoveMember, multiTableDisplay],
+    sourceFunctions: [multiTableRemoveMember, multiTableDisplay],
+    err: errorSink,
+    warn: (code, subsystem, message, details) => {
+      multiTableDisplayWarnings.push({ code, subsystem, message, details });
+    },
+  });
+  assert.equal(
+    multiTableDisplayWarnings.some(({ code }) => code === ORDINARY_ROSTER_AUTHORITY_WARNING),
+    false,
+    'unrelated roster lifecycle display, auth access, and result filtering do not form a gate',
   );
 });
 

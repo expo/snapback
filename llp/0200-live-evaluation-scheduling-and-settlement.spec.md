@@ -266,6 +266,25 @@ an `active`/`removedAt` convention, or a result that happens to shrink do not
 turn an ordinary data commit into an authority transition. Those commits stay
 on the data-driven resolution lane.
 
+The retained characterization runs that undeclared shape rather than replacing
+it with an authority declaration. Its safer live handler's generated read set
+contains both the ordinary roster and messages. The generic removal patch
+drives data-lane reevaluation, the handler's persisted server-time cutoff
+excludes the later sentinel on both the open and fresh read, and the fence
+count does not advance.
+
+A second leg reproduces the capstone's materially different split graph. One
+authenticated live query reads only the ordinary `public-read` messages table;
+another independently reads the current principal's ordinary membership row;
+browser-cutoff logic composes their latest values client-side. The membership
+stream reaches `active: false`, while the messages-only stream is expected to
+receive the post-removal sentinel because it declared no roster or authority
+dependence. The test records, but does not assert, whether callback ordering
+temporarily includes that sentinel in the composed view. There is no
+cross-subscription order to assert: the two stream-local results are guaranteed
+and the composition race is application-owned. This is the reproduction-backed
+explanation of the capstone bubble.
+
 A membership/profile transition does create the fence. Its authorization epoch
 advances in commit order, so a later data commit cannot deliver a frame under
 the predecessor epoch even when quarantine/restoration callbacks have not yet
@@ -273,6 +292,19 @@ reached the client. This is the declaration-bound meaning of “subsequent” fo
 revocation: a write committed after the generated transition settles is on the
 post-transition side of the delivery gate; no resnapshot, separate membership
 subscription, or browser signal is part of the security condition.
+
+The acceptance evidence separates this gate from application filtering. A
+`hasRole('member')` control has no access-window read and no cutoff predicate:
+it receives a message under the predecessor role, then quarantines and restores
+empty after `member` → `former`, while the owner continues to receive later
+messages. A coalescer unit independently fences at epoch 8, rejects an epoch-7
+frame without clearing stale state, and restores only on an exact epoch-8
+proof. Engine-crate coverage separately evaluates under the predecessor epoch,
+installs the successor through `apply_live_authority_fences`, and sends the
+stale snapshot through the production `deliver_authorization_snapshot` wrapper;
+the wrapper must return before enqueue and leave restoration owed. Those forced
+predecessor-frame assertions, not a fixed tail delay or the history predicate,
+pin the fail-closed rule and its production call sites.
 
 When a removed principal must retain pre-removal history, the paved composition
 is a transition from the delivery role to a non-delivery active role plus an
@@ -284,8 +316,14 @@ therefore return the pre-cutoff rows without admitting later rows. Generated
 Declaring a hand-written roster `permissionBacking()` does not license its old
 generic writers. LLP 0274's refusal remains load-bearing: authority tables use
 declaration-owned/generated transition operations, while the companion cutoff
-stays ordinary application data. The authoring guide and codegen repair route
-must make that boundary discoverable.
+stays ordinary application data. A permission-backing declaration broader than
+a finite role roster uses its own governed writer; it is not unconditionally
+converted to membership. The authoring guide and codegen repair route must make
+that boundary discoverable. The current conservative steering is explicitly
+same-handler: it requires a principal-scoped read of the exact roster and a
+lifecycle-field control dependency on another table result. It neither treats
+field names as authority nor claims to discover the capstone's independently
+delivered client graph, which the backend artifact does not contain.
 
 ### 2.5 Cancellation, fairness, and bounded staleness
 
@@ -797,6 +835,10 @@ any change to the one-authority-per-app storage contract (LLP 0007/0128).
   escape, fail-closed scoped to shrink/resnapshot guarantees (§2.5).
 - **v0.5 (2026-08-25, UNREVIEWED).** Clarified that LLP 0200 fences only
   declared authority transitions: ordinary roster conventions remain data
-  events. Bound later commits to the transition's delivery-time epoch gate and
-  recorded the generated former-role plus ordinary-cutoff composition for
-  retaining pre-removal history without post-removal delivery (§2.4).
+  events. Recorded both the no-leak same-read-set characterization and the
+  capstone-faithful split membership/messages characterization, with the
+  latter's cross-stream ordering left explicitly application-owned; separated
+  a no-cutoff membership control from the retained-history filter; pinned
+  predecessor-frame rejection at the engine delivery wrapper; and recorded
+  the generated former-role plus ordinary-cutoff composition for retaining
+  pre-removal history without post-removal delivery (§2.4).
