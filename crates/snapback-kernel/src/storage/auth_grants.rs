@@ -1108,6 +1108,8 @@ impl LocalDatabase {
         &mut self,
         effective_user_id: &str,
         session_id: &str,
+        session_generation: u64,
+        authority_instance_id: &str,
         request_id: &str,
         requested_ttl_ms: Option<u64>,
         step_up_proof: Option<&ProviderBoundStepUpProof>,
@@ -1165,8 +1167,8 @@ impl LocalDatabase {
                     super::auth_catalog_ops::ExpectedStepUpProof {
                         user_id: effective_user_id,
                         session_id: Some(session_id),
-                        session_generation: None,
-                        authority_instance_id: None,
+                        session_generation: Some(session_generation),
+                        authority_instance_id: Some(authority_instance_id),
                         operation: "grantApproval",
                         target_id: request_id,
                     },
@@ -2803,6 +2805,8 @@ mod tests {
             .approve_grant_request(
                 "user-a",
                 "session-a",
+                0,
+                "test-authority",
                 &pairing.request_id,
                 None,
                 None,
@@ -2908,6 +2912,8 @@ mod tests {
             .approve_grant_request(
                 "user-b",
                 "session-b",
+                0,
+                "test-authority",
                 &pairing.request_id,
                 None,
                 None,
@@ -2974,6 +2980,8 @@ mod tests {
             .approve_grant_request(
                 "user-b",
                 "session-b",
+                0,
+                "test-authority",
                 &unowned_pairing.request_id,
                 None,
                 None,
@@ -3036,6 +3044,8 @@ mod tests {
             .approve_grant_request(
                 "user-a",
                 "session-a",
+                0,
+                "test-authority",
                 &pairing.request_id,
                 None,
                 None,
@@ -3276,6 +3286,8 @@ mod tests {
         db.approve_grant_request(
             "user-a",
             "session-a",
+            0,
+            "test-authority",
             &pairing.request_id,
             Some(1_000),
             None,
@@ -3468,6 +3480,8 @@ impl super::ServingDatabase {
         &mut self,
         effective_user_id: &str,
         session_id: &str,
+        session_generation: u64,
+        authority_instance_id: &str,
         request_id: &str,
         requested_ttl_ms: Option<u64>,
         step_up_proof: Option<&ProviderBoundStepUpProof>,
@@ -3476,6 +3490,8 @@ impl super::ServingDatabase {
         self.db.approve_grant_request(
             effective_user_id,
             session_id,
+            session_generation,
+            authority_instance_id,
             request_id,
             requested_ttl_ms,
             step_up_proof,

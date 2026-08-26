@@ -32416,6 +32416,8 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
             .approve_grant_request(
                 user_id,
                 &format!("session-{user_id}"),
+                0,
+                "test-authority",
                 &request_id,
                 None,
                 None,
