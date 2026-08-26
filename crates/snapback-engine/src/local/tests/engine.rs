@@ -15756,8 +15756,19 @@ fn sessions_activation_pair(
 }
 
 fn enable_open_agent_registration(schema: &mut SchemaManifest) {
+    schema.schema_version = "snapback.v1".to_owned();
+    if !schema
+        .required_capabilities
+        .iter()
+        .any(|capability| capability == "auth.sessions.v1")
+    {
+        schema
+            .required_capabilities
+            .push("auth.sessions.v1".to_owned());
+    }
     match schema.auth.as_mut() {
         Some(auth) => {
+            auth.mode = AuthMode::Sessions;
             auth.agents = Some(crate::manifest::AgentsManifest::explicit(
                 crate::manifest::AgentsMode::Open,
                 crate::manifest::InvitedBy::Operators,
@@ -15765,7 +15776,7 @@ fn enable_open_agent_registration(schema: &mut SchemaManifest) {
         }
         None => {
             schema.auth = Some(crate::manifest::AuthManifest {
-                mode: AuthMode::Dev,
+                mode: AuthMode::Sessions,
                 agents: Some(crate::manifest::AgentsManifest::explicit(
                     crate::manifest::AgentsMode::Open,
                     crate::manifest::InvitedBy::Operators,
@@ -32824,6 +32835,7 @@ fn denial_scope_manifest() -> FunctionManifest {
 
 struct GrantDenialFixture {
     snapback: LocalSnapback,
+    user_ids: BTreeMap<&'static str, String>,
     pairing_requests:
         BTreeMap<&'static str, crate::storage::auth_grants::GrantApprovalPairingRowForTest>,
 }
@@ -32832,19 +32844,23 @@ impl GrantDenialFixture {
     fn new() -> Self {
         use crate::storage::auth_grants::{GrantScopeRequest, ScopedFunctionKind};
 
-        let mut snapback = LocalSnapback::memory().expect("grant denial memory fixture");
-        let mut schema = SchemaManifest::default();
+        let (mut schema, functions) = sessions_activation_pair('e', false);
         enable_open_agent_registration(&mut schema);
-        snapback
-            .apply_schema(schema)
-            .expect("install open agent registration policy");
-        for user_id in DENY_USERS {
-            let _ = snapback.prepare_resolved_password_session_for_test(
-                InvocationSource::AgentGrantManagement,
-                user_id,
-                DENY_FIXTURE_MS + 60_000,
-            );
-        }
+        let mut snapback = settled_sessions_activation_snapback(schema, functions);
+        let user_ids = DENY_USERS
+            .into_iter()
+            .map(|user_label| {
+                let authority = snapback.prepare_resolved_password_session_for_test(
+                    InvocationSource::AgentGrantManagement,
+                    user_label,
+                    DENY_FIXTURE_MS + 60_000,
+                );
+                let ResolvedAppAuthority::Session(subject) = authority.resolved() else {
+                    panic!("grant-denial ceremony resolves a session");
+                };
+                (user_label, subject.user_id().to_owned())
+            })
+            .collect::<BTreeMap<_, _>>();
         let random = CounterRandom::new();
         let pairing_requests = {
             let database = snapback.auth_database_mut();
@@ -32867,7 +32883,8 @@ impl GrantDenialFixture {
                 .expect("install grant denial scope basis");
             DENY_USERS
                 .into_iter()
-                .map(|user_id| {
+                .map(|user_label| {
+                    let user_id = &user_ids[user_label];
                     let pairing = database
                         .mint_pairing_code(user_id, DENY_FIXTURE_MS, &random)
                         .expect("mint grant denial pairing code");
@@ -32885,11 +32902,11 @@ impl GrantDenialFixture {
                         )
                         .expect("present grant denial pairing code");
                     (
-                        user_id,
+                        user_label,
                         crate::storage::auth_grants::GrantApprovalPairingRowForTest {
                             request_id: pairing.request_id,
                             code_hash,
-                            minted_by_user_id: user_id.to_owned(),
+                            minted_by_user_id: user_id.clone(),
                             agent_user_id: Some(agent_user_id.clone()),
                             requested_scopes: Some(DENIAL_SCOPES_JSON.to_owned()),
                             state: "pending".to_owned(),
@@ -32905,6 +32922,7 @@ impl GrantDenialFixture {
         };
         Self {
             snapback,
+            user_ids,
             pairing_requests,
         }
     }
@@ -32927,9 +32945,10 @@ impl GrantDenialFixture {
 
         let mut pairing_requests = self.pairing_requests.values().cloned().collect::<Vec<_>>();
         if deny_case_is_accepted(case) {
+            let target_user_id = &self.user_ids[case.target_user];
             pairing_requests
                 .iter_mut()
-                .find(|row| row.minted_by_user_id == case.target_user)
+                .find(|row| row.minted_by_user_id == *target_user_id)
                 .expect("grant denial expected target")
                 .state = "denied".to_owned();
         }
@@ -33908,18 +33927,13 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
     const EXPECTED_SCOPES_JSON: &str =
         r#"[{"fn":"fn:grantApprovalRead","kind":"query","basis":0,"authorityCreating":false}]"#;
     const FIRST_GRANTOR: &str = "usr_00000000000000000000000011";
-    // PreparedAuthority remains caller-constructible, so successful cases
-    // form a non-functional claim matrix: the same user and authority instance
-    // carry two sessions, while the same session and authority instance carry
-    // two users. This proves only that approval derives both carried claims; it
-    // does not claim that these durable provider sessions are constructible.
     const FIRST_SESSION: &str = "ses_00000000000000000000000014";
     const SECOND_SESSION: &str = "ses_00000000000000000000000015";
     const SECOND_GRANTOR: &str = "usr_00000000000000000000000014";
-    const SHARED_AUTHORITY_INSTANCE: &str = "aut_00000000000000000000000011";
     const SECOND_AUTHORITY_INSTANCE: &str = "aut_00000000000000000000000012";
     struct Fixture {
         snapback: LocalSnapback,
+        session_facts: BTreeMap<(&'static str, &'static str), ProductionSessionFacts>,
         lower_request_id: String,
         first_grantor_request_id: String,
         second_grantor_request_id: String,
@@ -33930,24 +33944,30 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
 
     impl Fixture {
         fn new() -> Self {
-            let mut snapback = LocalSnapback::memory().expect("grant approval memory fixture");
-            let mut schema = SchemaManifest::default();
+            let (mut schema, functions) = sessions_activation_pair('f', false);
             enable_open_agent_registration(&mut schema);
-            snapback
-                .apply_schema(schema)
-                .expect("install open agent registration policy");
-            for user_id in [
-                "usr_00000000000000000000000010",
-                FIRST_GRANTOR,
-                SECOND_GRANTOR,
-                "usr_00000000000000000000000013",
-            ] {
-                let _ = snapback.prepare_resolved_password_session_for_test(
-                    InvocationSource::AgentGrantManagement,
-                    user_id,
-                    NOW_MS + 60_000,
-                );
-            }
+            let mut snapback = settled_sessions_activation_snapback(schema, functions);
+            let session_facts = [
+                (
+                    "usr_00000000000000000000000010",
+                    "usr_00000000000000000000000010",
+                ),
+                (FIRST_GRANTOR, FIRST_SESSION),
+                (FIRST_GRANTOR, SECOND_SESSION),
+                (SECOND_GRANTOR, SECOND_AUTHORITY_INSTANCE),
+                (
+                    "usr_00000000000000000000000013",
+                    "usr_00000000000000000000000013",
+                ),
+            ]
+            .into_iter()
+            .map(|(user_label, authority_label)| {
+                (
+                    (user_label, authority_label),
+                    snapback.issue_production_session_for_test(user_label, authority_label),
+                )
+            })
+            .collect::<BTreeMap<_, _>>();
             let random = CounterRandom::new();
             let (pairing_rows, pending_requests) = {
                 let database = snapback.auth_database_mut();
@@ -34020,7 +34040,13 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                 ]
                 .into_iter()
                 .enumerate()
-                .map(|(index, (user_id, agent_user_id, credential))| {
+                .map(|(index, (user_label, agent_user_id, credential))| {
+                    let authority_label = match user_label {
+                        FIRST_GRANTOR => FIRST_SESSION,
+                        SECOND_GRANTOR => SECOND_AUTHORITY_INSTANCE,
+                        other => other,
+                    };
+                    let user_id = &session_facts[&(user_label, authority_label)].user_id;
                     let minted_at_ms = 1_100 + (index as u64 * 10);
                     let pairing = database
                         .mint_pairing_code(user_id, minted_at_ms, &random)
@@ -34048,7 +34074,7 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                         GrantApprovalPairingRowForTest {
                             request_id: pairing.request_id,
                             code_hash,
-                            minted_by_user_id: user_id.to_owned(),
+                            minted_by_user_id: user_id.clone(),
                             agent_user_id: Some(agent_user_id.to_owned()),
                             requested_scopes: Some(EXPECTED_SCOPES_JSON.to_owned()),
                             state: "pending".to_owned(),
@@ -34080,6 +34106,7 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                 .expect("four grant approval requests");
             Self {
                 snapback,
+                session_facts,
                 lower_request_id,
                 first_grantor_request_id,
                 second_grantor_request_id,
@@ -34100,6 +34127,14 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
             let mut rows = self.pairing_rows.clone();
             rows.sort_by(|left, right| left.request_id.cmp(&right.request_id));
             rows
+        }
+
+        fn session_facts(
+            &self,
+            user_label: &'static str,
+            authority_label: &'static str,
+        ) -> &ProductionSessionFacts {
+            &self.session_facts[&(user_label, authority_label)]
         }
     }
 
@@ -34151,7 +34186,6 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
     enum Case {
         FirstExact,
         SameUserSecondSession,
-        SameSessionSecondUser,
         SecondExact,
         WrongSource,
         LowerSubject,
@@ -34163,7 +34197,6 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
             match self {
                 Self::FirstExact => "first-exact",
                 Self::SameUserSecondSession => "same-user-second-session",
-                Self::SameSessionSecondUser => "same-session-second-user",
                 Self::SecondExact => "second-exact",
                 Self::WrongSource => "wrong-source",
                 Self::LowerSubject => "lower-subject",
@@ -34171,24 +34204,17 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
             }
         }
 
-        fn expected_grantor(self) -> &'static str {
+        fn expected_grantor_label(self) -> &'static str {
             match self {
-                Self::SameSessionSecondUser | Self::SecondExact => SECOND_GRANTOR,
+                Self::SecondExact => SECOND_GRANTOR,
                 _ => FIRST_GRANTOR,
             }
         }
 
-        fn expected_session(self) -> &'static str {
+        fn authority_label(self) -> &'static str {
             match self {
                 Self::SameUserSecondSession | Self::SecondExact => SECOND_SESSION,
                 _ => FIRST_SESSION,
-            }
-        }
-
-        fn authority_instance_id(self) -> &'static str {
-            match self {
-                Self::SecondExact => SECOND_AUTHORITY_INSTANCE,
-                _ => SHARED_AUTHORITY_INSTANCE,
             }
         }
     }
@@ -34200,12 +34226,13 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
         pending_rows: Vec<GrantApprovalPairingRowForTest>,
         pending_request: PendingGrantRequest,
         selected_request_id: String,
+        expected_user_id: String,
+        expected_session_id: String,
     }
 
     let observations = [
         Case::FirstExact,
         Case::SameUserSecondSession,
-        Case::SameSessionSecondUser,
         Case::SecondExact,
         Case::WrongSource,
         Case::LowerSubject,
@@ -34214,14 +34241,22 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
     .into_iter()
     .map(|case| {
         let mut fixture = Fixture::new();
+        let authority_label = if matches!(case, Case::SecondExact) {
+            SECOND_AUTHORITY_INSTANCE
+        } else {
+            case.authority_label()
+        };
+        let expected_facts = fixture
+            .session_facts(case.expected_grantor_label(), authority_label)
+            .clone();
         let (authority, selected_request_id) = match case {
             Case::FirstExact => (
                 test_grant_session_authority(
                     &mut fixture.snapback,
                     InvocationSource::AgentGrantManagement,
                     FIRST_GRANTOR,
-                    case.expected_session(),
-                    case.authority_instance_id(),
+                    FIRST_SESSION,
+                    FIRST_SESSION,
                 ),
                 fixture.first_grantor_request_id.clone(),
             ),
@@ -34230,28 +34265,18 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                     &mut fixture.snapback,
                     InvocationSource::AgentGrantManagement,
                     FIRST_GRANTOR,
-                    case.expected_session(),
-                    case.authority_instance_id(),
+                    SECOND_SESSION,
+                    SECOND_SESSION,
                 ),
                 fixture.first_grantor_request_id.clone(),
-            ),
-            Case::SameSessionSecondUser => (
-                test_grant_session_authority(
-                    &mut fixture.snapback,
-                    InvocationSource::AgentGrantManagement,
-                    SECOND_GRANTOR,
-                    case.expected_session(),
-                    case.authority_instance_id(),
-                ),
-                fixture.second_grantor_request_id.clone(),
             ),
             Case::SecondExact => (
                 test_grant_session_authority(
                     &mut fixture.snapback,
                     InvocationSource::AgentGrantManagement,
                     SECOND_GRANTOR,
-                    case.expected_session(),
-                    case.authority_instance_id(),
+                    SECOND_AUTHORITY_INSTANCE,
+                    SECOND_AUTHORITY_INSTANCE,
                 ),
                 fixture.second_grantor_request_id.clone(),
             ),
@@ -34261,7 +34286,7 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                     InvocationSource::HttpQuery,
                     FIRST_GRANTOR,
                     FIRST_SESSION,
-                    SHARED_AUTHORITY_INSTANCE,
+                    FIRST_SESSION,
                 ),
                 fixture.first_grantor_request_id.clone(),
             ),
@@ -34271,7 +34296,7 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                     InvocationSource::AgentGrantManagement,
                     FIRST_GRANTOR,
                     FIRST_SESSION,
-                    SHARED_AUTHORITY_INSTANCE,
+                    FIRST_SESSION,
                 ),
                 fixture.lower_request_id.clone(),
             ),
@@ -34281,7 +34306,7 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                     InvocationSource::AgentGrantManagement,
                     FIRST_GRANTOR,
                     FIRST_SESSION,
-                    SHARED_AUTHORITY_INSTANCE,
+                    FIRST_SESSION,
                 ),
                 fixture.upper_request_id.clone(),
             ),
@@ -34313,6 +34338,8 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
             pending_rows,
             pending_request,
             selected_request_id,
+            expected_user_id: expected_facts.user_id,
+            expected_session_id: expected_facts.session_id,
         }
     })
     .collect::<Vec<_>>();
@@ -34338,12 +34365,7 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
         .collect::<Vec<_>>();
     assert_eq!(
         accepted,
-        vec![
-            "first-exact",
-            "same-user-second-session",
-            "same-session-second-user",
-            "second-exact",
-        ]
+        vec!["first-exact", "same-user-second-session", "second-exact",]
     );
     assert_eq!(
         refused,
@@ -34387,7 +34409,7 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                     grant.actor_user_id,
                     observation.pending_request.agent_user_id
                 );
-                assert_eq!(grant.effective_user_id, observation.case.expected_grantor());
+                assert_eq!(grant.effective_user_id, observation.expected_user_id);
                 assert_eq!(grant.scopes.as_slice(), expected_scopes.as_slice());
                 assert!(grant.expires_at_ms > expected_created_at_ms);
                 assert_eq!(grant.expires_at_ms, expected_expires_at_ms);
@@ -34405,12 +34427,12 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                     vec![GrantApprovalGrantRowForTest {
                         grant_id: grant.grant_id,
                         actor_user_id: observation.pending_request.agent_user_id,
-                        effective_user_id: observation.case.expected_grantor().to_owned(),
+                        effective_user_id: observation.expected_user_id,
                         scopes: EXPECTED_SCOPES_JSON.to_owned(),
                         created_at_ms: expected_created_at_ms,
                         expires_at_ms: expected_expires_at_ms,
                         revoked_at_ms: None,
-                        created_by: format!("session:{}", observation.case.expected_session()),
+                        created_by: format!("session:{}", observation.expected_session_id),
                         request_id: observation.selected_request_id,
                         consent_digest: expected_consent_digest.to_vec(),
                         last_used_at_ms: expected_created_at_ms,
