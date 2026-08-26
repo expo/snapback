@@ -2531,11 +2531,15 @@ export const pendingAcknowledgementsFor = (
   limit,
   authorityDescriptor = null,
   enqueueTarget = undefined,
-) => state.acks
-  .filter((ack) => (
-    acknowledgementMatches(ack, userId ?? null, authorityDescriptor)
-    && acknowledgementTargetMatches(state, ack, enqueueTarget)
-    && ack.ready === true
-  ))
-  .slice(0, limit)
-  .map((ack) => ack.id);
+) => {
+  // @ref LLP 0043#settlement-consumption-and-acknowledgement-lifecycle-2026-08-01 — ACK exposure requires complete target custody; omission is not a wildcard over a shared store domain.
+  if (normalizeOutboxEnqueueTarget(enqueueTarget) === null) return [];
+  return state.acks
+    .filter((ack) => (
+      acknowledgementMatches(ack, userId ?? null, authorityDescriptor)
+      && acknowledgementTargetMatches(state, ack, enqueueTarget)
+      && ack.ready === true
+    ))
+    .slice(0, limit)
+    .map((ack) => ack.id);
+};

@@ -15446,6 +15446,20 @@ export class SnapbackClient {
     if (queueCapabilityVerified === true && clientMutationId === null) {
       clientMutationId = createClientMutationId();
     }
+    if (
+      queue === false
+      && generation === null
+      && operationTarget.artifactGeneration === null
+    ) {
+      const inspectedFact = await this.#currentOfflineMutationReplayCapabilityFact(
+        operationTarget,
+      );
+      const inspectedTarget = completeOfflineMutationOperationTarget(
+        operationTarget,
+        inspectedFact,
+      );
+      if (inspectedTarget !== null) operationTarget = inspectedTarget;
+    }
     let generatedMutation = null;
     let generatedComposedStore = null;
     if (generatedReference) {
@@ -15556,13 +15570,11 @@ export class SnapbackClient {
       wireVersion: WIRE_VERSION_TOKEN,
     };
     const inspectedWireExpectedGeneration = mutationWireExpectedGeneration ?? (
-      dispatchLane === 'foreground'
-      && queueCapabilityVerified === true
-      && generation === null
+      generation === null
       && operationTarget.artifactGeneration !== null
         ? normalizeExpectedGeneration(
             operationTarget.artifactGeneration,
-            'foreground string-named mutation inspected generation',
+            'string-named mutation inspected generation',
           )
         : null
     );

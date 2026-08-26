@@ -1469,11 +1469,14 @@ test('automatic restart drain preserves and retires layers across settlement and
     await second.client.markMutationSettlementsConsumed([firstQueued.clientMutationId]),
     1,
   );
+  const acknowledgementTarget = (await secondStore.outboxRecords())
+    .find((record) => record.id === firstQueued.clientMutationId).enqueueTarget;
   await waitUntil(
     async () => (await secondStore.outboxPendingAcknowledgements(
       null,
       64,
       drainAuthorityDescriptor,
+      acknowledgementTarget,
     )).includes(
       firstQueued.clientMutationId,
     ),

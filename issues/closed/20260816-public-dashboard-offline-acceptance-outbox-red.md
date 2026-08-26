@@ -74,9 +74,12 @@ revision; a no-response failure advances neither the durable fact nor the
 client answered high-water. Enqueue and replay re-read the shared fact and
 generation at their durable/transport boundaries, including before ambiguous
 foreground failure may resolve `queued`. Generated mutation references must
-match the exact artifact generation; string-named mutations match on canonical
-origin. Cached support is enqueue-only, replay always needs a fresh positive,
-and all effect-producing HTTP methods reject redirects as answered refusals.
+match the exact artifact generation. String-named mutations require the same
+canonical origin plus an established matching app ID and complete artifact
+generation; a fresh unbound offline client remains online-only rather than
+guessing either identity. Cached support is enqueue-only, replay always needs
+a fresh positive, and all effect-producing HTTP methods reject redirects as
+answered refusals.
 
 The demo acceptance is again un-prewarmed: it closes the online client, stops
 the backend, then creates the offline client. The fact acquired by normal

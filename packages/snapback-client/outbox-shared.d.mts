@@ -157,7 +157,9 @@ export declare const quarantinedOutboxRecordTargets: (
 export declare const pendingAcknowledgementsFor: (
   state: OutboxState,
   userId: string,
-  limit: number
+  limit: number,
+  authorityDescriptor?: Readonly<Record<string, unknown>> | null,
+  enqueueTarget?: Readonly<Record<string, unknown>>,
 ) => string[];
 
 /** Connectivity classification shared by the M2 queue path and the offline

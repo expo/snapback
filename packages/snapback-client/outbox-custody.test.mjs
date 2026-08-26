@@ -693,13 +693,14 @@ test('principal switch deletes every predecessor disposition before successor ob
     result: { secret: 'PREDECESSOR_SETTLEMENT_RESULT' },
     authorityDescriptor: descriptor(actorA1()),
   }, IDS.userA);
+  const settlementTarget = (await fixture.store.outboxRecords())
+    .find((record) => record.id === third.clientMutationId).enqueueTarget;
   await fixture.store.outboxMarkAcknowledgementsReady(
     [third.clientMutationId],
     undefined,
     undefined,
     null,
-    (await fixture.store.outboxRecords())
-      .find((record) => record.id === third.clientMutationId).enqueueTarget,
+    settlementTarget,
   );
   assert.equal((await fixture.store.outboxRecords()).length, 3);
   assert.deepEqual(
@@ -707,6 +708,7 @@ test('principal switch deletes every predecessor disposition before successor ob
       IDS.userA,
       64,
       descriptor(actorA1()),
+      settlementTarget,
     ),
     [third.clientMutationId],
   );

@@ -1,3 +1,4 @@
+import { pendingAcknowledgementsFor } from './outbox-shared.mjs';
 import type { RqsResumeStore } from './rqs-store.mjs';
 
 declare const store: RqsResumeStore;
@@ -7,6 +8,21 @@ const quarantineCapability: Readonly<{
   supportsLegacyQuarantine: true;
 }> = store.outboxCapabilities;
 void quarantineCapability;
+
+type IsOptional<T, Key extends keyof T> = {} extends Pick<T, Key> ? true : false;
+const pendingInsertionCompensationIsRequired: false = null as unknown as IsOptional<
+  RqsResumeStore,
+  'outboxDiscardPendingInsertion'
+>;
+void pendingInsertionCompensationIsRequired;
+
+pendingAcknowledgementsFor(
+  {} as Parameters<typeof pendingAcknowledgementsFor>[0],
+  'user-a',
+  64,
+  { authorityInstanceId: 'authority-a' },
+  { schemaVersion: 'snapback.outbox-enqueue-target.v1' },
+);
 
 async function reconcileLegacyRecords() {
   const result = await store.outboxReconcileCustodyRecords(

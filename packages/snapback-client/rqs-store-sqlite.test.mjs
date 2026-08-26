@@ -96,7 +96,10 @@ test('materializations, outbox settlement, ACK custody, and authority wipe share
     null,
     enqueueTarget,
   );
-  assert.deepEqual(await store.outboxPendingAcknowledgements('user-1'), ['mutation-1']);
+  assert.deepEqual(
+    await store.outboxPendingAcknowledgements('user-1', 64, null, enqueueTarget),
+    ['mutation-1'],
+  );
   const before = await store.readStoreMeta();
   assert.equal(await store.wipeForAuthorityTransition(), true);
   const after = await store.readStoreMeta();

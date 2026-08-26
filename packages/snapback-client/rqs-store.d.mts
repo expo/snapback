@@ -255,7 +255,7 @@ export interface RqsResumeStore {
       effectMayHaveCommitted: boolean | null;
     }> | null,
   ): Promise<false | Readonly<Record<string, unknown>>>;
-  outboxDiscardPendingInsertion?(
+  outboxDiscardPendingInsertion(
     id: string,
     insertionSequence: number,
     expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,

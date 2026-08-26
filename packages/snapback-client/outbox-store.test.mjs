@@ -792,9 +792,16 @@ async function exerciseOutboxContract(store, { label }) {
   await store.outboxMarkAcknowledgementsReady(
     ['cm-2'], undefined, undefined, null, contractTarget.enqueueTarget,
   );
-  assert.deepEqual(await store.outboxPendingAcknowledgements('user_a', 64), ['cm-2']);
   assert.deepEqual(
-    await store.outboxPendingAcknowledgements('user_b', 64),
+    await store.outboxPendingAcknowledgements(
+      'user_a', 64, null, contractTarget.enqueueTarget,
+    ),
+    ['cm-2'],
+  );
+  assert.deepEqual(
+    await store.outboxPendingAcknowledgements(
+      'user_b', 64, null, contractTarget.enqueueTarget,
+    ),
     [],
     `${label}: another identity never sends this one's ACKs`,
   );
@@ -806,6 +813,56 @@ async function exerciseOutboxContract(store, { label }) {
     (await store.outboxRecords()).some((record) => record.id === 'cm-2'),
     false,
     `${label}: confirmation retires the retained settlement`,
+  );
+  // A store domain may retain settlements for more than one target. Omitted
+  // or invalid target custody is never authority to expose every ACK id.
+  const ackTargetA = currentOutboxTarget({
+    origin: 'https://ack-target-a.example',
+    targetProfileId: 'ack-target-a',
+  });
+  const ackTargetB = currentOutboxTarget({
+    origin: 'https://ack-target-b.example',
+    targetProfileId: 'ack-target-b',
+  });
+  for (const [id, target] of [
+    ['cm-target-a-ack', ackTargetA],
+    ['cm-target-b-ack', ackTargetB],
+  ]) {
+    await store.outboxEnqueue({ id, function: 'targetedAck', ...target });
+    await store.outboxDurablyConsume(id, { result: { ok: true } }, 'user_a');
+    await store.outboxMarkAcknowledgementsReady(
+      [id], undefined, undefined, null, target.enqueueTarget,
+    );
+  }
+  assert.deepEqual(
+    await store.outboxPendingAcknowledgements('user_a', 64),
+    [],
+    `${label}: omitted ACK target exposes no cross-target ids`,
+  );
+  assert.deepEqual(
+    await store.outboxPendingAcknowledgements('user_a', 64, null, {}),
+    [],
+    `${label}: invalid ACK target exposes no cross-target ids`,
+  );
+  assert.deepEqual(
+    await store.outboxPendingAcknowledgements(
+      'user_a', 64, null, ackTargetA.enqueueTarget,
+    ),
+    ['cm-target-a-ack'],
+    `${label}: exact ACK target exposes only its own id`,
+  );
+  assert.deepEqual(
+    await store.outboxPendingAcknowledgements(
+      'user_a', 64, null, ackTargetB.enqueueTarget,
+    ),
+    ['cm-target-b-ack'],
+    `${label}: the foreign ACK target remains isolated`,
+  );
+  await store.outboxConfirmAcknowledgements(
+    ['cm-target-a-ack'], undefined, undefined, null, ackTargetA.enqueueTarget,
+  );
+  await store.outboxConfirmAcknowledgements(
+    ['cm-target-b-ack'], undefined, undefined, null, ackTargetB.enqueueTarget,
   );
   // Outcome-known/payload-gone is a durable fourth state, not pending,
   // failed, or settled. It never re-enters transport and remains an ordered
@@ -995,6 +1052,7 @@ async function exerciseOutboxContract(store, { label }) {
       predecessorScope.userId,
       64,
       predecessorDescriptor,
+      contractTarget.enqueueTarget,
     ),
     ['cm-custody-settled'],
     `${label}: same-principal instance changes retain settlement acknowledgements`,
@@ -1252,8 +1310,18 @@ test('ACK custody is scoped by authority instance as well as user', async () => 
   await store.outboxMarkAcknowledgementsReady(
     ['cm-authority'], undefined, undefined, null, target.enqueueTarget,
   );
-  assert.deepEqual(await store.outboxPendingAcknowledgements('user_a', 64, first), ['cm-authority']);
-  assert.deepEqual(await store.outboxPendingAcknowledgements('user_a', 64, second), []);
+  assert.deepEqual(
+    await store.outboxPendingAcknowledgements(
+      'user_a', 64, first, target.enqueueTarget,
+    ),
+    ['cm-authority'],
+  );
+  assert.deepEqual(
+    await store.outboxPendingAcknowledgements(
+      'user_a', 64, second, target.enqueueTarget,
+    ),
+    [],
+  );
   assert.equal(await store.outboxConfirmAcknowledgements(
     ['cm-authority'], 'user_a', second, null, target.enqueueTarget,
   ), 0);
@@ -2340,7 +2408,12 @@ test('file arm retains a consumed settlement and ACK obligation across relaunch'
   await relaunched.outboxMarkAcknowledgementsReady(
     ['cm-settled'], undefined, undefined, null, target.enqueueTarget,
   );
-  assert.deepEqual(await relaunched.outboxPendingAcknowledgements('user_a'), ['cm-settled']);
+  assert.deepEqual(
+    await relaunched.outboxPendingAcknowledgements(
+      'user_a', 64, null, target.enqueueTarget,
+    ),
+    ['cm-settled'],
+  );
   await relaunched.outboxConfirmAcknowledgements(
     ['cm-settled'], undefined, undefined, null, target.enqueueTarget,
   );
@@ -6050,7 +6123,7 @@ test('string-named replay carries its persisted generation across an inspect-to-
   }
 });
 
-test('foreground string-named mutation carries the inspected generation across the final-answer deployment race', async (t) => {
+test('online-only string-named mutation carries the inspected generation across the final-answer deployment race', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
   const coordinator = createSuccessorCoordinator();
@@ -6119,10 +6192,12 @@ test('foreground string-named mutation carries the inspected generation across t
     await settleSuccessorCoordinator(coordinator);
     await client.authSession();
     switchAfterFinalCapabilityAnswer = true;
+    await client.inspect();
     await assert.rejects(
       () => client.mutate('createThing', {
         args: { title: 'belongs to generation one' },
         clientMutationId: 'cm-foreground-string-generation-race',
+        queue: false,
       }),
       (error) => error?.code === 'SNAPBACK_MIGRATION_UPGRADE_REQUIRED',
     );
@@ -6130,7 +6205,7 @@ test('foreground string-named mutation carries the inspected generation across t
     assert.deepEqual(
       wireExpectedGeneration,
       generationOne,
-      'the string-named foreground carrier asserts its inspected generation',
+      'the online-only string-named foreground carrier asserts its inspected generation',
     );
     assert.equal(successorEffects, 0, 'generation two executes zero predecessor effects');
   } finally {
@@ -7618,10 +7693,13 @@ test('mutate queues on connectivity failure and replays exactly-once', async (t)
     recovered.map((entry) => entry.clientMutationId),
   );
   // Consumed ids became ACK obligations; the next mutation piggybacks them.
+  const acknowledgementTarget = (await store.outboxRecords())
+    .find((record) => record.id === queued.clientMutationId).enqueueTarget;
   const acks = await store.outboxPendingAcknowledgements(
     null,
     64,
     TEST_AUTHORITY_DESCRIPTOR,
+    acknowledgementTarget,
   );
   assert.deepEqual(
     [...acks].sort(),
@@ -7638,7 +7716,9 @@ test('mutate queues on connectivity failure and replays exactly-once', async (t)
     'next mutation carries the exactly-once ledger GC piggyback',
   );
   assert.deepEqual(
-    await store.outboxPendingAcknowledgements(null, 64, TEST_AUTHORITY_DESCRIPTOR),
+    await store.outboxPendingAcknowledgements(
+      null, 64, TEST_AUTHORITY_DESCRIPTOR, acknowledgementTarget,
+    ),
     [],
     'a successful response confirms the sent acknowledgements',
   );
@@ -8632,7 +8712,9 @@ test('sessions mode automatically carries authority through range issuance and A
   assert.equal(recovered[0].clientMutationId, retained.id);
   await client.markMutationSettlementsConsumed([retained.id]);
   assert.deepEqual(
-    await store.outboxPendingAcknowledgements(null, 64, TEST_AUTHORITY_DESCRIPTOR),
+    await store.outboxPendingAcknowledgements(
+      null, 64, TEST_AUTHORITY_DESCRIPTOR, retained.enqueueTarget,
+    ),
     [retained.id],
   );
 
@@ -8643,7 +8725,9 @@ test('sessions mode automatically carries authority through range issuance and A
   assert.deepEqual(mutationBodies[1].authorityDescriptor, TEST_AUTHORITY_DESCRIPTOR);
   assert.deepEqual(mutationBodies[1].acknowledgedClientMutationIds, [retained.id]);
   assert.deepEqual(
-    await store.outboxPendingAcknowledgements(null, 64, TEST_AUTHORITY_DESCRIPTOR),
+    await store.outboxPendingAcknowledgements(
+      null, 64, TEST_AUTHORITY_DESCRIPTOR, retained.enqueueTarget,
+    ),
     [],
     'the ACK obligation clears only after the second mutation succeeds',
   );
@@ -9936,10 +10020,11 @@ test('standalone ACK never crosses the persisted enqueue target after client rep
   const originB = 'https://standalone-ack-target-b.example';
   const store = createDurableTestStore();
   const clientMutationId = 'cm-standalone-ack-target-a';
+  const targetA = currentOutboxTarget({ origin: originA });
   await store.outboxEnqueue({
     id: clientMutationId,
     function: 'createThing',
-    ...currentOutboxTarget({ origin: originA }),
+    ...targetA,
     authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR,
   });
   await store.outboxDurablyConsume(
@@ -9976,7 +10061,9 @@ test('standalone ACK never crosses the persisted enqueue target after client rep
     'target A recovery state survives the foreign standalone ACK attempt',
   );
   assert.deepEqual(
-    await store.outboxPendingAcknowledgements(null, 64, TEST_AUTHORITY_DESCRIPTOR),
+    await store.outboxPendingAcknowledgements(
+      null, 64, TEST_AUTHORITY_DESCRIPTOR, targetA.enqueueTarget,
+    ),
     [clientMutationId],
     'target A keeps its local ACK obligation',
   );
@@ -10138,10 +10225,11 @@ test('piggyback ACK never crosses the persisted enqueue target after client repo
   const originB = 'https://piggyback-ack-target-b.example';
   const store = createDurableTestStore();
   const clientMutationId = 'cm-piggyback-ack-target-a';
+  const targetA = currentOutboxTarget({ origin: originA });
   await store.outboxEnqueue({
     id: clientMutationId,
     function: 'createThing',
-    ...currentOutboxTarget({ origin: originA }),
+    ...targetA,
     authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR,
   });
   await store.outboxDurablyConsume(
@@ -10198,7 +10286,9 @@ test('piggyback ACK never crosses the persisted enqueue target after client repo
     'target A recovery state survives the foreign piggyback opportunity',
   );
   assert.deepEqual(
-    await store.outboxPendingAcknowledgements(null, 64, TEST_AUTHORITY_DESCRIPTOR),
+    await store.outboxPendingAcknowledgements(
+      null, 64, TEST_AUTHORITY_DESCRIPTOR, targetA.enqueueTarget,
+    ),
     [clientMutationId],
     'target A keeps its local ACK obligation',
   );
@@ -10325,6 +10415,7 @@ test('crash recovery exposes and consumes only the re-attested authority cohort'
   const store = createDurableTestStore();
   const origin = 'https://recovery.example';
   const targetProfileId = 'crash-recovery-projection-profile';
+  const target = currentOutboxTarget({ origin, targetProfileId });
   const predecessor = {
     ...TEST_AUTHORITY_DESCRIPTOR,
     authorityInstanceId: '018f0d90-7b28-7a22-8c33-445566778899',
@@ -10336,7 +10427,7 @@ test('crash recovery exposes and consumes only the re-attested authority cohort'
     await store.outboxEnqueue({
       id,
       function: 'createThing',
-      ...currentOutboxTarget({ origin, targetProfileId }),
+      ...target,
       args: {},
       userId: null,
       authorityDescriptor: null,
@@ -10379,11 +10470,15 @@ test('crash recovery exposes and consumes only the re-attested authority cohort'
     'a successor cannot make its predecessor settlement ACK-eligible',
   );
   assert.deepEqual(
-    await store.outboxPendingAcknowledgements(null, 64, TEST_AUTHORITY_DESCRIPTOR),
+    await store.outboxPendingAcknowledgements(
+      null, 64, TEST_AUTHORITY_DESCRIPTOR, target.enqueueTarget,
+    ),
     ['cm-current-settlement'],
   );
   assert.deepEqual(
-    await store.outboxPendingAcknowledgements(null, 64, predecessor),
+    await store.outboxPendingAcknowledgements(
+      null, 64, predecessor, target.enqueueTarget,
+    ),
     [],
   );
 });
@@ -11225,7 +11320,9 @@ test('mutation observation never consumes settlement or changes ACK eligibility'
 
   await client.markMutationSettlementsConsumed(['cm-status-observed']);
   assert.deepEqual(
-    await store.outboxPendingAcknowledgements(null, 64, TEST_AUTHORITY_DESCRIPTOR),
+    await store.outboxPendingAcknowledgements(
+      null, 64, TEST_AUTHORITY_DESCRIPTOR, target.enqueueTarget,
+    ),
     ['cm-status-observed'],
   );
 });
