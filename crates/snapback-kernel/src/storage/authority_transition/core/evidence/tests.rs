@@ -432,7 +432,7 @@ fn authority_transition_runtime_09_suppressing_trigger_cannot_report_success() {
              END;",
         )
         .expect("recreate suppressing trigger for effect-time proof");
-    let mut guarded = GuardedConnection::from_hostile_schema_for_effect_time_test(
+    let mut guarded = guarded_from_hostile_schema_for_effect_time_test(
         effect_connection,
         WriterAuthorityV1::default(),
     )

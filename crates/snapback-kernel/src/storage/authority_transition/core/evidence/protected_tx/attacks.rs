@@ -1,7 +1,15 @@
 //! Unit-only exact operations used to exercise scope liveness and caching.
 
 use super::*;
+use crate::storage::write_authority::WriterAuthorityV1;
 use rusqlite::CachedStatement;
+
+pub(in crate::storage::authority_transition::core::evidence) fn guarded_from_hostile_schema_for_effect_time_test(
+    connection: Connection,
+    writer_authority: WriterAuthorityV1,
+) -> AuthorityTransitionResult<GuardedConnection> {
+    GuardedConnection::install_composite_authorizer(connection, writer_authority)
+}
 
 impl ProtectedTx<'_> {
     pub(in crate::storage::authority_transition::core) fn transaction_control_for_test(

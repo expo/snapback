@@ -9,6 +9,8 @@ use std::sync::Arc;
 mod protected_tx;
 
 use protected_tx::CompositePolicyState;
+#[cfg(test)]
+use protected_tx::guarded_from_hostile_schema_for_effect_time_test;
 pub(super) use protected_tx::{DerivedPasswordSession, GuardedConnection, ProtectedTx};
 
 pub(super) struct RawPasswordProof {
