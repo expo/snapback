@@ -3207,11 +3207,20 @@ const offlineMutationOutboxEnqueueTarget = (
 ) => {
   // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 — the
   // operation pin becomes durable record identity at the enqueue boundary.
+  const servedArtifactGeneration = operationTarget.artifactGeneration === null
+    ? null
+    : normalizeExpectedGeneration(
+        operationTarget.artifactGeneration,
+        'outbox enqueue served artifact identity',
+      );
   const artifactIdentity = generatedArtifactGeneration === null
     ? {
-      kind: 'app',
-      appId: operationTarget.artifactGeneration?.appId ?? knownAppId,
-    }
+        kind: 'app',
+        appId: servedArtifactGeneration?.appId ?? knownAppId,
+        ...(servedArtifactGeneration === null
+          ? {}
+          : { generation: servedArtifactGeneration }),
+      }
     : {
       kind: 'generated',
       generation: normalizeExpectedGeneration(
@@ -3266,7 +3275,17 @@ const offlineMutationReplayTargetBindingError = (record, replayTarget, knownAppI
       )
     : persisted.artifactIdentity?.kind === 'app'
       && typeof currentAppId === 'string'
-      && persisted.artifactIdentity.appId === currentAppId;
+      && persisted.artifactIdentity.appId === currentAppId
+      && (
+        persisted.artifactIdentity.generation === undefined
+        || (
+          replayTarget.artifactGeneration !== null
+          && sameArtifactGeneration(
+            persisted.artifactIdentity.generation,
+            replayTarget.artifactGeneration,
+          )
+        )
+      );
   if (
     canonicalServerOrigin(persisted.canonicalOrigin) === replayTarget.origin
     && persisted.targetProfileId === replayTarget.targetProfileId
@@ -3295,7 +3314,7 @@ const outboxRecordMatchesAcknowledgementTarget = (record, target, knownAppId) =>
   if (
     record?.outboxRecordSchemaVersion !== OUTBOX_RECORD_SCHEMA_VERSION
     || record?.enqueueTarget == null
-  ) return true;
+  ) return false;
   if (canonicalServerOrigin(record.enqueueTarget.canonicalOrigin) !== target.origin) return false;
   // A v2 obligation needs the same complete target fact that minted its
   // enqueue identity. Origin equality alone cannot distinguish profiles or
@@ -3343,7 +3362,14 @@ const outboxRecordMatchesProjectionTarget = (record, target) => {
   const currentAppId = target.artifactGeneration.appId;
   if (target.appId !== null && currentAppId !== target.appId) return false;
   if (persisted.artifactIdentity?.kind === 'app') {
-    return persisted.artifactIdentity.appId === currentAppId;
+    return persisted.artifactIdentity.appId === currentAppId
+      && (
+        persisted.artifactIdentity.generation === undefined
+        || sameArtifactGeneration(
+          persisted.artifactIdentity.generation,
+          target.artifactGeneration,
+        )
+      );
   }
   if (persisted.artifactIdentity?.kind === 'generated') {
     return sameArtifactGeneration(
@@ -10411,8 +10437,8 @@ export class SnapbackClient {
             : INTERNAL_CONFIGURED_REPLAY_APP_ID);
         selectedClientMutationIds = clientMutationIds.filter((id) => {
           const record = recordsById.get(id);
-          return record === undefined
-            || outboxRecordMatchesAcknowledgementTarget(record, currentTarget, knownAppId);
+          return record !== undefined
+            && outboxRecordMatchesAcknowledgementTarget(record, currentTarget, knownAppId);
         });
         const selectedIds = new Set(selectedClientMutationIds);
         const selected = records.filter((record) => selectedIds.has(record.id));
@@ -14553,6 +14579,7 @@ export class SnapbackClient {
       return authorizationDispatchSettlement;
     };
     let authorizationDispatchFence = null;
+    let preparationFence = null;
     let foregroundOutboxOwnershipHeld = false;
     let foregroundOutboxOwnershipId = null;
     const claimForegroundOwnership = (record) => {
@@ -14681,7 +14708,7 @@ export class SnapbackClient {
             )
           ));
           this.#recordRuntimeCostOutboxEnqueue(stored, functionId);
-          let preparationFence = outboxAuthorizationFenceFrom(stored);
+          preparationFence = outboxAuthorizationFenceFrom(stored);
           durableOnlineStoredRecord = stored;
           queueInsertionOwnership = outboxInsertionOwnershipFrom(stored);
           if (!await this.#compensateStaleQueueWrite(

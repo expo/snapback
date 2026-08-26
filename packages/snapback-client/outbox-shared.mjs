@@ -166,6 +166,20 @@ const OUTBOX_GENERATION_KEYS = Object.freeze([
   'inputsHash',
 ]);
 
+const normalizeOutboxArtifactGeneration = (generation) => {
+  if (
+    !plainRecord(generation)
+    || Object.keys(generation).length !== OUTBOX_GENERATION_KEYS.length
+    || Object.keys(generation).some((key) => !OUTBOX_GENERATION_KEYS.includes(key))
+    || OUTBOX_GENERATION_KEYS.some(
+      (key) => typeof generation[key] !== 'string' || generation[key].length === 0,
+    )
+  ) return null;
+  return Object.fromEntries(
+    OUTBOX_GENERATION_KEYS.map((key) => [key, generation[key]]),
+  );
+};
+
 const normalizeOutboxEnqueueTarget = (value) => {
   if (
     !plainRecord(value)
@@ -188,26 +202,38 @@ const normalizeOutboxEnqueueTarget = (value) => {
     artifactIdentity.kind === 'app'
     && typeof artifactIdentity.appId === 'string'
     && artifactIdentity.appId.length > 0
-    && Object.keys(artifactIdentity).length === 2
+    && (
+      Object.keys(artifactIdentity).length === 2
+      || Object.keys(artifactIdentity).length === 3
+    )
+    && Object.keys(artifactIdentity).every(
+      (key) => ['kind', 'appId', 'generation'].includes(key),
+    )
   ) {
+    const generation = artifactIdentity.generation === undefined
+      ? null
+      : normalizeOutboxArtifactGeneration(artifactIdentity.generation);
+    if (
+      artifactIdentity.generation !== undefined
+      && (generation === null || generation.appId !== artifactIdentity.appId)
+    ) return null;
     return {
       schemaVersion: OUTBOX_ENQUEUE_TARGET_SCHEMA_VERSION,
       canonicalOrigin: value.canonicalOrigin,
       targetProfileId: value.targetProfileId,
       ...(ledgerIncarnation === null ? {} : { ledgerIncarnation }),
-      artifactIdentity: { kind: 'app', appId: artifactIdentity.appId },
+      artifactIdentity: {
+        kind: 'app',
+        appId: artifactIdentity.appId,
+        ...(generation === null ? {} : { generation }),
+      },
     };
   }
-  const generation = artifactIdentity.generation;
+  const generation = normalizeOutboxArtifactGeneration(artifactIdentity.generation);
   if (
     artifactIdentity.kind !== 'generated'
     || Object.keys(artifactIdentity).length !== 2
-    || !plainRecord(generation)
-    || Object.keys(generation).length !== OUTBOX_GENERATION_KEYS.length
-    || Object.keys(generation).some((key) => !OUTBOX_GENERATION_KEYS.includes(key))
-    || OUTBOX_GENERATION_KEYS.some(
-      (key) => typeof generation[key] !== 'string' || generation[key].length === 0,
-    )
+    || generation === null
   ) return null;
   return {
     schemaVersion: OUTBOX_ENQUEUE_TARGET_SCHEMA_VERSION,
@@ -216,9 +242,7 @@ const normalizeOutboxEnqueueTarget = (value) => {
     ...(ledgerIncarnation === null ? {} : { ledgerIncarnation }),
     artifactIdentity: {
       kind: 'generated',
-      generation: Object.fromEntries(
-        OUTBOX_GENERATION_KEYS.map((key) => [key, generation[key]]),
-      ),
+      generation,
     },
   };
 };

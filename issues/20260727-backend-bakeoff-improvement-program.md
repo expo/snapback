@@ -192,25 +192,3 @@ review is **2026-09-30**, aligned with the same Charlie-owned, release-key-
 signed packaged-capability attestation milestone already governing the atomic
 relation/activity pair. That date must not move again without another source,
 package, and hosted-publication review.
-
-## Expired structured-stored-fields GAP review disposition — 2026-08-25
-
-The `backend.structured-stored-fields` Guide review gate fired on 2026-08-25.
-A fresh authority and executable-witness audit confirms that the row's
-interior-query GAP is still exact:
-
-- LLP 0211 is Implemented for typed, write-validated, canonical opaque arrays
-  and objects, but explicitly leaves interior predicates, containment, and
-  indexes demand-gated under LLP 0115 CV-4b;
-- `packages/snapback-codegen/structured-stored-values.test.mjs` still proves
-  that ordinary indexes, equality filters, live matchers, search indexes, and
-  vector stored fields refuse the opaque structured field; and
-- LLP 0115 CV-4b remains Open for indexable structure. No later authority or
-  executable witness establishes a queryable-interior claim.
-
-The capability row therefore remains `experimental` for the local atomic
-storage tier and retains its explicit interior-query GAP. Its next review is
-**2026-09-30**. That review must either cite new element-query demand and an
-owned portable-projection design, or reconfirm that Phase B remains
-demand-gated; the date must not move again without an evidence-based
-disposition.

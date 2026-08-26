@@ -64,10 +64,11 @@ answered fact nor the client answered high-water. Enqueue and replay re-read
 that shared fact/generation at their durable and transport boundaries, and an
 ambiguous write whose fact was superseded cannot become replayable. Facts stay
 bound to canonical origin plus served app artifact generation; cached evidence
-is enqueue-only. Answered gaps, HTTP errors, and write redirects refuse; replay
-always requires a fresh positive. Broker-unavailable followers retain a local
-negative override. Live-query transitions schedule deduplicated observation,
-exposed through a public settlement promise.)
+is enqueue-only. Answered gaps refuse queueing and replay, while
+`queue: 'auto'` makes one online-only mutation attempt; write redirects
+refuse. Replay always requires a fresh positive. Broker-unavailable followers
+retain a local negative override. Live-query transitions schedule deduplicated
+observation, exposed through a public settlement promise.)
 **Revised:** 2026-08-16 (authorization observation amendment: every validated
 queue exposes its real payload-free authorization metadata even while a
 legacy/destructive record normalization awaits the exact writer; records,
@@ -507,8 +508,9 @@ The operation-lifetime pin is also durable enqueue identity. Every newly
 created outbox record uses additive record schema v2 and stores the enqueue
 target's canonical origin, target profile, and artifact identity. Generated
 references store their complete call-time artifact generation; string-named
-references store the application identity already established by the served
-app descriptor/binding. Before replay changes queue custody, assigns an
+references store the complete artifact generation already established by the
+served app descriptor/binding, with the app id retained as its compatibility
+key. Before replay changes queue custody, assigns an
 operation-identity range, marks dispatch, or sends a mutation, the shared
 capability fact must remain current and a fresh pinned target must equal every
 persisted axis. Replay performs both comparisons in sequence at each record's

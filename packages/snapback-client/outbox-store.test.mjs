@@ -407,7 +407,11 @@ const currentOutboxTarget = ({
     ...(ledgerIncarnation === null ? {} : { ledgerIncarnation }),
     artifactIdentity: generated
       ? { kind: 'generated', generation }
-      : { kind: 'app', appId: generation.appId },
+      : {
+          kind: 'app',
+          appId: generation.appId,
+          ...(targetProfileId === null ? {} : { generation }),
+        },
   },
 });
 
@@ -1475,7 +1479,12 @@ test('active authorization root retains settled ACK collection until proof', asy
 test('standalone ACK serializes server confirmation and local collection against a root', async (t) => {
   const store = createMemoryRqsResumeStore();
   store.durability = () => ({ implementation: 'ack-race-test', durable: true });
-  const client = new SnapbackClient('https://ack-race.test', { rqsStore: store });
+  const origin = 'https://ack-race.test';
+  const targetProfileId = 'ack-race-profile';
+  const client = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
   t.after(async () => {
     globalThis.fetch = originalFetch;
     await client.closeAuth();
@@ -1485,6 +1494,7 @@ test('standalone ACK serializes server confirmation and local collection against
     id: 'cm-ack-root-race',
     function: 'createThing',
     args: {},
+    ...currentOutboxTarget({ origin, targetProfileId }),
     authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR,
   });
   const prepared = await store.outboxPrepareSubmission('cm-ack-root-race');
@@ -1499,11 +1509,15 @@ test('standalone ACK serializes server confirmation and local collection against
   let releaseResponse;
   let requestStarted = false;
   const responseHeld = new Promise((resolve) => { releaseResponse = resolve; });
-  globalThis.fetch = async () => {
+  globalThis.fetch = async (url) => {
+    if (new URL(url).pathname === '/inspect') {
+      return Response.json(offlineReplayInspection({ supported: true, targetProfileId }));
+    }
     requestStarted = true;
     await responseHeld;
     return Response.json({ acknowledged: 1 });
   };
+  await client.inspect();
 
   const acknowledgement = client.acknowledgeMutations({
     userId: TEST_SESSION_USER_ID,
@@ -4921,6 +4935,84 @@ test('same-origin app replacement refuses string-named persisted intent before P
   }
 });
 
+test('same-origin same-app generation replacement refuses string-named persisted intent before POST', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const origin = 'https://persisted-string-generation.example';
+  const generationOne = {
+    ...TEST_ARTIFACT_GENERATION,
+    appId: 'persisted-string-generation-app',
+  };
+  const generationTwo = {
+    ...generationOne,
+    schemaHash: testDigest('d'),
+    bundleHash: testDigest('e'),
+    inputsHash: testDigest('f'),
+  };
+  let servedGeneration = generationOne;
+  let successorPosts = 0;
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+    if (path === '/inspect') {
+      return Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId: 'same-app-generation-target',
+        generation: servedGeneration,
+      }));
+    }
+    if (servedGeneration === generationOne) {
+      throw new TypeError('generation one stopped after admission');
+    }
+    successorPosts += 1;
+    return Response.json({ result: { wrongGeneration: true }, version: 2 });
+  };
+  const enqueueClient = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  const clientMutationId = 'cm-persisted-string-generation';
+  const queued = await enqueueClient.mutate('createThing', {
+    clientMutationId,
+    args: { title: 'belongs to served generation one' },
+  });
+  assert.equal(queued.status, 'queued');
+  const persistedBeforeReplay = structuredClone((await store.outboxPending())[0]);
+  await enqueueClient.close();
+  servedGeneration = generationTwo;
+
+  const replayClient = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  try {
+    const replay = await replayClient.replayQueuedMutations();
+    assert.equal(replay.replayed, 0, 'generation-one intent is not replayed under generation two');
+    assert.equal(replay.stopped, true, 'the persisted generation mismatch pauses replay');
+    assert.equal(successorPosts, 0, 'the persisted generation mismatch sends zero mutation POSTs');
+    assert.deepEqual(
+      (await store.outboxPending()).map((record) => record.id),
+      [clientMutationId],
+      'the persisted generation mismatch leaves the record pending',
+    );
+    assert.deepEqual(
+      persistedBeforeReplay.enqueueTarget.artifactIdentity,
+      {
+        kind: 'app',
+        appId: generationOne.appId,
+        generation: generationOne,
+      },
+      'string-named enqueue persists the complete served artifact generation',
+    );
+    assert.equal(
+      replayClient.outboxDiagnostics.at(-1)?.code,
+      'SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH',
+    );
+  } finally {
+    await replayClient.close();
+    await store.close();
+  }
+});
+
 const exerciseTargetAwareOptimisticProjection = async ({
   enqueueOrigin,
   projectionOrigin,
@@ -5146,7 +5238,7 @@ test('matching persisted enqueue target replays exactly once after relaunch', as
     schemaVersion: 'snapback.outbox-enqueue-target.v1',
     canonicalOrigin: origin,
     targetProfileId: 'persisted-target-match-profile',
-    artifactIdentity: { kind: 'app', appId: generation.appId },
+    artifactIdentity: { kind: 'app', appId: generation.appId, generation },
   });
   await enqueueClient.close();
   online = true;
@@ -7527,10 +7619,13 @@ test('standalone ACK confirms only its exact authority cohort', async (t) => {
     sessionGeneration: 1,
   };
   const store = createDurableTestStore();
+  const origin = 'https://standalone-ack-cohort.example';
+  const targetProfileId = 'standalone-ack-cohort-profile';
   await store.outboxEnqueue({
     id: 'cm-standalone-cohort',
     function: 'createThing',
     userId: 'user_a',
+    ...currentOutboxTarget({ origin, targetProfileId }),
     authorityDescriptor: first,
   });
   await store.outboxDurablyConsume(
@@ -7539,11 +7634,22 @@ test('standalone ACK confirms only its exact authority cohort', async (t) => {
     'user_a',
   );
   const bodies = [];
-  globalThis.fetch = async (_url, init) => {
+  globalThis.fetch = async (url, init) => {
+    if (new URL(url).pathname === '/inspect') {
+      return Response.json(offlineReplayInspection({ supported: true, targetProfileId }));
+    }
     bodies.push(JSON.parse(init.body));
     return Response.json({ acknowledged: 0 });
   };
-  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+  const client = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  t.after(async () => {
+    await client.close();
+    await store.close();
+  });
+  await client.inspect();
   await client.acknowledgeMutations({
     userId: 'user_a',
     clientMutationIds: ['cm-standalone-cohort'],
@@ -7608,6 +7714,77 @@ test('standalone ACK never crosses the persisted enqueue target after client rep
     [clientMutationId],
     'target A keeps its local ACK obligation',
   );
+});
+
+test('legacy targetless standalone ACK never crosses origin after client repoint', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const originB = 'https://legacy-standalone-ack-target-b.example';
+  const store = createDurableTestStore();
+  const clientMutationId = 'cm-legacy-standalone-ack-target-a';
+  await store.outboxEnqueue({
+    id: clientMutationId,
+    function: 'createThing',
+    authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR,
+  });
+  await store.outboxDurablyConsume(
+    clientMutationId,
+    { result: { ok: true }, authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR },
+    null,
+  );
+  await store.outboxMarkAcknowledgementsReady([clientMutationId]);
+  const requests = [];
+  globalThis.fetch = async (url, init) => {
+    requests.push({ url: String(url), body: JSON.parse(init.body) });
+    return Response.json({ acknowledged: 1 });
+  };
+  const client = new InspectingSnapbackClient(originB, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  t.after(async () => {
+    await client.close();
+    await store.close();
+  });
+
+  assert.deepEqual(
+    await client.acknowledgeMutations({ clientMutationIds: [clientMutationId] }),
+    { acknowledged: 0 },
+  );
+  assert.deepEqual(requests, [], 'target B receives no standalone ACK for targetless intent');
+  assert.equal(
+    (await store.outboxRecords()).find((record) => record.id === clientMutationId)?.status,
+    'settled',
+    'targetless recovery state survives the foreign standalone ACK attempt',
+  );
+  assert.deepEqual(
+    await store.outboxPendingAcknowledgements(null, 64, TEST_AUTHORITY_DESCRIPTOR),
+    [clientMutationId],
+    'targetless legacy intent keeps its local ACK obligation',
+  );
+});
+
+test('standalone ACK drops caller ids with no local recovery record', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const requests = [];
+  globalThis.fetch = async (url, init) => {
+    requests.push({ url: String(url), body: JSON.parse(init.body) });
+    return Response.json({ acknowledged: 1 });
+  };
+  const client = new InspectingSnapbackClient('https://missing-local-ack.example', {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  t.after(async () => {
+    await client.close();
+    await store.close();
+  });
+
+  assert.deepEqual(
+    await client.acknowledgeMutations({ clientMutationIds: ['cm-missing-local-ack'] }),
+    { acknowledged: 0 },
+  );
+  assert.deepEqual(requests, [], 'an unowned caller id never reaches the current origin');
 });
 
 test('piggyback ACK never crosses the persisted enqueue target after client repoint', async (t) => {
