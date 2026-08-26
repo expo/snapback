@@ -70,7 +70,7 @@ export const acceptance = defineStarterAcceptance({
       provenance: 'baseline',
     },
   },
-  async journey({ adminClient, defer, paths, step, until }) {
+  async journey({ adminClient, defer, paths, ready, step, until }) {
     let observer = null;
     let provider = null;
     let appClient = null;
@@ -103,7 +103,7 @@ export const acceptance = defineStarterAcceptance({
     });
     appClient = await createSnapbackAppClient({
       app,
-      url: process.env.SNAPBACK_URL,
+      url: ready.serverUrl,
       platform,
     });
 
@@ -129,7 +129,7 @@ export const acceptance = defineStarterAcceptance({
       await appClient.dispose();
       appClient = await createSnapbackAppClient({
         app,
-        url: process.env.SNAPBACK_URL,
+        url: ready.serverUrl,
         platform,
       });
       assert.equal(appClient.auth.currentPrincipal().status, 'authenticated');

@@ -71,7 +71,8 @@ assert.doesNotMatch(
   'runtime acceptance must not restore browser-side provisioning or seed ownership',
 );
 assert.match(runtimeAcceptance, /createSnapbackAppClient/);
-assert.match(runtimeAcceptance, /url:\s*process\.env\.SNAPBACK_URL/u);
+assert.match(runtimeAcceptance, /url:\s*ready\.serverUrl/u);
+assert.doesNotMatch(runtimeAcceptance, /process\.env\.SNAPBACK_URL/u);
 assert.doesNotMatch(runtimeAcceptance, /bindingFor|createSnapbackDevAppBinding/u);
 assert.match(runtimeAcceptance, /operation:\s*api\.listTodos/);
 assert.match(runtimeAcceptance, /operation:\s*api\.createTodo/);
