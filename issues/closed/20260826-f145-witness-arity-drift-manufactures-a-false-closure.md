@@ -1,7 +1,21 @@
 # F145's witness fails on stale arity, and the runner scores that as CLOSED
 
-**Status:** open — F145 is **OPEN**; the corpus is about to report it CLOSED
+**Status:** closed — the stale call was repaired; F145 remains **OPEN**
 **Found:** 2026-08-26, by a lane that reported a ledger discrepancy instead of silently rewriting it.
+
+## Resolution — 2026-08-26
+
+The row witness now supplies the caller-selected `ServerProfile::Test` argument and reaches the
+marked attack expression. Direct execution in all four declared cells (`production`,
+`additive-test-support`, `services-remainder-tests`, and
+`additive-services-remainder-tests`) produced the same runtime observation:
+
+```text
+SNAPBACK_ROW_ATTACK {"row":"F145","observed":"OPEN","diagnostic":"dependent selected the app/function/scope and prepared callback authority outside LocalSnapback"}
+```
+
+The call returned `Ok` at the `@attack` statement. No refusal code fired. The ledger and executable
+contract continue to record F145 as OPEN; only the stale evidence was repaired.
 
 ## What happens
 

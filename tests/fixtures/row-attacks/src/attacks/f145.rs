@@ -2,7 +2,7 @@ use snapback_auth::auth::admission::AdmissionController;
 use snapback_kernel::storage::auth_grants::{ExactGrantScope, ScopedFunctionKind};
 use snapback_row_attack_fixtures::{NOW, report_observation, setup_callback_authority_attack};
 use snapback_sync::auth::invocation::InvocationGate;
-use snapback_types::contract_types::AuthMode;
+use snapback_types::contract_types::{AuthMode, ServerProfile};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), String> {
@@ -30,7 +30,11 @@ async fn main() -> Result<(), String> {
         .map_err(|error| format!("principal: {error:?}"))?;
 
     // @attack
-    let prepared = InvocationGate::prepare_admitted_asset_callbacks(admission, principal)
+    let prepared = InvocationGate::prepare_admitted_asset_callbacks(
+        ServerProfile::Test,
+        admission,
+        principal,
+    )
         .map_err(|error| format!("raw callback authority preparation: {error:?}"));
 
     report_observation(
