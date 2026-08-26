@@ -395,13 +395,6 @@ impl AuthFixture<'_> {
         self.database().push_registry()
     }
 
-    pub fn create_watch(
-        &mut self,
-        request: snapback_kernel::storage::watches::CreateWatchRecord,
-    ) -> SnapbackResult<snapback_kernel::storage::watches::WatchRecord> {
-        self.database().create_watch(request)
-    }
-
     pub fn revalidate_watch_principal(
         &mut self,
         watch_id: &str,

@@ -30027,21 +30027,31 @@ async fn watch_reaction_ctx_push_send_without_caller_publication_commits() {
         .as_str()
         .expect("watch-reaction push owner principal")
         .to_owned();
-    let watch_authority_instance_id = credential["session"]["id"]
+    let bearer = credential["token"]
         .as_str()
-        .expect("watch-reaction push owner authority instance")
+        .expect("watch-reaction push session bearer")
         .to_owned();
-    let watch_id = crate::ids::mint_time_ordered(crate::ids::Kind::Watch);
-    let principal = with_snapback(&state.snapback, {
+    with_snapback(&state.snapback, {
         let watch_owner = watch_owner.clone();
-        let watch_authority_instance_id = watch_authority_instance_id.clone();
-        let watch_id = watch_id.clone();
         move |snapback| {
             let declaration = immediate_push_declaration();
             let mut database = snapback.remainder_auth_fixture();
             database.activate_push_registry_for_test(declaration.clone())?;
             let mut schema = database.schema().clone();
             schema.push_seam = Some(declaration);
+            schema
+                .api
+                .as_mut()
+                .expect("watch-reaction push fixture has API policy")
+                .functions
+                .insert(
+                    "heldAction".to_owned(),
+                    ApiFunctionExposure {
+                        expose: true,
+                        since: None,
+                        approval: None,
+                    },
+                );
             schema.tables.push(TableManifest {
                 name: "app_members".to_owned(),
                 fields: vec![
@@ -30088,42 +30098,6 @@ async fn watch_reaction_ctx_push_send_without_caller_publication_commits() {
             database
                 .push_registry()
                 .install_immediate_sender_for_test(schema, &watch_owner)?;
-            let now_ms = super::now_millis();
-            database.create_watch(crate::storage::watches::CreateWatchRecord {
-                id: watch_id.clone(),
-                owner_kind: crate::watches::WatchOwnerKind::User,
-                owner_principal_id: watch_owner,
-                owner_authority_instance_id: watch_authority_instance_id,
-                authority_mode: crate::watches::WatchAuthorityMode::RevalidatePrincipal,
-                anchor_grant_id: None,
-                installation_grant_id: None,
-                anchor_effective_user_id: None,
-                anchor_scopes: Vec::new(),
-                anchor_expires_at_ms: 0,
-                query_function_id: "watch-reaction-push-query".to_owned(),
-                query_function_name: "liveItems".to_owned(),
-                query_basis: 1,
-                query_args_json: "{}".to_owned(),
-                query_args_digest: "watch-reaction-push-query-args".to_owned(),
-                read_dependencies: Vec::new(),
-                predicate_json: "{\"path\":\"/rows\",\"op\":\"exists\"}".to_owned(),
-                reaction_kind: crate::watches::WatchReactionKind::Function,
-                reaction_function_id: "watch-reaction-push-reaction".to_owned(),
-                reaction_function_name: "heldAction".to_owned(),
-                reaction_function_kind: crate::watches::WatchFunctionKind::Action,
-                reaction_basis: 1,
-                reaction_args_json: "{}".to_owned(),
-                reaction_args_digest: "watch-reaction-push-reaction-args".to_owned(),
-                webhook_url: None,
-                webhook_secret_ref: None,
-                daily_firing_budget: crate::watches::DEFAULT_DAILY_FIRING_BUDGET,
-                debounce_ms: crate::watches::DEFAULT_DEBOUNCE_MS,
-                initial_predicate_state: false,
-                now_ms,
-            })?;
-            let principal = database
-                .revalidate_watch_principal(&watch_id)?
-                .expect("active protected watch owner revalidates");
             let mut manifest = generation_test_manifest();
             manifest.functions.push(FunctionDefinition::new(
                 "listItems",
@@ -30146,29 +30120,64 @@ async fn watch_reaction_ctx_push_send_without_caller_publication_commits() {
             for function in &mut manifest.functions {
                 function.api_exposure = Some(ApiFunctionExposure::default());
             }
-            for function in manifest
-                .functions
-                .iter_mut()
-                .filter(|function| matches!(function.name.as_str(), "listItems" | "liveItems"))
-            {
+            for function in manifest.functions.iter_mut().filter(|function| {
+                matches!(
+                    function.name.as_str(),
+                    "listItems" | "liveItems" | "heldAction"
+                )
+            }) {
                 function.api_exposure = Some(ApiFunctionExposure {
                     expose: true,
                     since: None,
                     approval: None,
                 });
             }
-            let diagnostics = snapback.load_functions(manifest);
+            let diagnostics = snapback.load_functions(manifest.clone());
             assert!(
                 diagnostics.iter().all(|diagnostic| {
                     diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error
                 }),
                 "watch-reaction push functions load: {diagnostics:?}"
             );
-            Ok::<_, SnapbackError>(principal)
+            snapback
+                .remainder_auth_fixture()
+                .reconcile_auth_scope_bases(&manifest)?;
+            Ok::<_, SnapbackError>(())
         }
     })
     .await
     .expect("activate watch-reaction push seam and action");
+    let router = app(state.clone());
+    let created = router
+        .oneshot(session_auth_http_request(
+            "/watches",
+            serde_json::to_vec(&json!({
+                "ownerKind": "user",
+                "authorityMode": "revalidatePrincipal",
+                "query": { "function": "liveItems", "args": {} },
+                "predicate": { "path": "/rows", "op": "exists" },
+                "reaction": { "kind": "function", "function": "heldAction", "args": {} }
+            }))
+            .expect("serialize watch-reaction push watch"),
+            &bearer,
+        ))
+        .await
+        .expect("create watch-reaction push watch through the public route");
+    let created_status = created.status();
+    let created = response_json(created).await;
+    assert_eq!(created_status, StatusCode::CREATED, "{created}");
+    let watch_id = created["id"]
+        .as_str()
+        .expect("watch-reaction push production watch id")
+        .to_owned();
+    let principal = with_snapback(&state.snapback, move |snapback| {
+        snapback
+            .remainder_auth_fixture()
+            .revalidate_watch_principal(&watch_id)
+    })
+    .await
+    .expect("read active protected watch owner")
+    .expect("active protected watch owner revalidates");
 
     let foreign_database =
         crate::storage::LocalDatabase::memory().expect("open foreign watch-principal database");
