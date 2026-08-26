@@ -73,13 +73,54 @@ over the ~20% advisory budget**, spent on the closed inventories the
 MATERIAL findings demanded. Disclosed for the author's judgment; not an
 escalation unless MATERIAL concerns remain open at loop end.
 
-## Round 2 — delta round (planned)
+## Round 2 — delta round on r2
 
-Post-revision delta round per LLP 0010.001 §Delta rounds: enumerated
-diff `235fabf28..r2`, every concern classified IN-DELTA vs
-PRE-EXISTING; converges if no family reports a MATERIAL concern in
-pre-existing text. 0314 participates delta-scoped (closure on the
-round-1 fold). Capsule: `git archive` of the r2 commit with the 0314
-review artifacts and this journal removed (structural exclusion);
-runner-level confinement to the capsule directory remains
-self-attested.
+Per LLP 0010.001 §Delta rounds: enumerated diff `235fabf28..fca941e42`
+(719 lines), every concern classified IN-DELTA vs PRE-EXISTING.
+Capsule: `git archive` of `fca941e42` with `llp/reviews/0314-*` removed
+(structural exclusion); runner confinement to the capsule directory
+self-attested. Brief sha256 `6e5c0b7d…3b02697`. Codex launch 1 VOIDED
+on an infrastructure trust check (capsule is not a git repo; no review
+content); relaunched with `--skip-git-repo-check`, ultra confirmed —
+second launch of the cap. Both reviews returned at ~32 minutes.
+
+- Verdicts: codex — 0314 NOT READY (1 MATERIAL IN-DELTA), 0314.000 NOT
+  READY (4 MATERIAL, all IN-DELTA), SET NOT READY, and explicitly “No
+  PRE-EXISTING material concern was found.” grok — 0314 NOT READY
+  (1 MATERIAL IN-DELTA), 0314.000 NOT READY (3 MATERIAL, all
+  IN-DELTA), SET NOT READY, no PRE-EXISTING MATERIAL reported.
+- **Delta-convergence condition met by both families**: no MATERIAL
+  concern in pre-existing text. Remaining work is the in-delta fixes,
+  which per §Delta rounds get one more delta round (round 3, the last
+  in the default budget).
+- Convergent in-delta MATERIALs the r2 fold introduced: the
+  `snapback-types` jsonschema site is dev-only (r2 had copied grok
+  r1's unchecked claim; both families caught it in r2); Phase 2 gated
+  off the only producer of the sidecar it ships; Phase 1a
+  misclassified `assemble-runtime-package` (contributor source-repair
+  custody) and omitted path-migration rows `s07-r004`/`s01-r013` plus
+  the `packaged-store-qualification.mjs` default; the Linux lane split
+  left `package.test.mjs`'s source-custody assertion unpassable.
+- Orchestrator verification before folding: all of the above checked
+  against the repository (Cargo.toml section, assemble script flags,
+  qualification default, manifest rows, package.test.mjs:900–912,
+  SNAPBACK_ADMIN_DIST seam, staging `adminConsoleRequired`). All held.
+
+### Revision r3 (reviser: orchestrator, 2026-08-25)
+
+Round-2 findings folded: research F3 split into public-manufacture vs
+source-repair custody, F6 corrected to two normal-dep jsonschema
+sites, F7 PocketBase row corrected to the executable, LLP 0284 added
+to Related. Plan: `assemble-runtime-package` moved to 1b custody with
+an explicit release-binary override; 1a gains the qualification-script
+default, rows `s01-r013`/`s07-r004`, a row-closure rule, and the Linux
+lane-split reconciliation; 1c attestation authority pinned to a
+compiler-derived stamp that ceremonies copy but never originate; 1d
+strip-policy parity with Phase 0 plus a post-strip Hermes load check;
+Phase 2 gains a shared-encoder producer (gate only the Rust include),
+pinned member path `guide/embedded-guide.v1.bin`, the
+`SNAPBACK_ADMIN_DIST`-pattern discovery seam, staging-vs-final-assembly
+refusal semantics, full-tuple load validation with bounded decoding,
+an LLP 0010 readiness amendment, and a test matrix; rebuild-isolation
+claim restated honestly; OQ3/OQ5 tightened; Phase 4 `snapbackd` Guide
+note; Non-goals PocketBase figure fixed (the one PRE-EXISTING minor).

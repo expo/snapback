@@ -99,3 +99,73 @@ Overall, the core research diagnosis is largely sound: F1 is plausible but not l
 VERDICT 0314: NOT READY
 VERDICT 0314.000: NOT READY
 VERDICT SET: NOT READY
+
+## Round 2 — delta round on revision r2
+
+- Revision under review: commit
+  `fca941e42dde56d5dd6919f946b8b79ba222c294`
+  - 0314 sha256 `986225429eb6adbb5e284821fb3114210788004c0e3357f83b83c56bae72d5f1`
+  - 0314.000 sha256 `1d945547af72c73901ddc06a8cbcb24fd027af21b0aca3f15abcee6096b23945`
+- Capsule: `git archive` export of that commit with `llp/reviews/0314-*`
+  removed (structural exclusion of the targets' review artifacts) and the
+  enumerated delta `r2-delta.diff` (`235fabf28..fca941e42`) at the capsule
+  root. Runner confinement to the capsule directory is instruction-based and
+  SELF-ATTESTED. Instruction brief sha256
+  `6e5c0b7da5edebfbc46f6b37159c2a209a79badc9bf7512c2abc945a53b02697`.
+- Delta-round rules: every concern classified IN-DELTA vs PRE-EXISTING.
+- Runtime: both reviews returned at the ~32-minute poll tick.
+- Launch note: the first codex launch VOIDED on an infrastructure refusal
+  ("Not inside a trusted directory" — the capsule is not a git repository; no
+  review content was produced). Relaunched with `--skip-git-repo-check`;
+  effort header "ultra" confirmed in the run log. Second launch of the cap.
+- Result: **0314 NOT READY (1 MATERIAL, IN-DELTA), 0314.000 NOT READY
+  (4 MATERIAL, all IN-DELTA), SET NOT READY. No PRE-EXISTING MATERIAL
+  concern found** (reviewer's own statement).
+
+### Verbatim review body (round 2)
+
+## Findings
+
+1. **MATERIAL — IN-DELTA — LLP 0314, F3 (“The publish path does not use the production profile”).** The newly widened “whole manufacture graph” incorrectly includes `scripts/assemble-runtime-package` as evidence of public-package drift. That script is the contributor/source-checkout repair path: it intentionally builds `target/release/snapback` and invokes package preparation with `--source-test-staging --strict-clean-release`. LLP 0010, LLP 0041, and the CLI recovery path all preserve that custody. Conflating it with public manufacture directly leads to the defective Phase 1 prescription below. **Suggested fix:** divide F3 into public manufacture—the packer defaults, GitHub/EAS jobs, and `build-linux-runtime-release`—versus intentional source-repair custody. Remove `assemble-runtime-package` from the npm ship-profile evidence.
+
+2. **MATERIAL — IN-DELTA — LLP 0314.000, Phase 1 §§1a–1b.** Phase 1a explicitly moves `scripts/assemble-runtime-package` to production, while Phase 1b requires source-checkout custody to remain on ordinary release. The CLI hardcodes `target/release/snapback`, and this assembler is its named clean repair command. Retargeting it would produce/package a production artifact without repairing the binary that the linked CLI selects. **Suggested fix:** retain its ordinary-release build and pass an explicit release-binary override after packer defaults change, or create a separately named public-manufacture mode without altering contributor repair.
+
+3. **MATERIAL — IN-DELTA — LLP 0314.000, Phase 1 §§1a–1b and exit evidence.** The prescribed Linux workflow becomes unpassable. Today its sole release build creates `target/release/snapback`, issues its sibling receipt, and then `package.test.mjs` calls `resolveRuntimeBinary()` and requires that source-checkout release plus receipt. Phase 1a moves the only build and receipt paths to `target/production`, while Phase 1b explicitly preserves the release assertion. A clean job will therefore have no qualified release artifact for that test. **Suggested fix:** either build and receipt a separate ordinary-release artifact for the source-custody assertion, or split that assertion into a source lane and let the public-package lane test installed-package custody only.
+
+4. **MATERIAL — IN-DELTA — LLP 0314.000, Phase 2 “Pinned shape,” “Wiring inventory,” and “Build-graph split.”** The plan disables the only producer of the sidecar it proposes to ship. `crates/snapback-server/build.rs::emit_embedded_guide` alone creates `embedded-guide.v1.bin`, and only inside Cargo’s hashed `OUT_DIR`; `guide.rs` merely consumes it. Gating that function off for public builds leaves final assembly nothing to stage or seal. **Suggested fix:** extract a deterministic standalone encoder shared with contributor embedding; run it from the exact clean source revision in local and qualified final assembly; pin its output path, freshness checks, revision stamping, and native-transport/final-assembly handoff. Gate only Rust inclusion, not artifact production.
+
+5. **MATERIAL — IN-DELTA — LLP 0314.000, Phase 2 “Pinned shape,” “Wiring inventory,” and governance amendment.** The revised “closed” design stops at package carriage and never defines how the runtime locates, authenticates, and safely loads the sidecar.
+
+   - `guide.rs` currently uses unconditional `include_bytes!`; it has no filesystem branch or package-relative path.
+   - The admin analogy works only because `runtimeSpawnEnvironment` validates package custody and sets `SNAPBACK_ADMIN_DIST`; no corresponding Guide seam or direct-binary behavior is specified.
+   - The decoder checks `contentHash`, but LLP 0284 §3.7 explicitly says that hash does not bind individual pages, section flats, or non-`contentHash` manifest bytes. HTTP identity uses the binary commit while native/MCP identity reads the sidecar’s restamped manifest commit, so a same-content, wrong-revision sidecar can create contradictory identities unless the full seal tuple is enforced at load.
+   - A simple binary-input/package-input split is insufficient: contributor binaries still embed Guide bytes, whereas public binaries do not. Custody must be distribution-conditional, and LLP 0010’s packaged readiness artifact set must be amended to include the sidecar.
+   - External loading also needs total-size, record-count/length, regular-file/symlink, and read-once verification rules to preserve the promised bounded inert decoder.
+
+   **Suggested fix:** pin the exact member path and executable-relative or authenticated-environment discovery contract; define common, contributor-embedded, and public-package input closures; amend LLP 0010 readiness and repair semantics; validate full artifact SHA and source revision against binary/package identity before parsing immutable bytes; and test installed CLI, bare launch, HTTP, MCP, and native `snapback guide` across missing, tampered, oversized, and wrong-revision sidecars.
+
+6. **minor — IN-DELTA — LLP 0314.000, Phase 2 “Build-graph split” and expected outcome.** “Publish-path rebuild isolation” contradicts the decision to retain the content-derived Guide manifest as `include_str!`, and the text itself admits every Guide edit recompiles that unit. With nonincremental fat LTO, the production binary still relinks. **Suggested fix:** describe the benefit as reduced embedded/link payload, or externalize all Guide-derived binary inputs if true no-relink isolation is required.
+
+7. **minor — IN-DELTA — LLP 0314.000, Measurement and OQ3.** The plan mandates a publication-blocking validator but leaves the exact tolerance, initial-baseline bootstrap, update authority, and durable authorization record unresolved. It also names staging lanes rather than explicitly guarding the final immutable tarballs accepted by publication. **Suggested fix:** settle those policy fields before Phase 1 publication and invoke the shared validator over the exact closure at the final publication gate.
+
+8. **minor — IN-DELTA — LLP 0314.000, Phase 1c and OQ5.** “Profile + LTO recorded at build time” does not yet enumerate the complete normative recipe or its authority. A marker alone could reproduce the ordinary-release substitution problem; production also specifies `codegen-units = 1`, `incremental = false`, and now `strip = "symbols"`. **Suggested fix:** bind the attestation to the controlled Cargo command, toolchain/config digest, all normative profile fields, binary digest, and a policy forbidding relevant `CARGO_PROFILE_*` overrides.
+
+9. **minor — IN-DELTA — LLP 0314.000, Phase 1a closed inventory.** The inventory omits `scripts/packaged-store-qualification.mjs`, whose direct default still calls `target/release/snapback` the clean public-package binary, plus path-migration rows `s01-r013` and `s07-r004`. The qualified wrapper supplies an explicit binary, so this is not a core-lane blocker, but the direct entry point and frozen inventory become stale. **Suggested fix:** require an explicit staged binary or retarget the default, update its help/tests, and revise both omitted rows.
+
+10. **minor — IN-DELTA — LLP 0314 F6 and LLP 0314.000 Phase 3 item 2.** Both documents newly claim three normal-dependency `jsonschema` sites, including `snapback-types`. Its manifest places `jsonschema` under `[dev-dependencies]`; only `snapback-engine` and the umbrella `snapback` crate are normal-dependency sites. **Suggested fix:** correct both inventories and retain the Phase 0 ranking prerequisite.
+
+11. **minor — IN-DELTA — LLP 0314, F7.** The new `executable` label makes the PocketBase row factually inconsistent with retained capsule evidence: the official PocketBase 0.39.9 macOS-arm64 executable is recorded as 30 MiB, not approximately 13 MB. The table also lacks exact peer versions/assets. **Suggested fix:** use approximately 31.5 decimal MB for that executable, or relabel 13 MB as a precisely identified compressed asset, and retain versions and byte counts for every comparison.
+
+12. **minor — PRE-EXISTING — LLP 0314.000, Non-goals.** The unchanged “PocketBase (~13 MB)” statement carries the same incorrect executable comparison. **Suggested fix:** update it consistently with the corrected F7 record.
+
+13. **minor — IN-DELTA — LLP 0314.000, Phase 4.** A hosted `snapbackd` with “no Guide sidecar duty” cannot also preserve LLP 0061’s always-available HTTP Guide when hosted deployment ships only that daemon. Because this is explicitly a deferred RFC-sized option, it need not block the present plan. **Suggested fix:** state that the daemon retains HTTP Guide loading/validation while omitting CLI/MCP, or require the future RFC to amend LLP 0061.
+
+## Overall assessment
+
+The revised research still misclassifies contributor repair as public manufacture. LLP 0314 is therefore NOT READY because Finding 1 is MATERIAL and IN-DELTA.
+
+The plan’s Phase 1 custody inventories are mutually inconsistent, and Phase 2 lacks both a sidecar producer and an executable runtime custody design. LLP 0314.000 is therefore NOT READY because Findings 2–5 are MATERIAL and IN-DELTA. No PRE-EXISTING material concern was found.
+
+VERDICT 0314: NOT READY
+VERDICT 0314.000: NOT READY
+VERDICT SET: NOT READY

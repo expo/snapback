@@ -5,11 +5,14 @@
 **Systems:** Packaging, Build, Runtime, Distribution, Developer experience
 **Author:** Charlie Cheever / Grok
 **Date:** 2026-08-25
-**Revised:** 2026-08-25 (r2 — super-refine round 1 fold; units unified
-to decimal MB, F3 widened to the manufacture graph, F4 reframed on
-LLP 0061 §4a, F7 comparables dated and labeled)
+**Revised:** 2026-08-25 (r3 — round-2 delta fold: F3 split into public
+manufacture vs source-repair custody, F6 jsonschema sites corrected to
+the two normal-dep crates, F7 PocketBase row corrected to the
+executable. r2 — round-1 fold; units unified to decimal MB, F3 widened
+to the manufacture graph, F4 reframed on LLP 0061 §4a, F7 comparables
+dated and labeled)
 **Related:** LLP 0000, LLP 0010, LLP 0041, LLP 0061, LLP 0126, LLP 0141,
-LLP 0276, LLP 0314.000
+LLP 0276, LLP 0284, LLP 0314.000
 
 All sizes in this document are decimal (1 MB = 1,000,000 bytes) unless
 a table gives exact bytes.
@@ -162,14 +165,19 @@ copies `target/release/snapback` by default (env override
 pinned in `tests/ci_workflows_v0.mjs` is `cargo build --release --bin
 snapback` under `SNAPBACK_BUILD_DISTRIBUTION=public-package`.
 
-The miss is the whole manufacture graph, not one packer default: the
-Linux packer defaults the same way
+The miss is the whole **public manufacture** graph, not one packer
+default: the Linux packer defaults the same way
 (`SNAPBACK_RUNTIME_LINUX_X64_SOURCE_BINARY`),
 `.github/workflows/linux-runtime-package.yml` both builds `--release`
 and issues source receipts on `target/release/snapback`, both native
 jobs in `.eas/workflows/qualified-package-staging.yml` build
-`--release`, and `scripts/assemble-runtime-package` /
-`scripts/build-linux-runtime-release` do too.
+`--release`, and so does `scripts/build-linux-runtime-release`.
+Distinct from that graph, `scripts/assemble-runtime-package` also
+builds `--release` — but *intentionally*: it is the contributor
+source-checkout repair path (`--source-test-staging
+--strict-clean-release`), whose custody LLP 0010/0041 and the linked
+CLI deliberately keep on ordinary release. It is not ship-profile
+drift.
 
 So the npm binary is an incremental-friendly release link, not the
 fat-LTO image the architecture RFC named. That is packaging drift, not
@@ -240,9 +248,10 @@ telemetry recorder.
 Separately, the *default* graph always carries crates that are size-
 famous in Rust even when every call site is legitimate:
 
-- `jsonschema` on `snapback-engine` (Ask in `ask.rs`), on
-  `snapback-types`, and on the `snapback` crate itself (kernel’s copy
-  is dev-only);
+- `jsonschema` as a normal dependency on exactly two crates:
+  `snapback-engine` (Ask in `ask.rs`) and the `snapback` crate itself
+  (the kernel and `snapback-types` copies are `[dev-dependencies]`
+  only);
 - `schemars`;
 - `image` (jpeg/png) and `kamadak-exif` on services and the binary crate;
 - three password KDFs in kernel (`argon2`, `bcrypt`, `scrypt`);
@@ -268,7 +277,7 @@ rows are compressed downloads, not executables, so they under-read):
 
 | Neighbor | Kind | Darwin-arm64 size |
 |---|---|---|
-| PocketBase (Go, sqlite, auth, realtime, admin, files) | executable | ~13 MB |
+| PocketBase (Go, sqlite, auth, realtime, admin, files) | executable | ~30 MB (its compressed download is ~13 MB) |
 | Deno / Bun (includes a JS engine) | compressed archive | ~25–37 MB |
 | MinIO | executable | ~103 MB |
 | Meilisearch | executable | ~116 MB |

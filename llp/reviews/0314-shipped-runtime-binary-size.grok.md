@@ -239,3 +239,162 @@ Altitude: findings 1–9 and 12–14 are non-blocking. Findings 10 and 11 are MA
 - `VERDICT 0314: READY`
 - `VERDICT 0314.000: NOT READY`
 - `VERDICT SET: NOT READY`
+
+## Round 2 — delta round on revision r2
+
+- Revision under review: commit
+  `fca941e42dde56d5dd6919f946b8b79ba222c294`
+  - 0314 sha256 `986225429eb6adbb5e284821fb3114210788004c0e3357f83b83c56bae72d5f1`
+  - 0314.000 sha256 `1d945547af72c73901ddc06a8cbcb24fd027af21b0aca3f15abcee6096b23945`
+- Capsule: `git archive` export of that commit with `llp/reviews/0314-*`
+  removed (structural exclusion of the targets' review artifacts) and the
+  enumerated delta `r2-delta.diff` (`235fabf28..fca941e42`) at the capsule
+  root. Runner confinement to the capsule directory is instruction-based and
+  SELF-ATTESTED. Instruction brief sha256
+  `6e5c0b7da5edebfbc46f6b37159c2a209a79badc9bf7512c2abc945a53b02697`.
+- Delta-round rules: every concern classified IN-DELTA vs PRE-EXISTING.
+- Runtime: both reviews returned at the ~32-minute poll tick.
+- Result: **0314 NOT READY (1 MATERIAL, IN-DELTA), 0314.000 NOT READY
+  (3 MATERIAL, all IN-DELTA), SET NOT READY. No PRE-EXISTING MATERIAL
+  concern reported.**
+- Capture note: stdout preceded the review with brief progress narration,
+  preserved verbatim below.
+
+### Runner narration (verbatim, round 2)
+
+I'll review the full 0314 cluster and the r2 delta using only file-reading tools, then fact-check new claims against the capsule.I'll fact-check the delta's manufacture, custody, and Guide-carriage claims against the cited workflows, packers, and governing LLPs.Next I’ll open the manufacture-graph files and the governing LLP sections the delta newly cites.I have enough to judge the delta: the manufacture-graph rewrite is largely accurate, but a few closed inventories and the Phase 2 sidecar producer still don’t hold up against the capsule. Below is the self-contained review.
+
+### Verbatim review body (round 2)
+
+# Super-refine review: LLP 0314 cluster (delta round 2)
+
+Reviewed documents: `llp/0314-shipped-runtime-binary-size.research.md`, `llp/0314.000-reduce-shipped-runtime-size.plan.md`. Enumerated delta: `r2-delta.diff` (`235fabf28` → `fca941e42`). Capsule-checked against the workflows, packers, identity/seal machinery, `Cargo.toml` graphs, Guide embedder/decoder, path-migration manifest, and LLPs 0010, 0041, 0061, 0123, 0141, 0189, 0227, 0276, and 0284.
+
+## Findings
+
+### 1. MATERIAL, IN-DELTA — both docs (research F6; plan Phase 3 item 2)
+
+**Defect.** The r2 fold adds `snapback-types` as a third *normal* `jsonschema` site on the ship graph. That is false in this capsule.
+
+`crates/snapback-types/Cargo.toml` puts `jsonschema` under `[dev-dependencies]`, the same as `crates/snapback-kernel/Cargo.toml`. The production sites are only:
+
+- `crates/snapback-engine` (Ask)
+- `crates/snapback` (umbrella `[dependencies]`)
+
+Pre-delta F6 was right: engine + umbrella. The revision “widened” the inventory by grepping the crate without checking the section, then copied the error into Phase 3’s closed three-site list.
+
+**Why it matters.** F6’s license is “these are on the ship graph.” Phase 3 item 2 is a cut inventory an implementer will treat as closed. A phantom production dep is a correctness defect in a list this revision just rewrote as precise.
+
+**Fix.** State two normal-dep sites (engine, umbrella) and two already-dev-only sites (kernel, types). Do not send Phase 3 looking for a types production dep that is not there.
+
+---
+
+### 2. MATERIAL, IN-DELTA — plan, Phase 2 (pinned shape + build-graph split + wiring inventory)
+
+**Defect.** Phase 2 pins the sidecar as today’s closed-table `embedded-guide.v1.bin`, then gates `emit_embedded_guide` **and** the `cargo:rerun-if-changed=../../guide` walk **off** on the public-package path. `crates/snapback-server/build.rs` is the only producer of that artifact; `guide.rs` `include_bytes!`s `OUT_DIR/embedded-guide.v1.bin`. Turning the producer off without naming a replacement leaves nothing to stage.
+
+The rest of the new Phase 2 text does not close the hole:
+
+- No pack-time (or other) producer, invocation site, or output path.
+- No `cfg` on `include_bytes!`. If emit stops and the include stays, public-package builds fail.
+- No on-disk member path (admin is `admin/`; the Guide sidecar is unspecified).
+- No process discovery (binary-relative vs CLI-injected, analogous to `SNAPBACK_ADMIN_DIST`).
+- “Refuse to serve if missing” is not pinned against the admin seam this phase claims to mirror. Native-artifact staging omits admin (`--native-artifact-staging` → `adminConsoleRequired: false`); EAS Darwin tar is `bin Frameworks include runtime-readiness.json`; CV-2/`build-identity` run on that tree. If public-package process start requires the sidecar, staging qualification breaks. If only final assembly and guide routes fail closed, that must be said.
+
+LLP 0284 §3.7 currently requires consumption *only* through `include_bytes!`. Amending that is acknowledged; it does not substitute for a producer or a start-vs-route refusal rule.
+
+**Fix.** Pin one shared packer (extract `emit_embedded_guide` so build.rs and pack-time share it): public-package rustc does not `include_bytes!` the blob; the packer/final assembler still generates the same v1.bin at the same revision as the compiled-in manifest `contentHash`. Pin the member (e.g. `guide/embedded-guide.v1.bin` next to `admin/`). Pin discovery (package-relative, CLI-injected, fail closed — no cwd/`guide/` tree). Pin the admin seam: native-artifact-staging, CV-2, and `build-identity` succeed without the sidecar; final assembly and seal require it; a packaged process without it refuses Guide HTTP/MCP with a coded diagnostic, and does not panic the handler-VM probe. Carry the split into `scripts/runtime-build-inputs.txt` **consumers** (`crates/snapback-types/build_identity.rs` and the other listed dirty-probe users) so sidecar-only edits do not restamp binary identity.
+
+---
+
+### 3. MATERIAL, IN-DELTA — plan, Phase 1a (“closed” manufacture / pin inventory)
+
+**Defect.** 1a is offered as a closed producer/receipt/pin list. Against the capsule it is not closed.
+
+Present and correctly named: both packer defaults and env overrides, Linux workflow cargo + both `--binary …/target/release/snapback` paths (issue *and* verify), EAS `darwin_runtime` / `linux_runtime` cargo lines, `tests/ci_workflows_v0.mjs`’s two existing pins, `scripts/assemble-runtime-package`, `scripts/build-linux-runtime-release`, packer error strings, LLP 0041 / 0276 notes.
+
+Missing pins that will fire or silently aim at the wrong bytes:
+
+- **`scripts/path-migration-manifest.v1.json` `s07-r004`.** Another `verify-unchanged` row over `.github/workflows/linux-runtime-package.yml:78,85-93` (`cargo build --release --bin snapback; target/…`). 1a lists `s01-r005`, `s01-r024`, `s01-r025` and presents that as the verify-unchanged set. Changing the workflow without `s07-r004` fails the path-migration check.
+- **`s01-r013` / `scripts/packaged-store-qualification.mjs`.** Default public-package binary is `SNAPBACK_RUNTIME_BINARY` or `target/release/snapback`. After packers copy `target/production/snapback`, that default is the wrong artifact. The row is `verify-unchanged`; leaving it is a publication footgun, not a custody exception.
+
+**Fix.** Expand 1a to every `verify-unchanged` row whose `currentPathExpression` is the ship `--release` command or `target/release/snapback` as the public-package binary (at least `s07-r004` and `s01-r013`), and retarget the qualification default to the production path. Keep 1b’s source-checkout `target/release/snapback` exceptions explicit so those rows are not “fixed” by accident.
+
+---
+
+### 4. minor, IN-DELTA — plan, Phase 1c / OQ 5
+
+**Defect.** 1c correctly requires a build-time recipe fact (production + fat LTO) because `BinaryIdentity.build_profile` is only `debug`/`release` via `cfg!(debug_assertions)` (`crates/snapback-types/src/identity.rs`), and `assertRuntimePackageBuildIdentity` requires `release`. OQ 5 then frames the carrier as “new receipt field vs. seal line.” Those are ceremony documents. `SNAPBACK_BUILD_DISTRIBUTION` is already an honor-system compile env (`build_identity.rs`). A workflow-written seal line has the same spoof 1c is written to prevent.
+
+**Fix.** Authority is a rustc/cargo-derived stamp (Cargo `PROFILE` / equivalent, not a new env). `build-identity` emits it; receipts, seals, Linux attestation, ledgers, and assembly *copy* it. OQ 5 only chooses which documents persist the copy. Public-package assembly reads the fact from the bytes being packed.
+
+---
+
+### 5. minor, IN-DELTA — plan, Phase 1 Expected vs outcome table
+
+**Defect.** Phase 1 Expected still calls Darwin **~90–110 MB** a success “if LTO pays the top of the range,” while the rewritten table stacks conservative Phase 1 **~110–130** then Phase 1–2 **~90–110** (Guide relocation). 159 − ~35 strip − ~25 LTO ≈ 99, then Phase 2 − ~20 ≈ 80 — below the table’s 1–2 band. Planning ranges, not gates, but the success criterion is ambiguous.
+
+**Fix.** Keep the table as the stacked planning target. Treat Phase 1 ~90–110 as an LTO upside, not a second success line that Phase 2 also claims.
+
+---
+
+### 6. minor, IN-DELTA — plan, Phase 1d strip policy vs Phase 0
+
+**Defect.** Phase 0 measures `strip -x` (Darwin non-global symbols). Phase 1d pins Cargo `[profile.production] strip = "symbols"`. Those are not the same operation; `symbols` is closer to `strip -s`. The “keep dynsyms Hermes loading needs” caveat is right (dyld/`LC_LOAD_DYLIB` / `.dynsym` vs local `LC_SYMTAB`) but untested here.
+
+**Fix.** Phase 0 and Phase 1d use the same strip policy, or Phase 0 records both. Confirm a production-stripped Darwin binary still loads `hermesvm.framework` and Linux still loads `libhermesvm.so` before sealing.
+
+---
+
+### 7. minor, IN-DELTA — research, Related
+
+**Defect.** F4 now depends on LLP 0284 (inert artifact, committed decoder, directly-included manifest). Related added 0061 but not 0284.
+
+**Fix.** Add LLP 0284 to Related.
+
+---
+
+### 8. minor, IN-DELTA — plan, Phase 2 wiring inventory wording
+
+**Defect.** The “closed list” includes “EAS Darwin tar member list and Linux native-artifact transport” *and* “mirror admin: added at final assembly.” Admin is not on the Darwin tar. If the sidecar follows admin, those native transports must **not** gain the member; final assembly and `packagedRuntimeArtifactCandidates` must. As written, an implementer can add it in both places or neither.
+
+**Fix.** One sentence: native tars stay as they are (binary/Hermes/header); sidecar is a final-assembly member like `admin/`, required by `files`, `swapStagedAssembly`, and seal candidates when `adminConsoleRequired` would be true.
+
+---
+
+### 9. minor, PRE-EXISTING (prose refreshed IN-DELTA) — research F2 / Evidence
+
+**Defect.** F2 is still a one-off `size`/`otool` of a staged 0.1.27 Darwin binary. r2 honestly says the binary is not in the checkout and asks future snapshots to keep digest + raw output. The table remains unreproducible from the capsule.
+
+**Fix.** Already the right request: land digest + `size`/`otool` (and Linux `readelf`) with Phase 0. No further design change.
+
+---
+
+## What the r2 fold got right (not findings)
+
+Checked and holding:
+
+- Decimal MB unification matches the evidence-table bytes (`186,720,037` → ~187; `248,155,233` → ~248; `__text` 67,409,876 → ~67 MB).
+- F3’s manufacture graph matches the capsule: both packers default to `target/release/snapback`; Linux GHA builds `--release` and receipts that path; both EAS native jobs build `--release`; `assemble-runtime-package` and `build-linux-runtime-release` do too. `tests/ci_workflows_v0.mjs` does **not** currently pin the EAS cargo strings; the plan’s “pin them when changed” is accurate.
+- F4’s 0061 §4a / OQ3 reframing matches the RFC (embedded-in-binary, always served; original ~130 KiB). `guide.rs` does `include_str!` the committed manifest and hash-matches the blob. 0284 §3.7 matches the inert-decoder story. Carriage change is an amendment, not drift.
+- 1b source-checkout exceptions match `packages/snapback-cli/index.mjs` (`target/release/snapback`, `cargo build --release`) and the Linux `package.test.mjs` assertion. Do not retarget those.
+- 1c’s `buildProfile` trap is real; do not emit `production` into that field this phase.
+- 1d pre-receipt Cargo strip is the right digest discipline (Linux GHA issues a source receipt on the pre-pack file; packer-after-seal strip would desync).
+- Outcome table no longer double-counts Guide: Phase 2 moves bytes from the Mach-O into package files; unpacked/tarball stay roughly flat. Arithmetic holds (187 − 159 = 28 non-binary; 110–130 + 28 = 140–160; 90–110 + 28 + 20 ≈ 140–160).
+- Phase 3 demotions match the tree: LLP 0227 requires bounded bcrypt/scrypt verify + upgrade-on-verify; `catch_unwind` is load-bearing in `commit_capsule.rs` / writer gates; a single npm binary cannot feature-gate `image`/exif per install.
+- 0141’s crates.io 10 MB line is the immediate blocker; path deps, Hermes carriage, loader custody, and publication metadata are real additional blockers (0141 D6). Shrinking `__text` does not make a crates.io server crate viable.
+- 0189 D-4 applied to a ship-path size baseline (own drift coverage, not a claim digest; publication-only validator; not a landing veto) is the right cadence.
+
+The research is now a coherent diagnosis. The plan is much closer to implementable than a “flip the packer default” sketch. It is not yet a closed manufacture + carriage plan.
+
+## Overall assessment
+
+r2 did the work the documents needed: units, 0061 honesty, manufacture-graph width, Phase 1 inventories and attestation, Phase 2 as a governed amendment, outcome-table math, and the KDF/assets/panic demotions. Remaining MATERIAL issues are all introduced or locked in by that fold: a false `jsonschema` site, a Phase 2 sidecar with the producer switched off, and a Phase 1a “closed” pin list that omits at least one verify-unchanged row (and a publication-binary default) the landing will hit.
+
+Those are small, local edits — not a new design. Until they are in the text, an implementer can still ship a spoofable “production” ceremony, fail path-migration, or take the Guide embedder out of rustc with nothing to put in the tarball.
+
+---
+
+- `VERDICT 0314: NOT READY` — MATERIAL finding 1 (IN-DELTA).
+- `VERDICT 0314.000: NOT READY` — MATERIAL findings 1, 2, and 3 (all IN-DELTA).
+- `VERDICT SET: NOT READY` — both documents have unresolved MATERIAL concerns (findings 1–3).
