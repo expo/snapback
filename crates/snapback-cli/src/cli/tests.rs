@@ -2704,39 +2704,68 @@ fn declared_restore_telemetry_rotates_only_for_applied_and_preserves_replay_boot
 }
 
 #[tokio::test]
-#[cfg(not(feature = "cli-owner"))]
 async fn physical_restore_is_quarantined_until_exact_prebind_declaration() {
     let directory = tempfile::tempdir().unwrap();
     let source_database = directory.path().join("source.sqlite3");
     let mut database = crate::storage::LocalDatabase::open(&source_database).unwrap();
-    let keyring = crate::auth::keyring::AuthKeyringStore::file_for_database(&source_database);
+    let keyring = std::sync::Arc::new(crate::auth::keyring::AuthKeyringStore::file_for_database(
+        &source_database,
+    ));
+    let now_ms = 1_700_000_000_000;
     crate::auth::lifecycle::activate_catalog(
         &mut database,
-        &keyring,
-        1_700_000_000_000,
+        keyring.as_ref(),
+        now_ms,
         &crate::auth::crypto::OsRandom,
     )
     .unwrap();
-    let key_id = keyring
-        .with_active_key(
-            1_700_000_000_000,
-            &crate::auth::crypto::OsRandom,
-            |id, _| id.as_str().to_owned(),
+    let provider = std::sync::Arc::new(
+        crate::auth::provider::AuthProvider::new(
+            crate::contract_types::AuthProviderProfile::Test,
+            std::sync::Arc::clone(&keyring),
+        )
+        .unwrap(),
+    );
+    let planned = provider
+        .plan_guest_session(
+            &mut database,
+            now_ms,
+            2_000,
+            crate::auth::throttle::RollingWindowBudgetTerms {
+                limit: 10,
+                window_ms: 1_000,
+            },
+            "restore-cli-production-session",
+            "restore-cli-test-app",
+            "restore-cli-test-deployment",
+            &format!("sha256:{}", "a".repeat(64)),
+            crate::auth::provider::PasswordIssuanceCustody::Bearer,
         )
         .unwrap();
-    let user_id = uuid::Uuid::now_v7().to_string();
-    let identity_id = uuid::Uuid::now_v7().to_string();
-    let session_id = uuid::Uuid::now_v7().to_string();
-    let authority_instance_id = uuid::Uuid::now_v7().to_string();
-    database
-        .auth_catalog()
-        .insert_restore_cli_fixture_for_test(
-            &user_id,
-            &identity_id,
-            &session_id,
-            &authority_instance_id,
-            &key_id,
-        )
+    let crate::auth::provider::ProviderGuestSessionPlan::Planned(plan) = planned else {
+        panic!("fresh restore fixture must plan a production guest session");
+    };
+    let attempt = provider.commit_guest_issuance(&mut database, &plan.commit_plan());
+    let crate::storage::auth::AuthTransactionAttempt::Committed(
+        crate::auth::provider::PlannedIssuanceCommit::Committed {
+            session,
+            committed_revocations,
+        },
+    ) = attempt
+    else {
+        panic!("production restore guest session must commit");
+    };
+    let session_id = plan
+        .into_issue(session, committed_revocations)
+        .response()
+        .session
+        .id
+        .clone();
+    provider
+        .admit_email("restore-cli@example.test")
+        .await
+        .unwrap()
+        .request_code(&mut database, now_ms)
         .unwrap();
     drop(database);
 
@@ -2768,6 +2797,7 @@ async fn physical_restore_is_quarantined_until_exact_prebind_declaration() {
     let missing = super::run(Args {
         host: "127.0.0.1".to_owned(),
         port: Some(0),
+        port_range: None,
         db: restored_database.clone(),
         memory: false,
         hosted_edge: None,
@@ -2794,6 +2824,7 @@ async fn physical_restore_is_quarantined_until_exact_prebind_declaration() {
     let server = tokio::spawn(super::run(Args {
         host: "127.0.0.1".to_owned(),
         port: Some(0),
+        port_range: None,
         db: restored_database.clone(),
         memory: false,
         ready_file: Some(ready.clone()),
