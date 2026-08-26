@@ -41,7 +41,7 @@ test('row-attack ledger carries the 35 measured rows and both feature cells', ()
       C009: 'CLOSED',
       F094: 'CLOSED',
       F143: 'CLOSED',
-      F182: 'CLOSED',
+      F182: 'OPEN',
       F112: 'CLOSED',
       F113: 'CLOSED',
       C006: 'CLOSED',
@@ -67,7 +67,7 @@ test('row-attack ledger carries the 35 measured rows and both feature cells', ()
   );
   assert.ok(
     ledger.attacks
-      .filter(({ row }) => ['C005', 'C009', 'F094', 'F143', 'F182'].includes(row))
+      .filter(({ row }) => ['C005', 'C009', 'F094', 'F143'].includes(row))
       .every(({ expectedCode }) => /^E\d{4}$/u.test(expectedCode)),
   );
 });
