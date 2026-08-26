@@ -64,6 +64,15 @@ async function eventually(check, { timeoutMs = 20_000, label = 'condition' } = {
   throw new Error(`timed out waiting for ${label}${lastError ? `: ${lastError.message}` : ''}`);
 }
 
+function processAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Collects the snapback.dev.v1 JSON-line event stream from the dev process
 // stdout. `mark()` + `waitFor(..., { from })` scope each wait to events that
 // arrive after the action that should cause them.
@@ -116,6 +125,7 @@ const root = realpathSync(mkdtempSync(join(tmpdir(), 'snapback-dev-loop-')));
 let dev = null;
 let clientPid = null;
 const readyFile = join(root, 'todo-contract', '.snapback', 'dev.ready.json');
+const displacedReadyFile = `${readyFile}.before-close-corruption`;
 try {
   const project = join(root, 'todo-contract');
   assert.equal(scaffoldApp(project).ok, true);
@@ -607,11 +617,32 @@ console.log(JSON.stringify({ event: 'client-listening', origin: 'http://127.0.0.
   assert.equal(healthAfterEof.ok, true, 'managed backend must remain healthy after stdin EOF');
   console.log('stdin EOF closes only the control channel; dev and both managed arms remain live');
 
-  // --- clean signal shutdown tears down both arms ----------------------------
+  // Terminal cleanup must reclaim the exact owned backend even when native
+  // nonce validation can no longer use the application-visible ready file.
+  // The native refusal remains visible, but it must not strand the child or
+  // its inherited stderr handle and leave this CLI hanging forever.
+  const backendPidBeforeCorruptClose = JSON.parse(readFileSync(readyFile, 'utf8')).pid;
+  renameSync(readyFile, displacedReadyFile);
+  writeFileSync(readyFile, '{corrupt ready descriptor\n');
+  const closeOutcome = new Promise((resolveExit) => {
+    dev.once('close', (code, signal) => resolveExit({ code, signal }));
+  });
   dev.kill('SIGTERM');
-  const exitCode = await new Promise((resolveExit) => dev.once('exit', resolveExit));
-  assert.equal(exitCode, 0, `snapback dev must exit cleanly; stderr tail: ${stream.stderr.slice(-2_000)}`);
+  const { code: exitCode, signal: exitSignal } = await Promise.race([
+    closeOutcome,
+    new Promise((_, rejectExit) => setTimeout(
+      () => rejectExit(new Error('snapback dev hung after its native stop refused a corrupt ready file')),
+      15_000,
+    )),
+  ]);
+  assert.equal(exitSignal, null);
+  assert.equal(exitCode, 1, `native stop refusal must fail visibly; stderr tail: ${stream.stderr.slice(-2_000)}`);
+  assert.match(stream.stderr, /SNAPBACK_DEV_SERVER_STOP_FAILED/u);
   dev = null;
+  await eventually(
+    () => !processAlive(backendPidBeforeCorruptClose),
+    { label: 'owned backend fallback teardown after native stop refusal' },
+  );
   await eventually(async () => {
     try {
       await fetch(`${status3.server.serverUrl}/health`);
@@ -628,8 +659,11 @@ console.log(JSON.stringify({ event: 'client-listening', origin: 'http://127.0.0.
       return true;
     }
   }, { label: 'client arm teardown' });
+  rmSync(readyFile, { force: true });
+  rmSync(displacedReadyFile, { force: true });
   await eventually(() => !existsSync(readyFile), { label: 'ready-file cleanup' });
-  console.log('dev-loop.test.mjs: client arm, verb slice (status/reload/restart), live edits, and clean shutdown pass');
+  console.log('corrupt ready-file close: coded native refusal reported; exact owned backend and client reclaimed');
+  console.log('dev-loop.test.mjs: client arm, verb slice (status/reload/restart), live edits, and fail-visible fallback shutdown pass');
 } finally {
   if (dev && dev.exitCode === null) dev.kill('SIGKILL');
   if (clientPid !== null) {
@@ -643,6 +677,10 @@ console.log(JSON.stringify({ event: 'client-listening', origin: 'http://127.0.0.
   }
   // Never leave a native server holding the temp database (the stale-server
   // trap): stop it via the nonce-verified native path if it survived.
+  if (existsSync(displacedReadyFile)) {
+    rmSync(readyFile, { force: true });
+    renameSync(displacedReadyFile, readyFile);
+  }
   if (existsSync(readyFile)) {
     const { native } = await import('./index.mjs');
     native(runtimeBinary, ['stop', '--ready-file', readyFile], { env: process.env });

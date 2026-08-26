@@ -6345,18 +6345,29 @@ export async function runDev(options = {}) {
     descriptor,
     managed ? null : { source: 'attached', declaredBy: null },
   );
-  const closeManaged = async () => {
+  const closeManaged = async ({ allowNativeStopRetry = false } = {}) => {
     try {
       if (managed && child?.exitCode === null) {
-        requireNativeSuccess(
-          native(runtime.binary, ['stop', '--ready-file', readyFile], {
-            cwd: projectRoot,
-            env: options.env,
-          }),
-          'SNAPBACK_DEV_SERVER_STOP_FAILED',
-          'managed dev server stop',
-        );
+        let nativeStopFailure = null;
+        try {
+          requireNativeSuccess(
+            native(runtime.binary, ['stop', '--ready-file', readyFile], {
+              cwd: projectRoot,
+              env: options.env,
+            }),
+            'SNAPBACK_DEV_SERVER_STOP_FAILED',
+            'managed dev server stop',
+          );
+        } catch (error) {
+          nativeStopFailure = error;
+          if (allowNativeStopRetry) throw error;
+        }
+        // Terminal close and startup abort own this exact child handle. A
+        // missing, replaced, or malformed public ready file must keep the
+        // nonce-verified native refusal visible without stranding that owned
+        // process group (and its inherited pipe handles) behind the throw.
         await stopProcessGroup(child);
+        if (nativeStopFailure !== null) throw nativeStopFailure;
       }
     } finally {
       if (managed) removeApplicationReadyReceipt();
@@ -6454,6 +6465,7 @@ export async function runDev(options = {}) {
   let closePrepared = false;
   let closeSucceeded = false;
   let closeAttempt = null;
+  let closeAttemptAllowsNativeStopRetry = false;
   let clientClosePromise = null;
   let restarting = false;
   let queuedFilename = null;
@@ -7078,6 +7090,45 @@ export async function runDev(options = {}) {
     }
   });
 
+  const closeDevLoop = (allowNativeStopRetry) => {
+    if (closeSucceeded) return Promise.resolve();
+    if (closeAttempt !== null) {
+      if (allowNativeStopRetry || !closeAttemptAllowsNativeStopRetry) return closeAttempt;
+      const retryAttempt = closeAttempt;
+      // A terminal close racing an Expo stop-children retry must escalate
+      // after the retryable native refusal instead of inheriting its retained
+      // child. The terminal caller then performs the exact-child fallback.
+      return (async () => {
+        try { await retryAttempt; } catch { /* terminal escalation reports its own attempt */ }
+        if (closeSucceeded) return;
+        if (closeAttempt === retryAttempt) closeAttempt = null;
+        return closeDevLoop(false);
+      })();
+    }
+    if (!closePrepared) {
+      closed = true;
+      if (managed) removeApplicationReadyReceipt();
+      clearTimeout(timer);
+      watcher.close();
+      clientClosePromise = Promise.resolve().then(() => closeClientArm());
+      closePrepared = true;
+    }
+    const attempt = (async () => {
+      await clientClosePromise;
+      await closeManaged({ allowNativeStopRetry });
+      closeSucceeded = true;
+    })();
+    closeAttempt = attempt;
+    closeAttemptAllowsNativeStopRetry = allowNativeStopRetry;
+    void attempt.finally(() => {
+      if (closeAttempt === attempt) {
+        closeAttempt = null;
+        closeAttemptAllowsNativeStopRetry = false;
+      }
+    }).catch(() => {});
+    return attempt;
+  };
+
   return {
     ...result,
     get serverUrl() { return descriptor.serverUrl; },
@@ -7092,30 +7143,11 @@ export async function runDev(options = {}) {
       restart: restartVerb,
       'dev-fresh': devFreshVerb,
     },
-    close() {
-      if (closeSucceeded) return Promise.resolve();
-      if (closeAttempt !== null) return closeAttempt;
-      if (!closePrepared) {
-        closed = true;
-        if (managed) removeApplicationReadyReceipt();
-        clearTimeout(timer);
-        watcher.close();
-        clientClosePromise = Promise.resolve().then(() => closeClientArm());
-        closePrepared = true;
-      }
-      // Preparation is one-shot, but a custody refusal from closeManaged is
-      // retryable after the ready-file owner is restored or reconciled.
-      const attempt = (async () => {
-        await clientClosePromise;
-        await closeManaged();
-        closeSucceeded = true;
-      })();
-      closeAttempt = attempt;
-      void attempt.finally(() => {
-        if (closeAttempt === attempt) closeAttempt = null;
-      }).catch(() => {});
-      return attempt;
-    },
+    close() { return closeDevLoop(false); },
+    // Expo stop-children is the sole non-terminal close: a native custody
+    // refusal leaves the exact backend alive so the owner-bound control plane
+    // can report the coded failure and accept a repaired retry.
+    closeForExpoStopChildren() { return closeDevLoop(true); },
   };
 }
 

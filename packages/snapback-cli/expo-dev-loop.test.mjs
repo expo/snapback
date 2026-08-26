@@ -725,7 +725,13 @@ async function sendControlCommand(controlSocket, command) {
   return await operation.completion;
 }
 
-async function sendHttpControl(supervisorDescriptor, operatorToken, verb, requestId) {
+async function sendHttpControl(
+  supervisorDescriptor,
+  operatorToken,
+  verb,
+  requestId,
+  { origin = null } = {},
+) {
   const response = await fetch(
     `${supervisorDescriptor.exchangeOrigin}${supervisorDescriptor.controlPath}`,
     {
@@ -733,11 +739,16 @@ async function sendHttpControl(supervisorDescriptor, operatorToken, verb, reques
       headers: {
         'content-type': 'application/json',
         'x-snapback-operator-token': operatorToken,
+        ...(origin === null ? {} : { origin }),
       },
       body: JSON.stringify({ verb, requestId }),
     },
   );
-  return Object.freeze({ status: response.status, body: await response.json() });
+  return Object.freeze({
+    status: response.status,
+    headers: response.headers,
+    body: await response.json(),
+  });
 }
 
 async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
@@ -1279,9 +1290,15 @@ async function runHttpControlE1Suite() {
       'wrong-operator-token',
       'reload-metro',
       'http-unauthorized-1',
+      { origin: 'http://127.0.0.1:19006' },
     );
     assert.equal(unauthorized.status, 401);
     assert.equal(unauthorized.body.code, 'SNAPBACK_EXPO_CONTROL_UNAUTHORIZED');
+    assert.equal(
+      unauthorized.headers.get('access-control-allow-methods'),
+      null,
+      'the native operator-control POST must not inherit bootstrap GET CORS methods',
+    );
 
     const unknown = await sendHttpControl(
       supervisorDescriptor,
@@ -1960,6 +1977,71 @@ async function runControlSocketSuite() {
 async function runNoTokenCarrierRefusalSuite() {
   const root = mkdtempSync('/tmp/sbnotoken-');
   try {
+    const secureTarget = fixture('secure-no-token-project', { sessions: true, root });
+    chmodSync(secureTarget.projectRoot, 0o700);
+    mkdirSync(secureTarget.stateRoot, { recursive: true, mode: 0o700 });
+    chmodSync(secureTarget.stateRoot, 0o700);
+    let removedTokenFile = null;
+    const secureRun = await startFixture(secureTarget, {
+      platform: 'web',
+      controlSocket: true,
+      requireControlCarrier: true,
+      stdinControl: {
+        available: false,
+        kind: 'empty-regular-file',
+        reason: 'stdin regular file reached EOF before control-channel startup',
+      },
+      beforeReadinessPublish() {
+        const descriptor = JSON.parse(readFileSync(secureTarget.readyFile, 'utf8'));
+        removedTokenFile = descriptor.adminTokenFile;
+        delete descriptor.adminTokenFile;
+        writeFileSync(secureTarget.readyFile, `${JSON.stringify(descriptor, null, 2)}\n`);
+        if (typeof removedTokenFile === 'string') rmSync(removedTokenFile, { force: true });
+      },
+    });
+    try {
+      const supervisorDescriptorPath = join(
+        dirname(secureTarget.readyFile),
+        'expo-supervisor.json',
+      );
+      const supervisorDescriptor = JSON.parse(readFileSync(supervisorDescriptorPath, 'utf8'));
+      const controlSocket = secureRun.supervisor.controlSocket;
+      assert.equal(managedAdminToken(readReadyDescriptor(secureTarget.readyFile), secureTarget.database), null);
+      assert.equal(typeof removedTokenFile === 'string' && existsSync(removedTokenFile), false);
+      assert.deepEqual(supervisorDescriptor.controlSocket, controlSocket);
+      assert.equal(controlSocket?.schemaVersion, 'snapback.dev-control.v1');
+
+      const httpRefusal = await sendHttpControl(
+        supervisorDescriptor,
+        'removed-token-carrier',
+        'reload-metro',
+        'no-token-http-refusal',
+      );
+      assert.equal(httpRefusal.status, 401);
+      assert.equal(httpRefusal.body.code, 'SNAPBACK_EXPO_CONTROL_UNAUTHORIZED');
+
+      const initialMetroPid = supervisorDescriptor.metro.pid;
+      const reload = await sendControlCommand(
+        controlSocket,
+        controlCommand(controlSocket, 'reload-metro', 'no-token-socket-reload'),
+      );
+      assert.equal(reload.length, 2, JSON.stringify(reload));
+      assert.equal(reload[1].ok, true, JSON.stringify(reload));
+      assert.equal(reload[1].result?.requestId, 'no-token-socket-reload');
+      assert.equal(reload[1].result?.previousPid, initialMetroPid);
+      assert.notEqual(reload[1].result?.pid, initialMetroPid);
+      assert.equal(processGroupAlive(initialMetroPid), false);
+      assert.equal(processGroupAlive(reload[1].result?.pid), true);
+      assert.equal(
+        JSON.parse(readFileSync(supervisorDescriptorPath, 'utf8')).metro.pid,
+        reload[1].result?.pid,
+      );
+      console.log('no-token carrier: secure owner socket publishes and correlated reload-metro works while HTTP refuses');
+    } finally {
+      await secureRun.supervisor.close().catch(() => {});
+      supervisors.splice(supervisors.indexOf(secureRun.supervisor), 1);
+    }
+
     const target = fixture('group-writable-no-token-project', { sessions: true, root });
     chmodSync(target.projectRoot, 0o775);
     mkdirSync(target.stateRoot, { recursive: true, mode: 0o700 });

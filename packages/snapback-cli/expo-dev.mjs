@@ -2969,6 +2969,14 @@ export async function startBootstrapExchange(
       return;
     }
     if (request.method === 'POST' && request.url === SUPERVISED_CONTROL_PATH) {
+      // This route is owner-process-facing, never browser-facing. Remove the
+      // bootstrap GET's loopback CORS projection before every control
+      // response, including authentication and route-availability refusals.
+      response.removeHeader('access-control-allow-origin');
+      response.removeHeader('access-control-allow-methods');
+      response.removeHeader('access-control-allow-headers');
+      response.removeHeader('access-control-max-age');
+      response.removeHeader('vary');
       if (typeof onControl !== 'function') {
         response.statusCode = 404;
         response.end(JSON.stringify({ ok: false, code: 'SNAPBACK_EXPO_BOOTSTRAP_ROUTE_NOT_FOUND' }));
@@ -4582,7 +4590,7 @@ export async function runExpoDev(options = {}) {
         backendControlStopAttempted = true;
         backendControlClosing = true;
         try {
-          await dev?.close?.();
+          await (dev?.closeForExpoStopChildren?.() ?? dev?.close?.());
           backendControlClosed = true;
         } catch (error) { recordFailure(error, 'backend child'); } finally {
           backendControlClosing = false;
