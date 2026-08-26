@@ -1,8 +1,11 @@
 {
   "format": "snapback.delta-semantics.case.v1",
-  "name": "window-backward-order",
+  "name": "window-backward-tail-competition",
   "coverage": [
-    "window"
+    "window",
+    "backward",
+    "tail-competition",
+    "read-maintain"
   ],
   "operator": {
     "form": "window",
@@ -58,8 +61,8 @@
       "rowKey": "b"
     },
     "resultCount": 2,
-    "complete": true,
-    "label": "complete",
+    "complete": false,
+    "label": "incomplete",
     "continuation": {
       "values": [
         2
@@ -70,20 +73,51 @@
   "foldedChangeBatch": {
     "entries": [
       {
-        "rowKey": "d",
+        "rowKey": "c",
+        "op": "delete",
+        "admit": "leave",
+        "rankKeys": []
+      },
+      {
+        "rowKey": "a",
         "op": "insert",
         "admit": "enter",
         "postImage": {
-          "_id": "d",
-          "rank": 4
+          "_id": "a",
+          "rank": 1
         },
         "rankKeys": [
-          4
+          1
         ]
       }
     ]
   },
-  "readTranscript": [],
+  "readTranscript": [
+    {
+      "request": {
+        "kind": "tail",
+        "window": "root",
+        "boundary": {
+          "values": [
+            2
+          ],
+          "rowKey": "b"
+        },
+        "k": 1,
+        "labelOnly": false
+      },
+      "response": {
+        "kind": "tail",
+        "rows": [
+          {
+            "_id": "x",
+            "rank": 1.5
+          }
+        ],
+        "exhausted": true
+      }
+    }
+  ],
   "expected": {
     "verdict": "Maintain",
     "deltaOut": {
@@ -92,23 +126,23 @@
           "op": "splice-out",
           "sortKey": {
             "values": [
-              2
+              3
             ],
-            "rowKey": "b"
+            "rowKey": "c"
           },
-          "rowKey": "b"
+          "rowKey": "c"
         },
         {
           "op": "splice-in",
           "sortKey": {
             "values": [
-              4
+              1.5
             ],
-            "rowKey": "d"
+            "rowKey": "x"
           },
           "row": {
-            "_id": "d",
-            "rank": 4
+            "_id": "x",
+            "rank": 1.5
           }
         }
       ]
@@ -116,46 +150,46 @@
     "nextState": {
       "rows": [
         {
-          "rowKey": "d",
+          "rowKey": "b",
           "rankKeys": {
             "values": [
-              4
+              2
             ],
-            "rowKey": "d"
+            "rowKey": "b"
           },
           "row": {
-            "_id": "d",
-            "rank": 4
+            "_id": "b",
+            "rank": 2
           }
         },
         {
-          "rowKey": "c",
+          "rowKey": "x",
           "rankKeys": {
             "values": [
-              3
+              1.5
             ],
-            "rowKey": "c"
+            "rowKey": "x"
           },
           "row": {
-            "_id": "c",
-            "rank": 3
+            "_id": "x",
+            "rank": 1.5
           }
         }
       ],
       "boundary": {
         "values": [
-          3
+          1.5
         ],
-        "rowKey": "c"
+        "rowKey": "x"
       },
       "resultCount": 2,
       "complete": false,
       "label": "incomplete",
       "continuation": {
         "values": [
-          3
+          1.5
         ],
-        "rowKey": "c"
+        "rowKey": "x"
       }
     }
   }

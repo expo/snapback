@@ -1,10 +1,9 @@
 {
   "format": "snapback.delta-semantics.case.v1",
-  "name": "lookup-delete-insert-same-key-net-found",
+  "name": "lookup-child-rekey-old-leaves-new-arrives",
   "coverage": [
     "lookup",
-    "whole-batch",
-    "presence"
+    "rekey"
   ],
   "operator": {
     "form": "keyed-lookup",
@@ -16,7 +15,7 @@
       "childJoinFields": [
         "join"
       ],
-      "presence": "required",
+      "presence": "optional",
       "projectionFields": [
         "name"
       ]
@@ -24,13 +23,21 @@
   },
   "initialState": {
     "scopes": {
-      "p1": {
+      "old": {
         "lookupKey": [
           "j1"
         ],
         "childKey": "c1",
         "found": true,
         "rowVersion": 1
+      },
+      "new": {
+        "lookupKey": [
+          "j2"
+        ],
+        "childKey": null,
+        "found": false,
+        "rowVersion": null
       }
     },
     "children": {
@@ -38,7 +45,7 @@
         "_id": "c1",
         "_version": 1,
         "join": "j1",
-        "name": "old"
+        "name": "moving"
       }
     }
   },
@@ -50,19 +57,13 @@
       "entries": [
         {
           "rowKey": "c1",
-          "op": "delete",
-          "admit": "leave",
-          "rankKeys": []
-        },
-        {
-          "rowKey": "c2",
-          "op": "insert",
-          "admit": "enter",
+          "op": "update",
+          "admit": "stay-in",
           "postImage": {
-            "_id": "c2",
+            "_id": "c1",
             "_version": 2,
-            "join": "j1",
-            "name": "replacement"
+            "join": "j2",
+            "name": "moved"
           },
           "rankKeys": []
         }
@@ -76,31 +77,43 @@
       "ops": [
         {
           "kind": "presence",
-          "scope": "p1",
-          "childKey": "c2",
+          "scope": "new",
+          "childKey": "c1",
           "value": {
-            "name": "replacement"
+            "name": "moved"
           }
+        },
+        {
+          "kind": "presence",
+          "scope": "old"
         }
       ]
     },
     "nextState": {
       "scopes": {
-        "p1": {
+        "new": {
+          "lookupKey": [
+            "j2"
+          ],
+          "childKey": "c1",
+          "found": true,
+          "rowVersion": 2
+        },
+        "old": {
           "lookupKey": [
             "j1"
           ],
-          "childKey": "c2",
-          "found": true,
-          "rowVersion": 2
+          "childKey": null,
+          "found": false,
+          "rowVersion": null
         }
       },
       "children": {
-        "c2": {
-          "_id": "c2",
+        "c1": {
+          "_id": "c1",
           "_version": 2,
-          "join": "j1",
-          "name": "replacement"
+          "join": "j2",
+          "name": "moved"
         }
       }
     }

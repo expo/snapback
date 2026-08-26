@@ -1,9 +1,10 @@
 {
   "format": "snapback.delta-semantics.case.v1",
-  "name": "support-same-scope-delete-insert-fold",
+  "name": "support-leave-on-already-false-no-probe",
   "coverage": [
     "support",
-    "batch-fold"
+    "provability",
+    "parent-arm"
   ],
   "operator": {
     "form": "support-semi-join",
@@ -27,13 +28,26 @@
         "joinKey": [
           "j1"
         ],
+        "bit": false
+      },
+      "p2": {
+        "joinKey": [
+          "j2"
+        ],
         "bit": true
       }
     }
   },
   "foldedChangeBatch": {
     "parent": {
-      "entries": []
+      "entries": [
+        {
+          "rowKey": "p2",
+          "op": "delete",
+          "admit": "leave",
+          "rankKeys": []
+        }
+      ]
     },
     "support": {
       "entries": [
@@ -44,16 +58,6 @@
           "rankKeys": [
             "j1"
           ]
-        },
-        {
-          "rowKey": "m2",
-          "op": "insert",
-          "admit": "enter",
-          "postImage": {
-            "_id": "m2",
-            "join": "j1"
-          },
-          "rankKeys": []
         }
       ]
     },
@@ -73,7 +77,7 @@
           "joinKey": [
             "j1"
           ],
-          "bit": true
+          "bit": false
         }
       }
     }

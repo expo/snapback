@@ -1,0 +1,84 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "window-desc-empty-finite-upper-origin",
+  "coverage": [
+    "window",
+    "backward",
+    "finite-interval",
+    "read-maintain"
+  ],
+  "operator": {
+    "form": "window",
+    "config": {
+      "windowId": "root",
+      "order": [
+        {
+          "field": "rank",
+          "direction": "desc"
+        }
+      ],
+      "interval": {
+        "upper": {
+          "key": {
+            "values": [
+              10
+            ],
+            "rowKey": "interval-start"
+          },
+          "inclusive": true
+        }
+      },
+      "take": 2,
+      "projectionFields": [
+        "rank",
+        "title"
+      ]
+    }
+  },
+  "initialState": {
+    "rows": [],
+    "boundary": null,
+    "resultCount": 0,
+    "complete": false,
+    "label": "incomplete",
+    "continuation": null
+  },
+  "foldedChangeBatch": {
+    "entries": []
+  },
+  "readTranscript": [
+    {
+      "request": {
+        "kind": "tail",
+        "window": "root",
+        "boundary": {
+          "values": [
+            10
+          ],
+          "rowKey": "interval-start"
+        },
+        "k": 2,
+        "labelOnly": false
+      },
+      "response": {
+        "kind": "tail",
+        "rows": [],
+        "exhausted": true
+      }
+    }
+  ],
+  "expected": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "ops": []
+    },
+    "nextState": {
+      "rows": [],
+      "boundary": null,
+      "resultCount": 0,
+      "complete": true,
+      "label": "complete",
+      "continuation": null
+    }
+  }
+}

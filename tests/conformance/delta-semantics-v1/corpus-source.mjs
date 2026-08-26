@@ -703,7 +703,7 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
       }
     }
   },
-  "window-backward-order": {
+  "window-backward-tail-competition": {
     "verdict": "Maintain",
     "deltaOut": {
       "ops": [
@@ -711,23 +711,23 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
           "op": "splice-out",
           "sortKey": {
             "values": [
-              2
+              3
             ],
-            "rowKey": "b"
+            "rowKey": "c"
           },
-          "rowKey": "b"
+          "rowKey": "c"
         },
         {
           "op": "splice-in",
           "sortKey": {
             "values": [
-              4
+              1.5
             ],
-            "rowKey": "d"
+            "rowKey": "x"
           },
           "row": {
-            "_id": "d",
-            "rank": 4
+            "_id": "x",
+            "rank": 1.5
           }
         }
       ]
@@ -735,46 +735,46 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
     "nextState": {
       "rows": [
         {
-          "rowKey": "d",
+          "rowKey": "b",
           "rankKeys": {
             "values": [
-              4
+              2
             ],
-            "rowKey": "d"
+            "rowKey": "b"
           },
           "row": {
-            "_id": "d",
-            "rank": 4
+            "_id": "b",
+            "rank": 2
           }
         },
         {
-          "rowKey": "c",
+          "rowKey": "x",
           "rankKeys": {
             "values": [
-              3
+              1.5
             ],
-            "rowKey": "c"
+            "rowKey": "x"
           },
           "row": {
-            "_id": "c",
-            "rank": 3
+            "_id": "x",
+            "rank": 1.5
           }
         }
       ],
       "boundary": {
         "values": [
-          3
+          1.5
         ],
-        "rowKey": "c"
+        "rowKey": "x"
       },
       "resultCount": 2,
       "complete": false,
       "label": "incomplete",
       "continuation": {
         "values": [
-          3
+          1.5
         ],
-        "rowKey": "c"
+        "rowKey": "x"
       }
     }
   },
@@ -1078,80 +1078,93 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
       }
     }
   },
-  "window-tail-authenticated-exhausted-true": {
+  "window-backward-order": {
     "verdict": "Maintain",
     "deltaOut": {
-      "ops": []
+      "ops": [
+        {
+          "op": "splice-out",
+          "sortKey": {
+            "values": [
+              2
+            ],
+            "rowKey": "b"
+          },
+          "rowKey": "b"
+        },
+        {
+          "op": "splice-in",
+          "sortKey": {
+            "values": [
+              4
+            ],
+            "rowKey": "d"
+          },
+          "row": {
+            "_id": "d",
+            "rank": 4
+          }
+        }
+      ]
     },
     "nextState": {
       "rows": [
         {
-          "rowKey": "a",
+          "rowKey": "d",
           "rankKeys": {
             "values": [
-              1
+              4
             ],
-            "rowKey": "a"
+            "rowKey": "d"
           },
           "row": {
-            "_id": "a",
-            "rank": 1
+            "_id": "d",
+            "rank": 4
+          }
+        },
+        {
+          "rowKey": "c",
+          "rankKeys": {
+            "values": [
+              3
+            ],
+            "rowKey": "c"
+          },
+          "row": {
+            "_id": "c",
+            "rank": 3
           }
         }
       ],
       "boundary": {
         "values": [
-          1
+          3
         ],
-        "rowKey": "a"
+        "rowKey": "c"
       },
-      "resultCount": 1,
-      "complete": true,
-      "label": "complete",
-      "continuation": {
-        "values": [
-          1
-        ],
-        "rowKey": "a"
-      }
-    }
-  },
-  "window-tail-authenticated-exhausted-false": {
-    "verdict": "Maintain",
-    "deltaOut": {
-      "ops": []
-    },
-    "nextState": {
-      "rows": [
-        {
-          "rowKey": "a",
-          "rankKeys": {
-            "values": [
-              1
-            ],
-            "rowKey": "a"
-          },
-          "row": {
-            "_id": "a",
-            "rank": 1
-          }
-        }
-      ],
-      "boundary": {
-        "values": [
-          1
-        ],
-        "rowKey": "a"
-      },
-      "resultCount": 1,
+      "resultCount": 2,
       "complete": false,
       "label": "incomplete",
       "continuation": {
         "values": [
-          1
+          3
         ],
-        "rowKey": "a"
+        "rowKey": "c"
       }
+    }
+  },
+  "window-desc-empty-finite-upper-origin": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "ops": []
+    },
+    "nextState": {
+      "rows": [],
+      "boundary": null,
+      "resultCount": 0,
+      "complete": true,
+      "label": "complete",
+      "continuation": null
     }
   },
   "window-tail-missing-authenticated-exhausted": {
@@ -1955,14 +1968,35 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
       }
     }
   },
-  "lookup-inadmitted-child-does-not-attach": {
+  "lookup-child-rekey-old-leaves-new-arrives": {
     "verdict": "Maintain",
     "deltaOut": {
-      "ops": []
+      "ops": [
+        {
+          "kind": "presence",
+          "scope": "new",
+          "childKey": "c1",
+          "value": {
+            "name": "moved"
+          }
+        },
+        {
+          "kind": "presence",
+          "scope": "old"
+        }
+      ]
     },
     "nextState": {
       "scopes": {
-        "p1": {
+        "new": {
+          "lookupKey": [
+            "j2"
+          ],
+          "childKey": "c1",
+          "found": true,
+          "rowVersion": 2
+        },
+        "old": {
           "lookupKey": [
             "j1"
           ],
@@ -1971,7 +2005,14 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
           "rowVersion": null
         }
       },
-      "children": {}
+      "children": {
+        "c1": {
+          "_id": "c1",
+          "_version": 2,
+          "join": "j2",
+          "name": "moved"
+        }
+      }
     }
   },
   "lookup-scope-death-no-read": {
@@ -1984,37 +2025,67 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
       "children": {}
     }
   },
-  "lookup-delete-insert-same-key-net-found": {
+  "lookup-delete-insert-same-row-key-net-update": {
     "verdict": "Maintain",
     "deltaOut": {
-      "ops": [
-        {
-          "kind": "presence",
-          "scope": "p1",
-          "childKey": "c2",
-          "value": {
+      "child-admit": {
+        "entries": [
+          {
+            "rowKey": "c1",
+            "op": "update",
+            "postImage": {
+              "_id": "c1",
+              "_version": 2,
+              "join": "j1",
+              "name": "replacement"
+            },
+            "admit": "stay-in",
+            "rankKeys": []
+          }
+        ]
+      },
+      "lookup": {
+        "ops": [
+          {
+            "kind": "patch",
+            "scope": "p1",
+            "childKey": "c1",
+            "fields": {
+              "name": "replacement"
+            }
+          }
+        ]
+      }
+    },
+    "nextState": {
+      "child-admit": {
+        "retained": {
+          "c1": {
+            "_id": "c1",
+            "_version": 2,
+            "join": "j1",
             "name": "replacement"
           }
         }
-      ]
-    },
-    "nextState": {
-      "scopes": {
-        "p1": {
-          "lookupKey": [
-            "j1"
-          ],
-          "childKey": "c2",
-          "found": true,
-          "rowVersion": 2
-        }
       },
-      "children": {
-        "c2": {
-          "_id": "c2",
-          "_version": 2,
-          "join": "j1",
-          "name": "replacement"
+      "lookup": {
+        "scopes": {
+          "p1": {
+            "lookupKey": [
+              "j1"
+            ],
+            "childKey": "c1",
+            "found": true,
+            "rowVersion": 2
+          }
+        },
+        "children": {
+          "c1": {
+            "_id": "c1",
+            "_version": 2,
+            "join": "j1",
+            "name": "replacement"
+          }
         }
       }
     }
@@ -2524,11 +2595,23 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
             "j2"
           ],
           "bit": true
+        },
+        "p3": {
+          "joinKey": [
+            "j3"
+          ],
+          "bit": true
+        },
+        "p4": {
+          "joinKey": [
+            "j4"
+          ],
+          "bit": false
         }
       }
     }
   },
-  "support-same-scope-delete-insert-fold": {
+  "support-enter-on-already-true-no-probe": {
     "verdict": "Maintain",
     "deltaOut": {
       "transitions": []
@@ -2538,6 +2621,12 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
         "p1": {
           "joinKey": [
             "j1"
+          ],
+          "bit": true
+        },
+        "p2": {
+          "joinKey": [
+            "j2"
           ],
           "bit": true
         }
@@ -2590,16 +2679,23 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
     "verdict": "Fallback",
     "reason": "scope-unresolved"
   },
-  "support-parent-death-destroys-bit": {
+  "support-leave-on-already-false-no-probe": {
     "verdict": "Maintain",
     "deltaOut": {
       "transitions": []
     },
     "nextState": {
-      "scopes": {}
+      "scopes": {
+        "p1": {
+          "joinKey": [
+            "j1"
+          ],
+          "bit": false
+        }
+      }
     }
   },
-  "support-through-target-change": {
+  "support-through-retarget-reprobed": {
     "verdict": "Maintain",
     "deltaOut": {
       "transitions": [
@@ -2617,7 +2713,16 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
           ],
           "bit": false,
           "throughTargets": {
-            "through1": "t1"
+            "through1": "t2"
+          }
+        },
+        "p2": {
+          "joinKey": [
+            "j2"
+          ],
+          "bit": true,
+          "throughTargets": {
+            "through2": "t3"
           }
         }
       }
@@ -2741,75 +2846,79 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
       }
     }
   },
-  "principal-binding-then-target": {
+  "composition-principal-bind-product": {
     "verdict": "Maintain",
     "deltaOut": {
-      "binding": {
-        "ops": [
-          {
-            "kind": "patch",
-            "scope": "p1",
-            "childKey": "c1",
-            "fields": {
-              "name": "bound"
+      "principal": {
+        "binding": {
+          "ops": [
+            {
+              "kind": "patch",
+              "scope": "p1",
+              "childKey": "c1",
+              "fields": {
+                "name": "bound"
+              }
             }
-          }
-        ]
-      },
-      "target": {
-        "ops": [
-          {
-            "kind": "patch",
-            "scope": "p1",
-            "childKey": "c1",
-            "fields": {
-              "name": "target"
+          ]
+        },
+        "target": {
+          "ops": [
+            {
+              "kind": "patch",
+              "scope": "p1",
+              "childKey": "c1",
+              "fields": {
+                "name": "target"
+              }
             }
-          }
-        ]
+          ]
+        }
       }
     },
     "nextState": {
-      "binding": {
-        "scopes": {
-          "p1": {
-            "lookupKey": [
-              "j1"
-            ],
-            "childKey": "c1",
-            "found": true,
-            "rowVersion": null
+      "principal": {
+        "binding": {
+          "scopes": {
+            "p1": {
+              "lookupKey": [
+                "j1"
+              ],
+              "childKey": "c1",
+              "found": true,
+              "rowVersion": null
+            }
+          },
+          "children": {
+            "c1": {
+              "_id": "c1",
+              "join": "j1",
+              "name": "bound"
+            }
           }
         },
-        "children": {
-          "c1": {
-            "_id": "c1",
-            "join": "j1",
-            "name": "bound"
-          }
-        }
-      },
-      "target": {
-        "scopes": {
-          "p1": {
-            "lookupKey": [
-              "j1"
-            ],
-            "childKey": "c1",
-            "found": true,
-            "rowVersion": null
+        "target": {
+          "scopes": {
+            "p1": {
+              "lookupKey": [
+                "j1"
+              ],
+              "childKey": "c1",
+              "found": true,
+              "rowVersion": null
+            }
+          },
+          "children": {
+            "c1": {
+              "_id": "c1",
+              "join": "j1",
+              "name": "target"
+            }
           }
         },
-        "children": {
-          "c1": {
-            "_id": "c1",
-            "join": "j1",
-            "name": "target"
-          }
+        "principalDigests": {
+          "p1": "digest-only"
         }
-      },
-      "principalDigests": {
-        "p1": "digest-only"
       }
     }
   },
@@ -2817,7 +2926,7 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
     "verdict": "Fallback",
     "reason": "rekey-unread"
   },
-  "assemble-projection-scoped-patch": {
+  "assemble-aliased-field-and-literal": {
     "verdict": "Maintain",
     "deltaOut": {
       "ops": [
@@ -2828,7 +2937,7 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
           "key": "p1",
           "position": 0,
           "row": {
-            "title": "new"
+            "headline": "new"
           }
         }
       ],
@@ -2847,13 +2956,14 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
         "authority": "public",
         "evaluationCut": 7
       },
-      "resultDigest": "sha256:1e7f4f831e1822fe6f24deb7a46171e684a2ae772649c386ebc7977da7c296b3"
+      "resultDigest": "sha256:a4a983b57fed14268f6be604c3257562f779765c179b578e57b4b9022ce9ba42"
     },
     "nextState": {
       "result": [
         {
           "_id": "p1",
-          "title": "new"
+          "headline": "new",
+          "kind": "issue"
         }
       ],
       "orderedRootKeys": [
@@ -3320,15 +3430,15 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
     "verdict": "Fallback",
     "reason": "boundary-displacement"
   },
+  "window-backward-tail-competition-empty-transcript": {
+    "verdict": "Fallback",
+    "reason": "boundary-displacement"
+  },
   "window-tail-competition-known-mask-empty-transcript": {
     "verdict": "Fallback",
     "reason": "boundary-displacement"
   },
-  "window-tail-authenticated-exhausted-true-empty-transcript": {
-    "verdict": "Fallback",
-    "reason": "boundary-displacement"
-  },
-  "window-tail-authenticated-exhausted-false-empty-transcript": {
+  "window-desc-empty-finite-upper-origin-empty-transcript": {
     "verdict": "Fallback",
     "reason": "boundary-displacement"
   },
@@ -3392,7 +3502,7 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
     "verdict": "Fallback",
     "reason": "support-unproved"
   },
-  "support-through-target-change-empty-transcript": {
+  "support-through-retarget-reprobed-empty-transcript": {
     "verdict": "Fallback",
     "reason": "support-unproved"
   },
@@ -3587,9 +3697,10 @@ authored.at(-1).operator = window(); authored.at(-1).foldedChangeBatch = { entri
 add('window-incomplete-underfill-tail-exhausted', ['window', 'read-maintain'], window(), windowState([['a', 1]], false), { entries: [] }, [
   tail('root', rankKey('a', 1), 1, [row('b', 2)], true),
 ]);
-add('window-backward-order', ['window'], window({ order: [{ field: 'rank', direction: 'desc' }] }), windowState([['c', 3], ['b', 2]], true), {
-  entries: [dz('d', 'insert', 'enter', row('d', 4), [4])],
-});
+add('window-backward-tail-competition', ['window', 'backward', 'tail-competition', 'read-maintain'],
+  window({ order: [{ field: 'rank', direction: 'desc' }] }), windowState([['c', 3], ['b', 2]], false), {
+    entries: [dz('c', 'delete', 'leave'), dz('a', 'insert', 'enter', row('a', 1), [1])],
+  }, [tail('root', rankKey('b', 2), 1, [row('x', 1.5)], true)]);
 const exactLow = exactInteger('9007199254740992');
 const exactHigh = exactInteger('9007199254740993');
 add('window-interval-clips-candidate', ['window', 'numeric-precision'], window({
@@ -3610,11 +3721,15 @@ add('window-two-enters-displace-two', ['window', 'batch-fold'], window(), window
 add('window-tail-competition-known-mask', ['window', 'read-maintain'], window(), windowState([['a', 1], ['b', 2]], false), { entries: [
   dz('a', 'delete', 'leave'), dz('d', 'insert', 'enter', row('d', 4), [4]),
 ] }, [tail('root', rankKey('b', 2), 1, [row('c', 3)], false)]);
-add('window-tail-authenticated-exhausted-true', ['window', 'read-maintain'], window(), windowState([['a', 1]], false), { entries: [] }, [
-  tail('root', rankKey('a', 1), 1, [], true),
-]);
-add('window-tail-authenticated-exhausted-false', ['window', 'read-maintain'], window(), windowState([['a', 1]], false), { entries: [] }, [
-  tail('root', rankKey('a', 1), 1, [], false),
+add('window-backward-order', ['window', 'backward'], window({ order: [{ field: 'rank', direction: 'desc' }] }),
+  windowState([['c', 3], ['b', 2]], true), {
+    entries: [dz('d', 'insert', 'enter', row('d', 4), [4])],
+  });
+add('window-desc-empty-finite-upper-origin', ['window', 'backward', 'finite-interval', 'read-maintain'], window({
+  order: [{ field: 'rank', direction: 'desc' }],
+  interval: { upper: { key: rankKey('interval-start', 10), inclusive: true } },
+}), windowState([], false), { entries: [] }, [
+  tail('root', rankKey('interval-start', 10), 2, [], true),
 ]);
 add('window-tail-missing-authenticated-exhausted', ['window', 'fallback'], window(), windowState([['a', 1]], false), { entries: [] }, [{
   request: { kind: 'tail', window: 'root', boundary: rankKey('a', 1), k: 1, labelOnly: false },
@@ -3656,7 +3771,7 @@ add('window-complete-unretained-delete-noop', ['window', 'completeness'], window
 add('window-empty-incomplete-tail-from-start', ['window', 'finite-interval', 'read-maintain'], window({
   interval: { lower: { key: rankKey('interval-start', 10), inclusive: true } },
 }), windowState([], false), { entries: [dz('c', 'insert', 'enter', row('c', 15), [15])] }, [
-  tail('root', rankKey('interval-start', 10), 2, [row('a', 11), row('b', 12)], true),
+  tail('root', rankKey('interval-start', 10), 2, [row('a', 11), row('b', 12)], false),
 ]);
 add('window-backward-boundary-change', ['window', 'backward'], window({ order: [{ field: 'rank', direction: 'desc' }] }),
   windowState([['c', 3], ['b', 2]], true), {
@@ -3704,17 +3819,36 @@ add('lookup-both-change-parent-first-skip', ['lookup', 'both-change', 'read-main
   parent: { entries: [parent('p1', 'stay-in', 'j2')] },
   child: { entries: [dz('c3', 'insert', 'enter', { _id: 'c3', _version: 3, join: 'j2', name: 'batch-row' })] },
 }, [point('child.by_join', ['j2'], { _id: 'c2', _version: 2, join: 'j2', name: 'fill-row' })]);
-add('lookup-inadmitted-child-does-not-attach', ['lookup'], lookup(), clone(missingState), {
-  parent: { entries: [] }, child: { entries: [dz('c1', 'insert', 'stay-out', { _id: 'c1', join: 'j1', name: 'hidden' })] },
+add('lookup-child-rekey-old-leaves-new-arrives', ['lookup', 'rekey'], lookup(), lookupState({
+  old: lookupScope(['j1'], 'c1', true, 1),
+  new: lookupScope(['j2'], null, false),
+}, { c1: { _id: 'c1', _version: 1, join: 'j1', name: 'moving' } }), {
+  parent: { entries: [] }, child: { entries: [
+    dz('c1', 'update', 'stay-in', { _id: 'c1', _version: 2, join: 'j2', name: 'moved' }),
+  ] },
 });
 add('lookup-scope-death-no-read', ['lookup', 'parent-arm'], lookup(), clone(foundState), {
   parent: { entries: [dz('p1', 'delete', 'leave')] }, child: { entries: [] },
 });
-add('lookup-delete-insert-same-key-net-found', ['lookup', 'whole-batch', 'presence'], lookup({ presence: 'required' }), clone(foundState), {
-  parent: { entries: [] }, child: { entries: [
-    dz('c1', 'delete', 'leave'),
-    dz('c2', 'insert', 'enter', { _id: 'c2', _version: 2, join: 'j1', name: 'replacement' }),
+const lookupNetUpdateComposition = { form: 'composition', nodes: [
+  { nodeId: 'child-admit', operator: publicAdmit({ rankOrder: [] }), inputs: [
+    { name: 'changes', source: 'external', input: 'children' },
   ] },
+  { nodeId: 'lookup', operator: lookup({ presence: 'required' }), inputs: [
+    { name: 'parent', source: 'external', input: 'parents' },
+    { name: 'child', source: 'upstream', nodeId: 'child-admit' },
+  ] },
+] };
+add('lookup-delete-insert-same-row-key-net-update', ['lookup', 'composition', 'batch-fold', 'net-candidate'],
+  lookupNetUpdateComposition, {
+    'child-admit': { retained: { c1: { _id: 'c1', _version: 1, join: 'j1', name: 'old' } } },
+    lookup: clone(foundState),
+  }, {
+    parents: { entries: [] },
+    children: { changes: [
+      { rowKey: 'c1', op: 'delete', preImage: { _id: 'c1', _version: 1, join: 'j1', name: 'old' } },
+      { rowKey: 'c1', op: 'insert', postImage: { _id: 'c1', _version: 2, join: 'j1', name: 'replacement' } },
+    ] },
 });
 
 // E5 bounded per-parent windows.
@@ -3773,22 +3907,32 @@ add('support-through-zero-to-one-probed', ['support', 'read-maintain'], support(
 }, [probe('edge', 'p1', true)]);
 const allSupport = support({ mode: { kind: 'all', elements: ['a', 'b'] } });
 add('support-all-mode-element-transition', ['support', 'all-and', 'read-maintain'], allSupport,
-  supportState({ p1: supportScope(['j1'], false), p2: supportScope(['j2'], false) }), {
+  supportState({
+    p1: supportScope(['j1'], false), p2: supportScope(['j2'], false),
+    p3: supportScope(['j3'], true), p4: supportScope(['j4'], false),
+  }), {
   parent: { entries: [] }, support: { entries: [
     dz('m1', 'insert', 'enter', { _id: 'm1', join: 'j1' }),
     dz('m2', 'insert', 'enter', { _id: 'm2', join: 'j2' }),
+    dz('m3', 'insert', 'enter', { _id: 'm3', join: 'j3' }),
+    dz('m4', 'delete', 'leave', undefined, ['j4']),
   ] }, target: { entries: [] },
 }, [
   probe('edge', 'p1', true, 'a'), probe('edge', 'p1', false, 'b'),
   probe('edge', 'p2', true, 'a'), probe('edge', 'p2', true, 'b'),
 ]);
-add('support-same-scope-delete-insert-fold', ['support', 'batch-fold'], support(), clone(supportTrue), {
+add('support-enter-on-already-true-no-probe', ['support', 'provability', 'batch-fold'], support(),
+  supportState({ p1: supportScope(['j1'], true), p2: supportScope(['j2'], true) }), {
   parent: { entries: [] }, support: { entries: [
-    dz('m1', 'delete', 'leave', undefined, ['j1']), dz('m2', 'insert', 'enter', { _id: 'm2', join: 'j1' }),
+    dz('m0', 'insert', 'enter', { _id: 'm0', join: 'j1' }),
+    dz('m1', 'delete', 'leave', undefined, ['j2']),
+    dz('m2', 'insert', 'enter', { _id: 'm2', join: 'j2' }),
   ] }, target: { entries: [] },
 });
-add('support-parent-birth-establishes-bit', ['support', 'parent-arm', 'read-maintain'], support(), { scopes: {} }, {
-  parent: { entries: [parent('p1', 'enter', 'j1')] }, support: { entries: [] }, target: { entries: [] },
+add('support-parent-birth-establishes-bit', ['support', 'parent-arm', 'parent-first-skip', 'both-change', 'read-maintain'], support(), { scopes: {} }, {
+  parent: { entries: [parent('p1', 'enter', 'j1')] },
+  support: { entries: [dz('m1', 'insert', 'enter', { _id: 'm1', join: 'j1' })] },
+  target: { entries: [] },
 }, [probe('edge', 'p1', true)]);
 add('support-parent-rekey-establishes-bit', ['support', 'parent-arm', 'rekey', 'read-maintain'], support(), clone(supportTrue), {
   parent: { entries: [parent('p1', 'stay-in', 'j2')] }, support: { entries: [] }, target: { entries: [] },
@@ -3796,12 +3940,21 @@ add('support-parent-rekey-establishes-bit', ['support', 'parent-arm', 'rekey', '
 add('support-scope-attribution-unresolved', ['support', 'fallback'], support({ edgeKind: 'through', throughTargetField: 'targetId' }), clone(supportTrue), {
   parent: { entries: [] }, support: { entries: [] }, target: { entries: [dz('t1', 'delete', 'leave')] },
 });
-add('support-parent-death-destroys-bit', ['support', 'parent-arm'], support(), clone(supportTrue), {
-  parent: { entries: [dz('p1', 'delete', 'leave')] }, support: { entries: [] }, target: { entries: [] },
+add('support-leave-on-already-false-no-probe', ['support', 'provability', 'parent-arm'], support(),
+  supportState({ p1: supportScope(['j1'], false), p2: supportScope(['j2'], true) }), {
+  parent: { entries: [dz('p2', 'delete', 'leave')] },
+  support: { entries: [dz('m1', 'delete', 'leave', undefined, ['j1'])] },
+  target: { entries: [] },
 });
-add('support-through-target-change', ['support', 'read-maintain'], support({ edgeKind: 'through', throughTargetField: 'targetId' }),
-  supportState({ p1: supportScope(['j1'], true, { through1: 't1' }) }), {
-  parent: { entries: [] }, support: { entries: [] }, target: { entries: [dz('t1', 'delete', 'leave')] },
+add('support-through-retarget-reprobed', ['support', 'through-retarget', 'provability', 'read-maintain'],
+  support({ edgeKind: 'through', throughTargetField: 'targetId' }), supportState({
+    p1: supportScope(['j1'], true, { through1: 't1' }),
+    p2: supportScope(['j2'], true, { through2: 't3' }),
+  }), {
+  parent: { entries: [] }, support: { entries: [
+    dz('through1', 'update', 'stay-in', { _id: 'through1', join: 'j1', targetId: 't2' }),
+    dz('through2', 'update', 'stay-in', { _id: 'through2', join: 'j2', targetId: 't3' }),
+  ] }, target: { entries: [] },
 }, [probe('edge', 'p1', false)]);
 
 // E6 membership lift.
@@ -3828,10 +3981,23 @@ add('principal-target-child-patch', ['principal'], principal, { binding: lookupS
   target: { parent: { entries: [] }, child: { entries: [dz('c1', 'update', 'stay-in', { _id: 'c1', join: 'j1', name: 'new' })] } },
 });
 const principalBinding = { form: 'principal-bind', config: { binding: lookup().config, target: lookup().config } };
-add('principal-binding-then-target', ['principal', 'both-change'], principalBinding, { binding: clone(foundState), target: clone(foundState), principalDigests: { p1: 'digest-only' } }, {
-  binding: { parent: { entries: [] }, child: { entries: [dz('c1', 'update', 'stay-in', { _id: 'c1', join: 'j1', name: 'bound' })] } },
-  target: { parent: { entries: [] }, child: { entries: [dz('c1', 'update', 'stay-in', { _id: 'c1', join: 'j1', name: 'target' })] } },
-});
+const principalProductComposition = { form: 'composition', nodes: [{
+  nodeId: 'principal', operator: principalBinding, inputs: [
+    { name: 'binding', source: 'external', input: 'binding' },
+    { name: 'target', source: 'external', input: 'target' },
+  ],
+}] };
+add('composition-principal-bind-product', ['principal', 'composition', 'product', 'both-change'],
+  principalProductComposition, {
+    principal: { binding: clone(foundState), target: clone(foundState), principalDigests: { p1: 'digest-only' } },
+  }, {
+    binding: { parent: { entries: [] }, child: { entries: [
+      dz('c1', 'update', 'stay-in', { _id: 'c1', join: 'j1', name: 'bound' }),
+    ] } },
+    target: { parent: { entries: [] }, child: { entries: [
+      dz('c1', 'update', 'stay-in', { _id: 'c1', join: 'j1', name: 'target' }),
+    ] } },
+  });
 add('principal-digest-cannot-rekey', ['principal', 'fallback'], principal, { binding: lookupState(), target: clone(foundState), principalDigests: { p1: 'digest-only' } }, {
   binding: { parent: { entries: [] }, child: { entries: [] } },
   target: { parent: { entries: [parent('p1', 'stay-in', 'j2')] }, child: { entries: [] } },
@@ -3839,10 +4005,18 @@ add('principal-digest-cannot-rekey', ['principal', 'fallback'], principal, { bin
 
 // E8 wire lowering and assembly.
 const assemble = (nodes) => ({ form: 'assemble', config: { rootNodeId: 'root', nodes } });
-const rootNode = { nodeId: 'root', parent: null, kind: 'root', projectionFields: ['_id', 'title'] };
-const oneNode = { nodeId: 'one', parent: 'root', kind: 'to-one', resultField: 'child', projectionFields: ['name'] };
-const manyNode = { nodeId: 'many', parent: 'root', kind: 'to-many', resultField: 'children', projectionFields: ['_id', 'title'] };
-const existsNode = { nodeId: 'exists', parent: 'root', kind: 'exists', resultField: 'hasAny', projectionFields: ['hasAny'] };
+const projectionField = (sourceNode, sourceField) => ({ kind: 'field', sourceNode, sourceField });
+const projectionLiteral = (value) => ({ kind: 'literal', value });
+const rootNode = { nodeId: 'root', parent: null, kind: 'root', projection: {
+  _id: projectionField('root', '_id'), title: projectionField('root', 'title'),
+} };
+const oneNode = { nodeId: 'one', parent: 'root', kind: 'to-one', resultField: 'child', projection: {
+  name: projectionField('one', 'name'),
+} };
+const manyNode = { nodeId: 'many', parent: 'root', kind: 'to-many', resultField: 'children', projection: {
+  _id: projectionField('many', '_id'), title: projectionField('many', 'title'),
+} };
+const existsNode = { nodeId: 'exists', parent: 'root', kind: 'exists', resultField: 'hasAny', projection: {} };
 const assembleState = { result: [{ _id: 'p1', title: 'old' }], orderedRootKeys: ['p1'] };
 const assemblyInput = (nodes, events, nextNodeOutputs, postResult, labels = {}) => ({
   events,
@@ -3852,12 +4026,20 @@ const assemblyInput = (nodes, events, nextNodeOutputs, postResult, labels = {}) 
   nodeCompleteness: nodes.map(({ nodeId }) => ({ nodeId, label: labels[nodeId] ?? 'complete' })),
   proofTuple: { materialization: 'm1', authority: 'public', evaluationCut: 7 },
 });
-add('assemble-projection-scoped-patch', ['assemble'], assemble([rootNode]), clone(assembleState), {
+const aliasedRootNode = { nodeId: 'root', parent: null, kind: 'root', projection: {
+  _id: projectionField('root', '_id'),
+  headline: projectionField('root', 'title'),
+  kind: projectionLiteral('issue'),
+} };
+add('assemble-aliased-field-and-literal', ['assemble', 'projection-alias', 'projection-literal'],
+  assemble([aliasedRootNode]), {
+  result: [{ _id: 'p1', headline: 'old', kind: 'issue' }], orderedRootKeys: ['p1'],
+}, {
   ...assemblyInput(
-    [rootNode],
+    [aliasedRootNode],
     [{ kind: 'root-seq', nodeId: 'root', delta: { ops: [{ op: 'patch', sortKey: rankKey('p1', 1), rowKey: 'p1', post: { title: 'new', secret: 'hidden' } }] } }],
     { root: { $root: [{ _id: 'p1', title: 'new', secret: 'hidden' }] } },
-    [{ _id: 'p1', title: 'new' }],
+    [{ _id: 'p1', headline: 'new', kind: 'issue' }],
     { root: 'window' },
   ),
 });
@@ -3892,7 +4074,9 @@ add('assemble-exists-bit', ['assemble', 'support'], assemble([rootNode, existsNo
     [{ _id: 'p1', title: 'old', hasAny: true }],
   ),
 });
-const nestedOne = { nodeId: 'nestedOne', parent: 'many', kind: 'to-one', projectionFields: ['name'] };
+const nestedOne = { nodeId: 'nestedOne', parent: 'many', kind: 'to-one', projection: {
+  name: projectionField('nestedOne', 'name'),
+} };
 add('assemble-below-array-unaddressable', ['assemble', 'fallback'], assemble([rootNode, manyNode, nestedOne]), clone(assembleState), {
   ...assemblyInput(
     [rootNode, manyNode, nestedOne],

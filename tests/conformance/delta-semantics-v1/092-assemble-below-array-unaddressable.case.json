@@ -14,28 +14,48 @@
           "nodeId": "root",
           "parent": null,
           "kind": "root",
-          "projectionFields": [
-            "_id",
-            "title"
-          ]
+          "projection": {
+            "_id": {
+              "kind": "field",
+              "sourceNode": "root",
+              "sourceField": "_id"
+            },
+            "title": {
+              "kind": "field",
+              "sourceNode": "root",
+              "sourceField": "title"
+            }
+          }
         },
         {
           "nodeId": "many",
           "parent": "root",
           "kind": "to-many",
           "resultField": "children",
-          "projectionFields": [
-            "_id",
-            "title"
-          ]
+          "projection": {
+            "_id": {
+              "kind": "field",
+              "sourceNode": "many",
+              "sourceField": "_id"
+            },
+            "title": {
+              "kind": "field",
+              "sourceNode": "many",
+              "sourceField": "title"
+            }
+          }
         },
         {
           "nodeId": "nestedOne",
           "parent": "many",
           "kind": "to-one",
-          "projectionFields": [
-            "name"
-          ]
+          "projection": {
+            "name": {
+              "kind": "field",
+              "sourceNode": "nestedOne",
+              "sourceField": "name"
+            }
+          }
         }
       ]
     }

@@ -14,19 +14,25 @@
           "nodeId": "root",
           "parent": null,
           "kind": "root",
-          "projectionFields": [
-            "_id",
-            "title"
-          ]
+          "projection": {
+            "_id": {
+              "kind": "field",
+              "sourceNode": "root",
+              "sourceField": "_id"
+            },
+            "title": {
+              "kind": "field",
+              "sourceNode": "root",
+              "sourceField": "title"
+            }
+          }
         },
         {
           "nodeId": "exists",
           "parent": "root",
           "kind": "exists",
           "resultField": "hasAny",
-          "projectionFields": [
-            "hasAny"
-          ]
+          "projection": {}
         }
       ]
     }

@@ -1,8 +1,10 @@
 {
   "format": "snapback.delta-semantics.case.v1",
-  "name": "support-through-target-change",
+  "name": "support-through-retarget-reprobed",
   "coverage": [
     "support",
+    "through-retarget",
+    "provability",
     "read-maintain"
   ],
   "operator": {
@@ -32,6 +34,15 @@
         "throughTargets": {
           "through1": "t1"
         }
+      },
+      "p2": {
+        "joinKey": [
+          "j2"
+        ],
+        "bit": true,
+        "throughTargets": {
+          "through2": "t3"
+        }
       }
     }
   },
@@ -40,17 +51,33 @@
       "entries": []
     },
     "support": {
-      "entries": []
-    },
-    "target": {
       "entries": [
         {
-          "rowKey": "t1",
-          "op": "delete",
-          "admit": "leave",
+          "rowKey": "through1",
+          "op": "update",
+          "admit": "stay-in",
+          "postImage": {
+            "_id": "through1",
+            "join": "j1",
+            "targetId": "t2"
+          },
+          "rankKeys": []
+        },
+        {
+          "rowKey": "through2",
+          "op": "update",
+          "admit": "stay-in",
+          "postImage": {
+            "_id": "through2",
+            "join": "j2",
+            "targetId": "t3"
+          },
           "rankKeys": []
         }
       ]
+    },
+    "target": {
+      "entries": []
     }
   },
   "readTranscript": [
@@ -84,7 +111,16 @@
           ],
           "bit": false,
           "throughTargets": {
-            "through1": "t1"
+            "through1": "t2"
+          }
+        },
+        "p2": {
+          "joinKey": [
+            "j2"
+          ],
+          "bit": true,
+          "throughTargets": {
+            "through2": "t3"
           }
         }
       }

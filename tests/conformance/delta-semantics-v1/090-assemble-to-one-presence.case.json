@@ -14,19 +14,31 @@
           "nodeId": "root",
           "parent": null,
           "kind": "root",
-          "projectionFields": [
-            "_id",
-            "title"
-          ]
+          "projection": {
+            "_id": {
+              "kind": "field",
+              "sourceNode": "root",
+              "sourceField": "_id"
+            },
+            "title": {
+              "kind": "field",
+              "sourceNode": "root",
+              "sourceField": "title"
+            }
+          }
         },
         {
           "nodeId": "one",
           "parent": "root",
           "kind": "to-one",
           "resultField": "child",
-          "projectionFields": [
-            "name"
-          ]
+          "projection": {
+            "name": {
+              "kind": "field",
+              "sourceNode": "one",
+              "sourceField": "name"
+            }
+          }
         }
       ]
     }

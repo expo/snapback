@@ -1,0 +1,100 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "window-backward-tail-competition-empty-transcript",
+  "coverage": [
+    "window",
+    "backward",
+    "tail-competition",
+    "fallback"
+  ],
+  "operator": {
+    "form": "window",
+    "config": {
+      "windowId": "root",
+      "order": [
+        {
+          "field": "rank",
+          "direction": "desc"
+        }
+      ],
+      "interval": {},
+      "take": 2,
+      "projectionFields": [
+        "rank",
+        "title"
+      ]
+    }
+  },
+  "initialState": {
+    "rows": [
+      {
+        "rowKey": "c",
+        "rankKeys": {
+          "values": [
+            3
+          ],
+          "rowKey": "c"
+        },
+        "row": {
+          "_id": "c",
+          "rank": 3
+        }
+      },
+      {
+        "rowKey": "b",
+        "rankKeys": {
+          "values": [
+            2
+          ],
+          "rowKey": "b"
+        },
+        "row": {
+          "_id": "b",
+          "rank": 2
+        }
+      }
+    ],
+    "boundary": {
+      "values": [
+        2
+      ],
+      "rowKey": "b"
+    },
+    "resultCount": 2,
+    "complete": false,
+    "label": "incomplete",
+    "continuation": {
+      "values": [
+        2
+      ],
+      "rowKey": "b"
+    }
+  },
+  "foldedChangeBatch": {
+    "entries": [
+      {
+        "rowKey": "c",
+        "op": "delete",
+        "admit": "leave",
+        "rankKeys": []
+      },
+      {
+        "rowKey": "a",
+        "op": "insert",
+        "admit": "enter",
+        "postImage": {
+          "_id": "a",
+          "rank": 1
+        },
+        "rankKeys": [
+          1
+        ]
+      }
+    ]
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Fallback",
+    "reason": "boundary-displacement"
+  }
+}

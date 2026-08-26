@@ -1,8 +1,10 @@
 {
   "format": "snapback.delta-semantics.case.v1",
-  "name": "window-tail-authenticated-exhausted-false-empty-transcript",
+  "name": "window-desc-empty-finite-upper-origin-empty-transcript",
   "coverage": [
     "window",
+    "backward",
+    "finite-interval",
     "fallback"
   ],
   "operator": {
@@ -12,10 +14,20 @@
       "order": [
         {
           "field": "rank",
-          "direction": "asc"
+          "direction": "desc"
         }
       ],
-      "interval": {},
+      "interval": {
+        "upper": {
+          "key": {
+            "values": [
+              10
+            ],
+            "rowKey": "interval-start"
+          },
+          "inclusive": true
+        }
+      },
       "take": 2,
       "projectionFields": [
         "rank",
@@ -24,36 +36,12 @@
     }
   },
   "initialState": {
-    "rows": [
-      {
-        "rowKey": "a",
-        "rankKeys": {
-          "values": [
-            1
-          ],
-          "rowKey": "a"
-        },
-        "row": {
-          "_id": "a",
-          "rank": 1
-        }
-      }
-    ],
-    "boundary": {
-      "values": [
-        1
-      ],
-      "rowKey": "a"
-    },
-    "resultCount": 1,
+    "rows": [],
+    "boundary": null,
+    "resultCount": 0,
     "complete": false,
     "label": "incomplete",
-    "continuation": {
-      "values": [
-        1
-      ],
-      "rowKey": "a"
-    }
+    "continuation": null
   },
   "foldedChangeBatch": {
     "entries": []

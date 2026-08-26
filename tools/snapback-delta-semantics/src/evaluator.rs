@@ -1432,6 +1432,20 @@ fn transition(old: bool, new: bool) -> BitTransitionKind {
     }
 }
 
+#[derive(Default)]
+struct SupportEffects {
+    may_add: bool,
+    may_remove: bool,
+    proves_true: bool,
+}
+
+fn support_effects<'a>(
+    by_scope: &'a mut BTreeMap<String, SupportEffects>,
+    scope: &str,
+) -> &'a mut SupportEffects {
+    by_scope.entry(scope.to_owned()).or_default()
+}
+
 // @ref LLP 0309.000#e6--supportsemijoin-exists--membership-support — folded
 // per-scope support, parent-first establishment, and narrowed proofs are exact.
 pub fn evaluate_support(
@@ -1513,9 +1527,11 @@ pub fn evaluate_support(
         }
     }
 
-    // A retained through row may change only its target identity without
-    // changing support membership. Refresh that attribution evidence, but do
-    // not probe: only Enter/Leave can change the existence/all bit.
+    let mut by_scope = BTreeMap::<String, SupportEffects>::new();
+
+    // A retained through row whose target identity changes removes the old
+    // link and creates a new, not-yet-proved link. An identity-preserving
+    // StayIn is a support no-op.
     if config.edge_kind == SupportEdgeKind::Through {
         for entry in input
             .support
@@ -1546,12 +1562,18 @@ pub fn evaluate_support(
                 if !evidence.contains_key(&entry.row_key) {
                     return FormVerdict::fallback(FallbackReason::ScopeUnresolved);
                 }
-                evidence.insert(entry.row_key.clone(), target.clone());
+                let retained_target = evidence
+                    .get(&entry.row_key)
+                    .expect("retained through target was checked above");
+                if retained_target != &target {
+                    support_effects(&mut by_scope, scope).may_remove = true;
+                    support_effects(&mut by_scope, scope).may_add = true;
+                    evidence.insert(entry.row_key.clone(), target.clone());
+                }
             }
         }
     }
 
-    let mut by_scope = BTreeMap::<String, Vec<&DeltaZEntry>>::new();
     for entry in input
         .support
         .entries
@@ -1591,16 +1613,29 @@ pub fn evaluate_support(
                             return FormVerdict::fallback(FallbackReason::ScopeUnresolved);
                         };
                         evidence.insert(entry.row_key.clone(), target);
+                        support_effects(&mut by_scope, &scope).may_add = true;
                     }
                     Admission::Leave => {
                         if evidence.remove(&entry.row_key).is_none() {
                             return FormVerdict::fallback(FallbackReason::ScopeUnresolved);
                         }
+                        support_effects(&mut by_scope, &scope).may_remove = true;
+                    }
+                    Admission::StayIn | Admission::StayOut => unreachable!(),
+                }
+            } else {
+                match entry.admit {
+                    Admission::Enter => {
+                        let effects = support_effects(&mut by_scope, &scope);
+                        effects.may_add = true;
+                        effects.proves_true = true;
+                    }
+                    Admission::Leave => {
+                        support_effects(&mut by_scope, &scope).may_remove = true;
                     }
                     Admission::StayIn | Admission::StayOut => unreachable!(),
                 }
             }
-            by_scope.entry(scope).or_default().push(entry);
         }
     }
     if config.edge_kind == SupportEdgeKind::Through {
@@ -1618,30 +1653,44 @@ pub fn evaluate_support(
                     return FormVerdict::fallback(FallbackReason::ScopeUnresolved);
                 };
                 if evidence.values().any(|target| target == &entry.row_key) {
-                    by_scope.entry(scope.clone()).or_default().push(entry);
+                    let effects = support_effects(&mut by_scope, scope);
+                    match entry.admit {
+                        Admission::Enter => {
+                            effects.may_add = true;
+                            // The retained through edge plus this admitted
+                            // target enter proves a post-cut supporting pair.
+                            effects.proves_true = true;
+                        }
+                        Admission::Leave => effects.may_remove = true,
+                        Admission::StayIn | Admission::StayOut => unreachable!(),
+                    }
                 }
             }
         }
     }
-    for (scope, changes) in by_scope {
+    for (scope, effects) in by_scope {
         let old = next.scopes.get(&scope).is_some_and(|scope| scope.bit);
         let (new, refreshed_targets) = match &config.mode {
-            SupportMode::All { .. } => match establish_support(config, &scope, reads) {
-                Ok(established) => established,
-                Err(reason) => return FormVerdict::fallback(reason),
-            },
+            SupportMode::All { .. } => {
+                if (old && !effects.may_remove) || (!old && !effects.may_add) {
+                    (old, None)
+                } else {
+                    match establish_support(config, &scope, reads) {
+                        Ok(established) => established,
+                        Err(reason) => return FormVerdict::fallback(reason),
+                    }
+                }
+            }
             SupportMode::Exists => {
-                let has_enter = changes.iter().any(|entry| entry.admit == Admission::Enter);
-                let has_leave = changes.iter().any(|entry| entry.admit == Admission::Leave);
-                if config.edge_kind == SupportEdgeKind::Direct && has_enter {
+                if effects.proves_true {
                     (true, None)
-                } else if has_leave || has_enter {
+                } else if (old && !effects.may_remove) || (!old && !effects.may_add) {
+                    (old, None)
+                } else {
                     match probe_bit(config, &scope, None, reads) {
                         Ok(bit) => (bit, None),
                         Err(reason) => return FormVerdict::fallback(reason),
                     }
-                } else {
-                    (old, None)
                 }
             }
         };
@@ -2001,20 +2050,48 @@ fn result_digest(value: &Value) -> String {
     format!("sha256:{:x}", Sha256::digest(bytes))
 }
 
+fn projected_assembly_patch(node: &AssemblyNode, source_node: &str, row: &Row) -> Row {
+    node.projection
+        .iter()
+        .filter_map(|(name, arm)| match arm {
+            AssemblyProjectionArm::Field {
+                source_node: arm_node,
+                source_field,
+            } if arm_node == source_node => row
+                .get(source_field)
+                .cloned()
+                .map(|value| (name.clone(), value)),
+            AssemblyProjectionArm::Field { .. } | AssemblyProjectionArm::Literal { .. } => None,
+        })
+        .collect()
+}
+
 fn assemble_row_from_outputs(
     config: &AssembleConfig,
     outputs: &BTreeMap<String, BTreeMap<ScopeId, Value>>,
     node_id: &str,
     raw: &Value,
+    scope_rows: &BTreeMap<String, Value>,
 ) -> Result<Value, FallbackReason> {
     let node = assembly_node(config, node_id).ok_or(FallbackReason::WireUnaddressable)?;
-    let raw_object = raw.as_object().ok_or(FallbackReason::WireUnaddressable)?;
+    raw.as_object().ok_or(FallbackReason::WireUnaddressable)?;
     let scope = value_row_key(raw).ok_or(FallbackReason::WireUnaddressable)?;
+    let mut scope_rows = scope_rows.clone();
+    scope_rows.insert(node_id.to_owned(), raw.clone());
     let mut assembled = Map::new();
-    for field in &node.projection_fields {
-        if let Some(value) = raw_object.get(field) {
-            assembled.insert(field.clone(), value.clone());
-        }
+    for (name, arm) in &node.projection {
+        let value = match arm {
+            AssemblyProjectionArm::Field {
+                source_node,
+                source_field,
+            } => scope_rows
+                .get(source_node)
+                .and_then(|row| row.get(source_field))
+                .cloned()
+                .unwrap_or(Value::Null),
+            AssemblyProjectionArm::Literal { value } => value.clone(),
+        };
+        assembled.insert(name.clone(), value);
     }
     for child in config
         .nodes
@@ -2034,7 +2111,7 @@ fn assemble_row_from_outputs(
                 if value.is_null() {
                     Value::Null
                 } else {
-                    assemble_row_from_outputs(config, outputs, &child.node_id, value)?
+                    assemble_row_from_outputs(config, outputs, &child.node_id, value, &scope_rows)?
                 }
             }
             AssemblyNodeKind::ToMany => Value::Array(
@@ -2042,7 +2119,9 @@ fn assemble_row_from_outputs(
                     .as_array()
                     .ok_or(FallbackReason::WireUnaddressable)?
                     .iter()
-                    .map(|row| assemble_row_from_outputs(config, outputs, &child.node_id, row))
+                    .map(|row| {
+                        assemble_row_from_outputs(config, outputs, &child.node_id, row, &scope_rows)
+                    })
                     .collect::<Result<Vec<_>, _>>()?,
             ),
             AssemblyNodeKind::Exists => value.clone(),
@@ -2072,6 +2151,7 @@ fn derive_assembled_result(
                     &input.next_node_outputs,
                     &config.root_node_id,
                     row,
+                    &BTreeMap::new(),
                 )
             })
             .collect::<Result<Vec<_>, _>>()?,
@@ -2120,10 +2200,7 @@ fn compose_graph_completeness(labels: &[NodeCompletenessLabel]) -> GraphComplete
     }
 }
 
-fn validate_node_completeness(
-    config: &AssembleConfig,
-    labels: &[NodeCompletenessLabel],
-) -> Result<(), FallbackReason> {
+fn validate_node_completeness(config: &AssembleConfig, labels: &[NodeCompletenessLabel]) {
     let expected = config
         .nodes
         .iter()
@@ -2133,11 +2210,10 @@ fn validate_node_completeness(
         .iter()
         .map(|node| node.node_id.as_str())
         .collect::<BTreeSet<_>>();
-    if expected == actual && actual.len() == labels.len() {
-        Ok(())
-    } else {
-        Err(FallbackReason::WireUnaddressable)
-    }
+    assert!(
+        expected == actual && actual.len() == labels.len(),
+        "malformed E8 completeness carrier: labels must exactly cover configured nodes"
+    );
 }
 
 fn merge_patch(value: &mut Value, patch: &Row) -> Result<(), FallbackReason> {
@@ -2211,9 +2287,7 @@ pub fn evaluate_assemble(
         input.ordered_root_keys, derived_root_order,
         "E8 orderedRootKeys assertion differs from the derived root order"
     );
-    if let Err(reason) = validate_node_completeness(config, &input.node_completeness) {
-        return FormVerdict::fallback(reason);
-    }
+    validate_node_completeness(config, &input.node_completeness);
     let graph_completeness = compose_graph_completeness(&input.node_completeness);
 
     let mut ops = Vec::new();
@@ -2287,7 +2361,7 @@ pub fn evaluate_assemble(
                             else {
                                 return FormVerdict::fallback(FallbackReason::WireUnaddressable);
                             };
-                            let patch = projected_row(post, &node.projection_fields);
+                            let patch = projected_assembly_patch(node, node_id, post);
                             let Some(row) = working_result
                                 .as_array_mut()
                                 .and_then(|rows| rows.get_mut(position))
@@ -2347,7 +2421,7 @@ pub fn evaluate_assemble(
                             else {
                                 return FormVerdict::fallback(FallbackReason::WireUnaddressable);
                             };
-                            let patch = projected_row(fields, &node.projection_fields);
+                            let patch = projected_assembly_patch(node, node_id, fields);
                             if let Err(reason) = merge_patch(child, &patch) {
                                 return FormVerdict::fallback(reason);
                             }
@@ -2540,7 +2614,7 @@ pub fn evaluate_assemble(
                                 return FormVerdict::fallback(FallbackReason::WireUnaddressable);
                             };
                             let root_key = context.root_key;
-                            let patch = projected_row(post, &node.projection_fields);
+                            let patch = projected_assembly_patch(node, node_id, post);
                             let Some(child) =
                                 parent_value_mut(config, &mut working_result, node_id, scope)
                                     .and_then(|parent| parent.get_mut(result_field))
@@ -2565,11 +2639,7 @@ pub fn evaluate_assemble(
                 }
             }
             AssemblyEvent::Exists { delta, .. } => {
-                let projected_name = node
-                    .result_field
-                    .clone()
-                    .or_else(|| node.projection_fields.iter().next().cloned())
-                    .unwrap_or_else(|| node_id.clone());
+                let projected_name = node.result_field.clone().unwrap_or_else(|| node_id.clone());
                 for bit in &delta.transitions {
                     if scope_is_absorbed(
                         config,

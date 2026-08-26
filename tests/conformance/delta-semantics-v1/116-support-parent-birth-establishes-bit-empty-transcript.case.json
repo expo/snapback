@@ -4,6 +4,8 @@
   "coverage": [
     "support",
     "parent-arm",
+    "parent-first-skip",
+    "both-change",
     "fallback"
   ],
   "operator": {
@@ -41,7 +43,18 @@
       ]
     },
     "support": {
-      "entries": []
+      "entries": [
+        {
+          "rowKey": "m1",
+          "op": "insert",
+          "admit": "enter",
+          "postImage": {
+            "_id": "m1",
+            "join": "j1"
+          },
+          "rankKeys": []
+        }
+      ]
     },
     "target": {
       "entries": []

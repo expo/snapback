@@ -39,6 +39,18 @@
           "j2"
         ],
         "bit": false
+      },
+      "p3": {
+        "joinKey": [
+          "j3"
+        ],
+        "bit": true
+      },
+      "p4": {
+        "joinKey": [
+          "j4"
+        ],
+        "bit": false
       }
     }
   },
@@ -67,6 +79,24 @@
             "join": "j2"
           },
           "rankKeys": []
+        },
+        {
+          "rowKey": "m3",
+          "op": "insert",
+          "admit": "enter",
+          "postImage": {
+            "_id": "m3",
+            "join": "j3"
+          },
+          "rankKeys": []
+        },
+        {
+          "rowKey": "m4",
+          "op": "delete",
+          "admit": "leave",
+          "rankKeys": [
+            "j4"
+          ]
         }
       ]
     },

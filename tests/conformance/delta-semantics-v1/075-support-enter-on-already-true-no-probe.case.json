@@ -1,0 +1,104 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "support-enter-on-already-true-no-probe",
+  "coverage": [
+    "support",
+    "provability",
+    "batch-fold"
+  ],
+  "operator": {
+    "form": "support-semi-join",
+    "config": {
+      "edge": "edge",
+      "edgeKind": "direct",
+      "mode": {
+        "kind": "exists"
+      },
+      "parentJoinFields": [
+        "join"
+      ],
+      "supportJoinFields": [
+        "join"
+      ]
+    }
+  },
+  "initialState": {
+    "scopes": {
+      "p1": {
+        "joinKey": [
+          "j1"
+        ],
+        "bit": true
+      },
+      "p2": {
+        "joinKey": [
+          "j2"
+        ],
+        "bit": true
+      }
+    }
+  },
+  "foldedChangeBatch": {
+    "parent": {
+      "entries": []
+    },
+    "support": {
+      "entries": [
+        {
+          "rowKey": "m0",
+          "op": "insert",
+          "admit": "enter",
+          "postImage": {
+            "_id": "m0",
+            "join": "j1"
+          },
+          "rankKeys": []
+        },
+        {
+          "rowKey": "m1",
+          "op": "delete",
+          "admit": "leave",
+          "rankKeys": [
+            "j2"
+          ]
+        },
+        {
+          "rowKey": "m2",
+          "op": "insert",
+          "admit": "enter",
+          "postImage": {
+            "_id": "m2",
+            "join": "j2"
+          },
+          "rankKeys": []
+        }
+      ]
+    },
+    "target": {
+      "entries": []
+    }
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "transitions": []
+    },
+    "nextState": {
+      "scopes": {
+        "p1": {
+          "joinKey": [
+            "j1"
+          ],
+          "bit": true
+        },
+        "p2": {
+          "joinKey": [
+            "j2"
+          ],
+          "bit": true
+        }
+      }
+    }
+  }
+}

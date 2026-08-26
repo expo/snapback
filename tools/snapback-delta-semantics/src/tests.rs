@@ -175,3 +175,33 @@ fn malformed_carrier_is_a_runner_error_not_a_semantics_verdict() {
         &ReadTranscript::default(),
     );
 }
+
+#[test]
+#[should_panic(expected = "malformed E8 completeness carrier")]
+fn assemble_completeness_set_mismatch_is_a_runner_error() {
+    let operator: Operator = serde_json::from_value(json!({
+        "form":"assemble",
+        "config":{
+            "rootNodeId":"root",
+            "nodes":[{
+                "nodeId":"root","parent":null,"kind":"root",
+                "projection":{
+                    "_id":{"kind":"field","sourceNode":"root","sourceField":"_id"}
+                }
+            }]
+        }
+    }))
+    .unwrap();
+    let _ = evaluate_operator(
+        &operator,
+        json!({"result":[{"_id":"p1"}],"orderedRootKeys":["p1"]}),
+        json!({
+            "events":[],
+            "nextNodeOutputs":{"root":{"$root":[{"_id":"p1"}]}},
+            "orderedRootKeys":["p1"],
+            "nodeCompleteness":[],
+            "proofTuple":{}
+        }),
+        &ReadTranscript::default(),
+    );
+}

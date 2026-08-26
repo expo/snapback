@@ -217,11 +217,14 @@
       ]
     },
     {
-      "name": "window-backward-order",
-      "path": "024-window-backward-order.case.json",
-      "sha256": "sha256:e8b096835dd4752271d8c0d52c4011f37a1f656b5673a0a12b6e68699faa27c5",
+      "name": "window-backward-tail-competition",
+      "path": "024-window-backward-tail-competition.case.json",
+      "sha256": "sha256:2b278df31d53532425a756d2191543b73d6f313bd5563adf5245781401b3ea7c",
       "coverage": [
-        "window"
+        "window",
+        "backward",
+        "tail-competition",
+        "read-maintain"
       ]
     },
     {
@@ -269,20 +272,22 @@
       ]
     },
     {
-      "name": "window-tail-authenticated-exhausted-true",
-      "path": "030-window-tail-authenticated-exhausted-true.case.json",
-      "sha256": "sha256:879ab68ab2b5289bea05b0fd4de15410d63e88e7c1936cb585571f1984998f52",
+      "name": "window-backward-order",
+      "path": "030-window-backward-order.case.json",
+      "sha256": "sha256:df87ce773606654d39bfa3e03b0ba04ca26f230170c9fdd29447cb51ad5c61c4",
       "coverage": [
         "window",
-        "read-maintain"
+        "backward"
       ]
     },
     {
-      "name": "window-tail-authenticated-exhausted-false",
-      "path": "031-window-tail-authenticated-exhausted-false.case.json",
-      "sha256": "sha256:d1b3348909984cf35b0785c7e4be3ebca545aaa28ca303f038b4422f0c426018",
+      "name": "window-desc-empty-finite-upper-origin",
+      "path": "031-window-desc-empty-finite-upper-origin.case.json",
+      "sha256": "sha256:73ed020bd1dd7e2b73c7f29bc93b20ae4d815c0da4ee0293e338167795277632",
       "coverage": [
         "window",
+        "backward",
+        "finite-interval",
         "read-maintain"
       ]
     },
@@ -398,7 +403,7 @@
     {
       "name": "window-empty-incomplete-tail-from-start",
       "path": "044-window-empty-incomplete-tail-from-start.case.json",
-      "sha256": "sha256:28147aea73b29f2c097fe4ea79904ba0f1b9c3600409754580a8866a9cb76f8d",
+      "sha256": "sha256:fac866d77d22f5e92e24e76dd94bdaee55ac1484b44d8f15e805340f2ab1770d",
       "coverage": [
         "window",
         "finite-interval",
@@ -520,11 +525,12 @@
       ]
     },
     {
-      "name": "lookup-inadmitted-child-does-not-attach",
-      "path": "057-lookup-inadmitted-child-does-not-attach.case.json",
-      "sha256": "sha256:dfc35b1ea48478cfafb03172bf3102fb18835abfbc4737fa92005a036245eea6",
+      "name": "lookup-child-rekey-old-leaves-new-arrives",
+      "path": "057-lookup-child-rekey-old-leaves-new-arrives.case.json",
+      "sha256": "sha256:41cbae79027bb70cacc18b186752d6e64ceef1ef8a3cf9c726c27c999dc4a210",
       "coverage": [
-        "lookup"
+        "lookup",
+        "rekey"
       ]
     },
     {
@@ -537,13 +543,14 @@
       ]
     },
     {
-      "name": "lookup-delete-insert-same-key-net-found",
-      "path": "059-lookup-delete-insert-same-key-net-found.case.json",
-      "sha256": "sha256:0b97f030386818946d75b7dbad1ccd3a2575c5e59fff8413bd03c234f5f2632c",
+      "name": "lookup-delete-insert-same-row-key-net-update",
+      "path": "059-lookup-delete-insert-same-row-key-net-update.case.json",
+      "sha256": "sha256:9f3ade77a9748082cf6da0ded12f8f8ed7b917867f0fba05835b12c1bf255b35",
       "coverage": [
         "lookup",
-        "whole-batch",
-        "presence"
+        "composition",
+        "batch-fold",
+        "net-candidate"
       ]
     },
     {
@@ -680,7 +687,7 @@
     {
       "name": "support-all-mode-element-transition",
       "path": "074-support-all-mode-element-transition.case.json",
-      "sha256": "sha256:f41ef4e391cf342ad4c6f900dd0f7666e04b22cbf0302024a632cccdcf3a4d2c",
+      "sha256": "sha256:a44cbed5d33e1d0d7f85da975f321b06f17f4edbc97141c3edf8657798e2814e",
       "coverage": [
         "support",
         "all-and",
@@ -688,21 +695,24 @@
       ]
     },
     {
-      "name": "support-same-scope-delete-insert-fold",
-      "path": "075-support-same-scope-delete-insert-fold.case.json",
-      "sha256": "sha256:cc5d3c4e2ce580e72e7ff26c7beda567f97fffdfa21e9323c0a2d2463dfc0e31",
+      "name": "support-enter-on-already-true-no-probe",
+      "path": "075-support-enter-on-already-true-no-probe.case.json",
+      "sha256": "sha256:e41253b4224f19aceaf8f3a4b8cbe5eed4324722380f29a203be2fe10e8cc81c",
       "coverage": [
         "support",
+        "provability",
         "batch-fold"
       ]
     },
     {
       "name": "support-parent-birth-establishes-bit",
       "path": "076-support-parent-birth-establishes-bit.case.json",
-      "sha256": "sha256:fb1a18ee09bc0308d3fa19e9652c0b376e3c69b20ca48c758fa01988b5483e4d",
+      "sha256": "sha256:b95f83a484161145cd15f78526bfdd555f39035a634d57f92f54b561ce466add",
       "coverage": [
         "support",
         "parent-arm",
+        "parent-first-skip",
+        "both-change",
         "read-maintain"
       ]
     },
@@ -727,20 +737,23 @@
       ]
     },
     {
-      "name": "support-parent-death-destroys-bit",
-      "path": "079-support-parent-death-destroys-bit.case.json",
-      "sha256": "sha256:b693e659a5875aba7bc51ebf29945f3db9ec0f05e2a52270a0ee74aef9d7bb4b",
+      "name": "support-leave-on-already-false-no-probe",
+      "path": "079-support-leave-on-already-false-no-probe.case.json",
+      "sha256": "sha256:6cda00ddf1dd0486d2c31f59bb2546459ffe02fbc7461a46c24d3f03fcfe85b1",
       "coverage": [
         "support",
+        "provability",
         "parent-arm"
       ]
     },
     {
-      "name": "support-through-target-change",
-      "path": "080-support-through-target-change.case.json",
-      "sha256": "sha256:cafee76bf727d3c03f42b0fedb4ae76889d2f79846221ea64c866005ad0d2d09",
+      "name": "support-through-retarget-reprobed",
+      "path": "080-support-through-retarget-reprobed.case.json",
+      "sha256": "sha256:5384a00bc7fa3861b3beea77e0857f094a33c766339357adb32578553e6be6ae",
       "coverage": [
         "support",
+        "through-retarget",
+        "provability",
         "read-maintain"
       ]
     },
@@ -787,11 +800,13 @@
       ]
     },
     {
-      "name": "principal-binding-then-target",
-      "path": "086-principal-binding-then-target.case.json",
-      "sha256": "sha256:03f5cdea7e08fb744aedea1a7dc598b8905603457ca5d20ed8c9e8f01b6ca2bf",
+      "name": "composition-principal-bind-product",
+      "path": "086-composition-principal-bind-product.case.json",
+      "sha256": "sha256:0596e9fd74d1fbb1830eb9f53c1c683fee92c1b8135d591b9c1b4a97694b4db6",
       "coverage": [
         "principal",
+        "composition",
+        "product",
         "both-change"
       ]
     },
@@ -805,17 +820,19 @@
       ]
     },
     {
-      "name": "assemble-projection-scoped-patch",
-      "path": "088-assemble-projection-scoped-patch.case.json",
-      "sha256": "sha256:400efaaa477b4c8ccb4b1d072b9ec5694d7455f0ef587bbb824974bd8c36b84b",
+      "name": "assemble-aliased-field-and-literal",
+      "path": "088-assemble-aliased-field-and-literal.case.json",
+      "sha256": "sha256:95533b2c26a91ebce6299d1155191a201154903b290d81dcf30d056268a1f160",
       "coverage": [
-        "assemble"
+        "assemble",
+        "projection-alias",
+        "projection-literal"
       ]
     },
     {
       "name": "assemble-root-splice-add",
       "path": "089-assemble-root-splice-add.case.json",
-      "sha256": "sha256:e333f880d075ffa8ea1c15cf3fa809504115e2fe8db18d1583fc1a09b0b77dda",
+      "sha256": "sha256:a6a0d6976be0d062c66421d3e0d3c2d03ece305bd8b91ecd3cd0d4ad439a1f77",
       "coverage": [
         "assemble"
       ]
@@ -823,7 +840,7 @@
     {
       "name": "assemble-to-one-presence",
       "path": "090-assemble-to-one-presence.case.json",
-      "sha256": "sha256:d009505796783b48f4ac5659fbe92f8ae94e311656109843d832617d4df4c04e",
+      "sha256": "sha256:ddb87f2d7f0a1b3d752694c91e160f502971fa87dd908ec93c70a1172733d0a2",
       "coverage": [
         "assemble",
         "presence"
@@ -832,7 +849,7 @@
     {
       "name": "assemble-exists-bit",
       "path": "091-assemble-exists-bit.case.json",
-      "sha256": "sha256:1c6bf1fb473425fa4e29133c5b3813775d70c7681daf7a646c1af52e16e66955",
+      "sha256": "sha256:e1b99a0a4b6ffbdcab3f87db45a799fca74138fd3feddd4c8a4e2874cc9513a5",
       "coverage": [
         "assemble",
         "support"
@@ -841,7 +858,7 @@
     {
       "name": "assemble-below-array-unaddressable",
       "path": "092-assemble-below-array-unaddressable.case.json",
-      "sha256": "sha256:6909abbd27ed2540ac15e9e0dd91a4dcdd02e961e6bf8a763db95af54c979fc9",
+      "sha256": "sha256:2665bd1aca0bbb00d230c770eb7f6d6f38575c6bad2ceebdaf51ffabe5dcb37c",
       "coverage": [
         "assemble",
         "fallback"
@@ -850,7 +867,7 @@
     {
       "name": "assemble-ancestor-birth-absorbs-descendant",
       "path": "093-assemble-ancestor-birth-absorbs-descendant.case.json",
-      "sha256": "sha256:baa4f9f457fb9dcc4ce9fc73517e53e58d6d70e43bf852b0978dd7ac620b0084",
+      "sha256": "sha256:bbd9fdce2d7b5d3f675d3c835a62d0c98ce722ba7b00137a303fdca2510c3f6a",
       "coverage": [
         "assemble",
         "ancestor-absorption"
@@ -859,7 +876,7 @@
     {
       "name": "assemble-to-many-two-removals-application-positions",
       "path": "094-assemble-to-many-two-removals-application-positions.case.json",
-      "sha256": "sha256:cfbbea767a059f66277166993fa49db4fbdee57f9f269e0d593e090249332470",
+      "sha256": "sha256:53ff80c41faf762d8c61fbecb51de87b11a919ceab3c9f41726c1d548705702f",
       "coverage": [
         "assemble",
         "application-position"
@@ -915,8 +932,19 @@
       ]
     },
     {
+      "name": "window-backward-tail-competition-empty-transcript",
+      "path": "100-window-backward-tail-competition-empty-transcript.case.json",
+      "sha256": "sha256:b4302b51fed5ab5c31c6b909c330dd8dd03007f2fe7969242725c13a88d29207",
+      "coverage": [
+        "window",
+        "backward",
+        "tail-competition",
+        "fallback"
+      ]
+    },
+    {
       "name": "window-tail-competition-known-mask-empty-transcript",
-      "path": "100-window-tail-competition-known-mask-empty-transcript.case.json",
+      "path": "101-window-tail-competition-known-mask-empty-transcript.case.json",
       "sha256": "sha256:171c7c4b12b05a11ff3f19caf03969bc369359544a2b58e6b3258c9b8b2a5faa",
       "coverage": [
         "window",
@@ -924,20 +952,13 @@
       ]
     },
     {
-      "name": "window-tail-authenticated-exhausted-true-empty-transcript",
-      "path": "101-window-tail-authenticated-exhausted-true-empty-transcript.case.json",
-      "sha256": "sha256:f1e9d956e6a8307365a3ef53d54b9402763b4bb9e8388c80801564a1bd6dbfe0",
+      "name": "window-desc-empty-finite-upper-origin-empty-transcript",
+      "path": "102-window-desc-empty-finite-upper-origin-empty-transcript.case.json",
+      "sha256": "sha256:cef50f032ca5dad46b08ba4bef44b0eb17aa6acbb6f7b0d707b0e6d7abcc5d38",
       "coverage": [
         "window",
-        "fallback"
-      ]
-    },
-    {
-      "name": "window-tail-authenticated-exhausted-false-empty-transcript",
-      "path": "102-window-tail-authenticated-exhausted-false-empty-transcript.case.json",
-      "sha256": "sha256:23f3f15e0856ce1bba4965f133982f0a71dd055a40925ab1864247082f256ef1",
-      "coverage": [
-        "window",
+        "backward",
+        "finite-interval",
         "fallback"
       ]
     },
@@ -1061,7 +1082,7 @@
     {
       "name": "support-all-mode-element-transition-empty-transcript",
       "path": "115-support-all-mode-element-transition-empty-transcript.case.json",
-      "sha256": "sha256:57e35f330817abcc60993e56f4b8d4128a34fb4f2f35cf01f5ae7fd10744a301",
+      "sha256": "sha256:5777f3174c3afeca111d83ef8b1f1eacf172798412a1272f58bb3c8b28c4941f",
       "coverage": [
         "support",
         "all-and",
@@ -1071,10 +1092,12 @@
     {
       "name": "support-parent-birth-establishes-bit-empty-transcript",
       "path": "116-support-parent-birth-establishes-bit-empty-transcript.case.json",
-      "sha256": "sha256:d85ff188650bf54ff39318389d010cb4715ed03cb6ef95c374fa46e18f03a8d5",
+      "sha256": "sha256:e32593cc8d744573ea2635c2cd399eae38f3320f8398c4a3a2e050d1980fc34d",
       "coverage": [
         "support",
         "parent-arm",
+        "parent-first-skip",
+        "both-change",
         "fallback"
       ]
     },
@@ -1090,11 +1113,13 @@
       ]
     },
     {
-      "name": "support-through-target-change-empty-transcript",
-      "path": "118-support-through-target-change-empty-transcript.case.json",
-      "sha256": "sha256:487a18d9d03ac34af06be0127f670aef1e443362b34ce8bcf8a5261c75cf629f",
+      "name": "support-through-retarget-reprobed-empty-transcript",
+      "path": "118-support-through-retarget-reprobed-empty-transcript.case.json",
+      "sha256": "sha256:fcf7cc3deacbd37a62d2384bda34ca26efa1728857683524cf143558d8f6efed",
       "coverage": [
         "support",
+        "through-retarget",
+        "provability",
         "fallback"
       ]
     },

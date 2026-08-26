@@ -711,6 +711,23 @@ pub enum AssemblyNodeKind {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "kebab-case",
+    rename_all_fields = "camelCase",
+    deny_unknown_fields
+)]
+pub enum AssemblyProjectionArm {
+    Field {
+        source_node: String,
+        source_field: String,
+    },
+    Literal {
+        value: Value,
+    },
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AssemblyNode {
     pub node_id: String,
@@ -720,7 +737,7 @@ pub struct AssemblyNode {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub result_field: Option<String>,
     #[serde(default)]
-    pub projection_fields: BTreeSet<String>,
+    pub projection: BTreeMap<String, AssemblyProjectionArm>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]

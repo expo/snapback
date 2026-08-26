@@ -1,0 +1,163 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "window-backward-order",
+  "coverage": [
+    "window",
+    "backward"
+  ],
+  "operator": {
+    "form": "window",
+    "config": {
+      "windowId": "root",
+      "order": [
+        {
+          "field": "rank",
+          "direction": "desc"
+        }
+      ],
+      "interval": {},
+      "take": 2,
+      "projectionFields": [
+        "rank",
+        "title"
+      ]
+    }
+  },
+  "initialState": {
+    "rows": [
+      {
+        "rowKey": "c",
+        "rankKeys": {
+          "values": [
+            3
+          ],
+          "rowKey": "c"
+        },
+        "row": {
+          "_id": "c",
+          "rank": 3
+        }
+      },
+      {
+        "rowKey": "b",
+        "rankKeys": {
+          "values": [
+            2
+          ],
+          "rowKey": "b"
+        },
+        "row": {
+          "_id": "b",
+          "rank": 2
+        }
+      }
+    ],
+    "boundary": {
+      "values": [
+        2
+      ],
+      "rowKey": "b"
+    },
+    "resultCount": 2,
+    "complete": true,
+    "label": "complete",
+    "continuation": {
+      "values": [
+        2
+      ],
+      "rowKey": "b"
+    }
+  },
+  "foldedChangeBatch": {
+    "entries": [
+      {
+        "rowKey": "d",
+        "op": "insert",
+        "admit": "enter",
+        "postImage": {
+          "_id": "d",
+          "rank": 4
+        },
+        "rankKeys": [
+          4
+        ]
+      }
+    ]
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "ops": [
+        {
+          "op": "splice-out",
+          "sortKey": {
+            "values": [
+              2
+            ],
+            "rowKey": "b"
+          },
+          "rowKey": "b"
+        },
+        {
+          "op": "splice-in",
+          "sortKey": {
+            "values": [
+              4
+            ],
+            "rowKey": "d"
+          },
+          "row": {
+            "_id": "d",
+            "rank": 4
+          }
+        }
+      ]
+    },
+    "nextState": {
+      "rows": [
+        {
+          "rowKey": "d",
+          "rankKeys": {
+            "values": [
+              4
+            ],
+            "rowKey": "d"
+          },
+          "row": {
+            "_id": "d",
+            "rank": 4
+          }
+        },
+        {
+          "rowKey": "c",
+          "rankKeys": {
+            "values": [
+              3
+            ],
+            "rowKey": "c"
+          },
+          "row": {
+            "_id": "c",
+            "rank": 3
+          }
+        }
+      ],
+      "boundary": {
+        "values": [
+          3
+        ],
+        "rowKey": "c"
+      },
+      "resultCount": 2,
+      "complete": false,
+      "label": "incomplete",
+      "continuation": {
+        "values": [
+          3
+        ],
+        "rowKey": "c"
+      }
+    }
+  }
+}

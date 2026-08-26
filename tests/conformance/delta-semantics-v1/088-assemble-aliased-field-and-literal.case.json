@@ -1,8 +1,10 @@
 {
   "format": "snapback.delta-semantics.case.v1",
-  "name": "assemble-projection-scoped-patch",
+  "name": "assemble-aliased-field-and-literal",
   "coverage": [
-    "assemble"
+    "assemble",
+    "projection-alias",
+    "projection-literal"
   ],
   "operator": {
     "form": "assemble",
@@ -13,10 +15,22 @@
           "nodeId": "root",
           "parent": null,
           "kind": "root",
-          "projectionFields": [
-            "_id",
-            "title"
-          ]
+          "projection": {
+            "_id": {
+              "kind": "field",
+              "sourceNode": "root",
+              "sourceField": "_id"
+            },
+            "headline": {
+              "kind": "field",
+              "sourceNode": "root",
+              "sourceField": "title"
+            },
+            "kind": {
+              "kind": "literal",
+              "value": "issue"
+            }
+          }
         }
       ]
     }
@@ -25,7 +39,8 @@
     "result": [
       {
         "_id": "p1",
-        "title": "old"
+        "headline": "old",
+        "kind": "issue"
       }
     ],
     "orderedRootKeys": [
@@ -71,7 +86,8 @@
     "postResult": [
       {
         "_id": "p1",
-        "title": "new"
+        "headline": "new",
+        "kind": "issue"
       }
     ],
     "orderedRootKeys": [
@@ -101,7 +117,7 @@
           "key": "p1",
           "position": 0,
           "row": {
-            "title": "new"
+            "headline": "new"
           }
         }
       ],
@@ -120,13 +136,14 @@
         "authority": "public",
         "evaluationCut": 7
       },
-      "resultDigest": "sha256:1e7f4f831e1822fe6f24deb7a46171e684a2ae772649c386ebc7977da7c296b3"
+      "resultDigest": "sha256:a4a983b57fed14268f6be604c3257562f779765c179b578e57b4b9022ce9ba42"
     },
     "nextState": {
       "result": [
         {
           "_id": "p1",
-          "title": "new"
+          "headline": "new",
+          "kind": "issue"
         }
       ],
       "orderedRootKeys": [
