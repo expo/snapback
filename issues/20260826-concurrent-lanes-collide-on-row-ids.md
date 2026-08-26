@@ -42,14 +42,16 @@ lane allocates at a time. With lanes running in parallel from a shared base it i
 Options worth weighing:
 1. **Reserve ranges per lane at dispatch.** Cheap, no tooling; the orchestrator hands each lane a block
    (`F313–F317`, `F318–F322`) in the brief. Costs nothing and solves the common case.
-2. **Make the ledger check reject duplicates.** `tests/row_attacks_v1.mjs` and
-   `scripts/run-row-attacks.mjs` should fail on a repeated `row` value. That catches the collision at
-   the first landing rather than the second, which is where it becomes expensive.
+2. ~~Make the ledger check reject duplicates.~~ **Already done** — `scripts/run-row-attacks.mjs:55`
+   rejects a repeated `row` with a `GateInfrastructureError`, so the second lane to land its ledger
+   fails the gate rather than silently overwriting a meaning. That is the right behaviour and it is
+   already in place; the collision is caught at merge, not shipped.
 3. **Derive the ID from content** rather than allocating sequentially — the largest change and probably
    not worth it.
 
-(1) and (2) together are sufficient, and (2) should be done regardless: a duplicate row ID is exactly
-the kind of thing an executable contract exists to refuse.
+So the only genuinely missing piece is (1). The gate will refuse the collision, but refusing it at the
+*second* landing means one lane has already done work under an ID it cannot keep. Reserving a range per
+lane at dispatch costs nothing and prevents the wasted round.
 
 ## Related
 
