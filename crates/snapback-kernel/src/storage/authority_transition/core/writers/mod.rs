@@ -11,6 +11,8 @@ mod bearer;
 mod delivery;
 mod internal_work;
 mod password;
+#[cfg(test)]
+mod probe;
 mod recovery;
 mod step_up;
 

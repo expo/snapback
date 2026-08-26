@@ -1,7 +1,6 @@
 //! Authority facts that exist only after kernel verification.
 
 use super::super::DatabaseBinding;
-use rusqlite::hooks::Authorization;
 use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::marker::PhantomData;
@@ -179,6 +178,7 @@ struct ProtectedWriteSet {
     writes: BTreeSet<ProtectedWrite>,
 }
 
+#[derive(Clone)]
 struct DatabaseOrigin {
     binding: DatabaseBinding,
     durable_store_identity: [u8; 32],
@@ -193,6 +193,8 @@ struct TransactionIdentity {
 }
 
 struct ConnectionAuthorizer {
+    database_origin: DatabaseOrigin,
+    connection_epoch: NonZeroU64,
     permit_cell: Arc<Mutex<AuthorizerPermitCell>>,
 }
 
@@ -256,7 +258,3 @@ enum AuthorityTransitionError {
 }
 
 type AuthorityTransitionResult<T> = Result<T, AuthorityTransitionError>;
-
-fn deny() -> Authorization {
-    Authorization::Deny
-}

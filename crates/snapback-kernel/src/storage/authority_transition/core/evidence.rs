@@ -62,6 +62,7 @@ fn consume<'tx>(
     if !std::ptr::eq(evidence.transaction, expectation.transaction) {
         return Err(AuthorityTransitionError::TransactionMismatch);
     }
+    registry::consume_nonce(evidence.transaction, evidence.single_use_nonce)?;
     if !registry::proof_relation_is_valid(
         &evidence.proof_kind,
         &evidence.purpose,
@@ -78,10 +79,14 @@ fn consume<'tx>(
     if !registry::time_is_valid(&evidence.time, expectation.commit_time_ms) {
         return Err(AuthorityTransitionError::TimeInvalid);
     }
-    if !registry::purpose_matches_mutation(&evidence.purpose, &expectation.mutation) {
+    if !registry::purpose_matches_mutation(&evidence.purpose, &expectation.mutation)
+        || !writers::contains(&expectation.mutation)
+    {
         return Err(AuthorityTransitionError::MutationMismatch);
     }
-    if evidence.write_set != expectation.write_set {
+    if evidence.write_set != expectation.write_set
+        || evidence.write_set != registry::write_set_for(&expectation.mutation)
+    {
         return Err(AuthorityTransitionError::WriteSetMismatch);
     }
     if evidence.successor_digest != expectation.successor_digest
@@ -89,7 +94,6 @@ fn consume<'tx>(
     {
         return Err(AuthorityTransitionError::SuccessorDigestMismatch);
     }
-    registry::consume_nonce(evidence.transaction, evidence.single_use_nonce)?;
     permit::activate(
         evidence.transaction,
         evidence.single_use_nonce,
