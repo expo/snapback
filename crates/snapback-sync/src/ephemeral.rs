@@ -6,7 +6,7 @@ use std::sync::{Arc, MutexGuard, PoisonError, RwLock, RwLockReadGuard, RwLockWri
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest as _, Sha256};
-use tokio::sync::Notify;
+use tokio::sync::{Notify, mpsc};
 
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::live_wire::{LiveAuthErrorCode, LiveAuthErrorReason, LiveAuthorityDisposition};
@@ -16,8 +16,8 @@ use crate::storage::{
     AuthorizationOutboxAdmission, AuthorizationReservationCancellation, AuthorizationVersion,
     NonAuthorizingRoomAuthority, OutboxFrameDisposition, RealtimePublicationValidity,
     RoomAuthorityOperationGuard, RoomCreationAdmission, RoomReauthorizationCompletion,
-    RoomReauthorizationSubject, RoomReauthorizationSubscriber, RoomRetirementAdmission,
-    ServingDatabase,
+    RoomReauthorizationDatabase, RoomReauthorizationSubject, RoomReauthorizationSubscriber,
+    RoomRetirementAdmission, ServingDatabase,
 };
 pub use crate::storage::{
     RealtimePublicationPermit, ResolvedRoomReauthorizationBatch, RoomAuthorityPermit,
@@ -400,12 +400,13 @@ impl DeliveryNotifier {
             .flatten()
     }
 
-    /// Run one synchronous act only while `generation` owns the connection.
+    /// Run one crate-private synchronous act only while `generation` owns the
+    /// connection.
     /// The notifier lock remains held through the closure, so a replacement
     /// registration cannot linearize between the ownership check and an
     /// outbox drain. Closures must follow the documented notifier→outbox lock
     /// order and must never await.
-    pub fn act_if_current<T>(
+    pub(crate) fn act_if_current<T>(
         &self,
         connection_id: &str,
         generation: u64,
@@ -1188,15 +1189,16 @@ impl OutboxDrainLease {
         self
     }
 
-    /// Validate the lease and synchronously offer its complete frame while the
-    /// outbox lock excludes overflow, purge, and coalescing replacement. The
-    /// failed value is returned only after the queue has released the lease;
-    /// callers must drop publication permits outside this lock.
-    pub fn try_commit<T>(
-        &self,
-        value: T,
-        offer: impl FnOnce(T) -> Result<(), T>,
-    ) -> OutboxLeaseCommit<T> {
+    /// Validate the lease and synchronously offer its complete frame to a
+    /// concrete bounded Tokio channel while the outbox lock excludes overflow,
+    /// purge, and coalescing replacement. No caller-supplied code executes
+    /// under the outbox lock. The failed value is returned only after the queue
+    /// has released the lease; callers must drop publication permits outside
+    /// this lock.
+    ///
+    /// @ref LLP 0290#71-lock-ordering — concrete channel handoff closes the
+    /// former caller-callback reverse edge from outbox state into SQLite.
+    pub fn try_commit<T>(&self, value: T, sender: &mpsc::Sender<T>) -> OutboxLeaseCommit<T> {
         let _publication_handoff = match self.publication_validity.as_ref() {
             Some(validity) => match validity.begin_handoff() {
                 Ok(handoff) => Some(handoff),
@@ -1227,17 +1229,31 @@ impl OutboxDrainLease {
             outbox.release_lease(self.inner.lease_id);
             return OutboxLeaseCommit::Superseded(value);
         }
-        match offer(value) {
+        match sender.try_send(value) {
             Ok(()) => {
                 let removed = outbox.acknowledge_leases(&[self.inner.lease_id]);
                 debug_assert!(removed);
                 OutboxLeaseCommit::Committed
             }
-            Err(value) => {
+            Err(error) => {
                 outbox.release_lease(self.inner.lease_id);
-                OutboxLeaseCommit::OfferFailed(value)
+                OutboxLeaseCommit::OfferFailed(error.into_inner())
             }
         }
+    }
+
+    /// Closed generation-checked form of [`Self::try_commit`]. Dependents can
+    /// compose the notifier and lease cuts without supplying code to execute
+    /// under either mutex.
+    pub fn try_commit_if_current<T>(
+        &self,
+        notifier: &DeliveryNotifier,
+        connection_id: &str,
+        generation: u64,
+        value: T,
+        sender: &mpsc::Sender<T>,
+    ) -> Option<OutboxLeaseCommit<T>> {
+        notifier.act_if_current(connection_id, generation, || self.try_commit(value, sender))
     }
 
     pub fn wake(&self) {
@@ -1742,6 +1758,44 @@ enum FrameAuthorityDisposition {
     Send,
     Retain,
     DropStale,
+}
+
+/// Closed classification policy used while an outbox mutex is held. Keeping
+/// this as data plus concrete methods, instead of accepting `FnMut`, prevents
+/// a future caller from smuggling SQLite or another blocking acquisition into
+/// the queue critical section.
+enum OutboxFrameAuthority<'admission, 'registry> {
+    Admission(&'admission AuthorizationOutboxAdmission<'registry>),
+    #[cfg(any(test, feature = "test-support"))]
+    SendAll,
+}
+
+impl OutboxFrameAuthority<'_, '_> {
+    fn classify_durable(&self, message: &DurableMessage) -> FrameAuthorityDisposition {
+        let disposition = match self {
+            Self::Admission(admission) => admission.classify_durable(message),
+            #[cfg(any(test, feature = "test-support"))]
+            Self::SendAll => OutboxFrameDisposition::Send,
+        };
+        match disposition {
+            OutboxFrameDisposition::Send => FrameAuthorityDisposition::Send,
+            OutboxFrameDisposition::Retain => FrameAuthorityDisposition::Retain,
+            OutboxFrameDisposition::DropStale => FrameAuthorityDisposition::DropStale,
+        }
+    }
+
+    fn classify_ephemeral(&self, message: &EphemeralMessage) -> FrameAuthorityDisposition {
+        let disposition = match self {
+            Self::Admission(admission) => admission.classify_ephemeral(message),
+            #[cfg(any(test, feature = "test-support"))]
+            Self::SendAll => OutboxFrameDisposition::Send,
+        };
+        match disposition {
+            OutboxFrameDisposition::Send => FrameAuthorityDisposition::Send,
+            OutboxFrameDisposition::Retain => FrameAuthorityDisposition::Retain,
+            OutboxFrameDisposition::DropStale => FrameAuthorityDisposition::DropStale,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -2587,22 +2641,21 @@ impl OutboundQueue {
     fn discard_stale_frames(
         &mut self,
         expected_effect_fence: Option<&ConnectionEffectFence>,
-        classify_durable: &mut impl FnMut(&DurableMessage) -> FrameAuthorityDisposition,
-        classify_ephemeral: &mut impl FnMut(&EphemeralMessage) -> FrameAuthorityDisposition,
+        authority: &OutboxFrameAuthority<'_, '_>,
     ) {
         self.durable.retain(|queued| {
             effect_fence_disposition(queued.message.effect_fence(), expected_effect_fence)
-                .unwrap_or_else(|| classify_durable(queued.message.as_ref()))
+                .unwrap_or_else(|| authority.classify_durable(queued.message.as_ref()))
                 != FrameAuthorityDisposition::DropStale
         });
         self.resync.retain(|queued| {
             effect_fence_disposition(queued.effect_fence.as_ref(), expected_effect_fence)
-                .unwrap_or_else(|| classify_ephemeral(queued.message.as_ref()))
+                .unwrap_or_else(|| authority.classify_ephemeral(queued.message.as_ref()))
                 != FrameAuthorityDisposition::DropStale
         });
         self.ephemeral.retain(|_, queued| {
             effect_fence_disposition(queued.effect_fence.as_ref(), expected_effect_fence)
-                .unwrap_or_else(|| classify_ephemeral(queued.message.as_ref()))
+                .unwrap_or_else(|| authority.classify_ephemeral(queued.message.as_ref()))
                 != FrameAuthorityDisposition::DropStale
         });
         self.durable.shrink_to_fit();
@@ -2623,14 +2676,12 @@ impl OutboundQueue {
     fn drain_with_authority(
         &mut self,
         expected_effect_fence: Option<&ConnectionEffectFence>,
-        classify_durable: impl FnMut(&DurableMessage) -> FrameAuthorityDisposition,
-        classify_ephemeral: impl FnMut(&EphemeralMessage) -> FrameAuthorityDisposition,
+        authority: &OutboxFrameAuthority<'_, '_>,
     ) -> Vec<RealtimeEnvelope> {
         let selected = self.drain_with_authority_bounded(
             expected_effect_fence,
             MAX_OUTBOX_DRAIN_BATCH,
-            classify_durable,
-            classify_ephemeral,
+            authority,
         );
         let lease_ids = selected
             .iter()
@@ -2649,15 +2700,13 @@ impl OutboundQueue {
         &mut self,
         expected_effect_fence: Option<&ConnectionEffectFence>,
         max_batch: usize,
-        classify_durable: impl FnMut(&DurableMessage) -> FrameAuthorityDisposition,
-        classify_ephemeral: impl FnMut(&EphemeralMessage) -> FrameAuthorityDisposition,
+        authority: &OutboxFrameAuthority<'_, '_>,
     ) -> Vec<SelectedOutboxLease> {
         self.drain_with_authority_bounded_and_handoff_limit(
             expected_effect_fence,
             max_batch,
             MAX_OUTBOX_HANDOFF_BYTES,
-            classify_durable,
-            classify_ephemeral,
+            authority,
         )
     }
 
@@ -2666,8 +2715,7 @@ impl OutboundQueue {
         expected_effect_fence: Option<&ConnectionEffectFence>,
         max_batch: usize,
         max_handoff_bytes: usize,
-        mut classify_durable: impl FnMut(&DurableMessage) -> FrameAuthorityDisposition,
-        mut classify_ephemeral: impl FnMut(&EphemeralMessage) -> FrameAuthorityDisposition,
+        authority: &OutboxFrameAuthority<'_, '_>,
     ) -> Vec<SelectedOutboxLease> {
         // @ref LLP 0059#durable-and-ephemeral-outboxes — leased, bounded
         // selection preserves physical queue ownership through final handoff.
@@ -2713,11 +2761,7 @@ impl OutboundQueue {
                 RealtimeEnvelope::Durable(overflow_sentinel(Some(effect_fence))),
                 &mut selected,
             );
-            self.discard_stale_frames(
-                expected_effect_fence,
-                &mut classify_durable,
-                &mut classify_ephemeral,
-            );
+            self.discard_stale_frames(expected_effect_fence, authority);
             self.clear_active_lease_binding_if_idle();
             return selected;
         }
@@ -2727,11 +2771,7 @@ impl OutboundQueue {
                 RealtimeEnvelope::Durable(overflow_sentinel(None)),
                 &mut selected,
             );
-            self.discard_stale_frames(
-                expected_effect_fence,
-                &mut classify_durable,
-                &mut classify_ephemeral,
-            );
+            self.discard_stale_frames(expected_effect_fence, authority);
             self.clear_active_lease_binding_if_idle();
             return selected;
         }
@@ -2741,11 +2781,7 @@ impl OutboundQueue {
                 RealtimeEnvelope::Durable(overflow_sentinel(Some(effect_fence))),
                 &mut selected,
             );
-            self.discard_stale_frames(
-                expected_effect_fence,
-                &mut classify_durable,
-                &mut classify_ephemeral,
-            );
+            self.discard_stale_frames(expected_effect_fence, authority);
             self.clear_active_lease_binding_if_idle();
             return selected;
         }
@@ -2771,7 +2807,7 @@ impl OutboundQueue {
             let disposition = {
                 let message = self.durable[durable_index].message.as_ref();
                 effect_fence_disposition(message.effect_fence(), expected_effect_fence)
-                    .unwrap_or_else(|| classify_durable(message))
+                    .unwrap_or_else(|| authority.classify_durable(message))
             };
             match disposition {
                 FrameAuthorityDisposition::Send => {
@@ -2802,8 +2838,7 @@ impl OutboundQueue {
                                 expected_effect_fence,
                                 max_batch,
                                 max_handoff_bytes,
-                                classify_durable,
-                                classify_ephemeral,
+                                authority,
                             );
                         }
                         handoff_full = true;
@@ -2838,7 +2873,7 @@ impl OutboundQueue {
             let disposition = {
                 let message = &self.resync[resync_index];
                 effect_fence_disposition(message.effect_fence.as_ref(), expected_effect_fence)
-                    .unwrap_or_else(|| classify_ephemeral(message.message.as_ref()))
+                    .unwrap_or_else(|| authority.classify_ephemeral(message.message.as_ref()))
             };
             match disposition {
                 FrameAuthorityDisposition::Send => {
@@ -2857,8 +2892,7 @@ impl OutboundQueue {
                                 expected_effect_fence,
                                 max_batch,
                                 max_handoff_bytes,
-                                classify_durable,
-                                classify_ephemeral,
+                                authority,
                             );
                         }
                         handoff_full = true;
@@ -2905,7 +2939,7 @@ impl OutboundQueue {
             }
             let disposition =
                 effect_fence_disposition(message.effect_fence.as_ref(), expected_effect_fence)
-                    .unwrap_or_else(|| classify_ephemeral(message.message.as_ref()));
+                    .unwrap_or_else(|| authority.classify_ephemeral(message.message.as_ref()));
             match disposition {
                 FrameAuthorityDisposition::Send => {
                     let estimated = estimated_ephemeral_handoff_bytes(message.message.as_ref());
@@ -2922,8 +2956,7 @@ impl OutboundQueue {
                                 expected_effect_fence,
                                 max_batch,
                                 max_handoff_bytes,
-                                classify_durable,
-                                classify_ephemeral,
+                                authority,
                             );
                         }
                         break;
@@ -3355,6 +3388,21 @@ impl RoomAuthority {
             }
             Self::Unbound(authority) => {
                 authority.begin_room_reauthorization_completion(database, batch)
+            }
+        }
+    }
+
+    fn begin_room_reauthorization_completion_off_local<'registry, 'database>(
+        &'registry self,
+        database: &'database RoomReauthorizationDatabase,
+        batch: ResolvedRoomReauthorizationBatch,
+    ) -> SnapbackResult<Option<RoomReauthorizationCompletion<'registry, 'database>>> {
+        match self {
+            Self::Bound(participant) => {
+                participant.begin_room_reauthorization_completion_off_local(database, batch)
+            }
+            Self::Unbound(authority) => {
+                authority.begin_room_reauthorization_completion_off_local(database, batch)
             }
         }
     }
@@ -3898,11 +3946,10 @@ impl LocalEphemeralBackend {
         database: &ServingDatabase,
         batch: ResolvedRoomReauthorizationBatch,
     ) -> SnapbackResult<bool> {
-        // @ref LLP 0290#71-lock-ordering — exact completion is the sole
-        // SQLite/process-state overlap and every reverse edge remains forbidden.
+        // @ref LLP 0290#71-lock-ordering — exact completion is a bounded
+        // SQLite/process-state overlap with a closed reverse-edge surface.
         // Lock order: lifecycle -> SQLite IMMEDIATE -> registry -> rooms ->
-        // room -> subscriber outboxes. SQLite waits with no registry/room held,
-        // isolating contention to this owner. Lifecycle also serializes terminal
+        // room -> subscriber outboxes. Lifecycle also serializes terminal
         // revocation with definition/reset so neither clears the other's marker.
         let _lifecycle = self.lifecycle_read("ephemeral room reauthorization completion");
         let completion = match self
@@ -3913,6 +3960,36 @@ impl LocalEphemeralBackend {
             Some(completion) => completion,
             None => return Ok(false),
         };
+        self.finish_room_reauthorization_completion(completion)
+    }
+
+    /// Complete on the take-once database lane owned outside managed Local.
+    /// A persistent SQLite writer can delay this owner without retaining the
+    /// global `LocalSnapback` guard or its executable write scope.
+    pub fn complete_room_reauthorization_off_local(
+        &self,
+        database: &RoomReauthorizationDatabase,
+        batch: ResolvedRoomReauthorizationBatch,
+    ) -> SnapbackResult<bool> {
+        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
+            "room reauthorization completion",
+        );
+        let _lifecycle = self.lifecycle_read("ephemeral room reauthorization completion");
+        let completion = match self
+            .shared
+            .room_authority
+            .begin_room_reauthorization_completion_off_local(database, batch)?
+        {
+            Some(completion) => completion,
+            None => return Ok(false),
+        };
+        self.finish_room_reauthorization_completion(completion)
+    }
+
+    fn finish_room_reauthorization_completion(
+        &self,
+        completion: RoomReauthorizationCompletion<'_, '_>,
+    ) -> SnapbackResult<bool> {
         let room_id = completion.room().clone();
         let room_authority_generation = completion.generation();
         let resolutions = completion.resolutions();
@@ -6154,20 +6231,12 @@ impl LocalEphemeralBackend {
             Ok(admission) => admission,
             Err(_) => return Vec::new(),
         };
+        let authority = OutboxFrameAuthority::Admission(&admission);
         let selected = lock(outbox).drain_with_authority_bounded_and_handoff_limit(
             expected_effect_fence,
             max_batch,
             max_handoff_bytes,
-            |message| match admission.classify_durable(message) {
-                OutboxFrameDisposition::Send => FrameAuthorityDisposition::Send,
-                OutboxFrameDisposition::Retain => FrameAuthorityDisposition::Retain,
-                OutboxFrameDisposition::DropStale => FrameAuthorityDisposition::DropStale,
-            },
-            |message| match admission.classify_ephemeral(message) {
-                OutboxFrameDisposition::Send => FrameAuthorityDisposition::Send,
-                OutboxFrameDisposition::Retain => FrameAuthorityDisposition::Retain,
-                OutboxFrameDisposition::DropStale => FrameAuthorityDisposition::DropStale,
-            },
+            &authority,
         );
         selected
             .into_iter()
@@ -6372,14 +6441,15 @@ impl LocalEphemeralBackend {
 
     /// Linearize a lease-less WS projection offer against recovery-marker
     /// installation. The notifier and connection registry are held by the
-    /// caller; keeping this outbox lock through the bounded writer offer gives
-    /// notifier -> outbox -> writer ordering without a check/offer gap.
+    /// caller; keeping this outbox lock through the concrete bounded-channel
+    /// offer gives notifier -> outbox -> writer ordering without a check/offer
+    /// gap or caller-supplied execution under the outbox mutex.
     pub fn try_offer_projection_bound<T>(
         &self,
         connection_id: &str,
         effect_fence: &ConnectionEffectFence,
         value: T,
-        offer: impl FnOnce(T) -> Result<(), T>,
+        sender: &mpsc::Sender<T>,
     ) -> OutboxLeaseCommit<T> {
         // @ref LLP 0059#durable-and-ephemeral-outboxes — a lease-less direct
         // projection still linearizes against marker priority at writer offer.
@@ -6388,10 +6458,28 @@ impl LocalEphemeralBackend {
         if queue.recovery_marker_preempts(Some(effect_fence), None) {
             return OutboxLeaseCommit::Superseded(value);
         }
-        match offer(value) {
+        match sender.try_send(value) {
             Ok(()) => OutboxLeaseCommit::Committed,
-            Err(value) => OutboxLeaseCommit::OfferFailed(value),
+            Err(error) => OutboxLeaseCommit::OfferFailed(error.into_inner()),
         }
+    }
+
+    /// Closed final-handoff composition for a lease-less direct projection.
+    /// No dependent can run caller code while either notifier or outbox state
+    /// is held.
+    pub fn try_offer_projection_if_current<T>(
+        &self,
+        connection_id: &str,
+        generation: u64,
+        effect_fence: &ConnectionEffectFence,
+        value: T,
+        sender: &mpsc::Sender<T>,
+    ) -> Option<OutboxLeaseCommit<T>> {
+        self.shared
+            .delivery
+            .act_if_current(connection_id, generation, || {
+                self.try_offer_projection_bound(connection_id, effect_fence, value, sender)
+            })
     }
 
     #[cfg(any(test, feature = "test-support"))]
@@ -8074,8 +8162,7 @@ mod tests {
             None,
             MAX_OUTBOX_DRAIN_BATCH,
             MAX_OUTBOX_HANDOFF_BYTES,
-            |_| FrameAuthorityDisposition::Send,
-            |_| FrameAuthorityDisposition::Send,
+            &OutboxFrameAuthority::SendAll,
         );
         assert!(selected.is_empty(), "a future deadline owns no send lease");
         assert!(queue.durable.iter().all(|queued| queued.lease_id.is_none()));
@@ -8490,11 +8577,10 @@ mod tests {
         assert_eq!(message.payload.as_slice(), b"first");
 
         let (new_generation, _) = notifier.register("conn").unwrap();
+        let (sender, _receiver) = mpsc::channel(1);
         assert!(
             notifier
-                .act_if_current("conn", old_generation, || {
-                    lease.try_commit((), |()| Ok(()))
-                })
+                .act_if_current("conn", old_generation, || { lease.try_commit((), &sender) })
                 .is_none(),
             "the predecessor generation cannot linearize a final handoff"
         );
@@ -10276,20 +10362,12 @@ mod tests {
 
         assert!(
             queue
-                .drain_with_authority(
-                    None,
-                    |_| FrameAuthorityDisposition::Send,
-                    |_| FrameAuthorityDisposition::Send,
-                )
+                .drain_with_authority(None, &OutboxFrameAuthority::SendAll,)
                 .is_empty(),
             "a compatibility drain cannot consume all-authority poison"
         );
         let current = ConnectionEffectFence::session("inc", "grant-current", "session", 2);
-        let recovered = queue.drain_with_authority(
-            Some(&current),
-            |_| FrameAuthorityDisposition::Send,
-            |_| FrameAuthorityDisposition::Send,
-        );
+        let recovered = queue.drain_with_authority(Some(&current), &OutboxFrameAuthority::SendAll);
         assert_eq!(recovered.len(), 1);
         let RealtimeEnvelope::Durable(signal) = &recovered[0] else {
             panic!("poison must materialize one durable recovery signal");
@@ -10300,19 +10378,11 @@ mod tests {
         assert_eq!(signal["clear_retained"], true);
         assert!(
             queue
-                .drain_with_authority(
-                    Some(&current),
-                    |_| FrameAuthorityDisposition::Send,
-                    |_| FrameAuthorityDisposition::Send,
-                )
+                .drain_with_authority(Some(&current), &OutboxFrameAuthority::SendAll,)
                 .is_empty(),
             "the verified current drain consumes poison exactly once"
         );
-        queue.drain_with_authority(
-            None,
-            |_| FrameAuthorityDisposition::Send,
-            |_| FrameAuthorityDisposition::Send,
-        );
+        queue.drain_with_authority(None, &OutboxFrameAuthority::SendAll);
         assert_eq!(queue.retained_bytes(), 0);
         assert_eq!(recompute_queue_retained_bytes(&queue), 0);
     }
@@ -13178,19 +13248,11 @@ mod tests {
 
         assert!(
             queue
-                .drain_with_authority(
-                    None,
-                    |_| FrameAuthorityDisposition::Send,
-                    |_| FrameAuthorityDisposition::Send,
-                )
+                .drain_with_authority(None, &OutboxFrameAuthority::SendAll,)
                 .is_empty(),
             "an unverified compatibility drain cannot consume poison"
         );
-        let recovered = queue.drain_with_authority(
-            Some(&current),
-            |_| FrameAuthorityDisposition::Send,
-            |_| FrameAuthorityDisposition::Send,
-        );
+        let recovered = queue.drain_with_authority(Some(&current), &OutboxFrameAuthority::SendAll);
         assert_eq!(recovered.len(), 1);
         let RealtimeEnvelope::Durable(signal) = &recovered[0] else {
             panic!("expected one durable global recovery signal");
@@ -13201,11 +13263,7 @@ mod tests {
         assert_eq!(payload["clear_retained"], true);
         assert!(
             queue
-                .drain_with_authority(
-                    Some(&current),
-                    |_| FrameAuthorityDisposition::Send,
-                    |_| FrameAuthorityDisposition::Send,
-                )
+                .drain_with_authority(Some(&current), &OutboxFrameAuthority::SendAll,)
                 .is_empty()
         );
     }
@@ -13278,8 +13336,7 @@ mod tests {
         let selected = queue.drain_with_authority_bounded(
             None,
             MAX_OUTBOX_DRAIN_BATCH,
-            |_| FrameAuthorityDisposition::Send,
-            |_| FrameAuthorityDisposition::Send,
+            &OutboxFrameAuthority::SendAll,
         );
         assert!(!selected.is_empty());
         assert!(selected.len() < MAX_OUTBOX_DRAIN_BATCH);
@@ -13310,8 +13367,7 @@ mod tests {
             OUTBOX_HANDOFF_BATCH_OVERHEAD
                 .saturating_add(estimate)
                 .saturating_sub(1),
-            |_| FrameAuthorityDisposition::Send,
-            |_| FrameAuthorityDisposition::Send,
+            &OutboxFrameAuthority::SendAll,
         );
         assert!(selected.is_empty());
         assert_eq!(queue.durable.len(), 1);
@@ -13321,8 +13377,7 @@ mod tests {
         let retry = queue.drain_with_authority_bounded(
             None,
             MAX_OUTBOX_DRAIN_BATCH,
-            |_| FrameAuthorityDisposition::Send,
-            |_| FrameAuthorityDisposition::Send,
+            &OutboxFrameAuthority::SendAll,
         );
         assert!(matches!(
             retry.as_slice(),
@@ -13342,8 +13397,7 @@ mod tests {
             Some(&fence),
             1,
             0,
-            |_| FrameAuthorityDisposition::Send,
-            |_| FrameAuthorityDisposition::Send,
+            &OutboxFrameAuthority::SendAll,
         );
         assert_eq!(selected.len(), 1);
         assert_eq!(
@@ -13416,8 +13470,7 @@ mod tests {
         let selected = queue.drain_with_authority_bounded(
             None,
             MAX_OUTBOX_DRAIN_BATCH,
-            |_| FrameAuthorityDisposition::Send,
-            |_| FrameAuthorityDisposition::Send,
+            &OutboxFrameAuthority::SendAll,
         );
         assert_eq!(selected.len(), 1);
         let RealtimeEnvelope::Durable(marker) = &selected[0].envelope else {
@@ -13453,11 +13506,7 @@ mod tests {
         assert_eq!(queue.resync.len(), 1);
         assert_eq!(queue.retained_bytes(), retained);
 
-        let drained = queue.drain_with_authority(
-            Some(&fence),
-            |_| FrameAuthorityDisposition::Send,
-            |_| FrameAuthorityDisposition::Send,
-        );
+        let drained = queue.drain_with_authority(Some(&fence), &OutboxFrameAuthority::SendAll);
         assert!(matches!(
             drained.as_slice(),
             [RealtimeEnvelope::Ephemeral(
@@ -13541,7 +13590,9 @@ mod tests {
             .unwrap();
         let (_, permit, lease) = selected.into_leased_parts();
         assert!(permit.is_none());
-        match lease.try_commit("not-accepted", Err) {
+        let (sender, _receiver) = mpsc::channel(1);
+        sender.try_send("occupied").unwrap();
+        match lease.try_commit("not-accepted", &sender) {
             OutboxLeaseCommit::OfferFailed(value) => assert_eq!(value, "not-accepted"),
             OutboxLeaseCommit::Committed | OutboxLeaseCommit::Superseded(_) => {
                 panic!("a rejected bounded offer cannot acknowledge poison")
@@ -13572,7 +13623,8 @@ mod tests {
         assert!(permit.is_none());
 
         backend.overflow_outbox_for_test("conn", None);
-        match lease.try_commit((), |()| Ok(())) {
+        let (sender, _receiver) = mpsc::channel(1);
+        match lease.try_commit((), &sender) {
             OutboxLeaseCommit::Superseded(()) => {}
             OutboxLeaseCommit::Committed | OutboxLeaseCommit::OfferFailed(()) => {
                 panic!("an eligible global marker must supersede an exact ordinary offer")
@@ -13610,7 +13662,8 @@ mod tests {
         assert!(permit.is_none());
 
         backend.overflow_outbox_for_test("conn", Some(fence.clone()));
-        match lease.try_commit((), |()| Ok(())) {
+        let (sender, _receiver) = mpsc::channel(1);
+        match lease.try_commit((), &sender) {
             OutboxLeaseCommit::Superseded(()) => {}
             OutboxLeaseCommit::Committed | OutboxLeaseCommit::OfferFailed(()) => {
                 panic!("an eligible exact marker must supersede an unbound ordinary offer")
@@ -13676,7 +13729,8 @@ mod tests {
         assert!(permit.is_none());
 
         backend.overflow_outbox_for_test("conn", None);
-        match lease.try_commit((), |()| Ok(())) {
+        let (sender, _receiver) = mpsc::channel(1);
+        match lease.try_commit((), &sender) {
             OutboxLeaseCommit::Superseded(()) => {}
             OutboxLeaseCommit::Committed | OutboxLeaseCommit::OfferFailed(()) => {
                 panic!("a later unbound marker must supersede a selected exact marker")
@@ -13936,7 +13990,8 @@ mod tests {
 
         let (_, permit, lease) = selected.into_leased_parts();
         assert!(permit.is_none());
-        match lease.try_commit((), |()| Ok(())) {
+        let (sender, _receiver) = mpsc::channel(1);
+        match lease.try_commit((), &sender) {
             OutboxLeaseCommit::Superseded(()) => {}
             OutboxLeaseCommit::Committed | OutboxLeaseCommit::OfferFailed(()) => {
                 panic!("replacement must be a benign supersession, not a sink failure")
@@ -13974,12 +14029,8 @@ mod tests {
         };
         let mut queue = OutboundQueue::new();
         queue.push_ephemeral(upsert("first", 1), 1, Some(fence.clone()));
-        let selected = queue.drain_with_authority_bounded(
-            Some(&fence),
-            1,
-            |_| FrameAuthorityDisposition::Send,
-            |_| FrameAuthorityDisposition::Send,
-        );
+        let selected =
+            queue.drain_with_authority_bounded(Some(&fence), 1, &OutboxFrameAuthority::SendAll);
         assert_eq!(selected.len(), 1);
         assert_eq!(queue.active_lease_effect_fence.as_ref(), Some(&fence));
 
@@ -13992,8 +14043,7 @@ mod tests {
         let retry = queue.drain_with_authority_bounded(
             Some(&fence),
             MAX_OUTBOX_DRAIN_BATCH,
-            |_| FrameAuthorityDisposition::Send,
-            |_| FrameAuthorityDisposition::Send,
+            &OutboxFrameAuthority::SendAll,
         );
         assert_eq!(retry.len(), 1);
         assert!(retry.iter().all(|selected| matches!(
@@ -14068,8 +14118,7 @@ mod tests {
         let selected = queue.drain_with_authority_bounded(
             None,
             MAX_OUTBOX_DRAIN_BATCH,
-            |_| FrameAuthorityDisposition::Send,
-            |_| FrameAuthorityDisposition::Send,
+            &OutboxFrameAuthority::SendAll,
         );
         assert_eq!(selected.len(), MAX_OUTBOX_DRAIN_BATCH);
         assert!(
@@ -14089,8 +14138,7 @@ mod tests {
         let selected = queue.drain_with_authority_bounded(
             None,
             MAX_OUTBOX_DRAIN_BATCH,
-            |_| FrameAuthorityDisposition::Send,
-            |_| FrameAuthorityDisposition::Send,
+            &OutboxFrameAuthority::SendAll,
         );
         assert!(
             queue.acknowledge_leases(
@@ -14246,11 +14294,7 @@ mod tests {
         assert_eq!(queue.ephemeral.len(), 2);
 
         queue.purge_effect_fence(&predecessor);
-        let drained = queue.drain_with_authority(
-            Some(&successor),
-            |_| FrameAuthorityDisposition::Send,
-            |_| FrameAuthorityDisposition::Send,
-        );
+        let drained = queue.drain_with_authority(Some(&successor), &OutboxFrameAuthority::SendAll);
         let values = drained
             .into_iter()
             .filter_map(|message| match message {

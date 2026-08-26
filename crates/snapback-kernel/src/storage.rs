@@ -35,7 +35,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 #[cfg(any(test, feature = "test-support"))]
 use std::sync::mpsc;
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock, PoisonError, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
@@ -1218,9 +1218,10 @@ fn prepare_authorization_commit_interlock(
         return Ok(None);
     }
     // Any interlocked transaction must arrive with a dependency that was
-    // installed and quiesced before SQLite opened. There is intentionally no
-    // direct-library fallback here: calling a process interlock now would
-    // overlap its registry/condvar with the live transaction.
+    // installed and quiesced before SQLite opened. Bind performs only the
+    // bounded SQLite-first projection/registry validation inventoried in LLP
+    // 0290 §7.1; it must never fall back to dependency installation or a
+    // quiescence wait beneath the live transaction.
     let reservation = take_managed_authorization_reservation().ok_or_else(|| {
         room_authority::authorization_reservation_stale(
             "authorization write reached SQLite without its matching off-Local, off-SQLite room reservation",
@@ -1725,6 +1726,14 @@ impl AuthorizationInterlockState {
 
 pub struct LocalDatabase {
     conn: Connection,
+    /// Dedicated connection transferred once to the off-Local room
+    /// reauthorization completion lane. It can begin an IMMEDIATE transaction
+    /// without borrowing or retaining the managed `LocalSnapback` owner.
+    room_reauthorization_connection: Option<Connection>,
+    /// Completion needs the active schema for durable membership evaluation,
+    /// but must not borrow the serving owner. Schema replacement publishes the
+    /// same immutable value to this narrow lane.
+    room_reauthorization_schema: Arc<RwLock<SchemaManifest>>,
     /// Process-unique identity for opaque commit carriers. A carrier minted
     /// for another database is never authority for this connection.
     commit_authority_identity: ProcessBoundIdentity,
@@ -1816,9 +1825,25 @@ impl DetachedReadSnapshot {
 pub struct ServingDatabase {
     db: LocalDatabase,
     authority: KernelCommitAuthority,
+    room_reauthorization_database: Option<RoomReauthorizationDatabase>,
     stream_attempt_persistence_verifier:
         Option<crate::stream_attempt::StreamAttemptPersistenceVerifier>,
     stream_attempt_startup_reconciliation: Option<StreamAttemptStartupReconciliation>,
+}
+
+/// The narrow database owner for exact room-reauthorization completion.
+///
+/// Its constructor and fields remain private. The only public operation is a
+/// take-once transfer from [`ServingDatabase`]; consumers can pass it back to
+/// the kernel's finite completion API but cannot issue arbitrary SQL or claim
+/// commit authority with it.
+///
+/// @ref LLP 0290#71-lock-ordering — exact completion owns SQLite outside the
+/// managed Local write scope.
+pub struct RoomReauthorizationDatabase {
+    conn: Connection,
+    binding: DatabaseBinding,
+    schema: Arc<RwLock<SchemaManifest>>,
 }
 
 /// One-use authority for the process-death reconciliation cut. Its private
@@ -1888,9 +1913,21 @@ impl ServingDatabase {
             SettlementKernel::new(&mut db)
                 .reconcile_orphaned_stream_attempts(startup_recovery, now_ms)?,
         );
+        let room_reauthorization_database = RoomReauthorizationDatabase {
+            conn: db.room_reauthorization_connection.take().ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                    "storage",
+                    "room reauthorization completion connection is unavailable",
+                )
+            })?,
+            binding: authority.binding(),
+            schema: Arc::clone(&db.room_reauthorization_schema),
+        };
         Ok(Self {
             db,
             authority,
+            room_reauthorization_database: Some(room_reauthorization_database),
             stream_attempt_persistence_verifier,
             stream_attempt_startup_reconciliation,
         })
@@ -1907,6 +1944,21 @@ impl ServingDatabase {
 
     pub fn binding(&self) -> DatabaseBinding {
         self.authority.binding()
+    }
+
+    /// Transfer the finite completion database out of the managed Local owner.
+    /// App-state construction consumes this exactly once before serving begins.
+    #[doc(hidden)]
+    pub fn take_room_reauthorization_database(
+        &mut self,
+    ) -> SnapbackResult<RoomReauthorizationDatabase> {
+        self.room_reauthorization_database.take().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                "storage",
+                "room reauthorization completion database was already claimed",
+            )
+        })
     }
 
     /// Borrow the sole database-owned service fence graph. Clones retain the
@@ -3253,6 +3305,10 @@ impl LocalDatabase {
     }
 
     pub(in crate::storage) fn replace_active_schema(&mut self, schema: SchemaManifest) {
+        *self
+            .room_reauthorization_schema
+            .write()
+            .unwrap_or_else(PoisonError::into_inner) = schema.clone();
         self.schema = schema;
         self.vector_quarantine_gate.set_schema(&self.schema);
     }
@@ -3358,15 +3414,28 @@ impl LocalDatabase {
     }
 
     pub fn memory() -> SnapbackResult<Self> {
-        let conn = Connection::open_in_memory()?;
+        let memory_uri = format!(
+            "file:snapback-{}?mode=memory&cache=shared",
+            Uuid::new_v4().simple()
+        );
+        let flags = OpenFlags::SQLITE_OPEN_READ_WRITE
+            | OpenFlags::SQLITE_OPEN_CREATE
+            | OpenFlags::SQLITE_OPEN_URI
+            | OpenFlags::SQLITE_OPEN_FULL_MUTEX;
+        let conn = Connection::open_with_flags(&memory_uri, flags)?;
+        let room_reauthorization_connection = Connection::open_with_flags(&memory_uri, flags)?;
+        room_reauthorization_connection.busy_timeout(Duration::from_millis(5_000))?;
         let mode_inspection = auth_mode::inspect_for_open(&conn)?;
         let commit_authority_identity = ProcessBoundIdentity::new();
+        let room_reauthorization_schema = Arc::new(RwLock::new(SchemaManifest::default()));
         let service_authority_fences =
             crate::auth::service_fence::ServiceAuthorityFenceRegistry::new(DatabaseBinding(
                 commit_authority_identity.clone(),
             ));
         let mut db = Self {
             conn,
+            room_reauthorization_connection: Some(room_reauthorization_connection),
+            room_reauthorization_schema,
             commit_authority_identity,
             commit_authority_key: memory_commit_authority_key(),
             commit_authority_claimed: false,
@@ -3416,6 +3485,8 @@ impl LocalDatabase {
             ));
         }
         let conn = Connection::open(&path)?;
+        let room_reauthorization_connection = Connection::open(&path)?;
+        room_reauthorization_connection.busy_timeout(Duration::from_millis(5_000))?;
         let commit_authority_key = file_commit_authority_key(&path)?;
         // Distinguish a genuinely empty database from an existing database
         // before any additive DDL/default write. Recreating a missing head at
@@ -3434,12 +3505,15 @@ impl LocalDatabase {
             validate_schema(manifest)?;
         }
         let commit_authority_identity = ProcessBoundIdentity::new();
+        let room_reauthorization_schema = Arc::new(RwLock::new(SchemaManifest::default()));
         let service_authority_fences =
             crate::auth::service_fence::ServiceAuthorityFenceRegistry::new(DatabaseBinding(
                 commit_authority_identity.clone(),
             ));
         let mut db = Self {
             conn,
+            room_reauthorization_connection: Some(room_reauthorization_connection),
+            room_reauthorization_schema,
             commit_authority_identity,
             commit_authority_key,
             commit_authority_claimed: false,
@@ -3688,6 +3762,8 @@ impl LocalDatabase {
             ));
         let mut restored = Self {
             conn,
+            room_reauthorization_connection: None,
+            room_reauthorization_schema: Arc::new(RwLock::new(self.schema.clone())),
             commit_authority_identity,
             commit_authority_key: memory_commit_authority_key(),
             commit_authority_claimed: false,

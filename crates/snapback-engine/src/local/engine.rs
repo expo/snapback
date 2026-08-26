@@ -91,8 +91,8 @@ use crate::storage::{
     AssetDeliveryOutcome, AssetPreparedVariant, AssetPublishOutcome, BufferedCommitPayload,
     BufferedDocumentResultContract, BufferedDocumentResultProjection, CapturedReadDependency,
     CapturedReadKind, CapturedWriteDependency, ChangedRow, ClientMutationIdentity, DbRead,
-    LocalDatabase, MutationCommit, ReaderPool, ServingDatabase, SettlementTimePolicy,
-    ShutdownCheckpointReport, StorageInfo, TableScan,
+    LocalDatabase, MutationCommit, ReaderPool, RoomReauthorizationDatabase, ServingDatabase,
+    SettlementTimePolicy, ShutdownCheckpointReport, StorageInfo, TableScan,
 };
 use crate::telemetry::{
     ObservationSpanLocalExt as _, TelemetryLocalExt as _, TelemetryStoreIdentityLocalExt as _,
@@ -2754,6 +2754,27 @@ pub struct EphemeralApi {
     activity: ConnectionActivity,
 }
 
+/// Take-once blocking owner for exact room-reauthorization completion.
+///
+/// This deliberately contains no `LocalSnapback` reference. Its dedicated
+/// SQLite connection and clone-shared ephemeral backend let completion retain
+/// the exact durable fence through process-state mutation without pinning the
+/// managed Local guard.
+///
+/// @ref LLP 0290#71-lock-ordering — the completion owner must not regain a
+/// `LocalSnapback` path while it can wait for SQLite.
+pub struct RoomReauthorizationCompletionApi {
+    store: LocalEphemeralBackend,
+    database: RoomReauthorizationDatabase,
+}
+
+impl RoomReauthorizationCompletionApi {
+    pub fn complete(&mut self, batch: ResolvedRoomReauthorizationBatch) -> SnapbackResult<bool> {
+        self.store
+            .complete_room_reauthorization_off_local(&self.database, batch)
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct DisconnectedConnectionTopology {
     dropped_subscriptions: usize,
@@ -3128,10 +3149,27 @@ impl EphemeralApi {
         connection_id: &str,
         effect_fence: &crate::ephemeral::ConnectionEffectFence,
         value: T,
-        offer: impl FnOnce(T) -> Result<(), T>,
+        sender: &tokio::sync::mpsc::Sender<T>,
     ) -> crate::ephemeral::OutboxLeaseCommit<T> {
         self.store
-            .try_offer_projection_bound(connection_id, effect_fence, value, offer)
+            .try_offer_projection_bound(connection_id, effect_fence, value, sender)
+    }
+
+    pub fn try_offer_projection_if_current<T>(
+        &self,
+        connection_id: &str,
+        generation: u64,
+        effect_fence: &crate::ephemeral::ConnectionEffectFence,
+        value: T,
+        sender: &tokio::sync::mpsc::Sender<T>,
+    ) -> Option<crate::ephemeral::OutboxLeaseCommit<T>> {
+        self.store.try_offer_projection_if_current(
+            connection_id,
+            generation,
+            effect_fence,
+            value,
+            sender,
+        )
     }
 
     #[cfg(test)]
@@ -3289,6 +3327,7 @@ impl EphemeralApi {
         self.store.pending_room_reauthorizations()
     }
 
+    #[cfg(any(test, feature = "test-support"))]
     pub fn complete_room_reauthorization(
         &self,
         database: &ServingDatabase,
@@ -29099,6 +29138,18 @@ impl LocalSnapback {
         }
     }
 
+    /// Transfer exact reauthorization completion to the off-Local blocking
+    /// lane. App-state construction consumes this once before serving.
+    #[doc(hidden)]
+    pub fn take_room_reauthorization_completion_api(
+        &mut self,
+    ) -> SnapbackResult<RoomReauthorizationCompletionApi> {
+        Ok(RoomReauthorizationCompletionApi {
+            store: self.ephemeral.clone(),
+            database: self.db.take_room_reauthorization_database()?,
+        })
+    }
+
     pub fn managed_local_handoff(&self) -> Arc<crate::exec_guard::ManagedLocalHandoff> {
         self.managed_local_handoff.clone()
     }
@@ -29221,7 +29272,8 @@ impl LocalSnapback {
             .resolve_pending_room_reauthorization(&self.db, room)
     }
 
-    pub fn complete_room_reauthorization(
+    #[cfg(test)]
+    pub(crate) fn complete_room_reauthorization(
         &self,
         batch: ResolvedRoomReauthorizationBatch,
     ) -> SnapbackResult<bool> {

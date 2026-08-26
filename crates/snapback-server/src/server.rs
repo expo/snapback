@@ -22909,8 +22909,12 @@ pub fn spawn_maintenance_worker(runtime: AppState) -> JoinHandle<()> {
             })
             .await;
             for batch in planned {
-                let _ = with_snapback(&state, move |snapback| {
-                    snapback.complete_room_reauthorization(batch)
+                let completion = Arc::clone(&runtime.room_reauthorization_completion);
+                let _ = tokio::task::spawn_blocking(move || {
+                    completion
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
+                        .complete(batch)
                 })
                 .await;
             }
@@ -32220,11 +32224,13 @@ async fn send_live_with_admission(
                     .map_err(ApiError::from)?;
                 Ok(match (outbox_lease, projection_outbox) {
                     (Some(outbox_lease), _) => {
-                        let outcome = notify.act_if_current(connection_id, generation, || {
-                            outbox_lease.try_commit(write, |write| {
-                                writer.try_send(write).map_err(|error| error.into_inner())
-                            })
-                        });
+                        let outcome = outbox_lease.try_commit_if_current(
+                            notify,
+                            connection_id,
+                            generation,
+                            write,
+                            writer,
+                        );
                         // `act_if_current` released the notifier lock. Waking
                         // here preserves registry -> notifier -> outbox order.
                         outbox_lease.wake();
@@ -32244,14 +32250,13 @@ async fn send_live_with_admission(
                         }
                     }
                     (None, Some(ephemeral)) => {
-                        let outcome = notify.act_if_current(connection_id, generation, || {
-                            ephemeral.try_offer_outbox_projection_bound(
-                                connection_id,
-                                &connection_act.effect_fence(),
-                                write,
-                                |write| writer.try_send(write).map_err(|error| error.into_inner()),
-                            )
-                        });
+                        let outcome = ephemeral.try_offer_projection_if_current(
+                            connection_id,
+                            generation,
+                            &connection_act.effect_fence(),
+                            write,
+                            writer,
+                        );
                         match outcome {
                             Some(crate::ephemeral::OutboxLeaseCommit::Committed) => {
                                 LiveHandoffOutcome::Sent
