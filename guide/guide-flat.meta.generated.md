@@ -2207,9 +2207,9 @@ React/JS product blank is not yet explained.
     "defineJsLiveQuery plus a local cache remains the documented application workaround",
     "defineJsLiveQuery plus a local cache".
 
-Cases 98–101 absorb the published 0.1.27 Clique guide misses recorded in LLP
+Cases 98–102 absorb the published 0.1.27 Clique guide misses recorded in LLP
 0310. Their route terms preserve the failed lookup and the wrong package,
-platform, and generated-directory assumptions from that run.
+platform, generated-directory, and binding-identity assumptions from that run.
 
 98. **Generated directory spelling:** "Should a Familiar or expo-chat app
     import `_generated/`, or is that a compatibility alias for `generated/`?"
@@ -2261,23 +2261,50 @@ platform, and generated-directory assumptions from that run.
      Exact diagnostic target: `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE` ->
      `/_snapback/guide/testing/acceptance.md#recover-when-durable-auth-custody-is-unavailable`.
 
-Case 98 absorbs the 2026-08-25 Familiar capstone's removed-member live-cutoff
+102. **Expo same-owner successor mismatch:** "The backend reported
+     startup-successor-activated, but my Expo extra still names the predecessor
+     and reports SNAPBACK_APP_BINDING_IDENTITY_MISMATCH. Should I restart or
+     pkill it?" The run fails if it treats this same-owner transition as a
+     wrong-backend refusal, presents restart or `pkill` as the paved recovery,
+     or weakens mismatch admission for a foreign backend, stale supervisor, or
+     unmatched predecessor.
+     Expected pages: `clients/react-expo.md`.
+     Route terms: "SNAPBACK_APP_BINDING_IDENTITY_MISMATCH", "same-owner successor".
+     Required guidance: "same-owner successor", "product bug", "Do not pkill",
+     "owner restart against the same sqlite is a fallback".
+     Exact diagnostic target: `SNAPBACK_APP_BINDING_IDENTITY_MISMATCH` ->
+     `/_snapback/guide/clients/react-expo.md#diagnose-a-binding-identity-mismatch`.
+
+Case 103 absorbs the 2026-08-25 Familiar capstone's removed-member live-cutoff
 gap. It requires both the authorization fence and retained-history semantics;
 blanking all history is not an equivalent answer.
 
-98. **Removed member live cutoff with retained history:** "Keep old group
+103. **Removed member live cutoff with retained history:** "Keep old group
     messages visible after removing a member, but stop that already-open
     Familiar subscription from seeing every post-removal message." The run
     fails if it recommends a public-sync roster plus `removedAt`, coordinates
     separate hooks or browser clocks, applies `permissionBacking()` while
     retaining generic writers, or removes all old history instead of preserving
     the requested cutoff.
-    Expected pages: `auth/scoped-roles.md`, `backend/familiar-profile.md`.
+    Expected pages: `auth/scoped-roles.md`.
     Route terms: "removed member", "already-open subscription", "post-removal message", "live cutoff", "retain pre-removal history".
     Required guidance: "data commit, not an authorization event",
     "use-generated-membership-authority-operation",
     "Only after that transition settles, allow later message sends",
     "message committed immediately after the role-transition settlement".
+
+104. **Signup dispatcher and profile hydration:** "After password signup, my
+     profile mutation used the anonymous dispatcher, HANDLE_TAKEN disappeared,
+     and the editor saved before getMine returned. What order should React or
+     Expo use?" The run fails if it calls an authenticated mutation in the auth
+     method's tick, enables profile save before the profile row exists, places
+     refusal UI inside the auth-gated remount, or invents a new Snapback API.
+     Expected pages: `start/expo-chat.md`, `auth/passwords.md`.
+     Route terms: "authenticated dispatcher", "HANDLE_TAKEN", "getMine".
+     Required guidance per page:
+     `start/expo-chat.md`: "After `signUpWithPassword` / `signInWithPassword`, do not call an authenticated mutation in the same tick", "Wait until the provider's authenticated dispatcher exists", "Do not mount a profile editor that can save until `getMine` (or equivalent) has a row", "Keep `HANDLE_TAKEN` / refuse UI outside a tree that unmounts on auth change".
+     `auth/passwords.md`: "After `signUpWithPassword` / `signInWithPassword`, do not call an authenticated mutation in the same tick", "Wait until the provider's authenticated dispatcher exists", "Do not mount a profile editor that can save until `getMine` (or equivalent) has a row", "Keep `HANDLE_TAKEN` / refuse UI outside a tree that unmounts on auth change".
+
 
 ## Static routing check
 

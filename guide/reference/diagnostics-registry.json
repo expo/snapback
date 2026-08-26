@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:613ea0ffd1c3c0b4aa570397b4f0d002d1c52789f65638c947fcff5d99d927da"
+    "sourceDigest": "sha256:d7836d1441b192565471704ef2e59ff5833902724871cb35109587acdadd7547"
   },
   "limits": {
     "lookupBytes": 16384
@@ -10,7 +10,7 @@
   "counts": {
     "codes": 3681,
     "sourceFiles": 617,
-    "emittingSites": 13022,
+    "emittingSites": 13026,
     "httpClassified": 1729,
     "guideAnchored": 470
   },
@@ -16558,12 +16558,12 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_agent_credentials.rs",
-          "line": 3262,
+          "line": 3398,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_agent_credentials.rs",
-          "line": 3282,
+          "line": 3418,
           "column": 14
         },
         {
@@ -16603,7 +16603,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_agent_credentials.rs",
-          "line": 3408,
+          "line": 3544,
           "column": 14
         },
         {
@@ -16628,12 +16628,12 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_agent_credentials.rs",
-          "line": 3358,
+          "line": 3494,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_agent_credentials.rs",
-          "line": 3365,
+          "line": 3501,
           "column": 14
         }
       ],
@@ -18673,7 +18673,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_agent_credentials.rs",
-          "line": 3721,
+          "line": 3857,
           "column": 14
         },
         {
@@ -23363,7 +23363,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_mode.rs",
-          "line": 3373,
+          "line": 3424,
           "column": 44
         },
         {
@@ -23758,37 +23758,37 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_mode.rs",
-          "line": 2481,
+          "line": 2532,
           "column": 44
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_mode.rs",
-          "line": 3177,
+          "line": 3228,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_mode.rs",
-          "line": 3245,
+          "line": 3296,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_mode.rs",
-          "line": 3342,
+          "line": 3393,
           "column": 47
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_mode.rs",
-          "line": 3360,
+          "line": 3411,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_mode.rs",
-          "line": 3601,
+          "line": 3652,
           "column": 44
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_mode.rs",
-          "line": 3658,
+          "line": 3709,
           "column": 47
         },
         {
@@ -24607,7 +24607,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_mode.rs",
-          "line": 3139,
+          "line": 3190,
           "column": 14
         },
         {
@@ -25292,12 +25292,12 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_mode.rs",
-          "line": 2666,
+          "line": 2717,
           "column": 36
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_mode.rs",
-          "line": 3671,
+          "line": 3722,
           "column": 14
         },
         {
@@ -26585,12 +26585,12 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_agent_credentials.rs",
-          "line": 3305,
+          "line": 3441,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_agent_credentials.rs",
-          "line": 3323,
+          "line": 3459,
           "column": 14
         },
         {
@@ -28767,17 +28767,17 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_agent_credentials.rs",
-          "line": 3225,
+          "line": 3361,
           "column": 44
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_agent_credentials.rs",
-          "line": 3714,
+          "line": 3850,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_agent_credentials.rs",
-          "line": 3785,
+          "line": 3921,
           "column": 44
         },
         {
@@ -34825,7 +34825,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_mode.rs",
-          "line": 2627,
+          "line": 2678,
           "column": 44
         },
         {
@@ -35215,7 +35215,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/proof_checkpoint.rs",
-          "line": 4602,
+          "line": 4715,
           "column": 14
         },
         {
@@ -35275,7 +35275,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/proof_checkpoint.rs",
-          "line": 3595,
+          "line": 3708,
           "column": 14
         },
         {
@@ -35300,7 +35300,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/proof_checkpoint.rs",
-          "line": 4629,
+          "line": 4742,
           "column": 14
         },
         {
@@ -35340,17 +35340,17 @@
         },
         {
           "file": "crates/snapback-kernel/src/proof_checkpoint.rs",
-          "line": 4344,
+          "line": 4457,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/proof_checkpoint.rs",
-          "line": 5541,
+          "line": 5654,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/proof_checkpoint.rs",
-          "line": 5599,
+          "line": 5712,
           "column": 41
         },
         {
@@ -35395,17 +35395,17 @@
         },
         {
           "file": "crates/snapback-kernel/src/proof_checkpoint.rs",
-          "line": 4425,
+          "line": 4538,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/proof_checkpoint.rs",
-          "line": 4452,
+          "line": 4565,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/proof_checkpoint.rs",
-          "line": 4569,
+          "line": 4682,
           "column": 18
         },
         {
@@ -35475,7 +35475,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/proof_checkpoint.rs",
-          "line": 3617,
+          "line": 3730,
           "column": 18
         },
         {
@@ -35515,17 +35515,17 @@
         },
         {
           "file": "crates/snapback-kernel/src/proof_checkpoint.rs",
-          "line": 4774,
+          "line": 4887,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/proof_checkpoint.rs",
-          "line": 5102,
+          "line": 5215,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/proof_checkpoint.rs",
-          "line": 5202,
+          "line": 5315,
           "column": 14
         },
         {
@@ -35650,7 +35650,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/proof_checkpoint.rs",
-          "line": 3566,
+          "line": 3679,
           "column": 14
         },
         {
@@ -35695,7 +35695,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/proof_checkpoint.rs",
-          "line": 4370,
+          "line": 4483,
           "column": 18
         },
         {
@@ -35810,12 +35810,12 @@
         },
         {
           "file": "crates/snapback-kernel/src/proof_checkpoint.rs",
-          "line": 5374,
+          "line": 5487,
           "column": 48
         },
         {
           "file": "crates/snapback-kernel/src/proof_checkpoint.rs",
-          "line": 5424,
+          "line": 5537,
           "column": 44
         },
         {
@@ -35835,12 +35835,12 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/proof_checkpoint.rs",
-          "line": 5640,
+          "line": 5753,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/proof_checkpoint.rs",
-          "line": 5650,
+          "line": 5763,
           "column": 14
         }
       ],
@@ -35885,7 +35885,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/proof_checkpoint.rs",
-          "line": 5693,
+          "line": 5806,
           "column": 14
         },
         {
@@ -52186,7 +52186,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_mode.rs",
-          "line": 3694,
+          "line": 3745,
           "column": 44
         },
         {
@@ -59120,7 +59120,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/proof_checkpoint.rs",
-          "line": 4004,
+          "line": 4117,
           "column": 14
         },
         {
@@ -59165,7 +59165,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/proof_checkpoint.rs",
-          "line": 4136,
+          "line": 4249,
           "column": 14
         },
         {
@@ -59237,6 +59237,16 @@
           "file": "crates/snapback-kernel/src/proof_checkpoint.rs",
           "line": 1145,
           "column": 14
+        },
+        {
+          "file": "crates/snapback-kernel/src/proof_checkpoint.rs",
+          "line": 3541,
+          "column": 14
+        },
+        {
+          "file": "crates/snapback-kernel/src/proof_checkpoint.rs",
+          "line": 3553,
+          "column": 44
         },
         {
           "file": "crates/snapback-server/src/server/api_error.rs",
@@ -68109,12 +68119,12 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_mode.rs",
-          "line": 2846,
+          "line": 2897,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_mode.rs",
-          "line": 2962,
+          "line": 3013,
           "column": 14
         },
         {
@@ -68834,13 +68844,23 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage/auth_agent_credentials.rs",
-          "line": 3924,
+          "line": 4060,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_agent_credentials.rs",
-          "line": 3934,
+          "line": 4070,
           "column": 14
+        },
+        {
+          "file": "crates/snapback-kernel/src/storage/auth_agent_credentials.rs",
+          "line": 4108,
+          "column": 45
+        },
+        {
+          "file": "crates/snapback-kernel/src/storage/auth_agent_credentials.rs",
+          "line": 4151,
+          "column": 45
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_agents.rs",
@@ -77377,7 +77397,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/proof_checkpoint.rs",
-          "line": 3877,
+          "line": 3990,
           "column": 14
         },
         {
@@ -78332,7 +78352,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/proof_checkpoint.rs",
-          "line": 3770,
+          "line": 3883,
           "column": 14
         },
         {
@@ -78357,7 +78377,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/proof_checkpoint.rs",
-          "line": 3816,
+          "line": 3929,
           "column": 14
         },
         {
@@ -78480,12 +78500,12 @@
         },
         {
           "file": "crates/snapback-kernel/src/proof_checkpoint.rs",
-          "line": 4793,
+          "line": 4906,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/proof_checkpoint.rs",
-          "line": 4972,
+          "line": 5085,
           "column": 14
         },
         {
@@ -78570,7 +78590,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/proof_checkpoint.rs",
-          "line": 3586,
+          "line": 3699,
           "column": 14
         },
         {
@@ -78595,7 +78615,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/proof_checkpoint.rs",
-          "line": 5160,
+          "line": 5273,
           "column": 14
         },
         {
@@ -78635,7 +78655,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/proof_checkpoint.rs",
-          "line": 5021,
+          "line": 5134,
           "column": 18
         },
         {
@@ -93932,12 +93952,12 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_mode.rs",
-          "line": 2801,
+          "line": 2852,
           "column": 44
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_mode.rs",
-          "line": 2926,
+          "line": 2977,
           "column": 41
         },
         {
@@ -94007,17 +94027,17 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_mode.rs",
-          "line": 2501,
+          "line": 2552,
           "column": 44
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_mode.rs",
-          "line": 2512,
+          "line": 2563,
           "column": 44
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_mode.rs",
-          "line": 2528,
+          "line": 2579,
           "column": 44
         },
         {

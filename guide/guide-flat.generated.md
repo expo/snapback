@@ -2207,9 +2207,9 @@ React/JS product blank is not yet explained.
     "defineJsLiveQuery plus a local cache remains the documented application workaround",
     "defineJsLiveQuery plus a local cache".
 
-Cases 98–101 absorb the published 0.1.27 Clique guide misses recorded in LLP
+Cases 98–102 absorb the published 0.1.27 Clique guide misses recorded in LLP
 0310. Their route terms preserve the failed lookup and the wrong package,
-platform, and generated-directory assumptions from that run.
+platform, generated-directory, and binding-identity assumptions from that run.
 
 98. **Generated directory spelling:** "Should a Familiar or expo-chat app
     import `_generated/`, or is that a compatibility alias for `generated/`?"
@@ -2261,23 +2261,50 @@ platform, and generated-directory assumptions from that run.
      Exact diagnostic target: `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE` ->
      `/_snapback/guide/testing/acceptance.md#recover-when-durable-auth-custody-is-unavailable`.
 
-Case 98 absorbs the 2026-08-25 Familiar capstone's removed-member live-cutoff
+102. **Expo same-owner successor mismatch:** "The backend reported
+     startup-successor-activated, but my Expo extra still names the predecessor
+     and reports SNAPBACK_APP_BINDING_IDENTITY_MISMATCH. Should I restart or
+     pkill it?" The run fails if it treats this same-owner transition as a
+     wrong-backend refusal, presents restart or `pkill` as the paved recovery,
+     or weakens mismatch admission for a foreign backend, stale supervisor, or
+     unmatched predecessor.
+     Expected pages: `clients/react-expo.md`.
+     Route terms: "SNAPBACK_APP_BINDING_IDENTITY_MISMATCH", "same-owner successor".
+     Required guidance: "same-owner successor", "product bug", "Do not pkill",
+     "owner restart against the same sqlite is a fallback".
+     Exact diagnostic target: `SNAPBACK_APP_BINDING_IDENTITY_MISMATCH` ->
+     `/_snapback/guide/clients/react-expo.md#diagnose-a-binding-identity-mismatch`.
+
+Case 103 absorbs the 2026-08-25 Familiar capstone's removed-member live-cutoff
 gap. It requires both the authorization fence and retained-history semantics;
 blanking all history is not an equivalent answer.
 
-98. **Removed member live cutoff with retained history:** "Keep old group
+103. **Removed member live cutoff with retained history:** "Keep old group
     messages visible after removing a member, but stop that already-open
     Familiar subscription from seeing every post-removal message." The run
     fails if it recommends a public-sync roster plus `removedAt`, coordinates
     separate hooks or browser clocks, applies `permissionBacking()` while
     retaining generic writers, or removes all old history instead of preserving
     the requested cutoff.
-    Expected pages: `auth/scoped-roles.md`, `backend/familiar-profile.md`.
+    Expected pages: `auth/scoped-roles.md`.
     Route terms: "removed member", "already-open subscription", "post-removal message", "live cutoff", "retain pre-removal history".
     Required guidance: "data commit, not an authorization event",
     "use-generated-membership-authority-operation",
     "Only after that transition settles, allow later message sends",
     "message committed immediately after the role-transition settlement".
+
+104. **Signup dispatcher and profile hydration:** "After password signup, my
+     profile mutation used the anonymous dispatcher, HANDLE_TAKEN disappeared,
+     and the editor saved before getMine returned. What order should React or
+     Expo use?" The run fails if it calls an authenticated mutation in the auth
+     method's tick, enables profile save before the profile row exists, places
+     refusal UI inside the auth-gated remount, or invents a new Snapback API.
+     Expected pages: `start/expo-chat.md`, `auth/passwords.md`.
+     Route terms: "authenticated dispatcher", "HANDLE_TAKEN", "getMine".
+     Required guidance per page:
+     `start/expo-chat.md`: "After `signUpWithPassword` / `signInWithPassword`, do not call an authenticated mutation in the same tick", "Wait until the provider's authenticated dispatcher exists", "Do not mount a profile editor that can save until `getMine` (or equivalent) has a row", "Keep `HANDLE_TAKEN` / refuse UI outside a tree that unmounts on auth change".
+     `auth/passwords.md`: "After `signUpWithPassword` / `signInWithPassword`, do not call an authenticated mutation in the same tick", "Wait until the provider's authenticated dispatcher exists", "Do not mount a profile editor that can save until `getMine` (or equivalent) has a row", "Keep `HANDLE_TAKEN` / refuse UI outside a tree that unmounts on auth change".
+
 
 ## Static routing check
 
@@ -3631,6 +3658,21 @@ makes the recovery handoff explicit:
           </aside>
         ) : null}
 ```
+
+### Wait for the authenticated dispatcher before profile work
+
+After `signUpWithPassword` / `signInWithPassword`, do not call an
+authenticated mutation in the same tick. Wait until the provider's
+authenticated dispatcher exists: the current-principal projection has reached
+its `authenticated` arm and the provider has rebound generated mutation hooks
+to that authority.
+
+Profile hydration is a separate ordering boundary. Do not mount a profile
+editor that can save until `getMine` (or equivalent) has a row; keep a loading
+or read-only shell until the seed/query settles, then initialize the form from
+that row. Keep `HANDLE_TAKEN` / refuse UI outside a tree that unmounts on auth
+change, so a refusal remains visible even when the session-gated subtree is
+replaced.
 
 The application must hand those codes to the user for separate safe custody
 at signup. They are not session credentials: do not put them in the app
@@ -17843,13 +17885,25 @@ for the provider state contract.
 
 `SNAPBACK_APP_BINDING_IDENTITY_MISMATCH` means the imported
 `AppDescriptor` and the delivered `AppBinding` name different descriptor
-identities. Stop any older supervisor, regenerate the conventional
-`snapback/generated/` app from the backend you intend to run, and let the
-active supervisor observe its `generated-and-loaded` event. Restart only when
-the mismatch came from a different or stale supervisor rather than a watched
-edit. Do not overwrite the identity, construct a second
-descriptor in application code, or weaken admission: the refusal prevents a
-client generated for one backend shape from being bound to another.
+identities. Diagnose which transition produced the split before choosing a
+recovery:
+
+- A **same-owner successor** is the known case where the backend reports
+  `startup-successor-activated` but the running Expo extra still names that
+  owner's predecessor descriptor. This is a **product bug**, not a
+  wrong-backend refusal. Do not pkill by process name, and do not present a
+  restart as the paved recovery. Until Track A's in-process recook lands,
+  **owner restart against the same sqlite is a fallback**, not the paved path;
+  preserve and reopen that owner's same SQLite store.
+- A foreign backend, stale supervisor, or unmatched predecessor remains an
+  identity mismatch with no recook. Stop only an older supervisor whose
+  ownership you have identified, regenerate the conventional
+  `snapback/generated/` app from the backend you intend to run, and let the
+  active supervisor observe its `generated-and-loaded` event.
+
+In either case, do not overwrite the identity, construct a second descriptor
+in application code, or weaken admission. The refusal must continue to prevent
+a client generated for one backend shape from being bound to another.
 
 ### Choose simulator, emulator, or USB routing
 
@@ -31764,7 +31818,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-checkpoint-source-unsupported"></a>`SNAPBACK_CHECKPOINT_SOURCE_UNSUPPORTED` | server | 503 | — | `crates/snapback-kernel/src/storage/checkpoints.rs:24` | 2 |
 | <a id="diagnostic-snapback-checkpoint-stream-missing"></a>`SNAPBACK_CHECKPOINT_STREAM_MISSING` | server | 500 | — | `crates/snapback-kernel/src/proof_checkpoint.rs:2073` | 2 |
 | <a id="diagnostic-snapback-checkpoint-test-crash-cut"></a>`SNAPBACK_CHECKPOINT_TEST_CRASH_CUT` | server | 500 | — | `crates/snapback-kernel/src/proof_checkpoint.rs:1565` | 5 |
-| <a id="diagnostic-snapback-checkpoint-test-parent-sync-failed"></a>`SNAPBACK_CHECKPOINT_TEST_PARENT_SYNC_FAILED` | server | — | — | `crates/snapback-kernel/src/proof_checkpoint.rs:5640` | 2 |
+| <a id="diagnostic-snapback-checkpoint-test-parent-sync-failed"></a>`SNAPBACK_CHECKPOINT_TEST_PARENT_SYNC_FAILED` | server | — | — | `crates/snapback-kernel/src/proof_checkpoint.rs:5753` | 2 |
 | <a id="diagnostic-snapback-checkpoint-wal-budget-exceeded"></a>`SNAPBACK_CHECKPOINT_WAL_BUDGET_EXCEEDED` | server | 429 | — | `crates/snapback-kernel/src/proof_checkpoint.rs:2289` | 8 |
 | <a id="diagnostic-snapback-cleanup-confirmation-invalid"></a>`SNAPBACK_CLEANUP_CONFIRMATION_INVALID` | hosted-supervisor | — | — | `packages/snapback-hosted-supervisor/index.mjs:883` | 1 |
 | <a id="diagnostic-snapback-cleanup-foreign-resource"></a>`SNAPBACK_CLEANUP_FOREIGN_RESOURCE` | hosted-supervisor | — | — | `packages/snapback-hosted-supervisor/index.mjs:859` | 1 |
@@ -32624,7 +32678,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-history-not-enabled"></a>`SNAPBACK_HISTORY_NOT_ENABLED` | server | 409 | — | `crates/snapback-kernel/src/proof_checkpoint.rs:1351` | 3 |
 | <a id="diagnostic-snapback-history-page-invalid"></a>`SNAPBACK_HISTORY_PAGE_INVALID` | server | 400 | — | `crates/snapback-kernel/src/proof_checkpoint.rs:1333` | 2 |
 | <a id="diagnostic-snapback-history-policy-invalid"></a>`SNAPBACK_HISTORY_POLICY_INVALID` | server | 400 | — | `crates/snapback-kernel/src/proof_checkpoint.rs:1116` | 4 |
-| <a id="diagnostic-snapback-history-policy-version-conflict"></a>`SNAPBACK_HISTORY_POLICY_VERSION_CONFLICT` | server | 409 | — | `crates/snapback-kernel/src/proof_checkpoint.rs:1145` | 2 |
+| <a id="diagnostic-snapback-history-policy-version-conflict"></a>`SNAPBACK_HISTORY_POLICY_VERSION_CONFLICT` | server | 409 | — | `crates/snapback-kernel/src/proof_checkpoint.rs:1145` | 4 |
 | <a id="diagnostic-snapback-history-table-unknown"></a>`SNAPBACK_HISTORY_TABLE_UNKNOWN` | server | 404 | — | `crates/snapback-kernel/src/proof_checkpoint.rs:1131` | 2 |
 | <a id="diagnostic-snapback-hosted-active-machine-config-drifted"></a>`SNAPBACK_HOSTED_ACTIVE_MACHINE_CONFIG_DRIFTED` | hosted-supervisor | — | — | `packages/snapback-hosted-supervisor/index.mjs:170` | 1 |
 | <a id="diagnostic-snapback-hosted-admission-invalid"></a>`SNAPBACK_HOSTED_ADMISSION_INVALID` | cli | — | — | `packages/snapback-cli/deployment-control.mjs:418` | 6 |
@@ -33041,7 +33095,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-membership-last-holder-app-scope"></a>`SNAPBACK_MEMBERSHIP_LAST_HOLDER_APP_SCOPE` | server | 400 | — | `crates/snapback-kernel/src/storage.rs:11541` | 2 |
 | <a id="diagnostic-snapback-membership-last-holder-bootstrap-mismatch"></a>`SNAPBACK_MEMBERSHIP_LAST_HOLDER_BOOTSTRAP_MISMATCH` | server | 400 | — | `crates/snapback-kernel/src/storage.rs:11566` | 2 |
 | <a id="diagnostic-snapback-membership-last-holder-role-unknown"></a>`SNAPBACK_MEMBERSHIP_LAST_HOLDER_ROLE_UNKNOWN` | server | 400 | — | `crates/snapback-kernel/src/storage.rs:11550` | 2 |
-| <a id="diagnostic-snapback-membership-last-holder-strand"></a>`SNAPBACK_MEMBERSHIP_LAST_HOLDER_STRAND` | server | 409 | — | `crates/snapback-kernel/src/storage/auth_agent_credentials.rs:3924` | 6 |
+| <a id="diagnostic-snapback-membership-last-holder-strand"></a>`SNAPBACK_MEMBERSHIP_LAST_HOLDER_STRAND` | server | 409 | — | `crates/snapback-kernel/src/storage/auth_agent_credentials.rs:4060` | 8 |
 | <a id="diagnostic-snapback-membership-live-input-invalid"></a>`SNAPBACK_MEMBERSHIP_LIVE_INPUT_INVALID` | server | 500 | — | `crates/snapback-engine/src/local/engine.rs:15352` | 2 |
 | <a id="diagnostic-snapback-membership-live-invalid"></a>`SNAPBACK_MEMBERSHIP_LIVE_INVALID` | server | 500 | — | `crates/snapback-engine/src/local/engine.rs:4597` | 1 |
 | <a id="diagnostic-snapback-membership-not-declared"></a>`SNAPBACK_MEMBERSHIP_NOT_DECLARED` | server | 400 | — | `crates/snapback-kernel/src/storage.rs:18007` | 2 |
@@ -73905,24 +73959,23 @@ only `generated/`.
 
 ## Posture
 
-- **Auth: sessions mode, guest-first plus password entry.** The app reaches
-  anonymous `ready`; call `auth.enterAsGuest()` on the same `useSnapbackAuth()`
-  owner before sends/uploads, or enter a password. Recovery codes appear once
-  after signup or guest claim.
-  Web starts sessionless. Native auto-adopts; the session is minted on that
-  first adoption request. `adoptSupervisedSession` opts web in/native out.
-- **Custody: `volatile-explicit`.** This disposable template deliberately says
-  memory custody, so a native process restart returns anonymous and must enter
-  again. It does not silently weaken a durable policy; select
-  `durable-required` only for a platform tuple admitted by the native custody
-  capability row. Node `memory` refuses `durable-required` custody with
+- **Auth: sessions, guest-first plus password.** From anonymous `ready`, use
+  the same `useSnapbackAuth()` owner for `enterAsGuest()` or password entry
+  before sends/uploads. Recovery codes appear once. Web starts sessionless;
+  native auto-adopts. `adoptSupervisedSession` opts web in/native out.
+  After `signUpWithPassword` / `signInWithPassword`, do not call an
+  authenticated mutation in the same tick. Wait until the provider's
+  authenticated dispatcher exists. Do not mount a profile editor that can save
+  until `getMine` (or equivalent) has a row. Keep `HANDLE_TAKEN` / refuse UI
+  outside a tree that unmounts on auth change.
+- **Custody: `volatile-explicit`.** Native restarts return anonymous. Use
+  `durable-required` only on an admitted platform. Node `memory` refuses
+  `durable-required` custody with
   `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`; see existing
   [`expo-web` + `fake-indexeddb` acceptance helper](../testing/acceptance.md#recover-when-durable-auth-custody-is-unavailable)
   under “Recover when durable auth custody is unavailable.”
-- **Security caveat — client-supplied `senderId` is a demo convenience, never a boundary.**
-  The **TEST PERSONA** control passes its id as `senderId`/`userId`. In real
-  apps, derive the sender server-side from `ctx.auth.userId`, drop the
-  argument, and keep personas display-only.
+- **Security:** **TEST PERSONA** `senderId`/`userId` is not a boundary. Real apps
+  derive the sender from `ctx.auth.userId`; personas are display-only.
 
 ## Safety traps (reconciled at landing)
 

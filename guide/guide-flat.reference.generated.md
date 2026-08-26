@@ -1142,7 +1142,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-checkpoint-source-unsupported"></a>`SNAPBACK_CHECKPOINT_SOURCE_UNSUPPORTED` | server | 503 | — | `crates/snapback-kernel/src/storage/checkpoints.rs:24` | 2 |
 | <a id="diagnostic-snapback-checkpoint-stream-missing"></a>`SNAPBACK_CHECKPOINT_STREAM_MISSING` | server | 500 | — | `crates/snapback-kernel/src/proof_checkpoint.rs:2073` | 2 |
 | <a id="diagnostic-snapback-checkpoint-test-crash-cut"></a>`SNAPBACK_CHECKPOINT_TEST_CRASH_CUT` | server | 500 | — | `crates/snapback-kernel/src/proof_checkpoint.rs:1565` | 5 |
-| <a id="diagnostic-snapback-checkpoint-test-parent-sync-failed"></a>`SNAPBACK_CHECKPOINT_TEST_PARENT_SYNC_FAILED` | server | — | — | `crates/snapback-kernel/src/proof_checkpoint.rs:5640` | 2 |
+| <a id="diagnostic-snapback-checkpoint-test-parent-sync-failed"></a>`SNAPBACK_CHECKPOINT_TEST_PARENT_SYNC_FAILED` | server | — | — | `crates/snapback-kernel/src/proof_checkpoint.rs:5753` | 2 |
 | <a id="diagnostic-snapback-checkpoint-wal-budget-exceeded"></a>`SNAPBACK_CHECKPOINT_WAL_BUDGET_EXCEEDED` | server | 429 | — | `crates/snapback-kernel/src/proof_checkpoint.rs:2289` | 8 |
 | <a id="diagnostic-snapback-cleanup-confirmation-invalid"></a>`SNAPBACK_CLEANUP_CONFIRMATION_INVALID` | hosted-supervisor | — | — | `packages/snapback-hosted-supervisor/index.mjs:883` | 1 |
 | <a id="diagnostic-snapback-cleanup-foreign-resource"></a>`SNAPBACK_CLEANUP_FOREIGN_RESOURCE` | hosted-supervisor | — | — | `packages/snapback-hosted-supervisor/index.mjs:859` | 1 |
@@ -2002,7 +2002,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-history-not-enabled"></a>`SNAPBACK_HISTORY_NOT_ENABLED` | server | 409 | — | `crates/snapback-kernel/src/proof_checkpoint.rs:1351` | 3 |
 | <a id="diagnostic-snapback-history-page-invalid"></a>`SNAPBACK_HISTORY_PAGE_INVALID` | server | 400 | — | `crates/snapback-kernel/src/proof_checkpoint.rs:1333` | 2 |
 | <a id="diagnostic-snapback-history-policy-invalid"></a>`SNAPBACK_HISTORY_POLICY_INVALID` | server | 400 | — | `crates/snapback-kernel/src/proof_checkpoint.rs:1116` | 4 |
-| <a id="diagnostic-snapback-history-policy-version-conflict"></a>`SNAPBACK_HISTORY_POLICY_VERSION_CONFLICT` | server | 409 | — | `crates/snapback-kernel/src/proof_checkpoint.rs:1145` | 2 |
+| <a id="diagnostic-snapback-history-policy-version-conflict"></a>`SNAPBACK_HISTORY_POLICY_VERSION_CONFLICT` | server | 409 | — | `crates/snapback-kernel/src/proof_checkpoint.rs:1145` | 4 |
 | <a id="diagnostic-snapback-history-table-unknown"></a>`SNAPBACK_HISTORY_TABLE_UNKNOWN` | server | 404 | — | `crates/snapback-kernel/src/proof_checkpoint.rs:1131` | 2 |
 | <a id="diagnostic-snapback-hosted-active-machine-config-drifted"></a>`SNAPBACK_HOSTED_ACTIVE_MACHINE_CONFIG_DRIFTED` | hosted-supervisor | — | — | `packages/snapback-hosted-supervisor/index.mjs:170` | 1 |
 | <a id="diagnostic-snapback-hosted-admission-invalid"></a>`SNAPBACK_HOSTED_ADMISSION_INVALID` | cli | — | — | `packages/snapback-cli/deployment-control.mjs:418` | 6 |
@@ -2419,7 +2419,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-membership-last-holder-app-scope"></a>`SNAPBACK_MEMBERSHIP_LAST_HOLDER_APP_SCOPE` | server | 400 | — | `crates/snapback-kernel/src/storage.rs:11541` | 2 |
 | <a id="diagnostic-snapback-membership-last-holder-bootstrap-mismatch"></a>`SNAPBACK_MEMBERSHIP_LAST_HOLDER_BOOTSTRAP_MISMATCH` | server | 400 | — | `crates/snapback-kernel/src/storage.rs:11566` | 2 |
 | <a id="diagnostic-snapback-membership-last-holder-role-unknown"></a>`SNAPBACK_MEMBERSHIP_LAST_HOLDER_ROLE_UNKNOWN` | server | 400 | — | `crates/snapback-kernel/src/storage.rs:11550` | 2 |
-| <a id="diagnostic-snapback-membership-last-holder-strand"></a>`SNAPBACK_MEMBERSHIP_LAST_HOLDER_STRAND` | server | 409 | — | `crates/snapback-kernel/src/storage/auth_agent_credentials.rs:3924` | 6 |
+| <a id="diagnostic-snapback-membership-last-holder-strand"></a>`SNAPBACK_MEMBERSHIP_LAST_HOLDER_STRAND` | server | 409 | — | `crates/snapback-kernel/src/storage/auth_agent_credentials.rs:4060` | 8 |
 | <a id="diagnostic-snapback-membership-live-input-invalid"></a>`SNAPBACK_MEMBERSHIP_LIVE_INPUT_INVALID` | server | 500 | — | `crates/snapback-engine/src/local/engine.rs:15352` | 2 |
 | <a id="diagnostic-snapback-membership-live-invalid"></a>`SNAPBACK_MEMBERSHIP_LIVE_INVALID` | server | 500 | — | `crates/snapback-engine/src/local/engine.rs:4597` | 1 |
 | <a id="diagnostic-snapback-membership-not-declared"></a>`SNAPBACK_MEMBERSHIP_NOT_DECLARED` | server | 400 | — | `crates/snapback-kernel/src/storage.rs:18007` | 2 |
