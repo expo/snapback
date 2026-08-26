@@ -119,7 +119,7 @@ export function expoMetroChildEnvironment({ env, bootstrapOrigin, backendOrigin,
     // @ref LLP 0300#p4--the-dev-session-becomes-explicit — supervised web
     // exposes the backend data/auth origin while retaining the supervisor
     // origin above as the binding rendezvous control plane.
-    // @ref LLP 0310.000#track-b--url-visible-mint-not-stolen — Track B makes
+    // @ref LLP 0310.000#track-b--the-mint-is-on-demand-and-gives-the-form-back — Track B makes
     // the web data/auth URL visible without turning it into binding authority.
     ...(typeof backendOrigin === 'string' && backendOrigin.length > 0
       ? { EXPO_PUBLIC_SNAPBACK_URL: backendOrigin }
@@ -1712,7 +1712,7 @@ export async function startBootstrapExchange(
       && authorityRequest === SUPERVISED_AUTHORITY_REQUEST
       && validAuthorityRequest
     ) {
-      // @ref LLP 0310.000#track-b--url-visible-mint-not-stolen — the native
+      // @ref LLP 0310.000#track-b--the-mint-is-on-demand-and-gives-the-form-back — the native
       // exception requires a truly missing Origin plus application/json, which
       // makes browser fetch preflight; the existing OPTIONS arm refuses an
       // opaque or unadmitted browser origin. The unguessable, timing-safe
@@ -2756,7 +2756,7 @@ export async function runExpoDev(options = {}) {
     // @ref LLP 0300#p4--the-dev-session-becomes-explicit — binding admission
     // never invokes the mint on web or native; application adoption requests
     // the first ordinary session on demand.
-    // @ref LLP 0310.000#track-b--url-visible-mint-not-stolen — an operator
+    // @ref LLP 0310.000#track-b--the-mint-is-on-demand-and-gives-the-form-back — an operator
     // replacement is a one-shot response; other explicit adoptions mint fresh.
     requestSupervisedAuthority = () => {
       if (pendingAuthority !== null) [authority, pendingAuthority] = [pendingAuthority, null];
