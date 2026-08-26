@@ -17,8 +17,8 @@ reviewed-authorities-digest: sha256:0d2206b9e85ec7a34d383f1554133c504a35d182fc17
 
 # Generated API reference
 
-One build-bound projection of 1455 public symbols (605 runtime values and 850 explicit type-only symbols).
-Registry source identity: `sha256:1764ff067e3ff4509fade3b2c315762a7483c4e88777666ac811025105224611`.
+One build-bound projection of 1457 public symbols (606 runtime values and 851 explicit type-only symbols).
+Registry source identity: `sha256:6ace62f6b7a489456d0bdc35dcd0c4c721dd1dbc0e7764cd45e120d916c5ef6e`.
 
 Use `snapback guide <ExactSymbolName>` for a budgeted exact lookup. Add `--slice N` when a result names a next slice. The JSON registry is available at [registry.json](./registry.json). Stable `SNAPBACK_*` failures have their own [diagnostic code registry](./diagnostics.md).
 
@@ -28,7 +28,7 @@ The handler context contract is owned by the type-only [`@expo/snapback-codegen/
 
 | Module | Symbols | Runtime | Types |
 | --- | ---: | ---: | ---: |
-| [`@expo/snapback-client`](./expo-snapback-client.md) | 339 | 106 | 233 |
+| [`@expo/snapback-client`](./expo-snapback-client.md) | 340 | 106 | 234 |
 | [`@expo/snapback-client/agent-authority`](./expo-snapback-client--agent-authority.md) | 17 | 3 | 14 |
 | [`@expo/snapback-client/app-client-internal`](./expo-snapback-client--app-client-internal.md) | 11 | 11 | 0 |
 | [`@expo/snapback-client/app-data`](./expo-snapback-client--app-data.md) | 9 | 6 | 3 |
@@ -52,7 +52,7 @@ The handler context contract is owned by the type-only [`@expo/snapback-codegen/
 | [`@expo/snapback-client/micro/live`](./expo-snapback-client--micro-live.md) | 4 | 1 | 3 |
 | [`@expo/snapback-client/online`](./expo-snapback-client--online.md) | 4 | 3 | 1 |
 | [`@expo/snapback-client/optimistic-rebase`](./expo-snapback-client--optimistic-rebase.md) | 12 | 6 | 6 |
-| [`@expo/snapback-client/outbox-shared`](./expo-snapback-client--outbox-shared.md) | 26 | 21 | 5 |
+| [`@expo/snapback-client/outbox-shared`](./expo-snapback-client--outbox-shared.md) | 27 | 22 | 5 |
 | [`@expo/snapback-client/provider-entry`](./expo-snapback-client--provider-entry.md) | 20 | 10 | 10 |
 | [`@expo/snapback-client/push-installation-expo`](./expo-snapback-client--push-installation-expo.md) | 4 | 1 | 3 |
 | [`@expo/snapback-client/push-registry`](./expo-snapback-client--push-registry.md) | 7 | 2 | 5 |

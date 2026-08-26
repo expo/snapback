@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:060607daf38646adbe429ee6d128e79ee8134afe155a
 # @expo/snapback-client/vector-search
 
 Build-bound public API projection for `@expo/snapback-client/vector-search`. Canonical registry identity:
-`sha256:1764ff067e3ff4509fade3b2c315762a7483c4e88777666ac811025105224611`.
+`sha256:6ace62f6b7a489456d0bdc35dcd0c4c721dd1dbc0e7764cd45e120d916c5ef6e`.
 Runtime parity condition:
 `import` → `packages/snapback-client/vector-search.mjs`.
 
@@ -39,7 +39,7 @@ Symbols: 5 total; 1 runtime values; 4 type-only.
 
 Stable identity: `npm:@expo/snapback-client/vector-search#SnapbackClient`
 Kind: `runtime-class`
-Source: `packages/snapback-client/index.d.mts:1838`
+Source: `packages/snapback-client/index.d.mts:1850`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export class SnapbackClient {
@@ -332,9 +332,9 @@ export class SnapbackClient {
   startOutboxDrain(options?: OutboxDrainOptions): OutboxDrainController;
   /** Drain the durable outbox in sequence order (single-flight). */
   replayQueuedMutations(): Promise<OutboxReplayOutcome>;
-  /** Explicit sidecar-only handoff of one caller-owned durable store across a
-   * transport-origin change. Requires an app-owned full-snapshot barrier,
-   * exact artifact generation, store identity, and writer custody. */
+  /** Check one caller-owned durable store after a sidecar transport change.
+   * Requires an app-owned full-snapshot barrier, exact artifact generation,
+   * store identity, and writer custody; target adoption remains unimplemented. */
   adoptQueuedMutations(options: {
     readonly expectedClientStoreId: string;
     readonly expectedGeneration: ArtifactGeneration;
@@ -344,8 +344,9 @@ export class SnapbackClient {
   }): Promise<OutboxAdoptionReceipt>;
   /** Payload-free tombstones for upgrade-incompatible queued intents. */
   quarantinedMutations(): Promise<readonly QuarantinedMutationTombstone[]>;
-  /** Explicitly return the whole quarantine to pending after successor
-   * artifact admission. This first cut does no per-intent transformation. */
+  /** Explicitly return the current target's quarantine to pending after
+   * successor artifact admission. This first cut does no per-intent
+   * transformation. */
   reenterQuarantinedMutations(): Promise<QuarantinedMutationReentryOutcome>;
   /** Current-principal, full-byte intents stranded by an authority change. */
   strandedMutations(): Promise<readonly StrandedMutation[]>;

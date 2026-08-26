@@ -17,6 +17,12 @@ for the same origin, with exact artifact-generation matching required for
 generated mutation references (string-named mutations carry no generation),
 while every answered manifest or HTTP refusal replaces it. Cached evidence is
 enqueue-only and never licenses a foreground mutation attempt.)
+**Revised:** 2026-08-25 (round-25 string-reference replay clarification: a
+string-named call has no call-site-generated artifact witness, but schema-v2
+enqueue persists the complete served generation and replay sends that exact
+witness as `expectedGeneration`; the server compares it atomically at mutation
+time. Principal-transition privacy deletion separately includes origin-scoped
+legacy rows without granting replay or ACK authority.)
 **Revised:** 2026-08-25 (durable target identity: outbox record v2 persists
 canonical origin, target profile, and generated generation or string-reference
 app identity. Replay compares that identity before custody or transport;
@@ -472,16 +478,20 @@ answered gap/error, an unavailable inspection, or a merely absent gap does
 not. LLP 0043's enqueue-only exception may reuse the last positive answer after
 a no-response transport loss, but only from durable evidence bound to the same
 canonical origin and, for a generated mutation reference, its exact app
-artifact generation. String-named mutations carry no generation witness. That
-exception never admits replay or transport and therefore enqueues without a
-foreground mutation POST. The durable store writer assigns the request order
-before inspection transport and compare-and-commits answered facts by observed
-fact revision or newer shared request sequence. Clients re-read the committed
-fact and generation before enqueue, before mutation/replay transport, and
-before turning an ambiguous foreground response into queued custody. A
-no-response inspection does not advance answered order. Effect-producing HTTP
-requests reject redirects; such a response is an answered refusal, not
-connectivity ambiguity.
+artifact generation. A string-named mutation has no **call-site-generated**
+generation witness; admission instead binds its established served-app
+identity, and schema-v2 enqueue persists the complete served generation from
+that fact. Replay carries that persisted generation as `expectedGeneration`,
+so the server's mutation-time comparison remains the atomic defense if the
+deployment changes after inspection but before POST. That exception never
+admits replay or transport and therefore enqueues without a foreground mutation
+POST. The durable store writer assigns the request order before inspection
+transport and compare-and-commits answered facts by observed fact revision or
+newer shared request sequence. Clients re-read the committed fact and
+generation before enqueue, before mutation/replay transport, and before turning
+an ambiguous foreground response into queued custody. A no-response inspection
+does not advance answered order. Effect-producing HTTP requests reject
+redirects; such a response is an answered refusal, not connectivity ambiguity.
 
 #### Dated offer-binding amendment — authorable offline replay (2026-08-25)
 

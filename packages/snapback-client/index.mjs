@@ -399,6 +399,7 @@ const createOutboxAuthorizationDispatchOwnerLease = (
 };
 const borrowOutboxAuthorizationDispatch = (store, ownerLease) => {
   if (ownerLease === null || ownerLease === undefined) return null;
+  if (!outboxAuthorizationDispatchOwnerLeases.has(ownerLease)) return null;
   const scope = [...(outboxAuthorizationDispatchScopesByStore.get(store) ?? [])]
     .find((candidate) => (
       candidate.releaseRequested !== true
@@ -8988,10 +8989,10 @@ export class SnapbackClient {
           : record
       ))
       .filter((record) => (
-        record?.outboxRecordSchemaVersion === OUTBOX_RECORD_SCHEMA_VERSION
-        && record.enqueueTarget !== null
-        && typeof record.enqueueTarget === 'object'
-        && canonicalServerOrigin(record.enqueueTarget.canonicalOrigin) === origin
+        record?.outboxRecordSchemaVersion !== OUTBOX_RECORD_SCHEMA_VERSION
+        || record.enqueueTarget === null
+        || typeof record.enqueueTarget !== 'object'
+        || canonicalServerOrigin(record.enqueueTarget.canonicalOrigin) === origin
       ))
       .map((record) => record.id);
   }
@@ -11405,10 +11406,11 @@ export class SnapbackClient {
         );
         try {
           // PRINCIPAL-PRIVACY is a store-domain cut, not a recovery API.
-          // Persisted same-origin v2 identity is enough to classify records
-          // under the already-proven predecessor/successor principal matrix;
-          // a missing, negative, or generation-less current capability fact
-          // cannot leave predecessor payload for successor observation.
+          // Same-origin v2 identity plus targetless/pre-v2 rows in this
+          // origin-scoped store enter the already-proven predecessor/successor
+          // matrix; an incomplete capability fact cannot leave predecessor
+          // payload for successor observation. Replay/ACK/adoption keep the
+          // complete current-target gate.
           const transitionRecordIds = await this.#authTransitionOutboxRecordIds(store);
           return await this.#applyQueueCustodyReconciliation(store, authority, {
             validateCurrent,
@@ -13968,6 +13970,7 @@ export class SnapbackClient {
             operationCoverageDisposition: record.operationCoverageDisposition ?? null,
             optimisticOperation: record.optimisticOperation ?? null,
             authorityCapture: replayAuthority?.capture ?? null,
+            wireExpectedGeneration: outboxReplayWireExpectedGeneration(record),
             queue: false,
             __operationTarget: replayOperationTarget,
             __authorizationDispatchOwnership: OUTBOX_AUTHORIZATION_DISPATCH_OWNERSHIP,
@@ -14192,6 +14195,24 @@ export class SnapbackClient {
             reason: error.code === 'SNAPBACK_OUTBOX_REPLAY_TARGET_MISSING'
               ? 'replay-paused:enqueue-target-missing'
               : 'replay-paused:enqueue-target-mismatch',
+          });
+          stopped = true;
+          break;
+        }
+        if (
+          error?.diagnostic?.code === 'SNAPBACK_ARTIFACT_IDENTITY_MISMATCH'
+          || error?.code === 'SNAPBACK_ARTIFACT_IDENTITY_MISMATCH'
+        ) {
+          this.#recordOutboxDiagnostic({
+            code: 'SNAPBACK_ARTIFACT_IDENTITY_MISMATCH',
+            mutation: record.function,
+            clientMutationId: record.id,
+            reason: 'server-generation-mismatch',
+          });
+          replayStop.value = Object.freeze({
+            kind: 'paused',
+            code: 'SNAPBACK_ARTIFACT_IDENTITY_MISMATCH',
+            reason: 'replay-paused:server-generation-mismatch',
           });
           stopped = true;
           break;
@@ -14562,6 +14583,7 @@ export class SnapbackClient {
     optimisticOperation = null,
     authorityDescriptor = null,
     authorityCapture = null,
+    wireExpectedGeneration = null,
     mediaCommand = null,
     __beforeTransportDispatch = null,
     __onTransportFailure = null,
@@ -14605,6 +14627,18 @@ export class SnapbackClient {
     }
     args = argumentsAlreadyNormalized ? args : validateGeneratedArguments(ref, args, name);
     const generation = expectedGeneration(ref);
+    if (
+      wireExpectedGeneration !== null
+      && __authorizationDispatchOwnership !== OUTBOX_AUTHORIZATION_DISPATCH_OWNERSHIP
+    ) {
+      throw new TypeError('wireExpectedGeneration is reserved for durable replay');
+    }
+    const mutationWireExpectedGeneration = wireExpectedGeneration === null
+      ? generation
+      : normalizeExpectedGeneration(
+          wireExpectedGeneration,
+          'internal replay wireExpectedGeneration',
+        );
     let operationTarget = __operationTarget
       ?? pinOfflineMutationTransportTarget(this.baseUrl, generation);
     if (
@@ -14952,7 +14986,9 @@ export class SnapbackClient {
       read_set: readSet,
       wireVersion: WIRE_VERSION_TOKEN,
     };
-    if (generation !== null) body.expectedGeneration = generation;
+    if (mutationWireExpectedGeneration !== null) {
+      body.expectedGeneration = mutationWireExpectedGeneration;
+    }
     // Opaque adapter correlation (LLP 0034 §3.2): sent verbatim, echoed on
     // the receipt; the provider never interprets it.
     if (correlation) body.correlation = correlation;
@@ -22993,6 +23029,17 @@ function outboxReplayReference(record) {
     ...(record.argsContract == null ? {} : { argsContract: record.argsContract }),
     ...(record.argumentSchema == null ? {} : { argumentSchema: record.argumentSchema }),
   };
+}
+
+function outboxReplayWireExpectedGeneration(record) {
+  const generation = record?.expectedGeneration
+    ?? record?.enqueueTarget?.artifactIdentity?.generation
+    ?? null;
+  if (generation === null) return null;
+  return normalizeExpectedGeneration(
+    generation,
+    `durable outbox record ${record?.id ?? '<unknown>'} replay generation`,
+  );
 }
 
 function validateGeneratedArguments(ref, args, name = functionName(ref)) {

@@ -5340,6 +5340,104 @@ test('same-origin same-app generation replacement refuses string-named persisted
   }
 });
 
+test('string-named replay carries its persisted generation across an inspect-to-POST deployment race', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const origin = 'https://persisted-string-generation-race.example';
+  const generationOne = {
+    ...TEST_ARTIFACT_GENERATION,
+    appId: 'persisted-string-generation-race-app',
+  };
+  const generationTwo = {
+    ...generationOne,
+    schemaHash: testDigest('7'),
+    bundleHash: testDigest('8'),
+    inputsHash: testDigest('9'),
+  };
+  let enqueueOffline = true;
+  let switchAfterReplayInspect = false;
+  let servedGeneration = generationOne;
+  let successorEffects = 0;
+  let wireExpectedGeneration = null;
+  const sameGeneration = (left, right) => Object.keys(generationOne)
+    .every((key) => left?.[key] === right?.[key]);
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    if (path === '/inspect') {
+      const response = Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId: 'same-app-generation-race-target',
+        generation: servedGeneration,
+      }));
+      if (switchAfterReplayInspect) servedGeneration = generationTwo;
+      return response;
+    }
+    if (enqueueOffline) throw new TypeError('generation one stopped after admission');
+    const body = JSON.parse(init.body);
+    wireExpectedGeneration = body.expectedGeneration ?? null;
+    // The server's compatibility path admits an absent identity. Once the
+    // replay carries its persisted witness, the active-generation comparison
+    // becomes the atomic mutation-time refusal.
+    if (
+      wireExpectedGeneration !== null
+      && !sameGeneration(wireExpectedGeneration, servedGeneration)
+    ) {
+      return Response.json({
+        diagnostic: {
+          code: 'SNAPBACK_ARTIFACT_IDENTITY_MISMATCH',
+          message: 'the asserted generated artifact generation is not active',
+          details: {
+            subcause: 'generation',
+            expectedGeneration: wireExpectedGeneration,
+            activeGeneration: servedGeneration,
+          },
+        },
+      }, { status: 409 });
+    }
+    successorEffects += 1;
+    return Response.json({ result: { wrongGeneration: true }, version: 2 });
+  };
+  const enqueueClient = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  const clientMutationId = 'cm-persisted-string-generation-race';
+  const queued = await enqueueClient.mutate('createThing', {
+    clientMutationId,
+    args: { title: 'belongs to generation one' },
+  });
+  assert.equal(queued.status, 'queued');
+  await enqueueClient.close();
+
+  enqueueOffline = false;
+  switchAfterReplayInspect = true;
+  const replayClient = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  try {
+    const replay = await replayClient.replayQueuedMutations();
+    assert.equal(replay.replayed, 0, 'generation-one intent has no effect on generation two');
+    assert.equal(replay.failed, 0, 'an atomic generation refusal pauses rather than fails intent');
+    assert.equal(replay.stopped, true, 'the generation race pauses replay');
+    assert.equal(replay.remaining, 1, 'the refused record remains recoverable');
+    assert.equal(successorEffects, 0, 'generation two executes zero predecessor effects');
+    assert.deepEqual(
+      wireExpectedGeneration,
+      generationOne,
+      'string-named replay sends the generation persisted at enqueue',
+    );
+    assert.deepEqual(
+      (await store.outboxPending()).map((record) => record.id),
+      [clientMutationId],
+      'the server-refused generation-one record stays pending',
+    );
+  } finally {
+    await replayClient.close();
+    await store.close();
+  }
+});
+
 const exerciseTargetAwareOptimisticProjection = async ({
   enqueueOrigin,
   projectionOrigin,

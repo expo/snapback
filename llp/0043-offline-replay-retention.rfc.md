@@ -5,6 +5,13 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
+**Revised:** 2026-08-25 (round-25 generation/privacy correction: string-named
+replay sends the complete served generation persisted at enqueue so mutation-
+time validation closes an inspect-to-POST deployment race. The principal-
+privacy transition cut is the sole store-domain, origin-scoped exception to
+the v2 target-selection gate: it includes targetless/pre-v2 rows for the
+predecessor/successor strand/delete matrix but grants no replay, ACK,
+observation, recovery, or adoption authority.)
 **Revised:** 2026-08-25 (round-23 systemic recovery fence: one shared client
 selection boundary admits only locally present v2 records matching the complete
 current enqueue target while the authorization-dispatch lock is held. Public
@@ -580,6 +587,16 @@ their separately governed, record-scoped custody writes; merely observing a
 sidecar-adopted queue can never strand a record before its persisted target
 fence runs. Missing, targetless/legacy, and foreign caller ids return a coded
 no-op rather than granting record observation or mutation authority.
+
+The named **principal-privacy exception** is narrower and destructive: an
+authority transition operates on the current origin's durable store domain,
+so its origin cut includes targetless/pre-v2 rows that cannot satisfy the v2
+recovery target fence. It may only apply the already-proven predecessor/
+successor strand-or-delete matrix before successor observation. It grants no
+replay, mutation POST, operation-range issuance, ACK consumption, recovery
+projection, or target adoption; all of those retain the complete v2 current-
+target gate above. A foreign schema-v2 record whose persisted canonical origin
+does not match the transition origin remains outside this privacy cut.
 
 The additive enqueue-target identity also recognizes an opaque
 `ledgerIncarnation` whenever inspection provides it. The client persists the

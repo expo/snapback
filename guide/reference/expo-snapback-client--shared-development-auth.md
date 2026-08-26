@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:507354341445c5251dfa45e050fdba63e15083420c70
 # @expo/snapback-client/shared-development-auth
 
 Build-bound public API projection for `@expo/snapback-client/shared-development-auth`. Canonical registry identity:
-`sha256:1764ff067e3ff4509fade3b2c315762a7483c4e88777666ac811025105224611`.
+`sha256:6ace62f6b7a489456d0bdc35dcd0c4c721dd1dbc0e7764cd45e120d916c5ef6e`.
 Runtime parity condition:
 `import` → `packages/snapback-client/shared-development-auth.mjs`.
 

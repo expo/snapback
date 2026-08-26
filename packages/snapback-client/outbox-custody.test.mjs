@@ -1150,29 +1150,34 @@ test('stranding a valid near-limit record cannot wedge an authority transition',
   assert(outboxRecordBytes(stranded.result) > OUTBOX_MAX_RECORD_BYTES);
 });
 
-test('unattributable targetless queue records remain untouched at fenced reconciliation', async (t) => {
+test('principal switch privacy cut deletes targetless pre-v2 queued args', async (t) => {
   const fixture = makeFixture();
   const { client, coordinator } = makeClient(fixture);
   t.after(() => client.closeAuth());
   await signIn(fixture, client);
-  // Dev-era / foreign-writer bytes: no captured descriptor, principal scope,
-  // or custody proof. A fenced observer can neither attribute them to the
-  // current principal nor transmit them under a captured authority, so the
-  // reconciliation cannot adopt or delete them under whichever target happens
-  // to be current. Round 23 keeps those legacy bytes untouched and records the
-  // coded target-fence refusal.
-  await fixture.store.outboxEnqueue({ id: 'legacy-dev-pending', function: 'writeLegacy' });
-  await transitionTo(fixture, coordinator, actorA2(), 'unattributable_privacy_delete');
+  // Upgrade-while-offline predecessor bytes have neither a schema-v2 target
+  // nor a target fact. The store domain still proves their origin, and an
+  // A -> B transition is a privacy deletion cut rather than replay authority.
+  await fixture.store.outboxEnqueue({
+    id: 'legacy-dev-pending',
+    function: 'writeLegacy',
+    args: { secret: 'USER_A_PRE_V2_PRIVATE_ARGS' },
+  });
+  await transitionTo(fixture, coordinator, actorB(), 'unattributable_privacy_delete');
   const status = await client.outboxStatus();
   assert.equal(status.pending, 0);
   assert.equal(status.stranded, 0);
-  assert.deepEqual(
-    (await fixture.store.outboxRecords()).map((record) => record.id),
-    ['legacy-dev-pending'],
-  );
-  const diagnostic = client.outboxDiagnostics.find((entry) => (
-    entry.code === 'SNAPBACK_OUTBOX_TARGET_FENCE_REFUSED'
-    && entry.reasons?.includes('enqueue-target-missing')
+  assert.deepEqual(await fixture.store.outboxRecords(), []);
+  const deletion = client.outboxDiagnostics.find((entry) => (
+    entry.code === 'SNAPBACK_OFFLINE_MUTATIONS_DELETED_AUTHORITY_CHANGE'
   ));
-  assert.equal(diagnostic?.refused, 1);
+  assert.equal(deletion?.deleted, 1);
+  assert.equal(
+    client.outboxDiagnostics.some((entry) => (
+      entry.code === 'SNAPBACK_OUTBOX_TARGET_FENCE_REFUSED'
+      && entry.clientMutationIds?.includes('legacy-dev-pending')
+    )),
+    false,
+    'the transition privacy cut is not a replay/recovery target-fence refusal',
+  );
 });
