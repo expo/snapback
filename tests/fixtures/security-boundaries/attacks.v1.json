@@ -1,100 +1,1270 @@
 {
   "schemaVersion": "snapback.security-boundary-attacks.v1",
   "rowCoverage": {
-    "unmappedAttackCount": 71,
-    "unmappedAttackIdsSha256": "fef60ba807c558d05b72697a12b692c0851f2a4a8dc16e53ed1c94ff92b05070",
+    "unmappedAttackCount": 68,
+    "unmappedAttackIdsSha256": "220f90b3b6aba886d3b85648b0cedac8b91c3d5bb3a9068fd0313b7df111a772",
     "unmappedReason": "Pinned legacy debt from issues/20260826-authorization-denominator-and-seam-map.md; any new omission or mapping changes this digest and fails row-corpus inventory."
   },
   "attacks": [
-    { "id": "claim-kernel-commit-authority", "bin": "claim-kernel-commit-authority", "source": "src/bin/claim_kernel_commit_authority.rs", "mount": "snapback-kernel", "featureSets": [[]], "seedTypes": ["KernelCommitAuthority"] },
-    { "id": "claim-via-auth-reexport", "bin": "claim-via-auth-reexport", "source": "src/bin/claim_via_auth_reexport.rs", "mount": "snapback-auth", "featureSets": [[]], "seedTypes": ["KernelCommitAuthority"] },
-    { "id": "claim-via-engine-reexport", "bin": "claim-via-engine-reexport", "source": "src/bin/claim_via_engine_reexport.rs", "mount": "snapback-engine", "featureSets": [[]], "seedTypes": ["KernelCommitAuthority"] },
-    { "id": "register-oauth-via-raw-engine-database", "bin": "register-oauth-via-raw-engine-database", "source": "src/bin/register_oauth_via_raw_engine_database.rs", "mount": "snapback-engine", "featureSets": [["snapback-engine/test-support"], ["snapback-engine/test-support", "snapback-auth/test-support", "snapback-kernel/test-support", "snapback-sync/test-support"]], "expectedCode": "E0425" },
-    { "id": "admit-system-push", "bin": "admit-system-push", "source": "src/bin/admit_system_push.rs", "mount": "snapback-kernel", "featureSets": [[]], "seedTypes": ["PushStorageAuthority"] },
-    { "id": "admit-protected-record-erasure", "bin": "admit-protected-record-erasure", "source": "src/bin/admit_protected_record_erasure.rs", "mount": "snapback-kernel", "featureSets": [[]], "seedTypes": ["ProtectedRecordErasureAuthorityV1", "ProtectedRecordErasureRequestV1"] },
-    { "id": "admit-pending-effect-creation", "bin": "admit-pending-effect-creation", "source": "src/bin/admit_pending_effect_creation.rs", "mount": "snapback-kernel", "featureSets": [[]], "row": "F318", "seedTypes": ["CreatePendingEffectCommand"] },
-    { "id": "admit-pending-effect-approval", "bin": "admit-pending-effect-approval", "source": "src/bin/admit_pending_effect_approval.rs", "mount": "snapback-kernel", "featureSets": [[]], "row": "F315", "seedTypes": ["ApprovePendingEffectCommand"] },
-    { "id": "admit-pending-effect-denial", "bin": "admit-pending-effect-denial", "source": "src/bin/admit_pending_effect_denial.rs", "mount": "snapback-kernel", "featureSets": [[]], "row": "F316", "seedTypes": ["DenyPendingEffectCommand"] },
-    { "id": "admit-pending-effect-settlement", "bin": "admit-pending-effect-settlement", "source": "src/bin/admit_pending_effect_settlement.rs", "mount": "snapback-kernel", "featureSets": [[]], "row": "F317", "seedTypes": ["SettlePendingEffectCommand"] },
-    { "id": "admit-pending-effect-refusal", "bin": "admit-pending-effect-refusal", "source": "src/bin/admit_pending_effect_refusal.rs", "mount": "snapback-kernel", "featureSets": [[]], "row": "F314", "seedTypes": ["RefusePendingEffectCommand"] },
-    { "id": "admit-protected-record-erasure", "bin": "admit-protected-record-erasure", "source": "src/bin/admit_protected_record_erasure.rs", "mount": "snapback-kernel", "featureSets": [[]], "row": "F319", "seedTypes": ["ProtectedRecordErasureAuthorityV1", "ProtectedRecordErasureRequestV1"] },
-    { "id": "admit-pending-effect-creation", "bin": "admit-pending-effect-creation", "source": "src/bin/admit_pending_effect_creation.rs", "mount": "snapback-kernel", "featureSets": [[]], "seedTypes": ["CreatePendingEffectCommand"] },
-    { "id": "admit-pending-effect-approval", "bin": "admit-pending-effect-approval", "source": "src/bin/admit_pending_effect_approval.rs", "mount": "snapback-kernel", "featureSets": [[]], "seedTypes": ["ApprovePendingEffectCommand"] },
-    { "id": "admit-pending-effect-denial", "bin": "admit-pending-effect-denial", "source": "src/bin/admit_pending_effect_denial.rs", "mount": "snapback-kernel", "featureSets": [[]], "seedTypes": ["DenyPendingEffectCommand"] },
-    { "id": "admit-pending-effect-settlement", "bin": "admit-pending-effect-settlement", "source": "src/bin/admit_pending_effect_settlement.rs", "mount": "snapback-kernel", "featureSets": [[]], "seedTypes": ["SettlePendingEffectCommand"] },
-    { "id": "admit-pending-effect-refusal", "bin": "admit-pending-effect-refusal", "source": "src/bin/admit_pending_effect_refusal.rs", "mount": "snapback-kernel", "featureSets": [[]], "seedTypes": ["RefusePendingEffectCommand"] },
-    { "id": "clone-kernel-commit-authority", "bin": "clone-kernel-commit-authority", "source": "src/bin/clone_kernel_commit_authority.rs", "mount": "snapback-kernel", "featureSets": [[]], "expectedCode": "E0599", "seedTypes": ["KernelCommitAuthority"] },
-    { "id": "auth-commit-reservation-factory", "bin": "auth-commit-reservation-factory", "source": "src/bin/auth_commit_reservation_factory.rs", "mount": "snapback-kernel", "featureSets": [[]], "seedTypes": ["AuthorizationCommitCarrierFactory", "AuthorizationCommitReservation"] },
-    { "id": "auth-commit-prepared-factory", "bin": "auth-commit-prepared-factory", "source": "src/bin/auth_commit_prepared_factory.rs", "mount": "snapback-kernel", "featureSets": [[]], "seedTypes": ["AuthorizationCommitCarrierFactory", "PreparedAuthorizationCommit"] },
-    { "id": "service-interlock-factory", "bin": "service-interlock-factory", "source": "src/bin/service_interlock_factory.rs", "mount": "snapback-kernel", "featureSets": [[]], "expectedCode": "E0599", "seedTypes": ["ServiceAuthorityCommitInterlock", "ServiceAuthorityTerminalReceipt", "PreparedServiceAuthorityTerminal"] },
-    { "id": "forge-service-terminal-receipt", "bin": "forge-service-terminal-receipt", "source": "src/bin/forge_service_terminal_receipt.rs", "mount": "snapback-kernel", "featureSets": [[]], "expectedCode": "E0624", "seedTypes": ["ServiceAuthorityTerminalReceipt"] },
-    { "id": "clone-service-terminal-plan", "bin": "clone-service-terminal-plan", "source": "src/bin/clone_service_terminal_plan.rs", "mount": "snapback-engine", "featureSets": [[]], "expectedCode": "E0599", "seedTypes": ["ServiceAuthorityTerminalPlan"] },
-    { "id": "drop-service-terminal-gate", "bin": "drop-service-terminal-gate", "source": "src/bin/drop_service_terminal_gate.rs", "mount": "snapback-sync", "featureSets": [[]], "expectedCode": "E0599", "seedTypes": ["ServiceAuthorityTerminalGate"] },
-    { "id": "split-expired-service-terminal", "bin": "split-expired-service-terminal", "source": "src/bin/split_expired_service_terminal.rs", "mount": "snapback-engine", "featureSets": [[]], "expectedCode": "E0308", "seedTypes": ["ExpiredServiceAuthorityCommit"] },
-    { "id": "forge-service-authority-deadline-terminal", "bin": "forge-service-authority-deadline-terminal", "source": "src/bin/forge_service_authority_deadline_terminal.rs", "mount": "snapback-kernel", "featureSets": [[]], "expectedCode": "E0451", "seedTypes": ["ServiceAuthorityDeadlineTerminal"] },
-    { "id": "substitute-service-publication", "bin": "substitute-service-publication", "source": "src/bin/substitute_service_publication.rs", "mount": "snapback-sync", "featureSets": [[]], "expectedCode": "E0599", "seedTypes": ["ServiceAuthorityPublication"] },
-    { "id": "synthetic-resolved-service-authority", "bin": "synthetic-resolved-service-authority", "source": "src/bin/synthetic_resolved_service_authority.rs", "mount": "snapback-engine", "featureSets": [["snapback-engine/test-support"]], "expectedCode": "E0599", "seedTypes": ["ResolvedServiceAuthority"] },
-    { "id": "arbitrary-service-terminal-plan", "bin": "arbitrary-service-terminal-plan", "source": "src/bin/arbitrary_service_terminal_plan.rs", "mount": "snapback-engine", "featureSets": [["snapback-engine/test-support"]], "expectedCode": "E0599", "seedTypes": ["ServiceAuthorityTerminalPlan"] },
-    { "id": "supply-service-terminal-subject", "bin": "supply-service-terminal-subject", "source": "src/bin/supply_service_terminal_subject.rs", "mount": "snapback-kernel", "featureSets": [[]], "expectedCode": "E0624", "seedTypes": ["ServiceAuthorityTerminalReceipt"] },
-    { "id": "forge-service-authority-witness", "bin": "forge-service-authority-witness", "source": "src/bin/forge_service_authority_witness.rs", "mount": "snapback-sync", "featureSets": [[]], "expectedCode": "E0451", "seedTypes": ["ServiceAuthorityWitness"] },
-    { "id": "register-service-authority-witness", "bin": "register-service-authority-witness", "source": "src/bin/register_service_authority_witness.rs", "mount": "snapback-sync", "featureSets": [[]], "expectedCode": "E0624", "seedTypes": ["ServiceAuthorityWitness"] },
-    { "id": "services-rusqlite-reexport", "bin": "services-rusqlite-reexport", "source": "src/bin/services_rusqlite_reexport.rs", "mount": "snapback-services", "featureSets": [["snapback-services/remainder-tests"]], "expectedCode": "E0433", "row": "F313" },
-    { "id": "services-rusqlite-reexport-default", "bin": "services-rusqlite-reexport-default", "source": "src/bin/services_rusqlite_reexport_default.rs", "mount": "snapback-services", "featureSets": [[]], "expectedCode": "E0433", "row": "F313" },
-    { "id": "produce-asset-width-plan", "bin": "produce-asset-width-plan", "source": "src/bin/produce_asset_width_plan.rs", "mount": "snapback-services", "featureSets": [[], ["snapback-services/remainder-tests"]], "seedTypes": ["AssetWidthPlanTicketV1"], "row": "F272" },
-    { "id": "forge-erasure-authority", "bin": "forge-erasure-authority", "source": "src/bin/forge_erasure_authority.rs", "mount": "snapback-kernel", "featureSets": [[]], "expectedCode": "E0624" },
-    { "id": "forge-push-system", "bin": "forge-push-system", "source": "src/bin/forge_push_system.rs", "mount": "snapback-kernel", "featureSets": [[]], "expectedCode": "E0599" },
-    { "id": "fake-authorization-interlock", "bin": "fake-authorization-interlock", "source": "src/bin/fake_authorization_interlock.rs", "mount": "snapback-kernel", "featureSets": [[]], "expectedCode": "E0405" },
-    { "id": "fake-sender-proof-store", "bin": "fake-sender-proof-store", "source": "src/bin/fake_sender_proof_store.rs", "mount": "snapback-kernel", "featureSets": [[]], "expectedCode": "E0277" },
-    { "id": "raw-pending-effect-transition", "bin": "raw-pending-effect-transition", "source": "src/bin/raw_pending_effect_transition.rs", "mount": "snapback-kernel", "featureSets": [[]], "expectedCode": "E0308" },
-    { "id": "obtain-writable-sql-handle", "bin": "obtain-writable-sql-handle", "source": "src/bin/obtain_writable_sql_handle.rs", "mount": "snapback-kernel", "featureSets": [[]], "expectedCode": "E0616" },
-    { "id": "default-kernel-commit-authority", "bin": "default-kernel-commit-authority", "source": "src/bin/default_kernel_commit_authority.rs", "mount": "snapback-kernel", "featureSets": [[]], "expectedCode": "E0603", "seedTypes": ["KernelCommitAuthority"] },
-    { "id": "deserialize-kernel-commit-authority", "bin": "deserialize-kernel-commit-authority", "source": "src/bin/deserialize_kernel_commit_authority.rs", "mount": "snapback-kernel", "featureSets": [[]], "expectedCode": "E0603", "seedTypes": ["KernelCommitAuthority"] },
-    { "id": "construct-push-storage-authority", "bin": "construct-push-storage-authority", "source": "src/bin/construct_push_storage_authority.rs", "mount": "snapback-kernel", "featureSets": [[]], "expectedCode": "E0451", "seedTypes": ["PushStorageAuthority"] },
-    { "id": "kernel-test-support-for-test-factory", "bin": "kernel-test-support-for-test-factory", "source": "src/bin/kernel_test_support_for_test_factory.rs", "mount": "snapback-kernel", "featureSets": [["snapback-kernel/test-support"]], "seedTypes": ["AuthorizationCommitCarrierFactory"] },
-    { "id": "kernel-test-support-join-authority", "bin": "kernel-test-support-join-authority", "source": "src/bin/kernel_test_support_join_authority.rs", "mount": "snapback-kernel", "featureSets": [["snapback-kernel/test-support"]], "seedTypes": ["KernelCommitAuthority"] },
-    { "id": "recording-interlock-bind", "bin": "recording-interlock-bind", "source": "src/bin/recording_interlock_bind.rs", "mount": "snapback-kernel", "featureSets": [["snapback-kernel/test-support"]], "seedTypes": ["ServiceAuthorityCommitInterlock"] },
-    { "id": "obtain-promotion-contention-reservation", "bin": "obtain-promotion-contention-reservation", "source": "src/bin/obtain_promotion_contention_reservation.rs", "mount": "snapback-kernel", "featureSets": [[]], "row": "F320", "seedTypes": ["PromotionContentionReservation"] },
-    { "id": "obtain-ask-spend-reservation", "bin": "obtain-ask-spend-reservation", "source": "src/bin/obtain_ask_spend_reservation.rs", "mount": "snapback-kernel", "featureSets": [[]], "seedTypes": ["AskSpendReservation"] },
-    { "id": "forge-membership-writer-admin", "bin": "forge-membership-writer-admin", "source": "src/bin/forge_membership_writer_admin.rs", "mount": "snapback-kernel", "featureSets": [[]], "row": "F321", "seedTypes": ["MembershipWriter"] },
-    { "id": "reserve-authorization-via-sync", "bin": "reserve-authorization-via-sync", "source": "src/bin/reserve_authorization_via_sync.rs", "mount": "snapback-sync", "featureSets": [[]], "expectedCode": "E0599", "seedTypes": ["AuthorizationCommitCarrierFactory", "AuthorizationCommitReservation"] },
-    { "id": "clone-authorization-participant", "bin": "clone-authorization-participant", "source": "src/bin/clone_authorization_participant.rs", "mount": "snapback-kernel", "featureSets": [[]], "expectedCode": "E0599" },
-    { "id": "default-authorization-participant", "bin": "default-authorization-participant", "source": "src/bin/default_authorization_participant.rs", "mount": "snapback-kernel", "featureSets": [[]], "expectedCode": "E0599" },
-    { "id": "construct-authorization-participant", "bin": "construct-authorization-participant", "source": "src/bin/construct_authorization_participant.rs", "mount": "snapback-kernel", "featureSets": [[]], "expectedCode": "E0451" },
-    { "id": "name-prepared-authorization-commit", "bin": "name-prepared-authorization-commit", "source": "src/bin/name_prepared_authorization_commit.rs", "mount": "snapback-kernel", "featureSets": [[]], "expectedCode": "E0603", "seedTypes": ["PreparedAuthorizationCommit"] },
-    { "id": "default-authorization-cancellation", "bin": "default-authorization-cancellation", "source": "src/bin/default_authorization_cancellation.rs", "mount": "snapback-kernel", "featureSets": [[]], "expectedCode": "E0599" },
-    { "id": "construct-authorization-outcome", "bin": "construct-authorization-outcome", "source": "src/bin/construct_authorization_outcome.rs", "mount": "snapback-kernel", "featureSets": [[]], "expectedCode": "E0451" },
-    { "id": "construct-authorization-view", "bin": "construct-authorization-view", "source": "src/bin/construct_authorization_view.rs", "mount": "snapback-kernel", "featureSets": [[]], "expectedCode": "E0451" },
-    { "id": "shared-serving-database-unmediated-insert", "bin": "shared-serving-database-unmediated-insert", "source": "src/bin/shared_serving_database_unmediated_insert.rs", "mount": "snapback-kernel", "featureSets": [["snapback-kernel/test-support"]], "expectedCode": "E0596" },
-    { "id": "shared-serving-database-deref-unmediated-insert", "bin": "shared-serving-database-deref-unmediated-insert", "source": "src/bin/shared_serving_database_deref_unmediated_insert.rs", "mount": "snapback-kernel", "featureSets": [["snapback-kernel/test-support"]], "expectedCode": "E0624" },
-    { "id": "obtain-admitted-projection-snapshot", "bin": "obtain-admitted-projection-snapshot", "source": "src/bin/obtain_admitted_projection_snapshot.rs", "mount": "snapback-kernel", "featureSets": [[]], "expectedCode": "E0599", "seedTypes": ["AdmittedProjectionSnapshot"] },
-    { "id": "rebuild-session-projection-from-raw-source", "bin": "rebuild-session-projection-from-raw-source", "source": "src/bin/rebuild_session_projection_from_raw_source.rs", "mount": "snapback-sync", "featureSets": [[], ["snapback-sync/sync-owner"], ["snapback-sync/test-support", "snapback-kernel/test-support", "snapback-auth/test-support"], ["snapback-sync/sync-owner", "snapback-sync/test-support", "snapback-kernel/test-support", "snapback-auth/test-support"]], "expectedCode": "E0624", "seedTypes": ["SessionProjection"] },
-    { "id": "supply-agent-registration-mode", "bin": "supply-agent-registration-mode", "source": "src/bin/supply_agent_registration_mode.rs", "mount": "snapback-kernel", "featureSets": [[], ["snapback-kernel/test-support"]], "expectedCode": "E0061" },
-    { "id": "compose-agent-registration-partials", "bin": "compose-agent-registration-partials", "source": "src/bin/compose_agent_registration_partials.rs", "mount": "snapback-kernel", "featureSets": [[], ["snapback-kernel/test-support"]], "expectedCode": "E0624" },
-    { "id": "clone-secret-read-operator", "bin": "clone-secret-read-operator", "source": "src/bin/clone_secret_read_operator.rs", "mount": "snapback-server", "featureSets": [[]], "expectedCode": "E0599", "seedTypes": ["SecretReadOperator"] },
-    { "id": "mint-secret-read-lease-from-registry", "bin": "mint-secret-read-lease-from-registry", "source": "src/bin/mint_secret_read_lease_from_registry.rs", "mount": "snapback-server", "featureSets": [[]], "expectedCode": "E0624", "seedTypes": ["SecretReadLeaseRegistry"] },
-    { "id": "c009-literal-invalidation-connection", "bin": "c009-literal-invalidation-connection", "source": "src/bin/c009_literal_invalidation_connection.rs", "mount": "snapback-auth", "featureSets": [[], ["snapback-auth/test-support"], ["snapback-engine/test-support"], ["snapback-sync/test-support"], ["snapback-auth/test-support", "snapback-engine/test-support", "snapback-sync/test-support"]] },
-    { "id": "c009-clone-invalidation-connection", "bin": "c009-clone-invalidation-connection", "source": "src/bin/c009_clone_invalidation_connection.rs", "mount": "snapback-auth", "featureSets": [[], ["snapback-auth/test-support"], ["snapback-engine/test-support"], ["snapback-sync/test-support"], ["snapback-auth/test-support", "snapback-engine/test-support", "snapback-sync/test-support"]], "expectedCode": "E0616" },
-    { "id": "c009-deserialize-invalidation-connection", "bin": "c009-deserialize-invalidation-connection", "source": "src/bin/c009_deserialize_invalidation_connection.rs", "mount": "snapback-auth", "featureSets": [[], ["snapback-auth/test-support"], ["snapback-engine/test-support"], ["snapback-sync/test-support"], ["snapback-auth/test-support", "snapback-engine/test-support", "snapback-sync/test-support"]], "expectedCode": "E0277" },
-    { "id": "c009-build-invalidation-admission", "bin": "c009-build-invalidation-admission", "source": "src/bin/c009_build_invalidation_admission.rs", "mount": "snapback-engine", "featureSets": [[], ["snapback-auth/test-support"], ["snapback-engine/test-support"], ["snapback-sync/test-support"], ["snapback-auth/test-support", "snapback-engine/test-support", "snapback-sync/test-support"]], "expectedCode": "E0061" },
-    { "id": "c009-alternate-generation-reservation", "bin": "c009-alternate-generation-reservation", "source": "src/bin/c009_alternate_generation_reservation.rs", "mount": "snapback-auth", "featureSets": [[], ["snapback-auth/test-support"], ["snapback-engine/test-support"], ["snapback-sync/test-support"], ["snapback-auth/test-support", "snapback-engine/test-support", "snapback-sync/test-support"]], "expectedCode": "E0061" },
-    { "id": "construct-resolved-app-authority-from-parts", "bin": "construct-resolved-app-authority-from-parts", "source": "src/bin/construct_resolved_app_authority_from_parts.rs", "mount": "snapback-sync", "featureSets": [[], ["snapback-auth/test-support", "snapback-sync/test-support"], ["snapback-engine/test-support"], ["snapback-auth/test-support", "snapback-sync/test-support", "snapback-engine/test-support"]], "expectedCode": "E0451", "seedTypes": ["ResolvedAppAuthority"] },
-    { "id": "join-and-carry-resolved-app-authority", "bin": "join-and-carry-resolved-app-authority", "source": "src/bin/join_and_carry_resolved_app_authority.rs", "mount": "snapback-sync", "featureSets": [[], ["snapback-auth/test-support", "snapback-sync/test-support"], ["snapback-engine/test-support"], ["snapback-auth/test-support", "snapback-sync/test-support", "snapback-engine/test-support"]], "expectedCode": "E0624", "seedTypes": ["ResolvedAppAuthority"] },
-    { "id": "supply-obligation-authorization", "bin": "supply-obligation-authorization", "source": "src/bin/supply_obligation_authorization.rs", "mount": "snapback-auth", "featureSets": [[], ["snapback-auth/test-support"]], "expectedCode": "E0061" },
-    { "id": "replace-obligation-expectation", "bin": "replace-obligation-expectation", "source": "src/bin/replace_obligation_expectation.rs", "mount": "snapback-auth", "featureSets": [[], ["snapback-auth/test-support"]], "expectedCode": "E0599" },
-    { "id": "forge-live-invalidation-issuer", "bin": "forge-live-invalidation-issuer", "source": "src/bin/forge_live_invalidation_issuer.rs", "mount": "snapback-auth", "featureSets": [[], ["snapback-auth/test-support"]], "expectedCode": "E0624" },
-    { "id": "clone-live-invalidation-issuer", "bin": "clone-live-invalidation-issuer", "source": "src/bin/clone_live_invalidation_issuer.rs", "mount": "snapback-auth", "featureSets": [[], ["snapback-auth/test-support"]], "expectedCode": "E0599" },
-    { "id": "reuse-live-invalidation-issuer", "bin": "reuse-live-invalidation-issuer", "source": "src/bin/reuse_live_invalidation_issuer.rs", "mount": "snapback-auth", "featureSets": [[], ["snapback-auth/test-support"]], "expectedCode": "E0382" },
-    { "id": "sign-scope-retirement-directly", "bin": "sign-scope-retirement-directly", "source": "src/bin/sign_scope_retirement_directly.rs", "mount": "snapback-auth", "featureSets": [[], ["snapback-auth/test-support"]], "expectedCode": "E0624" },
-    { "id": "cross-engine-recorded-mutation-authority", "bin": "cross-engine-recorded-mutation-authority", "source": "src/bin/cross_engine_recorded_mutation_authority.rs", "mount": "snapback-engine", "featureSets": [[], ["snapback-auth/test-support"], ["snapback-engine/test-support"], ["snapback-sync/test-support"], ["snapback-auth/test-support", "snapback-engine/test-support", "snapback-sync/test-support"]], "expectedCode": "E0061", "seedTypes": ["PreparedAuthority", "PreparedRecordedMutationAuthority"] },
-    { "id": "independent-authority-stream-descriptor", "bin": "independent-authority-stream-descriptor", "source": "src/bin/independent_authority_stream_descriptor.rs", "mount": "snapback-sync", "featureSets": [[], ["snapback-auth/test-support"], ["snapback-engine/test-support"], ["snapback-sync/test-support"], ["snapback-auth/test-support", "snapback-engine/test-support", "snapback-sync/test-support"]], "expectedCode": "E0425", "seedTypes": ["PreparedAuthority", "DerivedAuthorityDescriptor"] },
-    { "id": "resolved-only-authority-descriptor", "bin": "resolved-only-authority-descriptor", "source": "src/bin/resolved_only_authority_descriptor.rs", "mount": "snapback-sync", "featureSets": [[], ["snapback-auth/test-support"], ["snapback-engine/test-support"], ["snapback-sync/test-support"], ["snapback-auth/test-support", "snapback-engine/test-support", "snapback-sync/test-support"]], "expectedCode": "E0425", "seedTypes": ["ResolvedAppAuthority"] },
-    { "id": "generation-recorded-mutation-authority", "bin": "generation-recorded-mutation-authority", "source": "src/bin/generation_recorded_mutation_authority.rs", "mount": "snapback-engine", "featureSets": [[], ["snapback-auth/test-support"], ["snapback-engine/test-support"], ["snapback-sync/test-support"], ["snapback-auth/test-support", "snapback-engine/test-support", "snapback-sync/test-support"]], "expectedCode": "E0061", "seedTypes": ["PreparedAuthority", "PreparedRecordedMutationAuthority"] },
-    { "id": "wire-descriptor-trust", "bin": "wire-descriptor-trust", "source": "src/bin/wire_descriptor_trust.rs", "mount": "snapback-engine", "featureSets": [[], ["snapback-auth/test-support"], ["snapback-engine/test-support"], ["snapback-sync/test-support"], ["snapback-auth/test-support", "snapback-engine/test-support", "snapback-sync/test-support"]], "expectedCode": "E0061", "seedTypes": ["AuthorityDescriptor", "PreparedAuthority", "PreparedRecordedMutationAuthority"] },
-    { "id": "supply-exact-commit-rows-intent", "bin": "supply-exact-commit-rows-intent", "source": "src/bin/supply_exact_commit_rows_intent.rs", "mount": "snapback-kernel", "featureSets": [[], ["snapback-auth/test-support", "snapback-engine/test-support", "snapback-kernel/test-support", "snapback-sync/test-support"]], "expectedCode": "E0061", "seedTypes": ["CommitCapsuleAuthority", "CommitCapsuleIntentProducer", "CommitCapsuleIntentInstance", "ExactCommitRows"], "row": "F220" },
-    { "id": "replace-exact-commit-rows-value", "bin": "replace-exact-commit-rows-value", "source": "src/bin/replace_exact_commit_rows_value.rs", "mount": "snapback-kernel", "featureSets": [[], ["snapback-auth/test-support", "snapback-engine/test-support", "snapback-kernel/test-support", "snapback-sync/test-support"]], "expectedCode": "E0599" },
-    { "id": "staple-exact-commit-rows-intent", "bin": "staple-exact-commit-rows-intent", "source": "src/bin/staple_exact_commit_rows_intent.rs", "mount": "snapback-kernel", "featureSets": [["snapback-kernel/test-support"], ["snapback-auth/test-support", "snapback-engine/test-support", "snapback-kernel/test-support", "snapback-sync/test-support"]], "expectedCode": "E0061", "seedTypes": ["PrototypeIntent", "PrototypeIntendedRows", "ExactCommitRows"], "row": "F220" },
-    { "id": "record-effect-approver-without-authority", "bin": "record-effect-approver-without-authority", "source": "src/bin/record_effect_approver_without_authority.rs", "mount": "snapback-sync", "featureSets": [[], ["snapback-engine/test-support"]], "expectedCode": "E0308", "row": "F129" },
-    { "id": "publish-scope-retirement-without-commit", "bin": "publish-scope-retirement-without-commit", "source": "src/bin/publish_scope_retirement_without_commit.rs", "mount": "snapback-auth", "featureSets": [[], ["snapback-engine/test-support"]], "expectedCode": "E0308", "row": "F082" },
-    { "id": "poison-scope-retirement-ceiling", "bin": "poison-scope-retirement-ceiling", "source": "src/bin/poison_scope_retirement_ceiling.rs", "mount": "snapback-auth", "featureSets": [[], ["snapback-engine/test-support"]], "expectedCode": "E0061", "row": "F082" }
+    {
+      "id": "claim-kernel-commit-authority",
+      "bin": "claim-kernel-commit-authority",
+      "source": "src/bin/claim_kernel_commit_authority.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "seedTypes": [
+        "KernelCommitAuthority"
+      ]
+    },
+    {
+      "id": "claim-via-auth-reexport",
+      "bin": "claim-via-auth-reexport",
+      "source": "src/bin/claim_via_auth_reexport.rs",
+      "mount": "snapback-auth",
+      "featureSets": [
+        []
+      ],
+      "seedTypes": [
+        "KernelCommitAuthority"
+      ]
+    },
+    {
+      "id": "claim-via-engine-reexport",
+      "bin": "claim-via-engine-reexport",
+      "source": "src/bin/claim_via_engine_reexport.rs",
+      "mount": "snapback-engine",
+      "featureSets": [
+        []
+      ],
+      "seedTypes": [
+        "KernelCommitAuthority"
+      ]
+    },
+    {
+      "id": "register-oauth-via-raw-engine-database",
+      "bin": "register-oauth-via-raw-engine-database",
+      "source": "src/bin/register_oauth_via_raw_engine_database.rs",
+      "mount": "snapback-engine",
+      "featureSets": [
+        [
+          "snapback-engine/test-support"
+        ],
+        [
+          "snapback-engine/test-support",
+          "snapback-auth/test-support",
+          "snapback-kernel/test-support",
+          "snapback-sync/test-support"
+        ]
+      ],
+      "expectedCode": "E0425"
+    },
+    {
+      "id": "admit-system-push",
+      "bin": "admit-system-push",
+      "source": "src/bin/admit_system_push.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "seedTypes": [
+        "PushStorageAuthority"
+      ]
+    },
+    {
+      "id": "admit-protected-record-erasure",
+      "bin": "admit-protected-record-erasure",
+      "source": "src/bin/admit_protected_record_erasure.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "row": "F319",
+      "seedTypes": [
+        "ProtectedRecordErasureAuthorityV1",
+        "ProtectedRecordErasureRequestV1"
+      ]
+    },
+    {
+      "id": "admit-pending-effect-creation",
+      "bin": "admit-pending-effect-creation",
+      "source": "src/bin/admit_pending_effect_creation.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "row": "F318",
+      "seedTypes": [
+        "CreatePendingEffectCommand"
+      ]
+    },
+    {
+      "id": "admit-pending-effect-approval",
+      "bin": "admit-pending-effect-approval",
+      "source": "src/bin/admit_pending_effect_approval.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "row": "F315",
+      "seedTypes": [
+        "ApprovePendingEffectCommand"
+      ]
+    },
+    {
+      "id": "admit-pending-effect-denial",
+      "bin": "admit-pending-effect-denial",
+      "source": "src/bin/admit_pending_effect_denial.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "row": "F316",
+      "seedTypes": [
+        "DenyPendingEffectCommand"
+      ]
+    },
+    {
+      "id": "admit-pending-effect-settlement",
+      "bin": "admit-pending-effect-settlement",
+      "source": "src/bin/admit_pending_effect_settlement.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "row": "F317",
+      "seedTypes": [
+        "SettlePendingEffectCommand"
+      ]
+    },
+    {
+      "id": "admit-pending-effect-refusal",
+      "bin": "admit-pending-effect-refusal",
+      "source": "src/bin/admit_pending_effect_refusal.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "row": "F314",
+      "seedTypes": [
+        "RefusePendingEffectCommand"
+      ]
+    },
+    {
+      "id": "clone-kernel-commit-authority",
+      "bin": "clone-kernel-commit-authority",
+      "source": "src/bin/clone_kernel_commit_authority.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "expectedCode": "E0599",
+      "seedTypes": [
+        "KernelCommitAuthority"
+      ]
+    },
+    {
+      "id": "auth-commit-reservation-factory",
+      "bin": "auth-commit-reservation-factory",
+      "source": "src/bin/auth_commit_reservation_factory.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "seedTypes": [
+        "AuthorizationCommitCarrierFactory",
+        "AuthorizationCommitReservation"
+      ]
+    },
+    {
+      "id": "auth-commit-prepared-factory",
+      "bin": "auth-commit-prepared-factory",
+      "source": "src/bin/auth_commit_prepared_factory.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "seedTypes": [
+        "AuthorizationCommitCarrierFactory",
+        "PreparedAuthorizationCommit"
+      ]
+    },
+    {
+      "id": "service-interlock-factory",
+      "bin": "service-interlock-factory",
+      "source": "src/bin/service_interlock_factory.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "expectedCode": "E0599",
+      "seedTypes": [
+        "ServiceAuthorityCommitInterlock",
+        "ServiceAuthorityTerminalReceipt",
+        "PreparedServiceAuthorityTerminal"
+      ]
+    },
+    {
+      "id": "forge-service-terminal-receipt",
+      "bin": "forge-service-terminal-receipt",
+      "source": "src/bin/forge_service_terminal_receipt.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "expectedCode": "E0624",
+      "seedTypes": [
+        "ServiceAuthorityTerminalReceipt"
+      ]
+    },
+    {
+      "id": "clone-service-terminal-plan",
+      "bin": "clone-service-terminal-plan",
+      "source": "src/bin/clone_service_terminal_plan.rs",
+      "mount": "snapback-engine",
+      "featureSets": [
+        []
+      ],
+      "expectedCode": "E0599",
+      "seedTypes": [
+        "ServiceAuthorityTerminalPlan"
+      ]
+    },
+    {
+      "id": "drop-service-terminal-gate",
+      "bin": "drop-service-terminal-gate",
+      "source": "src/bin/drop_service_terminal_gate.rs",
+      "mount": "snapback-sync",
+      "featureSets": [
+        []
+      ],
+      "expectedCode": "E0599",
+      "seedTypes": [
+        "ServiceAuthorityTerminalGate"
+      ]
+    },
+    {
+      "id": "split-expired-service-terminal",
+      "bin": "split-expired-service-terminal",
+      "source": "src/bin/split_expired_service_terminal.rs",
+      "mount": "snapback-engine",
+      "featureSets": [
+        []
+      ],
+      "expectedCode": "E0308",
+      "seedTypes": [
+        "ExpiredServiceAuthorityCommit"
+      ]
+    },
+    {
+      "id": "forge-service-authority-deadline-terminal",
+      "bin": "forge-service-authority-deadline-terminal",
+      "source": "src/bin/forge_service_authority_deadline_terminal.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "expectedCode": "E0451",
+      "seedTypes": [
+        "ServiceAuthorityDeadlineTerminal"
+      ]
+    },
+    {
+      "id": "substitute-service-publication",
+      "bin": "substitute-service-publication",
+      "source": "src/bin/substitute_service_publication.rs",
+      "mount": "snapback-sync",
+      "featureSets": [
+        []
+      ],
+      "expectedCode": "E0599",
+      "seedTypes": [
+        "ServiceAuthorityPublication"
+      ]
+    },
+    {
+      "id": "synthetic-resolved-service-authority",
+      "bin": "synthetic-resolved-service-authority",
+      "source": "src/bin/synthetic_resolved_service_authority.rs",
+      "mount": "snapback-engine",
+      "featureSets": [
+        [
+          "snapback-engine/test-support"
+        ]
+      ],
+      "expectedCode": "E0599",
+      "seedTypes": [
+        "ResolvedServiceAuthority"
+      ]
+    },
+    {
+      "id": "arbitrary-service-terminal-plan",
+      "bin": "arbitrary-service-terminal-plan",
+      "source": "src/bin/arbitrary_service_terminal_plan.rs",
+      "mount": "snapback-engine",
+      "featureSets": [
+        [
+          "snapback-engine/test-support"
+        ]
+      ],
+      "expectedCode": "E0599",
+      "seedTypes": [
+        "ServiceAuthorityTerminalPlan"
+      ]
+    },
+    {
+      "id": "supply-service-terminal-subject",
+      "bin": "supply-service-terminal-subject",
+      "source": "src/bin/supply_service_terminal_subject.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "expectedCode": "E0624",
+      "seedTypes": [
+        "ServiceAuthorityTerminalReceipt"
+      ]
+    },
+    {
+      "id": "forge-service-authority-witness",
+      "bin": "forge-service-authority-witness",
+      "source": "src/bin/forge_service_authority_witness.rs",
+      "mount": "snapback-sync",
+      "featureSets": [
+        []
+      ],
+      "expectedCode": "E0451",
+      "seedTypes": [
+        "ServiceAuthorityWitness"
+      ]
+    },
+    {
+      "id": "register-service-authority-witness",
+      "bin": "register-service-authority-witness",
+      "source": "src/bin/register_service_authority_witness.rs",
+      "mount": "snapback-sync",
+      "featureSets": [
+        []
+      ],
+      "expectedCode": "E0624",
+      "seedTypes": [
+        "ServiceAuthorityWitness"
+      ]
+    },
+    {
+      "id": "services-rusqlite-reexport",
+      "bin": "services-rusqlite-reexport",
+      "source": "src/bin/services_rusqlite_reexport.rs",
+      "mount": "snapback-services",
+      "featureSets": [
+        [
+          "snapback-services/remainder-tests"
+        ]
+      ],
+      "expectedCode": "E0433",
+      "row": "F313"
+    },
+    {
+      "id": "services-rusqlite-reexport-default",
+      "bin": "services-rusqlite-reexport-default",
+      "source": "src/bin/services_rusqlite_reexport_default.rs",
+      "mount": "snapback-services",
+      "featureSets": [
+        []
+      ],
+      "expectedCode": "E0433",
+      "row": "F313"
+    },
+    {
+      "id": "produce-asset-width-plan",
+      "bin": "produce-asset-width-plan",
+      "source": "src/bin/produce_asset_width_plan.rs",
+      "mount": "snapback-services",
+      "featureSets": [
+        [],
+        [
+          "snapback-services/remainder-tests"
+        ]
+      ],
+      "seedTypes": [
+        "AssetWidthPlanTicketV1"
+      ],
+      "row": "F272"
+    },
+    {
+      "id": "forge-erasure-authority",
+      "bin": "forge-erasure-authority",
+      "source": "src/bin/forge_erasure_authority.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "expectedCode": "E0624"
+    },
+    {
+      "id": "forge-push-system",
+      "bin": "forge-push-system",
+      "source": "src/bin/forge_push_system.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "expectedCode": "E0599"
+    },
+    {
+      "id": "fake-authorization-interlock",
+      "bin": "fake-authorization-interlock",
+      "source": "src/bin/fake_authorization_interlock.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "expectedCode": "E0405"
+    },
+    {
+      "id": "fake-sender-proof-store",
+      "bin": "fake-sender-proof-store",
+      "source": "src/bin/fake_sender_proof_store.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "expectedCode": "E0277"
+    },
+    {
+      "id": "raw-pending-effect-transition",
+      "bin": "raw-pending-effect-transition",
+      "source": "src/bin/raw_pending_effect_transition.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "expectedCode": "E0308"
+    },
+    {
+      "id": "obtain-writable-sql-handle",
+      "bin": "obtain-writable-sql-handle",
+      "source": "src/bin/obtain_writable_sql_handle.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "expectedCode": "E0616"
+    },
+    {
+      "id": "default-kernel-commit-authority",
+      "bin": "default-kernel-commit-authority",
+      "source": "src/bin/default_kernel_commit_authority.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "expectedCode": "E0603",
+      "seedTypes": [
+        "KernelCommitAuthority"
+      ]
+    },
+    {
+      "id": "deserialize-kernel-commit-authority",
+      "bin": "deserialize-kernel-commit-authority",
+      "source": "src/bin/deserialize_kernel_commit_authority.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "expectedCode": "E0603",
+      "seedTypes": [
+        "KernelCommitAuthority"
+      ]
+    },
+    {
+      "id": "construct-push-storage-authority",
+      "bin": "construct-push-storage-authority",
+      "source": "src/bin/construct_push_storage_authority.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "expectedCode": "E0451",
+      "seedTypes": [
+        "PushStorageAuthority"
+      ]
+    },
+    {
+      "id": "kernel-test-support-for-test-factory",
+      "bin": "kernel-test-support-for-test-factory",
+      "source": "src/bin/kernel_test_support_for_test_factory.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        [
+          "snapback-kernel/test-support"
+        ]
+      ],
+      "seedTypes": [
+        "AuthorizationCommitCarrierFactory"
+      ]
+    },
+    {
+      "id": "kernel-test-support-join-authority",
+      "bin": "kernel-test-support-join-authority",
+      "source": "src/bin/kernel_test_support_join_authority.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        [
+          "snapback-kernel/test-support"
+        ]
+      ],
+      "seedTypes": [
+        "KernelCommitAuthority"
+      ]
+    },
+    {
+      "id": "recording-interlock-bind",
+      "bin": "recording-interlock-bind",
+      "source": "src/bin/recording_interlock_bind.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        [
+          "snapback-kernel/test-support"
+        ]
+      ],
+      "seedTypes": [
+        "ServiceAuthorityCommitInterlock"
+      ]
+    },
+    {
+      "id": "obtain-promotion-contention-reservation",
+      "bin": "obtain-promotion-contention-reservation",
+      "source": "src/bin/obtain_promotion_contention_reservation.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "row": "F320",
+      "seedTypes": [
+        "PromotionContentionReservation"
+      ]
+    },
+    {
+      "id": "obtain-ask-spend-reservation",
+      "bin": "obtain-ask-spend-reservation",
+      "source": "src/bin/obtain_ask_spend_reservation.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "seedTypes": [
+        "AskSpendReservation"
+      ]
+    },
+    {
+      "id": "forge-membership-writer-admin",
+      "bin": "forge-membership-writer-admin",
+      "source": "src/bin/forge_membership_writer_admin.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "row": "F321",
+      "seedTypes": [
+        "MembershipWriter"
+      ]
+    },
+    {
+      "id": "reserve-authorization-via-sync",
+      "bin": "reserve-authorization-via-sync",
+      "source": "src/bin/reserve_authorization_via_sync.rs",
+      "mount": "snapback-sync",
+      "featureSets": [
+        []
+      ],
+      "expectedCode": "E0599",
+      "seedTypes": [
+        "AuthorizationCommitCarrierFactory",
+        "AuthorizationCommitReservation"
+      ]
+    },
+    {
+      "id": "clone-authorization-participant",
+      "bin": "clone-authorization-participant",
+      "source": "src/bin/clone_authorization_participant.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "expectedCode": "E0599"
+    },
+    {
+      "id": "default-authorization-participant",
+      "bin": "default-authorization-participant",
+      "source": "src/bin/default_authorization_participant.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "expectedCode": "E0599"
+    },
+    {
+      "id": "construct-authorization-participant",
+      "bin": "construct-authorization-participant",
+      "source": "src/bin/construct_authorization_participant.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "expectedCode": "E0451"
+    },
+    {
+      "id": "name-prepared-authorization-commit",
+      "bin": "name-prepared-authorization-commit",
+      "source": "src/bin/name_prepared_authorization_commit.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "expectedCode": "E0603",
+      "seedTypes": [
+        "PreparedAuthorizationCommit"
+      ]
+    },
+    {
+      "id": "default-authorization-cancellation",
+      "bin": "default-authorization-cancellation",
+      "source": "src/bin/default_authorization_cancellation.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "expectedCode": "E0599"
+    },
+    {
+      "id": "construct-authorization-outcome",
+      "bin": "construct-authorization-outcome",
+      "source": "src/bin/construct_authorization_outcome.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "expectedCode": "E0451"
+    },
+    {
+      "id": "construct-authorization-view",
+      "bin": "construct-authorization-view",
+      "source": "src/bin/construct_authorization_view.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "expectedCode": "E0451"
+    },
+    {
+      "id": "shared-serving-database-unmediated-insert",
+      "bin": "shared-serving-database-unmediated-insert",
+      "source": "src/bin/shared_serving_database_unmediated_insert.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        [
+          "snapback-kernel/test-support"
+        ]
+      ],
+      "expectedCode": "E0596"
+    },
+    {
+      "id": "shared-serving-database-deref-unmediated-insert",
+      "bin": "shared-serving-database-deref-unmediated-insert",
+      "source": "src/bin/shared_serving_database_deref_unmediated_insert.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        [
+          "snapback-kernel/test-support"
+        ]
+      ],
+      "expectedCode": "E0624"
+    },
+    {
+      "id": "obtain-admitted-projection-snapshot",
+      "bin": "obtain-admitted-projection-snapshot",
+      "source": "src/bin/obtain_admitted_projection_snapshot.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        []
+      ],
+      "expectedCode": "E0599",
+      "seedTypes": [
+        "AdmittedProjectionSnapshot"
+      ]
+    },
+    {
+      "id": "rebuild-session-projection-from-raw-source",
+      "bin": "rebuild-session-projection-from-raw-source",
+      "source": "src/bin/rebuild_session_projection_from_raw_source.rs",
+      "mount": "snapback-sync",
+      "featureSets": [
+        [],
+        [
+          "snapback-sync/sync-owner"
+        ],
+        [
+          "snapback-sync/test-support",
+          "snapback-kernel/test-support",
+          "snapback-auth/test-support"
+        ],
+        [
+          "snapback-sync/sync-owner",
+          "snapback-sync/test-support",
+          "snapback-kernel/test-support",
+          "snapback-auth/test-support"
+        ]
+      ],
+      "expectedCode": "E0624",
+      "seedTypes": [
+        "SessionProjection"
+      ]
+    },
+    {
+      "id": "supply-agent-registration-mode",
+      "bin": "supply-agent-registration-mode",
+      "source": "src/bin/supply_agent_registration_mode.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        [],
+        [
+          "snapback-kernel/test-support"
+        ]
+      ],
+      "expectedCode": "E0061"
+    },
+    {
+      "id": "compose-agent-registration-partials",
+      "bin": "compose-agent-registration-partials",
+      "source": "src/bin/compose_agent_registration_partials.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        [],
+        [
+          "snapback-kernel/test-support"
+        ]
+      ],
+      "expectedCode": "E0624"
+    },
+    {
+      "id": "clone-secret-read-operator",
+      "bin": "clone-secret-read-operator",
+      "source": "src/bin/clone_secret_read_operator.rs",
+      "mount": "snapback-server",
+      "featureSets": [
+        []
+      ],
+      "expectedCode": "E0599",
+      "seedTypes": [
+        "SecretReadOperator"
+      ]
+    },
+    {
+      "id": "mint-secret-read-lease-from-registry",
+      "bin": "mint-secret-read-lease-from-registry",
+      "source": "src/bin/mint_secret_read_lease_from_registry.rs",
+      "mount": "snapback-server",
+      "featureSets": [
+        []
+      ],
+      "expectedCode": "E0624",
+      "seedTypes": [
+        "SecretReadLeaseRegistry"
+      ]
+    },
+    {
+      "id": "c009-literal-invalidation-connection",
+      "bin": "c009-literal-invalidation-connection",
+      "source": "src/bin/c009_literal_invalidation_connection.rs",
+      "mount": "snapback-auth",
+      "featureSets": [
+        [],
+        [
+          "snapback-auth/test-support"
+        ],
+        [
+          "snapback-engine/test-support"
+        ],
+        [
+          "snapback-sync/test-support"
+        ],
+        [
+          "snapback-auth/test-support",
+          "snapback-engine/test-support",
+          "snapback-sync/test-support"
+        ]
+      ]
+    },
+    {
+      "id": "c009-clone-invalidation-connection",
+      "bin": "c009-clone-invalidation-connection",
+      "source": "src/bin/c009_clone_invalidation_connection.rs",
+      "mount": "snapback-auth",
+      "featureSets": [
+        [],
+        [
+          "snapback-auth/test-support"
+        ],
+        [
+          "snapback-engine/test-support"
+        ],
+        [
+          "snapback-sync/test-support"
+        ],
+        [
+          "snapback-auth/test-support",
+          "snapback-engine/test-support",
+          "snapback-sync/test-support"
+        ]
+      ],
+      "expectedCode": "E0616"
+    },
+    {
+      "id": "c009-deserialize-invalidation-connection",
+      "bin": "c009-deserialize-invalidation-connection",
+      "source": "src/bin/c009_deserialize_invalidation_connection.rs",
+      "mount": "snapback-auth",
+      "featureSets": [
+        [],
+        [
+          "snapback-auth/test-support"
+        ],
+        [
+          "snapback-engine/test-support"
+        ],
+        [
+          "snapback-sync/test-support"
+        ],
+        [
+          "snapback-auth/test-support",
+          "snapback-engine/test-support",
+          "snapback-sync/test-support"
+        ]
+      ],
+      "expectedCode": "E0277"
+    },
+    {
+      "id": "c009-build-invalidation-admission",
+      "bin": "c009-build-invalidation-admission",
+      "source": "src/bin/c009_build_invalidation_admission.rs",
+      "mount": "snapback-engine",
+      "featureSets": [
+        [],
+        [
+          "snapback-auth/test-support"
+        ],
+        [
+          "snapback-engine/test-support"
+        ],
+        [
+          "snapback-sync/test-support"
+        ],
+        [
+          "snapback-auth/test-support",
+          "snapback-engine/test-support",
+          "snapback-sync/test-support"
+        ]
+      ],
+      "expectedCode": "E0061"
+    },
+    {
+      "id": "c009-alternate-generation-reservation",
+      "bin": "c009-alternate-generation-reservation",
+      "source": "src/bin/c009_alternate_generation_reservation.rs",
+      "mount": "snapback-auth",
+      "featureSets": [
+        [],
+        [
+          "snapback-auth/test-support"
+        ],
+        [
+          "snapback-engine/test-support"
+        ],
+        [
+          "snapback-sync/test-support"
+        ],
+        [
+          "snapback-auth/test-support",
+          "snapback-engine/test-support",
+          "snapback-sync/test-support"
+        ]
+      ],
+      "expectedCode": "E0061"
+    },
+    {
+      "id": "construct-resolved-app-authority-from-parts",
+      "bin": "construct-resolved-app-authority-from-parts",
+      "source": "src/bin/construct_resolved_app_authority_from_parts.rs",
+      "mount": "snapback-sync",
+      "featureSets": [
+        [],
+        [
+          "snapback-auth/test-support",
+          "snapback-sync/test-support"
+        ],
+        [
+          "snapback-engine/test-support"
+        ],
+        [
+          "snapback-auth/test-support",
+          "snapback-sync/test-support",
+          "snapback-engine/test-support"
+        ]
+      ],
+      "expectedCode": "E0451",
+      "seedTypes": [
+        "ResolvedAppAuthority"
+      ]
+    },
+    {
+      "id": "join-and-carry-resolved-app-authority",
+      "bin": "join-and-carry-resolved-app-authority",
+      "source": "src/bin/join_and_carry_resolved_app_authority.rs",
+      "mount": "snapback-sync",
+      "featureSets": [
+        [],
+        [
+          "snapback-auth/test-support",
+          "snapback-sync/test-support"
+        ],
+        [
+          "snapback-engine/test-support"
+        ],
+        [
+          "snapback-auth/test-support",
+          "snapback-sync/test-support",
+          "snapback-engine/test-support"
+        ]
+      ],
+      "expectedCode": "E0624",
+      "seedTypes": [
+        "ResolvedAppAuthority"
+      ]
+    },
+    {
+      "id": "supply-obligation-authorization",
+      "bin": "supply-obligation-authorization",
+      "source": "src/bin/supply_obligation_authorization.rs",
+      "mount": "snapback-auth",
+      "featureSets": [
+        [],
+        [
+          "snapback-auth/test-support"
+        ]
+      ],
+      "expectedCode": "E0061"
+    },
+    {
+      "id": "replace-obligation-expectation",
+      "bin": "replace-obligation-expectation",
+      "source": "src/bin/replace_obligation_expectation.rs",
+      "mount": "snapback-auth",
+      "featureSets": [
+        [],
+        [
+          "snapback-auth/test-support"
+        ]
+      ],
+      "expectedCode": "E0599"
+    },
+    {
+      "id": "forge-live-invalidation-issuer",
+      "bin": "forge-live-invalidation-issuer",
+      "source": "src/bin/forge_live_invalidation_issuer.rs",
+      "mount": "snapback-auth",
+      "featureSets": [
+        [],
+        [
+          "snapback-auth/test-support"
+        ]
+      ],
+      "expectedCode": "E0624"
+    },
+    {
+      "id": "clone-live-invalidation-issuer",
+      "bin": "clone-live-invalidation-issuer",
+      "source": "src/bin/clone_live_invalidation_issuer.rs",
+      "mount": "snapback-auth",
+      "featureSets": [
+        [],
+        [
+          "snapback-auth/test-support"
+        ]
+      ],
+      "expectedCode": "E0599"
+    },
+    {
+      "id": "reuse-live-invalidation-issuer",
+      "bin": "reuse-live-invalidation-issuer",
+      "source": "src/bin/reuse_live_invalidation_issuer.rs",
+      "mount": "snapback-auth",
+      "featureSets": [
+        [],
+        [
+          "snapback-auth/test-support"
+        ]
+      ],
+      "expectedCode": "E0382"
+    },
+    {
+      "id": "sign-scope-retirement-directly",
+      "bin": "sign-scope-retirement-directly",
+      "source": "src/bin/sign_scope_retirement_directly.rs",
+      "mount": "snapback-auth",
+      "featureSets": [
+        [],
+        [
+          "snapback-auth/test-support"
+        ]
+      ],
+      "expectedCode": "E0624"
+    },
+    {
+      "id": "cross-engine-recorded-mutation-authority",
+      "bin": "cross-engine-recorded-mutation-authority",
+      "source": "src/bin/cross_engine_recorded_mutation_authority.rs",
+      "mount": "snapback-engine",
+      "featureSets": [
+        [],
+        [
+          "snapback-auth/test-support"
+        ],
+        [
+          "snapback-engine/test-support"
+        ],
+        [
+          "snapback-sync/test-support"
+        ],
+        [
+          "snapback-auth/test-support",
+          "snapback-engine/test-support",
+          "snapback-sync/test-support"
+        ]
+      ],
+      "expectedCode": "E0061",
+      "seedTypes": [
+        "PreparedAuthority",
+        "PreparedRecordedMutationAuthority"
+      ]
+    },
+    {
+      "id": "independent-authority-stream-descriptor",
+      "bin": "independent-authority-stream-descriptor",
+      "source": "src/bin/independent_authority_stream_descriptor.rs",
+      "mount": "snapback-sync",
+      "featureSets": [
+        [],
+        [
+          "snapback-auth/test-support"
+        ],
+        [
+          "snapback-engine/test-support"
+        ],
+        [
+          "snapback-sync/test-support"
+        ],
+        [
+          "snapback-auth/test-support",
+          "snapback-engine/test-support",
+          "snapback-sync/test-support"
+        ]
+      ],
+      "expectedCode": "E0425",
+      "seedTypes": [
+        "PreparedAuthority",
+        "DerivedAuthorityDescriptor"
+      ]
+    },
+    {
+      "id": "resolved-only-authority-descriptor",
+      "bin": "resolved-only-authority-descriptor",
+      "source": "src/bin/resolved_only_authority_descriptor.rs",
+      "mount": "snapback-sync",
+      "featureSets": [
+        [],
+        [
+          "snapback-auth/test-support"
+        ],
+        [
+          "snapback-engine/test-support"
+        ],
+        [
+          "snapback-sync/test-support"
+        ],
+        [
+          "snapback-auth/test-support",
+          "snapback-engine/test-support",
+          "snapback-sync/test-support"
+        ]
+      ],
+      "expectedCode": "E0425",
+      "seedTypes": [
+        "ResolvedAppAuthority"
+      ]
+    },
+    {
+      "id": "generation-recorded-mutation-authority",
+      "bin": "generation-recorded-mutation-authority",
+      "source": "src/bin/generation_recorded_mutation_authority.rs",
+      "mount": "snapback-engine",
+      "featureSets": [
+        [],
+        [
+          "snapback-auth/test-support"
+        ],
+        [
+          "snapback-engine/test-support"
+        ],
+        [
+          "snapback-sync/test-support"
+        ],
+        [
+          "snapback-auth/test-support",
+          "snapback-engine/test-support",
+          "snapback-sync/test-support"
+        ]
+      ],
+      "expectedCode": "E0061",
+      "seedTypes": [
+        "PreparedAuthority",
+        "PreparedRecordedMutationAuthority"
+      ]
+    },
+    {
+      "id": "wire-descriptor-trust",
+      "bin": "wire-descriptor-trust",
+      "source": "src/bin/wire_descriptor_trust.rs",
+      "mount": "snapback-engine",
+      "featureSets": [
+        [],
+        [
+          "snapback-auth/test-support"
+        ],
+        [
+          "snapback-engine/test-support"
+        ],
+        [
+          "snapback-sync/test-support"
+        ],
+        [
+          "snapback-auth/test-support",
+          "snapback-engine/test-support",
+          "snapback-sync/test-support"
+        ]
+      ],
+      "expectedCode": "E0061",
+      "seedTypes": [
+        "AuthorityDescriptor",
+        "PreparedAuthority",
+        "PreparedRecordedMutationAuthority"
+      ]
+    },
+    {
+      "id": "supply-exact-commit-rows-intent",
+      "bin": "supply-exact-commit-rows-intent",
+      "source": "src/bin/supply_exact_commit_rows_intent.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        [],
+        [
+          "snapback-auth/test-support",
+          "snapback-engine/test-support",
+          "snapback-kernel/test-support",
+          "snapback-sync/test-support"
+        ]
+      ],
+      "expectedCode": "E0061",
+      "seedTypes": [
+        "CommitCapsuleAuthority",
+        "CommitCapsuleIntentProducer",
+        "CommitCapsuleIntentInstance",
+        "ExactCommitRows"
+      ],
+      "row": "F220"
+    },
+    {
+      "id": "replace-exact-commit-rows-value",
+      "bin": "replace-exact-commit-rows-value",
+      "source": "src/bin/replace_exact_commit_rows_value.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        [],
+        [
+          "snapback-auth/test-support",
+          "snapback-engine/test-support",
+          "snapback-kernel/test-support",
+          "snapback-sync/test-support"
+        ]
+      ],
+      "expectedCode": "E0599"
+    },
+    {
+      "id": "staple-exact-commit-rows-intent",
+      "bin": "staple-exact-commit-rows-intent",
+      "source": "src/bin/staple_exact_commit_rows_intent.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        [
+          "snapback-kernel/test-support"
+        ],
+        [
+          "snapback-auth/test-support",
+          "snapback-engine/test-support",
+          "snapback-kernel/test-support",
+          "snapback-sync/test-support"
+        ]
+      ],
+      "expectedCode": "E0061",
+      "seedTypes": [
+        "PrototypeIntent",
+        "PrototypeIntendedRows",
+        "ExactCommitRows"
+      ],
+      "row": "F220"
+    },
+    {
+      "id": "record-effect-approver-without-authority",
+      "bin": "record-effect-approver-without-authority",
+      "source": "src/bin/record_effect_approver_without_authority.rs",
+      "mount": "snapback-sync",
+      "featureSets": [
+        [],
+        [
+          "snapback-engine/test-support"
+        ]
+      ],
+      "expectedCode": "E0308",
+      "row": "F129"
+    },
+    {
+      "id": "publish-scope-retirement-without-commit",
+      "bin": "publish-scope-retirement-without-commit",
+      "source": "src/bin/publish_scope_retirement_without_commit.rs",
+      "mount": "snapback-auth",
+      "featureSets": [
+        [],
+        [
+          "snapback-engine/test-support"
+        ]
+      ],
+      "expectedCode": "E0308",
+      "row": "F082"
+    },
+    {
+      "id": "poison-scope-retirement-ceiling",
+      "bin": "poison-scope-retirement-ceiling",
+      "source": "src/bin/poison_scope_retirement_ceiling.rs",
+      "mount": "snapback-auth",
+      "featureSets": [
+        [],
+        [
+          "snapback-engine/test-support"
+        ]
+      ],
+      "expectedCode": "E0061",
+      "row": "F082"
+    }
   ]
 }
