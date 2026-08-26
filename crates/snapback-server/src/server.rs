@@ -17488,9 +17488,8 @@ async fn auth_agent_register(
         .transpose()?;
     let profile = runtime.server.profile;
     let issued = with_snapback(&runtime.snapback, move |snapback| {
-        let _effect = route_admission.effect_guard("agent registration transaction")?;
         snapback.register_agent_principal(
-            &_effect,
+            &route_admission,
             invitation.as_ref(),
             request.display_name,
             request.operator_contact,

@@ -5709,6 +5709,8 @@ impl LocalSnapback {
         now_ms: u64,
         random: &dyn crate::auth::crypto::RandomSource,
     ) -> SnapbackResult<crate::storage::auth_agent_credentials::IssuedAgentCredential> {
+        // @ref LLP 0303#derivation-is-a-lifetime-property-not-a-constructor-event — registration may consume only this engine graph's admission lease.
+        self.require_owned_authority_admission(authority)?;
         #[cfg(test)]
         run_before_admission_effect_guard_hook(AdmissionEffectSite::OAuthDynamicRegistration);
         // @ref LLP 0058#gate-algorithm — the dynamic-registration row must
@@ -6576,7 +6578,7 @@ impl LocalSnapback {
     #[allow(clippy::too_many_arguments)]
     pub fn register_agent_principal(
         &mut self,
-        effect: &AdmissionEffectGuard<'_>,
+        admission: &AdmissionLease,
         invitation: Option<&crate::auth::crypto::CreationInvitation>,
         display_name: Option<String>,
         operator_contact: Option<String>,
@@ -6586,7 +6588,9 @@ impl LocalSnapback {
         now_ms: u64,
         random: &dyn crate::auth::crypto::RandomSource,
     ) -> SnapbackResult<crate::storage::auth_agent_credentials::IssuedAgentCredential> {
-        let _ = effect;
+        // @ref LLP 0303#q-enumerate-the-effects-siblings-not-the-entry-points — the class-generic registration sibling must prove the same target-engine provenance as OAuth registration.
+        self.require_owned_authority_admission(admission)?;
+        let _effect = admission.effect_guard("agent registration transaction")?;
         self.db.register_agent_principal_with_class(
             invitation,
             display_name,

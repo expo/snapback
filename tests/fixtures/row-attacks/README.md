@@ -39,5 +39,11 @@ The corpus first ran at merge-base `18bcaf3b2` with all nine semantic rows OPEN
 in both feature cells and all fifteen carrier-only routes CLOSED in both cells.
 After rebasing the same instrument onto `0be248038` (which contains the resolved
 authority producer binding from `ac20e30a6`), eight rows moved OPEN to CLOSED in
-both cells. F170 alone remains OPEN in both cells. The carrier-only control is
-unchanged at fifteen of fifteen routes CLOSED in each cell.
+both cells. F170 alone remained OPEN in both cells. Round 5 then bound both
+engine registration producers to the target engine's admission graph, closing
+the foreign-lease route in both cells. The widened F170 witness also executes
+the second-handle kernel producer for the same integration-and-credential
+effect, so F170 honestly remains OPEN in both cells pending the
+resource-versus-handle work. F053 remains the deliberate OPEN negative control;
+the carrier-only control is unchanged at fifteen of fifteen routes CLOSED in
+each cell.

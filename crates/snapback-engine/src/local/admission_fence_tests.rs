@@ -1048,6 +1048,44 @@ fn admitted_registered_writer_gap_refuses_retired_epoch_without_persisting_the_g
 }
 
 #[test]
+fn oauth_dynamic_registration_refuses_a_foreign_engine_lease_before_commit() {
+    let (mut snapback, _) = capability_link_fixture_with_agents_mode(AgentsMode::Open);
+    let foreign_controller = AdmissionController::from_mode_state(
+        &snapback
+            .auth_mode_snapshot()
+            .expect("read OAuth registration mode")
+            .state,
+    )
+    .expect("construct foreign OAuth registration controller");
+    let foreign_lease = foreign_controller
+        .admit_for_mode(AuthMode::Sessions)
+        .expect("foreign controller admits its own sessions epoch");
+    let before = durable_database_image(&snapback);
+
+    let error = snapback
+        .register_oauth_client(
+            &foreign_lease,
+            None,
+            Some("foreign OAuth registration".to_owned()),
+            crate::storage::auth_integrations::IntegrationRegistrationFacts {
+                origin: Some("https://foreign.example".to_owned()),
+                redirect_uris: vec!["https://foreign.example/callback".to_owned()],
+            },
+            ServerProfile::Test,
+            NOW_MS,
+            &FenceRandom::new(),
+        )
+        .expect_err("a foreign admission lease must not register an OAuth client");
+
+    assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_POLICY_UNAVAILABLE");
+    assert_eq!(
+        durable_database_image(&snapback),
+        before,
+        "foreign registration refusal must precede every durable write"
+    );
+}
+
+#[test]
 fn oauth_dynamic_registration_refuses_retired_epoch_and_holds_the_guard_through_commit() {
     let (mut snapback, controller) = capability_link_fixture_with_agents_mode(AgentsMode::Open);
     let random = FenceRandom::new();

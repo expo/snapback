@@ -807,58 +807,120 @@ reference after that module moved out of the engine (`E0433`). Neither path was
 changed by rounds 2 or 3, so this lane did not broaden into those inherited
 build-graph defects.
 
-## Round-4 F170 closure — remove the engine database escape (2026-08-26)
+## Round-5 correction — foreign-lease hardening; F170 remains open (2026-08-26)
 
-The producer audit started with the repository's tests. Two engine OAuth
-fixtures composed the owning-crate `LocalSnapback::auth_database_mut` with raw
-`LocalDatabase::register_agent_principal_with_class`: the consent ownership
-fixture and `OAuthDenialFixture::new`. Both now obtain a Sessions admission and
-call `LocalSnapback::register_oauth_client`, retaining the durable integration
-record and credential assertions through the guarded production path.
+Round 4 closed the wrong defect and its `Closes-rows: F170` claim was false.
+The original F170 witness constructed a second public `AdmissionController`
+from the target's durable mode state, obtained that controller's lease, and
+passed the foreign lease to the target engine's `register_oauth_client`.
+Round 5 closes that engine route and its class-generic engine sibling. It does
+not close F170's integration-and-initial-credential effect, because the same
+fixture owns a second public `LocalDatabase` handle to the target resource and
+that handle can invoke the kernel producer directly. Deleting
+`test_support::auth_database_mut` closed a separate test-support escape, named
+here as **T8-auth/raw-engine-database**. The compile-fail fixture
+`register_oauth_via_raw_engine_database` remains the instrument for that
+separate finding and carries no F-row claim.
 
-For the exact integration-record-plus-initial-credential effect, the complete
-producer set is:
+### (n)/(q) Registration-effect producers and consumers
 
-- raw `LocalDatabase::register_agent_principal_with_class` and its
-  `ServingDatabase` forwarding wrapper;
-- guarded `LocalSnapback::register_oauth_client` and the guarded
-  `LocalSnapback::register_agent_principal` class-generic sibling; and
-- the HTTP dynamic-registration route, which supplies its route admission to
-  the first guarded engine producer.
+The effect is the atomic creation of an integration principal, its initial
+credential, and the integration record. Repository tests were checked before
+the public routes. The complete producer set is:
 
-The lower-level principal creation, integration-record insertion, and initial
-credential issuance functions are private or `pub(crate)` in the kernel. The
-repository does compose principal creation plus initial credential issuance in
-owning-crate `cfg(test)` fixtures, and a kernel test writes integration rows
-directly, but no pair of dependent-reachable public calls can combine those
-pieces into this effect. The feature-gated watch-management fixture can seed an
-integration record but cannot issue its initial credential. These were counted
-as producer inputs rather than omitted because no one call performs the whole
-effect.
+- `LocalDatabase::register_agent_principal_with_class`, plus the
+  `ServingDatabase` forwarding method, when the caller selects
+  `AgentRegistrationClass::Integration`;
+- `LocalSnapback::register_oauth_client`, the F170 entry point; and
+- `LocalSnapback::register_agent_principal`, the class-generic sibling used by
+  the agent-registration route.
 
-`snapback_engine::test_support` now exports no `LocalDatabase`,
-`ServingDatabase`, mutable database reference, raw-database callback, or
-equivalent owner escape. Its remaining helpers return bounded outcomes or
-opaque carriers. The owning-crate `LocalSnapback::auth_database_mut` remains
-`pub(crate)` and its relevant uses are under `cfg(test)`; this is materially
-different from a public `test-support` item because a dependent cannot enable
-`cfg(test)` for the dependency.
+The lower-level principal-row and initial-credential functions are
+`pub(crate)` and cannot be composed by a dependent. The ordinary
+`LocalDatabase::register_agent_principal` and the bounded round-5
+`AuthFixture::register_agent_principal` always select the ordinary Agent class,
+so neither produces the integration-record effect. The watch-management seed
+can write a fixed integration fixture but does not issue its initial
+credential.
 
-The checked dependent attack ran successfully before deletion in both additive
-cells: defaults plus `snapback-engine/test-support`, and defaults plus unified
-`test-support` across engine/auth/kernel/sync. It issued a user ID and credential
-ID, found the durable integration record, and observed a byte-different SQLite
-image. After deletion both cells fail with primary `E0425` at the
-`test_support::auth_database_mut(&mut target)` attack expression (not at the
-module import).
+The complete in-repository consumer set is:
 
-The fixture migration preserves the legitimate OAuth composition, so this fix
-does not invert into permanent denial. It adds no durable, monotone, replay, or
-single-use state and therefore introduces no ceiling or recovery mechanism.
-F170 closes. F053 does not: removing `insert_session_tombstone_for_test` would
-require migrating the checked dependent row attack and two cross-crate server
-collision fixtures, so round 4 leaves it for its own lane rather than weakening
-either fixture.
+- the production OAuth dynamic-registration route in
+  `crates/snapback-server/src/server/oauth.rs`;
+- the production class-generic agent-registration route in
+  `crates/snapback-server/src/server.rs`;
+- the two engine OAuth fixtures and the admission-fence positive/negative
+  controls;
+- F170 itself; F171/F172/F173/F188/F190/F191 also call registration as a
+  prerequisite, although their measured foreign-authority producer already
+  refuses before that prerequisite matters; and
+- `BaseAttackFixture::catalog`, which is a second public `LocalDatabase`
+  handle opened on the target engine's exact SQLite path and can invoke the
+  kernel producer directly; and
+- the disabled legacy Q06 aggregate fixtures and the separate
+  `register_oauth_via_raw_engine_database` compile-fail witness.
+
+Both engine-owned producers now require `self.admission.owns_lease(...)`
+before acquiring an effect guard or touching storage. The HTTP consumers pass
+the route lease minted by that exact `LocalSnapback`; the engine fixtures use
+the fixture engine's own controller. The kernel producers remain unguarded:
+because `LocalDatabase::open` is public, a dependent that knows the target path
+can open a second handle and register an Integration principal directly into
+the target resource while the engine is live. This is the pre-existing
+resource-versus-handle defect recorded in
+`issues/20260825-a-second-database-handle-publishes-without-the-interlock.md`,
+not the removed engine test-support accessor.
+
+### (o) Feature cells and (s) honest F170 state
+
+The row ledger declares exactly two cells: `production` (dependency defaults
+disabled, only `snapback-engine/engine-owner`) and
+`additive-test-support` (unified test-support across auth, engine, kernel, sync,
+and types). The route and row results are:
+
+| F170 producer | Production cell | Additive test-support cell |
+| --- | --- | --- |
+| Foreign `AdmissionController` lease into `LocalSnapback::register_oauth_client` | **CLOSED** — `SNAPBACK_AUTH_POLICY_UNAVAILABLE` before hooks, effect guards, or storage | **CLOSED** — same |
+| Foreign lease into class-generic `LocalSnapback::register_agent_principal` | **CLOSED** — ownership-checked before the effect guard or storage | **CLOSED** — same |
+| Second `LocalDatabase` handle into `register_agent_principal_with_class(..., Integration, ...)`, followed by live-engine durable readback | **OPEN** — issued initial credential and durable integration | **OPEN** — issued initial credential and durable integration |
+
+The temporary `R5-REG-SECOND-HANDLE` inventory label described that last
+producer; it is not a separately scoped effect. The widened authoritative F170
+witness now executes it after observing the foreign-lease refusal. F170 is
+therefore **OPEN in both cells** pending the resource-versus-handle work in
+`issues/20260825-a-second-database-handle-publishes-without-the-interlock.md`.
+Round 5 closes only the foreign-lease engine routes and
+T8-auth/raw-engine-database's old dependent accessor spelling. No new durable,
+monotone, replay, or single-use state is added, so no ceiling or recovery
+mechanism is introduced.
+
+### (p) Inverted-harm repair
+
+Round 4 made legitimate test composition permanently unavailable by deleting
+one funnel without migrating its consumers. The six reported call sites now
+use these routes:
+
+- `remainder_adapter.rs`'s former raw-database accessor now returns an opaque,
+  finite `AuthFixture`. It has no `Deref`, `DerefMut`, database extraction, raw
+  callback, or integration-class registration operation. Its explicit methods
+  preserve the server/CLI fixture consumers without automatically exporting
+  every present and future `LocalDatabase` method.
+- The four commit-capsule calls in that adapter use four dedicated engine
+  helpers: initialize, stage, exact reconciliation, and facts. They expose only
+  commit-capsule inputs and outcomes.
+- `instance_fork_security_v1.rs` uses
+  `activate_auth_and_push_registry_for_test`, a single target-engine operation
+  that activates exactly the auth catalog and supplied push declaration without
+  returning a database handle.
+
+Two stale service-fence consumers found by the restored build now exercise real
+durable credential-family revocation instead of the demoted synthetic terminal
+commit. Thus every legitimate composition identified by the build remains
+achievable through a bounded or production route. The widened F170 dependent
+fixture also runs a same-engine positive control before its marked attack: the
+target graph's own lease issues a credential and the target engine reads back
+the durable integration in both cells. F053 remains the deliberate open
+negative control and was not changed.
 
 ---
 

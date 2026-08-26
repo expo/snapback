@@ -14,7 +14,7 @@
   ],
   "attacks": [
     {"row": "F157", "bin": "f157", "source": "src/attacks/f157.rs", "expected": "CLOSED", "note": "OPEN at the 18bcaf3b2 baseline; now CLOSED in both cells because engine B rejects engine A's session carrier with SNAPBACK_AUTH_POLICY_UNAVAILABLE."},
-    {"row": "F170", "bin": "f170", "source": "src/attacks/f170.rs", "expected": "OPEN", "note": "Still OPEN in both cells after the producer-binding fix: a second public AdmissionController supplies a lease that issues a credential and registers a durable OAuth client."},
+    {"row": "F170", "bin": "f170", "source": "src/attacks/f170.rs", "expected": "OPEN", "note": "The foreign-lease engine route is CLOSED in both cells, but F170 remains OPEN because a second LocalDatabase handle can invoke the class-generic Integration producer and the live engine reads back the durable integration."},
     {"row": "F171", "bin": "f171", "source": "src/attacks/f171.rs", "expected": "CLOSED", "note": "OPEN at the 18bcaf3b2 baseline; now CLOSED in both cells because the foreign authority producer is rejected with SNAPBACK_AUTH_POLICY_UNAVAILABLE before OAuth consent begins."},
     {"row": "F172", "bin": "f172", "source": "src/attacks/f172.rs", "expected": "CLOSED", "note": "OPEN at the 18bcaf3b2 baseline; now CLOSED in both cells because the foreign authority producer is rejected with SNAPBACK_AUTH_POLICY_UNAVAILABLE before grant approval."},
     {"row": "F173", "bin": "f173", "source": "src/attacks/f173.rs", "expected": "CLOSED", "note": "OPEN at the 18bcaf3b2 baseline; now CLOSED in both cells because the foreign authority producer is rejected with SNAPBACK_AUTH_POLICY_UNAVAILABLE before authorization-code issuance."},

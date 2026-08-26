@@ -256,7 +256,7 @@ impl AuthFixture<'_> {
 
     pub fn terminalize_expired_service_authority(
         &mut self,
-        deadline: &crate::auth::service_authority_contract::ServiceAuthorityDeadlineTerminal,
+        deadline: &crate::auth::service_fence::ServiceAuthorityDeadlineTerminal,
     ) -> SnapbackResult<()> {
         self.database()
             .terminalize_expired_service_authority(deadline)
