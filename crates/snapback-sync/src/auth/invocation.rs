@@ -1536,8 +1536,9 @@ pub struct PreparedAuthority {
 /// management authority, rather than an independently supplied principal id,
 /// is revalidated when telemetry is attached to the effect execution.
 ///
-/// @ref LLP 0303#root-strength — a derived approver remains as strong as the
-/// exact effect-management authority from which it was derived.
+/// @ref LLP 0303#a-derivation-is-only-as-strong-as-its-root — a derived
+/// approver remains as strong as the exact effect-management authority from
+/// which it was derived.
 #[derive(Clone)]
 pub struct PreparedEffectApproverAttribution {
     authority: PreparedAuthority,
