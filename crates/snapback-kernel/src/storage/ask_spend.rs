@@ -356,10 +356,7 @@ impl LocalDatabase {
     ) -> SnapbackResult<AskSpendFacts> {
         // @ref LLP 0303#corollary--the-artifact-must-carry-provenance-not-just-type —
         // settlement accepts only the linear reservation minted by this exact database.
-        if !reservation
-            .database_binding
-            .matches(&DatabaseBinding(self.commit_authority_identity.clone()))
-        {
+        if !reservation.database_binding.matches(&self.binding()) {
             return Err(reservation_mismatch());
         }
         if actual_tokens > reservation.reserved_tokens
