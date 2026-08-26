@@ -1,31 +1,48 @@
-use snapback_auth::auth::invalidation::{ObligationRegistry, ScopeId};
-use snapback_row_attack_fixtures::report_observation;
-use snapback_sync::local::live_protocol::LiveUnsubscribeOutput;
+use snapback_auth::auth::invalidation::{IssuerId, QueryNamespace, ScopeRetirement};
+use snapback_kernel::storage::AuthorizationVersion;
+use snapback_sync::local::live_protocol::LiveResumeOutput;
+use std::collections::BTreeMap;
 
-fn publish_retirement_without_committing(registry: &ObligationRegistry, scope: &ScopeId) {
-    // @attack
-    let output = {
-        let prepared = registry
-            .prepare_scope_retirement_authenticated(scope)
-            .expect("the public preparation retains a private retirement");
-        assert!(
-            registry.preview_scope_retirement(scope).is_some(),
-            "the target scope remains live before commit"
-        );
-        LiveUnsubscribeOutput {
-            subscription_id: "attacker-selected-subscription".to_owned(),
-            disposed: true,
-            receipt: None,
-            scope_retirement: Some(prepared),
-        }
+fn publish_rebuilt_retirement_through_resume() {
+    // Different producer from the removed raw signer: rebuild the public wire
+    // record field by field without preparing or committing a registry.
+    let forged = ScopeRetirement {
+        issuer_id: IssuerId {
+            authorization_incarnation: "018f0d90-7b11-7a22-8c33-445566778899".to_owned(),
+            boot_sequence: 7,
+            boot_nonce: "ABCDEFGHIJKLMNOPQRSTUV".to_owned(),
+        },
+        namespace: QueryNamespace {
+            client_store_id: "store-A".to_owned(),
+            query_key: "todos:{}".to_owned(),
+            query_instance_id: 19,
+        },
+        retire_through_scope_sequence: 9_007_199_254_740_991,
+        authorization_expectation: AuthorizationVersion {
+            incarnation: "018f0d90-7b11-7a22-8c33-445566778899".to_owned(),
+            epoch: 4,
+        },
+        mac: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_owned(),
     };
-    let _client_visible_wire = serde_json::to_value(output).expect("serialize usable proof");
+
+    // Different consumer from the unsubscribe spelling: the resume response
+    // is independently processed by the client's retirement loop.
+    // @attack
+    let output = LiveResumeOutput {
+        subscription_id: "attacker-selected-subscription".to_owned(),
+        mode: "snapshot".to_owned(),
+        reason: None,
+        snapshot: None,
+        permission_epochs: BTreeMap::new(),
+        authorization_scope: None,
+        authorization_invalidation: None,
+        scope_retirements: vec![forged],
+        attribution: None,
+    };
+    let _client_visible_wire =
+        serde_json::to_value(output).expect("serialize rebuilt retirement publication");
 }
 
 fn main() {
-    let _ = publish_retirement_without_committing;
-    report_observation(
-        "F082",
-        Ok("dependent can publish a usable authenticated retirement while the registry still previews the live scope".to_owned()),
-    );
+    let _ = publish_rebuilt_retirement_through_resume;
 }

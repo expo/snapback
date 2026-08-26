@@ -1,24 +1,13 @@
-use snapback_kernel::storage::LocalDatabase;
 use snapback_row_attack_fixtures::report_observation;
 use snapback_sync::auth::invocation::PreparedAuthority;
+use snapback_types::telemetry_contract::CallerAttributionV1;
 
-fn record_approver_not_derived_from_authority(
-    database: &mut LocalDatabase,
-    effect_execution_authority: PreparedAuthority,
-    effect_id: &str,
-) {
+fn record_approver_not_derived_from_authority(effect_execution_authority: PreparedAuthority) {
     // @attack
-    let attributed = {
-        let forged = database
-            .prepare_pending_effect_approval(effect_id, "attacker-selected-approver", 1)
-            .expect("public database preparation accepts the supplied approver");
-        effect_execution_authority
-            .with_effect_caller_attribution(
-                forged.effect(),
-                forged.approver_principal_id(),
-            )
-            .expect("the supplied approver is accepted as telemetry authority")
-    };
+    let attributed = effect_execution_authority.with_caller_attribution(
+        CallerAttributionV1::from_effect("integration", "attacker-selected-caller".to_owned())
+            .with_approver("attacker-selected-approver".to_owned()),
+    );
     assert_eq!(
         attributed
             .telemetry_caller_details()
