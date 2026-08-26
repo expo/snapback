@@ -33,7 +33,7 @@ diagnostic precedence to hide the binding.
 
 Schema note: `snapback-diagnostics-registry.v1` now carries an optional `kind`
 on entries in the existing diagnostic `sites` array (`emission` when absent,
-otherwise currently `received` or `reserved`). This is deliberate v1
+otherwise currently `declaration`, `received`, or `reserved`). This is deliberate v1
 kind-mixing, not a new top-level array or schema-version bump. The native reader
 must consume `sites[].kind` instead of continuing to treat every v1 site as an
 emission.

@@ -377,6 +377,43 @@ invariant grep
 target-onboarding.mjs exports exactly the same seven names as merge-base; no added export lines; six Tigris role codes present in SnapbackDiagnosticCode; zero occurrences of the hyphenated control-state code
 ```
 
+### Round-26 review closure
+
+The received-vocabulary classifier now admits a `Map.get` table only when the
+lookup key is proven to carry an inbound diagnostic record/response value.
+`GRAPH_SOURCE_FAULT_ORDER` is a sorting table, so its four key sites are no
+longer received sites. The same four spellings remain honestly received through
+the separate `DEFINITION_EVALUATION_DIAGNOSTIC_CODES.has(evaluationCode)`
+receiver. `EXACT_CODE_EXITS.get(record.code)` and the derived issuer-response
+lookup remain received.
+
+Rust `matches!` delimiter matching now uses the Rust-aware literal table, and a
+lifetime/char-literal fixture pins the following real `SnapbackError::error`
+emission. The private Tigris test seam now pins both the unknown-role refusal and
+the partial-credential throw's exact read from
+`TARGET_TIGRIS_PARTIAL_CREDENTIAL_CODES[role]`.
+
+The final count table from this tree is:
+
+| Count | Round 25 | Round 26 |
+| --- | ---: | ---: |
+| Codes | 3,541 | 3,541 |
+| Source files | 626 | 626 |
+| Emitting sites | 9,286 | 9,286 |
+| Received sites | 382 | 378 |
+| Reserved sites | 11 | 11 |
+| HTTP-classified | 1,704 | 1,704 |
+| Guide-anchored | 431 | 431 |
+| Environment variables | 186 | 186 |
+| Environment sites | 364 | 364 |
+
+The complete Guide check passed. Its verbatim terminal summary was:
+
+```text
+node scripts/check-guide.mjs
+[guide-check] ok — 22 passed, 0 failed, 0 skipped, 0 preconditions; 157 pages, 1872 snippets, 174 routes + 51 host-ops joined, 100 warnings
+```
+
 ### Known JS/native lookup divergence
 
 The generated registry and JavaScript Guide wrapper expose environment-only

@@ -63,6 +63,11 @@ assert.match(
   /if\s*\(!Object\.hasOwn\(TARGET_TIGRIS_PARTIAL_CREDENTIAL_CODES, role\)\)\s*\{\s*throw new Error\('SNAPBACK_HOSTED_TARGET_TIGRIS_BOOTSTRAP_INVALID'\);\s*\}/u,
   'unknown roles must fail closed with a registered code',
 );
+assert.match(
+  targetOnboardingSource,
+  /if\s*\(Boolean\(accessKeyId\)\s*!==\s*Boolean\(secretAccessKey\)\)\s*\{[\s\S]*?throw new Error\(TARGET_TIGRIS_PARTIAL_CREDENTIAL_CODES\[role\]\);\s*\}/u,
+  'partial credentials must throw the private exhaustive role mapping entry',
+);
 const artifactPolicy = targetRolePolicy(
   TARGET_DEFAULTS,
   'artifact',

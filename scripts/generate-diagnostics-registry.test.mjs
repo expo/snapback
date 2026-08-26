@@ -705,6 +705,33 @@ test('Rust identifier flow recognizes error-producing combinators but not matche
   );
 });
 
+test('Rust matches references do not swallow emissions after lifetime and char literals', () => {
+  const fixture = [
+    "fn inspect<'a>(value: char) {",
+    '    outer(|| {',
+    '        wrapper(|| {',
+    '            let _ = matches!(',
+    "                (value == ')', std::marker::PhantomData::<&'a str>),",
+    '                (true, _),',
+    '            );',
+    '            SnapbackError::error(',
+    '                "SNAPBACK_FIXTURE_AFTER_MATCHES_LITERALS",',
+    '                "real diagnostic",',
+    '                "fix",',
+    '            );',
+    "            let _: &'static str = \"still real code\";",
+    '        });',
+    '    });',
+    '}',
+  ].join('\n');
+
+  assert.deepEqual(
+    diagnosticSourceSites(fixture, { ordinaryMultiline: true })
+      .map(({ match, kind }) => ({ code: match[0], kind })),
+    [{ code: 'SNAPBACK_FIXTURE_AFTER_MATCHES_LITERALS', kind: 'emission' }],
+  );
+});
+
 test('dual-role spellings classify each identifier, receive, and environment site independently', () => {
   const fixture = [
     "const DUAL_ROLE_CODE = 'SNAPBACK_FIXTURE_DUAL_ROLE_ENV_FLOW';",
@@ -777,6 +804,40 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     import.meta.dirname,
     '../packages/snapback-client/diagnostic-codes.d.mts',
   ), 'utf8');
+  const codegenSource = readFileSync(resolve(
+    import.meta.dirname,
+    '../packages/snapback-codegen/index.mjs',
+  ), 'utf8');
+  const lineAt = (offset) => codegenSource.slice(0, offset).split('\n').length;
+  const graphOrderStart = codegenSource.indexOf('const GRAPH_SOURCE_FAULT_ORDER');
+  const graphOrderEnd = codegenSource.indexOf(']);', graphOrderStart) + 3;
+  const graphReceiverStart = codegenSource.indexOf(
+    'const DEFINITION_EVALUATION_DIAGNOSTIC_CODES',
+  );
+  const graphReceiverEnd = codegenSource.indexOf(']);', graphReceiverStart) + 3;
+  for (const code of [
+    'SNAPBACK_GRAPH_CLIENT_AST_FORBIDDEN',
+    'SNAPBACK_GRAPH_CODE_FORBIDDEN',
+    'SNAPBACK_GRAPH_RECURSION_FORBIDDEN',
+    'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
+  ]) {
+    const receivedSites = registry.diagnostics[code].sites.filter(({ file, kind }) => (
+      file === 'packages/snapback-codegen/index.mjs' && kind === 'received'
+    ));
+    assert.equal(
+      receivedSites.some(({ line }) => (
+        lineAt(graphOrderStart) <= line && line <= lineAt(graphOrderEnd)
+      )),
+      false,
+      `${code} sorting-table key must not be received vocabulary`,
+    );
+    assert.ok(
+      receivedSites.some(({ line }) => (
+        lineAt(graphReceiverStart) <= line && line <= lineAt(graphReceiverEnd)
+      )),
+      `${code} must retain its real definition-evaluation receiver`,
+    );
+  }
 
   const duplicateSourceSites = Object.entries(registry.diagnostics).flatMap(([code, record]) => {
     const seen = new Set();
@@ -1357,6 +1418,45 @@ test('received protocol classifier recognizes the production EXACT_CODE_EXITS Ma
     [
       { code: 'SNAPBACK_APP_CLI_USAGE', kind: 'received' },
       { code: 'SNAPBACK_APP_CLI_AUTH_REFUSED', kind: 'received' },
+    ],
+  );
+});
+
+test('received Map.get tables require an inbound diagnostic key', () => {
+  const source = [
+    'const GRAPH_SOURCE_FAULT_ORDER = new Map([',
+    "  ['SNAPBACK_GRAPH_CLIENT_AST_FORBIDDEN', 1],",
+    "  ['SNAPBACK_GRAPH_CODE_FORBIDDEN', 2],",
+    "  ['SNAPBACK_GRAPH_RECURSION_FORBIDDEN', 3],",
+    "  ['SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION', 4],",
+    ']);',
+    'faults.sort((left, right) => (',
+    '  (GRAPH_SOURCE_FAULT_ORDER.get(left.code) ?? 255)',
+    '    - (GRAPH_SOURCE_FAULT_ORDER.get(right.code) ?? 255)',
+    '));',
+    'const LOCAL_ISSUER_FAILURES = new Map([',
+    "  ['POST /auth/exchange 401 SNAPBACK_AUTH_CODE_INVALID', { message: 'invalid' }],",
+    ']);',
+    'const localIssuerFailure = (method, path, status, value) => {',
+    '  const responseCode = value?.diagnostic?.code;',
+    '  return LOCAL_ISSUER_FAILURES.get(`${method} ${path} ${status} ${responseCode}`);',
+    '};',
+    'const EXACT_CODE_EXITS = new Map([',
+    "  ['SNAPBACK_APP_CLI_USAGE', EXIT.USAGE],",
+    ']);',
+    'export function classifyDiagnosticExit(record) {',
+    '  return EXACT_CODE_EXITS.get(record.code);',
+    '}',
+  ].join('\n');
+
+  assert.deepEqual(
+    diagnosticSourceSites(source, {
+      javascript: true,
+      receivedProtocolVocabulary: true,
+    }).map(({ match, kind }) => ({ code: match[0], kind })),
+    [
+      { code: 'SNAPBACK_AUTH_CODE_INVALID', kind: 'received' },
+      { code: 'SNAPBACK_APP_CLI_USAGE', kind: 'received' },
     ],
   );
 });

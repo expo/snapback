@@ -67,4 +67,5 @@ spelling absent.
 
 The old output with a hyphen between `CONTROL` and `STATE` is retired, not
 aliased or reserved: it never satisfied the registry grammar and therefore was
-never a valid diagnostic identity. Consumers must use the underscore form.
+never a valid diagnostic identity. The old hyphenated message is gone and no
+alias for it is emitted. Consumers must use the underscore form.

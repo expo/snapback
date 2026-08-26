@@ -1744,9 +1744,10 @@ function isRustMatchesReference(source, offset) {
   const start = Math.max(0, offset - 4096);
   const before = source.slice(start, offset);
   const candidates = [...before.matchAll(/\bmatches!\s*\(/gu)].reverse();
+  const literals = stringLiteralBounds(source, { ordinaryMultiline: true });
   return candidates.some((candidate) => {
     const open = start + candidate.index + candidate[0].lastIndexOf('(');
-    const close = matchingDelimiter(source, open);
+    const close = matchingDelimiter(source, open, literals);
     return close !== source.length && offset < close;
   });
 }
@@ -1876,7 +1877,35 @@ function matchingDelimiter(source, open, literals) {
   return source.length;
 }
 
-function membershipConsumerFor(member, after, { objectTable = false } = {}) {
+function receivedMapGetConsumerFor(member, after) {
+  const name = escapeRegExp(member);
+  const calls = after.matchAll(new RegExp(
+    `(?:\\b(?:Self|self|this)\\.)?\\b${name}\\s*\\.get\\s*\\(\\s*([^()\\r\\n]{1,256}?)\\s*\\)`,
+    'gu',
+  ));
+  for (const call of calls) {
+    const key = call[1].replace(/\s+/gu, '');
+    if (
+      /^(?:(?:received|diagnostic|error|refusal|capability)?(?:record|response|request|payload|input|args?)|(?:received|diagnostic|error|refusal|capability)Code)(?:\?\.[A-Za-z_$][\w$]*|\.[A-Za-z_$][\w$]*)*$/iu.test(key)
+    ) return true;
+    if (/^`[\s\S]*`$/u.test(key)) {
+      const beforeCall = after.slice(0, call.index);
+      for (const interpolation of key.matchAll(/\$\{([A-Za-z_$][\w$]*)\}/gu)) {
+        const identifier = escapeRegExp(interpolation[1]);
+        if (new RegExp(
+          `\\b(?:const|let)\\s+${identifier}\\s*=\\s*[A-Za-z_$][\\w$]*(?:\\?\\.|\\.)diagnostic(?:\\?\\.|\\.)code\\b`,
+          'u',
+        ).test(beforeCall)) return true;
+      }
+    }
+  }
+  return false;
+}
+
+function membershipConsumerFor(member, after, {
+  mapTable = false,
+  objectTable = false,
+} = {}) {
   const name = escapeRegExp(member);
   if (objectTable) {
     return (
@@ -1886,9 +1915,10 @@ function membershipConsumerFor(member, after, { objectTable = false } = {}) {
   }
   return (
     new RegExp(
-      `(?:\\b(?:Self|self|this)\\.)?\\b${name}\\s*\\.(?:get|has|includes|contains|binary_search)\\s*\\(`,
+      `(?:\\b(?:Self|self|this)\\.)?\\b${name}\\s*\\.(?:has|includes|contains|binary_search)\\s*\\(`,
       'u',
     ).test(after)
+    || (mapTable && receivedMapGetConsumerFor(member, after))
     || new RegExp(
       `\\bis_code_member\\s*\\(\\s*[^,)]*\\s*,\\s*&?\\s*(?:(?:Self|self)::)?${name}\\b`,
       'u',
@@ -1912,6 +1942,7 @@ function receivedMembershipTables(source, literals) {
       const objectTable = declaration[2] === '{';
       const mapTable = /\bnew\s+Map\s*\(\s*\[$/u.test(declaration[0]);
       if (membershipConsumerFor(declaration[1], after, {
+        mapTable,
         objectTable,
       })) {
         tables.push({ open, close, mapTable, objectTable });
@@ -1973,12 +2004,26 @@ function receivedProtocolOffsets(source, matches, literals) {
   return offsets;
 }
 
-function isReferencePosition(source, offset, code) {
+function isMapCatalogueKeyPosition(source, offset, literals) {
+  for (const table of source.matchAll(/\bnew\s+Map\s*\(\s*(\[)/gu)) {
+    const open = table.index + table[0].lastIndexOf(table[1]);
+    if (open >= offset) break;
+    const close = matchingDelimiter(source, open, literals);
+    if (
+      offset < close
+      && isMapKeyPosition(source, open, close, offset, literals)
+    ) return true;
+  }
+  return false;
+}
+
+function isReferencePosition(source, offset, code, literals) {
   return (
     isComparisonOrPrefixCheck(source, offset, code)
     || isRustMatchArmPattern(source, offset, code)
     || isRustMatchesReference(source, offset)
     || isCodeReferenceCatalogue(source, offset)
+    || isMapCatalogueKeyPosition(source, offset, literals)
   );
 }
 
@@ -2037,7 +2082,7 @@ function diagnosticSiteKind(source, match, analysis, environmentNames, { shell =
       ? 'emission'
       : null;
   }
-  if (isReferencePosition(source, offset, match[0])) return null;
+  if (isReferencePosition(source, offset, match[0], analysis.literals)) return null;
   if (isUnrecognizedDiagnosticReference(source, match)) return null;
   if (isHtmlDiagnosticPosition(source, match)) {
     return environmentNames.has(match[0]) ? null : 'emission';
