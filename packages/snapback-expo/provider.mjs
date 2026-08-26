@@ -1299,6 +1299,9 @@ export function isSnapbackExpoBootDiagnostic(error) {
 }
 
 async function resolveExpoRuntimePosture(environment, platform) {
+  if (['web', 'native'].includes(environment?.runtimePlatform)) {
+    return environment.runtimePlatform;
+  }
   const normalizedPlatform = normalizeAppClientPlatform(platform);
   if (['browser', 'expo-web'].includes(normalizedPlatform?.kind)) return 'web';
   if (

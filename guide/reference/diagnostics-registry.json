@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:3ece95f481daa5c66384fc44f0e7ffcd144909309fbca05bc2523b0d808adfa1"
+    "sourceDigest": "sha256:2aaffab09ebb023aeb9cd173cbc2f23e873e9e211d2b80d399ca925feb91e25a"
   },
   "limits": {
     "lookupBytes": 16384
@@ -10,7 +10,7 @@
   "counts": {
     "codes": 3680,
     "sourceFiles": 617,
-    "emittingSites": 13011,
+    "emittingSites": 13014,
     "httpClassified": 1729,
     "guideAnchored": 468
   },
@@ -7213,12 +7213,22 @@
         },
         {
           "file": "packages/snapback-expo/supervised-environment.mjs",
-          "line": 656,
+          "line": 466,
           "column": 22
         },
         {
           "file": "packages/snapback-expo/supervised-environment.mjs",
-          "line": 801,
+          "line": 494,
+          "column": 12
+        },
+        {
+          "file": "packages/snapback-expo/supervised-environment.mjs",
+          "line": 689,
+          "column": 22
+        },
+        {
+          "file": "packages/snapback-expo/supervised-environment.mjs",
+          "line": 834,
           "column": 12
         }
       ],
@@ -7371,17 +7381,17 @@
         },
         {
           "file": "packages/snapback-expo/supervised-environment.mjs",
-          "line": 461,
-          "column": 12
-        },
-        {
-          "file": "packages/snapback-expo/supervised-environment.mjs",
-          "line": 656,
+          "line": 466,
           "column": 55
         },
         {
           "file": "packages/snapback-expo/supervised-environment.mjs",
-          "line": 736,
+          "line": 689,
+          "column": 55
+        },
+        {
+          "file": "packages/snapback-expo/supervised-environment.mjs",
+          "line": 769,
           "column": 12
         },
         {
@@ -15388,7 +15398,7 @@
         },
         {
           "file": "packages/snapback-expo/supervised-environment.mjs",
-          "line": 789,
+          "line": 822,
           "column": 12
         }
       ],
@@ -50167,7 +50177,12 @@
         },
         {
           "file": "packages/snapback-expo/supervised-environment.mjs",
-          "line": 608,
+          "line": 481,
+          "column": 26
+        },
+        {
+          "file": "packages/snapback-expo/supervised-environment.mjs",
+          "line": 641,
           "column": 30
         }
       ],
@@ -50270,7 +50285,7 @@
         },
         {
           "file": "packages/snapback-expo/supervised-environment.mjs",
-          "line": 829,
+          "line": 862,
           "column": 16
         }
       ],
@@ -50557,7 +50572,7 @@
         },
         {
           "file": "packages/snapback-expo/supervised-environment.mjs",
-          "line": 811,
+          "line": 844,
           "column": 12
         }
       ],
@@ -50957,7 +50972,7 @@
       "sites": [
         {
           "file": "packages/snapback-expo/supervised-environment.mjs",
-          "line": 478,
+          "line": 510,
           "column": 14
         }
       ],

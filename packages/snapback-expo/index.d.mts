@@ -269,6 +269,8 @@ export interface AppStateSource {
 
 export interface SnapbackExpoEnvironmentV1 {
   readonly format: 'snapback.expo-environment.v1';
+  /** Runtime posture declared by the environment, independent of custody. */
+  readonly runtimePlatform?: 'native' | 'web';
   readonly appState?: AppStateSource;
   readonly developmentSync?: false | Readonly<Record<string, unknown>>;
   resolveAppState?(): AppStateSource | Promise<AppStateSource>;

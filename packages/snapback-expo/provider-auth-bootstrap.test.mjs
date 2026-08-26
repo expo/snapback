@@ -419,22 +419,43 @@ const noIndexedDbWebBinding = structuredClone(binding);
 noIndexedDbWebBinding.provenance.issuedAt = new Date(Date.now() - 30 * 60_000).toISOString();
 noIndexedDbWebBinding.provenance.expiresAt = new Date(Date.now() + 30 * 60_000).toISOString();
 const noIndexedDbWebSupervisor = {
-  bearer: SUPERVISED_BEARER,
-  binding: noIndexedDbWebBinding,
-  events: [],
+  requests: [],
   diagnostics: [],
 };
-const {
-  resolveNativeAuthCustodyOperatingSystem: _noIndexedDbRuntimeOverride,
-  ...noIndexedDbWebEnvironment
-} = environmentFor('memory', noIndexedDbWebSupervisor);
-const previousWebDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
-assert.equal(globalThis.indexedDB, undefined, 'the regression requires IndexedDB to be absent');
-Object.defineProperty(globalThis, 'document', {
-  configurable: true,
-  enumerable: true,
-  value: Object.freeze({}),
+const noIndexedDbWebEnvironment = Object.freeze({
+  ...createSupervisedExpoEnvironment({
+    exchangeOrigin: 'http://127.0.0.1:4321',
+    runtimePlatform: 'web',
+    appState: appStateSource(),
+    bindingCache: null,
+    onDiagnostic(value) { noIndexedDbWebSupervisor.diagnostics.push(value); },
+    async fetch(_url, options) {
+      const requestAuthority = options.method === 'POST';
+      noIndexedDbWebSupervisor.requests.push(requestAuthority ? 'mint' : 'binding');
+      return Response.json({
+        format: SUPERVISED_EXCHANGE_FORMAT,
+        correlationId: 'headless-supervised-web-correlation',
+        binding: noIndexedDbWebBinding,
+        authority: requestAuthority
+          ? Object.freeze({
+              status: 'ready',
+              tokenType: 'Bearer',
+              token: SUPERVISED_BEARER,
+            })
+          : Object.freeze({ status: 'unavailable' }),
+      });
+    },
+  }),
+  resolveAppClientPlatform: async () => Object.freeze({
+    kind: 'memory',
+    cryptoObject: webcrypto,
+  }),
 });
+const previousWebDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
+const previousWebNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+assert.equal(globalThis.indexedDB, undefined, 'the regression requires IndexedDB to be absent');
+delete globalThis.document;
+delete globalThis.navigator;
 const noIndexedDbWebProjection = { boot: null, principal: null };
 function NoIndexedDbWebPasswordProjection() {
   noIndexedDbWebProjection.boot = useSnapbackExpoBootState();
@@ -449,7 +470,7 @@ await act(async () => {
     SnapbackExpoProvider,
     {
       app: noIndexedDbWebApp,
-      environment: Object.freeze(noIndexedDbWebEnvironment),
+      environment: noIndexedDbWebEnvironment,
       rqsStore: null,
       outboxDrain: 'manual',
       fallback(state) {
@@ -465,16 +486,21 @@ await settleReactUntil(
     && noIndexedDbWebProjection.principal !== null,
   () => `the no-IndexedDB Expo web provider must settle: ${JSON.stringify({
     boot: noIndexedDbWebProjection.boot,
-    events: noIndexedDbWebSupervisor.events,
+    requests: noIndexedDbWebSupervisor.requests,
     diagnostics: noIndexedDbWebSupervisor.diagnostics,
   })}`,
+);
+assert.deepEqual(
+  noIndexedDbWebSupervisor.requests,
+  ['binding'],
+  'headless Expo web makes one binding GET and zero supervised mint POSTs',
 );
 assert.equal(
   noIndexedDbWebProjection.principal.status,
   'anonymous',
   `Expo web without IndexedDB must not adopt from its memory custody platform: ${JSON.stringify({
     custody: noIndexedDbWebProjection.boot?.custody,
-    events: noIndexedDbWebSupervisor.events,
+    requests: noIndexedDbWebSupervisor.requests,
   })}`,
 );
 assert.equal(
@@ -482,17 +508,14 @@ assert.equal(
   1,
   'Expo web without IndexedDB exposes password entry',
 );
-assert.deepEqual(
-  noIndexedDbWebSupervisor.events,
-  [],
-  'Expo web without IndexedDB makes no supervised authority request',
-);
 await act(async () => {
   noIndexedDbWebRenderer.unmount();
   await new Promise((resolve) => setImmediate(resolve));
 });
 if (previousWebDocument === undefined) delete globalThis.document;
 else Object.defineProperty(globalThis, 'document', previousWebDocument);
+if (previousWebNavigator === undefined) delete globalThis.navigator;
+else Object.defineProperty(globalThis, 'navigator', previousWebNavigator);
 
 const previousLiveNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
 delete process.env.SNAPBACK_CLIENT_RQS_STORE;
@@ -1416,4 +1439,4 @@ server.restore();
 if (priorRqs === undefined) delete process.env.SNAPBACK_CLIENT_RQS_STORE;
 else process.env.SNAPBACK_CLIENT_RQS_STORE = priorRqs;
 
-console.log('provider-auth-bootstrap.test.mjs: no-IndexedDB web default, anonymous real-provider refresh handoff/resubscribe, password-session refresh preservation, revoked-route reuse refusal, real supervised-web provider adoption/signOut with mounted query, native client-option forwarding, and redeem-refusal adoption pass');
+console.log('provider-auth-bootstrap.test.mjs: DOM-less no-IndexedDB supervised-web runtime declaration/zero-mint default, anonymous real-provider refresh handoff/resubscribe, password-session refresh preservation, revoked-route reuse refusal, real supervised-web provider adoption/signOut with mounted query, native client-option forwarding, and redeem-refusal adoption pass');

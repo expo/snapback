@@ -324,6 +324,132 @@ await abortingEnvironment.resolveSupervisedAuthority({
 });
 assert.equal(exchangeFetches, 2, 'aborted construction deletes its retained bearer exchange');
 
+// Regression: a supervisor can restart on the same origin while an admitted
+// binding remains live. Its old per-boot correlation capability is then
+// refused, so authority refresh must fetch the successor binding-only exchange
+// once and retry with that exchange's correlation. A different binding is a
+// typed expiry, never a generic bootstrap outage.
+const restartRequests = [];
+let restartCorrelationId = 'supervisor-restart-correlation-1';
+const restartEnvironment = createSupervisedExpoEnvironment({
+  exchangeOrigin: 'http://127.0.0.1:4321',
+  async fetch(url, options) {
+    const requestAuthority = options.method === 'POST';
+    const presentedCorrelationId = requestAuthority
+      ? JSON.parse(options.body).correlationId
+      : null;
+    restartRequests.push({ method: options.method, presentedCorrelationId });
+    if (requestAuthority && presentedCorrelationId !== restartCorrelationId) {
+      return Response.json({ code: 'SNAPBACK_EXPO_CORRELATION_REFUSED' }, { status: 403 });
+    }
+    return Response.json({
+      format: SUPERVISED_EXCHANGE_FORMAT,
+      correlationId: restartCorrelationId,
+      binding,
+      authority: requestAuthority
+        ? {
+            status: 'ready',
+            tokenType: 'Bearer',
+            token: `sbs_${restartCorrelationId}`,
+          }
+        : { status: 'unavailable' },
+    });
+  },
+});
+const restartAdmission = await restartEnvironment.resolveBinding({
+  app,
+  signal: new AbortController().signal,
+});
+await restartEnvironment.resolveSupervisedAuthority({
+  app,
+  binding: restartAdmission.binding,
+  signal: new AbortController().signal,
+});
+restartCorrelationId = 'supervisor-restart-correlation-2';
+const restartedAuthority = await restartEnvironment.resolveSupervisedAuthority({
+  app,
+  binding: restartAdmission.binding,
+  signal: new AbortController().signal,
+  refresh: true,
+});
+assert.equal(restartedAuthority.status, 'ready');
+assert.equal(restartedAuthority.bearer, 'sbs_supervisor-restart-correlation-2');
+assert.deepEqual(restartRequests.slice(-3), [
+  { method: 'POST', presentedCorrelationId: 'supervisor-restart-correlation-1' },
+  { method: 'GET', presentedCorrelationId: null },
+  { method: 'POST', presentedCorrelationId: 'supervisor-restart-correlation-2' },
+]);
+const repeatedRestartedAuthority = await restartEnvironment.resolveSupervisedAuthority({
+  app,
+  binding: restartAdmission.binding,
+  signal: new AbortController().signal,
+  refresh: true,
+});
+assert.equal(repeatedRestartedAuthority.status, 'ready');
+assert.deepEqual(restartRequests.at(-1), {
+  method: 'POST',
+  presentedCorrelationId: 'supervisor-restart-correlation-2',
+});
+
+const changedBindingRequests = [];
+let changedBindingCorrelationId = 'changed-binding-correlation-1';
+let changedBinding = binding;
+const changedBindingEnvironment = createSupervisedExpoEnvironment({
+  exchangeOrigin: 'http://127.0.0.1:4321',
+  async fetch(url, options) {
+    const requestAuthority = options.method === 'POST';
+    const presentedCorrelationId = requestAuthority
+      ? JSON.parse(options.body).correlationId
+      : null;
+    changedBindingRequests.push({ method: options.method, presentedCorrelationId });
+    if (requestAuthority && presentedCorrelationId !== changedBindingCorrelationId) {
+      return Response.json({ code: 'SNAPBACK_EXPO_CORRELATION_REFUSED' }, { status: 403 });
+    }
+    return Response.json({
+      format: SUPERVISED_EXCHANGE_FORMAT,
+      correlationId: changedBindingCorrelationId,
+      binding: changedBinding,
+      authority: requestAuthority
+        ? {
+            status: 'ready',
+            tokenType: 'Bearer',
+            token: `sbs_${changedBindingCorrelationId}`,
+          }
+        : { status: 'unavailable' },
+    });
+  },
+});
+const changedBindingAdmission = await changedBindingEnvironment.resolveBinding({
+  app,
+  signal: new AbortController().signal,
+});
+await changedBindingEnvironment.resolveSupervisedAuthority({
+  app,
+  binding: changedBindingAdmission.binding,
+  signal: new AbortController().signal,
+});
+changedBindingCorrelationId = 'changed-binding-correlation-2';
+changedBinding = Object.freeze({
+  ...binding,
+  provenance: Object.freeze({
+    ...binding.provenance,
+    supervisorGeneration: 'supervised-environment-successor',
+  }),
+});
+await assert.rejects(
+  changedBindingEnvironment.resolveSupervisedAuthority({
+    app,
+    binding: changedBindingAdmission.binding,
+    signal: new AbortController().signal,
+    refresh: true,
+  }),
+  (error) => error.code === 'SNAPBACK_APP_BINDING_EXPIRED',
+);
+assert.deepEqual(changedBindingRequests.slice(-2), [
+  { method: 'POST', presentedCorrelationId: 'changed-binding-correlation-1' },
+  { method: 'GET', presentedCorrelationId: null },
+]);
+
 const checkoutNonce = `native-checkout-${'n'.repeat(32)}`;
 assert.equal(
   resolveSupervisedDevIdentityCheckoutNonce(),
@@ -493,4 +619,4 @@ try {
   }
 }
 
-console.log('supervised-environment.test.mjs: default environment, binding-only exchange, originless native on-demand authority request, sanitized refusal, abort cleanup, retryable redemption, and one-shot native checkout pass');
+console.log('supervised-environment.test.mjs: default environment, binding-only exchange, same-origin restart correlation recovery/binding expiry, originless native on-demand authority request, sanitized refusal, abort cleanup, retryable redemption, and one-shot native checkout pass');

@@ -452,22 +452,54 @@ export function createSupervisedExpoEnvironment({
     return exchange;
   };
 
-  const fetchAuthorityExchange = async (signal, key, retained = null) => {
+  const fetchAuthorityExchange = async (
+    signal,
+    key,
+    retained = null,
+    { refresh = false } = {},
+  ) => {
     let capability = retained?.correlationId ?? supervisorCapabilities.get(key) ?? null;
     if (!nonEmptyString(capability)) {
       const bootstrap = await fetchExchange(signal);
       if (bindingKey(bootstrap.binding) !== key) {
         throw codedError(
-          'SNAPBACK_APP_BINDING_OVERRIDE_UNCONFIRMED',
-          'The authority bootstrap did not match the admitted supervised binding.',
+          refresh ? 'SNAPBACK_APP_BINDING_EXPIRED' : 'SNAPBACK_APP_BINDING_OVERRIDE_UNCONFIRMED',
+          refresh
+            ? 'The Expo supervisor generation changed; reload to admit its replacement binding.'
+            : 'The authority bootstrap did not match the admitted supervised binding.',
         );
       }
       capability = bootstrap.correlationId;
     }
-    return fetchExchange(signal, {
-      requestAuthority: true,
-      supervisorCapability: capability,
-    });
+    try {
+      return await fetchExchange(signal, {
+        requestAuthority: true,
+        supervisorCapability: capability,
+      });
+    } catch (error) {
+      if (
+        error?.code !== 'SNAPBACK_EXPO_BOOTSTRAP_UNAVAILABLE'
+        || error?.diagnostic?.details?.status !== 403
+      ) throw error;
+
+      // A same-origin supervisor restart invalidates the old per-boot
+      // correlation capability before the provider can observe any new
+      // binding. Clear both retained copies, fetch the binding-only successor
+      // once, and mint only when it still names the admitted binding.
+      supervisorCapabilities.delete(key);
+      exchanges.delete(key);
+      const bootstrap = await fetchExchange(signal);
+      if (bindingKey(bootstrap.binding) !== key) {
+        throw codedError(
+          'SNAPBACK_APP_BINDING_EXPIRED',
+          'The Expo supervisor generation changed; reload to admit its replacement binding.',
+        );
+      }
+      return fetchExchange(signal, {
+        requestAuthority: true,
+        supervisorCapability: bootstrap.correlationId,
+      });
+    }
   };
 
   const logConsumedCheckoutOnce = (status) => {
@@ -578,6 +610,7 @@ export function createSupervisedExpoEnvironment({
 
   const environment = {
     format: 'snapback.expo-environment.v1',
+    ...(runtimePlatform === undefined ? {} : { runtimePlatform }),
     ...(appState === undefined ? {} : { appState }),
     ...(resolveAppState === undefined ? {} : { resolveAppState }),
     ...(developmentSync === undefined ? {} : { developmentSync }),
@@ -649,7 +682,7 @@ export function createSupervisedExpoEnvironment({
       // exchange retains an unavailable marker; reaching this explicit
       // authority resolver is what asks the supervisor to mint on demand.
       const retained = exchanges.get(key);
-      const exchange = await fetchAuthorityExchange(signal, key, retained);
+      const exchange = await fetchAuthorityExchange(signal, key, retained, { refresh });
       exchanges.delete(key);
       if (bindingKey(exchange.binding) !== key) {
         throw codedError(
