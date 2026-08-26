@@ -8009,9 +8009,13 @@ async function generateInProcessLocked({
   });
   // Server-declared, never authored here (LLP 0032 P2 / LLP 0037): the
   // selected committed schemas/ instance is generated from the Rust core's
-  // target declaration, drift-gated by tests/capability_v0.rs, and embedded
-  // verbatim.
-  const capabilityManifest = canonicalCapability.manifest;
+  // target declaration and drift-gated by tests/capability_v0.rs. Its
+  // app-generation schema version follows the same auth-mode selection as the
+  // schema and function manifests.
+  const capabilityManifest = {
+    ...canonicalCapability.manifest,
+    schemaVersion: artifactVersion,
+  };
   const dataIdentity = trustedCompositionActivation?.activation?.databaseId
     ? {
         kind: 'trusted-composition-database',
@@ -8155,7 +8159,7 @@ async function generateInProcessLocked({
     ['schema.manifest.schema.json', schemaManifest, { artifactKind: 'schemaManifest', schemaVersion: artifactVersion }],
     ['functions.manifest.schema.json', functionManifest, { artifactKind: 'functionManifest', schemaVersion: artifactVersion }],
     ['normalized-definition.v1.schema.json', normalizedDefinition, { schemaVersion: NORMALIZED_DEFINITION_SCHEMA_VERSION }],
-    ['capability.manifest.schema.json', capabilityManifest, { artifactKind: 'capabilityManifest', schemaVersion: SCHEMA_VERSION }],
+    ['capability.manifest.schema.json', capabilityManifest, { artifactKind: 'capabilityManifest', schemaVersion: artifactVersion }],
     ...(routesManifest ? [['routes.manifest.schema.json', routesManifest, {}]] : []),
   ]) {
     const { missing, problems } = validateArtifactAgainstSchema(schemaFile, instance, expected);
@@ -8177,11 +8181,16 @@ async function generateInProcessLocked({
   const outDir = join(backendRoot, targetConfig.outputDirectory);
   // DK-7 for the asset reference DTO: every emitted upload reference must
   // match the committed Rust-owned schema exactly (LLP 0037 dated alignment).
-  for (const reference of renderAssetUploadReferences(appId, assetUploadIntents, functionsModule)) {
+  for (const reference of renderAssetUploadReferences(
+    appId,
+    assetUploadIntents,
+    functionsModule,
+    artifactVersion,
+  )) {
     const { missing, problems } = validateArtifactAgainstSchema(
       'asset.upload-reference.schema.json',
       reference,
-      { artifactKind: 'assetUploadReference', schemaVersion: SCHEMA_VERSION },
+      { artifactKind: 'assetUploadReference', schemaVersion: artifactVersion },
     );
     if (missing) {
       err('CODEGEN_ARTIFACT_SCHEMA_MISSING', 'codegen',
@@ -8492,6 +8501,7 @@ async function generateInProcessLocked({
   }
   const remoteServicePublication = remoteServiceInputs
     ? buildRemoteServicePublication({
+        artifactVersion,
         outDir,
         publicationRoot: applicationRepositoryRoot(backendRoot),
         appId,
@@ -8508,7 +8518,7 @@ async function generateInProcessLocked({
     const { missing, problems } = validateArtifactAgainstSchema(
       artifact.schemaFile,
       artifact.value,
-      { artifactKind: artifact.value.artifactKind, schemaVersion: SCHEMA_VERSION },
+      { artifactKind: artifact.value.artifactKind, schemaVersion: artifactVersion },
     );
     if (missing) {
       err('CODEGEN_ARTIFACT_SCHEMA_MISSING', 'codegen',
@@ -11183,6 +11193,7 @@ function jsonSchemaForValidator(validator) {
 }
 
 function buildRemoteServicePublication({
+  artifactVersion,
   outDir,
   publicationRoot,
   appId,
@@ -11247,7 +11258,7 @@ function buildRemoteServicePublication({
 
   const authValue = {
     artifactKind: 'remoteAuthCapabilityManifest',
-    schemaVersion: SCHEMA_VERSION,
+    schemaVersion: artifactVersion,
     manifestVersion: 1,
     capabilityId: inputs.config.authCapabilityId,
     appId,
@@ -11269,7 +11280,7 @@ function buildRemoteServicePublication({
   }
   const dataValue = {
     artifactKind: 'remoteDataCapabilityManifest',
-    schemaVersion: SCHEMA_VERSION,
+    schemaVersion: artifactVersion,
     manifestVersion: 1,
     capabilityId: inputs.config.dataCapabilityId,
     appId,
@@ -11287,7 +11298,7 @@ function buildRemoteServicePublication({
   if (!profilePath) return null;
   const profileValue = {
     artifactKind: 'remoteServiceProfile',
-    schemaVersion: SCHEMA_VERSION,
+    schemaVersion: artifactVersion,
     profileVersion: 1,
     profileId: inputs.config.profileId,
     appId,
@@ -15053,10 +15064,15 @@ function renderQueryGroupReferences(
 //   generation: the deployment mints real generations at activation, and the
 //   client→server carrier is the pair (`intentPolicyHash`,
 //   `implementationHash`), never the generation.
-function renderAssetUploadReferences(appId, assetUploadIntents, functionsModule) {
+function renderAssetUploadReferences(
+  appId,
+  assetUploadIntents,
+  functionsModule,
+  artifactVersion,
+) {
   return assetUploadIntents.map((intent) => ({
     artifactKind: 'assetUploadReference',
-    schemaVersion: SCHEMA_VERSION,
+    schemaVersion: artifactVersion,
     appId,
     id: intent.id,
     name: intent.name,
@@ -16520,7 +16536,12 @@ function buildGeneratedReferences(
   // Derived default intents also project as api.defaults.<table>.<field>
   // so the zero-ceremony flow reads naturally (LLP 0044 §Ceremony floor).
   const defaultAssetNames = dict();
-  for (const reference of renderAssetUploadReferences(appId, assetUploadIntents, functionsModule)) {
+  for (const reference of renderAssetUploadReferences(
+    appId,
+    assetUploadIntents,
+    functionsModule,
+    expectedGeneration.schemaVersion,
+  )) {
     assets[reference.name] = reference;
     if (reference.name.startsWith('_assets.default.')) {
       const [tableName, fieldName] = reference.name.slice('_assets.default.'.length).split('.');

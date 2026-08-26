@@ -289,13 +289,16 @@ assert.throws(
   const contract = readJson(join(dir, 'generated', 'contract-data.manifest.json'));
   const artifacts = readJson(join(dir, 'generated', 'artifacts.json'));
 
-  assert.equal(schema.schemaVersion, 'snapback.v1');
+  assert.deepEqual(
+    [schema.schemaVersion, functions.schemaVersion, capabilities.schemaVersion],
+    Array(3).fill(schema.schemaVersion),
+    'sessions schema, functions, and capability artifacts must agree on schemaVersion',
+  );
   assert.deepEqual(schema.auth, { mode: 'sessions' });
   const permissionTable = schema.tables.find(({ name }) => name === 'todoPermissions');
   assert.equal(permissionTable.permissionBacking, true);
   assert.deepEqual(permissionTable.permissionFields, ['title']);
   assert(schema.requiredCapabilities.includes('auth.sessions.v1'));
-  assert.equal(functions.schemaVersion, 'snapback.v1');
   assert.equal(schema.inputsHash, functions.inputsHash);
   assert.match(schema.schemaHash, /^snapback\.v1:sessions:schema:sha256:[0-9a-f]{64}$/);
   assert.match(functions.bundleHash, /^snapback\.v1:sessions:function:sha256:[0-9a-f]{64}$/);
@@ -318,9 +321,7 @@ assert.throws(
   assert.equal(Object.hasOwn(create, 'authorityCreating'), false);
 
   // Contract and the codegen-owned review index are bound to the exact paired
-  // schema/function identity and move with it. The Rust-owned capability keeps
-  // its independent v0 format.
-  assert.equal(capabilities.schemaVersion, 'snapback.v0');
+  // schema/function identity and move with it.
   assert.deepEqual(capabilities.hostedAuth, {
     authenticationThrottle: 'processLocal',
     clientCredentialPosture: 'bearerV1XssExposed',

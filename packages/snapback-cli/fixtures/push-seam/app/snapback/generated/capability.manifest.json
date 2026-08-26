@@ -483,7 +483,7 @@
       "sqliteVariableFloor": 999
     }
   },
-  "schemaVersion": "snapback.v0",
+  "schemaVersion": "snapback.v1",
   "standardPatterns": {
     "authScopeDisjointnessSkip": "disabled",
     "liveDelivery": "conservative-resnapshot"
